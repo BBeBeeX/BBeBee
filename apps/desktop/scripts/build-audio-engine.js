@@ -40,9 +40,19 @@ if (!chosenCompiler) {
   process.exit(1)
 }
 
+const unixFlags = []
+if (!isWin) {
+  unixFlags.push('-pthread', '-ldl')
+  if (process.platform === 'darwin') {
+    unixFlags.push('-Wl,-rpath,@executable_path', '-Wl,-rpath,@loader_path')
+  } else if (process.platform === 'linux') {
+    unixFlags.push('-Wl,-rpath,$ORIGIN')
+  }
+}
+
 const args = chosenCompiler === 'cl'
   ? ['/std:c++17', '/O2', '/EHsc', srcFile, `/Fe:${outExe}`]
-  : ['-O2', '-std=c++17', srcFile, '-o', outExe, ...(!isWin ? ['-pthread', '-ldl'] : [])]
+  : ['-O2', '-std=c++17', srcFile, '-o', outExe, ...unixFlags]
 
 console.log(`[build-audio-engine] Running: ${chosenCompiler} ${args.join(' ')}`)
 const buildProc = spawnSync(chosenCompiler, args, { stdio: 'inherit' })

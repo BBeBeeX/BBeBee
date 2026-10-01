@@ -491,10 +491,43 @@ export class AudioMpv extends Service implements AudioService {
     this.bridge?.('audio', 'mpvSetMuted', [m]).catch(() => undefined)
   }
 
+  async preloadNext(src: string | Uri, _opts?: { headers?: Record<string, string> }): Promise<void> {
+    const bridge = resolveBridgeCall(this.config.bridgeCall)
+    if (bridge) {
+      try {
+        await bridge('audio', 'mpvAppend', [String(src), false])
+        this.ctx.logger?.info('mpv: preloaded next track for gapless handoff: %s', String(src))
+      } catch (err) {
+        this.ctx.logger?.debug?.('mpv: failed to preload next track: %s', String(err))
+      }
+    }
+  }
+
   async listOutputDevices(): Promise<OutputDevice[]> {
+    const bridge = resolveBridgeCall(this.config.bridgeCall)
+    if (bridge) {
+      try {
+        const mpvDevices = (await bridge('audio', 'mpvGetAudioDevices', [])) as Array<{ name: string; description: string }>
+        if (Array.isArray(mpvDevices) && mpvDevices.length > 0) {
+          const mapped: OutputDevice[] = mpvDevices.map((d) => ({
+            id: d.name,
+            label: d.description || d.name,
+            isDefault: d.name === 'auto' || d.name === 'default',
+          }))
+          if (!this.activeDeviceLabel) {
+            const def = mapped.find((d) => d.isDefault) ?? mapped[0]
+            if (def) this.activeDeviceLabel = def.label
+          }
+          return mapped
+        }
+      } catch (err) {
+        this.ctx.logger?.debug?.('mpv: native getAudioDevices query failed, falling back to standard enumeration: %s', String(err))
+      }
+    }
+
     const devices = await enumerateOutputDevices({
       logger: this.ctx.logger,
-      bridgeCall: resolveBridgeCall(this.config.bridgeCall),
+      bridgeCall: bridge,
     })
     if (!this.activeDeviceLabel) {
       const def = devices.find((d) => d.isDefault) ?? devices[0]
@@ -507,9 +540,14 @@ export class AudioMpv extends Service implements AudioService {
     this.selectedDeviceId = id
     const bridge = resolveBridgeCall(this.config.bridgeCall)
     if (bridge) {
-      const { nativeId, label } = await resolveNativeOutputDevice({ id, bridge, logger: this.ctx.logger })
-      if (label) this.activeDeviceLabel = label
-      await bridge('audio', 'setOutputDevice', [nativeId]).catch(() => undefined)
+      if (id.startsWith('wasapi/') || id.startsWith('pulse/') || id.includes('{')) {
+        await bridge('audio', 'setOutputDevice', [id]).catch(() => undefined)
+        this.activeDeviceLabel = id
+      } else {
+        const { nativeId, label } = await resolveNativeOutputDevice({ id, bridge, logger: this.ctx.logger })
+        if (label) this.activeDeviceLabel = label
+        await bridge('audio', 'setOutputDevice', [nativeId]).catch(() => undefined)
+      }
     }
     const targetId = sanitizeSinkId(id)
     const sink = (this.context as BaseAudioContext & { setSinkId?: (id: string) => Promise<void> }).setSinkId

@@ -392,6 +392,13 @@ public:
             int r = mpvLib.command(mpv, cmd);
             if (r < 0) {
                 std::cerr << "audio-engine: append loadfile failed with code " << r << "\n";
+                JsonValue err = JsonValue::object();
+                err["type"] = "error";
+                err["action"] = "append";
+                err["uri"] = uri;
+                err["message"] = mpvLib.error_string ? mpvLib.error_string(r) : "loadfile append failed";
+                sendJson(err);
+                return;
             }
         }
         JsonValue resp = JsonValue::object();

@@ -202,7 +202,7 @@ jobs:
         run: pnpm build:desktop
       - name: Package with electron-builder
         run: |
-          npx --yes electron-builder --config apps/desktop/electron-builder.yml --publish never
+          pnpm dist:desktop --publish never
       - name: Upload packaged installer artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -215,4 +215,4 @@ jobs:
             apps/desktop/dist/*.deb
             apps/desktop/dist/*.rpm
             apps/desktop/dist/*.blockmap
-          if-no-files-found: warn
+          if-no-files-found: error

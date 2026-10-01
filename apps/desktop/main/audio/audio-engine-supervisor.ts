@@ -256,6 +256,13 @@ export class AudioEngineSupervisor {
       }
       case 'error': {
         const message = String(payload['message'] ?? 'Audio engine error')
+        const action = payload['action']
+        if (action === 'append' && this.pendingAppends.length > 0) {
+          const p = this.pendingAppends.shift()!
+          clearTimeout(p.timer)
+          p.reject(new Error(message))
+          break
+        }
         while (this.pendingLoads.length > 0) {
           const p = this.pendingLoads.shift()!
           clearTimeout(p.timer)

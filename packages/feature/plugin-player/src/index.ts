@@ -1231,6 +1231,12 @@ export class Player extends Service implements PlayerService {
     try {
       const handle = await this.resolveStream(next.item.trackUrn)
       if (abort.signal.aborted) return
+
+      // Preload next track if the audio engine supports gapless preload (e.g. mpv append)
+      if (typeof this.ownCtx.audio.preloadNext === 'function') {
+        void this.ownCtx.audio.preloadNext(handle.target, handle.headers ? { headers: handle.headers } : undefined)
+      }
+
       // Buffered, because a handoff with no gap cannot wait on a network read.
       // A track too large to buffer is simply not prefetched: it will stream
       // when its turn comes, and gapless was never available for it anyway.

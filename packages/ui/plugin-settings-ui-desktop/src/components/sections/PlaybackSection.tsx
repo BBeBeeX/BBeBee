@@ -136,6 +136,7 @@ export function PlaybackSection({
 
   useEffect(() => {
     if (
+      !isMpv &&
       currentDeviceId &&
       currentDeviceId !== 'default' &&
       (currentDeviceId.includes('MMDEVAPI') ||
@@ -152,7 +153,7 @@ export function PlaybackSection({
         ctx.logger?.error('playback-settings: failed to set output device to default: %s', String(err))
       })
     }
-  }, [currentDeviceId, update, ctx])
+  }, [currentDeviceId, isMpv, update, ctx])
 
   const isGenericPlaceholder = (text: string): boolean => {
     if (!text) return true
