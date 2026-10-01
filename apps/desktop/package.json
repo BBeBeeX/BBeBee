@@ -9,6 +9,7 @@
     "dev:debug": "DEBUG=1 electron-vite dev",
     "build:audio-engine": "node scripts/build-audio-engine.js",
     "build": "node scripts/build-audio-engine.js && electron-vite build",
+    "dist": "electron-builder --config electron-builder.yml",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "electron-vite preview"
   },

@@ -43,6 +43,7 @@ linux:
       filter:
         - audio-engine
         - libmpv.so*
+        - "*.so*"
 mac:
   target:
     - target: dmg
@@ -55,3 +56,4 @@ mac:
       filter:
         - audio-engine
         - libmpv*.dylib
+        - "*.dylib"

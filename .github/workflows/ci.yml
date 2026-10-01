@@ -200,3 +200,19 @@ jobs:
           ls -la apps/desktop/resources/bin/
       - name: Build Desktop Application
         run: pnpm build:desktop
+      - name: Package with electron-builder
+        run: |
+          npx --yes electron-builder --config apps/desktop/electron-builder.yml --publish never
+      - name: Upload packaged installer artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-dist-${{ matrix.os }}
+          path: |
+            apps/desktop/dist/*.exe
+            apps/desktop/dist/*.dmg
+            apps/desktop/dist/*.AppImage
+            apps/desktop/dist/*.zip
+            apps/desktop/dist/*.deb
+            apps/desktop/dist/*.rpm
+            apps/desktop/dist/*.blockmap
+          if-no-files-found: warn

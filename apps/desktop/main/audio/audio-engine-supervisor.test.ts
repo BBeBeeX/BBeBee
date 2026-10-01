@@ -122,4 +122,36 @@ describe('AudioEngineSupervisor standalone native executable', () => {
       /Audio engine executable not found/,
     )
   })
+
+  it('fails fast on append when executable is not found', async () => {
+    supervisor = new AudioEngineSupervisor(undefined, '/non/existent/path/to/audio-engine')
+    await expect(supervisor.append('file:///music/next.flac')).rejects.toThrow(
+      /Audio engine executable not found/,
+    )
+  })
+
+  it('appends tracks for gapless playback', async () => {
+    supervisor = new AudioEngineSupervisor()
+    const readyPromise = new Promise<void>((resolve) => {
+      supervisor!.onReady(() => resolve())
+    })
+    supervisor.start()
+    await readyPromise
+
+    await expect(supervisor.append('file:///music/next-gapless.flac')).resolves.toBeUndefined()
+  })
+
+  it('queries native audio devices list', async () => {
+    supervisor = new AudioEngineSupervisor()
+    const readyPromise = new Promise<void>((resolve) => {
+      supervisor!.onReady(() => resolve())
+    })
+    supervisor.start()
+    await readyPromise
+
+    const devices = await supervisor.getAudioDevices()
+    expect(Array.isArray(devices)).toBe(true)
+    expect(devices.length).toBeGreaterThan(0)
+    expect(devices[0]!.name).toBeDefined()
+  })
 })

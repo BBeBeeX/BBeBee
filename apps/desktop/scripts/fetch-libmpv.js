@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, copyFileSync, readdirSync, lstatSync, readlinkSync } from 'node:fs'
-import { join, dirname, resolve } from 'node:path'
+import { existsSync, mkdirSync, copyFileSync, readdirSync, lstatSync, readlinkSync, readFileSync, unlinkSync } from 'node:fs'
+import { join, dirname, resolve, basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import process from 'node:process'
 import console from 'node:console'
 
@@ -68,7 +69,7 @@ if (customPath && existsSync(customPath)) {
   }
 }
 
-// 2. Search host system libraries
+// 2. Search host system libraries and copy transitive media dependencies
 function copyResolvedFile(srcPath, destPath) {
   try {
     let current = srcPath
@@ -85,6 +86,71 @@ function copyResolvedFile(srcPath, destPath) {
   }
 }
 
+function bundleLinuxDependencies(mainSoPath, targetDir) {
+  try {
+    const result = spawnSync('ldd', [mainSoPath], { encoding: 'utf-8' })
+    if (result.status !== 0 || !result.stdout) return
+
+    // Media & helper dependencies to bundle. Strictly exclude core glibc, kernel, X11, mesa, audio daemons
+    const allowedPrefixes = [
+      'libavcodec', 'libavformat', 'libavutil', 'libswresample', 'libswscale',
+      'libavfilter', 'libass', 'libplacebo', 'libuchardet', 'libmujs',
+      'librubberband', 'liblcms2', 'libfontconfig', 'libfreetype', 'libfribidi',
+      'libbluray', 'libdvdnav', 'libdvdread', 'libdav1d', 'libvpx', 'libshaderc',
+    ]
+
+    const lines = result.stdout.split('\n')
+    for (const line of lines) {
+      const parts = line.trim().split('=>')
+      if (parts.length === 2) {
+        const libName = parts[0].trim()
+        const libPath = parts[1].trim().split(' ')[0]
+        if (libPath && existsSync(libPath)) {
+          const shouldBundle = allowedPrefixes.some((prefix) => libName.startsWith(prefix))
+          if (shouldBundle) {
+            const dest = join(targetDir, libName)
+            if (!existsSync(dest)) {
+              copyResolvedFile(libPath, dest)
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn(`[fetch-libmpv] Warning: failed to trace Linux dependencies via ldd:`, err)
+  }
+}
+
+function bundleMacDependencies(mainDylibPath, targetDir) {
+  try {
+    const result = spawnSync('otool', ['-L', mainDylibPath], { encoding: 'utf-8' })
+    if (result.status !== 0 || !result.stdout) return
+
+    const lines = result.stdout.split('\n')
+    for (const line of lines) {
+      const trimmed = line.trim()
+      const depPath = trimmed.split(' ')[0]
+      if (depPath && (depPath.startsWith('/opt/homebrew') || depPath.startsWith('/usr/local/opt') || depPath.includes('Cellar'))) {
+        if (existsSync(depPath)) {
+          const depName = basename(depPath)
+          const dest = join(targetDir, depName)
+          if (!existsSync(dest)) {
+            copyResolvedFile(depPath, dest)
+          }
+          // Rewrite dependency to load from @rpath
+          try {
+            spawnSync('install_name_tool', ['-change', depPath, `@rpath/${depName}`, mainDylibPath], { stdio: 'ignore' })
+          } catch {
+            // install_name_tool not available or error
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn(`[fetch-libmpv] Warning: failed to trace macOS dependencies via otool:`, err)
+  }
+}
+
 if (targetPlatform === 'linux') {
   const linuxSearchPaths = [
     '/usr/lib/x86_64-linux-gnu',
@@ -95,7 +161,7 @@ if (targetPlatform === 'linux') {
     '/lib64',
   ]
 
-  let found = false
+  let primaryLibPath = null
   for (const dir of linuxSearchPaths) {
     if (!existsSync(dir)) continue
     try {
@@ -104,7 +170,11 @@ if (targetPlatform === 'linux') {
         if (entry.startsWith('libmpv.so')) {
           const fullPath = join(dir, entry)
           copyResolvedFile(fullPath, join(resourcesBinDir, entry))
-          found = true
+          if (!primaryLibPath && entry.includes('so.2')) {
+            primaryLibPath = fullPath
+          } else if (!primaryLibPath) {
+            primaryLibPath = fullPath
+          }
         }
       }
     } catch {
@@ -113,7 +183,7 @@ if (targetPlatform === 'linux') {
   }
 
   // Ensure libmpv.so.2 and libmpv.so symlink/copy exist if any libmpv.so was found
-  if (found) {
+  if (primaryLibPath) {
     const files = readdirSync(resourcesBinDir)
     const base = files.find((f) => f.startsWith('libmpv.so'))
     if (base) {
@@ -123,7 +193,9 @@ if (targetPlatform === 'linux') {
       if (!existsSync(join(resourcesBinDir, 'libmpv.so'))) {
         copyFileSync(join(resourcesBinDir, base), join(resourcesBinDir, 'libmpv.so'))
       }
-      console.log(`[fetch-libmpv] Linux libmpv successfully staged.`)
+      // Bundle transitive dependencies
+      bundleLinuxDependencies(primaryLibPath, resourcesBinDir)
+      console.log(`[fetch-libmpv] Linux libmpv and dependencies successfully staged.`)
       process.exit(0)
     }
   }
@@ -135,7 +207,7 @@ if (targetPlatform === 'linux') {
     join(process.env['HOME'] || '', '.brew/lib'),
   ]
 
-  let found = false
+  let primaryLibPath = null
   for (const dir of macSearchPaths) {
     if (!existsSync(dir)) continue
     try {
@@ -144,7 +216,7 @@ if (targetPlatform === 'linux') {
         if (entry.includes('libmpv') && entry.endsWith('.dylib')) {
           const fullPath = join(dir, entry)
           copyResolvedFile(fullPath, join(resourcesBinDir, entry))
-          found = true
+          if (!primaryLibPath) primaryLibPath = fullPath
         }
       }
     } catch {
@@ -152,17 +224,20 @@ if (targetPlatform === 'linux') {
     }
   }
 
-  if (found) {
+  if (primaryLibPath) {
     const files = readdirSync(resourcesBinDir)
     const base = files.find((f) => f.includes('libmpv') && f.endsWith('.dylib'))
     if (base) {
-      if (!existsSync(join(resourcesBinDir, 'libmpv.dylib'))) {
-        copyFileSync(join(resourcesBinDir, base), join(resourcesBinDir, 'libmpv.dylib'))
+      const targetMain = join(resourcesBinDir, 'libmpv.dylib')
+      if (!existsSync(targetMain)) {
+        copyFileSync(join(resourcesBinDir, base), targetMain)
       }
       if (!existsSync(join(resourcesBinDir, 'libmpv.2.dylib'))) {
         copyFileSync(join(resourcesBinDir, base), join(resourcesBinDir, 'libmpv.2.dylib'))
       }
-      console.log(`[fetch-libmpv] macOS libmpv successfully staged.`)
+      // Bundle transitive dependencies
+      bundleMacDependencies(targetMain, resourcesBinDir)
+      console.log(`[fetch-libmpv] macOS libmpv and dependencies successfully staged.`)
       process.exit(0)
     }
   }
@@ -201,11 +276,14 @@ if (targetPlatform === 'linux') {
     process.exit(0)
   }
 
-  // 3. If running on Windows or CI, attempt download of prebuilt Windows libmpv archive
+  // 3. If running on Windows or CI, attempt download of prebuilt Windows libmpv archive with SHA256 integrity verification
   console.log(`[fetch-libmpv] Searching for prebuilt Windows libmpv release...`)
   const releaseUrl =
     process.env['LIBMPV_DOWNLOAD_URL'] ||
     'https://github.com/zhongfly/mpv-winbuild/releases/download/2024-10-27-0130fec/mpv-dev-x86_64-20241027-git-0130fec.7z'
+
+  // Pinned known SHA256 or user-provided override
+  const expectedSha256 = process.env['LIBMPV_EXPECTED_SHA256'] || '47a544c776fb083b4b8f52ef137f8f94d93b160b73c2ea8f1350ee9c55b119cb'
 
   const tmpArchive = join(resourcesBinDir, 'mpv-dev-x86_64.7z')
   console.log(`[fetch-libmpv] Downloading libmpv from: ${releaseUrl}`)
@@ -221,7 +299,24 @@ if (targetPlatform === 'linux') {
   }
 
   if (downloadSuccess) {
-    console.log(`[fetch-libmpv] Extracting DLLs from archive...`)
+    // Verify SHA256 integrity
+    const fileBytes = readFileSync(tmpArchive)
+    const actualSha256 = createHash('sha256').update(fileBytes).digest('hex')
+    console.log(`[fetch-libmpv] Archive SHA256: ${actualSha256}`)
+
+    if (expectedSha256 && expectedSha256 !== 'skip' && actualSha256.toLowerCase() !== expectedSha256.toLowerCase()) {
+      console.error(`[fetch-libmpv] ERROR: SHA256 checksum mismatch!`)
+      console.error(`  Expected: ${expectedSha256}`)
+      console.error(`  Actual:   ${actualSha256}`)
+      try {
+        unlinkSync(tmpArchive)
+      } catch {
+        // Temp file already removed or locked
+      }
+      process.exit(1)
+    }
+
+    console.log(`[fetch-libmpv] SHA256 verified successfully. Extracting DLLs from archive...`)
     const extract7z = spawnSync('7z', ['e', tmpArchive, `-o${resourcesBinDir}`, '*.dll', '-y', '-r'], {
       stdio: 'inherit',
     })
@@ -231,6 +326,12 @@ if (targetPlatform === 'linux') {
       }
       if (existsSync(join(resourcesBinDir, 'mpv-2.dll')) && !existsSync(join(resourcesBinDir, 'libmpv-2.dll'))) {
         copyFileSync(join(resourcesBinDir, 'mpv-2.dll'), join(resourcesBinDir, 'libmpv-2.dll'))
+      }
+      // Cleanup temporary archive
+      try {
+        unlinkSync(tmpArchive)
+      } catch {
+        // Temp file already removed or locked
       }
       console.log(`[fetch-libmpv] Extracted Windows libmpv successfully.`)
       process.exit(0)

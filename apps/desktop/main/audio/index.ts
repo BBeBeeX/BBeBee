@@ -34,6 +34,7 @@ export interface AudioHostApi {
 
   // MPV Audio Engine operations
   mpvLoad(uri: string, options?: AudioRequestOptions): Promise<{ durationMs: number }>
+  mpvAppend(uri: string, playNow?: boolean): Promise<void>
   mpvPlay(atMs?: number): Promise<void>
   mpvPause(): Promise<void>
   mpvStop(): Promise<void>
@@ -44,6 +45,7 @@ export interface AudioHostApi {
   mpvSetVisualizer(enabled: boolean, fftSize?: number): Promise<void>
   mpvGetFftFrame(): Promise<FftFrame | null>
   mpvGetState(): Promise<PlaybackStateEvent>
+  mpvGetAudioDevices(): Promise<Array<{ name: string; description: string }>>
 
   readonly supervisor: AudioEngineSupervisor
 }
@@ -80,6 +82,9 @@ export function createAudioHost(logger?: AudioMainLogger): AudioHostApi {
     mpvLoad: async (uri, options) => {
       return supervisor.load(uri, options)
     },
+    mpvAppend: async (uri, playNow) => {
+      return supervisor.append(uri, playNow)
+    },
     mpvPlay: async (atMs) => {
       supervisor.play(atMs)
     },
@@ -109,6 +114,9 @@ export function createAudioHost(logger?: AudioMainLogger): AudioHostApi {
     },
     mpvGetState: async () => {
       return lastState
+    },
+    mpvGetAudioDevices: async () => {
+      return supervisor.getAudioDevices()
     },
 
     supervisor,

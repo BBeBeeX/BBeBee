@@ -76,6 +76,19 @@ export class AudioEngineSupervisor {
     timer: ReturnType<typeof setTimeout>
   }> = []
 
+  private pendingAppends: Array<{
+    uri: string
+    resolve: () => void
+    reject: (err: Error) => void
+    timer: ReturnType<typeof setTimeout>
+  }> = []
+
+  private pendingDeviceQueries: Array<{
+    resolve: (devices: Array<{ name: string; description: string }>) => void
+    reject: (err: Error) => void
+    timer: ReturnType<typeof setTimeout>
+  }> = []
+
   constructor(logger?: AudioMainLogger, customExecutablePath?: string) {
     this.logger = logger
     this.customExecutablePath = customExecutablePath
@@ -150,10 +163,25 @@ export class AudioEngineSupervisor {
 
       this.logger?.info?.('audio-engine-supervisor: spawning standalone native audio-engine executable at: %s', exePath)
 
+      const exeDir = dirname(exePath)
+      const childEnv: Record<string, string | undefined> = {
+        ...process.env,
+        NODE_ENV: process.env['NODE_ENV'] ?? 'production',
+        LD_LIBRARY_PATH: process.env['LD_LIBRARY_PATH']
+          ? `${exeDir}:${process.env['LD_LIBRARY_PATH']}`
+          : exeDir,
+        DYLD_LIBRARY_PATH: process.env['DYLD_LIBRARY_PATH']
+          ? `${exeDir}:${process.env['DYLD_LIBRARY_PATH']}`
+          : exeDir,
+        PATH: process.platform === 'win32'
+          ? `${exeDir};${process.env['PATH'] || ''}`
+          : process.env['PATH'],
+      }
+
       this.child = spawn(exePath, [], {
         stdio: ['pipe', 'pipe', 'pipe'],
         windowsHide: true,
-        env: { ...process.env, NODE_ENV: process.env.NODE_ENV ?? 'production' },
+        env: childEnv,
       })
 
       let stdoutBuffer = ''
@@ -235,6 +263,26 @@ export class AudioEngineSupervisor {
         }
         break
       }
+      case 'appended': {
+        while (this.pendingAppends.length > 0) {
+          const p = this.pendingAppends.shift()!
+          clearTimeout(p.timer)
+          p.resolve()
+        }
+        break
+      }
+      case 'audio-devices': {
+        const devices = (Array.isArray(payload['devices']) ? payload['devices'] : []) as Array<{
+          name: string
+          description: string
+        }>
+        while (this.pendingDeviceQueries.length > 0) {
+          const p = this.pendingDeviceQueries.shift()!
+          clearTimeout(p.timer)
+          p.resolve(devices)
+        }
+        break
+      }
       case 'state':
       case 'playback-state':
         for (const cb of this.stateListeners) {
@@ -265,11 +313,21 @@ export class AudioEngineSupervisor {
   private handleWorkerExit(code: number | null, signal: string | null): void {
     this.child = null
 
-    // Reject any pending loads
+    // Reject any pending loads, appends, and fallback device queries
     while (this.pendingLoads.length > 0) {
       const p = this.pendingLoads.shift()!
       clearTimeout(p.timer)
       p.reject(new Error(`audio-engine process terminated unexpectedly (code: ${code}, signal: ${signal})`))
+    }
+    while (this.pendingAppends.length > 0) {
+      const p = this.pendingAppends.shift()!
+      clearTimeout(p.timer)
+      p.reject(new Error(`audio-engine process terminated unexpectedly (code: ${code}, signal: ${signal})`))
+    }
+    while (this.pendingDeviceQueries.length > 0) {
+      const p = this.pendingDeviceQueries.shift()!
+      clearTimeout(p.timer)
+      p.resolve([{ name: 'auto', description: 'Autoselect audio device' }])
     }
 
     if (this.isShuttingDown) return
@@ -407,6 +465,50 @@ export class AudioEngineSupervisor {
     return () => this.readyListeners.delete(cb)
   }
 
+  async append(uri: string, playNow = false): Promise<void> {
+    this.start()
+
+    if (!this.child || this.child.killed) {
+      const err = new Error(`Audio engine executable not found or process not running. Cannot append: ${uri}`)
+      this.logger?.warn?.('audio-engine-supervisor: %s', err.message)
+      throw err
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        const idx = this.pendingAppends.findIndex((p) => p.timer === timer)
+        if (idx !== -1) {
+          this.pendingAppends.splice(idx, 1)
+          reject(new Error(`Timeout appending audio: ${uri}`))
+        }
+      }, 10_000)
+
+      this.pendingAppends.push({ uri, resolve, reject, timer })
+      this.sendCommand({ action: 'append', uri, playNow })
+    })
+  }
+
+  getAudioDevices(): Promise<Array<{ name: string; description: string }>> {
+    this.start()
+
+    if (!this.child || this.child.killed) {
+      return Promise.resolve([{ name: 'auto', description: 'Autoselect audio device' }])
+    }
+
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        const idx = this.pendingDeviceQueries.findIndex((p) => p.timer === timer)
+        if (idx !== -1) {
+          this.pendingDeviceQueries.splice(idx, 1)
+          resolve([{ name: 'auto', description: 'Autoselect audio device' }])
+        }
+      }, 5_000)
+
+      this.pendingDeviceQueries.push({ resolve, reject, timer })
+      this.sendCommand({ action: 'getAudioDevices' })
+    })
+  }
+
   dispose(): void {
     void this.shutdown()
   }
@@ -418,6 +520,23 @@ export class AudioEngineSupervisor {
       this.child.kill()
     }
     this.child = null
+    while (this.pendingLoads.length > 0) {
+      const p = this.pendingLoads.shift()!
+      clearTimeout(p.timer)
+      p.reject(new Error('Audio engine shut down'))
+    }
+    while (this.pendingAppends.length > 0) {
+      const p = this.pendingAppends.shift()!
+      clearTimeout(p.timer)
+      p.reject(new Error('Audio engine shut down'))
+    }
+    while (this.pendingDeviceQueries.length > 0) {
+      const p = this.pendingDeviceQueries.shift()!
+      clearTimeout(p.timer)
+      p.resolve([{ name: 'auto', description: 'Autoselect audio device' }])
+    }
     this.pendingLoads = []
+    this.pendingAppends = []
+    this.pendingDeviceQueries = []
   }
 }

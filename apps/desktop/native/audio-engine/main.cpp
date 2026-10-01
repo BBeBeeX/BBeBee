@@ -384,6 +384,52 @@ public:
         }
     }
 
+    void append(const std::string& uri, bool playNow = false) {
+        std::lock_guard<std::mutex> lock(engineMutex);
+        if (mpv && mpvLib.command) {
+            const char* mode = playNow ? "append-play" : "append";
+            const char* cmd[] = { "loadfile", uri.c_str(), mode, nullptr };
+            int r = mpvLib.command(mpv, cmd);
+            if (r < 0) {
+                std::cerr << "audio-engine: append loadfile failed with code " << r << "\n";
+            }
+        }
+        JsonValue resp = JsonValue::object();
+        resp["type"] = "appended";
+        resp["uri"] = uri;
+        sendJson(resp);
+    }
+
+    void getAudioDevices() {
+        std::lock_guard<std::mutex> lock(engineMutex);
+        JsonValue resp = JsonValue::object();
+        resp["type"] = "audio-devices";
+        JsonValue list = JsonValue::array();
+
+        if (mpv && mpvLib.get_property) {
+            char* devListStr = nullptr;
+            if (mpvLib.get_property(mpv, "audio-device-list", MPV_FORMAT_STRING, &devListStr) >= 0 && devListStr) {
+                try {
+                    JsonValue parsed = JsonValue::parse(devListStr);
+                    if (parsed.isArray()) {
+                        list = parsed;
+                    }
+                } catch (...) {}
+                if (mpvLib.free_data) mpvLib.free_data(devListStr);
+            }
+        }
+
+        if (list.arrVal.empty()) {
+            JsonValue defDev = JsonValue::object();
+            defDev["name"] = "auto";
+            defDev["description"] = "Autoselect audio device";
+            list.push_back(defDev);
+        }
+
+        resp["devices"] = list;
+        sendJson(resp);
+    }
+
     void setDspConfig(const JsonValue& config) {
         std::lock_guard<std::mutex> lock(engineMutex);
         dspConfig = config;
@@ -607,6 +653,11 @@ private:
             switch (event->event_id) {
                 case MPV_EVENT_FILE_LOADED: {
                     std::lock_guard<std::mutex> lock(engineMutex);
+                    char* pathStr = nullptr;
+                    if (mpvLib.get_property && mpvLib.get_property(mpv, "path", MPV_FORMAT_STRING, &pathStr) >= 0 && pathStr) {
+                        currentUri = pathStr;
+                        if (mpvLib.free_data) mpvLib.free_data(pathStr);
+                    }
                     status = "paused";
                     double durSec = 0.0;
                     if (mpvLib.get_property) {
@@ -831,6 +882,10 @@ int main(int argc, char* argv[]) {
             app.init(cmd.get("config"));
         } else if (action == "load") {
             app.load(cmd.get("uri").asString(), cmd.get("options"));
+        } else if (action == "append") {
+            app.append(cmd.get("uri").asString(), cmd.get("playNow").asBool(false));
+        } else if (action == "getAudioDevices") {
+            app.getAudioDevices();
         } else if (action == "play") {
             int atMs = cmd.has("atMs") ? cmd.get("atMs").asInt(-1) : -1;
             app.play(atMs);
