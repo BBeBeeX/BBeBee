@@ -13,7 +13,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { createElement as h } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { cleanup, fireEvent, render } from '@testing-library/react'
+import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { Context, Service } from 'cordis'
 import { NOW_PLAYING_STYLES, type NowPlayingStyleId, type NowPlayingStyleMeta, type QueueItem, type Track, type TransportState } from '@BBeBee/protocol'
 import { NowPlayingBar, NowPlayingScreen, StyleSwitcher } from './index.js'
@@ -99,7 +99,7 @@ async function harness(
 
   class UiStub extends Service {
     views = new Map<string, unknown>()
-    slots = new Map<string, { id: string; slot: string }[]>()
+    slots = new Map<string, { id: string; slot: string; order?: number; when?: (ctx: any) => boolean }[]>()
 
     constructor(ctx: Context) {
       super(ctx, 'ui')
@@ -107,7 +107,11 @@ async function harness(
 
     registerView(id: string, view: unknown) {
       this.views.set(id, view)
-      return () => void this.views.delete(id)
+      this.ctx.emit('ui/changed')
+      return () => {
+        this.views.delete(id)
+        this.ctx.emit('ui/changed')
+      }
     }
 
     viewFor(id: string) {
@@ -122,11 +126,20 @@ async function harness(
       calls.push(`navigate:${id}`)
     }
 
-    contribute(c: { kind: string; id: string; slot?: string }) {
+    contribute(c: { kind: string; id: string; slot?: string; order?: number; when?: (ctx: any) => boolean }) {
       if (c.kind === 'slot' && c.slot) {
         const list = this.slots.get(c.slot) ?? []
-        list.push({ id: c.id, slot: c.slot })
+        list.push({ id: c.id, slot: c.slot, order: c.order, when: c.when })
+        list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
         this.slots.set(c.slot, list)
+        this.ctx.emit('ui/changed')
+      }
+      return () => {
+        if (c.kind === 'slot' && c.slot) {
+          const list = this.slots.get(c.slot) ?? []
+          this.slots.set(c.slot, list.filter((item) => item.id !== c.id))
+          this.ctx.emit('ui/changed')
+        }
       }
     }
   }
@@ -191,6 +204,51 @@ describe('NowPlayingBar', () => {
     expect(btn.getAttribute('aria-label')).toBe('播放队列')
     fireEvent.click(btn)
     expect(calls).toContain('navigate:queue.view')
+  })
+
+  it('renders dynamically contributed actions from now-playing.actions in sorted order', async () => {
+    const { ctx } = await harness()
+    ctx.ui.registerView('action.b', () => h('button', { 'data-testid': 'action-b' }, 'B'))
+    ctx.ui.registerView('action.a', () => h('button', { 'data-testid': 'action-a' }, 'A'))
+    ctx.ui.contribute({ kind: 'slot', id: 'action.b', slot: 'now-playing.actions', order: 20 })
+    ctx.ui.contribute({ kind: 'slot', id: 'action.a', slot: 'now-playing.actions', order: 10 })
+
+    const { getByTestId, queryByTestId } = render(h(NowPlayingBar, { ctx }))
+    const btnA = getByTestId('action-a')
+    const btnB = getByTestId('action-b')
+    expect(btnA).toBeTruthy()
+    expect(btnB).toBeTruthy()
+    // When slot contributions exist, default fallback is replaced
+    expect(queryByTestId('queue-button')).toBeNull()
+
+    // Ordering: action-a (order 10) precedes action-b (order 20) in the DOM
+    expect(btnA.compareDocumentPosition(btnB) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('filters now-playing.actions slot contributions with when condition', async () => {
+    const { ctx } = await harness()
+    ctx.ui.registerView('action.hidden', () => h('button', { 'data-testid': 'action-hidden' }, 'Hidden'))
+    ctx.ui.registerView('action.visible', () => h('button', { 'data-testid': 'action-visible' }, 'Visible'))
+    ctx.ui.contribute({ kind: 'slot', id: 'action.hidden', slot: 'now-playing.actions', order: 10, when: () => false })
+    ctx.ui.contribute({ kind: 'slot', id: 'action.visible', slot: 'now-playing.actions', order: 20, when: () => true })
+
+    const { getByTestId, queryByTestId } = render(h(NowPlayingBar, { ctx }))
+    expect(getByTestId('action-visible')).toBeTruthy()
+    expect(queryByTestId('action-hidden')).toBeNull()
+  })
+
+  it('removes action when slot contribution disposer is called', async () => {
+    const { ctx } = await harness()
+    ctx.ui.registerView('action.dynamic', () => h('button', { 'data-testid': 'action-dynamic' }, 'Dynamic'))
+    const dispose = ctx.ui.contribute({ kind: 'slot', id: 'action.dynamic', slot: 'now-playing.actions' })
+
+    const { queryByTestId } = render(h(NowPlayingBar, { ctx }))
+    expect(queryByTestId('action-dynamic')).toBeTruthy()
+
+    act(() => {
+      dispose()
+    })
+    expect(queryByTestId('action-dynamic')).toBeNull()
   })
 
   it('shows one play/pause control that reflects the state', async () => {

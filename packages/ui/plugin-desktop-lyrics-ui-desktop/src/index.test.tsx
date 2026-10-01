@@ -9,6 +9,7 @@ import pluginDesktopLyricsUi from './index.js'
 
 class UiStub extends Service {
   public views = new Map<string, any>()
+  public slots = new Map<string, { id: string; slot: string; order?: number }[]>()
 
   constructor(ctx: Context) {
     super(ctx, 'ui')
@@ -23,6 +24,19 @@ class UiStub extends Service {
 
   viewFor(id: string) {
     return this.views.get(id)
+  }
+
+  contribute(c: { kind: string; id: string; slot?: string; order?: number }) {
+    if (c.kind === 'slot' && c.slot) {
+      const list = this.slots.get(c.slot) ?? []
+      list.push({ id: c.id, slot: c.slot, order: c.order })
+      this.slots.set(c.slot, list)
+    }
+    return () => {}
+  }
+
+  slotsFor(slot: string) {
+    return this.slots.get(slot) ?? []
   }
 }
 
@@ -134,6 +148,10 @@ describe('DesktopLyrics', () => {
   it('registers view with ui service upon load', async () => {
     const { ctx } = await createHarness()
     expect(ctx.ui.viewFor('desktop-lyrics.floating')).toBeDefined()
+    expect(ctx.ui.viewFor('desktop-lyrics.toggle')).toBeDefined()
+    expect(ctx.ui.slotsFor('now-playing.actions')).toEqual([
+      { id: 'desktop-lyrics.toggle', slot: 'now-playing.actions', order: 20 },
+    ])
   })
 
   it('renders floating overlay and lyrics line', async () => {

@@ -731,6 +731,10 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
   )
 }
 
+import { QueueButton, type QueueButtonProps } from './QueueButton.js'
+
+export { QueueButton, type QueueButtonProps }
+
 /* ── the plugin entry ──────────────────────────────────────────────────── */
 
 export const name = 'plugin-queue-ui-desktop'
@@ -749,6 +753,13 @@ export async function apply(ctx: Context) {
   ctx.logger.info('plugin-queue-ui-desktop: loaded')
   return ctx.effect(function* () {
     yield ctx.ui.registerView(QUEUE_VIEWS.queue, bound(ctx, QueueScreen))
+    yield ctx.ui.registerView('queue.button', bound(ctx, QueueButton))
+    yield ctx.ui.contribute({
+      kind: 'slot',
+      id: 'queue.button',
+      slot: 'now-playing.actions',
+      order: 30,
+    })
   }, 'queue-ui-desktop')
 }
 

@@ -2,7 +2,7 @@ import { Fragment, createElement as h, useCallback, useEffect, useRef, useState 
 import { createPortal } from 'react-dom'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { LibraryService, PlayMode, SourcesService, Track } from '@BBeBee/protocol'
+import type { LibraryService, PlayMode, SourcesService, Track, UiService } from '@BBeBee/protocol'
 import { formatDuration } from '@BBeBee/toolkit'
 import { NOW_PLAYING_VIEWS } from '@BBeBee/plugin-now-playing/views'
 import {
@@ -14,7 +14,7 @@ import {
 import { Artwork, ContextMenu, IconButton, SaveToPlaylistPopover, Slider, Text, tablerIcon } from '@BBeBee/ui-kit-desktop'
 import { useSaveToPlaylistMenu, useTrackMenu } from '@BBeBee/ui-menus'
 import { useResolvedArtwork } from '@BBeBee/plugin-cache/hooks'
-import { serviceOf, type ArtworkProps } from '@BBeBee/ui-core'
+import { serviceOf, useServiceState, type ArtworkProps } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
 import { DesktopLyricsToggle } from './DesktopLyricsToggle.js'
 import { useCurrentTrack } from '../hooks.js'
@@ -22,7 +22,7 @@ import { useCurrentTrack } from '../hooks.js'
 /**
  * Button on the bottom transport bar to open/toggle the queue panel.
  */
-function QueueButton({
+export function QueueButton({
   ctx,
   currentRoute,
 }: {
@@ -491,6 +491,16 @@ export function NowPlayingBar({ ctx, currentRoute, onOpenNowPlaying, portalMenus
 
   const currentTrack = useCurrentTrack(ctx)
 
+  const actionSlots = useServiceState(
+    ctx,
+    ['ui/changed'],
+    () => {
+      const ui = serviceOf<UiService>(ctx, 'ui')
+      return ui?.slotsFor?.('now-playing.actions') ?? []
+    },
+    { isEqual: (a, b) => a.length === b.length && a.every((item, i) => item.id === b[i]?.id) },
+  )
+
   useEffect(() => {
     if (!state.trackUrn) {
       setIsInLibrary(false)
@@ -814,14 +824,34 @@ export function NowPlayingBar({ ctx, currentRoute, onOpenNowPlaying, portalMenus
           minWidth: 180,
         },
       },
-      (() => {
-        const MiniPlayerBtn = ctx.ui?.viewFor?.('mini-player.button') as
+      ...(() => {
+        const ui = serviceOf<UiService>(ctx, 'ui')
+        const items = actionSlots
+          .filter((slot) => !slot.when || slot.when({ ctx, currentRoute }))
+          .map((slot) => {
+            const Component = ui?.viewFor?.(slot.id) as
+              | React.ComponentType<{ ctx: Context; currentRoute?: string }>
+              | undefined
+            return Component ? h(Component, { key: slot.id, ctx, currentRoute }) : null
+          })
+          .filter(Boolean)
+
+        if (items.length > 0) {
+          return items
+        }
+
+        // Fallback when no actions are contributed (e.g. isolated test environments)
+        const fallbackItems: ReactElement[] = []
+        const MiniPlayerBtn = ui?.viewFor?.('mini-player.button') as
           | React.ComponentType<{ ctx: Context }>
           | undefined
-        return MiniPlayerBtn ? h(MiniPlayerBtn, { ctx }) : null
+        if (MiniPlayerBtn) {
+          fallbackItems.push(h(MiniPlayerBtn, { key: 'mini-player.button', ctx }))
+        }
+        fallbackItems.push(h(DesktopLyricsToggle, { key: 'desktop-lyrics.toggle', ctx }))
+        fallbackItems.push(h(QueueButton, { key: 'queue.button', ctx, currentRoute }))
+        return fallbackItems
       })(),
-      h(DesktopLyricsToggle, { ctx }),
-      h(QueueButton, { ctx, currentRoute }),
     ),
     h(ContextMenu, { ...menu.menuProps, portal: portalMenus }),
     h(SaveToPlaylistPopover, { ...saveToPlaylistMenu.menuProps, portal: portalMenus }),

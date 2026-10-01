@@ -18,8 +18,7 @@
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type {} from '@BBeBee/protocol'
-import type { NowPlayingStyleId } from '@BBeBee/protocol'
+import type { NowPlayingStyleId, UiService } from '@BBeBee/protocol'
 import { NOW_PLAYING_STYLES } from '@BBeBee/protocol'
 import { formatDuration } from '@BBeBee/toolkit'
 import { NOW_PLAYING_VIEWS } from '@BBeBee/plugin-now-playing/views'
@@ -32,7 +31,7 @@ import {
 } from '@BBeBee/plugin-player/hooks'
 import { Artwork, IconButton, Slider, Text, nativePrimitives } from '@BBeBee/ui-kit-mobile'
 import { useResolvedArtwork } from '@BBeBee/plugin-cache/hooks'
-import type { ArtworkProps } from '@BBeBee/ui-core'
+import { serviceOf, useServiceState, type ArtworkProps } from '@BBeBee/ui-core'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
 
 const p = () => palettes.dark
@@ -476,6 +475,15 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying }: NowPlayingBarProps): Re
   const native = nativePrimitives()
   const state = useTransport(ctx)
   const can = useTransportAvailability(ctx)
+  const actionSlots = useServiceState(
+    ctx,
+    ['ui/changed'],
+    () => {
+      const ui = serviceOf<UiService>(ctx, 'ui')
+      return ui?.slotsFor?.('now-playing.actions') ?? []
+    },
+    { isEqual: (a, b) => a.length === b.length && a.every((item, i) => item.id === b[i]?.id) },
+  )
 
   const handleOpen = () => {
     onOpenNowPlaying?.()
@@ -541,7 +549,19 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying }: NowPlayingBarProps): Re
     ),
     h(
       native.View as never,
-      { style: { flexDirection: 'row', alignItems: 'center' } },
+      { style: { flexDirection: 'row', alignItems: 'center', gap: tokens.space[2] } },
+      ...(() => {
+        const ui = serviceOf<UiService>(ctx, 'ui')
+        return actionSlots
+          .filter((slot) => !slot.when || slot.when({ ctx }))
+          .map((slot) => {
+            const Component = ui?.viewFor?.(slot.id) as
+              | React.ComponentType<{ ctx: Context }>
+              | undefined
+            return Component ? h(Component, { key: slot.id, ctx }) : null
+          })
+          .filter(Boolean)
+      })(),
       h(IconButton, {
         icon: can.canPause ? '⏸' : '▶',
         accessibilityLabel: can.canPause ? 'Pause' : 'Play',

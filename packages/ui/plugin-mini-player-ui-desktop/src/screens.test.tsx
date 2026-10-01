@@ -8,6 +8,7 @@ import pluginMiniPlayerUi, { MiniPlayerFloating, MiniPlayerIsland, MiniPlayerBut
 
 class UiStub extends Service {
   public views = new Map<string, unknown>()
+  public slots = new Map<string, { id: string; slot: string; order?: number }[]>()
 
   constructor(ctx: Context) {
     super(ctx, 'ui')
@@ -22,6 +23,19 @@ class UiStub extends Service {
 
   viewFor(id: string) {
     return this.views.get(id)
+  }
+
+  contribute(c: { kind: string; id: string; slot?: string; order?: number }) {
+    if (c.kind === 'slot' && c.slot) {
+      const list = this.slots.get(c.slot) ?? []
+      list.push({ id: c.id, slot: c.slot, order: c.order })
+      this.slots.set(c.slot, list)
+    }
+    return () => {}
+  }
+
+  slotsFor(slot: string) {
+    return this.slots.get(slot) ?? []
   }
 }
 
@@ -60,7 +74,7 @@ const mockData: MiniPlayerData = {
 }
 
 describe('plugin-mini-player-ui-desktop', () => {
-  it('registers views in ui service', async () => {
+  it('registers views and slots in ui service', async () => {
     const ctx = new Context()
     await ctx.plugin(UiStub)
     await ctx.plugin(MiniPlayerStub)
@@ -68,6 +82,9 @@ describe('plugin-mini-player-ui-desktop', () => {
 
     expect(ctx.ui.viewFor('mini-player.window')).toBeDefined()
     expect(ctx.ui.viewFor('mini-player.button')).toBeDefined()
+    expect(ctx.ui.slotsFor('now-playing.actions')).toEqual([
+      { id: 'mini-player.button', slot: 'now-playing.actions', order: 10 },
+    ])
   })
 
   it('renders floating mode static markup', () => {

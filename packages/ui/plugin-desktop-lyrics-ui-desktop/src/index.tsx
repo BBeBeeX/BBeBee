@@ -6,8 +6,9 @@ import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { DesktopLyrics, type DesktopLyricsProps } from './DesktopLyrics.js'
+import { DesktopLyricsToggle } from './DesktopLyricsToggle.js'
 
-export { DesktopLyrics, type DesktopLyricsProps }
+export { DesktopLyrics, type DesktopLyricsProps, DesktopLyricsToggle }
 
 export const name = 'plugin-desktop-lyrics-ui-desktop'
 export const inject = ['ui', 'desktopLyrics', 'lyrics', 'player']
@@ -26,6 +27,13 @@ export async function apply(ctx: Context) {
 
   return ctx.effect(function* () {
     yield ctx.ui.registerView('desktop-lyrics.floating', bound(ctx, DesktopLyrics))
+    yield ctx.ui.registerView('desktop-lyrics.toggle', bound(ctx, DesktopLyricsToggle))
+    yield ctx.ui.contribute({
+      kind: 'slot',
+      id: 'desktop-lyrics.toggle',
+      slot: 'now-playing.actions',
+      order: 20,
+    })
   }, 'desktop-lyrics-ui-desktop')
 }
 

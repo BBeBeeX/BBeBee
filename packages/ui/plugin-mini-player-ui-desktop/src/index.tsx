@@ -35,6 +35,12 @@ export async function apply(ctx: Context) {
   return ctx.effect(function* () {
     yield ctx.ui.registerView('mini-player.window', bound(ctx, MiniPlayerWindow))
     yield ctx.ui.registerView('mini-player.button', bound(ctx, MiniPlayerButton))
+    yield ctx.ui.contribute({
+      kind: 'slot',
+      id: 'mini-player.button',
+      slot: 'now-playing.actions',
+      order: 10,
+    })
   }, 'mini-player-ui-desktop')
 }
 
