@@ -30,6 +30,10 @@ pnpm check       # typecheck + lint + test — green on a clean checkout
 pnpm dev:desktop # Electron, with HMR across main, preload and renderer
 ```
 
+> **Build rules.** The desktop app carries a native audio-engine binary (libmpv-backed) that
+> `dev` does *not* build, plus a libmpv runtime dependency with defined lookup and degradation
+> rules — see the root [README.md](../README.md) for the full build rules and the degradation matrix.
+
 `pnpm check` is the gate; if it passes, CI passes. The full command list, the plugin scaffolder,
 what each gate catches, and a troubleshooting table are in
 [workflow/testing.md](./workflow/testing.md#7-developer-workflow).

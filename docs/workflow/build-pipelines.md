@@ -28,6 +28,41 @@ Codegen (`packages/tooling/tooling-gen-plugins`, run as `pnpm gen:plugins`) writ
 builds without a pre-step and CI verifies the file is current rather than regenerating it — run it
 whenever a plugin package is added or removed.
 
+### 4.1 The native audio-engine binary
+
+The MPV Hi-Fi engine (`core-audio-mpv`) runs in a standalone C++ executable, not in the
+Electron bundle. It is built by `apps/desktop/scripts/build-audio-engine.js` (compiler
+detected: `g++` / `clang++` / MSVC `cl`, C++17) into `apps/desktop/bin/audio-engine[.exe]`,
+synced to `apps/desktop/resources/bin/` for packaging, and **gitignored** — both are build
+artifacts. `pnpm dev:desktop` does *not* build it; without a prior
+`pnpm --filter @BBeBee/desktop build:audio-engine` the engine is simply absent.
+
+**Engine-binary lookup** (`AudioEngineSupervisor.resolveExecutablePath`): the
+`AUDIO_ENGINE_PATH` env var → the packaged `resources/bin/` → dev candidate paths. An
+explicitly injected path that is missing fails strictly (no fallthrough).
+
+**libmpv lookup** (the engine `dlopen`s it at startup): first the engine's own directory
+(packaging places the staged libmpv there — the supervisor points the child's
+`LD_LIBRARY_PATH`/`DYLD_LIBRARY_PATH`/`PATH` at it), then the system library paths —
+`mpv-2.dll` on Windows, `libmpv.so.2` on Linux, `libmpv.dylib` on macOS. The ffmpeg-family
+versions of the libmpv build must match the host stack: a sid-built 0.41 needs
+`libavcodec.so.63`, while trixie's 0.40 matches the system's `.61`.
+
+**Degradation matrix**:
+
+| State | Behaviour |
+|---|---|
+| Engine binary missing | the supervisor fails the load fast; the renderer falls back to the FFmpeg-bridge decode path (audio via Web Audio, flat spectrum, no gapless) |
+| Engine present, libmpv missing | the engine runs but every load fails; the same renderer fallback |
+| Both present | mpv decodes and feeds the OS audio output directly; native DSP/EQ; append-based gapless; astats-driven spectrum |
+
+**Packaging**: CI builds the binary per platform (a three-OS matrix with a `--version` smoke)
+and uploads it as an artifact; the packaging job downloads it, stages libmpv
+(`scripts/fetch-libmpv.js` — system search, `LIBMPV_PATH` override, SHA256-verified Windows
+prebuilt download), and runs electron-builder, whose per-platform `extraResources` carry the
+engine and libmpv in the installers. Locally: `pnpm build:desktop && pnpm dist:desktop`. The
+condensed developer version of these rules lives in the root [README.md](../../README.md).
+
 There is no Turborepo and no `turbo.json`: the root scripts orchestrate with `pnpm -r` — `build`
 runs before `test` for packages with conformance suites, and `typecheck` and `lint` are plain
 recursive runs over the workspace.

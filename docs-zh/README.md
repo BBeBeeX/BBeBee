@@ -16,6 +16,9 @@ pnpm check       # typecheck + lint + test — green on a clean checkout
 pnpm dev:desktop # Electron, with HMR across main, preload and renderer
 ```
 
+> **构建规则。** 桌面端携带一个 native 音频引擎二进制（libmpv 后端），`dev` 不会自动构建它；
+> libmpv 运行时依赖有明确的查找顺序与降级矩阵——完整构建规则见根目录 [README.md](../README.md)。
+
 `pnpm check` 是那道闸门；它通过，CI 就通过。完整的命令清单、插件脚手架、每道门各自能抓住什么，以及排障表，见 [workflow/testing.md §7 —— 开发工作流](./workflow/testing.md#7-开发工作流)。
 
 > 移动端需要**自定义 dev 构建**，不能用 Expo Go —— 若干依赖含原生代码。

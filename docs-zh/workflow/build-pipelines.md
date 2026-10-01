@@ -25,6 +25,35 @@
 
 代码生成（`packages/tooling/tooling-gen-plugins`，以 `pnpm gen:plugins` 运行）写出 `apps/{mobile,desktop}/generated/plugins.ts`。其产物**提交进仓库**，因此全新检出无需任何前置步骤即可构建，CI 也只需校验该文件是否为最新，而不必重新生成 —— 每当新增或移除插件包时都要跑一次。
 
+### 4.1 原生音频引擎二进制
+
+MPV Hi-Fi 引擎（`core-audio-mpv`）运行在一个独立的 C++ 可执行文件中，而非 Electron bundle 内。它由
+`apps/desktop/scripts/build-audio-engine.js` 编译（自动探测 `g++` / `clang++` / MSVC `cl`，C++17），
+产物写入 `apps/desktop/bin/audio-engine[.exe]`，并同步到 `apps/desktop/resources/bin/` 供打包；
+两者均已 gitignore——它们是构建产物。`pnpm dev:desktop` **不会**构建它；没有预先执行
+`pnpm --filter @BBeBee/desktop build:audio-engine`，引擎就只是不存在。
+
+**引擎二进制查找**（`AudioEngineSupervisor.resolveExecutablePath`）：`AUDIO_ENGINE_PATH` 环境变量
+→ 打包态 `resources/bin/` → 开发候选路径。显式注入的路径缺失时严格失败（不回退）。
+
+**libmpv 查找**（引擎启动时 `dlopen`）：先引擎自身所在目录（打包时 staged 的 libmpv 就放在这里——
+supervisor 会把子进程的 `LD_LIBRARY_PATH`/`DYLD_LIBRARY_PATH`/`PATH` 指向该目录），再系统库路径——
+Windows `mpv-2.dll`、Linux `libmpv.so.2`、macOS `libmpv.dylib`。libmpv 构建的 ffmpeg 族版本必须与
+宿主栈匹配：sid 的 0.41 需要 `libavcodec.so.63`，而 trixie 的 0.40 匹配系统的 `.61`。
+
+**降级矩阵**：
+
+| 状态 | 行为 |
+|---|---|
+| 引擎二进制缺失 | supervisor 快速失败；渲染端回退 FFmpeg 桥解码路径（有声、走 Web Audio 输出、频谱平线、无 gapless） |
+| 引擎在、libmpv 缺失 | 引擎存活但所有加载失败；同样的渲染端回退 |
+| 两者齐备 | mpv 解码并直连系统音频输出；原生 DSP/EQ；append 式 gapless；astats 驱动频谱 |
+
+**打包**：CI 按平台编译引擎（三平台矩阵 + `--version` 冒烟）并上传产物；打包 job 下载产物、staged libmpv
+（`scripts/fetch-libmpv.js`——系统搜索、`LIBMPV_PATH` 覆盖、带 SHA256 校验的 Windows 预编译下载）、
+运行 electron-builder，其分平台 `extraResources` 把引擎与 libmpv 装进安装包。本地等价：
+`pnpm build:desktop && pnpm dist:desktop`。面向开发者的精简版规则见根目录 [README.md](../../README.md)。
+
 编排不使用 Turborepo —— 没有 `turbo.json`；根脚本以 `pnpm -r` 运行 `build`、`typecheck`、`lint` 与 `test`。
 
 ---
