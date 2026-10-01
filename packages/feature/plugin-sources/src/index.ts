@@ -283,6 +283,12 @@ export class Sources extends Service implements SourcesService {
   private cacheWriter!: CacheWriter
   /** Mirrors the `sources` table, so reads are synchronous for the UI. */
   private records: SourceRecord[] = []
+  /** Deduplication for concurrent in-flight album requests: key -> Promise */
+  private readonly inFlightAlbums = new Map<string, Promise<AlbumDetail | undefined>>()
+  /** Deduplication for concurrent in-flight playlist requests: key -> Promise */
+  private readonly inFlightPlaylists = new Map<string, Promise<PlaylistDetail | undefined>>()
+  /** Serial queue for cache writes to ensure SQLite transactions do not collide on the desktop bridge */
+  private cacheWriteQueue: Promise<void> = Promise.resolve()
 
   constructor(
     ctx: Context,
@@ -929,53 +935,60 @@ export class Sources extends Service implements SourcesService {
     const albums = result.albums?.items
     if (!tracks?.length && !albums?.length) return
 
-    try {
-      // Through the holder, never `this.ownDb`: this path is reached from the
-      // search screen, and the captured handle would be re-shadowed with the
-      // UI's (empty) grants — the write refused, the results in memory, the
-      // catalogue empty.
-      const written = await this.cacheWriter.write(sourceId, {
-        ...(tracks ? { tracks } : {}),
-        ...(albums ? { albums } : {}),
-        ...(result.payloads ? { payloads: result.payloads } : {}),
-      })
-      // The index listens for this; so does anything showing a library count.
-      // Emitted only for what was actually written, so a skipped row does not
-      // send the indexer looking for a URN that is not there.
-      if (written.trackUrns.length > 0) {
-        /*
-         * Linking runs over what was *just written*, not over the library. A
-         * full re-match on every search would be quadratic in a table that
-         * reaches six figures, and the answer for rows nobody touched cannot
-         * have changed.
-         */
-        /*
-         * ⚠️ Linking is reported separately, and never costs the emit.
-         *
-         * A link failure is a *relationship* problem; the rows are already
-         * written. Letting it share the cache write's catch meant one bad pair
-         * swallowed `library/changed` for the whole batch, so fifty perfectly
-         * good tracks silently never reached the FTS index and could not be
-         * found by search.
-         */
-        try {
-          const links = await this.cacheWriter.link(written.trackUrns)
-          if (links > 0) {
-            this.ctx.logger.debug(`sources: linked ${links} track(s) across sources`)
+    // Chain cache writes to guarantee sequential SQLite transactions over the desktop bridge
+    const run = async () => {
+      try {
+        // Through the holder, never `this.ownDb`: this path is reached from the
+        // search screen, and the captured handle would be re-shadowed with the
+        // UI's (empty) grants — the write refused, the results in memory, the
+        // catalogue empty.
+        const written = await this.cacheWriter.write(sourceId, {
+          ...(tracks ? { tracks } : {}),
+          ...(albums ? { albums } : {}),
+          ...(result.payloads ? { payloads: result.payloads } : {}),
+        })
+        // The index listens for this; so does anything showing a library count.
+        // Emitted only for what was actually written, so a skipped row does not
+        // send the indexer looking for a URN that is not there.
+        if (written.trackUrns.length > 0) {
+          /*
+           * Linking runs over what was *just written*, not over the library. A
+           * full re-match on every search would be quadratic in a table that
+           * reaches six figures, and the answer for rows nobody touched cannot
+           * have changed.
+           */
+          /*
+           * ⚠️ Linking is reported separately, and never costs the emit.
+           *
+           * A link failure is a *relationship* problem; the rows are already
+           * written. Letting it share the cache write's catch meant one bad pair
+           * swallowed `library/changed` for the whole batch, so fifty perfectly
+           * good tracks silently never reached the FTS index and could not be
+           * found by search.
+           */
+          try {
+            const links = await this.cacheWriter.link(written.trackUrns)
+            if (links > 0) {
+              this.ctx.logger.debug(`sources: linked ${links} track(s) across sources`)
+            }
+          } catch (error) {
+            this.ctx.logger.warn(`sources: could not link ${sourceId}'s tracks: ${String(error)}`)
           }
-        } catch (error) {
-          this.ctx.logger.warn(`sources: could not link ${sourceId}'s tracks: ${String(error)}`)
+          this.safeEmit(() => this.ctx.emit('library/changed', 'track', written.trackUrns))
         }
-        this.safeEmit(() => this.ctx.emit('library/changed', 'track', written.trackUrns))
+        if (written.albumUrns.length > 0) {
+          this.safeEmit(() => this.ctx.emit('library/changed', 'album', written.albumUrns))
+        }
+      } catch (error) {
+        this.ctx.logger.warn(
+          `sources: could not cache results from ${sourceId}: ${String(error)}`,
+        )
       }
-      if (written.albumUrns.length > 0) {
-        this.safeEmit(() => this.ctx.emit('library/changed', 'album', written.albumUrns))
-      }
-    } catch (error) {
-      this.ctx.logger.warn(
-        `sources: could not cache results from ${sourceId}: ${String(error)}`,
-      )
     }
+
+    const nextWrite = this.cacheWriteQueue.then(run, run)
+    this.cacheWriteQueue = nextWrite.catch(() => {})
+    await nextWrite
   }
 
   private safeEmit(emit: () => void): void {
@@ -1073,47 +1086,71 @@ export class Sources extends Service implements SourcesService {
     const parsed = tryParseUrn(urn)
     if (!parsed || parsed.kind !== 'album') return cached
 
+    // Cache-first (docs/06 §4.2): read catalogue first, ask source live only when
+    // catalogue cannot answer (album has no tracks or no row). Subsequent pages (with cursor)
+    // always fetch live from provider.
+    if (!page?.cursor && cached && cached.tracks.length > 0) {
+      return cached
+    }
+
     if (parsed.sourceId === 'local') {
-      if (cached && cached.tracks.length > 0) return cached
       return cached
     }
 
     const provider = this.registry.get(parsed.sourceId)
     if (!provider || typeof provider.getAlbum !== 'function') return cached
+    const fetchAlbum = provider.getAlbum.bind(provider)
 
-    try {
-      const pageReq = page ?? { limit: 30 }
-      const detail = await provider.getAlbum(parsed.id, pageReq)
-      if (detail && detail.tracks.length > 0) {
-        await this.cache(
-          parsed.sourceId,
-          {
-            albums: {
-              items: [
-                {
-                  urn: detail.urn,
-                  title: detail.title,
-                  artists: detail.artists,
-                  ...(detail.artwork ? { artwork: detail.artwork } : {}),
-                  ...(detail.year !== undefined ? { year: detail.year } : {}),
-                  ...(detail.trackCount !== undefined ? { trackCount: detail.trackCount } : {}),
-                },
-              ],
-              hasMore: false,
+    const key = `${urn}:${page?.cursor ?? ''}:${page?.limit ?? ''}`
+    const inFlight = this.inFlightAlbums.get(key)
+    if (inFlight) return inFlight
+
+    const task = (async () => {
+      try {
+        const pageReq = page ?? { limit: 30 }
+        const detail = await fetchAlbum(parsed.id, pageReq)
+        if (detail && detail.tracks.length > 0) {
+          const albumTracks = detail.tracks.map((t) => ({
+            ...t,
+            artists: t.artists ?? detail.artists ?? [],
+            albumUrn: t.albumUrn ?? detail.urn,
+            albumTitle: t.albumTitle ?? detail.title,
+          }))
+          await this.cache(
+            parsed.sourceId,
+            {
+              albums: {
+                items: [
+                  {
+                    urn: detail.urn,
+                    title: detail.title,
+                    artists: detail.artists,
+                    ...(detail.artwork ? { artwork: detail.artwork } : {}),
+                    ...(detail.year !== undefined ? { year: detail.year } : {}),
+                    ...(detail.trackCount !== undefined ? { trackCount: detail.trackCount } : {}),
+                  },
+                ],
+                hasMore: false,
+              },
+              tracks: { items: albumTracks, hasMore: detail.hasMore ?? false },
+              payloads: detail.payloads,
             },
-            tracks: { items: detail.tracks, hasMore: detail.hasMore ?? false },
-            payloads: detail.payloads,
-          },
-        )
+          )
+        }
+        return detail
+      } catch (error) {
+        // A source that cannot answer live is not a broken album — the payload
+        // may be missing because nothing browsed to it yet (docs/06 §4). The
+        // catalogue's answer, even an empty one, is still the honest one.
+        this.ctx.logger.warn?.(`sources: live album fetch for ${urn} failed: ${String(error)}`)
+        return cached
+      } finally {
+        this.inFlightAlbums.delete(key)
       }
-      return detail
-    } catch (error) {
-      // A source that cannot answer live is not a broken album — the payload
-      // may be missing because nothing browsed to it yet (docs/06 §4). The
-      // catalogue's answer, even an empty one, is still the honest one.
-      this.ctx.logger.warn?.(`sources: live album fetch for ${urn} failed: ${String(error)}`)
-      return cached
-    }
+    })()
+
+    this.inFlightAlbums.set(key, task)
+    return task
   }
 
   async getPlaylist(urn: string, page?: PageRequest): Promise<PlaylistDetail | undefined> {
@@ -1122,24 +1159,36 @@ export class Sources extends Service implements SourcesService {
 
     const provider = this.registry.get(parsed.sourceId)
     if (!provider || typeof provider.getPlaylist !== 'function') return undefined
+    const fetchPlaylist = provider.getPlaylist.bind(provider)
 
-    try {
-      const pageReq = page ?? { limit: 30 }
-      const detail = await provider.getPlaylist(parsed.id, pageReq)
-      if (detail && detail.tracks && detail.tracks.length > 0) {
-        await this.cache(
-          parsed.sourceId,
-          {
-            tracks: { items: detail.tracks, hasMore: detail.hasMore ?? false },
-            payloads: detail.payloads,
-          },
-        )
+    const key = `${urn}:${page?.cursor ?? ''}:${page?.limit ?? ''}`
+    const inFlight = this.inFlightPlaylists.get(key)
+    if (inFlight) return inFlight
+
+    const task = (async () => {
+      try {
+        const pageReq = page ?? { limit: 30 }
+        const detail = await fetchPlaylist(parsed.id, pageReq)
+        if (detail && detail.tracks && detail.tracks.length > 0) {
+          await this.cache(
+            parsed.sourceId,
+            {
+              tracks: { items: detail.tracks, hasMore: detail.hasMore ?? false },
+              payloads: detail.payloads,
+            },
+          )
+        }
+        return detail
+      } catch (error) {
+        this.ctx.logger.warn?.(`sources: live playlist fetch for ${urn} failed: ${String(error)}`)
+        return undefined
+      } finally {
+        this.inFlightPlaylists.delete(key)
       }
-      return detail
-    } catch (error) {
-      this.ctx.logger.warn?.(`sources: live playlist fetch for ${urn} failed: ${String(error)}`)
-      return undefined
-    }
+    })()
+
+    this.inFlightPlaylists.set(key, task)
+    return task
   }
 
   getArtist(urn: string): Promise<ArtistDetail | undefined> {

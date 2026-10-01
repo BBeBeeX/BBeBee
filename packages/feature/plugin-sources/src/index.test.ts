@@ -576,3 +576,100 @@ describe('importing documents', () => {
     expect(sources.source(id)).toBeUndefined()
   })
 })
+
+describe('getAlbum optimizations', () => {
+  it('deduplicates concurrent in-flight getAlbum calls and uses cache on subsequent read', async () => {
+    const { sources } = await withSources()
+    const report = await sources.import(
+      JSON.stringify({
+        sourceUrl: 'https://remote-test.example.org',
+        sourceName: 'Remote Test',
+        ruleStream: { url: '={{source.url}}' },
+      }),
+    )
+    const sourceId = report.added[0]!.id
+
+    let callCount = 0
+    const provider = fakeProvider(sourceId, {
+      getAlbum: async (id) => {
+        callCount++
+        await new Promise((resolve) => setTimeout(resolve, 30))
+        return {
+          urn: `BBeBee:${sourceId}:album:${id}`,
+          title: 'Remote Album',
+          artists: [{ urn: `BBeBee:${sourceId}:artist:a`, name: 'Remote Artist', role: 'main', ordinal: 0 }],
+          tracks: [
+            {
+              urn: `BBeBee:${sourceId}:track:${id}_1`,
+              title: 'Track 1',
+              durationMs: 180000,
+            } as Track,
+          ],
+        }
+      },
+    })
+
+    sources.register(provider)
+
+    // 1. Concurrent calls: both should await the exact same in-flight task
+    const urn = `BBeBee:${sourceId}:album:123`
+    const [res1, res2] = await Promise.all([
+      sources.getAlbum(urn),
+      sources.getAlbum(urn),
+    ])
+
+    expect(callCount).toBe(1)
+    expect(res1?.title).toBe('Remote Album')
+    expect(res2?.title).toBe('Remote Album')
+    expect(res1?.tracks).toHaveLength(1)
+
+    // 2. Subsequent call: should hit the local SQLite cache rather than calling provider again
+    const res3 = await sources.getAlbum(urn)
+    expect(callCount).toBe(1)
+    expect(res3?.title).toBe('Remote Album')
+    expect(res3?.tracks).toHaveLength(1)
+
+    // 3. Paged call with cursor: should bypass initial-page cache and hit provider
+    await sources.getAlbum(urn, { cursor: '2' })
+    expect(callCount).toBe(2)
+  })
+
+  it('queues concurrent cache writes sequentially without transaction error', async () => {
+    const { sources } = await withSources()
+    const report = await sources.import(
+      JSON.stringify({
+        sourceUrl: 'https://batch-test.example.org',
+        sourceName: 'Batch Test',
+        ruleStream: { url: '={{source.url}}' },
+      }),
+    )
+    const sourceId = report.added[0]!.id
+
+    // Fire 5 concurrent cache calls
+    const writes = Array.from({ length: 5 }, (_, i) =>
+      sources.getAlbum(`BBeBee:${sourceId}:album:bulk_${i}`),
+    )
+
+    const provider = fakeProvider(sourceId, {
+      getAlbum: async (id) => ({
+        urn: `BBeBee:${sourceId}:album:${id}`,
+        title: `Album ${id}`,
+        artists: [],
+        tracks: [
+          {
+            urn: `BBeBee:${sourceId}:track:${id}_0`,
+            title: `Track ${id}`,
+          } as Track,
+        ],
+      }),
+    })
+    sources.register(provider)
+
+    const results = await Promise.all(writes)
+    expect(results).toHaveLength(5)
+    for (const r of results) {
+      expect(r?.tracks).toHaveLength(1)
+    }
+  })
+})
+

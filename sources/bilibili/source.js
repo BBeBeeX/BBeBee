@@ -162,11 +162,8 @@ function previewValue(v, limit) {
 }
 
 function cleanTitle(s) {
-  if (!s) {
-    src.log('cleanTitle(' + previewValue(s) + ') → "" (empty input)');
-    return '';
-  }
-  const str = String(s)
+  if (!s) return '';
+  return String(s)
     .replace(/<em class="keyword">/g, '')
     .replace(/<\/em>/g, '')
     .replace(/&lt;/g, '<')
@@ -177,44 +174,26 @@ function cleanTitle(s) {
     .replace(/&nbsp;/g, ' ')
     .replace(/<[^>]+>/g, '')
     .replace(/&amp;/g, '&');
-  src.log('cleanTitle(' + previewValue(s) + ') → ' + previewValue(str));
-  return str;
 }
 
 function cleanPic(pic) {
-  if (!pic) {
-    src.log('cleanPic → "" (empty input)');
-    return '';
-  }
-  var out = pic.startsWith('http') ? pic : 'https:' + (pic.startsWith('//') ? '' : '//') + pic;
-  src.log('cleanPic(' + previewValue(pic) + ') → ' + previewValue(out));
-  return out;
+  if (!pic) return '';
+  return pic.startsWith('http') ? pic : 'https:' + (pic.startsWith('//') ? '' : '//') + pic;
 }
 
 function parseDuration(d) {
-  if (d == null) {
-    src.log('parseDuration(' + previewValue(d) + ') → 0 (empty input)');
-    return 0;
-  }
+  if (d == null) return 0;
   if (typeof d === 'number') {
-    var ms = Math.round(d * 1000);
-    src.log('parseDuration(' + d + 's) → ' + ms + 'ms');
-    return ms;
+    return Math.round(d * 1000);
   }
   var parts = String(d).trim().split(':').map(p => parseInt(p, 10) || 0);
   if (parts.length === 3) {
-    var ms3 = ((parts[0] * 3600) + (parts[1] * 60) + parts[2]) * 1000;
-    src.log('parseDuration("' + d + '") → ' + ms3 + 'ms');
-    return ms3;
+    return ((parts[0] * 3600) + (parts[1] * 60) + parts[2]) * 1000;
   }
   if (parts.length === 2) {
-    var ms2 = ((parts[0] * 60) + parts[1]) * 1000;
-    src.log('parseDuration("' + d + '") → ' + ms2 + 'ms');
-    return ms2;
+    return ((parts[0] * 60) + parts[1]) * 1000;
   }
-  var ms1 = (parts[0] || 0) * 1000;
-  src.log('parseDuration("' + d + '") → ' + ms1 + 'ms');
-  return ms1;
+  return (parts[0] || 0) * 1000;
 }
 
 /** A v4-shaped UUID; yt-dlp uses `uuid.uuid4()` for exactly this purpose. */

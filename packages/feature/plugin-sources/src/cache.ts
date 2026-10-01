@@ -288,7 +288,7 @@ async function writeArtists(
 ): Promise<void> {
   await tx.exec('DELETE FROM track_artists WHERE track_urn = ?', [track.urn])
 
-  for (const credit of track.artists) {
+  for (const credit of track.artists ?? []) {
     if (!ownedBy(credit.urn, sourceId)) continue
     await tx.exec(
       `INSERT INTO artists (urn, source_id, remote_id, name, sort_name, fetched_at)
@@ -307,7 +307,7 @@ async function writeArtists(
       `INSERT INTO track_artists (track_urn, artist_urn, role, ordinal)
        VALUES (?, ?, ?, ?)
        ON CONFLICT(track_urn, artist_urn, role) DO UPDATE SET ordinal = excluded.ordinal`,
-      [track.urn, credit.urn, credit.role, credit.ordinal],
+      [track.urn, credit.urn, credit.role ?? 'main', credit.ordinal ?? 0],
     )
   }
 }
