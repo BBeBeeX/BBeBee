@@ -111,3 +111,28 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec vitest run --shard=${{ matrix.shard }}/${{ strategy.job-total }}
+
+  audio-engine:
+    name: Build Native Audio Engine (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Compile audio-engine
+        run: node apps/desktop/scripts/build-audio-engine.js
+      - name: Verify executable
+        shell: bash
+        run: |
+          if [ -f apps/desktop/bin/audio-engine.exe ]; then
+            ./apps/desktop/bin/audio-engine.exe --version
+          elif [ -f apps/desktop/bin/audio-engine ]; then
+            ./apps/desktop/bin/audio-engine --version
+          else
+            echo "audio-engine executable not found" && exit 1
+          fi

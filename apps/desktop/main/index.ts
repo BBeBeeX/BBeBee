@@ -83,6 +83,7 @@ let quitting = false
 let closeToTray = true
 
 let tray: Tray | undefined
+let audioHost: ReturnType<typeof createAudioHost> | undefined
 let mainWindow: BrowserWindow | undefined
 const miniPlayerManager = new MiniPlayerWindowManager(() => mainWindow, here)
 
@@ -1365,14 +1366,14 @@ void app.whenReady().then(async () => {
           : await dialog.showOpenDialog({ properties: ['openDirectory'] })
         return result.canceled ? undefined : result.filePaths[0]
       },
-      audio: createAudioHost({
+      audio: (audioHost = createAudioHost({
         info: (msg, ...args) => process.stdout.write(`[desktop:audio] ${msg} ${args.length ? JSON.stringify(args) : ''}\n`),
         warn: (msg, ...args) => process.stdout.write(`[desktop:audio:WARN] ${msg} ${args.length ? JSON.stringify(args) : ''}\n`),
         error: (msg, ...args) => process.stderr.write(`[desktop:audio:ERROR] ${msg} ${args.length ? JSON.stringify(args) : ''}\n`),
         debug: (msg, ...args) => {
           if (isDebug()) process.stdout.write(`[desktop:audio:DEBUG] ${msg} ${args.length ? JSON.stringify(args) : ''}\n`)
         },
-      }),
+      })),
       logger: {
         info: (msg, ...args) => process.stdout.write(`[desktop:bridge] ${msg} ${args.length ? JSON.stringify(args) : ''}\n`),
         warn: (msg, ...args) => process.stdout.write(`[desktop:bridge:WARN] ${msg} ${args.length ? JSON.stringify(args) : ''}\n`),
@@ -1418,6 +1419,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('will-quit', () => {
+  audioHost?.supervisor.dispose()
   globalShortcut.unregisterAll()
   tray?.destroy()
   tray = undefined

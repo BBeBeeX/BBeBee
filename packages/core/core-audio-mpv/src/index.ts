@@ -123,11 +123,7 @@ export class MpvSourceHandle implements AudioSourceHandle {
               | undefined
             if (state && typeof state.positionMs === 'number') {
               this.position = state.positionMs
-              if (
-                state.status === 'stopped' &&
-                this.durationMs > 0 &&
-                this.position >= this.durationMs
-              ) {
+              if (state.status === 'ended') {
                 this.isPlaying = false
                 if (this.timer) {
                   clearInterval(this.timer)
@@ -142,16 +138,15 @@ export class MpvSourceHandle implements AudioSourceHandle {
           }
         } else {
           this.position = Date.now() - this.startTime
-        }
-
-        if (this.durationMs > 0 && this.position >= this.durationMs) {
-          this.position = this.durationMs
-          this.isPlaying = false
-          if (this.timer) {
-            clearInterval(this.timer)
-            this.timer = undefined
+          if (this.durationMs > 0 && this.position >= this.durationMs) {
+            this.position = this.durationMs
+            this.isPlaying = false
+            if (this.timer) {
+              clearInterval(this.timer)
+              this.timer = undefined
+            }
+            for (const cb of this.endedListeners) cb()
           }
-          for (const cb of this.endedListeners) cb()
         }
       }, 50)
     }

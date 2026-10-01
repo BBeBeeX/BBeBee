@@ -22,9 +22,46 @@
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+static std::string getExecutableDir() {
+    char path[MAX_PATH];
+    DWORD len = GetModuleFileNameA(NULL, path, MAX_PATH);
+    if (len > 0 && len < MAX_PATH) {
+        std::string s(path, len);
+        size_t pos = s.find_last_of("\\/");
+        if (pos != std::string::npos) {
+            return s.substr(0, pos);
+        }
+    }
+    return "";
+}
+#elif defined(__APPLE__)
+#include <dlfcn.h>
+#include <unistd.h>
+#include <libgen.h>
+#include <mach-o/dyld.h>
+static std::string getExecutableDir() {
+    char path[1024];
+    uint32_t size = sizeof(path);
+    if (_NSGetExecutablePath(path, &size) == 0) {
+        char* dir = dirname(path);
+        if (dir) return std::string(dir);
+    }
+    return "";
+}
 #else
 #include <dlfcn.h>
 #include <unistd.h>
+#include <libgen.h>
+static std::string getExecutableDir() {
+    char path[1024];
+    ssize_t len = readlink("/proc/self/exe", path, sizeof(path) - 1);
+    if (len != -1) {
+        path[len] = '\0';
+        char* dir = dirname(path);
+        if (dir) return std::string(dir);
+    }
+    return "";
+}
 #endif
 
 #include "mpv_client.h"
@@ -56,16 +93,32 @@ struct MpvDynLib {
         std::vector<std::string> candidates;
         if (!customPath.empty()) candidates.push_back(customPath);
 
+        std::string exeDir = getExecutableDir();
+
 #if defined(_WIN32)
+        if (!exeDir.empty()) {
+            candidates.push_back(exeDir + "\\mpv-2.dll");
+            candidates.push_back(exeDir + "\\libmpv-2.dll");
+            candidates.push_back(exeDir + "\\mpv-1.dll");
+        }
         candidates.push_back("mpv-2.dll");
         candidates.push_back("libmpv-2.dll");
         candidates.push_back("mpv-1.dll");
 #elif defined(__APPLE__)
+        if (!exeDir.empty()) {
+            candidates.push_back(exeDir + "/libmpv.2.dylib");
+            candidates.push_back(exeDir + "/libmpv.dylib");
+        }
         candidates.push_back("libmpv.2.dylib");
         candidates.push_back("libmpv.dylib");
         candidates.push_back("/usr/local/lib/libmpv.dylib");
         candidates.push_back("/opt/homebrew/lib/libmpv.dylib");
 #else
+        if (!exeDir.empty()) {
+            candidates.push_back(exeDir + "/libmpv.so.2");
+            candidates.push_back(exeDir + "/libmpv.so.1");
+            candidates.push_back(exeDir + "/libmpv.so");
+        }
         candidates.push_back("libmpv.so.2");
         candidates.push_back("libmpv.so.1");
         candidates.push_back("libmpv.so");
@@ -193,6 +246,7 @@ public:
                     mpvLib.observe_property(mpv, 5, "audio-params/samplerate", MPV_FORMAT_INT64);
                     mpvLib.observe_property(mpv, 6, "audio-params/channel-count", MPV_FORMAT_INT64);
                     mpvLib.observe_property(mpv, 7, "af-metadata", MPV_FORMAT_STRING);
+                    mpvLib.observe_property(mpv, 8, "af-metadata/bbebee_astats", MPV_FORMAT_STRING);
                 }
 
                 // Initial audio filter with astats metadata tap
@@ -443,9 +497,9 @@ private:
 
     void applyFilterGraph(const std::string& userFilters) {
         std::string fullAf = userFilters;
-        // Always append astats metadata tap for real-time level and spectrum analysis
+        // Always append astats metadata tap with label for real-time level and spectrum analysis
         if (!fullAf.empty()) fullAf += ",";
-        fullAf += "lavfi=[astats=metadata=1:reset=1]";
+        fullAf += "@bbebee_astats:lavfi=[astats=metadata=1:reset=1]";
 
         if (mpv && mpvLib.set_property_string) {
             mpvLib.set_property_string(mpv, "af", fullAf.c_str());
@@ -454,28 +508,80 @@ private:
 
     void updateAfMetadata(const char* metaStr) {
         if (!metaStr || std::strlen(metaStr) == 0) return;
-        try {
-            JsonValue root = JsonValue::parse(metaStr);
-            if (root.isObject()) {
-                if (root.has("lavfi.astats.Overall.RMS_level")) {
-                    std::string s = root.get("lavfi.astats.Overall.RMS_level").asString();
-                    if (s != "-inf" && !s.empty()) {
-                        currentRmsLevelDb = std::stof(s);
-                    } else {
-                        currentRmsLevelDb = -100.0f;
-                    }
+        bool parsed = false;
+
+        // Try JSON parsing first (if starts with '{')
+        const char* p = metaStr;
+        while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') p++;
+        if (*p == '{') {
+            try {
+                JsonValue root = JsonValue::parse(metaStr);
+                if (root.isObject()) {
+                    auto checkAndSet = [&](const std::string& key, std::atomic<float>& target) {
+                        if (root.has(key)) {
+                            std::string s = root.get(key).asString();
+                            if (s != "-inf" && !s.empty()) {
+                                try { target = std::stof(s); parsed = true; } catch (...) {}
+                            } else {
+                                target = -100.0f;
+                                parsed = true;
+                            }
+                        }
+                    };
+                    checkAndSet("lavfi.astats.Overall.RMS_level", currentRmsLevelDb);
+                    checkAndSet("Overall.RMS_level", currentRmsLevelDb);
+                    checkAndSet("lavfi.astats.Overall.Peak_level", currentPeakLevelDb);
+                    checkAndSet("Overall.Peak_level", currentPeakLevelDb);
                 }
-                if (root.has("lavfi.astats.Overall.Peak_level")) {
-                    std::string s = root.get("lavfi.astats.Overall.Peak_level").asString();
-                    if (s != "-inf" && !s.empty()) {
-                        currentPeakLevelDb = std::stof(s);
-                    } else {
-                        currentPeakLevelDb = -100.0f;
+            } catch (...) {
+                // Not valid JSON, fall through to key-value parser
+            }
+        }
+
+        // If not parsed as JSON, parse key=value pairs (comma, newline, or semicolon separated)
+        if (!parsed) {
+            std::string input(metaStr);
+            size_t start = 0;
+            while (start < input.size()) {
+                size_t delim = input.find_first_of(",\n\r;", start);
+                std::string token = input.substr(start, delim == std::string::npos ? delim : delim - start);
+                start = (delim == std::string::npos) ? input.size() : delim + 1;
+
+                size_t eq = token.find('=');
+                if (eq != std::string::npos) {
+                    std::string key = token.substr(0, eq);
+                    std::string val = token.substr(eq + 1);
+
+                    auto trim = [](std::string& s) {
+                        size_t first = s.find_first_not_of(" \t\r\n");
+                        if (first == std::string::npos) { s.clear(); return; }
+                        size_t last = s.find_last_not_of(" \t\r\n");
+                        s = s.substr(first, last - first + 1);
+                    };
+                    trim(key);
+                    trim(val);
+
+                    if (key == "lavfi.astats.Overall.RMS_level" || key == "Overall.RMS_level") {
+                        if (val != "-inf" && !val.empty()) {
+                            try { currentRmsLevelDb = std::stof(val); parsed = true; } catch (...) {}
+                        } else {
+                            currentRmsLevelDb = -100.0f;
+                            parsed = true;
+                        }
+                    } else if (key == "lavfi.astats.Overall.Peak_level" || key == "Overall.Peak_level") {
+                        if (val != "-inf" && !val.empty()) {
+                            try { currentPeakLevelDb = std::stof(val); parsed = true; } catch (...) {}
+                        } else {
+                            currentPeakLevelDb = -100.0f;
+                            parsed = true;
+                        }
                     }
                 }
             }
-        } catch (...) {
-            // Ignore malformed metadata string
+        }
+
+        if (!parsed) {
+            std::cerr << "audio-engine: failed to parse af-metadata: " << metaStr << "\n";
         }
     }
 
@@ -546,11 +652,22 @@ private:
                     } else if (propName == "pause" && prop->format == MPV_FORMAT_FLAG) {
                         int paused = *reinterpret_cast<int*>(prop->data);
                         std::lock_guard<std::mutex> lock(engineMutex);
-                        if (status != "stopped" && status != "idle" && status != "loading") {
+                        if (status != "stopped" && status != "idle" && status != "loading" && status != "ended") {
                             status = paused ? "paused" : "playing";
                             sendPlaybackState();
                         }
-                    } else if (propName == "af-metadata" && prop->format == MPV_FORMAT_STRING) {
+                    } else if (propName == "eof-reached" && prop->format == MPV_FORMAT_FLAG) {
+                        int eof = *reinterpret_cast<int*>(prop->data);
+                        if (eof) {
+                            std::lock_guard<std::mutex> lock(engineMutex);
+                            status = "ended";
+                            positionMs = durationMs;
+                            sendPlaybackState();
+                            JsonValue ended = JsonValue::object();
+                            ended["type"] = "ended";
+                            sendJson(ended);
+                        }
+                    } else if ((propName == "af-metadata" || propName == "af-metadata/bbebee_astats") && prop->format == MPV_FORMAT_STRING) {
                         char* metaStr = *reinterpret_cast<char**>(prop->data);
                         if (metaStr) updateAfMetadata(metaStr);
                     }
@@ -566,7 +683,7 @@ private:
                         err["message"] = end->error ? (mpvLib.error_string ? mpvLib.error_string(end->error) : "Audio playback error") : "File loading failed";
                         sendJson(err);
                     } else if (end && end->reason == 0 /* MPV_END_FILE_REASON_EOF */) {
-                        status = "stopped";
+                        status = "ended";
                         positionMs = durationMs;
                         sendPlaybackState();
                         JsonValue ended = JsonValue::object();
@@ -589,6 +706,24 @@ private:
             std::this_thread::sleep_for(std::chrono::milliseconds(30));
             std::unique_lock<std::mutex> lock(engineMutex);
             if (!visualizerEnabled) continue;
+
+            // Direct level query with guaranteed mpv_free
+            if (mpv && mpvLib.get_property && status == "playing") {
+                char* rmsStr = nullptr;
+                if (mpvLib.get_property(mpv, "af-metadata/bbebee_astats/Overall.RMS_level", MPV_FORMAT_STRING, &rmsStr) >= 0 && rmsStr) {
+                    if (std::strcmp(rmsStr, "-inf") != 0 && std::strlen(rmsStr) > 0) {
+                        try { currentRmsLevelDb = std::stof(rmsStr); } catch (...) {}
+                    }
+                    if (mpvLib.free_data) mpvLib.free_data(rmsStr);
+                }
+                char* peakStr = nullptr;
+                if (mpvLib.get_property(mpv, "af-metadata/bbebee_astats/Overall.Peak_level", MPV_FORMAT_STRING, &peakStr) >= 0 && peakStr) {
+                    if (std::strcmp(peakStr, "-inf") != 0 && std::strlen(peakStr) > 0) {
+                        try { currentPeakLevelDb = std::stof(peakStr); } catch (...) {}
+                    }
+                    if (mpvLib.free_data) mpvLib.free_data(peakStr);
+                }
+            }
 
             int n = fftProcessor.getFftSize();
             int binCount = n / 2;

@@ -305,9 +305,10 @@ export function TrackInfoModal({
           tagType = '在线流媒体 (无独立元数据标签)'
         }
 
-        // Audio output device & WASAPI specs
+        // Audio output device & WASAPI / MPV specs
         const audio = serviceOf<AudioService>(ctx, 'audio')
         const activeEngine = audio?.activeEngineName ?? (audio as unknown as { engine?: string })?.engine
+        const isMpv = activeEngine === 'mpv'
         const isWasapi = activeEngine === 'wasapi'
 
         let outputDevice = audio?.currentDeviceLabel
@@ -321,12 +322,14 @@ export function TrackInfoModal({
           }
         }
         if (!outputDevice) {
-          outputDevice = isWasapi ? '默认音频输出终端 (WASAPI)' : '默认系统音频输出终端'
+          outputDevice = (isMpv || isWasapi) ? '默认音频输出终端 (WASAPI)' : '默认系统音频输出终端'
         }
 
-        const outputEngine = isWasapi
-          ? 'WASAPI (系统共享混音)'
-          : 'Web Audio (系统共享混音)'
+        const outputEngine = isMpv
+          ? 'MPV Hi-Fi (原生崩溃隔离 & WASAPI 直通)'
+          : isWasapi
+            ? 'WASAPI (系统共享混音)'
+            : 'Web Audio (系统共享混音)'
 
         const parsedSourceRate = sampleRate ? parseInt(sampleRate.replace(/[^0-9]/g, ''), 10) : 44100
         const hwSampleRateNum = audio?.sampleRate && audio.sampleRate > 0 ? audio.sampleRate : parsedSourceRate
@@ -340,7 +343,7 @@ export function TrackInfoModal({
               ? '2 (立体声 Stereo)'
               : `${hwChannelsNum} 声道`
 
-        const hwBitDepthNum = audio?.hardwareBitDepth ?? (isWasapi ? 24 : 16)
+        const hwBitDepthNum = audio?.hardwareBitDepth ?? ((isMpv || isWasapi) ? 24 : 16)
         const outputBitDepth = `${hwBitDepthNum}-bit Float`
 
         const pcmBandwidth = Math.round((hwSampleRateNum * hwChannelsNum * hwBitDepthNum) / 1000)

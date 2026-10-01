@@ -401,6 +401,10 @@ export class AudioEngineSupervisor {
     return () => this.readyListeners.delete(cb)
   }
 
+  dispose(): void {
+    void this.shutdown()
+  }
+
   async shutdown(): Promise<void> {
     this.isShuttingDown = true
     this.sendCommand({ action: 'dispose' })

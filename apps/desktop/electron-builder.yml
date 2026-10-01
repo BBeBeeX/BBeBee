@@ -11,7 +11,47 @@ extraResources:
     to: bin
     filter:
       - audio-engine*
+      - mpv*
+      - libmpv*
   - from: bin
     to: bin
     filter:
       - audio-engine*
+      - mpv*
+      - libmpv*
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  extraResources:
+    - from: resources/bin
+      to: bin
+      filter:
+        - audio-engine.exe
+        - mpv-2.dll
+        - libmpv-2.dll
+        - "*.dll"
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+  extraResources:
+    - from: resources/bin
+      to: bin
+      filter:
+        - audio-engine
+        - libmpv.so*
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  extraResources:
+    - from: resources/bin
+      to: bin
+      filter:
+        - audio-engine
+        - libmpv*.dylib

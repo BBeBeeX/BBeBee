@@ -62,7 +62,7 @@ class FsStub extends Service {
 }
 
 class AudioStub extends Service {
-  public activeEngineName: 'wasapi' | 'webaudio' = 'wasapi'
+  public activeEngineName: 'wasapi' | 'webaudio' | 'mpv' = 'wasapi'
   public sampleRate = 96000
   public hardwareBitDepth = 24
   public hardwareChannels = 2
@@ -352,6 +352,29 @@ describe('TrackInfoModal', () => {
 
     expect(await findByText('HiRes Song')).toBeTruthy()
     expect(getByText('1,333 kbps')).toBeTruthy()
+  })
+
+  it('displays MPV Hi-Fi output engine label when activeEngine is mpv', async () => {
+    const ctx = new Context()
+    new DbStub(ctx)
+    new CodecStub(ctx)
+    new PlayerStub(ctx)
+    const audio = new AudioStub(ctx)
+    audio.activeEngineName = 'mpv'
+
+    const track: Track = {
+      urn: 'BBeBee:local:track:mpv-1',
+      title: 'Audiophile Track',
+      artists: makeArtists('Artist'),
+      durationMs: 180000,
+    }
+
+    const { findByText, getByText } = render(
+      h(TrackInfoModal, { ctx, track, open: true, onClose: () => {} }),
+    )
+
+    expect(await findByText('Audiophile Track')).toBeTruthy()
+    expect(getByText('MPV Hi-Fi (原生崩溃隔离 & WASAPI 直通)')).toBeTruthy()
   })
 })
 
