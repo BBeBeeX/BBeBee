@@ -24,7 +24,7 @@ Layer 4（feature）— `ctx.scanner`：本机文件系统的扫描器。
 
 ### `src/index.ts` — ScannerService 与扫描流程
 
-**配置（`ScannerConfig`）**：`batchSize=200`（每事务文件数）、`extensions`（默认 16 种：mp3/flac/m4a/aac/ogg/oga/opus/wav/aiff/aif/wma/alac/ape/wv/dsf/dff/m4b）、`sourceId='local'`、`pollIntervalMinutes=15`、`watchDebounceMs=2000`。
+**配置（`ScannerConfig`）**：`batchSize=200`（每事务文件数）、`extensions`（默认 16 种：mp3/flac/m4a/aac/ogg/oga/opus/wav/aiff/aif/wma/alac/ape/wv/dsf/dff/m4b）、`sourceId='local'`、`pollIntervalMinutes=1440`（1 天）、`watchDebounceMs=2000`。
 
 **公开 API**：
 

@@ -697,6 +697,11 @@ describe('specified dirs', () => {
 })
 
 describe('keeping up with the filesystem', () => {
+  it('defaults to polling once a day (1440 minutes)', async () => {
+    const h = await harness()
+    expect((h.scanner as any).config.pollIntervalMinutes).toBe(1440)
+  })
+
   it('polls on its own where there is neither a watcher nor a background service', async () => {
     // Desktop has both problems: the bridge's `canWatch` is false and
     // `core-background-electron` does not exist yet — so without this fallback

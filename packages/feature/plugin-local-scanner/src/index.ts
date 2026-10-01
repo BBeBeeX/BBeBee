@@ -40,7 +40,7 @@ export interface ScannerConfig {
   extensions?: string[]
   /** The source these tracks belong to. */
   sourceId?: string
-  /** How often to poll where `ctx.fs.watch` is unavailable, in minutes. */
+  /** How often to poll where `ctx.fs.watch` is unavailable, in minutes. Defaults to 1 day (1440 minutes). */
   pollIntervalMinutes?: number
   /** Debounce for filesystem events, so a copy of 200 files is one rescan. */
   watchDebounceMs?: number
@@ -151,7 +151,7 @@ export class Scanner extends Service implements ScannerService {
       batchSize: config.batchSize ?? 200,
       extensions: (config.extensions ?? DEFAULT_EXTENSIONS).map((e) => e.toLowerCase()),
       sourceId: config.sourceId ?? 'local',
-      pollIntervalMinutes: config.pollIntervalMinutes ?? 15,
+      pollIntervalMinutes: config.pollIntervalMinutes ?? 24 * 60, // 1 day (1440 minutes)
       watchDebounceMs: config.watchDebounceMs ?? 2000,
     }
   }
