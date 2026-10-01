@@ -45,6 +45,12 @@ export interface CrashEvent {
 export interface LoadResult {
   durationMs: number
   uri: string
+  /**
+   * The engine already had this file sounding (a gapless handoff: the
+   * playlist had auto-advanced to it) and no re-load happened — the caller
+   * must not seek it back to zero.
+   */
+  resumed?: boolean
 }
 
 export class AudioEngineSupervisor {
@@ -247,10 +253,11 @@ export class AudioEngineSupervisor {
       case 'loaded': {
         const durationMs = Number(payload['durationMs'] ?? 0)
         const uri = String(payload['uri'] ?? this.currentUri ?? '')
+        const resumed = payload['resumed'] === true
         while (this.pendingLoads.length > 0) {
           const p = this.pendingLoads.shift()!
           clearTimeout(p.timer)
-          p.resolve({ durationMs, uri })
+          p.resolve({ durationMs, uri, resumed })
         }
         break
       }

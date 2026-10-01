@@ -33,7 +33,7 @@ export interface AudioHostApi {
   setOutputDevice(id: string): Promise<void>
 
   // MPV Audio Engine operations
-  mpvLoad(uri: string, options?: AudioRequestOptions): Promise<{ durationMs: number }>
+  mpvLoad(uri: string, options?: AudioRequestOptions): Promise<{ durationMs: number; resumed?: boolean }>
   mpvAppend(uri: string, playNow?: boolean): Promise<void>
   mpvPlay(atMs?: number): Promise<void>
   mpvPause(): Promise<void>
@@ -86,7 +86,10 @@ export function createAudioHost(logger?: AudioMainLogger): AudioHostApi {
       return supervisor.append(uri, playNow)
     },
     mpvPlay: async (atMs) => {
-      supervisor.play(atMs)
+      // `null` arrives over IPC when the renderer omitted the position: a
+      // position-less play must reach the engine as "no seek" (resume from
+      // its own clock), not as a seek back to zero.
+      supervisor.play(typeof atMs === 'number' && atMs >= 0 ? atMs : undefined)
     },
     mpvPause: async () => {
       supervisor.pause()

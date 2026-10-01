@@ -274,6 +274,40 @@ public:
     void load(const std::string& uri, const JsonValue& /* options */) {
         std::lock_guard<std::mutex> lock(engineMutex);
         currentUri = uri;
+
+        // Gapless handoff: when the previous track ended, the playlist
+        // advanced to this file and it is already sounding — the player above
+        // is only reacting to the ended event. Replacing the current file
+        // would stop and restart it, so an identical, non-finished file is
+        // re-bound rather than loaded. (A file at EOF still gets the replace:
+        // that is a repeat-one replay, which must start over.)
+        if (mpv && mpvLib.get_property) {
+            char* pathStr = nullptr;
+            if (mpvLib.get_property(mpv, "path", MPV_FORMAT_STRING, &pathStr) >= 0 && pathStr) {
+                const bool alreadyCurrent = (uri == std::string(pathStr));
+                if (mpvLib.free_data) mpvLib.free_data(pathStr);
+
+                int atEof = 0;
+                if (alreadyCurrent && mpvLib.get_property(mpv, "eof-reached", MPV_FORMAT_FLAG, &atEof) < 0) {
+                    atEof = 0;
+                }
+
+                if (alreadyCurrent && !atEof) {
+                    JsonValue loaded = JsonValue::object();
+                    loaded["type"] = "loaded";
+                    loaded["uri"] = uri;
+                    loaded["durationMs"] = durationMs;
+                    loaded["resumed"] = true;
+                    loaded["sampleRate"] = sampleRate;
+                    loaded["channels"] = channels;
+                    loaded["bitDepth"] = bitDepth;
+                    sendJson(loaded);
+                    sendPlaybackState();
+                    return;
+                }
+            }
+        }
+
         positionMs = 0;
         durationMs = 0;
         status = "loading";

@@ -111,7 +111,12 @@ export class MpvSourceHandle implements AudioSourceHandle {
     }
     this.isPlaying = true
     this.startTime = Date.now() - this.position
-    this.bridge?.('audio', 'mpvPlay', [this.position]).catch(() => undefined)
+    // A position argument makes the engine seek. When the caller did not ask
+    // for one, omit it: a fresh track starts from the engine's own zero, a
+    // paused engine resumes from its own clock, and a playlist-advanced file
+    // (the gapless handoff) keeps sounding instead of being seeked back to
+    // the handle's zero.
+    this.bridge?.('audio', 'mpvPlay', [atMs]).catch(() => undefined)
 
     if (!this.timer) {
       this.timer = setInterval(async () => {
@@ -345,9 +350,15 @@ export class AudioMpv extends Service implements AudioService {
     // Primary route: Native audio-engine mpvLoad
     if (bridge) {
       try {
-        const result = (await bridge('audio', 'mpvLoad', [srcStr, opts])) as { durationMs?: number } | undefined
+        const result = (await bridge('audio', 'mpvLoad', [srcStr, opts])) as
+          | { durationMs?: number; resumed?: boolean }
+          | undefined
         if (result && typeof result.durationMs === 'number' && result.durationMs > 0) {
-          this.ctx.logger?.info('mpv: loaded via native audio-engine (%dms)', result.durationMs)
+          this.ctx.logger?.info(
+            'mpv: loaded via native audio-engine (%dms%s)',
+            result.durationMs,
+            result.resumed ? ', already sounding (gapless re-bind)' : '',
+          )
           opts.onBuffered?.(result.durationMs / 1000)
           return new MpvSourceHandle(this.context, result.durationMs, bridge, this.ctx.logger)
         }
@@ -491,15 +502,26 @@ export class AudioMpv extends Service implements AudioService {
     this.bridge?.('audio', 'mpvSetMuted', [m]).catch(() => undefined)
   }
 
+  private lastPreload?: { uri: string; ok: boolean; at: number }
+
+  /** Outcome of the most recent `preloadNext`, for gapless diagnostics. */
+  get lastPreloadStatus(): { uri: string; ok: boolean; at: number } | undefined {
+    return this.lastPreload
+  }
+
   async preloadNext(src: string | Uri, _opts?: { headers?: Record<string, string> }): Promise<void> {
     const bridge = resolveBridgeCall(this.config.bridgeCall)
-    if (bridge) {
-      try {
-        await bridge('audio', 'mpvAppend', [String(src), false])
-        this.ctx.logger?.info('mpv: preloaded next track for gapless handoff: %s', String(src))
-      } catch (err) {
-        this.ctx.logger?.debug?.('mpv: failed to preload next track: %s', String(err))
-      }
+    if (!bridge) {
+      this.lastPreload = { uri: String(src), ok: false, at: Date.now() }
+      return
+    }
+    try {
+      await bridge('audio', 'mpvAppend', [String(src), false])
+      this.lastPreload = { uri: String(src), ok: true, at: Date.now() }
+      this.ctx.logger?.info('mpv: preloaded next track for gapless handoff: %s', String(src))
+    } catch (err) {
+      this.lastPreload = { uri: String(src), ok: false, at: Date.now() }
+      this.ctx.logger?.debug?.('mpv: failed to preload next track: %s', String(err))
     }
   }
 

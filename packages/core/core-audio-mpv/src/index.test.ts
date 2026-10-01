@@ -583,6 +583,75 @@ describe('core-audio-mpv native engine features', () => {
     handle.dispose()
   })
 
+  it('play() without a position must not seek the engine (gapless re-bind)', async () => {
+    // After a playlist auto-advance the engine is already sounding the next
+    // file; the player's load+play of the same file is a re-bind. A position
+    // argument here would seek the track back to zero mid-playback.
+    const calls: { method: string; args: unknown[] }[] = []
+    const bridgeCall = async (_service: string, method: string, args: unknown[]) => {
+      calls.push({ method, args })
+      if (method === 'mpvLoad') {
+        return { durationMs: 120_000, resumed: true }
+      }
+      return undefined
+    }
+
+    const { audio } = await harness({ bridgeCall })
+    const handle = await audio.load('file:///music/next.flac', { strategy: 'stream' })
+
+    handle.play()
+    const playCall = calls.find((c) => c.method === 'mpvPlay')
+    expect(playCall).toBeDefined()
+    expect(playCall!.args[0], 'no position argument: the engine keeps sounding').toBeUndefined()
+    handle.dispose()
+  })
+
+  it('play(atMs) still seeks explicitly, and resume after pause does not seek', async () => {
+    const calls: { method: string; args: unknown[] }[] = []
+    const bridgeCall = async (_service: string, method: string, args: unknown[]) => {
+      calls.push({ method, args })
+      if (method === 'mpvLoad') {
+        return { durationMs: 120_000 }
+      }
+      return undefined
+    }
+
+    const { audio } = await harness({ bridgeCall })
+    const handle = await audio.load('file:///music/song.flac', { strategy: 'stream' })
+
+    handle.play(5000)
+    expect(calls.filter((c) => c.method === 'mpvPlay').at(-1)!.args[0]).toBe(5000)
+
+    handle.pause()
+    handle.play()
+    // Resuming must hand the engine its own clock back, not the handle's
+    // wall-clock estimate of where playback was.
+    const resumeCall = calls.filter((c) => c.method === 'mpvPlay').at(-1)!
+    expect(resumeCall.args[0]).toBeUndefined()
+
+    handle.dispose()
+  })
+
+  it('records the preload outcome for gapless diagnostics', async () => {
+    let appendShouldFail = false
+    const bridgeCall = async (_service: string, method: string) => {
+      if (method === 'mpvAppend') {
+        if (appendShouldFail) throw new Error('engine gone')
+        return undefined
+      }
+      return undefined
+    }
+
+    const { audio } = await harness({ bridgeCall })
+    await audio.preloadNext('file:///music/next.flac')
+    expect(audio.lastPreloadStatus?.ok).toBe(true)
+    expect(audio.lastPreloadStatus?.uri).toBe('file:///music/next.flac')
+
+    appendShouldFail = true
+    await audio.preloadNext('file:///music/next2.flac')
+    expect(audio.lastPreloadStatus?.ok).toBe(false)
+  })
+
   it('synchronizes native DSP/EQ parameters on dsp/chain-changed', async () => {
     let capturedDspConfig: unknown = null
     const bridgeCall = async (_service: string, method: string, args: unknown[]) => {
