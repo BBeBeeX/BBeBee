@@ -113,12 +113,20 @@ export interface CommandContribution {
 }
 
 export interface SettingsContribution {
-  kind: 'settings'
+  kind?: 'settings'
   id: string
-  section: 'general' | 'playback' | 'audio' | 'sources' | 'storage' | 'advanced'
+  /** Target section/category tab: 'general' | 'playback' | 'audio' | 'sources' | 'storage' | 'about' or custom ID */
+  section: 'general' | 'playback' | 'audio' | 'sources' | 'storage' | 'about' | (string & {})
   title: string
-  /** Rendered automatically from the schema unless a custom view is registered. */
-  schema?: StandardSchemaV1
+  description?: string
+  order?: number
+  icon?: string
+  actionText?: string
+  /** Presentation mode: 'card' (embedded custom card), 'link' (action navigation row), 'auto' */
+  display?: 'card' | 'link' | 'auto'
+  action?: () => void | Promise<void>
+  /** Auto-rendered form schema (when no custom view is registered) */
+  schema?: ParamSchema
 }
 
 export interface MenuContribution {
@@ -139,11 +147,16 @@ export interface UiService {
   /** Called by each shell's view package to bind an id to a component. */
   registerView(id: string, component: unknown): Disposable
 
+  navigate(id: string, params?: Record<string, unknown>): void
+
   readonly routes: readonly RouteContribution[]
   slotsFor(slot: SlotId): readonly SlotContribution[]
   readonly commands: readonly CommandContribution[]
+  readonly menus: readonly MenuContribution[]
+  readonly settings: readonly SettingsContribution[]
   runCommand(id: string, args?: unknown): Promise<void>
   viewFor(id: string): unknown | undefined
+  missingViews(): string[]
 }
 ```
 
@@ -170,17 +183,21 @@ Well-known extension points, enumerated in `@BBeBee/protocol` so both shells imp
 
 ```ts
 export type SlotId =
-  | 'now-playing.actions'        // buttons beside the transport
+  | 'now-playing.actions'        // buttons beside the transport (e.g. mini-player.button, desktop-lyrics.toggle, queue.button)
   | 'now-playing.panel'          // tabs in the expanded player (lyrics, queue, related)
+  | 'now-playing.visualizer'     // audio visualizer canvas slot
   | 'track.context-menu'         // right-click / long-press on a track
   | 'album.context-menu'
   | 'library.sidebar'            // extra library sections
   | 'search.results-section'     // an extra results group
-  | 'settings.sources'            // the source list: import, groups, enable, reorder
-  | 'source.browse'               // a source's explore tree
-  | 'source.test'                // one source, exercised feature by feature (06 §10)
+  | 'settings.sources'           // the source list: import, groups, enable, reorder
+  | 'source.browse'              // a source's explore tree
   | 'status-bar'                 // desktop only; ignored on mobile
 ```
+
+> **Decoupled Bottom Bar Actions and Settings**:
+> - Icons on the right side of the bottom player bar (Picture-in-Picture/mini player, floating lyrics toggle, play queue) are never hardcoded in `NowPlayingBar`. Instead, each plugin contributes its action button to the `'now-playing.actions'` slot and registers its view. The bar dynamically queries `ctx.ui.slotsFor('now-playing.actions')`, filtering with `when` and sorting by `order`.
+> - Feature plugin settings (such as DSP effects, cache management, source configuration) are dynamically contributed via `ctx.ui.contribute({ kind: 'settings', ... })` or `ctx.settings.contribute(...)` instead of hardcoded into the Settings screens.
 
 Slot rendering is where a plugin's UI actually shows up:
 

@@ -54,16 +54,33 @@ Key rules:
 Plugins never pass React components directly to the shell or core services.
 Instead, they register serializable **descriptors** (`route`, `slot`, `command`, `settings`, `menu`):
 ```ts
-ctx.ui.registerSlot('now-playing.actions', {
+// Slot contribution (e.g. action button beside player transport)
+ctx.ui.contribute({
+  kind: 'slot',
   id: 'library.like-button',
-  viewId: 'plugin-library:like-button',
+  slot: 'now-playing.actions',
+  order: 10,
+})
+
+// Settings contribution (e.g. feature configuration section or navigation link)
+ctx.ui.contribute({
+  kind: 'settings',
+  id: 'settings.dsp',
+  section: 'audio',
+  title: '音频音效',
+  display: 'card',
+  order: 10,
 })
 ```
-Each shell resolves the `viewId` against its target registry via `ctx.ui.registerView(viewId, Component)`.
+Each shell resolves the contribution ID against its target view registry via `ctx.ui.registerView(id, bound(ctx, Component))`.
 
 > ⚠️ **Always register a component bound to your plugin context**:
 > The shell context only has `ctx.ui`. Reaching for `ctx.player` from the shell context throws.
 > Each view package binds to its own context: `bound(ctx, ScreenComponent)`.
+
+> 💡 **Decoupled Bottom Bar Actions and Settings**:
+> - Icons on the right side of `NowPlayingBar` (such as `mini-player.button`, `desktop-lyrics.toggle`, `queue.button`) are contributed to `'now-playing.actions'`, never hardcoded.
+> - Settings rows and cards are contributed via `ctx.ui.contribute({ kind: 'settings', ... })` or `ctx.settings.contribute(...)`, never hardcoded into Settings screens.
 
 ---
 

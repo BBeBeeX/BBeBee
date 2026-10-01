@@ -71,7 +71,7 @@ export async function apply(ctx: Context) {
     yield ctx.on('player/track-changed', onTrack)
     const timer = setInterval(tick, 30_000)
     yield () => clearInterval(timer)
-    yield ctx.ui.registerSlot('now-playing.actions', descriptor)
+    yield ctx.ui.contribute({ kind: 'slot', id: 'scrobble.badge', slot: 'now-playing.actions', order: 50 })
   }, 'scrobbler')
 }
 ```

@@ -979,7 +979,49 @@ export interface ShareService {
 
 ---
 
-## 23. Where to go next
+## 23. `ctx.settings` — application settings & contribution registry
+
+**Purpose.** Persistent user preferences, audio output configuration, theme preferences, and an open contribution registry allowing headless and UI plugins to register settings sections, cards, and links dynamically without hardcoding them into the settings screens.
+
+```ts
+export interface SettingsContribution {
+  kind?: 'settings'
+  id: string
+  section: 'general' | 'playback' | 'audio' | 'sources' | 'storage' | 'about' | (string & {})
+  title: string
+  description?: string
+  order?: number
+  icon?: string
+  actionText?: string
+  display?: 'card' | 'link' | 'auto'
+  action?: () => void | Promise<void>
+  schema?: ParamSchema
+}
+
+export interface SettingsService {
+  get(): Promise<AppSettings>
+  getSync(): AppSettings
+  update(patch: DeepPartial<AppSettings>): Promise<void>
+  reset(): Promise<void>
+  contribute(contribution: SettingsContribution): Disposable
+  getContributions(): readonly SettingsContribution[]
+}
+```
+
+| | Electron (Desktop) | Expo (Mobile) |
+|---|---|---|
+| Headless service | `@BBeBee/plugin-settings` | `@BBeBee/plugin-settings` |
+| UI implementation | `@BBeBee/plugin-settings-ui-desktop` | `@BBeBee/plugin-settings-ui-mobile` |
+| Persistence | `ctx.store` namespace `settings` with schema migrations | Same |
+| Reactive Events | `'settings/changed'`, `'settings/contributions-changed'` | Same |
+
+- **Decoupled Contribution Model**: Plugins (`plugin-dsp`, `plugin-sources`, `plugin-download`, `plugin-history`, `plugin-visualizer`) declare their settings views or navigation rows via `ctx.ui.contribute({ kind: 'settings', ... })` or `ctx.settings.contribute(...)`.
+- **Dynamic Category Grouping**: The settings screen groups contributions by `section`, sorting by `order`. Unloaded plugins clean up their contributions automatically via Cordis disposers.
+
+---
+
+## 24. Where to go next
 
 [05 — Audio & Playback](../audio/playback.md) builds the playback engine and DSP chain on top of
 these services.
+

@@ -78,12 +78,20 @@ export interface CommandContribution {
 }
 
 export interface SettingsContribution {
-  kind: 'settings'
+  kind?: 'settings'
   id: string
-  section: 'general' | 'playback' | 'audio' | 'sources' | 'storage' | 'advanced'
+  /** 目标分类分段：'general' | 'playback' | 'audio' | 'sources' | 'storage' | 'about' 或自定义 ID */
+  section: 'general' | 'playback' | 'audio' | 'sources' | 'storage' | 'about' | (string & {})
   title: string
-  /** Rendered automatically from the schema unless a custom view is registered. */
-  schema?: StandardSchemaV1
+  description?: string
+  order?: number
+  icon?: string
+  actionText?: string
+  /** 展示模式：card（内嵌卡片视图）、link（操作按钮/导航行）、auto（自动适配） */
+  display?: 'card' | 'link' | 'auto'
+  action?: () => void | Promise<void>
+  /** 自动表单渲染模式（未注册自定义视图时生效） */
+  schema?: ParamSchema
 }
 
 export interface MenuContribution {
@@ -104,11 +112,16 @@ export interface UiService {
   /** Called by each shell's view package to bind an id to a component. */
   registerView(id: string, component: unknown): Disposable
 
+  navigate(id: string, params?: Record<string, unknown>): void
+
   readonly routes: readonly RouteContribution[]
   slotsFor(slot: SlotId): readonly SlotContribution[]
   readonly commands: readonly CommandContribution[]
+  readonly menus: readonly MenuContribution[]
+  readonly settings: readonly SettingsContribution[]
   runCommand(id: string, args?: unknown): Promise<void>
   viewFor(id: string): unknown | undefined
+  missingViews(): string[]
 }
 ```
 
@@ -120,17 +133,21 @@ export interface UiService {
 
 ```ts
 export type SlotId =
-  | 'now-playing.actions'        // buttons beside the transport
+  | 'now-playing.actions'        // 播放栏操作按钮区（如 mini-player.button、desktop-lyrics.toggle、queue.button 等插件按钮）
   | 'now-playing.panel'          // tabs in the expanded player (lyrics, queue, related)
+  | 'now-playing.visualizer'     // 音频可视化画布插槽
   | 'track.context-menu'         // right-click / long-press on a track
   | 'album.context-menu'
   | 'library.sidebar'            // extra library sections
   | 'search.results-section'     // an extra results group
-  | 'settings.sources'            // the source list: import, groups, enable, reorder
-  | 'source.browse'               // a source's explore tree
-  | 'source.test'                // one source, exercised feature by feature (06 §10)
+  | 'settings.sources'           // the source list: import, groups, enable, reorder
+  | 'source.browse'              // a source's explore tree
   | 'status-bar'                 // desktop only; ignored on mobile
 ```
+
+> **注意：播放栏右侧操作区与设置页面完全解耦**：
+> - 播放栏右侧的图标（小窗模式/灵动岛、悬浮歌词开关、播放队列）不再硬编码在 `NowPlayingBar`，而是由对应插件向 `'now-playing.actions'` 槽位贡献并在视图注册表中注册组件，底栏按 `order` 升序与 `when` 谓词动态渲染。
+> - 各插件的配置选项由插件通过 `ctx.ui.contribute({ kind: 'settings', ... })` 或 `ctx.settings.contribute(...)` 自主向设置服务贡献，设置页自动聚合展示，支持内嵌卡片（`display: 'card'`）与导航行（`display: 'link'`）。
 
 槽位渲染是插件的 UI 真正现身的地方：
 
