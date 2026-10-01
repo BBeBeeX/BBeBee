@@ -169,16 +169,41 @@ export function useCacheStats(ctx: Context): UseCacheStatsResult {
 
 export function useAvailableSettings(ctx: Context): readonly SettingsContribution[] {
   const read = () => {
+    const list: SettingsContribution[] = []
+    const seen = new Set<string>()
+
+    const settingsService = serviceOf<SettingsService>(ctx, 'settings')
+    if (settingsService?.getContributions) {
+      for (const item of settingsService.getContributions()) {
+        if (!seen.has(item.id)) {
+          seen.add(item.id)
+          list.push(item)
+        }
+      }
+    }
+
     const ui = serviceOf<UiService>(ctx, 'ui')
-    return ui ? [...ui.settings] : []
+    if (ui?.settings) {
+      for (const item of ui.settings) {
+        if (!seen.has(item.id)) {
+          seen.add(item.id)
+          list.push(item)
+        }
+      }
+    }
+
+    return list.sort((a, b) => (a.order ?? 50) - (b.order ?? 50))
   }
   const [list, setList] = useState<readonly SettingsContribution[]>(read)
 
   useEffect(() => {
-    const off = ctx.on('ui/changed', () => {
-      setList(read())
-    })
-    return () => void off()
+    const update = () => setList(read())
+    const offUi = ctx.on('ui/changed', update)
+    const offSettings = ctx.on('settings/contributions-changed', update)
+    return () => {
+      offUi()
+      offSettings()
+    }
   }, [ctx])
 
   return list

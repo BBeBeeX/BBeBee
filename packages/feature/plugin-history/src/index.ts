@@ -34,6 +34,15 @@ export async function apply(ctx: Context) {
         placement: ['tab-bar'],
         order: 25,
       })
+      yield scoped.ui.contribute({
+        kind: 'settings',
+        id: HISTORY_ROUTES.history,
+        section: 'playback',
+        title: '播放历史 (Playback History)',
+        description: '查看已播放曲目记录、按日期分布的听歌热力图及统计分析',
+        actionText: '查看播放历史',
+        order: 90,
+      })
     }, 'history-ui-contributions'),
   )
 

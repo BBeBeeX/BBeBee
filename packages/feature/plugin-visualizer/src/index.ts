@@ -26,6 +26,7 @@ import {
 export * from './analyser.js'
 export * from './views.js'
 export * from './hooks.js'
+import { VISUALIZER_VIEWS } from './views.js'
 
 export class VisualizerPlugin extends Service implements VisualizerService {
   static override readonly name = 'visualizer'
@@ -57,6 +58,20 @@ export class VisualizerPlugin extends Service implements VisualizerService {
 
   async [Service.init]() {
     this.ownCtx.logger.info('plugin-visualizer: initialized')
+
+    this.ownCtx.inject(['ui'], (scoped) =>
+      scoped.effect(function* () {
+        yield scoped.ui.contribute({
+          kind: 'settings',
+          id: VISUALIZER_VIEWS.settings,
+          section: 'playback',
+          title: '音频可视化',
+          description: '在播放界面呈现音乐频率跳动与声波流动效果，自定义显示样式与色彩',
+          display: 'card',
+          order: 80,
+        })
+      }, 'visualizer-settings-contribution'),
+    )
 
     // 1. Initialize settings from settings service
     const settingsService = (

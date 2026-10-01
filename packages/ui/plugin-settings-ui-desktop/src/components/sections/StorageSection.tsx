@@ -1,5 +1,7 @@
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
+import type { Context } from 'cordis'
+import type { SettingsContribution } from '@BBeBee/protocol'
 import { Button } from '@BBeBee/ui-kit-desktop'
 import { SettingsRow } from '../SettingsRow.js'
 import { SettingsSection } from '../SettingsSection.js'
@@ -11,10 +13,12 @@ export interface StorageUsage {
 }
 
 export interface StorageSectionProps {
+  ctx?: Context
   currentDownloadsDir: string
   currentCacheDir: string
   usage: StorageUsage
   clearingCache: boolean
+  contributions?: readonly SettingsContribution[]
   onPickDownloadDir: () => void
   onOpenDownloadDir: () => void
   onPickCacheDir: () => void
@@ -44,10 +48,12 @@ function cleanDisplayPath(rawPath?: string): string {
 }
 
 export function StorageSection({
+  ctx,
   currentDownloadsDir,
   currentCacheDir,
   usage,
   clearingCache,
+  contributions = [],
   onPickDownloadDir,
   onOpenDownloadDir,
   onPickCacheDir,
@@ -55,6 +61,17 @@ export function StorageSection({
   onClearCache,
   onNavigate,
 }: StorageSectionProps): ReactElement {
+  const storageContribs = contributions.filter((c) => c.section === 'storage')
+  const items: readonly SettingsContribution[] = storageContribs.length > 0 ? storageContribs : [
+    {
+      id: 'downloads.page',
+      section: 'storage',
+      title: '下载管理器 (Downloads)',
+      description: '查看下载队列、网络策略配置以及已保存至本地的歌曲',
+      actionText: '进入下载管理',
+    },
+  ]
+
   return h(
     'div',
     { id: 'section-storage' },
@@ -82,14 +99,24 @@ export function StorageSection({
           }),
         ),
       }),
-      h(SettingsRow, {
-        title: '下载管理器 (Downloads)',
-        description: '查看下载队列、网络策略配置以及已保存至本地的歌曲',
-        borderBottom: false,
-        action: h(Button, {
-          children: '进入下载管理',
-          onPress: () => onNavigate('downloads.page'),
-        }),
+      items.map((item) => {
+        if (item.display === 'card' && ctx) {
+          const CardView = ctx.ui?.viewFor?.(item.id) as React.ComponentType<{ ctx: Context }> | undefined
+          if (CardView) return h(CardView, { key: item.id, ctx })
+        }
+        return h(SettingsRow, {
+          key: item.id,
+          title: item.title,
+          description: item.description,
+          borderBottom: false,
+          action: h(Button, {
+            children: item.actionText ?? '进入下载管理',
+            onPress: () => {
+              if (item.action) void item.action()
+              else onNavigate(item.id)
+            },
+          }),
+        })
       }),
     ),
     h(

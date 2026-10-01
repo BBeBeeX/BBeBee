@@ -118,6 +118,31 @@ describe('plugin-settings', () => {
       { kind: 'route', id: SETTINGS_ROUTES.main, path: '/settings' },
     ])
   })
+
+  it('allows plugins to contribute settings entries dynamically', async () => {
+    const ctx = await harness()
+    await ctx.plugin(SettingsPlugin)
+    await tick()
+
+    const off = ctx.settings.contribute({
+      id: 'custom.plugin.settings',
+      section: 'playback',
+      title: 'Custom Feature',
+      description: 'Custom description',
+    })
+
+    expect(ctx.settings.getContributions()).toEqual([
+      expect.objectContaining({
+        kind: 'settings',
+        id: 'custom.plugin.settings',
+        section: 'playback',
+        title: 'Custom Feature',
+      }),
+    ])
+
+    off()
+    expect(ctx.settings.getContributions()).toEqual([])
+  })
 })
 
 describe('plugin-settings lifecycle', () => {

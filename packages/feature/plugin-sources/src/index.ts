@@ -324,7 +324,19 @@ export class Sources extends Service implements SourcesService {
           kind: 'settings',
           id: SOURCES_VIEWS.sourceList,
           section: 'sources',
-          title: 'Music sources',
+          title: '音乐来源配置 (Music Sources)',
+          description: '查看已启用的网络音源、进行源能力健康诊断或管理第三方音源列表',
+          actionText: '管理音乐源',
+          order: 10,
+        })
+        yield scoped.ui.contribute({
+          kind: 'settings',
+          id: SOURCES_ROUTES.sourceImport,
+          section: 'sources',
+          title: '导入音源 (Import Sources)',
+          description: '从剪贴板文本、本地 JSON 规则文件或网络 URL 导入第三方音源脚本 (Legado 格式)',
+          actionText: '导入音源',
+          order: 20,
         })
         yield scoped.ui.contribute({
           kind: 'route',

@@ -165,7 +165,10 @@ export class Scanner extends Service implements ScannerService {
         kind: 'settings',
         id: SCANNER_VIEWS.settings,
         section: 'sources',
-        title: 'Music folders',
+        title: '本地音乐文件夹 (Music Folders)',
+        description: '添加包含本地音频文件的文件夹，即时执行扫描并建立索引',
+        actionText: '管理文件夹',
+        order: 30,
       }),
     )
 

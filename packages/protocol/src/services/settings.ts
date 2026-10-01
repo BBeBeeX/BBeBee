@@ -7,6 +7,9 @@
 import type {} from 'cordis'
 import type { Disposable } from '../common.js'
 import type { DesktopLyricsPosition } from './lyrics.js'
+import type { SettingsContribution } from './ui.js'
+
+export type { SettingsContribution }
 
 export interface DesktopLyricsSettings {
   /** Whether desktop lyrics is currently enabled/visible. Default is false. */
@@ -235,6 +238,17 @@ export interface SettingsService {
 
   /** Subscribes to settings updates. */
   onSettingsChange(listener: (settings: AppSettings) => void): Disposable
+
+  /**
+   * Contributes a settings descriptor to the settings page.
+   * Can be used by plugins to register their settings entries dynamically.
+   */
+  contribute(contribution: SettingsContribution): Disposable
+
+  /**
+   * Returns all contributed settings entries.
+   */
+  getContributions(): readonly SettingsContribution[]
 }
 
 declare module 'cordis' {

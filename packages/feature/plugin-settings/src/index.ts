@@ -6,7 +6,7 @@
 
 import { Service } from 'cordis'
 import type { Context } from 'cordis'
-import type { AppSettings, Disposable, SettingsService } from '@BBeBee/protocol'
+import type { AppSettings, Disposable, SettingsContribution, SettingsService } from '@BBeBee/protocol'
 import { DEFAULT_APP_SETTINGS } from '@BBeBee/protocol'
 import { SETTINGS_ROUTES } from './views.js'
 
@@ -54,6 +54,8 @@ export class SettingsPlugin extends Service implements SettingsService {
 
   private readonly ownCtx: Context
   private current: AppSettings = mergeSettings(DEFAULT_APP_SETTINGS)
+  private readonly contributions = new Map<string, SettingsContribution>()
+  private uiScopedCtx?: Context
 
   constructor(ctx: Context) {
     super(ctx, 'settings')
@@ -71,7 +73,17 @@ export class SettingsPlugin extends Service implements SettingsService {
       this.ownCtx.logger.warn(`settings: failed to load persisted preferences: ${err}`)
     }
 
-    this.ownCtx.inject(['ui'], (scoped) =>
+    this.ownCtx.inject(['ui'], (scoped) => {
+      this.uiScopedCtx = scoped
+      // Register any contributions made before ui service was loaded
+      for (const contrib of this.contributions.values()) {
+        try {
+          scoped.ui.contribute(contrib)
+        } catch {
+          // ignore
+        }
+      }
+
       scoped.effect(function* () {
         scoped.logger.debug(`settings: contributing route ${SETTINGS_ROUTES.main}`)
         yield scoped.ui.contribute({
@@ -83,8 +95,8 @@ export class SettingsPlugin extends Service implements SettingsService {
           placement: ['sidebar', 'tab-bar'],
           order: 95,
         })
-      }, 'settings-ui-contributions'),
-    )
+      }, 'settings-ui-contributions')
+    })
   }
 
   async get(): Promise<AppSettings> {
@@ -113,6 +125,36 @@ export class SettingsPlugin extends Service implements SettingsService {
 
   onSettingsChange(listener: (settings: AppSettings) => void): Disposable {
     return this.ownCtx.on('settings/changed', listener)
+  }
+
+  contribute(contribution: SettingsContribution): Disposable {
+    const item: SettingsContribution = {
+      ...contribution,
+      kind: 'settings',
+    }
+    this.contributions.set(item.id, item)
+    this.ownCtx.emit('settings/contributions-changed', this.getContributions())
+
+    let uiDisposer: Disposable | undefined
+    if (this.uiScopedCtx?.ui) {
+      try {
+        uiDisposer = this.uiScopedCtx.ui.contribute(item)
+      } catch {
+        // ignore
+      }
+    }
+
+    return () => {
+      this.contributions.delete(item.id)
+      uiDisposer?.()
+      this.ownCtx.emit('settings/contributions-changed', this.getContributions())
+    }
+  }
+
+  getContributions(): readonly SettingsContribution[] {
+    return Array.from(this.contributions.values()).sort(
+      (a, b) => (a.order ?? 50) - (b.order ?? 50),
+    )
   }
 }
 

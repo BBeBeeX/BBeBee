@@ -25,8 +25,7 @@ import {
   DEFAULT_PROXY_SETTINGS,
   DEFAULT_SHORTCUTS_SETTINGS,
 } from '@BBeBee/protocol'
-import { useAppSettings, useCacheStats } from '@BBeBee/plugin-settings/hooks'
-import { useDsp } from '@BBeBee/plugin-dsp/hooks'
+import { useAppSettings, useAvailableSettings, useCacheStats } from '@BBeBee/plugin-settings/hooks'
 import { GeneralSection } from './components/sections/GeneralSection.js'
 import { PlaybackSection } from './components/sections/PlaybackSection.js'
 import { LyricsSection } from './components/sections/LyricsSection.js'
@@ -35,16 +34,11 @@ import { NetworkSection } from './components/sections/NetworkSection.js'
 import { SourcesSection } from './components/sections/SourcesSection.js'
 import { StorageSection } from './components/sections/StorageSection.js'
 import { AboutSection } from './components/sections/AboutSection.js'
+import { SettingsSection } from './components/SettingsSection.js'
+import { SettingsRow } from './components/SettingsRow.js'
+import { Button } from '@BBeBee/ui-kit-desktop'
 
-export type SettingsTab =
-  | 'general'
-  | 'playback'
-  | 'lyrics'
-  | 'shortcuts'
-  | 'network'
-  | 'sources'
-  | 'storage'
-  | 'about'
+export type SettingsTab = string
 
 export interface TabItem {
   id: SettingsTab
@@ -81,7 +75,36 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
 
   const { settings, update, reset } = useAppSettings(ctx)
   const { usage, clear } = useCacheStats(ctx)
-  const { chain, latencyMs, setEnabled, applyPreset, getParams, setParam } = useDsp(ctx)
+  const availableSettings = useAvailableSettings(ctx)
+
+  const customSectionIds = Array.from(
+    new Set(
+      availableSettings
+        .map((c) => c.section)
+        .filter(
+          (s) =>
+            ![
+              'general',
+              'playback',
+              'audio',
+              'lyrics',
+              'shortcuts',
+              'network',
+              'sources',
+              'storage',
+              'about',
+            ].includes(s),
+        ),
+    ),
+  )
+
+  const allTabs: readonly TabItem[] = [
+    ...TABS,
+    ...customSectionIds.map((s) => ({
+      id: s,
+      label: s.charAt(0).toUpperCase() + s.slice(1),
+    })),
+  ]
 
   const [clearingCache, setClearingCache] = useState(false)
   const [resetting, setResetting] = useState(false)
@@ -388,13 +411,13 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
       },
     )
 
-    for (const tab of TABS) {
+    for (const tab of allTabs) {
       const el = document.getElementById(`section-${tab.id}`)
       if (el) observer.observe(el)
     }
 
     return () => observer.disconnect()
-  }, [])
+  }, [allTabs])
 
   const handleClearCache = async () => {
     setClearingCache(true)
@@ -458,7 +481,7 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
         },
         '设置',
       ),
-      TABS.map((tab) => {
+      allTabs.map((tab) => {
         const isActive = activeTab === tab.id
         return h(
           'button',
@@ -515,12 +538,8 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
         ctx,
         settings,
         update,
-        chain,
-        latencyMs,
-        setEnabled,
-        applyPreset,
-        getParams,
-        setParam,
+        contributions: availableSettings,
+        onNavigate: handleNavigate,
       }),
 
       // 3. Desktop Lyrics
@@ -568,21 +587,55 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
 
       // 6. Sources & Music Folders
       h(SourcesSection, {
+        ctx,
+        contributions: availableSettings,
         onNavigate: handleNavigate,
       }),
 
       // 7. Storage & Downloads
       h(StorageSection, {
+        ctx,
         currentDownloadsDir,
         currentCacheDir,
         usage,
         clearingCache,
+        contributions: availableSettings,
         onPickDownloadDir: handlePickDownloadDir,
         onOpenDownloadDir: handleOpenDownloadDir,
         onPickCacheDir: handlePickCacheDir,
         onOpenCacheDir: handleOpenCacheDir,
         onClearCache: handleClearCache,
         onNavigate: handleNavigate,
+      }),
+
+      // Custom sections contributed by plugins
+      ...customSectionIds.map((secId) => {
+        const secContribs = availableSettings.filter((c) => c.section === secId)
+        return h(
+          'div',
+          { id: `section-${secId}`, key: secId },
+          h(
+            SettingsSection,
+            { title: secId.charAt(0).toUpperCase() + secId.slice(1) },
+            secContribs.map((item) => {
+              if (item.display === 'card') {
+                const Card = (ctx as { ui?: UiService })?.ui?.viewFor?.(item.id) as
+                  | React.ComponentType<{ ctx: Context }>
+                  | undefined
+                if (Card) return h(Card, { key: item.id, ctx })
+              }
+              return h(SettingsRow, {
+                key: item.id,
+                title: item.title,
+                description: item.description,
+                action: h(Button, {
+                  children: item.actionText ?? '打开',
+                  onPress: () => handleNavigate(item.id),
+                }),
+              })
+            }),
+          ),
+        )
       }),
 
       // 8. About & Danger Zone

@@ -7,7 +7,7 @@ import { describe, expect, it, afterEach, vi } from 'vitest'
 import { createElement as h } from 'react'
 import { fireEvent, render, cleanup, waitFor } from '@testing-library/react'
 import { Context, Service } from 'cordis'
-import type { AppSettings, SettingsService, CacheClass, CacheStats, ThemeDefinition, NowPlayingStyleMeta, LyricSourceDefinition, SourceRecord } from '@BBeBee/protocol'
+import type { AppSettings, SettingsService, SettingsContribution, CacheClass, CacheStats, ThemeDefinition, NowPlayingStyleMeta, LyricSourceDefinition, SourceRecord } from '@BBeBee/protocol'
 import { DEFAULT_APP_SETTINGS, NOW_PLAYING_STYLES } from '@BBeBee/protocol'
 import { midnightPurpleTheme, spotifyTheme } from '@BBeBee/ui-tokens'
 import { SettingsScreen } from './SettingsScreen.js'
@@ -101,6 +101,21 @@ async function harness(initialSettings: Partial<AppSettings> = {}) {
     onSettingsChange = (callback: (settings: AppSettings) => void) => {
       return this.appCtx.on('settings/changed', callback)
     }
+
+    private contributions: SettingsContribution[] = []
+
+    contribute = (c: SettingsContribution) => {
+      this.contributions.push(c)
+      this.appCtx.emit('settings/contributions-changed', this.contributions)
+      return () => {
+        this.contributions = this.contributions.filter((item) => item.id !== c.id)
+        this.appCtx.emit('settings/contributions-changed', this.contributions)
+      }
+    }
+
+    getContributions = (): readonly SettingsContribution[] => {
+      return this.contributions
+    }
   }
 
   class CacheStub extends Service {
@@ -123,6 +138,7 @@ async function harness(initialSettings: Partial<AppSettings> = {}) {
 
   class UiStub extends Service {
     public views = new Map<string, unknown>()
+    public settings: SettingsContribution[] = []
     constructor(ctx: Context) {
       super(ctx, 'ui')
     }
@@ -337,9 +353,42 @@ async function harness(initialSettings: Partial<AppSettings> = {}) {
   await root.plugin(LyricSourcesStub)
 
   let scoped: Context | undefined
-  root.inject(['ui', 'settings'], (s) => void (scoped = s))
+  root.inject(['ui', 'settings', 'dsp'], (s) => void (scoped = s))
   await new Promise((r) => setTimeout(r, 0))
   if (!scoped) throw new Error('Failed to create scoped context in harness')
+
+  const ui = scoped.get('ui') as unknown as UiStub
+  const dsp = scoped.get('dsp') as unknown as DspStub
+  const settingsSvc = scoped.get('settings') as unknown as SettingsStub
+
+  const MockDspCard = () => {
+    return h(
+      'section',
+      null,
+      h('h3', null, '音频效果与均衡器 (DSP)'),
+      h('div', null, '10 频段图示均衡器 (10-Band EQ)'),
+      h('div', null, '均衡器预设风格'),
+      h('button', { onClick: () => void dsp.applyPreset('eq10', '原声 (Flat)') }, '原声'),
+      h('div', null, '音量响度标准化 (Normalization)'),
+      h('div', null, '标准化目标响度预设'),
+      h('button', { onClick: () => void dsp.applyPreset('normalize', '流媒体标准 (-14 LUFS)') }, '流媒体 (-14)'),
+      h('div', null, '动态范围压缩器 (Compressor)'),
+      h('div', null, '压缩模式风格'),
+      h('button', { onClick: () => void dsp.applyPreset('compressor', '夜间模式 (Night Mode)') }, '🌙 夜间模式'),
+      h('div', null, '空间混响效果 (Reverb)'),
+      h('div', null, '混响空间类型'),
+      h('button', { onClick: () => void dsp.applyPreset('reverb', '音乐大厅 (Concert Hall)') }, '音乐大厅'),
+      h('button', { onClick: () => ui.navigate('dsp.view') }, '打开音效面板 →'),
+    )
+  }
+
+  ui.registerView('settings.dsp', MockDspCard)
+  settingsSvc.contribute({
+    id: 'settings.dsp',
+    section: 'playback',
+    title: '音频效果与均衡器 (DSP)',
+    display: 'card',
+  })
 
   return { ctx: scoped, calls, getCurrentSettings: () => currentSettings }
 }

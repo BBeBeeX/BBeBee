@@ -42,7 +42,7 @@ import type { AuthStatus } from './services/sources.js'
 import type { CheckReport } from './services/source-document.js'
 import type { SourceError } from './errors.js'
 import type { ScanSpecifiedDir, ScanSummary } from './services/scanner.js'
-import type { AppSettings, AudioOutputEngine } from './services/settings.js'
+import type { AppSettings, AudioOutputEngine, SettingsContribution } from './services/settings.js'
 import type { SleepTimerState } from './services/sleep-timer.js'
 import type { DesktopLyricsState, LyricsState } from './services/lyrics.js'
 import type { MiniPlayerServiceState } from './services/mini-player.js'
@@ -55,6 +55,7 @@ import type { UrnKind } from './urn.js'
 declare module 'cordis' {
   interface Events {
     'settings/changed'(settings: AppSettings): void
+    'settings/contributions-changed'(contributions: readonly SettingsContribution[]): void
     /* ── audio ────────────────────────────────────────── emit ── */
     'audio/engine-changed'(payload: { engine: AudioOutputEngine }): void
     'audio/context-rebuilt'(): void
@@ -250,6 +251,7 @@ export const DISPATCH_MODES = {
   'sleep-timer/changed': 'emit',
   'sleep-timer/fired': 'emit',
   'settings/changed': 'emit',
+  'settings/contributions-changed': 'emit',
   'theme/changed': 'emit',
   'theme/registry-changed': 'emit',
   'mini-player/changed': 'emit',

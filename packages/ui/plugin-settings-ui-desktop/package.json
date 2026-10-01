@@ -19,7 +19,6 @@
   },
   "dependencies": {
     "@BBeBee/plugin-cache": "workspace:*",
-    "@BBeBee/plugin-dsp": "workspace:*",
     "@BBeBee/plugin-settings": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/ui-core": "workspace:*",

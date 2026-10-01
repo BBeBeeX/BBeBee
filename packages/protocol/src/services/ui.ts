@@ -62,10 +62,31 @@ export interface CommandContribution {
 }
 
 export interface SettingsContribution {
-  kind: 'settings'
+  kind?: 'settings'
   id: string
-  section: 'general' | 'playback' | 'audio' | 'sources' | 'storage' | 'advanced'
+  /**
+   * Target section/category tab in the settings screen.
+   * Standard sections: 'general', 'playback', 'audio', 'sources', 'storage', 'about', or any custom section id.
+   */
+  section: 'general' | 'playback' | 'audio' | 'sources' | 'storage' | 'about' | (string & {})
   title: string
+  /** Detailed description or explanation. */
+  description?: string
+  /** Sort order within the section (lower values appear first). */
+  order?: number
+  /** Icon name from the shared icon set. */
+  icon?: string
+  /** Text for the action button when rendered as a link row (e.g. '打开', '管理', '配置'). */
+  actionText?: string
+  /**
+   * Presentation type:
+   * - 'link': rendered as a SettingsRow with an action button that navigates to `id`.
+   * - 'card': rendered inline as a card/section embedding `ui.viewFor(id)`.
+   * - 'auto': embeds if a custom component is registered, otherwise renders as a navigation row.
+   */
+  display?: 'card' | 'link' | 'auto'
+  /** Optional custom action when the button is clicked, overriding default navigate(id). */
+  action?: () => void | Promise<void>
   /** Rendered automatically unless a custom view is registered. */
   schema?: ParamSchema
 }

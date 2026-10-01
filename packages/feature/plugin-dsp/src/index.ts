@@ -115,7 +115,11 @@ export class DspPlugin extends Service implements DspService {
           kind: 'settings',
           id: DSP_ROUTES.settings,
           section: 'audio',
-          title: '音频效果与均衡器',
+          title: '音频效果与均衡器 (DSP)',
+          description: '10频段图示均衡器、响度标准化、动态压缩与空间混响调音面板',
+          actionText: '打开音效面板 →',
+          display: 'card',
+          order: 30,
         })
       }, 'dsp-ui-contributions'),
     )

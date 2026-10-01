@@ -8,8 +8,9 @@ import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { DspScreen, type DspScreenProps } from './DspScreen.js'
+import { DspSettingsCard } from './components/DspSettingsCard.js'
 
-export { DspScreen, type DspScreenProps }
+export { DspScreen, type DspScreenProps, DspSettingsCard }
 
 export const name = 'plugin-dsp-ui-mobile'
 export const inject = ['ui', 'dsp']
@@ -28,7 +29,7 @@ export async function apply(ctx: Context) {
 
   return ctx.effect(function* () {
     yield ctx.ui.registerView('dsp.view', bound(ctx, DspScreen))
-    yield ctx.ui.registerView('settings.dsp', bound(ctx, DspScreen))
+    yield ctx.ui.registerView('settings.dsp', bound(ctx, DspSettingsCard))
   }, 'dsp-ui-mobile')
 }
 

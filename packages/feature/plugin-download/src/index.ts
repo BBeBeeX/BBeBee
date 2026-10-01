@@ -224,7 +224,10 @@ export class Downloads extends Service implements DownloadsService {
         kind: 'settings',
         id: DOWNLOADS_VIEWS.page,
         section: 'storage',
-        title: 'Downloads',
+        title: '下载管理器 (Downloads)',
+        description: '查看下载队列、网络策略配置以及已保存至本地的歌曲',
+        actionText: '进入下载管理',
+        order: 20,
       }),
     )
 

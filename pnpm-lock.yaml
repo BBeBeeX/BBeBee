@@ -2646,9 +2646,6 @@ importers:
       '@BBeBee/plugin-cache':
         specifier: workspace:*
         version: link:../../feature/plugin-cache
-      '@BBeBee/plugin-dsp':
-        specifier: workspace:*
-        version: link:../../feature/plugin-dsp
       '@BBeBee/plugin-settings':
         specifier: workspace:*
         version: link:../../feature/plugin-settings
@@ -2695,9 +2692,6 @@ importers:
       '@BBeBee/plugin-cache':
         specifier: workspace:*
         version: link:../../feature/plugin-cache
-      '@BBeBee/plugin-dsp':
-        specifier: workspace:*
-        version: link:../../feature/plugin-dsp
       '@BBeBee/plugin-settings':
         specifier: workspace:*
         version: link:../../feature/plugin-settings
