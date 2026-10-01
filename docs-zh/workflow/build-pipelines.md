@@ -36,10 +36,14 @@ MPV Hi-Fi 引擎（`core-audio-mpv`）运行在一个独立的 C++ 可执行文�
 **引擎二进制查找**（`AudioEngineSupervisor.resolveExecutablePath`）：`AUDIO_ENGINE_PATH` 环境变量
 → 打包态 `resources/bin/` → 开发候选路径。显式注入的路径缺失时严格失败（不回退）。
 
-**libmpv 查找**（引擎启动时 `dlopen`）：先引擎自身所在目录（打包时 staged 的 libmpv 就放在这里——
-supervisor 会把子进程的 `LD_LIBRARY_PATH`/`DYLD_LIBRARY_PATH`/`PATH` 指向该目录），再系统库路径——
-Windows `mpv-2.dll`、Linux `libmpv.so.2`、macOS `libmpv.dylib`。libmpv 构建的 ffmpeg 族版本必须与
-宿主栈匹配：sid 的 0.41 需要 `libavcodec.so.63`，而 trixie 的 0.40 匹配系统的 `.61`。
+**libmpv 查找**（引擎启动时 `dlopen`）：先引擎自身所在目录——`build-audio-engine.js` 会把
+**vendored 平台 libmpv**（`apps/desktop/resources/libmpv/<平台>/`，提交入库的源码受控集合：
+`win64/` 为 mpv-winbuild 的 LGPL 全静态构建，`linux/` 为 Debian trixie `libmpv2` 的增量集，
+`darwin/` 由 CI 从 brew staged；来源与许可见该目录 README）staged 到这里，且 supervisor 会把
+子进程的 `LD_LIBRARY_PATH`/`DYLD_LIBRARY_PATH`/`PATH` 指向该目录。再系统库路径——Windows
+`mpv-2.dll`、Linux `libmpv.so.2`、macOS `libmpv.dylib`。vendored 的 Linux 集合覆盖发行版
+libmpv2 依赖栈之外的增量；ffmpeg 族版本必须与宿主匹配（sid 的 0.41 需要 `libavcodec.so.63`，
+trixie 的 0.40 匹配系统的 `.61`）。
 
 **降级矩阵**：
 
@@ -50,8 +54,8 @@ Windows `mpv-2.dll`、Linux `libmpv.so.2`、macOS `libmpv.dylib`。libmpv 构建
 | 两者齐备 | mpv 解码并直连系统音频输出；原生 DSP/EQ；append 式 gapless；astats 驱动频谱 |
 
 **打包**：CI 按平台编译引擎（三平台矩阵 + `--version` 冒烟）并上传产物；打包 job 下载产物、staged libmpv
-（`scripts/fetch-libmpv.js`——系统搜索、`LIBMPV_PATH` 覆盖、带 SHA256 校验的 Windows 预编译下载）、
-运行 electron-builder，其分平台 `extraResources` 把引擎与 libmpv 装进安装包。本地等价：
+（构建脚本写入的 vendored 集合优先；`scripts/fetch-libmpv.js` 为回退——系统搜索、`LIBMPV_PATH`
+覆盖、动态解析最新预编译下载）、运行 electron-builder，其分平台 `extraResources` 把引擎与 libmpv 装进安装包。本地等价：
 `pnpm build:desktop && pnpm dist:desktop`。面向开发者的精简版规则见根目录 [README.md](../../README.md)。
 
 编排不使用 Turborepo —— 没有 `turbo.json`；根脚本以 `pnpm -r` 运行 `build`、`typecheck`、`lint` 与 `test`。

@@ -41,12 +41,17 @@ artifacts. `pnpm dev:desktop` does *not* build it; without a prior
 `AUDIO_ENGINE_PATH` env var → the packaged `resources/bin/` → dev candidate paths. An
 explicitly injected path that is missing fails strictly (no fallthrough).
 
-**libmpv lookup** (the engine `dlopen`s it at startup): first the engine's own directory
-(packaging places the staged libmpv there — the supervisor points the child's
-`LD_LIBRARY_PATH`/`DYLD_LIBRARY_PATH`/`PATH` at it), then the system library paths —
-`mpv-2.dll` on Windows, `libmpv.so.2` on Linux, `libmpv.dylib` on macOS. The ffmpeg-family
-versions of the libmpv build must match the host stack: a sid-built 0.41 needs
-`libavcodec.so.63`, while trixie's 0.40 matches the system's `.61`.
+**libmpv lookup** (the engine `dlopen`s it at startup): first the engine's own directory —
+`build-audio-engine.js` stages the **vendored platform libmpv** from
+`apps/desktop/resources/libmpv/<platform>/` there (a committed, source-controlled set:
+`win64/` is the mpv-winbuild LGPL static build, `linux/` is the Debian trixie `libmpv2` delta
+set, `darwin/` is staged from brew by CI; provenance and licensing in that directory's
+README) — and the supervisor points the child's
+`LD_LIBRARY_PATH`/`DYLD_LIBRARY_PATH`/`PATH` at it. Then the system library paths: `mpv-2.dll`
+on Windows, `libmpv.so.2` on Linux, `libmpv.dylib` on macOS. The vendored Linux set covers the
+delta over the distro's own libmpv2 dependency stack; the ffmpeg-family versions must match
+the host (a sid-built 0.41 needs `libavcodec.so.63`, while trixie's 0.40 matches the system's
+`.61`).
 
 **Degradation matrix**:
 
@@ -58,8 +63,9 @@ versions of the libmpv build must match the host stack: a sid-built 0.41 needs
 
 **Packaging**: CI builds the binary per platform (a three-OS matrix with a `--version` smoke)
 and uploads it as an artifact; the packaging job downloads it, stages libmpv
-(`scripts/fetch-libmpv.js` — system search, `LIBMPV_PATH` override, SHA256-verified Windows
-prebuilt download), and runs electron-builder, whose per-platform `extraResources` carry the
+(the vendored set from the build script is primary; `scripts/fetch-libmpv.js` is the fallback —
+system search, `LIBMPV_PATH` override, dynamic latest-release resolution with `LIBMPV_DOWNLOAD_URL`),
+and runs electron-builder, whose per-platform `extraResources` carry the
 engine and libmpv in the installers. Locally: `pnpm build:desktop && pnpm dist:desktop`. The
 condensed developer version of these rules lives in the root [README.md](../../README.md).
 

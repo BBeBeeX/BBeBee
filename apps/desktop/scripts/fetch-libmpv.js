@@ -278,9 +278,23 @@ if (targetPlatform === 'linux') {
 
   // 3. If running on Windows or CI, attempt download of prebuilt Windows libmpv archive with SHA256 integrity verification
   console.log(`[fetch-libmpv] Searching for prebuilt Windows libmpv release...`)
-  const releaseUrl =
-    process.env['LIBMPV_DOWNLOAD_URL'] ||
-    'https://github.com/zhongfly/mpv-winbuild/releases/download/2024-10-27-0130fec/mpv-dev-x86_64-20241027-git-0130fec.7z'
+  let releaseUrl = process.env['LIBMPV_DOWNLOAD_URL'] || ''
+  if (!releaseUrl) {
+    // Resolve the latest mpv-dev-lgpl x86_64 asset dynamically — a pinned
+    // dated URL rots (the 2024-10-27 one is already 404).
+    try {
+      const api = spawnSync('curl', ['-sf', 'https://api.github.com/repos/zhongfly/mpv-winbuild/releases/latest'], { encoding: 'utf-8' })
+      const assets = JSON.parse(api.stdout || '[]')
+      const asset = (assets.assets || []).find((a) => a.name.startsWith('mpv-dev-lgpl-x86_64-') && a.name.endsWith('.7z') && !a.name.includes('v3'))
+      if (asset) releaseUrl = asset.browser_download_url
+    } catch {
+      // fall through to the failure path below
+    }
+  }
+  if (!releaseUrl) {
+    console.error('[fetch-libmpv] ERROR: no libmpv download URL resolved (set LIBMPV_DOWNLOAD_URL).')
+    process.exit(1)
+  }
 
   // Pinned known SHA256 or user-provided override
   const expectedSha256 = process.env['LIBMPV_EXPECTED_SHA256'] || '47a544c776fb083b4b8f52ef137f8f94d93b160b73c2ea8f1350ee9c55b119cb'

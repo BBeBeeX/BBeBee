@@ -49,9 +49,11 @@ pnpm --filter @BBeBee/desktop build:audio-engine
 
 **libmpv**（引擎启动时 `dlopen`/`LoadLibrary`）按序查找：
 
-1. 引擎二进制所在目录（打包时 libmpv 与引擎同目录放入）
+1. 引擎二进制所在目录——`build:audio-engine` 会把 **vendored 库**（`apps/desktop/resources/libmpv/<平台>/`，见下）与打包 staged 的库都拷到这里，因此本地测试零配置
 2. 系统库路径：Windows `PATH`/`mpv-2.dll`，Linux `libmpv.so.2`（`LD_LIBRARY_PATH` 或发行版包），macOS `libmpv.dylib`
 3. 全部落空 → 引擎进入无 mpv 模式：所有加载快速失败并回退 FFmpeg 桥解码（有声、频谱平线、无 gapless）
+
+**vendored 库**（`apps/desktop/resources/libmpv/`，提交入库）：`win64/` 为 mpv-winbuild 的 LGPL 全静态构建（零系统依赖），`linux/` 为 Debian trixie `libmpv2` 的增量集（需发行版提供 libavcodec61 等基础栈），`darwin/` 由 CI macos job 从 brew staged。来源、版本与许可说明见 [apps/desktop/resources/libmpv/README.md](apps/desktop/resources/libmpv/README.md)。
 
 开发机免 root 方式：把 libmpv 及其依赖放到引擎旁（supervisor 会为子进程设置
 `LD_LIBRARY_PATH`/`DYLD_LIBRARY_PATH`/`PATH` 指向该目录），或直接 `LD_LIBRARY_PATH=<libmpv目录> pnpm dev:desktop`。

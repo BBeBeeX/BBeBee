@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, chmodSync, copyFileSync } from 'node:fs'
+import { existsSync, mkdirSync, chmodSync, copyFileSync, readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
@@ -82,6 +82,26 @@ try {
   console.log(`[build-audio-engine] Packaged resource synced at: ${resourcesExe}`)
 } catch (err) {
   console.warn(`[build-audio-engine] Failed to sync to resources/bin:`, err)
+}
+
+// Stage the vendored platform libmpv beside the binary: dev testing and
+// electron-builder packaging both consume it without a system libmpv.
+const vendorDir = join(desktopRoot, 'resources', 'libmpv', isWin ? 'win64' : process.platform === 'darwin' ? 'darwin' : 'linux')
+if (existsSync(vendorDir)) {
+  let staged = 0
+  for (const f of readdirSync(vendorDir)) {
+    if (!f.endsWith('.dll') && !f.includes('.so') && !f.endsWith('.dylib')) continue
+    copyFileSync(join(vendorDir, f), join(binDir, f))
+    copyFileSync(join(vendorDir, f), join(resourcesBinDir, f))
+    if (!isWin) {
+      try { chmodSync(join(binDir, f), 0o755) } catch { /* ignore */ }
+      try { chmodSync(join(resourcesBinDir, f), 0o755) } catch { /* ignore */ }
+    }
+    staged++
+  }
+  console.log(`[build-audio-engine] Vendored libmpv staged: ${staged} libraries → bin/ + resources/bin/`)
+} else {
+  console.warn(`[build-audio-engine] No vendored libmpv for this platform (${vendorDir}) — the engine will need a system libmpv at runtime.`)
 }
 
 console.log(`[build-audio-engine] Standalone audio-engine built successfully at: ${outExe}`)
