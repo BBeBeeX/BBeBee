@@ -702,13 +702,25 @@ private:
     }
 
     void visualizerLoop() {
+        int zeroFramesSent = 0;
         while (running) {
             std::this_thread::sleep_for(std::chrono::milliseconds(30));
             std::unique_lock<std::mutex> lock(engineMutex);
             if (!visualizerEnabled) continue;
 
+            bool isPlaying = (status == "playing" && !muted && volume > 0.01);
+            if (!isPlaying) {
+                if (zeroFramesSent >= 2) {
+                    lock.unlock();
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                    continue;
+                }
+            } else {
+                zeroFramesSent = 0;
+            }
+
             // Direct level query with guaranteed mpv_free
-            if (mpv && mpvLib.get_property && status == "playing") {
+            if (mpv && mpvLib.get_property && isPlaying) {
                 char* rmsStr = nullptr;
                 if (mpvLib.get_property(mpv, "af-metadata/bbebee_astats/Overall.RMS_level", MPV_FORMAT_STRING, &rmsStr) >= 0 && rmsStr) {
                     if (std::strcmp(rmsStr, "-inf") != 0 && std::strlen(rmsStr) > 0) {
@@ -734,7 +746,7 @@ private:
             float peak = currentPeakLevelDb.load();
 
             // Real audio analysis tap: if stopped, paused, muted, or silent, output zero
-            if (status == "playing" && !muted && volume > 0.01 && rms > -90.0f) {
+            if (isPlaying && rms > -90.0f) {
                 // Map RMS dB [-70dB .. 0dB] to normalized energy [0.0 .. 1.0]
                 float energy = std::clamp((rms + 70.0f) / 70.0f, 0.0f, 1.0f);
                 float peakNorm = std::clamp((peak + 70.0f) / 70.0f, 0.0f, 1.0f);
@@ -755,6 +767,8 @@ private:
                     float wave = std::sin(phase) * amp;
                     timeDom[i] = static_cast<uint8_t>(std::clamp(128.0f + wave, 0.0f, 255.0f));
                 }
+            } else {
+                zeroFramesSent++;
             }
             lock.unlock();
 

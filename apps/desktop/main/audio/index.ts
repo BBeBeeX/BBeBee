@@ -68,9 +68,6 @@ export function createAudioHost(logger?: AudioMainLogger): AudioHostApi {
     lastFftFrame = frame
   })
 
-  // Start the supervisor child process
-  supervisor.start()
-
   return {
     probe: (uri, options) => decoder.probe(uri, options),
     decodePcm: (uri, options) => decoder.decodePcm(uri, options),

@@ -136,3 +136,67 @@ jobs:
           else
             echo "audio-engine executable not found" && exit 1
           fi
+      - name: Upload audio-engine artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: audio-engine-${{ matrix.os }}
+          path: |
+            apps/desktop/bin/audio-engine*
+            apps/desktop/resources/bin/audio-engine*
+          if-no-files-found: error
+
+  package-desktop:
+    name: Package Desktop App (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: [audio-engine]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Download audio-engine artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: audio-engine-${{ matrix.os }}
+          path: apps/desktop/resources/bin
+      - name: Install libmpv (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libmpv-dev libmpv2
+      - name: Install libmpv (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install mpv
+      - name: Stage platform libmpv
+        run: |
+          node apps/desktop/scripts/fetch-libmpv.js --strict
+      - name: Ensure executable permissions
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          chmod +x apps/desktop/resources/bin/audio-engine* 2>/dev/null || true
+          mkdir -p apps/desktop/bin
+          cp -f apps/desktop/resources/bin/audio-engine* apps/desktop/bin/ 2>/dev/null || true
+          chmod +x apps/desktop/bin/audio-engine* 2>/dev/null || true
+      - name: Ensure binary on Windows
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          mkdir -p apps/desktop/bin
+          cp -f apps/desktop/resources/bin/audio-engine* apps/desktop/bin/ 2>/dev/null || true
+      - name: Verify bundled artifacts in resources/bin
+        shell: bash
+        run: |
+          ls -la apps/desktop/resources/bin/
+      - name: Build Desktop Application
+        run: pnpm build:desktop

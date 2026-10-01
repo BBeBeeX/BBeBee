@@ -31,7 +31,7 @@ export interface FftFrame {
 }
 
 export interface PlaybackStateEvent {
-  status: 'idle' | 'playing' | 'paused' | 'stopped' | 'stalled' | 'loading' | 'error'
+  status: 'idle' | 'playing' | 'paused' | 'stopped' | 'stalled' | 'loading' | 'error' | 'ended'
   positionMs: number
   durationMs: number
 }
@@ -87,8 +87,8 @@ export class AudioEngineSupervisor {
   }
 
   resolveExecutablePath(): string | null {
-    if (this.customExecutablePath && existsSync(this.customExecutablePath)) {
-      return this.customExecutablePath
+    if (this.customExecutablePath !== undefined) {
+      return existsSync(this.customExecutablePath) ? this.customExecutablePath : null
     }
     const envPath = process.env['AUDIO_ENGINE_PATH']
     if (envPath && existsSync(envPath)) {
@@ -312,6 +312,12 @@ export class AudioEngineSupervisor {
   ): Promise<LoadResult> {
     this.currentUri = uri
     this.start()
+
+    if (!this.child || this.child.killed) {
+      const err = new Error(`Audio engine executable not found or process not running. Cannot load: ${uri}`)
+      this.logger?.warn?.('audio-engine-supervisor: %s', err.message)
+      throw err
+    }
 
     return new Promise<LoadResult>((resolve, reject) => {
       const timer = setTimeout(() => {

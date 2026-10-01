@@ -115,4 +115,11 @@ describe('AudioEngineSupervisor standalone native executable', () => {
     expect(crashes.length).toBe(1)
     expect(crashes[0]!.restarting).toBe(true)
   })
+
+  it('fails fast on load when executable is not found', async () => {
+    supervisor = new AudioEngineSupervisor(undefined, '/non/existent/path/to/audio-engine')
+    await expect(supervisor.load('file:///music/test.flac')).rejects.toThrow(
+      /Audio engine executable not found/,
+    )
+  })
 })

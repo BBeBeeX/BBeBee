@@ -97,7 +97,7 @@ flowchart LR
   - **崩溃隔离原生独立可执行文件 (Crash Isolation & Standalone Executable)**：基于官方 libmpv 与编译生成的独立 native `audio-engine` 二进制可执行文件（`apps/desktop/bin/audio-engine` 或 `.exe`），采用标准 stdio JSON-IPC 与 Electron 主进程通信。任何底层驱动崩溃、音频设备热插拔异常或 native 信号错误均由独立进程隔离，由 `AudioEngineSupervisor` 自动监控并执行优雅自愈重连，保证主进程与渲染界面丝滑稳定。
   - **PCM 不走 IPC 与 WASAPI 直通 (Zero-IPC for PCM)**：音频解码后的高采样率 PCM 流在原生子进程内直接送入 WASAPI 输出端点（`ao=wasapi`），严禁跨进程高带宽低效传输 PCM 原始数据。
   - **原生 DSP/EQ 链**：原生引擎内部直接实现 10 段均衡器（10-band EQ）、前级增益（Preamp）与压限器，监听 `dsp/chain-changed` 动态热更新音频滤镜管线。
-  - **统一 AudioAnalyser 与 WebGL 频谱画布**：`audio-engine` 内部就地计算 FFT 频谱，经由极轻量 stdio JSON-IPC 与 bridge 通道将频域帧推送到渲染进程，通过统一的 `AudioAnalyser`（`NativeMpvImpl` / `WebAudioImpl`）抽象供给渲染层，在 WebGL Canvas 上利用 GPU 着色器实现高性能流畅渲染。
+  - **统一 AudioAnalyser 与 WebGL 频谱画布**：`audio-engine` 内部就地由真实音频电平（基于 `astats` 滤镜元数据）驱动计算频谱，经由极轻量 stdio JSON-IPC 与 bridge 通道将频域帧推送到渲染进程，通过统一的 `AudioAnalyser`（`NativeMpvImpl` / `WebAudioImpl`）抽象供给渲染层，在 WebGL Canvas 上利用 GPU 着色器实现高性能流畅渲染。
 - **移动端音频引擎架构 (`MobileAudioService` in `apps/mobile`)**：
   - **实际交付的生产级引擎 (路线 A: `@BBeBee/core-audio-webaudio` via `react-native-audio-api`)**：当前移动端运行的生产级音频图引擎，直接基于移动端底层音频子系统（Apple CoreAudio / Android Oboe/AAudio）。提供低延迟音频缓冲、系统后台音频播放与音频焦点打断处理。
   - **规划中架构目标 (路线 B: `@BBeBee/core-audio-mpv` 进程内 libmpv JNI/JSI)**：移动端发烧级音频架构路线图目标。由于 iOS 沙盒严格禁止派生子进程（禁止 `fork`/`posix_spawn`），且 Android 后台会冻结独立子进程，移动端设计为**进程内共享动态库（In-process Dynamic Library `libmpv.so` / `mpv.framework`）**结合 TurboModule JSI 桥接。在原生动态库未编译打包的环境中，`MobileAudioService` 自动兜底运行在路线 A (WebAudio)，移动端设置 UI 明确将 MPV Hi-Fi 标注为「规划中」并禁用，确保不会发生空跑静音。
