@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, chmodSync } from 'node:fs'
+import { existsSync, mkdirSync, chmodSync, copyFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
@@ -58,6 +58,20 @@ if (!isWin) {
   } catch (err) {
     console.warn(`[build-audio-engine] Failed to set executable permission:`, err)
   }
+}
+
+// Also sync to resources/bin for packaged application builds
+const resourcesBinDir = join(desktopRoot, 'resources', 'bin')
+if (!existsSync(resourcesBinDir)) {
+  mkdirSync(resourcesBinDir, { recursive: true })
+}
+const resourcesExe = join(resourcesBinDir, isWin ? 'audio-engine.exe' : 'audio-engine')
+try {
+  copyFileSync(outExe, resourcesExe)
+  if (!isWin) chmodSync(resourcesExe, 0o755)
+  console.log(`[build-audio-engine] Packaged resource synced at: ${resourcesExe}`)
+} catch (err) {
+  console.warn(`[build-audio-engine] Failed to sync to resources/bin:`, err)
 }
 
 console.log(`[build-audio-engine] Standalone audio-engine built successfully at: ${outExe}`)

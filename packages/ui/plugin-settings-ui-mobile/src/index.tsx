@@ -224,19 +224,20 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
         : null,
       renderRow(
         '音频输出引擎',
-        settings.audioOutputEngine === 'mpv' ? 'MPV Hi-Fi 发烧原生引擎 (JNI/JSI)' : 'WebAudio 轻量系统引擎 (Oboe/CoreAudio)',
+        'WebAudio 系统原生引擎 (iOS CoreAudio / Android Oboe)',
         h(
           native.View as never,
           { style: { flexDirection: 'row', gap: tokens.space[1] } },
           h(Button, {
-            variant: (settings.audioOutputEngine ?? 'webaudio') === 'webaudio' ? 'primary' : 'secondary',
+            variant: 'primary',
             onPress: () => void update({ audioOutputEngine: 'webaudio' }),
             children: 'WebAudio',
           }),
           h(Button, {
-            variant: settings.audioOutputEngine === 'mpv' ? 'primary' : 'secondary',
-            onPress: () => void update({ audioOutputEngine: 'mpv' }),
-            children: 'MPV Hi-Fi',
+            variant: 'secondary',
+            disabled: true,
+            onPress: () => {},
+            children: 'MPV Hi-Fi (规划中)',
           }),
         ),
       ),

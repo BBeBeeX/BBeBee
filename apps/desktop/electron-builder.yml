@@ -1,0 +1,17 @@
+appId: org.bbebee.desktop
+productName: BBeBee
+directories:
+  output: dist
+  buildResources: resources
+files:
+  - out/**/*
+  - package.json
+extraResources:
+  - from: resources/bin
+    to: bin
+    filter:
+      - audio-engine*
+  - from: bin
+    to: bin
+    filter:
+      - audio-engine*

@@ -7,12 +7,23 @@
  * and recovers gracefully.
  */
 
-import { fork, spawn, type ChildProcess } from 'node:child_process'
+import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import type { AudioMainLogger } from './audio-devices.js'
-import type { DspConfig } from './audio-engine-worker.js'
+
+export interface DspConfig {
+  preamp?: { enabled: boolean; gainDb?: number }
+  eq?: { enabled: boolean; gains?: number[] }
+  compressor?: {
+    enabled: boolean
+    threshold?: number
+    ratio?: number
+    attack?: number
+    release?: number
+  }
+}
 
 export interface FftFrame {
   frequencyData: number[]
@@ -20,7 +31,7 @@ export interface FftFrame {
 }
 
 export interface PlaybackStateEvent {
-  status: 'idle' | 'playing' | 'paused' | 'stopped' | 'stalled'
+  status: 'idle' | 'playing' | 'paused' | 'stopped' | 'stalled' | 'loading' | 'error'
   positionMs: number
   durationMs: number
 }
@@ -29,6 +40,11 @@ export interface CrashEvent {
   code: number | null
   signal: string | null
   restarting: boolean
+}
+
+export interface LoadResult {
+  durationMs: number
+  uri: string
 }
 
 export class AudioEngineSupervisor {
@@ -52,6 +68,13 @@ export class AudioEngineSupervisor {
   private currentDspConfig?: DspConfig
   private visualizerEnabled = true
   private currentFftSize = 128
+
+  private pendingLoads: Array<{
+    uri: string
+    resolve: (res: LoadResult) => void
+    reject: (err: Error) => void
+    timer: ReturnType<typeof setTimeout>
+  }> = []
 
   constructor(logger?: AudioMainLogger, customExecutablePath?: string) {
     this.logger = logger
@@ -80,6 +103,8 @@ export class AudioEngineSupervisor {
     if (resourcesPath) {
       const packagedExe = join(resourcesPath, 'bin', exeName)
       if (existsSync(packagedExe)) return packagedExe
+      const packagedExeDirect = join(resourcesPath, exeName)
+      if (existsSync(packagedExeDirect)) return packagedExeDirect
     }
 
     // Development paths
@@ -87,8 +112,11 @@ export class AudioEngineSupervisor {
       const currentDir = dirname(fileURLToPath(import.meta.url))
       const candidatePaths = [
         join(currentDir, '..', '..', 'bin', exeName),
+        join(currentDir, '..', '..', 'resources', 'bin', exeName),
         join(currentDir, '..', '..', '..', 'bin', exeName),
+        join(currentDir, '..', '..', '..', 'resources', 'bin', exeName),
         join(process.cwd(), 'apps', 'desktop', 'bin', exeName),
+        join(process.cwd(), 'apps', 'desktop', 'resources', 'bin', exeName),
         join(process.cwd(), 'bin', exeName),
       ]
 
@@ -106,53 +134,52 @@ export class AudioEngineSupervisor {
     try {
       const exePath = this.resolveExecutablePath()
 
-      if (exePath) {
-        this.logger?.info?.('audio-engine-supervisor: spawning standalone native audio-engine executable at: %s', exePath)
+      if (!exePath) {
+        this.logger?.error?.('audio-engine-supervisor: standalone native audio-engine executable not found')
+        const err = new Error('audio-engine executable not found')
+        while (this.pendingLoads.length > 0) {
+          const p = this.pendingLoads.shift()!
+          clearTimeout(p.timer)
+          p.reject(err)
+        }
+        for (const cb of this.crashListeners) {
+          cb({ code: -1, signal: null, restarting: false })
+        }
+        return
+      }
 
-        this.child = spawn(exePath, [], {
-          stdio: ['pipe', 'pipe', 'pipe'],
-          windowsHide: true,
-          env: { ...process.env, NODE_ENV: process.env.NODE_ENV ?? 'production' },
-        })
+      this.logger?.info?.('audio-engine-supervisor: spawning standalone native audio-engine executable at: %s', exePath)
 
-        let stdoutBuffer = ''
-        this.child.stdout?.on('data', (chunk: Buffer | string) => {
-          stdoutBuffer += chunk.toString()
-          const lines = stdoutBuffer.split('\n')
-          stdoutBuffer = lines.pop() ?? ''
-          for (const line of lines) {
-            const trimmed = line.trim()
-            if (trimmed) {
-              try {
-                const msg = JSON.parse(trimmed)
-                this.handleWorkerMessage(msg)
-              } catch {
-                this.logger?.debug?.('audio-engine-supervisor: unparseable stdout line: %s', trimmed)
-              }
+      this.child = spawn(exePath, [], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        windowsHide: true,
+        env: { ...process.env, NODE_ENV: process.env.NODE_ENV ?? 'production' },
+      })
+
+      let stdoutBuffer = ''
+      this.child.stdout?.on('data', (chunk: Buffer | string) => {
+        stdoutBuffer += chunk.toString()
+        const lines = stdoutBuffer.split('\n')
+        stdoutBuffer = lines.pop() ?? ''
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (trimmed) {
+            try {
+              const msg = JSON.parse(trimmed)
+              this.handleWorkerMessage(msg)
+            } catch {
+              this.logger?.debug?.('audio-engine-supervisor: unparseable stdout line: %s', trimmed)
             }
           }
-        })
+        }
+      })
 
-        this.child.stderr?.on('data', (chunk: Buffer | string) => {
-          const text = chunk.toString().trim()
-          if (text) {
-            this.logger?.debug?.('audio-engine [stderr]: %s', text)
-          }
-        })
-      } else {
-        const currentDir = dirname(fileURLToPath(import.meta.url))
-        const workerScript = join(currentDir, 'audio-engine-worker.js')
-        this.logger?.warn?.('audio-engine-supervisor: native executable not found, falling back to worker script: %s', workerScript)
-
-        this.child = fork(workerScript, [], {
-          stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
-          env: { ...process.env, NODE_ENV: process.env.NODE_ENV ?? 'production' },
-        })
-
-        this.child.on('message', (msg: unknown) => {
-          this.handleWorkerMessage(msg)
-        })
-      }
+      this.child.stderr?.on('data', (chunk: Buffer | string) => {
+        const text = chunk.toString().trim()
+        if (text) {
+          this.logger?.debug?.('audio-engine [stderr]: %s', text)
+        }
+      })
 
       this.child.on('error', (err) => {
         this.logger?.error?.('audio-engine-supervisor: worker process error: %s', String(err))
@@ -189,6 +216,25 @@ export class AudioEngineSupervisor {
       case 'ready':
         for (const cb of this.readyListeners) cb()
         break
+      case 'loaded': {
+        const durationMs = Number(payload['durationMs'] ?? 0)
+        const uri = String(payload['uri'] ?? this.currentUri ?? '')
+        while (this.pendingLoads.length > 0) {
+          const p = this.pendingLoads.shift()!
+          clearTimeout(p.timer)
+          p.resolve({ durationMs, uri })
+        }
+        break
+      }
+      case 'error': {
+        const message = String(payload['message'] ?? 'Audio engine error')
+        while (this.pendingLoads.length > 0) {
+          const p = this.pendingLoads.shift()!
+          clearTimeout(p.timer)
+          p.reject(new Error(message))
+        }
+        break
+      }
       case 'state':
       case 'playback-state':
         for (const cb of this.stateListeners) {
@@ -218,6 +264,14 @@ export class AudioEngineSupervisor {
 
   private handleWorkerExit(code: number | null, signal: string | null): void {
     this.child = null
+
+    // Reject any pending loads
+    while (this.pendingLoads.length > 0) {
+      const p = this.pendingLoads.shift()!
+      clearTimeout(p.timer)
+      p.reject(new Error(`audio-engine process terminated unexpectedly (code: ${code}, signal: ${signal})`))
+    }
+
     if (this.isShuttingDown) return
 
     const now = Date.now()
@@ -227,15 +281,14 @@ export class AudioEngineSupervisor {
     this.lastRestartTime = now
     this.restartCount++
 
-    const shouldRestart = this.restartCount <= 5
     this.logger?.warn?.(
-      'audio-engine-supervisor: worker process terminated unexpectedly (code: %s, signal: %s). Restarting: %s',
+      'audio-engine-supervisor: worker exited (code: %s, signal: %s). Restart count: %d',
       code,
       signal,
-      shouldRestart,
+      this.restartCount,
     )
 
-    // Notify listeners of crash isolation event
+    const shouldRestart = this.restartCount <= 5
     for (const cb of this.crashListeners) {
       cb({ code, signal, restarting: shouldRestart })
     }
@@ -246,16 +299,32 @@ export class AudioEngineSupervisor {
           this.spawnWorker()
           // If a track was playing, re-load state
           if (this.currentUri) {
-            this.load(this.currentUri)
+            void this.load(this.currentUri).catch(() => undefined)
           }
         }
       }, 500)
     }
   }
 
-  load(uri: string, options?: { headers?: Record<string, string>; strategy?: string }): void {
+  async load(
+    uri: string,
+    options?: { headers?: Record<string, string>; strategy?: string },
+  ): Promise<LoadResult> {
     this.currentUri = uri
-    this.sendCommand({ action: 'load', uri, options })
+    this.start()
+
+    return new Promise<LoadResult>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        const idx = this.pendingLoads.findIndex((p) => p.timer === timer)
+        if (idx !== -1) {
+          this.pendingLoads.splice(idx, 1)
+          reject(new Error(`Timeout loading audio: ${uri}`))
+        }
+      }, 15_000)
+
+      this.pendingLoads.push({ uri, resolve, reject, timer })
+      this.sendCommand({ action: 'load', uri, options })
+    })
   }
 
   play(atMs?: number): void {
@@ -302,11 +371,8 @@ export class AudioEngineSupervisor {
 
   private sendCommand(cmd: Record<string, unknown>): void {
     if (!this.child || this.child.killed) return
-
     if (this.child.stdin?.writable) {
       this.child.stdin.write(JSON.stringify(cmd) + '\n')
-    } else if (this.child.connected) {
-      this.child.send(cmd)
     }
   }
 
@@ -335,22 +401,13 @@ export class AudioEngineSupervisor {
     return () => this.readyListeners.delete(cb)
   }
 
-  dispose(): void {
+  async shutdown(): Promise<void> {
     this.isShuttingDown = true
-    if (this.child) {
-      this.sendCommand({ action: 'dispose' })
-      const proc = this.child
-      this.child = null
-      setTimeout(() => {
-        if (!proc.killed) {
-          proc.kill('SIGKILL')
-        }
-      }, 500)
+    this.sendCommand({ action: 'dispose' })
+    if (this.child && !this.child.killed) {
+      this.child.kill()
     }
-    this.fftListeners.clear()
-    this.stateListeners.clear()
-    this.endedListeners.clear()
-    this.crashListeners.clear()
-    this.readyListeners.clear()
+    this.child = null
+    this.pendingLoads = []
   }
 }

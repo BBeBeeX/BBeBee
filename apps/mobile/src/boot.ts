@@ -29,6 +29,7 @@ import {
 import { FlashList } from '@shopify/flash-list'
 import { AudioContext, AudioManager } from 'react-native-audio-api'
 import { createApp, type App } from '@BBeBee/kernel'
+import type { AppSettings } from '@BBeBee/protocol'
 import { PathsExpo } from '@BBeBee/core-paths-expo'
 import { File, FsExpo } from '@BBeBee/core-fs-expo'
 import { StoreFs } from '@BBeBee/core-store-fs'

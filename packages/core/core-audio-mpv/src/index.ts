@@ -114,14 +114,43 @@ export class MpvSourceHandle implements AudioSourceHandle {
     this.bridge?.('audio', 'mpvPlay', [this.position]).catch(() => undefined)
 
     if (!this.timer) {
-      this.timer = setInterval(() => {
+      this.timer = setInterval(async () => {
         if (!this.isPlaying) return
-        this.position = Date.now() - this.startTime
-        if (this.position >= this.durationMs) {
+        if (this.bridge) {
+          try {
+            const state = (await this.bridge('audio', 'mpvGetState', [])) as
+              | { positionMs?: number; durationMs?: number; status?: string }
+              | undefined
+            if (state && typeof state.positionMs === 'number') {
+              this.position = state.positionMs
+              if (
+                state.status === 'stopped' &&
+                this.durationMs > 0 &&
+                this.position >= this.durationMs
+              ) {
+                this.isPlaying = false
+                if (this.timer) {
+                  clearInterval(this.timer)
+                  this.timer = undefined
+                }
+                for (const cb of this.endedListeners) cb()
+                return
+              }
+            }
+          } catch {
+            this.position = Date.now() - this.startTime
+          }
+        } else {
+          this.position = Date.now() - this.startTime
+        }
+
+        if (this.durationMs > 0 && this.position >= this.durationMs) {
           this.position = this.durationMs
           this.isPlaying = false
-          clearInterval(this.timer)
-          this.timer = undefined
+          if (this.timer) {
+            clearInterval(this.timer)
+            this.timer = undefined
+          }
           for (const cb of this.endedListeners) cb()
         }
       }, 50)
@@ -220,11 +249,6 @@ export class AudioMpv extends Service implements AudioService {
     this.master.connect(this.context.destination)
 
     this.ctx.logger?.info('core-audio-mpv: initialized (sampleRate: %d)', this.sampleRate)
-
-    // Listen to DSP changes to synchronize with native audio-engine
-    this.ctx.on('dsp/chain-changed', () => {
-      this.syncDspConfig()
-    })
   }
 
   get activeEngineName(): 'mpv' {
@@ -525,7 +549,11 @@ export class AudioMpv extends Service implements AudioService {
 
   async [Service.init]() {
     this.interruptions.attach(this.context)
+    const offDsp = this.ctx.on('dsp/chain-changed', () => {
+      this.syncDspConfig()
+    })
     return async () => {
+      offDsp()
       this.interruptions.detach()
       this.chainInput.disconnect()
       this.master.disconnect()

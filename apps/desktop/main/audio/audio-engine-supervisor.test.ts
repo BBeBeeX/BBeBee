@@ -5,8 +5,8 @@ import { AudioEngineSupervisor, type CrashEvent, type FftFrame, type PlaybackSta
 describe('AudioEngineSupervisor standalone native executable', () => {
   let supervisor: AudioEngineSupervisor | null = null
 
-  afterEach(() => {
-    supervisor?.dispose()
+  afterEach(async () => {
+    await supervisor?.shutdown()
     supervisor = null
   })
 
@@ -49,7 +49,7 @@ describe('AudioEngineSupervisor standalone native executable', () => {
     const states: PlaybackStateEvent[] = []
     supervisor.onStateChange((e) => states.push(e))
 
-    supervisor.load('file:///music/test.flac')
+    await supervisor.load('file:///music/test.flac')
     supervisor.play(1000)
 
     // Wait for state updates
@@ -78,7 +78,7 @@ describe('AudioEngineSupervisor standalone native executable', () => {
     const frames: FftFrame[] = []
     supervisor.onFftFrame((f) => frames.push(f))
 
-    supervisor.load('file:///music/test.flac')
+    await supervisor.load('file:///music/test.flac')
     supervisor.setVisualizer(true, 128)
     supervisor.play(0)
 
@@ -90,7 +90,7 @@ describe('AudioEngineSupervisor standalone native executable', () => {
     expect(sampleFrame.frequencyData).toBeDefined()
     expect(sampleFrame.frequencyData.length).toBe(64) // 128 / 2
     expect(sampleFrame.timeDomainData).toBeDefined()
-    expect(sampleFrame.timeDomainData.length).toBe(64)
+    expect(sampleFrame.timeDomainData.length).toBe(128) // fftSize
   })
 
   it('isolates child process crash and notifies listeners', async () => {

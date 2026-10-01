@@ -65,8 +65,7 @@ export function createAudioHost(logger?: AudioMainLogger): AudioHostApi {
     },
 
     mpvLoad: async (uri, options) => {
-      supervisor.load(uri, options)
-      return { durationMs: 180_000 }
+      return supervisor.load(uri, options)
     },
     mpvPlay: async (atMs) => {
       supervisor.play(atMs)

@@ -98,11 +98,10 @@ flowchart LR
   - **PCM 不走 IPC 与 WASAPI 直通 (Zero-IPC for PCM)**：音频解码后的高采样率 PCM 流在原生子进程内直接送入 WASAPI 输出端点（`ao=wasapi`），严禁跨进程高带宽低效传输 PCM 原始数据。
   - **原生 DSP/EQ 链**：原生引擎内部直接实现 10 段均衡器（10-band EQ）、前级增益（Preamp）与压限器，监听 `dsp/chain-changed` 动态热更新音频滤镜管线。
   - **统一 AudioAnalyser 与 WebGL 频谱画布**：`audio-engine` 内部就地计算 FFT 频谱，经由极轻量 IPC 将频域帧推送到渲染进程，通过统一的 `AudioAnalyser`（`NativeMpvImpl` / `WebAudioImpl`）抽象供给渲染层，在 WebGL Canvas 上利用 GPU 着色器实现高性能流畅渲染。
-- **移动端双音频引擎方案 (`MobileAudioService` in `apps/mobile`)**：
-  移动端支持在设置中动态无缝切换路线 A 与路线 B：
-  - **路线 A (`@BBeBee/core-audio-webaudio` + `react-native-audio-api`)**：默认轻量级 Web Audio 音频图方案。在 iOS/Android 上使用原生音频节点，具有极低的内存占用和标准的 Web Audio 图管道。
-  - **路线 B (`@BBeBee/core-audio-mpv` + 进程内 JNI/JSI `libmpv` 动态库)**：移动端发烧级高保真引擎。由于 iOS 沙盒严格禁止子进程派生（禁止 `fork`/`posix_spawn`），且 Android 系统在切入后台或待机时会激进杀死独立子进程，移动端采用**进程内共享动态库（In-process Dynamic Library `libmpv.so` / `mpv.framework`）**结合 JNI / React Native TurboModule JSI 桥接实现，提供除跨进程崩溃隔离外的所有发烧级功能（包括流式渐进缓冲 `strategy: 'stream'`、全格式硬解 ALAC/FLAC/DSD、内置 10 段 DSP/EQ 以及 FFT 频谱帧抽取）。
-  - **无缝状态迁移与焦点打断控制**：运行时切换引擎时，音量、静音及播放配置自动平滑迁移。移动端系统音频焦点打断（电话呼入、闹钟、语音助手）与硬件路由变更（拔出耳机）由系统层统一监听并向下派发，双引擎无缝响应。
+- **移动端音频引擎架构 (`MobileAudioService` in `apps/mobile`)**：
+  - **实际交付的生产级引擎 (路线 A: `@BBeBee/core-audio-webaudio` via `react-native-audio-api`)**：当前移动端运行的生产级音频图引擎，直接基于移动端底层音频子系统（Apple CoreAudio / Android Oboe/AAudio）。提供低延迟音频缓冲、系统后台音频播放与音频焦点打断处理。
+  - **规划中架构目标 (路线 B: `@BBeBee/core-audio-mpv` 进程内 libmpv JNI/JSI)**：移动端发烧级音频架构路线图目标。由于 iOS 沙盒严格禁止派生子进程（禁止 `fork`/`posix_spawn`），且 Android 后台会冻结独立子进程，移动端设计为**进程内共享动态库（In-process Dynamic Library `libmpv.so` / `mpv.framework`）**结合 TurboModule JSI 桥接。在原生动态库未编译打包的环境中，`MobileAudioService` 自动兜底运行在路线 A (WebAudio)，移动端设置 UI 明确将 MPV Hi-Fi 标注为「规划中」并禁用，确保不会发生空跑静音。
+  - **状态连续性与系统打断管理**：引擎切换时自动保持当前曲目 URL、加载选项与播放进度位置并执行恢复。移动端系统音频焦点打断（电话呼入、闹钟、语音助手）与硬件路由变更（拔出耳机）由系统层统一监听并优雅响应。
 - **设置中的音频输出引擎与设备选择 (`audioOutputEngine`, `audioOutputDeviceId`)**：
   用户可在桌面端设置界面的「音频输出引擎与设备」中自由配置驱动与物理设备：
   - **MPV Hi-Fi（Windows 默认）**：独立 native 原生引擎，WASAPI 直通输出、原生 DSP/EQ 与 FFT 可视化。

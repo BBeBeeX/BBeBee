@@ -77,6 +77,7 @@ typedef int (*fn_mpv_set_property_string)(mpv_handle *ctx, const char *name, con
 typedef int (*fn_mpv_observe_property)(mpv_handle *ctx, uint64_t reply_userdata, const char *name, mpv_format format);
 typedef mpv_event *(*fn_mpv_wait_event)(mpv_handle *ctx, double timeout);
 typedef const char *(*fn_mpv_error_string)(int error);
+typedef void (*fn_mpv_free)(void *data);
 
 #ifdef __cplusplus
 }
