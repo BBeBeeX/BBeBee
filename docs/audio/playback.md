@@ -223,6 +223,11 @@ control arm of the regression test at
 - **Crossfade** is the alternative path: two source nodes, two gain ramps of
   `crossfadeMs`, equal-power curve. Mutually exclusive with gapless — attempting both produces a
   audible double-fade — so the setting is a three-way choice: `gapless | crossfade | neither`.
+- **The mpv engine's gapless is append-based**: `ctx.audio.preloadNext` hands the next src to the
+  engine (`loadfile append`) while the current track plays; at the boundary mpv advances inside its
+  own playlist and the player's load of the now-current track *re-binds* to it (`resumed: true`) —
+  the ended→next policy is unchanged, only the audible restart is gone. Sample-accurate scheduling
+  is mpv-internal here; what the player hands over is the src, not PCM.
 - **Prefetch** begins at `max(15s, crossfadeMs + 5s)` before the end, and is cancelled via
   `AbortSignal` if the queue changes.
 - **Decoder fallback on Hi-Res audio (`decodeAudioData` fallback)**:

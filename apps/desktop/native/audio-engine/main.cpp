@@ -284,7 +284,12 @@ public:
         if (mpv && mpvLib.get_property) {
             char* pathStr = nullptr;
             if (mpvLib.get_property(mpv, "path", MPV_FORMAT_STRING, &pathStr) >= 0 && pathStr) {
-                const bool alreadyCurrent = (uri == std::string(pathStr));
+                // mpv strips the scheme in `path` for file:// URLs — compare
+                // the requested uri in both forms.
+                std::string bare = uri;
+                const size_t scheme = bare.find("://");
+                if (scheme != std::string::npos) bare = bare.substr(scheme + 3);
+                const bool alreadyCurrent = (uri == std::string(pathStr)) || (bare == std::string(pathStr));
                 if (mpvLib.free_data) mpvLib.free_data(pathStr);
 
                 int atEof = 0;
@@ -373,7 +378,7 @@ public:
 
     void stop() {
         std::lock_guard<std::mutex> lock(engineMutex);
-        status = "stopped";
+ status = "stopped";
         positionMs = 0;
         if (mpv && mpvLib.command) {
             const char* stopCmd[] = { "stop", nullptr };
@@ -583,6 +588,7 @@ private:
     std::atomic<float> currentPeakLevelDb{ -100.0f };
 
     void applyFilterGraph(const std::string& userFilters) {
+        fprintf(stderr, "[dbg] af <- %s\n", (userFilters.empty() ? "(tap only)" : userFilters.c_str()));
         std::string fullAf = userFilters;
         // Always append astats metadata tap with label for real-time level and spectrum analysis
         if (!fullAf.empty()) fullAf += ",";
@@ -595,6 +601,7 @@ private:
 
     void updateAfMetadata(const char* metaStr) {
         if (!metaStr || std::strlen(metaStr) == 0) return;
+        fprintf(stderr, "[dbg] RAW afmeta (%zu): %s\n", std::strlen(metaStr), metaStr);
         bool parsed = false;
 
         // Try JSON parsing first (if starts with '{')
@@ -782,7 +789,7 @@ private:
                         ended["type"] = "ended";
                         sendJson(ended);
                     } else {
-                        status = "stopped";
+                 status = "stopped";
                         sendPlaybackState();
                     }
                     break;
