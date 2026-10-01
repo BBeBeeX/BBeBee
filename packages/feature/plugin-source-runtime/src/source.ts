@@ -1694,7 +1694,25 @@ export class DocumentSource {
     }
 
     const payload = (await this.deps.albumPayload?.(id)) ?? {}
-    const url = typeof payload.childUrl === 'string' ? payload.childUrl : undefined
+    let url = typeof payload.childUrl === 'string' ? payload.childUrl : undefined
+
+    const pageReq: PageRequest = page ?? { limit: 30 }
+    const scope: TemplateScope = {
+      source: this.sourceScope(),
+      album: { id, ...payload },
+      page: pageReq,
+      baseUrl: this.record.sourceUrl,
+    }
+
+    if (!url && doc.ruleAlbum.childUrl) {
+      url = await evaluateUrlTemplate(
+        doc.ruleAlbum.childUrl,
+        scope,
+        { block: 'ruleAlbum', field: 'childUrl', sourceId: this.record.id },
+        this.js,
+      )
+    }
+
     if (!url) {
       /*
        * Not "no such album": the album may be perfectly real and simply never
@@ -1706,14 +1724,6 @@ export class DocumentSource {
         site,
         this.record.id,
       )
-    }
-
-    const pageReq: PageRequest = page ?? { limit: 30 }
-    const scope: TemplateScope = {
-      source: this.sourceScope(),
-      album: { id, ...payload },
-      page: pageReq,
-      baseUrl: this.record.sourceUrl,
     }
 
     let finalUrl = url

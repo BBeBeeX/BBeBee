@@ -66,6 +66,8 @@ export interface AlbumRule {
   trackCount?: Rule
   /** Where `ruleTrackList` is evaluated. Absent means "the same document". */
   trackListUrl?: Rule
+  /** Direct URL template to fetch album document by id if not cached from browse. */
+  childUrl?: Rule
 }
 
 /** The only required block: a source that cannot produce a URL is not a source. */

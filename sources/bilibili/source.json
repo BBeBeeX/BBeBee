@@ -24,10 +24,12 @@
   "ruleSearch": {
     "trackList": "$.data.result[*]",
     "trackId": "$.bvid",
-    "title": "@js:cleanTitle(item.title)",
+    "title": "@js:cleanTitle(item.title) + (item.videos && item.videos > 1 ? ' [' + item.videos + 'P]' : '')",
     "artist": "$.author",
     "artwork": "@js:cleanPic(item.pic)",
-    "durationMs": "@js:parseDuration(item.duration)"
+    "durationMs": "@js:parseDuration(item.duration)",
+    "album": "@js:cleanTitle(item.title)",
+    "albumId": "@js:'bili_video_' + item.bvid"
   },
   "ruleSearchArtist": {
     "trackList": "$.data.result[*]",
@@ -59,13 +61,14 @@
     "childUrl": "$.childUrl"
   },
   "ruleAlbum": {
-    "title": "$.data.meta.name",
-    "artist": "@js:biliSeasonArtist(result)",
-    "artwork": "$.data.meta.cover",
-    "trackCount": "$.data.meta.total"
+    "childUrl": "@js:biliAlbumUrl(album.id)",
+    "title": "@js:biliAlbumTitle(result)",
+    "artist": "@js:biliAlbumArtist(result)",
+    "artwork": "@js:biliAlbumArtwork(result)",
+    "trackCount": "@js:biliAlbumTrackCount(result)"
   },
   "ruleTrackList": {
-    "trackList": "@js:biliSeasonTrackRows(result)",
+    "trackList": "@js:biliAlbumTrackRows(result)",
     "trackId": "$.trackId",
     "title": "@js:cleanTitle(item.title)",
     "artist": "$.artist",

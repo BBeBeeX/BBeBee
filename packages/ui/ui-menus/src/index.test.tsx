@@ -728,6 +728,12 @@ describe('resolveOriginalResourceUrl & openExternalUrl', () => {
     expect(resolveOriginalResourceUrl('BBeBee:bilibili:track:bili_video_BV1xx411c7mD_12345')).toBe(
       'https://www.bilibili.com/video/BV1xx411c7mD',
     )
+    expect(resolveOriginalResourceUrl('BBeBee:bilibili:track:BV1xx411c7mD_p2')).toBe(
+      'https://www.bilibili.com/video/BV1xx411c7mD?p=2',
+    )
+    expect(resolveOriginalResourceUrl('BBeBee:bilibili:track:BV1xx411c7mD_p1')).toBe(
+      'https://www.bilibili.com/video/BV1xx411c7mD',
+    )
   })
 
   it('resolves bilibili season, series, and collect album/playlist urls', () => {

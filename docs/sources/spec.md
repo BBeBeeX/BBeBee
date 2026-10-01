@@ -291,6 +291,8 @@ export interface AlbumRule {
   trackCount?: string
   /** Where ruleTrackList is evaluated. Absent means "the same document". */
   trackListUrl?: string
+  /** Direct URL template to fetch album document if not already cached from browse. */
+  childUrl?: string
 }
 
 export interface ArtistRule {

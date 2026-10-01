@@ -1126,39 +1126,159 @@ async function biliSeasonTrackRows(result) {
   }));
 }
 
-/** The bvid, from wherever the row kept it. `track.id` is the URN segment, which the search rules already make the bvid. */
-function trackBvid(track) {
-  return String(track.bvid || track.onlineId || track.id || '').replace(/^bili_video_/, '');
+/** The URL to fetch for ruleAlbum, based on the album id. */
+function biliAlbumUrl(albumId) {
+  if (!albumId) return '';
+  const cleanId = String(albumId).replace(/^bili_video_/, '');
+  const seasonMatch = cleanId.match(/^bili_season_(\d+)_(\d+)$/);
+  if (seasonMatch) {
+    return 'https://api.bilibili.com/x/polymer/web-space/seasons_archives_list?mid=' + seasonMatch[1] + '&season_id=' + seasonMatch[2] + '&page_num=1&page_size=30';
+  }
+  const seriesMatch = cleanId.match(/^bili_series_(\d+)_(\d+)$/);
+  if (seriesMatch) {
+    return 'https://api.bilibili.com/x/series/archives?mid=' + seriesMatch[1] + '&series_id=' + seriesMatch[2] + '&only_normal=true&sort=desc&pn=1&ps=30';
+  }
+  const bvid = cleanId.split('_')[0];
+  return 'https://api.bilibili.com/x/web-interface/view?bvid=' + src.url.encode(bvid);
+}
+
+function biliAlbumTitle(result) {
+  const data = (result && result.data) || {};
+  if (data.meta && data.meta.name) return data.meta.name;
+  if (data.title) return cleanTitle(data.title);
+  return '';
+}
+
+async function biliAlbumArtist(result) {
+  const data = (result && result.data) || {};
+  if (data.meta) return biliSeasonArtist(result);
+  if (data.owner && data.owner.name) return data.owner.name;
+  return '';
+}
+
+function biliAlbumArtwork(result) {
+  const data = (result && result.data) || {};
+  if (data.meta && data.meta.cover) return data.meta.cover;
+  if (data.pic) return cleanPic(data.pic);
+  return '';
+}
+
+function biliAlbumTrackCount(result) {
+  const data = (result && result.data) || {};
+  if (data.meta && data.meta.total != null) return String(data.meta.total);
+  if (data.videos != null) return String(data.videos);
+  if (data.pages && Array.isArray(data.pages)) return String(data.pages.length);
+  return '';
 }
 
 /**
- * The cid of a video's first page, cached per realm.
+ * Tracks for an album: handles both season collections (archives) and multi-P videos (pages).
+ */
+async function biliAlbumTrackRows(result) {
+  const data = (result && result.data) || {};
+  if (data.archives && Array.isArray(data.archives)) {
+    return biliSeasonTrackRows(result);
+  }
+  if (data.pages && Array.isArray(data.pages)) {
+    const bvid = data.bvid || '';
+    const owner = (data.owner && data.owner.name) || '';
+    const albumTitle = cleanTitle(data.title || '');
+    const pic = cleanPic(data.pic || '');
+    const isMulti = data.pages.length > 1;
+    return data.pages.map((p) => {
+      const partTitle = (p.part && p.part.trim()) ? p.part.trim() : (isMulti ? albumTitle + ' P' + p.page : albumTitle);
+      return {
+        kind: 'track',
+        trackId: isMulti ? bvid + '_p' + p.page : bvid,
+        bvid: bvid,
+        cid: p.cid,
+        page: p.page,
+        title: partTitle,
+        artist: owner,
+        album: albumTitle,
+        artwork: pic,
+        durationMs: (p.duration || 0) * 1000,
+      };
+    });
+  }
+  return [];
+}
+
+/** Extracts the bvid and page index (1-based) from a track object. */
+function parseTrackBvidAndPage(track) {
+  if (!track) return { bvid: '', page: 1 };
+  const rawId = String(track.bvid || track.onlineId || track.id || '').replace(/^bili_video_/, '');
+  const match = rawId.match(/^([a-zA-Z0-9]+)(?:_p(\d+))?$/);
+  const bvid = match ? match[1] : rawId.split('_')[0];
+  const page = (track.page && Number(track.page)) || (match && match[2] ? Number(match[2]) : 1);
+  return { bvid, page: Math.max(1, page) };
+}
+
+/** The bvid, from wherever the row kept it. */
+function trackBvid(track) {
+  return parseTrackBvidAndPage(track).bvid;
+}
+
+/**
+ * The cid of a video's page, cached per realm.
  *
- * DASH is per-page and every playurl/lyric call needs one, so the cache is
- * what keeps a track from costing an extra round trip on both resolve and
- * lyric fetch. yt-dlp reads the cid from the page's `__INITIAL_STATE__`
- * (`videoData.pages[part-1].cid`) and falls back to `x/player/pagelist` for
- * anthologies; a source never downloads the page, so pagelist is the flow.
+ * DASH is per-page and every playurl/lyric call needs one. Pagelist provides
+ * all pages at once, so caching the full pagelist allows subsequent multi-P
+ * tracks to resolve immediately without repeated round trips.
  */
 async function ensureCid(track) {
-  if (track.cid) return track.cid;
-  const bvid = trackBvid(track);
-  const cacheKey = 'bili_cid_' + bvid;
+  if (track && track.cid) return track.cid;
+  const { bvid, page } = parseTrackBvidAndPage(track);
+  if (!bvid) return undefined;
+
+  const cacheKey = 'bili_cid_' + bvid + '_p' + page;
   const cached = src.cache.get(cacheKey);
   if (cached) return cached;
-  try {
-    const res = await src.get('https://api.bilibili.com/x/player/pagelist?bvid=' + src.url.encode(bvid) + '&jsonp=jsonp', { headers: BROWSER_HEADERS });
-    const json = src.parse.json(res.body);
-    const cid = json && json.data && json.data[0] && json.data[0].cid;
-    if (cid) {
-      src.cache.put(cacheKey, cid, 3600000);
-      src.log('ensureCid(' + bvid + ') → ' + cid);
-      return cid;
+
+  const listCacheKey = 'bili_pagelist_' + bvid;
+  let pages = null;
+  const cachedList = src.cache.get(listCacheKey);
+  if (cachedList) {
+    try {
+      pages = JSON.parse(cachedList);
+    } catch (e) {
+      pages = null;
     }
-    src.log('ensureCid(' + bvid + ') → pagelist answered without cid: ' + previewValue(res.body, 160));
-  } catch (e) {
-    src.log('ensureCid(' + bvid + ') → failed: ' + previewValue(String(e && e.message || e), 120));
   }
+
+  if (!pages) {
+    try {
+      const res = await src.get(
+        'https://api.bilibili.com/x/player/pagelist?bvid=' + src.url.encode(bvid) + '&jsonp=jsonp',
+        { headers: BROWSER_HEADERS }
+      );
+      const json = src.parse.json(res.body);
+      if (json && json.data && Array.isArray(json.data) && json.data.length > 0) {
+        pages = json.data;
+        src.cache.put(listCacheKey, JSON.stringify(pages), 3600000);
+        for (let i = 0; i < pages.length; i++) {
+          const item = pages[i];
+          if (item && item.cid) {
+            src.cache.put('bili_cid_' + bvid + '_p' + (item.page || (i + 1)), item.cid, 3600000);
+          }
+        }
+      } else {
+        src.log('ensureCid(' + bvid + ') → pagelist answered without data: ' + previewValue(res.body, 160));
+      }
+    } catch (e) {
+      src.log('ensureCid(' + bvid + ') → failed: ' + previewValue(String((e && e.message) || e), 120));
+    }
+  }
+
+  if (pages && pages.length > 0) {
+    const targetItem = pages.find((p) => p.page === page) || pages[page - 1] || pages[0];
+    if (targetItem && targetItem.cid) {
+      src.cache.put(cacheKey, targetItem.cid, 3600000);
+      src.log('ensureCid(' + bvid + ', p' + page + ') → ' + targetItem.cid);
+      return targetItem.cid;
+    }
+  }
+
   return undefined;
 }
 
@@ -1262,19 +1382,20 @@ function selectBiliAudio(audios, prefs) {
  * yt-dlp re-asks each qn, the source asks once for the qn its tier maps to.
  */
 async function resolveBiliStream(track, prefs) {
-  const bvid = trackBvid(track);
+  const { bvid, page } = parseTrackBvidAndPage(track);
   if (!bvid) {
     src.log('resolveBiliStream → no bvid in track ' + previewValue(track, 160) + ' — throwing');
     throw new Error('cannot resolve a Bilibili stream without a bvid');
   }
   const cid = track.cid || await ensureCid(track);
   if (!cid) {
-    src.log('resolveBiliStream: no cid for bvid ' + bvid + ' — throwing');
-    throw new Error('cannot resolve cid for bvid ' + bvid);
+    src.log('resolveBiliStream: no cid for bvid ' + bvid + ' p' + page + ' — throwing');
+    throw new Error('cannot resolve cid for bvid ' + bvid + ' p' + page);
   }
 
+  const streamCacheKey = 'bili_stream_' + bvid + (page > 1 ? '_p' + page : '');
   const signedIn = await biliSignedIn();
-  src.log('resolveBiliStream(' + bvid + ') → ' + (signedIn ? 'signed in' : 'signed out, try_look=1') +
+  src.log('resolveBiliStream(' + bvid + ' p' + page + ') → ' + (signedIn ? 'signed in' : 'signed out, try_look=1') +
     ', quality=' + (prefs && prefs.quality || 'default'));
   let data = await fetchBiliPlayurl(bvid, cid, signedIn ? {} : { try_look: 1 }, signedIn);
 
@@ -1294,7 +1415,7 @@ async function resolveBiliStream(track, prefs) {
     if (!data.dash) {
       const durl = data.durl || [];
       if (durl.length === 0) {
-        src.log('resolveBiliStream(' + bvid + ') → no dash and no durl — throwing');
+        src.log('resolveBiliStream(' + bvid + ' p' + page + ') → no dash and no durl — throwing');
         throw new Error('No playable audio stream returned from Bilibili');
       }
       if (durl.length > 1) {
@@ -1306,8 +1427,8 @@ async function resolveBiliStream(track, prefs) {
       const url = durl[0].url;
       const quality = TIER_FOR_QN[Number(data.quality)] || '';
       const bitrateKbps = durl[0].size && durl[0].length ? Math.round(durl[0].size * 8 / durl[0].length) : '';
-      src.cache.put('bili_stream_' + bvid, JSON.stringify({ quality: quality, bitrateKbps: bitrateKbps }), 7200000);
-      src.log('resolveBiliStream(' + bvid + ') → legacy durl ' + previewValue(url) + ' [' + (quality || '?') + '/' + data.quality + ']');
+      src.cache.put(streamCacheKey, JSON.stringify({ quality: quality, bitrateKbps: bitrateKbps }), 7200000);
+      src.log('resolveBiliStream(' + bvid + ' p' + page + ') → legacy durl ' + previewValue(url) + ' [' + (quality || '?') + '/' + data.quality + ']');
       return url;
     }
   }
@@ -1316,7 +1437,7 @@ async function resolveBiliStream(track, prefs) {
   const url = chosen && (chosen.baseUrl || chosen.base_url ||
     (chosen.backupUrl && chosen.backupUrl[0]) || (chosen.backup_url && chosen.backup_url[0]));
   if (!url) {
-    src.log('resolveBiliStream(' + bvid + ') → no audio stream in response — throwing');
+    src.log('resolveBiliStream(' + bvid + ' p' + page + ') → no audio stream in response — throwing');
     throw new Error('No playable audio stream returned from Bilibili');
   }
   // What the app gets to see: the tier this resolve served and its nominal
@@ -1324,11 +1445,11 @@ async function resolveBiliStream(track, prefs) {
   // `.bitrateKbps` are rendered as separate rules after the URL, and
   // answering them by re-running playurl would be a second round trip per
   // playback. Same window as the signed URL itself.
-  src.cache.put('bili_stream_' + bvid, JSON.stringify({
+  src.cache.put(streamCacheKey, JSON.stringify({
     quality: chosen.qTier,
     bitrateKbps: Math.round((chosen.bandwidth || 0) / 1000),
   }), 7200000);
-  src.log('resolveBiliStream(' + bvid + ') → ' + previewValue(url) + ' [' + (chosen.qTier || '?') + '/' + (chosen.format || '?') + ']');
+  src.log('resolveBiliStream(' + bvid + ' p' + page + ') → ' + previewValue(url) + ' [' + (chosen.qTier || '?') + '/' + (chosen.format || '?') + ']');
   return url;
 }
 
@@ -1341,7 +1462,9 @@ async function resolveBiliStream(track, prefs) {
  * this realm", which the runtime reads as the field being absent.
  */
 function lastBiliStream(track) {
-  const raw = src.cache.get('bili_stream_' + trackBvid(track));
+  const { bvid, page } = parseTrackBvidAndPage(track);
+  const streamCacheKey = 'bili_stream_' + bvid + (page > 1 ? '_p' + page : '');
+  const raw = src.cache.get(streamCacheKey) || src.cache.get('bili_stream_' + bvid);
   if (!raw) return null;
   try {
     return JSON.parse(raw);
@@ -1369,9 +1492,9 @@ function biliStreamBitrate(track) {
  * it does on every other request.
  */
 function biliStreamHeaders(track) {
-  const bvid = trackBvid(track);
+  const { bvid, page } = parseTrackBvidAndPage(track);
   return JSON.stringify({
-    Referer: bvid ? 'https://www.bilibili.com/video/' + bvid : 'https://www.bilibili.com/',
+    Referer: bvid ? ('https://www.bilibili.com/video/' + bvid + (page > 1 ? '?p=' + page : '')) : 'https://www.bilibili.com/',
     'User-Agent': BROWSER_HEADERS['User-Agent'],
   });
 }
@@ -1385,14 +1508,14 @@ function biliStreamHeaders(track) {
  * login-only) and that is logged rather than silently read as "no lyrics".
  */
 async function getBiliLyrics(track) {
-  const bvid = trackBvid(track);
+  const { bvid, page } = parseTrackBvidAndPage(track);
   if (!bvid) {
     src.log('getBiliLyrics → no bvid in track — returning ""');
     return '';
   }
   const cid = track.cid || await ensureCid(track);
   if (!cid) {
-    src.log('getBiliLyrics(' + bvid + ') → "" (no cid)');
+    src.log('getBiliLyrics(' + bvid + ' p' + page + ') → "" (no cid)');
     return '';
   }
 

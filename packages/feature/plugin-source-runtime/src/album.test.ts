@@ -173,6 +173,21 @@ describe('getAlbum', () => {
     await expect(failure).rejects.toThrow(RuleError)
     await expect(failure).rejects.toThrow(/browse to it once/)
   })
+
+  it('falls back to ruleAlbum.childUrl when the album was never browsed', async () => {
+    const ctx = await app([
+      document({
+        ruleAlbum: {
+          title: '$.album.name',
+          artist: '$.album.artist',
+          childUrl: '={{source.url}}/album?id={{album.id}}',
+        },
+      }),
+    ])
+    const album = await ctx.sources.providers[0]!.getAlbum!('a1')
+    expect(album).toMatchObject({ title: 'Homogenic' })
+    expect(album.tracks.map((t) => t.title)).toEqual(['Jóga', 'Bachelorette'])
+  })
 })
 
 describe('getLyrics', () => {

@@ -80,9 +80,15 @@ export function resolveOriginalResourceUrl(target: ResourceUrlTarget | string): 
   // Bilibili
   if (sourceId.includes('bili')) {
     if (effectiveKind === 'track') {
-      const bvid = id.replace(/^bili_video_/, '').split('_')[0]
-      if (bvid && (bvid.startsWith('BV') || bvid.startsWith('bv') || bvid.startsWith('av'))) {
-        return `https://www.bilibili.com/video/${bvid}`
+      const match = id.replace(/^bili_video_/, '').match(/^([a-zA-Z0-9]+)(?:_p(\d+))?/)
+      if (match) {
+        const bvid = match[1]
+        const p = match[2]
+        if (bvid && (bvid.startsWith('BV') || bvid.startsWith('bv') || bvid.startsWith('av'))) {
+          return p && p !== '1'
+            ? `https://www.bilibili.com/video/${bvid}?p=${p}`
+            : `https://www.bilibili.com/video/${bvid}`
+        }
       }
     } else {
       // Album or Playlist or Collection
@@ -98,9 +104,15 @@ export function resolveOriginalResourceUrl(target: ResourceUrlTarget | string): 
       if (collectMatch) {
         return `https://www.bilibili.com/medialist/play/ml${collectMatch[1]}`
       }
-      const bvid = id.replace(/^bili_video_/, '').split('_')[0]
-      if (bvid && (bvid.startsWith('BV') || bvid.startsWith('bv') || bvid.startsWith('av'))) {
-        return `https://www.bilibili.com/video/${bvid}`
+      const match = id.replace(/^bili_video_/, '').match(/^([a-zA-Z0-9]+)(?:_p(\d+))?/)
+      if (match) {
+        const bvid = match[1]
+        const p = match[2]
+        if (bvid && (bvid.startsWith('BV') || bvid.startsWith('bv') || bvid.startsWith('av'))) {
+          return p && p !== '1'
+            ? `https://www.bilibili.com/video/${bvid}?p=${p}`
+            : `https://www.bilibili.com/video/${bvid}`
+        }
       }
     }
   }

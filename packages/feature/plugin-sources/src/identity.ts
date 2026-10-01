@@ -162,7 +162,7 @@ const RULE_FIELDS: Record<string, readonly string[]> = {
   ruleSearchArtist: LIST_FIELDS,
   ruleExplore: LIST_FIELDS,
   ruleTrackList: LIST_FIELDS,
-  ruleAlbum: ['title', 'artist', 'artwork', 'year', 'description', 'trackCount', 'trackListUrl'],
+  ruleAlbum: ['title', 'artist', 'artwork', 'year', 'description', 'trackCount', 'trackListUrl', 'childUrl'],
   ruleStream: ['url', 'headers', 'mimeType', 'codec', 'bitrateKbps', 'sampleRate', 'byteLength',
     'seekable', 'expiresAt', 'quality', 'qualities'],
   ruleLyric: ['lyric', 'format', 'offsetMs'],
