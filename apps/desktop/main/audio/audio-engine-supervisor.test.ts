@@ -1,6 +1,42 @@
-import { describe, expect, it, afterEach } from 'vitest'
-import { existsSync } from 'node:fs'
+import { describe, expect, it, afterEach, beforeAll } from 'vitest'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { AudioEngineSupervisor, type CrashEvent, type FftFrame, type PlaybackStateEvent } from './audio-engine-supervisor.js'
+
+/**
+ * A real one-and-a-half-second tone. When the engine runs with libmpv, this
+ * is what gets decoded and measured; without it, the fallback branch reports
+ * its nominal duration instead — both modes satisfy the assertions below.
+ */
+const testWavDir = join(tmpdir(), 'bbebee-supervisor-test')
+const testWav = join(testWavDir, 'tone.wav')
+const testWavUri = `file://${testWav.split(/[/\\]/).map(encodeURIComponent).join('/')}`
+
+beforeAll(() => {
+  mkdirSync(testWavDir, { recursive: true })
+  const rate = 44100
+  const seconds = 6
+  const data = Buffer.alloc(Math.round(seconds * rate) * 2)
+  for (let i = 0; i < data.length / 2; i++) {
+    data.writeInt16LE(Math.round(Math.sin((2 * Math.PI * 440 * i) / rate) * 0.4 * 32767), i * 2)
+  }
+  const header = Buffer.alloc(44)
+  header.write('RIFF', 0)
+  header.writeUInt32LE(36 + data.length, 4)
+  header.write('WAVE', 8)
+  header.write('fmt ', 12)
+  header.writeUInt32LE(16, 16)
+  header.writeUInt16LE(1, 20)
+  header.writeUInt16LE(1, 22)
+  header.writeUInt32LE(rate, 24)
+  header.writeUInt32LE(rate * 2, 28)
+  header.writeUInt16LE(2, 32)
+  header.writeUInt16LE(16, 34)
+  header.write('data', 36)
+  header.writeUInt32LE(data.length, 40)
+  writeFileSync(testWav, Buffer.concat([header, data]))
+})
 
 describe('AudioEngineSupervisor standalone native executable', () => {
   let supervisor: AudioEngineSupervisor | null = null
@@ -49,7 +85,7 @@ describe('AudioEngineSupervisor standalone native executable', () => {
     const states: PlaybackStateEvent[] = []
     supervisor.onStateChange((e) => states.push(e))
 
-    await supervisor.load('file:///music/test.flac')
+    await supervisor.load(testWavUri)
     supervisor.play(1000)
 
     // Wait for state updates
@@ -78,7 +114,7 @@ describe('AudioEngineSupervisor standalone native executable', () => {
     const frames: FftFrame[] = []
     supervisor.onFftFrame((f) => frames.push(f))
 
-    await supervisor.load('file:///music/test.flac')
+    await supervisor.load(testWavUri)
     supervisor.setVisualizer(true, 128)
     supervisor.play(0)
 

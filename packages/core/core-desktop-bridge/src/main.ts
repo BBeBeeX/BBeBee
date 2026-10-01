@@ -134,12 +134,23 @@ export interface AudioRequestOptions {
   headers?: Record<string, string>
 }
 
-/** Native decoding (e.g. FFmpeg) and system device enumeration. */
+/** Native audio-engine transport and system device enumeration. */
 export interface AudioHost {
-  probe?(uri: string, options?: AudioRequestOptions): Promise<unknown>
-  decodePcm?(uri: string, options?: AudioRequestOptions): Promise<unknown>
   getOutputDevices?(): Promise<unknown>
   setOutputDevice?(id: string): Promise<unknown>
+  mpvLoad?(uri: string, options?: { headers?: Record<string, string>; strategy?: string }): Promise<unknown>
+  mpvAppend?(uri: string, playNow?: boolean): Promise<unknown>
+  mpvPlay?(atMs?: number): Promise<unknown>
+  mpvPause?(): Promise<unknown>
+  mpvStop?(): Promise<unknown>
+  mpvSeek?(positionMs: number): Promise<unknown>
+  mpvSetVolume?(volume: number): Promise<unknown>
+  mpvSetMuted?(muted: boolean): Promise<unknown>
+  mpvSetDspConfig?(config: unknown): Promise<unknown>
+  mpvSetVisualizer?(enabled: boolean, fftSize?: number): Promise<unknown>
+  mpvGetFftFrame?(): Promise<unknown>
+  mpvGetState?(): Promise<unknown>
+  mpvGetAudioDevices?(): Promise<unknown>
 }
 
 /** The referrer policies Electron's `ClientRequest` accepts. */
@@ -222,7 +233,12 @@ const ALLOWED: Record<BridgedService, ReadonlySet<string>> = {
     'watchMediaKeys', 'registerHotkey', 'unregisterHotkey',
     'publishNowPlaying', 'publishPlaybackState', 'setSupportedCommands', 'clearNowPlaying',
   ]),
-  audio: new Set(['probe', 'decodePcm', 'getOutputDevices', 'setOutputDevice']),
+  audio: new Set([
+    'getOutputDevices', 'setOutputDevice',
+    'mpvLoad', 'mpvAppend', 'mpvPlay', 'mpvPause', 'mpvStop', 'mpvSeek',
+    'mpvSetVolume', 'mpvSetMuted', 'mpvSetDspConfig', 'mpvSetVisualizer',
+    'mpvGetFftFrame', 'mpvGetState', 'mpvGetAudioDevices',
+  ]),
 }
 
 /** fs methods whose leading arguments are Uris that must stay inside the app. */
@@ -301,10 +317,21 @@ export async function createHost(ipc: IpcHost, options: HostOptions = {}): Promi
   }
 
   const audio: Required<AudioHost> = {
-    probe: options.audio?.probe ?? (async () => ({})),
-    decodePcm: options.audio?.decodePcm ?? (async () => ({ sampleRate: 44100, channels: 2, bitDepth: 16, durationMs: 0, pcm: [] })),
     getOutputDevices: options.audio?.getOutputDevices ?? (async () => []),
     setOutputDevice: options.audio?.setOutputDevice ?? (async () => {}),
+    mpvLoad: options.audio?.mpvLoad ?? (async () => ({ durationMs: 0 })),
+    mpvAppend: options.audio?.mpvAppend ?? (async () => {}),
+    mpvPlay: options.audio?.mpvPlay ?? (async () => {}),
+    mpvPause: options.audio?.mpvPause ?? (async () => {}),
+    mpvStop: options.audio?.mpvStop ?? (async () => {}),
+    mpvSeek: options.audio?.mpvSeek ?? (async () => {}),
+    mpvSetVolume: options.audio?.mpvSetVolume ?? (async () => {}),
+    mpvSetMuted: options.audio?.mpvSetMuted ?? (async () => {}),
+    mpvSetDspConfig: options.audio?.mpvSetDspConfig ?? (async () => {}),
+    mpvSetVisualizer: options.audio?.mpvSetVisualizer ?? (async () => {}),
+    mpvGetFftFrame: options.audio?.mpvGetFftFrame ?? (async () => null),
+    mpvGetState: options.audio?.mpvGetState ?? (async () => ({ status: 'idle', positionMs: 0, durationMs: 0 })),
+    mpvGetAudioDevices: options.audio?.mpvGetAudioDevices ?? (async () => []),
   }
 
   const services: Record<

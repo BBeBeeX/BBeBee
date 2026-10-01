@@ -49,7 +49,7 @@ trixie 的 0.40 匹配系统的 `.61`）。
 
 | 状态 | 行为 |
 |---|---|
-| 引擎二进制缺失 | supervisor 快速失败；渲染端回退 FFmpeg 桥解码路径（有声、走 Web Audio 输出、频谱平线、无 gapless） |
+| 引擎二进制缺失 | supervisor 快速失败；渲染端降级到媒体元素（Chromium 解码——有声、走 Web Audio 输出、频谱平线、无 gapless） |
 | 引擎在、libmpv 缺失 | 引擎存活但所有加载失败；同样的渲染端回退 |
 | 两者齐备 | mpv 解码并直连系统音频输出；原生 DSP/EQ；append 式 gapless；astats 驱动频谱 |
 

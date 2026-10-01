@@ -57,7 +57,7 @@ the host (a sid-built 0.41 needs `libavcodec.so.63`, while trixie's 0.40 matches
 
 | State | Behaviour |
 |---|---|
-| Engine binary missing | the supervisor fails the load fast; the renderer falls back to the FFmpeg-bridge decode path (audio via Web Audio, flat spectrum, no gapless) |
+| Engine binary missing | the supervisor fails the load fast; the renderer degrades to the media element (Chromium decode — audio via Web Audio, flat spectrum, no gapless) |
 | Engine present, libmpv missing | the engine runs but every load fails; the same renderer fallback |
 | Both present | mpv decodes and feeds the OS audio output directly; native DSP/EQ; append-based gapless; astats-driven spectrum |
 

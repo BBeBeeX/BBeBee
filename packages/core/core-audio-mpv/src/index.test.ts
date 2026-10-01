@@ -8,17 +8,34 @@ import type { FakeAudioContext } from '@BBeBee/core-audio-webaudio/testing'
 import { createFakeAudioContext } from '@BBeBee/core-audio-webaudio/testing'
 import plugin, { AudioMpv, type AudioMpvConfig } from './index.js'
 
-/** Structural `MediaElementLike` for the degradation-path tests. */
+/**
+ * Structural `MediaElementLike` for the degradation path (and, via an
+ * `advance`-driven clock, for the conformance suite). Real elements fire
+ * `seeked` after a programmatic currentTime set — the fake does too.
+ */
 class FakeMediaElement implements MediaElementLike {
   src = ''
   crossOrigin: string | null = null
-  currentTime = 0
   duration = 120
   paused = true
   seeking = false
   error: { code?: number; message?: string } | null = null
 
+  private _currentTime = 0
   private readonly listeners = new Map<string, Set<() => void>>()
+
+  get currentTime(): number {
+    return this._currentTime
+  }
+
+  set currentTime(v: number) {
+    this._currentTime = v
+    this.emit('seeked')
+  }
+
+  emit(type: string): void {
+    for (const listener of [...(this.listeners.get(type) ?? [])]) listener()
+  }
 
   play(): Promise<void> {
     this.paused = false
@@ -40,22 +57,44 @@ class FakeMediaElement implements MediaElementLike {
   }
 }
 
-/** Two seconds of stereo at 48 kHz — what a well-behaved bridge returns. */
-function twoSecondPcm(): Float32Array[] {
-  return [new Float32Array(96_000), new Float32Array(96_000)]
+/**
+ * A bridge with the engine's transport methods, driving a simulated playback
+ * state — what `MpvSourceHandle`'s position polling reads back.
+ */
+interface SimState {
+  positionMs: number
+  durationMs: number
+  status: 'idle' | 'playing' | 'paused' | 'stopped' | 'ended'
 }
 
-/** A bridge that can take anything: probe says finite, decodePcm delivers PCM. */
-function workingBridge(calls: string[] = []): BridgeCall {
-  return async (_service, method) => {
+function engineBridge(state: SimState, calls: string[] = []): BridgeCall {
+  return async (_service, method, args) => {
     calls.push(method)
-    if (method === 'probe') {
-      return { sampleRate: 48_000, channels: 2, bitDepth: 16, durationMs: 120_000 }
+    switch (method) {
+      case 'mpvLoad':
+        state.positionMs = 0
+        state.durationMs = 2_000
+        state.status = 'paused'
+        return { durationMs: state.durationMs, sampleRate: 48_000, channels: 2, bitDepth: 16 }
+      case 'mpvPlay':
+        state.status = 'playing'
+        if (typeof args[0] === 'number') state.positionMs = args[0]
+        return undefined
+      case 'mpvPause':
+        state.status = 'paused'
+        return undefined
+      case 'mpvStop':
+        state.positionMs = 0
+        state.status = 'stopped'
+        return undefined
+      case 'mpvSeek':
+        state.positionMs = Number(args[0] ?? 0)
+        return undefined
+      case 'mpvGetState':
+        return { ...state }
+      default:
+        return undefined
     }
-    if (method === 'decodePcm') {
-      return { sampleRate: 48_000, channels: 2, bitDepth: 16, durationMs: 2_000, pcm: twoSecondPcm() }
-    }
-    return undefined
   }
 }
 
@@ -72,7 +111,6 @@ async function harness(
   const ctx = new Context()
   await ctx.plugin(plugin, {
     createContext: () => engine as unknown as BaseAudioContext,
-    bridgeCall: workingBridge(),
     createMediaElement: () => {
       const element = new FakeMediaElement()
       elements.push(element)
@@ -90,156 +128,111 @@ describe('core-audio-mpv', () => {
   })
 
   it('passes the audio conformance suite', async () => {
-    const { audio, engine } = await harness()
+    // The conformance vehicle is the degradation path (media element), whose
+    // clock the test drives: the native handle's own clock is the engine's.
+    const { ctx, engine, elements } = await harness({ bridgeCall: async () => undefined })
+    const audio = ctx.audio as AudioMpv
+    const advance = async (ms: number): Promise<void> => {
+      const el = elements.at(-1)
+      if (el && !el.paused) {
+        el.currentTime = Math.min(el.currentTime + ms / 1000, el.duration)
+        if (el.currentTime >= el.duration) el.emit('ended')
+      }
+      await engine.advance(ms)
+    }
     for (const check of audioConformance.checks) {
       await check.run({
         audio,
-        sampleSrc: 'file:///music/test.alac',
-        advance: (ms) => engine.advance(ms),
+        sampleSrc: 'file:///music/test.flac',
+        advance,
       })
     }
   })
 
-  it('decodes ALAC audio via FFmpeg bridge and plays', async () => {
-    const fakePcmLeft = new Float32Array([0, 0.1, 0.2, 0.3, 0.4])
-    const fakePcmRight = new Float32Array([0, 0.1, 0.2, 0.3, 0.4])
-    const bridgeCall = async (service: string, method: string, _args: unknown[]) => {
-      if (service === 'audio' && method === 'probe') {
-        return { sampleRate: 96_000, channels: 2, bitDepth: 24, durationMs: 120_000 }
-      }
-      if (service === 'audio' && method === 'decodePcm') {
-        return {
-          sampleRate: 96_000,
-          channels: 2,
-          bitDepth: 24,
-          durationMs: 2500,
-          pcm: [fakePcmLeft, fakePcmRight],
+  it('loads via the engine and adopts its reported audio params', async () => {
+    // The engine's own audio params (from FILE_LOADED) drive the shell graph's
+    // rebuild and the track-info readouts — no external decoder reports them.
+    const rebuiltRates: number[] = []
+    const contexts: FakeAudioContext[] = []
+    const ctx = new Context()
+    await ctx.plugin(plugin, {
+      createContext: (options) => {
+        const next = createFakeAudioContext(options?.sampleRate)
+        contexts.push(next)
+        return next as unknown as BaseAudioContext
+      },
+      bridgeCall: async (_service, method) => {
+        if (method === 'mpvLoad') {
+          return { durationMs: 2500, resumed: false, sampleRate: 96_000, channels: 2, bitDepth: 24 }
         }
-      }
-      return undefined
-    }
+        return undefined
+      },
+    })
+    const audio = ctx.audio as AudioMpv
+    ctx.on('audio/context-rebuilt', () => {
+      rebuiltRates.push((ctx.audio as AudioMpv).context.sampleRate)
+    })
 
-    const { audio } = await harness({ bridgeCall })
-    const handle = await audio.load('file:///music/song.m4a', { strategy: 'buffer' })
+    const handle = await audio.load('file:///music/hires.flac', { strategy: 'buffer' })
 
-    expect(handle).toBeDefined()
-    expect(handle.durationMs).toBeGreaterThan(0)
-
-    handle.node.connect(audio.chainInput)
-    handle.play()
-    expect(handle.positionMs).toBe(0)
+    expect(rebuiltRates).toEqual([96_000])
+    expect((audio.context as unknown as FakeAudioContext).sampleRate).toBe(96_000)
+    expect(audio.sampleRate).toBe(96_000)
+    expect(audio.hardwareBitDepth).toBe(24)
+    expect(audio.hardwareChannels).toBe(2)
+    expect(handle.durationMs).toBe(2500)
     handle.dispose()
   })
 
-  it('forwards source headers to the bridge probe and decodePcm calls', async () => {
-    const fakePcm = new Float32Array([0, 0.1, 0.2])
-    let probeArgs: unknown[] | undefined
+  it('forwards sanitized load options across the bridge', async () => {
+    // The full LoadOptions carries a function and an AbortSignal — structured
+    // clone rejects them, so only the plain fields may cross.
     let seenArgs: unknown[] | undefined
-    const bridgeCall = async (_service: string, method: string, args: unknown[]) => {
-      if (method === 'probe') {
-        probeArgs = args
-        return { sampleRate: 48_000, channels: 1, bitDepth: 16, durationMs: 120_000 }
-      }
-      if (method === 'decodePcm') {
-        seenArgs = args
-        return { sampleRate: 48_000, channels: 1, bitDepth: 16, durationMs: 100, pcm: [fakePcm] }
-      }
-      return undefined
+    const bridgeCall = async (_service: string, _method: string, args: unknown[]) => {
+      if (_method === 'mpvLoad') seenArgs = args
+      return { durationMs: 2_000 }
     }
 
     const { audio } = await harness({ bridgeCall })
-    const headers = { Referer: 'https://www.bilibili.com', 'User-Agent': 'BBeBee/1.0' }
-    await audio.load('https://cdn.example.com/song.m4s', { strategy: 'buffer', headers })
+    await audio.load('https://cdn.example.com/song.m4s', {
+      strategy: 'buffer',
+      headers: { Referer: 'https://www.bilibili.com' },
+    })
 
-    // The remote URL rides with the source's headers: a CDN that checks
-    // `Referer` answers a header-less ffmpeg request with 403.
-    expect(probeArgs?.[0]).toBe('https://cdn.example.com/song.m4s')
-    expect(probeArgs?.[1]).toEqual({ headers })
     expect(seenArgs?.[0]).toBe('https://cdn.example.com/song.m4s')
-    expect(seenArgs?.[1]).toEqual({ headers })
+    expect(seenArgs?.[1]).toEqual({
+      strategy: 'buffer',
+      headers: { Referer: 'https://www.bilibili.com' },
+    })
   })
 
-  it('routes every strategy through the bridge — the element path is degradation only', async () => {
-    // The engine's whole point: nothing is decoded by Chromium, including the
-    // tracks the player asks to stream. The bridge decodes the whole track;
-    // memory is the engine's problem, silence on Hi-Res is not.
-    const calls: string[] = []
-    const { audio, engine, elements } = await harness({ bridgeCall: workingBridge(calls) })
-    const handle = await audio.load('https://cdn.example.com/song.m4s', { strategy: 'stream' })
+  it('loads every strategy through the engine — the element only degrades', async () => {
+    const { audio, elements } = await harness({
+      bridgeCall: engineBridge({ positionMs: 0, durationMs: 2_000, status: 'idle' }),
+    })
 
-    expect(calls).toContain('decodePcm')
+    const viaEngine = await audio.load('https://cdn.example.com/song.m4s', { strategy: 'stream' })
+    const viaBuffer = await audio.load('file:///music/song.flac', { strategy: 'buffer' })
+
+    expect(viaEngine.durationMs).toBe(2_000)
+    expect(viaBuffer.durationMs).toBe(2_000)
     expect(elements, 'the media element must not be involved').toHaveLength(0)
-    expect(handle.durationMs).toBe(2_000)
-
-    handle.play()
-    await engine.advance(100)
-    expect(handle.positionMs).toBe(100)
-    handle.dispose()
+    viaEngine.dispose()
+    viaBuffer.dispose()
   })
 
-  it('degrades to the media element when the bridge cannot decode the track', async () => {
-    const bridgeCall = async (_service: string, method: string) => {
-      if (method === 'probe') {
-        return { sampleRate: 48_000, channels: 2, bitDepth: 16, durationMs: 120_000 }
-      }
-      if (method === 'decodePcm') {
-        throw new Error('ffmpeg exited 1')
-      }
-      return undefined
-    }
-
-    const { audio, elements } = await harness({ bridgeCall })
+  it('degrades to the media element when the engine cannot take the track', async () => {
+    // No mpv methods on the bridge: the engine cannot answer, and the element
+    // (Chromium decode) is the only path that can.
+    const { audio, elements } = await harness({ bridgeCall: async () => undefined })
     const handle = await audio.load('file:///music/song.flac', { strategy: 'buffer' })
 
-    // The element — not `decodeAudioData`, which is the Chromium decoder this
-    // engine exists to bypass — is the only degradation there is.
     expect(elements).toHaveLength(1)
     expect(handle.durationMs).toBe(120_000)
     handle.dispose()
   })
 
-  it('never decodes a track with unknown length (a live stream) into PCM', async () => {
-    const calls: string[] = []
-    const bridgeCall = async (_service: string, method: string) => {
-      calls.push(method)
-      if (method === 'probe') {
-        // No `Duration:` line — ffmpeg cannot bound the decode.
-        return { sampleRate: 44_100, channels: 2, bitDepth: 16, durationMs: 0 }
-      }
-      return undefined
-    }
-
-    const { audio, elements } = await harness({ bridgeCall })
-    const handle = await audio.load('https://radio.example.org/live', { strategy: 'stream' })
-
-    expect(calls, 'a whole-track decode of a live stream never finishes').not.toContain('decodePcm')
-    expect(elements).toHaveLength(1)
-    handle.dispose()
-  })
-
-  it('degrades instead of decoding tracks beyond the decode budget into resident PCM', async () => {
-    const calls: string[] = []
-    const bridgeCall = async (_service: string, method: string) => {
-      calls.push(method)
-      if (method === 'probe') {
-        return { sampleRate: 48_000, channels: 2, bitDepth: 16, durationMs: 3 * 60_000 }
-      }
-      return undefined
-    }
-
-    // PCM is roughly ten times the file: a three-hour audiobook is an OOM.
-    const { audio, elements } = await harness({
-      bridgeCall: bridgeCall,
-      maxDecodeDurationMs: 60_000,
-    })
-    const handle = await audio.load('file:///music/audiobook.m4b', { strategy: 'buffer' })
-
-    expect(calls).not.toContain('decodePcm')
-    expect(elements).toHaveLength(1)
-    handle.dispose()
-  })
-
-  it('refuses a load when there is no bridge and no element, rather than use Chromium’s decoder', async () => {
+  it('refuses a load when there is no bridge and no element', async () => {
     const { audio } = await harness({ bridgeCall: undefined, createMediaElement: undefined })
     await expect(audio.load('file:///music/song.flac', { strategy: 'buffer' })).rejects.toThrow(
       /media element/,
@@ -339,17 +332,9 @@ describe('core-audio-mpv', () => {
         return next as unknown as BaseAudioContext
       },
       bridgeCall: async (_service, method) =>
-        method === 'probe'
-          ? { sampleRate: 48_000, channels: 2, bitDepth: 24, durationMs: 120_000 }
-          : method === 'decodePcm'
-            ? {
-                sampleRate: 96_000,
-                channels: 2,
-                bitDepth: 24,
-                durationMs: 2500,
-                pcm: [new Float32Array(480), new Float32Array(480)],
-              }
-            : undefined,
+        method === 'mpvLoad'
+          ? { durationMs: 2500, resumed: false, sampleRate: 96_000, channels: 2, bitDepth: 24 }
+          : undefined,
     })
     const audio = ctx.audio as AudioMpv
     ctx.on('audio/context-rebuilt', () => {
@@ -365,33 +350,6 @@ describe('core-audio-mpv', () => {
     expect(contexts[0]!.closed).toBe(true)
     expect(handle.durationMs).toBe(2500)
     handle.dispose()
-  })
-
-  it('reports the decoded source’s hardware specs for the track info modal', async () => {
-    const contexts: FakeAudioContext[] = []
-    const ctx = new Context()
-    await ctx.plugin(plugin, {
-      createContext: (options) => {
-        const next = createFakeAudioContext(options?.sampleRate)
-        contexts.push(next)
-        return next as unknown as BaseAudioContext
-      },
-      bridgeCall: async (_service, method) => {
-        if (method === 'probe') {
-          return { sampleRate: 48_000, channels: 2, bitDepth: 16, durationMs: 120_000 }
-        }
-        if (method === 'decodePcm') {
-          return { sampleRate: 96_000, channels: 2, bitDepth: 24, durationMs: 2_500, pcm: twoSecondPcm() }
-        }
-        return undefined
-      },
-    })
-    const audio = ctx.audio as AudioMpv
-    await audio.load('file:///music/hires.flac', { strategy: 'buffer' })
-
-    expect(audio.sampleRate).toBe(96_000)
-    expect(audio.hardwareBitDepth).toBe(24)
-    expect(audio.hardwareChannels).toBe(2)
   })
 })
 
@@ -422,7 +380,6 @@ describe('core-audio-mpv context state', () => {
     const ctx = new Context()
     await ctx.plugin(plugin, {
       createContext: () => engine as unknown as BaseAudioContext,
-      bridgeCall: workingBridge(),
       emitContextInterruptions: true,
     })
     const audio = ctx.audio as AudioMpv
@@ -447,7 +404,7 @@ describe('core-audio-mpv context state', () => {
     expect(seen).toEqual([])
   })
 
-  it('kicks a suspended context when play is requested on a decoded source', async () => {
+  it('kicks a suspended context when play is requested on a source', async () => {
     // The recovery half: the user pressing play is the gesture, so the
     // resume happens on the way in rather than leaving a play that sounds.
     const { audio, engine } = await harness()
@@ -464,7 +421,6 @@ describe('core-audio-mpv context state', () => {
     const ctx = new Context()
     const fiber = await ctx.plugin(plugin, {
       createContext: () => engine as unknown as BaseAudioContext,
-      bridgeCall: workingBridge(),
     })
     expect(engine.countStateListeners()).toBe(1)
 
@@ -485,17 +441,9 @@ describe('core-audio-mpv context state', () => {
         return next as unknown as BaseAudioContext
       },
       bridgeCall: async (_service, method) =>
-        method === 'probe'
-          ? { sampleRate: 48_000, channels: 2, bitDepth: 24, durationMs: 120_000 }
-          : method === 'decodePcm'
-            ? {
-                sampleRate: 96_000,
-                channels: 2,
-                bitDepth: 24,
-                durationMs: 2500,
-                pcm: [new Float32Array(480), new Float32Array(480)],
-              }
-            : undefined,
+        method === 'mpvLoad'
+          ? { durationMs: 2500, resumed: false, sampleRate: 96_000, channels: 2, bitDepth: 24 }
+          : undefined,
       emitContextInterruptions: true,
     })
     const audio = ctx.audio as AudioMpv
@@ -532,17 +480,9 @@ describe('core-audio-mpv context state', () => {
         return next as unknown as BaseAudioContext
       },
       bridgeCall: async (_service, method) =>
-        method === 'probe'
-          ? { sampleRate: 48_000, channels: 2, bitDepth: 24, durationMs: 120_000 }
-          : method === 'decodePcm'
-            ? {
-                sampleRate: 96_000,
-                channels: 2,
-                bitDepth: 24,
-                durationMs: 2500,
-                pcm: [new Float32Array(480), new Float32Array(480)],
-              }
-            : undefined,
+        method === 'mpvLoad'
+          ? { durationMs: 2500, resumed: false, sampleRate: 96_000, channels: 2, bitDepth: 24 }
+          : undefined,
     })
     const audio = ctx.audio as AudioMpv
 
@@ -632,26 +572,6 @@ describe('core-audio-mpv native engine features', () => {
     handle.dispose()
   })
 
-  it('records the preload outcome for gapless diagnostics', async () => {
-    let appendShouldFail = false
-    const bridgeCall = async (_service: string, method: string) => {
-      if (method === 'mpvAppend') {
-        if (appendShouldFail) throw new Error('engine gone')
-        return undefined
-      }
-      return undefined
-    }
-
-    const { audio } = await harness({ bridgeCall })
-    await audio.preloadNext('file:///music/next.flac')
-    expect(audio.lastPreloadStatus?.ok).toBe(true)
-    expect(audio.lastPreloadStatus?.uri).toBe('file:///music/next.flac')
-
-    appendShouldFail = true
-    await audio.preloadNext('file:///music/next2.flac')
-    expect(audio.lastPreloadStatus?.ok).toBe(false)
-  })
-
   it('synchronizes native DSP/EQ parameters on dsp/chain-changed', async () => {
     let capturedDspConfig: unknown = null
     const bridgeCall = async (_service: string, method: string, args: unknown[]) => {
@@ -695,5 +615,24 @@ describe('core-audio-mpv native engine features', () => {
     const frame = await audio.getFftSpectrum()
     expect(frame).toEqual(mockFrame)
   })
-})
 
+  it('records the preload outcome for gapless diagnostics', async () => {
+    let appendShouldFail = false
+    const bridgeCall = async (_service: string, method: string) => {
+      if (method === 'mpvAppend') {
+        if (appendShouldFail) throw new Error('engine gone')
+        return undefined
+      }
+      return undefined
+    }
+
+    const { audio } = await harness({ bridgeCall })
+    await audio.preloadNext('file:///music/next.flac')
+    expect(audio.lastPreloadStatus?.ok).toBe(true)
+    expect(audio.lastPreloadStatus?.uri).toBe('file:///music/next.flac')
+
+    appendShouldFail = true
+    await audio.preloadNext('file:///music/next2.flac')
+    expect(audio.lastPreloadStatus?.ok).toBe(false)
+  })
+})

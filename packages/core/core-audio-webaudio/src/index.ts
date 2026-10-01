@@ -41,7 +41,6 @@ import {
   closeContextQuietly,
   ensureAudioContextRunning,
   enumerateOutputDevices,
-  probeViaBridge,
   rebuildGraphAtRate,
   resolveBridgeCall,
   resolveNativeOutputDevice,
@@ -59,7 +58,6 @@ export {
   closeContextQuietly,
   ensureAudioContextRunning,
   enumerateOutputDevices,
-  probeViaBridge,
   rebuildGraphAtRate,
   resolveBridgeCall,
   resolveNativeOutputDevice,
@@ -698,43 +696,10 @@ export class AudioWebAudio extends Service implements AudioService {
       this.activeHardwareChannels = buffer.numberOfChannels
       this.activeHardwareBitDepth = 16
     } catch (decodeErr) {
-      this.ctx.logger?.warn('webaudio: decodeAudioData failed for %s, trying bridge decode: %s', src, String(decodeErr))
-      const bridge = resolveBridgeCall(this.config.bridgeCall)
-      if (bridge) {
-        try {
-          const res = (await bridge('audio', 'decodePcm', [
-            src,
-            { headers: opts.headers },
-          ])) as {
-            sampleRate: number
-            channels: number
-            bitDepth?: number
-            durationMs: number
-            pcm: Float32Array[]
-          }
-          if (res && res.pcm && res.pcm.length > 0 && res.pcm[0]?.length) {
-            // The bridge returns native-rate PCM; put the context there before
-            // allocating the buffer so playback needs no resampling.
-            await this.ensureContextSampleRate(res.sampleRate)
-            const ctx = this.context as AudioContext
-            const buf = ctx.createBuffer(res.channels, res.pcm[0].length, res.sampleRate)
-            for (let c = 0; c < res.channels; c++) {
-              buf.getChannelData(c).set(res.pcm[c]!)
-            }
-            this.activeHardwareChannels = res.channels
-            this.activeHardwareBitDepth = res.bitDepth ?? 16
-            opts.signal?.throwIfAborted()
-            opts.onBuffered?.(buf.duration)
-            this.ctx.logger?.info('webaudio: bridge decodePcm succeeded (%dms, %d channels, %dHz)', res.durationMs, res.channels, res.sampleRate)
-            return new BufferedHandle(this.context, buf, {
-              logger: this.ctx.logger,
-              ensureRunning: this.ensureContextRunning,
-            })
-          }
-        } catch (bridgeErr) {
-          this.ctx.logger?.error('webaudio: bridge decodePcm failed for %s: %s', src, String(bridgeErr))
-        }
-      }
+      // No external decoder: what Chromium cannot decode is rethrown here and
+      // load()'s caller degrades to the media element, whose decoder coverage
+      // differs from decodeAudioData's.
+      this.ctx.logger?.warn('webaudio: decodeAudioData failed for %s: %s', src, String(decodeErr))
       throw decodeErr
     }
     opts.signal?.throwIfAborted()
@@ -754,22 +719,6 @@ export class AudioWebAudio extends Service implements AudioService {
         'audio: streaming needs a media element, which this platform did not provide. ' +
           "Pass `createMediaElement`, or load with strategy 'buffer'.",
       )
-    }
-
-    // Probe the stream's rate so the context can be rebuilt at the track's
-    // native rate — the element is wrapped on the *new* context and then plays
-    // without in-graph resampling. A failure is non-fatal: the element plays
-    // at the context's current rate either way.
-    const bridge = resolveBridgeCall(this.config.bridgeCall)
-    if (bridge) {
-      try {
-        const probed = await probeViaBridge(bridge, src, opts.headers)
-        if (probed.sampleRate) await this.ensureContextSampleRate(probed.sampleRate)
-        if (probed.channels) this.activeHardwareChannels = probed.channels
-        if (probed.bitDepth) this.activeHardwareBitDepth = probed.bitDepth
-      } catch (err) {
-        this.ctx.logger?.debug?.('webaudio: probe for streamed sample rate failed: %s', String(err))
-      }
     }
 
     const element = createElement()

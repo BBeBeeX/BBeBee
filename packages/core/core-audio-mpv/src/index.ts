@@ -31,7 +31,6 @@ import type {
   Uri,
 } from '@BBeBee/protocol'
 import {
-  BufferedHandle,
   StreamedHandle,
   defaultMediaElementFactory,
   type MediaElementLike,
@@ -40,13 +39,11 @@ import {
   closeContextQuietly,
   ensureAudioContextRunning,
   enumerateOutputDevices,
-  probeViaBridge,
   rebuildGraphAtRate,
   resolveBridgeCall,
   resolveNativeOutputDevice,
   sanitizeSinkId,
   ContextInterruptionObserver,
-  type AudioProbeInfo,
   type BridgeCall,
 } from '@BBeBee/core-audio-webaudio'
 
@@ -56,7 +53,6 @@ export interface AudioMpvConfig {
   createContext?: (options?: AudioContextOptions) => BaseAudioContext
   bridgeCall?: BridgeCall
   createMediaElement?: () => MediaElementLike
-  maxDecodeDurationMs?: number
   emitContextInterruptions?: boolean
 }
 
@@ -82,8 +78,6 @@ export interface FftSpectrumFrame {
   frequencyData: number[]
   timeDomainData: number[]
 }
-
-const DEFAULT_MAX_DECODE_DURATION_MS = 30 * 60_000
 
 export class MpvSourceHandle implements AudioSourceHandle {
   readonly node: AudioNode
@@ -217,7 +211,6 @@ export class AudioMpv extends Service implements AudioService {
   private readonly interruptionListeners = new Set<(e: InterruptionEvent) => void>()
   private readonly routeListeners = new Set<(e: RouteChangeEvent) => void>()
   private readonly config: AudioMpvConfig
-  private readonly maxDecodeDurationMs: number
   private activeHardwareSampleRate?: number
   private activeHardwareBitDepth?: number
   private activeHardwareChannels?: number
@@ -230,7 +223,6 @@ export class AudioMpv extends Service implements AudioService {
     super(ctx, 'audio')
     this.config = config
     this.bridge = resolveBridgeCall(config.bridgeCall)
-    this.maxDecodeDurationMs = config.maxDecodeDurationMs ?? DEFAULT_MAX_DECODE_DURATION_MS
 
     this.interruptions = new ContextInterruptionObserver({
       logger: ctx.logger,
@@ -347,11 +339,24 @@ export class AudioMpv extends Service implements AudioService {
 
     const bridge = resolveBridgeCall(this.config.bridgeCall)
 
-    // Primary route: Native audio-engine mpvLoad
+    // Primary route: the native audio-engine — libmpv decodes every format
+    // itself, so there is no external decoder in this engine's chain. Only
+    // cloneable fields cross the bridge: the full LoadOptions carries an
+    // `onBuffered` function and an `AbortSignal`, which structured clone
+    // rejects ("An object could not be cloned").
     if (bridge) {
       try {
-        const result = (await bridge('audio', 'mpvLoad', [srcStr, opts])) as
-          | { durationMs?: number; resumed?: boolean }
+        const result = (await bridge('audio', 'mpvLoad', [
+          srcStr,
+          { strategy: opts.strategy, headers: opts.headers },
+        ])) as
+          | {
+              durationMs?: number
+              resumed?: boolean
+              sampleRate?: number
+              channels?: number
+              bitDepth?: number
+            }
           | undefined
         if (result && typeof result.durationMs === 'number' && result.durationMs > 0) {
           this.ctx.logger?.info(
@@ -359,56 +364,31 @@ export class AudioMpv extends Service implements AudioService {
             result.durationMs,
             result.resumed ? ', already sounding (gapless re-bind)' : '',
           )
+          await this.ensureContextSampleRate(result.sampleRate)
+          this.activeHardwareSampleRate = result.sampleRate
+          this.activeHardwareChannels = result.channels
+          this.activeHardwareBitDepth = result.bitDepth
           opts.onBuffered?.(result.durationMs / 1000)
           return new MpvSourceHandle(this.context, result.durationMs, bridge, this.ctx.logger)
         }
+        this.ctx.logger?.warn(
+          'mpv: native mpvLoad returned no duration — degrading to the media element',
+        )
       } catch (err) {
-        this.ctx.logger?.warn('mpv: native mpvLoad failed: %s, checking bridge decode fallback', String(err))
+        this.ctx.logger?.warn('mpv: native mpvLoad failed: %s — degrading to the media element', String(err))
       }
-
-      // Conformance / decode fallback path if mpvLoad is not implemented by mock bridge
-      try {
-        const probed = await probeViaBridge(bridge, srcStr, opts.headers)
-        if (probed?.durationMs && probed.durationMs <= this.maxDecodeDurationMs) {
-          const decoded = (await bridge('audio', 'decodePcm', [srcStr, { headers: opts.headers }])) as {
-            durationMs: number
-            sampleRate: number
-            channels: number
-            bitDepth?: number
-            pcm: Float32Array[]
-          }
-          if (decoded?.pcm?.length && decoded.pcm[0]?.length) {
-            await this.ensureContextSampleRate(decoded.sampleRate)
-            this.activeHardwareSampleRate = this.context.sampleRate
-            this.activeHardwareBitDepth = decoded.bitDepth ?? 24
-            this.activeHardwareChannels = decoded.channels ?? 2
-
-            const length = decoded.pcm[0]!.length
-            const createBuffer = (this.context as unknown as { createBuffer?: (c: number, l: number, s: number) => AudioBuffer }).createBuffer
-            if (createBuffer) {
-              const buffer = createBuffer.call(this.context, decoded.channels, length, decoded.sampleRate)
-              for (let c = 0; c < decoded.channels; c++) {
-                buffer.getChannelData(c).set(decoded.pcm[c]!)
-              }
-              opts.onBuffered?.(buffer.duration)
-              return new BufferedHandle(this.context, buffer, {
-                logger: this.ctx.logger,
-                ensureRunning: this.ensureContextRunning,
-                durationMs: decoded.durationMs,
-              })
-            }
-          }
-        }
-      } catch (decodeErr) {
-        this.ctx.logger?.debug?.('mpv: decodePcm not available: %s', String(decodeErr))
-      }
+    } else {
+      this.ctx.logger?.warn(
+        'mpv: no audio bridge available — the media element (Chromium decode) is the only path for %s',
+        srcStr,
+      )
     }
 
-    // Degradation to media element when no bridge is active
+    // Degradation: the media element (Chromium decode) when the engine cannot take the track
     return this.loadStreamed(srcStr, opts)
   }
 
-  private async loadStreamed(src: string, opts: LoadOptions, probed?: AudioProbeInfo): Promise<AudioSourceHandle> {
+  private async loadStreamed(src: string, _opts: LoadOptions): Promise<AudioSourceHandle> {
     const createElement = this.config.createMediaElement ?? defaultMediaElementFactory()
     if (!createElement) {
       throw new Error(
@@ -416,7 +396,6 @@ export class AudioMpv extends Service implements AudioService {
       )
     }
 
-    if (probed?.sampleRate) await this.ensureContextSampleRate(probed.sampleRate)
     const element = createElement()
     try {
       element.crossOrigin = 'anonymous'

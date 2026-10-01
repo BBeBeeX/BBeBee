@@ -113,12 +113,12 @@ describe('containment', () => {
     const { call } = await harness({
       logger: { info: (message: string) => void lines.push(message) },
     })
-    await call('decodePcm', [
+    await call('mpvLoad', [
       'https://cdn.example.com/song.m4s',
-      { headers: { Cookie: 'sid=super-secret', Referer: 'https://www.example.com' } },
+      { strategy: 'stream', headers: { Cookie: 'sid=super-secret', Referer: 'https://www.example.com' } },
     ], 'audio')
     const logged = lines.join('\n')
-    expect(logged).toContain('decodePcm')
+    expect(logged).toContain('mpvLoad')
     expect(logged).toContain('Cookie')
     expect(logged).toContain('Referer')
     expect(logged).not.toContain('super-secret')

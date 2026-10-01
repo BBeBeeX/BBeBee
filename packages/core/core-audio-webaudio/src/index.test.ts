@@ -585,11 +585,10 @@ describe('output devices and routing', () => {
 })
 
 describe('sample-rate matching', () => {
-  it('rebuilds the context at a stream’s native rate before wrapping the element', async () => {
-    // The element resamples to the context's own rate, so the context must
-    // already sit at the probed rate when the element is wrapped — the track
-    // then plays with no in-graph resampling, same as the wasapi engine.
-    const rebuiltRates: number[] = []
+  it('rebuilds the context to a decoded buffer’s rate when the realm does not resample', async () => {
+    // decodeAudioData resamples to the context rate in Chromium, so this
+    // branch is dead there; realms that do not resample get the context moved
+    // to the buffer's rate instead of in-graph resampling on playback.
     const contexts: FakeAudioContext[] = []
     const ctx = new Context()
     await ctx.plugin(plugin, {
@@ -599,98 +598,21 @@ describe('sample-rate matching', () => {
         return next as unknown as BaseAudioContext
       },
       fetchBytes: async () => new ArrayBuffer(8),
-      createMediaElement: () => new FakeMediaElement(),
-      bridgeCall: async (_service, method) =>
-        method === 'probe'
-          ? { sampleRate: 96_000, channels: 2, bitDepth: 24, durationMs: 120_000 }
-          : undefined,
     })
     const audio = ctx.audio as AudioWebAudio
-    ctx.on('audio/context-rebuilt', () => {
-      rebuiltRates.push((ctx.audio as AudioWebAudio).context.sampleRate)
-    })
-
-    const source = await audio.load('https://cdn.example.com/hires.flac', { strategy: 'stream' })
-
-    expect(rebuiltRates).toEqual([96_000])
-    expect(contexts).toHaveLength(2)
-    expect((audio.context as unknown as FakeAudioContext).sampleRate).toBe(96_000)
-    // The 48 kHz boot context is closed only after the new graph is attached.
-    expect(contexts[0]!.closed).toBe(true)
-    source.dispose()
-  })
-
-  it('puts the context at the bridge’s decoded rate when decodeAudioData fails', async () => {
-    // The bridge returns native-rate PCM; allocating the buffer before the
-    // rebuild would have Chromium resample it on playback — the thing the
-    // rebuild exists to avoid.
-    const contexts: FakeAudioContext[] = []
-    const ctx = new Context()
-    await ctx.plugin(plugin, {
-      createContext: (options) => {
-        const next = createFakeAudioContext(options?.sampleRate)
-        contexts.push(next)
-        return next as unknown as BaseAudioContext
-      },
-      fetchBytes: async () => new ArrayBuffer(8),
-      bridgeCall: async (_service, method) =>
-        method === 'decodePcm'
-          ? {
-              sampleRate: 96_000,
-              channels: 2,
-              bitDepth: 24,
-              durationMs: 5_000,
-              pcm: [new Float32Array(480_000), new Float32Array(480_000)],
-            }
-          : undefined,
-    })
-    const audio = ctx.audio as AudioWebAudio
-    ;(contexts[0] as unknown as { decodeAudioData: () => Promise<never> }).decodeAudioData =
-      async () => {
-        throw new Error('Unable to decode audio data')
-      }
+    ;(contexts[0] as unknown as { decodeAudioData: () => Promise<unknown> }).decodeAudioData =
+      async () => ({
+        duration: 2,
+        sampleRate: 96_000,
+        numberOfChannels: 2,
+        getChannelData: () => new Float32Array(),
+      })
 
     const source = await audio.load('file:///music/hires.flac', { strategy: 'buffer' })
 
     expect((audio.context as unknown as FakeAudioContext).sampleRate).toBe(96_000)
     expect(contexts).toHaveLength(2)
-    expect(source.durationMs).toBe(5_000)
-    source.dispose()
-  })
-
-  it('reports the decoded source’s specs for the track info modal', async () => {
-    const contexts: FakeAudioContext[] = []
-    const ctx = new Context()
-    await ctx.plugin(plugin, {
-      createContext: (options) => {
-        const next = createFakeAudioContext(options?.sampleRate)
-        contexts.push(next)
-        return next as unknown as BaseAudioContext
-      },
-      fetchBytes: async () => new ArrayBuffer(8),
-      bridgeCall: async (_service, method) =>
-        method === 'decodePcm'
-          ? {
-              sampleRate: 96_000,
-              channels: 2,
-              bitDepth: 24,
-              durationMs: 5_000,
-              pcm: [new Float32Array(480_000), new Float32Array(480_000)],
-            }
-          : undefined,
-    })
-    const audio = ctx.audio as AudioWebAudio
-    ;(contexts[0] as unknown as { decodeAudioData: () => Promise<never> }).decodeAudioData =
-      async () => {
-        throw new Error('Unable to decode audio data')
-      }
-
-    const source = await audio.load('file:///music/hires.flac', { strategy: 'buffer' })
-
-    // From the bridge's decode result, not guessed.
-    expect(audio.hardwareBitDepth).toBe(24)
-    expect(audio.hardwareChannels).toBe(2)
-    expect(audio.sampleRate).toBe(96_000)
+    expect(source.durationMs).toBe(2_000)
     source.dispose()
   })
 })

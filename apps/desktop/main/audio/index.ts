@@ -1,9 +1,6 @@
-import { FfmpegDecoder } from './ffmpeg-decoder.js'
+import type { AudioRequestOptions } from './types.js'
 import { AudioDeviceEnumerator, type AudioMainLogger } from './audio-devices.js'
 import { AudioEngineSupervisor, type FftFrame, type PlaybackStateEvent } from './audio-engine-supervisor.js'
-import type { AudioDecodedPcm, AudioProbeResult, AudioRequestOptions } from './types.js'
-export * from './types.js'
-export { FfmpegDecoder } from './ffmpeg-decoder.js'
 export { AudioDeviceEnumerator, cleanAndTagDeviceLabel, type AudioMainLogger } from './audio-devices.js'
 export { AudioEngineSupervisor, type FftFrame, type PlaybackStateEvent, type CrashEvent } from './audio-engine-supervisor.js'
 
@@ -27,13 +24,17 @@ export interface DspConfig {
 }
 
 export interface AudioHostApi {
-  probe(uri: string, options?: AudioRequestOptions): Promise<AudioProbeResult>
-  decodePcm(uri: string, options?: AudioRequestOptions): Promise<AudioDecodedPcm>
   getOutputDevices(): Promise<{ id: string; label: string; isDefault: boolean }[]>
   setOutputDevice(id: string): Promise<void>
 
   // MPV Audio Engine operations
-  mpvLoad(uri: string, options?: AudioRequestOptions): Promise<{ durationMs: number; resumed?: boolean }>
+  mpvLoad(uri: string, options?: AudioRequestOptions): Promise<{
+    durationMs: number
+    resumed?: boolean
+    sampleRate?: number
+    channels?: number
+    bitDepth?: number
+  }>
   mpvAppend(uri: string, playNow?: boolean): Promise<void>
   mpvPlay(atMs?: number): Promise<void>
   mpvPause(): Promise<void>
@@ -51,7 +52,6 @@ export interface AudioHostApi {
 }
 
 export function createAudioHost(logger?: AudioMainLogger): AudioHostApi {
-  const decoder = new FfmpegDecoder()
   const devices = new AudioDeviceEnumerator(logger)
   const supervisor = new AudioEngineSupervisor(logger)
 
@@ -71,8 +71,6 @@ export function createAudioHost(logger?: AudioMainLogger): AudioHostApi {
   })
 
   return {
-    probe: (uri, options) => decoder.probe(uri, options),
-    decodePcm: (uri, options) => decoder.decodePcm(uri, options),
     getOutputDevices: () => devices.getOutputDevices(),
     setOutputDevice: async (id) => {
       await devices.setOutputDevice(id)

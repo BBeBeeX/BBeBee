@@ -45,6 +45,10 @@ export interface CrashEvent {
 export interface LoadResult {
   durationMs: number
   uri: string
+  /** The engine reports the file's actual audio parameters on FILE_LOADED. */
+  sampleRate?: number
+  channels?: number
+  bitDepth?: number
   /**
    * The engine already had this file sounding (a gapless handoff: the
    * playlist had auto-advanced to it) and no re-load happened — the caller
@@ -254,10 +258,13 @@ export class AudioEngineSupervisor {
         const durationMs = Number(payload['durationMs'] ?? 0)
         const uri = String(payload['uri'] ?? this.currentUri ?? '')
         const resumed = payload['resumed'] === true
+        const sampleRate = Number(payload['sampleRate'] ?? 0) || undefined
+        const channels = Number(payload['channels'] ?? 0) || undefined
+        const bitDepth = Number(payload['bitDepth'] ?? 0) || undefined
         while (this.pendingLoads.length > 0) {
           const p = this.pendingLoads.shift()!
           clearTimeout(p.timer)
-          p.resolve({ durationMs, uri, resumed })
+          p.resolve({ durationMs, uri, resumed, sampleRate, channels, bitDepth })
         }
         break
       }

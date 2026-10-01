@@ -11,7 +11,6 @@
 | Node ≥ 22.12、pnpm ≥ 11 | 全部工作区脚本 | 必需 |
 | C++17 编译器（`g++` / `clang++` / MSVC `cl`） | 编译 native 音频引擎二进制 | MPV 引擎必需 |
 | libmpv（`mpv-2.dll` / `libmpv.so.2` / `libmpv.dylib`） | 引擎运行时 `dlopen` | MPV 引擎必需（缺失时自动降级，见下） |
-| `ffmpeg` 在 PATH | 桥接解码回退、本地扫描 | WebAudio 引擎回退路径需要 |
 
 ## 命令速查
 
@@ -37,7 +36,7 @@ pnpm dist:desktop                             # electron-builder 打包安装包
 pnpm --filter @BBeBee/desktop build:audio-engine
 ```
 
-产物写入 `apps/desktop/bin/audio-engine[.exe]`（已 gitignore，不入库），并同步一份到 `apps/desktop/resources/bin/` 供打包使用。没有这个二进制，`pnpm dev:desktop` 仍能启动：MPV 引擎挂载时快速失败，加载回退到 FFmpeg 桥解码（有声，但频谱平线、无 gapless）。
+产物写入 `apps/desktop/bin/audio-engine[.exe]`（已 gitignore，不入库），并同步一份到 `apps/desktop/resources/bin/` 供打包使用。没有这个二进制，`pnpm dev:desktop` 仍能启动：MPV 引擎挂载时快速失败，加载降级到媒体元素（Chromium 解码，有声，但频谱平线、无 gapless）。
 
 ### R2 · 引擎二进制与 libmpv 的查找顺序
 
@@ -51,7 +50,7 @@ pnpm --filter @BBeBee/desktop build:audio-engine
 
 1. 引擎二进制所在目录——`build:audio-engine` 会把 **vendored 库**（`apps/desktop/resources/libmpv/<平台>/`，见下）与打包 staged 的库都拷到这里，因此本地测试零配置
 2. 系统库路径：Windows `PATH`/`mpv-2.dll`，Linux `libmpv.so.2`（`LD_LIBRARY_PATH` 或发行版包），macOS `libmpv.dylib`
-3. 全部落空 → 引擎进入无 mpv 模式：所有加载快速失败并回退 FFmpeg 桥解码（有声、频谱平线、无 gapless）
+3. 全部落空 → 引擎进入无 mpv 模式：所有加载快速失败并降级到媒体元素（Chromium 解码，有声、频谱平线、无 gapless）
 
 **vendored 库**（`apps/desktop/resources/libmpv/`，提交入库）：`win64/` 为 mpv-winbuild 的 LGPL 全静态构建（零系统依赖），`linux/` 为 Debian trixie `libmpv2` 的增量集（需发行版提供 libavcodec61 等基础栈），`darwin/` 由 CI macos job 从 brew staged。来源、版本与许可说明见 [apps/desktop/resources/libmpv/README.md](apps/desktop/resources/libmpv/README.md)。
 
@@ -93,6 +92,6 @@ libavcodec.so.61；从 sid 取 0.41 会因 libavcodec.so.63 缺失而 dlopen 失
 
 | 场景 | 行为 |
 |---|---|
-| 引擎二进制缺失 | supervisor 快速失败，加载回退 FFmpeg 桥解码（有声，走 Web Audio 输出） |
+| 引擎二进制缺失 | supervisor 快速失败，加载降级到媒体元素（Chromium 解码，有声，走 Web Audio 输出） |
 | libmpv 缺失 | 引擎存活但所有加载失败，同样回退；频谱平线 |
 | 正常（引擎 + libmpv） | mpv 解码并直连系统音频输出，原生 DSP/EQ，append 式 gapless，电平频谱 |
