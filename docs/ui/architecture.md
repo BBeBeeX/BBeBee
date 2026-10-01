@@ -357,13 +357,16 @@ Two model details worth pinning: `TrackMenuOptions.lyrics` (the lyric lines a sc
   - `download`: Queue track for offline download.
   - `sleep-timer`: Configure playback sleep timer countdown.
   - `go-to-album`: Navigate to album detail view when `track.albumUrn` is present.
+  - `open-original-resource`: "跳转原始资源" (with icon `external-link`). Resolves canonical external web URL (Bilibili video/BV/av, NetEase, QQ Music, YouTube, or direct link) via `resolveOriginalResourceUrl` and launches the system browser/host via `openExternalUrl` without importing platform SDKs.
 - **Playlist Context Menu**:
+  - `open-original-resource`: "跳转原始资源", opens external playlist, Bilibili series/season/collection, or favorites web page.
   - `edit-details`: Opens `EditPlaylistModal` to modify cover art (via local file chooser or remote URL), title, and description via `ctx.library.updatePlaylist`.
   - `delete-playlist`: Danger tone with top divider, triggers `ConfirmDeleteModal` for explicit secondary confirmation before invoking `ctx.library.deletePlaylist`.
   - `toggle-pin`: Pin/unpin from top of library list.
   - `add-to-playlist`: "Add to other playlists", excluding current playlist.
   - `add-to-collection`: "Move to folder", supports existing folders, creating new folders, or moving to root with automatic source folder cleanup.
 - **Album Context Menu**:
+  - `open-original-resource`: "跳转原始资源", opens external album, EP, or collection web page in the browser.
   - `delete-album`: Danger tone with top divider, triggers `ConfirmDeleteModal` for explicit secondary confirmation before removing the album from the library (`ctx.library.setSaved(urn, false)`) and any enclosing folder (`ctx.library.removeFromCollection`).
   - `toggle-pin`: Pin/unpin album in library list.
   - `add-to-collection`: "Move to folder", supports existing folders, creating new folders, or moving to root.
@@ -387,9 +390,9 @@ Two model details worth pinning: `TrackMenuOptions.lyrics` (the lyric lines a sc
    - **Table Header Sorting**: Column headers (`#`, `标题`, `专辑`, `添加日期`, `时长` with Tabler `clock` icon, `播放量`) support interactive sorting with ascending/descending directional indicators (`chevron-up` / `chevron-down`). Column headers omit the legacy checkmark.
    - **Action Bar Sort Menu**: Dropdown `ContextMenu` ("默认顺序" / "自定义顺序" with Tabler `arrows-sort` or `list` icon) providing rapid switching between sorting keys and directions.
    - **Row Hover Library Action (`TrackLibraryActionButton`) & Popover**: Across track rows in `LocalMusicScreen`, `PlaylistDetailScreen`, `FavoritesScreen`, and `CollectionScreen`, the static checkmark is replaced with a hover action icon. When hovered, tracks not in library show `plus` (clicking saves to Favorites via `library.setSaved(track.urn, true)`); tracks in library show `heart-filled` (green heart), clicking opens a dedicated Spotify-style `SaveToPlaylistPopover` offering real-time playlist search, inline playlist creation, liked songs toggle, and folder tree navigation.
-   - **Album Header & Menu**: `AlbumScreen` features an Action Bar heart button (`heart` / `heart-filled`) bound to `library.setSaved(album.urn, isSaved)` displaying saved albums in the user's Library. Local albums (`BBeBee:local:`) omit download buttons in header and rows, and omit the download menu item. Three-dot menu provides "加入文件夹", "添加到音乐库/从音乐库中删除", "加入播放列表", and "睡眠定时器" (omitting "加入歌单" and "转至专辑").
+   - **Album Header, Source Badge & Pagination**: `AlbumScreen` displays a gray framed badge (`album-source-badge`) at `top: 24, right: 32` when the album originates from a third-party source (`isThirdParty`). Third-party albums support incremental pagination (`pageSize: 30`) via `useAlbum`: virtual lists compute the halfway mark of the last page (`thresholdIndex = Math.max(0, count - pageSize) + Math.floor((count - Math.max(0, count - pageSize)) / 2)`) and trigger `album.loadMore` when scrolling past it, avoiding upfront bulk fetches and premature initial-mount triggers. Features an Action Bar heart button (`heart` / `heart-filled`) bound to `library.setSaved(album.urn, isSaved)` displaying saved albums in the user's Library. Local albums (`BBeBee:local:`) omit download buttons in header and rows, and omit the download menu item. Three-dot menu and header right-click provide "跳转原始资源", "加入文件夹", "添加到音乐库/从音乐库中删除", "加入播放列表", and "睡眠定时器" (omitting "加入歌单" and "转至专辑").
    - **Playback Queue Alignment**: Playing tracks from a sorted table (single-tap or "Play All") passes the sorted URN sequence to `ctx.player.playFromContext`, ensuring the playback queue matches visual order.
-   - **Playlist Item ID Decoupling**: In `PlaylistDetailScreen`, rows wrap data as `{ item, track, trackUrn, originalIndex }`, preserving item IDs across sort operations so that removals and context menus act on the correct playlist item.
+   - **Playlist Item ID Decoupling, Source Badge & Pagination**: In `PlaylistDetailScreen`, rows wrap data as `{ item, track, trackUrn, originalIndex }`, preserving item IDs across sort operations so that removals and context menus act on the correct playlist item. Third-party playlists (`isThirdParty`) display a gray framed badge (`playlist-source-badge`) at `top: 24, right: 32` and support half-page scroll pagination (30 tracks per page). User-created local playlists omit the source badge even when containing third-party tracks. Header right-click and three-dot menu provide "跳转原始资源".
    - **Favorites Parity (`FavoritesScreen`)**: Styled with immersive purple gradient header, 56px play button, shuffle, real-time search filter, and `FavoriteTrackTableRow` with hover `TrackLibraryActionButton` (`heart-filled` / `heart` submenu).
 
 2. **Local Music Dual Views (Tracks & Albums)**:

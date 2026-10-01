@@ -16,7 +16,9 @@ import {
   addToCollectionSubmenu,
   addToPlaylistSubmenu,
   collectionMenuItems,
+  openExternalUrl,
   playlistMenuItems,
+  resolveOriginalResourceUrl,
   sleepTimerSubmenu,
   trackMenuItems,
   useSaveToPlaylistMenu,
@@ -712,3 +714,75 @@ describe('useTrackMenu', () => {
     expect(result.current.menuProps.open).toBe(false)
   })
 })
+
+describe('resolveOriginalResourceUrl & openExternalUrl', () => {
+  it('returns undefined for local track or album', () => {
+    expect(resolveOriginalResourceUrl('BBeBee:local:track:1')).toBeUndefined()
+    expect(resolveOriginalResourceUrl({ urn: 'BBeBee:local:album:1', kind: 'album' })).toBeUndefined()
+  })
+
+  it('resolves bilibili track video url', () => {
+    expect(resolveOriginalResourceUrl('BBeBee:bilibili:track:BV1xx411c7mD')).toBe(
+      'https://www.bilibili.com/video/BV1xx411c7mD',
+    )
+    expect(resolveOriginalResourceUrl('BBeBee:bilibili:track:bili_video_BV1xx411c7mD_12345')).toBe(
+      'https://www.bilibili.com/video/BV1xx411c7mD',
+    )
+  })
+
+  it('resolves bilibili season, series, and collect album/playlist urls', () => {
+    expect(
+      resolveOriginalResourceUrl({
+        urn: 'BBeBee:bilibili:album:bili_season_12345_67890',
+        kind: 'album',
+      }),
+    ).toBe('https://space.bilibili.com/12345/channel/collectiondetail?sid=67890')
+
+    expect(
+      resolveOriginalResourceUrl({
+        urn: 'BBeBee:bilibili:playlist:bili_series_111_222',
+        kind: 'playlist',
+      }),
+    ).toBe('https://space.bilibili.com/111/channel/seriesdetail?sid=222')
+
+    expect(
+      resolveOriginalResourceUrl({
+        urn: 'BBeBee:bilibili:album:bili_collect_99999',
+        kind: 'album',
+      }),
+    ).toBe('https://www.bilibili.com/medialist/play/ml99999')
+  })
+
+  it('includes open-original-resource item in trackMenuItems for third-party track', async () => {
+    const h = await harness()
+    const thirdPartyTrack: Track = {
+      urn: 'BBeBee:bilibili:track:BV1xx411c7mD',
+      title: 'Bili Song',
+      artists: [],
+    }
+    const items = trackMenuItems(h.ctx, { track: thirdPartyTrack })
+    const openItem = items.find((i) => i.id === 'open-original-resource')
+    expect(openItem).toBeDefined()
+    expect(openItem?.label).toBe('跳转原始资源')
+  })
+
+  it('includes open-original-resource item in playlistMenuItems for third-party playlist', async () => {
+    const h = await harness()
+    const items = playlistMenuItems(
+      h.ctx,
+      { urn: 'BBeBee:bilibili:playlist:bili_season_123_456', name: 'Bili Season' },
+      [],
+    )
+    const openItem = items.find((i) => i.id === 'open-original-resource')
+    expect(openItem).toBeDefined()
+    expect(openItem?.label).toBe('跳转原始资源')
+  })
+
+  it('calls window.open in openExternalUrl fallback', () => {
+    const spy = vi.spyOn(window, 'open').mockImplementation(() => null)
+    openExternalUrl('https://www.bilibili.com/video/BV1xx411c7mD')
+    expect(spy).toHaveBeenCalledWith('https://www.bilibili.com/video/BV1xx411c7mD', '_blank')
+    spy.mockRestore()
+  })
+})
+

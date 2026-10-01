@@ -1,11 +1,12 @@
-import { createElement as h, useMemo, useState } from 'react'
+import { createElement as h, useCallback, useEffect, useMemo, useState } from 'react'
 import type { ChangeEvent, MouseEvent as ReactMouseEvent, ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { ArtworkRef, PlaylistItem, ShareService, Track } from '@BBeBee/protocol'
+import type { ArtworkRef, LibraryService, PlaylistItem, PlaylistDetail, SourcesService, ShareService, Track } from '@BBeBee/protocol'
+import { tryParseUrn } from '@BBeBee/protocol'
 import { usePlaylist } from '@BBeBee/plugin-library/hooks'
 import { useTracksByUrn } from '@BBeBee/plugin-player/hooks'
 import { serviceOf, type MenuAnchor } from '@BBeBee/ui-core'
-import { sortMenuItems, useTrackMenu } from '@BBeBee/ui-menus'
+import { sortMenuItems, usePlaylistMenu, useTrackMenu } from '@BBeBee/ui-menus'
 import { ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, List, SaveToPlaylistPopover, StickyDetailBar, Text, tablerIcon, useDetailBarCollapse, useImageColor, headerGradient, viewModeMenuItems, useViewMode } from '@BBeBee/ui-kit-desktop'
 import { useResolvedArtwork } from '@BBeBee/plugin-cache/hooks'
 import { tokens } from '@BBeBee/ui-tokens'
@@ -18,11 +19,117 @@ import { formatTotalDuration } from '../utils/data-helpers.js'
 type PlaylistSortKey = 'custom' | 'title' | 'artist' | 'album' | 'dateAdded' | 'duration'
 
 export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string }): ReactElement {
-  const state = usePlaylist(ctx, urn)
-  const detail = state.data
+  const sources = serviceOf<SourcesService>(ctx, 'sources')
+  const parsedUrn = tryParseUrn(urn ?? '')
+  const isThirdPartyUrn = Boolean(parsedUrn && parsedUrn.sourceId && parsedUrn.sourceId !== 'local')
+
+  const state = usePlaylist(ctx, isThirdPartyUrn ? undefined : urn)
+
+  const [thirdPartyData, setThirdPartyData] = useState<{
+    detail?: PlaylistDetail
+    hasMore: boolean
+    cursor?: string
+    loading: boolean
+    loadingMore: boolean
+    error?: Error
+  }>({
+    hasMore: false,
+    loading: isThirdPartyUrn,
+    loadingMore: false,
+  })
+
+  useEffect(() => {
+    if (!urn || !isThirdPartyUrn) return
+    let cancelled = false
+    setThirdPartyData({ hasMore: false, loading: true, loadingMore: false })
+
+    const fetchFirstPage = async () => {
+      try {
+        const src = serviceOf<SourcesService>(ctx, 'sources')
+        const lib = serviceOf<LibraryService>(ctx, 'library')
+        let res: PlaylistDetail | undefined
+        if (src && typeof src.getPlaylist === 'function') {
+          res = await src.getPlaylist(urn, { limit: 30 })
+        }
+        if (!res && lib && typeof lib.getPlaylist === 'function') {
+          res = await lib.getPlaylist(urn, { limit: 30 })
+        }
+        if (!cancelled) {
+          setThirdPartyData({
+            detail: res,
+            hasMore: Boolean(res?.hasMore),
+            cursor: res?.cursor,
+            loading: false,
+            loadingMore: false,
+          })
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setThirdPartyData({
+            hasMore: false,
+            loading: false,
+            loadingMore: false,
+            error: err instanceof Error ? err : new Error(String(err)),
+          })
+        }
+      }
+    }
+
+    void fetchFirstPage()
+    return () => {
+      cancelled = true
+    }
+  }, [ctx, urn, isThirdPartyUrn])
+
+  const handleLoadMore = useCallback(async () => {
+    if (!urn || !isThirdPartyUrn) return
+    if (thirdPartyData.loadingMore || !thirdPartyData.hasMore || !thirdPartyData.cursor) return
+
+    setThirdPartyData((prev) => ({ ...prev, loadingMore: true }))
+    try {
+      const src = serviceOf<SourcesService>(ctx, 'sources')
+      const lib = serviceOf<LibraryService>(ctx, 'library')
+      let res: PlaylistDetail | undefined
+      if (src && typeof src.getPlaylist === 'function') {
+        res = await src.getPlaylist(urn, { limit: 30, cursor: thirdPartyData.cursor })
+      }
+      if (!res && lib && typeof lib.getPlaylist === 'function') {
+        res = await lib.getPlaylist(urn, { limit: 30, cursor: thirdPartyData.cursor })
+      }
+      if (res) {
+        setThirdPartyData((prev) => {
+          const prevItems = prev.detail?.items ?? []
+          const existingUrns = new Set(prevItems.map((it) => it.trackUrn))
+          const newItems = (res.items ?? []).filter((it) => !existingUrns.has(it.trackUrn))
+          return {
+            ...prev,
+            detail: prev.detail ? { ...prev.detail, items: [...prevItems, ...newItems] } : res,
+            hasMore: Boolean(res.hasMore),
+            cursor: res.cursor,
+            loadingMore: false,
+          }
+        })
+      } else {
+        setThirdPartyData((prev) => ({ ...prev, hasMore: false, loadingMore: false }))
+      }
+    } catch {
+      setThirdPartyData((prev) => ({ ...prev, loadingMore: false }))
+    }
+  }, [ctx, urn, isThirdPartyUrn, thirdPartyData.cursor, thirdPartyData.hasMore, thirdPartyData.loadingMore])
+
+  const detail = isThirdPartyUrn ? thirdPartyData.detail : state.data
   const rawItems = detail?.items ?? []
   const urns = rawItems.map((item) => item.trackUrn)
   const tracks = useTracksByUrn(ctx, urns)
+
+  // Identify third party source: only when the playlist itself originates from a third-party source
+  const sourceId = parsedUrn?.sourceId && parsedUrn.sourceId !== 'local' ? parsedUrn.sourceId : undefined
+  const isThirdParty = Boolean(sourceId)
+  const sourceRecord = sourceId && typeof sources?.get === 'function' ? sources.get(sourceId) : undefined
+  const sourcePlugin = sourceId && typeof sources?.source === 'function' ? sources.source(sourceId) : undefined
+  const sourceName = sourcePlugin?.doc?.sourceName || sourceRecord?.displayName || sourceId || ''
+
+  const playlistMenu = usePlaylistMenu(ctx)
   const [error, setError] = useState<string | undefined>(undefined)
   const [showEditModal, setShowEditModal] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -101,11 +208,14 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
     })
   }
 
+  const isError = isThirdPartyUrn ? Boolean(thirdPartyData.error) : state.status === 'error'
+  const errorMessage = isThirdPartyUrn ? thirdPartyData.error?.message : state.error?.message
+  const isLoading = isThirdPartyUrn ? thirdPartyData.loading : state.status === 'loading'
   if (!urn) return h(EmptyState, { title: 'No playlist chosen' })
-  if (state.status === 'error') {
-    return h(EmptyState, { title: 'Could not open the playlist', description: state.error?.message })
+  if (isError) {
+    return h(EmptyState, { title: 'Could not open the playlist', description: errorMessage })
   }
-  if (!detail) return h(EmptyState, { title: 'Loading…' })
+  if (!detail || isLoading) return h(EmptyState, { title: 'Loading…' })
 
   const sortLabelMap: Record<PlaylistSortKey, string> = {
     custom: '自定义顺序',
@@ -163,7 +273,41 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
   // 与吸附后的表头都是纯色 --bg-primary。
   const headerNode = h(
     'div',
-    { style: { background: headerGradient(tint) } },
+    {
+      style: { background: headerGradient(tint), position: 'relative' },
+      onContextMenu: (e: ReactMouseEvent) => {
+        e.preventDefault()
+        playlistMenu.open(
+          { urn: detail.urn, name: detail.name },
+          urns,
+          { x: e.clientX, y: e.clientY },
+        )
+      },
+    },
+    isThirdParty && sourceName
+      ? h(
+          'div',
+          {
+            'data-testid': 'playlist-source-badge',
+            style: {
+              position: 'absolute',
+              top: 24,
+              right: 32,
+              padding: '2px 8px',
+              fontSize: 12,
+              lineHeight: '18px',
+              color: 'var(--text-tertiary, #8B95B0)',
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.25)',
+              borderRadius: 4,
+              userSelect: 'none',
+              pointerEvents: 'none',
+              zIndex: 2,
+            },
+          },
+          sourceName,
+        )
+      : null,
     h(DetailHero, {
       eyebrow: detail.isPublic !== false ? '公开歌单' : '歌单',
       title: detail.name,
@@ -281,8 +425,17 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
           'button',
           {
             type: 'button',
+            'data-testid': 'playlist-more-trigger',
             title: '更多选项',
             style: { background: 'none', border: 'none', color: '#b3b3b3', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
+            onClick: (e: ReactMouseEvent) => {
+              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+              playlistMenu.open(
+                { urn: detail.urn, name: detail.name },
+                urns,
+                { x: rect.left, y: rect.bottom + 6 },
+              )
+            },
           },
           tablerIcon('dots', { size: 24 }),
         ),
@@ -452,6 +605,8 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
         stickyHeader: tableHeaderNode,
         onScroll: collapse.handleScroll,
         items: filteredRows,
+        pageSize: 30,
+        onEndReached: isThirdPartyUrn && thirdPartyData.hasMore && !thirdPartyData.loadingMore ? handleLoadMore : undefined,
         estimatedItemSize: tokens.size.row,
         keyExtractor: (row) => row.item.id,
         empty: h(EmptyState, {
@@ -489,6 +644,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
       }),
     ),
     h(ContextMenu, menu.menuProps),
+    h(ContextMenu, playlistMenu.menuProps),
     h(SaveToPlaylistPopover, saveToPlaylistMenuProps),
     h(ContextMenu, {
       open: sortMenuAnchor !== null,

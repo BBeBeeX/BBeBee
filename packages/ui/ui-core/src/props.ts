@@ -187,6 +187,8 @@ export interface ListProps<T> extends CommonProps {
    */
   estimatedItemSize?: number
   onEndReached?: () => void
+  /** Page size for threshold calculation when scrolling past halfway of the last page. */
+  pageSize?: number
   /** What to show instead of nothing. */
   empty?: unknown
   /**

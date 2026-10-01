@@ -21,11 +21,12 @@ import { createElement as h, useCallback, useEffect, useMemo, useState } from 'r
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { Collection, DownloadsService, LibraryService, PlayerService, ShareService, SleepTimerService, SourcesService, Track } from '@BBeBee/protocol'
+import { tryParseUrn } from '@BBeBee/protocol'
 import { ALBUM_VIEWS } from '@BBeBee/plugin-album/views'
 import { useAlbum } from '@BBeBee/plugin-album/hooks'
 import { useResolvedArtwork } from '@BBeBee/plugin-cache/hooks'
 import { formatDuration, formatTotalDuration } from '@BBeBee/toolkit'
-import { addToCollectionSubmenu, sleepTimerSubmenu, sortMenuItems, useSaveToPlaylistMenu, useTrackMenu } from '@BBeBee/ui-menus'
+import { addToCollectionSubmenu, openExternalUrl, resolveOriginalResourceUrl, sleepTimerSubmenu, sortMenuItems, useSaveToPlaylistMenu, useTrackMenu } from '@BBeBee/ui-menus'
 import { Artwork, ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, List, SaveToPlaylistPopover, StickyDetailBar, tablerIcon, useDetailBarCollapse, useImageColor, headerGradient, viewModeMenuItems, useViewMode } from '@BBeBee/ui-kit-desktop'
 import { serviceOf } from '@BBeBee/ui-core'
 import type { ArtworkProps, MenuAnchor, MenuItemSpec } from '@BBeBee/ui-core'
@@ -514,11 +515,30 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
         detail.tracks.every((t) => t.urn.startsWith('BBeBee:local:') || t.urn.startsWith('local:'))),
   )
 
+  const parsedUrn = tryParseUrn(detail.urn)
+  const isThirdParty = Boolean(
+    (parsedUrn && parsedUrn.sourceId && parsedUrn.sourceId !== 'local') || !isLocalAlbum,
+  )
+  const sourceId = parsedUrn?.sourceId && parsedUrn.sourceId !== 'local' ? parsedUrn.sourceId : undefined
+  const sourceRecord = sourceId && typeof sources?.get === 'function' ? sources.get(sourceId) : undefined
+  const sourcePlugin = sourceId && typeof sources?.source === 'function' ? sources.source(sourceId) : undefined
+  const sourceName = sourcePlugin?.doc?.sourceName || sourceRecord?.displayName || sourceId
+
   const collectionSubmenu = addToCollectionSubmenu(library, [detail.urn], collections, {
     title: '加入文件夹',
   })
 
   const albumMenuItems: MenuItemSpec[] = []
+
+  const albumResourceUrl = resolveOriginalResourceUrl({ urn: detail.urn, kind: 'album' })
+  if (albumResourceUrl) {
+    albumMenuItems.push({
+      id: 'open-original-resource',
+      label: '跳转原始资源',
+      icon: tablerIcon('share-box', { size: 20 }),
+      onSelect: () => openExternalUrl(albumResourceUrl),
+    })
+  }
 
   if (collectionSubmenu) {
     albumMenuItems.push({
@@ -650,7 +670,37 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   // 与吸附后的表头都是纯色 --bg-primary。
   const headerNode = h(
     'div',
-    { style: { background: headerGradient(tint) } },
+    {
+      style: { background: headerGradient(tint), position: 'relative' },
+      onContextMenu: (e: React.MouseEvent) => {
+        e.preventDefault()
+        setAlbumMenuAnchor({ x: e.clientX, y: e.clientY })
+      },
+    },
+    isThirdParty && sourceName
+      ? h(
+          'div',
+          {
+            'data-testid': 'album-source-badge',
+            style: {
+              position: 'absolute',
+              top: 24,
+              right: 32,
+              padding: '2px 8px',
+              fontSize: 12,
+              lineHeight: '18px',
+              color: 'var(--text-tertiary, #8B95B0)',
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.25)',
+              borderRadius: 4,
+              userSelect: 'none',
+              pointerEvents: 'none',
+              zIndex: 2,
+            },
+          },
+          sourceName,
+        )
+      : null,
     h(DetailHero, {
       eyebrow: '专辑',
       title: detail.title,
@@ -935,6 +985,8 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
         accessibilityLabel: `Tracks on ${detail.title}`,
         estimatedItemSize: tokens.size.row,
         keyExtractor: (track) => track.urn,
+        pageSize: 30,
+        onEndReached: isThirdParty && album.hasMore ? album.loadMore : undefined,
         empty: h(EmptyState, { title: 'This album has no tracks' }),
         renderItem: (track, index) =>
           h(AlbumTrackTableRow, {

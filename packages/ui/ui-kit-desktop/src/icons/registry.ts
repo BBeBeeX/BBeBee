@@ -226,6 +226,7 @@ export const ICON_ALIASES: Record<string, string> = {
   equalizer: 'wave-sine',
   share: 'share',
   'share-box': 'share-box',
+  'external-link': 'share-box',
   'info-circle': 'info-circle',
   info: 'info-circle',
   'ℹ️': 'info-circle',

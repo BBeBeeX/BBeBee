@@ -455,8 +455,37 @@ Share dialogs (`ShareTrackModal`, `SharePlaylistModal`, `ShareAlbumModal`, `Shar
 - **Scope Toggle**:
   - `ShareLyricsModal` provides a segmented scope selector: **整张海报 (大图)** (`full`) vs **仅内部卡片 (小图)** (`card`).
   - Controlled by `RenderLyricsCardOptions.cardOnly`.
-  - **Full Poster (`cardOnly = false`)**: 540x960 outer poster layout, embedding the themed floating card with background patterns, subtle paper noise, and drop shadows. Export filename suffix: `(歌词分享).png`.
-  - **Card Only (`cardOnly = true`)**: Directly dimensions the canvas to the inner card's natural dimensions (`440 x naturalCardH`) with border radius 20px, rendering cleanly without surrounding poster borders or shadows. Export filename suffix: `(歌词卡片).png`.
+---
 
+## 11. Third-Party Source Badges, Half-Page Pagination & Original Resources
 
+Rules for third-party indicators in detail screens, infinite scroll pagination, and navigation to original web resources:
 
+#### 11.1 Source Badge in Detail Headers
+- **Visual Presentation**: When an album or playlist originates from a third-party source (`isThirdParty`), the header hero node mounts a compact, gray-framed badge in the top-right corner (`top: 24, right: 32`):
+  - `album-source-badge` / `playlist-source-badge`
+  - Style: `border: '1px solid rgba(255, 255, 255, 0.2)'`, `borderRadius: 4`, `padding: '3px 8px'`, `color: '#A0A0A0'`, font size 12px.
+- **Local Source Immunity**: User-created local playlists (`BBeBee:local:playlist:...`) do NOT display a third-party source badge, even if they contain songs sourced from third-party providers.
+
+#### 11.2 Half-Page Infinite Scroll Pagination
+- **Chunked Loading**: Third-party albums and playlists avoid fetching all tracks at once; requests use `PageRequest` with a default page size of 30.
+- **Half-Page Trigger Line**:
+  - `ListProps` accepts `pageSize?: number`.
+  - When provided, the virtual list computes a threshold index at the halfway mark of the current final page:
+    `thresholdIndex = Math.max(0, count - pageSize) + Math.floor((count - Math.max(0, count - pageSize)) / 2)`
+  - The scroll listener checks if the scroll offset exceeds `scrollMargin + thresholdIndex * estimateItemHeight`.
+  - `onEndReached` triggers only upon real user scroll past this halfway mark, and `firedFor.current = count` prevents re-firing for the same item count.
+  - This eliminates infinite fetch loops on initial mount when short lists fit entirely within the viewport.
+
+#### 11.3 Context Menu "跳转原始资源" & Safe External Navigation
+- **Menu Registration**: Track, Album, and Playlist right-click / more context menus register `open-original-resource` ("跳转原始资源") with icon `external-link` (mapped to Tabler `share-box`).
+- **Canonical URL Resolution (`resolveOriginalResourceUrl`)**:
+  - Automatically parses canonical web URLs from URNs, track metadata, and raw IDs for:
+    - Bilibili: Video BV IDs (`https://www.bilibili.com/video/BV...`), AV IDs, seasons (`ss...`), series (`series...`), and user collections/favorites (`ml...`).
+    - NetEase Cloud Music: Track / album / playlist web URLs.
+    - QQ Music: Song / album / playlist web URLs.
+    - YouTube: Watch / playlist URLs.
+    - Direct HTTP/HTTPS fallback: Any valid web URL provided in `track.originalUrl` or `item.id`.
+- **Platform Invariant 1 Preservation (`openExternalUrl`)**:
+  - UI packages must NEVER import Electron or platform SDKs.
+  - `openExternalUrl(url)` calls `window.BBeBee?.shell?.openExternal(url)` if present, gracefully falling back to `window.open(url, '_blank')`.

@@ -12,6 +12,7 @@ import type {
 import { addToPlaylistSubmenu } from '../submenus/playlistSubmenu.js'
 import { addToCollectionSubmenu } from '../submenus/collectionSubmenu.js'
 import { useMenuState, type MenuController } from '../types.js'
+import { openExternalUrl, resolveOriginalResourceUrl } from '../utils/resourceUrls.js'
 
 export interface AddToCollectionOptions {
   pinned?: boolean
@@ -68,6 +69,19 @@ export function addToCollectionOnlyItems(
       onSelect: opts.onTogglePin,
     })
   }
+
+  if (urns.length === 1) {
+    const originalUrl = resolveOriginalResourceUrl({ urn: urns[0], kind: 'album' })
+    if (originalUrl) {
+      items.push({
+        id: 'open-original-resource',
+        label: '跳转原始资源',
+        icon: 'share-box',
+        onSelect: () => openExternalUrl(originalUrl),
+      })
+    }
+  }
+
   if (submenu) items.push({ id: 'add-to-collection', label: '移动至文件夹', icon: 'folder', submenu })
   return items
 }

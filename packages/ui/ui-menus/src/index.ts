@@ -62,3 +62,9 @@ export {
   type SortOrder,
   sortMenuItems,
 } from './menus/sortMenu.js'
+
+export {
+  type ResourceUrlTarget,
+  resolveOriginalResourceUrl,
+  openExternalUrl,
+} from './utils/resourceUrls.js'

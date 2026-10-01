@@ -15,6 +15,7 @@ import type {
 import { addToPlaylistSubmenu } from '../submenus/playlistSubmenu.js'
 import { addToCollectionSubmenu } from '../submenus/collectionSubmenu.js'
 import { useMenuState, type MenuController } from '../types.js'
+import { openExternalUrl, resolveOriginalResourceUrl } from '../utils/resourceUrls.js'
 
 export interface PlaylistMenuOptions {
   pinned?: boolean
@@ -163,6 +164,16 @@ export function playlistMenuItems(
       label: '移动至文件夹',
       icon: 'folder',
       submenu: collectionSubmenu,
+    })
+  }
+
+  const originalUrl = resolveOriginalResourceUrl({ urn: playlist.urn, kind: 'playlist' })
+  if (originalUrl) {
+    items.push({
+      id: 'open-original-resource',
+      label: '跳转原始资源',
+      icon: 'share-box',
+      onSelect: () => openExternalUrl(originalUrl),
     })
   }
 

@@ -746,7 +746,7 @@ export class DocumentSource {
         : {}),
       ...(this.browsable ? { browse: (nodeId, page) => this.browse(nodeId, page) } : {}),
       ...(this.recommendable ? { recommend: (page?: PageRequest) => this.recommend(page) } : {}),
-      ...(this.albumable ? { getAlbum: (id: string) => this.getAlbum(id) } : {}),
+      ...(this.albumable ? { getAlbum: (id: string, page?: PageRequest) => this.getAlbum(id, page) } : {}),
       ...(this.artistable ? { getArtist: (id: string) => this.getArtist(id) } : {}),
       ...(this.playlistable ? { getPlaylist: (id: string, page?: PageRequest) => this.getPlaylist(id, page) } : {}),
       ...(this.lyricable ? { getLyrics: (id: string) => this.getLyrics(id) } : {}),
@@ -1686,7 +1686,7 @@ export class DocumentSource {
    * stored, because it is a URL the *backend* chose and nothing about an id
    * implies it.
    */
-  async getAlbum(id: string): Promise<AlbumDetail> {
+  async getAlbum(id: string, page?: PageRequest): Promise<AlbumDetail> {
     const doc = this.record.doc
     const site = { block: 'ruleAlbum', field: 'title' }
     if (!doc.ruleAlbum || !doc.ruleTrackList) {
@@ -1708,13 +1708,41 @@ export class DocumentSource {
       )
     }
 
+    const pageReq: PageRequest = page ?? { limit: 30 }
     const scope: TemplateScope = {
       source: this.sourceScope(),
       album: { id, ...payload },
+      page: pageReq,
       baseUrl: this.record.sourceUrl,
     }
 
-    const target = parseUrlObject(url)
+    let finalUrl = url
+    if (url.includes('{{')) {
+      finalUrl = await evaluateUrlTemplate(
+        url,
+        scope,
+        { block: 'ruleAlbum', field: 'childUrl', sourceId: this.record.id },
+        this.js,
+      )
+    } else if (page?.cursor) {
+      try {
+        const parsedUrl = new URL(finalUrl)
+        if (parsedUrl.searchParams.has('page_num')) {
+          parsedUrl.searchParams.set('page_num', page.cursor)
+          finalUrl = parsedUrl.toString()
+        } else if (parsedUrl.searchParams.has('pn')) {
+          parsedUrl.searchParams.set('pn', page.cursor)
+          finalUrl = parsedUrl.toString()
+        } else if (parsedUrl.searchParams.has('page')) {
+          parsedUrl.searchParams.set('page', page.cursor)
+          finalUrl = parsedUrl.toString()
+        }
+      } catch {
+        // Fall back to original finalUrl if URL parsing fails
+      }
+    }
+
+    const target = parseUrlObject(finalUrl)
     this.assertAllowed(target.url)
     const fetched = await this.withReauth(() => this.fetchChecked(target, scope, 'ruleAlbum'))
 
@@ -1780,6 +1808,19 @@ export class DocumentSource {
     const trackCount = numberOr(await field('trackCount', doc.ruleAlbum.trackCount))
     const artwork = await field('artwork', doc.ruleAlbum.artwork)
 
+    const currentPn = page?.cursor ? Number.parseInt(page.cursor, 10) : 1
+    const limit = pageReq.limit ?? 30
+    let hasMore: boolean
+    let nextCursor: string | undefined
+
+    if (trackCount !== undefined && !Number.isNaN(trackCount)) {
+      hasMore = currentPn * limit < trackCount
+      nextCursor = hasMore ? String(currentPn + 1) : undefined
+    } else {
+      hasMore = rows.length >= limit
+      nextCursor = hasMore ? String(currentPn + 1) : undefined
+    }
+
     return {
       urn: albumUrn,
       title: (await field('title', doc.ruleAlbum.title)) ?? String(payload.title ?? id),
@@ -1798,6 +1839,8 @@ export class DocumentSource {
       ...(artwork ? { artwork: { id: artwork, sourceUrl: artwork } } : {}),
       tracks,
       payloads,
+      hasMore,
+      ...(nextCursor ? { cursor: nextCursor } : {}),
     }
   }
 

@@ -409,4 +409,41 @@ describe('AlbumScreen', () => {
       expect(getByText('My Playlist')).toBeTruthy()
     })
   })
+
+  it('renders third-party source badge on the album screen', async () => {
+    const ctx = new Context()
+    new SourcesStub(ctx)
+    new PlayerStub(ctx)
+    new DownloadsStub(ctx)
+    new UiStub(ctx)
+    new LibraryStub(ctx)
+
+    await withListLayout(async () => {
+      const { getByTestId } = render(h(AlbumScreen, { ctx, urn: ALBUM_URN }))
+      await act(async () => {
+        await tick()
+      })
+      const badge = getByTestId('album-source-badge')
+      expect(badge).toBeTruthy()
+      expect(badge.textContent).toBe('remote')
+    })
+  })
+
+  it('does not render source badge for local album', async () => {
+    const ctx = new Context()
+    new SourcesStub(ctx)
+    new PlayerStub(ctx)
+    new DownloadsStub(ctx)
+    new UiStub(ctx)
+    new LibraryStub(ctx)
+
+    await withListLayout(async () => {
+      const { queryByTestId } = render(h(AlbumScreen, { ctx, urn: LOCAL_ALBUM_URN }))
+      await act(async () => {
+        await tick()
+      })
+      expect(queryByTestId('album-source-badge')).toBeNull()
+    })
+  })
 })
+

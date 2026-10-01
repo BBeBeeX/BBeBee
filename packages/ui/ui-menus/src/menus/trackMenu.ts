@@ -18,6 +18,7 @@ import { ALBUM_VIEWS } from '@BBeBee/plugin-album/views'
 import { addToPlaylistSubmenu } from '../submenus/playlistSubmenu.js'
 import { sleepTimerSubmenu } from '../submenus/sleepTimerSubmenu.js'
 import { useMenuState, type MenuController } from '../types.js'
+import { openExternalUrl, resolveOriginalResourceUrl } from '../utils/resourceUrls.js'
 
 export interface TrackMenuTarget {
   track: Track
@@ -204,6 +205,16 @@ export function trackMenuItems(
       label: '查看播放内容',
       icon: 'info-circle',
       onSelect: () => opts.onShowTrackInfo!(track),
+    })
+  }
+
+  const originalUrl = resolveOriginalResourceUrl({ track, kind: 'track' })
+  if (originalUrl) {
+    items.push({
+      id: 'open-original-resource',
+      label: '跳转原始资源',
+      icon: 'share-box',
+      onSelect: () => openExternalUrl(originalUrl),
     })
   }
 

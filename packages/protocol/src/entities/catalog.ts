@@ -54,6 +54,8 @@ export interface Album {
 
 export interface AlbumDetail extends Album, WithPayloads {
   tracks: Track[]
+  cursor?: string
+  hasMore?: boolean
 }
 
 /**

@@ -54,6 +54,7 @@ import type {
   BrowseEntry,
   BrowseResult,
   PageRequest,
+  PlaylistDetail,
   SearchResult,
   TrackLink,
   SourceRecord,
@@ -1066,34 +1067,45 @@ export class Sources extends Service implements SourcesService {
    * answer goes through the same writer a search does. The next read is
    * instant and offline, which is the whole point of the cache.
    */
-  async getAlbum(urn: string): Promise<AlbumDetail | undefined> {
+  async getAlbum(urn: string, page?: PageRequest): Promise<AlbumDetail | undefined> {
     const cached = await this.catalog.getAlbum(urn)
-    if (cached && cached.tracks.length > 0) return cached
 
     const parsed = tryParseUrn(urn)
     if (!parsed || parsed.kind !== 'album') return cached
+
+    if (parsed.sourceId === 'local') {
+      if (cached && cached.tracks.length > 0) return cached
+      return cached
+    }
 
     const provider = this.registry.get(parsed.sourceId)
     if (!provider || typeof provider.getAlbum !== 'function') return cached
 
     try {
-      const detail = await provider.getAlbum(parsed.id)
-      await this.cache(parsed.sourceId, {
-        albums: {
-          items: [
-            {
-              urn: detail.urn,
-              title: detail.title,
-              artists: detail.artists,
-              ...(detail.artwork ? { artwork: detail.artwork } : {}),
-              ...(detail.year !== undefined ? { year: detail.year } : {}),
-              ...(detail.trackCount !== undefined ? { trackCount: detail.trackCount } : {}),
+      const pageReq = page ?? { limit: 30 }
+      const detail = await provider.getAlbum(parsed.id, pageReq)
+      if (detail && detail.tracks.length > 0) {
+        await this.cache(
+          parsed.sourceId,
+          {
+            albums: {
+              items: [
+                {
+                  urn: detail.urn,
+                  title: detail.title,
+                  artists: detail.artists,
+                  ...(detail.artwork ? { artwork: detail.artwork } : {}),
+                  ...(detail.year !== undefined ? { year: detail.year } : {}),
+                  ...(detail.trackCount !== undefined ? { trackCount: detail.trackCount } : {}),
+                },
+              ],
+              hasMore: false,
             },
-          ],
-          hasMore: false,
-        },
-        ...(detail.tracks.length > 0 ? { tracks: { items: detail.tracks, hasMore: false } } : {}),
-      })
+            tracks: { items: detail.tracks, hasMore: detail.hasMore ?? false },
+            payloads: detail.payloads,
+          },
+        )
+      }
       return detail
     } catch (error) {
       // A source that cannot answer live is not a broken album — the payload
@@ -1101,6 +1113,32 @@ export class Sources extends Service implements SourcesService {
       // catalogue's answer, even an empty one, is still the honest one.
       this.ctx.logger.warn?.(`sources: live album fetch for ${urn} failed: ${String(error)}`)
       return cached
+    }
+  }
+
+  async getPlaylist(urn: string, page?: PageRequest): Promise<PlaylistDetail | undefined> {
+    const parsed = tryParseUrn(urn)
+    if (!parsed || parsed.kind !== 'playlist') return undefined
+
+    const provider = this.registry.get(parsed.sourceId)
+    if (!provider || typeof provider.getPlaylist !== 'function') return undefined
+
+    try {
+      const pageReq = page ?? { limit: 30 }
+      const detail = await provider.getPlaylist(parsed.id, pageReq)
+      if (detail && detail.tracks && detail.tracks.length > 0) {
+        await this.cache(
+          parsed.sourceId,
+          {
+            tracks: { items: detail.tracks, hasMore: detail.hasMore ?? false },
+            payloads: detail.payloads,
+          },
+        )
+      }
+      return detail
+    } catch (error) {
+      this.ctx.logger.warn?.(`sources: live playlist fetch for ${urn} failed: ${String(error)}`)
+      return undefined
     }
   }
 

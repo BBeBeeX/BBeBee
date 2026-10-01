@@ -27,6 +27,7 @@ Rule prefixes select the execution engine:
 | *(bare)* | Inferred | Inferred based on syntax |
 
 - URL template fields (`searchUrl`, `exploreUrl`, `recommendUrl`) use `{{ }}` for variable substitution (path, not expression).
+- **Detail Pagination** (`ruleAlbum`, `rulePlaylist`): `getAlbum(id, page?)` and `getPlaylist(id, page?)` accept an optional `PageRequest`. The runtime maps page numbers/cursors to query parameters (`pn`/`page_num`, `ps`/`page_size`) and propagates `hasMore` and `cursor` in `AlbumDetail` / `PlaylistDetail`, enabling infinite scroll without eager bulk fetching.
 - **Recommendations** (`ruleRecommend`, optional `recommendUrl`): one page of curated playlist cards per call — the recommendation shelf renders the first page ("show all" pages through the rest). Rows are browse rows (`kind: 'album'`/`'playlist'` with `childUrl`), so a recommended playlist opens through the same album-detail pipeline a browsed one does. `recommendUrl` is optional: a source whose recommendations are a curated list lets the `@js:` rule build rows from nothing (`result` is `null`).
 - Only `{{@js:...}}` reaches the QuickJS sandbox.
 - Combinators:

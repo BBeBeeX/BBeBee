@@ -62,7 +62,7 @@ export interface MediaProvider {
   search?(q: SearchQuery, page?: PageRequest): Promise<SearchResult>
   browse?(nodeId?: string, page?: PageRequest): Promise<Paged<BrowseEntry>>
   getTracks?(ids: string[]): Promise<Track[]>
-  getAlbum?(id: string): Promise<AlbumDetail>
+  getAlbum?(id: string, page?: PageRequest): Promise<AlbumDetail>
   getArtist?(id: string): Promise<ArtistDetail>
   getPlaylist?(id: string, page?: PageRequest): Promise<PlaylistDetail>
   getLyrics?(id: string): Promise<Lyrics | undefined>

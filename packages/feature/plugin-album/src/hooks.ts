@@ -7,11 +7,17 @@
  * means.
  */
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import type { AlbumDetail } from '@BBeBee/protocol'
 import type { AsyncState } from '@BBeBee/ui-core'
+
+export interface AlbumRead extends AsyncState<AlbumDetail> {
+  hasMore?: boolean
+  loadingMore?: boolean
+  loadMore?: () => void
+}
 
 /**
  * One album with its tracks. `undefined` data means "no such album".
@@ -21,24 +27,38 @@ import type { AsyncState } from '@BBeBee/ui-core'
  * and a distinct empty state for a URN nobody has would be a distinction
  * without a difference.
  */
-export function useAlbum(ctx: Context, urn: string | undefined): AsyncState<AlbumDetail> {
-  const [state, setState] = useState<AsyncState<AlbumDetail>>({ status: 'idle' })
+export function useAlbum(ctx: Context, urn: string | undefined): AlbumRead {
+  const [state, setState] = useState<AsyncState<AlbumDetail> & { hasMore?: boolean; loadingMore?: boolean }>({
+    status: 'idle',
+    hasMore: false,
+    loadingMore: false,
+  })
+  const cursorRef = useRef<string | undefined>(undefined)
 
   useEffect(() => {
     if (!urn) {
-      setState({ status: 'idle' })
+      cursorRef.current = undefined
+      setState({ status: 'idle', hasMore: false, loadingMore: false })
       return
     }
     let cancelled = false
-    setState({ status: 'loading' })
+    cursorRef.current = undefined
+    setState({ status: 'loading', hasMore: false, loadingMore: false })
+
     ctx.sources
-      .getAlbum(urn)
+      .getAlbum(urn, { limit: 30 })
       .then((album) => {
         if (cancelled) return
+        cursorRef.current = album?.cursor
         setState(
           album
-            ? { status: 'ready', data: album }
-            : { status: 'error', error: new Error(`no album ${urn}`) },
+            ? {
+                status: 'ready',
+                data: album,
+                hasMore: Boolean(album.hasMore),
+                loadingMore: false,
+              }
+            : { status: 'error', error: new Error(`no album ${urn}`), hasMore: false, loadingMore: false },
         )
       })
       .catch((error: unknown) => {
@@ -46,10 +66,40 @@ export function useAlbum(ctx: Context, urn: string | undefined): AsyncState<Albu
         setState({
           status: 'error',
           error: error instanceof Error ? error : new Error(String(error)),
+          hasMore: false,
+          loadingMore: false,
         })
       })
     return () => void (cancelled = true)
   }, [ctx, urn])
 
-  return state
+  const loadMore = useCallback(() => {
+    if (!urn || !state.hasMore || state.loadingMore || !cursorRef.current) return
+    setState((prev) => ({ ...prev, loadingMore: true }))
+
+    ctx.sources
+      .getAlbum(urn, { cursor: cursorRef.current, limit: 30 })
+      .then((nextAlbum) => {
+        cursorRef.current = nextAlbum?.cursor
+        setState((prev) => {
+          if (!prev.data || !nextAlbum) return { ...prev, loadingMore: false }
+          const existingUrns = new Set(prev.data.tracks.map((t) => t.urn))
+          const newTracks = nextAlbum.tracks.filter((t) => !existingUrns.has(t.urn))
+          return {
+            ...prev,
+            loadingMore: false,
+            hasMore: Boolean(nextAlbum.hasMore),
+            data: {
+              ...prev.data,
+              tracks: [...prev.data.tracks, ...newTracks],
+            },
+          }
+        })
+      })
+      .catch(() => {
+        setState((prev) => ({ ...prev, loadingMore: false }))
+      })
+  }, [ctx, urn, state.hasMore, state.loadingMore])
+
+  return { ...state, loadMore }
 }

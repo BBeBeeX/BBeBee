@@ -276,7 +276,7 @@ export interface MediaProvider {
 
   /** Batched lookup. Falls back to N× `getTrack` when absent, which is slower. */
   getTracks?(ids: string[]): Promise<Track[]>
-  getAlbum?(id: string): Promise<AlbumDetail>
+  getAlbum?(id: string, page?: PageRequest): Promise<AlbumDetail>
   getArtist?(id: string): Promise<ArtistDetail>
   getPlaylist?(id: string, page?: PageRequest): Promise<PlaylistDetail>
   getLyrics?(id: string): Promise<Lyrics | undefined>
@@ -484,7 +484,8 @@ export interface SourcesService {
   listTracks(q?: CatalogQuery): Promise<Paged<Track>>
   listAlbums(q?: CatalogQuery): Promise<Paged<Album>>
   listArtists(q?: CatalogQuery): Promise<Paged<Artist>>
-  getAlbum(urn: string): Promise<AlbumDetail | undefined>
+  getAlbum(urn: string, page?: PageRequest): Promise<AlbumDetail | undefined>
+  getPlaylist(urn: string, page?: PageRequest): Promise<PlaylistDetail | undefined>
   getArtist(urn: string): Promise<ArtistDetail | undefined>
   getTracks(urns: readonly string[]): Promise<Track[]>
 

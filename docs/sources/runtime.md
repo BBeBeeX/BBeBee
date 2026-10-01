@@ -35,6 +35,8 @@ export interface SourcesService {
   readonly providers: readonly MediaProvider[]
   get(sourceId: string): MediaProvider | undefined
   forUrn(urn: string): MediaProvider | undefined
+  getAlbum(urn: string, page?: PageRequest): Promise<AlbumDetail | undefined>
+  getPlaylist(urn: string, page?: PageRequest): Promise<PlaylistDetail | undefined>
   searchAll(
     q: SearchQuery,
     opts?: {
@@ -200,6 +202,13 @@ export interface SearchResult {
 
 `total` stays optional, because a scraped page almost never knows one and inventing it produces
 progress bars that lie.
+
+Detail endpoints (`getAlbum(urn, page?)` and `getPlaylist(urn, page?)`) also participate in this
+pagination model. When querying third-party providers with large albums, series or collections,
+consumers pass a `PageRequest` (typically 30 items per page) and receive `hasMore` and `cursor` within
+`AlbumDetail` or `PlaylistDetail`. The runtime translates this to the source's page parameters
+(`pn`/`page_num` and `ps`/`page_size`), allowing views to paginate incrementally on scroll rather than
+loading thousands of tracks up front.
 
 **Rate limiting** is `concurrentRate`, enforced by the source's isolated HTTP stack rather than by
 the rules. `"3/1000"` is three requests per second; `"1/2000"` is one every two seconds. A source

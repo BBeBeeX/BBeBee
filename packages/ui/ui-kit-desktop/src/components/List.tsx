@@ -65,18 +65,44 @@ export function List<T>(props: ListProps<T>) {
   const rows = virtualizer.getVirtualItems()
 
   const last = rows[rows.length - 1]
-  const reachedEnd = last !== undefined && last.index >= count - 1
+  const pageSize = props.pageSize
+  const thresholdIndex =
+    pageSize !== undefined && count > 0
+      ? Math.max(0, count - pageSize) + Math.floor((count - Math.max(0, count - pageSize)) / 2)
+      : count - 1
+  const reachedEnd = last !== undefined && last.index >= thresholdIndex
   const firedFor = useRef(-1)
   const onEndReached = props.onEndReached
   useEffect(() => {
     if (!reachedEnd || !onEndReached || firedFor.current === count) return
+    if (pageSize !== undefined) {
+      const currentScrollTop = scroller.current?.scrollTop ?? 0
+      const currentClientHeight = scroller.current?.clientHeight ?? 0
+      const halfwayOffset = scrollMargin + thresholdIndex * estimate
+      if (currentScrollTop === 0 || currentScrollTop + currentClientHeight < halfwayOffset) {
+        return
+      }
+    }
     firedFor.current = count
     onEndReached()
-  }, [reachedEnd, onEndReached, count])
+  }, [reachedEnd, onEndReached, count, pageSize, scrollMargin, thresholdIndex, estimate])
 
   const onScroll = props.onScroll
-  const handleScroll = (event: { currentTarget: { scrollTop: number } }) => {
-    onScroll?.(event.currentTarget.scrollTop)
+  const handleScroll = (event: { currentTarget: { scrollTop: number; clientHeight: number } }) => {
+    const el = event.currentTarget
+    onScroll?.(el.scrollTop)
+    if (onEndReached && count > 0 && firedFor.current !== count) {
+      if (pageSize !== undefined) {
+        const halfwayOffset = scrollMargin + thresholdIndex * estimate
+        if (el.scrollTop + el.clientHeight >= halfwayOffset) {
+          firedFor.current = count
+          onEndReached()
+        }
+      } else if (last !== undefined && last.index >= count - 1) {
+        firedFor.current = count
+        onEndReached()
+      }
+    }
   }
 
   const isEmpty = count === 0 && props.empty !== undefined
@@ -87,7 +113,7 @@ export function List<T>(props: ListProps<T>) {
       ...common(props),
       ref: scroller,
       role: 'list',
-      onScroll: onScroll ? handleScroll : undefined,
+      onScroll: onScroll || onEndReached ? handleScroll : undefined,
       style: { overflowY: 'auto', overflowX: 'hidden', height: '100%' },
     },
     // Sticky elements have to be the scroller's own children: a sticky

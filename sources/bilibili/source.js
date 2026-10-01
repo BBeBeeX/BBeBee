@@ -1083,7 +1083,7 @@ async function biliRecommendRows(result, page) {
         'https://api.bilibili.com/x/polymer/web-space/seasons_archives_list?mid=' +
         src.url.encode(mid) +
         '&season_id=' + src.url.encode(seasonId) +
-        '&page_num=1&page_size=100',
+        '&page_num={{page.cursor || 1}}&page_size={{page.limit || 30}}',
     });
   }
   plan.ends[pageNumber] = index;
