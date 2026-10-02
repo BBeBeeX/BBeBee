@@ -3,19 +3,22 @@ import type { Context } from 'cordis'
 import type { BrowseEntry, UiService } from '@BBeBee/protocol'
 import { SOURCES_VIEWS } from '@BBeBee/plugin-sources/views'
 import { useRecommendShelf, useRecommendSources } from '@BBeBee/plugin-sources/hooks'
-import { EmptyState, Text } from '@BBeBee/ui-kit-desktop'
+import { EmptyState } from '@BBeBee/ui-kit-desktop'
 import { serviceOf } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
-import { RecommendCard } from '../components/RecommendCard.js'
+import { RecommendShelfRow } from '../components/RecommendShelfRow.js'
+import { useRecentPlayedAlbums } from '../hooks/useRecentPlayedAlbums.js'
+import { useFavoriteAlbums } from '../hooks/useFavoriteAlbums.js'
 
 /**
  * The recommendation shelf page.
  *
- * One section per recommend-capable source: the source's name, a "show all"
- * affordance, and the feed's first page as a horizontal card row — the
- * streaming-standard shelf. Each shelf asks its own source, so one slow or
- * broken backend collapses to its own section's error line while the others
- * render whole.
+ * Ordered sections:
+ * 1. Recently played unique tracks' albums (if any)
+ * 2. Random 20 tracks from favorites' albums (if any)
+ * 3. One shelf per recommend-capable third-party source
+ *
+ * Each row supports hover-activated 3D curved folded half-covers and scroll arrows.
  */
 export function RecommendScreen({
   ctx,
@@ -25,12 +28,16 @@ export function RecommendScreen({
   onOpenAlbum?: (urn: string) => void
 }): ReactElement {
   const sources = useRecommendSources(ctx)
+  const { albums: recentAlbums } = useRecentPlayedAlbums(ctx)
+  const { albums: favoriteAlbums } = useFavoriteAlbums(ctx)
 
   const openCard = (entry: BrowseEntry) => {
     if (!entry.urn || entry.kind !== 'album') return
     onOpenAlbum?.(entry.urn)
     serviceOf<UiService>(ctx, 'ui')?.navigate('album.view', { urn: entry.urn })
   }
+
+  const hasAnyContent = recentAlbums.length > 0 || favoriteAlbums.length > 0 || sources.length > 0
 
   return h(
     'section',
@@ -39,7 +46,7 @@ export function RecommendScreen({
       'data-testid': 'recommend-screen',
       style: { display: 'flex', flexDirection: 'column', gap: tokens.space[5], padding: tokens.space[4] },
     },
-    sources.length === 0
+    !hasAnyContent
       ? h(EmptyState, {
           title: '暂无推荐',
           description: '导入一个实现了推荐接口的音乐源后，这里会出现它的推荐歌单。',
@@ -47,6 +54,29 @@ export function RecommendScreen({
       : h(
           Fragment,
           null,
+          // 1. Recent played tracks' albums (if any)
+          recentAlbums.length > 0
+            ? h(RecommendShelfRow, {
+                key: 'recent-played-albums',
+                ctx,
+                title: '最近播放 · 专辑',
+                testID: 'recommend-shelf-recent-albums',
+                entries: recentAlbums,
+                onOpenCard: openCard,
+              })
+            : null,
+          // 2. Favorite songs' albums (if any)
+          favoriteAlbums.length > 0
+            ? h(RecommendShelfRow, {
+                key: 'favorite-albums',
+                ctx,
+                title: '收藏随选 · 专辑',
+                testID: 'recommend-shelf-favorite-albums',
+                entries: favoriteAlbums,
+                onOpenCard: openCard,
+              })
+            : null,
+          // 3. Third-party music sources
           ...sources.map((source) =>
             h(RecommendShelf, {
               key: source.sourceId,
@@ -80,74 +110,19 @@ function RecommendShelf({
     })
   }
 
-  return h(
-    'section',
-    {
-      'aria-label': `${sourceName} 推荐歌单`,
-      'data-testid': `recommend-shelf-${sourceId}`,
-      style: { display: 'flex', flexDirection: 'column', gap: tokens.space[3] },
+  return h(RecommendShelfRow, {
+    ctx,
+    title: `${sourceName} · 推荐歌单`,
+    testID: `recommend-shelf-${sourceId}`,
+    action: {
+      label: '显示全部',
+      onPress: showAll,
+      testID: 'recommend-show-all',
     },
-    h(
-      'div',
-      { style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' } },
-      h(Text, { variant: 'lg', testID: 'recommend-shelf-title' }, `${sourceName} · 推荐歌单`),
-      h(
-        'button',
-        {
-          type: 'button',
-          'data-testid': 'recommend-show-all',
-          onClick: showAll,
-          style: {
-            background: 'none',
-            border: 'none',
-            color: 'var(--text-secondary, rgba(255,255,255,0.75))',
-            fontSize: 13,
-            cursor: 'pointer',
-            padding: '2px 4px',
-          },
-        },
-        '显示全部',
-      ),
-    ),
-    shelf.status === 'loading'
-      ? h(Text, { variant: 'sm', tone: 'muted' }, '加载中…')
-      : shelf.status === 'error'
-        ? h(
-            'div',
-            { style: { display: 'flex', flexDirection: 'column', gap: tokens.space[2] } },
-            h(Text, { variant: 'sm', tone: 'error' }, `推荐加载失败：${shelf.error?.message ?? ''}`),
-            h(
-              'button',
-              {
-                type: 'button',
-                onClick: shelf.reload,
-                style: {
-                  alignSelf: 'flex-start',
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--color-primary, #5F87FF)',
-                  cursor: 'pointer',
-                  padding: 0,
-                  fontSize: 13,
-                },
-              },
-              '重试',
-            ),
-          )
-        : h(
-            'div',
-            {
-              className: 'no-scrollbar',
-              style: {
-                display: 'flex',
-                gap: tokens.space[3],
-                overflowX: 'auto',
-                paddingBottom: tokens.space[1],
-              },
-            },
-            ...(shelf.data ?? []).map((entry) =>
-              h(RecommendCard, { key: entry.id, ctx, entry, onPress: onOpenCard }),
-            ),
-          ),
-  )
+    status: shelf.status,
+    errorMessage: shelf.error?.message,
+    onRetry: shelf.reload,
+    entries: shelf.data ?? [],
+    onOpenCard,
+  })
 }

@@ -8,9 +8,9 @@
  * of those away.
  */
 
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { createElement as h } from 'react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context, Service } from 'cordis'
 import { PathsNode } from '@BBeBee/core-paths-node'
 import { FsNode } from '@BBeBee/core-fs-node'
@@ -18,8 +18,12 @@ import { DbNode } from '@BBeBee/core-db-node'
 import sourcesPlugin from '@BBeBee/plugin-sources'
 import type {
   AlbumDetail,
+  BrowseEntry,
   Capabilities,
+  LibraryEntry,
   MediaProvider,
+  PlayRecord,
+  SavedKind,
   SearchQuery,
   SearchResult,
   Track,
@@ -31,6 +35,7 @@ import {
   ImportScreen,
   RecommendAllScreen,
   RecommendScreen,
+  RecommendShelfRow,
   SearchScreen,
   SourcesListScreen,
   TestScreen,
@@ -693,7 +698,175 @@ describe('RecommendScreen', () => {
 
     expect(screen.getByText('暂无推荐')).toBeTruthy()
   })
+
+  it('shows recent played tracks albums row before sources when history exists', async () => {
+    const { ctx, admin } = await harness()
+    await ctx.sources.import(JSON.stringify(DOC))
+    await tick()
+    const sourceId = ctx.sources.sources[0]!.id
+
+    const playerStub = new PlayerStub(admin)
+    playerStub.history = [
+      {
+        id: 'h1',
+        trackUrn: `BBeBee:${sourceId}:track:t1`,
+        startedAt: 1,
+        completed: true,
+        skipped: false,
+        msPlayed: 1000,
+      },
+    ]
+
+    await admin.db.exec(
+      `INSERT INTO albums (urn, source_id, remote_id, title, sort_title, year, artwork_id, fetched_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [`BBeBee:${sourceId}:album:a1`, sourceId, 'a1', 'Recent Album 1', 'Recent Album 1', 2024, null, Date.now()],
+    )
+    await admin.db.exec(
+      `INSERT INTO tracks (urn, source_id, remote_id, title, sort_title, album_urn, track_no, duration_ms, fetched_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [`BBeBee:${sourceId}:track:t1`, sourceId, 't1', 'Track 1', 'Track 1', `BBeBee:${sourceId}:album:a1`, 1, 180000, Date.now()],
+    )
+
+    render(h(RecommendScreen, { ctx }))
+    await act(async () => {
+      await tick()
+      await tick()
+      await tick()
+    })
+
+    expect(screen.getByTestId('recommend-shelf-recent-albums')).toBeTruthy()
+    expect(screen.getByText('最近播放 · 专辑')).toBeTruthy()
+    expect(screen.getByText('Recent Album 1')).toBeTruthy()
+  })
+
+  it('shows random favorite tracks albums row before sources when saved tracks exist', async () => {
+    const { ctx, admin } = await harness()
+    await ctx.sources.import(JSON.stringify(DOC))
+    await tick()
+    const sourceId = ctx.sources.sources[0]!.id
+
+    const libraryStub = new LibraryStub(admin)
+    libraryStub.saved = [
+      {
+        urn: `BBeBee:${sourceId}:track:fav1`,
+        kind: 'track',
+        sourceId,
+        addedAt: Date.now(),
+      },
+    ]
+
+    await admin.db.exec(
+      `INSERT INTO albums (urn, source_id, remote_id, title, sort_title, year, artwork_id, fetched_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [`BBeBee:${sourceId}:album:fav_a1`, sourceId, 'fav_a1', 'Favorite Album 1', 'Favorite Album 1', 2023, null, Date.now()],
+    )
+    await admin.db.exec(
+      `INSERT INTO tracks (urn, source_id, remote_id, title, sort_title, album_urn, track_no, duration_ms, fetched_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [`BBeBee:${sourceId}:track:fav1`, sourceId, 'fav1', 'Fav Track 1', 'Fav Track 1', `BBeBee:${sourceId}:album:fav_a1`, 1, 200000, Date.now()],
+    )
+
+    render(h(RecommendScreen, { ctx }))
+    await act(async () => {
+      await tick()
+      await tick()
+      await tick()
+    })
+
+    expect(screen.getByTestId('recommend-shelf-favorite-albums')).toBeTruthy()
+    expect(screen.getByText('收藏随选 · 专辑')).toBeTruthy()
+    expect(screen.getByText('Favorite Album 1')).toBeTruthy()
+  })
 })
+
+describe('RecommendShelfRow', () => {
+  it('renders 3D curved folded half-covers and scroll arrows on hover when content overflows', async () => {
+    const { ctx } = await harness()
+    const entries: BrowseEntry[] = Array.from({ length: 15 }, (_, i) => ({
+      id: `entry-${i}`,
+      title: `Album ${i}`,
+      kind: 'album',
+      leaf: false,
+      urn: `BBeBee:Example:album:${i}`,
+    }))
+
+    render(
+      h(RecommendShelfRow, {
+        ctx,
+        title: '测试推荐行',
+        testID: 'test-shelf',
+        entries,
+        onOpenCard: () => {},
+      }),
+    )
+
+    const scrollEl = screen.getByTestId('test-shelf-scroll')
+    Object.defineProperty(scrollEl, 'scrollWidth', { configurable: true, value: 2000 })
+    Object.defineProperty(scrollEl, 'clientWidth', { configurable: true, value: 500 })
+    Object.defineProperty(scrollEl, 'scrollLeft', { configurable: true, writable: true, value: 0 })
+    const scrollBySpy = vi.fn()
+    scrollEl.scrollBy = scrollBySpy
+
+    const shelfEl = screen.getByTestId('test-shelf')
+
+    // Initial state: not hovered, no folded cover
+    expect(screen.queryByTestId('recommend-fold-right')).toBeNull()
+    expect(screen.queryByTestId('recommend-fold-left')).toBeNull()
+
+    // Hover on shelf
+    fireEvent.mouseEnter(shelfEl)
+
+    // Since scrollLeft == 0: canScrollLeft is false, canScrollRight is true
+    expect(screen.getByTestId('recommend-fold-right')).toBeTruthy()
+    expect(screen.getByTestId('recommend-scroll-right')).toBeTruthy()
+    expect(screen.queryByTestId('recommend-fold-left')).toBeNull()
+
+    // Clicking right scroll arrow calls scrollBy
+    fireEvent.click(screen.getByTestId('recommend-scroll-right'))
+    expect(scrollBySpy).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'smooth' }))
+
+    // Simulate scrolled to middle (canScrollLeft and canScrollRight both true)
+    Object.defineProperty(scrollEl, 'scrollLeft', { configurable: true, writable: true, value: 600 })
+    fireEvent.scroll(scrollEl)
+
+    // Now both left and right folded covers and arrows are visible
+    expect(screen.getByTestId('recommend-fold-left')).toBeTruthy()
+    expect(screen.getByTestId('recommend-scroll-left')).toBeTruthy()
+    expect(screen.getByTestId('recommend-fold-right')).toBeTruthy()
+    expect(screen.getByTestId('recommend-scroll-right')).toBeTruthy()
+
+    // Clicking left scroll arrow calls scrollBy with negative distance
+    fireEvent.click(screen.getByTestId('recommend-scroll-left'))
+    expect(scrollBySpy).toHaveBeenCalledTimes(2)
+
+    // Mouse leave hides folded covers
+    fireEvent.mouseLeave(shelfEl)
+    expect(screen.queryByTestId('recommend-fold-left')).toBeNull()
+    expect(screen.queryByTestId('recommend-fold-right')).toBeNull()
+  })
+})
+
+class PlayerStub extends Service {
+  history: PlayRecord[] = []
+  constructor(ctx: Context) {
+    super(ctx, 'player')
+  }
+  async getHistory() {
+    return this.history
+  }
+}
+
+class LibraryStub extends Service {
+  saved: LibraryEntry[] = []
+  constructor(ctx: Context) {
+    super(ctx, 'library')
+  }
+  async listSaved(kind?: SavedKind) {
+    const items = kind ? this.saved.filter((s) => s.kind === kind) : this.saved
+    return { items, total: items.length, hasMore: false }
+  }
+}
 
 describe('RecommendAllScreen', () => {
   it('piles the feed into a grid and stands show-more down on a short page', async () => {

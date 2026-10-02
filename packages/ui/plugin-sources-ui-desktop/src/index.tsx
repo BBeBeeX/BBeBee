@@ -24,6 +24,7 @@ export { SourcesListScreen } from './screens/SourcesListScreen.js'
 export { TestScreen } from './screens/TestScreen.js'
 export { RecommendScreen } from './screens/RecommendScreen.js'
 export { RecommendAllScreen } from './screens/RecommendAllScreen.js'
+export { RecommendShelfRow } from './components/RecommendShelfRow.js'
 export { CachedArtwork, CachedTrackRow } from './components/CachedArtwork.js'
 
 export const name = 'plugin-sources-ui-desktop'
