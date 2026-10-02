@@ -781,7 +781,7 @@ describe('RecommendScreen', () => {
 })
 
 describe('RecommendShelfRow', () => {
-  it('renders 3D curved folded half-covers and scroll arrows on hover when content overflows', async () => {
+  it('shows edge peek panels always when overflow exists; arrows fade in on hover', async () => {
     const { ctx } = await harness()
     const entries: BrowseEntry[] = Array.from({ length: 15 }, (_, i) => ({
       id: `entry-${i}`,
@@ -808,19 +808,24 @@ describe('RecommendShelfRow', () => {
     const scrollBySpy = vi.fn()
     scrollEl.scrollBy = scrollBySpy
 
+    // Trigger a scroll event so updateScrollState re-reads the new dimensions.
+    fireEvent.scroll(scrollEl)
+
     const shelfEl = screen.getByTestId('test-shelf')
 
-    // Initial state: not hovered, no folded cover
-    expect(screen.queryByTestId('recommend-fold-right')).toBeNull()
+    // scrollLeft == 0: canScrollLeft is false, canScrollRight is true.
+    // Right panel visible immediately (no hover needed); left panel absent.
     expect(screen.queryByTestId('recommend-fold-left')).toBeNull()
-
-    // Hover on shelf
-    fireEvent.mouseEnter(shelfEl)
-
-    // Since scrollLeft == 0: canScrollLeft is false, canScrollRight is true
     expect(screen.getByTestId('recommend-fold-right')).toBeTruthy()
+
+    // Arrow button exists in DOM; its layer has opacity:0 before hover
+    const rightArrowLayer = screen.getByTestId('recommend-arrow-layer-right')
+    expect(rightArrowLayer.style.opacity).toBe('0')
     expect(screen.getByTestId('recommend-scroll-right')).toBeTruthy()
-    expect(screen.queryByTestId('recommend-fold-left')).toBeNull()
+
+    // Hover on shelf — arrow layer becomes opaque
+    fireEvent.mouseEnter(shelfEl)
+    expect(rightArrowLayer.style.opacity).toBe('1')
 
     // Clicking right scroll arrow calls scrollBy
     fireEvent.click(screen.getByTestId('recommend-scroll-right'))
@@ -830,7 +835,7 @@ describe('RecommendShelfRow', () => {
     Object.defineProperty(scrollEl, 'scrollLeft', { configurable: true, writable: true, value: 600 })
     fireEvent.scroll(scrollEl)
 
-    // Now both left and right folded covers and arrows are visible
+    // Both edge panels visible regardless of hover state
     expect(screen.getByTestId('recommend-fold-left')).toBeTruthy()
     expect(screen.getByTestId('recommend-scroll-left')).toBeTruthy()
     expect(screen.getByTestId('recommend-fold-right')).toBeTruthy()
@@ -840,10 +845,13 @@ describe('RecommendShelfRow', () => {
     fireEvent.click(screen.getByTestId('recommend-scroll-left'))
     expect(scrollBySpy).toHaveBeenCalledTimes(2)
 
-    // Mouse leave hides folded covers
+    // Mouse leave: edge panels stay in DOM; arrow layers fade back to opacity 0
     fireEvent.mouseLeave(shelfEl)
-    expect(screen.queryByTestId('recommend-fold-left')).toBeNull()
-    expect(screen.queryByTestId('recommend-fold-right')).toBeNull()
+    expect(screen.getByTestId('recommend-fold-left')).toBeTruthy()
+    expect(screen.getByTestId('recommend-fold-right')).toBeTruthy()
+    const leftArrowLayer = screen.getByTestId('recommend-arrow-layer-left')
+    expect(leftArrowLayer.style.opacity).toBe('0')
+    expect(rightArrowLayer.style.opacity).toBe('0')
   })
 })
 

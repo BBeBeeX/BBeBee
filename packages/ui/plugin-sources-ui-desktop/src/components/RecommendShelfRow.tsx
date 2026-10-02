@@ -30,12 +30,13 @@ export interface RecommendShelfRowProps {
 }
 
 /**
- * A horizontal shelf row with hover-activated 3D curved folded half-covers and scroll arrows.
+ * A horizontal shelf row with always-visible edge peek covers and hover-activated scroll arrows.
  *
- * When hovered and the row content overflows horizontally:
- * 1. Shows a 3D curved folded half-cover on the leftmost and rightmost edges.
- * 2. Overlays '<' and '>' arrows on top of the folded covers if that direction has more content.
- * 3. Smoothly scrolls the shelf when clicked.
+ * When the row content overflows horizontally:
+ * 1. Shows a naturally clipped partial cover at each overflowing edge, with a soft
+ *    depth gradient that gives a tactile "more content here" affordance — always visible.
+ * 2. On hover, fades in '<' and '>' arrow buttons over the edge panels to invite scrolling.
+ * 3. Smoothly scrolls the shelf when an arrow is clicked.
  */
 export function RecommendShelfRow({
   ctx,
@@ -201,13 +202,13 @@ export function RecommendShelfRow({
                 width: '100%',
               },
             },
-            // Left folded half-cover with curved surface 3D effect
-            hasOverflow && isHovered && canScrollLeft
-              ? h(FoldedHalfCover, {
+            // Left edge peek panel — always visible when there's something scrolled past left
+            hasOverflow && canScrollLeft
+              ? h(EdgePeekPanel, {
                   ctx,
                   side: 'left',
                   entry: edgeEntries.left,
-                  hasMore: canScrollLeft,
+                  showArrow: isHovered,
                   onPress: handleScrollLeft,
                 })
               : null,
@@ -230,13 +231,13 @@ export function RecommendShelfRow({
                 h(RecommendCard, { key: entry.id, ctx, entry, onPress: onOpenCard }),
               ),
             ),
-            // Right folded half-cover with curved surface 3D effect
-            hasOverflow && isHovered && canScrollRight
-              ? h(FoldedHalfCover, {
+            // Right edge peek panel — always visible when there's more content to the right
+            hasOverflow && canScrollRight
+              ? h(EdgePeekPanel, {
                   ctx,
                   side: 'right',
                   entry: edgeEntries.right,
-                  hasMore: canScrollRight,
+                  showArrow: isHovered,
                   onPress: handleScrollRight,
                 })
               : null,
@@ -245,26 +246,41 @@ export function RecommendShelfRow({
 }
 
 /**
- * 3D curved folded half-cover at the edge of the shelf.
+ * Edge peek panel: shows the partially visible cover at the row edge with a
+ * soft gradient vignette — giving a natural "more content behind" visual cue
+ * without resorting to jarring 3D transforms.
  *
- * Simulates a cover bent around a cylindrical curve into depth (rotateY with perspective),
- * topped with a cylinder lighting/shadow gradient and an overlay arrow layer.
+ * The effect works in three layers:
+ *   1. The actual cover artwork, clipped to the panel width, so the user sees
+ *      a genuine slice of the next/previous card.
+ *   2. A directional gradient that fades the inner edge of the artwork to
+ *      transparent, blending it into the background — creating the impression
+ *      of depth and curvature without a literal rotation.
+ *   3. On hover: a frosted-glass arrow button centred over the panel.
  */
-function FoldedHalfCover({
+function EdgePeekPanel({
   ctx,
   side,
   entry,
-  hasMore,
+  showArrow,
   onPress,
 }: {
   ctx: Context
   side: 'left' | 'right'
   entry?: BrowseEntry
-  hasMore: boolean
+  showArrow: boolean
   onPress: (e: React.MouseEvent) => void
 }): ReactElement {
   const artwork = useResolvedArtwork(ctx, entry?.artwork)
   const isLeft = side === 'left'
+
+  // Width of the peeking sliver. ~55px shows enough of the cover to be
+  // recognisable without occluding too much of the visible cards.
+  const PANEL_WIDTH = 56
+  // The cover is rendered at full card size; we shift it so the *inner* edge
+  // of the artwork aligns with the *inner* edge of the panel, so the
+  // visible strip is the outer part of the adjacent card.
+  const CARD_SIZE = 160
 
   return h(
     'div',
@@ -275,98 +291,108 @@ function FoldedHalfCover({
         position: 'absolute',
         [isLeft ? 'left' : 'right']: 0,
         top: 0,
-        width: 72,
-        height: 160,
+        width: PANEL_WIDTH,
+        height: CARD_SIZE,
         zIndex: 10,
         overflow: 'hidden',
         cursor: 'pointer',
-        perspective: '600px',
-        transformOrigin: isLeft ? 'left center' : 'right center',
-        transform: `perspective(600px) rotateY(${isLeft ? '30deg' : '-30deg'}) scale(0.98)`,
         borderRadius: isLeft
           ? `${tokens.radius.md} 0 0 ${tokens.radius.md}`
           : `0 ${tokens.radius.md} ${tokens.radius.md} 0`,
-        boxShadow: isLeft
-          ? '6px 0 20px rgba(0,0,0,0.65), inset -2px 0 8px rgba(255,255,255,0.08)'
-          : '-6px 0 20px rgba(0,0,0,0.65), inset 2px 0 8px rgba(255,255,255,0.08)',
-        transition: 'transform 0.18s ease, box-shadow 0.18s ease',
       },
     },
-    // Cover artwork container (shifted so half of 160px is visible in 72px slot)
+    // ── Layer 1: the artwork, offset so the outer slice is visible ──────────
     h(
       'div',
       {
         style: {
           position: 'absolute',
           top: 0,
+          // Left panel shows the right portion of the previous card.
+          // Right panel shows the left portion of the next card.
           [isLeft ? 'right' : 'left']: 0,
-          width: 160,
-          height: 160,
+          width: CARD_SIZE,
+          height: CARD_SIZE,
           pointerEvents: 'none',
         },
       },
       h(Artwork, {
         artwork,
         seed: entry?.id ?? (isLeft ? 'left-edge' : 'right-edge'),
-        size: 160,
+        size: CARD_SIZE,
         radius: tokens.radius.md,
       }),
     ),
-    // Curved surface cylinder light/shadow overlay
+    // ── Layer 2: depth-fade gradient ────────────────────────────────────────
+    // Fades the inner edge (towards the visible cards) to transparent so the
+    // slice blends into the background, and darkens the outer edge slightly
+    // to suggest the card is receding into depth.
     h('div', {
       style: {
         position: 'absolute',
         inset: 0,
         background: isLeft
-          ? 'linear-gradient(90deg, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.2) 45%, rgba(255,255,255,0.15) 80%, rgba(0,0,0,0.4) 100%)'
-          : 'linear-gradient(-90deg, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.2) 45%, rgba(255,255,255,0.15) 80%, rgba(0,0,0,0.4) 100%)',
+          ? `linear-gradient(to right,
+               rgba(0,0,0,0.55) 0%,
+               rgba(0,0,0,0.18) 38%,
+               rgba(0,0,0,0.04) 65%,
+               rgba(0,0,0,0) 100%)`
+          : `linear-gradient(to left,
+               rgba(0,0,0,0.55) 0%,
+               rgba(0,0,0,0.18) 38%,
+               rgba(0,0,0,0.04) 65%,
+               rgba(0,0,0,0) 100%)`,
         pointerEvents: 'none',
       },
     }),
-    // Arrow overlay layer
-    hasMore
-      ? h(
-          'div',
-          {
-            'data-testid': isLeft ? 'recommend-arrow-layer-left' : 'recommend-arrow-layer-right',
-            style: {
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'rgba(0, 0, 0, 0.25)',
-              backdropFilter: 'blur(2px)',
-            },
+    // ── Layer 3: frosted-glass arrow, fades in on hover ─────────────────────
+    h(
+      'div',
+      {
+        'data-testid': isLeft ? 'recommend-arrow-layer-left' : 'recommend-arrow-layer-right',
+        style: {
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          // Fade the arrow in/out with a CSS transition driven by opacity.
+          opacity: showArrow ? 1 : 0,
+          transition: 'opacity 0.18s ease',
+          pointerEvents: showArrow ? 'auto' : 'none',
+        },
+      },
+      h(
+        'button',
+        {
+          type: 'button',
+          'data-testid': isLeft ? 'recommend-scroll-left' : 'recommend-scroll-right',
+          'aria-label': isLeft ? '向左滚动' : '向右滚动',
+          tabIndex: showArrow ? 0 : -1,
+          style: {
+            width: 32,
+            height: 32,
+            borderRadius: '50%',
+            background: 'rgba(15, 15, 18, 0.72)',
+            backdropFilter: 'blur(10px) saturate(1.4)',
+            WebkitBackdropFilter: 'blur(10px) saturate(1.4)',
+            border: '1px solid rgba(255, 255, 255, 0.18)',
+            color: 'rgba(255, 255, 255, 0.92)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 14,
+            fontWeight: '600',
+            letterSpacing: '-0.5px',
+            cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.45)',
+            padding: 0,
+            outline: 'none',
+            flexShrink: 0,
           },
-          h(
-            'button',
-            {
-              type: 'button',
-              'data-testid': isLeft ? 'recommend-scroll-left' : 'recommend-scroll-right',
-              'aria-label': isLeft ? '向左滚动' : '向右滚动',
-              style: {
-                width: 34,
-                height: 34,
-                borderRadius: '50%',
-                background: 'rgba(20, 20, 24, 0.75)',
-                backdropFilter: 'blur(8px)',
-                border: '1px solid rgba(255, 255, 255, 0.25)',
-                color: '#ffffff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 16,
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
-                padding: 0,
-                outline: 'none',
-              },
-            },
-            isLeft ? '<' : '>',
-          ),
-        )
-      : null,
+        },
+        isLeft ? '‹' : '›',
+      ),
+    ),
   )
 }
