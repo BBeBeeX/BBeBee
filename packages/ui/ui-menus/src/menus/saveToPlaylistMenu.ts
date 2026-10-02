@@ -226,11 +226,12 @@ export function useSaveToPlaylistMenu(ctx: Context): SaveToPlaylistMenuControlle
       if (!active || !library) return
       const next = !currentlyContains
       const trackUrns = active.tracks.map((t) => t.urn)
+      const countDelta = trackUrns.length || 1
 
       setPlaylists((prev) =>
         prev.map((p) =>
           p.urn === playlistUrn
-            ? { ...p, containsTrack: next, trackCount: (p.trackCount ?? 0) + (next ? 1 : -1) }
+            ? { ...p, containsTrack: next, trackCount: Math.max(0, (p.trackCount ?? 0) + (next ? countDelta : -countDelta)) }
             : p,
         ),
       )
@@ -239,7 +240,7 @@ export function useSaveToPlaylistMenu(ctx: Context): SaveToPlaylistMenuControlle
           ...c,
           playlists: c.playlists.map((p) =>
             p.urn === playlistUrn
-              ? { ...p, containsTrack: next, trackCount: (p.trackCount ?? 0) + (next ? 1 : -1) }
+              ? { ...p, containsTrack: next, trackCount: Math.max(0, (p.trackCount ?? 0) + (next ? countDelta : -countDelta)) }
               : p,
           ),
         })),
@@ -258,6 +259,26 @@ export function useSaveToPlaylistMenu(ctx: Context): SaveToPlaylistMenuControlle
         } else {
           if (typeof library.addTracks === 'function') {
             await library.addTracks(playlistUrn, trackUrns)
+          }
+        }
+
+        if (typeof library.getPlaylist === 'function') {
+          const detail = await library.getPlaylist(playlistUrn).catch(() => null)
+          if (detail) {
+            const exactCount = detail.trackCount ?? detail.items?.length
+            if (typeof exactCount === 'number') {
+              setPlaylists((prev) =>
+                prev.map((p) => (p.urn === playlistUrn ? { ...p, trackCount: exactCount } : p)),
+              )
+              setCollections((prev) =>
+                prev.map((c) => ({
+                  ...c,
+                  playlists: c.playlists.map((p) =>
+                    p.urn === playlistUrn ? { ...p, trackCount: exactCount } : p,
+                  ),
+                })),
+              )
+            }
           }
         }
       } catch {

@@ -67,9 +67,22 @@ export function BatchActionBar({
             fontWeight: 500,
           },
         },
-        tablerIcon(allSelected ? 'checkbox' : selectedCount > 0 ? 'minus' : 'square', {
-          size: 20,
-          color: allSelected || selectedCount > 0 ? 'var(--color-primary, #5F87FF)' : '#b3b3b3',
+        h('input', {
+          type: 'checkbox',
+          checked: allSelected,
+          ref: (el: HTMLInputElement | null) => {
+            if (el) {
+              el.indeterminate = !allSelected && selectedCount > 0
+            }
+          },
+          onChange: onToggleSelectAll,
+          onClick: (e: React.MouseEvent) => e.stopPropagation(),
+          style: {
+            width: 16,
+            height: 16,
+            cursor: 'pointer',
+            accentColor: 'var(--color-primary, #5F87FF)',
+          },
         }),
         h('span', null, allSelected ? '取消全选' : '全选'),
       ),

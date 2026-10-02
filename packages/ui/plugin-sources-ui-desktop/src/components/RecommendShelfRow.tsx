@@ -54,11 +54,18 @@ export function RecommendShelfRow({
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isHovered, setIsHovered] = useState(false)
   const [hasOverflow, setHasOverflow] = useState(false)
-  const [canScrollLeft, setCanScrollLeft] = useState(false)
-  const [canScrollRight, setCanScrollRight] = useState(false)
-  // Indices of the currently visible leftmost and rightmost cards
+  // Indices of the currently visible leftmost and rightmost cards.
+  // showLeft / showRight are derived from these: bend + arrow are only shown
+  // when the first (or last) card is NOT yet visible — i.e. there is real
+  // hidden content on that side.
   const [leftEdgeIdx, setLeftEdgeIdx] = useState(0)
   const [rightEdgeIdx, setRightEdgeIdx] = useState(0)
+
+  // Derived visibility conditions:
+  //   showLeft  = first card (index 0) is not at the visible left boundary
+  //   showRight = last  card (index n-1) is not at the visible right boundary
+  const showLeft = hasOverflow && leftEdgeIdx > 0
+  const showRight = hasOverflow && rightEdgeIdx < entries.length - 1
 
   const updateScrollState = useCallback(() => {
     const el = scrollRef.current
@@ -66,11 +73,6 @@ export function RecommendShelfRow({
 
     const overflow = el.scrollWidth > el.clientWidth + 2
     setHasOverflow(overflow)
-
-    const canLeft = el.scrollLeft > 4
-    const canRight = el.scrollLeft + el.clientWidth < el.scrollWidth - 4
-    setCanScrollLeft(canLeft)
-    setCanScrollRight(canRight)
 
     if (entries.length > 0) {
       const cardStep = 172 // 160px card + 12px gap
@@ -193,7 +195,7 @@ export function RecommendShelfRow({
             { style: { position: 'relative', width: '100%' } },
 
             // ── Left arrow — absolute, fade-in on hover ───────────────────────
-            hasOverflow && canScrollLeft
+            showLeft
               ? h(
                   'div',
                   {
@@ -244,8 +246,8 @@ export function RecommendShelfRow({
               },
               ...entries.map((entry, i) => {
                 // Determine whether this card is the bent left or right edge card
-                const isBendLeft = canScrollLeft && i === leftEdgeIdx
-                const isBendRight = canScrollRight && i === rightEdgeIdx
+                const isBendLeft = showLeft && i === leftEdgeIdx
+                const isBendRight = showRight && i === rightEdgeIdx
                 const isBent = isBendLeft || isBendRight
 
                 return h(
@@ -301,7 +303,7 @@ export function RecommendShelfRow({
             ),
 
             // ── Right arrow — absolute, fade-in on hover ──────────────────────
-            hasOverflow && canScrollRight
+            showRight
               ? h(
                   'div',
                   {

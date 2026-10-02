@@ -241,39 +241,119 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
         },
         props.title ?? '添加到歌单',
       ),
-      // Search Box: 查找歌单
-      h(
-        'div',
-        {
-          style: {
-            background: '#3e3e3e',
-            borderRadius: 4,
-            height: 32,
-            margin: '0 12px 8px 12px',
-            display: 'flex',
-            alignItems: 'center',
-            padding: '0 8px',
-            gap: 6,
-          },
-        },
-        tablerIcon('search', { size: 18, color: '#a7a7a7' }),
-        h('input', {
-          ref: inputRef,
-          type: 'text',
-          placeholder: '查找歌单',
-          value: filter,
-          onChange: (e: React.ChangeEvent<HTMLInputElement>) => setFilter(e.target.value),
-          style: {
-            flex: 1,
-            background: 'none',
-            border: 'none',
-            outline: 'none',
-            color: '#ffffff',
-            fontSize: 13,
-            padding: 0,
-          },
-        }),
-      ),
+      // Search Box / Create Box: 查找歌单 or 新建歌单
+      isCreatingTopLevel
+        ? h(
+            'div',
+            {
+              style: {
+                background: '#3e3e3e',
+                borderRadius: 4,
+                height: 32,
+                margin: '0 12px 8px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '0 8px',
+                gap: 6,
+                border: '1px solid var(--color-primary, #5F87FF)',
+              },
+            },
+            h('input', {
+              autoFocus: true,
+              type: 'text',
+              placeholder: '歌单名称',
+              value: newPlaylistName,
+              onChange: (e: React.ChangeEvent<HTMLInputElement>) => setNewPlaylistName(e.target.value),
+              onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+                if (e.key === 'Enter') void handleCreateSubmit()
+                if (e.key === 'Escape') {
+                  setIsCreatingTopLevel(false)
+                  setNewPlaylistName('')
+                }
+              },
+              style: {
+                flex: 1,
+                background: 'none',
+                border: 'none',
+                outline: 'none',
+                color: '#ffffff',
+                fontSize: 13,
+                padding: 0,
+              },
+            }),
+            h(
+              'button',
+              {
+                type: 'button',
+                onClick: () => void handleCreateSubmit(),
+                style: {
+                  background: 'var(--button-primary-bg, var(--color-primary, #5F87FF))',
+                  border: 'none',
+                  borderRadius: 4,
+                  color: '#ffffff',
+                  fontWeight: 600,
+                  fontSize: 12,
+                  padding: '2px 8px',
+                  cursor: 'pointer',
+                  height: 24,
+                },
+              },
+              '确定',
+            ),
+            h(
+              'button',
+              {
+                type: 'button',
+                'aria-label': '取消',
+                onClick: () => {
+                  setIsCreatingTopLevel(false)
+                  setNewPlaylistName('')
+                },
+                style: {
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#a7a7a7',
+                  padding: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                },
+              },
+              tablerIcon('x', { size: 16 }),
+            ),
+          )
+        : h(
+            'div',
+            {
+              style: {
+                background: '#3e3e3e',
+                borderRadius: 4,
+                height: 32,
+                margin: '0 12px 8px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '0 8px',
+                gap: 6,
+              },
+            },
+            tablerIcon('search', { size: 18, color: '#a7a7a7' }),
+            h('input', {
+              ref: inputRef,
+              type: 'text',
+              placeholder: '查找歌单',
+              value: filter,
+              onChange: (e: React.ChangeEvent<HTMLInputElement>) => setFilter(e.target.value),
+              style: {
+                flex: 1,
+                background: 'none',
+                border: 'none',
+                outline: 'none',
+                color: '#ffffff',
+                fontSize: 13,
+                padding: 0,
+              },
+            }),
+          ),
       // Scrollable content area
       h(
         'div',
@@ -287,83 +367,35 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
           },
         },
         // Action: ＋ 新建歌单
-        isCreatingTopLevel
-          ? h(
-              'div',
-              {
-                style: {
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '6px 8px',
-                  gap: 6,
-                },
+        h(
+          RowItem,
+          {
+            onClick: () => {
+              setIsCreatingTopLevel(true)
+              setNewPlaylistName(filter.trim())
+            },
+            onMouseEnter: () => setHoveredFolderId(null),
+          },
+          h(
+            'span',
+            {
+              style: {
+                color: '#ffffff',
+                width: 36,
+                height: 36,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               },
-              h('input', {
-                type: 'text',
-                autoFocus: true,
-                placeholder: '歌单名称',
-                value: newPlaylistName,
-                onChange: (e: React.ChangeEvent<HTMLInputElement>) => setNewPlaylistName(e.target.value),
-                onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
-                  if (e.key === 'Enter') void handleCreateSubmit()
-                  if (e.key === 'Escape') setIsCreatingTopLevel(false)
-                },
-                style: {
-                  flex: 1,
-                  background: 'var(--surface-2, #3e3e3e)',
-                  border: '1px solid var(--input-focus-border, var(--color-primary, #5F87FF))',
-                  borderRadius: 4,
-                  color: 'var(--text-primary, #ffffff)',
-                  fontSize: 13,
-                  padding: '4px 8px',
-                  outline: 'none',
-                },
-              }),
-              h(
-                'button',
-                {
-                  type: 'button',
-                  onClick: () => void handleCreateSubmit(),
-                  style: {
-                    background: 'var(--button-primary-bg, var(--color-primary, #5F87FF))',
-                    border: 'none',
-                    borderRadius: 4,
-                    color: '#ffffff',
-                    fontWeight: 600,
-                    fontSize: 12,
-                    padding: '4px 8px',
-                    cursor: 'pointer',
-                  },
-                },
-                '确定',
-              ),
-            )
-          : h(
-              RowItem,
-              {
-                onClick: () => setIsCreatingTopLevel(true),
-                onMouseEnter: () => setHoveredFolderId(null),
-              },
-              h(
-                'span',
-                {
-                  style: {
-                    color: '#ffffff',
-                    width: 36,
-                    height: 36,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  },
-                },
-                tablerIcon('plus', { size: 22, color: '#ffffff' }),
-              ),
-              h(
-                'div',
-                { style: { flex: 1, fontSize: 14, fontWeight: 600, color: '#ffffff' } },
-                '新建歌单',
-              ),
-            ),
+            },
+            tablerIcon('plus', { size: 22, color: '#ffffff' }),
+          ),
+          h(
+            'div',
+            { style: { flex: 1, fontSize: 14, fontWeight: 600, color: '#ffffff' } },
+            '新建歌单',
+          ),
+        ),
         // Section: 保存位置
         h(
           'div',

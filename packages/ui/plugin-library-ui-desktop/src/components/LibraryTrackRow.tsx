@@ -133,31 +133,23 @@ export function LibraryTrackRow({
         },
       },
       batchMode
-        ? h(
-            'button',
-            {
-              type: 'button',
-              'data-testid': `track-checkbox-${track.urn}`,
-              'aria-label': selected ? '取消选择' : '选择',
-              onClick: (e: ReactMouseEvent) => {
-                e.stopPropagation()
-                onToggleSelect?.()
-              },
-              style: {
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              },
+        ? h('input', {
+            type: 'checkbox',
+            'data-testid': `track-checkbox-${track.urn}`,
+            'aria-label': selected ? '取消选择' : '选择',
+            checked: selected,
+            onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+              e.stopPropagation()
+              onToggleSelect?.()
             },
-            tablerIcon(selected ? 'checkbox' : 'square', {
-              size: 20,
-              color: selected ? 'var(--color-primary, #5F87FF)' : '#8B95B0',
-            }),
-          )
+            onClick: (e: React.MouseEvent) => e.stopPropagation(),
+            style: {
+              width: 16,
+              height: 16,
+              cursor: 'pointer',
+              accentColor: 'var(--color-primary, #5F87FF)',
+            },
+          })
         : hovered
         ? tablerIcon('play', { size: 18, color: '#FFFFFF' })
         : String(index + 1),

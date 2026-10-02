@@ -689,7 +689,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
     title: '加入文件夹',
   })
 
-  const batchSubmenu: MenuItemSpec[] = isBatchMode
+  const albumMenuItems: MenuItemSpec[] = isBatchMode
     ? [
         {
           id: 'batch-play',
@@ -723,53 +723,13 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
       ]
     : [
         {
-          id: 'batch-enter',
-          label: '开启批量操作',
+          id: 'batch-operations',
+          label: '批量操作',
           icon: tablerIcon('list-check', { size: 20 }),
+          divider: true,
           onSelect: () => setIsBatchMode(true),
         },
-        {
-          id: 'batch-play',
-          label: '批量播放',
-          icon: tablerIcon('play', { size: 20 }),
-          onSelect: () => {
-            setIsBatchMode(true)
-            handleBatchPlay()
-          },
-        },
-        {
-          id: 'batch-add',
-          label: '添加到歌单',
-          icon: tablerIcon('plus', { size: 20 }),
-          onSelect: () => {
-            setIsBatchMode(true)
-            handleBatchAddToPlaylist()
-          },
-        },
-        {
-          id: 'batch-delete',
-          label: '从“最喜欢的音乐”中删除',
-          icon: tablerIcon('trash', { size: 20 }),
-          tone: 'danger',
-          onSelect: () => {
-            setIsBatchMode(true)
-            handleBatchDelete()
-          },
-        },
       ]
-
-  const albumMenuItems: MenuItemSpec[] = [
-    {
-      id: 'batch-operations',
-      label: '批量操作',
-      icon: tablerIcon('list-check', { size: 20 }),
-      divider: true,
-      submenu: {
-        title: '批量操作',
-        items: batchSubmenu,
-      },
-    },
-  ]
 
   const albumResourceUrl = resolveOriginalResourceUrl({ urn: detail.urn, kind: 'album' })
   if (albumResourceUrl) {

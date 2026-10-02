@@ -496,19 +496,11 @@ describe('AlbumScreen', () => {
         await tick()
       })
 
-      // Click batch operations to open submenu
+      // Click batch operations to enter batch mode directly
       const batchOpItem = getByText('批量操作')
       expect(batchOpItem).toBeTruthy()
       await act(async () => {
         batchOpItem.click()
-        await tick()
-      })
-
-      // Click 开启批量操作
-      const enterBatchItem = getByText('开启批量操作')
-      expect(enterBatchItem).toBeTruthy()
-      await act(async () => {
-        enterBatchItem.click()
         await tick()
       })
 

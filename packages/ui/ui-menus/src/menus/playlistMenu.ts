@@ -50,106 +50,48 @@ export function playlistMenuItems(
 
   // 0. 批量操作 (if provided)
   if (opts.onToggleBatchMode) {
-    const batchSubmenuItems: MenuItemSpec[] = opts.isBatchMode
-      ? [
-          ...(opts.onBatchPlay
-            ? [
-                {
-                  id: 'batch-play',
-                  label: '批量播放',
-                  icon: 'play',
-                  onSelect: opts.onBatchPlay,
-                },
-              ]
-            : []),
-          ...(opts.onBatchAddToPlaylist
-            ? [
-                {
-                  id: 'batch-add-to-playlist',
-                  label: '添加到歌单',
-                  icon: 'plus',
-                  onSelect: opts.onBatchAddToPlaylist,
-                },
-              ]
-            : []),
-          ...(opts.onBatchDelete
-            ? [
-                {
-                  id: 'batch-delete',
-                  label: '删除',
-                  icon: 'trash',
-                  tone: 'danger' as const,
-                  onSelect: opts.onBatchDelete,
-                },
-              ]
-            : []),
-          {
-            id: 'batch-exit',
-            label: '退出批量操作',
-            icon: 'x',
-            divider: true,
-            onSelect: opts.onToggleBatchMode,
-          },
-        ]
-      : [
-          {
-            id: 'batch-enter',
-            label: '开启批量操作',
-            icon: 'list-check',
-            onSelect: opts.onToggleBatchMode,
-          },
-          ...(opts.onBatchPlay
-            ? [
-                {
-                  id: 'batch-play',
-                  label: '批量播放',
-                  icon: 'play',
-                  onSelect: () => {
-                    opts.onToggleBatchMode?.()
-                    opts.onBatchPlay?.()
-                  },
-                },
-              ]
-            : []),
-          ...(opts.onBatchAddToPlaylist
-            ? [
-                {
-                  id: 'batch-add-to-playlist',
-                  label: '添加到歌单',
-                  icon: 'plus',
-                  onSelect: () => {
-                    opts.onToggleBatchMode?.()
-                    opts.onBatchAddToPlaylist?.()
-                  },
-                },
-              ]
-            : []),
-          ...(opts.onBatchDelete
-            ? [
-                {
-                  id: 'batch-delete',
-                  label: '删除',
-                  icon: 'trash',
-                  tone: 'danger' as const,
-                  onSelect: () => {
-                    opts.onToggleBatchMode?.()
-                    opts.onBatchDelete?.()
-                  },
-                },
-              ]
-            : []),
-        ]
-
-    items.push({
-      id: 'batch-operations',
-      label: '批量操作',
-      icon: 'list-check',
-      divider: true,
-      submenu: {
-        title: '批量操作',
-        items: batchSubmenuItems,
-      },
-    })
+    if (opts.isBatchMode) {
+      if (opts.onBatchPlay) {
+        items.push({
+          id: 'batch-play',
+          label: '批量播放',
+          icon: 'play',
+          onSelect: opts.onBatchPlay,
+        })
+      }
+      if (opts.onBatchAddToPlaylist) {
+        items.push({
+          id: 'batch-add-to-playlist',
+          label: '添加到歌单',
+          icon: 'plus',
+          onSelect: opts.onBatchAddToPlaylist,
+        })
+      }
+      if (opts.onBatchDelete) {
+        items.push({
+          id: 'batch-delete',
+          label: '删除',
+          icon: 'trash',
+          tone: 'danger',
+          onSelect: opts.onBatchDelete,
+        })
+      }
+      items.push({
+        id: 'batch-exit',
+        label: '退出批量操作',
+        icon: 'x',
+        divider: true,
+        onSelect: opts.onToggleBatchMode,
+      })
+    } else {
+      items.push({
+        id: 'batch-operations',
+        label: '批量操作',
+        icon: 'list-check',
+        divider: true,
+        onSelect: opts.onToggleBatchMode,
+      })
+    }
   }
 
   // 1. 编辑详情 (if provided)

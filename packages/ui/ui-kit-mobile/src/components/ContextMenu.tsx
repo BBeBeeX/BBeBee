@@ -142,60 +142,106 @@ export function ContextMenu(props: ContextMenuProps): ReactElement | null {
             setDraft('')
           },
         }),
-        submenu.searchPlaceholder
-          ? h(TextField, {
-              key: '__filter',
-              value: filter,
-              onChange: setFilter,
-              placeholder: submenu.searchPlaceholder,
-              testID: 'context-menu-filter',
-            })
-          : null,
+        submenu.searchPlaceholder && creating && submenu.create
+          ? h(
+              native.View as never,
+              {
+                key: '__create-field-top',
+                style: {
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: tokens.space[2],
+                  marginBottom: tokens.space[2],
+                },
+              },
+              h(
+                native.View as never,
+                { style: { flex: 1 } },
+                h(TextField, {
+                  value: draft,
+                  onChange: setDraft,
+                  placeholder: submenu.create.placeholder,
+                  testID: 'context-menu-create-name',
+                }),
+              ),
+              h(Button, {
+                onPress: () => {
+                  const name = draft.trim()
+                  if (!name) return
+                  void submenu.create?.onSelect(name)
+                  close()
+                },
+                disabled: draft.trim().length === 0,
+                testID: 'context-menu-create-confirm',
+                children: submenu.create.buttonLabel ?? '确定',
+              }),
+            )
+          : submenu.searchPlaceholder
+            ? h(TextField, {
+                key: '__filter',
+                value: filter,
+                onChange: setFilter,
+                placeholder: submenu.searchPlaceholder,
+                testID: 'context-menu-filter',
+              })
+            : null,
         ...(() => {
           const isCreateBottom = submenu.create?.placement === 'bottom'
+          const hasTopSearch = Boolean(submenu.searchPlaceholder)
           const createRow = submenu.create
-            ? creating || submenu.create.alwaysVisible
-              ? h(
-                  native.View as never,
-                  {
-                    key: '__create-field',
-                    style: {
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: tokens.space[2],
-                      borderTopWidth: isCreateBottom ? 1 : 0,
-                      borderTopColor: 'rgba(255, 255, 255, 0.08)',
-                      paddingTop: isCreateBottom ? tokens.space[2] : 0,
-                      marginTop: isCreateBottom ? tokens.space[1] : 0,
+            ? hasTopSearch
+              ? !creating
+                ? h(MenuRow, {
+                    key: '__create',
+                    item: { id: '__create', label: submenu.create.label, icon: '\uff0b' },
+                    onActivate: () => {
+                      setCreating(true)
+                      setDraft(filter.trim())
                     },
-                  },
-                  h(
+                  })
+                : null
+              : creating || submenu.create.alwaysVisible
+                ? h(
                     native.View as never,
-                    { style: { flex: 1 } },
-                    h(TextField, {
-                      value: draft,
-                      onChange: setDraft,
-                      placeholder: submenu.create.placeholder,
-                      testID: 'context-menu-create-name',
-                    }),
-                  ),
-                  h(Button, {
-                    onPress: () => {
-                      const name = draft.trim()
-                      if (!name) return
-                      void submenu.create?.onSelect(name)
-                      close()
+                    {
+                      key: '__create-field',
+                      style: {
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: tokens.space[2],
+                        borderTopWidth: isCreateBottom ? 1 : 0,
+                        borderTopColor: 'rgba(255, 255, 255, 0.08)',
+                        paddingTop: isCreateBottom ? tokens.space[2] : 0,
+                        marginTop: isCreateBottom ? tokens.space[1] : 0,
+                      },
                     },
-                    disabled: draft.trim().length === 0,
-                    testID: 'context-menu-create-confirm',
-                    children: submenu.create.buttonLabel ?? '确定',
-                  }),
-                )
-              : h(MenuRow, {
-                  key: '__create',
-                  item: { id: '__create', label: submenu.create.label, icon: '\uff0b' },
-                  onActivate: () => setCreating(true),
-                })
+                    h(
+                      native.View as never,
+                      { style: { flex: 1 } },
+                      h(TextField, {
+                        value: draft,
+                        onChange: setDraft,
+                        placeholder: submenu.create.placeholder,
+                        testID: 'context-menu-create-name',
+                      }),
+                    ),
+                    h(Button, {
+                      onPress: () => {
+                        const name = draft.trim()
+                        if (!name) return
+                        void submenu.create?.onSelect(name)
+                        close()
+                      },
+                      disabled: draft.trim().length === 0,
+                      testID: 'context-menu-create-confirm',
+                      children: submenu.create.buttonLabel ?? '确定',
+                    }),
+                  )
+                : h(MenuRow, {
+                    key: '__create',
+                    item: { id: '__create', label: submenu.create.label, icon: '\uff0b' },
+                    onActivate: () => setCreating(true),
+                  })
             : null
 
           const itemRows = visible.length === 0

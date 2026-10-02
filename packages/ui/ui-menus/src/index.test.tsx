@@ -359,6 +359,27 @@ describe('useSaveToPlaylistMenu', () => {
     expect(h.sources.calls).toEqual([`loved:${URN}:false`])
     expect(h.library.calls).toEqual([`save:${URN}:false`])
   })
+
+  it('updates trackCount accurately by active tracks count when toggling playlist in batch', async () => {
+    const h = await harness({ player: false, downloads: false, ui: false })
+    const { result } = renderHook(() => useSaveToPlaylistMenu(h.ctx))
+    act(() => {
+      result.current.openBatch([
+        { urn: 'BBeBee:local:track:1', title: 'T1' },
+        { urn: 'BBeBee:local:track:2', title: 'T2' },
+        { urn: 'BBeBee:local:track:3', title: 'T3' },
+      ])
+    })
+    // wait for loadMenuData
+    await act(async () => {
+      await Promise.resolve()
+    })
+    await act(async () => {
+      await result.current.menuProps.onTogglePlaylist(playlists[0]!.urn, false)
+    })
+    const target = result.current.menuProps.playlists.find((p) => p.urn === playlists[0]!.urn)
+    expect(target?.trackCount).toBe(3) // initial undefined (0) + 3 = 3
+  })
 })
 
 describe('the sleep-timer submenu', () => {
@@ -649,6 +670,37 @@ describe('playlistMenuItems', () => {
     expect(shareItem?.label).toBe('分享歌单')
     await press(items, 'share-playlist')
     expect(h.share.calls).toContain('sharePlaylist:BBeBee:local:playlist:1:1')
+  })
+
+  it('provides flat batch operations without submenu when onToggleBatchMode is provided', async () => {
+    const h = await harness()
+    const onToggleBatchMode = vi.fn()
+    const onBatchPlay = vi.fn()
+    const items = playlistMenuItems(
+      h.ctx,
+      { urn: 'BBeBee:local:playlist:1', name: 'Road trip' },
+      [URN],
+      playlists,
+      h.library.collections,
+      { onToggleBatchMode, isBatchMode: false },
+    )
+    const batchItem = items.find((i) => i.id === 'batch-operations')
+    expect(batchItem).toBeTruthy()
+    expect(batchItem?.submenu).toBeUndefined()
+    expect(batchItem?.label).toBe('批量操作')
+    expect(batchItem?.icon).toBe('list-check')
+
+    const activeBatchItems = playlistMenuItems(
+      h.ctx,
+      { urn: 'BBeBee:local:playlist:1', name: 'Road trip' },
+      [URN],
+      playlists,
+      h.library.collections,
+      { onToggleBatchMode, onBatchPlay, isBatchMode: true },
+    )
+    expect(activeBatchItems.some((i) => i.id === 'batch-play')).toBe(true)
+    expect(activeBatchItems.some((i) => i.id === 'batch-exit')).toBe(true)
+    expect(activeBatchItems.find((i) => i.id === 'batch-play')?.submenu).toBeUndefined()
   })
 })
 

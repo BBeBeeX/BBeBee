@@ -191,84 +191,46 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
   }
 
   const moreMenuItems: MenuItemSpec[] = useMemo(() => {
-    const batchSubmenu: MenuItemSpec[] = isBatchMode
-      ? [
-          {
-            id: 'batch-play',
-            label: '批量播放',
-            icon: tablerIcon('play', { size: 20 }),
-            disabled: selectedUrns.size === 0,
-            onSelect: handleBatchPlay,
-          },
-          {
-            id: 'batch-add',
-            label: '添加到歌单',
-            icon: tablerIcon('plus', { size: 20 }),
-            disabled: selectedUrns.size === 0,
-            onSelect: () => handleBatchAddToPlaylist(),
-          },
-          {
-            id: 'batch-delete',
-            label: '从“最喜欢的音乐”中删除',
-            icon: tablerIcon('trash', { size: 20 }),
-            tone: 'danger',
-            disabled: selectedUrns.size === 0,
-            onSelect: handleBatchDelete,
-          },
-          {
-            id: 'batch-exit',
-            label: '退出批量操作',
-            icon: tablerIcon('x', { size: 20 }),
-            divider: true,
-            onSelect: handleExitBatch,
-          },
-        ]
-      : [
-          {
-            id: 'batch-enter',
-            label: '开启批量操作',
-            icon: tablerIcon('list-check', { size: 20 }),
-            onSelect: () => setIsBatchMode(true),
-          },
-          {
-            id: 'batch-play',
-            label: '批量播放',
-            icon: tablerIcon('play', { size: 20 }),
-            onSelect: () => {
-              setIsBatchMode(true)
-              handleBatchPlay()
-            },
-          },
-          {
-            id: 'batch-add',
-            label: '添加到歌单',
-            icon: tablerIcon('plus', { size: 20 }),
-            onSelect: () => {
-              setIsBatchMode(true)
-              handleBatchAddToPlaylist()
-            },
-          },
-          {
-            id: 'batch-delete',
-            label: '从“最喜欢的音乐”中删除',
-            icon: tablerIcon('trash', { size: 20 }),
-            tone: 'danger',
-            onSelect: () => {
-              setIsBatchMode(true)
-              handleBatchDelete()
-            },
-          },
-        ]
+    if (isBatchMode) {
+      return [
+        {
+          id: 'batch-play',
+          label: '批量播放',
+          icon: tablerIcon('play', { size: 20 }),
+          disabled: selectedUrns.size === 0,
+          onSelect: handleBatchPlay,
+        },
+        {
+          id: 'batch-add',
+          label: '添加到歌单',
+          icon: tablerIcon('plus', { size: 20 }),
+          disabled: selectedUrns.size === 0,
+          onSelect: () => handleBatchAddToPlaylist(),
+        },
+        {
+          id: 'batch-delete',
+          label: '从“最喜欢的音乐”中删除',
+          icon: tablerIcon('trash', { size: 20 }),
+          tone: 'danger',
+          disabled: selectedUrns.size === 0,
+          onSelect: handleBatchDelete,
+        },
+        {
+          id: 'batch-exit',
+          label: '退出批量操作',
+          icon: tablerIcon('x', { size: 20 }),
+          divider: true,
+          onSelect: handleExitBatch,
+        },
+      ]
+    }
 
     return [
       {
         id: 'batch-operations',
         label: '批量操作',
         icon: tablerIcon('list-check', { size: 20 }),
-        submenu: {
-          title: '批量操作',
-          items: batchSubmenu,
-        },
+        onSelect: () => setIsBatchMode(true),
       },
     ]
   }, [isBatchMode, selectedUrns, sortedUrns])

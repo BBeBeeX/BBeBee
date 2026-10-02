@@ -396,6 +396,22 @@ export const TABLER_DEFINITIONS: Record<string, IconSvgDefinition> = {
   check: {
     elements: [{ tag: 'path', attrs: { d: 'M5 12l5 5l10 -10' } }],
   },
+  checkbox: {
+    elements: [
+      { tag: 'path', attrs: { d: 'M9 11l3 3l8 -8' } },
+      { tag: 'path', attrs: { d: 'M20 12v6a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h9' } },
+    ],
+  },
+  'list-check': {
+    elements: [
+      { tag: 'path', attrs: { d: 'M3.5 5.5l1.5 1.5l2.5 -2.5' } },
+      { tag: 'path', attrs: { d: 'M3.5 11.5l1.5 1.5l2.5 -2.5' } },
+      { tag: 'path', attrs: { d: 'M3.5 17.5l1.5 1.5l2.5 -2.5' } },
+      { tag: 'path', attrs: { d: 'M11 6l9 0' } },
+      { tag: 'path', attrs: { d: 'M11 12l9 0' } },
+      { tag: 'path', attrs: { d: 'M11 18l9 0' } },
+    ],
+  },
   camera: {
     elements: [
       {

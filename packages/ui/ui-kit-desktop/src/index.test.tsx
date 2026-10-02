@@ -633,6 +633,49 @@ describe('ContextMenu', () => {
     expect(container.textContent).not.toContain('Road trip')
   })
 
+  it('switches search filter to create field at top when clicking create new playlist in submenu', () => {
+    const onCreate = vi.fn()
+    const testItems = [
+      {
+        id: 'add',
+        label: '加入歌单',
+        submenu: {
+          title: '加入歌单',
+          searchPlaceholder: '查找歌单',
+          create: { label: '新建歌单', placeholder: '歌单名称', onSelect: onCreate },
+          items: [{ id: 'p1', label: 'Road trip', onSelect: vi.fn() }],
+          emptyLabel: '没有匹配的歌单',
+        },
+      },
+    ]
+    const { container } = render(h(ContextMenu, { open: true, onClose: () => {}, x: 0, y: 0, items: testItems }))
+    fireEvent.click(
+      Array.from(container.querySelectorAll('[role="menuitem"]')).find((node) =>
+        node.textContent?.startsWith('加入歌单'),
+      ) as HTMLElement,
+    )
+    expect(container.querySelector('[data-testid="context-menu-filter"]')).toBeTruthy()
+    const createBtn = Array.from(container.querySelectorAll('[role="menuitem"]')).find((node) =>
+      node.textContent?.includes('新建歌单'),
+    ) as HTMLElement
+    fireEvent.click(createBtn)
+
+    // Now the search filter is replaced with the create input field at the top position
+    expect(container.querySelector('[data-testid="context-menu-filter"]')).toBeNull()
+    const createInput = container.querySelector('[data-testid="context-menu-create-name"]') as HTMLInputElement
+    expect(createInput).toBeTruthy()
+    const confirmBtn = container.querySelector('[data-testid="context-menu-create-confirm"]') as HTMLElement
+    expect(confirmBtn).toBeTruthy()
+
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!
+    act(() => {
+      setter.call(createInput, 'My New Playlist')
+      createInput.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    fireEvent.click(confirmBtn)
+    expect(onCreate).toHaveBeenCalledWith('My New Playlist')
+  })
+
   it('opens a submenu on hover without clicking, and closes when hovering another item', () => {
     const { container } = render(h(ContextMenu, { open: true, onClose: () => {}, x: 0, y: 0, items }))
     const add = Array.from(container.querySelectorAll('[role="menuitem"]')).find((node) =>

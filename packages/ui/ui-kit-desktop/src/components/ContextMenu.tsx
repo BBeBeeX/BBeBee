@@ -40,6 +40,13 @@ export function ContextMenu(props: ContextMenuProps): ReactElement | null {
     return () => window.removeEventListener('resize', handleResize)
   }, [props.open, props.onClose])
 
+  useEffect(() => {
+    if (creating) {
+      const input = submenuRef.current?.querySelector('input[data-testid="context-menu-create-name"]') as HTMLInputElement | null
+      input?.focus()
+    }
+  }, [creating])
+
   const submenu = props.items.find((item) => item.id === submenuState?.id)?.submenu
   const needle = filter.trim().toLowerCase()
   const visible = submenu
@@ -308,73 +315,153 @@ export function ContextMenu(props: ContextMenuProps): ReactElement | null {
                 h(Text, { variant: 'sm', tone: 'muted', numberOfLines: 1, children: submenu.title }),
               )
             : null,
-          submenu.searchPlaceholder
+          submenu.searchPlaceholder && creating && submenu.create
             ? h(
                 'div',
-                { style: { padding: `0 ${tokens.space[2]}px ${tokens.space[2]}px` } },
-                h(TextField, {
-                  value: filter,
-                  onChange: setFilter,
-                  placeholder: submenu.searchPlaceholder,
-                  testID: 'context-menu-filter',
+                {
+                  key: '__create-field-top',
+                  style: {
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: tokens.space[2],
+                    padding: `0 ${tokens.space[2]}px ${tokens.space[2]}px`,
+                  },
+                  onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+                    if (e.key === 'Enter') {
+                      e.stopPropagation()
+                      const name = draft.trim()
+                      if (!name) return
+                      void submenu.create?.onSelect(name)
+                      close()
+                    } else if (e.key === 'Escape') {
+                      e.stopPropagation()
+                      setCreating(false)
+                      setDraft('')
+                    }
+                  },
+                },
+                h(
+                  'div',
+                  { style: { flex: 1, minWidth: 0 } },
+                  h(TextField, {
+                    value: draft,
+                    onChange: setDraft,
+                    placeholder: submenu.create.placeholder,
+                    testID: 'context-menu-create-name',
+                  }),
+                ),
+                h(Button, {
+                  onPress: () => {
+                    const name = draft.trim()
+                    if (!name) return
+                    void submenu.create?.onSelect(name)
+                    close()
+                  },
+                  disabled: draft.trim().length === 0,
+                  testID: 'context-menu-create-confirm',
+                  children: submenu.create.buttonLabel ?? '确定',
                 }),
+                h(
+                  'button',
+                  {
+                    type: 'button',
+                    'aria-label': '取消',
+                    onClick: () => {
+                      setCreating(false)
+                      setDraft('')
+                    },
+                    style: {
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: 'var(--text-muted, #626A80)',
+                      padding: 2,
+                      display: 'flex',
+                      alignItems: 'center',
+                    },
+                  },
+                  tablerIcon('x', { size: 16 }),
+                ),
               )
-            : null,
+            : submenu.searchPlaceholder
+              ? h(
+                  'div',
+                  { style: { padding: `0 ${tokens.space[2]}px ${tokens.space[2]}px` } },
+                  h(TextField, {
+                    value: filter,
+                    onChange: setFilter,
+                    placeholder: submenu.searchPlaceholder,
+                    testID: 'context-menu-filter',
+                  }),
+                )
+              : null,
           (() => {
             const isCreateBottom = submenu.create?.placement === 'bottom'
+            const hasTopSearch = Boolean(submenu.searchPlaceholder)
             const createRow = submenu.create
-              ? creating || submenu.create.alwaysVisible
-                ? h(
-                    'div',
-                    {
-                      key: '__create-field',
-                      style: {
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: tokens.space[2],
-                        padding: `${tokens.space[2]}px ${tokens.space[2]}px`,
-                        borderTop: isCreateBottom ? `1px solid ${p.border.subtle}` : undefined,
-                        borderBottom: !isCreateBottom ? `1px solid ${p.border.subtle}` : undefined,
-                        marginTop: isCreateBottom ? tokens.space[1] : 0,
-                        marginBottom: !isCreateBottom ? tokens.space[1] : 0,
+              ? hasTopSearch
+                ? !creating
+                  ? h(MenuRow, {
+                      key: '__create',
+                      item: { id: '__create', label: submenu.create.label, icon: 'plus' },
+                      onActivate: () => {
+                        setCreating(true)
+                        setDraft(filter.trim())
                       },
-                      onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
-                        if (e.key === 'Enter') {
-                          e.stopPropagation()
+                    })
+                  : null
+                : creating || submenu.create.alwaysVisible
+                  ? h(
+                      'div',
+                      {
+                        key: '__create-field',
+                        style: {
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: tokens.space[2],
+                          padding: `${tokens.space[2]}px ${tokens.space[2]}px`,
+                          borderTop: isCreateBottom ? `1px solid ${p.border.subtle}` : undefined,
+                          borderBottom: !isCreateBottom ? `1px solid ${p.border.subtle}` : undefined,
+                          marginTop: isCreateBottom ? tokens.space[1] : 0,
+                          marginBottom: !isCreateBottom ? tokens.space[1] : 0,
+                        },
+                        onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+                          if (e.key === 'Enter') {
+                            e.stopPropagation()
+                            const name = draft.trim()
+                            if (!name) return
+                            void submenu.create?.onSelect(name)
+                            close()
+                          }
+                        },
+                      },
+                      h(
+                        'div',
+                        { style: { flex: 1, minWidth: 0 } },
+                        h(TextField, {
+                          value: draft,
+                          onChange: setDraft,
+                          placeholder: submenu.create.placeholder,
+                          testID: 'context-menu-create-name',
+                        }),
+                      ),
+                      h(Button, {
+                        onPress: () => {
                           const name = draft.trim()
                           if (!name) return
                           void submenu.create?.onSelect(name)
                           close()
-                        }
-                      },
-                    },
-                    h(
-                      'div',
-                      { style: { flex: 1, minWidth: 0 } },
-                      h(TextField, {
-                        value: draft,
-                        onChange: setDraft,
-                        placeholder: submenu.create.placeholder,
-                        testID: 'context-menu-create-name',
+                        },
+                        disabled: draft.trim().length === 0,
+                        testID: 'context-menu-create-confirm',
+                        children: submenu.create.buttonLabel ?? '确定',
                       }),
-                    ),
-                    h(Button, {
-                      onPress: () => {
-                        const name = draft.trim()
-                        if (!name) return
-                        void submenu.create?.onSelect(name)
-                        close()
-                      },
-                      disabled: draft.trim().length === 0,
-                      testID: 'context-menu-create-confirm',
-                      children: submenu.create.buttonLabel ?? '确定',
-                    }),
-                  )
-                : h(MenuRow, {
-                    key: '__create',
-                    item: { id: '__create', label: submenu.create.label, icon: 'plus' },
-                    onActivate: () => setCreating(true),
-                  })
+                    )
+                  : h(MenuRow, {
+                      key: '__create',
+                      item: { id: '__create', label: submenu.create.label, icon: 'plus' },
+                      onActivate: () => setCreating(true),
+                    })
               : null
 
             const itemRows =
