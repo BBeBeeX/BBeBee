@@ -9,6 +9,8 @@ import type { AudioOutputEngine, InterruptionEvent } from '@BBeBee/protocol'
 describe('MobileAudioService (Route A WebAudio & Route B MPV)', () => {
   async function harness(options: { initialEngine?: 'webaudio' | 'mpv' } = {}) {
     const ctx = new Context()
+    // AudioMpv declares inject: ['dsp'] — provide a stub so mounts resolve.
+    ctx.provide('dsp', { chain: [], definitions: [], getParams: () => ({}) })
     const fakeContext = createFakeAudioContext(48000)
     const bridge = createMobileMpvBridge()
 

@@ -195,7 +195,10 @@ export class MpvSourceHandle implements AudioSourceHandle {
 }
 
 export class AudioMpv extends Service implements AudioService {
-  static inject = []
+  // The engine syncs its native effect chain from ctx.dsp — without the
+  // declaration cordis refuses every `ctx.dsp` read ("cannot get property
+  // without inject") and the sync dies silently.
+  static inject = ['dsp']
 
   context: BaseAudioContext
   chainInput: GainNode

@@ -109,6 +109,8 @@ async function harness(
   const engine = createFakeAudioContext()
   const elements: FakeMediaElement[] = []
   const ctx = new Context()
+  // AudioMpv declares inject: ['dsp'] — provide a stub so the mount resolves.
+  ctx.provide('dsp', { chain: [], definitions: [], getParams: () => ({}) })
   await ctx.plugin(plugin, {
     createContext: () => engine as unknown as BaseAudioContext,
     createMediaElement: () => {
@@ -155,6 +157,7 @@ describe('core-audio-mpv', () => {
     const rebuiltRates: number[] = []
     const contexts: FakeAudioContext[] = []
     const ctx = new Context()
+    ctx.provide('dsp', { chain: [], definitions: [], getParams: () => ({}) })
     await ctx.plugin(plugin, {
       createContext: (options) => {
         const next = createFakeAudioContext(options?.sampleRate)
@@ -325,6 +328,7 @@ describe('core-audio-mpv', () => {
     const rebuiltRates: number[] = []
     const contexts: FakeAudioContext[] = []
     const ctx = new Context()
+    ctx.provide('dsp', { chain: [], definitions: [], getParams: () => ({}) })
     await ctx.plugin(plugin, {
       createContext: (options) => {
         const next = createFakeAudioContext(options?.sampleRate)
@@ -378,6 +382,7 @@ describe('core-audio-mpv context state', () => {
     const engine = createFakeAudioContext()
     engine.state = 'suspended'
     const ctx = new Context()
+    ctx.provide('dsp', { chain: [], definitions: [], getParams: () => ({}) })
     await ctx.plugin(plugin, {
       createContext: () => engine as unknown as BaseAudioContext,
       emitContextInterruptions: true,
@@ -419,6 +424,7 @@ describe('core-audio-mpv context state', () => {
   it('unbinds its statechange listener when unloaded', async () => {
     const engine = createFakeAudioContext()
     const ctx = new Context()
+    ctx.provide('dsp', { chain: [], definitions: [], getParams: () => ({}) })
     const fiber = await ctx.plugin(plugin, {
       createContext: () => engine as unknown as BaseAudioContext,
     })
@@ -434,6 +440,7 @@ describe('core-audio-mpv context state', () => {
     // would go blind to every suspension after the first Hi-Res track.
     const contexts: FakeAudioContext[] = []
     const ctx = new Context()
+    ctx.provide('dsp', { chain: [], definitions: [], getParams: () => ({}) })
     await ctx.plugin(plugin, {
       createContext: (options) => {
         const next = createFakeAudioContext(options?.sampleRate)
@@ -468,6 +475,7 @@ describe('core-audio-mpv context state', () => {
     const contexts: FakeAudioContext[] = []
     const sinkCalls: string[] = []
     const ctx = new Context()
+    ctx.provide('dsp', { chain: [], definitions: [], getParams: () => ({}) })
     await ctx.plugin(plugin, {
       createContext: (options) => {
         const next = createFakeAudioContext(options?.sampleRate)
@@ -623,6 +631,7 @@ describe('core-audio-mpv native engine features', () => {
       getParams: () => ({ gainDb: -3 }),
     }
 
+    ctx.provide('dsp', { chain: [], definitions: [], getParams: () => ({}) })
     await ctx.plugin(plugin, { bridgeCall, createContext: () => createFakeAudioContext() as unknown as BaseAudioContext })
     await new Promise((r) => setTimeout(r, 350))
 
