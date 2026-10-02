@@ -626,7 +626,6 @@ private:
     std::atomic<float> currentPeakLevelDb{ -100.0f };
 
     void applyFilterGraph(const std::string& userFilters) {
-        fprintf(stderr, "[dbg] af <- %s\n", (userFilters.empty() ? "(tap only)" : userFilters.c_str()));
         std::string fullAf = userFilters;
         // Always append astats metadata tap with label for real-time level and spectrum analysis
         if (!fullAf.empty()) fullAf += ",";
@@ -639,7 +638,6 @@ private:
 
     void updateAfMetadata(const char* metaStr) {
         if (!metaStr || std::strlen(metaStr) == 0) return;
-        fprintf(stderr, "[dbg] RAW afmeta (%zu): %s\n", std::strlen(metaStr), metaStr);
         bool parsed = false;
 
         // Try JSON parsing first (if starts with '{')

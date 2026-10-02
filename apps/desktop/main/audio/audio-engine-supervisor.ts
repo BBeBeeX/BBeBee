@@ -215,7 +215,9 @@ export class AudioEngineSupervisor {
       this.child.stderr?.on('data', (chunk: Buffer | string) => {
         const text = chunk.toString().trim()
         if (text) {
-          this.logger?.debug?.('audio-engine [stderr]: %s', text)
+          // The injected logger concatenates rather than printf-interpolates,
+          // so a `%s` placeholder would reach the console literally.
+          this.logger?.debug?.(`audio-engine [stderr]: ${text}`)
         }
       })
 

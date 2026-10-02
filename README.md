@@ -21,7 +21,7 @@ pnpm dev:desktop                              # 桌面端开发（electron-vite 
 pnpm dev:mobile                               # 移动端开发（自定义 dev build，不是 Expo Go）
 pnpm check                                    # typecheck + lint + test —— 提交前的唯一闸门
 pnpm check:changed                            # 只检查当前 diff 涉及的包
-pnpm --filter @BBeBee/desktop build:audio-engine   # 编译 native 音频引擎二进制
+pnpm build:audio-engine                      # 编译 native 音频引擎二进制（写入 bin/ 并 staged libmpv）
 pnpm build:desktop                            # 生产构建（引擎二进制 + electron-vite build）
 pnpm dist:desktop                             # electron-builder 打包安装包（产出 apps/desktop/dist/）
 ```
@@ -33,7 +33,7 @@ pnpm dist:desktop                             # electron-builder 打包安装包
 `pnpm dev:desktop` 只运行 `electron-vite dev`。MPV Hi-Fi 引擎的二进制必须** beforehand 手动编译**：
 
 ```bash
-pnpm --filter @BBeBee/desktop build:audio-engine
+pnpm build:audio-engine
 ```
 
 产物写入 `apps/desktop/bin/audio-engine[.exe]`（已 gitignore，不入库），并同步一份到 `apps/desktop/resources/bin/` 供打包使用。没有这个二进制，`pnpm dev:desktop` 仍能启动：MPV 引擎挂载时快速失败，加载降级到媒体元素（Chromium 解码，有声，但频谱平线、无 gapless）。

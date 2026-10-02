@@ -35,7 +35,7 @@ Electron bundle. It is built by `apps/desktop/scripts/build-audio-engine.js` (co
 detected: `g++` / `clang++` / MSVC `cl`, C++17) into `apps/desktop/bin/audio-engine[.exe]`,
 synced to `apps/desktop/resources/bin/` for packaging, and **gitignored** — both are build
 artifacts. `pnpm dev:desktop` does *not* build it; without a prior
-`pnpm --filter @BBeBee/desktop build:audio-engine` the engine is simply absent.
+`pnpm build:audio-engine` the engine is simply absent.
 
 **Engine-binary lookup** (`AudioEngineSupervisor.resolveExecutablePath`): the
 `AUDIO_ENGINE_PATH` env var → the packaged `resources/bin/` → dev candidate paths. An

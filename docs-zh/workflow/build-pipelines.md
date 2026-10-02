@@ -31,7 +31,7 @@ MPV Hi-Fi 引擎（`core-audio-mpv`）运行在一个独立的 C++ 可执行文�
 `apps/desktop/scripts/build-audio-engine.js` 编译（自动探测 `g++` / `clang++` / MSVC `cl`，C++17），
 产物写入 `apps/desktop/bin/audio-engine[.exe]`，并同步到 `apps/desktop/resources/bin/` 供打包；
 两者均已 gitignore——它们是构建产物。`pnpm dev:desktop` **不会**构建它；没有预先执行
-`pnpm --filter @BBeBee/desktop build:audio-engine`，引擎就只是不存在。
+`pnpm build:audio-engine`，引擎就只是不存在。
 
 **引擎二进制查找**（`AudioEngineSupervisor.resolveExecutablePath`）：`AUDIO_ENGINE_PATH` 环境变量
 → 打包态 `resources/bin/` → 开发候选路径。显式注入的路径缺失时严格失败（不回退）。
