@@ -368,16 +368,14 @@ describe('the desktop shell', () => {
     const header = container.querySelector('header[aria-label="Application Header"]')
     expect(header).not.toBeNull()
 
-    // Left controls: More, Back, Forward
-    const moreBtn = container.querySelector('button[aria-label="More options"]') as HTMLButtonElement
+    // Left controls: Back, Forward (the More ⋯ menu was removed)
     const backBtn = container.querySelector('button[aria-label="Go back"]') as HTMLButtonElement
     const forwardBtn = container.querySelector('button[aria-label="Go forward"]') as HTMLButtonElement
-    expect(moreBtn).not.toBeNull()
     expect(backBtn).not.toBeNull()
     expect(forwardBtn).not.toBeNull()
+    expect(container.querySelector('button[aria-label="More options"]')).toBeNull()
 
-    // Center controls: Search. (Home navigation lives on the brand logo and
-    // the More menu — the standalone Home button was removed.)
+    // Center controls: Search. (Home navigation lives on the brand logo.)
     const logoBtn = container.querySelector('button[aria-label="BBeBee Home"]') as HTMLButtonElement
     const searchInput = container.querySelector('input[aria-label="Search"]') as HTMLInputElement
     expect(logoBtn).not.toBeNull()
@@ -402,12 +400,6 @@ describe('the desktop shell', () => {
     expect(minimizeMock).toHaveBeenCalledTimes(1)
     expect(maximizeMock).toHaveBeenCalledTimes(1)
     expect(closeMock).toHaveBeenCalledTimes(1)
-
-    // Test more options dropdown
-    await act(async () => {
-      moreBtn.click()
-    })
-    expect(container.textContent).toContain('Settings')
   })
 
   it('applies rounded card layout with dark grey background and gaps', async () => {
@@ -946,30 +938,6 @@ describe('the desktop shell', () => {
     expect(container.querySelector('[data-testid="counter-value"]')?.textContent).toBe('Count: 5')
   })
 
-  it('closes More options menu when clicking outside', async () => {
-    const { container } = await mount((ui) => {
-      ui.routes = [route('home', 'Home')]
-      ui.views.set('home', () => h('p', null, 'Home Screen'))
-    })
-
-    const moreBtn = container.querySelector('button[aria-label="More options"]') as HTMLButtonElement
-    expect(moreBtn).not.toBeNull()
-
-    // Click more button to open dropdown
-    await act(async () => {
-      moreBtn.click()
-    })
-    expect(container.textContent).toContain('Settings')
-
-    // Click outside on document body
-    await act(async () => {
-      document.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
-    })
-
-    // Dropdown is closed
-    expect(container.textContent).not.toContain('Settings')
-  })
-
   it('allows adjusting sidebar and queue widths via draggable splitters', async () => {
     const { container, ctx } = await mount((ui) => {
       ui.routes = [route('home', 'Home')]
@@ -1100,7 +1068,7 @@ describe('the desktop shell', () => {
     expect(container.querySelector('[data-testid="topbar-tray-popover"]')).toBeNull()
   })
 
-  it('renders history, download manager, and import share in tray rather than more menu', async () => {
+  it('renders history, download manager, and import share in the tray', async () => {
     let shareStub: ShareStub | undefined
     const { container } = await mount(
       (ui) => {
@@ -1134,25 +1102,10 @@ describe('the desktop shell', () => {
     // TopBar right group does NOT have standalone import share button
     expect(container.querySelector('[data-testid="topbar-import-share-button"]')).toBeNull()
 
-    // 1. Verify More Menu does NOT contain history, downloads, or import share
-    const moreButton = container.querySelector('[data-testid="topbar-more-button"]') as HTMLButtonElement
-    expect(moreButton).not.toBeNull()
-    await act(async () => {
-      fireEvent.click(moreButton)
-    })
-    const moreDropdown = container.querySelector('[data-testid="topbar-more-menu-dropdown"]') as HTMLElement
-    expect(moreDropdown).not.toBeNull()
-    expect(moreDropdown.textContent).toContain('Home')
-    expect(moreDropdown.textContent).toContain('Settings')
-    expect(moreDropdown.textContent).not.toContain('播放历史')
-    expect(moreDropdown.textContent).not.toContain('下载管理')
-    expect(moreDropdown.textContent).not.toContain('导入分享')
-    await act(async () => {
-      fireEvent.click(moreButton)
-    })
-    expect(container.querySelector('[data-testid="topbar-more-menu-dropdown"]')).toBeNull()
+    // The More ⋯ menu is gone; these features live in the tray only.
+    expect(container.querySelector('[data-testid="topbar-more-button"]')).toBeNull()
 
-    // 2. Verify Tray contains history, downloads, and import share
+    // Verify Tray contains history, downloads, and import share
     const trayButton = container.querySelector('[data-testid="topbar-tray-button"]') as HTMLButtonElement
     expect(trayButton).not.toBeNull()
     await act(async () => {

@@ -3,7 +3,7 @@ import type { KeyboardEvent, MouseEvent as ReactMouseEvent, ReactElement } from 
 import type { Context } from 'cordis'
 import type { Track } from '@BBeBee/protocol'
 import type { MenuAnchor } from '@BBeBee/ui-core'
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { HoverLabel, tablerIcon } from '@BBeBee/ui-kit-desktop'
 import { CachedArtwork } from './CachedArtwork.js'
 import { TrackLibraryActionButton } from './TrackLibraryActionButton.js'
 import { formatAddedDate, formatDuration } from '../utils/data-helpers.js'
@@ -200,34 +200,45 @@ export function LibraryTrackRow({
             justifyContent: 'center',
           },
         },
+        // 歌名/作者名被截断时，悬浮 3 秒浮出完整名字的 label。
         h(
-          'span',
-          {
-            style: {
-              color: '#FFFFFF',
-              fontSize: 15,
-              fontWeight: 500,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
+          HoverLabel,
+          { label: track.title, style: { display: 'block' } },
+          h(
+            'span',
+            {
+              style: {
+                display: 'block',
+                color: '#FFFFFF',
+                fontSize: 15,
+                fontWeight: 500,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              },
             },
-          },
-          track.title,
+            track.title,
+          ),
         ),
         !compact && artists
           ? h(
-              'span',
-              {
-                style: {
-                  color: '#b3b3b3',
-                  fontSize: 13,
-                  marginTop: 2,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
+              HoverLabel,
+              { label: artists, style: { display: 'block' } },
+              h(
+                'span',
+                {
+                  style: {
+                    display: 'block',
+                    color: '#b3b3b3',
+                    fontSize: 13,
+                    marginTop: 2,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  },
                 },
-              },
-              artists,
+                artists,
+              ),
             )
           : null,
       ),
@@ -243,12 +254,21 @@ export function LibraryTrackRow({
               paddingRight: 16,
               fontSize: 13,
               color: '#b3b3b3',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
             },
           },
-          artists || '-',
+          h(
+            HoverLabel,
+            {
+              label: artists || '-',
+              style: {
+                display: 'block',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              },
+            },
+            artists || '-',
+          ),
         )
       : null,
     // Col 3: Album (本地音乐页为可点击链接)

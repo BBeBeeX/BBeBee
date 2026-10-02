@@ -2,8 +2,10 @@
  * Spotify-style in-app TopBar for the Desktop Electron Shell.
  *
  * Replaces the native OS window frame and menu bar:
- * - Left: More menu (⋯), History Back (←), History Forward (→)
- * - Center: Home (⌂), Search Bar
+ * - Left: Brand logo, History Back (←), History Forward (→)
+ * - Center: Search Bar (collapses to a magnifier button when the window is
+ *   too narrow; clicking it expands the search and hides the tray/profile
+ *   icons until the user clicks elsewhere)
  * - Right: Avatar, Connected Window Controls (Minimize, Maximize/Restore, Close)
  *
  * Drag region is applied to the bar container (-webkit-app-region: drag),
@@ -12,7 +14,7 @@
 
 import { createElement as h, useEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { RouteContribution, SleepTimerMode, SleepTimerService, TrayContribution } from '@BBeBee/protocol'
+import type { SleepTimerMode, SleepTimerService, TrayContribution } from '@BBeBee/protocol'
 import { tablerIcon } from '@BBeBee/ui-kit-desktop'
 import { useSearchSourceSelection, type SearchInterfaceKind } from '@BBeBee/plugin-sources/hooks'
 import { useSleepTimer } from '@BBeBee/plugin-sleep-timer/hooks'
@@ -24,6 +26,9 @@ function serviceOf<T = unknown>(ctx: Context, key: string): T | undefined {
     false,
   ) as T | undefined
 }
+
+/** Center-group width below which the search box collapses to a magnifier button. */
+const SEARCH_COLLAPSE_WIDTH = 180
 
 export interface ElectronCSSProperties extends CSSProperties {
   WebkitAppRegion?: 'drag' | 'no-drag'
@@ -545,6 +550,7 @@ export function WindowControls({ style }: WindowControlsProps = {}): ReactElemen
         display: 'flex',
         alignItems: 'center',
         height: 48,
+        flexShrink: 0,
         WebkitAppRegion: 'no-drag',
         ...style,
       } as ElectronCSSProperties,
@@ -677,28 +683,71 @@ export function TopBar({
   const selection = useSearchSourceSelection(ctx)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchActive, setSearchActive] = useState(false)
-  const [menuOpen, setMenuOpen] = useState(false)
   const searchContainerRef = useRef<HTMLDivElement | null>(null)
-  const menuContainerRef = useRef<HTMLDivElement | null>(null)
 
-  const readMoreRoutes = (): readonly RouteContribution[] => {
-    try {
-      const routes = ctx.ui?.routes ?? []
-      return routes.filter((r) => r.placement?.includes('more-menu'))
-    } catch {
-      return []
-    }
-  }
-
-  const [moreRoutes, setMoreRoutes] = useState<readonly RouteContribution[]>(readMoreRoutes)
+  /**
+   * When the bar is squeezed, the search box collapses to a single magnifier
+   * button; clicking it expands the search across the bar while the tray and
+   * profile icons step aside (the window controls never do). Clicking
+   * anywhere outside the search restores the collapsed state.
+   */
+  const [searchExpanded, setSearchExpanded] = useState(false)
+  const [centerWidth, setCenterWidth] = useState(0)
+  const [centerMeasured, setCenterMeasured] = useState(false)
+  const centerRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    setMoreRoutes(readMoreRoutes())
-    const off = ctx.on('ui/changed', () => {
-      setMoreRoutes(readMoreRoutes())
+    const el = centerRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setCenterWidth(entry.contentRect.width)
+        setCenterMeasured(true)
+      }
     })
-    return () => void off()
-  }, [ctx])
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  // Before the first measurement (e.g. jsdom) the full search bar renders.
+  // A real measurement of 0 is the bar squeezed flat — that IS collapsed.
+  const searchCollapsed = centerMeasured && centerWidth < SEARCH_COLLAPSE_WIDTH && !searchExpanded
+
+  // Collapsing unmounts the input; drop the active state with it so no
+  // outside-click handler is left waiting on a container that is gone.
+  useEffect(() => {
+    if (searchCollapsed && searchActive) {
+      setSearchActive(false)
+    }
+  }, [searchCollapsed, searchActive])
+
+  useEffect(() => {
+    if (!searchExpanded) return
+    const input = searchContainerRef.current?.querySelector('input')
+    input?.focus()
+  }, [searchExpanded])
+
+  useEffect(() => {
+    if (!searchExpanded) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setSearchExpanded(false)
+        setSearchActive(false)
+      }
+    }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSearchExpanded(false)
+        setSearchActive(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [searchExpanded])
 
   const [history, setHistory] = useState<string[]>(() => {
     try {
@@ -729,26 +778,6 @@ export function TopBar({
     }
   }, [searchActive])
 
-  useEffect(() => {
-    if (!menuOpen) return
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuContainerRef.current && !menuContainerRef.current.contains(e.target as Node)) {
-        setMenuOpen(false)
-      }
-    }
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setMenuOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [menuOpen])
-
   const handleCommitSearch = (rawQuery: string) => {
     const trimmed = rawQuery.trim()
     if (!trimmed) return
@@ -760,6 +789,7 @@ export function TopBar({
       // ignore storage errors
     }
     setSearchActive(false)
+    setSearchExpanded(false)
     onSearch?.(trimmed, {
       sourceIds: selection.selectedIds,
       typesBySource: selection.typesBySource,
@@ -818,7 +848,8 @@ export function TopBar({
         zIndex: 50,
       } as ElectronCSSProperties,
     },
-    // Left Group: Logo, More (⋯), Back (←), Forward (→)
+    // Left Group: Logo, Back (←), Forward (→) — never compressed; the
+    // center search absorbs all squeezing.
     h(
       'div',
       {
@@ -826,6 +857,7 @@ export function TopBar({
           display: 'flex',
           alignItems: 'center',
           gap: 6,
+          flexShrink: 0,
           ...noDragStyle,
         },
       },
@@ -866,174 +898,6 @@ export function TopBar({
           height: 22,
           style: { display: 'block', objectFit: 'contain' },
         }),
-      ),
-      // More Menu (⋯)
-      h(
-        'div',
-        { ref: menuContainerRef, style: { position: 'relative' } },
-        h(
-          'button',
-          {
-            type: 'button',
-            'aria-label': 'More options',
-            title: 'More',
-            'data-testid': 'topbar-more-button',
-            onClick: () => setMenuOpen((prev) => !prev),
-            style: {
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 32,
-              height: 32,
-              borderRadius: '50%',
-              border: 'none',
-              background: menuOpen ? 'rgba(255, 255, 255, 0.14)' : 'transparent',
-              color: 'var(--text-primary, #F5F7FF)',
-              cursor: 'pointer',
-              fontSize: 16,
-              transition: 'background-color 0.15s ease',
-            },
-            onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-              if (!menuOpen) e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'
-            },
-            onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-              if (!menuOpen) e.currentTarget.style.backgroundColor = 'transparent'
-            },
-          },
-          tablerIcon('dots', { size: 20 }),
-        ),
-        // Dropdown popup
-        menuOpen
-          ? h(
-              'div',
-              {
-                'data-testid': 'topbar-more-menu-dropdown',
-                style: {
-                  position: 'absolute',
-                  top: 38,
-                  left: 0,
-                  minWidth: 160,
-                  background: 'var(--surface-2, #111522)',
-                  border: '1px solid var(--border-subtle, rgba(148,163,184,0.08))',
-                  borderRadius: 8,
-                  boxShadow: 'var(--shadow-dropdown, 0 10px 25px rgba(0, 0, 0, 0.5))',
-                  padding: 4,
-                  zIndex: 100,
-                },
-              },
-              h(
-                'button',
-                {
-                  type: 'button',
-                  'data-testid': 'topbar-more-menu-home',
-                  style: {
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    width: '100%',
-                    textAlign: 'left',
-                    padding: '8px 12px',
-                    borderRadius: 4,
-                    border: 'none',
-                    background: 'transparent',
-                    color: 'var(--text-primary, #F5F7FF)',
-                    fontSize: 13,
-                    cursor: 'pointer',
-                  },
-                  onClick: () => {
-                    setMenuOpen(false)
-                    onHome?.()
-                  },
-                  onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-                    e.currentTarget.style.backgroundColor = 'var(--surface-hover, #191E30)'
-                  },
-                  onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-                    e.currentTarget.style.backgroundColor = 'transparent'
-                  },
-                },
-                tablerIcon('home', { size: 16 }),
-                'Home',
-              ),
-              h(
-                'button',
-                {
-                  type: 'button',
-                  'data-testid': 'topbar-more-menu-settings',
-                  style: {
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    width: '100%',
-                    textAlign: 'left',
-                    padding: '8px 12px',
-                    borderRadius: 4,
-                    border: 'none',
-                    background: 'transparent',
-                    color: 'var(--text-primary, #F5F7FF)',
-                    fontSize: 13,
-                    cursor: 'pointer',
-                  },
-                  onClick: () => {
-                    setMenuOpen(false)
-                    onOpenSettings?.()
-                  },
-                  onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-                    e.currentTarget.style.backgroundColor = 'var(--surface-hover, #191E30)'
-                  },
-                  onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-                    e.currentTarget.style.backgroundColor = 'transparent'
-                  },
-                },
-                tablerIcon('settings', { size: 16 }),
-                'Settings',
-              ),
-              moreRoutes.length > 0
-                ? h('div', {
-                    style: {
-                      height: 1,
-                      margin: '4px 0',
-                      background: 'var(--border-subtle, rgba(148, 163, 184, 0.08))',
-                    },
-                  })
-                : null,
-              moreRoutes.map((r) =>
-                h(
-                  'button',
-                  {
-                    key: r.id,
-                    type: 'button',
-                    'data-testid': `topbar-more-menu-${r.id}`,
-                    style: {
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      width: '100%',
-                      textAlign: 'left',
-                      padding: '8px 12px',
-                      borderRadius: 4,
-                      border: 'none',
-                      background: 'transparent',
-                      color: 'var(--text-primary, #F5F7FF)',
-                      fontSize: 13,
-                      cursor: 'pointer',
-                    },
-                    onClick: () => {
-                      setMenuOpen(false)
-                      ctx.ui?.navigate?.(r.id)
-                    },
-                    onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-                      e.currentTarget.style.backgroundColor = 'var(--surface-hover, #191E30)'
-                    },
-                    onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-                      e.currentTarget.style.backgroundColor = 'transparent'
-                    },
-                  },
-                  r.icon ? tablerIcon(r.icon, { size: 16 }) : null,
-                  r.title,
-                ),
-              ),
-            )
-          : null,
       ),
       // Back Button (←)
       h(
@@ -1110,21 +974,65 @@ export function TopBar({
         tablerIcon('chevron-right', { size: 20 }),
       ),
     ),
-    // Center Group: Search Bar
+    // Center Group: Search Bar. Measured so the search can collapse to a
+    // magnifier button once the window squeezes it too far; while expanded it
+    // takes the whole space between the left group and the window controls.
     h(
       'div',
       {
+        ref: centerRef,
         style: {
           display: 'flex',
           alignItems: 'center',
           gap: 10,
           flex: 1,
           justifyContent: 'center',
-          maxWidth: 360,
+          maxWidth: searchExpanded ? 'none' : 360,
+          minWidth: 0,
           ...noDragStyle,
         },
       },
-      // Search Bar Container with Dropdown
+      // Collapsed: one magnifier button. Clicking expands the search (and
+      // hides the tray/profile icons until a click elsewhere restores them).
+      searchCollapsed
+        ? h(
+            'button',
+            {
+              type: 'button',
+              'aria-label': 'Expand search',
+              title: '搜索',
+              'data-testid': 'topbar-search-collapsed-button',
+              onClick: () => {
+                setSearchExpanded(true)
+                setSearchActive(true)
+              },
+              style: {
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+                background: 'var(--input-bg, var(--surface-1, #080D1A))',
+                color: 'var(--text-tertiary, #8B92A6)',
+                cursor: 'pointer',
+                padding: 0,
+                flexShrink: 0,
+                transition: 'background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease',
+              },
+              onMouseEnter: (e: { currentTarget: HTMLElement }) => {
+                e.currentTarget.style.backgroundColor = 'var(--surface-hover, #101831)'
+                e.currentTarget.style.color = 'var(--text-primary, #F5F7FF)'
+              },
+              onMouseLeave: (e: { currentTarget: HTMLElement }) => {
+                e.currentTarget.style.backgroundColor = 'var(--input-bg, var(--surface-1, #080D1A))'
+                e.currentTarget.style.color = 'var(--text-tertiary, #8B92A6)'
+              },
+            },
+            tablerIcon('search', { size: 20 }),
+          )
+        : // Search Bar Container with Dropdown
       h(
         'div',
         {
@@ -1521,7 +1429,9 @@ export function TopBar({
           : null,
       ),
     ),
-    // Right Group: Avatar, Window Controls (Minimize, Maximize/Restore, Close)
+    // Right Group: Avatar, Window Controls (Minimize, Maximize/Restore, Close).
+    // While the search is expanded the tray and profile icons step aside, but
+    // the window controls must stay reachable and unsquashed no matter what.
     h(
       'div',
       {
@@ -1529,47 +1439,50 @@ export function TopBar({
           display: 'flex',
           alignItems: 'center',
           gap: 12,
+          flexShrink: 0,
           ...noDragStyle,
         },
       },
       // Sleep Timer Indicator
       h(SleepTimerIndicator, { ctx }),
-      // Tray Indicator
-      h(TrayIndicator, { ctx }),
-      // Avatar
-      h(
-        'button',
-        {
-          type: 'button',
-          'aria-label': 'User profile',
-          title: 'Profile',
-          onClick: onOpenSettings,
-          style: {
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 32,
-            height: 32,
-            borderRadius: '50%',
-            border: '1px solid var(--border-subtle, rgba(148, 163, 184, 0.15))',
-            background: 'var(--surface-selected, rgba(99, 102, 241, 0.12))',
-            color: 'var(--text-primary, #F5F7FF)',
-            cursor: 'pointer',
-            padding: 0,
-            transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-          },
-          onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-            e.currentTarget.style.transform = 'scale(1.06)'
-            e.currentTarget.style.boxShadow = 'var(--glow-xs, 0 0 8px rgba(99, 102, 241, 0.3))'
-          },
-          onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-            e.currentTarget.style.transform = 'scale(1)'
-            e.currentTarget.style.boxShadow = 'none'
-          },
-        },
-        tablerIcon('user', { size: 20 }),
-      ),
-      // Contiguous Window Controls Group
+      // Tray Indicator (hidden while the expanded search takes the bar)
+      searchExpanded ? null : h(TrayIndicator, { ctx }),
+      // Avatar (hidden while the expanded search takes the bar)
+      searchExpanded
+        ? null
+        : h(
+            'button',
+            {
+              type: 'button',
+              'aria-label': 'User profile',
+              title: 'Profile',
+              onClick: onOpenSettings,
+              style: {
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                border: '1px solid var(--border-subtle, rgba(148, 163, 184, 0.15))',
+                background: 'var(--surface-selected, rgba(99, 102, 241, 0.12))',
+                color: 'var(--text-primary, #F5F7FF)',
+                cursor: 'pointer',
+                padding: 0,
+                transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+              },
+              onMouseEnter: (e: { currentTarget: HTMLElement }) => {
+                e.currentTarget.style.transform = 'scale(1.06)'
+                e.currentTarget.style.boxShadow = 'var(--glow-xs, 0 0 8px rgba(99, 102, 241, 0.3))'
+              },
+              onMouseLeave: (e: { currentTarget: HTMLElement }) => {
+                e.currentTarget.style.transform = 'scale(1)'
+                e.currentTarget.style.boxShadow = 'none'
+              },
+            },
+            tablerIcon('user', { size: 20 }),
+          ),
+      // Contiguous Window Controls Group — never hidden.
       h(WindowControls, null),
     ),
   )

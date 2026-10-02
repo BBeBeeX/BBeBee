@@ -11,7 +11,7 @@ import {
   useTransport,
   useTransportAvailability,
 } from '@BBeBee/plugin-player/hooks'
-import { Artwork, ContextMenu, IconButton, SaveToPlaylistPopover, Slider, Text, tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { Artwork, ContextMenu, IconButton, MarqueeText, SaveToPlaylistPopover, Slider, Text, tablerIcon } from '@BBeBee/ui-kit-desktop'
 import { useSaveToPlaylistMenu, useTrackMenu } from '@BBeBee/ui-menus'
 import { useResolvedArtwork } from '@BBeBee/plugin-cache/hooks'
 import { serviceOf, useServiceState, type ArtworkProps } from '@BBeBee/ui-core'
@@ -664,9 +664,10 @@ export function NowPlayingBar({ ctx, currentRoute, onOpenNowPlaying, portalMenus
               minWidth: 0,
             },
           },
-          h(Text, {
+          // 歌名被压缩时走马灯滚动，而不是省略号截断。
+          h(MarqueeText, {
             variant: 'sm',
-            numberOfLines: 1,
+            style: { flex: 1, minWidth: 0 },
             children: state.nowPlaying?.title ?? (state.trackUrn ? 'Loading…' : 'Nothing playing'),
           }),
           currentTrack
@@ -716,10 +717,9 @@ export function NowPlayingBar({ ctx, currentRoute, onOpenNowPlaying, portalMenus
             : null,
         ),
         state.nowPlaying?.artist
-          ? h(Text, {
+          ? h(MarqueeText, {
               variant: 'xs',
               tone: 'muted',
-              numberOfLines: 1,
               children: state.nowPlaying.artist,
             })
           : null,
@@ -778,9 +778,23 @@ export function NowPlayingBar({ ctx, currentRoute, onOpenNowPlaying, portalMenus
         },
         // `stalled` is not `paused`: the UI says buffering and the lock screen
         // keeps reporting playing, so neither flickers on an underrun.
-        state.status === 'stalled'
-          ? h(Text, { variant: 'xs', tone: 'muted', children: 'Buffering…' })
-          : null,
+        // The slot keeps its width whether or not the label is showing, so the
+        // scrubber never resizes when buffering starts and ends.
+        h(
+          'span',
+          {
+            style: {
+              width: 64,
+              flexShrink: 0,
+              display: 'inline-block',
+              overflow: 'hidden',
+              whiteSpace: 'nowrap',
+            },
+          },
+          state.status === 'stalled'
+            ? h(Text, { variant: 'xs', tone: 'muted', children: 'Buffering…' })
+            : null,
+        ),
         h(
           'span',
           { style: { minWidth: 36, textAlign: 'right', display: 'inline-block' } },

@@ -1,5 +1,6 @@
 import { createElement as h } from 'react'
 import type { CSSProperties, ReactElement, ReactNode } from 'react'
+import { HoverLabel } from './HoverLabel.js'
 
 export interface DetailHeroProps {
   /** The small uppercase category line above the title (歌单 / 专辑 / 本地音乐). */
@@ -9,7 +10,6 @@ export interface DetailHeroProps {
   titleSize?: number
   /** Makes the title clickable (the playlist's click-to-edit). */
   onTitleClick?: () => void
-  titleAttr?: string
   /** A plain one-line subtitle under the title (本地/收藏 pages). */
   subtitle?: string
   /** An optional free-form description paragraph (the playlist's description). */
@@ -27,7 +27,8 @@ export interface DetailHeroProps {
  * Without a cover it stacks eyebrow / title / subtitle in a column; with a
  * cover slot it becomes a row aligned to the bottom, cover left. The title
  * line-clamps at two lines — a long album or playlist name truncates instead
- * of breaking the layout.
+ * of breaking the layout — and resting the pointer on it for 3s floats a
+ * label with the full name.
  */
 export function DetailHero(props: DetailHeroProps): ReactElement {
   const hasCover = props.cover !== undefined && props.cover !== null
@@ -85,13 +86,16 @@ export function DetailHero(props: DetailHeroProps): ReactElement {
         props.eyebrow,
       ),
       h(
-        'h1',
-        {
-          onClick: props.onTitleClick,
-          title: props.titleAttr,
-          style: titleStyle,
-        },
-        props.title,
+        HoverLabel,
+        { label: props.title, style: { display: 'block' } },
+        h(
+          'h1',
+          {
+            onClick: props.onTitleClick,
+            style: titleStyle,
+          },
+          props.title,
+        ),
       ),
       props.description
         ? h('p', { style: { margin: '0 0 4px 0', fontSize: 14, color: '#b3b3b3' } }, props.description)

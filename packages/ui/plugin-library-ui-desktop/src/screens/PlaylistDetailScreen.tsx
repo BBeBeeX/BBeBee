@@ -403,7 +403,6 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
       title: detail.name,
       titleSize: detail.name.length > 20 ? 40 : 54,
       onTitleClick: () => setShowEditModal(true),
-      titleAttr: '点击编辑详情',
       description: detail.description,
       cover: h(QuadArtworkCollage, {
         ctx,

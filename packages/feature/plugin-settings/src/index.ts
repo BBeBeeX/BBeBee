@@ -92,7 +92,10 @@ export class SettingsPlugin extends Service implements SettingsService {
           path: '/settings',
           title: '设置',
           icon: 'settings',
-          placement: ['sidebar', 'tab-bar'],
+          // 'tray' opts the page into the desktop top-bar tray: Ui.tray maps
+          // tray-placed routes into tray items. The shells exclude this id
+          // from their sidebars, so the placement only adds reachability.
+          placement: ['sidebar', 'tab-bar', 'tray'],
           order: 95,
         })
       }, 'settings-ui-contributions')

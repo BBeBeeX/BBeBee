@@ -27,7 +27,7 @@ import { useAlbum } from '@BBeBee/plugin-album/hooks'
 import { useResolvedArtwork } from '@BBeBee/plugin-cache/hooks'
 import { formatDuration, formatTotalDuration } from '@BBeBee/toolkit'
 import { addToCollectionSubmenu, openExternalUrl, resolveOriginalResourceUrl, sleepTimerSubmenu, sortMenuItems, useSaveToPlaylistMenu, useTrackMenu } from '@BBeBee/ui-menus'
-import { Artwork, ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, List, SaveToPlaylistPopover, StickyDetailBar, tablerIcon, useDetailBarCollapse, useImageColor, headerGradient, viewModeMenuItems, useViewMode } from '@BBeBee/ui-kit-desktop'
+import { Artwork, ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, HoverLabel, List, SaveToPlaylistPopover, StickyDetailBar, tablerIcon, useDetailBarCollapse, useImageColor, headerGradient, viewModeMenuItems, useViewMode } from '@BBeBee/ui-kit-desktop'
 import { serviceOf } from '@BBeBee/ui-core'
 import type { ArtworkProps, MenuAnchor, MenuItemSpec } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
@@ -239,6 +239,7 @@ function AlbumTrackTableRow({
           : String(index + 1),
     ),
     // Col 2: Title and Artist
+    // 歌名/作者名被截断时，悬浮 3 秒浮出完整名字的 label。
     h(
       'div',
       {
@@ -253,33 +254,43 @@ function AlbumTrackTableRow({
         },
       },
       h(
-        'span',
-        {
-          style: {
-            color: '#FFFFFF',
-            fontSize: 15,
-            fontWeight: 500,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
+        HoverLabel,
+        { label: track.title, style: { display: 'block' } },
+        h(
+          'span',
+          {
+            style: {
+              display: 'block',
+              color: '#FFFFFF',
+              fontSize: 15,
+              fontWeight: 500,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            },
           },
-        },
-        track.title,
+          track.title,
+        ),
       ),
       !compact && artists
         ? h(
-            'span',
-            {
-              style: {
-                color: '#b3b3b3',
-                fontSize: 13,
-                marginTop: 2,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
+            HoverLabel,
+            { label: artists, style: { display: 'block' } },
+            h(
+              'span',
+              {
+                style: {
+                  display: 'block',
+                  color: '#b3b3b3',
+                  fontSize: 13,
+                  marginTop: 2,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                },
               },
-            },
-            artists,
+              artists,
+            ),
           )
         : null,
     ),
@@ -294,12 +305,21 @@ function AlbumTrackTableRow({
               paddingRight: 16,
               fontSize: 13,
               color: '#b3b3b3',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
             },
           },
-          artists || '-',
+          h(
+            HoverLabel,
+            {
+              label: artists || '-',
+              style: {
+                display: 'block',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              },
+            },
+            artists || '-',
+          ),
         )
       : null,
     // Col 3: Album

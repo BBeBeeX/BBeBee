@@ -41,6 +41,8 @@ export { useDetailBarCollapse, type DetailBarCollapse } from './components/useDe
 export { DetailTableHeader, type DetailColumnSpec, type DetailTableHeaderProps } from './components/DetailTableHeader.js'
 export { DetailPlayButton, type DetailPlayButtonProps } from './components/DetailPlayButton.js'
 export { DetailHero, type DetailHeroProps } from './components/DetailHero.js'
+export { HoverLabel, type HoverLabelProps } from './components/HoverLabel.js'
+export { MarqueeText, type MarqueeTextProps } from './components/MarqueeText.js'
 export { viewModeMenuItems, useViewMode, type TrackViewMode, type AlbumViewMode } from './components/ViewMode.js'
 export { tablerIcon } from './icons/index.js'
 
