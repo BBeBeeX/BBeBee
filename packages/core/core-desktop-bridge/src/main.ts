@@ -429,7 +429,10 @@ export async function createHost(ipc: IpcHost, options: HostOptions = {}): Promi
         unknown[],
         string | undefined,
       ]
-      if (service === 'audio') {
+      // The mpv handle polls state at high frequency — logging each poll
+      // floods the console at 40 lines/s.
+      const noisyPoll = service === 'audio' && (method === 'mpvGetState' || method === 'mpvGetFftFrame')
+      if (service === 'audio' && !noisyPoll) {
         options.logger?.info?.(
           `bridge: audio.${method}(${
             Array.isArray(args) && args.length > 0 ? describeAudioArgs(args) : ''
@@ -505,7 +508,7 @@ export async function createHost(ipc: IpcHost, options: HostOptions = {}): Promi
       if (service === 'fs' && method === 'pickDirectory' && typeof result === 'string') {
         extraRoots.add(toFileUri(result))
       }
-      if (service === 'audio') {
+      if (service === 'audio' && !noisyPoll) {
         options.logger?.info?.(
           `bridge: audio.${method} succeeded` +
             (method === 'getOutputDevices' && Array.isArray(result)

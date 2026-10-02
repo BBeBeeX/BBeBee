@@ -139,7 +139,10 @@ export class MpvSourceHandle implements AudioSourceHandle {
             for (const cb of this.endedListeners) cb()
           }
         }
-      }, 50)
+      // 200 ms: the progress bar and lyrics read positionMs at their own
+      // cadence, and each poll crosses the bridge — 50 ms was 40 log pairs/s
+      // for no visible gain.
+      }, 200)
     }
   }
 

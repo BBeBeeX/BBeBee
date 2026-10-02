@@ -522,6 +522,7 @@ public:
         // compressor, limiter, ...) into one libavfilter string; the engine
         // only appends the astats tap that feeds the spectrum/levels.
         const std::string userAf = config.has("af") ? config.get("af").asString() : "";
+        std::cerr << "[audio-engine] af <- " << (userAf.empty() ? "(clean)" : userAf) << "\n";
         applyFilterGraph(userAf);
     }
 

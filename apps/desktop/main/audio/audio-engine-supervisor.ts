@@ -448,6 +448,9 @@ export class AudioEngineSupervisor {
 
   setDspConfig(config: DspConfig): void {
     this.currentDspConfig = config
+    // Logged on purpose: a stale engine binary silently ignores an unknown
+    // config shape — this line is what makes that mismatch visible.
+    this.logger?.info?.('audio-engine-supervisor: dsp chain -> %j', config)
     this.sendCommand({ action: 'setDspConfig', config })
   }
 
