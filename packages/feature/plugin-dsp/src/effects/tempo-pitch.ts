@@ -33,6 +33,16 @@ export const TempoPitchEffect: EffectDefinition<TempoPitchParams> & {
     { name: '低音调 (-2 semitones)', params: { tempo: 1.0, pitch: 0.89 }, builtin: true },
     { name: '高音调 (+2 semitones)', params: { tempo: 1.0, pitch: 1.12 }, builtin: true },
   ],
+  buildLavfi(params: Record<string, unknown>): string {
+    const num = (key: string, dflt: number) =>
+      typeof params[key] === 'number' ? (params[key] as number) : dflt
+    const tempo = Math.max(0.25, Math.min(4, num('tempo', 1)))
+    const pitch = Math.max(0.25, Math.min(4, num('pitch', 1)))
+    if (Math.abs(tempo - 1) < 0.01 && Math.abs(pitch - 1) < 0.01) return ''
+    // rubberband ships in our libmpv builds and shifts tempo and pitch
+    // independently — matching the WebAudio semantics.
+    return `rubberband=tempo=${tempo.toFixed(3)}:pitch=${pitch.toFixed(3)}`
+  },
   build(audioCtx: BaseAudioContext, params: TempoPitchParams): EffectSegment {
     const input = audioCtx.createGain()
     const output = audioCtx.createGain()

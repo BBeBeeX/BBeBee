@@ -19,6 +19,13 @@ export const LimiterEffect: EffectDefinition<LimiterParams> = {
     { name: '严格限制 (-1.0 dB)', params: { ceilingDb: -1.0 }, builtin: true },
     { name: '微弱限制 (-0.1 dB)', params: { ceilingDb: -0.1 }, builtin: true },
   ],
+  buildLavfi(params: Record<string, unknown>): string {
+    const ceiling = typeof params['ceilingDb'] === 'number'
+      ? Math.max(-12, Math.min(0, params['ceilingDb'] as number))
+      : -0.5
+    const limit = Math.pow(10, ceiling / 20) // alimiter takes a linear 0..1 limit
+    return `alimiter=limit=${limit.toFixed(3)}:level=0`
+  },
   build(audioCtx: BaseAudioContext, params: LimiterParams): EffectSegment {
     const node = audioCtx.createDynamicsCompressor()
     const ceiling = Math.min(0, Math.max(-12, params.ceilingDb ?? -0.5))

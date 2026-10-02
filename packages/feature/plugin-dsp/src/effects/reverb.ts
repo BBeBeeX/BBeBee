@@ -75,6 +75,21 @@ export const ReverbEffect: EffectDefinition<ReverbParams> = {
       builtin: true,
     },
   ],
+  buildLavfi(params: Record<string, unknown>): string {
+    const num = (key: string, dflt: number) =>
+      typeof params[key] === 'number' ? (params[key] as number) : dflt
+    const mix = Math.max(0, Math.min(1, num('mix', 0.25)))
+    const decay = Math.max(0.1, Math.min(5, num('decay', 1.5)))
+    const preDelay = Math.max(0, Math.min(0.1, num('preDelay', 0.01)))
+    if (mix <= 0.01) return ''
+    // aecho approximation of the convolver: the dry path stays at unity
+    // (in_gain=1), three echo taps scaled by the mix, delays spread by decay.
+    const d1 = Math.round(80 + preDelay * 1000 + decay * 60)
+    const d2 = Math.round(d1 + decay * 220)
+    const d3 = Math.round(d2 + decay * 330)
+    const g = (m: number) => (mix * m).toFixed(2)
+    return `aecho=in_gain=1:out_gain=1:decays=${d1}|${d2}|${d3}:gains=${g(0.5)}|${g(0.3)}|${g(0.2)}`
+  },
   build(audioCtx: BaseAudioContext, params: ReverbParams): EffectSegment {
     const input = audioCtx.createGain()
     const output = audioCtx.createGain()

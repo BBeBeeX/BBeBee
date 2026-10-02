@@ -21,6 +21,13 @@ export const WidenerEffect: EffectDefinition<WidenerParams> = {
     { name: '开阔声场 (Wide)', params: { width: 1.5, delayMs: 18 }, builtin: true },
     { name: '单声道收窄 (Narrow)', params: { width: 0.5, delayMs: 5 }, builtin: true },
   ],
+  buildLavfi(params: Record<string, unknown>): string {
+    const width = typeof params['width'] === 'number' ? Math.max(0, Math.min(4, params['width'] as number)) : 1.2
+    if (Math.abs(width - 1) < 0.01) return ''
+    // extrastereo scales the side level — the delay-based mid/side widening
+    // of the WebAudio version has no exact libavfilter counterpart.
+    return `extrastereo=m=${width.toFixed(2)}`
+  },
   build(audioCtx: BaseAudioContext, params: WidenerParams): EffectSegment {
     const input = audioCtx.createGain()
     const output = audioCtx.createGain()

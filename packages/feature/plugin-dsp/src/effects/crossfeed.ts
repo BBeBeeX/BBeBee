@@ -21,6 +21,14 @@ export const CrossfeedEffect: EffectDefinition<CrossfeedParams> = {
     { name: '强效混合 (High)', params: { amount: 0.6, cutoffHz: 800 }, builtin: true },
     { name: '轻度减疲劳 (Subtle)', params: { amount: 0.2, cutoffHz: 650 }, builtin: true },
   ],
+  buildLavfi(params: Record<string, unknown>): string {
+    const amount = typeof params['amount'] === 'number' ? Math.max(0, Math.min(1, params['amount'] as number)) : 0.35
+    const cutoff = typeof params['cutoffHz'] === 'number' ? Math.max(200, Math.min(2000, params['cutoffHz'] as number)) : 700
+    // ffmpeg's crossfeed filter pursues the same psychoacoustic idea as the
+    // WebAudio mid/side version — the internals differ, the listening result
+    // is close.
+    return `crossfeed=strength=${amount.toFixed(2)}:range=${cutoff.toFixed(0)}`
+  },
   build(audioCtx: BaseAudioContext, params: CrossfeedParams): EffectSegment {
     const input = audioCtx.createGain()
     const output = audioCtx.createGain()

@@ -366,3 +366,59 @@ describe('DSP effects offline-render determinism', () => {
     seg.dispose()
   })
 })
+
+
+describe('lavfi adapters (native mpv engine)', () => {
+  it('eq10 serializes shelf + peaking bands, band<N> keys overlaying the gains array', () => {
+    expect(
+      Eq10Effect.buildLavfi!({ band0: 6, band2: -3, gains: [0, 0, 0, 0, 6, 0, 0, 0, 0, 0] }),
+    ).toBe(
+      'lowshelf=f=31:g=6.00,equalizer=f=125:width_type=q:w=1.41:g=-3.00,equalizer=f=500:width_type=q:w=1.41:g=6.00',
+    )
+  })
+
+  it('eq10 reads the gains array shape too and emits nothing when flat', () => {
+    expect(
+      Eq10Effect.buildLavfi!({ gains: [0, 0, 0, 0, 6, 0, 0, 0, 0, 0] }),
+    ).toBe('equalizer=f=500:width_type=q:w=1.41:g=6.00')
+    expect(Eq10Effect.buildLavfi!({ gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] })).toBe('')
+  })
+
+  it('preamp and normalize map to the volume filter', () => {
+    expect(PreampEffect.buildLavfi!({ gainDb: -3.5 })).toBe('volume=volume=-3.50dB')
+    expect(PreampEffect.buildLavfi!({ gainDb: 0 })).toBe('')
+    expect(NormalizeEffect.buildLavfi!({ gainDb: 3 })).toBe('volume=volume=3.00dB')
+  })
+
+  it('compressor converts WebAudio seconds to lavfi milliseconds', () => {
+    expect(
+      CompressorEffect.buildLavfi!({ threshold: -24, ratio: 4, attack: 0.003, release: 0.25 }),
+    ).toBe('acompressor=threshold=-24.0dB:ratio=4.0:attack=3:release=250')
+  })
+
+  it('limiter maps the ceiling to a linear alimiter limit', () => {
+    expect(LimiterEffect.buildLavfi!({ ceilingDb: -0.5 })).toBe('alimiter=limit=0.944:level=0')
+  })
+
+  it('crossfeed and widener map their widths', () => {
+    expect(CrossfeedEffect.buildLavfi!({ amount: 0.3, cutoffHz: 700 })).toBe(
+      'crossfeed=strength=0.30:range=700',
+    )
+    expect(WidenerEffect.buildLavfi!({ width: 1.5 })).toBe('extrastereo=m=1.50')
+    expect(WidenerEffect.buildLavfi!({ width: 1 })).toBe('')
+  })
+
+  it('reverb lays three mix-scaled echo taps after the pre-delay', () => {
+    expect(ReverbEffect.buildLavfi!({ mix: 0.5, decay: 1, preDelay: 0 })).toBe(
+      'aecho=in_gain=1:out_gain=1:decays=140|360|690:gains=0.25|0.15|0.10',
+    )
+    expect(ReverbEffect.buildLavfi!({ mix: 0 })).toBe('')
+  })
+
+  it('tempo-pitch maps to rubberband and skips the neutral state', () => {
+    expect(TempoPitchEffect.buildLavfi!({ tempo: 1.25, pitch: 1 })).toBe(
+      'rubberband=tempo=1.250:pitch=1.000',
+    )
+    expect(TempoPitchEffect.buildLavfi!({ tempo: 1, pitch: 1 })).toBe('')
+  })
+})

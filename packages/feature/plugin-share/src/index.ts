@@ -24,19 +24,34 @@ export async function apply(ctx: Context, config: ShareConfig = {}) {
   ctx.logger.info("plugin-share: loaded")
   const fiber = await ctx.plugin(Share, config)
 
-  // Register command when ctx.ui is available
-  ctx.inject(["ui"], (innerCtx) => {
-    return innerCtx.ui.contribute({
-      kind: "command",
-      id: SHARE_COMMANDS.openImport,
-      title: "读取分享卡片",
-      run: () => {
-        innerCtx.share?.openImport()
-      },
-    })
+  // Register command and tray when ctx.ui is available
+  const uiFiber = ctx.inject(["ui"], (innerCtx) => {
+    return innerCtx.effect(function* () {
+      yield innerCtx.ui.contribute({
+        kind: "command",
+        id: SHARE_COMMANDS.openImport,
+        title: "读取分享卡片",
+        run: () => {
+          innerCtx.share?.openImport()
+        },
+      })
+      yield innerCtx.ui.contribute({
+        kind: "tray",
+        id: "share.import",
+        title: "导入分享",
+        icon: "share-box",
+        order: 40,
+        action: () => {
+          innerCtx.share?.openImport()
+        },
+      })
+    }, "share-ui-contributions")
   })
 
-  return () => void fiber.dispose()
+  return () => {
+    fiber.dispose()
+    uiFiber.dispose()
+  }
 }
 
 export default { name, apply }

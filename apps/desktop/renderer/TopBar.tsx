@@ -12,7 +12,7 @@
 
 import { createElement as h, useEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { RouteContribution, ShareService, SleepTimerMode, SleepTimerService, TrayContribution } from '@BBeBee/protocol'
+import type { RouteContribution, SleepTimerMode, SleepTimerService, TrayContribution } from '@BBeBee/protocol'
 import { tablerIcon } from '@BBeBee/ui-kit-desktop'
 import { useSearchSourceSelection, type SearchInterfaceKind } from '@BBeBee/plugin-sources/hooks'
 import { useSleepTimer } from '@BBeBee/plugin-sleep-timer/hooks'
@@ -987,7 +987,7 @@ export function TopBar({
                 tablerIcon('settings', { size: 16 }),
                 'Settings',
               ),
-              moreRoutes.length > 0 || serviceOf<ShareService>(ctx, 'share')
+              moreRoutes.length > 0
                 ? h('div', {
                     style: {
                       height: 1,
@@ -1032,42 +1032,6 @@ export function TopBar({
                   r.title,
                 ),
               ),
-              serviceOf<ShareService>(ctx, 'share')
-                ? h(
-                    'button',
-                    {
-                      key: 'import-share',
-                      type: 'button',
-                      'data-testid': 'topbar-more-menu-import-share',
-                      style: {
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        width: '100%',
-                        textAlign: 'left',
-                        padding: '8px 12px',
-                        borderRadius: 4,
-                        border: 'none',
-                        background: 'transparent',
-                        color: 'var(--text-primary, #F5F7FF)',
-                        fontSize: 13,
-                        cursor: 'pointer',
-                      },
-                      onClick: () => {
-                        setMenuOpen(false)
-                        serviceOf<ShareService>(ctx, 'share')?.openImport?.()
-                      },
-                      onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-                        e.currentTarget.style.backgroundColor = 'var(--surface-hover, #191E30)'
-                      },
-                      onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-                        e.currentTarget.style.backgroundColor = 'transparent'
-                      },
-                    },
-                    tablerIcon('share-box', { size: 16 }),
-                    '导入分享',
-                  )
-                : null,
             )
           : null,
       ),

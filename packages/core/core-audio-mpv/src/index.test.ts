@@ -572,33 +572,93 @@ describe('core-audio-mpv native engine features', () => {
     handle.dispose()
   })
 
-  it('synchronizes native DSP/EQ parameters on dsp/chain-changed', async () => {
-    let capturedDspConfig: unknown = null
+  it('pushes the enabled effect chain as one af string, debounced', async () => {
+    const calls: { method: string; args: unknown[] }[] = []
     const bridgeCall = async (_service: string, method: string, args: unknown[]) => {
-      if (method === 'mpvSetDspConfig') {
-        capturedDspConfig = args[0]
-      }
+      calls.push({ method, args })
+      if (method === 'mpvLoad') return { durationMs: 120_000 }
       return undefined
     }
 
     const { ctx } = await harness({ bridgeCall })
     ;(ctx as unknown as { dsp: unknown }).dsp = {
-      getParams: (id: string) => {
-        if (id === 'eq10') return { gains: [3, 2, 1, 0, -1, -2, -1, 0, 1, 2] }
-        if (id === 'preamp') return { gainDb: 4 }
-        return undefined
-      },
+      chain: [
+        { effectId: 'preamp', enabled: true, ordinal: 0 },
+        { effectId: 'eq10', enabled: true, ordinal: 1 },
+        { effectId: 'reverb', enabled: false, ordinal: 2 },
+      ],
+      definitions: [
+        { id: 'preamp', buildLavfi: () => 'volume=volume=-2.00dB' },
+        { id: 'eq10', buildLavfi: () => 'equalizer=f=500:width_type=q:w=1.41:g=6.00' },
+        { id: 'reverb', buildLavfi: () => 'aecho=in_gain=1' },
+      ],
+      getParams: () => ({}),
+    }
+
+    // A slider drag emits per tick — the two rapid emits must coalesce.
+    ctx.emit('dsp/chain-changed', [])
+    ctx.emit('dsp/chain-changed', [])
+    await new Promise((r) => setTimeout(r, 350))
+
+    const dspCalls = calls.filter((c) => c.method === 'mpvSetDspConfig')
+    expect(dspCalls, 'debounced to one push').toHaveLength(1)
+    // ordinal order, disabled reverb excluded, the chain arrives as ONE af string
+    expect(dspCalls[0]!.args[0]).toEqual({
+      af: 'volume=volume=-2.00dB,equalizer=f=500:width_type=q:w=1.41:g=6.00',
+    })
+  })
+
+  it('pulls the settings-restored chain once at mount', async () => {
+    const calls: { method: string; args: unknown[] }[] = []
+    const bridgeCall = async (_service: string, method: string, args: unknown[]) => {
+      calls.push({ method, args })
+      return undefined
+    }
+    const ctx = new Context()
+    // The chain was restored from settings before the engine mounted — the
+    // change events are already gone, so the engine must pull at init.
+    ;(ctx as unknown as { dsp: unknown }).dsp = {
+      chain: [{ effectId: 'preamp', enabled: true, ordinal: 0 }],
+      definitions: [{ id: 'preamp', buildLavfi: () => 'volume=volume=-3.00dB' }],
+      getParams: () => ({ gainDb: -3 }),
+    }
+
+    await ctx.plugin(plugin, { bridgeCall, createContext: () => createFakeAudioContext() as unknown as BaseAudioContext })
+    await new Promise((r) => setTimeout(r, 350))
+
+    const dspCalls = calls.filter((c) => c.method === 'mpvSetDspConfig')
+    expect(dspCalls).toHaveLength(1)
+    expect(dspCalls[0]!.args[0]).toEqual({ af: 'volume=volume=-3.00dB' })
+  })
+
+  it('skips effects without a lavfi adapter and reports a clean chain', async () => {
+    const calls: { method: string; args: unknown[] }[] = []
+    const bridgeCall = async (_service: string, method: string, args: unknown[]) => {
+      calls.push({ method, args })
+      return undefined
+    }
+
+    const { ctx } = await harness({ bridgeCall })
+    ;(ctx as unknown as { dsp: unknown }).dsp = {
+      chain: [
+        { effectId: 'tempo-pitch', enabled: true, ordinal: 0 },
+        { effectId: 'eq10', enabled: false, ordinal: 1 },
+      ],
+      definitions: [
+        // tempo-pitch registered WITHOUT an adapter (third-party shape)
+        { id: 'tempo-pitch', buildLavfi: undefined },
+        { id: 'eq10', buildLavfi: () => 'equalizer=f=500:width_type=q:w=1.41:g=6.00' },
+      ],
+      getParams: () => ({}),
     }
 
     ctx.emit('dsp/chain-changed', [])
-    // Wait for event handler microtask
-    await new Promise((r) => setTimeout(r, 10))
+    await new Promise((r) => setTimeout(r, 350))
 
-    expect(capturedDspConfig).toEqual({
-      eq: { enabled: true, gains: [3, 2, 1, 0, -1, -2, -1, 0, 1, 2] },
-      preamp: { enabled: true, gainDb: 4 },
-      compressor: undefined,
-    })
+    const dspCalls = calls.filter((c) => c.method === 'mpvSetDspConfig')
+    expect(dspCalls).toHaveLength(1)
+    // disabled eq10 excluded, adapter-less tempo-pitch skipped
+    expect(dspCalls[0]!.args[0]).toEqual({ af: '' })
   })
 
   it('retrieves FFT spectrum frames for visualizer', async () => {

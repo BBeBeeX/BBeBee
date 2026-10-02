@@ -14,7 +14,8 @@ import { dirname, join } from 'node:path'
 import type { AudioMainLogger } from './audio-devices.js'
 
 export interface DspConfig {
-  preamp?: { enabled: boolean; gainDb?: number }
+  /** The enabled effect chain serialized as a libavfilter fragment list. */
+  af?: string
   eq?: { enabled: boolean; gains?: number[] }
   compressor?: {
     enabled: boolean

@@ -518,57 +518,10 @@ public:
         std::lock_guard<std::mutex> lock(engineMutex);
         dspConfig = config;
 
-        std::vector<std::string> filters;
-
-        // Preamp
-        if (config.has("preamp")) {
-            const auto& preamp = config.get("preamp");
-            if (preamp.get("enabled").asBool(false)) {
-                double gainDb = preamp.get("gainDb").asNumber(0.0);
-                char buf[64];
-                std::snprintf(buf, sizeof(buf), "volume=volume=%+.2fdB", gainDb);
-                filters.push_back(buf);
-            }
-        }
-
-        // 10-Band Equalizer
-        if (config.has("eq")) {
-            const auto& eq = config.get("eq");
-            if (eq.get("enabled").asBool(false)) {
-                const auto& gains = eq.get("gains");
-                static const int freqs[10] = { 31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000 };
-                for (size_t i = 0; i < 10 && i < gains.arrVal.size(); ++i) {
-                    double g = gains.arrVal[i].asNumber(0.0);
-                    if (std::abs(g) > 0.05) {
-                        char buf[128];
-                        std::snprintf(buf, sizeof(buf), "equalizer=f=%d:width_type=o:w=1:g=%.2f", freqs[i], g);
-                        filters.push_back(buf);
-                    }
-                }
-            }
-        }
-
-        // Compressor
-        if (config.has("compressor")) {
-            const auto& comp = config.get("compressor");
-            if (comp.get("enabled").asBool(false)) {
-                double th = comp.get("threshold").asNumber(-20.0);
-                double rat = comp.get("ratio").asNumber(4.0);
-                double att = comp.get("attack").asNumber(20.0);
-                double rel = comp.get("release").asNumber(250.0);
-                char buf[128];
-                std::snprintf(buf, sizeof(buf), "acompressor=threshold=%.1fdB:ratio=%.1f:attack=%.1f:release=%.1f",
-                              th, rat, att, rel);
-                filters.push_back(buf);
-            }
-        }
-
-        std::string userAf;
-        for (size_t i = 0; i < filters.size(); ++i) {
-            if (i > 0) userAf += ",";
-            userAf += filters[i];
-        }
-
+        // The renderer composes the ENABLED effect chain (eq10, preamp,
+        // compressor, limiter, ...) into one libavfilter string; the engine
+        // only appends the astats tap that feeds the spectrum/levels.
+        const std::string userAf = config.has("af") ? config.get("af").asString() : "";
         applyFilterGraph(userAf);
     }
 
@@ -742,7 +695,14 @@ private:
                         currentUri = pathStr;
                         if (mpvLib.free_data) mpvLib.free_data(pathStr);
                     }
-                    status = "paused";
+                    // Trust mpv's actual pause flag, not an assumption: a
+                    // play() that raced ahead of FILE_LOADED (the gapless
+                    // re-bind does exactly that) is already sounding — calling
+                    // this "paused" would mute the visualizer and stall the
+                    // status bookkeeping until the next pause change.
+                    int pausedFlag = 1;
+                    if (mpvLib.get_property(mpv, "pause", MPV_FORMAT_FLAG, &pausedFlag) < 0) pausedFlag = 1;
+                    status = pausedFlag ? "paused" : "playing";
                     double durSec = 0.0;
                     if (mpvLib.get_property) {
                         mpvLib.get_property(mpv, "duration", MPV_FORMAT_DOUBLE, &durSec);

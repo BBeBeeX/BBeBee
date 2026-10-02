@@ -5,22 +5,8 @@ export { AudioDeviceEnumerator, cleanAndTagDeviceLabel, type AudioMainLogger } f
 export { AudioEngineSupervisor, type FftFrame, type PlaybackStateEvent, type CrashEvent } from './audio-engine-supervisor.js'
 
 export interface DspConfig {
-  eq?: {
-    enabled: boolean
-    /** 10 bands in dB: 31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000 */
-    gains: number[]
-  }
-  preamp?: {
-    enabled: boolean
-    gainDb: number
-  }
-  compressor?: {
-    enabled: boolean
-    threshold?: number
-    ratio?: number
-    attack?: number
-    release?: number
-  }
+  /** The enabled effect chain serialized as a libavfilter fragment list. */
+  af?: string
 }
 
 export interface AudioHostApi {

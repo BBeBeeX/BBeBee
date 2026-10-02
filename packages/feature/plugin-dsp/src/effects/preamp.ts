@@ -19,6 +19,12 @@ export const PreampEffect: EffectDefinition<PreampParams> = {
     { name: '轻微增益 (+3 dB)', params: { gainDb: 3 }, builtin: true },
     { name: '衰减防过载 (-3 dB)', params: { gainDb: -3 }, builtin: true },
   ],
+  buildLavfi(params: Record<string, unknown>): string {
+    const gainDb = typeof params['gainDb'] === 'number' ? (params['gainDb'] as number) : 0
+    if (Math.abs(gainDb) < 0.01) return ''
+    const clamped = Math.max(-60, Math.min(24, gainDb))
+    return `volume=volume=${clamped.toFixed(2)}dB`
+  },
   build(audioCtx: BaseAudioContext, params: PreampParams): EffectSegment {
     const node = audioCtx.createGain()
     const clampedDb = Math.max(-20, Math.min(20, params.gainDb ?? 0))

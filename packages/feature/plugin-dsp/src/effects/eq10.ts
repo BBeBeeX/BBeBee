@@ -30,6 +30,25 @@ export const Eq10Effect: EffectDefinition<Eq10Params> = {
   defaultOrder: 20,
   Params: createParamSchema(DEFAULT_PARAMS),
   presets: EQ_PRESETS,
+  buildLavfi(params: Record<string, unknown>): string {
+    // setParam stores flat band<N> keys; getParams' preset fallback returns a
+    // gains array — the adapter reads both shapes.
+    const raw: number[] = EQ_BANDS.map((_, i) => {
+      const band = params[`band${i}`]
+      if (typeof band === 'number') return band
+      const gains = Array.isArray(params['gains']) ? (params['gains'] as number[]) : []
+      return typeof gains[i] === 'number' ? gains[i]! : 0
+    })
+    const parts: string[] = []
+    EQ_BANDS.forEach((freq, i) => {
+      const g = Math.max(-12, Math.min(12, raw[i] ?? 0))
+      if (Math.abs(g) <= 0.05) return
+      if (i === 0) parts.push(`lowshelf=f=${freq}:g=${g.toFixed(2)}`)
+      else if (i === EQ_BANDS.length - 1) parts.push(`highshelf=f=${freq}:g=${g.toFixed(2)}`)
+      else parts.push(`equalizer=f=${freq}:width_type=q:w=1.41:g=${g.toFixed(2)}`)
+    })
+    return parts.join(',')
+  },
   build(audioCtx: BaseAudioContext, params: Eq10Params): EffectSegment {
     const rawGains = Array.isArray(params.gains) ? params.gains : []
     const gains = EQ_BANDS.map((_, i) =>

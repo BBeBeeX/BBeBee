@@ -39,6 +39,16 @@ export const CompressorEffect: EffectDefinition<CompressorParams> = {
       builtin: true,
     },
   ],
+  buildLavfi(params: Record<string, unknown>): string {
+    const num = (key: string, dflt: number) =>
+      typeof params[key] === 'number' ? (params[key] as number) : dflt
+    const threshold = Math.max(-60, Math.min(0, num('threshold', -24)))
+    const ratio = Math.max(1, Math.min(20, num('ratio', 4)))
+    const attack = Math.max(0.001, num('attack', 0.003)) * 1000 // WebAudio s → lavfi ms
+    const release = Math.max(0.01, num('release', 0.25)) * 1000
+    // knee has no acompressor counterpart — the hard-knee default applies.
+    return `acompressor=threshold=${threshold.toFixed(1)}dB:ratio=${ratio.toFixed(1)}:attack=${attack.toFixed(0)}:release=${release.toFixed(0)}`
+  },
   build(audioCtx: BaseAudioContext, params: CompressorParams): EffectSegment {
     const node = audioCtx.createDynamicsCompressor()
     node.threshold.value = params.threshold ?? -24

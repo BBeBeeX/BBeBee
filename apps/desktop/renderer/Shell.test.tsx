@@ -22,12 +22,37 @@ import { Shell } from './Shell.js'
 /** Just the slice of `ctx.ui` the shell reads. */
 class UiStub extends Service {
   readonly views = new Map<string, unknown>()
-  routes: { kind: 'route'; id: string; path: string; title: string; placement?: string[] }[] = []
+  routes: { kind: 'route'; id: string; path: string; title: string; placement?: string[]; icon?: string }[] = []
   settings: { kind: 'settings'; id: string; section?: string; title: string }[] = []
-  tray: { kind?: 'tray'; id: string; title: string; icon?: string; targetRoute?: string; order?: number }[] = []
+  private trayItems: { kind?: 'tray'; id: string; title: string; icon?: string; targetRoute?: string; order?: number; action?: () => void | Promise<void> }[] = []
 
   constructor(ctx: Context) {
     super(ctx, 'ui')
+  }
+
+  get tray() {
+    const fromRoutes = this.routes
+      .filter((r) => r.placement?.includes('tray') && !this.trayItems.some((t) => t.id === r.id))
+      .map((r) => ({
+        kind: 'tray' as const,
+        id: r.id,
+        title: r.title,
+        icon: r.icon,
+        targetRoute: r.id,
+      }))
+    return [...this.trayItems, ...fromRoutes]
+  }
+
+  set tray(items) {
+    this.trayItems = items
+  }
+
+  contribute(c: { kind: string; id: string; [key: string]: unknown }) {
+    if (c.kind === 'tray') {
+      this.trayItems.push(c as any)
+      this.ctx.emit('ui/changed')
+    }
+    return () => {}
   }
 
   viewFor(id: string) {
@@ -1075,18 +1100,30 @@ describe('the desktop shell', () => {
     expect(container.querySelector('[data-testid="topbar-tray-popover"]')).toBeNull()
   })
 
-  it('renders topbar more menu with history, download manager, and import share, navigating on click', async () => {
+  it('renders history, download manager, and import share in tray rather than more menu', async () => {
     let shareStub: ShareStub | undefined
     const { container } = await mount(
       (ui) => {
         ui.routes = [
           { kind: 'route', id: 'library.home', path: '/library', title: 'Library', placement: ['sidebar'] },
-          { kind: 'route', id: 'history.view', path: '/history', title: '播放历史', placement: ['more-menu'] },
-          { kind: 'route', id: 'downloads.page', path: '/downloads', title: '下载管理', placement: ['more-menu'] },
+          { kind: 'route', id: 'history.view', path: '/history', title: '播放历史', icon: 'history', placement: ['tray', 'tab-bar'] },
+          { kind: 'route', id: 'downloads.page', path: '/downloads', title: '下载管理', icon: 'download', placement: ['tray'] },
         ]
         ui.views.set('library.home', () => h('p', null, 'Library Screen'))
         ui.views.set('history.view', () => h('p', null, 'History Screen'))
         ui.views.set('downloads.page', () => h('p', null, 'Downloads Screen'))
+        ui.tray = [
+          {
+            kind: 'tray',
+            id: 'share.import',
+            title: '导入分享',
+            icon: 'share-box',
+            order: 40,
+            action: () => {
+              shareStub?.openImport()
+            },
+          },
+        ]
       },
       async (c) => {
         await c.plugin(ShareStub)
@@ -1097,56 +1134,70 @@ describe('the desktop shell', () => {
     // TopBar right group does NOT have standalone import share button
     expect(container.querySelector('[data-testid="topbar-import-share-button"]')).toBeNull()
 
+    // 1. Verify More Menu does NOT contain history, downloads, or import share
     const moreButton = container.querySelector('[data-testid="topbar-more-button"]') as HTMLButtonElement
     expect(moreButton).not.toBeNull()
-    expect(container.querySelector('[data-testid="topbar-more-menu-dropdown"]')).toBeNull()
-
-    // Click more button to expand
     await act(async () => {
       fireEvent.click(moreButton)
     })
-
-    const dropdown = container.querySelector('[data-testid="topbar-more-menu-dropdown"]') as HTMLElement
-    expect(dropdown).not.toBeNull()
-    expect(dropdown.textContent).toContain('Home')
-    expect(dropdown.textContent).toContain('Settings')
-    expect(dropdown.textContent).toContain('播放历史')
-    expect(dropdown.textContent).toContain('下载管理')
-    expect(dropdown.textContent).toContain('导入分享')
-
-    // Click '播放历史'
-    const historyItem = container.querySelector('[data-testid="topbar-more-menu-history.view"]') as HTMLButtonElement
-    expect(historyItem).not.toBeNull()
+    const moreDropdown = container.querySelector('[data-testid="topbar-more-menu-dropdown"]') as HTMLElement
+    expect(moreDropdown).not.toBeNull()
+    expect(moreDropdown.textContent).toContain('Home')
+    expect(moreDropdown.textContent).toContain('Settings')
+    expect(moreDropdown.textContent).not.toContain('播放历史')
+    expect(moreDropdown.textContent).not.toContain('下载管理')
+    expect(moreDropdown.textContent).not.toContain('导入分享')
     await act(async () => {
-      fireEvent.click(historyItem)
+      fireEvent.click(moreButton)
     })
-
-    // Dropdown closes and main interface shows History Screen
     expect(container.querySelector('[data-testid="topbar-more-menu-dropdown"]')).toBeNull()
+
+    // 2. Verify Tray contains history, downloads, and import share
+    const trayButton = container.querySelector('[data-testid="topbar-tray-button"]') as HTMLButtonElement
+    expect(trayButton).not.toBeNull()
+    await act(async () => {
+      fireEvent.click(trayButton)
+    })
+    const trayPopover = container.querySelector('[data-testid="topbar-tray-popover"]') as HTMLElement
+    expect(trayPopover).not.toBeNull()
+
+    const historyTrayItem = container.querySelector('[data-testid="topbar-tray-item-history.view"]') as HTMLButtonElement
+    const downloadsTrayItem = container.querySelector('[data-testid="topbar-tray-item-downloads.page"]') as HTMLButtonElement
+    const importShareTrayItem = container.querySelector('[data-testid="topbar-tray-item-share.import"]') as HTMLButtonElement
+
+    expect(historyTrayItem).not.toBeNull()
+    expect(downloadsTrayItem).not.toBeNull()
+    expect(importShareTrayItem).not.toBeNull()
+
+    expect(historyTrayItem.title).toBe('播放历史')
+    expect(downloadsTrayItem.title).toBe('下载管理')
+    expect(importShareTrayItem.title).toBe('导入分享')
+
+    // Click '播放历史' in tray
+    await act(async () => {
+      fireEvent.click(historyTrayItem)
+    })
+    expect(container.querySelector('[data-testid="topbar-tray-popover"]')).toBeNull()
     expect(container.textContent).toContain('History Screen')
 
-    // Reopen menu and click '下载管理'
+    // Reopen tray and click '下载管理'
     await act(async () => {
-      fireEvent.click(moreButton)
+      fireEvent.click(trayButton)
     })
-    const downloadsItem = container.querySelector('[data-testid="topbar-more-menu-downloads.page"]') as HTMLButtonElement
-    expect(downloadsItem).not.toBeNull()
     await act(async () => {
-      fireEvent.click(downloadsItem)
+      fireEvent.click(container.querySelector('[data-testid="topbar-tray-item-downloads.page"]')!)
     })
-    expect(container.querySelector('[data-testid="topbar-more-menu-dropdown"]')).toBeNull()
+    expect(container.querySelector('[data-testid="topbar-tray-popover"]')).toBeNull()
     expect(container.textContent).toContain('Downloads Screen')
 
-    // Reopen menu and click '导入分享'
+    // Reopen tray and click '导入分享'
     await act(async () => {
-      fireEvent.click(moreButton)
+      fireEvent.click(trayButton)
     })
-    const importShareItem = container.querySelector('[data-testid="topbar-more-menu-import-share"]') as HTMLButtonElement
-    expect(importShareItem).not.toBeNull()
     await act(async () => {
-      fireEvent.click(importShareItem)
+      fireEvent.click(container.querySelector('[data-testid="topbar-tray-item-share.import"]')!)
     })
-    expect(container.querySelector('[data-testid="topbar-more-menu-dropdown"]')).toBeNull()
+    expect(container.querySelector('[data-testid="topbar-tray-popover"]')).toBeNull()
     expect(shareStub?.openImport).toHaveBeenCalled()
   })
 })

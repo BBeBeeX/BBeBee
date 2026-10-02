@@ -226,7 +226,7 @@ export class Downloads extends Service implements DownloadsService {
         path: '/downloads',
         title: '下载管理',
         icon: 'download',
-        placement: ['more-menu'],
+        placement: ['tray'],
         order: 30,
       }),
     )

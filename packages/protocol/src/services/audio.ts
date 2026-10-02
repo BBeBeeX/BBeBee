@@ -233,6 +233,14 @@ export interface EffectDefinition<P = Record<string, unknown>> {
   Params: ParamSchema<P>
   presets?: EffectPreset<P>[]
   build(ctx: BaseAudioContext, params: P): EffectSegment
+  /**
+   * Native-engine adapter (mpv): serialize this effect's params into a
+   * libavfilter fragment for the engine's `af` chain — one or more filters,
+   * comma-separated. Effects without an adapter are skipped (with a log
+   * line) on engines that cannot run Web Audio graphs. `params` is the
+   * effect's current parameter record, defaults merged.
+   */
+  buildLavfi?(params: Record<string, unknown>): string
 }
 
 export interface ChainEntry {

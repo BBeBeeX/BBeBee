@@ -17,7 +17,7 @@ export const name = 'plugin-history'
 /**
  * The route descriptor.
  *
- * `placement: ['more-menu', 'tab-bar']` places it in mobile navigation tab bar and desktop More menu.
+ * `placement: ['tray', 'tab-bar']` places it in mobile navigation tab bar and desktop tray.
  */
 export async function apply(ctx: Context) {
   ctx.logger.info('plugin-history: loaded')
@@ -31,7 +31,7 @@ export async function apply(ctx: Context) {
         path: '/history',
         title: '播放历史',
         icon: 'history',
-        placement: ['more-menu', 'tab-bar'],
+        placement: ['tray', 'tab-bar'],
         order: 25,
       })
     }, 'history-ui-contributions'),

@@ -21,6 +21,13 @@ export const NormalizeEffect: EffectDefinition<NormalizeParams> = {
     { name: '古典安静 (-18 LUFS)', params: { targetLufs: -18, gainDb: -4 }, builtin: true },
     { name: '高响度 (-11 LUFS)', params: { targetLufs: -11, gainDb: 3 }, builtin: true },
   ],
+  buildLavfi(params: Record<string, unknown>): string {
+    // The WebAudio build is a plain gain node (targetLufs informs the UI's
+    // suggested gain, it is not applied here either).
+    const gainDb = typeof params['gainDb'] === 'number' ? Math.max(-20, Math.min(20, params['gainDb'] as number)) : 0
+    if (Math.abs(gainDb) < 0.01) return ''
+    return `volume=volume=${gainDb.toFixed(2)}dB`
+  },
   build(audioCtx: BaseAudioContext, params: NormalizeParams): EffectSegment {
     const node = audioCtx.createGain()
     const gainDb = Math.max(-20, Math.min(20, params.gainDb ?? 0))
