@@ -236,6 +236,26 @@ describe('bridge specifics', () => {
     expect(rows).toEqual(['bystander'])
   })
 
+  it('serializes concurrent transactions from the renderer without collision', async () => {
+    const { ctx } = await makeBridge(await mkdtemp(join(root, 'tx-concurrent-')))
+    await ctx.db.exec('CREATE TABLE t (id INT)')
+
+    const results = await Promise.all([
+      ctx.db.transaction(async (tx) => {
+        await tx.exec('INSERT INTO t VALUES (1)')
+        return 1
+      }),
+      ctx.db.transaction(async (tx) => {
+        await tx.exec('INSERT INTO t VALUES (2)')
+        return 2
+      }),
+    ])
+
+    expect(results).toEqual([1, 2])
+    const rows = (await ctx.db.query<{ id: number }>('SELECT id FROM t ORDER BY id ASC')).map((r) => r.id)
+    expect(rows).toEqual([1, 2])
+  })
+
   it('the capability gate refuses before the call leaves the renderer', async () => {
     const { ctx } = await makeBridge(await mkdtemp(join(root, 'gate-')))
     const { scopeContext } = await import('@BBeBee/kernel')

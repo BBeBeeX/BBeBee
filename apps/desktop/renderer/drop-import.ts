@@ -138,7 +138,12 @@ export async function importDroppedFiles(ctx: Context, fileList: FileList): Prom
   const folderUris: string[] = []
   const audioUris: string[] = []
   for (const path of validPaths) {
+    const ext = extensionOf(path)
     const uri = pathToFileUri(path)
+    if (AUDIO_EXTENSIONS.has(ext)) {
+      audioUris.push(uri)
+      continue
+    }
     if (fs) {
       try {
         const stat = await fs.stat(uri)
@@ -147,12 +152,17 @@ export async function importDroppedFiles(ctx: Context, fileList: FileList): Prom
           continue
         }
       } catch {
-        // Unstatable: fall through and let the extension check — then the
-        // importer — decide, so the user gets a reason rather than a silence.
+        // If outside containment and has no extension, treat as potential folder drop
+        if (!ext) {
+          folderUris.push(uri)
+          continue
+        }
       }
+    } else if (!ext) {
+      folderUris.push(uri)
+      continue
     }
-    if (AUDIO_EXTENSIONS.has(extensionOf(path))) audioUris.push(uri)
-    else result.failed++
+    result.failed++
   }
 
   for (const uri of folderUris) {

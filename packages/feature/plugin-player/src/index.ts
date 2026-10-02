@@ -551,7 +551,11 @@ export class Player extends Service implements PlayerService {
     // and refusing them because no audio happens to be coming out would leave
     // the transport claiming to play a track that is going nowhere.
     if (!this.source || !isPlayingLike(this.transport.status)) {
-      if (this.transport.status === 'loading') this.set({ status: 'paused' })
+      if (this.transport.status === 'loading' || isPlayingLike(this.transport.status)) {
+        this.set({ status: 'paused' })
+        this.publishNowPlaying()
+        void this.persist(true)
+      }
       return
     }
     this.clearStall()
@@ -741,16 +745,26 @@ export class Player extends Service implements PlayerService {
     const token = ++this.startToken
     this.cancelPrefetch()
     this.detachSource()
-    this.model.replace(items)
-    await this.store.replaceQueue(this.model.all)
-    if (this.disposed || this.startToken !== token) return
-    this.emitQueueChanged()
 
-    this.playIntent = true
     const startAt = Math.max(0, Math.min(items.length - 1, startIndex))
     const targetItem =
       opts.startIndex !== undefined || targetUrn !== undefined ? items[startAt] : undefined
 
+    this.set({
+      status: 'loading',
+      currentItemId: targetItem?.id ?? items[0]?.id,
+      trackUrn: targetItem?.trackUrn ?? items[0]?.trackUrn,
+    })
+    this.model.replace(items)
+    try {
+      await this.store.replaceQueue(this.model.all)
+    } catch (err) {
+      this.ownCtx.logger.error('player: replaceQueue failed: %s', String(err))
+    }
+    if (this.disposed || this.startToken !== token) return
+    this.emitQueueChanged()
+
+    this.playIntent = true
     if (targetItem && this.transport.shuffle) {
       this.model.rotateShuffle(targetItem.id)
     }

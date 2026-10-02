@@ -344,6 +344,8 @@ export class DbBridge extends Service implements DbService {
     await this.call('defineSchema', [namespace, migrations])
   }
 
+  private txQueue: Promise<unknown> = Promise.resolve()
+
   /**
    * The callback runs in the renderer while the transaction stays open in
    * main, so statements are tagged with a token that routes them into it.
@@ -351,29 +353,38 @@ export class DbBridge extends Service implements DbService {
    * The same rule as in-process applies: only calls made through the `tx`
    * argument join the transaction. An unrelated `ctx.db.exec()` sends no
    * token and therefore queues behind it in main.
+   *
+   * Concurrent transactions initiated from the renderer are serialized
+   * client-side to prevent colliding on `txBegin`.
    */
   async transaction<T>(fn: (tx: DbService) => Promise<T>): Promise<T> {
-    const token = await this.bridge.txBegin()
-    // Gated too: a transaction is not a way around the gate.
-    const view: DbService = {
-      query: (sql, params = []) => (this.guard(sql), this.call('query', [sql, params], token)),
-      get: (sql, params = []) => (this.guard(sql), this.call('get', [sql, params], token)),
-      exec: (sql, params = []) => (this.guard(sql), this.call('exec', [sql, params], token)),
-      defineSchema: async (ns, migrations) => {
-        assertOwnNamespace(this[Service.resolveConfig](), ns)
-        await this.call('defineSchema', [ns, migrations], token)
-      },
-      transaction: <U>(inner: (tx: DbService) => Promise<U>) => inner(view),
+    const execute = async (): Promise<T> => {
+      const token = await this.bridge.txBegin()
+      // Gated too: a transaction is not a way around the gate.
+      const view: DbService = {
+        query: (sql, params = []) => (this.guard(sql), this.call('query', [sql, params], token)),
+        get: (sql, params = []) => (this.guard(sql), this.call('get', [sql, params], token)),
+        exec: (sql, params = []) => (this.guard(sql), this.call('exec', [sql, params], token)),
+        defineSchema: async (ns, migrations) => {
+          assertOwnNamespace(this[Service.resolveConfig](), ns)
+          await this.call('defineSchema', [ns, migrations], token)
+        },
+        transaction: <U>(inner: (tx: DbService) => Promise<U>) => inner(view),
+      }
+
+      try {
+        const result = await fn(view)
+        await this.bridge.txEnd(token, true)
+        return result
+      } catch (error) {
+        await this.bridge.txEnd(token, false).catch(() => undefined)
+        throw error
+      }
     }
 
-    try {
-      const result = await fn(view)
-      await this.bridge.txEnd(token, true)
-      return result
-    } catch (error) {
-      await this.bridge.txEnd(token, false).catch(() => undefined)
-      throw error
-    }
+    const next = this.txQueue.then(execute, execute)
+    this.txQueue = next.catch(() => undefined)
+    return next as Promise<T>
   }
 }
 

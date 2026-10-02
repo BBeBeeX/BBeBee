@@ -81,21 +81,26 @@ export class PlayerStore {
   async replaceQueue(entries: readonly QueueEntry[]): Promise<void> {
     await this.db.transaction(async (tx) => {
       await tx.exec('DELETE FROM queue_items')
-      for (const entry of entries) await insertEntry(tx, entry)
+      await insertEntries(tx, entries)
     })
   }
 
   async insertQueue(entries: readonly QueueEntry[]): Promise<void> {
     if (entries.length === 0) return
     await this.db.transaction(async (tx) => {
-      for (const entry of entries) await insertEntry(tx, entry)
+      await insertEntries(tx, entries)
     })
   }
 
   async removeQueue(ids: readonly string[]): Promise<void> {
     if (ids.length === 0) return
     await this.db.transaction(async (tx) => {
-      for (const id of ids) await tx.exec('DELETE FROM queue_items WHERE id = ?', [id])
+      const BATCH_SIZE = 50
+      for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+        const chunk = ids.slice(i, i + BATCH_SIZE)
+        const placeholders = chunk.map(() => '?').join(', ')
+        await tx.exec(`DELETE FROM queue_items WHERE id IN (${placeholders})`, chunk)
+      }
     })
   }
 
@@ -420,22 +425,28 @@ function parseContext(raw: string | null): QueueItem['sourceContext'] | undefine
   }
 }
 
-async function insertEntry(
+async function insertEntries(
   tx: { exec(sql: string, params?: SqlValue[]): Promise<unknown> },
-  entry: QueueEntry,
+  entries: readonly QueueEntry[],
 ): Promise<void> {
-  await tx.exec(
-    `INSERT INTO queue_items (id, position, track_urn, source_context_json, added_by, added_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [
-      entry.item.id,
-      entry.position,
-      entry.item.trackUrn,
-      entry.item.sourceContext ? JSON.stringify(entry.item.sourceContext) : null,
-      entry.item.addedBy,
-      entry.item.addedAt ?? Date.now(),
-    ],
-  )
+  const BATCH_SIZE = 50
+  for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+    const chunk = entries.slice(i, i + BATCH_SIZE)
+    const placeholders = chunk.map(() => '(?, ?, ?, ?, ?, ?)').join(', ')
+    const sql = `INSERT INTO queue_items (id, position, track_urn, source_context_json, added_by, added_at) VALUES ${placeholders}`
+    const params: SqlValue[] = []
+    for (const entry of chunk) {
+      params.push(
+        entry.item.id,
+        entry.position,
+        entry.item.trackUrn,
+        entry.item.sourceContext ? JSON.stringify(entry.item.sourceContext) : null,
+        entry.item.addedBy,
+        entry.item.addedAt ?? Date.now(),
+      )
+    }
+    await tx.exec(sql, params)
+  }
 }
 
 function formatDateIso(d: Date): string {
