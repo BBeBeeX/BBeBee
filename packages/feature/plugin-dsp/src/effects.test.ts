@@ -402,7 +402,7 @@ describe('lavfi adapters (native mpv engine)', () => {
 
   it('crossfeed and widener map their widths', () => {
     expect(CrossfeedEffect.buildLavfi!({ amount: 0.3, cutoffHz: 700 })).toBe(
-      'crossfeed=strength=0.30:range=700',
+      'crossfeed=strength=0.30:range=0.28',
     )
     expect(WidenerEffect.buildLavfi!({ width: 1.5 })).toBe('extrastereo=m=1.50')
     expect(WidenerEffect.buildLavfi!({ width: 1 })).toBe('')
@@ -410,7 +410,7 @@ describe('lavfi adapters (native mpv engine)', () => {
 
   it('reverb lays three mix-scaled echo taps after the pre-delay', () => {
     expect(ReverbEffect.buildLavfi!({ mix: 0.5, decay: 1, preDelay: 0 })).toBe(
-      'aecho=in_gain=1:out_gain=1:delays=140|360|690:decays=0.25|0.15|0.10',
+      'aecho=in_gain=1:out_gain=0.75:delays=140|360|690:decays=0.25|0.15|0.10',
     )
     expect(ReverbEffect.buildLavfi!({ mix: 0 })).toBe('')
   })

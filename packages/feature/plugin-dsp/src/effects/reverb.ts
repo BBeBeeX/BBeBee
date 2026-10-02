@@ -82,13 +82,15 @@ export const ReverbEffect: EffectDefinition<ReverbParams> = {
     const decay = Math.max(0.1, Math.min(5, num('decay', 1.5)))
     const preDelay = Math.max(0, Math.min(0.1, num('preDelay', 0.01)))
     if (mix <= 0.01) return ''
-    // aecho approximation of the convolver: the dry path stays at unity
-    // (in_gain=1), three echo taps scaled by the mix, delays spread by decay.
+    // aecho approximation of the convolver: the dry path scales with mix
+    // (out_gain = 1 - mix * 0.5) to mirror WebAudio dry/wet balance and avoid
+    // output saturation warnings, three echo taps scaled by the mix, delays spread by decay.
     const d1 = Math.round(80 + preDelay * 1000 + decay * 60)
     const d2 = Math.round(d1 + decay * 220)
     const d3 = Math.round(d2 + decay * 330)
     const g = (m: number) => (mix * m).toFixed(2)
-    return `aecho=in_gain=1:out_gain=1:delays=${d1}|${d2}|${d3}:decays=${g(0.5)}|${g(0.3)}|${g(0.2)}`
+    const outGain = (1 - mix * 0.5).toFixed(2)
+    return `aecho=in_gain=1:out_gain=${outGain}:delays=${d1}|${d2}|${d3}:decays=${g(0.5)}|${g(0.3)}|${g(0.2)}`
   },
   build(audioCtx: BaseAudioContext, params: ReverbParams): EffectSegment {
     const input = audioCtx.createGain()

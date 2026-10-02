@@ -1425,5 +1425,74 @@ describe('LocalMusicScreen', () => {
       expect(player.calls.some((c) => c.startsWith(TRACK))).toBe(false)
     })
   })
+
+  it('highlights and prioritizes imported tracks when highlightUrns is provided', async () => {
+    const { ctx, sources } = await harness()
+    sources.tracks = [
+      { urn: 'BBeBee:demo:track:1', title: 'Song 1', artists: [{ urn: 'a', name: 'A', role: 'main', ordinal: 0 }] },
+      { urn: 'BBeBee:demo:track:2', title: 'Song 2', artists: [{ urn: 'b', name: 'B', role: 'main', ordinal: 0 }] },
+      { urn: 'BBeBee:demo:track:3', title: 'Song 3', artists: [{ urn: 'c', name: 'C', role: 'main', ordinal: 0 }] },
+    ]
+
+    await withListLayout(async () => {
+      const { container } = render(
+        h(LocalMusicScreen, { ctx, highlightUrns: ['BBeBee:demo:track:2'] }),
+      )
+      await act(async () => {
+        await tick()
+      })
+
+      const rows = container.querySelectorAll('[role="row"]')
+      expect(rows.length).toBeGreaterThanOrEqual(3)
+      // The first track row should be Song 2 (the highlighted track)
+      expect(rows[0]?.textContent).toContain('Song 2')
+      expect(rows[0]?.getAttribute('data-highlighted')).toBe('true')
+      // Non-highlighted tracks should not have data-highlighted
+      expect(rows[1]?.getAttribute('data-highlighted')).toBeNull()
+    })
+  })
+
+  it('refreshes track list when library/changed or scan/finished is emitted', async () => {
+    const { ctx, sources } = await harness()
+    sources.tracks = [
+      { urn: 'BBeBee:demo:track:1', title: 'Song 1', artists: [{ urn: 'a', name: 'A', role: 'main', ordinal: 0 }] },
+    ]
+
+    await withListLayout(async () => {
+      const { container } = render(h(LocalMusicScreen, { ctx }))
+      await act(async () => {
+        await tick()
+      })
+
+      expect(container.textContent).toContain('Song 1')
+      expect(container.textContent).not.toContain('Song Newly Imported')
+
+      // Add a newly imported track and emit library/changed
+      sources.tracks = [
+        ...sources.tracks,
+        { urn: 'BBeBee:demo:track:new', title: 'Song Newly Imported', artists: [{ urn: 'x', name: 'X', role: 'main', ordinal: 0 }] },
+      ]
+
+      await act(async () => {
+        ctx.emit('library/changed', 'track', ['BBeBee:demo:track:new'])
+        await tick()
+      })
+
+      expect(container.textContent).toContain('Song Newly Imported')
+
+      // Now emit scan/finished with another track
+      sources.tracks = [
+        ...sources.tracks,
+        { urn: 'BBeBee:demo:track:scan', title: 'Song From Scan', artists: [{ urn: 'y', name: 'Y', role: 'main', ordinal: 0 }] },
+      ]
+
+      await act(async () => {
+        ctx.emit('scan/finished', 'dir-1', { added: 1, updated: 0, removed: 0, errors: 0 })
+        await tick()
+      })
+
+      expect(container.textContent).toContain('Song From Scan')
+    })
+  })
 })
 

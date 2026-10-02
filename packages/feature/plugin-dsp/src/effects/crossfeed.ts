@@ -26,8 +26,9 @@ export const CrossfeedEffect: EffectDefinition<CrossfeedParams> = {
     const cutoff = typeof params['cutoffHz'] === 'number' ? Math.max(200, Math.min(2000, params['cutoffHz'] as number)) : 700
     // ffmpeg's crossfeed filter pursues the same psychoacoustic idea as the
     // WebAudio mid/side version — the internals differ, the listening result
-    // is close.
-    return `crossfeed=strength=${amount.toFixed(2)}:range=${cutoff.toFixed(0)}`
+    // is close. The 'range' option expects a normalized [0, 1] soundstage wideness.
+    const range = Math.max(0, Math.min(1, (cutoff - 200) / 1800))
+    return `crossfeed=strength=${amount.toFixed(2)}:range=${range.toFixed(2)}`
   },
   build(audioCtx: BaseAudioContext, params: CrossfeedParams): EffectSegment {
     const input = audioCtx.createGain()

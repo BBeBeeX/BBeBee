@@ -11,7 +11,7 @@
  */
 
 import type { Context } from 'cordis'
-import type { FsService, ScannerService } from '@BBeBee/protocol'
+import type { DbService, FsService, ScannerService } from '@BBeBee/protocol'
 
 export interface DropImportResult {
   /** Dropped files that became (or updated) tracks. */
@@ -20,6 +20,8 @@ export interface DropImportResult {
   folders: number
   /** Dropped items that produced nothing — unreadable, or not audio. */
   failed: number
+  /** Track URNs of imported tracks, if known. */
+  importedUrns?: string[]
 }
 
 /**
@@ -157,15 +159,39 @@ export async function importDroppedFiles(ctx: Context, fileList: FileList): Prom
     try {
       await scanner.addSpecifiedDir(uri)
       result.folders++
-      // Incremental, so it costs one stat per unchanged file. Not awaited:
-      // a large folder scans for minutes, and the drop must not appear to
-      // hang for it.
-      void scanner.scan().catch((error: unknown) => {
+      // Race scan with a short timeout (~2.5s) so small/medium folders finish
+      // scanning before we return, enabling highlighting in local music view.
+      // Larger folders continue scanning in background without hanging the UI.
+      const scanPromise = scanner.scan().catch((error: unknown) => {
         ctx.logger?.warn(`drop-import: scan after folder drop failed: ${String(error)}`)
       })
+      await Promise.race([
+        scanPromise,
+        new Promise((resolve) => setTimeout(resolve, 2500)),
+      ])
     } catch (error) {
       ctx.logger?.warn(`drop-import: could not add dropped folder ${uri}: ${String(error)}`)
       result.failed++
+    }
+  }
+
+  if (folderUris.length > 0) {
+    const db = await resolveService<DbService>(ctx, 'db', 300)
+    if (db) {
+      try {
+        const folderConditions = folderUris.map(() => 'uri LIKE ?').join(' OR ')
+        const params = folderUris.map((u) => (u.endsWith('/') ? `${u}%` : `${u}/%`))
+        const rows = await db.query<{ track_urn: string }>(
+          `SELECT track_urn FROM media_bindings WHERE ${folderConditions}`,
+          params,
+        )
+        const urns = rows.map((r) => r.track_urn).filter(Boolean)
+        if (urns.length > 0) {
+          result.importedUrns = Array.from(new Set([...(result.importedUrns ?? []), ...urns]))
+        }
+      } catch (dbErr) {
+        ctx.logger?.warn(`drop-import: querying folder track urns failed: ${String(dbErr)}`)
+      }
     }
   }
 
@@ -174,6 +200,23 @@ export async function importDroppedFiles(ctx: Context, fileList: FileList): Prom
       const summary = await scanner.importFiles(audioUris)
       result.imported = summary.added + summary.updated
       result.failed += summary.errors
+
+      const db = await resolveService<DbService>(ctx, 'db', 300)
+      if (db) {
+        try {
+          const placeholders = audioUris.map(() => '?').join(', ')
+          const rows = await db.query<{ track_urn: string }>(
+            `SELECT track_urn FROM media_bindings WHERE uri IN (${placeholders})`,
+            audioUris,
+          )
+          const urns = rows.map((r) => r.track_urn).filter(Boolean)
+          if (urns.length > 0) {
+            result.importedUrns = Array.from(new Set([...(result.importedUrns ?? []), ...urns]))
+          }
+        } catch (dbErr) {
+          ctx.logger?.warn(`drop-import: querying imported track urns failed: ${String(dbErr)}`)
+        }
+      }
     } catch (error) {
       ctx.logger?.warn(`drop-import: importing dropped files failed: ${String(error)}`)
       result.failed += audioUris.length

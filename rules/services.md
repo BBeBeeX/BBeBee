@@ -27,14 +27,14 @@ Declared in `packages/protocol/src/services/` and augmented onto `Context`:
 | `ctx.secrets` | Keychain and hardware-backed credential storage | `core-secrets-node`, `core-secrets-expo` |
 | `ctx.http` | Outbound HTTP with cookie jar and isolation | `core-http-node`, `core-http-rn` |
 | `ctx.ws` | WebSocket client with capability host checks | `core-http-node` / native |
-| `ctx.audio` | Web Audio API graph (`AudioContext`, DSP nodes) | `core-audio-webaudio` (shared), `core-audio-mpv` (desktop libmpv native engine in a crash-isolated subprocess, direct OS audio output, append-based gapless, audio-level spectrum) |
+| `ctx.audio` | Web Audio API graph (`AudioContext`, DSP nodes) | `core-audio-webaudio` (shared), `core-audio-mpv` (desktop libmpv native engine in a crash-isolated subprocess, direct OS audio output with optional WASAPI exclusive mode, append-based gapless, audio-level spectrum) |
 | `ctx.codec` | Audio metadata, tag reading, PCM decoding | `core-codec-node` (desktop FFmpeg bridge + music-metadata), `core-codec-rn` |
 | `ctx.device` | Network status, battery, media keys, platform info | `core-device-electron`, `core-device-expo` |
 | `ctx.mediaSession`| OS lock-screen now playing surface and controls | `core-media-session-electron`, `core-media-session-rn` |
 | `ctx.background` | Background audio tasks, wake locks, suspend hooks | `core-background-electron`, `core-background-expo` |
 | `ctx.js` | Sandboxed QuickJS evaluator for untrusted scripts | `core-js-quickjs-node` (desktop) |
 | `ctx.shell` | Open external URL, directory pickers | Desktop bridge, mobile intent |
-| `ctx.settings` | User app settings (theme, audio engine, shortcuts) and dynamic contribution registry (`contribute`, `getContributions`) | `plugin-settings` (feature service with store persistence) |
+| `ctx.settings` | User app settings (theme, audio engine & exclusive mode, shortcuts) and dynamic contribution registry (`contribute`, `getContributions`) | `plugin-settings` (feature service with store persistence) |
 | `ctx.theme` | Theme registry, token injection, dynamic theme management | `plugin-theme` (feature service with DOM/store sync) |
 | `ctx.share` | Metadata serialization, image steganography, track/playlist/album/lyrics sharing | `plugin-share` (headless service), `plugin-share-ui-desktop` (views) |
 | `ctx.logger` | Scoped diagnostic logging via Cordis | Core service / Cordis native |
@@ -75,5 +75,13 @@ Declared in `packages/protocol/src/services/` and augmented onto `Context`:
 
 - **`ctx.codec.readMetadata(uri)` returns `tagTypes`:** Tag readers populate `AudioMetadata.tagTypes` (e.g. `['ID3v2.3']`, `['Vorbis']`, `['APEv2']`), allowing the UI to present authentic tag formats to the user without redundant parsing.
 - **`ctx.player.currentStream`:** The player service exposes the active stream handle (`StreamHandle`) for the currently attached source (carrying format, codec, sample rate, channels, bitrate, and byte length). This allows UI components like `TrackInfoModal` to display technical specifications for third-party network streams that lack local filesystem bindings.
+
+---
+
+## 7. Native Audio Engine & Exclusive Mode
+
+- **Exclusive hardware playback (`audioExclusive: boolean`):** In MPV Hi-Fi mode on Windows, enabling `audioExclusive` delegates device locking to WASAPI exclusive mode (`--audio-exclusive=yes`). This bypasses OS software mixing and resampling for bit-perfect output.
+- **Dynamic hot-switching:** `AudioService.setAudioExclusive` / bridge IPC `mpvSetAudioExclusive` applies `audio-exclusive` directly to libmpv at runtime without interrupting playback or unmounting the engine.
+- **Settings UI reactivity:** In `plugin-settings-ui-desktop`, the Exclusive Mode switch conditionally renders under the audio engine selector only when MPV is selected (`isMpv === true`), defaulting to `false`.
 
 

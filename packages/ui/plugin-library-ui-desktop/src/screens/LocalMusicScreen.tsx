@@ -1,7 +1,7 @@
-import { createElement as h, useEffect, useMemo, useState } from 'react'
+import { createElement as h, useCallback, useEffect, useMemo, useState } from 'react'
 import type { ChangeEvent, MouseEvent as ReactMouseEvent, ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { Album, PlayerService, Track } from '@BBeBee/protocol'
+import type { Album, PlayerService, SourcesService, Track } from '@BBeBee/protocol'
 import { ALBUM_VIEWS } from '@BBeBee/plugin-album/views'
 import { serviceOf, type MenuAnchor } from '@BBeBee/ui-core'
 import { ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, List, SaveToPlaylistPopover, StickyDetailBar, Text, tablerIcon, useDetailBarCollapse, viewModeMenuItems, useViewMode, headerGradient } from '@BBeBee/ui-kit-desktop'
@@ -232,7 +232,17 @@ function LocalAlbumRow({
   )
 }
 
-export function LocalMusicScreen({ ctx }: { ctx: Context }): ReactElement {
+export interface LocalMusicScreenProps {
+  ctx: Context
+  highlightUrn?: string
+  highlightUrns?: string[]
+}
+
+export function LocalMusicScreen({
+  ctx,
+  highlightUrn,
+  highlightUrns,
+}: LocalMusicScreenProps): ReactElement {
   const [tracks, setTracks] = useState<readonly Track[]>([])
   const [albums, setAlbums] = useState<readonly Album[]>([])
   const [viewMode, setViewMode] = useState<'tracks' | 'albums'>('tracks')
@@ -258,59 +268,98 @@ export function LocalMusicScreen({ ctx }: { ctx: Context }): ReactElement {
     saveToPlaylistMenuProps,
   } = useTrackLibraryInfo(ctx)
 
+  const targetUrns = useMemo(() => {
+    const set = new Set<string>()
+    if (highlightUrn) set.add(highlightUrn)
+    if (highlightUrns) {
+      for (const u of highlightUrns) {
+        if (u) set.add(u)
+      }
+    }
+    return set
+  }, [highlightUrn, highlightUrns])
+
+  const [activeHighlights, setActiveHighlights] = useState<Set<string>>(() => new Set(targetUrns))
 
   useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    if (!ctx.sources?.listTracks) {
+    setActiveHighlights(new Set(targetUrns))
+    if (targetUrns.size === 0) return
+    const timer = setTimeout(() => {
+      setActiveHighlights(new Set())
+    }, 8000)
+    return () => clearTimeout(timer)
+  }, [targetUrns])
+
+  useEffect(() => {
+    if (targetUrns.size > 0) {
+      setViewMode('tracks')
+    }
+  }, [targetUrns])
+
+  useEffect(() => {
+    if (targetUrns.size > 0 && collapse.scrollerRef.current) {
+      collapse.scrollerRef.current.scrollTop = 0
+    }
+  }, [targetUrns, tracks.length])
+
+  const reload = useCallback(() => {
+    const sources = serviceOf<SourcesService>(ctx, 'sources') ?? ctx.sources
+    if (!sources?.listTracks) {
       setLoading(false)
       return
     }
 
-    const loadAlbums = fetchAllLocalAlbums(ctx.sources).catch(() => [] as Album[])
+    const loadAlbums = fetchAllLocalAlbums(sources).catch(() => [] as Album[])
 
-    Promise.all([fetchAllLocalTracks(ctx.sources), loadAlbums])
+    Promise.all([fetchAllLocalTracks(sources), loadAlbums])
       .then(([loadedTracks, loadedAlbums]) => {
-        if (!cancelled) {
-          setTracks(loadedTracks)
+        setTracks(loadedTracks)
 
-          if (loadedAlbums.length > 0) {
-            setAlbums(loadedAlbums)
-          } else {
-            // Synthesize albums from local tracks if listAlbums returned empty
-            const map = new Map<string, Album>()
-            for (const t of loadedTracks) {
-              const albumTitle = t.albumTitle || '未知专辑'
-              const key = t.albumUrn || `BBeBee:local:album:${encodeURIComponent(albumTitle)}`
-              if (!map.has(key)) {
-                map.set(key, {
-                  urn: key,
-                  title: albumTitle,
-                  artists: t.artists || [],
-                  year: t.year,
-                  artwork: t.artwork,
-                  trackCount: 1,
-                })
-              } else {
-                const existing = map.get(key)!
-                existing.trackCount = (existing.trackCount || 1) + 1
-              }
+        if (loadedAlbums.length > 0) {
+          setAlbums(loadedAlbums)
+        } else {
+          // Synthesize albums from local tracks if listAlbums returned empty
+          const map = new Map<string, Album>()
+          for (const t of loadedTracks) {
+            const albumTitle = t.albumTitle || '未知专辑'
+            const key = t.albumUrn || `BBeBee:local:album:${encodeURIComponent(albumTitle)}`
+            if (!map.has(key)) {
+              map.set(key, {
+                urn: key,
+                title: albumTitle,
+                artists: t.artists || [],
+                year: t.year,
+                artwork: t.artwork,
+                trackCount: 1,
+              })
+            } else {
+              const existing = map.get(key)!
+              existing.trackCount = (existing.trackCount || 1) + 1
             }
-            setAlbums(Array.from(map.values()))
           }
-          setLoading(false)
+          setAlbums(Array.from(map.values()))
         }
+        setLoading(false)
       })
       .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : String(err))
-          setLoading(false)
-        }
+        setError(err instanceof Error ? err.message : String(err))
+        setLoading(false)
       })
-    return () => {
-      cancelled = true
-    }
   }, [ctx])
+
+  useEffect(() => {
+    reload()
+    const offLibrary = ctx.on?.('library/changed', (kind) => {
+      if (kind === 'track' || kind === 'album' || !kind) reload()
+    })
+    const offScan = ctx.on?.('scan/finished', () => {
+      reload()
+    })
+    return () => {
+      offLibrary?.()
+      offScan?.()
+    }
+  }, [ctx, reload])
 
   const sortedTracks = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
@@ -325,6 +374,16 @@ export function LocalMusicScreen({ ctx }: { ctx: Context }): ReactElement {
       : [...tracks]
 
     if (trackSortKey === 'default') {
+      if (targetUrns.size > 0) {
+        const highlighted: Track[] = []
+        const others: Track[] = []
+        for (const t of matching) {
+          if (targetUrns.has(t.urn)) highlighted.push(t)
+          else others.push(t)
+        }
+        const arranged = [...highlighted, ...others]
+        return trackSortOrder === 'desc' ? arranged.reverse() : arranged
+      }
       return trackSortOrder === 'desc' ? matching.reverse() : matching
     }
 
@@ -824,6 +883,7 @@ export function LocalMusicScreen({ ctx }: { ctx: Context }): ReactElement {
                     track: t,
                     index,
                     inLibrary: isTrackInLibrary(t),
+                    highlighted: activeHighlights.has(t.urn),
                     compact: trackViewMode === 'compact',
                     onPress: () =>
                       player?.playFromContext(t.urn, sortedTrackUrns, {

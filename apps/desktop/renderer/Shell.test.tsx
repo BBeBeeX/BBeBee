@@ -1200,5 +1200,72 @@ describe('the desktop shell', () => {
     expect(container.querySelector('[data-testid="topbar-tray-popover"]')).toBeNull()
     expect(shareStub?.openImport).toHaveBeenCalled()
   })
+
+  it('switches to local music and passes highlightUrns when files are dropped', async () => {
+    class MockScanner extends Service {
+      constructor(ctx: Context) {
+        super(ctx, 'scanner')
+      }
+      importFiles = vi.fn().mockResolvedValue({ added: 1, updated: 0, removed: 0, errors: 0 })
+    }
+
+    class MockFs extends Service {
+      constructor(ctx: Context) {
+        super(ctx, 'fs')
+      }
+      stat = vi.fn().mockResolvedValue({ isDirectory: false })
+    }
+
+    class MockDb extends Service {
+      constructor(ctx: Context) {
+        super(ctx, 'db')
+      }
+      query = vi.fn().mockResolvedValue([{ track_urn: 'BBeBee:local:track:dropped-1' }])
+    }
+
+    let localProps: any = null
+    const { container } = await mount(
+      (ui) => {
+        ui.routes = [
+          route('sources.recommend', 'Home'),
+          route('library.local', '本地文件'),
+        ]
+        ui.views.set('sources.recommend', () => h('div', null, 'Home Screen'))
+        ui.views.set('library.local', (props: any) => {
+          localProps = props
+          return h('div', { 'data-testid': 'local-music-view' }, `Local Music: ${props.highlightUrn}`)
+        })
+      },
+      async (ctx) => {
+        await ctx.plugin(MockFs)
+        await ctx.plugin(MockScanner)
+        await ctx.plugin(MockDb)
+      },
+    )
+
+    const file = new File(['audio content'], 'dropped.mp3')
+    window.BBeBee = {
+      files: { getPath: () => '/music/dropped.mp3' },
+    } as any
+
+    const rootDiv = container.firstElementChild as HTMLElement
+    await act(async () => {
+      fireEvent.drop(rootDiv, {
+        dataTransfer: {
+          files: [file],
+          types: ['Files'],
+        },
+      })
+    })
+
+    // Wait for async importDroppedFiles and navigation
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 80))
+    })
+
+    expect(container.querySelector('[data-testid="local-music-view"]')).not.toBeNull()
+    expect(localProps?.highlightUrn).toBe('BBeBee:local:track:dropped-1')
+    expect(localProps?.highlightUrns).toEqual(['BBeBee:local:track:dropped-1'])
+  })
 })
 

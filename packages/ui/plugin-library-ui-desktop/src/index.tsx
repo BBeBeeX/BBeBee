@@ -22,7 +22,7 @@ import { CollectionScreen } from './screens/CollectionScreen.js'
 export { LibraryScreen, type LibraryScreenProps } from './screens/LibraryScreen.js'
 export { PlaylistDetailScreen } from './screens/PlaylistDetailScreen.js'
 export { FavoritesScreen } from './screens/FavoritesScreen.js'
-export { LocalMusicScreen } from './screens/LocalMusicScreen.js'
+export { LocalMusicScreen, type LocalMusicScreenProps } from './screens/LocalMusicScreen.js'
 export { CollectionScreen } from './screens/CollectionScreen.js'
 export {
   collectAllFolderTracks,

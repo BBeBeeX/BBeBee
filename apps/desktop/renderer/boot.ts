@@ -184,6 +184,7 @@ function decodableFormats(): string[] {
 
 export interface DesktopAudioConfig {
   initialEngine?: 'mpv' | 'wasapi' | 'webaudio'
+  initialAudioExclusive?: boolean
   fetchBytes: (
     src: string,
     opts: { headers?: Record<string, string>; signal?: AbortSignal },
@@ -201,6 +202,7 @@ export class DesktopAudioService extends Service implements AudioService {
   private lastNativeAf?: string
   private currentVolume = 0.8
   private currentMuted = false
+  private currentAudioExclusive = false
   private currentDeviceId = 'default'
 
   private readonly interruptionListeners = new Set<(e: InterruptionEvent) => void>()
@@ -214,6 +216,7 @@ export class DesktopAudioService extends Service implements AudioService {
     private readonly config: DesktopAudioConfig,
   ) {
     super(ctx, 'audio')
+    this.currentAudioExclusive = config.initialAudioExclusive ?? false
   }
 
   async [Service.init]() {
@@ -315,6 +318,16 @@ export class DesktopAudioService extends Service implements AudioService {
   async setOutputDevice(id: string): Promise<void> {
     this.currentDeviceId = id
     await this.activeEngine.setOutputDevice(id)
+  }
+
+  async setAudioExclusive(exclusive: boolean): Promise<void> {
+    this.currentAudioExclusive = exclusive
+    if (this.config.bridgeCall) {
+      await this.config.bridgeCall('audio', 'mpvSetAudioExclusive', [exclusive]).catch(() => {})
+    }
+    if (this.activeEngine && typeof (this.activeEngine as unknown as { setAudioExclusive?: (e: boolean) => Promise<void> }).setAudioExclusive === 'function') {
+      await (this.activeEngine as unknown as { setAudioExclusive: (e: boolean) => Promise<void> }).setAudioExclusive(exclusive).catch(() => {})
+    }
   }
 
   onInterruption(cb: (e: InterruptionEvent) => void): Disposable {
@@ -428,6 +441,9 @@ export class DesktopAudioService extends Service implements AudioService {
     // chain the dsp plugin already serialized (no-op for webaudio).
     if (effectiveKey === 'mpv' && this.lastNativeAf !== undefined && this.config.bridgeCall) {
       void this.config.bridgeCall('audio', 'mpvSetDspConfig', [{ af: this.lastNativeAf }]).catch(() => {})
+    }
+    if (effectiveKey === 'mpv' && this.currentAudioExclusive && this.config.bridgeCall) {
+      void this.config.bridgeCall('audio', 'mpvSetAudioExclusive', [this.currentAudioExclusive]).catch(() => {})
     }
   }
 
@@ -547,6 +563,7 @@ export async function boot(): Promise<App> {
 
   // Determine initial audio engine: check persisted settings in store.json
   let initialEngine: 'mpv' | 'wasapi' | 'webaudio' = hostPlatform() === 'windows' ? 'mpv' : 'webaudio'
+  let initialAudioExclusive: boolean | undefined
   let preloadedUserAgent: string | undefined
   let preloadedStoreData: Record<string, unknown> | undefined
   try {
@@ -555,10 +572,13 @@ export async function boot(): Promise<App> {
     if (raw && typeof raw === 'string') {
       preloadedStoreData = JSON.parse(raw) as Record<string, unknown>
       const prefs = preloadedStoreData['preferences'] as
-        | { audioOutputEngine?: 'mpv' | 'wasapi' | 'webaudio'; userAgent?: string }
+        | { audioOutputEngine?: 'mpv' | 'wasapi' | 'webaudio'; audioExclusive?: boolean; userAgent?: string }
         | undefined
       if (prefs?.audioOutputEngine === 'mpv' || prefs?.audioOutputEngine === 'wasapi' || prefs?.audioOutputEngine === 'webaudio') {
         initialEngine = prefs.audioOutputEngine === 'wasapi' ? 'mpv' : prefs.audioOutputEngine
+      }
+      if (typeof prefs?.audioExclusive === 'boolean') {
+        initialAudioExclusive = prefs.audioExclusive
       }
       if (typeof prefs?.userAgent === 'string') preloadedUserAgent = prefs.userAgent
     }
@@ -626,6 +646,7 @@ export async function boot(): Promise<App> {
         DesktopAudioService,
         {
           initialEngine,
+          initialAudioExclusive,
           bridgeCall: window.BBeBeeBridge?.call,
           fetchBytes: createAudioFetchBytes(transport),
         },
@@ -698,6 +719,9 @@ export async function boot(): Promise<App> {
       }
       if (s.audioOutputDeviceId) {
         void scoped.audio?.setOutputDevice?.(s.audioOutputDeviceId).catch(() => {})
+      }
+      if (s.audioExclusive !== undefined) {
+        void scoped.audio?.setAudioExclusive?.(s.audioExclusive).catch(() => {})
       }
       if (s.userAgent !== undefined) {
         scoped.http?.setUserAgent?.(s.userAgent)

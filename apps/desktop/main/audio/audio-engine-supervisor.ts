@@ -75,6 +75,7 @@ export class AudioEngineSupervisor {
   private currentUri?: string
   private currentVolume = 0.8
   private currentMuted = false
+  private currentAudioExclusive = false
   private currentDeviceId = 'default'
   private currentDspConfig?: DspConfig
   private visualizerEnabled = true
@@ -236,12 +237,14 @@ export class AudioEngineSupervisor {
         config: {
           deviceId: this.currentDeviceId,
           fftSize: this.currentFftSize,
+          audioExclusive: this.currentAudioExclusive,
         },
       })
 
       // Restore parameters if reconnecting
       if (this.currentVolume !== 0.8) this.setVolume(this.currentVolume)
       if (this.currentMuted) this.setMuted(this.currentMuted)
+      if (this.currentAudioExclusive) this.setAudioExclusive(this.currentAudioExclusive)
       if (this.currentDspConfig) this.setDspConfig(this.currentDspConfig)
     } catch (err) {
       this.logger?.error?.('audio-engine-supervisor: failed to spawn worker: %s', String(err))
@@ -439,6 +442,11 @@ export class AudioEngineSupervisor {
   setMuted(muted: boolean): void {
     this.currentMuted = muted
     this.sendCommand({ action: 'setMuted', muted })
+  }
+
+  setAudioExclusive(exclusive: boolean): void {
+    this.currentAudioExclusive = exclusive
+    this.sendCommand({ action: 'setAudioExclusive', exclusive })
   }
 
   setOutputDevice(deviceId: string): void {

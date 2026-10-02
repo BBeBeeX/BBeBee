@@ -506,16 +506,25 @@ export function Shell({ ctx }: { ctx: Context }) {
       const files = e.dataTransfer?.files
       if (!files || files.length === 0) return
       void importDroppedFiles(ctx, files)
-        .then(({ imported, folders, failed }) => {
+        .then(({ imported, folders, failed, importedUrns }) => {
           const parts: string[] = []
           if (folders > 0) parts.push(`已添加 ${folders} 个文件夹，正在扫描`)
           if (imported > 0) parts.push(`已导入 ${imported} 首曲目`)
           if (failed > 0) parts.push(`${failed} 项无法导入`)
           setDropMessage(parts.length > 0 ? parts.join('，') : '未发现可导入的内容')
+
+          if (imported > 0 || folders > 0 || (importedUrns && importedUrns.length > 0)) {
+            navigateTo(
+              'library.local',
+              importedUrns && importedUrns.length > 0
+                ? { highlightUrns: importedUrns, highlightUrn: importedUrns[0] }
+                : undefined,
+            )
+          }
         })
         .catch(() => setDropMessage('导入失败，请重试'))
     },
-    [ctx],
+    [ctx, navigateTo],
   )
 
   const currentItem: HistoryItem | undefined =
@@ -534,6 +543,13 @@ export function Shell({ ctx }: { ctx: Context }) {
 
   const pagesToRender = useMemo(() => {
     const map = new Map(cachedPages)
+    if (currentId === 'library.local') {
+      for (const [k, p] of cachedPages) {
+        if (p.id === 'library.local' && k !== currentKey) {
+          map.delete(k)
+        }
+      }
+    }
     if (currentKey && currentId && !map.has(currentKey)) {
       map.set(currentKey, { key: currentKey, id: currentId, params: currentParams })
     }
@@ -543,9 +559,21 @@ export function Shell({ ctx }: { ctx: Context }) {
   useEffect(() => {
     if (currentKey && currentId) {
       setCachedPages((prev) => {
-        if (prev.has(currentKey)) return prev
+        let changed = false
         const next = new Map(prev)
-        next.set(currentKey, { key: currentKey, id: currentId, params: currentParams })
+        if (currentId === 'library.local') {
+          for (const [k, p] of prev) {
+            if (p.id === 'library.local' && k !== currentKey) {
+              next.delete(k)
+              changed = true
+            }
+          }
+        }
+        if (!next.has(currentKey)) {
+          next.set(currentKey, { key: currentKey, id: currentId, params: currentParams })
+          changed = true
+        }
+        if (!changed) return prev
         if (next.size > 20) {
           const firstKey = next.keys().next().value
           if (firstKey && firstKey !== currentKey) {

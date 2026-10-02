@@ -117,6 +117,18 @@ rather than embedding a duplicate DSP section inside the main settings page.
 | `tempo-pitch` | 70 | JS `AudioWorklet` (phase vocoder) | ⚠️ CPU-heavy; off by default, disabled automatically on low battery |
 | `limiter` | 90 | `DynamicsCompressorNode`, hard settings | Always last; protects against cumulative effect gain |
 
+### Native libavfilter adapters (MPV engine)
+
+When running the native MPV engine (`@BBeBee/core-audio-mpv`), effects declare an optional `buildLavfi(params)` adapter to generate FFmpeg filtergraph fragments executed directly inside the native process:
+- `preamp`: `volume=volume=...dB`
+- `eq10`: 10-band chain (`lowshelf`, `equalizer`, `highshelf`)
+- `normalize`: ReplayGain volume adjustment
+- `compressor`: `acompressor`
+- `reverb`: `aecho=in_gain=1:out_gain=...:delays=...:decays=...`
+- `widener`: `extrastereo=m=...`
+- `crossfeed`: `crossfeed=strength=...:range=...` (cutoff frequency normalized to range `[0, 1]`)
+- `limiter`: `alimiter=limit=...:level=0`
+
 > ⚠️ `tempo-pitch` runs on the audio thread as an `AudioWorklet` created from the `AudioContext`
 > that `build()` receives — like every other effect, it imports nothing platform-specific and does
 > not know which engine is underneath. It is nonetheless the one effect with real performance risk

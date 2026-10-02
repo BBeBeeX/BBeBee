@@ -98,6 +98,8 @@ export interface AudioService {
 
   listOutputDevices(): Promise<OutputDevice[]>
   setOutputDevice(id: string): Promise<void>
+  /** Configure exclusive mode for native audio backend (e.g. MPV WASAPI exclusive). */
+  setAudioExclusive?(exclusive: boolean): Promise<void>
 
   /** Preload or append next track for gapless playback transitions. */
   preloadNext?(src: string | Uri, opts?: { headers?: Record<string, string> }): Promise<void>

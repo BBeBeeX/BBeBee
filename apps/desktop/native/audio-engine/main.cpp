@@ -251,6 +251,7 @@ public:
         fftSize = config.get("fftSize").asInt(128);
         fftProcessor.setFftSize(fftSize);
         deviceId = config.get("deviceId").asString("default");
+        audioExclusive = config.get("audioExclusive").asBool(false);
         std::string customAo = config.get("ao").asString("");
 
         bool hasMpv = mpvLib.load();
@@ -272,6 +273,10 @@ public:
 
                 if (deviceId != "default" && !deviceId.empty()) {
                     mpvLib.set_option_string(mpv, "audio-device", deviceId.c_str());
+                }
+
+                if (audioExclusive) {
+                    mpvLib.set_option_string(mpv, "audio-exclusive", "yes");
                 }
 
                 mpvLib.set_option_string(mpv, "keep-open", "yes");
@@ -467,6 +472,14 @@ public:
         }
     }
 
+    void setAudioExclusive(bool exclusive) {
+        std::lock_guard<std::mutex> lock(engineMutex);
+        audioExclusive = exclusive;
+        if (mpv && mpvLib.set_property_string) {
+            mpvLib.set_property_string(mpv, "audio-exclusive", exclusive ? "yes" : "no");
+        }
+    }
+
     void append(const std::string& uri, bool playNow = false) {
         std::lock_guard<std::mutex> lock(engineMutex);
         if (mpv && mpvLib.command) {
@@ -572,6 +585,7 @@ private:
     int durationMs = 0;
     double volume = 0.8;
     bool muted = false;
+    bool audioExclusive = false;
     std::string deviceId = "default";
     int sampleRate = 44100;
     int channels = 2;
@@ -962,6 +976,8 @@ int main(int argc, char* argv[]) {
             app.setMuted(cmd.get("muted").asBool(false));
         } else if (action == "setOutputDevice") {
             app.setOutputDevice(cmd.get("deviceId").asString("default"));
+        } else if (action == "setAudioExclusive") {
+            app.setAudioExclusive(cmd.get("exclusive").asBool(false));
         } else if (action == "setDspConfig") {
             app.setDspConfig(cmd.get("config"));
         } else if (action == "setVisualizer") {

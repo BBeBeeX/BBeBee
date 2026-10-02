@@ -72,6 +72,8 @@ export interface AudioService {
 
   listOutputDevices(): Promise<{ id: string; label: string; isDefault: boolean }[]>
   setOutputDevice(id: string): Promise<void>
+  /** Configure exclusive mode for native audio backend (e.g. MPV WASAPI exclusive). */
+  setAudioExclusive?(exclusive: boolean): Promise<void>
 
   /** Interruptions, route changes, focus loss. See §5. */
   onInterruption(cb: (e: { type: 'began' | 'ended'; shouldResume: boolean }) => void): Disposable
@@ -116,9 +118,10 @@ effects are rebuilt without ever touching a playing source. The two lifetimes ar
   - **Delivered Production Engine (Route A: `@BBeBee/core-audio-webaudio` via `react-native-audio-api`)**: Native audio graph running directly on mobile OS audio subsystems (Apple CoreAudio on iOS, Google Oboe/AAudio on Android). Provides low-latency audio buffering, system background audio, and audio focus interruption handling.
   - **Roadmap Route B (`@BBeBee/core-audio-mpv` via in-process libmpv JNI/JSI)**: Architectural target for mobile audiophile playback. Because mobile sandboxes disallow child process spawning, Route B is designed as an in-process native shared library (`libmpv.so` on Android, `mpv.framework` on iOS). When compiled, it interfaces via TurboModule JSI to provide hardware decoding and stream buffering. In builds where the native library is not yet bundled, `MobileAudioService` automatically operates on Route A (WebAudio) to ensure reliable audio output.
   - **State Continuity & Audio Interruption Management**: Audio settings and system interruptions (phone calls, alarms) via `AudioManager.observeAudioInterruptions` are handled uniformly at the composition root.
-- **Audio Output Engine & Device Selection in Settings (`audioOutputEngine`, `audioOutputDeviceId`)**:
+- **Audio Output Engine, Exclusive Mode & Device Selection in Settings (`audioOutputEngine`, `audioExclusive`, `audioOutputDeviceId`)**:
   Settings provide output driver and hardware device configuration under the *Audio Output Engine & Devices* section:
   - **Engine Choice (Default: MPV Hi-Fi on Windows, WebAudio elsewhere)**: MPV Hi-Fi provides native crash isolation and direct WASAPI output; WebAudio provides the standard Web Audio graph.
+  - **Exclusive Mode (`audioExclusive`, default: `false`)**: When the MPV Hi-Fi engine is active, a dedicated toggle switch appears beneath the audio backend selector. When enabled, libmpv configures direct exclusive hardware access (`--audio-exclusive=yes`), delivering bit-perfect output with WASAPI exclusive mode on Windows (bypassing the OS shared audio mixer, sample rate conversions, and system sound mixing). The setting is reactive and hot-swappable at runtime without playback interruption through `ctx.audio.setAudioExclusive(exclusive)` / bridge IPC `mpvSetAudioExclusive`, updating libmpv's `audio-exclusive` property dynamically.
   - **Selectable Audio Output Devices**:
     - **Full System Hardware Probing**: Electron main process unmasks Chromium device labels by handling `'speaker-selection'` and `'media'` permissions, while querying native OS subsystems (Windows Registry & CIM MMDevices, macOS System Profiler, Linux pactl/aplay) to resolve exact hardware friendly names (speakers, headphones, external USB DACs).
     - **Driver Destination Routing**: Selecting a device persists `settings.audioOutputDeviceId`. On boot and upon change, the active engine redirects output to the chosen endpoint — `AudioContext.setSinkId` receives the Chromium id, while the same id is label-matched against the bridge's native device list and the resolved OS device is forwarded to main's `audio.setOutputDevice`. The mpv engine additionally prefers its own `audio-device-list` for enumeration (see above). Both engines run the shared routing through shared code, so they cannot drift.

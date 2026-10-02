@@ -146,6 +146,7 @@ export interface AudioHost {
   mpvSeek?(positionMs: number): Promise<unknown>
   mpvSetVolume?(volume: number): Promise<unknown>
   mpvSetMuted?(muted: boolean): Promise<unknown>
+  mpvSetAudioExclusive?(exclusive: boolean): Promise<unknown>
   mpvSetDspConfig?(config: unknown): Promise<unknown>
   mpvSetVisualizer?(enabled: boolean, fftSize?: number): Promise<unknown>
   mpvGetFftFrame?(): Promise<unknown>
@@ -236,7 +237,7 @@ const ALLOWED: Record<BridgedService, ReadonlySet<string>> = {
   audio: new Set([
     'getOutputDevices', 'setOutputDevice',
     'mpvLoad', 'mpvAppend', 'mpvPlay', 'mpvPause', 'mpvStop', 'mpvSeek',
-    'mpvSetVolume', 'mpvSetMuted', 'mpvSetDspConfig', 'mpvSetVisualizer',
+    'mpvSetVolume', 'mpvSetMuted', 'mpvSetAudioExclusive', 'mpvSetDspConfig', 'mpvSetVisualizer',
     'mpvGetFftFrame', 'mpvGetState', 'mpvGetAudioDevices',
   ]),
 }
@@ -327,6 +328,7 @@ export async function createHost(ipc: IpcHost, options: HostOptions = {}): Promi
     mpvSeek: options.audio?.mpvSeek ?? (async () => {}),
     mpvSetVolume: options.audio?.mpvSetVolume ?? (async () => {}),
     mpvSetMuted: options.audio?.mpvSetMuted ?? (async () => {}),
+    mpvSetAudioExclusive: options.audio?.mpvSetAudioExclusive ?? (async () => {}),
     mpvSetDspConfig: options.audio?.mpvSetDspConfig ?? (async () => {}),
     mpvSetVisualizer: options.audio?.mpvSetVisualizer ?? (async () => {}),
     mpvGetFftFrame: options.audio?.mpvGetFftFrame ?? (async () => null),

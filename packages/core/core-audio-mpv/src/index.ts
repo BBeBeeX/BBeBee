@@ -520,6 +520,13 @@ export class AudioMpv extends Service implements AudioService {
     }
   }
 
+  async setAudioExclusive(exclusive: boolean): Promise<void> {
+    const bridge = resolveBridgeCall(this.config.bridgeCall)
+    if (bridge) {
+      await bridge('audio', 'mpvSetAudioExclusive', [exclusive]).catch(() => undefined)
+    }
+  }
+
   onInterruption(cb: (e: InterruptionEvent) => void): Disposable {
     this.interruptionListeners.add(cb)
     return () => {

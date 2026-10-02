@@ -16,6 +16,8 @@ export interface LibraryTrackRowProps {
   compact?: boolean
   /** 实时收藏状态：未收藏显示加号，已收藏显示红心。 */
   inLibrary: boolean
+  /** 是否高亮显示（例如刚刚拖拽导入的歌曲）。 */
+  highlighted?: boolean
   onPress: () => void
   onMore: (anchor: { x: number; y: number }) => void
   onOpenPlaylistMenu: (track: Track, anchor: MenuAnchor) => void
@@ -46,6 +48,7 @@ export function LibraryTrackRow({
   index,
   compact,
   inLibrary,
+  highlighted,
   onPress,
   onMore,
   onOpenPlaylistMenu,
@@ -64,6 +67,7 @@ export function LibraryTrackRow({
     {
       role: 'row',
       tabIndex: 0,
+      'data-highlighted': highlighted ? 'true' : undefined,
       onMouseEnter: () => setHovered(true),
       onMouseLeave: () => setHovered(false),
       onClick: onPress,
@@ -81,8 +85,15 @@ export function LibraryTrackRow({
         padding: '0 32px',
         borderRadius: 4,
         cursor: 'pointer',
-        background: hovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
-        transition: 'background-color 0.15s ease',
+        background: hovered
+          ? highlighted
+            ? 'rgba(95, 135, 255, 0.28)'
+            : 'rgba(255, 255, 255, 0.1)'
+          : highlighted
+          ? 'rgba(95, 135, 255, 0.18)'
+          : 'transparent',
+        borderLeft: highlighted ? '3px solid var(--accent-primary, #5F87FF)' : '3px solid transparent',
+        transition: 'background-color 0.15s ease, border-color 0.15s ease',
         boxSizing: 'border-box',
       },
     },

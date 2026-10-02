@@ -105,6 +105,18 @@ export function apply(ctx: Context) {
 | `tempo-pitch` | 70 | JS `AudioWorklet` (phase vocoder) | ⚠️ CPU 开销大；默认关闭，低电量时自动禁用 |
 | `limiter` | 90 | `DynamicsCompressorNode`, hard settings | 永远在最后；防止各效果增益累积爆音 |
 
+### 原生 libavfilter 适配器 (MPV 引擎)
+
+在运行原生 MPV 引擎（`@BBeBee/core-audio-mpv`）时，效果器声明可选的 `buildLavfi(params)` 适配器生成 FFmpeg 滤镜链片段，并在原生进程内直接执行：
+- `preamp`: `volume=volume=...dB`
+- `eq10`: 10 段均衡滤镜链（`lowshelf`, `equalizer`, `highshelf`）
+- `normalize`: ReplayGain 增益调整
+- `compressor`: `acompressor`
+- `reverb`: `aecho=in_gain=1:out_gain=...:delays=...:decays=...`
+- `widener`: `extrastereo=m=...`
+- `crossfeed`: `crossfeed=strength=...:range=...`（截断频率归一化至 `[0, 1]` 范围）
+- `limiter`: `alimiter=limit=...:level=0`
+
 > ⚠️ `tempo-pitch` 作为 `AudioWorklet` 跑在音频线程上，从 `build()` 收到的那个 `AudioContext` 创建——与所有其他效果一样，它不导入任何平台相关的东西，也不知道底层是哪个引擎。尽管如此，它仍是唯一在中端 Android 上有真实性能风险的效果：它会自行上报掉帧（dropout）计数，在风险出现时以用户可见的提示自我禁用，而不是拖垮整条效果链。
 
 ---

@@ -289,6 +289,24 @@ export function PlaybackSection({
           }),
         ),
       }),
+      isMpv &&
+        h(SettingsRow, {
+          title: '独占模式 (Exclusive Mode)',
+          description: settings.audioExclusive
+            ? '已开启：MPV 独占音频输出设备（WASAPI 独占），提供位完美音频输出，其他应用程序在此期间将无法发声'
+            : '已关闭：与其他应用程序共享音频输出设备（WASAPI 共享模式）',
+          action: h(Switch, {
+            checked: settings.audioExclusive ?? false,
+            accessibilityLabel: '独占模式',
+            onChange: (checked: boolean) => {
+              ctx.logger?.info('playback-settings: user toggled audioExclusive -> %s', checked)
+              void update({ audioExclusive: checked })
+              void serviceOf<AudioService>(ctx, 'audio')?.setAudioExclusive?.(checked)?.catch((err) => {
+                ctx.logger?.error('playback-settings: setAudioExclusive(%s) failed: %s', checked, String(err))
+              })
+            },
+          }),
+        }),
       h(SettingsRow, {
         title: '音频输出设备 (Output Device)',
         description: `当前输出目的地：${selectedDeviceLabel}`,

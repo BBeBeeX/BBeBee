@@ -293,5 +293,72 @@ describe('drop-import', () => {
         failed: 2,
       })
     })
+
+    it('returns importedUrns queried from db for audio files and folders', async () => {
+      const root = new Context()
+
+      class MockScanner extends Service {
+        constructor(ctx: Context) {
+          super(ctx, 'scanner')
+        }
+        importFiles = vi.fn().mockResolvedValue({ added: 1, updated: 0, removed: 0, errors: 0 } as ScanSummary)
+        addSpecifiedDir = vi.fn().mockResolvedValue({ id: 'dir-1', uri: 'file:///home/user/Music' } as ScanSpecifiedDir)
+        scan = vi.fn().mockResolvedValue({ added: 2, updated: 0, removed: 0, errors: 0 } as ScanSummary)
+      }
+
+      class MockFs extends Service {
+        constructor(ctx: Context) {
+          super(ctx, 'fs')
+        }
+        stat = vi.fn().mockImplementation((uri: string) => {
+          if (uri.includes('MyFolder')) return Promise.resolve({ isDirectory: true })
+          return Promise.resolve({ isDirectory: false })
+        })
+      }
+
+      class MockDb extends Service {
+        constructor(ctx: Context) {
+          super(ctx, 'db')
+        }
+        query = vi.fn().mockImplementation((sql: string) => {
+          if (sql.includes('IN (')) {
+            return Promise.resolve([{ track_urn: 'BBeBee:local:track:file-1' }])
+          }
+          if (sql.includes('LIKE')) {
+            return Promise.resolve([{ track_urn: 'BBeBee:local:track:folder-1' }])
+          }
+          return Promise.resolve([])
+        })
+      }
+
+      class MockUi extends Service {
+        constructor(ctx: Context) {
+          super(ctx, 'ui')
+        }
+      }
+
+      await root.plugin(MockFs)
+      await root.plugin(MockScanner)
+      await root.plugin(MockDb)
+      await root.plugin(MockUi)
+
+      const scopedShellCtx = await new Promise<Context>((resolve) => {
+        root.inject(['ui'], (s) => resolve(s))
+      })
+
+      const fileList = toFileList([
+        createMockFile('song.mp3', '/home/user/Music/song.mp3'),
+        createMockFile('MyFolder', '/home/user/Music/MyFolder'),
+      ])
+
+      const result = await importDroppedFiles(scopedShellCtx, fileList)
+
+      expect(result.imported).toBe(1)
+      expect(result.folders).toBe(1)
+      expect(result.importedUrns).toEqual([
+        'BBeBee:local:track:folder-1',
+        'BBeBee:local:track:file-1',
+      ])
+    })
   })
 })

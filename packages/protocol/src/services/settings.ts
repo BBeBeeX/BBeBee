@@ -114,6 +114,8 @@ export interface AppSettings {
   cacheDir?: string
   /** Audio output engine: 'wasapi' (WASAPI desktop audio with FFmpeg decoding) or 'webaudio' (WebAudio). */
   audioOutputEngine?: AudioOutputEngine
+  /** Whether to use exclusive mode when MPV audio backend is active. Defaults to false. */
+  audioExclusive?: boolean
   /** Selected audio output device ID. Defaults to 'default'. */
   audioOutputDeviceId?: string
   /**
@@ -207,6 +209,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   downloadDir: '',
   cacheDir: '',
   audioOutputEngine: 'wasapi',
+  audioExclusive: false,
   audioOutputDeviceId: 'default',
   userAgent: '',
   thirdPartySourcesEnabled: true,

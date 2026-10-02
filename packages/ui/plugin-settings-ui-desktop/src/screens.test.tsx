@@ -418,6 +418,16 @@ describe('SettingsScreen', () => {
     expect(await findByText('曲目交叉淡入淡出 (Crossfade)')).toBeTruthy()
     expect(getByText('无缝播放 (Gapless Playback)')).toBeTruthy()
     expect(getByText('拔出音频设备时自动暂停')).toBeTruthy()
+    expect(getByText('独占模式 (Exclusive Mode)')).toBeTruthy()
+
+    // Find and click the toggle switch for exclusive mode
+    const exclusiveSwitch = document.querySelector('button[aria-label="独占模式"]') as HTMLButtonElement
+    expect(exclusiveSwitch).toBeTruthy()
+    fireEvent.click(exclusiveSwitch)
+
+    await waitFor(() => {
+      expect(calls.some((c) => c.startsWith('update:') && c.includes('audioExclusive'))).toBe(true)
+    })
 
     // Find and click the toggle switch for crossfade
     const crossfadeSwitch =

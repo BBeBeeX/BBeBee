@@ -555,6 +555,14 @@ The desktop shell organizes primary navigation between the left sidebar and the 
    - The fullscreen play page (`now-playing.view`) is an **overlay stacked on the shell, not a branch swap**: the shell — and every cached page in it — stays mounted underneath (the overlay is `position: fixed`, opaque, z-index 100, rendered as a late child of the shell root). Returning from the play page therefore finds each page exactly as it was left: local state, scroll position and subscriptions intact. Do not reintroduce the early-return branch swap — it unmounted every cached page and was the reason page state evaporated.
    - The **queue drawer floats above the play page**: `ui/navigate 'queue.view'` only toggles the drawer (`isQueueOpen`), never the fullscreen flag, and the drawer renders at z-index 120 while the play page is open (40 otherwise) so it slides over the overlay. Toggling again closes the drawer in place. Above the drawer sit only the share modals (130, via a stacking-context wrapper around `share.host`) and the desktop lyrics window (9999); the queue splitter rides at 125 so the drawer stays resizable over the play page.
 
+6. **Desktop Drag-and-Drop Import & Local Music Navigation**:
+   - Dragging audio files or folders from the OS into any part of the desktop window triggers `importDroppedFiles(ctx, files)`.
+   - The shell root handles `dragover` and `drop` while displaying an interactive drag overlay; `pointerEvents: 'none'` ensures the drop event reaches the root div while suppressing Chromium's default file navigation.
+   - Audio files are imported via `scanner.importFiles`, and their resulting `track_urn` identifiers are queried from `media_bindings`. Folders are registered via `scanner.addSpecifiedDir` with background scan scheduling.
+   - After successful import, the shell automatically navigates to `library.local` ("本地文件") passing `{ highlightUrns, highlightUrn: highlightUrns[0] }`.
+   - `LocalMusicScreen` automatically switches to the "歌曲" (tracks) view, places the imported tracks at the top of the list in default sort order, auto-scrolls to top (`scrollTop = 0`), and renders a high-visibility accent border and background highlight (`3px solid var(--accent-primary, #5F87FF)` and `rgba(95, 135, 255, 0.18)`) on `LibraryTrackRow` that gracefully fades out after 8 seconds.
+   - `LocalMusicScreen` reactively subscribes to `library/changed` and `scan/finished` events to ensure that background folder scans and batch imports immediately reflect in the view.
+
 ### 7.2 Secondary Windows and Single-Kernel Preservation
 
 When desktop features require OS-level window detachment — such as **Desktop Lyrics** and the **Mini Player / Dynamic Island** which must float on top of other desktop applications, remain visible when the main window is minimized, support arbitrary multi-monitor dragging, and provide click-through mouse event forwarding when locked:

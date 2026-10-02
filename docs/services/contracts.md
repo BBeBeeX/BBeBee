@@ -981,7 +981,7 @@ export interface ShareService {
 
 ## 23. `ctx.settings` — application settings & contribution registry
 
-**Purpose.** Persistent user preferences, audio output configuration, theme preferences, and an open contribution registry allowing headless and UI plugins to register settings sections, cards, and links dynamically without hardcoding them into the settings screens.
+**Purpose.** Persistent user preferences, audio output configuration (backend selection, WASAPI exclusive mode, device routing), theme preferences, and an open contribution registry allowing headless and UI plugins to register settings sections, cards, and links dynamically without hardcoding them into the settings screens.
 
 ```ts
 export interface SettingsContribution {

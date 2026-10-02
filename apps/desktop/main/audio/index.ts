@@ -28,6 +28,7 @@ export interface AudioHostApi {
   mpvSeek(positionMs: number): Promise<void>
   mpvSetVolume(volume: number): Promise<void>
   mpvSetMuted(muted: boolean): Promise<void>
+  mpvSetAudioExclusive(exclusive: boolean): Promise<void>
   mpvSetDspConfig(config: DspConfig): Promise<void>
   mpvSetVisualizer(enabled: boolean, fftSize?: number): Promise<void>
   mpvGetFftFrame(): Promise<FftFrame | null>
@@ -89,6 +90,9 @@ export function createAudioHost(logger?: AudioMainLogger): AudioHostApi {
     },
     mpvSetMuted: async (muted) => {
       supervisor.setMuted(muted)
+    },
+    mpvSetAudioExclusive: async (exclusive) => {
+      supervisor.setAudioExclusive(exclusive)
     },
     mpvSetDspConfig: async (config) => {
       supervisor.setDspConfig(config)
