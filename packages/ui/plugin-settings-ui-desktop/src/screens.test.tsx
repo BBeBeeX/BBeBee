@@ -837,7 +837,7 @@ describe('SettingsScreen', () => {
 
   it('renders SettingsScreen and navigates to import sources, history, and debug', async () => {
     const { ctx, calls } = await harness()
-    const { getByText, findByText } = render(h(SettingsScreen, { ctx }))
+    const { getByText, findByText, queryByText } = render(h(SettingsScreen, { ctx }))
 
     expect(await findByText('常规与界面语言')).toBeTruthy()
 
@@ -846,10 +846,8 @@ describe('SettingsScreen', () => {
     fireEvent.click(importSourcesBtn)
     expect(calls.includes('navigate:sources.import')).toBe(true)
 
-    // Test navigation to Playback History
-    const historyBtn = getByText('查看播放历史')
-    fireEvent.click(historyBtn)
-    expect(calls.includes('navigate:history.view')).toBe(true)
+    // Playback history was moved out of settings into more-menu
+    expect(queryByText('查看播放历史')).toBeNull()
 
     // Test navigation to Debug center (revealed via Advanced Settings)
     const advCheckbox = document.querySelector('input[type="checkbox"]') as HTMLInputElement

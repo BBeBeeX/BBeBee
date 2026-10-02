@@ -77,6 +77,14 @@ class SleepTimerStub extends Service {
   }
 }
 
+class ShareStub extends Service {
+  static override readonly name = 'share'
+  openImport = vi.fn()
+  constructor(ctx: Context) {
+    super(ctx, 'share')
+  }
+}
+
 async function mount(
   register: (ui: UiStub) => void,
   setupCtx?: (ctx: Context) => void | Promise<void>,
@@ -530,7 +538,7 @@ describe('the desktop shell', () => {
     expect(container.textContent).toContain('floating lyrics')
   })
 
-  it('excludes dsp, music sources, music folders, downloads, settings and search from sidebar navigation', async () => {
+  it('excludes dsp, music sources, music folders, downloads, settings, history, and visualizer from sidebar navigation', async () => {
     const { container } = await mount((ui) => {
       ui.routes = [
         { kind: 'route', id: 'library.home', path: '/library', title: 'Library', placement: ['sidebar'] },
@@ -538,6 +546,7 @@ describe('the desktop shell', () => {
         { kind: 'route', id: 'settings.view', path: '/settings', title: '设置', placement: ['sidebar'] },
         { kind: 'route', id: 'sources.import', path: '/sources/import', title: 'Import a source', placement: [] },
         { kind: 'route', id: 'sources.test', path: '/sources/test', title: 'Test a source', placement: [] },
+        { kind: 'route', id: 'history.view', path: '/history', title: '播放历史', placement: ['more-menu'] },
         { kind: 'route', id: 'dsp', path: '/dsp', title: '音频效果 (DSP)', placement: [] },
         { kind: 'route', id: 'inspector', path: '/inspector', title: 'Inspector', placement: [] },
       ]
@@ -549,6 +558,8 @@ describe('the desktop shell', () => {
         { kind: 'settings', id: 'dsp.settings', title: '音频效果与均衡器' },
         { kind: 'settings', id: 'settings.dsp', title: '均衡器设置' },
         { kind: 'settings', id: 'settings.view', title: '设置' },
+        { kind: 'settings', id: 'sources.import', title: '导入音源' },
+        { kind: 'settings', id: 'visualizer.settings', title: '音频可视化' },
         { kind: 'settings', id: 'custom.settings', title: 'Custom Setting' },
       ]
       ui.views.set('sources.settings', () => h('p', null, 'sources'))
@@ -557,6 +568,8 @@ describe('the desktop shell', () => {
       ui.views.set('dsp.settings', () => h('p', null, 'dsp'))
       ui.views.set('settings.dsp', () => h('p', null, 'dsp'))
       ui.views.set('settings.view', () => h('p', null, 'settings'))
+      ui.views.set('sources.import', () => h('p', null, 'import'))
+      ui.views.set('visualizer.settings', () => h('p', null, 'visualizer'))
       ui.views.set('custom.settings', () => h('p', null, 'custom'))
     })
 
@@ -566,6 +579,9 @@ describe('the desktop shell', () => {
     expect(nav?.textContent).not.toContain('设置')
     expect(nav?.textContent).not.toContain('Import a source')
     expect(nav?.textContent).not.toContain('Test a source')
+    expect(nav?.textContent).not.toContain('导入音源')
+    expect(nav?.textContent).not.toContain('音频可视化')
+    expect(nav?.textContent).not.toContain('播放历史')
     expect(nav?.textContent).not.toContain('音频效果 (DSP)')
     expect(nav?.textContent).not.toContain('Inspector')
     expect(nav?.textContent).not.toContain('Music sources')
@@ -1057,6 +1073,81 @@ describe('the desktop shell', () => {
       fireEvent.mouseDown(document.body)
     })
     expect(container.querySelector('[data-testid="topbar-tray-popover"]')).toBeNull()
+  })
+
+  it('renders topbar more menu with history, download manager, and import share, navigating on click', async () => {
+    let shareStub: ShareStub | undefined
+    const { container } = await mount(
+      (ui) => {
+        ui.routes = [
+          { kind: 'route', id: 'library.home', path: '/library', title: 'Library', placement: ['sidebar'] },
+          { kind: 'route', id: 'history.view', path: '/history', title: '播放历史', placement: ['more-menu'] },
+          { kind: 'route', id: 'downloads.page', path: '/downloads', title: '下载管理', placement: ['more-menu'] },
+        ]
+        ui.views.set('library.home', () => h('p', null, 'Library Screen'))
+        ui.views.set('history.view', () => h('p', null, 'History Screen'))
+        ui.views.set('downloads.page', () => h('p', null, 'Downloads Screen'))
+      },
+      async (c) => {
+        await c.plugin(ShareStub)
+        shareStub = (c as unknown as { share: ShareStub }).share
+      },
+    )
+
+    // TopBar right group does NOT have standalone import share button
+    expect(container.querySelector('[data-testid="topbar-import-share-button"]')).toBeNull()
+
+    const moreButton = container.querySelector('[data-testid="topbar-more-button"]') as HTMLButtonElement
+    expect(moreButton).not.toBeNull()
+    expect(container.querySelector('[data-testid="topbar-more-menu-dropdown"]')).toBeNull()
+
+    // Click more button to expand
+    await act(async () => {
+      fireEvent.click(moreButton)
+    })
+
+    const dropdown = container.querySelector('[data-testid="topbar-more-menu-dropdown"]') as HTMLElement
+    expect(dropdown).not.toBeNull()
+    expect(dropdown.textContent).toContain('Home')
+    expect(dropdown.textContent).toContain('Settings')
+    expect(dropdown.textContent).toContain('播放历史')
+    expect(dropdown.textContent).toContain('下载管理')
+    expect(dropdown.textContent).toContain('导入分享')
+
+    // Click '播放历史'
+    const historyItem = container.querySelector('[data-testid="topbar-more-menu-history.view"]') as HTMLButtonElement
+    expect(historyItem).not.toBeNull()
+    await act(async () => {
+      fireEvent.click(historyItem)
+    })
+
+    // Dropdown closes and main interface shows History Screen
+    expect(container.querySelector('[data-testid="topbar-more-menu-dropdown"]')).toBeNull()
+    expect(container.textContent).toContain('History Screen')
+
+    // Reopen menu and click '下载管理'
+    await act(async () => {
+      fireEvent.click(moreButton)
+    })
+    const downloadsItem = container.querySelector('[data-testid="topbar-more-menu-downloads.page"]') as HTMLButtonElement
+    expect(downloadsItem).not.toBeNull()
+    await act(async () => {
+      fireEvent.click(downloadsItem)
+    })
+    expect(container.querySelector('[data-testid="topbar-more-menu-dropdown"]')).toBeNull()
+    expect(container.textContent).toContain('Downloads Screen')
+
+    // Reopen menu and click '导入分享'
+    await act(async () => {
+      fireEvent.click(moreButton)
+    })
+    const importShareItem = container.querySelector('[data-testid="topbar-more-menu-import-share"]') as HTMLButtonElement
+    expect(importShareItem).not.toBeNull()
+    await act(async () => {
+      fireEvent.click(importShareItem)
+    })
+    expect(container.querySelector('[data-testid="topbar-more-menu-dropdown"]')).toBeNull()
+    expect(shareStub?.openImport).toHaveBeenCalled()
   })
 })
 

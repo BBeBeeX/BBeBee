@@ -137,9 +137,6 @@ export function PlaybackSection({
   const hasVisualizerContribution = playbackContribs.some(
     (c) => c.id === 'visualizer.settings',
   )
-  const hasHistoryContribution = playbackContribs.some(
-    (c) => c.id === 'history.view',
-  )
 
   const VisualizerSettingsView = useServiceState(ctx, ['ui/changed'], () => {
     return (ctx.ui?.viewFor?.('visualizer.settings') as React.ComponentType<{ ctx: Context }> | undefined) ?? null
@@ -681,29 +678,6 @@ export function PlaybackSection({
             description: '在播放界面呈现音乐频率跳动与声波流动效果，自定义显示样式与色彩',
           },
           h(VisualizerSettingsView, { ctx }),
-        )
-      : null,
-
-    // Fallback: history if no history contribution provided
-    !hasHistoryContribution
-      ? h(
-          SettingsSection,
-          {
-            title: '播放历史与听歌记录',
-            description: '查看历史听歌轨迹、播放次数统计与活跃热力图分布',
-          },
-          h(SettingsRow, {
-            title: '播放历史 (Playback History)',
-            description: '查看已播放曲目记录、按日期分布的听歌热力图及统计分析',
-            borderBottom: false,
-            action: h(Button, {
-              children: '查看播放历史',
-              onPress: () => {
-                if (onNavigate) onNavigate('history.view')
-                else serviceOf<UiService>(ctx, 'ui')?.navigate?.('history.view')
-              },
-            }),
-          }),
         )
       : null,
   )

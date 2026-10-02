@@ -62,15 +62,7 @@ export function StorageSection({
   onNavigate,
 }: StorageSectionProps): ReactElement {
   const storageContribs = contributions.filter((c) => c.section === 'storage')
-  const items: readonly SettingsContribution[] = storageContribs.length > 0 ? storageContribs : [
-    {
-      id: 'downloads.page',
-      section: 'storage',
-      title: '下载管理器 (Downloads)',
-      description: '查看下载队列、网络策略配置以及已保存至本地的歌曲',
-      actionText: '进入下载管理',
-    },
-  ]
+  const items: readonly SettingsContribution[] = storageContribs
 
   return h(
     'div',
@@ -110,7 +102,7 @@ export function StorageSection({
           description: item.description,
           borderBottom: false,
           action: h(Button, {
-            children: item.actionText ?? '进入下载管理',
+            children: item.actionText ?? '查看详情',
             onPress: () => {
               if (item.action) void item.action()
               else onNavigate(item.id)

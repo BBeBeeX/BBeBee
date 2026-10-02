@@ -33,7 +33,6 @@ describe('plugin-history', () => {
     const ui = ctx.ui as unknown as UiStub
     expect(ui.contributed).toEqual([
       { kind: 'route', id: HISTORY_ROUTES.history, path: '/history' },
-      { kind: 'settings', id: HISTORY_ROUTES.history },
     ])
   })
 

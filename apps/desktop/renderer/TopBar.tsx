@@ -12,7 +12,7 @@
 
 import { createElement as h, useEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { ShareService, SleepTimerMode, SleepTimerService, TrayContribution } from '@BBeBee/protocol'
+import type { RouteContribution, ShareService, SleepTimerMode, SleepTimerService, TrayContribution } from '@BBeBee/protocol'
 import { tablerIcon } from '@BBeBee/ui-kit-desktop'
 import { useSearchSourceSelection, type SearchInterfaceKind } from '@BBeBee/plugin-sources/hooks'
 import { useSleepTimer } from '@BBeBee/plugin-sleep-timer/hooks'
@@ -681,6 +681,25 @@ export function TopBar({
   const searchContainerRef = useRef<HTMLDivElement | null>(null)
   const menuContainerRef = useRef<HTMLDivElement | null>(null)
 
+  const readMoreRoutes = (): readonly RouteContribution[] => {
+    try {
+      const routes = ctx.ui?.routes ?? []
+      return routes.filter((r) => r.placement?.includes('more-menu'))
+    } catch {
+      return []
+    }
+  }
+
+  const [moreRoutes, setMoreRoutes] = useState<readonly RouteContribution[]>(readMoreRoutes)
+
+  useEffect(() => {
+    setMoreRoutes(readMoreRoutes())
+    const off = ctx.on('ui/changed', () => {
+      setMoreRoutes(readMoreRoutes())
+    })
+    return () => void off()
+  }, [ctx])
+
   const [history, setHistory] = useState<string[]>(() => {
     try {
       const stored = typeof window !== 'undefined' ? window.localStorage?.getItem('bbebee_search_history') : null
@@ -858,6 +877,7 @@ export function TopBar({
             type: 'button',
             'aria-label': 'More options',
             title: 'More',
+            'data-testid': 'topbar-more-button',
             onClick: () => setMenuOpen((prev) => !prev),
             style: {
               display: 'flex',
@@ -887,6 +907,7 @@ export function TopBar({
           ? h(
               'div',
               {
+                'data-testid': 'topbar-more-menu-dropdown',
                 style: {
                   position: 'absolute',
                   top: 38,
@@ -904,8 +925,11 @@ export function TopBar({
                 'button',
                 {
                   type: 'button',
+                  'data-testid': 'topbar-more-menu-home',
                   style: {
-                    display: 'block',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
                     width: '100%',
                     textAlign: 'left',
                     padding: '8px 12px',
@@ -927,14 +951,18 @@ export function TopBar({
                     e.currentTarget.style.backgroundColor = 'transparent'
                   },
                 },
+                tablerIcon('home', { size: 16 }),
                 'Home',
               ),
               h(
                 'button',
                 {
                   type: 'button',
+                  'data-testid': 'topbar-more-menu-settings',
                   style: {
-                    display: 'block',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
                     width: '100%',
                     textAlign: 'left',
                     padding: '8px 12px',
@@ -956,8 +984,90 @@ export function TopBar({
                     e.currentTarget.style.backgroundColor = 'transparent'
                   },
                 },
+                tablerIcon('settings', { size: 16 }),
                 'Settings',
               ),
+              moreRoutes.length > 0 || serviceOf<ShareService>(ctx, 'share')
+                ? h('div', {
+                    style: {
+                      height: 1,
+                      margin: '4px 0',
+                      background: 'var(--border-subtle, rgba(148, 163, 184, 0.08))',
+                    },
+                  })
+                : null,
+              moreRoutes.map((r) =>
+                h(
+                  'button',
+                  {
+                    key: r.id,
+                    type: 'button',
+                    'data-testid': `topbar-more-menu-${r.id}`,
+                    style: {
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '8px 12px',
+                      borderRadius: 4,
+                      border: 'none',
+                      background: 'transparent',
+                      color: 'var(--text-primary, #F5F7FF)',
+                      fontSize: 13,
+                      cursor: 'pointer',
+                    },
+                    onClick: () => {
+                      setMenuOpen(false)
+                      ctx.ui?.navigate?.(r.id)
+                    },
+                    onMouseEnter: (e: { currentTarget: HTMLElement }) => {
+                      e.currentTarget.style.backgroundColor = 'var(--surface-hover, #191E30)'
+                    },
+                    onMouseLeave: (e: { currentTarget: HTMLElement }) => {
+                      e.currentTarget.style.backgroundColor = 'transparent'
+                    },
+                  },
+                  r.icon ? tablerIcon(r.icon, { size: 16 }) : null,
+                  r.title,
+                ),
+              ),
+              serviceOf<ShareService>(ctx, 'share')
+                ? h(
+                    'button',
+                    {
+                      key: 'import-share',
+                      type: 'button',
+                      'data-testid': 'topbar-more-menu-import-share',
+                      style: {
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '8px 12px',
+                        borderRadius: 4,
+                        border: 'none',
+                        background: 'transparent',
+                        color: 'var(--text-primary, #F5F7FF)',
+                        fontSize: 13,
+                        cursor: 'pointer',
+                      },
+                      onClick: () => {
+                        setMenuOpen(false)
+                        serviceOf<ShareService>(ctx, 'share')?.openImport?.()
+                      },
+                      onMouseEnter: (e: { currentTarget: HTMLElement }) => {
+                        e.currentTarget.style.backgroundColor = 'var(--surface-hover, #191E30)'
+                      },
+                      onMouseLeave: (e: { currentTarget: HTMLElement }) => {
+                        e.currentTarget.style.backgroundColor = 'transparent'
+                      },
+                    },
+                    tablerIcon('share-box', { size: 16 }),
+                    '导入分享',
+                  )
+                : null,
             )
           : null,
       ),
@@ -1460,44 +1570,6 @@ export function TopBar({
       },
       // Sleep Timer Indicator
       h(SleepTimerIndicator, { ctx }),
-      // Import Share Button
-      serviceOf<ShareService>(ctx, 'share')
-        ? h(
-            'button',
-            {
-              type: 'button',
-              'aria-label': '导入分享',
-              title: '导入分享 (解析图片隐写或 Base64)',
-              'data-testid': 'topbar-import-share-button',
-              onClick: () => {
-                serviceOf<ShareService>(ctx, 'share')?.openImport?.()
-              },
-              style: {
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                border: '1px solid var(--border-subtle, rgba(148, 163, 184, 0.15))',
-                background: 'rgba(255, 255, 255, 0.06)',
-                color: 'var(--text-primary, #F5F7FF)',
-                cursor: 'pointer',
-                padding: 0,
-                transition: 'transform 0.15s ease, background 0.15s ease',
-              },
-              onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-                e.currentTarget.style.transform = 'scale(1.06)'
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'
-              },
-              onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-                e.currentTarget.style.transform = 'scale(1)'
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)'
-              },
-            },
-            tablerIcon('share-box', { size: 18 }),
-          )
-        : null,
       // Tray Indicator
       h(TrayIndicator, { ctx }),
       // Avatar

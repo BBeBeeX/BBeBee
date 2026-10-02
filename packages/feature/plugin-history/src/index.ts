@@ -17,7 +17,7 @@ export const name = 'plugin-history'
 /**
  * The route descriptor.
  *
- * `placement: ['tab-bar']` places it in mobile navigation; on desktop it is accessed via Settings.
+ * `placement: ['more-menu', 'tab-bar']` places it in mobile navigation tab bar and desktop More menu.
  */
 export async function apply(ctx: Context) {
   ctx.logger.info('plugin-history: loaded')
@@ -31,17 +31,8 @@ export async function apply(ctx: Context) {
         path: '/history',
         title: '播放历史',
         icon: 'history',
-        placement: ['tab-bar'],
+        placement: ['more-menu', 'tab-bar'],
         order: 25,
-      })
-      yield scoped.ui.contribute({
-        kind: 'settings',
-        id: HISTORY_ROUTES.history,
-        section: 'playback',
-        title: '播放历史 (Playback History)',
-        description: '查看已播放曲目记录、按日期分布的听歌热力图及统计分析',
-        actionText: '查看播放历史',
-        order: 90,
       })
     }, 'history-ui-contributions'),
   )

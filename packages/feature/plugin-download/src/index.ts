@@ -221,13 +221,13 @@ export class Downloads extends Service implements DownloadsService {
     // build with one shell still lists the page (docs/08 §3).
     this.ownCtx.inject(['ui'], (scoped) =>
       scoped.ui.contribute({
-        kind: 'settings',
+        kind: 'route',
         id: DOWNLOADS_VIEWS.page,
-        section: 'storage',
-        title: '下载管理器 (Downloads)',
-        description: '查看下载队列、网络策略配置以及已保存至本地的歌曲',
-        actionText: '进入下载管理',
-        order: 20,
+        path: '/downloads',
+        title: '下载管理',
+        icon: 'download',
+        placement: ['more-menu'],
+        order: 30,
       }),
     )
 

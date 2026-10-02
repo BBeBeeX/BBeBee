@@ -69,6 +69,10 @@ function useEntries(ctx: Context): { routes: readonly RouteContribution[]; entri
           r.id === 'settings.view' ||
           r.id === 'settings.main' ||
           r.id === 'settings' ||
+          r.id === 'sources.import' ||
+          r.id === 'visualizer.settings' ||
+          r.id === 'history.view' ||
+          r.id === 'downloads.page' ||
           r.title === 'Search' ||
           r.title === '设置'
         ) {
@@ -90,6 +94,7 @@ function useEntries(ctx: Context): { routes: readonly RouteContribution[]; entri
     ...state.settings
       .filter((s) => {
         if (ctx.ui.viewFor(s.id) === undefined) return false
+        if (s.display === 'card') return false
         // Exclude settings pages managed inside the Settings dashboard (dsp, sources, scanner, downloads)
         if (
           s.id === 'dsp.settings' ||
@@ -100,6 +105,9 @@ function useEntries(ctx: Context): { routes: readonly RouteContribution[]; entri
           s.id === 'settings.view' ||
           s.id === 'settings.main' ||
           s.id === 'settings' ||
+          s.id === 'sources.import' ||
+          s.id === 'visualizer.settings' ||
+          s.id === 'history.view' ||
           s.title === '设置'
         ) {
           return false
