@@ -31,6 +31,13 @@ export interface LibraryTrackRowProps {
   onRemove?: () => void
   isSmart?: boolean
   playlistName?: string
+  /** 批量模式：首列显示复选框，整行点击触发选中 */
+  batchMode?: boolean
+  selected?: boolean
+  onToggleSelect?: () => void
+  /** 是否展示来源列 */
+  showSource?: boolean
+  sourceName?: string
 }
 
 /**
@@ -58,9 +65,16 @@ export function LibraryTrackRow({
   onRemove,
   isSmart,
   playlistName,
+  batchMode,
+  selected,
+  onToggleSelect,
+  showSource,
+  sourceName,
 }: LibraryTrackRowProps): ReactElement {
   const [hovered, setHovered] = useState(false)
   const artists = track.artists?.map((a) => a.name).join(', ')
+
+  const handleRowClick = batchMode ? (onToggleSelect ?? onPress) : onPress
 
   return h(
     'div',
@@ -68,15 +82,16 @@ export function LibraryTrackRow({
       role: 'row',
       tabIndex: 0,
       'data-highlighted': highlighted ? 'true' : undefined,
+      'data-selected': selected ? 'true' : undefined,
       onMouseEnter: () => setHovered(true),
       onMouseLeave: () => setHovered(false),
-      onClick: onPress,
+      onClick: handleRowClick,
       onContextMenu: (e: ReactMouseEvent) => {
         e.preventDefault()
         onMore({ x: e.clientX, y: e.clientY })
       },
       onKeyDown: (e: KeyboardEvent) => {
-        if (e.key === 'Enter' || e.key === ' ') onPress()
+        if (e.key === 'Enter' || e.key === ' ') handleRowClick()
       },
       style: {
         display: 'flex',
@@ -85,19 +100,25 @@ export function LibraryTrackRow({
         padding: '0 32px',
         borderRadius: 4,
         cursor: 'pointer',
-        background: hovered
+        background: selected
+          ? 'rgba(95, 135, 255, 0.22)'
+          : hovered
           ? highlighted
             ? 'rgba(95, 135, 255, 0.28)'
             : 'rgba(255, 255, 255, 0.1)'
           : highlighted
           ? 'rgba(95, 135, 255, 0.18)'
           : 'transparent',
-        borderLeft: highlighted ? '3px solid var(--accent-primary, #5F87FF)' : '3px solid transparent',
+        borderLeft: selected
+          ? '3px solid var(--accent-primary, #5F87FF)'
+          : highlighted
+          ? '3px solid var(--accent-primary, #5F87FF)'
+          : '3px solid transparent',
         transition: 'background-color 0.15s ease, border-color 0.15s ease',
         boxSizing: 'border-box',
       },
     },
-    // Col 1: # or Play icon
+    // Col 1: # or Play icon or Checkbox in batch mode
     h(
       'div',
       {
@@ -111,7 +132,35 @@ export function LibraryTrackRow({
           color: hovered ? '#FFFFFF' : '#b3b3b3',
         },
       },
-      hovered ? tablerIcon('play', { size: 18, color: '#FFFFFF' }) : String(index + 1),
+      batchMode
+        ? h(
+            'button',
+            {
+              type: 'button',
+              'data-testid': `track-checkbox-${track.urn}`,
+              'aria-label': selected ? '取消选择' : '选择',
+              onClick: (e: ReactMouseEvent) => {
+                e.stopPropagation()
+                onToggleSelect?.()
+              },
+              style: {
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              },
+            },
+            tablerIcon(selected ? 'checkbox' : 'square', {
+              size: 20,
+              color: selected ? 'var(--color-primary, #5F87FF)' : '#8B95B0',
+            }),
+          )
+        : hovered
+        ? tablerIcon('play', { size: 18, color: '#FFFFFF' })
+        : String(index + 1),
     ),
     // Col 2: Artwork (list only) + Title + Artist
     h(
@@ -261,6 +310,26 @@ export function LibraryTrackRow({
           )
         : track.albumTitle || '-',
     ),
+    // Col: Source name (专辑页/最喜欢页/歌单页)
+    showSource
+      ? h(
+          'div',
+          {
+            'data-testid': 'track-source-col',
+            style: {
+              flex: 1,
+              minWidth: 0,
+              paddingRight: 16,
+              fontSize: 13,
+              color: '#8B95B0',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            },
+          },
+          sourceName ?? '-',
+        )
+      : null,
     // Col 4: Added date (歌单页)
     addedAt !== undefined
       ? h(

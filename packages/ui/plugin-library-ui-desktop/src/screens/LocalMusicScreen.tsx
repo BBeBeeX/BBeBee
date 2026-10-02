@@ -3,13 +3,14 @@ import type { ChangeEvent, MouseEvent as ReactMouseEvent, ReactElement } from 'r
 import type { Context } from 'cordis'
 import type { Album, PlayerService, SourcesService, Track } from '@BBeBee/protocol'
 import { ALBUM_VIEWS } from '@BBeBee/plugin-album/views'
-import { serviceOf, type MenuAnchor } from '@BBeBee/ui-core'
+import { serviceOf, type MenuAnchor, type MenuItemSpec } from '@BBeBee/ui-core'
 import { ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, List, SaveToPlaylistPopover, StickyDetailBar, Text, tablerIcon, useDetailBarCollapse, viewModeMenuItems, useViewMode, headerGradient } from '@BBeBee/ui-kit-desktop'
 import { sortMenuItems, useTrackMenu } from '@BBeBee/ui-menus'
 import { tokens } from '@BBeBee/ui-tokens'
 import { CachedArtwork } from '../components/CachedArtwork.js'
 import { LocalAlbumCard } from '../components/LocalAlbumCard.js'
 import { LibraryTrackRow } from '../components/LibraryTrackRow.js'
+import { BatchActionBar } from '../components/BatchActionBar.js'
 import { useTrackLibraryInfo } from '../hooks/useTrackLibraryInfo.js'
 import { fetchAllLocalAlbums, fetchAllLocalTracks } from '../utils/data-helpers.js'
 
@@ -254,6 +255,9 @@ export function LocalMusicScreen({
   const [albumSortKey, setAlbumSortKey] = useState<LocalAlbumSortKey>('default')
   const [albumSortOrder, setAlbumSortOrder] = useState<'asc' | 'desc'>('asc')
   const [sortMenuAnchor, setSortMenuAnchor] = useState<MenuAnchor | null>(null)
+  const [isBatchMode, setIsBatchMode] = useState(false)
+  const [selectedUrns, setSelectedUrns] = useState<Set<string>>(new Set())
+  const [moreMenuAnchor, setMoreMenuAnchor] = useState<MenuAnchor | null>(null)
   // 滚动折叠：吸顶栏在播放按钮靠近时滑入，滚过按钮一半高度时吸附（docked）。
   const collapse = useDetailBarCollapse({ barHeight: 64, anchorHeight: 56 })
   // 视图模式：歌曲页默认列表，专辑页默认平铺（卡片网格），选择按页记忆。
@@ -265,6 +269,7 @@ export function LocalMusicScreen({
     isTrackInLibrary,
     handleAddToFavorites,
     openAddToPlaylistMenu,
+    openBatchAddToPlaylistMenu,
     saveToPlaylistMenuProps,
   } = useTrackLibraryInfo(ctx)
 
@@ -313,7 +318,13 @@ export function LocalMusicScreen({
 
     Promise.all([fetchAllLocalTracks(sources), loadAlbums])
       .then(([loadedTracks, loadedAlbums]) => {
-        setTracks(loadedTracks)
+        const seen = new Set<string>()
+        const dedupedTracks = loadedTracks.filter((t) => {
+          if (!t.urn || seen.has(t.urn)) return false
+          seen.add(t.urn)
+          return true
+        })
+        setTracks(dedupedTracks)
 
         if (loadedAlbums.length > 0) {
           setAlbums(loadedAlbums)
@@ -408,6 +419,143 @@ export function LocalMusicScreen({
   }, [tracks, searchQuery, trackSortKey, trackSortOrder])
 
   const sortedTrackUrns = useMemo(() => sortedTracks.map((t) => t.urn), [sortedTracks])
+
+  const allSelected = sortedTrackUrns.length > 0 && selectedUrns.size === sortedTrackUrns.length
+  const handleToggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedUrns(new Set())
+    } else {
+      setSelectedUrns(new Set(sortedTrackUrns))
+    }
+  }
+
+  const handleToggleSelect = (trackUrn: string) => {
+    setSelectedUrns((prev) => {
+      const next = new Set(prev)
+      if (next.has(trackUrn)) next.delete(trackUrn)
+      else next.add(trackUrn)
+      return next
+    })
+  }
+
+  const handleBatchPlay = () => {
+    const toPlay = Array.from(selectedUrns)
+    if (toPlay.length > 0) {
+      void player?.playNow(toPlay, {
+        context: { kind: 'local', label: '本地音乐' },
+      })
+    }
+  }
+
+  const handleBatchAddToPlaylist = (anchor?: MenuAnchor) => {
+    const toAdd = Array.from(selectedUrns)
+    if (toAdd.length > 0) {
+      const trackMap = new Map(tracks.map((t) => [t.urn, t]))
+      const selectedTracks = toAdd.map((u) => trackMap.get(u) ?? u)
+      openBatchAddToPlaylistMenu(
+        selectedTracks,
+        anchor ?? {
+          x: typeof window !== 'undefined' ? window.innerWidth / 2 : 200,
+          y: typeof window !== 'undefined' ? window.innerHeight / 2 : 200,
+        },
+      )
+    }
+  }
+
+  const handleBatchDelete = () => {
+    if (selectedUrns.size === 0) return
+    const toRemove = new Set(selectedUrns)
+    setTracks((prev) => prev.filter((t) => !toRemove.has(t.urn)))
+    setSelectedUrns(new Set())
+  }
+
+  const handleExitBatch = () => {
+    setIsBatchMode(false)
+    setSelectedUrns(new Set())
+  }
+
+  const moreMenuItems: MenuItemSpec[] = useMemo(() => {
+    const batchSubmenu: MenuItemSpec[] = isBatchMode
+      ? [
+          {
+            id: 'batch-play',
+            label: '批量播放',
+            icon: tablerIcon('play', { size: 20 }),
+            disabled: selectedUrns.size === 0,
+            onSelect: handleBatchPlay,
+          },
+          {
+            id: 'batch-add',
+            label: '添加到歌单',
+            icon: tablerIcon('plus', { size: 20 }),
+            disabled: selectedUrns.size === 0,
+            onSelect: () => handleBatchAddToPlaylist(),
+          },
+          {
+            id: 'batch-delete',
+            label: '删除',
+            icon: tablerIcon('trash', { size: 20 }),
+            tone: 'danger',
+            disabled: selectedUrns.size === 0,
+            onSelect: handleBatchDelete,
+          },
+          {
+            id: 'batch-exit',
+            label: '退出批量操作',
+            icon: tablerIcon('x', { size: 20 }),
+            divider: true,
+            onSelect: handleExitBatch,
+          },
+        ]
+      : [
+          {
+            id: 'batch-enter',
+            label: '开启批量操作',
+            icon: tablerIcon('list-check', { size: 20 }),
+            onSelect: () => setIsBatchMode(true),
+          },
+          {
+            id: 'batch-play',
+            label: '批量播放',
+            icon: tablerIcon('play', { size: 20 }),
+            onSelect: () => {
+              setIsBatchMode(true)
+              handleBatchPlay()
+            },
+          },
+          {
+            id: 'batch-add',
+            label: '添加到歌单',
+            icon: tablerIcon('plus', { size: 20 }),
+            onSelect: () => {
+              setIsBatchMode(true)
+              handleBatchAddToPlaylist()
+            },
+          },
+          {
+            id: 'batch-delete',
+            label: '删除',
+            icon: tablerIcon('trash', { size: 20 }),
+            tone: 'danger',
+            onSelect: () => {
+              setIsBatchMode(true)
+              handleBatchDelete()
+            },
+          },
+        ]
+
+    return [
+      {
+        id: 'batch-operations',
+        label: '批量操作',
+        icon: tablerIcon('list-check', { size: 20 }),
+        submenu: {
+          title: '批量操作',
+          items: batchSubmenu,
+        },
+      },
+    ]
+  }, [isBatchMode, selectedUrns, sortedTrackUrns])
 
   const albumUrnByTitle = useMemo(() => {
     const map = new Map<string, string>()
@@ -637,6 +785,20 @@ export function LocalMusicScreen({
           },
           tablerIcon('shuffle', { size: 26 }),
         ),
+        h(
+          'button',
+          {
+            type: 'button',
+            'data-testid': 'local-music-more-trigger',
+            title: '更多选项',
+            onClick: (e: ReactMouseEvent) => {
+              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+              setMoreMenuAnchor({ x: rect.left, y: rect.bottom + 6 })
+            },
+            style: { background: 'none', border: 'none', color: '#b3b3b3', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
+          },
+          tablerIcon('dots', { size: 26 }),
+        ),
       ),
       h(
         'div',
@@ -725,6 +887,19 @@ export function LocalMusicScreen({
         ),
       ),
     ),
+    isBatchMode && viewMode === 'tracks'
+      ? h(BatchActionBar, {
+          selectedCount: selectedUrns.size,
+          totalCount: sortedTrackUrns.length,
+          allSelected,
+          onToggleSelectAll: handleToggleSelectAll,
+          onBatchPlay: handleBatchPlay,
+          onBatchAddToPlaylist: (anchor) => handleBatchAddToPlaylist(anchor),
+          onBatchDelete: handleBatchDelete,
+          deleteLabel: '删除',
+          onExitBatch: handleExitBatch,
+        })
+      : null,
     error ? h('div', { style: { padding: '0 32px 8px 32px' } }, h(Text, { variant: 'sm', tone: 'error' }, error)) : null,
   )
 
@@ -882,6 +1057,9 @@ export function LocalMusicScreen({
                     ctx,
                     track: t,
                     index,
+                    batchMode: isBatchMode,
+                    selected: selectedUrns.has(t.urn),
+                    onToggleSelect: () => handleToggleSelect(t.urn),
                     inLibrary: isTrackInLibrary(t),
                     highlighted: activeHighlights.has(t.urn),
                     compact: trackViewMode === 'compact',
@@ -912,6 +1090,14 @@ export function LocalMusicScreen({
         ),
     h(ContextMenu, menu.menuProps),
     h(SaveToPlaylistPopover, saveToPlaylistMenuProps),
+    h(ContextMenu, {
+      open: moreMenuAnchor !== null,
+      onClose: () => setMoreMenuAnchor(null),
+      x: moreMenuAnchor?.x ?? 0,
+      y: moreMenuAnchor?.y ?? 0,
+      items: moreMenuItems,
+      title: '更多选项',
+    }),
     h(ContextMenu, {
       open: sortMenuAnchor !== null,
       onClose: () => setSortMenuAnchor(null),

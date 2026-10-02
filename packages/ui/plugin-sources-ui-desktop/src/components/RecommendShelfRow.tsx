@@ -30,12 +30,14 @@ export interface RecommendShelfRowProps {
 }
 
 /**
- * A horizontal shelf row with always-visible edge peek covers and hover-activated scroll arrows.
+ * A horizontal shelf row with always-visible half-cover fold panels and
+ * hover-activated scroll arrows.
  *
  * When the row content overflows horizontally:
- * 1. Shows a naturally clipped partial cover at each overflowing edge, with a soft
- *    depth gradient that gives a tactile "more content here" affordance — always visible.
- * 2. On hover, fades in '<' and '>' arrow buttons over the edge panels to invite scrolling.
+ * 1. Shows exactly half the adjacent card's cover at each edge, with a
+ *    convex-arc outer edge (clip-path path) that simulates a cover bending
+ *    around a vertical cylinder — always visible, no hover required.
+ * 2. On hover, fades in ❮ / ❯ arrow buttons centred over each fold panel.
  * 3. Smoothly scrolls the shelf when an arrow is clicked.
  */
 export function RecommendShelfRow({
@@ -202,7 +204,7 @@ export function RecommendShelfRow({
                 width: '100%',
               },
             },
-            // Left edge peek panel — always visible when there's something scrolled past left
+            // Left fold panel — always visible when there's content to the left
             hasOverflow && canScrollLeft
               ? h(EdgePeekPanel, {
                   ctx,
@@ -231,7 +233,7 @@ export function RecommendShelfRow({
                 h(RecommendCard, { key: entry.id, ctx, entry, onPress: onOpenCard }),
               ),
             ),
-            // Right edge peek panel — always visible when there's more content to the right
+            // Right fold panel — always visible when there's more content to the right
             hasOverflow && canScrollRight
               ? h(EdgePeekPanel, {
                   ctx,
@@ -246,17 +248,24 @@ export function RecommendShelfRow({
 }
 
 /**
- * Edge peek panel: shows the partially visible cover at the row edge with a
- * soft gradient vignette — giving a natural "more content behind" visual cue
- * without resorting to jarring 3D transforms.
+ * Half-cover fold panel with curved-surface edge effect.
  *
- * The effect works in three layers:
- *   1. The actual cover artwork, clipped to the panel width, so the user sees
+ * Visual construction — three layers inside a clipped container:
+ *
+ *   1. ARTWORK — the adjacent card's cover at full size (160×160 px), shifted
+ *      so that exactly the inner half (80 px) fills the panel.  The user sees
  *      a genuine slice of the next/previous card.
- *   2. A directional gradient that fades the inner edge of the artwork to
- *      transparent, blending it into the background — creating the impression
- *      of depth and curvature without a literal rotation.
- *   3. On hover: a frosted-glass arrow button centred over the panel.
+ *
+ *   2. CLIP + DROP-SHADOW — a `clip-path: path()` cuts the *outer* edge as a
+ *      convex cubic-Bézier arc, simulating the cover bending around a vertical
+ *      cylinder.  A `filter: drop-shadow()` (which respects clip-path unlike
+ *      box-shadow) adds a soft cast shadow toward the main content area.
+ *
+ *   3. SHADING GRADIENT — a linear-gradient darkens the outer curved edge
+ *      (surface angled away from the viewer) and fades to transparent at the
+ *      inner edge, completing the cylindrical lighting illusion.
+ *
+ *   4. ARROW — a frosted-glass ❮/❯ button that opacity-transitions in on hover.
  */
 function EdgePeekPanel({
   ctx,
@@ -274,13 +283,25 @@ function EdgePeekPanel({
   const artwork = useResolvedArtwork(ctx, entry?.artwork)
   const isLeft = side === 'left'
 
-  // Width of the peeking sliver. ~55px shows enough of the cover to be
-  // recognisable without occluding too much of the visible cards.
-  const PANEL_WIDTH = 56
-  // The cover is rendered at full card size; we shift it so the *inner* edge
-  // of the artwork aligns with the *inner* edge of the panel, so the
-  // visible strip is the outer part of the adjacent card.
-  const CARD_SIZE = 160
+  // Geometry constants
+  const CARD_H = 160  // card height = card width in px
+  const PANEL_W = 80  // exactly half the card — inner half visible
+  // Arc depth: how far the outer-edge anchor points sit inward from the panel
+  // edge at the top/bottom corners.  Larger → more pronounced curvature.
+  const ARC = 20
+
+  // SVG path for the clipped shape of the panel.
+  //
+  // Left panel — outer (curved) edge on the LEFT, straight inner edge on RIGHT:
+  //   M ARC,0                       start at top of arc (inset from left by ARC)
+  //   C 2,50 2,110 ARC,CARD_H       cubic Bézier bowing outward at midpoint
+  //   L PANEL_W,CARD_H              across to bottom-right
+  //   L PANEL_W,0 Z                 up to top-right, close
+  //
+  // Right panel — mirror image.
+  const clipPath = isLeft
+    ? `path('M ${ARC} 0 C 2 50 2 110 ${ARC} ${CARD_H} L ${PANEL_W} ${CARD_H} L ${PANEL_W} 0 Z')`
+    : `path('M 0 0 L ${PANEL_W - ARC} 0 C ${PANEL_W - 2} 50 ${PANEL_W - 2} 110 ${PANEL_W - ARC} ${CARD_H} L 0 ${CARD_H} Z')`
 
   return h(
     'div',
@@ -291,61 +312,60 @@ function EdgePeekPanel({
         position: 'absolute',
         [isLeft ? 'left' : 'right']: 0,
         top: 0,
-        width: PANEL_WIDTH,
-        height: CARD_SIZE,
+        width: PANEL_W,
+        height: CARD_H,
         zIndex: 10,
-        overflow: 'hidden',
         cursor: 'pointer',
-        borderRadius: isLeft
-          ? `${tokens.radius.md} 0 0 ${tokens.radius.md}`
-          : `0 ${tokens.radius.md} ${tokens.radius.md} 0`,
+        clipPath,
+        filter: isLeft
+          ? 'drop-shadow(4px 0 10px rgba(0,0,0,0.65))'
+          : 'drop-shadow(-4px 0 10px rgba(0,0,0,0.65))',
       },
     },
-    // ── Layer 1: the artwork, offset so the outer slice is visible ──────────
+    // ── Layer 1: artwork — full card, offset to show inner half only ─────────
+    //   Left  panel: pin card's RIGHT edge → show right half of card
+    //   Right panel: pin card's LEFT  edge → show left  half of card
     h(
       'div',
       {
         style: {
           position: 'absolute',
           top: 0,
-          // Left panel shows the right portion of the previous card.
-          // Right panel shows the left portion of the next card.
           [isLeft ? 'right' : 'left']: 0,
-          width: CARD_SIZE,
-          height: CARD_SIZE,
+          width: CARD_H,
+          height: CARD_H,
           pointerEvents: 'none',
         },
       },
       h(Artwork, {
         artwork,
         seed: entry?.id ?? (isLeft ? 'left-edge' : 'right-edge'),
-        size: CARD_SIZE,
-        radius: tokens.radius.md,
+        size: CARD_H,
+        radius: 0,
       }),
     ),
-    // ── Layer 2: depth-fade gradient ────────────────────────────────────────
-    // Fades the inner edge (towards the visible cards) to transparent so the
-    // slice blends into the background, and darkens the outer edge slightly
-    // to suggest the card is receding into depth.
+    // ── Layer 2: cylindrical shading gradient ─────────────────────────────────
+    //   Outer curved edge darkest (surface bending away from viewer),
+    //   brightening toward the inner face — mimics directional lighting.
     h('div', {
       style: {
         position: 'absolute',
         inset: 0,
         background: isLeft
           ? `linear-gradient(to right,
-               rgba(0,0,0,0.55) 0%,
-               rgba(0,0,0,0.18) 38%,
-               rgba(0,0,0,0.04) 65%,
-               rgba(0,0,0,0) 100%)`
+               rgba(0,0,0,0.72) 0%,
+               rgba(0,0,0,0.35) 25%,
+               rgba(0,0,0,0.10) 55%,
+               rgba(0,0,0,0.00) 100%)`
           : `linear-gradient(to left,
-               rgba(0,0,0,0.55) 0%,
-               rgba(0,0,0,0.18) 38%,
-               rgba(0,0,0,0.04) 65%,
-               rgba(0,0,0,0) 100%)`,
+               rgba(0,0,0,0.72) 0%,
+               rgba(0,0,0,0.35) 25%,
+               rgba(0,0,0,0.10) 55%,
+               rgba(0,0,0,0.00) 100%)`,
         pointerEvents: 'none',
       },
     }),
-    // ── Layer 3: frosted-glass arrow, fades in on hover ─────────────────────
+    // ── Layer 3: frosted-glass arrow, fades in on hover ───────────────────────
     h(
       'div',
       {
@@ -356,7 +376,6 @@ function EdgePeekPanel({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          // Fade the arrow in/out with a CSS transition driven by opacity.
           opacity: showArrow ? 1 : 0,
           transition: 'opacity 0.18s ease',
           pointerEvents: showArrow ? 'auto' : 'none',
@@ -370,28 +389,28 @@ function EdgePeekPanel({
           'aria-label': isLeft ? '向左滚动' : '向右滚动',
           tabIndex: showArrow ? 0 : -1,
           style: {
-            width: 32,
-            height: 32,
+            width: 40,
+            height: 40,
             borderRadius: '50%',
-            background: 'rgba(15, 15, 18, 0.72)',
-            backdropFilter: 'blur(10px) saturate(1.4)',
-            WebkitBackdropFilter: 'blur(10px) saturate(1.4)',
-            border: '1px solid rgba(255, 255, 255, 0.18)',
-            color: 'rgba(255, 255, 255, 0.92)',
+            background: 'rgba(12, 12, 16, 0.75)',
+            backdropFilter: 'blur(12px) saturate(1.5)',
+            WebkitBackdropFilter: 'blur(12px) saturate(1.5)',
+            border: '1px solid rgba(255, 255, 255, 0.22)',
+            color: 'rgba(255, 255, 255, 0.95)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 14,
-            fontWeight: '600',
-            letterSpacing: '-0.5px',
+            fontSize: 22,
+            lineHeight: '1',
+            fontWeight: '300',
             cursor: 'pointer',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.45)',
-            padding: 0,
+            boxShadow: '0 2px 10px rgba(0,0,0,0.55)',
+            padding: '0 0 1px 0',
             outline: 'none',
             flexShrink: 0,
           },
         },
-        isLeft ? '‹' : '›',
+        isLeft ? '❮' : '❯',
       ),
     ),
   )

@@ -1,14 +1,16 @@
 import { createElement as h, useMemo, useState } from 'react'
 import type { ChangeEvent, MouseEvent as ReactMouseEvent, ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { PlayerService, Track } from '@BBeBee/protocol'
+import type { LibraryService, PlayerService, SourcesService, Track } from '@BBeBee/protocol'
 import { useSaved } from '@BBeBee/plugin-library/hooks'
 import { useTracksByUrn } from '@BBeBee/plugin-player/hooks'
-import { serviceOf, type MenuAnchor } from '@BBeBee/ui-core'
+import { serviceOf, type MenuAnchor, type MenuItemSpec } from '@BBeBee/ui-core'
 import { sortMenuItems, useTrackMenu } from '@BBeBee/ui-menus'
 import { ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, List, SaveToPlaylistPopover, StickyDetailBar, Text, tablerIcon, useDetailBarCollapse, headerGradient, viewModeMenuItems, useViewMode } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
 import { LibraryTrackRow } from '../components/LibraryTrackRow.js'
+import { BatchActionBar } from '../components/BatchActionBar.js'
+import { resolveTrackSourceName } from '../utils/source-helpers.js'
 import { useTrackLibraryInfo } from '../hooks/useTrackLibraryInfo.js'
 
 type FavoriteSortKey = 'default' | 'title' | 'artist' | 'album' | 'duration'
@@ -19,7 +21,17 @@ const FAVORITES_TINT = '#450af5'
 export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
   const saved = useSaved(ctx, 'track')
   const entries = saved.data ?? []
-  const urns = useMemo(() => entries.map((entry) => entry.urn), [entries])
+  const rawUrns = useMemo(() => entries.map((entry) => entry.urn), [entries])
+  // 1. 歌曲去重：过滤重复的 URN
+  const urns = useMemo(() => {
+    const seen = new Set<string>()
+    return rawUrns.filter((u) => {
+      if (!u || seen.has(u)) return false
+      seen.add(u)
+      return true
+    })
+  }, [rawUrns])
+
   const tracksMap = useTracksByUrn(ctx, urns)
   const player = serviceOf<PlayerService>(ctx, 'player')
   const error = saved.error?.message
@@ -27,15 +39,28 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
   const [sortKey, setSortKey] = useState<FavoriteSortKey>('default')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [sortMenuAnchor, setSortMenuAnchor] = useState<MenuAnchor | null>(null)
+  const [moreMenuAnchor, setMoreMenuAnchor] = useState<MenuAnchor | null>(null)
+  const [isBatchMode, setIsBatchMode] = useState(false)
+  const [selectedUrns, setSelectedUrns] = useState<Set<string>>(new Set())
+
   // 滚动折叠：吸顶栏在播放按钮靠近时滑入，滚过按钮一半高度时吸附（docked）。
   const collapse = useDetailBarCollapse({ barHeight: 64, anchorHeight: 56 })
   // 视图模式：列表为默认（与历史行为一致），紧凑不显示封面并把艺人单列。
   const [viewMode, setViewMode] = useViewMode('favorites', 'list', ['compact', 'list'] as const)
   const menu = useTrackMenu(ctx)
-  const { isTrackInLibrary, handleAddToFavorites, openAddToPlaylistMenu, saveToPlaylistMenuProps } = useTrackLibraryInfo(ctx)
+  const { isTrackInLibrary, handleAddToFavorites, openAddToPlaylistMenu, openBatchAddToPlaylistMenu, saveToPlaylistMenuProps } = useTrackLibraryInfo(ctx)
 
   const allTracks = useMemo(() => {
-    return urns.map((urn) => tracksMap.get(urn) ?? { urn, title: urn.split(':').pop() ?? urn, artists: [] })
+    const seen = new Set<string>()
+    const list: Track[] = []
+    for (const urn of urns) {
+      const t = tracksMap.get(urn) ?? { urn, title: urn.split(':').pop() ?? urn, artists: [] }
+      if (!seen.has(t.urn)) {
+        seen.add(t.urn)
+        list.push(t)
+      }
+    }
+    return list
   }, [urns, tracksMap])
 
   const sortedTracks = useMemo(() => {
@@ -105,6 +130,148 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
       setSortOrder('asc')
     }
   }
+
+  const allSelected = sortedUrns.length > 0 && selectedUrns.size === sortedUrns.length
+  const handleToggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedUrns(new Set())
+    } else {
+      setSelectedUrns(new Set(sortedUrns))
+    }
+  }
+
+  const handleToggleSelect = (urn: string) => {
+    setSelectedUrns((prev) => {
+      const next = new Set(prev)
+      if (next.has(urn)) next.delete(urn)
+      else next.add(urn)
+      return next
+    })
+  }
+
+  const handleBatchPlay = () => {
+    const toPlay = Array.from(selectedUrns)
+    if (toPlay.length > 0) {
+      void player?.playNow(toPlay, {
+        context: { kind: 'favorites', label: '收藏夹' },
+      })
+    }
+  }
+
+  const handleBatchAddToPlaylist = (anchor?: MenuAnchor) => {
+    const toAdd = Array.from(selectedUrns)
+    if (toAdd.length > 0) {
+      const selectedTracks = toAdd.map((u) => tracksMap.get(u) ?? u)
+      openBatchAddToPlaylistMenu(
+        selectedTracks,
+        anchor ?? { x: typeof window !== 'undefined' ? window.innerWidth / 2 : 200, y: typeof window !== 'undefined' ? window.innerHeight / 2 : 200 },
+      )
+    }
+  }
+
+  const handleBatchDelete = async () => {
+    const toDelete = Array.from(selectedUrns)
+    if (toDelete.length === 0) return
+    const library = serviceOf<LibraryService>(ctx, 'library')
+    const sources = serviceOf<SourcesService>(ctx, 'sources')
+    for (const u of toDelete) {
+      if (sources?.setLoved) {
+        await sources.setLoved(u, false).catch(() => {})
+      }
+      if (library) {
+        await library.setSaved(u, false).catch(() => {})
+      }
+    }
+    setSelectedUrns(new Set())
+  }
+
+  const handleExitBatch = () => {
+    setIsBatchMode(false)
+    setSelectedUrns(new Set())
+  }
+
+  const moreMenuItems: MenuItemSpec[] = useMemo(() => {
+    const batchSubmenu: MenuItemSpec[] = isBatchMode
+      ? [
+          {
+            id: 'batch-play',
+            label: '批量播放',
+            icon: tablerIcon('play', { size: 20 }),
+            disabled: selectedUrns.size === 0,
+            onSelect: handleBatchPlay,
+          },
+          {
+            id: 'batch-add',
+            label: '添加到歌单',
+            icon: tablerIcon('plus', { size: 20 }),
+            disabled: selectedUrns.size === 0,
+            onSelect: () => handleBatchAddToPlaylist(),
+          },
+          {
+            id: 'batch-delete',
+            label: '从“最喜欢的音乐”中删除',
+            icon: tablerIcon('trash', { size: 20 }),
+            tone: 'danger',
+            disabled: selectedUrns.size === 0,
+            onSelect: handleBatchDelete,
+          },
+          {
+            id: 'batch-exit',
+            label: '退出批量操作',
+            icon: tablerIcon('x', { size: 20 }),
+            divider: true,
+            onSelect: handleExitBatch,
+          },
+        ]
+      : [
+          {
+            id: 'batch-enter',
+            label: '开启批量操作',
+            icon: tablerIcon('list-check', { size: 20 }),
+            onSelect: () => setIsBatchMode(true),
+          },
+          {
+            id: 'batch-play',
+            label: '批量播放',
+            icon: tablerIcon('play', { size: 20 }),
+            onSelect: () => {
+              setIsBatchMode(true)
+              handleBatchPlay()
+            },
+          },
+          {
+            id: 'batch-add',
+            label: '添加到歌单',
+            icon: tablerIcon('plus', { size: 20 }),
+            onSelect: () => {
+              setIsBatchMode(true)
+              handleBatchAddToPlaylist()
+            },
+          },
+          {
+            id: 'batch-delete',
+            label: '从“最喜欢的音乐”中删除',
+            icon: tablerIcon('trash', { size: 20 }),
+            tone: 'danger',
+            onSelect: () => {
+              setIsBatchMode(true)
+              handleBatchDelete()
+            },
+          },
+        ]
+
+    return [
+      {
+        id: 'batch-operations',
+        label: '批量操作',
+        icon: tablerIcon('list-check', { size: 20 }),
+        submenu: {
+          title: '批量操作',
+          items: batchSubmenu,
+        },
+      },
+    ]
+  }, [isBatchMode, selectedUrns, sortedUrns])
 
   const renderPlayButton = (size: number, iconSize: number, testID: string | undefined) =>
     h(DetailPlayButton, {
@@ -177,6 +344,20 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
           },
           tablerIcon('shuffle', { size: 26 }),
         ),
+        h(
+          'button',
+          {
+            type: 'button',
+            'data-testid': 'favorites-more-trigger',
+            title: '更多选项',
+            style: { background: 'none', border: 'none', color: '#b3b3b3', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
+            onClick: (e: ReactMouseEvent) => {
+              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+              setMoreMenuAnchor({ x: rect.left, y: rect.bottom + 6 })
+            },
+          },
+          tablerIcon('dots', { size: 24 }),
+        ),
       ),
       h(
         'div',
@@ -247,6 +428,19 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
         ),
       ),
     ),
+    isBatchMode
+      ? h(BatchActionBar, {
+          selectedCount: selectedUrns.size,
+          totalCount: sortedUrns.length,
+          allSelected: sortedUrns.length > 0 && selectedUrns.size === sortedUrns.length,
+          onToggleSelectAll: handleToggleSelectAll,
+          onBatchPlay: handleBatchPlay,
+          onBatchAddToPlaylist: (anchor) => handleBatchAddToPlaylist(anchor),
+          onBatchDelete: handleBatchDelete,
+          deleteLabel: '从“最喜欢”中删除',
+          onExitBatch: handleExitBatch,
+        })
+      : null,
     error ? h('div', { style: { padding: '0 32px 8px 32px' } }, h(Text, { variant: 'sm', tone: 'error' }, error)) : null,
     saved.status === 'error'
       ? h('div', { style: { padding: '0 32px 8px 32px' } }, h(Text, { tone: 'error' }, `Could not read favourites: ${saved.error?.message}`))
@@ -262,6 +456,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
       { key: 'title', label: '标题', testID: 'favorites-sort-title', flex: 2, paddingLeft: 12 },
       { key: 'artist', label: '艺人', plain: true, flex: 1, visible: viewMode === 'compact' },
       { key: 'album', label: '专辑', testID: 'favorites-sort-album', flex: 1.5, paddingLeft: 8 },
+      { key: 'source', label: '来源', plain: true, flex: 1, paddingLeft: 8 },
       { key: 'duration', label: '', icon: tablerIcon('clock', { size: 18 }), testID: 'favorites-sort-duration', width: 120, align: 'right', paddingRight: 40 },
     ] satisfies DetailColumnSpec[],
     sortKey,
@@ -310,6 +505,11 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
             track: t,
             index,
             compact: viewMode === 'compact',
+            batchMode: isBatchMode,
+            selected: selectedUrns.has(t.urn),
+            onToggleSelect: () => handleToggleSelect(t.urn),
+            showSource: true,
+            sourceName: resolveTrackSourceName(ctx, t.urn),
             onPress: () =>
               player?.playFromContext(t.urn, sortedUrns, {
                 context: { kind: 'favorites', label: '收藏夹' },
@@ -331,6 +531,14 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
       y: sortMenuAnchor?.y ?? 0,
       items: viewModeMenuItems(sortItems, viewMode, setViewMode),
       title: '排序方式',
+    }),
+    h(ContextMenu, {
+      open: moreMenuAnchor !== null,
+      onClose: () => setMoreMenuAnchor(null),
+      x: moreMenuAnchor?.x ?? 0,
+      y: moreMenuAnchor?.y ?? 0,
+      items: moreMenuItems,
+      title: '已点赞的歌曲',
     }),
   )
 }

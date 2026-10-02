@@ -38,6 +38,7 @@ export interface SaveToCollectionOption {
 
 export interface SaveToPlaylistMenuController {
   open(track: SaveToPlaylistTrack, anchor?: MenuAnchor): void
+  openBatch(tracks: readonly (SaveToPlaylistTrack | string)[], anchor?: MenuAnchor, title?: string): void
   close(): void
   menuProps: {
     open: boolean
@@ -60,23 +61,23 @@ export interface SaveToPlaylistMenuController {
  */
 export function useSaveToPlaylistMenu(ctx: Context): SaveToPlaylistMenuController {
   const library = serviceOf<LibraryService>(ctx, 'library')
-  const [active, setActive] = useState<{ track: SaveToPlaylistTrack; anchor: MenuAnchor } | undefined>(undefined)
+  const [active, setActive] = useState<
+    { tracks: SaveToPlaylistTrack[]; anchor: MenuAnchor; title?: string } | undefined
+  >(undefined)
   const [liked, setLiked] = useState(false)
   const [likedCount, setLikedCount] = useState(0)
   const [playlists, setPlaylists] = useState<readonly SaveToPlaylistOption[]>([])
   const [collections, setCollections] = useState<readonly SaveToCollectionOption[]>([])
 
-  const open = useCallback(
-    (track: SaveToPlaylistTrack, anchor?: MenuAnchor) => {
-      setActive({ track, anchor: anchorOf(anchor) })
-      setLiked(track.loved ?? false)
-
+  const loadMenuData = useCallback(
+    async (targetTracks: readonly SaveToPlaylistTrack[]) => {
       if (!library) return
 
-      if (typeof library.isSaved === 'function') {
+      const firstTrack = targetTracks[0]
+      if (firstTrack && typeof library.isSaved === 'function') {
         void library
-          .isSaved(track.urn)
-          .then((saved) => setLiked(saved || track.loved === true))
+          .isSaved(firstTrack.urn)
+          .then((saved) => setLiked(saved || firstTrack.loved === true))
           .catch(() => {})
       }
 
@@ -125,12 +126,12 @@ export function useSaveToPlaylistMenu(ctx: Context): SaveToPlaylistMenuControlle
 
           // If getPlaylist exists, check containment
           let updatedOptions = initialOptions
-          if (typeof library.getPlaylist === 'function') {
+          if (typeof library.getPlaylist === 'function' && firstTrack) {
             const containment = await Promise.all(
               rawPlaylists.map(async (p) => {
                 try {
                   const detail = await library.getPlaylist!(p.urn)
-                  const contains = detail?.items?.some((i) => i.trackUrn === track.urn) ?? false
+                  const contains = detail?.items?.some((i) => i.trackUrn === firstTrack.urn) ?? false
                   return { urn: p.urn, contains }
                 } catch {
                   return { urn: p.urn, contains: false }
@@ -182,27 +183,49 @@ export function useSaveToPlaylistMenu(ctx: Context): SaveToPlaylistMenuControlle
     [library],
   )
 
+  const open = useCallback(
+    (track: SaveToPlaylistTrack, anchor?: MenuAnchor) => {
+      setActive({ tracks: [track], anchor: anchorOf(anchor), title: '添加到歌单' })
+      setLiked(track.loved ?? false)
+      void loadMenuData([track])
+    },
+    [loadMenuData],
+  )
+
+  const openBatch = useCallback(
+    (targetTracks: readonly (SaveToPlaylistTrack | string)[], anchor?: MenuAnchor, title?: string) => {
+      const normalized: SaveToPlaylistTrack[] = targetTracks.map((item) =>
+        typeof item === 'string' ? { urn: item, title: item } : item,
+      )
+      const menuTitle =
+        title ?? (normalized.length > 1 ? `已选择 ${normalized.length} 首歌曲` : (normalized[0]?.title ?? '添加到歌单'))
+      setActive({ tracks: normalized, anchor: anchorOf(anchor), title: menuTitle })
+      setLiked(false)
+      void loadMenuData(normalized)
+    },
+    [loadMenuData],
+  )
+
   const onToggleLiked = useCallback(async () => {
     if (!active || !library) return
     const next = !liked
     setLiked(next)
     setLikedCount((prev) => (next ? prev + 1 : Math.max(0, prev - 1)))
-    // The heart writes both stores, like every other favourite writer: the
-    // catalogue's `loved` flag is what a track row's own heart draws, and
-    // leaving it lit while un-saving is exactly the "unfavourited but still a
-    // heart" bug. Catalogue first, so the `library/changed` event the shelf
-    // write fires sees the final state when listeners re-read.
+    const trackUrns = active.tracks.map((t) => t.urn)
     const sources = serviceOf<SourcesService>(ctx, 'sources')
-    if (sources?.setLoved) {
-      await sources.setLoved(active.track.urn, next).catch(() => {})
+    for (const urn of trackUrns) {
+      if (sources?.setLoved) {
+        await sources.setLoved(urn, next).catch(() => {})
+      }
+      await library.setSaved(urn, next).catch(() => {})
     }
-    await library.setSaved(active.track.urn, next).catch(() => {})
   }, [active, library, liked, ctx])
 
   const onTogglePlaylist = useCallback(
     async (playlistUrn: string, currentlyContains: boolean) => {
       if (!active || !library) return
       const next = !currentlyContains
+      const trackUrns = active.tracks.map((t) => t.urn)
 
       setPlaylists((prev) =>
         prev.map((p) =>
@@ -226,14 +249,15 @@ export function useSaveToPlaylistMenu(ctx: Context): SaveToPlaylistMenuControlle
         if (currentlyContains) {
           if (typeof library.getPlaylist === 'function') {
             const detail = await library.getPlaylist(playlistUrn)
-            const itemIds = detail?.items?.filter((i) => i.trackUrn === active.track.urn).map((i) => i.id) ?? []
+            const targetSet = new Set(trackUrns)
+            const itemIds = detail?.items?.filter((i) => targetSet.has(i.trackUrn)).map((i) => i.id) ?? []
             if (itemIds.length && typeof library.removeItems === 'function') {
               await library.removeItems(playlistUrn, itemIds)
             }
           }
         } else {
           if (typeof library.addTracks === 'function') {
-            await library.addTracks(playlistUrn, [active.track.urn])
+            await library.addTracks(playlistUrn, trackUrns)
           }
         }
       } catch {
@@ -247,19 +271,20 @@ export function useSaveToPlaylistMenu(ctx: Context): SaveToPlaylistMenuControlle
     async (name: string, folderId?: string) => {
       if (!active || !library || !name.trim()) return
       const trimmed = name.trim()
+      const trackUrns = active.tracks.map((t) => t.urn)
       try {
         const playlist = await library.createPlaylist(trimmed)
         if (folderId && typeof library.addToCollection === 'function') {
           await library.addToCollection(folderId, [playlist.urn]).catch(() => {})
         }
         if (typeof library.addTracks === 'function') {
-          await library.addTracks(playlist.urn, [active.track.urn]).catch(() => {})
+          await library.addTracks(playlist.urn, trackUrns).catch(() => {})
         }
 
         const newOption: SaveToPlaylistOption = {
           urn: playlist.urn,
           name: playlist.name,
-          trackCount: 1,
+          trackCount: trackUrns.length,
           containsTrack: true,
           pinned: false,
           isSmart: false,
@@ -291,13 +316,14 @@ export function useSaveToPlaylistMenu(ctx: Context): SaveToPlaylistMenuControlle
 
   return {
     open,
+    openBatch,
     close,
     menuProps: {
       open: active !== undefined,
       onClose: close,
       x: active?.anchor.x ?? 0,
       y: active?.anchor.y ?? 0,
-      title: '添加到歌单',
+      title: active?.title ?? '添加到歌单',
       liked,
       likedCount,
       onToggleLiked,

@@ -12,8 +12,10 @@ import { useResolvedArtwork } from '@BBeBee/plugin-cache/hooks'
 import { tokens } from '@BBeBee/ui-tokens'
 import { QuadArtworkCollage } from '../components/QuadArtworkCollage.js'
 import { LibraryTrackRow } from '../components/LibraryTrackRow.js'
+import { BatchActionBar } from '../components/BatchActionBar.js'
 import { EditPlaylistModal } from '../components/modals/EditPlaylistModal.js'
 import { useTrackLibraryInfo } from '../hooks/useTrackLibraryInfo.js'
+import { resolveTrackSourceName } from '../utils/source-helpers.js'
 import { formatTotalDuration } from '../utils/data-helpers.js'
 
 type PlaylistSortKey = 'custom' | 'title' | 'artist' | 'album' | 'dateAdded' | 'duration'
@@ -118,8 +120,18 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
   }, [ctx, urn, isThirdPartyUrn, thirdPartyData.cursor, thirdPartyData.hasMore, thirdPartyData.loadingMore])
 
   const detail = isThirdPartyUrn ? thirdPartyData.detail : state.data
-  const rawItems = detail?.items ?? []
-  const urns = rawItems.map((item) => item.trackUrn)
+  // 1. 歌曲去重：按 trackUrn 过滤重复项
+  const rawItems = useMemo(() => {
+    const list = isThirdPartyUrn ? (thirdPartyData.detail?.items ?? []) : (state.data?.items ?? [])
+    const seen = new Set<string>()
+    return list.filter((item) => {
+      if (!item.trackUrn || seen.has(item.trackUrn)) return false
+      seen.add(item.trackUrn)
+      return true
+    })
+  }, [isThirdPartyUrn, thirdPartyData.detail?.items, state.data?.items])
+
+  const urns = useMemo(() => rawItems.map((item) => item.trackUrn), [rawItems])
   const tracks = useTracksByUrn(ctx, urns)
 
   // Identify third party source: only when the playlist itself originates from a third-party source
@@ -138,11 +150,14 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
   const [viewMode, setViewMode] = useViewMode('playlist-detail', 'list', ['compact', 'list'] as const)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [sortMenuAnchor, setSortMenuAnchor] = useState<MenuAnchor | null>(null)
+  const [isBatchMode, setIsBatchMode] = useState(false)
+  const [selectedUrns, setSelectedUrns] = useState<Set<string>>(new Set())
+
   // 滚动折叠：吸顶栏在播放按钮靠近时从视口上方滑入，滚过按钮一半高度时
   // 把按钮“吸”进吸顶栏（docked），表头吸附在吸顶栏正下方。
   const collapse = useDetailBarCollapse({ barHeight: 64, anchorHeight: 56 })
   const menu = useTrackMenu(ctx, { fromPlaylistUrn: urn })
-  const { isTrackInLibrary, handleAddToFavorites, openAddToPlaylistMenu, saveToPlaylistMenuProps } = useTrackLibraryInfo(ctx)
+  const { isTrackInLibrary, handleAddToFavorites, openAddToPlaylistMenu, openBatchAddToPlaylistMenu, saveToPlaylistMenuProps } = useTrackLibraryInfo(ctx)
 
   // 背景与吸顶栏的主题色：优先歌单封面，其次第一首歌的封面。
   const coverArtwork: ArtworkRef | undefined =
@@ -200,6 +215,65 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
   }, [rawItems, tracks, searchQuery, sortKey, sortOrder])
 
   const sortedUrns = useMemo(() => filteredRows.map((r) => r.trackUrn), [filteredRows])
+
+  const allSelected = sortedUrns.length > 0 && selectedUrns.size === sortedUrns.length
+  const handleToggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedUrns(new Set())
+    } else {
+      setSelectedUrns(new Set(sortedUrns))
+    }
+  }
+
+  const handleToggleSelect = (trackUrn: string) => {
+    setSelectedUrns((prev) => {
+      const next = new Set(prev)
+      if (next.has(trackUrn)) next.delete(trackUrn)
+      else next.add(trackUrn)
+      return next
+    })
+  }
+
+  const handleBatchPlay = () => {
+    const toPlay = Array.from(selectedUrns)
+    if (toPlay.length > 0 && detail) {
+      void ctx.player.playNow(toPlay, {
+        context: { kind: 'playlist', urn: detail.urn, label: detail.name },
+      })
+    }
+  }
+
+  const handleBatchAddToPlaylist = (anchor?: MenuAnchor) => {
+    const toAdd = Array.from(selectedUrns)
+    if (toAdd.length > 0) {
+      const selectedTracks = toAdd.map((u) => tracks.get(u) ?? u)
+      openBatchAddToPlaylistMenu(
+        selectedTracks,
+        anchor ?? { x: typeof window !== 'undefined' ? window.innerWidth / 2 : 200, y: typeof window !== 'undefined' ? window.innerHeight / 2 : 200 },
+      )
+    }
+  }
+
+  const handleBatchDelete = async () => {
+    if (!detail || selectedUrns.size === 0) return
+    const itemIds = rawItems
+      .filter((it) => selectedUrns.has(it.trackUrn))
+      .map((it) => it.id)
+    if (itemIds.length > 0) {
+      setError(undefined)
+      try {
+        await ctx.library.removeItems(detail.urn, itemIds)
+        setSelectedUrns(new Set())
+      } catch (cause: unknown) {
+        setError(cause instanceof Error ? cause.message : String(cause))
+      }
+    }
+  }
+
+  const handleExitBatch = () => {
+    setIsBatchMode(false)
+    setSelectedUrns(new Set())
+  }
 
   const play = (trackUrn: string) => {
     if (!detail) return
@@ -281,6 +355,16 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
           { urn: detail.urn, name: detail.name },
           urns,
           { x: e.clientX, y: e.clientY },
+          {
+            isBatchMode,
+            onToggleBatchMode: () => {
+              setIsBatchMode((prev) => !prev)
+              setSelectedUrns(new Set())
+            },
+            onBatchPlay: handleBatchPlay,
+            onBatchAddToPlaylist: handleBatchAddToPlaylist,
+            onBatchDelete: handleBatchDelete,
+          },
         )
       },
     },
@@ -434,6 +518,16 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
                 { urn: detail.urn, name: detail.name },
                 urns,
                 { x: rect.left, y: rect.bottom + 6 },
+                {
+                  isBatchMode,
+                  onToggleBatchMode: () => {
+                    setIsBatchMode((prev) => !prev)
+                    setSelectedUrns(new Set())
+                  },
+                  onBatchPlay: handleBatchPlay,
+                  onBatchAddToPlaylist: handleBatchAddToPlaylist,
+                  onBatchDelete: handleBatchDelete,
+                },
               )
             },
           },
@@ -558,6 +652,19 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
         '名称和详情',
       ),
     ),
+    isBatchMode
+      ? h(BatchActionBar, {
+          selectedCount: selectedUrns.size,
+          totalCount: sortedUrns.length,
+          allSelected,
+          onToggleSelectAll: handleToggleSelectAll,
+          onBatchPlay: handleBatchPlay,
+          onBatchAddToPlaylist: (anchor) => handleBatchAddToPlaylist(anchor),
+          onBatchDelete: handleBatchDelete,
+          deleteLabel: '从歌单中删除',
+          onExitBatch: handleExitBatch,
+        })
+      : null,
     error ? h('div', { style: { padding: '0 32px 8px 32px' } }, h(Text, { variant: 'sm', tone: 'error' }, error)) : null,
   )
 
@@ -571,6 +678,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
       { key: 'title', label: '标题', testID: 'playlist-sort-title', flex: 2, paddingLeft: 12 },
       { key: 'artist', label: '艺人', plain: true, flex: 1, visible: viewMode === 'compact' },
       { key: 'album', label: '专辑', testID: 'playlist-sort-album', flex: 1.5, paddingLeft: 8 },
+      { key: 'source', label: '来源', plain: true, flex: 1, paddingLeft: 8 },
       { key: 'dateAdded', label: '添加日期', testID: 'playlist-sort-dateAdded', flex: 1, paddingLeft: 8 },
       { key: 'duration', label: '', icon: tablerIcon('clock', { size: 18 }), testID: 'playlist-sort-duration', width: 120, align: 'right', paddingRight: 40 },
     ] satisfies DetailColumnSpec[],
@@ -624,6 +732,11 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
             track,
             index,
             compact: viewMode === 'compact',
+            batchMode: isBatchMode,
+            selected: selectedUrns.has(trackUrn),
+            onToggleSelect: () => handleToggleSelect(trackUrn),
+            showSource: true,
+            sourceName: resolveTrackSourceName(ctx, trackUrn),
             onPress: () => play(trackUrn),
             // 取消收藏后那一行要回到加号：心形状态跟着实时收藏集合走。
             inLibrary: isTrackInLibrary(track),

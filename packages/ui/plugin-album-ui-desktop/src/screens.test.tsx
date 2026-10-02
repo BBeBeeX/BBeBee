@@ -445,5 +445,91 @@ describe('AlbumScreen', () => {
       expect(queryByTestId('album-source-badge')).toBeNull()
     })
   })
+
+  it('deduplicates tracks, renders source column, and supports batch operations', async () => {
+    const ctx = new Context()
+    const sources = new SourcesStub(ctx)
+    new PlayerStub(ctx)
+    new DownloadsStub(ctx)
+    new UiStub(ctx)
+    new LibraryStub(ctx)
+
+    const dupAlbumUrn = 'BBeBee:remote:album:dup'
+    const origGetAlbum = sources.getAlbum.bind(sources)
+    sources.getAlbum = async (urn: string) => {
+      if (urn === dupAlbumUrn) {
+        return {
+          urn: dupAlbumUrn,
+          title: 'Dup Album',
+          artists: [],
+          tracks: [
+            { urn: TRACK_A, title: 'Hunter', artists: [] },
+            { urn: TRACK_A, title: 'Hunter duplicate', artists: [] },
+            { urn: TRACK_B, title: 'Jóga', artists: [] },
+          ],
+        }
+      }
+      return origGetAlbum(urn)
+    }
+
+    await withListLayout(async () => {
+      const { container, getByTestId, queryByTestId, getByText } = render(h(AlbumScreen, { ctx, urn: dupAlbumUrn }))
+      await act(async () => {
+        await tick()
+      })
+
+      // 1. Deduplication: only 2 unique rows rendered
+      const rows = container.querySelectorAll('[role="row"]')
+      expect(rows.length).toBe(2)
+
+      // 2. Source column header present
+      const header = getByTestId('album-table-header')
+      expect(header.textContent).toContain('来源')
+
+      // 3. Batch mode initially off
+      expect(queryByTestId('batch-action-bar')).toBeNull()
+
+      // Open more menu
+      const moreBtn = getByTestId('album-more-trigger')
+      await act(async () => {
+        moreBtn.click()
+        await tick()
+      })
+
+      // Click batch operations to open submenu
+      const batchOpItem = getByText('批量操作')
+      expect(batchOpItem).toBeTruthy()
+      await act(async () => {
+        batchOpItem.click()
+        await tick()
+      })
+
+      // Click 开启批量操作
+      const enterBatchItem = getByText('开启批量操作')
+      expect(enterBatchItem).toBeTruthy()
+      await act(async () => {
+        enterBatchItem.click()
+        await tick()
+      })
+
+      // Batch action bar is now visible
+      expect(getByTestId('batch-action-bar')).toBeTruthy()
+      expect(getByTestId('batch-select-all')).toBeTruthy()
+
+      // Select all
+      await act(async () => {
+        getByTestId('batch-select-all').click()
+        await tick()
+      })
+      expect(getByTestId('batch-selected-count').textContent).toContain('2 / 2')
+
+      // Exit batch
+      await act(async () => {
+        getByTestId('batch-exit-btn').click()
+        await tick()
+      })
+      expect(queryByTestId('batch-action-bar')).toBeNull()
+    })
+  })
 })
 

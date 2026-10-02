@@ -77,6 +77,10 @@ export function useTrackLibraryInfo(ctx: Context) {
     saveToPlaylistMenu.open(track, anchor)
   }, [saveToPlaylistMenu])
 
+  const openBatchAddToPlaylistMenu = useCallback((tracks: readonly (Track | string)[], anchor: MenuAnchor, title?: string) => {
+    saveToPlaylistMenu.openBatch(tracks, anchor, title)
+  }, [saveToPlaylistMenu])
+
   const closeAddToPlaylistMenu = useCallback(() => {
     setActiveTrack(null)
     saveToPlaylistMenu.close()
@@ -117,6 +121,7 @@ export function useTrackLibraryInfo(ctx: Context) {
     isTrackInLibrary,
     handleAddToFavorites,
     openAddToPlaylistMenu,
+    openBatchAddToPlaylistMenu,
     closeAddToPlaylistMenu,
     addToPlaylistMenuState: saveToPlaylistMenu.menuProps.open && activeTrack
       ? { track: activeTrack, anchor: { x: saveToPlaylistMenu.menuProps.x, y: saveToPlaylistMenu.menuProps.y } }

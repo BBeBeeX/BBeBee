@@ -31,6 +31,43 @@ import { Artwork, ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, 
 import { serviceOf } from '@BBeBee/ui-core'
 import type { ArtworkProps, MenuAnchor, MenuItemSpec } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
+import { BatchActionBar } from './BatchActionBar.js'
+
+function resolveTrackSourceName(ctx: Context, urn?: string): string {
+  if (!urn) return '-'
+  if (
+    urn.startsWith('local:') ||
+    urn.startsWith('BBeBee:local:') ||
+    urn.startsWith('file:') ||
+    urn.startsWith('bbebee-file:')
+  ) {
+    return '本地'
+  }
+  const parsed = tryParseUrn(urn)
+  if (!parsed || !parsed.sourceId || parsed.sourceId === 'local') {
+    return '本地'
+  }
+
+  const sources = serviceOf<SourcesService>(ctx, 'sources') ?? (ctx as unknown as { sources?: SourcesService }).sources
+  if (sources) {
+    const record =
+      (sources.sources ? sources.sources.find((s) => s.id === parsed.sourceId) : undefined) ??
+      (typeof sources.source === 'function' ? sources.source(parsed.sourceId) : undefined) ??
+      (typeof (sources as unknown as { get?: (id: string) => { displayName?: string; name?: string } }).get === 'function'
+        ? (sources as unknown as { get: (id: string) => { displayName?: string; name?: string } }).get(parsed.sourceId)
+        : undefined)
+
+    if (record) {
+      return (
+        (record as { displayName?: string }).displayName ||
+        (record as { name?: string }).name ||
+        (record as { doc?: { sourceName?: string } }).doc?.sourceName ||
+        parsed.sourceId
+      )
+    }
+  }
+  return parsed.sourceId
+}
 
 /**
  * `<Artwork>`, with the cover resolved through `ctx.cache` first.
@@ -107,6 +144,11 @@ function AlbumTrackTableRow({
   albumTitle,
   inLibrary,
   compact,
+  batchMode,
+  selected,
+  onToggleSelect,
+  showSource,
+  sourceName,
   onAddToFavorites,
   onOpenPlaylistMenu,
   onPress,
@@ -119,6 +161,11 @@ function AlbumTrackTableRow({
   inLibrary: boolean
   /** 紧凑视图：艺人独立成列。 */
   compact?: boolean
+  batchMode?: boolean
+  selected?: boolean
+  onToggleSelect?: () => void
+  showSource?: boolean
+  sourceName?: string
   onAddToFavorites?: (track: Track) => void
   onOpenPlaylistMenu?: (track: Track, anchor: MenuAnchor) => void
   onPress: () => void
@@ -155,7 +202,7 @@ function AlbumTrackTableRow({
         boxSizing: 'border-box',
       },
     },
-    // Col 1: # or Play
+    // Col 1: Checkbox (batch mode) or # or Play
     h(
       'div',
       {
@@ -169,7 +216,27 @@ function AlbumTrackTableRow({
           color: hovered ? '#FFFFFF' : '#b3b3b3',
         },
       },
-      hovered ? tablerIcon('play', { size: 18 }) : String(index + 1),
+      batchMode
+        ? h('input', {
+            type: 'checkbox',
+            'data-testid': `album-track-checkbox-${track.urn}`,
+            'aria-label': `选择 ${track.title}`,
+            checked: selected,
+            onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+              e.stopPropagation()
+              onToggleSelect?.()
+            },
+            onClick: (e: React.MouseEvent) => e.stopPropagation(),
+            style: {
+              width: 16,
+              height: 16,
+              cursor: 'pointer',
+              accentColor: 'var(--color-primary, #5F87FF)',
+            },
+          })
+        : hovered
+          ? tablerIcon('play', { size: 18 })
+          : String(index + 1),
     ),
     // Col 2: Title and Artist
     h(
@@ -252,6 +319,25 @@ function AlbumTrackTableRow({
       },
       track.albumTitle || albumTitle || '-',
     ),
+    // Col: Source
+    showSource
+      ? h(
+          'div',
+          {
+            style: {
+              flex: 1,
+              minWidth: 0,
+              paddingRight: 16,
+              fontSize: 14,
+              color: 'var(--text-tertiary, #8B95B0)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            },
+          },
+          sourceName || '-',
+        )
+      : null,
     // Col 4: Duration and actions
     h(
       'div',
@@ -365,6 +451,8 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   const [collections, setCollections] = useState<readonly Collection[]>([])
   const [isSaved, setIsSaved] = useState(false)
   const [savedTrackUrns, setSavedTrackUrns] = useState<Set<string>>(new Set())
+  const [isBatchMode, setIsBatchMode] = useState(false)
+  const [selectedUrns, setSelectedUrns] = useState<Set<string>>(new Set())
   // 滚动折叠：吸顶栏在播放按钮靠近时滑入，滚过按钮一半高度时吸附（docked）。
   const collapse = useDetailBarCollapse({ barHeight: 64, anchorHeight: 56 })
   // A row's `track.loved` is the value at the album's last fetch, which can be
@@ -470,7 +558,15 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
     setIsSaved(next)
   }, [library, album.data?.urn, isSaved])
 
-  const tracks = album.data?.tracks ?? []
+  const rawTracks = album.data?.tracks ?? []
+  const tracks = useMemo(() => {
+    const seen = new Set<string>()
+    return rawTracks.filter((t) => {
+      if (!t.urn || seen.has(t.urn)) return false
+      seen.add(t.urn)
+      return true
+    })
+  }, [rawTracks])
 
   const sortedTracks = useMemo(() => {
     const list = [...tracks]
@@ -494,6 +590,71 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   }, [tracks, sortKey, sortOrder, album.data?.title])
 
   const sortedUrns = useMemo(() => sortedTracks.map((track) => track.urn), [sortedTracks])
+
+  const allSelected = sortedUrns.length > 0 && selectedUrns.size === sortedUrns.length
+  const handleToggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedUrns(new Set())
+    } else {
+      setSelectedUrns(new Set(sortedUrns))
+    }
+  }
+
+  const handleToggleSelect = (trackUrn: string) => {
+    setSelectedUrns((prev) => {
+      const next = new Set(prev)
+      if (next.has(trackUrn)) next.delete(trackUrn)
+      else next.add(trackUrn)
+      return next
+    })
+  }
+
+  const handleBatchPlay = () => {
+    const toPlay = Array.from(selectedUrns)
+    if (toPlay.length > 0 && album.data) {
+      void player?.playNow(toPlay, {
+        context: { kind: 'album', urn: album.data.urn, label: album.data.title },
+      })
+    }
+  }
+
+  const handleBatchAddToPlaylist = (anchor?: MenuAnchor) => {
+    const toAdd = Array.from(selectedUrns)
+    if (toAdd.length > 0) {
+      const trackMap = new Map(tracks.map((t) => [t.urn, t]))
+      const selectedTracks = toAdd.map((u) => trackMap.get(u) ?? u)
+      saveToPlaylistMenu.openBatch(
+        selectedTracks,
+        anchor ?? {
+          x: typeof window !== 'undefined' ? window.innerWidth / 2 : 200,
+          y: typeof window !== 'undefined' ? window.innerHeight / 2 : 200,
+        },
+      )
+    }
+  }
+
+  const handleBatchDelete = async () => {
+    if (selectedUrns.size === 0) return
+    for (const u of selectedUrns) {
+      if (sources?.setLoved) {
+        await sources.setLoved(u, false).catch(() => {})
+      }
+      if (library) {
+        await library.setSaved(u, false).catch(() => {})
+      }
+    }
+    setSavedTrackUrns((prev) => {
+      const next = new Set(prev)
+      for (const u of selectedUrns) next.delete(u)
+      return next
+    })
+    setSelectedUrns(new Set())
+  }
+
+  const handleExitBatch = () => {
+    setIsBatchMode(false)
+    setSelectedUrns(new Set())
+  }
 
   if (album.status === 'loading' || album.status === 'idle') {
     return h(Pending, { label: 'Loading album…' })
@@ -528,7 +689,87 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
     title: '加入文件夹',
   })
 
-  const albumMenuItems: MenuItemSpec[] = []
+  const batchSubmenu: MenuItemSpec[] = isBatchMode
+    ? [
+        {
+          id: 'batch-play',
+          label: '批量播放',
+          icon: tablerIcon('play', { size: 20 }),
+          disabled: selectedUrns.size === 0,
+          onSelect: handleBatchPlay,
+        },
+        {
+          id: 'batch-add',
+          label: '添加到歌单',
+          icon: tablerIcon('plus', { size: 20 }),
+          disabled: selectedUrns.size === 0,
+          onSelect: () => handleBatchAddToPlaylist(),
+        },
+        {
+          id: 'batch-delete',
+          label: '从“最喜欢的音乐”中删除',
+          icon: tablerIcon('trash', { size: 20 }),
+          tone: 'danger',
+          disabled: selectedUrns.size === 0,
+          onSelect: handleBatchDelete,
+        },
+        {
+          id: 'batch-exit',
+          label: '退出批量操作',
+          icon: tablerIcon('x', { size: 20 }),
+          divider: true,
+          onSelect: handleExitBatch,
+        },
+      ]
+    : [
+        {
+          id: 'batch-enter',
+          label: '开启批量操作',
+          icon: tablerIcon('list-check', { size: 20 }),
+          onSelect: () => setIsBatchMode(true),
+        },
+        {
+          id: 'batch-play',
+          label: '批量播放',
+          icon: tablerIcon('play', { size: 20 }),
+          onSelect: () => {
+            setIsBatchMode(true)
+            handleBatchPlay()
+          },
+        },
+        {
+          id: 'batch-add',
+          label: '添加到歌单',
+          icon: tablerIcon('plus', { size: 20 }),
+          onSelect: () => {
+            setIsBatchMode(true)
+            handleBatchAddToPlaylist()
+          },
+        },
+        {
+          id: 'batch-delete',
+          label: '从“最喜欢的音乐”中删除',
+          icon: tablerIcon('trash', { size: 20 }),
+          tone: 'danger',
+          onSelect: () => {
+            setIsBatchMode(true)
+            handleBatchDelete()
+          },
+        },
+      ]
+
+  const albumMenuItems: MenuItemSpec[] = [
+    {
+      id: 'batch-operations',
+      label: '批量操作',
+      icon: tablerIcon('list-check', { size: 20 }),
+      divider: true,
+      submenu: {
+        title: '批量操作',
+        items: batchSubmenu,
+      },
+    },
+  ]
 
   const albumResourceUrl = resolveOriginalResourceUrl({ urn: detail.urn, kind: 'album' })
   if (albumResourceUrl) {
@@ -939,6 +1180,19 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
         ),
       ),
     ),
+    isBatchMode
+      ? h(BatchActionBar, {
+          selectedCount: selectedUrns.size,
+          totalCount: sortedUrns.length,
+          allSelected,
+          onToggleSelectAll: handleToggleSelectAll,
+          onBatchPlay: handleBatchPlay,
+          onBatchAddToPlaylist: (anchor) => handleBatchAddToPlaylist(anchor),
+          onBatchDelete: handleBatchDelete,
+          deleteLabel: '从“最喜欢”中删除',
+          onExitBatch: handleExitBatch,
+        })
+      : null,
   )
 
   // 表头走 stickyHeader 插槽（滚动容器的直接子节点）——嵌在 header 盒内时
@@ -951,6 +1205,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
       { key: 'title', label: '标题', testID: 'album-sort-title', flex: 2, paddingLeft: 12 },
       { key: 'artist', label: '艺人', plain: true, flex: 1, visible: viewMode === 'compact' },
       { key: 'album', label: '专辑', testID: 'album-sort-album', flex: 1.5, fixed: true, sortKeys: ['album', 'plays'] },
+      { key: 'source', label: '来源', plain: true, flex: 1, paddingLeft: 8 },
       { key: 'duration', label: '', icon: tablerIcon('clock', { size: 18 }), testID: 'album-sort-duration', width: 130, align: 'right', paddingRight: 40 },
     ] satisfies DetailColumnSpec[],
     sortKey,
@@ -993,6 +1248,11 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
             track,
             index,
             albumTitle: detail.title,
+            batchMode: isBatchMode,
+            selected: selectedUrns.has(track.urn),
+            onToggleSelect: () => handleToggleSelect(track.urn),
+            showSource: true,
+            sourceName: resolveTrackSourceName(ctx, track.urn),
             // Live saved set first; the row's snapshot `loved` only fills in
             // what the live data has not answered yet.
             inLibrary:

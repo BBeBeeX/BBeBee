@@ -877,7 +877,7 @@ describe('PlaylistDetailScreen', () => {
       await tick()
     })
 
-    expect(player.calls[0]).toBe(`${TRACK} <- 2`)
+    expect(player.calls[0]).toBe(`${TRACK} <- 1`)
   })
 
   it('removes the item, not every row that shares its track', async () => {
@@ -997,6 +997,68 @@ describe('PlaylistDetailScreen', () => {
       expect(getByText('跳转原始资源')).toBeTruthy()
     })
   })
+
+  it('deduplicates tracks, renders source column and supports batch mode', async () => {
+    const { ctx } = await harness()
+    await withListLayout(async () => {
+      const { container, getByTestId, queryByTestId, getByText } = render(h(PlaylistDetailScreen, { ctx, urn: PLAYLIST_URN }))
+      await act(async () => {
+        await tick()
+      })
+
+      // 1. Deduplication: storedPlaylist had item-1 and item-2 with the same TRACK URN, only 1 unique row is rendered
+      const rows = container.querySelectorAll('[role="row"]')
+      expect(rows.length).toBe(1)
+
+      // 2. Source column is rendered in header
+      const header = getByTestId('playlist-table-header')
+      expect(header.textContent).toContain('来源')
+
+      // 3. Batch mode initially off
+      expect(queryByTestId('batch-action-bar')).toBeNull()
+
+      // Open 3-dots more menu
+      const moreBtn = getByTestId('playlist-more-trigger')
+      await act(async () => {
+        moreBtn.click()
+        await tick()
+      })
+
+      // Click 批量操作 to open submenu
+      const batchOpItem = getByText('批量操作')
+      expect(batchOpItem).toBeTruthy()
+      await act(async () => {
+        batchOpItem.click()
+        await tick()
+      })
+
+      // Click 开启批量操作
+      const enterBatchItem = getByText('开启批量操作')
+      expect(enterBatchItem).toBeTruthy()
+      await act(async () => {
+        enterBatchItem.click()
+        await tick()
+      })
+
+      // Batch action bar is now visible
+      expect(getByTestId('batch-action-bar')).toBeTruthy()
+      expect(getByTestId('batch-select-all')).toBeTruthy()
+
+      // Select all
+      await act(async () => {
+        getByTestId('batch-select-all').click()
+        await tick()
+      })
+      expect(getByTestId('batch-selected-count').textContent).toContain('1 / 1')
+
+      // Exit batch
+      await act(async () => {
+        getByTestId('batch-exit-btn').click()
+        await tick()
+      })
+      expect(queryByTestId('batch-action-bar')).toBeNull()
+    })
+  })
 })
 
 describe('FavoritesScreen', () => {
@@ -1105,6 +1167,66 @@ describe('FavoritesScreen', () => {
         await tick()
       })
       expect(player.calls).toContain(`${TRACK_B} <- 2`)
+    })
+  })
+
+  it('deduplicates tracks, renders source column and supports batch mode in FavoritesScreen', async () => {
+    const { ctx, library } = await harness()
+    library.saved = [TRACK, TRACK] // duplicate entry
+
+    await withListLayout(async () => {
+      const { container, getByTestId, queryByTestId, getByText } = render(h(FavoritesScreen, { ctx }))
+      await act(async () => {
+        await tick()
+      })
+
+      // 1. Deduplication: only 1 unique row rendered despite duplicate in saved
+      const rows = container.querySelectorAll('[role="row"]')
+      expect(rows.length).toBe(1)
+
+      // 2. Source column is rendered in header
+      const header = getByTestId('favorites-table-header')
+      expect(header.textContent).toContain('来源')
+
+      // 3. Batch mode
+      expect(queryByTestId('batch-action-bar')).toBeNull()
+
+      const moreBtn = getByTestId('favorites-more-trigger')
+      await act(async () => {
+        moreBtn.click()
+        await tick()
+      })
+
+      const batchOpItem = getByText('批量操作')
+      expect(batchOpItem).toBeTruthy()
+      await act(async () => {
+        batchOpItem.click()
+        await tick()
+      })
+
+      const enterBatchItem = getByText('开启批量操作')
+      expect(enterBatchItem).toBeTruthy()
+      await act(async () => {
+        enterBatchItem.click()
+        await tick()
+      })
+
+      expect(getByTestId('batch-action-bar')).toBeTruthy()
+      expect(getByTestId('batch-select-all')).toBeTruthy()
+
+      // Select all
+      await act(async () => {
+        getByTestId('batch-select-all').click()
+        await tick()
+      })
+      expect(getByTestId('batch-selected-count').textContent).toContain('1 / 1')
+
+      // Exit batch
+      await act(async () => {
+        getByTestId('batch-exit-btn').click()
+        await tick()
+      })
+      expect(queryByTestId('batch-action-bar')).toBeNull()
     })
   })
 })
@@ -1492,6 +1614,70 @@ describe('LocalMusicScreen', () => {
       })
 
       expect(container.textContent).toContain('Song From Scan')
+    })
+  })
+
+  it('supports batch mode in LocalMusicScreen, deduplicates tracks and does not show source column', async () => {
+    const { ctx, sources } = await harness()
+    sources.tracks = [
+      { urn: 'BBeBee:demo:track:1', title: 'Song 1', artists: [{ urn: 'a', name: 'A', role: 'main', ordinal: 0 }] },
+      { urn: 'BBeBee:demo:track:1', title: 'Song 1 Duplicate', artists: [{ urn: 'a', name: 'A', role: 'main', ordinal: 0 }] },
+      { urn: 'BBeBee:demo:track:2', title: 'Song 2', artists: [{ urn: 'b', name: 'B', role: 'main', ordinal: 0 }] },
+    ]
+
+    await withListLayout(async () => {
+      const { container, getByTestId, queryByTestId, getByText } = render(h(LocalMusicScreen, { ctx }))
+      await act(async () => {
+        await tick()
+      })
+
+      // 1. Deduplication: only 2 unique rows rendered
+      const rows = container.querySelectorAll('[role="row"]')
+      expect(rows.length).toBe(2)
+
+      // 2. LocalMusicScreen does NOT have source column
+      const header = getByTestId('local-table-header')
+      expect(header.textContent).not.toContain('来源')
+
+      // 3. Batch mode
+      expect(queryByTestId('batch-action-bar')).toBeNull()
+
+      const moreBtn = getByTestId('local-music-more-trigger')
+      await act(async () => {
+        moreBtn.click()
+        await tick()
+      })
+
+      const batchOpItem = getByText('批量操作')
+      expect(batchOpItem).toBeTruthy()
+      await act(async () => {
+        batchOpItem.click()
+        await tick()
+      })
+
+      const enterBatchItem = getByText('开启批量操作')
+      expect(enterBatchItem).toBeTruthy()
+      await act(async () => {
+        enterBatchItem.click()
+        await tick()
+      })
+
+      expect(getByTestId('batch-action-bar')).toBeTruthy()
+      expect(getByTestId('batch-select-all')).toBeTruthy()
+
+      // Select all
+      await act(async () => {
+        getByTestId('batch-select-all').click()
+        await tick()
+      })
+      expect(getByTestId('batch-selected-count').textContent).toContain('2 / 2')
+
+      // Exit batch
+      await act(async () => {
+        getByTestId('batch-exit-btn').click()
+        await tick()
+      })
+      expect(queryByTestId('batch-action-bar')).toBeNull()
     })
   })
 })
