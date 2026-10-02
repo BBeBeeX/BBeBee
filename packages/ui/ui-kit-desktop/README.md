@@ -32,7 +32,7 @@ Layer 5（ui）— React DOM 版对等组件集（parity component set）的桌�
 
 **kit 级导出**：`setScheme(next: Scheme)`（shell 启动时调用）。
 
-**桌面专属扩展**（不进 parity 清单，mobile 无对应物）：`ContextMenu`（右键菜单 + 子菜单飞出）、`SaveToPlaylistPopover`（心形按钮的"添加到歌单"弹层，最小高度 480px、文件夹二级浮层 320px，随视口封顶）、`StickyDetailBar`（详情页滚动折叠后的吸顶栏：标题 + 播放按钮，滑入/吸附动作均为 `progress` 的函数，`pointer-events` 跟随淡入以免透明的它吃掉 hero 的点击）、`useImageColor` / `headerGradient` / `tintRgba` / `extractVibrantColor`（封面主题色：`dominantColor` 优先，缺失时一次 canvas 取色，失败回退 `undefined` → 调用方的中性渐变；渐变按百分比收在 header 底边，其下内容与吸附表头同为纯色 `--bg-primary`）、`DetailTableHeader`（吸顶表头：列配置化（宽度/flex/对齐/图标/plain 列/visible 列），悬停分隔线与排序箭头内聚在组件里，默认无箭头）、`DetailPlayButton`（圆形主播放按钮，disabled 而非隐藏）与 `DetailHero`（hero 头部：眉题/两行截断标题/副标题/meta 槽/封面槽，有无封面切换纵排与底对齐横排）。排序下拉菜单条目的构建器在 `ui-menus`（`sortMenuItems`）。`viewModeMenuItems` / `useViewMode`。
+**桌面专属扩展**（不进 parity 清单，mobile 无对应物）：`ContextMenu`（右键菜单 + 子菜单飞出，支持搜索过滤与顶部内嵌新建歌单）、`SaveToPlaylistPopover`（心形按钮的"添加到歌单"弹层，最小高度 480px、文件夹二级浮层 320px，随视口封顶；点击"新建歌单"在顶部搜索框位置无缝展开新建输入栏，带自动聚焦与 Escape/Enter 响应，同时自动隐藏列表中的新建行以避免混淆；确定按钮采用 `flexShrink: 0`、`whiteSpace: 'nowrap'` 防挤压包裹样式）、`StickyDetailBar`（详情页滚动折叠后的吸顶栏：标题 + 播放按钮，滑入/吸附动作均为 `progress` 的函数，`pointer-events` 跟随淡入以免透明的它吃掉 hero 的点击）、`useImageColor` / `headerGradient` / `tintRgba` / `extractVibrantColor`（封面主题色：`dominantColor` 优先，缺失时一次 canvas 取色，失败回退 `undefined` → 调用方的中性渐变；渐变按百分比收在 header 底边，其下内容与吸附表头同为纯色 `--bg-primary`）、`DetailTableHeader`（吸顶表头：列配置化（宽度/flex/对齐/图标/plain 列/visible 列/来源排序列），悬停分隔线与排序箭头内聚在组件里，默认无箭头，支持各详情页对“来源”列进行交互式排序）、`DetailPlayButton`（圆形主播放按钮，disabled 而非隐藏）与 `DetailHero`（hero 头部：眉题/两行截断标题/副标题/meta 槽/封面槽，有无封面切换纵排与底对齐横排）。排序下拉菜单条目的构建器在 `ui-menus`（`sortMenuItems`）。`viewModeMenuItems` / `useViewMode`。
 
 ### `src/manifest.ts` — parity 声明
 

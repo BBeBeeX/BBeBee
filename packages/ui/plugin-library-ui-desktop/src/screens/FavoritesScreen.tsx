@@ -13,7 +13,7 @@ import { BatchActionBar } from '../components/BatchActionBar.js'
 import { resolveTrackSourceName } from '../utils/source-helpers.js'
 import { useTrackLibraryInfo } from '../hooks/useTrackLibraryInfo.js'
 
-type FavoriteSortKey = 'default' | 'title' | 'artist' | 'album' | 'duration'
+type FavoriteSortKey = 'default' | 'title' | 'artist' | 'album' | 'source' | 'duration'
 
 /** 收藏夹没有封面：Spotify 给“已点赞的歌曲”的固定紫色就是它的主题色。 */
 const FAVORITES_TINT = '#450af5'
@@ -92,6 +92,10 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
           numeric: true,
           sensitivity: 'base',
         })
+      } else if (sortKey === 'source') {
+        const aSrc = resolveTrackSourceName(ctx, a.urn)
+        const bSrc = resolveTrackSourceName(ctx, b.urn)
+        cmp = aSrc.localeCompare(bSrc, undefined, { numeric: true, sensitivity: 'base' })
       } else if (sortKey === 'duration') {
         cmp = (a.durationMs ?? 0) - (b.durationMs ?? 0)
       }
@@ -106,6 +110,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
     title: '标题',
     artist: '艺人',
     album: '专辑',
+    source: '来源',
     duration: '时长',
   }
 
@@ -115,6 +120,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
       { id: 'title', label: '标题' },
       { id: 'artist', label: '艺人' },
       { id: 'album', label: '专辑' },
+      { id: 'source', label: '来源' },
       { id: 'duration', label: '时长' },
     ],
     sortKey,
@@ -418,7 +424,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
       { key: 'title', label: '标题', testID: 'favorites-sort-title', flex: 2, paddingLeft: 12 },
       { key: 'artist', label: '艺人', plain: true, flex: 1, visible: viewMode === 'compact' },
       { key: 'album', label: '专辑', testID: 'favorites-sort-album', flex: 1.5, paddingLeft: 8 },
-      { key: 'source', label: '来源', plain: true, flex: 1, paddingLeft: 8 },
+      { key: 'source', label: '来源', testID: 'favorites-sort-source', flex: 1, paddingLeft: 8 },
       { key: 'duration', label: '', icon: tablerIcon('clock', { size: 18 }), testID: 'favorites-sort-duration', width: 120, align: 'right', paddingRight: 40 },
     ] satisfies DetailColumnSpec[],
     sortKey,

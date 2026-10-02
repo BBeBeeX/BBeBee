@@ -18,7 +18,7 @@ import { useTrackLibraryInfo } from '../hooks/useTrackLibraryInfo.js'
 import { resolveTrackSourceName } from '../utils/source-helpers.js'
 import { formatTotalDuration } from '../utils/data-helpers.js'
 
-type PlaylistSortKey = 'custom' | 'title' | 'artist' | 'album' | 'dateAdded' | 'duration'
+type PlaylistSortKey = 'custom' | 'title' | 'artist' | 'album' | 'source' | 'dateAdded' | 'duration'
 
 export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string }): ReactElement {
   const sources = serviceOf<SourcesService>(ctx, 'sources')
@@ -205,6 +205,10 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
           numeric: true,
           sensitivity: 'base',
         })
+      } else if (sortKey === 'source') {
+        const aSrc = resolveTrackSourceName(ctx, a.trackUrn)
+        const bSrc = resolveTrackSourceName(ctx, b.trackUrn)
+        cmp = aSrc.localeCompare(bSrc, undefined, { numeric: true, sensitivity: 'base' })
       } else if (sortKey === 'dateAdded') {
         cmp = (a.item.addedAt ?? 0) - (b.item.addedAt ?? 0)
       } else if (sortKey === 'duration') {
@@ -296,6 +300,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
     title: '标题',
     artist: '艺人',
     album: '专辑',
+    source: '来源',
     dateAdded: '添加日期',
     duration: '时长',
   }
@@ -315,6 +320,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
       { id: 'title', label: '标题' },
       { id: 'artist', label: '艺人' },
       { id: 'album', label: '专辑' },
+      { id: 'source', label: '来源' },
       { id: 'dateAdded', label: '添加日期' },
       { id: 'duration', label: '时长' },
     ],
@@ -678,7 +684,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
       { key: 'title', label: '标题', testID: 'playlist-sort-title', flex: 2, paddingLeft: 12 },
       { key: 'artist', label: '艺人', plain: true, flex: 1, visible: viewMode === 'compact' },
       { key: 'album', label: '专辑', testID: 'playlist-sort-album', flex: 1.5, paddingLeft: 8 },
-      { key: 'source', label: '来源', plain: true, flex: 1, paddingLeft: 8 },
+      { key: 'source', label: '来源', testID: 'playlist-sort-source', flex: 1, paddingLeft: 8 },
       { key: 'dateAdded', label: '添加日期', testID: 'playlist-sort-dateAdded', flex: 1, paddingLeft: 8 },
       { key: 'duration', label: '', icon: tablerIcon('clock', { size: 18 }), testID: 'playlist-sort-duration', width: 120, align: 'right', paddingRight: 40 },
     ] satisfies DetailColumnSpec[],

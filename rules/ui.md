@@ -268,13 +268,26 @@ All visual icons across desktop UI components are standardized on **Tabler Icons
 - **Long titles truncate**: the album/playlist hero title line-clamps at two lines (`-webkit-line-clamp`), never breaking the layout.
 
 ### Track Table Sorting & Row Interactions (`AlbumScreen`, `PlaylistDetailScreen`, `LocalMusicScreen`, `FavoritesScreen`, `CollectionScreen`)
-- **Interactive Header Columns**:
-  - Clicking column headers (`#`, `标题`, `专辑`, `添加日期`, `时长` with Tabler `clock` icon, `播放量`) toggles between ascending (`asc`) and descending (`desc`) order.
+- **Strict Track Deduplication**:
+  - `AlbumScreen`, `PlaylistDetailScreen`, `FavoritesScreen`, and `LocalMusicScreen` filter raw tracks/items by track URN (`seen = new Set<string>()`), ensuring duplicate rows are never rendered, preventing virtual list key collisions, and eliminating multi-selection count discrepancies.
+- **Interactive Header Columns & Source Column Sorting**:
+  - Clicking column headers (`#`, `标题`, `艺人`, `专辑`, `来源`, `添加日期`, `时长` with Tabler `clock` icon, `播放量`) toggles between ascending (`asc`) and descending (`desc`) order.
   - Active sorted column displays a subtle directional arrow indicator (`chevron-up` for ascending, `chevron-down` for descending).
+  - `AlbumScreen`, `FavoritesScreen`, and `PlaylistDetailScreen` provide an interactive "来源" (Source) column (omitted in `LocalMusicScreen` where all tracks are local).
+  - Source names are resolved via `resolveTrackSourceName(ctx, trackUrn)` (returning `'本地'` for local/file paths, or provider display name e.g. `'哔哩哔哩'`). Sorting uses `localeCompare(..., { numeric: true, sensitivity: 'base' })`.
   - Column headers omit the legacy checkmark, presenting clean column names and the Tabler `clock` icon.
+- **Batch Operations Mode & Toolbar (`BatchActionBar`)**:
+  - The three-dot action menu in all four detail screens offers a direct "批量操作" entry (`id: 'batch-operations'`, icon `list-check`) with no nested submenus.
+  - Toggling enters batch mode and mounts `BatchActionBar`:
+    - Native `<input type="checkbox">` for "全选" (Select All), matching track row checkboxes and supporting `indeterminate` (partial) and `checked` states;
+    - "批量播放" (`batch-play`): Plays selected tracks in current visual order;
+    - "添加到歌单" (`batch-add`): Batch adds selected tracks to a playlist, dynamically incrementing playlist track count by the selected quantity (`delta = active.tracks.length`);
+    - "删除" / "从最喜欢中删除" (`batch-delete`): Removes or unfavorites selected tracks concurrently;
+    - "退出批量操作" (`exit-batch`): Cancels selection and restores normal single-track mode.
+  - While in batch mode, the three-dot menu flattens all batch operations directly without submenus.
 - **Action Bar Sort Dropdown (`ContextMenu`)**:
   - Dedicated sort dropdown button (e.g. `默认顺序` / `自定义顺序` / `标题` accompanied by Tabler `arrows-sort` or `list` icon).
-  - Clicking reveals a structured `ContextMenu` with sort key options and an asc/desc toggle option.
+  - Clicking reveals a structured `ContextMenu` with sort key options (including "来源") and an asc/desc toggle option.
 - **View Mode Section in the Sort Menu (`viewModeMenuItems`)**:
   - The sort menu ends with a 视图模式 section: a hairline divider closes the sort options, then a flush-left `heading` 视图模式 label and one entry per mode with a check icon on the active one.
   - Album / Playlist / Favourites / Local-tracks offer 紧凑 (compact) and 列表 (list); the local-albums tab adds 平铺 (tiled, the card grid).
@@ -286,7 +299,8 @@ All visual icons across desktop UI components are standardized on **Tabler Icons
   - **Not in library**: displays `plus` icon (`tablerIcon('plus')`), clicking adds track directly to favorites — writing **both stores**: `sources.setLoved(track.urn, true)` first, then `library.setSaved(track.urn, true)` (see the dual-write invariant below).
   - **In library / favorites / playlist / collection**: displays `heart-filled` (green heart via `tablerIcon('heart-filled')`), clicking opens a dedicated Spotify-style `SaveToPlaylistPopover` instead of a raw context menu:
     - Real-time search filter for existing playlists;
-    - Inline "新建歌单" quick creation input with `plus` icon;
+    - Clicking "新建歌单" seamlessly switches the top "查找歌单" search box into an inline creation input with autofocus, "确定" confirm button, and cancel button, while the list's "新建歌单" row is automatically hidden to avoid redundant duplicate actions;
+    - The "确定" button enforces `flexShrink: 0`, `whiteSpace: 'nowrap'`, `minWidth: 44`, and the input enforces `minWidth: 0` so button text is never compressed or truncated in Flexbox containers;
     - "已点赞的歌曲" group with immediate favorite toggle;
     - Playlist rows with checkbox toggles and folder rows expanding nested sub-playlists;
     - Viewport boundary detection with horizontal/vertical auto-flipping and clamping;
@@ -327,6 +341,22 @@ All visual icons across desktop UI components are standardized on **Tabler Icons
   - Displays a pill badge (`播放 N 次`) in the row metadata area.
 - **Header Count & Empty State Alignment**:
   - Header record counts (`最近播放记录 (${uniqueRecords.length} 首)`) and empty state guards evaluate against deduplicated records.
+
+### Recommendation Screen & Bent-Ends Shelf Carousel (`RecommendScreen` & `RecommendShelfRow`)
+- **Recommendation Shelf Hierarchy**:
+  - `RecommendScreen` renders two dynamic personal shelves before third-party music sources:
+    1. **"最近播放 · 专辑"** (`useRecentPlayedAlbums`): Resolves the most recent 20 unique tracks' albums from `ctx.player.getHistory()`, deduplicating track URNs to unique albums, subscribing reactively to `player/history-changed`.
+    2. **"收藏随选 · 专辑"** (`useFavoriteAlbums`): Randomly selects 20 albums from the user's saved favorite tracks (`ctx.library.listSaved('track')`), dynamically shuffled on mount and reactively updating on `library/changed`.
+    3. **Third-Party Source Shelves** (`RecommendShelf`): One shelf per registered music source implementing `recommend` capability, featuring a "显示全部" action button navigating to `RecommendAllScreen`.
+- **Bent-Ends Shelf Carousel Physics (`RecommendShelfRow`)**:
+  - **3D Curved Edge Bending**: Only the currently visible leftmost and rightmost cards bend inward on their outer edges (`perspective(600px) rotateY(±22deg)`), anchored by `transformOrigin: right center / left center` so their inner edges stay flush with neighbouring flat cards.
+  - **Cylindrical Shading Illusion**: Each bent edge card applies a directional shading overlay (`linear-gradient(to right/left, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.24) 38%, rgba(0,0,0,0) 70%)`) that darkens the receding outer edge and blends smoothly to transparent inward.
+  - **Dynamic Boundary Cancellation**:
+    - When the row is scrolled to the beginning (`leftEdgeIdx === 0`), the left bend effect and left scroll arrow are completely disabled.
+    - When the row is scrolled to the end (`rightEdgeIdx >= entries.length - 1`), the right bend effect and right scroll arrow are completely disabled.
+    - Flat cards return to normal unbent transform seamlessly via CSS `transition: transform 0.28s ease`.
+  - **Hover Navigation Arrows**: Frosted-glass circular buttons (❮ / ❯, 40×40px, font size 22px, `backdropFilter: blur(12px)`) float on top of the left and right edges, smoothly fading in on hover (`opacity: 1`, transition `0.18s ease`) and fading out when the mouse leaves.
+  - **Vertical Scroll Interception Prevention**: The shelf scroll container enforces `overflowX: 'auto'` and `overflowY: 'hidden'`, ensuring mouse wheel or trackpad vertical gestures pass through cleanly to page vertical scrolling instead of getting trapped in the row.
 
 ---
 

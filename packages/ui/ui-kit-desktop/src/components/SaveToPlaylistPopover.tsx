@@ -273,6 +273,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
               },
               style: {
                 flex: 1,
+                minWidth: 0,
                 background: 'none',
                 border: 'none',
                 outline: 'none',
@@ -293,9 +294,16 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                   color: '#ffffff',
                   fontWeight: 600,
                   fontSize: 12,
-                  padding: '2px 8px',
+                  padding: '0 10px',
                   cursor: 'pointer',
                   height: 24,
+                  minWidth: 44,
+                  flexShrink: 0,
+                  whiteSpace: 'nowrap',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxSizing: 'border-box',
                 },
               },
               '确定',
@@ -367,35 +375,37 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
           },
         },
         // Action: ＋ 新建歌单
-        h(
-          RowItem,
-          {
-            onClick: () => {
-              setIsCreatingTopLevel(true)
-              setNewPlaylistName(filter.trim())
-            },
-            onMouseEnter: () => setHoveredFolderId(null),
-          },
-          h(
-            'span',
-            {
-              style: {
-                color: '#ffffff',
-                width: 36,
-                height: 36,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+        !isCreatingTopLevel
+          ? h(
+              RowItem,
+              {
+                onClick: () => {
+                  setIsCreatingTopLevel(true)
+                  setNewPlaylistName(filter.trim())
+                },
+                onMouseEnter: () => setHoveredFolderId(null),
               },
-            },
-            tablerIcon('plus', { size: 22, color: '#ffffff' }),
-          ),
-          h(
-            'div',
-            { style: { flex: 1, fontSize: 14, fontWeight: 600, color: '#ffffff' } },
-            '新建歌单',
-          ),
-        ),
+              h(
+                'span',
+                {
+                  style: {
+                    color: '#ffffff',
+                    width: 36,
+                    height: 36,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  },
+                },
+                tablerIcon('plus', { size: 22, color: '#ffffff' }),
+              ),
+              h(
+                'div',
+                { style: { flex: 1, fontSize: 14, fontWeight: 600, color: '#ffffff' } },
+                '新建歌单',
+              ),
+            )
+          : null,
         // Section: 保存位置
         h(
           'div',
@@ -714,6 +724,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                   },
                   style: {
                     flex: 1,
+                    minWidth: 0,
                     background: 'var(--surface-2, #3e3e3e)',
                     border: '1px solid var(--input-focus-border, var(--color-primary, #5F87FF))',
                     borderRadius: 4,
@@ -735,8 +746,16 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                       color: '#ffffff',
                       fontWeight: 600,
                       fontSize: 12,
-                      padding: '4px 8px',
+                      padding: '0 10px',
                       cursor: 'pointer',
+                      height: 24,
+                      minWidth: 44,
+                      flexShrink: 0,
+                      whiteSpace: 'nowrap',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxSizing: 'border-box',
                     },
                   },
                   '确定',

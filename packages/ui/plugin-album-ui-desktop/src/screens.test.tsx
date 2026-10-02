@@ -235,6 +235,13 @@ describe('AlbumScreen', () => {
         getAllByText('Play album')[0]!.click()
         await tick()
       })
+
+      // Verify album-sort-source header exists and is clickable
+      expect(getByTestId('album-sort-source')).toBeTruthy()
+      await act(async () => {
+        getByTestId('album-sort-source').click()
+        await tick()
+      })
     })
 
     expect(player.calls).toEqual([{ method: 'playNow', urns: [TRACK_B, TRACK_A] }])

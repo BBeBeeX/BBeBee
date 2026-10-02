@@ -240,6 +240,7 @@ export function RecommendShelfRow({
                   display: 'flex',
                   gap: tokens.space[3],
                   overflowX: 'auto',
+                  overflowY: 'hidden',
                   paddingBottom: tokens.space[1],
                   scrollBehavior: 'smooth',
                 },

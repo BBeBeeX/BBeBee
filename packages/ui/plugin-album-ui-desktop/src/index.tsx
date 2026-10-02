@@ -431,7 +431,7 @@ function Pending({ label }: { label: string }): ReactElement {
   return h(EmptyState, { title: label, accessibilityLabel: label })
 }
 
-type AlbumSortKey = 'trackNo' | 'title' | 'album' | 'duration' | 'plays'
+type AlbumSortKey = 'trackNo' | 'title' | 'album' | 'duration' | 'plays' | 'source'
 
 export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): ReactElement {
   const album = useAlbum(ctx, urn)
@@ -583,6 +583,10 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
         const aAlb = a.albumTitle || album.data?.title || ''
         const bAlb = b.albumTitle || album.data?.title || ''
         cmp = aAlb.localeCompare(bAlb, undefined, { numeric: true, sensitivity: 'base' })
+      } else if (sortKey === 'source') {
+        const aSrc = resolveTrackSourceName(ctx, a.urn)
+        const bSrc = resolveTrackSourceName(ctx, b.urn)
+        cmp = aSrc.localeCompare(bSrc, undefined, { numeric: true, sensitivity: 'base' })
       }
       return sortOrder === 'desc' ? -cmp : cmp
     })
@@ -825,6 +829,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
     title: '标题',
     album: '专辑',
     plays: '专辑',
+    source: '来源',
     duration: '时长',
   }
 
@@ -833,6 +838,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
       { id: 'trackNo', label: '默认顺序' },
       { id: 'title', label: '标题' },
       { id: 'album', label: '专辑' },
+      { id: 'source', label: '来源' },
       { id: 'duration', label: '时长' },
     ],
     sortKey,
@@ -1165,7 +1171,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
       { key: 'title', label: '标题', testID: 'album-sort-title', flex: 2, paddingLeft: 12 },
       { key: 'artist', label: '艺人', plain: true, flex: 1, visible: viewMode === 'compact' },
       { key: 'album', label: '专辑', testID: 'album-sort-album', flex: 1.5, fixed: true, sortKeys: ['album', 'plays'] },
-      { key: 'source', label: '来源', plain: true, flex: 1, paddingLeft: 8 },
+      { key: 'source', label: '来源', testID: 'album-sort-source', flex: 1, paddingLeft: 8 },
       { key: 'duration', label: '', icon: tablerIcon('clock', { size: 18 }), testID: 'album-sort-duration', width: 130, align: 'right', paddingRight: 40 },
     ] satisfies DetailColumnSpec[],
     sortKey,

@@ -949,6 +949,13 @@ describe('PlaylistDetailScreen', () => {
         getByText('升序').click()
         await tick()
       })
+
+      // Clicking '来源' sorts by source
+      expect(getByTestId('playlist-sort-source')).toBeTruthy()
+      await act(async () => {
+        getByTestId('playlist-sort-source').click()
+        await tick()
+      })
     })
 
     expect(player.calls).toContain(`${TRACK_B} <- 2`)
@@ -1098,6 +1105,7 @@ describe('FavoritesScreen', () => {
       expect(getByTestId('favorites-sort-default')).toBeTruthy()
       expect(getByTestId('favorites-sort-title')).toBeTruthy()
       expect(getByTestId('favorites-sort-album')).toBeTruthy()
+      expect(getByTestId('favorites-sort-source')).toBeTruthy()
       expect(getByTestId('favorites-sort-duration')).toBeTruthy()
 
       // Click play all
@@ -1159,6 +1167,13 @@ describe('FavoritesScreen', () => {
         await tick()
       })
       expect(player.calls).toContain(`${TRACK_B} <- 2`)
+
+      // Click Source header
+      await act(async () => {
+        getByTestId('favorites-sort-source').click()
+        await tick()
+      })
+      expect(container.querySelectorAll('[role="row"]').length).toBe(2)
     })
   })
 

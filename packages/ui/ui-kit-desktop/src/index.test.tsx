@@ -13,7 +13,7 @@
 
 import { describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { act, fireEvent, render } from '@testing-library/react'
+import { act, fireEvent, render, within } from '@testing-library/react'
 import { TEST_ROW_HEIGHT as ROW, withListLayout as withLayout } from './testing.js'
 import { createElement as h } from 'react'
 import type { Track } from '@BBeBee/protocol'
@@ -25,6 +25,7 @@ import {
   IconButton,
   JsonTree,
   List,
+  SaveToPlaylistPopover,
   Sheet,
   Slider,
   DetailHero,
@@ -733,6 +734,46 @@ describe('ContextMenu', () => {
     render(h(ContextMenu, { open: true, onClose, x: 10, y: 10, items }))
     window.dispatchEvent(new Event('resize'))
     expect(onClose).toHaveBeenCalledOnce()
+  })
+})
+
+describe('SaveToPlaylistPopover', () => {
+  it('hides the list row for create playlist and shows top create bar with confirm button when clicked', () => {
+    const onCreate = vi.fn()
+    const { getByTestId } = render(
+      h(SaveToPlaylistPopover, {
+        open: true,
+        testID: 'save-popover',
+        onClose: () => {},
+        x: 100,
+        y: 100,
+        playlists: [{ urn: 'BBeBee:local:playlist:1', name: 'My List', trackCount: 5 }],
+        onCreatePlaylist: onCreate,
+      }),
+    )
+
+    const popover = within(getByTestId('save-popover'))
+    expect(popover.getByText('新建歌单')).toBeTruthy()
+    expect(popover.getByPlaceholderText('查找歌单')).toBeTruthy()
+
+    // Click '新建歌单' row
+    fireEvent.click(popover.getByText('新建歌单'))
+
+    // The list row for '新建歌单' should now be hidden
+    expect(popover.queryByText('新建歌单')).toBeNull()
+
+    // The top input should be shown for creating playlist
+    const input = popover.getByPlaceholderText('歌单名称') as HTMLInputElement
+    expect(input).toBeTruthy()
+    const confirmBtn = popover.getByText('确定')
+    expect(confirmBtn).toBeTruthy()
+    expect(confirmBtn.style.whiteSpace).toBe('nowrap')
+    expect(confirmBtn.style.flexShrink).toBe('0')
+
+    // Type and click confirm
+    fireEvent.change(input, { target: { value: 'New Test Playlist' } })
+    fireEvent.click(confirmBtn)
+    expect(onCreate).toHaveBeenCalledWith('New Test Playlist', undefined)
   })
 })
 
