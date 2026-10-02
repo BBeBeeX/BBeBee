@@ -410,7 +410,7 @@ describe('lavfi adapters (native mpv engine)', () => {
 
   it('reverb lays three mix-scaled echo taps after the pre-delay', () => {
     expect(ReverbEffect.buildLavfi!({ mix: 0.5, decay: 1, preDelay: 0 })).toBe(
-      'aecho=in_gain=1:out_gain=1:decays=140|360|690:gains=0.25|0.15|0.10',
+      'aecho=in_gain=1:out_gain=1:delays=140|360|690:decays=0.25|0.15|0.10',
     )
     expect(ReverbEffect.buildLavfi!({ mix: 0 })).toBe('')
   })

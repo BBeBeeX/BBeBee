@@ -11,6 +11,7 @@
  */
 
 import type { Context } from 'cordis'
+import type { FsService, ScannerService } from '@BBeBee/protocol'
 
 export interface DropImportResult {
   /** Dropped files that became (or updated) tracks. */
@@ -53,7 +54,54 @@ export function pathToFileUri(path: string): string {
     return `file:///${drive[1]!.toUpperCase()}:/${rest}`
   }
   const body = normalized.split('/').map((s) => (s ? encodeURIComponent(s) : '')).join('/')
-  return 'file://' + (normalized.startsWith('/') ? '/' : '') + body
+  return 'file://' + (body.startsWith('/') ? '' : '/') + body
+}
+
+/**
+ * Read a service off the context safely without throwing proxy violations on scoped contexts.
+ */
+export function serviceOf<T = unknown>(ctx: Context, key: string): T | undefined {
+  return (ctx as unknown as { reflect?: { get(key: string, required: boolean): unknown } }).reflect?.get?.(
+    key,
+    false,
+  ) as T | undefined
+}
+
+/**
+ * Resolve a service immediately if available, or wait for its arrival via inject.
+ */
+export function resolveService<T = unknown>(
+  ctx: Context,
+  key: string,
+  timeoutMs = 8000,
+): Promise<T | undefined> {
+  const existing = serviceOf<T>(ctx, key)
+  if (existing) return Promise.resolve(existing)
+
+  return new Promise<T | undefined>((resolve) => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let done = false
+
+    const finish = (svc: T | undefined) => {
+      if (done) return
+      done = true
+      if (timer) clearTimeout(timer)
+      resolve(svc)
+    }
+
+    if (timeoutMs > 0) {
+      timer = setTimeout(() => finish(undefined), timeoutMs)
+    }
+
+    if (typeof ctx.inject !== 'function') {
+      finish(undefined)
+      return
+    }
+
+    ctx.inject([key], (scoped) => {
+      finish(serviceOf<T>(scoped, key) ?? ((scoped as unknown as Record<string, unknown>)[key] as T))
+    })
+  })
 }
 
 /**
@@ -71,19 +119,35 @@ export async function importDroppedFiles(ctx: Context, fileList: FileList): Prom
   const paths = files.map((file) => window.BBeBee?.files?.getPath(file) ?? '')
   result.failed += paths.filter((p) => p.length === 0).length
 
+  const validPaths = paths.filter((p) => p.length > 0)
+  if (validPaths.length === 0) return result
+
+  const [fs, scanner] = await Promise.all([
+    resolveService<FsService>(ctx, 'fs', 3000),
+    resolveService<ScannerService>(ctx, 'scanner', 8000),
+  ])
+
+  if (!scanner) {
+    ctx.logger?.warn('drop-import: scanner service is not available')
+    result.failed += validPaths.length
+    return result
+  }
+
   const folderUris: string[] = []
   const audioUris: string[] = []
-  for (const path of paths.filter((p) => p.length > 0)) {
+  for (const path of validPaths) {
     const uri = pathToFileUri(path)
-    try {
-      const stat = await ctx.fs.stat(uri)
-      if (stat.isDirectory) {
-        folderUris.push(uri)
-        continue
+    if (fs) {
+      try {
+        const stat = await fs.stat(uri)
+        if (stat.isDirectory) {
+          folderUris.push(uri)
+          continue
+        }
+      } catch {
+        // Unstatable: fall through and let the extension check — then the
+        // importer — decide, so the user gets a reason rather than a silence.
       }
-    } catch {
-      // Unstatable: fall through and let the extension check — then the
-      // importer — decide, so the user gets a reason rather than a silence.
     }
     if (AUDIO_EXTENSIONS.has(extensionOf(path))) audioUris.push(uri)
     else result.failed++
@@ -91,12 +155,12 @@ export async function importDroppedFiles(ctx: Context, fileList: FileList): Prom
 
   for (const uri of folderUris) {
     try {
-      await ctx.scanner.addSpecifiedDir(uri)
+      await scanner.addSpecifiedDir(uri)
       result.folders++
       // Incremental, so it costs one stat per unchanged file. Not awaited:
       // a large folder scans for minutes, and the drop must not appear to
       // hang for it.
-      void ctx.scanner.scan().catch((error: unknown) => {
+      void scanner.scan().catch((error: unknown) => {
         ctx.logger?.warn(`drop-import: scan after folder drop failed: ${String(error)}`)
       })
     } catch (error) {
@@ -107,7 +171,7 @@ export async function importDroppedFiles(ctx: Context, fileList: FileList): Prom
 
   if (audioUris.length > 0) {
     try {
-      const summary = await ctx.scanner.importFiles(audioUris)
+      const summary = await scanner.importFiles(audioUris)
       result.imported = summary.added + summary.updated
       result.failed += summary.errors
     } catch (error) {

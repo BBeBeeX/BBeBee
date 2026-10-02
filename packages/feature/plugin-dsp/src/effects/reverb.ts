@@ -88,7 +88,7 @@ export const ReverbEffect: EffectDefinition<ReverbParams> = {
     const d2 = Math.round(d1 + decay * 220)
     const d3 = Math.round(d2 + decay * 330)
     const g = (m: number) => (mix * m).toFixed(2)
-    return `aecho=in_gain=1:out_gain=1:decays=${d1}|${d2}|${d3}:gains=${g(0.5)}|${g(0.3)}|${g(0.2)}`
+    return `aecho=in_gain=1:out_gain=1:delays=${d1}|${d2}|${d3}:decays=${g(0.5)}|${g(0.3)}|${g(0.2)}`
   },
   build(audioCtx: BaseAudioContext, params: ReverbParams): EffectSegment {
     const input = audioCtx.createGain()
