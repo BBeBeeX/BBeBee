@@ -64,7 +64,7 @@ class FakeMediaElement implements MediaElementLike {
 interface SimState {
   positionMs: number
   durationMs: number
-  status: 'idle' | 'playing' | 'paused' | 'stopped' | 'ended'
+  status: 'idle' | 'playing' | 'paused' | 'stopped' | 'ended' | 'error'
 }
 
 function engineBridge(state: SimState, calls: string[] = []): BridgeCall {
@@ -571,6 +571,101 @@ describe('core-audio-mpv native engine features', () => {
     expect(resumeCall.args[0]).toBeUndefined()
 
     handle.dispose()
+  })
+
+  it('a re-bound handle treats the caller’s default play(0) as position-less', async () => {
+    // The player's attach always calls play(positionMs ?? 0). On a resumed
+    // (gapless re-bind) handle that 0 is the caller's default, not an intent:
+    // forwarding it would seek the file the engine is already sounding back
+    // to zero — the audible "jumps to 0:00" at every natural boundary.
+    const calls: { method: string; args: unknown[] }[] = []
+    const bridgeCall = async (_service: string, method: string, args: unknown[]) => {
+      calls.push({ method, args })
+      if (method === 'mpvLoad') {
+        return { durationMs: 120_000, resumed: true }
+      }
+      return undefined
+    }
+
+    const { audio } = await harness({ bridgeCall })
+    const handle = await audio.load('file:///music/next.flac', { strategy: 'stream' })
+
+    handle.play(0)
+    const playCall = calls.filter((c) => c.method === 'mpvPlay').at(-1)!
+    expect(playCall.args[0], 'no seek: the re-bound track keeps sounding').toBeUndefined()
+    handle.dispose()
+  })
+
+  it('a mid-play engine error surfaces as an underrun, not an end', async () => {
+    // mpv dying mid-track (network cut, dead URL) used to be invisible: the
+    // handle kept polling a frozen "playing" and the player sat silent. The
+    // handle must say "stalled" so the stall watchdog retries at the frozen
+    // position; reporting `ended` instead made the queue skip ahead.
+    const state: SimState = { positionMs: 0, durationMs: 120_000, status: 'idle' }
+    const bridgeCall = engineBridge(state)
+    const { audio } = await harness({ bridgeCall })
+    const handle = await audio.load('https://example.org/stream.m4a', { strategy: 'stream' })
+
+    const stalls: boolean[] = []
+    let ended = 0
+    handle.onStalled((stalled) => void stalls.push(stalled))
+    handle.onEnded(() => void ended++)
+
+    handle.play()
+    state.positionMs = 4000
+    state.status = 'playing'
+    await new Promise((resolve) => setTimeout(resolve, 300))
+
+    state.status = 'error'
+    await new Promise((resolve) => setTimeout(resolve, 300))
+
+    expect(ended, 'the track is not over').toBe(0)
+    expect(stalls).toEqual([true])
+    handle.dispose()
+  })
+
+  it('an engine error before the track ever sounds ends the handle', async () => {
+    // A link that dies at position 0 is a dead link: reporting the end lets
+    // the queue skip past it (the loaded-at-all failure already rejected the
+    // bridge load; this covers an error racing the first poll).
+    const state: SimState = { positionMs: 0, durationMs: 120_000, status: 'idle' }
+    const bridgeCall = engineBridge(state)
+    const { audio } = await harness({ bridgeCall })
+    const handle = await audio.load('https://example.org/dead.m4a', { strategy: 'stream' })
+
+    const stalls: boolean[] = []
+    let ended = 0
+    handle.onStalled((stalled) => void stalls.push(stalled))
+    handle.onEnded(() => void ended++)
+
+    handle.play()
+    state.status = 'error'
+    await new Promise((resolve) => setTimeout(resolve, 300))
+
+    expect(stalls).toEqual([])
+    expect(ended).toBe(1)
+    handle.dispose()
+  })
+
+  it('forwards headers with the gapless append across the bridge', async () => {
+    // The appended file is opened by the engine at the playlist boundary,
+    // where only these options reach it.
+    const calls: { method: string; args: unknown[] }[] = []
+    const bridgeCall = async (_service: string, method: string, args: unknown[]) => {
+      calls.push({ method, args })
+      return undefined
+    }
+
+    const { audio } = await harness({ bridgeCall })
+    await audio.preloadNext('https://example.org/next.m4a', {
+      headers: { Referer: 'https://example.org/', 'User-Agent': 'BBeBee/1.0' },
+    })
+
+    const appendCall = calls.find((c) => c.method === 'mpvAppend')
+    expect(appendCall).toBeDefined()
+    expect(appendCall!.args[0]).toBe('https://example.org/next.m4a')
+    expect(appendCall!.args[1]).toBe(false)
+    expect(appendCall!.args[2]).toEqual({ headers: { Referer: 'https://example.org/', 'User-Agent': 'BBeBee/1.0' } })
   })
 
   it('retrieves FFT spectrum frames for visualizer', async () => {

@@ -25,7 +25,7 @@ export interface AudioHostApi {
     channels?: number
     bitDepth?: number
   }>
-  mpvAppend(uri: string, playNow?: boolean): Promise<void>
+  mpvAppend(uri: string, playNow?: boolean, options?: { headers?: Record<string, string> }): Promise<void>
   mpvPlay(atMs?: number): Promise<void>
   mpvPause(): Promise<void>
   mpvStop(): Promise<void>
@@ -71,8 +71,8 @@ export function createAudioHost(logger?: AudioMainLogger): AudioHostApi {
     mpvLoad: async (uri, options) => {
       return supervisor.load(uri, options)
     },
-    mpvAppend: async (uri, playNow) => {
-      return supervisor.append(uri, playNow)
+    mpvAppend: async (uri, playNow, options) => {
+      return supervisor.append(uri, playNow, options)
     },
     mpvPlay: async (atMs) => {
       // `null` arrives over IPC when the renderer omitted the position: a

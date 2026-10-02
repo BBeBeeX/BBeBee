@@ -17,6 +17,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstring>
+#include <cctype>
 #include <algorithm>
 
 #if defined(_WIN32)
@@ -341,9 +342,46 @@ public:
         sendJson(ready);
     }
 
-    void load(const std::string& uri, const JsonValue& /* options */) {
+    // Some CDNs (Bilibili's among them) refuse the request without the
+    // source's Referer/User-Agent. The renderer forwards the source's headers
+    // with every load/append command; mpv re-opens the URL with them. The
+    // options persist on the instance until the next load/append overwrites
+    // them, which is exactly right for the appended gapless successor.
+    void applyNetworkOptions(const JsonValue& options) {
+        if (!mpv || !mpvLib.set_option_string) return;
+        if (!options.isObject()) return;
+        const JsonValue& headers = options.get("headers");
+        if (!headers.isObject()) return;
+        auto lower = [](const std::string& s) {
+            std::string out = s;
+            for (auto& c : out) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            return out;
+        };
+        std::string userAgent;
+        std::string referer;
+        std::string extra;
+        for (const auto& entry : headers.objVal) {
+            if (!entry.second.isString()) continue;
+            const std::string key = lower(entry.first);
+            const std::string value = entry.second.asString();
+            if (value.empty()) continue;
+            if (key == "user-agent") userAgent = value;
+            else if (key == "referer") referer = value;
+            else {
+                if (!extra.empty()) extra += ", ";
+                extra += entry.first + ": " + value;
+            }
+        }
+        if (!userAgent.empty()) mpvLib.set_option_string(mpv, "user-agent", userAgent.c_str());
+        if (!referer.empty()) mpvLib.set_option_string(mpv, "referer", referer.c_str());
+        // Setting it (even to empty) clears any previous load's extras.
+        mpvLib.set_option_string(mpv, "http-header-fields", extra.c_str());
+    }
+
+    void load(const std::string& uri, const JsonValue& options) {
         std::lock_guard<std::mutex> lock(engineMutex);
         currentUri = uri;
+        applyNetworkOptions(options);
         const std::string mpvPath = uriToMpvPath(uri);
 
         // Gapless handoff: when the previous track ended, the playlist
@@ -497,9 +535,10 @@ public:
         }
     }
 
-    void append(const std::string& uri, bool playNow = false) {
+    void append(const std::string& uri, bool playNow = false, const JsonValue& options = JsonValue()) {
         std::lock_guard<std::mutex> lock(engineMutex);
         if (mpv && mpvLib.command) {
+            applyNetworkOptions(options);
             const std::string mpvPath = uriToMpvPath(uri);
             const char* mode = playNow ? "append-play" : "append";
             const char* cmd[] = { "loadfile", mpvPath.c_str(), mode, nullptr };
@@ -842,6 +881,10 @@ private:
                         err["type"] = "error";
                         err["message"] = end->error ? (mpvLib.error_string ? mpvLib.error_string(end->error) : "Audio playback error") : "File loading failed";
                         sendJson(err);
+                        // The renderer's source handle polls the cached playback
+                        // state; without this push it would keep seeing the
+                        // stale "playing" and sit silent forever.
+                        sendPlaybackState();
                     } else if (end && end->reason == 0 /* MPV_END_FILE_REASON_EOF */) {
                         status = "ended";
                         positionMs = durationMs;
@@ -992,7 +1035,7 @@ int main(int argc, char* argv[]) {
         } else if (action == "load") {
             app.load(cmd.get("uri").asString(), cmd.get("options"));
         } else if (action == "append") {
-            app.append(cmd.get("uri").asString(), cmd.get("playNow").asBool(false));
+            app.append(cmd.get("uri").asString(), cmd.get("playNow").asBool(false), cmd.get("options"));
         } else if (action == "getAudioDevices") {
             app.getAudioDevices();
         } else if (action == "play") {

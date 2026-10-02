@@ -504,7 +504,11 @@ export class AudioEngineSupervisor {
     return () => this.readyListeners.delete(cb)
   }
 
-  async append(uri: string, playNow = false): Promise<void> {
+  async append(
+    uri: string,
+    playNow = false,
+    options?: { headers?: Record<string, string> },
+  ): Promise<void> {
     this.start()
 
     if (!this.child || this.child.killed) {
@@ -523,7 +527,7 @@ export class AudioEngineSupervisor {
       }, 10_000)
 
       this.pendingAppends.push({ uri, resolve, reject, timer })
-      this.sendCommand({ action: 'append', uri, playNow })
+      this.sendCommand({ action: 'append', uri, playNow, options })
     })
   }
 

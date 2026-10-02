@@ -579,7 +579,13 @@ export async function boot(): Promise<App> {
     const raw = await window.BBeBeeBridge?.call('fs', 'readFile', [storeUri])
     if (raw && typeof raw === 'string') {
       preloadedStoreData = JSON.parse(raw) as Record<string, unknown>
-      const prefs = preloadedStoreData['preferences'] as
+      // StoreFs namespaces plugin writes by package name, so the settings
+      // plugin's preferences live under `@BBeBee/plugin-settings:preferences`
+      // on disk — a bare `preferences` key never exists. Read both so the
+      // engine choice survives the very first mount instead of applying only
+      // through the post-boot settings sync.
+      const prefs = (preloadedStoreData['preferences'] ??
+        preloadedStoreData['@BBeBee/plugin-settings:preferences']) as
         | { audioOutputEngine?: 'mpv' | 'wasapi' | 'webaudio'; audioExclusive?: boolean; userAgent?: string }
         | undefined
       if (prefs?.audioOutputEngine === 'mpv' || prefs?.audioOutputEngine === 'wasapi' || prefs?.audioOutputEngine === 'webaudio') {

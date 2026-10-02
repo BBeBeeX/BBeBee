@@ -76,14 +76,22 @@ export class MpvSourceHandle implements AudioSourceHandle {
     durationMs: number,
     private readonly bridge?: BridgeCall,
     private readonly logger?: Context['logger'],
+    /** The engine was already sounding this file (gapless re-bind). */
+    private readonly resumed = false,
   ) {
     this.durationMs = durationMs
     this.node = this.context.createGain()
   }
 
   play(atMs?: number): void {
-    if (atMs !== undefined && atMs >= 0) {
-      this.position = atMs
+    // The player's attach always passes a position (its default 0). On a
+    // re-bound file the engine is already sounding it — there a 0 is the
+    // caller's default, not an intent, and seeking would restart the track
+    // mid-glide (the exact "jumps to 0:00" the gapless handoff exists to
+    // prevent). An explicit non-zero position is always honoured.
+    const seekAt = this.resumed && atMs === 0 ? undefined : atMs
+    if (seekAt !== undefined && seekAt >= 0) {
+      this.position = seekAt
     }
     this.isPlaying = true
     this.startTime = Date.now() - this.position
@@ -92,7 +100,7 @@ export class MpvSourceHandle implements AudioSourceHandle {
     // paused engine resumes from its own clock, and a playlist-advanced file
     // (the gapless handoff) keeps sounding instead of being seeked back to
     // the handle's zero.
-    this.bridge?.('audio', 'mpvPlay', [atMs]).catch(() => undefined)
+    this.bridge?.('audio', 'mpvPlay', [seekAt]).catch(() => undefined)
 
     if (!this.timer) {
       this.timer = setInterval(async () => {
@@ -111,6 +119,27 @@ export class MpvSourceHandle implements AudioSourceHandle {
                   this.timer = undefined
                 }
                 for (const cb of this.endedListeners) cb()
+                return
+              }
+              if (state.status === 'error') {
+                // A fatal engine error mid-track (network cut, dead URL).
+                // Without this branch the handle kept polling a frozen
+                // "playing" — silent forever, the mpv twin of reporting a
+                // failure as a natural end. Once the track has sounded, an
+                // underrun is what the protocol can express: the player's
+                // stall watchdog turns it into a retryable network error at
+                // the frozen position. A track that never started is a dead
+                // link: report the end so the queue skips it.
+                this.isPlaying = false
+                if (this.timer) {
+                  clearInterval(this.timer)
+                  this.timer = undefined
+                }
+                if (this.position > 0) {
+                  for (const cb of this.stalledListeners) cb(true)
+                } else {
+                  for (const cb of this.endedListeners) cb()
+                }
                 return
               }
             }
@@ -332,7 +361,7 @@ export class AudioMpv extends Service implements AudioService {
           this.activeHardwareChannels = result.channels
           this.activeHardwareBitDepth = result.bitDepth
           opts.onBuffered?.(result.durationMs / 1000)
-          return new MpvSourceHandle(this.context, result.durationMs, bridge, this.ctx.logger)
+          return new MpvSourceHandle(this.context, result.durationMs, bridge, this.ctx.logger, result.resumed === true)
         }
         this.ctx.logger?.warn(
           'mpv: native mpvLoad returned no duration — degrading to the media element',
@@ -451,14 +480,21 @@ export class AudioMpv extends Service implements AudioService {
     return this.lastPreload
   }
 
-  async preloadNext(src: string | Uri, _opts?: { headers?: Record<string, string> }): Promise<void> {
+  async preloadNext(src: string | Uri, opts?: { headers?: Record<string, string> }): Promise<void> {
     const bridge = resolveBridgeCall(this.config.bridgeCall)
     if (!bridge) {
       this.lastPreload = { uri: String(src), ok: false, at: Date.now() }
       return
     }
     try {
-      await bridge('audio', 'mpvAppend', [String(src), false])
+      // Headers ride along: the appended file is opened by the engine at the
+      // playlist boundary, where only these options reach it (main's
+      // stream interception covers the media element, not the engine).
+      await bridge('audio', 'mpvAppend', [
+        String(src),
+        false,
+        opts?.headers ? { headers: opts.headers } : undefined,
+      ])
       this.lastPreload = { uri: String(src), ok: true, at: Date.now() }
       this.ctx.logger?.info('mpv: preloaded next track for gapless handoff: %s', String(src))
     } catch (err) {
