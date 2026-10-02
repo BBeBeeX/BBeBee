@@ -12,7 +12,7 @@
 
 import { createElement as h, useEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { ShareService, SleepTimerMode, SleepTimerService } from '@BBeBee/protocol'
+import type { ShareService, SleepTimerMode, SleepTimerService, TrayContribution } from '@BBeBee/protocol'
 import { tablerIcon } from '@BBeBee/ui-kit-desktop'
 import { useSearchSourceSelection, type SearchInterfaceKind } from '@BBeBee/plugin-sources/hooks'
 import { useSleepTimer } from '@BBeBee/plugin-sleep-timer/hooks'
@@ -288,6 +288,225 @@ export function SleepTimerIndicator({ ctx }: { ctx: Context }): ReactElement | n
               '取消定时器',
             ),
           ),
+        )
+      : null,
+  )
+}
+
+export function TrayIndicator({ ctx }: { ctx: Context }): ReactElement {
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+
+  const readTray = (): readonly TrayContribution[] => {
+    try {
+      const list = ctx.ui?.tray ?? []
+      return list.filter((item) => (item.when ? item.when({}) : true))
+    } catch {
+      return []
+    }
+  }
+
+  const [items, setItems] = useState<readonly TrayContribution[]>(readTray)
+
+  useEffect(() => {
+    setItems(readTray())
+    const off = ctx.on('ui/changed', () => {
+      setItems(readTray())
+    })
+    return () => void off()
+  }, [ctx])
+
+  useEffect(() => {
+    if (!open) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [open])
+
+  return h(
+    'div',
+    {
+      ref: containerRef,
+      style: {
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'center',
+      },
+    },
+    h(
+      'button',
+      {
+        type: 'button',
+        'aria-label': '应用托盘',
+        title: open ? '收起插件托盘' : '展开插件托盘',
+        'data-testid': 'topbar-tray-button',
+        onClick: () => setOpen((prev) => !prev),
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 32,
+          height: 32,
+          borderRadius: '50%',
+          border: open
+            ? '1px solid var(--accent, #6366F1)'
+            : '1px solid var(--border-subtle, rgba(148, 163, 184, 0.15))',
+          background: open
+            ? 'var(--surface-selected, rgba(99, 102, 241, 0.15))'
+            : 'rgba(255, 255, 255, 0.06)',
+          color: open ? 'var(--accent, #818CF8)' : 'var(--text-primary, #F5F7FF)',
+          cursor: 'pointer',
+          padding: 0,
+          transition: 'transform 0.15s ease, background 0.15s ease, border-color 0.15s ease',
+        },
+        onMouseEnter: (e: { currentTarget: HTMLElement }) => {
+          e.currentTarget.style.transform = 'scale(1.06)'
+          if (!open) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'
+        },
+        onMouseLeave: (e: { currentTarget: HTMLElement }) => {
+          e.currentTarget.style.transform = 'scale(1)'
+          if (!open) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)'
+        },
+      },
+      tablerIcon(open ? 'chevron-up' : 'chevron-down', { size: 18 }),
+    ),
+    open
+      ? h(
+          'div',
+          {
+            'data-testid': 'topbar-tray-popover',
+            style: {
+              position: 'absolute',
+              top: 'calc(100% + 10px)',
+              right: 0,
+              minWidth: 180,
+              maxWidth: 280,
+              background: 'rgba(18, 22, 34, 0.96)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              border: '1px solid var(--border-subtle, rgba(148, 163, 184, 0.2))',
+              borderRadius: 12,
+              boxShadow: '0 12px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+              padding: '10px 10px',
+              zIndex: 1000,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+            },
+          },
+          h(
+            'div',
+            {
+              style: {
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '2px 4px 6px 4px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.07)',
+                fontSize: 11,
+                fontWeight: 600,
+                color: 'rgba(255, 255, 255, 0.6)',
+                letterSpacing: '0.04em',
+              },
+            },
+            h('span', null, '插件托盘'),
+            h(
+              'span',
+              {
+                style: {
+                  fontSize: 10,
+                  color: 'rgba(255, 255, 255, 0.4)',
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  padding: '1px 6px',
+                  borderRadius: 8,
+                },
+              },
+              `${items.length}`,
+            ),
+          ),
+          items.length === 0
+            ? h(
+                'div',
+                {
+                  'data-testid': 'topbar-tray-empty',
+                  style: {
+                    padding: '16px 8px',
+                    fontSize: 12,
+                    color: 'rgba(255, 255, 255, 0.4)',
+                    textAlign: 'center',
+                  },
+                },
+                '暂无托盘插件',
+              )
+            : h(
+                'div',
+                {
+                  style: {
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(44px, 1fr))',
+                    gap: 6,
+                  },
+                },
+                ...items.map((item) =>
+                  h(
+                    'button',
+                    {
+                      key: item.id,
+                      type: 'button',
+                      'data-testid': `topbar-tray-item-${item.id}`,
+                      title: item.title,
+                      'aria-label': item.title,
+                      onClick: () => {
+                        setOpen(false)
+                        if (item.action) {
+                          void item.action()
+                        } else {
+                          ctx.ui?.navigate?.(item.targetRoute ?? item.id)
+                        }
+                      },
+                      style: {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 44,
+                        height: 44,
+                        borderRadius: 8,
+                        border: '1px solid rgba(255, 255, 255, 0.06)',
+                        background: 'rgba(255, 255, 255, 0.04)',
+                        color: 'var(--text-primary, #F5F7FF)',
+                        cursor: 'pointer',
+                        padding: 0,
+                        transition: 'background 0.15s ease, transform 0.12s ease, border-color 0.15s ease',
+                      },
+                      onMouseEnter: (e: { currentTarget: HTMLElement }) => {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'
+                        e.currentTarget.style.transform = 'translateY(-1px)'
+                      },
+                      onMouseLeave: (e: { currentTarget: HTMLElement }) => {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)'
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.06)'
+                        e.currentTarget.style.transform = 'translateY(0)'
+                      },
+                    },
+                    item.icon ? tablerIcon(item.icon, { size: 22 }) : tablerIcon('cube', { size: 22 }),
+                  ),
+                ),
+              ),
         )
       : null,
   )
@@ -1279,6 +1498,8 @@ export function TopBar({
             tablerIcon('share-box', { size: 18 }),
           )
         : null,
+      // Tray Indicator
+      h(TrayIndicator, { ctx }),
       // Avatar
       h(
         'button',

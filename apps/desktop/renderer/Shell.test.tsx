@@ -24,6 +24,7 @@ class UiStub extends Service {
   readonly views = new Map<string, unknown>()
   routes: { kind: 'route'; id: string; path: string; title: string; placement?: string[] }[] = []
   settings: { kind: 'settings'; id: string; section?: string; title: string }[] = []
+  tray: { kind?: 'tray'; id: string; title: string; icon?: string; targetRoute?: string; order?: number }[] = []
 
   constructor(ctx: Context) {
     super(ctx, 'ui')
@@ -31,6 +32,10 @@ class UiStub extends Service {
 
   viewFor(id: string) {
     return this.views.get(id)
+  }
+
+  navigate(id: string, params?: Record<string, unknown>) {
+    this.ctx.emit('ui/navigate', id, params)
   }
 }
 
@@ -986,6 +991,72 @@ describe('the desktop shell', () => {
     // Double click resets queue width to the drawer default
     fireEvent.doubleClick(queueSplitter)
     expect(aside().style.width).toBe('340px')
+  })
+
+  it('renders topbar tray button with chevron-down, expands to chevron-up on click, shows plugin icons, and navigates on click', async () => {
+    const { container } = await mount((ui) => {
+      ui.routes = [
+        { kind: 'route', id: 'library.home', path: '/library', title: 'Library', placement: ['sidebar'] },
+        { kind: 'route', id: 'dsp.view', path: '/dsp', title: '音频效果 (DSP)', placement: ['tray'] },
+        { kind: 'route', id: 'inspector.panel', path: '/inspector', title: 'Inspector', placement: ['tray'] },
+      ]
+      ui.views.set('library.home', () => h('p', null, 'Library Screen'))
+      ui.views.set('dsp.view', () => h('p', null, 'DSP Screen'))
+      ui.views.set('inspector.panel', () => h('p', null, 'Inspector Screen'))
+      ui.tray = [
+        { kind: 'tray', id: 'dsp.view', title: '音频效果 (DSP)', icon: 'tune', targetRoute: 'dsp.view' },
+        { kind: 'tray', id: 'inspector.panel', title: 'Inspector', icon: 'bug', targetRoute: 'inspector.panel' },
+      ]
+    })
+
+    const trayButton = container.querySelector('[data-testid="topbar-tray-button"]') as HTMLButtonElement
+    expect(trayButton).not.toBeNull()
+
+    // Initially collapsed: downward arrow (chevron-down)
+    expect(trayButton.querySelector('svg')?.getAttribute('data-icon')).toBe('chevron-down')
+    expect(container.querySelector('[data-testid="topbar-tray-popover"]')).toBeNull()
+
+    // Click tray button to expand
+    await act(async () => {
+      fireEvent.click(trayButton)
+    })
+
+    // Now expanded: upward arrow (chevron-up)
+    expect(trayButton.querySelector('svg')?.getAttribute('data-icon')).toBe('chevron-up')
+    const popover = container.querySelector('[data-testid="topbar-tray-popover"]') as HTMLElement
+    expect(popover).not.toBeNull()
+    expect(popover.textContent).toContain('插件托盘')
+
+    // Contributed plugin items rendered in tray
+    const dspItem = container.querySelector('[data-testid="topbar-tray-item-dsp.view"]') as HTMLButtonElement
+    const inspectorItem = container.querySelector('[data-testid="topbar-tray-item-inspector.panel"]') as HTMLButtonElement
+    expect(dspItem).not.toBeNull()
+    expect(inspectorItem).not.toBeNull()
+    expect(dspItem.title).toBe('音频效果 (DSP)')
+    expect(inspectorItem.title).toBe('Inspector')
+
+    // Click DSP plugin icon in tray
+    await act(async () => {
+      fireEvent.click(dspItem)
+    })
+
+    // Tray popover closes
+    expect(container.querySelector('[data-testid="topbar-tray-popover"]')).toBeNull()
+    expect(trayButton.querySelector('svg')?.getAttribute('data-icon')).toBe('chevron-down')
+
+    // Main interface navigated to DSP screen
+    expect(container.textContent).toContain('DSP Screen')
+
+    // Reopen tray and click outside to verify close
+    await act(async () => {
+      fireEvent.click(trayButton)
+    })
+    expect(container.querySelector('[data-testid="topbar-tray-popover"]')).not.toBeNull()
+
+    await act(async () => {
+      fireEvent.mouseDown(document.body)
+    })
+    expect(container.querySelector('[data-testid="topbar-tray-popover"]')).toBeNull()
   })
 })
 

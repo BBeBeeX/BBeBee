@@ -190,6 +190,47 @@ struct MpvDynLib {
     }
 };
 
+// URI → on-disk path, mirroring the main process's fs-path.ts: the renderer
+// hands out bbebee-file:// / file:// URLs whose on-disk names are
+// percent-encoded UTF-8, and mpv understands neither the custom scheme nor
+// the encoding (a DSF under a Chinese-named folder arrives as
+// "bbebee-file:///F:/music/%E5%B7%B4%E8%B5%AB..."). http(s) and other
+// schemes pass through untouched.
+static std::string uriToMpvPath(const std::string& uri) {
+    const size_t scheme = uri.find("://");
+    if (scheme == std::string::npos) return uri;
+    const std::string schemeName = uri.substr(0, scheme);
+    if (schemeName != "file" && schemeName != "bbebee-file") return uri;
+
+    std::string rest = uri.substr(scheme + 3);
+    std::string decoded;
+    auto hexVal = [](char c) -> int {
+        if (c >= '0' && c <= '9') return c - '0';
+        if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+        if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+        return -1;
+    };
+    for (size_t i = 0; i < rest.size(); ++i) {
+        if (rest[i] == '%' && i + 2 < rest.size()) {
+            const int hi = hexVal(rest[i + 1]);
+            const int lo = hexVal(rest[i + 2]);
+            if (hi >= 0 && lo >= 0) {
+                decoded += static_cast<char>((hi << 4) | lo);
+                i += 2;
+                continue;
+            }
+        }
+        decoded += rest[i];
+    }
+
+#if defined(_WIN32)
+    // file:///F:/music → /F:/music → F:/music (the drive-letter quirk
+    // fileURLToPath also handles on the main-process side)
+    if (decoded.size() >= 3 && decoded[0] == '/' && decoded[2] == ':') decoded = decoded.substr(1);
+#endif
+    return decoded;
+}
+
 class AudioEngineApp {
 public:
     AudioEngineApp() : fftProcessor({ 128, -100.0f, -30.0f, 0.8f }) {}
@@ -274,6 +315,7 @@ public:
     void load(const std::string& uri, const JsonValue& /* options */) {
         std::lock_guard<std::mutex> lock(engineMutex);
         currentUri = uri;
+        const std::string mpvPath = uriToMpvPath(uri);
 
         // Gapless handoff: when the previous track ended, the playlist
         // advanced to this file and it is already sounding — the player above
@@ -284,12 +326,7 @@ public:
         if (mpv && mpvLib.get_property) {
             char* pathStr = nullptr;
             if (mpvLib.get_property(mpv, "path", MPV_FORMAT_STRING, &pathStr) >= 0 && pathStr) {
-                // mpv strips the scheme in `path` for file:// URLs — compare
-                // the requested uri in both forms.
-                std::string bare = uri;
-                const size_t scheme = bare.find("://");
-                if (scheme != std::string::npos) bare = bare.substr(scheme + 3);
-                const bool alreadyCurrent = (uri == std::string(pathStr)) || (bare == std::string(pathStr));
+                const bool alreadyCurrent = (mpvPath == std::string(pathStr));
                 if (mpvLib.free_data) mpvLib.free_data(pathStr);
 
                 int atEof = 0;
@@ -318,7 +355,7 @@ public:
         status = "loading";
 
         if (mpv && mpvLib.command) {
-            const char* cmd[] = { "loadfile", uri.c_str(), "replace", nullptr };
+            const char* cmd[] = { "loadfile", mpvPath.c_str(), "replace", nullptr };
             int r = mpvLib.command(mpv, cmd);
             if (r < 0) {
                 status = "error";
@@ -426,8 +463,9 @@ public:
     void append(const std::string& uri, bool playNow = false) {
         std::lock_guard<std::mutex> lock(engineMutex);
         if (mpv && mpvLib.command) {
+            const std::string mpvPath = uriToMpvPath(uri);
             const char* mode = playNow ? "append-play" : "append";
-            const char* cmd[] = { "loadfile", uri.c_str(), mode, nullptr };
+            const char* cmd[] = { "loadfile", mpvPath.c_str(), mode, nullptr };
             int r = mpvLib.command(mpv, cmd);
             if (r < 0) {
                 std::cerr << "audio-engine: append loadfile failed with code " << r << "\n";

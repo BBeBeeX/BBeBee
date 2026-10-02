@@ -52,7 +52,7 @@ Key rules:
 ## 2. Descriptors, Not Components
 
 Plugins never pass React components directly to the shell or core services.
-Instead, they register serializable **descriptors** (`route`, `slot`, `command`, `settings`, `menu`):
+Instead, they register serializable **descriptors** (`route`, `slot`, `command`, `settings`, `menu`, `tray`):
 ```ts
 // Slot contribution (e.g. action button beside player transport)
 ctx.ui.contribute({
@@ -71,6 +71,17 @@ ctx.ui.contribute({
   display: 'card',
   order: 10,
 })
+
+// Route with tray placement (shows in desktop TopBar tray popover)
+ctx.ui.contribute({
+  kind: 'route',
+  id: 'dsp.view',
+  path: '/dsp',
+  title: '音频效果 (DSP)',
+  icon: 'tune',
+  placement: ['tray'],
+  order: 65,
+})
 ```
 Each shell resolves the contribution ID against its target view registry via `ctx.ui.registerView(id, bound(ctx, Component))`.
 
@@ -78,9 +89,10 @@ Each shell resolves the contribution ID against its target view registry via `ct
 > The shell context only has `ctx.ui`. Reaching for `ctx.player` from the shell context throws.
 > Each view package binds to its own context: `bound(ctx, ScreenComponent)`.
 
-> 💡 **Decoupled Bottom Bar Actions and Settings**:
+> 💡 **Decoupled Bottom Bar Actions, Settings, and TopBar Tray**:
 > - Icons on the right side of `NowPlayingBar` (such as `mini-player.button`, `desktop-lyrics.toggle`, `queue.button`) are contributed to `'now-playing.actions'`, never hardcoded.
 > - Settings rows and cards are contributed via `ctx.ui.contribute({ kind: 'settings', ... })` or `ctx.settings.contribute(...)`, never hardcoded into Settings screens.
+> - Desktop TopBar features a Windows-like system tray toggle button beside the "Import & Share" button (chevron-down when collapsed, chevron-up when expanded). Plugins determine whether to show in the main interface/tray via `placement: ['tray']` on their route or via `TrayContribution`. Clicking an icon navigates to that plugin's view in the main window (`ctx.ui.navigate`) and closes the tray popover.
 
 ---
 

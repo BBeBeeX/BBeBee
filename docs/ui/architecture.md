@@ -90,7 +90,7 @@ export interface RouteContribution {
   title: string                    // i18n key
   icon?: string                    // name from the shared icon set (Tabler icons, stroke 1.25 on desktop)
   /** Where the shell should offer navigation to it. */
-  placement?: ('sidebar' | 'tab-bar' | 'more-menu')[]
+  placement?: ('sidebar' | 'tab-bar' | 'more-menu' | 'tray')[]
   order?: number
 }
 
@@ -142,6 +142,25 @@ export interface MenuContribution {
   checked?: () => boolean
 }
 
+export interface TrayContribution {
+  kind?: 'tray'
+  id: string
+  title: string
+  icon?: string
+  targetRoute?: string
+  order?: number
+  when?: (ctx: SlotContext) => boolean
+  action?: () => void | Promise<void>
+}
+
+export type Contribution =
+  | RouteContribution
+  | SlotContribution
+  | CommandContribution
+  | SettingsContribution
+  | MenuContribution
+  | TrayContribution
+
 export interface UiService {
   contribute(c: Contribution): Disposable
   /** Called by each shell's view package to bind an id to a component. */
@@ -154,6 +173,7 @@ export interface UiService {
   readonly commands: readonly CommandContribution[]
   readonly menus: readonly MenuContribution[]
   readonly settings: readonly SettingsContribution[]
+  readonly tray: readonly TrayContribution[]
   runCommand(id: string, args?: unknown): Promise<void>
   viewFor(id: string): unknown | undefined
   missingViews(): string[]
@@ -192,12 +212,14 @@ export type SlotId =
   | 'search.results-section'     // an extra results group
   | 'settings.sources'           // the source list: import, groups, enable, reorder
   | 'source.browse'              // a source's explore tree
+  | 'topbar.tray'                // topbar system tray slot (desktop)
   | 'status-bar'                 // desktop only; ignored on mobile
 ```
 
-> **Decoupled Bottom Bar Actions and Settings**:
+> **Decoupled Bottom Bar Actions, Settings, and TopBar Tray**:
 > - Icons on the right side of the bottom player bar (Picture-in-Picture/mini player, floating lyrics toggle, play queue) are never hardcoded in `NowPlayingBar`. Instead, each plugin contributes its action button to the `'now-playing.actions'` slot and registers its view. The bar dynamically queries `ctx.ui.slotsFor('now-playing.actions')`, filtering with `when` and sorting by `order`.
 > - Feature plugin settings (such as DSP effects, cache management, source configuration) are dynamically contributed via `ctx.ui.contribute({ kind: 'settings', ... })` or `ctx.settings.contribute(...)` instead of hardcoded into the Settings screens.
+> - The desktop TopBar includes a Windows-like system tray toggle button beside the "Import & Share" button. It renders a downward arrow (`chevron-down`) when collapsed and an upward arrow (`chevron-up`) when expanded. Plugins self-determine whether they need to display in the main interface tray via `placement: ['tray']` on their route or via `TrayContribution`. Clicking a plugin icon in the tray popover triggers `ctx.ui.navigate(...)` to navigate the main view to that plugin's screen and closes the tray.
 
 Slot rendering is where a plugin's UI actually shows up:
 

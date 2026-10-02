@@ -24,6 +24,7 @@ export type SlotId =
   | 'search.results-section'
   | 'settings.sources'
   | 'source.browse'
+  | 'topbar.tray'
   /** Desktop only; ignored on mobile. */
   | 'status-bar'
 
@@ -38,7 +39,7 @@ export interface RouteContribution {
   /** i18n key. */
   title: string
   icon?: string
-  placement?: ('sidebar' | 'tab-bar' | 'more-menu')[]
+  placement?: ('sidebar' | 'tab-bar' | 'more-menu' | 'tray')[]
   order?: number
 }
 
@@ -103,12 +104,24 @@ export interface MenuContribution {
   checked?: () => boolean
 }
 
+export interface TrayContribution {
+  kind?: 'tray'
+  id: string
+  title: string
+  icon?: string
+  targetRoute?: string
+  order?: number
+  when?: (ctx: SlotContext) => boolean
+  action?: () => void | Promise<void>
+}
+
 export type Contribution =
   | RouteContribution
   | SlotContribution
   | CommandContribution
   | SettingsContribution
   | MenuContribution
+  | TrayContribution
 
 export interface UiService {
   contribute(c: Contribution): Disposable
@@ -128,6 +141,7 @@ export interface UiService {
   readonly commands: readonly CommandContribution[]
   readonly menus: readonly MenuContribution[]
   readonly settings: readonly SettingsContribution[]
+  readonly tray: readonly TrayContribution[]
   runCommand(id: string, args?: unknown): Promise<void>
   viewFor(id: string): unknown | undefined
 

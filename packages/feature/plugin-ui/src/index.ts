@@ -25,6 +25,7 @@ import type {
   SettingsContribution,
   SlotContribution,
   SlotId,
+  TrayContribution,
   UiService,
 } from '@BBeBee/protocol'
 
@@ -108,6 +109,39 @@ export class Ui extends Service implements UiService {
 
   get settings(): readonly SettingsContribution[] {
     return this.of<'settings', SettingsContribution>('settings')
+  }
+
+  get tray(): readonly TrayContribution[] {
+    const items: [number, TrayContribution][] = []
+    const seen = new Set<string>()
+
+    // Explicit tray contributions
+    for (const [key, c] of this.contributions) {
+      if (c.kind === 'tray') {
+        items.push([key, c as TrayContribution])
+        seen.add(c.id)
+      }
+    }
+
+    // Route contributions opting into tray placement
+    for (const [key, c] of this.contributions) {
+      if (c.kind === 'route' && c.placement?.includes('tray') && !seen.has(c.id)) {
+        items.push([
+          key,
+          {
+            kind: 'tray',
+            id: c.id,
+            title: c.title,
+            icon: c.icon,
+            targetRoute: c.id,
+            order: c.order,
+          },
+        ])
+        seen.add(c.id)
+      }
+    }
+
+    return byOrder(items)
   }
 
   slotsFor(slot: SlotId): readonly SlotContribution[] {

@@ -107,7 +107,7 @@ export class DspPlugin extends Service implements DspService {
           path: '/dsp',
           title: '音频效果 (DSP)',
           icon: 'tune',
-          placement: [],
+          placement: ['tray'],
           order: 65,
         })
 

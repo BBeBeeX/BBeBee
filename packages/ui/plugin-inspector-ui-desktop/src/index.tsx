@@ -854,7 +854,7 @@ export async function apply(ctx: Context) {
       path: '/inspector',
       title: 'Inspector',
       icon: 'bug',
-      placement: [],
+      placement: ['tray'],
       order: 900,
     })
   }, 'inspector-ui')

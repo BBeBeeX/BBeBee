@@ -55,7 +55,7 @@ export interface RouteContribution {
   title: string                    // i18n key
   icon?: string                    // name from the shared icon set
   /** Where the shell should offer navigation to it. */
-  placement?: ('sidebar' | 'tab-bar' | 'more-menu')[]
+  placement?: ('sidebar' | 'tab-bar' | 'more-menu' | 'tray')[]
   order?: number
 }
 
@@ -107,6 +107,25 @@ export interface MenuContribution {
   checked?: () => boolean
 }
 
+export interface TrayContribution {
+  kind?: 'tray'
+  id: string
+  title: string
+  icon?: string
+  targetRoute?: string
+  order?: number
+  when?: (ctx: SlotContext) => boolean
+  action?: () => void | Promise<void>
+}
+
+export type Contribution =
+  | RouteContribution
+  | SlotContribution
+  | CommandContribution
+  | SettingsContribution
+  | MenuContribution
+  | TrayContribution
+
 export interface UiService {
   contribute(c: Contribution): Disposable
   /** Called by each shell's view package to bind an id to a component. */
@@ -119,6 +138,7 @@ export interface UiService {
   readonly commands: readonly CommandContribution[]
   readonly menus: readonly MenuContribution[]
   readonly settings: readonly SettingsContribution[]
+  readonly tray: readonly TrayContribution[]
   runCommand(id: string, args?: unknown): Promise<void>
   viewFor(id: string): unknown | undefined
   missingViews(): string[]
@@ -142,12 +162,14 @@ export type SlotId =
   | 'search.results-section'     // an extra results group
   | 'settings.sources'           // the source list: import, groups, enable, reorder
   | 'source.browse'              // a source's explore tree
+  | 'topbar.tray'                // 顶部栏托盘插槽（桌面端）
   | 'status-bar'                 // desktop only; ignored on mobile
 ```
 
-> **注意：播放栏右侧操作区与设置页面完全解耦**：
+> **注意：播放栏右侧操作区、设置页与顶部栏托盘完全解耦**：
 > - 播放栏右侧的图标（小窗模式/灵动岛、悬浮歌词开关、播放队列）不再硬编码在 `NowPlayingBar`，而是由对应插件向 `'now-playing.actions'` 槽位贡献并在视图注册表中注册组件，底栏按 `order` 升序与 `when` 谓词动态渲染。
 > - 各插件的配置选项由插件通过 `ctx.ui.contribute({ kind: 'settings', ... })` 或 `ctx.settings.contribute(...)` 自主向设置服务贡献，设置页自动聚合展示，支持内嵌卡片（`display: 'card'`）与导航行（`display: 'link'`）。
+> - 桌面端顶部栏在“导入分享”按钮旁提供类似 Windows 托盘的展开按钮（折叠时朝下箭头 `chevron-down`，展开时朝上箭头 `chevron-up`）。插件可在路由中通过 `placement: ['tray']` 或通过 `TrayContribution` 自主决定是否显示在主界面托盘中。点击托盘中的插件图标将通过 `ctx.ui.navigate(...)` 自动跳转至该插件主界面页面并收起托盘。
 
 槽位渲染是插件的 UI 真正现身的地方：
 
