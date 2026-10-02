@@ -173,6 +173,28 @@ describe('plugin-dsp', () => {
     await fiber.dispose()
   })
 
+  it('serializes the enabled chain into dsp/af-changed for the native engine', async () => {
+    const ctx = await harness()
+    const afEvents: string[] = []
+    ctx.on('dsp/af-changed', (e) => afEvents.push(e.af))
+    const fiber = await ctx.plugin(DspPlugin)
+
+    // The limiter is on by default (protection) — the initial af carries it.
+    expect(afEvents[0]).toContain('alimiter=')
+
+    await ctx.dsp.setEnabled('eq10', true)
+    await ctx.dsp.setParam('eq10', 'band0', 6)
+    expect(afEvents[afEvents.length - 1]).toContain('lowshelf=f=31:g=6.00')
+    expect(afEvents[afEvents.length - 1]).toContain('alimiter=')
+
+    // Disabling every effect must produce a clean chain, not a stale one.
+    await ctx.dsp.setEnabled('limiter', false)
+    await ctx.dsp.setEnabled('eq10', false)
+    expect(afEvents[afEvents.length - 1]).toBe('')
+
+    await fiber.dispose()
+  })
+
   it('enables and disables effects with smooth volume dip', async () => {
     const ctx = await harness()
     const fiber = await ctx.plugin(DspPlugin)

@@ -197,6 +197,8 @@ export class DesktopAudioService extends Service implements AudioService {
   private activeEngineKey: 'mpv' | 'wasapi' | 'webaudio' = 'webaudio'
   private activeEngine!: AudioService
   private activeFiber?: Fiber
+  /** The last effect chain serialized for the native engine (mpv). */
+  private lastNativeAf?: string
   private currentVolume = 0.8
   private currentMuted = false
   private currentDeviceId = 'default'
@@ -215,6 +217,16 @@ export class DesktopAudioService extends Service implements AudioService {
   }
 
   async [Service.init]() {
+    // The dsp plugin serializes the enabled effect chain for the native
+    // engine; forward it over the bridge (no service dependency — the event
+    // carries the composed string).
+    this.ctx.on('dsp/af-changed', (e) => {
+      this.lastNativeAf = e.af
+      if (this.activeEngineKey === 'mpv' && this.config.bridgeCall) {
+        void this.config.bridgeCall('audio', 'mpvSetDspConfig', [{ af: e.af }]).catch(() => {})
+      }
+    })
+
     const target = this.config.initialEngine ?? 'webaudio'
     await this.mountEngine(target)
 
@@ -382,10 +394,19 @@ export class DesktopAudioService extends Service implements AudioService {
     // `provide` recorded it: `scoped.audio` resolves up the fiber chain and
     // finds this wrapper's own 'audio' instead, so delegating to it would
     // recurse through setVolume/setMuted until the stack overflows.
-    const mounted = (fiber as unknown as { store?: Record<string, { value?: AudioService }> })
-      .store?.audio?.value
-    if (!mounted || mounted === this) {
-      throw new Error(`desktop-audio: engine [${engineKey}] did not provide an audio service`)
+    let mounted: AudioService | undefined
+    try {
+      mounted = (fiber as unknown as { store?: Record<string, { value?: AudioService }> })
+        .store?.audio?.value
+      if (!mounted || mounted === this) {
+        throw new Error('the mounted fiber did not provide an audio service')
+      }
+    } catch (err) {
+      // A mount failure must never take the app down: the webaudio engine has
+      // no native dependencies and always mounts.
+      this.ctx.logger?.warn('desktop-audio: engine [%s] unusable (%s), falling back to webaudio', engineKey, String(err))
+      if (effectiveKey === 'mpv') return this.mountEngine('webaudio')
+      throw err
     }
     this.activeEngine = mounted
     this.activeFiber = fiber
@@ -402,6 +423,11 @@ export class DesktopAudioService extends Service implements AudioService {
     this.activeEngine.setMuted(this.currentMuted)
     if (this.currentDeviceId && this.currentDeviceId !== 'default') {
       await this.activeEngine.setOutputDevice(this.currentDeviceId).catch(() => {})
+    }
+    // The native engine starts with a clean filter chain — push the effect
+    // chain the dsp plugin already serialized (no-op for webaudio).
+    if (effectiveKey === 'mpv' && this.lastNativeAf !== undefined && this.config.bridgeCall) {
+      void this.config.bridgeCall('audio', 'mpvSetDspConfig', [{ af: this.lastNativeAf }]).catch(() => {})
     }
   }
 

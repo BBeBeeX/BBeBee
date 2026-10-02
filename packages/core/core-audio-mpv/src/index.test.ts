@@ -110,7 +110,6 @@ async function harness(
   const elements: FakeMediaElement[] = []
   const ctx = new Context()
   // AudioMpv declares inject: ['dsp'] — provide a stub so the mount resolves.
-  ctx.provide('dsp', { chain: [], definitions: [], getParams: () => ({}) })
   await ctx.plugin(plugin, {
     createContext: () => engine as unknown as BaseAudioContext,
     createMediaElement: () => {
@@ -157,7 +156,6 @@ describe('core-audio-mpv', () => {
     const rebuiltRates: number[] = []
     const contexts: FakeAudioContext[] = []
     const ctx = new Context()
-    ctx.provide('dsp', { chain: [], definitions: [], getParams: () => ({}) })
     await ctx.plugin(plugin, {
       createContext: (options) => {
         const next = createFakeAudioContext(options?.sampleRate)
@@ -328,7 +326,6 @@ describe('core-audio-mpv', () => {
     const rebuiltRates: number[] = []
     const contexts: FakeAudioContext[] = []
     const ctx = new Context()
-    ctx.provide('dsp', { chain: [], definitions: [], getParams: () => ({}) })
     await ctx.plugin(plugin, {
       createContext: (options) => {
         const next = createFakeAudioContext(options?.sampleRate)
@@ -382,7 +379,6 @@ describe('core-audio-mpv context state', () => {
     const engine = createFakeAudioContext()
     engine.state = 'suspended'
     const ctx = new Context()
-    ctx.provide('dsp', { chain: [], definitions: [], getParams: () => ({}) })
     await ctx.plugin(plugin, {
       createContext: () => engine as unknown as BaseAudioContext,
       emitContextInterruptions: true,
@@ -424,7 +420,6 @@ describe('core-audio-mpv context state', () => {
   it('unbinds its statechange listener when unloaded', async () => {
     const engine = createFakeAudioContext()
     const ctx = new Context()
-    ctx.provide('dsp', { chain: [], definitions: [], getParams: () => ({}) })
     const fiber = await ctx.plugin(plugin, {
       createContext: () => engine as unknown as BaseAudioContext,
     })
@@ -440,7 +435,6 @@ describe('core-audio-mpv context state', () => {
     // would go blind to every suspension after the first Hi-Res track.
     const contexts: FakeAudioContext[] = []
     const ctx = new Context()
-    ctx.provide('dsp', { chain: [], definitions: [], getParams: () => ({}) })
     await ctx.plugin(plugin, {
       createContext: (options) => {
         const next = createFakeAudioContext(options?.sampleRate)
@@ -475,7 +469,6 @@ describe('core-audio-mpv context state', () => {
     const contexts: FakeAudioContext[] = []
     const sinkCalls: string[] = []
     const ctx = new Context()
-    ctx.provide('dsp', { chain: [], definitions: [], getParams: () => ({}) })
     await ctx.plugin(plugin, {
       createContext: (options) => {
         const next = createFakeAudioContext(options?.sampleRate)
@@ -578,96 +571,6 @@ describe('core-audio-mpv native engine features', () => {
     expect(resumeCall.args[0]).toBeUndefined()
 
     handle.dispose()
-  })
-
-  it('pushes the enabled effect chain as one af string, debounced', async () => {
-    const calls: { method: string; args: unknown[] }[] = []
-    const bridgeCall = async (_service: string, method: string, args: unknown[]) => {
-      calls.push({ method, args })
-      if (method === 'mpvLoad') return { durationMs: 120_000 }
-      return undefined
-    }
-
-    const { ctx } = await harness({ bridgeCall })
-    ;(ctx as unknown as { dsp: unknown }).dsp = {
-      chain: [
-        { effectId: 'preamp', enabled: true, ordinal: 0 },
-        { effectId: 'eq10', enabled: true, ordinal: 1 },
-        { effectId: 'reverb', enabled: false, ordinal: 2 },
-      ],
-      definitions: [
-        { id: 'preamp', buildLavfi: () => 'volume=volume=-2.00dB' },
-        { id: 'eq10', buildLavfi: () => 'equalizer=f=500:width_type=q:w=1.41:g=6.00' },
-        { id: 'reverb', buildLavfi: () => 'aecho=in_gain=1' },
-      ],
-      getParams: () => ({}),
-    }
-
-    // A slider drag emits per tick — the two rapid emits must coalesce.
-    ctx.emit('dsp/chain-changed', [])
-    ctx.emit('dsp/chain-changed', [])
-    await new Promise((r) => setTimeout(r, 350))
-
-    const dspCalls = calls.filter((c) => c.method === 'mpvSetDspConfig')
-    expect(dspCalls, 'debounced to one push').toHaveLength(1)
-    // ordinal order, disabled reverb excluded, the chain arrives as ONE af string
-    expect(dspCalls[0]!.args[0]).toEqual({
-      af: 'volume=volume=-2.00dB,equalizer=f=500:width_type=q:w=1.41:g=6.00',
-    })
-  })
-
-  it('pulls the settings-restored chain once at mount', async () => {
-    const calls: { method: string; args: unknown[] }[] = []
-    const bridgeCall = async (_service: string, method: string, args: unknown[]) => {
-      calls.push({ method, args })
-      return undefined
-    }
-    const ctx = new Context()
-    // The chain was restored from settings before the engine mounted — the
-    // change events are already gone, so the engine must pull at init.
-    ;(ctx as unknown as { dsp: unknown }).dsp = {
-      chain: [{ effectId: 'preamp', enabled: true, ordinal: 0 }],
-      definitions: [{ id: 'preamp', buildLavfi: () => 'volume=volume=-3.00dB' }],
-      getParams: () => ({ gainDb: -3 }),
-    }
-
-    ctx.provide('dsp', { chain: [], definitions: [], getParams: () => ({}) })
-    await ctx.plugin(plugin, { bridgeCall, createContext: () => createFakeAudioContext() as unknown as BaseAudioContext })
-    await new Promise((r) => setTimeout(r, 350))
-
-    const dspCalls = calls.filter((c) => c.method === 'mpvSetDspConfig')
-    expect(dspCalls).toHaveLength(1)
-    expect(dspCalls[0]!.args[0]).toEqual({ af: 'volume=volume=-3.00dB' })
-  })
-
-  it('skips effects without a lavfi adapter and reports a clean chain', async () => {
-    const calls: { method: string; args: unknown[] }[] = []
-    const bridgeCall = async (_service: string, method: string, args: unknown[]) => {
-      calls.push({ method, args })
-      return undefined
-    }
-
-    const { ctx } = await harness({ bridgeCall })
-    ;(ctx as unknown as { dsp: unknown }).dsp = {
-      chain: [
-        { effectId: 'tempo-pitch', enabled: true, ordinal: 0 },
-        { effectId: 'eq10', enabled: false, ordinal: 1 },
-      ],
-      definitions: [
-        // tempo-pitch registered WITHOUT an adapter (third-party shape)
-        { id: 'tempo-pitch', buildLavfi: undefined },
-        { id: 'eq10', buildLavfi: () => 'equalizer=f=500:width_type=q:w=1.41:g=6.00' },
-      ],
-      getParams: () => ({}),
-    }
-
-    ctx.emit('dsp/chain-changed', [])
-    await new Promise((r) => setTimeout(r, 350))
-
-    const dspCalls = calls.filter((c) => c.method === 'mpvSetDspConfig')
-    expect(dspCalls).toHaveLength(1)
-    // disabled eq10 excluded, adapter-less tempo-pitch skipped
-    expect(dspCalls[0]!.args[0]).toEqual({ af: '' })
   })
 
   it('retrieves FFT spectrum frames for visualizer', async () => {

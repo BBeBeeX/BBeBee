@@ -230,7 +230,27 @@ export class DspPlugin extends Service implements DspService {
     }
 
     await this.persistState()
+    this.emitChainChanged()
+  }
+
+  /**
+   * The enabled chain serialized for the native engine (mpv): each enabled
+   * effect's lavfi adapter, in ordinal order. Effects without an adapter are
+   * skipped — the WebAudio graph is their engine.
+   */
+  private composeAf(): string {
+    const fragments: string[] = []
+    for (const entry of [...this.chain].sort((a, b) => a.ordinal - b.ordinal)) {
+      if (!entry.enabled) continue
+      const fragment = this.defs.get(entry.effectId)?.buildLavfi?.(this.getParams(entry.effectId))
+      if (fragment) fragments.push(fragment)
+    }
+    return fragments.join(',')
+  }
+
+  private emitChainChanged(): void {
     this.ctx.emit('dsp/chain-changed', this.chain)
+    this.ctx.emit('dsp/af-changed', { af: this.composeAf() })
   }
 
   async applyPreset(effectId: string, presetName: string): Promise<void> {
@@ -251,7 +271,7 @@ export class DspPlugin extends Service implements DspService {
     }
     this.paramsState.set(effectId, current)
     await this.persistState()
-    this.ctx.emit('dsp/chain-changed', this.chain)
+    this.emitChainChanged()
   }
 
   private async persistState(): Promise<void> {
@@ -343,7 +363,7 @@ export class DspPlugin extends Service implements DspService {
         }
       }
 
-      this.ctx.emit('dsp/chain-changed', this.chain)
+      this.emitChainChanged()
     } catch (err) {
       this.ctx.logger.error(`plugin-dsp: graph rebuild error: ${err}`)
     } finally {

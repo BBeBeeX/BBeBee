@@ -178,6 +178,8 @@ declare module 'cordis' {
     'dsp/build-chain'(segments: EffectSegment[], next: () => EffectSegment[]): EffectSegment[]
     /* ── dsp ────────────────────────────────────────── emit ── */
     'dsp/chain-changed'(chain: readonly ChainEntry[]): void
+    /** The enabled chain serialized for the native engine's `af` (mpv). */
+    'dsp/af-changed'(payload: { af: string }): void
 
     /* ── ui ─────────────────────────────────────────── emit ── */
     'ui/changed'(): void
@@ -243,6 +245,7 @@ export const DISPATCH_MODES = {
   'scan/finished': 'emit',
   'dsp/build-chain': 'waterfall',
   'dsp/chain-changed': 'emit',
+  'dsp/af-changed': 'emit',
   'ui/changed': 'emit',
   'ui/navigate': 'emit',
   'plugin/loaded': 'emit',

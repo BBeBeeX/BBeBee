@@ -56,16 +56,6 @@ export interface AudioMpvConfig {
   emitContextInterruptions?: boolean
 }
 
-/** The slice of `ctx.dsp` the sync walks: enabled entries + their adapters. */
-interface DspServiceView {
-  chain?: ReadonlyArray<{ effectId: string; enabled: boolean; ordinal: number }>
-  definitions?: ReadonlyArray<{
-    id: string
-    buildLavfi?: (params: Record<string, unknown>) => string
-  }>
-  getParams?: (effectId: string) => Record<string, unknown>
-}
-
 export interface FftSpectrumFrame {
   frequencyData: number[]
   timeDomainData: number[]
@@ -195,10 +185,7 @@ export class MpvSourceHandle implements AudioSourceHandle {
 }
 
 export class AudioMpv extends Service implements AudioService {
-  // The engine syncs its native effect chain from ctx.dsp — without the
-  // declaration cordis refuses every `ctx.dsp` read ("cannot get property
-  // without inject") and the sync dies silently.
-  static inject = ['dsp']
+  static inject = []
 
   context: BaseAudioContext
   chainInput: GainNode
@@ -270,58 +257,6 @@ export class AudioMpv extends Service implements AudioService {
     return typeof ctx.outputLatency === 'number' && ctx.outputLatency > 0
       ? ctx.outputLatency * 1000
       : 15
-  }
-
-  private syncTimer?: ReturnType<typeof setTimeout>
-  private lastSyncedAf?: string
-
-  /**
-   * A slider drag emits `dsp/chain-changed` per tick and every `af` write
-   * makes mpv rebuild its filter chain (audibly) — coalesce to one trailing
-   * push per 200 ms.
-   */
-  private syncDspConfig(): void {
-    if (!this.bridge) return
-    if (this.syncTimer) clearTimeout(this.syncTimer)
-    this.syncTimer = setTimeout(() => {
-      this.syncTimer = undefined
-      this.pushAfChain()
-    }, 200)
-  }
-
-  private pushAfChain(): void {
-    if (!this.bridge) return
-    try {
-      const dsp = (this.ctx as unknown as { dsp?: DspServiceView }).dsp
-      if (!dsp?.chain || typeof dsp.getParams !== 'function') return
-
-      const adapters = new Map(
-        (dsp.definitions ?? []).map((d) => [d.id, d.buildLavfi]),
-      )
-      const fragments: string[] = []
-      const skipped: string[] = []
-      for (const entry of [...dsp.chain].sort((a, b) => a.ordinal - b.ordinal)) {
-        if (!entry.enabled) continue
-        const adapter = adapters.get(entry.effectId)
-        if (!adapter) {
-          skipped.push(entry.effectId)
-          continue
-        }
-        const fragment = adapter(dsp.getParams(entry.effectId) ?? {})
-        if (fragment) fragments.push(fragment)
-      }
-      if (skipped.length > 0) {
-        this.ctx.logger?.debug?.('mpv: effects without a lavfi adapter are skipped on this engine: %s', skipped.join(', '))
-      }
-
-      const af = fragments.join(',')
-      if (af === this.lastSyncedAf) return
-      this.lastSyncedAf = af
-      this.ctx.logger?.info('mpv: af chain updated: %s', af || '(clean)')
-      void this.bridge('audio', 'mpvSetDspConfig', [{ af }]).catch(() => undefined)
-    } catch (err) {
-      this.ctx.logger?.warn('mpv: failed to sync the effect chain: %s', String(err))
-    }
   }
 
   async getFftSpectrum(): Promise<FftSpectrumFrame | null> {
@@ -611,15 +546,7 @@ export class AudioMpv extends Service implements AudioService {
 
   async [Service.init]() {
     this.interruptions.attach(this.context)
-    const offDsp = this.ctx.on('dsp/chain-changed', () => {
-      this.syncDspConfig()
-    })
-    // The chain was restored from settings before this engine mounted — the
-    // change events are already gone, so pull the initial state once.
-    this.syncDspConfig()
     return async () => {
-      offDsp()
-      if (this.syncTimer) clearTimeout(this.syncTimer)
       this.interruptions.detach()
       this.chainInput.disconnect()
       this.master.disconnect()
