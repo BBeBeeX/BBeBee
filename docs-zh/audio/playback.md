@@ -71,7 +71,7 @@ stateDiagram-v2
     loading --> error: resolve or load failed
     playing --> paused: pause() / interruption began
     paused --> playing: play() / interruption ended and shouldResume
-    playing --> stalled: buffer underrun
+    playing --> stalled: buffer underrun / 播放中途的致命元素错误
     stalled --> playing: buffer recovered
     stalled --> error: timeout exceeded
     playing --> loading: track ended and queue advances
@@ -86,6 +86,7 @@ stateDiagram-v2
 - **随机播放（shuffle）** 持久化的是**一个种子加上一个排列**，而不是每次现选的随机结果。这让乱序在重启后保持稳定，让 `previous()` 仍有意义，也让即将播放的队列能够如实展示。
 - **单曲循环**不重新解析流，而是复用已加载的缓冲。
 - **`stalled`** 与 `paused` 是两回事。UI 显示的是转圈，而不是播放按钮，并且 `ctx.mediaSession` 继续上报 `playing`，以免锁屏界面闪烁。
+- **开始播放之后才发生的致命错误按 underrun 上报，而不是按自然结束。** 流式句柄的媒体元素在曲目播放中途死亡（CDN 断流、URL 过期）时上报 `onStalled(true)` 而非 `onEnded`：当作自然结束会让播放器把该曲记为"已完整播放"并直接切下一曲——下一曲面对同样坏掉的网络，只能无声地停在 0:00。按 stall 上报则走 `stalled → error` 看门狗，在冻结的原位置变成可重试的网络错误（按播放键即重试）。曲子从未出声就报错的死链仍然上报 `ended`，队列照旧跳过从不发声的链接。
 
 ### 播放模式 (`PlayMode`)
 

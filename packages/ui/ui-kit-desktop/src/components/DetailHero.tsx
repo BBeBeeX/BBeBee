@@ -27,7 +27,7 @@ export interface DetailHeroProps {
  * Without a cover it stacks eyebrow / title / subtitle in a column; with a
  * cover slot it becomes a row aligned to the bottom, cover left. The title
  * line-clamps at two lines — a long album or playlist name truncates instead
- * of breaking the layout — and resting the pointer on it for 3s floats a
+ * of breaking the layout — and resting the pointer on it for 2s floats a
  * label with the full name.
  */
 export function DetailHero(props: DetailHeroProps): ReactElement {

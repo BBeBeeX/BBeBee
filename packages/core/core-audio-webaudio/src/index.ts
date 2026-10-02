@@ -305,6 +305,8 @@ export class StreamedHandle implements AudioSourceHandle {
 
   private readonly stallListeners = new Set<(stalled: boolean) => void>()
   private stalled = false
+  /** Set once the element has actually produced sound (`playing`/`canplaythrough`). */
+  private started = false
   private readonly onStallNative = () => {
     if ((this.element as { error?: unknown }).error) return
     this.setStalled(true)
@@ -323,6 +325,7 @@ export class StreamedHandle implements AudioSourceHandle {
     if (!this.element.seeking) {
       this.pendingSeekSeconds = undefined
     }
+    this.started = true
     this.setStalled(false)
   }
   private readonly onSeekedNative = () => {
@@ -331,6 +334,20 @@ export class StreamedHandle implements AudioSourceHandle {
   private readonly onErrorNative = () => {
     this.logger?.error?.('webaudio: [streamed] playback error', this.element.error)
     this.setStalled(false)
+    /*
+     * A fatal element error after the track has begun sounding is a network
+     * failure, not a natural end. Reporting it as `ended` made the player
+     * record the track as completed and skip ahead — the "position suddenly
+     * jumps to 0:00 with no sound" report — and the next track, facing the
+     * same broken network, sat silent at 0:00 too. An underrun is what the
+     * protocol can express: the player's stall watchdog turns this into a
+     * retryable network error at the frozen position instead.
+     */
+    if (this.started) {
+      this.pendingSeekSeconds = undefined
+      this.setStalled(true)
+      return
+    }
     this.onEndedNative()
   }
 

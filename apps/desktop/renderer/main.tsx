@@ -27,7 +27,19 @@ const isLyricsWindow =
     window.location.search.includes('desktop-lyrics') ||
     window.location.hash.includes('desktop-lyrics'))
 
-// Auto-hide scrollbars when not scrolling for a while; show on scroll
+// Auto-hide scrollbars: a pane shows its scrollbar only while the pointer is
+// over it, or while that pane itself is scrolling (1.2s linger). Every other
+// pane's scrollbar stays hidden.
+//
+// ⚠️ Two traps, both learned the hard way:
+// - A document-wide flag (`html.is-scrolling`) lit every scroller's thumb
+//   app-wide — scroll page A and the sidebar's, the queue's, every other
+//   pane's scrollbar showed too.
+// - The CSS `*:hover::-webkit-scrollbar-thumb` route does not work either:
+//   Chromium evaluates scrollbar part styles without honoring the owner
+//   element's `:hover` state, so the "hover" variant painted on every pane at
+//   all times. Hence this class, toggled from real mouse events, which the
+//   cascade does honor.
 if (typeof window !== 'undefined') {
   const activeTimers = new WeakMap<Element, ReturnType<typeof setTimeout>>()
   window.addEventListener(
@@ -36,19 +48,54 @@ if (typeof window !== 'undefined') {
       const target = e.target
       const el = target && target instanceof Element ? target : document.documentElement
       el.classList.add('is-scrolling')
-      document.documentElement.classList.add('is-scrolling')
       const prev = activeTimers.get(el)
       if (prev) clearTimeout(prev)
       activeTimers.set(
         el,
         setTimeout(() => {
           el.classList.remove('is-scrolling')
-          document.documentElement.classList.remove('is-scrolling')
         }, 1200),
       )
     },
     { capture: true, passive: true },
   )
+
+  const isScrollable = (el: Element): boolean => {
+    if (el === document.documentElement || el === document.body) return false
+    return (
+      el.scrollHeight > el.clientHeight + 1 &&
+      ['auto', 'scroll'].includes(getComputedStyle(el).overflowY)
+    )
+  }
+
+  let hoveredScroller: Element | null = null
+  const setHoveredScroller = (el: Element | null) => {
+    if (el === hoveredScroller) return
+    hoveredScroller?.classList.remove('is-scrollbar-hover')
+    hoveredScroller = el
+    hoveredScroller?.classList.add('is-scrollbar-hover')
+  }
+
+  // `mouseover` rather than `mousemove`: it fires on element boundaries, not
+  // every pixel of travel, and its target is already the deepest element.
+  window.addEventListener(
+    'mouseover',
+    (e) => {
+      const target = e.target
+      if (!(target instanceof Element)) return
+      for (let n: Element | null = target; n; n = n.parentElement) {
+        if (isScrollable(n)) {
+          setHoveredScroller(n)
+          return
+        }
+      }
+      setHoveredScroller(null)
+    },
+    { passive: true },
+  )
+  window.addEventListener('mouseout', (e) => {
+    if (!e.relatedTarget) setHoveredScroller(null)
+  })
 }
 
 if (isMiniPlayerWindow) {

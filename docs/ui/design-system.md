@@ -228,10 +228,36 @@ The scale relies on **"weight follows size"**:
   - Hidden track background (`background: transparent`) to prevent grey gutter bars from breaking
     dark canvas continuity.
   - Ultra-narrow width (`4px` width on desktop).
-  - High-transparency rounded thumb (`rgba(255, 255, 255, 0.2)` default, `rgba(255, 255, 255, 0.4)`
-    on hover, `border-radius: 999px`) ensuring effortless scrollbar dragging without visual clutter.
+  - **A pane's thumb is visible only for the pane under the pointer, or while that pane itself is
+    scrolling.** `main.tsx` maintains two plain classes on the scroll container:
+    `is-scrollbar-hover` (the deepest scrollable ancestor of the hovered element, from `mouseover`)
+    and `is-scrolling` (self-cleared 1.2s after the pane's last scroll event). Every other pane's
+    scrollbar stays fully transparent, so scrolling page A never lights the sidebar's, the queue's
+    or another page's scrollbar.
+  - ⚠️ **Chromium trap, do not revisit**: `*:hover::-webkit-scrollbar-thumb` does not work —
+    Chromium evaluates scrollbar part styles without the owner element's `:hover` state, which
+    painted the "hover" variant on *every* pane at all times (and a document-wide
+    `html.is-scrolling` flag lit every scrollbar during any scroll). Only plain classes on the
+    scroll container reach the cascade; likewise standard `scrollbar-width`/`scrollbar-color`
+    would disable the `::-webkit-scrollbar` rules entirely.
+- **Hover labels for clamped names (`HoverLabel`)**:
+  - Wraps a clamped title/name; resting the pointer on it for **2 seconds** floats a portal tooltip
+    (fixed-positioned on `document.body`, so list-row `overflow: hidden` cannot clip it) with the
+    full text. Dismissed on leave, scroll, resize, or `Escape`.
+  - Applied to the detail pages' hero title (`DetailHero` — 专辑/最喜欢/歌单/本地) and to the track
+    title/artist cells of the library and album table rows.
+- **Marquee text for clamped playback text (`MarqueeText`)**:
+  - A one-line clip box that ping-pongs its content (scroll to the end, hold, scroll back) via the
+    Web Animations API when the text overflows; a static line when it fits or when
+    `element.animate` is unavailable (tests).
+  - Used for the bottom bar's track title and artist name.
 - **TopBar search bar & dynamic icon shift**:
   - Centered search input (`360px` default width, `max-width: 480px`, `height: 36px`, pill radius `radius.pill: 999`, background `#282828`).
+  - **Collapse to a magnifier**: when the window squeezes the center group below `180px`
+    (ResizeObserver-measured), the search renders as a single magnifier button; clicking it expands
+    the search across the bar — the tray and profile icons hide while expanded, the window controls
+    never do — and clicking elsewhere, `Escape`, or committing the query restores the icons and the
+    collapsed button.
   - **Dynamic icon positioning**:
     - *Idle state*: Search icon (`search`) sits at the left padding (`left: 12px`), with placeholder text `"搜索歌曲、专辑、艺人..."`.
     - *Active / Focused state*: Search icon smoothly slides across the input to the far right (`right: 12px`, `all 200ms cubic-bezier(0.4, 0, 0.2, 1)`), functioning as a clickable search trigger.
@@ -267,19 +293,25 @@ The scale relies on **"weight follows size"**:
     collections (Home / Your Library, History, scrollable playlist list). Global utility routes
     (Search and Settings) are intentionally excluded from the sidebar.
   - **TopBar (sunken `#000000` / `#121212`)**: Spans window title chrome.
-    Left: Window navigation history buttons (Back/Forward).
-    Center: Search input with dynamic search icon shift and 2×2 matrix dropdown (Search Scope sources + Search History).
-    Right: User profile avatar button linking directly to Settings Center (`settings.view`).
+    Left: brand logo (Home) and window navigation history buttons (Back/Forward) — the ⋯ More menu
+    was removed.
+    Center: search input with dynamic search icon shift, collapse-to-magnifier under narrow
+    windows, and 2×2 matrix dropdown (Search Scope sources + Search History).
+    Right: plugin tray, user profile avatar button linking directly to Settings Center
+    (`settings.view`; Settings also appears in the tray via `'tray'` route placement), then the
+    minimize/maximize/close window controls, which are never hidden.
   - **Center main content card (`#121212`, rounded corners)**: Scrollable canvas hosting the
     dynamic gradient hero header, action bar (large green circular play button `play-filled`, heart/save `heart` / `heart-filled`, more options `dots`),
     and virtualized track list or media card grid. The Library view organizes items through
     top-level scopes (`All`, `Local`, `Favorites`) and content views (`Tracks`, `Albums`).
   - **Persistent bottom playback bar (sunken `#000000` / `#181818`)**: Spans the entire window width.
-    Left: current track artwork thumbnail, track title (`#FFFFFF`), artist subtitle (`#B3B3B3`),
-    save button. Center: transport controls (current playback mode button to the left of previous,
+    Left: current track artwork thumbnail, track title (`#FFFFFF`) and artist subtitle (`#B3B3B3`) —
+    both marquee-scroll (`MarqueeText`) when compressed instead of truncating — and the save button.
+    Center: transport controls (current playback mode button to the left of previous,
     previous track, oversized circular play/pause button, next track, sound status icon to the right
     of next with mute 'x' / loudness wave tiers that toggles a vertical volume slider popover with
-    a bottom mute toggle) and time scrubber. Right: utility toggles (desktop lyrics toggle, queue,
+    a bottom mute toggle) and time scrubber, whose width stays constant while `Buffering…` shows
+    (a fixed 64px slot hosts the label). Right: utility toggles (desktop lyrics toggle, queue,
     device picker).
 - **Mobile Shell**:
   - Clean full-bleed dark views with bottom navigation tab bar (Library, Search) and scoped library

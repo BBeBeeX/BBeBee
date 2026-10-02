@@ -266,12 +266,16 @@
         background-color: transparent !important;
       }
 
-      /* Global sleek auto-hiding scrollbars: hidden by default, visible on hover or during scroll.
-         ⚠️ Do NOT add standard `scrollbar-width` / `scrollbar-color` here: Chromium 121+ honors
-         them and disables every `::-webkit-scrollbar` rule below, falling back to the native thin
-         scrollbar — a strip with its own track that neither spans the scrollport cleanly nor goes
-         fully transparent. The webkit rules keep the track invisible at all times and show only
-         the 4px thumb on hover/scroll. */
+      /* Global sleek auto-hiding scrollbars: a pane's thumb shows only while the
+         pointer is over that pane (`is-scrollbar-hover`, set from main.tsx) or
+         while that pane itself is scrolling (`is-scrolling`, 1.2s linger). Every
+         other pane's scrollbar stays hidden.
+         ⚠️ Two dead ends, do not revisit: standard `scrollbar-width`/`scrollbar-color`
+         make Chromium 121+ discard every `::-webkit-scrollbar` rule below, and a
+         `*:hover::-webkit-scrollbar-thumb` selector is honored for *no* pane —
+         Chromium evaluates scrollbar part styles without the owner element's
+         `:hover` state, which lit every pane's thumb at all times. Only plain
+         classes on the scroll container reach the cascade. */
       *::-webkit-scrollbar {
         width: 4px;
         height: 4px;
@@ -287,15 +291,14 @@
         border-radius: 4px;
         transition: background-color 0.3s ease;
       }
-      *:hover::-webkit-scrollbar-thumb,
-      *.is-scrolling::-webkit-scrollbar-thumb,
-      html.is-scrolling *::-webkit-scrollbar-thumb {
+      *.is-scrollbar-hover::-webkit-scrollbar-thumb,
+      *.is-scrolling::-webkit-scrollbar-thumb {
         background-color: rgba(145, 176, 255, 0.25);
       }
-      *::-webkit-scrollbar-thumb:hover {
+      *.is-scrollbar-hover::-webkit-scrollbar-thumb:hover {
         background-color: rgba(117, 152, 255, 0.55);
       }
-      *::-webkit-scrollbar-thumb:active {
+      *.is-scrollbar-hover::-webkit-scrollbar-thumb:active {
         background-color: rgba(117, 152, 255, 0.75);
       }
 

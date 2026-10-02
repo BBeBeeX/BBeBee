@@ -358,6 +358,29 @@ describe('stalls', () => {
     expect(seenStalls).toEqual([true, false])
   })
 
+  it('a fatal error mid-play reports an underrun, not a natural end', async () => {
+    // An element that dies after it has begun sounding is a network failure
+    // mid-track. Reporting `ended` made the player skip to the next track —
+    // which, on the same broken network, sat silent at 0:00 — instead of
+    // letting the stall watchdog retry the same track.
+    const { audio, elements } = await harness()
+    const source = await audio.load('https://example.org/stream.mp3', { strategy: 'stream' })
+    const seenStalls: boolean[] = []
+    let ended = false
+    source.onStalled((stalled) => void seenStalls.push(stalled))
+    source.onEnded(() => void (ended = true))
+
+    source.play()
+    elements[0]!.emit('playing')
+    expect(seenStalls, 'the recover event is not a stall').toEqual([])
+
+    elements[0]!.error = { code: 2, message: 'Network error' }
+    elements[0]!.emit('error')
+
+    expect(ended, 'the track is not over').toBe(false)
+    expect(seenStalls).toEqual([true])
+  })
+
   it('handles play() rejection without throwing unhandled rejection', async () => {
     const { audio, elements } = await harness()
     const source = await audio.load('https://example.org/bad.m4a', { strategy: 'stream' })

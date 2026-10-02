@@ -219,7 +219,7 @@ export type SlotId =
 > **Decoupled Bottom Bar Actions, Settings, and TopBar Tray**:
 > - Icons on the right side of the bottom player bar (Picture-in-Picture/mini player, floating lyrics toggle, play queue) are never hardcoded in `NowPlayingBar`. Instead, each plugin contributes its action button to the `'now-playing.actions'` slot and registers its view. The bar dynamically queries `ctx.ui.slotsFor('now-playing.actions')`, filtering with `when` and sorting by `order`.
 > - Feature plugin settings (such as DSP effects, cache management, source configuration) are dynamically contributed via `ctx.ui.contribute({ kind: 'settings', ... })` or `ctx.settings.contribute(...)` instead of hardcoded into the Settings screens.
-> - The desktop TopBar includes a Windows-like system tray toggle button beside the "Import & Share" button. It renders a downward arrow (`chevron-down`) when collapsed and an upward arrow (`chevron-up`) when expanded. Plugins self-determine whether they need to display in the main interface tray via `placement: ['tray']` on their route or via `TrayContribution`. Clicking a plugin icon in the tray popover triggers `ctx.ui.navigate(...)` to navigate the main view to that plugin's screen and closes the tray.
+> - The desktop TopBar includes a Windows-like system tray toggle button beside the "Import & Share" button. It renders a downward arrow (`chevron-down`) when collapsed and an upward arrow (`chevron-up`) when expanded. Plugins self-determine whether they need to display in the main interface tray via `placement: ['tray']` on their route or via `TrayContribution`. Clicking a plugin icon in the tray popover triggers `ctx.ui.navigate(...)` to navigate the main view to that plugin's screen and closes the tray. Settings uses exactly this path: its route carries `'tray'` placement, so 设置 appears in the tray without any TopBar-specific code.
 
 Slot rendering is where a plugin's UI actually shows up:
 
@@ -505,7 +505,7 @@ The shells are thin. Everything below is genuinely platform-specific and belongs
 | | `apps/mobile` | `apps/desktop/renderer` |
 |---|---|---|
 | Boot | Create context, register `core-*-expo`, mount inside `ctx.inject(['ui'], …)` | Same with `core-*-node` |
-| Chrome | Tab bar, stack headers, safe-area insets | Sidebar, TopBar (central search + 2×2 matrix, profile avatar), window controls, resizable panes |
+| Chrome | Tab bar, stack headers, safe-area insets | Sidebar, TopBar (central search with collapse-to-magnifier + 2×2 matrix, tray, profile avatar), window controls, resizable panes |
 | Player surface | Mini player above the tab bar; expands to full screen | Persistent bottom bar; optional detached mini-player window |
 | Platform-only | Gestures, haptics, pull-to-refresh | Right-click menus, drag-and-drop, keyboard shortcuts, tray, command palette |
 | Absent | No keyboard shortcuts, no tray | No gestures, no haptics |
@@ -522,9 +522,11 @@ The desktop shell organizes primary navigation between the left sidebar and the 
    full-width row above the workspace), so the sidebar and the queue panel run the full window
    height. When the library's expanded mode takes over the workspace, the TopBar moves into the
    expanded library pane instead (sticky, so the window controls stay reachable). There is no
-   standalone Home button — Home lives on the brand logo and the More menu — and the centered
-   search input is deliberately narrow (`max-width: 360px`). With the queue panel open, the
-   window controls sit at the top-right of the main pane, left of the queue.
+   standalone Home button — Home lives on the brand logo — and the centered search input is
+   deliberately narrow (`max-width: 360px`). With the queue panel open, the window controls sit at
+   the top-right of the main pane, left of the queue. The left cluster is only the brand logo and
+   history Back/Forward — the former ⋯ More menu was removed (its entries live in the sidebar and
+   the tray).
 
 1. **Left Sidebar Filtering**:
    - The left navigation rail is dedicated to browsing user content and collections (`library.view`, `history.view`, user playlists).
@@ -538,6 +540,13 @@ The desktop shell organizes primary navigation between the left sidebar and the 
    - The choice persists per page in `localStorage` (`bbebee_view_mode:<key>` via `useViewMode`), so a page the user prefers compact stays compact across restarts.
 
 2. **TopBar Interactive Search & 2×2 Matrix Dropdown**:
+   - **Collapse to a magnifier when squeezed**: A `ResizeObserver` on the center group measures
+     the search's real width; below 180px the whole search collapses to a single magnifier button
+     (`topbar-search-collapsed-button`). Clicking it expands the search across the bar — the tray
+     and profile icons are hidden while expanded — and focuses the input. Clicking anywhere
+     outside the search, pressing `Escape`, or committing a query restores the collapsed state and
+     brings the icons back. The window controls (Minimize/Maximize/Close) are **never** hidden:
+     their group is `flexShrink: 0` in both states.
    - **Dynamic Search Icon Shift**:
      - *Idle state*: The search icon (`search`) rests at the left padding (`left: 12px`).
      - *Active / Focused state*: The icon smoothly slides across to the far right (`right: 12px`, with transition `all 200ms cubic-bezier(0.4, 0, 0.2, 1)`) and functions as an interactive submit button (`cursor: pointer`).
@@ -556,6 +565,10 @@ The desktop shell organizes primary navigation between the left sidebar and the 
 3. **TopBar User Profile & Settings Access**:
    - The user profile avatar icon is anchored in the right cluster of the TopBar.
    - Clicking the avatar navigates directly to `settings.view` (Settings Center).
+   - Settings is reachable from the tray too: `plugin-settings` contributes its route with
+     `placement: ['sidebar', 'tab-bar', 'tray']`, and `Ui.tray` maps tray-placed routes into tray
+     items — the shells exclude the id from their sidebars, so the placement only adds
+     reachability (the tray icon navigates via `ctx.ui.navigate('settings.view')`).
 
 4. **Safe Service Access in UI Hooks**:
    - Cordis Context instances are strictly scoped (`ctx.inject`). Accessing an un-injected property throws an error at runtime (`cannot get property "<name>" without inject`).

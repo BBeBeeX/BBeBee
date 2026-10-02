@@ -239,7 +239,7 @@ function AlbumTrackTableRow({
           : String(index + 1),
     ),
     // Col 2: Title and Artist
-    // 歌名/作者名被截断时，悬浮 3 秒浮出完整名字的 label。
+    // 歌名/作者名被截断时，悬浮 2 秒浮出完整名字的 label。
     h(
       'div',
       {

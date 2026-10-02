@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 export interface HoverLabelProps {
   /** The text of the floating label — usually the truncated name itself. */
   label: string
-  /** Hover milliseconds before the label appears. Default 3000. */
+  /** Hover milliseconds before the label appears. Default 2000. */
   delayMs?: number
   children?: ReactNode
   /** Sizing on the wrapper: flex, min-width, display live here. */
@@ -15,7 +15,7 @@ export interface HoverLabelProps {
 
 /**
  * Shows a floating label after the pointer has rested on `children` for a
- * while (3s by default) — the deliberate tooltip for names the layout may
+ * while (2s by default) — the deliberate tooltip for names the layout may
  * have truncated.
  *
  * The label is portaled to `document.body` at fixed coordinates so ancestors
@@ -61,7 +61,7 @@ export function HoverLabel(props: HoverLabelProps): ReactElement {
       if (!el) return
       const rect = el.getBoundingClientRect()
       setAnchor({ left: rect.left, top: rect.bottom })
-    }, props.delayMs ?? 3000)
+    }, props.delayMs ?? 2000)
   }
 
   const handleLeave = () => {
