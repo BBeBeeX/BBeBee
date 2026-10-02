@@ -1052,35 +1052,64 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
             entry.effectId === 'normalize' &&
               h(
                 'div',
-                { style: { display: 'flex', alignItems: 'center', gap: 16 } },
-                h(
-                  'span',
-                  { style: { fontSize: 13, color: 'rgba(255, 255, 255, 0.7)', width: 140 } },
-                  `增益微调: ${params.gainDb ?? 0} dB`,
-                ),
+                { style: { display: 'flex', flexDirection: 'column', gap: 10, width: '100%' } },
                 h(
                   'div',
-                  { style: { width: 220 } },
-                  h(Slider, {
-                    value: Number(params.gainDb ?? 0) + 12,
-                    max: 24,
-                    accessibilityLabel: '标准化增益',
-                    onChange: (v) => void setParam('normalize', 'gainDb', Math.round(v - 12)),
-                  }),
-                ),
-                def.presets &&
+                  { style: { display: 'flex', alignItems: 'center', gap: 12 } },
+                  h('span', { style: { fontSize: 13, color: 'rgba(255, 255, 255, 0.7)', width: 80 } }, '均衡模式:'),
                   h(
                     'div',
                     { style: { display: 'flex', gap: 6 } },
-                    def.presets.map((preset) =>
+                    [
+                      { id: 'track', label: '单曲均衡 (Track)' },
+                      { id: 'album', label: '专辑均衡 (Album)' },
+                      { id: 'loudnorm', label: '动态 EBU R128' },
+                      { id: 'manual', label: '手动' },
+                    ].map((m) =>
                       h(Button, {
-                        key: preset.name,
-                        variant: 'secondary',
-                        onPress: () => void applyPreset('normalize', preset.name),
-                        children: preset.name.split(' ')[0] ?? preset.name,
+                        key: m.id,
+                        variant: ((params.mode as string) ?? 'track') === m.id ? 'primary' : 'secondary',
+                        onPress: () => void setParam('normalize', 'mode', m.id),
+                        children: m.label,
                       }),
                     ),
                   ),
+                ),
+                h(
+                  'div',
+                  { style: { display: 'flex', alignItems: 'center', gap: 16 } },
+                  h(
+                    'span',
+                    { style: { fontSize: 13, color: 'rgba(255, 255, 255, 0.7)', width: 140 } },
+                    params.mode === 'loudnorm'
+                      ? `目标: ${params.targetLufs ?? -14} LUFS`
+                      : `当前增益: ${params.gainDb ?? 0} dB`,
+                  ),
+                  params.mode !== 'loudnorm' &&
+                    h(
+                      'div',
+                      { style: { width: 220 } },
+                      h(Slider, {
+                        value: Number(params.gainDb ?? 0) + 12,
+                        max: 24,
+                        accessibilityLabel: '标准化增益',
+                        onChange: (v) => void setParam('normalize', 'gainDb', Math.round(v - 12)),
+                      }),
+                    ),
+                  def.presets &&
+                    h(
+                      'div',
+                      { style: { display: 'flex', gap: 6 } },
+                      def.presets.map((preset) =>
+                        h(Button, {
+                          key: preset.name,
+                          variant: 'secondary',
+                          onPress: () => void applyPreset('normalize', preset.name),
+                          children: preset.name.split(' ')[0] ?? preset.name,
+                        }),
+                      ),
+                    ),
+                ),
               ),
 
             entry.effectId === 'compressor' &&

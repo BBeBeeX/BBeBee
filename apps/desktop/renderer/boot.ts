@@ -226,7 +226,15 @@ export class DesktopAudioService extends Service implements AudioService {
     this.ctx.on('dsp/af-changed', (e) => {
       this.lastNativeAf = e.af
       if (this.activeEngineKey === 'mpv' && this.config.bridgeCall) {
-        void this.config.bridgeCall('audio', 'mpvSetDspConfig', [{ af: e.af }]).catch(() => {})
+        void this.config.bridgeCall('audio', 'mpvSetDspConfig', [
+          {
+            af: e.af,
+            replaygain: e.replaygain,
+            replaygainClip: e.replaygainClip,
+            replaygainPreamp: e.replaygainPreamp,
+            replaygainFallback: e.replaygainFallback,
+          },
+        ]).catch(() => {})
       }
     })
 

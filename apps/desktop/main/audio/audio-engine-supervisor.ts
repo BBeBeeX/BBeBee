@@ -16,6 +16,10 @@ import type { AudioMainLogger } from './audio-devices.js'
 export interface DspConfig {
   /** The enabled effect chain serialized as a libavfilter fragment list. */
   af?: string
+  replaygain?: string
+  replaygainClip?: boolean
+  replaygainPreamp?: string
+  replaygainFallback?: string
   eq?: { enabled: boolean; gains?: number[] }
   compressor?: {
     enabled: boolean

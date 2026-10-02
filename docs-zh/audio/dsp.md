@@ -95,9 +95,9 @@ export function apply(ctx: Context) {
 
 | id | Order | Implementation | Notes |
 |---|---|---|---|
+| `normalize` | 5 | `GainNode` driven by ReplayGain tags | 输入基准校准阶段；在 EQ 调音前统一不同曲目/专辑的基准电平 |
 | `preamp` | 10 | `GainNode` | EQ 之前的净空（headroom）；钳制在 −20…+20 dB |
 | `eq10` | 20 | 10 × `BiquadFilterNode` | 低架、8 个峰值、高架 |
-| `normalize` | 30 | `GainNode` driven by ReplayGain tags | 曲目或专辑模式；回退到扫描器测得的值 |
 | `compressor` | 40 | `DynamicsCompressorNode` | 供安静聆听使用的"夜间模式"预设 |
 | `reverb` | 50 | `ConvolverNode` | 冲激响应作为资源随包分发；湿/干混合 |
 | `widener` | 60 | `ChannelSplitter` + `Delay` + `ChannelMerger` | 基于 Haas 效应；UI 中给出单声道兼容性警告 |
@@ -105,17 +105,26 @@ export function apply(ctx: Context) {
 | `tempo-pitch` | 70 | JS `AudioWorklet` (phase vocoder) | ⚠️ CPU 开销大；默认关闭，低电量时自动禁用 |
 | `limiter` | 90 | `DynamicsCompressorNode`, hard settings | 永远在最后；防止各效果增益累积爆音 |
 
-### 原生 libavfilter 适配器 (MPV 引擎)
+### 原生 libavfilter 适配器与 ReplayGain 集成 (MPV 引擎)
 
 在运行原生 MPV 引擎（`@BBeBee/core-audio-mpv`）时，效果器声明可选的 `buildLavfi(params)` 适配器生成 FFmpeg 滤镜链片段，并在原生进程内直接执行：
+- `normalize`:
+  - **单曲 / 专辑模式**：直接由 libmpv 原生 ReplayGain 属性控制（`replaygain=track|album`、`replaygain-preamp`、`replaygain-clip`）。`buildLavfi()` 返回空字符串 `""`，**彻底杜绝双重增益冲突**（避免 libmpv 解码层与 libavfilter 滤镜层各缩放一次音量）。
+  - **动态 EBU R128 模式 (`loudnorm`)**：原生 `replaygain` 设为 `no`，由 `buildLavfi()` 生成实时流式滤镜 `loudnorm=I=${targetLufs}:TP=-1.0:LRA=11`。
+  - **手动模式**：在原生 `replaygain` 设为 `no` 时生成 `volume=volume=${gainDb}dB`。
 - `preamp`: `volume=volume=...dB`
 - `eq10`: 10 段均衡滤镜链（`lowshelf`, `equalizer`, `highshelf`）
-- `normalize`: ReplayGain 增益调整
 - `compressor`: `acompressor`
 - `reverb`: `aecho=in_gain=1:out_gain=...:delays=...:decays=...`
 - `widener`: `extrastereo=m=...`
 - `crossfeed`: `crossfeed=strength=...:range=...`（截断频率归一化至 `[0, 1]` 范围）
 - `limiter`: `alimiter=limit=...:level=0`
+
+### 设置项接口化贡献与 UI 解耦
+
+曲目间音量均衡作为播放传输层输入校准功能，与创造性调声音效彻底解耦：
+- **通过标准接口动态贡献**：由 `plugin-dsp` 通过 `ctx.ui.contribute({ kind: 'settings', id: 'settings.loudness-normalization', section: 'playback', display: 'card', order: 25 })` 动态贡献到播放设置中，由独立的 `LoudnessNormalizationCard` 渲染，设置容器无任何硬编码。
+- **调音面板概念统一**：专用调音面板（`dsp.view` 与 `settings.dsp`）聚焦于 10 频段 EQ、动态范围压缩与空间混响，移除重复的音量均衡控件，避免概念混淆与 UI 冗余。
 
 > ⚠️ `tempo-pitch` 作为 `AudioWorklet` 跑在音频线程上，从 `build()` 收到的那个 `AudioContext` 创建——与所有其他效果一样，它不导入任何平台相关的东西，也不知道底层是哪个引擎。尽管如此，它仍是唯一在中端 Android 上有真实性能风险的效果：它会自行上报掉帧（dropout）计数，在风险出现时以用户可见的提示自我禁用，而不是拖垮整条效果链。
 

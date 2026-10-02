@@ -38,7 +38,6 @@ export function PlaybackSection({
 }: PlaybackSectionProps): ReactElement {
   const [crossfadeExpanded, setCrossfadeExpanded] = useState(true)
   const [eqExpanded, setEqExpanded] = useState(true)
-  const [normExpanded, setNormExpanded] = useState(true)
   const [compExpanded, setCompExpanded] = useState(true)
   const [reverbExpanded, setReverbExpanded] = useState(true)
   const [outputDevices, setOutputDevices] = useState<OutputDevice[]>([])
@@ -120,11 +119,9 @@ export function PlaybackSection({
   }, [ctx, fetchDevices])
 
   const eqEntry = chain?.find((c) => c.effectId === 'eq10')
-  const normEntry = chain?.find((c) => c.effectId === 'normalize')
   const compEntry = chain?.find((c) => c.effectId === 'compressor')
   const reverbEntry = chain?.find((c) => c.effectId === 'reverb')
 
-  const normParams = getParams ? getParams('normalize') : {}
   const compParams = getParams ? getParams('compressor') : {}
   const reverbParams = getParams ? getParams('reverb') : {}
 
@@ -470,73 +467,6 @@ export function PlaybackSection({
                     ),
                   ),
                 })
-              : null,
-          ),
-          h(
-            SettingsRow,
-            {
-              title: '音量响度标准化 (Normalization)',
-              description: '基于 EBU R128 标准匹配目标电平，平衡不同音源之间的音量差异',
-              expandable: normEntry?.enabled ?? false,
-              expanded: normExpanded,
-              onToggleExpand: () => setNormExpanded((prev) => !prev),
-              action: h(Switch, {
-                checked: normEntry?.enabled ?? false,
-                accessibilityLabel: '启用响度标准化',
-                onChange: (checked) => void setEnabled('normalize', checked),
-              }),
-            },
-            normEntry?.enabled
-              ? h(
-                  'div',
-                  null,
-                  h(SettingsRow, {
-                    isNested: true,
-                    title: '标准化目标响度预设',
-                    description: '根据收听环境切换标准目标电平',
-                    action: h(
-                      'div',
-                      { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
-                      [
-                        { id: '流媒体标准 (-14 LUFS)', label: '流媒体 (-14)' },
-                        { id: '古典安静 (-18 LUFS)', label: '安静 (-18)' },
-                        { id: '高响度 (-11 LUFS)', label: '高响度 (-11)' },
-                      ].map((p) =>
-                        h(Button, {
-                          key: p.id,
-                          variant: 'secondary',
-                          onPress: () => void applyPreset('normalize', p.id),
-                          children: p.label,
-                        }),
-                      ),
-                    ),
-                  }),
-                  h(SettingsRow, {
-                    isNested: true,
-                    title: '标准化增益微调',
-                    description: `当前微调增益: ${normParams.gainDb ?? 0} dB`,
-                    borderBottom: false,
-                    action: h(
-                      'div',
-                      { style: { display: 'flex', alignItems: 'center', gap: 10, width: 220 } },
-                      h(
-                        'div',
-                        { style: { flex: 1 } },
-                        h(Slider, {
-                          value: Number(normParams.gainDb ?? 0) + 12,
-                          max: 24,
-                          accessibilityLabel: '标准化增益微调',
-                          onChange: (v) => void setParam('normalize', 'gainDb', Math.round(v - 12)),
-                        }),
-                      ),
-                      h(
-                        'span',
-                        { style: { fontSize: 12, color: '#8E8E93', width: 34, textAlign: 'right' } },
-                        `${normParams.gainDb ?? 0}dB`,
-                      ),
-                    ),
-                  }),
-                )
               : null,
           ),
           h(

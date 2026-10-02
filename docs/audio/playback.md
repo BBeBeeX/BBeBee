@@ -261,8 +261,18 @@ change, and `ctx.background.onWillSuspend`. On boot the player restores the queu
 but **does not auto-play** — restoring into playback is startling, particularly on a phone that
 just launched in a pocket.
 
----
+### Loudness Normalization & ReplayGain
 
+To eliminate perceived volume jumps across tracks and albums from different sources, BBeBee provides loudness normalization compliant with ReplayGain 2.0 and EBU R128 (-14 LUFS standard reference):
+- **AppSettings Configuration**:
+  - `loudnessNormalizationEnabled: boolean` (master switch)
+  - `loudnessNormalizationMode: 'track' | 'album' | 'dynamic'` (Track-level matching, Album-level dynamic preservation, or dynamic EBU R128 `loudnorm`)
+  - `loudnessTargetLufs: number` (Target loudness reference: -14 LUFS default, -18 LUFS quiet/classical, -11 LUFS loud)
+  - `loudnessPreampDb: number` (Pre-amp calibration offset)
+- **Automatic Track Synchronization**:
+  On `player/track-changed`, `plugin-dsp` inspects the active track's metadata (`replayGainTrack` or `replayGainAlbum`). In Web Audio mode, it computes the target gain offset and smoothly adjusts the input `GainNode` with 20 ms smoothing (`setTargetAtTime`), preventing audible clicks. In MPV mode, it sets native ReplayGain properties directly with clipping protection (`replaygain-clip`), while keeping libavfilter free from duplicate volume filters.
+- **Interface Contribution**:
+  The setting is contributed into the `playback` section via `ctx.ui.contribute({ kind: 'settings', id: 'settings.loudness-normalization', ... })` and rendered by `LoudnessNormalizationCard`.
 
 ---
 

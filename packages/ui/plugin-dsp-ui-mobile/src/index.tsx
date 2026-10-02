@@ -9,8 +9,9 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { DspScreen, type DspScreenProps } from './DspScreen.js'
 import { DspSettingsCard } from './components/DspSettingsCard.js'
+import { LoudnessNormalizationCard } from './components/LoudnessNormalizationCard.js'
 
-export { DspScreen, type DspScreenProps, DspSettingsCard }
+export { DspScreen, type DspScreenProps, DspSettingsCard, LoudnessNormalizationCard }
 
 export const name = 'plugin-dsp-ui-mobile'
 export const inject = ['ui', 'dsp']
@@ -30,6 +31,7 @@ export async function apply(ctx: Context) {
   return ctx.effect(function* () {
     yield ctx.ui.registerView('dsp.view', bound(ctx, DspScreen))
     yield ctx.ui.registerView('settings.dsp', bound(ctx, DspSettingsCard))
+    yield ctx.ui.registerView('settings.loudness-normalization', bound(ctx, LoudnessNormalizationCard))
   }, 'dsp-ui-mobile')
 }
 

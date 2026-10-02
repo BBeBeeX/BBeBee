@@ -107,9 +107,9 @@ rather than embedding a duplicate DSP section inside the main settings page.
 
 | id | Order | Implementation | Notes |
 |---|---|---|---|
+| `normalize` | 5 | `GainNode` driven by ReplayGain tags | Input calibration stage; aligns track/album volume before tonal EQ |
 | `preamp` | 10 | `GainNode` | Headroom before EQ; clamped to −20…+20 dB |
 | `eq10` | 20 | 10 × `BiquadFilterNode` | Low-shelf, 8 peaking, high-shelf |
-| `normalize` | 30 | `GainNode` driven by ReplayGain tags | Track or album mode; falls back to a measured value the scanner computed |
 | `compressor` | 40 | `DynamicsCompressorNode` | "Night mode" preset for quiet listening |
 | `reverb` | 50 | `ConvolverNode` | Impulse responses shipped as assets; wet/dry mix |
 | `widener` | 60 | `ChannelSplitter` + `Delay` + `ChannelMerger` | Haas-based; mono-compatibility warning in the UI |
@@ -117,17 +117,26 @@ rather than embedding a duplicate DSP section inside the main settings page.
 | `tempo-pitch` | 70 | JS `AudioWorklet` (phase vocoder) | ⚠️ CPU-heavy; off by default, disabled automatically on low battery |
 | `limiter` | 90 | `DynamicsCompressorNode`, hard settings | Always last; protects against cumulative effect gain |
 
-### Native libavfilter adapters (MPV engine)
+### Native libavfilter adapters & ReplayGain integration (MPV engine)
 
 When running the native MPV engine (`@BBeBee/core-audio-mpv`), effects declare an optional `buildLavfi(params)` adapter to generate FFmpeg filtergraph fragments executed directly inside the native process:
+- `normalize`:
+  - **Track / Album mode**: Handled directly by libmpv native ReplayGain properties (`replaygain=track|album`, `replaygain-preamp`, `replaygain-clip`). `buildLavfi()` emits an empty string `""` to completely prevent the **double-gain conflict** where volume scaling would otherwise be applied twice (once by libmpv's native decoder and once by libavfilter).
+  - **Dynamic EBU R128 mode (`loudnorm`)**: Native `replaygain` is set to `no`, and `buildLavfi()` generates the real-time EBU R128 filter `loudnorm=I=${targetLufs}:TP=-1.0:LRA=11`.
+  - **Manual mode**: Emits `volume=volume=${gainDb}dB` while native `replaygain` is `no`.
 - `preamp`: `volume=volume=...dB`
 - `eq10`: 10-band chain (`lowshelf`, `equalizer`, `highshelf`)
-- `normalize`: ReplayGain volume adjustment
 - `compressor`: `acompressor`
 - `reverb`: `aecho=in_gain=1:out_gain=...:delays=...:decays=...`
 - `widener`: `extrastereo=m=...`
 - `crossfeed`: `crossfeed=strength=...:range=...` (cutoff frequency normalized to range `[0, 1]`)
 - `limiter`: `alimiter=limit=...:level=0`
+
+### Settings Contribution & UI Separation
+
+Volume normalization is a playback transport calibration feature rather than a sound-coloring creative DSP effect:
+- **Contributed via interface**: Contributed via `ctx.ui.contribute({ kind: 'settings', id: 'settings.loudness-normalization', section: 'playback', display: 'card', order: 25 })` and rendered by `LoudnessNormalizationCard`. It is not hardcoded into settings containers.
+- **Dedicated DSP view**: Creative audio effects (10-band EQ, compressor, reverb, widener) are presented in `DspSettingsCard` (under the `audio` section) and the full-page DSP editor (`dsp.view`), cleanly separated from playback volume normalization.
 
 > ⚠️ `tempo-pitch` runs on the audio thread as an `AudioWorklet` created from the `AudioContext`
 > that `build()` receives — like every other effect, it imports nothing platform-specific and does

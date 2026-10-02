@@ -141,8 +141,18 @@ sequenceDiagram
 
 `playback_state` 在播放期间以 5 秒节流写入，并在暂停、曲目切换与 `ctx.background.onWillSuspend` 时立即写入。启动时播放器会恢复队列与进度，但**不会自动播放**——一启动就出声是吓人的，尤其当那部手机刚在口袋里被点亮的时候。
 
----
+### 响度标准化与 ReplayGain
 
+为消除来自不同来源的歌曲和专辑之间听感响度忽大忽小的落差，BBeBee 提供了符合 ReplayGain 2.0 与 EBU R128 标准（-14 LUFS 流媒体基准）的响度标准化能力：
+- **全局偏好设置配置 (`AppSettings`)**：
+  - `loudnessNormalizationEnabled: boolean`：总开关。
+  - `loudnessNormalizationMode: 'track' | 'album' | 'dynamic'`：单曲均衡（每首曲目匹配目标响度）、专辑均衡（保持整张专辑内动态对比）、或动态 EBU R128（实时 `loudnorm` 测量）。
+  - `loudnessTargetLufs: number`：目标响度参考值（默认 -14 LUFS 流媒体标准、-18 LUFS 古典安静、-11 LUFS 高响度）。
+  - `loudnessPreampDb: number`：前级校准微调。
+- **切歌自动同步**：
+  在 `player/track-changed` 事件触发时，`plugin-dsp` 读取当前音轨的元数据（`replayGainTrack` 或 `replayGainAlbum`）。在 Web Audio 模式下计算目标增益偏差并通过 `setTargetAtTime` 在 20 ms 内平滑拉平，消除任何咔哒爆音；在 MPV 模式下直接通过原生 ReplayGain 属性传递并启用防削波保护（`replaygain-clip`），同时避免向 libavfilter 注入重复的 `volume` 滤镜造成二次缩放。
+- **接口化贡献呈现**：
+  该功能通过 `ctx.ui.contribute({ kind: 'settings', id: 'settings.loudness-normalization', ... })` 动态注册于设置的播放分类中，由 `LoudnessNormalizationCard` 渲染，绝不硬编码。
 
 ---
 

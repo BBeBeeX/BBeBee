@@ -384,10 +384,15 @@ describe('lavfi adapters (native mpv engine)', () => {
     expect(Eq10Effect.buildLavfi!({ gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] })).toBe('')
   })
 
-  it('preamp and normalize map to the volume filter', () => {
+  it('preamp and normalize map to the volume filter or loudnorm filter', () => {
     expect(PreampEffect.buildLavfi!({ gainDb: -3.5 })).toBe('volume=volume=-3.50dB')
     expect(PreampEffect.buildLavfi!({ gainDb: 0 })).toBe('')
     expect(NormalizeEffect.buildLavfi!({ gainDb: 3 })).toBe('volume=volume=3.00dB')
+    expect(NormalizeEffect.buildLavfi!({ mode: 'manual', gainDb: 3 })).toBe('volume=volume=3.00dB')
+    expect(NormalizeEffect.buildLavfi!({ mode: 'track', gainDb: 3 })).toBe('')
+    expect(NormalizeEffect.buildLavfi!({ mode: 'album', gainDb: 3 })).toBe('')
+    expect(NormalizeEffect.buildLavfi!({ mode: 'loudnorm', targetLufs: -14 })).toBe('loudnorm=I=-14.0:TP=-1.0:LRA=11')
+    expect(NormalizeEffect.buildLavfi!({ mode: 'loudnorm', targetLufs: -18 })).toBe('loudnorm=I=-18.0:TP=-1.0:LRA=11')
   })
 
   it('compressor converts WebAudio seconds to lavfi milliseconds', () => {

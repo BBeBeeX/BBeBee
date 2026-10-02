@@ -9,6 +9,7 @@
 
 import { Service, type Context } from '@BBeBee/kernel'
 import type {
+  AppSettings,
   ChainEntry,
   Disposable,
   DspService,
@@ -113,16 +114,90 @@ export class DspPlugin extends Service implements DspService {
 
         yield scoped.ui.contribute({
           kind: 'settings',
+          id: DSP_ROUTES.normalizationSettings,
+          section: 'playback',
+          title: '曲目间音量响度标准化 (Loudness Normalization)',
+          description: '基于 ReplayGain 与 EBU R128 标准自动平衡不同曲目的音量差异，防止忽大忽小',
+          display: 'card',
+          order: 25,
+        })
+
+        yield scoped.ui.contribute({
+          kind: 'settings',
           id: DSP_ROUTES.settings,
           section: 'audio',
           title: '音频效果与均衡器 (DSP)',
-          description: '10频段图示均衡器、响度标准化、动态压缩与空间混响调音面板',
+          description: '10频段图示均衡器、动态压缩与空间混响调音面板',
           actionText: '打开音效面板 →',
           display: 'card',
           order: 30,
         })
       }, 'dsp-ui-contributions'),
     )
+
+    // Observe track changes to apply dynamic ReplayGain loudness normalization
+    let offTrackChanged: (() => void) | undefined
+    this.ctx.inject(['player', 'sources'], (scoped) => {
+      const off = scoped.on('player/track-changed', (trackUrn) => {
+        void this.handleTrackChanged(trackUrn, scoped)
+      })
+      if (scoped['player']?.state?.trackUrn) {
+        void this.handleTrackChanged(scoped['player'].state.trackUrn, scoped)
+      }
+      offTrackChanged = off
+      return () => {
+        off()
+        offTrackChanged = undefined
+      }
+    })
+
+    // Sync with global settings if ctx.settings is present
+    let offSettingsChanged: (() => void) | undefined
+    this.ctx.inject(['settings'], (scoped) => {
+      const syncFromSettings = (s: AppSettings) => {
+        if (s.loudnessNormalizationEnabled !== undefined) {
+          const entry = this.chainEntries.find((c) => c.effectId === 'normalize')
+          if (entry && entry.enabled !== s.loudnessNormalizationEnabled) {
+            void this.setEnabled('normalize', s.loudnessNormalizationEnabled)
+          }
+        }
+        if (s.loudnessNormalizationMode !== undefined || s.loudnessTargetLufs !== undefined) {
+          const current = this.getParams('normalize')
+          let changed = false
+          if (s.loudnessNormalizationMode && current['mode'] !== s.loudnessNormalizationMode) {
+            current['mode'] = s.loudnessNormalizationMode
+            changed = true
+          }
+          if (typeof s.loudnessTargetLufs === 'number' && current['targetLufs'] !== s.loudnessTargetLufs) {
+            current['targetLufs'] = s.loudnessTargetLufs
+            changed = true
+          }
+          if (changed) {
+            this.paramsState.set('normalize', current)
+            void this.persistState()
+            this.emitChainChanged()
+            const currentUrn = this.ctx['player']?.state?.trackUrn
+            if (currentUrn) {
+              void this.handleTrackChanged(currentUrn, this.ctx)
+            }
+          }
+        }
+      }
+
+      try {
+        const s = typeof scoped.settings.getSync === 'function' ? scoped.settings.getSync() : undefined
+        if (s) syncFromSettings(s)
+      } catch {
+        // ignore
+      }
+
+      const off = scoped.settings.onSettingsChange((s) => syncFromSettings(s))
+      offSettingsChanged = off
+      return () => {
+        off()
+        offSettingsChanged = undefined
+      }
+    })
 
     // Rebuild effect graph whenever audio backend changes or AudioContext is dynamically rebuilt
     const offEngine = this.ctx.on('audio/engine-changed', async () => {
@@ -136,6 +211,8 @@ export class DspPlugin extends Service implements DspService {
     })
 
     return () => {
+      offTrackChanged?.()
+      offSettingsChanged?.()
       offEngine()
       offContextRebuilt()
       for (const seg of this.activeSegments.values()) {
@@ -207,6 +284,22 @@ export class DspPlugin extends Service implements DspService {
     entry.enabled = on
     await this.persistState()
     await this.rebuildGraph()
+
+    if (effectId === 'normalize') {
+      try {
+        if (typeof this.ctx['settings']?.update === 'function') {
+          void this.ctx['settings'].update({ loudnessNormalizationEnabled: on })
+        }
+      } catch {
+        // ignore
+      }
+      if (on && this.ctx['player'] && this.ctx['sources']) {
+        const currentUrn = this.ctx['player'].state?.trackUrn
+        if (currentUrn) {
+          void this.handleTrackChanged(currentUrn, this.ctx)
+        }
+      }
+    }
   }
 
   async setOrder(effectId: string, ordinal: number): Promise<void> {
@@ -231,6 +324,13 @@ export class DspPlugin extends Service implements DspService {
 
     await this.persistState()
     this.emitChainChanged()
+
+    if (effectId === 'normalize' && name !== 'gainDb') {
+      const currentUrn = this.ctx['player']?.state?.trackUrn
+      if (currentUrn && this.ctx['sources']) {
+        void this.handleTrackChanged(currentUrn, this.ctx)
+      }
+    }
   }
 
   /**
@@ -250,7 +350,30 @@ export class DspPlugin extends Service implements DspService {
 
   private emitChainChanged(): void {
     this.ctx.emit('dsp/chain-changed', this.chain)
-    this.ctx.emit('dsp/af-changed', { af: this.composeAf() })
+    const normParams = this.getParams('normalize')
+    const normEntry = this.chainEntries.find((c) => c.effectId === 'normalize')
+    const normMode = (normParams['mode'] as string | undefined) ?? 'track'
+    const replaygainMode = normEntry?.enabled
+      ? normMode === 'album'
+        ? 'album'
+        : normMode === 'track'
+          ? 'track'
+          : 'no'
+      : 'no'
+
+    const targetLufs = typeof normParams['targetLufs'] === 'number' ? (normParams['targetLufs'] as number) : -14
+    // ReplayGain reference is -18 LUFS (89 dB SPL).
+    const lufsOffset = targetLufs - (-18)
+    const preampDb = typeof normParams['preampDb'] === 'number' ? (normParams['preampDb'] as number) : 0
+    const totalPreamp = lufsOffset + preampDb
+
+    this.ctx.emit('dsp/af-changed', {
+      af: this.composeAf(),
+      replaygain: replaygainMode,
+      replaygainClip: true,
+      replaygainPreamp: String(totalPreamp),
+      replaygainFallback: String(normParams['fallbackGainDb'] ?? '0'),
+    })
   }
 
   async applyPreset(effectId: string, presetName: string): Promise<void> {
@@ -271,6 +394,62 @@ export class DspPlugin extends Service implements DspService {
     }
     this.paramsState.set(effectId, current)
     await this.persistState()
+    this.emitChainChanged()
+
+    if (effectId === 'normalize') {
+      const currentUrn = this.ctx['player']?.state?.trackUrn
+      if (currentUrn && this.ctx['sources']) {
+        void this.handleTrackChanged(currentUrn, this.ctx)
+      }
+    }
+  }
+
+  private async handleTrackChanged(trackUrn: string | undefined, scoped: Context): Promise<void> {
+    const normEntry = this.chainEntries.find((c) => c.effectId === 'normalize')
+    if (!normEntry || !normEntry.enabled) return
+
+    const params = this.getParams('normalize')
+    const mode = (params['mode'] as string | undefined) ?? 'track'
+    if (mode === 'manual') return
+    if (mode === 'loudnorm') {
+      this.emitChainChanged()
+      return
+    }
+
+    let appliedDb = typeof params['fallbackGainDb'] === 'number' ? (params['fallbackGainDb'] as number) : 0
+    if (trackUrn && typeof scoped['sources']?.getTracks === 'function') {
+      try {
+        const [track] = await scoped['sources'].getTracks([trackUrn])
+        if (track) {
+          const rawGain =
+            mode === 'album'
+              ? track.replayGainAlbum ?? track.replayGainTrack
+              : track.replayGainTrack
+          if (typeof rawGain === 'number' && !Number.isNaN(rawGain)) {
+            const targetLufs = typeof params['targetLufs'] === 'number' ? (params['targetLufs'] as number) : -14
+            // ReplayGain 2.0 reference is -18 LUFS (89 dB SPL).
+            const lufsOffset = targetLufs - (-18)
+            const preamp = typeof params['preampDb'] === 'number' ? (params['preampDb'] as number) : 0
+            appliedDb = rawGain + lufsOffset + preamp
+          }
+        }
+      } catch (err) {
+        this.ctx.logger.warn(`plugin-dsp: failed to resolve track replaygain for ${trackUrn}: ${err}`)
+      }
+    }
+
+    const clampedDb = Math.max(-20, Math.min(20, Math.round(appliedDb * 10) / 10))
+    this.ctx.logger.info(`plugin-dsp: applied replaygain normalize gain: ${clampedDb} dB (mode: ${mode})`)
+
+    const seg = this.activeSegments.get('normalize')
+    if (seg) {
+      seg.setParam('gainDb', clampedDb)
+    }
+
+    const current = this.paramsState.get('normalize') ?? {}
+    current['gainDb'] = clampedDb
+    this.paramsState.set('normalize', current)
+
     this.emitChainChanged()
   }
 

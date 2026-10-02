@@ -12,7 +12,6 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
   const { chain, latencyMs, setEnabled, applyPreset, getParams, setParam } = useDsp(ctx)
 
   const eqEntry = chain.find((c) => c.effectId === 'eq10')
-  const normEntry = chain.find((c) => c.effectId === 'normalize')
   const compEntry = chain.find((c) => c.effectId === 'compressor')
   const reverbEntry = chain.find((c) => c.effectId === 'reverb')
   const reverbParams = getParams('reverb')
@@ -117,34 +116,7 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
           )
         : null,
 
-      // 2. Normalize
-      renderRow(
-        '音量响度标准化 (Normalize)',
-        '消除不同曲目之间的音量落差',
-        renderToggle(normEntry?.enabled ?? false, () =>
-          void setEnabled('normalize', !(normEntry?.enabled ?? false)),
-        ),
-      ),
-      normEntry?.enabled
-        ? h(
-            native.View as never,
-            { style: { flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space[1], paddingVertical: 2 } },
-            [
-              { id: '流媒体标准 (-14 LUFS)', label: '流媒体 (-14)' },
-              { id: '古典安静 (-18 LUFS)', label: '古典 (-18)' },
-              { id: '高响度 (-11 LUFS)', label: '高响度 (-11)' },
-            ].map((preset) =>
-              h(Button, {
-                key: preset.id,
-                variant: 'secondary',
-                onPress: () => void applyPreset('normalize', preset.id),
-                children: preset.label,
-              }),
-            ),
-          )
-        : null,
-
-      // 3. Compressor
+      // 2. Compressor
       renderRow(
         '动态压缩器 (Compressor)',
         '抑制大爆发音量，提升微弱细节',

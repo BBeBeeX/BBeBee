@@ -7,6 +7,10 @@ export { AudioEngineSupervisor, type FftFrame, type PlaybackStateEvent, type Cra
 export interface DspConfig {
   /** The enabled effect chain serialized as a libavfilter fragment list. */
   af?: string
+  replaygain?: string
+  replaygainClip?: boolean
+  replaygainPreamp?: string
+  replaygainFallback?: string
 }
 
 export interface AudioHostApi {

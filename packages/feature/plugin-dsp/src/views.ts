@@ -9,6 +9,8 @@ export const DSP_VIEWS = {
   main: 'dsp.view',
   /** The DSP settings section/tab. */
   settings: 'settings.dsp',
+  /** The loudness normalization setting entry in playback settings. */
+  normalizationSettings: 'settings.loudness-normalization',
 } as const
 
 export const DSP_ROUTES = DSP_VIEWS

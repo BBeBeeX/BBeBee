@@ -178,8 +178,14 @@ declare module 'cordis' {
     'dsp/build-chain'(segments: EffectSegment[], next: () => EffectSegment[]): EffectSegment[]
     /* ── dsp ────────────────────────────────────────── emit ── */
     'dsp/chain-changed'(chain: readonly ChainEntry[]): void
-    /** The enabled chain serialized for the native engine's `af` (mpv). */
-    'dsp/af-changed'(payload: { af: string }): void
+    /** The enabled chain serialized for the native engine's `af` (mpv), plus optional native replaygain config. */
+    'dsp/af-changed'(payload: {
+      af: string
+      replaygain?: string
+      replaygainClip?: boolean
+      replaygainPreamp?: string
+      replaygainFallback?: string
+    }): void
 
     /* ── ui ─────────────────────────────────────────── emit ── */
     'ui/changed'(): void

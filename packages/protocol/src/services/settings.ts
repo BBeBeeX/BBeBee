@@ -87,6 +87,8 @@ export interface VisualizerSettings {
 
 export type AudioOutputEngine = 'webaudio' | 'mpv' | 'wasapi'
 
+export type LoudnessNormalizationMode = 'track' | 'album' | 'dynamic'
+
 export interface AppSettings {
   /** Visual appearance theme mode. */
   theme: 'dark' | 'light' | 'system'
@@ -104,6 +106,14 @@ export interface AppSettings {
   crossfadeDurationSeconds: number
   /** Whether gapless playback is enabled. */
   gaplessPlayback: boolean
+  /** Whether loudness normalization is enabled between tracks. Defaults to false. */
+  loudnessNormalizationEnabled?: boolean
+  /** Normalization mode: 'track' (per-track ReplayGain), 'album' (preserve album dynamics), or 'dynamic' (EBU R128 real-time). */
+  loudnessNormalizationMode?: LoudnessNormalizationMode
+  /** Target loudness in LUFS (defaults to -14). */
+  loudnessTargetLufs?: number
+  /** Preamp adjustment in dB (defaults to 0). */
+  loudnessPreampDb?: number
   /** Whether to pause playback when headphones/audio devices unplug. */
   pauseOnUnplug: boolean
   /** Whether closing the main window minimizes to system tray (desktop only). */
@@ -204,6 +214,10 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   crossfadeEnabled: false,
   crossfadeDurationSeconds: 3,
   gaplessPlayback: true,
+  loudnessNormalizationEnabled: false,
+  loudnessNormalizationMode: 'track',
+  loudnessTargetLufs: -14,
+  loudnessPreampDb: 0,
   pauseOnUnplug: true,
   closeToTray: true,
   downloadDir: '',

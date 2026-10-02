@@ -94,6 +94,16 @@ describe('plugin-dsp-ui-desktop', () => {
     const { ctx } = await createHarness()
     expect((ctx.ui as any).viewFor('dsp.view')).toBeDefined()
     expect((ctx.ui as any).viewFor('settings.dsp')).toBeDefined()
+    expect((ctx.ui as any).viewFor('settings.loudness-normalization')).toBeDefined()
+  })
+
+  it('renders LoudnessNormalizationCard with normalization toggle', async () => {
+    const { ctx } = await createHarness()
+    const Card = (ctx.ui as any).viewFor('settings.loudness-normalization')
+    expect(Card).toBeDefined()
+    const html = renderToStaticMarkup(h(Card, {}))
+    expect(html).toContain('曲目间音量响度标准化')
+    expect(html).toContain('启用音量响度标准化')
   })
 
   it('renders DspScreen with EQ sliders and titles', async () => {

@@ -125,6 +125,16 @@ describe('plugin-dsp-ui-mobile', () => {
     const { ctx } = await createHarness()
     expect((ctx.ui as any).viewFor('dsp.view')).toBeDefined()
     expect((ctx.ui as any).viewFor('settings.dsp')).toBeDefined()
+    expect((ctx.ui as any).viewFor('settings.loudness-normalization')).toBeDefined()
+  })
+
+  it('renders mobile LoudnessNormalizationCard', async () => {
+    const { ctx } = await createHarness()
+    const Card = (ctx.ui as any).viewFor('settings.loudness-normalization')
+    expect(Card).toBeDefined()
+    const { container } = render(h(Card, {}))
+    expect(container.textContent).toContain('曲目间音量响度标准化')
+    expect(container.textContent).toContain('启用音量响度标准化')
   })
 
   it('renders mobile DspScreen with controls', async () => {

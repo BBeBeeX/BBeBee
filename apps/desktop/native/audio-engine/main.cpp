@@ -279,6 +279,23 @@ public:
                     mpvLib.set_option_string(mpv, "audio-exclusive", "yes");
                 }
 
+                if (config.has("replaygain")) {
+                    std::string rg = config.get("replaygain").asString("no");
+                    mpvLib.set_option_string(mpv, "replaygain", rg.c_str());
+                }
+                if (config.has("replaygainClip")) {
+                    bool clip = config.get("replaygainClip").asBool(true);
+                    mpvLib.set_option_string(mpv, "replaygain-clip", clip ? "yes" : "no");
+                }
+                if (config.has("replaygainPreamp")) {
+                    std::string preamp = config.get("replaygainPreamp").asString("0");
+                    mpvLib.set_option_string(mpv, "replaygain-preamp", preamp.c_str());
+                }
+                if (config.has("replaygainFallback")) {
+                    std::string fallback = config.get("replaygainFallback").asString("0");
+                    mpvLib.set_option_string(mpv, "replaygain-fallback", fallback.c_str());
+                }
+
                 mpvLib.set_option_string(mpv, "keep-open", "yes");
                 mpvLib.set_option_string(mpv, "idle", "yes");
                 mpvLib.set_option_string(mpv, "video", "no");
@@ -544,6 +561,23 @@ public:
         const std::string userAf = config.has("af") ? config.get("af").asString() : "";
         std::cerr << "[audio-engine] af <- " << (userAf.empty() ? "(clean)" : userAf) << "\n";
         applyFilterGraph(userAf);
+
+        if (config.has("replaygain") && mpv && mpvLib.set_property_string) {
+            std::string rg = config.get("replaygain").asString("no");
+            mpvLib.set_property_string(mpv, "replaygain", rg.c_str());
+        }
+        if (config.has("replaygainClip") && mpv && mpvLib.set_property_string) {
+            bool clip = config.get("replaygainClip").asBool(true);
+            mpvLib.set_property_string(mpv, "replaygain-clip", clip ? "yes" : "no");
+        }
+        if (config.has("replaygainPreamp") && mpv && mpvLib.set_property_string) {
+            std::string preamp = config.get("replaygainPreamp").asString("0");
+            mpvLib.set_property_string(mpv, "replaygain-preamp", preamp.c_str());
+        }
+        if (config.has("replaygainFallback") && mpv && mpvLib.set_property_string) {
+            std::string fallback = config.get("replaygainFallback").asString("0");
+            mpvLib.set_property_string(mpv, "replaygain-fallback", fallback.c_str());
+        }
     }
 
     void setVisualizer(bool enabled, int newFftSize = 0) {

@@ -281,4 +281,41 @@ describe('plugin-dsp', () => {
 
     await fiber2.dispose()
   })
+
+  it('automatically applies ReplayGain on player/track-changed when normalize is enabled', async () => {
+    const ctx = await harness()
+    const tracksMap = new Map<string, any>([
+      ['bbebee:track:test1', { urn: 'bbebee:track:test1', replayGainTrack: -6.5, replayGainAlbum: -4.0 }],
+      ['bbebee:track:test2', { urn: 'bbebee:track:test2', replayGainTrack: 2.0 }],
+    ])
+
+    ctx.provide('sources')
+    ctx.sources = {
+      getTracks: vi.fn(async (urns: string[]) => urns.map((u) => tracksMap.get(u))),
+    } as any
+
+    ctx.provide('player')
+    ctx.player = {
+      state: { trackUrn: 'bbebee:track:test1' },
+    } as any
+
+    const fiber = await ctx.plugin(DspPlugin)
+    await ctx.dsp.setEnabled('normalize', true)
+
+    // Default: targetLufs is -14. Reference is -18. Offset = -14 - (-18) = +4 dB.
+    // test1 has replayGainTrack: -6.5 dB.
+    // appliedDb = -6.5 + 4 = -2.5 dB.
+    const params = ctx.dsp.getParams!('normalize')
+    expect(params['gainDb']).toBeCloseTo(-2.5, 1)
+
+    // Now switch to test2 with replayGainTrack: 2.0 dB.
+    // appliedDb = 2.0 + 4 = +6.0 dB.
+    ctx.emit('player/track-changed', 'bbebee:track:test2')
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    const params2 = ctx.dsp.getParams!('normalize')
+    expect(params2['gainDb']).toBeCloseTo(6.0, 1)
+
+    await fiber.dispose()
+  })
 })
