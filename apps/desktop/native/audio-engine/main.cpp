@@ -88,6 +88,7 @@ struct MpvDynLib {
     fn_mpv_wait_event wait_event = nullptr;
     fn_mpv_error_string error_string = nullptr;
     fn_mpv_free free_data = nullptr;
+    fn_mpv_request_log_messages request_log_messages = nullptr;
 
     bool load(const std::string& customPath = "") {
         std::vector<std::string> candidates;
@@ -146,6 +147,7 @@ struct MpvDynLib {
                 wait_event = reinterpret_cast<fn_mpv_wait_event>(GetProcAddress(h, "mpv_wait_event"));
                 error_string = reinterpret_cast<fn_mpv_error_string>(GetProcAddress(h, "mpv_error_string"));
                 free_data = reinterpret_cast<fn_mpv_free>(GetProcAddress(h, "mpv_free"));
+                request_log_messages = reinterpret_cast<fn_mpv_request_log_messages>(GetProcAddress(h, "mpv_request_log_messages"));
                 if (create && initialize) return true;
                 FreeLibrary(h);
                 handle = nullptr;
@@ -169,6 +171,7 @@ struct MpvDynLib {
                 wait_event = reinterpret_cast<fn_mpv_wait_event>(dlsym(h, "mpv_wait_event"));
                 error_string = reinterpret_cast<fn_mpv_error_string>(dlsym(h, "mpv_error_string"));
                 free_data = reinterpret_cast<fn_mpv_free>(dlsym(h, "mpv_free"));
+                request_log_messages = reinterpret_cast<fn_mpv_request_log_messages>(dlsym(h, "mpv_request_log_messages"));
                 if (create && initialize) return true;
                 dlclose(h);
                 handle = nullptr;
@@ -277,6 +280,10 @@ public:
                 mpvLib.set_option_string(mpv, "audio-pitch-correction", "yes");
 
                 mpvLib.initialize(mpv);
+
+                // Surface mpv's own diagnostics: without this an END_FILE
+                // error is just a code, and AO/DSD failures are undiagnosable.
+                if (mpvLib.request_log_messages) mpvLib.request_log_messages(mpv, "warn");
 
                 // Observe real mpv properties for exact playback tracking
                 if (mpvLib.observe_property) {
@@ -689,6 +696,15 @@ private:
             if (!event || event->event_id == MPV_EVENT_NONE) continue;
 
             switch (event->event_id) {
+                case MPV_EVENT_LOG_MESSAGE: {
+                    auto* log = reinterpret_cast<mpv_event_log_message*>(event->data);
+                    if (log && log->text) {
+                        std::string text = log->text;
+                        while (!text.empty() && (text.back() == '\n' || text.back() == '\r')) text.pop_back();
+                        if (!text.empty()) std::cerr << "[mpv:" << (log->level ? log->level : "?") << "] " << text << "\n";
+                    }
+                    break;
+                }
                 case MPV_EVENT_FILE_LOADED: {
                     std::lock_guard<std::mutex> lock(engineMutex);
                     char* pathStr = nullptr;

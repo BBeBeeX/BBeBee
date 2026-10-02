@@ -51,7 +51,7 @@ if (!isWin) {
 }
 
 const args = chosenCompiler === 'cl'
-  ? ['/std:c++17', '/O2', '/EHsc', srcFile, `/Fe:${outExe}`]
+  ? ['/std:c++17', '/O2', '/EHsc', '/utf-8', srcFile, `/Fe:${outExe}`]
   : ['-O2', '-std=c++17', srcFile, '-o', outExe, ...unixFlags]
 
 console.log(`[build-audio-engine] Running: ${chosenCompiler} ${args.join(' ')}`)
