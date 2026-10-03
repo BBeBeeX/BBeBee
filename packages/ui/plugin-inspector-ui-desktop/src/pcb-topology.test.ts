@@ -1,119 +1,179 @@
 import { describe, expect, it } from 'vitest'
-import { ARCH_NODES, findNodeManifest, mapSnapshotToTopology } from './pcb-topology-data.js'
-import { PLUGIN_MANIFESTS } from './pcb-manifests.generated.js'
+import {
+  buildTopologyFromSnapshot,
+  inferLayer,
+  inferModule,
+  mapSnapshotToTopology,
+} from './pcb-topology-data.js'
 import type { InspectorSnapshot } from '@BBeBee/plugin-inspector'
 
-describe('PCB Topology Manifest Integration', () => {
-  it('exposes PLUGIN_MANIFESTS with standard 13 fields', () => {
-    expect(Object.keys(PLUGIN_MANIFESTS).length).toBeGreaterThan(30)
-    const sourcesManifest = PLUGIN_MANIFESTS['@BBeBee/plugin-sources']
-    expect(sourcesManifest).toBeDefined()
-    expect(sourcesManifest!.id).toBe('@BBeBee/plugin-sources')
-    expect(sourcesManifest!.name).toBe('@BBeBee/plugin-sources')
-    expect(sourcesManifest!.displayName).toBe('Sources')
-    expect(sourcesManifest!.description).toBeDefined()
-    expect(sourcesManifest!.version).toBe('0.0.0')
-    expect(sourcesManifest!.author).toBe('BBeBee Team')
-    expect(sourcesManifest!.engines).toEqual({ BBeBee: '^0.1.0' })
-    expect(sourcesManifest!.enabled).toBe(true)
-    expect(Array.isArray(sourcesManifest!.dependencies)).toBe(true)
-    expect(sourcesManifest!.systemId).toBe('layer-4')
-    expect(sourcesManifest!.moduleId).toBe('sources')
-    expect(sourcesManifest!.entry).toBeDefined()
-    expect(Array.isArray(sourcesManifest!.capabilities)).toBe(true)
-    expect(typeof sourcesManifest!.contributes).toBe('object')
-  })
+describe('Dynamic PCB Topology Generation from Live Runtime Snapshot', () => {
+  const mockSnapshot: InspectorSnapshot = {
+    counts: {
+      ACTIVE: 4,
+      PENDING: 0,
+      DISPOSED: 0,
+      FAILED: 0,
+      LOADING: 0,
+      UNLOADING: 0,
+      UNKNOWN: 0,
+    },
+    stalled: [],
+    root: {
+      name: 'root',
+      state: 'ACTIVE',
+      uid: 1,
+      inject: [],
+      waitingFor: [],
+      provides: [],
+      effects: [],
+      children: [
+        {
+          name: 'core-audio-mpv',
+          state: 'ACTIVE',
+          uid: 2,
+          inject: [],
+          waitingFor: [],
+          provides: ['audio'],
+          effects: [],
+          children: [],
+        },
+        {
+          name: 'plugin-player',
+          state: 'ACTIVE',
+          uid: 3,
+          inject: ['audio'],
+          waitingFor: [],
+          provides: ['player'],
+          effects: [],
+          children: [
+            {
+              name: 'player-child-worker',
+              state: 'ACTIVE',
+              uid: 10,
+              inject: [],
+              waitingFor: [],
+              provides: [],
+              effects: [],
+              children: [],
+            },
+          ],
+        },
+        {
+          name: 'plugin-now-playing-ui-desktop',
+          state: 'ACTIVE',
+          uid: 4,
+          inject: ['player', 'ui'],
+          waitingFor: [],
+          provides: [],
+          effects: [],
+          children: [],
+        },
+      ],
+    },
+  }
 
-  it('exposes UI package manifest with layer-5 and respective moduleId', () => {
-    const uiManifest = PLUGIN_MANIFESTS['@BBeBee/plugin-sources-ui-desktop']
-    expect(uiManifest).toBeDefined()
-    expect(uiManifest!.systemId).toBe('layer-5')
-    expect(uiManifest!.moduleId).toBe('sources')
-    expect(uiManifest!.dependencies).toContain('@BBeBee/plugin-ui')
-    expect(uiManifest!.dependencies).toContain('@BBeBee/plugin-sources')
-  })
+  it('dynamically generates nodes from live snapshot across the 5 layer strata without hardcoding', () => {
+    const topology = buildTopologyFromSnapshot(mockSnapshot, 1, null)
+    expect(topology.nodes.length).toBe(5)
 
-  it('resolves node manifests via findNodeManifest', () => {
-    const sources = findNodeManifest('sources')
-    expect(sources?.id).toBe('@BBeBee/plugin-sources')
-    expect(sources?.systemId).toBe('layer-4')
-    expect(sources?.moduleId).toBe('sources')
+    // Layer 1: Kernel Root
+    const rootNode = topology.nodes.find((n) => n.id === 'root')
+    expect(rootNode).toBeDefined()
+    expect(rootNode?.layer).toBe(1)
+    expect(rootNode?.systemId).toBe('layer-1')
 
-    const sourcesUi = findNodeManifest('sources-ui-bp')
-    expect(sourcesUi?.id).toBe('@BBeBee/plugin-sources-ui-desktop')
-    expect(sourcesUi?.systemId).toBe('layer-5')
-    expect(sourcesUi?.moduleId).toBe('sources')
+    // Layer 2: Core Capability Service
+    const audioNode = topology.nodes.find((n) => n.id === 'core-audio-mpv')
+    expect(audioNode).toBeDefined()
+    expect(audioNode?.layer).toBe(2)
+    expect(audioNode?.systemId).toBe('layer-2')
+    expect(audioNode?.fiber?.provides).toContain('audio')
 
-    const player = findNodeManifest('player')
-    expect(player?.id).toBe('@BBeBee/plugin-player')
-    expect(player?.systemId).toBe('layer-4')
-    expect(player?.moduleId).toBe('playback')
-  })
-
-  it('ensures every node in ARCH_NODES has systemId and moduleId', () => {
-    for (const node of ARCH_NODES) {
-      expect(node.systemId, `node ${node.id} missing systemId`).toBeDefined()
-      expect(node.systemId).toMatch(/^layer-[1-5]$/)
-      expect(node.moduleId, `node ${node.id} missing moduleId`).toBeDefined()
-    }
-  })
-
-  it('propagates systemId and moduleId through mapSnapshotToTopology and satellites', () => {
-    const mockSnapshot: InspectorSnapshot = {
-      counts: {
-        ACTIVE: 2,
-        PENDING: 0,
-        DISPOSED: 0,
-        FAILED: 0,
-        LOADING: 0,
-        UNLOADING: 0,
-        UNKNOWN: 0,
-      },
-      stalled: [],
-      root: {
-        name: 'root',
-        state: 'ACTIVE',
-        uid: 1,
-        inject: [],
-        waitingFor: [],
-        provides: [],
-        effects: [],
-        children: [
-          {
-            name: 'plugin-player',
-            state: 'ACTIVE',
-            uid: 2,
-            inject: [],
-            waitingFor: [],
-            provides: ['player'],
-            effects: [],
-            children: [
-              {
-                name: 'player-child-worker',
-                state: 'ACTIVE',
-                uid: 3,
-                inject: [],
-                waitingFor: [],
-                provides: [],
-                effects: [],
-                children: [],
-              },
-            ],
-          },
-        ],
-      },
-    }
-
-    const mapped = mapSnapshotToTopology(mockSnapshot, ARCH_NODES, 3, null, 'player')
-    const playerNode = mapped.find((n) => n.id === 'player')
+    // Layer 4: Feature Plugin
+    const playerNode = topology.nodes.find((n) => n.id === 'player')
     expect(playerNode).toBeDefined()
+    expect(playerNode?.layer).toBe(4)
     expect(playerNode?.systemId).toBe('layer-4')
     expect(playerNode?.moduleId).toBe('playback')
-    expect(playerNode?.manifest?.id).toBe('@BBeBee/plugin-player')
+    expect(playerNode?.fiber?.provides).toContain('player')
+    expect(playerNode?.fiber?.inject).toContain('audio')
 
-    const satellite = mapped.find((n) => n.id.startsWith('satellite-player'))
-    expect(satellite).toBeDefined()
-    expect(satellite?.systemId).toBe('layer-4')
-    expect(satellite?.moduleId).toBe('playback')
+    // Layer 5: UI Plugin
+    const uiNode = topology.nodes.find((n) => n.id === 'now-playing-ui-desktop')
+    expect(uiNode).toBeDefined()
+    expect(uiNode?.layer).toBe(5)
+    expect(uiNode?.systemId).toBe('layer-5')
+    expect(uiNode?.moduleId).toBe('playback')
+  })
+
+  it('dynamically computes traces connecting nodes to what they depend on AND what depends on them', () => {
+    const topology = buildTopologyFromSnapshot(mockSnapshot, 1, null)
+    const traces = topology.traces
+
+    // 1. Dependency link: core-audio-mpv (provider) -> player (consumer of 'audio')
+    const audioToPlayer = traces.find(
+      (t) => t.fromNodeId === 'core-audio-mpv' && t.toNodeId === 'player',
+    )
+    expect(audioToPlayer).toBeDefined()
+    expect(audioToPlayer?.label).toBe('audio')
+    expect(audioToPlayer?.category).toBe('dependency')
+
+    // 2. Dependency link: player (provider) -> now-playing-ui-desktop (consumer of 'player')
+    const playerToUi = traces.find(
+      (t) => t.fromNodeId === 'player' && t.toNodeId === 'now-playing-ui-desktop',
+    )
+    expect(playerToUi).toBeDefined()
+    expect(playerToUi?.label).toBe('player')
+
+    // 3. Verify bidirectional connection query for 'player':
+    // - Dependencies it depends on (incoming): core-audio-mpv -> player
+    // - Dependents that depend on it (outgoing): player -> now-playing-ui-desktop
+    // - Fiber tree leads: root -> player, player -> player-child-worker
+    const playerTraces = traces.filter((t) => t.fromNodeId === 'player' || t.toNodeId === 'player')
+    expect(playerTraces.length).toBe(4)
+
+    // Upstream dependency (services it injects): core-audio-mpv
+    const incomingDependencies = playerTraces.filter(
+      (t) => t.toNodeId === 'player' && t.category === 'dependency',
+    )
+    expect(incomingDependencies.map((t) => t.fromNodeId)).toEqual(['core-audio-mpv'])
+
+    // Downstream dependent (services that inject it): now-playing-ui-desktop
+    const outgoingDependents = playerTraces.filter(
+      (t) => t.fromNodeId === 'player' && t.category === 'dependency',
+    )
+    expect(outgoingDependents.map((t) => t.toNodeId)).toEqual(['now-playing-ui-desktop'])
+
+    // Fiber tree hierarchy
+    const fiberTreeLeads = playerTraces.filter((t) => t.category === 'control')
+    expect(fiberTreeLeads.length).toBe(2)
+  })
+
+  it('dynamically orbits satellite child fibers around the selected node at ViewLevel 3', () => {
+    const topology = buildTopologyFromSnapshot(mockSnapshot, 3, 'player')
+    const satellites = topology.nodes.filter((n) => n.kind === 'satellite')
+    expect(satellites.length).toBe(1)
+    expect(satellites[0]?.parentPluginId).toBe('player')
+    expect(satellites[0]?.name).toBe('player-child-worker')
+    expect(satellites[0]?.layer).toBe(4)
+    expect(satellites[0]?.systemId).toBe('layer-4')
+  })
+
+  it('supports backwards-compatible mapSnapshotToTopology without hardcoded manifest files', () => {
+    const nodes = mapSnapshotToTopology(mockSnapshot, undefined, 1, null, null)
+    expect(nodes.length).toBe(5)
+    expect(nodes.map((n) => n.id)).toContain('player')
+    expect(nodes.map((n) => n.id)).toContain('core-audio-mpv')
+  })
+
+  it('correctly infers layers and modules dynamically from fiber properties', () => {
+    expect(inferLayer({ name: 'core-db-sqlite', uid: 5, state: 'ACTIVE', inject: [], waitingFor: [], provides: ['db'], effects: [], children: [] }).layer).toBe(2)
+    expect(inferLayer({ name: 'plugin-log-console', uid: 6, state: 'ACTIVE', inject: [], waitingFor: [], provides: ['logger'], effects: [], children: [] }).layer).toBe(3)
+    expect(inferLayer({ name: 'plugin-sources', uid: 7, state: 'ACTIVE', inject: [], waitingFor: [], provides: ['sources'], effects: [], children: [] }).layer).toBe(4)
+    expect(inferLayer({ name: 'plugin-sources-ui-desktop', uid: 8, state: 'ACTIVE', inject: ['sources'], waitingFor: [], provides: [], effects: [], children: [] }).layer).toBe(5)
+
+    expect(inferModule({ name: 'plugin-sources', uid: 7, state: 'ACTIVE', inject: [], waitingFor: [], provides: ['sources'], effects: [], children: [] }, 4).moduleId).toBe('sources')
+    expect(inferModule({ name: 'plugin-player', uid: 3, state: 'ACTIVE', inject: ['audio'], waitingFor: [], provides: ['player'], effects: [], children: [] }, 4).moduleId).toBe('playback')
   })
 })

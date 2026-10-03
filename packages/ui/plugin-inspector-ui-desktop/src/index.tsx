@@ -30,16 +30,11 @@ import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import type { EffectNode, FiberNode, InspectorSnapshot } from '@BBeBee/plugin-inspector'
 import {
-  ARCH_NODES,
-  LAYER_BANDS,
-  SUBSYSTEM_ZONES,
-  generateBasePins,
-  generateBaseTraces,
-  mapSnapshotToTopology,
+  buildTopologyFromSnapshot,
 } from './pcb-topology-data.js'
 import { PcbBoard } from './PcbBoard.js'
 import { NodeDetailsPanel } from './NodeDetailsPanel.js'
-import type { SubsystemId, ViewLevel } from './pcb-topology-types.js'
+import type { PcbNode, SubsystemId, ViewLevel } from './pcb-topology-types.js'
 
 export const INSPECTOR_VIEW = 'inspector.panel'
 
@@ -224,32 +219,33 @@ function InspectorPanelInner({ ctx }: { ctx: Context }): ReactElement {
   const [zoom, setZoom] = useState(0.78)
   const [pan, setPan] = useState({ x: 30, y: 15 })
 
-  // Static topology data
-  const layerBands = useMemo(() => LAYER_BANDS, [])
-  const zones = useMemo(() => SUBSYSTEM_ZONES, [])
-  const traces = useMemo(() => generateBaseTraces(), [])
-  const pins = useMemo(() => generateBasePins(), [])
-
-  // Selected Node state
+  // Selected Node state: null initially unless there is a stalled fiber
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(() => {
     if (snap.stalled.length > 0) {
-      return 'diag-socket'
+      return snap.stalled[0]?.name ?? null
     }
-    return 'player'
+    return null
   })
 
   // Synchronize selection when a stalled node appears
   useEffect(() => {
     if (snap.stalled.length > 0) {
-      setSelectedNodeId('diag-socket')
+      setSelectedNodeId(snap.stalled[0]?.name ?? null)
     }
   }, [snap.stalled])
 
-  // Map snapshot to topology nodes dynamically according to current view level
-  const nodes = useMemo(
-    () => mapSnapshotToTopology(snap, ARCH_NODES, viewLevel, activeSubsystemId, selectedNodeId),
-    [snap, viewLevel, activeSubsystemId, selectedNodeId],
+  // Pure dynamic topology generated from live runtime snapshot
+  const { nodes, traces, pins, zones, layerBands } = useMemo(
+    () => buildTopologyFromSnapshot(snap, viewLevel, selectedNodeId),
+    [snap, viewLevel, selectedNodeId],
   )
+
+  // Double-clicking a node highlights its architectural layer and subsystem module
+  const handleDoubleClickNode = useCallback((node: PcbNode) => {
+    setSelectedNodeId(node.id)
+    setActiveLayerId(node.layer ?? null)
+    setActiveSubsystemId(node.subsystem ?? null)
+  }, [])
 
   const selectedNode = useMemo(
     () => nodes.find((n) => n.id === selectedNodeId) ?? null,
@@ -677,6 +673,7 @@ function InspectorPanelInner({ ctx }: { ctx: Context }): ReactElement {
       activeLayerId,
       viewLevel,
       onSelectNode: (node) => setSelectedNodeId(node ? node.id : null),
+      onDoubleClickNode: handleDoubleClickNode,
       onSelectSubsystem: (subId) => setActiveSubsystemId(subId),
       onSelectLayer: (layer) => handleSelectLayer(layer === activeLayerId ? null : layer),
       onDrillDownLevel: handleDrillDownLevel,

@@ -143,5 +143,5 @@ export interface PcbTopologyData {
   traces: PcbTrace[]
   pins: PcbPin[]
   zones: SubsystemZone[]
-  layerBands?: LayerBand[]
+  layerBands: LayerBand[]
 }

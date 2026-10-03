@@ -29,6 +29,7 @@ export interface PcbBoardProps {
   activeLayerId?: number | null
   viewLevel?: ViewLevel
   onSelectNode: (node: PcbNode | null) => void
+  onDoubleClickNode?: (node: PcbNode) => void
   onSelectSubsystem?: (subsystem: SubsystemId | null) => void
   onSelectLayer?: (layer: number | null) => void
   onDrillDownLevel?: (level: ViewLevel, nodeId?: string) => void
@@ -60,6 +61,7 @@ export function PcbBoard({
   activeLayerId,
   viewLevel = 1,
   onSelectNode,
+  onDoubleClickNode,
   onSelectSubsystem,
   onSelectLayer,
   onDrillDownLevel,
@@ -137,8 +139,8 @@ export function PcbBoard({
     onHoverNode?.(hoveredNodeId)
   }, [hoveredNodeId, onHoverNode])
 
-  // Determine connected traces for focus graph
-  const activeNodeId = hoveredNodeId ?? selectedNodeId
+  // Determine connected traces for focus graph (only when a node is selected, not on hover)
+  const activeNodeId = selectedNodeId
   const connectedTraceIds = new Set<string>()
   if (activeNodeId) {
     for (const t of traces) {
@@ -179,6 +181,13 @@ export function PcbBoard({
         // Deselect when clicking on empty canvas board
         if (e.target === containerRef.current || (e.target as HTMLElement).tagName === 'svg') {
           onSelectNode(null)
+        }
+      },
+      onDoubleClick: (e: ReactMouseEvent) => {
+        // Clear layer & module highlight when double clicking empty board
+        if (e.target === containerRef.current || (e.target as HTMLElement).tagName === 'svg') {
+          onSelectLayer?.(null)
+          onSelectSubsystem?.(null)
         }
       },
       style: {
@@ -229,6 +238,12 @@ export function PcbBoard({
         onClick: (e: ReactMouseEvent) => {
           if (e.target === e.currentTarget) {
             onSelectNode(null)
+          }
+        },
+        onDoubleClick: (e: ReactMouseEvent) => {
+          if (e.target === e.currentTarget) {
+            onSelectLayer?.(null)
+            onSelectSubsystem?.(null)
           }
         },
       },
@@ -564,20 +579,28 @@ export function PcbBoard({
               toNode?.layer === activeLayerId
 
             const isTraceActive = activeNodeId ? connectedTraceIds.has(trace.id) : true
+            const isIncoming = activeNodeId ? trace.toNodeId === activeNodeId : false
             const baseColor = TRACE_COLORS[trace.colorType] ?? '#596AFF'
+            const strokeColor = isTraceActive
+              ? activeNodeId
+                ? isIncoming
+                  ? '#7D8DFF'
+                  : '#A78BFA'
+                : baseColor
+              : baseColor
             return h('path', {
               key: `glow-${trace.id}`,
               d: trace.path,
               fill: 'none',
-              stroke: baseColor,
+              stroke: strokeColor,
               strokeWidth: (trace.width ?? 2) + 3.5,
               strokeOpacity: isTraceActive
                 ? activeNodeId
-                  ? 0.38
+                  ? 0.45
                   : isTraceInActiveLayer
                     ? 0.18
                     : 0.05
-                : 0.04,
+                : 0.02,
               filter: 'url(#pcb-glow)',
             })
           }),
@@ -617,10 +640,17 @@ export function PcbBoard({
               toNode?.layer === activeLayerId
 
             const isTraceActive = activeNodeId ? connectedTraceIds.has(trace.id) : true
+            const isIncoming = activeNodeId ? trace.toNodeId === activeNodeId : false
+            const isOutgoing = activeNodeId ? trace.fromNodeId === activeNodeId : false
+
             const baseColor = TRACE_COLORS[trace.colorType] ?? '#596AFF'
             const strokeColor = isTraceActive
               ? activeNodeId
-                ? '#9AA6FF'
+                ? isIncoming
+                  ? '#7D8DFF'
+                  : isOutgoing
+                    ? '#A78BFA'
+                    : baseColor
                 : baseColor
               : 'rgba(50, 65, 95, 0.25)'
 
@@ -628,7 +658,7 @@ export function PcbBoard({
               ? isTraceInActiveLayer
                 ? 1
                 : 0.2
-              : 0.22
+              : 0.15
 
             return h(
               'g',
@@ -637,7 +667,7 @@ export function PcbBoard({
                 d: trace.path,
                 fill: 'none',
                 stroke: strokeColor,
-                strokeWidth: isTraceActive && activeNodeId ? (trace.width ?? 2) + 0.6 : trace.width ?? 2,
+                strokeWidth: isTraceActive && activeNodeId ? (trace.width ?? 2) + 0.8 : trace.width ?? 2,
                 strokeLinejoin: 'round',
                 strokeLinecap: 'round',
                 opacity: traceOpacity,
@@ -757,6 +787,17 @@ export function PcbBoard({
                     e.stopPropagation()
                     onSelectNode(node)
                   },
+                  onDoubleClick: (e: ReactMouseEvent) => {
+                    e.stopPropagation()
+                    if (containerRef.current) {
+                      const rect = containerRef.current.getBoundingClientRect()
+                      onPanChange({
+                        x: rect.width / 2 - node.x * zoom,
+                        y: rect.height / 2 - node.y * zoom,
+                      })
+                    }
+                    onDoubleClickNode?.(node)
+                  },
                   onMouseEnter: () => setHoveredNodeId(node.id),
                   onMouseLeave: () => setHoveredNodeId(null),
                   opacity: isNodeDimmed ? 0.22 : 1,
@@ -797,6 +838,17 @@ export function PcbBoard({
                   onClick: (e: ReactMouseEvent) => {
                     e.stopPropagation()
                     onSelectNode(node)
+                  },
+                  onDoubleClick: (e: ReactMouseEvent) => {
+                    e.stopPropagation()
+                    if (containerRef.current) {
+                      const rect = containerRef.current.getBoundingClientRect()
+                      onPanChange({
+                        x: rect.width / 2 - node.x * zoom,
+                        y: rect.height / 2 - node.y * zoom,
+                      })
+                    }
+                    onDoubleClickNode?.(node)
                   },
                   onMouseEnter: () => setHoveredNodeId(node.id),
                   onMouseLeave: () => setHoveredNodeId(null),
@@ -852,7 +904,7 @@ export function PcbBoard({
                 },
                 onDoubleClick: (e: ReactMouseEvent) => {
                   e.stopPropagation()
-                  // Center and drilldown
+                  // Center node and trigger layer & module highlight
                   if (containerRef.current) {
                     const rect = containerRef.current.getBoundingClientRect()
                     onPanChange({
@@ -860,12 +912,7 @@ export function PcbBoard({
                       y: rect.height / 2 - node.y * zoom,
                     })
                   }
-                  if (viewLevel === 1 && node.subsystem && node.subsystem !== 'root') {
-                    onSelectSubsystem?.(node.subsystem)
-                    onDrillDownLevel?.(2, node.id)
-                  } else if (viewLevel === 2) {
-                    onDrillDownLevel?.(3, node.id)
-                  }
+                  onDoubleClickNode?.(node)
                 },
                 onMouseEnter: () => setHoveredNodeId(node.id),
                 onMouseLeave: () => setHoveredNodeId(null),
@@ -948,20 +995,21 @@ export function PcbBoard({
           'g',
           { className: 'signal-flow-layer', pointerEvents: 'none' },
           ...traces
-            .filter((t) => t.hasSignalFlow)
-            .map((trace) =>
-              h('path', {
+            .filter((t) => t.hasSignalFlow && (!activeNodeId || connectedTraceIds.has(t.id)))
+            .map((trace) => {
+              const isIncoming = activeNodeId ? trace.toNodeId === activeNodeId : false
+              return h('path', {
                 key: `signal-${trace.id}`,
                 className: 'signal-flow-path',
                 d: trace.path,
                 fill: 'none',
-                stroke: '#E2ECFF',
+                stroke: isIncoming ? '#9AA6FF' : '#D4BBFF',
                 strokeWidth: (trace.width ?? 2) + 0.8,
                 strokeLinecap: 'round',
                 filter: 'url(#pcb-glow)',
                 opacity: 0.85,
-              }),
-            ),
+              })
+            }),
         ),
       ),
     ),

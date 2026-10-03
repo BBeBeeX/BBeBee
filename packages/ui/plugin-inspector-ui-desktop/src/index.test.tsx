@@ -163,16 +163,10 @@ describe('the inspector view', () => {
     expect(html).toContain('ZONE 07: SETTINGS')
     expect(html).toContain('ZONE 08: ARCHITECTURE INSPECTOR')
 
-    // Verify key architectural IC chips
-    expect(html).toContain('PLAYER')
-    expect(html).toContain('SOURCES')
-    expect(html).toContain('AUDIO')
-    expect(html).toContain('DB')
-    expect(html).toContain('FS')
-    expect(html).toContain('QUEUE')
-    expect(html).toContain('DSP')
-    expect(html).toContain('LYRICS')
-    expect(html).toContain('SETTINGS')
+    // Verify dynamically loaded IC chips from the active Cordis context
+    expect(html).toContain('UI')
+    expect(html).toContain('INSPECTOR')
+    expect(html).toContain('ROOT')
   })
 
   it('renders the 3-level architecture navigation HUD', async () => {

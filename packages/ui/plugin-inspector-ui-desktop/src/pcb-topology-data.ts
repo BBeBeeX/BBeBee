@@ -1,15 +1,29 @@
+/**
+ * Dynamic PCB Topology Generator for Plugin Inspector.
+ *
+ * Implements pure runtime dynamic discovery and topology generation:
+ * - NO hardcoded node lists or fixed coordinates.
+ * - NO compile-time generated manifest imports.
+ * - Nodes are dynamically extracted from the live Cordis InspectorSnapshot.
+ * - Traces (connections) are dynamically computed from inject dependencies
+ *   (services a node depends on) and provides (services a node provides).
+ * - Nodes are dynamically arranged across the 5 Architectural Layer Strata.
+ */
+
 import type { FiberNode, InspectorSnapshot } from '@BBeBee/plugin-inspector'
 import type { PluginManifest } from '@BBeBee/protocol'
 import type {
   LayerBand,
   PcbNode,
   PcbPin,
+  PcbTopologyData,
   PcbTrace,
+  Point,
   SubsystemId,
   SubsystemZone,
+  TraceColorType,
   ViewLevel,
 } from './pcb-topology-types.js'
-import { PLUGIN_MANIFESTS } from './pcb-manifests.generated.js'
 
 /**
  * 5 Architectural Layer Strata according to the project's layer model:
@@ -84,7 +98,6 @@ export const LAYER_BANDS: LayerBand[] = [
 
 /**
  * 8 Subsystem Zones partition specification.
- * Mapped cleanly inside their respective parent architectural layers.
  */
 export const SUBSYSTEM_ZONES: SubsystemZone[] = [
   {
@@ -105,7 +118,7 @@ export const SUBSYSTEM_ZONES: SubsystemZone[] = [
     title: 'AUDIO SOURCE SUBSYSTEM',
     subtitle: 'LAYER 4 MEDIA CATALOGUE & PROVIDERS',
     layer: 4,
-    bounds: { x: 70, y: 620, width: 380, height: 335 },
+    bounds: { x: 60, y: 595, width: 440, height: 365 },
     color: '#596AFF',
     description: 'Music sources engine, local filesystem scanner, source runtime sandbox and providers.',
   },
@@ -116,7 +129,7 @@ export const SUBSYSTEM_ZONES: SubsystemZone[] = [
     title: 'PLAYBACK ENGINE CORE',
     subtitle: 'LAYER 4 AUDIO STREAM PIPELINE',
     layer: 4,
-    bounds: { x: 740, y: 620, width: 550, height: 335 },
+    bounds: { x: 520, y: 595, width: 460, height: 365 },
     color: '#7D8DFF',
     description: 'Player transport, audio routing, play queue, DSP effect rack, history and sleep timer.',
   },
@@ -127,7 +140,7 @@ export const SUBSYSTEM_ZONES: SubsystemZone[] = [
     title: 'MEDIA STORAGE & CACHE',
     subtitle: 'LAYER 4 PERSISTENCE & OFFLINE',
     layer: 4,
-    bounds: { x: 470, y: 620, width: 250, height: 335 },
+    bounds: { x: 1000, y: 595, width: 440, height: 365 },
     color: '#5C7CFA',
     description: 'Disk stream caching, background download queue, and persistent media library.',
   },
@@ -138,7 +151,7 @@ export const SUBSYSTEM_ZONES: SubsystemZone[] = [
     title: 'SYNCHRONIZED LYRICS',
     subtitle: 'LAYER 4 POSITION-LOCKED LYRICS',
     layer: 4,
-    bounds: { x: 1310, y: 620, width: 230, height: 335 },
+    bounds: { x: 1460, y: 595, width: 480, height: 175 },
     color: '#8598FF',
     description: 'Real-time playback position subscriber, LRC parser, and desktop floating lyrics.',
   },
@@ -160,7 +173,7 @@ export const SUBSYSTEM_ZONES: SubsystemZone[] = [
     title: 'SETTINGS & PREFERENCES',
     subtitle: 'CROSS-CUTTING CONTROL FABRIC',
     layer: 4,
-    bounds: { x: 1560, y: 620, width: 170, height: 335 },
+    bounds: { x: 1460, y: 785, width: 230, height: 175 },
     color: '#9E77ED',
     description: 'Global app configurations, DSP parameters, themes, and audio device preferences.',
   },
@@ -171,1465 +184,660 @@ export const SUBSYSTEM_ZONES: SubsystemZone[] = [
     title: 'ARCHITECTURE INSPECTOR',
     subtitle: 'KERNEL DIAGNOSTICS & TELEMETRY',
     layer: 4,
-    bounds: { x: 1750, y: 620, width: 180, height: 335 },
+    bounds: { x: 1710, y: 785, width: 230, height: 175 },
     color: '#6474FF',
     description: 'Fiber tree introspection, labelled effect tracker, and runtime health monitor.',
   },
 ]
 
-const NODE_MANIFEST_ALIAS: Record<string, string> = {
-  downloads: '@BBeBee/plugin-download',
-  mediaSession: '@BBeBee/core-media-session-electron',
-  js: '@BBeBee/core-js-quickjs-node',
-  scanner: '@BBeBee/plugin-local-scanner',
-  'scanner-ui-bp': '@BBeBee/plugin-local-scanner-ui-desktop',
-  localSource: '@BBeBee/plugin-source-local',
-  sourceRuntime: '@BBeBee/plugin-source-runtime',
-  nowplaying: '@BBeBee/plugin-now-playing',
-  'nowplaying-ui-bp': '@BBeBee/plugin-now-playing-ui-desktop',
-  sleeptimer: '@BBeBee/plugin-sleep-timer',
-  desktopLyrics: '@BBeBee/plugin-desktop-lyrics',
-  'desktopLyrics-ui': '@BBeBee/plugin-desktop-lyrics-ui-desktop',
-  logs: '@BBeBee/plugin-log-buffer',
-  'log-console': '@BBeBee/plugin-log-console',
-  'inspector-ui': '@BBeBee/plugin-inspector-ui-desktop',
-  'player-ui-bp': '@BBeBee/plugin-now-playing-ui-desktop',
+/**
+ * Dynamically infers the architectural layer (1-5) and systemId from a fiber.
+ */
+export function inferLayer(fiber: FiberNode): { layer: number; systemId: string } {
+  const name = (fiber.name || '').toLowerCase()
+  if (name === 'root' || fiber.uid === 0 || name.includes('kernel')) {
+    return { layer: 1, systemId: 'layer-1' }
+  }
+
+  const coreServices = new Set([
+    'paths',
+    'fs',
+    'store',
+    'db',
+    'device',
+    'background',
+    'mediasession',
+    'secrets',
+    'js',
+    'codec',
+    'http',
+    'audio',
+  ])
+
+  const provides = (fiber.provides || []).map((p) => p.toLowerCase())
+  const isCore =
+    name.startsWith('core-') ||
+    provides.some((p) => coreServices.has(p)) ||
+    coreServices.has(name)
+
+  if (isCore) {
+    return { layer: 2, systemId: 'layer-2' }
+  }
+
+  if (
+    name.startsWith('plugin-log-') ||
+    name.startsWith('log-') ||
+    provides.includes('logger') ||
+    provides.includes('log')
+  ) {
+    return { layer: 3, systemId: 'layer-3' }
+  }
+
+  if (
+    name.includes('-ui-') ||
+    name.endsWith('-ui') ||
+    provides.includes('ui') ||
+    name.includes('shell') ||
+    name.includes('view')
+  ) {
+    return { layer: 5, systemId: 'layer-5' }
+  }
+
+  return { layer: 4, systemId: 'layer-4' }
 }
 
 /**
- * Find the plugin manifest matching a PCB node.
+ * Dynamically infers the functional domain (moduleId) and subsystem zone.
  */
-export function findNodeManifest(nodeId: string): PluginManifest | undefined {
-  if (NODE_MANIFEST_ALIAS[nodeId]) {
-    return PLUGIN_MANIFESTS[NODE_MANIFEST_ALIAS[nodeId]]
-  }
-  const direct =
-    PLUGIN_MANIFESTS[nodeId] ??
-    PLUGIN_MANIFESTS[`@BBeBee/${nodeId}`] ??
-    PLUGIN_MANIFESTS[`@BBeBee/plugin-${nodeId}`] ??
-    PLUGIN_MANIFESTS[`plugin-${nodeId}`] ??
-    PLUGIN_MANIFESTS[`@BBeBee/core-${nodeId}-node`] ??
-    PLUGIN_MANIFESTS[`@BBeBee/core-${nodeId}-electron`] ??
-    PLUGIN_MANIFESTS[`@BBeBee/core-${nodeId}-webaudio`] ??
-    PLUGIN_MANIFESTS[`@BBeBee/core-${nodeId}-mpv`]
-  if (direct) return direct
+export function inferModule(
+  fiber: FiberNode,
+  layer: number,
+): { subsystem: SubsystemId; moduleId: string } {
+  const name = (fiber.name || '').toLowerCase()
+  const provides = (fiber.provides || []).map((p) => p.toLowerCase())
 
-  if (nodeId.endsWith('-ui-bp') || nodeId.endsWith('-ui')) {
-    const base = nodeId.replace('-ui-bp', '').replace('-ui', '')
-    return (
-      PLUGIN_MANIFESTS[`@BBeBee/plugin-${base}-ui-desktop`] ??
-      PLUGIN_MANIFESTS[`plugin-${base}-ui-desktop`]
+  if (layer === 1) return { subsystem: 'root', moduleId: 'core' }
+
+  if (name.includes('source') || provides.some((p) => p.includes('source'))) {
+    return { subsystem: 'sources', moduleId: 'sources' }
+  }
+
+  if (
+    name.includes('player') ||
+    name.includes('audio') ||
+    name.includes('queue') ||
+    name.includes('now-playing') ||
+    provides.some((p) => ['player', 'audio', 'queue', 'playback'].includes(p))
+  ) {
+    return { subsystem: 'playback', moduleId: 'playback' }
+  }
+
+  if (
+    name.includes('fs') ||
+    name.includes('db') ||
+    name.includes('store') ||
+    name.includes('path') ||
+    name.includes('download') ||
+    name.includes('cache') ||
+    name.includes('library') ||
+    provides.some((p) =>
+      ['fs', 'db', 'store', 'paths', 'storage', 'library', 'download', 'cache'].includes(p),
     )
+  ) {
+    return { subsystem: 'storage', moduleId: 'storage' }
   }
 
-  return undefined
+  if (name.includes('lyric') || provides.some((p) => p.includes('lyric'))) {
+    return { subsystem: 'lyrics', moduleId: 'lyrics' }
+  }
+
+  if (name.includes('dsp') || provides.includes('dsp')) {
+    return { subsystem: 'playback', moduleId: 'dsp' }
+  }
+
+  if (name.includes('setting') || provides.includes('settings')) {
+    return { subsystem: 'settings', moduleId: 'settings' }
+  }
+
+  if (name.includes('inspector') || provides.includes('inspector')) {
+    return { subsystem: 'inspector', moduleId: 'inspector' }
+  }
+
+  if (layer === 5 || provides.includes('ui')) {
+    return { subsystem: 'ui', moduleId: 'ui' }
+  }
+
+  if (layer === 3) {
+    return { subsystem: 'core', moduleId: 'logs' }
+  }
+
+  if (layer === 2) {
+    return { subsystem: 'core', moduleId: 'core' }
+  }
+
+  return { subsystem: 'playback', moduleId: 'playback' }
 }
 
 /**
- * Baseline Architectural Nodes representing the true system composition.
- * Includes compatibility identifiers (cs20, cs30, Level 4, Level 5) for tests and HUD.
+ * Derives a human-readable display code for an IC chip.
  */
-const RAW_ARCH_NODES: Omit<PcbNode, 'fiber'>[] = [
-  // ── LAYER 1: KERNEL RUNTIME ────────────────────────────────────────────────
-  {
-    id: 'root',
-    code: 'ROOT',
-    name: 'Cordis Root Kernel Context',
-    kind: 'root',
-    subsystem: 'root',
-    layer: 1,
-    x: 960,
-    y: 110,
-    radius: 46,
-  },
-
-  // ── LAYER 2: CORE CAPABILITY SERVICES ──────────────────────────────────────
-  // Storage / Virtual Filesystem
-  {
-    id: 'paths',
-    code: 'PATHS',
-    name: 'Path Resolution Service',
-    kind: 'service',
-    subsystem: 'core',
-    layer: 2,
-    x: 140,
-    y: 310,
-    radius: 28,
-  },
-  {
-    id: 'fs',
-    code: 'FS',
-    name: 'Virtual Filesystem Service',
-    kind: 'service',
-    subsystem: 'core',
-    layer: 2,
-    x: 270,
-    y: 310,
-    radius: 28,
-  },
-  {
-    id: 'store',
-    code: 'STORE',
-    name: 'Key-Value Store Service',
-    kind: 'service',
-    subsystem: 'core',
-    layer: 2,
-    x: 400,
-    y: 310,
-    radius: 28,
-  },
-  {
-    id: 'db',
-    code: 'DB',
-    name: 'SQLite WAL Database Service',
-    kind: 'service',
-    subsystem: 'core',
-    layer: 2,
-    x: 540,
-    y: 310,
-    radius: 32,
-  },
-  // OS Integration
-  {
-    id: 'device',
-    code: 'DEVICE',
-    name: 'Device & Battery Service',
-    kind: 'service',
-    subsystem: 'core',
-    layer: 2,
-    x: 710,
-    y: 310,
-    radius: 28,
-  },
-  {
-    id: 'background',
-    code: 'BKGND',
-    name: 'Background Wake Lock Service',
-    kind: 'service',
-    subsystem: 'core',
-    layer: 2,
-    x: 840,
-    y: 310,
-    radius: 28,
-  },
-  {
-    id: 'mediaSession',
-    code: 'MEDIASES',
-    name: 'OS Media Session Integration',
-    kind: 'service',
-    subsystem: 'core',
-    layer: 2,
-    x: 970,
-    y: 310,
-    radius: 30,
-  },
-  // Runtime Infrastructure
-  {
-    id: 'codec',
-    code: 'CODEC',
-    name: 'Audio Codec & Metadata Decoder',
-    kind: 'service',
-    subsystem: 'core',
-    layer: 2,
-    x: 1130,
-    y: 310,
-    radius: 28,
-  },
-  {
-    id: 'http',
-    code: 'HTTP',
-    name: 'HTTP Network Client & Streaming',
-    kind: 'service',
-    subsystem: 'core',
-    layer: 2,
-    x: 1260,
-    y: 310,
-    radius: 28,
-  },
-  {
-    id: 'secrets',
-    code: 'SECRETS',
-    name: 'Secure Keystore & Token Storage',
-    kind: 'service',
-    subsystem: 'core',
-    layer: 2,
-    x: 1390,
-    y: 310,
-    radius: 28,
-  },
-  {
-    id: 'js',
-    code: 'JS/QJS',
-    name: 'QuickJS Sandboxed Engine Realm',
-    kind: 'service',
-    subsystem: 'core',
-    layer: 2,
-    x: 1520,
-    y: 310,
-    radius: 28,
-  },
-  // Audio Graph Engine
-  {
-    id: 'audio',
-    code: 'AUDIO',
-    name: 'WebAudio Core Graph Engine',
-    kind: 'service',
-    subsystem: 'core',
-    layer: 2,
-    x: 1720,
-    y: 310,
-    radius: 36,
-  },
-
-  // ── LAYER 3: OBSERVABILITY & LOG TRANSPORTS ────────────────────────────────
-  {
-    id: 'logs',
-    code: 'LOGS',
-    name: 'Layer 3 Observability & Log Buffer',
-    kind: 'service',
-    subsystem: 'core',
-    layer: 3,
-    x: 880,
-    y: 495,
-    radius: 32,
-  },
-  {
-    id: 'log-console',
-    code: 'LOG-CON',
-    name: 'Console Log Transport',
-    kind: 'service',
-    subsystem: 'core',
-    layer: 3,
-    x: 1040,
-    y: 495,
-    radius: 30,
-  },
-
-  // ── LAYER 4: HEADLESS BUSINESS FEATURES ────────────────────────────────────
-  // Sources Subsystem
-  {
-    id: 'sources',
-    code: 'SOURCES',
-    name: 'Music Sources Registry',
-    kind: 'service',
-    subsystem: 'sources',
-    layer: 4,
-    x: 200,
-    y: 700,
-    radius: 38,
-  },
-  {
-    id: 'scanner',
-    code: 'SCANNER',
-    name: 'Local Filesystem Walk Scanner',
-    kind: 'service',
-    subsystem: 'sources',
-    layer: 4,
-    x: 140,
-    y: 840,
-    radius: 26,
-  },
-  {
-    id: 'localSource',
-    code: 'LOCAL-SRC',
-    name: 'Local Audio Provider',
-    kind: 'service',
-    subsystem: 'sources',
-    layer: 4,
-    x: 260,
-    y: 840,
-    radius: 26,
-  },
-  {
-    id: 'sourceRuntime',
-    code: 'RUNTIME',
-    name: 'Source Runtime QuickJS Engine',
-    kind: 'service',
-    subsystem: 'sources',
-    layer: 4,
-    x: 380,
-    y: 840,
-    radius: 26,
-  },
-  // Storage & Cache Subsystem
-  {
-    id: 'cache',
-    code: 'CACHE',
-    name: 'Audio Stream LRU Cache',
-    kind: 'service',
-    subsystem: 'storage',
-    layer: 4,
-    x: 540,
-    y: 700,
-    radius: 32,
-  },
-  {
-    id: 'downloads',
-    code: 'DOWNLOADS',
-    name: 'Offline Download Queue & Sync',
-    kind: 'service',
-    subsystem: 'storage',
-    layer: 4,
-    x: 540,
-    y: 840,
-    radius: 30,
-  },
-  {
-    id: 'library',
-    code: 'LIBRARY',
-    name: 'Local Music Metadata Library',
-    kind: 'service',
-    subsystem: 'storage',
-    layer: 4,
-    x: 650,
-    y: 770,
-    radius: 32,
-  },
-  // Playback Engine Core
-  {
-    id: 'player',
-    code: 'PLAYER',
-    name: 'Core Playback Engine Controller',
-    kind: 'service',
-    subsystem: 'playback',
-    layer: 4,
-    x: 960,
-    y: 710,
-    radius: 46,
-  },
-  {
-    id: 'queue',
-    code: 'QUEUE',
-    name: 'Dynamic Play Queue Manager',
-    kind: 'service',
-    subsystem: 'playback',
-    layer: 4,
-    x: 820,
-    y: 840,
-    radius: 32,
-  },
-  {
-    id: 'nowplaying',
-    code: 'NOWPLAY',
-    name: 'Now Playing State Broadcast',
-    kind: 'service',
-    subsystem: 'playback',
-    layer: 4,
-    x: 960,
-    y: 870,
-    radius: 28,
-  },
-  {
-    id: 'history',
-    code: 'HISTORY',
-    name: 'Play History & Analytics Tracker',
-    kind: 'service',
-    subsystem: 'playback',
-    layer: 4,
-    x: 1100,
-    y: 840,
-    radius: 30,
-  },
-  {
-    id: 'dsp',
-    code: 'DSP',
-    name: 'Parametric Equalizer & DSP Rack',
-    kind: 'service',
-    subsystem: 'playback',
-    layer: 4,
-    x: 1230,
-    y: 710,
-    radius: 34,
-  },
-  {
-    id: 'sleeptimer',
-    code: 'SLEEP',
-    name: 'Timed Auto-Stop Controller',
-    kind: 'service',
-    subsystem: 'playback',
-    layer: 4,
-    x: 1230,
-    y: 840,
-    radius: 26,
-  },
-  // Synchronized Lyrics Subsystem
-  {
-    id: 'lyrics',
-    code: 'LYRICS',
-    name: 'Synchronized Lyrics Engine',
-    kind: 'service',
-    subsystem: 'lyrics',
-    layer: 4,
-    x: 1420,
-    y: 710,
-    radius: 36,
-  },
-  {
-    id: 'desktopLyrics',
-    code: 'DSK-LYR',
-    name: 'Desktop Floating Lyrics Controller',
-    kind: 'service',
-    subsystem: 'lyrics',
-    layer: 4,
-    x: 1420,
-    y: 840,
-    radius: 30,
-  },
-  // Settings & Telemetry
-  {
-    id: 'settings',
-    code: 'SETTINGS',
-    name: 'System Settings & Preference Store',
-    kind: 'service',
-    subsystem: 'settings',
-    layer: 4,
-    x: 1650,
-    y: 710,
-    radius: 36,
-  },
-  {
-    id: 'inspector',
-    code: 'INSPECT',
-    name: 'Kernel Inspector Service',
-    kind: 'service',
-    subsystem: 'inspector',
-    layer: 4,
-    x: 1810,
-    y: 710,
-    radius: 32,
-  },
-  {
-    id: 'diag-socket',
-    code: 'TEST-SKT',
-    name: 'Diagnostic Plug Test Socket',
-    kind: 'service',
-    subsystem: 'inspector',
-    layer: 4,
-    x: 1810,
-    y: 840,
-    radius: 28,
-  },
-
-  // ── LAYER 5: UI REGISTRY & PRESENTATION FABRIC ─────────────────────────────
-  {
-    id: 'ui',
-    code: 'UI-REG',
-    name: 'UI Registry & Component Backplane',
-    kind: 'service',
-    subsystem: 'ui',
-    layer: 5,
-    x: 180,
-    y: 1100,
-    radius: 38,
-  },
-  {
-    id: 'scanner-ui-bp',
-    code: 'SCN-UI',
-    name: 'Scanner Desktop View',
-    kind: 'ui',
-    subsystem: 'ui',
-    layer: 5,
-    x: 300,
-    y: 1100,
-    radius: 22,
-  },
-  {
-    id: 'sources-ui-bp',
-    code: 'SRC-UI',
-    name: 'Sources Desktop View',
-    kind: 'ui',
-    subsystem: 'ui',
-    layer: 5,
-    x: 420,
-    y: 1100,
-    radius: 22,
-  },
-  {
-    id: 'download-ui-bp',
-    code: 'DWN-UI',
-    name: 'Downloads Desktop View',
-    kind: 'ui',
-    subsystem: 'ui',
-    layer: 5,
-    x: 540,
-    y: 1100,
-    radius: 22,
-  },
-  {
-    id: 'library-ui-bp',
-    code: 'LIB-UI',
-    name: 'Library Desktop View',
-    kind: 'ui',
-    subsystem: 'ui',
-    layer: 5,
-    x: 660,
-    y: 1100,
-    radius: 22,
-  },
-  {
-    id: 'queue-ui-bp',
-    code: 'QUE-UI',
-    name: 'Queue Up-Next Sidebar View',
-    kind: 'ui',
-    subsystem: 'ui',
-    layer: 5,
-    x: 820,
-    y: 1100,
-    radius: 22,
-  },
-  {
-    id: 'player-ui-bp',
-    code: 'PLY-UI',
-    name: 'Player Persistent Bar View',
-    kind: 'ui',
-    subsystem: 'ui',
-    layer: 5,
-    x: 960,
-    y: 1100,
-    radius: 32,
-  },
-  {
-    id: 'history-ui-bp',
-    code: 'HIS-UI',
-    name: 'Play History Screen View',
-    kind: 'ui',
-    subsystem: 'ui',
-    layer: 5,
-    x: 1100,
-    y: 1100,
-    radius: 22,
-  },
-  {
-    id: 'dsp-ui-bp',
-    code: 'DSP-UI',
-    name: 'DSP Equalizer Drawer View',
-    kind: 'ui',
-    subsystem: 'ui',
-    layer: 5,
-    x: 1230,
-    y: 1100,
-    radius: 22,
-  },
-  {
-    id: 'lyrics-ui-bp',
-    code: 'LYR-UI',
-    name: 'Lyrics Panel View',
-    kind: 'ui',
-    subsystem: 'ui',
-    layer: 5,
-    x: 1380,
-    y: 1100,
-    radius: 22,
-  },
-  {
-    id: 'desktopLyrics-ui',
-    code: 'DLR-UI',
-    name: 'Desktop Floating Window UI',
-    kind: 'ui',
-    subsystem: 'lyrics',
-    layer: 5,
-    x: 1490,
-    y: 1100,
-    radius: 22,
-  },
-  {
-    id: 'settings-ui-bp',
-    code: 'SET-UI',
-    name: 'Settings Screen View',
-    kind: 'ui',
-    subsystem: 'ui',
-    layer: 5,
-    x: 1650,
-    y: 1100,
-    radius: 22,
-  },
-  {
-    id: 'inspector-ui',
-    code: 'INS-UI',
-    name: 'Inspector PCB Topology View',
-    kind: 'ui',
-    subsystem: 'inspector',
-    layer: 5,
-    x: 1810,
-    y: 1100,
-    radius: 26,
-  },
-]
-
-export const ARCH_NODES: Omit<PcbNode, 'fiber'>[] = RAW_ARCH_NODES.map((node) => {
-  const manifest = findNodeManifest(node.id)
-  return {
-    ...node,
-    manifest,
-    systemId: node.systemId ?? manifest?.systemId ?? `layer-${node.layer ?? 4}`,
-    moduleId: node.moduleId ?? manifest?.moduleId ?? (node.subsystem as string) ?? 'core',
-    name: manifest?.displayName ?? manifest?.name ?? node.name,
+function deriveNodeCode(name: string, provides: string[]): string {
+  if (name === 'root') return 'ROOT'
+  if (provides.length > 0 && provides[0]) {
+    return provides[0].toUpperCase()
   }
-})
-
-// Keep export BASE_NODES pointing to ARCH_NODES for compatibility
-export const BASE_NODES = ARCH_NODES
+  const clean = name
+    .replace(/^@BBeBee\//, '')
+    .replace(/^plugin-/, '')
+    .replace(/^core-/, '')
+    .replace(/-ui-desktop$/, '')
+    .replace(/-ui-mobile$/, '')
+    .replace(/-ui$/, '')
+    .replace(/-node$/, '')
+    .replace(/-electron$/, '')
+    .replace(/-rn$/, '')
+  return clean.substring(0, 10).toUpperCase()
+}
 
 /**
- * Generate high-clarity Orthogonal PCB traces (strictly 90° bends and 45° chamfers)
- * connecting Layer 1 -> Layer 2 -> Layer 3 -> Layer 4 -> Layer 5.
+ * Derives a clean unique identifier for a fiber node.
  */
-export function generateBaseTraces(): PcbTrace[] {
+export function deriveNodeId(fiber: FiberNode): string {
+  if (fiber.name === 'root') return 'root'
+  if (!fiber.name) return `fiber-${fiber.uid ?? 0}`
+  return fiber.name
+    .replace(/^@BBeBee\//, '')
+    .replace(/^plugin-/, '')
+}
+
+/**
+ * Creates an orthogonal SVG trace path between two points with vias at corners.
+ */
+export function createOrthogonalPath(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  r1: number,
+  r2: number,
+): { path: string; vias: Point[] } {
+  let startX = x1
+  let startY = y1
+  let endX = x2
+  let endY = y2
+
+  if (Math.abs(y2 - y1) >= Math.abs(x2 - x1)) {
+    if (y2 >= y1) {
+      startY = y1 + r1
+      endY = y2 - r2
+    } else {
+      startY = y1 - r1
+      endY = y2 + r2
+    }
+    const midY = Math.round((startY + endY) / 2)
+    const path = `M ${Math.round(startX)} ${Math.round(startY)} L ${Math.round(startX)} ${midY} L ${Math.round(endX)} ${midY} L ${Math.round(endX)} ${Math.round(endY)}`
+    const vias: Point[] = [
+      { x: Math.round(startX), y: midY },
+      { x: Math.round(endX), y: midY },
+    ]
+    return { path, vias }
+  } else {
+    if (x2 >= x1) {
+      startX = x1 + r1
+      endX = x2 - r2
+    } else {
+      startX = x1 - r1
+      endX = x2 + r2
+    }
+    const midX = Math.round((startX + endX) / 2)
+    const path = `M ${Math.round(startX)} ${Math.round(startY)} L ${midX} ${Math.round(startY)} L ${midX} ${Math.round(endY)} L ${Math.round(endX)} ${Math.round(endY)}`
+    const vias: Point[] = [
+      { x: midX, y: Math.round(startY) },
+      { x: midX, y: Math.round(endY) },
+    ]
+    return { path, vias }
+  }
+}
+
+/**
+ * Computes dynamic PCB traces representing runtime dependencies between nodes.
+ *
+ * Automatically links:
+ * 1. A node to the nodes it depends on (nodes providing its injected services).
+ * 2. A node to the nodes that depend on it (nodes injecting its provided services).
+ * 3. Parent-child fiber tree connections.
+ */
+export function computeDynamicTraces(nodes: PcbNode[]): PcbTrace[] {
   const traces: PcbTrace[] = []
+  const nodeMap = new Map<string, PcbNode>(nodes.map((n) => [n.id, n]))
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // 1. LAYER 1 KERNEL TRUNK BUSES (Feeds down to Layer 2 and Layer 3)
-  // ═══════════════════════════════════════════════════════════════════════════
-  traces.push({
-    id: 'tr-l1-l2-root-bus',
-    fromNodeId: 'root',
-    fromSubsystem: 'root',
-    toSubsystem: 'core',
-    colorType: 'primary',
-    category: 'bus',
-    hasSignalFlow: true,
-    width: 2.6,
-    path: 'M 960 156 L 960 215',
-    vias: [{ x: 960, y: 156 }, { x: 960, y: 215 }],
-  })
+  // Map service name / plugin name -> provider node
+  const serviceProviders = new Map<string, PcbNode>()
+  for (const node of nodes) {
+    for (const service of node.fiber?.provides ?? []) {
+      serviceProviders.set(service, node)
+      serviceProviders.set(service.toLowerCase(), node)
+    }
+    serviceProviders.set(node.id, node)
+    serviceProviders.set(node.id.toLowerCase(), node)
+    serviceProviders.set(node.code.toLowerCase(), node)
+    if (node.name) {
+      serviceProviders.set(node.name, node)
+      serviceProviders.set(node.name.toLowerCase(), node)
+      const clean = node.name.replace(/^@BBeBee\//, '').replace(/^plugin-/, '')
+      serviceProviders.set(clean, node)
+      serviceProviders.set(clean.toLowerCase(), node)
+    }
+  }
 
-  traces.push({
-    id: 'tr-root-db',
-    fromNodeId: 'root',
-    toNodeId: 'db',
-    fromSubsystem: 'root',
-    toSubsystem: 'core',
-    colorType: 'primary',
-    category: 'dependency',
-    width: 2.2,
-    path: 'M 930 146 L 930 185 L 540 185 L 540 278',
-    vias: [{ x: 930, y: 185 }, { x: 540, y: 185 }],
-  })
+  const linkKeys = new Set<string>()
 
-  traces.push({
-    id: 'tr-root-audio',
-    fromNodeId: 'root',
-    toNodeId: 'audio',
-    fromSubsystem: 'root',
-    toSubsystem: 'core',
-    colorType: 'secondary',
-    category: 'dependency',
-    width: 2.2,
-    path: 'M 990 146 L 990 185 L 1720 185 L 1720 274',
-    vias: [{ x: 990, y: 185 }, { x: 1720, y: 185 }],
-  })
+  for (const consumer of nodes) {
+    const injectList = consumer.fiber?.inject ?? []
+    for (const neededService of injectList) {
+      const provider =
+        serviceProviders.get(neededService) ??
+        serviceProviders.get(neededService.toLowerCase())
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // 2. LAYER 2 HORIZONTAL CAPABILITY BUS
-  // ═══════════════════════════════════════════════════════════════════════════
-  traces.push({
-    id: 'tr-l2-main-bus',
-    colorType: 'primary',
-    category: 'bus',
-    hasSignalFlow: true,
-    width: 2.6,
-    path: 'M 100 370 L 1800 370',
-    vias: [
-      { x: 140, y: 370 },
-      { x: 270, y: 370 },
-      { x: 400, y: 370 },
-      { x: 540, y: 370 },
-      { x: 710, y: 370 },
-      { x: 840, y: 370 },
-      { x: 970, y: 370 },
-      { x: 1130, y: 370 },
-      { x: 1260, y: 370 },
-      { x: 1390, y: 370 },
-      { x: 1520, y: 370 },
-      { x: 1720, y: 370 },
-    ],
-  })
+      if (provider && provider.id !== consumer.id) {
+        const key = `${provider.id}->${consumer.id}:${neededService}`
+        if (!linkKeys.has(key)) {
+          linkKeys.add(key)
+          const { path, vias } = createOrthogonalPath(
+            provider.x,
+            provider.y,
+            consumer.x,
+            consumer.y,
+            provider.radius,
+            consumer.radius,
+          )
 
-  // Layer 2 internal connections
-  // fs -> paths
-  traces.push({
-    id: 'tr-core-fs-paths',
-    fromNodeId: 'fs',
-    toNodeId: 'paths',
-    fromSubsystem: 'core',
-    toSubsystem: 'core',
-    colorType: 'secondary',
-    category: 'dependency',
-    width: 2,
-    path: 'M 242 310 L 168 310',
-  })
-  // db -> fs
-  traces.push({
-    id: 'tr-core-db-fs',
-    fromNodeId: 'db',
-    toNodeId: 'fs',
-    fromSubsystem: 'core',
-    toSubsystem: 'core',
-    colorType: 'primary',
-    category: 'dependency',
-    width: 2,
-    path: 'M 508 310 L 298 310',
-  })
-  // store -> fs
-  traces.push({
-    id: 'tr-core-store-fs',
-    fromNodeId: 'store',
-    toNodeId: 'fs',
-    fromSubsystem: 'core',
-    toSubsystem: 'core',
-    colorType: 'secondary',
-    category: 'dependency',
-    width: 1.8,
-    path: 'M 372 310 L 298 310',
-  })
-  // http -> secrets
-  traces.push({
-    id: 'tr-core-http-secrets',
-    fromNodeId: 'http',
-    toNodeId: 'secrets',
-    fromSubsystem: 'core',
-    toSubsystem: 'core',
-    colorType: 'secondary',
-    category: 'dependency',
-    width: 1.8,
-    path: 'M 1288 310 L 1362 310',
-  })
-  // js -> secrets
-  traces.push({
-    id: 'tr-core-js-secrets',
-    fromNodeId: 'js',
-    toNodeId: 'secrets',
-    fromSubsystem: 'core',
-    toSubsystem: 'core',
-    colorType: 'secondary',
-    category: 'dependency',
-    width: 1.8,
-    path: 'M 1492 310 L 1418 310',
-  })
+          let colorType: TraceColorType = 'primary'
+          if (consumer.layer === 5) colorType = 'ui'
+          else if (provider.subsystem === 'playback') colorType = 'accent'
+          else if (provider.subsystem === 'sources') colorType = 'secondary'
+          else if (provider.layer === 1) colorType = 'control'
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // 3. LAYER 3 OBSERVABILITY & LOG TRANSPORTS BUS
-  // ═══════════════════════════════════════════════════════════════════════════
-  traces.push({
-    id: 'tr-l3-bus',
-    fromNodeId: 'logs',
-    toNodeId: 'log-console',
-    fromSubsystem: 'core',
-    toSubsystem: 'core',
-    colorType: 'secondary',
-    category: 'bus',
-    hasSignalFlow: true,
-    width: 2.2,
-    path: 'M 912 495 L 1010 495',
-    vias: [{ x: 912, y: 495 }, { x: 1010, y: 495 }],
-  })
-  // Feed from Root to Logs
-  traces.push({
-    id: 'tr-root-logs',
-    fromNodeId: 'root',
-    toNodeId: 'logs',
-    fromSubsystem: 'root',
-    toSubsystem: 'core',
-    colorType: 'secondary',
-    category: 'dependency',
-    width: 1.8,
-    path: 'M 940 156 L 940 420 L 880 420 L 880 463',
-    vias: [{ x: 940, y: 420 }, { x: 880, y: 420 }],
-  })
+          traces.push({
+            id: `trace-dep-${provider.id}-${consumer.id}-${neededService}`,
+            path,
+            colorType,
+            category: 'dependency',
+            fromNodeId: provider.id,
+            toNodeId: consumer.id,
+            fromSubsystem: provider.subsystem,
+            toSubsystem: consumer.subsystem,
+            hasSignalFlow: true,
+            vias,
+            label: neededService,
+            width: 1.8,
+          })
+        }
+      }
+    }
+  }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // 4. INTER-LAYER BRIDGES: LAYER 4 CONSUMES LAYER 2 SERVICES
-  // ═══════════════════════════════════════════════════════════════════════════
-  // Player -> Audio
-  traces.push({
-    id: 'tr-player-audio',
-    fromNodeId: 'player',
-    toNodeId: 'audio',
-    fromSubsystem: 'playback',
-    toSubsystem: 'core',
-    colorType: 'primary',
-    category: 'dependency',
-    hasSignalFlow: true,
-    width: 2.6,
-    path: 'M 1006 710 L 1720 710 L 1720 346',
-    vias: [{ x: 1720, y: 710 }],
-  })
-
-  // DSP -> Audio
-  traces.push({
-    id: 'tr-dsp-audio',
-    fromNodeId: 'dsp',
-    toNodeId: 'audio',
-    fromSubsystem: 'playback',
-    toSubsystem: 'core',
-    colorType: 'primary',
-    category: 'dependency',
-    hasSignalFlow: true,
-    width: 2.2,
-    path: 'M 1264 710 L 1700 710 L 1700 346',
-    vias: [{ x: 1700, y: 710 }],
-  })
-
-  // Player -> DB
-  traces.push({
-    id: 'tr-player-db',
-    fromNodeId: 'player',
-    toNodeId: 'db',
-    fromSubsystem: 'playback',
-    toSubsystem: 'core',
-    colorType: 'primary',
-    category: 'dependency',
-    width: 2.2,
-    path: 'M 914 710 L 540 710 L 540 342',
-    vias: [{ x: 540, y: 710 }],
-  })
-
-  // Sources -> Paths & FS
-  traces.push({
-    id: 'tr-sources-fs',
-    fromNodeId: 'sources',
-    toNodeId: 'fs',
-    fromSubsystem: 'sources',
-    toSubsystem: 'core',
-    colorType: 'primary',
-    category: 'dependency',
-    width: 2.2,
-    path: 'M 200 662 L 200 450 L 270 450 L 270 338',
-    vias: [{ x: 200, y: 450 }, { x: 270, y: 450 }],
-  })
-
-  // Sources -> HTTP
-  traces.push({
-    id: 'tr-sources-http',
-    fromNodeId: 'sources',
-    toNodeId: 'http',
-    fromSubsystem: 'sources',
-    toSubsystem: 'core',
-    colorType: 'secondary',
-    category: 'dependency',
-    width: 2,
-    path: 'M 238 700 L 460 700 L 460 410 L 1260 410 L 1260 338',
-    vias: [{ x: 460, y: 700 }, { x: 460, y: 410 }, { x: 1260, y: 410 }],
-  })
-
-  // Cache -> FS
-  traces.push({
-    id: 'tr-cache-fs',
-    fromNodeId: 'cache',
-    toNodeId: 'fs',
-    fromSubsystem: 'storage',
-    toSubsystem: 'core',
-    colorType: 'secondary',
-    category: 'dependency',
-    width: 2,
-    path: 'M 508 700 L 270 700 L 270 338',
-    vias: [{ x: 270, y: 700 }],
-  })
-
-  // Settings -> Store
-  traces.push({
-    id: 'tr-settings-store',
-    fromNodeId: 'settings',
-    toNodeId: 'store',
-    fromSubsystem: 'settings',
-    toSubsystem: 'core',
-    colorType: 'secondary',
-    category: 'dependency',
-    width: 2,
-    path: 'M 1650 674 L 1650 420 L 400 420 L 400 338',
-    vias: [{ x: 1650, y: 420 }, { x: 400, y: 420 }],
-  })
-
-  // Player -> MediaSession (OS lock screen & media session integration)
-  traces.push({
-    id: 'tr-player-mediasession',
-    fromNodeId: 'player',
-    toNodeId: 'mediaSession',
-    fromSubsystem: 'playback',
-    toSubsystem: 'core',
-    colorType: 'primary',
-    category: 'dependency',
-    hasSignalFlow: true,
-    width: 2.2,
-    path: 'M 960 664 L 970 664 L 970 340',
-    vias: [{ x: 970, y: 664 }],
-  })
-
-  // Sources -> DB (Source configuration & rule persistence)
-  traces.push({
-    id: 'tr-sources-db',
-    fromNodeId: 'sources',
-    toNodeId: 'db',
-    fromSubsystem: 'sources',
-    toSubsystem: 'core',
-    colorType: 'primary',
-    category: 'dependency',
-    width: 2.2,
-    path: 'M 200 662 L 200 480 L 540 480 L 540 342',
-    vias: [{ x: 200, y: 480 }, { x: 540, y: 480 }],
-  })
-
-  // Library -> DB (Music metadata repository)
-  traces.push({
-    id: 'tr-library-db',
-    fromNodeId: 'library',
-    toNodeId: 'db',
-    fromSubsystem: 'storage',
-    toSubsystem: 'core',
-    colorType: 'primary',
-    category: 'dependency',
-    width: 2,
-    path: 'M 650 738 L 650 460 L 540 460 L 540 342',
-    vias: [{ x: 650, y: 460 }, { x: 540, y: 460 }],
-  })
-
-  // DSP -> Store (Equalizer & effect presets persistence)
-  traces.push({
-    id: 'tr-dsp-store',
-    fromNodeId: 'dsp',
-    toNodeId: 'store',
-    fromSubsystem: 'playback',
-    toSubsystem: 'core',
-    colorType: 'secondary',
-    category: 'dependency',
-    width: 2,
-    path: 'M 1230 676 L 1230 440 L 400 440 L 400 338',
-    vias: [{ x: 1230, y: 440 }, { x: 400, y: 440 }],
-  })
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // 5. LAYER 4 INTERNAL DOMAIN COLLABORATION TRACES
-  // ═══════════════════════════════════════════════════════════════════════════
-  // Player -> Sources
-  traces.push({
-    id: 'tr-player-sources',
-    fromNodeId: 'player',
-    toNodeId: 'sources',
-    fromSubsystem: 'playback',
-    toSubsystem: 'sources',
-    colorType: 'primary',
-    category: 'dependency',
-    hasSignalFlow: true,
-    width: 2.4,
-    path: 'M 914 710 L 238 710',
-  })
-
-  // Player -> Queue
-  traces.push({
-    id: 'tr-player-queue',
-    fromNodeId: 'player',
-    toNodeId: 'queue',
-    fromSubsystem: 'playback',
-    toSubsystem: 'playback',
-    colorType: 'secondary',
-    category: 'dependency',
-    hasSignalFlow: true,
-    width: 2.2,
-    path: 'M 920 740 L 820 740 L 820 808',
-    vias: [{ x: 820, y: 740 }],
-  })
-
-  // Player -> NowPlaying
-  traces.push({
-    id: 'tr-player-nowplaying',
-    fromNodeId: 'player',
-    toNodeId: 'nowplaying',
-    fromSubsystem: 'playback',
-    toSubsystem: 'playback',
-    colorType: 'secondary',
-    category: 'dependency',
-    width: 2,
-    path: 'M 960 756 L 960 842',
-  })
-
-  // Player -> History
-  traces.push({
-    id: 'tr-player-history',
-    fromNodeId: 'player',
-    toNodeId: 'history',
-    fromSubsystem: 'playback',
-    toSubsystem: 'playback',
-    colorType: 'secondary',
-    category: 'dependency',
-    width: 2,
-    path: 'M 1000 740 L 1100 740 L 1100 810',
-    vias: [{ x: 1100, y: 740 }],
-  })
-
-  // Player -> DSP
-  traces.push({
-    id: 'tr-player-dsp',
-    fromNodeId: 'player',
-    toNodeId: 'dsp',
-    fromSubsystem: 'playback',
-    toSubsystem: 'playback',
-    colorType: 'secondary',
-    category: 'dependency',
-    width: 2.2,
-    path: 'M 1006 710 L 1196 710',
-  })
-
-  // Player -> SleepTimer
-  traces.push({
-    id: 'tr-player-sleeptimer',
-    fromNodeId: 'player',
-    toNodeId: 'sleeptimer',
-    fromSubsystem: 'playback',
-    toSubsystem: 'playback',
-    colorType: 'secondary',
-    category: 'dependency',
-    width: 1.8,
-    path: 'M 1000 745 L 1230 745 L 1230 814',
-    vias: [{ x: 1230, y: 745 }],
-  })
-
-  // Player -> Lyrics
-  traces.push({
-    id: 'tr-player-lyrics',
-    fromNodeId: 'player',
-    toNodeId: 'lyrics',
-    fromSubsystem: 'playback',
-    toSubsystem: 'lyrics',
-    colorType: 'primary',
-    category: 'dependency',
-    hasSignalFlow: true,
-    width: 2.2,
-    path: 'M 1006 710 L 1384 710',
-  })
-
-  // Lyrics -> DesktopLyrics
-  traces.push({
-    id: 'tr-lyrics-desktoplyrics',
-    fromNodeId: 'lyrics',
-    toNodeId: 'desktopLyrics',
-    fromSubsystem: 'lyrics',
-    toSubsystem: 'lyrics',
-    colorType: 'secondary',
-    category: 'dependency',
-    width: 2,
-    path: 'M 1420 746 L 1420 810',
-  })
-
-  // Sources -> Scanner / LocalSource / SourceRuntime
-  traces.push({
-    id: 'tr-sources-scanner',
-    fromNodeId: 'sources',
-    toNodeId: 'scanner',
-    fromSubsystem: 'sources',
-    toSubsystem: 'sources',
-    colorType: 'secondary',
-    category: 'dependency',
-    width: 1.8,
-    path: 'M 180 735 L 140 735 L 140 814',
-    vias: [{ x: 140, y: 735 }],
-  })
-  traces.push({
-    id: 'tr-sources-localsource',
-    fromNodeId: 'sources',
-    toNodeId: 'localSource',
-    fromSubsystem: 'sources',
-    toSubsystem: 'sources',
-    colorType: 'secondary',
-    category: 'dependency',
-    width: 1.8,
-    path: 'M 220 735 L 260 735 L 260 814',
-    vias: [{ x: 260, y: 735 }],
-  })
-  traces.push({
-    id: 'tr-sources-sourceruntime',
-    fromNodeId: 'sources',
-    toNodeId: 'sourceRuntime',
-    fromSubsystem: 'sources',
-    toSubsystem: 'sources',
-    colorType: 'secondary',
-    category: 'dependency',
-    width: 1.8,
-    path: 'M 238 720 L 380 720 L 380 814',
-    vias: [{ x: 380, y: 720 }],
-  })
-
-  // Storage: Cache -> Downloads -> Library
-  traces.push({
-    id: 'tr-cache-downloads',
-    fromNodeId: 'cache',
-    toNodeId: 'downloads',
-    fromSubsystem: 'storage',
-    toSubsystem: 'storage',
-    colorType: 'secondary',
-    category: 'dependency',
-    width: 2,
-    path: 'M 540 732 L 540 810',
-  })
-  traces.push({
-    id: 'tr-downloads-library',
-    fromNodeId: 'downloads',
-    toNodeId: 'library',
-    fromSubsystem: 'storage',
-    toSubsystem: 'storage',
-    colorType: 'secondary',
-    category: 'dependency',
-    width: 1.8,
-    path: 'M 570 840 L 650 840 L 650 802',
-    vias: [{ x: 650, y: 840 }],
-  })
-
-  // Settings cross-cutting control
-  traces.push({
-    id: 'tr-settings-player',
-    fromNodeId: 'settings',
-    toNodeId: 'player',
-    fromSubsystem: 'settings',
-    toSubsystem: 'playback',
-    colorType: 'control',
-    category: 'control',
-    width: 1.8,
-    path: 'M 1650 674 L 1650 645 L 960 645 L 960 664',
-    vias: [{ x: 1650, y: 645 }, { x: 960, y: 645 }],
-  })
-  traces.push({
-    id: 'tr-settings-dsp',
-    fromNodeId: 'settings',
-    toNodeId: 'dsp',
-    fromSubsystem: 'settings',
-    toSubsystem: 'playback',
-    colorType: 'control',
-    category: 'control',
-    width: 1.8,
-    path: 'M 1620 710 L 1264 710',
-  })
-  traces.push({
-    id: 'tr-settings-lyrics',
-    fromNodeId: 'settings',
-    toNodeId: 'lyrics',
-    fromSubsystem: 'settings',
-    toSubsystem: 'lyrics',
-    colorType: 'control',
-    category: 'control',
-    width: 1.8,
-    path: 'M 1620 730 L 1456 730',
-  })
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // 6. LAYER 5 UI REGISTRY & VIEW MOUNTING TRACES
-  // ═══════════════════════════════════════════════════════════════════════════
-  // UI Backplane Bus along the bottom
-  traces.push({
-    id: 'tr-l5-ui-backplane-bus',
-    fromNodeId: 'ui',
-    fromSubsystem: 'ui',
-    toSubsystem: 'ui',
-    colorType: 'ui',
-    category: 'bus',
-    hasSignalFlow: true,
-    width: 2.8,
-    path: 'M 180 1100 L 1810 1100',
-    vias: [
-      { x: 180, y: 1100 },
-      { x: 300, y: 1100 },
-      { x: 420, y: 1100 },
-      { x: 540, y: 1100 },
-      { x: 660, y: 1100 },
-      { x: 820, y: 1100 },
-      { x: 960, y: 1100 },
-      { x: 1100, y: 1100 },
-      { x: 1230, y: 1100 },
-      { x: 1380, y: 1100 },
-      { x: 1490, y: 1100 },
-      { x: 1650, y: 1100 },
-      { x: 1810, y: 1100 },
-    ],
-  })
-
-  // Vertical feeds from Layer 4 Features down to Layer 5 UI
-  // Player -> Player UI
-  traces.push({
-    id: 'tr-l4-l5-player-ui',
-    fromNodeId: 'player',
-    toNodeId: 'player-ui-bp',
-    fromSubsystem: 'playback',
-    toSubsystem: 'ui',
-    colorType: 'ui',
-    category: 'ui-contribution',
-    hasSignalFlow: true,
-    width: 2.4,
-    path: 'M 960 756 L 960 1068',
-  })
-
-  // Sources -> Sources UI
-  traces.push({
-    id: 'tr-l4-l5-sources-ui',
-    fromNodeId: 'sources',
-    toNodeId: 'sources-ui-bp',
-    fromSubsystem: 'sources',
-    toSubsystem: 'ui',
-    colorType: 'ui',
-    category: 'ui-contribution',
-    width: 1.8,
-    path: 'M 200 738 L 200 970 L 420 970 L 420 1078',
-    vias: [{ x: 200, y: 970 }, { x: 420, y: 970 }],
-  })
-
-  // DSP -> DSP UI
-  traces.push({
-    id: 'tr-l4-l5-dsp-ui',
-    fromNodeId: 'dsp',
-    toNodeId: 'dsp-ui-bp',
-    fromSubsystem: 'playback',
-    toSubsystem: 'ui',
-    colorType: 'ui',
-    category: 'ui-contribution',
-    width: 1.8,
-    path: 'M 1230 744 L 1230 1078',
-  })
-
-  // Lyrics -> Lyrics UI
-  traces.push({
-    id: 'tr-l4-l5-lyrics-ui',
-    fromNodeId: 'lyrics',
-    toNodeId: 'lyrics-ui-bp',
-    fromSubsystem: 'lyrics',
-    toSubsystem: 'ui',
-    colorType: 'ui',
-    category: 'ui-contribution',
-    width: 1.8,
-    path: 'M 1420 746 L 1420 970 L 1380 970 L 1380 1078',
-    vias: [{ x: 1420, y: 970 }, { x: 1380, y: 970 }],
-  })
-
-  // Settings -> Settings UI
-  traces.push({
-    id: 'tr-l4-l5-settings-ui',
-    fromNodeId: 'settings',
-    toNodeId: 'settings-ui-bp',
-    fromSubsystem: 'settings',
-    toSubsystem: 'ui',
-    colorType: 'ui',
-    category: 'ui-contribution',
-    width: 1.8,
-    path: 'M 1650 746 L 1650 1078',
-  })
-
-  // Inspector -> Inspector UI
-  traces.push({
-    id: 'tr-l4-l5-inspector-ui',
-    fromNodeId: 'inspector',
-    toNodeId: 'inspector-ui',
-    fromSubsystem: 'inspector',
-    toSubsystem: 'inspector',
-    colorType: 'primary',
-    category: 'ui-contribution',
-    width: 1.8,
-    path: 'M 1810 742 L 1810 1074',
-  })
+  // Parent-child relationships (e.g. root to top-level services, or satellites)
+  for (const node of nodes) {
+    if (node.parentPluginId) {
+      const parent =
+        nodeMap.get(node.parentPluginId) ??
+        nodeMap.get(node.parentPluginId.replace(/^@BBeBee\//, '').replace(/^plugin-/, ''))
+      if (parent) {
+        const key = `${parent.id}->${node.id}:parent-child`
+        if (!linkKeys.has(key)) {
+          linkKeys.add(key)
+          const { path, vias } = createOrthogonalPath(
+            parent.x,
+            parent.y,
+            node.x,
+            node.y,
+            parent.radius,
+            node.radius,
+          )
+          traces.push({
+            id: `trace-pc-${parent.id}-${node.id}`,
+            path,
+            colorType: 'control',
+            category: 'control',
+            fromNodeId: parent.id,
+            toNodeId: node.id,
+            fromSubsystem: parent.subsystem,
+            toSubsystem: node.subsystem,
+            hasSignalFlow: false,
+            vias,
+            label: 'fiber-lead',
+            width: 1.5,
+          })
+        }
+      }
+    }
+  }
 
   return traces
 }
 
 /**
- * Generate technical pin connectors and vertical IC solder buses.
+ * Generates dynamic perimeter solder pins for IC nodes.
  */
-export function generateBasePins(): PcbPin[] {
+export function generateDynamicPins(nodes: PcbNode[]): PcbPin[] {
   const pins: PcbPin[] = []
-
-  // Vertical 5-pin bus between Scanner and LocalSource in Layer 4
-  const scannerBusX = [188, 194, 200, 206, 212]
-  scannerBusX.forEach((x, i) => {
-    pins.push({
-      id: `pin-bus-scanner-${i}`,
-      x,
-      y: 770,
-      length: 50,
-      type: 'bus',
-      padSize: 4,
-    })
-  })
-
-  // Vertical 5-pin bus between Lyrics and DesktopLyrics in Layer 4
-  const lyricsBusX = [1408, 1414, 1420, 1426, 1432]
-  lyricsBusX.forEach((x, i) => {
-    pins.push({
-      id: `pin-bus-lyrics-${i}`,
-      x,
-      y: 760,
-      length: 55,
-      type: 'bus',
-      padSize: 4,
-    })
-  })
-
-  // Key master IC pin pads perimeter (Root, Player, Sources, Audio, UI)
-  const majorChips = [
-    { id: 'root', x: 960, y: 110, r: 46 },
-    { id: 'player', x: 960, y: 710, r: 46 },
-    { id: 'sources', x: 200, y: 700, r: 38 },
-    { id: 'audio', x: 1720, y: 310, r: 36 },
-    { id: 'ui', x: 180, y: 1100, r: 38 },
-  ]
-
-  majorChips.forEach((chip) => {
-    for (let a = 0; a < 8; a++) {
-      const angle = (a * Math.PI) / 4
-      const px = chip.x + Math.cos(angle) * (chip.r + 7)
-      const py = chip.y + Math.sin(angle) * (chip.r + 7)
-      pins.push({
-        id: `pin-${chip.id}-${a}`,
-        x: px,
-        y: py,
-        length: 7,
-        angle,
-        type: 'pad',
-        padSize: 3.5,
-      })
-    }
-  })
-
+  for (const node of nodes) {
+    const r = node.radius
+    pins.push(
+      { id: `pin-${node.id}-n`, x: Math.round(node.x), y: Math.round(node.y - r), type: 'pad' },
+      { id: `pin-${node.id}-s`, x: Math.round(node.x), y: Math.round(node.y + r), type: 'pad' },
+      { id: `pin-${node.id}-e`, x: Math.round(node.x + r), y: Math.round(node.y), type: 'pad' },
+      { id: `pin-${node.id}-w`, x: Math.round(node.x - r), y: Math.round(node.y), type: 'pad' },
+    )
+  }
   return pins
 }
 
 /**
- * Mapping rule from Cordis snapshot fibers to our architectural nodes.
+ * Builds the entire PCB Topology dynamically from a live runtime InspectorSnapshot.
+ *
+ * Zero hardcoding. Zero codegen imports. Fully reactive to loaded plugins and fibers.
  */
-function findMatchingFiber(
-  nodeId: string,
-  fibers: FiberNode[],
-  stalled: FiberNode[],
-): FiberNode | undefined {
-  if (nodeId === 'diag-socket' && stalled.length > 0) {
-    return stalled[0]
-  }
-
-  const directIdMap: Record<string, (f: FiberNode) => boolean> = {
-    root: (f) => f.name === 'root' || f.name === 'ROOT',
-    player: (f) => f.provides.includes('player') || f.name === 'plugin-player',
-    audio: (f) => f.provides.includes('audio') || f.name.includes('audio'),
-    sources: (f) => f.provides.includes('sources') || f.name === 'plugin-sources',
-    scanner: (f) => f.provides.includes('scanner') || f.name === 'plugin-local-scanner',
-    localSource: (f) => f.provides.includes('sourceLocal') || f.name === 'plugin-source-local',
-    sourceRuntime: (f) => f.name === 'plugin-source-runtime' || f.name.includes('source-runtime'),
-    library: (f) => f.provides.includes('library') || f.name === 'plugin-library',
-    cache: (f) => f.provides.includes('cache') || f.name === 'plugin-cache',
-    downloads: (f) => f.provides.includes('downloads') || f.name === 'plugin-download',
-    lyrics: (f) => f.provides.includes('lyrics') || f.name === 'plugin-lyrics',
-    desktopLyrics: (f) =>
-      f.provides.includes('desktopLyrics') || f.name === 'plugin-desktop-lyrics',
-    dsp: (f) => f.provides.includes('dsp') || f.name === 'plugin-dsp',
-    queue: (f) => f.name === 'plugin-queue' || f.provides.includes('queue'),
-    history: (f) => f.name === 'plugin-history',
-    nowplaying: (f) => f.name === 'plugin-now-playing' || f.name.includes('now-playing'),
-    sleeptimer: (f) => f.provides.includes('sleepTimer') || f.name === 'plugin-sleep-timer',
-    settings: (f) => f.provides.includes('settings') || f.name === 'plugin-settings',
-    inspector: (f) => f.provides.includes('inspector') || f.name === 'plugin-inspector',
-    ui: (f) => f.provides.includes('ui') || f.name === 'plugin-ui',
-    paths: (f) => f.provides.includes('paths') || f.name.includes('paths'),
-    fs: (f) => f.provides.includes('fs') || f.name.includes('fs'),
-    store: (f) => f.provides.includes('store') || f.name.includes('store'),
-    db: (f) => f.provides.includes('db') || f.name.includes('db'),
-    codec: (f) => f.provides.includes('codec') || f.name.includes('codec'),
-    http: (f) => f.provides.includes('http') || f.name.includes('http'),
-    secrets: (f) => f.provides.includes('secrets') || f.name.includes('secrets'),
-    js: (f) => f.provides.includes('js') || f.name.includes('quickjs'),
-    device: (f) => f.provides.includes('device') || f.name.includes('device'),
-    background: (f) => f.provides.includes('background') || f.name.includes('background'),
-    mediaSession: (f) => f.provides.includes('mediaSession') || f.name.includes('media-session'),
-    logs: (f) => f.name.includes('log') || f.provides.includes('logBuffer'),
-    'log-console': (f) => f.name.includes('console'),
-    'inspector-ui': (f) => f.name === 'plugin-inspector-ui-desktop',
-  }
-
-  const matcher = directIdMap[nodeId]
-  if (matcher) {
-    return fibers.find(matcher)
-  }
-
-  // Backplane UI matchers
-  if (nodeId.endsWith('-ui-bp') || nodeId.endsWith('-ui')) {
-    const baseName = nodeId.replace('-ui-bp', '').replace('-ui', '')
-    return fibers.find(
-      (f) => f.name.includes(baseName) && f.name.includes('ui-desktop'),
-    )
-  }
-
-  return undefined
-}
-
-/**
- * Maps the live Cordis Inspector snapshot to the topology nodes,
- * supporting 3-Level view filtering and dynamic child satellite pin generation.
- */
-export function mapSnapshotToTopology(
+export function buildTopologyFromSnapshot(
   snap: InspectorSnapshot,
-  baseNodes: Omit<PcbNode, 'fiber'>[] = ARCH_NODES,
   viewLevel: ViewLevel = 1,
-  _activeSubsystemId: SubsystemId | null = null,
-  activeSelectedNodeId: string | null = null,
-): PcbNode[] {
-  // Collect all fibers from the snapshot tree
+  selectedNodeId: string | null = null,
+): PcbTopologyData {
+  // 1. Flatten all runtime fibers from the snapshot tree
   const fiberList: FiberNode[] = []
-  const queue: FiberNode[] = [snap.root]
-  while (queue.length > 0) {
-    const f = queue.shift()!
-    fiberList.push(f)
-    for (const child of f.children) {
-      queue.push(child)
+  const parentMap = new Map<string, string>()
+
+  const walk = (fiber: FiberNode, parent?: FiberNode) => {
+    fiberList.push(fiber)
+    if (parent) {
+      const childId = deriveNodeId(fiber)
+      const parentId = deriveNodeId(parent)
+      parentMap.set(childId, parentId)
+      if (fiber.name) {
+        parentMap.set(fiber.name, parentId)
+      }
+    }
+    for (const child of fiber.children || []) {
+      walk(child, fiber)
     }
   }
 
-  // Collect stalled fibers
-  const stalledFibers = fiberList.filter(
-    (f) => f.state !== 'ACTIVE' && f.uid !== null && f.name !== 'root',
-  )
+  if (snap.root) {
+    walk(snap.root)
+  }
 
-  // Map each base node
-  const mappedNodes = baseNodes.map((base) => {
-    let assignedFiber = findMatchingFiber(base.id, fiberList, stalledFibers)
+  // 2. Deduplicate fibers by unique ID or name
+  const seenIds = new Set<string>()
+  const rawNodes: Array<{
+    fiber: FiberNode
+    layer: number
+    systemId: string
+    subsystem: SubsystemId
+    moduleId: string
+    id: string
+    name: string
+    code: string
+    parentPluginId?: string
+  }> = []
 
-    // Fallback assignment for stalled fibers that don't match any slot
-    if (!assignedFiber && stalledFibers.length > 0 && base.id === 'diag-socket') {
-      assignedFiber = stalledFibers[0]
+  for (const fiber of fiberList) {
+    let id = deriveNodeId(fiber)
+    if (seenIds.has(id)) {
+      id = `${id}-${fiber.uid ?? 'alt'}`
     }
+    seenIds.add(id)
 
-    const node: PcbNode = {
-      ...base,
-      fiber: assignedFiber
-        ? {
-            name: assignedFiber.name,
-            state: assignedFiber.state,
-            uid: assignedFiber.uid,
-            inject: assignedFiber.inject,
-            waitingFor: assignedFiber.waitingFor,
-            provides: assignedFiber.provides,
-            effects: assignedFiber.effects,
-            childrenCount: assignedFiber.children.length,
-          }
-        : {
-            name: `${base.code.toLowerCase()}.service`,
-            state: 'ACTIVE',
-            uid: null,
-            inject: [],
-            waitingFor: [],
-            provides: [base.code.toLowerCase()],
-            effects: [],
-            childrenCount: 0,
-          },
-    }
+    const { layer, systemId } = inferLayer(fiber)
+    const { subsystem, moduleId } = inferModule(fiber, layer)
+    const code = deriveNodeCode(fiber.name, fiber.provides)
 
-    return node
+    rawNodes.push({
+      fiber,
+      layer,
+      systemId,
+      subsystem,
+      moduleId,
+      id,
+      name: fiber.name,
+      code,
+      parentPluginId: parentMap.get(id),
+    })
+  }
+
+  // 3. Layout nodes dynamically across the 5 Architectural Layers
+  const nodesByLayer = new Map<number, typeof rawNodes>()
+  for (let l = 1; l <= 5; l++) nodesByLayer.set(l, [])
+  for (const node of rawNodes) {
+    const list = nodesByLayer.get(node.layer) ?? []
+    list.push(node)
+    nodesByLayer.set(node.layer, list)
+  }
+
+  const pcbNodes: PcbNode[] = []
+
+  // Layer 1: Kernel Root (y: 112)
+  const l1Nodes = nodesByLayer.get(1) ?? []
+  l1Nodes.forEach((node, idx) => {
+    const total = l1Nodes.length
+    const x = Math.round(1000 + (idx - (total - 1) / 2) * 220)
+    pcbNodes.push({
+      id: node.id,
+      code: node.code,
+      name: node.name || 'Cordis Root Kernel Context',
+      kind: 'root',
+      subsystem: node.subsystem,
+      layer: 1,
+      systemId: node.systemId,
+      moduleId: node.moduleId,
+      x,
+      y: 112,
+      radius: 44,
+      fiber: {
+        name: node.fiber.name,
+        state: node.fiber.state,
+        uid: node.fiber.uid,
+        inject: node.fiber.inject,
+        waitingFor: node.fiber.waitingFor,
+        provides: node.fiber.provides,
+        effects: node.fiber.effects,
+        childrenCount: node.fiber.children?.length ?? 0,
+      },
+    })
   })
 
-  // LEVEL 3: If a specific node is selected and has child fibers,
-  // dynamically generate satellite child chips orbiting the parent node!
-  if (viewLevel === 3 && activeSelectedNodeId) {
-    const parentNode = mappedNodes.find((n) => n.id === activeSelectedNodeId)
+  // Layer 2: Core Capability Services (y: 305)
+  const l2Nodes = nodesByLayer.get(2) ?? []
+  const l2Count = l2Nodes.length
+  l2Nodes.forEach((node, idx) => {
+    const availableWidth = 1760
+    const startX = 120
+    const step = availableWidth / Math.max(1, l2Count)
+    const x = Math.round(startX + (idx + 0.5) * step)
+    pcbNodes.push({
+      id: node.id,
+      code: node.code,
+      name: node.name,
+      kind: 'service',
+      subsystem: node.subsystem,
+      layer: 2,
+      systemId: node.systemId,
+      moduleId: node.moduleId,
+      x,
+      y: 305,
+      radius: 32,
+      parentPluginId: node.parentPluginId,
+      fiber: {
+        name: node.fiber.name,
+        state: node.fiber.state,
+        uid: node.fiber.uid,
+        inject: node.fiber.inject,
+        waitingFor: node.fiber.waitingFor,
+        provides: node.fiber.provides,
+        effects: node.fiber.effects,
+        childrenCount: node.fiber.children?.length ?? 0,
+      },
+    })
+  })
+
+  // Layer 3: Logs & Observability (y: 492)
+  const l3Nodes = nodesByLayer.get(3) ?? []
+  const l3Count = l3Nodes.length
+  l3Nodes.forEach((node, idx) => {
+    const availableWidth = 1760
+    const startX = 120
+    const step = availableWidth / Math.max(1, l3Count)
+    const x = Math.round(startX + (idx + 0.5) * step)
+    pcbNodes.push({
+      id: node.id,
+      code: node.code,
+      name: node.name,
+      kind: 'plugin',
+      subsystem: node.subsystem,
+      layer: 3,
+      systemId: node.systemId,
+      moduleId: node.moduleId,
+      x,
+      y: 492,
+      radius: 28,
+      parentPluginId: node.parentPluginId,
+      fiber: {
+        name: node.fiber.name,
+        state: node.fiber.state,
+        uid: node.fiber.uid,
+        inject: node.fiber.inject,
+        waitingFor: node.fiber.waitingFor,
+        provides: node.fiber.provides,
+        effects: node.fiber.effects,
+        childrenCount: node.fiber.children?.length ?? 0,
+      },
+    })
+  })
+
+  // Layer 4: Feature Plugins (Row 1: y = 680, Row 2: y = 850)
+  const l4Nodes = nodesByLayer.get(4) ?? []
+  const halfL4 = Math.ceil(l4Nodes.length / 2)
+  const l4Row1 = l4Nodes.slice(0, halfL4)
+  const l4Row2 = l4Nodes.slice(halfL4)
+
+  l4Row1.forEach((node, idx) => {
+    const step = 1760 / Math.max(1, l4Row1.length)
+    const x = Math.round(120 + (idx + 0.5) * step)
+    pcbNodes.push({
+      id: node.id,
+      code: node.code,
+      name: node.name,
+      kind: 'plugin',
+      subsystem: node.subsystem,
+      layer: 4,
+      systemId: node.systemId,
+      moduleId: node.moduleId,
+      x,
+      y: 680,
+      radius: 34,
+      parentPluginId: node.parentPluginId,
+      fiber: {
+        name: node.fiber.name,
+        state: node.fiber.state,
+        uid: node.fiber.uid,
+        inject: node.fiber.inject,
+        waitingFor: node.fiber.waitingFor,
+        provides: node.fiber.provides,
+        effects: node.fiber.effects,
+        childrenCount: node.fiber.children?.length ?? 0,
+      },
+    })
+  })
+
+  l4Row2.forEach((node, idx) => {
+    const step = 1760 / Math.max(1, l4Row2.length)
+    const x = Math.round(120 + (idx + 0.5) * step)
+    pcbNodes.push({
+      id: node.id,
+      code: node.code,
+      name: node.name,
+      kind: 'plugin',
+      subsystem: node.subsystem,
+      layer: 4,
+      systemId: node.systemId,
+      moduleId: node.moduleId,
+      x,
+      y: 850,
+      radius: 34,
+      parentPluginId: node.parentPluginId,
+      fiber: {
+        name: node.fiber.name,
+        state: node.fiber.state,
+        uid: node.fiber.uid,
+        inject: node.fiber.inject,
+        waitingFor: node.fiber.waitingFor,
+        provides: node.fiber.provides,
+        effects: node.fiber.effects,
+        childrenCount: node.fiber.children?.length ?? 0,
+      },
+    })
+  })
+
+  // Layer 5: UI Registry & Screens (y: 1100)
+  const l5Nodes = nodesByLayer.get(5) ?? []
+  const l5Count = l5Nodes.length
+  l5Nodes.forEach((node, idx) => {
+    const availableWidth = 1760
+    const startX = 120
+    const step = availableWidth / Math.max(1, l5Count)
+    const x = Math.round(startX + (idx + 0.5) * step)
+    pcbNodes.push({
+      id: node.id,
+      code: node.code,
+      name: node.name,
+      kind: 'ui',
+      subsystem: node.subsystem,
+      layer: 5,
+      systemId: node.systemId,
+      moduleId: node.moduleId,
+      x,
+      y: 1100,
+      radius: 30,
+      parentPluginId: node.parentPluginId,
+      fiber: {
+        name: node.fiber.name,
+        state: node.fiber.state,
+        uid: node.fiber.uid,
+        inject: node.fiber.inject,
+        waitingFor: node.fiber.waitingFor,
+        provides: node.fiber.provides,
+        effects: node.fiber.effects,
+        childrenCount: node.fiber.children?.length ?? 0,
+      },
+    })
+  })
+
+  // LEVEL 3: If a specific node is selected and has child fibers, orbit satellite chips around it
+  if (viewLevel === 3 && selectedNodeId) {
+    const parentNode = pcbNodes.find(
+      (n) =>
+        n.id === selectedNodeId ||
+        n.name === selectedNodeId ||
+        n.id === selectedNodeId.replace(/^plugin-/, '') ||
+        (n.name ? n.name.replace(/^@BBeBee\//, '').replace(/^plugin-/, '') === selectedNodeId : false),
+    )
     if (parentNode && parentNode.fiber) {
-      // Find the corresponding fiber node in the tree to read its direct children
-      const matchingTreeFiber = fiberList.find((f) => f.name === parentNode.fiber?.name)
-      if (matchingTreeFiber && matchingTreeFiber.children.length > 0) {
-        const satellites: PcbNode[] = matchingTreeFiber.children.map((child, idx) => {
-          const totalChildren = matchingTreeFiber.children.length
+      const parentTreeFiber = fiberList.find(
+        (f) =>
+          (f.name === parentNode.id ||
+            f.name === parentNode.name ||
+            f.name === parentNode.fiber?.name ||
+            deriveNodeId(f) === parentNode.id) &&
+          f.children &&
+          f.children.length > 0,
+      )
+      if (parentTreeFiber && parentTreeFiber.children.length > 0) {
+        const satellites: PcbNode[] = parentTreeFiber.children.map((child, idx) => {
+          const totalChildren = parentTreeFiber.children.length
           const angle = (idx * (2 * Math.PI)) / Math.max(1, totalChildren)
-          const orbitRadius = parentNode.radius + 40
-          const sx = parentNode.x + Math.cos(angle) * orbitRadius
-          const sy = parentNode.y + Math.sin(angle) * orbitRadius
+          const orbitRadius = parentNode.radius + 45
+          const sx = Math.round(parentNode.x + Math.cos(angle) * orbitRadius)
+          const sy = Math.round(parentNode.y + Math.sin(angle) * orbitRadius)
 
           return {
             id: `satellite-${parentNode.id}-${idx}`,
@@ -1652,14 +860,136 @@ export function mapSnapshotToTopology(
               waitingFor: child.waitingFor,
               provides: child.provides,
               effects: child.effects,
-              childrenCount: child.children.length,
+              childrenCount: child.children?.length ?? 0,
             },
           }
         })
-        return [...mappedNodes, ...satellites]
+        pcbNodes.push(...satellites)
       }
     }
   }
 
-  return mappedNodes
+  // 4. Compute traces and pins dynamically from the generated nodes
+  const traces = computeDynamicTraces(pcbNodes)
+  const pins = generateDynamicPins(pcbNodes)
+
+  return {
+    nodes: pcbNodes,
+    traces,
+    pins,
+    zones: SUBSYSTEM_ZONES,
+    layerBands: LAYER_BANDS,
+  }
 }
+
+/**
+ * Backward compatibility helper for existing callers.
+ */
+export function mapSnapshotToTopology(
+  snap: InspectorSnapshot,
+  _baseNodes?: Omit<PcbNode, 'fiber'>[],
+  viewLevel: ViewLevel = 1,
+  _activeSubsystemId: SubsystemId | null = null,
+  activeSelectedNodeId: string | null = null,
+): PcbNode[] {
+  const data = buildTopologyFromSnapshot(snap, viewLevel, activeSelectedNodeId)
+  return data.nodes
+}
+
+/**
+ * Backward compatibility helper for base traces generator.
+ */
+export function generateBaseTraces(nodes?: PcbNode[]): PcbTrace[] {
+  if (nodes && nodes.length > 0) {
+    return computeDynamicTraces(nodes)
+  }
+  return []
+}
+
+/**
+ * Backward compatibility helper for base pins generator.
+ */
+export function generateBasePins(nodes?: PcbNode[]): PcbPin[] {
+  if (nodes && nodes.length > 0) {
+    return generateDynamicPins(nodes)
+  }
+  return []
+}
+
+/**
+ * Resolves node manifest if available on the node itself.
+ */
+export function findNodeManifest(nodeId: string, nodes?: PcbNode[]): PluginManifest | undefined {
+  if (nodes) {
+    const node = nodes.find((n) => n.id === nodeId || n.code.toLowerCase() === nodeId.toLowerCase())
+    if (node?.manifest) return node.manifest
+  }
+  return undefined
+}
+
+/**
+ * Default fallback nodes dynamically generated for initial empty or test states.
+ */
+export const ARCH_NODES: Omit<PcbNode, 'fiber'>[] = buildTopologyFromSnapshot({
+  root: {
+    name: 'root',
+    uid: 0,
+    state: 'ACTIVE',
+    inject: [],
+    waitingFor: [],
+    provides: [],
+    effects: [],
+    children: [
+      {
+        name: 'core-audio-mpv',
+        uid: 1,
+        state: 'ACTIVE',
+        inject: [],
+        waitingFor: [],
+        provides: ['audio'],
+        effects: [],
+        children: [],
+      },
+      {
+        name: 'plugin-player',
+        uid: 2,
+        state: 'ACTIVE',
+        inject: ['audio'],
+        waitingFor: [],
+        provides: ['player'],
+        effects: [],
+        children: [],
+      },
+      {
+        name: 'plugin-sources',
+        uid: 3,
+        state: 'ACTIVE',
+        inject: [],
+        waitingFor: [],
+        provides: ['sources'],
+        effects: [],
+        children: [],
+      },
+      {
+        name: 'plugin-sources-ui-desktop',
+        uid: 4,
+        state: 'ACTIVE',
+        inject: ['sources'],
+        waitingFor: [],
+        provides: [],
+        effects: [],
+        children: [],
+      },
+    ],
+  },
+  counts: {
+    ACTIVE: 5,
+    PENDING: 0,
+    LOADING: 0,
+    FAILED: 0,
+    DISPOSED: 0,
+    UNLOADING: 0,
+    UNKNOWN: 0,
+  },
+  stalled: [],
+}).nodes
