@@ -56,92 +56,102 @@ To maximize startup performance without breaking Cordis DI lifecycle:
   dynamically populates navigation entries without blocking the initial screen.
 
 
-### 6.2 Desktop additions — `plugin-loader-dynamic`
+### 6.2 Desktop dynamic loading — `plugin-loader-dynamic`
 
-> **Shelved, not built.** Nothing below is registered in either shell. It is kept because ADR-1's
-> amendment is a scope decision rather than a technical one: if third-party *plugins* (as distinct
-> from sources) ever justify the install flow, this is the design, and the reasons the obvious
-> approaches fail are worth not rediscovering. Everything in it is gated behind
-> [10 §M5](../roadmap/roadmap.md#m5--third-party-extensions-on-the-sandbox).
+Desktop implements runtime dynamic loading for external third-party plugins while maintaining sandbox integrity, `contextIsolation`, and a strict CSP:
 
-The renderer is sandboxed with `contextIsolation` on and a strict CSP, so it cannot `import()` a
-`file://` path, and we are not willing to relax either. Instead, `main` would register a
-privileged custom scheme:
+1. **Privileged Scheme in Main (`apps/desktop/main/index.ts`)**:
+   `main` registers a privileged custom scheme before app ready:
+   ```ts
+   protocol.registerSchemesAsPrivileged([{
+     scheme: 'bbebee-plugin',
+     privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: false },
+   }])
+   ```
+   The `protocol.handle('bbebee-plugin', ...)` handler serves files strictly out of `userData/installed-plugins/<pluginDirName(id)>/`. Path containment is enforced so directory traversal attempts (`..`) are rejected with 403 Forbidden. Correct MIME types (`text/javascript`, `application/json`, etc.) are returned.
 
-```ts
-// apps/desktop/main — registered before app ready
-protocol.registerSchemesAsPrivileged([{
-  scheme: 'BBeBee-plugin',
-  privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: false },
-}])
-```
+2. **Renderer Bridge (`apps/desktop/preload/index.ts`)**:
+   Exposes `window.BBeBee.plugins` with:
+   - `listInstalled(): Promise<Array<{ id: string, version: string, manifest: unknown, dirName: string }>>`
+   - `install(pluginId: string, files: Record<string, string>): Promise<void>`
+   - `uninstall(pluginId: string): Promise<void>`
 
-and serve it from the user plugins directory with path traversal rejected and a
-`text/javascript` content type. The renderer's CSP would then read
-`script-src 'self' BBeBee-plugin:`, and the loader is an ordinary dynamic import:
+3. **Dynamic Loader & Composition (`apps/desktop/renderer/dynamic-loader.ts` & `boot.ts`)**:
+   - `loadExternalPluginRegistry()` scans installed plugins at boot and synthesizes `DynamicRegistryEntry` objects with `builtin: false` and dynamic `import('bbebee-plugin://app/${pluginId}/${entryMain}')`.
+   - `boot.ts` merges `bundled` (built-in static plugins) with `externalRegistry` into `compositeRegistry`.
+   - `installAndActivatePlugin(app, pluginId, files, manifest)`: Writes plugin files via the main process bridge, registers into `app.registerPlugin(id, entry)`, and activates in Cordis via `app.loadPlugin(id)`.
+   - `uninstallExternalPlugin(app, pluginId)`: Safely disposes the Cordis fiber first via `app.unloadPlugin(id)` before deleting files from disk.
 
-```ts
-const mod = await import(/* @vite-ignore */ `BBeBee-plugin://${id}@${version}/index.js`)
-await ctx.plugin(mod.default, config)
-```
+4. **Kernel Dynamic Plugin Registration (`@BBeBee/kernel`)**:
+   - `app.registerPlugin(pluginId, entry)`: Appends to the active registry at runtime.
+   - `app.loadPlugin(pluginId)`: Instantiates and activates dynamic plugins with non-builtin capability checks (`ungranted` if unapproved).
+   - `app.unloadPlugin(pluginId)`: Unmounts fibers and unwinds disposers.
 
-This would keep CSP enforceable, keep `nodeIntegration` off, avoid `new Function`, and — because
-`import()` returns a real module — give correct ESM semantics including top-level await. Note what
-it does *not* give: containment. The module lands in the renderer's realm, which is why the
-version of this that ships (if one does) runs over `ctx.js` instead
-([§7](#what-this-is-not)).
+### 6.3 Standardized Manifest Specification (`BBeBee.plugin.json`)
 
-**Install flow.** Fetch → verify integrity hash → check `engines.BBeBee` against the app version →
-extract to `plugins/<id>@<version>/` → read manifest → prompt for capability grants → write
-`plugin_records` and `capability_grants` → `ctx.plugin()`. Update installs alongside and swaps
-atomically. Uninstall disposes the fiber first, then removes the directory — never the reverse,
-or the fiber's disposer may fail mid-teardown.
+Every plugin package across all layers (Core, Logs, Feature, UI) carries a standardized `BBeBee.plugin.json` containing 13 required fields:
 
-**Quarantine.** A plugin that throws during load twice consecutively is marked
-`enabled = false` with `lastError` set and is skipped on subsequent boots until the user
-re-enables it. Without this, a single bad third-party plugin becomes an unrecoverable boot loop —
-the most common failure mode of runtime plugin systems. The same idea, applied to a rotted source
-rather than a crashing plugin, is the stale badge in
-[06 §7](../sources/authoring.md#7-errors) — with the deliberate difference that a stale source is
-*not* disabled, because its cached catalogue is still worth browsing.
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Unique package ID matching npm package name (e.g. `"@BBeBee/plugin-sources-ui-desktop"`) |
+| `name` | `string` | Short technical name (e.g. `"sources-ui-desktop"`) |
+| `displayName` | `string` | Human-readable title (e.g. `"Music Sources (Desktop UI)"`) |
+| `description` | `string` | Clear description of the plugin's responsibilities |
+| `version` | `string` | Semantic version string (e.g. `"0.0.0"`) |
+| `author` | `string` | Author or organization (e.g. `"BBeBee Team"`) |
+| `engines` | `Record<string, string>` | Environment constraints (e.g. `{"node": ">=22.12.0"}`) |
+| `enabled` | `boolean` | Default activation flag |
+| `dependencies` | `string[]` | Array of prerequisite plugin IDs required to be loaded |
+| `systemId` | `string` | Architectural layer stratum ID: `"layer-2"`, `"layer-3"`, `"layer-4"`, or `"layer-5"` |
+| `moduleId` | `string` | Functional domain grouping: `"sources"`, `"playback"`, `"lyrics"`, `"storage"`, `"dsp"`, `"settings"`, `"inspector"`, `"share"`, `"ui"`, `"core"`, `"logs"` |
+| `entry` | `PluginEntry` | Entry paths (`{"main": "...", "desktop": "...", "mobile": "..."}`) |
+| `capabilities` | `Capability[]` | Capability grant requests (`["ui:component", "action:sources/*"]`) |
+| `contributes` | `PluginContributes` | Extension slots, routes, settings schemas (`{"slots": ["sidebar-primary"]}`) |
 
-> ⚠️ Module caching means an updated plugin at the same URL will not be re-fetched.
-> Versioned URLs (`<id>@<version>`) sidestep this; dev mode appends a cache-busting query.
+> ⚠️ **Field Name Requirement:** The layer stratum ID is explicitly named **`systemId`** (not `subsystemId`).
 
-### 6.3 The manifest
-
+#### Example Manifest:
 ```jsonc
 {
-  "id": "@BBeBee/plugin-source-runtime",
-  "version": "1.0.0",
-  "displayName": "Music sources",
-  "description": "Interprets imported source strings.",
-  "engines": { "BBeBee": "^1.0.0" },
+  "id": "@BBeBee/plugin-sources-ui-desktop",
+  "name": "sources-ui-desktop",
+  "displayName": "Music Sources (Desktop UI)",
+  "description": "Desktop source management views, editor, and explorer.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "enabled": true,
+  "dependencies": [
+    "@BBeBee/plugin-sources"
+  ],
+  "systemId": "layer-5",
+  "moduleId": "sources",
   "entry": {
-    "main": "./dist/index.js",
-    "ui": { "mobile": "./dist/ui.mobile.js", "desktop": "./dist/ui.desktop.js" }
+    "main": "./src/index.tsx",
+    "desktop": "./src/index.tsx"
   },
   "capabilities": [
-    "net:host/*",           // narrowed per source to that source's allowlist — see §7
-    "js",                   // evaluates source rules in ctx.js
-    "db:read:core",
-    "db:write:core",
-    "secrets:own",          // one namespace per source id
-    "fs:read:media"         // read cached artwork
+    "ui:component",
+    "action:sources/*"
   ],
   "contributes": {
-    "settings": "./dist/settings-schema.js",
-    "slots": ["settings.sources", "source.browse", "source.debug"]
+    "slots": [
+      "sidebar-primary"
+    ]
   }
 }
 ```
 
-`entry.ui` is optional and per-target: a plugin may ship a desktop view and no mobile one. Shells
-must render a placeholder rather than break when a contribution's view is missing for their
-target — a direct cost of ADR-2, and one the UI registry makes explicit
-([08 §3](../ui/architecture.md#3-resolving-a-descriptor-to-a-view)).
+### 6.4 Codegen Tooling (`@BBeBee/tooling-gen-plugins`)
 
-### 6.4 Configuration
+A single command (`pnpm gen:plugins`) scans all `BBeBee.plugin.json` manifests and produces:
+- `apps/mobile/generated/plugins.ts`: Static registry for mobile.
+- `apps/desktop/generated/plugins.ts`: Static built-in registry for desktop.
+- `packages/ui/plugin-inspector-ui-desktop/src/pcb-manifests.generated.ts`: `PLUGIN_MANIFESTS` dictionary used by the PCB topology inspector to visualize system layers, module domains, dependencies, and capabilities.
+
+### 6.5 Configuration
 
 One config document (YAML on desktop, JSON on mobile), read through `ctx.fs` before any feature
 plugin loads:

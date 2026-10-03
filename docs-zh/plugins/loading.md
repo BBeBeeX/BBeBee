@@ -45,78 +45,102 @@ codegen 即可构建。
 - **首帧后延后启动（Deferred Loading）**：对首屏绘制非必须的插件（如 `plugin-local-scanner`、`plugin-download`、`plugin-share`、`plugin-visualizer`、`plugin-sleep-timer`、`plugin-history`）从 `INITIAL_ENABLED` 中拆离。在 Shell 首帧渲染后，应用通过 `requestIdleCallback`（降级 `setTimeout`）在空闲期调用 `app.loadPlugin(id)` 逐一加载。当延后插件激活并在 `ctx.ui` 注册路由/视图时，触发 `ui/changed` 事件并平滑更新导航与界面，杜绝启动阻塞。
 
 
-### 6.2 桌面端的附加设计 —— `plugin-loader-dynamic`
+### 6.2 桌面端动态加载 —— `plugin-loader-dynamic`
 
-> **已搁置，未构建。** 下述内容没有在任何外壳中注册。保留它是因为 ADR-1 的修订是一次范围
-> 决策，而非技术决策：如果第三方*插件*（与音源不同）有朝一日确有必要走安装流程，设计就是
-> 这一份，而那些显而易见的做法为何行不通的理由，不值得重新踩一遍坑。其中所有内容都以
-> [10 §M5](../roadmap/roadmap.md#m5--沙箱上的第三方扩展) 为闸门。
+桌面端现已完整实现第三方外部插件的运行时动态加载，同时保持沙箱隔离、`contextIsolation` 与严格的 CSP：
 
-渲染进程被沙箱化，`contextIsolation` 开启且 CSP 严格，因此它不能 `import()` 一个 `file://`
-路径，而我们也不打算放宽其中任何一条。于是，`main` 将会注册一个特权的自定义协议（scheme）：
+1. **主进程中的特权协议（`apps/desktop/main/index.ts`）**：
+   在应用就绪前注册特权协议：
+   ```ts
+   protocol.registerSchemesAsPrivileged([{
+     scheme: 'bbebee-plugin',
+     privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: false },
+   }])
+   ```
+   主进程协议处理器 `protocol.handle('bbebee-plugin', ...)` 严格限定在 `userData/installed-plugins/<pluginDirName(id)>/` 下提供服务，并执行严格的路径包含检查（拒绝 `..` 路径穿越并返回 403 Forbidden），正确响应 `text/javascript`、`application/json` 等 MIME 类型。
 
-```ts
-// apps/desktop/main — registered before app ready
-protocol.registerSchemesAsPrivileged([{
-  scheme: 'BBeBee-plugin',
-  privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: false },
-}])
-```
+2. **渲染层 Preload 桥接（`apps/desktop/preload/index.ts`）**：
+   暴露安全且类型完备的 `window.BBeBee.plugins` API：
+   - `listInstalled(): Promise<Array<{ id: string, version: string, manifest: unknown, dirName: string }>>`
+   - `install(pluginId: string, files: Record<string, string>): Promise<void>`
+   - `uninstall(pluginId: string): Promise<void>`
 
-并从用户插件目录为其提供服务，拒绝路径穿越（path traversal），内容类型为 `text/javascript`。
-渲染进程的 CSP 随之写作 `script-src 'self' BBeBee-plugin:`，加载器就是一个普通的动态导入：
+3. **动态加载器与组合根启动（`apps/desktop/renderer/dynamic-loader.ts` & `boot.ts`）**：
+   - `loadExternalPluginRegistry()` 在启动期扫描已安装插件目录，将其合成带有 `builtin: false` 的 `DynamicRegistryEntry`，通过 `import('bbebee-plugin://app/${pluginId}/${entryMain}')` 进行 ESM 动态导入。
+   - `boot.ts` 在启动时将内置打包插件 `bundled` 与外部插件注册表 `externalRegistry` 合并为 `compositeRegistry`。
+   - `installAndActivatePlugin(app, pluginId, files, manifest)`：通过主进程桥接写入文件，注册到内核 `app.registerPlugin(id, entry)`，并通过 `app.loadPlugin(id)` 立即激活。
+   - `uninstallExternalPlugin(app, pluginId)`：先调用 `app.unloadPlugin(id)` 释放 Cordis fiber，而后再安全删除磁盘文件（保证析构顺序）。
 
-```ts
-const mod = await import(/* @vite-ignore */ `BBeBee-plugin://${id}@${version}/index.js`)
-await ctx.plugin(mod.default, config)
-```
+4. **内核动态注册扩展（`@BBeBee/kernel`）**：
+   - `app.registerPlugin(pluginId, entry)`：在运行时向活跃注册表动态追加插件条目。
+   - `app.loadPlugin(pluginId)`：支持运行时即时加载与能力网关校验（未获授权的非内置插件将被标记为 `ungranted` 并拒绝加载）。
+   - `app.unloadPlugin(pluginId)`：卸载 fiber 并反向执行所有资源释放器（disposers）。
 
-这将让 CSP 保持可执行、`nodeIntegration` 保持关闭、避免 `new Function`，并且 —— 因为
-`import()` 返回真正的模块 —— 获得正确的 ESM 语义，包括 top-level await。注意它*不能*提供的
-是什么：遏制。模块落入的是渲染进程的 realm，这正是若真有版本要交付、它会改经 `ctx.js` 运行
-的原因（[§7](#它不是什么)）。
+### 6.3 插件标准化描述清单（`BBeBee.plugin.json`）
 
-**安装流程。** 获取包 → 校验完整性哈希 → 对照应用版本检查 `engines.BBeBee` → 解压到
-`plugins/<id>@<version>/` → 读取清单 → 提示授予能力 → 写入 `plugin_records` 与
-`capability_grants` → `ctx.plugin()`。更新采用并行安装、原子替换。卸载则先释放（dispose）
-fiber，再删除目录 —— 顺序绝不能反，否则 fiber 的释放器可能在拆除中途失败。
+系统内所有分层（Core、Logs、Feature、UI）的全部插件包均标准化包含一份具有 13 项规范字段的 `BBeBee.plugin.json`：
 
-**隔离区（quarantine）。** 连续两次在加载时抛出异常的插件会被标记为 `enabled = false` 并
-设置 `lastError`，后续启动将跳过它，直到用户重新启用。没有这一机制，一个坏掉的第三方插件
-就会变成无法恢复的启动死循环 —— 这是运行时插件系统最常见的故障模式。同样的思路用在腐坏的
-音源而不是崩溃的插件上，就是 [06 §7](../sources/authoring.md#7-错误) 的失效（stale）徽标
-—— 但有一个刻意的差别：失效的音源*不会*被停用，因为它缓存的目录仍值得浏览。
+| 字段名 | 类型 | 说明 |
+|---|---|---|
+| `id` | `string` | 唯一插件包 ID（必须与 npm package.json 的 name 一致，如 `"@BBeBee/plugin-sources-ui-desktop"`） |
+| `name` | `string` | 短技术名称（如 `"sources-ui-desktop"`） |
+| `displayName` | `string` | 面向用户的可读展示名称（如 `"Music Sources (Desktop UI)"`） |
+| `description` | `string` | 功能职责清晰描述 |
+| `version` | `string` | 语义化版本号（如 `"0.0.0"`） |
+| `author` | `string` | 插件作者或组织（如 `"BBeBee Team"`） |
+| `engines` | `Record<string, string>` | 运行时环境版本约束（如 `{"node": ">=22.12.0"}`） |
+| `enabled` | `boolean` | 默认启用标志（`true`） |
+| `dependencies` | `string[]` | 前置依赖插件 ID 数组（必须已加载方可启动） |
+| `systemId` | `string` | 架构所在层级 ID：`"layer-2"`、`"layer-3"`、`"layer-4"` 或 `"layer-5"` |
+| `moduleId` | `string` | 所属功能模块/域 ID：`"sources"`、`"playback"`、`"lyrics"`、`"storage"`、`"dsp"`、`"settings"`、`"inspector"`、`"share"`、`"ui"`、`"core"`、`"logs"` |
+| `entry` | `PluginEntry` | 模块入口路径（`{"main": "...", "desktop": "...", "mobile": "..."}`） |
+| `capabilities` | `Capability[]` | 申请的能力权限清单（`["ui:component", "action:sources/*"]`） |
+| `contributes` | `PluginContributes` | 扩展贡献槽位、路由与设置声明（`{"slots": ["sidebar-primary"]}`） |
 
-> ⚠️ 模块缓存意味着同一 URL 上更新过的插件不会被重新拉取。带版本的 URL（`<id>@<version>`）
-> 可绕开此问题；开发模式则追加缓存穿透（cache-busting）查询参数。
+> ⚠️ **字段命名规范：** 分层架构 ID 统一固定为 **`systemId`**（严禁写为 `subsystemId`）。
 
-### 6.3 清单
-
+#### 清单示例：
 ```jsonc
 {
-  "id": "@BBeBee/plugin-source-runtime",
-  "version": "1.0.0",
-  "displayName": "Music sources",
-  "description": "Interprets imported source strings.",
-  "engines": { "BBeBee": "^1.0.0" },
+  "id": "@BBeBee/plugin-sources-ui-desktop",
+  "name": "sources-ui-desktop",
+  "displayName": "Music Sources (Desktop UI)",
+  "description": "Desktop source management views, editor, and explorer.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "enabled": true,
+  "dependencies": [
+    "@BBeBee/plugin-sources"
+  ],
+  "systemId": "layer-5",
+  "moduleId": "sources",
   "entry": {
-    "main": "./dist/index.js",
-    "ui": { "mobile": "./dist/ui.mobile.js", "desktop": "./dist/ui.desktop.js" }
+    "main": "./src/index.tsx",
+    "desktop": "./src/index.tsx"
   },
   "capabilities": [
-    "net:host/*",           // narrowed per source to that source's allowlist — see §7
-    "js",                   // evaluates source rules in ctx.js
-    "db:read:core",
-    "db:write:core",
-    "secrets:own",          // one namespace per source id
-    "fs:read:media"         // read cached artwork
+    "ui:component",
+    "action:sources/*"
   ],
   "contributes": {
-    "settings": "./dist/settings-schema.js",
-    "slots": ["settings.sources", "source.browse", "source.debug"]
+    "slots": [
+      "sidebar-primary"
+    ]
   }
 }
 ```
+
+### 6.4 代码生成工具链（`@BBeBee/tooling-gen-plugins`）
+
+运行 `pnpm gen:plugins` 自动扫描全部插件包的 `BBeBee.plugin.json` 并生成：
+- `apps/mobile/generated/plugins.ts`：移动端全静态绑定注册表。
+- `apps/desktop/generated/plugins.ts`：桌面端内置静态插件注册表。
+- `packages/ui/plugin-inspector-ui-desktop/src/pcb-manifests.generated.ts`：导出全部 70 个插件清单的 `PLUGIN_MANIFESTS` 字典，供 PCB 架构拓扑检视器直接进行节点分层、模块归属、依赖及能力的实时可视化。
+
+### 6.5 配置
 
 `entry.ui` 是可选且分目标平台的：插件可以只提供桌面视图而不提供移动端视图。当某个贡献项的
 视图在某个目标平台缺失时，外壳必须渲染占位符而非崩溃 —— 这是 ADR-2 的直接代价，UI 注册表

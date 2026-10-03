@@ -387,6 +387,14 @@ export const usePosition = () =>
    - 歌词窗口根节点**不能**携带 `-webkit-app-region: drag`——拖拽区会吞掉悬停工具栏依赖的鼠标事件（工具栏曾因此永远不出现）。拖拽改为手动实现：指针捕获 + `desktop-lyrics:set-position` IPC（基于 `screenX/screenY` 增量），拖动结束时通过 `desktop-lyrics:commit-position` 上报最终位置（主进程对程序化移动抑制回声）。
    - 锁定（穿透）时，歌词窗口在工具栏原位置显示唯一的"解锁"胶囊。由于 `forward` 在 Linux 上是空操作，主进程在锁定且可见期间**轮询系统光标**（`desktop-lyrics:cursor`）；渲染端仅在光标位于窗口内时显示该胶囊，并随光标进出胶囊区域切换鼠标处理（`set-ignore-mouse`），窗口其余部分保持完全穿透。
 
+### 7.3 PCB 架构拓扑检视器（plugin-inspector-ui-desktop）
+
+1. **拟物化电路板架构可视化**：以主板（PCB Motherboard）印制电路板、走线排线与芯片引脚形式，交互式呈现 BBeBee 整体架构在各分层与各插件间的拓扑联系。
+2. **数据流与清单生成映射**：
+   - 依赖 `pnpm gen:plugins` 自动提取全部 70 个插件的 `BBeBee.plugin.json`，生成 `pcb-manifests.generated.ts`（导出 `PLUGIN_MANIFESTS` 字典）。
+   - 核心节点数据结构 `PcbNode` 全面绑定 `systemId`（分层架构 ID：`"layer-1"` 到 `"layer-5"`）、`moduleId`（模块域：`"sources"`、`"playback"`、`"lyrics"`、`"storage"`、`"dsp"`、`"settings"`、`"inspector"` 等）及完整 `manifest`。
+3. **动态卫星外围芯片**：Level 3 级动态拓扑芯片自动继承主节点的 `systemId` 与 `moduleId`，实时呈现插件运行态 Fiber 状态、前置依赖连线、声明能力及输入输出总线。
+
 ---
 
 ## 8. 无障碍

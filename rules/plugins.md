@@ -115,16 +115,59 @@ Declared in each package's `BBeBee.plugin.json`, mediated by the kernel via inte
 
 ---
 
-## 6. Scaffolding & Dynamic Plugin Registry
+## 6. Manifest Standards (`BBeBee.plugin.json`)
+
+Every plugin package across all layers (Core, Logs, Feature, UI) must carry a `BBeBee.plugin.json` containing 13 standardized fields:
+
+1. `id`: Unique package ID matching npm package name (`"@BBeBee/plugin-..."`).
+2. `name`: Short technical identifier (e.g. `"sources-ui-desktop"`).
+3. `displayName`: Human-readable title for UI and inspectors.
+4. `description`: Clear summary of the package's responsibilities.
+5. `version`: Semantic version string (`"0.0.0"`).
+6. `author`: Plugin author/maintainer (`"BBeBee Team"`).
+7. `engines`: Platform runtime constraints (`{"node": ">=22.12.0"}`).
+8. `enabled`: Default enabled boolean (`true`).
+9. `dependencies`: Explicit list of prerequisite plugin IDs (`["@BBeBee/plugin-sources"]`).
+10. `systemId`: Architectural layer stratum ID: `"layer-2"`, `"layer-3"`, `"layer-4"`, or `"layer-5"`.
+    *(⚠️ Note: explicitly named `systemId`, never `subsystemId`).*
+11. `moduleId`: Functional domain grouping ID: `"sources"`, `"playback"`, `"lyrics"`, `"storage"`, `"dsp"`, `"settings"`, `"inspector"`, `"share"`, `"ui"`, `"core"`, `"logs"`.
+12. `entry`: Module entry points (`{"main": "...", "desktop": "...", "mobile": "..."}`).
+13. `capabilities`: Explicit permission tokens requested by the plugin.
+14. `contributes`: Extension slots, navigation routes, settings schemas (`{"slots": ["sidebar-primary"]}`).
+
+---
+
+## 7. Dual-Mode Plugin Loading
+
+- **Mobile (React Native / Expo)**:
+  - 100% static bundling.
+  - Metro requires statically analysable module paths.
+  - `apps/mobile/src/boot.ts` loads exclusively from `bundled` emitted into `apps/mobile/generated/plugins.ts`.
+- **Desktop (Electron)**:
+  - Hybrid static + runtime dynamic loading.
+  - Main process (`apps/desktop/main/index.ts`) registers privileged custom scheme `bbebee-plugin://` serving from `userData/installed-plugins/` with path-containment protection.
+  - Preload bridge (`apps/desktop/preload/index.ts`) exposes typed `window.BBeBee.plugins`.
+  - Renderer dynamic loader (`apps/desktop/renderer/dynamic-loader.ts`) discovers installed plugins at startup and merges them into `compositeRegistry` in `boot.ts`.
+  - Runtime management: `installAndActivatePlugin()` and `uninstallExternalPlugin()` (fiber disposed first, then files removed).
+- **Kernel (`@BBeBee/kernel`)**:
+  - `app.registerPlugin(id, entry)`: Extends the running registry.
+  - `app.loadPlugin(id)`: Verifies capability grants for non-builtin plugins (`ungranted` rejection if unauthorized).
+  - `app.unloadPlugin(id)`: Safely tears down fibers and disposers in reverse order.
+
+---
+
+## 8. Scaffolding & Codegen
 
 ```bash
 pnpm new:plugin --name scrobble --kind feature --ui desktop --capabilities db:own
 pnpm install        # link the new workspace package
-pnpm gen:plugins    # update apps/*/generated/plugins.ts with dynamic imports
+pnpm gen:plugins    # update apps/*/generated/plugins.ts & pcb-manifests.generated.ts
 pnpm check
 ```
 
-- `--kind` is `feature` (default) or `effect`.
-- Generated registry (`apps/*/generated/plugins.ts`) maps IDs to dynamic loaders:
-  `load: () => import('@BBeBee/plugin-name')`.
-- The generated registry is committed. Run `pnpm gen:plugins` after adding/removing a plugin.
+- `pnpm gen:plugins` updates:
+  - `apps/mobile/generated/plugins.ts` (mobile static imports).
+  - `apps/desktop/generated/plugins.ts` (desktop built-in imports).
+  - `packages/ui/plugin-inspector-ui-desktop/src/pcb-manifests.generated.ts` (`PLUGIN_MANIFESTS` dictionary driving the PCB topology visualizer).
+- The generated registries are committed. Run `pnpm gen:plugins` after adding/removing any plugin or modifying a `BBeBee.plugin.json`.
+
