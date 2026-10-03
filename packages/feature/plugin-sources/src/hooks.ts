@@ -581,10 +581,20 @@ export function useSearchSourceSelection(ctx: Context): SearchSourceSelection {
   }
 }
 
+/** Pagination state for a single source. */
+export interface SourcePaginationState {
+  loading: boolean
+  hasMore: boolean
+  cursor?: string
+  error?: Error
+}
+
 /** A fan-out search: the answer, or the reason there is none. */
 export interface SourceSearchState extends AsyncState<AggregatedSearch> {
   /** The text the visible answer belongs to. */
   text: string
+  /** Per-source pagination states: { [sourceId]: { loading, hasMore, cursor, error } } */
+  pagination: Readonly<Record<string, SourcePaginationState>>
   run(
     text: string,
     opts?: {
@@ -592,7 +602,18 @@ export interface SourceSearchState extends AsyncState<AggregatedSearch> {
       typesBySource?: Readonly<Record<string, readonly SearchInterfaceKind[]>>
     },
   ): void
+  loadMore(sourceId: string): Promise<void>
   reset(): void
+}
+
+function mergePaged<T>(oldPaged?: Paged<T>, newPaged?: Paged<T>): Paged<T> | undefined {
+  if (!oldPaged && !newPaged) return undefined
+  return {
+    items: [...(oldPaged?.items ?? []), ...(newPaged?.items ?? [])],
+    hasMore: newPaged?.hasMore ?? false,
+    cursor: newPaged?.cursor,
+    total: newPaged?.total ?? oldPaged?.total,
+  }
 }
 
 /**
@@ -606,7 +627,12 @@ export interface SourceSearchState extends AsyncState<AggregatedSearch> {
 export function useSourceSearch(ctx: Context): SourceSearchState {
   const [state, setState] = useState<AsyncState<AggregatedSearch>>({ status: 'idle' })
   const [text, setText] = useState('')
+  const [pagination, setPagination] = useState<Readonly<Record<string, SourcePaginationState>>>({})
   const generation = useRef(0)
+  const lastOptsRef = useRef<{
+    sourceIds?: readonly string[]
+    typesBySource?: Readonly<Record<string, readonly SearchInterfaceKind[]>>
+  }>({})
 
   const run = useCallback(
     (
@@ -619,8 +645,10 @@ export function useSourceSearch(ctx: Context): SourceSearchState {
       const query = next.trim()
       if (!query) return
       const mine = ++generation.current
+      lastOptsRef.current = opts
       setText(query)
       setState({ status: 'loading' })
+      setPagination({})
       const typesBySource = opts.typesBySource
         ? Object.fromEntries(
             Object.entries(opts.typesBySource).map(([id, kinds]) => [id, [...kinds]]),
@@ -636,6 +664,21 @@ export function useSourceSearch(ctx: Context): SourceSearchState {
         )
         .then((result) => {
           if (generation.current !== mine) return
+          const pagMap: Record<string, SourcePaginationState> = {}
+          for (const entry of result.bySource) {
+            const tHasMore = entry.result?.tracks?.hasMore ?? false
+            const aHasMore = entry.result?.albums?.hasMore ?? false
+            const arHasMore = entry.result?.artists?.hasMore ?? false
+            const pHasMore = entry.result?.playlists?.hasMore ?? false
+            const hasMore = tHasMore || aHasMore || arHasMore || pHasMore
+            const cursor =
+              entry.result?.tracks?.cursor ??
+              entry.result?.albums?.cursor ??
+              entry.result?.artists?.cursor ??
+              entry.result?.playlists?.cursor
+            pagMap[entry.sourceId] = { loading: false, hasMore, cursor }
+          }
+          setPagination(pagMap)
           setState({ status: 'ready', data: result })
         })
         .catch((error: unknown) => {
@@ -649,13 +692,103 @@ export function useSourceSearch(ctx: Context): SourceSearchState {
     [ctx],
   )
 
+  const loadMore = useCallback(
+    async (sourceId: string) => {
+      const currentPag = pagination[sourceId]
+      if (!text.trim() || !currentPag || currentPag.loading || !currentPag.hasMore) return
+      const mine = generation.current
+
+      setPagination((prev) => ({
+        ...prev,
+        [sourceId]: { ...prev[sourceId], loading: true, error: undefined },
+      }))
+
+      const types = lastOptsRef.current?.typesBySource?.[sourceId]
+      try {
+        const entry = await ctx.sources.searchSource(
+          sourceId,
+          { text },
+          currentPag.cursor ? { cursor: currentPag.cursor } : undefined,
+          types ? { types: [...types] } : undefined,
+        )
+        if (generation.current !== mine) return
+
+        if (entry.error) {
+          setPagination((prev) => ({
+            ...prev,
+            [sourceId]: { ...prev[sourceId], loading: false, error: entry.error },
+          }))
+          return
+        }
+
+        if (entry.result) {
+          const nextResult = entry.result
+          const tHasMore = nextResult.tracks?.hasMore ?? false
+          const aHasMore = nextResult.albums?.hasMore ?? false
+          const arHasMore = nextResult.artists?.hasMore ?? false
+          const pHasMore = nextResult.playlists?.hasMore ?? false
+          const newHasMore = tHasMore || aHasMore || arHasMore || pHasMore
+          const newCursor =
+            nextResult.tracks?.cursor ??
+            nextResult.albums?.cursor ??
+            nextResult.artists?.cursor ??
+            nextResult.playlists?.cursor
+
+          setPagination((prev) => ({
+            ...prev,
+            [sourceId]: {
+              loading: false,
+              hasMore: newHasMore,
+              cursor: newCursor,
+            },
+          }))
+
+          setState((prev) => {
+            if (!prev.data) return prev
+            const bySource = prev.data.bySource.map((oldEntry) => {
+              if (oldEntry.sourceId !== sourceId) return oldEntry
+              const oldResult = oldEntry.result
+              return {
+                ...oldEntry,
+                tookMs: oldEntry.tookMs + entry.tookMs,
+                result: {
+                  ...oldResult,
+                  tracks: mergePaged(oldResult?.tracks, nextResult.tracks),
+                  albums: mergePaged(oldResult?.albums, nextResult.albums),
+                  artists: mergePaged(oldResult?.artists, nextResult.artists),
+                  playlists: mergePaged(oldResult?.playlists, nextResult.playlists),
+                  payloads: { ...(oldResult?.payloads ?? {}), ...(nextResult.payloads ?? {}) },
+                },
+              }
+            })
+            return { ...prev, data: { bySource } }
+          })
+        } else {
+          setPagination((prev) => ({
+            ...prev,
+            [sourceId]: { ...prev[sourceId], loading: false, hasMore: false },
+          }))
+        }
+      } catch (err: unknown) {
+        if (generation.current !== mine) return
+        const error = err instanceof Error ? err : new Error(String(err))
+        setPagination((prev) => ({
+          ...prev,
+          [sourceId]: { ...prev[sourceId], loading: false, error },
+        }))
+      }
+    },
+    [ctx, text, pagination],
+  )
+
   const reset = useCallback(() => {
     generation.current++
     setText('')
+    setPagination({})
     setState({ status: 'idle' })
   }, [])
 
-  return { ...state, text, run, reset }
+  return { ...state, text, pagination, run, loadMore, reset }
 }
 
 /**

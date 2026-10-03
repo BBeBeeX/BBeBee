@@ -246,6 +246,39 @@ describe('searchAll', () => {
     expect(seen['unspecified']).toBeUndefined()
   })
 
+  it('searches a single source with pagination', async () => {
+    const { sources } = await withSources()
+    const calls: { page?: unknown; types?: unknown }[] = []
+    sources.register({
+      ...searchingProvider('one', async (q, page) => {
+        calls.push({ page, types: q.types })
+        return {
+          tracks: {
+            items: [
+              {
+                urn: 'BBeBee:one:track:1',
+                title: page?.cursor ? `Page ${page.cursor}` : 'Page 1',
+                artists: [],
+              },
+            ],
+            hasMore: !page?.cursor,
+            cursor: '2',
+          },
+        }
+      }),
+    })
+
+    const first = await sources.searchSource('one', query, undefined, { types: ['track'] })
+    expect(first.result?.tracks?.items[0]?.title).toBe('Page 1')
+    expect(first.result?.tracks?.hasMore).toBe(true)
+    expect(calls[0]).toEqual({ page: undefined, types: ['track'] })
+
+    const second = await sources.searchSource('one', query, { cursor: '2' })
+    expect(second.result?.tracks?.items[0]?.title).toBe('Page 2')
+    expect(second.result?.tracks?.hasMore).toBe(false)
+    expect(calls[1]?.page).toEqual({ cursor: '2' })
+  })
+
   it('caches results asked for through a gated caller with no db grants', async () => {
     // The search screen runs on the UI package's context (docs/08 §2), which
     // holds no db capabilities. The write belongs to this service, on the

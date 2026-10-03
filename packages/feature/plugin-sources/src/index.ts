@@ -475,11 +475,32 @@ export class Sources extends Service implements SourcesService {
     return { bySource }
   }
 
+  /**
+   * Search a single source with pagination, caching what comes back.
+   */
+  async searchSource(
+    sourceId: string,
+    query: SearchQuery,
+    page?: PageRequest,
+    opts: { timeoutMs?: number; types?: SearchQuery['types'] } = {},
+  ): Promise<AggregatedSearchEntry> {
+    const provider = this.registry.get(sourceId)
+    if (!provider) {
+      throw new ProviderError(`no source ${sourceId} is registered`, sourceId)
+    }
+    if (typeof provider.search !== 'function' || !canSearchProvider(provider)) {
+      throw new ProviderError(`source ${sourceId} cannot search`, sourceId)
+    }
+    const timeoutMs = opts.timeoutMs ?? this.config.searchTimeoutMs ?? DEFAULT_SEARCH_TIMEOUT_MS
+    return this.searchOne(provider, query, timeoutMs, opts.types, page)
+  }
+
   private async searchOne(
     provider: MediaProvider,
     query: SearchQuery,
     timeoutMs: number,
     types?: SearchQuery['types'],
+    page?: PageRequest,
   ): Promise<AggregatedSearchEntry> {
     const { sourceId } = provider
     const startedAt = Date.now()
@@ -488,7 +509,7 @@ export class Sources extends Service implements SourcesService {
     // synchronous throw escapes the handler and rejects the whole fan-out —
     // the one thing searchAll promises never to do.
     const inFlight = Promise.resolve()
-      .then(() => provider.search!(types ? { ...query, types } : query))
+      .then(() => provider.search!(types ? { ...query, types } : query, page))
       .then(
       (result) => ({ ok: true as const, result }),
       (error: unknown) => ({ ok: false as const, error: asSourceError(error, sourceId) }),

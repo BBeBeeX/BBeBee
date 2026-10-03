@@ -538,6 +538,105 @@ describe('SearchScreen', () => {
       expect(shown, 'only the specified source was asked').not.toContain('Alpha Song')
     })
   })
+
+  it('allows each source panel to collapse and expand', async () => {
+    const { ctx, admin } = await harness()
+    await withTwoSources(admin)
+    const [alpha] = admin.sources.sources
+    registerHits(admin, alpha!.id, 'Alpha Song')
+    await tick()
+
+    await withListLayout(async () => {
+      render(h(SearchScreen, { ctx }))
+      await act(async () => {
+        type('search-input', 'song')
+      })
+      await act(async () => {
+        screen.getByTestId('search-submit').click()
+        await tick()
+        await tick()
+      })
+
+      expect(document.body.textContent).toContain('Alpha Song')
+
+      const header = screen.getByTestId(`source-panel-header-${alpha!.id}`)
+      expect(header.getAttribute('aria-expanded')).toBe('true')
+
+      // Click the panel header to collapse
+      await act(async () => {
+        header.click()
+        await tick()
+      })
+      expect(header.getAttribute('aria-expanded')).toBe('false')
+
+      // Click again to expand
+      await act(async () => {
+        header.click()
+        await tick()
+      })
+      expect(header.getAttribute('aria-expanded')).toBe('true')
+      expect(document.body.textContent).toContain('Alpha Song')
+    })
+  })
+
+  it('renders a load more button and fetches the next page for that source', async () => {
+    const { ctx, admin } = await harness()
+    await withTwoSources(admin)
+    const [alpha] = admin.sources.sources
+
+    let pageCalled = 0
+    admin.sources.register({
+      ...providerWith(alpha!.id, { search: true }),
+      search: async (query, page) => {
+        pageCalled++
+        if (page?.cursor === '2') {
+          return {
+            tracks: {
+              items: [track(alpha!.id, '2', 'Alpha More Song')],
+              hasMore: false,
+            },
+          }
+        }
+        return {
+          tracks: {
+            items: [track(alpha!.id, '1', 'Alpha Initial Song')],
+            hasMore: true,
+            cursor: '2',
+          },
+        }
+      },
+    })
+    await tick()
+
+    await withListLayout(async () => {
+      render(h(SearchScreen, { ctx }))
+      await act(async () => {
+        type('search-input', 'song')
+      })
+      await act(async () => {
+        screen.getByTestId('search-submit').click()
+        await tick()
+        await tick()
+      })
+
+      expect(document.body.textContent).toContain('Alpha Initial Song')
+      expect(document.body.textContent).not.toContain('Alpha More Song')
+
+      const loadMoreBtn = screen.getByTestId(`search-load-more-${alpha!.id}`)
+      expect(loadMoreBtn).toBeTruthy()
+
+      await act(async () => {
+        loadMoreBtn.click()
+        await tick()
+        await tick()
+      })
+
+      expect(pageCalled).toBe(2)
+      expect(document.body.textContent).toContain('Alpha Initial Song')
+      expect(document.body.textContent).toContain('Alpha More Song')
+      expect(document.body.textContent).toContain('已加载全部结果')
+    })
+  })
 })
 
 describe('SourcesListScreen', () => {

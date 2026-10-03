@@ -1,27 +1,24 @@
 import { createElement as h, Fragment, useEffect, useRef, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { DownloadsService, UiService } from '@BBeBee/protocol'
+import type { UiService } from '@BBeBee/protocol'
 import { ALBUM_VIEWS } from '@BBeBee/plugin-album/views'
 import { useTrackMenu } from '@BBeBee/ui-menus'
 import {
-  playFromList,
-  searchResultRows,
   useSearchSourceSelection,
   useSourceSearch,
   type SearchInterfaceKind,
-  type SearchResultRow,
 } from '@BBeBee/plugin-sources/hooks'
 import {
   Button,
   ContextMenu,
   EmptyState,
-  List,
   Text,
   TextField,
+  tablerIcon,
 } from '@BBeBee/ui-kit-desktop'
 import { serviceOf } from '@BBeBee/ui-core'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
-import { CachedArtwork, CachedTrackRow } from '../components/CachedArtwork.js'
+import { SourcePanel } from '../components/SourcePanel.js'
 
 const p = () => palettes.dark
 
@@ -41,12 +38,12 @@ export function SearchScreen({
   onOpenAlbum?: (urn: string) => void
 }): ReactElement {
   const scheme = p()
-  const downloads = serviceOf<DownloadsService>(ctx, 'downloads')
   const search = useSourceSearch(ctx)
   const selection = useSearchSourceSelection(ctx)
   const [text, setText] = useState(query ?? '')
   const menu = useTrackMenu(ctx)
   const lastSearchKeyRef = useRef<string | null>(null)
+  const [collapsedSources, setCollapsedSources] = useState<ReadonlySet<string>>(new Set())
 
   useEffect(() => {
     if (query && query.trim().length > 0) {
@@ -79,17 +76,33 @@ export function SearchScreen({
   const clear = () => {
     search.reset()
     setText('')
+    setCollapsedSources(new Set())
   }
-
-  const rows = searchResultRows(
-    search.data,
-    (sourceId) => selection.options.find((option) => option.id === sourceId)?.name ?? sourceId,
-  )
 
   const openAlbum = (urn: string) => {
     onOpenAlbum?.(urn)
     serviceOf<UiService>(ctx, 'ui')?.navigate(ALBUM_VIEWS.album, { urn })
   }
+
+  const toggleSource = (sourceId: string) => {
+    setCollapsedSources((prev) => {
+      const next = new Set(prev)
+      if (next.has(sourceId)) next.delete(sourceId)
+      else next.add(sourceId)
+      return next
+    })
+  }
+
+  const expandAll = () => {
+    setCollapsedSources(new Set())
+  }
+
+  const collapseAll = () => {
+    const allIds = search.data?.bySource.map((s) => s.sourceId) ?? []
+    setCollapsedSources(new Set(allIds))
+  }
+
+  const bySource = search.data?.bySource ?? []
 
   return h(
     Fragment,
@@ -105,11 +118,24 @@ export function SearchScreen({
           minHeight: 0,
           padding: tokens.space[4],
           gap: tokens.space[4],
+          background: 'var(--bg-primary, ' + scheme.bg.base + ')',
         },
       },
+      // Search controls card (Search input + Source toggle chips)
       h(
         'div',
-        { style: { display: 'flex', flexDirection: 'column', gap: tokens.space[2] } },
+        {
+          style: {
+            display: 'flex',
+            flexDirection: 'column',
+            gap: tokens.space[3],
+            background: 'var(--surface-1, ' + scheme.bg.raised + ')',
+            padding: tokens.space[3],
+            borderRadius: tokens.radius.md,
+            border: '1px solid var(--border-subtle, ' + scheme.border.subtle + ')',
+            boxShadow: '0 2px 16px rgba(0, 0, 0, 0.25)',
+          },
+        },
         h(
           'form',
           {
@@ -125,7 +151,7 @@ export function SearchScreen({
             h(TextField, {
               value: text,
               onChange: setText,
-              placeholder: 'Songs, albums, artists…',
+              placeholder: '搜索歌曲、专辑、艺术家…',
               accessibilityLabel: 'Search query',
               testID: 'search-input',
             }),
@@ -135,10 +161,15 @@ export function SearchScreen({
             disabled: !canSearch,
             loading: busy,
             testID: 'search-submit',
-            children: 'Search',
+            children: '搜索',
           }),
           submitted
-            ? h(Button, { variant: 'ghost', onPress: clear, testID: 'search-clear', children: 'Clear' })
+            ? h(Button, {
+                variant: 'ghost',
+                onPress: clear,
+                testID: 'search-clear',
+                children: '清空',
+              })
             : null,
         ),
         h(
@@ -156,31 +187,66 @@ export function SearchScreen({
           ...selection.interfaces.map((iface) =>
             h(SourceChip, {
               key: iface.id,
-              label: `${iface.sourceName} · ${iface.kind === 'track' ? 'Songs' : 'Artists'}`,
+              label: `${iface.sourceName} · ${iface.kind === 'track' ? '单曲' : '歌手'}`,
               selected: selection.isInterfaceSelected(iface.id),
               disabled: !iface.searchable,
               onPress: () => selection.toggleInterface(iface.id),
-              accessibilityLabel: `${selection.isInterfaceSelected(iface.id) ? 'Do not search' : 'Search'} ${iface.sourceName} ${iface.kind === 'track' ? 'songs' : 'artists'}`,
+              accessibilityLabel: `${selection.isInterfaceSelected(iface.id) ? '不搜索' : '搜索'} ${iface.sourceName} ${iface.kind === 'track' ? '单曲' : '歌手'}`,
               testID: `search-source-${iface.sourceId}-${iface.kind}`,
             }),
           ),
           selection.interfaces.some((iface) => iface.searchable)
             ? h(SourceChip, {
-                label: selection.allSelected ? 'None' : 'All',
+                label: selection.allSelected ? '取消全选' : '全选',
                 selected: false,
                 onPress: selection.toggleAll,
-                accessibilityLabel: selection.allSelected ? 'Deselect every source' : 'Select every source',
+                accessibilityLabel: selection.allSelected ? '取消全选音源' : '全选所有音源',
                 testID: 'search-toggle-all',
               })
             : null,
         ),
       ),
+      // Results area
       !submitted
-        ? null
+        ? h(
+            'div',
+            {
+              style: {
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: tokens.space[3],
+                color: 'var(--text-muted, ' + scheme.text.disabled + ')',
+              },
+            },
+            tablerIcon('search', {
+              size: 48,
+              color: 'var(--border-hover, ' + scheme.border.strong + ')',
+            }),
+            h(
+              Text,
+              {
+                variant: 'md',
+                style: { color: 'var(--text-secondary, ' + scheme.text.secondary + ')' },
+              },
+              '输入关键词，跨音源统一搜索',
+            ),
+            h(
+              Text,
+              {
+                variant: 'sm',
+                tone: 'muted',
+                style: { color: 'var(--text-tertiary, #8B95B0)' },
+              },
+              '每个音源独立成卡片面板，可折叠展开并支持分页加载更多',
+            ),
+          )
         : search.status === 'error' && search.error
           ? h(EmptyState, {
               icon: 'alert',
-              title: 'Search failed',
+              title: '搜索失败',
               description: search.error.message,
               action: h(Button, {
                 variant: 'secondary',
@@ -189,107 +255,121 @@ export function SearchScreen({
                     sourceIds: selection.selectedIds,
                     typesBySource: selection.typesBySource,
                   }),
-                children: 'Try again',
+                children: '重试',
               }),
             })
           : busy
             ? h(EmptyState, {
-                title: `Searching for “${search.text}”…`,
-                description: 'Waiting for every selected source to answer.',
+                title: `正在搜索 “${search.text}”…`,
+                description: '等待各已选音源返回检索结果。',
               })
             : h(
                 'div',
-                { style: { flex: 1, minHeight: 0 } },
-                h(List<SearchResultRow>, {
-                  items: rows,
-                  accessibilityLabel: 'Search results',
-                  estimatedItemSize: tokens.size.row,
-                  keyExtractor: (row) => row.key,
-                  empty: h(EmptyState, {
-                    icon: 'search',
-                    title: 'Nothing found',
-                    description: 'No selected source had a match. Try a different search or source set.',
-                  }),
-                  renderItem: (row) =>
-                    row.kind === 'header'
-                      ? h(
-                          'div',
-                          {
-                            role: 'heading',
-                            'aria-level': 2,
-                            style: {
-                              display: 'flex',
-                              alignItems: 'baseline',
-                              gap: tokens.space[2],
-                              padding: `${tokens.space[3]}px ${tokens.space[2]}px ${tokens.space[1]}px`,
-                            },
+                {
+                  'aria-label': 'Search results',
+                  style: {
+                    flex: 1,
+                    minHeight: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: tokens.space[3],
+                  },
+                },
+                // Results summary toolbar
+                bySource.length > 0
+                  ? h(
+                      'div',
+                      {
+                        style: {
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: `0 ${tokens.space[1]}px`,
+                          color: 'var(--text-secondary, ' + scheme.text.secondary + ')',
+                          fontSize: tokens.font.size.xs,
+                        },
+                      },
+                      h(
+                        'span',
+                        {
+                          style: {
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: tokens.space[1],
+                            color: 'var(--text-tertiary, #8B95B0)',
                           },
-                          h(Text, { variant: 'md' }, row.name),
-                          h(
-                            Text,
-                            {
-                              variant: 'sm',
-                              tone: row.status === 'error' ? 'error' : 'muted',
-                            },
-                            row.detail,
-                          ),
-                        )
-                      : row.kind === 'track'
-                        ? h(CachedTrackRow, {
-                            ctx,
-                            track: row.track,
-                            showAlbum: true,
-                            onPress: () =>
-                              void playFromList(ctx, row.track.urn, {
-                                urns: [row.track.urn],
-                                context: { kind: 'search', label: search.text },
-                              }),
-                            onDownload: downloads ? () => void downloads.enqueue([row.track.urn]) : undefined,
-                            onMore: (anchor) => menu.open({ track: row.track }, anchor),
-                          })
-                        : row.kind === 'album'
-                          ? h(
-                              'button',
-                              {
-                                type: 'button',
-                                onClick: () => openAlbum(row.album.urn),
-                                'aria-label': row.album.title,
-                                style: {
-                                 display: 'flex',
-                                  alignItems: 'center',
-                                  gap: tokens.space[3],
-                                  width: '100%',
-                                  padding: tokens.space[2],
-                                  background: 'transparent',
-                                  border: 'none',
-                                  cursor: 'pointer',
-                                  color: scheme.text.primary,
-                                },
-                              },
-                              h(CachedArtwork, {
-                                ctx,
-                                artwork: row.album.artwork,
-                                seed: row.album.urn,
-                                size: tokens.size.artworkThumb,
-                              }),
-                              h(
-                                'span',
-                                { style: { textAlign: 'left', minWidth: 0 } },
-                                h(Text, { numberOfLines: 1, children: row.album.title }),
-                                h(Text, {
-                                  variant: 'sm',
-                                  tone: 'muted',
-                                  numberOfLines: 1,
-                                  children: row.album.artists?.map((a) => a.name).join(', ') ?? '',
-                                }),
-                              ),
-                            )
-                          : h(ResultLine, { ctx, row }),
-                }),
+                        },
+                        tablerIcon('search', { size: 14, color: 'var(--text-tertiary, #8B95B0)' }),
+                        h('span', null, `检索到 ${bySource.length} 个音源的结果`),
+                      ),
+                      h(
+                        'div',
+                        {
+                          style: {
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: tokens.space[2],
+                          },
+                        },
+                        h(Button, {
+                          variant: 'ghost',
+                          testID: 'search-expand-all',
+                          onPress: expandAll,
+                          children: '全部展开',
+                        }),
+                        h(Button, {
+                          variant: 'ghost',
+                          testID: 'search-collapse-all',
+                          onPress: collapseAll,
+                          children: '全部收起',
+                        }),
+                      ),
+                    )
+                  : null,
+                // Scrollable Panels Container
+                h(
+                  'div',
+                  {
+                    style: {
+                      flex: 1,
+                      minHeight: 0,
+                      overflowY: 'auto',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: tokens.space[3],
+                      paddingRight: tokens.space[1],
+                    },
+                  },
+                  ...bySource.map((entry) => {
+                    const sourceName =
+                      selection.options.find((option) => option.id === entry.sourceId)?.name ??
+                      entry.sourceId
+                    return h(SourcePanel, {
+                      key: entry.sourceId,
+                      ctx,
+                      sourceId: entry.sourceId,
+                      sourceName,
+                      tracks: entry.result?.tracks?.items ?? [],
+                      albums: entry.result?.albums?.items ?? [],
+                      artists: entry.result?.artists?.items ?? [],
+                      playlists: entry.result?.playlists?.items ?? [],
+                      error: entry.error,
+                      pending: entry.pending,
+                      tookMs: entry.tookMs,
+                      searchQuery: search.text,
+                      expanded: !collapsedSources.has(entry.sourceId),
+                      pagination: search.pagination[entry.sourceId],
+                      onToggle: () => toggleSource(entry.sourceId),
+                      onLoadMore: () => void search.loadMore(entry.sourceId),
+                      onOpenAlbum: openAlbum,
+                      onTrackMenu: (track, anchor) => menu.open({ track }, anchor),
+                    })
+                  }),
+                ),
               ),
-    ),
-    h(ContextMenu, menu.menuProps),
-  )
+      ),
+      h(ContextMenu, menu.menuProps),
+    )
 }
 
 function SourceChip({
@@ -326,10 +406,24 @@ function SourceChip({
         padding: `0 ${tokens.space[3]}px`,
         borderRadius: tokens.radius.pill,
         border: `1px solid ${
-          selected ? 'transparent' : interactive ? scheme.border.strong : scheme.border.subtle
+          selected
+            ? 'transparent'
+            : interactive
+              ? 'var(--border-hover, ' + scheme.border.strong + ')'
+              : 'var(--border-subtle, ' + scheme.border.subtle + ')'
         }`,
-        background: selected ? (interactive ? scheme.accent.hover : scheme.accent.base) : 'transparent',
-        color: selected ? scheme.accent.on : interactive ? scheme.text.primary : scheme.text.secondary,
+        background: selected
+          ? interactive
+            ? 'var(--primary-hover, ' + scheme.accent.hover + ')'
+            : 'var(--primary, ' + scheme.accent.base + ')'
+          : interactive
+            ? 'var(--surface-hover, ' + scheme.bg.overlay + ')'
+            : 'transparent',
+        color: selected
+          ? 'var(--text-primary, ' + scheme.accent.on + ')'
+          : interactive
+            ? 'var(--text-primary, ' + scheme.text.primary + ')'
+            : 'var(--text-secondary, ' + scheme.text.secondary + ')',
         fontFamily: tokens.font.family.ui,
         fontSize: tokens.font.size.xs,
         fontWeight: tokens.font.weight.bold,
@@ -340,43 +434,5 @@ function SourceChip({
       },
     },
     label,
-  )
-}
-
-function ResultLine({
-  ctx,
-  row,
-}: {
-  ctx: Context
-  row: Extract<SearchResultRow, { kind: 'artist' | 'playlist' }>
-}): ReactElement {
-  const subtitle = row.kind === 'playlist' ? row.playlist.owner : undefined
-  return h(
-    'div',
-    {
-      style: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: tokens.space[3],
-        padding: tokens.space[2],
-      },
-    },
-    h(CachedArtwork, {
-      ctx,
-      artwork: row.kind === 'playlist' ? row.playlist.artwork : row.artist.artwork,
-      seed: row.kind === 'playlist' ? row.playlist.urn : row.artist.urn,
-      size: tokens.size.artworkThumb,
-    }),
-    h(
-      'span',
-      { style: { minWidth: 0 } },
-      h(Text, {
-        numberOfLines: 1,
-        children: row.kind === 'playlist' ? row.playlist.name : row.artist.name,
-      }),
-      subtitle
-        ? h(Text, { variant: 'sm', tone: 'muted', numberOfLines: 1, children: subtitle })
-        : null,
-    ),
   )
 }

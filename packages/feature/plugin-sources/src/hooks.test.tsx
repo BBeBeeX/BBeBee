@@ -23,10 +23,12 @@ import {
   resetSearchSourceSelection,
   SEARCH_SOURCES_EXCLUDED_STORAGE_KEY,
   useSourceImport,
+  useSourceSearch,
   useTracks,
   type ImportState,
   type PagedState,
   type SearchSourceSelection,
+  type SourceSearchState,
 } from './hooks.js'
 
 async function harness(): Promise<Context> {
@@ -308,5 +310,96 @@ describe('useSearchSourceSelection', () => {
     expect(sel1.isInterfaceSelected(alphaTrackId)).toBe(true)
     expect(sel2.isInterfaceSelected(alphaTrackId)).toBe(true)
     expect(sel1.allSelected).toBe(true)
+  })
+})
+
+describe('useSourceSearch', () => {
+  it('manages per-source pagination and appends items on loadMore', async () => {
+    const ctx = await harness()
+    await ctx.sources.import(JSON.stringify(DOC))
+    await tick()
+    const sourceId = ctx.sources.sources[0]!.id
+
+    ctx.sources.register({
+      sourceId,
+      displayName: 'Test Source',
+      capabilities: {
+        search: { tracks: true, albums: false, artists: false, playlists: false, fullText: false },
+        browse: false,
+        recommend: false,
+        lyrics: false,
+        artwork: false,
+        library: { read: false, save: false, playlistWrite: false, playlistReorder: false },
+        streaming: { qualities: ['normal'], transcoding: false, seekable: true, urlExpiry: false },
+        regional: false,
+      },
+      auth: {
+        flow: { kind: 'none' },
+        status: { state: 'authenticated' },
+        async signIn() {},
+        async signOut() {},
+        onStatusChange: () => () => {},
+      },
+      search: async (_query, page) => {
+        if (page?.cursor === '2') {
+          return {
+            tracks: {
+              items: [
+                {
+                  urn: `BBeBee:${sourceId}:track:t2`,
+                  title: 'Track 2',
+                  artists: [{ urn: `BBeBee:${sourceId}:artist:a1`, name: 'Artist 1', role: 'main', ordinal: 0 }],
+                },
+              ],
+              hasMore: false,
+            },
+          }
+        }
+        return {
+          tracks: {
+            items: [
+              {
+                urn: `BBeBee:${sourceId}:track:t1`,
+                title: 'Track 1',
+                artists: [{ urn: `BBeBee:${sourceId}:artist:a1`, name: 'Artist 1', role: 'main', ordinal: 0 }],
+              },
+            ],
+            hasMore: true,
+            cursor: '2',
+          },
+        }
+      },
+      getTrack: async (id: string) => ({ urn: `BBeBee:${sourceId}:track:${id}` }),
+      resolveStream: async () => ({ kind: 'remote', target: '', seekable: true }),
+      ping: async () => true,
+    })
+    await tick()
+
+    let state!: SourceSearchState
+    const probe = harnessFor(() => (state = useSourceSearch(ctx)))
+
+    await act(async () => {
+      state.run('test')
+      await tick()
+      await tick()
+    })
+    probe.rerender()
+
+    expect(state.status).toBe('ready')
+    expect(state.pagination[sourceId]?.hasMore).toBe(true)
+    expect(state.pagination[sourceId]?.cursor).toBe('2')
+    expect(state.data?.bySource[0]?.result?.tracks?.items).toHaveLength(1)
+
+    // Load more for this source
+    await act(async () => {
+      await state.loadMore(sourceId)
+      await tick()
+      await tick()
+    })
+    probe.rerender()
+
+    expect(state.pagination[sourceId]?.hasMore).toBe(false)
+    expect(state.data?.bySource[0]?.result?.tracks?.items).toHaveLength(2)
+    expect(state.data?.bySource[0]?.result?.tracks?.items[1]?.title).toBe('Track 2')
   })
 })

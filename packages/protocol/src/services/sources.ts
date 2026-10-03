@@ -364,6 +364,22 @@ export interface SourcesService {
   ): Promise<AggregatedSearch>
 
   /**
+   * Search a single source with pagination, caching what comes back.
+   *
+   * Used for per-source "load more" requests where only one source needs to fetch
+   * subsequent pages of results without refetching or interrupting the other sources.
+   */
+  searchSource(
+    sourceId: string,
+    query: SearchQuery,
+    page?: PageRequest,
+    opts?: {
+      timeoutMs?: number
+      types?: SearchQuery['types']
+    },
+  ): Promise<AggregatedSearchEntry>
+
+  /**
    * Walk one source's hierarchy, caching what comes back.
    *
    * One source rather than a fan-out, because browsing is a *place* — the user

@@ -26,6 +26,7 @@ export { RecommendScreen } from './screens/RecommendScreen.js'
 export { RecommendAllScreen } from './screens/RecommendAllScreen.js'
 export { RecommendShelfRow } from './components/RecommendShelfRow.js'
 export { CachedArtwork, CachedTrackRow } from './components/CachedArtwork.js'
+export { SourcePanel, type SourcePanelProps } from './components/SourcePanel.js'
 
 export const name = 'plugin-sources-ui-desktop'
 export const inject = ['ui', 'sources']
