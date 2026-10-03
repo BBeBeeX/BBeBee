@@ -24,6 +24,7 @@ export interface SourcePanelProps {
   searchQuery?: string
   expanded: boolean
   pagination?: SourcePaginationState
+  maxHeight?: number | string
   onToggle: () => void
   onLoadMore?: (sourceId: string) => void
   onOpenAlbum?: (urn: string) => void
@@ -33,6 +34,7 @@ export interface SourcePanelProps {
 /**
  * An expandable / collapsible card panel representing one music source's search results.
  * Fully adapted to BBeBee color management (theme CSS variables + design tokens).
+ * Supports internal scrolling for all panel contents while keeping the panel header sticky and always visible.
  */
 export function SourcePanel({
   ctx,
@@ -48,6 +50,7 @@ export function SourcePanel({
   searchQuery = '',
   expanded,
   pagination,
+  maxHeight = 'min(520px, 60vh)',
   onToggle,
   onLoadMore,
   onOpenAlbum,
@@ -97,7 +100,11 @@ export function SourcePanel({
         border: '1px solid var(--border-subtle, ' + scheme.border.subtle + ')',
         borderRadius: tokens.radius.md,
         overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        maxHeight: expanded ? maxHeight : undefined,
         transition: `border-color ${tokens.duration.fast}ms, box-shadow ${tokens.duration.fast}ms`,
+        position: 'relative',
       },
     },
     // Panel Header (Clickable Accordion Bar)
@@ -119,13 +126,19 @@ export function SourcePanel({
         onMouseEnter: () => setHeaderHovered(true),
         onMouseLeave: () => setHeaderHovered(false),
         style: {
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
+          flexShrink: 0,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: `${tokens.space[3]}px ${tokens.space[4]}px`,
           background: headerHovered
             ? 'var(--surface-hover, ' + scheme.bg.overlay + ')'
-            : 'var(--surface-2, rgba(255, 255, 255, 0.02))',
+            : 'var(--surface-1, ' + scheme.bg.raised + ')',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
           borderBottom: expanded
             ? '1px solid var(--border-subtle, ' + scheme.border.subtle + ')'
             : 'none',
@@ -267,7 +280,11 @@ export function SourcePanel({
       ? h(
           'div',
           {
+            'data-testid': `source-panel-body-${sourceId}`,
             style: {
+              flex: 1,
+              minHeight: 0,
+              overflowY: 'auto',
               padding: tokens.space[2],
               display: 'flex',
               flexDirection: 'column',

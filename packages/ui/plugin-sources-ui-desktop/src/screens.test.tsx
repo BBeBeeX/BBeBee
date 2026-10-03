@@ -561,6 +561,11 @@ describe('SearchScreen', () => {
 
       const header = screen.getByTestId(`source-panel-header-${alpha!.id}`)
       expect(header.getAttribute('aria-expanded')).toBe('true')
+      expect(header.style.position).toBe('sticky')
+      expect(header.style.top).toBe('0px')
+
+      const body = screen.getByTestId(`source-panel-body-${alpha!.id}`)
+      expect(body.style.overflowY).toBe('auto')
 
       // Click the panel header to collapse
       await act(async () => {
