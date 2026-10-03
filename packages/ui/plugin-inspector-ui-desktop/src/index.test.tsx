@@ -13,7 +13,7 @@ import inspectorUi, {
   InspectorPanel,
 } from './index.js'
 import { CordisGraphAdapter } from './cordis-graph-adapter.js'
-import { computeGraphLayout, filterGraph } from './graph-layout.js'
+import { buildFocusedGraph, computeGraphLayout, filterGraph } from './graph-layout.js'
 import { ALL_LAYER_IDS } from './layer-resolver.js'
 import type { FilterOptions } from './graph-model.js'
 
@@ -119,15 +119,29 @@ describe('Cordis Plugin Topology Explorer View', () => {
     expect(html).toContain('CORDIS TOPOLOGY')
   })
 
-  it('renders all 5 architectural layer container bands', async () => {
+  it('renders all 5 architectural layers in hierarchy tree navigation', async () => {
     const { shellCtx } = await harness()
     const html = renderAsShell(shellCtx)
 
-    expect(html).toContain('KERNEL · L1')
-    expect(html).toContain('CORE · L2')
-    expect(html).toContain('LOGS · L3')
-    expect(html).toContain('FEATURE · L4')
-    expect(html).toContain('UI · L5')
+    expect(html).toContain('Kernel')
+    expect(html).toContain('Core')
+    expect(html).toContain('Logs')
+    expect(html).toContain('Feature')
+    expect(html).toContain('UI')
+  })
+
+  it('renders contextual topology controls: mode, focus badge, depth, and toggles', async () => {
+    const { shellCtx } = await harness()
+    const html = renderAsShell(shellCtx)
+
+    expect(html).toContain('OVERVIEW')
+    expect(html).toContain('FOCUS')
+    expect(html).toContain('DEPTH:')
+    expect(html).toContain('Dependencies')
+    expect(html).toContain('Services')
+    expect(html).toContain('Events')
+    expect(html).toContain('FIT')
+    expect(html).toContain('RESET')
   })
 
   it('gracefully catches render errors in the error boundary', () => {
@@ -228,5 +242,222 @@ describe('CordisGraphAdapter & GraphLayout Engine', () => {
 
     expect(searchFiltered.plugins.some((p) => p.name === 'plugin-auth')).toBe(true)
     expect(searchFiltered.plugins.some((p) => p.name === 'root')).toBe(false)
+  })
+})
+
+describe('Contextual / Focused Subgraph Generation (buildFocusedGraph)', () => {
+  it('focuses on a single plugin and limits scope to 1-hop upstream and downstream', async () => {
+    const ctx = new Context()
+    await ctx.plugin(inspectorPlugin)
+
+    // Create chain: pluginUpstream -> pluginTarget -> pluginDownstream
+    function pluginUpstream() {}
+    function pluginTarget() {}
+    ;(pluginTarget as any).dependencies = ['pluginUpstream']
+    function pluginDownstream() {}
+    ;(pluginDownstream as any).dependencies = ['pluginTarget']
+    function pluginIrrelevant() {}
+
+    await ctx.plugin(pluginUpstream)
+    await ctx.plugin(pluginTarget)
+    await ctx.plugin(pluginDownstream)
+    await ctx.plugin(pluginIrrelevant)
+
+    const adapter = new CordisGraphAdapter(ctx)
+    const graph = adapter.getGraph()
+
+    const targetPlugin = graph.plugins.find((p) => p.name === 'pluginTarget')!
+    expect(targetPlugin).toBeDefined()
+
+    // Depth 1 focus
+    const focused1 = buildFocusedGraph(graph, {
+      mode: 'focus',
+      type: 'plugin',
+      id: targetPlugin.id,
+      depth: 1,
+      showDependencies: true,
+      showDependents: true,
+      showServices: true,
+      showEvents: false,
+    })
+
+    const names1 = focused1.plugins.map((p) => p.name)
+    expect(names1).toContain('pluginTarget')
+    expect(names1).toContain('pluginUpstream')
+    expect(names1).toContain('pluginDownstream')
+    expect(names1).not.toContain('pluginIrrelevant')
+    expect(focused1.plugins.length).toBeLessThan(graph.plugins.length)
+  })
+
+  it('respects depth parameter (depth 1 vs depth 2)', async () => {
+    const ctx = new Context()
+    await ctx.plugin(inspectorPlugin)
+
+    // Chain: D -> C -> B -> A
+    function chainD() {}
+    function chainC() {}
+    ;(chainC as any).dependencies = ['chainD']
+    function chainB() {}
+    ;(chainB as any).dependencies = ['chainC']
+    function chainA() {}
+    ;(chainA as any).dependencies = ['chainB']
+
+    await ctx.plugin(chainD)
+    await ctx.plugin(chainC)
+    await ctx.plugin(chainB)
+    await ctx.plugin(chainA)
+
+    const adapter = new CordisGraphAdapter(ctx)
+    const graph = adapter.getGraph()
+    const targetA = graph.plugins.find((p) => p.name === 'chainA')!
+
+    // Depth 1: includes A and B
+    const depth1 = buildFocusedGraph(graph, {
+      mode: 'focus',
+      type: 'plugin',
+      id: targetA.id,
+      depth: 1,
+      showDependencies: true,
+      showDependents: true,
+      showServices: false,
+      showEvents: false,
+    })
+    expect(depth1.plugins.some((p) => p.name === 'chainA')).toBe(true)
+    expect(depth1.plugins.some((p) => p.name === 'chainB')).toBe(true)
+    expect(depth1.plugins.some((p) => p.name === 'chainC')).toBe(false)
+    expect(depth1.plugins.some((p) => p.name === 'chainD')).toBe(false)
+
+    // Depth 2: includes A, B, and C
+    const depth2 = buildFocusedGraph(graph, {
+      mode: 'focus',
+      type: 'plugin',
+      id: targetA.id,
+      depth: 2,
+      showDependencies: true,
+      showDependents: true,
+      showServices: false,
+      showEvents: false,
+    })
+    expect(depth2.plugins.some((p) => p.name === 'chainA')).toBe(true)
+    expect(depth2.plugins.some((p) => p.name === 'chainB')).toBe(true)
+    expect(depth2.plugins.some((p) => p.name === 'chainC')).toBe(true)
+    expect(depth2.plugins.some((p) => p.name === 'chainD')).toBe(false)
+  })
+
+  it('includes provided and consumed services and their counterparts', async () => {
+    const ctx = new Context()
+    await ctx.plugin(inspectorPlugin)
+
+    class AuthProviderService extends Service {
+      constructor(c: Context) {
+        super(c, 'auth')
+      }
+    }
+    await ctx.plugin(AuthProviderService)
+
+    await ctx.plugin({
+      name: 'plugin-auth-consumer',
+      inject: ['auth'],
+      apply: () => {},
+    })
+
+    const adapter = new CordisGraphAdapter(ctx)
+    const graph = adapter.getGraph()
+    const consumer = graph.plugins.find((p) => p.name === 'plugin-auth-consumer')!
+
+    const focused = buildFocusedGraph(graph, {
+      mode: 'focus',
+      type: 'plugin',
+      id: consumer.id,
+      depth: 1,
+      showDependencies: true,
+      showDependents: true,
+      showServices: true,
+      showEvents: false,
+    })
+
+    expect(focused.services.some((s) => s.name === 'auth')).toBe(true)
+    // Provider plugin must also be included
+    const providerService = focused.services.find((s) => s.name === 'auth')!
+    expect(focused.plugins.some((p) => p.id === providerService.provider)).toBe(true)
+  })
+
+  it('toggles events on and off (default off)', async () => {
+    const ctx = new Context()
+    await ctx.plugin(inspectorPlugin)
+
+    await ctx.plugin({
+      name: 'plugin-event-emitter',
+      apply: (c) => {
+        c.on('audio/track-play' as any, () => {})
+      },
+    })
+
+    const adapter = new CordisGraphAdapter(ctx)
+    const graph = adapter.getGraph()
+    const emitter = graph.plugins.find((p) => p.name === 'plugin-event-emitter')!
+
+    // Default: showEvents = false
+    const withoutEvents = buildFocusedGraph(graph, {
+      mode: 'focus',
+      type: 'plugin',
+      id: emitter.id,
+      depth: 1,
+      showDependencies: true,
+      showDependents: true,
+      showServices: true,
+      showEvents: false,
+    })
+    expect(withoutEvents.events.length).toBe(0)
+
+    // Toggled on: showEvents = true
+    const withEvents = buildFocusedGraph(graph, {
+      mode: 'focus',
+      type: 'plugin',
+      id: emitter.id,
+      depth: 1,
+      showDependencies: true,
+      showDependents: true,
+      showServices: true,
+      showEvents: true,
+    })
+    expect(withEvents.events.length).toBeGreaterThan(0)
+  })
+
+  it('switches between Overview Mode (full graph) and Focus Mode (subgraph)', async () => {
+    const ctx = new Context()
+    await ctx.plugin(inspectorPlugin)
+    await ctx.plugin({ name: 'extra-1', apply: () => {} })
+    await ctx.plugin({ name: 'extra-2', apply: () => {} })
+
+    const adapter = new CordisGraphAdapter(ctx)
+    const graph = adapter.getGraph()
+
+    // Overview mode
+    const overview = buildFocusedGraph(graph, {
+      mode: 'overview',
+      type: 'overview',
+      depth: 1,
+      showDependencies: true,
+      showDependents: true,
+      showServices: true,
+      showEvents: true,
+    })
+    expect(overview.plugins.length).toBe(graph.plugins.length)
+
+    // Focus mode on extra-1
+    const p1 = graph.plugins.find((p) => p.name === 'extra-1')!
+    const focused = buildFocusedGraph(graph, {
+      mode: 'focus',
+      type: 'plugin',
+      id: p1.id,
+      depth: 1,
+      showDependencies: true,
+      showDependents: true,
+      showServices: true,
+      showEvents: false,
+    })
+    expect(focused.plugins.length).toBe(1)
+    expect(focused.plugins[0].name).toBe('extra-1')
   })
 })

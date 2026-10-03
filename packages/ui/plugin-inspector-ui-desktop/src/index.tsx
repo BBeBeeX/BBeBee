@@ -26,13 +26,15 @@ import type { EffectNode, FiberNode, InspectorSnapshot } from '@BBeBee/plugin-in
 import {
   type EdgeType,
   type FilterOptions,
+  type FocusType,
+  type GraphFocus,
   type LayerId,
   type PluginGraph,
   type Point,
 } from './graph-model.js'
 import { ALL_LAYER_IDS } from './layer-resolver.js'
 import { CordisGraphAdapter } from './cordis-graph-adapter.js'
-import { computeGraphLayout } from './graph-layout.js'
+import { buildFocusedGraph, computeGraphLayout } from './graph-layout.js'
 import { GraphToolbar } from './components/GraphToolbar.js'
 import { GraphCanvas } from './components/GraphCanvas.js'
 import { PluginTree } from './components/PluginTree.js'
@@ -225,25 +227,172 @@ function InspectorPanelInner({ ctx }: { ctx: Context }): ReactElement {
     focusDepth: 1,
   })
 
+  // Contextual Graph Focus Specification
+  const [focus, setFocus] = useState<GraphFocus>(() => {
+    const initial = adapter.getGraph()
+    const defaultPlugin =
+      initial.plugins.find((p) => p.layer === 'layer-4' && p.status === 'ACTIVE') ||
+      initial.plugins.find((p) => p.status === 'ACTIVE') ||
+      initial.plugins[0]
+
+    return {
+      mode: defaultPlugin ? 'focus' : 'overview',
+      type: 'plugin',
+      id: defaultPlugin?.id,
+      depth: 1,
+      showDependencies: true,
+      showDependents: true,
+      showServices: true,
+      showEvents: false,
+    }
+  })
+
   // Selection State
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(() => {
+    const initial = adapter.getGraph()
+    const defaultPlugin =
+      initial.plugins.find((p) => p.layer === 'layer-4' && p.status === 'ACTIVE') ||
+      initial.plugins.find((p) => p.status === 'ACTIVE') ||
+      initial.plugins[0]
+    return defaultPlugin?.id ?? null
+  })
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null)
+  const [fitViewTrigger, setFitViewTrigger] = useState<number>(0)
 
   // Viewport Pan and Zoom State
   const [zoom, setZoom] = useState<number>(0.85)
   const [pan, setPan] = useState<Point>({ x: 40, y: 30 })
 
-  // Compute Layout automatically when graph or filters change
-  const layout = useMemo(() => {
-    return computeGraphLayout(graph, filters)
-  }, [graph, filters])
+  // Current focal entity display label
+  const focusedTargetName = useMemo(() => {
+    if (focus.mode === 'overview' || !focus.id) return 'OVERVIEW'
+    if (focus.type === 'layer') {
+      return `Layer: ${focus.id}`
+    }
+    if (focus.type === 'plugin') {
+      const p = graph.plugins.find((plug) => plug.id === focus.id)
+      return p ? (p.displayName || p.name) : focus.id
+    }
+    if (focus.type === 'service') {
+      const s = graph.services.find((serv) => serv.id === focus.id || serv.name === focus.id)
+      return s ? `Service: ${s.name}` : `Service: ${focus.id}`
+    }
+    if (focus.type === 'event') {
+      const ev = graph.events.find((e) => e.id === focus.id || e.name === focus.id)
+      return ev ? `Event: ${ev.name}` : `Event: ${focus.id}`
+    }
+    return focus.id
+  }, [focus, graph])
 
-  // Select node and clear edge selection
-  const handleSelectNode = useCallback((id: string | null) => {
-    setSelectedNodeId(id)
-    setSelectedEdgeId(null)
+  // Extract contextual subgraph centered on the focus target
+  const focusedGraph = useMemo(() => {
+    return buildFocusedGraph(graph, focus)
+  }, [graph, focus])
+
+  // Compute Layout automatically when focused graph, filters, or focus spec change
+  const layout = useMemo(() => {
+    return computeGraphLayout(focusedGraph, filters, focus)
+  }, [focusedGraph, filters, focus])
+
+  // Helper to re-fit viewport on focal changes
+  const triggerFitView = useCallback(() => {
+    setFitViewTrigger((prev) => prev + 1)
   }, [])
+
+  // Symmetrical node selection & focus: canvas, inspector, or direct click
+  const handleSelectNode = useCallback(
+    (id: string | null) => {
+      setSelectedNodeId(id)
+      setSelectedEdgeId(null)
+      if (!id) return
+
+      const isPlugin = graph.plugins.some((p) => p.id === id)
+      if (isPlugin) {
+        setFocus((prev) => ({
+          ...prev,
+          mode: 'focus',
+          type: 'plugin',
+          id,
+        }))
+        triggerFitView()
+        return
+      }
+
+      const isService = graph.services.some((s) => s.id === id)
+      if (isService) {
+        setFocus((prev) => ({
+          ...prev,
+          mode: 'focus',
+          type: 'service',
+          id,
+        }))
+        triggerFitView()
+        return
+      }
+
+      const isEvent = graph.events.some((e) => e.id === id)
+      if (isEvent) {
+        setFocus((prev) => ({
+          ...prev,
+          mode: 'focus',
+          type: 'event',
+          id,
+        }))
+        triggerFitView()
+        return
+      }
+    },
+    [graph, triggerFitView],
+  )
+
+  // Selecting a plugin in the left hierarchy tree focuses it immediately
+  const handleSelectPluginFromTree = useCallback(
+    (id: string) => {
+      setSelectedNodeId(id)
+      setSelectedEdgeId(null)
+      setFocus((prev) => ({
+        ...prev,
+        mode: 'focus',
+        type: 'plugin',
+        id,
+      }))
+      triggerFitView()
+    },
+    [triggerFitView],
+  )
+
+  // Selecting a layer in the tree focuses the layer stratum
+  const handleSelectLayerFromTree = useCallback(
+    (layerId: LayerId) => {
+      setSelectedNodeId(null)
+      setSelectedEdgeId(null)
+      setFocus((prev) => ({
+        ...prev,
+        mode: 'focus',
+        type: 'layer',
+        id: layerId,
+      }))
+      triggerFitView()
+    },
+    [triggerFitView],
+  )
+
+  // Explicit focus trigger from the inspector drawer [ FOCUS ] button
+  const handleFocusFromInspector = useCallback(
+    (type: FocusType, id: string) => {
+      setSelectedNodeId(id)
+      setSelectedEdgeId(null)
+      setFocus((prev) => ({
+        ...prev,
+        mode: 'focus',
+        type,
+        id,
+      }))
+      triggerFitView()
+    },
+    [triggerFitView],
+  )
 
   // Select edge and clear node selection
   const handleSelectEdge = useCallback((id: string | null) => {
@@ -252,13 +401,12 @@ function InspectorPanelInner({ ctx }: { ctx: Context }): ReactElement {
   }, [])
 
   // Double click focuses on node
-  const handleDoubleClickNode = useCallback((id: string) => {
-    setSelectedNodeId(id)
-    setFilters((prev) => ({
-      ...prev,
-      focusNodeId: prev.focusNodeId === id ? null : id,
-    }))
-  }, [])
+  const handleDoubleClickNode = useCallback(
+    (id: string) => {
+      handleSelectNode(id)
+    },
+    [handleSelectNode],
+  )
 
   // Zoom controls
   const handleZoomIn = useCallback(() => {
@@ -270,11 +418,25 @@ function InspectorPanelInner({ ctx }: { ctx: Context }): ReactElement {
   }, [])
 
   const handleFitView = useCallback(() => {
-    setZoom(0.8)
-    setPan({ x: 30, y: 20 })
-  }, [])
+    triggerFitView()
+  }, [triggerFitView])
 
   const handleResetLayout = useCallback(() => {
+    const defaultPlugin =
+      graph.plugins.find((p) => p.layer === 'layer-4' && p.status === 'ACTIVE') ||
+      graph.plugins.find((p) => p.status === 'ACTIVE') ||
+      graph.plugins[0]
+
+    setFocus({
+      mode: defaultPlugin ? 'focus' : 'overview',
+      type: 'plugin',
+      id: defaultPlugin?.id,
+      depth: 1,
+      showDependencies: true,
+      showDependents: true,
+      showServices: true,
+      showEvents: false,
+    })
     setFilters({
       searchQuery: '',
       selectedLayers: new Set<LayerId>(ALL_LAYER_IDS),
@@ -283,11 +445,10 @@ function InspectorPanelInner({ ctx }: { ctx: Context }): ReactElement {
       focusNodeId: null,
       focusDepth: 1,
     })
-    setSelectedNodeId(null)
+    setSelectedNodeId(defaultPlugin?.id ?? null)
     setSelectedEdgeId(null)
-    setZoom(0.85)
-    setPan({ x: 40, y: 30 })
-  }, [])
+    triggerFitView()
+  }, [graph, triggerFitView])
 
   // Identify any stalled plugins for diagnostics
   const stalledPlugins = useMemo(() => {
@@ -311,6 +472,8 @@ function InspectorPanelInner({ ctx }: { ctx: Context }): ReactElement {
     >
       {/* Top Header / Toolbar */}
       <GraphToolbar
+        focus={focus}
+        onUpdateFocus={setFocus}
         filters={filters}
         onUpdateFilters={setFilters}
         onZoomIn={handleZoomIn}
@@ -318,6 +481,7 @@ function InspectorPanelInner({ ctx }: { ctx: Context }): ReactElement {
         onFitView={handleFitView}
         onResetLayout={handleResetLayout}
         selectedNodeId={selectedNodeId}
+        focusedTargetName={focusedTargetName}
       />
 
       {/* Main Workspace (Tree | Canvas | Inspector) */}
@@ -335,17 +499,8 @@ function InspectorPanelInner({ ctx }: { ctx: Context }): ReactElement {
         <PluginTree
           graph={graph}
           selectedNodeId={selectedNodeId}
-          onSelectNode={handleSelectNode}
-          onFocusNode={(id) => {
-            // Find node position in layout and pan towards it
-            const node = layout.nodes.find((n) => n.id === id)
-            if (node) {
-              setPan({
-                x: Math.max(20, 400 - node.x * zoom),
-                y: Math.max(20, 300 - node.y * zoom),
-              })
-            }
-          }}
+          onSelectPlugin={handleSelectPluginFromTree}
+          onSelectLayer={handleSelectLayerFromTree}
         />
 
         {/* Center: Graph Canvas */}
@@ -363,6 +518,7 @@ function InspectorPanelInner({ ctx }: { ctx: Context }): ReactElement {
             pan={pan}
             onZoomChange={setZoom}
             onPanChange={setPan}
+            fitViewTrigger={fitViewTrigger}
           />
         </div>
 
@@ -376,6 +532,7 @@ function InspectorPanelInner({ ctx }: { ctx: Context }): ReactElement {
             setSelectedEdgeId(null)
           }}
           onSelectNode={handleSelectNode}
+          onFocusNode={handleFocusFromInspector}
         />
       </div>
 

@@ -19,6 +19,7 @@ import type {
   EventNode,
   FilterOptions,
   GraphEdge,
+  GraphFocus,
   GraphLayoutResult,
   LayerBounds,
   LayerId,
@@ -36,6 +37,271 @@ const NODE_SIZES = {
   service: { width: 100, height: 48, radius: 24 },
   event: { width: 92, height: 36, radius: 18 },
 }
+
+/**
+ * Contextual / Focused Topology Generator.
+ *
+ * Extracts a local, contextual subgraph centered around a focal Plugin, Layer,
+ * Service, or Event based on the GraphFocus specification.
+ */
+export function buildFocusedGraph(
+  graph: PluginGraph,
+  focus: GraphFocus,
+): PluginGraph {
+  // Overview Mode: returns full graph with global edge toggles
+  if (focus.mode === 'overview' || focus.type === 'overview') {
+    const plugins = graph.plugins
+    const services = focus.showServices ? graph.services : []
+    const events = focus.showEvents ? graph.events : []
+
+    const visibleNodeIds = new Set([
+      ...plugins.map((p) => p.id),
+      ...services.map((s) => s.id),
+      ...events.map((e) => e.id),
+    ])
+
+    const edges = graph.edges.filter((e) => {
+      if (!visibleNodeIds.has(e.source) || !visibleNodeIds.has(e.target)) return false
+      if (e.type === 'dependency' && !focus.showDependencies) return false
+      if (e.type === 'service' && !focus.showServices) return false
+      if (e.type === 'event' && !focus.showEvents) return false
+      return true
+    })
+
+    return {
+      ...graph,
+      plugins,
+      services,
+      events,
+      edges,
+      counts: {
+        ...graph.counts,
+        totalPlugins: plugins.length,
+        totalServices: services.length,
+        totalEvents: events.length,
+        totalEdges: edges.length,
+      },
+    }
+  }
+
+  // Focused Mode
+  const includedPluginIds = new Set<string>()
+  const includedServiceIds = new Set<string>()
+  const includedEventIds = new Set<string>()
+
+  if (focus.type === 'plugin') {
+    const focalPlugin = graph.plugins.find(
+      (p) =>
+        p.id === focus.id ||
+        p.name === focus.id ||
+        p.name.replace(/^@BBeBee\//, '') === focus.id,
+    )
+
+    if (!focalPlugin) {
+      // Fallback: if not found, pick the first active plugin or return empty
+      return {
+        ...graph,
+        plugins: [],
+        services: [],
+        events: [],
+        edges: [],
+      }
+    }
+
+    includedPluginIds.add(focalPlugin.id)
+    let frontier = new Set<string>([focalPlugin.id])
+    const maxDepth = focus.depth >= 99 ? 99 : Math.max(1, focus.depth)
+
+    for (let d = 0; d < maxDepth; d++) {
+      const nextFrontier = new Set<string>()
+
+      for (const pid of frontier) {
+        const p = graph.plugins.find((plug) => plug.id === pid)
+        if (!p) continue
+
+        // 1. Direct dependencies (upstream)
+        if (focus.showDependencies) {
+          for (const dep of p.dependencies) {
+            const depPlugin = graph.plugins.find(
+              (dp) =>
+                dp.id === dep ||
+                dp.name === dep ||
+                dp.name.replace(/^@BBeBee\//, '') === dep,
+            )
+            if (depPlugin && !includedPluginIds.has(depPlugin.id)) {
+              includedPluginIds.add(depPlugin.id)
+              nextFrontier.add(depPlugin.id)
+            }
+          }
+          for (const e of graph.edges) {
+            if (e.target === p.id && e.type === 'dependency') {
+              if (!includedPluginIds.has(e.source)) {
+                includedPluginIds.add(e.source)
+                nextFrontier.add(e.source)
+              }
+            }
+          }
+        }
+
+        // 2. Direct dependents (downstream)
+        if (focus.showDependents) {
+          for (const other of graph.plugins) {
+            if (
+              other.dependencies.some(
+                (dep) =>
+                  dep === p.id ||
+                  dep === p.name ||
+                  dep.replace(/^@BBeBee\//, '') === p.name,
+              )
+            ) {
+              if (!includedPluginIds.has(other.id)) {
+                includedPluginIds.add(other.id)
+                nextFrontier.add(other.id)
+              }
+            }
+          }
+          for (const e of graph.edges) {
+            if (e.source === p.id && e.type === 'dependency') {
+              if (!includedPluginIds.has(e.target)) {
+                includedPluginIds.add(e.target)
+                nextFrontier.add(e.target)
+              }
+            }
+          }
+        }
+
+        // 3. UI View associations
+        for (const e of graph.edges) {
+          if (e.type === 'ui') {
+            if (e.source === p.id && !includedPluginIds.has(e.target)) {
+              includedPluginIds.add(e.target)
+              nextFrontier.add(e.target)
+            }
+            if (e.target === p.id && !includedPluginIds.has(e.source)) {
+              includedPluginIds.add(e.source)
+              nextFrontier.add(e.source)
+            }
+          }
+        }
+
+        // 4. Services provided & consumed
+        if (focus.showServices) {
+          for (const s of graph.services) {
+            const isProvided = s.provider === p.id
+            const isConsumed = s.consumers.includes(p.id)
+            if (isProvided || isConsumed) {
+              includedServiceIds.add(s.id)
+              // If P consumes service S, also include provider of S so the flow is connected
+              if (isConsumed && s.provider && !includedPluginIds.has(s.provider)) {
+                includedPluginIds.add(s.provider)
+                nextFrontier.add(s.provider)
+              }
+            }
+          }
+        }
+
+        // 5. Events listened & emitted
+        if (focus.showEvents) {
+          for (const ev of graph.events) {
+            if (ev.listeners.includes(p.id) || p.eventsListened.includes(ev.name)) {
+              includedEventIds.add(ev.id)
+            }
+          }
+        }
+      }
+
+      frontier = nextFrontier
+      if (frontier.size === 0) break
+    }
+  } else if (focus.type === 'layer') {
+    // Layer Focus: include all plugins in the stratum + direct Core/Logs dependencies
+    const layerPlugins = graph.plugins.filter((p) => p.layer === focus.id)
+    for (const p of layerPlugins) {
+      includedPluginIds.add(p.id)
+    }
+
+    for (const p of layerPlugins) {
+      if (focus.showDependencies) {
+        for (const dep of p.dependencies) {
+          const depPlugin = graph.plugins.find(
+            (dp) =>
+              dp.id === dep ||
+              dp.name === dep ||
+              dp.name.replace(/^@BBeBee\//, '') === dep,
+          )
+          if (depPlugin) includedPluginIds.add(depPlugin.id)
+        }
+      }
+      if (focus.showServices) {
+        for (const s of graph.services) {
+          if (s.provider === p.id || s.consumers.includes(p.id)) {
+            includedServiceIds.add(s.id)
+            if (s.provider) includedPluginIds.add(s.provider)
+          }
+        }
+      }
+      if (focus.showEvents) {
+        for (const ev of graph.events) {
+          if (ev.listeners.includes(p.id)) includedEventIds.add(ev.id)
+        }
+      }
+    }
+  } else if (focus.type === 'service') {
+    const s = graph.services.find((serv) => serv.id === focus.id || serv.name === focus.id)
+    if (s) {
+      includedServiceIds.add(s.id)
+      if (s.provider) includedPluginIds.add(s.provider)
+      for (const c of s.consumers) includedPluginIds.add(c)
+    }
+  } else if (focus.type === 'event') {
+    const ev = graph.events.find((e) => e.id === focus.id || e.name === focus.id)
+    if (ev) {
+      includedEventIds.add(ev.id)
+      for (const l of ev.listeners) includedPluginIds.add(l)
+    }
+  }
+
+  const plugins = graph.plugins.filter((p) => includedPluginIds.has(p.id))
+  const services = focus.showServices
+    ? graph.services.filter((s) => includedServiceIds.has(s.id))
+    : []
+  const events = focus.showEvents
+    ? graph.events.filter((e) => includedEventIds.has(e.id))
+    : []
+
+  const visibleNodeIds = new Set([
+    ...plugins.map((p) => p.id),
+    ...services.map((s) => s.id),
+    ...events.map((e) => e.id),
+  ])
+
+  const edges = graph.edges.filter((e) => {
+    if (!visibleNodeIds.has(e.source) || !visibleNodeIds.has(e.target)) return false
+    if (e.type === 'dependency' && !focus.showDependencies) return false
+    if (e.type === 'service' && !focus.showServices) return false
+    if (e.type === 'event' && !focus.showEvents) return false
+    return true
+  })
+
+  return {
+    ...graph,
+    plugins,
+    services,
+    events,
+    edges,
+    counts: {
+      ...graph.counts,
+      totalPlugins: plugins.length,
+      activePlugins: plugins.filter((p) => p.status === 'ACTIVE').length,
+      pendingPlugins: plugins.filter((p) => p.status === 'PENDING').length,
+      failedPlugins: plugins.filter((p) => p.status === 'FAILED').length,
+      totalServices: services.length,
+      totalEvents: events.length,
+      totalEdges: edges.length,
+    },
+  }
+}
+
 
 /**
  * Filter graph nodes and edges according to search query, layer toggles,
@@ -137,6 +403,7 @@ export function filterGraph(graph: PluginGraph, options: FilterOptions): {
 export function computeGraphLayout(
   graph: PluginGraph,
   options: FilterOptions,
+  focus?: GraphFocus,
 ): GraphLayoutResult {
   const { plugins, services, events, edges } = filterGraph(graph, options)
 
@@ -186,7 +453,11 @@ export function computeGraphLayout(
   const layerBounds: LayerBounds[] = []
   let currentY = 80
   const canvasPaddingX = 80
-  const minLayerWidth = 1400
+  const totalVisibleNodes = plugins.length + services.length + events.length
+  const isFocused = focus?.mode === 'focus'
+  const minLayerWidth = isFocused
+    ? Math.max(720, totalVisibleNodes * 110)
+    : 1400
 
   let maxRowWidth = minLayerWidth
 
@@ -201,14 +472,19 @@ export function computeGraphLayout(
 
     const totalLayerNodes = layerPlugins.length + layerServices.length + layerEvents.length
 
+    // In focused topology, skip empty layers to avoid vertical bloat
+    if (focus?.mode === 'focus' && totalLayerNodes === 0) continue
+
     const startY = currentY
     const headerHeight = 56
     const rowSpacing = 110
     const colSpacing = 150
 
     // Arrange nodes in rows inside the layer band
-    // Determine items per row based on total count
-    const itemsPerRow = Math.max(6, Math.min(10, Math.ceil(Math.sqrt(totalLayerNodes * 2.5))))
+    const itemsPerRow =
+      totalVisibleNodes < 20
+        ? Math.max(3, Math.min(6, Math.max(totalLayerNodes, 3)))
+        : Math.max(6, Math.min(10, Math.ceil(Math.sqrt(totalLayerNodes * 2.5))))
 
     let rowIdx = 0
     let colIdx = 0

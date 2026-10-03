@@ -143,3 +143,18 @@ export interface FilterOptions {
   focusNodeId: string | null
   focusDepth: number
 }
+
+export type FocusType = 'overview' | 'plugin' | 'layer' | 'service' | 'event'
+
+export interface GraphFocus {
+  mode: 'focus' | 'overview'
+  type: FocusType
+  id?: string
+  depth: number
+
+  showDependencies: boolean
+  showDependents: boolean
+  showServices: boolean
+  showEvents: boolean
+}
+

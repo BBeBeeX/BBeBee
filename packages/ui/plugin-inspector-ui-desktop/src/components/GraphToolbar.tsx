@@ -1,19 +1,23 @@
 /**
  * Graph Toolbar Component.
  *
- * Provides top-level controls for:
- * - Real-time full-text search across plugins, services, and events
- * - Architectural Layer filters (Kernel, Core, Logs, Feature, UI)
- * - Node & Edge type visibility toggles
- * - Multi-depth Focus traversal (depth = 1, 2, 3)
- * - Viewport zoom controls (Zoom In, Zoom Out, Fit View, Reset Layout)
+ * Provides controls for:
+ * - Mode Switching: [ OVERVIEW ] vs [ FOCUS ]
+ * - Focus Target Indicator: "FOCUS: <plugin-name>"
+ * - Depth Selector: [1] [2] [3] [ALL]
+ * - Feature Toggles: ☑ Dependencies  ☑ Services  ☐ Events
+ * - Real-time Search
+ * - Layer Stratum Filters
+ * - Fit View & Reset
  */
 
-import { memo, useState, type ReactElement } from 'react'
-import type { EdgeType, FilterOptions, LayerId } from '../graph-model.js'
+import { memo, type ReactElement } from 'react'
+import type { FilterOptions, GraphFocus, LayerId } from '../graph-model.js'
 import { ALL_LAYER_IDS, SYSTEM_LAYERS } from '../layer-resolver.js'
 
 export interface GraphToolbarProps {
+  focus: GraphFocus
+  onUpdateFocus: (updater: (prev: GraphFocus) => GraphFocus) => void
   filters: FilterOptions
   onUpdateFilters: (updater: (prev: FilterOptions) => FilterOptions) => void
   onZoomIn: () => void
@@ -21,18 +25,21 @@ export interface GraphToolbarProps {
   onFitView: () => void
   onResetLayout: () => void
   selectedNodeId: string | null
+  focusedTargetName: string
 }
 
 export const GraphToolbar = memo(function GraphToolbar({
+  focus,
+  onUpdateFocus,
   filters,
   onUpdateFilters,
   onZoomIn,
   onZoomOut,
   onFitView,
   onResetLayout,
-  selectedNodeId,
+  focusedTargetName,
 }: GraphToolbarProps): ReactElement {
-  const [showFilterDropdown, setShowFilterDropdown] = useState(false)
+  const isFocusMode = focus.mode === 'focus'
 
   const handleSearchChange = (value: string) => {
     onUpdateFilters((prev) => ({ ...prev, searchQuery: value }))
@@ -42,7 +49,6 @@ export const GraphToolbar = memo(function GraphToolbar({
     onUpdateFilters((prev) => {
       const next = new Set(prev.selectedLayers)
       if (next.has(layerId)) {
-        // Prevent deselecting all layers
         if (next.size > 1) next.delete(layerId)
       } else {
         next.add(layerId)
@@ -51,39 +57,24 @@ export const GraphToolbar = memo(function GraphToolbar({
     })
   }
 
-  const toggleNodeType = (type: 'plugin' | 'service' | 'event') => {
-    onUpdateFilters((prev) => {
-      const next = new Set(prev.nodeTypes)
-      if (next.has(type)) {
-        if (next.size > 1) next.delete(type)
-      } else {
-        next.add(type)
-      }
-      return { ...prev, nodeTypes: next }
-    })
+  const setMode = (mode: 'overview' | 'focus') => {
+    onUpdateFocus((prev) => ({ ...prev, mode }))
   }
 
-  const toggleEdgeType = (type: EdgeType) => {
-    onUpdateFilters((prev) => {
-      const next = new Set(prev.edgeTypes)
-      if (next.has(type)) {
-        if (next.size > 1) next.delete(type)
-      } else {
-        next.add(type)
-      }
-      return { ...prev, edgeTypes: next }
-    })
+  const setDepth = (depth: number) => {
+    onUpdateFocus((prev) => ({ ...prev, depth }))
   }
 
-  const toggleFocus = () => {
-    onUpdateFilters((prev) => ({
-      ...prev,
-      focusNodeId: prev.focusNodeId ? null : selectedNodeId,
-    }))
+  const toggleDependencies = () => {
+    onUpdateFocus((prev) => ({ ...prev, showDependencies: !prev.showDependencies }))
   }
 
-  const setFocusDepth = (depth: number) => {
-    onUpdateFilters((prev) => ({ ...prev, focusDepth: depth }))
+  const toggleServices = () => {
+    onUpdateFocus((prev) => ({ ...prev, showServices: !prev.showServices }))
+  }
+
+  const toggleEvents = () => {
+    onUpdateFocus((prev) => ({ ...prev, showEvents: !prev.showEvents }))
   }
 
   return (
@@ -102,34 +93,226 @@ export const GraphToolbar = memo(function GraphToolbar({
         fontSize: 12,
         gap: 12,
         zIndex: 10,
+        flexWrap: 'wrap',
       }}
     >
-      {/* Left: Branding & Search */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1, maxWidth: 520 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
-          <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0.5, color: '#f8fafc' }}>
-            CORDIS TOPOLOGY
-          </span>
+      {/* Left: Branding, Mode Toggle & Focus Indicator */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginRight: 2 }}>
+          <span style={{ color: '#38bdf8', fontSize: 13 }}>⚡</span>
           <span
             style={{
-              fontSize: 9,
-              color: '#38bdf8',
-              background: 'rgba(56, 189, 248, 0.12)',
-              border: '1px solid rgba(56, 189, 248, 0.3)',
-              padding: '1px 5px',
-              borderRadius: 3,
+              fontWeight: 800,
+              letterSpacing: 1.2,
+              color: '#f8fafc',
+              fontSize: 11.5,
+              textTransform: 'uppercase',
             }}
           >
-            v4.0-rc.9
+            CORDIS TOPOLOGY
           </span>
         </div>
 
-        {/* Global Search Input */}
-        <div style={{ position: 'relative', flex: 1 }}>
+        {/* Mode Selector: [ OVERVIEW ] [ FOCUS ] */}
+        <div
+          style={{
+            display: 'flex',
+            background: '#05070d',
+            borderRadius: 5,
+            padding: 2,
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+          }}
+        >
+          <button
+            data-testid="mode-overview-button"
+            onClick={() => setMode('overview')}
+            style={{
+              background: !isFocusMode ? '#38bdf8' : 'transparent',
+              color: !isFocusMode ? '#05070d' : '#94a3b8',
+              border: 'none',
+              borderRadius: 3,
+              padding: '4px 10px',
+              fontSize: 10.5,
+              fontWeight: 700,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              letterSpacing: 0.5,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            OVERVIEW
+          </button>
+          <button
+            data-testid="mode-focus-button"
+            onClick={() => setMode('focus')}
+            style={{
+              background: isFocusMode ? '#38bdf8' : 'transparent',
+              color: isFocusMode ? '#05070d' : '#94a3b8',
+              border: 'none',
+              borderRadius: 3,
+              padding: '4px 10px',
+              fontSize: 10.5,
+              fontWeight: 700,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              letterSpacing: 0.5,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            FOCUS
+          </button>
+        </div>
+
+        {/* Current Focus Pill */}
+        <div
+          data-testid="focus-target-indicator"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            background: 'rgba(56, 189, 248, 0.08)',
+            border: '1px solid rgba(56, 189, 248, 0.25)',
+            borderRadius: 4,
+            padding: '4px 10px',
+          }}
+        >
+          <span style={{ color: '#64748b', fontSize: 10, fontWeight: 700 }}>
+            {isFocusMode ? 'FOCUS:' : 'MODE:'}
+          </span>
+          <span
+            style={{
+              color: '#38bdf8',
+              fontWeight: 700,
+              fontSize: 11,
+              maxWidth: 160,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+            title={focusedTargetName}
+          >
+            {isFocusMode ? focusedTargetName || 'OVERVIEW' : 'GLOBAL TOPOLOGY'}
+          </span>
+        </div>
+
+        {/* Depth Selector: [1] [2] [3] [ALL] (Active in Focus mode) */}
+        {isFocusMode && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ color: '#64748b', fontSize: 10, fontWeight: 700 }}>DEPTH:</span>
+            <div
+              style={{
+                display: 'flex',
+                background: '#05070d',
+                borderRadius: 4,
+                padding: 2,
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+              }}
+            >
+              {[1, 2, 3, 99].map((d) => {
+                const label = d === 99 ? 'ALL' : String(d)
+                const isSelected = (d === 99 && focus.depth >= 99) || focus.depth === d
+
+                return (
+                  <button
+                    key={d}
+                    data-testid={`depth-button-${label}`}
+                    onClick={() => setDepth(d)}
+                    style={{
+                      background: isSelected ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
+                      color: isSelected ? '#38bdf8' : '#94a3b8',
+                      border: isSelected ? '1px solid #38bdf8' : '1px solid transparent',
+                      borderRadius: 3,
+                      padding: '2px 8px',
+                      fontSize: 10,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      transition: 'all 0.12s ease',
+                    }}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Center: Feature Toggles (Dependencies, Services, Events) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* ☑ Dependencies */}
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            fontSize: 11,
+            cursor: 'pointer',
+            color: focus.showDependencies ? '#38bdf8' : '#64748b',
+            userSelect: 'none',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={focus.showDependencies}
+            onChange={toggleDependencies}
+            style={{ accentColor: '#38bdf8' }}
+          />
+          Dependencies
+        </label>
+
+        {/* ☑ Services */}
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            fontSize: 11,
+            cursor: 'pointer',
+            color: focus.showServices ? '#2dd4bf' : '#64748b',
+            userSelect: 'none',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={focus.showServices}
+            onChange={toggleServices}
+            style={{ accentColor: '#2dd4bf' }}
+          />
+          Services
+        </label>
+
+        {/* ☐ Events (Default OFF) */}
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            fontSize: 11,
+            cursor: 'pointer',
+            color: focus.showEvents ? '#c084fc' : '#64748b',
+            userSelect: 'none',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={focus.showEvents}
+            onChange={toggleEvents}
+            style={{ accentColor: '#c084fc' }}
+          />
+          Events
+        </label>
+      </div>
+
+      {/* Right: Search, Layer Quick Filters & Zoom Controls */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Search Input */}
+        <div style={{ position: 'relative', width: 170 }}>
           <input
             type="text"
             data-testid="toolbar-search-input"
-            placeholder="Search plugins, services, events..."
+            placeholder="Search..."
             value={filters.searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
             style={{
@@ -137,7 +320,7 @@ export const GraphToolbar = memo(function GraphToolbar({
               background: '#05070d',
               border: '1px solid rgba(255, 255, 255, 0.14)',
               borderRadius: 4,
-              padding: '6px 10px',
+              padding: '4px 8px',
               color: '#f8fafc',
               fontSize: 11,
               fontFamily: 'inherit',
@@ -150,208 +333,62 @@ export const GraphToolbar = memo(function GraphToolbar({
               onClick={() => handleSearchChange('')}
               style={{
                 position: 'absolute',
-                right: 6,
+                right: 5,
                 top: '50%',
                 transform: 'translateY(-50%)',
                 background: 'transparent',
                 border: 'none',
                 color: '#64748b',
                 cursor: 'pointer',
-                fontSize: 11,
+                fontSize: 10,
               }}
             >
               ✕
             </button>
           )}
         </div>
-      </div>
 
-      {/* Center: Layer Filters Quick Toggles */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        {ALL_LAYER_IDS.map((lid) => {
-          const l = SYSTEM_LAYERS[lid]
-          const isSelected = filters.selectedLayers.has(lid)
+        {/* Layer Filters (Overview or Multi-layer mode) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          {ALL_LAYER_IDS.map((lid) => {
+            const l = SYSTEM_LAYERS[lid]
+            const isSelected = filters.selectedLayers.has(lid)
 
-          return (
-            <button
-              key={lid}
-              data-testid={`filter-layer-${lid}`}
-              onClick={() => toggleLayer(lid)}
-              style={{
-                background: isSelected ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
-                border: isSelected ? `1px solid ${l.color}` : '1px solid rgba(255, 255, 255, 0.08)',
-                color: isSelected ? l.color : '#64748b',
-                padding: '4px 8px',
-                borderRadius: 4,
-                cursor: 'pointer',
-                fontSize: 10.5,
-                fontWeight: 600,
-                fontFamily: 'inherit',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <span
+            return (
+              <button
+                key={lid}
+                data-testid={`filter-layer-${lid}`}
+                onClick={() => toggleLayer(lid)}
+                title={`Toggle ${l.name} layer`}
                 style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  background: isSelected ? l.color : '#475569',
+                  background: isSelected ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+                  border: isSelected ? `1px solid ${l.color}` : '1px solid rgba(255, 255, 255, 0.08)',
+                  color: isSelected ? l.color : '#64748b',
+                  padding: '3px 6px',
+                  borderRadius: 3,
+                  cursor: 'pointer',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  fontFamily: 'inherit',
+                  transition: 'all 0.12s ease',
                 }}
-              />
-              {l.name}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Right: Focus & Viewport Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        {/* Focus Mode Toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <button
-            data-testid="focus-toggle-button"
-            disabled={!selectedNodeId && !filters.focusNodeId}
-            onClick={toggleFocus}
-            style={{
-              background: filters.focusNodeId
-                ? 'rgba(56, 189, 248, 0.2)'
-                : 'rgba(255, 255, 255, 0.04)',
-              border: `1px solid ${
-                filters.focusNodeId ? '#38bdf8' : 'rgba(255, 255, 255, 0.1)'
-              }`,
-              color: filters.focusNodeId ? '#38bdf8' : '#94a3b8',
-              padding: '4px 10px',
-              borderRadius: 4,
-              cursor: selectedNodeId || filters.focusNodeId ? 'pointer' : 'not-allowed',
-              opacity: selectedNodeId || filters.focusNodeId ? 1 : 0.4,
-              fontSize: 11,
-              fontFamily: 'inherit',
-              fontWeight: 600,
-            }}
-          >
-            {filters.focusNodeId ? '★ FOCUSED' : 'FOCUS'}
-          </button>
-
-          {/* Depth Selector */}
-          {filters.focusNodeId && (
-            <div style={{ display: 'flex', background: '#05070d', borderRadius: 4, padding: 2 }}>
-              {[1, 2, 3].map((d) => (
-                <button
-                  key={d}
-                  onClick={() => setFocusDepth(d)}
-                  style={{
-                    background: filters.focusDepth === d ? '#38bdf8' : 'transparent',
-                    color: filters.focusDepth === d ? '#05070d' : '#94a3b8',
-                    border: 'none',
-                    borderRadius: 3,
-                    padding: '2px 6px',
-                    fontSize: 10,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                  }}
-                >
-                  d{d}
-                </button>
-              ))}
-            </div>
-          )}
+              >
+                {l.name[0]}
+              </button>
+            )
+          })}
         </div>
 
-        {/* Filter Dropdown Toggle */}
-        <div style={{ position: 'relative' }}>
-          <button
-            data-testid="filter-dropdown-toggle"
-            onClick={() => setShowFilterDropdown((v) => !v)}
-            style={{
-              background: showFilterDropdown ? '#1e293b' : 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              color: '#94a3b8',
-              padding: '4px 8px',
-              borderRadius: 4,
-              cursor: 'pointer',
-              fontSize: 11,
-              fontFamily: 'inherit',
-            }}
-          >
-            ⚙ FILTERS ▾
-          </button>
-
-          {showFilterDropdown && (
-            <div
-              style={{
-                position: 'absolute',
-                right: 0,
-                top: 32,
-                width: 200,
-                background: '#0c1322',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                borderRadius: 6,
-                padding: 10,
-                boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-                zIndex: 100,
-              }}
-            >
-              <div style={{ fontSize: 10, color: '#64748b', fontWeight: 700, marginBottom: 6 }}>
-                NODE TYPES
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
-                {(['plugin', 'service', 'event'] as const).map((t) => (
-                  <label
-                    key={t}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      fontSize: 11,
-                      cursor: 'pointer',
-                      color: '#cbd5e1',
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={filters.nodeTypes.has(t)}
-                      onChange={() => toggleNodeType(t)}
-                    />
-                    {t.toUpperCase()}
-                  </label>
-                ))}
-              </div>
-
-              <div style={{ fontSize: 10, color: '#64748b', fontWeight: 700, marginBottom: 6 }}>
-                EDGE TYPES
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {(['dependency', 'service', 'event', 'ui'] as const).map((t) => (
-                  <label
-                    key={t}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      fontSize: 11,
-                      cursor: 'pointer',
-                      color: '#cbd5e1',
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={filters.edgeTypes.has(t)}
-                      onChange={() => toggleEdgeType(t)}
-                    />
-                    {t.toUpperCase()}
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Viewport Zoom Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', background: '#05070d', borderRadius: 4 }}>
+        {/* Viewport Zoom & Fit Controls */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            background: '#05070d',
+            borderRadius: 4,
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+          }}
+        >
           <button
             data-testid="zoom-in-button"
             onClick={onZoomIn}
@@ -360,9 +397,9 @@ export const GraphToolbar = memo(function GraphToolbar({
               background: 'transparent',
               border: 'none',
               color: '#cbd5e1',
-              padding: '4px 8px',
+              padding: '3px 7px',
               cursor: 'pointer',
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: 700,
             }}
           >
@@ -376,9 +413,9 @@ export const GraphToolbar = memo(function GraphToolbar({
               background: 'transparent',
               border: 'none',
               color: '#cbd5e1',
-              padding: '4px 8px',
+              padding: '3px 7px',
               cursor: 'pointer',
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: 700,
             }}
           >
@@ -391,14 +428,15 @@ export const GraphToolbar = memo(function GraphToolbar({
             style={{
               background: 'transparent',
               border: 'none',
-              color: '#cbd5e1',
-              padding: '4px 8px',
+              color: '#38bdf8',
+              padding: '3px 7px',
               cursor: 'pointer',
-              fontSize: 11,
+              fontSize: 10.5,
               fontFamily: 'inherit',
+              fontWeight: 700,
             }}
           >
-            ⊡
+            FIT
           </button>
           <button
             data-testid="reset-layout-button"
@@ -407,14 +445,15 @@ export const GraphToolbar = memo(function GraphToolbar({
             style={{
               background: 'transparent',
               border: 'none',
-              color: '#cbd5e1',
-              padding: '4px 8px',
+              color: '#94a3b8',
+              padding: '3px 7px',
               cursor: 'pointer',
-              fontSize: 11,
+              fontSize: 10.5,
               fontFamily: 'inherit',
+              fontWeight: 700,
             }}
           >
-            ↺
+            RESET
           </button>
         </div>
       </div>

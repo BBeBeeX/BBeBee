@@ -10,7 +10,7 @@
  */
 
 import { memo, type ReactElement } from 'react'
-import type { PluginGraph } from '../graph-model.js'
+import type { FocusType, PluginGraph } from '../graph-model.js'
 
 export interface PluginInspectorProps {
   graph: PluginGraph
@@ -18,6 +18,7 @@ export interface PluginInspectorProps {
   selectedEdgeId: string | null
   onClose: () => void
   onSelectNode: (id: string) => void
+  onFocusNode?: (type: FocusType, id: string) => void
 }
 
 export const PluginInspector = memo(function PluginInspector({
@@ -26,6 +27,7 @@ export const PluginInspector = memo(function PluginInspector({
   selectedEdgeId,
   onClose,
   onSelectNode,
+  onFocusNode,
 }: PluginInspectorProps): ReactElement {
   // Find selected entity
   const selectedPlugin = selectedNodeId
@@ -40,6 +42,16 @@ export const PluginInspector = memo(function PluginInspector({
   const selectedEdge = selectedEdgeId
     ? graph.edges.find((e) => e.id === selectedEdgeId)
     : null
+
+  const canFocus = Boolean(selectedPlugin || selectedService || selectedEvent)
+  const focalType: FocusType = selectedPlugin
+    ? 'plugin'
+    : selectedService
+      ? 'service'
+      : selectedEvent
+        ? 'event'
+        : 'overview'
+  const focalId = selectedPlugin?.id || selectedService?.id || selectedEvent?.id || ''
 
   return (
     <div
@@ -64,7 +76,7 @@ export const PluginInspector = memo(function PluginInspector({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '12px 16px',
+          padding: '10px 14px',
           borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
           background: '#0c1322',
         }}
@@ -87,20 +99,44 @@ export const PluginInspector = memo(function PluginInspector({
                   ? 'RELATIONSHIP INSPECTOR'
                   : 'SYSTEM OVERVIEW'}
         </span>
-        <button
-          onClick={onClose}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            color: '#64748b',
-            cursor: 'pointer',
-            fontSize: 14,
-            padding: '2px 6px',
-          }}
-          title="Close panel"
-        >
-          ✕
-        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {canFocus && onFocusNode && (
+            <button
+              data-testid="inspector-focus-btn"
+              onClick={() => onFocusNode(focalType, focalId)}
+              style={{
+                background: 'rgba(56, 189, 248, 0.15)',
+                border: '1px solid #38bdf8',
+                borderRadius: 4,
+                color: '#38bdf8',
+                fontSize: 10,
+                fontWeight: 700,
+                padding: '2px 8px',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+              title="Focus graph on this node"
+            >
+              FOCUS
+            </button>
+          )}
+
+          <button
+            onClick={onClose}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#64748b',
+              cursor: 'pointer',
+              fontSize: 14,
+              padding: '2px 6px',
+            }}
+            title="Close panel"
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       {/* Content Area */}

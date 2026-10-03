@@ -11,6 +11,7 @@
 import {
   memo,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   type MouseEvent as ReactMouseEvent,
@@ -42,6 +43,7 @@ export interface GraphCanvasProps {
   pan: Point
   onZoomChange: (zoom: number) => void
   onPanChange: (pan: Point) => void
+  fitViewTrigger?: number
 }
 
 const EDGE_STYLES: Record<
@@ -87,10 +89,34 @@ export const GraphCanvas = memo(function GraphCanvas({
   pan,
   onZoomChange,
   onPanChange,
+  fitViewTrigger,
 }: GraphCanvasProps): ReactElement {
   const containerRef = useRef<HTMLDivElement>(null)
   const isDraggingRef = useRef(false)
   const dragStartRef = useRef<Point>({ x: 0, y: 0 })
+
+  // Automatically center and fit whenever layout structure or fitViewTrigger changes
+  useEffect(() => {
+    if (!containerRef.current) return
+    const { clientWidth, clientHeight } = containerRef.current
+    if (clientWidth === 0 || clientHeight === 0 || layout.width === 0 || layout.height === 0) return
+
+    const pad = 50
+    const availW = Math.max(200, clientWidth - pad * 2)
+    const availH = Math.max(200, clientHeight - pad * 2)
+
+    const scaleX = availW / layout.width
+    const scaleY = availH / layout.height
+    const targetZoom = Math.min(1.2, Math.max(0.5, Math.min(scaleX, scaleY)))
+
+    const targetPan = {
+      x: Math.max(15, (clientWidth - layout.width * targetZoom) / 2),
+      y: Math.max(20, (clientHeight - layout.height * targetZoom) / 2),
+    }
+
+    onZoomChange(targetZoom)
+    onPanChange(targetPan)
+  }, [layout, fitViewTrigger])
 
   // Connected nodes map for highlighting active subgraph
   const connectedNodeIds = useMemo(() => {

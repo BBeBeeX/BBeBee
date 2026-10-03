@@ -18,8 +18,8 @@ import { ALL_LAYER_IDS, SYSTEM_LAYERS } from '../layer-resolver.js'
 export interface PluginTreeProps {
   graph: PluginGraph
   selectedNodeId: string | null
-  onSelectNode: (id: string) => void
-  onFocusNode?: (id: string) => void
+  onSelectPlugin: (id: string) => void
+  onSelectLayer?: (layerId: LayerId) => void
 }
 
 const STATUS_DOT_COLORS: Record<string, string> = {
@@ -35,8 +35,8 @@ const STATUS_DOT_COLORS: Record<string, string> = {
 export const PluginTree = memo(function PluginTree({
   graph,
   selectedNodeId,
-  onSelectNode,
-  onFocusNode,
+  onSelectPlugin,
+  onSelectLayer,
 }: PluginTreeProps): ReactElement {
   // Collapsed layer state: all expanded by default
   const [collapsedLayers, setCollapsedLayers] = useState<Record<string, boolean>>({})
@@ -134,7 +134,6 @@ export const PluginTree = memo(function PluginTree({
             <div key={layerId} style={{ marginBottom: 6 }}>
               {/* Layer Title Row */}
               <div
-                onClick={() => toggleLayer(layerId)}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -147,7 +146,10 @@ export const PluginTree = memo(function PluginTree({
                   transition: 'background 0.15s ease',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div
+                  onClick={() => toggleLayer(layerId)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}
+                >
                   <span style={{ fontSize: 10, color: '#64748b' }}>
                     {isCollapsed ? '▶' : '▼'}
                   </span>
@@ -160,21 +162,54 @@ export const PluginTree = memo(function PluginTree({
                       display: 'inline-block',
                     }}
                   />
-                  <span style={{ fontWeight: 600, color: '#cbd5e1', fontSize: 11 }}>
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onSelectLayer?.(layerId)
+                    }}
+                    title={`Focus ${layerInfo.name} Layer`}
+                    style={{
+                      fontWeight: 600,
+                      color: '#cbd5e1',
+                      fontSize: 11,
+                      cursor: 'pointer',
+                    }}
+                  >
                     {layerInfo.name}
                   </span>
                 </div>
-                <span
-                  style={{
-                    fontSize: 10,
-                    color: '#64748b',
-                    background: 'rgba(255, 255, 255, 0.06)',
-                    padding: '1px 5px',
-                    borderRadius: 8,
-                  }}
-                >
-                  {plugins.length}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onSelectLayer?.(layerId)
+                    }}
+                    title={`Focus on ${layerInfo.name} Layer`}
+                    style={{
+                      background: 'rgba(56, 189, 248, 0.1)',
+                      border: '1px solid rgba(56, 189, 248, 0.25)',
+                      borderRadius: 3,
+                      color: '#38bdf8',
+                      fontSize: 9,
+                      padding: '1px 4px',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    FOCUS
+                  </button>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      color: '#64748b',
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      padding: '1px 5px',
+                      borderRadius: 8,
+                    }}
+                  >
+                    {plugins.length}
+                  </span>
+                </div>
               </div>
 
               {/* Plugin Items */}
@@ -195,8 +230,7 @@ export const PluginTree = memo(function PluginTree({
                           key={p.id}
                           data-testid={`tree-item-${p.id}`}
                           onClick={() => {
-                            onSelectNode(p.id)
-                            onFocusNode?.(p.id)
+                            onSelectPlugin(p.id)
                           }}
                           style={{
                             display: 'flex',

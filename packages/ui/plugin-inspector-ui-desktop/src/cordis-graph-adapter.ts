@@ -50,10 +50,37 @@ export class CordisGraphAdapter {
 
     // 2. Discover all fibers across the runtime
     const fibersByName = new Map<string, Fiber>()
+    const pluginDepsByName = new Map<string, string[]>()
     try {
-      for (const runtime of this.ctx.registry.values()) {
-        for (const f of runtime.fibers) {
-          if (f.name) fibersByName.set(f.name, f)
+      const registry = this.ctx.registry as unknown as {
+        entries?: () => Iterable<[unknown, { name?: string; fibers?: Iterable<Fiber>; callback?: unknown }]>
+      }
+      if (typeof registry.entries === 'function') {
+        for (const [plugin, runtime] of registry.entries()) {
+          const pObj = plugin as Record<string, unknown> | undefined
+          const pName =
+            (typeof pObj?.name === 'string' ? pObj.name : undefined) ??
+            runtime?.name
+          const deps = (Array.isArray(pObj?.dependencies)
+            ? pObj.dependencies
+            : Array.isArray((runtime?.callback as Record<string, unknown> | undefined)?.dependencies)
+              ? (runtime?.callback as Record<string, unknown>).dependencies
+              : undefined) as string[] | undefined
+
+          if (pName && deps) {
+            pluginDepsByName.set(pName, deps)
+          }
+
+          if (runtime?.fibers) {
+            for (const f of runtime.fibers) {
+              if (f.name) {
+                fibersByName.set(f.name, f)
+                if (deps) {
+                  pluginDepsByName.set(f.name, deps)
+                }
+              }
+            }
+          }
         }
       }
     } catch {
@@ -147,7 +174,12 @@ export class CordisGraphAdapter {
         provides,
         requires,
         waitingFor,
-        dependencies: manifest?.dependencies ? [...manifest.dependencies] : [],
+        dependencies: Array.from(
+          new Set([
+            ...(manifest?.dependencies ? manifest.dependencies : []),
+            ...(pluginDepsByName.get(fn.name) ?? []),
+          ]),
+        ),
         eventsListened: [],
         effects: effectsList,
         fiberUid: fn.uid,
