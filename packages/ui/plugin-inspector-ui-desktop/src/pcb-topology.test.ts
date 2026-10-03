@@ -176,4 +176,156 @@ describe('Dynamic PCB Topology Generation from Live Runtime Snapshot', () => {
     expect(inferModule({ name: 'plugin-sources', uid: 7, state: 'ACTIVE', inject: [], waitingFor: [], provides: ['sources'], effects: [], children: [] }, 4).moduleId).toBe('sources')
     expect(inferModule({ name: 'plugin-player', uid: 3, state: 'ACTIVE', inject: ['audio'], waitingFor: [], provides: ['player'], effects: [], children: [] }, 4).moduleId).toBe('playback')
   })
+
+  it('merges multiple fibers with the same name into a single node and combines their dependencies', () => {
+    const duplicateSnapshot: InspectorSnapshot = {
+      counts: { ACTIVE: 3, PENDING: 0, DISPOSED: 0, FAILED: 0, LOADING: 0, UNLOADING: 0, UNKNOWN: 0 },
+      stalled: [],
+      root: {
+        name: 'root',
+        state: 'ACTIVE',
+        uid: 0,
+        inject: [],
+        waitingFor: [],
+        provides: [],
+        effects: [],
+        children: [
+          {
+            name: 'plugin-player',
+            state: 'ACTIVE',
+            uid: 1,
+            inject: ['audio'],
+            waitingFor: [],
+            provides: ['player'],
+            effects: [{ label: 'effect-1', children: [] }],
+            children: [],
+          },
+          {
+            name: 'plugin-player',
+            state: 'ACTIVE',
+            uid: 2,
+            inject: ['store', 'audio'],
+            waitingFor: [],
+            provides: [],
+            effects: [{ label: 'effect-2', children: [] }],
+            children: [],
+          },
+        ],
+      },
+    }
+
+    const topology = buildTopologyFromSnapshot(duplicateSnapshot)
+    // root (1) + merged player (1) = 2 nodes
+    expect(topology.nodes.length).toBe(2)
+
+    const playerNode = topology.nodes.find((n) => n.id === 'player')
+    expect(playerNode).toBeDefined()
+    // Combined provides: ['player']
+    expect(playerNode?.fiber?.provides).toEqual(['player'])
+    // Combined inject: ['audio', 'store']
+    expect(playerNode?.fiber?.inject).toContain('audio')
+    expect(playerNode?.fiber?.inject).toContain('store')
+    // Combined effects: 2
+    expect(playerNode?.fiber?.effects.length).toBe(2)
+  })
+
+  it('merges multiple fibers providing the same Service into a single service node', () => {
+    const sameServiceSnapshot: InspectorSnapshot = {
+      counts: { ACTIVE: 3, PENDING: 0, DISPOSED: 0, FAILED: 0, LOADING: 0, UNLOADING: 0, UNKNOWN: 0 },
+      stalled: [],
+      root: {
+        name: 'root',
+        state: 'ACTIVE',
+        uid: 0,
+        inject: [],
+        waitingFor: [],
+        provides: [],
+        effects: [],
+        children: [
+          {
+            name: 'core-audio-mpv',
+            state: 'ACTIVE',
+            uid: 10,
+            inject: [],
+            waitingFor: [],
+            provides: ['audio'],
+            effects: [],
+            children: [],
+          },
+          {
+            name: 'core-audio-webaudio',
+            state: 'ACTIVE',
+            uid: 11,
+            inject: [],
+            waitingFor: [],
+            provides: ['audio'],
+            effects: [],
+            children: [],
+          },
+        ],
+      },
+    }
+
+    const topology = buildTopologyFromSnapshot(sameServiceSnapshot)
+    // root (1) + merged audio service (1) = 2 nodes
+    expect(topology.nodes.length).toBe(2)
+    const audioNode = topology.nodes.find((n) => n.fiber?.provides?.includes('audio'))
+    expect(audioNode).toBeDefined()
+    expect(audioNode?.layer).toBe(2)
+  })
+
+  it('merges fibers belonging to the same Plugin and eliminates self-dependency loops', () => {
+    const samePluginSnapshot: InspectorSnapshot = {
+      counts: { ACTIVE: 3, PENDING: 0, DISPOSED: 0, FAILED: 0, LOADING: 0, UNLOADING: 0, UNKNOWN: 0 },
+      stalled: [],
+      root: {
+        name: 'root',
+        state: 'ACTIVE',
+        uid: 0,
+        inject: [],
+        waitingFor: [],
+        provides: [],
+        effects: [],
+        children: [
+          {
+            name: '@BBeBee/plugin-lyrics',
+            state: 'ACTIVE',
+            uid: 20,
+            inject: ['player'],
+            waitingFor: [],
+            provides: ['lyrics'],
+            effects: [],
+            children: [
+              {
+                name: 'plugin-lyrics',
+                state: 'ACTIVE',
+                uid: 21,
+                // Injected 'lyrics' is provided by parent; should be filtered out to prevent self-loop
+                inject: ['lyrics', 'store'],
+                waitingFor: [],
+                provides: [],
+                effects: [],
+                children: [],
+              },
+            ],
+          },
+        ],
+      },
+    }
+
+    const topology = buildTopologyFromSnapshot(samePluginSnapshot)
+    // root (1) + merged lyrics (1) = 2 nodes
+    expect(topology.nodes.length).toBe(2)
+    const lyricsNode = topology.nodes.find((n) => n.id === 'lyrics')
+    expect(lyricsNode).toBeDefined()
+    expect(lyricsNode?.fiber?.provides).toEqual(['lyrics'])
+    // 'lyrics' was provided by the group, so it must NOT be in inject
+    expect(lyricsNode?.fiber?.inject).not.toContain('lyrics')
+    expect(lyricsNode?.fiber?.inject).toContain('player')
+    expect(lyricsNode?.fiber?.inject).toContain('store')
+
+    // Traces should have NO self loops from lyrics -> lyrics
+    const selfLoops = topology.traces.filter((t) => t.fromNodeId === t.toNodeId)
+    expect(selfLoops.length).toBe(0)
+  })
 })

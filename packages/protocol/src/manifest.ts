@@ -146,6 +146,10 @@ export interface PluginManifest {
   entry: PluginEntrypoints
   capabilities: Capability[]
   contributes?: PluginContributes
+  /** Context property/service registered on `ctx` by this plugin (e.g. 'player', 'audio'), or null if none. */
+  effect?: string | null
+  /** Alias of `effect` for backwards/alias tolerance. */
+  errect?: string | null
 }
 
 /* ── Capability matching ────────────────────────────────────────────────── */

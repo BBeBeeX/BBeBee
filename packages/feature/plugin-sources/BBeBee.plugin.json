@@ -27,5 +27,6 @@
     "services": [
       "sources"
     ]
-  }
+  },
+  "effect": "sources"
 }

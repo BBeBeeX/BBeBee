@@ -22,5 +22,6 @@
     }
   },
   "capabilities": [],
-  "contributes": {}
+  "contributes": {},
+  "effect": null
 }

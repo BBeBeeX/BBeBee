@@ -31,7 +31,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "audio"
       ]
-    }
+    },
+    "effect": "audio"
   },
   "core-audio-mpv": {
     "id": "@BBeBee/core-audio-mpv",
@@ -60,7 +61,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "audio"
       ]
-    }
+    },
+    "effect": "audio"
   },
   "@BBeBee/core-audio-webaudio": {
     "id": "@BBeBee/core-audio-webaudio",
@@ -86,7 +88,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "audio"
       ]
-    }
+    },
+    "effect": "audio"
   },
   "core-audio-webaudio": {
     "id": "@BBeBee/core-audio-webaudio",
@@ -112,7 +115,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "audio"
       ]
-    }
+    },
+    "effect": "audio"
   },
   "@BBeBee/core-background-electron": {
     "id": "@BBeBee/core-background-electron",
@@ -141,7 +145,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "background"
       ]
-    }
+    },
+    "effect": "background"
   },
   "core-background-electron": {
     "id": "@BBeBee/core-background-electron",
@@ -170,7 +175,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "background"
       ]
-    }
+    },
+    "effect": "background"
   },
   "@BBeBee/core-background-expo": {
     "id": "@BBeBee/core-background-expo",
@@ -199,7 +205,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "background"
       ]
-    }
+    },
+    "effect": "background"
   },
   "core-background-expo": {
     "id": "@BBeBee/core-background-expo",
@@ -228,7 +235,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "background"
       ]
-    }
+    },
+    "effect": "background"
   },
   "@BBeBee/core-codec-node": {
     "id": "@BBeBee/core-codec-node",
@@ -257,7 +265,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "codec"
       ]
-    }
+    },
+    "effect": "codec"
   },
   "core-codec-node": {
     "id": "@BBeBee/core-codec-node",
@@ -286,7 +295,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "codec"
       ]
-    }
+    },
+    "effect": "codec"
   },
   "@BBeBee/core-codec-rn": {
     "id": "@BBeBee/core-codec-rn",
@@ -315,7 +325,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "codec"
       ]
-    }
+    },
+    "effect": "codec"
   },
   "core-codec-rn": {
     "id": "@BBeBee/core-codec-rn",
@@ -344,7 +355,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "codec"
       ]
-    }
+    },
+    "effect": "codec"
   },
   "@BBeBee/core-device-electron": {
     "id": "@BBeBee/core-device-electron",
@@ -371,7 +383,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "device"
       ]
-    }
+    },
+    "effect": "device"
   },
   "core-device-electron": {
     "id": "@BBeBee/core-device-electron",
@@ -398,7 +411,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "device"
       ]
-    }
+    },
+    "effect": "device"
   },
   "@BBeBee/core-device-expo": {
     "id": "@BBeBee/core-device-expo",
@@ -425,7 +439,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "device"
       ]
-    }
+    },
+    "effect": "device"
   },
   "core-device-expo": {
     "id": "@BBeBee/core-device-expo",
@@ -452,7 +467,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "device"
       ]
-    }
+    },
+    "effect": "device"
   },
   "@BBeBee/core-http-node": {
     "id": "@BBeBee/core-http-node",
@@ -482,7 +498,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "http"
       ]
-    }
+    },
+    "effect": "http"
   },
   "core-http-node": {
     "id": "@BBeBee/core-http-node",
@@ -512,7 +529,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "http"
       ]
-    }
+    },
+    "effect": "http"
   },
   "@BBeBee/core-http-rn": {
     "id": "@BBeBee/core-http-rn",
@@ -541,7 +559,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "http"
       ]
-    }
+    },
+    "effect": "http"
   },
   "core-http-rn": {
     "id": "@BBeBee/core-http-rn",
@@ -570,7 +589,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "http"
       ]
-    }
+    },
+    "effect": "http"
   },
   "@BBeBee/core-js-quickjs-node": {
     "id": "@BBeBee/core-js-quickjs-node",
@@ -597,7 +617,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "js"
       ]
-    }
+    },
+    "effect": "js"
   },
   "core-js-quickjs-node": {
     "id": "@BBeBee/core-js-quickjs-node",
@@ -624,7 +645,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "js"
       ]
-    }
+    },
+    "effect": "js"
   },
   "@BBeBee/core-media-session-electron": {
     "id": "@BBeBee/core-media-session-electron",
@@ -653,7 +675,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "mediaSession"
       ]
-    }
+    },
+    "effect": "mediaSession"
   },
   "core-media-session-electron": {
     "id": "@BBeBee/core-media-session-electron",
@@ -682,7 +705,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "mediaSession"
       ]
-    }
+    },
+    "effect": "mediaSession"
   },
   "@BBeBee/core-media-session-rn": {
     "id": "@BBeBee/core-media-session-rn",
@@ -711,7 +735,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "mediaSession"
       ]
-    }
+    },
+    "effect": "mediaSession"
   },
   "core-media-session-rn": {
     "id": "@BBeBee/core-media-session-rn",
@@ -740,7 +765,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "mediaSession"
       ]
-    }
+    },
+    "effect": "mediaSession"
   },
   "@BBeBee/core-secrets-expo": {
     "id": "@BBeBee/core-secrets-expo",
@@ -767,7 +793,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "secrets"
       ]
-    }
+    },
+    "effect": "secrets"
   },
   "core-secrets-expo": {
     "id": "@BBeBee/core-secrets-expo",
@@ -794,7 +821,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "secrets"
       ]
-    }
+    },
+    "effect": "secrets"
   },
   "@BBeBee/core-secrets-node": {
     "id": "@BBeBee/core-secrets-node",
@@ -824,7 +852,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "secrets"
       ]
-    }
+    },
+    "effect": "secrets"
   },
   "core-secrets-node": {
     "id": "@BBeBee/core-secrets-node",
@@ -854,7 +883,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "secrets"
       ]
-    }
+    },
+    "effect": "secrets"
   },
   "@BBeBee/plugin-album": {
     "id": "@BBeBee/plugin-album",
@@ -880,7 +910,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       }
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-album": {
     "id": "@BBeBee/plugin-album",
@@ -906,7 +937,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       }
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-cache": {
     "id": "@BBeBee/plugin-cache",
@@ -936,7 +968,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "cache"
       ]
-    }
+    },
+    "effect": "cache"
   },
   "plugin-cache": {
     "id": "@BBeBee/plugin-cache",
@@ -966,7 +999,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "cache"
       ]
-    }
+    },
+    "effect": "cache"
   },
   "@BBeBee/plugin-desktop-lyrics": {
     "id": "@BBeBee/plugin-desktop-lyrics",
@@ -995,7 +1029,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "desktopLyrics"
       ]
-    }
+    },
+    "effect": "desktopLyrics"
   },
   "plugin-desktop-lyrics": {
     "id": "@BBeBee/plugin-desktop-lyrics",
@@ -1024,7 +1059,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "desktopLyrics"
       ]
-    }
+    },
+    "effect": "desktopLyrics"
   },
   "@BBeBee/plugin-desktop-taskbar": {
     "id": "@BBeBee/plugin-desktop-taskbar",
@@ -1046,7 +1082,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-desktop-taskbar": {
     "id": "@BBeBee/plugin-desktop-taskbar",
@@ -1068,7 +1105,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-download": {
     "id": "@BBeBee/plugin-download",
@@ -1106,7 +1144,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "downloads"
       ]
-    }
+    },
+    "effect": "downloads"
   },
   "plugin-download": {
     "id": "@BBeBee/plugin-download",
@@ -1144,7 +1183,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "downloads"
       ]
-    }
+    },
+    "effect": "downloads"
   },
   "@BBeBee/plugin-dsp": {
     "id": "@BBeBee/plugin-dsp",
@@ -1176,7 +1216,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "dsp"
       ]
-    }
+    },
+    "effect": "dsp"
   },
   "plugin-dsp": {
     "id": "@BBeBee/plugin-dsp",
@@ -1208,7 +1249,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "dsp"
       ]
-    }
+    },
+    "effect": "dsp"
   },
   "@BBeBee/plugin-history": {
     "id": "@BBeBee/plugin-history",
@@ -1234,7 +1276,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       }
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-history": {
     "id": "@BBeBee/plugin-history",
@@ -1260,7 +1303,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       }
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-inspector": {
     "id": "@BBeBee/plugin-inspector",
@@ -1287,7 +1331,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "inspector"
       ]
-    }
+    },
+    "effect": "inspector"
   },
   "plugin-inspector": {
     "id": "@BBeBee/plugin-inspector",
@@ -1314,7 +1359,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "inspector"
       ]
-    }
+    },
+    "effect": "inspector"
   },
   "@BBeBee/plugin-library": {
     "id": "@BBeBee/plugin-library",
@@ -1347,7 +1393,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "library"
       ]
-    }
+    },
+    "effect": "library"
   },
   "plugin-library": {
     "id": "@BBeBee/plugin-library",
@@ -1380,7 +1427,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "library"
       ]
-    }
+    },
+    "effect": "library"
   },
   "@BBeBee/plugin-local-scanner": {
     "id": "@BBeBee/plugin-local-scanner",
@@ -1418,7 +1466,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "scanner"
       ]
-    }
+    },
+    "effect": "scanner"
   },
   "plugin-local-scanner": {
     "id": "@BBeBee/plugin-local-scanner",
@@ -1456,7 +1505,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "scanner"
       ]
-    }
+    },
+    "effect": "scanner"
   },
   "@BBeBee/plugin-lyric-sources": {
     "id": "@BBeBee/plugin-lyric-sources",
@@ -1485,7 +1535,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "lyricSources"
       ]
-    }
+    },
+    "effect": "lyricSources"
   },
   "plugin-lyric-sources": {
     "id": "@BBeBee/plugin-lyric-sources",
@@ -1514,7 +1565,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "lyricSources"
       ]
-    }
+    },
+    "effect": "lyricSources"
   },
   "@BBeBee/plugin-lyrics": {
     "id": "@BBeBee/plugin-lyrics",
@@ -1546,7 +1598,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "lyrics"
       ]
-    }
+    },
+    "effect": "lyrics"
   },
   "plugin-lyrics": {
     "id": "@BBeBee/plugin-lyrics",
@@ -1578,7 +1631,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "lyrics"
       ]
-    }
+    },
+    "effect": "lyrics"
   },
   "@BBeBee/plugin-mini-player": {
     "id": "@BBeBee/plugin-mini-player",
@@ -1607,7 +1661,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "miniPlayer"
       ]
-    }
+    },
+    "effect": "miniPlayer"
   },
   "plugin-mini-player": {
     "id": "@BBeBee/plugin-mini-player",
@@ -1636,7 +1691,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "miniPlayer"
       ]
-    }
+    },
+    "effect": "miniPlayer"
   },
   "@BBeBee/plugin-now-playing": {
     "id": "@BBeBee/plugin-now-playing",
@@ -1666,7 +1722,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "nowPlaying"
       ]
-    }
+    },
+    "effect": "nowPlaying"
   },
   "plugin-now-playing": {
     "id": "@BBeBee/plugin-now-playing",
@@ -1696,7 +1753,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "nowPlaying"
       ]
-    }
+    },
+    "effect": "nowPlaying"
   },
   "@BBeBee/plugin-player": {
     "id": "@BBeBee/plugin-player",
@@ -1728,7 +1786,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "player"
       ]
-    }
+    },
+    "effect": "player"
   },
   "plugin-player": {
     "id": "@BBeBee/plugin-player",
@@ -1760,7 +1819,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "player"
       ]
-    }
+    },
+    "effect": "player"
   },
   "@BBeBee/plugin-queue": {
     "id": "@BBeBee/plugin-queue",
@@ -1786,7 +1846,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       }
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-queue": {
     "id": "@BBeBee/plugin-queue",
@@ -1812,7 +1873,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       }
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-settings": {
     "id": "@BBeBee/plugin-settings",
@@ -1840,7 +1902,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "settings"
       ]
-    }
+    },
+    "effect": "settings"
   },
   "plugin-settings": {
     "id": "@BBeBee/plugin-settings",
@@ -1868,7 +1931,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "settings"
       ]
-    }
+    },
+    "effect": "settings"
   },
   "@BBeBee/plugin-share": {
     "id": "@BBeBee/plugin-share",
@@ -1896,7 +1960,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "share"
       ]
-    }
+    },
+    "effect": "share"
   },
   "plugin-share": {
     "id": "@BBeBee/plugin-share",
@@ -1924,7 +1989,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "share"
       ]
-    }
+    },
+    "effect": "share"
   },
   "@BBeBee/plugin-sleep-timer": {
     "id": "@BBeBee/plugin-sleep-timer",
@@ -1950,7 +2016,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "sleepTimer"
       ]
-    }
+    },
+    "effect": "sleepTimer"
   },
   "plugin-sleep-timer": {
     "id": "@BBeBee/plugin-sleep-timer",
@@ -1976,7 +2043,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "sleepTimer"
       ]
-    }
+    },
+    "effect": "sleepTimer"
   },
   "@BBeBee/plugin-source-local": {
     "id": "@BBeBee/plugin-source-local",
@@ -2006,7 +2074,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "sourceLocal"
       ]
-    }
+    },
+    "effect": "sourceLocal"
   },
   "plugin-source-local": {
     "id": "@BBeBee/plugin-source-local",
@@ -2036,7 +2105,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "sourceLocal"
       ]
-    }
+    },
+    "effect": "sourceLocal"
   },
   "@BBeBee/plugin-source-runtime": {
     "id": "@BBeBee/plugin-source-runtime",
@@ -2066,7 +2136,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "slots": [
         "settings.sources"
       ]
-    }
+    },
+    "effect": null
   },
   "plugin-source-runtime": {
     "id": "@BBeBee/plugin-source-runtime",
@@ -2096,7 +2167,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "slots": [
         "settings.sources"
       ]
-    }
+    },
+    "effect": null
   },
   "@BBeBee/plugin-sources": {
     "id": "@BBeBee/plugin-sources",
@@ -2127,7 +2199,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "sources"
       ]
-    }
+    },
+    "effect": "sources"
   },
   "plugin-sources": {
     "id": "@BBeBee/plugin-sources",
@@ -2158,7 +2231,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "sources"
       ]
-    }
+    },
+    "effect": "sources"
   },
   "@BBeBee/plugin-theme": {
     "id": "@BBeBee/plugin-theme",
@@ -2182,7 +2256,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "theme"
       ]
-    }
+    },
+    "effect": "theme"
   },
   "plugin-theme": {
     "id": "@BBeBee/plugin-theme",
@@ -2206,7 +2281,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "theme"
       ]
-    }
+    },
+    "effect": "theme"
   },
   "@BBeBee/plugin-ui": {
     "id": "@BBeBee/plugin-ui",
@@ -2230,7 +2306,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "ui"
       ]
-    }
+    },
+    "effect": "ui"
   },
   "plugin-ui": {
     "id": "@BBeBee/plugin-ui",
@@ -2254,7 +2331,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "ui"
       ]
-    }
+    },
+    "effect": "ui"
   },
   "@BBeBee/plugin-visualizer": {
     "id": "@BBeBee/plugin-visualizer",
@@ -2285,7 +2363,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "visualizer"
       ]
-    }
+    },
+    "effect": "visualizer"
   },
   "plugin-visualizer": {
     "id": "@BBeBee/plugin-visualizer",
@@ -2316,7 +2395,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "visualizer"
       ]
-    }
+    },
+    "effect": "visualizer"
   },
   "@BBeBee/plugin-log-buffer": {
     "id": "@BBeBee/plugin-log-buffer",
@@ -2340,7 +2420,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "logBuffer"
       ]
-    }
+    },
+    "effect": "logBuffer"
   },
   "plugin-log-buffer": {
     "id": "@BBeBee/plugin-log-buffer",
@@ -2364,7 +2445,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "services": [
         "logBuffer"
       ]
-    }
+    },
+    "effect": "logBuffer"
   },
   "@BBeBee/plugin-log-console": {
     "id": "@BBeBee/plugin-log-console",
@@ -2386,7 +2468,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-log-console": {
     "id": "@BBeBee/plugin-log-console",
@@ -2408,7 +2491,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-log-file": {
     "id": "@BBeBee/plugin-log-file",
@@ -2433,7 +2517,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "fs:write:logs",
       "fs:read:logs"
     ],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-log-file": {
     "id": "@BBeBee/plugin-log-file",
@@ -2458,7 +2543,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "fs:write:logs",
       "fs:read:logs"
     ],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-album-ui-desktop": {
     "id": "@BBeBee/plugin-album-ui-desktop",
@@ -2484,7 +2570,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-album-ui-desktop": {
     "id": "@BBeBee/plugin-album-ui-desktop",
@@ -2510,7 +2597,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-album-ui-mobile": {
     "id": "@BBeBee/plugin-album-ui-mobile",
@@ -2536,7 +2624,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-album-ui-mobile": {
     "id": "@BBeBee/plugin-album-ui-mobile",
@@ -2562,7 +2651,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-desktop-lyrics-ui-desktop": {
     "id": "@BBeBee/plugin-desktop-lyrics-ui-desktop",
@@ -2588,7 +2678,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-desktop-lyrics-ui-desktop": {
     "id": "@BBeBee/plugin-desktop-lyrics-ui-desktop",
@@ -2614,7 +2705,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-download-ui-desktop": {
     "id": "@BBeBee/plugin-download-ui-desktop",
@@ -2640,7 +2732,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-download-ui-desktop": {
     "id": "@BBeBee/plugin-download-ui-desktop",
@@ -2666,7 +2759,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-download-ui-mobile": {
     "id": "@BBeBee/plugin-download-ui-mobile",
@@ -2692,7 +2786,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-download-ui-mobile": {
     "id": "@BBeBee/plugin-download-ui-mobile",
@@ -2718,7 +2813,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-dsp-ui-desktop": {
     "id": "@BBeBee/plugin-dsp-ui-desktop",
@@ -2744,7 +2840,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-dsp-ui-desktop": {
     "id": "@BBeBee/plugin-dsp-ui-desktop",
@@ -2770,7 +2867,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-dsp-ui-mobile": {
     "id": "@BBeBee/plugin-dsp-ui-mobile",
@@ -2796,7 +2894,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-dsp-ui-mobile": {
     "id": "@BBeBee/plugin-dsp-ui-mobile",
@@ -2822,7 +2921,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-history-ui-desktop": {
     "id": "@BBeBee/plugin-history-ui-desktop",
@@ -2848,7 +2948,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-history-ui-desktop": {
     "id": "@BBeBee/plugin-history-ui-desktop",
@@ -2874,7 +2975,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-history-ui-mobile": {
     "id": "@BBeBee/plugin-history-ui-mobile",
@@ -2900,7 +3002,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-history-ui-mobile": {
     "id": "@BBeBee/plugin-history-ui-mobile",
@@ -2926,7 +3029,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-inspector-ui-desktop": {
     "id": "@BBeBee/plugin-inspector-ui-desktop",
@@ -2952,7 +3056,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-inspector-ui-desktop": {
     "id": "@BBeBee/plugin-inspector-ui-desktop",
@@ -2978,7 +3083,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-library-ui-desktop": {
     "id": "@BBeBee/plugin-library-ui-desktop",
@@ -3004,7 +3110,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-library-ui-desktop": {
     "id": "@BBeBee/plugin-library-ui-desktop",
@@ -3030,7 +3137,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-library-ui-mobile": {
     "id": "@BBeBee/plugin-library-ui-mobile",
@@ -3056,7 +3164,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-library-ui-mobile": {
     "id": "@BBeBee/plugin-library-ui-mobile",
@@ -3082,7 +3191,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-local-scanner-ui-desktop": {
     "id": "@BBeBee/plugin-local-scanner-ui-desktop",
@@ -3108,7 +3218,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-local-scanner-ui-desktop": {
     "id": "@BBeBee/plugin-local-scanner-ui-desktop",
@@ -3134,7 +3245,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-local-scanner-ui-mobile": {
     "id": "@BBeBee/plugin-local-scanner-ui-mobile",
@@ -3160,7 +3272,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-local-scanner-ui-mobile": {
     "id": "@BBeBee/plugin-local-scanner-ui-mobile",
@@ -3186,7 +3299,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-lyrics-ui-desktop": {
     "id": "@BBeBee/plugin-lyrics-ui-desktop",
@@ -3212,7 +3326,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-lyrics-ui-desktop": {
     "id": "@BBeBee/plugin-lyrics-ui-desktop",
@@ -3238,7 +3353,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-mini-player-ui-desktop": {
     "id": "@BBeBee/plugin-mini-player-ui-desktop",
@@ -3264,7 +3380,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-mini-player-ui-desktop": {
     "id": "@BBeBee/plugin-mini-player-ui-desktop",
@@ -3290,7 +3407,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-now-playing-ui-desktop": {
     "id": "@BBeBee/plugin-now-playing-ui-desktop",
@@ -3316,7 +3434,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-now-playing-ui-desktop": {
     "id": "@BBeBee/plugin-now-playing-ui-desktop",
@@ -3342,7 +3461,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-now-playing-ui-mobile": {
     "id": "@BBeBee/plugin-now-playing-ui-mobile",
@@ -3368,7 +3488,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-now-playing-ui-mobile": {
     "id": "@BBeBee/plugin-now-playing-ui-mobile",
@@ -3394,7 +3515,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-queue-ui-desktop": {
     "id": "@BBeBee/plugin-queue-ui-desktop",
@@ -3420,7 +3542,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-queue-ui-desktop": {
     "id": "@BBeBee/plugin-queue-ui-desktop",
@@ -3446,7 +3569,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-queue-ui-mobile": {
     "id": "@BBeBee/plugin-queue-ui-mobile",
@@ -3472,7 +3596,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-queue-ui-mobile": {
     "id": "@BBeBee/plugin-queue-ui-mobile",
@@ -3498,7 +3623,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-settings-ui-desktop": {
     "id": "@BBeBee/plugin-settings-ui-desktop",
@@ -3524,7 +3650,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-settings-ui-desktop": {
     "id": "@BBeBee/plugin-settings-ui-desktop",
@@ -3550,7 +3677,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-settings-ui-mobile": {
     "id": "@BBeBee/plugin-settings-ui-mobile",
@@ -3576,7 +3704,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-settings-ui-mobile": {
     "id": "@BBeBee/plugin-settings-ui-mobile",
@@ -3602,7 +3731,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-share-ui-desktop": {
     "id": "@BBeBee/plugin-share-ui-desktop",
@@ -3628,7 +3758,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-share-ui-desktop": {
     "id": "@BBeBee/plugin-share-ui-desktop",
@@ -3654,7 +3785,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-share-ui-mobile": {
     "id": "@BBeBee/plugin-share-ui-mobile",
@@ -3680,7 +3812,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-share-ui-mobile": {
     "id": "@BBeBee/plugin-share-ui-mobile",
@@ -3706,7 +3839,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-sources-ui-desktop": {
     "id": "@BBeBee/plugin-sources-ui-desktop",
@@ -3732,7 +3866,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-sources-ui-desktop": {
     "id": "@BBeBee/plugin-sources-ui-desktop",
@@ -3758,7 +3893,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-sources-ui-mobile": {
     "id": "@BBeBee/plugin-sources-ui-mobile",
@@ -3784,7 +3920,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-sources-ui-mobile": {
     "id": "@BBeBee/plugin-sources-ui-mobile",
@@ -3810,7 +3947,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "@BBeBee/plugin-visualizer-ui-desktop": {
     "id": "@BBeBee/plugin-visualizer-ui-desktop",
@@ -3836,7 +3974,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   },
   "plugin-visualizer-ui-desktop": {
     "id": "@BBeBee/plugin-visualizer-ui-desktop",
@@ -3862,6 +4001,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {}
+    "contributes": {},
+    "effect": null
   }
 }

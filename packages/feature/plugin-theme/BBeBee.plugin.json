@@ -20,5 +20,6 @@
     "services": [
       "theme"
     ]
-  }
+  },
+  "effect": "theme"
 }

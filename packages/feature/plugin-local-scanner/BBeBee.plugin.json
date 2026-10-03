@@ -34,5 +34,6 @@
     "services": [
       "scanner"
     ]
-  }
+  },
+  "effect": "scanner"
 }

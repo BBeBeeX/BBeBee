@@ -26,5 +26,6 @@
     "services": [
       "nowPlaying"
     ]
-  }
+  },
+  "effect": "nowPlaying"
 }

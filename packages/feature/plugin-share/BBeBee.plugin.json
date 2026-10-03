@@ -24,5 +24,6 @@
     "services": [
       "share"
     ]
-  }
+  },
+  "effect": "share"
 }

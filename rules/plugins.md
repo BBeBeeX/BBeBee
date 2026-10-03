@@ -117,7 +117,7 @@ Declared in each package's `BBeBee.plugin.json`, mediated by the kernel via inte
 
 ## 6. Manifest Standards (`BBeBee.plugin.json`)
 
-Every plugin package across all layers (Core, Logs, Feature, UI) must carry a `BBeBee.plugin.json` containing 13 standardized fields:
+Every plugin package across all layers (Core, Logs, Feature, UI) must carry a `BBeBee.plugin.json` containing 14 standardized fields:
 
 1. `id`: Unique package ID matching npm package name (`"@BBeBee/plugin-..."`).
 2. `name`: Short technical identifier (e.g. `"sources-ui-desktop"`).
@@ -134,6 +134,7 @@ Every plugin package across all layers (Core, Logs, Feature, UI) must carry a `B
 12. `entry`: Module entry points (`{"main": "...", "desktop": "...", "mobile": "..."}`).
 13. `capabilities`: Explicit permission tokens requested by the plugin.
 14. `contributes`: Extension slots, navigation routes, settings schemas (`{"slots": ["sidebar-primary"]}`).
+15. `effect`: Context property/service registered on `ctx` (e.g. `"player"`, `"audio"`), or `null` if none.
 
 ---
 

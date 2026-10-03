@@ -154,10 +154,16 @@ export function render(options: CreateOptions): CreatedFile[] {
       JSON.stringify(
         {
           id,
-          version: '0.0.0',
+          name: id,
           displayName: cls,
           description: `TODO: describe ${pkg}.`,
+          version: '0.0.0',
+          author: 'BBeBee Team',
           engines: { BBeBee: '^0.1.0' },
+          enabled: true,
+          dependencies: [],
+          systemId: 'layer-4',
+          moduleId: pkg.replace(/^plugin-/, ''),
           entry: {
             main: './dist/index.js',
             ...(wantsDesktop || wantsMobile
@@ -170,6 +176,8 @@ export function render(options: CreateOptions): CreatedFile[] {
               : {}),
           },
           capabilities,
+          contributes: {},
+          effect: null,
         },
         null,
         2,

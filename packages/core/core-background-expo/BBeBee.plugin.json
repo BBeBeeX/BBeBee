@@ -25,5 +25,6 @@
     "services": [
       "background"
     ]
-  }
+  },
+  "effect": "background"
 }

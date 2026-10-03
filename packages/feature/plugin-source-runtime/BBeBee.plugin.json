@@ -26,5 +26,6 @@
     "slots": [
       "settings.sources"
     ]
-  }
+  },
+  "effect": null
 }

@@ -26,5 +26,6 @@
     "services": [
       "sourceLocal"
     ]
-  }
+  },
+  "effect": "sourceLocal"
 }

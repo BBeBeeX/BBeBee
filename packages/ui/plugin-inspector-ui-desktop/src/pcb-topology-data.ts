@@ -567,8 +567,82 @@ export function buildTopologyFromSnapshot(
     walk(snap.root)
   }
 
-  // 2. Deduplicate fibers by unique ID or name
-  const seenIds = new Set<string>()
+  // 2. Intelligent clustering & merging:
+  // - Merge same-named nodes into one node
+  // - Merge nodes providing the same Service into one node
+  // - Merge fibers belonging to the same Plugin into one node
+  const n = fiberList.length
+  const parent = Array.from({ length: n }, (_, i) => i)
+  const find = (i: number): number => {
+    const p = parent[i] ?? i
+    if (p === i) return i
+    const root = find(p)
+    parent[i] = root
+    return root
+  }
+  const union = (i: number, j: number) => {
+    const pi = find(i)
+    const pj = find(j)
+    if (pi !== pj) {
+      parent[pi] = pj
+    }
+  }
+
+  const isRoot = (f: FiberNode) =>
+    f.name === 'root' || f.uid === 0 || f.name?.includes('kernel')
+
+  // Maps to find representative index for equivalence:
+  const nameToIdx = new Map<string, number>()
+  const rawNameToIdx = new Map<string, number>()
+  const serviceToIdx = new Map<string, number>()
+
+  for (let i = 0; i < n; i++) {
+    const fiber = fiberList[i]
+    if (!fiber || isRoot(fiber)) continue // Never merge root kernel node with plugins
+
+    const normId = deriveNodeId(fiber).toLowerCase()
+    const rawName = (fiber.name || '').trim().toLowerCase()
+
+    // Rule 1: Same name / same plugin merging
+    if (normId && !normId.startsWith('fiber-')) {
+      if (nameToIdx.has(normId)) {
+        union(i, nameToIdx.get(normId)!)
+      } else {
+        nameToIdx.set(normId, i)
+      }
+    }
+    if (rawName && !rawName.startsWith('fiber-')) {
+      if (rawNameToIdx.has(rawName)) {
+        union(i, rawNameToIdx.get(rawName)!)
+      } else {
+        rawNameToIdx.set(rawName, i)
+      }
+    }
+
+    // Rule 2: Same service merging
+    for (const svc of fiber.provides || []) {
+      const cleanSvc = svc.trim().toLowerCase()
+      if (cleanSvc) {
+        if (serviceToIdx.has(cleanSvc)) {
+          union(i, serviceToIdx.get(cleanSvc)!)
+        } else {
+          serviceToIdx.set(cleanSvc, i)
+        }
+      }
+    }
+  }
+
+  // Group fibers by their connected component root
+  const groups = new Map<number, FiberNode[]>()
+  for (let i = 0; i < n; i++) {
+    const fiber = fiberList[i]
+    if (!fiber) continue
+    const rootIdx = find(i)
+    const list = groups.get(rootIdx) ?? []
+    list.push(fiber)
+    groups.set(rootIdx, list)
+  }
+
   const rawNodes: Array<{
     fiber: FiberNode
     layer: number
@@ -581,27 +655,92 @@ export function buildTopologyFromSnapshot(
     parentPluginId?: string
   }> = []
 
-  for (const fiber of fiberList) {
-    let id = deriveNodeId(fiber)
-    if (seenIds.has(id)) {
-      id = `${id}-${fiber.uid ?? 'alt'}`
-    }
-    seenIds.add(id)
+  for (const [, fibers] of groups) {
+    if (!fibers || fibers.length === 0) continue
+    // Pick the primary representative fiber:
+    // Prefer non-anonymous, has provides, clean name, lowest uid
+    const sorted = [...fibers].sort((a, b) => {
+      if (isRoot(a) && !isRoot(b)) return -1
+      if (!isRoot(a) && isRoot(b)) return 1
+      const aProvides = (a.provides?.length ?? 0) > 0 ? 1 : 0
+      const bProvides = (b.provides?.length ?? 0) > 0 ? 1 : 0
+      if (aProvides !== bProvides) return bProvides - aProvides
+      const aNamed = a.name && !a.name.startsWith('fiber-') ? 1 : 0
+      const bNamed = b.name && !b.name.startsWith('fiber-') ? 1 : 0
+      if (aNamed !== bNamed) return bNamed - aNamed
+      return (a.uid ?? 0) - (b.uid ?? 0)
+    })
+    const primary = sorted[0]
+    if (!primary) continue
 
-    const { layer, systemId } = inferLayer(fiber)
-    const { subsystem, moduleId } = inferModule(fiber, layer)
-    const code = deriveNodeCode(fiber.name, fiber.provides)
+    // Consolidate provides across all fibers in this group
+    const mergedProvides = Array.from(new Set(fibers.flatMap((f) => f.provides || [])))
+
+    // Consolidate inject across all fibers, excluding services provided by this group itself
+    const allInject = Array.from(new Set(fibers.flatMap((f) => f.inject || [])))
+    const mergedInject = allInject.filter((dep) => !mergedProvides.includes(dep))
+
+    // Consolidate waitingFor, excluding services provided by this group
+    const allWaiting = Array.from(new Set(fibers.flatMap((f) => f.waitingFor || [])))
+    const mergedWaiting = allWaiting.filter((w) => !mergedProvides.includes(w))
+
+    // Consolidate effects
+    const mergedEffects = fibers.flatMap((f) => f.effects || [])
+
+    // Consolidate state
+    let mergedState: FiberNode['state'] = primary.state
+    if (fibers.some((f) => f.state === 'ACTIVE')) {
+      mergedState = 'ACTIVE'
+    } else if (fibers.some((f) => f.state === 'LOADING')) {
+      mergedState = 'LOADING'
+    } else if (fibers.some((f) => f.state === 'PENDING')) {
+      mergedState = 'PENDING'
+    } else if (fibers.some((f) => f.state === 'FAILED')) {
+      mergedState = 'FAILED'
+    }
+
+    // Consolidated children
+    const mergedChildren = fibers.flatMap((f) => f.children || [])
+
+    const primaryFiber: FiberNode = {
+      ...primary,
+      name: primary.name ?? '',
+      provides: mergedProvides,
+    }
+
+    const id = isRoot(primary) ? 'root' : deriveNodeId(primary)
+    const { layer, systemId } = isRoot(primary)
+      ? { layer: 1, systemId: 'layer-1' }
+      : inferLayer(primaryFiber)
+    const moduleInfo = isRoot(primary)
+      ? { subsystem: 'root' as SubsystemId, moduleId: 'core' }
+      : inferModule(primaryFiber, layer)
+    const subsystem: SubsystemId = moduleInfo.subsystem
+    const moduleId = moduleInfo.moduleId
+    const code = deriveNodeCode(primary.name, mergedProvides)
+
+    const parentPluginId =
+      parentMap.get(id) ?? (primary.name ? parentMap.get(primary.name) : undefined)
 
     rawNodes.push({
-      fiber,
+      fiber: {
+        name: primary.name,
+        state: mergedState,
+        uid: primary.uid,
+        inject: mergedInject,
+        waitingFor: mergedWaiting,
+        provides: mergedProvides,
+        effects: mergedEffects,
+        children: mergedChildren,
+      },
       layer,
       systemId,
       subsystem,
       moduleId,
       id,
-      name: fiber.name,
+      name: primary.name,
       code,
-      parentPluginId: parentMap.get(id),
+      parentPluginId: parentPluginId !== id ? parentPluginId : undefined,
     })
   }
 

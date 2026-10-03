@@ -23,5 +23,6 @@
     "services": [
       "device"
     ]
-  }
+  },
+  "effect": "device"
 }

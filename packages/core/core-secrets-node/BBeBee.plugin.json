@@ -26,5 +26,6 @@
     "services": [
       "secrets"
     ]
-  }
+  },
+  "effect": "secrets"
 }

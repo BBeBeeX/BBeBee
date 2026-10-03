@@ -22,5 +22,6 @@
     "services": [
       "sleepTimer"
     ]
-  }
+  },
+  "effect": "sleepTimer"
 }

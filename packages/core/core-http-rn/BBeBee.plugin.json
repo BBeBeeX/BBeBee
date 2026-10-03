@@ -25,5 +25,6 @@
     "services": [
       "http"
     ]
-  }
+  },
+  "effect": "http"
 }

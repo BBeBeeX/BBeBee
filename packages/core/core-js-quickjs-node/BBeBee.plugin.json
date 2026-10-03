@@ -23,5 +23,6 @@
     "services": [
       "js"
     ]
-  }
+  },
+  "effect": "js"
 }

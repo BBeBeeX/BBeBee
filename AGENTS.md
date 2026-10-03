@@ -90,7 +90,7 @@ Composition root is exactly 4 files: `apps/mobile/src/{boot,plugins}.ts` and `ap
 4. Log through `ctx.logger`, never `console.log`.
 5. Reusable pure helpers belong in `@BBeBee/toolkit`, not duplicated in feature packages.
 6. Decompose large UI packages into single-responsibility submodules (`src/{components,screens,hooks,utils,index.tsx}`); avoid monolithic single-file packages.
-7. Every plugin package must include a standardized `BBeBee.plugin.json` declaring 13 fields: `id`, `name`, `displayName`, `description`, `version`, `author`, `engines`, `enabled`, `dependencies`, `systemId` (`'layer-2'`-`'layer-5'`), `moduleId` (domain), `entry`, `capabilities`, `contributes`. Run `pnpm gen:plugins` after changes.
+7. Every plugin package must include a standardized `BBeBee.plugin.json` declaring 14 fields: `id`, `name`, `displayName`, `description`, `version`, `author`, `engines`, `enabled`, `dependencies`, `systemId` (`'layer-2'`-`'layer-5'`), `moduleId` (domain), `entry`, `capabilities`, `contributes`, `effect`. Run `pnpm gen:plugins` after changes.
 
 ```ts
 import type { Context } from '@BBeBee/protocol'

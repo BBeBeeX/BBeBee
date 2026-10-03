@@ -22,5 +22,6 @@
     "services": [
       "audio"
     ]
-  }
+  },
+  "effect": "audio"
 }

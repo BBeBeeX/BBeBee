@@ -20,5 +20,6 @@
     "services": [
       "ui"
     ]
-  }
+  },
+  "effect": "ui"
 }

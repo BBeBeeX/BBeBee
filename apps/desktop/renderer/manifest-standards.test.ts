@@ -21,10 +21,11 @@ function assertManifestStandard(id: string, manifest: PluginManifest) {
   expect(manifest.entry, `${id} entry`).toBeDefined()
   expect(Array.isArray(manifest.capabilities), `${id} capabilities`).toBe(true)
   expect(typeof manifest.contributes, `${id} contributes`).toBe('object')
+  expect('effect' in manifest, `${id} effect`).toBe(true)
 }
 
 describe('Plugin Manifest Standards across Registries', () => {
-  it('validates all desktop bundled plugins against the standard 13 fields', () => {
+  it('validates all desktop bundled plugins against the standard 14 fields', () => {
     const keys = Object.keys(desktopBundled)
     expect(keys.length).toBeGreaterThan(20)
     for (const key of keys) {
@@ -32,7 +33,7 @@ describe('Plugin Manifest Standards across Registries', () => {
     }
   })
 
-  it('validates all mobile bundled plugins against the standard 13 fields', () => {
+  it('validates all mobile bundled plugins against the standard 14 fields', () => {
     const keys = Object.keys(mobileBundled)
     expect(keys.length).toBeGreaterThan(20)
     for (const key of keys) {
@@ -40,7 +41,7 @@ describe('Plugin Manifest Standards across Registries', () => {
     }
   })
 
-  it('validates all inspector PLUGIN_MANIFESTS entries against standard 13 fields', () => {
+  it('validates all inspector PLUGIN_MANIFESTS entries against standard 14 fields', () => {
     const keys = Object.keys(PLUGIN_MANIFESTS)
     expect(keys.length).toBeGreaterThan(30)
     for (const key of keys) {

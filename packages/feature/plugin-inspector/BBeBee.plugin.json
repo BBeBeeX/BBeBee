@@ -23,5 +23,6 @@
     "services": [
       "inspector"
     ]
-  }
+  },
+  "effect": "inspector"
 }

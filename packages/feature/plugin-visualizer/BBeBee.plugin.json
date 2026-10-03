@@ -27,5 +27,6 @@
     "services": [
       "visualizer"
     ]
-  }
+  },
+  "effect": "visualizer"
 }

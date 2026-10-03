@@ -20,5 +20,6 @@
     "services": [
       "logBuffer"
     ]
-  }
+  },
+  "effect": "logBuffer"
 }

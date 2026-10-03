@@ -26,5 +26,6 @@
     "services": [
       "cache"
     ]
-  }
+  },
+  "effect": "cache"
 }
