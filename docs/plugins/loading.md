@@ -147,9 +147,9 @@ Every plugin package across all layers (Core, Logs, Feature, UI) carries a stand
 ### 6.4 Codegen Tooling (`@BBeBee/tooling-gen-plugins`)
 
 A single command (`pnpm gen:plugins`) scans all `BBeBee.plugin.json` manifests and produces:
-- `apps/mobile/generated/plugins.ts`: Static registry for mobile.
-- `apps/desktop/generated/plugins.ts`: Static built-in registry for desktop.
+- `apps/mobile/generated/plugins.ts`: Static registry for mobile (Metro cannot resolve runtime module paths).
 - `packages/ui/plugin-inspector-ui-desktop/src/pcb-manifests.generated.ts`: `PLUGIN_MANIFESTS` dictionary used by the PCB topology inspector to visualize system layers, module domains, dependencies, and capabilities.
+*(Desktop no longer uses static codegen; it loads built-in and external plugins dynamically via Vite dynamic globs and the privileged `bbebee-plugin://` bridge).*
 
 ### 6.5 Configuration
 

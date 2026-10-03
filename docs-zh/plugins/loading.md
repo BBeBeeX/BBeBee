@@ -137,8 +137,9 @@ codegen 即可构建。
 
 运行 `pnpm gen:plugins` 自动扫描全部插件包的 `BBeBee.plugin.json` 并生成：
 - `apps/mobile/generated/plugins.ts`：移动端全静态绑定注册表。
-- `apps/desktop/generated/plugins.ts`：桌面端内置静态插件注册表。
-- `packages/ui/plugin-inspector-ui-desktop/src/pcb-manifests.generated.ts`：导出全部 70 个插件清单的 `PLUGIN_MANIFESTS` 字典，供 PCB 架构拓扑检视器直接进行节点分层、模块归属、依赖及能力的实时可视化。
+- `apps/mobile/generated/plugins.ts`：移动端静态注册表（Metro 无法在运行时计算模块路径）。
+- `packages/ui/plugin-inspector-ui-desktop/src/pcb-manifests.generated.ts`：导出全部 70+ 个插件清单的 `PLUGIN_MANIFESTS` 字典，供 PCB 架构拓扑检视器直接进行节点分层、模块归属、依赖及能力的实时可视化。
+*（桌面端不再使用静态生成文件，全面采用 Vite 动态加载机制与特权 `bbebee-plugin://` 协议桥接）。*
 
 ### 6.5 配置
 

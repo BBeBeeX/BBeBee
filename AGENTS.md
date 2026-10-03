@@ -42,7 +42,7 @@ pnpm check:changed           # typecheck + lint + test on diff only
 | `pnpm test packages/kernel` | Run single package tests |
 | `pnpm typecheck` | `tsc --noEmit` across all workspace projects |
 | `pnpm lint` / `pnpm lint:fix`| ESLint, including the architectural layer rules |
-| `pnpm gen:plugins` | Regenerate `apps/*/generated/plugins.ts` (**Run after adding/removing a plugin**) |
+| `pnpm gen:plugins` | Regenerate `apps/mobile/generated/plugins.ts` and inspector manifests |
 | `pnpm new:plugin` | Scaffold a new plugin |
 | `pnpm dev:desktop` | Electron dev with HMR |
 | `pnpm dev:mobile` | Expo dev client (**custom dev build**, not Expo Go) |

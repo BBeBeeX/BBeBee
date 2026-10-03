@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { bundled as desktopBundled } from '../generated/plugins.js'
+import { getBuiltinPluginRegistry } from './dynamic-loader.js'
 import { bundled as mobileBundled } from '../../mobile/generated/plugins.js'
 import { PLUGIN_MANIFESTS } from '../../../packages/ui/plugin-inspector-ui-desktop/src/pcb-manifests.generated.js'
 import type { PluginManifest } from '@BBeBee/protocol'
+
+const desktopBundled = getBuiltinPluginRegistry()
 
 function assertManifestStandard(id: string, manifest: PluginManifest) {
   expect(manifest.id, `${id} id`).toBeDefined()

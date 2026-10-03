@@ -34,15 +34,14 @@ interface Shell {
   name: 'desktop' | 'mobile'
   /** The module holding `ENABLED` and `BOOTSTRAP_SERVICES`. */
   configFile: string
-  /** The committed output of `pnpm gen:plugins`. */
-  registryFile: string
+  /** The committed output of `pnpm gen:plugins` (mobile only). */
+  registryFile?: string
 }
 
 const SHELLS: Shell[] = [
   {
     name: 'desktop',
     configFile: 'apps/desktop/renderer/plugins.ts',
-    registryFile: 'apps/desktop/generated/plugins.ts',
   },
   {
     name: 'mobile',
@@ -120,10 +119,21 @@ async function shellLists(shell: Shell): Promise<{ enabled: string[]; bootstrap:
   return { enabled, bootstrap }
 }
 
-/** The plugin ids present in a generated registry. */
+/** The plugin ids present in a shell (from generated registry or dynamic workspace discovery). */
 async function registryIds(shell: Shell): Promise<string[]> {
-  const source = await readFile(join(workspaceRoot, shell.registryFile), 'utf8')
-  return [...source.matchAll(/^ {2}"(@BBeBee\/[^"]+)": \{$/gm)].map((m) => m[1]!)
+  if (shell.registryFile) {
+    const source = await readFile(join(workspaceRoot, shell.registryFile), 'utf8')
+    return [...source.matchAll(/^ {2}"(@BBeBee\/[^"]+)": \{$/gm)].map((m) => m[1]!)
+  }
+  // Desktop shell dynamically discovers all workspace plugins targeted for desktop
+  const all = await manifests()
+  const ids: string[] = []
+  for (const [id, manifest] of all.entries()) {
+    if (!manifest.platforms || manifest.platforms.includes(shell.name)) {
+      ids.push(id)
+    }
+  }
+  return ids
 }
 
 /**
@@ -159,7 +169,7 @@ async function requiredInjects(packageDir: string): Promise<string[]> {
 const dirOf = (id: string): string => id.replace(/^@BBeBee\//, '')
 
 describe.each(SHELLS)('the $name shell', (shell) => {
-  it('enables only plugins that are actually bundled', async () => {
+  it('enables only plugins that are actually bundled or available', async () => {
     const { enabled } = await shellLists(shell)
     const bundled = new Set(await registryIds(shell))
 
@@ -170,8 +180,8 @@ describe.each(SHELLS)('the $name shell', (shell) => {
     const absent = enabled.filter((id) => !bundled.has(id))
     expect(
       absent,
-      `configured but not in ${shell.registryFile} — run \`pnpm gen:plugins\`, ` +
-        `or the package is missing a BBeBee.plugin.json:\n  ${absent.join('\n  ')}`,
+      `configured but not available in ${shell.name} plugins — ` +
+        `the package is missing a BBeBee.plugin.json or target mismatch:\n  ${absent.join('\n  ')}`,
     ).toEqual([])
   })
 

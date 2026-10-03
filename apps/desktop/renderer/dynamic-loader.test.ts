@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from 'vitest'
 import type { App, LoadedPlugin } from '@BBeBee/kernel'
 import type { PluginManifest } from '@BBeBee/protocol'
 import {
+  getBuiltinPluginRegistry,
+  bundled,
   loadExternalPluginRegistry,
   installAndActivatePlugin,
   uninstallExternalPlugin,
@@ -17,6 +19,26 @@ describe('desktop dynamic-loader', () => {
     expect(registry).toEqual({})
 
     window.BBeBee = original
+  })
+
+  it('discovers workspace plugins dynamically without codegen', async () => {
+    const registry = getBuiltinPluginRegistry()
+    const keys = Object.keys(registry)
+    expect(keys.length).toBe(55)
+
+    // Check a representative plugin
+    const playerEntry = registry['@BBeBee/plugin-player']
+    expect(playerEntry).toBeDefined()
+    expect(playerEntry!.builtin).toBe(true)
+    expect(playerEntry!.manifest.id).toBe('@BBeBee/plugin-player')
+    expect(typeof playerEntry!.load).toBe('function')
+
+    // Test that the module actually loads dynamically
+    const playerModule = (await playerEntry!.load!()) as any
+    expect(playerModule.default ?? playerModule).toBeDefined()
+
+    // Also verify exported bundled registry matches
+    expect(Object.keys(bundled).length).toBe(55)
   })
 
   it('scans and builds dynamic registry entries from installed plugins', async () => {

@@ -7,8 +7,8 @@ import { generate, generateManifests } from './index.ts'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..')
 
-for (const target of ['mobile', 'desktop'] as const) {
-  const outDir = join(root, 'apps', target === 'mobile' ? 'mobile' : 'desktop', 'generated')
+for (const target of ['mobile'] as const) {
+  const outDir = join(root, 'apps', 'mobile', 'generated')
   await mkdir(outDir, { recursive: true })
   const written = await generate({ root, target, outFile: join(outDir, 'plugins.ts') })
   console.log(`generated ${written}`)

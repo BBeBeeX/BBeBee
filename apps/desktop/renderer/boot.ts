@@ -13,10 +13,10 @@
  * code belongs here, and everything else under `apps/` is plain Layer 4.
  * `kernel/src/layers.test.ts` fails if a second `createApp` appears elsewhere.
  *
- * The registry itself is **generated** (`pnpm gen:plugins`), so adding a
- * plugin package is not also an edit to two shells that can disagree
- * (docs/03 §6.1). What stays hand-written is the config: configuration is the
- * allowlist, so a package being bundled is not on its own enough to run it.
+ * Desktop uses **dynamic plugin loading** (docs/03 §6.2) via dynamic glob
+ * resolution, eliminating static codegen for the desktop shell. What stays
+ * hand-written is the config: configuration is the allowlist, so a package
+ * being available is not on its own enough to run it.
  */
 
 import { createApp, type App } from '@BBeBee/kernel'
@@ -61,9 +61,8 @@ import logBuffer from '@BBeBee/plugin-log-buffer'
 import logConsole from '@BBeBee/plugin-log-console'
 import logFile from '@BBeBee/plugin-log-file'
 
-import { bundled } from '../generated/plugins.js'
 import { BOOTSTRAP_SERVICES, INITIAL_ENABLED } from './plugins.js'
-import { loadExternalPluginRegistry } from './dynamic-loader.js'
+import { getBuiltinPluginRegistry, loadExternalPluginRegistry } from './dynamic-loader.js'
 
 declare global {
   interface Window {
@@ -613,7 +612,7 @@ export async function boot(): Promise<App> {
 
   const externalRegistry = await loadExternalPluginRegistry().catch(() => ({}))
   const compositeRegistry = {
-    ...bundled,
+    ...getBuiltinPluginRegistry(),
     ...externalRegistry,
   }
 

@@ -49,6 +49,50 @@ export interface InstalledPluginRecord {
 }
 
 /**
+ * Dynamic registry of built-in workspace plugins discovered via Vite glob import.
+ * Completely eliminates the need for static codegen on desktop.
+ */
+export function getBuiltinPluginRegistry(): DynamicPluginRegistry {
+  const manifestFiles = import.meta.glob<PluginManifest>(
+    '../../../packages/**/BBeBee.plugin.json',
+    { eager: true, import: 'default' },
+  )
+  const moduleLoaders = import.meta.glob(
+    '../../../packages/**/src/index.{ts,tsx}',
+  )
+
+  const registry: DynamicPluginRegistry = {}
+
+  for (const [manifestPath, manifest] of Object.entries(manifestFiles)) {
+    if (manifest.platforms && !manifest.platforms.includes('desktop')) {
+      continue
+    }
+
+    const dir = manifestPath.slice(0, manifestPath.lastIndexOf('/'))
+    const tsPath = `${dir}/src/index.ts`
+    const tsxPath = `${dir}/src/index.tsx`
+    const loader = moduleLoaders[tsPath] ?? moduleLoaders[tsxPath]
+
+    if (!loader) {
+      continue
+    }
+
+    registry[manifest.id] = {
+      manifest,
+      builtin: true,
+      load: async () => {
+        const mod = (await loader()) as Record<string, unknown> | null | undefined
+        return (mod && typeof mod === 'object' && 'default' in mod && mod.default) || mod
+      },
+    }
+  }
+
+  return registry
+}
+
+export const bundled: DynamicPluginRegistry = getBuiltinPluginRegistry()
+
+/**
  * Scan for installed external plugins from the desktop host and build
  * dynamic registry entries with ESM imports over `bbebee-plugin://`.
  */

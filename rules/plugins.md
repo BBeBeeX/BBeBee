@@ -167,8 +167,8 @@ pnpm check
 ```
 
 - `pnpm gen:plugins` updates:
-  - `apps/mobile/generated/plugins.ts` (mobile static imports).
-  - `apps/desktop/generated/plugins.ts` (desktop built-in imports).
+  - `apps/mobile/generated/plugins.ts` (mobile static imports for Metro).
   - `packages/ui/plugin-inspector-ui-desktop/src/pcb-manifests.generated.ts` (`PLUGIN_MANIFESTS` dictionary driving the PCB topology visualizer).
-- The generated registries are committed. Run `pnpm gen:plugins` after adding/removing any plugin or modifying a `BBeBee.plugin.json`.
+  *(Desktop dynamically discovers and loads built-in and external plugins via Vite and `dynamic-loader.ts` without codegen).*
+- The generated registries are committed. Run `pnpm gen:plugins` after adding/removing any mobile plugin or modifying a `BBeBee.plugin.json`.
 
