@@ -1,0 +1,26 @@
+{
+  "id": "@BBeBee/plugin-settings-ui-desktop",
+  "name": "@BBeBee/plugin-settings-ui-desktop",
+  "displayName": "Settings UI (Desktop)",
+  "description": "React DOM views for @BBeBee/plugin-settings.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": {
+    "BBeBee": "^0.1.0"
+  },
+  "enabled": true,
+  "dependencies": [
+    "@BBeBee/plugin-ui",
+    "@BBeBee/plugin-settings"
+  ],
+  "systemId": "layer-5",
+  "moduleId": "settings",
+  "platforms": [
+    "desktop"
+  ],
+  "entry": {
+    "main": "./dist/index.js"
+  },
+  "capabilities": [],
+  "contributes": {}
+}

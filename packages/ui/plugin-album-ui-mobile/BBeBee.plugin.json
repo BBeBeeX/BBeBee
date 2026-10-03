@@ -1,0 +1,26 @@
+{
+  "id": "@BBeBee/plugin-album-ui-mobile",
+  "name": "@BBeBee/plugin-album-ui-mobile",
+  "displayName": "Album UI (Mobile)",
+  "description": "React Native views for @BBeBee/plugin-album.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": {
+    "BBeBee": "^0.1.0"
+  },
+  "enabled": true,
+  "dependencies": [
+    "@BBeBee/plugin-ui",
+    "@BBeBee/plugin-album"
+  ],
+  "systemId": "layer-5",
+  "moduleId": "storage",
+  "platforms": [
+    "mobile"
+  ],
+  "entry": {
+    "main": "./dist/index.js"
+  },
+  "capabilities": [],
+  "contributes": {}
+}

@@ -353,7 +353,9 @@ export function SourcePanel({
                   context: { kind: 'search', label: searchQuery },
                 }),
               onDownload: downloads ? () => void downloads.enqueue([track.urn]) : undefined,
-              onMore: onTrackMenu ? (anchor) => onTrackMenu(track, anchor) : undefined,
+              onMore: onTrackMenu
+                ? (anchor) => (anchor ? onTrackMenu(track, anchor) : undefined)
+                : undefined,
             }),
           ),
           // Albums List

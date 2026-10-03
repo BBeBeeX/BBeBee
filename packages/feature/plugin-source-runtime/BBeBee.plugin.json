@@ -1,11 +1,19 @@
 {
   "id": "@BBeBee/plugin-source-runtime",
-  "version": "0.0.0",
+  "name": "@BBeBee/plugin-source-runtime",
   "displayName": "Music sources",
-  "description": "plugin-source-runtime \u2014 interprets imported source strings.",
+  "description": "plugin-source-runtime — interprets imported source strings.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
   "engines": {
     "BBeBee": "^0.1.0"
   },
+  "enabled": true,
+  "dependencies": [
+    "@BBeBee/plugin-sources"
+  ],
+  "systemId": "layer-4",
+  "moduleId": "sources",
   "entry": {
     "main": "./dist/index.js"
   },

@@ -6,7 +6,7 @@ import { FsNode } from '@BBeBee/core-fs-node'
 import { DbNode } from '@BBeBee/core-db-node'
 import { diffSnapshots, snapshotContext, tempDir, tick } from '@BBeBee/kernel/testing'
 import { NetworkError } from '@BBeBee/protocol'
-import type { Capabilities, MediaProvider, SearchQuery, SearchResult, Track } from '@BBeBee/protocol'
+import type { Capabilities, MediaProvider, PageRequest, SearchQuery, SearchResult, Track } from '@BBeBee/protocol'
 import plugin, { Sources } from './index.js'
 
 /** A provider with nothing but the required core, declaring no search. */
@@ -42,7 +42,7 @@ function fakeProvider(sourceId: string, overrides: Partial<MediaProvider> = {}):
 /** A provider that searches, answering with `whenSearched`. */
 function searchingProvider(
   sourceId: string,
-  whenSearched: (query: SearchQuery) => Promise<SearchResult>,
+  whenSearched: (query: SearchQuery, page?: PageRequest) => Promise<SearchResult>,
 ): MediaProvider {
   const base = fakeProvider(sourceId)
   return {

@@ -1,11 +1,19 @@
 {
   "id": "@BBeBee/plugin-library",
-  "version": "0.0.0",
+  "name": "@BBeBee/plugin-library",
   "displayName": "Library",
   "description": "ctx.library — playlists, favourites, collections and smart playlists.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
   "engines": {
     "BBeBee": "^0.1.0"
   },
+  "enabled": true,
+  "dependencies": [
+    "@BBeBee/plugin-sources"
+  ],
+  "systemId": "layer-4",
+  "moduleId": "storage",
   "entry": {
     "main": "./dist/index.js",
     "ui": {

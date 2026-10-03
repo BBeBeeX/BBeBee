@@ -1,11 +1,17 @@
 {
   "id": "@BBeBee/plugin-ui",
-  "version": "0.0.0",
+  "name": "@BBeBee/plugin-ui",
   "displayName": "UI Registry",
   "description": "The ctx.ui contribution registry.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
   "engines": {
     "BBeBee": "^0.1.0"
   },
+  "enabled": true,
+  "dependencies": [],
+  "systemId": "layer-4",
+  "moduleId": "ui",
   "entry": {
     "main": "./dist/index.js"
   },

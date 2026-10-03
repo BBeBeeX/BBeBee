@@ -1,0 +1,26 @@
+{
+  "id": "@BBeBee/plugin-sources-ui-desktop",
+  "name": "@BBeBee/plugin-sources-ui-desktop",
+  "displayName": "Sources UI (Desktop)",
+  "description": "React DOM views for plugin-sources.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": {
+    "BBeBee": "^0.1.0"
+  },
+  "enabled": true,
+  "dependencies": [
+    "@BBeBee/plugin-ui",
+    "@BBeBee/plugin-sources"
+  ],
+  "systemId": "layer-5",
+  "moduleId": "sources",
+  "platforms": [
+    "desktop"
+  ],
+  "entry": {
+    "main": "./dist/index.js"
+  },
+  "capabilities": [],
+  "contributes": {}
+}

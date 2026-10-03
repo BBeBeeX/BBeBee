@@ -250,7 +250,7 @@ export class MiniPlayerWindowManager {
       this.notifyState()
     })
 
-    let moveTimer: NodeJS.Timeout | undefined
+    let moveTimer: ReturnType<typeof setTimeout> | undefined
     win.on('moved', () => {
       if (this.programmaticMove) return
       if (moveTimer) clearTimeout(moveTimer)

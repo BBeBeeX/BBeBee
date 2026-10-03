@@ -1,0 +1,26 @@
+{
+  "id": "@BBeBee/plugin-mini-player-ui-desktop",
+  "name": "@BBeBee/plugin-mini-player-ui-desktop",
+  "displayName": "Mini Player UI (Desktop)",
+  "description": "Desktop UI views for @BBeBee/plugin-mini-player.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": {
+    "BBeBee": "^0.1.0"
+  },
+  "enabled": true,
+  "dependencies": [
+    "@BBeBee/plugin-ui",
+    "@BBeBee/plugin-mini-player"
+  ],
+  "systemId": "layer-5",
+  "moduleId": "playback",
+  "platforms": [
+    "desktop"
+  ],
+  "entry": {
+    "main": "./dist/index.js"
+  },
+  "capabilities": [],
+  "contributes": {}
+}

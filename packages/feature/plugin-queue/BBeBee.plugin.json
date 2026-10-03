@@ -1,11 +1,19 @@
 {
   "id": "@BBeBee/plugin-queue",
-  "version": "0.0.0",
+  "name": "@BBeBee/plugin-queue",
   "displayName": "Queue",
   "description": "The up-next list — a view of the queue ctx.player owns.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
   "engines": {
     "BBeBee": "^0.1.0"
   },
+  "enabled": true,
+  "dependencies": [
+    "@BBeBee/plugin-player"
+  ],
+  "systemId": "layer-4",
+  "moduleId": "playback",
   "entry": {
     "main": "./dist/index.js",
     "ui": {
@@ -13,5 +21,6 @@
       "mobile": "./dist/index.js"
     }
   },
-  "capabilities": []
+  "capabilities": [],
+  "contributes": {}
 }

@@ -194,14 +194,15 @@ export class AudioEngineSupervisor {
           : process.env['PATH'],
       }
 
-      this.child = spawn(exePath, [], {
+      const child = spawn(exePath, [], {
         stdio: ['pipe', 'pipe', 'pipe'],
         windowsHide: true,
-        env: childEnv,
+        env: childEnv as NodeJS.ProcessEnv,
       })
+      this.child = child
 
       let stdoutBuffer = ''
-      this.child.stdout?.on('data', (chunk: Buffer | string) => {
+      child.stdout?.on('data', (chunk: Buffer | string) => {
         stdoutBuffer += chunk.toString()
         const lines = stdoutBuffer.split('\n')
         stdoutBuffer = lines.pop() ?? ''
@@ -218,7 +219,7 @@ export class AudioEngineSupervisor {
         }
       })
 
-      this.child.stderr?.on('data', (chunk: Buffer | string) => {
+      child.stderr?.on('data', (chunk: Buffer | string) => {
         const text = chunk.toString().trim()
         if (text) {
           // The injected logger concatenates rather than printf-interpolates,
@@ -227,11 +228,11 @@ export class AudioEngineSupervisor {
         }
       })
 
-      this.child.on('error', (err) => {
+      child.on('error', (err) => {
         this.logger?.error?.('audio-engine-supervisor: worker process error: %s', String(err))
       })
 
-      this.child.on('exit', (code, signal) => {
+      child.on('exit', (code, signal) => {
         this.handleWorkerExit(code, signal)
       })
 

@@ -170,6 +170,7 @@ export default tseslint.config(
         // belong to no package tsconfig program.
         projectService: {
           allowDefaultProject: ['*.ts', '*.js', 'apps/*/*.config.ts', 'test/stubs/*.ts', 'apps/*/scripts/*.js'],
+          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 20,
         },
         tsconfigRootDir: import.meta.dirname,
       },

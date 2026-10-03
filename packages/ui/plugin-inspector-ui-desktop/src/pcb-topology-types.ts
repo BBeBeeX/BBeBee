@@ -1,5 +1,6 @@
 import type { FiberStateName } from '@BBeBee/kernel'
 import type { EffectNode } from '@BBeBee/plugin-inspector'
+import type { PluginManifest } from '@BBeBee/protocol'
 
 export interface Point {
   x: number
@@ -114,6 +115,9 @@ export interface PcbNode {
   kind: NodeKind
   subsystem?: SubsystemId
   layer?: number // Layer 1 to 5
+  systemId?: string // e.g. 'layer-2', 'layer-4'
+  moduleId?: string // e.g. 'sources', 'playback'
+  manifest?: PluginManifest
   x: number
   y: number
   radius: number

@@ -1,0 +1,26 @@
+{
+  "id": "@BBeBee/plugin-download-ui-desktop",
+  "name": "@BBeBee/plugin-download-ui-desktop",
+  "displayName": "Download UI (Desktop)",
+  "description": "React DOM views for plugin-download.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": {
+    "BBeBee": "^0.1.0"
+  },
+  "enabled": true,
+  "dependencies": [
+    "@BBeBee/plugin-ui",
+    "@BBeBee/plugin-download"
+  ],
+  "systemId": "layer-5",
+  "moduleId": "storage",
+  "platforms": [
+    "desktop"
+  ],
+  "entry": {
+    "main": "./dist/index.js"
+  },
+  "capabilities": [],
+  "contributes": {}
+}

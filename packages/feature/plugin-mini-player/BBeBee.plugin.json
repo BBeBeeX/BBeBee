@@ -1,11 +1,19 @@
 {
   "id": "@BBeBee/plugin-mini-player",
-  "version": "0.0.0",
+  "name": "@BBeBee/plugin-mini-player",
   "displayName": "Mini Player",
   "description": "Floating mini window and Dynamic Island player controls.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
   "engines": {
     "BBeBee": "^0.1.0"
   },
+  "enabled": true,
+  "dependencies": [
+    "@BBeBee/plugin-player"
+  ],
+  "systemId": "layer-4",
+  "moduleId": "playback",
   "entry": {
     "main": "./dist/index.js",
     "ui": {

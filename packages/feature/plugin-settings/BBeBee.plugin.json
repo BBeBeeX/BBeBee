@@ -1,11 +1,17 @@
 {
   "id": "@BBeBee/plugin-settings",
-  "version": "0.0.0",
+  "name": "@BBeBee/plugin-settings",
   "displayName": "Settings",
   "description": "Global application preferences, settings service, and settings views.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
   "engines": {
     "BBeBee": "^0.1.0"
   },
+  "enabled": true,
+  "dependencies": [],
+  "systemId": "layer-4",
+  "moduleId": "settings",
   "entry": {
     "main": "./dist/index.js",
     "ui": {

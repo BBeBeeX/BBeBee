@@ -11,7 +11,13 @@
 import { Context, type Fiber, type Plugin } from 'cordis'
 import { FiberState } from '../fiber-state.js'
 import { resolveConfig, type AppConfig, type ResolvedPlugin } from '../config/config.js'
-import { loadPlugins, type LoadOptions, type LoadedPlugin, type PluginRegistry } from '../loader/loader.js'
+import {
+  loadPlugins,
+  type LoadOptions,
+  type LoadedPlugin,
+  type PluginRegistry,
+  type RegistryEntry,
+} from '../loader/loader.js'
 
 export type Target = 'ios' | 'android' | 'desktop'
 
@@ -108,6 +114,10 @@ export interface App {
    */
   ready(services: string[], opts?: { timeoutMs?: number }): Promise<Context>
   /**
+   * Dynamically register a plugin into the app's registry.
+   */
+  registerPlugin(pluginId: string, entry: RegistryEntry): void
+  /**
    * Dynamically load and activate a plugin after start.
    */
   loadPlugin(pluginId: string, config?: unknown): Promise<LoadedPlugin>
@@ -119,6 +129,7 @@ export interface App {
 
 export function createApp(options: AppOptions): App {
   const ctx = new Context()
+  const registry: PluginRegistry = { ...(options.registry ?? {}) }
   const loaded: LoadedPlugin[] = []
   const bootstrapDisposers: (() => Promise<void>)[] = []
   let started = false
@@ -207,7 +218,7 @@ export function createApp(options: AppOptions): App {
 
       const results = await loadPlugins(
         ctx,
-        options.registry ?? {},
+        registry,
         plugins,
         options.load ?? {},
       )
@@ -271,6 +282,10 @@ export function createApp(options: AppOptions): App {
       })
     },
 
+    registerPlugin(pluginId, entry) {
+      registry[pluginId] = entry
+    },
+
     async loadPlugin(pluginId, config) {
       if (!started) throw new Error('cannot load plugin before app is started')
       const existing = loaded.find((p) => p.pluginId === pluginId)
@@ -283,7 +298,7 @@ export function createApp(options: AppOptions): App {
       }
       const [result] = await loadPlugins(
         ctx,
-        options.registry ?? {},
+        registry,
         [inst],
         options.load ?? {},
       )

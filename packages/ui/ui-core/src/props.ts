@@ -22,6 +22,7 @@ export interface CommonProps {
    * every interactive element and a per-component decision gets forgotten.
    */
   accessibilityLabel?: string
+  style?: unknown
 }
 
 export type Tone = 'default' | 'muted' | 'accent' | 'error' | 'warn' | 'ok'

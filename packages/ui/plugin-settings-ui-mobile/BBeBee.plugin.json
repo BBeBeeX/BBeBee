@@ -1,0 +1,26 @@
+{
+  "id": "@BBeBee/plugin-settings-ui-mobile",
+  "name": "@BBeBee/plugin-settings-ui-mobile",
+  "displayName": "Settings UI (Mobile)",
+  "description": "React Native views for @BBeBee/plugin-settings.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": {
+    "BBeBee": "^0.1.0"
+  },
+  "enabled": true,
+  "dependencies": [
+    "@BBeBee/plugin-ui",
+    "@BBeBee/plugin-settings"
+  ],
+  "systemId": "layer-5",
+  "moduleId": "settings",
+  "platforms": [
+    "mobile"
+  ],
+  "entry": {
+    "main": "./dist/index.js"
+  },
+  "capabilities": [],
+  "contributes": {}
+}

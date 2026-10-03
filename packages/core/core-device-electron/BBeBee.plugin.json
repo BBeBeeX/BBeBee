@@ -1,14 +1,20 @@
 {
   "id": "@BBeBee/core-device-electron",
-  "platforms": [
-    "desktop"
-  ],
-  "version": "0.0.0",
+  "name": "@BBeBee/core-device-electron",
   "displayName": "Device",
-  "description": "ctx.device \u2014 network, battery, media keys and hotkeys on desktop.",
+  "description": "ctx.device — network, battery, media keys and hotkeys on desktop.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
   "engines": {
     "BBeBee": "^0.1.0"
   },
+  "enabled": true,
+  "dependencies": [],
+  "systemId": "layer-2",
+  "moduleId": "core",
+  "platforms": [
+    "desktop"
+  ],
   "entry": {
     "main": "./dist/index.js"
   },

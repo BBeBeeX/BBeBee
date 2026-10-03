@@ -1,11 +1,17 @@
 {
   "id": "@BBeBee/core-audio-webaudio",
-  "version": "0.0.0",
+  "name": "@BBeBee/core-audio-webaudio",
   "displayName": "Audio",
-  "description": "ctx.audio \u2014 the Web Audio graph, shared by every target.",
+  "description": "ctx.audio — the Web Audio graph, shared by every target.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
   "engines": {
     "BBeBee": "^0.1.0"
   },
+  "enabled": true,
+  "dependencies": [],
+  "systemId": "layer-2",
+  "moduleId": "playback",
   "entry": {
     "main": "./dist/index.js"
   },

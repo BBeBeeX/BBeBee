@@ -1,14 +1,20 @@
 {
   "id": "@BBeBee/core-audio-mpv",
-  "version": "0.0.0",
+  "name": "@BBeBee/core-audio-mpv",
   "displayName": "Audio (Desktop MPV)",
   "description": "ctx.audio — libmpv audio engine with native audio-engine crash isolation, direct WASAPI output, native DSP/EQ, and FFT visualizer.",
-  "platforms": [
-    "desktop"
-  ],
+  "version": "0.0.0",
+  "author": "BBeBee Team",
   "engines": {
     "BBeBee": "^0.1.0"
   },
+  "enabled": true,
+  "dependencies": [],
+  "systemId": "layer-2",
+  "moduleId": "playback",
+  "platforms": [
+    "desktop"
+  ],
   "entry": {
     "main": "./dist/index.js"
   },

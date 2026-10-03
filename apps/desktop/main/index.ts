@@ -34,9 +34,19 @@ import {
   type CloseContext,
 } from './window-policy.js'
 import { fileURLToPath } from 'node:url'
-import { dirname, join, extname } from 'node:path'
-import { existsSync, mkdirSync, statSync, createReadStream } from 'node:fs'
+import { dirname, join, extname, resolve } from 'node:path'
+import {
+  existsSync,
+  mkdirSync,
+  statSync,
+  createReadStream,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+  rmSync,
+} from 'node:fs'
 import { Readable } from 'node:stream'
+import { pluginDirName } from '@BBeBee/protocol'
 import { MiniPlayerWindowManager } from './mini-player-manager.js'
 import { createAudioHost } from './audio/index.js'
 import { toNativePath } from './fs-path.js'
@@ -130,7 +140,7 @@ function getTaskbarIcons() {
   return taskbarIcons
 }
 
-let taskbarRetryTimer: NodeJS.Timeout | undefined
+let taskbarRetryTimer: ReturnType<typeof setTimeout> | undefined
 
 function updateTaskbar(state: TaskbarState): void {
   currentTaskbarState = state
@@ -415,7 +425,7 @@ let lyricWindowVisible = false
 let lyricWindowLocked = false
 let latestLyricData: unknown = undefined
 let programmaticMove = false
-let lyricCursorTimer: NodeJS.Timeout | undefined
+let lyricCursorTimer: ReturnType<typeof setInterval> | undefined
 
 function setLyricWindowPosition(x: number, y: number): void {
   if (!lyricWindow || lyricWindow.isDestroyed()) return
@@ -547,7 +557,7 @@ function createLyricWindow(pos?: { x?: number; y?: number }): BrowserWindow {
     }
   })
 
-  let moveTimer: NodeJS.Timeout | undefined
+  let moveTimer: ReturnType<typeof setTimeout> | undefined
   window.on('moved', () => {
     if (programmaticMove) return
     if (moveTimer) clearTimeout(moveTimer)
@@ -631,6 +641,67 @@ function createTray(): Tray | undefined {
     // still hides on close and is reachable from the dock or the app menu.
     return undefined
   }
+}
+
+function parsePluginRequestUrl(rawUrl: string): { pluginId: string; subPath: string } | undefined {
+  try {
+    const url = new URL(rawUrl)
+    // Handle bbebee-plugin://app/<pluginId>/<subPath> or bbebee-plugin://plugin/<pluginId>/<subPath>
+    if (url.host === 'app' || url.host === 'plugin') {
+      const parts = url.pathname.replace(/^\/+/, '').split('/')
+      const rawId = parts[0]
+      if (!rawId) return undefined
+      const pluginId = decodeURIComponent(rawId)
+      const subPath = parts.slice(1).join('/') || 'index.js'
+      return { pluginId, subPath }
+    }
+    // Handle bbebee-plugin://<pluginId>/<subPath>
+    const pluginId = decodeURIComponent(url.host)
+    const subPath = url.pathname.replace(/^\/+/, '') || 'index.js'
+    return { pluginId, subPath }
+  } catch {
+    return undefined
+  }
+}
+
+function getInstalledPluginsDir(): string {
+  const dir = join(app.getPath('userData'), 'installed-plugins')
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true })
+  }
+  return dir
+}
+
+function resolvePluginDir(pluginId: string): string | undefined {
+  const root = getInstalledPluginsDir()
+  // 1. Check pluginDirName(pluginId)
+  const hashedName = pluginDirName(pluginId)
+  const hashedPath = join(root, hashedName)
+  if (existsSync(hashedPath)) return hashedPath
+
+  // 2. Check exact sanitized name
+  const sanitized = pluginId.replace(/[^a-zA-Z0-9._-]+/g, '_')
+  const directPath = join(root, sanitized)
+  if (existsSync(directPath)) return directPath
+
+  // 3. Check versioned matches (e.g. pluginId@version)
+  try {
+    const entries = readdirSync(root, { withFileTypes: true })
+    for (const entry of entries) {
+      if (
+        entry.isDirectory() &&
+        (entry.name === pluginId ||
+          entry.name.startsWith(`${pluginId}@`) ||
+          entry.name.startsWith(`${hashedName}@`))
+      ) {
+        return join(root, entry.name)
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  return undefined
 }
 
 /**
@@ -1012,6 +1083,92 @@ function registerHandlers(): void {
     }
   })
 
+  ipcMain.handle('plugins:list-installed', async () => {
+    try {
+      const root = getInstalledPluginsDir()
+      const entries = readdirSync(root, { withFileTypes: true })
+      const plugins: Array<{ id: string; version: string; manifest: unknown; dirName: string }> = []
+
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue
+        const manifestPath = join(root, entry.name, 'manifest.json')
+        const pkgJsonPath = join(root, entry.name, 'package.json')
+
+        let manifest: Record<string, unknown> | undefined
+        if (existsSync(manifestPath)) {
+          try {
+            manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<string, unknown>
+          } catch {
+            // ignore malformed manifest
+          }
+        } else if (existsSync(pkgJsonPath)) {
+          try {
+            const pkg = JSON.parse(readFileSync(pkgJsonPath, 'utf8')) as Record<string, unknown>
+            if (pkg['manifest'] && typeof pkg['manifest'] === 'object') {
+              manifest = pkg['manifest'] as Record<string, unknown>
+            } else {
+              manifest = {
+                id: pkg['name'],
+                version: pkg['version'] ?? '1.0.0',
+                displayName: pkg['displayName'] ?? pkg['name'],
+                entry: { main: pkg['main'] ?? './index.js' },
+                capabilities: pkg['capabilities'] ?? [],
+              }
+            }
+          } catch {
+            // ignore malformed pkg
+          }
+        }
+
+        if (manifest && manifest['id']) {
+          plugins.push({
+            id: String(manifest['id']),
+            version: String(manifest['version'] ?? '1.0.0'),
+            manifest,
+            dirName: entry.name,
+          })
+        }
+      }
+      return plugins
+    } catch {
+      return []
+    }
+  })
+
+  ipcMain.handle(
+    'plugins:install',
+    async (_event, pluginId: string, files: Record<string, string>) => {
+      if (!pluginId || typeof pluginId !== 'string') {
+        throw new Error('pluginId is required')
+      }
+      const root = getInstalledPluginsDir()
+      const targetDir = join(root, pluginDirName(pluginId))
+      mkdirSync(targetDir, { recursive: true })
+
+      for (const [relPath, content] of Object.entries(files)) {
+        const filePath = resolve(targetDir, relPath)
+        if (!filePath.startsWith(resolve(targetDir))) {
+          throw new Error(`Path traversal rejected: ${relPath}`)
+        }
+        mkdirSync(dirname(filePath), { recursive: true })
+        writeFileSync(filePath, content, 'utf8')
+      }
+      return { ok: true, pluginId, path: targetDir }
+    },
+  )
+
+  ipcMain.handle('plugins:uninstall', async (_event, pluginId: string) => {
+    if (!pluginId || typeof pluginId !== 'string') {
+      throw new Error('pluginId is required')
+    }
+    const dir = resolvePluginDir(pluginId)
+    if (dir && existsSync(dir)) {
+      rmSync(dir, { recursive: true, force: true })
+      return { ok: true }
+    }
+    return { ok: false, message: 'Plugin directory not found' }
+  })
+
   miniPlayerManager.registerIpc()
 }
 
@@ -1129,6 +1286,15 @@ protocol.registerSchemesAsPrivileged([
       corsEnabled: true,
       stream: true,
       bypassCSP: true,
+    },
+  },
+  {
+    scheme: 'bbebee-plugin',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: false,
     },
   },
 ])
@@ -1306,6 +1472,57 @@ void app.whenReady().then(async () => {
     }
 
     return new Response('File Not Found', {
+      status: 404,
+      statusText: 'Not Found',
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+      },
+    })
+  })
+
+  protocol.handle('bbebee-plugin', async (request) => {
+    try {
+      const parsed = parsePluginRequestUrl(request.url)
+      if (!parsed) {
+        return new Response('Invalid plugin URL', { status: 400 })
+      }
+
+      const pluginDir = resolvePluginDir(parsed.pluginId)
+      if (!pluginDir) {
+        return new Response(`Plugin not found: ${parsed.pluginId}`, { status: 404 })
+      }
+
+      const safePath = resolve(pluginDir, parsed.subPath)
+      // Guard against directory traversal
+      if (!safePath.startsWith(resolve(pluginDir))) {
+        return new Response('Forbidden', { status: 403 })
+      }
+
+      if (existsSync(safePath) && statSync(safePath).isFile()) {
+        const stats = statSync(safePath)
+        const ext = extname(safePath).toLowerCase()
+        let contentType = 'application/octet-stream'
+        if (ext === '.js' || ext === '.mjs') contentType = 'text/javascript; charset=utf-8'
+        else if (ext === '.json') contentType = 'application/json; charset=utf-8'
+        else if (ext === '.css') contentType = 'text/css; charset=utf-8'
+        else if (ext === '.wasm') contentType = 'application/wasm'
+        else contentType = getFileMimeType(safePath)
+
+        const content = readFileSync(safePath)
+        return new Response(content, {
+          status: 200,
+          headers: {
+            'Content-Type': contentType,
+            'Content-Length': String(stats.size),
+            'Access-Control-Allow-Origin': '*',
+          },
+        })
+      }
+    } catch {
+      // ignore resolution failure
+    }
+
+    return new Response('Plugin File Not Found', {
       status: 404,
       statusText: 'Not Found',
       headers: {

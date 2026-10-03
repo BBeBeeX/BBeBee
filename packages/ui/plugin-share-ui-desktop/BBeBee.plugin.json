@@ -1,0 +1,26 @@
+{
+  "id": "@BBeBee/plugin-share-ui-desktop",
+  "name": "@BBeBee/plugin-share-ui-desktop",
+  "displayName": "Share UI (Desktop)",
+  "description": "Desktop views for @BBeBee/plugin-share (Spotify-style share modals & steganography reader).",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": {
+    "BBeBee": "^0.1.0"
+  },
+  "enabled": true,
+  "dependencies": [
+    "@BBeBee/plugin-ui",
+    "@BBeBee/plugin-share"
+  ],
+  "systemId": "layer-5",
+  "moduleId": "share",
+  "platforms": [
+    "desktop"
+  ],
+  "entry": {
+    "main": "./dist/index.js"
+  },
+  "capabilities": [],
+  "contributes": {}
+}

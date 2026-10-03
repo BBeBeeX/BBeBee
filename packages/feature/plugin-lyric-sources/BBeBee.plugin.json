@@ -1,11 +1,19 @@
 {
   "id": "@BBeBee/plugin-lyric-sources",
-  "version": "0.0.0",
+  "name": "@BBeBee/plugin-lyric-sources",
   "displayName": "Lyric Sources",
   "description": "ctx.lyricSources — third-party lyric source provider management and sandboxed execution.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
   "engines": {
     "BBeBee": "^0.1.0"
   },
+  "enabled": true,
+  "dependencies": [
+    "@BBeBee/plugin-lyrics"
+  ],
+  "systemId": "layer-4",
+  "moduleId": "lyrics",
   "entry": {
     "main": "./dist/index.js"
   },

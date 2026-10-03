@@ -57,6 +57,18 @@ const api = {
   devtools: {
     open: (): Promise<void> => ipcRenderer.invoke('devtools:open'),
   },
+  plugins: {
+    listInstalled: (): Promise<
+      Array<{ id: string; version: string; manifest: unknown; dirName: string }>
+    > => ipcRenderer.invoke('plugins:list-installed'),
+    install: (
+      pluginId: string,
+      files: Record<string, string>,
+    ): Promise<{ ok: boolean; pluginId: string; path?: string }> =>
+      ipcRenderer.invoke('plugins:install', pluginId, files),
+    uninstall: (pluginId: string): Promise<{ ok: boolean; message?: string }> =>
+      ipcRenderer.invoke('plugins:uninstall', pluginId),
+  },
   window: {
     minimize: (): Promise<void> => ipcRenderer.invoke('window:minimize'),
     maximize: (): Promise<void> => ipcRenderer.invoke('window:maximize'),

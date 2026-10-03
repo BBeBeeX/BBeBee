@@ -1,0 +1,26 @@
+{
+  "id": "@BBeBee/plugin-desktop-lyrics-ui-desktop",
+  "name": "@BBeBee/plugin-desktop-lyrics-ui-desktop",
+  "displayName": "Desktop Lyrics UI (Desktop)",
+  "description": "Desktop floating lyrics views for @BBeBee/plugin-desktop-lyrics.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": {
+    "BBeBee": "^0.1.0"
+  },
+  "enabled": true,
+  "dependencies": [
+    "@BBeBee/plugin-ui",
+    "@BBeBee/plugin-desktop-lyrics"
+  ],
+  "systemId": "layer-5",
+  "moduleId": "lyrics",
+  "platforms": [
+    "desktop"
+  ],
+  "entry": {
+    "main": "./dist/index.js"
+  },
+  "capabilities": [],
+  "contributes": {}
+}

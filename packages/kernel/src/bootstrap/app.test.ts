@@ -413,4 +413,75 @@ describe('stop() unloads everything', () => {
 
     expect(order).toEqual(['feature-down', 'core-down'])
   })
+
+  it('dynamically registers and loads a plugin at runtime', async () => {
+    const executed: string[] = []
+    const app = createApp({
+      target: 'desktop',
+      bootstrap: [],
+      registry: {},
+      config: { plugins: {} },
+    })
+
+    await app.start()
+    await tick()
+
+    expect(app.plugins).toHaveLength(0)
+
+    // Register dynamically
+    app.registerPlugin(
+      'dynamic-1',
+      bundled('dynamic-1', {
+        apply: () => {
+          executed.push('started')
+          return () => {
+            executed.push('stopped')
+          }
+        },
+      }),
+    )
+
+    const loaded = await app.loadPlugin('dynamic-1')
+    expect(loaded.state).toBe('active')
+    expect(executed).toEqual(['started'])
+    expect(app.plugins.find((p) => p.pluginId === 'dynamic-1')?.state).toBe('active')
+
+    // Calling loadPlugin again on active plugin returns the same record
+    const reloaded = await app.loadPlugin('dynamic-1')
+    expect(reloaded).toBe(loaded)
+
+    // Unload dynamically
+    await app.unloadPlugin('dynamic-1')
+    expect(executed).toEqual(['started', 'stopped'])
+    expect(app.plugins.find((p) => p.pluginId === 'dynamic-1')).toBeUndefined()
+
+    await app.stop()
+  })
+
+  it('gating ungranted capabilities on dynamic third-party plugins', async () => {
+    const app = createApp({
+      target: 'desktop',
+      bootstrap: [],
+      registry: {},
+      config: { plugins: {} },
+    })
+
+    await app.start()
+
+    // Register a non-builtin third-party plugin that requests capabilities without user grant
+    app.registerPlugin('third-party', {
+      manifest: manifest('third-party', { capabilities: ['db:read:core'] }),
+      builtin: false,
+      plugin: {
+        apply: () => {},
+      },
+    })
+
+    const loaded = await app.loadPlugin('third-party')
+    expect(loaded.state).toBe('ungranted')
+    expect(loaded.error?.message).toContain('has no capability grant')
+
+    await app.stop()
+  })
 })
+

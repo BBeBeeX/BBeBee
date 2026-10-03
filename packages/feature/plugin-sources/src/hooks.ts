@@ -700,7 +700,12 @@ export function useSourceSearch(ctx: Context): SourceSearchState {
 
       setPagination((prev) => ({
         ...prev,
-        [sourceId]: { ...prev[sourceId], loading: true, error: undefined },
+        [sourceId]: {
+          loading: true,
+          hasMore: prev[sourceId]?.hasMore ?? false,
+          cursor: prev[sourceId]?.cursor,
+          error: undefined,
+        },
       }))
 
       const types = lastOptsRef.current?.typesBySource?.[sourceId]
@@ -714,9 +719,16 @@ export function useSourceSearch(ctx: Context): SourceSearchState {
         if (generation.current !== mine) return
 
         if (entry.error) {
+          const sourceErr =
+            entry.error instanceof Error ? entry.error : new Error(String(entry.error))
           setPagination((prev) => ({
             ...prev,
-            [sourceId]: { ...prev[sourceId], loading: false, error: entry.error },
+            [sourceId]: {
+              loading: false,
+              hasMore: prev[sourceId]?.hasMore ?? false,
+              cursor: prev[sourceId]?.cursor,
+              error: sourceErr,
+            },
           }))
           return
         }
@@ -766,7 +778,11 @@ export function useSourceSearch(ctx: Context): SourceSearchState {
         } else {
           setPagination((prev) => ({
             ...prev,
-            [sourceId]: { ...prev[sourceId], loading: false, hasMore: false },
+            [sourceId]: {
+              loading: false,
+              hasMore: false,
+              cursor: prev[sourceId]?.cursor,
+            },
           }))
         }
       } catch (err: unknown) {
@@ -774,7 +790,12 @@ export function useSourceSearch(ctx: Context): SourceSearchState {
         const error = err instanceof Error ? err : new Error(String(err))
         setPagination((prev) => ({
           ...prev,
-          [sourceId]: { ...prev[sourceId], loading: false, error },
+          [sourceId]: {
+            loading: false,
+            hasMore: prev[sourceId]?.hasMore ?? false,
+            cursor: prev[sourceId]?.cursor,
+            error,
+          },
         }))
       }
     },

@@ -1,0 +1,26 @@
+{
+  "id": "@BBeBee/plugin-share-ui-mobile",
+  "name": "@BBeBee/plugin-share-ui-mobile",
+  "displayName": "Share UI (Mobile)",
+  "description": "React Native views for @BBeBee/plugin-share — share codes and the import reader.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": {
+    "BBeBee": "^0.1.0"
+  },
+  "enabled": true,
+  "dependencies": [
+    "@BBeBee/plugin-ui",
+    "@BBeBee/plugin-share"
+  ],
+  "systemId": "layer-5",
+  "moduleId": "share",
+  "platforms": [
+    "mobile"
+  ],
+  "entry": {
+    "main": "./dist/index.js"
+  },
+  "capabilities": [],
+  "contributes": {}
+}

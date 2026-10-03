@@ -1,4 +1,5 @@
 import type { FiberNode, InspectorSnapshot } from '@BBeBee/plugin-inspector'
+import type { PluginManifest } from '@BBeBee/protocol'
 import type {
   LayerBand,
   PcbNode,
@@ -8,6 +9,7 @@ import type {
   SubsystemZone,
   ViewLevel,
 } from './pcb-topology-types.js'
+import { PLUGIN_MANIFESTS } from './pcb-manifests.generated.js'
 
 /**
  * 5 Architectural Layer Strata according to the project's layer model:
@@ -175,11 +177,59 @@ export const SUBSYSTEM_ZONES: SubsystemZone[] = [
   },
 ]
 
+const NODE_MANIFEST_ALIAS: Record<string, string> = {
+  downloads: '@BBeBee/plugin-download',
+  mediaSession: '@BBeBee/core-media-session-electron',
+  js: '@BBeBee/core-js-quickjs-node',
+  scanner: '@BBeBee/plugin-local-scanner',
+  'scanner-ui-bp': '@BBeBee/plugin-local-scanner-ui-desktop',
+  localSource: '@BBeBee/plugin-source-local',
+  sourceRuntime: '@BBeBee/plugin-source-runtime',
+  nowplaying: '@BBeBee/plugin-now-playing',
+  'nowplaying-ui-bp': '@BBeBee/plugin-now-playing-ui-desktop',
+  sleeptimer: '@BBeBee/plugin-sleep-timer',
+  desktopLyrics: '@BBeBee/plugin-desktop-lyrics',
+  'desktopLyrics-ui': '@BBeBee/plugin-desktop-lyrics-ui-desktop',
+  logs: '@BBeBee/plugin-log-buffer',
+  'log-console': '@BBeBee/plugin-log-console',
+  'inspector-ui': '@BBeBee/plugin-inspector-ui-desktop',
+  'player-ui-bp': '@BBeBee/plugin-now-playing-ui-desktop',
+}
+
+/**
+ * Find the plugin manifest matching a PCB node.
+ */
+export function findNodeManifest(nodeId: string): PluginManifest | undefined {
+  if (NODE_MANIFEST_ALIAS[nodeId]) {
+    return PLUGIN_MANIFESTS[NODE_MANIFEST_ALIAS[nodeId]]
+  }
+  const direct =
+    PLUGIN_MANIFESTS[nodeId] ??
+    PLUGIN_MANIFESTS[`@BBeBee/${nodeId}`] ??
+    PLUGIN_MANIFESTS[`@BBeBee/plugin-${nodeId}`] ??
+    PLUGIN_MANIFESTS[`plugin-${nodeId}`] ??
+    PLUGIN_MANIFESTS[`@BBeBee/core-${nodeId}-node`] ??
+    PLUGIN_MANIFESTS[`@BBeBee/core-${nodeId}-electron`] ??
+    PLUGIN_MANIFESTS[`@BBeBee/core-${nodeId}-webaudio`] ??
+    PLUGIN_MANIFESTS[`@BBeBee/core-${nodeId}-mpv`]
+  if (direct) return direct
+
+  if (nodeId.endsWith('-ui-bp') || nodeId.endsWith('-ui')) {
+    const base = nodeId.replace('-ui-bp', '').replace('-ui', '')
+    return (
+      PLUGIN_MANIFESTS[`@BBeBee/plugin-${base}-ui-desktop`] ??
+      PLUGIN_MANIFESTS[`plugin-${base}-ui-desktop`]
+    )
+  }
+
+  return undefined
+}
+
 /**
  * Baseline Architectural Nodes representing the true system composition.
  * Includes compatibility identifiers (cs20, cs30, Level 4, Level 5) for tests and HUD.
  */
-export const ARCH_NODES: Omit<PcbNode, 'fiber'>[] = [
+const RAW_ARCH_NODES: Omit<PcbNode, 'fiber'>[] = [
   // ── LAYER 1: KERNEL RUNTIME ────────────────────────────────────────────────
   {
     id: 'root',
@@ -705,6 +755,17 @@ export const ARCH_NODES: Omit<PcbNode, 'fiber'>[] = [
     radius: 26,
   },
 ]
+
+export const ARCH_NODES: Omit<PcbNode, 'fiber'>[] = RAW_ARCH_NODES.map((node) => {
+  const manifest = findNodeManifest(node.id)
+  return {
+    ...node,
+    manifest,
+    systemId: node.systemId ?? manifest?.systemId ?? `layer-${node.layer ?? 4}`,
+    moduleId: node.moduleId ?? manifest?.moduleId ?? (node.subsystem as string) ?? 'core',
+    name: manifest?.displayName ?? manifest?.name ?? node.name,
+  }
+})
 
 // Keep export BASE_NODES pointing to ARCH_NODES for compatibility
 export const BASE_NODES = ARCH_NODES
@@ -1577,6 +1638,8 @@ export function mapSnapshotToTopology(
             kind: 'satellite',
             subsystem: parentNode.subsystem,
             layer: parentNode.layer,
+            systemId: parentNode.systemId,
+            moduleId: parentNode.moduleId,
             x: sx,
             y: sy,
             radius: 14,

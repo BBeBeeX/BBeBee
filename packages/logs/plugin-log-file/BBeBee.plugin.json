@@ -1,9 +1,25 @@
 {
   "id": "@BBeBee/plugin-log-file",
-  "version": "0.0.0",
+  "name": "@BBeBee/plugin-log-file",
   "displayName": "Log File",
   "description": "Rotating NDJSON log file.",
-  "engines": { "BBeBee": "^0.1.0" },
-  "entry": { "main": "./dist/index.js" },
-  "capabilities": ["fs:write:logs", "fs:read:logs"]
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": {
+    "BBeBee": "^0.1.0"
+  },
+  "enabled": true,
+  "dependencies": [
+    "@BBeBee/plugin-log-buffer"
+  ],
+  "systemId": "layer-3",
+  "moduleId": "logs",
+  "entry": {
+    "main": "./dist/index.js"
+  },
+  "capabilities": [
+    "fs:write:logs",
+    "fs:read:logs"
+  ],
+  "contributes": {}
 }

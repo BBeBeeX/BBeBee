@@ -1,11 +1,17 @@
 {
   "id": "@BBeBee/plugin-theme",
-  "version": "0.0.0",
+  "name": "@BBeBee/plugin-theme",
   "displayName": "Theme",
   "description": "Theme manager for dark music player and dynamic runtime themes.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
   "engines": {
     "BBeBee": "^0.1.0"
   },
+  "enabled": true,
+  "dependencies": [],
+  "systemId": "layer-4",
+  "moduleId": "settings",
   "entry": {
     "main": "./dist/index.js"
   },

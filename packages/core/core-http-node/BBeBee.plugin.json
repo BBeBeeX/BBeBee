@@ -1,14 +1,20 @@
 {
   "id": "@BBeBee/core-http-node",
-  "platforms": [
-    "desktop"
-  ],
-  "version": "0.0.0",
+  "name": "@BBeBee/core-http-node",
   "displayName": "HTTP",
-  "description": "ctx.http \u2014 outbound HTTP, the M1 slice.",
+  "description": "ctx.http — outbound HTTP, the M1 slice.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
   "engines": {
     "BBeBee": "^0.1.0"
   },
+  "enabled": true,
+  "dependencies": [],
+  "systemId": "layer-2",
+  "moduleId": "core",
+  "platforms": [
+    "desktop"
+  ],
   "entry": {
     "main": "./dist/index.js"
   },

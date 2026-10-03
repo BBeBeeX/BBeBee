@@ -1,11 +1,19 @@
 {
   "id": "@BBeBee/plugin-source-local",
-  "version": "0.0.0",
+  "name": "@BBeBee/plugin-source-local",
   "displayName": "This device",
   "description": "plugin-source-local — the files on this device, as a MediaProvider.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
   "engines": {
     "BBeBee": "^0.1.0"
   },
+  "enabled": true,
+  "dependencies": [
+    "@BBeBee/plugin-sources"
+  ],
+  "systemId": "layer-4",
+  "moduleId": "sources",
   "entry": {
     "main": "./dist/index.js"
   },

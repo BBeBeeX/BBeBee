@@ -63,6 +63,7 @@ import logFile from '@BBeBee/plugin-log-file'
 
 import { bundled } from '../generated/plugins.js'
 import { BOOTSTRAP_SERVICES, INITIAL_ENABLED } from './plugins.js'
+import { loadExternalPluginRegistry } from './dynamic-loader.js'
 
 declare global {
   interface Window {
@@ -124,6 +125,16 @@ declare global {
         onData(callback: (data: unknown) => void): () => void
         onState(callback: (state: unknown) => void): () => void
         onAction(callback: (action: unknown) => void): () => void
+      }
+      plugins?: {
+        listInstalled(): Promise<
+          Array<{ id: string; version: string; manifest: unknown; dirName: string }>
+        >
+        install(
+          pluginId: string,
+          files: Record<string, string>,
+        ): Promise<{ ok: boolean; pluginId: string; path?: string }>
+        uninstall(pluginId: string): Promise<{ ok: boolean; message?: string }>
       }
     }
   }
@@ -600,6 +611,12 @@ export async function boot(): Promise<App> {
     // fallback to platform default
   }
 
+  const externalRegistry = await loadExternalPluginRegistry().catch(() => ({}))
+  const compositeRegistry = {
+    ...bundled,
+    ...externalRegistry,
+  }
+
   const app = createApp({
     target: 'desktop',
     bootstrap: [
@@ -687,7 +704,7 @@ export async function boot(): Promise<App> {
         ? ([[logConsole, { level: 3, debug: isDebug() }]] as const)
         : ([[logFile, { level: 2 }]] as const)),
     ],
-    registry: bundled,
+    registry: compositeRegistry,
     config: { plugins: INITIAL_ENABLED },
   })
   await app.start()

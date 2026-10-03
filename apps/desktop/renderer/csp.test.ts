@@ -45,6 +45,11 @@ describe('the renderer CSP', () => {
     expect(scripts).not.toContain("'unsafe-inline'")
   })
 
+  it('allows dynamic plugins scheme in script-src for desktop extensions', () => {
+    const scripts = policy.get('script-src') ?? []
+    expect(scripts.some((s) => s.toLowerCase() === 'bbebee-plugin:')).toBe(true)
+  })
+
   it('allows media elements to play local blobs and streams', () => {
     const media = policy.get('media-src') ?? []
     expect(media).toContain("'self'")

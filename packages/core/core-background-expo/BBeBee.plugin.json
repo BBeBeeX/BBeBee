@@ -1,14 +1,20 @@
 {
   "id": "@BBeBee/core-background-expo",
-  "platforms": [
-    "mobile"
-  ],
-  "version": "0.0.0",
+  "name": "@BBeBee/core-background-expo",
   "displayName": "Background",
   "description": "ctx.background for iOS and Android — audio session, wake locks, deferred work.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
   "engines": {
     "BBeBee": "^0.1.0"
   },
+  "enabled": true,
+  "dependencies": [],
+  "systemId": "layer-2",
+  "moduleId": "core",
+  "platforms": [
+    "mobile"
+  ],
   "entry": {
     "main": "./dist/index.js"
   },

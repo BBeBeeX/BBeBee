@@ -17,7 +17,7 @@ export class SleepTimer extends Service implements SleepTimerService {
 
   private readonly ownCtx: Context
   private _state: SleepTimerState = { active: false }
-  private timer: NodeJS.Timeout | undefined
+  private timer: ReturnType<typeof setTimeout> | undefined
   private offListeners?: () => void
 
   constructor(ctx: Context) {

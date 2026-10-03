@@ -1,11 +1,17 @@
 {
   "id": "@BBeBee/plugin-log-buffer",
-  "version": "0.0.0",
+  "name": "@BBeBee/plugin-log-buffer",
   "displayName": "Log Buffer",
   "description": "In-app log ring buffer.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
   "engines": {
     "BBeBee": "^0.1.0"
   },
+  "enabled": true,
+  "dependencies": [],
+  "systemId": "layer-3",
+  "moduleId": "logs",
   "entry": {
     "main": "./dist/index.js"
   },

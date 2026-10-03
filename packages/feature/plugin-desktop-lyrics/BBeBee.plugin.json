@@ -1,11 +1,19 @@
 {
   "id": "@BBeBee/plugin-desktop-lyrics",
-  "version": "0.0.0",
+  "name": "@BBeBee/plugin-desktop-lyrics",
   "displayName": "Desktop Lyrics",
   "description": "Floating desktop lyrics state and command contributions.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
   "engines": {
     "BBeBee": "^0.1.0"
   },
+  "enabled": true,
+  "dependencies": [
+    "@BBeBee/plugin-lyrics"
+  ],
+  "systemId": "layer-4",
+  "moduleId": "lyrics",
   "entry": {
     "main": "./dist/index.js",
     "ui": {

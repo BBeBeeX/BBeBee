@@ -1,11 +1,19 @@
 {
   "id": "@BBeBee/plugin-local-scanner",
-  "version": "0.0.0",
+  "name": "@BBeBee/plugin-local-scanner",
   "displayName": "Local Scanner",
   "description": "ctx.scanner — the local filesystem walk.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
   "engines": {
     "BBeBee": "^0.1.0"
   },
+  "enabled": true,
+  "dependencies": [
+    "@BBeBee/plugin-sources"
+  ],
+  "systemId": "layer-4",
+  "moduleId": "storage",
   "entry": {
     "main": "./dist/index.js",
     "ui": {

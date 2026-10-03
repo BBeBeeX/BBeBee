@@ -1,11 +1,19 @@
 {
   "id": "@BBeBee/plugin-download",
-  "version": "0.0.0",
+  "name": "@BBeBee/plugin-download",
   "displayName": "Downloads",
   "description": "ctx.downloads — the managed download queue.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
   "engines": {
     "BBeBee": "^0.1.0"
   },
+  "enabled": true,
+  "dependencies": [
+    "@BBeBee/plugin-sources"
+  ],
+  "systemId": "layer-4",
+  "moduleId": "storage",
   "entry": {
     "main": "./dist/index.js",
     "ui": {

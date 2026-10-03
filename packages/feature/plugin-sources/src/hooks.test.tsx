@@ -369,7 +369,11 @@ describe('useSourceSearch', () => {
           },
         }
       },
-      getTrack: async (id: string) => ({ urn: `BBeBee:${sourceId}:track:${id}` }),
+      getTrack: async (id: string) => ({
+        urn: `BBeBee:${sourceId}:track:${id}`,
+        title: `Track ${id}`,
+        artists: [],
+      }),
       resolveStream: async () => ({ kind: 'remote', target: '', seekable: true }),
       ping: async () => true,
     })

@@ -109,6 +109,26 @@ export type PluginPlatform = 'desktop' | 'mobile'
 export interface PluginManifest {
   /** Package id, e.g. '@BBeBee/plugin-source-runtime'. */
   id: string
+  /** Human-readable plugin name. */
+  name?: string
+  /** Display name (alias of `name`). */
+  displayName?: string
+  /** Detailed plugin purpose & role. */
+  description?: string
+  /** Semantic version string. */
+  version: string
+  /** Author or team maintaining the plugin. */
+  author?: string
+  /** Target engine compatibility constraint. */
+  engines: { BBeBee: string; [key: string]: string }
+  /** Default activation status in app configuration. */
+  enabled?: boolean
+  /** Required prerequisite plugin IDs. */
+  dependencies?: string[]
+  /** Layer stratum identifier (子系统/所在层 ID), e.g. 'layer-2', 'layer-4'. */
+  systemId?: string
+  /** Functional domain module identifier (功能模块 ID), e.g. 'sources', 'playback'. */
+  moduleId?: string
   /**
    * Targets this plugin belongs in, when it is not all of them.
    *
@@ -123,10 +143,6 @@ export interface PluginManifest {
    * architecture and stays the default.
    */
   platforms?: PluginPlatform[]
-  version: string
-  displayName: string
-  description?: string
-  engines: { BBeBee: string }
   entry: PluginEntrypoints
   capabilities: Capability[]
   contributes?: PluginContributes
