@@ -4,17 +4,13 @@
 
 ## 6. Loading
 
-Per [ADR-1 as amended](../architecture/overview.md#adr-1--plugins-are-statically-bundled-on-every-target),
-there is **one loader on both targets**: the plugin graph is fixed at build time everywhere. The
-thing a user adds at runtime is a music **source string**, which is data interpreted by
-`plugin-source-runtime` ([06](../sources/spec.md)) rather than code handed to `ctx.plugin()`.
+BBeBee implements a **dual-model loading architecture**:
+- **Mobile (`apps/mobile`)**: React Native's Metro bundler cannot resolve module paths computed at runtime, so mobile plugins are statically bundled via codegen (`apps/mobile/generated/plugins.ts`).
+- **Desktop (`apps/desktop`)**: Electron + Vite supports dynamic module evaluation. Desktop completely utilizes dynamic loading — discovering all workspace built-ins via Vite glob imports (`getBuiltinPluginRegistry()`) and third-party plugins via the privileged `bbebee-plugin://` bridge (`loadExternalPluginRegistry()`), requiring zero static codegen files.
 
-§6.2 documents the dynamic loader as a shelf design — worked out, not wired up — because the
-decision to shelve it is reversible and the CSP problem it solves is not obvious.
+### 6.1 Mobile target — `plugin-loader-static`
 
-### 6.1 Every target — `plugin-loader-static`
-
-Metro cannot resolve a module path computed at runtime, so plugin imports must be statically
+Metro cannot resolve a module path computed at runtime, so mobile plugin imports must be statically
 analysable. A codegen step (`pnpm gen:plugins`, run pre-build and in dev watch) scans the
 workspace for packages containing a `BBeBee.plugin.json` and emits:
 
@@ -77,8 +73,9 @@ Desktop implements runtime dynamic loading for external third-party plugins whil
    - `uninstall(pluginId: string): Promise<void>`
 
 3. **Dynamic Loader & Composition (`apps/desktop/renderer/dynamic-loader.ts` & `boot.ts`)**:
-   - `loadExternalPluginRegistry()` scans installed plugins at boot and synthesizes `DynamicRegistryEntry` objects with `builtin: false` and dynamic `import('bbebee-plugin://app/${pluginId}/${entryMain}')`.
-   - `boot.ts` merges `bundled` (built-in static plugins) with `externalRegistry` into `compositeRegistry`.
+   - `getBuiltinPluginRegistry()` dynamically discovers all workspace plugin manifests matching `'desktop'` via `import.meta.glob('../../../packages/**/BBeBee.plugin.json', { eager: true, import: 'default' })` and associates lazy module imports `import.meta.glob('../../../packages/**/src/index.{ts,tsx}')`.
+   - `loadExternalPluginRegistry()` scans user-installed external plugins at boot and synthesizes `DynamicRegistryEntry` objects with `builtin: false` and dynamic `import('bbebee-plugin://app/${pluginId}/${entryMain}')`.
+   - `boot.ts` dynamically merges `getBuiltinPluginRegistry()` with `externalRegistry` into `compositeRegistry`.
    - `installAndActivatePlugin(app, pluginId, files, manifest)`: Writes plugin files via the main process bridge, registers into `app.registerPlugin(id, entry)`, and activates in Cordis via `app.loadPlugin(id)`.
    - `uninstallExternalPlugin(app, pluginId)`: Safely disposes the Cordis fiber first via `app.unloadPlugin(id)` before deleting files from disk.
 
@@ -89,7 +86,7 @@ Desktop implements runtime dynamic loading for external third-party plugins whil
 
 ### 6.3 Standardized Manifest Specification (`BBeBee.plugin.json`)
 
-Every plugin package across all layers (Core, Logs, Feature, UI) carries a standardized `BBeBee.plugin.json` containing 13 required fields:
+Every plugin package across all layers (Kernel, Core, Logs, Feature, UI) carries a standardized `BBeBee.plugin.json` containing 14 standard fields:
 
 | Field | Type | Description |
 |---|---|---|
@@ -102,11 +99,12 @@ Every plugin package across all layers (Core, Logs, Feature, UI) carries a stand
 | `engines` | `Record<string, string>` | Environment constraints (e.g. `{"node": ">=22.12.0"}`) |
 | `enabled` | `boolean` | Default activation flag |
 | `dependencies` | `string[]` | Array of prerequisite plugin IDs required to be loaded |
-| `systemId` | `string` | Architectural layer stratum ID: `"layer-2"`, `"layer-3"`, `"layer-4"`, or `"layer-5"` |
+| `systemId` | `string` | Architectural layer stratum ID: `"layer-1"` through `"layer-5"` |
 | `moduleId` | `string` | Functional domain grouping: `"sources"`, `"playback"`, `"lyrics"`, `"storage"`, `"dsp"`, `"settings"`, `"inspector"`, `"share"`, `"ui"`, `"core"`, `"logs"` |
 | `entry` | `PluginEntry` | Entry paths (`{"main": "...", "desktop": "...", "mobile": "..."}`) |
 | `capabilities` | `Capability[]` | Capability grant requests (`["ui:component", "action:sources/*"]`) |
-| `contributes` | `PluginContributes` | Extension slots, routes, settings schemas (`{"slots": ["sidebar-primary"]}`) |
+| `contributes` | `PluginContributes` | Extension slots, routes, services schemas (`{"services": ["audio"], "routes": [...]}`) |
+| `effect` | `string \| null` | Core side effect tag (`"audio"`, `"fs"`, `"bridge"` or `null`) |
 
 > ⚠️ **Field Name Requirement:** The layer stratum ID is explicitly named **`systemId`** (not `subsystemId`).
 

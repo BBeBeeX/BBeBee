@@ -59,7 +59,7 @@ pnpm build:audio-engine
 
 ### R3 · 增删插件后必须 `pnpm gen:plugins`
 
-`apps/*/generated/plugins.ts` 是生成物。新增或删除插件包后不重新生成，注册表与实际插件集不一致。
+`apps/mobile/generated/plugins.ts` 与 `packages/ui/plugin-inspector-ui-desktop/src/pcb-manifests.generated.ts` 是生成物。新增或删除插件包或修改清单后运行 `pnpm gen:plugins`，保持移动端注册表与拓扑检视器清单一致（桌面端全面使用动态加载机制，无需预生成静态注册表）。
 
 ### R4 · 提交前必须 `pnpm check`
 

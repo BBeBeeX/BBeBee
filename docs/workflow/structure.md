@@ -412,7 +412,7 @@ const CORE_PACKAGES = ['@BBeBee/core-*', '@BBeBee/core-*/**']
 const LOG_PACKAGES = ['@BBeBee/plugin-log-*', '@BBeBee/plugin-log-*/**']
 
 // The composition root: the only files that may call createApp and name a
-// Layer 2 package by import. `apps/*/generated/plugins.ts` is codegen and is
+// Layer 2 package by import. `apps/mobile/generated/plugins.ts` is codegen and is
 // in the global `ignores`.
 const COMPOSITION_ROOT = [
   'apps/mobile/src/boot.ts', 'apps/mobile/src/plugins.ts',

@@ -24,9 +24,10 @@
 ```
 
 Codegen (`packages/tooling/tooling-gen-plugins`, run as `pnpm gen:plugins`) writes
-`apps/{mobile,desktop}/generated/plugins.ts`. Its output is **committed**, so a clean checkout
-builds without a pre-step and CI verifies the file is current rather than regenerating it — run it
-whenever a plugin package is added or removed.
+`apps/mobile/generated/plugins.ts` and `packages/ui/plugin-inspector-ui-desktop/src/pcb-manifests.generated.ts`.
+Its output is **committed**, so a clean checkout builds without a pre-step and CI verifies the
+file is current rather than regenerating it — run it whenever a mobile plugin is added or removed, or
+a plugin manifest changes. (Desktop discovers and loads workspace plugins dynamically without codegen).
 
 ### 4.1 The native audio-engine binary
 

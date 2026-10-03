@@ -91,11 +91,11 @@ export class Player extends Service implements PlayerService {
 
 在 Cordis 之上再加三条约定，由内核与工具链强制执行：
 
-- 每个插件包都附带一份**标准化的 `BBeBee.plugin.json` 清单**（[loading.md §6.3](loading.md#63-插件标准化描述清单bbebeepluginjson)），包含 13 个规范字段：
-  `id`、`name`、`displayName`、`description`、`version`、`author`、`engines`、`enabled`、`dependencies`、`systemId`、`moduleId`、`entry`、`capabilities`、`contributes`。
-  其中 `systemId` 指明所属分层架构 ID（`"layer-2"`、`"layer-3"`、`"layer-4"`、`"layer-5"`），`moduleId` 指明功能模块/域 ID（`"sources"`、`"playback"`、`"lyrics"`、`"dsp"`、`"storage"`、`"settings"`、`"inspector"` 等）。
+- 每个插件包都附带一份**标准化的 `BBeBee.plugin.json` 清单**（[loading.md §6.3](loading.md#63-插件标准化描述清单bbebeepluginjson)），包含 14 个规范字段：
+  `id`、`name`、`displayName`、`description`、`version`、`author`、`engines`、`enabled`、`dependencies`、`systemId`、`moduleId`、`entry`、`capabilities`、`contributes`、`effect`。
+  其中 `systemId` 指明所属分层架构 ID（`"layer-1"` 到 `"layer-5"`），`moduleId` 指明功能模块/域 ID（`"sources"`、`"playback"`、`"lyrics"`、`"dsp"`、`"storage"`、`"settings"`、`"inspector"` 等）。
 - 插件的**运行时模块拥有一个 default 导出**，即 Cordis 插件本身，因此移动端静态加载器与桌面端动态加载器可以用完全相同的方式对待每一个插件。
-- **双模加载架构**：移动端依托 codegen 生成的 `apps/mobile/generated/plugins.ts` 进行纯静态打包；桌面端启动时将内置插件与基于特权 `bbebee-plugin://` 协议动态发现的外部第三方插件合流统一加载。
+- **双模加载架构**：移动端依托 codegen 生成的 `apps/mobile/generated/plugins.ts` 进行纯静态打包；桌面端全面采用动态加载机制 —— 通过 Vite 动态 glob 发现全部工作区内置插件（`getBuiltinPluginRegistry()`），并合流基于特权 `bbebee-plugin://` 协议动态发现的外部第三方插件，无需任何静态生成文件。
 
 ---
 

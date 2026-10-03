@@ -23,7 +23,7 @@
 }
 ```
 
-代码生成（`packages/tooling/tooling-gen-plugins`，以 `pnpm gen:plugins` 运行）写出 `apps/{mobile,desktop}/generated/plugins.ts`。其产物**提交进仓库**，因此全新检出无需任何前置步骤即可构建，CI 也只需校验该文件是否为最新，而不必重新生成 —— 每当新增或移除插件包时都要跑一次。
+代码生成（`packages/tooling/tooling-gen-plugins`，以 `pnpm gen:plugins` 运行）写出 `apps/mobile/generated/plugins.ts` 与 `packages/ui/plugin-inspector-ui-desktop/src/pcb-manifests.generated.ts`。其产物**提交进仓库**，因此全新检出无需任何前置步骤即可构建，CI 也只需校验该文件是否为最新，而不必重新生成 —— 每当新增或移除移动端插件包或修改清单时都要跑一次（桌面端已切换为动态加载机制，无需静态 codegen 文件）。
 
 ### 4.1 原生音频引擎二进制
 

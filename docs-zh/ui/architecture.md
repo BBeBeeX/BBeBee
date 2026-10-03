@@ -387,13 +387,21 @@ export const usePosition = () =>
    - 歌词窗口根节点**不能**携带 `-webkit-app-region: drag`——拖拽区会吞掉悬停工具栏依赖的鼠标事件（工具栏曾因此永远不出现）。拖拽改为手动实现：指针捕获 + `desktop-lyrics:set-position` IPC（基于 `screenX/screenY` 增量），拖动结束时通过 `desktop-lyrics:commit-position` 上报最终位置（主进程对程序化移动抑制回声）。
    - 锁定（穿透）时，歌词窗口在工具栏原位置显示唯一的"解锁"胶囊。由于 `forward` 在 Linux 上是空操作，主进程在锁定且可见期间**轮询系统光标**（`desktop-lyrics:cursor`）；渲染端仅在光标位于窗口内时显示该胶囊，并随光标进出胶囊区域切换鼠标处理（`set-ignore-mouse`），窗口其余部分保持完全穿透。
 
-### 7.3 PCB 架构拓扑检视器（plugin-inspector-ui-desktop）
+### 7.3 Cordis 插件架构拓扑检视器（plugin-inspector-ui-desktop）
 
-1. **拟物化电路板架构可视化**：以主板（PCB Motherboard）印制电路板、走线排线与芯片引脚形式，交互式呈现 BBeBee 整体架构在各分层与各插件间的拓扑联系。
-2. **数据流与清单生成映射**：
-   - 依赖 `pnpm gen:plugins` 自动提取全部 70 个插件的 `BBeBee.plugin.json`，生成 `pcb-manifests.generated.ts`（导出 `PLUGIN_MANIFESTS` 字典）。
-   - 核心节点数据结构 `PcbNode` 全面绑定 `systemId`（分层架构 ID：`"layer-1"` 到 `"layer-5"`）、`moduleId`（模块域：`"sources"`、`"playback"`、`"lyrics"`、`"storage"`、`"dsp"`、`"settings"`、`"inspector"` 等）及完整 `manifest`。
-3. **动态卫星外围芯片**：Level 3 级动态拓扑芯片自动继承主节点的 `systemId` 与 `moduleId`，实时呈现插件运行态 Fiber 状态、前置依赖连线、声明能力及输入输出总线。
+1. **拟物化电路板架构拓扑可视化**：以深色主板（PCB Motherboard，`#05070D`）高科技印制电路板、多通道正交折线排线与芯片引脚形式，实时反映 Cordis Runtime 中插件、服务与事件的拓扑联系。
+2. **上下文聚焦展示策略（Contextual / Focused Topology）**：
+   - 解决全量图 70+ 插件、30+ 服务、40+ 事件时线路密集杂乱的问题：左侧插件层级树（Plugin Hierarchy）作为聚焦源（Focus Source），点击任一插件时，中间画布仅渲染与该插件相关的局部拓扑。
+   - 提供 1～3 阶依赖深度切换、向上游追溯依赖提供方、向下游追溯消费方、搜索过滤及全系统视图切换。
+3. **基于 `systemId` 的纯元数据分层解析**：
+   - 全面废除任何服务名硬编码；通过 [`layer-resolver.ts`](../../packages/ui/plugin-inspector-ui-desktop/src/layer-resolver.ts) 依据插件 `BBeBee.plugin.json` 中的 **`systemId`**（`"layer-1"` 到 `"layer-5"`）严格判定 Kernel、Core、Logs、Feature、UI 层级。
+   - 依赖 `pnpm gen:plugins` 自动提取全部工作区插件清单生成 `pcb-manifests.generated.ts`（导出 `PLUGIN_MANIFESTS` 字典），实时监听 Cordis 事件驱动视图动态重绘。
+4. **电路节点与正交总线**：
+   - 插件节点：圆角/圆形电路芯片，带有运行态呼吸发光光环（`ACTIVE`、`PENDING`、`LOADING`、`FAILED`）。
+   - 服务节点：六边形/菱形微芯片（`◇ Service`）。
+   - 事件节点：紧凑圆形引脚微标（`● event`）。
+   - 正交走线：90° 与 45° 倒角总线排线，端子焊接引脚与焊盘。
+   - 三栏布局：左侧可折叠插件树、中间可拖拽缩放平移交互画布、右侧详细属性与能力抽屉。
 
 ---
 

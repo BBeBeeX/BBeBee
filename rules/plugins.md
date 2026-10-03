@@ -145,7 +145,9 @@ Every plugin package across all layers (Core, Logs, Feature, UI) must carry a `B
   - Metro requires statically analysable module paths.
   - `apps/mobile/src/boot.ts` loads exclusively from `bundled` emitted into `apps/mobile/generated/plugins.ts`.
 - **Desktop (Electron)**:
-  - Hybrid static + runtime dynamic loading.
+  - Fully dynamic loading architecture:
+    - Built-in workspace plugins are discovered dynamically at startup via Vite glob imports (`getBuiltinPluginRegistry()`), eliminating static codegen.
+    - External third-party plugins are loaded via the privileged `bbebee-plugin://` custom scheme (`loadExternalPluginRegistry()`).
   - Main process (`apps/desktop/main/index.ts`) registers privileged custom scheme `bbebee-plugin://` serving from `userData/installed-plugins/` with path-containment protection.
   - Preload bridge (`apps/desktop/preload/index.ts`) exposes typed `window.BBeBee.plugins`.
   - Renderer dynamic loader (`apps/desktop/renderer/dynamic-loader.ts`) discovers installed plugins at startup and merges them into `compositeRegistry` in `boot.ts`.
@@ -162,7 +164,7 @@ Every plugin package across all layers (Core, Logs, Feature, UI) must carry a `B
 ```bash
 pnpm new:plugin --name scrobble --kind feature --ui desktop --capabilities db:own
 pnpm install        # link the new workspace package
-pnpm gen:plugins    # update apps/*/generated/plugins.ts & pcb-manifests.generated.ts
+pnpm gen:plugins    # update apps/mobile/generated/plugins.ts & pcb-manifests.generated.ts
 pnpm check
 ```
 

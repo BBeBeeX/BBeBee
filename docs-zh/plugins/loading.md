@@ -4,17 +4,13 @@
 
 ## 6. 加载
 
-依据[修订后的 ADR-1](../architecture/overview.md#adr-1--插件在所有目标平台上都静态打包)，
-两个目标平台**都只有一个加载器**：插件图在任何平台上都在构建期固定下来。用户在运行时添加的
-是音源**字符串（source string）**，它是由 `plugin-source-runtime`（[06](../sources/spec.md)）
-解释的数据，而不是交给 `ctx.plugin()` 的代码。
+BBeBee 采用**双模插件加载架构**：
+- **移动端（`apps/mobile`）**：Metro 无法在运行时解析动态计算出的模块路径，因此移动端插件依靠 codegen 脚本（`apps/mobile/generated/plugins.ts`）在构建期进行全静态绑定。
+- **桌面端（`apps/desktop`）**：Electron + Vite 原生支持 ESM 模块动态求值。桌面端全面采用动态加载机制 —— 通过 Vite 动态 glob（`getBuiltinPluginRegistry()`）发现所有工作区内置插件，并通过特权 `bbebee-plugin://` 协议桥接（`loadExternalPluginRegistry()`）加载外部第三方插件，无需任何静态代码生成文件。
 
-§6.2 把动态加载器记录为一项搁置的设计 —— 已经想清楚，但未接线 —— 因为搁置它的决定是可逆的，
-而它所解决的 CSP 问题并不显然。
+### 6.1 移动端静态加载 —— `plugin-loader-static`
 
-### 6.1 所有目标平台 —— `plugin-loader-static`
-
-Metro 无法解析运行时计算出的模块路径，因此插件导入必须可被静态分析。一个代码生成步骤
+Metro 无法解析运行时计算出的模块路径，因此移动端插件导入必须可被静态分析。一个代码生成步骤
 （`pnpm gen:plugins`，在构建前与开发监视期间运行）扫描工作区中含有 `BBeBee.plugin.json`
 的包，并生成：
 
@@ -66,8 +62,9 @@ codegen 即可构建。
    - `uninstall(pluginId: string): Promise<void>`
 
 3. **动态加载器与组合根启动（`apps/desktop/renderer/dynamic-loader.ts` & `boot.ts`）**：
-   - `loadExternalPluginRegistry()` 在启动期扫描已安装插件目录，将其合成带有 `builtin: false` 的 `DynamicRegistryEntry`，通过 `import('bbebee-plugin://app/${pluginId}/${entryMain}')` 进行 ESM 动态导入。
-   - `boot.ts` 在启动时将内置打包插件 `bundled` 与外部插件注册表 `externalRegistry` 合并为 `compositeRegistry`。
+   - `getBuiltinPluginRegistry()` 启动时通过 Vite 的 `import.meta.glob('../../../packages/**/BBeBee.plugin.json', { eager: true, import: 'default' })` 动态发现所有符合 desktop 平台的内置插件清单，并映射到动态模块加载器 `import.meta.glob('../../../packages/**/src/index.{ts,tsx}')`。
+   - `loadExternalPluginRegistry()` 在启动期扫描已安装第三方插件目录，将其合成带有 `builtin: false` 的 `DynamicRegistryEntry`，通过 `import('bbebee-plugin://app/${pluginId}/${entryMain}')` 进行 ESM 动态导入。
+   - `boot.ts` 在启动时将动态内置注册表 `getBuiltinPluginRegistry()` 与外部插件注册表 `externalRegistry` 合并为 `compositeRegistry`。
    - `installAndActivatePlugin(app, pluginId, files, manifest)`：通过主进程桥接写入文件，注册到内核 `app.registerPlugin(id, entry)`，并通过 `app.loadPlugin(id)` 立即激活。
    - `uninstallExternalPlugin(app, pluginId)`：先调用 `app.unloadPlugin(id)` 释放 Cordis fiber，而后再安全删除磁盘文件（保证析构顺序）。
 
@@ -78,7 +75,7 @@ codegen 即可构建。
 
 ### 6.3 插件标准化描述清单（`BBeBee.plugin.json`）
 
-系统内所有分层（Core、Logs、Feature、UI）的全部插件包均标准化包含一份具有 13 项规范字段的 `BBeBee.plugin.json`：
+系统内所有分层（Core、Logs、Feature、UI）的全部插件包均标准化包含一份具有 14 项规范字段的 `BBeBee.plugin.json`：
 
 | 字段名 | 类型 | 说明 |
 |---|---|---|
@@ -91,11 +88,12 @@ codegen 即可构建。
 | `engines` | `Record<string, string>` | 运行时环境版本约束（如 `{"node": ">=22.12.0"}`） |
 | `enabled` | `boolean` | 默认启用标志（`true`） |
 | `dependencies` | `string[]` | 前置依赖插件 ID 数组（必须已加载方可启动） |
-| `systemId` | `string` | 架构所在层级 ID：`"layer-2"`、`"layer-3"`、`"layer-4"` 或 `"layer-5"` |
+| `systemId` | `string` | 架构所在层级 ID：`"layer-1"` 到 `"layer-5"` |
 | `moduleId` | `string` | 所属功能模块/域 ID：`"sources"`、`"playback"`、`"lyrics"`、`"storage"`、`"dsp"`、`"settings"`、`"inspector"`、`"share"`、`"ui"`、`"core"`、`"logs"` |
 | `entry` | `PluginEntry` | 模块入口路径（`{"main": "...", "desktop": "...", "mobile": "..."}`） |
 | `capabilities` | `Capability[]` | 申请的能力权限清单（`["ui:component", "action:sources/*"]`） |
-| `contributes` | `PluginContributes` | 扩展贡献槽位、路由与设置声明（`{"slots": ["sidebar-primary"]}`） |
+| `contributes` | `PluginContributes` | 扩展贡献槽位、路由与服务声明（`{"services": ["audio"], "routes": [...]}`） |
+| `effect` | `string \| null` | 核心副作用标识（如 `"audio"`, `"fs"`, `"bridge"` 或 `null`） |
 
 > ⚠️ **字段命名规范：** 分层架构 ID 统一固定为 **`systemId`**（严禁写为 `subsystemId`）。
 
