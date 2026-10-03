@@ -1,7 +1,7 @@
 {
   "name": "@BBeBee/plugin-inspector-ui-desktop",
   "version": "0.0.0",
-  "description": "React DOM view for the plugin inspector.",
+  "description": "React DOM view for the Cordis Plugin Topology Explorer.",
   "type": "module",
   "license": "MIT",
   "exports": {
@@ -29,16 +29,16 @@
   },
   "dependencies": {
     "@BBeBee/kernel": "workspace:*",
+    "@BBeBee/plugin-inspector": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/ui-kit-desktop": "workspace:*",
     "cordis": "4.0.0-rc.9",
     "react": "19.2.3"
   },
   "devDependencies": {
-    "@BBeBee/plugin-inspector": "workspace:*",
     "@testing-library/react": "^16.3.3",
     "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.7",
+    "@types/react-dom": "^19.2.0",
     "react-dom": "19.2.3",
     "vitest": "^4.1.11"
   }
