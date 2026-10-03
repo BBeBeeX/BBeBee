@@ -201,10 +201,13 @@ async function harness(
     sourceDurationMs?: number
     /** What the catalogue row holds for every URN. */
     trackDurationMs?: number
+    /** Augment the mock engine before it mounts (e.g. add `preloadNext`). */
+    audio?: (audio: MockAudio) => void
   } = {},
 ): Promise<Harness> {
   const root = opts.root ?? (await tempDir('bbebee-player'))
   const audio = createMockAudio({ durationMs: opts.sourceDurationMs ?? 200_000 })
+  opts.audio?.(audio)
   const session: SessionLog = { states: [], updates: [], cleared: 0 }
   const wake = wakeLog()
 
@@ -1231,6 +1234,84 @@ describe('prefetch', () => {
     await player.refresh()
     await tick()
     expect(audio.loads).toHaveLength(1)
+  })
+
+  it('hands the next uri to an engine that preloads its own playlist, and never loads a second source', async () => {
+    // On a single-core engine (mpv) a second `load` for the next file is a
+    // `loadfile replace`: it stops the track still sounding and leaves the
+    // engine paused on a file nothing will ever start — the "skips 15 s
+    // early, then sticks" failure. An engine advertising `preloadNext` owns
+    // the playlist boundary; the player hands over the uri and stops.
+    const preloadNext = vi.fn(async () => undefined)
+    const { player, audio } = await harness({
+      audio: (a) => {
+        a.service.preloadNext = preloadNext
+      },
+    })
+    audio.setDuration(20_000)
+    await player.playNow([urn('a'), urn('b')])
+
+    expect(audio.loads).toHaveLength(1)
+    audio.advance(10_000)
+    await player.refresh()
+    await tick()
+
+    expect(preloadNext, 'the engine was handed the next uri').toHaveBeenCalledWith(
+      'file:///music/b.flac',
+      undefined,
+    )
+    expect(audio.loads, 'no second load: on such an engine that load kills the playing track')
+      .toHaveLength(1)
+
+    // The handoff still works: the engine advances its own playlist and the
+    // ended→load round-trip re-binds to the already-sounding file.
+    audio.finish()
+    await tick()
+    expect(player.state.trackUrn).toBe(urn('b'))
+  })
+
+  it('appends once per track, not once per tick', async () => {
+    // There is no `prefetched` handle in the engine-preload path to make the
+    // re-entry guard; without the marker every tick inside the window would
+    // append the same file again.
+    const preloadNext = vi.fn(async () => undefined)
+    const { player, audio } = await harness({
+      audio: (a) => {
+        a.service.preloadNext = preloadNext
+      },
+    })
+    audio.setDuration(20_000)
+    await player.playNow([urn('a'), urn('b')])
+    audio.advance(10_000)
+    await player.refresh()
+    await player.refresh()
+    await player.refresh()
+    await tick()
+
+    expect(preloadNext).toHaveBeenCalledTimes(1)
+  })
+
+  it('loses gapless quietly when the engine cannot take the append', async () => {
+    // A failed append must not fall back to the handle prefetch — that load
+    // is what kills the playing track. The transition just loses gapless;
+    // the next track loads normally when it is its turn.
+    const preloadNext = vi.fn(async () => {
+      throw new Error('append failed')
+    })
+    const { player, audio } = await harness({
+      audio: (a) => {
+        a.service.preloadNext = preloadNext
+      },
+    })
+    audio.setDuration(20_000)
+    await player.playNow([urn('a'), urn('b')])
+    audio.advance(10_000)
+    await player.refresh()
+    await tick()
+
+    expect(preloadNext).toHaveBeenCalledTimes(1)
+    expect(audio.loads, 'no fallback to the killing load').toHaveLength(1)
+    expect(player.state.status, 'the current track keeps playing').toBe('playing')
   })
 })
 

@@ -54,6 +54,13 @@ export interface AudioMpvConfig {
   bridgeCall?: BridgeCall
   createMediaElement?: () => MediaElementLike
   emitContextInterruptions?: boolean
+  /**
+   * How long the engine may report `paused` while a source handle believes it
+   * is sounding before the handle reports a stall — or, for a track that
+   * never started, the end. 2000 ms by default; a test against a scripted
+   * bridge lowers it to keep real-timer waits short.
+   */
+  pausedStallMs?: number
 }
 
 export interface FftSpectrumFrame {
@@ -70,6 +77,10 @@ export class MpvSourceHandle implements AudioSourceHandle {
   private timer?: ReturnType<typeof setInterval>
   private readonly endedListeners = new Set<() => void>()
   private readonly stalledListeners = new Set<(stalled: boolean) => void>()
+  /** When the engine was first seen `paused` during the current play, if it is. */
+  private pausedSince?: number
+  private stallReported = false
+  private readonly pausedStallMs: number
 
   constructor(
     private readonly context: BaseAudioContext,
@@ -78,8 +89,10 @@ export class MpvSourceHandle implements AudioSourceHandle {
     private readonly logger?: Context['logger'],
     /** The engine was already sounding this file (gapless re-bind). */
     private readonly resumed = false,
+    pausedStallMs?: number,
   ) {
     this.durationMs = durationMs
+    this.pausedStallMs = pausedStallMs ?? 2_000
     this.node = this.context.createGain()
   }
 
@@ -95,6 +108,8 @@ export class MpvSourceHandle implements AudioSourceHandle {
     }
     this.isPlaying = true
     this.startTime = Date.now() - this.position
+    this.pausedSince = undefined
+    this.stallReported = false
     // A position argument makes the engine seek. When the caller did not ask
     // for one, omit it: a fresh track starts from the engine's own zero, a
     // paused engine resumes from its own clock, and a playlist-advanced file
@@ -142,6 +157,43 @@ export class MpvSourceHandle implements AudioSourceHandle {
                 }
                 return
               }
+              // The wedge detector: an engine reporting `paused` while this
+              // handle believes it is sounding was paused out-of-band — a
+              // pause through the handle would have cleared `isPlaying`. Left
+              // alone, the poller watches a silent engine forever. After a
+              // grace window (long enough to ride out a play that races the
+              // loader, or the pause flag of a file still mounting), report a
+              // stall at the frozen position; a wedge at zero never sounded,
+              // so it reports the end, per the same convention the error
+              // branch uses for a dead link. A return to `playing` reports
+              // the recovery, exactly like a buffer underrun's.
+              if (state.status === 'paused') {
+                if (this.pausedSince === undefined) {
+                  this.pausedSince = Date.now()
+                } else if (
+                  !this.stallReported &&
+                  Date.now() - this.pausedSince >= this.pausedStallMs
+                ) {
+                  this.stallReported = true
+                  if (this.position > 0) {
+                    for (const cb of this.stalledListeners) cb(true)
+                  } else {
+                    this.isPlaying = false
+                    if (this.timer) {
+                      clearInterval(this.timer)
+                      this.timer = undefined
+                    }
+                    for (const cb of this.endedListeners) cb()
+                    return
+                  }
+                }
+                return
+              }
+              this.pausedSince = undefined
+              if (state.status === 'playing' && this.stallReported) {
+                this.stallReported = false
+                for (const cb of this.stalledListeners) cb(false)
+              }
             }
           } catch {
             this.position = Date.now() - this.startTime
@@ -174,6 +226,8 @@ export class MpvSourceHandle implements AudioSourceHandle {
   stop(): void {
     this.isPlaying = false
     this.position = 0
+    this.pausedSince = undefined
+    this.stallReported = false
     if (this.timer) {
       clearInterval(this.timer)
       this.timer = undefined
@@ -361,7 +415,14 @@ export class AudioMpv extends Service implements AudioService {
           this.activeHardwareChannels = result.channels
           this.activeHardwareBitDepth = result.bitDepth
           opts.onBuffered?.(result.durationMs / 1000)
-          return new MpvSourceHandle(this.context, result.durationMs, bridge, this.ctx.logger, result.resumed === true)
+          return new MpvSourceHandle(
+            this.context,
+            result.durationMs,
+            bridge,
+            this.ctx.logger,
+            result.resumed === true,
+            this.config.pausedStallMs,
+          )
         }
         this.ctx.logger?.warn(
           'mpv: native mpvLoad returned no duration — degrading to the media element',

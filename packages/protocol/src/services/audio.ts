@@ -101,8 +101,18 @@ export interface AudioService {
   /** Configure exclusive mode for native audio backend (e.g. MPV WASAPI exclusive). */
   setAudioExclusive?(exclusive: boolean): Promise<void>
 
-  /** Preload or append next track for gapless playback transitions. */
+  /**
+   * Preload or append next track for gapless playback transitions.
+   *
+   * Optional on purpose, and the optionality is the contract: an engine that
+   * implements it owns the playlist boundary itself (mpv advances inside its
+   * own decoder), so callers must hand it the uri and never load a second
+   * source for the same file — on a single-core engine `load` is a
+   * `loadfile replace`, which kills the track that is still sounding.
+   */
   preloadNext?(src: string | Uri, opts?: { headers?: Record<string, string> }): Promise<void>
+  /** Outcome of the most recent `preloadNext`, for gapless diagnostics. */
+  readonly lastPreloadStatus?: { uri: string; ok: boolean; at: number }
 
   onInterruption(cb: (e: InterruptionEvent) => void): Disposable
   onRouteChange(cb: (e: RouteChangeEvent) => void): Disposable

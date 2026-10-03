@@ -137,6 +137,8 @@ sequenceDiagram
 - **无缝（gapless）** 使用 `AudioBufferQueueSourceNode`：在当前曲目最后约 15 秒内解码下一首并排入同一个 source 节点，因此交接是采样级精确的，没有 `AudioContext` 调度间隙。它要求 `strategy: 'buffer'`，因此只对本地文件与中短流启用，长流则跳过。
 - **交叉淡入淡出（crossfade）** 是另一条路径：两个 source 节点，两段 `crossfadeMs` 的增益斜坡，等功率曲线。它与无缝模式互斥——两者同时开启会产生可听见的双重淡变——因此该设置是三选一：`gapless | crossfade | neither`。
 - **预取**在距结尾 `max(15s, crossfadeMs + 5s)` 时开始，若队列发生变化则通过 `AbortSignal` 取消。
+- **引擎自管预载时不再做第二次加载**：实现 `preloadNext` 的引擎（mpv 的 append）自己负责播放列表边界，播放器只移交 src——单解码核引擎上对下一首的第二次 `load` 等于 `loadfile replace`，会在曲目结束前杀掉仍在发声的这首歌，并把引擎暂停在无人启动的下一首上（表现为"提前跳曲后永久卡住"）。append 失败只是该次交接退化为普通换曲，下一首轮到时正常加载。
+- **引擎 paused 是停滞而非静音**：mpv 源句柄轮询引擎状态，若引擎在传输层自称 `playing` 期间报告 `paused`，即被旁路暂停。宽限期（默认 2 秒，`pausedStallMs`）之后按冻结位置上报 stall（从未发声则上报 ended 以便跳过），而不是对静音的引擎无限轮询下去；引擎恢复发声则上报恢复。
 
 ### 持久化
 

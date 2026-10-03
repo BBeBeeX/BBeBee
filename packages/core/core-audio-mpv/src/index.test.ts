@@ -647,6 +647,100 @@ describe('core-audio-mpv native engine features', () => {
     handle.dispose()
   })
 
+  it('reports a stall when the engine sits paused while the handle believes it is playing', async () => {
+    // The stuck state: something paused the engine out-of-band (an external
+    // pause the player never heard of, historically the prefetch kill). The
+    // handle must not poll a silent engine forever — after the grace window
+    // it says "stalled", which the player's own watchdog turns into a
+    // retryable error instead of an eternal spinner.
+    const state: SimState = { positionMs: 0, durationMs: 120_000, status: 'idle' }
+    const bridgeCall = engineBridge(state)
+    const { audio } = await harness({ bridgeCall, pausedStallMs: 50 })
+    const handle = await audio.load('https://example.org/stream.m4a', { strategy: 'stream' })
+
+    const stalls: boolean[] = []
+    let ended = 0
+    handle.onStalled((stalled) => void stalls.push(stalled))
+    handle.onEnded(() => void ended++)
+
+    handle.play()
+    state.positionMs = 30_000
+    state.status = 'paused'
+    await new Promise((resolve) => setTimeout(resolve, 550))
+
+    expect(ended, 'a paused engine is not a finished track').toBe(0)
+    expect(stalls).toEqual([true])
+    handle.dispose()
+  })
+
+  it('reports the recovery when the engine starts sounding again', async () => {
+    const state: SimState = { positionMs: 0, durationMs: 120_000, status: 'idle' }
+    const bridgeCall = engineBridge(state)
+    const { audio } = await harness({ bridgeCall, pausedStallMs: 50 })
+    const handle = await audio.load('https://example.org/stream.m4a', { strategy: 'stream' })
+
+    const stalls: boolean[] = []
+    handle.onStalled((stalled) => void stalls.push(stalled))
+
+    handle.play()
+    state.positionMs = 30_000
+    state.status = 'paused'
+    await new Promise((resolve) => setTimeout(resolve, 550))
+    state.status = 'playing'
+    await new Promise((resolve) => setTimeout(resolve, 300))
+
+    expect(stalls).toEqual([true, false])
+    handle.dispose()
+  })
+
+  it('a wedge paused at zero reports the end, so the queue can skip it', async () => {
+    // A track the engine paused before it ever sounded is a dead start: per
+    // the same convention the error branch uses for a dead link, the handle
+    // reports the end so the queue moves on instead of waiting forever.
+    const state: SimState = { positionMs: 0, durationMs: 120_000, status: 'idle' }
+    const bridgeCall = engineBridge(state)
+    const { audio } = await harness({ bridgeCall, pausedStallMs: 50 })
+    const handle = await audio.load('https://example.org/wedge.m4a', { strategy: 'stream' })
+
+    const stalls: boolean[] = []
+    let ended = 0
+    handle.onStalled((stalled) => void stalls.push(stalled))
+    handle.onEnded(() => void ended++)
+
+    handle.play()
+    state.status = 'paused'
+    await new Promise((resolve) => setTimeout(resolve, 550))
+
+    expect(stalls).toEqual([])
+    expect(ended).toBe(1)
+    handle.dispose()
+  })
+
+  it('does not report a stall for a pause that resolves within the grace window', async () => {
+    // The load→play race samples `paused` once or twice — FILE_LOADED reads
+    // the engine's pause flag before the play's unpause lands — and that must
+    // not read as a stall.
+    const state: SimState = { positionMs: 0, durationMs: 120_000, status: 'idle' }
+    const bridgeCall = engineBridge(state)
+    const { audio } = await harness({ bridgeCall, pausedStallMs: 50 })
+    const handle = await audio.load('https://example.org/stream.m4a', { strategy: 'stream' })
+
+    const stalls: boolean[] = []
+    let ended = 0
+    handle.onStalled((stalled) => void stalls.push(stalled))
+    handle.onEnded(() => void ended++)
+
+    handle.play()
+    state.status = 'paused'
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    state.status = 'playing'
+    await new Promise((resolve) => setTimeout(resolve, 400))
+
+    expect(stalls).toEqual([])
+    expect(ended).toBe(0)
+    handle.dispose()
+  })
+
   it('forwards headers with the gapless append across the bridge', async () => {
     // The appended file is opened by the engine at the playlist boundary,
     // where only these options reach it.

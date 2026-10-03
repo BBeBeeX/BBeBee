@@ -158,6 +158,12 @@ export class Player extends Service implements PlayerService {
   private prefetched?: { itemId: string; handle: AudioSourceHandle; streamHandle?: StreamHandle }
   private prefetchAbort?: AbortController
   private prefetching = false
+  /**
+   * The item whose successor was handed to an engine-side preload
+   * (`preloadNext`), so the append happens once per track rather than once
+   * per tick — there is no `prefetched` handle to set in that path.
+   */
+  private enginePreloaded?: string
   private crossfading = false
 
   /**
@@ -1232,6 +1238,7 @@ export class Player extends Service implements PlayerService {
 
   private async maybePrefetch(positionMs: number, durationMs: number): Promise<void> {
     if (this.config.transition === 'neither' || this.prefetching || this.prefetched) return
+    if (this.enginePreloaded !== undefined) return
     if (!durationMs) return
     const window = prefetchWindowMs(this.config.transition, this.config.crossfadeMs)
     if (durationMs - positionMs > window) return
@@ -1246,9 +1253,22 @@ export class Player extends Service implements PlayerService {
       const handle = await this.resolveStream(next.item.trackUrn)
       if (abort.signal.aborted) return
 
-      // Preload next track if the audio engine supports gapless preload (e.g. mpv append)
+      // An engine that advertises `preloadNext` (mpv's append) owns the
+      // playlist boundary itself: it advances inside its own decoder, and the
+      // ended→load round-trip re-binds to the already-sounding file. Loading a
+      // second source for the next file here is fatal on such an engine — with
+      // a single decoder core, `load` is a `loadfile replace`, which stops the
+      // track that is still sounding and leaves the engine paused on a file
+      // nothing will ever start. So hand over the uri and stop; no handle is
+      // prefetched, and the append is attempted once per track — an append
+      // that failed will not fare better on a retry one tick later.
       if (typeof this.ownCtx.audio.preloadNext === 'function') {
-        void this.ownCtx.audio.preloadNext(handle.target, handle.headers ? { headers: handle.headers } : undefined)
+        await this.ownCtx.audio
+          .preloadNext(handle.target, handle.headers ? { headers: handle.headers } : undefined)
+          .catch(() => undefined)
+        this.enginePreloaded = next.item.id
+        this.ownCtx.logger.debug('player: engine preloaded next track %s', next.item.trackUrn)
+        return
       }
 
       // Buffered, because a handoff with no gap cannot wait on a network read.
@@ -1359,6 +1379,7 @@ export class Player extends Service implements PlayerService {
     this.prefetchAbort = undefined
     this.prefetched?.handle.dispose()
     this.prefetched = undefined
+    this.enginePreloaded = undefined
   }
 
   private async onEnded(): Promise<void> {

@@ -315,6 +315,23 @@ export class DesktopAudioService extends Service implements AudioService {
     return () => {}
   }
 
+  /**
+   * The active engine's gapless preload, bound — or `undefined` when the
+   * engine has no such contract member. Forwarding the *optionality* is the
+   * point: `maybePrefetch` reads the member's presence to decide who owns the
+   * playlist boundary. mpv owns it (append; a second `load` would be a
+   * `loadfile replace` that kills the track still sounding), the webaudio
+   * engine does not (it needs a prefetched handle to swap).
+   */
+  get preloadNext(): AudioService['preloadNext'] {
+    return this.activeEngine?.preloadNext?.bind(this.activeEngine)
+  }
+
+  /** Gapless diagnostics, forwarded the same way. */
+  get lastPreloadStatus(): AudioService['lastPreloadStatus'] {
+    return this.activeEngine?.lastPreloadStatus
+  }
+
   load(src: string | Uri, opts: LoadOptions): Promise<AudioSourceHandle> {
     return this.activeEngine.load(src, opts)
   }

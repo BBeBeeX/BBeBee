@@ -237,7 +237,17 @@ control arm of the regression test at
   engine (`loadfile append`) while the current track plays; at the boundary mpv advances inside its
   own playlist and the player's load of the now-current track *re-binds* to it (`resumed: true`) —
   the ended→next policy is unchanged, only the audible restart is gone. Sample-accurate scheduling
-  is mpv-internal here; what the player hands over is the src, not PCM.
+  is mpv-internal here; what the player hands over is the src, not PCM. The same presence check
+  guards the prefetch: an engine implementing `preloadNext` receives the next src and gets **no**
+  second `audio.load` — with one decoder core that load is a `loadfile replace`, which kills the
+  track still sounding before its end and wedges the engine paused on a file nothing starts. An
+  append that fails simply loses gapless for that transition; the next track loads normally when
+  it is its turn.
+- **A paused engine is a stall, not silence**: the mpv source handle polls the engine's state, and
+  an engine reporting `paused` while the transport claims `playing` was paused out-of-band. After
+  a grace window (default 2 s, `pausedStallMs`) the handle reports a stall at the frozen position —
+  or, for a track that never started, the end, so the queue skips it — instead of polling a silent
+  engine forever; a return to `playing` reports the recovery.
 - **Prefetch** begins at `max(15s, crossfadeMs + 5s)` before the end, and is cancelled via
   `AbortSignal` if the queue changes.
 - **Decoder fallback on Hi-Res audio (`decodeAudioData` fallback)**:
