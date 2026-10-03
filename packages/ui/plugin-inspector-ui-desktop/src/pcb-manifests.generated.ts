@@ -358,6 +358,128 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "codec"
   },
+  "@BBeBee/core-db-expo": {
+    "id": "@BBeBee/core-db-expo",
+    "name": "@BBeBee/core-db-expo",
+    "displayName": "DB (Expo)",
+    "description": "ctx.db — SQLite database for Expo / React Native.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "db"
+      ]
+    },
+    "effect": "db"
+  },
+  "core-db-expo": {
+    "id": "@BBeBee/core-db-expo",
+    "name": "@BBeBee/core-db-expo",
+    "displayName": "DB (Expo)",
+    "description": "ctx.db — SQLite database for Expo / React Native.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "db"
+      ]
+    },
+    "effect": "db"
+  },
+  "@BBeBee/core-desktop-bridge": {
+    "id": "@BBeBee/core-desktop-bridge",
+    "name": "@BBeBee/core-desktop-bridge",
+    "displayName": "Desktop Bridge",
+    "description": "Renderer-side fs, db, and paths services over Electron IPC bridge.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "desktop"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [
+      "fs:read:all",
+      "fs:write:all"
+    ],
+    "contributes": {
+      "services": [
+        "fs",
+        "db",
+        "paths"
+      ]
+    },
+    "effect": "bridge"
+  },
+  "core-desktop-bridge": {
+    "id": "@BBeBee/core-desktop-bridge",
+    "name": "@BBeBee/core-desktop-bridge",
+    "displayName": "Desktop Bridge",
+    "description": "Renderer-side fs, db, and paths services over Electron IPC bridge.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "desktop"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [
+      "fs:read:all",
+      "fs:write:all"
+    ],
+    "contributes": {
+      "services": [
+        "fs",
+        "db",
+        "paths"
+      ]
+    },
+    "effect": "bridge"
+  },
   "@BBeBee/core-device-electron": {
     "id": "@BBeBee/core-device-electron",
     "name": "@BBeBee/core-device-electron",
@@ -469,6 +591,68 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       ]
     },
     "effect": "device"
+  },
+  "@BBeBee/core-fs-expo": {
+    "id": "@BBeBee/core-fs-expo",
+    "name": "@BBeBee/core-fs-expo",
+    "displayName": "FS (Expo)",
+    "description": "ctx.fs — filesystem implementation for Expo / React Native.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [
+      "fs:read:all",
+      "fs:write:all"
+    ],
+    "contributes": {
+      "services": [
+        "fs"
+      ]
+    },
+    "effect": "fs"
+  },
+  "core-fs-expo": {
+    "id": "@BBeBee/core-fs-expo",
+    "name": "@BBeBee/core-fs-expo",
+    "displayName": "FS (Expo)",
+    "description": "ctx.fs — filesystem implementation for Expo / React Native.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [
+      "fs:read:all",
+      "fs:write:all"
+    ],
+    "contributes": {
+      "services": [
+        "fs"
+      ]
+    },
+    "effect": "fs"
   },
   "@BBeBee/core-http-node": {
     "id": "@BBeBee/core-http-node",
@@ -768,6 +952,62 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "mediaSession"
   },
+  "@BBeBee/core-paths-expo": {
+    "id": "@BBeBee/core-paths-expo",
+    "name": "@BBeBee/core-paths-expo",
+    "displayName": "Paths (Expo)",
+    "description": "ctx.paths — well-known paths for Expo / React Native.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "paths"
+      ]
+    },
+    "effect": "paths"
+  },
+  "core-paths-expo": {
+    "id": "@BBeBee/core-paths-expo",
+    "name": "@BBeBee/core-paths-expo",
+    "displayName": "Paths (Expo)",
+    "description": "ctx.paths — well-known paths for Expo / React Native.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "paths"
+      ]
+    },
+    "effect": "paths"
+  },
   "@BBeBee/core-secrets-expo": {
     "id": "@BBeBee/core-secrets-expo",
     "name": "@BBeBee/core-secrets-expo",
@@ -885,6 +1125,70 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       ]
     },
     "effect": "secrets"
+  },
+  "@BBeBee/core-store-fs": {
+    "id": "@BBeBee/core-store-fs",
+    "name": "@BBeBee/core-store-fs",
+    "displayName": "Store (FS)",
+    "description": "ctx.store — persistent JSON store over disk.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "desktop",
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [
+      "fs:read:own",
+      "fs:write:own"
+    ],
+    "contributes": {
+      "services": [
+        "store"
+      ]
+    },
+    "effect": "store"
+  },
+  "core-store-fs": {
+    "id": "@BBeBee/core-store-fs",
+    "name": "@BBeBee/core-store-fs",
+    "displayName": "Store (FS)",
+    "description": "ctx.store — persistent JSON store over disk.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "desktop",
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [
+      "fs:read:own",
+      "fs:write:own"
+    ],
+    "contributes": {
+      "services": [
+        "store"
+      ]
+    },
+    "effect": "store"
   },
   "@BBeBee/plugin-album": {
     "id": "@BBeBee/plugin-album",

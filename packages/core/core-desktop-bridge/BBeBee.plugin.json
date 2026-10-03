@@ -1,0 +1,33 @@
+{
+  "id": "@BBeBee/core-desktop-bridge",
+  "name": "@BBeBee/core-desktop-bridge",
+  "displayName": "Desktop Bridge",
+  "description": "Renderer-side fs, db, and paths services over Electron IPC bridge.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": {
+    "BBeBee": "^0.1.0"
+  },
+  "enabled": true,
+  "dependencies": [],
+  "systemId": "layer-2",
+  "moduleId": "core",
+  "platforms": [
+    "desktop"
+  ],
+  "entry": {
+    "main": "./dist/index.js"
+  },
+  "capabilities": [
+    "fs:read:all",
+    "fs:write:all"
+  ],
+  "contributes": {
+    "services": [
+      "fs",
+      "db",
+      "paths"
+    ]
+  },
+  "effect": "bridge"
+}

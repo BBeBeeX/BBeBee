@@ -177,7 +177,29 @@ function InspectorPanelInner({ ctx }: { ctx: Context }): ReactElement {
   useEffect(() => {
     const refreshGraph = () => {
       try {
-        setGraph(adapter.getGraph())
+        const next = adapter.getGraph()
+        setGraph((prev) => {
+          if (
+            prev.plugins.length === next.plugins.length &&
+            prev.services.length === next.services.length &&
+            prev.events.length === next.events.length &&
+            prev.edges.length === next.edges.length
+          ) {
+            let changed = false
+            for (let i = 0; i < prev.plugins.length; i++) {
+              const p1 = prev.plugins[i]!
+              const p2 = next.plugins[i]!
+              if (p1.id !== p2.id || p1.status !== p2.status || p1.layer !== p2.layer) {
+                changed = true
+                break
+              }
+            }
+            if (!changed) {
+              return prev
+            }
+          }
+          return next
+        })
       } catch {
         // Defensive against rapid transitions
       }

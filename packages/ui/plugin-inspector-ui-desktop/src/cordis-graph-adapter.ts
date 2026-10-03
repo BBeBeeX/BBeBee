@@ -118,17 +118,92 @@ export class CordisGraphAdapter {
     const pluginNodesMap = new Map<string, PluginNode>()
     const processedFibers = new Set<string>()
 
+    // Helper to find manifest from registry or by capabilities/services
+    const findManifest = (name: string, providesList: string[]) => {
+      let m = PLUGIN_MANIFESTS[name] ?? PLUGIN_MANIFESTS[`@BBeBee/${name}`]
+      if (!m && providesList.length > 0) {
+        for (const s of providesList) {
+          const found = Object.values(PLUGIN_MANIFESTS).find(
+            (item) =>
+              item.contributes?.services?.includes(s) ||
+              (item.capabilities as readonly string[] | undefined)?.includes(s),
+          )
+          if (found) {
+            m = found
+            break
+          }
+        }
+      }
+      if (!m) {
+        const cleanName = name.toLowerCase().replace(/[^a-z0-9]/g, '')
+        const found = Object.values(PLUGIN_MANIFESTS).find((item) => {
+          const cleanId = item.id.toLowerCase().replace(/[^a-z0-9]/g, '')
+          return cleanId.includes(cleanName) || cleanName.includes(cleanId.replace('bbebee', ''))
+        })
+        if (found) {
+          m = found
+        }
+      }
+      return m
+    }
+
+    const getFriendlyDisplayName = (rawName: string): string | undefined => {
+      switch (rawName) {
+        case 'DesktopAudioService':
+          return 'Desktop Audio'
+        case 'FsBridge':
+          return 'FS (Desktop Bridge)'
+        case 'DbBridge':
+          return 'DB (Desktop Bridge)'
+        case 'PathsBridge':
+          return 'Paths (Desktop Bridge)'
+        case 'HttpNode':
+          return 'HTTP (Node)'
+        case 'CodecNode':
+          return 'Codec (Node)'
+        case 'StoreFs':
+          return 'Store (FS)'
+        case 'DeviceElectron':
+          return 'Device (Electron)'
+        case 'BackgroundElectron':
+          return 'Background (Electron)'
+        case 'MediaSessionElectron':
+          return 'Media Session (Electron)'
+        case 'SecretsNode':
+          return 'Secrets (Node)'
+        case 'JsQuickJsNode':
+          return 'JS QuickJS (Node)'
+        default:
+          return undefined
+      }
+    }
+
+    const getDefaultModuleId = (lid: string) => {
+      switch (lid) {
+        case 'layer-1':
+          return 'kernel'
+        case 'layer-2':
+          return 'core'
+        case 'layer-3':
+          return 'logs'
+        case 'layer-5':
+          return 'ui'
+        default:
+          return 'feature'
+      }
+    }
+
     const ingestFiberNode = (fn: FiberNode) => {
       if (processedFibers.has(fn.name)) return
       processedFibers.add(fn.name)
 
-      const manifest = PLUGIN_MANIFESTS[fn.name] ?? PLUGIN_MANIFESTS[`@BBeBee/${fn.name}`]
-      const layerId = resolvePluginLayer(fn.name, manifest)
-      const layer = getLayerInfo(layerId)
-
       const provides = Array.from(
         new Set([...(fn.provides ?? []), ...(providedByFiber.get(fn.name) ?? [])]),
       ).sort()
+
+      const manifest = findManifest(fn.name, provides)
+      const layerId = resolvePluginLayer(fn.name, manifest, provides)
+      const layer = getLayerInfo(layerId)
 
       const requires = (fn.inject ?? []).slice().sort()
       const waitingFor = (fn.waitingFor ?? []).slice().sort()
@@ -140,6 +215,7 @@ export class CordisGraphAdapter {
 
       const displayName =
         manifest?.displayName ??
+        getFriendlyDisplayName(fn.name) ??
         fn.name
           .replace(/^@BBeBee\//, '')
           .split('-')
@@ -168,7 +244,7 @@ export class CordisGraphAdapter {
         version: manifest?.version ?? '0.0.0',
         layer: layerId,
         layerName: layer.name,
-        moduleId: manifest?.moduleId ?? 'core',
+        moduleId: manifest?.moduleId ?? getDefaultModuleId(layerId),
         status,
         description: manifest?.description,
         provides,
@@ -201,21 +277,21 @@ export class CordisGraphAdapter {
     // Ingest any fibers that might be in registry but omitted from snapshot
     for (const [name, fiber] of fibersByName.entries()) {
       if (!pluginNodesMap.has(name)) {
-        const manifest = PLUGIN_MANIFESTS[name] ?? PLUGIN_MANIFESTS[`@BBeBee/${name}`]
-        const layerId = resolvePluginLayer(name, manifest)
+        const provides = providedByFiber.get(name) ?? []
+        const manifest = findManifest(name, provides)
+        const layerId = resolvePluginLayer(name, manifest, provides)
         const layer = getLayerInfo(layerId)
         const stateName = fiberStateName(fiber.state)
-        const provides = providedByFiber.get(name) ?? []
         const requires = Object.keys(fiber.inject ?? {})
 
         pluginNodesMap.set(name, {
           id: name,
           name,
-          displayName: manifest?.displayName ?? name,
+          displayName: manifest?.displayName ?? getFriendlyDisplayName(name) ?? name,
           version: manifest?.version ?? '0.0.0',
           layer: layerId,
           layerName: layer.name,
-          moduleId: manifest?.moduleId ?? 'core',
+          moduleId: manifest?.moduleId ?? getDefaultModuleId(layerId),
           status: stateName as PluginStatus,
           description: manifest?.description,
           provides,

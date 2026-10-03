@@ -19,9 +19,19 @@ export const bundled: PluginRegistry = {
     manifest: {"id":"@BBeBee/core-codec-rn","name":"@BBeBee/core-codec-rn","displayName":"Codec","description":"ctx.codec for iOS and Android — tags over ctx.fs, PCM via AudioDecoder.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":["fs:read:all"],"contributes":{"services":["codec"]},"effect":"codec"},
     builtin: true,
   },
+  "@BBeBee/core-db-expo": {
+    load: () => import('@BBeBee/core-db-expo'),
+    manifest: {"id":"@BBeBee/core-db-expo","name":"@BBeBee/core-db-expo","displayName":"DB (Expo)","description":"ctx.db — SQLite database for Expo / React Native.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["db"]},"effect":"db"},
+    builtin: true,
+  },
   "@BBeBee/core-device-expo": {
     load: () => import('@BBeBee/core-device-expo'),
     manifest: {"id":"@BBeBee/core-device-expo","name":"@BBeBee/core-device-expo","displayName":"Device","description":"ctx.device for iOS and Android — network, battery, locale.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["device"]},"effect":"device"},
+    builtin: true,
+  },
+  "@BBeBee/core-fs-expo": {
+    load: () => import('@BBeBee/core-fs-expo'),
+    manifest: {"id":"@BBeBee/core-fs-expo","name":"@BBeBee/core-fs-expo","displayName":"FS (Expo)","description":"ctx.fs — filesystem implementation for Expo / React Native.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":["fs:read:all","fs:write:all"],"contributes":{"services":["fs"]},"effect":"fs"},
     builtin: true,
   },
   "@BBeBee/core-http-rn": {
@@ -34,9 +44,19 @@ export const bundled: PluginRegistry = {
     manifest: {"id":"@BBeBee/core-media-session-rn","name":"@BBeBee/core-media-session-rn","displayName":"Media Session","description":"ctx.mediaSession for iOS and Android — lock screen and media notification.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":["mediaSession"],"contributes":{"services":["mediaSession"]},"effect":"mediaSession"},
     builtin: true,
   },
+  "@BBeBee/core-paths-expo": {
+    load: () => import('@BBeBee/core-paths-expo'),
+    manifest: {"id":"@BBeBee/core-paths-expo","name":"@BBeBee/core-paths-expo","displayName":"Paths (Expo)","description":"ctx.paths — well-known paths for Expo / React Native.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["paths"]},"effect":"paths"},
+    builtin: true,
+  },
   "@BBeBee/core-secrets-expo": {
     load: () => import('@BBeBee/core-secrets-expo'),
     manifest: {"id":"@BBeBee/core-secrets-expo","name":"@BBeBee/core-secrets-expo","displayName":"Secrets","description":"ctx.secrets for iOS and Android, over expo-secure-store.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["secrets"]},"effect":"secrets"},
+    builtin: true,
+  },
+  "@BBeBee/core-store-fs": {
+    load: () => import('@BBeBee/core-store-fs'),
+    manifest: {"id":"@BBeBee/core-store-fs","name":"@BBeBee/core-store-fs","displayName":"Store (FS)","description":"ctx.store — persistent JSON store over disk.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["desktop","mobile"],"entry":{"main":"./dist/index.js"},"capabilities":["fs:read:own","fs:write:own"],"contributes":{"services":["store"]},"effect":"store"},
     builtin: true,
   },
   "@BBeBee/plugin-album": {

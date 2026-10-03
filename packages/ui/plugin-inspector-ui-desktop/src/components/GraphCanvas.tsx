@@ -16,7 +16,6 @@ import {
   useRef,
   type MouseEvent as ReactMouseEvent,
   type ReactElement,
-  type WheelEvent as ReactWheelEvent,
 } from 'react'
 import type {
   EdgeType,
@@ -94,12 +93,33 @@ export const GraphCanvas = memo(function GraphCanvas({
   const containerRef = useRef<HTMLDivElement>(null)
   const isDraggingRef = useRef(false)
   const dragStartRef = useRef<Point>({ x: 0, y: 0 })
+  const hasInitializedRef = useRef(false)
+  const lastFitTriggerRef = useRef<number | undefined>(undefined)
 
-  // Automatically center and fit whenever layout structure or fitViewTrigger changes
+  const zoomRef = useRef(zoom)
+  zoomRef.current = zoom
+  const panRef = useRef(pan)
+  panRef.current = pan
+  const onZoomChangeRef = useRef(onZoomChange)
+  onZoomChangeRef.current = onZoomChange
+  const onPanChangeRef = useRef(onPanChange)
+  onPanChangeRef.current = onPanChange
+
+  // Center and fit on initial mount or when user explicitly triggers fitView
   useEffect(() => {
     if (!containerRef.current) return
     const { clientWidth, clientHeight } = containerRef.current
     if (clientWidth === 0 || clientHeight === 0 || layout.width === 0 || layout.height === 0) return
+
+    const isInitial = !hasInitializedRef.current
+    const isTriggered = fitViewTrigger !== undefined && fitViewTrigger !== lastFitTriggerRef.current
+
+    if (!isInitial && !isTriggered) {
+      return
+    }
+
+    hasInitializedRef.current = true
+    lastFitTriggerRef.current = fitViewTrigger
 
     const pad = 50
     const availW = Math.max(200, clientWidth - pad * 2)
@@ -114,9 +134,42 @@ export const GraphCanvas = memo(function GraphCanvas({
       y: Math.max(20, (clientHeight - layout.height * targetZoom) / 2),
     }
 
-    onZoomChange(targetZoom)
-    onPanChange(targetPan)
-  }, [layout, fitViewTrigger])
+    onZoomChangeRef.current(targetZoom)
+    onPanChangeRef.current(targetPan)
+  }, [layout.width, layout.height, fitViewTrigger])
+
+  // Native non-passive wheel event listener to avoid passive preventDefault errors and zoom towards cursor
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    const handleWheelNative = (e: WheelEvent) => {
+      e.preventDefault()
+
+      const currentZoom = zoomRef.current
+      const currentPan = panRef.current
+      const rect = el.getBoundingClientRect()
+      const mouseX = e.clientX - rect.left
+      const mouseY = e.clientY - rect.top
+
+      const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9
+      const newZoom = Math.min(3.0, Math.max(0.2, currentZoom * zoomFactor))
+      if (newZoom === currentZoom) return
+
+      // Zoom centered towards mouse cursor
+      const ratio = newZoom / currentZoom
+      const newPanX = mouseX - (mouseX - currentPan.x) * ratio
+      const newPanY = mouseY - (mouseY - currentPan.y) * ratio
+
+      onZoomChangeRef.current(newZoom)
+      onPanChangeRef.current({ x: newPanX, y: newPanY })
+    }
+
+    el.addEventListener('wheel', handleWheelNative, { passive: false })
+    return () => {
+      el.removeEventListener('wheel', handleWheelNative)
+    }
+  }, [])
 
   // Connected nodes map for highlighting active subgraph
   const connectedNodeIds = useMemo(() => {
@@ -159,17 +212,6 @@ export const GraphCanvas = memo(function GraphCanvas({
     isDraggingRef.current = false
   }, [])
 
-  // Zoom interaction
-  const handleWheel = useCallback(
-    (e: ReactWheelEvent) => {
-      e.preventDefault()
-      const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92
-      const newZoom = Math.min(2.5, Math.max(0.3, zoom * zoomFactor))
-      onZoomChange(newZoom)
-    },
-    [zoom, onZoomChange],
-  )
-
   const handleCanvasClick = useCallback(() => {
     onSelectNode(null)
     onSelectEdge(null)
@@ -192,7 +234,6 @@ export const GraphCanvas = memo(function GraphCanvas({
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      onWheel={handleWheel}
       onClick={handleCanvasClick}
     >
       <svg

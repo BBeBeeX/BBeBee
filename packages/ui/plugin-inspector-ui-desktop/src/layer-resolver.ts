@@ -11,6 +11,7 @@
 
 import type { LayerId, LayerInfo } from './graph-model.js'
 import type { PluginManifest } from '@BBeBee/protocol'
+import { PLUGIN_MANIFESTS } from './pcb-manifests.generated.js'
 
 export const SYSTEM_LAYERS: Record<LayerId, LayerInfo> = {
   'layer-1': {
@@ -66,54 +67,72 @@ export function getLayerInfo(id: LayerId): LayerInfo {
   return SYSTEM_LAYERS[id] ?? SYSTEM_LAYERS['layer-4']
 }
 
+/**
+ * Resolves a plugin to its architectural layer based on its manifest `systemId`.
+ *
+ * Elimination of hardcoding:
+ * 1. Reads `manifest.systemId` directly if present on the passed manifest.
+ * 2. If no manifest passed, looks up the manifest in `PLUGIN_MANIFESTS` by ID/name.
+ * 3. If the plugin provides services, finds the manifest in `PLUGIN_MANIFESTS` that
+ *    contributes that service and inherits its `systemId`.
+ * 4. Fuzzy matches against registered manifest IDs by normalized name.
+ * 5. Cordis runtime root context resolves to 'layer-1' (Kernel).
+ * 6. Defaults to 'layer-4' (Feature) if no manifest or systemId can be found.
+ */
 export function resolvePluginLayer(
   pluginId: string,
   manifest?: PluginManifest | null,
+  provides: string[] = [],
 ): LayerId {
   // 1. Direct declaration in plugin manifest
   if (manifest?.systemId && manifest.systemId in SYSTEM_LAYERS) {
     return manifest.systemId as LayerId
   }
 
-  const normalized = pluginId.toLowerCase()
-
-  // 2. Kernel layer
+  // 2. Kernel layer (Cordis DI container root context)
   if (
-    normalized === 'root' ||
-    normalized.includes('kernel') ||
-    normalized === '@bbebee/kernel'
+    pluginId === 'root' ||
+    pluginId.toLowerCase() === 'cordis' ||
+    pluginId.toLowerCase().includes('kernel')
   ) {
     return 'layer-1'
   }
 
-  // 3. Core layer
-  if (
-    normalized.startsWith('@bbebee/core-') ||
-    normalized.startsWith('core-') ||
-    normalized.includes('desktop-bridge')
-  ) {
-    return 'layer-2'
+  // 3. Resolve manifest from registry by plugin ID
+  const registered =
+    PLUGIN_MANIFESTS[pluginId] ??
+    PLUGIN_MANIFESTS[`@BBeBee/${pluginId}`] ??
+    PLUGIN_MANIFESTS[pluginId.replace(/^@BBeBee\//, '')]
+
+  if (registered?.systemId && registered.systemId in SYSTEM_LAYERS) {
+    return registered.systemId as LayerId
   }
 
-  // 4. Logs layer
-  if (
-    normalized.startsWith('@bbebee/logs-') ||
-    normalized.startsWith('logs-') ||
-    normalized.includes('logger')
-  ) {
-    return 'layer-3'
+  // 4. Resolve via provided services: lookup which manifest contributes the service and use its systemId
+  if (provides.length > 0) {
+    for (const serviceName of provides) {
+      for (const m of Object.values(PLUGIN_MANIFESTS)) {
+        if (
+          (m.contributes?.services?.includes(serviceName) ||
+            (m.capabilities as readonly string[] | undefined)?.includes(serviceName)) &&
+          m.systemId &&
+          m.systemId in SYSTEM_LAYERS
+        ) {
+          return m.systemId as LayerId
+        }
+      }
+    }
   }
 
-  // 5. UI layer
-  if (
-    normalized.includes('-ui-') ||
-    normalized.endsWith('-ui') ||
-    normalized.startsWith('@bbebee/ui-') ||
-    normalized.includes('ui-kit') ||
-    normalized.includes('ui-core') ||
-    normalized.includes('ui-menus')
-  ) {
-    return 'layer-5'
+  // 5. Fuzzy match against registered manifests by normalized identifier
+  const clean = pluginId.toLowerCase().replace(/[^a-z0-9]/g, '')
+  for (const m of Object.values(PLUGIN_MANIFESTS)) {
+    const cleanId = m.id.toLowerCase().replace(/[^a-z0-9]/g, '')
+    if (cleanId.includes(clean) || clean.includes(cleanId.replace('bbebee', ''))) {
+      if (m.systemId && m.systemId in SYSTEM_LAYERS) {
+        return m.systemId as LayerId
+      }
+    }
   }
 
   // 6. Default to Feature (headless domain)

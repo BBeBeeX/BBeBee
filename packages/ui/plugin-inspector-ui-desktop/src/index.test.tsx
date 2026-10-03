@@ -14,7 +14,7 @@ import inspectorUi, {
 } from './index.js'
 import { CordisGraphAdapter } from './cordis-graph-adapter.js'
 import { buildFocusedGraph, computeGraphLayout, filterGraph } from './graph-layout.js'
-import { ALL_LAYER_IDS } from './layer-resolver.js'
+import { ALL_LAYER_IDS, resolvePluginLayer } from './layer-resolver.js'
 import type { FilterOptions } from './graph-model.js'
 
 /** Mock Ui Service for testing route & view contribution */
@@ -461,3 +461,83 @@ describe('Contextual / Focused Subgraph Generation (buildFocusedGraph)', () => {
     expect(focused.plugins[0].name).toBe('extra-1')
   })
 })
+
+describe('Core Layer Plugins & Services Resolution', () => {
+  it('correctly maps platform bridge and capability services to Layer 2 (Core)', () => {
+    // 1. By direct manifest systemId
+    expect(resolvePluginLayer('custom-plugin', { systemId: 'layer-2' } as any)).toBe('layer-2')
+    expect(resolvePluginLayer('custom-plugin', { systemId: 'layer-3' } as any)).toBe('layer-3')
+    expect(resolvePluginLayer('custom-plugin', { systemId: 'layer-5' } as any)).toBe('layer-5')
+
+    // 2. By service contract provides inheriting manifest systemId
+    expect(resolvePluginLayer('custom-http-service', null, ['http'])).toBe('layer-2')
+    expect(resolvePluginLayer('custom-fs-service', null, ['fs'])).toBe('layer-2')
+    expect(resolvePluginLayer('custom-audio-service', null, ['audio'])).toBe('layer-2')
+    expect(resolvePluginLayer('custom-db-service', null, ['db'])).toBe('layer-2')
+    expect(resolvePluginLayer('custom-store-service', null, ['store'])).toBe('layer-2')
+
+    // 3. By registered plugin manifest ID lookup or provided services
+    expect(resolvePluginLayer('core-http-node')).toBe('layer-2')
+    expect(resolvePluginLayer('@BBeBee/core-desktop-bridge')).toBe('layer-2')
+    expect(resolvePluginLayer('@BBeBee/core-store-fs')).toBe('layer-2')
+    expect(resolvePluginLayer('FsBridge', null, ['fs'])).toBe('layer-2')
+    expect(resolvePluginLayer('DbBridge', null, ['db'])).toBe('layer-2')
+    expect(resolvePluginLayer('PathsBridge', null, ['paths'])).toBe('layer-2')
+    expect(resolvePluginLayer('DesktopAudioService', null, ['audio'])).toBe('layer-2')
+    expect(resolvePluginLayer('StoreFs', null, ['store'])).toBe('layer-2')
+    expect(resolvePluginLayer('DeviceElectron', null, ['device'])).toBe('layer-2')
+    expect(resolvePluginLayer('BackgroundElectron', null, ['background'])).toBe('layer-2')
+    expect(resolvePluginLayer('MediaSessionElectron', null, ['mediaSession'])).toBe('layer-2')
+    expect(resolvePluginLayer('SecretsNode', null, ['secrets'])).toBe('layer-2')
+    expect(resolvePluginLayer('JsQuickJsNode', null, ['js'])).toBe('layer-2')
+    expect(resolvePluginLayer('CodecNode', null, ['codec'])).toBe('layer-2')
+  })
+
+  it('ingests Core plugins into graph with layer-2 and provides list', async () => {
+    const ctx = new Context()
+    await ctx.plugin(inspectorPlugin)
+
+    // Simulate core service registration like DesktopAudioService and FsBridge
+    class FakeFsBridge extends Service {
+      constructor(c: Context) {
+        super(c, 'fs')
+      }
+    }
+    class FakeDesktopAudioService extends Service {
+      constructor(c: Context) {
+        super(c, 'audio')
+      }
+    }
+
+    await ctx.plugin(FakeFsBridge)
+    await ctx.plugin(FakeDesktopAudioService)
+
+    const adapter = new CordisGraphAdapter(ctx)
+    const graph = adapter.getGraph()
+
+    const fsNode = graph.plugins.find((p) => p.name === 'FakeFsBridge')
+    expect(fsNode).toBeDefined()
+    expect(fsNode?.layer).toBe('layer-2')
+    expect(fsNode?.provides).toContain('fs')
+
+    const audioNode = graph.plugins.find((p) => p.name === 'FakeDesktopAudioService')
+    expect(audioNode).toBeDefined()
+    expect(audioNode?.layer).toBe('layer-2')
+    expect(audioNode?.provides).toContain('audio')
+
+    // Verify layout includes Core layer bounds with these plugins
+    const layout = computeGraphLayout(graph, {
+      searchQuery: '',
+      selectedLayers: new Set(ALL_LAYER_IDS),
+      nodeTypes: new Set(['plugin', 'service', 'event']),
+      edgeTypes: new Set(['dependency', 'service', 'event', 'ui']),
+      focusNodeId: null,
+      focusDepth: 1,
+    })
+
+    const coreBand = layout.layerBounds.find((b) => b.layer.id === 'layer-2')
+    expect(coreBand).toBeDefined()
+    expect(coreBand?.nodeCount).toBeGreaterThanOrEqual(2)
+  })
+})
+

@@ -24,6 +24,11 @@ export const bundled: PluginRegistry = {
     manifest: {"id":"@BBeBee/core-codec-node","name":"@BBeBee/core-codec-node","displayName":"Codec","description":"ctx.codec — tags, artwork and PCM, over music-metadata.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["desktop"],"entry":{"main":"./dist/index.js"},"capabilities":["fs:read:all"],"contributes":{"services":["codec"]},"effect":"codec"},
     builtin: true,
   },
+  "@BBeBee/core-desktop-bridge": {
+    load: () => import('@BBeBee/core-desktop-bridge'),
+    manifest: {"id":"@BBeBee/core-desktop-bridge","name":"@BBeBee/core-desktop-bridge","displayName":"Desktop Bridge","description":"Renderer-side fs, db, and paths services over Electron IPC bridge.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["desktop"],"entry":{"main":"./dist/index.js"},"capabilities":["fs:read:all","fs:write:all"],"contributes":{"services":["fs","db","paths"]},"effect":"bridge"},
+    builtin: true,
+  },
   "@BBeBee/core-device-electron": {
     load: () => import('@BBeBee/core-device-electron'),
     manifest: {"id":"@BBeBee/core-device-electron","name":"@BBeBee/core-device-electron","displayName":"Device","description":"ctx.device — network, battery, media keys and hotkeys on desktop.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["desktop"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["device"]},"effect":"device"},
@@ -47,6 +52,11 @@ export const bundled: PluginRegistry = {
   "@BBeBee/core-secrets-node": {
     load: () => import('@BBeBee/core-secrets-node'),
     manifest: {"id":"@BBeBee/core-secrets-node","name":"@BBeBee/core-secrets-node","displayName":"Secrets","description":"ctx.secrets — credential storage for desktop and Node.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["desktop"],"entry":{"main":"./dist/index.js"},"capabilities":["fs:read:own","fs:write:own"],"contributes":{"services":["secrets"]},"effect":"secrets"},
+    builtin: true,
+  },
+  "@BBeBee/core-store-fs": {
+    load: () => import('@BBeBee/core-store-fs'),
+    manifest: {"id":"@BBeBee/core-store-fs","name":"@BBeBee/core-store-fs","displayName":"Store (FS)","description":"ctx.store — persistent JSON store over disk.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["desktop","mobile"],"entry":{"main":"./dist/index.js"},"capabilities":["fs:read:own","fs:write:own"],"contributes":{"services":["store"]},"effect":"store"},
     builtin: true,
   },
   "@BBeBee/plugin-album": {

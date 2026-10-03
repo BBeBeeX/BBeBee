@@ -1,0 +1,31 @@
+{
+  "id": "@BBeBee/core-fs-expo",
+  "name": "@BBeBee/core-fs-expo",
+  "displayName": "FS (Expo)",
+  "description": "ctx.fs — filesystem implementation for Expo / React Native.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": {
+    "BBeBee": "^0.1.0"
+  },
+  "enabled": true,
+  "dependencies": [],
+  "systemId": "layer-2",
+  "moduleId": "core",
+  "platforms": [
+    "mobile"
+  ],
+  "entry": {
+    "main": "./dist/index.js"
+  },
+  "capabilities": [
+    "fs:read:all",
+    "fs:write:all"
+  ],
+  "contributes": {
+    "services": [
+      "fs"
+    ]
+  },
+  "effect": "fs"
+}
