@@ -458,7 +458,7 @@ describe('Contextual / Focused Subgraph Generation (buildFocusedGraph)', () => {
       showEvents: false,
     })
     expect(focused.plugins.length).toBe(1)
-    expect(focused.plugins[0].name).toBe('extra-1')
+    expect(focused.plugins[0]!.name).toBe('extra-1')
   })
 })
 

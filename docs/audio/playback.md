@@ -105,13 +105,16 @@ Behaviours worth pinning down, because they are where players feel wrong:
 - **Repeat-one** does not re-resolve the stream; it reuses the loaded buffer.
 - **`stalled`** is distinct from `paused`. The UI shows a spinner, not a play button, and
   `ctx.mediaSession` keeps reporting `playing` so the lock screen does not flicker.
-- **A fatal error after playback began is an underrun, not an end.** A streamed handle whose media
-  element dies mid-track (CDN cut, expired URL) reports `onStalled(true)` rather than `onEnded`:
-  treating it as a natural end made the player record the track as completed and skip ahead — and
-  the next track, facing the same broken network, then sat silent at 0:00. As a stall it flows
-  `stalled → error` through the watchdog and becomes a retryable network failure at the frozen
-  position (press play to retry). An element error *before* the track ever produced sound (a dead
-  link) still reports `ended`, so the queue keeps skipping past links that never played.
+- **A fatal error after playback began is an underrun, not an end.** Both engines honour this: the
+  webaudio `StreamedHandle` reports `onStalled(true)` when its media element dies mid-track (CDN
+  cut, expired URL), and the mpv `MpvSourceHandle` does the same when the engine reports a fatal
+  error (the native engine classifies `MPV_END_FILE_REASON_ERROR` and pushes its playback state
+  with `status: 'error'`, which the handle's poll reads). Treating a mid-track failure as a
+  natural end made the player record the track as completed and skip ahead — and the next track,
+  facing the same broken network, then sat silent at 0:00. As a stall it flows `stalled → error`
+  through the watchdog and becomes a retryable network failure at the frozen position (press play
+  to retry). A failure *before* the track ever produced sound (a dead link) still reports `ended`,
+  so the queue keeps skipping past links that never played.
 - **Duration is a floor, not a promise.** The transport reports `source.durationMs` whenever the
   element has one, and falls back to the duration stored in the catalogue row otherwise — Bilibili's
   fMP4 streams are the motivating case, since the element reports `Infinity` while the search rule

@@ -248,7 +248,7 @@ export class DesktopAudioService extends Service implements AudioService {
       }
     })
 
-    const target = this.config.initialEngine ?? 'webaudio'
+    const target = this.config.initialEngine ?? 'mpv'
     await this.mountEngine(target)
 
     return async () => {
@@ -579,8 +579,11 @@ export async function boot(): Promise<App> {
    */
   const transport = bridgeFetch()
 
-  // Determine initial audio engine: check persisted settings in store.json
-  let initialEngine: 'mpv' | 'wasapi' | 'webaudio' = hostPlatform() === 'windows' ? 'mpv' : 'webaudio'
+  // Determine initial audio engine: check persisted settings in store.json.
+  // mpv is the default on every platform: the packaged build ships the engine
+  // binary with libmpv staged, and a machine where libmpv is missing degrades
+  // per load to the media element (Chromium decode) instead of going silent.
+  let initialEngine: 'mpv' | 'wasapi' | 'webaudio' = 'mpv'
   let initialAudioExclusive: boolean | undefined
   let preloadedUserAgent: string | undefined
   let preloadedStoreData: Record<string, unknown> | undefined

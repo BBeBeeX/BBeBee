@@ -435,17 +435,15 @@ public:
             const char* pauseCmd[] = { "set", "pause", "yes", nullptr };
             mpvLib.command(mpv, pauseCmd);
         } else {
-            // Fallback for headless environments without libmpv installed
-            status = "paused";
-            durationMs = 180000;
-            JsonValue loaded = JsonValue::object();
-            loaded["type"] = "loaded";
-            loaded["uri"] = uri;
-            loaded["durationMs"] = durationMs;
-            loaded["sampleRate"] = sampleRate;
-            loaded["channels"] = channels;
-            loaded["bitDepth"] = bitDepth;
-            sendJson(loaded);
+            // No libmpv on this machine: fail the load fast so the renderer
+            // degrades to the media element (Chromium decode — audible).
+            // A fake "loaded" here would strand the player on a silent
+            // engine that can never produce a single sample.
+            status = "error";
+            JsonValue err = JsonValue::object();
+            err["type"] = "error";
+            err["message"] = "libmpv not available on this machine";
+            sendJson(err);
             sendPlaybackState();
         }
     }

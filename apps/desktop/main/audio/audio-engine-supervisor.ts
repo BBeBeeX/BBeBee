@@ -282,6 +282,9 @@ export class AudioEngineSupervisor {
       case 'error': {
         const message = String(payload['message'] ?? 'Audio engine error')
         const action = payload['action']
+        // A mid-play error has no pending load to reject and no other
+        // consumer — if this line never logs, the failure is invisible.
+        this.logger?.warn?.('audio-engine-supervisor: engine error%s: %s', action ? ` (${action})` : '', message)
         if (action === 'append' && this.pendingAppends.length > 0) {
           const p = this.pendingAppends.shift()!
           clearTimeout(p.timer)
