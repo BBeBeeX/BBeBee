@@ -26,6 +26,7 @@ Layer 4（feature）— `ctx.sources`：导入的源文档、provider 注册表�
 | `register(provider) / unregister` | provider 注册表。emit `source/registered` / `source/unregistered`（disposer 做身份校验——防旧 disposer 拆掉新注册）。 |
 | `providers / forUrn(urn)` | 活 provider 列表 / 按 URN 找 provider。 |
 | `searchAll(q, opts)` | 跨源扇出：每个被问到的源（含失败、超时）各一条 entry，绝不合并、绝不整体失败——"三家答了、一家限流、一家要重导"必须能说出来。 |
+| `searchSource(sourceId, q, page?, opts?)` | 单源分页搜索：仅向指定音源请求检索并支持 `page` 分页，结果同步写入目录缓存。供分面板搜索视图执行单源“加载更多”下一页数据。 |
 | `searchLocal(text, opts)` | 目录内 FTS5，离线即时；与 `searchAll` 回答的是不同问题。 |
 | `cache(providers, results)` | 把 provider 返回的搜索/browse 结果写入目录表（经 `CacheWriter` holder 委托 `cache.ts`——见下），随后 emit `library/changed(kind, urns)`——只对实际写入的 URN。 |
 | `getAlbum / getArtist / getTracks / tracksOf…` | 目录 hydrate（credits、封面、分页）。 |
@@ -81,7 +82,7 @@ Layer 4（feature）— `ctx.sources`：导入的源文档、provider 注册表�
 | `useSourceTrace(ctx, sourceId?)` | 步骤 tracer；事件**到达即追加**（对无响应服务器的诊断就是"一行 http 后面什么都没有"）；generation ref 防新旧 trace 交错 |
 | `useSetLoved(ctx)` | 收藏开关；写 `catalog.setLoved`，再 emit `library/changed`。 |
 | `useSearchSourceSelection(ctx)` | 搜索屏的源开关：`options`（`searchable` 由 provider 的派生能力决定）+ `selectedIds` + `toggle`/`toggleAll`。**以排除集存储**——后导入的源默认加入下一次搜索，而不是被静默漏掉。 |
-| `useSourceSearch(ctx)` | `searchAll` 的屏上形态：`status/text/data/run/reset`；generation ref 保证后发搜索不被先发结果覆盖。 |
+| `useSourceSearch(ctx)` | `searchAll` 的屏上形态：`status/text/data/run/reset`；内部维护各音源分页状态（`pagination[sourceId]`: `loading/hasMore/cursor/error`）并暴露 `loadMore(sourceId)`，拉取指定源下一页并无缝追加合并单曲/专辑等结果；generation ref 保证后发搜索不被先发覆盖。 |
 | `searchResultRows(result, nameOf)` | 把 `AggregatedSearch` 摊平成单条虚拟列表的行（header/track/album/artist/playlist）——每源的失败/超时/无结果都保留自己的 header；track 行携带本段队列，点击即播。两壳共用，杜绝各画各的 section。 |
 | `listAllTracks(ctx, query)` / `playFromList(ctx, urn, list)` | 非 hook 的共享播放逻辑：前者把 query **翻页取全**（"播放这个列表"指整个列表，不是已滚入的页）；后者解析被点行所属的列表（`urns` 在手或 `query` 现取）交给 `player.playFromContext`——队列已有该曲则跳转，没有则整列表换入队列；目录读失败仍播单曲 |
 

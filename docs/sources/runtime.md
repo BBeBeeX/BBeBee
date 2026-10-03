@@ -46,6 +46,12 @@ export interface SourcesService {
       typesBySource?: Record<string, SearchQuery['types']>
     },
   ): Promise<AggregatedSearch>
+  searchSource(
+    sourceId: string,
+    query: SearchQuery,
+    page?: PageRequest,
+    opts?: { timeoutMs?: number; types?: SearchQuery['types'] },
+  ): Promise<AggregatedSearchEntry>
 
   /* ── sources as data (§9, §10) ────────────────────────────────── */
   readonly sources: readonly SourceRecord[]

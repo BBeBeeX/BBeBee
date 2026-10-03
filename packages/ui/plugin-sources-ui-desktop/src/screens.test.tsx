@@ -642,6 +642,52 @@ describe('SearchScreen', () => {
       expect(document.body.textContent).toContain('已加载全部结果')
     })
   })
+
+  it('plays only the single track in queue when a search track is clicked', async () => {
+    const { ctx, admin } = await harness()
+    const playerStub = new PlayerStub(admin)
+    await withTwoSources(admin)
+    const [alpha] = admin.sources.sources
+    admin.sources.register({
+      ...providerWith(alpha!.id, { search: true }),
+      search: async () => ({
+        tracks: {
+          items: [
+            track(alpha!.id, '1', 'Alpha Single Track 1'),
+            track(alpha!.id, '2', 'Alpha Single Track 2'),
+          ],
+          hasMore: false,
+        },
+      }),
+    })
+    await tick()
+
+    await withListLayout(async () => {
+      render(h(SearchScreen, { ctx }))
+      await act(async () => {
+        type('search-input', 'song')
+      })
+      await act(async () => {
+        screen.getByTestId('search-submit').click()
+        await tick()
+        await tick()
+      })
+
+      expect(document.body.textContent).toContain('Alpha Single Track 1')
+      expect(document.body.textContent).toContain('Alpha Single Track 2')
+
+      const trackRow = screen.getByText('Alpha Single Track 1')
+      await act(async () => {
+        trackRow.click()
+        await tick()
+      })
+
+      expect(playerStub.playFromContextCalls).toHaveLength(1)
+      const call = playerStub.playFromContextCalls[0]!
+      expect(call.urn).toBe(track(alpha!.id, '1', 'Alpha Single Track 1').urn)
+      expect(call.contextUrns).toEqual([track(alpha!.id, '1', 'Alpha Single Track 1').urn])
+    })
+  })
 })
 
 describe('SourcesListScreen', () => {
@@ -961,11 +1007,15 @@ describe('RecommendShelfRow', () => {
 
 class PlayerStub extends Service {
   history: PlayRecord[] = []
+  playFromContextCalls: { urn: string; contextUrns?: readonly string[]; opts?: unknown }[] = []
   constructor(ctx: Context) {
     super(ctx, 'player')
   }
   async getHistory() {
     return this.history
+  }
+  async playFromContext(urn: string, contextUrns?: readonly string[], opts?: unknown) {
+    this.playFromContextCalls.push({ urn, contextUrns, opts })
   }
 }
 

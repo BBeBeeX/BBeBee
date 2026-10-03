@@ -80,8 +80,6 @@ export function SourcePanel({
         ? summaryParts.join(' · ')
         : 'no matches'
 
-  const trackUrns = tracks.map((t) => t.urn)
-
   const openAlbum = (urn: string) => {
     onOpenAlbum?.(urn)
     serviceOf<UiService>(ctx, 'ui')?.navigate(ALBUM_VIEWS.album, { urn })
@@ -351,7 +349,7 @@ export function SourcePanel({
               showAlbum: true,
               onPress: () =>
                 void playFromList(ctx, track.urn, {
-                  urns: trackUrns,
+                  urns: [track.urn],
                   context: { kind: 'search', label: searchQuery },
                 }),
               onDownload: downloads ? () => void downloads.enqueue([track.urn]) : undefined,

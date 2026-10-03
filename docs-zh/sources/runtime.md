@@ -30,6 +30,7 @@ export interface SourcesService {
   get(sourceId: string): MediaProvider | undefined
   forUrn(urn: string): MediaProvider | undefined
   searchAll(q: SearchQuery, opts?: { sourceIds?: string[]; timeoutMs?: number }): Promise<AggregatedSearch>
+  searchSource(sourceId: string, q: SearchQuery, page?: PageRequest, opts?: { timeoutMs?: number; types?: SearchQuery['types'] }): Promise<AggregatedSearchEntry>
 
   /* ── sources as data (§9, §10) ────────────────────────────────── */
   readonly sources: readonly SourceRecord[]
