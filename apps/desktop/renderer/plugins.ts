@@ -52,6 +52,7 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
    */
   '@BBeBee/plugin-inspector': {},
   '@BBeBee/plugin-inspector-ui-desktop': {},
+  '@BBeBee/plugin-manager': {},
 
   // M1's feature set. Load order is derived from `inject`, never declared
   // here: `plugin-player` waits for ctx.audio and ctx.sources, `plugin-source-*`

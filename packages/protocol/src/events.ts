@@ -209,6 +209,10 @@ declare module 'cordis' {
 
     /* ── lyric-sources ───────────────────────────────── emit ── */
     'lyric-sources/changed'(sources: readonly LyricSourceDefinition[]): void
+
+    /* ── plugin-manager ──────────────────────────────── emit ── */
+    'plugin-manager/enabled-changed'(payload: { id: string; enabled: boolean }): void
+    'plugin-manager/changed'(): void
   }
 }
 
@@ -269,6 +273,8 @@ export const DISPATCH_MODES = {
   'lyric-sources/changed': 'emit',
   'share/open': 'emit',
   'share/import': 'emit',
+  'plugin-manager/enabled-changed': 'emit',
+  'plugin-manager/changed': 'emit',
 } as const satisfies Record<string, DispatchMode>
 
 export type BBeBeeEventName = keyof typeof DISPATCH_MODES

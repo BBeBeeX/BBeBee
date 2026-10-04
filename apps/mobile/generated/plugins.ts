@@ -119,6 +119,11 @@ export const bundled: PluginRegistry = {
     manifest: {"id":"@BBeBee/plugin-lyrics","name":"@BBeBee/plugin-lyrics","displayName":"Lyrics","description":"ctx.lyrics — lyric retrieval, caching, synchronization and unified state.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@BBeBee/plugin-player"],"systemId":"layer-4","moduleId":"lyrics","entry":{"main":"./dist/index.js","ui":{"desktop":"./dist/index.js"}},"capabilities":["db:read:core","db:write:core"],"contributes":{"services":["lyrics"]},"effect":"lyrics"},
     builtin: true,
   },
+  "@BBeBee/plugin-manager": {
+    load: () => import('@BBeBee/plugin-manager'),
+    manifest: {"id":"@BBeBee/plugin-manager","name":"@BBeBee/plugin-manager","displayName":"Plugin Manager","description":"ctx['plugin-manager'] — plugin discovery, runtime state tracking, lifecycle management, and dependencies graph.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@BBeBee/plugin-inspector"],"systemId":"layer-4","moduleId":"plugins","entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["plugin-manager"]},"effect":"pluginManager"},
+    builtin: true,
+  },
   "@BBeBee/plugin-mini-player": {
     load: () => import('@BBeBee/plugin-mini-player'),
     manifest: {"id":"@BBeBee/plugin-mini-player","name":"@BBeBee/plugin-mini-player","displayName":"Mini Player","description":"Floating mini window and Dynamic Island player controls.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@BBeBee/plugin-player"],"systemId":"layer-4","moduleId":"playback","entry":{"main":"./dist/index.js","ui":{"desktop":"./dist/index.js"}},"capabilities":[],"contributes":{"services":["miniPlayer"]},"effect":"miniPlayer"},

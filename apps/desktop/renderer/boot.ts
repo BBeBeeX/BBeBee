@@ -29,6 +29,8 @@ import type {
   InterruptionEvent,
   LoadOptions,
   OutputDevice,
+  PluginManagerService,
+  PluginManifest,
   RouteChangeEvent,
   Uri,
 } from '@BBeBee/protocol'
@@ -636,6 +638,37 @@ export async function boot(): Promise<App> {
     ...externalRegistry,
   }
 
+  // Preloaded plugin-manager enablement overrides
+  const pluginOverrides = (
+    preloadedStoreData?.['@BBeBee/plugin-manager:enabled'] ??
+    preloadedStoreData?.['plugin-manager:enabled'] ??
+    preloadedStoreData?.['@BBeBee/plugin-manager:plugin-manager:enabled'] ??
+    preloadedStoreData?.['@BBeBee/plugin-manager:plugin-manager'] ??
+    preloadedStoreData?.['@BBeBee/plugin-manager'] ??
+    preloadedStoreData?.['plugin-manager'] ??
+    preloadedStoreData?.['enabled']
+  ) as Record<string, boolean> | undefined
+
+  const effectiveInitialEnabled = { ...INITIAL_ENABLED }
+  if (pluginOverrides) {
+    for (const [id, enabled] of Object.entries(pluginOverrides)) {
+      if (enabled === false) {
+        if (effectiveInitialEnabled[id]) {
+          effectiveInitialEnabled[id] = { ...effectiveInitialEnabled[id], enabled: false }
+        }
+      } else if (enabled === true) {
+        effectiveInitialEnabled[id] = { ...(effectiveInitialEnabled[id] ?? {}), enabled: true }
+      }
+    }
+  }
+
+  const pluginManifestsMap: Record<string, PluginManifest> = {}
+  for (const [id, entry] of Object.entries(compositeRegistry)) {
+    if (entry.manifest) {
+      pluginManifestsMap[id] = entry.manifest
+    }
+  }
+
   const app = createApp({
     target: 'desktop',
     bootstrap: [
@@ -724,7 +757,7 @@ export async function boot(): Promise<App> {
         : ([[logFile, { level: 2 }]] as const)),
     ],
     registry: compositeRegistry,
-    config: { plugins: INITIAL_ENABLED },
+    config: { plugins: effectiveInitialEnabled },
   })
   await app.start()
 
@@ -780,6 +813,30 @@ export async function boot(): Promise<App> {
 
     void scoped.settings.get().then(syncSettings)
     scoped.on('settings/changed', syncSettings)
+  })
+
+  // Register composite manifests and bridge dynamic lifecycle for plugin-manager
+  app.ctx.inject(['plugin-manager'], (scoped) => {
+    const pm = (scoped as unknown as { 'plugin-manager'?: PluginManagerService })['plugin-manager']
+    if (pm) {
+      pm.registerManifests(pluginManifestsMap)
+      pm.setLifecycleBridge({
+        loadPlugin: (id: string) => app.loadPlugin(id),
+        unloadPlugin: (id: string) => app.unloadPlugin(id),
+      })
+    }
+  })
+
+  app.ctx.on('plugin-manager/enabled-changed', async ({ id, enabled }) => {
+    try {
+      if (enabled) {
+        await app.loadPlugin(id)
+      } else {
+        await app.unloadPlugin(id)
+      }
+    } catch (err) {
+      app.ctx.logger?.error('boot: failed to toggle plugin %s: %s', id, String(err))
+    }
   })
 
   return app

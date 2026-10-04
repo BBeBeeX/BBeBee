@@ -3,7 +3,7 @@
  * Single-page natural scrolling layout with section anchors and text-only tab navigation.
  */
 
-import { createElement as h, useEffect, useRef, useState } from 'react'
+import { createElement as h, useEffect, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { serviceOf, useServiceState } from '@BBeBee/ui-core'
@@ -33,6 +33,7 @@ import { ShortcutsSection } from './components/sections/ShortcutsSection.js'
 import { NetworkSection } from './components/sections/NetworkSection.js'
 import { SourcesSection } from './components/sections/SourcesSection.js'
 import { StorageSection } from './components/sections/StorageSection.js'
+import { PluginsSection } from './components/sections/PluginsSection.js'
 import { AboutSection } from './components/sections/AboutSection.js'
 import { SettingsSection } from './components/SettingsSection.js'
 import { SettingsRow } from './components/SettingsRow.js'
@@ -53,6 +54,7 @@ export const TABS: readonly TabItem[] = [
   { id: 'network', label: '网络与代理' },
   { id: 'sources', label: '曲库与来源' },
   { id: 'storage', label: '存储与缓存' },
+  { id: 'plugins', label: '插件' },
   { id: 'about', label: '关于应用' },
 ]
 
@@ -71,7 +73,6 @@ function cleanDisplayPath(rawPath?: string): string {
 export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false)
-  const isClickNavigatingRef = useRef(false)
 
   const { settings, update, reset } = useAppSettings(ctx)
   const { usage, clear } = useCacheStats(ctx)
@@ -92,6 +93,7 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
               'network',
               'sources',
               'storage',
+              'plugins',
               'about',
             ].includes(s),
         ),
@@ -382,42 +384,7 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
 
   const handleTabClick = (tabId: SettingsTab) => {
     setActiveTab(tabId)
-    isClickNavigatingRef.current = true
-    const element = document.getElementById(`section-${tabId}`)
-    if (element && typeof element.scrollIntoView === 'function') {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
-    setTimeout(() => {
-      isClickNavigatingRef.current = false
-    }, 600)
   }
-
-  // Scroll spy to sync activeTab with visible section
-  useEffect(() => {
-    if (typeof IntersectionObserver === 'undefined') return
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (isClickNavigatingRef.current) return
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            const id = entry.target.id.replace('section-', '') as SettingsTab
-            setActiveTab(id)
-            break
-          }
-        }
-      },
-      {
-        threshold: 0.2,
-      },
-    )
-
-    for (const tab of allTabs) {
-      const el = document.getElementById(`section-${tab.id}`)
-      if (el) observer.observe(el)
-    }
-
-    return () => observer.disconnect()
-  }, [allTabs])
 
   const handleClearCache = async () => {
     setClearingCache(true)
@@ -511,7 +478,7 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
       }),
     ),
 
-    // Right natural scrollable main container
+    // Right natural scrollable main container with mutually exclusive section rendering
     h(
       'main',
       {
@@ -522,131 +489,183 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
           padding: '24px 36px 64px',
           display: 'flex',
           flexDirection: 'column',
-          gap: 32,
+          gap: 24,
         },
       },
+      // Section title matching left tab selection
+      h(
+        'div',
+        {
+          style: {
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingBottom: 16,
+            borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+            marginBottom: 8,
+          },
+        },
+        h(
+          'h2',
+          {
+            style: {
+              fontSize: 20,
+              fontWeight: 700,
+              margin: 0,
+              color: 'var(--text-primary, #FFFFFF)',
+              letterSpacing: -0.2,
+            },
+          },
+          allTabs.find((t) => t.id === activeTab)?.label ?? activeTab,
+        ),
+      ),
+
       // 1. General & Language
-      h(GeneralSection, {
-        ctx,
-        settings,
-        update,
-        onCloseToTrayChange: handleCloseToTrayChange,
-      }),
+      activeTab === 'general'
+        ? h(GeneralSection, {
+            ctx,
+            settings,
+            update,
+            onCloseToTrayChange: handleCloseToTrayChange,
+          })
+        : null,
 
       // 2. Playback & DSP
-      h(PlaybackSection, {
-        ctx,
-        settings,
-        update,
-        contributions: availableSettings,
-        onNavigate: handleNavigate,
-      }),
+      activeTab === 'playback'
+        ? h(PlaybackSection, {
+            ctx,
+            settings,
+            update,
+            contributions: availableSettings,
+            onNavigate: handleNavigate,
+          })
+        : null,
 
       // 3. Desktop Lyrics
-      h(LyricsSection, {
-        ctx,
-        desktopLyrics,
-        isDesktopLyricsVisible,
-        update,
-      }),
+      activeTab === 'lyrics'
+        ? h(LyricsSection, {
+            ctx,
+            desktopLyrics,
+            isDesktopLyricsVisible,
+            update,
+          })
+        : null,
 
       // 4. Global Shortcuts
-      h(ShortcutsSection, {
-        shortcuts,
-        onUpdateShortcuts: (s) => void update({ shortcuts: s }),
-      }),
+      activeTab === 'shortcuts'
+        ? h(ShortcutsSection, {
+            shortcuts,
+            onUpdateShortcuts: (s) => void update({ shortcuts: s }),
+          })
+        : null,
 
       // 5. Network & Proxy
-      h(NetworkSection, {
-        proxy,
-        thirdPartySources,
-        proxyTesting,
-        proxyTestResult,
-        onUpdateProxy: (p) => {
-          void update({ proxy: p })
-          const bridge = (
-            window as unknown as {
-              BBeBee?: {
-                proxy?: {
-                  set: (c: unknown) => Promise<void>
+      activeTab === 'network'
+        ? h(NetworkSection, {
+            proxy,
+            thirdPartySources,
+            proxyTesting,
+            proxyTestResult,
+            onUpdateProxy: (p) => {
+              void update({ proxy: p })
+              const bridge = (
+                window as unknown as {
+                  BBeBee?: {
+                    proxy?: {
+                      set: (c: unknown) => Promise<void>
+                    }
+                  }
                 }
-              }
-            }
-          ).BBeBee
-          void bridge?.proxy?.set?.(p)
-        },
-        onTestProxy: handleTestProxy,
-        userAgent: settings.userAgent,
-        thirdPartySourcesEnabled: settings.thirdPartySourcesEnabled,
-        thirdPartyLyricSourcesEnabled: settings.thirdPartyLyricSourcesEnabled,
-        onUpdateUserAgent: (ua) => void update({ userAgent: ua }),
-        onToggleThirdPartySources: (enabled) => void update({ thirdPartySourcesEnabled: enabled }),
-        onToggleThirdPartyLyricSources: (enabled) =>
-          void update({ thirdPartyLyricSourcesEnabled: enabled }),
-      }),
+              ).BBeBee
+              void bridge?.proxy?.set?.(p)
+            },
+            onTestProxy: handleTestProxy,
+            userAgent: settings.userAgent,
+            thirdPartySourcesEnabled: settings.thirdPartySourcesEnabled,
+            thirdPartyLyricSourcesEnabled: settings.thirdPartyLyricSourcesEnabled,
+            onUpdateUserAgent: (ua) => void update({ userAgent: ua }),
+            onToggleThirdPartySources: (enabled) => void update({ thirdPartySourcesEnabled: enabled }),
+            onToggleThirdPartyLyricSources: (enabled) =>
+              void update({ thirdPartyLyricSourcesEnabled: enabled }),
+          })
+        : null,
 
       // 6. Sources & Music Folders
-      h(SourcesSection, {
-        ctx,
-        contributions: availableSettings,
-        onNavigate: handleNavigate,
-      }),
+      activeTab === 'sources'
+        ? h(SourcesSection, {
+            ctx,
+            contributions: availableSettings,
+            onNavigate: handleNavigate,
+          })
+        : null,
 
       // 7. Storage & Downloads
-      h(StorageSection, {
-        ctx,
-        currentDownloadsDir,
-        currentCacheDir,
-        usage,
-        clearingCache,
-        contributions: availableSettings,
-        onPickDownloadDir: handlePickDownloadDir,
-        onOpenDownloadDir: handleOpenDownloadDir,
-        onPickCacheDir: handlePickCacheDir,
-        onOpenCacheDir: handleOpenCacheDir,
-        onClearCache: handleClearCache,
-        onNavigate: handleNavigate,
-      }),
+      activeTab === 'storage'
+        ? h(StorageSection, {
+            ctx,
+            currentDownloadsDir,
+            currentCacheDir,
+            usage,
+            clearingCache,
+            contributions: availableSettings,
+            onPickDownloadDir: handlePickDownloadDir,
+            onOpenDownloadDir: handleOpenDownloadDir,
+            onPickCacheDir: handlePickCacheDir,
+            onOpenCacheDir: handleOpenCacheDir,
+            onClearCache: handleClearCache,
+            onNavigate: handleNavigate,
+          })
+        : null,
+
+      // 8. Plugins Manager
+      activeTab === 'plugins'
+        ? h(PluginsSection, {
+            ctx,
+          })
+        : null,
+
+      // 9. About & Danger Zone
+      activeTab === 'about'
+        ? h(AboutSection, {
+            showAdvancedSettings,
+            resetting,
+            onToggleAdvancedSettings: setShowAdvancedSettings,
+            onSetResetting: setResetting,
+            onReset: handleReset,
+            onNavigate: handleNavigate,
+          })
+        : null,
 
       // Custom sections contributed by plugins
-      ...customSectionIds.map((secId) => {
-        const secContribs = availableSettings.filter((c) => c.section === secId)
-        return h(
-          'div',
-          { id: `section-${secId}`, key: secId },
-          h(
-            SettingsSection,
-            { title: secId.charAt(0).toUpperCase() + secId.slice(1) },
-            secContribs.map((item) => {
-              if (item.display === 'card') {
-                const Card = (ctx as { ui?: UiService })?.ui?.viewFor?.(item.id) as
-                  | React.ComponentType<{ ctx: Context }>
-                  | undefined
-                if (Card) return h(Card, { key: item.id, ctx })
-              }
-              return h(SettingsRow, {
-                key: item.id,
-                title: item.title,
-                description: item.description,
-                action: h(Button, {
-                  children: item.actionText ?? '打开',
-                  onPress: () => handleNavigate(item.id),
+      customSectionIds.includes(activeTab)
+        ? h(
+            'div',
+            { id: `section-${activeTab}`, key: activeTab },
+            h(
+              SettingsSection,
+              { title: activeTab.charAt(0).toUpperCase() + activeTab.slice(1) },
+              availableSettings
+                .filter((c) => c.section === activeTab)
+                .map((item) => {
+                  if (item.display === 'card') {
+                    const Card = (ctx as { ui?: UiService })?.ui?.viewFor?.(item.id) as
+                      | React.ComponentType<{ ctx: Context }>
+                      | undefined
+                    if (Card) return h(Card, { key: item.id, ctx })
+                  }
+                  return h(SettingsRow, {
+                    key: item.id,
+                    title: item.title,
+                    description: item.description,
+                    action: h(Button, {
+                      children: item.actionText ?? '打开',
+                      onPress: () => handleNavigate(item.id),
+                    }),
+                  })
                 }),
-              })
-            }),
-          ),
-        )
-      }),
-
-      // 8. About & Danger Zone
-      h(AboutSection, {
-        showAdvancedSettings,
-        resetting,
-        onToggleAdvancedSettings: setShowAdvancedSettings,
-        onSetResetting: setResetting,
-        onReset: handleReset,
-        onNavigate: handleNavigate,
-      }),
+            ),
+          )
+        : null,
     ),
   )
 }

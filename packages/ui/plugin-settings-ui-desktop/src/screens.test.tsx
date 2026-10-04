@@ -3,11 +3,11 @@
  * Desktop Settings Screen component tests.
  */
 
-import { describe, expect, it, afterEach, vi } from 'vitest'
+import { describe, expect, it, afterEach } from 'vitest'
 import { createElement as h } from 'react'
 import { fireEvent, render, cleanup, waitFor } from '@testing-library/react'
 import { Context, Service } from 'cordis'
-import type { AppSettings, SettingsService, SettingsContribution, CacheClass, CacheStats, ThemeDefinition, NowPlayingStyleMeta, LyricSourceDefinition, SourceRecord } from '@BBeBee/protocol'
+import type { AppSettings, SettingsService, SettingsContribution, CacheClass, CacheStats, ThemeDefinition, NowPlayingStyleMeta, LyricSourceDefinition, SourceRecord, PluginInfo, PluginManagerService } from '@BBeBee/protocol'
 import { DEFAULT_APP_SETTINGS, NOW_PLAYING_STYLES } from '@BBeBee/protocol'
 import { midnightPurpleTheme, spotifyTheme } from '@BBeBee/ui-tokens'
 import { SettingsScreen } from './SettingsScreen.js'
@@ -341,6 +341,110 @@ async function harness(initialSettings: Partial<AppSettings> = {}) {
     }
   }
 
+  class PluginManagerStub extends Service implements Partial<PluginManagerService> {
+    public plugins: PluginInfo[] = [
+      {
+        id: '@BBeBee/core-audio',
+        name: 'core-audio',
+        displayName: '音频核心',
+        description: '音频播放底层驱动',
+        version: '0.1.0',
+        author: 'BBeBee Team',
+        systemId: 'layer-2',
+        moduleId: 'audio',
+        enabled: true,
+        state: 'ACTIVE',
+        waitingFor: [],
+        dependencies: [],
+        dependents: ['@BBeBee/plugin-theme'],
+        configStatus: 'none',
+      },
+      {
+        id: '@BBeBee/log-console',
+        name: 'log-console',
+        displayName: '控制台日志',
+        description: '标准控制台输出通道',
+        version: '0.1.0',
+        author: 'BBeBee Team',
+        systemId: 'layer-3',
+        moduleId: 'logs',
+        enabled: true,
+        state: 'ACTIVE',
+        waitingFor: [],
+        dependencies: [],
+        dependents: [],
+        configStatus: 'none',
+      },
+      {
+        id: '@BBeBee/plugin-theme',
+        name: 'plugin-theme',
+        displayName: '主题管理',
+        description: '主题服务与色彩管理',
+        version: '0.1.0',
+        author: 'BBeBee Team',
+        systemId: 'layer-4',
+        moduleId: 'theme',
+        enabled: true,
+        state: 'ACTIVE',
+        waitingFor: [],
+        dependencies: ['@BBeBee/core-audio'],
+        dependents: ['@BBeBee/plugin-settings', '@BBeBee/ui-player'],
+        configStatus: 'default',
+      },
+      {
+        id: '@BBeBee/plugin-settings',
+        name: 'plugin-settings',
+        displayName: '设置中心',
+        description: '用户偏好与设置',
+        version: '0.1.0',
+        author: 'BBeBee Team',
+        systemId: 'layer-4',
+        moduleId: 'settings',
+        enabled: true,
+        state: 'ACTIVE',
+        waitingFor: [],
+        dependencies: ['@BBeBee/plugin-theme'],
+        dependents: [],
+        configStatus: 'none',
+      },
+      {
+        id: '@BBeBee/ui-player',
+        name: 'ui-player',
+        displayName: '播放器界面',
+        description: '播放器视图与控制器',
+        version: '0.1.0',
+        author: 'BBeBee Team',
+        systemId: 'layer-5',
+        moduleId: 'player',
+        enabled: true,
+        state: 'ACTIVE',
+        waitingFor: [],
+        dependencies: ['@BBeBee/plugin-theme'],
+        dependents: [],
+        configStatus: 'none',
+      },
+    ]
+
+    constructor(ctx: Context) {
+      super(ctx, 'plugin-manager')
+    }
+
+    list = (): readonly PluginInfo[] => {
+      calls.push('pluginManager:list')
+      return this.plugins
+    }
+
+    setEnabled = async (id: string, enabled: boolean): Promise<void> => {
+      calls.push(`pluginManager:setEnabled:${id}:${enabled}`)
+      const target = this.plugins.find((p) => p.id === id)
+      if (target) {
+        target.enabled = enabled
+        target.state = enabled ? 'ACTIVE' : 'UNLOADED'
+      }
+      this.ctx.emit('plugin-manager/enabled-changed', { id, enabled })
+    }
+  }
+
   const root = new Context()
   await root.plugin(SettingsStub)
   await root.plugin(CacheStub)
@@ -351,9 +455,10 @@ async function harness(initialSettings: Partial<AppSettings> = {}) {
   await root.plugin(NowPlayingStub)
   await root.plugin(SourcesStub)
   await root.plugin(LyricSourcesStub)
+  await root.plugin(PluginManagerStub)
 
   let scoped: Context | undefined
-  root.inject(['ui', 'settings', 'dsp'], (s) => void (scoped = s))
+  root.inject(['ui', 'settings', 'dsp', 'plugin-manager'], (s) => void (scoped = s))
   await new Promise((r) => setTimeout(r, 0))
   if (!scoped) throw new Error('Failed to create scoped context in harness')
 
@@ -396,9 +501,9 @@ async function harness(initialSettings: Partial<AppSettings> = {}) {
 describe('SettingsScreen', () => {
   it('renders tabs and general settings by default', async () => {
     const { ctx } = await harness()
-    const { getByText, findByText } = render(h(SettingsScreen, { ctx }))
+    const { getByText, getAllByText } = render(h(SettingsScreen, { ctx }))
 
-    expect(await findByText('常规与语言')).toBeTruthy()
+    expect(getAllByText('常规与语言').length).toBeGreaterThanOrEqual(2)
     expect(getByText('播放与音频')).toBeTruthy()
     expect(getByText('曲库与来源')).toBeTruthy()
     expect(getByText('存储与缓存')).toBeTruthy()
@@ -548,28 +653,18 @@ describe('SettingsScreen', () => {
     expect(calls.includes('navigate:dsp.view')).toBe(true)
   })
 
-  it('renders all sections simultaneously in the DOM with no icons in tabs', async () => {
+  it('renders active section exclusively with no icons in tabs', async () => {
     const { ctx } = await harness()
-    const { container } = render(h(SettingsScreen, { ctx }))
+    const { container, getByText } = render(h(SettingsScreen, { ctx }))
 
-    // All 8 section anchors exist concurrently in DOM (DSP is routed to dsp.view)
-    const sectionIds = [
-      'section-general',
-      'section-playback',
-      'section-lyrics',
-      'section-shortcuts',
-      'section-network',
-      'section-sources',
-      'section-storage',
-      'section-about',
-    ]
-    for (const id of sectionIds) {
-      expect(container.querySelector(`#${id}`)).toBeTruthy()
-    }
+    // Only general section anchor is mounted initially
+    expect(container.querySelector('#section-general')).toBeTruthy()
+    expect(container.querySelector('#section-playback')).toBeNull()
+    expect(container.querySelector('#section-about')).toBeNull()
 
-    // Tab buttons have no emoji / icons
+    // Tab buttons have no emoji / icons and length is 9 (including plugins)
     const tabButtons = container.querySelectorAll('aside button[role="tab"]')
-    expect(tabButtons.length).toBe(8)
+    expect(tabButtons.length).toBe(9)
     for (const btn of Array.from(tabButtons)) {
       expect(btn.querySelector('svg')).toBeNull()
       expect(btn.textContent).not.toMatch(/[\u{1F300}-\u{1F9FF}]/u)
@@ -577,6 +672,11 @@ describe('SettingsScreen', () => {
 
     // Default volume is removed completely from the UI
     expect(container.textContent).not.toContain('默认音量')
+
+    // Clicking playback tab replaces active section
+    fireEvent.click(getByText('播放与音频'))
+    expect(container.querySelector('#section-playback')).toBeTruthy()
+    expect(container.querySelector('#section-general')).toBeNull()
   })
 
   it('renders visualizer settings when visualizer.settings view is registered', async () => {
@@ -584,7 +684,9 @@ describe('SettingsScreen', () => {
     ctx.ui.registerView('visualizer.settings', () =>
       h('div', { 'data-testid': 'mock-visualizer-settings' }, 'Mock Visualizer Settings'),
     )
-    const { container } = render(h(SettingsScreen, { ctx }))
+    const { container, findByText } = render(h(SettingsScreen, { ctx }))
+    const playbackTab = await findByText('播放与音频')
+    fireEvent.click(playbackTab)
     expect(container.querySelector('[data-testid="mock-visualizer-settings"]')).toBeTruthy()
     expect(container.textContent).toContain('音频可视化')
   })
@@ -603,24 +705,26 @@ describe('SettingsScreen', () => {
     })
   })
 
-  it('navigates to section via tab scrollIntoView', async () => {
+  it('switches partition when clicking tab without scrollIntoView', async () => {
     const { ctx } = await harness()
     const { container, findByText } = render(h(SettingsScreen, { ctx }))
 
-    const playbackSection = container.querySelector('#section-playback') as HTMLElement
-    expect(playbackSection).toBeTruthy()
-    const scrollMock = vi.fn()
-    playbackSection.scrollIntoView = scrollMock
+    expect(container.querySelector('#section-general')).toBeTruthy()
+    expect(container.querySelector('#section-playback')).toBeNull()
 
     const playbackTab = await findByText('播放与音频')
     fireEvent.click(playbackTab)
 
-    expect(scrollMock).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' })
+    expect(container.querySelector('#section-playback')).toBeTruthy()
+    expect(container.querySelector('#section-general')).toBeNull()
   })
 
   it('toggles expandable row via chevron button', async () => {
     const { ctx } = await harness({ crossfadeEnabled: true })
-    const { container } = render(h(SettingsScreen, { ctx }))
+    const { container, findByText } = render(h(SettingsScreen, { ctx }))
+
+    const playbackTab = await findByText('播放与音频')
+    fireEvent.click(playbackTab)
 
     // Initially expanded when crossfadeEnabled: true
     expect(container.textContent).toContain('淡入淡出持续时间')
@@ -642,7 +746,10 @@ describe('SettingsScreen', () => {
 
   it('renders download and cache directories with change and open buttons', async () => {
     const { ctx } = await harness({ downloadDir: '/custom/downloads', cacheDir: '/custom/cache' })
-    const { getByText, container } = render(h(SettingsScreen, { ctx }))
+    const { getByText, container, findByText } = render(h(SettingsScreen, { ctx }))
+
+    const storageTab = await findByText('存储与缓存')
+    fireEvent.click(storageTab)
 
     expect(getByText('下载目录')).toBeTruthy()
     expect(container.textContent).toContain('/custom/downloads')
@@ -727,7 +834,10 @@ describe('SettingsScreen', () => {
 
   it('renders desktop lyrics settings and live preview box', async () => {
     const { ctx, calls } = await harness()
-    const { container, getByText } = render(h(SettingsScreen, { ctx }))
+    const { container, getByText, findByText } = render(h(SettingsScreen, { ctx }))
+
+    const lyricsTab = await findByText('桌面歌词')
+    fireEvent.click(lyricsTab)
 
     expect(getByText('桌面歌词设置')).toBeTruthy()
     expect(getByText('开启桌面歌词')).toBeTruthy()
@@ -764,7 +874,10 @@ describe('SettingsScreen', () => {
 
   it('renders global shortcuts settings with master switch and actions', async () => {
     const { ctx, calls } = await harness()
-    const { container, getByText, getAllByText } = render(h(SettingsScreen, { ctx }))
+    const { container, getByText, getAllByText, findByText } = render(h(SettingsScreen, { ctx }))
+
+    const shortcutsTab = await findByText('全局快捷键')
+    fireEvent.click(shortcutsTab)
 
     expect(getAllByText('全局快捷键').length).toBeGreaterThanOrEqual(1)
     expect(getByText('启用全局快捷键')).toBeTruthy()
@@ -793,6 +906,9 @@ describe('SettingsScreen', () => {
   it('renders network proxy settings and handles connection test', async () => {
     const { ctx } = await harness({ proxy: { enabled: true, protocol: 'http', host: '127.0.0.1', port: 7890, sourceRules: {} } })
     const { getByText, findByText } = render(h(SettingsScreen, { ctx }))
+
+    const networkTab = await findByText('网络与代理')
+    fireEvent.click(networkTab)
 
     expect(getByText('网络代理设置')).toBeTruthy()
     expect(getByText('启用网络代理')).toBeTruthy()
@@ -851,7 +967,9 @@ describe('SettingsScreen', () => {
 
     expect(await findByText('常规与界面语言')).toBeTruthy()
 
-    // Test navigation to Import Sources
+    // Test navigation to Import Sources (in sources tab)
+    const sourcesTab = await findByText('曲库与来源')
+    fireEvent.click(sourcesTab)
     const importSourcesBtn = getByText('导入音源')
     fireEvent.click(importSourcesBtn)
     expect(calls.includes('navigate:sources.import')).toBe(true)
@@ -859,7 +977,9 @@ describe('SettingsScreen', () => {
     // Playback history was moved out of settings into more-menu
     expect(queryByText('查看播放历史')).toBeNull()
 
-    // Test navigation to Debug center (revealed via Advanced Settings)
+    // Test navigation to Debug center (revealed via Advanced Settings in About tab)
+    const aboutTab = await findByText('关于应用')
+    fireEvent.click(aboutTab)
     const advCheckbox = document.querySelector('input[type="checkbox"]') as HTMLInputElement
     if (advCheckbox) fireEvent.click(advCheckbox)
     const debugBtn = getByText('进入 Debug 调试中心 →')
@@ -916,7 +1036,10 @@ describe('SettingsScreen', () => {
 
   it('renders Now Playing styles in PlaybackSection and allows switching active style', async () => {
     const { ctx, calls } = await harness()
-    const { getByText, getByTestId } = render(h(SettingsScreen, { ctx }))
+    const { getByText, getByTestId, findByText } = render(h(SettingsScreen, { ctx }))
+
+    const playbackTab = await findByText('播放与音频')
+    fireEvent.click(playbackTab)
 
     expect(getByText('播放页样式模板 (Now Playing Layout Styles)')).toBeTruthy()
     expect(getByText('经典')).toBeTruthy()
@@ -938,7 +1061,10 @@ describe('SettingsScreen', () => {
 
   it('imports sandboxed player plugin and handles deletion in PlaybackSection', async () => {
     const { ctx, calls } = await harness()
-    const { getByText, getByTestId } = render(h(SettingsScreen, { ctx }))
+    const { getByText, getByTestId, findByText } = render(h(SettingsScreen, { ctx }))
+
+    const playbackTab = await findByText('播放与音频')
+    fireEvent.click(playbackTab)
 
     // Open import modal
     const importBtn = getByTestId('import-style-button')
@@ -987,6 +1113,9 @@ describe('SettingsScreen', () => {
     const { ctx, calls } = await harness()
     const { getByText, findByText } = render(h(SettingsScreen, { ctx }))
 
+    const lyricsTab = await findByText('桌面歌词')
+    fireEvent.click(lyricsTab)
+
     // LyricSourcesSection is mounted in LyricsSection
     expect(await findByText('第三方歌词源管理 (Lyric Sources)')).toBeTruthy()
     expect(getByText('LRCLIB (默认歌词源)')).toBeTruthy()
@@ -1018,6 +1147,59 @@ describe('SettingsScreen', () => {
 
     await waitFor(() => {
       expect(calls.some((c) => c.startsWith('lyricSources:register:sample-netease-lrc'))).toBe(true)
+    })
+  })
+
+  it('renders plugins partition, filters by query, expands card details, and toggles enablement', async () => {
+    const { ctx, calls } = await harness()
+    const { container, findByText, getByText, getAllByText, getByPlaceholderText, queryByText } = render(h(SettingsScreen, { ctx }))
+
+    const pluginsTab = await findByText('插件')
+    fireEvent.click(pluginsTab)
+
+    expect(await findByText('核心 (core)')).toBeTruthy()
+    expect(getByText('日志 (logs)')).toBeTruthy()
+    expect(getByText('功能 (feature)')).toBeTruthy()
+    expect(getByText('界面 (ui)')).toBeTruthy()
+
+    // Test search filter
+    const searchInput = getByPlaceholderText('搜索插件…')
+    fireEvent.change(searchInput, { target: { value: 'theme' } })
+
+    expect(getByText('主题管理')).toBeTruthy()
+    expect(queryByText('音频核心')).toBeNull()
+
+    // Clear search
+    fireEvent.change(searchInput, { target: { value: '' } })
+    expect(await findByText('音频核心')).toBeTruthy()
+
+    // Expand plugin card for details
+    const themeCardChevron = container.querySelector('[role="button"][aria-label^="展开 主题管理"]') as HTMLElement
+    expect(themeCardChevron).toBeTruthy()
+    fireEvent.click(themeCardChevron)
+
+    // Key-value details
+    expect(getByText('完整名称')).toBeTruthy()
+    expect(getAllByText(/@BBeBee\/plugin-theme/).length).toBeGreaterThanOrEqual(2)
+    expect(getByText('依赖 (1)')).toBeTruthy()
+    expect(getByText('被依赖 (2)')).toBeTruthy()
+
+    // Switch enablement toggle: trying to disable theme management which has active dependents triggers confirmation
+    const themeSwitch = container.querySelector('button[role="switch"]') as HTMLButtonElement
+    expect(themeSwitch).toBeTruthy()
+    fireEvent.click(themeSwitch)
+
+    // Confirmation sheet opens
+    expect(await findByText('停用插件确认')).toBeTruthy()
+    expect(getAllByText(/设置中心/).length).toBeGreaterThanOrEqual(2)
+
+    // Confirm disable
+    const confirmBtn = container.querySelector('[data-testid="confirm-disable-plugin-btn"]') as HTMLButtonElement
+    expect(confirmBtn).toBeTruthy()
+    fireEvent.click(confirmBtn)
+
+    await waitFor(() => {
+      expect(calls.includes('pluginManager:setEnabled:@BBeBee/plugin-theme:false')).toBe(true)
     })
   })
 })

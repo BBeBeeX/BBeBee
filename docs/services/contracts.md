@@ -1020,8 +1020,69 @@ export interface SettingsService {
 
 ---
 
-## 24. Where to go next
+## 24. `ctx['plugin-manager']` — plugin inspection, dependencies & lifecycle manager
+
+**Purpose.** Headless plugin inspection and lifecycle manager for BBeBee plugins. Provides real-time aggregation of plugin manifests and runtime fiber states from `ctx.inspector`, dynamic bi-directional dependency calculation (declared dependencies + runtime inject edges, reverse dependent scanning), configuration status evaluation, and persistent enable/disable control via `ctx.store` bridging to composition root lifecycle hooks.
+
+```ts
+export interface PluginInfo {
+  id: string
+  name: string
+  displayName: string
+  description?: string
+  version: string
+  author?: string
+  systemId: 'layer-2' | 'layer-3' | 'layer-4' | 'layer-5'
+  moduleId: string
+  enabled: boolean
+  state: PluginRuntimeState
+  stateDetail?: string
+  dependencies: string[]
+  dependents: string[]
+  configStatus: ConfigStatus
+}
+
+export type PluginRuntimeState =
+  | 'PENDING'
+  | 'LOADING'
+  | 'ACTIVE'
+  | 'FAILED'
+  | 'DISPOSED'
+  | 'UNLOADING'
+  | 'UNKNOWN'
+
+export type ConfigStatus = 'none' | 'customized' | 'default'
+
+export interface PluginLifecycleBridge {
+  loadPlugin: (id: string) => Promise<void>
+  unloadPlugin: (id: string) => Promise<void>
+}
+
+export interface PluginManagerService {
+  list(): PluginInfo[]
+  get(id: string): PluginInfo | undefined
+  setEnabled(id: string, enabled: boolean): Promise<void>
+  registerBridge(bridge: PluginLifecycleBridge): () => void
+  setManifests(manifests: Record<string, PluginManifest>): void
+}
+```
+
+| | Electron (Desktop) | Expo (Mobile) |
+|---|---|---|
+| Headless service | `@BBeBee/plugin-manager` | `@BBeBee/plugin-manager` |
+| UI implementation | `@BBeBee/plugin-settings-ui-desktop` | Planned (`plugin-settings-ui-mobile`) |
+| Persistence | `ctx.store` namespace `plugin-manager` (`Record<string, boolean>`) | Same |
+| Reactive Events | `'plugin-manager/enabled-changed'`, `'plugin-manager/changed'` | Same |
+
+- **Layer Invariants & Bridge**: Headless Layer 4 plugins are strictly forbidden from importing the bootstrap kernel surface (`createApp`, `app.loadPlugin`). Dynamic loading and unloading is bridged at the composition root (`apps/desktop/renderer/boot.ts`) via `registerBridge` and the `'plugin-manager/enabled-changed'` event.
+- **L4/L5 Manifest Decoupling**: Manifest records generated during build time are injected into `plugin-manager` at boot via config or `setManifests`, ensuring Layer 4 never imports UI or code-generation packages.
+- **Reverse Dependency Resolution**: Dependents are dynamically computed across all known manifests and live fiber inject edges in real time. Disabling plugins with active dependents triggers confirmation guards in the settings UI.
+
+---
+
+## 25. Where to go next
 
 [05 — Audio & Playback](../audio/playback.md) builds the playback engine and DSP chain on top of
 these services.
+
 

@@ -55,6 +55,7 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
    * alongside the features it is meant to be recording (docs/09 §1).
    */
   '@BBeBee/plugin-inspector': {},
+  '@BBeBee/plugin-manager': {},
 
   // M1's feature set, identical to desktop's. Load order is derived from
   // `inject`, never declared here (docs/02 §3).

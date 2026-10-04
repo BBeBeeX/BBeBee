@@ -120,6 +120,13 @@ if (isMiniPlayerWindow) {
 
       scheduleIdle(async () => {
         for (const id of DEFERRED_PLUGIN_IDS) {
+          const pm = (app.ctx as unknown as { 'plugin-manager'?: { list(): readonly { id: string; enabled: boolean }[] } })['plugin-manager']
+          if (pm) {
+            const item = pm.list().find((p) => p.id === id)
+            if (item && item.enabled === false) {
+              continue
+            }
+          }
           try {
             await app.loadPlugin(id)
           } catch (error) {

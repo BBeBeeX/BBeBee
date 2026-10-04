@@ -147,6 +147,9 @@ importers:
       '@BBeBee/plugin-lyrics-ui-desktop':
         specifier: workspace:*
         version: link:../../packages/ui/plugin-lyrics-ui-desktop
+      '@BBeBee/plugin-manager':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-manager
       '@BBeBee/plugin-mini-player':
         specifier: workspace:*
         version: link:../../packages/feature/plugin-mini-player
@@ -346,6 +349,9 @@ importers:
       '@BBeBee/plugin-lyrics':
         specifier: workspace:*
         version: link:../../packages/feature/plugin-lyrics
+      '@BBeBee/plugin-manager':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-manager
       '@BBeBee/plugin-mini-player':
         specifier: workspace:*
         version: link:../../packages/feature/plugin-mini-player
@@ -1181,6 +1187,22 @@ importers:
       '@types/react':
         specifier: ^19.2.0
         version: 19.2.18
+
+  packages/feature/plugin-manager:
+    dependencies:
+      '@BBeBee/kernel':
+        specifier: workspace:*
+        version: link:../../kernel
+      '@BBeBee/protocol':
+        specifier: workspace:*
+        version: link:../../protocol
+      cordis:
+        specifier: 4.0.0-rc.9
+        version: 4.0.0-rc.9
+    devDependencies:
+      '@BBeBee/plugin-inspector':
+        specifier: workspace:*
+        version: link:../plugin-inspector
 
   packages/feature/plugin-mini-player:
     dependencies:
@@ -2071,6 +2093,9 @@ importers:
       '@BBeBee/kernel':
         specifier: workspace:*
         version: link:../../kernel
+      '@BBeBee/plugin-inspector':
+        specifier: workspace:*
+        version: link:../../feature/plugin-inspector
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
@@ -2084,9 +2109,6 @@ importers:
         specifier: 19.2.3
         version: 19.2.3
     devDependencies:
-      '@BBeBee/plugin-inspector':
-        specifier: workspace:*
-        version: link:../../feature/plugin-inspector
       '@testing-library/react':
         specifier: ^16.3.3
         version: 16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -2094,7 +2116,7 @@ importers:
         specifier: ^19.2.0
         version: 19.2.18
       '@types/react-dom':
-        specifier: ^19.2.7
+        specifier: ^19.2.0
         version: 19.2.7(@types/react@19.2.18)
       react-dom:
         specifier: 19.2.3

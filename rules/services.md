@@ -37,6 +37,7 @@ Declared in `packages/protocol/src/services/` and augmented onto `Context`:
 | `ctx.settings` | User app settings (theme, audio engine & exclusive mode, shortcuts) and dynamic contribution registry (`contribute`, `getContributions`) | `plugin-settings` (feature service with store persistence) |
 | `ctx.theme` | Theme registry, token injection, dynamic theme management | `plugin-theme` (feature service with DOM/store sync) |
 | `ctx.share` | Metadata serialization, image steganography, track/playlist/album/lyrics sharing | `plugin-share` (headless service), `plugin-share-ui-desktop` (views) |
+| `ctx['plugin-manager']` | Plugin registry, runtime fiber states, dependency graph, and persistent lifecycle management | `plugin-manager` (feature service with store persistence & boot bridge) |
 | `ctx.logger` | Scoped diagnostic logging via Cordis | Core service / Cordis native |
 
 ---

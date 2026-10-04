@@ -1938,6 +1938,60 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "lyrics"
   },
+  "@BBeBee/plugin-manager": {
+    "id": "@BBeBee/plugin-manager",
+    "name": "@BBeBee/plugin-manager",
+    "displayName": "Plugin Manager",
+    "description": "ctx['plugin-manager'] — plugin discovery, runtime state tracking, lifecycle management, and dependencies graph.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [
+      "@BBeBee/plugin-inspector"
+    ],
+    "systemId": "layer-4",
+    "moduleId": "plugins",
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "plugin-manager"
+      ]
+    },
+    "effect": "pluginManager"
+  },
+  "plugin-manager": {
+    "id": "@BBeBee/plugin-manager",
+    "name": "@BBeBee/plugin-manager",
+    "displayName": "Plugin Manager",
+    "description": "ctx['plugin-manager'] — plugin discovery, runtime state tracking, lifecycle management, and dependencies graph.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [
+      "@BBeBee/plugin-inspector"
+    ],
+    "systemId": "layer-4",
+    "moduleId": "plugins",
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "plugin-manager"
+      ]
+    },
+    "effect": "pluginManager"
+  },
   "@BBeBee/plugin-mini-player": {
     "id": "@BBeBee/plugin-mini-player",
     "name": "@BBeBee/plugin-mini-player",
