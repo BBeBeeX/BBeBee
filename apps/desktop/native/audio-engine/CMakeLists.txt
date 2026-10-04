@@ -4,6 +4,12 @@ project(audio-engine LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(MSVC)
+    add_compile_options(/W4)
+else()
+    add_compile_options(-Wall -Wextra)
+endif()
+
 add_executable(audio-engine
     main.cpp
     pcm_ring_buffer.cpp
@@ -35,6 +41,10 @@ add_executable(audio-engine-tests
     tests/test_pcm_tap.cpp
     pcm_ring_buffer.cpp
     pcm_ring_buffer.hpp
+    fft.hpp
 )
 target_link_libraries(audio-engine-tests PRIVATE Threads::Threads)
+if(UNIX)
+    target_link_libraries(audio-engine-tests PRIVATE ${CMAKE_DL_LIBS})
+endif()
 add_test(NAME audio-engine-tests COMMAND audio-engine-tests)

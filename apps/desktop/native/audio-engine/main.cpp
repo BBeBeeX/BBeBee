@@ -105,16 +105,13 @@ struct MpvDynLib {
             candidates.push_back(exeDir + "\\libmpv-2.dll");
             candidates.push_back(exeDir + "\\mpv-1.dll");
         }
-        candidates.push_back("mpv-2.dll");
-        candidates.push_back("libmpv-2.dll");
-        candidates.push_back("mpv-1.dll");
+        // Note: bare names (e.g. "mpv-2.dll") are omitted to prevent DLL hijacking via CWD/PATH
 #elif defined(__APPLE__)
         if (!exeDir.empty()) {
             candidates.push_back(exeDir + "/libmpv.2.dylib");
             candidates.push_back(exeDir + "/libmpv.dylib");
         }
-        candidates.push_back("libmpv.2.dylib");
-        candidates.push_back("libmpv.dylib");
+        // System standard locations only
         candidates.push_back("/usr/local/lib/libmpv.dylib");
         candidates.push_back("/opt/homebrew/lib/libmpv.dylib");
 #else
@@ -123,16 +120,16 @@ struct MpvDynLib {
             candidates.push_back(exeDir + "/libmpv.so.1");
             candidates.push_back(exeDir + "/libmpv.so");
         }
-        candidates.push_back("libmpv.so.2");
-        candidates.push_back("libmpv.so.1");
-        candidates.push_back("libmpv.so");
+        // System standard locations only
         candidates.push_back("/usr/lib/libmpv.so.2");
         candidates.push_back("/usr/lib/x86_64-linux-gnu/libmpv.so.2");
+        candidates.push_back("/usr/lib64/libmpv.so.2");
 #endif
 
         for (const auto& path : candidates) {
 #if defined(_WIN32)
-            HMODULE h = LoadLibraryA(path.c_str());
+            DWORD searchFlags = LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32;
+            HMODULE h = LoadLibraryExA(path.c_str(), NULL, searchFlags);
             if (h) {
                 handle = reinterpret_cast<void*>(h);
                 create = reinterpret_cast<fn_mpv_create>(GetProcAddress(h, "mpv_create"));
@@ -182,6 +179,11 @@ struct MpvDynLib {
                 handle = nullptr;
             }
 #endif
+        }
+
+        std::cerr << "[audio-engine] Error: Unable to locate or load libmpv from restricted secure paths:\n";
+        for (const auto& p : candidates) {
+            std::cerr << "  - checked: " << p << "\n";
         }
         return false;
     }
@@ -248,8 +250,16 @@ public:
     }
 
     void init(const JsonValue& config) {
+        if (running.exchange(true)) {
+            std::cerr << "[audio-engine] Warning: init called on already running engine, ignoring reentrant init\n";
+            return;
+        }
+
         fftSize = config.get("fftSize").asInt(128);
-        fftProcessor.setFftSize(fftSize);
+        {
+            std::lock_guard<std::mutex> fLock(fftMutex);
+            fftProcessor.setFftSize(fftSize);
+        }
         deviceId = config.get("deviceId").asString("default");
         audioExclusive = config.get("audioExclusive").asBool(false);
         std::string customAo = config.get("ao").asString("");
@@ -301,40 +311,50 @@ public:
                 mpvLib.set_option_string(mpv, "video", "no");
                 mpvLib.set_option_string(mpv, "audio-pitch-correction", "yes");
 
-                mpvLib.initialize(mpv);
+                int initRes = mpvLib.initialize(mpv);
+                if (initRes < 0) {
+                    std::cerr << "[audio-engine] Error: mpv_initialize failed with error code "
+                              << initRes << " (" << (mpvLib.error_string ? mpvLib.error_string(initRes) : "unknown")
+                              << ")\n";
+                    if (mpvLib.destroy) {
+                        mpvLib.destroy(mpv);
+                    }
+                    mpv = nullptr;
+                } else {
+                    // Surface mpv's own diagnostics: without this an END_FILE
+                    // error is just a code, and AO/DSD failures are undiagnosable.
+                    if (mpvLib.request_log_messages) mpvLib.request_log_messages(mpv, "warn");
 
-                // Surface mpv's own diagnostics: without this an END_FILE
-                // error is just a code, and AO/DSD failures are undiagnosable.
-                if (mpvLib.request_log_messages) mpvLib.request_log_messages(mpv, "warn");
+                    // Observe real mpv properties for exact playback tracking
+                    if (mpvLib.observe_property) {
+                        mpvLib.observe_property(mpv, 1, "time-pos", MPV_FORMAT_DOUBLE);
+                        mpvLib.observe_property(mpv, 2, "duration", MPV_FORMAT_DOUBLE);
+                        mpvLib.observe_property(mpv, 3, "pause", MPV_FORMAT_FLAG);
+                        mpvLib.observe_property(mpv, 4, "eof-reached", MPV_FORMAT_FLAG);
+                        mpvLib.observe_property(mpv, 5, "audio-params/samplerate", MPV_FORMAT_INT64);
+                        mpvLib.observe_property(mpv, 6, "audio-params/channel-count", MPV_FORMAT_INT64);
+                        mpvLib.observe_property(mpv, 7, "af-metadata", MPV_FORMAT_STRING);
+                        mpvLib.observe_property(mpv, 8, "af-metadata/bbebee_astats", MPV_FORMAT_STRING);
+                    }
 
-                // Observe real mpv properties for exact playback tracking
-                if (mpvLib.observe_property) {
-                    mpvLib.observe_property(mpv, 1, "time-pos", MPV_FORMAT_DOUBLE);
-                    mpvLib.observe_property(mpv, 2, "duration", MPV_FORMAT_DOUBLE);
-                    mpvLib.observe_property(mpv, 3, "pause", MPV_FORMAT_FLAG);
-                    mpvLib.observe_property(mpv, 4, "eof-reached", MPV_FORMAT_FLAG);
-                    mpvLib.observe_property(mpv, 5, "audio-params/samplerate", MPV_FORMAT_INT64);
-                    mpvLib.observe_property(mpv, 6, "audio-params/channel-count", MPV_FORMAT_INT64);
-                    mpvLib.observe_property(mpv, 7, "af-metadata", MPV_FORMAT_STRING);
-                    mpvLib.observe_property(mpv, 8, "af-metadata/bbebee_astats", MPV_FORMAT_STRING);
+                    // Initial audio filter with astats metadata tap
+                    applyFilterGraph("");
+
+                    // Register real-time PCM tap callback if supported by mpv build
+                    if (mpvLib.set_pcm_callback) {
+                        mpvLib.set_pcm_callback(mpv, onMpvPcmCallback, this);
+                        std::cerr << "[audio-engine] libmpv PCM tap callback registered successfully\n";
+                    } else {
+                        std::cerr << "[audio-engine] Warning: libmpv does not export mpv_set_pcm_callback (unpatched mpv). Visualizer PCM tap disabled.\n";
+                    }
+
+                    std::cerr << "[audio-engine] libmpv initialized successfully\n";
                 }
-
-                // Initial audio filter with astats metadata tap
-                applyFilterGraph("");
-
-                // Register real-time PCM tap callback if supported by mpv build
-                if (mpvLib.set_pcm_callback) {
-                    mpvLib.set_pcm_callback(mpv, onMpvPcmCallback, this);
-                    std::cerr << "[audio-engine] libmpv PCM tap callback registered successfully\n";
-                }
-
-                std::cerr << "[audio-engine] libmpv initialized successfully\n";
             }
         } else {
             std::cerr << "[audio-engine] libmpv not found, running native audio fallback engine\n";
         }
 
-        running = true;
         eventThread = std::thread(&AudioEngineApp::eventLoop, this);
         visualizerThread = std::thread(&AudioEngineApp::visualizerLoop, this);
         heartbeatThread = std::thread(&AudioEngineApp::heartbeatLoop, this);
@@ -428,9 +448,13 @@ public:
 
         positionMs = 0;
         durationMs = 0;
+        endedDispatched = false;
         status = "loading";
         pcmRingBuffer.clear();
-        fftProcessor.reset();
+        {
+            std::lock_guard<std::mutex> fLock(fftMutex);
+            fftProcessor.reset();
+        }
 
         if (mpv && mpvLib.command) {
             const char* cmd[] = { "loadfile", mpvPath.c_str(), "replace", nullptr };
@@ -477,7 +501,10 @@ public:
         if (atMs >= 0) {
             positionMs = atMs;
             pcmRingBuffer.clear();
-            fftProcessor.reset();
+            {
+                std::lock_guard<std::mutex> fLock(fftMutex);
+                fftProcessor.reset();
+            }
             if (mpv && mpvLib.command) {
                 std::string secStr = std::to_string(atMs / 1000.0);
                 const char* seekCmd[] = { "seek", secStr.c_str(), "absolute", nullptr };
@@ -485,6 +512,7 @@ public:
             }
         }
 
+        endedDispatched = false;
         status = "playing";
         if (mpv && mpvLib.command) {
             const char* playCmd[] = { "set", "pause", "no", nullptr };
@@ -508,8 +536,12 @@ public:
         std::lock_guard<std::mutex> lock(engineMutex);
         status = "stopped";
         positionMs = 0;
+        endedDispatched = false;
         pcmRingBuffer.clear();
-        fftProcessor.reset();
+        {
+            std::lock_guard<std::mutex> fLock(fftMutex);
+            fftProcessor.reset();
+        }
         if (mpv && mpvLib.command) {
             const char* stopCmd[] = { "stop", nullptr };
             mpvLib.command(mpv, stopCmd);
@@ -520,8 +552,12 @@ public:
     void seek(int atMs) {
         std::lock_guard<std::mutex> lock(engineMutex);
         positionMs = std::max(0, durationMs > 0 ? std::min(atMs, durationMs) : atMs);
+        endedDispatched = false;
         pcmRingBuffer.clear();
-        fftProcessor.reset();
+        {
+            std::lock_guard<std::mutex> fLock(fftMutex);
+            fftProcessor.reset();
+        }
         if (mpv && mpvLib.command) {
             std::string secStr = std::to_string(positionMs / 1000.0);
             const char* seekCmd[] = { "seek", secStr.c_str(), "absolute", nullptr };
@@ -663,6 +699,7 @@ public:
         visualizerEnabled = enabled;
         if (newFftSize >= 16) {
             fftSize = newFftSize;
+            std::lock_guard<std::mutex> fLock(fftMutex);
             fftProcessor.setFftSize(fftSize);
         }
     }
@@ -727,6 +764,7 @@ private:
     std::atomic<bool> running{ false };
     std::mutex engineMutex;
     std::mutex ioMutex;
+    std::mutex fftMutex;
 
     std::thread eventThread;
     std::thread visualizerThread;
@@ -750,6 +788,7 @@ private:
     PcmRingBuffer pcmRingBuffer;
     JsonValue dspConfig;
     bool streamPlaying = false;
+    bool endedDispatched = false;
 
     static void onMpvPcmCallback(const float* data, int frames, int channels, int sample_rate, void* userdata) noexcept {
         if (userdata && data && frames > 0) {
@@ -797,27 +836,29 @@ private:
                     };
                     checkAndSet("lavfi.astats.Overall.RMS_level", currentRmsLevelDb);
                     checkAndSet("Overall.RMS_level", currentRmsLevelDb);
+                    checkAndSet("lavfi.astats.RMS_level", currentRmsLevelDb);
+                    checkAndSet("RMS_level", currentRmsLevelDb);
                     checkAndSet("lavfi.astats.Overall.Peak_level", currentPeakLevelDb);
                     checkAndSet("Overall.Peak_level", currentPeakLevelDb);
+                    checkAndSet("lavfi.astats.Peak_level", currentPeakLevelDb);
+                    checkAndSet("Peak_level", currentPeakLevelDb);
                 }
             } catch (...) {
                 // Not valid JSON, fall through to key-value parser
             }
         }
 
-        // If not parsed as JSON, parse key=value pairs (comma, newline, or semicolon separated)
+        // If not parsed as JSON, parse key=value or key:value pairs
         if (!parsed) {
             std::string input(metaStr);
-            size_t start = 0;
-            while (start < input.size()) {
-                size_t delim = input.find_first_of(",\n\r;", start);
-                std::string token = input.substr(start, delim == std::string::npos ? delim : delim - start);
-                start = (delim == std::string::npos) ? input.size() : delim + 1;
-
-                size_t eq = token.find('=');
-                if (eq != std::string::npos) {
-                    std::string key = token.substr(0, eq);
-                    std::string val = token.substr(eq + 1);
+            auto parsePair = [&](const std::string& token) {
+                size_t sep = token.find('=');
+                if (sep == std::string::npos) {
+                    sep = token.find(':');
+                }
+                if (sep != std::string::npos) {
+                    std::string key = token.substr(0, sep);
+                    std::string val = token.substr(sep + 1);
 
                     auto trim = [](std::string& s) {
                         size_t first = s.find_first_not_of(" \t\r\n");
@@ -828,21 +869,45 @@ private:
                     trim(key);
                     trim(val);
 
-                    if (key == "lavfi.astats.Overall.RMS_level" || key == "Overall.RMS_level") {
-                        if (val != "-inf" && !val.empty()) {
-                            try { currentRmsLevelDb = std::stof(val); parsed = true; } catch (...) {}
-                        } else {
-                            currentRmsLevelDb = -100.0f;
-                            parsed = true;
+                    auto checkKey = [&](const std::string& expected, std::atomic<float>& target) {
+                        if (key == expected) {
+                            if (val != "-inf" && !val.empty()) {
+                                try { target = std::stof(val); parsed = true; } catch (...) {}
+                            } else {
+                                target = -100.0f;
+                                parsed = true;
+                            }
                         }
-                    } else if (key == "lavfi.astats.Overall.Peak_level" || key == "Overall.Peak_level") {
-                        if (val != "-inf" && !val.empty()) {
-                            try { currentPeakLevelDb = std::stof(val); parsed = true; } catch (...) {}
-                        } else {
-                            currentPeakLevelDb = -100.0f;
-                            parsed = true;
-                        }
+                    };
+                    checkKey("lavfi.astats.Overall.RMS_level", currentRmsLevelDb);
+                    checkKey("Overall.RMS_level", currentRmsLevelDb);
+                    checkKey("lavfi.astats.RMS_level", currentRmsLevelDb);
+                    checkKey("RMS_level", currentRmsLevelDb);
+                    checkKey("lavfi.astats.Overall.Peak_level", currentPeakLevelDb);
+                    checkKey("Overall.Peak_level", currentPeakLevelDb);
+                    checkKey("lavfi.astats.Peak_level", currentPeakLevelDb);
+                    checkKey("Peak_level", currentPeakLevelDb);
+                }
+            };
+
+            // First split by commas, newlines, semicolons
+            size_t start = 0;
+            while (start < input.size()) {
+                size_t delim = input.find_first_of(",\n\r;", start);
+                std::string segment = input.substr(start, delim == std::string::npos ? delim : delim - start);
+                start = (delim == std::string::npos) ? input.size() : delim + 1;
+
+                // Within this segment, check if colons separate multiple key=value pairs (e.g. k1=v1:k2=v2)
+                if (segment.find('=') != std::string::npos && segment.find(':') != std::string::npos) {
+                    size_t subStart = 0;
+                    while (subStart < segment.size()) {
+                        size_t colon = segment.find(':', subStart);
+                        std::string subToken = segment.substr(subStart, colon == std::string::npos ? colon : colon - subStart);
+                        subStart = (colon == std::string::npos) ? segment.size() : colon + 1;
+                        parsePair(subToken);
                     }
+                } else {
+                    parsePair(segment);
                 }
             }
         }
@@ -912,8 +977,12 @@ private:
                         channels = static_cast<int>(ch);
                     }
 
+                    endedDispatched = false;
                     pcmRingBuffer.configure(sampleRate, channels, 65536);
-                    fftProcessor.reset();
+                    {
+                        std::lock_guard<std::mutex> fLock(fftMutex);
+                        fftProcessor.reset();
+                    }
 
                     JsonValue loaded = JsonValue::object();
                     loaded["type"] = "loaded";
@@ -951,14 +1020,20 @@ private:
                         int eof = *reinterpret_cast<int*>(prop->data);
                         if (eof) {
                             std::lock_guard<std::mutex> lock(engineMutex);
-                            status = "ended";
-                            positionMs = durationMs;
-                            pcmRingBuffer.clear();
-                            fftProcessor.reset();
-                            sendPlaybackState();
-                            JsonValue ended = JsonValue::object();
-                            ended["type"] = "ended";
-                            sendJson(ended);
+                            if (!endedDispatched) {
+                                endedDispatched = true;
+                                status = "ended";
+                                positionMs = durationMs;
+                                pcmRingBuffer.clear();
+                                {
+                                    std::lock_guard<std::mutex> fLock(fftMutex);
+                                    fftProcessor.reset();
+                                }
+                                sendPlaybackState();
+                                JsonValue ended = JsonValue::object();
+                                ended["type"] = "ended";
+                                sendJson(ended);
+                            }
                         }
                     } else if ((propName == "af-metadata" || propName == "af-metadata/bbebee_astats") && prop->format == MPV_FORMAT_STRING) {
                         char* metaStr = *reinterpret_cast<char**>(prop->data);
@@ -984,26 +1059,29 @@ private:
                     auto* end = reinterpret_cast<mpv_event_end_file*>(event->data);
                     std::lock_guard<std::mutex> lock(engineMutex);
                     pcmRingBuffer.clear();
-                    fftProcessor.reset();
+                    {
+                        std::lock_guard<std::mutex> fLock(fftMutex);
+                        fftProcessor.reset();
+                    }
                     if (end && end->reason == 4 /* MPV_END_FILE_REASON_ERROR */) {
                         status = "error";
                         JsonValue err = JsonValue::object();
                         err["type"] = "error";
                         err["message"] = end->error ? (mpvLib.error_string ? mpvLib.error_string(end->error) : "Audio playback error") : "File loading failed";
                         sendJson(err);
-                        // The renderer's source handle polls the cached playback
-                        // state; without this push it would keep seeing the
-                        // stale "playing" and sit silent forever.
                         sendPlaybackState();
                     } else if (end && end->reason == 0 /* MPV_END_FILE_REASON_EOF */) {
-                        status = "ended";
-                        positionMs = durationMs;
-                        sendPlaybackState();
-                        JsonValue ended = JsonValue::object();
-                        ended["type"] = "ended";
-                        sendJson(ended);
+                        if (!endedDispatched) {
+                            endedDispatched = true;
+                            status = "ended";
+                            positionMs = durationMs;
+                            sendPlaybackState();
+                            JsonValue ended = JsonValue::object();
+                            ended["type"] = "ended";
+                            sendJson(ended);
+                        }
                     } else {
-                 status = "stopped";
+                        status = "stopped";
                         sendPlaybackState();
                     }
                     break;
@@ -1052,16 +1130,30 @@ private:
                 isPlaying = ((status == "playing") || streamPlaying) && !muted && volume > 0.01;
                 currentChannels = channels > 0 ? channels : 2;
                 currentSr = sampleRate > 0 ? sampleRate : 44100;
+            }
+            {
+                std::lock_guard<std::mutex> fLock(fftMutex);
                 n = fftProcessor.getFftSize();
             }
 
             if (!isPlaying) {
                 pcmRingBuffer.clear();
-                fftProcessor.reset();
-                if (zeroFramesSent < 2) {
-                    zeroFramesSent++;
-                    fftProcessor.processInterleaved(nullptr, 0, currentChannels);
-                    sendFftFrame(fftProcessor.getFrequencyData(), fftProcessor.getTimeDomainData());
+                std::vector<uint8_t> freqData;
+                std::vector<uint8_t> timeData;
+                bool shouldSend = false;
+                {
+                    std::lock_guard<std::mutex> fLock(fftMutex);
+                    fftProcessor.reset();
+                    if (zeroFramesSent < 2) {
+                        zeroFramesSent++;
+                        fftProcessor.processInterleaved(nullptr, 0, currentChannels);
+                        freqData = fftProcessor.getFrequencyData();
+                        timeData = fftProcessor.getTimeDomainData();
+                        shouldSend = true;
+                    }
+                }
+                if (shouldSend) {
+                    sendFftFrame(freqData, timeData);
                 } else {
                     std::this_thread::sleep_for(std::chrono::milliseconds(70));
                 }
@@ -1091,14 +1183,20 @@ private:
 
             zeroFramesSent = 0;
 
-            // Process real PCM downmixing, Hann windowing, FFT, and real waveform extraction
-            fftProcessor.processInterleaved(
-                framesRead > 0 ? pcmChunk.data() : nullptr,
-                framesRead,
-                currentChannels
-            );
+            std::vector<uint8_t> freqData;
+            std::vector<uint8_t> timeData;
+            {
+                std::lock_guard<std::mutex> fLock(fftMutex);
+                fftProcessor.processInterleaved(
+                    framesRead > 0 ? pcmChunk.data() : nullptr,
+                    framesRead,
+                    currentChannels
+                );
+                freqData = fftProcessor.getFrequencyData();
+                timeData = fftProcessor.getTimeDomainData();
+            }
 
-            sendFftFrame(fftProcessor.getFrequencyData(), fftProcessor.getTimeDomainData());
+            sendFftFrame(freqData, timeData);
         }
     }
 

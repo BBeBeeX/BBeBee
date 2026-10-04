@@ -45,8 +45,8 @@ if (!chosenCompiler) {
 
 const unixFlags = ['-pthread', '-ldl']
 const args = chosenCompiler === 'cl'
-  ? ['/std:c++17', '/O2', '/EHsc', '/utf-8', ...testSrcFiles, `/Fe:${testExe}`]
-  : ['-O2', '-std=c++17', ...testSrcFiles, '-o', testExe, ...unixFlags]
+  ? ['/std:c++17', '/O2', '/EHsc', '/W4', '/utf-8', ...testSrcFiles, `/Fe:${testExe}`]
+  : ['-Wall', '-Wextra', '-O2', '-std=c++17', ...testSrcFiles, '-o', testExe, ...unixFlags]
 
 console.log(`[test-audio-engine] Building: ${chosenCompiler} ${args.join(' ')}`)
 const buildProc = spawnSync(chosenCompiler, args, { stdio: 'inherit' })

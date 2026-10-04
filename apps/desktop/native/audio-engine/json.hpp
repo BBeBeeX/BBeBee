@@ -117,6 +117,28 @@ public:
     }
 
 private:
+    static void escapeString(std::ostringstream& ss, const std::string& str) {
+        ss << '"';
+        for (char c : str) {
+            unsigned char uc = static_cast<unsigned char>(c);
+            if (c == '"') ss << "\\\"";
+            else if (c == '\\') ss << "\\\\";
+            else if (c == '\b') ss << "\\b";
+            else if (c == '\f') ss << "\\f";
+            else if (c == '\n') ss << "\\n";
+            else if (c == '\r') ss << "\\r";
+            else if (c == '\t') ss << "\\t";
+            else if (uc < 0x20) {
+                char buf[7];
+                std::snprintf(buf, sizeof(buf), "\\u%04x", uc);
+                ss << buf;
+            } else {
+                ss << c;
+            }
+        }
+        ss << '"';
+    }
+
     void serializeInternal(std::ostringstream& ss) const {
         switch (type) {
             case TYPE_NULL:
@@ -133,18 +155,7 @@ private:
                 }
                 break;
             case TYPE_STRING:
-                ss << '"';
-                for (char c : strVal) {
-                    if (c == '"') ss << "\\\"";
-                    else if (c == '\\') ss << "\\\\";
-                    else if (c == '\b') ss << "\\b";
-                    else if (c == '\f') ss << "\\f";
-                    else if (c == '\n') ss << "\\n";
-                    else if (c == '\r') ss << "\\r";
-                    else if (c == '\t') ss << "\\t";
-                    else ss << c;
-                }
-                ss << '"';
+                escapeString(ss, strVal);
                 break;
             case TYPE_ARRAY:
                 ss << '[';
@@ -160,7 +171,8 @@ private:
                 for (const auto& kv : objVal) {
                     if (!first) ss << ',';
                     first = false;
-                    ss << '"' << kv.first << "\":";
+                    escapeString(ss, kv.first);
+                    ss << ':';
                     kv.second.serializeInternal(ss);
                 }
                 ss << '}';
@@ -200,6 +212,13 @@ private:
     static JsonValue parseString(const std::string& s, size_t& pos) {
         ++pos; // skip opening quote
         std::string result;
+        auto hexVal = [](char h) -> int {
+            if (h >= '0' && h <= '9') return h - '0';
+            if (h >= 'a' && h <= 'f') return h - 'a' + 10;
+            if (h >= 'A' && h <= 'F') return h - 'A' + 10;
+            return -1;
+        };
+
         while (pos < s.size()) {
             char c = s[pos++];
             if (c == '"') return JsonValue(result);
@@ -214,12 +233,6 @@ private:
                 else if (esc == 'r') result += '\r';
                 else if (esc == 't') result += '\t';
                 else if (esc == 'u' && pos + 4 <= s.size()) {
-                    auto hexVal = [](char h) -> int {
-                        if (h >= '0' && h <= '9') return h - '0';
-                        if (h >= 'a' && h <= 'f') return h - 'a' + 10;
-                        if (h >= 'A' && h <= 'F') return h - 'A' + 10;
-                        return -1;
-                    };
                     int d0 = hexVal(s[pos]);
                     int d1 = hexVal(s[pos + 1]);
                     int d2 = hexVal(s[pos + 2]);
@@ -230,15 +243,48 @@ private:
                                       (static_cast<uint32_t>(d2) << 4) |
                                       static_cast<uint32_t>(d3);
                         pos += 4;
+
+                        // Check for UTF-16 surrogate pair: high surrogate 0xD800..0xDBFF
+                        if (cp >= 0xD800 && cp <= 0xDBFF) {
+                            if (pos + 6 <= s.size() && s[pos] == '\\' && s[pos + 1] == 'u') {
+                                int l0 = hexVal(s[pos + 2]);
+                                int l1 = hexVal(s[pos + 3]);
+                                int l2 = hexVal(s[pos + 4]);
+                                int l3 = hexVal(s[pos + 5]);
+                                if (l0 >= 0 && l1 >= 0 && l2 >= 0 && l3 >= 0) {
+                                    uint32_t low = (static_cast<uint32_t>(l0) << 12) |
+                                                   (static_cast<uint32_t>(l1) << 8) |
+                                                   (static_cast<uint32_t>(l2) << 4) |
+                                                   static_cast<uint32_t>(l3);
+                                    if (low >= 0xDC00 && low <= 0xDFFF) {
+                                        pos += 6;
+                                        cp = 0x10000 + (((cp - 0xD800) << 10) | (low - 0xDC00));
+                                    }
+                                }
+                            }
+                        }
+
+                        // Encode cp to UTF-8
                         if (cp <= 0x7F) {
                             result += static_cast<char>(cp);
                         } else if (cp <= 0x7FF) {
                             result += static_cast<char>(0xC0 | ((cp >> 6) & 0x1F));
                             result += static_cast<char>(0x80 | (cp & 0x3F));
-                        } else {
-                            result += static_cast<char>(0xE0 | ((cp >> 12) & 0x0F));
+                        } else if (cp <= 0xFFFF) {
+                            if (cp >= 0xD800 && cp <= 0xDFFF) {
+                                result += "\xEF\xBF\xBD"; // U+FFFD replacement char
+                            } else {
+                                result += static_cast<char>(0xE0 | ((cp >> 12) & 0x0F));
+                                result += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+                                result += static_cast<char>(0x80 | (cp & 0x3F));
+                            }
+                        } else if (cp <= 0x10FFFF) {
+                            result += static_cast<char>(0xF0 | ((cp >> 18) & 0x07));
+                            result += static_cast<char>(0x80 | ((cp >> 12) & 0x3F));
                             result += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
                             result += static_cast<char>(0x80 | (cp & 0x3F));
+                        } else {
+                            result += "\xEF\xBF\xBD";
                         }
                     } else {
                         result += 'u';

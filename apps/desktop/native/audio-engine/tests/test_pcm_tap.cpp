@@ -18,6 +18,7 @@
 #include <vector>
 #include <thread>
 #include <atomic>
+#include <mutex>
 #include <chrono>
 #include <cassert>
 #include <cmath>
@@ -27,6 +28,7 @@
 #include <random>
 
 #include "../pcm_ring_buffer.hpp"
+#include "../fft.hpp"
 
 using namespace audio_engine;
 
@@ -40,6 +42,8 @@ enum MpvFormat {
     MPV_FMT_S32P = 6,
     MPV_FMT_DOUBLE = 7,
     MPV_FMT_DOUBLEP = 8,
+    MPV_FMT_U8 = 9,
+    MPV_FMT_U8P = 10,
 };
 
 // Simulated shared tap state matching mpv patch
@@ -82,7 +86,9 @@ struct SimulatedMpvTap {
                 if (cb) {
                     if (fmt == MPV_FMT_FLOAT) {
                         cb(static_cast<const float*>(data[0]), num_samples, ch, rate, ud);
-                    } else {
+                    } else if (fmt == MPV_FMT_FLOATP || fmt == MPV_FMT_S16 || fmt == MPV_FMT_S16P ||
+                               fmt == MPV_FMT_S32 || fmt == MPV_FMT_S32P ||
+                               fmt == MPV_FMT_DOUBLE || fmt == MPV_FMT_DOUBLEP) {
                         constexpr size_t SCRATCH_SIZE = 32768;
                         static thread_local float scratch[SCRATCH_SIZE];
                         int max_take = static_cast<int>(SCRATCH_SIZE / static_cast<size_t>(ch));
@@ -117,11 +123,25 @@ struct SimulatedMpvTap {
                                     for (int i = 0; i < take * ch; ++i) {
                                         scratch[i] = s32[base + i] * (1.0f / 2147483648.0f);
                                     }
+                                } else if (fmt == MPV_FMT_S32P) {
+                                    const int32_t* const* planes_s32 = reinterpret_cast<const int32_t* const*>(data);
+                                    for (int i = 0; i < take; ++i) {
+                                        for (int c = 0; c < ch; ++c) {
+                                            scratch[i * ch + c] = planes_s32[c][offset + i] * (1.0f / 2147483648.0f);
+                                        }
+                                    }
                                 } else if (fmt == MPV_FMT_DOUBLE) {
                                     const double* dbl = static_cast<const double*>(data[0]);
                                     int base = offset * ch;
                                     for (int i = 0; i < take * ch; ++i) {
                                         scratch[i] = static_cast<float>(dbl[base + i]);
+                                    }
+                                } else if (fmt == MPV_FMT_DOUBLEP) {
+                                    const double* const* planes_dbl = reinterpret_cast<const double* const*>(data);
+                                    for (int i = 0; i < take; ++i) {
+                                        for (int c = 0; c < ch; ++c) {
+                                            scratch[i * ch + c] = static_cast<float>(planes_dbl[c][offset + i]);
+                                        }
                                     }
                                 }
                                 cb(scratch, take, ch, rate, ud);
@@ -129,6 +149,8 @@ struct SimulatedMpvTap {
                                 remaining -= take;
                             }
                         }
+                    } else {
+                        // Unknown/unsupported format: skip callback completely
                     }
                 }
             }
@@ -437,8 +459,33 @@ void test_block_sizes() {
         assert(totalReceived.load() == bs);
     }
 
+    // P3 #12: Test 8 channels x 8192 frames to trigger multi-chunk path (scratch: 32768 floats / 8 = 4096 frames/chunk)
+    {
+        totalReceived.store(0);
+        std::atomic<size_t> callbackCount{ 0 };
+        auto chunkCb = [](const float*, int frames, int, int, void* ud) {
+            auto* p = static_cast<std::pair<std::atomic<size_t>*, std::atomic<size_t>*>*>(ud);
+            p->first->fetch_add(static_cast<size_t>(frames), std::memory_order_relaxed);
+            p->second->fetch_add(1, std::memory_order_relaxed);
+        };
+        std::pair<std::atomic<size_t>*, std::atomic<size_t>*> ctx(&totalReceived, &callbackCount);
+        tap.set_callback(chunkCb, &ctx);
+
+        constexpr size_t FRAMES_8CH = 8192;
+        constexpr int CHANNELS_8 = 8;
+        std::vector<std::vector<float>> planesData(CHANNELS_8, std::vector<float>(FRAMES_8CH, 0.05f));
+        std::vector<const float*> planePtrs(CHANNELS_8);
+        for (int c = 0; c < CHANNELS_8; ++c) planePtrs[c] = planesData[c].data();
+
+        tap.invoke_tap(const_cast<void**>(reinterpret_cast<const void**>(planePtrs.data())),
+                       static_cast<int>(FRAMES_8CH), CHANNELS_8, 48000, MPV_FMT_FLOATP);
+
+        assert(totalReceived.load() == FRAMES_8CH);
+        assert(callbackCount.load() == 2); // Exactly 2 chunks of 4096 frames!
+    }
+
     tap.set_callback(nullptr, nullptr);
-    std::cout << "PASSED (Block sizes 1, 64, 128, 256, 512, 1024, 2048, 4096, 8192)\n";
+    std::cout << "PASSED (Block sizes 1..8192, multi-chunk 8ch x 8192 verified)\n";
 }
 
 // Test 8: Overflow policy with slow consumer
@@ -532,7 +579,54 @@ void test_data_consistency() {
             assert(std::abs(captured[2 * static_cast<size_t>(i) + 1] - expR) < 1e-4f);
         }
     }
-    std::cout << "PASSED (Ramp linearity, planar interleave & S16 conversion verified)\n";
+
+    // 3. Format conversion test (S32P -> Canonical Float32)
+    {
+        SimulatedMpvTap tap;
+        std::vector<float> captured;
+        auto cb = [](const float* data, int frames, int channels, int, void* ud) {
+            auto* vec = static_cast<std::vector<float>*>(ud);
+            vec->insert(vec->end(), data, data + static_cast<size_t>(frames * channels));
+        };
+        tap.set_callback(cb, &captured);
+
+        constexpr int S32_FRAMES = 1000;
+        std::vector<int32_t> plane0(S32_FRAMES, 1073741824); // 0.5f in normalized
+        std::vector<int32_t> plane1(S32_FRAMES, -1073741824); // -0.5f
+        const int32_t* planes[2] = { plane0.data(), plane1.data() };
+        tap.invoke_tap(const_cast<void**>(reinterpret_cast<const void**>(planes)), S32_FRAMES, 2, 48000, MPV_FMT_S32P);
+
+        assert(captured.size() == static_cast<size_t>(S32_FRAMES * 2));
+        for (int i = 0; i < S32_FRAMES; ++i) {
+            assert(std::abs(captured[2 * static_cast<size_t>(i)] - 0.5f) < 1e-4f);
+            assert(std::abs(captured[2 * static_cast<size_t>(i) + 1] - (-0.5f)) < 1e-4f);
+        }
+    }
+
+    // 4. Format conversion test (DOUBLEP -> Canonical Float32)
+    {
+        SimulatedMpvTap tap;
+        std::vector<float> captured;
+        auto cb = [](const float* data, int frames, int channels, int, void* ud) {
+            auto* vec = static_cast<std::vector<float>*>(ud);
+            vec->insert(vec->end(), data, data + static_cast<size_t>(frames * channels));
+        };
+        tap.set_callback(cb, &captured);
+
+        constexpr int DBL_FRAMES = 1000;
+        std::vector<double> plane0(DBL_FRAMES, 0.75);
+        std::vector<double> plane1(DBL_FRAMES, -0.25);
+        const double* planes[2] = { plane0.data(), plane1.data() };
+        tap.invoke_tap(const_cast<void**>(reinterpret_cast<const void**>(planes)), DBL_FRAMES, 2, 48000, MPV_FMT_DOUBLEP);
+
+        assert(captured.size() == static_cast<size_t>(DBL_FRAMES * 2));
+        for (int i = 0; i < DBL_FRAMES; ++i) {
+            assert(std::abs(captured[2 * static_cast<size_t>(i)] - 0.75f) < 1e-5f);
+            assert(std::abs(captured[2 * static_cast<size_t>(i) + 1] - (-0.25f)) < 1e-5f);
+        }
+    }
+
+    std::cout << "PASSED (Ramp linearity, S16, S32P, and DOUBLEP conversions verified)\n";
 }
 
 // Test 10: Performance benchmark & latency percentiles
@@ -586,6 +680,120 @@ void test_benchmark() {
     std::cout << "  └─ Max:    " << maxDur << " ns\n";
 }
 
+// Test 11: Unsupported format handling (U8 / U8P zero callback)
+void test_unsupported_formats() {
+    std::cout << "[Test 11] Unsupported format skip (U8 / U8P zero callback)... " << std::flush;
+    SimulatedMpvTap tap;
+    std::atomic<size_t> callbackInvocations{ 0 };
+    auto cb = [](const float*, int, int, int, void* ud) {
+        auto* cnt = static_cast<std::atomic<size_t>*>(ud);
+        cnt->fetch_add(1, std::memory_order_relaxed);
+    };
+    tap.set_callback(cb, &callbackInvocations);
+
+    uint8_t u8Data[512 * 2];
+    std::memset(u8Data, 128, sizeof(u8Data));
+    void* planes[1] = { u8Data };
+
+    tap.invoke_tap(planes, 512, 2, 48000, MPV_FMT_U8);
+    assert(callbackInvocations.load() == 0);
+
+    const uint8_t* u8Planes[2] = { u8Data, u8Data + 512 };
+    tap.invoke_tap(const_cast<void**>(reinterpret_cast<const void**>(u8Planes)), 512, 2, 48000, MPV_FMT_U8P);
+    assert(callbackInvocations.load() == 0);
+
+    tap.set_callback(nullptr, nullptr);
+    std::cout << "PASSED (Zero callbacks for U8 and U8P formats)\n";
+}
+
+// Test 12: FftProcessor concurrency stress (multi-thread race prevention under TSan)
+void test_fft_processor_concurrency() {
+    std::cout << "[Test 12] FftProcessor concurrency stress (multi-thread race prevention)... " << std::flush;
+    std::mutex fftMutex;
+    FftProcessor fft({ 128, -100.0f, -30.0f, 0.8f });
+
+    std::atomic<bool> running{ true };
+    std::atomic<uint64_t> processCount{ 0 };
+    std::atomic<uint64_t> resizeCount{ 0 };
+    std::atomic<uint64_t> readCount{ 0 };
+    std::atomic<uint64_t> resetCount{ 0 };
+
+    // Worker 1: processInterleaved
+    std::thread tProcess([&]() {
+        std::vector<float> pcm(4096 * 2, 0.3f);
+        while (running.load(std::memory_order_relaxed)) {
+            {
+                std::lock_guard<std::mutex> lock(fftMutex);
+                fft.processInterleaved(pcm.data(), 128, 2);
+            }
+            processCount.fetch_add(1, std::memory_order_relaxed);
+            std::this_thread::yield();
+        }
+    });
+
+    // Worker 2: getFrequencyData / getTimeDomainData
+    std::thread tReader([&]() {
+        while (running.load(std::memory_order_relaxed)) {
+            std::vector<uint8_t> freq;
+            std::vector<uint8_t> time;
+            {
+                std::lock_guard<std::mutex> lock(fftMutex);
+                freq = fft.getFrequencyData();
+                time = fft.getTimeDomainData();
+            }
+            assert(!freq.empty() && !time.empty());
+            readCount.fetch_add(1, std::memory_order_relaxed);
+            std::this_thread::yield();
+        }
+    });
+
+    // Worker 3: setFftSize (causes memory reallocation)
+    std::thread tResize([&]() {
+        const int sizes[] = { 32, 64, 128, 256, 512, 1024 };
+        int idx = 0;
+        while (running.load(std::memory_order_relaxed)) {
+            {
+                std::lock_guard<std::mutex> lock(fftMutex);
+                fft.setFftSize(sizes[idx % 6]);
+            }
+            idx++;
+            resizeCount.fetch_add(1, std::memory_order_relaxed);
+            std::this_thread::yield();
+        }
+    });
+
+    // Worker 4: reset()
+    std::thread tReset([&]() {
+        while (running.load(std::memory_order_relaxed)) {
+            {
+                std::lock_guard<std::mutex> lock(fftMutex);
+                fft.reset();
+            }
+            resetCount.fetch_add(1, std::memory_order_relaxed);
+            std::this_thread::yield();
+        }
+    });
+
+    // Run high contention concurrency test
+    std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+    running.store(false, std::memory_order_release);
+
+    tProcess.join();
+    tReader.join();
+    tResize.join();
+    tReset.join();
+
+    assert(processCount.load() > 50);
+    assert(resizeCount.load() > 50);
+    assert(readCount.load() > 50);
+    assert(resetCount.load() > 50);
+
+    std::cout << "PASSED (Process: " << processCount.load()
+              << ", Resize: " << resizeCount.load()
+              << ", Read: " << readCount.load()
+              << ", Reset: " << resetCount.load() << " ops under lock)\n";
+}
+
 int main() {
     std::cout << "========================================================\n";
     std::cout << " BBeBee Audio Engine & PCM Tap Concurrency Test Suite\n";
@@ -601,9 +809,11 @@ int main() {
     test_overflow_policy();
     test_data_consistency();
     test_benchmark();
+    test_unsupported_formats();
+    test_fft_processor_concurrency();
 
     std::cout << "========================================================\n";
-    std::cout << " ALL 10 TESTS PASSED CLEANLY!\n";
+    std::cout << " ALL 12 TESTS PASSED CLEANLY!\n";
     std::cout << "========================================================\n";
     return 0;
 }

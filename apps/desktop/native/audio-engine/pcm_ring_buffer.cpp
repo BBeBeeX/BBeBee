@@ -11,9 +11,17 @@ bool PcmRingBuffer::configure(int sampleRate, int channels, size_t capacityFrame
         return false;
     }
 
+    constexpr size_t MAX_CAPACITY_FRAMES = 1ULL << 30;
+    if (capacityFrames > MAX_CAPACITY_FRAMES) {
+        return false;
+    }
+
     // Round up capacity to next power of 2 for wrap-around masking
     size_t cap = 1;
     while (cap < capacityFrames) {
+        if (cap > (MAX_CAPACITY_FRAMES >> 1)) {
+            return false;
+        }
         cap <<= 1;
     }
 
