@@ -4,6 +4,7 @@ import { Switch } from './Switch.js'
 
 export interface PluginDetailsProps {
   plugin: PluginInfo
+  showAdvancedSettings?: boolean
   onToggleEnabled?: (plugin: PluginInfo, enabled: boolean) => void
 }
 
@@ -42,6 +43,7 @@ function formatConfigStatus(status?: ConfigStatus): string {
 
 export function PluginDetails({
   plugin,
+  showAdvancedSettings = false,
   onToggleEnabled,
 }: PluginDetailsProps): ReactElement {
   const isFeatureOrUi = plugin.systemId === 'layer-4' || plugin.systemId === 'layer-5'
@@ -210,35 +212,48 @@ export function PluginDetails({
       ),
     ),
 
-    // c. Enable switch (only for layer-4 feature and layer-5 ui)
+    // c. Enable switch (only for layer-4 feature and layer-5 ui, and ONLY when showAdvancedSettings is true)
     isFeatureOrUi
-      ? h(
-          'div',
-          {
-            style: {
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              paddingTop: 4,
-              gap: 12,
-            },
-          },
-          h(
+      ? showAdvancedSettings
+        ? h(
             'div',
-            { style: { display: 'flex', flexDirection: 'column', gap: 2 } },
-            h('span', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #FFFFFF)' } }, '启用插件'),
+            {
+              style: {
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingTop: 4,
+                gap: 12,
+              },
+            },
             h(
-              'span',
-              { style: { fontSize: 11, color: 'var(--text-tertiary, #8E8E93)' } },
-              plugin.enabled ? '已启用，关闭将立即卸载' : '未启用，开启将立即加载',
+              'div',
+              { style: { display: 'flex', flexDirection: 'column', gap: 2 } },
+              h('span', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #FFFFFF)' } }, '启用插件'),
+              h(
+                'span',
+                { style: { fontSize: 11, color: 'var(--text-tertiary, #8E8E93)' } },
+                plugin.enabled ? '已启用，关闭将立即卸载' : '未启用，开启将立即加载',
+              ),
             ),
-          ),
-          h(Switch, {
-            checked: plugin.enabled,
-            onChange: (checked) => onToggleEnabled?.(plugin, checked),
-            accessibilityLabel: `切换插件 ${plugin.displayName} 启用状态`,
-          }),
-        )
+            h(Switch, {
+              checked: plugin.enabled,
+              onChange: (checked) => onToggleEnabled?.(plugin, checked),
+              accessibilityLabel: `切换插件 ${plugin.displayName} 启用状态`,
+            }),
+          )
+        : h(
+            'div',
+            {
+              style: {
+                fontSize: 11,
+                color: 'var(--text-tertiary, #8E8E93)',
+                fontStyle: 'italic',
+                paddingTop: 4,
+              },
+            },
+            '（插件启停功能已隐藏，需在「关于」页面开启高级设置）',
+          )
       : null,
   )
 }

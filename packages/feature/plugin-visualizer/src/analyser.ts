@@ -172,9 +172,11 @@ export class NativeMpvImpl implements AudioAnalyser {
   }
 
   private startPolling(fetchSpectrum: () => Promise<FftFrame | null>): void {
+    let inFlight = false
     // Poll at ~60fps
     this.pollTimer = setInterval(async () => {
-      if (this.isDisposed) return
+      if (this.isDisposed || inFlight) return
+      inFlight = true
       try {
         const frame = await fetchSpectrum()
         if (frame) {
@@ -182,6 +184,8 @@ export class NativeMpvImpl implements AudioAnalyser {
         }
       } catch {
         // ignore polling failure
+      } finally {
+        inFlight = false
       }
     }, 16)
   }

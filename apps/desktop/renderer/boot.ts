@@ -267,11 +267,33 @@ export class DesktopAudioService extends Service implements AudioService {
   }
 
   get activeEngineName(): 'mpv' | 'wasapi' | 'webaudio' {
-    return this.activeEngineKey
+    return (this.activeEngine as unknown as { activeEngineName?: 'mpv' | 'wasapi' | 'webaudio' })?.activeEngineName ?? this.activeEngineKey
   }
 
   get engine(): 'mpv' | 'wasapi' | 'webaudio' {
     return this.activeEngineKey
+  }
+
+  async getFftSpectrum(): Promise<unknown> {
+    if (
+      this.activeEngine &&
+      typeof (this.activeEngine as unknown as { getFftSpectrum?: () => Promise<unknown> }).getFftSpectrum === 'function'
+    ) {
+      return (this.activeEngine as unknown as { getFftSpectrum: () => Promise<unknown> }).getFftSpectrum()
+    }
+    return null
+  }
+
+  async setVisualizer(enabled: boolean, fftSize?: number): Promise<void> {
+    if (this.config.bridgeCall) {
+      await this.config.bridgeCall('audio', 'mpvSetVisualizer', [enabled, fftSize]).catch(() => {})
+    }
+    if (
+      this.activeEngine &&
+      typeof (this.activeEngine as unknown as { setVisualizer?: (enabled: boolean, fftSize?: number) => Promise<void> }).setVisualizer === 'function'
+    ) {
+      await (this.activeEngine as unknown as { setVisualizer: (enabled: boolean, fftSize?: number) => Promise<void> }).setVisualizer(enabled, fftSize).catch(() => {})
+    }
   }
 
   get context(): BaseAudioContext {

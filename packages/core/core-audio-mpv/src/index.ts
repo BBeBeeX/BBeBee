@@ -352,6 +352,15 @@ export class AudioMpv extends Service implements AudioService {
     }
   }
 
+  async setVisualizer(enabled: boolean, fftSize?: number): Promise<void> {
+    if (!this.bridge) return
+    try {
+      await this.bridge('audio', 'mpvSetVisualizer', [enabled, fftSize])
+    } catch {
+      // ignore
+    }
+  }
+
   async dipVolume(durationMs = 20): Promise<Disposable> {
     const dipSeconds = Math.max(0.005, durationMs / 1000)
     const now = this.context.currentTime

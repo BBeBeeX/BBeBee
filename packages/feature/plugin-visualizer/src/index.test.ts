@@ -131,4 +131,42 @@ describe('plugin-visualizer', () => {
 
     plugin.currentAnalyser?.dispose()
   })
+
+  it('attaches NativeMpvImpl when active engine is wasapi and notifies setVisualizer', async () => {
+    const mockSpectrum = {
+      frequencyData: [60, 120, 180, 240],
+      timeDomainData: [128, 150, 128, 100],
+    }
+    const setVisualizerMock = vi.fn(async () => {})
+
+    const mockCtx = new CordisContext() as unknown as Context
+    const untyped = mockCtx as unknown as Record<string, unknown>
+    untyped['audio'] = {
+      activeEngineName: 'wasapi',
+      getFftSpectrum: vi.fn(async () => mockSpectrum),
+      setVisualizer: setVisualizerMock,
+    }
+    untyped['settings'] = {
+      getSync: vi.fn(() => ({ visualizer: DEFAULT_VISUALIZER_SETTINGS })),
+      get: vi.fn(async () => ({ visualizer: DEFAULT_VISUALIZER_SETTINGS })),
+      update: vi.fn(),
+    }
+
+    const plugin = new VisualizerPlugin(mockCtx)
+    await plugin[VisualizerPlugin.init]()
+
+    expect(plugin.currentAnalyser).toBeDefined()
+    expect(plugin.analyserNode).toBeNull()
+    expect(setVisualizerMock).toHaveBeenCalledWith(true, 128)
+
+    // Feed frame and verify data extraction
+    ;(plugin.currentAnalyser as unknown as { feedFrame(f: unknown): void }).feedFrame(mockSpectrum)
+    const freq = new Uint8Array(4)
+    plugin.getFrequencyData(freq)
+    expect(freq[0]).toBeGreaterThan(0)
+
+    // Dispose should notify setVisualizer(false)
+    ;(plugin as unknown as { detachAnalyser(): void }).detachAnalyser()
+    expect(setVisualizerMock).toHaveBeenCalledWith(false)
+  })
 })

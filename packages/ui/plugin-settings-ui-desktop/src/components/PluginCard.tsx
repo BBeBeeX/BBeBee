@@ -6,12 +6,14 @@ import { PluginDetails } from './PluginDetails.js'
 
 export interface PluginCardProps {
   plugin: PluginInfo
+  showAdvancedSettings?: boolean
   onToggleEnabled?: (plugin: PluginInfo, enabled: boolean) => void
   defaultExpanded?: boolean
 }
 
 export function PluginCard({
   plugin,
+  showAdvancedSettings = false,
   onToggleEnabled,
   defaultExpanded = false,
 }: PluginCardProps): ReactElement {
@@ -131,6 +133,7 @@ export function PluginCard({
     expanded
       ? h(PluginDetails, {
           plugin,
+          showAdvancedSettings,
           onToggleEnabled,
         })
       : null,

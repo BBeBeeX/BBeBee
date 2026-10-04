@@ -9,6 +9,7 @@ import { PluginGroupPanel } from '../PluginGroupPanel.js'
 
 export interface PluginsSectionProps {
   ctx: Context
+  showAdvancedSettings?: boolean
 }
 
 interface GroupSpec {
@@ -24,7 +25,7 @@ const GROUPS: readonly GroupSpec[] = [
   { systemId: 'layer-5', title: '界面 (ui)' },
 ]
 
-export function PluginsSection({ ctx }: PluginsSectionProps): ReactElement {
+export function PluginsSection({ ctx, showAdvancedSettings = false }: PluginsSectionProps): ReactElement {
   const [searchQuery, setSearchQuery] = useState('')
   const [pendingDisable, setPendingDisable] = useState<{
     plugin: PluginInfo
@@ -106,6 +107,7 @@ export function PluginsSection({ ctx }: PluginsSectionProps): ReactElement {
         systemId: g.systemId,
         description: g.description,
         plugins: groupPlugins,
+        showAdvancedSettings,
         onToggleEnabled: handleToggle,
       })
     }),

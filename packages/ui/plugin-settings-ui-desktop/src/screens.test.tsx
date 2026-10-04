@@ -1185,7 +1185,24 @@ describe('SettingsScreen', () => {
     expect(getByText('依赖 (1)')).toBeTruthy()
     expect(getByText('被依赖 (2)')).toBeTruthy()
 
-    // Switch enablement toggle: trying to disable theme management which has active dependents triggers confirmation
+    // 1. Initially without advanced settings: enable/disable switch is hidden and hint is shown
+    expect(container.querySelector('button[role="switch"]')).toBeNull()
+    expect(getByText('（插件启停功能已隐藏，需在「关于」页面开启高级设置）')).toBeTruthy()
+
+    // 2. Open About tab and enable "高级设置"
+    const aboutTab = getByText('关于应用')
+    fireEvent.click(aboutTab)
+    const advancedCheckbox = container.querySelector('input[type="checkbox"]') as HTMLInputElement
+    expect(advancedCheckbox).toBeTruthy()
+    fireEvent.click(advancedCheckbox)
+
+    // 3. Switch back to Plugins tab
+    fireEvent.click(getByText('插件'))
+    const themeCardChevron2 = container.querySelector('[role="button"][aria-label^="展开 主题管理"]') as HTMLElement
+    expect(themeCardChevron2).toBeTruthy()
+    fireEvent.click(themeCardChevron2)
+
+    // Switch enablement toggle: now visible! Trying to disable theme management with active dependents triggers confirmation
     const themeSwitch = container.querySelector('button[role="switch"]') as HTMLButtonElement
     expect(themeSwitch).toBeTruthy()
     fireEvent.click(themeSwitch)

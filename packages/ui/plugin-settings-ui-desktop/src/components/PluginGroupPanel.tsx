@@ -8,6 +8,7 @@ export interface PluginGroupPanelProps {
   systemId: string
   plugins: readonly PluginInfo[]
   description?: string
+  showAdvancedSettings?: boolean
   onToggleEnabled?: (plugin: PluginInfo, enabled: boolean) => void
   defaultExpanded?: boolean
 }
@@ -17,6 +18,7 @@ export function PluginGroupPanel({
   systemId,
   plugins,
   description,
+  showAdvancedSettings = false,
   onToggleEnabled,
   defaultExpanded = true,
 }: PluginGroupPanelProps): ReactElement {
@@ -149,6 +151,7 @@ export function PluginGroupPanel({
               h(PluginCard, {
                 key: plugin.id,
                 plugin,
+                showAdvancedSettings,
                 onToggleEnabled,
               }),
             ),

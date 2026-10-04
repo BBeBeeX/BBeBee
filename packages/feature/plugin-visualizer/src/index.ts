@@ -130,18 +130,20 @@ export class VisualizerPlugin extends Service implements VisualizerService {
   private attachAnalyser(): void {
     try {
       const activeEngine = this.ownCtx.audio?.activeEngineName
-      const getFftSpectrum = (
-        this.ownCtx.audio as unknown as {
-          getFftSpectrum?: () => Promise<FftFrame | null>
-        }
-      )?.getFftSpectrum
+      const audioSvc = this.ownCtx.audio as unknown as {
+        getFftSpectrum?: () => Promise<FftFrame | null>
+        setVisualizer?: (enabled: boolean, fftSize?: number) => Promise<void>
+      }
+      const isMpv = activeEngine === 'mpv' || activeEngine === 'wasapi'
 
-      // If active engine is native MPV and provides in-process FFT frames:
-      if (activeEngine === 'mpv' && typeof getFftSpectrum === 'function') {
+      // If active engine is native MPV/WASAPI and provides in-process FFT frames:
+      if (isMpv && typeof audioSvc?.getFftSpectrum === 'function') {
+        const targetFftSize = this.currentSettings.fftSize || 128
+        void audioSvc.setVisualizer?.(true, targetFftSize)
         this.analyser = new NativeMpvImpl({
-          fftSize: this.currentSettings.fftSize || 128,
+          fftSize: targetFftSize,
           smoothingTimeConstant: 0.82,
-          fetchSpectrum: () => getFftSpectrum.call(this.ownCtx.audio),
+          fetchSpectrum: () => audioSvc.getFftSpectrum!(),
         })
         this.ownCtx.logger.info('visualizer: attached NativeMpvImpl spectrum analyser')
         return
@@ -171,6 +173,10 @@ export class VisualizerPlugin extends Service implements VisualizerService {
     const targetFftSize = this.currentSettings.fftSize || 128
     this.analyser.setFftSize(targetFftSize)
     this.analyser.smoothingTimeConstant = 0.82
+    const audioSvc = this.ownCtx.audio as unknown as {
+      setVisualizer?: (enabled: boolean, fftSize?: number) => Promise<void>
+    }
+    void audioSvc?.setVisualizer?.(true, targetFftSize)
   }
 
   private detachAnalyser(): void {
@@ -178,6 +184,10 @@ export class VisualizerPlugin extends Service implements VisualizerService {
       this.analyser.dispose()
       this.analyser = null
     }
+    const audioSvc = this.ownCtx.audio as unknown as {
+      setVisualizer?: (enabled: boolean, fftSize?: number) => Promise<void>
+    }
+    void audioSvc?.setVisualizer?.(false)
   }
 
   getFrequencyData(array: Uint8Array): void {

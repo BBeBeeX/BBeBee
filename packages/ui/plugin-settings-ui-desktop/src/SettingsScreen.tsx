@@ -74,6 +74,37 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false)
 
+  useEffect(() => {
+    let cancelled = false
+    const store = serviceOf<{
+      get<T>(k: string): Promise<T | undefined>
+      set(k: string, v: unknown): Promise<void>
+    }>(ctx, 'store')
+    if (store) {
+      void store
+        .get<boolean>('settings.showAdvancedSettings')
+        .then((val) => {
+          if (!cancelled && typeof val === 'boolean') {
+            setShowAdvancedSettings(val)
+          }
+        })
+        .catch(() => {})
+    }
+    return () => {
+      cancelled = true
+    }
+  }, [ctx])
+
+  const handleToggleAdvancedSettings = (val: boolean) => {
+    setShowAdvancedSettings(val)
+    const store = serviceOf<{
+      set(k: string, v: unknown): Promise<void>
+    }>(ctx, 'store')
+    if (store) {
+      void store.set('settings.showAdvancedSettings', val).catch(() => {})
+    }
+  }
+
   const { settings, update, reset } = useAppSettings(ctx)
   const { usage, clear } = useCacheStats(ctx)
   const availableSettings = useAvailableSettings(ctx)
@@ -621,6 +652,7 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
       activeTab === 'plugins'
         ? h(PluginsSection, {
             ctx,
+            showAdvancedSettings,
           })
         : null,
 
@@ -629,7 +661,7 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
         ? h(AboutSection, {
             showAdvancedSettings,
             resetting,
-            onToggleAdvancedSettings: setShowAdvancedSettings,
+            onToggleAdvancedSettings: handleToggleAdvancedSettings,
             onSetResetting: setResetting,
             onReset: handleReset,
             onNavigate: handleNavigate,
