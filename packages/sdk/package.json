@@ -1,0 +1,44 @@
+{
+  "name": "@BBeBee/sdk",
+  "version": "0.1.0",
+  "description": "Official SDK for BBeBee plugin developers: contracts, Cordis plugin lifecycle, and testing utilities.",
+  "type": "module",
+  "license": "MIT",
+  "//": "Exports point at source so typecheck, vitest, and bundlers resolve without a build step. publishConfig swaps to dist on publish.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts",
+    "./package.json": "./package.json"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./testing": {
+        "types": "./dist/testing.d.ts",
+        "default": "./dist/testing.js"
+      },
+      "./package.json": "./package.json"
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@BBeBee/kernel": "workspace:*",
+    "@BBeBee/protocol": "workspace:*",
+    "@BBeBee/toolkit": "workspace:*",
+    "cordis": "4.0.0-rc.9"
+  }
+}

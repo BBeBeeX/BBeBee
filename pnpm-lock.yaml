@@ -1592,6 +1592,21 @@ importers:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
 
+  packages/sdk:
+    dependencies:
+      '@BBeBee/kernel':
+        specifier: workspace:*
+        version: link:../kernel
+      '@BBeBee/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      '@BBeBee/toolkit':
+        specifier: workspace:*
+        version: link:../feature/toolkit
+      cordis:
+        specifier: 4.0.0-rc.9
+        version: 4.0.0-rc.9
+
   packages/tooling/tooling-check-changed: {}
 
   packages/tooling/tooling-create-plugin:

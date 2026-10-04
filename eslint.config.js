@@ -195,11 +195,13 @@ export default tseslint.config(
       'packages/ui/**/*.ts',
       'packages/ui/**/*.tsx',
       'packages/protocol/**/*.ts',
+      'packages/sdk/**/*.ts',
     ],
     ignores: [
       // The per-target view packages get their own, narrower rules below.
       'packages/ui/plugin-*-ui-*/**/*.ts',
       'packages/ui/plugin-*-ui-*/**/*.tsx',
+      'packages/sdk/src/testing.ts',
     ],
     rules: {
       'no-restricted-imports': [
