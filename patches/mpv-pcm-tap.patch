@@ -1,0 +1,157 @@
+From: BBeBee Team <dev@bbebee.org>
+Subject: [PATCH] audio: add mpv_set_pcm_callback extension for real-time PCM capture
+
+This patch introduces `mpv_set_pcm_callback` to libmpv's client API,
+allowing external frontends to tap the exact post-DSP audio stream being
+sent to the audio output driver (WASAPI / PulseAudio / CoreAudio / ALSA)
+without replacing the AO or disrupting physical speaker output.
+
+---
+ include/mpv/client.h | 11 +++++++++++
+ player/core.h        |  4 ++++
+ player/client.c      | 14 ++++++++++++++
+ audio/out/ao.h       |  4 ++++
+ audio/out/ao.c       | 33 +++++++++++++++++++++++++++++++++
+ 5 files changed, 66 insertions(+)
+
+diff --git a/include/mpv/client.h b/include/mpv/client.h
+index b72149b..d1982cf 100644
+--- a/include/mpv/client.h
++++ b/include/mpv/client.h
+@@ -1650,6 +1650,17 @@ MPV_EXPORT int mpv_command_node_async(mpv_handle *ctx, uint64_t reply_userdata,
+  */
+ MPV_EXPORT int mpv_hook_continue(mpv_handle *ctx, uint64_t id);
+
++/**
++ * Real-time audio PCM tap callback.
++ *
++ * Invoked on the audio playback thread right before samples are committed
++ * to the hardware sound driver. Guarantees access to post-DSP, synchronized float PCM.
++ */
++typedef void (*mpv_pcm_callback_fn)(const float *interleaved, int frames, int channels, int sample_rate, void *userdata);
++
++MPV_EXPORT void mpv_set_pcm_callback(mpv_handle *ctx, mpv_pcm_callback_fn callback, void *userdata);
++
+ #if MPV_ENABLE_DEPRECATED
+
+ /**
+diff --git a/player/core.h b/player/core.h
+index e269201..846201a 100644
+--- a/player/core.h
++++ b/player/core.h
+@@ -21,6 +21,7 @@
+ #include "osdep/threads.h"
+ #include "options/m_config.h"
+ #include "misc/bstr.h"
++#include "client.h"
+
+ struct mpv_global;
+ struct MPContext;
+@@ -194,6 +195,9 @@ struct MPContext {
+     struct ao *ao;
+     struct vo_chain *vo_chain;
+
++    mpv_pcm_callback_fn pcm_callback;
++    void *pcm_userdata;
++
+     struct demuxer *demuxer;
+
+     // Global playback state
+diff --git a/player/client.c b/player/client.c
+index a157a92..c83109a 100644
+--- a/player/client.c
++++ b/player/client.c
+@@ -980,3 +980,17 @@ int mpv_hook_continue(mpv_handle *ctx, uint64_t id)
+     pthread_mutex_unlock(&mpctx->lock);
+     return 0;
+ }
++
++void mpv_set_pcm_callback(mpv_handle *ctx, mpv_pcm_callback_fn callback, void *userdata)
++{
++    struct MPContext *mpctx = ctx->mpctx;
++    if (!mpctx)
++        return;
++    pthread_mutex_lock(&mpctx->lock);
++    mpctx->pcm_callback = callback;
++    mpctx->pcm_userdata = userdata;
++    if (mpctx->ao) {
++        mpctx->ao->pcm_callback = callback;
++        mpctx->ao->pcm_userdata = userdata;
++    }
++    pthread_mutex_unlock(&mpctx->lock);
++}
+diff --git a/audio/out/ao.h b/audio/out/ao.h
+index 9b9248a..f69201a 100644
+--- a/audio/out/ao.h
++++ b/audio/out/ao.h
+@@ -22,6 +22,7 @@
+ #include "audio/chmap.h"
+ #include "audio/format.h"
+ #include "options/m_config.h"
++#include "client.h"
+
+ struct ao;
+ struct mp_audio;
+@@ -102,6 +103,9 @@ struct ao {
+     bool probing;
+     bool untimed;
+
++    mpv_pcm_callback_fn pcm_callback;
++    void *pcm_userdata;
++
+     const struct ao_driver *driver;
+     void *priv;
+ };
+diff --git a/audio/out/ao.c b/audio/out/ao.c
+index 8c7291a..d29108a 100644
+--- a/audio/out/ao.c
++++ b/audio/out/ao.c
+@@ -290,6 +290,11 @@ struct ao *ao_init(struct mp_global *global, struct ao_client *client,
+     ao->global = global;
+     ao->client = client;
+
++    if (client && client->mpctx) {
++        ao->pcm_callback = client->mpctx->pcm_callback;
++        ao->pcm_userdata = client->mpctx->pcm_userdata;
++    }
++
+     ao->driver = driver;
+     ao->priv = talloc_zero_size(ao, driver->priv_size);
+
+@@ -480,6 +485,34 @@ int ao_play(struct ao *ao, void **data, int samples, int flags)
+     if (samples <= 0)
+         return 0;
+
++    if (ao->pcm_callback && data && data[0]) {
++        if (ao->format == AF_FORMAT_FLOAT) {
++            ao->pcm_callback((const float *)data[0], samples, ao->channels.num, ao->samplerate, ao->pcm_userdata);
++        } else if (ao->format == AF_FORMAT_FLOAT_P) {
++            static _Thread_local float pcm_interleaved[4096 * 8];
++            int ch = ao->channels.num;
++            int max_f = sizeof(pcm_interleaved) / (sizeof(float) * ch);
++            int take = samples < max_f ? samples : max_f;
++            const float *const *planar = (const float *const *)data;
++            for (int i = 0; i < take; i++) {
++                for (int c = 0; c < ch; c++) {
++                    pcm_interleaved[i * ch + c] = planar[c][i];
++                }
++            }
++            ao->pcm_callback(pcm_interleaved, take, ch, ao->samplerate, ao->pcm_userdata);
++        } else if (ao->format == AF_FORMAT_S16) {
++            static _Thread_local float pcm_converted[4096 * 8];
++            int ch = ao->channels.num;
++            int total_samples = samples * ch;
++            int max_samples = sizeof(pcm_converted) / sizeof(float);
++            int take_samples = total_samples < max_samples ? total_samples : max_samples;
++            const int16_t *s16 = (const int16_t *)data[0];
++            for (int i = 0; i < take_samples; i++) {
++                pcm_converted[i] = s16[i] / 32768.0f;
++            }
++            ao->pcm_callback(pcm_converted, take_samples / ch, ch, ao->samplerate, ao->pcm_userdata);
++        }
++    }
++
+     return ao->driver->play(ao, data, samples, flags);
+ }
+-- 
+2.43.0

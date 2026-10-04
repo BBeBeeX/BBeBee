@@ -33,10 +33,11 @@ a plugin manifest changes. (Desktop discovers and loads workspace plugins dynami
 
 The MPV Hi-Fi engine (`core-audio-mpv`) runs in a standalone C++ executable, not in the
 Electron bundle. It is built by `apps/desktop/scripts/build-audio-engine.js` (compiler
-detected: `g++` / `clang++` / MSVC `cl`, C++17) into `apps/desktop/bin/audio-engine[.exe]`,
-synced to `apps/desktop/resources/bin/` for packaging, and **gitignored** — both are build
-artifacts. `pnpm dev:desktop` does *not* build it; without a prior
-`pnpm build:audio-engine` the engine is simply absent.
+detected: `g++` / `clang++` / MSVC `cl`, C++17, compiling `main.cpp` and `pcm_ring_buffer.cpp`)
+into `apps/desktop/bin/audio-engine[.exe]`, synced to `apps/desktop/resources/bin/` for packaging,
+and **gitignored** — both are build artifacts. Standalone CMake build is also supported via
+`apps/desktop/native/audio-engine/CMakeLists.txt`. `pnpm dev:desktop` does *not* build it;
+without a prior `pnpm build:audio-engine` the engine is simply absent.
 
 **Engine-binary lookup** (`AudioEngineSupervisor.resolveExecutablePath`): the
 `AUDIO_ENGINE_PATH` env var → the packaged `resources/bin/` → dev candidate paths. An
@@ -69,13 +70,14 @@ cannot resolve on the build machine.
 |---|---|
 | Engine binary missing | the supervisor fails the load fast; the renderer degrades to the media element (Chromium decode — audio via Web Audio, flat spectrum, no gapless) |
 | Engine present, libmpv missing | the engine runs but every load fails; the same renderer fallback |
-| Both present | mpv decodes and feeds the OS audio output directly; native DSP/EQ; append-based gapless; astats-driven spectrum |
+| Both present | mpv decodes and feeds the OS audio output directly; native DSP/EQ; append-based gapless; real-PCM FFT visualizer via SPSC RingBuffer (with patched mpv PCM tap) + astats-driven RMS/Peak levels |
 
 In every degraded state the engine now reports its health (`ready.mpvAvailable`, surfaced as
 `ctx.audio.getEngineStatus()`) and the settings page shows an explicit “MPV 原生引擎不可用”
-row instead of pretending the native engine is running. A degraded track's playback state is
-forwarded to the engine (`mpvSetStreamPlayback`), which drives its synthetic spectrum — the
-visualizer keeps moving even when libmpv is gone (real astats levels when it is not).
+row instead of pretending the native engine is running. When running on standard unpatched libmpv
+or during degraded stream playback, the visualizer loop safely delivers zero-padded quiet frames
+without CPU spin or ungrounded synthetic sine/cosine waveforms. Real PCM samples feed the
+spectrum directly via `PcmRingBuffer` whenever the PCM tap extension is available.
 
 **Packaging**: CI builds the binary per platform (a three-OS matrix with a `--version` smoke)
 and uploads it as an artifact; the packaging job downloads it, stages libmpv

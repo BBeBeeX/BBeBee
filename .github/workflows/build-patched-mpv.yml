@@ -1,0 +1,183 @@
+name: Build Patched libmpv (All Platforms)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mpv_version:
+        description: 'mpv git tag or branch to build'
+        required: true
+        default: 'v0.38.0'
+
+jobs:
+  build-linux:
+    name: Build Patched libmpv (Linux x86_64)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            meson \
+            ninja-build \
+            pkg-config \
+            python3 \
+            libavcodec-dev \
+            libavdevice-dev \
+            libavfilter-dev \
+            libavformat-dev \
+            libavutil-dev \
+            libswresample-dev \
+            libswscale-dev \
+            libass-dev \
+            libplacebo-dev \
+            libasound2-dev \
+            libpulse-dev \
+            libpipewire-0.3-dev \
+            libluajit-5.1-dev \
+            libuchardet-dev
+
+      - name: Clone mpv
+        run: |
+          git clone --depth 1 --branch ${{ github.event.inputs.mpv_version || 'v0.38.0' }} https://github.com/mpv-player/mpv.git mpv-src
+
+      - name: Apply PCM tap patch
+        run: |
+          cd mpv-src
+          git apply ../patches/mpv-pcm-tap.patch
+          git status
+
+      - name: Configure and compile libmpv
+        run: |
+          cd mpv-src
+          meson setup build \
+            --buildtype=release \
+            -Ddefault_library=shared \
+            -Dlibmpv=true \
+            -Dcplayer=false \
+            -Dpulse=enabled \
+            -Dalsa=enabled \
+            -Dpipewire=enabled
+          ninja -C build
+
+      - name: Stage compiled artifacts
+        run: |
+          mkdir -p output/linux
+          cp -P mpv-src/build/libmpv.so* output/linux/
+          ls -la output/linux/
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libmpv-patched-linux
+          path: output/linux/
+
+  build-macos:
+    name: Build Patched libmpv (macOS universal/arm64)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies via Homebrew
+        run: |
+          brew update
+          brew install meson ninja pkg-config ffmpeg libass libplacebo uchardet luajit
+
+      - name: Clone mpv
+        run: |
+          git clone --depth 1 --branch ${{ github.event.inputs.mpv_version || 'v0.38.0' }} https://github.com/mpv-player/mpv.git mpv-src
+
+      - name: Apply PCM tap patch
+        run: |
+          cd mpv-src
+          git apply ../patches/mpv-pcm-tap.patch
+          git status
+
+      - name: Configure and compile libmpv
+        run: |
+          cd mpv-src
+          meson setup build \
+            --buildtype=release \
+            -Ddefault_library=shared \
+            -Dlibmpv=true \
+            -Dcplayer=false \
+            -Dcoreaudio=enabled
+          ninja -C build
+
+      - name: Stage compiled artifacts
+        run: |
+          mkdir -p output/darwin
+          cp -P mpv-src/build/libmpv*dylib* output/darwin/
+          ls -la output/darwin/
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libmpv-patched-darwin
+          path: output/darwin/
+
+  build-windows:
+    name: Build Patched libmpv (Windows win64)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup MSYS2 MinGW-w64
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            git
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-meson
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-ffmpeg
+            mingw-w64-x86_64-libass
+            mingw-w64-x86_64-libplacebo
+            mingw-w64-x86_64-uchardet
+            mingw-w64-x86_64-luajit
+
+      - name: Clone mpv
+        shell: msys2 {0}
+        run: |
+          git clone --depth 1 --branch ${{ github.event.inputs.mpv_version || 'v0.38.0' }} https://github.com/mpv-player/mpv.git mpv-src
+
+      - name: Apply PCM tap patch
+        shell: msys2 {0}
+        run: |
+          cd mpv-src
+          git apply ../patches/mpv-pcm-tap.patch
+          git status
+
+      - name: Configure and compile libmpv
+        shell: msys2 {0}
+        run: |
+          cd mpv-src
+          meson setup build \
+            --buildtype=release \
+            -Ddefault_library=shared \
+            -Dlibmpv=true \
+            -Dcplayer=false \
+            -Dwasapi=enabled
+          ninja -C build
+
+      - name: Stage compiled artifacts
+        shell: msys2 {0}
+        run: |
+          mkdir -p output/win64
+          cp mpv-src/build/*mpv*.dll output/win64/
+          cp mpv-src/build/*mpv*.a output/win64/ 2>/dev/null || true
+          ls -la output/win64/
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libmpv-patched-win64
+          path: output/win64/

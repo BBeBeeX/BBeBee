@@ -11,7 +11,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const desktopRoot = join(__dirname, '..')
 const binDir = join(desktopRoot, 'bin')
 const srcDir = join(desktopRoot, 'native', 'audio-engine')
-const srcFile = join(srcDir, 'main.cpp')
+const srcFiles = [
+  join(srcDir, 'main.cpp'),
+  join(srcDir, 'pcm_ring_buffer.cpp'),
+]
 
 if (!existsSync(binDir)) {
   mkdirSync(binDir, { recursive: true })
@@ -21,7 +24,7 @@ const isWin = process.platform === 'win32'
 const outExe = join(binDir, isWin ? 'audio-engine.exe' : 'audio-engine')
 
 console.log(`[build-audio-engine] Compiling standalone native audio-engine executable...`)
-console.log(`  Source: ${srcFile}`)
+console.log(`  Sources: ${srcFiles.join(', ')}`)
 console.log(`  Target: ${outExe}`)
 
 // Detect compiler
@@ -52,8 +55,8 @@ if (!isWin) {
 }
 
 const args = chosenCompiler === 'cl'
-  ? ['/std:c++17', '/O2', '/EHsc', '/utf-8', srcFile, `/Fe:${outExe}`]
-  : ['-O2', '-std=c++17', srcFile, '-o', outExe, ...unixFlags]
+  ? ['/std:c++17', '/O2', '/EHsc', '/utf-8', ...srcFiles, `/Fe:${outExe}`]
+  : ['-O2', '-std=c++17', ...srcFiles, '-o', outExe, ...unixFlags]
 
 console.log(`[build-audio-engine] Running: ${chosenCompiler} ${args.join(' ')}`)
 const buildProc = spawnSync(chosenCompiler, args, { stdio: 'inherit' })

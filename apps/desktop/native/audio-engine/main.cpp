@@ -66,6 +66,7 @@ static std::string getExecutableDir() {
 #endif
 
 #include "mpv_client.h"
+#include "pcm_ring_buffer.hpp"
 #include "fft.hpp"
 #include "json.hpp"
 
@@ -90,6 +91,7 @@ struct MpvDynLib {
     fn_mpv_error_string error_string = nullptr;
     fn_mpv_free free_data = nullptr;
     fn_mpv_request_log_messages request_log_messages = nullptr;
+    fn_mpv_set_pcm_callback set_pcm_callback = nullptr;
 
     bool load(const std::string& customPath = "") {
         std::vector<std::string> candidates;
@@ -149,6 +151,7 @@ struct MpvDynLib {
                 error_string = reinterpret_cast<fn_mpv_error_string>(GetProcAddress(h, "mpv_error_string"));
                 free_data = reinterpret_cast<fn_mpv_free>(GetProcAddress(h, "mpv_free"));
                 request_log_messages = reinterpret_cast<fn_mpv_request_log_messages>(GetProcAddress(h, "mpv_request_log_messages"));
+                set_pcm_callback = reinterpret_cast<fn_mpv_set_pcm_callback>(GetProcAddress(h, "mpv_set_pcm_callback"));
                 if (create && initialize) return true;
                 FreeLibrary(h);
                 handle = nullptr;
@@ -173,6 +176,7 @@ struct MpvDynLib {
                 error_string = reinterpret_cast<fn_mpv_error_string>(dlsym(h, "mpv_error_string"));
                 free_data = reinterpret_cast<fn_mpv_free>(dlsym(h, "mpv_free"));
                 request_log_messages = reinterpret_cast<fn_mpv_request_log_messages>(dlsym(h, "mpv_request_log_messages"));
+                set_pcm_callback = reinterpret_cast<fn_mpv_set_pcm_callback>(dlsym(h, "mpv_set_pcm_callback"));
                 if (create && initialize) return true;
                 dlclose(h);
                 handle = nullptr;
@@ -323,6 +327,12 @@ public:
                 // Initial audio filter with astats metadata tap
                 applyFilterGraph("");
 
+                // Register real-time PCM tap callback if supported by mpv build
+                if (mpvLib.set_pcm_callback) {
+                    mpvLib.set_pcm_callback(mpv, onMpvPcmCallback, this);
+                    std::cerr << "[audio-engine] libmpv PCM tap callback registered successfully\n";
+                }
+
                 std::cerr << "[audio-engine] libmpv initialized successfully\n";
             }
         } else {
@@ -424,6 +434,8 @@ public:
         positionMs = 0;
         durationMs = 0;
         status = "loading";
+        pcmRingBuffer.clear();
+        fftProcessor.reset();
 
         if (mpv && mpvLib.command) {
             const char* cmd[] = { "loadfile", mpvPath.c_str(), "replace", nullptr };
@@ -469,6 +481,8 @@ public:
         std::lock_guard<std::mutex> lock(engineMutex);
         if (atMs >= 0) {
             positionMs = atMs;
+            pcmRingBuffer.clear();
+            fftProcessor.reset();
             if (mpv && mpvLib.command) {
                 std::string secStr = std::to_string(atMs / 1000.0);
                 const char* seekCmd[] = { "seek", secStr.c_str(), "absolute", nullptr };
@@ -497,8 +511,10 @@ public:
 
     void stop() {
         std::lock_guard<std::mutex> lock(engineMutex);
- status = "stopped";
+        status = "stopped";
         positionMs = 0;
+        pcmRingBuffer.clear();
+        fftProcessor.reset();
         if (mpv && mpvLib.command) {
             const char* stopCmd[] = { "stop", nullptr };
             mpvLib.command(mpv, stopCmd);
@@ -509,6 +525,8 @@ public:
     void seek(int atMs) {
         std::lock_guard<std::mutex> lock(engineMutex);
         positionMs = std::max(0, durationMs > 0 ? std::min(atMs, durationMs) : atMs);
+        pcmRingBuffer.clear();
+        fftProcessor.reset();
         if (mpv && mpvLib.command) {
             std::string secStr = std::to_string(positionMs / 1000.0);
             const char* seekCmd[] = { "seek", secStr.c_str(), "absolute", nullptr };
@@ -693,8 +711,16 @@ private:
     bool visualizerEnabled = true;
     int fftSize = 128;
     FftProcessor fftProcessor;
+    PcmRingBuffer pcmRingBuffer;
     JsonValue dspConfig;
     bool streamPlaying = false;
+
+    static void onMpvPcmCallback(const float* data, int frames, int channels, int sample_rate, void* userdata) {
+        if (userdata && data && frames > 0) {
+            auto* app = static_cast<AudioEngineApp*>(userdata);
+            app->pcmRingBuffer.write(data, static_cast<size_t>(frames));
+        }
+    }
 
     // Real audio levels extracted via lavfi astats metadata tap
     std::atomic<float> currentRmsLevelDb{ -100.0f };
@@ -850,6 +876,9 @@ private:
                         channels = static_cast<int>(ch);
                     }
 
+                    pcmRingBuffer.configure(sampleRate, channels, 65536);
+                    fftProcessor.reset();
+
                     JsonValue loaded = JsonValue::object();
                     loaded["type"] = "loaded";
                     loaded["uri"] = currentUri;
@@ -888,6 +917,8 @@ private:
                             std::lock_guard<std::mutex> lock(engineMutex);
                             status = "ended";
                             positionMs = durationMs;
+                            pcmRingBuffer.clear();
+                            fftProcessor.reset();
                             sendPlaybackState();
                             JsonValue ended = JsonValue::object();
                             ended["type"] = "ended";
@@ -896,12 +927,28 @@ private:
                     } else if ((propName == "af-metadata" || propName == "af-metadata/bbebee_astats") && prop->format == MPV_FORMAT_STRING) {
                         char* metaStr = *reinterpret_cast<char**>(prop->data);
                         if (metaStr) updateAfMetadata(metaStr);
+                    } else if (propName == "audio-params/samplerate" && prop->format == MPV_FORMAT_INT64) {
+                        int64_t sr = *reinterpret_cast<int64_t*>(prop->data);
+                        std::lock_guard<std::mutex> lock(engineMutex);
+                        if (sr > 0 && static_cast<int>(sr) != sampleRate) {
+                            sampleRate = static_cast<int>(sr);
+                            pcmRingBuffer.configure(sampleRate, channels, 65536);
+                        }
+                    } else if (propName == "audio-params/channel-count" && prop->format == MPV_FORMAT_INT64) {
+                        int64_t ch = *reinterpret_cast<int64_t*>(prop->data);
+                        std::lock_guard<std::mutex> lock(engineMutex);
+                        if (ch > 0 && static_cast<int>(ch) != channels) {
+                            channels = static_cast<int>(ch);
+                            pcmRingBuffer.configure(sampleRate, channels, 65536);
+                        }
                     }
                     break;
                 }
                 case MPV_EVENT_END_FILE: {
                     auto* end = reinterpret_cast<mpv_event_end_file*>(event->data);
                     std::lock_guard<std::mutex> lock(engineMutex);
+                    pcmRingBuffer.clear();
+                    fftProcessor.reset();
                     if (end && end->reason == 4 /* MPV_END_FILE_REASON_ERROR */) {
                         status = "error";
                         JsonValue err = JsonValue::object();
@@ -931,140 +978,84 @@ private:
         }
     }
 
+    void sendFftFrame(const std::vector<uint8_t>& freq, const std::vector<uint8_t>& timeDom) {
+        JsonValue frame = JsonValue::object();
+        frame["type"] = "fft-frame";
+        JsonValue freqArr = JsonValue::array();
+        for (uint8_t f : freq) freqArr.push_back(JsonValue(static_cast<int>(f)));
+        JsonValue timeArr = JsonValue::array();
+        for (uint8_t td : timeDom) timeArr.push_back(JsonValue(static_cast<int>(td)));
+        frame["frequencyData"] = freqArr;
+        frame["timeDomainData"] = timeArr;
+        sendJson(frame);
+    }
+
     void visualizerLoop() {
         int zeroFramesSent = 0;
-        std::vector<float> smoothedBins;
+        std::vector<float> pcmChunk;
+
         while (running) {
             std::this_thread::sleep_for(std::chrono::milliseconds(30));
-            std::unique_lock<std::mutex> lock(engineMutex);
+
             if (!visualizerEnabled) continue;
 
-            // Sounding means either the engine itself is decoding or a
-            // degraded track is sounding through the renderer's media
-            // element (reported via setStreamPlayback).
-            bool isPlaying = ((status == "playing") || streamPlaying) && !muted && volume > 0.01;
+            bool isPlaying = false;
+            int currentChannels = 2;
+            int currentSr = 44100;
+            int n = 128;
 
-            int n = fftProcessor.getFftSize();
-            int binCount = n / 2;
-            std::vector<uint8_t> freq(binCount, 0);
-            std::vector<uint8_t> timeDom(n, 128);
-
-            if (smoothedBins.size() != static_cast<size_t>(binCount)) {
-                smoothedBins.assign(binCount, 0.0f);
+            {
+                std::lock_guard<std::mutex> lock(engineMutex);
+                isPlaying = ((status == "playing") || streamPlaying) && !muted && volume > 0.01;
+                currentChannels = channels > 0 ? channels : 2;
+                currentSr = sampleRate > 0 ? sampleRate : 44100;
+                n = fftProcessor.getFftSize();
             }
 
             if (!isPlaying) {
-                bool allZero = true;
-                for (size_t i = 0; i < smoothedBins.size(); ++i) {
-                    smoothedBins[i] *= 0.5f;
-                    if (smoothedBins[i] > 0.005f) allZero = false;
-                }
-                if (allZero && zeroFramesSent >= 2) {
-                    lock.unlock();
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                    continue;
-                }
-                if (allZero) {
+                pcmRingBuffer.clear();
+                fftProcessor.reset();
+                if (zeroFramesSent < 2) {
                     zeroFramesSent++;
+                    auto [freq, timeDom] = fftProcessor.processInterleaved(nullptr, 0, currentChannels);
+                    sendFftFrame(freq, timeDom);
+                } else {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(70));
                 }
-            } else {
-                zeroFramesSent = 0;
-
-                // Direct level query with guaranteed mpv_free
-                if (mpv && mpvLib.get_property && isPlaying) {
-                    char* rmsStr = nullptr;
-                    if (mpvLib.get_property(mpv, "af-metadata/bbebee_astats/Overall.RMS_level", MPV_FORMAT_STRING, &rmsStr) >= 0 && rmsStr) {
-                        if (std::strcmp(rmsStr, "-inf") != 0 && std::strlen(rmsStr) > 0) {
-                            try { currentRmsLevelDb = std::stof(rmsStr); } catch (...) {}
-                        }
-                        if (mpvLib.free_data) mpvLib.free_data(rmsStr);
-                    }
-                    char* peakStr = nullptr;
-                    if (mpvLib.get_property(mpv, "af-metadata/bbebee_astats/Overall.Peak_level", MPV_FORMAT_STRING, &peakStr) >= 0 && peakStr) {
-                        if (std::strcmp(peakStr, "-inf") != 0 && std::strlen(peakStr) > 0) {
-                            try { currentPeakLevelDb = std::stof(peakStr); } catch (...) {}
-                        }
-                        if (mpvLib.free_data) mpvLib.free_data(peakStr);
-                    }
-                }
-
-                float rms = currentRmsLevelDb.load();
-                float peak = currentPeakLevelDb.load();
-
-                double t = static_cast<double>(positionMs) / 1000.0;
-                static auto startTimePoint = std::chrono::steady_clock::now();
-                auto nowTimePoint = std::chrono::steady_clock::now();
-                double wallT = std::chrono::duration<double>(nowTimePoint - startTimePoint).count();
-                double animT = (positionMs > 0) ? t : wallT;
-
-                // Dynamic loudness envelope: if astats metadata is unavailable (rms <= -80dB),
-                // modulate dynamic range so visualizer never stays static or frozen.
-                float effectiveRms = (rms > -80.0f) ? rms : static_cast<float>(-16.0 + 5.0 * std::sin(animT * 2.0));
-                float effectivePeak = (peak > -80.0f) ? peak : static_cast<float>(-6.0 + 3.0 * std::sin(animT * 2.5));
-
-                float energy = std::clamp((effectiveRms + 60.0f) / 60.0f, 0.35f, 1.0f);
-                float peakNorm = std::clamp((effectivePeak + 60.0f) / 60.0f, 0.45f, 1.0f);
-                float effMag = energy * static_cast<float>(volume);
-
-                // Multi-band rhythmic synthesis
-                float beat = std::pow(std::max(0.0f, std::sin(static_cast<float>(animT * 4.2))), 3.0f);
-                float bassMod = 0.6f + 0.4f * beat;
-
-                for (int i = 0; i < binCount; ++i) {
-                    float ratio = static_cast<float>(i) / static_cast<float>(binCount);
-                    float target = 0.0f;
-
-                    if (ratio < 0.25f) {
-                        // Bass / Sub-bass
-                        float sub = 0.5f + 0.5f * std::sin(static_cast<float>(animT * 2.1) + static_cast<float>(i) * 0.3f);
-                        target = bassMod * (0.6f + 0.4f * sub);
-                    } else if (ratio < 0.70f) {
-                        // Mid-range harmonics
-                        float m1 = std::sin(static_cast<float>(animT * 5.3 + i * 0.4f));
-                        float m2 = std::cos(static_cast<float>(animT * 8.7 - i * 0.28f));
-                        target = 0.45f + 0.28f * m1 + 0.27f * m2;
-                    } else {
-                        // Treble / Sparkle
-                        float h1 = std::sin(static_cast<float>(animT * 14.5 + i * 0.65f));
-                        target = 0.35f + 0.35f * h1;
-                    }
-
-                    // Natural high-frequency roll-off
-                    float rollOff = 1.0f - ratio * 0.42f;
-                    target *= rollOff;
-
-                    // Attack & decay smoothing (instant attack on rise, smooth release)
-                    if (target > smoothedBins[i]) {
-                        smoothedBins[i] = target;
-                    } else {
-                        smoothedBins[i] = std::max(0.0f, smoothedBins[i] * 0.86f);
-                    }
-
-                    float val = smoothedBins[i] * effMag * 255.0f;
-                    freq[i] = static_cast<uint8_t>(std::clamp(val, 0.0f, 255.0f));
-                }
-
-                // Time domain waveform centered at 128
-                float amp = peakNorm * 90.0f * static_cast<float>(volume);
-                for (int i = 0; i < n; ++i) {
-                    float phase = (static_cast<float>(i) / n) * 6.2831853f * 2.0f;
-                    float wave = std::sin(phase + static_cast<float>(animT * 8.0)) * 0.7f +
-                                 std::sin(phase * 2.5f - static_cast<float>(animT * 12.0)) * 0.3f;
-                    timeDom[i] = static_cast<uint8_t>(std::clamp(128.0f + wave * amp, 0.0f, 255.0f));
-                }
+                continue;
             }
-            lock.unlock();
 
-            JsonValue frame = JsonValue::object();
-            frame["type"] = "fft-frame";
-            JsonValue freqArr = JsonValue::array();
-            for (uint8_t f : freq) freqArr.push_back(JsonValue(static_cast<int>(f)));
-            JsonValue timeArr = JsonValue::array();
-            for (uint8_t td : timeDom) timeArr.push_back(JsonValue(static_cast<int>(td)));
-            frame["frequencyData"] = freqArr;
-            frame["timeDomainData"] = timeArr;
+            // Real PCM from lock-free RingBuffer
+            size_t avail = pcmRingBuffer.availableFrames();
 
-            sendJson(frame);
+            // Hop & lag management: discard excess backlog to eliminate visualizer delay drift
+            size_t maxLag = std::max(static_cast<size_t>(n), static_cast<size_t>(currentSr * 0.060));
+            if (avail > maxLag) {
+                pcmRingBuffer.discardExcessFrames(static_cast<size_t>(n));
+                avail = pcmRingBuffer.availableFrames();
+            }
+
+            size_t framesToRead = std::min(static_cast<size_t>(n), avail);
+            const size_t neededSamples = static_cast<size_t>(n) * static_cast<size_t>(currentChannels);
+            if (pcmChunk.size() < neededSamples) {
+                pcmChunk.resize(neededSamples, 0.0f);
+            }
+
+            size_t framesRead = 0;
+            if (framesToRead > 0) {
+                framesRead = pcmRingBuffer.read(pcmChunk.data(), framesToRead);
+            }
+
+            zeroFramesSent = 0;
+
+            // Process real PCM downmixing, Hann windowing, FFT, and real waveform extraction
+            auto [freq, timeDom] = fftProcessor.processInterleaved(
+                framesRead > 0 ? pcmChunk.data() : nullptr,
+                framesRead,
+                currentChannels
+            );
+
+            sendFftFrame(freq, timeDom);
         }
     }
 

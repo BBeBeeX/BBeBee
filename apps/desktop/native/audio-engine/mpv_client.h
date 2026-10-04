@@ -87,6 +87,10 @@ typedef const char *(*fn_mpv_error_string)(int error);
 typedef int (*fn_mpv_request_log_messages)(mpv_handle *ctx, const char *min_level);
 typedef void (*fn_mpv_free)(void *data);
 
+// Extension API signatures for real-time PCM tapping (custom mpv build)
+typedef void (*mpv_pcm_callback_fn)(const float *data, int frames, int channels, int sample_rate, void *userdata);
+typedef void (*fn_mpv_set_pcm_callback)(mpv_handle *ctx, mpv_pcm_callback_fn cb, void *userdata);
+
 #ifdef __cplusplus
 }
 #endif
