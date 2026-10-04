@@ -840,8 +840,14 @@ export function NowPlayingBar({ ctx, currentRoute, onOpenNowPlaying, portalMenus
       },
       ...(() => {
         const ui = serviceOf<UiService>(ctx, 'ui')
+        const seenSlotIds = new Set<string>()
         const items = actionSlots
           .filter((slot) => !slot.when || slot.when({ ctx, currentRoute }))
+          .filter((slot) => {
+            if (seenSlotIds.has(slot.id)) return false
+            seenSlotIds.add(slot.id)
+            return true
+          })
           .map((slot) => {
             const Component = ui?.viewFor?.(slot.id) as
               | React.ComponentType<{ ctx: Context; currentRoute?: string }>

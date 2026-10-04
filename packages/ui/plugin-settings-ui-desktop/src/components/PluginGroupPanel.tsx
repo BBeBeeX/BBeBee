@@ -123,7 +123,8 @@ export function PluginGroupPanel({
             {
               style: {
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, max(280px, calc(50% - 6px))), 1fr))',
+                alignItems: 'start',
                 gap: 12,
                 marginTop: 10,
               },

@@ -641,12 +641,7 @@ export async function boot(): Promise<App> {
   // Preloaded plugin-manager enablement overrides
   const pluginOverrides = (
     preloadedStoreData?.['@BBeBee/plugin-manager:enabled'] ??
-    preloadedStoreData?.['plugin-manager:enabled'] ??
-    preloadedStoreData?.['@BBeBee/plugin-manager:plugin-manager:enabled'] ??
-    preloadedStoreData?.['@BBeBee/plugin-manager:plugin-manager'] ??
-    preloadedStoreData?.['@BBeBee/plugin-manager'] ??
-    preloadedStoreData?.['plugin-manager'] ??
-    preloadedStoreData?.['enabled']
+    preloadedStoreData?.['plugin-manager:enabled']
   ) as Record<string, boolean> | undefined
 
   const effectiveInitialEnabled = { ...INITIAL_ENABLED }
@@ -824,18 +819,6 @@ export async function boot(): Promise<App> {
         loadPlugin: (id: string) => app.loadPlugin(id),
         unloadPlugin: (id: string) => app.unloadPlugin(id),
       })
-    }
-  })
-
-  app.ctx.on('plugin-manager/enabled-changed', async ({ id, enabled }) => {
-    try {
-      if (enabled) {
-        await app.loadPlugin(id)
-      } else {
-        await app.unloadPlugin(id)
-      }
-    } catch (err) {
-      app.ctx.logger?.error('boot: failed to toggle plugin %s: %s', id, String(err))
     }
   })
 

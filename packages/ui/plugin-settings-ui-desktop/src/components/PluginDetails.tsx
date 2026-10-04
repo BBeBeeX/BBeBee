@@ -230,7 +230,7 @@ export function PluginDetails({
             h(
               'span',
               { style: { fontSize: 11, color: 'var(--text-tertiary, #8E8E93)' } },
-              plugin.enabled ? '已启用，停用需重启或注销' : '未启用，开启后立即加载',
+              plugin.enabled ? '已启用，关闭将立即卸载' : '未启用，开启将立即加载',
             ),
           ),
           h(Switch, {

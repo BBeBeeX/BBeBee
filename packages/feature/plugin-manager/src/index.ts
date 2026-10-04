@@ -14,6 +14,7 @@ import type {
   PluginManifest,
   PluginRuntimeState,
   AppSettings,
+  SettingsContribution,
 } from '@BBeBee/protocol'
 import {
   DEFAULT_APP_SETTINGS,
@@ -106,43 +107,15 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   }
 
   private async loadOverrides(): Promise<Record<string, boolean>> {
-    let result: Record<string, boolean> | undefined
-
-    if (typeof this.ctx.store.namespace === 'function') {
-      try {
-        result = await this.ctx.store.namespace('plugin-manager').get<Record<string, boolean>>('enabled')
-      } catch {
-        // Fall through
-      }
+    try {
+      const result = await this.ctx.store.get<Record<string, boolean>>('enabled')
+      return result ?? {}
+    } catch {
+      return {}
     }
-
-    if (!result) {
-      try {
-        result = await this.ctx.store.get<Record<string, boolean>>('enabled')
-      } catch {
-        // Fall through
-      }
-    }
-
-    if (!result) {
-      try {
-        result = await this.ctx.store.get<Record<string, boolean>>('plugin-manager')
-      } catch {
-        // Fall through
-      }
-    }
-
-    return result ?? {}
   }
 
   private async saveOverrides(overrides: Record<string, boolean>): Promise<void> {
-    if (typeof this.ctx.store.namespace === 'function') {
-      try {
-        await this.ctx.store.namespace('plugin-manager').set('enabled', overrides)
-      } catch {
-        // fallback
-      }
-    }
     await this.ctx.store.set('enabled', overrides)
   }
 
@@ -191,9 +164,6 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       for (const s of m.contributes?.services ?? []) {
         serviceProviders.set(s, id)
       }
-      for (const cap of m.capabilities ?? []) {
-        serviceProviders.set(cap, id)
-      }
     }
     for (const [fiberName, fiber] of fibersMap.entries()) {
       for (const prov of fiber.provides ?? []) {
@@ -214,10 +184,10 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       currentSettings = undefined
     }
 
-    const settingsContribs: readonly { id: string }[] = (() => {
+    const settingsContribs: readonly SettingsContribution[] = (() => {
       try {
         const settingsSvc = (
-          this.ctx as unknown as { settings?: { getContributions?(): readonly { id: string }[] } }
+          this.ctx as unknown as { settings?: { getContributions?(): readonly SettingsContribution[] } }
         ).settings
         return settingsSvc?.getContributions?.() ?? []
       } catch {
@@ -330,25 +300,46 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   private determineConfigStatus(
     manifest: PluginManifest,
     settings?: AppSettings,
-    contributions: readonly { id: string }[] = [],
+    contributions: readonly SettingsContribution[] = [],
   ): ConfigStatus {
     const mName = manifest.name
+    const mClean = manifest.id.replace(/^@BBeBee\//, '')
+    const relatedContribs = contributions.filter(
+      (c) =>
+        c.id === manifest.id ||
+        (mName ? c.id === mName || c.id.startsWith(mName) : false) ||
+        c.id.startsWith(mClean) ||
+        (manifest.moduleId && c.id.includes(manifest.moduleId)),
+    )
+
     const isKnown =
       KNOWN_CONFIGURABLE_PLUGINS.has(manifest.id) ||
       (mName ? KNOWN_CONFIGURABLE_PLUGINS.has(mName) : false)
-    const hasContrib = contributions.some(
-      (c) =>
-        c.id === manifest.id ||
-        (mName ? c.id.startsWith(mName) : false) ||
-        c.id.startsWith(manifest.id.replace(/^@BBeBee\//, '')),
-    )
 
-    if (!isKnown && !hasContrib) {
+    if (!isKnown && relatedContribs.length === 0) {
       return 'none'
     }
 
     if (!settings) {
       return 'default'
+    }
+
+    // Generic schema derivation: if any contribution has a schema, check against schema defaults
+    for (const c of relatedContribs) {
+      if (c.schema?.properties) {
+        let hasCustom = false
+        const bag = (settings as unknown as Record<string, unknown>)[c.id] as Record<string, unknown> | undefined
+        for (const [propKey, propSchema] of Object.entries(c.schema.properties)) {
+          if (propSchema.default !== undefined && bag) {
+            const currentVal = bag[propKey]
+            if (currentVal !== undefined && JSON.stringify(currentVal) !== JSON.stringify(propSchema.default)) {
+              hasCustom = true
+              break
+            }
+          }
+        }
+        if (hasCustom) return 'customized'
+      }
     }
 
     // Compare with default app settings
