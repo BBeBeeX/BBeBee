@@ -24,6 +24,7 @@ export interface AudioHostApi {
     sampleRate?: number
     channels?: number
     bitDepth?: number
+    endedCount?: number
   }>
   mpvAppend(uri: string, playNow?: boolean, options?: { headers?: Record<string, string> }): Promise<void>
   mpvPlay(atMs?: number): Promise<void>
@@ -50,15 +51,28 @@ export function createAudioHost(logger?: AudioMainLogger): AudioHostApi {
   const devices = new AudioDeviceEnumerator(logger)
   const supervisor = new AudioEngineSupervisor(logger)
 
+  let endedCount = 0
   let lastState: PlaybackStateEvent = {
     status: 'idle',
     positionMs: 0,
     durationMs: 0,
+    endedCount: 0,
   }
   let lastFftFrame: FftFrame | null = null
 
+  supervisor.onEnded(() => {
+    endedCount++
+    lastState = {
+      ...lastState,
+      endedCount,
+    }
+  })
+
   supervisor.onStateChange((state) => {
-    lastState = state
+    lastState = {
+      ...state,
+      endedCount: state.endedCount ?? endedCount,
+    }
   })
 
   supervisor.onFftFrame((frame) => {
@@ -73,7 +87,11 @@ export function createAudioHost(logger?: AudioMainLogger): AudioHostApi {
     },
 
     mpvLoad: async (uri, options) => {
-      return supervisor.load(uri, options)
+      const res = await supervisor.load(uri, options)
+      return {
+        ...res,
+        endedCount: res.endedCount ?? endedCount,
+      }
     },
     mpvAppend: async (uri, playNow, options) => {
       return supervisor.append(uri, playNow, options)
@@ -112,7 +130,10 @@ export function createAudioHost(logger?: AudioMainLogger): AudioHostApi {
       return lastFftFrame
     },
     mpvGetState: async () => {
-      return lastState
+      return {
+        ...lastState,
+        endedCount: lastState.endedCount ?? endedCount,
+      }
     },
     mpvGetAudioDevices: async () => {
       return supervisor.getAudioDevices()

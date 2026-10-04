@@ -887,4 +887,80 @@ describe('core-audio-mpv native engine features', () => {
     await audio.preloadNext('file:///music/next2.flac')
     expect(audio.lastPreloadStatus?.ok).toBe(false)
   })
+
+  it('fires onEnded when endedCount increments during gapless advance even if status remained playing', async () => {
+    let currentEndedCount = 0
+    const currentStatus = 'playing'
+    let currentPosition = 5000
+
+    const bridgeCall = async (_service: string, method: string) => {
+      if (method === 'mpvLoad') {
+        return { durationMs: 180_000, endedCount: currentEndedCount }
+      }
+      if (method === 'mpvGetState') {
+        return {
+          status: currentStatus,
+          positionMs: currentPosition,
+          durationMs: 180_000,
+          endedCount: currentEndedCount,
+        }
+      }
+      return undefined
+    }
+
+    const { audio } = await harness({ bridgeCall })
+    const handle = await audio.load('file:///music/track1.flac')
+    let endedFired = 0
+    handle.onEnded(() => {
+      endedFired++
+    })
+    handle.play(0)
+
+    // Initially playing with endedCount = 0
+    await new Promise((r) => setTimeout(r, 250))
+    expect(endedFired).toBe(0)
+
+    // Engine advanced to track 2 in mpv: endedCount incremented, but status stayed 'playing'
+    currentEndedCount = 1
+    currentPosition = 100 // new track's beginning
+    await new Promise((r) => setTimeout(r, 250))
+
+    expect(endedFired).toBe(1)
+  })
+
+  it('fires onEnded when position rolls over near track end during gapless advance', async () => {
+    let currentPosition = 179_500
+
+    const bridgeCall = async (_service: string, method: string) => {
+      if (method === 'mpvLoad') {
+        return { durationMs: 180_000 }
+      }
+      if (method === 'mpvGetState') {
+        return {
+          status: 'playing',
+          positionMs: currentPosition,
+          durationMs: 180_000,
+        }
+      }
+      return undefined
+    }
+
+    const { audio } = await harness({ bridgeCall })
+    const handle = await audio.load('file:///music/track1.flac')
+    let endedFired = 0
+    handle.onEnded(() => {
+      endedFired++
+    })
+    handle.play(179_000)
+
+    // First poll captures position near track end
+    await new Promise((r) => setTimeout(r, 250))
+    expect(endedFired).toBe(0)
+
+    // Position wraps to 200ms of next track while status remains 'playing'
+    currentPosition = 200
+    await new Promise((r) => setTimeout(r, 250))
+
+    expect(endedFired).toBe(1)
+  })
 })

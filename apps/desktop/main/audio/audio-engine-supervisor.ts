@@ -39,6 +39,7 @@ export interface PlaybackStateEvent {
   status: 'idle' | 'playing' | 'paused' | 'stopped' | 'stalled' | 'loading' | 'error' | 'ended'
   positionMs: number
   durationMs: number
+  endedCount?: number
 }
 
 export interface CrashEvent {
@@ -60,6 +61,7 @@ export interface LoadResult {
    * must not seek it back to zero.
    */
   resumed?: boolean
+  endedCount?: number
 }
 
 export class AudioEngineSupervisor {
@@ -75,6 +77,7 @@ export class AudioEngineSupervisor {
   private readonly endedListeners = new Set<() => void>()
   private readonly crashListeners = new Set<(event: CrashEvent) => void>()
   private readonly readyListeners = new Set<() => void>()
+  private endedCount = 0
 
   private currentUri?: string
   private currentVolume = 0.8
@@ -285,7 +288,7 @@ export class AudioEngineSupervisor {
         while (this.pendingLoads.length > 0) {
           const p = this.pendingLoads.shift()!
           clearTimeout(p.timer)
-          p.resolve({ durationMs, uri, resumed, sampleRate, channels, bitDepth })
+          p.resolve({ durationMs, uri, resumed, sampleRate, channels, bitDepth, endedCount: this.endedCount })
         }
         break
       }
@@ -335,10 +338,12 @@ export class AudioEngineSupervisor {
             status: payload['status'] as PlaybackStateEvent['status'],
             positionMs: Number(payload['positionMs'] ?? 0),
             durationMs: Number(payload['durationMs'] ?? 0),
+            endedCount: this.endedCount,
           })
         }
         break
       case 'ended':
+        this.endedCount++
         for (const cb of this.endedListeners) cb()
         break
       case 'fftFrame':
@@ -533,6 +538,10 @@ export class AudioEngineSupervisor {
   onReady(cb: () => void): () => void {
     this.readyListeners.add(cb)
     return () => this.readyListeners.delete(cb)
+  }
+
+  getEndedCount(): number {
+    return this.endedCount
   }
 
   async append(

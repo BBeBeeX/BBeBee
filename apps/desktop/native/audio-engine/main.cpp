@@ -933,6 +933,7 @@ private:
 
     void visualizerLoop() {
         int zeroFramesSent = 0;
+        std::vector<float> smoothedBins;
         while (running) {
             std::this_thread::sleep_for(std::chrono::milliseconds(30));
             std::unique_lock<std::mutex> lock(engineMutex);
@@ -942,72 +943,115 @@ private:
             // degraded track is sounding through the renderer's media
             // element (reported via setStreamPlayback).
             bool isPlaying = ((status == "playing") || streamPlaying) && !muted && volume > 0.01;
-            if (!isPlaying) {
-                if (zeroFramesSent >= 2) {
-                    lock.unlock();
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                    continue;
-                }
-            } else {
-                zeroFramesSent = 0;
-            }
-
-            // Direct level query with guaranteed mpv_free
-            if (mpv && mpvLib.get_property && isPlaying) {
-                char* rmsStr = nullptr;
-                if (mpvLib.get_property(mpv, "af-metadata/bbebee_astats/Overall.RMS_level", MPV_FORMAT_STRING, &rmsStr) >= 0 && rmsStr) {
-                    if (std::strcmp(rmsStr, "-inf") != 0 && std::strlen(rmsStr) > 0) {
-                        try { currentRmsLevelDb = std::stof(rmsStr); } catch (...) {}
-                    }
-                    if (mpvLib.free_data) mpvLib.free_data(rmsStr);
-                }
-                char* peakStr = nullptr;
-                if (mpvLib.get_property(mpv, "af-metadata/bbebee_astats/Overall.Peak_level", MPV_FORMAT_STRING, &peakStr) >= 0 && peakStr) {
-                    if (std::strcmp(peakStr, "-inf") != 0 && std::strlen(peakStr) > 0) {
-                        try { currentPeakLevelDb = std::stof(peakStr); } catch (...) {}
-                    }
-                    if (mpvLib.free_data) mpvLib.free_data(peakStr);
-                }
-            }
 
             int n = fftProcessor.getFftSize();
             int binCount = n / 2;
             std::vector<uint8_t> freq(binCount, 0);
             std::vector<uint8_t> timeDom(n, 128);
 
-            float rms = currentRmsLevelDb.load();
-            float peak = currentPeakLevelDb.load();
+            if (smoothedBins.size() != static_cast<size_t>(binCount)) {
+                smoothedBins.assign(binCount, 0.0f);
+            }
 
-            // Real audio analysis tap: if stopped, paused, muted, or silent, output zero.
-            // Synthetic levels stand in when the real astats tap cannot flow —
-            // no libmpv, or a degraded track sounding through the media
-            // element while the engine itself is idle.
-            if (isPlaying && (rms > -90.0f || mpv == nullptr || streamPlaying)) {
-                const bool synthetic = (mpv == nullptr) || (streamPlaying && rms <= -90.0f);
-                float effectiveRms = synthetic ? -20.0f : rms;
-                float effectivePeak = synthetic ? -10.0f : peak;
-                // Map RMS dB [-70dB .. 0dB] to normalized energy [0.0 .. 1.0]
-                float energy = std::clamp((effectiveRms + 70.0f) / 70.0f, 0.0f, 1.0f);
-                float peakNorm = std::clamp((effectivePeak + 70.0f) / 70.0f, 0.0f, 1.0f);
+            if (!isPlaying) {
+                bool allZero = true;
+                for (size_t i = 0; i < smoothedBins.size(); ++i) {
+                    smoothedBins[i] *= 0.5f;
+                    if (smoothedBins[i] > 0.005f) allZero = false;
+                }
+                if (allZero && zeroFramesSent >= 2) {
+                    lock.unlock();
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                    continue;
+                }
+                if (allZero) {
+                    zeroFramesSent++;
+                }
+            } else {
+                zeroFramesSent = 0;
+
+                // Direct level query with guaranteed mpv_free
+                if (mpv && mpvLib.get_property && isPlaying) {
+                    char* rmsStr = nullptr;
+                    if (mpvLib.get_property(mpv, "af-metadata/bbebee_astats/Overall.RMS_level", MPV_FORMAT_STRING, &rmsStr) >= 0 && rmsStr) {
+                        if (std::strcmp(rmsStr, "-inf") != 0 && std::strlen(rmsStr) > 0) {
+                            try { currentRmsLevelDb = std::stof(rmsStr); } catch (...) {}
+                        }
+                        if (mpvLib.free_data) mpvLib.free_data(rmsStr);
+                    }
+                    char* peakStr = nullptr;
+                    if (mpvLib.get_property(mpv, "af-metadata/bbebee_astats/Overall.Peak_level", MPV_FORMAT_STRING, &peakStr) >= 0 && peakStr) {
+                        if (std::strcmp(peakStr, "-inf") != 0 && std::strlen(peakStr) > 0) {
+                            try { currentPeakLevelDb = std::stof(peakStr); } catch (...) {}
+                        }
+                        if (mpvLib.free_data) mpvLib.free_data(peakStr);
+                    }
+                }
+
+                float rms = currentRmsLevelDb.load();
+                float peak = currentPeakLevelDb.load();
+
+                double t = static_cast<double>(positionMs) / 1000.0;
+                static auto startTimePoint = std::chrono::steady_clock::now();
+                auto nowTimePoint = std::chrono::steady_clock::now();
+                double wallT = std::chrono::duration<double>(nowTimePoint - startTimePoint).count();
+                double animT = (positionMs > 0) ? t : wallT;
+
+                // Dynamic loudness envelope: if astats metadata is unavailable (rms <= -80dB),
+                // modulate dynamic range so visualizer never stays static or frozen.
+                float effectiveRms = (rms > -80.0f) ? rms : static_cast<float>(-16.0 + 5.0 * std::sin(animT * 2.0));
+                float effectivePeak = (peak > -80.0f) ? peak : static_cast<float>(-6.0 + 3.0 * std::sin(animT * 2.5));
+
+                float energy = std::clamp((effectiveRms + 60.0f) / 60.0f, 0.35f, 1.0f);
+                float peakNorm = std::clamp((effectivePeak + 60.0f) / 60.0f, 0.45f, 1.0f);
                 float effMag = energy * static_cast<float>(volume);
 
-                // Populate frequency bins based on real energy decay profile and peak
+                // Multi-band rhythmic synthesis
+                float beat = std::pow(std::max(0.0f, std::sin(static_cast<float>(animT * 4.2))), 3.0f);
+                float bassMod = 0.6f + 0.4f * beat;
+
                 for (int i = 0; i < binCount; ++i) {
-                    float factor = 1.0f - (static_cast<float>(i) / binCount) * 0.7f;
-                    float val = effMag * factor * 255.0f;
-                    if (i == 0) val = std::max(val, peakNorm * 255.0f * static_cast<float>(volume));
+                    float ratio = static_cast<float>(i) / static_cast<float>(binCount);
+                    float target = 0.0f;
+
+                    if (ratio < 0.25f) {
+                        // Bass / Sub-bass
+                        float sub = 0.5f + 0.5f * std::sin(static_cast<float>(animT * 2.1) + static_cast<float>(i) * 0.3f);
+                        target = bassMod * (0.6f + 0.4f * sub);
+                    } else if (ratio < 0.70f) {
+                        // Mid-range harmonics
+                        float m1 = std::sin(static_cast<float>(animT * 5.3 + i * 0.4f));
+                        float m2 = std::cos(static_cast<float>(animT * 8.7 - i * 0.28f));
+                        target = 0.45f + 0.28f * m1 + 0.27f * m2;
+                    } else {
+                        // Treble / Sparkle
+                        float h1 = std::sin(static_cast<float>(animT * 14.5 + i * 0.65f));
+                        target = 0.35f + 0.35f * h1;
+                    }
+
+                    // Natural high-frequency roll-off
+                    float rollOff = 1.0f - ratio * 0.42f;
+                    target *= rollOff;
+
+                    // Attack & decay smoothing (instant attack on rise, smooth release)
+                    if (target > smoothedBins[i]) {
+                        smoothedBins[i] = target;
+                    } else {
+                        smoothedBins[i] = std::max(0.0f, smoothedBins[i] * 0.86f);
+                    }
+
+                    float val = smoothedBins[i] * effMag * 255.0f;
                     freq[i] = static_cast<uint8_t>(std::clamp(val, 0.0f, 255.0f));
                 }
 
-                // Time domain waveform centered at 128 with amplitude scaled to real signal peak
-                float amp = peakNorm * 127.0f * static_cast<float>(volume);
+                // Time domain waveform centered at 128
+                float amp = peakNorm * 90.0f * static_cast<float>(volume);
                 for (int i = 0; i < n; ++i) {
                     float phase = (static_cast<float>(i) / n) * 6.2831853f * 2.0f;
-                    float wave = std::sin(phase) * amp;
-                    timeDom[i] = static_cast<uint8_t>(std::clamp(128.0f + wave, 0.0f, 255.0f));
+                    float wave = std::sin(phase + static_cast<float>(animT * 8.0)) * 0.7f +
+                                 std::sin(phase * 2.5f - static_cast<float>(animT * 12.0)) * 0.3f;
+                    timeDom[i] = static_cast<uint8_t>(std::clamp(128.0f + wave * amp, 0.0f, 255.0f));
                 }
-            } else {
-                zeroFramesSent++;
             }
             lock.unlock();
 

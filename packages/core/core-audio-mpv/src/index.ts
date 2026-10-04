@@ -81,6 +81,7 @@ export class MpvSourceHandle implements AudioSourceHandle {
   private pausedSince?: number
   private stallReported = false
   private readonly pausedStallMs: number
+  private initialEndedCount?: number
 
   constructor(
     private readonly context: BaseAudioContext,
@@ -90,9 +91,11 @@ export class MpvSourceHandle implements AudioSourceHandle {
     /** The engine was already sounding this file (gapless re-bind). */
     private readonly resumed = false,
     pausedStallMs?: number,
+    initialEndedCount?: number,
   ) {
     this.durationMs = durationMs
     this.pausedStallMs = pausedStallMs ?? 2_000
+    this.initialEndedCount = initialEndedCount
     this.node = this.context.createGain()
   }
 
@@ -123,11 +126,25 @@ export class MpvSourceHandle implements AudioSourceHandle {
         if (this.bridge) {
           try {
             const state = (await this.bridge('audio', 'mpvGetState', [])) as
-              | { positionMs?: number; durationMs?: number; status?: string }
+              | { positionMs?: number; durationMs?: number; status?: string; endedCount?: number }
               | undefined
             if (state && typeof state.positionMs === 'number') {
-              this.position = state.positionMs
-              if (state.status === 'ended') {
+              if (this.initialEndedCount === undefined && typeof state.endedCount === 'number') {
+                this.initialEndedCount = state.endedCount
+              }
+              const countEnded =
+                this.initialEndedCount !== undefined &&
+                typeof state.endedCount === 'number' &&
+                state.endedCount > this.initialEndedCount
+
+              // Detect track rollover when gapless playback advances in mpv:
+              // position was near the track end and suddenly dropped back to near zero.
+              const positionRollover =
+                this.durationMs > 2000 &&
+                this.position >= this.durationMs - 2000 &&
+                state.positionMs < 1500
+
+              if (state.status === 'ended' || countEnded || positionRollover) {
                 this.isPlaying = false
                 if (this.timer) {
                   clearInterval(this.timer)
@@ -136,6 +153,7 @@ export class MpvSourceHandle implements AudioSourceHandle {
                 for (const cb of this.endedListeners) cb()
                 return
               }
+              this.position = state.positionMs
               if (state.status === 'error') {
                 // A fatal engine error mid-track (network cut, dead URL).
                 // Without this branch the handle kept polling a frozen
@@ -471,10 +489,10 @@ export class AudioMpv extends Service implements AudioService {
     }
   }
 
-  async load(src: string | Uri, opts: LoadOptions): Promise<AudioSourceHandle> {
+  async load(src: string | Uri, opts: LoadOptions = { strategy: 'stream' }): Promise<AudioSourceHandle> {
     this.gate()
     const srcStr = String(src)
-    this.ctx.logger?.info('mpv: loading %s (strategy: %s)', srcStr, opts.strategy ?? 'stream')
+    this.ctx.logger?.info('mpv: loading %s (strategy: %s)', srcStr, opts?.strategy ?? 'stream')
 
     const bridge = resolveBridgeCall(this.config.bridgeCall)
 
@@ -495,6 +513,7 @@ export class AudioMpv extends Service implements AudioService {
               sampleRate?: number
               channels?: number
               bitDepth?: number
+              endedCount?: number
             }
           | undefined
         if (result && typeof result.durationMs === 'number' && result.durationMs > 0) {
@@ -515,6 +534,7 @@ export class AudioMpv extends Service implements AudioService {
             this.ctx.logger,
             result.resumed === true,
             this.config.pausedStallMs,
+            result.endedCount,
           )
         }
         this.ctx.logger?.warn(
