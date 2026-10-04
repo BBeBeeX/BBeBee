@@ -41,6 +41,9 @@ export function PlaybackSection({
   const [compExpanded, setCompExpanded] = useState(true)
   const [reverbExpanded, setReverbExpanded] = useState(true)
   const [outputDevices, setOutputDevices] = useState<OutputDevice[]>([])
+  const [engineStatus, setEngineStatus] = useState<{ running: boolean; mpvAvailable: boolean } | undefined>(
+    undefined,
+  )
   const mountedRef = useRef(true)
 
   useEffect(() => {
@@ -76,8 +79,21 @@ export function PlaybackSection({
     }
   }, [ctx])
 
+  const fetchEngineStatus = useCallback(async () => {
+    try {
+      const audio = serviceOf<AudioService>(ctx, 'audio')
+      const status = await audio?.getEngineStatus?.()
+      if (mountedRef.current && status) {
+        setEngineStatus(status)
+      }
+    } catch {
+      // keep the last known status; a failed probe is not a crash
+    }
+  }, [ctx])
+
   useEffect(() => {
     void fetchDevices('mount')
+    void fetchEngineStatus()
 
     let offRouteChange: (() => void) | undefined
     try {
@@ -102,6 +118,7 @@ export function PlaybackSection({
     const offEngineChange = ctx.on('audio/engine-changed', () => {
       ctx.logger?.info('playback-settings: audio engine-changed event received')
       void fetchDevices('engine-changed')
+      void fetchEngineStatus()
     })
 
     if (media?.addEventListener && media?.removeEventListener) {
@@ -116,7 +133,7 @@ export function PlaybackSection({
       offRouteChange?.()
       offEngineChange()
     }
-  }, [ctx, fetchDevices])
+  }, [ctx, fetchDevices, fetchEngineStatus])
 
   const eqEntry = chain?.find((c) => c.effectId === 'eq10')
   const compEntry = chain?.find((c) => c.effectId === 'compressor')
@@ -145,7 +162,8 @@ export function PlaybackSection({
 
   useEffect(() => {
     void fetchDevices(`engine-${currentEngine}`)
-  }, [currentEngine, fetchDevices])
+    void fetchEngineStatus()
+  }, [currentEngine, fetchDevices, fetchEngineStatus])
 
   useEffect(() => {
     if (
@@ -304,6 +322,24 @@ export function PlaybackSection({
             },
           }),
         }),
+      /*
+       * The degradation notice: an engine process that never spawned or a
+       * libmpv that failed to load silently falls back to Chromium decode —
+       * audible, but with no FFT frames and no native device switching.
+       * Without this row the MPV Hi-Fi button above reads as if it were in
+       * charge while it is not.
+       */
+      isMpv &&
+        engineStatus &&
+        (!engineStatus.running || !engineStatus.mpvAvailable)
+        ? h(SettingsRow, {
+            title: '⚠️ MPV 原生引擎不可用，已回退到 Chromium 解码',
+            description: !engineStatus.running
+              ? '原生音频引擎进程未运行（未找到 audio-engine 可执行文件或启动失败）。播放仍可进行，但音频可视化与输出设备切换暂不可用。'
+              : '未能加载 libmpv（库文件缺失或依赖不全）。播放仍可进行，但音频可视化与输出设备切换暂不可用。请重新部署引擎目录下的 libmpv 及其全部依赖。',
+            borderBottom: false,
+          })
+        : null,
       h(SettingsRow, {
         title: '音频输出设备 (Output Device)',
         description: `当前输出目的地：${selectedDeviceLabel}`,

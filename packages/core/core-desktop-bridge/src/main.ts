@@ -152,6 +152,10 @@ export interface AudioHost {
   mpvGetFftFrame?(): Promise<unknown>
   mpvGetState?(): Promise<unknown>
   mpvGetAudioDevices?(): Promise<unknown>
+  /** Whether the native engine process lives and its libmpv actually loaded. */
+  mpvEngineStatus?(): Promise<{ running: boolean; mpvAvailable: boolean }>
+  /** The renderer's media-element playback state, for the engine's visualizer. */
+  mpvSetStreamPlayback?(playing: boolean): Promise<unknown>
 }
 
 /** The referrer policies Electron's `ClientRequest` accepts. */
@@ -239,6 +243,7 @@ const ALLOWED: Record<BridgedService, ReadonlySet<string>> = {
     'mpvLoad', 'mpvAppend', 'mpvPlay', 'mpvPause', 'mpvStop', 'mpvSeek',
     'mpvSetVolume', 'mpvSetMuted', 'mpvSetAudioExclusive', 'mpvSetDspConfig', 'mpvSetVisualizer',
     'mpvGetFftFrame', 'mpvGetState', 'mpvGetAudioDevices',
+    'mpvEngineStatus', 'mpvSetStreamPlayback',
   ]),
 }
 
@@ -334,6 +339,8 @@ export async function createHost(ipc: IpcHost, options: HostOptions = {}): Promi
     mpvGetFftFrame: options.audio?.mpvGetFftFrame ?? (async () => null),
     mpvGetState: options.audio?.mpvGetState ?? (async () => ({ status: 'idle', positionMs: 0, durationMs: 0 })),
     mpvGetAudioDevices: options.audio?.mpvGetAudioDevices ?? (async () => []),
+    mpvEngineStatus: options.audio?.mpvEngineStatus ?? (async () => ({ running: false, mpvAvailable: false })),
+    mpvSetStreamPlayback: options.audio?.mpvSetStreamPlayback ?? (async () => {}),
   }
 
   const services: Record<

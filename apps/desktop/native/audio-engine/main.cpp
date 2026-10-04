@@ -336,6 +336,10 @@ public:
 
         JsonValue ready = JsonValue::object();
         ready["type"] = "ready";
+        // Explicit libmpv health: the supervisor surfaces it to the renderer,
+        // whose settings page must show the media-element degradation instead
+        // of silently pretending the MPV engine is running.
+        ready["mpvAvailable"] = mpv != nullptr;
         ready["sampleRate"] = sampleRate;
         ready["channels"] = channels;
         ready["bitDepth"] = bitDepth;
@@ -546,6 +550,17 @@ public:
         }
     }
 
+    // Playback state of tracks the ENGINE is not decoding — the media-element
+    // degradation the renderer falls back to when libmpv is missing or a URL
+    // fails to load. The visualizer loop needs it: its spectrum only moves
+    // while something is actually sounding, and without this flag a degraded
+    // track (which never reaches mpv `playing`) would sit at zero forever.
+    // Only the *state* crosses the bridge here — the PCM never does.
+    void setStreamPlayback(bool playing) {
+        std::lock_guard<std::mutex> lock(engineMutex);
+        streamPlaying = playing;
+    }
+
     void append(const std::string& uri, bool playNow = false, const JsonValue& options = JsonValue()) {
         std::lock_guard<std::mutex> lock(engineMutex);
         if (mpv && mpvLib.command) {
@@ -679,6 +694,7 @@ private:
     int fftSize = 128;
     FftProcessor fftProcessor;
     JsonValue dspConfig;
+    bool streamPlaying = false;
 
     // Real audio levels extracted via lavfi astats metadata tap
     std::atomic<float> currentRmsLevelDb{ -100.0f };
@@ -922,7 +938,10 @@ private:
             std::unique_lock<std::mutex> lock(engineMutex);
             if (!visualizerEnabled) continue;
 
-            bool isPlaying = (status == "playing" && !muted && volume > 0.01);
+            // Sounding means either the engine itself is decoding or a
+            // degraded track is sounding through the renderer's media
+            // element (reported via setStreamPlayback).
+            bool isPlaying = ((status == "playing") || streamPlaying) && !muted && volume > 0.01;
             if (!isPlaying) {
                 if (zeroFramesSent >= 2) {
                     lock.unlock();
@@ -959,10 +978,14 @@ private:
             float rms = currentRmsLevelDb.load();
             float peak = currentPeakLevelDb.load();
 
-            // Real audio analysis tap: if stopped, paused, muted, or silent, output zero
-            if (isPlaying && (rms > -90.0f || mpv == nullptr)) {
-                float effectiveRms = (mpv == nullptr) ? -20.0f : rms;
-                float effectivePeak = (mpv == nullptr) ? -10.0f : peak;
+            // Real audio analysis tap: if stopped, paused, muted, or silent, output zero.
+            // Synthetic levels stand in when the real astats tap cannot flow —
+            // no libmpv, or a degraded track sounding through the media
+            // element while the engine itself is idle.
+            if (isPlaying && (rms > -90.0f || mpv == nullptr || streamPlaying)) {
+                const bool synthetic = (mpv == nullptr) || (streamPlaying && rms <= -90.0f);
+                float effectiveRms = synthetic ? -20.0f : rms;
+                float effectivePeak = synthetic ? -10.0f : peak;
                 // Map RMS dB [-70dB .. 0dB] to normalized energy [0.0 .. 1.0]
                 float energy = std::clamp((effectiveRms + 70.0f) / 70.0f, 0.0f, 1.0f);
                 float peakNorm = std::clamp((effectivePeak + 70.0f) / 70.0f, 0.0f, 1.0f);
@@ -1068,6 +1091,8 @@ int main(int argc, char* argv[]) {
             app.setOutputDevice(cmd.get("deviceId").asString("default"));
         } else if (action == "setAudioExclusive") {
             app.setAudioExclusive(cmd.get("exclusive").asBool(false));
+        } else if (action == "setStreamPlayback") {
+            app.setStreamPlayback(cmd.get("playing").asBool(false));
         } else if (action == "setDspConfig") {
             app.setDspConfig(cmd.get("config"));
         } else if (action == "setVisualizer") {

@@ -267,6 +267,73 @@ export class MpvSourceHandle implements AudioSourceHandle {
   }
 }
 
+/**
+ * A degraded (media-element) source handle that keeps the native engine's
+ * visualizer alive while Chromium decodes.
+ *
+ * The engine produces FFT frames only while something is actually sounding,
+ * and a track the engine could not load never reaches mpv `playing` — so a
+ * degraded track would otherwise sit at zero forever. The wrapper forwards
+ * this handle's playback state to the engine (`setStreamPlayback`), which
+ * drives the synthetic spectrum there. Only the state crosses the bridge;
+ * the PCM never does.
+ */
+class DegradedStreamHandle implements AudioSourceHandle {
+  readonly node: AudioNode
+  readonly durationMs: number
+
+  constructor(
+    private readonly inner: StreamedHandle,
+    private readonly bridge?: BridgeCall,
+  ) {
+    this.node = inner.node
+    this.durationMs = inner.durationMs
+  }
+
+  private notify(playing: boolean): void {
+    this.bridge?.('audio', 'mpvSetStreamPlayback', [playing]).catch(() => undefined)
+  }
+
+  play(atMs?: number): void {
+    this.inner.play(atMs)
+    this.notify(true)
+  }
+
+  pause(): void {
+    this.inner.pause()
+    this.notify(false)
+  }
+
+  stop(): void {
+    this.inner.stop()
+    this.notify(false)
+  }
+
+  seek(atMs: number): void {
+    this.inner.seek(atMs)
+  }
+
+  get positionMs(): number {
+    return this.inner.positionMs
+  }
+
+  onEnded(cb: () => void): Disposable {
+    return this.inner.onEnded(() => {
+      this.notify(false)
+      cb()
+    })
+  }
+
+  onStalled(cb: (stalled: boolean) => void): Disposable {
+    return this.inner.onStalled(cb)
+  }
+
+  dispose(): void {
+    this.notify(false)
+    this.inner.dispose()
+  }
+}
+
 export class AudioMpv extends Service implements AudioService {
   static inject = []
 
@@ -358,6 +425,23 @@ export class AudioMpv extends Service implements AudioService {
       await this.bridge('audio', 'mpvSetVisualizer', [enabled, fftSize])
     } catch {
       // ignore
+    }
+  }
+
+  async getEngineStatus(): Promise<{ running: boolean; mpvAvailable: boolean }> {
+    if (!this.bridge) return { running: false, mpvAvailable: false }
+    try {
+      const status = (await this.bridge('audio', 'mpvEngineStatus', [])) as
+        | { running?: boolean; mpvAvailable?: boolean }
+        | undefined
+      // `mpvAvailable` defaults to true: an engine binary predating the
+      // explicit field is not proof of degradation.
+      return {
+        running: status?.running === true,
+        mpvAvailable: status?.mpvAvailable !== false,
+      }
+    } catch {
+      return { running: false, mpvAvailable: false }
     }
   }
 
@@ -472,7 +556,10 @@ export class AudioMpv extends Service implements AudioService {
         throw new Error('audio: this AudioContext cannot wrap a media element')
       }
       const node = context.createMediaElementSource(element)
-      return new StreamedHandle(element, node, this.ctx.logger, this.ensureContextRunning)
+      const handle = new StreamedHandle(element, node, this.ctx.logger, this.ensureContextRunning)
+      // The degradation is visible to the engine only if we tell it: the
+      // wrapper forwards play/pause so the visualizer keeps moving.
+      return new DegradedStreamHandle(handle, resolveBridgeCall(this.config.bridgeCall))
     } catch (err) {
       try {
         element.pause()
@@ -610,7 +697,12 @@ export class AudioMpv extends Service implements AudioService {
     this.selectedDeviceId = id
     const bridge = resolveBridgeCall(this.config.bridgeCall)
     if (bridge) {
-      if (id.startsWith('wasapi/') || id.startsWith('pulse/') || id.includes('{')) {
+      // An id already in the engine's own vocabulary (`<ao>/<device>`, the
+      // WASAPI GUID form, or `auto`) passes through untouched: mpv names
+      // devices `pipewire/…`, `alsa/…`, `coreaudio/…` and so on — far more
+      // prefixes than any hardcoded list can carry. Anything else is a
+      // Chromium/WebAudio id and goes through the label-based translation.
+      if (id === 'auto' || id.includes('{') || /^[a-z][a-z0-9]*\//i.test(id)) {
         await bridge('audio', 'setOutputDevice', [id]).catch(() => undefined)
         this.activeDeviceLabel = id
       } else {

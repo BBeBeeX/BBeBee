@@ -38,6 +38,10 @@ export interface AudioHostApi {
   mpvGetFftFrame(): Promise<FftFrame | null>
   mpvGetState(): Promise<PlaybackStateEvent>
   mpvGetAudioDevices(): Promise<Array<{ name: string; description: string }>>
+  /** Whether the engine process lives and its libmpv actually loaded. */
+  mpvEngineStatus(): Promise<{ running: boolean; mpvAvailable: boolean }>
+  /** The renderer's media-element playback state, for the engine's visualizer. */
+  mpvSetStreamPlayback(playing: boolean): Promise<void>
 
   readonly supervisor: AudioEngineSupervisor
 }
@@ -112,6 +116,12 @@ export function createAudioHost(logger?: AudioMainLogger): AudioHostApi {
     },
     mpvGetAudioDevices: async () => {
       return supervisor.getAudioDevices()
+    },
+    mpvEngineStatus: async () => {
+      return supervisor.getEngineStatus()
+    },
+    mpvSetStreamPlayback: async (playing) => {
+      supervisor.setStreamPlayback(playing)
     },
 
     supervisor,

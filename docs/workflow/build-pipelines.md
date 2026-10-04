@@ -54,6 +54,15 @@ delta over the distro's own libmpv2 dependency stack; the ffmpeg-family versions
 the host (a sid-built 0.41 needs `libavcodec.so.63`, while trixie's 0.40 matches the system's
 `.61`).
 
+On Linux the build script then stages the **full transitive dependency closure**
+(`scripts/bundle-mpv-deps.js`: `ldd` on the staged libmpv, denylist-excluding only the glibc
+core and compiler runtime) into both `bin/` and `resources/bin/`. libmpv is dlopened with
+`RTLD_NOW`, so ONE missing soname fails the whole load and silently degrades the engine; the
+closure makes the shipped libmpv self-contained — it also fixes the ffmpeg-version-matching
+problem above, because the staged `.61` set wins over whatever the host has. The cost is
+roughly 200 MB of packaged libraries on Linux; the step is idempotent and warns on sonames it
+cannot resolve on the build machine.
+
 **Degradation matrix**:
 
 | State | Behaviour |
@@ -61,6 +70,12 @@ the host (a sid-built 0.41 needs `libavcodec.so.63`, while trixie's 0.40 matches
 | Engine binary missing | the supervisor fails the load fast; the renderer degrades to the media element (Chromium decode — audio via Web Audio, flat spectrum, no gapless) |
 | Engine present, libmpv missing | the engine runs but every load fails; the same renderer fallback |
 | Both present | mpv decodes and feeds the OS audio output directly; native DSP/EQ; append-based gapless; astats-driven spectrum |
+
+In every degraded state the engine now reports its health (`ready.mpvAvailable`, surfaced as
+`ctx.audio.getEngineStatus()`) and the settings page shows an explicit “MPV 原生引擎不可用”
+row instead of pretending the native engine is running. A degraded track's playback state is
+forwarded to the engine (`mpvSetStreamPlayback`), which drives its synthetic spectrum — the
+visualizer keeps moving even when libmpv is gone (real astats levels when it is not).
 
 **Packaging**: CI builds the binary per platform (a three-OS matrix with a `--version` smoke)
 and uploads it as an artifact; the packaging job downloads it, stages libmpv

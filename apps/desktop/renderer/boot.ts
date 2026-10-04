@@ -296,6 +296,21 @@ export class DesktopAudioService extends Service implements AudioService {
     }
   }
 
+  /** Native-engine health, forwarded for the settings page's degradation notice. */
+  async getEngineStatus(): Promise<{ running: boolean; mpvAvailable: boolean }> {
+    const engine = this.activeEngine as unknown as {
+      getEngineStatus?: () => Promise<{ running: boolean; mpvAvailable: boolean }>
+    }
+    if (engine && typeof engine.getEngineStatus === 'function') {
+      try {
+        return await engine.getEngineStatus()
+      } catch {
+        // fall through to the closed-engine answer
+      }
+    }
+    return { running: false, mpvAvailable: false }
+  }
+
   get context(): BaseAudioContext {
     return this.activeEngine.context
   }
@@ -806,13 +821,20 @@ export async function boot(): Promise<App> {
         void window.BBeBee?.proxy?.set?.(s.proxy)
       }
       if (s.audioOutputEngine && typeof scoped.audio?.switchEngine === 'function') {
+        // 'wasapi' is the legacy spelling of the mpv engine, and the engine
+        // reports its own name ('mpv') regardless of which spelling mounted
+        // it. Comparing the mapped form is what keeps every unrelated
+        // settings change from "correcting" the name and remounting the
+        // whole engine — a loop that disposed and rebuilt the AudioContext
+        // each time.
+        const target = s.audioOutputEngine === 'wasapi' ? 'mpv' : s.audioOutputEngine
         const currentActive = scoped.audio.activeEngineName
-        if (currentActive && currentActive !== s.audioOutputEngine) {
+        if (currentActive && currentActive !== target) {
           scoped.logger?.info(
             'boot: switching audio engine to "%s" per settings',
-            s.audioOutputEngine,
+            target,
           )
-          void scoped.audio.switchEngine(s.audioOutputEngine).catch((err) => {
+          void scoped.audio.switchEngine(target).catch((err) => {
             scoped.logger?.error('boot: failed to switch audio engine: %s', String(err))
           })
         }

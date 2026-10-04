@@ -190,4 +190,45 @@ describe('AudioEngineSupervisor standalone native executable', () => {
     expect(devices.length).toBeGreaterThan(0)
     expect(devices[0]!.name).toBeDefined()
   })
+
+  it('reports engine health and honours the ready message mpv flag', async () => {
+    supervisor = new AudioEngineSupervisor()
+    const readyPromise = new Promise<void>((resolve) => {
+      supervisor!.onReady(() => resolve())
+    })
+    supervisor.start()
+    await readyPromise
+
+    const status = supervisor.getEngineStatus()
+    expect(status.running).toBe(true)
+    expect(typeof status.mpvAvailable).toBe('boolean')
+
+    const dispatch = (msg: unknown) =>
+      (supervisor as unknown as { handleWorkerMessage(m: unknown): void }).handleWorkerMessage(msg)
+
+    // An engine that says libmpv failed to load is the degradation the
+    // settings page must surface.
+    dispatch({ type: 'ready', mpvAvailable: false })
+    expect(supervisor.getEngineStatus().mpvAvailable).toBe(false)
+
+    // A binary predating the field is not proof of degradation.
+    dispatch({ type: 'ready' })
+    expect(supervisor.getEngineStatus().mpvAvailable, 'legacy ready stays healthy').toBe(true)
+  })
+
+  it('forwards the stream playback flag for the degraded visualizer', () => {
+    supervisor = new AudioEngineSupervisor()
+    const sent: Array<Record<string, unknown>> = []
+    ;(supervisor as unknown as { sendCommand(c: Record<string, unknown>): void }).sendCommand = (c) => {
+      sent.push(c)
+    }
+
+    supervisor.setStreamPlayback(true)
+    supervisor.setStreamPlayback(false)
+
+    expect(sent).toEqual([
+      { action: 'setStreamPlayback', playing: true },
+      { action: 'setStreamPlayback', playing: false },
+    ])
+  })
 })

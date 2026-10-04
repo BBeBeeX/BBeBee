@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import process from 'node:process'
 import console from 'node:console'
+import { bundleMpvDeps } from './bundle-mpv-deps.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const desktopRoot = join(__dirname, '..')
@@ -102,6 +103,22 @@ if (existsSync(vendorDir)) {
   console.log(`[build-audio-engine] Vendored libmpv staged: ${staged} libraries → bin/ + resources/bin/`)
 } else {
   console.warn(`[build-audio-engine] No vendored libmpv for this platform (${vendorDir}) — the engine will need a system libmpv at runtime.`)
+}
+
+// The staged libmpv.so.2 itself still resolves its own dependencies against
+// the SYSTEM (libavcodec, libass, libpulse, …) — none of which ship in the
+// vendored dir. On a machine without the distro's libmpv runtime every one
+// of those misses fails the engine's RTLD_NOW dlopen and the whole native
+// engine silently degrades. Close the closure with ldd and stage the result
+// beside the binary in both trees.
+if (process.platform === 'linux') {
+  const libmpvName = ['libmpv.so.2', 'libmpv.so'].find((f) => existsSync(join(binDir, f)))
+  if (libmpvName) {
+    bundleMpvDeps(join(binDir, libmpvName), binDir)
+    bundleMpvDeps(join(resourcesBinDir, libmpvName), resourcesBinDir)
+  } else {
+    console.warn('[build-audio-engine] no libmpv staged — dependency bundling skipped')
+  }
 }
 
 console.log(`[build-audio-engine] Standalone audio-engine built successfully at: ${outExe}`)

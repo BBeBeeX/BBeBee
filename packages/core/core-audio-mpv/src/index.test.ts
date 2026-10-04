@@ -777,6 +777,97 @@ describe('core-audio-mpv native engine features', () => {
     expect(frame).toEqual(mockFrame)
   })
 
+  it('reports the native engine health through the bridge', async () => {
+    const { audio } = await harness({
+      bridgeCall: async (_service, method) =>
+        method === 'mpvEngineStatus' ? { running: true, mpvAvailable: false } : undefined,
+    })
+    expect(await audio.getEngineStatus()).toEqual({ running: true, mpvAvailable: false })
+  })
+
+  it('reads a missing mpvAvailable field as healthy, not degraded', async () => {
+    // An engine binary predating the explicit field must not make the
+    // settings page claim a degradation that may not exist.
+    const { audio } = await harness({
+      bridgeCall: async (_service, method) =>
+        method === 'mpvEngineStatus' ? { running: true } : undefined,
+    })
+    expect(await audio.getEngineStatus()).toEqual({ running: true, mpvAvailable: true })
+  })
+
+  it('reports a closed engine when there is no bridge', async () => {
+    const { audio } = await harness({ bridgeCall: undefined })
+    expect(await audio.getEngineStatus()).toEqual({ running: false, mpvAvailable: false })
+  })
+
+  it('tells the engine when a degraded track sounds, so the visualizer keeps moving', async () => {
+    // A track the engine could not load never reaches mpv `playing` — without
+    // this forwarding the engine's visualizer loop would sit at zero for the
+    // whole degraded playback.
+    const calls: { method: string; args: unknown[] }[] = []
+    const bridgeCall = async (_service: string, method: string, args: unknown[]) => {
+      calls.push({ method, args })
+      return undefined
+    }
+
+    const { audio, elements } = await harness({ bridgeCall })
+    const handle = await audio.load('file:///music/song.flac', { strategy: 'buffer' })
+    expect(elements).toHaveLength(1)
+
+    handle.play()
+    handle.pause()
+    handle.play()
+    handle.stop()
+
+    const streamCalls = calls.filter((c) => c.method === 'mpvSetStreamPlayback')
+    expect(streamCalls.map((c) => c.args[0])).toEqual([true, false, true, false])
+    handle.dispose()
+  })
+
+  it('notifies the engine once more when a degraded track ends naturally', async () => {
+    const calls: { method: string; args: unknown[] }[] = []
+    const bridgeCall = async (_service: string, method: string, args: unknown[]) => {
+      calls.push({ method, args })
+      return undefined
+    }
+
+    const { audio, elements } = await harness({ bridgeCall })
+    const handle = await audio.load('file:///music/song.flac', { strategy: 'buffer' })
+    let ended = 0
+    handle.onEnded(() => void ended++)
+
+    handle.play()
+    elements[0]!.emit('ended')
+    expect(ended).toBe(1)
+    expect(calls.filter((c) => c.method === 'mpvSetStreamPlayback').at(-1)!.args[0]).toBe(false)
+    handle.dispose()
+  })
+
+  it('routes engine-vocabulary device ids straight through without OS translation', async () => {
+    // mpv names devices `pipewire/…`, `alsa/…`, `coreaudio/…` — prefixes the
+    // old hardcoded list never knew. Such an id must reach the engine
+    // unchanged and must not trigger the Chromium-label translation at all
+    // (which would only waste an OS enumeration and a permission probe).
+    const calls: { method: string; args: unknown[] }[] = []
+    const bridgeCall = async (_service: string, method: string, args: unknown[]) => {
+      calls.push({ method, args })
+      return undefined
+    }
+
+    const { audio } = await harness({ bridgeCall })
+    await audio.setOutputDevice('pipewire/alsa_output.pci-0000_02_02.0.analog-stereo')
+    await audio.setOutputDevice('auto')
+
+    const setCalls = calls.filter((c) => c.method === 'setOutputDevice')
+    expect(setCalls.map((c) => c.args[0])).toEqual([
+      'pipewire/alsa_output.pci-0000_02_02.0.analog-stereo',
+      'auto',
+    ])
+    expect(calls.some((c) => c.method === 'getOutputDevices'), 'no translation for native ids').toBe(
+      false,
+    )
+  })
+
   it('records the preload outcome for gapless diagnostics', async () => {
     let appendShouldFail = false
     const bridgeCall = async (_service: string, method: string) => {

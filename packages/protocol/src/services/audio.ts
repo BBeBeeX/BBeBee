@@ -102,6 +102,17 @@ export interface AudioService {
   setAudioExclusive?(exclusive: boolean): Promise<void>
 
   /**
+   * Native-engine health, for engines backed by a separate process.
+   *
+   * `running` is the engine process itself; `mpvAvailable` says whether its
+   * libmpv actually loaded. When either is false the engine silently
+   * degrades to the media element — audible, but with no FFT frames and no
+   * native device switching — and the settings UI surfaces exactly that
+   * instead of pretending the native engine is running.
+   */
+  getEngineStatus?(): Promise<{ running: boolean; mpvAvailable: boolean }>
+
+  /**
    * Preload or append next track for gapless playback transitions.
    *
    * Optional on purpose, and the optionality is the contract: an engine that

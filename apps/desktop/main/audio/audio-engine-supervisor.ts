@@ -84,6 +84,15 @@ export class AudioEngineSupervisor {
   private currentDspConfig?: DspConfig
   private visualizerEnabled = true
   private currentFftSize = 128
+  /**
+   * Whether the engine's last `ready` said libmpv actually loaded. A missing
+   * or dependency-broken libmpv silently strands every mpv feature (FFT
+   * frames, device enumeration/switching) while playback degrades to the
+   * media element — this flag is what makes that state reportable instead
+   * of invisible. Defaults to `true` so an older engine binary that does
+   * not send the field is not misreported as degraded.
+   */
+  private mpvAvailable = true
 
   private pendingLoads: Array<{
     uri: string
@@ -263,6 +272,7 @@ export class AudioEngineSupervisor {
 
     switch (type) {
       case 'ready':
+        this.mpvAvailable = payload['mpvAvailable'] !== false
         for (const cb of this.readyListeners) cb()
         break
       case 'loaded': {
@@ -474,6 +484,23 @@ export class AudioEngineSupervisor {
     this.visualizerEnabled = enabled
     if (fftSize) this.currentFftSize = fftSize
     this.sendCommand({ action: 'setVisualizer', enabled, fftSize })
+  }
+
+  /**
+   * Forward the renderer's degraded-playback state (media element) so the
+   * engine's visualizer keeps producing spectrum while libmpv is idle or
+   * missing. No-ops into a dead pipe by design — the visualizer is cosmetic.
+   */
+  setStreamPlayback(playing: boolean): void {
+    this.sendCommand({ action: 'setStreamPlayback', playing })
+  }
+
+  /** Engine-process health, for the renderer's degradation notice. */
+  getEngineStatus(): { running: boolean; mpvAvailable: boolean } {
+    return {
+      running: Boolean(this.child && !this.child.killed),
+      mpvAvailable: this.mpvAvailable,
+    }
   }
 
   private sendCommand(cmd: Record<string, unknown>): void {

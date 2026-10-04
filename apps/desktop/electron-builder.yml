@@ -13,12 +13,21 @@ extraResources:
       - audio-engine*
       - mpv*
       - libmpv*
+      # libmpv's transitive dependency closure staged by
+      # scripts/bundle-mpv-deps.js — without it a clean machine cannot load
+      # the engine's libmpv and every native feature silently degrades.
+      - "*.so*"
+      - "*.dll"
+      - "*.dylib"
   - from: bin
     to: bin
     filter:
       - audio-engine*
       - mpv*
       - libmpv*
+      - "*.so*"
+      - "*.dll"
+      - "*.dylib"
 win:
   target:
     - target: nsis

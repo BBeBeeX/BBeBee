@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import process from 'node:process'
 import console from 'node:console'
+import { bundleMpvDeps } from './bundle-mpv-deps.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const desktopRoot = join(__dirname, '..')
@@ -42,8 +43,19 @@ function hasLibmpvInResources() {
   return false
 }
 
+// Dependency staging is part of staging libmpv, not an optional extra: a
+// libmpv.so.2 whose ldd closure is missing sonames cannot load anywhere.
+// This runs on the early-exit path too — the previous behaviour of skipping
+// it when libmpv was already present left stale, dependency-less stagings.
+function ensureLinuxDepsStaged() {
+  if (targetPlatform !== 'linux') return
+  const staged = ['libmpv.so.2', 'libmpv.so'].map((f) => join(resourcesBinDir, f)).find(existsSync)
+  if (staged) bundleMpvDeps(staged, resourcesBinDir)
+}
+
 if (hasLibmpvInResources()) {
-  console.log(`[fetch-libmpv] libmpv already present in ${resourcesBinDir}. Nothing to do.`)
+  console.log(`[fetch-libmpv] libmpv already present in ${resourcesBinDir}.`)
+  ensureLinuxDepsStaged()
   process.exit(0)
 }
 
@@ -65,6 +77,7 @@ if (customPath && existsSync(customPath)) {
   }
   if (hasLibmpvInResources()) {
     console.log(`[fetch-libmpv] Staged custom libmpv successfully.`)
+    ensureLinuxDepsStaged()
     process.exit(0)
   }
 }
@@ -87,38 +100,10 @@ function copyResolvedFile(srcPath, destPath) {
 }
 
 function bundleLinuxDependencies(mainSoPath, targetDir) {
-  try {
-    const result = spawnSync('ldd', [mainSoPath], { encoding: 'utf-8' })
-    if (result.status !== 0 || !result.stdout) return
-
-    // Media & helper dependencies to bundle. Strictly exclude core glibc, kernel, X11, mesa, audio daemons
-    const allowedPrefixes = [
-      'libavcodec', 'libavformat', 'libavutil', 'libswresample', 'libswscale',
-      'libavfilter', 'libass', 'libplacebo', 'libuchardet', 'libmujs',
-      'librubberband', 'liblcms2', 'libfontconfig', 'libfreetype', 'libfribidi',
-      'libbluray', 'libdvdnav', 'libdvdread', 'libdav1d', 'libvpx', 'libshaderc',
-    ]
-
-    const lines = result.stdout.split('\n')
-    for (const line of lines) {
-      const parts = line.trim().split('=>')
-      if (parts.length === 2) {
-        const libName = parts[0].trim()
-        const libPath = parts[1].trim().split(' ')[0]
-        if (libPath && existsSync(libPath)) {
-          const shouldBundle = allowedPrefixes.some((prefix) => libName.startsWith(prefix))
-          if (shouldBundle) {
-            const dest = join(targetDir, libName)
-            if (!existsSync(dest)) {
-              copyResolvedFile(libPath, dest)
-            }
-          }
-        }
-      }
-    }
-  } catch (err) {
-    console.warn(`[fetch-libmpv] Warning: failed to trace Linux dependencies via ldd:`, err)
-  }
+  // The shared denylist-closure stager (see bundle-mpv-deps.js): libmpv is
+  // loaded with RTLD_NOW, so an allowlist of media libraries can never cover
+  // the full dependency set — one missing soname is a dead engine.
+  bundleMpvDeps(mainSoPath, targetDir)
 }
 
 function bundleMacDependencies(mainDylibPath, targetDir) {
