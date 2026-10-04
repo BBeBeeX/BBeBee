@@ -34,6 +34,9 @@ export default defineConfig({
   renderer: {
     root: 'renderer',
     plugins: [react()],
-    build: { rollupOptions: { input: 'renderer/index.html' } }
+    build: { rollupOptions: { input: 'renderer/index.html' } },
+    optimizeDeps: {
+      exclude: ['react-native'],
+    },
   },
 })

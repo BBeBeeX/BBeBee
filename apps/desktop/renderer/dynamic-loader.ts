@@ -54,12 +54,21 @@ export interface InstalledPluginRecord {
  */
 export function getBuiltinPluginRegistry(): DynamicPluginRegistry {
   const manifestFiles = import.meta.glob<PluginManifest>(
-    '../../../packages/**/BBeBee.plugin.json',
+    [
+      '../../../packages/{core,logs,feature,ui}/**/BBeBee.plugin.json',
+      '!../../../packages/**/*-expo/**',
+      '!../../../packages/**/*-rn/**',
+      '!../../../packages/**/*-mobile/**',
+    ],
     { eager: true, import: 'default' },
   )
-  const moduleLoaders = import.meta.glob(
-    '../../../packages/**/src/index.{ts,tsx}',
-  )
+  const moduleLoaders = import.meta.glob([
+    '../../../packages/{core,logs,feature,ui}/**/src/index.{ts,tsx}',
+    '!../../../packages/**/*-expo/**',
+    '!../../../packages/**/*-rn/**',
+    '!../../../packages/**/*-mobile/**',
+    '!../../../packages/ui/ui-kit-mobile/**',
+  ])
 
   const registry: DynamicPluginRegistry = {}
 
