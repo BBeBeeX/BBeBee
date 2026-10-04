@@ -1196,6 +1196,9 @@ importers:
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
+      '@BBeBee/toolkit':
+        specifier: workspace:*
+        version: link:../toolkit
       cordis:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
@@ -2099,6 +2102,9 @@ importers:
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
+      '@BBeBee/toolkit':
+        specifier: workspace:*
+        version: link:../../feature/toolkit
       '@BBeBee/ui-kit-desktop':
         specifier: workspace:*
         version: link:../ui-kit-desktop
@@ -2674,6 +2680,9 @@ importers:
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
+      '@BBeBee/toolkit':
+        specifier: workspace:*
+        version: link:../../feature/toolkit
       '@BBeBee/ui-core':
         specifier: workspace:*
         version: link:../ui-core

@@ -30,6 +30,7 @@ import type {
   Point,
   ServiceNode,
 } from './graph-model.js'
+import { matchesPluginId } from '@BBeBee/toolkit'
 import { ALL_LAYER_IDS, SYSTEM_LAYERS } from './layer-resolver.js'
 
 const NODE_SIZES = {
@@ -122,11 +123,8 @@ export function buildFocusedGraph(
         // 1. Direct dependencies (upstream)
         if (focus.showDependencies) {
           for (const dep of p.dependencies) {
-            const depPlugin = graph.plugins.find(
-              (dp) =>
-                dp.id === dep ||
-                dp.name === dep ||
-                dp.name.replace(/^@BBeBee\//, '') === dep,
+            const depPlugin = graph.plugins.find((dp) =>
+              matchesPluginId(dep, dp.id, dp.name),
             )
             if (depPlugin && !includedPluginIds.has(depPlugin.id)) {
               includedPluginIds.add(depPlugin.id)
@@ -146,14 +144,7 @@ export function buildFocusedGraph(
         // 2. Direct dependents (downstream)
         if (focus.showDependents) {
           for (const other of graph.plugins) {
-            if (
-              other.dependencies.some(
-                (dep) =>
-                  dep === p.id ||
-                  dep === p.name ||
-                  dep.replace(/^@BBeBee\//, '') === p.name,
-              )
-            ) {
+            if (other.dependencies.some((dep) => matchesPluginId(dep, p.id, p.name))) {
               if (!includedPluginIds.has(other.id)) {
                 includedPluginIds.add(other.id)
                 nextFrontier.add(other.id)

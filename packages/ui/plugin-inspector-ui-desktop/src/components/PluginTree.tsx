@@ -12,6 +12,7 @@
  */
 
 import { memo, useMemo, useState, type ReactElement } from 'react'
+import { filterPlugins } from '@BBeBee/toolkit'
 import type { LayerId, PluginGraph, PluginNode } from '../graph-model.js'
 import { ALL_LAYER_IDS, SYSTEM_LAYERS } from '../layer-resolver.js'
 
@@ -48,14 +49,11 @@ export const PluginTree = memo(function PluginTree({
 
   // Group plugins by layer and apply tree filter
   const pluginsByLayer = useMemo(() => {
-    const q = filterText.trim().toLowerCase()
     const map = new Map<LayerId, PluginNode[]>()
     for (const lid of ALL_LAYER_IDS) map.set(lid, [])
 
-    for (const p of graph.plugins) {
-      if (q && !p.name.toLowerCase().includes(q) && !p.displayName.toLowerCase().includes(q)) {
-        continue
-      }
+    const filtered = filterPlugins(graph.plugins, filterText)
+    for (const p of filtered) {
       map.get(p.layer)?.push(p)
     }
     return map

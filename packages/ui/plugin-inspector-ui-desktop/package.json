@@ -31,6 +31,7 @@
     "@BBeBee/kernel": "workspace:*",
     "@BBeBee/plugin-inspector": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
+    "@BBeBee/toolkit": "workspace:*",
     "@BBeBee/ui-kit-desktop": "workspace:*",
     "cordis": "4.0.0-rc.9",
     "react": "19.2.3"

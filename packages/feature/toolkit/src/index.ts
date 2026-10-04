@@ -26,3 +26,13 @@ export {
   type LyricWord,
   type ParsedLyrics,
 } from './lyrics.js'
+export {
+  normalizePluginId,
+  matchesPluginId,
+  computeReverseDependents,
+  flattenFiberNodes,
+  filterPlugins,
+  type PluginDependencyItem,
+  type TreeFiberNode,
+  type SearchablePlugin,
+} from './plugins.js'

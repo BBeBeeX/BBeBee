@@ -2,6 +2,7 @@ import { createElement as h, useMemo, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { serviceOf, useServiceState } from '@BBeBee/ui-core'
 import type { PluginInfo, PluginManagerService } from '@BBeBee/protocol'
+import { filterPlugins } from '@BBeBee/toolkit'
 import { Button, Sheet } from '@BBeBee/ui-kit-desktop'
 import { PluginSearchBox } from '../PluginSearchBox.js'
 import { PluginGroupPanel } from '../PluginGroupPanel.js'
@@ -13,10 +14,11 @@ export interface PluginsSectionProps {
 interface GroupSpec {
   systemId: string
   title: string
+  description?: string
 }
 
 const GROUPS: readonly GroupSpec[] = [
-  { systemId: 'layer-2', title: '核心 (core)' },
+  { systemId: 'layer-2', title: '核心 (core)', description: '桌面端的底层基础设施' },
   { systemId: 'layer-3', title: '日志 (logs)' },
   { systemId: 'layer-4', title: '功能 (feature)' },
   { systemId: 'layer-5', title: '界面 (ui)' },
@@ -47,15 +49,7 @@ export function PluginsSection({ ctx }: PluginsSectionProps): ReactElement {
   )
 
   const filteredPlugins = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase()
-    if (!q) return allPlugins
-    return allPlugins.filter((p) => {
-      const matchId = p.id.toLowerCase().includes(q)
-      const matchName = p.name.toLowerCase().includes(q)
-      const matchDisplay = (p.displayName || '').toLowerCase().includes(q)
-      const matchModule = (p.moduleId || '').toLowerCase().includes(q)
-      return matchId || matchName || matchDisplay || matchModule
-    })
+    return filterPlugins(allPlugins, searchQuery)
   }, [allPlugins, searchQuery])
 
   const handleToggle = (plugin: PluginInfo, enabled: boolean) => {
@@ -110,6 +104,7 @@ export function PluginsSection({ ctx }: PluginsSectionProps): ReactElement {
         key: g.systemId,
         title: g.title,
         systemId: g.systemId,
+        description: g.description,
         plugins: groupPlugins,
         onToggleEnabled: handleToggle,
       })

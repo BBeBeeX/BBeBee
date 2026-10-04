@@ -21,6 +21,7 @@
     "@BBeBee/plugin-cache": "workspace:*",
     "@BBeBee/plugin-settings": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
+    "@BBeBee/toolkit": "workspace:*",
     "@BBeBee/ui-core": "workspace:*",
     "@BBeBee/ui-kit-desktop": "workspace:*",
     "@BBeBee/ui-tokens": "workspace:*",

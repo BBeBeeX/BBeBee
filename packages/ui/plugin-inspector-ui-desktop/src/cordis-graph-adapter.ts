@@ -25,6 +25,7 @@ import type {
 import { ALL_LAYER_IDS, SYSTEM_LAYERS, getLayerInfo, resolvePluginLayer } from './layer-resolver.js'
 import { PLUGIN_MANIFESTS } from './pcb-manifests.generated.js'
 import type { FiberNode, InspectorSnapshot } from '@BBeBee/plugin-inspector'
+import { normalizePluginId } from '@BBeBee/toolkit'
 
 export class CordisGraphAdapter {
   private readonly ctx: Context
@@ -441,7 +442,7 @@ export class CordisGraphAdapter {
     // B. Direct Plugin-to-Plugin dependency edges
     for (const p of pluginNodesMap.values()) {
       for (const dep of p.dependencies) {
-        const shortDep = dep.replace(/^@BBeBee\//, '')
+        const shortDep = normalizePluginId(dep)
         const targetId = pluginNodesMap.has(dep) ? dep : pluginNodesMap.has(shortDep) ? shortDep : null
         if (targetId && targetId !== p.id) {
           const isUiRel =

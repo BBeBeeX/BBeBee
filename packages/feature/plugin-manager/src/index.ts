@@ -22,6 +22,7 @@ import {
   DEFAULT_VISUALIZER_SETTINGS,
 } from '@BBeBee/protocol'
 import type { FiberNode, InspectorSnapshot } from '@BBeBee/plugin-inspector'
+import { computeReverseDependents, flattenFiberNodes } from '@BBeBee/toolkit'
 
 export interface PluginManagerConfig {
   manifests?: Record<string, PluginManifest>
@@ -36,15 +37,6 @@ const KNOWN_CONFIGURABLE_PLUGINS = new Set([
   '@BBeBee/plugin-visualizer',
   '@BBeBee/plugin-dsp',
 ])
-
-function flattenFibers(node: FiberNode, map: Map<string, FiberNode>): void {
-  if (node.name && node.name !== 'root' && node.name !== 'anonymous') {
-    map.set(node.name, node)
-  }
-  for (const child of node.children) {
-    flattenFibers(child, map)
-  }
-}
 
 export class PluginManagerPlugin extends Service implements PluginManagerService {
   static override readonly name = 'plugin-manager'
@@ -155,7 +147,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
 
     const fibersMap = new Map<string, FiberNode>()
     if (snapshot?.root) {
-      flattenFibers(snapshot.root, fibersMap)
+      flattenFiberNodes(snapshot.root, fibersMap)
     }
 
     // Build service to provider plugin mapping
@@ -269,29 +261,9 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     }
 
     // Real-time reverse scan to compute dependents
+    const dependentsMap = computeReverseDependents(rawList.map((r) => r.info))
     for (const item of rawList) {
-      const pid = item.info.id
-      const pname = item.info.name
-      const pclean = pname.replace(/^@BBeBee\//, '')
-
-      const dependentIds = new Set<string>()
-      for (const other of rawList) {
-        if (other.info.id === pid) continue
-
-        const dependsOnP = other.info.dependencies.some(
-          (dep) =>
-            dep === pid ||
-            dep === pname ||
-            dep.replace(/^@BBeBee\//, '') === pclean ||
-            dep === pclean,
-        )
-
-        if (dependsOnP) {
-          dependentIds.add(other.info.id)
-        }
-      }
-
-      item.info.dependents = Array.from(dependentIds)
+      item.info.dependents = dependentsMap.get(item.info.id) ?? []
     }
 
     return rawList.map((r) => r.info)
@@ -326,11 +298,12 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
 
     // Generic schema derivation: if any contribution has a schema, check against schema defaults
     for (const c of relatedContribs) {
-      if (c.schema?.properties) {
+      const maybeSchema = c.schema as unknown as { properties?: Record<string, { default?: unknown }> } | undefined
+      if (maybeSchema?.properties) {
         let hasCustom = false
         const bag = (settings as unknown as Record<string, unknown>)[c.id] as Record<string, unknown> | undefined
-        for (const [propKey, propSchema] of Object.entries(c.schema.properties)) {
-          if (propSchema.default !== undefined && bag) {
+        for (const [propKey, propSchema] of Object.entries(maybeSchema.properties)) {
+          if (propSchema && typeof propSchema === 'object' && propSchema.default !== undefined && bag) {
             const currentVal = bag[propKey]
             if (currentVal !== undefined && JSON.stringify(currentVal) !== JSON.stringify(propSchema.default)) {
               hasCustom = true

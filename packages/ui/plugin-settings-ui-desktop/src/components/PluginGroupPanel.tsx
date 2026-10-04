@@ -7,6 +7,7 @@ export interface PluginGroupPanelProps {
   title: string
   systemId: string
   plugins: readonly PluginInfo[]
+  description?: string
   onToggleEnabled?: (plugin: PluginInfo, enabled: boolean) => void
   defaultExpanded?: boolean
 }
@@ -15,6 +16,7 @@ export function PluginGroupPanel({
   title,
   systemId,
   plugins,
+  description,
   onToggleEnabled,
   defaultExpanded = true,
 }: PluginGroupPanelProps): ReactElement {
@@ -51,7 +53,7 @@ export function PluginGroupPanel({
           userSelect: 'none',
         },
       },
-      // Left: Group title & Count badge
+      // Left: Group title & Count badge & Description
       h(
         'div',
         {
@@ -86,6 +88,20 @@ export function PluginGroupPanel({
           },
           plugins.length,
         ),
+        description
+          ? h(
+              'span',
+              {
+                style: {
+                  fontSize: 12,
+                  color: 'var(--text-tertiary, #8E8E93)',
+                  fontWeight: 400,
+                  marginLeft: 4,
+                },
+              },
+              `— ${description}`,
+            )
+          : null,
       ),
       // Right: expand / collapse arrow
       h(

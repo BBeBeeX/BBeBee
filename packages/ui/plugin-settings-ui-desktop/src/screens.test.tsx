@@ -1158,6 +1158,7 @@ describe('SettingsScreen', () => {
     fireEvent.click(pluginsTab)
 
     expect(await findByText('核心 (core)')).toBeTruthy()
+    expect(getByText('— 桌面端的底层基础设施')).toBeTruthy()
     expect(getByText('日志 (logs)')).toBeTruthy()
     expect(getByText('功能 (feature)')).toBeTruthy()
     expect(getByText('界面 (ui)')).toBeTruthy()
