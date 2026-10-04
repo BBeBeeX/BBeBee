@@ -213,7 +213,39 @@ private:
                 else if (esc == 'n') result += '\n';
                 else if (esc == 'r') result += '\r';
                 else if (esc == 't') result += '\t';
-                else result += esc;
+                else if (esc == 'u' && pos + 4 <= s.size()) {
+                    auto hexVal = [](char h) -> int {
+                        if (h >= '0' && h <= '9') return h - '0';
+                        if (h >= 'a' && h <= 'f') return h - 'a' + 10;
+                        if (h >= 'A' && h <= 'F') return h - 'A' + 10;
+                        return -1;
+                    };
+                    int d0 = hexVal(s[pos]);
+                    int d1 = hexVal(s[pos + 1]);
+                    int d2 = hexVal(s[pos + 2]);
+                    int d3 = hexVal(s[pos + 3]);
+                    if (d0 >= 0 && d1 >= 0 && d2 >= 0 && d3 >= 0) {
+                        uint32_t cp = (static_cast<uint32_t>(d0) << 12) |
+                                      (static_cast<uint32_t>(d1) << 8) |
+                                      (static_cast<uint32_t>(d2) << 4) |
+                                      static_cast<uint32_t>(d3);
+                        pos += 4;
+                        if (cp <= 0x7F) {
+                            result += static_cast<char>(cp);
+                        } else if (cp <= 0x7FF) {
+                            result += static_cast<char>(0xC0 | ((cp >> 6) & 0x1F));
+                            result += static_cast<char>(0x80 | (cp & 0x3F));
+                        } else {
+                            result += static_cast<char>(0xE0 | ((cp >> 12) & 0x0F));
+                            result += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+                            result += static_cast<char>(0x80 | (cp & 0x3F));
+                        }
+                    } else {
+                        result += 'u';
+                    }
+                } else {
+                    result += esc;
+                }
             } else {
                 result += c;
             }
@@ -229,6 +261,16 @@ private:
         }
         std::string numStr = s.substr(start, pos - start);
         double val = std::strtod(numStr.c_str(), nullptr);
+        // Fallback for locales that interpret comma instead of dot as decimal separator
+        if (numStr.find('.') != std::string::npos && val == static_cast<int64_t>(val)) {
+            size_t dotPos = numStr.find('.');
+            if (dotPos + 1 < numStr.size() && std::isdigit(numStr[dotPos + 1])) {
+                std::string alt = numStr;
+                alt[dotPos] = ',';
+                double altVal = std::strtod(alt.c_str(), nullptr);
+                if (altVal != val) val = altVal;
+            }
+        }
         return JsonValue(val);
     }
 

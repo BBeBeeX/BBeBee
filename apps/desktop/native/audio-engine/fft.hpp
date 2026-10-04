@@ -67,14 +67,14 @@ public:
     /**
      * Process interleaved multi-channel PCM audio.
      * Downmixes to mono, applies Hann window, executes Radix-2 FFT, and produces
-     * both frequency spectrum and real time-domain waveform data.
+     * both frequency spectrum and real time-domain waveform data into internal buffers.
+     * Zero heap allocations during steady state.
      *
      * @param pcm Interleaved float32 audio samples [-1.0, 1.0]
      * @param frames Number of audio frames (samples per channel)
      * @param channels Channel count (1=mono, 2=stereo, >2 multi-channel)
-     * @return std::pair<frequencyData, timeDomainData>
      */
-    std::pair<std::vector<uint8_t>, std::vector<uint8_t>> processInterleaved(
+    void processInterleaved(
         const float* pcm,
         size_t frames,
         int channels
@@ -159,18 +159,21 @@ public:
             previousSpectrum[i] = smoothed;
             frequencyData[i] = static_cast<uint8_t>(std::clamp(std::round(smoothed), 0.0f, 255.0f));
         }
-
-        return { frequencyData, timeDomainData };
     }
 
     /**
-     * Backward-compatible mono input interface.
+     * Interleaved multi-channel processing interface (sample-count based).
+     * If channels > 1, sampleCount represents total float samples (frames * channels).
+     * Defaults to mono (channels = 1) for backward compatibility.
      */
-    std::pair<std::vector<uint8_t>, std::vector<uint8_t>> process(
+    void process(
         const float* pcmSamples,
-        size_t sampleCount
+        size_t sampleCount,
+        int channels = 1
     ) {
-        return processInterleaved(pcmSamples, sampleCount, 1);
+        if (channels <= 0) channels = 1;
+        const size_t frames = sampleCount / static_cast<size_t>(channels);
+        processInterleaved(pcmSamples, frames, channels);
     }
 
 private:

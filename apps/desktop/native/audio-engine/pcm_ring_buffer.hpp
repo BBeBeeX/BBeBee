@@ -72,6 +72,13 @@ private:
     size_t capacity_ = 0;
     std::vector<float> buffer_;
 
+    // Protection during reconfiguration
+    std::atomic<bool> configuring_{ false };
+    std::atomic<int> activeWriters_{ 0 };
+
+    // Deferred clear request to preserve SPSC single-consumer guarantee on readIndex_
+    std::atomic<bool> clearRequested_{ false };
+
     // Align to 64 bytes to eliminate false sharing between audio producer and visualizer consumer
     alignas(64) std::atomic<size_t> writeIndex_{ 0 };
     alignas(64) std::atomic<size_t> readIndex_{ 0 };

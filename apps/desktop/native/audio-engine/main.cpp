@@ -979,15 +979,22 @@ private:
     }
 
     void sendFftFrame(const std::vector<uint8_t>& freq, const std::vector<uint8_t>& timeDom) {
-        JsonValue frame = JsonValue::object();
-        frame["type"] = "fft-frame";
-        JsonValue freqArr = JsonValue::array();
-        for (uint8_t f : freq) freqArr.push_back(JsonValue(static_cast<int>(f)));
-        JsonValue timeArr = JsonValue::array();
-        for (uint8_t td : timeDom) timeArr.push_back(JsonValue(static_cast<int>(td)));
-        frame["frequencyData"] = freqArr;
-        frame["timeDomainData"] = timeArr;
-        sendJson(frame);
+        std::string frameJson;
+        frameJson.reserve(128 + freq.size() * 4 + timeDom.size() * 4);
+        frameJson += "{\"type\":\"fft-frame\",\"frequencyData\":[";
+        for (size_t i = 0; i < freq.size(); ++i) {
+            if (i > 0) frameJson += ',';
+            frameJson += std::to_string(static_cast<int>(freq[i]));
+        }
+        frameJson += "],\"timeDomainData\":[";
+        for (size_t i = 0; i < timeDom.size(); ++i) {
+            if (i > 0) frameJson += ',';
+            frameJson += std::to_string(static_cast<int>(timeDom[i]));
+        }
+        frameJson += "]}";
+
+        std::lock_guard<std::mutex> lock(ioMutex);
+        std::cout << frameJson << "\n" << std::flush;
     }
 
     void visualizerLoop() {
@@ -1017,8 +1024,8 @@ private:
                 fftProcessor.reset();
                 if (zeroFramesSent < 2) {
                     zeroFramesSent++;
-                    auto [freq, timeDom] = fftProcessor.processInterleaved(nullptr, 0, currentChannels);
-                    sendFftFrame(freq, timeDom);
+                    fftProcessor.processInterleaved(nullptr, 0, currentChannels);
+                    sendFftFrame(fftProcessor.getFrequencyData(), fftProcessor.getTimeDomainData());
                 } else {
                     std::this_thread::sleep_for(std::chrono::milliseconds(70));
                 }
@@ -1049,13 +1056,13 @@ private:
             zeroFramesSent = 0;
 
             // Process real PCM downmixing, Hann windowing, FFT, and real waveform extraction
-            auto [freq, timeDom] = fftProcessor.processInterleaved(
+            fftProcessor.processInterleaved(
                 framesRead > 0 ? pcmChunk.data() : nullptr,
                 framesRead,
                 currentChannels
             );
 
-            sendFftFrame(freq, timeDom);
+            sendFftFrame(fftProcessor.getFrequencyData(), fftProcessor.getTimeDomainData());
         }
     }
 
