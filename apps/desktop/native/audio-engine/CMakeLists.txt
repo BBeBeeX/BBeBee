@@ -29,3 +29,12 @@ elseif(APPLE)
         INSTALL_RPATH "@executable_path;@loader_path"
     )
 endif()
+
+enable_testing()
+add_executable(audio-engine-tests
+    tests/test_pcm_tap.cpp
+    pcm_ring_buffer.cpp
+    pcm_ring_buffer.hpp
+)
+target_link_libraries(audio-engine-tests PRIVATE Threads::Threads)
+add_test(NAME audio-engine-tests COMMAND audio-engine-tests)

@@ -21,6 +21,7 @@
     "dev:desktop": "pnpm --filter @BBeBee/desktop dev",
     "dev:desktop:debug": "DEBUG=1 pnpm --filter @BBeBee/desktop dev",
     "build:audio-engine": "pnpm --filter @BBeBee/desktop build:audio-engine",
+    "test:audio-engine": "pnpm --filter @BBeBee/desktop test:audio-engine",
     "dev:mobile": "pnpm --filter @BBeBee/mobile start",
     "dev:mobile:debug": "EXPO_PUBLIC_DEBUG=1 pnpm --filter @BBeBee/mobile start",
     "dev:android": "pnpm --filter @BBeBee/mobile android",

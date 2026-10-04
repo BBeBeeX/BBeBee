@@ -244,12 +244,7 @@ public:
     AudioEngineApp() : fftProcessor({ 128, -100.0f, -30.0f, 0.8f }) {}
 
     ~AudioEngineApp() {
-        stop();
-        if (mpv && mpvLib.handle && mpvLib.destroy) {
-            mpvLib.destroy(mpv);
-            mpv = nullptr;
-        }
-        mpvLib.unload();
+        shutdown();
     }
 
     void init(const JsonValue& config) {
@@ -673,10 +668,51 @@ public:
     }
 
     void shutdown() {
-        running = false;
+        if (!running.exchange(false)) {
+            return;
+        }
+
+        // 1. Unregister / disable mpv callback first.
+        // mpv_set_pcm_callback synchronously waits for any in-flight callback on audio thread to complete!
+        if (mpv && mpvLib.set_pcm_callback) {
+            mpvLib.set_pcm_callback(mpv, nullptr, nullptr);
+            std::cerr << "[audio-engine] libmpv PCM tap callback unregistered\n";
+        }
+
+        // 2. Stop playback
+        if (mpv && mpvLib.command) {
+            const char* stopCmd[] = { "stop", nullptr };
+            mpvLib.command(mpv, stopCmd);
+        }
+
+        // 3. Clear ring buffer
+        pcmRingBuffer.clear();
+
+        // 4. Join all worker threads
         if (eventThread.joinable()) eventThread.join();
         if (visualizerThread.joinable()) visualizerThread.join();
         if (heartbeatThread.joinable()) heartbeatThread.join();
+
+        // 5. Destroy mpv
+        if (mpv && mpvLib.destroy) {
+            mpvLib.destroy(mpv);
+            mpv = nullptr;
+        }
+
+        // 6. Unload mpv library
+        mpvLib.unload();
+    }
+
+    void getRingBufferStats() {
+        RingBufferStats stats = pcmRingBuffer.getStats();
+        JsonValue resp = JsonValue::object();
+        resp["type"] = "ring-buffer-stats";
+        resp["totalFramesWritten"] = static_cast<double>(stats.totalFramesWritten);
+        resp["totalFramesRead"] = static_cast<double>(stats.totalFramesRead);
+        resp["droppedFrames"] = static_cast<double>(stats.droppedFrames);
+        resp["overflowCount"] = static_cast<double>(stats.overflowCount);
+        resp["underrunCount"] = static_cast<double>(stats.underrunCount);
+        sendJson(resp);
     }
 
     void sendJson(const JsonValue& val) {
@@ -715,10 +751,10 @@ private:
     JsonValue dspConfig;
     bool streamPlaying = false;
 
-    static void onMpvPcmCallback(const float* data, int frames, int channels, int sample_rate, void* userdata) {
+    static void onMpvPcmCallback(const float* data, int frames, int channels, int sample_rate, void* userdata) noexcept {
         if (userdata && data && frames > 0) {
             auto* app = static_cast<AudioEngineApp*>(userdata);
-            app->pcmRingBuffer.write(data, static_cast<size_t>(frames));
+            app->pcmRingBuffer.write(data, static_cast<size_t>(frames), channels, sample_rate);
         }
     }
 
@@ -1139,6 +1175,8 @@ int main(int argc, char* argv[]) {
             app.setDspConfig(cmd.get("config"));
         } else if (action == "setVisualizer") {
             app.setVisualizer(cmd.get("enabled").asBool(true), cmd.get("fftSize").asInt(128));
+        } else if (action == "getRingBufferStats") {
+            app.getRingBufferStats();
         } else if (action == "dispose") {
             app.shutdown();
             return 0;
