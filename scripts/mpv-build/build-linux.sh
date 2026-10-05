@@ -56,5 +56,18 @@ for f in build/libmpv.so*; do
     fi
 done
 
+# Bundle transitive dependencies for standalone distribution across Linux distros
+BUNDLE_SCRIPT="${ROOT_DIR}/apps/desktop/scripts/bundle-mpv-deps.js"
+if [ -f "${BUNDLE_SCRIPT}" ] && command -v node >/dev/null 2>&1; then
+    LIBMPV_FILE="${TARGET_DIR}/libmpv.so.2"
+    if [ ! -f "${LIBMPV_FILE}" ]; then
+        LIBMPV_FILE="${TARGET_DIR}/libmpv.so"
+    fi
+    if [ -f "${LIBMPV_FILE}" ]; then
+        echo "Bundling transitive dependencies into ${TARGET_DIR}..."
+        node "${BUNDLE_SCRIPT}" "${LIBMPV_FILE}" "${TARGET_DIR}"
+    fi
+fi
+
 echo "=== Patched libmpv successfully generated for Linux ==="
 ls -la "${TARGET_DIR}"/libmpv.so*

@@ -14,8 +14,9 @@
  * and libstdc++/libgcc_s exist on any distro that can start Electron, so
  * those are the only exclusions.
  */
-import { existsSync, copyFileSync, lstatSync, readlinkSync } from 'node:fs'
+import { existsSync, copyFileSync, lstatSync, readlinkSync, readdirSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import process from 'node:process'
 import console from 'node:console'
@@ -46,59 +47,78 @@ function resolveSymlinks(path) {
  * Idempotent: sonames already present in the target are skipped, so a
  * re-run after a system upgrade only fills gaps.
  *
- * ldd runs with `LD_LIBRARY_PATH=targetDir` so sonames already staged there
- * (the vendored helper libs resolve relatively and would otherwise read as
- * "not found") resolve against the staged copies rather than the build
- * machine's system directories.
+ * Runs iteratively over libmpv and any newly staged libraries so the
+ * entire transitive closure is captured.
  *
  * @returns {number} how many libraries were newly copied
  */
 export function bundleMpvDeps(libmpvPath, targetDir) {
   if (process.platform !== 'linux' || !existsSync(libmpvPath)) return 0
 
-  const result = spawnSync('ldd', [libmpvPath], {
-    encoding: 'utf-8',
-    env: { ...process.env, LD_LIBRARY_PATH: targetDir },
-  })
-  if (result.status !== 0 || !result.stdout) {
-    console.warn(`[bundle-mpv-deps] ldd failed for ${libmpvPath} — dependencies not staged`)
-    return 0
+  let totalStaged = 0
+  let pass = 0
+  const maxPasses = 5
+  let filesToScan = [libmpvPath]
+
+  while (filesToScan.length > 0 && pass < maxPasses) {
+    pass++
+    const newlyCopiedFiles = []
+    const seenInPass = new Set()
+
+    for (const file of filesToScan) {
+      if (!existsSync(file)) continue
+      const result = spawnSync('ldd', [file], {
+        encoding: 'utf-8',
+        env: { ...process.env, LD_LIBRARY_PATH: targetDir },
+      })
+      if (result.status !== 0 || !result.stdout) continue
+
+      for (const line of result.stdout.split('\n')) {
+        const match = /^(.+?)\s+=>\s+(.+?)(?:\s+\(0x[0-9a-f]+\))?$/.exec(line.trim())
+        if (!match) continue
+        const soname = match[1].trim()
+        const location = match[2].trim()
+        const stagedCopy = join(targetDir, soname)
+
+        if (location === 'not found') {
+          if (!existsSync(stagedCopy) && pass === 1) {
+            console.warn(
+              `[bundle-mpv-deps] WARNING: ${soname} is missing on this build machine — ` +
+                'the packaged engine will fail to load libmpv on clean targets',
+            )
+          }
+          continue
+        }
+
+        const path = location.split(' ')[0]
+        if (!path || seenInPass.has(soname)) continue
+        seenInPass.add(soname)
+        if (EXCLUDED_SONAMES.some((prefix) => soname.startsWith(prefix))) continue
+        if (!path.includes('/') || existsSync(stagedCopy)) continue
+        if (!existsSync(path)) continue
+
+        try {
+          copyFileSync(resolveSymlinks(path), stagedCopy)
+          newlyCopiedFiles.push(stagedCopy)
+          totalStaged++
+        } catch (err) {
+          console.warn(`[bundle-mpv-deps] failed to copy ${path}: ${err}`)
+        }
+      }
+    }
+
+    filesToScan = newlyCopiedFiles
   }
 
-  let staged = 0
-  const seen = new Set()
-  for (const line of result.stdout.split('\n')) {
-    // "libfoo.so.1 => /path/libfoo.so.1 (0x…)" — or "=> not found", which is
-    // exactly the condition that breaks dlopen on a clean target machine.
-    const match = /^(.+?)\s+=>\s+(.+?)(?:\s+\(0x[0-9a-f]+\))?$/.exec(line.trim())
-    if (!match) continue
-    const soname = match[1].trim()
-    const location = match[2].trim()
-    const stagedCopy = join(targetDir, soname)
-    if (location === 'not found') {
-      // Already staged beside the binary? Then the clean machine is covered.
-      if (!existsSync(stagedCopy)) {
-        console.warn(
-          `[bundle-mpv-deps] WARNING: ${soname} is missing on this build machine — ` +
-            'the packaged engine will fail to load libmpv on clean targets',
-        )
-      }
-      continue
-    }
-    const path = location.split(' ')[0]
-    if (!path || seen.has(soname)) continue
-    seen.add(soname)
-    if (EXCLUDED_SONAMES.some((prefix) => soname.startsWith(prefix))) continue
-    // A bare soname resolves against LD_LIBRARY_PATH — already staged.
-    if (!path.includes('/') || existsSync(stagedCopy)) continue
-    if (!existsSync(path)) continue
-    try {
-      copyFileSync(resolveSymlinks(path), stagedCopy)
-      staged++
-    } catch (err) {
-      console.warn(`[bundle-mpv-deps] failed to copy ${path}: ${err}`)
-    }
+  console.log(`[bundle-mpv-deps] staged ${totalStaged} dependencies -> ${targetDir}`)
+  return totalStaged
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+  const [libmpvPath, targetDir] = process.argv.slice(2)
+  if (!libmpvPath || !targetDir) {
+    console.error('Usage: node bundle-mpv-deps.js <libmpvPath> <targetDir>')
+    process.exit(1)
   }
-  console.log(`[bundle-mpv-deps] staged ${staged} dependencies -> ${targetDir}`)
-  return staged
+  bundleMpvDeps(resolve(libmpvPath), resolve(targetDir))
 }

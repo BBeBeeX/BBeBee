@@ -16,6 +16,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Install build dependencies
         run: |
           sudo apt-get update
@@ -88,6 +93,7 @@ jobs:
           install: >-
             git
             mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-binutils
             mingw-w64-x86_64-meson
             mingw-w64-x86_64-ninja
             mingw-w64-x86_64-pkgconf
@@ -107,3 +113,56 @@ jobs:
         with:
           name: libmpv-patched-win64
           path: output/win64/
+
+  package-all:
+    name: Package All Platforms (Combined Archive)
+    needs: [build-linux, build-macos, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: libmpv-patched-linux
+          path: staging/libmpv/linux
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: libmpv-patched-darwin
+          path: staging/libmpv/darwin
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: libmpv-patched-win64
+          path: staging/libmpv/win64
+
+      - name: Assemble libmpv directory structure
+        run: |
+          if [ -f apps/desktop/resources/libmpv/README.md ]; then
+            cp apps/desktop/resources/libmpv/README.md staging/libmpv/
+          fi
+          if [ -f apps/desktop/resources/libmpv/darwin/README.md ]; then
+            cp apps/desktop/resources/libmpv/darwin/README.md staging/libmpv/darwin/
+          fi
+          echo "=== Staged libmpv directory structure ==="
+          ls -la staging/libmpv/
+          ls -la staging/libmpv/darwin/ || true
+          ls -la staging/libmpv/linux/ || true
+          ls -la staging/libmpv/win64/ || true
+
+      - name: Create Combined Zip Archive
+        run: |
+          cd staging
+          zip -r ../libmpv-all-platforms.zip libmpv/
+          cd ..
+          ls -lh libmpv-all-platforms.zip
+
+      - name: Upload Combined Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libmpv-all-platforms
+          path: libmpv-all-platforms.zip
