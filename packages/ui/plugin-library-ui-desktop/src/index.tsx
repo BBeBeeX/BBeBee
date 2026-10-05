@@ -24,15 +24,6 @@ export { PlaylistDetailScreen } from './screens/PlaylistDetailScreen.js'
 export { FavoritesScreen } from './screens/FavoritesScreen.js'
 export { LocalMusicScreen, type LocalMusicScreenProps } from './screens/LocalMusicScreen.js'
 export { CollectionScreen } from './screens/CollectionScreen.js'
-export {
-  collectAllFolderTracks,
-  fetchAllLocalTracks,
-  fetchAllLocalAlbums,
-  formatAddedDate,
-  formatPlayedDate,
-  formatDuration,
-  formatTotalDuration,
-} from './utils/data-helpers.js'
 
 export const name = 'plugin-library-ui-desktop'
 

@@ -2,8 +2,8 @@ import { createElement as h, useState } from 'react'
 import type { KeyboardEvent, MouseEvent as ReactMouseEvent, ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { PlayNowOptions, Track } from '@BBeBee/protocol'
-import { ALBUM_VIEWS } from '@BBeBee/plugin-album/views'
 import { LIBRARY_VIEWS } from '@BBeBee/plugin-library/views'
+import { formatDuration } from '@BBeBee/toolkit'
 import { useCollectionDetail, type CollectionMember } from '@BBeBee/plugin-library/hooks'
 import { serviceOf, type MenuAnchor } from '@BBeBee/ui-core'
 import { Artwork, Button, ContextMenu, EmptyState, List, SaveToPlaylistPopover, Text, tablerIcon } from '@BBeBee/ui-kit-desktop'
@@ -11,7 +11,6 @@ import { useTrackMenu } from '@BBeBee/ui-menus'
 import { tokens } from '@BBeBee/ui-tokens'
 import { TrackLibraryActionButton } from '../components/TrackLibraryActionButton.js'
 import { useTrackLibraryInfo } from '../hooks/useTrackLibraryInfo.js'
-import { formatDuration } from '../utils/data-helpers.js'
 
 function CollectionTrackTableRow({
   track,
@@ -263,8 +262,10 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
           return h(MemberRow, {
             member,
             onOpen: () => {
-              if (member.kind === 'album') ctx.ui.navigate(ALBUM_VIEWS.album, { urn: member.urn })
-              else if (member.kind === 'playlist') ctx.ui.navigate(LIBRARY_VIEWS.playlist, { urn: member.urn })
+              if (member.kind === 'album') {
+                // 'album.view' is plugin-album's view descriptor id — serialized data, a literal, not an import.
+                ctx.ui.navigate('album.view', { urn: member.urn })
+              } else if (member.kind === 'playlist') ctx.ui.navigate(LIBRARY_VIEWS.playlist, { urn: member.urn })
             },
           })
         },

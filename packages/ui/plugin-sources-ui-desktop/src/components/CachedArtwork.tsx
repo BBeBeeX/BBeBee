@@ -2,7 +2,7 @@ import { createElement as h, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { Artwork, TrackRow } from '@BBeBee/ui-kit-desktop'
 import type { ArtworkProps, TrackRowProps } from '@BBeBee/ui-core'
-import { useResolvedArtwork } from '@BBeBee/plugin-cache/hooks'
+import { useResolvedArtwork } from '@BBeBee/toolkit/hooks'
 
 /**
  * `<Artwork>`, with the cover resolved through `ctx.cache` first.

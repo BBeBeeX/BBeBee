@@ -14,7 +14,6 @@ import type {
   Track,
   UiService,
 } from '@BBeBee/protocol'
-import { ALBUM_VIEWS } from '@BBeBee/plugin-album/views'
 import { addToPlaylistSubmenu } from '../submenus/playlistSubmenu.js'
 import { sleepTimerSubmenu } from '../submenus/sleepTimerSubmenu.js'
 import { useMenuState, type MenuController } from '../types.js'
@@ -195,7 +194,10 @@ export function trackMenuItems(
       id: 'go-to-album',
       label: '转至专辑',
       icon: 'disc',
-      onSelect: () => ui.navigate(ALBUM_VIEWS.album, { urn: albumUrn }),
+      // 'album.view' is plugin-album's view descriptor id — serialized data,
+      // so the menu model carries the literal rather than importing the
+      // contributing plugin's constant.
+      onSelect: () => ui.navigate('album.view', { urn: albumUrn }),
     })
   }
 

@@ -1,7 +1,6 @@
 import { createElement as h, Fragment, useEffect, useRef, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { UiService } from '@BBeBee/protocol'
-import { ALBUM_VIEWS } from '@BBeBee/plugin-album/views'
 import { useTrackMenu } from '@BBeBee/ui-menus'
 import {
   useSearchSourceSelection,
@@ -81,7 +80,8 @@ export function SearchScreen({
 
   const openAlbum = (urn: string) => {
     onOpenAlbum?.(urn)
-    serviceOf<UiService>(ctx, 'ui')?.navigate(ALBUM_VIEWS.album, { urn })
+    // 'album.view' is plugin-album's view descriptor id — serialized data, a literal, not an import.
+    serviceOf<UiService>(ctx, 'ui')?.navigate('album.view', { urn })
   }
 
   const toggleSource = (sourceId: string) => {

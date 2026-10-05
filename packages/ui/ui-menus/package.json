@@ -28,7 +28,6 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-album": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/ui-core": "workspace:*",
     "cordis": "4.0.0-rc.9",

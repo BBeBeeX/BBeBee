@@ -35,7 +35,7 @@ import type {
 } from '@BBeBee/protocol'
 import { canSearchProvider } from './capabilities.js'
 import { parseSourceInput } from './identity.js'
-import { serviceOf, useServiceState, shallowArrayEqual, type AsyncState } from '@BBeBee/ui-core'
+import { serviceOf, useServiceState, shallowArrayEqual, type AsyncState } from '@BBeBee/toolkit/hooks'
 
 /**
  * A paged catalogue read, as a view needs it.

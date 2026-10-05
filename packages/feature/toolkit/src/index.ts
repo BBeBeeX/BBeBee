@@ -16,7 +16,7 @@ export {
   trackId,
 } from './id.js'
 export { splitArtists } from './text.js'
-export { formatDuration, formatTotalDuration } from './time.js'
+export { formatDuration, formatTotalDuration, formatAddedDate, formatPlayedDate } from './time.js'
 export { formatBytes } from './bytes.js'
 export { permute } from './shuffle.js'
 export {

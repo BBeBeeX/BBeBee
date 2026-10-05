@@ -34,7 +34,6 @@
     "@BBeBee/kernel": "workspace:*",
     "@BBeBee/toolkit": "workspace:*",
     "cordis": "4.0.0-rc.9",
-    "@BBeBee/ui-core": "workspace:*",
     "react": "19.2.3"
   },
   "devDependencies": {

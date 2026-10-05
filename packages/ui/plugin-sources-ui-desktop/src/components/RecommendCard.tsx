@@ -3,7 +3,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { BrowseEntry } from '@BBeBee/protocol'
 import { Artwork, Text } from '@BBeBee/ui-kit-desktop'
-import { useResolvedArtwork } from '@BBeBee/plugin-cache/hooks'
+import { useResolvedArtwork } from '@BBeBee/toolkit/hooks'
 import { tokens } from '@BBeBee/ui-tokens'
 
 /**

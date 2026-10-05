@@ -10,7 +10,7 @@ import type {
 } from '@BBeBee/protocol'
 import { tryParseUrn } from '@BBeBee/protocol'
 import { serviceOf } from '@BBeBee/ui-core'
-import { fetchAllLocalTracks } from '../utils/data-helpers.js'
+import { fetchAllLocalTracks } from '@BBeBee/plugin-library/hooks'
 
 export interface UseLibraryHydrationParams {
   ctx: Context

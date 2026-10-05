@@ -1,7 +1,6 @@
 import { createElement as h, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { Album, Artist, DownloadsService, Playlist, SourceError, Track, UiService } from '@BBeBee/protocol'
-import { ALBUM_VIEWS } from '@BBeBee/plugin-album/views'
 import { playFromList, type SourcePaginationState } from '@BBeBee/plugin-sources/hooks'
 import { Button, Text, tablerIcon } from '@BBeBee/ui-kit-desktop'
 import { serviceOf } from '@BBeBee/ui-core'
@@ -82,7 +81,8 @@ export function SourcePanel({
 
   const openAlbum = (urn: string) => {
     onOpenAlbum?.(urn)
-    serviceOf<UiService>(ctx, 'ui')?.navigate(ALBUM_VIEWS.album, { urn })
+    // 'album.view' is plugin-album's view descriptor id — serialized data, a literal, not an import.
+    serviceOf<UiService>(ctx, 'ui')?.navigate('album.view', { urn })
   }
 
   const isLoadingMore = pagination?.loading ?? false

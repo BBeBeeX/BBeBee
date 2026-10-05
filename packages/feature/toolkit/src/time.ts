@@ -43,3 +43,31 @@ export function formatTotalDuration(items: readonly ({ durationMs?: number } | u
   return `${minutes} 分钟 ${seconds} 秒`
 }
 
+/**
+ * A timestamp as a library shows it: 今天 / 昨天 / N天前 / N周前, and once
+ * "N周前" stops being informative, the full date. An absent timestamp (never
+ * added, never played) renders as `-` rather than claiming an epoch.
+ */
+export function formatAddedDate(timestamp?: number): string {
+  if (!timestamp) return '-'
+  const now = Date.now()
+  const diffMs = Math.max(0, now - timestamp)
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  if (diffDays === 0) return '今天'
+  if (diffDays === 1) return '昨天'
+  if (diffDays < 7) return `${diffDays}天前`
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)}周前`
+  const d = new Date(timestamp)
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`
+}
+
+/**
+ * The same relative spelling for a "最近播放" column.
+ *
+ * A separate name, not a second implementation: which column a timestamp
+ * belongs to is the caller's business, but the relative vocabulary must not
+ * drift between "added" and "played".
+ */
+export function formatPlayedDate(timestamp?: number): string {
+  return formatAddedDate(timestamp)
+}

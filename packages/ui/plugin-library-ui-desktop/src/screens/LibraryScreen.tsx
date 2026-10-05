@@ -7,7 +7,6 @@ import type {
 } from '@BBeBee/protocol'
 import { tryParseUrn } from '@BBeBee/protocol'
 import { LIBRARY_VIEWS } from '@BBeBee/plugin-library/views'
-import { ALBUM_VIEWS } from '@BBeBee/plugin-album/views'
 import {
   useCollections,
   useLibraryProfile,
@@ -284,7 +283,8 @@ export function LibraryScreen({
         isDownloaded,
         onOpen: () => {
           if (onOpenAlbum) onOpenAlbum(entry.urn)
-          else ctx.ui.navigate(ALBUM_VIEWS.album, { urn: entry.urn })
+          // 'album.view' is plugin-album's view descriptor id — serialized data, a literal, not an import.
+          else ctx.ui.navigate('album.view', { urn: entry.urn })
         },
         onPlay: () => playAlbum(entry.urn, title),
         onDelete: () => void ctx.library.setSaved(entry.urn, false).catch(fail('could not remove the album')),
@@ -528,7 +528,7 @@ export function LibraryScreen({
                   lastPlayedAt: 0,
                   onOpen: () => {
                     if (onOpenAlbum) onOpenAlbum(entry.urn)
-                    else ctx.ui.navigate(ALBUM_VIEWS.album, { urn: entry.urn })
+                    else ctx.ui.navigate('album.view', { urn: entry.urn })
                   },
                   onPlay: () => playAlbum(entry.urn, title),
                   onDelete: () =>

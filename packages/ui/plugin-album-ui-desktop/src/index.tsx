@@ -24,7 +24,7 @@ import type { Collection, DownloadsService, LibraryService, PlayerService, Share
 import { tryParseUrn } from '@BBeBee/protocol'
 import { ALBUM_VIEWS } from '@BBeBee/plugin-album/views'
 import { useAlbum } from '@BBeBee/plugin-album/hooks'
-import { useResolvedArtwork } from '@BBeBee/plugin-cache/hooks'
+import { resolveTrackSourceName, useResolvedArtwork } from '@BBeBee/toolkit/hooks'
 import { formatDuration, formatTotalDuration } from '@BBeBee/toolkit'
 import { addToCollectionSubmenu, openExternalUrl, resolveOriginalResourceUrl, sleepTimerSubmenu, sortMenuItems, useSaveToPlaylistMenu, useTrackMenu } from '@BBeBee/ui-menus'
 import { Artwork, ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, HoverLabel, List, SaveToPlaylistPopover, StickyDetailBar, tablerIcon, useDetailBarCollapse, useImageColor, headerGradient, viewModeMenuItems, useViewMode } from '@BBeBee/ui-kit-desktop'
@@ -32,42 +32,6 @@ import { serviceOf } from '@BBeBee/ui-core'
 import type { ArtworkProps, MenuAnchor, MenuItemSpec } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
 import { BatchActionBar } from './BatchActionBar.js'
-
-function resolveTrackSourceName(ctx: Context, urn?: string): string {
-  if (!urn) return '-'
-  if (
-    urn.startsWith('local:') ||
-    urn.startsWith('BBeBee:local:') ||
-    urn.startsWith('file:') ||
-    urn.startsWith('bbebee-file:')
-  ) {
-    return '本地'
-  }
-  const parsed = tryParseUrn(urn)
-  if (!parsed || !parsed.sourceId || parsed.sourceId === 'local') {
-    return '本地'
-  }
-
-  const sources = serviceOf<SourcesService>(ctx, 'sources') ?? (ctx as unknown as { sources?: SourcesService }).sources
-  if (sources) {
-    const record =
-      (sources.sources ? sources.sources.find((s) => s.id === parsed.sourceId) : undefined) ??
-      (typeof sources.source === 'function' ? sources.source(parsed.sourceId) : undefined) ??
-      (typeof (sources as unknown as { get?: (id: string) => { displayName?: string; name?: string } }).get === 'function'
-        ? (sources as unknown as { get: (id: string) => { displayName?: string; name?: string } }).get(parsed.sourceId)
-        : undefined)
-
-    if (record) {
-      return (
-        (record as { displayName?: string }).displayName ||
-        (record as { name?: string }).name ||
-        (record as { doc?: { sourceName?: string } }).doc?.sourceName ||
-        parsed.sourceId
-      )
-    }
-  }
-  return parsed.sourceId
-}
 
 /**
  * `<Artwork>`, with the cover resolved through `ctx.cache` first.

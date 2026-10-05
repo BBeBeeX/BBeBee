@@ -11,7 +11,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import type { AlbumDetail } from '@BBeBee/protocol'
-import type { AsyncState } from '@BBeBee/ui-core'
+import type { AsyncState } from '@BBeBee/toolkit/hooks'
 
 export interface AlbumRead extends AsyncState<AlbumDetail> {
   hasMore?: boolean

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDuration, formatTotalDuration } from './time.js'
+import { formatAddedDate, formatDuration, formatPlayedDate, formatTotalDuration } from './time.js'
 
 describe('formatDuration', () => {
   it('formats under an hour as m:ss', () => {
@@ -50,3 +50,38 @@ describe('formatTotalDuration', () => {
   })
 })
 
+describe('formatAddedDate', () => {
+  const DAY = 86_400_000
+
+  it('renders an absent timestamp as a dash', () => {
+    expect(formatAddedDate(undefined)).toBe('-')
+    expect(formatAddedDate(0)).toBe('-')
+  })
+
+  it('names today and yesterday', () => {
+    const now = Date.now()
+    expect(formatAddedDate(now - 3_600_000)).toBe('今天')
+    expect(formatAddedDate(now - 25 * 3_600_000)).toBe('昨天')
+  })
+
+  it('counts days, then weeks, before the date stops being relative', () => {
+    const now = Date.now()
+    expect(formatAddedDate(now - 3 * DAY)).toBe('3天前')
+    expect(formatAddedDate(now - 2 * 7 * DAY)).toBe('2周前')
+  })
+
+  it('falls back to the full date past a month', () => {
+    const timestamp = Date.now() - 40 * DAY
+    const d = new Date(timestamp)
+    expect(formatAddedDate(timestamp)).toBe(`${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`)
+  })
+})
+
+describe('formatPlayedDate', () => {
+  it('spells a played timestamp the same way an added one is', () => {
+    const now = Date.now()
+    expect(formatPlayedDate(undefined)).toBe('-')
+    expect(formatPlayedDate(now - 3_600_000)).toBe('今天')
+    expect(formatPlayedDate(now - 25 * 3_600_000)).toBe('昨天')
+  })
+})

@@ -29,7 +29,7 @@ import type {
   UserProfile,
 } from '@BBeBee/protocol'
 import { tryParseUrn } from '@BBeBee/protocol'
-import { serviceOf, type AsyncState } from '@BBeBee/ui-core'
+import { serviceOf, type AsyncState } from '@BBeBee/toolkit/hooks'
 
 export interface LibraryRead<T> extends AsyncState<T> {
   reload(): void
@@ -334,3 +334,9 @@ export function useCollectionDetail(
     { onCollectionsChanged: true },
   )
 }
+
+// Whole-catalogue and folder-tree reads, headless (no React): consumed by the
+// library view packages through this public subpath, which keeps a desktop
+// view from re-growing its own copy of the same traversal.
+export { collectAllFolderTracks } from './folders.js'
+export { fetchAllLocalAlbums, fetchAllLocalTracks } from './local-catalog.js'

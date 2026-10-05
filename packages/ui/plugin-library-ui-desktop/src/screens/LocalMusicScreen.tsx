@@ -2,7 +2,6 @@ import { createElement as h, useCallback, useEffect, useMemo, useState } from 'r
 import type { ChangeEvent, MouseEvent as ReactMouseEvent, ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { Album, PlayerService, SourcesService, Track } from '@BBeBee/protocol'
-import { ALBUM_VIEWS } from '@BBeBee/plugin-album/views'
 import { serviceOf, type MenuAnchor, type MenuItemSpec } from '@BBeBee/ui-core'
 import { ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, List, SaveToPlaylistPopover, StickyDetailBar, Text, tablerIcon, useDetailBarCollapse, viewModeMenuItems, useViewMode, headerGradient } from '@BBeBee/ui-kit-desktop'
 import { sortMenuItems, useTrackMenu } from '@BBeBee/ui-menus'
@@ -12,7 +11,7 @@ import { LocalAlbumCard } from '../components/LocalAlbumCard.js'
 import { LibraryTrackRow } from '../components/LibraryTrackRow.js'
 import { BatchActionBar } from '../components/BatchActionBar.js'
 import { useTrackLibraryInfo } from '../hooks/useTrackLibraryInfo.js'
-import { fetchAllLocalAlbums, fetchAllLocalTracks } from '../utils/data-helpers.js'
+import { fetchAllLocalAlbums, fetchAllLocalTracks } from '@BBeBee/plugin-library/hooks'
 
 type LocalTrackSortKey = 'default' | 'title' | 'artist' | 'album' | 'duration'
 type LocalAlbumSortKey = 'default' | 'title' | 'artist' | 'year' | 'count'
@@ -533,7 +532,8 @@ export function LocalMusicScreen({
       (t.albumTitle ? albumUrnByTitle.get(t.albumTitle) : undefined) ||
       (t.albumTitle ? `BBeBee:local:album:${encodeURIComponent(t.albumTitle)}` : undefined)
     if (urn) {
-      ctx.ui.navigate(ALBUM_VIEWS.album, { urn })
+      // 'album.view' is plugin-album's view descriptor id — serialized data, a literal, not an import.
+      ctx.ui.navigate('album.view', { urn })
     }
   }
 
@@ -938,7 +938,7 @@ export function LocalMusicScreen({
               key: album.urn,
               ctx,
               album,
-              onOpen: () => ctx.ui.navigate(ALBUM_VIEWS.album, { urn: album.urn }),
+              onOpen: () => ctx.ui.navigate('album.view', { urn: album.urn }),
               onPlay: () => {
                 const albumTracks = tracks.filter(
                   (t) => t.albumUrn === album.urn || (album.title && t.albumTitle === album.title),
@@ -964,7 +964,7 @@ export function LocalMusicScreen({
             album,
             index,
             compact: albumViewMode === 'compact',
-            onOpen: () => ctx.ui.navigate(ALBUM_VIEWS.album, { urn: album.urn }),
+            onOpen: () => ctx.ui.navigate('album.view', { urn: album.urn }),
             onPlay: () => {
               const albumTracks = tracks.filter(
                 (t) => t.albumUrn === album.urn || (album.title && t.albumTitle === album.title),

@@ -16,8 +16,9 @@ import { Context, Service } from 'cordis'
 import type { Collection, Paged, Playlist, PlaylistDetail, SavedKind, Track } from '@BBeBee/protocol'
 import { tryParseUrn } from '@BBeBee/protocol'
 import { tick } from '@BBeBee/kernel/testing'
+import { collectAllFolderTracks, fetchAllLocalTracks } from '@BBeBee/plugin-library/hooks'
 import { withListLayout } from '@BBeBee/ui-kit-desktop/testing'
-import { CollectionScreen, FavoritesScreen, LibraryScreen, LocalMusicScreen, PlaylistDetailScreen, collectAllFolderTracks, fetchAllLocalTracks, inject } from './index.js'
+import { CollectionScreen, FavoritesScreen, LibraryScreen, LocalMusicScreen, PlaylistDetailScreen, inject } from './index.js'
 
 afterEach(cleanup)
 

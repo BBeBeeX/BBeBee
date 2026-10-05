@@ -894,9 +894,9 @@ importers:
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
-      '@BBeBee/ui-core':
+      '@BBeBee/toolkit':
         specifier: workspace:*
-        version: link:../../ui/ui-core
+        version: link:../toolkit
       cordis:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
@@ -1076,9 +1076,9 @@ importers:
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
-      '@BBeBee/ui-core':
+      '@BBeBee/toolkit':
         specifier: workspace:*
-        version: link:../../ui/ui-core
+        version: link:../toolkit
       cordis:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
@@ -1441,9 +1441,6 @@ importers:
       '@BBeBee/toolkit':
         specifier: workspace:*
         version: link:../toolkit
-      '@BBeBee/ui-core':
-        specifier: workspace:*
-        version: link:../../ui/ui-core
       cordis:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
@@ -1675,9 +1672,6 @@ importers:
       '@BBeBee/plugin-album':
         specifier: workspace:*
         version: link:../../feature/plugin-album
-      '@BBeBee/plugin-cache':
-        specifier: workspace:*
-        version: link:../../feature/plugin-cache
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
@@ -2159,24 +2153,15 @@ importers:
 
   packages/ui/plugin-library-ui-desktop:
     dependencies:
-      '@BBeBee/plugin-album':
-        specifier: workspace:*
-        version: link:../../feature/plugin-album
-      '@BBeBee/plugin-cache':
-        specifier: workspace:*
-        version: link:../../feature/plugin-cache
       '@BBeBee/plugin-library':
         specifier: workspace:*
         version: link:../../feature/plugin-library
-      '@BBeBee/plugin-player':
-        specifier: workspace:*
-        version: link:../../feature/plugin-player
-      '@BBeBee/plugin-sources':
-        specifier: workspace:*
-        version: link:../../feature/plugin-sources
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
+      '@BBeBee/toolkit':
+        specifier: workspace:*
+        version: link:../../feature/toolkit
       '@BBeBee/ui-core':
         specifier: workspace:*
         version: link:../ui-core
@@ -2863,18 +2848,15 @@ importers:
 
   packages/ui/plugin-sources-ui-desktop:
     dependencies:
-      '@BBeBee/plugin-album':
+      '@BBeBee/plugin-sources':
         specifier: workspace:*
-        version: link:../../feature/plugin-album
-      '@BBeBee/plugin-cache':
-        specifier: workspace:*
-        version: link:../../feature/plugin-cache
-      '@BBeBee/plugin-library':
-        specifier: workspace:*
-        version: link:../../feature/plugin-library
+        version: link:../../feature/plugin-sources
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
+      '@BBeBee/toolkit':
+        specifier: workspace:*
+        version: link:../../feature/toolkit
       '@BBeBee/ui-core':
         specifier: workspace:*
         version: link:../ui-core
@@ -2906,9 +2888,6 @@ importers:
       '@BBeBee/kernel':
         specifier: workspace:*
         version: link:../../kernel
-      '@BBeBee/plugin-sources':
-        specifier: workspace:*
-        version: link:../../feature/plugin-sources
       '@testing-library/react':
         specifier: ^16.3.3
         version: 16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -3142,9 +3121,6 @@ importers:
 
   packages/ui/ui-menus:
     dependencies:
-      '@BBeBee/plugin-album':
-        specifier: workspace:*
-        version: link:../../feature/plugin-album
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol

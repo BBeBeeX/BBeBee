@@ -18,10 +18,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-album": "workspace:*",
-    "@BBeBee/plugin-cache": "workspace:*",
-    "@BBeBee/plugin-library": "workspace:*",
+    "@BBeBee/plugin-sources": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
+    "@BBeBee/toolkit": "workspace:*",
     "@BBeBee/ui-core": "workspace:*",
     "@BBeBee/ui-kit-desktop": "workspace:*",
     "@BBeBee/ui-menus": "workspace:*",
@@ -30,7 +29,6 @@
     "react": "19.2.3"
   },
   "devDependencies": {
-    "@BBeBee/plugin-sources": "workspace:*",
     "@types/react": "^19.2.0",
     "vitest": "^4.1.11",
     "react-dom": "19.2.3",

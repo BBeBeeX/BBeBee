@@ -9,10 +9,10 @@ import type {
 import { tryParseUrn } from '@BBeBee/protocol'
 import type { MenuAnchor, MenuItemSpec } from '@BBeBee/ui-core'
 import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { collectAllFolderTracks } from '@BBeBee/plugin-library/hooks'
 import type { useAddToCollection, useCollectionMenu, usePlaylistMenu } from '@BBeBee/ui-menus'
 import type { DeleteConfirmTarget } from '../components/modals/ConfirmDeleteModal.js'
 import type { UnifiedItem } from '../components/UnifiedLibraryRow.js'
-import { collectAllFolderTracks } from '../utils/data-helpers.js'
 
 export interface UseLibraryActionsParams {
   ctx: Context

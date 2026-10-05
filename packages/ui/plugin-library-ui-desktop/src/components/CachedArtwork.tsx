@@ -1,7 +1,7 @@
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import { useResolvedArtwork } from '@BBeBee/plugin-cache/hooks'
+import { useResolvedArtwork } from '@BBeBee/toolkit/hooks'
 import type { ArtworkProps } from '@BBeBee/ui-core'
 import { Artwork } from '@BBeBee/ui-kit-desktop'
 
