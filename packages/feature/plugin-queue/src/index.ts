@@ -4,8 +4,8 @@
  * A **surface** plugin: it owns the queue route and view id, and nothing else.
  * The queue itself — the ordered items, the current item, reordering, the
  * "jump to this one" semantics — belongs to `ctx.player`, and the hooks that
- * read it (`useQueue`, `useTracksByUrn`, `queueTrackFallback`) stay in
- * `plugin-player` beside the service.
+ * read it (`useQueue`, `useTracksByUrn`, `queueTrackFallback`) live in
+ * `@BBeBee/toolkit/hooks` beside the other shared bindings.
  *
  * It was part of `plugin-player`, then of that plugin's view package; it is its
  * own plugin because up-next is a *different question* from what is playing now —

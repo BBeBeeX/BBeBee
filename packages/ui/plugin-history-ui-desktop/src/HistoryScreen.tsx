@@ -17,8 +17,8 @@ import {
   usePlayHistoryHeatmap,
   useTracksByUrn,
   useTransport,
-} from '@BBeBee/plugin-player/hooks'
-import { useResolvedArtwork } from '@BBeBee/plugin-cache/hooks'
+  useResolvedArtwork,
+} from '@BBeBee/toolkit/hooks'
 import { useTrackMenu } from '@BBeBee/ui-menus'
 import { ContextMenu, EmptyState, List, TrackRow } from '@BBeBee/ui-kit-desktop'
 import type { MenuAnchor, TrackRowProps } from '@BBeBee/ui-core'

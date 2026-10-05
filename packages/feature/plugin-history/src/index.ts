@@ -4,8 +4,8 @@
  * A **surface** plugin: it owns the history route and view id, and nothing else.
  * The history itself — recording play events, computing stats and the heatmap —
  * belongs to `ctx.player`, and the hooks that read it (`usePlayHistory`,
- * `usePlayHistoryStats`, `usePlayHistoryHeatmap`) stay in `plugin-player` beside
- * the service.
+ * `usePlayHistoryStats`, `usePlayHistoryHeatmap`) live in `@BBeBee/toolkit/hooks`
+ * beside the other shared bindings.
  */
 
 import type { Context } from 'cordis'

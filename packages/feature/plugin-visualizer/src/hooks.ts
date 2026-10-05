@@ -11,7 +11,7 @@ import type {
   VisualizerSettings,
 } from '@BBeBee/protocol'
 import { DEFAULT_VISUALIZER_SETTINGS } from '@BBeBee/protocol'
-import { serviceOf } from '@BBeBee/ui-core'
+import { serviceOf } from '@BBeBee/toolkit/hooks'
 
 export interface UseVisualizerResult {
   settings: VisualizerSettings

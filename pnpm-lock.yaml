@@ -1512,9 +1512,9 @@ importers:
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
-      '@BBeBee/ui-core':
+      '@BBeBee/toolkit':
         specifier: workspace:*
-        version: link:../../ui/ui-core
+        version: link:../toolkit
       cordis:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
@@ -2018,18 +2018,15 @@ importers:
 
   packages/ui/plugin-history-ui-desktop:
     dependencies:
-      '@BBeBee/plugin-cache':
-        specifier: workspace:*
-        version: link:../../feature/plugin-cache
       '@BBeBee/plugin-history':
         specifier: workspace:*
         version: link:../../feature/plugin-history
-      '@BBeBee/plugin-player':
-        specifier: workspace:*
-        version: link:../../feature/plugin-player
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
+      '@BBeBee/toolkit':
+        specifier: workspace:*
+        version: link:../../feature/toolkit
       '@BBeBee/ui-core':
         specifier: workspace:*
         version: link:../ui-core
@@ -2584,21 +2581,15 @@ importers:
 
   packages/ui/plugin-queue-ui-desktop:
     dependencies:
-      '@BBeBee/plugin-cache':
-        specifier: workspace:*
-        version: link:../../feature/plugin-cache
-      '@BBeBee/plugin-player':
-        specifier: workspace:*
-        version: link:../../feature/plugin-player
       '@BBeBee/plugin-queue':
         specifier: workspace:*
         version: link:../../feature/plugin-queue
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
-      '@BBeBee/ui-core':
+      '@BBeBee/toolkit':
         specifier: workspace:*
-        version: link:../ui-core
+        version: link:../../feature/toolkit
       '@BBeBee/ui-kit-desktop':
         specifier: workspace:*
         version: link:../ui-kit-desktop
@@ -3006,12 +2997,6 @@ importers:
 
   packages/ui/plugin-visualizer-ui-desktop:
     dependencies:
-      '@BBeBee/plugin-player':
-        specifier: workspace:*
-        version: link:../../feature/plugin-player
-      '@BBeBee/plugin-settings':
-        specifier: workspace:*
-        version: link:../../feature/plugin-settings
       '@BBeBee/plugin-visualizer':
         specifier: workspace:*
         version: link:../../feature/plugin-visualizer
@@ -3021,9 +3006,6 @@ importers:
       '@BBeBee/toolkit':
         specifier: workspace:*
         version: link:../../feature/toolkit
-      '@BBeBee/ui-core':
-        specifier: workspace:*
-        version: link:../ui-core
       '@BBeBee/ui-kit-desktop':
         specifier: workspace:*
         version: link:../ui-kit-desktop

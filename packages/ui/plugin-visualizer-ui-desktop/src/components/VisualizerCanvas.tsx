@@ -16,7 +16,7 @@ import { createElement as h, useEffect, useRef } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { VisualizerColorTheme, VisualizerStyle } from '@BBeBee/protocol'
-import { useTransport } from '@BBeBee/plugin-player/hooks'
+import { useTransport } from '@BBeBee/toolkit/hooks'
 import { useAudioData, useVisualizer } from '@BBeBee/plugin-visualizer/hooks'
 import { tokens } from '@BBeBee/ui-tokens'
 

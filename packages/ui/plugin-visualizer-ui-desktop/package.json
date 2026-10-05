@@ -18,12 +18,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-player": "workspace:*",
-    "@BBeBee/plugin-settings": "workspace:*",
     "@BBeBee/plugin-visualizer": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/toolkit": "workspace:*",
-    "@BBeBee/ui-core": "workspace:*",
     "@BBeBee/ui-kit-desktop": "workspace:*",
     "@BBeBee/ui-tokens": "workspace:*",
     "cordis": "4.0.0-rc.9",

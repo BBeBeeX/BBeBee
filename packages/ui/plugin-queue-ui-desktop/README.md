@@ -4,7 +4,7 @@ Layer 5（ui）— `plugin-queue`（headless）的桌面视图包：up-next 队�
 
 ## 概述
 
-把 `queue.view` 绑到桌面 kit 上，从 `plugin-player` 的视图包整体迁入。领域状态全部来自 `@BBeBee/plugin-player/hooks`（队列模型是 player 的），`ctx.player` / `ctx.sources` 经 `inject` 访问。对 headless 包是运行时依赖（view id）。
+把 `queue.view` 绑到桌面 kit 上，从 `plugin-player` 的视图包整体迁入。领域状态全部来自 `@BBeBee/toolkit/hooks`（跨功能消费的 React 绑定统一在 toolkit；队列模型仍是 player 的），`ctx.player` / `ctx.sources` 经 `inject` 访问。对 headless 包是运行时依赖（view id）。
 
 ## 源文件
 

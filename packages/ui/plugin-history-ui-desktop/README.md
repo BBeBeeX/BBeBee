@@ -4,8 +4,8 @@ Layer 5（ui）— `plugin-history`（headless）的桌面视图包：播放历�
 
 ## 概述
 
-把 `history.view` 注册并绑定到桌面 shell。所有领域统计与历史数据来自 `@BBeBee/plugin-player/hooks`（`usePlayHistory`、`usePlayHistoryStats`、`usePlayHistoryHeatmap`）。
-`inject = ['ui', 'player', 'sources']`，封面经 `useResolvedArtwork`（`@BBeBee/plugin-cache/hooks`）由本地缓存解析，上下文菜单通过 `@BBeBee/ui-menus` 接入。
+把 `history.view` 注册并绑定到桌面 shell。所有领域统计与历史数据来自 `@BBeBee/toolkit/hooks`（`usePlayHistory`、`usePlayHistoryStats`、`usePlayHistoryHeatmap`；跨功能消费的 React 绑定统一在 toolkit）。
+`inject = ['ui', 'player', 'sources']`，封面经 `useResolvedArtwork`（`@BBeBee/toolkit/hooks`）由本地缓存解析，上下文菜单通过 `@BBeBee/ui-menus` 接入。
 
 ## 注册的视图
 

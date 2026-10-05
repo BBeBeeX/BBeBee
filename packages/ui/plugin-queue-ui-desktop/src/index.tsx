@@ -2,9 +2,9 @@
  * React DOM views for `@BBeBee/plugin-queue`.
  *
  * Screen: the up-next list and recently played history tabs.
- * Every value comes from hooks in `@BBeBee/plugin-player/hooks` — the queue
- * model belongs to the player — and this file handles layout, presentation,
- * and event wiring only (docs/08 §1).
+ * Every value comes from the shared bindings in `@BBeBee/toolkit/hooks` — the
+ * queue model belongs to the player, the binding is toolkit's — and this file
+ * handles layout, presentation, and event wiring only (docs/08 §1).
  */
 
 import { createElement as h, memo, useMemo, useRef, useState } from 'react'
@@ -12,27 +12,20 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { PlayRecord, QueueSourceContext, Track } from '@BBeBee/protocol'
 import { QUEUE_VIEWS } from '@BBeBee/plugin-queue/views'
+import { formatDuration } from '@BBeBee/toolkit'
 import {
   queueTrackFallback,
   usePlayHistory,
   useQueue,
+  useResolvedArtwork,
   useTracksByUrn,
   useTransport,
   useUpcoming,
-} from '@BBeBee/plugin-player/hooks'
+} from '@BBeBee/toolkit/hooks'
 import { Artwork, ContextMenu, EmptyState, tablerIcon } from '@BBeBee/ui-kit-desktop'
-import { useResolvedArtwork } from '@BBeBee/plugin-cache/hooks'
 import { useTrackMenu } from '@BBeBee/ui-menus'
 import { tokens } from '@BBeBee/ui-tokens'
 import { upcomingDropToQueueIndex } from './reorder.js'
-
-function formatDuration(ms?: number): string {
-  if (!ms || ms <= 0) return ''
-  const totalSeconds = Math.floor(ms / 1000)
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`
-}
 
 /** Label shown for a context that carries a kind but no label. */
 const CONTEXT_KIND_LABELS: Record<QueueSourceContext['kind'], string> = {
@@ -560,7 +553,9 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
               track: currentTrack,
               active: true,
               itemId: currentItem.id,
-              extraRight: formatDuration(currentTrack.durationMs),
+              extraRight: currentTrack.durationMs
+                ? formatDuration(currentTrack.durationMs)
+                : undefined,
               onPress: () => void ctx.player.playFromContext(currentItem.trackUrn),
               onMore: (anchor) => menu.open({ track: currentTrack, queueItemId: currentItem.id }, anchor),
             }),
@@ -621,7 +616,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
                     track,
                     active: item.id === state.currentItemId,
                     itemId: item.id,
-                    extraRight: formatDuration(track.durationMs),
+                    extraRight: track.durationMs ? formatDuration(track.durationMs) : undefined,
                     onPress: () => void ctx.player.playFromContext(item.trackUrn),
                     onMore: (anchor) => menu.open({ track, queueItemId: item.id }, anchor),
                     draggable: !shuffleOn,
