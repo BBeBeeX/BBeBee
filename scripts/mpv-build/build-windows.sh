@@ -28,7 +28,12 @@ git clone --depth 1 --branch "${MPV_VERSION}" https://github.com/mpv-player/mpv.
 cd "${WORK_DIR}/mpv-src"
 
 echo "Applying PCM tap patch..."
-git apply "${PATCH_FILE}"
+if git apply --ignore-whitespace --ignore-space-change "${PATCH_FILE}" 2>/dev/null; then
+    echo "Patch applied cleanly."
+else
+    echo "Applying patch with CRLF conversion..."
+    tr -d '\r' < "${PATCH_FILE}" | git apply --ignore-whitespace --ignore-space-change -
+fi
 
 echo "Configuring build with Meson..."
 meson setup build \
