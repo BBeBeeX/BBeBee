@@ -3,7 +3,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { ShareLyricsData } from '@BBeBee/protocol'
 import { Sheet, tablerIcon, useImageColor } from '@BBeBee/ui-kit-desktop'
-import { useResolvedArtwork } from '../utils/useResolvedArtwork.js'
+import { useResolvedArtwork } from '@BBeBee/toolkit/hooks'
 import { copyToClipboard } from '../utils/clipboard.js'
 import {
   type BackgroundMode,

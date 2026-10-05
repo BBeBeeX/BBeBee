@@ -2,6 +2,7 @@ import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { SettingsContribution } from '@BBeBee/protocol'
+import { formatBytes } from '@BBeBee/toolkit'
 import { Button } from '@BBeBee/ui-kit-desktop'
 import { SettingsRow } from '../SettingsRow.js'
 import { SettingsSection } from '../SettingsSection.js'
@@ -25,14 +26,6 @@ export interface StorageSectionProps {
   onOpenCacheDir: () => void
   onClearCache: () => void
   onNavigate: (route: string) => void
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes <= 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1)
-  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`
 }
 
 function cleanDisplayPath(rawPath?: string): string {

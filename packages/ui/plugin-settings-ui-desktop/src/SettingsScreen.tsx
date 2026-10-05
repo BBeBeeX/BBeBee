@@ -13,8 +13,6 @@ import type {
   ProxySettings,
   SourceRecord,
   SourcesService,
-  DeviceService,
-  PlayerService,
   DesktopLyricsService,
   PathsService,
   UiService,
@@ -232,93 +230,10 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
     },
   }
 
-  // Global shortcuts registration
-  useEffect(() => {
-    const device = serviceOf<DeviceService>(ctx, 'device')
-    if (!shortcuts.enabled || !device?.registerHotkey) return
-    const disposers: (() => void)[] = []
-    const kb = shortcuts.keybindings
-    if (!kb) return
-
-    const register = (acc: string | undefined, handler: () => void) => {
-      if (!acc) return
-      try {
-        const off = device.registerHotkey(acc, handler)
-        if (off) disposers.push(off)
-      } catch {
-        // ignore unavailable accelerator
-      }
-    }
-
-    register(kb.playPause, () => {
-      const p = serviceOf<PlayerService>(ctx, 'player')
-      p?.togglePlay?.()
-    })
-    register(kb.prevTrack, () => {
-      const p = serviceOf<PlayerService>(ctx, 'player')
-      void p?.previous?.()
-    })
-    register(kb.nextTrack, () => {
-      const p = serviceOf<PlayerService>(ctx, 'player')
-      void p?.next?.()
-    })
-    register(kb.volumeUp, () => {
-      const p = serviceOf<PlayerService>(ctx, 'player')
-      const cur = p?.state?.volume ?? 0.8
-      p?.setVolume?.(Math.min(1, Math.round((cur + 0.05) * 100) / 100))
-    })
-    register(kb.volumeDown, () => {
-      const p = serviceOf<PlayerService>(ctx, 'player')
-      const cur = p?.state?.volume ?? 0.8
-      p?.setVolume?.(Math.max(0, Math.round((cur - 0.05) * 100) / 100))
-    })
-    register(kb.toggleLyrics, () => {
-      const dl = serviceOf<DesktopLyricsService>(ctx, 'desktopLyrics')
-      if (dl) {
-        dl.toggleVisible()
-      } else {
-        const s = serviceOf<SettingsService>(ctx, 'settings')
-        if (s) {
-          const cur = s.getSync()?.desktopLyrics
-          void s.update({
-            desktopLyrics: {
-              ...cur,
-              enabled: !(cur?.enabled ?? false),
-            } as DesktopLyricsSettings,
-          })
-        }
-      }
-    })
-    register(kb.toggleWindow, () => {
-      const bridge = (
-        window as unknown as { BBeBee?: { window?: { toggle?: () => Promise<void> } } }
-      ).BBeBee
-      void bridge?.window?.toggle?.()
-    })
-    register(kb.toggleLoved, () => {
-      const p = serviceOf<PlayerService>(ctx, 'player')
-      const s = serviceOf<SourcesService>(ctx, 'sources')
-      const urn = p?.state?.trackUrn
-      if (urn && s?.setLoved) {
-        void s.setLoved(urn, true)
-      }
-    })
-    register(kb.seekForward, () => {
-      const p = serviceOf<PlayerService>(ctx, 'player')
-      const pos = p?.state?.positionMs ?? 0
-      void p?.seek?.(pos + 5000)
-    })
-    register(kb.seekBackward, () => {
-      const p = serviceOf<PlayerService>(ctx, 'player')
-      const pos = p?.state?.positionMs ?? 0
-      void p?.seek?.(Math.max(0, pos - 5000))
-    })
-
-    return () => {
-      for (const off of disposers) off()
-    }
-  }, [ctx, shortcuts])
-
+  // Global shortcuts are registered by the plugin-settings feature
+  // (src/shortcuts.ts), keyed to the settings service's lifetime — the
+  // bindings must survive leaving this screen, which a view effect cannot
+  // guarantee. This screen only edits the configuration.
   const paths = serviceOf<PathsService>(ctx, 'paths')
   const defaultDownloadsDir = paths?.downloads
     ? `${paths.downloads}/BBeBee`

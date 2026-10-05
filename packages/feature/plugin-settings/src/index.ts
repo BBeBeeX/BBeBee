@@ -9,6 +9,7 @@ import type { Context } from 'cordis'
 import type { AppSettings, Disposable, SettingsContribution, SettingsService } from '@BBeBee/protocol'
 import { DEFAULT_APP_SETTINGS } from '@BBeBee/protocol'
 import { SETTINGS_ROUTES } from './views.js'
+import { watchGlobalShortcuts } from './shortcuts.js'
 
 const STORE_KEY = 'preferences'
 
@@ -100,6 +101,10 @@ export class SettingsPlugin extends Service implements SettingsService {
         })
       }, 'settings-ui-contributions')
     })
+
+    // Global shortcuts follow the settings service's lifetime, not the
+    // settings screen's mount cycle (see shortcuts.ts).
+    watchGlobalShortcuts(this.ownCtx)
   }
 
   async get(): Promise<AppSettings> {

@@ -32,7 +32,6 @@
   "dependencies": {
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/toolkit": "workspace:*",
-    "@BBeBee/ui-core": "workspace:*",
     "cordis": "4.0.0-rc.9"
   },
   "devDependencies": {

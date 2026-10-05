@@ -9,7 +9,7 @@
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import type { DownloadPolicy, DownloadTask } from '@BBeBee/protocol'
-import { useServiceState } from '@BBeBee/ui-core'
+import { useServiceState } from '@BBeBee/toolkit/hooks'
 
 /**
  * The download queue.

@@ -9,7 +9,7 @@ import type {
 } from '@BBeBee/protocol'
 import { encodeMetadata } from '@BBeBee/plugin-share/metadata'
 import { useImageColor } from '@BBeBee/ui-kit-desktop'
-import { useResolvedArtwork } from '../utils/useResolvedArtwork.js'
+import { useResolvedArtwork } from '@BBeBee/toolkit/hooks'
 import { copyToClipboard } from '../utils/clipboard.js'
 import { isLocalSource } from '../utils/sourceHelper.js'
 import type { BackgroundMode } from '../utils/canvasRenderer.js'

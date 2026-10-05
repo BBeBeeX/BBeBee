@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import type { Context } from 'cordis'
-import { serviceOf } from '@BBeBee/ui-core'
+import { serviceOf } from '@BBeBee/toolkit/hooks'
 import type {
   AppSettings,
   CacheService,

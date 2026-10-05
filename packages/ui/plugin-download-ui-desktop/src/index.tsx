@@ -3,34 +3,27 @@
  *
  * The download queue and what it has cached. Every value comes from
  * `@BBeBee/plugin-download/hooks` — the list, the header's numbers, one task's
- * completion — and this file is layout, gestures and event wiring only
+ * completion — and this package is layout, gestures and event wiring only
  * (docs/08 §1).
  *
  * The one thing worth doing carefully here is the **state → controls** map.
  * A queued task can be paused but not resumed; a failed one can be retried but
  * not paused. Offering the wrong control is worse than offering none, so the
- * buttons follow the state rather than the other way round.
+ * buttons follow the state rather than the other way round. It lives with the
+ * row that renders it, in `components/DownloadRow.tsx`.
  */
 
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
-import type { DownloadTask, PlayerService } from '@BBeBee/protocol'
 import { DOWNLOADS_VIEWS } from '@BBeBee/plugin-download/views'
-import {
-  downloadProgress,
-  holdLabel,
-  summariseDownloads,
-  useDownloadPolicy,
-  useDownloadTasks,
-} from '@BBeBee/plugin-download/hooks'
-import { Button, EmptyState, IconButton, Text } from '@BBeBee/ui-kit-desktop'
-import { serviceOf } from '@BBeBee/ui-core'
-import { palettes, tokens } from '@BBeBee/ui-tokens'
+import { summariseDownloads, useDownloadPolicy, useDownloadTasks } from '@BBeBee/plugin-download/hooks'
+import { Button, EmptyState, Text } from '@BBeBee/ui-kit-desktop'
 import { formatBytes } from '@BBeBee/toolkit'
-
-const p = () => palettes.dark
+import { tokens } from '@BBeBee/ui-tokens'
+import { DownloadSection } from './components/DownloadSection.js'
+import { PolicyToggle } from './components/PolicyToggle.js'
 
 export function DownloadsScreen({ ctx }: { ctx: Context }): ReactElement {
   const tasks = useDownloadTasks(ctx)
@@ -111,278 +104,12 @@ export function DownloadsScreen({ ctx }: { ctx: Context }): ReactElement {
   )
 }
 
-/** A filter-sized toggle for the two policy switches. */
-function PolicyToggle({
-  label,
-  active,
-  onPress,
-  testID,
-}: {
-  label: string
-  active: boolean
-  onPress: () => void
-  testID: string
-}): ReactElement {
-  const scheme = p()
-  return h(
-    'button',
-    {
-      type: 'button',
-      onClick: onPress,
-      'aria-pressed': active,
-      'data-testid': testID,
-      style: {
-        minHeight: 26,
-        padding: `0 ${tokens.space[3]}px`,
-        borderRadius: tokens.radius.pill,
-        border: `1px solid ${active ? 'transparent' : scheme.border.subtle}`,
-        background: active ? scheme.accent.base : 'transparent',
-        color: active ? scheme.accent.on : scheme.text.secondary,
-        fontFamily: tokens.font.family.ui,
-        fontSize: tokens.font.size.xs,
-        fontWeight: tokens.font.weight.bold,
-        cursor: 'pointer',
-      },
-    },
-    label,
-  )
-}
-
 function summaryLine(summary: ReturnType<typeof summariseDownloads>): string {
   const parts: string[] = []
   if (summary.active) parts.push(`${summary.active} in progress`)
   if (summary.done) parts.push(`${summary.done} downloaded · ${formatBytes(summary.bytes)}`)
   if (summary.failed) parts.push(`${summary.failed} failed`)
   return parts.length > 0 ? parts.join(' · ') : 'Nothing yet'
-}
-
-function DownloadSection({
-  ctx,
-  title,
-  tasks,
-}: {
-  ctx: Context
-  title: string
-  tasks: readonly DownloadTask[]
-}): ReactElement {
-  return h(
-    'div',
-    { style: { display: 'flex', flexDirection: 'column', gap: tokens.space[2] } },
-    h(Text, { variant: 'md', tone: 'muted' }, title),
-    h(
-      'ul',
-      {
-        'aria-label': title,
-        style: {
-          margin: 0,
-          padding: 0,
-          listStyle: 'none',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: tokens.space[1],
-        },
-      },
-      ...tasks.map((task) => h(DownloadRow, { key: task.id, ctx, task })),
-    ),
-  )
-}
-
-function DownloadRow({ ctx, task }: { ctx: Context; task: DownloadTask }): ReactElement {
-  const scheme = p()
-  const progress = downloadProgress(task)
-  const player = serviceOf<PlayerService>(ctx, 'player')
-
-  return h(
-    'li',
-    {
-      'data-testid': `download-${task.id}`,
-      style: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: tokens.space[3],
-        padding: tokens.space[3],
-        borderRadius: tokens.radius.sm,
-        background: scheme.bg.raised,
-      },
-    },
-    h(
-      'div',
-      { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 } },
-      h(Text, { numberOfLines: 1 }, task.title),
-      task.artist ? h(Text, { variant: 'sm', tone: 'muted', numberOfLines: 1 }, task.artist) : null,
-      h(
-        Text,
-        {
-          variant: 'xs',
-          tone: task.state === 'failed' ? 'error' : 'muted',
-          numberOfLines: 1,
-        },
-        statusLine(task),
-      ),
-      progress !== undefined
-        ? h(ProgressBar, { value: progress, label: `Progress for ${task.title}` })
-        : null,
-    ),
-    h(
-      'div',
-      { style: { display: 'flex', gap: tokens.space[2], flexShrink: 0 } },
-      ...actionsFor(ctx, task, player),
-    ),
-  )
-}
-
-/**
- * What one task can do next.
- *
- * Derived from the state rather than from capabilities, because every task is
- * owned by this service: `done` offers play and delete, `failed` offers retry
- * and delete, and the four moving states split on whether they are currently
- * transferring.
- */
-function actionsFor(
-  ctx: Context,
-  task: DownloadTask,
-  player: PlayerService | undefined,
-): ReactElement[] {
-  const actions: ReactElement[] = []
-
-  if (task.state === 'done') {
-    actions.push(
-      h(Button, {
-        key: 'play',
-        variant: 'secondary',
-        onPress: () => void player?.playNow([task.trackUrn]),
-        disabled: !player,
-        testID: `download-play-${task.id}`,
-        children: 'Play',
-      }),
-      h(IconButton, {
-        key: 'remove',
-        icon: 'trash',
-        accessibilityLabel: `Delete ${task.title}`,
-        onPress: () => void ctx.downloads.remove(task.id),
-        testID: `download-remove-${task.id}`,
-      }),
-    )
-    return actions
-  }
-
-  if (task.state === 'failed' || task.state === 'canceled') {
-    actions.push(
-      h(Button, {
-        key: 'retry',
-        variant: 'secondary',
-        onPress: () => void ctx.downloads.retry(task.id),
-        testID: `download-retry-${task.id}`,
-        children: 'Retry',
-      }),
-      h(IconButton, {
-        key: 'remove',
-        icon: 'trash',
-        accessibilityLabel: `Delete ${task.title}`,
-        onPress: () => void ctx.downloads.remove(task.id),
-        testID: `download-remove-${task.id}`,
-      }),
-    )
-    return actions
-  }
-
-  if (task.state === 'paused') {
-    actions.push(
-      h(Button, {
-        key: 'resume',
-        variant: 'secondary',
-        onPress: () => void ctx.downloads.resume(task.id),
-        testID: `download-resume-${task.id}`,
-        children: 'Resume',
-      }),
-    )
-  } else {
-    actions.push(
-      h(Button, {
-        key: 'pause',
-        variant: 'ghost',
-        onPress: () => void ctx.downloads.pause(task.id),
-        testID: `download-pause-${task.id}`,
-        children: 'Pause',
-      }),
-    )
-  }
-
-  actions.push(
-    h(IconButton, {
-      key: 'cancel',
-      icon: 'x',
-      accessibilityLabel: `Cancel ${task.title}`,
-      onPress: () => void ctx.downloads.cancel(task.id),
-      testID: `download-cancel-${task.id}`,
-    }),
-  )
-  return actions
-}
-
-/** One line saying where a task is, in the user's terms. */
-function statusLine(task: DownloadTask): string {
-  const hold = holdLabel(task)
-  if (hold) return task.state === 'paused' ? `Paused — ${hold.toLowerCase()}` : hold
-  switch (task.state) {
-    case 'queued':
-      return 'Queued'
-    case 'running':
-      return task.bytesTotal
-        ? `${formatBytes(task.bytesDone)} of ${formatBytes(task.bytesTotal)}`
-        : formatBytes(task.bytesDone)
-    case 'paused':
-      return `Paused · ${formatBytes(task.bytesDone)}`
-    case 'done':
-      // A kept download is the user's to keep; a cache entry is evictable.
-      return task.kept
-        ? task.quality
-          ? `Downloaded · ${task.quality}`
-          : 'Downloaded'
-        : 'Cached'
-    case 'failed':
-      return task.error ?? 'Failed'
-    case 'canceled':
-      return 'Canceled'
-  }
-}
-
-/**
- * A read-only bar.
- *
- * Not a `Slider`: that is a control, and a control a user can grab but that
- * does nothing is exactly the affordance mismatch the actions map above
- * avoids.
- */
-function ProgressBar({ value, label }: { value: number; label: string }): ReactElement {
-  const scheme = p()
-  const percent = Math.round(value * 100)
-  return h(
-    'div',
-    {
-      role: 'progressbar',
-      'aria-label': label,
-      'aria-valuenow': percent,
-      'aria-valuemin': 0,
-      'aria-valuemax': 100,
-      style: {
-        height: 3,
-        width: '100%',
-        borderRadius: 1.5,
-        background: scheme.border.subtle,
-        overflow: 'hidden',
-      },
-    },
-    h('div', {
-      style: {
-        width: `${percent}%`,
-        height: '100%',
-        background: scheme.accent.base,
-        transition: `width ${tokens.duration.fast}ms linear`,
-      },
-    }),
-  )
 }
 
 export const name = 'plugin-download-ui-desktop'
