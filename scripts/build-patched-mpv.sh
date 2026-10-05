@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 PLATFORM="${1:-auto}"
-MPV_VERSION="${2:-v0.38.0}"
+MPV_VERSION="${2:-v0.41.0}"
 TARGET_DIR="${3:-}"
 
 if [ -n "${TARGET_DIR}" ]; then

@@ -6,7 +6,7 @@ on:
       mpv_version:
         description: 'mpv git tag or branch to build'
         required: true
-        default: 'v0.38.0'
+        default: 'v0.41.0'
 
 jobs:
   build-linux:
@@ -42,7 +42,7 @@ jobs:
 
       - name: Build Patched libmpv
         run: |
-          bash scripts/build-patched-mpv.sh linux "${{ github.event.inputs.mpv_version || 'v0.38.0' }}" output/linux
+          bash scripts/build-patched-mpv.sh linux "${{ github.event.inputs.mpv_version || 'v0.41.0' }}" output/linux
 
 
       - name: Upload Linux artifact
@@ -65,7 +65,7 @@ jobs:
 
       - name: Build Patched libmpv
         run: |
-          bash scripts/build-patched-mpv.sh macos "${{ github.event.inputs.mpv_version || 'v0.38.0' }}" output/darwin
+          bash scripts/build-patched-mpv.sh macos "${{ github.event.inputs.mpv_version || 'v0.41.0' }}" output/darwin
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
@@ -100,7 +100,7 @@ jobs:
       - name: Build Patched libmpv
         shell: msys2 {0}
         run: |
-          bash scripts/build-patched-mpv.sh windows "${{ github.event.inputs.mpv_version || 'v0.38.0' }}" output/win64
+          bash scripts/build-patched-mpv.sh windows "${{ github.event.inputs.mpv_version || 'v0.41.0' }}" output/win64
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4

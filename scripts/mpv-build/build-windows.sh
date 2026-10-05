@@ -2,7 +2,7 @@
 # Run inside MSYS2 MINGW64 environment (or Git Bash configured with mingw64 toolchain)
 set -euo pipefail
 
-MPV_VERSION="${1:-v0.38.0}"
+MPV_VERSION="${1:-v0.41.0}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 PATCH_FILE="${ROOT_DIR}/patches/mpv-pcm-tap.patch"
