@@ -331,8 +331,16 @@ public:
                         mpvLib.observe_property(mpv, 2, "duration", MPV_FORMAT_DOUBLE);
                         mpvLib.observe_property(mpv, 3, "pause", MPV_FORMAT_FLAG);
                         mpvLib.observe_property(mpv, 4, "eof-reached", MPV_FORMAT_FLAG);
-                        mpvLib.observe_property(mpv, 5, "audio-params/samplerate", MPV_FORMAT_INT64);
-                        mpvLib.observe_property(mpv, 6, "audio-params/channel-count", MPV_FORMAT_INT64);
+                        // audio-out-params, NOT audio-params: the PCM tap fires at
+                        // the AO boundary and delivers the device format (mpv
+                        // resamples/mixes between the two), while audio-params
+                        // describes the decoder output. A 44.1 kHz file on a 48 kHz
+                        // device (or a mono file upmixed to stereo) reported here
+                        // as audio-params makes the ring buffer's format-mismatch
+                        // guard drop every tapped frame — a permanently flat
+                        // visualizer despite a working tap.
+                        mpvLib.observe_property(mpv, 5, "audio-out-params/samplerate", MPV_FORMAT_INT64);
+                        mpvLib.observe_property(mpv, 6, "audio-out-params/channel-count", MPV_FORMAT_INT64);
                         mpvLib.observe_property(mpv, 7, "af-metadata", MPV_FORMAT_STRING);
                         mpvLib.observe_property(mpv, 8, "af-metadata/bbebee_astats", MPV_FORMAT_STRING);
                     }
@@ -784,6 +792,10 @@ private:
 
     bool visualizerEnabled = true;
     int fftSize = 128;
+    // Visualizer-thread-only: the previous tick's playing state, so the stale
+    // PCM flush below happens on the playing → idle edge rather than every
+    // 30 ms tick of silence.
+    bool visualizerWasPlaying = false;
     FftProcessor fftProcessor;
     PcmRingBuffer pcmRingBuffer;
     JsonValue dspConfig;
@@ -968,12 +980,17 @@ private:
                     if (durSec > 0.0) {
                         durationMs = static_cast<int>(durSec * 1000.0);
                     }
+                    // Same audio-out-params rationale as the observe_property
+                    // registration above: this must match the format the tap
+                    // delivers (the AO's), not the decoder's. The property may
+                    // not exist yet at FILE_LOADED (the AO comes up at playback
+                    // start) — the observed property change then reconfigures.
                     int64_t sr = 0;
-                    if (mpvLib.get_property && mpvLib.get_property(mpv, "audio-params/samplerate", MPV_FORMAT_INT64, &sr) >= 0 && sr > 0) {
+                    if (mpvLib.get_property && mpvLib.get_property(mpv, "audio-out-params/samplerate", MPV_FORMAT_INT64, &sr) >= 0 && sr > 0) {
                         sampleRate = static_cast<int>(sr);
                     }
                     int64_t ch = 0;
-                    if (mpvLib.get_property && mpvLib.get_property(mpv, "audio-params/channel-count", MPV_FORMAT_INT64, &ch) >= 0 && ch > 0) {
+                    if (mpvLib.get_property && mpvLib.get_property(mpv, "audio-out-params/channel-count", MPV_FORMAT_INT64, &ch) >= 0 && ch > 0) {
                         channels = static_cast<int>(ch);
                     }
 
@@ -1038,14 +1055,14 @@ private:
                     } else if ((propName == "af-metadata" || propName == "af-metadata/bbebee_astats") && prop->format == MPV_FORMAT_STRING) {
                         char* metaStr = *reinterpret_cast<char**>(prop->data);
                         if (metaStr) updateAfMetadata(metaStr);
-                    } else if (propName == "audio-params/samplerate" && prop->format == MPV_FORMAT_INT64) {
+                    } else if (propName == "audio-out-params/samplerate" && prop->format == MPV_FORMAT_INT64) {
                         int64_t sr = *reinterpret_cast<int64_t*>(prop->data);
                         std::lock_guard<std::mutex> lock(engineMutex);
                         if (sr > 0 && static_cast<int>(sr) != sampleRate) {
                             sampleRate = static_cast<int>(sr);
                             pcmRingBuffer.configure(sampleRate, channels, 65536);
                         }
-                    } else if (propName == "audio-params/channel-count" && prop->format == MPV_FORMAT_INT64) {
+                    } else if (propName == "audio-out-params/channel-count" && prop->format == MPV_FORMAT_INT64) {
                         int64_t ch = *reinterpret_cast<int64_t*>(prop->data);
                         std::lock_guard<std::mutex> lock(engineMutex);
                         if (ch > 0 && static_cast<int>(ch) != channels) {
@@ -1131,13 +1148,21 @@ private:
                 currentChannels = channels > 0 ? channels : 2;
                 currentSr = sampleRate > 0 ? sampleRate : 44100;
             }
+            const bool wasPlaying = visualizerWasPlaying;
+            visualizerWasPlaying = isPlaying;
             {
                 std::lock_guard<std::mutex> fLock(fftMutex);
                 n = fftProcessor.getFftSize();
             }
 
             if (!isPlaying) {
-                pcmRingBuffer.clear();
+                // Flush stale PCM only on the playing → idle edge. A clear()
+                // every tick here used to wedge the whole visualizer: the
+                // deferred clear is consumed only by read()/discard(), which
+                // never run while the availability gate sees no data.
+                if (wasPlaying) {
+                    pcmRingBuffer.clear();
+                }
                 std::vector<uint8_t> freqData;
                 std::vector<uint8_t> timeData;
                 bool shouldSend = false;

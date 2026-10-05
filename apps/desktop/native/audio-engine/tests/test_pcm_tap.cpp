@@ -794,6 +794,131 @@ void test_fft_processor_concurrency() {
               << ", Reset: " << resetCount.load() << " ops under lock)\n";
 }
 
+// Test 13: Deferred-clear liveness through the availability gate (regression)
+//
+// The visualizer loop consumes the ring buffer EXCLUSIVELY through the gate
+// `avail = availableFrames(); if (avail) read(...)`. clear() is deferred: it
+// only raises a flag, consumed inside read()/discardExcessFrames(). Any clear()
+// issued outside the consumer's own edge-triggered flush — the engine's
+// play-with-position and seek commands, or (historically) the visualizer loop's
+// every-tick idle flush — therefore used to wedge the gate at zero forever:
+// availableFrames() short-circuited to 0 while the flag was pending, so read()
+// was never reached to consume it, while the producer filled the buffer and
+// dropped everything (observed live: 65536 written / 0 read / all-zero FFT).
+//
+// Documented flush semantics: the first read() after a pending clear drops
+// everything written up to that moment — including chunks the producer wrote
+// after clear() — and returns 0 once. Later chunks flow normally.
+void test_deferred_clear_protocol() {
+    std::cout << "[Test 13] Deferred clear liveness through the availability gate... " << std::flush;
+
+    // A. Repeated clears while idle (the shipped wedge), then continuous
+    //    production. The gate must resume reading; at most the first chunk is
+    //    flushed by the deferred clear.
+    {
+        PcmRingBuffer ring;
+        ring.configure(44100, 2, 1024);
+
+        // Idle/paused period: the old visualizer loop cleared every 30 ms tick.
+        for (int tick = 0; tick < 10; ++tick) ring.clear();
+
+        constexpr size_t CHUNK = 64;
+        constexpr size_t CHUNKS = 5;
+        std::vector<float> chunk(CHUNK * 2);
+        auto fillChunk = [&chunk](size_t base) {
+            for (size_t i = 0; i < CHUNK; ++i) {
+                chunk[2 * i] = static_cast<float>(base + i);
+                chunk[2 * i + 1] = -static_cast<float>(base + i);
+            }
+        };
+
+        std::vector<float> out(CHUNKS * CHUNK * 2, 0.0f);
+        size_t totalRead = 0;
+        for (size_t k = 0; k < CHUNKS; ++k) {
+            fillChunk(100 * k);
+            assert(ring.write(chunk.data(), CHUNK, 2, 44100) == CHUNK);
+            // Consumer tick: bounded gate iterations (before the fix this
+            // never made progress and the guard ran out).
+            for (int guard = 0; guard < 100; ++guard) {
+                const size_t avail = ring.availableFrames();
+                if (avail == 0) break;
+                totalRead += ring.read(out.data() + totalRead * 2, avail);
+            }
+        }
+
+        // Chunk 0 is flushed by the deferred clear; chunks 1..4 survive.
+        assert(totalRead == (CHUNKS - 1) * CHUNK);
+        for (size_t s = 0; s < CHUNKS - 1; ++s) {
+            for (size_t i = 0; i < CHUNK; ++i) {
+                const float expected = static_cast<float>(100 * (s + 1) + i);
+                assert(out[(s * CHUNK + i) * 2] == expected);
+                assert(out[(s * CHUNK + i) * 2 + 1] == -expected);
+            }
+        }
+
+        RingBufferStats stats = ring.getStats();
+        assert(stats.totalFramesWritten == CHUNKS * CHUNK);
+        assert(stats.totalFramesRead == (CHUNKS - 1) * CHUNK);
+        assert(stats.droppedFrames == 0);
+    }
+
+    // B. Mid-playback clear (seek / play with an explicit position): stale
+    //    audio buffered, clear raised, producer continues. The gate must
+    //    recover and deliver only post-clear audio.
+    {
+        PcmRingBuffer ring;
+        ring.configure(44100, 2, 1024);
+
+        constexpr size_t CHUNK = 64;
+        std::vector<float> chunk(CHUNK * 2);
+        auto fillChunk = [&chunk](size_t base) {
+            for (size_t i = 0; i < CHUNK; ++i) {
+                chunk[2 * i] = static_cast<float>(base + i);
+                chunk[2 * i + 1] = -static_cast<float>(base + i);
+            }
+        };
+
+        // Pre-seek audio is buffered.
+        fillChunk(1);
+        assert(ring.write(chunk.data(), CHUNK, 2, 44100) == CHUNK);
+        assert(ring.availableFrames() == CHUNK);
+
+        // Seek: engine clears; the first post-seek chunk is produced before
+        // the consumer notices the clear.
+        ring.clear();
+        fillChunk(2);
+        assert(ring.write(chunk.data(), CHUNK, 2, 44100) == CHUNK);
+
+        // First gated read consumes the clear: returns 0 and flushes.
+        std::vector<float> out(2 * CHUNK * 2, 0.0f);
+        assert(ring.availableFrames() == 2 * CHUNK); // stale count, not 0
+        assert(ring.read(out.data(), 2 * CHUNK) == 0);
+        assert(ring.availableFrames() == 0);
+
+        // Post-clear chunks flow through the gate untouched.
+        size_t totalRead = 0;
+        for (size_t k = 0; k < 2; ++k) {
+            fillChunk(10 * (k + 1));
+            assert(ring.write(chunk.data(), CHUNK, 2, 44100) == CHUNK);
+            for (int guard = 0; guard < 100; ++guard) {
+                const size_t avail = ring.availableFrames();
+                if (avail == 0) break;
+                totalRead += ring.read(out.data() + totalRead * 2, avail);
+            }
+        }
+        assert(totalRead == 2 * CHUNK);
+        for (size_t s = 0; s < 2; ++s) {
+            for (size_t i = 0; i < CHUNK; ++i) {
+                const float expected = static_cast<float>(10 * (s + 1) + i);
+                assert(out[(s * CHUNK + i) * 2] == expected);
+                assert(out[(s * CHUNK + i) * 2 + 1] == -expected);
+            }
+        }
+    }
+
+    std::cout << "PASSED (Idle-clear wedge and mid-playback clear recover through the gate)\n";
+}
+
 int main() {
     std::cout << "========================================================\n";
     std::cout << " BBeBee Audio Engine & PCM Tap Concurrency Test Suite\n";
@@ -811,9 +936,10 @@ int main() {
     test_benchmark();
     test_unsupported_formats();
     test_fft_processor_concurrency();
+    test_deferred_clear_protocol();
 
     std::cout << "========================================================\n";
-    std::cout << " ALL 12 TESTS PASSED CLEANLY!\n";
+    std::cout << " ALL 13 TESTS PASSED CLEANLY!\n";
     std::cout << "========================================================\n";
     return 0;
 }

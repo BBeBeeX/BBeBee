@@ -182,9 +182,13 @@ void PcmRingBuffer::clear() {
 }
 
 size_t PcmRingBuffer::availableFrames() const {
-    if (clearRequested_.load(std::memory_order_acquire)) {
-        return 0;
-    }
+    // No clearRequested_ short-circuit here on purpose: the deferred clear is
+    // consumed only inside read()/discardExcessFrames(), which the consumer
+    // reaches only through this availability gate. Gating on the flag made
+    // every clear() issued outside that gate (play with a position, seek) wedge
+    // the consumer at zero frames forever while the producer filled up and
+    // dropped everything. read() still honours the pending clear: its first
+    // invocation flushes and returns 0 once, so stale data is never visualized.
     const size_t w = writeIndex_.load(std::memory_order_acquire);
     const size_t r = readIndex_.load(std::memory_order_relaxed);
     return (w > r) ? (w - r) : 0;
