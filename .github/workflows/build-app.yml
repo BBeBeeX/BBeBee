@@ -1,0 +1,67 @@
+name: Build Application
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish target for electron-builder (never, onTag, always)'
+        required: false
+        default: 'never'
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-desktop:
+    name: Build Desktop Application (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install libmpv (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libmpv-dev libmpv2
+
+      - name: Install libmpv (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install mpv
+
+      - name: Build and Package Desktop Application
+        run: |
+          node apps/desktop/scripts/package-desktop.js --publish ${{ github.event.inputs.publish || 'never' }}
+
+      - name: Upload packaged installer artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-dist-${{ matrix.os }}
+          path: |
+            apps/desktop/dist/*.exe
+            apps/desktop/dist/*.dmg
+            apps/desktop/dist/*.AppImage
+            apps/desktop/dist/*.zip
+            apps/desktop/dist/*.deb
+            apps/desktop/dist/*.rpm
+            apps/desktop/dist/*.blockmap
+          if-no-files-found: error

@@ -6,7 +6,7 @@ MPV_VERSION="${1:-v0.38.0}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 PATCH_FILE="${ROOT_DIR}/patches/mpv-pcm-tap.patch"
-TARGET_DIR="${ROOT_DIR}/apps/desktop/resources/libmpv/win64"
+TARGET_DIR="${2:-${ROOT_DIR}/apps/desktop/resources/libmpv/win64}"
 WORK_DIR="/tmp/mpv-build-win64-$$"
 
 echo "=== Building Patched libmpv for Windows x86_64 (${MPV_VERSION}) ==="

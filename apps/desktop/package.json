@@ -10,6 +10,7 @@
     "build:audio-engine": "node scripts/build-audio-engine.js",
     "test:audio-engine": "node scripts/test-audio-engine.js",
     "build": "node scripts/build-audio-engine.js && electron-vite build",
+    "package": "node scripts/package-desktop.js",
     "dist": "electron-builder --config electron-builder.yml",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "electron-vite preview"

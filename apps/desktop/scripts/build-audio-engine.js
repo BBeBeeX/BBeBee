@@ -125,3 +125,13 @@ if (process.platform === 'linux') {
 }
 
 console.log(`[build-audio-engine] Standalone audio-engine built successfully at: ${outExe}`)
+
+const skipVerify = process.env['SKIP_VERIFY'] === '1' || process.argv.includes('--no-verify')
+if (!skipVerify) {
+  console.log(`[build-audio-engine] Verifying executable (${outExe} --version)...`)
+  const verifyProc = spawnSync(outExe, ['--version'], { stdio: 'inherit' })
+  if (verifyProc.status !== 0) {
+    console.error(`[build-audio-engine] Verification failed with exit code ${verifyProc.status}`)
+    process.exit(verifyProc.status || 1)
+  }
+}

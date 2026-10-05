@@ -5,7 +5,7 @@ MPV_VERSION="${1:-v0.38.0}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 PATCH_FILE="${ROOT_DIR}/patches/mpv-pcm-tap.patch"
-TARGET_DIR="${ROOT_DIR}/apps/desktop/resources/libmpv/darwin"
+TARGET_DIR="${2:-${ROOT_DIR}/apps/desktop/resources/libmpv/darwin}"
 WORK_DIR="/tmp/mpv-build-macos-$$"
 
 echo "=== Building Patched libmpv for macOS (${MPV_VERSION}) ==="

@@ -40,34 +40,10 @@ jobs:
             libluajit-5.1-dev \
             libuchardet-dev
 
-      - name: Clone mpv
+      - name: Build Patched libmpv
         run: |
-          git clone --depth 1 --branch ${{ github.event.inputs.mpv_version || 'v0.38.0' }} https://github.com/mpv-player/mpv.git mpv-src
+          bash scripts/build-patched-mpv.sh linux "${{ github.event.inputs.mpv_version || 'v0.38.0' }}" output/linux
 
-      - name: Apply PCM tap patch
-        run: |
-          cd mpv-src
-          git apply ../patches/mpv-pcm-tap.patch
-          git status
-
-      - name: Configure and compile libmpv
-        run: |
-          cd mpv-src
-          meson setup build \
-            --buildtype=release \
-            -Ddefault_library=shared \
-            -Dlibmpv=true \
-            -Dcplayer=false \
-            -Dpulse=enabled \
-            -Dalsa=enabled \
-            -Dpipewire=enabled
-          ninja -C build
-
-      - name: Stage compiled artifacts
-        run: |
-          mkdir -p output/linux
-          cp -P mpv-src/build/libmpv.so* output/linux/
-          ls -la output/linux/
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
@@ -87,32 +63,9 @@ jobs:
           brew update
           brew install meson ninja pkg-config ffmpeg libass libplacebo uchardet luajit
 
-      - name: Clone mpv
+      - name: Build Patched libmpv
         run: |
-          git clone --depth 1 --branch ${{ github.event.inputs.mpv_version || 'v0.38.0' }} https://github.com/mpv-player/mpv.git mpv-src
-
-      - name: Apply PCM tap patch
-        run: |
-          cd mpv-src
-          git apply ../patches/mpv-pcm-tap.patch
-          git status
-
-      - name: Configure and compile libmpv
-        run: |
-          cd mpv-src
-          meson setup build \
-            --buildtype=release \
-            -Ddefault_library=shared \
-            -Dlibmpv=true \
-            -Dcplayer=false \
-            -Dcoreaudio=enabled
-          ninja -C build
-
-      - name: Stage compiled artifacts
-        run: |
-          mkdir -p output/darwin
-          cp -P mpv-src/build/libmpv*dylib* output/darwin/
-          ls -la output/darwin/
+          bash scripts/build-patched-mpv.sh macos "${{ github.event.inputs.mpv_version || 'v0.38.0' }}" output/darwin
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
@@ -144,37 +97,10 @@ jobs:
             mingw-w64-x86_64-uchardet
             mingw-w64-x86_64-luajit
 
-      - name: Clone mpv
+      - name: Build Patched libmpv
         shell: msys2 {0}
         run: |
-          git clone --depth 1 --branch ${{ github.event.inputs.mpv_version || 'v0.38.0' }} https://github.com/mpv-player/mpv.git mpv-src
-
-      - name: Apply PCM tap patch
-        shell: msys2 {0}
-        run: |
-          cd mpv-src
-          git apply ../patches/mpv-pcm-tap.patch
-          git status
-
-      - name: Configure and compile libmpv
-        shell: msys2 {0}
-        run: |
-          cd mpv-src
-          meson setup build \
-            --buildtype=release \
-            -Ddefault_library=shared \
-            -Dlibmpv=true \
-            -Dcplayer=false \
-            -Dwasapi=enabled
-          ninja -C build
-
-      - name: Stage compiled artifacts
-        shell: msys2 {0}
-        run: |
-          mkdir -p output/win64
-          cp mpv-src/build/*mpv*.dll output/win64/
-          cp mpv-src/build/*mpv*.a output/win64/ 2>/dev/null || true
-          ls -la output/win64/
+          bash scripts/build-patched-mpv.sh windows "${{ github.event.inputs.mpv_version || 'v0.38.0' }}" output/win64
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4

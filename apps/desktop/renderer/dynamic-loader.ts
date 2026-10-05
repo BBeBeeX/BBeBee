@@ -68,6 +68,9 @@ export function getBuiltinPluginRegistry(): DynamicPluginRegistry {
     '!../../../packages/**/*-rn/**',
     '!../../../packages/**/*-mobile/**',
     '!../../../packages/ui/ui-kit-mobile/**',
+    '!../../../packages/core/core-db-node/**',
+    '!../../../packages/core/core-fs-node/**',
+    '!../../../packages/core/core-paths-node/**',
   ])
 
   const registry: DynamicPluginRegistry = {}
