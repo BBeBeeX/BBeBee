@@ -53,6 +53,19 @@ function ensureLinuxDepsStaged() {
   if (staged) bundleMpvDeps(staged, resourcesBinDir)
 }
 
+// 0. Check vendored libmpv in resources/libmpv/<platform>
+const vendorPlatform = targetPlatform === 'win32' ? 'win64' : targetPlatform === 'darwin' ? 'darwin' : 'linux'
+const vendorDir = join(desktopRoot, 'resources', 'libmpv', vendorPlatform)
+if (existsSync(vendorDir)) {
+  const vendorFiles = readdirSync(vendorDir).filter((f) => f.endsWith('.dll') || f.includes('.so') || f.endsWith('.dylib'))
+  if (vendorFiles.length > 0) {
+    for (const f of vendorFiles) {
+      copyFileSync(join(vendorDir, f), join(resourcesBinDir, f))
+    }
+    console.log(`[fetch-libmpv] Staged ${vendorFiles.length} vendored libraries from ${vendorDir}`)
+  }
+}
+
 if (hasLibmpvInResources()) {
   console.log(`[fetch-libmpv] libmpv already present in ${resourcesBinDir}.`)
   ensureLinuxDepsStaged()
