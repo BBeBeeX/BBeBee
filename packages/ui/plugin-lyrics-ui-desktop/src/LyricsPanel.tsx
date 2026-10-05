@@ -17,7 +17,7 @@ import type { ShareService } from '@BBeBee/protocol'
 import { serviceOf } from '@BBeBee/ui-core'
 import { formatDuration, type LyricLine } from '@BBeBee/toolkit'
 import { tablerIcon } from '@BBeBee/ui-kit-desktop'
-import { useNowPlaying } from '@BBeBee/plugin-player/hooks'
+import { useNowPlaying } from '@BBeBee/toolkit/hooks'
 import { useActiveLyricIndex, useLyrics } from '@BBeBee/plugin-lyrics/hooks'
 import { tokens } from '@BBeBee/ui-tokens'
 

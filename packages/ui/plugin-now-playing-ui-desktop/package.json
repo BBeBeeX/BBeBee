@@ -18,10 +18,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-cache": "workspace:*",
-    "@BBeBee/plugin-lyrics-ui-desktop": "workspace:*",
     "@BBeBee/plugin-now-playing": "workspace:*",
-    "@BBeBee/plugin-player": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/toolkit": "workspace:*",
     "@BBeBee/ui-core": "workspace:*",

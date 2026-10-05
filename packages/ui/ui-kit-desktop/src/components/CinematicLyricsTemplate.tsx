@@ -19,7 +19,7 @@ import { createElement as h, useCallback, useEffect, useMemo, useRef, useState }
 import type { CSSProperties, ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { findActiveLyricIndex, parseLrc, type ParsedLyrics } from '@BBeBee/toolkit'
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { tablerIcon } from '../icons/index.js'
 import { serviceOf, useServiceState } from '@BBeBee/ui-core'
 import type { LyricsService, LyricsState } from '@BBeBee/protocol'
 

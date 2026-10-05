@@ -145,7 +145,7 @@ describe('TrackInfoModal', () => {
     expect(getByText('本地音乐文件')).toBeTruthy()
     expect(getByText('Hotel California.flac')).toBeTruthy()
     expect(getByText('/Music/Eagles/Hotel California.flac')).toBeTruthy()
-    expect(getByText('40.05 MB')).toBeTruthy()
+    expect(getByText('42 MB')).toBeTruthy()
     expect(getByText('6:31')).toBeTruthy()
     expect(getAllByText('44,100 Hz').length).toBeGreaterThanOrEqual(1)
     expect(getAllByText('2 (立体声 Stereo)').length).toBeGreaterThanOrEqual(1)
@@ -288,7 +288,7 @@ describe('TrackInfoModal', () => {
 
     expect(await findByText('MySong.flac')).toBeTruthy()
     expect(getByText('D:/Music/MySong.flac')).toBeTruthy()
-    expect(getByText('23.84 MB')).toBeTruthy()
+    expect(getByText('25 MB')).toBeTruthy()
     expect(getByText('FLAC')).toBeTruthy()
     expect(getByText('1,000 kbps')).toBeTruthy()
   })

@@ -16,7 +16,7 @@ import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { ArtworkRef, Uri } from '@BBeBee/protocol'
 import { tick } from '@BBeBee/kernel/testing'
-import { useResolvedArtwork } from './hooks.js'
+import { useResolvedArtwork } from './artwork.js'
 
 const REF: ArtworkRef = { id: 'https://img.test/cover.jpg', sourceUrl: 'https://img.test/cover.jpg' }
 

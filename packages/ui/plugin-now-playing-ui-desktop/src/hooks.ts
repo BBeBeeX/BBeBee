@@ -10,7 +10,7 @@
 import { useMemo } from 'react'
 import type { Context } from 'cordis'
 import type { Track } from '@BBeBee/protocol'
-import { useTracksByUrn, useTransport } from '@BBeBee/plugin-player/hooks'
+import { useTracksByUrn, useTransport } from '@BBeBee/toolkit/hooks'
 
 export function useCurrentTrack(ctx: Context): Track | undefined {
   const state = useTransport(ctx)

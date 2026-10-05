@@ -18,7 +18,7 @@ import {
   useQueue,
   useTransport,
   useTransportAvailability,
-} from '@BBeBee/plugin-player/hooks'
+} from '@BBeBee/toolkit/hooks'
 import { tablerIcon } from '@BBeBee/ui-kit-desktop'
 import { ContextMenu } from '@BBeBee/ui-kit-desktop'
 import { useServiceState, serviceOf, shallowArrayEqual } from '@BBeBee/ui-core'

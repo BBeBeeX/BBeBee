@@ -6,7 +6,7 @@
  * - Left section (~46%): larger album artwork (up to 460px) with crisp white border &
  *   pronounced double-layer bottom-right shadow (12px 16px 5px + 20px 28px 56px)
  * - Right section: cursive/handwriting title, muted artist, cinematic subtitle-style
- *   synchronized lyrics (`CinematicLyricsTemplate` from plugin-lyrics-ui-desktop —
+ *   synchronized lyrics (`CinematicLyricsTemplate` from the desktop kit —
  *   scrollable, click-to-seek), settings-driven audio visualizer + progress bar below
  *   lyrics (the visualizer renders the style & color theme selected in settings)
  * - Title is not higher than cover top; visualizer & progress bar are not lower than cover bottom
@@ -15,10 +15,9 @@
  */
 import { createElement as h, type ReactElement } from 'react'
 import { formatDuration } from '@BBeBee/toolkit'
-import { Slider } from '@BBeBee/ui-kit-desktop'
+import { CinematicLyricsTemplate, CURSIVE_FONT, Slider } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
 import { CachedArtwork } from '../components/NowPlayingBar.js'
-import { CinematicLyricsTemplate, CURSIVE_FONT } from '@BBeBee/plugin-lyrics-ui-desktop'
 import type { NowPlayingLayoutProps } from './index.js'
 
 export function CinematicLayout(props: NowPlayingLayoutProps): ReactElement {

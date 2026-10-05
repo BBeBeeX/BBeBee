@@ -10,10 +10,10 @@ import {
   usePosition,
   useTransport,
   useTransportAvailability,
-} from '@BBeBee/plugin-player/hooks'
+} from '@BBeBee/toolkit/hooks'
 import { Artwork, ContextMenu, IconButton, MarqueeText, SaveToPlaylistPopover, Slider, Text, tablerIcon } from '@BBeBee/ui-kit-desktop'
 import { useSaveToPlaylistMenu, useTrackMenu } from '@BBeBee/ui-menus'
-import { useResolvedArtwork } from '@BBeBee/plugin-cache/hooks'
+import { useResolvedArtwork } from '@BBeBee/toolkit/hooks'
 import { serviceOf, useServiceState, type ArtworkProps } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
 import { DesktopLyricsToggle } from './DesktopLyricsToggle.js'

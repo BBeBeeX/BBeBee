@@ -965,9 +965,9 @@ importers:
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
-      '@BBeBee/ui-core':
+      '@BBeBee/toolkit':
         specifier: workspace:*
-        version: link:../../ui/ui-core
+        version: link:../toolkit
       cordis:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
@@ -1237,6 +1237,9 @@ importers:
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
+      '@BBeBee/toolkit':
+        specifier: workspace:*
+        version: link:../toolkit
       cordis:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
@@ -1529,7 +1532,24 @@ importers:
         specifier: workspace:*
         version: link:../../protocol
 
-  packages/feature/toolkit: {}
+  packages/feature/toolkit:
+    dependencies:
+      '@BBeBee/protocol':
+        specifier: workspace:*
+        version: link:../../protocol
+      cordis:
+        specifier: 4.0.0-rc.9
+        version: 4.0.0-rc.9
+      react:
+        specifier: 19.2.3
+        version: 19.2.3
+    devDependencies:
+      '@BBeBee/kernel':
+        specifier: workspace:*
+        version: link:../../kernel
+      '@types/react':
+        specifier: ^19.2.0
+        version: 19.2.18
 
   packages/kernel:
     dependencies:
@@ -1759,12 +1779,6 @@ importers:
       '@BBeBee/plugin-desktop-lyrics':
         specifier: workspace:*
         version: link:../../feature/plugin-desktop-lyrics
-      '@BBeBee/plugin-lyrics':
-        specifier: workspace:*
-        version: link:../../feature/plugin-lyrics
-      '@BBeBee/plugin-player':
-        specifier: workspace:*
-        version: link:../../feature/plugin-player
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
@@ -2380,9 +2394,6 @@ importers:
       '@BBeBee/plugin-lyrics':
         specifier: workspace:*
         version: link:../../feature/plugin-lyrics
-      '@BBeBee/plugin-player':
-        specifier: workspace:*
-        version: link:../../feature/plugin-player
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
@@ -2472,18 +2483,9 @@ importers:
 
   packages/ui/plugin-now-playing-ui-desktop:
     dependencies:
-      '@BBeBee/plugin-cache':
-        specifier: workspace:*
-        version: link:../../feature/plugin-cache
-      '@BBeBee/plugin-lyrics-ui-desktop':
-        specifier: workspace:*
-        version: link:../plugin-lyrics-ui-desktop
       '@BBeBee/plugin-now-playing':
         specifier: workspace:*
         version: link:../../feature/plugin-now-playing
-      '@BBeBee/plugin-player':
-        specifier: workspace:*
-        version: link:../../feature/plugin-player
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
@@ -3059,6 +3061,9 @@ importers:
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
+      '@BBeBee/toolkit':
+        specifier: workspace:*
+        version: link:../../feature/toolkit
       cordis:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
@@ -3078,6 +3083,9 @@ importers:
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
+      '@BBeBee/toolkit':
+        specifier: workspace:*
+        version: link:../../feature/toolkit
       '@BBeBee/ui-core':
         specifier: workspace:*
         version: link:../ui-core
@@ -3087,6 +3095,9 @@ importers:
       '@tanstack/react-virtual':
         specifier: 3.14.10
         version: 3.14.10(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      cordis:
+        specifier: 4.0.0-rc.9
+        version: 4.0.0-rc.9
       react:
         specifier: 19.2.3
         version: 19.2.3
@@ -6354,6 +6365,10 @@ packages:
 
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
+    engines: {node: '>=0.10.0'}
+
+  source-map-js@1.2.2:
+    resolution: {integrity: sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==}
     engines: {node: '>=0.10.0'}
 
   source-map-support@0.5.21:
@@ -10204,7 +10219,7 @@ snapshots:
     dependencies:
       nanoid: 3.3.18
       picocolors: 1.1.1
-      source-map-js: 1.2.1
+      source-map-js: 1.2.2
 
   prelude-ls@1.2.1: {}
 
@@ -10522,6 +10537,8 @@ snapshots:
   slugify@1.6.9: {}
 
   source-map-js@1.2.1: {}
+
+  source-map-js@1.2.2: {}
 
   source-map-support@0.5.21:
     dependencies:

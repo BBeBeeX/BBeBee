@@ -8,18 +8,15 @@ import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { LyricsPanel, type LyricsPanelProps } from './LyricsPanel.js'
-import {
-  CinematicLyricsTemplate,
-  CURSIVE_FONT,
-  type CinematicLyricsTemplateProps,
-} from './CinematicLyricsTemplate.js'
 
 export { LyricsPanel, type LyricsPanelProps }
+// The cinematic template lives in the desktop kit (the now-playing cinematic
+// layout shares it); re-exported so this package's public surface is stable.
 export {
   CinematicLyricsTemplate,
   CURSIVE_FONT,
   type CinematicLyricsTemplateProps,
-}
+} from '@BBeBee/ui-kit-desktop'
 
 export const name = 'plugin-lyrics-ui-desktop'
 export const inject = ['ui', 'lyrics', 'player']

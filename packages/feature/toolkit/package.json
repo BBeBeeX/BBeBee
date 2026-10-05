@@ -1,11 +1,12 @@
 {
   "name": "@BBeBee/toolkit",
   "version": "0.0.0",
-  "description": "toolkit — pure helpers over ids, text, time and collections. No Cordis, no I/O, no dependencies.",
+  "description": "toolkit — pure helpers over ids, text, time and collections (root, no Cordis, no I/O), plus the shared React service bindings under ./hooks.",
   "type": "module",
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts",
+    "./hooks": "./src/hooks/index.ts",
     "./package.json": "./package.json"
   },
   "main": "./src/index.ts",
@@ -15,6 +16,10 @@
       ".": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
+      },
+      "./hooks": {
+        "types": "./dist/hooks/index.d.ts",
+        "default": "./dist/hooks/index.js"
       }
     },
     "main": "./dist/index.js",
@@ -26,5 +31,14 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@BBeBee/protocol": "workspace:*",
+    "cordis": "4.0.0-rc.9",
+    "react": "19.2.3"
+  },
+  "devDependencies": {
+    "@BBeBee/kernel": "workspace:*",
+    "@types/react": "^19.2.0"
   }
 }

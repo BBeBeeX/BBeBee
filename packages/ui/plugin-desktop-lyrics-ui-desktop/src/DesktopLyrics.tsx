@@ -12,7 +12,7 @@
 import { createElement as h, useEffect, useRef, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import { useCurrentLyric } from '@BBeBee/plugin-lyrics/hooks'
+import { useCurrentLyric } from '@BBeBee/toolkit/hooks'
 import { useDesktopLyricsState } from '@BBeBee/plugin-desktop-lyrics/hooks'
 import { serviceOf } from '@BBeBee/ui-core'
 import { DEFAULT_APP_SETTINGS, type AppSettings, type SettingsService } from '@BBeBee/protocol'

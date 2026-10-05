@@ -44,5 +44,10 @@ export { DetailHero, type DetailHeroProps } from './components/DetailHero.js'
 export { HoverLabel, type HoverLabelProps } from './components/HoverLabel.js'
 export { MarqueeText, type MarqueeTextProps } from './components/MarqueeText.js'
 export { viewModeMenuItems, useViewMode, type TrackViewMode, type AlbumViewMode } from './components/ViewMode.js'
+export {
+  CinematicLyricsTemplate,
+  CURSIVE_FONT,
+  type CinematicLyricsTemplateProps,
+} from './components/CinematicLyricsTemplate.js'
 export { tablerIcon } from './icons/index.js'
 

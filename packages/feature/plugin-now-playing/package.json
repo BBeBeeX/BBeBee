@@ -34,8 +34,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/protocol": "workspace:*",
     "@BBeBee/kernel": "workspace:*",
+    "@BBeBee/protocol": "workspace:*",
+    "@BBeBee/toolkit": "workspace:*",
     "cordis": "4.0.0-rc.9",
     "react": "19.2.3"
   },

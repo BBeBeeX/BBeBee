@@ -4,12 +4,18 @@
  * `useNowPlayingStyle` subscribes to the `now-playing/style-changed` event and
  * returns the current style id together with a setter. Both the desktop and
  * mobile view packages import this single hook so the preference is shared.
+ *
+ * `useTrackDetails` binds the headless aggregation in `details.ts` — the data
+ * behind the "查看播放内容" modal — so the view holds no domain reads itself.
  */
 
 import { useCallback, useEffect, useState } from 'react'
 import type { Context } from 'cordis'
-import type { NowPlayingService, NowPlayingStyleId } from '@BBeBee/protocol'
+import type { NowPlayingService, NowPlayingStyleId, Track } from '@BBeBee/protocol'
 import { DEFAULT_NOW_PLAYING_STYLE } from '@BBeBee/protocol'
+import { resolveTrackDetails, type TrackDetails } from './details.js'
+
+export type { TrackDetails }
 
 /**
  * Safely resolves the `nowPlaying` service from context without throwing
@@ -65,4 +71,47 @@ export function useNowPlayingStyle(ctx: Context): {
   )
 
   return { styleId, setStyle }
+}
+
+/**
+ * The display-ready details of a track, resolved while the info modal is open.
+ *
+ * `loading` covers the aggregation's async reads (db bindings, fs stat, codec
+ * metadata); a closed modal or a missing track answers `null`. Reads are
+ * best-effort — an absent service degrades to the next fallback inside
+ * {@link resolveTrackDetails}, it does not throw.
+ */
+export function useTrackDetails(
+  ctx: Context,
+  track: Track | null,
+  open: boolean,
+): { details: TrackDetails | null; loading: boolean } {
+  const [details, setDetails] = useState<TrackDetails | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!open || !track) {
+      setDetails(null)
+      return
+    }
+
+    let active = true
+    setLoading(true)
+    resolveTrackDetails(ctx, track)
+      .then((resolved) => {
+        if (active) setDetails(resolved)
+      })
+      .catch((err: unknown) => {
+        ctx.logger?.error('Failed to load track details: %o', err)
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [open, track, ctx])
+
+  return { details, loading }
 }

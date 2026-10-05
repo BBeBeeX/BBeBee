@@ -7,7 +7,7 @@
  * page's close button returns to the bar.
  *
  * Layout, gestures and event wiring only: every value comes from
- * `@BBeBee/plugin-player/hooks`, and anything that would also be true on
+ * `@BBeBee/toolkit/hooks`, and anything that would also be true on
  * mobile belongs in the headless package instead (docs/08 §1).
  */
 

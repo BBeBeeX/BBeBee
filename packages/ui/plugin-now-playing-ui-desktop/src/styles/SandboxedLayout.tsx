@@ -20,7 +20,7 @@ import type {
 } from '@BBeBee/protocol'
 import { parseLrc, findActiveLyricIndex } from '@BBeBee/toolkit'
 import { serviceOf, useServiceState } from '@BBeBee/ui-core'
-import { useResolvedArtwork } from '@BBeBee/plugin-cache/hooks'
+import { useResolvedArtwork } from '@BBeBee/toolkit/hooks'
 import { useImageColor } from '@BBeBee/ui-kit-desktop'
 import type { NowPlayingLayoutProps } from './index.js'
 

@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { isPlayingLike } from './hooks.js'
+import { isPlayingLike } from './player.js'
 
 describe('isPlayingLike', () => {
   it('counts a buffer underrun as playing', () => {
