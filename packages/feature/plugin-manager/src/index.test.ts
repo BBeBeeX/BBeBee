@@ -58,7 +58,9 @@ describe('PluginManagerPlugin', () => {
     }
 
     ctx.store = storeMock as never
-    ctx.inspector = inspectorMock as never
+    // `inspector` is typed by plugin-inspector's cordis augmentation, which
+    // this package deliberately does not depend on — assign structurally.
+    ;(ctx as unknown as { inspector: unknown }).inspector = inspectorMock
 
     return { ctx, storeMock, inspectorMock, storeData }
   }

@@ -20,7 +20,7 @@
   "dependencies": {
     "@BBeBee/plugin-dsp": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
-    "@BBeBee/ui-core": "workspace:*",
+    "@BBeBee/toolkit": "workspace:*",
     "@BBeBee/ui-kit-desktop": "workspace:*",
     "@BBeBee/ui-tokens": "workspace:*",
     "cordis": "4.0.0-rc.9",

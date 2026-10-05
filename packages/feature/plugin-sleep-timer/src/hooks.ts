@@ -4,7 +4,7 @@
 
 import type { Context } from 'cordis'
 import type { SleepTimerService, SleepTimerState } from '@BBeBee/protocol'
-import { serviceOf, useServiceState } from '@BBeBee/ui-core'
+import { serviceOf, useServiceState } from '@BBeBee/toolkit/hooks'
 
 const IDLE_STATE: SleepTimerState = { active: false }
 

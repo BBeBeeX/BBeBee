@@ -2,7 +2,7 @@ import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { LoudnessNormalizationMode, SettingsService } from '@BBeBee/protocol'
-import { serviceOf, useServiceState } from '@BBeBee/ui-core'
+import { serviceOf, useServiceState } from '@BBeBee/toolkit/hooks'
 import { Button } from '@BBeBee/ui-kit-desktop'
 import { useDsp } from '@BBeBee/plugin-dsp/hooks'
 

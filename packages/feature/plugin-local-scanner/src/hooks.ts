@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import type { ScanProgress, ScanSpecifiedDir, ScanSummary } from '@BBeBee/protocol'
-import { shallowArrayEqual, useServiceState } from '@BBeBee/ui-core'
+import { shallowArrayEqual, useServiceState } from '@BBeBee/toolkit/hooks'
 
 /** The configured folders. */
 export function useScanSpecifiedDirs(ctx: Context): readonly ScanSpecifiedDir[] {

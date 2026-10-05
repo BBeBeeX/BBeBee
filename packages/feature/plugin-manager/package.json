@@ -33,7 +33,5 @@
     "@BBeBee/toolkit": "workspace:*",
     "cordis": "4.0.0-rc.9"
   },
-  "devDependencies": {
-    "@BBeBee/plugin-inspector": "workspace:*"
-  }
+  "devDependencies": {}
 }

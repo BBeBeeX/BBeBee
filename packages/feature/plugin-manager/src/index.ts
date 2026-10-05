@@ -21,8 +21,31 @@ import {
   DEFAULT_DESKTOP_LYRICS_SETTINGS,
   DEFAULT_VISUALIZER_SETTINGS,
 } from '@BBeBee/protocol'
-import type { FiberNode, InspectorSnapshot } from '@BBeBee/plugin-inspector'
 import { computeReverseDependents, flattenFiberNodes } from '@BBeBee/toolkit'
+
+/**
+ * Structural subset of the inspector's fiber node — only the fields
+ * {@link PluginManagerPlugin.list} reads. Declared locally so this package
+ * does not depend on plugin-inspector (feature packages may not import each
+ * other's exports); the real snapshot satisfies this shape structurally, and
+ * the toolkit's `TreeFiberNode` constraint is met via `name`/`children`.
+ */
+interface InspectorFiberNode {
+  name: string
+  children?: readonly InspectorFiberNode[]
+  inject?: readonly string[]
+  waitingFor: readonly string[]
+  provides?: readonly string[]
+  state: string
+}
+
+/**
+ * Structural subset of the inspector snapshot — only `root` is read here;
+ * `counts`/`stalled` belong to the inspector's own view package.
+ */
+interface InspectorSnapshotData {
+  root?: InspectorFiberNode
+}
 
 export interface PluginManagerConfig {
   manifests?: Record<string, PluginManifest>
@@ -136,16 +159,21 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   }
 
   list(): readonly PluginInfo[] {
-    let snapshot: InspectorSnapshot | null = null
+    let snapshot: InspectorSnapshotData | null = null
     try {
-      if (this.ctx.inspector?.snapshot) {
-        snapshot = this.ctx.inspector.snapshot()
+      // Read structurally, like `ctx.settings` below: the `inspector` service
+      // is declared by plugin-inspector, which this package must not import.
+      const inspector = (
+        this.ctx as unknown as { inspector?: { snapshot?: () => InspectorSnapshotData } }
+      ).inspector
+      if (inspector?.snapshot) {
+        snapshot = inspector.snapshot()
       }
     } catch {
       snapshot = null
     }
 
-    const fibersMap = new Map<string, FiberNode>()
+    const fibersMap = new Map<string, InspectorFiberNode>()
     if (snapshot?.root) {
       flattenFiberNodes(snapshot.root, fibersMap)
     }

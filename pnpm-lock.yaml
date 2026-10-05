@@ -1027,9 +1027,9 @@ importers:
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
-      '@BBeBee/ui-core':
+      '@BBeBee/toolkit':
         specifier: workspace:*
-        version: link:../../ui/ui-core
+        version: link:../toolkit
       cordis:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
@@ -1110,9 +1110,6 @@ importers:
       '@BBeBee/toolkit':
         specifier: workspace:*
         version: link:../toolkit
-      '@BBeBee/ui-core':
-        specifier: workspace:*
-        version: link:../../ui/ui-core
       cordis:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
@@ -1199,10 +1196,6 @@ importers:
       cordis:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
-    devDependencies:
-      '@BBeBee/plugin-inspector':
-        specifier: workspace:*
-        version: link:../plugin-inspector
 
   packages/feature/plugin-mini-player:
     dependencies:
@@ -1212,9 +1205,9 @@ importers:
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
-      '@BBeBee/ui-core':
+      '@BBeBee/toolkit':
         specifier: workspace:*
-        version: link:../../ui/ui-core
+        version: link:../toolkit
       cordis:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
@@ -1349,9 +1342,9 @@ importers:
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
-      '@BBeBee/ui-core':
+      '@BBeBee/toolkit':
         specifier: workspace:*
-        version: link:../../ui/ui-core
+        version: link:../toolkit
       cordis:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
@@ -1929,9 +1922,9 @@ importers:
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
-      '@BBeBee/ui-core':
+      '@BBeBee/toolkit':
         specifier: workspace:*
-        version: link:../ui-core
+        version: link:../../feature/toolkit
       '@BBeBee/ui-kit-desktop':
         specifier: workspace:*
         version: link:../ui-kit-desktop
@@ -2260,9 +2253,6 @@ importers:
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
-      '@BBeBee/ui-core':
-        specifier: workspace:*
-        version: link:../ui-core
       '@BBeBee/ui-kit-desktop':
         specifier: workspace:*
         version: link:../ui-kit-desktop
@@ -2425,9 +2415,6 @@ importers:
       '@BBeBee/toolkit':
         specifier: workspace:*
         version: link:../../feature/toolkit
-      '@BBeBee/ui-core':
-        specifier: workspace:*
-        version: link:../ui-core
       '@BBeBee/ui-kit-desktop':
         specifier: workspace:*
         version: link:../ui-kit-desktop

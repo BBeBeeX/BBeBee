@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import type { Context } from 'cordis'
-import { serviceOf, useServiceState } from '@BBeBee/ui-core'
+import { serviceOf, useServiceState } from '@BBeBee/toolkit/hooks'
 import type {
   MiniPlayerData,
   MiniPlayerDisplayMode,

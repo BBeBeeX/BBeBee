@@ -2,7 +2,7 @@ import { createElement as h, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { UiService } from '@BBeBee/protocol'
-import { serviceOf } from '@BBeBee/ui-core'
+import { serviceOf } from '@BBeBee/toolkit/hooks'
 import { Button, Slider } from '@BBeBee/ui-kit-desktop'
 import { useDsp } from '@BBeBee/plugin-dsp/hooks'
 

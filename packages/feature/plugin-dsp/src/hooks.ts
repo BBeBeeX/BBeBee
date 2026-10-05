@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Context } from '@BBeBee/kernel'
-import { serviceOf } from '@BBeBee/ui-core'
+import { serviceOf } from '@BBeBee/toolkit/hooks'
 import type {
   ChainEntry,
   DspService,
