@@ -30,6 +30,7 @@ Options:
   --skip-build             Skip electron-vite build step
   --skip-audio-engine      Skip audio-engine compilation if binary exists
   --rebuild-audio-engine   Force recompiling audio-engine binary
+  --skip-tests             Skip running audio-engine tests before packaging
   --no-strict, --optional  Stage libmpv without strict failure
   --dry-run                Run prep steps and electron-vite build, skipping electron-builder
   --help, -h               Show this help message
@@ -42,6 +43,7 @@ All other flags are forwarded directly to electron-builder (e.g., --publish neve
 let skipBuild = false
 let skipAudioEngine = false
 let rebuildAudioEngine = false
+let skipTests = false
 let isStrictLibmpv = true
 let isDryRun = false
 const builderArgs = []
@@ -54,6 +56,8 @@ for (let i = 0; i < rawArgs.length; i++) {
     skipAudioEngine = true
   } else if (arg === '--rebuild-audio-engine') {
     rebuildAudioEngine = true
+  } else if (arg === '--skip-tests' || arg === '--skip-test') {
+    skipTests = true
   } else if (arg === '--no-strict' || arg === '--optional') {
     isStrictLibmpv = false
   } else if (arg === '--dry-run') {
@@ -113,6 +117,24 @@ if (!isWin) {
   } catch (err) {
     console.warn('[package-desktop] Warning: unable to set executable permission:', err)
   }
+}
+
+// ----------------------------------------------------
+// Step 1.5: Test Native Audio Engine
+// ----------------------------------------------------
+if (!skipTests) {
+  console.log('\n[package-desktop] [1.5/5] Testing audio engine prior to packaging...')
+  const testProc = spawnSync('node', [join(__dirname, 'test-audio-engine.js')], {
+    cwd: desktopRoot,
+    stdio: 'inherit',
+    env: { ...process.env, TEST_AUDIO_ENGINE: '1' },
+  })
+  if (testProc.status !== 0) {
+    console.error(`[package-desktop] Audio engine tests failed with code ${testProc.status}. Aborting packaging.`)
+    process.exit(testProc.status || 1)
+  }
+} else {
+  console.log('\n[package-desktop] [1.5/5] Skipping audio engine tests as requested.')
 }
 
 // ----------------------------------------------------

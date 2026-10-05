@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url'
-import { defineConfig } from 'vitest/config'
+import process from 'node:process'
+import { configDefaults, defineConfig } from 'vitest/config'
 
 export default defineConfig({
   resolve: {
@@ -71,6 +72,12 @@ export default defineConfig({
       // and without this the file testing it is collected as nothing.
       'apps/*/**/*.test.tsx',
       'scripts/**/*.test.ts',
+    ],
+    exclude: [
+      ...configDefaults.exclude,
+      ...(process.env['TEST_AUDIO_ENGINE']
+        ? []
+        : ['apps/desktop/main/audio/audio-engine-supervisor.test.ts']),
     ],
     environment: 'node',
     /*

@@ -12,8 +12,9 @@ echo "=== Building Patched libmpv for macOS (${MPV_VERSION}) ==="
 echo "Work dir: ${WORK_DIR}"
 echo "Target dir: ${TARGET_DIR}"
 
-mkdir -p "${WORK_DIR}"
 mkdir -p "${TARGET_DIR}"
+TARGET_DIR="$(cd "${TARGET_DIR}" && pwd)"
+mkdir -p "${WORK_DIR}"
 
 cleanup() {
     rm -rf "${WORK_DIR}"
@@ -34,13 +35,15 @@ meson setup build \
     -Ddefault_library=shared \
     -Dlibmpv=true \
     -Dcplayer=false \
-    -Dcoreaudio=enabled
+    -Dcoreaudio=enabled \
+    -Dc_args='-Wno-deprecated-declarations'
 
 echo "Compiling libmpv with Ninja..."
 ninja -C build
 
 echo "Copying compiled libraries to ${TARGET_DIR}..."
-cp -P build/libmpv*.dylib "${TARGET_DIR}/"
+mkdir -p "${TARGET_DIR}"
+cp -P build/libmpv*.dylib* "${TARGET_DIR}/"
 
 echo "=== Patched libmpv successfully generated for macOS ==="
 ls -la "${TARGET_DIR}/"

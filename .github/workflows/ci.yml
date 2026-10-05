@@ -110,4 +110,4 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec vitest run --shard=${{ matrix.shard }}/${{ strategy.job-total }}
+      - run: pnpm exec vitest run --shard=${{ matrix.shard }}/${{ strategy.job-total }} --exclude "**/audio-engine-supervisor.test.ts"

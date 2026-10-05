@@ -48,6 +48,11 @@ jobs:
         run: |
           brew install mpv
 
+      - name: Build and Test Audio Engine
+        run: |
+          pnpm build:audio-engine
+          pnpm test:audio-engine
+
       - name: Build and Package Desktop Application
         run: |
           node apps/desktop/scripts/package-desktop.js --publish ${{ github.event.inputs.publish || 'never' }}

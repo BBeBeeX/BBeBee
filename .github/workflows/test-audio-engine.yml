@@ -1,0 +1,64 @@
+name: Test Audio Engine
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'apps/desktop/native/audio-engine/**'
+      - 'apps/desktop/main/audio/**'
+      - 'apps/desktop/scripts/*audio-engine*'
+      - '.github/workflows/test-audio-engine.yml'
+    branches: [main]
+  pull_request:
+    paths:
+      - 'apps/desktop/native/audio-engine/**'
+      - 'apps/desktop/main/audio/**'
+      - 'apps/desktop/scripts/*audio-engine*'
+      - '.github/workflows/test-audio-engine.yml'
+
+concurrency:
+  group: audio-engine-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-audio-engine:
+    name: Test Audio Engine (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install libmpv (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libmpv-dev libmpv2
+
+      - name: Install libmpv (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install mpv
+
+      - name: Build Audio Engine
+        run: pnpm build:audio-engine
+
+      - name: Run Audio Engine Tests
+        run: pnpm test:audio-engine

@@ -13,8 +13,9 @@ echo "=== Building Patched libmpv for Windows x86_64 (${MPV_VERSION}) ==="
 echo "Work dir: ${WORK_DIR}"
 echo "Target dir: ${TARGET_DIR}"
 
-mkdir -p "${WORK_DIR}"
 mkdir -p "${TARGET_DIR}"
+TARGET_DIR="$(cd "${TARGET_DIR}" && pwd)"
+mkdir -p "${WORK_DIR}"
 
 cleanup() {
     rm -rf "${WORK_DIR}"
@@ -35,14 +36,22 @@ meson setup build \
     -Ddefault_library=shared \
     -Dlibmpv=true \
     -Dcplayer=false \
-    -Dwasapi=enabled
+    -Dwasapi=enabled \
+    -Dc_args='-Wno-deprecated-declarations'
 
 echo "Compiling libmpv with Ninja..."
 ninja -C build
 
-echo "Copying compiled libraries to ${TARGET_DIR}..."
-cp -P build/*mpv*.dll "${TARGET_DIR}/libmpv-2.dll"
-cp -P build/*mpv*.dll "${TARGET_DIR}/mpv-2.dll"
+echo "Copying compiled libmpv library to ${TARGET_DIR}..."
+mkdir -p "${TARGET_DIR}"
+# Windows build only needs a single libmpv-2.dll file for desktop audio engine
+DLL_SRC="$(ls build/*mpv*.dll 2>/dev/null | head -n 1)"
+if [ -n "${DLL_SRC}" ]; then
+    cp -P "${DLL_SRC}" "${TARGET_DIR}/libmpv-2.dll"
+else
+    echo "Error: No mpv dll found in build directory" >&2
+    exit 1
+fi
 
 echo "=== Patched libmpv successfully generated for Windows ==="
 ls -la "${TARGET_DIR}/"

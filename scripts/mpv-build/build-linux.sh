@@ -12,8 +12,9 @@ echo "=== Building Patched libmpv for Linux (${MPV_VERSION}) ==="
 echo "Work dir: ${WORK_DIR}"
 echo "Target dir: ${TARGET_DIR}"
 
-mkdir -p "${WORK_DIR}"
 mkdir -p "${TARGET_DIR}"
+TARGET_DIR="$(cd "${TARGET_DIR}" && pwd)"
+mkdir -p "${WORK_DIR}"
 
 cleanup() {
     rm -rf "${WORK_DIR}"
@@ -36,12 +37,14 @@ meson setup build \
     -Dcplayer=false \
     -Dpulse=enabled \
     -Dalsa=enabled \
-    -Dpipewire=enabled
+    -Dpipewire=enabled \
+    -Dc_args='-Wno-deprecated-declarations'
 
 echo "Compiling libmpv with Ninja..."
 ninja -C build
 
 echo "Copying compiled libraries to ${TARGET_DIR}..."
+mkdir -p "${TARGET_DIR}"
 cp -P build/libmpv.so* "${TARGET_DIR}/"
 
 echo "=== Patched libmpv successfully generated for Linux ==="

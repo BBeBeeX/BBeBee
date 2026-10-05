@@ -8,6 +8,11 @@ PLATFORM="${1:-auto}"
 MPV_VERSION="${2:-v0.38.0}"
 TARGET_DIR="${3:-}"
 
+if [ -n "${TARGET_DIR}" ]; then
+  mkdir -p "${TARGET_DIR}"
+  TARGET_DIR="$(cd "${TARGET_DIR}" && pwd)"
+fi
+
 if [ "${PLATFORM}" = "auto" ]; then
   OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
   case "${OS}" in
