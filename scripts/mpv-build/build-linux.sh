@@ -69,5 +69,32 @@ if [ -f "${BUNDLE_SCRIPT}" ] && command -v node >/dev/null 2>&1; then
     fi
 fi
 
+# Stamp $ORIGIN rpath on every staged library so the dependency closure
+# resolves on clean target machines. A dlopen'd libmpv resolves its NEEDED
+# entries via its OWN rpath — the loading binary's rpath does not apply —
+# so without this the staged sibling .so files are invisible and dlopen
+# fails on any distro without a system ffmpeg. Any build-tree absolute rpath
+# left by meson is meaningless on targets, hence --set-rpath (replace).
+if command -v patchelf >/dev/null 2>&1; then
+    echo "Setting \$ORIGIN rpath on staged libraries in ${TARGET_DIR}..."
+    patched=0
+    while IFS= read -r -d '' lib; do
+        existing="$(patchelf --print-rpath "${lib}" 2>/dev/null || true)"
+        case "${existing}" in
+            *'$ORIGIN'*)
+                echo "  rpath already contains \$ORIGIN: $(basename "${lib}")"
+                ;;
+            *)
+                patchelf --set-rpath '$ORIGIN' "${lib}"
+                echo "  rpath -> \$ORIGIN: $(basename "${lib}")"
+                patched=$((patched + 1))
+                ;;
+        esac
+    done < <(find "${TARGET_DIR}" -maxdepth 1 -type f -name '*.so*' -print0)
+    echo "Patched rpath on ${patched} libraries."
+else
+    echo "WARNING: patchelf not found - staged libmpv closure will NOT load on machines without system ffmpeg (install patchelf: sudo apt-get install patchelf)." >&2
+fi
+
 echo "=== Patched libmpv successfully generated for Linux ==="
 ls -la "${TARGET_DIR}"/libmpv.so*

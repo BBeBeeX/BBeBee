@@ -29,6 +29,7 @@ jobs:
             meson \
             ninja-build \
             pkg-config \
+            patchelf \
             python3 \
             libavcodec-dev \
             libavdevice-dev \
