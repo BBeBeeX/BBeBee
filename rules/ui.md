@@ -406,9 +406,9 @@ The app provides 5 built-in layout styles managed by `ctx.nowPlaying`:
    - 16:9 centered stage (`aspectRatio: '16 / 9'`), maximum width 1240px.
    - Neutral dark base (`#0D1118`) with large cover backdrop (`opacity: 0.34`, `blur: 3.5px`, `scale 2`, centered) revealing artwork silhouette — cinematic film-reel atmosphere.
    - Left section (~46% width): square album artwork (up to 460px) with crisp white border (`2px solid rgba(255, 255, 255, 0.9)`), sharp corners (`borderRadius: 2`), and pronounced double-layer bottom-right shadow (`12px 16px 5px` + `20px 28px 56px`).
-   - Right section: cursive/handwriting title (`Caveat` → `Segoe Print` → `cursive`, 46px, aligned not higher than cover top), muted artist, cinematic subtitle-style synchronized lyrics, then organic waveform + progress bar + larger cursive italic timestamps with text shadow, aligned not lower than cover bottom.
+   - Right section: cursive/handwriting title (`Caveat` → `Segoe Print` → `cursive`, 46px, aligned not higher than cover top), muted artist, cinematic subtitle-style synchronized lyrics, then the settings-driven audio visualizer (the shared `visualizer.canvas` view — renders the style & color theme selected in settings) + progress bar + larger cursive italic timestamps with text shadow, aligned not lower than cover bottom.
    - The lyric list (shared `CinematicLyricsTemplate`) scrolls with the scrollbar hidden in both synced and plain modes (`scrollbar-width: none` + `::-webkit-scrollbar { display: none }` via an injected rule) — the list is the stage, not a document; auto-follow pauses on wheel/touch and offers a 回到当前歌词 pill.
-   - Waveform is shorter than progress bar with fine tapered ends.
+   - The visualizer sits nested inside the progress bar width; the visualizer's `wave` style is the cinematic organic waveform (layered tapered sine bands, gradient stroke fading at both ends, soft glow, amplitude lifted by live audio).
    - **No playback control buttons and no style switcher button on screen** — pure cinematic immersion; top-left return and top-right window controls auto-hide when mouse is away from top bar.
 3. **`full-cover`**: Fullscreen blurred cover background, glassmorphism overlay, floating translucent transport controls.
 4. **`vinyl`**: Circular spinning vinyl record animation with concentric groove sheen and center album label.

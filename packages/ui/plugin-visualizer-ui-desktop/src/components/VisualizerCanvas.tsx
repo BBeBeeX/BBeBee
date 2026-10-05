@@ -1,9 +1,11 @@
 /**
  * VisualizerCanvas — real-time audio visualization canvas component.
  *
- * Supports 4 rendering styles:
+ * All styles render through the Canvas 2D API (one persistent 2d context —
+ * no WebGL context juggling):
  * - 'bars': Equalizer spectrum bars with gradient fill and bouncing peak caps.
- * - 'wave': Smooth oscilloscope waveform curve with glow and gradient fill.
+ * - 'wave': Cinematic organic waveform — layered tapered sine bands, gradient
+ *   stroke fading at both ends, soft glow, amplitude lifted by live audio.
  * - 'circle': Radial 360-degree circular spectrum radiating from center.
  * - 'particles': Floating dancing particles reacting to audio energy.
  *
@@ -17,7 +19,6 @@ import type { VisualizerColorTheme, VisualizerStyle } from '@BBeBee/protocol'
 import { useTransport } from '@BBeBee/plugin-player/hooks'
 import { useAudioData, useVisualizer } from '@BBeBee/plugin-visualizer/hooks'
 import { tokens } from '@BBeBee/ui-tokens'
-import { WebGlVisualizer } from './webgl-visualizer.js'
 
 export interface VisualizerCanvasProps {
   ctx: Context
@@ -62,6 +63,9 @@ export function VisualizerCanvas({
   const peaksRef = useRef<number[]>([])
   // Particles pool for 'particles' style
   const particlesRef = useRef<Particle[]>([])
+  // Phase & smoothed live energy for the 'wave' cinematic organic style
+  const wavePhaseRef = useRef(0)
+  const waveEnergyRef = useRef(0)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -109,21 +113,12 @@ export function VisualizerCanvas({
       }
     }
 
-    const webgl = activeStyle === 'bars' ? new WebGlVisualizer(canvas) : null
-
     // Animation render loop
     const render = () => {
       const w = canvas.width
       const h = canvas.height
 
       const freq = frequencyDataRef.current
-      const wave = timeDomainDataRef.current
-
-      // GPU WebGL path for spectrum bars
-      if (webgl && webgl.isSupported) {
-        const rendered = webgl.render(freq, wave, activeStyle, activeTheme, w, h)
-        if (rendered) return
-      }
 
       const g = canvas.getContext('2d')
       if (!g) return
@@ -176,33 +171,49 @@ export function VisualizerCanvas({
           g.fillRect(x, Math.max(0, peakY), barWidth, 2 * dpr)
         }
       } else if (activeStyle === 'wave') {
-        const data = wave
-        const len = data ? data.length : 64
-        g.lineWidth = 2.5 * dpr
-        g.strokeStyle = getColor(0.5, 0.95)
-        g.shadowBlur = 8 * dpr
-        g.shadowColor = getColor(0.5, 0.6)
+        // Cinematic organic waveform (映画歌词 style, ported from the
+        // now-playing CinematicLayout): three layered sine bands under a
+        // strong tapered envelope, stroked with a gradient that fades to
+        // transparent at both ends plus a soft glow. Live audio only lifts
+        // the amplitude — the shape and motion stay the page's signature.
+        wavePhaseRef.current += isPlaying ? 0.025 : 0.004
+        const phase = wavePhaseRef.current
+
+        let live = 0
+        if (freq && freq.length > 0) {
+          const half = Math.max(1, Math.floor(freq.length / 2))
+          for (let i = 0; i < half; i++) live += freq[i] ?? 0
+          live = live / (half * 255)
+        }
+        waveEnergyRef.current = waveEnergyRef.current * 0.85 + live * 0.15
+        const boost = 1 + waveEnergyRef.current * 0.6
+
+        const baseAmp = (isPlaying ? h * 0.24 : h * 0.07) * boost
+
+        const grad = g.createLinearGradient(0, 0, w, 0)
+        grad.addColorStop(0, getColor(0.5, 0))
+        grad.addColorStop(0.12, getColor(0.5, 0.45))
+        grad.addColorStop(0.5, getColor(0.5, 0.85))
+        grad.addColorStop(0.88, getColor(0.5, 0.45))
+        grad.addColorStop(1, getColor(0.5, 0))
 
         g.beginPath()
-        const sliceWidth = w / (len - 1)
-        for (let i = 0; i < len; i++) {
-          const v = data ? (data[i] ?? 128) / 128 : 1
-          const y = (v * h) / 2
-          const x = i * sliceWidth
-          if (i === 0) g.moveTo(x, y)
-          else g.lineTo(x, y)
+        g.strokeStyle = grad
+        g.lineWidth = 1.2 * dpr
+        g.shadowColor = getColor(0.5, 0.5)
+        g.shadowBlur = isPlaying ? 4 * dpr : 1 * dpr
+
+        const midY = h / 2
+        g.moveTo(0, midY)
+        for (let x = 0; x <= w; x += 2 * dpr) {
+          const progress = x / w
+          const envelope = Math.pow(Math.sin(progress * Math.PI), 2.2)
+          const wave1 = Math.sin(progress * 8 + phase) * baseAmp * 0.65
+          const wave2 = Math.sin(progress * 14 - phase * 0.8) * baseAmp * 0.25
+          const wave3 = Math.cos(progress * 4 + phase * 0.3) * baseAmp * 0.15
+          g.lineTo(x, midY + (wave1 + wave2 + wave3) * envelope)
         }
         g.stroke()
-
-        // Fill under the curve with a soft transparent gradient
-        g.lineTo(w, h)
-        g.lineTo(0, h)
-        g.closePath()
-        const fillGrad = g.createLinearGradient(0, 0, 0, h)
-        fillGrad.addColorStop(0, getColor(0.3, 0.25))
-        fillGrad.addColorStop(1, 'rgba(0, 0, 0, 0)')
-        g.fillStyle = fillGrad
-        g.fill()
         g.shadowBlur = 0
       } else if (activeStyle === 'circle') {
         const cx = w / 2
@@ -277,7 +288,6 @@ export function VisualizerCanvas({
     return () => {
       observer?.disconnect()
       if (animId) cancelAnimationFrame(animId)
-      webgl?.dispose()
     }
   }, [isPlaying, activeStyle, activeTheme, height, frequencyDataRef, timeDomainDataRef])
 
@@ -300,7 +310,6 @@ export function VisualizerCanvas({
       position: 'relative',
     },
     children: h('canvas', {
-      key: activeStyle === 'bars' ? 'webgl-canvas' : '2d-canvas',
       ref: canvasRef,
       style: {
         width: '100%',

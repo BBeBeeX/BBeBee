@@ -7,13 +7,13 @@
  *   pronounced double-layer bottom-right shadow (12px 16px 5px + 20px 28px 56px)
  * - Right section: cursive/handwriting title, muted artist, cinematic subtitle-style
  *   synchronized lyrics (`CinematicLyricsTemplate` from plugin-lyrics-ui-desktop —
- *   scrollable, click-to-seek), organic waveform + progress bar below lyrics
- * - Title is not higher than cover top; waveform & progress bar are not lower than cover bottom
- * - Waveform is shorter than progress bar with fine tapered ends
+ *   scrollable, click-to-seek), settings-driven audio visualizer + progress bar below
+ *   lyrics (the visualizer renders the style & color theme selected in settings)
+ * - Title is not higher than cover top; visualizer & progress bar are not lower than cover bottom
  * - Timestamps are larger with text shadow
  * - No playback control buttons — pure cinematic immersion
  */
-import { createElement as h, useEffect, useRef, type ReactElement } from 'react'
+import { createElement as h, type ReactElement } from 'react'
 import { formatDuration } from '@BBeBee/toolkit'
 import { Slider } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
@@ -21,96 +21,8 @@ import { CachedArtwork } from '../components/NowPlayingBar.js'
 import { CinematicLyricsTemplate, CURSIVE_FONT } from '@BBeBee/plugin-lyrics-ui-desktop'
 import type { NowPlayingLayoutProps } from './index.js'
 
-/* ── Delicate Organic Waveform with Tapered Ends ────────────────────────── */
-
-interface WaveformCanvasProps {
-  isPlaying: boolean
-  color?: string
-}
-
-function WaveformCanvas({ isPlaying }: WaveformCanvasProps): ReactElement {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const animRef = useRef<number | null>(null)
-  const phaseRef = useRef<number>(0)
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    let active = true
-
-    const render = () => {
-      if (!active) return
-      const width = canvas.width
-      const height = canvas.height
-      ctx.clearRect(0, 0, width, height)
-
-      // Gentle phase advance
-      phaseRef.current += isPlaying ? 0.025 : 0.004
-      const phase = phaseRef.current
-
-      // Gradient stroke that softly fades to transparent at both ends (fine ends)
-      const grad = ctx.createLinearGradient(0, 0, width, 0)
-      grad.addColorStop(0, 'rgba(255, 255, 255, 0)')
-      grad.addColorStop(0.12, 'rgba(255, 255, 255, 0.45)')
-      grad.addColorStop(0.5, 'rgba(255, 255, 255, 0.85)')
-      grad.addColorStop(0.88, 'rgba(255, 255, 255, 0.45)')
-      grad.addColorStop(1, 'rgba(255, 255, 255, 0)')
-
-      ctx.beginPath()
-      ctx.strokeStyle = grad
-      ctx.lineWidth = 1.2
-      ctx.shadowColor = 'rgba(255, 255, 255, 0.5)'
-      ctx.shadowBlur = isPlaying ? 4 : 1
-
-      const midY = height / 2
-      const baseAmp = isPlaying ? height * 0.24 : height * 0.07
-
-      ctx.moveTo(0, midY)
-      for (let x = 0; x <= width; x += 2) {
-        const progress = x / width
-        // Strong power envelope for razor-sharp tapering to 0 at both edges
-        const envelope = Math.pow(Math.sin(progress * Math.PI), 2.2)
-        const wave1 = Math.sin(progress * 8 + phase) * baseAmp * 0.65
-        const wave2 = Math.sin(progress * 14 - phase * 0.8) * baseAmp * 0.25
-        const wave3 = Math.cos(progress * 4 + phase * 0.3) * baseAmp * 0.15
-        const y = midY + (wave1 + wave2 + wave3) * envelope
-        ctx.lineTo(x, y)
-      }
-      ctx.stroke()
-
-      animRef.current = requestAnimationFrame(render)
-    }
-
-    render()
-
-    return () => {
-      active = false
-      if (animRef.current) cancelAnimationFrame(animRef.current)
-    }
-  }, [isPlaying])
-
-  return h('canvas', {
-    ref: canvasRef,
-    width: 800,
-    height: 24,
-    'data-testid': 'cinematic-waveform',
-    style: {
-      width: '100%',
-      maxWidth: 450,
-      height: 24,
-      display: 'block',
-      margin: '0 auto',
-      opacity: isPlaying ? 0.8 : 0.4,
-      transition: 'opacity 0.5s ease',
-    },
-  })
-}
-
 export function CinematicLayout(props: NowPlayingLayoutProps): ReactElement {
-  const { ctx, state, displayPosition, duration, can, onSeekChange, onSeekCommit } = props
+  const { ctx, state, displayPosition, duration, can, onSeekChange, onSeekCommit, VisualizerComponent } = props
   const isPlaying = state.status === 'playing'
 
   // Actual track title and artist from real-time transport state
@@ -350,11 +262,12 @@ export function CinematicLayout(props: NowPlayingLayoutProps): ReactElement {
               },
             },
 
-            /* 1. Gentle Organic Waveform (nested slightly inside progress bar, fine ends) */
+            /* 1. Audio visualizer — renders the style & color theme selected
+               in settings (the 'wave' style is the cinematic organic wave) */
             h(
               'div',
               { style: { width: '100%', maxWidth: 450 } },
-              h(WaveformCanvas, { isPlaying }),
+              VisualizerComponent ? h(VisualizerComponent, { ctx }) : null,
             ),
 
             /* 2. Progress Slider (extended, ~520px max width) */

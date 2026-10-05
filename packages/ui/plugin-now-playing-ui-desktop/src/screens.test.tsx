@@ -616,7 +616,7 @@ describe('NowPlayingScreen', () => {
     expect(container.querySelector('[data-testid="layout-compact"]')).toBeTruthy()
   })
 
-  it('renders cinematic layout with waveform and lyrics when style is cinematic', async () => {
+  it('renders cinematic layout with the settings visualizer and lyrics when style is cinematic', async () => {
     const { ctx } = await harness({
       status: 'playing',
       trackUrn: 'BBeBee:local:track:1',
@@ -628,9 +628,12 @@ describe('NowPlayingScreen', () => {
       },
     })
     ctx.nowPlaying.setStyle('cinematic')
+    ctx.ui.registerView('visualizer.canvas', () =>
+      h('div', { 'data-testid': 'mock-visualizer' }, 'Mock Visualizer'),
+    )
     const { container } = render(h(NowPlayingScreen, { ctx }))
     expect(container.querySelector('[data-testid="layout-cinematic"]')).toBeTruthy()
-    expect(container.querySelector('[data-testid="cinematic-waveform"]')).toBeTruthy()
+    expect(container.querySelector('[data-testid="mock-visualizer"]')).toBeTruthy()
     expect(container.querySelector('[data-testid="cinematic-lyrics-block"]')).toBeTruthy()
     expect(container.textContent).toContain('Cinematic Track')
     expect(container.textContent).toContain('Cinematic Artist')
