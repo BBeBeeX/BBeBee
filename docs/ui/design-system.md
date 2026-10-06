@@ -97,9 +97,26 @@ export interface ThemeDefinition {
   description?: string
   isDark: boolean
   tokens: ColorTokens
+  lightTokens?: ColorTokens
   cssVariables?: Record<string, string>
+  lightCssVariables?: Record<string, string>
 }
 ```
+
+### 6.0.2 Dual-Scheme Mode & Light Mode Architecture (WCAG AA Gate)
+
+All four built-in themes (`midnight-purple`, `spotify`, `crimson-night`, and `ocean-abyss`) support **light mode** alongside their default dark mode aesthetics:
+- **No Direct Inversion:** Direct color inversion is forbidden. Backgrounds shift to soft off-white/grey palettes (`#FFFFFF`, `#F0F4FC`, `#FDF2F4`, `#F0F9FF`), while brand accent colors use deeper hues within the same brand spectrum to maintain WCAG AA contrast (e.g. Spotify green `#12833C`, Electric blue `#3B66F5`, Crimson `#C9184A`, Ocean abyss `#087E96`).
+- **WCAG AA Compliance Gate:** Automated test `themeContrastIssues(theme, scheme)` enforces:
+  - Body / Normal text contrast $\ge 4.5:1$
+  - Large text & key UI borders contrast $\ge 3.0:1$
+  - Tested across both `dark` and `light` schemes in CI.
+- **Effective Scheme Resolution:** `settings.theme` supports `'dark' | 'light' | 'system'`. When `'system'` is chosen, `plugin-theme` resolves the scheme in real-time via `window.matchMedia('(prefers-color-scheme: dark)')` and listens to OS theme preference changes.
+- **DOM Single-Writer Principle:** DOM theme attributes are strictly converged into a single writer (`applyThemeToDom()` in `ui-tokens` invoked by `plugin-theme`):
+  - `data-theme="{theme.id}"` (e.g., `midnight-purple`, `spotify`)
+  - `data-color-scheme="{effectiveScheme}"` (`dark` or `light`)
+  - `target.style.colorScheme = effectiveScheme`
+  - CSS custom properties (`--bg-app`, `--primary`, `--text-primary`, `--color-*`, etc.)
 
 ```ts
 // @BBeBee/ui-tokens — Layout and typography tokens

@@ -30,6 +30,21 @@ export function parseHex(hex: string): Rgb {
   return { r, g, b }
 }
 
+/** Parses #hex or rgb/rgba string into Rgb. */
+export function parseColor(color: string): Rgb {
+  const trimmed = color.trim()
+  if (trimmed.startsWith('#')) return parseHex(trimmed)
+  const match = trimmed.match(/^rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i)
+  if (match) {
+    return {
+      r: Number.parseInt(match[1]!, 10),
+      g: Number.parseInt(match[2]!, 10),
+      b: Number.parseInt(match[3]!, 10),
+    }
+  }
+  return parseHex(trimmed)
+}
+
 /**
  * Relative luminance, per WCAG 2.1.
  *
@@ -37,7 +52,7 @@ export function parseHex(hex: string): Rgb {
  * naive average of the channels reports grey text on white as passing.
  */
 export function luminance(color: Rgb | string): number {
-  const { r, g, b } = typeof color === 'string' ? parseHex(color) : color
+  const { r, g, b } = typeof color === 'string' ? parseColor(color) : color
   const channel = (v: number): number => {
     const s = v / 255
     return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4

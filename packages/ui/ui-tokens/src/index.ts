@@ -225,8 +225,11 @@ export const defaultTheme: ThemeDefinition = midnightPurpleTheme
  * including primary color tokens, brand gradients, glow tokens,
  * and mapped legacy `--bb-*` variables.
  */
-export function themeToCssVariables(theme: ThemeDefinition): Record<string, string> {
-  const { tokens: t } = theme
+export function themeToCssVariables(
+  theme: ThemeDefinition,
+  scheme: Scheme = 'dark',
+): Record<string, string> {
+  const t = scheme === 'light' && theme.lightTokens ? theme.lightTokens : theme.tokens
   const out: Record<string, string> = {
     // Background
     '--bg-app': t.bg.app,
@@ -358,7 +361,9 @@ export function themeToCssVariables(theme: ThemeDefinition): Record<string, stri
   tokens.space.forEach((value, i) => void (out[`--bb-space-${i}`] = `${value}px`))
 
   // Extra overrides from theme
-  if (theme.cssVariables) {
+  if (scheme === 'light' && theme.lightCssVariables) {
+    Object.assign(out, theme.lightCssVariables)
+  } else if (theme.cssVariables) {
     Object.assign(out, theme.cssVariables)
   }
 
@@ -367,14 +372,50 @@ export function themeToCssVariables(theme: ThemeDefinition): Record<string, stri
 
 /**
  * Injects theme CSS variables into the DOM element (defaults to document.documentElement).
+ * Sets both data-theme="{id}" and data-color-scheme="{scheme}", along with CSS colorScheme property.
  */
-export function applyThemeToDom(theme: ThemeDefinition, root?: HTMLElement | null): void {
-  if (typeof document === 'undefined') return
-  const target = root ?? document.documentElement
+export function applyThemeToDom(
+  theme: ThemeDefinition,
+  scheme: Scheme = 'dark',
+  root?: HTMLElement | null,
+): void {
+  const target = root ?? (typeof document !== 'undefined' ? document.documentElement : null)
   if (!target) return
-  const vars = themeToCssVariables(theme)
+  const vars = themeToCssVariables(theme, scheme)
   for (const [name, value] of Object.entries(vars)) {
     target.style.setProperty(name, value)
   }
   target.setAttribute('data-theme', theme.id)
+  target.setAttribute('data-color-scheme', scheme)
+  target.style.colorScheme = scheme
+}
+
+/**
+ * Validates WCAG AA contrast for key UI pairs in a ThemeDefinition under a specific scheme.
+ */
+export function themeContrastIssues(
+  theme: ThemeDefinition,
+  scheme: Scheme = 'dark',
+): ContrastIssue[] {
+  const t = scheme === 'light' && theme.lightTokens ? theme.lightTokens : theme.tokens
+  const issues: ContrastIssue[] = []
+  const pairs: { pair: string; fg: string; bg: string; large?: boolean }[] = [
+    { pair: 'text.primary on bg.app', fg: t.text.primary, bg: t.bg.app },
+    { pair: 'text.primary on bg.primary', fg: t.text.primary, bg: t.bg.primary },
+    { pair: 'text.primary on surface.s1', fg: t.text.primary, bg: t.surface.s1 },
+    { pair: 'text.primary on surface.s2', fg: t.text.primary, bg: t.surface.s2 },
+    { pair: 'text.secondary on bg.primary', fg: t.text.secondary, bg: t.bg.primary },
+    { pair: 'text.secondary on surface.s1', fg: t.text.secondary, bg: t.surface.s1 },
+    { pair: 'brand.primary on bg.primary', fg: t.brand.primary, bg: t.bg.primary, large: true },
+    { pair: 'semantic.error on bg.primary', fg: t.semantic.error, bg: t.bg.primary },
+    { pair: 'semantic.success on bg.primary', fg: t.semantic.success, bg: t.bg.primary },
+  ]
+  for (const check of pairs) {
+    const ratio = contrastRatio(check.fg, check.bg)
+    const required = check.large ? AA_LARGE : AA_TEXT
+    if (Math.round(ratio * 100) / 100 < required) {
+      issues.push({ scheme, pair: `${theme.id} ${check.pair}`, ratio: Math.round(ratio * 100) / 100, required })
+    }
+  }
+  return issues
 }

@@ -60,7 +60,7 @@ declare module 'cordis' {
     'audio/engine-changed'(payload: { engine: AudioOutputEngine }): void
     'audio/context-rebuilt'(): void
     /* ── theme ───────────────────────────────────────── emit ── */
-    'theme/changed'(theme: ThemeDefinition): void
+    'theme/changed'(theme: ThemeDefinition, scheme?: 'dark' | 'light'): void
     'theme/registry-changed'(themes: readonly ThemeDefinition[]): void
     /* ── lyrics ──────────────────────────────────────── emit ── */
     'lyrics/changed'(state: LyricsState): void

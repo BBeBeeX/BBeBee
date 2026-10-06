@@ -160,29 +160,6 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
 
   const thirdPartySources = sourcesList.filter((s) => s.id !== 'local')
 
-  // Theme auto-sync with system prefers-color-scheme
-  useEffect(() => {
-    if (typeof document === 'undefined') return
-    const root = document.documentElement
-    const applyTheme = (isDark: boolean) => {
-      root.setAttribute('data-theme', isDark ? 'dark' : 'light')
-      root.style.colorScheme = isDark ? 'dark' : 'light'
-    }
-    if (settings.theme === 'system') {
-      if (typeof window !== 'undefined' && window.matchMedia) {
-        const mql = window.matchMedia('(prefers-color-scheme: dark)')
-        applyTheme(mql.matches)
-        const listener = (e: MediaQueryListEvent) => applyTheme(e.matches)
-        mql.addEventListener?.('change', listener)
-        return () => mql.removeEventListener?.('change', listener)
-      } else {
-        applyTheme(true)
-      }
-    } else {
-      applyTheme(settings.theme === 'dark')
-    }
-  }, [settings.theme])
-
   const proxy: ProxySettings = {
     ...DEFAULT_PROXY_SETTINGS,
     ...(settings.proxy ?? {}),

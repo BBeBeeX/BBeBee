@@ -6,7 +6,7 @@
  * formula produces a gate that passes everything.
  */
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   contrastRatio,
   cssVariables,
@@ -20,6 +20,8 @@ import {
   defaultTheme,
   midnightPurpleTheme,
   themeToCssVariables,
+  themeContrastIssues,
+  applyThemeToDom,
 } from './index.js'
 
 describe('parseHex', () => {
@@ -205,5 +207,42 @@ describe('Color Token System & Theme Management', () => {
     expect(vars['--bb-bg-sunken']).toBe('#05060A')
     expect(vars['--bb-bg-base']).toBe('#080A10')
     expect(vars['--bb-accent-base']).toBe('#5F87FF')
+  })
+
+  it('all built-in themes define lightTokens and pass WCAG AA in both dark and light modes', () => {
+    for (const [id, theme] of Object.entries(builtInThemes)) {
+      expect(theme.lightTokens, `Theme ${id} must define lightTokens`).toBeDefined()
+      const darkIssues = themeContrastIssues(theme, 'dark')
+      expect(darkIssues, `Theme ${id} dark mode contrast issues: ${JSON.stringify(darkIssues)}`).toEqual([])
+      const lightIssues = themeContrastIssues(theme, 'light')
+      expect(lightIssues, `Theme ${id} light mode contrast issues: ${JSON.stringify(lightIssues)}`).toEqual([])
+    }
+  })
+
+  it('themeToCssVariables resolves light tokens when scheme is light', () => {
+    const darkVars = themeToCssVariables(midnightPurpleTheme, 'dark')
+    const lightVars = themeToCssVariables(midnightPurpleTheme, 'light')
+
+    expect(darkVars['--bg-app']).toBe('#05060A')
+    expect(lightVars['--bg-app']).toBe('#F0F4FC')
+    expect(lightVars['--primary']).toBe('#3B66F5')
+    expect(lightVars['--text-primary']).toBe('#080A10')
+  })
+
+  it('applyThemeToDom applies variables and data attributes to target element', () => {
+    const el = {
+      style: {
+        colorScheme: '',
+        setProperty: vi.fn(),
+      },
+      setAttribute: vi.fn(),
+    } as unknown as HTMLElement
+
+    applyThemeToDom(midnightPurpleTheme, 'light', el)
+
+    expect(el.setAttribute).toHaveBeenCalledWith('data-theme', 'midnight-purple')
+    expect(el.setAttribute).toHaveBeenCalledWith('data-color-scheme', 'light')
+    expect(el.style.colorScheme).toBe('light')
+    expect(el.style.setProperty).toHaveBeenCalledWith('--bg-app', '#F0F4FC')
   })
 })

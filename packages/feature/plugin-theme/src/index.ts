@@ -25,6 +25,7 @@ export class ThemePlugin extends Service implements ThemeService {
   private readonly ownCtx: Context
   private readonly registry = new Map<string, ThemeDefinition>()
   private activeThemeId = defaultTheme.id
+  private appearanceMode: 'dark' | 'light' | 'system' = 'dark'
 
   constructor(ctx: Context) {
     super(ctx, 'theme')
@@ -63,17 +64,53 @@ export class ThemePlugin extends Service implements ThemeService {
     // 2. Synchronize with settings if available
     this.ownCtx.inject(['settings'], (scoped) => {
       const initial = scoped.settings.getSync?.()
+      let updated = false
+      if (initial?.theme && (initial.theme === 'dark' || initial.theme === 'light' || initial.theme === 'system')) {
+        this.appearanceMode = initial.theme
+        updated = true
+      }
       if (initial?.themeId && this.registry.has(initial.themeId)) {
         this.activeThemeId = initial.themeId
+        updated = true
+      }
+      if (updated) {
         this.applyActiveTheme()
       }
 
       scoped.on('settings/changed', (s) => {
+        let changed = false
+        if (s.theme && (s.theme === 'dark' || s.theme === 'light' || s.theme === 'system') && s.theme !== this.appearanceMode) {
+          this.appearanceMode = s.theme
+          changed = true
+        }
         if (s.themeId && s.themeId !== this.activeThemeId && this.registry.has(s.themeId)) {
-          void this.setTheme(s.themeId)
+          this.activeThemeId = s.themeId
+          changed = true
+        }
+        if (changed) {
+          this.applyActiveTheme()
+          this.ownCtx.emit('theme/changed', this.getCurrentTheme(), this.getEffectiveScheme())
         }
       })
     })
+
+    // 2.2 System color-scheme listener for 'system' mode
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)')
+      const handler = () => {
+        if (this.appearanceMode === 'system') {
+          this.applyActiveTheme()
+          this.ownCtx.emit('theme/changed', this.getCurrentTheme(), this.getEffectiveScheme())
+        }
+      }
+      if (typeof mq.addEventListener === 'function') {
+        mq.addEventListener('change', handler)
+        this.ownCtx.effect(() => () => mq.removeEventListener('change', handler), 'theme-media-query')
+      } else if (typeof mq.addListener === 'function') {
+        mq.addListener(handler)
+        this.ownCtx.effect(() => () => mq.removeListener(handler), 'theme-media-query')
+      }
+    }
 
     // 2.5 Contribute this plugin's settings entries — the theme management
     // card and the appearance-mode selector. The settings screen aggregates
@@ -122,8 +159,27 @@ export class ThemePlugin extends Service implements ThemeService {
     return Array.from(this.registry.values())
   }
 
+  getEffectiveScheme(): 'dark' | 'light' {
+    if (this.appearanceMode === 'system') {
+      if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+      }
+      return 'dark'
+    }
+    return this.appearanceMode
+  }
+
   getCurrentTheme(): ThemeDefinition {
-    return this.registry.get(this.activeThemeId) ?? defaultTheme
+    const base = this.registry.get(this.activeThemeId) ?? defaultTheme
+    const scheme = this.getEffectiveScheme()
+    if (scheme === 'light' && base.lightTokens) {
+      return {
+        ...base,
+        isDark: false,
+        tokens: base.lightTokens,
+      }
+    }
+    return base
   }
 
   async setTheme(themeId: string): Promise<void> {
@@ -156,7 +212,7 @@ export class ThemePlugin extends Service implements ThemeService {
       void settings.update({ themeId }).catch(() => {})
     }
 
-    this.ownCtx.emit('theme/changed', target)
+    this.ownCtx.emit('theme/changed', this.getCurrentTheme(), this.getEffectiveScheme())
   }
 
   registerTheme(theme: ThemeDefinition): Disposable {
@@ -204,13 +260,14 @@ export class ThemePlugin extends Service implements ThemeService {
     }
   }
 
-  onThemeChange(listener: (theme: ThemeDefinition) => void): Disposable {
+  onThemeChange(listener: (theme: ThemeDefinition, scheme?: 'dark' | 'light') => void): Disposable {
     return this.ownCtx.on('theme/changed', listener)
   }
 
   private applyActiveTheme(): void {
-    const current = this.getCurrentTheme()
-    applyThemeToDom(current)
+    const base = this.registry.get(this.activeThemeId) ?? defaultTheme
+    const effectiveScheme = this.getEffectiveScheme()
+    applyThemeToDom(base, effectiveScheme)
   }
 }
 

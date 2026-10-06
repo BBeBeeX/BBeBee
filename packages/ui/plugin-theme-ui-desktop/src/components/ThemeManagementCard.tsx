@@ -21,6 +21,9 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
   const [currentThemeId, setCurrentThemeId] = useState<string>(
     () => settings?.getSync()?.themeId ?? themeService?.getCurrentTheme?.().id ?? 'midnight-purple',
   )
+  const [appearanceMode, setAppearanceMode] = useState<'system' | 'dark' | 'light'>(
+    () => (settings?.getSync()?.theme as 'system' | 'dark' | 'light') ?? 'dark',
+  )
   const [showImportModal, setShowImportModal] = useState(false)
   const [importJson, setImportJson] = useState('')
   const [importError, setImportError] = useState<string | null>(null)
@@ -31,11 +34,15 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
       const svc = serviceOf<ThemeService>(ctx, 'theme')
       const list = svc?.getThemes?.()
       if (list) setThemes(list)
+      const currentSettings = serviceOf<{ getSync(): AppSettings }>(ctx, 'settings')?.getSync()
       setCurrentThemeId(
-        serviceOf<{ getSync(): AppSettings }>(ctx, 'settings')?.getSync()?.themeId ??
+        currentSettings?.themeId ??
           svc?.getCurrentTheme?.().id ??
           'midnight-purple',
       )
+      if (currentSettings?.theme) {
+        setAppearanceMode(currentSettings.theme as 'system' | 'dark' | 'light')
+      }
     }
     updateThemes()
     const off1 = ctx.on('theme/registry-changed', updateThemes)
@@ -47,6 +54,11 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
       off3()
     }
   }, [ctx])
+
+  const handleAppearanceModeChange = (mode: 'system' | 'dark' | 'light') => {
+    setAppearanceMode(mode)
+    void settings?.update({ theme: mode })
+  }
 
   const handleThemeChange = (themeId: string) => {
     void settings?.update({ themeId })
@@ -139,6 +151,85 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
           gap: 16,
         },
       },
+      // Appearance mode row
+      h(
+        'div',
+        {
+          style: {
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 16,
+            flexWrap: 'wrap',
+            paddingBottom: 16,
+            borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+          },
+        },
+        h(
+          'div',
+          { style: { display: 'flex', flexDirection: 'column', gap: 3 } },
+          h('div', { style: { fontSize: 13, fontWeight: 500, color: '#F5F5F7' } }, '外观模式'),
+          h(
+            'div',
+            { style: { fontSize: 12, color: '#8E8E93', lineHeight: 1.45 } },
+            '切换应用深色、浅色或跟随系统外观',
+          ),
+        ),
+        h(
+          'div',
+          {
+            role: 'radiogroup',
+            'aria-label': '外观模式',
+            style: {
+              display: 'inline-flex',
+              padding: 3,
+              borderRadius: 20,
+              background: 'var(--surface-2, rgba(255, 255, 255, 0.04))',
+              border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.12))',
+              gap: 4,
+            },
+          },
+          [
+            { id: 'system', label: '跟随系统' },
+            { id: 'dark', label: '深色模式' },
+            { id: 'light', label: '浅色模式' },
+          ].map((mode) => {
+            const isSelected = appearanceMode === mode.id
+            return h(
+              'button',
+              {
+                key: mode.id,
+                type: 'button',
+                role: 'radio',
+                'aria-checked': isSelected,
+                'data-testid': `appearance-mode-${mode.id}`,
+                onClick: () => handleAppearanceModeChange(mode.id as 'system' | 'dark' | 'light'),
+                style: {
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '5px 14px',
+                  borderRadius: 16,
+                  border: isSelected
+                    ? '1px solid var(--color-primary, #5F87FF)'
+                    : '1px solid transparent',
+                  background: isSelected
+                    ? 'var(--surface-selected, rgba(95, 135, 255, 0.15))'
+                    : 'transparent',
+                  color: isSelected
+                    ? 'var(--text-primary, #FFFFFF)'
+                    : 'var(--text-secondary, #C5CAD8)',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: isSelected ? 600 : 400,
+                  boxShadow: isSelected ? 'var(--glow-brand-sm, 0 0 10px rgba(95, 135, 255, 0.25))' : 'none',
+                  transition: 'all 0.15s ease',
+                },
+              },
+              mode.label,
+            )
+          }),
+        ),
+      ),
       h(
         'div',
         {

@@ -90,8 +90,12 @@ export interface ThemeDefinition {
   isDark: boolean
   /** Full set of color tokens. */
   tokens: ColorTokens
+  /** Optional light mode tokens. Used when active color scheme is light. */
+  lightTokens?: ColorTokens
   /** Optional extra CSS custom property overrides. */
   cssVariables?: Record<string, string>
+  /** Optional extra CSS custom property overrides specifically for light mode. */
+  lightCssVariables?: Record<string, string>
 }
 
 export interface ThemeService {
@@ -100,6 +104,9 @@ export interface ThemeService {
 
   /** Returns the currently active theme snapshot. */
   getCurrentTheme(): ThemeDefinition
+
+  /** Returns the currently active effective color scheme ('dark' or 'light'). */
+  getEffectiveScheme(): 'dark' | 'light'
 
   /** Switches the active theme by id and persists the change. */
   setTheme(themeId: string): Promise<void>
@@ -118,7 +125,7 @@ export interface ThemeService {
   removeTheme(themeId: string): boolean
 
   /** Subscribes to theme changes. */
-  onThemeChange(listener: (theme: ThemeDefinition) => void): Disposable
+  onThemeChange(listener: (theme: ThemeDefinition, scheme?: 'dark' | 'light') => void): Disposable
 }
 
 declare module 'cordis' {

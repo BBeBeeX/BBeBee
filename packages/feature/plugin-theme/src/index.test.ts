@@ -84,4 +84,33 @@ describe('ThemePlugin', () => {
     expect(ctx.theme.getThemes().some((t) => t.id === 'custom-solar')).toBe(false)
     expect(ctx.theme.getCurrentTheme().id).toBe('midnight-purple')
   })
+
+  it('resolves effective scheme and adapts tokens to light mode when settings change', async () => {
+    const ctx = new Context()
+    ctx.provide('settings', {
+      getSync: () => ({ theme: 'dark', themeId: 'midnight-purple' }),
+    } as never)
+
+    await ctx.plugin(ThemePlugin)
+
+    expect(ctx.theme.getEffectiveScheme()).toBe('dark')
+    expect(ctx.theme.getCurrentTheme().isDark).toBe(true)
+    expect(ctx.theme.getCurrentTheme().tokens.bg.app).toBe('#05060A')
+
+    let emittedTheme: ThemeDefinition | undefined
+    let emittedScheme: 'dark' | 'light' | undefined
+    ctx.theme.onThemeChange((t, scheme) => {
+      emittedTheme = t
+      emittedScheme = scheme
+    })
+
+    // Simulate settings update to light mode via kernel event
+    ctx.emit('settings/changed', { theme: 'light' } as never)
+
+    expect(ctx.theme.getEffectiveScheme()).toBe('light')
+    expect(ctx.theme.getCurrentTheme().isDark).toBe(false)
+    expect(ctx.theme.getCurrentTheme().tokens.bg.app).toBe('#F0F4FC')
+    expect(emittedTheme?.isDark).toBe(false)
+    expect(emittedScheme).toBe('light')
+  })
 })

@@ -197,4 +197,19 @@ describe('ThemeManagementCard', () => {
     await root.plugin(plugin)
     expect(views.has(THEME_VIEWS.settingsCard)).toBe(true)
   })
+
+  it('switches appearance mode and writes back to settings', async () => {
+    const { ctx, calls } = await harness()
+    const { getByTestId } = render(h(ThemeManagementCard, { ctx }))
+
+    const lightBtn = getByTestId('appearance-mode-light')
+    expect(lightBtn.getAttribute('aria-checked')).toBe('false')
+
+    fireEvent.click(lightBtn)
+
+    await waitFor(() => {
+      expect(calls).toContain('update:{"theme":"light"}')
+      expect(lightBtn.getAttribute('aria-checked')).toBe('true')
+    })
+  })
 })
