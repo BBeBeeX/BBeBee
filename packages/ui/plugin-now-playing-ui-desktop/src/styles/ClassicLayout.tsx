@@ -77,9 +77,9 @@ export function ClassicLayout(props: NowPlayingLayoutProps): ReactElement {
         },
       },
       h(Slider, {
-        value: duration ? Math.min(displayPosition, duration) : displayPosition,
+        value: duration ? Math.min(displayPosition, duration) : 0,
         max: duration ?? 0,
-        disabled: !can.canSeek,
+        disabled: !can.canSeek || !duration,
         accessibilityLabel: 'Seek',
         onChange: props.onSeekChange,
         onCommit: props.onSeekCommit,

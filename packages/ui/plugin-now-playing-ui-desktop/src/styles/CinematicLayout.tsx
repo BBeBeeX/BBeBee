@@ -274,9 +274,9 @@ export function CinematicLayout(props: NowPlayingLayoutProps): ReactElement {
               'div',
               { style: { width: '100%', maxWidth: 520 } },
               h(Slider, {
-                value: duration ? Math.min(displayPosition, duration) : displayPosition,
+                value: duration ? Math.min(displayPosition, duration) : 0,
                 max: duration ?? 0,
-                disabled: !can.canSeek,
+                disabled: !can.canSeek || !duration,
                 accessibilityLabel: 'Seek',
                 onChange: onSeekChange,
                 onCommit: onSeekCommit,

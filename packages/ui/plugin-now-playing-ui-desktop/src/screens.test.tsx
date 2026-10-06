@@ -299,6 +299,16 @@ describe('NowPlayingBar', () => {
     expect(html(h(NowPlayingBar, { ctx }))).toContain('--:--')
   })
 
+  it('renders an empty progress slider when duration is unknown even if position has advanced', async () => {
+    const { ctx } = await harness({ status: 'playing', positionMs: 5_000, durationMs: 0 })
+    const out = html(h(NowPlayingBar, { ctx }))
+    expect(out).toContain('0:05')
+    expect(out).toContain('--:--')
+    expect(out).toContain('aria-valuenow="0"')
+    expect(out).toContain('aria-valuemax="0"')
+    expect(out).not.toContain('100%, var(--slider-track')
+  })
+
   it('shows current track title and artist', async () => {
     const { ctx } = await harness({
       status: 'playing',

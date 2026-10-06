@@ -34,6 +34,7 @@ interface NativeProps {
   onAccessibilityAction?: (e: { nativeEvent: { actionName: string } }) => void
   accessibilityRole?: string
   accessibilityValue?: { min: number; max: number; now: number }
+  accessibilityState?: { disabled?: boolean }
   style?: Record<string, unknown>
   children?: ReactNode
 }
@@ -95,6 +96,10 @@ describe('Slider', () => {
   it('does not divide by a zero duration', () => {
     // A track whose duration is not known yet is the ordinary case at load.
     expect(() => scrubber({ value: 0, max: 0 })).not.toThrow()
+    const { root, track } = scrubber({ value: 5000, max: 0 })
+    expect(root.rn?.accessibilityValue).toMatchObject({ now: 0, max: 0 })
+    expect(root.rn?.accessibilityState).toMatchObject({ disabled: true })
+    expect(track.rn?.onStartShouldSetResponder?.()).toBe(false)
   })
 
   it('seeks to where the finger came up', () => {

@@ -143,9 +143,9 @@ export function FullCoverLayout(props: NowPlayingLayoutProps): ReactElement {
           'div',
           { style: { width: '100%', display: 'flex', flexDirection: 'column', gap: tokens.space[1] } },
           h(Slider, {
-            value: duration ? Math.min(displayPosition, duration) : displayPosition,
+            value: duration ? Math.min(displayPosition, duration) : 0,
             max: duration ?? 0,
-            disabled: !can.canSeek,
+            disabled: !can.canSeek || !duration,
             accessibilityLabel: 'Seek',
             onChange: props.onSeekChange,
             onCommit: props.onSeekCommit,

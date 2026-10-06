@@ -142,6 +142,17 @@ describe('Slider', () => {
     expect(element.props.onChange).toBe(onChange)
     expect(element.props.onCommit).toBe(onCommit)
   })
+
+  it('renders an empty track (0% progress) and disables when max is zero or unknown', () => {
+    // When a song is loading, elapsed position may be non-zero while duration
+    // is not known yet. The track must not fill to 100% and must be disabled.
+    const out = html(h(Slider, { value: 5000, max: 0 }))
+    expect(out).toContain('aria-valuenow="0"')
+    expect(out).toContain('aria-valuemax="0"')
+    expect(out).toContain('disabled')
+    expect(out).toContain('0%, var(--slider-track')
+    expect(out).not.toContain('100%, var(--slider-track')
+  })
 })
 
 describe('Sheet', () => {

@@ -11,6 +11,9 @@ export function Slider(props: SliderProps): ReactElement {
   const native = nativePrimitives()
   const { disabled = false } = props
 
+  const hasRange = Number.isFinite(props.max) && props.max > 0
+  const isDisabled = Boolean(disabled) || !hasRange
+
   /*
    * Draggable, through React Native's own responder system.
    *
@@ -25,19 +28,23 @@ export function Slider(props: SliderProps): ReactElement {
    */
   const [dragging, setDragging] = useState<number | undefined>(undefined)
   const width = useRef(0)
-  const value = dragging ?? props.value
+  const rawValue = dragging ?? props.value
+  const value = hasRange
+    ? Math.max(0, Math.min(props.max, Number.isFinite(rawValue) ? rawValue : 0))
+    : 0
 
   const at = useCallback(
     (x: number): number => {
-      if (width.current <= 0 || props.max <= 0) return 0
+      if (width.current <= 0 || !hasRange) return 0
       const fraction = Math.max(0, Math.min(1, x / width.current))
       return Math.round(fraction * props.max)
     },
-    [props.max],
+    [props.max, hasRange],
   )
 
   const step = useCallback(
     (direction: 1 | -1) => {
+      if (!hasRange) return
       const next = Math.max(
         0,
         Math.min(props.max, Math.round(value + direction * props.max * SLIDER_STEP)),
@@ -45,7 +52,7 @@ export function Slider(props: SliderProps): ReactElement {
       props.onChange?.(next)
       props.onCommit?.(next)
     },
-    [props, value],
+    [props, value, hasRange],
   )
 
   const p = c()
@@ -54,8 +61,8 @@ export function Slider(props: SliderProps): ReactElement {
     {
       ...common(props),
       accessibilityRole: 'adjustable',
-      accessibilityValue: { min: 0, max: props.max, now: value },
-      accessibilityState: { disabled },
+      accessibilityValue: { min: 0, max: hasRange ? props.max : 0, now: value },
+      accessibilityState: { disabled: isDisabled },
       /*
        * `increment`/`decrement`, not "commit the value it already has".
        * A screen-reader user swiping up on a scrubber means "forward", and
@@ -63,7 +70,7 @@ export function Slider(props: SliderProps): ReactElement {
        * — a control that looks adjustable and adjusts nothing.
        */
       onAccessibilityAction: (event: { nativeEvent: { actionName: string } }) => {
-        if (disabled) return
+        if (isDisabled) return
         if (event.nativeEvent.actionName === 'increment') step(1)
         else if (event.nativeEvent.actionName === 'decrement') step(-1)
       },
@@ -81,19 +88,22 @@ export function Slider(props: SliderProps): ReactElement {
         },
         // Claim the touch on the way down, so a drag that starts here is not
         // stolen by a scroll view above it.
-        onStartShouldSetResponder: () => !disabled,
-        onMoveShouldSetResponder: () => !disabled,
+        onStartShouldSetResponder: () => !isDisabled,
+        onMoveShouldSetResponder: () => !isDisabled,
         onResponderGrant: (event: { nativeEvent: { locationX: number } }) => {
+          if (isDisabled) return
           const next = at(event.nativeEvent.locationX)
           setDragging(next)
           props.onChange?.(next)
         },
         onResponderMove: (event: { nativeEvent: { locationX: number } }) => {
+          if (isDisabled) return
           const next = at(event.nativeEvent.locationX)
           setDragging(next)
           props.onChange?.(next)
         },
         onResponderRelease: (event: { nativeEvent: { locationX: number } }) => {
+          if (isDisabled) return
           const next = at(event.nativeEvent.locationX)
           setDragging(undefined)
           props.onCommit?.(next)
@@ -111,7 +121,7 @@ export function Slider(props: SliderProps): ReactElement {
           // White at rest, like the desktop scrubber: a green rail at rest
           // competes with every other accent on the screen.
           backgroundColor: p.text.primary,
-          width: `${props.max > 0 ? Math.min(100, (value / props.max) * 100) : 0}%`,
+          width: `${hasRange ? Math.min(100, (value / props.max) * 100) : 0}%`,
         },
       }),
     ),

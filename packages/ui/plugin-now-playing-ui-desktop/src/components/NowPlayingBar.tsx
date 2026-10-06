@@ -806,9 +806,9 @@ export function NowPlayingBar({ ctx, currentRoute, onOpenNowPlaying, portalMenus
           }),
         ),
         h(Slider, {
-          value: duration ? Math.min(displayPosition, duration) : displayPosition,
+          value: duration ? Math.min(displayPosition, duration) : 0,
           max: duration ?? 0,
-          disabled: !can.canSeek,
+          disabled: !can.canSeek || !duration,
           accessibilityLabel: 'Seek',
           onChange: (value: number) => setSeekingPosition(value),
           onCommit: (value: number) => {

@@ -84,9 +84,9 @@ function SeekBar({ ctx, position, duration, can }: {
     native.View as never,
     { style: { alignSelf: 'stretch', gap: tokens.space[1] } },
     h(Slider, {
-      value: duration ? Math.min(position, duration) : position,
+      value: duration ? Math.min(position, duration) : 0,
       max: duration ?? 0,
-      disabled: !can.canSeek,
+      disabled: !can.canSeek || !duration,
       accessibilityLabel: 'Seek',
       onCommit: (value: number) => void ctx.player.seek(value),
     }),
