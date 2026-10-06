@@ -85,17 +85,19 @@ codegen 即可构建。
 | `description` | `string` | 功能职责清晰描述 |
 | `version` | `string` | 语义化版本号（如 `"0.0.0"`） |
 | `author` | `string` | 插件作者或组织（如 `"BBeBee Team"`） |
-| `engines` | `Record<string, string>` | 运行时环境版本约束（如 `{"node": ">=22.12.0"}`） |
+| `engines` | `Record<string, string>` | 运行时环境版本约束，必须包含 `"BBeBee"` 引擎版本（如 `{"BBeBee": ">=0.1.0", "node": ">=22.12.0"}`） |
 | `enabled` | `boolean` | 默认启用标志（`true`） |
 | `dependencies` | `string[]` | 前置依赖插件 ID 数组（必须已加载方可启动） |
 | `systemId` | `string` | 架构所在层级 ID：`"layer-1"` 到 `"layer-5"` |
 | `moduleId` | `string` | 所属功能模块/域 ID：`"sources"`、`"playback"`、`"lyrics"`、`"storage"`、`"dsp"`、`"settings"`、`"inspector"`、`"share"`、`"ui"`、`"core"`、`"logs"` |
-| `entry` | `PluginEntry` | 模块入口路径（`{"main": "...", "desktop": "...", "mobile": "..."}`） |
+| `entry` | `PluginEntrypoints` | 模块入口路径（`{"main": "...", "ui": {"mobile"?: "...", "desktop"?: "..."}}`） |
 | `capabilities` | `Capability[]` | 申请的能力权限清单（`["ui:component", "action:sources/*"]`） |
 | `contributes` | `PluginContributes` | 扩展贡献槽位、路由与服务声明（`{"services": ["audio"], "routes": [...]}`） |
 | `effect` | `string \| null` | 核心副作用标识（如 `"audio"`, `"fs"`, `"bridge"` 或 `null`） |
+| `platforms` | `PluginPlatform[]` | 可选的目标平台约束（`["desktop"]`、`["mobile"]`，缺省为全平台） |
 
 > ⚠️ **字段命名规范：** 分层架构 ID 统一固定为 **`systemId`**（严禁写为 `subsystemId`）。
+> `entry.ui` 是可选且分目标平台的：插件可以只提供桌面视图而不提供移动端视图。当某个贡献项的视图在某个目标平台缺失时，外壳必须渲染占位符而非崩溃 —— 这是 ADR-2 的直接代价，UI 注册表把它显式化了（[08 §3](../ui/architecture.md#3-从描述符解析到视图)）。
 
 #### 清单示例：
 ```jsonc
@@ -107,6 +109,7 @@ codegen 即可构建。
   "version": "0.0.0",
   "author": "BBeBee Team",
   "engines": {
+    "BBeBee": ">=0.1.0",
     "node": ">=22.12.0"
   },
   "enabled": true,
@@ -115,9 +118,12 @@ codegen 即可构建。
   ],
   "systemId": "layer-5",
   "moduleId": "sources",
+  "platforms": ["desktop"],
   "entry": {
     "main": "./src/index.tsx",
-    "desktop": "./src/index.tsx"
+    "ui": {
+      "desktop": "./src/index.tsx"
+    }
   },
   "capabilities": [
     "ui:component",
@@ -134,18 +140,11 @@ codegen 即可构建。
 ### 6.4 代码生成工具链（`@BBeBee/tooling-gen-plugins`）
 
 运行 `pnpm gen:plugins` 自动扫描全部插件包的 `BBeBee.plugin.json` 并生成：
-- `apps/mobile/generated/plugins.ts`：移动端全静态绑定注册表。
 - `apps/mobile/generated/plugins.ts`：移动端静态注册表（Metro 无法在运行时计算模块路径）。
 - `packages/ui/plugin-inspector-ui-desktop/src/pcb-manifests.generated.ts`：导出全部 70+ 个插件清单的 `PLUGIN_MANIFESTS` 字典，供 PCB 架构拓扑检视器直接进行节点分层、模块归属、依赖及能力的实时可视化。
 *（桌面端不再使用静态生成文件，全面采用 Vite 动态加载机制与特权 `bbebee-plugin://` 协议桥接）。*
 
 ### 6.5 配置
-
-`entry.ui` 是可选且分目标平台的：插件可以只提供桌面视图而不提供移动端视图。当某个贡献项的
-视图在某个目标平台缺失时，外壳必须渲染占位符而非崩溃 —— 这是 ADR-2 的直接代价，UI 注册表
-把它显式化了（[08 §3](../ui/architecture.md#3-从描述符解析到视图)）。
-
-### 6.4 配置
 
 一份配置文档（桌面端为 YAML，移动端为 JSON），在任何功能插件加载之前通过 `ctx.fs` 读取：
 
@@ -162,12 +161,12 @@ plugins:
 编辑配置只会释放并重建受影响的 fiber。
 
 > **音源不在这里配置。** 它们是 `sources` 表中的行
-> （[07 §4.1](../data-model/urn.md#41-音源账号与会话)），在应用内导入与编辑，
+> （[schema.md §4.1](../data-model/schema.md#41-音源账号与会话)），在应用内导入与编辑，
 > `plugin-source-runtime` 给每个音源一个属于自己的 fiber，运行在其专属的 `ctx.isolate('http')`
 > 作用域内（§5）。把它们放进配置文件，意味着加一台服务器要手改 JSON，也让"导入这串字符串"
-> 变成开发者的动作（[06 §9](../sources/authoring.md#9-导入更新与分享)）。
+> 变成开发者的动作（[authoring.md §9](../sources/authoring.md#9-导入更新与分享)）。
 
-### 6.5 热重载
+### 6.6 热重载
 
 开发环境下，`@cordisjs/plugin-hmr` 监视工作区，并在原位重载发生变化的插件。由于卸载是彻底
 的，这对受影响的子树而言确实等价于一次重启 —— 旧 fiber 的音频图、监听器与定时器全部消失。

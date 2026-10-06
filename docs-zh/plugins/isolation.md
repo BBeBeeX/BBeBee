@@ -9,7 +9,7 @@
 
 ```ts
 // packages/protocol/src/services/fs.ts
-export interface FsService { /* … see 04 … */ }
+export interface FsService { /* … 见 services/contracts.md … */ }
 
 declare module 'cordis' {
   interface Context {
@@ -85,7 +85,7 @@ scoped.plugin(SourceInstance, { record })
 const confined = ctx.intercept('fs', { root: `plugins/${pluginId}`, mode: 'rw' })
 ```
 
-能力门（§7）正是用拦截实现的；每个插件专属的 `store` 与 `fs` 命名空间也由此生效，插件无需
+[能力门](./capabilities.md#7-能力模型)正是用拦截实现的；每个插件专属的 `store` 与 `fs` 命名空间也由此生效，插件无需
 自己记得给键加前缀。
 
 ---

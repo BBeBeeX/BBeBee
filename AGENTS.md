@@ -60,6 +60,7 @@ packages/core/        Layer 2 — core capability services; ONLY layer touching 
 packages/logs/        Layer 3 — log transports; ONLY layer that may write to console
 packages/feature/     Layer 4 — headless business features
 packages/ui/          Layer 5 — views and UI infrastructure (apps/* are Layer 5 too)
+packages/sdk/         outside model — public SDK for plugin developers
 packages/tooling/     outside model — build scripts & codegen
 ```
 
@@ -76,7 +77,7 @@ packages/tooling/     outside model — build scripts & codegen
 | **Composition root** | ✅ | ✅ | ✅ | ✅ | ✅ (as data) | ✅ | ✅ |
 
 The kernel's **plugin surface** (the only kernel exports Layers 3, 4, 5 may import):
-`Context`, `Service`, `Inject`, `Plugin`, `Fiber`, `Effect`, `EffectMeta`, `InjectSpec`, `FiberState`, `fiberStateName`, `isActive`, `isSettled`.
+`Context`, `Service`, `Inject`, `Plugin`, `Fiber`, `Effect`, `EffectMeta`, `InjectSpec`, `FiberState`, `FiberStateName`, `FiberStateValue`, `fiberStateName`, `isActive`, `isSettled`.
 
 Composition root is exactly 4 files: `apps/mobile/src/{boot,plugins}.ts` and `apps/desktop/renderer/{boot,plugins}.ts`.
 
@@ -90,7 +91,7 @@ Composition root is exactly 4 files: `apps/mobile/src/{boot,plugins}.ts` and `ap
 4. Log through `ctx.logger`, never `console.log`.
 5. Reusable pure helpers belong in `@BBeBee/toolkit`, not duplicated in feature packages. Shared React service bindings (hooks that read a service via `ctx`) live in the `@BBeBee/toolkit/hooks` subpath; a view package imports another feature's bindings from there, never from that feature's package.
 6. Decompose large UI packages into single-responsibility submodules (`src/{components,screens,hooks,utils,index.tsx}`); avoid monolithic single-file packages.
-7. Every plugin package must include a standardized `BBeBee.plugin.json` declaring 14 fields: `id`, `name`, `displayName`, `description`, `version`, `author`, `engines`, `enabled`, `dependencies`, `systemId` (`'layer-2'`-`'layer-5'`), `moduleId` (domain), `entry`, `capabilities`, `contributes`, `effect`. Run `pnpm gen:plugins` after changes.
+7. Every plugin package must include a standardized `BBeBee.plugin.json` declaring 15 fields: `id`, `name`, `displayName`, `description`, `version`, `author`, `engines`, `enabled`, `dependencies`, `systemId` (`'layer-2'`-`'layer-5'`), `moduleId` (domain), `entry`, `capabilities`, `contributes`, `effect` (with optional `platforms`). Run `pnpm gen:plugins` after changes.
 
 ```ts
 import type { Context } from '@BBeBee/protocol'

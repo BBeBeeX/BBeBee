@@ -9,7 +9,7 @@ A service is a capability behind a stable key. Its **interface** is declared onc
 
 ```ts
 // packages/protocol/src/services/fs.ts
-export interface FsService { /* … see 04 … */ }
+export interface FsService { /* … see services/contracts.md … */ }
 
 declare module 'cordis' {
   interface Context {
@@ -88,7 +88,7 @@ another's requests, and cookies never cross a source boundary
 const confined = ctx.intercept('fs', { root: `plugins/${pluginId}`, mode: 'rw' })
 ```
 
-Interception is how the capability gate (§7) is implemented, and how per-plugin `store` and `fs`
+Interception is how [the capability gate](./capabilities.md#7-capability-model) is implemented, and how per-plugin `store` and `fs`
 namespaces are applied without every plugin having to remember to prefix its keys.
 
 ---

@@ -8,7 +8,7 @@
 
 ## 1. 分层模型
 
-共五层，从契约层起向上编号。这个编号本身就是词汇表：在本套文档的任何地方，"Layer 2"指的都是核心插件；而决定一个包获准书写哪些导入的，正是它所在的层。
+共六层（Layer 0 至 Layer 5），从契约层起向上编号。这个编号本身就是词汇表：在本套文档的任何地方，"Layer 2"指的都是核心插件；而决定一个包获准书写哪些导入的，正是它所在的层。
 
 让这套架构产生价值的规则是**依赖方向**：每条箭头都只朝下指，向下的调用不得跳过任何一层，而且有且只有一层获准触碰底下的机器。
 
@@ -68,12 +68,13 @@
 
 | 层 | 包 | 负责什么 | 可依赖 | 绝不 |
 |---|---|---|---|---|
-| **5 —— UI 与业务功能** | `apps/mobile`、`apps/desktop/renderer`、`plugin-*-ui-mobile`、`plugin-*-ui-desktop`、`ui-kit-*`、`ui-core`、`ui-parity`、`ui-tokens` | 页面、导航、手势与键盘，以及把一条用户意图转换成一系列功能调用的编排 | Layer 0–4 | 平台 SDK；内核的引导表面；SQL；HTTP；`console.*`；业务状态（[§6](#6-状态归属)） |
-| **4 —— 功能插件** | 无 UI 的 `plugin-*`（`plugin-player`、`plugin-dsp`、`plugin-sources`、`plugin-source-runtime`、`plugin-download`、`plugin-library`、`plugin-lyrics`、`plugin-cache`、`plugin-local-scanner`），外加位于其下、作为纯逻辑的 `source-rules` | 每个包承担一项业务能力，无 UI：状态、持久化、网络、事件 | Layer 0–3 | 平台 SDK；内核的引导表面；`console.*`；其他功能插件的内部 |
-| **3 —— 日志传输** | `packages/logs/*` —— `plugin-log-buffer`、`plugin-log-console`、`plugin-log-file` | 一行日志最终落在哪里，仅此而已。每个传输都订阅 `ctx.logger`；由外壳决定运行哪一个（[04 §16](../services/contracts.md)） | Layer 0–2 | 领域知识；平台 SDK。一个知道"曲目"为何物的传输就是一个功能插件 |
+| **5 —— UI 与业务功能** | `apps/mobile`、`apps/desktop/renderer`、`plugin-*-ui-mobile`、`plugin-*-ui-desktop`、`ui-kit-*`、`ui-core`、`ui-menus`、`ui-parity`、`ui-tokens` | 页面、导航、手势与键盘，以及把一条用户意图转换成一系列功能调用的编排 | Layer 0–4 | 平台 SDK；内核的引导表面；SQL；HTTP；`console.*`；业务状态（[§6](#6-状态归属)） |
+| **4 —— 功能插件** | 无 UI 的 `plugin-*`（`plugin-player`、`plugin-dsp`、`plugin-sources`、`plugin-source-runtime`、`plugin-source-local`、`plugin-download`、`plugin-library`、`plugin-album`、`plugin-now-playing`、`plugin-queue`、`plugin-lyrics`、`plugin-lyric-sources`、`plugin-cache`、`plugin-local-scanner`、`plugin-history`、`plugin-settings`、`plugin-theme`、`plugin-ui`、`plugin-mini-player`、`plugin-desktop-lyrics`、`plugin-desktop-taskbar`、`plugin-visualizer`、`plugin-sleep-timer`、`plugin-share`、`plugin-inspector`、`plugin-manager`），外加作为纯逻辑的 `source-rules` 与 `@BBeBee/toolkit` | 每个包承担一项业务能力，无 UI：状态、持久化、网络、事件 | Layer 0–3 | 平台 SDK；内核的引导表面；`console.*`；其他功能插件的内部 |
+| **3 —— 日志传输** | `packages/logs/*` —— `plugin-log-buffer`、`plugin-log-console`、`plugin-log-file` | 一行日志最终落在哪里，仅此而已。每个传输都订阅 `ctx.logger`；由外壳决定运行哪一个（[contracts.md §16](../services/contracts.md)） | Layer 0–2 | 领域知识；平台 SDK。一个知道"曲目"为何物的传输就是一个功能插件 |
 | **2 —— 核心插件** | `packages/core/*` | 每个服务键对应一项平台能力，每个键背后在每个目标上都恰有一份实现 | Layer 0–1 —— **直接** | 领域知识。核心插件不得知道"曲目"是什么 |
 | **1 —— 内核** | `@BBeBee/kernel` | Cordis `Context`、DI、fiber 与 effect、事件总线、配置加载、插件解析、能力门、核心迁移 | Layer 0（以及 Cordis） | 导入任何 `core-*` 或 `plugin-*`。内核不知道存在哪些插件 |
-| **0 —— 协议** | `@BBeBee/protocol` | 服务接口、实体类型、类型化事件表、常量，以及把实现钉在契约上的契约测试套件 | 什么都不依赖 | 发出运行时值；导入任何裸说明符（[09 §3](../workflow/structure.md#3-依赖规则)） |
+| **0 —— 协议** | `@BBeBee/protocol` | 服务接口、实体类型、类型化事件表、常量，以及把实现钉在契约上的契约测试套件 | 什么都不依赖 | 发出运行时值；导入任何裸说明符（[structure.md §3](../workflow/structure.md#3-依赖规则)） |
+| **模型之外** | `packages/sdk`（插件开发者公开 SDK）、`packages/tooling/*`（tooling-check-changed、tooling-create-plugin、tooling-fixtures、tooling-gen-plugins） | 公开 SDK 契约、脚手架、构建管道与测试固件 | 按需依赖各层 | 业务领域状态 |
 
 Layer 0 是承重的那一层。它是一个不含任何代码、呈 `.d.ts` 形态的包，正是这一点让 `core-fs-expo` 与 `core-fs-node` 可以互相替换而没有任何消费者需要以不同方式重新编译，也让其上的每一层都能在单元测试中被 mock。
 
@@ -90,11 +91,11 @@ Layer 0 是承重的那一层。它是一个不含任何代码、呈 `.d.ts` 形
 flowchart TD
     subgraph L5["Layer 5 — UI & business function"]
         S["apps/* shells"]
-        V["plugin-*-ui-* · ui-kit-* · ui-core"]
+        V["plugin-*-ui-* · ui-kit-* · ui-core · ui-menus"]
     end
     subgraph L4["Layer 4 — feature plugins"]
-        F1["player · queue · dsp"]
-        F2["source runtime · sources · library · scanner"]
+        F1["player · now playing · queue · dsp"]
+        F2["source runtime · sources · library · album · scanner"]
         F3["download · lyrics · cache"]
     end
     subgraph L3["Layer 3 — log transports"]
@@ -246,11 +247,15 @@ flowchart LR
 有两件事经由 `main` 中转，理由值得说明：
 
 - **HTTP。** 并不是因为渲染进程无法发起请求，而是渲染进程里的 `fetch` 受 CORS 约束，无法设置 `Origin`、`Referer`、`Cookie` 或自定义 `User-Agent`，而音乐后端几乎总是要求这四者。经由 `main` 还能获得真正的 cookie jar 与代理支持。
-- **仅此而已。** 插件在两个目标平台上都静态打包（[ADR-1](./overview.md#adr-1--插件在所有目标平台上都静态打包)），因此 `main` 不注册任何自定义协议，渲染进程也从不加载并非随应用一起发布的代码。为此所做的设计在 [03 §6.2](../plugins/loading.md#62-桌面端的附加设计--plugin-loader-dynamic) 中束之高阁；并没有接线启用。用户提供的行为以**源字符串**的形式到达——它们是数据——并在 `ctx.js` 里运行，而不是在渲染进程的 realm 里（[06 §8](../sources/runtime.md#8-信任导入的源能做什么不能做什么)）。
+- **本地媒体与外部动态插件。** 主进程注册了两个特权 scheme：
+  `bbebee-file://`（跨沙箱边界提供受路径约束与流式传输支持的本地音频及封面文件）与
+  `bbebee-plugin://`（从 `userData/installed-plugins/` 提供外部第三方桌面端插件）。
+  工作区内置插件则通过 Vite glob 导入（`getBuiltinPluginRegistry()`）动态发现，在桌面端彻底免除了静态代码生成，同时维持严格的 CSP（[loading.md §6.2](../plugins/loading.md#62-桌面端动态加载--plugin-loader-dynamic)）。
+  不受信任的源规则以**源字符串**形式到达，严格在 `ctx.js` 沙箱内运行，绝不在渲染进程 realm 执行（[runtime.md §8](../sources/runtime.md#8-信任导入的源能做什么不能做什么)）。
 
 ### 桌面端的进程与安全姿态
 
-渲染进程采用 `contextIsolation: true`、`nodeIntegration: false`、`sandbox: true`。preload 只暴露一个冻结的 `window.BBeBee` 对象，其方法都带有能力（capability）标记；内核按插件逐一包装它们（[03 §7](../plugins/capabilities.md#7-能力模型)）。应用源（origin）使用严格的 CSP——不存在用于加载外来代码的 scheme，因为没有任何东西加载外来代码。
+渲染进程采用 `contextIsolation: true`、`nodeIntegration: false`、`sandbox: true`。preload 暴露 `window.BBeBee` 与 `window.BBeBeeBridge` 对象，其方法都带有能力（capability）标记；内核按插件逐一包装它们（[capabilities.md §7](../plugins/capabilities.md#7-能力模型)）。应用源（origin）使用严格的 CSP。
 
 在这条底线之上，唯一的例外令牌是 `'wasm-unsafe-eval'`，它是为 `ctx.js` 而存在的。Chromium 把 `WebAssembly.instantiate` 卡在 `script-src` 上，因此没有它 QuickJS 就无法编译，渲染进程会在核心服务清单处中止。它只授予 WebAssembly 的编译权，**此外什么都不给**：`eval` 与 `new Function` 依旧被拒绝——这正是选用这个狭窄令牌、而不选同样能让 WASM 跑起来的 `'unsafe-eval'` 的原因。这笔交易是：为一个内部没有任何宿主对象图的 realm 换来一个编译器（[04 §19](../services/contracts.md)），而这正是整个音源模型所依赖的方向。
 
@@ -301,24 +306,22 @@ sequenceDiagram
 
 | 服务键 | `apps/mobile` 注册 | `apps/desktop` 注册 |
 |---|---|---|
-| `ctx.paths` | `core-paths-expo` | `core-paths-electron` |
-| `ctx.fs` | `core-fs-expo` | `core-fs-node` |
-| `ctx.http` | `core-http-rn` | `core-http-node` |
-| `ctx.ws` | `core-ws-rn` | `core-ws-node` |
-| `ctx.db` | `core-db-expo` | `core-db-node` |
-| `ctx.store` | `core-store-expo` | `core-store-electron` |
-| `ctx.secrets` | `core-secrets-expo` | `core-secrets-electron` |
+| `ctx.paths` | `core-paths-expo` | `PathsBridge`（`@BBeBee/core-desktop-bridge`）/ `core-paths-node` |
+| `ctx.fs` | `core-fs-expo` | `FsBridge`（`@BBeBee/core-desktop-bridge`）/ `core-fs-node` |
+| `ctx.store` | `core-store-fs` | `core-store-fs` |
+| `ctx.db` | `core-db-expo` | `DbBridge`（`@BBeBee/core-desktop-bridge`）/ `core-db-node` |
+| `ctx.http` | `core-http-rn`（含 WebSocket） | `core-http-node`（配合 `bridgeFetch` 与 WebSocket） |
+| `ctx.secrets` | `core-secrets-expo` | `core-secrets-node`（配合 `safeStorageCodec`） |
 | `ctx.mediaSession` | `core-media-session-rn` | `core-media-session-electron` |
-| `ctx.notify` | `core-notify-expo` | `core-notify-electron` |
 | `ctx.background` | `core-background-expo` | `core-background-electron` |
 | `ctx.device` | `core-device-expo` | `core-device-electron` |
-| `ctx.crypto` | `core-crypto-expo` | `core-crypto-node` |
-| `ctx.js` | `core-js-quickjs-rn` | `core-js-quickjs-node` |
 | `ctx.codec` | `core-codec-rn` | `core-codec-node` |
-| `ctx.shell` | `core-shell-expo` | `core-shell-electron` |
-| 插件加载 | `plugin-loader-static` | `plugin-loader-static` |
+| `ctx.js` | 内置 / 开发中 | `core-js-quickjs-node` |
+| `ctx.audio` | `MobileAudioService`（`core-audio-webaudio`, `core-audio-mpv`） | `DesktopAudioService`（`core-audio-mpv`, `core-audio-webaudio`） |
+| 插件加载 | 静态打包生成（`apps/mobile/generated/plugins.ts`） | Vite glob 动态发现（`getBuiltinPluginRegistry`）+ `bbebee-plugin://` 桥接 |
 
-加载器这一行在两个目标平台上完全相同，这正是修订后的 [ADR-1](./overview.md#adr-1--插件在所有目标平台上都静态打包)：插件图在任何地方都在构建期固定下来，用户在运行时添加的东西是**源字符串**，由 `plugin-source-runtime` 从 `sources` 表加载，而不是由加载器加载（[06 §4.1](../sources/runtime.md#41-一个源的生命周期)）。
+移动端使用 `apps/mobile/generated/plugins.ts` 静态生成插件集。桌面端通过 Vite glob 导入动态发现内置插件，并借助特权 `bbebee-plugin://` 协议加载外部第三方插件（[loading.md §6.2](../plugins/loading.md#62-桌面端动态加载--plugin-loader-dynamic)）。
+面向用户的音频源扩展以**源字符串**形式到达，由 `plugin-source-runtime` 在 `ctx.js` 沙箱中解释运行（[runtime.md §4.1](../sources/runtime.md#41-一个源的生命周期)）。
 
 ---
 
@@ -335,7 +338,7 @@ sequenceDiagram
 
 从这张表可以推出三条义务，对任何执行长任务的插件都不可妥协：
 
-1. **做检查点，不要只积累。** `download_tasks` 每写入一个分块就持久化一次 `bytesDone` 与续传令牌，因此传输中途被杀最多损失一个分块。见 [07 §4.7](../data-model/schema.md#48-下载)。
+1. **做检查点，不要只积累。** `download_tasks` 每写入一个分块就持久化一次 `bytesDone` 与续传令牌，因此传输中途被杀最多损失一个分块。见 [schema.md §4.8](../data-model/schema.md#48-下载)。
 2. **启动时恢复，不要假设连续性。** 启动时，手头有任务在飞的插件会发现它处于 `state = 'running'`，必须将其视为"被中断"，而不是"进行中"。
 3. **先询问，绝不臆断。** `ctx.background.canRunInBackground()` 与 `ctx.device.formFactor` 的存在，就是为了让插件能够优雅降级而不是悄然失败。需要安排每小时刷新的插件应通过 `ctx.background` 注册，它在移动端映射到操作系统的调度器，在桌面端则映射为普通的 interval。
 

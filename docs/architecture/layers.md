@@ -10,7 +10,7 @@
 
 ## 1. The layer model
 
-Five layers, numbered from the contracts upward. The number is vocabulary: "Layer 2" means core
+Six layers (Layer 0 to Layer 5), numbered from the contracts upward. The number is vocabulary: "Layer 2" means core
 plugins in every document here, and a package's layer is the thing that decides which imports it
 is allowed to write.
 
@@ -77,12 +77,13 @@ worth more than its shape.
 
 | Layer | Packages | Responsible for | May depend on | Never |
 |---|---|---|---|---|
-| **5 — UI & business function** | `apps/mobile`, `apps/desktop/renderer`, `plugin-*-ui-mobile`, `plugin-*-ui-desktop`, `ui-kit-*`, `ui-core`, `ui-parity`, `ui-tokens` | Pages, navigation, gestures and keyboard, and the orchestration that turns one user intent into a sequence of feature calls | Layers 0–4 | A platform SDK; the kernel's bootstrap surface; SQL; HTTP; `console.*`; domain state ([§6](#6-state-ownership)) |
-| **4 — Feature plugins** | headless `plugin-*` (`plugin-player`, `plugin-dsp`, `plugin-sources`, `plugin-source-runtime`, `plugin-download`, `plugin-library`, `plugin-album`, `plugin-now-playing`, `plugin-queue`, `plugin-lyrics`, `plugin-cache`, `plugin-local-scanner`), plus `source-rules` as pure logic beneath them | One business capability each, headless: state, persistence, networking, events | Layers 0–3 | A platform SDK; the kernel's bootstrap surface; `console.*`; another feature plugin's internals |
-| **3 — Log transports** | `packages/logs/*` — `plugin-log-buffer`, `plugin-log-console`, `plugin-log-file` | Where a log line ends up, and nothing else. Each subscribes to `ctx.logger`; the shell picks which run ([04 §16](../services/contracts.md)) | Layers 0–2 | Domain knowledge; a platform SDK. A transport that knew what a track was would be a feature |
+| **5 — UI & business function** | `apps/mobile`, `apps/desktop/renderer`, `plugin-*-ui-mobile`, `plugin-*-ui-desktop`, `ui-kit-*`, `ui-core`, `ui-menus`, `ui-parity`, `ui-tokens` | Pages, navigation, gestures and keyboard, and the orchestration that turns one user intent into a sequence of feature calls | Layers 0–4 | A platform SDK; the kernel's bootstrap surface; SQL; HTTP; `console.*`; domain state ([§6](#6-state-ownership)) |
+| **4 — Feature plugins** | headless `plugin-*` (`plugin-player`, `plugin-dsp`, `plugin-sources`, `plugin-source-runtime`, `plugin-source-local`, `plugin-download`, `plugin-library`, `plugin-album`, `plugin-now-playing`, `plugin-queue`, `plugin-lyrics`, `plugin-lyric-sources`, `plugin-cache`, `plugin-local-scanner`, `plugin-history`, `plugin-settings`, `plugin-theme`, `plugin-ui`, `plugin-mini-player`, `plugin-desktop-lyrics`, `plugin-desktop-taskbar`, `plugin-visualizer`, `plugin-sleep-timer`, `plugin-share`, `plugin-inspector`, `plugin-manager`), plus `source-rules` and `@BBeBee/toolkit` | One business capability each, headless: state, persistence, networking, events | Layers 0–3 | A platform SDK; the kernel's bootstrap surface; `console.*`; another feature plugin's internals |
+| **3 — Log transports** | `packages/logs/*` — `plugin-log-buffer`, `plugin-log-console`, `plugin-log-file` | Where a log line ends up, and nothing else. Each subscribes to `ctx.logger`; the shell picks which run ([contracts.md §16](../services/contracts.md)) | Layers 0–2 | Domain knowledge; a platform SDK. A transport that knew what a track was would be a feature |
 | **2 — Core plugins** | `packages/core/*` | One platform capability per service key, with one implementation per target behind each key | Layers 0–1 — **directly** | Domain knowledge. A core plugin must not know what a track is |
 | **1 — Kernel** | `@BBeBee/kernel` | The Cordis `Context`, DI, fibers and effects, the event bus, config loading, plugin resolution, the capability gate, core migrations | Layer 0 (and Cordis) | Importing any `core-*` or `plugin-*`. The kernel does not know which plugins exist |
-| **0 — Protocol** | `@BBeBee/protocol` | Service interfaces, entity types, the typed event map, constants, and the conformance suites that hold implementations to them | Nothing at all | Emitting a runtime value; importing any bare specifier ([09 §3](../workflow/structure.md#3-dependency-rules)) |
+| **0 — Protocol** | `@BBeBee/protocol` | Service interfaces, entity types, the typed event map, constants, and the conformance suites that hold implementations to them | Nothing at all | Emitting a runtime value; importing any bare specifier ([structure.md §3](../workflow/structure.md#3-dependency-rules)) |
+| **Outside model** | `packages/sdk` (plugin developer SDK), `packages/tooling/*` (tooling-check-changed, tooling-create-plugin, tooling-fixtures, tooling-gen-plugins) | Public SDK contracts, development scaffolds, build pipelines, and testing fixtures | Layers as needed | Domain state |
 
 Layer 0 is the load-bearing one. It is a `.d.ts`-shaped package with no code in it, which is what
 lets `core-fs-expo` and `core-fs-node` be substituted for one another without a single consumer
@@ -318,22 +319,20 @@ Two things route through `main` for reasons worth stating:
 - **HTTP.** Not because the renderer cannot fetch, but because a renderer `fetch` is subject to
   CORS and cannot set `Origin`, `Referer`, `Cookie`, or a custom `User-Agent`. Music backends
   routinely require all four. Going through `main` also gives a real cookie jar and proxy support.
-- **Nothing else.** Plugins are statically bundled on both targets
-  ([ADR-1](./overview.md#adr-1--plugins-are-statically-bundled-on-every-target)), so `main`
-  registers no custom protocol and the renderer never loads code it did not ship with. The design
-  for doing so is kept on the shelf in
-  [03 §6.2](../plugins/loading.md#62-desktop-additions--plugin-loader-dynamic); it is not wired
-  up. User-supplied behaviour arrives as **source strings**, which are data, and runs inside
-  `ctx.js` rather than in the renderer's realm
-  ([06 §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)).
+- **Local media and external dynamic plugins.** Main registers two privileged schemes:
+  `bbebee-file://` (serving local audio files and artwork across the sandbox boundary with path containment and stream support)
+  and `bbebee-plugin://` (serving external third-party desktop plugins from `userData/installed-plugins/`).
+  Built-in workspace plugins are discovered dynamically via Vite glob imports (`getBuiltinPluginRegistry()`),
+  eliminating static codegen on desktop while maintaining a strict CSP ([loading.md §6.2](../plugins/loading.md#62-desktop-dynamic-loading--plugin-loader-dynamic)).
+  Untrusted source rules arrive as **source strings** and execute strictly inside `ctx.js` rather than in the renderer's realm
+  ([runtime.md §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)).
 
 ### Process/security posture on desktop
 
 `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true` for the renderer. The preload
-exposes a single frozen `window.BBeBee` object whose methods are capability-tagged; the kernel
-wraps them per plugin ([03 §7](../plugins/capabilities.md#7-capability-model)). A strict CSP is served
-for the app origin — there is no scheme for loading foreign code, because nothing loads foreign
-code.
+exposes `window.BBeBee` and `window.BBeBeeBridge` whose methods are capability-tagged; the kernel
+wraps them per plugin ([capabilities.md §7](../plugins/capabilities.md#7-capability-model)). A strict CSP is served
+for the app origin.
 
 The one token beyond that floor is `'wasm-unsafe-eval'`, and it is there for `ctx.js`. Chromium
 gates `WebAssembly.instantiate` on `script-src`, so QuickJS cannot compile without it and the
@@ -403,28 +402,25 @@ The shells differ only in this table. It is the entire platform-specific surface
 
 | Service key | `apps/mobile` registers | `apps/desktop` registers |
 |---|---|---|
-| `ctx.paths` | `core-paths-expo` | `core-paths-electron` |
-| `ctx.fs` | `core-fs-expo` | `core-fs-node` |
-| `ctx.http` | `core-http-rn` | `core-http-node` |
-| `ctx.ws` | `core-ws-rn` | `core-ws-node` |
-| `ctx.db` | `core-db-expo` | `core-db-node` |
-| `ctx.store` | `core-store-expo` | `core-store-electron` |
-| `ctx.secrets` | `core-secrets-expo` | `core-secrets-electron` |
+| `ctx.paths` | `core-paths-expo` | `PathsBridge` (`@BBeBee/core-desktop-bridge`) / `core-paths-node` |
+| `ctx.fs` | `core-fs-expo` | `FsBridge` (`@BBeBee/core-desktop-bridge`) / `core-fs-node` |
+| `ctx.store` | `core-store-fs` | `core-store-fs` |
+| `ctx.db` | `core-db-expo` | `DbBridge` (`@BBeBee/core-desktop-bridge`) / `core-db-node` |
+| `ctx.http` | `core-http-rn` (includes WebSocket) | `core-http-node` (with `bridgeFetch` & WebSocket) |
+| `ctx.secrets` | `core-secrets-expo` | `core-secrets-node` (with `safeStorageCodec`) |
 | `ctx.mediaSession` | `core-media-session-rn` | `core-media-session-electron` |
-| `ctx.notify` | `core-notify-expo` | `core-notify-electron` |
 | `ctx.background` | `core-background-expo` | `core-background-electron` |
 | `ctx.device` | `core-device-expo` | `core-device-electron` |
-| `ctx.crypto` | `core-crypto-expo` | `core-crypto-node` |
-| `ctx.js` | `core-js-quickjs-rn` | `core-js-quickjs-node` |
 | `ctx.codec` | `core-codec-rn` | `core-codec-node` |
-| `ctx.shell` | `core-shell-expo` | `core-shell-electron` |
-| plugin loading | `plugin-loader-static` | `plugin-loader-static` |
+| `ctx.js` | Built-in / In development | `core-js-quickjs-node` |
+| `ctx.audio` | `MobileAudioService` (`core-audio-webaudio`, `core-audio-mpv`) | `DesktopAudioService` (`core-audio-mpv`, `core-audio-webaudio`) |
+| plugin loading | Static bundling via codegen (`apps/mobile/generated/plugins.ts`) | Dynamic discovery via Vite globs (`getBuiltinPluginRegistry`) + `bbebee-plugin://` bridge |
 
-The loader row is the same on both targets, which is
-[ADR-1](./overview.md#adr-1--plugins-are-statically-bundled-on-every-target) as amended: the
-plugin graph is fixed at build time everywhere, and the thing users add at runtime is a **source
-string**, loaded by `plugin-source-runtime` from the `sources` table rather than by a loader
-([06 §4.1](../sources/runtime.md#41-a-sources-lifetime)).
+Mobile uses static plugin generation via `apps/mobile/generated/plugins.ts`. Desktop
+discovers built-in plugins dynamically via Vite glob resolution and supports external third-party plugins
+via the privileged `bbebee-plugin://` scheme ([loading.md §6.2](../plugins/loading.md#62-desktop-dynamic-loading--plugin-loader-dynamic)).
+Extensibility for user-configured audio backends arrives as **source strings**,
+interpreted by `plugin-source-runtime` inside `ctx.js` ([runtime.md §4.1](../sources/runtime.md#41-a-sources-lifetime)).
 
 ---
 
@@ -444,7 +440,7 @@ Three obligations fall out of this table and are non-negotiable for any plugin d
 
 1. **Checkpoint, don't accumulate.** `download_tasks` persists `bytesDone` and a resume token
    after every chunk, so a kill mid-transfer costs one chunk. See
-   [07 §4.7](../data-model/schema.md#48-downloads).
+   [schema.md §4.8](../data-model/schema.md#48-downloads).
 2. **Resume on boot, don't assume continuity.** A plugin that had work in flight finds it in
    `state = 'running'` at startup and must treat that as "interrupted", not "in progress".
 3. **Ask, never assume.** `ctx.background.canRunInBackground()` and `ctx.device.formFactor` exist

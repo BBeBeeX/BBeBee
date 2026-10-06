@@ -14,10 +14,21 @@
 
 | 能力 | 授予 |
 |---|---|
-| `fs:read:<scope>` / `fs:write:<scope>` | 在命名作用域内的文件系统访问：`own`、`media`、`cache`、`downloads` 或 `all` |
-| `net:host/<pattern>` | 到匹配 glob 的主机的出站 HTTP **与 WebSocket** —— 一个授权同时管辖 `ctx.http` 与 `ctx.ws`。`net:host/*` 是一项宽泛授权，在授权提示中会被明确标注。包含一个**限定于本插件实例的持久化 cookie 罐**（[04 §2.1](../services/overview.md#21-cookie-罐)）—— 存储由核心服务持有，因此无需为此授予 `db` 或 `secrets`。匹配仅针对主机名（小写）；端口无法单独授权 |
+| `fs:read:<scope>` / `fs:write:<scope>` | 在命名作用域内的文件系统访问：`own`、`media`、`cache`、`downloads`、`logs` 或 `all` |
+| `net:host/<pattern>` | 到匹配 glob 的主机的出站 HTTP **与 WebSocket** —— 一个授权同时管辖 `ctx.http` 与 `ctx.ws`。`net:host/*` 是一项宽泛授权，在授权提示中会被明确标注。包含一个**限定于本插件实例的持久化 cookie 罐**（[services/overview.md §2.1](../services/overview.md#21-cookie-罐)）—— 存储由核心服务持有，因此无需为此授予 `db` 或 `secrets`。匹配仅针对主机名（小写）；端口无法单独授权 |
 | `db:own` | 完全归属自己的命名空间表 —— 读、写与建表（schema）皆可。索引、触发器与视图也算在内：它们按名称归属，因此一个插件的索引和它的表一样叫 `{{ns}}_…` |
 | `db:read:<ns>` / `db:write:<ns>` / `db:*:<ns>` | 按动词访问其他命名空间：`read` 是 `SELECT`，`write` 是 `INSERT`/`UPDATE`/`DELETE`，`*` 是二者再加 `CREATE`/`DROP`/`ALTER`。各动词**不**相互蕴含 —— 一个既要读又要写曲库的插件必须同时声明 `db:read:core` *和* `db:write:core`，这样安装时的授权提示才能准确说出它到底在请求什么。语句按其所作所为中要求最高的一档归类，因此 `DROP` 不可能躲在 `SELECT` 身后蒙混过关 |
+| `secrets:own` | 自己的凭据命名空间。不存在 `secrets:all`。仅需要登录态得以保存的插件并不需要它 —— `net:` 下的 cookie 罐已经覆盖了这一点 |
+| `js` | 可以在 `ctx.js` 中执行不受信任的脚本（[services/contracts.md §19](../services/contracts.md#19-ctxjs--沙箱化求值器)）。仅由 `plugin-source-runtime` 持有，别无他者。这项授权并不扩大被评估代码能触达的范围 —— 那由宿主 API 与每次求值的白名单固定 —— 它让*谁被允许运行它*变得可审计 |
+| `audio` | 可以向音频图贡献节点 |
+| `mediaSession` | 可以发布正在播放元数据并接收传输控制命令 |
+| `notify`、`shell`、`background` | 用户可见或操作系统级别的动作 |
+
+`store` 同样受中介，尽管它没有自己的能力项：拦截配置承载的是插件的**存储命名空间**，
+`ctx.store`、`ctx.secrets` 与 cookie 罐都以它为键，使一个插件在这三者中获得相同的命名空间
+（内核中的 `storageNamespace(config)`）。
+
+#### SQL 防护与拒绝策略
 
 无论授予了什么，以下三种拒绝一概生效，因为每一种都曾是绕过上表的一条路：
 
@@ -31,25 +42,16 @@
   那一个连接，而在桌面端这个连接活在 `main` 里。只有 `defer_foreign_keys`（迁移运行器需要
   它）和只读的自省 pragma 被允许；其余情况下 `sqlite_master` 仍可读。
 
-⚠️ 以上全部都是针对 SQLite 实际形态的正则匹配，不是解析器。它失败即关闭（fail closed）——
-无法归属的标识符一律视为外来的 —— 而且它防的是寻常失误与顺手越界，不是防一个存心尝试的
-作者，反正他与运行时共享同一空间。
-| `secrets:own` | 自己的凭据命名空间。不存在 `secrets:all`。仅需要登录态得以保存的插件并不需要它 —— `net:` 下的 cookie 罐已经覆盖了这一点 |
-| `js` | 可以在 `ctx.js` 中执行不受信任的脚本（[04 §19](../services/contracts.md#19-ctxjs--沙箱化求值器)）。仅由 `plugin-source-runtime` 持有，别无他者。这项授权并不扩大被评估代码能触达的范围 —— 那由宿主 API 与每次求值的白名单固定 —— 它让*谁被允许运行它*变得可审计 |
-| `audio` | 可以向音频图贡献节点 |
-| `mediaSession` | 可以发布正在播放元数据并接收传输控制命令 |
-| `notify`、`shell`、`background` | 用户可见或操作系统级别的动作 |
-
-`store` 同样受中介，尽管它没有自己的能力项：拦截配置承载的是插件的**存储命名空间**，
-`ctx.store`、`ctx.secrets` 与 cookie 罐都以它为键，使一个插件在这三者中获得相同的命名空间
-（内核中的 `storageNamespace(config)`）。
+> ⚠️ 以上全部都是针对 SQLite 实际形态的正则匹配，不是解析器。它失败即关闭（fail closed）——
+> 无法归属的标识符一律视为外来的 —— 而且它防的是寻常失误与顺手越界，不是防一个存心尝试的
+> 作者，反正他与运行时共享同一空间。
 
 > **`plugin-source-runtime` 上的 `net:host/*` 不是它看起来的样子。** 运行时持有这项宽泛授权，
 > 是因为在音源被导入之前无从得知主机名；随后它会**收窄**授权：每个音源被隔离的 `ctx.http`
 > 作用域都携带该音源自己的白名单 —— 其 `sourceUrl` 主机加上它声明的 `allowedHosts` —— 并由
 > `core-http-*` 执行二者中较窄的那个。计算出的 URL 指向未声明主机的规则会被拒绝，而且这份
 > 清单会在导入时展示给用户
-> （[06 §8](../sources/runtime.md#8-信任导入的源能做什么不能做什么)）。
+> （[runtime.md §8](../sources/runtime.md#8-信任导入的源能做什么不能做什么)）。
 
 ### 执行
 
@@ -75,24 +77,24 @@ function scopeContext(ctx: Context, opts: GrantOptions) {
 经 Cordis 的代理触达的，插件无法从拿到的引用出发遍历对象图来获得未加约束的引用。
 
 **授权只有在服务检查它的地方才是真的。** 在 `ctx.db` 调用门之前，`db:own` 只是一个没有含义
-的 manifest 字符串；在 `ctx.http` 这么做之前，`net:host/…` 也一样。服务尚不存在的地方，
-它的执行也不存在 —— 而安装提示却在承诺没有任何东西守住的承诺。下面是现状，让缺口可见，
-而不是被默认掩盖：
+的 manifest 字符串；在 `ctx.http` 这么做之前，`net:host/…` 也一样。当前各核心服务的执行状态如下：
 
 | 能力 | 由谁执行 | 状态 |
 |---|---|---|
 | `fs:read:<scope>` / `fs:write:<scope>` | `core-fs-node`、`core-fs-expo`、桥宿主 | ✅ |
 | `db:own`、`db:read:<ns>`、`db:write:<ns>`、`db:*:<ns>` | `core-db-node`、`core-db-expo`、桥宿主 | ✅ |
-| `net:host/<glob>` | `core-http-node`，在 `http/request` 瀑布之前*和*之后各检查一次，监听器无法洗白主机 | ✅ |
-| `audio` | `core-audio-webaudio` 在 `load` 与各变更器上 | ✅ |
-| `mediaSession`、`background`、`notify`、`shell` | — | ⏳ 服务尚不存在；在它们出现之前，授权只是声明性的 |
-| `secrets:own` | — | ⏳ M2，随 `ctx.secrets` 一起 |
-| `js`，以及 `net:host/…` 的按音源收窄 | `core-js-quickjs-*`、`core-http-*` | ⏳ M2，随音源运行时一起 |
+| `net:host/<glob>` | `core-http-node`、`core-http-rn`，在 `http/request` 瀑布之前*和*之后各检查一次 | ✅ |
+| `audio` | `core-audio-webaudio`、`core-audio-mpv` 在 `load` 与各变更器上 | ✅ |
+| `mediaSession`、`background` | `core-media-session-*`、`core-background-*` | ✅ |
+| `secrets:own` | `core-secrets-node`、`core-secrets-expo`、内核 `assertOwnNamespace` | ✅ |
+| `js`，以及 `net:host/…` 的按音源收窄 | `core-js-quickjs-node`、`core-http-*`、`plugin-source-runtime` | ✅ |
+| `notify`、`shell` | 平台宿主中介（`core-device-*`、桌面 bridge） | ✅ |
 
 ### 门默认关闭（fail closed）
 
 插件的 manifest 是*请求*，永远不是授权。加载器只为标记了 `builtin` 的插件采信 manifest
 —— 即随应用打包的第一方包。其余一切必须在 `capability_grants` 中有一条对应的记录；没有就
+拒绝并标记为 `ungranted` 而非加载。桌面端通过 `bbebee-plugin://` 动态加载的外部第三方插件均严格受此检查约束。
 拒绝加载并记为 `ungranted`，而不是放行。如今每个插件都是 `builtin`，所以这个分支只有测试
 会走到 —— 这恰恰是保留它的原因。
 

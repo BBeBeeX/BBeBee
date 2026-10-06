@@ -97,8 +97,8 @@ Every plugin may carry these (from Cordis's `Plugin.Base`):
 
 Three conventions on top of Cordis, enforced by the kernel and tooling:
 
-- Every plugin package ships a **standardized `BBeBee.plugin.json` manifest** ([loading.md §6.3](loading.md#63-standardized-manifest-specification-bbebeepluginjson)) with 14 standard fields:
-  `id`, `name`, `displayName`, `description`, `version`, `author`, `engines`, `enabled`, `dependencies`, `systemId`, `moduleId`, `entry`, `capabilities`, `contributes`, `effect`.
+- Every plugin package ships a **standardized `BBeBee.plugin.json` manifest** ([loading.md §6.3](loading.md#63-standardized-manifest-specification-bbebeepluginjson)) with 15 standard fields:
+  `id`, `name`, `displayName`, `description`, `version`, `author`, `engines`, `enabled`, `dependencies`, `systemId`, `moduleId`, `entry`, `capabilities`, `contributes`, `effect` (plus optional `platforms`).
   The `systemId` field assigns the package to its architectural layer stratum (`"layer-1"` through `"layer-5"`), while `moduleId` maps it to its functional domain (`"sources"`, `"playback"`, `"lyrics"`, `"dsp"`, `"storage"`, `"settings"`, `"inspector"`, etc.).
 - A plugin's **runtime module has a default export** that is the Cordis plugin, so the static loader on mobile and the dynamic loader on desktop treat every plugin identically.
 - **Dual-mode Loading Architecture**: Statically bundled on mobile via codegen (`apps/mobile/generated/plugins.ts`), while desktop dynamically discovers and loads all workspace built-ins via Vite dynamic globs (`getBuiltinPluginRegistry()`) and third-party plugins over the privileged `bbebee-plugin://` scheme without any static codegen file.

@@ -86,7 +86,7 @@ Desktop implements runtime dynamic loading for external third-party plugins whil
 
 ### 6.3 Standardized Manifest Specification (`BBeBee.plugin.json`)
 
-Every plugin package across all layers (Kernel, Core, Logs, Feature, UI) carries a standardized `BBeBee.plugin.json` containing 14 standard fields:
+Every plugin package across all layers (Kernel, Core, Logs, Feature, UI) carries a standardized `BBeBee.plugin.json` containing 15 standard fields (with optional `platforms`):
 
 | Field | Type | Description |
 |---|---|---|
@@ -96,15 +96,16 @@ Every plugin package across all layers (Kernel, Core, Logs, Feature, UI) carries
 | `description` | `string` | Clear description of the plugin's responsibilities |
 | `version` | `string` | Semantic version string (e.g. `"0.0.0"`) |
 | `author` | `string` | Author or organization (e.g. `"BBeBee Team"`) |
-| `engines` | `Record<string, string>` | Environment constraints (e.g. `{"node": ">=22.12.0"}`) |
+| `engines` | `Record<string, string>` | Environment constraints, requiring `"BBeBee"` engine version (e.g. `{"BBeBee": ">=0.1.0", "node": ">=22.12.0"}`) |
 | `enabled` | `boolean` | Default activation flag |
 | `dependencies` | `string[]` | Array of prerequisite plugin IDs required to be loaded |
 | `systemId` | `string` | Architectural layer stratum ID: `"layer-1"` through `"layer-5"` |
 | `moduleId` | `string` | Functional domain grouping: `"sources"`, `"playback"`, `"lyrics"`, `"storage"`, `"dsp"`, `"settings"`, `"inspector"`, `"share"`, `"ui"`, `"core"`, `"logs"` |
-| `entry` | `PluginEntry` | Entry paths (`{"main": "...", "desktop": "...", "mobile": "..."}`) |
+| `entry` | `PluginEntrypoints` | Entry paths (`{"main": "...", "ui": {"mobile"?: "...", "desktop"?: "..."}}`) |
 | `capabilities` | `Capability[]` | Capability grant requests (`["ui:component", "action:sources/*"]`) |
 | `contributes` | `PluginContributes` | Extension slots, routes, services schemas (`{"services": ["audio"], "routes": [...]}`) |
 | `effect` | `string \| null` | Core side effect tag (`"audio"`, `"fs"`, `"bridge"` or `null`) |
+| `platforms` | `PluginPlatform[]` | Optional platform target filter (`["desktop"]`, `["mobile"]`, or omitted for all) |
 
 > ⚠️ **Field Name Requirement:** The layer stratum ID is explicitly named **`systemId`** (not `subsystemId`).
 
@@ -118,6 +119,7 @@ Every plugin package across all layers (Kernel, Core, Logs, Feature, UI) carries
   "version": "0.0.0",
   "author": "BBeBee Team",
   "engines": {
+    "BBeBee": ">=0.1.0",
     "node": ">=22.12.0"
   },
   "enabled": true,
@@ -126,9 +128,12 @@ Every plugin package across all layers (Kernel, Core, Logs, Feature, UI) carries
   ],
   "systemId": "layer-5",
   "moduleId": "sources",
+  "platforms": ["desktop"],
   "entry": {
     "main": "./src/index.tsx",
-    "desktop": "./src/index.tsx"
+    "ui": {
+      "desktop": "./src/index.tsx"
+    }
   },
   "capabilities": [
     "ui:component",
@@ -167,13 +172,13 @@ plugins:
 Editing config disposes and rebuilds only the affected fibers.
 
 > **Music sources are not configured here.** They are rows in the `sources` table
-> ([07 §4.1](../data-model/urn.md#41-sources-accounts-and-sessions)), imported and edited in the app,
+> ([schema.md §4.1](../data-model/schema.md#41-sources-accounts-and-sessions)), imported and edited in the app,
 > and `plugin-source-runtime` gives each one its own fiber inside its own `ctx.isolate('http')`
 > scope (§5). Putting them in a config file would mean hand-editing JSON to add a server, and
 > would make "import this string" a developer action
-> ([06 §9](../sources/authoring.md#9-importing-updating-and-sharing)).
+> ([authoring.md §9](../sources/authoring.md#9-importing-updating-and-sharing)).
 
-### 6.5 Hot reload
+### 6.6 Hot reload
 
 In development, `@cordisjs/plugin-hmr` watches the workspace and reloads changed plugins in place.
 Because unload is total, this is genuinely equivalent to a restart for the affected subtree — the

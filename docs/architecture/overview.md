@@ -23,7 +23,7 @@ not a package at all — it is a JSON document the user imports, interpreted by 
 ([ADR-5](#adr-5--music-sources-are-imported-strings-interpreted-by-one-runtime)). Visually, the
 application follows an immersive dark-first streaming media aesthetic — pure black chrome, deep
 charcoal canvases, vibrant green playback accents, geometric grotesque typography, and pill-shaped
-interactive controls — detailed in [08 — UI Architecture](../ui/design-system.md#6-visual-design-language--design-tokens).
+interactive controls — detailed in [UI Architecture](../ui/design-system.md#6-multi-theme-color-system--visual-identity).
 
 ### Why build it this way
 
@@ -111,11 +111,11 @@ disables, and configures them. Extensibility for users lives in imported **sourc
 ([06](../sources/spec.md)), not in loadable plugin code.
 
 **Rejected — keep the desktop dynamic loader.** It works, and the design for it stands
-([03 §6.2](../plugins/loading.md#62-desktop-additions--plugin-loader-dynamic) keeps it on the
-shelf). Rejected as *current* scope because what it was for — sources — now arrives as data on
+([loading.md §6.2](../plugins/loading.md#62-desktop-dynamic-loading--plugin-loader-dynamic) details the desktop implementation).
+Rejected as *original* scope because what it was for — sources — now arrives as data on
 both platforms, and what remains for it (third-party effects, scrobblers, lyric providers) does
 not yet justify an install/update/quarantine flow, a capability-grant UI, and a per-plugin gate
-that [03 §7](../plugins/concepts.md#where-the-gate-actually-runs) admits does not hold on desktop.
+that [capabilities.md §7](../plugins/capabilities.md#where-the-gate-actually-runs) admits does not hold on desktop.
 
 **Rejected — runtime marketplace on both.** Same reasoning, plus: on iOS, downloading and
 executing new JavaScript requires an interpreter sandbox. That sandbox now exists for a different
@@ -219,7 +219,7 @@ escape hatch produces sources that *almost* work, and the workaround is worse th
   — is a core service that ships with the feature
   ([04 §19](../services/contracts.md#19-ctxjs--the-sandboxed-evaluator),
   [06 §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)). The plugin
-  system's own containment gap ([03 §7](../plugins/concepts.md#what-this-is-not)) gets its answer
+  system's own containment gap ([capabilities.md §7](../plugins/capabilities.md#what-this-is-not)) gets its answer
   as a side effect.
 - **ADR-1 loses its reason for existing** and is amended above.
 - **Diagnosis becomes a shipped feature.** When sources are user-owned, "why did this stop
@@ -266,5 +266,5 @@ Terms used with a precise meaning throughout these documents.
 
 ## 5. Where to go next
 
-[02 — Architecture](./layers.md) turns these decisions into a five-layer dependency
+[02 — Architecture](./layers.md) turns these decisions into a six-layer dependency
 model with its design principles, a per-platform runtime model, and a boot sequence.
