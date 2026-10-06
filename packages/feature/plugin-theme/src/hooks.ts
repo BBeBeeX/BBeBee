@@ -6,19 +6,20 @@ import { useCallback, useEffect, useState } from 'react'
 import type { Context } from '@BBeBee/kernel'
 import type { ColorTokens, ThemeDefinition, ThemeService } from '@BBeBee/protocol'
 import { defaultTheme } from '@BBeBee/ui-tokens'
+import { serviceOf } from '@BBeBee/toolkit/hooks'
 
 export function useTheme(ctx: Context): {
   theme: ThemeDefinition
   setTheme: (id: string) => Promise<void>
   registerTheme: (theme: ThemeDefinition) => () => void
 } {
-  const service = (ctx as unknown as { theme?: ThemeService }).theme
+  const service = serviceOf<ThemeService>(ctx, 'theme')
   const [theme, setLocalTheme] = useState<ThemeDefinition>(() =>
     service ? service.getCurrentTheme() : defaultTheme,
   )
 
   useEffect(() => {
-    const s = (ctx as unknown as { theme?: ThemeService }).theme
+    const s = serviceOf<ThemeService>(ctx, 'theme')
     if (!s) return
     setLocalTheme(s.getCurrentTheme())
 
@@ -30,7 +31,7 @@ export function useTheme(ctx: Context): {
 
   const setTheme = useCallback(
     async (id: string) => {
-      const s = (ctx as unknown as { theme?: ThemeService }).theme
+      const s = serviceOf<ThemeService>(ctx, 'theme')
       if (s) {
         await s.setTheme(id)
       }
@@ -40,7 +41,7 @@ export function useTheme(ctx: Context): {
 
   const registerTheme = useCallback(
     (newTheme: ThemeDefinition) => {
-      const s = (ctx as unknown as { theme?: ThemeService }).theme
+      const s = serviceOf<ThemeService>(ctx, 'theme')
       if (s) {
         return s.registerTheme(newTheme)
       }
@@ -58,13 +59,13 @@ export function useThemeTokens(ctx: Context): ColorTokens {
 }
 
 export function useThemeList(ctx: Context): readonly ThemeDefinition[] {
-  const service = (ctx as unknown as { theme?: ThemeService }).theme
+  const service = serviceOf<ThemeService>(ctx, 'theme')
   const [list, setList] = useState<readonly ThemeDefinition[]>(() =>
     service ? service.getThemes() : [defaultTheme],
   )
 
   useEffect(() => {
-    const s = (ctx as unknown as { theme?: ThemeService }).theme
+    const s = serviceOf<ThemeService>(ctx, 'theme')
     if (!s) return
     setList(s.getThemes())
 

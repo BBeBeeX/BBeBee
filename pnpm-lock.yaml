@@ -1462,6 +1462,9 @@ importers:
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
+      '@BBeBee/toolkit':
+        specifier: workspace:*
+        version: link:../toolkit
       '@BBeBee/ui-tokens':
         specifier: workspace:*
         version: link:../../ui/ui-tokens

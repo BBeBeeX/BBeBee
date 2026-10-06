@@ -38,6 +38,7 @@ import type {
 import { QueueModel, type QueueEntry } from './queue.js'
 import { PlayerStore } from './store.js'
 import { PLAYER_COMMANDS } from './contributions.js'
+import { serviceOf } from '@BBeBee/toolkit/hooks'
 
 export function derivePlayMode(shuffle: boolean, repeat: RepeatMode): PlayMode {
   if (shuffle) return 'shuffle'
@@ -423,9 +424,7 @@ export class Player extends Service implements PlayerService {
               max: 10,
               unit: '秒',
               when: () => {
-                const settings = (
-                  ownCtx as unknown as { settings?: { getSync(): AppSettings } }
-                ).settings
+                const settings = serviceOf<{ getSync(): AppSettings }>(ownCtx, 'settings')
                 return settings?.getSync()?.crossfadeEnabled ?? false
               },
             },

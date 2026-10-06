@@ -22,6 +22,7 @@ import {
   DEFAULT_VISUALIZER_SETTINGS,
 } from '@BBeBee/protocol'
 import { computeReverseDependents, flattenFiberNodes } from '@BBeBee/toolkit'
+import { serviceOf } from '@BBeBee/toolkit/hooks'
 
 /**
  * Structural subset of the inspector's fiber node — only the fields
@@ -196,7 +197,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     // Get current settings snapshot to determine configStatus
     let currentSettings: AppSettings | undefined
     try {
-      const settingsSvc = (this.ctx as unknown as { settings?: { getSync?(): AppSettings } }).settings
+      const settingsSvc = serviceOf<{ getSync?(): AppSettings }>(this.ctx, 'settings')
       if (settingsSvc?.getSync) {
         currentSettings = settingsSvc.getSync()
       }
@@ -206,9 +207,9 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
 
     const settingsContribs: readonly SettingsContribution[] = (() => {
       try {
-        const settingsSvc = (
-          this.ctx as unknown as { settings?: { getContributions?(): readonly SettingsContribution[] } }
-        ).settings
+        const settingsSvc = serviceOf<{
+          getContributions?(): readonly SettingsContribution[]
+        }>(this.ctx, 'settings')
         return settingsSvc?.getContributions?.() ?? []
       } catch {
         return []

@@ -16,7 +16,10 @@ import type {
   EffectDefinition,
   EffectParamValue,
   EffectSegment,
+  PlayerService,
+  SourcesService,
 } from '@BBeBee/protocol'
+import { serviceOf } from '@BBeBee/toolkit/hooks'
 import { BUILTIN_EFFECTS, TempoPitchEffect } from './effects/index.js'
 import { DSP_ROUTES } from './views.js'
 
@@ -141,8 +144,9 @@ export class DspPlugin extends Service implements DspService {
       const off = scoped.on('player/track-changed', (trackUrn) => {
         void this.handleTrackChanged(trackUrn, scoped)
       })
-      if (scoped['player']?.state?.trackUrn) {
-        void this.handleTrackChanged(scoped['player'].state.trackUrn, scoped)
+      const initialPlayer = serviceOf<PlayerService>(scoped, 'player')
+      if (initialPlayer?.state?.trackUrn) {
+        void this.handleTrackChanged(initialPlayer.state.trackUrn, scoped)
       }
       offTrackChanged = off
       return () => {
@@ -176,7 +180,8 @@ export class DspPlugin extends Service implements DspService {
             this.paramsState.set('normalize', current)
             void this.persistState()
             this.emitChainChanged()
-            const currentUrn = this.ctx['player']?.state?.trackUrn
+            const player = serviceOf<PlayerService>(this.ctx, 'player')
+            const currentUrn = player?.state?.trackUrn
             if (currentUrn) {
               void this.handleTrackChanged(currentUrn, this.ctx)
             }
@@ -287,14 +292,20 @@ export class DspPlugin extends Service implements DspService {
 
     if (effectId === 'normalize') {
       try {
-        if (typeof this.ctx['settings']?.update === 'function') {
-          void this.ctx['settings'].update({ loudnessNormalizationEnabled: on })
+        const settings = serviceOf<{ update(patch: Partial<AppSettings>): Promise<unknown> }>(
+          this.ctx,
+          'settings',
+        )
+        if (typeof settings?.update === 'function') {
+          void settings.update({ loudnessNormalizationEnabled: on })
         }
       } catch {
         // ignore
       }
-      if (on && this.ctx['player'] && this.ctx['sources']) {
-        const currentUrn = this.ctx['player'].state?.trackUrn
+      const player = serviceOf<PlayerService>(this.ctx, 'player')
+      const sources = serviceOf<SourcesService>(this.ctx, 'sources')
+      if (on && player && sources) {
+        const currentUrn = player.state?.trackUrn
         if (currentUrn) {
           void this.handleTrackChanged(currentUrn, this.ctx)
         }
@@ -326,8 +337,10 @@ export class DspPlugin extends Service implements DspService {
     this.emitChainChanged()
 
     if (effectId === 'normalize' && name !== 'gainDb') {
-      const currentUrn = this.ctx['player']?.state?.trackUrn
-      if (currentUrn && this.ctx['sources']) {
+      const player = serviceOf<PlayerService>(this.ctx, 'player')
+      const sources = serviceOf<SourcesService>(this.ctx, 'sources')
+      const currentUrn = player?.state?.trackUrn
+      if (currentUrn && sources) {
         void this.handleTrackChanged(currentUrn, this.ctx)
       }
     }
@@ -397,8 +410,10 @@ export class DspPlugin extends Service implements DspService {
     this.emitChainChanged()
 
     if (effectId === 'normalize') {
-      const currentUrn = this.ctx['player']?.state?.trackUrn
-      if (currentUrn && this.ctx['sources']) {
+      const player = serviceOf<PlayerService>(this.ctx, 'player')
+      const sources = serviceOf<SourcesService>(this.ctx, 'sources')
+      const currentUrn = player?.state?.trackUrn
+      if (currentUrn && sources) {
         void this.handleTrackChanged(currentUrn, this.ctx)
       }
     }
@@ -417,9 +432,10 @@ export class DspPlugin extends Service implements DspService {
     }
 
     let appliedDb = typeof params['fallbackGainDb'] === 'number' ? (params['fallbackGainDb'] as number) : 0
-    if (trackUrn && typeof scoped['sources']?.getTracks === 'function') {
+    const sources = serviceOf<SourcesService>(scoped, 'sources')
+    if (trackUrn && typeof sources?.getTracks === 'function') {
       try {
-        const [track] = await scoped['sources'].getTracks([trackUrn])
+        const [track] = await sources.getTracks([trackUrn])
         if (track) {
           const rawGain =
             mode === 'album'

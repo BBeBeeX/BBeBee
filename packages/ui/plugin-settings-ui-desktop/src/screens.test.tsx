@@ -5,8 +5,9 @@
 
 import { describe, expect, it, afterEach } from 'vitest'
 import { createElement as h } from 'react'
-import { fireEvent, render, cleanup, waitFor } from '@testing-library/react'
+import { fireEvent, render, cleanup, waitFor, act } from '@testing-library/react'
 import { Context, Service } from 'cordis'
+import { serviceOf } from '@BBeBee/toolkit/hooks'
 import type { AppSettings, SettingsService, SettingsContribution, CacheClass, CacheStats, ThemeDefinition, NowPlayingStyleMeta, LyricSourceDefinition, SourceRecord, PluginInfo, PluginManagerService } from '@BBeBee/protocol'
 import { DEFAULT_APP_SETTINGS, NOW_PLAYING_STYLES } from '@BBeBee/protocol'
 import { midnightPurpleTheme, spotifyTheme } from '@BBeBee/ui-tokens'
@@ -1082,5 +1083,157 @@ describe('SettingsScreen', () => {
     await waitFor(() => {
       expect(calls.includes('pluginManager:setEnabled:@BBeBee/plugin-theme:false')).toBe(true)
     })
+  })
+
+  it('renders playback tab safely under scoped context with missing optional services and schema field when predicates', async () => {
+    let currentSettings: AppSettings = { ...DEFAULT_APP_SETTINGS, crossfadeEnabled: false }
+
+    class SettingsStub extends Service implements Partial<SettingsService> {
+      private appCtx: Context
+      private contributions: SettingsContribution[] = []
+
+      constructor(ctx: Context) {
+        super(ctx, 'settings')
+        this.appCtx = ctx
+      }
+
+      get = async (): Promise<AppSettings> => currentSettings
+      getSync = (): AppSettings => currentSettings
+      update = async (patch: Partial<AppSettings>): Promise<AppSettings> => {
+        currentSettings = { ...currentSettings, ...patch }
+        this.appCtx.emit('settings/changed', currentSettings)
+        return currentSettings
+      }
+      reset = async (): Promise<AppSettings> => {
+        currentSettings = { ...DEFAULT_APP_SETTINGS }
+        this.appCtx.emit('settings/changed', currentSettings)
+        return currentSettings
+      }
+      onSettingsChange = (callback: (settings: AppSettings) => void) => {
+        return this.appCtx.on('settings/changed', callback)
+      }
+      contribute = (c: SettingsContribution) => {
+        this.contributions.push(c)
+        this.appCtx.emit('settings/contributions-changed', this.contributions)
+        return () => {
+          this.contributions = this.contributions.filter((item) => item.id !== c.id)
+          this.appCtx.emit('settings/contributions-changed', this.contributions)
+        }
+      }
+      getContributions = (): readonly SettingsContribution[] => this.contributions
+    }
+
+    class UiStub extends Service {
+      public views = new Map<string, unknown>()
+      public settings: SettingsContribution[] = []
+      constructor(ctx: Context) {
+        super(ctx, 'ui')
+      }
+      navigate = () => {}
+      viewFor = (id: string) => this.views.get(id)
+      registerView = (id: string, component: unknown) => {
+        this.views.set(id, component)
+        return () => {
+          this.views.delete(id)
+        }
+      }
+    }
+
+    class DummyAudioStub extends Service {
+      constructor(ctx: Context) {
+        super(ctx, 'audio')
+      }
+    }
+
+    const root = new Context()
+    await root.plugin(SettingsStub)
+    await root.plugin(UiStub)
+    await root.plugin(DummyAudioStub)
+
+    let settingsScoped: Context | undefined
+    root.inject(['ui', 'settings'], (s) => void (settingsScoped = s))
+
+    let playerScoped: Context | undefined
+    root.inject(['audio'], (s) => void (playerScoped = s))
+
+    await new Promise((r) => setTimeout(r, 0))
+    if (!settingsScoped || !playerScoped) {
+      throw new Error('Failed to create scoped contexts')
+    }
+
+    // 1. Assert Cordis invariant: accessing ctx.settings directly on playerScoped throws
+    expect(() => (playerScoped as unknown as { settings: unknown }).settings).toThrow(
+      /cannot get property "settings" without inject/,
+    )
+
+    // 2. Assert that serviceOf(playerScoped, 'settings') safely accesses the service
+    const settingsSvc = serviceOf<SettingsService>(playerScoped, 'settings')
+    expect(settingsSvc).toBeDefined()
+
+    // 3. Register real-world player.transition contribution with when predicate using serviceOf
+    settingsSvc!.contribute({
+      id: 'player.transition',
+      section: 'playback',
+      title: '过渡与衔接',
+      fields: [
+        { key: 'gaplessPlayback', type: 'switch', label: '无缝播放 (Gapless Playback)' },
+        { key: 'crossfadeEnabled', type: 'switch', label: '曲目交叉淡入淡出 (Crossfade)' },
+        {
+          key: 'crossfadeDurationSeconds',
+          type: 'slider',
+          label: '淡入淡出持续时间',
+          min: 1,
+          max: 10,
+          unit: '秒',
+          when: () => {
+            return (
+              serviceOf<{ getSync(): AppSettings }>(playerScoped!, 'settings')?.getSync()
+                ?.crossfadeEnabled ?? false
+            )
+          },
+        },
+      ],
+    })
+
+    // 4. Register a card whose view is missing (tests graceful degradation)
+    settingsSvc!.contribute({
+      id: 'settings.missing-card',
+      section: 'playback',
+      title: '未提供视图的扩展卡片',
+      display: 'card',
+    })
+
+    // 5. Render SettingsScreen with scoped context (only has ui and settings, no audio output devices, no dsp)
+    const { findByText, getByText, queryByText } = render(h(SettingsScreen, { ctx: settingsScoped }))
+
+    // 6. Switch to Playback tab
+    const playbackTab = await findByText('播放与音频')
+    fireEvent.click(playbackTab)
+
+    // 7. Verify Playback tab rendered safely without throwing
+    expect(await findByText('音频输出引擎与设备')).toBeTruthy()
+
+    // Degradation 1: Audio device falls back to placeholder when audio service is not providing devices
+    expect(getByText('当前输出目的地：音频输出设备')).toBeTruthy()
+
+    // Degradation 2: Missing card view renders fallback badge
+    expect(getByText('未提供视图的扩展卡片')).toBeTruthy()
+    expect(getByText('在此平台不可用')).toBeTruthy()
+
+    // Schema form fields render safely
+    expect(getByText('过渡与衔接')).toBeTruthy()
+    expect(getByText('无缝播放 (Gapless Playback)')).toBeTruthy()
+    expect(getByText('曲目交叉淡入淡出 (Crossfade)')).toBeTruthy()
+
+    // Since crossfadeEnabled is false, slider is not rendered
+    expect(queryByText('淡入淡出持续时间')).toBeNull()
+
+    // 8. Dynamically update crossfadeEnabled to true -> when predicate re-evaluates via serviceOf
+    await act(async () => {
+      await settingsSvc!.update({ crossfadeEnabled: true })
+    })
+
+    // Slider now renders!
+    expect(await findByText('淡入淡出持续时间')).toBeTruthy()
   })
 })
