@@ -1,5 +1,5 @@
-import { createElement as h, type ReactElement } from 'react'
 import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { createElement as h, type ReactElement } from 'react'
 
 export interface PluginSearchBoxProps {
   value: string

@@ -3,12 +3,12 @@
  * Live in-app log viewer reading from `ctx.logBuffer`.
  */
 
+import { Button } from '@BBeBee/ui-kit-desktop'
 import { createElement as h, useEffect, useMemo, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { serviceOf } from '@BBeBee/ui-core'
 import type { UiService, LogLevel, LogRecord } from '@BBeBee/protocol'
-import { Button } from '@BBeBee/ui-kit-desktop'
 
 interface LogBufferService {
   all: readonly LogRecord[]

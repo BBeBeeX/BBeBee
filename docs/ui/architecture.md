@@ -125,8 +125,45 @@ export interface SettingsContribution {
   /** Presentation mode: 'card' (embedded custom card), 'link' (action navigation row), 'auto' */
   display?: 'card' | 'link' | 'auto'
   action?: () => void | Promise<void>
-  /** Auto-rendered form schema (when no custom view is registered) */
+  /** Validation/defaults schema (Standard Schema). UI metadata comes from `fields`. */
   schema?: ParamSchema
+  /**
+   * Field descriptors for a generic, auto-rendered form — the data-driven
+   * alternative to shipping a custom card view. Simple key/value
+   * configuration MUST be declared this way, never as a hand-written form
+   * component. Values default to the settings document addressed by dot path
+   * (`proxy.host`), overridable per contribution with `getValues` (read) and
+   * `onFieldChange` (write).
+   */
+  fields?: readonly SettingsFieldDescriptor[]
+  /** Events that re-resolve the contribution's async field data. */
+  refreshEvents?: readonly string[]
+}
+
+export interface SettingsFieldDescriptor {
+  /** Dot path of the value within the config document (e.g. 'proxy.host'). */
+  key: string
+  label: string
+  description?: string
+  /** Control to render; unknown types fall back to 'text'. */
+  type: 'switch' | 'select' | 'slider' | 'text' | 'number' | 'color'
+    | 'directory' | 'action' | 'switch-list'
+  options?: readonly { value: string | number; label: string }[]
+  /** Async choices for 'select' (e.g. output devices). */
+  optionsAsync?: () => Promise<readonly { value: string | number; label: string }[]>
+  /** Dynamic boolean sub-rows for 'switch-list' (e.g. per-source proxy rules). */
+  entriesAsync?: () => Promise<readonly { id: string; label: string; description?: string }[]>
+  /** Dynamically computed note under the row (usage sizes, degradation notices). */
+  noteAsync?: () => Promise<string | undefined>
+  min?: number
+  max?: number
+  step?: number
+  unit?: string
+  placeholder?: string
+  actionText?: string
+  onAction?: () => { ok: boolean; message: string } | void | Promise<{ ok: boolean; message: string } | void>
+  /** Sync, cheap visibility predicate evaluated during render (as slot `when`). */
+  when?: () => boolean
 }
 
 export interface MenuContribution {
@@ -218,7 +255,7 @@ export type SlotId =
 
 > **Decoupled Bottom Bar Actions, Settings, and TopBar Tray**:
 > - Icons on the right side of the bottom player bar (Picture-in-Picture/mini player, floating lyrics toggle, play queue) are never hardcoded in `NowPlayingBar`. Instead, each plugin contributes its action button to the `'now-playing.actions'` slot and registers its view. The bar dynamically queries `ctx.ui.slotsFor('now-playing.actions')`, filtering with `when` and sorting by `order`.
-> - Feature plugin settings (such as DSP effects, cache management, source configuration) are dynamically contributed via `ctx.ui.contribute({ kind: 'settings', ... })` or `ctx.settings.contribute(...)` instead of hardcoded into the Settings screens.
+> - Feature plugin settings (such as DSP effects, cache management, source configuration) are dynamically contributed via `ctx.ui.contribute({ kind: 'settings', ... })` or `ctx.settings.contribute(...)` instead of hardcoded into the Settings screens. The settings screen source contains **no business fields owned by other plugins**: simple key/value config is declared as `fields` descriptors (the screen auto-renders a generic form — Boolean→Switch, Enum→Select, Number→Slider, Text→Input, Action→Button), while complex interactions (the desktop-lyrics live preview) use `display: 'card'` plus a view registered in that plugin's own UI package; a target with no view shows "not available on this platform" instead of a hole. Platform settings with no owning feature (closeToTray, proxy, User-Agent, audio engine/device) are contributed by the composition roots (`apps/*/boot.ts`) — which are exactly their appliers.
 > - The desktop TopBar includes a Windows-like system tray toggle button beside the "Import & Share" button. It renders a downward arrow (`chevron-down`) when collapsed and an upward arrow (`chevron-up`) when expanded. Plugins self-determine whether they need to display in the main interface tray via `placement: ['tray']` on their route or via `TrayContribution`. Clicking a plugin icon in the tray popover triggers `ctx.ui.navigate(...)` to navigate the main view to that plugin's screen and closes the tray. Settings uses exactly this path: its route carries `'tray'` placement, so 设置 appears in the tray without any TopBar-specific code.
 
 Slot rendering is where a plugin's UI actually shows up:

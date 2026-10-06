@@ -1,8 +1,8 @@
+import { Button } from '@BBeBee/ui-kit-desktop'
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { SettingsContribution } from '@BBeBee/protocol'
-import { Button } from '@BBeBee/ui-kit-desktop'
 import { SettingsRow } from '../SettingsRow.js'
 import { SettingsSection } from '../SettingsSection.js'
 

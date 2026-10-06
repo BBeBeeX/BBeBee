@@ -1,6 +1,6 @@
+import { tablerIcon } from '@BBeBee/ui-kit-desktop'
 import { createElement as h } from 'react'
 import type { ReactElement, ReactNode } from 'react'
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
 
 export interface SettingsRowProps {
   title: string

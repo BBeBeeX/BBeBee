@@ -7,6 +7,8 @@
 export const SETTINGS_VIEWS = {
   /** The main settings dashboard. */
   main: 'settings.view',
+  /** The global shortcuts card (owner: plugin-settings itself). */
+  shortcutsCard: 'settings.shortcuts',
   /** Debug info dashboard. */
   debug: 'debug.view',
   /** System logs viewer. */

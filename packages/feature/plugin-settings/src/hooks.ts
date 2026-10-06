@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Context } from 'cordis'
 import { serviceOf } from '@BBeBee/toolkit/hooks'
+import { getPath, setPath } from '@BBeBee/toolkit'
 import type {
   AppSettings,
   CacheService,
@@ -167,8 +168,7 @@ export function useCacheStats(ctx: Context): UseCacheStatsResult {
   return { usage, loading, clear, refresh }
 }
 
-export function useAvailableSettings(ctx: Context): readonly SettingsContribution[] {
-  const read = () => {
+export function useAvailableSettings(ctx: Context): readonly SettingsContribution[] {  const read = () => {
     const list: SettingsContribution[] = []
     const seen = new Set<string>()
 
@@ -207,4 +207,49 @@ export function useAvailableSettings(ctx: Context): readonly SettingsContributio
   }, [ctx])
 
   return list
+}
+
+export interface UseSettingsFieldsResult {
+  /** Current values keyed by the contribution's field dot paths. */
+  values: Record<string, unknown>
+  /** Commits one field, honouring the contribution's write override. */
+  change: (key: string, value: unknown) => Promise<void> | void
+}
+
+/**
+ * The read/write binding a generic settings form needs for one schema-driven
+ * contribution. Values default to the settings document addressed by dot
+ * path; a contribution may override either end (`getValues`, `onFieldChange`)
+ * for configuration it keeps in its own service.
+ *
+ * React holds no business state here — the settings document stays owned by
+ * the settings service, and the hook only subscribes to it.
+ */
+export function useSettingsFields(
+  ctx: Context,
+  contribution: SettingsContribution,
+): UseSettingsFieldsResult {
+  const { settings, update } = useAppSettings(ctx)
+
+  const values = contribution.getValues
+    ? contribution.getValues()
+    : contribution.fields
+      ? Object.fromEntries(
+          contribution.fields
+            .filter((f) => f.type !== 'action')
+            .map((f) => [f.key, getPath(settings, f.key)]),
+        )
+      : {}
+
+  const change = useCallback(
+    (key: string, value: unknown) => {
+      if (contribution.onFieldChange) {
+        return contribution.onFieldChange(key, value)
+      }
+      void update(setPath({}, key, value) as Partial<AppSettings>)
+    },
+    [contribution, update],
+  )
+
+  return { values, change }
 }

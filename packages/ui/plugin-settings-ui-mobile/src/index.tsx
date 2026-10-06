@@ -5,11 +5,12 @@
 import { createElement as h, useState } from 'react'
 import type { ReactElement, ReactNode } from 'react'
 import type { Context } from 'cordis'
-import type { SettingsContribution, UiService } from '@BBeBee/protocol'
+import type { UiService } from '@BBeBee/protocol'
 import { SETTINGS_VIEWS } from '@BBeBee/plugin-settings/views'
 import { useAppSettings, useAvailableSettings, useCacheStats } from '@BBeBee/plugin-settings/hooks'
-import { Button, Slider, Text, nativePrimitives } from '@BBeBee/ui-kit-mobile'
+import { Button, Text, nativePrimitives } from '@BBeBee/ui-kit-mobile'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
+import { ContributionBlock, groupBySection } from './ContributionBlock.js'
 
 const p = () => palettes.dark
 
@@ -26,6 +27,7 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
   const { settings, update, reset } = useAppSettings(ctx)
   const { usage, clear } = useCacheStats(ctx)
   const availableSettings = useAvailableSettings(ctx)
+  const grouped = groupBySection(availableSettings)
 
   const [clearingCache, setClearingCache] = useState(false)
   const [confirmingReset, setConfirmingReset] = useState(false)
@@ -109,57 +111,6 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
       control,
     )
 
-  const renderContribution = (c: SettingsContribution) => {
-    if (c.display === 'card') {
-      const Card = (ctx as { ui?: UiService })?.ui?.viewFor?.(c.id) as
-        | React.ComponentType<{ ctx: Context }>
-        | undefined
-      if (Card) {
-        return h(Card, { key: c.id, ctx })
-      }
-    }
-    return renderRow(
-      c.title,
-      c.description,
-      h(Button, {
-        variant: 'secondary',
-        children: c.actionText ?? '打开',
-        onPress: () => {
-          if (c.action) {
-            c.action()
-          } else {
-            handleNavigate(c.id)
-          }
-        },
-      }),
-    )
-  }
-
-  const renderToggle = (checked: boolean, onToggle: () => void) =>
-    h(
-      native.Pressable as never,
-      {
-        onPress: onToggle,
-        style: {
-          width: 48,
-          height: 26,
-          borderRadius: 13,
-          backgroundColor: checked ? p().accent.base : 'rgba(255, 255, 255, 0.15)',
-          justifyContent: 'center',
-          padding: 2,
-        },
-      },
-      h(native.View as never, {
-        style: {
-          width: 22,
-          height: 22,
-          borderRadius: 11,
-          backgroundColor: '#ffffff',
-          transform: [{ translateX: checked ? 22 : 0 }],
-        },
-      }),
-    )
-
   return h(
     native.View as never,
     {
@@ -181,29 +132,6 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
     // 1. General Section
     renderSectionHeader('外观与语言', '主题视觉模式及多语言配置'),
     renderCard([
-      renderRow(
-        '主题模式',
-        settings.theme === 'dark' ? '深色模式' : settings.theme === 'light' ? '浅色模式' : '跟随系统',
-        h(
-          native.View as never,
-          { style: { flexDirection: 'row', gap: tokens.space[1] } },
-          h(Button, {
-            variant: settings.theme === 'dark' ? 'primary' : 'secondary',
-            onPress: () => void update({ theme: 'dark' }),
-            children: '深色',
-          }),
-          h(Button, {
-            variant: settings.theme === 'light' ? 'primary' : 'secondary',
-            onPress: () => void update({ theme: 'light' }),
-            children: '浅色',
-          }),
-          h(Button, {
-            variant: settings.theme === 'system' ? 'primary' : 'secondary',
-            onPress: () => void update({ theme: 'system' }),
-            children: '自动',
-          }),
-        ),
-      ),
       renderRow(
         '界面语言',
         settings.language === 'zh' ? '简体中文' : settings.language === 'en' ? 'English' : '跟随系统',
@@ -229,40 +157,14 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
       ),
     ]),
 
+    // General contributions (theme mode, profile, ...) rendered from descriptors
+    ...(grouped.get('general') ?? []).map((c) =>
+      h(ContributionBlock, { key: c.id, ctx, contribution: c, onNavigate: handleNavigate }),
+    ),
+
     // 2. Playback Section
     renderSectionHeader('播放与音频', '音频流衔接与播放行为'),
     renderCard([
-      renderRow(
-        '无缝播放 (Gapless)',
-        '消除歌曲之间的间隙',
-        renderToggle(settings.gaplessPlayback, () =>
-          void update({ gaplessPlayback: !settings.gaplessPlayback }),
-        ),
-      ),
-      renderRow(
-        '曲目淡入淡出 (Crossfade)',
-        '过渡播放时音量平滑交叠',
-        renderToggle(settings.crossfadeEnabled, () =>
-          void update({ crossfadeEnabled: !settings.crossfadeEnabled }),
-        ),
-      ),
-      settings.crossfadeEnabled
-        ? h(
-            native.View as never,
-            { style: { gap: tokens.space[1] } },
-            h(Text, {
-              variant: 'xs',
-              tone: 'muted',
-              children: `淡入淡出持续时间: ${settings.crossfadeDurationSeconds} 秒`,
-            }),
-            h(Slider, {
-              value: settings.crossfadeDurationSeconds,
-              max: 10,
-              accessibilityLabel: '淡入淡出时间',
-              onChange: (sec) => void update({ crossfadeDurationSeconds: Math.max(1, Math.round(sec)) }),
-            }),
-          )
-        : null,
       renderRow(
         '音频输出引擎',
         'WebAudio 系统原生引擎 (iOS CoreAudio / Android Oboe)',
@@ -282,25 +184,12 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
           }),
         ),
       ),
-      renderRow(
-        '拔出耳机时自动暂停',
-        '断开音频设备时自动暂停播放',
-        renderToggle(settings.pauseOnUnplug, () =>
-          void update({ pauseOnUnplug: !settings.pauseOnUnplug }),
-        ),
-      ),
     ]),
 
-    // Playback / Audio contributed cards & links
-    ...playbackContribs.map((c) => {
-      if (c.display === 'card') {
-        const Card = (ctx as { ui?: UiService })?.ui?.viewFor?.(c.id) as
-          | React.ComponentType<{ ctx: Context }>
-          | undefined
-        if (Card) return h(Card, { key: c.id, ctx })
-      }
-      return renderCard([renderContribution(c)])
-    }),
+    // Playback / Audio contributed cards, links and schema forms
+    ...playbackContribs.map((c) =>
+      renderCard([h(ContributionBlock, { key: c.id, ctx, contribution: c, onNavigate: handleNavigate })]),
+    ),
 
     // 3. Sources Section (if any contributions exist)
     sourcesContribs.length > 0
@@ -308,7 +197,7 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
           native.View as never,
           { key: 'section-sources' },
           renderSectionHeader('曲库与来源', '音乐来源管理与导入'),
-          renderCard(sourcesContribs.map((c) => renderContribution(c))),
+          renderCard(sourcesContribs.map((c) => h(ContributionBlock, { key: c.id, ctx, contribution: c, onNavigate: handleNavigate }))),
         )
       : null,
 
@@ -326,7 +215,7 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
           children: '清除缓存',
         }),
       ),
-      ...storageContribs.map((c) => renderContribution(c)),
+      ...storageContribs.map((c) => h(ContributionBlock, { key: c.id, ctx, contribution: c, onNavigate: handleNavigate })),
     ]),
 
     // 5. Custom Sections contributed by plugins
@@ -336,7 +225,7 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
         native.View as never,
         { key: secId },
         renderSectionHeader(secId.charAt(0).toUpperCase() + secId.slice(1)),
-        renderCard(secContribs.map((c) => renderContribution(c))),
+        renderCard(secContribs.map((c) => h(ContributionBlock, { key: c.id, ctx, contribution: c, onNavigate: handleNavigate }))),
       )
     }),
 

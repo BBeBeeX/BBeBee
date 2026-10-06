@@ -22,6 +22,8 @@ export const LIBRARY_VIEWS = {
   favorites: 'library.favorites',
   /** Local files on this device. */
   local: 'library.local',
+  /** The local user profile card in the settings screen. */
+  profileSettings: 'library.profile',
 } as const
 
 /** Routes are the same ids, because a route is what the shells navigate to. */

@@ -11,6 +11,7 @@ import type { AppSettings, SettingsService, SettingsContribution, CacheClass, Ca
 import { DEFAULT_APP_SETTINGS, NOW_PLAYING_STYLES } from '@BBeBee/protocol'
 import { midnightPurpleTheme, spotifyTheme } from '@BBeBee/ui-tokens'
 import { SettingsScreen } from './SettingsScreen.js'
+import { ShortcutsCard } from './components/ShortcutsCard.js'
 import { DebugScreen } from './DebugScreen.js'
 import { LogsScreen } from './LogsScreen.js'
 import { HttpLogsScreen } from './HttpLogsScreen.js'
@@ -499,6 +500,63 @@ async function harness(initialSettings: Partial<AppSettings> = {}) {
 }
 
 describe('SettingsScreen', () => {
+  it('aggregates general-section contributions from other plugins', async () => {
+    const { ctx, calls } = await harness()
+    const ui = ctx.get('ui') as unknown as { registerView(id: string, c: unknown): void }
+    const settingsSvc = ctx.get('settings') as unknown as {
+      contribute(c: SettingsContribution): void
+    }
+
+    // A plugin's schema-driven contribution and another plugin's card — the
+    // screen renders whatever is contributed, owning none of it.
+    settingsSvc.contribute({
+      id: 'mock.general.fields',
+      section: 'general',
+      title: 'Mock 外观',
+      order: 5,
+      fields: [{ key: 'language', type: 'select', label: 'Mock 语言', options: [
+        { value: 'zh', label: '简体中文' },
+        { value: 'en', label: 'English' },
+      ] }],
+    })
+    const MockCard = () => h('div', { 'data-testid': 'mock-general-card' }, 'mock card body')
+    ui.registerView('mock.general.card', MockCard)
+    settingsSvc.contribute({
+      id: 'mock.general.card',
+      section: 'general',
+      title: 'Mock 卡片',
+      display: 'card',
+      order: 6,
+    })
+
+    const { getByTestId, container, findByText } = render(h(SettingsScreen, { ctx }))
+    await findByText('Mock 外观')
+    expect(getByTestId('mock-general-card')).toBeTruthy()
+
+    // The schema field writes through the settings document by dot path.
+    const select = container.querySelector('select[aria-label="Mock 语言"]') as HTMLSelectElement
+    fireEvent.change(select, { target: { value: 'en' } })
+    await waitFor(() => {
+      expect(calls.some((c) => c.includes('"language":"en"'))).toBe(true)
+    })
+  })
+
+  it('shows the unavailable state for a card whose view is missing on this target', async () => {
+    const { ctx } = await harness()
+    const settingsSvc = ctx.get('settings') as unknown as {
+      contribute(c: SettingsContribution): void
+    }
+    settingsSvc.contribute({
+      id: 'mock.general.noview',
+      section: 'general',
+      title: '无视图卡片',
+      display: 'card',
+    })
+
+    const { findByText } = render(h(SettingsScreen, { ctx }))
+    expect(await findByText('在此平台不可用')).toBeTruthy()
+  })
+
   it('renders tabs and general settings by default', async () => {
     const { ctx } = await harness()
     const { getByText, getAllByText } = render(h(SettingsScreen, { ctx }))
@@ -513,16 +571,28 @@ describe('SettingsScreen', () => {
     expect(getByText('关闭主窗口时最小化到系统托盘')).toBeTruthy()
   })
 
-  it('switches to playback tab and toggles settings', async () => {
+  it('switches to playback tab, toggles exclusive mode, and renders the transition schema fields', async () => {
     const { ctx, calls } = await harness({ crossfadeEnabled: false })
-    const { getByText, findByText } = render(h(SettingsScreen, { ctx }))
+    // The shape `plugin-player` contributes — the settings screen renders it
+    // through the generic schema form without knowing the plugin.
+    ;(ctx.get('settings') as unknown as { contribute(c: SettingsContribution): void }).contribute({
+      id: 'player.transition',
+      section: 'playback',
+      title: '过渡与衔接',
+      fields: [
+        { key: 'gaplessPlayback', type: 'switch', label: '无缝播放 (Gapless Playback)' },
+        { key: 'crossfadeEnabled', type: 'switch', label: '曲目交叉淡入淡出 (Crossfade)' },
+        { key: 'crossfadeDurationSeconds', type: 'slider', label: '淡入淡出持续时间', min: 1, max: 10, unit: '秒', when: () => true },
+        { key: 'pauseOnUnplug', type: 'switch', label: '拔出音频设备时自动暂停' },
+      ],
+    })
+    const { getByText, findByText, container } = render(h(SettingsScreen, { ctx }))
 
     const playbackTab = await findByText('播放与音频')
     fireEvent.click(playbackTab)
 
-    expect(await findByText('曲目交叉淡入淡出 (Crossfade)')).toBeTruthy()
-    expect(getByText('无缝播放 (Gapless Playback)')).toBeTruthy()
-    expect(getByText('拔出音频设备时自动暂停')).toBeTruthy()
+    expect(await findByText('无缝播放 (Gapless Playback)')).toBeTruthy()
+    expect(getByText('曲目交叉淡入淡出 (Crossfade)')).toBeTruthy()
     expect(getByText('独占模式 (Exclusive Mode)')).toBeTruthy()
 
     // Find and click the toggle switch for exclusive mode
@@ -534,15 +604,15 @@ describe('SettingsScreen', () => {
       expect(calls.some((c) => c.startsWith('update:') && c.includes('audioExclusive'))).toBe(true)
     })
 
-    // Find and click the toggle switch for crossfade
-    const crossfadeSwitch =
-      (document.querySelector('button[aria-label="曲目交叉淡入淡出"]') as HTMLButtonElement) ??
-      document.querySelectorAll('button[role="switch"]')[2]
+    // Transition switches write their dot paths through the settings document
+    const crossfadeSwitch = container.querySelector(
+      'button[aria-label="曲目交叉淡入淡出 (Crossfade)"]',
+    ) as HTMLButtonElement
     expect(crossfadeSwitch).toBeTruthy()
     fireEvent.click(crossfadeSwitch)
 
     await waitFor(() => {
-      expect(calls.some((c) => c.startsWith('update:') && c.includes('crossfadeEnabled'))).toBe(true)
+      expect(calls.some((c) => c.includes('"crossfadeEnabled":true'))).toBe(true)
     })
   })
 
@@ -682,8 +752,14 @@ describe('SettingsScreen', () => {
   it('renders visualizer settings when visualizer.settings view is registered', async () => {
     const { ctx } = await harness()
     ctx.ui.registerView('visualizer.settings', () =>
-      h('div', { 'data-testid': 'mock-visualizer-settings' }, 'Mock Visualizer Settings'),
+      h('div', { 'data-testid': 'mock-visualizer-settings' }, '音频可视化 Mock Visualizer Settings'),
     )
+    ;(ctx.get('settings') as unknown as { contribute(c: SettingsContribution): void }).contribute({
+      id: 'visualizer.settings',
+      section: 'playback',
+      title: '音频可视化',
+      display: 'card',
+    })
     const { container, findByText } = render(h(SettingsScreen, { ctx }))
     const playbackTab = await findByText('播放与音频')
     fireEvent.click(playbackTab)
@@ -719,30 +795,6 @@ describe('SettingsScreen', () => {
     expect(container.querySelector('#section-general')).toBeNull()
   })
 
-  it('toggles expandable row via chevron button', async () => {
-    const { ctx } = await harness({ crossfadeEnabled: true })
-    const { container, findByText } = render(h(SettingsScreen, { ctx }))
-
-    const playbackTab = await findByText('播放与音频')
-    fireEvent.click(playbackTab)
-
-    // Initially expanded when crossfadeEnabled: true
-    expect(container.textContent).toContain('淡入淡出持续时间')
-
-    // Find the chevron toggle button for crossfade
-    const chevronBtn = container.querySelector('button[aria-label^="收起 曲目交叉淡入淡出"]') as HTMLButtonElement
-    expect(chevronBtn).toBeTruthy()
-    fireEvent.click(chevronBtn)
-
-    // Now collapsed
-    expect(container.textContent).not.toContain('淡入淡出持续时间')
-
-    // Click again to re-expand
-    const expandBtn = container.querySelector('button[aria-label^="展开 曲目交叉淡入淡出"]') as HTMLButtonElement
-    expect(expandBtn).toBeTruthy()
-    fireEvent.click(expandBtn)
-    expect(container.textContent).toContain('淡入淡出持续时间')
-  })
 
   it('renders download and cache directories with change and open buttons', async () => {
     const { ctx } = await harness({ downloadDir: '/custom/downloads', cacheDir: '/custom/cache' })
@@ -768,112 +820,36 @@ describe('SettingsScreen', () => {
     expect(openButtons.length).toBe(2)
   })
 
-  it('renders theme settings and allows selecting themes', async () => {
-    const { ctx, calls } = await harness()
-    const { getByText, getByTestId } = render(h(SettingsScreen, { ctx }))
-
-    expect(getByText('主题与色彩管理')).toBeTruthy()
-    expect(getByText('Bee Music · Cyber Neon (蓝紫电光)')).toBeTruthy()
-    expect(getByText('Spotify 经典绿 (Spotify Classic)')).toBeTruthy()
-
-    const spotifyBtn = getByTestId('theme-option-spotify')
-    expect(spotifyBtn).toBeTruthy()
-    fireEvent.click(spotifyBtn)
-
-    await waitFor(() => {
-      expect(calls.some((c) => c.includes('"themeId":"spotify"'))).toBe(true)
-    })
-  })
-
-  it('imports and deletes custom color theme in GeneralSection', async () => {
-    const { ctx, calls } = await harness()
-    const { getByText, getAllByText, getByTestId, queryByTestId } = render(h(SettingsScreen, { ctx }))
-
-    // Open import modal
-    const importBtn = getByTestId('import-theme-button')
-    fireEvent.click(importBtn)
-    expect(getAllByText('导入色彩模式').length).toBeGreaterThanOrEqual(2)
-
-    // Try submitting empty JSON -> error
-    const submitBtn = getByTestId('submit-import-theme')
-    fireEvent.click(submitBtn)
-    expect(getByTestId('import-theme-error').textContent).toContain('请输入或选择色彩模式 JSON')
-
-    // Fill valid JSON
-    const textarea = getByTestId('import-theme-textarea')
-    fireEvent.change(textarea, {
-      target: {
-        value: JSON.stringify({
-          id: 'neon-cyber',
-          name: '霓虹赛博 (Neon Cyber)',
-          tokens: { brand: { primary: '#00FFFF' } },
-        }),
-      },
-    })
-
-    // Submit import
-    fireEvent.click(submitBtn)
-
-    await waitFor(() => {
-      expect(getByTestId('theme-option-neon-cyber')).toBeTruthy()
-      expect(getByText('霓虹赛博 (Neon Cyber)')).toBeTruthy()
-      expect(calls.some((c) => c.includes('theme:register:neon-cyber'))).toBe(true)
-      expect(calls.some((c) => c.includes('"themeId":"neon-cyber"'))).toBe(true)
-    })
-
-    // Now delete the custom theme
-    const deleteBtn = getByTestId('delete-theme-neon-cyber')
-    expect(deleteBtn).toBeTruthy()
-    fireEvent.click(deleteBtn)
-
-    await waitFor(() => {
-      expect(queryByTestId('theme-option-neon-cyber')).toBeNull()
-      expect(calls.some((c) => c.includes('theme:remove:neon-cyber'))).toBe(true)
-    })
-  })
-
-  it('renders desktop lyrics settings and live preview box', async () => {
-    const { ctx, calls } = await harness()
-    const { container, getByText, findByText } = render(h(SettingsScreen, { ctx }))
-
-    const lyricsTab = await findByText('桌面歌词')
-    fireEvent.click(lyricsTab)
-
-    expect(getByText('桌面歌词设置')).toBeTruthy()
-    expect(getByText('开启桌面歌词')).toBeTruthy()
-    expect(getByText('歌词显示行数')).toBeTruthy()
-    expect(getByText('文本对齐方式')).toBeTruthy()
-    expect(getByText('歌词字体')).toBeTruthy()
-    expect(getByText('歌词字号')).toBeTruthy()
-    expect(getByText('歌词高亮颜色')).toBeTruthy()
-    expect(getByText('文字透明度')).toBeTruthy()
-
-    // Toggle 开启桌面歌词 switch
-    const lyricsSwitch = container.querySelector('button[aria-label="开启桌面歌词"]') as HTMLButtonElement
-    expect(lyricsSwitch).toBeTruthy()
-    fireEvent.click(lyricsSwitch)
-    await waitFor(() => {
-      expect(calls.some((c) => c.includes('"enabled":true'))).toBe(true)
-    })
-
-    // Live preview box is present
-    const preview = container.querySelector('[data-testid="desktop-lyrics-preview"]')
-    expect(preview).toBeTruthy()
-    expect(preview?.textContent).toContain('桌面歌词实时预览效果')
-    expect(preview?.textContent).toContain('哪怕生命如尘 也要绚烂如火')
-
-    // Change line mode to single
-    const lineModeSelect = container.querySelector('select[aria-label="歌词显示行数"]') as HTMLSelectElement
-    expect(lineModeSelect).toBeTruthy()
-    fireEvent.change(lineModeSelect, { target: { value: 'single' } })
-
-    await waitFor(() => {
-      expect(calls.some((c) => c.includes('"lineMode":"single"'))).toBe(true)
-    })
-  })
-
+  
+  
+  
   it('renders global shortcuts settings with master switch and actions', async () => {
+    const { ctx } = await harness()
+    ctx.ui.registerView('settings.shortcuts', () =>
+      h('div', { 'data-testid': 'mock-shortcuts-card' }, 'shortcuts card stub'),
+    )
+    ;(ctx.get('settings') as unknown as { contribute(c: SettingsContribution): void }).contribute({
+      id: 'settings.shortcuts',
+      section: 'shortcuts',
+      title: '全局快捷键',
+      display: 'card',
+    })
+    const { getByTestId, findByText } = render(h(SettingsScreen, { ctx }))
+
+    const shortcutsTab = await findByText('全局快捷键')
+    fireEvent.click(shortcutsTab)
+    expect(getByTestId('mock-shortcuts-card')).toBeTruthy()
+  })
+
+  it('renders the shortcuts card with bindings through its own view', async () => {
     const { ctx, calls } = await harness()
+    ctx.ui.registerView('settings.shortcuts', ShortcutsCard)
+    ;(ctx.get('settings') as unknown as { contribute(c: SettingsContribution): void }).contribute({
+      id: 'settings.shortcuts',
+      section: 'shortcuts',
+      title: '全局快捷键',
+      display: 'card',
+    })
     const { container, getByText, getAllByText, findByText } = render(h(SettingsScreen, { ctx }))
 
     const shortcutsTab = await findByText('全局快捷键')
@@ -906,6 +882,7 @@ describe('SettingsScreen', () => {
   it('renders network proxy settings and handles connection test', async () => {
     const { ctx } = await harness({ proxy: { enabled: true, protocol: 'http', host: '127.0.0.1', port: 7890, sourceRules: {} } })
     const { getByText, findByText } = render(h(SettingsScreen, { ctx }))
+    // (the shortcuts block above uses container/getByText/getAllByText)
 
     const networkTab = await findByText('网络与代理')
     fireEvent.click(networkTab)
@@ -1034,122 +1011,8 @@ describe('SettingsScreen', () => {
     expect(calls.includes('navigate:debug.view')).toBe(true)
   })
 
-  it('renders Now Playing styles in PlaybackSection and allows switching active style', async () => {
-    const { ctx, calls } = await harness()
-    const { getByText, getByTestId, findByText } = render(h(SettingsScreen, { ctx }))
 
-    const playbackTab = await findByText('播放与音频')
-    fireEvent.click(playbackTab)
-
-    expect(getByText('播放页样式模板 (Now Playing Layout Styles)')).toBeTruthy()
-    expect(getByText('经典')).toBeTruthy()
-    expect(getByText('映画歌词')).toBeTruthy()
-    expect(getByText('沉浸封面')).toBeTruthy()
-    expect(getByText('黑胶唱片')).toBeTruthy()
-    expect(getByText('左右分栏')).toBeTruthy()
-
-    // Select cinematic style
-    const cinematicCard = getByTestId('now-playing-style-cinematic')
-    expect(cinematicCard).toBeTruthy()
-    fireEvent.click(cinematicCard)
-
-    await waitFor(() => {
-      expect(calls.some((c) => c.includes('"nowPlayingStyle":"cinematic"'))).toBe(true)
-      expect(calls.includes('nowPlaying:setStyle:cinematic')).toBe(true)
-    })
-  })
-
-  it('imports sandboxed player plugin and handles deletion in PlaybackSection', async () => {
-    const { ctx, calls } = await harness()
-    const { getByText, getByTestId, findByText } = render(h(SettingsScreen, { ctx }))
-
-    const playbackTab = await findByText('播放与音频')
-    fireEvent.click(playbackTab)
-
-    // Open import modal
-    const importBtn = getByTestId('import-style-button')
-    fireEvent.click(importBtn)
-    expect(getByText('导入外部播放页样式插件')).toBeTruthy()
-    expect(getByText('沙箱隔离保障：')).toBeTruthy()
-
-    // Try submitting empty JSON -> error
-    const submitBtn = getByTestId('submit-import-style')
-    fireEvent.click(submitBtn)
-    expect(getByTestId('import-style-error')).toBeTruthy()
-    expect(getByTestId('import-style-error').textContent).toContain('请输入或选择播放页模板插件 JSON 清单')
-
-    // Click load sample template button
-    const loadSampleBtn = getByTestId('load-sample-template-button')
-    fireEvent.click(loadSampleBtn)
-
-    const textarea = getByTestId('style-manifest-textarea') as HTMLTextAreaElement
-    expect(textarea.value).toContain('sample-neon-player')
-    expect(textarea.value).toContain('霓虹沙箱播放器')
-
-    // Submit valid sample template
-    fireEvent.click(submitBtn)
-
-    await waitFor(() => {
-      expect(calls.some((c) => c.includes('nowPlaying:register:sample-neon-player'))).toBe(true)
-      expect(calls.some((c) => c.includes('"nowPlayingStyle":"sample-neon-player"'))).toBe(true)
-      expect(calls.includes('nowPlaying:setStyle:sample-neon-player')).toBe(true)
-    })
-
-    // Verify imported style card rendered with sandboxed badge
-    expect(getByText('霓虹沙箱播放器')).toBeTruthy()
-    expect(getByText('沙箱 🛡️')).toBeTruthy()
-
-    // Delete custom style
-    const deleteBtn = getByTestId('delete-style-sample-neon-player')
-    expect(deleteBtn).toBeTruthy()
-    fireEvent.click(deleteBtn)
-
-    await waitFor(() => {
-      expect(calls.includes('nowPlaying:remove:sample-neon-player')).toBe(true)
-    })
-  })
-
-  it('manages third-party lyric sources and audio source policy in LyricsSection', async () => {
-    const { ctx, calls } = await harness()
-    const { getByText, findByText } = render(h(SettingsScreen, { ctx }))
-
-    const lyricsTab = await findByText('桌面歌词')
-    fireEvent.click(lyricsTab)
-
-    // LyricSourcesSection is mounted in LyricsSection
-    expect(await findByText('第三方歌词源管理 (Lyric Sources)')).toBeTruthy()
-    expect(getByText('LRCLIB (默认歌词源)')).toBeTruthy()
-    expect(getByText('内置源')).toBeTruthy()
-
-    // Test audio sources policy section
-    expect(getByText('音频源歌词策略 (Audio Source Policy)')).toBeTruthy()
-    expect(getByText('Bilibili Music')).toBeTruthy()
-
-    // Toggle audio source needsLyricSource
-    const audioSwitch = document.querySelector('button[aria-label*="Bilibili Music"]') as HTMLElement
-    expect(audioSwitch).toBeTruthy()
-    fireEvent.click(audioSwitch)
-    expect(calls).toContain('sources:setNeedsLyricSource:mock-bili:true')
-
-    // Open import modal
-    const importBtn = getByText('导入歌词源')
-    fireEvent.click(importBtn)
-    expect(getByText('导入第三方歌词源')).toBeTruthy()
-    expect(getByText('严格沙箱隔离保护：')).toBeTruthy()
-
-    // Click load sample template
-    const sampleBtn = getByText('载入示例源模板')
-    fireEvent.click(sampleBtn)
-
-    // Submit import
-    const confirmBtn = getByText('确认导入')
-    fireEvent.click(confirmBtn)
-
-    await waitFor(() => {
-      expect(calls.some((c) => c.startsWith('lyricSources:register:sample-netease-lrc'))).toBe(true)
-    })
-  })
-
+  
   it('renders plugins partition, filters by query, expands card details, and toggles enablement', async () => {
     const { ctx, calls } = await harness()
     const { container, findByText, getByText, getAllByText, getByPlaceholderText, queryByText } = render(h(SettingsScreen, { ctx }))

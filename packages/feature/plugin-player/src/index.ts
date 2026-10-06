@@ -18,6 +18,7 @@ import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import { NetworkError, NotFoundError, ProviderError, SourceError } from '@BBeBee/protocol'
 import type {
+  AppSettings,
   AudioSourceHandle,
   Disposable,
   NowPlayingMeta,
@@ -361,6 +362,7 @@ export class Player extends Service implements PlayerService {
     // Arrow functions, so `this` is captured lexically: a generator passed to
     // `ctx.effect` is called without a receiver, and aliasing `this` into a
     // local would work but says less about why.
+    const ownCtx = this.ownCtx
     const togglePlay = () => this.togglePlay()
     const next = () => void this.next()
     const previous = () => void this.previous()
@@ -388,6 +390,53 @@ export class Player extends Service implements PlayerService {
           id: PLAYER_COMMANDS.previous,
           title: 'Previous track',
           run: previous,
+        })
+        // The transition behaviour lives in the settings document; this
+        // schema-driven contribution lets the settings screen render it
+        // without importing anything from this plugin (docs/08 §3).
+        yield scoped.ui.contribute({
+          kind: 'settings',
+          id: 'player.transition',
+          section: 'playback',
+          title: '过渡与衔接',
+          description: '连续播放歌曲时的淡入淡出与连接体验',
+          icon: 'arrows-join',
+          order: 20,
+          fields: [
+            {
+              key: 'gaplessPlayback',
+              type: 'switch',
+              label: '无缝播放 (Gapless Playback)',
+              description: '在两首歌曲之间消除解码停顿，体验连贯的听歌流动感',
+            },
+            {
+              key: 'crossfadeEnabled',
+              type: 'switch',
+              label: '曲目交叉淡入淡出 (Crossfade)',
+              description: '上一曲即将结束时提前淡入下一曲',
+            },
+            {
+              key: 'crossfadeDurationSeconds',
+              type: 'slider',
+              label: '淡入淡出持续时间',
+              min: 1,
+              max: 10,
+              unit: '秒',
+              when: () => {
+                const settings = (
+                  ownCtx as unknown as { settings?: { getSync(): AppSettings } }
+                ).settings
+                return settings?.getSync()?.crossfadeEnabled ?? false
+              },
+            },
+            {
+              key: 'pauseOnUnplug',
+              type: 'switch',
+              label: '拔出音频设备时自动暂停',
+              description: '断开耳机或蓝牙连接时即刻暂停音乐，防止外放打扰',
+            },
+          ],
+          refreshEvents: ['settings/changed'],
         })
       }, 'player-ui-contributions'),
     )

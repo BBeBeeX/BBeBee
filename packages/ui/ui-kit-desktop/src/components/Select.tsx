@@ -1,6 +1,6 @@
 import { createElement as h } from 'react'
 import type { ChangeEvent, ReactElement } from 'react'
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { tablerIcon } from '../icons/index.js'
 
 export interface SelectOption<T extends string> {
   value: T

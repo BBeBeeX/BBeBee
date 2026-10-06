@@ -1,9 +1,9 @@
+import { Button, Sheet } from '@BBeBee/ui-kit-desktop'
 import { createElement as h, useMemo, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { serviceOf, useServiceState } from '@BBeBee/ui-core'
 import type { PluginInfo, PluginManagerService } from '@BBeBee/protocol'
 import { filterPlugins } from '@BBeBee/toolkit'
-import { Button, Sheet } from '@BBeBee/ui-kit-desktop'
 import { PluginSearchBox } from '../PluginSearchBox.js'
 import { PluginGroupPanel } from '../PluginGroupPanel.js'
 

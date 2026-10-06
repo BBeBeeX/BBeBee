@@ -6,36 +6,24 @@
 import { createElement as h, useEffect, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import { serviceOf, useServiceState } from '@BBeBee/ui-core'
+import { serviceOf } from '@BBeBee/ui-core'
 import type {
-  DesktopLyricsSettings,
-  GlobalShortcutsSettings,
   ProxySettings,
   SourceRecord,
   SourcesService,
-  DesktopLyricsService,
   PathsService,
   UiService,
-  SettingsService,
 } from '@BBeBee/protocol'
-import {
-  DEFAULT_DESKTOP_LYRICS_SETTINGS,
-  DEFAULT_PROXY_SETTINGS,
-  DEFAULT_SHORTCUTS_SETTINGS,
-} from '@BBeBee/protocol'
+import { DEFAULT_PROXY_SETTINGS } from '@BBeBee/protocol'
 import { useAppSettings, useAvailableSettings, useCacheStats } from '@BBeBee/plugin-settings/hooks'
 import { GeneralSection } from './components/sections/GeneralSection.js'
 import { PlaybackSection } from './components/sections/PlaybackSection.js'
-import { LyricsSection } from './components/sections/LyricsSection.js'
-import { ShortcutsSection } from './components/sections/ShortcutsSection.js'
 import { NetworkSection } from './components/sections/NetworkSection.js'
 import { SourcesSection } from './components/sections/SourcesSection.js'
 import { StorageSection } from './components/sections/StorageSection.js'
 import { PluginsSection } from './components/sections/PluginsSection.js'
 import { AboutSection } from './components/sections/AboutSection.js'
-import { SettingsSection } from './components/SettingsSection.js'
-import { SettingsRow } from './components/SettingsRow.js'
-import { Button } from '@BBeBee/ui-kit-desktop'
+import { ContributionBlock, groupBySection } from './components/ContributionBlock.js'
 
 export type SettingsTab = string
 
@@ -106,6 +94,7 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
   const { settings, update, reset } = useAppSettings(ctx)
   const { usage, clear } = useCacheStats(ctx)
   const availableSettings = useAvailableSettings(ctx)
+  const grouped = groupBySection(availableSettings)
 
   const customSectionIds = Array.from(
     new Set(
@@ -193,33 +182,6 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
       applyTheme(settings.theme === 'dark')
     }
   }, [settings.theme])
-
-  // Desktop lyrics visibility synchronized with both desktopLyrics service and settings
-  const isDesktopLyricsVisible = useServiceState<boolean>(
-    ctx,
-    ['desktop-lyrics/changed', 'settings/changed'],
-    () => {
-      const dl = serviceOf<DesktopLyricsService>(ctx, 'desktopLyrics')
-      if (dl) return dl.state.visible
-      const s = serviceOf<SettingsService>(ctx, 'settings')
-      return s?.getSync()?.desktopLyrics?.enabled ?? settings.desktopLyrics?.enabled ?? false
-    },
-  )
-
-  // Safe configurations with fallback defaults
-  const desktopLyrics: DesktopLyricsSettings = {
-    ...DEFAULT_DESKTOP_LYRICS_SETTINGS,
-    ...(settings.desktopLyrics ?? {}),
-    enabled: isDesktopLyricsVisible,
-  }
-
-  const shortcuts: GlobalShortcutsSettings = {
-    enabled: settings.shortcuts?.enabled ?? DEFAULT_SHORTCUTS_SETTINGS.enabled,
-    keybindings: {
-      ...DEFAULT_SHORTCUTS_SETTINGS.keybindings,
-      ...(settings.shortcuts?.keybindings ?? {}),
-    },
-  }
 
   const proxy: ProxySettings = {
     ...DEFAULT_PROXY_SETTINGS,
@@ -466,14 +428,21 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
         ),
       ),
 
-      // 1. General & Language
+      // 1. General & Language — the service's own rows, then whatever the
+      // general section's owners contributed.
       activeTab === 'general'
-        ? h(GeneralSection, {
-            ctx,
-            settings,
-            update,
-            onCloseToTrayChange: handleCloseToTrayChange,
-          })
+        ? h(
+            'div',
+            { id: 'section-general', key: 'general' },
+            h(GeneralSection, {
+              settings,
+              update,
+              onCloseToTrayChange: handleCloseToTrayChange,
+            }),
+            (grouped.get('general') ?? []).map((c) =>
+              h(ContributionBlock, { key: c.id, ctx, contribution: c, onNavigate: handleNavigate }),
+            ),
+          )
         : null,
 
       // 2. Playback & DSP
@@ -487,22 +456,27 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
           })
         : null,
 
-      // 3. Desktop Lyrics
+      // 3. Desktop Lyrics — fully contribution-driven: the card comes from
+      // `plugin-desktop-lyrics`, the management card from `plugin-lyric-sources`.
       activeTab === 'lyrics'
-        ? h(LyricsSection, {
-            ctx,
-            desktopLyrics,
-            isDesktopLyricsVisible,
-            update,
-          })
+        ? h(
+            'div',
+            { id: 'section-lyrics', key: 'lyrics' },
+            (grouped.get('lyrics') ?? []).map((c) =>
+              h(ContributionBlock, { key: c.id, ctx, contribution: c, onNavigate: handleNavigate }),
+            ),
+          )
         : null,
 
-      // 4. Global Shortcuts
+      // 4. Global Shortcuts — the card contributed by plugin-settings itself.
       activeTab === 'shortcuts'
-        ? h(ShortcutsSection, {
-            shortcuts,
-            onUpdateShortcuts: (s) => void update({ shortcuts: s }),
-          })
+        ? h(
+            'div',
+            { id: 'section-shortcuts', key: 'shortcuts' },
+            (grouped.get('shortcuts') ?? []).map((c) =>
+              h(ContributionBlock, { key: c.id, ctx, contribution: c, onNavigate: handleNavigate }),
+            ),
+          )
         : null,
 
       // 5. Network & Proxy
@@ -588,28 +562,8 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
         ? h(
             'div',
             { id: `section-${activeTab}`, key: activeTab },
-            h(
-              SettingsSection,
-              { title: activeTab.charAt(0).toUpperCase() + activeTab.slice(1) },
-              availableSettings
-                .filter((c) => c.section === activeTab)
-                .map((item) => {
-                  if (item.display === 'card') {
-                    const Card = (ctx as { ui?: UiService })?.ui?.viewFor?.(item.id) as
-                      | React.ComponentType<{ ctx: Context }>
-                      | undefined
-                    if (Card) return h(Card, { key: item.id, ctx })
-                  }
-                  return h(SettingsRow, {
-                    key: item.id,
-                    title: item.title,
-                    description: item.description,
-                    action: h(Button, {
-                      children: item.actionText ?? '打开',
-                      onPress: () => handleNavigate(item.id),
-                    }),
-                  })
-                }),
+            (grouped.get(activeTab) ?? []).map((c) =>
+              h(ContributionBlock, { key: c.id, ctx, contribution: c, onNavigate: handleNavigate }),
             ),
           )
         : null,

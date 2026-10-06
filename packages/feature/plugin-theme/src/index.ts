@@ -13,6 +13,7 @@ import {
   builtInThemes,
   defaultTheme,
 } from '@BBeBee/ui-tokens'
+import { THEME_VIEWS } from './views.js'
 
 const STORE_KEY = 'theme_preference'
 const CUSTOM_THEMES_STORE_KEY = 'theme_custom_themes'
@@ -72,6 +73,45 @@ export class ThemePlugin extends Service implements ThemeService {
           void this.setTheme(s.themeId)
         }
       })
+    })
+
+    // 2.5 Contribute this plugin's settings entries — the theme management
+    // card and the appearance-mode selector. The settings screen aggregates
+    // whatever is contributed and owns none of it (docs/08 §3).
+    this.ownCtx.inject(['ui'], (scoped) => {
+      scoped.effect(function* () {
+        yield scoped.ui.contribute({
+          kind: 'settings',
+          id: THEME_VIEWS.settingsCard,
+          section: 'general',
+          title: '主题与色彩管理',
+          description: '切换播放器主题风格，或动态导入/管理更多色彩方案',
+          icon: 'palette',
+          display: 'card',
+          order: 20,
+        })
+        yield scoped.ui.contribute({
+          kind: 'settings',
+          id: 'theme.mode',
+          section: 'general',
+          title: '外观模式',
+          description: '切换应用深色/浅色/跟随系统外观',
+          icon: 'moon',
+          order: 30,
+          fields: [
+            {
+              key: 'theme',
+              type: 'select',
+              label: '主题模式',
+              options: [
+                { value: 'dark', label: '深色模式' },
+                { value: 'light', label: '浅色模式' },
+                { value: 'system', label: '跟随系统' },
+              ],
+            },
+          ],
+        })
+      }, 'theme-settings-contributions')
     })
 
     // 3. Immediately apply the active theme to DOM

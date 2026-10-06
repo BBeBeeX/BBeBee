@@ -6,6 +6,7 @@
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts",
+    "./views": "./src/views.ts",
     "./package.json": "./package.json",
     "./hooks": "./src/hooks.ts"
   },
@@ -16,6 +17,10 @@
       ".": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
+      },
+      "./views": {
+        "types": "./dist/views.d.ts",
+        "default": "./dist/views.js"
       },
       "./hooks": {
         "types": "./dist/hooks.d.ts",

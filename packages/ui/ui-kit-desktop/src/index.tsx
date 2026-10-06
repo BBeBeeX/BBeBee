@@ -29,6 +29,9 @@ export { List } from './components/List.js'
 export { EmptyState } from './components/EmptyState.js'
 export { JsonTree, type JsonDirective } from './components/JsonTree.js'
 export { Toast } from './components/Toast.js'
+export { ColorPicker, COLOR_PRESETS, type ColorPickerProps } from './components/ColorPicker.js'
+export { Switch, type SwitchProps } from './components/Switch.js'
+export { Select, type SelectProps, type SelectOption } from './components/Select.js'
 export {
   SaveToPlaylistPopover,
   type SaveToPlaylistPopoverProps,

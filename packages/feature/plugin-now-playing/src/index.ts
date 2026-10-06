@@ -18,7 +18,7 @@ import { Service } from '@BBeBee/kernel'
 import type { Context } from 'cordis'
 import type { Disposable, NowPlayingService, NowPlayingStyleId, NowPlayingStyleMeta } from '@BBeBee/protocol'
 import { DEFAULT_NOW_PLAYING_STYLE, NOW_PLAYING_STYLES } from '@BBeBee/protocol'
-import { NOW_PLAYING_ROUTES } from './views.js'
+import { NOW_PLAYING_ROUTES, NOW_PLAYING_VIEWS } from './views.js'
 
 const STORE_KEY = 'now-playing.style'
 const CUSTOM_STYLES_STORE_KEY = 'now-playing.custom-styles'
@@ -195,6 +195,16 @@ export async function apply(ctx: Context) {
         title: 'Now playing',
         icon: 'play',
         placement: ['tab-bar'],
+        order: 10,
+      })
+      yield scoped.ui.contribute({
+        kind: 'settings',
+        id: NOW_PLAYING_VIEWS.stylesSettings,
+        section: 'playback',
+        title: '播放页样式模板 (Now Playing Layout Styles)',
+        description: '选择全屏播放页呈现布局，支持原生内置样式与动态导入第三方沙箱模板插件',
+        icon: 'layout',
+        display: 'card',
         order: 10,
       })
     }, 'now-playing-ui-contributions'),

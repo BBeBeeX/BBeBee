@@ -10,6 +10,7 @@ import type {
   DesktopLyricsState,
   SettingsService,
 } from '@BBeBee/protocol'
+import { DESKTOP_LYRICS_VIEWS } from './views.js'
 
 export type { DesktopLyricsPosition, DesktopLyricsState }
 
@@ -91,6 +92,16 @@ export class DesktopLyricsService extends Service implements IDesktopLyricsServi
           id: 'desktop-lyrics.toggle',
           title: 'Toggle desktop lyrics',
           run: toggle,
+        })
+        yield scoped.ui.contribute({
+          kind: 'settings',
+          id: DESKTOP_LYRICS_VIEWS.settingsCard,
+          section: 'lyrics',
+          title: '桌面歌词设置',
+          description: '配置悬浮桌面歌词的显示行数、对齐、字体、字号、颜色及透明度',
+          icon: 'message',
+          display: 'card',
+          order: 10,
         })
       }, 'desktop-lyrics-contributions'),
     )

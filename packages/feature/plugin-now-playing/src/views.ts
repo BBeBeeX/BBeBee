@@ -11,6 +11,8 @@ export const NOW_PLAYING_VIEWS = {
   nowPlaying: 'now-playing.view',
   /** The persistent bottom bar / mini-player. */
   bar: 'now-playing.bar',
+  /** The layout-styles management card in the settings screen. */
+  stylesSettings: 'now-playing.styles',
 } as const
 
 export const NOW_PLAYING_ROUTES = {

@@ -3,12 +3,12 @@
  * Shows debug status, environment details, and navigation to discover/HTTP logs.
  */
 
+import { Button } from '@BBeBee/ui-kit-desktop'
 import { createElement as h, useState, useEffect } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { serviceOf } from '@BBeBee/ui-core'
 import type { UiService, DeviceService } from '@BBeBee/protocol'
-import { Button } from '@BBeBee/ui-kit-desktop'
 
 interface WindowWithBBeBee {
   BBeBee?: {

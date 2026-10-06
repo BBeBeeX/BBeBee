@@ -4,7 +4,7 @@ import { diffSnapshots, snapshotContext, tick } from '@BBeBee/kernel/testing'
 import type { AppSettings, StoreService } from '@BBeBee/protocol'
 import { DEFAULT_APP_SETTINGS } from '@BBeBee/protocol'
 import { SettingsPlugin } from './index.js'
-import { SETTINGS_ROUTES } from './views.js'
+import { SETTINGS_ROUTES, SETTINGS_VIEWS } from './views.js'
 
 class MemoryStore extends Service implements StoreService {
   private map = new Map<string, unknown>()
@@ -116,6 +116,7 @@ describe('plugin-settings', () => {
     const ui = ctx.ui as unknown as UiStub
     expect(ui.contributed).toEqual([
       { kind: 'route', id: SETTINGS_ROUTES.main, path: '/settings' },
+      { kind: 'settings', id: SETTINGS_VIEWS.shortcutsCard },
     ])
   })
 

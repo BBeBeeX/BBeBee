@@ -1,6 +1,6 @@
+import { Switch } from '@BBeBee/ui-kit-desktop'
 import { createElement as h, type ReactElement } from 'react'
 import type { PluginInfo, ConfigStatus, PluginRuntimeState } from '@BBeBee/protocol'
-import { Switch } from './Switch.js'
 
 export interface PluginDetailsProps {
   plugin: PluginInfo

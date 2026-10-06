@@ -7,6 +7,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./hooks": "./src/hooks.ts",
+    "./views": "./src/views.ts",
     "./package.json": "./package.json"
   },
   "main": "./src/index.ts",
@@ -20,6 +21,10 @@
       "./hooks": {
         "types": "./dist/hooks.d.ts",
         "default": "./dist/hooks.js"
+      },
+      "./views": {
+        "types": "./dist/views.d.ts",
+        "default": "./dist/views.js"
       }
     },
     "main": "./dist/index.js",

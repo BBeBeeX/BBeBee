@@ -1,6 +1,6 @@
+import { tablerIcon } from '@BBeBee/ui-kit-desktop'
 import { createElement as h, useState, type ReactElement } from 'react'
 import type { PluginInfo } from '@BBeBee/protocol'
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
 import { PluginTrafficLight } from './PluginTrafficLight.js'
 import { PluginDetails } from './PluginDetails.js'
 

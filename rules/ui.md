@@ -72,6 +72,24 @@ ctx.ui.contribute({
   order: 10,
 })
 
+// Settings contribution for simple key/value config — declared as data, the
+// settings screen renders a generic form from `fields` (no hand-written form
+// component). Values are read/written on the settings document by dot path
+// unless the contribution overrides with `getValues` / `onFieldChange`.
+ctx.ui.contribute({
+  kind: 'settings',
+  id: 'player.transition',
+  section: 'playback',
+  title: '过渡与衔接',
+  order: 20,
+  fields: [
+    { key: 'gaplessPlayback', type: 'switch', label: '无缝播放 (Gapless)' },
+    { key: 'crossfadeDurationSeconds', type: 'slider', label: '淡入淡出持续时间',
+      min: 1, max: 10, unit: '秒', when: () => settings.getSync().crossfadeEnabled },
+  ],
+  refreshEvents: ['settings/changed'],
+})
+
 // Route with tray placement (shows in desktop TopBar tray popover)
 ctx.ui.contribute({
   kind: 'route',
@@ -91,7 +109,7 @@ Each shell resolves the contribution ID against its target view registry via `ct
 
 > 💡 **Decoupled Bottom Bar Actions, Settings, and TopBar Tray**:
 > - Icons on the right side of `NowPlayingBar` (such as `mini-player.button`, `desktop-lyrics.toggle`, `queue.button`) are contributed to `'now-playing.actions'`, never hardcoded.
-> - Settings rows and cards are contributed via `ctx.ui.contribute({ kind: 'settings', ... })` or `ctx.settings.contribute(...)`, never hardcoded into Settings screens.
+> - Settings rows and cards are contributed via `ctx.ui.contribute({ kind: 'settings', ... })` or `ctx.settings.contribute(...)`, never hardcoded into Settings screens. The settings screen does exactly three things: group contributions by `section`, sort by `order` and render them; subscribe to `settings/contributions-changed` (and `ui/changed`) to refresh; render empty/disabled states. Its source must contain no business field names owned by other plugins (no `desktopLyrics`, `keybindings`, `proxy`, …) and must not import any `plugin-*` business package — unloading a plugin makes its section disappear with no hole and no error.
 > - Desktop TopBar features a Windows-like system tray toggle button beside the "Import & Share" button (chevron-down when collapsed, chevron-up when expanded). Plugins determine whether to show in the main interface/tray via `placement: ['tray']` on their route or via `TrayContribution`. Clicking an icon navigates to that plugin's view in the main window (`ctx.ui.navigate`) and closes the tray popover.
 
 ---
@@ -212,14 +230,40 @@ All visual icons across desktop UI components are standardized on **Tabler Icons
   - `Action` → `Button`
   - `Nested/Expanded` → Chevron expandable row
 
-### Dedicated Domains in Settings
-- **General & Language**: Language selector; minimize to system tray on window close (`closeToTray`). (Theme selection is omitted on desktop to preserve the immersive dark streaming look).
-- **Playback & Audio**: Crossfade, gapless playback, pause on unplug, and an action button to open the dedicated DSP Equalizer view (`dsp.view`).
-- **Desktop Lyrics**: Master enable switch, position persistence (`{ x, y }`), locked click-through toggle, single/double line mode, left/center/right alignment, custom font family and size (16–48px), color palette with hex input, opacity (0.2–1.0), live floating preview card, and strict 4-step startup lifecycle (1. check enabled → 2. restore position → 3. push settings & data → 4. show window).
-- **Global Hotkeys**: Master toggle (enabled by default) and 10 standard media/navigation bindings (`togglePlay`, `prev`, `next`, `volumeUp`, `volumeDown`, `seekForward`, `seekBackward`, `toggleLyrics`, `toggleApp`, `favorite`), backed by `ctx.device.registerHotkey`. Registration is headless orchestration owned by the `plugin-settings` feature (`watchGlobalShortcuts`): it lives for as long as the service does — not for as long as the settings screen is mounted — and rebinds on `settings/changed`. The settings screen renders the toggle and key bindings only.
-- **Network & Proxy**: Master toggle, protocol (HTTP/HTTPS/SOCKS5), host/port, latency probe button targeting Google (`https://www.google.com/generate_204`), and per-source proxy bypass switches embedded directly within the proxy card.
-- **Storage & Cache**: Download and Cache directories with path badges, native folder picker (`dialog.pickDirectory`), and directory opener (`shell.openPath`).
-- **About & Advanced Settings (Diagnostics Guard)**: App metadata, followed by an "Advanced Settings" ("高级设置") expandable toggle button that houses Developer Diagnostics (`debug.view`, `debug.logs`, `debug.http-logs`) and the Danger Zone (settings reset), keeping primary settings clean.
+### Dedicated Domains in Settings — who contributes what
+
+The settings screen owns none of the domains below. Each is contributed by the
+plugin that owns the behaviour; platform settings with no owning feature are
+contributed by the composition roots, which are also where they are applied.
+Section ids are stable, so the tab list is the union of the kept settings-own
+sections (`general`, `about`) and whichever sections currently have
+contributions — a plugin's section disappears when the plugin does.
+
+| Section | Contributed by | Shape |
+|---|---|---|
+| `general` — 用户资料 | `plugin-library` (`library.profile`) | card, view in `plugin-library-ui-desktop` |
+| `general` — 主题管理 / 外观模式 | `plugin-theme` (`theme.settings` / `theme.mode`) | card (view in `plugin-theme-ui-desktop`) + `fields` |
+| `general` — 语言、closeToTray | settings service (kept rows) / composition root | kept row + `fields` |
+| `playback` — 播放页样式模板 | `plugin-now-playing` (`now-playing.styles`) | card, view in `plugin-now-playing-ui-desktop` |
+| `playback` — 过渡与衔接 | `plugin-player` (`player.transition`) | `fields` (gapless, crossfade, pause-on-unplug) |
+| `playback` — 音频引擎/独占/设备 | composition root (`apps/*/boot.ts`) | `fields` + `optionsAsync`/`noteAsync` |
+| `playback`/`audio` — DSP 卡、响度标准化 | `plugin-dsp` | card (already contributed) |
+| `playback` — 音频可视化 | `plugin-visualizer` | card (already contributed) |
+| `lyrics` — 桌面歌词设置 | `plugin-desktop-lyrics` (`desktop-lyrics.settings`) | card with live preview, view in `plugin-desktop-lyrics-ui-desktop` |
+| `lyrics` — 歌词源管理 | `plugin-lyric-sources` (`lyric-sources.manage`) | card, view in `plugin-lyric-sources-ui-desktop` |
+| `network` — 第三方音源/歌词源总开关、User-Agent、代理 | `plugin-source-runtime` / `plugin-lyric-sources` / composition root | `fields` (`switch-list` for per-source proxy rules) |
+| `sources` — 音乐来源、导入、本地文件夹 | `plugin-sources` / `plugin-local-scanner` | link rows (already contributed) |
+| `storage` — 下载目录 | `plugin-download` | `fields` (`directory`) |
+| `storage` — 缓存目录与占用 | `plugin-cache` | `fields` (`directory` + `action` with outcome feedback) |
+| `plugins` — 插件管理 | `plugin-manager` (`manager.view`) | card, view in `plugin-manager-ui-desktop` |
+| `shortcuts` — 全局快捷键 | `plugin-settings` itself (`settings.shortcuts`) | card, view in `plugin-settings-ui-desktop` |
+
+Domain behaviours that stay with their owners even after the move:
+
+- **Desktop Lyrics**: master enable switch, single/double line mode, alignment, font family and size (16–48px), color with hex input, opacity (0.2–1.0), live floating preview card, and the strict 4-step startup lifecycle (1. check enabled → 2. restore position → 3. push settings & data → 4. show window) — all inside `plugin-desktop-lyrics`'s card view.
+- **Global Hotkeys**: registration is headless orchestration owned by the `plugin-settings` feature (`watchGlobalShortcuts`): it lives for as long as the service does — not for as long as the settings screen is mounted — and rebinds on `settings/changed`. The contributed card renders the toggle and key bindings only.
+- **Proxy**: the desktop main process applies the config (session proxy, auth, `proxy:test` latency probe); the descriptor — including the Google-probe action and the per-source `switch-list` — is contributed by the composition root.
+- **About & Advanced Settings (Diagnostics Guard)**: the one domain the settings screen keeps hardcoding (it is the settings service's own page): app metadata, the "高级设置" diagnostics guard housing Developer Diagnostics (`debug.view`, `debug.logs`, `debug.http-logs`), and the Danger Zone (settings reset).
 
 ### Diagnostics System
 - `debug.view`: Debug mode indicator, environment specs (Node, Electron, OS, Chromium, paths), and quick links to log screens.

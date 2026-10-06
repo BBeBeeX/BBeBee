@@ -8,7 +8,7 @@ import { Service } from 'cordis'
 import type { Context } from 'cordis'
 import type { AppSettings, Disposable, SettingsContribution, SettingsService } from '@BBeBee/protocol'
 import { DEFAULT_APP_SETTINGS } from '@BBeBee/protocol'
-import { SETTINGS_ROUTES } from './views.js'
+import { SETTINGS_ROUTES, SETTINGS_VIEWS } from './views.js'
 import { watchGlobalShortcuts } from './shortcuts.js'
 
 const STORE_KEY = 'preferences'
@@ -98,6 +98,20 @@ export class SettingsPlugin extends Service implements SettingsService {
           // from their sidebars, so the placement only adds reachability.
           placement: ['sidebar', 'tab-bar', 'tray'],
           order: 95,
+        })
+        // Global shortcuts are this plugin's own domain (watchGlobalShortcuts
+        // below lives and dies with this service) — the card is contributed
+        // like any other plugin's, and the settings screen renders the
+        // descriptor instead of hardcoding it.
+        yield scoped.ui.contribute({
+          kind: 'settings',
+          id: SETTINGS_VIEWS.shortcutsCard,
+          section: 'shortcuts',
+          title: '全局快捷键',
+          description: '在操作系统后台通过键盘组合键全局控制音乐播放、音量与窗口显隐',
+          icon: 'keyboard',
+          display: 'card',
+          order: 10,
         })
       }, 'settings-ui-contributions')
     })

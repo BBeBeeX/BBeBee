@@ -62,6 +62,81 @@ export interface CommandContribution {
   run(args?: unknown): void | Promise<void>
 }
 
+/** One option of a `select` settings field. */
+export interface SettingsFieldOption {
+  value: string | number
+  label: string
+}
+
+/** Result reported back by an `action` field, shown as inline feedback. */
+export interface SettingsFieldOutcome {
+  ok: boolean
+  message: string
+}
+
+/**
+ * One renderable field of a schema-driven settings contribution.
+ *
+ * Simple key/value configuration is declared as data — the settings screen
+ * renders a generic form from these descriptors and never receives a
+ * hand-written form component per plugin (docs/08 §3). Values are read from
+ * and written back to the settings document by dot path (e.g.
+ * `desktopLyrics.fontSize`), unless the contribution overrides the read with
+ * `getValues` or the write with `onFieldChange`.
+ */
+export interface SettingsFieldDescriptor {
+  /** Dot path of the value within the config document (e.g. 'proxy.host'). */
+  key: string
+  /** Row label. */
+  label: string
+  /** Row description line. */
+  description?: string
+  /** Control to render. Unknown types fall back to `text`. */
+  type:
+    | 'switch'
+    | 'select'
+    | 'slider'
+    | 'text'
+    | 'number'
+    | 'color'
+    | 'directory'
+    | 'action'
+    | 'switch-list'
+  /** Options for `select`. */
+  options?: readonly SettingsFieldOption[]
+  /**
+   * Async options for `select` whose choices are dynamic (e.g. output
+   * devices). Resolved once per mount and again whenever any of the
+   * contribution's `refreshEvents` fires.
+   */
+  optionsAsync?: () => Promise<readonly SettingsFieldOption[]>
+  /** Entries for `switch-list` — one boolean switch per entry, dynamic. */
+  entriesAsync?: () => Promise<readonly { id: string; label: string; description?: string }[]>
+  /**
+   * Dynamically computed note rendered under the row (engine degradation
+   * notices, usage sizes). Re-resolved on `refreshEvents`.
+   */
+  noteAsync?: () => Promise<string | undefined>
+  /** Slider bounds (`slider`). */
+  min?: number
+  max?: number
+  step?: number
+  /** Value unit suffix (`slider`, e.g. 'px', '秒'). */
+  unit?: string
+  /** Placeholder for text-like controls. */
+  placeholder?: string
+  /** Button label (`action`, `directory`). */
+  actionText?: string
+  /** Handler for `action` fields; a returned outcome is shown as feedback. */
+  onAction?: () => SettingsFieldOutcome | void | Promise<SettingsFieldOutcome | void>
+  /**
+   * Sync, cheap visibility predicate evaluated during render — same contract
+   * as slot `when`. Hides the field when it returns false (e.g. a directory
+   * picker that needs a native bridge this platform does not have).
+   */
+  when?: () => boolean
+}
+
 export interface SettingsContribution {
   kind?: 'settings'
   id: string
@@ -90,6 +165,24 @@ export interface SettingsContribution {
   action?: () => void | Promise<void>
   /** Rendered automatically unless a custom view is registered. */
   schema?: ParamSchema
+  /**
+   * Field descriptors for a generic, auto-rendered form — the data-driven
+   * alternative to shipping a custom card view. Values default to the
+   * settings document by dot path; see SettingsFieldDescriptor.
+   */
+  fields?: readonly SettingsFieldDescriptor[]
+  /**
+   * Read override for field values — for plugins whose configuration lives
+   * outside the settings document. Returns a record keyed by field dot path.
+   */
+  getValues?: () => Record<string, unknown>
+  /** Write override for field values, replacing the default settings update. */
+  onFieldChange?: (key: string, value: unknown) => void | Promise<void>
+  /**
+   * Events that make the contribution's async field data (optionsAsync,
+   * entriesAsync, noteAsync) re-resolve while the settings screen shows it.
+   */
+  refreshEvents?: readonly string[]
 }
 
 export interface MenuContribution {

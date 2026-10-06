@@ -38,7 +38,7 @@ import { Playlists } from './playlists.js'
 import { Saved } from './saved.js'
 import { Collections } from './collections.js'
 import { Profile } from './profile.js'
-import { LIBRARY_ROUTES } from './views.js'
+import { LIBRARY_ROUTES, LIBRARY_VIEWS } from './views.js'
 
 /**
  * The kind of a URN an event will name.
@@ -143,6 +143,16 @@ export class Library extends Service implements LibraryService {
           // Reached from inside the library rather than standalone chrome
           placement: [],
           order: 31,
+        })
+        yield scoped.ui.contribute({
+          kind: 'settings',
+          id: LIBRARY_VIEWS.profileSettings,
+          section: 'general',
+          title: '用户资料',
+          description: '本地用户资料，歌单等内容的创建者将显示此名称',
+          icon: 'user',
+          display: 'card',
+          order: 10,
         })
       }, 'library-ui-contributions'),
     )

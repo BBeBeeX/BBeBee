@@ -2,14 +2,12 @@ import { createElement as h, useEffect, useRef, useState, type ReactElement } fr
 import type { Context } from 'cordis'
 import type { AppSettings, NowPlayingService, NowPlayingStyleMeta } from '@BBeBee/protocol'
 import { NOW_PLAYING_STYLES } from '@BBeBee/protocol'
-import { serviceOf } from '@BBeBee/ui-core'
+import { serviceOf } from '@BBeBee/toolkit/hooks'
 import { Sheet, tablerIcon } from '@BBeBee/ui-kit-desktop'
-import { SettingsSection } from '../SettingsSection.js'
 
-export interface NowPlayingStylesSectionProps {
-  ctx?: Context
-  settings: AppSettings
-  update: (patch: Partial<AppSettings>) => Promise<unknown>
+interface SettingsWriter {
+  getSync(): AppSettings
+  update(patch: Partial<AppSettings>): Promise<unknown>
 }
 
 const SAMPLE_PLUGIN_MANIFEST = JSON.stringify(
@@ -269,12 +267,11 @@ const SAMPLE_PLUGIN_MANIFEST = JSON.stringify(
   2,
 )
 
-export function NowPlayingStylesSection({
-  ctx,
-  settings,
-  update,
-}: NowPlayingStylesSectionProps): ReactElement {
+export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement {
   const nowPlayingService = ctx ? serviceOf<NowPlayingService>(ctx, 'nowPlaying') : undefined
+  const settingsWriter = ctx
+    ? serviceOf<SettingsWriter>(ctx, 'settings')
+    : undefined
 
   const [styles, setStyles] = useState<readonly NowPlayingStyleMeta[]>(() => {
     return nowPlayingService?.getStyles?.() ?? NOW_PLAYING_STYLES
@@ -306,10 +303,29 @@ export function NowPlayingStylesSection({
     }
   }, [ctx])
 
-  const currentStyleId = settings.nowPlayingStyle ?? nowPlayingService?.getStyle?.() ?? 'classic'
+  const [currentStyleId, setCurrentStyleId] = useState<string>(
+    () =>
+      settingsWriter?.getSync()?.nowPlayingStyle ??
+      nowPlayingService?.getStyle?.() ??
+      'classic',
+  )
+
+  useEffect(() => {
+    const refresh = () => {
+      setCurrentStyleId(
+        serviceOf<SettingsWriter>(ctx, 'settings')?.getSync()?.nowPlayingStyle ??
+          nowPlayingService?.getStyle?.() ??
+          'classic',
+      )
+    }
+    const off = ctx.on('settings/changed', refresh)
+    return () => {
+      off()
+    }
+  }, [ctx, nowPlayingService])
 
   const handleSelectStyle = async (id: string) => {
-    await update({ nowPlayingStyle: id })
+    await settingsWriter?.update({ nowPlayingStyle: id })
     const svc = ctx ? serviceOf<NowPlayingService>(ctx, 'nowPlaying') : undefined
     svc?.setStyle?.(id)
   }
@@ -396,12 +412,22 @@ export function NowPlayingStylesSection({
   }
 
   return h(
-    SettingsSection,
-    {
-      id: 'section-now-playing-styles',
-      title: '播放页样式模板 (Now Playing Layout Styles)',
-      description: '选择全屏播放页呈现布局，支持原生内置样式与动态导入第三方沙箱模板插件',
-    },
+    'div',
+    { 'data-testid': 'now-playing-styles-card' },
+    h(
+      'div',
+      { style: { padding: '4px 4px 12px' } },
+      h(
+        'div',
+        { style: { fontSize: 13, fontWeight: 500, color: '#F5F5F7' } },
+        '播放页样式模板 (Now Playing Layout Styles)',
+      ),
+      h(
+        'div',
+        { style: { fontSize: 12, color: '#8E8E93', marginTop: 2 } },
+        '选择全屏播放页呈现布局，支持原生内置样式与动态导入第三方沙箱模板插件',
+      ),
+    ),
     h(
       'div',
       {

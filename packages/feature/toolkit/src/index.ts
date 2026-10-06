@@ -18,6 +18,7 @@ export {
 export { splitArtists } from './text.js'
 export { formatDuration, formatTotalDuration, formatAddedDate, formatPlayedDate } from './time.js'
 export { formatBytes } from './bytes.js'
+export { getPath, setPath } from './record-path.js'
 export { permute } from './shuffle.js'
 export {
   parseLrc,

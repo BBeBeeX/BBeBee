@@ -1,6 +1,6 @@
+import { Button } from '@BBeBee/ui-kit-desktop'
 import { createElement as h } from 'react'
 import type { ReactElement, ChangeEvent } from 'react'
-import { Button } from '@BBeBee/ui-kit-desktop'
 import { SettingsRow } from '../SettingsRow.js'
 import { SettingsSection } from '../SettingsSection.js'
 

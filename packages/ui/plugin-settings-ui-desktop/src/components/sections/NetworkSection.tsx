@@ -1,9 +1,7 @@
+import { Button, Select, Switch } from '@BBeBee/ui-kit-desktop'
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { ProxySettings, SourceRecord } from '@BBeBee/protocol'
-import { Button } from '@BBeBee/ui-kit-desktop'
-import { Switch } from '../Switch.js'
-import { Select } from '../Select.js'
 import { SettingsRow } from '../SettingsRow.js'
 import { SettingsSection } from '../SettingsSection.js'
 

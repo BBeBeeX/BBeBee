@@ -18,12 +18,14 @@ import { PlaylistDetailScreen } from './screens/PlaylistDetailScreen.js'
 import { FavoritesScreen } from './screens/FavoritesScreen.js'
 import { LocalMusicScreen } from './screens/LocalMusicScreen.js'
 import { CollectionScreen } from './screens/CollectionScreen.js'
+import { UserProfileCard } from './components/UserProfileCard.js'
 
 export { LibraryScreen, type LibraryScreenProps } from './screens/LibraryScreen.js'
 export { PlaylistDetailScreen } from './screens/PlaylistDetailScreen.js'
 export { FavoritesScreen } from './screens/FavoritesScreen.js'
 export { LocalMusicScreen, type LocalMusicScreenProps } from './screens/LocalMusicScreen.js'
 export { CollectionScreen } from './screens/CollectionScreen.js'
+export { UserProfileCard } from './components/UserProfileCard.js'
 
 export const name = 'plugin-library-ui-desktop'
 
@@ -53,6 +55,7 @@ export async function apply(ctx: Context) {
     yield ctx.ui.registerView(LIBRARY_VIEWS.collection, bound(ctx, CollectionScreen))
     yield ctx.ui.registerView(LIBRARY_VIEWS.favorites, bound(ctx, FavoritesScreen))
     yield ctx.ui.registerView(LIBRARY_VIEWS.local, bound(ctx, LocalMusicScreen))
+    yield ctx.ui.registerView(LIBRARY_VIEWS.profileSettings, bound(ctx, UserProfileCard))
   }, 'library-ui-desktop')
 }
 

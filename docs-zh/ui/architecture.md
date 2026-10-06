@@ -90,8 +90,42 @@ export interface SettingsContribution {
   /** 展示模式：card（内嵌卡片视图）、link（操作按钮/导航行）、auto（自动适配） */
   display?: 'card' | 'link' | 'auto'
   action?: () => void | Promise<void>
-  /** 自动表单渲染模式（未注册自定义视图时生效） */
+  /** 校验/默认值 schema（Standard Schema）。表单 UI 元数据来自 `fields`。 */
   schema?: ParamSchema
+  /**
+   * 通用自动表单的字段描述符 —— 数据驱动的替代方案，避免为简单键值配置
+   * 手写表单组件。字段值默认按点路径（如 `proxy.host`）读写设置文档；
+   * 可用 `getValues`（读）与 `onFieldChange`（写）按贡献覆盖。
+   */
+  fields?: readonly SettingsFieldDescriptor[]
+  /** 触发该贡献异步字段数据重新解析的事件。 */
+  refreshEvents?: readonly string[]
+}
+
+export interface SettingsFieldDescriptor {
+  /** 配置文档中的点路径（如 'proxy.host'）。 */
+  key: string
+  label: string
+  description?: string
+  /** 渲染的控件类型；未知类型回退为 'text'。 */
+  type: 'switch' | 'select' | 'slider' | 'text' | 'number' | 'color'
+    | 'directory' | 'action' | 'switch-list'
+  options?: readonly { value: string | number; label: string }[]
+  /** 'select' 的异步选项（如输出设备列表）。 */
+  optionsAsync?: () => Promise<readonly { value: string | number; label: string }[]>
+  /** 'switch-list' 的动态布尔子行（如按音源的代理分流）。 */
+  entriesAsync?: () => Promise<readonly { id: string; label: string; description?: string }[]>
+  /** 行下方动态计算的说明（占用大小、引擎降级提示等）。 */
+  noteAsync?: () => Promise<string | undefined>
+  min?: number
+  max?: number
+  step?: number
+  unit?: string
+  placeholder?: string
+  actionText?: string
+  onAction?: () => { ok: boolean; message: string } | void | Promise<{ ok: boolean; message: string } | void>
+  /** 渲染期求值的同步、廉价可见性谓词（与 slot 的 `when` 同一约定）。 */
+  when?: () => boolean
 }
 
 export interface MenuContribution {
@@ -168,7 +202,7 @@ export type SlotId =
 
 > **注意：播放栏右侧操作区、设置页与顶部栏托盘完全解耦**：
 > - 播放栏右侧的图标（小窗模式/灵动岛、悬浮歌词开关、播放队列）不再硬编码在 `NowPlayingBar`，而是由对应插件向 `'now-playing.actions'` 槽位贡献并在视图注册表中注册组件，底栏按 `order` 升序与 `when` 谓词动态渲染。
-> - 各插件的配置选项由插件通过 `ctx.ui.contribute({ kind: 'settings', ... })` 或 `ctx.settings.contribute(...)` 自主向设置服务贡献，设置页自动聚合展示，支持内嵌卡片（`display: 'card'`）与导航行（`display: 'link'`）。
+> - 各插件的配置选项由插件通过 `ctx.ui.contribute({ kind: 'settings', ... })` 或 `ctx.settings.contribute(...)` 自主向设置服务贡献，设置页自动聚合展示，支持内嵌卡片（`display: 'card'`）与导航行（`display: 'link'`）。设置页源码中**不出现任何归属其他插件的业务字段**：简单键值配置用 `fields` 字段描述符声明（设置页按描述符自动渲染通用表单，Boolean→Switch、Enum→Select、Number→Slider、Text→Input、Action→Button），复杂交互（如桌面歌词实时预览卡）用 `display: 'card'` + 在该插件自己的 UI 包中注册视图；无对应视图的目标平台显示"在此平台不可用"而非空洞。没有归属插件的平台段（closeToTray、代理、User-Agent、音频引擎/设备）由组合根 `apps/*/boot.ts` 贡献 —— 它们正是这些设置的执行者。
 > - 桌面端顶部栏在“导入分享”按钮旁提供类似 Windows 托盘的展开按钮（折叠时朝下箭头 `chevron-down`，展开时朝上箭头 `chevron-up`）。插件可在路由中通过 `placement: ['tray']` 或通过 `TrayContribution` 自主决定是否显示在主界面托盘中。点击托盘中的插件图标将通过 `ctx.ui.navigate(...)` 自动跳转至该插件主界面页面并收起托盘。设置页正是走了这条路：其路由携带 `'tray'` placement，因此“设置”无需任何顶部栏专属代码即可出现在托盘中。
 
 槽位渲染是插件的 UI 真正现身的地方：

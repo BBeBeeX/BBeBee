@@ -6,6 +6,7 @@
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts",
+    "./views": "./src/views.ts",
     "./package.json": "./package.json"
   },
   "main": "./src/index.ts",

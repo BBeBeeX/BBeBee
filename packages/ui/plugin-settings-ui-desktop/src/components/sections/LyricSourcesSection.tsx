@@ -1,3 +1,4 @@
+import { Button, Sheet, Switch, tablerIcon } from '@BBeBee/ui-kit-desktop'
 import {
   createElement as h,
   useEffect,
@@ -16,10 +17,8 @@ import type {
   SourcesService,
 } from '@BBeBee/protocol'
 import { serviceOf } from '@BBeBee/ui-core'
-import { Button, Sheet, tablerIcon } from '@BBeBee/ui-kit-desktop'
 import { SettingsRow } from '../SettingsRow.js'
 import { SettingsSection } from '../SettingsSection.js'
-import { Switch } from '../Switch.js'
 
 export interface LyricSourcesSectionProps {
   ctx?: Context

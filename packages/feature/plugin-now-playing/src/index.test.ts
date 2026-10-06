@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest'
 import { Context, Service } from 'cordis'
 import { diffSnapshots, snapshotContext, tick } from '@BBeBee/kernel/testing'
 import plugin from './index.js'
-import { NOW_PLAYING_ROUTES } from './views.js'
+import { NOW_PLAYING_ROUTES, NOW_PLAYING_VIEWS } from './views.js'
 
 /** `ctx.ui`, as far as this plugin is concerned: a place to contribute. */
 class UiStub extends Service {
@@ -37,6 +37,7 @@ describe('plugin-now-playing', () => {
     const ui = ctx.ui as unknown as UiStub
     expect(ui.contributed).toEqual([
       { kind: 'route', id: NOW_PLAYING_ROUTES.nowPlaying, path: '/now-playing' },
+      { kind: 'settings', id: NOW_PLAYING_VIEWS.stylesSettings },
     ])
   })
 

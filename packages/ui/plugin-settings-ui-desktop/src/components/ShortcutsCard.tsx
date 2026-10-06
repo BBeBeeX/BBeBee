@@ -1,15 +1,16 @@
-import { createElement as h } from 'react'
+import { Button, Switch } from '@BBeBee/ui-kit-desktop'
+import { createElement as h, useEffect, useState } from 'react'
 import type { ReactElement } from 'react'
-import type { GlobalShortcutsSettings } from '@BBeBee/protocol'
+import type { Context } from 'cordis'
+import type { AppSettings, GlobalShortcutsSettings } from '@BBeBee/protocol'
 import { DEFAULT_SHORTCUTS_SETTINGS } from '@BBeBee/protocol'
-import { Button } from '@BBeBee/ui-kit-desktop'
-import { Switch } from '../Switch.js'
-import { SettingsRow } from '../SettingsRow.js'
-import { SettingsSection } from '../SettingsSection.js'
+import { serviceOf } from '@BBeBee/ui-core'
+import { SettingsRow } from './SettingsRow.js'
+import { SettingsSection } from './SettingsSection.js'
 
-export interface ShortcutsSectionProps {
-  shortcuts: GlobalShortcutsSettings
-  onUpdateShortcuts: (shortcuts: GlobalShortcutsSettings) => void
+interface SettingsWriter {
+  getSync(): AppSettings
+  update(patch: Partial<AppSettings>): Promise<unknown>
 }
 
 const SHORTCUT_ITEMS = [
@@ -25,20 +26,57 @@ const SHORTCUT_ITEMS = [
   { key: 'seekBackward', label: '歌曲快退 (-5秒)', defaultVal: 'Ctrl+Alt+[' },
 ] as const
 
-export function ShortcutsSection({
-  shortcuts,
-  onUpdateShortcuts,
-}: ShortcutsSectionProps): ReactElement {
+/**
+ * The global shortcuts card. Registration of the bindings is headless
+ * orchestration owned by the `plugin-settings` feature (`watchGlobalShortcuts`);
+ * this card only edits the configuration document.
+ */
+export function ShortcutsCard({ ctx }: { ctx: Context }): ReactElement {
+  const settingsWriter = serviceOf<SettingsWriter>(ctx, 'settings')
+  const [shortcuts, setShortcuts] = useState<GlobalShortcutsSettings>(() => ({
+    enabled: settingsWriter?.getSync()?.shortcuts?.enabled ?? DEFAULT_SHORTCUTS_SETTINGS.enabled,
+    keybindings: {
+      ...DEFAULT_SHORTCUTS_SETTINGS.keybindings,
+      ...(settingsWriter?.getSync()?.shortcuts?.keybindings ?? {}),
+    },
+  }))
+
+  useEffect(() => {
+    const refresh = () => {
+      const s = serviceOf<SettingsWriter>(ctx, 'settings')?.getSync()?.shortcuts
+      if (s) {
+        setShortcuts({
+          enabled: s.enabled,
+          keybindings: { ...DEFAULT_SHORTCUTS_SETTINGS.keybindings, ...s.keybindings },
+        })
+      }
+    }
+    refresh()
+    const off = ctx.on('settings/changed', refresh)
+    return () => {
+      off()
+    }
+  }, [ctx])
+
+  const onUpdateShortcuts = (next: GlobalShortcutsSettings) => {
+    setShortcuts(next)
+    void settingsWriter?.update({ shortcuts: next })
+  }
+
   return h(
     'div',
-    { id: 'section-shortcuts' },
+    { 'data-testid': 'shortcuts-card' },
     h(
-      SettingsSection,
-      {
-        title: '全局快捷键',
-        description: '在操作系统后台通过键盘组合键全局控制音乐播放、音量与窗口显隐',
-      },
-      h(SettingsRow, {
+      'div',
+      { style: { padding: '4px 4px 12px' } },
+      h('div', { style: { fontSize: 13, fontWeight: 500, color: '#F5F5F7' } }, '全局快捷键'),
+      h(
+        'div',
+        { style: { fontSize: 12, color: '#8E8E93', marginTop: 2 } },
+        '在操作系统后台通过键盘组合键全局控制音乐播放、音量与窗口显隐',
+      ),
+    ),
+    h(SettingsSection, { title: '组合键绑定' }, h(SettingsRow, {
         title: '启用全局快捷键',
         description: '默认启用。切换至其他应用或游戏时依然可通过快捷键控制播放',
         action: h(Switch, {

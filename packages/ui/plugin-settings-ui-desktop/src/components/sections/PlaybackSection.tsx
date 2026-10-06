@@ -1,13 +1,11 @@
+import { Button, Select, Switch } from '@BBeBee/ui-kit-desktop'
 import { createElement as h, useCallback, useEffect, useRef, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { AppSettings, AudioService, EffectParamValue, OutputDevice, SettingsContribution, UiService } from '@BBeBee/protocol'
-import { serviceOf, useServiceState } from '@BBeBee/ui-core'
-import { Button, Slider } from '@BBeBee/ui-kit-desktop'
-import { Select } from '../Select.js'
+import type { AppSettings, AudioService, OutputDevice, SettingsContribution } from '@BBeBee/protocol'
+import { serviceOf } from '@BBeBee/ui-core'
+import { ContributionBlock } from '../ContributionBlock.js'
 import { SettingsRow } from '../SettingsRow.js'
 import { SettingsSection } from '../SettingsSection.js'
-import { Switch } from '../Switch.js'
-import { NowPlayingStylesSection } from './NowPlayingStylesSection.js'
 
 export interface PlaybackSectionProps {
   ctx: Context
@@ -15,12 +13,6 @@ export interface PlaybackSectionProps {
   update: (patch: Partial<AppSettings>) => Promise<unknown>
   contributions?: readonly SettingsContribution[]
   onNavigate?: (route: string) => void
-  chain?: readonly { effectId: string; enabled: boolean }[]
-  latencyMs?: number
-  setEnabled?: (effectId: string, enabled: boolean) => Promise<void>
-  applyPreset?: (effectId: string, presetId: string) => Promise<void>
-  getParams?: (effectId: string) => Record<string, unknown>
-  setParam?: (effectId: string, key: string, value: EffectParamValue) => Promise<void>
 }
 
 export function PlaybackSection({
@@ -29,17 +21,7 @@ export function PlaybackSection({
   update,
   contributions = [],
   onNavigate,
-  chain,
-  latencyMs = 0,
-  setEnabled,
-  applyPreset,
-  getParams,
-  setParam,
 }: PlaybackSectionProps): ReactElement {
-  const [crossfadeExpanded, setCrossfadeExpanded] = useState(true)
-  const [eqExpanded, setEqExpanded] = useState(true)
-  const [compExpanded, setCompExpanded] = useState(true)
-  const [reverbExpanded, setReverbExpanded] = useState(true)
   const [outputDevices, setOutputDevices] = useState<OutputDevice[]>([])
   const [engineStatus, setEngineStatus] = useState<{ running: boolean; mpvAvailable: boolean } | undefined>(
     undefined,
@@ -135,27 +117,9 @@ export function PlaybackSection({
     }
   }, [ctx, fetchDevices, fetchEngineStatus])
 
-  const eqEntry = chain?.find((c) => c.effectId === 'eq10')
-  const compEntry = chain?.find((c) => c.effectId === 'compressor')
-  const reverbEntry = chain?.find((c) => c.effectId === 'reverb')
-
-  const compParams = getParams ? getParams('compressor') : {}
-  const reverbParams = getParams ? getParams('reverb') : {}
-
   const playbackContribs = (contributions ?? []).filter(
     (c) => c.section === 'playback' || c.section === 'audio',
   )
-  const hasDspContribution = playbackContribs.some(
-    (c) => c.id === 'settings.dsp' || c.id === 'dsp.view',
-  )
-  const hasVisualizerContribution = playbackContribs.some(
-    (c) => c.id === 'visualizer.settings',
-  )
-
-  const VisualizerSettingsView = useServiceState(ctx, ['ui/changed'], () => {
-    return (ctx.ui?.viewFor?.('visualizer.settings') as React.ComponentType<{ ctx: Context }> | undefined) ?? null
-  })
-
   const currentEngine = settings.audioOutputEngine ?? 'mpv'
   const isMpv = currentEngine === 'mpv' || currentEngine === 'wasapi'
   const currentDeviceId = settings.audioOutputDeviceId ?? 'default'
@@ -268,7 +232,6 @@ export function PlaybackSection({
   return h(
     'div',
     { id: 'section-playback' },
-    h(NowPlayingStylesSection, { ctx, settings, update }),
     h(
       SettingsSection,
       {
@@ -357,312 +320,11 @@ export function PlaybackSection({
         }),
       }),
     ),
-    h(
-      SettingsSection,
-      {
-        title: '过渡与衔接',
-        description: '连续播放歌曲时的淡入淡出与连接体验',
-      },
-      h(SettingsRow, {
-        title: '无缝播放 (Gapless Playback)',
-        description: '在两首歌曲之间消除解码停顿，体验连贯的听歌流动感',
-        action: h(Switch, {
-          checked: settings.gaplessPlayback,
-          accessibilityLabel: '无缝播放',
-          onChange: (gaplessPlayback) => void update({ gaplessPlayback }),
-        }),
-      }),
-      h(
-        SettingsRow,
-        {
-          title: '曲目交叉淡入淡出 (Crossfade)',
-          description: '上一曲即将结束时提前淡入下一曲',
-          expandable: settings.crossfadeEnabled,
-          expanded: crossfadeExpanded,
-          onToggleExpand: () => setCrossfadeExpanded((prev) => !prev),
-          action: h(Switch, {
-            checked: settings.crossfadeEnabled,
-            accessibilityLabel: '曲目交叉淡入淡出',
-            onChange: (crossfadeEnabled) => void update({ crossfadeEnabled }),
-          }),
-        },
-        settings.crossfadeEnabled
-          ? h(SettingsRow, {
-              isNested: true,
-              title: '淡入淡出持续时间',
-              description: `持续时长: ${settings.crossfadeDurationSeconds} 秒`,
-              borderBottom: false,
-              action: h(
-                'div',
-                { style: { display: 'flex', alignItems: 'center', gap: 10, width: 220 } },
-                h(
-                  'div',
-                  { style: { flex: 1 } },
-                  h(Slider, {
-                    value: settings.crossfadeDurationSeconds,
-                    max: 10,
-                    accessibilityLabel: '淡入淡出持续时间',
-                    onChange: (sec) =>
-                      void update({ crossfadeDurationSeconds: Math.max(1, Math.round(sec)) }),
-                  }),
-                ),
-                h(
-                  'span',
-                  { style: { fontSize: 12, color: '#8E8E93', width: 34, textAlign: 'right' } },
-                  `${settings.crossfadeDurationSeconds}s`,
-                ),
-              ),
-            })
-          : null,
-      ),
-      h(SettingsRow, {
-        title: '拔出音频设备时自动暂停',
-        description: '断开耳机或蓝牙连接时即刻暂停音乐，防止外放打扰',
-        borderBottom: false,
-        action: h(Switch, {
-          checked: settings.pauseOnUnplug,
-          accessibilityLabel: '拔出音频设备时自动暂停',
-          onChange: (pauseOnUnplug) => void update({ pauseOnUnplug }),
-        }),
-      }),
+    // Everything else in this tab belongs to the plugin that contributed it
+    // (DSP card, visualizer card, transition fields, ...) — the screen renders
+    // descriptors and owns none of them.
+    playbackContribs.map((contrib) =>
+      h(ContributionBlock, { key: contrib.id, ctx, contribution: contrib, onNavigate }),
     ),
-    // Dynamic contributions for 'playback' and 'audio'
-    playbackContribs.map((contrib) => {
-      if (contrib.display === 'card') {
-        const CardView = ctx.ui?.viewFor?.(contrib.id) as React.ComponentType<{ ctx: Context }> | undefined
-        if (CardView) {
-          return h('div', { key: contrib.id }, h(CardView, { ctx }))
-        }
-      }
-      return h(
-        SettingsSection,
-        {
-          key: contrib.id,
-          title: contrib.title,
-          description: contrib.description,
-        },
-        h(SettingsRow, {
-          title: contrib.title,
-          description: contrib.description,
-          borderBottom: false,
-          action: h(Button, {
-            children: contrib.actionText ?? '打开',
-            onPress: () => {
-              if (contrib.action) void contrib.action()
-              else if (onNavigate) onNavigate(contrib.id)
-              else serviceOf<UiService>(ctx, 'ui')?.navigate?.(contrib.id)
-            },
-          }),
-        }),
-      )
-    }),
-
-    // Fallback: If DSP was not contributed via settings/ui and legacy chain props were passed (e.g. in test harness)
-    !hasDspContribution && chain && setEnabled && applyPreset && getParams && setParam
-      ? h(
-          SettingsSection,
-          {
-            title: '音频效果与均衡器 (DSP)',
-            description: '图示均衡器、响度标准化、动态压缩与空间混响配置',
-          },
-          h(
-            SettingsRow,
-            {
-              title: '10 频段图示均衡器 (10-Band EQ)',
-              description: '调整各频段增益，塑造更加适合耳机或音响的声音曲线',
-              expandable: eqEntry?.enabled ?? false,
-              expanded: eqExpanded,
-              onToggleExpand: () => setEqExpanded((prev) => !prev),
-              action: h(Switch, {
-                checked: eqEntry?.enabled ?? false,
-                accessibilityLabel: '启用 10 频段均衡器',
-                onChange: (checked) => void setEnabled('eq10', checked),
-              }),
-            },
-            eqEntry?.enabled
-              ? h(SettingsRow, {
-                  isNested: true,
-                  title: '均衡器预设风格',
-                  description: '快速切换平直、低音增强、清晰人声等调音风格',
-                  borderBottom: false,
-                  action: h(
-                    'div',
-                    { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
-                    [
-                      { id: '原声 (Flat)', label: '原声' },
-                      { id: '低音增强 (Bass Boost)', label: '低音增强' },
-                      { id: '清晰人声 (Vocal)', label: '清晰人声' },
-                      { id: '清亮高音 (Treble)', label: '清亮高音' },
-                    ].map((p) =>
-                      h(Button, {
-                        key: p.id,
-                        variant: 'secondary',
-                        onPress: () => void applyPreset('eq10', p.id),
-                        children: p.label,
-                      }),
-                    ),
-                  ),
-                })
-              : null,
-          ),
-          h(
-            SettingsRow,
-            {
-              title: '动态范围压缩器 (Compressor)',
-              description: '抑制突发的高音量并提升微弱细节，平抑动态范围',
-              expandable: compEntry?.enabled ?? false,
-              expanded: compExpanded,
-              onToggleExpand: () => setCompExpanded((prev) => !prev),
-              action: h(Switch, {
-                checked: compEntry?.enabled ?? false,
-                accessibilityLabel: '启用动态压缩器',
-                onChange: (checked) => void setEnabled('compressor', checked),
-              }),
-            },
-            compEntry?.enabled
-              ? h(
-                  'div',
-                  null,
-                  h(SettingsRow, {
-                    isNested: true,
-                    title: '压缩模式风格',
-                    description: '选择适合夜间收听或强劲动态的压缩曲线',
-                    action: h(
-                      'div',
-                      { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
-                      [
-                        { id: '夜间模式 (Night Mode)', label: '🌙 夜间模式' },
-                        { id: '温和顺滑 (Subtle)', label: '温和顺滑' },
-                        { id: '强劲动态 (Heavy)', label: '强劲动态' },
-                      ].map((p) =>
-                        h(Button, {
-                          key: p.id,
-                          variant: 'secondary',
-                          onPress: () => void applyPreset('compressor', p.id),
-                          children: p.label,
-                        }),
-                      ),
-                    ),
-                  }),
-                  h(SettingsRow, {
-                    isNested: true,
-                    title: '压缩阈值 (Threshold)',
-                    description: `触发压缩的信号电平上限: ${compParams.threshold ?? -24} dB`,
-                    borderBottom: false,
-                    action: h(
-                      'div',
-                      { style: { display: 'flex', alignItems: 'center', gap: 10, width: 220 } },
-                      h(
-                        'div',
-                        { style: { flex: 1 } },
-                        h(Slider, {
-                          value: Number(compParams.threshold ?? -24) + 60,
-                          max: 60,
-                          accessibilityLabel: '压缩阈值',
-                          onChange: (v) => void setParam('compressor', 'threshold', Math.round(v - 60)),
-                        }),
-                      ),
-                      h(
-                        'span',
-                        { style: { fontSize: 12, color: '#8E8E93', width: 34, textAlign: 'right' } },
-                        `${compParams.threshold ?? -24}dB`,
-                      ),
-                    ),
-                  }),
-                )
-              : null,
-          ),
-          h(
-            SettingsRow,
-            {
-              title: '空间混响效果 (Reverb)',
-              description: '合成自然空间声学反射与混响尾音，营造沉浸式空间氛围',
-              expandable: reverbEntry?.enabled ?? false,
-              expanded: reverbExpanded,
-              onToggleExpand: () => setReverbExpanded((prev) => !prev),
-              action: h(Switch, {
-                checked: reverbEntry?.enabled ?? false,
-                accessibilityLabel: '启用空间混响',
-                onChange: (checked) => void setEnabled('reverb', checked),
-              }),
-            },
-            reverbEntry?.enabled
-              ? h(
-                  'div',
-                  null,
-                  h(SettingsRow, {
-                    isNested: true,
-                    title: '混响空间类型',
-                    description: '切换不同声学空间的脉冲反射模型',
-                    action: h(
-                      'div',
-                      { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
-                      [
-                        { id: '小型房间 (Small Room)', label: '小型房间' },
-                        { id: '音乐大厅 (Concert Hall)', label: '音乐大厅' },
-                        { id: '板式混响 (Plate)', label: '板式混响' },
-                      ].map((p) =>
-                        h(Button, {
-                          key: p.id,
-                          variant: 'secondary',
-                          onPress: () => void applyPreset('reverb', p.id),
-                          children: p.label,
-                        }),
-                      ),
-                    ),
-                  }),
-                  h(SettingsRow, {
-                    isNested: true,
-                    title: '混响干湿比 (Mix)',
-                    description: `湿声比例: ${Math.round(Number(reverbParams.mix ?? 0.25) * 100)}%`,
-                    borderBottom: false,
-                    action: h(
-                      'div',
-                      { style: { display: 'flex', alignItems: 'center', gap: 10, width: 220 } },
-                      h(
-                        'div',
-                        { style: { flex: 1 } },
-                        h(Slider, {
-                          value: Math.round(Number(reverbParams.mix ?? 0.25) * 100),
-                          max: 100,
-                          accessibilityLabel: '混响比例',
-                          onChange: (v) => void setParam('reverb', 'mix', Math.round(v) / 100),
-                        }),
-                      ),
-                      h(
-                        'span',
-                        { style: { fontSize: 12, color: '#8E8E93', width: 34, textAlign: 'right' } },
-                        `${Math.round(Number(reverbParams.mix ?? 0.25) * 100)}%`,
-                      ),
-                    ),
-                  }),
-                )
-              : null,
-          ),
-          h(SettingsRow, {
-            title: '高级效果器调音与编排',
-            description: `当前效果链包含 ${chain?.length ?? 0} 个处理节点，延迟: ${latencyMs}ms`,
-            borderBottom: false,
-            action: h(Button, {
-              children: '打开音效面板 →',
-              onPress: () => {
-                serviceOf<UiService>(ctx, 'ui')?.navigate?.('dsp.view')
-              },
-            }),
-          }),
-        )
-      : null,
-
-    // Fallback: visualizer if registered in views but not in contributions
-    !hasVisualizerContribution && VisualizerSettingsView
-      ? h(
-          SettingsSection,
-          {
-            title: '音频可视化',
-            description: '在播放界面呈现音乐频率跳动与声波流动效果，自定义显示样式与色彩',
-          },
-          h(VisualizerSettingsView, { ctx }),
-        )
-      : null,
   )
 }

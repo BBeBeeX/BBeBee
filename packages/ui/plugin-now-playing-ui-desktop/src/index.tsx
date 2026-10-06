@@ -17,6 +17,7 @@ import type { Context } from 'cordis'
 import { NOW_PLAYING_VIEWS } from '@BBeBee/plugin-now-playing/views'
 import { NowPlayingBar } from './components/NowPlayingBar.js'
 import { NowPlayingScreen } from './components/NowPlayingScreen.js'
+import { NowPlayingStylesSection } from './components/NowPlayingStylesSection.js'
 
 export { DesktopLyricsToggle } from './components/DesktopLyricsToggle.js'
 export {
@@ -38,6 +39,7 @@ export {
   StyleSwitcher,
   type StyleSwitcherProps,
 } from './components/StyleSwitcher.js'
+export { NowPlayingStylesSection } from './components/NowPlayingStylesSection.js'
 export {
   TrackInfoModal,
   type TrackInfoModalProps,
@@ -71,6 +73,7 @@ export async function apply(ctx: Context) {
   return ctx.effect(function* () {
     yield ctx.ui.registerView(NOW_PLAYING_VIEWS.nowPlaying, bound(ctx, NowPlayingScreen))
     yield ctx.ui.registerView(NOW_PLAYING_VIEWS.bar, bound(ctx, NowPlayingBar))
+    yield ctx.ui.registerView(NOW_PLAYING_VIEWS.stylesSettings, bound(ctx, NowPlayingStylesSection))
   }, 'now-playing-ui-desktop')
 }
 
