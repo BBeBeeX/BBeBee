@@ -20,7 +20,7 @@ declare module 'cordis' {
 
 消费方书写 `ctx.fs.readFile(uri)` 即可获得完整的类型安全，且无需知道挂载的是哪份实现。把
 `core-fs-expo` 换成 `core-fs-node` 只是启动插件清单（bootstrap 列表）的一处改动
-（[02 §3](../architecture/layers.md#引导插件集)），仅此而已。
+（[architecture/layers.md §3](../architecture/layers.md#引导插件集)），仅此而已。
 
 Cordis 通过追踪代理（tracing proxy）分发服务，因此它知道插件持有的某个值来自服务、必须在该
 服务被替换时失效。由此带来两个后果：
@@ -47,11 +47,11 @@ export async function apply(ctx: Context) {
 只有同时满足以下全部三个条件才允许这样做，且捕获处必须有注释说明：
 
 1. 被捕获的是**核心服务**，由于拆除按逆序进行，其 fiber 的寿命长于每个功能插件
-   （[02 §3](../architecture/layers.md#3-启动顺序)）。
+   （[architecture/layers.md §3](../architecture/layers.md#3-启动顺序)）。
 2. 该引用**只在 disposer 中使用**，绝不出现在热路径上 —— 在热路径上，拦截或隔离自加载以来
    可能已经合法地替换过该服务。
 3. 失败被吞掉。抛错的 disposer 会中断其余的拆除工作
-   （[09 §6](../workflow/testing.md#6-测试策略)），丢掉最后一行日志远好于
+   （[workflow/testing.md §6](../workflow/testing.md#6-测试策略)），丢掉最后一行日志远好于
    泄漏排在它后面的每一个监听器。
 
 除此之外的任何地方，都请经由 `ctx` 读取 —— 否则运行在隔离作用域里的插件会悄无声息地继续
@@ -76,7 +76,7 @@ scoped.plugin(SourceInstance, { record })
 在 `scoped` 之内，`ctx.http` 是该音源专属的 HTTP 栈；在其他任何地方，它仍是共享的那份。
 其余所有服务 —— `fs`、`db`、`logger` —— 依旧共享，因为被隔离的只有被点名的那个键。这正是
 想要的语义：一个慢速音源的限流不会卡住另一个的请求，cookie 也绝不会跨过音源边界
-（[06 §4.1](../sources/runtime.md#41-一个源的生命周期)）。
+（[sources/runtime.md §4.1](../sources/runtime.md#41-一个源的生命周期)）。
 
 ### `ctx.intercept(key, config)` —— 同一实例，不同配置
 

@@ -7,10 +7,10 @@
 | 目标 | 打包器 | 入口 | 说明 |
 |---|---|---|---|
 | 移动端 | **Metro** | `apps/mobile/index.js` | 需要 `unstable_enablePackageExports` 以解析 Cordis 的 ESM `exports` 映射，并需要 `version: '2023-11'` 档位的 `@babel/plugin-proposal-decorators` |
-| 桌面渲染进程 | **Vite** | `apps/desktop/renderer/index.html` | 开发时使用原生 ESM；严格 CSP，唯一的让步是 `'wasm-unsafe-eval'`，没有它 QuickJS 无法编译、启动直接失败 —— 它**不是** `'unsafe-eval'`，因此没有任何外来的*JavaScript* 被加载 (02 §2)。由 `renderer/csp.test.ts` 钉死 |
+| 桌面渲染进程 | **Vite** | `apps/desktop/renderer/index.html` | 开发时使用原生 ESM；严格 CSP，唯一的让步是 `'wasm-unsafe-eval'`，没有它 QuickJS 无法编译、启动直接失败 —— 它**不是** `'unsafe-eval'`，因此没有任何外来的*JavaScript* 被加载 ([architecture/layers.md §2](../architecture/layers.md#2-两套外壳))。由 `renderer/csp.test.ts` 钉死 |
 | 桌面主进程 + preload | **electron-vite** | `apps/desktop/main/index.ts` | CJS 输出；原生依赖外部化 |
 | 各包 | **tsup**（`protocol` 用 `tsc`） | 各包的 `src/index.ts` | 仅 ESM；`protocol` 只产出类型 |
-| QuickJS WASM | 内嵌进 bundle | `core-js-quickjs-node` | 经 `quickjs-emscripten-core` 使用**单文件**变体（`@jitl/quickjs-singlefile-browser-release-sync`），于是引擎就是某个 JS chunk 里的字节，绝不被获取 —— 一个要自己下载引擎的沙箱算不上沙箱 (04 §19)。`getQuickJS()` 的存在就是为了否定这个东西：它选的是启动时才去获取的独立 `.wasm` 变体 —— 开发时由 Vite 提供 `index.html`，打包后则被 `file://` 渲染进程直接拒绝 —— 还会把全部四个变体（约 4 MB）拖进构建 |
+| QuickJS WASM | 内嵌进 bundle | `core-js-quickjs-node` | 经 `quickjs-emscripten-core` 使用**单文件**变体（`@jitl/quickjs-singlefile-browser-release-sync`），于是引擎就是某个 JS chunk 里的字节，绝不被获取 —— 一个要自己下载引擎的沙箱算不上沙箱 ([services/contracts.md §19](../services/contracts.md))。`getQuickJS()` 的存在就是为了否定这个东西：它选的是启动时才去获取的独立 `.wasm` 变体 —— 开发时由 Vite 提供 `index.html`，打包后则被 `file://` 渲染进程直接拒绝 —— 还会把全部四个变体（约 4 MB）拖进构建 |
 
 ```jsonc
 // metro.config.js — the parts that are not boilerplate
@@ -28,9 +28,9 @@
 ### 4.1 原生音频引擎二进制
 
 MPV Hi-Fi 引擎（`core-audio-mpv`）运行在一个独立的 C++ 可执行文件中，而非 Electron bundle 内。它由
-`apps/desktop/scripts/build-audio-engine.js` 编译（自动探测 `g++` / `clang++` / MSVC `cl`，C++17），
+`apps/desktop/scripts/build-audio-engine.js` 编译（自动探测 `g++` / `clang++` / MSVC `cl`，C++17，编译 `main.cpp` 与 `pcm_ring_buffer.cpp`），
 产物写入 `apps/desktop/bin/audio-engine[.exe]`，并同步到 `apps/desktop/resources/bin/` 供打包；
-两者均已 gitignore——它们是构建产物。`pnpm dev:desktop` **不会**构建它；没有预先执行
+两者均已 gitignore——它们是构建产物。独立 CMake 构建也受支持（通过 `apps/desktop/native/audio-engine/CMakeLists.txt`）。`pnpm dev:desktop` **不会**构建它；没有预先执行
 `pnpm build:audio-engine`，引擎就只是不存在。
 
 **引擎二进制查找**（`AudioEngineSupervisor.resolveExecutablePath`）：`AUDIO_ENGINE_PATH` 环境变量
@@ -45,13 +45,17 @@ MPV Hi-Fi 引擎（`core-audio-mpv`）运行在一个独立的 C++ 可执行文�
 libmpv2 依赖栈之外的增量；ffmpeg 族版本必须与宿主匹配（sid 的 0.41 需要 `libavcodec.so.63`，
 trixie 的 0.40 匹配系统的 `.61`）。
 
+在 Linux 上，构建脚本随后将**完整传递依赖闭包**（`scripts/bundle-mpv-deps.js`：对 staged 的 libmpv 执行 `ldd`，黑名单排除仅限 glibc 核心与编译器运行时）打包到 `bin/` 与 `resources/bin/` 中。libmpv 以 `RTLD_NOW` dlopen，因此只要缺失一个 soname 就会导致整个加载失败并静默降级引擎；该闭包使分发的 libmpv 自给自足 —— 它也解决了上述 ffmpeg 版本匹配问题，因为 staged 的 `.61` 集合优先于宿主具备的任何版本。代价是 Linux 上约 200 MB 的打包库体积；该步骤幂等，并在构建机器上无法解析某些 soname 时发出警告。
+
 **降级矩阵**：
 
 | 状态 | 行为 |
 |---|---|
 | 引擎二进制缺失 | supervisor 快速失败；渲染端降级到媒体元素（Chromium 解码——有声、走 Web Audio 输出、频谱平线、无 gapless） |
 | 引擎在、libmpv 缺失 | 引擎存活但所有加载失败；同样的渲染端回退 |
-| 两者齐备 | mpv 解码并直连系统音频输出；原生 DSP/EQ；append 式 gapless；astats 驱动频谱 |
+| 两者齐备 | mpv 解码并直连系统音频输出；原生 DSP/EQ；append 式 gapless；经由 SPSC RingBuffer 的真 PCM FFT 可视化器（带补丁 mpv PCM tap）+ astats 驱动的 RMS/Peak 电平 |
+
+在每种降级状态下，引擎都会上报其健康状态（`ready.mpvAvailable`，暴露为 `ctx.audio.getEngineStatus()`），设置页面会显式展示“MPV 原生引擎不可用”行，而不是假装原生引擎正在运行。当在标准未打补丁的 libmpv 上运行或在降级流播放期间，可视化器循环安全地交付零填充静音帧，无 CPU 空转且不产生缺乏根据的合成正弦/余弦波形。一旦 PCM tap 扩展可用，真 PCM 采样将经由 `PcmRingBuffer` 直接喂给频谱。
 
 **打包**：CI 按平台编译引擎（三平台矩阵 + `--version` 冒烟）并上传产物；打包 job 下载产物、staged libmpv
 （构建脚本写入的 vendored 集合优先；`scripts/fetch-libmpv.js` 为回退——系统搜索、`LIBMPV_PATH`
@@ -75,7 +79,6 @@ trixie 的 0.40 匹配系统的 `.61`）。
 | `react-native` | **0.86.3** | 由 Expo SDK 57 锁定；勿漂移到 0.87 |
 | `react` | **19.2.3** | 由 Expo SDK 57 锁定。桌面渲染进程必须与之匹配 |
 | `expo-router` | ~57.0.17 | |
-| `expo-audio` | ~57.0.4 | `expo-av` 已停止维护，不得使用 |
 | `expo-file-system` | ~57.0.6 | `File`/`Directory` API；旧版位于 `expo-file-system/legacy` |
 | `expo-sqlite` | ~57.0.2 | |
 | `expo-secure-store` | ~57.0.2 | |
@@ -84,7 +87,6 @@ trixie 的 0.40 匹配系统的 `.61`）。
 | `expo-battery` | ~57.0.2 | `ctx.device.battery()` |
 | `expo-application` | ~57.0.2 | `ctx.device` 所报告的应用版本 |
 | `expo-keep-awake` | ~57.0.1 | `ctx.background.acquireWakeLock` |
-| `expo-crypto` | ~57.0.2 | |
 | `expo-dev-client` | ~57.0.16 | 必需 —— Expo Go 无法承载这些原生模块 |
 | `react-native-audio-api` | **0.13.3** | ⚠️ 尚未到 1.0 —— 见 §5.2。Peer 依赖：`react-native-worklets >= 0.6.0` |
 | `react-native-gesture-handler` | ~2.32.0 | ⚠️ 我们自己并未使用。`react-native-audio-api` 的桶文件拖进了它的 `AudioControls` 小部件，而该小部件**在未声明二者**的情况下导入了本包与 Reanimated —— 因此不安装它们，Metro 就无法解析包根。见 §5.2 |
@@ -101,8 +103,8 @@ trixie 的 0.40 匹配系统的 `.61`）。
 | `@shopify/flash-list` | 2.3.2 | 移动端列表虚拟化 |
 | `@tanstack/react-virtual` | 3.14.10 | 桌面端列表虚拟化 |
 | `music-metadata` | 11.15.0 | 两个目标平台的标签读取**都用它** —— 它是构建在 `ctx.fs` 之上的纯 JS，因此 `core-codec-rn` 直接继承它，而不是另加一个必须与它保持一致的原生读取器 |
-| `quickjs-emscripten-core` + `@jitl/quickjs-singlefile-browser-release-sync` | **0.32.0** | ⚠️ 桌面端的 `ctx.js`。两者都精确锁定且保持相等 —— 不同版本的变体与核心共享一份未加版本的 FFI ABI。单文件变体是引擎随包捆绑而非被获取的原因 (04 §19)；`browser` 构建是不挑环境的那个，因此 Vitest、`main` 与被沙箱化的渲染进程运行的是同一个 realm |
-| `react-native-quickjs` | **0.4.x** | ⚠️ 移动端的 `ctx.js` —— 原生模块，因此会强制重建 dev client。见 §5.3 |
+| `quickjs-emscripten-core` + `@jitl/quickjs-singlefile-browser-release-sync` | **0.32.0** | ⚠️ 桌面端的 `ctx.js`。两者都精确锁定且保持相等 —— 不同版本的变体与核心共享一份未加版本的 FFI ABI。单文件变体是引擎随包捆绑而非被获取的原因 ([services/contracts.md §19](../services/contracts.md))；`browser` 构建是不挑环境的那个，因此 Vitest、`main` 与被沙箱化的渲染进程运行的是同一个 realm |
+| `react-native-quickjs` | **0.4.x** | ⚠️ 计划用于移动端的 `ctx.js`（M2 缺口）—— 尚未安装。见 §5.3 |
 
 ### 5.1 Cordis RC 问题
 
@@ -110,12 +112,12 @@ trixie 的 0.40 匹配系统的 `.61`）。
 
 1. **精确锁定。** `"cordis": "4.0.0-rc.9"` —— 不带插入号（^），不带波浪号（~）。该包排除在 Renovate/Dependabot 之外；升级必须有意为之、手动执行，并单独开一个 PR。
 2. **收敛使用面。** 项目只使用 `Context`、`Service`、`plugin`、`inject`、`effect`、事件方法、`isolate` 和 `intercept` —— 十来个入口。Cordis 提供的其余能力一概不用，因此某处变更的波及范围有界且可审计。
-3. **掌握再导出。** `@BBeBee/kernel` 再导出插件所需的内容（`export { Service, Inject } from 'cordis'`），并且**插件从 kernel 导入，而不是直接从 `cordis` 导入**。一旦签名变化，由一个适配模块吸收，而不是波及 40 个包。这就是内核的*插件表面*，也是 Layer 1 中 Layer 3 与 Layer 4 唯一获准导入的部分 —— 旁边的引导表面只有 Layer 2 与组合根可用（[02 §1](../architecture/layers.md#不变量)，在 [§3](#3-依赖规则) 中强制执行）。
+3. **掌握再导出。** `@BBeBee/kernel` 再导出插件所需的内容（`export { Service, Inject } from 'cordis'`），并且**插件从 kernel 导入，而不是直接从 `cordis` 导入**。一旦签名变化，由一个适配模块吸收，而不是波及 40 个包。这就是内核的*插件表面*，也是 Layer 1 中 Layer 3 与 Layer 4 唯一获准导入的部分 —— 旁边的引导表面只有 Layer 2 与组合根可用（[architecture/layers.md §1](../architecture/layers.md#不变量)，在 [structure.md §3](./structure.md#3-依赖规则) 中强制执行）。
 4. **锁定测试。** `@BBeBee/protocol` 的契约测试套件包含一小组测试，断言设计所依赖的 Cordis 语义 —— 依赖丢失会卸载插件、effect 按逆序执行、隔离按服务键逐一生效。破坏假设的升级会让 CI 直接失败并给出明确信息，而不是六周后才在运行时暴露。
 
 ### 5.2 音频引擎风险
 
-`react-native-audio-api` 处于 `0.13.x`，是另一个未锁定的赌注。ADR-4 的结构已缓解此风险：`ctx.audio` 是一个服务，其契约是*标准的* Web Audio API 而非该库自身的形状，且 `core-audio-rntp` 是有据可查的备选方案（[05 §1](../audio/playback.md#逃生通道)）。锁定纪律与 Cordis 相同。
+`react-native-audio-api` 处于 `0.13.x`，是另一个未锁定的赌注。ADR-4 的结构已缓解此风险：`ctx.audio` 是一个服务，其契约是*标准的* Web Audio API 而非该库自身的形状，且 `core-audio-rntp` 是有据可查的备选方案（[audio/engine.md](../audio/engine.md)）。锁定纪律与 Cordis 相同。
 
 ⚠️ **它的桶文件拖进来一个 UI 小部件。** `react-native-audio-api/src/api.ts` 导入了 `Audio/controls/AudioControls`，后者又导入 `react-native-gesture-handler` 与 `react-native-reanimated` —— 而该包对二者都未声明。因此，在两者都安装之前，导入该包的根入口就无法完成打包，而且即便没有任何东西渲染这个小部件，它的四枚图标 PNG 也会混进 bundle。出路有三条，按当时考虑的顺序：
 

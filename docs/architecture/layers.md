@@ -156,7 +156,7 @@ That is the entire trick, and everything else in this document is a consequence 
 ### The invariant
 
 Two rules, both mechanical, both scoped by directory in
-[09 §3](../workflow/structure.md#3-dependency-rules) because code review will not catch them
+[workflow/structure.md §3](../workflow/structure.md#3-dependency-rules) because code review will not catch them
 reliably:
 
 > **1. No package outside `packages/core/*` may import a platform SDK.**
@@ -169,7 +169,7 @@ Not `expo-file-system`, not `node:fs`, not `electron`, not `react-native`'s nati
 
 | Surface | Exports | Who may import it |
 |---|---|---|
-| **Plugin surface** — being *typed* by the kernel | Exactly the pinned Cordis re-exports: `Context`, `Service`, `Inject`, `Plugin`, `Fiber`, `Effect`, `EffectMeta`, `InjectSpec`, `FiberState`, `FiberStateName`, `FiberStateValue`, `fiberStateName`, `isActive`, `isSettled` | Layers 2, 3 and 4. [09 §5.1](../workflow/build-pipelines.md#51-the-cordis-rc-problem) asks plugins to take Cordis from the kernel rather than from `cordis`, so one adapter absorbs an upstream change |
+| **Plugin surface** — being *typed* by the kernel | Exactly the pinned Cordis re-exports: `Context`, `Service`, `Inject`, `Plugin`, `Fiber`, `Effect`, `EffectMeta`, `InjectSpec`, `FiberState`, `FiberStateName`, `FiberStateValue`, `fiberStateName`, `isActive`, `isSettled` | Layers 2, 3 and 4. [workflow/build-pipelines.md §5.1](../workflow/build-pipelines.md#51-the-cordis-rc-problem) asks plugins to take Cordis from the kernel rather than from `cordis`, so one adapter absorbs an upstream change |
 | **Bootstrap surface** — *driving* the kernel | Everything else the kernel exports: `createApp`, the config loader, the plugin loader, the capability gate, the SQL guards, the migration runner | Layer 2 and the composition root only |
 
 The rule is written as an **allow-list of the plugin surface**, not a ban-list of the bootstrap
@@ -177,7 +177,7 @@ surface. The bootstrap surface is long and grows; the plugin surface is short an
 upstream Cordis's shape. So a new kernel export is closed to Layers 3, 4 and 5 until someone says
 otherwise, which is the safe direction to fail in — and `kernel/src/layers.test.ts` fails the
 build if the two copies of that list drift apart
-([09 §3](../workflow/structure.md#3-dependency-rules)).
+([workflow/structure.md §3](../workflow/structure.md#3-dependency-rules)).
 
 A feature plugin does not construct a context, resolve a plugin, read the config store, or consult
 the capability gate. It is *handed* a context and works inside it. Stating it this precisely
@@ -195,7 +195,7 @@ Each is narrow, and each is named here so it can be audited rather than discover
   render a `<FlatList>`, but it may not call `FileSystem.readAsStringAsync`.
 - **Host shells own platform chrome.** `apps/*` are platform-specific by definition: deep-link
   registration, safe-area insets, window controls
-  ([08 §7](../ui/architecture.md#7-shell-responsibilities)). Everything else belongs in a plugin.
+  ([ui/architecture.md §7](../ui/architecture.md#7-shell-responsibilities)). Everything else belongs in a plugin.
 - **The composition root drives the kernel.** `apps/mobile/src/boot.ts`,
   `apps/desktop/renderer/boot.ts`, and the `plugins.ts` allowlist beside each are the only files
   that call `createApp` and name Layer 2 packages by import — [§3's bootstrap table](#bootstrap-plugin-sets)
@@ -226,7 +226,7 @@ Electron's `main`, which [§2](#desktop) rejects for this reason.
 **Interface Segregation Principle (ISP).** Layer 0 defines many small service interfaces rather
 than one platform façade, so `inject: ['fs']` pulls in filesystem access and nothing else. A
 plugin's `inject` list is therefore an honest, reviewable statement of its blast radius, and it is
-what the capability gate ([03 §7](../plugins/capabilities.md#7-capability-model)) narrows further.
+what the capability gate ([plugins/capabilities.md §7](../plugins/capabilities.md#7-capability-model)) narrows further.
 
 **Layer-by-layer propagation.** UI → feature plugins → core plugins → kernel → system. Nothing
 skips: a screen that needs bytes calls a feature plugin, which asks `ctx.fs`, which is a core
@@ -240,10 +240,10 @@ production uses, so a test double is a legitimate implementation rather than a s
 
 | Testing | Substitute at Layer 0 | Where |
 |---|---|---|
-| A feature plugin | An in-memory `FsService` / `HttpService` / `DbService` | `packages/tooling/tooling-fixtures` ([09 §6](../workflow/testing.md#6-testing-strategy)) |
-| A core plugin | Nothing — it is held to the shared contract instead | The conformance suites in `protocol/src/conformance` ([04 §18](../services/contracts.md)) |
-| A UI package | The hooks read a fake service off a context built in the test | [08 §4](../ui/architecture.md#4-binding-services-to-react) |
-| The rule language | Nothing to mock: `source-rules` is pure, with no Cordis and no I/O | [06 §3](../sources/rule-engines.md#3-the-rule-language) |
+| A feature plugin | An in-memory `FsService` / `HttpService` / `DbService` | `packages/tooling/tooling-fixtures` ([workflow/testing.md §6](../workflow/testing.md#6-testing-strategy)) |
+| A core plugin | Nothing — it is held to the shared contract instead | The conformance suites in `protocol/src/conformance` ([services/contracts.md §18](../services/contracts.md)) |
+| A UI package | The hooks read a fake service off a context built in the test | [ui/architecture.md §4](../ui/architecture.md#4-binding-services-to-react) |
+| The rule language | Nothing to mock: `source-rules` is pure, with no Cordis and no I/O | [sources/rule-engines.md §3](../sources/rule-engines.md#3-the-rule-language) |
 
 The circularity is the point: the conformance suites live in Layer 0, so the contract that makes
 the layers substitutable is also the thing that tests them.
@@ -339,7 +339,7 @@ gates `WebAssembly.instantiate` on `script-src`, so QuickJS cannot compile witho
 renderer aborts on the core service list. It grants WebAssembly compilation and **nothing else**:
 `eval` and `new Function` stay refused, which is exactly why the narrow token is used and
 `'unsafe-eval'` — which would also have made the WASM work — is not. The trade is a compiler for a
-realm with no host object graph in it ([04 §19](../services/contracts.md)), and it is the direction
+realm with no host object graph in it ([services/contracts.md §19](../services/contracts.md)), and it is the direction
 the whole source model depends on.
 
 ---
@@ -468,7 +468,7 @@ and may transform inputs, short-circuit, or post-process the result.
 > `next(somethingElse)` is silently identical to `next()`. A listener therefore has two moves:
 > **mutate the argument in place** — rewrite `req.headers`, splice the array — and call `next()`,
 > or **short-circuit** by returning a value and never calling `next` at all. The signatures in
-> [07 §5](../data-model/events.md#5-the-event-map) say so, and the kernel's `cordis-assumptions.test.ts`
+> [data-model/events.md §5](../data-model/events.md#5-the-event-map) say so, and the kernel's `cordis-assumptions.test.ts`
 > pins it, because a header that silently vanishes is a miserable thing to debug.
 
 The three load-bearing waterfalls:
@@ -486,7 +486,7 @@ or even knows.
 
 Full dispatch semantics for every event, including which of `emit` / `parallel` / `serial` /
 `bail` / `waterfall` each uses, are tabulated in
-[07 §5](../data-model/events.md#5-the-event-map).
+[data-model/events.md §5](../data-model/events.md#5-the-event-map).
 
 ---
 
@@ -508,7 +508,7 @@ exactly one owner.
 | Source documents | `ctx.sources`, persisted in `sources` | Imported, edited and exported as strings; an edit reloads exactly that source's fiber |
 
 React holds **no domain state** — only view state (which tab is open, is this menu expanded).
-Enforcement rationale and hook design in [08 §4](../ui/architecture.md#4-binding-services-to-react).
+Enforcement rationale and hook design in [ui/architecture.md §4](../ui/architecture.md#4-binding-services-to-react).
 
 ---
 

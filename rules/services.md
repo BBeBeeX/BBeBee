@@ -18,6 +18,8 @@ Rules governing Layer 2 core services and platform integration in BBeBee.
 
 Declared in `packages/protocol/src/services/` and augmented onto `Context`:
 
+### Core Capability Services (Layer 2)
+
 | Service Key | Meaning | Platform Implementations |
 |---|---|---|
 | `ctx.fs` | File I/O over opaque `Uri` strings | `core-fs-node` (desktop), `core-fs-expo` (mobile) |
@@ -34,11 +36,27 @@ Declared in `packages/protocol/src/services/` and augmented onto `Context`:
 | `ctx.background` | Background audio tasks, wake locks, suspend hooks | `core-background-electron`, `core-background-expo` |
 | `ctx.js` | Sandboxed QuickJS evaluator for untrusted scripts | `core-js-quickjs-node` (desktop) |
 | `ctx.shell` | Open external URL, directory pickers | Desktop bridge, mobile intent |
-| `ctx.settings` | User app settings (theme, audio engine & exclusive mode, shortcuts) and dynamic contribution registry (`contribute`, `getContributions`) | `plugin-settings` (feature service with store persistence) |
-| `ctx.theme` | Theme registry, token injection, dynamic theme management | `plugin-theme` (feature service with DOM/store sync) |
-| `ctx.share` | Metadata serialization, image steganography, track/playlist/album/lyrics sharing | `plugin-share` (headless service), `plugin-share-ui-desktop` (views) |
-| `ctx['plugin-manager']` | Plugin registry, runtime fiber states, dependency graph, and persistent lifecycle management | `plugin-manager` (feature service with store persistence & boot bridge) |
-| `ctx.logger` | Scoped diagnostic logging via Cordis | Core service / Cordis native |
+
+### Diagnostic Logging (Layer 3)
+
+| Service Key | Meaning | Platform Implementations |
+|---|---|---|
+| `ctx.logger` | Scoped diagnostic logging via Cordis | Core service / Cordis native, delivered via Layer 3 transports (`plugin-log-console`, `plugin-log-buffer`, `plugin-log-file`) |
+
+### Standard Headless Feature Services (Layer 4)
+
+| Service Key | Meaning | Packages |
+|---|---|---|
+| `ctx.player` | High-level playback state machine, queue management, resolution waterfall | `plugin-player` |
+| `ctx.dsp` | Audio DSP effect chain manager (9 built-in effects) | `plugin-dsp` |
+| `ctx.sources` | Aggregated catalog, source manager, search, explore, account lifecycle | `plugin-source-runtime` |
+| `ctx.library` | Local user curation: playlists, favorites, collections, smart playlists | `plugin-library` |
+| `ctx.downloads` | Resumable background download task queue and media bindings | `plugin-download` |
+| `ctx.cache` | Eviction-bounded media cache for streams and covers | `plugin-cache` |
+| `ctx.settings` | User app settings (theme, audio engine & exclusive mode, shortcuts) and dynamic contribution registry | `plugin-settings` |
+| `ctx.theme` | Theme registry, token injection, dynamic theme management | `plugin-theme` |
+| `ctx.share` | Metadata serialization, image steganography, track/playlist/album/lyrics sharing | `plugin-share` |
+| `ctx['plugin-manager']` | Plugin registry, runtime fiber states, dependency graph, and persistent lifecycle management | `plugin-manager` |
 
 ---
 

@@ -6,7 +6,7 @@
 
 `ctx.logger` 本身由 Cordis 提供，且已按插件划分作用域，因此 BBeBee 不再定义日志服务。BBeBee
 增加的是**传输端（transport）**，每一个都是普通插件 —— 它们合在一起，就是
-[02 §1](../architecture/layers.md#1-分层模型) 的**第 3 层**，即 `packages/logs/*`：
+[architecture/layers.md §1](../architecture/layers.md#1-分层模型) 的**第 3 层**，即 `packages/logs/*`：
 
 | 插件 | 何时运行 | 行为 |
 |---|---|---|
@@ -42,9 +42,10 @@
 
 ```ts
 export interface LogRecord {
+  sn: number             // 会话内的单调递增序号，用于稳定排序
   time: number
   level: 'error' | 'warn' | 'info' | 'debug'
-  scope: string          // the plugin's name, supplied by Cordis
+  scope: string          // 插件名称，由 Cordis 注入
   message: string
   meta?: Record<string, unknown>
 }
@@ -58,8 +59,17 @@ export interface LogTransport {
 > ⚠️ **脱敏是强制的。** 传输端会对 `meta` 与 `message` 跑一个脱敏器，剔除键名为
 > `token`、`password`、`authorization`、`cookie` 或 `refresh_token` 的内容，并重写 URL
 > 上的查询字符串。音源规则动辄把凭据放进请求头与查询字符串，而测试界面的追踪
-> （[06 §10](../sources/authoring.md#10-诊断一个坏掉的源)）存在的意义就是被复制进
+> （[sources/authoring.md §10](../sources/authoring.md#10-诊断一个坏掉的源)）存在的意义就是被复制进
 > 论坛帖子 —— 所以同一个脱敏器也跑在追踪记录上，而不只是日志上。
+
+### 应用内诊断视图
+
+桌面端诊断中心（`@BBeBee/plugin-settings-ui-desktop`）提供了实时的遥测界面：
+
+1. **系统日志查看 (`debug.logs`)**：
+   直接从 `ctx.logBuffer` 读取日志数据。提供实时流检查、日志级别过滤（`ALL`、`DEBUG`、`INFO`、`WARN`、`ERROR`）、子字符串搜索、导出为 NDJSON 到剪贴板，以及一键清空缓冲区。
+2. **HTTP 请求日志 (`debug.http-logs`)**：
+   监控由第三方音源与后台任务发起的出站 HTTP 请求。核心 HTTP 客户端（`core-http-node`）将追踪记录格式化为 `[HTTP] ${method} ${url} -> ${status} (${durationMs}ms)`，该视图将其解析为带有方法徽标、HTTP 状态码、毫秒级延迟与目标 URL 的结构化条目。
 
 ---
 

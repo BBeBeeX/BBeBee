@@ -8,7 +8,7 @@
 [ADR-1 修订](../architecture/overview.md#adr-1--插件在所有目标平台上都静态打包)落地，
 每个插件都是第一方的，因此这扇门如今是一项**让意图保持可审计的纪律**，而不是防范陌生包的
 边界 —— 而确实存在的陌生代码，即音源字符串，则由另一套强得多的机制来遏制
-（[06 §8](../sources/runtime.md#8-信任导入的源能做什么不能做什么)）。
+（[sources/runtime.md §8](../sources/runtime.md#8-信任导入的源能做什么不能做什么)）。
 
 ### 能力语法
 
@@ -117,14 +117,14 @@ function scopeContext(ctx: Context, opts: GrantOptions) {
 | 方法白名单 | 只有列名的服务方法可达；`constructor` 与继承成员不可达 |
 | 路径封闭 | 每一个 `fs` 操作数都必须落在应用目录之内 —— 桥既触不到 `/etc`，也触不到用户家目录的其余部分 |
 | 拒绝 `ATTACH`/`DETACH`/`VACUUM INTO` | 否则数据库句柄就成了任意文件读写原语，上面的路径封闭也就形同虚设。三者都出自内核中同一个共享的 `assertSqlAllowed`，受门约束的路径与 `main` 都用它：桥过去维护自己的清单，而且逐渐漂移到只剩 `ATTACH`/`DETACH`，于是 `VACUUM INTO '/any/path'` 直接绕过这张表写出了一个文件 |
-| 每次调用一条语句 | 驱动只编译字符串中的第一条语句并静默丢弃其余的，所以 `SELECT 1; DROP …` 既不会完整执行也不会执行一半 —— 它会被拒绝（[04 §5](../services/contracts.md#5-ctxdb--sql)） |
+| 每次调用一条语句 | 驱动只编译字符串中的第一条语句并静默丢弃其余的，所以 `SELECT 1; DROP …` 既不会完整执行也不会执行一半 —— 它会被拒绝（[services/contracts.md §5](../services/contracts.md#5-ctxdb--sql)） |
 | 流句柄有界 | 循环调用 `streamOpen` 无法耗尽 `main` 的文件描述符 |
 | 事务生命周期 | 被遗弃的事务会在渲染进程销毁或空闲超时时回滚，刷新不再能楔死数据库 |
 
 要真正补上每插件粒度的缺口，需要插件不再共享渲染进程的 realm —— 与下文真正的沙箱是同一个
 前提。如今这个仓库之外已没有任何东西被当作插件加载，所以门的每插件一半是设计使然的第一方
 纪律，而非无心之失。**在任何第三方被当作插件加载之前，必须先解决这个问题**
-（[10 §M5](../roadmap/roadmap.md#m5--沙箱上的第三方扩展)）。
+（[roadmap/roadmap.md §M5](../roadmap/roadmap.md#m5--沙箱上的第三方扩展)）。
 
 ### 它不是什么
 
@@ -135,8 +135,8 @@ function scopeContext(ctx: Context, opts: GrantOptions) {
 
 真正的遏制需要独立的 realm。**一个现在已经存在** —— `ctx.js`，一个带可枚举宿主 API 的
 QuickJS realm，它的诞生是因为导入的音源是不受信任的代码、必须被遏制
-（[04 §19](../services/contracts.md#19-ctxjs--沙箱化求值器)、
-[06 §8](../sources/runtime.md#8-信任导入的源能做什么不能做什么)）。把它从
+（[services/contracts.md §19](../services/contracts.md#19-ctxjs--沙箱化求值器)、
+[sources/runtime.md §8](../sources/runtime.md#8-信任导入的源能做什么不能做什么)）。把它从
 "执行音源规则"推广到"承载一整个插件"，意味着把上面能力语法早已描述为协议的服务桥交给它。
 这正是 [M5](../roadmap/roadmap.md#m5--沙箱上的第三方扩展) 的形态，而且如今它是
 对已交付之物的扩展，而不是一个要从零发明的子系统。
@@ -147,10 +147,10 @@ QuickJS realm，它的诞生是因为导入的音源是不受信任的代码、�
 
 - [ ] 已设置 `name`，且与包名后缀一致。
 - [ ] `inject` 恰好列出所需内容 —— 可选依赖用对象形式。
-- [ ] 未导入任何平台 SDK（[02 §1](../architecture/layers.md#不变量)）。核心插件是例外，而且是
+- [ ] 未导入任何平台 SDK（[architecture/layers.md §1](../architecture/layers.md#不变量)）。核心插件是例外，而且是
       *唯一*的例外。
 - [ ] 未从内核的引导表面导入任何东西 —— 功能插件是被交给一个现成 context 的，它并不自己
-      构建一个（[02 §1](../architecture/layers.md#不变量)）。
+      构建一个（[architecture/layers.md §1](../architecture/layers.md#不变量)）。
 - [ ] 未导入任何 `core-*` 包。对 Layer 2 的依赖写作 `inject: ['fs']`。
 - [ ] 每个监听器、定时器、套接字与音频节点都通过 `ctx.effect()` 注册，或以释放器
       （disposer）形式返回。
@@ -162,7 +162,7 @@ QuickJS realm，它的诞生是因为导入的音源是不受信任的代码、�
       （[06](../sources/spec.md)）；插件是为运行时无法表达的行为准备的 —— 一个效果器、
       一个 scrobbler、一种传输控制、一个 UI 表面。
 - [ ] 自有 DB 表通过 `ctx.db.defineSchema('plugin:<id>', …)` 声明
-      （[07 §6](../data-model/migrations.md#6-迁移)）。
+      （[data-model/migrations.md §6](../data-model/migrations.md#6-迁移)）。
 - [ ] 停用、再启用，并用 `fiber.getEffects()` 确认没有任何泄漏。
 
 ---

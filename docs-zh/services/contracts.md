@@ -60,16 +60,16 @@ export interface HttpService {
 
 `ctx.http` 是标准的瀑布（waterfall）拦截点。鉴权注入、重试、限速与响应缓存，全都是挂接
 `http/request` 钩子的插件，而不是内建在客户端里的特性
-（[02 §5](../architecture/layers.md#5-组合功能之间如何触达彼此)）。
+（[architecture/layers.md §5](../architecture/layers.md#5-组合功能之间如何触达彼此)）。
 
 ### 2.1 Cookie 罐
 
 一个已登录的音源必须在应用重启后保持登录状态
-（[06 §5.1](../sources/runtime.md#51-会话持久化--cookie-在应用关闭后依然存活)）。因此
+（[sources/runtime.md §5.1](../sources/runtime.md#51-会话持久化--cookie-在应用关闭后依然存活)）。因此
 cookie 持久化是平台契约的一部分，而不是每份音源文档要在规则里自行表达的东西。
 
 **一个罐只属于一个源。** `ctx.http` 从运行时为每个源设置的拦截配置中读取 scope id
-（[06 §4.1](../sources/runtime.md#41-一个源的生命周期)），因此两台 Navidrome 服务器得到两个罐，
+（[sources/runtime.md §4.1](../sources/runtime.md#41-一个源的生命周期)），因此两台 Navidrome 服务器得到两个罐，
 其中一个设置的 cookie 绝不会被发给另一个。不经门控的调用方 —— 内核、一项核心服务、一个测试 ——
 没有作用域，因此也没有罐，而这正是正确的：本就不存在要维持的会话。
 
@@ -103,6 +103,8 @@ export interface CookieJar {
   remove(name: string, domain?: string): Promise<void>
   /** Empties the jar AND deletes its persisted copy. Called by signOut(). */
   clear(): Promise<void>
+  /** 确保所有排队的落盘写入已完成。 */
+  flush(): Promise<void>
 }
 
 export interface CookieJarService {
@@ -126,7 +128,7 @@ export interface CookieJarService {
 | | Electron (`core-http-node`) | Expo (`core-http-rn`) |
 |---|---|---|
 | 存储 | `session.fromPartition('persist:BBeBee-<name>')` —— Chromium 自带的 cookie 存储，直接落盘，过期/`Secure`/`SameSite` 处理白拿 | JS 实现的 RFC 6265 jar，序列化为 JSON |
-| 静态保护 | 存在系统钥匙串时，Chromium 用它加密存储 | **信封加密（envelope encryption）**：随机 AES 密钥放 `ctx.secrets`，密文放 `cookie_jars` 表（[07 §4.1](../data-model/urn.md#41-音源账号与会话)） |
+| 静态保护 | 存在系统钥匙串时，Chromium 用它加密存储 | **信封加密（envelope encryption）**：随机 AES 密钥放 `ctx.secrets`，密文放 `cookie_jars` 表（[data-model/schema.md §4.1](../data-model/schema.md#41-音源账号与会话)） |
 | 清除 | `session.clearStorageData({ storages: ['cookies'] })` + 移除分区 | 删除该行，并从 `ctx.secrets` 删除密钥 |
 
 > ⚠️ **为什么移动端不直接把 jar 放进 `ctx.secrets`。** `expo-secure-store` 对单个值的上限是
@@ -230,7 +232,7 @@ export interface StoreService {
 两点：
 
 - **启动顺序。** `ctx.store` 比 `ctx.db` *先*就绪 —— 内核在数据库存在之前就要经 `fs` 和
-  `store` 读取配置（[02 §3](../architecture/layers.md#3-启动顺序)）。让移动端的 store 依赖
+  `store` 读取配置（[architecture/layers.md §3](../architecture/layers.md#3-启动顺序)）。让移动端的 store 依赖
   `db` 会把这条顺序倒过来。
 - **平台特有的东西已经不剩什么了。** 一旦走 `ctx.fs`，两份实现就是同一份代码抄两遍，
   只会平白增加漂移面。
@@ -262,7 +264,7 @@ export interface DbService {
   /**
    * Register a plugin-owned schema. Tables are prefixed with the namespace,
    * migrations are versioned per namespace, and everything is dropped if the
-   * plugin is uninstalled with "remove data" selected. See 07 §6.
+   * plugin is uninstalled with "remove data" selected. 参见 [data-model/migrations.md §6](../data-model/migrations.md#6-插件表结构生命周期)。
    */
   defineSchema(namespace: string, migrations: Migration[]): Promise<void>
 }
@@ -295,7 +297,7 @@ export interface Migration {
 
 选择 `node:sqlite` 消除了 Electron 项目中最恼人的一项维护负担 ——
 每次版本升级都要针对 Electron 头文件重编译 `better-sqlite3`。两个平台都支持 FTS5，因此本地曲库搜索只需一份实现
-（[07 §4.3](../data-model/schema.md#43-目录catalogue)）。
+（[data-model/schema.md §4.3](../data-model/schema.md#43-目录catalogue)）。
 
 ---
 
@@ -306,9 +308,13 @@ export interface SecretsService {
   get(key: string): Promise<string | undefined>
   set(key: string, value: string): Promise<void>
   delete(key: string): Promise<void>
+  /** 清除该命名空间下的所有密钥。供 signOut() 使用。 */
+  clear(): Promise<void>
   namespace(ns: string): SecretsService
   /** False when no OS keychain is available; callers may warn the user. */
   readonly isHardwareBacked: boolean
+  /** 后端支持的最大值字节数。 */
+  readonly maxValueBytes: number
 }
 ```
 
@@ -320,7 +326,7 @@ Electron：`safeStorage.encryptString`（Keychain / DPAPI / libsecret），密�
 
 **令牌只存放在这里，别无他处。** 绝不进 `ctx.db`，绝不进配置文件，也绝不进任何一行日志。每个音源拿到的是
 `ctx.secrets.namespace(sourceId)`，且能力语法中不存在 `secrets:all`
-（[03 §7](../plugins/capabilities.md#7-能力模型)）。
+（[plugins/capabilities.md §7](../plugins/capabilities.md#7-能力模型)）。
 
 ---
 
@@ -332,6 +338,7 @@ export interface NowPlaying {
   artist?: string
   album?: string
   artworkUri?: Uri
+  artworkUrl?: string
   durationMs?: number
   positionMs?: number
   playbackRate?: number
@@ -357,7 +364,7 @@ export interface MediaSessionService {
 | | Electron (`core-media-session-electron`) | Expo (`core-media-session-rn`) |
 |---|---|---|
 | 底层实现 | Chromium 的 `navigator.mediaSession`，外加 MPRIS（Linux）、SMTC（Windows）以及 macOS "正在播放"中心，均经 `main` | `react-native-audio-api` 的通知/锁屏控制 |
-| 锁屏封面 | ✅ | ✅ —— 必须是本地 `Uri`；远程封面需先缓存 |
+| 锁屏封面 | `artworkUrl` 优先 | `artworkUri` 优先 —— 必须是本地 `Uri`；远程封面需先缓存 |
 
 ---
 
@@ -379,7 +386,7 @@ Electron 的 `Notification`（无需权限请求）对上 `expo-notifications`�
 
 ## 9. `ctx.background` —— 长时任务与唤醒锁
 
-让 [02 §4](../architecture/layers.md#4-后台意味着什么) 落地的服务。
+让 [architecture/layers.md §4](../architecture/layers.md#4-后台意味着什么) 落地的服务。
 
 ```ts
 export interface BackgroundService {
@@ -406,14 +413,15 @@ Expo：`expo-background-task` 加上音频会话；只有在音频持有进程�
 
 ```ts
 export interface PathsService {
-  appData: Uri
-  cache: Uri
-  temp: Uri
-  logs: Uri
-  downloads: Uri
+  readonly appData: Uri
+  readonly cache: Uri
+  readonly temp: Uri
+  readonly logs: Uri
+  readonly downloads: Uri
   /** Undefined where the platform has no shared music folder (iOS). */
-  music?: Uri
+  readonly music?: Uri
   pluginData(pluginId: string): Uri
+  get(kind: WellKnownDir): Uri | undefined
 }
 ```
 
@@ -430,8 +438,8 @@ export interface DeviceService {
   readonly appVersion: string
   readonly locale: string
 
-  network(): Promise<{ online: boolean; type: 'wifi' | 'cellular' | 'ethernet' | 'none'; metered: boolean }>
-  onNetworkChange(cb: (s: { online: boolean; metered: boolean }) => void): Disposable
+  network(): Promise<{ online: boolean; type: 'wifi' | 'cellular' | 'ethernet' | 'none' | 'unknown'; metered: boolean }>
+  onNetworkChange(cb: (s: { online: boolean; type: 'wifi' | 'cellular' | 'ethernet' | 'none' | 'unknown'; metered: boolean }) => void): Disposable
 
   battery(): Promise<{ level: number; charging: boolean } | undefined>
 
@@ -442,7 +450,7 @@ export interface DeviceService {
 ```
 
 `network().metered` 承载着关键逻辑：下载策略引擎
-（[07 §4.7](../data-model/schema.md#48-下载)）依靠它来拦停蜂窝网络下的传输。
+（[data-model/schema.md §4.8](../data-model/schema.md#48-下载)）依靠它来拦停蜂窝网络下的传输。
 
 ---
 
@@ -456,6 +464,9 @@ export interface CryptoService {
   hmac(algo: 'sha1' | 'sha256', key: Uint8Array | string, data: Uint8Array | string): Promise<Uint8Array>
   /** Streaming digest for verifying large downloads without buffering. */
   digestStream(algo: 'sha256', stream: ReadableStream<Uint8Array>): Promise<Uint8Array>
+  /** AES-GCM，用于移动端信封加密的 cookie 存储。 */
+  encrypt(key: Uint8Array, plaintext: Uint8Array): Promise<{ ciphertext: Uint8Array; iv: Uint8Array }>
+  decrypt(key: Uint8Array, ciphertext: Uint8Array, iv: Uint8Array): Promise<Uint8Array>
 }
 ```
 
@@ -511,7 +522,7 @@ export interface ShellService {
 }
 ```
 
-`openAuthSession` 让 [06 §5](../sources/runtime.md#5-认证与会话) 的
+`openAuthSession` 让 [sources/runtime.md §5](../sources/runtime.md#5-认证与会话) 的
 `webview` 登录流程行为完全一致：移动端用 `expo-web-browser` 的 auth session，桌面端用一个带导航监听器的 `BrowserWindow`。
 它收集的 cookie 落进该音源的 jar（§2.1），这正是全部意义所在。
 
@@ -576,9 +587,9 @@ bug。这套套件就是本文档的可执行形式。
 **用途。** 求值一段不受信任的 JavaScript 并拿回一个值，所在的 realm 与应用不共享任何东西。
 
 如今它恰好只有一个调用方：`plugin-source-runtime`，其规则出自陌生人之手
-（[06 §8](../sources/runtime.md#8-信任导入的源能做什么不能做什么)）。它是
+（[sources/runtime.md §8](../sources/runtime.md#8-信任导入的源能做什么不能做什么)）。它是
 核心服务而不是那个插件的一部分，因为内嵌一个解释器意味着交付原生代码，而只有 `core-*` 可以
-这么做（[02 §1](../architecture/layers.md#不变量)）。
+这么做（[architecture/layers.md §1](../architecture/layers.md#不变量)）。
 
 **由 `core-js-quickjs-node` 实现**（桌面端与 Node），构建于编译成 WebAssembly 的 QuickJS 之上。不是 `node:vm`，而两者的差别正是全部要点：`vm` 与宿主共享一张对象图，脚本一旦够到 `this.constructor.constructor` 就出局了，而已发表的每一种缓解手段，终究是一份早晚有人绕开的黑名单。QuickJS 是一个独立的解释器 —— 里面没有宿主对象图可供够取，因为其中根本不存在宿主对象。
 
@@ -609,7 +620,7 @@ export interface JsLimits {
    * timeout.
    */
   timeoutMs: number
-  /** Wall clock for one eval including everything it awaits — 06 §8's "10s with network". */
+  /** Wall clock for one eval including everything it awaits — [sources/runtime.md §8](../sources/runtime.md#8-信任导入的源能做什么不能做什么) 的 "带网络 10 秒". */
   budgetMs: number
   /** Heap ceiling. Exceeding it throws JsMemoryError. */
   memoryBytes: number
@@ -618,8 +629,8 @@ export interface JsLimits {
 }
 
 export interface JsService {
-  /** A fresh realm with nothing in it but ECMAScript builtins. */
-  createRealm(limits: JsLimits): Promise<JsRealm>
+  /** 拥有 ECMAScript 内建对象的全新 realm。 */
+  createRealm(limits?: Partial<JsLimits>): Promise<JsRealm>
   readonly engine: { name: string; version: string }
 }
 
@@ -627,9 +638,9 @@ export class JsTimeoutError extends Error {}
 export class JsMemoryError extends Error {}
 ```
 
-| | Electron (`core-js-quickjs-node`) | Expo (`core-js-quickjs-rn`) |
+| | Electron (`core-js-quickjs-node`) | Expo (宿主内置 QuickJS JSI) |
 |---|---|---|
-| 底层实现 | 渲染进程中的 `quickjs-emscripten`（WASM） | 一个 QuickJS JSI 模块 |
+| 底层实现 | 渲染进程中的 `quickjs-emscripten`（WASM） | 一个 QuickJS JSI 模块（`react-native-quick-js`） |
 | 隔离 | 每个 realm 一个独立的 WASM 实例 | 每个 realm 一个独立的 `JSRuntime` |
 | 中断 | QuickJS 中断处理器，在向后跳转时检查 | 相同 |
 | 异步 | 宿主函数可以返回 promise；realm 的作业队列由宿主驱动 | 相同 |
@@ -639,7 +650,7 @@ export class JsMemoryError extends Error {}
 - **没有环境全局。** realm 启动时只有 ECMAScript 内建对象，别的什么都没有 —— 没有 `fetch`、
   没有定时器、没有 `console`、没有模块加载器。调用方想让里面可用的每一样东西都必须按名
   `expose`，这正是让
-  [06 §8](../sources/runtime.md#8-信任导入的源能做什么不能做什么) 的宿主面
+  [sources/runtime.md §8](../sources/runtime.md#8-信任导入的源能做什么不能做什么) 的宿主面
   成为一份穷尽清单而非摘要的原因。
 - **惰性 WASM 编译。** 在 `core-js-quickjs-node` 中，`[Service.init]()` 立即返回；QuickJS WASM 模块会在首次调用 `createRealm()` 时按需编译并缓存，防止 WebAssembly 编译在应用冷启动阶段增加 100~300ms 耗时。
 - **值靠克隆跨越，绝不靠引用。** realm 里的任何东西都无法保留来自宿主的活对象，因此它无法
@@ -655,11 +666,299 @@ export class JsMemoryError extends Error {}
 > ⚠️ **沙箱约束的是触达能力，不是意图。** realm 中的代码仍然看得见宿主传入的一切，并且可以
 > 把它送到宿主暴露的函数允许的任何地方 —— 这正是音源运行时把它与 `ctx.http` 上按音源的
 > **主机白名单**搭配使用的原因
-> （[03 §7](../plugins/capabilities.md#能力语法)）。一个没有出口限制的求值器，就是一个
+> （[plugins/capabilities.md §7](../plugins/capabilities.md#7-能力模型)）。一个没有出口限制的求值器，就是一个
 > 中间开了洞的遏制故事。
 
 ---
 
-## 20. 下一步阅读
+## 20. `ctx.theme` —— 颜色管理与主题服务
+
+**用途。** 管理应用视觉主题、运行时主题动态注册、设计令牌至 CSS 变量的注入，以及自定义主题持久化。
+
+```ts
+export interface ColorTokens {
+  bg: { app: string; primary: string; secondary: string; tertiary: string }
+  surface: { s1: string; s2: string; s3: string; hover: string; active: string; selected: string }
+  brand: { primary: string; primaryActive: string; primaryHover: string; accent: string; accentHover: string }
+  gradient: { brand: string; progress: string; blueViolet?: string; ice?: string; spectrum?: string }
+  text: { primary: string; secondary: string; tertiary: string; muted: string; disabled: string; placeholder: string }
+  border: { subtle: string; default: string; hover: string; active: string; focus: string }
+  semantic: { success: string; warning: string; error: string; info: string }
+  music: { playing: string; lyrics: string; lyricsActive?: string; lyricsHighlight?: string; waveform: string; waveformActive: string }
+  glow: { xs: string; sm: string; md: string; lg: string; [k: string]: string | undefined }
+}
+
+export interface ThemeDefinition {
+  id: string
+  name: string
+  description?: string
+  isDark: boolean
+  tokens: ColorTokens
+  lightTokens?: ColorTokens
+  cssVariables?: Record<string, string>
+  lightCssVariables?: Record<string, string>
+}
+
+export interface ThemeService {
+  /** 返回所有可用主题（包括内置与运行时注册的主题）。 */
+  getThemes(): readonly ThemeDefinition[]
+  /** 返回当前激活主题的快照。 */
+  getCurrentTheme(): ThemeDefinition
+  /** 返回当前生效的颜色方案（'dark' 或 'light'）。 */
+  getEffectiveScheme(): 'dark' | 'light'
+  /** 根据 ID 切换激活的主题并持久化设置。 */
+  setTheme(themeId: string): Promise<void>
+  /** 在运行时注册新主题。返回用于注销的 disposer。 */
+  registerTheme(theme: ThemeDefinition): Disposable
+  /** 移除自定义主题。内置主题无法被移除。 */
+  removeTheme(themeId: string): boolean
+  /** 订阅主题变更事件。 */
+  onThemeChange(listener: (theme: ThemeDefinition, scheme?: 'dark' | 'light') => void): Disposable
+}
+```
+
+| | Electron (Desktop DOM) | Expo (Mobile / Native) |
+|---|---|---|
+| 底层实现 | `@BBeBee/plugin-theme` 通过 `applyThemeToDom` 向 `document.documentElement` 注入 CSS 自定义属性 | `@BBeBee/plugin-theme` 发出响应式主题快照供 `StyleSheet` 使用 |
+| 持久化 | `ctx.store` 的 key `theme_active_id`，自定义主题存储于 `theme_custom_themes` | `ctx.store` |
+| 内置主题 | `midnight-purple` (`Bee Music · Cyber Neon`)、`spotify` (`Spotify Classic`) | 相同 |
+| 自定义主题 | 动态 JSON 导入（文件或文本），带有缺省令牌回退保护；可删除，且受回退机制保护 | 相同 |
+
+- **DOM 同步**：`plugin-theme` 计算 `themeToCssVariables(theme)` 并注入至根 HTML 元素，同时附加 `data-theme="{id}"`。
+- **内置主题保护**：`removeTheme(themeId)` 拒绝删除内置主题。若删除正在生效的自定义主题，会自动回退至默认主题（`midnight-purple`）。
+- **事件总线集成**：在激活主题变更时发出 `'theme/changed'`，在添加或移除主题时发出 `'theme/registry-changed'`。
+
+---
+
+## 21. `ctx.nowPlaying` —— 正在播放呈现与沙箱化样式
+
+**用途。** 协调全屏正在播放视图与可插拔播放器样式的展示。允许第三方主题与样式插件通过安全的单向消息传递自定义沉浸式全屏播放界面。
+
+```ts
+export type NowPlayingStyleId =
+  | 'default'
+  | 'vinyl'
+  | 'cassette'
+  | 'cd'
+  | 'minimal'
+  | 'lyrics-focused'
+  | (string & {})
+
+export interface NowPlayingStyleMeta {
+  id: NowPlayingStyleId
+  name: string
+  description?: string
+  author?: string
+  previewImage?: string
+  sandboxHtmlUrl?: string
+  component?: unknown
+}
+
+export interface SandboxPlayerSnapshot {
+  cover: string | null
+  coverThemeColor: string | null
+  title: string
+  artist: string
+  album?: string
+  lyrics: {
+    lines: SandboxPlayerLyricLine[]
+    activeIndex: number
+  }
+  positionMs: number
+  durationMs: number
+  isPlaying: boolean
+  isLoved: boolean
+}
+
+export type SandboxPlayerAction =
+  | { type: 'action:play' }
+  | { type: 'action:pause' }
+  | { type: 'action:togglePlay' }
+  | { type: 'action:previous' }
+  | { type: 'action:next' }
+  | { type: 'action:seek'; positionMs: number }
+  | { type: 'action:toggleFavorite' }
+
+export interface NowPlayingService {
+  getStyle(): NowPlayingStyleId
+  setStyle(id: NowPlayingStyleId): void
+  getStyles(): readonly NowPlayingStyleMeta[]
+  registerStyle(meta: NowPlayingStyleMeta): Disposable
+  removeStyle(id: string): boolean
+}
+```
+
+| | Electron (Desktop) | Expo (Mobile) |
+|---|---|---|
+| 无头服务 | `@BBeBee/plugin-now-playing` | `@BBeBee/plugin-now-playing` |
+| UI 渲染层 | `@BBeBee/plugin-now-playing-ui-desktop` | `@BBeBee/plugin-now-playing-ui-mobile` |
+| 持久化 | `ctx.store` 的 key `now_playing_style` | `ctx.store` 的 key `now_playing_style` |
+| 沙箱隔离 | 隔离的 iframe，具有限制性 `sandbox="allow-scripts"`，仅通过 `postMessage` 交换数据 | 隔离的 WebView，仅通过 `postMessage` 交换数据 |
+
+- **安全沙箱协议**：沙箱化全屏样式在隔离 iframe/WebView 中运行。宿主通过 `bbebee:player-state` 广播 `SandboxPlayerSnapshot`；沙箱仅被允许派发白名单内的控制动作（`SandboxPlayerAction`）。
+- **零特权执行**：第三方播放器外观绝无 DOM 遍历权限、无直接音频硬件访问权，也无法接触底层凭据。
+
+---
+
+## 22. `ctx.share` —— 实体分享与隐写术服务
+
+**用途。** 跨平台音乐元数据分享服务。支持生成结构化分享包、Base64 封装，以及利用最低有效位（LSB）图像隐写术将歌曲/歌单元数据直接嵌入到封面图像像素中。
+
+```ts
+export type ShareType = 'track' | 'playlist' | 'lyrics' | 'album'
+
+export interface PixelBuffer {
+  readonly width: number
+  readonly height: number
+  readonly data: Uint8ClampedArray | Uint8Array
+}
+
+export interface ShareMetadataEnvelope<T = unknown> {
+  version: 1
+  app: 'BBeBee'
+  type: ShareType
+  createdAt: number
+  data: T
+}
+
+export interface ShareService {
+  encodeMetadata<T extends ShareTrackData | SharePlaylistData | ShareLyricsData | ShareAlbumData>(
+    type: ShareType,
+    data: T,
+  ): string
+  decodeMetadata(base64: string): ShareMetadataEnvelope | null
+  encodeSteganography(buffer: PixelBuffer, payload: string): PixelBuffer
+  decodeSteganography(buffer: PixelBuffer): string | null
+  shareTrack(track: ShareableTrack): void
+  sharePlaylist(
+    playlist: { urn: string; name: string; description?: string; artwork?: string },
+    tracks?: readonly ShareableTrack[],
+  ): void
+  shareAlbum(
+    album: { urn: string; title: string; artist?: string; artwork?: string; year?: number; trackCount?: number },
+    tracks?: readonly ShareableTrack[],
+  ): void
+  shareLyrics(track: ShareableTrack, lines: string[]): void
+  openImport(): void
+}
+```
+
+| | Electron (Desktop) | Expo (Mobile) |
+|---|---|---|
+| 无头服务 | `@BBeBee/plugin-share` | `@BBeBee/plugin-share` |
+| UI 模态框 | `@BBeBee/plugin-share-ui-desktop` (`share.modal`) | 规划中 (`@BBeBee/plugin-share-ui-mobile`) |
+| 隐写编码 | 纯 TypeScript 实现（`packages/feature/plugin-share/src/steganography.ts`），无平台原生依赖 | 相同 |
+| 外部分享动作 | 系统剪贴板复制 / 图像文件导出 | 系统原生分享面板（`ctx.shell.share`） |
+
+- **LSB 图像隐写术**：将序列化的元数据信封编码进封面 RGBA 像素的最低有效位中，带有 32 位魔法头（`0x42424545`，即 ASCII "BBEE"）与长度校验前缀。
+- **视觉无损**：每个色彩通道仅微调 1 位色深，在人眼视觉上完全无法察觉。导出的图片既是一张漂亮的音乐分享卡片，又是可供另一台客户端一键导入的实体档案。
+
+---
+
+## 23. `ctx.settings` —— 设置中心与动态贡献
+
+**用途。** 集中化管理应用设置、持久化选项，并为各功能插件提供声明式设置入口注册中心。
+
+```ts
+export interface SettingsContribution {
+  kind?: 'settings'
+  id: string
+  section: 'general' | 'playback' | 'audio' | 'sources' | 'storage' | 'about' | (string & {})
+  title: string
+  description?: string
+  order?: number
+  icon?: string
+  actionText?: string
+  display?: 'card' | 'link' | 'auto'
+  action?: () => void | Promise<void>
+  schema?: ParamSchema
+}
+
+export interface SettingsService {
+  get(): Promise<AppSettings>
+  getSync(): AppSettings
+  update(partial: Partial<AppSettings>): Promise<AppSettings>
+  reset(): Promise<AppSettings>
+  onSettingsChange(listener: (settings: AppSettings) => void): Disposable
+  contribute(contribution: SettingsContribution): Disposable
+  getContributions(): readonly SettingsContribution[]
+}
+```
+
+| | Electron (Desktop) | Expo (Mobile) |
+|---|---|---|
+| 无头服务 | `@BBeBee/plugin-settings` | `@BBeBee/plugin-settings` |
+| UI 实现 | `@BBeBee/plugin-settings-ui-desktop` | `@BBeBee/plugin-settings-ui-mobile` |
+| 持久化 | `ctx.store` 命名空间 `settings`，带模式版本迁移 | 相同 |
+| 响应式事件 | `'settings/changed'`、`'settings/contributions-changed'` | 相同 |
+
+- **解耦的贡献模型**：各功能插件（`plugin-dsp`、`plugin-sources`、`plugin-download`、`plugin-history`、`plugin-visualizer`）通过 `ctx.ui.contribute({ kind: 'settings', ... })` 或 `ctx.settings.contribute(...)` 声明式挂载设置卡片或导航条目。
+- **动态分类聚合**：设置界面根据 `section` 分组展示条目，按 `order` 排序。卸载插件时，Cordis disposer 会自动清理其注册的全部设置项。
+
+---
+
+## 24. `ctx['plugin-manager']` —— 插件检查、依赖图与生命周期管理
+
+**用途。** 负责插件的发现、依赖关系计算与生命周期管理。从 `ctx.inspector` 聚合运行时 fiber 状态与清单数据，动态计算双向依赖图（声明的依赖与注入依赖），评估配置状态，并通过 `ctx.store` 将启用/禁用状态持久化，桥接到组装根（composition root）执行动态装载。
+
+```ts
+export interface PluginInfo {
+  id: string
+  name: string
+  displayName: string
+  description?: string
+  version: string
+  author?: string
+  systemId: 'layer-2' | 'layer-3' | 'layer-4' | 'layer-5' | string
+  moduleId?: string
+  enabled: boolean
+  state: PluginRuntimeState
+  error?: string
+  waitingFor: string[]
+  dependencies: string[]
+  dependents: string[]
+  configStatus?: ConfigStatus
+}
+
+export type PluginRuntimeState =
+  | 'PENDING'
+  | 'LOADING'
+  | 'ACTIVE'
+  | 'FAILED'
+  | 'DISPOSED'
+  | 'UNLOADING'
+  | 'UNLOADED'
+  | 'UNKNOWN'
+
+export type ConfigStatus = 'none' | 'customized' | 'default'
+
+export interface PluginLifecycleBridge {
+  loadPlugin: (id: string) => Promise<unknown>
+  unloadPlugin: (id: string) => Promise<void>
+}
+
+export interface PluginManagerService {
+  list(): readonly PluginInfo[]
+  setEnabled(id: string, enabled: boolean): Promise<void>
+  registerManifests(manifests: Record<string, PluginManifest>): void
+  setLifecycleBridge(bridge: PluginLifecycleBridge): void
+  refresh(): readonly PluginInfo[]
+}
+```
+
+| | Electron (Desktop) | Expo (Mobile) |
+|---|---|---|
+| 无头服务 | `@BBeBee/plugin-manager` | `@BBeBee/plugin-manager` |
+| UI 实现 | `@BBeBee/plugin-settings-ui-desktop` | 规划中 (`plugin-settings-ui-mobile`) |
+| 持久化 | `ctx.store` 命名空间 `plugin-manager` (`Record<string, boolean>`) | 相同 |
+| 响应式事件 | `'plugin-manager/enabled-changed'`、`'plugin-manager/changed'` | 相同 |
+
+- **分层不变量与桥接器**：Layer 4 的无头业务插件严禁导入内核引导面（如 `createApp`、`app.loadPlugin`）。动态加载与卸载在组装根（`apps/desktop/renderer/boot.ts`）通过 `registerBridge` 与 `'plugin-manager/enabled-changed'` 事件进行桥接。
+- **清单与 UI 解耦**：构建期生成的清单记录在启动时经由配置或 `registerManifests` 注入到 `plugin-manager`，确保 Layer 4 不引入 UI 或代码生成包。
+- **反向依赖解析**：跨所有已知清单与活跃 fiber 实时动态计算反向依赖者（dependents）。在设置界面禁用具有活跃依赖者的插件时，会触发确认防误触保护。
+
+---
+
+## 25. 下一步阅读
 
 [05 —— 音频与播放](../audio/playback.md) 在这些服务之上构建播放引擎与 DSP 效果链。

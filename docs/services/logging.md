@@ -6,7 +6,7 @@
 
 Cordis provides `ctx.logger` itself, already scoped per plugin, so BBeBee does not define a logging
 service. What it adds is **transports**, each an ordinary plugin — and together they are
-**Layer 3** of [02 §1](../architecture/layers.md#1-the-layer-model), `packages/logs/*`:
+**Layer 3** of [architecture/layers.md §1](../architecture/layers.md#1-the-layer-model), `packages/logs/*`:
 
 | Plugin | When it runs | Behaviour |
 |---|---|---|
@@ -47,6 +47,7 @@ nothing behind it.
 
 ```ts
 export interface LogRecord {
+  sn: number             // Monotonic sequence number within session
   time: number
   level: 'error' | 'warn' | 'info' | 'debug'
   scope: string          // the plugin's name, supplied by Cordis
@@ -63,7 +64,7 @@ export interface LogTransport {
 > ⚠️ **Redaction is mandatory.** Transports run a redactor over `meta` and `message` that strips
 > anything keyed `token`, `password`, `authorization`, `cookie`, or `refresh_token`, and rewrites
 > query strings on URLs. Source rules put credentials in headers and query strings routinely, and
-> the test screen's trace ([06 §10](../sources/authoring.md#10-diagnosing-a-broken-source)) exists
+> the test screen's trace ([sources/authoring.md §10](../sources/authoring.md#10-diagnosing-a-broken-source)) exists
 > to be copied into a forum thread — so the same redactor runs over traces, not only over logs.
 
 ### In-App Diagnostic Views

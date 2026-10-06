@@ -66,11 +66,11 @@ Stated explicitly, because each of these would change the architecture if reintr
   small corpus of source documents for open self-hosted protocols — Subsonic/Navidrome, Jellyfin,
   plain HTTP URLs, podcast feeds — used as worked examples and as tests. What a user imports is
   their choice; the import screen states what a source will do and whom it will talk to, and the
-  app does not editorialise beyond that ([06 §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)).
+  app does not editorialise beyond that ([sources/runtime.md §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)).
 - **Not a general-purpose extension host.** Plugins are first-party packages, statically bundled
   on both targets. Imported *sources* are the extension story, and they are contained by a real
   interpreter boundary rather than by the plugin capability model, which is documented honestly as
-  *defense in depth, not a sandbox* ([03 §7](../plugins/capabilities.md#7-capability-model)).
+  *defense in depth, not a sandbox* ([plugins/capabilities.md §7](../plugins/capabilities.md#7-capability-model)).
 - **No web build in scope.** React Native Web would technically work, but decision **ADR-2**
   below chooses a separate DOM UI for desktop, and a browser target would be a third shell with
   no offline story. Revisitable later; not planned.
@@ -123,7 +123,7 @@ reason (ADR-5), so if this is ever revisited it starts from a much better positi
 
 **Costs.** A third-party plugin author must vendor their package into a build, so in practice
 non-source extensions are first-party until the sandbox generalises
-([10 §M5](../roadmap/roadmap.md#m5--third-party-extensions-on-the-sandbox)). Mobile and desktop no
+([roadmap/roadmap.md §M5](../roadmap/roadmap.md#m5--third-party-extensions-on-the-sandbox)). Mobile and desktop no
 longer drift in which plugins exist, which removes a whole class of "contributed view is missing"
 handling — though the handling stays, because ADR-2 produces the same state for its own reasons.
 
@@ -142,7 +142,7 @@ makes awkward. Paying twice for the view layer buys a desktop app that feels lik
 **Costs.** Every UI-bearing plugin becomes up to three packages. Two design-token pipelines that
 must be kept in sync. Two navigation systems. A discipline problem: it is now *possible* to put
 logic in a view, and the architecture must actively prevent it
-([08 §4](../ui/architecture.md#4-binding-services-to-react)).
+([ui/architecture.md §4](../ui/architecture.md#4-binding-services-to-react)).
 
 ### ADR-3 — The Electron kernel lives in the renderer; `main` is a thin native host
 
@@ -162,7 +162,7 @@ the kernel at all.
 **Consequence.** Desktop and mobile both have exactly one JS runtime hosting exactly one context.
 A feature plugin cannot tell which platform it is on. The price is that desktop background work
 is tied to the renderer's lifetime — mitigated by close-to-tray rather than by architecture.
-See [02 §4](./layers.md#4-what-background-means).
+See [layers.md §4](./layers.md#4-what-background-means).
 
 ### ADR-4 — `react-native-audio-api` is the primary playback and DSP engine on every target
 
@@ -185,7 +185,7 @@ queue engine nor a DSP graph.
 The mitigation is structural: `ctx.audio` is a service like any other, so an alternative engine
 can be swapped behind it without touching `ctx.player` or any effect plugin. The abstraction *is*
 the insurance policy. Tracked as the highest-priority item in the risk register
-([10 §3](../roadmap/roadmap.md#risk-register)).
+([roadmap/roadmap.md §3](../roadmap/roadmap.md#risk-register)).
 
 ### ADR-5 — Music sources are imported strings, interpreted by one runtime
 
@@ -213,25 +213,25 @@ escape hatch produces sources that *almost* work, and the workaround is worse th
 
 - **Capabilities are derived, not declared.** What a source can do follows from which rule blocks
   it contains, so the old under-declare/over-declare failure mode is gone
-  ([06 §1.3](../sources/rule-engines.md#13-capabilities-are-derived-not-declared)).
+  ([sources/rule-engines.md §1.3](../sources/rule-engines.md#13-capabilities-are-derived-not-declared)).
 - **A real sandbox is now mandatory, not deferred.** Source rules are code from strangers, so
   `ctx.js` — a separate QuickJS realm with an enumerable host API and a per-source host allowlist
   — is a core service that ships with the feature
-  ([04 §19](../services/contracts.md#19-ctxjs--the-sandboxed-evaluator),
-  [06 §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)). The plugin
+  ([services/contracts.md §19](../services/contracts.md#19-ctxjs--the-sandboxed-evaluator),
+  [sources/runtime.md §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)). The plugin
   system's own containment gap ([capabilities.md §7](../plugins/capabilities.md#what-this-is-not)) gets its answer
   as a side effect.
 - **ADR-1 loses its reason for existing** and is amended above.
 - **Diagnosis becomes a shipped feature.** When sources are user-owned, "why did this stop
   working" is a user's question, so the per-feature test screen with its streaming trace in
-  [06 §10](../sources/authoring.md#10-diagnosing-a-broken-source) is not a developer tool that
+  [sources/authoring.md §10](../sources/authoring.md#10-diagnosing-a-broken-source) is not a developer tool that
   happens to be in the build — it is the maintenance story for the whole model.
 
 **Costs.** A rule language, an interpreter, a sandbox, an import/export flow, an editor and a
 debugger — all before the second source works. Type safety stops at the document boundary: a bad
 rule is a runtime error with a good message, not a compile error. Sources rot silently when
 backends change, so `RuleError`, the stale badge, and the health check
-([06 §7](../sources/authoring.md#7-errors)) exist to make rot visible. And the app now runs code it
+([sources/authoring.md §7](../sources/authoring.md#7-errors)) exist to make rot visible. And the app now runs code it
 did not write, which is a security posture to maintain rather than a box to tick.
 
 ---
@@ -242,7 +242,7 @@ Terms used with a precise meaning throughout these documents.
 
 | Term | Meaning |
 |---|---|
-| **Layer 0–5** | The six layers of [02 §1](./layers.md#1-the-layer-model): **0** protocol, **1** kernel, **2** core plugins, **3** log transports, **4** feature plugins, **5** UI & business function. A package's layer decides what it may import; Layer 2 is the only one allowed to touch a platform SDK or drive the kernel, and Layer 3 the only one allowed to write to the console. |
+| **Layer 0–5** | The six layers of [layers.md §1](./layers.md#1-the-layer-model): **0** protocol, **1** kernel, **2** core plugins, **3** log transports, **4** feature plugins, **5** UI & business function. A package's layer decides what it may import; Layer 2 is the only one allowed to touch a platform SDK or drive the kernel, and Layer 3 the only one allowed to write to the console. |
 | **Kernel** | `@BBeBee/kernel` — Cordis plus BBeBee's bootstrap, config loading, plugin resolution, and capability gate. Layer 1. Not a Cordis concept. |
 | **Context** (`ctx`) | A Cordis `Context`. Simultaneously a DI container, an event bus, and a lifecycle scope. Every plugin receives its own derived context. |
 | **Service** | A capability claimed on a stable context key (`ctx.fs`). Declared in `@BBeBee/protocol`, provided by exactly one plugin at a time within a given isolation scope. |
@@ -253,7 +253,7 @@ Terms used with a precise meaning throughout these documents.
 | **Log transport** | A plugin that subscribes to `ctx.logger` and puts the lines somewhere: a ring buffer, the console, a rotating file. Layer 3. Loaded from the shell's bootstrap array, so it is running before the first feature plugin starts. |
 | **Source** | One music backend, as configured by the user. Identified by `sourceUrl`, addressed by a derived **source id**. Two Navidrome servers are two sources. |
 | **Source string** | The importable text form of a source: one JSON document, or an array of them (a *source set*). The unit users share. |
-| **Rule** | One field of a source document, written in the selector/template language of [06 §3](../sources/rule-engines.md#3-the-rule-language). |
+| **Rule** | One field of a source document, written in the selector/template language of [sources/rule-engines.md §3](../sources/rule-engines.md#3-the-rule-language). |
 | **Source runtime** | `plugin-source-runtime` — the one interpreter of source documents. Presents each enabled source to `ctx.sources` as a `MediaProvider`. |
 | **Provider** | The internal interface `ctx.sources` consumes. Exactly two implementations: the source runtime's per-source adapter, and `plugin-source-local`. Not an extension point. |
 | **URN** | `BBeBee:<sourceId>:<kind>:<id>`. The stable identity of a catalog entity. |

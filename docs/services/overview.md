@@ -2,7 +2,7 @@
 
 > **Legacy Reference:** Formerly `docs/04-core-services.md §0 – §1`.
 
-> **What this answers.** **Layer 2** of [02 §1](../architecture/layers.md#1-the-layer-model): every
+> **What this answers.** **Layer 2** of [architecture/layers.md §1](../architecture/layers.md#1-the-layer-model): every
 > service key a feature plugin may use to touch the outside world, its TypeScript contract, its
 > implementation on each target, and the places where the two platforms genuinely differ.
 
@@ -10,7 +10,7 @@ These are the only doors out of the sandbox. Core plugins are the one layer perm
 platform SDK or the kernel's bootstrap surface directly, and that privilege is the whole reason
 they exist: they convert *this machine's* API into a contract that Layers 3, 4 and 5 can be written
 against once. If a feature needs something not listed here, the answer is to add a core service —
-never to import a platform SDK ([02 §1](../architecture/layers.md#the-invariant)).
+never to import a platform SDK ([architecture/layers.md §1](../architecture/layers.md#the-invariant)).
 
 The price of the privilege is that a core plugin holds **no domain knowledge**. `ctx.fs` moves
 bytes and `ctx.db` runs SQL; neither knows what a track is. A core service that grows a concept
@@ -21,12 +21,9 @@ All interfaces live in `packages/protocol/src/services/` and are applied to the 
 augmentation. Implementations live in `packages/core/*` and are the sole holders of platform
 dependencies.
 
-> §§1–16 are the services in the order a reader meets them. §§17–18 are cross-cutting: the runtime
-> requirements every implementation must satisfy, and the conformance suites that keep two
-> implementations of one key honest. **§19 — `ctx.js`** is appended rather than inserted because it
-> arrived with [ADR-5](../architecture/overview.md#adr-5--music-sources-are-imported-strings-interpreted-by-one-runtime)
-> and renumbering a document other documents link into is a worse trade than an out-of-order
-> section.
+> **Document structure.** This document introduces architectural principles, shared types (§0), and the virtual filesystem (§1).
+> The comprehensive service catalog (§§2–15, §§17–25) lives in [Core Service Contracts Catalog](./contracts.md).
+> Logging architecture (§16) lives in [Logging Architecture (Layer 3)](./logging.md).
 
 ---
 
@@ -77,8 +74,8 @@ export interface ReadOptions { encoding?: 'utf8' | 'base64'; signal?: AbortSigna
 export interface WriteOptions { encoding?: 'utf8' | 'base64'; append?: boolean; signal?: AbortSignal }
 
 export interface FsService {
-  /** Resolve a well-known directory to a Uri. Throws if unavailable on this platform. */
-  dir(kind: WellKnownDir): Promise<Uri>
+  /** Resolve a well-known directory. Returns undefined if unavailable (e.g. music on iOS). */
+  dir(kind: WellKnownDir): Promise<Uri | undefined>
   /** Join path segments onto a Uri. The only correct way to build a child Uri. */
   join(base: Uri, ...segments: string[]): Uri
   basename(uri: Uri): string
@@ -105,9 +102,13 @@ export interface FsService {
 
   /** Watch a directory. Resolution and reliability vary sharply — see below. */
   watch(uri: Uri, cb: (ev: { type: 'add' | 'change' | 'unlink'; uri: Uri }) => void): Promise<Disposable>
+  readonly canWatch: boolean
 
   /** Ask the user to pick a folder, returning a Uri with durable permission. */
-  pickDirectory(): Promise<Uri | null>
+  pickDirectory(): Promise<Uri | undefined>
+
+  /** Convert a Uri into one a native audio decoder can open (SAF tree resolution on Android). */
+  toPlayableUri(uri: Uri): Promise<Uri>
 }
 ```
 

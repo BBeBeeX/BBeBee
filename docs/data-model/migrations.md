@@ -30,6 +30,20 @@ a half-applied downgrade is worse than a clear failure.
 > method; it is not optional. `BEGIN IMMEDIATE` takes the write lock up front rather than
 > upgrading mid-transaction.
 
+#### Core migrations catalog (`CORE_MIGRATIONS`)
+
+Implemented in `packages/kernel/src/migrations/core.ts`:
+
+| Version | Purpose | Key changes |
+|---|---|---|
+| **v1** | Base database schema | Initial tables: `providers`, `accounts`, `cookie_jars`, `artworks`, `artists`, `albums`, `tracks`, `track_artists`, `track_genres`, `genres`, `external_ids`, `track_links`, `media_bindings`, `scan_specified_dirs`, `scan_entries`, `playlists`, `playlist_items`, `library_items`, `collections`, `collection_items`, `queue_items`, `playback_state`, `play_history`, `track_stats`, `download_tasks`, `download_policies`, `effect_chains`, `effect_nodes`, `presets`, `settings`, `plugin_records`, `capability_grants`, `lyrics`, `cache_entries`. |
+| **v2** | Full-text search (FTS5) | Creates `tracks_fts` virtual table using `fts5(title, artist_names, album_title, content='', contentless_delete=1)` and `tracks_fts_map(rowid, urn)`. |
+| **v3** | Sources transition (ADR-5) | Replaces `providers` with `sources` and `source_vars`; renames `instance_id` to `source_id` across all catalogue and playlist tables; drops `providers`. |
+| **v4** | Local scan performance index | Adds `CREATE INDEX idx_scan_entries_track ON scan_entries(track_urn)`. |
+| **v5** | Library data cleanup | Prunes un-favorited local tracks mistakenly inserted into `library_items`. |
+| **v6** | User profile table | Adds singleton table `CREATE TABLE library_profile (id TEXT PRIMARY KEY, name TEXT NOT NULL)`. |
+| **v7** | Dragged files reading whitelist | Adds `CREATE TABLE scan_dropped_files (uri TEXT PRIMARY KEY, added_at INTEGER NOT NULL)` for individually dropped desktop tracks. |
+
 ### Plugin-owned schemas
 
 A plugin platform where only the core may create tables is not really a platform. Plugins declare
@@ -64,16 +78,16 @@ Rules:
   `{{ns}}` machinery below is implemented in the kernel and tested, but exercised by no bundled
   plugin yet.
   Reading core tables requires `db:read:core`, and changing their rows requires `db:write:core` —
-  a separate grant, not one implied by the first ([03 §7](../plugins/capabilities.md#capability-grammar)).
+  a separate grant, not one implied by the first ([capabilities.md §7](../plugins/capabilities.md#capability-grammar)).
   Each `up` entry is **one statement**: a driver runs the first and discards the rest in silence,
   so a multi-statement string is refused before anything executes rather than half-applied with
-  its version recorded ([04 §5](../services/contracts.md#5-ctxdb--sql)). That is what the array form
+  its version recorded ([contracts.md §5](../services/contracts.md#5-ctxdb--sql)). That is what the array form
   is for. `ATTACH`/`DETACH` are refused outright, since
   they would turn the database handle into an arbitrary-file primitive.
 - ⚠️ The check is a **regex over table identifiers, not a SQL parser**. It fails closed — an
   identifier it cannot attribute is treated as foreign — and it stops the ordinary mistake and the
   casual overreach. It is not a boundary against an author who is trying, who shares the runtime
-  anyway ([03 §7](../plugins/concepts.md#where-the-gate-actually-runs)).
+  anyway ([concepts.md §7](../plugins/concepts.md#where-the-gate-actually-runs)).
 - Migrations run inside `ctx.plugin()`, so a failing migration fails that plugin only.
 - **Uninstall** offers "remove data" — drops the namespace's tables and its `schema_migrations`
   rows — or "keep data", leaving them dormant so a reinstall resumes where it left off. Defaulting
@@ -82,15 +96,12 @@ Rules:
 ### Data retention
 
 `play_history` grows without bound. A maintenance pass keeps full rows for 2 years (configurable),
-then collapses older ones into `track_stats` and deletes them. `cache_entries` follow §4.11.
+then collapses older ones into `track_stats` and deletes them. `cache_entries` follow [schema.md §4.11](schema.md#411-lyrics-and-cache).
 Everything else is bounded by the size of the user's library.
-
----
-
 
 ---
 
 ## 8. Where to go next
 
-[08 — UI Architecture](../ui/architecture.md) covers how this data reaches two different view
+[UI Architecture](../ui/architecture.md) covers how this data reaches two different view
 layers without either of them owning it.

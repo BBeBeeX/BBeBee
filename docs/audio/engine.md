@@ -38,8 +38,11 @@ export interface AudioSourceHandle {
   pause(): void
   stop(): void
   readonly positionMs: number
+  seek?(atMs: number): void
   /** Fires when the source reaches its natural end. */
   onEnded(cb: () => void): Disposable
+  /** Fires with true on buffer underrun, false on recovery. */
+  onStalled(cb: (stalled: boolean) => void): Disposable
   dispose(): void
 }
 
@@ -70,16 +73,31 @@ export interface AudioService {
   setVolume(v: number): void         // 0..1, applied post-chain
   setMuted(m: boolean): void
 
-  listOutputDevices(): Promise<{ id: string; label: string; isDefault: boolean }[]>
+  listOutputDevices(): Promise<{ id: string; label: string; isDefault: boolean; isVirtual?: boolean }[]>
   setOutputDevice(id: string): Promise<void>
   /** Configure exclusive mode for native audio backend (e.g. MPV WASAPI exclusive). */
   setAudioExclusive?(exclusive: boolean): Promise<void>
   /** Native-engine health (process alive, libmpv loaded). Absent = always-native engine. */
   getEngineStatus?(): Promise<{ running: boolean; mpvAvailable: boolean }>
 
+  /** Preload or append next track for gapless playback transitions. */
+  preloadNext?(src: string | Uri, opts?: { headers?: Record<string, string> }): Promise<void>
+  /** Outcome of the most recent preloadNext. */
+  readonly lastPreloadStatus?: { uri: string; ok: boolean; at: number }
+
   /** Interruptions, route changes, focus loss. See §5. */
   onInterruption(cb: (e: { type: 'began' | 'ended'; shouldResume: boolean }) => void): Disposable
   onRouteChange(cb: (e: { reason: 'device-removed' | 'device-added' | 'override' }) => void): Disposable
+  emitInterruption(e: { type: 'began' | 'ended'; shouldResume: boolean }): void
+  emitRouteChange(e: { reason: 'device-removed' | 'device-added' | 'override' }): void
+
+  /** Dynamic audio engine hot-switching on desktop. */
+  switchEngine?(engine: 'mpv' | 'wasapi' | 'webaudio'): Promise<void>
+  readonly activeEngineName?: 'mpv' | 'wasapi' | 'webaudio'
+
+  readonly hardwareBitDepth?: number
+  readonly hardwareChannels?: number
+  readonly currentDeviceLabel?: string
 }
 ```
 

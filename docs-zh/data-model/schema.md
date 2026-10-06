@@ -64,29 +64,29 @@ erDiagram
 
 ```sql
 CREATE TABLE sources (
-  id            TEXT PRIMARY KEY,          -- 'music-example-org-35be9fe2', derived (06 §1.2)
+  id            TEXT PRIMARY KEY,          -- 'music-example-org-35be9fe2', derived ([sources/authoring.md §1.2](../sources/authoring.md#12-身份源-id))
   source_url    TEXT NOT NULL UNIQUE,      -- the document's identity; dedup key on import
   name          TEXT NOT NULL,             -- denormalised from doc_json for list rendering
   source_group  TEXT,                      -- comma-separated, free text
   source_type   TEXT NOT NULL DEFAULT 'music',  -- music|podcast|radio
-  doc_json      TEXT NOT NULL,             -- the SourceDocument, verbatim (06 §2.1)
+  doc_json      TEXT NOT NULL,             -- the SourceDocument, verbatim ([sources/spec.md §2.1](../sources/spec.md#21-顶层文档结构))
   doc_hash      TEXT NOT NULL,             -- sha256 of doc_json; drives the import diff
   enabled       INTEGER NOT NULL DEFAULT 1,
   sort_order    INTEGER NOT NULL DEFAULT 0,
-  capabilities_json TEXT,                  -- derived Capabilities, cached (06 §1.3)
-  allowed_hosts_json TEXT,                 -- the egress allowlist shown at import (06 §8)
+  capabilities_json TEXT,                  -- derived Capabilities, cached ([sources/rule-engines.md §1.3](../sources/rule-engines.md#13-能力是推导出来的不是声明出来的))
+  allowed_hosts_json TEXT,                 -- the egress allowlist shown at import ([sources/runtime.md §8](../sources/runtime.md#8-信任导入的源能做什么不能做什么))
   locally_modified INTEGER NOT NULL DEFAULT 0,  -- edited in-app since import
   origin_uri    TEXT,                      -- where it was imported from, if a URL
   imported_at   INTEGER NOT NULL,
   updated_at    INTEGER NOT NULL,
-  last_check_at INTEGER,                   -- last `check` run (06 §10)
+  last_check_at INTEGER,                   -- last `check` run ([sources/authoring.md §10](../sources/authoring.md#10-诊断一个坏掉的源))
   last_error    TEXT,                      -- the failing rule, if any
-  fail_count    INTEGER NOT NULL DEFAULT 0,-- 3 consecutive RuleErrors → stale badge (06 §7)
+  fail_count    INTEGER NOT NULL DEFAULT 0,-- 3 consecutive RuleErrors → stale badge ([sources/authoring.md §7](../sources/authoring.md#7-错误))
   respond_time_ms INTEGER
 );
 CREATE INDEX idx_sources_enabled ON sources(enabled, sort_order);
 
--- Per-source persisted state written by rules via src.vars (06 §3.4).
+-- Per-source persisted state written by rules via src.vars ([sources/rule-engines.md §3.4](../sources/rule-engines.md#34-js-内的执行环境)).
 -- Credential-grade: never exported, cleared by signOut().
 CREATE TABLE source_vars (
   source_id  TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
@@ -106,7 +106,7 @@ CREATE TABLE accounts (
 );
 
 -- Mobile only. Desktop keeps cookies in Chromium's own persisted partition
--- and never writes this table. See 04 §2.1.
+-- and never writes this table. See ../services/overview.md#21-cookie-jars.
 CREATE TABLE cookie_jars (
   name        TEXT PRIMARY KEY,            -- the source id
   ciphertext  BLOB NOT NULL,               -- AES-GCM over the serialised jar
@@ -118,19 +118,19 @@ CREATE TABLE cookie_jars (
 
 为什么 `doc_json` 要整体存储而不是拆散成列：这份文档是用户拥有的制品。让它在一个规范化的 schema 里走个来回，意味着导出产物会与导入内容有微妙差异 —— 键被重排、未知字段被丢弃、某条规则被重新排版 —— 而当用户编辑过的文档第一次导出后就变了样，他们就会不再信任导出。
 
-**未知*顶层*字段能在旧版应用中幸存**，也是出于同样的原因：为更新版运行时编写的文档会被原样存储、原样再导出，这个构建所不理解的字段只是不会被读取。规则块**内部**的未知字段则会在导入时被拒绝（[06 §2.2](../sources/rule-engines.md#22-规则块)）—— 这种不对称是刻意的。游离的顶层键是向前兼容；`ruleSearch.titel` 则是一个拼写错误，若无这道检查它本会通过校验、永远不会被读取，并让音源半失灵地运行，看上去就像后端变了。
+**未知*顶层*字段能在旧版应用中幸存**，也是出于同样的原因：为更新版运行时编写的文档会被原样存储、原样再导出，这个构建所不理解的字段只是不会被读取。规则块**内部**的未知字段则会在导入时被拒绝（[sources/rule-engines.md §2.2](../sources/rule-engines.md#22-规则块)）—— 这种不对称是刻意的。游离的顶层键是向前兼容；`ruleSearch.titel` 则是一个拼写错误，若无这道检查它本会通过校验、永远不会被读取，并让音源半失灵地运行，看上去就像后端变了。
 
-`doc_hash` 让重新导入成为一个三分判定，而不是掷硬币：未变化（哈希相同，跳过）、有更新（哈希不同，展示字段差异）、或冲突（哈希不同*且* `locally_modified`，要求确认）—— 见 [06 §9](../sources/authoring.md#9-导入更新与分享)。
+`doc_hash` 让重新导入成为一个三分判定，而不是掷硬币：未变化（哈希相同，跳过）、有更新（哈希不同，展示字段差异）、或冲突（哈希不同*且* `locally_modified`，要求确认）—— 见 [sources/authoring.md §9](../sources/authoring.md#9-导入更新与分享)。
 
 它是一个**完整的 SHA-256**，`id` 的后缀取的正是其一的前 32 位。最初使用的那个短的非加密哈希错在两处：`id` 是主键，一次碰撞就会让一个音源的行覆盖另一个音源的行；而 `doc_hash` 决定更新到底会不会发生，在那里发生碰撞会把一份已变更的文档归类为"未变化"，然后悄无声息地跳过。
 
-> **`enabled` 属于用户，而不属于文档。** 导入会写入其余每一列，唯独不写这一列。发布修复的作者绝不能把用户已关掉的音源重新打开 —— 而被禁用的行与"音源已移除但曲库保留"的行根本无法区分（[06 §4.1](../sources/runtime.md#41-一个源的生命周期)），所以导入路径不做猜测。
+> **`enabled` 属于用户，而不属于文档。** 导入会写入其余每一列，唯独不写这一列。发布修复的作者绝不能把用户已关掉的音源重新打开 —— 而被禁用的行与"音源已移除但曲库保留"的行根本无法区分（[sources/runtime.md §4.1](../sources/runtime.md#41-一个源的生命周期)），所以导入路径不做猜测。
 
-> **数据库中绝无可读凭据。** Token、密码与每个音源的变量都存放在 `ctx.secrets` 中，位于 `namespace(sourceId)` 之下；`source_vars` 只保存规则选择持久化的内容，并以同样的方式对待。Cookie 同样是凭据，但一个真实的会话 jar 会超出 `expo-secure-store` 的 2048 字节值上限，因此移动端对它采用**信封加密**：AES 密钥（很小）放 `ctx.secrets`，密文（不限大小）放 `cookie_jars`。不变式得以保住 —— 密钥与密文绝不同处一库，泄露的数据库文件什么都得不到（[04 §2.1](../services/overview.md#21-cookie-罐)、[04 §6](../services/contracts.md#6-ctxsecrets--凭据存储)）。
+> **数据库中绝无可读凭据。** Token、密码与每个音源的变量都存放在 `ctx.secrets` 中，位于 `namespace(sourceId)` 之下；`source_vars` 只保存规则选择持久化的内容，并以同样的方式对待。Cookie 同样是凭据，但一个真实的会话 jar 会超出 `expo-secure-store` 的 2048 字节值上限，因此移动端对它采用**信封加密**：AES 密钥（很小）放 `ctx.secrets`，密文（不限大小）放 `cookie_jars`。不变式得以保住 —— 密钥与密文绝不同处一库，泄露的数据库文件什么都得不到（[services/overview.md §2.1](../services/overview.md#21-cookie-罐)、[services/contracts.md §6](../services/contracts.md#6-ctxsecrets--凭据存储)）。
 >
-> ⚠️ **音源文档绝不能包含凭据**，而 `export()` 无法剥离它认不出的东西。因此才有上面的分离：凭据在构造上就位于 `doc_json` 之外，于是"分享这个音源"默认就是安全的，而不依赖分享者记得这么做（[06 §5](../sources/runtime.md#5-认证与会话)）。
+> ⚠️ **音源文档绝不能包含凭据**，而 `export()` 无法剥离它认不出的东西。因此才有上面的分离：凭据在构造上就位于 `doc_json` 之外，于是"分享这个音源"默认就是安全的，而不依赖分享者记得这么做（[sources/runtime.md §5](../sources/runtime.md#5-认证与会话)）。
 >
-> `accounts` 只记录"存在一个会话"以及它何时失效。删除音源会级联删除 `accounts` 与 `source_vars`；而 `signOut()` 单独负责清空 `cookie_jars` 与 secrets 命名空间，因为它们处在 SQLite 级联之外（[06 §5.1](../sources/runtime.md#51-会话持久化--cookie-在应用关闭后依然存活)）。
+> `accounts` 只记录"存在一个会话"以及它何时失效。删除音源会级联删除 `accounts` 与 `source_vars`；而 `signOut()` 单独负责清空 `cookie_jars` 与 secrets 命名空间，因为它们处在 SQLite 级联之外（[sources/runtime.md §5.1](../sources/runtime.md#51-会话持久化--cookie-在应用关闭后依然存活)）。
 
 ### 4.2 封面图
 
@@ -289,7 +289,7 @@ CREATE INDEX idx_external_lookup ON external_ids(namespace, value);
 CREATE TABLE track_links (
   urn_a      TEXT NOT NULL,
   urn_b      TEXT NOT NULL,
-  confidence REAL NOT NULL,                  -- 0..1, see 06 §7
+  confidence REAL NOT NULL,                  -- 0..1, 参见 [sources/authoring.md §7](../sources/authoring.md#7-错误)
   method     TEXT NOT NULL,                  -- isrc|mbid|acoustid|fuzzy|manual
   created_at INTEGER NOT NULL,
   PRIMARY KEY (urn_a, urn_b),
@@ -324,7 +324,7 @@ CREATE INDEX idx_bindings_track ON media_bindings(track_urn);
 CREATE UNIQUE INDEX idx_bindings_uri ON media_bindings(uri);
 ```
 
-**所谓"已下载"，就是"存在一条绑定"。** 任何地方都没有 `is_downloaded` 这样的标志。`player/before-resolve` 瀑布（waterfall）钩子会询问是否存在绑定，存在就直接播放（[05 §2](../audio/playback.md#解析流水线)）。一首曲目可以有多条绑定 —— 比如一份扫描到的本地副本和一份下载来的更高质量副本 —— 由解析器按质量挑选。
+**所谓"已下载"，就是"存在一条绑定"。** 任何地方都没有 `is_downloaded` 这样的标志。`player/before-resolve` 瀑布（waterfall）钩子会询问是否存在绑定，存在就直接播放（[audio/playback.md §2](../audio/playback.md#解析流水线)）。一首曲目可以有多条绑定 —— 比如一份扫描到的本地副本和一份下载来的更高质量副本 —— 由解析器按质量挑选。
 
 之所以需要 `verified_at`，是因为文件会消失：SD 卡被拔出、同步工具删除了文件夹、iOS 清掉了某个文件。文件已丢失的绑定会被直接删除，而不是留到播放那一刻才失败。
 
@@ -351,6 +351,7 @@ CREATE TABLE scan_entries (
   scanned_at       INTEGER NOT NULL
 );
 CREATE INDEX idx_scan_entries_specified_dir ON scan_entries(specified_dir_id, status);
+CREATE INDEX idx_scan_entries_track ON scan_entries(track_urn);
 
 CREATE TABLE scan_dropped_files (
   uri      TEXT PRIMARY KEY,
@@ -358,7 +359,7 @@ CREATE TABLE scan_dropped_files (
 );
 ```
 
-`(size, mtime)` 这一对就是增量扫描的判据：文件没变就只花一次 `stat`，再无其他开销（[06 §12](../sources/authoring.md#本地扫描器)）。
+`(size, mtime)` 这一对就是增量扫描的判据：文件没变就只花一次 `stat`，再无其他开销（[sources/authoring.md §12](../sources/authoring.md#本地扫描器)）。
 
 `scan_dropped_files` 是"本地曲目都来自指定目录"这条规则的例外：用户拖拽到桌面窗口里的文件是逐个导入的，如果把它们的文件夹设为扫描目录，导入的就会远多于用户拖进来的内容。因此拖放文件**不写** `scan_entries` 行 —— 曲目保留导入器写入的 `available = 1`，任何扫描的核对逻辑都不会碰它 —— 它的 uri 记在这里，桌面桥正是依据这张表（启动时读取、写入时即时生效）把这些文件加进可读白名单。
 
@@ -449,10 +450,50 @@ CREATE TABLE library_profile (
 );
 ```
 
-**本地用户(`library_profile`)只有一行**,由 `plugin-library` 在首次运行时播种:创建的歌单以当前
-用户名作为创建者显示(自带 `owner` 的远端歌单优先显示其 owner);在设置中改名会即时生效并广播
-`library/profile-changed`。同理,曲库没有任何歌单时会播种一个名为「我的歌单」的默认歌单,保证
-页面不为空。
+**`ctx.library`（`plugin-library`）拥有全部五张表。** 它是迁移逻辑之外唯一的写入口，视图包调用它而不是直接触碰 `ctx.db`（MD-3，[UI 架构](../ui/architecture.md)）。
+
+```ts
+interface LibraryService {
+  // 收藏夹 —— library_items
+  isSaved(urn: string): Promise<boolean>
+  setSaved(urn: string, saved: boolean): Promise<void>
+  listSaved(kind?: SavedKind, page?: PageRequest): Promise<Paged<LibraryEntry>>
+  setPinned(urn: string, pinned: boolean): Promise<void>
+
+  // 播放列表 —— playlists + playlist_items
+  listPlaylists(page?: PageRequest): Promise<Paged<Playlist>>
+  getPlaylist(urn: string, page?: PageRequest): Promise<PlaylistDetail | undefined>
+  createPlaylist(name: string, opts?: { description?: string; smart?: SmartPlaylist }): Promise<Playlist>
+  updatePlaylist(urn: string, patch: { name?: string; description?: string | null; artworkUrl?: string | null }): Promise<void>
+  deletePlaylist(urn: string): Promise<void>
+  addTracks(urn: string, trackUrns: readonly string[], opts?: { at?: number }): Promise<number>
+  removeItems(urn: string, itemIds: readonly string[]): Promise<void>
+  moveItem(urn: string, itemId: string, toIndex: number): Promise<void>
+  setSmartQuery(urn: string, query: SmartPlaylist): Promise<void>
+
+  // 集合 —— collections + collection_items
+  listCollections(): Promise<readonly Collection[]>
+  createCollection(name: string, opts?: { parentId?: string }): Promise<Collection>
+  renameCollection(id: string, name: string): Promise<void>
+  moveCollection?(id: string, parentId: string | null): Promise<void>
+  deleteCollection(id: string): Promise<void>
+  listCollectionItems(id: string, page?: PageRequest): Promise<Paged<CollectionItem>>
+  addToCollection(id: string, urns: readonly string[]): Promise<number>
+  removeFromCollection(id: string, urns: readonly string[]): Promise<void>
+
+  // 资料 —— library_profile (单行记录)
+  getProfile(): Promise<UserProfile>
+  updateProfile(patch: { name?: string }): Promise<UserProfile>
+}
+```
+
+**智能**播放列表的 `PlaylistDetail.items` 在读取时根据规则树即时解析，并且是只读的：`id` 即为曲目 URN，对其调用条目修改操作将拒绝并抛出错误码为 `smart-playlist` 的 `LibraryError`。普通播放列表的 `track_count` 和 `duration_ms` 与其条目行在同一个事务中重新计算，确保派生列始终一致。`setSaved` 是幂等的 —— 保存已保存过的 URN 会保留其原始 `added_at`，防止另一个界面重复保存时静默重排列表。
+
+该服务在收藏与歌单编辑时广播 `library/changed(kind, urns)`，在集合变更时广播 `library/collections-changed()`：集合没有 URN 和 `UrnKind`，若折叠进 `library/changed` 会迫使它传递指向其他实体的类型。`library/profile-changed` 则在本地用户改名时触发。
+
+**本地用户（`library_profile`）只有一行**，由 `plugin-library` 在首次运行时播种（带有 UUID id，默认名称为 `Mine`），可在设置中编辑（`updateProfile` 拒绝空名称并广播 `library/profile-changed`）。它不保存歌单级字段：创建的所有歌单都将*当前*资料名称展示为其创建者，改名后全库即时同步 —— 而自带 `owner` 的歌单（来自远端源）仍展示其自有所有者。出于同样的"启动永不为空"原则，曲库首次运行时还会播种一个名为「我的歌单」的默认歌单，且仅在曲库完全没有歌单时才会重新播种。
+
+集合（Collection）是用于容纳集合级实体（歌单、专辑、艺术家及子集合）的组织容器。集合**不能**直接容纳单首曲目；曲目专属归属于歌单或专辑。`addToCollection` 会校验实体类型，并拒绝任何带有 `track` 的 URN，抛出错误码为 `invalid-urn` 的 `LibraryError`。
 
 ### 4.7 播放
 
@@ -473,7 +514,7 @@ CREATE TABLE playback_state (
   position_ms      INTEGER NOT NULL DEFAULT 0,
   repeat_mode      TEXT NOT NULL DEFAULT 'off',
   shuffle          INTEGER NOT NULL DEFAULT 0,
-  shuffle_seed     INTEGER,                   -- stable permutation; see 05 §2
+  shuffle_seed     INTEGER,                   -- stable permutation; 参见 [audio/playback.md §2](../audio/playback.md#播放控制状态机)
   volume           REAL NOT NULL DEFAULT 1.0,
   muted            INTEGER NOT NULL DEFAULT 0,
   output_device_id TEXT,
@@ -547,7 +588,7 @@ CREATE TABLE download_policies (
 );
 ```
 
-`bytes_done` 与 `resume_token` 在**每个分块**写完后立即落盘，而不是等任务完成 —— 正是这一点让 [02 §4](../architecture/layers.md#4-后台意味着什么) 中的移动端挂起模型变得可存活。启动时，被遗留在 `running` 状态的任务会重置为 `queued`；它们从 `bytes_done` 处用 `Range` 请求续传，并先校验 `etag`，这样远端文件一旦变化就干净地重新开始，而不是拼出一段损坏的数据。
+`bytes_done` 与 `resume_token` 在**每个分块**写完后立即落盘，而不是等任务完成 —— 正是这一点让 [architecture/layers.md §4](../architecture/layers.md#4-后台意味着什么) 中的移动端挂起模型变得可存活。启动时，被遗留在 `running` 状态的任务会重置为 `queued`；它们从 `bytes_done` 处用 `Range` 请求续传，并先校验 `etag`，这样远端文件一旦变化就干净地重新开始，而不是拼出一段损坏的数据。
 
 这条部分唯一索引保证每首曲目至多有一个活动任务，又不妨碍日后的重新下载。
 
@@ -592,6 +633,8 @@ CREATE TABLE settings (
 
 设置键按插件 id 做了命名空间隔离，两个插件因此不可能互相冲突；`scope` 则区分应当跟随用户的（`global`）与真正属于单机的（`device`）—— 输出设备的选择就不应同步到手机上。
 
+> **实现说明：** 虽然 `settings`、`effect_chains`、`effect_nodes` 和 `presets` 在文档中定义了 schema，但运行时用户设置实际持久化在 `ctx.store` 中（在桌面端由 `core-store-fs` 驱动，移动端由 AsyncStorage/内存驱动）。音频 DSP 效果链配置与均衡器预设同样作为序列化 JSON 持久化在 `ctx.store` 键（`dsp:chains`、`dsp:presets`）中，确保轻量级设置 I/O 不干扰关系型数据库事务。
+
 ### 4.10 插件
 
 ```sql
@@ -606,7 +649,7 @@ CREATE TABLE plugin_records (
   installed_at INTEGER NOT NULL,
   updated_at   INTEGER NOT NULL,
   last_error   TEXT,
-  fail_count   INTEGER NOT NULL DEFAULT 0     -- 2 consecutive → quarantine (03 §6.2)
+  fail_count   INTEGER NOT NULL DEFAULT 0     -- 2 consecutive → quarantine ([plugins/loading.md §6.2](../plugins/loading.md#62-桌面端的附加设计--plugin-loader-dynamic))
 );
 
 CREATE TABLE capability_grants (
@@ -646,7 +689,7 @@ CREATE TABLE cache_entries (
 CREATE INDEX idx_cache_evict ON cache_entries(class, last_access_at);
 ```
 
-淘汰是**类内 LRU**，每一类有各自的配额，因为不同类的价值差别极大：淘汰一张封面图意味着一次重新抓取和一次可见的闪烁；淘汰一段下载了一半的流，用户就会丢失播放位置。默认值 —— 封面图桌面端 512 MB / 移动端 128 MB、HTTP 64 MB、流缓存 1 GB / 256 MB —— 全部可由用户调整。首次清理扫描延迟至启动后 5 秒以后台任务运行（避免冷启动时的磁盘 I/O 争抢），此后每小时运行一次；文件已丢失的 `cache_entries` 行在同一轮清理中被剪除。
+淘汰是**类内 LRU**，每一类有各自的配额，因为不同类的价值差别极大：淘汰一张封面图意味着一次重新抓取和一次可见的闪烁；淘汰一段下载了一半的流，用户就会丢失播放位置。默认值 —— 封面图桌面端 512 MB / 移动端 128 MB、HTTP 64 MB、流缓存 1 GB / 256 MB —— 全部可由用户调整。首次清理扫描延迟至启动后 5 秒以后台任务运行（避免冷启动时的磁盘 I/O 争抢），此后每小时运行一次；文件已丢失的 `cache_entries` 行在同一轮清理中被剪除。用户主动下载的文件则记录在 `media_bindings` 行中（[§4.5](#45-媒体绑定本地文件与下载)），绝不被自动淘汰。
 
 ### 4.12 遗留：providers
 
@@ -663,10 +706,7 @@ CREATE TABLE providers (
 );
 ```
 
-音源尚未变为字符串之前（06 §1）的文档前时代的 provider 注册表。迁移 v3 新增了 `sources`/`source_vars`，并把已有的 `providers` 行迁移过来时**写为禁用状态**；`plugin-source-runtime` 仍会触碰这张表，只为让那次过渡保持诚实。新代码读 `sources` —— 除此之外不应有任何东西去读它。
-
----
-
+迁移 v1 中的历史表，已在迁移 v3 中被彻底移除（`DROP TABLE providers`）—— 当音源从插件形式转变为导入文档模型时（ADR-5）。在当前数据库版本中，`sources` 和 `source_vars` 完全取代了该表。
 
 ---
 
@@ -676,13 +716,13 @@ CREATE TABLE providers (
 
 | 类型 | 定义于 | 为何留在内存中 |
 |---|---|---|
-| `StreamHandle` | [06 §6](../sources/runtime.md#6-流解析) | 频繁过期；必须重新解析，绝不信任来自存储的副本 |
-| `TransportState` | [05 §2](../audio/playback.md#2-ctxplayer--播放控制与队列) | 活的；只有持久化的子集落入 `playback_state` |
-| `Capabilities` | [06 §1.3](../sources/rule-engines.md#13-能力是推导出来的不是声明出来的) | 由音源文档的规则块计算得出。缓存在 `sources.capabilities_json` 中，纯粹是为了在音源连接之前 UI 也能渲染 |
-| `Paged<T>`、游标 | [06 §4.3](../sources/rule-engines.md#43-分页限流与缓存) | 不透明且归音源所有；会话结束便无意义 |
-| `TraceEvent` | [06 §10](../sources/authoring.md#10-诊断一个坏掉的源) | 调试追踪记录的是对某个活后端的一次运行；把它存下来，等于把某个没人会问第二遍的问题的、已脱敏的答案永久保存 |
-| `EffectSegment` | [05 §3](../audio/dsp.md#3-ctxdsp--效果链) | 活的 `AudioNode`。只有 `params_json` 会持久化 |
-| `AuthStatus` | [06 §5](../sources/runtime.md#5-认证与会话) | 登录时重新计算；`accounts` 只保留持久摘要 |
+| `StreamHandle` | [runtime.md §6](../sources/runtime.md#6-流解析) | 频繁过期；必须重新解析，绝不信任来自存储的副本 |
+| `TransportState` | [playback.md §2](../audio/playback.md#2-ctxplayer--播放控制与队列) | 活的；只有持久化的子集落入 `playback_state` |
+| `Capabilities` | [rule-engines.md §1.3](../sources/rule-engines.md#13-能力是推导出来的不是声明出来的) | 由音源文档的规则块计算得出。缓存在 `sources.capabilities_json` 中，纯粹是为了在音源连接之前 UI 也能渲染 |
+| `Paged<T>`、游标 | [rule-engines.md §4.3](../sources/rule-engines.md#43-分页限流与缓存) | 不透明且归音源所有；会话结束便无意义 |
+| `TraceEvent` | [authoring.md §10](../sources/authoring.md#10-诊断一个坏掉的源) | 调试追踪记录的是对某个活后端的一次运行；把它存下来，等于把某个没人会问第二遍的问题的、已脱敏的答案永久保存 |
+| `EffectSegment` | [dsp.md §3](../audio/dsp.md#3-ctxdsp--效果链) | 活的 `AudioNode`。只有 `params_json` 会持久化 |
+| `AuthStatus` | [runtime.md §5](../sources/runtime.md#5-认证与会话) | 登录时重新计算；`accounts` 只保留持久摘要 |
 
 ---
 

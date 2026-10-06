@@ -7,40 +7,59 @@
 每一个效果都是一个插件。这个服务本身只是一个注册表加上一个链构建器。
 
 ```ts
-import type { StandardSchemaV1 } from '@standard-schema/spec'
+export type EffectParamValue = number | string | boolean | number[]
 
 export interface EffectSegment {
-  /** Where audio enters and leaves this effect. May be the same node. */
+  /** 音频进入与离开该效果的节点。可以是同一个节点。 */
   input: AudioNode
   output: AudioNode
-  /** Called when a persisted parameter changes. Must be allocation-free. */
-  setParam(name: string, value: number | string | boolean): void
-  /** Added to the reported chain latency, for A/V sync and visualiser alignment. */
+  /** 持久化参数变更时调用。必须为零内存分配。 */
+  setParam(name: string, value: EffectParamValue): void
+  /** 计入上报的效果链延迟，用于音画同步与可视化对齐。 */
   latencyMs?: number
   dispose(): void
+}
+
+/**
+ * 极简 Schema 结构，与 Standard Schema 保持结构兼容。
+ * 本地声明而非导入 @standard-schema/spec，使 @BBeBee/protocol 保持零运行时依赖。
+ */
+export interface ParamSchema<Out = unknown> {
+  readonly '~standard': {
+    readonly version: 1
+    readonly vendor: string
+    readonly validate: (
+      value: unknown,
+    ) => { value: Out } | { issues: readonly { message: string }[] } | PromiseLike<unknown>
+  }
 }
 
 export interface EffectDefinition<P = Record<string, unknown>> {
   id: string                      // 'eq10', 'reverb', 'normalize'
   displayName: string
-  /** Default ordinal. Lower runs earlier. Users may override. */
+  /** 默认序号。越小执行越早。用户可覆盖。 */
   defaultOrder: number
-  Params: StandardSchemaV1<unknown, P>
-  presets?: { name: string; params: P }[]
-  build(ctx: AudioContextLike, params: P): EffectSegment
+  Params: ParamSchema<P>
+  presets?: { name: string; params: P; builtin?: boolean }[]
+  build(ctx: BaseAudioContext, params: P): EffectSegment
+  /**
+   * 原生引擎适配器（mpv）：将该效果参数序列化为引擎 af 滤镜链片段。
+   */
+  buildLavfi?(params: Record<string, unknown>): string
 }
 
 export interface DspService {
-  register(def: EffectDefinition): Disposable
-  readonly definitions: readonly EffectDefinition[]
+  register(def: EffectDefinition<never>): Disposable
+  readonly definitions: readonly EffectDefinition<never>[]
 
   readonly chain: readonly { effectId: string; enabled: boolean; ordinal: number }[]
   setEnabled(effectId: string, on: boolean): Promise<void>
   setOrder(effectId: string, ordinal: number): Promise<void>
-  setParam(effectId: string, name: string, value: number | string | boolean): Promise<void>
+  setParam(effectId: string, name: string, value: EffectParamValue): Promise<void>
+  getParams?(effectId: string): Record<string, unknown>
   applyPreset(effectId: string, presetName: string): Promise<void>
 
-  /** Total added latency, so the visualiser and lyrics can compensate. */
+  /** 总额外延迟，供可视化器与歌词做时间补偿。 */
   readonly latencyMs: number
 }
 ```

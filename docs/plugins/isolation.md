@@ -20,7 +20,7 @@ declare module 'cordis' {
 
 Consumers write `ctx.fs.readFile(uri)` with full type safety and no knowledge of which
 implementation is mounted. Swapping `core-fs-expo` for `core-fs-node` is a bootstrap-list change
-([02 §3](../architecture/layers.md#bootstrap-plugin-sets)) and nothing else.
+([architecture/layers.md §3](../architecture/layers.md#bootstrap-plugin-sets)) and nothing else.
 
 Cordis hands out services through a tracing proxy, which is how it knows that a value your plugin
 holds came from a service and must be invalidated when that service is replaced. Two consequences:
@@ -48,11 +48,11 @@ export async function apply(ctx: Context) {
 This is permitted only under all three conditions, and a comment must say so at the capture site:
 
 1. The captured service is a **core service**, whose fiber outlives every feature plugin because
-   teardown runs in reverse order ([02 §3](../architecture/layers.md#3-boot-sequence)).
+   teardown runs in reverse order ([architecture/layers.md §3](../architecture/layers.md#3-boot-sequence)).
 2. The reference is used **only in the disposer**, never on the hot path — where interception or
    isolation could legitimately have swapped the service since load.
 3. Failure is swallowed. A disposer that throws aborts the rest of teardown
-   ([09 §6](../workflow/testing.md#6-testing-strategy)), and losing the last log line is a far
+   ([workflow/testing.md §6](../workflow/testing.md#6-testing-strategy)), and losing the last log line is a far
    better outcome than leaking every listener registered after it.
 
 Anywhere else, read through `ctx` — otherwise a plugin running in an isolated scope silently keeps
@@ -79,7 +79,7 @@ Inside `scoped`, `ctx.http` is the source-specific stack. Everywhere else it is 
 Every other service — `fs`, `db`, `logger` — is still shared, because only the named key is
 isolated. This is exactly the semantics wanted: one slow source's rate limiting cannot stall
 another's requests, and cookies never cross a source boundary
-([06 §4.1](../sources/runtime.md#41-a-sources-lifetime)).
+([sources/runtime.md §4.1](../sources/runtime.md#41-a-sources-lifetime)).
 
 ### `ctx.intercept(key, config)` — same instance, different configuration
 

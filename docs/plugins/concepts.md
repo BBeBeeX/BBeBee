@@ -6,7 +6,7 @@
 > dependencies, how its lifetime is managed, how it is discovered and loaded on each platform,
 > and what containment it is (and is not) subject to.
 
-Plugins are Layers 2 through 4 of [02 §1](../architecture/layers.md#1-the-layer-model): core services,
+Plugins are Layers 2 through 4 of [architecture/layers.md §1](../architecture/layers.md#1-the-layer-model): core services,
 log transports and features. The mechanics here are identical for all of them — same manifest,
 same lifecycle, same loader — and the *only* thing that
 distinguishes a core plugin from a feature plugin is what it is allowed to import: a core plugin
@@ -16,7 +16,7 @@ architecturally there nearly is.
 
 All API shapes below were verified against `cordis@4.0.0-rc.9` source and its test suite.
 Cordis is a release candidate and says so; see
-[09 §5](../workflow/build-pipelines.md#51-the-cordis-rc-problem) for the pinning strategy.
+[workflow/build-pipelines.md §5](../workflow/build-pipelines.md#51-the-cordis-rc-problem) for the pinning strategy.
 
 ---
 
@@ -127,7 +127,7 @@ PENDING`**. If a service a plugin injected disappears, the plugin is torn down a
 that service comes back, the plugin is rebuilt from scratch. This is also why disabling one
 imported music source removes everything it contributed with no bespoke cleanup code: a source is
 data, but the runtime gives each one its own fiber precisely to inherit this
-([06 §4.1](../sources/runtime.md#41-a-sources-lifetime)).
+([sources/runtime.md §4.1](../sources/runtime.md#41-a-sources-lifetime)).
 
 ### The rule: every side effect goes through the fiber
 
@@ -260,7 +260,7 @@ export class Library extends Service {
 
 > ⚠️ The decorator is a **2023-11 standard decorator**, not the legacy TypeScript form. Both the
 > Babel config (mobile) and `tsconfig` must be set accordingly —
-> [04 §17](../services/contracts.md#17-runtime-compatibility-checklist).
+> [services/contracts.md §17](../services/contracts.md#17-runtime-compatibility-checklist).
 
 ### Choosing what to inject
 

@@ -133,7 +133,7 @@ flowchart TD
 
 ### 不变量
 
-两条规则，都靠机械方式执行，都按目录限定作用范围（[09 §3](../workflow/structure.md#3-依赖规则)），因为代码评审无法可靠地兜住它们：
+两条规则，都靠机械方式执行，都按目录限定作用范围（[workflow/structure.md §3](../workflow/structure.md#3-依赖规则)），因为代码评审无法可靠地兜住它们：
 
 > **1. `packages/core/*` 之外的任何包都不得导入平台 SDK。**
 
@@ -145,10 +145,10 @@ flowchart TD
 
 | 暴露面 | 导出内容 | 谁可以导入 |
 |---|---|---|
-| **插件面（plugin surface）** —— 被*类型化* | 恰好是被钉死的 Cordis 再导出：`Context`、`Service`、`Inject`、`Plugin`、`Fiber`、`Effect`、`EffectMeta`、`InjectSpec`、`FiberState`、`FiberStateName`、`FiberStateValue`、`fiberStateName`、`isActive`、`isSettled` | Layer 2、3 与 4。[09 §5.1](../workflow/build-pipelines.md#51-cordis-rc-问题) 要求插件从内核而非从 `cordis` 获取 Cordis，这样上游的一次变更就由一个适配模块吸收 |
+| **插件面（plugin surface）** —— 被*类型化* | 恰好是被钉死的 Cordis 再导出：`Context`、`Service`、`Inject`、`Plugin`、`Fiber`、`Effect`、`EffectMeta`、`InjectSpec`、`FiberState`、`FiberStateName`、`FiberStateValue`、`fiberStateName`、`isActive`、`isSettled` | Layer 2、3 与 4。[workflow/build-pipelines.md §5.1](../workflow/build-pipelines.md#51-cordis-rc-问题) 要求插件从内核而非从 `cordis` 获取 Cordis，这样上游的一次变更就由一个适配模块吸收 |
 | **引导表面** —— *驱动*内核 | 内核导出的其余一切：`createApp`、配置加载器、插件加载器、能力门、SQL 守卫、迁移运行器 | 仅 Layer 2 与组合根 |
 
-这条规则被写成**插件面的允许列表**，而不是引导表面的禁止列表。引导表面又长又在增长；插件面很短，而且与上游 Cordis 的形状钉在一起。因此，一个新增的内核导出，在有人明确表态之前，对 Layer 3、4 与 5 都是封闭的——这正是失败时更安全的方向。而如果那份列表的两份副本发生漂移，`kernel/src/layers.test.ts` 会让构建失败（[09 §3](../workflow/structure.md#3-依赖规则)）。
+这条规则被写成**插件面的允许列表**，而不是引导表面的禁止列表。引导表面又长又在增长；插件面很短，而且与上游 Cordis 的形状钉在一起。因此，一个新增的内核导出，在有人明确表态之前，对 Layer 3、4 与 5 都是封闭的——这正是失败时更安全的方向。而如果那份列表的两份副本发生漂移，`kernel/src/layers.test.ts` 会让构建失败（[workflow/structure.md §3](../workflow/structure.md#3-依赖规则)）。
 
 功能插件不构造 context、不解析插件、不读配置存储，也不咨询能力门。它是*被交给*一个 context，然后在其中工作。说得这么精确很重要，因为"一切都是 Cordis 插件"听起来仿佛每一层都同等地依赖内核；而分层规则关心的是谁可以**驱动**内核，而不是谁可以被它**类型化**。
 
@@ -157,7 +157,7 @@ flowchart TD
 每一处范围都很窄，也都在这里点名，以便可以审计它，而不是靠偶然发现。
 
 - **UI 包导入视图库。** `plugin-*-ui-mobile` 与 `ui-kit-mobile` 导入 `react-native`；桌面端的对应包导入 `react-dom`。ADR-2 已经接受按目标平台划分的视图层。它们仍然不得触碰平台*能力* —— 移动端视图可以渲染 `<FlatList>`，但不可以调用 `FileSystem.readAsStringAsync`。
-- **宿主外壳拥有平台窗口装饰。** `apps/*` 按定义就是平台特定的：深链注册、安全区内边距、窗口控制（[08 §7](../ui/architecture.md#7-外壳的职责)）。其余一切都应属于插件。
+- **宿主外壳拥有平台窗口装饰。** `apps/*` 按定义就是平台特定的：深链注册、安全区内边距、窗口控制（[ui/architecture.md §7](../ui/architecture.md#7-外壳的职责)）。其余一切都应属于插件。
 - **组合根驱动内核。** `apps/mobile/src/boot.ts`、`apps/desktop/renderer/boot.ts`，以及各自旁边的 `plugins.ts` 白名单，是仅有的几个调用 `createApp`、并以导入方式点名 Layer 2 包的文件 —— [§3 的引导表](#引导插件集)就是它们内容的原样照录。这是接线，不是业务功能：组合根不含任何编排、任何领域类型、任何视图代码，而 `apps/*` 的其余部分与其他任何 Layer 5 包一样遵守 Layer 5 规则。这条例外是封闭的，而不是可以无限延伸的：lint 配置按路径点名了那四个文件，而只要出现第五个 `createApp` 调用点，`kernel/src/layers.test.ts` 就会失败——第二个引导就是一个第二个内核。
 
 ### 关键设计原则
@@ -168,7 +168,7 @@ flowchart TD
 
 **单一职责原则（SRP）。** 每一层回答一类问题 —— *契约是什么*（0）、*任何东西如何加载与卸载*（1）、*这个平台怎么做*（2）、*产品做什么*（3）、*用户看见并触摸什么*（4）—— 且层内的每个包恰好拥有一个服务键或一项功能。当一个改动需要同时修改两层时，接缝通常画在了错误的高度上；常设的反例就是爬进 Electron `main` 的领域逻辑，[§2](#桌面端) 正是为此而拒绝它。
 
-**接口隔离原则（ISP）。** Layer 0 定义许多小的服务接口，而不是一整块平台门面，因此 `inject: ['fs']` 带来的就只有文件系统访问，别无其他。于是插件的 `inject` 列表就成了对其波及范围的一句诚实、可评审的陈述，而能力门（[03 §7](../plugins/capabilities.md#7-能力模型)）在此之上进一步收窄。
+**接口隔离原则（ISP）。** Layer 0 定义许多小的服务接口，而不是一整块平台门面，因此 `inject: ['fs']` 带来的就只有文件系统访问，别无其他。于是插件的 `inject` 列表就成了对其波及范围的一句诚实、可评审的陈述，而能力门（[plugins/capabilities.md §7](../plugins/capabilities.md#7-能力模型)）在此之上进一步收窄。
 
 **逐层传播。** UI → 功能插件 → 核心插件 → 内核 → 系统。没有任何一环跳跃：一个需要字节的界面去调用功能插件，功能插件去问 `ctx.fs`，`ctx.fs` 是核心插件，核心插件去调 SDK。被禁止的动作是抄近路 —— 视图嫌往返太长，直接伸手去够 `expo-file-system` —— 它之所以被禁止，恰恰因为它最诱人。不变量第 1 条存在的意义，就是让这种近路在 CI 失败，而不是在评审中溜过。
 
@@ -176,10 +176,10 @@ flowchart TD
 
 | 测试对象 | Layer 0 处的替身 | 位置 |
 |---|---|---|
-| 功能插件 | 内存中的 `FsService` / `HttpService` / `DbService` | `packages/tooling/tooling-fixtures`（[09 §6](../workflow/testing.md#6-测试策略)） |
-| 核心插件 | 无替身 —— 它被钉在共享契约上 | `protocol/src/conformance` 中的契约测试套件（[04 §18](../services/contracts.md)） |
-| UI 包 | hooks 从测试构建的 context 上读取伪造的服务 | [08 §4](../ui/architecture.md#4-把服务绑定到-react) |
-| 规则语言 | 无可 mock 之物：`source-rules` 是纯的，没有 Cordis，也没有 I/O | [06 §3](../sources/rule-engines.md#3-规则语言) |
+| 功能插件 | 内存中的 `FsService` / `HttpService` / `DbService` | `packages/tooling/tooling-fixtures`（[workflow/testing.md §6](../workflow/testing.md#6-测试策略)） |
+| 核心插件 | 无替身 —— 它被钉在共享契约上 | `protocol/src/conformance` 中的契约测试套件（[services/contracts.md §18](../services/contracts.md)） |
+| UI 包 | hooks 从测试构建的 context 上读取伪造的服务 | [ui/architecture.md §4](../ui/architecture.md#4-把服务绑定到-react) |
+| 规则语言 | 无可 mock 之物：`source-rules` 是纯的，没有 Cordis，也没有 I/O | [sources/rule-engines.md §3](../sources/rule-engines.md#3-规则语言) |
 
 这种循环正是要害：契约测试套件就住在 Layer 0，于是让各层可以互相替换的那份契约，也正是测试它们的那个东西。
 
@@ -257,7 +257,7 @@ flowchart LR
 
 渲染进程采用 `contextIsolation: true`、`nodeIntegration: false`、`sandbox: true`。preload 暴露 `window.BBeBee` 与 `window.BBeBeeBridge` 对象，其方法都带有能力（capability）标记；内核按插件逐一包装它们（[capabilities.md §7](../plugins/capabilities.md#7-能力模型)）。应用源（origin）使用严格的 CSP。
 
-在这条底线之上，唯一的例外令牌是 `'wasm-unsafe-eval'`，它是为 `ctx.js` 而存在的。Chromium 把 `WebAssembly.instantiate` 卡在 `script-src` 上，因此没有它 QuickJS 就无法编译，渲染进程会在核心服务清单处中止。它只授予 WebAssembly 的编译权，**此外什么都不给**：`eval` 与 `new Function` 依旧被拒绝——这正是选用这个狭窄令牌、而不选同样能让 WASM 跑起来的 `'unsafe-eval'` 的原因。这笔交易是：为一个内部没有任何宿主对象图的 realm 换来一个编译器（[04 §19](../services/contracts.md)），而这正是整个音源模型所依赖的方向。
+在这条底线之上，唯一的例外令牌是 `'wasm-unsafe-eval'`，它是为 `ctx.js` 而存在的。Chromium 把 `WebAssembly.instantiate` 卡在 `script-src` 上，因此没有它 QuickJS 就无法编译，渲染进程会在核心服务清单处中止。它只授予 WebAssembly 的编译权，**此外什么都不给**：`eval` 与 `new Function` 依旧被拒绝——这正是选用这个狭窄令牌、而不选同样能让 WASM 跑起来的 `'unsafe-eval'` 的原因。这笔交易是：为一个内部没有任何宿主对象图的 realm 换来一个编译器（[services/contracts.md §19](../services/contracts.md)），而这正是整个音源模型所依赖的方向。
 
 ---
 
@@ -352,7 +352,7 @@ sequenceDiagram
 
 瀑布（waterfall）钩子就是中间件：每个监听器收到参数和一个 `next` 续延，可以变换输入、短路，或对结果做后处理。
 
-> ⚠️ **`next` 不接受任何参数。** Cordis 让它闭包捕获的是*原始*参数列表，因此 `next(somethingElse)` 与 `next()` 静默地完全等价。于是监听器只有两步棋可走：**就地修改参数**——改写 `req.headers`、直接增删数组元素——然后调用 `next()`；或者**短路**，返回一个值，根本不调用 `next`。[07 §5](../data-model/events.md#5-事件表) 中的签名就是这样声明的，内核的 `cordis-assumptions.test.ts` 也把它钉死了，因为一个悄悄消失的请求头是极难排查的东西。
+> ⚠️ **`next` 不接受任何参数。** Cordis 让它闭包捕获的是*原始*参数列表，因此 `next(somethingElse)` 与 `next()` 静默地完全等价。于是监听器只有两步棋可走：**就地修改参数**——改写 `req.headers`、直接增删数组元素——然后调用 `next()`；或者**短路**，返回一个值，根本不调用 `next`。[data-model/events.md §5](../data-model/events.md#5-事件表) 中的签名就是这样声明的，内核的 `cordis-assumptions.test.ts` 也把它钉死了，因为一个悄悄消失的请求头是极难排查的东西。
 
 三个承重的瀑布钩子：
 
@@ -364,7 +364,7 @@ sequenceDiagram
 
 收益是具体的：**播放器完全没有"下载"这个概念。** 它只是请求一个可播放的句柄，下载插件——如果加载了——就悄悄用文件路径替代 URL 作答。卸载下载插件，播放照常工作，只是改为流式。`plugin-player` 里没有任何东西发生变化，甚至毫无察觉。
 
-每个事件的完整分发语义——包括各自使用 `emit` / `parallel` / `serial` / `bail` / `waterfall` 中的哪一种——都汇总在 [07 §5](../data-model/events.md#5-事件表)。
+每个事件的完整分发语义——包括各自使用 `emit` / `parallel` / `serial` / `bail` / `waterfall` 中的哪一种——都汇总在 [data-model/events.md §5](../data-model/events.md#5-事件表)。
 
 ---
 
@@ -384,7 +384,7 @@ sequenceDiagram
 | 插件配置 | 内核，持久化在 `plugin_records` | 以插件的 `config` 参数形式交付；变更会重载 fiber |
 | 源文档 | `ctx.sources`，持久化在 `sources` | 以字符串形式导入、编辑与导出；一次编辑恰好只重载该源的 fiber |
 
-React 不持有**任何业务状态**——只有视图状态（当前打开哪个标签、菜单是否展开）。强制执行的理由与钩子设计见 [08 §4](../ui/architecture.md#4-把服务绑定到-react)。
+React 不持有**任何业务状态**——只有视图状态（当前打开哪个标签、菜单是否展开）。强制执行的理由与钩子设计见 [ui/architecture.md §4](../ui/architecture.md#4-把服务绑定到-react)。
 
 ---
 

@@ -68,7 +68,7 @@ export interface DownloadRequest extends HttpRequest {
 
 `ctx.http` is the canonical `waterfall` interception point. Auth injection, retry, rate limiting,
 and response caching are all plugins hooking `http/request` rather than features baked into the
-client ([02 §5](../architecture/layers.md#5-composition-how-features-reach-each-other)).
+client ([architecture/layers.md §5](../architecture/layers.md#5-composition-how-features-reach-each-other)).
 
 **A `Referer` header is Chromium's referrer, not an ordinary header.** Electron's `net.fetch` maps
 it onto the URLRequest's referrer and validates it against the request's referrer policy before
@@ -83,12 +83,12 @@ explicit `Referer`, so a source sends what it wrote
 ### 2.1 Cookie jars
 
 A signed-in music source must stay signed in across restarts
-([06 §5.1](../sources/runtime.md#51-session-persistence--cookies-survive-the-app)). Cookie
+([sources/runtime.md §5.1](../sources/runtime.md#51-session-persistence--cookies-survive-the-app)). Cookie
 persistence is therefore part of the platform contract rather than something a source document has
 to express in rules.
 
 **A jar belongs to one source.** `ctx.http` reads the scope id from the intercept config the
-runtime sets per source ([06 §4.1](../sources/runtime.md#41-a-sources-lifetime)), so two Navidrome
+runtime sets per source ([sources/runtime.md §4.1](../sources/runtime.md#41-a-sources-lifetime)), so two Navidrome
 servers get two jars and a cookie set by one is never sent to the other. An ungated caller — the
 kernel, a core service, a test — has no scope and therefore no jar, which is correct: there is no
 session to keep.
@@ -125,6 +125,8 @@ export interface CookieJar {
   remove(name: string, domain?: string): Promise<void>
   /** Empties the jar AND deletes its persisted copy. Called by signOut(). */
   clear(): Promise<void>
+  /** Resolve once every queued save has landed. */
+  flush(): Promise<void>
 }
 
 export interface CookieJarService {
@@ -148,7 +150,7 @@ Semantics both implementations must satisfy — the shared conformance suite (§
 | | Electron (`core-http-node`) | Expo (`core-http-rn`) |
 |---|---|---|
 | Storage | `session.fromPartition('persist:BBeBee-<name>')` — Chromium's own cookie store, on disk, with correct expiry/`Secure`/`SameSite` handling for free | RFC 6265 jar in JS, serialised to JSON |
-| At rest | Chromium encrypts the store with the OS keychain where one exists | **Envelope encryption**: a random AES key in `ctx.secrets`, ciphertext in the `cookie_jars` table ([07 §4.1](../data-model/urn.md#41-sources-accounts-and-sessions)) |
+| At rest | Chromium encrypts the store with the OS keychain where one exists | **Envelope encryption**: a random AES key in `ctx.secrets`, ciphertext in the `cookie_jars` table ([data-model/schema.md §4.1](../data-model/schema.md#41-sources-accounts-and-sessions)) |
 | Clearing | `session.clearStorageData({ storages: ['cookies'] })` + partition removal | Row deleted, key deleted from `ctx.secrets` |
 
 > ⚠️ **Why mobile does not simply put the jar in `ctx.secrets`.** `expo-secure-store` caps a value
@@ -261,7 +263,7 @@ This revises the original plan (a JSON file on desktop, a `kv` table in the app 
 mobile), for two reasons found while building it:
 
 - **Boot order.** `ctx.store` comes up *before* `ctx.db` — the kernel reads configuration through
-  `fs` and `store` before a database exists ([02 §3](../architecture/layers.md#3-boot-sequence)).
+  `fs` and `store` before a database exists ([architecture/layers.md §3](../architecture/layers.md#3-boot-sequence)).
   A mobile store backed by `db` would invert that.
 - **Nothing platform-specific was left.** Once it goes through `ctx.fs`, the two implementations
   were the same code twice, which is drift surface for no benefit.
@@ -296,7 +298,7 @@ export interface DbService {
   /**
    * Register a plugin-owned schema. Tables are prefixed with the namespace,
    * migrations are versioned per namespace, and everything is dropped if the
-   * plugin is uninstalled with "remove data" selected. See 07 §6.
+   * plugin is uninstalled with "remove data" selected. See [data-model/migrations.md §6](../data-model/migrations.md#6-plugin-schema-lifecycle).
    */
   defineSchema(namespace: string, migrations: Migration[]): Promise<void>
 }
@@ -333,7 +335,7 @@ export interface Migration {
 Choosing `node:sqlite` removes the single most annoying maintenance burden in Electron projects —
 recompiling `better-sqlite3` against Electron headers on every version bump. Both platforms expose
 FTS5, so local library search is one implementation
-([07 §4.3](../data-model/schema.md#43-catalogue)).
+([data-model/schema.md §4.3](../data-model/schema.md#43-catalogue)).
 
 ---
 
@@ -344,9 +346,13 @@ export interface SecretsService {
   get(key: string): Promise<string | undefined>
   set(key: string, value: string): Promise<void>
   delete(key: string): Promise<void>
+  /** Remove every secret in this namespace. Used by signOut(). */
+  clear(): Promise<void>
   namespace(ns: string): SecretsService
   /** False when no OS keychain is available; callers may warn the user. */
   readonly isHardwareBacked: boolean
+  /** Largest value this backend accepts, in bytes. */
+  readonly maxValueBytes: number
 }
 ```
 
@@ -358,7 +364,7 @@ under `userData`. Expo: `expo-secure-store` (Keychain / EncryptedSharedPreferenc
 
 **Tokens live here and nowhere else.** Never in `ctx.db`, never in the config file, never in a log
 line. Each source gets `ctx.secrets.namespace(sourceId)`, and the capability grammar
-has no `secrets:all` ([03 §7](../plugins/capabilities.md#7-capability-model)).
+has no `secrets:all` ([plugins/capabilities.md §7](../plugins/capabilities.md#7-capability-model)).
 
 ---
 
@@ -433,7 +439,7 @@ both platforms; callers must handle `denied` without breaking).
 
 ## 9. `ctx.background` — long work and wake locks
 
-The service that makes [02 §4](../architecture/layers.md#4-what-background-means) actionable.
+The service that makes [architecture/layers.md §4](../architecture/layers.md#4-what-background-means) actionable.
 
 ```ts
 export interface BackgroundService {
@@ -461,14 +467,15 @@ audio holds the process.
 
 ```ts
 export interface PathsService {
-  appData: Uri
-  cache: Uri
-  temp: Uri
-  logs: Uri
-  downloads: Uri
+  readonly appData: Uri
+  readonly cache: Uri
+  readonly temp: Uri
+  readonly logs: Uri
+  readonly downloads: Uri
   /** Undefined where the platform has no shared music folder (iOS). */
-  music?: Uri
+  readonly music?: Uri
   pluginData(pluginId: string): Uri
+  get(kind: WellKnownDir): Uri | undefined
 }
 ```
 
@@ -485,8 +492,8 @@ export interface DeviceService {
   readonly appVersion: string
   readonly locale: string
 
-  network(): Promise<{ online: boolean; type: 'wifi' | 'cellular' | 'ethernet' | 'none'; metered: boolean }>
-  onNetworkChange(cb: (s: { online: boolean; metered: boolean }) => void): Disposable
+  network(): Promise<{ online: boolean; type: 'wifi' | 'cellular' | 'ethernet' | 'none' | 'unknown'; metered: boolean }>
+  onNetworkChange(cb: (s: { online: boolean; type: 'wifi' | 'cellular' | 'ethernet' | 'none' | 'unknown'; metered: boolean }) => void): Disposable
 
   battery(): Promise<{ level: number; charging: boolean } | undefined>
 
@@ -497,7 +504,7 @@ export interface DeviceService {
 ```
 
 `network().metered` is load-bearing: the download policy engine
-([07 §4.7](../data-model/schema.md#48-downloads)) uses it to hold cellular transfers.
+([data-model/schema.md §4.8](../data-model/schema.md#48-downloads)) uses it to hold cellular transfers.
 
 ---
 
@@ -511,6 +518,9 @@ export interface CryptoService {
   hmac(algo: 'sha1' | 'sha256', key: Uint8Array | string, data: Uint8Array | string): Promise<Uint8Array>
   /** Streaming digest for verifying large downloads without buffering. */
   digestStream(algo: 'sha256', stream: ReadableStream<Uint8Array>): Promise<Uint8Array>
+  /** AES-GCM, used for envelope-encrypted cookie jars on mobile. */
+  encrypt(key: Uint8Array, plaintext: Uint8Array): Promise<{ ciphertext: Uint8Array; iv: Uint8Array }>
+  decrypt(key: Uint8Array, ciphertext: Uint8Array, iv: Uint8Array): Promise<Uint8Array>
 }
 ```
 
@@ -567,7 +577,7 @@ export interface ShellService {
 ```
 
 `openAuthSession` is what makes the `webview` login flow of
-[06 §5](../sources/runtime.md#5-authentication-and-session) work identically: `expo-web-browser`'s
+[sources/runtime.md §5](../sources/runtime.md#5-authentication-and-session) work identically: `expo-web-browser`'s
 auth session on mobile, a `BrowserWindow` with a navigation listener on desktop. The cookies it
 collects land in that source's jar (§2.1), which is the whole point.
 
@@ -636,9 +646,9 @@ nothing wrong. The suite is the executable form of this document.
 shares nothing with the app.
 
 It exists for exactly one caller today: `plugin-source-runtime`, whose rules are written by
-strangers ([06 §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)). It
+strangers ([sources/runtime.md §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)). It
 is a core service rather than part of that plugin because embedding an interpreter means shipping
-native code, which only `core-*` may do ([02 §1](../architecture/layers.md#the-invariant)).
+native code, which only `core-*` may do ([architecture/layers.md §1](../architecture/layers.md#the-invariant)).
 
 **Implemented by `core-js-quickjs-node`** (desktop and Node) on QuickJS compiled to WebAssembly.
 Not `node:vm`, and the difference is the whole point: `vm` shares an object graph with the host,
@@ -664,6 +674,7 @@ export interface JsRealm {
   /** Evaluate once at realm creation — the source document's `jsLib`. */
   preload(code: string): Promise<void>
   dispose(): void
+  readonly disposed: boolean
 }
 
 export interface JsLimits {
@@ -677,7 +688,7 @@ export interface JsLimits {
    * timeout.
    */
   timeoutMs: number
-  /** Wall clock for one eval including everything it awaits — 06 §8's "10s with network". */
+  /** Wall clock for one eval including everything it awaits — [sources/runtime.md §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)'s "10s with network". */
   budgetMs: number
   /** Heap ceiling. Exceeding it throws JsMemoryError. */
   memoryBytes: number
@@ -687,7 +698,7 @@ export interface JsLimits {
 
 export interface JsService {
   /** A fresh realm with nothing in it but ECMAScript builtins. */
-  createRealm(limits: JsLimits): Promise<JsRealm>
+  createRealm(limits?: Partial<JsLimits>): Promise<JsRealm>
   readonly engine: { name: string; version: string }
 }
 
@@ -695,9 +706,9 @@ export class JsTimeoutError extends Error {}
 export class JsMemoryError extends Error {}
 ```
 
-| | Electron (`core-js-quickjs-node`) | Expo (`core-js-quickjs-rn`) |
+| | Electron (`core-js-quickjs-node`) | Expo (QuickJS JSI via shell) |
 |---|---|---|
-| Backing | `quickjs-emscripten-core` with a single-file WASM variant, embedded in the renderer bundle | A QuickJS JSI module |
+| Backing | `quickjs-emscripten-core` with a single-file WASM variant, embedded in the renderer bundle | A QuickJS JSI module (`react-native-quick-js`) |
 | Isolation | A separate WASM instance per realm | A separate `JSRuntime` per realm |
 | Interrupts | QuickJS interrupt handler, checked on backward jumps | Same |
 | Async | Host functions may return promises; the realm's job queue is driven by the host | Same |
@@ -707,7 +718,7 @@ Rules the contract is built around, each of which a naive embedding gets wrong:
 - **No ambient globals.** A realm starts with ECMAScript builtins and nothing else — no `fetch`,
   no timers, no `console`, no module loader. Everything a caller wants available must be
   `expose`d by name, which is what makes the host surface in
-  [06 §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do) an exhaustive
+  [sources/runtime.md §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do) an exhaustive
   list rather than a summary.
 - **Lazy WASM compilation.** In `core-js-quickjs-node`, `[Service.init]()` returns immediately;
   the QuickJS WASM module is compiled and cached on demand on the first `createRealm()` call,
@@ -727,7 +738,7 @@ Rules the contract is built around, each of which a naive embedding gets wrong:
 > ⚠️ **The sandbox bounds reach, not intent.** Code in a realm still sees everything the host
 > passes in and can send it wherever the host's exposed functions allow — which is why the source
 > runtime pairs this with a per-source **host allowlist** on `ctx.http`
-> ([03 §7](../plugins/capabilities.md#capability-grammar)). An evaluator without an egress limit is a
+> ([plugins/capabilities.md §7](../plugins/capabilities.md#capability-grammar)). An evaluator without an egress limit is a
 > containment story with a hole in the middle.
 
 ---
@@ -755,7 +766,9 @@ export interface ThemeDefinition {
   description?: string
   isDark: boolean
   tokens: ColorTokens
+  lightTokens?: ColorTokens
   cssVariables?: Record<string, string>
+  lightCssVariables?: Record<string, string>
 }
 
 export interface ThemeService {
@@ -763,6 +776,8 @@ export interface ThemeService {
   getThemes(): readonly ThemeDefinition[]
   /** Returns the active theme snapshot. */
   getCurrentTheme(): ThemeDefinition
+  /** Returns the currently active effective color scheme ('dark' or 'light'). */
+  getEffectiveScheme(): 'dark' | 'light'
   /** Switches the active theme by id and persists the preference. */
   setTheme(themeId: string): Promise<void>
   /** Registers a new theme at runtime. Returns a disposer. */
@@ -770,7 +785,7 @@ export interface ThemeService {
   /** Removes a custom theme. Built-in themes cannot be removed. */
   removeTheme(themeId: string): boolean
   /** Subscribes to theme changes. */
-  onThemeChange(listener: (theme: ThemeDefinition) => void): Disposable
+  onThemeChange(listener: (theme: ThemeDefinition, scheme?: 'dark' | 'light') => void): Disposable
 }
 ```
 
@@ -1001,8 +1016,9 @@ export interface SettingsContribution {
 export interface SettingsService {
   get(): Promise<AppSettings>
   getSync(): AppSettings
-  update(patch: DeepPartial<AppSettings>): Promise<void>
-  reset(): Promise<void>
+  update(partial: Partial<AppSettings>): Promise<AppSettings>
+  reset(): Promise<AppSettings>
+  onSettingsChange(listener: (settings: AppSettings) => void): Disposable
   contribute(contribution: SettingsContribution): Disposable
   getContributions(): readonly SettingsContribution[]
 }
@@ -1032,14 +1048,15 @@ export interface PluginInfo {
   description?: string
   version: string
   author?: string
-  systemId: 'layer-2' | 'layer-3' | 'layer-4' | 'layer-5'
-  moduleId: string
+  systemId: 'layer-2' | 'layer-3' | 'layer-4' | 'layer-5' | string
+  moduleId?: string
   enabled: boolean
   state: PluginRuntimeState
-  stateDetail?: string
+  error?: string
+  waitingFor: string[]
   dependencies: string[]
   dependents: string[]
-  configStatus: ConfigStatus
+  configStatus?: ConfigStatus
 }
 
 export type PluginRuntimeState =
@@ -1049,21 +1066,22 @@ export type PluginRuntimeState =
   | 'FAILED'
   | 'DISPOSED'
   | 'UNLOADING'
+  | 'UNLOADED'
   | 'UNKNOWN'
 
 export type ConfigStatus = 'none' | 'customized' | 'default'
 
 export interface PluginLifecycleBridge {
-  loadPlugin: (id: string) => Promise<void>
+  loadPlugin: (id: string) => Promise<unknown>
   unloadPlugin: (id: string) => Promise<void>
 }
 
 export interface PluginManagerService {
-  list(): PluginInfo[]
-  get(id: string): PluginInfo | undefined
+  list(): readonly PluginInfo[]
   setEnabled(id: string, enabled: boolean): Promise<void>
-  registerBridge(bridge: PluginLifecycleBridge): () => void
-  setManifests(manifests: Record<string, PluginManifest>): void
+  registerManifests(manifests: Record<string, PluginManifest>): void
+  setLifecycleBridge(bridge: PluginLifecycleBridge): void
+  refresh(): readonly PluginInfo[]
 }
 ```
 

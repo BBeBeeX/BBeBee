@@ -7,17 +7,32 @@
 Every effect is a plugin. The service is a registry plus a chain builder.
 
 ```ts
-import type { StandardSchemaV1 } from '@standard-schema/spec'
+export type EffectParamValue = number | string | boolean | number[]
 
 export interface EffectSegment {
   /** Where audio enters and leaves this effect. May be the same node. */
   input: AudioNode
   output: AudioNode
   /** Called when a persisted parameter changes. Must be allocation-free. */
-  setParam(name: string, value: number | string | boolean): void
+  setParam(name: string, value: EffectParamValue): void
   /** Added to the reported chain latency, for A/V sync and visualiser alignment. */
   latencyMs?: number
   dispose(): void
+}
+
+/**
+ * Minimal schema shape, structurally compatible with Standard Schema.
+ * Declared locally rather than importing @standard-schema/spec so that
+ * @BBeBee/protocol keeps zero runtime dependencies.
+ */
+export interface ParamSchema<Out = unknown> {
+  readonly '~standard': {
+    readonly version: 1
+    readonly vendor: string
+    readonly validate: (
+      value: unknown,
+    ) => { value: Out } | { issues: readonly { message: string }[] } | PromiseLike<unknown>
+  }
 }
 
 export interface EffectDefinition<P = Record<string, unknown>> {
@@ -25,19 +40,24 @@ export interface EffectDefinition<P = Record<string, unknown>> {
   displayName: string
   /** Default ordinal. Lower runs earlier. Users may override. */
   defaultOrder: number
-  Params: StandardSchemaV1<unknown, P>
-  presets?: { name: string; params: P }[]
-  build(ctx: AudioContextLike, params: P): EffectSegment
+  Params: ParamSchema<P>
+  presets?: { name: string; params: P; builtin?: boolean }[]
+  build(ctx: BaseAudioContext, params: P): EffectSegment
+  /**
+   * Native-engine adapter (mpv): serialize this effect's params into a
+   * libavfilter fragment for the engine's af chain.
+   */
+  buildLavfi?(params: Record<string, unknown>): string
 }
 
 export interface DspService {
-  register(def: EffectDefinition): Disposable
-  readonly definitions: readonly EffectDefinition[]
+  register(def: EffectDefinition<never>): Disposable
+  readonly definitions: readonly EffectDefinition<never>[]
 
   readonly chain: readonly { effectId: string; enabled: boolean; ordinal: number }[]
   setEnabled(effectId: string, on: boolean): Promise<void>
   setOrder(effectId: string, ordinal: number): Promise<void>
-  setParam(effectId: string, name: string, value: number | string | boolean): Promise<void>
+  setParam(effectId: string, name: string, value: EffectParamValue): Promise<void>
   getParams?(effectId: string): Record<string, unknown>
   applyPreset(effectId: string, presetName: string): Promise<void>
 

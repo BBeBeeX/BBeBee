@@ -33,13 +33,16 @@ export interface AudioSourceHandle {
   pause(): void
   stop(): void
   readonly positionMs: number
-  /** Fires when the source reaches its natural end. */
+  seek?(atMs: number): void
+  /** 曲目自然播完时触发。 */
   onEnded(cb: () => void): Disposable
+  /** 缓冲耗尽时触发 true，恢复时触发 false。 */
+  onStalled(cb: (stalled: boolean) => void): Disposable
   dispose(): void
 }
 
 export interface LoadOptions {
-  /** Streaming keeps memory flat; buffered enables sample-accurate gapless. */
+  /** Streaming 保持内存恒定；buffered 支持样本级精确的无缝播放。 */
   strategy: 'stream' | 'buffer'
   headers?: Record<string, string>
   signal?: AbortSignal
@@ -52,23 +55,44 @@ export interface AudioService {
   readonly sampleRate: number
   readonly outputLatencyMs: number
 
-  /** Load a remote URL or a local Uri into a playable source node. */
+  /** 将远程 URL 或本地 Uri 加载为可播放的源节点。 */
   load(src: string | Uri, opts: LoadOptions): Promise<AudioSourceHandle>
 
-  /** Where ctx.dsp inserts its chain. Sources connect here, not to destination. */
+  /** ctx.dsp 插入效果链的位置。音源连接至此，绝不直接连 destination。 */
   readonly chainInput: AudioNode
+  /** ctx.dsp 效果链连回主输出的位置。 */
+  readonly chainOutput?: AudioNode
+  /** 平滑降低主音量，防止重连图时出现爆音。 */
+  dipVolume?(durationMs?: number): Promise<Disposable>
 
-  setVolume(v: number): void         // 0..1, applied post-chain
+  setVolume(v: number): void         // 0..1，在效果链之后应用
   setMuted(m: boolean): void
 
-  listOutputDevices(): Promise<{ id: string; label: string; isDefault: boolean }[]>
+  listOutputDevices(): Promise<{ id: string; label: string; isDefault: boolean; isVirtual?: boolean }[]>
   setOutputDevice(id: string): Promise<void>
   /** 配置原生音频后端的独占模式（如 MPV WASAPI 独占） */
   setAudioExclusive?(exclusive: boolean): Promise<void>
+  /** 原生引擎健康状态（进程存活、libmpv 是否成功载入）。 */
+  getEngineStatus?(): Promise<{ running: boolean; mpvAvailable: boolean }>
 
-  /** Interruptions, route changes, focus loss. See §5. */
+  /** 预加载或追加下一首曲目以实现无缝过渡。 */
+  preloadNext?(src: string | Uri, opts?: { headers?: Record<string, string> }): Promise<void>
+  /** 最近一次 preloadNext 的执行结果。 */
+  readonly lastPreloadStatus?: { uri: string; ok: boolean; at: number }
+
+  /** 系统打断、输出路由变更、失去焦点。 */
   onInterruption(cb: (e: { type: 'began' | 'ended'; shouldResume: boolean }) => void): Disposable
   onRouteChange(cb: (e: { reason: 'device-removed' | 'device-added' | 'override' }) => void): Disposable
+  emitInterruption(e: { type: 'began' | 'ended'; shouldResume: boolean }): void
+  emitRouteChange(e: { reason: 'device-removed' | 'device-added' | 'override' }): void
+
+  /** 桌面端动态音频引擎热切换。 */
+  switchEngine?(engine: 'mpv' | 'wasapi' | 'webaudio'): Promise<void>
+  readonly activeEngineName?: 'mpv' | 'wasapi' | 'webaudio'
+
+  readonly hardwareBitDepth?: number
+  readonly hardwareChannels?: number
+  readonly currentDeviceLabel?: string
 }
 ```
 
@@ -98,10 +122,11 @@ flowchart LR
 - **桌面端原生高保真引擎 (`@BBeBee/core-audio-mpv`)**：
   - **崩溃隔离原生独立可执行文件 (Crash Isolation & Standalone Executable)**：基于官方 libmpv 与编译生成的独立 native `audio-engine` 二进制可执行文件（`apps/desktop/bin/audio-engine` 或 `.exe`），采用标准 stdio JSON-IPC 与 Electron 主进程通信。任何底层驱动崩溃、音频设备热插拔异常或 native 信号错误均由独立进程隔离，由 `AudioEngineSupervisor` 自动监控并执行优雅自愈重连，保证主进程与渲染界面丝滑稳定。
   - **PCM 不走 IPC 与系统音频直通 (Zero-IPC for PCM)**：音频解码后的高采样率 PCM 流在原生子进程内直接送入 mpv 自身的音频输出端点（Windows `ao=wasapi`、macOS `coreaudio`、Linux `pulse,alsa,pipewire`），严禁跨进程高带宽低效传输 PCM 原始数据。
-  - **经 libavfilter 适配器的完整效果链**：每个内置效果（10 段 EQ、前级、压限器、限制器、响度归一、crossfeed、加宽、混响、变速变调）都在其 `EffectDefinition` 上声明可选的 `buildLavfi(params)` 适配器——每个效果一段 libavfilter 片段（`equalizer`/`lowshelf`/`highshelf`、`volume`、`acompressor`、`alimiter`、`crossfeed`、`extrastereo`、`aecho`、`rubberband`）。引擎按 ordinal 顺序遍历**已启用**的链，把片段串成一条 `af` 字符串（并追加 `astats` 抽头），在挂载时、`dsp/chain-changed` 时（200 ms 去抖——每次写 `af` mpv 都会重建滤镜链）推送；未声明适配器的效果记日志跳过。`FILE_LOADED` 读取 mpv 真实的 pause 标志而非假设，使抢先于加载器的 play（gapless 重绑定）保持状态簿记诚实。已用合成单音端到端实证：+6 dB 频段增益实测 +6.00 dB，−40 dB 链路实测同幅衰减。已用合成单音做端到端实证：+6 dB 频段增益在引擎自身 `astats` 抽头上实测 +6.00 dB。
+  - **经 libavfilter 适配器的完整效果链**：每个内置效果（10 段 EQ、前级、压限器、限制器、响度归一、crossfeed、加宽、混响、变速变调）都在其 `EffectDefinition` 上声明可选的 `buildLavfi(params)` 适配器——每个效果一段 libavfilter 片段（`equalizer`/`lowshelf`/`highshelf`、`volume`、`acompressor`、`alimiter`、`crossfeed`、`extrastereo`、`aecho`、`rubberband`）。引擎按 ordinal 顺序遍历**已启用**的链，把片段串成一条 `af` 字符串（并追加 `astats` 抽头），在挂载时、`dsp/chain-changed` 时（200 ms 去抖——每次写 `af` mpv 都会重建滤镜链）推送；未声明适配器的效果记日志跳过。`FILE_LOADED` 读取 mpv 真实的 pause 标志而非假设，使抢先于加载器的 play（gapless 重绑定）保持状态簿记诚实。已用合成单音做端到端实证：+6 dB 频段增益在引擎自身 `astats` 抽头上实测 +6.00 dB，−40 dB 链路实测同幅衰减。
   - **无缝交接（append + 重绑定）**：`ctx.audio.preloadNext`（协议可选成员）在当前曲目播放期间把下一首追加进引擎内部播放列表（`loadfile append`）；播放列表边界处 mpv 在自身内部无缝前进，不重启解码器。播放器端 ended→load 往返随后**重绑定**到已在发声的文件：引擎将请求 uri 与当前 `path` 比较（不区分方案——mpv 会剥离 `file://`），且仅当文件不在 EOF（单曲循环重播必须从头开始）时，回复 `loaded` 并带 `resumed: true` 而非任何替换。不带位置参数的 `play()` 永不 seek，重绑定的曲目保持连续发声。播放器把该成员的**存在**视为接管声明：`preloadNext` 存在时只移交 src、**不再**加载第二个源——单解码核引擎上对下一首的第二次 `load` 等于 `loadfile replace`，会停掉仍在发声的当前曲目，并把引擎留在无人启动的暂停文件上。桌面壳层把该成员（及 `lastPreloadStatus`）从活动引擎转发出来，存在性检查因此能穿透包装器。
   - **原生设备查询**：输出设备枚举优先走 mpv 自身的 `audio-device-list`（原生设备名作为 id，`auto` 为系统默认），引擎无法应答时回退 Chromium 枚举 + 原生标签解析。mpv 命名空间的 id 直接转发给引擎；另一引擎命名空间的陈旧 id 仍可通过共享标签匹配路径工作。
-  - **构建与分发**：二进制由 CI 按平台编译（`scripts/build-audio-engine.js`，三平台矩阵 + `--version` 冒烟），并由 `scripts/fetch-libmpv.js`（系统搜索、`LIBMPV_PATH` 覆盖、带 SHA256 校验的 Windows 预编译下载）staged 各平台 libmpv 后经 electron-builder `extraResources` 打包。无 libmpv 的机器上引擎报告加载失败，渲染端降级到媒体元素（Chromium 解码）。
+  - **构建与分发**：二进制由 CI 按平台编译（`scripts/build-audio-engine.js`，三平台矩阵 + `--version` 冒烟），并由 `scripts/fetch-libmpv.js`（系统搜索、`LIBMPV_PATH` 覆盖、带 SHA256 校验的 Windows 预编译下载）staged 各平台 libmpv 后经 electron-builder `extraResources` 打包。提供 `native/audio-engine/CMakeLists.txt` 支持。在 Linux 上，构建还会通过 `scripts/bundle-mpv-deps.js` 打包 libmpv 的完整传递依赖闭包 —— 引擎使用 `RTLD_NOW` 动态加载 libmpv，因此缺少任意一个 soname 都会导致所有原生功能静默失效。无 libmpv 的机器上引擎报告加载失败，渲染端降级到媒体元素（Chromium 解码）。完整查找顺序与降级矩阵见 [workflow/build-pipelines.md §4.1](../workflow/build-pipelines.md#41-原生音频引擎二进制)。
+  - **降级可见性与实时 PCM 解耦 (Degradation Visibility & Real-Time PCM Decoupling)**：引擎的 `ready` 消息携带 `mpvAvailable`，通过 `ctx.audio.getEngineStatus()`（桥接方法 `mpvEngineStatus`）暴露 —— 设置页面会显示明确的降级提示行，而不是静默假装原生引擎在运行。当加载了带有 `mpv_set_pcm_callback` 的自定义 mpv 构建时，真实 PCM 无缝流入 `PcmRingBuffer`。如果使用标准未补丁的 libmpv 或曲目降级到媒体元素，`MpvDynLib` 优雅回退到静音/零填充帧，不生成伪正弦/余弦波，确保零音频断流或驱动阻塞。
   - **统一 AudioAnalyser 与真实 PCM 可视化管线 (Unified AudioAnalyser & Real-PCM Visualizer Pipeline)**：频谱与波形由独立 native `audio-engine` 就地基于**真实 PCM** 计算（不是 `astats` 元数据）：
     - **双路独立 (Dual Independent Paths)**：libavfilter `astats` 元数据抽头（`@bbebee_astats:lavfi=[astats=metadata=1:reset=1]`）仅保留用于 RMS / Peak 电平遥测；频谱与波形生成完全解耦进真实 PCM 管线。
     - **SPSC PcmRingBuffer 与低锁解耦**：libmpv 音频线程把帧无阻塞拷入 64 字节对齐的无锁环形缓冲（音频线程零 malloc、零互斥、零 I/O）；独立可视化工作线程每 ~30 ms 最多读 $N$ 帧，积压超过 60 ms 即排空，以消除相对扬声器的延迟漂移。缓冲按 mpv 的 `audio-out-params/*`（AO 实际收到、tap 实际送达的格式）配置，**绝不**用 `audio-params/*`（解码器格式）——mpv 在两者之间做重采样与声道混合，44.1 kHz 文件在 48 kHz 设备上若按 `audio-params` 配置会触发写入侧格式守卫、静默丢弃全部抽头帧。`clear()` 是只会在 `read()`/`discardExcessFrames()` 内被消费的延迟标志；`availableFrames()` 因此绝不对挂起的 clear 短路返回 0，可视化循环也只在「播放 → 空闲」边沿刷新陈旧 PCM——否则播放中任意 clear（带位置的 `play`、`seek`）会把 `availableFrames() → read()` 这道闸门永久卡死在零帧（tap 正常工作却一帧都读不到）。
@@ -123,6 +148,7 @@ flowchart LR
   本地扫描器通过纯 JavaScript 的 `music-metadata` 栈读取标签与时长——整个产品不依赖任何外部解码器进程：
   - **ALAC 与 `.m4a`**：此前扫描器在遇到包含 ALAC 编码的 `.m4a` 文件时，因 Chromium 原生不支持而判定为非法编码并报错丢弃。现已通过在 `supportedFormats()` 注册 ALAC 并配合头解析，实现完整导入。
   - **更多无损格式**：`.ape` (Monkey's Audio)、`.wv` (WavPack)、`.dsf` / `.dff` (DSD 音频)、`.m4b`（有声书）现均已加入本地扫描器默认识别扩展名（`DEFAULT_EXTENSIONS`）与元数据解析（`core-codec-node`）。特殊容器的播放覆盖由 MPV 引擎（libmpv）承担；WebAudio 引擎播放 Chromium 能解码的格式。
+- **桌面端协议重写 (Desktop Scheme Rewriting)**：在 Electron Web 安全策略下，渲染进程对 `file://` URI 发起 `fetch()` 会被拦截。桌面端核心服务在请求或绑定到媒体元素前，会自动将 `file://` URL 重写为已注册的特权协议 `bbebee-file://`。
 
 ### 逃生通道
 

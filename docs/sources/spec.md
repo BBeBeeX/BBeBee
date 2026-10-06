@@ -31,7 +31,7 @@ only interpreter of them, and there is no second one to keep in step.
 ```mermaid
 flowchart LR
     STR["source string<br/>(JSON, imported by the user)"] --> IMP["ctx.sources.import()<br/>parse · validate · dedup"]
-    IMP --> DB[("sources table<br/>07 §4.1")]
+    IMP --> DB[("sources table<br/>schema.md §4.1")]
     DB --> RT["plugin-source-runtime<br/>one fiber per enabled source"]
     RT -->|"presents as"| MP["MediaProvider"]
     MP --> SVC["ctx.sources<br/>registry · catalogue cache · FTS"]
@@ -53,7 +53,7 @@ export interface MediaProvider {
   readonly sourceId: string             // 'music-example-org-35be9fe2'
   readonly displayName: string
   readonly capabilities: Capabilities   // derived — see §1.3
-  readonly auth: ProviderAuth           // synthesised from the document — see §5
+  readonly auth: ProviderAuth           // synthesised from the document — see runtime.md §5
 
   getTrack(id: string): Promise<Track>
   resolveStream(id: string, prefs: StreamPrefs): Promise<StreamHandle>
@@ -74,7 +74,7 @@ export interface MediaProvider {
 What a provider does **not** do is unchanged and still load-bearing: it never writes the database,
 never touches the audio graph, never renders anything. It answers questions and returns plain
 data. `ctx.sources` caches the answers into the catalogue tables
-([07 §4.3](../data-model/schema.md#43-catalogue)); `ctx.player` consumes the stream handles.
+([schema.md §4.3](../data-model/schema.md#43-catalogue)); `ctx.player` consumes the stream handles.
 
 ### 1.2 Identity: the source id
 
@@ -93,12 +93,12 @@ URN        BBeBee:music-example-org-35be9fe2:track:8f1a2c
 > The digest is **SHA-256**, and the suffix is 32 bits of it. Not decoration:
 > the id is a primary key, so a collision does not merely confuse a listing —
 > it makes one source's row overwrite another's. `doc_hash`
-> ([07 §4.1](../data-model/urn.md#41-sources-accounts-and-sessions)) is the full
+> ([schema.md §4.1](../data-model/schema.md#41-sources-accounts-and-sessions)) is the full
 > digest for the same reason, one step worse: it decides whether a re-import is
 > an update or a no-op, so a collision there silently skips the update.
 
 The id is derived, stable, and short enough to read in a log line. It occupies the URN's second
-segment, which is the segment [07 §1](../data-model/urn.md#1-identity-the-urn) always reserved for
+segment, which is the segment [urn.md §1](../data-model/urn.md#1-identity-the-urn) always reserved for
 "whichever namespace owns this id" — so the URN scheme did not change when the model did.
 
 Two consequences worth stating, because both used to require plugin machinery:
@@ -107,7 +107,7 @@ Two consequences worth stating, because both used to require plugin machinery:
   `sourceUrl`s. Nothing is "instantiable"; there is no such concept any more.
 - **Re-importing is an update, not a duplicate.** A string whose `sourceUrl` already exists
   updates that row and keeps its id, so every URN, cached row, cookie jar and playlist reference
-  survives the edit ([§9](#9-importing-updating-and-sharing)).
+  survives the edit ([authoring.md §9](./authoring.md#9-importing-updating-and-sharing)).
 
 ### 1.3 Capabilities are derived, not declared
 
@@ -146,6 +146,7 @@ failing artist search degrades (the tracks survive) rather than failing the sear
 export interface Capabilities {
   search: { tracks: boolean; albums: boolean; artists: boolean; playlists: boolean; fullText: boolean }
   browse: boolean
+  recommend: boolean
   lyrics: boolean
   artwork: boolean
   library: { read: boolean; save: boolean; playlistWrite: boolean; playlistReorder: boolean }
@@ -203,8 +204,8 @@ export interface SourceDocument {
   /** Functions shared by every `@js:` block in this document. */
   jsLib?: string
 
-  /* ── auth (§5) ──────────────────────────────────────────────── */
-  loginType?: 'qrcode' | 'oauth2' | 'form'
+  /* ── auth (runtime.md §5) ───────────────────────────────────── */
+  loginType?: 'form' | 'variable' | 'webview' | 'qrcode'
   loginUrl?: string
   loginUi?: LoginField[]
   loginCheckJs?: string
@@ -244,13 +245,13 @@ export interface SourceDocument {
 }
 ```
 
-> Fields the app maintains are written back on `check` ([§10](#10-diagnosing-a-broken-source)) and
+> Fields the app maintains are written back on `check` ([authoring.md §10](./authoring.md#10-diagnosing-a-broken-source)) and
 > are stripped on export, so sharing a source never leaks how fast *your* network is or when *you*
 > last used it.
 
 ### 2.2 The rule blocks
 
-Every value below is a **rule string** in the language of [§3](#3-the-rule-language) — never a
+Every value below is a **rule string** in the language of [rule-engines.md §3](./rule-engines.md#3-the-rule-language) — never a
 plain value, even when it looks like one.
 
 ```ts
@@ -387,12 +388,12 @@ per card for a name was two requests per card for one line of text.
 **An unknown field inside a rule block is refused at import.** Not ignored — refused, with the
 path named, so `{ "ruleSearch": { "titel": "$.title" } }` fails on the import screen rather than
 importing a source whose titles are permanently absent. The asymmetry with the top level
-([07 §4.1](../data-model/urn.md#41-sources-accounts-and-sessions), where an unknown field is kept
+([schema.md §4.1](../data-model/schema.md#41-sources-accounts-and-sessions), where an unknown field is kept
 verbatim and simply not read) is deliberate: a stray key beside `sourceName` is forward
 compatibility, and a stray key beside `title` is a typo in the one place a typo produces silence
 instead of an error.
 
-### 2.3 A complete example
+### 2.4 A complete example
 
 **The floor.** A source that plays exactly one stream — the smallest legal document, and the
 regression test that every screen survives a source with no optional block at all:
@@ -459,7 +460,7 @@ a stream URL built from a stored id:
 
 Note what makes `ruleStream` work hours later, offline from the search that produced the track:
 the runtime stores each list item's raw payload in `tracks.raw_json`
-([07 §4.3](../data-model/schema.md#43-catalogue)) and exposes it as `{{track.*}}`. Resolution never
+([data-model/schema.md §4.3](../data-model/schema.md#43-catalogue)) and exposes it as `{{track.*}}`. Resolution never
 re-runs a search.
 
 ---

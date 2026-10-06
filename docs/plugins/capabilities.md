@@ -9,7 +9,7 @@ Plugins declare what they intend to touch and the kernel mediates. With
 plugin is first-party, so the gate is now a **discipline that keeps intent auditable** rather than
 a boundary against a stranger's package — and the stranger's code that does exist, a source
 string, is contained by a different and much stronger mechanism
-([06 §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)).
+([sources/runtime.md §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)).
 
 ### Capability grammar
 
@@ -125,7 +125,7 @@ What `main` enforces regardless, because it does not require knowing who is call
 | Method allowlist | Only the named service methods are reachable; `constructor` and inherited members are not |
 | Path containment | Every `fs` operand must lie inside an application directory — the bridge cannot reach `/etc` or the user's home at large |
 | `ATTACH`/`DETACH`/`VACUUM INTO` refused | Otherwise the database handle is an arbitrary-file read/write primitive and the containment above is moot. All three come from one shared `assertSqlAllowed` in the kernel, used by the gated path and by `main`: the bridge previously kept its own list, which had drifted to `ATTACH`/`DETACH` only, so `VACUUM INTO '/any/path'` wrote a file straight past this table |
-| One statement per call | A driver compiles the first statement of a string and discards the rest silently, so `SELECT 1; DROP …` neither runs nor half-runs — it is refused ([04 §5](../services/contracts.md#5-ctxdb--sql)) |
+| One statement per call | A driver compiles the first statement of a string and discards the rest silently, so `SELECT 1; DROP …` neither runs nor half-runs — it is refused ([services/contracts.md §5](../services/contracts.md#5-ctxdb--sql)) |
 | Bounded stream handles | A loop of `streamOpen` cannot exhaust `main`'s file descriptors |
 | Transaction lifecycle | An abandoned transaction is rolled back on renderer teardown and on an idle timeout, so a reload cannot wedge the database |
 
@@ -133,7 +133,7 @@ Closing the per-plugin gap properly requires plugins to stop sharing the rendere
 same prerequisite as real sandboxing, below. Nothing outside this repository is loaded as a plugin
 any more, so the gate's per-plugin half is a first-party discipline by design rather than by
 oversight. **It must be resolved before anything third-party is loaded as a plugin**
-([10 §M5](../roadmap/roadmap.md#m5--third-party-extensions-on-the-sandbox)).
+([roadmap/roadmap.md §M5](../roadmap/roadmap.md#m5--third-party-extensions-on-the-sandbox)).
 
 ### What this is not
 
@@ -145,8 +145,8 @@ oversight. **It must be resolved before anything third-party is loaded as a plug
 
 Real containment needs an isolated realm. **One now exists** — `ctx.js`, a QuickJS realm with an
 enumerable host API, built because imported music sources are untrusted code and had to be
-contained ([04 §19](../services/contracts.md#19-ctxjs--the-sandboxed-evaluator),
-[06 §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)). Generalising it
+contained ([services/contracts.md §19](../services/contracts.md#19-ctxjs--the-sandboxed-evaluator),
+[sources/runtime.md §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)). Generalising it
 from "evaluate source rules" to "host a whole plugin" means giving it the service bridge the
 capability grammar above already describes as a protocol. That is the shape of
 [M5](../roadmap/roadmap.md#m5--third-party-extensions-on-the-sandbox), and it is now an extension of
@@ -158,10 +158,10 @@ something shipped rather than a subsystem to invent.
 
 - [ ] `name` set, and it matches the package name's suffix.
 - [ ] `inject` lists exactly what is needed — optional deps in object form.
-- [ ] No platform SDK imported ([02 §1](../architecture/layers.md#the-invariant)). Core plugins are the
+- [ ] No platform SDK imported ([architecture/layers.md §1](../architecture/layers.md#the-invariant)). Core plugins are the
       exception, and are the *only* exception.
 - [ ] Nothing imported from the kernel's bootstrap surface — a feature plugin is handed a context,
-      it does not build one ([02 §1](../architecture/layers.md#the-invariant)).
+      it does not build one ([architecture/layers.md §1](../architecture/layers.md#the-invariant)).
 - [ ] No import of a `core-*` package. A Layer 2 dependency is spelled `inject: ['fs']`.
 - [ ] Every listener, timer, socket, and audio node registered through `ctx.effect()` or returned
       as a disposer.
@@ -173,7 +173,7 @@ something shipped rather than a subsystem to invent.
       ([06](../sources/spec.md)); a plugin is for behaviour the runtime cannot express —
       an effect, a scrobbler, a transport, a UI surface.
 - [ ] Own DB tables declared through `ctx.db.defineSchema('plugin:<id>', …)`
-      ([07 §6](../data-model/migrations.md#6-migrations)).
+      ([data-model/migrations.md §6](../data-model/migrations.md#6-migrations)).
 - [ ] Disable, re-enable, and confirm via `fiber.getEffects()` that nothing leaked.
 
 ---

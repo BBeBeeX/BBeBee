@@ -8,7 +8,7 @@
 
 A source is not a plugin — but the runtime still gives each one **its own fiber and its own
 isolated `ctx.http` scope**, because that is what makes disabling one total and free of bespoke
-cleanup ([03 §2](../plugins/concepts.md#2-lifecycle)).
+cleanup ([plugins/concepts.md §2](../plugins/concepts.md#2-lifecycle)).
 
 ```ts
 // plugin-source-runtime — simplified
@@ -109,7 +109,7 @@ found nothing keeps its header, so "no matches" and "never answered" cannot look
 toggles come from `useSearchSourceSelection`: every searchable provider is selected by default and
 the user's choices are stored as *exclusions*, so a source imported later still joins the next
 search. `canSearchProvider` is the one predicate the service and the screen share, so the toggles
-cannot offer a source `searchAll` would silently skip ([08 §4](../ui/architecture.md#the-source-surfaces)).
+cannot offer a source `searchAll` would silently skip ([ui/architecture.md §4](../ui/architecture.md#the-source-surfaces)).
 
 The cache write behind that fan-out is the **service's own**, not the caller's. `searchAll` is
 reached through the UI package's context, which holds no database grants, so the step runs on the
@@ -250,6 +250,7 @@ export type AuthFlow =
   | { kind: 'variable'; comment?: string }        // the `source.var` box, and nothing more
   | { kind: 'form'; fields: LoginField[]; submitTo: string }
   | { kind: 'webview'; loginUrl: string; requiredCookies: string[] }
+  | { kind: 'qrcode'; pollIntervalMs?: number }
 
 export type AuthStatus =
   | { state: 'anonymous' }
@@ -257,10 +258,18 @@ export type AuthStatus =
   | { state: 'expired' }
   | { state: 'error'; message: string }
 
+export interface QrCodeSession {
+  code: string
+  key: string
+  expiresAt?: number
+  poll(): Promise<'pending' | 'scanned' | 'confirmed' | 'expired'>
+}
+
 export interface ProviderAuth {
   readonly flow: AuthFlow
   readonly status: AuthStatus
   signIn(input: Record<string, string>): Promise<void>
+  createQrSession?(): Promise<QrCodeSession>
   /** Clears the jar, the secrets namespace, and this source's vars. Leaves nothing. */
   signOut(): Promise<void>
   refresh?(): Promise<void>
@@ -276,6 +285,7 @@ How each flow is expressed in the document:
 | `variable` | `variableComment` only | Subsonic's `user:password`, consumed by `jsLib` |
 | `form` | `loginUi` (the fields) + `loginUrl` (where they go) | A self-hosted server's `/login` |
 | `webview` | `loginUrl` + `requiredCookies`, opened in `ctx.shell` | A backend whose login is a page, not an API |
+| `qrcode` | `loginType: 'qrcode'` + `loginQrJs` + `loginPollJs` | Web/QR sign-in flows (e.g. Bilibili) |
 
 `loginCheckJs` runs after every response and decides whether the session is still good; returning
 false sets `status = 'expired'` and emits `source/auth-expired`. It is the source's equivalent of
@@ -287,14 +297,14 @@ Rules, all non-negotiable and all unchanged from when sources were plugins:
 - **Credentials never land in readable storage.** `source.var`, form input, and tokens go to
   `ctx.secrets` under `namespace(sourceId)`; cookies go to the persisted jar in §5.1. Never in
   `ctx.db` in plaintext, never in the exported string, never in a log line
-  ([04 §16](../services/logging.md#16-ctxlogger--logging-as-transport-plugins)).
+  ([services/logging.md §16](../services/logging.md#16-ctxlogger--logging-as-transport-plugins)).
 - **Refresh is transparent and singular.** The runtime hooks `http/request` per source; on a `401`
   or a failed `loginCheckJs` it re-authenticates once and retries. A burst of 401s triggers exactly
   one refresh — one in-flight promise, every caller awaits it.
 - **Expiry is an event, not an error.** The source stays registered and its cached catalogue stays
   browsable; only network calls fail. The UI shows a re-login prompt in place rather than making
   the source vanish.
-- **Export never carries a session.** [§9](#9-importing-updating-and-sharing) strips
+- **Export never carries a session.** [authoring.md §9](./authoring.md#9-importing-updating-and-sharing) strips
   `source.var`, cookies, and every `src.vars` value. Sharing a source must not share an account,
   and this has to be true by construction rather than by the sharer remembering.
 
@@ -304,7 +314,7 @@ Signing in once must be enough. Many backends carry their session entirely in co
 that dies with the process means a login prompt on every launch.
 
 Each source owns a **persistent cookie jar**, keyed by source id and supplied by `ctx.http`
-([04 §2.1](../services/overview.md#21-cookie-jars)). No rule manages it: it lives in the source's
+([services/overview.md §2.1](../services/overview.md#21-cookie-jars)). No rule manages it: it lives in the source's
 isolated `ctx.http` scope ([§4.1](#41-a-sources-lifetime)), so every request the runtime makes on
 that source's behalf sends the right cookies and every `Set-Cookie` is stored, with no cookie
 handling in the document at all.
@@ -321,7 +331,7 @@ sequenceDiagram
     U->>R: signIn({ username, password })
     R->>H: POST loginUrl
     H->>J: store Set-Cookie
-    J->>S: persist (encrypted, see 04 §2.1)
+    J->>S: persist (encrypted, see [services/overview.md §2.1](../services/overview.md#21-cookie-jars))
     R-->>U: status = 'authenticated'
 
     Note over R,J: ── Next launch ──
@@ -348,7 +358,7 @@ The lifecycle rules:
   database column, never in a log line, excluded from crash-report bundles and from export.
 - **`signOut()` clears the jar.** Emptying it in memory is not enough; the persisted copy is
   deleted, along with the secrets namespace and `source_vars`. This is the most commonly missed
-  step, so it is in the checklist in [§13](#13-writing-a-source-checklist) and in the conformance
+  step, so it is in the checklist in [authoring.md §13](./authoring.md#13-writing-a-source-checklist) and in the conformance
   suite.
 - **Expiry is honoured.** A session cookie with a past `Expires`/`Max-Age` is dropped at
   rehydration rather than replayed, which otherwise produces a confusing "logged in but every
@@ -358,7 +368,7 @@ The lifecycle rules:
 
 > ⚠️ A persisted cookie is a bearer credential with the lifetime the server chose, which may be
 > months. It deserves the same protection as a password, and the storage design in
-> [04 §2.1](../services/overview.md#21-cookie-jars) treats it that way. It also means "sign out"
+> [overview.md §2.1](../services/overview.md#21-cookie-jars) treats it that way. It also means "sign out"
 > genuinely has to work — a jar left on disk after sign-out is a security bug, not untidiness.
 
 ---
@@ -393,7 +403,7 @@ export interface StreamHandle {
   expiresAt?: number
   /** What the provider actually served, which may be below what was asked. */
   quality?: StreamQuality
-  /** Reserved. Nothing implements this — see 01, non-goals. */
+  /** Reserved. Nothing implements this — see architecture/overview.md §1, non-goals. */
   drm?: { system: string; licenseUrl: string }
 }
 ```
@@ -409,7 +419,7 @@ Handling of the awkward cases:
   mid-stream it re-resolves once and resumes from the current position before surfacing an error.
   A source that returns short-lived URLs sets `ruleStream.expiresAt`; one that does not set it and
   serves expiring URLs anyway produces the single most confusing bug in this system, which is why
-  `check` ([§10](#10-diagnosing-a-broken-source)) flags a stream URL that a second HEAD rejects.
+  `check` ([authoring.md §10](./authoring.md#10-diagnosing-a-broken-source)) flags a stream URL that a second HEAD rejects.
 - **Quality negotiation.** `{{prefs.*}}` is in scope inside `ruleStream`, so the document picks
   what it can serve. Whatever it returns is reported in the handle, so the UI shows the real
   bitrate rather than the requested one.
@@ -421,6 +431,7 @@ Handling of the awkward cases:
 
 ---
 
+> **Note on Section 7:** Error diagnosis, rule failure codes, and testing suites are documented in [authoring.md §7](./authoring.md#7-errors).
 
 ---
 
@@ -432,17 +443,17 @@ Handling of the awkward cases:
 
 What makes this tractable — and genuinely better than the plugin model it replaces — is that a
 source's execution environment is *small enough to enumerate*. Runtime-loaded plugins shared the
-renderer's realm and could reach anything ([03 §7](../plugins/concepts.md#what-this-is-not)); a
+renderer's realm and could reach anything ([concepts.md §7](../plugins/concepts.md#what-this-is-not)); a
 source cannot reach anything that is not on the list below.
 
 ### The evaluator
 
 Source JavaScript runs in `ctx.js`, a **separate interpreter realm** — QuickJS on both platforms —
 with no reference to the app's globals, the Cordis context, the DOM, or the module system. It is
-the isolated realm that [03 §7](../plugins/concepts.md#what-this-is-not) says real containment
+the isolated realm that [concepts.md §7](../plugins/concepts.md#what-this-is-not) says real containment
 requires. Sources are the reason it exists now rather than later; third-party plugins inherit it
-([10 §M5](../roadmap/roadmap.md#m5--third-party-extensions-on-the-sandbox)). The contract is in
-[04 §19](../services/contracts.md#19-ctxjs--the-sandboxed-evaluator).
+([roadmap.md §M5](../roadmap/roadmap.md#m5--third-party-extensions-on-the-sandbox)). The contract is in
+[contracts.md §19](../services/contracts.md#19-ctxjs--the-sandboxed-evaluator).
 
 The entire host surface a source can see:
 
@@ -453,10 +464,31 @@ export interface SourceHost {
   get(url: string, opts?: RequestOptions): Promise<{ status: number; headers: Record<string, string>; body: string }>
   post(url: string, body: string, opts?: RequestOptions): Promise<{ status: number; headers: Record<string, string>; body: string }>
 
-  parse: { json(s: string): unknown; html(s: string): Node; xml(s: string): Node }
-  crypto: { md5, sha1, sha256, hmac, aesEncrypt, aesDecrypt, base64Encode, base64Decode, randomHex }
+  parse: {
+    json(s: string): unknown
+    html(s: string): never         // throws: needs a markup parser, not in this build
+    xml(s: string): never          // throws: needs a markup parser, not in this build
+  }
+  crypto: {
+    md5(s: string): string
+    sha1(s: string): string
+    sha256(s: string): string
+    hmac(alg: string, key: string, msg: string): string
+    base64Encode(s: string): string
+    base64Decode(s: string): string
+    randomHex(n: number): string
+    rsaEncrypt(val: string, key: string): string
+    rsaOaepEncrypt(val: string, key: string, label?: string): string
+    aesEncrypt(): never            // throws: not available in this build
+    aesDecrypt(): never            // throws: not available in this build
+  }
   cache: { get(k: string): unknown; put(k: string, v: unknown, ttlMs?: number): void }
   vars: { get(k: string): string | undefined; put(k: string, v: string): void }
+  cookie: {
+    get(name: string, url?: string): string | undefined
+    set(name: string, value: string, url?: string): void
+    all(url?: string): Record<string, string>
+  }
   url: { encode(s: string): string; decode(s: string): string; resolve(base: string, rel: string): string }
   time: { now(): number }
   log(message: string): void
@@ -513,7 +545,7 @@ namespace; survive its own disposal; or run at all while disabled.
 The runtime is neutral, and this repository ships **no source strings for third-party services**.
 It ships the interpreter, the local-files provider, and a small corpus of documents for open
 self-hosted protocols used as tests and worked examples
-([09 §6](../workflow/testing.md#6-testing-strategy)). What a user imports is their choice and
+([workflow/testing.md §6](../workflow/testing.md#6-testing-strategy)). What a user imports is their choice and
 their responsibility; the import screen says what the source will do and to whom it will talk, and
 does not editorialise beyond that.
 

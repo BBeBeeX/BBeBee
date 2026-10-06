@@ -19,7 +19,7 @@ month six. So M0 is deliberately unglamorous — no music plays until M1.
 Build `@BBeBee/protocol`, `@BBeBee/kernel`, and the minimum core services (`paths`, `fs`, `store`,
 `db`, `logger` transports) with both implementations. Two shells that boot, load a trivial plugin,
 and render its contributed view. The conformance harness and the leak test from
-[09 §6](../workflow/testing.md#6-testing-strategy).
+[workflow/testing.md §6](../workflow/testing.md#6-testing-strategy).
 
 **Exit criteria**
 - The same plugin package loads and activates on an iOS simulator, an Android emulator, and
@@ -41,7 +41,7 @@ that surfaces, while backing out is still cheap.
 stream-only slice of `plugin-source-runtime`, plus enough UI in both shells to browse a library
 and control playback. Media session integration.
 
-> **Detailed plan** — [11 — M1 Execution Plan](./archive-m1.md): the package set, the build
+> **Detailed plan** — [M1 Execution Plan (Historical Archive)](./archive-m1.md): the package set, the build
 > order, the milestone-level decisions, and the check behind each criterion below.
 
 **Exit criteria**
@@ -49,7 +49,7 @@ and control playback. Media session integration.
 - Play, pause, seek, next, previous, queue reorder — on all three platforms.
 - Lock-screen and notification controls work on iOS and Android; MPRIS/SMTC/Now Playing on desktop.
 - Playback survives backgrounding on mobile and window-hide on desktop.
-- Headphone unplug pauses ([05 §5](../audio/playback.md#5-interruptions-focus-and-routes)).
+- Headphone unplug pauses ([audio/playback.md §5](../audio/playback.md#5-interruptions-focus-and-routes)).
 - Queue and position restore across a restart, without auto-playing.
 
 **Where it stands.** Built and under test: `core-audio-webaudio` with its conformance suite,
@@ -99,21 +99,21 @@ document.
   state — cookies set by one are never sent to the other.
 - **Sign in once, stay signed in.** Force-quit and relaunch: the session is restored from the
   persisted jar with no prompt and no stored password
-  ([06 §5.1](../sources/runtime.md#51-session-persistence--cookies-survive-the-app)).
+  ([sources/runtime.md §5.1](../sources/runtime.md#51-session-persistence--cookies-survive-the-app)).
 - **Sign out leaves nothing.** After `signOut()`, the persisted jar, the secrets namespace and
   `source_vars` are all gone; relaunching shows a signed-out source.
 - **Export round-trips.** Export the source set, import it into a clean profile: identical
-  behaviour, and no credential travelled ([06 §9](../sources/authoring.md#9-importing-updating-and-sharing)).
+  behaviour, and no credential travelled ([sources/authoring.md §9](../sources/authoring.md#9-importing-updating-and-sharing)).
 - A document with only `ruleStream` is imported alongside the others without any screen breaking
   on a capability it does not have.
 - `searchAll` returns per-source results and reports a failing source without failing the search.
 - Session expiry mid-use re-authenticates transparently; a failed re-auth shows an in-place
   re-login and leaves cached content browsable.
-- The full error taxonomy is exercised — every row in [06 §7](../sources/authoring.md#7-errors) has
+- The full error taxonomy is exercised — every row in [sources/authoring.md §7](../sources/authoring.md#7-errors) has
   a test, including `RuleError` and the stale badge.
 - **The sandbox holds.** A deliberately hostile document cannot reach an undeclared host, cannot
   read another source's cookies or vars, cannot touch the filesystem, and is interrupted rather
-  than hanging the app ([06 §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)).
+  than hanging the app ([sources/runtime.md §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)).
 - **A broken source is diagnosable by a user.** Break a rule deliberately; the test screen shows
   what the backend actually answered, and a re-import of the fixed document succeeds — without a
   rebuild.
@@ -132,14 +132,14 @@ and source-list screens on both shells, and the full error taxonomy.
 Still open, and both need a device to finish: **`core-js-quickjs-expo`** — React Native's Hermes
 has no WebAssembly, so the mobile sandbox needs a *native* QuickJS module and therefore a
 dev-client rebuild, which is why it was always listed as the one native dependency M2 adds
-([04 §19](../services/contracts.md#19-ctxjs--the-sandboxed-evaluator)) — and running the two shells
+([services/contracts.md §19](../services/contracts.md#19-ctxjs--the-sandboxed-evaluator)) — and running the two shells
 end to end on real hardware. Until the first lands, a scripted document on mobile reports its
 affected capabilities as absent rather than offering a button that cannot work, which is the
 designed degradation rather than a break.
 
 The curation half that MD-3 deferred from M1 is in as well: `plugin-library` / `ctx.library` —
 playlists, favourites, collections, and smart playlists whose rule tree compiles to parameterised
-SQL — with screens on both shells (docs/07 §4.6).
+SQL — with screens on both shells ([data-model/schema.md §4.6](../data-model/schema.md#46-curation)).
 
 ⚠️ **What "built" did and did not mean until recently.** Every package listed above was built and
 green, and *neither shell ran any of it*: the desktop bootstrap omitted `ctx.audio`, `ctx.codec`
@@ -162,7 +162,7 @@ rule language is too weak, because every document written after M2 is one someon
 `plugin-download` with a resumable task queue, `media_bindings`, download policies, and the
 `player/before-resolve` substitution.
 
-> **Shipped.** `ctx.downloads` is built ([05 §2](../audio/playback.md#resolution-pipeline)):
+> **Shipped.** `ctx.downloads` is built ([audio/playback.md §2](../audio/playback.md#resolution-pipeline)):
 > `download_tasks` is a real queue driven by one worker (queued → running → done, with paused,
 > canceled and failed), `bytes_done` is checkpointed and resumed with `If-Range: <etag>` so a
 > changed remote file restarts instead of splicing, downloads are kept in
@@ -177,7 +177,7 @@ rule language is too weak, because every document written after M2 is one someon
 - Kill the app mid-download; on relaunch it resumes from `bytes_done`, and a changed `etag`
   restarts cleanly rather than splicing corrupt bytes.
 - With `plugin-download` disabled, the same track streams and playback behaves identically —
-  the test in [09 §6](../workflow/testing.md#6-testing-strategy).
+  the test in [workflow/testing.md §6](../workflow/testing.md#6-testing-strategy).
 - Policies honour `wifi_only` and `charging_only` against real `ctx.device.network()` transitions.
 - Deleting the underlying file removes the binding rather than failing at play time.
 - Cache eviction stays within per-class quotas under sustained use.
@@ -187,11 +187,11 @@ rule language is too weak, because every document written after M2 is one someon
 ### M4 — It sounds good
 
 `plugin-dsp` and the built-in effects from
-[05 §3](../audio/playback.md#built-in-effects). Chain editor UI in both shells.
+[audio/playback.md §3](../audio/playback.md#built-in-effects). Chain editor UI in both shells.
 
 > **Shipped.** `ctx.dsp` and all 9 built-in effects (`preamp`, `eq10`, `normalize`, `compressor`,
 > `reverb`, `widener`, `crossfeed`, `tempo-pitch`, `limiter`) are implemented and verified
-> ([05 §3](../audio/dsp.md#3-ctxdsp--the-effect-chain)):
+> ([audio/dsp.md §3](../audio/dsp.md#3-ctxdsp--the-effect-chain)):
 > - **Unified cross-platform effects**: EQ, normalize, compressor, and reverb (along with all other
 >   5 effects) run across desktop, iOS, and Android from a single pure Web Audio implementation.
 > - **Anti-click audio transitions**: Graph topology rewires (enabling/disabling/reordering effects)
@@ -240,7 +240,7 @@ rule language is too weak, because every document written after M2 is one someon
 
 The generalisation of `ctx.js` from "evaluate a source rule" to "host an extension": a service
 bridge whose protocol is the capability grammar of
-[03 §7](../plugins/capabilities.md#capability-grammar), plus install, update, uninstall, grants and
+[plugins/capabilities.md §7](../plugins/capabilities.md#capability-grammar), plus install, update, uninstall, grants and
 quarantine. Scoped after M2 rather than before it because the realm, the limits, the host-surface
 discipline and the conformance suite all arrive with sources — M5 spends them rather than
 inventing them.
@@ -250,16 +250,16 @@ Its scope shrank when sources became strings
 music backends no longer need this, so what remains is effects, scrobblers, lyric providers and
 transports — real, but no longer urgent. If that demand never materialises, **not building M5 is
 a valid outcome**, and the shelf design in
-[03 §6.2](../plugins/loading.md#62-desktop-additions--plugin-loader-dynamic) is what it cost.
+[plugins/loading.md §6.2](../plugins/loading.md#62-desktop-additions--plugin-loader-dynamic) is what it cost.
 
 **Exit criteria**
 - An extension built outside the repo installs from a local file and a URL and runs **inside a
   `ctx.js` realm**, not in the renderer's — so the honesty note in
-  [03 §7](../plugins/concepts.md#what-this-is-not) can finally be deleted rather than reworded.
+  [plugins/concepts.md §7](../plugins/concepts.md#what-this-is-not) can finally be deleted rather than reworded.
 - An extension requesting a capability it was not granted receives a `CapabilityError`, and the
   operation fails cleanly rather than crashing the app.
 - The gate holds on **both** platforms, including across the desktop bridge — the gap named in
-  [03 §7](../plugins/concepts.md#where-the-gate-actually-runs) is closed, or M5 does not ship.
+  [plugins/concepts.md §7](../plugins/concepts.md#where-the-gate-actually-runs) is closed, or M5 does not ship.
 - An extension that throws on load twice is quarantined; the app boots normally afterwards and
   shows why.
 - Uninstalling disposes the fiber before removing files, and "remove data" drops exactly that
@@ -274,7 +274,7 @@ Not scheduled, but designed for and not blocked by anything above:
 - **Sync** — a `SyncProvider` SPI with a file/WebDAV reference implementation. The schema already
   carries `device_id`, `revision`, and `sync_state`.
 - **A real sandbox** — a `Worker` or QuickJS realm for third-party plugins, with the capability
-  grammar from [03 §7](../plugins/capabilities.md#7-capability-model) becoming the bridge protocol.
+  grammar from [plugins/capabilities.md §7](../plugins/capabilities.md#7-capability-model) becoming the bridge protocol.
 - **Mobile runtime extensions** — unblocked once M5's bridge exists, since the sandbox itself
   already ships on mobile with sources.
 - **A source registry** — a browsable, versioned index of shared source documents with update
@@ -296,7 +296,7 @@ Its README says the API may change without notice, and it is the foundation of e
 *Mitigation* — exact pinning, a deliberately narrow API surface, plugins importing from
 `@BBeBee/kernel` rather than `cordis` so one adapter absorbs a signature change, and semantic
 tests that fail loudly on an upgrade
-([09 §5.1](../workflow/build-pipelines.md#51-the-cordis-rc-problem)).
+([workflow/build-pipelines.md §5.1](../workflow/build-pipelines.md#51-the-cordis-rc-problem)).
 
 *Trigger to reconsider* — if an RC bump breaks the isolation or effect semantics the design
 depends on, the fallback is vendoring the pinned version. Cordis's core is a few thousand lines
@@ -319,7 +319,7 @@ Two implementations of `ctx.fs` drift; a feature plugin quietly starts depending
 behaviour; six months later "it works on my machine" means "it works on desktop".
 
 *Mitigation* — the conformance suites are the primary defence and must run on real devices in CI,
-not only in Node. The ESLint import ban ([09 §3](../workflow/structure.md#3-dependency-rules))
+not only in Node. The ESLint import ban ([workflow/structure.md §3](../workflow/structure.md#3-dependency-rules))
 catches the crude version. The known leaks are documented with ⚠️ rather than hidden, so a
 contributor meets them before their code does.
 
@@ -329,7 +329,7 @@ ADR-2 accepts writing views twice. The failure mode is logic creeping into views
 it is written twice too, and the two shells begin to *behave* differently.
 
 *Mitigation* — the three-package convention with hooks in the headless package
-([08 §4](../ui/architecture.md#4-binding-services-to-react)), and the component-parity test in
+([ui/architecture.md §4](../ui/architecture.md#4-binding-services-to-react)), and the component-parity test in
 CI. If desktop and mobile ever disagree about what a button does, that is a bug in the headless
 package by definition.
 
@@ -349,10 +349,10 @@ puts arbitrary JavaScript from the internet into the app's normal workflow. This
 project deliberately took on, and it is first-class rather than a footnote.
 
 *Mitigation* — a real realm boundary rather than a policy: `ctx.js` with no ambient globals and
-clone-only value passing ([04 §19](../services/contracts.md#19-ctxjs--the-sandboxed-evaluator)); an
+clone-only value passing ([services/contracts.md §19](../services/contracts.md#19-ctxjs--the-sandboxed-evaluator)); an
 enumerable host API; engine-enforced time and memory limits; and — the part that actually bounds
 damage — a **per-source egress allowlist** shown to the user at import
-([06 §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)). M2's exit
+([sources/runtime.md §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)). M2's exit
 criteria include a hostile-document test, so the claim is checked rather than asserted.
 
 *Residual, stated plainly* — a source sees what the user gives it and can send that to its own
@@ -370,11 +370,11 @@ imported sources this is not an edge case; it is Tuesday. The user experiences i
 broke".
 
 *Mitigation* — `RuleError` is a distinct class from a network failure, and the UI says "<source>
-needs updating", not "something went wrong" ([06 §7](../sources/authoring.md#7-errors)). A stale
+needs updating", not "something went wrong" ([sources/authoring.md §7](../sources/authoring.md#7-errors)). A stale
 source keeps its cached catalogue rather than vanishing. `check` finds rot before playback does,
 and the test screen shows what the backend actually answered, making the fix a two-minute edit
 by the person holding the string
-([06 §10](../sources/authoring.md#10-diagnosing-a-broken-source)).
+([sources/authoring.md §10](../sources/authoring.md#10-diagnosing-a-broken-source)).
 
 *What would make it worse* — shipping the model without the tracer. That is the one piece of M2
 that cannot be deferred, because without it every rotted source becomes a support request.
@@ -385,7 +385,7 @@ With ADR-1 amended, a third-party effect or scrobbler cannot be installed at all
 may never be built.
 
 *Mitigation* — the shelf design is kept and dated
-([03 §6.2](../plugins/loading.md#62-desktop-additions--plugin-loader-dynamic)), and the sandbox
+([plugins/loading.md §6.2](../plugins/loading.md#62-desktop-additions--plugin-loader-dynamic)), and the sandbox
 M5 would need now ships with sources, so the remaining work is a service bridge rather than a
 subsystem. If demand appears, it is a milestone; if it does not, nothing was spent.
 
@@ -396,7 +396,7 @@ not stay aligned on React versions on their own.
 
 *Mitigation* — React and React Native are pinned to what Expo SDK 57 dictates, and the desktop
 renderer follows Expo's React, not the newest release
-([09 §5](../workflow/build-pipelines.md#5-version-matrix)). Upgrades are a scheduled task with the
+([workflow/build-pipelines.md §5](../workflow/build-pipelines.md#5-version-matrix)). Upgrades are a scheduled task with the
 conformance suite as the gate. Choosing `node:sqlite` over `better-sqlite3` already removed the
 worst recurring cost.
 
@@ -414,7 +414,7 @@ nothing joins across those boundaries.
 7–13% (`18.2s`→`19.4s` idle, `24.7s`→`27.9s` during a full test run), lands thousands of
 checkpoints *during* the scan rather than behind it, and refuses no write. So the risk is real in shape and not yet real in practice; the download queue is
 the half M1 could not exercise, because M3 is where one exists. The probe is
-[11 §7](./archive-m1.md#7-fixtures-and-harnesses) and it runs on every `pnpm test`.
+[archive-m1.md §7](./archive-m1.md#7-fixtures-and-harnesses) and it runs on every `pnpm test`.
 
 ---
 

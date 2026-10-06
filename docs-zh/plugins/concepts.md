@@ -13,7 +13,7 @@
 
 下文所有 API 形态均已对照 `cordis@4.0.0-rc.9` 的源码及其测试套件逐一核实。Cordis 目前是发布
 候选（release candidate），它自己也如此声明；版本锁定策略见
-[09 §5](../workflow/build-pipelines.md#51-cordis-rc-问题)。
+[workflow/build-pipelines.md §5](../workflow/build-pipelines.md#51-cordis-rc-问题)。
 
 ---
 
@@ -120,7 +120,7 @@ stateDiagram-v2
 的某个服务消失时，插件会被拆除并搁置；该服务一旦恢复，插件便从头重建。这也是为什么停用
 一个已导入的音源就能干净地移除它贡献的一切，而不需要任何专门的清理代码：音源是数据，但
 运行时给每个音源都分派了自己的 fiber，正是为了让它继承这套机制
-（[06 §4.1](../sources/runtime.md#41-一个源的生命周期)）。
+（[sources/runtime.md §4.1](../sources/runtime.md#41-一个源的生命周期)）。
 
 ### 规则：一切副作用都必须经过 fiber
 
@@ -251,7 +251,7 @@ export class Library extends Service {
 
 > ⚠️ 这里的装饰器是 **2023-11 标准装饰器**，而非旧版 TypeScript 形式。Babel 配置（移动端）
 > 与 `tsconfig` 都必须相应设置 ——
-> [04 §17](../services/contracts.md#17-运行时兼容性清单)。
+> [services/contracts.md §17](../services/contracts.md#17-运行时兼容性清单)。
 
 ### 注入什么
 

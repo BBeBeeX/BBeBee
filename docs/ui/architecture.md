@@ -2,7 +2,7 @@
 
 > **Legacy Reference:** Formerly `docs/08-ui-architecture.md §1 – §5, §7 – §9`.
 
-> **What this answers.** **Layer 5** of [02 §1](../architecture/layers.md#1-the-layer-model): how a
+> **What this answers.** **Layer 5** of [architecture/layers.md §1](../architecture/layers.md#1-the-layer-model): how a
 > single plugin contributes user interface to two shells that share no component code, how views
 > find their data without owning it, and where the boundary between "logic" and "view" is drawn.
 
@@ -76,13 +76,6 @@ Plugins never hand components to the shell directly. They register **descriptors
 declarations naming a view — and the shell resolves the name against its own registry.
 
 ```ts
-export type Contribution =
-  | RouteContribution
-  | SlotContribution
-  | CommandContribution
-  | SettingsContribution
-  | MenuContribution
-
 export interface RouteContribution {
   kind: 'route'
   id: string                       // 'scrobble.history'
@@ -312,7 +305,7 @@ Three consequences worth enforcing:
 
 ## 4. Binding services to React
 
-The rule from [02 §6](../architecture/layers.md#6-state-ownership): **React holds no domain state.**
+The rule from [architecture/layers.md §6](../architecture/layers.md#6-state-ownership): **React holds no domain state.**
 Services own it; components subscribe.
 
 Both `ui-kit-mobile` and `ui-kit-desktop` build on one shared, framework-agnostic hook layer in
@@ -321,17 +314,18 @@ re-exports it and adds the view-generic extras (`identicon`, shared prop types):
 
 ```ts
 // @BBeBee/toolkit/hooks
-export function useService<K extends ServiceKey>(key: K): Context[K] | undefined
+export function useService<T = unknown>(ctx: Context, key: string): T | undefined
 
 /**
  * Subscribe to service state via useSyncExternalStore, so React 18 concurrent
- * rendering cannot tear. `select` must be referentially stable across calls
- * for unchanged inputs — return primitives or memoised objects.
+ * rendering cannot tear. `select` runs on notifications and renders, cached
+ * by the store.
  */
-export function useServiceState<K extends ServiceKey, T>(
-  key: K,
-  events: (keyof Events)[],
-  select: (svc: Context[K]) => T,
+export function useServiceState<T>(
+  ctx: Context,
+  events: readonly string[],
+  select: () => T,
+  options?: StoreOptions<T> & { deps?: readonly unknown[] },
 ): T
 ```
 
@@ -342,15 +336,15 @@ one-to-one:
 
 ```ts
 // @BBeBee/toolkit/hooks — re-exported by @BBeBee/plugin-player/hooks
-export const useTransport = () =>
-  useServiceState('player', ['player/state-changed'], (p) => p.state)
+export const useTransport = (ctx: Context) =>
+  useServiceState(ctx, ['player/state-changed', 'player/track-changed'], () => ctx.player.state)
 
-export const useQueue = () =>
-  useServiceState('player', ['queue/changed'], (p) => p.queue)
+export const useQueue = (ctx: Context) =>
+  useServiceState(ctx, ['queue/changed'], () => ctx.player.queue)
 
 /** Position updates at 1 Hz; the UI interpolates with rAF between ticks. */
-export const usePosition = () =>
-  useServiceState('player', ['player/position'], (p) => p.state.positionMs)
+export const usePosition = (ctx: Context) =>
+  useServiceState(ctx, ['player/position'], () => ctx.player.state.positionMs)
 ```
 
 This is where the three-package split earns its keep. The hooks — the part with actual logic about
@@ -378,10 +372,10 @@ which events invalidate which state — are written once. Only the JSX is writte
   parent's box, so nesting them in the header would scroll them away exactly when they finish
   arriving.
 - **`player/position` is interpolated, never polled.** The event fires at 1 Hz
-  ([07 §5](../data-model/events.md#5-the-event-map)); a progress bar animates between ticks with
+  ([data-model/events.md §5](../data-model/events.md#5-the-event-map)); a progress bar animates between ticks with
   `requestAnimationFrame` and re-syncs on each event.
 - **Artwork renders `blurhash` first**, then the image
-  ([07 §4.2](../data-model/schema.md#42-artwork)). No layout shift, no grey flash on scroll. A remote
+  ([data-model/schema.md §4.2](../data-model/schema.md#42-artwork)). No layout shift, no grey flash on scroll. A remote
   cover is requested with **no `Referer`**: several CDNs answer a hotlink 403 when the referrer is
   a foreign origin (Bilibili's `hdslb.com` does, and in dev the renderer's referrer is
   `localhost`), which shows every result as a broken image while the same URL opens fine in a tab.
@@ -391,7 +385,7 @@ which events invalidate which state — are written once. Only the JSX is writte
   through a `CachedTrackRow` — so the URL handed to `<img>`/`Image` is a local file whenever the
   cache has one, and the `dominantColor`/identicon fallback covers the fetch in flight: the remote
   URL is never what gets rendered. The cached copy also fills in `artworks.local_uri`, which is
-  what lets the lock screen receive a local `Uri` ([04 §7](../services/contracts.md)).
+  what lets the lock screen receive a local `Uri` ([services/contracts.md §7](../services/contracts.md)).
 - **Artwork with no image falls back to a generated identicon.** When there is no cover to load —
   a local file without embedded art gets no `artworks` row at all — `Artwork` renders a
   GitHub-identicon-style square derived from the entity's URN: a FNV-1a hash of the seed drives a
@@ -504,10 +498,10 @@ descriptors, nothing about them is privileged.
 
 | Screen | Does | Notes on the split |
 |---|---|---|
-| **Source list** | Enable, disable, reorder, group, and see each source's health badge; delete asks once and takes the cached catalogue with it ([06 §4.1](../sources/runtime.md#41-a-sources-lifetime)). The local-files row shows the scanner's folders with the same use/delete controls as **Music folders** | Ordinary list; parity is free |
-| **Import review** | Show what a pasted string contains — added / updated / rejected, and the host allowlist — before anything is written ([06 §9](../sources/authoring.md#9-importing-updating-and-sharing)) | The one screen that must never be skipped, so it is a modal route on both, not a slot |
-| **Test a source** | Run one feature — search, browse, album, artist, playlist, lyrics, library, stream, a raw HTTP request, or arbitrary script — and show every rule's input, output and timing ([06 §10](../sources/authoring.md#10-diagnosing-a-broken-source)) | The list of test areas is the source's derived capability list, so the screen shows what that source can actually do; the trace is a long scrollable log, the closest thing in the app to a developer tool, and the reason a user can fix a source themselves |
-| **Search** | One query fanned out over the selected sources with `searchAll`, one result section per source ([06 §4.1](../sources/runtime.md#41-a-sources-lifetime)) | Before the first search the bar and the interface toggles are a hero; afterwards both collapse to the top and the results take the height. On desktop, search can also be executed directly from the persistent TopBar interactive input with its 2×2 matrix dropdown. The search screen (`sources.search`) accepts incoming `query` parameters and triggers `searchAll` automatically. **One toggle per interface, not per source** — a backend with a separate artist search shows `Source · Songs` and `Source · Artists` independently, and the selection reaches `searchAll` as `typesBySource`. Selections are stored as *exclusions*, so a source imported later joins the next search instead of being silently missed — and a source that failed, timed out or matched nothing keeps its own header instead of vanishing into a merged list. On desktop, results are organized into independent card panels (`SourcePanel`) with sticky headers (`position: sticky; top: 0`) and internal vertical scrolling (`maxHeight: min(520px, 60vh); overflowY: auto`), per-source "Load More" pagination buttons, and global expand/collapse controls. Tapping a track follows single-track playback policy (`urns: [track.urn]`), queuing solely the clicked track to avoid polluting the active playback queue. All panels strictly adhere to the design system color management tokens. |
+| **Source list** | Enable, disable, reorder, group, and see each source's health badge; delete asks once and takes the cached catalogue with it ([sources/runtime.md §4.1](../sources/runtime.md#41-a-sources-lifetime)). The local-files row shows the scanner's folders with the same use/delete controls as **Music folders** | Ordinary list; parity is free |
+| **Import review** | Show what a pasted string contains — added / updated / rejected, and the host allowlist — before anything is written ([sources/authoring.md §9](../sources/authoring.md#9-importing-updating-and-sharing)) | The one screen that must never be skipped, so it is a modal route on both, not a slot |
+| **Test a source** | Run one feature — search, browse, album, artist, playlist, lyrics, library, stream, a raw HTTP request, or arbitrary script — and show every rule's input, output and timing ([sources/authoring.md §10](../sources/authoring.md#10-diagnosing-a-broken-source)) | The list of test areas is the source's derived capability list, so the screen shows what that source can actually do; the trace is a long scrollable log, the closest thing in the app to a developer tool, and the reason a user can fix a source themselves |
+| **Search** | One query fanned out over the selected sources with `searchAll`, one result section per source ([sources/runtime.md §4.1](../sources/runtime.md#41-a-sources-lifetime)) | Before the first search the bar and the interface toggles are a hero; afterwards both collapse to the top and the results take the height. On desktop, search can also be executed directly from the persistent TopBar interactive input with its 2×2 matrix dropdown. The search screen (`sources.search`) accepts incoming `query` parameters and triggers `searchAll` automatically. **One toggle per interface, not per source** — a backend with a separate artist search shows `Source · Songs` and `Source · Artists` independently, and the selection reaches `searchAll` as `typesBySource`. Selections are stored as *exclusions*, so a source imported later joins the next search instead of being silently missed — and a source that failed, timed out or matched nothing keeps its own header instead of vanishing into a merged list. On desktop, results are organized into independent card panels (`SourcePanel`) with sticky headers (`position: sticky; top: 0`) and internal vertical scrolling (`maxHeight: min(520px, 60vh); overflowY: auto`), per-source "Load More" pagination buttons, and global expand/collapse controls. Tapping a track follows single-track playback policy (`urns: [track.urn]`), queuing solely the clicked track to avoid polluting the active playback queue. All panels strictly adhere to the design system color management tokens. |
 | **DSP & Equalizer** | 10-band graphic equalizer with preset switching (Flat, Bass Boost, Vocal, Treble), effect chain ordering, individual effect bypass toggles, and parameter editing (normalize, compressor, reverb, etc.). Contributed as `dsp.view`. Opened directly from the player or via an action button in the playback settings card. | Descriptors in `plugin-dsp-ui-*`. Desktop renders a dedicated view with vertical sliders; mobile provides touch-friendly vertical sliders, chip selectors, and full chain navigation |
 | **Settings Center** | Partitioned multi-page settings center (`settings.view`) with mutually exclusive panel navigation: General & Language, Playback & Audio, Desktop Lyrics (line mode, alignment, font, size, color picker, opacity, live preview), Global Hotkeys (master toggle + 10 keybindings), Network & Proxy (HTTP/HTTPS/SOCKS5, Google latency probe, per-source routing switches), Sources, Storage & Cache (directory badges with change/open folder buttons), Plugins (real-time manifest & fiber state inspection, search filter, 4-tier layer collapsible groups, dependency/dependents graph, enable/disable switches with dependent confirmation), and About with an Advanced Settings toggle guarding the Danger Zone. | Descriptors in `plugin-settings` and rendered by `plugin-settings-ui-*`. |
 | **Debug & Diagnostics** | Dedicated diagnostic hub comprising three views: `debug.view` (Debug status, environment specs for Node, Electron, OS, Chromium), `debug.logs` (Discover live ring-buffer logs with search, level filters, NDJSON copy, clear), and `debug.http-logs` (live inspection of third-party source network requests with method, status badge, latency, and URL). | Descriptors in `plugin-settings` and views in `plugin-settings-ui-desktop`. |

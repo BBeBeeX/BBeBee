@@ -126,7 +126,7 @@ Rules that make this survivable in practice:
   indistinguishable from one removed with its library kept, so re-import does not guess.
 - **Export is symmetrical and clean.** `export()` emits the same array format, sorted, with
   app-maintained fields (`respondTime`, `lastUpdated`, `weight`) and every credential
-  ([§5](#5-authentication-and-session)) stripped. Export → import round-trips to an identical set.
+  ([runtime.md §5](./runtime.md#5-authentication-and-session)) stripped. Export → import round-trips to an identical set.
 
 **Organising them.** `sourceGroup` is free text, comma-separated, and is the only organising
 concept: the source list filters by group, and search can be restricted to a group. Sources are
@@ -268,7 +268,7 @@ and `signOut` clears its cached rows.
 Keeping it as a `MediaProvider` rather than special-casing it is what keeps the catalogue, the
 player, and every screen from growing a "is this local?" branch — and it is why `plugin-download`
 can substitute a downloaded file for a stream without the player noticing
-([02 §5](../architecture/layers.md#5-composition-how-features-reach-each-other)).
+([layers.md §3](../architecture/layers.md#3-the-layer-model)).
 
 ### The local scanner
 
@@ -291,7 +291,7 @@ extracts artwork, and writes catalogue rows.
   covered by two specified dirs belongs to the one that last scanned it; the other's next walk
   re-points the entry and the reconcile that follows ends the scan restores visibility.
 - **Watching where possible.** `ctx.fs.watch` on desktop; interval polling on mobile, where the
-  API does not exist ([04 §1](../services/overview.md#1-ctxfs--virtual-filesystem)).
+  API does not exist ([overview.md §1](../services/overview.md#1-core-capabilities-catalogue)).
 
 ---
 
@@ -316,10 +316,10 @@ For the person authoring a document — in the app's editor, or in a text file t
       that reshuffles itself.
 - [ ] Fields that a redesign might rename use `||` alternatives.
 - [ ] Literal values start with `=`. A constant with no `=` is a selector
-      ([§3.1](#31-engines-and-prefixes)).
+      ([rule-engines.md §3.1](./rule-engines.md#31-engines-and-prefixes)).
 - [ ] `durationMs` really is milliseconds — `##$##000` for a seconds-based API.
 - [ ] No rule block is present-but-empty; delete it instead, so the capability is honestly absent
-      ([§1.3](#13-capabilities-are-derived-not-declared)).
+      ([spec.md §1.3](./spec.md#13-capabilities-are-derived-not-declared)).
 
 **Streams**
 
@@ -338,7 +338,7 @@ For the person authoring a document — in the app's editor, or in a text file t
 - [ ] `loginCheckJs` distinguishes "logged out" from "server error", or the app will re-login in a
       loop against an outage.
 - [ ] Sign out, relaunch, and confirm the source is signed out and nothing was left behind
-      ([§5.1](#51-session-persistence--cookies-survive-the-app)).
+      ([runtime.md §5.1](./runtime.md#51-session-persistence--cookies-survive-the-app)).
 
 **Before sharing**
 
@@ -352,5 +352,5 @@ For the person authoring a document — in the app's editor, or in a text file t
 
 ## 14. Where to go next
 
-[07 — Data Model](../data-model/schema.md) defines the URN scheme, the `sources` table these documents
+[schema.md](../data-model/schema.md) defines the URN scheme, the `sources` table these documents
 live in, every catalogue table they populate, and the full event map.

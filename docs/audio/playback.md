@@ -52,6 +52,8 @@ export interface PlayerService {
 
   // Queue
   readonly queue: readonly QueueItem[]
+  /** The items after the current one, in real play order (seeded permutation under shuffle). */
+  upcoming(): QueueItem[]
   playNow(urns: string[], opts?: { startIndex?: number; context?: QueueItem['sourceContext'] }): Promise<void>
   playFromContext(urn: string, contextUrns?: readonly string[], opts?: { startIndex?: number; context?: QueueItem['sourceContext'] }): Promise<void>
   enqueueNext(urns: string[]): void
@@ -59,6 +61,13 @@ export interface PlayerService {
   removeItems(ids: string[]): void
   moveItem(id: string, toIndex: number): void
   clearQueue(): void
+
+  // History
+  getHistory(opts?: { limit?: number; offset?: number; date?: string }): Promise<PlayRecord[]>
+  getHistoryStats(): Promise<PlayHistoryStats>
+  getHistoryHeatmap(days?: number): Promise<PlayHistoryHeatmapDay[]>
+  clearHistory(): Promise<void>
+  removeHistory(idOrUrn: string): Promise<void>
 }
 ```
 
@@ -178,8 +187,8 @@ sequenceDiagram
 
 On failure the pipeline is re-entered rather than surfaced immediately: an `UnavailableError` — or
 a `RuleError` from a source whose rules have rotted
-([06 §7](../sources/authoring.md#7-errors)) — triggers a lookup in `track_links`
-([07 §4.4](../data-model/schema.md#44-identity-linking)) for the same recording on another source, and
+([sources/authoring.md §7](../sources/authoring.md#7-errors)) — triggers a lookup in `track_links`
+([data-model/schema.md §4.4](../data-model/schema.md#44-identity-linking)) for the same recording on another source, and
 only when that yields nothing does the player enter `error`.
 
 **`plugin-download`** is the first listener: it answers with the file the user downloaded, or
@@ -189,12 +198,12 @@ recorded in `cache_entries` under the key `stream:<urn>`; every later resolve an
 `kind: 'local'` and never reaches the provider. A miss returns the remote handle immediately, so
 the cache never delays the play it is caching. Entries are evicted least-recently-used within the
 `stream` class, and with the plugin disabled the same track simply streams — which is the control
-arm of the regression test at [09 §6](../workflow/testing.md#6-testing-strategy).
+arm of the regression test at [workflow/testing.md §6](../workflow/testing.md#6-testing-strategy).
 
 Covers take the same path through the same plugin: `ctx.cache.artwork(ref)` returns the cached
 file, fetching and writing it only on a miss, and fills in `artworks.local_uri` so every other
 reader — including the lock screen — sees a local `Uri` on the next catalogue read. The render
-side is the `useResolvedArtwork` hook ([08 §4](../ui/architecture.md#4-binding-services-to-react)).
+side is the `useResolvedArtwork` hook ([ui/architecture.md §4](../ui/architecture.md#4-binding-services-to-react)).
 
 The work itself is a row in `download_tasks` driven by one worker, exposed as **`ctx.downloads`**
 (queued → running → done, with paused/canceled/failed): `bytes_done` is checkpointed per second so
@@ -222,7 +231,7 @@ removal cascaded their binding away are swept when the plugin starts, and resumi
 `If-Range: <etag>` so a remote file that changed since the partial was written is restarted rather
 than spliced. With the plugin's `enabled` set to false the same track simply streams — which is the
 control arm of the regression test at
-[09 §6](../workflow/testing.md#6-testing-strategy).
+[workflow/testing.md §6](../workflow/testing.md#6-testing-strategy).
 
 ### Gapless and crossfade
 
@@ -351,7 +360,7 @@ keys, lock screen, another app taking the session) is logged at info with its co
 
 ## 6. Playback and the background
 
-Cross-reference [02 §4](../architecture/layers.md#4-what-background-means). Concretely:
+Cross-reference [architecture/layers.md §4](../architecture/layers.md#4-what-background-means). Concretely:
 
 - **iOS** — `UIBackgroundModes: ['audio']`, audio session category `playback`. Playback continues
   indefinitely; *non-audio* work does not.

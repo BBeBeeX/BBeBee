@@ -68,29 +68,29 @@ travel when the source is shared.
 
 ```sql
 CREATE TABLE sources (
-  id            TEXT PRIMARY KEY,          -- 'music-example-org-35be9fe2', derived (06 §1.2)
+  id            TEXT PRIMARY KEY,          -- 'music-example-org-35be9fe2', derived ([sources/authoring.md §1.2](../sources/authoring.md#12-identity-the-source-id))
   source_url    TEXT NOT NULL UNIQUE,      -- the document's identity; dedup key on import
   name          TEXT NOT NULL,             -- denormalised from doc_json for list rendering
   source_group  TEXT,                      -- comma-separated, free text
   source_type   TEXT NOT NULL DEFAULT 'music',  -- music|podcast|radio
-  doc_json      TEXT NOT NULL,             -- the SourceDocument, verbatim (06 §2.1)
+  doc_json      TEXT NOT NULL,             -- the SourceDocument, verbatim ([sources/spec.md §2.1](../sources/spec.md#21-top-level-document-structure))
   doc_hash      TEXT NOT NULL,             -- sha256 of doc_json; drives the import diff
   enabled       INTEGER NOT NULL DEFAULT 1,
   sort_order    INTEGER NOT NULL DEFAULT 0,
-  capabilities_json TEXT,                  -- derived Capabilities, cached (06 §1.3)
-  allowed_hosts_json TEXT,                 -- the egress allowlist shown at import (06 §8)
+  capabilities_json TEXT,                  -- derived Capabilities, cached ([sources/rule-engines.md §1.3](../sources/rule-engines.md#13-capabilities-are-derived-not-declared))
+  allowed_hosts_json TEXT,                 -- the egress allowlist shown at import ([sources/runtime.md §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do))
   locally_modified INTEGER NOT NULL DEFAULT 0,  -- edited in-app since import
   origin_uri    TEXT,                      -- where it was imported from, if a URL
   imported_at   INTEGER NOT NULL,
   updated_at    INTEGER NOT NULL,
-  last_check_at INTEGER,                   -- last `check` run (06 §10)
+  last_check_at INTEGER,                   -- last `check` run ([sources/authoring.md §10](../sources/authoring.md#10-diagnosing-a-broken-source))
   last_error    TEXT,                      -- the failing rule, if any
-  fail_count    INTEGER NOT NULL DEFAULT 0,-- 3 consecutive RuleErrors → stale badge (06 §7)
+  fail_count    INTEGER NOT NULL DEFAULT 0,-- 3 consecutive RuleErrors → stale badge ([sources/authoring.md §7](../sources/authoring.md#7-errors))
   respond_time_ms INTEGER
 );
 CREATE INDEX idx_sources_enabled ON sources(enabled, sort_order);
 
--- Per-source persisted state written by rules via src.vars (06 §3.4).
+-- Per-source persisted state written by rules via src.vars ([sources/rule-engines.md §3.4](../sources/rule-engines.md#34-environment-inside-js)).
 -- Credential-grade: never exported, cleared by signOut().
 CREATE TABLE source_vars (
   source_id  TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
@@ -110,7 +110,7 @@ CREATE TABLE accounts (
 );
 
 -- Mobile only. Desktop keeps cookies in Chromium's own persisted partition
--- and never writes this table. See 04 §2.1.
+-- and never writes this table. See ../services/overview.md#21-cookie-jars.
 CREATE TABLE cookie_jars (
   name        TEXT PRIMARY KEY,            -- the source id
   ciphertext  BLOB NOT NULL,               -- AES-GCM over the serialised jar
@@ -129,14 +129,14 @@ trusting export.
 **Unknown *top-level* fields survive an older app**, for the same reason: a document written for a
 newer runtime is stored and re-exported intact, and the fields this build does not understand are
 simply not read. An unknown field **inside a rule block** is refused at import instead
-([06 §2.2](../sources/rule-engines.md#22-the-rule-blocks)) — and the asymmetry is deliberate. A stray
+([sources/rule-engines.md §2.2](../sources/rule-engines.md#22-the-rule-blocks)) — and the asymmetry is deliberate. A stray
 top-level key is forward compatibility; `ruleSearch.titel` is a typo that would otherwise validate,
 never be read, and leave the source half-working in a way that looks like the backend changed.
 
 `doc_hash` is what makes re-import a three-way answer rather than a coin flip: unchanged (same
 hash, skip), updated (different hash, show the field diff), or conflicting (different hash *and*
 `locally_modified`, require confirmation) — see
-[06 §9](../sources/authoring.md#9-importing-updating-and-sharing).
+[sources/authoring.md §9](../sources/authoring.md#9-importing-updating-and-sharing).
 
 It is a **full SHA-256**, and `id`'s suffix is the first 32 bits of one. The short non-cryptographic
 hash this started as was wrong twice over: `id` is a primary key, so a collision makes one source's
@@ -146,7 +146,7 @@ there classifies a changed document as "unchanged" and skips it in silence.
 > **`enabled` is the user's, not the document's.** An import writes every other column but never
 > this one. An author publishing a fix must not switch a source back on that the user turned off —
 > and a disabled row is indistinguishable from one removed with its library kept
-> ([06 §4.1](../sources/runtime.md#41-a-sources-lifetime)), so the import path does not guess.
+> ([sources/runtime.md §4.1](../sources/runtime.md#41-a-sources-lifetime)), so the import path does not guess.
 
 > **No readable credential is ever in this database.** Tokens, passwords and the per-source
 > variable live in `ctx.secrets` under `namespace(sourceId)`; `source_vars` holds only what a rule
@@ -155,18 +155,18 @@ there classifies a changed document as "unchanged" and skips it in silence.
 > **envelope-encrypted**: the AES key (small) in `ctx.secrets`, the ciphertext (unbounded) in
 > `cookie_jars`. The invariant is preserved — the key and the ciphertext are never in the same
 > store, and a leaked database file yields nothing
-> ([04 §2.1](../services/overview.md#21-cookie-jars),
-> [04 §6](../services/contracts.md#6-ctxsecrets--credential-storage)).
+> ([services/overview.md §2.1](../services/overview.md#21-cookie-jars),
+> [services/contracts.md §6](../services/contracts.md#6-ctxsecrets--credential-storage)).
 >
 > ⚠️ **A source document must never contain a credential**, and `export()` cannot strip what it
 > cannot recognise. Hence the separation above: credentials live outside `doc_json` by
 > construction, so "share this source" is safe by default rather than by the sharer remembering
-> ([06 §5](../sources/runtime.md#5-authentication-and-session)).
+> ([sources/runtime.md §5](../sources/runtime.md#5-authentication-and-session)).
 >
 > `accounts` records only that a session exists and when it lapses. Deleting a source cascades to
 > `accounts` and `source_vars`; `signOut()` is separately responsible for clearing `cookie_jars`
 > and the secrets namespace, because those are outside SQLite's cascade
-> ([06 §5.1](../sources/runtime.md#51-session-persistence--cookies-survive-the-app)).
+> ([sources/runtime.md §5.1](../sources/runtime.md#51-session-persistence--cookies-survive-the-app)).
 
 ### 4.2 Artwork
 
@@ -330,7 +330,7 @@ CREATE INDEX idx_external_lookup ON external_ids(namespace, value);
 CREATE TABLE track_links (
   urn_a      TEXT NOT NULL,
   urn_b      TEXT NOT NULL,
-  confidence REAL NOT NULL,                  -- 0..1, see 06 §7
+  confidence REAL NOT NULL,                  -- 0..1, see [sources/authoring.md §7](../sources/authoring.md#7-errors)
   method     TEXT NOT NULL,                  -- isrc|mbid|acoustid|fuzzy|manual
   created_at INTEGER NOT NULL,
   PRIMARY KEY (urn_a, urn_b),
@@ -368,7 +368,7 @@ CREATE UNIQUE INDEX idx_bindings_uri ON media_bindings(uri);
 
 **A binding is what "downloaded" means.** There is no `is_downloaded` flag anywhere. The
 `player/before-resolve` waterfall asks whether a binding exists, and if it does, plays it
-([05 §2](../audio/playback.md#resolution-pipeline)). One track may have several bindings — a
+([audio/playback.md §2](../audio/playback.md#resolution-pipeline)). One track may have several bindings — a
 scanned local copy and a downloaded higher-quality one — and the resolver picks by quality.
 
 `verified_at` exists because files disappear: an SD card is removed, a sync tool deletes a folder,
@@ -407,7 +407,7 @@ CREATE TABLE scan_dropped_files (
 ```
 
 `(size, mtime)` is the incremental-scan key: unchanged files cost one `stat` and nothing more
-([06 §12](../sources/authoring.md#the-local-scanner)).
+([sources/authoring.md §12](../sources/authoring.md#the-local-scanner)).
 
 `scan_dropped_files` is the exception to "a local track comes from a specified dir": files the
 user dragged onto the desktop window are imported individually, and making their folders scan
@@ -509,7 +509,7 @@ CREATE TABLE library_profile (
 ```
 
 **`ctx.library` (`plugin-library`) owns all five tables.** It is the only writer outside the
-migrations, and the view packages call it rather than touching `ctx.db` (MD-3, docs/11 §1.3).
+migrations, and the view packages call it rather than touching `ctx.db` (MD-3, [UI Architecture](../ui/architecture.md)).
 
 ```ts
 interface LibraryService {
@@ -590,7 +590,7 @@ CREATE TABLE playback_state (
   position_ms      INTEGER NOT NULL DEFAULT 0,
   repeat_mode      TEXT NOT NULL DEFAULT 'off',
   shuffle          INTEGER NOT NULL DEFAULT 0,
-  shuffle_seed     INTEGER,                   -- stable permutation; see 05 §2
+  shuffle_seed     INTEGER,                   -- stable permutation; see [audio/playback.md §2](../audio/playback.md#transport-state-machine)
   volume           REAL NOT NULL DEFAULT 1.0,
   muted            INTEGER NOT NULL DEFAULT 0,
   output_device_id TEXT,
@@ -673,7 +673,7 @@ CREATE TABLE download_policies (
 
 `bytes_done` and `resume_token` are written after **every chunk**, not at completion — this is what
 makes the mobile suspension model in
-[02 §4](../architecture/layers.md#4-what-background-means) survivable. On boot, tasks left in `running`
+[architecture/layers.md §4](../architecture/layers.md#4-what-background-means) survivable. On boot, tasks left in `running`
 are reset to `queued`; they resume from `bytes_done` with a `Range` request carrying
 `If-Range: <etag>`, so a remote file that changed since the partial was written answers with the
 whole file and is restarted cleanly rather than producing a corrupt splice. The `etag` is recorded
@@ -725,6 +725,12 @@ Settings keys are namespaced by plugin id so two plugins cannot collide, and `sc
 what should follow the user (`global`) from what is genuinely per-machine (`device`) — output
 device selection should not sync to a phone.
 
+> **Note on implementation:** While `settings`, `effect_chains`, `effect_nodes`, and `presets` are
+> represented as schema definitions, runtime user settings are persisted via `ctx.store` (the key-value
+> store backed by `core-store-fs` on desktop and AsyncStorage/memory on mobile). Audio DSP chain configurations
+> and equalizer presets are likewise persisted as serialized JSON in `ctx.store` keys (`dsp:chains`, `dsp:presets`),
+> keeping settings I/O lightweight and isolated from relational database operations.
+
 ### 4.10 Plugins
 
 ```sql
@@ -739,7 +745,7 @@ CREATE TABLE plugin_records (
   installed_at INTEGER NOT NULL,
   updated_at   INTEGER NOT NULL,
   last_error   TEXT,
-  fail_count   INTEGER NOT NULL DEFAULT 0     -- 2 consecutive → quarantine (03 §6.2)
+  fail_count   INTEGER NOT NULL DEFAULT 0     -- 2 consecutive → quarantine ([plugins/loading.md §6.2](../plugins/loading.md#62-desktop-additions--plugin-loader-dynamic))
 );
 
 CREATE TABLE capability_grants (
@@ -779,7 +785,7 @@ CREATE TABLE cache_entries (
 CREATE INDEX idx_cache_evict ON cache_entries(class, last_access_at);
 ```
 
-`plugin-cache` owns this table (`ctx.cache`; docs/05 §2). One row per cached file: an artwork key
+`plugin-cache` owns this table (`ctx.cache`; [playback.md §2](../audio/playback.md#2-ctxplayer--transport-and-queue)). One row per cached file: an artwork key
 is the `ArtworkRef.id`, a stream key is its track URN — so a re-signed URL is the same cache entry
 — and `uri` is the file under `ctx.paths.cache/{artwork,stream}`. A resolved stream or a rendered
 cover updates `last_access_at`, which is the LRU clock.
@@ -790,7 +796,7 @@ the user a re-download. Defaults — artwork 512 MB desktop / 128 MB mobile, HTT
 cache 1 GB / 256 MB — all configurable. The initial sweep is deferred to a 5-second background task
 after boot (avoiding disk I/O contention during cold start) and runs hourly thereafter; in the same pass
 files no row names are deleted and `cache_entries` rows whose file is gone are pruned. A file the
-user downloaded is a `media_bindings` row instead (docs/07 §4.5) and is never evicted.
+user downloaded is a `media_bindings` row instead ([§4.5](#45-media-bindings-local-files-and-downloads)) and is never evicted.
 
 ### 4.12 Legacy: providers
 
@@ -807,13 +813,7 @@ CREATE TABLE providers (
 );
 ```
 
-The pre-document provider registry from before sources became strings (06 §1). Migration v3 added
-`sources`/`source_vars` and carried any existing `providers` rows across as **written disabled**;
-`plugin-source-runtime` still touches the table only to keep that transition honest. New code
-reads `sources` — nothing else should.
-
----
-
+Historical table from Migration v1, completely removed in Migration v3 (`DROP TABLE providers`) when music sources transitioned from plugins to imported source documents (ADR-5). In current database versions, `sources` and `source_vars` replace it entirely.
 
 ---
 
@@ -823,13 +823,13 @@ Deliberately transient. Persisting any of them would create staleness bugs with 
 
 | Type | Defined in | Why it stays in memory |
 |---|---|---|
-| `StreamHandle` | [06 §6](../sources/runtime.md#6-stream-resolution) | Frequently expires; must be re-resolved, never trusted from storage |
-| `TransportState` | [05 §2](../audio/playback.md#2-ctxplayer--transport-and-queue) | Live; only a durable subset lands in `playback_state` |
-| `Capabilities` | [06 §1.3](../sources/rule-engines.md#13-capabilities-are-derived-not-declared) | Computed from the source document's rule blocks. Cached in `sources.capabilities_json` purely so the UI can render before a source connects |
-| `Paged<T>`, cursors | [06 §4.3](../sources/rule-engines.md#43-pagination-rate-limiting-and-caching) | Opaque and source-owned; meaningless after a session |
-| `TraceEvent` | [06 §10](../sources/authoring.md#10-diagnosing-a-broken-source) | A debug trace is about one run against one live backend; storing it would preserve a redacted answer to a question nobody asks twice |
-| `EffectSegment` | [05 §3](../audio/dsp.md#3-ctxdsp--the-effect-chain) | Live `AudioNode`s. Only `params_json` persists |
-| `AuthStatus` | [06 §5](../sources/runtime.md#5-authentication-and-session) | Recomputed at sign-in; `accounts` keeps only the durable summary |
+| `StreamHandle` | [runtime.md §6](../sources/runtime.md#6-stream-resolution) | Frequently expires; must be re-resolved, never trusted from storage |
+| `TransportState` | [playback.md §2](../audio/playback.md#2-ctxplayer--transport-and-queue) | Live; only a durable subset lands in `playback_state` |
+| `Capabilities` | [rule-engines.md §1.3](../sources/rule-engines.md#13-capabilities-are-derived-not-declared) | Computed from the source document's rule blocks. Cached in `sources.capabilities_json` purely so the UI can render before a source connects |
+| `Paged<T>`, cursors | [rule-engines.md §4.3](../sources/rule-engines.md#43-pagination-rate-limiting-and-caching) | Opaque and source-owned; meaningless after a session |
+| `TraceEvent` | [authoring.md §10](../sources/authoring.md#10-diagnosing-a-broken-source) | A debug trace is about one run against one live backend; storing it would preserve a redacted answer to a question nobody asks twice |
+| `EffectSegment` | [dsp.md §3](../audio/dsp.md#3-ctxdsp--the-effect-chain) | Live `AudioNode`s. Only `params_json` persists |
+| `AuthStatus` | [runtime.md §5](../sources/runtime.md#5-authentication-and-session) | Recomputed at sign-in; `accounts` keeps only the durable summary |
 
 ---
 
