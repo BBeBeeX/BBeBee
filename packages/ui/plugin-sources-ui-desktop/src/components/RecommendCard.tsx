@@ -100,7 +100,7 @@ export function RecommendCard({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#FFFFFF',
+                  color: 'var(--bb-accent-on, #FFFFFF)',
                   boxShadow: 'var(--glow-brand-sm, 0 0 12px rgba(95, 135, 255, 0.35))',
                 },
               },

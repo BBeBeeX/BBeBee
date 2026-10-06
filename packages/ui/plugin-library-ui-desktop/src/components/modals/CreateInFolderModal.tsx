@@ -55,7 +55,7 @@ export function CreateInFolderModal({
       {
         style: {
           width: 360,
-          backgroundColor: '#282828',
+          backgroundColor: 'var(--bb-bg-overlay, #282828)',
           borderRadius: 8,
           padding: 20,
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.8)',
@@ -64,7 +64,7 @@ export function CreateInFolderModal({
           gap: 16,
         },
       },
-      h('h3', { style: { margin: 0, fontSize: 16, color: '#FFFFFF', fontWeight: 600 } }, isPlaylist ? '在文件夹中创建歌单' : '创建文件夹'),
+      h('h3', { style: { margin: 0, fontSize: 16, color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600 } }, isPlaylist ? '在文件夹中创建歌单' : '创建文件夹'),
       h(TextField, {
         value: name,
         onChange: setName,

@@ -81,11 +81,11 @@ export function EditPlaylistModal({
       {
         style: {
           width: 524,
-          backgroundColor: '#282828',
+          backgroundColor: 'var(--bb-bg-overlay, #282828)',
           borderRadius: 8,
           padding: 24,
           boxShadow: '0 12px 36px rgba(0, 0, 0, 0.8)',
-          color: '#FFFFFF',
+          color: 'var(--bb-text-primary, #FFFFFF)',
           display: 'flex',
           flexDirection: 'column',
           gap: 16,
@@ -94,7 +94,7 @@ export function EditPlaylistModal({
       h(
         'div',
         { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
-        h('h2', { style: { margin: 0, fontSize: 20, fontWeight: 700, color: '#FFFFFF' } }, '编辑详情'),
+        h('h2', { style: { margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--bb-text-primary, #FFFFFF)' } }, '编辑详情'),
         h(
           'button',
           {
@@ -161,7 +161,7 @@ export function EditPlaylistModal({
                 transition: 'opacity 0.2s ease',
               },
             },
-            tablerIcon('camera', { size: 40, color: '#FFFFFF' }),
+            tablerIcon('camera', { size: 40, color: 'currentColor' }),
             h('span', { style: { fontSize: 13, fontWeight: 600 } }, '选择照片'),
           ),
           h('input', {
@@ -191,7 +191,7 @@ export function EditPlaylistModal({
                 backgroundColor: 'rgba(255, 255, 255, 0.08)',
                 border: '1px solid rgba(255, 255, 255, 0.12)',
                 borderRadius: 4,
-                color: '#FFFFFF',
+                color: 'var(--bb-text-primary, #FFFFFF)',
                 padding: '0 10px',
                 fontSize: 14,
                 boxSizing: 'border-box',
@@ -215,7 +215,7 @@ export function EditPlaylistModal({
                 backgroundColor: 'rgba(255, 255, 255, 0.08)',
                 border: '1px solid rgba(255, 255, 255, 0.12)',
                 borderRadius: 4,
-                color: '#FFFFFF',
+                color: 'var(--bb-text-primary, #FFFFFF)',
                 padding: 8,
                 fontSize: 13,
                 resize: 'none',
@@ -244,7 +244,7 @@ export function EditPlaylistModal({
                 backgroundColor: 'rgba(255, 255, 255, 0.08)',
                 border: '1px solid rgba(255, 255, 255, 0.12)',
                 borderRadius: 4,
-                color: '#FFFFFF',
+                color: 'var(--bb-text-primary, #FFFFFF)',
                 padding: '0 10px',
                 fontSize: 12,
                 boxSizing: 'border-box',

@@ -39,12 +39,12 @@ export function DetailPlayButton(props: DetailPlayButtonProps): ReactElement {
         alignItems: 'center',
         justifyContent: 'center',
         boxShadow: 'var(--glow-brand-md, 0 8px 16px rgba(0, 0, 0, 0.3))',
-        color: '#ffffff',
+        color: 'var(--bb-accent-on, #ffffff)',
         paddingLeft: 2,
         position: 'relative',
       },
     },
-    tablerIcon('play', { size: props.iconSize ?? 28, color: '#ffffff' }),
+    tablerIcon('play', { size: props.iconSize ?? 28, color: 'currentColor' }),
     props.srText
       ? h(
           'span',

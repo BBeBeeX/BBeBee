@@ -37,7 +37,7 @@ export function DetailHero(props: DetailHeroProps): ReactElement {
     fontWeight: 900,
     margin: '2px 0 6px 0',
     lineHeight: 1.1,
-    color: '#FFFFFF',
+    color: 'var(--bb-text-primary, #FFFFFF)',
     letterSpacing: '-0.03em',
     wordBreak: 'break-word',
     // 超长标题最多两行，超出省略——不撑破布局。
@@ -80,7 +80,7 @@ export function DetailHero(props: DetailHeroProps): ReactElement {
             fontWeight: 700,
             textTransform: 'uppercase',
             letterSpacing: '0.06em',
-            color: '#FFFFFF',
+            color: 'var(--bb-text-secondary, #FFFFFF)',
           },
         },
         props.eyebrow,

@@ -85,7 +85,7 @@ export function StickyDetailBar(props: StickyDetailBarProps): ReactElement {
           minWidth: 0,
           fontSize: 20,
           fontWeight: 700,
-          color: '#FFFFFF',
+          color: 'var(--bb-text-primary, #FFFFFF)',
           whiteSpace: 'nowrap',
           overflow: 'hidden',
           textOverflow: 'ellipsis',

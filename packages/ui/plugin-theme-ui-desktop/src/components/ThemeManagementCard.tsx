@@ -524,7 +524,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
                 borderRadius: 6,
                 border: 'none',
                 background: 'var(--gradient-brand, linear-gradient(135deg, #5F87FF 0%, #A99CFF 100%))',
-                color: '#FFFFFF',
+                color: 'var(--bb-accent-on, #FFFFFF)',
                 fontWeight: 600,
                 cursor: 'pointer',
                 fontSize: 13,

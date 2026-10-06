@@ -137,13 +137,27 @@ The default visual identity is extracted directly from the character visual refe
 - **Alternate Themes**: Built-in `Spotify Classic` (`#1DB954` green) and runtime user-imported custom themes via `ctx.theme`.
 
 ### Surface Hierarchy & Receding Chassis
-- `bg.sunken` (`#000000` / `var(--player-bg)`): Outer chassis, desktop sidebar rail, and persistent bottom player bar (solid `#000000`, border-free). Recedes completely so artwork and active content stand out.
-- `bg.base` (`#080A10` / `var(--bg-primary)`): Main scrollable canvas.
-- `bg.raised` (`var(--surface-1)` / `var(--surface-2)`): Media cards (album/playlist tiles) and elevated panels.
-- `bg.overlay` (`var(--surface-hover)` / `var(--surface-selected)`): Modal dialogs, context menus, tooltips, hover states.
+The design system establishes a strict four-layer surface hierarchy for both `dark` and `light` schemes via `@BBeBee/ui-tokens`:
+
+#### Dark Scheme Hierarchy
+- `bg.sunken` (`#0A0A0E` / `var(--player-bg)`): Outer chassis, desktop sidebar rail, and persistent bottom player bar. Recedes completely so artwork and active content stand out.
+- `bg.base` (`#111218` / `var(--bg-primary)`): Main scrollable canvas.
+- `bg.raised` (`#181922` / `var(--surface-1)` / `var(--surface-2)`): Media cards (album/playlist tiles) and elevated panels.
+- `bg.overlay` (`#20222D` / `var(--surface-hover)` / `var(--surface-selected)`): Modal dialogs, context menus, tooltips, hover states.
+
+#### Light Scheme Hierarchy
+- `bg.sunken` (`#EAEBED`): Deepest/darkest grounding layer: outer window chassis, sidebar rail, and sunken input tracks (luminance 0.830).
+- `bg.base` (`#F7F7F8`): Main scrollable canvas: tuned to soft warm-grey rather than stark `#FFFFFF` to eliminate excessive glare (luminance 0.931).
+- `bg.raised` (`#FAFAFA`): Media cards, batch action bars, elevated content areas (luminance 0.956).
+- `bg.overlay` (`#FFFFFF`): Modal dialogs, popovers, sheets, and elevated overlays (luminance 1.000).
+
 - `border.subtle` (`var(--border-subtle)`): Hairline dividers.
 - `border.strong` (`var(--border-focus)`): Accessible focus outlines.
 - **Dynamic Background Gradients**: Detail views (Album, Favorites, Local Music, Playlist, Settings) use reactive background gradients mapped to `--surface-hover` / `--surface-selected` / `--surface-1` / `--bg-primary`, smoothly adapting whenever the active theme changes.
+
+### Component Tokenization & Contrast Protection Rule
+- **No Hardcoded Foreground Colors**: Components in `packages/ui/*` must never hardcode `#FFFFFF` or `#000000` for general text, titles, borders, or icons. Always use semantic CSS variables (`var(--bb-text-primary, #FFFFFF)`, `var(--bb-text-secondary, #8E8E93)`, `var(--bb-bg-overlay)`, `var(--bb-border-subtle)`, `currentColor`).
+- **Fixed Dark Container Exception**: Containers with fixed black backgrounds (e.g. Dynamic Island `#000000` / `#0A0A0F`, floating translucent HUDs, error/danger badges, or artwork overlays) must preserve light/white foregrounds or use on-color tokens (`var(--bb-accent-on, #FFFFFF)`, `var(--bb-state-error-on, #FFFFFF)`). Never convert text inside fixed black containers to `var(--bb-text-primary)` as it would produce dark text on black in light mode.
 
 ### CSS Shorthand & Styling Rule
 > ⚠️ **Always use `background:` instead of `backgroundColor:` for theme tokens:**
@@ -152,8 +166,8 @@ The default visual identity is extracted directly from the character visual refe
 
 ### Signature Accent & Contrast
 - **Bee Music Neon Accent**: Electric Blue (`#4D8BFF`), Lavender/Periwinkle (`#9087FF`), Soft Violet (`#B47BFF`), and continuous gradient fills for primary play buttons, active row titles, and progress scrubber fill.
-- **High-Contrast Text**: `#FFFFFF` (`text.primary`) for titles and active items; `#C5CAD8` (`text.secondary`) for secondary text; `#8B95B0` (`text.tertiary`); `#4B5368` (`text.disabled`).
-- Text on saturated button gradients maintains WCAG AA compliant contrast.
+- **High-Contrast Text**: `#FFFFFF` / `var(--bb-text-primary)` for titles and active items; `#C5CAD8` / `var(--bb-text-secondary)` for secondary text; `#8B95B0` (`text.tertiary`); `#4B5368` (`text.disabled`).
+- Text on saturated button gradients maintains WCAG AA compliant contrast (tested via `paletteContrastIssues()`).
 
 ### Typography (Geometric Grotesque)
 - Stack: `"Circular Std", Circular, Montserrat, Figtree, system-ui, -apple-system, Roboto, sans-serif`.

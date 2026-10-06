@@ -105,12 +105,27 @@ export interface ThemeDefinition {
 
 ### 6.0.2 双配色模式与浅色模式架构（WCAG AA 门禁）
 
-所有四个内置主题（`midnight-purple`、`spotify`、`crimson-night` 和 `ocean-abyss`）除了默认的深色美学外，均完整支持**浅色模式**：
-- **禁止直接色彩反转**：严禁粗暴的反色处理。背景转换为柔和的米白/灰白调色板（`#FFFFFF`、`#F0F4FC`、`#FDF2F4`、`#F0F9FF`），而品牌强调色采用同一品牌光谱内的更深色相，以维持 WCAG AA 对比度（如 Spotify 绿 `#12833C`、电光蓝 `#3B66F5`、绯红 `#C9184A`、深海湛蓝 `#087E96`）。
-- **WCAG AA 合规门禁**：自动化测试 `themeContrastIssues(theme, scheme)` 严格强制执行：
-  - 正文 / 常规文本对比度 $\ge 4.5:1$
+所有四个内置主题（`midnight-purple`、`spotify`、`crimson-night` 和 `ocean-abyss`）以及核心设计系统调色板除了默认的深色美学外，均完整支持**浅色模式**：
+
+#### 表面层级与亮度阶梯（Surface Luminance Hierarchy）
+设计系统通过 `@BBeBee/ui-tokens` 为 `dark` 和 `light` 两种配色方案确立了严格的四层表面高度与亮度阶梯：
+
+| 表面层级 | 深色调色板 | 深色相对亮度 | 浅色调色板 | 浅色相对亮度 | 职责与设计语义 |
+|---|---|---|---|---|---|
+| **`sunken`** | `#0A0A0E` | 0.007 | `#EAEBED` | 0.830 | 最深基底：外层窗口底框、左侧导航轨、凹陷输入轨道 |
+| **`base`** | `#111218` | 0.009 | `#F7F7F8` | 0.931 | 主视口画布：可滚动视口、表格视图、信息流页面（避免刺眼的纯白 `#FFFFFF` 眩光） |
+| **`raised`** | `#181922` | 0.013 | `#FAFAFA` | 0.956 | 凸起内容：媒体卡片、批量操作栏、悬浮工具搁板 |
+| **`overlay`** | `#20222D` | 0.019 | `#FFFFFF` | 1.000 | 最亮顶层：模态对话框、Sheet 抽屉、右键菜单、Tooltip 气泡、浮层 Popover |
+
+- **亮度反转逻辑与抗眩光设计**：在深色模式下，`sunken` 为最深暗底，`overlay` 相对最亮；在浅色模式下，`sunken` 依然是明度最低（0.830）的锚定层（`#EAEBED`），为主界面提供稳重的骨架感；主画布 `base` 专门调优为柔和暖灰（`#F7F7F8`，0.931）而非纯白，消除长时间聆听与浏览时的刺眼眩光与视疲劳；最顶层的浮层 `overlay` 采用纯白（`#FFFFFF`，1.000），确保弹出层能清晰浮动于主画布之上。
+- **禁止直接色彩反转**：严禁粗暴的反色处理。背景转换为柔和的米白/灰白调色板，而品牌强调色采用同一品牌光谱内的更深色相，以维持 WCAG AA 对比度（如 Spotify 绿 `#12833C`、电光蓝 `#3B66F5`、绯红 `#C9184A`、深海湛蓝 `#087E96`）。
+- **WCAG AA 合规门禁**：自动化测试 `paletteContrastIssues()` 与 `themeContrastIssues(theme, scheme)` 严格强制执行：
+  - 正文 / 常规文本对比度 $\ge 4.5:1$（浅色模式下 `text.primary` 在 `sunken` 上达 **14.93:1**，在 `base` 上达 **16.74:1**；`text.secondary` 在 `sunken` 上达 **5.44:1**，在 `base` 上达 **6.06:1**）
   - 大号文本与关键 UI 边框对比度 $\ge 3.0:1$
-  - 在 CI 中针对 `dark` 和 `light` 两种配色方案全量测试。
+  - 在 CI 中针对 `dark` 和 `light` 两种配色方案全量自动化验证。
+- **组件 Token 规范与对比度保护原则**：
+  - UI 视图组件严禁对通用文本、标题或图标硬编码 `#FFFFFF` 或 `#000000`。一律使用语义 CSS 变量（`var(--bb-text-primary, #FFFFFF)`、`var(--bb-text-secondary, #8E8E93)`、`var(--bb-bg-overlay)`、`var(--bb-border-subtle)`、`currentColor`）。
+  - **固定深色容器保护例外**：具有固定黑色背景的容器（例如灵动岛 `#000000`/`#0A0A0F`、悬浮半透明毛玻璃 HUD、危险错误标识、封面阴影遮罩等）必须保持明亮/白色前景色或使用对应语义 on-color（`var(--bb-accent-on, #FFFFFF)`、`var(--bb-state-error-on, #FFFFFF)`）。严禁粗暴将固定黑底容器内部字色改为 `var(--bb-text-primary)`，否则在浅色模式下会产生黑底暗字的不可读灾难。
 - **实际方案决策（Effective Scheme Resolution）**：`settings.theme` 支持 `'dark' | 'light' | 'system'`。当选择 `'system'` 时，`plugin-theme` 借助 `window.matchMedia('(prefers-color-scheme: dark)')` 实时解析生效的方案，并监听操作系统主题偏好的变化。
 - **DOM 单一写入者原则**：DOM 主题属性严格收敛至单一写入者（由 `plugin-theme` 调用的 `ui-tokens` 中的 `applyThemeToDom()`）：
   - `data-theme="{theme.id}"`（例如 `midnight-purple`、`spotify`）

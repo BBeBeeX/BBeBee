@@ -143,7 +143,7 @@ export function CollapsedLibraryView({
               borderRadius: '50%',
               backgroundColor: '#242424',
               border: 'none',
-              color: '#FFFFFF',
+              color: 'var(--bb-text-primary, #FFFFFF)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -182,7 +182,7 @@ export function CollapsedLibraryView({
             borderRadius: '50%',
             backgroundColor: '#242424',
             border: 'none',
-            color: '#FFFFFF',
+            color: 'var(--bb-text-primary, #FFFFFF)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -259,6 +259,7 @@ export function CollapsedLibraryView({
               justifyContent: 'center',
               backgroundColor: isFav ? 'transparent' : 'rgba(255, 255, 255, 0.05)',
               background: isFav ? 'linear-gradient(135deg, #450af5, #8e8ee5)' : undefined,
+              color: isFav ? '#FFFFFF' : undefined,
               transition: 'transform 0.15s ease',
             },
             onMouseEnter: (e: { currentTarget: HTMLElement }) => {
@@ -269,7 +270,7 @@ export function CollapsedLibraryView({
             },
           },
           isFav
-            ? tablerIcon('heart-filled', { size: 26, color: '#FFFFFF' })
+            ? tablerIcon('heart-filled', { size: 26, color: 'currentColor' })
             : item.kind === 'collection'
               ? h(
                   'div',

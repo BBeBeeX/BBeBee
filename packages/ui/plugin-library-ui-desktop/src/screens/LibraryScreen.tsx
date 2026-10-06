@@ -1080,15 +1080,15 @@ export function LibraryScreen({
           title: '收起音乐库',
         },
         isHeaderHovered
-          ? tablerIcon('layout-sidebar-left-collapse', { size: 26, color: '#FFFFFF' })
-          : tablerIcon('books', { size: 26, color: '#A0A0AE' }),
+          ? tablerIcon('layout-sidebar-left-collapse', { size: 26, color: 'var(--bb-text-primary, currentColor)' })
+          : tablerIcon('books', { size: 26, color: 'var(--bb-text-secondary, #A0A0AE)' }),
         h(
           'span',
           {
             style: {
               fontSize: 16,
               fontWeight: 700,
-              color: isHeaderHovered ? '#FFFFFF' : '#F5F5F7',
+              color: isHeaderHovered ? 'var(--bb-text-primary, #FFFFFF)' : 'var(--bb-text-secondary, #F5F5F7)',
               transition: 'color 0.15s ease',
             },
           },

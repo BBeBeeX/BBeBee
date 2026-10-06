@@ -42,7 +42,7 @@ export function SettingsSection({
           style: {
             fontSize: 15,
             fontWeight: 600,
-            color: '#FFFFFF',
+            color: 'var(--bb-text-primary, #FFFFFF)',
             margin: 0,
             letterSpacing: '-0.01em',
           },

@@ -72,7 +72,7 @@ export function SettingsRow({
                   border: 'none',
                   padding: 2,
                   cursor: 'pointer',
-                  color: '#8E8E93',
+                  color: 'var(--bb-text-secondary, #8E8E93)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -80,10 +80,10 @@ export function SettingsRow({
                   transition: 'transform 0.15s ease, color 0.15s ease',
                 },
                 onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-                  e.currentTarget.style.color = '#FFFFFF'
+                  e.currentTarget.style.color = 'var(--bb-text-primary, #FFFFFF)'
                 },
                 onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-                  e.currentTarget.style.color = '#8E8E93'
+                  e.currentTarget.style.color = 'var(--bb-text-secondary, #8E8E93)'
                 },
               },
               tablerIcon('chevron-right', {

@@ -356,7 +356,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
               tablerIcon('photo', { size: 36, color: '#4D8BFF' }),
               h(
                 'div',
-                { style: { fontSize: 13, fontWeight: 600, color: '#FFFFFF' } },
+                { style: { fontSize: 13, fontWeight: 600, color: 'var(--bb-text-primary, #FFFFFF)' } },
                 isDecoding ? '正在读取隐写数据…' : '拖放分享图片至此，或点击上传',
               ),
               h(
@@ -473,7 +473,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
                     style: {
                       fontSize: 14,
                       fontWeight: 700,
-                      color: '#FFFFFF',
+                      color: 'var(--bb-text-primary, #FFFFFF)',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',

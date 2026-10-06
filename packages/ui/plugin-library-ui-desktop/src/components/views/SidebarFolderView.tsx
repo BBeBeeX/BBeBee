@@ -93,14 +93,14 @@ export function SidebarFolderView({
           onClick: () => setActiveFolderId(null),
           title: '返回音乐库',
         },
-        tablerIcon('chevron-left', { size: 24, color: '#FFFFFF' }),
+        tablerIcon('chevron-left', { size: 24, color: 'currentColor' }),
         h(
           'span',
           {
             style: {
               fontSize: 16,
               fontWeight: 700,
-              color: '#FFFFFF',
+              color: 'var(--bb-text-primary, #FFFFFF)',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
@@ -191,8 +191,8 @@ export function SidebarFolderView({
           style: {
             padding: '5px 12px',
             borderRadius: 16,
-            backgroundColor: '#FFFFFF',
-            color: '#000000',
+            backgroundColor: 'var(--bb-bg-raised, #FFFFFF)',
+            color: 'var(--bb-text-primary, #000000)',
             fontSize: 13,
             fontWeight: 600,
           },

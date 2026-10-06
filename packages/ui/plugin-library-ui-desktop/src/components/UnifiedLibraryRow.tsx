@@ -80,12 +80,13 @@ export function UnifiedLibraryRow({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          color: isFav ? '#FFFFFF' : undefined,
           backgroundColor: isFav ? 'transparent' : 'rgba(255, 255, 255, 0.05)',
           background: isFav ? 'linear-gradient(135deg, #450af5, #8e8ee5)' : undefined,
         },
       },
       isFav
-        ? tablerIcon('heart-filled', { size: 28, color: '#FFFFFF' })
+        ? tablerIcon('heart-filled', { size: 28, color: 'currentColor' })
         : isFolder || item.kind === 'collection'
           ? h(
               'div',
@@ -134,13 +135,14 @@ export function UnifiedLibraryRow({
                 position: 'absolute',
                 inset: 0,
                 backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                color: '#FFFFFF',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
               },
             },
-            tablerIcon('play', { size: 22, color: '#FFFFFF' }),
+            tablerIcon('play', { size: 22, color: 'currentColor' }),
           )
         : null,
     ),

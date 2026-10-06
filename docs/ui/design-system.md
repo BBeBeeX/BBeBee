@@ -105,12 +105,27 @@ export interface ThemeDefinition {
 
 ### 6.0.2 Dual-Scheme Mode & Light Mode Architecture (WCAG AA Gate)
 
-All four built-in themes (`midnight-purple`, `spotify`, `crimson-night`, and `ocean-abyss`) support **light mode** alongside their default dark mode aesthetics:
-- **No Direct Inversion:** Direct color inversion is forbidden. Backgrounds shift to soft off-white/grey palettes (`#FFFFFF`, `#F0F4FC`, `#FDF2F4`, `#F0F9FF`), while brand accent colors use deeper hues within the same brand spectrum to maintain WCAG AA contrast (e.g. Spotify green `#12833C`, Electric blue `#3B66F5`, Crimson `#C9184A`, Ocean abyss `#087E96`).
-- **WCAG AA Compliance Gate:** Automated test `themeContrastIssues(theme, scheme)` enforces:
-  - Body / Normal text contrast $\ge 4.5:1$
+All four built-in themes (`midnight-purple`, `spotify`, `crimson-night`, and `ocean-abyss`) and the core design system palettes support **light mode** alongside their default dark mode aesthetics:
+
+#### Surface Luminance Hierarchy
+The design system establishes a strict four-layer surface hierarchy for both `dark` and `light` schemes via `@BBeBee/ui-tokens`:
+
+| Layer | Dark Palette | Dark Luminance | Light Palette | Light Luminance | Role & Semantics |
+|---|---|---|---|---|---|
+| **`sunken`** | `#0A0A0E` | 0.007 | `#EAEBED` | 0.830 | Lowest anchor: outer window chassis, sidebar navigation rail, sunken input tracks |
+| **`base`** | `#111218` | 0.009 | `#F7F7F8` | 0.931 | Main canvas: scrollable viewports, table views, feed screens (avoids stark `#FFFFFF` glare) |
+| **`raised`** | `#181922` | 0.013 | `#FAFAFA` | 0.956 | Elevated content: media cards, batch action bars, floating utility shelves |
+| **`overlay`** | `#20222D` | 0.019 | `#FFFFFF` | 1.000 | Topmost surface: modal dialogs, sheets, context menus, tooltips, popovers |
+
+- **Luminance Inversion & Glare Prevention**: In dark mode, `sunken` is the darkest chassis layer and `overlay` is the brightest. In light mode, `sunken` remains the deepest/darkest anchor layer (`#EAEBED`), grounding the application structure, while `base` is specifically tuned to a warm, soft grey (`#F7F7F8`) instead of pure white to prevent eye strain during long listening sessions. `overlay` is pure white (`#FFFFFF`) to ensure modals and popovers cleanly elevate above the canvas.
+- **No Direct Inversion:** Direct color inversion is forbidden. Backgrounds shift to soft off-white/grey palettes, while brand accent colors use deeper hues within the same brand spectrum to maintain WCAG AA contrast (e.g. Spotify green `#12833C`, Electric blue `#3B66F5`, Crimson `#C9184A`, Ocean abyss `#087E96`).
+- **WCAG AA Compliance Gate:** Automated tests `paletteContrastIssues()` and `themeContrastIssues(theme, scheme)` enforce:
+  - Normal text contrast $\ge 4.5:1$ (Light mode `text.primary` achieves **14.93:1** on `sunken` and **16.74:1** on `base`; `text.secondary` achieves **5.44:1** on `sunken` and **6.06:1** on `base`)
   - Large text & key UI borders contrast $\ge 3.0:1$
-  - Tested across both `dark` and `light` schemes in CI.
+  - Tested across both `dark` and `light` schemes in CI parity suites.
+- **Component Tokenization & Contrast Preservation Rule**:
+  - UI views must never hardcode `#FFFFFF` or `#000000` for general component typography or icons. Use semantic CSS variables (`var(--bb-text-primary, #FFFFFF)`, `var(--bb-text-secondary, #8E8E93)`, `var(--bb-bg-overlay)`, `var(--bb-border-subtle)`, `currentColor`).
+  - **Fixed Dark Container Exception**: Containers with fixed black backgrounds (e.g. Dynamic Island `#000000` / `#0A0A0F`, floating translucent HUDs, error/danger badges, or artwork overlays) must preserve light/white foregrounds or use on-color tokens (`var(--bb-accent-on, #FFFFFF)`, `var(--bb-state-error-on, #FFFFFF)`). Never convert text inside fixed black containers to `var(--bb-text-primary)` as it would become unreadable dark text on black in light mode.
 - **Effective Scheme Resolution:** `settings.theme` supports `'dark' | 'light' | 'system'`. When `'system'` is chosen, `plugin-theme` resolves the scheme in real-time via `window.matchMedia('(prefers-color-scheme: dark)')` and listens to OS theme preference changes.
 - **DOM Single-Writer Principle:** DOM theme attributes are strictly converged into a single writer (`applyThemeToDom()` in `ui-tokens` invoked by `plugin-theme`):
   - `data-theme="{theme.id}"` (e.g., `midnight-purple`, `spotify`)

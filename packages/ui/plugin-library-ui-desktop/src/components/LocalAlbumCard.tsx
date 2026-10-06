@@ -89,7 +89,7 @@ export function LocalAlbumCard({
                 alignItems: 'center',
                 justifyContent: 'center',
                 boxShadow: 'var(--glow-brand-sm, 0 4px 16px rgba(95, 135, 255, 0.4))',
-                color: '#ffffff',
+                color: 'var(--bb-accent-on, #ffffff)',
                 fontSize: 20,
                 paddingLeft: 3,
                 opacity: hovered ? 1 : 0,
@@ -98,7 +98,7 @@ export function LocalAlbumCard({
                 zIndex: 2,
               },
             },
-            tablerIcon('play', { size: 26, color: '#ffffff' }),
+            tablerIcon('play', { size: 26, color: 'currentColor' }),
           )
         : null,
     ),
@@ -112,7 +112,7 @@ export function LocalAlbumCard({
           style: {
             fontSize: 15,
             fontWeight: 700,
-            color: '#FFFFFF',
+            color: 'var(--bb-text-primary, #FFFFFF)',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
@@ -125,7 +125,7 @@ export function LocalAlbumCard({
         {
           style: {
             fontSize: 13,
-            color: '#b3b3b3',
+            color: 'var(--bb-text-secondary, #b3b3b3)',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
@@ -138,7 +138,7 @@ export function LocalAlbumCard({
         {
           style: {
             fontSize: 12,
-            color: '#7f7f7f',
+            color: 'var(--bb-text-disabled, #7f7f7f)',
             marginTop: 2,
           },
         },

@@ -90,7 +90,7 @@ function SectionWrapper({
           style: {
             fontSize: 15,
             fontWeight: 600,
-            color: '#FFFFFF',
+            color: 'var(--bb-text-primary, #FFFFFF)',
             margin: 0,
             letterSpacing: '-0.01em',
           },
@@ -208,7 +208,7 @@ function RowWrapper({
         h(
           'div',
           { style: { display: 'flex', flexDirection: 'column', gap: 3 } },
-          h('span', { style: { fontSize: 13, fontWeight: 500, color: '#FFFFFF' } }, title),
+          h('span', { style: { fontSize: 13, fontWeight: 500, color: 'var(--bb-text-primary, #FFFFFF)' } }, title),
           description
             ? h('span', { style: { fontSize: 12, color: '#8E8E93', lineHeight: 1.4 } }, description)
             : null,

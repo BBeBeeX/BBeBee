@@ -177,7 +177,7 @@ function AlbumTrackTableRow({
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: 14,
-          color: hovered ? '#FFFFFF' : '#b3b3b3',
+          color: hovered ? 'var(--bb-text-primary, #FFFFFF)' : '#b3b3b3',
         },
       },
       batchMode
@@ -225,7 +225,7 @@ function AlbumTrackTableRow({
           {
             style: {
               display: 'block',
-              color: '#FFFFFF',
+              color: 'var(--bb-text-primary, #FFFFFF)',
               fontSize: 15,
               fontWeight: 500,
               overflow: 'hidden',
@@ -930,11 +930,11 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
               width: 24,
               height: 24,
               borderRadius: '50%',
-              backgroundColor: '#404040',
+              backgroundColor: 'var(--bb-bg-raised, #404040)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#FFFFFF',
+              color: 'var(--bb-text-primary, #FFFFFF)',
               fontSize: 12,
               fontWeight: 700,
               flexShrink: 0,
@@ -944,7 +944,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
             ? detail.artists[0].name[0].toUpperCase()
             : tablerIcon('music', { size: 18 }),
         ),
-        h('span', { style: { fontWeight: 700, color: '#FFFFFF' } }, detail.artists?.map((a) => a.name).join(', ') || '未知艺人'),
+        h('span', { style: { fontWeight: 700, color: 'var(--bb-text-primary, #FFFFFF)' } }, detail.artists?.map((a) => a.name).join(', ') || '未知艺人'),
         yearText ? h('span', null, ` • ${yearText}`) : null,
         h('span', null, ` • ${detail.tracks.length} 首歌曲`),
         totalDurationStr ? h('span', null, `, ${totalDurationStr}`) : null,
@@ -1049,7 +1049,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
             style: {
               background: 'none',
               border: 'none',
-              color: '#b3b3b3',
+              color: 'var(--bb-text-secondary, #b3b3b3)',
               cursor: 'pointer',
               padding: 0,
               display: 'inline-flex',
@@ -1058,10 +1058,10 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
               transition: 'color 0.15s ease',
             },
             onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-              e.currentTarget.style.color = '#FFFFFF'
+              e.currentTarget.style.color = 'var(--bb-text-primary, #FFFFFF)'
             },
             onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-              e.currentTarget.style.color = '#b3b3b3'
+              e.currentTarget.style.color = 'var(--bb-text-secondary, #b3b3b3)'
             },
           },
           tablerIcon('share', { size: 24 }),
@@ -1171,8 +1171,8 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
-        background: 'var(--bg-primary, #080A10)',
-        color: '#FFFFFF',
+        background: 'var(--bb-bg-base, var(--bg-primary, #080A10))',
+        color: 'var(--bb-text-primary, #FFFFFF)',
         overflow: 'hidden',
       },
     },

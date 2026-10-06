@@ -177,7 +177,7 @@ const QueueTrackRow = memo(
           style: {
             fontSize: 14,
             fontWeight: 600,
-            color: active ? 'var(--color-primary, var(--primary, #5F87FF))' : '#FFFFFF',
+            color: active ? 'var(--color-primary, var(--primary, #5F87FF))' : 'var(--bb-text-primary, #FFFFFF)',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
@@ -380,7 +380,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
               style: {
                 fontSize: 16,
                 fontWeight: 700,
-                color: tab === 'queue' ? '#FFFFFF' : '#8E8E93',
+                color: tab === 'queue' ? 'var(--bb-text-primary, #FFFFFF)' : 'var(--bb-text-secondary, #8E8E93)',
                 transition: 'color 0.15s ease',
               },
             },
@@ -421,7 +421,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
               style: {
                 fontSize: 16,
                 fontWeight: 700,
-                color: tab === 'history' ? '#FFFFFF' : '#8E8E93',
+                color: tab === 'history' ? 'var(--bb-text-primary, #FFFFFF)' : 'var(--bb-text-secondary, #8E8E93)',
                 transition: 'color 0.15s ease',
               },
             },
@@ -456,18 +456,18 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
             borderRadius: tokens.radius.pill,
             border: 'none',
             background: 'transparent',
-            color: '#8E8E93',
+            color: 'var(--bb-text-secondary, #8E8E93)',
             cursor: 'pointer',
             fontSize: 18,
             transition: 'all 0.15s ease',
             outline: 'none',
           },
           onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-            e.currentTarget.style.color = '#FFFFFF'
+            e.currentTarget.style.color = 'var(--bb-text-primary, #FFFFFF)'
             e.currentTarget.style.transform = 'scale(1.1)'
           },
           onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-            e.currentTarget.style.color = '#8E8E93'
+            e.currentTarget.style.color = 'var(--bb-text-secondary, #8E8E93)'
             e.currentTarget.style.transform = 'scale(1)'
           },
         },
@@ -536,7 +536,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
             style: {
               fontSize: 15,
               fontWeight: 700,
-              color: '#FFFFFF',
+              color: 'var(--bb-text-primary, #FFFFFF)',
               marginBottom: 8,
             },
           },
@@ -572,7 +572,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
             style: {
               fontSize: 15,
               fontWeight: 700,
-              color: '#FFFFFF',
+              color: 'var(--bb-text-primary, #FFFFFF)',
               marginTop: 12,
               marginBottom: 8,
             },
@@ -717,7 +717,8 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
         padding: '16px 16px',
         boxSizing: 'border-box',
         overflowY: 'auto',
-        background: 'var(--bg-primary, var(--color-bg-primary, #080A10))',
+        background: 'var(--bb-bg-base, var(--bg-primary, var(--color-bg-primary, #080A10)))',
+        color: 'var(--bb-text-primary, #FFFFFF)',
       },
     },
     renderHeader(),

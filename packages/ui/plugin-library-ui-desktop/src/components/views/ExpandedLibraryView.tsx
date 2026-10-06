@@ -126,7 +126,7 @@ export function ExpandedLibraryView({
           tablerIcon('chevron-left', { size: 22, color: '#666666' }),
           h(
             'h1',
-            { style: { fontSize: 24, fontWeight: 700, color: '#FFFFFF', margin: 0 } },
+            { style: { fontSize: 24, fontWeight: 700, color: 'var(--bb-text-primary, #FFFFFF)', margin: 0 } },
             activeCollection?.name ?? '文件夹',
           ),
         ),
@@ -220,8 +220,8 @@ export function ExpandedLibraryView({
             style: {
               padding: '6px 14px',
               borderRadius: 16,
-              backgroundColor: '#FFFFFF',
-              color: '#000000',
+              backgroundColor: 'var(--bb-bg-raised, #FFFFFF)',
+              color: 'var(--bb-text-primary, #000000)',
               fontSize: 13,
               fontWeight: 600,
             },
@@ -252,7 +252,7 @@ export function ExpandedLibraryView({
               style: {
                 background: 'transparent',
                 border: 'none',
-                color: '#FFFFFF',
+                color: 'var(--bb-text-primary, #FFFFFF)',
                 fontSize: 13,
                 outline: 'none',
                 width: '100%',
@@ -344,12 +344,13 @@ export function ExpandedLibraryView({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    color: isFav ? '#FFFFFF' : undefined,
                     backgroundColor: isFav ? 'transparent' : 'rgba(255, 255, 255, 0.05)',
                     background: isFav ? 'linear-gradient(135deg, #450af5, #8e8ee5)' : undefined,
                   },
                 },
                 isFav
-                  ? tablerIcon('heart-filled', { size: 24, color: '#FFFFFF' })
+                  ? tablerIcon('heart-filled', { size: 24, color: 'currentColor' })
                   : item.artwork
                     ? h(CachedArtwork, {
                         ctx,
@@ -373,7 +374,7 @@ export function ExpandedLibraryView({
                   'div',
                   {
                     style: {
-                      color: '#FFFFFF',
+                      color: 'var(--bb-text-primary, #FFFFFF)',
                       fontWeight: 500,
                       fontSize: 14,
                       overflow: 'hidden',
@@ -450,7 +451,7 @@ export function ExpandedLibraryView({
           marginBottom: 20,
         },
       },
-      h('h1', { style: { fontSize: 26, fontWeight: 700, color: '#FFFFFF', margin: 0 } }, '音乐库'),
+      h('h1', { style: { fontSize: 26, fontWeight: 700, color: 'var(--bb-text-primary, #FFFFFF)', margin: 0 } }, '音乐库'),
       h(
         'div',
         { style: { display: 'flex', alignItems: 'center', gap: 12, position: 'relative' } },
@@ -477,7 +478,7 @@ export function ExpandedLibraryView({
               transition: 'color 0.15s ease',
             },
             onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-              e.currentTarget.style.color = '#FFFFFF'
+              e.currentTarget.style.color = 'var(--bb-text-primary, #FFFFFF)'
             },
             onMouseLeave: (e: { currentTarget: HTMLElement }) => {
               e.currentTarget.style.color = '#A0A0AE'
@@ -513,8 +514,8 @@ export function ExpandedLibraryView({
                 padding: '6px 14px',
                 borderRadius: 16,
                 border: 'none',
-                backgroundColor: active ? '#FFFFFF' : '#242424',
-                color: active ? '#000000' : '#FFFFFF',
+                backgroundColor: active ? 'var(--bb-bg-raised, #FFFFFF)' : '#242424',
+                color: active ? 'var(--bb-text-primary, #000000)' : '#FFFFFF',
                 fontSize: 13,
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -549,7 +550,7 @@ export function ExpandedLibraryView({
             style: {
               background: 'transparent',
               border: 'none',
-              color: '#FFFFFF',
+              color: 'var(--bb-text-primary, #FFFFFF)',
               fontSize: 13,
               outline: 'none',
               width: '100%',
@@ -637,12 +638,13 @@ export function ExpandedLibraryView({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  color: isFav ? '#FFFFFF' : undefined,
                   backgroundColor: isFav ? 'transparent' : 'rgba(255, 255, 255, 0.05)',
                   background: isFav ? 'linear-gradient(135deg, #450af5, #8e8ee5)' : undefined,
                 },
               },
               isFav
-                ? tablerIcon('heart-filled', { size: 26, color: '#FFFFFF' })
+                ? tablerIcon('heart-filled', { size: 26, color: 'currentColor' })
                 : item.artwork
                   ? h(CachedArtwork, {
                       ctx,
@@ -662,7 +664,7 @@ export function ExpandedLibraryView({
             h(
               'div',
               { style: { minWidth: 0, flex: 1 } },
-              h('div', { style: { color: '#FFFFFF', fontWeight: 500, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.title),
+              h('div', { style: { color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 500, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.title),
               h(
                 'div',
                 { style: { display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 } },

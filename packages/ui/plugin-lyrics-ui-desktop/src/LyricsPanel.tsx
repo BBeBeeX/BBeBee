@@ -116,7 +116,7 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
         minWidth: 320,
         maxWidth: 680,
         overflow: 'hidden',
-        color: '#FFFFFF',
+        color: 'var(--bb-text-primary, #FFFFFF)',
         boxSizing: 'border-box',
         padding: `${tokens.space[4]}px`,
         ...style,
@@ -132,7 +132,7 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
           alignItems: 'center',
           gap: 12,
           paddingBottom: tokens.space[4],
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          borderBottom: '1px solid var(--bb-border-subtle, rgba(255, 255, 255, 0.08))',
           flexShrink: 0,
         },
       },
@@ -153,7 +153,7 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
             style: {
               fontSize: 20,
               fontWeight: 700,
-              color: '#FFFFFF',
+              color: 'var(--bb-text-primary, #FFFFFF)',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
@@ -221,9 +221,9 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
                 gap: 6,
                 padding: '6px 12px',
                 borderRadius: tokens.radius.sm,
-                backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                color: 'rgba(255, 255, 255, 0.85)',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
+                backgroundColor: 'var(--bb-bg-overlay, rgba(255, 255, 255, 0.08))',
+                color: 'var(--bb-text-secondary, rgba(255, 255, 255, 0.85))',
+                border: '1px solid var(--bb-border-subtle, rgba(255, 255, 255, 0.12))',
                 cursor: 'pointer',
                 fontSize: 13,
                 fontWeight: 500,
@@ -231,12 +231,12 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
                 flexShrink: 0,
               },
               onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.16)'
-                e.currentTarget.style.color = '#FFFFFF'
+                e.currentTarget.style.backgroundColor = 'var(--bb-bg-raised, rgba(255, 255, 255, 0.16))'
+                e.currentTarget.style.color = 'var(--bb-text-primary, #FFFFFF)'
               },
               onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'
-                e.currentTarget.style.color = 'rgba(255, 255, 255, 0.85)'
+                e.currentTarget.style.backgroundColor = 'var(--bb-bg-overlay, rgba(255, 255, 255, 0.08))'
+                e.currentTarget.style.color = 'var(--bb-text-secondary, rgba(255, 255, 255, 0.85))'
               },
             },
             tablerIcon('share', { size: 16 }),

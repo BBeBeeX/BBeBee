@@ -24,7 +24,7 @@ export function SegmentedControl<T extends string>({
     {
       style: {
         display: 'inline-flex',
-        background: 'rgba(255, 255, 255, 0.08)',
+        background: 'var(--bb-bg-sunken, rgba(255, 255, 255, 0.08))',
         borderRadius: 6,
         padding: 2,
         gap: 2,
@@ -47,8 +47,8 @@ export function SegmentedControl<T extends string>({
             padding: '4px 12px',
             fontSize: 12,
             cursor: disabled ? 'not-allowed' : 'pointer',
-            background: isSelected ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-            color: isSelected ? '#ffffff' : '#8e8e93',
+            background: isSelected ? 'var(--bb-bg-overlay, rgba(255, 255, 255, 0.2))' : 'transparent',
+            color: isSelected ? 'var(--bb-text-primary, #ffffff)' : 'var(--bb-text-secondary, #8e8e93)',
             fontWeight: isSelected ? 600 : 400,
             transition: 'all 0.15s',
           },

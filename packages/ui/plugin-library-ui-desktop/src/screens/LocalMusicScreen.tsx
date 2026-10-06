@@ -86,7 +86,7 @@ function LocalAlbumRow({
               style: {
                 background: 'none',
                 border: 'none',
-                color: '#FFFFFF',
+                color: 'currentColor',
                 cursor: 'pointer',
                 padding: 0,
                 display: 'flex',
@@ -94,7 +94,7 @@ function LocalAlbumRow({
                 justifyContent: 'center',
               },
             },
-            tablerIcon('play', { size: 18, color: '#FFFFFF' }),
+            tablerIcon('play', { size: 18, color: 'currentColor' }),
           )
         : String(index + 1),
     ),
@@ -148,7 +148,7 @@ function LocalAlbumRow({
           'span',
           {
             style: {
-              color: '#FFFFFF',
+              color: 'var(--bb-text-primary, #FFFFFF)',
               fontSize: 15,
               fontWeight: 500,
               overflow: 'hidden',
@@ -787,7 +787,7 @@ export function LocalMusicScreen({
               background: 'transparent',
               border: 'none',
               outline: 'none',
-              color: '#FFFFFF',
+              color: 'var(--bb-text-primary, #FFFFFF)',
               fontSize: 13,
               width: 140,
             },
@@ -989,7 +989,7 @@ export function LocalMusicScreen({
         flexDirection: 'column',
         height: '100%',
         background: 'var(--bg-primary, #080A10)',
-        color: '#FFFFFF',
+        color: 'var(--bb-text-primary, #FFFFFF)',
         overflow: 'hidden',
       },
     },

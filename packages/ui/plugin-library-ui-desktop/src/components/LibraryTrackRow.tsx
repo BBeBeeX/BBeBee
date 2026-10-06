@@ -151,7 +151,7 @@ export function LibraryTrackRow({
             },
           })
         : hovered
-        ? tablerIcon('play', { size: 18, color: '#FFFFFF' })
+        ? tablerIcon('play', { size: 18, color: 'currentColor' })
         : String(index + 1),
     ),
     // Col 2: Artwork (list only) + Title + Artist
@@ -209,7 +209,7 @@ export function LibraryTrackRow({
             {
               style: {
                 display: 'block',
-                color: '#FFFFFF',
+                color: 'var(--bb-text-primary, #FFFFFF)',
                 fontSize: 15,
                 fontWeight: 500,
                 overflow: 'hidden',

@@ -71,7 +71,7 @@ const dark: Palette = {
  * illegible souvenir of it.
  */
 const light: Palette = {
-  bg: { sunken: '#F1F1F1', base: '#FFFFFF', raised: '#F6F6F6', overlay: '#EDEDED' },
+  bg: { sunken: '#EAEBED', base: '#F7F7F8', raised: '#FAFAFA', overlay: '#FFFFFF' },
   text: { primary: '#000000', secondary: '#5E5E5E', disabled: '#8C8C8C' },
   accent: { base: '#12833C', hover: '#0D6E36', muted: '#D7F2E2', on: '#FFFFFF' },
   state: { error: '#C1291F', warn: '#8A5A00', ok: '#0E7A3D' },

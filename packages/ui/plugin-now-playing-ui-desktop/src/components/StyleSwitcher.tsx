@@ -79,7 +79,7 @@ export function StyleSwitcher({ ctx, styleId, onStyleChange }: StyleSwitcherProp
           borderRadius: tokens.radius.pill,
           border: '1px solid rgba(255, 255, 255, 0.12)',
           background: open ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.08)',
-          color: '#FFFFFF',
+          color: 'var(--bb-text-primary, #FFFFFF)',
           cursor: 'pointer',
           transition: `background-color ${tokens.duration.fast}ms, transform ${tokens.duration.fast}ms`,
           WebkitAppRegion: 'no-drag' as unknown as undefined,

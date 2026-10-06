@@ -215,8 +215,8 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
           width,
           maxHeight,
           minHeight,
-          background: '#282828',
-          color: '#ffffff',
+          background: 'var(--bb-bg-overlay, #282828)',
+          color: 'var(--bb-text-primary, #ffffff)',
           borderRadius: 8,
           boxShadow: '0 16px 28px rgba(0, 0, 0, 0.65), 0 6px 12px rgba(0, 0, 0, 0.45)',
           display: 'flex',
@@ -236,7 +236,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
             fontSize: 14,
             fontWeight: 700,
             padding: '4px 14px 10px 14px',
-            color: '#ffffff',
+            color: 'var(--bb-text-primary, #ffffff)',
           },
         },
         props.title ?? '添加到歌单',
@@ -247,7 +247,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
             'div',
             {
               style: {
-                background: '#3e3e3e',
+                background: 'var(--bb-bg-raised, #3e3e3e)',
                 borderRadius: 4,
                 height: 32,
                 margin: '0 12px 8px 12px',
@@ -277,7 +277,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                 background: 'none',
                 border: 'none',
                 outline: 'none',
-                color: '#ffffff',
+                color: 'var(--bb-text-primary, #ffffff)',
                 fontSize: 13,
                 padding: 0,
               },
@@ -291,7 +291,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                   background: 'var(--button-primary-bg, var(--color-primary, #5F87FF))',
                   border: 'none',
                   borderRadius: 4,
-                  color: '#ffffff',
+                  color: 'var(--bb-accent-on, #ffffff)',
                   fontWeight: 600,
                   fontSize: 12,
                   padding: '0 10px',
@@ -356,7 +356,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                 background: 'none',
                 border: 'none',
                 outline: 'none',
-                color: '#ffffff',
+                color: 'var(--bb-text-primary, #ffffff)',
                 fontSize: 13,
                 padding: 0,
               },
@@ -389,7 +389,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                 'span',
                 {
                   style: {
-                    color: '#ffffff',
+                    color: 'var(--bb-text-primary, #ffffff)',
                     width: 36,
                     height: 36,
                     display: 'flex',
@@ -397,11 +397,11 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                     justifyContent: 'center',
                   },
                 },
-                tablerIcon('plus', { size: 22, color: '#ffffff' }),
+                tablerIcon('plus', { size: 22, color: 'currentColor' }),
               ),
               h(
                 'div',
-                { style: { flex: 1, fontSize: 14, fontWeight: 600, color: '#ffffff' } },
+                { style: { flex: 1, fontSize: 14, fontWeight: 600, color: 'var(--bb-text-primary, #ffffff)' } },
                 '新建歌单',
               ),
             )
@@ -413,7 +413,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
             style: {
               fontSize: 12,
               fontWeight: 700,
-              color: '#a7a7a7',
+              color: 'var(--bb-text-secondary, #a7a7a7)',
               padding: '8px 8px 4px 8px',
             },
           },
@@ -442,7 +442,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                 flexShrink: 0,
               },
             },
-            tablerIcon('heart-filled', { size: 20, color: '#ffffff' }),
+            tablerIcon('heart-filled', { size: 20, color: 'currentColor' }),
           ),
           // Title + Subtitle
           h(
@@ -454,7 +454,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                 style: {
                   fontSize: 14,
                   fontWeight: 600,
-                  color: '#ffffff',
+                  color: 'var(--bb-text-primary, #ffffff)',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -538,7 +538,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                   style: {
                     fontSize: 14,
                     fontWeight: 500,
-                    color: '#ffffff',
+                    color: 'var(--bb-text-primary, #ffffff)',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -551,7 +551,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                 {
                   style: {
                     fontSize: 12,
-                    color: '#a7a7a7',
+                    color: 'var(--bb-text-secondary, #a7a7a7)',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 3,
@@ -611,7 +611,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                   style: {
                     fontSize: 14,
                     fontWeight: 500,
-                    color: '#ffffff',
+                    color: 'var(--bb-text-primary, #ffffff)',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -621,11 +621,11 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
               ),
               h(
                 'div',
-                { style: { fontSize: 12, color: '#a7a7a7' } },
+                { style: { fontSize: 12, color: 'var(--bb-text-secondary, #a7a7a7)' } },
                 `${collection.playlistCount ?? collection.playlists.length} 个歌单`,
               ),
             ),
-            tablerIcon('chevron-right', { size: 18, color: '#a7a7a7' }),
+            tablerIcon('chevron-right', { size: 18, color: 'var(--bb-text-secondary, #a7a7a7)' }),
           )
         }),
       ),
@@ -647,7 +647,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
             style: {
               background: 'none',
               border: 'none',
-              color: '#ffffff',
+              color: 'var(--bb-text-secondary, #ffffff)',
               fontSize: 13,
               fontWeight: 600,
               cursor: 'pointer',
@@ -674,8 +674,8 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
               left: flyoutLeft,
               top: flyoutTop,
               width: SUBMENU_WIDTH,
-              background: '#282828',
-              color: '#ffffff',
+              background: 'var(--bb-bg-overlay, #282828)',
+              color: 'var(--bb-text-primary, #ffffff)',
               borderRadius: 8,
               boxShadow: '0 16px 28px rgba(0, 0, 0, 0.65), 0 6px 12px rgba(0, 0, 0, 0.45)',
               display: 'flex',
@@ -694,7 +694,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
               style: {
                 fontSize: 13,
                 fontWeight: 600,
-                color: '#ffffff',
+                color: 'var(--bb-text-primary, #ffffff)',
                 padding: '4px 14px 8px 14px',
               },
             },
@@ -743,7 +743,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                       background: 'var(--button-primary-bg, var(--color-primary, #5F87FF))',
                       border: 'none',
                       borderRadius: 4,
-                      color: '#ffffff',
+                      color: 'var(--bb-accent-on, #ffffff)',
                       fontWeight: 600,
                       fontSize: 12,
                       padding: '0 10px',
@@ -770,7 +770,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                   'span',
                   {
                     style: {
-                      color: '#ffffff',
+                      color: 'var(--bb-text-primary, #ffffff)',
                       width: 32,
                       height: 32,
                       display: 'flex',
@@ -778,16 +778,16 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                       justifyContent: 'center',
                     },
                   },
-                  tablerIcon('plus', { size: 20, color: '#ffffff' }),
+                  tablerIcon('plus', { size: 20, color: 'currentColor' }),
                 ),
                 h(
                   'div',
-                  { style: { flex: 1, fontSize: 13, fontWeight: 600, color: '#ffffff' } },
+                  { style: { flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--bb-text-primary, #ffffff)' } },
                   '新建歌单',
                 ),
               ),
           h('div', {
-            style: { height: 1, background: '#383838', margin: '4px 8px 6px 8px' },
+            style: { height: 1, background: 'var(--bb-border-subtle, #383838)', margin: '4px 8px 6px 8px' },
           }),
           // Submenu Section: 最近更新
           h(
@@ -796,7 +796,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
               style: {
                 fontSize: 12,
                 fontWeight: 700,
-                color: '#a7a7a7',
+                color: 'var(--bb-text-secondary, #a7a7a7)',
                 padding: '4px 10px',
               },
             },
@@ -843,7 +843,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                     style: {
                       fontSize: 13,
                       fontWeight: 500,
-                      color: '#ffffff',
+                      color: 'var(--bb-text-primary, #ffffff)',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
@@ -853,7 +853,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                 ),
                 h(
                   'div',
-                  { style: { fontSize: 11, color: '#a7a7a7' } },
+                  { style: { fontSize: 11, color: 'var(--bb-text-secondary, #a7a7a7)' } },
                   `${playlist.trackCount ?? 0} 首歌曲`,
                 ),
               ),
@@ -898,7 +898,7 @@ function RowItem({
         margin: '1px 4px',
         borderRadius: 4,
         cursor: 'pointer',
-        background: active || hovered ? '#383838' : 'transparent',
+        background: active || hovered ? 'var(--bb-bg-raised, #383838)' : 'transparent',
         transition: 'background-color 0.1s ease',
       },
     },
@@ -919,11 +919,11 @@ function CheckmarkCircle({ checked }: { checked: boolean }): ReactElement {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#ffffff',
+          color: 'var(--bb-accent-on, #ffffff)',
           flexShrink: 0,
         },
       },
-      tablerIcon('check', { size: 16, stroke: 2, color: '#ffffff' }),
+      tablerIcon('check', { size: 16, stroke: 2, color: 'currentColor' }),
     )
   }
   return h('div', {
