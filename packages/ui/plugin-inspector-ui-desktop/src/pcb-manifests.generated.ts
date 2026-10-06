@@ -4308,6 +4308,60 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
+  "@BBeBee/plugin-theme-ui-desktop": {
+    "id": "@BBeBee/plugin-theme-ui-desktop",
+    "name": "@BBeBee/plugin-theme-ui-desktop",
+    "displayName": "Theme UI (Desktop)",
+    "description": "Desktop views for @BBeBee/plugin-theme (theme management settings card).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [
+      "@BBeBee/plugin-ui",
+      "@BBeBee/plugin-theme"
+    ],
+    "systemId": "layer-5",
+    "moduleId": "theme",
+    "platforms": [
+      "desktop"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {},
+    "effect": null
+  },
+  "plugin-theme-ui-desktop": {
+    "id": "@BBeBee/plugin-theme-ui-desktop",
+    "name": "@BBeBee/plugin-theme-ui-desktop",
+    "displayName": "Theme UI (Desktop)",
+    "description": "Desktop views for @BBeBee/plugin-theme (theme management settings card).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [
+      "@BBeBee/plugin-ui",
+      "@BBeBee/plugin-theme"
+    ],
+    "systemId": "layer-5",
+    "moduleId": "theme",
+    "platforms": [
+      "desktop"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {},
+    "effect": null
+  },
   "@BBeBee/plugin-visualizer-ui-desktop": {
     "id": "@BBeBee/plugin-visualizer-ui-desktop",
     "name": "@BBeBee/plugin-visualizer-ui-desktop",
