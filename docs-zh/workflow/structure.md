@@ -160,7 +160,8 @@ B_Be_Bee/
 │   │   │                                      两遍的东西都属于无 UI 的兄弟包，视图包只为
 │   │   │                                      TYPES 而导入它。
 │   │   ├── ui-tokens/              ✅        以纯数据形式存在的设计令牌 + WCAG AA 闸门 (08 §8)
-│   │   ├── ui-core/                ✅        框架无关的钩子 + 共享 prop 类型
+│   │   ├── ui-core/                ✅        视图通用面（identicon + 共享 prop 类型）；
+│   │   │                                       再导出 toolkit/hooks 的共享绑定
 │   │   ├── ui-parity/              ✅        组件契约，以及检查两套组件库
 │   │   │                                       是否满足它的测试 (08 §6)
 │   │   ├── ui-kit-mobile/          ✅        React Native 组件

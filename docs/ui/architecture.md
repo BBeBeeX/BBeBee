@@ -279,10 +279,11 @@ The rule from [02 §6](../architecture/layers.md#6-state-ownership): **React hol
 Services own it; components subscribe.
 
 Both `ui-kit-mobile` and `ui-kit-desktop` build on one shared, framework-agnostic hook layer in
-`@BBeBee/ui-core`, which depends only on `react` and `@BBeBee/protocol`:
+`@BBeBee/toolkit/hooks`, which depends only on `react` and `@BBeBee/protocol`; `@BBeBee/ui-core`
+re-exports it and adds the view-generic extras (`identicon`, shared prop types):
 
 ```ts
-// @BBeBee/ui-core
+// @BBeBee/toolkit/hooks
 export function useService<K extends ServiceKey>(key: K): Context[K] | undefined
 
 /**
@@ -297,11 +298,13 @@ export function useServiceState<K extends ServiceKey, T>(
 ): T
 ```
 
-Feature-specific hooks are thin wrappers, and they live in the **headless** package so both shells
-share them:
+Cross-feature bindings — the transport, artwork resolution, lyrics sync — live in the same
+subpath, which is what lets a desktop view bind to the transport **without importing the player
+feature**. A feature's own `./hooks` subpath stays its public surface and re-exports its bindings
+one-to-one:
 
 ```ts
-// @BBeBee/plugin-player/hooks — shared by both UI packages
+// @BBeBee/toolkit/hooks — re-exported by @BBeBee/plugin-player/hooks
 export const useTransport = () =>
   useServiceState('player', ['player/state-changed'], (p) => p.state)
 
@@ -347,7 +350,7 @@ which events invalidate which state — are written once. Only the JSX is writte
   `localhost`), which shows every result as a broken image while the same URL opens fine in a tab.
 - **A cover is resolved through `ctx.cache` before it renders.** The view packages render the kits'
   `Artwork` through a local `CachedArtwork` that calls `useResolvedArtwork(ctx, ref)`
-  (`@BBeBee/plugin-cache/hooks`) — and `TrackRow`, which draws its own `Artwork` internally,
+  (`@BBeBee/toolkit/hooks`) — and `TrackRow`, which draws its own `Artwork` internally,
   through a `CachedTrackRow` — so the URL handed to `<img>`/`Image` is a local file whenever the
   cache has one, and the `dominantColor`/identicon fallback covers the fetch in flight: the remote
   URL is never what gets rendered. The cached copy also fills in `artworks.local_uri`, which is

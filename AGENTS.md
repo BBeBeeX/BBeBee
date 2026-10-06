@@ -88,7 +88,7 @@ Composition root is exactly 4 files: `apps/mobile/src/{boot,plugins}.ts` and `ap
 2. Side effects must go through the fiber: wrap disposers in local closures `return () => off()`.
 3. Dependencies are declared via `inject: [...]`. Optional dependencies use `ctx.inject([...], ...)`.
 4. Log through `ctx.logger`, never `console.log`.
-5. Reusable pure helpers belong in `@BBeBee/toolkit`, not duplicated in feature packages.
+5. Reusable pure helpers belong in `@BBeBee/toolkit`, not duplicated in feature packages. Shared React service bindings (hooks that read a service via `ctx`) live in the `@BBeBee/toolkit/hooks` subpath; a view package imports another feature's bindings from there, never from that feature's package.
 6. Decompose large UI packages into single-responsibility submodules (`src/{components,screens,hooks,utils,index.tsx}`); avoid monolithic single-file packages.
 7. Every plugin package must include a standardized `BBeBee.plugin.json` declaring 14 fields: `id`, `name`, `displayName`, `description`, `version`, `author`, `engines`, `enabled`, `dependencies`, `systemId` (`'layer-2'`-`'layer-5'`), `moduleId` (domain), `entry`, `capabilities`, `contributes`, `effect`. Run `pnpm gen:plugins` after changes.
 

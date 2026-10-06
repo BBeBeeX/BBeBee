@@ -44,7 +44,7 @@ Key rules:
 2. **UI Kit Component Extraction**: UI kit packages (`ui-kit-mobile`, `ui-kit-desktop`) split styling and primitives into `primitives.ts`, individual atomic controls into `src/components/*.tsx` (Button, Text, TextField, Slider, Sheet, ContextMenu, List, Artwork, TrackRow, Toast, JsonTree), and barrel re-export through `src/index.tsx`.
 3. **Menu Controller Decomposition**: Complex context menu packages (`ui-menus`) separate submenu builders into `src/submenus/*.ts`, menu hooks into `src/menus/*.ts`, and anchor/controller utilities into `src/types.ts`.
 4. **Multi-Mode Screen Decomposition**: Screens with multiple display modes or complex interaction trees (such as `LibraryScreen`) isolate view modes into `src/components/views/*` (`CollapsedLibraryView`, `ExpandedLibraryView`, `SidebarFolderView`), action and hydration logic into `src/hooks/*` (`useLibraryHydration`, `useLibraryActions`, `useTableSort`), and control toolbars into `src/components/*` (`LibraryToolbar`, `LibraryModals`, `LibraryCreateDropdown`).
-5. **Pure Helper Hoisting**: Pure helpers that calculate or format domain data across multiple packages (e.g. `formatDuration`, `formatTotalDuration`, `splitArtists`) belong in `@BBeBee/toolkit` (Layer 4 pure library), never copy-pasted or duplicated inside UI packages.
+5. **Pure Helper Hoisting**: Pure helpers that calculate or format domain data across multiple packages (e.g. `formatDuration`, `formatTotalDuration`, `splitArtists`) belong in `@BBeBee/toolkit` (Layer 4 pure library), never copy-pasted or duplicated inside UI packages. Shared React service *bindings* (the hooks and helpers that read a service and need `ctx`) live in the `@BBeBee/toolkit/hooks` subpath — `serviceOf`, `useServiceState`, `useResolvedArtwork`, `useTransport`, … — so a view package never has to import *another* feature package for one; a feature's own `./hooks` subpath stays its public surface and re-exports what it delegates.
 6. **Thin Plugin Entry**: `src/index.tsx` serves as the Cordis plugin lifecycle entry (`apply(ctx)`) registering routes/slots/views, while re-exporting components and public utilities to maintain 100% test compatibility.
 
 ---
@@ -98,7 +98,7 @@ Each shell resolves the contribution ID against its target view registry via `ct
 
 ## 3. Hooks & State Binding
 
-- `@BBeBee/ui-core` provides `useService` and `useServiceState(key, events, select)` backed by `useSyncExternalStore`.
+- `@BBeBee/toolkit/hooks` provides `useService` and `useServiceState(key, events, select)` backed by `useSyncExternalStore`; `@BBeBee/ui-core` re-exports them, so existing imports keep working.
 - No `useEffect` for domain mutations (call service methods directly).
 - Optimistic updates must reside in the service, not in React component state.
 - Lists must be virtualized:
@@ -194,7 +194,7 @@ All visual icons across desktop UI components are standardized on **Tabler Icons
 ### Artwork & Fallback
 - Artwork renders `blurhash` first, then falls back to `artworks.dominant_color`.
 - If no cover exists, generate a GitHub-style square identicon from entity URN (`identicon()` in `ui-core`).
-- Cache integration: Covers resolve through `ctx.cache` (`useResolvedArtwork` in `@BBeBee/plugin-cache/hooks`).
+- Cache integration: Covers resolve through `ctx.cache` (`useResolvedArtwork`, implemented in `@BBeBee/toolkit/hooks`; `@BBeBee/plugin-cache/hooks` re-exports it).
 
 ---
 
@@ -216,7 +216,7 @@ All visual icons across desktop UI components are standardized on **Tabler Icons
 - **General & Language**: Language selector; minimize to system tray on window close (`closeToTray`). (Theme selection is omitted on desktop to preserve the immersive dark streaming look).
 - **Playback & Audio**: Crossfade, gapless playback, pause on unplug, and an action button to open the dedicated DSP Equalizer view (`dsp.view`).
 - **Desktop Lyrics**: Master enable switch, position persistence (`{ x, y }`), locked click-through toggle, single/double line mode, left/center/right alignment, custom font family and size (16–48px), color palette with hex input, opacity (0.2–1.0), live floating preview card, and strict 4-step startup lifecycle (1. check enabled → 2. restore position → 3. push settings & data → 4. show window).
-- **Global Hotkeys**: Master toggle (enabled by default) and 10 standard media/navigation bindings (`togglePlay`, `prev`, `next`, `volumeUp`, `volumeDown`, `seekForward`, `seekBackward`, `toggleLyrics`, `toggleApp`, `favorite`), backed by `ctx.device.registerHotkey`.
+- **Global Hotkeys**: Master toggle (enabled by default) and 10 standard media/navigation bindings (`togglePlay`, `prev`, `next`, `volumeUp`, `volumeDown`, `seekForward`, `seekBackward`, `toggleLyrics`, `toggleApp`, `favorite`), backed by `ctx.device.registerHotkey`. Registration is headless orchestration owned by the `plugin-settings` feature (`watchGlobalShortcuts`): it lives for as long as the service does — not for as long as the settings screen is mounted — and rebinds on `settings/changed`. The settings screen renders the toggle and key bindings only.
 - **Network & Proxy**: Master toggle, protocol (HTTP/HTTPS/SOCKS5), host/port, latency probe button targeting Google (`https://www.google.com/generate_204`), and per-source proxy bypass switches embedded directly within the proxy card.
 - **Storage & Cache**: Download and Cache directories with path badges, native folder picker (`dialog.pickDirectory`), and directory opener (`shell.openPath`).
 - **About & Advanced Settings (Diagnostics Guard)**: App metadata, followed by an "Advanced Settings" ("高级设置") expandable toggle button that houses Developer Diagnostics (`debug.view`, `debug.logs`, `debug.http-logs`) and the Danger Zone (settings reset), keeping primary settings clean.
@@ -241,7 +241,7 @@ All visual icons across desktop UI components are standardized on **Tabler Icons
 - **Section Headings**: Menu items support `heading: true` to render as a flush-left muted section label (12px padding, no 18px icon slot, no hover highlight, smaller bold type) — use it to name a group of options, with `divider: true` on the preceding item to close the previous group.
 - **Outline Icons**: Standard actions map to Tabler SVG icons (`stroke: 1.25`): `pencil`, `trash`, `pin`, `plus`, `folder`, `play-filled`, `download`, `playlist`.
 - **Folder (Collection) Semantics**: Folders are directory containers for collection-level entities (playlists, albums, artists, child folders). Folders **never** contain individual tracks; individual tracks belong to playlists and albums. Track context menus only offer "添加到歌单" (`add-to-playlist`), never "加入合集 / 移动至文件夹" (`add-to-collection`).
-- **Recursive Track Gathering**: When adding a folder's contents to other playlists ("添加至其他歌单") or playing a folder, `collectAllFolderTracks` recursively scans all nested playlist tracks, nested album tracks, and all descendant subfolders without duplicates (folders do not contain direct tracks).
+- **Recursive Track Gathering**: When adding a folder's contents to other playlists ("添加至其他歌单") or playing a folder, `collectAllFolderTracks` (exported from `@BBeBee/plugin-library/hooks`) recursively scans all nested playlist tracks, nested album tracks, and all descendant subfolders without duplicates (folders do not contain direct tracks).
 - **Dedicated Modals**:
   - `EditPlaylistModal`: Modify cover art (file picker or URL), title, and multiline description.
   - `RenameFolderModal`: Rename folder title and save via `ctx.library.renameCollection`.
@@ -274,7 +274,7 @@ All visual icons across desktop UI components are standardized on **Tabler Icons
   - Clicking column headers (`#`, `标题`, `艺人`, `专辑`, `来源`, `添加日期`, `时长` with Tabler `clock` icon, `播放量`) toggles between ascending (`asc`) and descending (`desc`) order.
   - Active sorted column displays a subtle directional arrow indicator (`chevron-up` for ascending, `chevron-down` for descending).
   - `AlbumScreen`, `FavoritesScreen`, and `PlaylistDetailScreen` provide an interactive "来源" (Source) column (omitted in `LocalMusicScreen` where all tracks are local).
-  - Source names are resolved via `resolveTrackSourceName(ctx, trackUrn)` (returning `'本地'` for local/file paths, or provider display name e.g. `'哔哩哔哩'`). Sorting uses `localeCompare(..., { numeric: true, sensitivity: 'base' })`.
+  - Source names are resolved via `resolveTrackSourceName(ctx, trackUrn)` (in `@BBeBee/toolkit/hooks`; returning `'本地'` for local/file paths, or provider display name e.g. `'哔哩哔哩'`). Sorting uses `localeCompare(..., { numeric: true, sensitivity: 'base' })`.
   - Column headers omit the legacy checkmark, presenting clean column names and the Tabler `clock` icon.
 - **Batch Operations Mode & Toolbar (`BatchActionBar`)**:
   - The three-dot action menu in all four detail screens offers a direct "批量操作" entry (`id: 'batch-operations'`, icon `list-check`) with no nested submenus.
@@ -407,7 +407,7 @@ The app provides 5 built-in layout styles managed by `ctx.nowPlaying`:
    - Neutral dark base (`#0D1118`) with large cover backdrop (`opacity: 0.34`, `blur: 3.5px`, `scale 2`, centered) revealing artwork silhouette — cinematic film-reel atmosphere.
    - Left section (~46% width): square album artwork (up to 460px) with crisp white border (`2px solid rgba(255, 255, 255, 0.9)`), sharp corners (`borderRadius: 2`), and pronounced double-layer bottom-right shadow (`12px 16px 5px` + `20px 28px 56px`).
    - Right section: cursive/handwriting title (`Caveat` → `Segoe Print` → `cursive`, 46px, aligned not higher than cover top), muted artist, cinematic subtitle-style synchronized lyrics, then the settings-driven audio visualizer (the shared `visualizer.canvas` view — renders the style & color theme selected in settings) + progress bar + larger cursive italic timestamps with text shadow, aligned not lower than cover bottom.
-   - The lyric list (shared `CinematicLyricsTemplate`) scrolls with the scrollbar hidden in both synced and plain modes (`scrollbar-width: none` + `::-webkit-scrollbar { display: none }` via an injected rule) — the list is the stage, not a document; auto-follow pauses on wheel/touch and offers a 回到当前歌词 pill.
+   - The lyric list (the shared `CinematicLyricsTemplate`, owned by `ui-kit-desktop` so the now-playing cinematic layout and the lyrics panel consume one component) scrolls with the scrollbar hidden in both synced and plain modes (`scrollbar-width: none` + `::-webkit-scrollbar { display: none }` via an injected rule) — the list is the stage, not a document; auto-follow pauses on wheel/touch and offers a 回到当前歌词 pill.
    - The visualizer sits nested inside the progress bar width; the visualizer's `wave` style is the cinematic organic waveform (layered tapered sine bands, gradient stroke fading at both ends, soft glow, amplitude lifted by live audio).
    - **No playback control buttons and no style switcher button on screen** — pure cinematic immersion; top-left return and top-right window controls auto-hide when mouse is away from top bar.
 3. **`full-cover`**: Fullscreen blurred cover background, glassmorphism overlay, floating translucent transport controls.
@@ -464,7 +464,7 @@ External developers can create custom HTML/CSS/JS player skins and users can dyn
     - **Local Tracks**: Title, artist, album, storage category (`本地音乐文件`), filename, absolute filesystem path (with 1-click clipboard copy + feedback), formatted file size, and last modified timestamp.
     - **Third-Party Tracks**: `sourceId` (e.g. `bilibili`), `sourceTrackId` (parsed from track URN).
     - **Audio Technical Specs**: Track duration, sample rate (e.g. `44,100 Hz`), channels (e.g. `2 (立体声 Stereo)`), bitrate (e.g. `920 kbps`), codec (e.g. `FLAC`, `M4A`), tag types (e.g. `Vorbis, ID3v2.3`, `ID3v2` or `在线流媒体`).
-  - Read sources: `ctx.db` (`media_bindings`, `scan_entries`), `ctx.codec.readMetadata`, and live `ctx.player.currentStream`.
+  - Read sources: the aggregation is headless — `resolveTrackDetails` / `useTrackDetails` in `@BBeBee/plugin-now-playing/hooks` reads `ctx.db` (`media_bindings`, `scan_entries`), `ctx.codec.readMetadata`, `ctx.fs.stat`, and live `ctx.player.currentStream`, falling back stepwise; the modal only renders the returned rows.
 
 ### 9.5 Adaptive Title Wrapping & Chrome Clipping Preventions
 - **Two-Line Title Wrapping**:

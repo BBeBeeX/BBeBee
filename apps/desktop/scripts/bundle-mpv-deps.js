@@ -14,7 +14,7 @@
  * and libstdc++/libgcc_s exist on any distro that can start Electron, so
  * those are the only exclusions.
  */
-import { existsSync, copyFileSync, lstatSync, readlinkSync, readdirSync } from 'node:fs'
+import { existsSync, copyFileSync, lstatSync, readlinkSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'

@@ -163,11 +163,14 @@ B_Be_Bee/
 │   │   │                                       evaluate.ts the engine and its coercion,
 │   │   │                                       jsonpath.ts · template.ts the two dialects,
 │   │   │                                       regex-guard.ts the ReDoS bound
-│   │   ├── toolkit/                ✅        pure helpers that outgrew one plugin: stable ids
-│   │   │                                       (stableId, artworkId), splitArtists,
+│   │   ├── toolkit/                ✅        root: pure helpers that outgrew one plugin — stable
+│   │   │                                       ids (stableId, artworkId), splitArtists,
 │   │   │                                       formatDuration, formatTotalDuration, permute.
 │   │   │                                       Same charter as source-rules — no Cordis,
-│   │   │                                       no I/O, no deps
+│   │   │                                       no I/O, no deps. `./hooks`: the shared React
+│   │   │                                       service bindings (serviceOf, useServiceState,
+│   │   │                                       useTransport, useResolvedArtwork, …) so a view
+│   │   │                                       never imports another feature for one
 │   │   ├── plugin-source-runtime/  ✅        binds source-rules to ctx.http · ctx.js (06 §4)
 │   │   ├── plugin-sources/         ✅        the ctx.sources registry + catalogue (06 §4.1)
 │   │   ├── plugin-album/           ✅        the album page: route + view id, reads through
@@ -206,7 +209,8 @@ B_Be_Bee/
 │   │   │                                      sibling, which views import through its public
 │   │   │                                      subpaths only (types, hooks, view ids).
 │   │   ├── ui-tokens/              ✅        design tokens as data + the WCAG AA gate (08 §8)
-│   │   ├── ui-core/                ✅        framework-agnostic hooks + shared prop types
+│   │   ├── ui-core/                ✅        view-generic surface (identicon + shared prop
+│   │   │                                       types); re-exports the toolkit/hooks bindings
 │   │   ├── ui-menus/               ✅        context-menu models shared by both shells: the
 │   │   │                                       actions for a track, playlist and collection
 │   │   ├── ui-parity/              ✅        the component contract, and the check that both
@@ -301,7 +305,7 @@ still says what kind of thing it is, and the two agree by construction — a `co
 | `protocol/` | 0 | `protocol` — the contracts. One package, no runtime |
 | `kernel/` | 1 | `kernel` — one package |
 | `core/` | 2 | `core-<service>-<platform>` — one platform implementation of a core service |
-| `feature/` | 4 | `plugin-<feature>` headless, `plugin-effect-<id>` for a DSP effect, and `source-rules` · `toolkit`, pure-logic libraries beneath the plugins rather than plugins themselves |
+| `feature/` | 4 | `plugin-<feature>` headless, `plugin-effect-<id>` for a DSP effect, and `source-rules` · `toolkit` — pure-logic libraries beneath the plugins rather than plugins themselves (`toolkit` root; its `./hooks` subpath carries the shared React service bindings) |
 | `ui/` | 5 | `plugin-<feature>-ui-<target>` for views, `ui-*` for the infrastructure both kits share |
 | `tooling/` | — | `tooling-*`. Outside the layer model, because nothing here ships |
 
@@ -311,10 +315,13 @@ in the name are `plugin-source-runtime`, which interprets documents, and `plugin
 which has no HTTP to describe ([06 §12](../sources/authoring.md#12-what-is-not-a-string-local-files)).
 The example documents this repository ships live in `fixtures/sources/`, not in `packages/`.
 
-`toolkit` shares `source-rules`' shape — **no manifest, so no lifecycle**: it is pure,
-dependency-free logic imported directly by whichever plugin needs it, coupling nothing. A package
-without a `BBeBee.plugin.json` is a library, and a library never names a `ctx.*` service; the
-moment code needs one, it belongs in a `plugin-<feature>` package instead.
+`toolkit` shares `source-rules`' shape — **no manifest, so no lifecycle**: it is imported directly
+by whichever package needs it, coupling nothing. The charter is two-part. The **root** is pure,
+dependency-free logic — a library never names a `ctx.*` service; the moment code needs one, it
+belongs in a `plugin-<feature>` package. The **`./hooks` subpath** is the one deliberate exception:
+the shared React bindings that read services on behalf of every view package, addressed through
+service keys and typed events only — it imports no `plugin-*` package, so a view binding to the
+transport never has to import the player feature.
 
 ---
 

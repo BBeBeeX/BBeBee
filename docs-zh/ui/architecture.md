@@ -219,10 +219,10 @@ flowchart LR
 
 来自 [02 §6](../architecture/layers.md#6-状态归属) 的规则：**React 不持有任何领域状态。** 状态由服务拥有，组件负责订阅。
 
-`ui-kit-mobile` 与 `ui-kit-desktop` 都构建在 `@BBeBee/ui-core` 中同一个共享的、与框架无关的 hook 层之上，它只依赖 `react` 和 `@BBeBee/protocol`：
+`ui-kit-mobile` 与 `ui-kit-desktop` 都构建在 `@BBeBee/toolkit/hooks` 中同一个共享的、与框架无关的 hook 层之上，它只依赖 `react` 和 `@BBeBee/protocol`；`@BBeBee/ui-core` 对其做再导出，并附加视图通用的部分（`identicon`、共享 prop 类型）：
 
 ```ts
-// @BBeBee/ui-core
+// @BBeBee/toolkit/hooks
 export function useService<K extends ServiceKey>(key: K): Context[K] | undefined
 
 /**
@@ -237,10 +237,10 @@ export function useServiceState<K extends ServiceKey, T>(
 ): T
 ```
 
-功能专属的 hook 是薄封装，它们放在 **headless** 包中，从而被两个外壳共享：
+跨功能的绑定——传输状态、封面解析、歌词同步——也在同一个子路径里，这正是桌面视图**无需导入播放器 feature** 就能绑定传输的原因。各 feature 自己的 `./hooks` 子路径仍是它的公开面，并把委托出去的实现逐一再导出：
 
 ```ts
-// @BBeBee/plugin-player/hooks — shared by both UI packages
+// @BBeBee/toolkit/hooks — 由 @BBeBee/plugin-player/hooks 再导出
 export const useTransport = () =>
   useServiceState('player', ['player/state-changed'], (p) => p.state)
 
