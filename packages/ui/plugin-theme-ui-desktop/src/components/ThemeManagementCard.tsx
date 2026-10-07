@@ -168,10 +168,10 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
         h(
           'div',
           { style: { display: 'flex', flexDirection: 'column', gap: 3 } },
-          h('div', { style: { fontSize: 13, fontWeight: 500, color: '#F5F5F7' } }, '外观模式'),
+          h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #F5F5F7)' } }, '外观模式'),
           h(
             'div',
-            { style: { fontSize: 12, color: '#8E8E93', lineHeight: 1.45 } },
+            { style: { fontSize: 12, color: 'var(--text-secondary, #8E8E93)', lineHeight: 1.45 } },
             '切换应用深色、浅色或跟随系统外观',
           ),
         ),
@@ -244,10 +244,10 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
         h(
           'div',
           { style: { display: 'flex', flexDirection: 'column', gap: 3 } },
-          h('div', { style: { fontSize: 13, fontWeight: 500, color: '#F5F5F7' } }, '界面主题'),
+          h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #F5F5F7)' } }, '界面主题'),
           h(
             'div',
-            { style: { fontSize: 12, color: '#8E8E93', lineHeight: 1.45 } },
+            { style: { fontSize: 12, color: 'var(--text-secondary, #8E8E93)', lineHeight: 1.45 } },
             '选择全应用色彩方案，或导入自定义主题',
           ),
         ),
@@ -270,7 +270,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
               borderWidth: 1,
               borderStyle: 'dashed',
               borderColor: 'var(--border-default, rgba(255, 255, 255, 0.25))',
-              background: 'rgba(255, 255, 255, 0.04)',
+              background: 'var(--surface-1, rgba(255, 255, 255, 0.04))',
               color: 'var(--text-secondary, #C5CAD8)',
               cursor: 'pointer',
               fontSize: 13,
@@ -279,7 +279,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
             },
             onMouseEnter: (e: { currentTarget: HTMLElement }) => {
               e.currentTarget.style.borderColor = 'var(--color-primary, #5F87FF)'
-              e.currentTarget.style.color = '#FFFFFF'
+              e.currentTarget.style.color = 'var(--text-primary, #FFFFFF)'
             },
             onMouseLeave: (e: { currentTarget: HTMLElement }) => {
               e.currentTarget.style.borderColor = 'var(--border-default, rgba(255, 255, 255, 0.25))'
@@ -337,7 +337,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
                   : '1px solid var(--border-subtle, rgba(255, 255, 255, 0.12))',
                 background: isSelected
                   ? 'var(--surface-selected, rgba(95, 135, 255, 0.15))'
-                  : 'rgba(255, 255, 255, 0.04)',
+                  : 'var(--surface-1, rgba(255, 255, 255, 0.04))',
                 color: isSelected ? 'var(--text-primary, #FFFFFF)' : 'var(--text-secondary, #C5CAD8)',
                 cursor: 'pointer',
                 fontSize: 13,

@@ -21,7 +21,7 @@ export function common(props: { testID?: string; accessibilityLabel?: string }) 
 export const toneColor = (tone: Tone | undefined): string => {
   switch (tone) {
     case 'muted':
-      return 'var(--text-secondary, rgba(255,255,255,0.75))'
+      return 'var(--text-secondary, var(--bb-text-secondary, #5E5E5E))'
     case 'accent':
       return 'var(--accent, #A99CFF)'
     case 'error':
@@ -31,7 +31,7 @@ export const toneColor = (tone: Tone | undefined): string => {
     case 'ok':
       return 'var(--success, #22C55E)'
     default:
-      return 'var(--text-primary, #FFFFFF)'
+      return 'var(--text-primary, var(--bb-text-primary, #000000))'
   }
 }
 
@@ -58,14 +58,14 @@ export function buttonStyle(variant: ButtonVariant, disabled: boolean, hovered: 
       return {
         ...base,
         background: hovered && !disabled ? 'var(--color-surface-hover, var(--surface-hover))' : 'transparent',
-        color: 'var(--text-primary, #FFFFFF)',
+        color: 'var(--text-primary, var(--bb-text-primary, #000000))',
         borderColor: hovered && !disabled ? 'var(--border-hover, rgba(145,176,255,0.25))' : 'var(--border-default, rgba(145,176,255,0.14))',
       }
     case 'ghost':
       return {
         ...base,
         background: hovered && !disabled ? 'var(--color-surface-hover, var(--surface-hover))' : 'transparent',
-        color: hovered && !disabled ? 'var(--text-primary, #FFFFFF)' : 'var(--text-secondary, rgba(255,255,255,0.75))',
+        color: hovered && !disabled ? 'var(--text-primary, var(--bb-text-primary, #000000))' : 'var(--text-secondary, var(--bb-text-secondary, #5E5E5E))',
         transform: 'scale(1)',
       }
     case 'danger':

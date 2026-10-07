@@ -55,7 +55,7 @@ export function SettingsSection({
             {
               style: {
                 fontSize: 12,
-                color: '#8E8E93',
+                color: 'var(--text-secondary, #8E8E93)',
                 margin: '3px 0 0',
                 lineHeight: 1.4,
               },
@@ -70,8 +70,8 @@ export function SettingsSection({
         style: {
           display: 'flex',
           flexDirection: 'column',
-          background: 'rgba(255, 255, 255, 0.03)',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
+          background: 'var(--surface-1, rgba(255, 255, 255, 0.03))',
+          border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.06))',
           borderRadius: 10,
           padding: '2px 18px',
           marginTop: 8,

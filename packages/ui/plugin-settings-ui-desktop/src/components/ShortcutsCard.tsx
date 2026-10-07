@@ -69,10 +69,10 @@ export function ShortcutsCard({ ctx }: { ctx: Context }): ReactElement {
     h(
       'div',
       { style: { padding: '4px 4px 12px' } },
-      h('div', { style: { fontSize: 13, fontWeight: 500, color: '#F5F5F7' } }, '全局快捷键'),
+      h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #F5F5F7)' } }, '全局快捷键'),
       h(
         'div',
-        { style: { fontSize: 12, color: '#8E8E93', marginTop: 2 } },
+        { style: { fontSize: 12, color: 'var(--text-secondary, #8E8E93)', marginTop: 2 } },
         '在操作系统后台通过键盘组合键全局控制音乐播放、音量与窗口显隐',
       ),
     ),
@@ -97,9 +97,9 @@ export function ShortcutsCard({ ctx }: { ctx: Context }): ReactElement {
               style: {
                 padding: '4px 12px',
                 borderRadius: 6,
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(255, 255, 255, 0.14)',
-                color: '#F5F5F7',
+                background: 'var(--surface-hover, rgba(255, 255, 255, 0.08))',
+                border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.14))',
+                color: 'var(--text-primary, #F5F5F7)',
                 fontSize: 12,
                 fontFamily: 'ui-monospace, monospace',
                 fontWeight: 600,

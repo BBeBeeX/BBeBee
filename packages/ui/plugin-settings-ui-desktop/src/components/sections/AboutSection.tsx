@@ -74,10 +74,10 @@ export function AboutSection({
         h(
           'div',
           null,
-          h('div', { style: { fontSize: 18, fontWeight: 700, color: '#F5F5F7' } }, 'BBeBee'),
+          h('div', { style: { fontSize: 18, fontWeight: 700, color: 'var(--text-primary, #F5F5F7)' } }, 'BBeBee'),
           h(
             'div',
-            { style: { fontSize: 12, color: '#8E8E93', marginTop: 2 } },
+            { style: { fontSize: 12, color: 'var(--text-secondary, #8E8E93)', marginTop: 2 } },
             '跨平台插件化音乐播放器 · Version 0.1.0',
           ),
         ),

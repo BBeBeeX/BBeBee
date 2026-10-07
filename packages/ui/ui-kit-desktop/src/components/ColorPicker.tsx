@@ -53,9 +53,9 @@ export function ColorPicker({ value, onChange, accessibilityLabel }: ColorPicker
           height: 24,
           borderRadius: '50%',
           background: preset.color,
-          border: isSelected ? '2px solid #FFFFFF' : '2px solid transparent',
+          border: isSelected ? '2px solid var(--text-primary, #FFFFFF)' : '2px solid transparent',
           boxShadow: isSelected
-            ? '0 0 0 2px rgba(255, 255, 255, 0.4), 0 2px 6px rgba(0, 0, 0, 0.5)'
+            ? '0 0 0 2px var(--border-hover, rgba(255, 255, 255, 0.4)), 0 2px 6px rgba(0, 0, 0, 0.5)'
             : '0 1px 3px rgba(0, 0, 0, 0.3)',
           cursor: 'pointer',
           padding: 0,
@@ -81,9 +81,9 @@ export function ColorPicker({ value, onChange, accessibilityLabel }: ColorPicker
         width: 78,
         height: 28,
         borderRadius: 6,
-        background: 'rgba(255, 255, 255, 0.08)',
-        border: '1px solid rgba(255, 255, 255, 0.15)',
-        color: '#FFFFFF',
+        background: 'var(--input-bg, rgba(255, 255, 255, 0.08))',
+        border: '1px solid var(--input-border, rgba(255, 255, 255, 0.15))',
+        color: 'var(--text-primary, #FFFFFF)',
         fontSize: 12,
         fontFamily: 'ui-monospace, monospace',
         padding: '0 8px',

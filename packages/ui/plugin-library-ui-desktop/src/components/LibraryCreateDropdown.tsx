@@ -33,17 +33,17 @@ export function LibraryCreateButton({
         gap: 4,
         padding: '6px 14px',
         borderRadius: 16,
-        backgroundColor: '#242424',
-        border: 'none',
+        backgroundColor: 'var(--bb-bg-raised, var(--surface-1, #242424))',
+        border: '1px solid var(--border-subtle, transparent)',
         color: 'var(--bb-text-primary, #FFFFFF)',
         cursor: 'pointer',
         transition: 'background-color 0.15s ease',
       },
       onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-        e.currentTarget.style.backgroundColor = '#2E2E2E'
+        e.currentTarget.style.backgroundColor = 'var(--surface-hover, #2E2E2E)'
       },
       onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-        e.currentTarget.style.backgroundColor = '#242424'
+        e.currentTarget.style.backgroundColor = 'var(--bb-bg-raised, var(--surface-1, #242424))'
       },
     },
     h(
@@ -86,10 +86,11 @@ export function LibraryCreateMenu({
         left: isCollapsed ? (collapsedMenuPos?.left ?? 80) : undefined,
         right: isCollapsed ? undefined : 0,
         width: 240,
-        backgroundColor: '#282828',
+        backgroundColor: 'var(--bb-bg-overlay, var(--surface-2, #282828))',
+        border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
         borderRadius: 8,
         padding: '6px 0',
-        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.7)',
+        boxShadow: 'var(--shadow-dropdown, 0 8px 24px rgba(0, 0, 0, 0.7))',
         zIndex: 10000,
         display: 'flex',
         flexDirection: 'column',
@@ -117,7 +118,7 @@ export function LibraryCreateMenu({
           transition: 'background-color 0.15s ease',
         },
         onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'
+          e.currentTarget.style.backgroundColor = 'var(--surface-hover, rgba(255, 255, 255, 0.08))'
         },
         onMouseLeave: (e: { currentTarget: HTMLElement }) => {
           e.currentTarget.style.backgroundColor = 'transparent'
@@ -130,7 +131,7 @@ export function LibraryCreateMenu({
             width: 32,
             height: 32,
             borderRadius: '50%',
-            backgroundColor: '#3E3E3E',
+            backgroundColor: 'var(--surface-1, var(--bb-bg-sunken, #3E3E3E))',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -144,10 +145,10 @@ export function LibraryCreateMenu({
         'div',
         { style: { flex: 1, minWidth: 0 } },
         h('div', { style: { color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600, fontSize: 14 } }, '歌单'),
-        h('div', { style: { color: '#A0A0AE', fontSize: 12, marginTop: 2 } }, '创建包含歌曲或单集的歌单'),
+        h('div', { style: { color: 'var(--bb-text-secondary, #A0A0AE)', fontSize: 12, marginTop: 2 } }, '创建包含歌曲或单集的歌单'),
       ),
     ),
-    h('div', { style: { height: 1, backgroundColor: 'rgba(255, 255, 255, 0.1)', margin: '4px 0' } }),
+    h('div', { style: { height: 1, backgroundColor: 'var(--border-subtle, rgba(255, 255, 255, 0.1))', margin: '4px 0' } }),
     h(
       'button',
       {
@@ -169,7 +170,7 @@ export function LibraryCreateMenu({
           transition: 'background-color 0.15s ease',
         },
         onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'
+          e.currentTarget.style.backgroundColor = 'var(--surface-hover, rgba(255, 255, 255, 0.08))'
         },
         onMouseLeave: (e: { currentTarget: HTMLElement }) => {
           e.currentTarget.style.backgroundColor = 'transparent'
@@ -182,7 +183,7 @@ export function LibraryCreateMenu({
             width: 32,
             height: 32,
             borderRadius: '50%',
-            backgroundColor: '#3E3E3E',
+            backgroundColor: 'var(--surface-1, var(--bb-bg-sunken, #3E3E3E))',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -196,7 +197,7 @@ export function LibraryCreateMenu({
         'div',
         { style: { flex: 1, minWidth: 0 } },
         h('div', { style: { color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600, fontSize: 14 } }, '文件夹'),
-        h('div', { style: { color: '#A0A0AE', fontSize: 12, marginTop: 2 } }, '管理歌单'),
+        h('div', { style: { color: 'var(--bb-text-secondary, #A0A0AE)', fontSize: 12, marginTop: 2 } }, '管理歌单'),
       ),
     ),
   )

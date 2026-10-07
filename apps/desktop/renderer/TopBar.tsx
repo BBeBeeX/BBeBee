@@ -224,7 +224,7 @@ export function SleepTimerIndicator({ ctx }: { ctx: Context }): ReactElement | n
                   display: 'flex',
                   alignItems: 'center',
                   gap: 6,
-                  color: '#FFFFFF',
+                  color: 'var(--text-primary, #FFFFFF)',
                   fontWeight: 600,
                   fontSize: 13,
                 },
@@ -272,7 +272,7 @@ export function SleepTimerIndicator({ ctx }: { ctx: Context }): ReactElement | n
                   borderRadius: 6,
                   border: '1px solid rgba(239, 68, 68, 0.3)',
                   background: 'rgba(239, 68, 68, 0.15)',
-                  color: '#FF6B6B',
+                  color: 'var(--error, #FF6B6B)',
                   fontSize: 12,
                   fontWeight: 600,
                   cursor: 'pointer',
@@ -371,7 +371,7 @@ export function TrayIndicator({ ctx }: { ctx: Context }): ReactElement {
             : '1px solid var(--border-subtle, rgba(148, 163, 184, 0.15))',
           background: open
             ? 'var(--surface-selected, rgba(99, 102, 241, 0.15))'
-            : 'rgba(255, 255, 255, 0.06)',
+            : 'var(--surface-1, rgba(255, 255, 255, 0.06))',
           color: open ? 'var(--accent, #818CF8)' : 'var(--text-primary, #F5F7FF)',
           cursor: 'pointer',
           padding: 0,
@@ -379,11 +379,11 @@ export function TrayIndicator({ ctx }: { ctx: Context }): ReactElement {
         },
         onMouseEnter: (e: { currentTarget: HTMLElement }) => {
           e.currentTarget.style.transform = 'scale(1.06)'
-          if (!open) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'
+          if (!open) e.currentTarget.style.background = 'var(--surface-hover, rgba(255, 255, 255, 0.12))'
         },
         onMouseLeave: (e: { currentTarget: HTMLElement }) => {
           e.currentTarget.style.transform = 'scale(1)'
-          if (!open) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)'
+          if (!open) e.currentTarget.style.background = 'var(--surface-1, rgba(255, 255, 255, 0.06))'
         },
       },
       tablerIcon(open ? 'chevron-up' : 'chevron-down', { size: 18 }),
@@ -399,12 +399,12 @@ export function TrayIndicator({ ctx }: { ctx: Context }): ReactElement {
               right: 0,
               minWidth: 180,
               maxWidth: 280,
-              background: 'rgba(18, 22, 34, 0.96)',
+              background: 'var(--bb-bg-overlay, var(--surface-2, rgba(18, 22, 34, 0.96)))',
               backdropFilter: 'blur(16px)',
               WebkitBackdropFilter: 'blur(16px)',
               border: '1px solid var(--border-subtle, rgba(148, 163, 184, 0.2))',
               borderRadius: 12,
-              boxShadow: '0 12px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+              boxShadow: 'var(--shadow-dropdown, 0 12px 32px rgba(0, 0, 0, 0.2)), 0 0 0 1px var(--border-subtle, rgba(255, 255, 255, 0.05))',
               padding: '10px 10px',
               zIndex: 1000,
               display: 'flex',
@@ -420,10 +420,10 @@ export function TrayIndicator({ ctx }: { ctx: Context }): ReactElement {
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '2px 4px 6px 4px',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.07)',
+                borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.07))',
                 fontSize: 11,
                 fontWeight: 600,
-                color: 'rgba(255, 255, 255, 0.6)',
+                color: 'var(--text-secondary, rgba(255, 255, 255, 0.6))',
                 letterSpacing: '0.04em',
               },
             },
@@ -433,8 +433,8 @@ export function TrayIndicator({ ctx }: { ctx: Context }): ReactElement {
               {
                 style: {
                   fontSize: 10,
-                  color: 'rgba(255, 255, 255, 0.4)',
-                  background: 'rgba(255, 255, 255, 0.06)',
+                  color: 'var(--text-tertiary, rgba(255, 255, 255, 0.4))',
+                  background: 'var(--surface-hover, rgba(255, 255, 255, 0.06))',
                   padding: '1px 6px',
                   borderRadius: 8,
                 },
@@ -450,7 +450,7 @@ export function TrayIndicator({ ctx }: { ctx: Context }): ReactElement {
                   style: {
                     padding: '16px 8px',
                     fontSize: 12,
-                    color: 'rgba(255, 255, 255, 0.4)',
+                    color: 'var(--text-muted, rgba(255, 255, 255, 0.4))',
                     textAlign: 'center',
                   },
                 },
@@ -490,21 +490,21 @@ export function TrayIndicator({ ctx }: { ctx: Context }): ReactElement {
                         width: 44,
                         height: 44,
                         borderRadius: 8,
-                        border: '1px solid rgba(255, 255, 255, 0.06)',
-                        background: 'rgba(255, 255, 255, 0.04)',
+                        border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.06))',
+                        background: 'var(--surface-1, rgba(255, 255, 255, 0.04))',
                         color: 'var(--text-primary, #F5F7FF)',
                         cursor: 'pointer',
                         padding: 0,
                         transition: 'background 0.15s ease, transform 0.12s ease, border-color 0.15s ease',
                       },
                       onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'
-                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'
+                        e.currentTarget.style.background = 'var(--surface-hover, rgba(255, 255, 255, 0.12))'
+                        e.currentTarget.style.borderColor = 'var(--border-default, rgba(255, 255, 255, 0.2))'
                         e.currentTarget.style.transform = 'translateY(-1px)'
                       },
                       onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)'
-                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.06)'
+                        e.currentTarget.style.background = 'var(--surface-1, rgba(255, 255, 255, 0.04))'
+                        e.currentTarget.style.borderColor = 'var(--border-subtle, rgba(255, 255, 255, 0.06))'
                         e.currentTarget.style.transform = 'translateY(0)'
                       },
                     },
@@ -576,7 +576,7 @@ export function WindowControls({ style }: WindowControlsProps = {}): ReactElemen
           transition: 'background-color 0.1s ease, color 0.1s ease',
         },
         onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'
+          e.currentTarget.style.backgroundColor = 'var(--surface-hover, rgba(255, 255, 255, 0.1))'
           e.currentTarget.style.color = 'var(--text-primary, #F5F7FF)'
         },
         onMouseLeave: (e: { currentTarget: HTMLElement }) => {
@@ -607,7 +607,7 @@ export function WindowControls({ style }: WindowControlsProps = {}): ReactElemen
           transition: 'background-color 0.1s ease, color 0.1s ease',
         },
         onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'
+          e.currentTarget.style.backgroundColor = 'var(--surface-hover, rgba(255, 255, 255, 0.1))'
           e.currentTarget.style.color = 'var(--text-primary, #F5F7FF)'
         },
         onMouseLeave: (e: { currentTarget: HTMLElement }) => {
@@ -896,7 +896,11 @@ export function TopBar({
           alt: 'BBeBee',
           width: 22,
           height: 22,
-          style: { display: 'block', objectFit: 'contain' },
+          style: {
+            display: 'block',
+            objectFit: 'contain',
+            filter: 'var(--logo-filter, none)',
+          },
         }),
       ),
       // Back Button (←)
@@ -923,7 +927,7 @@ export function TopBar({
           },
           onMouseEnter: (e: { currentTarget: HTMLElement }) => {
             if (canGoBack) {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'
+              e.currentTarget.style.backgroundColor = 'var(--surface-hover, rgba(255, 255, 255, 0.08))'
               e.currentTarget.style.color = 'var(--text-primary, #F5F7FF)'
             }
           },
@@ -960,7 +964,7 @@ export function TopBar({
           },
           onMouseEnter: (e: { currentTarget: HTMLElement }) => {
             if (canGoForward) {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'
+              e.currentTarget.style.backgroundColor = 'var(--surface-hover, rgba(255, 255, 255, 0.08))'
               e.currentTarget.style.color = 'var(--text-primary, #F5F7FF)'
             }
           },
@@ -1135,18 +1139,18 @@ export function TopBar({
                   height: 28,
                   borderRadius: '50%',
                   border: 'none',
-                  background: 'rgba(255, 255, 255, 0.12)',
+                  background: 'var(--surface-hover, rgba(255, 255, 255, 0.12))',
                   color: 'var(--text-primary, #F5F7FF)',
                   cursor: 'pointer',
                   flexShrink: 0,
                   transition: 'background-color 0.15s ease, transform 0.15s ease',
                 },
                 onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.22)'
+                  e.currentTarget.style.backgroundColor = 'var(--surface-active, rgba(255, 255, 255, 0.22))'
                   e.currentTarget.style.transform = 'scale(1.05)'
                 },
                 onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.12)'
+                  e.currentTarget.style.backgroundColor = 'var(--surface-hover, rgba(255, 255, 255, 0.12))'
                   e.currentTarget.style.transform = 'scale(1)'
                 },
               },
@@ -1338,21 +1342,21 @@ export function TopBar({
                                 borderRadius: 9999,
                                 borderWidth: 1,
                                 borderStyle: 'solid',
-                                borderColor: 'rgba(255, 255, 255, 0.15)',
+                                borderColor: 'var(--border-subtle, rgba(255, 255, 255, 0.15))',
                                 background: 'transparent',
-                                color: 'rgba(255, 255, 255, 0.6)',
+                                color: 'var(--text-secondary, rgba(255, 255, 255, 0.6))',
                                 fontSize: 11,
                                 fontWeight: 500,
                                 cursor: 'pointer',
                                 transition: 'all 0.15s ease',
                               },
                               onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.35)'
-                                e.currentTarget.style.color = '#FFFFFF'
+                                e.currentTarget.style.borderColor = 'var(--border-default, rgba(255, 255, 255, 0.35))'
+                                e.currentTarget.style.color = 'var(--text-primary, #FFFFFF)'
                               },
                               onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)'
-                                e.currentTarget.style.color = 'rgba(255, 255, 255, 0.6)'
+                                e.currentTarget.style.borderColor = 'var(--border-subtle, rgba(255, 255, 255, 0.15))'
+                                e.currentTarget.style.color = 'var(--text-secondary, rgba(255, 255, 255, 0.6))'
                               },
                             },
                             selection.allSelected ? '全不选' : '全选',
@@ -1378,7 +1382,7 @@ export function TopBar({
                 history.length === 0
                   ? h(
                       'span',
-                      { style: { fontSize: 12, color: 'rgba(255, 255, 255, 0.35)', padding: '4px 0' } },
+                      { style: { fontSize: 12, color: 'var(--text-muted, rgba(255, 255, 255, 0.35))', padding: '4px 0' } },
                       '暂无搜索历史',
                     )
                   : history.map((item) =>
@@ -1399,9 +1403,9 @@ export function TopBar({
                             borderRadius: 9999,
                             borderWidth: 1,
                             borderStyle: 'solid',
-                            borderColor: 'rgba(255, 255, 255, 0.1)',
-                            background: 'rgba(255, 255, 255, 0.06)',
-                            color: 'rgba(255, 255, 255, 0.8)',
+                            borderColor: 'var(--border-subtle, rgba(255, 255, 255, 0.1))',
+                            background: 'var(--surface-1, rgba(255, 255, 255, 0.06))',
+                            color: 'var(--text-secondary, rgba(255, 255, 255, 0.8))',
                             fontSize: 11,
                             cursor: 'pointer',
                             maxWidth: 160,
@@ -1411,14 +1415,14 @@ export function TopBar({
                             transition: 'all 0.15s ease',
                           },
                           onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-                            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)'
-                            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.12)'
-                            e.currentTarget.style.color = '#FFFFFF'
+                            e.currentTarget.style.borderColor = 'var(--border-default, rgba(255, 255, 255, 0.3))'
+                            e.currentTarget.style.backgroundColor = 'var(--surface-hover, rgba(255, 255, 255, 0.12))'
+                            e.currentTarget.style.color = 'var(--text-primary, #FFFFFF)'
                           },
                           onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-                            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'
-                            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.06)'
-                            e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)'
+                            e.currentTarget.style.borderColor = 'var(--border-subtle, rgba(255, 255, 255, 0.1))'
+                            e.currentTarget.style.backgroundColor = 'var(--surface-1, rgba(255, 255, 255, 0.06))'
+                            e.currentTarget.style.color = 'var(--text-secondary, rgba(255, 255, 255, 0.8))'
                           },
                         },
                         item,

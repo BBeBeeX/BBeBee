@@ -419,12 +419,12 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
       { style: { padding: '4px 4px 12px' } },
       h(
         'div',
-        { style: { fontSize: 13, fontWeight: 500, color: '#F5F5F7' } },
+        { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #F5F5F7)' } },
         '播放页样式模板 (Now Playing Layout Styles)',
       ),
       h(
         'div',
-        { style: { fontSize: 12, color: '#8E8E93', marginTop: 2 } },
+        { style: { fontSize: 12, color: 'var(--text-secondary, #8E8E93)', marginTop: 2 } },
         '选择全屏播放页呈现布局，支持原生内置样式与动态导入第三方沙箱模板插件',
       ),
     ),
@@ -453,10 +453,10 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
         h(
           'div',
           { style: { display: 'flex', flexDirection: 'column', gap: 3 } },
-          h('div', { style: { fontSize: 13, fontWeight: 500, color: '#F5F5F7' } }, '界面布局'),
+          h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #F5F5F7)' } }, '界面布局'),
           h(
             'div',
-            { style: { fontSize: 12, color: '#8E8E93', lineHeight: 1.45 } },
+            { style: { fontSize: 12, color: 'var(--text-secondary, #8E8E93)', lineHeight: 1.45 } },
             `已加载 ${styles.length} 套样式模板 · 当前使用: ${styles.find((s) => s.id === currentStyleId)?.name ?? currentStyleId}`,
           ),
         ),
@@ -479,7 +479,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
               borderWidth: 1,
               borderStyle: 'dashed',
               borderColor: 'var(--border-default, rgba(255, 255, 255, 0.25))',
-              background: 'rgba(255, 255, 255, 0.04)',
+              background: 'var(--surface-1, rgba(255, 255, 255, 0.04))',
               color: 'var(--text-secondary, #C5CAD8)',
               cursor: 'pointer',
               fontSize: 13,
@@ -488,7 +488,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
             },
             onMouseEnter: (e: { currentTarget: HTMLElement }) => {
               e.currentTarget.style.borderColor = 'var(--color-primary, #5F87FF)'
-              e.currentTarget.style.color = '#FFFFFF'
+              e.currentTarget.style.color = 'var(--text-primary, #FFFFFF)'
             },
             onMouseLeave: (e: { currentTarget: HTMLElement }) => {
               e.currentTarget.style.borderColor = 'var(--border-default, rgba(255, 255, 255, 0.25))'
@@ -540,7 +540,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                   : '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
                 background: isSelected
                   ? 'var(--surface-selected, rgba(95, 135, 255, 0.12))'
-                  : 'rgba(255, 255, 255, 0.025)',
+                  : 'var(--surface-1, rgba(255, 255, 255, 0.025))',
                 cursor: 'pointer',
                 transition: 'all 0.18s ease',
                 boxShadow: isSelected ? '0 0 16px rgba(95, 135, 255, 0.25)' : 'none',
@@ -570,8 +570,8 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                     borderRadius: 8,
                     background: isSelected
                       ? 'rgba(95, 135, 255, 0.2)'
-                      : 'rgba(255, 255, 255, 0.06)',
-                    color: isSelected ? 'var(--color-primary, #5F87FF)' : '#C5CAD8',
+                      : 'var(--surface-1, rgba(255, 255, 255, 0.06))',
+                    color: isSelected ? 'var(--color-primary, #5F87FF)' : 'var(--text-secondary, #C5CAD8)',
                   },
                 },
                 tablerIcon(s.icon || 'layout', { size: 18 }),
@@ -603,8 +603,8 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                           fontWeight: 500,
                           padding: '2px 7px',
                           borderRadius: 4,
-                          background: 'rgba(255, 255, 255, 0.07)',
-                          color: '#8E8E93',
+                          background: 'var(--surface-1, rgba(255, 255, 255, 0.07))',
+                          color: 'var(--text-secondary, #8E8E93)',
                         },
                       },
                       '内置',
@@ -619,7 +619,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                           padding: '2px 7px',
                           borderRadius: 4,
                           background: 'var(--color-primary, #5F87FF)',
-                          color: '#FFFFFF',
+                          color: 'var(--bb-accent-on, #FFFFFF)',
                           display: 'flex',
                           alignItems: 'center',
                           gap: 3,
@@ -672,7 +672,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                   style: {
                     fontSize: 14,
                     fontWeight: 600,
-                    color: isSelected ? '#FFFFFF' : '#F2F5FF',
+                    color: isSelected ? 'var(--text-primary, #FFFFFF)' : 'var(--text-primary, #F2F5FF)',
                     marginBottom: 4,
                   },
                 },
@@ -683,7 +683,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                 {
                   style: {
                     fontSize: 12,
-                    color: '#8E8E93',
+                    color: 'var(--text-secondary, #8E8E93)',
                     lineHeight: 1.45,
                   },
                 },
@@ -696,10 +696,10 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
               {
                 style: {
                   fontSize: 11,
-                  color: '#636366',
+                  color: 'var(--text-muted, #636366)',
                   marginTop: 12,
                   paddingTop: 8,
-                  borderTop: '1px solid rgba(255, 255, 255, 0.04)',
+                  borderTop: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.04))',
                 },
               },
               s.author ? `by ${s.author}${s.version ? ` · v${s.version}` : ''}` : '官方提供',
@@ -837,11 +837,11 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
           style: {
             width: '100%',
             height: 180,
-            background: 'rgba(0, 0, 0, 0.35)',
-            border: '1px solid var(--border-default, rgba(255, 255, 255, 0.14))',
+            background: 'var(--input-bg, rgba(0, 0, 0, 0.35))',
+            border: '1px solid var(--input-border, rgba(255, 255, 255, 0.14))',
             borderRadius: 8,
             padding: 10,
-            color: '#FFFFFF',
+            color: 'var(--text-primary, #FFFFFF)',
             fontFamily: 'monospace',
             fontSize: 12,
             resize: 'vertical',

@@ -90,13 +90,14 @@ export function LibraryModals({
         {
           style: {
             width: 340,
-            backgroundColor: 'var(--bb-bg-overlay, #282828)',
+            backgroundColor: 'var(--surface-overlay, var(--bb-bg-overlay, #282828))',
             borderRadius: 8,
             padding: 20,
             display: 'flex',
             flexDirection: 'column',
             gap: 16,
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.8)',
+            border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+            boxShadow: 'var(--shadow-modal, 0 8px 32px rgba(0, 0, 0, 0.8))',
           },
         },
         h('h3', { style: { margin: 0, fontSize: 16, color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600 } }, '创建歌单'),
@@ -149,13 +150,14 @@ export function LibraryModals({
         {
           style: {
             width: 340,
-            backgroundColor: 'var(--bb-bg-overlay, #282828)',
+            backgroundColor: 'var(--surface-overlay, var(--bb-bg-overlay, #282828))',
             borderRadius: 8,
             padding: 20,
             display: 'flex',
             flexDirection: 'column',
             gap: 16,
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.8)',
+            border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+            boxShadow: 'var(--shadow-modal, 0 8px 32px rgba(0, 0, 0, 0.8))',
           },
         },
         h('h3', { style: { margin: 0, fontSize: 16, color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600 } }, '创建文件夹'),

@@ -37,14 +37,14 @@ export function MiniPlayerButton({ ctx, style }: MiniPlayerButtonProps): ReactEl
       },
       onMouseEnter: (e: { currentTarget: HTMLElement }) => {
         if (!visible) {
-          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'
-          e.currentTarget.style.color = '#FFFFFF'
+          e.currentTarget.style.backgroundColor = 'var(--surface-hover, rgba(255, 255, 255, 0.1))'
+          e.currentTarget.style.color = 'var(--text-primary, #FFFFFF)'
         }
       },
       onMouseLeave: (e: { currentTarget: HTMLElement }) => {
         if (!visible) {
           e.currentTarget.style.backgroundColor = 'transparent'
-          e.currentTarget.style.color = 'rgba(255, 255, 255, 0.7)'
+          e.currentTarget.style.color = 'var(--text-secondary, rgba(255, 255, 255, 0.7))'
         }
       },
     },

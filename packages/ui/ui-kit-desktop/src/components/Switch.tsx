@@ -29,7 +29,7 @@ export function Switch({
         width: 44,
         height: 24,
         borderRadius: 12,
-        background: checked ? 'var(--color-primary, #5F87FF)' : 'rgba(255, 255, 255, 0.15)',
+        background: checked ? 'var(--color-primary, #5F87FF)' : 'var(--border-default, rgba(255, 255, 255, 0.15))',
         boxShadow: checked ? 'var(--glow-brand-sm, 0 0 10px rgba(95, 135, 255, 0.35))' : 'none',
         border: 'none',
         padding: 2,

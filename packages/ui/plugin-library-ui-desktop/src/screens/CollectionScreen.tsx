@@ -94,7 +94,7 @@ function CollectionTrackTableRow({
         {
           style: {
             fontSize: 13,
-            color: '#b3b3b3',
+            color: 'var(--bb-text-secondary, #b3b3b3)',
             width: 45,
             textAlign: 'right',
           },
@@ -115,7 +115,7 @@ function CollectionTrackTableRow({
           style: {
             background: 'none',
             border: 'none',
-            color: '#b3b3b3',
+            color: 'var(--bb-text-secondary, #b3b3b3)',
             cursor: 'pointer',
             padding: 4,
             display: 'inline-flex',
@@ -168,7 +168,7 @@ function MemberRow({ member, onOpen }: { member: CollectionMember; onOpen: () =>
       h(Text, { numberOfLines: 1 }, member.title),
       member.subtitle ? h(Text, { variant: 'sm', tone: 'muted', numberOfLines: 1 }, member.subtitle) : null,
     ),
-    openable ? tablerIcon('chevron-right', { size: 20, color: '#b3b3b3' }) : null,
+    openable ? tablerIcon('chevron-right', { size: 20, color: 'var(--bb-text-secondary, #b3b3b3)' }) : null,
   )
 }
 

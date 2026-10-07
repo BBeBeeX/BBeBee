@@ -113,17 +113,17 @@ export function CollapsedLibraryView({
           justifyContent: 'center',
           background: 'transparent',
           border: 'none',
-          color: '#A0A0AE',
+          color: 'var(--bb-text-secondary, #A0A0AE)',
           cursor: 'pointer',
           borderRadius: 8,
           transition: 'all 0.15s ease',
         },
         onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-          e.currentTarget.style.color = '#FFFFFF'
-          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'
+          e.currentTarget.style.color = 'var(--text-primary, #FFFFFF)'
+          e.currentTarget.style.backgroundColor = 'var(--surface-hover, rgba(255, 255, 255, 0.08))'
         },
         onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-          e.currentTarget.style.color = '#A0A0AE'
+          e.currentTarget.style.color = 'var(--bb-text-secondary, #A0A0AE)'
           e.currentTarget.style.backgroundColor = 'transparent'
         },
       },
@@ -141,7 +141,7 @@ export function CollapsedLibraryView({
               width: 36,
               height: 36,
               borderRadius: '50%',
-              backgroundColor: '#242424',
+              backgroundColor: 'var(--surface-1, #242424)',
               border: 'none',
               color: 'var(--bb-text-primary, #FFFFFF)',
               display: 'flex',
@@ -152,10 +152,10 @@ export function CollapsedLibraryView({
               transition: 'background-color 0.15s ease',
             },
             onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-              e.currentTarget.style.backgroundColor = '#2E2E2E'
+              e.currentTarget.style.backgroundColor = 'var(--surface-hover, #2E2E2E)'
             },
             onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-              e.currentTarget.style.backgroundColor = '#242424'
+              e.currentTarget.style.backgroundColor = 'var(--surface-1, #242424)'
             },
           },
           tablerIcon('chevron-left', { size: 22 }),
@@ -180,7 +180,7 @@ export function CollapsedLibraryView({
             width: 36,
             height: 36,
             borderRadius: '50%',
-            backgroundColor: '#242424',
+            backgroundColor: 'var(--surface-1, #242424)',
             border: 'none',
             color: 'var(--bb-text-primary, #FFFFFF)',
             display: 'flex',
@@ -190,10 +190,10 @@ export function CollapsedLibraryView({
             transition: 'background-color 0.15s ease',
           },
           onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-            e.currentTarget.style.backgroundColor = '#2E2E2E'
+            e.currentTarget.style.backgroundColor = 'var(--surface-hover, #2E2E2E)'
           },
           onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-            e.currentTarget.style.backgroundColor = '#242424'
+            e.currentTarget.style.backgroundColor = 'var(--surface-1, #242424)'
           },
         },
         h(
@@ -281,9 +281,9 @@ export function CollapsedLibraryView({
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                      backgroundColor: 'var(--surface-1, rgba(255, 255, 255, 0.08))',
                       borderRadius: 4,
-                      color: '#CCCCCC',
+                      color: 'var(--bb-text-secondary, #CCCCCC)',
                     },
                   },
                   tablerIcon('folder', { size: 28 }),
@@ -297,12 +297,12 @@ export function CollapsedLibraryView({
                   radius: isArt ? 24 : 4,
                 })
               : (isArt
-                  ? tablerIcon('user', { size: 24, color: '#A0A0A0' })
+                  ? tablerIcon('user', { size: 24, color: 'var(--bb-text-secondary, #A0A0A0)' })
                   : item.kind === 'local'
-                    ? tablerIcon('folder', { size: 24, color: '#A0A0A0' })
+                    ? tablerIcon('folder', { size: 24, color: 'var(--bb-text-secondary, #A0A0A0)' })
                     : item.kind === 'album'
-                      ? tablerIcon('disc', { size: 24, color: '#A0A0A0' })
-                      : tablerIcon('music', { size: 24, color: '#A0A0A0' })),
+                      ? tablerIcon('disc', { size: 24, color: 'var(--bb-text-secondary, #A0A0A0)' })
+                      : tablerIcon('music', { size: 24, color: 'var(--bb-text-secondary, #A0A0A0)' })),
         )
       }),
     ),

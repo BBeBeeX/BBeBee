@@ -237,7 +237,7 @@ export function ContextMenu(props: ContextMenuProps): ReactElement | null {
           borderRadius: 8,
           border: '1px solid var(--border-subtle, rgba(148,163,184,0.08))',
           background: 'var(--surface-2, #111522)',
-          boxShadow: '0 12px 32px rgba(0, 0, 0, 0.65), var(--glow-xs)',
+          boxShadow: 'var(--shadow-dropdown, 0 12px 32px rgba(0, 0, 0, 0.65)), var(--glow-xs)',
         },
       },
       props.title
@@ -276,7 +276,7 @@ export function ContextMenu(props: ContextMenuProps): ReactElement | null {
                 key: `${item.id}-divider`,
                 style: {
                   height: 1,
-                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                  backgroundColor: 'var(--border-subtle, rgba(255, 255, 255, 0.08))',
                   margin: '4px 6px',
                 },
               })
@@ -304,7 +304,7 @@ export function ContextMenu(props: ContextMenuProps): ReactElement | null {
               borderRadius: 8,
               border: '1px solid var(--border-subtle, rgba(148,163,184,0.08))',
               background: 'var(--surface-2, #111522)',
-              boxShadow: '0 12px 32px rgba(0, 0, 0, 0.65), var(--glow-xs)',
+              boxShadow: 'var(--shadow-dropdown, 0 12px 32px rgba(0, 0, 0, 0.65)), var(--glow-xs)',
               zIndex: tokens.z.overlay + 1,
             },
           },

@@ -749,7 +749,7 @@ export function LibraryScreen({
             borderRadius: '50%',
             border: 'none',
             background: 'transparent',
-            color: isCreateMenuOpen ? '#FFFFFF' : '#A0A0AE',
+            color: isCreateMenuOpen ? 'var(--text-primary, #FFFFFF)' : 'var(--bb-text-secondary, #A0A0AE)',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
@@ -757,10 +757,10 @@ export function LibraryScreen({
             transition: 'color 0.15s ease',
           },
           onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-            e.currentTarget.style.color = '#FFFFFF'
+            e.currentTarget.style.color = 'var(--text-primary, #FFFFFF)'
           },
           onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-            if (!isCreateMenuOpen) e.currentTarget.style.color = '#A0A0AE'
+            if (!isCreateMenuOpen) e.currentTarget.style.color = 'var(--bb-text-secondary, #A0A0AE)'
           },
         },
         h(
@@ -1111,7 +1111,7 @@ export function LibraryScreen({
               borderRadius: '50%',
               border: 'none',
               background: 'transparent',
-              color: '#A0A0AE',
+              color: 'var(--bb-text-secondary, #A0A0AE)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -1119,10 +1119,10 @@ export function LibraryScreen({
               transition: 'color 0.15s ease',
             },
             onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-              e.currentTarget.style.color = '#FFFFFF'
+              e.currentTarget.style.color = 'var(--text-primary, #FFFFFF)'
             },
             onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-              e.currentTarget.style.color = '#A0A0AE'
+              e.currentTarget.style.color = 'var(--bb-text-secondary, #A0A0AE)'
             },
           },
           tablerIcon('maximize', { size: 20 }),

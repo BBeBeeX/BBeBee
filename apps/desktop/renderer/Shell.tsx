@@ -753,19 +753,19 @@ export function Shell({ ctx }: { ctx: Context }) {
               width: 36,
               height: 36,
               borderRadius: '9999px',
-              border: '1px solid rgba(255, 255, 255, 0.14)',
-              background: 'rgba(255, 255, 255, 0.1)',
-              color: '#FFFFFF',
+              border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.14))',
+              background: 'var(--surface-hover, rgba(255, 255, 255, 0.1))',
+              color: 'var(--text-primary, #FFFFFF)',
               cursor: 'pointer',
               transition: 'background-color 0.2s, transform 0.2s',
               WebkitAppRegion: 'no-drag' as unknown as undefined,
             },
             onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)'
+              e.currentTarget.style.backgroundColor = 'var(--surface-active, rgba(255, 255, 255, 0.2))'
               e.currentTarget.style.transform = 'scale(1.06)'
             },
             onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'
+              e.currentTarget.style.backgroundColor = 'var(--surface-hover, rgba(255, 255, 255, 0.1))'
               e.currentTarget.style.transform = 'scale(1)'
             },
           },
@@ -1316,7 +1316,7 @@ export function Shell({ ctx }: { ctx: Context }) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background: dropActive ? 'rgba(5, 6, 11, 0.72)' : 'transparent',
+              background: dropActive ? 'var(--surface-overlay, rgba(5, 6, 11, 0.72))' : 'transparent',
               backdropFilter: dropActive ? 'blur(2px)' : undefined,
             },
           },
@@ -1329,12 +1329,12 @@ export function Shell({ ctx }: { ctx: Context }) {
                 border: dropActive
                   ? '2px dashed var(--accent-primary, #5F87FF)'
                   : '1px solid var(--border-subtle, rgba(148,163,184,0.2))',
-                background: 'rgba(13, 14, 21, 0.94)',
+                background: 'var(--surface-2, rgba(13, 14, 21, 0.94))',
                 color: 'var(--text-primary, #F2F5FF)',
                 fontSize: dropActive ? 18 : 14,
                 fontWeight: dropActive ? 600 : 500,
                 letterSpacing: '0.02em',
-                boxShadow: '0 12px 48px rgba(0, 0, 0, 0.5)',
+                boxShadow: 'var(--shadow-modal, 0 12px 48px rgba(0, 0, 0, 0.5))',
               },
             },
             dropMessage ?? '松开鼠标，导入音乐文件或文件夹',

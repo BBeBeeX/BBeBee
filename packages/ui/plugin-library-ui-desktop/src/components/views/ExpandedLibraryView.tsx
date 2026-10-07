@@ -107,7 +107,7 @@ export function ExpandedLibraryView({
               style: {
                 background: 'transparent',
                 border: 'none',
-                color: '#A0A0AE',
+                color: 'var(--bb-text-secondary, #A0A0AE)',
                 fontSize: 24,
                 fontWeight: 700,
                 cursor: 'pointer',
@@ -115,15 +115,15 @@ export function ExpandedLibraryView({
                 transition: 'color 0.15s ease',
               },
               onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-                e.currentTarget.style.color = '#FFFFFF'
+                e.currentTarget.style.color = 'var(--text-primary, #FFFFFF)'
               },
               onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-                e.currentTarget.style.color = '#A0A0AE'
+                e.currentTarget.style.color = 'var(--bb-text-secondary, #A0A0AE)'
               },
             },
             '音乐库',
           ),
-          tablerIcon('chevron-left', { size: 22, color: '#666666' }),
+          tablerIcon('chevron-left', { size: 22, color: 'var(--bb-text-secondary, #666666)' }),
           h(
             'h1',
             { style: { fontSize: 24, fontWeight: 700, color: 'var(--bb-text-primary, #FFFFFF)', margin: 0 } },
@@ -155,7 +155,7 @@ export function ExpandedLibraryView({
                     borderRadius: '50%',
                     border: 'none',
                     background: 'transparent',
-                    color: '#A0A0AE',
+                    color: 'var(--bb-text-secondary, #A0A0AE)',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -163,10 +163,10 @@ export function ExpandedLibraryView({
                     transition: 'color 0.15s ease',
                   },
                   onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-                    e.currentTarget.style.color = '#FFFFFF'
+                    e.currentTarget.style.color = 'var(--text-primary, #FFFFFF)'
                   },
                   onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-                    e.currentTarget.style.color = '#A0A0AE'
+                    e.currentTarget.style.color = 'var(--bb-text-secondary, #A0A0AE)'
                   },
                 },
                 tablerIcon('dots', { size: 20 }),
@@ -185,7 +185,7 @@ export function ExpandedLibraryView({
                 borderRadius: '50%',
                 border: 'none',
                 background: 'transparent',
-                color: '#A0A0AE',
+                color: 'var(--bb-text-secondary, #A0A0AE)',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -193,10 +193,10 @@ export function ExpandedLibraryView({
                 transition: 'color 0.15s ease',
               },
               onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-                e.currentTarget.style.color = '#FFFFFF'
+                e.currentTarget.style.color = 'var(--text-primary, #FFFFFF)'
               },
               onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-                e.currentTarget.style.color = '#A0A0AE'
+                e.currentTarget.style.color = 'var(--bb-text-secondary, #A0A0AE)'
               },
             },
             tablerIcon('minimize', { size: 20 }),
@@ -220,8 +220,8 @@ export function ExpandedLibraryView({
             style: {
               padding: '6px 14px',
               borderRadius: 16,
-              backgroundColor: 'var(--bb-bg-raised, #FFFFFF)',
-              color: 'var(--bb-text-primary, #000000)',
+              backgroundColor: 'var(--surface-raised, var(--bb-bg-raised, #282828))',
+              color: 'var(--text-primary, var(--bb-text-primary, #FFFFFF))',
               fontSize: 13,
               fontWeight: 600,
             },
@@ -238,13 +238,14 @@ export function ExpandedLibraryView({
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
-                backgroundColor: '#242424',
+                backgroundColor: 'var(--input-bg, #242424)',
                 borderRadius: 4,
+                border: '1px solid var(--input-border, rgba(255, 255, 255, 0.1))',
                 padding: '6px 12px',
                 width: 220,
               },
             },
-            h('span', { style: { color: '#888888', display: 'inline-flex', alignItems: 'center' } }, tablerIcon('search', { size: 18 })),
+            h('span', { style: { color: 'var(--bb-text-secondary, #888888)', display: 'inline-flex', alignItems: 'center' } }, tablerIcon('search', { size: 18 })),
             h('input', {
               value: searchQuery,
               onChange: (e: { target: { value: string } }) => setSearchQuery(e.target.value),
@@ -252,7 +253,7 @@ export function ExpandedLibraryView({
               style: {
                 background: 'transparent',
                 border: 'none',
-                color: 'var(--bb-text-primary, #FFFFFF)',
+                color: 'var(--text-primary, var(--bb-text-primary, #FFFFFF))',
                 fontSize: 13,
                 outline: 'none',
                 width: '100%',
@@ -271,7 +272,7 @@ export function ExpandedLibraryView({
                 gap: 6,
                 background: 'transparent',
                 border: 'none',
-                color: '#A0A0AE',
+                color: 'var(--bb-text-secondary, #A0A0AE)',
                 fontSize: 13,
                 fontWeight: 500,
                 cursor: 'pointer',
@@ -292,8 +293,8 @@ export function ExpandedLibraryView({
               display: 'flex',
               alignItems: 'center',
               padding: '8px 16px',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-              color: '#A0A0AE',
+              borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+              color: 'var(--bb-text-secondary, #A0A0AE)',
               fontSize: 12,
               marginBottom: 8,
             },
@@ -323,7 +324,7 @@ export function ExpandedLibraryView({
                 transition: 'background-color 0.15s ease',
               },
               onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.06)'
+                e.currentTarget.style.backgroundColor = 'var(--surface-hover, rgba(255, 255, 255, 0.06))'
               },
               onMouseLeave: (e: { currentTarget: HTMLElement }) => {
                 e.currentTarget.style.backgroundColor = 'transparent'
@@ -345,7 +346,7 @@ export function ExpandedLibraryView({
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: isFav ? '#FFFFFF' : undefined,
-                    backgroundColor: isFav ? 'transparent' : 'rgba(255, 255, 255, 0.05)',
+                    backgroundColor: isFav ? 'transparent' : 'var(--surface-1, rgba(255, 255, 255, 0.05))',
                     background: isFav ? 'linear-gradient(135deg, #450af5, #8e8ee5)' : undefined,
                   },
                 },
@@ -360,12 +361,12 @@ export function ExpandedLibraryView({
                         radius: isArt ? 24 : 4,
                       })
                     : isArt
-                      ? tablerIcon('user', { size: 28, color: '#A0A0A0' })
+                      ? tablerIcon('user', { size: 28, color: 'var(--bb-text-secondary, #A0A0A0)' })
                       : item.kind === 'local'
-                        ? tablerIcon('folder', { size: 28, color: '#A0A0A0' })
+                        ? tablerIcon('folder', { size: 28, color: 'var(--bb-text-secondary, #A0A0A0)' })
                         : item.kind === 'album'
-                          ? tablerIcon('disc', { size: 28, color: '#A0A0A0' })
-                          : tablerIcon('music', { size: 28, color: '#A0A0A0' }),
+                          ? tablerIcon('disc', { size: 28, color: 'var(--bb-text-secondary, #A0A0A0)' })
+                          : tablerIcon('music', { size: 28, color: 'var(--bb-text-secondary, #A0A0A0)' }),
               ),
               h(
                 'div',
@@ -394,7 +395,7 @@ export function ExpandedLibraryView({
                     'span',
                     {
                       style: {
-                        color: '#A0A0AE',
+                        color: 'var(--bb-text-secondary, #A0A0AE)',
                         fontSize: 12,
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -408,12 +409,12 @@ export function ExpandedLibraryView({
             ),
             h(
               'div',
-              { style: { flex: 1, color: '#A0A0AE', fontSize: 13 } },
+              { style: { flex: 1, color: 'var(--bb-text-secondary, #A0A0AE)', fontSize: 13 } },
               formatAddedDate(item.addedAt),
             ),
             h(
               'div',
-              { style: { flex: 1, color: '#A0A0AE', fontSize: 13, textAlign: 'right' } },
+              { style: { flex: 1, color: 'var(--bb-text-secondary, #A0A0AE)', fontSize: 13, textAlign: 'right' } },
               formatPlayedDate(item.lastPlayedAt),
             ),
           )
@@ -470,7 +471,7 @@ export function ExpandedLibraryView({
               borderRadius: '50%',
               border: 'none',
               background: 'transparent',
-              color: '#A0A0AE',
+              color: 'var(--bb-text-secondary, #A0A0AE)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -478,10 +479,10 @@ export function ExpandedLibraryView({
               transition: 'color 0.15s ease',
             },
             onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-              e.currentTarget.style.color = 'var(--bb-text-primary, #FFFFFF)'
+              e.currentTarget.style.color = 'var(--text-primary, #FFFFFF)'
             },
             onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-              e.currentTarget.style.color = '#A0A0AE'
+              e.currentTarget.style.color = 'var(--bb-text-secondary, #A0A0AE)'
             },
           },
           tablerIcon('minimize', { size: 20 }),
@@ -514,8 +515,8 @@ export function ExpandedLibraryView({
                 padding: '6px 14px',
                 borderRadius: 16,
                 border: 'none',
-                backgroundColor: active ? 'var(--bb-bg-raised, #FFFFFF)' : '#242424',
-                color: active ? 'var(--bb-text-primary, #000000)' : '#FFFFFF',
+                backgroundColor: active ? 'var(--color-primary, #5F87FF)' : 'var(--surface-1, #242424)',
+                color: active ? 'var(--bb-accent-on, #FFFFFF)' : 'var(--bb-text-secondary, #A0A0AE)',
                 fontSize: 13,
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -536,13 +537,14 @@ export function ExpandedLibraryView({
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              backgroundColor: '#242424',
+              backgroundColor: 'var(--input-bg, #242424)',
               borderRadius: 4,
+              border: '1px solid var(--input-border, rgba(255, 255, 255, 0.1))',
               padding: '6px 12px',
               width: 220,
             },
           },
-          tablerIcon('search', { size: 18, color: '#888888' }),
+          tablerIcon('search', { size: 18, color: 'var(--bb-text-secondary, #888888)' }),
           h('input', {
             value: searchQuery,
             onChange: (e: { target: { value: string } }) => setSearchQuery(e.target.value),
@@ -550,7 +552,7 @@ export function ExpandedLibraryView({
             style: {
               background: 'transparent',
               border: 'none',
-              color: 'var(--bb-text-primary, #FFFFFF)',
+              color: 'var(--text-primary, var(--bb-text-primary, #FFFFFF))',
               fontSize: 13,
               outline: 'none',
               width: '100%',
@@ -569,7 +571,7 @@ export function ExpandedLibraryView({
               gap: 6,
               background: 'transparent',
               border: 'none',
-              color: '#A0A0AE',
+              color: 'var(--bb-text-secondary, #A0A0AE)',
               fontSize: 13,
               fontWeight: 500,
               cursor: 'pointer',
@@ -590,8 +592,8 @@ export function ExpandedLibraryView({
             display: 'flex',
             alignItems: 'center',
             padding: '8px 16px',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-            color: '#A0A0AE',
+            borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+            color: 'var(--bb-text-secondary, #A0A0AE)',
             fontSize: 12,
             marginBottom: 8,
           },
@@ -617,7 +619,7 @@ export function ExpandedLibraryView({
               transition: 'background-color 0.15s ease',
             },
             onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.06)'
+              e.currentTarget.style.backgroundColor = 'var(--surface-hover, rgba(255, 255, 255, 0.06))'
             },
             onMouseLeave: (e: { currentTarget: HTMLElement }) => {
               e.currentTarget.style.backgroundColor = 'transparent'
@@ -639,7 +641,7 @@ export function ExpandedLibraryView({
                   alignItems: 'center',
                   justifyContent: 'center',
                   color: isFav ? '#FFFFFF' : undefined,
-                  backgroundColor: isFav ? 'transparent' : 'rgba(255, 255, 255, 0.05)',
+                  backgroundColor: isFav ? 'transparent' : 'var(--surface-1, rgba(255, 255, 255, 0.05))',
                   background: isFav ? 'linear-gradient(135deg, #450af5, #8e8ee5)' : undefined,
                 },
               },
@@ -654,12 +656,12 @@ export function ExpandedLibraryView({
                       radius: isArt ? 24 : 4,
                     })
                   : (isArt
-                      ? tablerIcon('user', { size: 24, color: '#A0A0A0' })
+                      ? tablerIcon('user', { size: 24, color: 'var(--bb-text-secondary, #A0A0A0)' })
                       : item.kind === 'local'
-                        ? tablerIcon('folder', { size: 24, color: '#A0A0A0' })
+                        ? tablerIcon('folder', { size: 24, color: 'var(--bb-text-secondary, #A0A0A0)' })
                         : item.kind === 'album'
-                          ? tablerIcon('disc', { size: 24, color: '#A0A0A0' })
-                          : tablerIcon('music', { size: 24, color: '#A0A0A0' })),
+                          ? tablerIcon('disc', { size: 24, color: 'var(--bb-text-secondary, #A0A0A0)' })
+                          : tablerIcon('music', { size: 24, color: 'var(--bb-text-secondary, #A0A0A0)' })),
             ),
             h(
               'div',
@@ -671,18 +673,18 @@ export function ExpandedLibraryView({
                 item.pinned
                   ? tablerIcon('pin', { size: 16, color: 'var(--color-primary, #5F87FF)', style: { marginRight: 2 } })
                   : null,
-                h('span', { style: { color: '#A0A0AE', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.subtitle),
+                h('span', { style: { color: 'var(--bb-text-secondary, #A0A0AE)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.subtitle),
               ),
             ),
           ),
           h(
             'div',
-            { style: { flex: 1, color: '#A0A0AE', fontSize: 13 } },
+            { style: { flex: 1, color: 'var(--bb-text-secondary, #A0A0AE)', fontSize: 13 } },
             formatAddedDate(item.addedAt),
           ),
           h(
             'div',
-            { style: { flex: 1, color: '#A0A0AE', fontSize: 13, textAlign: 'right' } },
+            { style: { flex: 1, color: 'var(--bb-text-secondary, #A0A0AE)', fontSize: 13, textAlign: 'right' } },
             formatPlayedDate(item.lastPlayedAt),
           ),
         )

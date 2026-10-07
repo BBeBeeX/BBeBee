@@ -40,7 +40,7 @@ export interface DetailTableHeaderProps {
   accessibilityLabel?: string
 }
 
-const DIVIDER = 'inset 1px 0 0 rgba(255, 255, 255, 0.08)'
+const DIVIDER = 'inset 1px 0 0 var(--border-subtle, rgba(255, 255, 255, 0.08))'
 
 /**
  * The detail table's sticky header.
@@ -67,8 +67,8 @@ export function DetailTableHeader(props: DetailTableHeaderProps): ReactElement {
         display: 'flex',
         alignItems: 'center',
         padding: '0 32px 8px 32px',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-        color: '#b3b3b3',
+        borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
+        color: 'var(--bb-text-secondary, #b3b3b3)',
         fontSize: 13,
         fontWeight: 500,
         flexShrink: 0,
@@ -104,7 +104,7 @@ export function DetailTableHeader(props: DetailTableHeaderProps): ReactElement {
         paddingRight: column.paddingRight,
         background: 'none',
         border: 'none',
-        color: active ? '#FFFFFF' : '#b3b3b3',
+        color: active ? 'var(--bb-text-primary, #FFFFFF)' : 'var(--bb-text-secondary, #b3b3b3)',
         cursor: column.plain ? undefined : 'pointer',
         fontSize: 13,
         fontWeight: 500,

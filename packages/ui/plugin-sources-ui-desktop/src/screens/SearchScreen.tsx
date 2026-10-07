@@ -133,7 +133,7 @@ export function SearchScreen({
             padding: tokens.space[3],
             borderRadius: tokens.radius.md,
             border: '1px solid var(--border-subtle, ' + scheme.border.subtle + ')',
-            boxShadow: '0 2px 16px rgba(0, 0, 0, 0.25)',
+            boxShadow: 'var(--shadow-dropdown, 0 2px 16px rgba(0, 0, 0, 0.25))',
           },
         },
         h(
@@ -420,7 +420,7 @@ function SourceChip({
             ? 'var(--surface-hover, ' + scheme.bg.overlay + ')'
             : 'transparent',
         color: selected
-          ? 'var(--text-primary, ' + scheme.accent.on + ')'
+          ? 'var(--bb-accent-on, ' + scheme.accent.on + ')'
           : interactive
             ? 'var(--text-primary, ' + scheme.text.primary + ')'
             : 'var(--text-secondary, ' + scheme.text.secondary + ')',

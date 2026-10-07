@@ -134,7 +134,7 @@ export function SidebarFolderView({
                   borderRadius: '50%',
                   border: 'none',
                   background: 'transparent',
-                  color: '#A0A0AE',
+                  color: 'var(--bb-text-secondary, #A0A0AE)',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -142,10 +142,10 @@ export function SidebarFolderView({
                   transition: 'color 0.15s ease',
                 },
                 onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-                  e.currentTarget.style.color = '#FFFFFF'
+                  e.currentTarget.style.color = 'var(--text-primary, #FFFFFF)'
                 },
                 onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-                  e.currentTarget.style.color = '#A0A0AE'
+                  e.currentTarget.style.color = 'var(--bb-text-secondary, #A0A0AE)'
                 },
               },
               tablerIcon('dots', { size: 20 }),
@@ -164,7 +164,7 @@ export function SidebarFolderView({
               borderRadius: '50%',
               border: 'none',
               background: 'transparent',
-              color: '#A0A0AE',
+              color: 'var(--bb-text-secondary, #A0A0AE)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -172,10 +172,10 @@ export function SidebarFolderView({
               transition: 'color 0.15s ease',
             },
             onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-              e.currentTarget.style.color = '#FFFFFF'
+              e.currentTarget.style.color = 'var(--text-primary, #FFFFFF)'
             },
             onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-              e.currentTarget.style.color = '#A0A0AE'
+              e.currentTarget.style.color = 'var(--bb-text-secondary, #A0A0AE)'
             },
           },
           tablerIcon('maximize', { size: 20 }),
@@ -191,8 +191,8 @@ export function SidebarFolderView({
           style: {
             padding: '5px 12px',
             borderRadius: 16,
-            backgroundColor: 'var(--bb-bg-raised, #FFFFFF)',
-            color: 'var(--bb-text-primary, #000000)',
+            backgroundColor: 'var(--surface-raised, var(--bb-bg-raised, #282828))',
+            color: 'var(--text-primary, var(--bb-text-primary, #FFFFFF))',
             fontSize: 13,
             fontWeight: 600,
           },
@@ -226,7 +226,7 @@ export function SidebarFolderView({
               borderRadius: '50%',
               border: 'none',
               background: 'transparent',
-              color: searchOpen ? '#FFFFFF' : '#A0A0AE',
+              color: searchOpen ? 'var(--text-primary, #FFFFFF)' : 'var(--bb-text-secondary, #A0A0AE)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -256,7 +256,7 @@ export function SidebarFolderView({
             gap: 6,
             background: 'transparent',
             border: 'none',
-            color: '#A0A0AE',
+            color: 'var(--bb-text-secondary, #A0A0AE)',
             fontSize: 13,
             fontWeight: 500,
             cursor: 'pointer',

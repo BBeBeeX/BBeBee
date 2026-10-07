@@ -161,7 +161,7 @@ function AlbumTrackTableRow({
         padding: '0 32px',
         borderRadius: 4,
         cursor: 'pointer',
-        background: hovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+        background: hovered ? 'var(--surface-hover, rgba(255, 255, 255, 0.1))' : 'transparent',
         transition: 'background-color 0.15s ease',
         boxSizing: 'border-box',
       },
@@ -177,7 +177,7 @@ function AlbumTrackTableRow({
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: 14,
-          color: hovered ? 'var(--bb-text-primary, #FFFFFF)' : '#b3b3b3',
+          color: hovered ? 'var(--bb-text-primary, #FFFFFF)' : 'var(--bb-text-secondary, #b3b3b3)',
         },
       },
       batchMode
@@ -245,7 +245,7 @@ function AlbumTrackTableRow({
               {
                 style: {
                   display: 'block',
-                  color: '#b3b3b3',
+                  color: 'var(--bb-text-secondary, #b3b3b3)',
                   fontSize: 13,
                   marginTop: 2,
                   overflow: 'hidden',
@@ -268,7 +268,7 @@ function AlbumTrackTableRow({
               minWidth: 0,
               paddingRight: 16,
               fontSize: 13,
-              color: '#b3b3b3',
+              color: 'var(--bb-text-secondary, #b3b3b3)',
             },
           },
           h(
@@ -295,7 +295,7 @@ function AlbumTrackTableRow({
           minWidth: 0,
           paddingRight: 16,
           fontSize: 14,
-          color: '#b3b3b3',
+          color: 'var(--bb-text-secondary, #b3b3b3)',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
@@ -350,7 +350,7 @@ function AlbumTrackTableRow({
               style: {
                 background: 'none',
                 border: 'none',
-                color: '#b3b3b3',
+                color: 'var(--bb-text-secondary, #b3b3b3)',
                 fontSize: 15,
                 cursor: 'pointer',
                 padding: 4,
@@ -375,7 +375,7 @@ function AlbumTrackTableRow({
         {
           style: {
             fontSize: 14,
-            color: '#b3b3b3',
+            color: 'var(--bb-text-secondary, #b3b3b3)',
             width: 45,
             textAlign: 'right',
           },
@@ -396,7 +396,7 @@ function AlbumTrackTableRow({
           style: {
             background: 'none',
             border: 'none',
-            color: '#b3b3b3',
+            color: 'var(--bb-text-secondary, #b3b3b3)',
             fontSize: 16,
             cursor: 'pointer',
             padding: 4,
@@ -881,8 +881,8 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
               fontSize: 12,
               lineHeight: '18px',
               color: 'var(--text-tertiary, #8B95B0)',
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.25)',
+              backgroundColor: 'var(--surface-1, rgba(255, 255, 255, 0.05))',
+              border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.25))',
               borderRadius: 4,
               userSelect: 'none',
               pointerEvents: 'none',
@@ -905,7 +905,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
             flexShrink: 0,
             borderRadius: 6,
             overflow: 'hidden',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.65)',
+            boxShadow: 'var(--shadow-dropdown, 0 8px 32px rgba(0, 0, 0, 0.65))',
           },
         },
         h(CachedArtwork, { ctx, artwork: detail.artwork, seed: detail.urn, size: 232, radius: 6 }),
@@ -919,7 +919,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
             flexWrap: 'wrap',
             gap: 6,
             fontSize: 14,
-            color: '#b3b3b3',
+            color: 'var(--bb-text-secondary, #b3b3b3)',
             marginTop: 4,
           },
         },
@@ -972,7 +972,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
           {
             type: 'button',
             title: '随机播放',
-            style: { background: 'none', border: 'none', color: '#b3b3b3', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
+            style: { background: 'none', border: 'none', color: 'var(--bb-text-secondary, #b3b3b3)', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
             onClick: () => {
               if (sortedUrns.length > 0) {
                 const shuffled = [...sortedUrns].sort(() => Math.random() - 0.5)
@@ -995,7 +995,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
             style: {
               background: 'none',
               border: 'none',
-              color: isSaved ? 'var(--color-primary, #5F87FF)' : '#b3b3b3',
+              color: isSaved ? 'var(--color-primary, #5F87FF)' : 'var(--bb-text-secondary, #b3b3b3)',
               cursor: 'pointer',
               padding: 0,
               display: 'inline-flex',
@@ -1014,7 +1014,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
                 type: 'button',
                 'data-testid': 'album-download-all',
                 title: '下载全部',
-                style: { background: 'none', border: 'none', color: '#b3b3b3', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
+                style: { background: 'none', border: 'none', color: 'var(--bb-text-secondary, #b3b3b3)', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
                 onClick: () => void downloads.enqueue(sortedUrns),
               },
               tablerIcon('download', { size: 24 }),
@@ -1072,7 +1072,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
             type: 'button',
             'data-testid': 'album-more-trigger',
             title: '更多选项',
-            style: { background: 'none', border: 'none', color: '#b3b3b3', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
+            style: { background: 'none', border: 'none', color: 'var(--bb-text-secondary, #b3b3b3)', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
             onClick: async (e) => {
               const rect = e.currentTarget.getBoundingClientRect()
               if (library) {
@@ -1115,7 +1115,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
               style: {
                 background: 'none',
                 border: 'none',
-                color: '#b3b3b3',
+                color: 'var(--bb-text-secondary, #b3b3b3)',
                 fontSize: 14,
                 cursor: 'pointer',
                 display: 'flex',

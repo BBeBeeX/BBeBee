@@ -298,7 +298,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
           {
             type: 'button',
             title: '随机播放',
-            style: { background: 'none', border: 'none', color: '#b3b3b3', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
+            style: { background: 'none', border: 'none', color: 'var(--bb-text-secondary, #b3b3b3)', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
             onClick: () => {
               if (sortedUrns.length > 0) {
                 const shuffled = [...sortedUrns].sort(() => Math.random() - 0.5)
@@ -317,7 +317,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
             type: 'button',
             'data-testid': 'favorites-more-trigger',
             title: '更多选项',
-            style: { background: 'none', border: 'none', color: '#b3b3b3', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
+            style: { background: 'none', border: 'none', color: 'var(--bb-text-secondary, #b3b3b3)', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
             onClick: (e: ReactMouseEvent) => {
               const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
               setMoreMenuAnchor({ x: rect.left, y: rect.bottom + 6 })
@@ -335,13 +335,14 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
             style: {
               display: 'flex',
               alignItems: 'center',
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              backgroundColor: 'var(--input-bg, var(--surface-1, rgba(255, 255, 255, 0.1)))',
+              border: '1px solid var(--border-subtle, transparent)',
               borderRadius: 16,
               padding: '4px 10px',
               gap: 6,
             },
           },
-          tablerIcon('search', { size: 18, color: '#b3b3b3' }),
+          tablerIcon('search', { size: 18, color: 'var(--bb-text-secondary, #b3b3b3)' }),
           h('input', {
             type: 'text',
             placeholder: '在已点赞歌曲中搜索',
@@ -380,7 +381,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
               style: {
                 background: 'none',
                 border: 'none',
-                color: '#b3b3b3',
+                color: 'var(--bb-text-secondary, #b3b3b3)',
                 fontSize: 14,
                 cursor: 'pointer',
                 display: 'flex',

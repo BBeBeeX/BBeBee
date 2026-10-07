@@ -221,7 +221,7 @@ export function VerticalSlider({
         bottom: 0,
         width: 3,
         borderRadius: 1.5,
-        backgroundColor: 'rgba(255, 255, 255, 0.18)',
+        backgroundColor: 'var(--border-default, rgba(255, 255, 255, 0.18))',
       },
     }),
     // Filled bar
@@ -232,7 +232,7 @@ export function VerticalSlider({
         width: 3,
         height: `${value}%`,
         borderRadius: 1.5,
-        backgroundColor: isInteracting ? 'var(--color-primary, #5F87FF)' : '#FFFFFF',
+        backgroundColor: isInteracting ? 'var(--color-primary, #5F87FF)' : 'var(--text-primary, #FFFFFF)',
       },
     }),
     // Thumb
@@ -243,8 +243,8 @@ export function VerticalSlider({
         width: 10,
         height: 10,
         borderRadius: '50%',
-        backgroundColor: '#FFFFFF',
-        boxShadow: '0 1px 4px rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'var(--text-primary, #FFFFFF)',
+        boxShadow: 'var(--shadow-dropdown, 0 1px 4px rgba(0, 0, 0, 0.5))',
         opacity: isInteracting ? 1 : 0,
         transition: 'opacity 0.15s ease',
       },
@@ -275,17 +275,17 @@ export function PlayModeButton({ ctx, mode }: { ctx: Context; mode?: PlayMode })
         borderRadius: tokens.radius.pill,
         border: 'none',
         background: 'transparent',
-        color: 'rgba(255, 255, 255, 0.7)',
+        color: 'var(--text-secondary, rgba(255, 255, 255, 0.7))',
         cursor: 'pointer',
         transition: 'color 0.15s ease, transform 0.15s ease',
         outline: 'none',
       },
       onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-        e.currentTarget.style.color = '#FFFFFF'
+        e.currentTarget.style.color = 'var(--text-primary, #FFFFFF)'
         e.currentTarget.style.transform = 'scale(1.1)'
       },
       onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-        e.currentTarget.style.color = 'rgba(255, 255, 255, 0.7)'
+        e.currentTarget.style.color = 'var(--text-secondary, rgba(255, 255, 255, 0.7))'
         e.currentTarget.style.transform = 'scale(1)'
       },
     },
@@ -379,7 +379,7 @@ export function VolumeControl({
         },
         h(
           'span',
-          { style: { fontSize: 11, color: '#A0A0AE', userSelect: 'none', minHeight: 14 } },
+          { style: { fontSize: 11, color: 'var(--text-secondary, #A0A0AE)', userSelect: 'none', minHeight: 14 } },
           `${percent}%`,
         ),
         h(VerticalSlider, {
@@ -404,8 +404,8 @@ export function VolumeControl({
               height: 28,
               borderRadius: tokens.radius.pill,
               border: 'none',
-              background: muted ? 'rgba(239, 68, 68, 0.2)' : 'transparent',
-              color: muted ? '#F87171' : 'rgba(255, 255, 255, 0.7)',
+              background: muted ? 'var(--error-surface, rgba(239, 68, 68, 0.2))' : 'transparent',
+              color: muted ? 'var(--error, #F87171)' : 'var(--text-secondary, rgba(255, 255, 255, 0.7))',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
             },
@@ -436,18 +436,18 @@ export function VolumeControl({
           height: 32,
           borderRadius: tokens.radius.pill,
           border: 'none',
-          background: open ? 'rgba(255, 255, 255, 0.12)' : 'transparent',
-          color: muted ? '#A0A0AE' : 'rgba(255, 255, 255, 0.8)',
+          background: open ? 'var(--surface-hover, rgba(255, 255, 255, 0.12))' : 'transparent',
+          color: muted ? 'var(--text-muted, #A0A0AE)' : 'var(--text-secondary, rgba(255, 255, 255, 0.8))',
           cursor: 'pointer',
           transition: 'all 0.15s ease',
           outline: 'none',
         },
         onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-          e.currentTarget.style.color = '#FFFFFF'
+          e.currentTarget.style.color = 'var(--text-primary, #FFFFFF)'
           e.currentTarget.style.transform = 'scale(1.1)'
         },
         onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-          e.currentTarget.style.color = muted ? '#A0A0AE' : 'rgba(255, 255, 255, 0.8)'
+          e.currentTarget.style.color = muted ? 'var(--text-muted, #A0A0AE)' : 'var(--text-secondary, rgba(255, 255, 255, 0.8))'
           e.currentTarget.style.transform = 'scale(1)'
         },
       },
@@ -693,7 +693,7 @@ export function NowPlayingBar({ ctx, currentRoute, onOpenNowPlaying, portalMenus
                   style: {
                     background: 'none',
                     border: 'none',
-                    color: isInLibrary ? 'var(--color-primary, #5F87FF)' : 'rgba(255, 255, 255, 0.75)',
+                    color: isInLibrary ? 'var(--color-primary, #5F87FF)' : 'var(--text-secondary, rgba(255, 255, 255, 0.75))',
                     cursor: 'pointer',
                     padding: 0,
                     display: 'inline-flex',
@@ -703,11 +703,11 @@ export function NowPlayingBar({ ctx, currentRoute, onOpenNowPlaying, portalMenus
                     transition: 'color 0.15s ease, transform 0.15s ease',
                   },
                   onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-                    e.currentTarget.style.color = isInLibrary ? 'var(--color-primary-hover, #91B0FF)' : '#FFFFFF'
+                    e.currentTarget.style.color = isInLibrary ? 'var(--color-primary-hover, #91B0FF)' : 'var(--text-primary, #FFFFFF)'
                     e.currentTarget.style.transform = 'scale(1.15)'
                   },
                   onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-                    e.currentTarget.style.color = isInLibrary ? 'var(--color-primary, #5F87FF)' : 'rgba(255, 255, 255, 0.75)'
+                    e.currentTarget.style.color = isInLibrary ? 'var(--color-primary, #5F87FF)' : 'var(--text-secondary, rgba(255, 255, 255, 0.75))'
                     e.currentTarget.style.transform = 'scale(1)'
                   },
                 },

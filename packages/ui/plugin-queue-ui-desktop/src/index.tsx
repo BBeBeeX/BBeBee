@@ -133,7 +133,7 @@ const QueueTrackRow = memo(
         position: 'relative',
         cursor: draggable ? 'grab' : 'pointer',
         opacity: dragging ? 0.4 : 1,
-        background: hovered ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+        background: hovered ? 'var(--surface-hover, rgba(255, 255, 255, 0.08))' : 'transparent',
         transition: 'background-color 0.15s ease',
         outline: 'none',
       },
@@ -191,7 +191,7 @@ const QueueTrackRow = memo(
             {
               style: {
                 fontSize: 12,
-                color: '#A0A0AE',
+                color: 'var(--bb-text-secondary, #A0A0AE)',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
@@ -207,7 +207,7 @@ const QueueTrackRow = memo(
           {
             style: {
               fontSize: 12,
-              color: '#8E8E93',
+              color: 'var(--bb-text-secondary, #8E8E93)',
               flexShrink: 0,
               marginLeft: 8,
             },
@@ -585,7 +585,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
               {
                 style: {
                   fontSize: 12,
-                  color: '#8E8E93',
+                  color: 'var(--bb-text-secondary, #8E8E93)',
                   marginBottom: 8,
                 },
               },
@@ -653,7 +653,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
               {
                 style: {
                   fontSize: 13,
-                  color: '#8E8E93',
+                  color: 'var(--bb-text-secondary, #8E8E93)',
                   padding: '12px 10px',
                 },
               },

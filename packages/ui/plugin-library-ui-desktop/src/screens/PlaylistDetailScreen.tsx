@@ -419,7 +419,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
             flexWrap: 'wrap',
             gap: 6,
             fontSize: 14,
-            color: '#b3b3b3',
+            color: 'var(--bb-text-secondary, #b3b3b3)',
             marginTop: 4,
           },
         },
@@ -473,7 +473,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
           {
             type: 'button',
             title: '下载',
-            style: { background: 'none', border: 'none', color: '#b3b3b3', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
+            style: { background: 'none', border: 'none', color: 'var(--bb-text-secondary, #b3b3b3)', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
           },
           tablerIcon('download', { size: 24 }),
         ),
@@ -498,12 +498,12 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
                 )
               }
             },
-            style: { background: 'none', border: 'none', color: '#b3b3b3', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.15s ease' },
+            style: { background: 'none', border: 'none', color: 'var(--bb-text-secondary, #b3b3b3)', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.15s ease' },
             onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-              e.currentTarget.style.color = '#FFFFFF'
+              e.currentTarget.style.color = 'var(--bb-text-primary, #FFFFFF)'
             },
             onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-              e.currentTarget.style.color = '#b3b3b3'
+              e.currentTarget.style.color = 'var(--bb-text-secondary, #b3b3b3)'
             },
           },
           tablerIcon('share', { size: 24 }),
@@ -514,7 +514,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
             type: 'button',
             'data-testid': 'playlist-more-trigger',
             title: '更多选项',
-            style: { background: 'none', border: 'none', color: '#b3b3b3', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
+            style: { background: 'none', border: 'none', color: 'var(--bb-text-secondary, #b3b3b3)', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
             onClick: (e: ReactMouseEvent) => {
               const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
               playlistMenu.open(
@@ -546,13 +546,14 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
             style: {
               display: 'flex',
               alignItems: 'center',
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              backgroundColor: 'var(--input-bg, var(--surface-1, rgba(255, 255, 255, 0.1)))',
+              border: '1px solid var(--border-subtle, transparent)',
               borderRadius: 16,
               padding: '4px 10px',
               gap: 6,
             },
           },
-          tablerIcon('search', { size: 18, color: '#b3b3b3' }),
+          tablerIcon('search', { size: 18, color: 'var(--bb-text-secondary, #b3b3b3)' }),
           h('input', {
             type: 'text',
             placeholder: '在歌单中搜索',
@@ -581,7 +582,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
             style: {
               background: 'none',
               border: 'none',
-              color: '#b3b3b3',
+              color: 'var(--bb-text-secondary, #b3b3b3)',
               fontSize: 14,
               cursor: 'pointer',
               display: 'flex',

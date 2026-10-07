@@ -96,7 +96,7 @@ const HistoryTrackRow = memo(
             gap: 12,
             paddingRight: 16,
             fontSize: 12,
-            color: '#8e8e93',
+            color: 'var(--text-secondary, #8e8e93)',
             whiteSpace: 'nowrap',
             userSelect: 'none',
           },
@@ -108,8 +108,8 @@ const HistoryTrackRow = memo(
               fontSize: 11,
               padding: '1px 6px',
               borderRadius: 4,
-              background: 'rgba(255, 255, 255, 0.08)',
-              color: '#8e8e93',
+              background: 'var(--surface-1, rgba(255, 255, 255, 0.08))',
+              color: 'var(--text-secondary, #8e8e93)',
             },
           },
           `播放 ${playCount} 次`,
@@ -123,7 +123,7 @@ const HistoryTrackRow = memo(
                   padding: '1px 6px',
                   borderRadius: 4,
                   background: 'rgba(57, 211, 83, 0.15)',
-                  color: '#39d353',
+                  color: 'var(--success, #39d353)',
                 },
               },
               '完播',
@@ -136,8 +136,8 @@ const HistoryTrackRow = memo(
                     fontSize: 11,
                     padding: '1px 6px',
                     borderRadius: 4,
-                    background: 'rgba(255, 255, 255, 0.08)',
-                    color: '#8e8e93',
+                    background: 'var(--surface-1, rgba(255, 255, 255, 0.08))',
+                    color: 'var(--text-secondary, #8e8e93)',
                   },
                 },
                 '跳过',
@@ -203,16 +203,16 @@ function StatCard({
       style: {
         flex: 1,
         minWidth: 150,
-        background: '#16161a',
+        background: 'var(--surface-1, #16161a)',
         borderRadius: tokens.radius.md,
         padding: '14px 18px',
-        border: '1px solid rgba(255, 255, 255, 0.06)',
+        border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.06))',
       },
     },
-    h('div', { style: { fontSize: 12, color: '#8e8e93', marginBottom: 6 } }, title),
-    h('div', { style: { fontSize: 20, fontWeight: 700, color: '#f5f5f7' } }, value),
+    h('div', { style: { fontSize: 12, color: 'var(--text-secondary, #8e8e93)', marginBottom: 6 } }, title),
+    h('div', { style: { fontSize: 20, fontWeight: 700, color: 'var(--text-primary, #f5f5f7)' } }, value),
     subtext
-      ? h('div', { style: { fontSize: 11, color: '#6e6e73', marginTop: 4 } }, subtext)
+      ? h('div', { style: { fontSize: 11, color: 'var(--text-tertiary, #6e6e73)', marginTop: 4 } }, subtext)
       : null,
   )
 }
@@ -295,10 +295,10 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
       h(
         'div',
         null,
-        h('h1', { style: { fontSize: 24, fontWeight: 700, margin: 0, color: '#f5f5f7' } }, '播放历史'),
+        h('h1', { style: { fontSize: 24, fontWeight: 700, margin: 0, color: 'var(--text-primary, #f5f5f7)' } }, '播放历史'),
         h(
           'div',
-          { style: { fontSize: 12, color: '#8e8e93', marginTop: 4 } },
+          { style: { fontSize: 12, color: 'var(--text-secondary, #8e8e93)', marginTop: 4 } },
           '记录每一首触动心弦的旋律与听歌足迹',
         ),
       ),
@@ -307,13 +307,13 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
         ? h(
             'div',
             { style: { display: 'flex', alignItems: 'center', gap: 8 } },
-            h('span', { style: { fontSize: 12, color: '#ff453a' } }, '确定清空历史记录？'),
+            h('span', { style: { fontSize: 12, color: 'var(--error, #ff453a)' } }, '确定清空历史记录？'),
             h(
               'button',
               {
                 onClick: handleClear,
                 style: {
-                  background: '#ff453a',
+                  background: 'var(--error, #ff453a)',
                   color: '#fff',
                   border: 'none',
                   borderRadius: 4,
@@ -329,8 +329,8 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
               {
                 onClick: () => setConfirmClear(false),
                 style: {
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  color: '#f5f5f7',
+                  background: 'var(--surface-hover, rgba(255, 255, 255, 0.1))',
+                  color: 'var(--text-primary, #f5f5f7)',
                   border: 'none',
                   borderRadius: 4,
                   padding: '5px 12px',
@@ -348,8 +348,8 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
               disabled: stats.totalPlays === 0,
               style: {
                 background: 'transparent',
-                color: stats.totalPlays === 0 ? '#48484a' : '#8e8e93',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
+                color: stats.totalPlays === 0 ? 'var(--text-disabled, #48484a)' : 'var(--text-secondary, #8e8e93)',
+                border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
                 borderRadius: 6,
                 padding: '6px 14px',
                 cursor: stats.totalPlays === 0 ? 'default' : 'pointer',
@@ -417,7 +417,7 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
       },
       h(
         'div',
-        { style: { fontSize: 14, fontWeight: 600, color: '#f5f5f7' } },
+        { style: { fontSize: 14, fontWeight: 600, color: 'var(--text-primary, #f5f5f7)' } },
         selectedDate
           ? `${selectedDate} 的播放记录 (${uniqueRecords.length} 首)`
           : `最近播放记录 (${uniqueRecords.length} 首)`,

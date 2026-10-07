@@ -31,7 +31,7 @@ export function SettingsRow({
       style: {
         display: 'flex',
         flexDirection: 'column',
-        borderBottom: borderBottom ? '1px solid rgba(255, 255, 255, 0.06)' : 'none',
+        borderBottom: borderBottom ? '1px solid var(--border-subtle, rgba(255, 255, 255, 0.06))' : 'none',
       },
     },
     h(
@@ -43,8 +43,8 @@ export function SettingsRow({
           justifyContent: 'space-between',
           padding: isNested ? '12px 16px 12px 28px' : '14px 4px',
           gap: 16,
-          background: isNested ? 'rgba(255, 255, 255, 0.015)' : 'transparent',
-          borderLeft: isNested ? '2px solid rgba(255, 255, 255, 0.15)' : 'none',
+          background: isNested ? 'var(--surface-hover, rgba(255, 255, 255, 0.015))' : 'transparent',
+          borderLeft: isNested ? '2px solid var(--border-default, rgba(255, 255, 255, 0.15))' : 'none',
           transition: 'background-color 0.15s ease',
         },
       },
@@ -104,7 +104,7 @@ export function SettingsRow({
               style: {
                 fontSize: 13,
                 fontWeight: 500,
-                color: '#F5F5F7',
+                color: 'var(--text-primary, #F5F5F7)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
@@ -118,7 +118,7 @@ export function SettingsRow({
                 {
                   style: {
                     fontSize: 12,
-                    color: '#8E8E93',
+                    color: 'var(--text-secondary, #8E8E93)',
                     marginTop: 3,
                     lineHeight: 1.45,
                   },

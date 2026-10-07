@@ -46,13 +46,13 @@ export function Select<T extends string>({
           appearance: 'none',
           WebkitAppearance: 'none',
           MozAppearance: 'none',
-          background: 'rgba(255, 255, 255, 0.07)',
+          background: 'var(--input-bg, var(--surface-1, rgba(255, 255, 255, 0.07)))',
           borderWidth: 1,
           borderStyle: 'solid',
-          borderColor: 'rgba(255, 255, 255, 0.12)',
+          borderColor: 'var(--input-border, var(--border-subtle, rgba(255, 255, 255, 0.12)))',
           borderRadius: 6,
           padding: '6px 30px 6px 12px',
-          color: disabled ? '#6A6A6A' : '#F5F5F7',
+          color: disabled ? 'var(--text-disabled, #6A6A6A)' : 'var(--text-primary, #F5F5F7)',
           fontSize: 13,
           fontWeight: 400,
           cursor: disabled ? 'not-allowed' : 'pointer',
@@ -61,14 +61,14 @@ export function Select<T extends string>({
         },
         onMouseEnter: (e: { currentTarget: HTMLElement }) => {
           if (!disabled) {
-            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)'
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
+            e.currentTarget.style.borderColor = 'var(--border-default, rgba(255, 255, 255, 0.25))'
+            e.currentTarget.style.background = 'var(--surface-hover, rgba(255, 255, 255, 0.1))'
           }
         },
         onMouseLeave: (e: { currentTarget: HTMLElement }) => {
           if (!disabled) {
-            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)'
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.07)'
+            e.currentTarget.style.borderColor = 'var(--input-border, var(--border-subtle, rgba(255, 255, 255, 0.12)))'
+            e.currentTarget.style.background = 'var(--input-bg, var(--surface-1, rgba(255, 255, 255, 0.07)))'
           }
         },
         onFocus: (e: { currentTarget: HTMLElement }) => {
@@ -76,7 +76,7 @@ export function Select<T extends string>({
           e.currentTarget.style.boxShadow = 'var(--glow-blue-xs, 0 0 0 2px rgba(95, 135, 255, 0.3))'
         },
         onBlur: (e: { currentTarget: HTMLElement }) => {
-          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)'
+          e.currentTarget.style.borderColor = 'var(--input-border, var(--border-subtle, rgba(255, 255, 255, 0.12)))'
           e.currentTarget.style.boxShadow = 'none'
         },
       },

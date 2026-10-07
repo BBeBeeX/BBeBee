@@ -195,6 +195,12 @@ export function cssVariables(scheme: Scheme): Record<string, string> {
     out[`--bb-duration-${name}`] = `${value}ms`
   }
   tokens.space.forEach((value, i) => void (out[`--bb-space-${i}`] = `${value}px`))
+  out['--input-bg'] = scheme === 'light' ? '#FFFFFF' : palette.bg.raised
+  out['--input-border'] = palette.border.subtle
+  out['--input-focus-border'] = palette.border.strong
+  out['--logo-filter'] = scheme === 'light' ? 'brightness(0)' : 'none'
+  out['--shadow-dropdown'] = scheme === 'light' ? '0 8px 24px rgba(0, 0, 0, 0.12)' : '0 12px 32px rgba(0, 0, 0, 0.65)'
+  out['--shadow-modal'] = scheme === 'light' ? '0 16px 36px rgba(0, 0, 0, 0.15)' : '0 16px 36px rgba(0, 0, 0, 0.65)'
   return out
 }
 
@@ -349,6 +355,14 @@ export function themeToCssVariables(
     '--bb-state-ok': t.semantic.success,
     '--bb-border-subtle': t.border.subtle,
     '--bb-border-strong': t.border.default,
+
+    // Form, surface & utility tokens
+    '--input-bg': scheme === 'light' ? '#FFFFFF' : t.surface.s1,
+    '--input-border': t.border.subtle,
+    '--input-focus-border': t.border.focus,
+    '--logo-filter': scheme === 'light' ? 'brightness(0)' : 'none',
+    '--shadow-dropdown': scheme === 'light' ? '0 8px 24px rgba(0, 0, 0, 0.12)' : '0 12px 32px rgba(0, 0, 0, 0.65)',
+    '--shadow-modal': scheme === 'light' ? '0 16px 36px rgba(0, 0, 0, 0.15)' : '0 16px 36px rgba(0, 0, 0, 0.65)',
   }
 
   // Dimension and scale variables

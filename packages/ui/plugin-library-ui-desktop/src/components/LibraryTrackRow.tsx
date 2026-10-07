@@ -129,7 +129,7 @@ export function LibraryTrackRow({
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: 14,
-          color: hovered ? '#FFFFFF' : '#b3b3b3',
+          color: hovered ? 'var(--bb-text-primary, #FFFFFF)' : 'var(--bb-text-secondary, #b3b3b3)',
         },
       },
       batchMode
@@ -229,7 +229,7 @@ export function LibraryTrackRow({
                 {
                   style: {
                     display: 'block',
-                    color: '#b3b3b3',
+                    color: 'var(--bb-text-secondary, #b3b3b3)',
                     fontSize: 13,
                     marginTop: 2,
                     overflow: 'hidden',
@@ -253,7 +253,7 @@ export function LibraryTrackRow({
               minWidth: 0,
               paddingRight: 16,
               fontSize: 13,
-              color: '#b3b3b3',
+              color: 'var(--bb-text-secondary, #b3b3b3)',
             },
           },
           h(
@@ -280,7 +280,7 @@ export function LibraryTrackRow({
           minWidth: 0,
           paddingRight: 16,
           fontSize: 14,
-          color: '#b3b3b3',
+          color: 'var(--bb-text-secondary, #b3b3b3)',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
@@ -310,11 +310,11 @@ export function LibraryTrackRow({
                 transition: 'color 0.15s ease',
               },
               onMouseEnter: (e: ReactMouseEvent<HTMLSpanElement>) => {
-                e.currentTarget.style.color = '#FFFFFF'
+                e.currentTarget.style.color = 'var(--bb-text-primary, #FFFFFF)'
                 e.currentTarget.style.textDecoration = 'underline'
               },
               onMouseLeave: (e: ReactMouseEvent<HTMLSpanElement>) => {
-                e.currentTarget.style.color = '#b3b3b3'
+                e.currentTarget.style.color = 'var(--bb-text-secondary, #b3b3b3)'
                 e.currentTarget.style.textDecoration = 'none'
               },
             },
@@ -333,7 +333,7 @@ export function LibraryTrackRow({
               minWidth: 0,
               paddingRight: 16,
               fontSize: 13,
-              color: '#8B95B0',
+              color: 'var(--text-tertiary, #8B95B0)',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
@@ -352,7 +352,7 @@ export function LibraryTrackRow({
               minWidth: 0,
               paddingRight: 16,
               fontSize: 13,
-              color: '#b3b3b3',
+              color: 'var(--bb-text-secondary, #b3b3b3)',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
@@ -396,7 +396,7 @@ export function LibraryTrackRow({
               style: {
                 background: 'none',
                 border: 'none',
-                color: '#b3b3b3',
+                color: 'var(--bb-text-secondary, #b3b3b3)',
                 cursor: 'pointer',
                 padding: '2px 4px',
                 display: 'inline-flex',
@@ -414,7 +414,7 @@ export function LibraryTrackRow({
         {
           style: {
             fontSize: 14,
-            color: '#b3b3b3',
+            color: 'var(--bb-text-secondary, #b3b3b3)',
             width: 45,
             textAlign: 'right',
           },
@@ -435,7 +435,7 @@ export function LibraryTrackRow({
           style: {
             background: 'none',
             border: 'none',
-            color: '#b3b3b3',
+            color: 'var(--bb-text-secondary, #b3b3b3)',
             cursor: 'pointer',
             padding: 4,
             display: 'inline-flex',

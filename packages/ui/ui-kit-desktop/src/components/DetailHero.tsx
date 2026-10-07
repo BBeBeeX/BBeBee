@@ -98,10 +98,10 @@ export function DetailHero(props: DetailHeroProps): ReactElement {
         ),
       ),
       props.description
-        ? h('p', { style: { margin: '0 0 4px 0', fontSize: 14, color: '#b3b3b3' } }, props.description)
+        ? h('p', { style: { margin: '0 0 4px 0', fontSize: 14, color: 'var(--bb-text-secondary, #b3b3b3)' } }, props.description)
         : null,
       props.subtitle
-        ? h('p', { style: { margin: 0, fontSize: 14, color: '#b3b3b3' } }, props.subtitle)
+        ? h('p', { style: { margin: 0, fontSize: 14, color: 'var(--bb-text-secondary, #b3b3b3)' } }, props.subtitle)
         : null,
       props.meta ?? null,
     ),

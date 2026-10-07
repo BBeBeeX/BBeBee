@@ -63,7 +63,7 @@ export function UnifiedLibraryRow({
         padding: isChild ? '0 8px 0 28px' : '0 8px',
         borderRadius: tokens.radius.sm,
         cursor: 'pointer',
-        backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+        backgroundColor: isHovered ? 'var(--surface-hover, rgba(255, 255, 255, 0.08))' : 'transparent',
         transition: 'background-color 150ms ease',
       },
     },
@@ -81,7 +81,7 @@ export function UnifiedLibraryRow({
           alignItems: 'center',
           justifyContent: 'center',
           color: isFav ? '#FFFFFF' : undefined,
-          backgroundColor: isFav ? 'transparent' : 'rgba(255, 255, 255, 0.05)',
+          backgroundColor: isFav ? 'transparent' : 'var(--surface-1, rgba(255, 255, 255, 0.05))',
           background: isFav ? 'linear-gradient(135deg, #450af5, #8e8ee5)' : undefined,
         },
       },
@@ -97,12 +97,12 @@ export function UnifiedLibraryRow({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                  backgroundColor: 'var(--surface-1, rgba(255, 255, 255, 0.08))',
                   borderRadius: 4,
-                  color: '#CCCCCC',
+                  color: 'var(--bb-text-secondary, #CCCCCC)',
                 },
               },
-              tablerIcon('folder', { size: 28, color: '#CCCCCC' }),
+              tablerIcon('folder', { size: 28, color: 'var(--bb-text-secondary, #CCCCCC)' }),
             )
           : item.artwork
             ? h(CachedArtwork, {
@@ -120,7 +120,7 @@ export function UnifiedLibraryRow({
                     : item.kind === 'album'
                       ? 'disc'
                       : 'music',
-                { size: 28, color: '#A0A0A0' },
+                { size: 28, color: 'var(--bb-text-secondary, #A0A0A0)' },
               ),
       isHovered
         ? h(
@@ -181,7 +181,7 @@ export function UnifiedLibraryRow({
               borderRadius: '50%',
               border: 'none',
               background: 'transparent',
-              color: '#A0A0AE',
+              color: 'var(--bb-text-secondary, #A0A0AE)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -190,11 +190,11 @@ export function UnifiedLibraryRow({
               transition: 'color 0.15s ease, background-color 0.15s ease',
             },
             onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-              e.currentTarget.style.color = '#FFFFFF'
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'
+              e.currentTarget.style.color = 'var(--text-primary, #FFFFFF)'
+              e.currentTarget.style.backgroundColor = 'var(--surface-hover, rgba(255, 255, 255, 0.08))'
             },
             onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-              e.currentTarget.style.color = '#A0A0AE'
+              e.currentTarget.style.color = 'var(--bb-text-secondary, #A0A0AE)'
               e.currentTarget.style.backgroundColor = 'transparent'
             },
           },
