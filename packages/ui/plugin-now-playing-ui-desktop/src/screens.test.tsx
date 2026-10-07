@@ -294,16 +294,22 @@ describe('NowPlayingBar', () => {
     expect(out).toContain('4:05')
   })
 
-  it('shows a placeholder duration rather than 0:00 for an unknown one', async () => {
+  it('shows a LIVE badge rather than a placeholder while an unknown-duration stream sounds', async () => {
+    // "Playing but no duration" is the live-stream signature: neither `0:00`
+    // (a zero-second stream) nor even `--:--` (which says nothing) — the bar
+    // names what it is. A track not sounding keeps the placeholder.
     const { ctx } = await harness({ status: 'playing', durationMs: 0 })
-    expect(html(h(NowPlayingBar, { ctx }))).toContain('--:--')
+    expect(html(h(NowPlayingBar, { ctx }))).toContain('LIVE')
+
+    const { ctx: paused } = await harness({ status: 'paused', durationMs: 0 })
+    expect(html(h(NowPlayingBar, { ctx: paused }))).toContain('--:--')
   })
 
   it('renders an empty progress slider when duration is unknown even if position has advanced', async () => {
     const { ctx } = await harness({ status: 'playing', positionMs: 5_000, durationMs: 0 })
     const out = html(h(NowPlayingBar, { ctx }))
     expect(out).toContain('0:05')
-    expect(out).toContain('--:--')
+    expect(out).toContain('LIVE')
     expect(out).toContain('aria-valuenow="0"')
     expect(out).toContain('aria-valuemax="0"')
     expect(out).not.toContain('100%, var(--slider-track')

@@ -104,8 +104,11 @@ export class MpvSourceHandle implements AudioSourceHandle {
     // re-bound file the engine is already sounding it — there a 0 is the
     // caller's default, not an intent, and seeking would restart the track
     // mid-glide (the exact "jumps to 0:00" the gapless handoff exists to
-    // prevent). An explicit non-zero position is always honoured.
-    const seekAt = this.resumed && atMs === 0 ? undefined : atMs
+    // prevent). A track of unknown duration (a live stream) gets the same
+    // treatment: it is already sitting at the live edge, and `seek 0` against
+    // an unseekable stream can force a reconnect or stall. An explicit
+    // non-zero position is always honoured.
+    const seekAt = (this.resumed || this.durationMs <= 0) && atMs === 0 ? undefined : atMs
     if (seekAt !== undefined && seekAt >= 0) {
       this.position = seekAt
     }
@@ -287,14 +290,17 @@ export class MpvSourceHandle implements AudioSourceHandle {
 
 /**
  * A degraded (media-element) source handle that keeps the native engine's
- * visualizer alive while Chromium decodes.
+ * visualizer loop alive while Chromium decodes.
  *
- * The engine produces FFT frames only while something is actually sounding,
+ * The engine emits FFT frames only while it believes something is sounding,
  * and a track the engine could not load never reaches mpv `playing` — so a
- * degraded track would otherwise sit at zero forever. The wrapper forwards
- * this handle's playback state to the engine (`setStreamPlayback`), which
- * drives the synthetic spectrum there. Only the state crosses the bridge;
- * the PCM never does.
+ * degraded track would otherwise drop the loop into its idle branch, which
+ * sends a couple of zero frames and then goes quiet. The wrapper forwards
+ * this handle's playback state to the engine (`mpvSetStreamPlayback`); there
+ * it only sets the `streamPlaying` flag, which holds the loop in its playing
+ * branch so frames keep flowing (decaying toward silence, since no PCM ever
+ * arrives — the engine synthesizes nothing). Only the state crosses the
+ * bridge; the PCM never does.
  */
 class DegradedStreamHandle implements AudioSourceHandle {
   readonly node: AudioNode
@@ -516,20 +522,37 @@ export class AudioMpv extends Service implements AudioService {
               endedCount?: number
             }
           | undefined
-        if (result && typeof result.durationMs === 'number' && result.durationMs > 0) {
-          this.ctx.logger?.info(
-            'mpv: loaded via native audio-engine (%dms%s)',
-            result.durationMs,
-            result.resumed ? ', already sounding (gapless re-bind)' : '',
-          )
+        // The engine answers `loaded` only after mpv actually took the track;
+        // a failure answers `error`, which rejects this call. The resolve is
+        // therefore the success signal — a missing or zero duration only says
+        // the length is unknown (a live stream has none, and some http files
+        // have not been probed at FILE_LOADED yet), which is still the native
+        // path. Only a bridge that answered nothing at all (no engine behind
+        // it) or a rejection degrades to the media element.
+        if (result) {
+          const durationMs =
+            typeof result.durationMs === 'number' && result.durationMs > 0 ? result.durationMs : 0
+          if (durationMs > 0) {
+            this.ctx.logger?.info(
+              'mpv: loaded via native audio-engine (%dms%s)',
+              durationMs,
+              result.resumed ? ', already sounding (gapless re-bind)' : '',
+            )
+          } else {
+            this.ctx.logger?.info(
+              'mpv: loaded via native audio-engine (duration unknown — live stream or length not yet probed); NOT degrading',
+            )
+          }
           await this.ensureContextSampleRate(result.sampleRate)
           this.activeHardwareSampleRate = result.sampleRate
           this.activeHardwareChannels = result.channels
           this.activeHardwareBitDepth = result.bitDepth
-          opts.onBuffered?.(result.durationMs / 1000)
+          if (durationMs > 0) {
+            opts.onBuffered?.(durationMs / 1000)
+          }
           return new MpvSourceHandle(
             this.context,
-            result.durationMs,
+            durationMs,
             bridge,
             this.ctx.logger,
             result.resumed === true,
@@ -538,7 +561,7 @@ export class AudioMpv extends Service implements AudioService {
           )
         }
         this.ctx.logger?.warn(
-          'mpv: native mpvLoad returned no duration — degrading to the media element',
+          'mpv: native mpvLoad resolved with no engine result (no engine behind the bridge) — degrading to the media element',
         )
       } catch (err) {
         this.ctx.logger?.warn('mpv: native mpvLoad failed: %s — degrading to the media element', String(err))

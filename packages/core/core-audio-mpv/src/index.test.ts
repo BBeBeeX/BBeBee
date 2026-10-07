@@ -6,7 +6,7 @@ import type { MediaElementLike } from '@BBeBee/core-audio-webaudio'
 import type { BridgeCall } from '@BBeBee/core-audio-webaudio'
 import type { FakeAudioContext } from '@BBeBee/core-audio-webaudio/testing'
 import { createFakeAudioContext } from '@BBeBee/core-audio-webaudio/testing'
-import plugin, { AudioMpv, type AudioMpvConfig } from './index.js'
+import plugin, { AudioMpv, MpvSourceHandle, type AudioMpvConfig } from './index.js'
 
 /**
  * Structural `MediaElementLike` for the degradation path (and, via an
@@ -230,6 +230,27 @@ describe('core-audio-mpv', () => {
 
     expect(elements).toHaveLength(1)
     expect(handle.durationMs).toBe(120_000)
+    handle.dispose()
+  })
+
+  it('keeps a duration-less load on the native path — unknown length is not a failure', async () => {
+    // A live stream has no finite duration, and some http files have not been
+    // probed at FILE_LOADED yet. The engine resolving the load is the success
+    // signal; the unknown duration must reach the handle as 0, never trigger
+    // the media element, and never be reported as a buffer extent.
+    const { audio, elements } = await harness({
+      bridgeCall: async (_service, method) => (method === 'mpvLoad' ? {} : undefined),
+    })
+    const buffered: number[] = []
+    const handle = await audio.load('https://example.org/live.aac', {
+      strategy: 'stream',
+      onBuffered: (seconds) => void buffered.push(seconds),
+    })
+
+    expect(handle).toBeInstanceOf(MpvSourceHandle)
+    expect(handle.durationMs, '0 means unknown, not fabricated').toBe(0)
+    expect(elements, 'the media element must not be involved').toHaveLength(0)
+    expect(buffered, 'no buffer extent to report without a duration').toEqual([])
     handle.dispose()
   })
 
@@ -593,6 +614,33 @@ describe('core-audio-mpv native engine features', () => {
     handle.play(0)
     const playCall = calls.filter((c) => c.method === 'mpvPlay').at(-1)!
     expect(playCall.args[0], 'no seek: the re-bound track keeps sounding').toBeUndefined()
+    handle.dispose()
+  })
+
+  it('a duration-less track treats the caller’s default play(0) as position-less too', async () => {
+    // A live stream is already at the live edge when the handle is handed
+    // out; the player's default play(0) must not reach it as `seek 0`, which
+    // against an unseekable stream can force a reconnect or stall. The same
+    // caller-default reasoning as the re-bound (resumed) handle above.
+    const calls: { method: string; args: unknown[] }[] = []
+    const bridgeCall = async (_service: string, method: string, args: unknown[]) => {
+      calls.push({ method, args })
+      if (method === 'mpvLoad') return {}
+      return undefined
+    }
+
+    const { audio } = await harness({ bridgeCall })
+    const handle = await audio.load('https://example.org/live.aac', { strategy: 'stream' })
+
+    handle.play(0)
+    const playCall = calls.filter((c) => c.method === 'mpvPlay').at(-1)!
+    expect(playCall.args[0], 'no seek: the stream stays at the live edge').toBeUndefined()
+
+    // An explicit non-zero position is still the caller's intent, honoured
+    // even where the engine will likely ignore it.
+    handle.play(5000)
+    const seekCall = calls.filter((c) => c.method === 'mpvPlay').at(-1)!
+    expect(seekCall.args[0]).toBe(5000)
     handle.dispose()
   })
 

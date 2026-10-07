@@ -484,6 +484,11 @@ export function NowPlayingBar({ ctx, currentRoute, onOpenNowPlaying, portalMenus
   const duration = useDuration(ctx)
   const can = useTransportAvailability(ctx)
   const displayPosition = seekingPosition ?? position
+  // "Sounding but no duration" is the live-stream signature: the engine has
+  // no finite length to report and never will. Loading and paused keep the
+  // placeholder — a stream that has not started yet is not visibly live.
+  const isLive =
+    duration === undefined && (state.status === 'playing' || state.status === 'stalled')
 
   const menu = useTrackMenu(ctx)
   const saveToPlaylistMenu = useSaveToPlaylistMenu(ctx)
@@ -818,12 +823,43 @@ export function NowPlayingBar({ ctx, currentRoute, onOpenNowPlaying, portalMenus
         }),
         h(
           'span',
-          { style: { minWidth: 36, display: 'inline-block' } },
-          h(Text, {
-            variant: 'xs',
-            tone: 'muted',
-            children: formatDuration(duration),
-          }),
+          {
+            style: {
+              minWidth: 36,
+              display: 'inline-flex',
+              alignItems: 'center',
+            },
+          },
+          isLive
+            ? h(
+                'span',
+                {
+                  style: {
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: '0.08em',
+                    color: 'var(--bb-state-error, #F15E6C)',
+                  },
+                },
+                h('span', {
+                  'aria-hidden': true,
+                  style: {
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    backgroundColor: 'currentColor',
+                  },
+                }),
+                'LIVE',
+              )
+            : h(Text, {
+                variant: 'xs',
+                tone: 'muted',
+                children: formatDuration(duration),
+              }),
         ),
       ),
     ),

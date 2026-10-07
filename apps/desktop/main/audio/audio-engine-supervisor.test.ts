@@ -2,7 +2,7 @@ import { describe, expect, it, afterEach, beforeAll } from 'vitest'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { AudioEngineSupervisor, type CrashEvent, type FftFrame, type PlaybackStateEvent } from './audio-engine-supervisor.js'
+import { AudioEngineSupervisor, loadTimeoutMs, type CrashEvent, type FftFrame, type PlaybackStateEvent } from './audio-engine-supervisor.js'
 
 /**
  * A real one-and-a-half-second tone. When the engine runs with libmpv, this
@@ -36,6 +36,20 @@ beforeAll(() => {
   header.write('data', 36)
   header.writeUInt32LE(data.length, 40)
   writeFileSync(testWav, Buffer.concat([header, data]))
+})
+
+describe('loadTimeoutMs', () => {
+  it('gives http(s) streams double the local budget', () => {
+    // A timeout rejects the load, which the renderer reads as an engine
+    // failure and answers by degrading to the media element. A healthy but
+    // slow network stream (TLS handshake plus initial buffering) must not be
+    // condemned by the budget sized for local files.
+    expect(loadTimeoutMs('https://radio.example.org/stream.aac')).toBe(30_000)
+    expect(loadTimeoutMs('http://radio.example.org/stream.mp3')).toBe(30_000)
+    expect(loadTimeoutMs('HTTPS://radio.example.org/live')).toBe(30_000)
+    expect(loadTimeoutMs('file:///music/song.flac')).toBe(15_000)
+    expect(loadTimeoutMs('/music/song.flac')).toBe(15_000)
+  })
 })
 
 describe('AudioEngineSupervisor standalone native executable', () => {

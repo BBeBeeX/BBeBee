@@ -64,6 +64,19 @@ export interface LoadResult {
   endedCount?: number
 }
 
+/**
+ * How long a `load` may wait for the engine's `loaded` message before the
+ * promise rejects — which the renderer reads as an engine failure and answers
+ * by degrading to the media element. A local file loads in moments; a network
+ * stream can legitimately spend more than the local budget on TLS handshake
+ * plus initial buffering before mpv fires FILE_LOADED, and a timeout there
+ * would condemn a healthy stream to the degraded path. Remote URLs therefore
+ * get double the budget.
+ */
+export function loadTimeoutMs(uri: string): number {
+  return /^https?:\/\//i.test(uri) ? 30_000 : 15_000
+}
+
 export class AudioEngineSupervisor {
   private child: ChildProcess | null = null
   private readonly logger?: AudioMainLogger
@@ -434,7 +447,7 @@ export class AudioEngineSupervisor {
           this.pendingLoads.splice(idx, 1)
           reject(new Error(`Timeout loading audio: ${uri}`))
         }
-      }, 15_000)
+      }, loadTimeoutMs(uri))
 
       this.pendingLoads.push({ uri, resolve, reject, timer })
       this.sendCommand({ action: 'load', uri, options })

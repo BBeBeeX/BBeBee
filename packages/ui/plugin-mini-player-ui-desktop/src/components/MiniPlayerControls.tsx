@@ -247,7 +247,10 @@ export function ProgressBar({
           },
         },
         h('span', null, formatTime(positionMs)),
-        h('span', null, formatTime(durationMs)),
+        // A live stream has no duration; `formatTime` renders 0 as `0:00`,
+        // which would claim it is zero seconds long — the same honesty the
+        // toolkit's `formatDuration` already applies to unknown durations.
+        h('span', null, durationMs > 0 ? formatTime(durationMs) : '--:--'),
       ),
   )
 }
