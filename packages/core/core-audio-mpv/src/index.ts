@@ -452,20 +452,24 @@ export class AudioMpv extends Service implements AudioService {
     }
   }
 
-  async getEngineStatus(): Promise<{ running: boolean; mpvAvailable: boolean }> {
-    if (!this.bridge) return { running: false, mpvAvailable: false }
+  async getEngineStatus(): Promise<{ running: boolean; mpvAvailable: boolean; pcmTapAvailable: boolean }> {
+    if (!this.bridge) return { running: false, mpvAvailable: false, pcmTapAvailable: false }
     try {
       const status = (await this.bridge('audio', 'mpvEngineStatus', [])) as
-        | { running?: boolean; mpvAvailable?: boolean }
+        | { running?: boolean; mpvAvailable?: boolean; pcmTapAvailable?: boolean }
         | undefined
       // `mpvAvailable` defaults to true: an engine binary predating the
-      // explicit field is not proof of degradation.
+      // explicit field is not proof of degradation. `pcmTapAvailable` follows
+      // the same rule — an old binary that does not send the field is not
+      // proof the PCM tap is missing, and a false must survive the trip so
+      // the visualizer can fall back to the Web Audio analyser.
       return {
         running: status?.running === true,
         mpvAvailable: status?.mpvAvailable !== false,
+        pcmTapAvailable: status?.pcmTapAvailable !== false,
       }
     } catch {
-      return { running: false, mpvAvailable: false }
+      return { running: false, mpvAvailable: false, pcmTapAvailable: false }
     }
   }
 

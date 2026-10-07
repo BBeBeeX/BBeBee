@@ -109,6 +109,16 @@ export class AudioEngineSupervisor {
    * not send the field is not misreported as degraded.
    */
   private mpvAvailable = true
+  /**
+   * Whether the engine's last `ready` said the loaded libmpv exports the PCM
+   * tap (`mpv_set_pcm_callback`, patches/mpv-pcm-tap.patch). Without the tap
+   * the FFT pipeline never receives PCM and every frame is silence — the
+   * visualizer must fall back to the Web Audio analyser instead of polling
+   * zero frames forever. Defaults to `true` for the same reason as
+   * `mpvAvailable`: an older engine binary that does not send the field is
+   * not proof of absence.
+   */
+  private pcmTapAvailable = true
 
   private pendingLoads: Array<{
     uri: string
@@ -289,6 +299,7 @@ export class AudioEngineSupervisor {
     switch (type) {
       case 'ready':
         this.mpvAvailable = payload['mpvAvailable'] !== false
+        this.pcmTapAvailable = payload['pcmTapAvailable'] !== false
         for (const cb of this.readyListeners) cb()
         break
       case 'loaded': {
@@ -514,10 +525,11 @@ export class AudioEngineSupervisor {
   }
 
   /** Engine-process health, for the renderer's degradation notice. */
-  getEngineStatus(): { running: boolean; mpvAvailable: boolean } {
+  getEngineStatus(): { running: boolean; mpvAvailable: boolean; pcmTapAvailable: boolean } {
     return {
       running: Boolean(this.child && !this.child.killed),
       mpvAvailable: this.mpvAvailable,
+      pcmTapAvailable: this.pcmTapAvailable,
     }
   }
 

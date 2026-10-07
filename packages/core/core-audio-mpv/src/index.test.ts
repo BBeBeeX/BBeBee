@@ -828,9 +828,15 @@ describe('core-audio-mpv native engine features', () => {
   it('reports the native engine health through the bridge', async () => {
     const { audio } = await harness({
       bridgeCall: async (_service, method) =>
-        method === 'mpvEngineStatus' ? { running: true, mpvAvailable: false } : undefined,
+        method === 'mpvEngineStatus'
+          ? { running: true, mpvAvailable: false, pcmTapAvailable: false }
+          : undefined,
     })
-    expect(await audio.getEngineStatus()).toEqual({ running: true, mpvAvailable: false })
+    expect(await audio.getEngineStatus()).toEqual({
+      running: true,
+      mpvAvailable: false,
+      pcmTapAvailable: false,
+    })
   })
 
   it('reads a missing mpvAvailable field as healthy, not degraded', async () => {
@@ -840,12 +846,38 @@ describe('core-audio-mpv native engine features', () => {
       bridgeCall: async (_service, method) =>
         method === 'mpvEngineStatus' ? { running: true } : undefined,
     })
-    expect(await audio.getEngineStatus()).toEqual({ running: true, mpvAvailable: true })
+    expect(await audio.getEngineStatus()).toEqual({
+      running: true,
+      mpvAvailable: true,
+      pcmTapAvailable: true,
+    })
+  })
+
+  it('reads a missing pcmTapAvailable field as available, but honours an explicit false', async () => {
+    // Absence of the field is an old engine binary, not proof the PCM tap is
+    // missing — but an engine that explicitly says the tap is unavailable
+    // (stock libmpv) must have that answer survive the trip, or the
+    // visualizer would poll silent zero frames forever.
+    const { audio } = await harness({
+      bridgeCall: async (_service, method) =>
+        method === 'mpvEngineStatus'
+          ? { running: true, mpvAvailable: true, pcmTapAvailable: false }
+          : undefined,
+    })
+    expect(await audio.getEngineStatus()).toEqual({
+      running: true,
+      mpvAvailable: true,
+      pcmTapAvailable: false,
+    })
   })
 
   it('reports a closed engine when there is no bridge', async () => {
     const { audio } = await harness({ bridgeCall: undefined })
-    expect(await audio.getEngineStatus()).toEqual({ running: false, mpvAvailable: false })
+    expect(await audio.getEngineStatus()).toEqual({
+      running: false,
+      mpvAvailable: false,
+      pcmTapAvailable: false,
+    })
   })
 
   it('tells the engine when a degraded track sounds, so the visualizer keeps moving', async () => {

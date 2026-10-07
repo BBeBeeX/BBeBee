@@ -35,6 +35,8 @@ export class VisualizerPlugin extends Service implements VisualizerService {
   private readonly ownCtx: Context
   private currentSettings: VisualizerSettings = { ...DEFAULT_VISUALIZER_SETTINGS }
   private analyser: AudioAnalyser | null = null
+  /** Guards the async mpv attach against a detach or newer attach racing it. */
+  private attachSeq = 0
 
   constructor(ctx: Context) {
     super(ctx, 'visualizer')
@@ -128,25 +130,48 @@ export class VisualizerPlugin extends Service implements VisualizerService {
   }
 
   private attachAnalyser(): void {
+    // The mpv branch awaits `getEngineStatus` before committing, so two
+    // attach/detach cycles can overlap. A stale answer must not re-attach an
+    // analyser the newer cycle (or a detach) has already replaced.
+    const seq = ++this.attachSeq
+    void this.attachAnalyserAsync(seq).catch((err) => {
+      this.ownCtx.logger.warn('visualizer: failed to create or attach AudioAnalyser', err)
+    })
+  }
+
+  private async attachAnalyserAsync(seq: number): Promise<void> {
     try {
       const activeEngine = this.ownCtx.audio?.activeEngineName
       const audioSvc = this.ownCtx.audio as unknown as {
         getFftSpectrum?: () => Promise<FftFrame | null>
         setVisualizer?: (enabled: boolean, fftSize?: number) => Promise<void>
+        getEngineStatus?: () => Promise<{ running: boolean; mpvAvailable: boolean; pcmTapAvailable: boolean }>
       }
       const isMpv = activeEngine === 'mpv' || activeEngine === 'wasapi'
 
       // If active engine is native MPV/WASAPI and provides in-process FFT frames:
       if (isMpv && typeof audioSvc?.getFftSpectrum === 'function') {
-        const targetFftSize = this.currentSettings.fftSize || 128
-        void audioSvc.setVisualizer?.(true, targetFftSize)
-        this.analyser = new NativeMpvImpl({
-          fftSize: targetFftSize,
-          smoothingTimeConstant: 0.82,
-          fetchSpectrum: () => audioSvc.getFftSpectrum!(),
-        })
-        this.ownCtx.logger.info('visualizer: attached NativeMpvImpl spectrum analyser')
-        return
+        // The FFT frames ride on the PCM tap inside libmpv
+        // (patches/mpv-pcm-tap.patch). On a stock libmpv the engine receives
+        // no PCM at all and every frame is silence — the Web Audio analyser
+        // is the honest fallback. A missing status (an engine without
+        // `getEngineStatus`) defaults to available, so nothing regresses.
+        const status = await audioSvc.getEngineStatus?.()
+        if (seq !== this.attachSeq) return
+        if (status?.pcmTapAvailable !== false) {
+          const targetFftSize = this.currentSettings.fftSize || 128
+          void audioSvc.setVisualizer?.(true, targetFftSize)
+          this.analyser = new NativeMpvImpl({
+            fftSize: targetFftSize,
+            smoothingTimeConstant: 0.82,
+            fetchSpectrum: () => audioSvc.getFftSpectrum!(),
+          })
+          this.ownCtx.logger.info('visualizer: attached NativeMpvImpl spectrum analyser')
+          return
+        }
+        this.ownCtx.logger.warn(
+          'visualizer: native PCM tap unavailable (unpatched libmpv?) — falling back to the Web Audio analyser',
+        )
       }
 
       // Default: Web Audio AnalyserNode
@@ -180,6 +205,7 @@ export class VisualizerPlugin extends Service implements VisualizerService {
   }
 
   private detachAnalyser(): void {
+    this.attachSeq++
     if (this.analyser) {
       this.analyser.dispose()
       this.analyser = null

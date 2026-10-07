@@ -228,6 +228,13 @@ describe('AudioEngineSupervisor standalone native executable', () => {
     // A binary predating the field is not proof of degradation.
     dispatch({ type: 'ready' })
     expect(supervisor.getEngineStatus().mpvAvailable, 'legacy ready stays healthy').toBe(true)
+    expect(supervisor.getEngineStatus().pcmTapAvailable, 'legacy ready keeps the tap').toBe(true)
+
+    // An unpatched libmpv reports the tap missing — the visualizer must see
+    // that to fall back to the Web Audio analyser instead of polling zero
+    // FFT frames forever.
+    dispatch({ type: 'ready', mpvAvailable: true, pcmTapAvailable: false })
+    expect(supervisor.getEngineStatus().pcmTapAvailable).toBe(false)
   })
 
   it('forwards the stream playback flag for the degraded visualizer', () => {

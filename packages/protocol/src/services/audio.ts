@@ -109,8 +109,15 @@ export interface AudioService {
    * degrades to the media element — audible, but with no FFT frames and no
    * native device switching — and the settings UI surfaces exactly that
    * instead of pretending the native engine is running.
+   *
+   * `pcmTapAvailable` says whether the loaded libmpv exports the PCM tap
+   * (`mpv_set_pcm_callback`) the FFT frames ride on. A libmpv without the
+   * tap yields silence on every frame even though everything else works, so
+   * the visualizer must fall back to the Web Audio analyser instead of
+   * polling zero frames forever. Absent means available: an engine binary
+   * predating the field is not proof of absence.
    */
-  getEngineStatus?(): Promise<{ running: boolean; mpvAvailable: boolean }>
+  getEngineStatus?(): Promise<{ running: boolean; mpvAvailable: boolean; pcmTapAvailable: boolean }>
 
   /**
    * Preload or append next track for gapless playback transitions.

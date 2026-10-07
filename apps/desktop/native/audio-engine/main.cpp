@@ -373,6 +373,11 @@ public:
         // whose settings page must show the media-element degradation instead
         // of silently pretending the MPV engine is running.
         ready["mpvAvailable"] = mpv != nullptr;
+        // Whether the loaded libmpv exports the PCM tap (patches/mpv-pcm-tap.patch).
+        // Without it the FFT pipeline never receives PCM and every frame is
+        // silence — the renderer's visualizer must know, so it can fall back
+        // to the Web Audio analyser instead of polling zero frames forever.
+        ready["pcmTapAvailable"] = mpvLib.set_pcm_callback != nullptr;
         ready["sampleRate"] = sampleRate;
         ready["channels"] = channels;
         ready["bitDepth"] = bitDepth;
@@ -410,7 +415,12 @@ public:
             }
         }
         if (!userAgent.empty()) mpvLib.set_option_string(mpv, "user-agent", userAgent.c_str());
-        if (!referer.empty()) mpvLib.set_option_string(mpv, "referer", referer.c_str());
+        if (!referer.empty()) {
+            if(mpvLib.set_option_string(mpv, "referrer", referer.c_str()) < 0) {
+                std::cerr << "[audio-engine] Warning: mpv set_option_string(referrer) failed, falling back to http-header-fields\n";
+            }
+        }
+
         // Setting it (even to empty) clears any previous load's extras.
         mpvLib.set_option_string(mpv, "http-header-fields", extra.c_str());
     }

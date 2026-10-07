@@ -169,4 +169,51 @@ describe('plugin-visualizer', () => {
     ;(plugin as unknown as { detachAnalyser(): void }).detachAnalyser()
     expect(setVisualizerMock).toHaveBeenCalledWith(false)
   })
+
+  it('attaches WebAudioImpl when the engine reports the PCM tap unavailable', async () => {
+    // Stock libmpv never yields PCM to the FFT pipeline — every frame is
+    // silence. An explicit `pcmTapAvailable: false` must steer the analyser
+    // to the Web Audio graph instead of polling zero frames forever. A mock
+    // engine without `getEngineStatus` (the default-true rule) keeps
+    // attaching NativeMpvImpl — covered by the mpv/wasapi tests above.
+    const mockAnalyser = {
+      fftSize: 128,
+      smoothingTimeConstant: 0.8,
+      getByteFrequencyData: vi.fn((arr: Uint8Array) => {
+        arr.fill(90)
+      }),
+      getByteTimeDomainData: vi.fn(),
+      disconnect: vi.fn(),
+    }
+    const mockChainOutput = { connect: vi.fn(), disconnect: vi.fn() }
+    const mockAudioContext = { createAnalyser: vi.fn(() => mockAnalyser) }
+
+    const mockCtx = new CordisContext() as unknown as Context
+    const untyped = mockCtx as unknown as Record<string, unknown>
+    untyped['audio'] = {
+      activeEngineName: 'mpv',
+      getFftSpectrum: vi.fn(async () => ({ frequencyData: [], timeDomainData: [] })),
+      getEngineStatus: vi.fn(async () => ({
+        running: true,
+        mpvAvailable: true,
+        pcmTapAvailable: false,
+      })),
+      context: mockAudioContext,
+      chainOutput: mockChainOutput,
+    }
+    untyped['settings'] = {
+      getSync: vi.fn(() => ({ visualizer: DEFAULT_VISUALIZER_SETTINGS })),
+      get: vi.fn(async () => ({ visualizer: DEFAULT_VISUALIZER_SETTINGS })),
+      update: vi.fn(),
+    }
+
+    const plugin = new VisualizerPlugin(mockCtx)
+    await plugin[VisualizerPlugin.init]()
+
+    expect(mockAudioContext.createAnalyser).toHaveBeenCalled()
+    expect(mockChainOutput.connect).toHaveBeenCalledWith(mockAnalyser)
+    expect(plugin.currentAnalyser).toBeDefined()
+    expect(plugin.analyserNode).toBe(mockAnalyser)
+    ;(plugin as unknown as { detachAnalyser(): void }).detachAnalyser()
+  })
 })

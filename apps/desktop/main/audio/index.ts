@@ -40,7 +40,7 @@ export interface AudioHostApi {
   mpvGetState(): Promise<PlaybackStateEvent>
   mpvGetAudioDevices(): Promise<Array<{ name: string; description: string }>>
   /** Whether the engine process lives and its libmpv actually loaded. */
-  mpvEngineStatus(): Promise<{ running: boolean; mpvAvailable: boolean }>
+  mpvEngineStatus(): Promise<{ running: boolean; mpvAvailable: boolean; pcmTapAvailable: boolean }>
   /** The renderer's media-element playback state, for the engine's visualizer. */
   mpvSetStreamPlayback(playing: boolean): Promise<void>
 

@@ -297,9 +297,9 @@ export class DesktopAudioService extends Service implements AudioService {
   }
 
   /** Native-engine health, forwarded for the settings page's degradation notice. */
-  async getEngineStatus(): Promise<{ running: boolean; mpvAvailable: boolean }> {
+  async getEngineStatus(): Promise<{ running: boolean; mpvAvailable: boolean; pcmTapAvailable: boolean }> {
     const engine = this.activeEngine as unknown as {
-      getEngineStatus?: () => Promise<{ running: boolean; mpvAvailable: boolean }>
+      getEngineStatus?: () => Promise<{ running: boolean; mpvAvailable: boolean; pcmTapAvailable: boolean }>
     }
     if (engine && typeof engine.getEngineStatus === 'function') {
       try {
@@ -308,7 +308,7 @@ export class DesktopAudioService extends Service implements AudioService {
         // fall through to the closed-engine answer
       }
     }
-    return { running: false, mpvAvailable: false }
+    return { running: false, mpvAvailable: false, pcmTapAvailable: false }
   }
 
   get context(): BaseAudioContext {
