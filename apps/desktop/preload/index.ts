@@ -15,6 +15,9 @@ const api = {
   paths: {
     get: (kind: string): Promise<string | undefined> => ipcRenderer.invoke('paths:get', kind),
   },
+  // The running app's version, for registry entries that declare a
+  // `minAppVersion` (the confirm dialog disables installs the build cannot satisfy).
+  getAppVersion: (): Promise<string> => ipcRenderer.invoke('app:version'),
   /**
    * The OS keychain, reachable only from `main`.
    *

@@ -1,0 +1,50 @@
+{
+  "name": "@BBeBee/plugin-registry",
+  "version": "0.0.0",
+  "description": "ctx.contentRegistry — the community content index: update checks and installs for music sources, lyric sources, themes and desktop plugins.",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./semver": "./src/semver.ts",
+    "./views": "./src/views.ts",
+    "./package.json": "./package.json"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./semver": {
+        "types": "./dist/semver.d.ts",
+        "default": "./dist/semver.js"
+      },
+      "./views": {
+        "types": "./dist/views.d.ts",
+        "default": "./dist/views.js"
+      }
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@BBeBee/protocol": "workspace:*",
+    "@BBeBee/kernel": "workspace:*",
+    "@BBeBee/toolkit": "workspace:*",
+    "@BBeBee/ui-tokens": "workspace:*",
+    "cordis": "4.0.0-rc.9"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.11"
+  }
+}

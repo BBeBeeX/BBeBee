@@ -2234,6 +2234,60 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
+  "@BBeBee/plugin-registry": {
+    "id": "@BBeBee/plugin-registry",
+    "name": "@BBeBee/plugin-registry",
+    "displayName": "Registry",
+    "description": "ctx.contentRegistry — the community content index: update checks and installs for music sources, lyric sources, themes and desktop plugins.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-4",
+    "moduleId": "registry",
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [
+      "net:host/*"
+    ],
+    "contributes": {
+      "services": [
+        "contentRegistry"
+      ]
+    },
+    "effect": "contentRegistry"
+  },
+  "plugin-registry": {
+    "id": "@BBeBee/plugin-registry",
+    "name": "@BBeBee/plugin-registry",
+    "displayName": "Registry",
+    "description": "ctx.contentRegistry — the community content index: update checks and installs for music sources, lyric sources, themes and desktop plugins.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-4",
+    "moduleId": "registry",
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [
+      "net:host/*"
+    ],
+    "contributes": {
+      "services": [
+        "contentRegistry"
+      ]
+    },
+    "effect": "contentRegistry"
+  },
   "@BBeBee/plugin-settings": {
     "id": "@BBeBee/plugin-settings",
     "name": "@BBeBee/plugin-settings",
@@ -3976,6 +4030,60 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "moduleId": "playback",
     "platforms": [
       "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {},
+    "effect": null
+  },
+  "@BBeBee/plugin-registry-ui-desktop": {
+    "id": "@BBeBee/plugin-registry-ui-desktop",
+    "name": "@BBeBee/plugin-registry-ui-desktop",
+    "displayName": "Registry UI (Desktop)",
+    "description": "Desktop views for @BBeBee/plugin-registry (registry screen and the registry settings card).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [
+      "@BBeBee/plugin-ui",
+      "@BBeBee/plugin-registry"
+    ],
+    "systemId": "layer-5",
+    "moduleId": "registry",
+    "platforms": [
+      "desktop"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {},
+    "effect": null
+  },
+  "plugin-registry-ui-desktop": {
+    "id": "@BBeBee/plugin-registry-ui-desktop",
+    "name": "@BBeBee/plugin-registry-ui-desktop",
+    "displayName": "Registry UI (Desktop)",
+    "description": "Desktop views for @BBeBee/plugin-registry (registry screen and the registry settings card).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [
+      "@BBeBee/plugin-ui",
+      "@BBeBee/plugin-registry"
+    ],
+    "systemId": "layer-5",
+    "moduleId": "registry",
+    "platforms": [
+      "desktop"
     ],
     "entry": {
       "main": "./dist/index.js"

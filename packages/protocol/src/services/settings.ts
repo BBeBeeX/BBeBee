@@ -149,6 +149,12 @@ export interface AppSettings {
    * their state for when it is turned back on.
    */
   thirdPartyLyricSourcesEnabled: boolean
+  /**
+   * Whether the registry service checks the community index for content
+   * updates automatically (once shortly after boot, then daily). Turning it
+   * off leaves manual checks and installs working.
+   */
+  registryAutoCheck?: boolean
   /** Desktop floating lyrics display settings. */
   desktopLyrics: DesktopLyricsSettings
   /** Global desktop keyboard shortcuts configuration. */
@@ -228,6 +234,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   userAgent: '',
   thirdPartySourcesEnabled: true,
   thirdPartyLyricSourcesEnabled: true,
+  registryAutoCheck: true,
   desktopLyrics: { ...DEFAULT_DESKTOP_LYRICS_SETTINGS },
   shortcuts: {
     enabled: DEFAULT_SHORTCUTS_SETTINGS.enabled,

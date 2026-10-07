@@ -721,6 +721,11 @@ function registerHandlers(): void {
     }
   })
 
+  // The running app's version, for registry entries that declare a
+  // `minAppVersion` — the confirm dialog disables an install the current
+  // build cannot satisfy.
+  ipcMain.handle('app:version', () => app.getVersion())
+
   /*
    * The OS keychain, which only `main` can reach.
    *

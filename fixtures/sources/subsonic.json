@@ -1,6 +1,8 @@
 {
   "sourceUrl": "https://music.example.org",
   "sourceName": "Navidrome — example",
+  "version": "1.0.0",
+  "author": "BBeBee",
   "sourceGroup": "self-hosted,subsonic",
   "sourceComment": "A Subsonic-compatible server. Set the source variable to user:password.",
   "variableComment": "username:password",

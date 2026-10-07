@@ -50,6 +50,7 @@ import type { ThemeDefinition } from './services/theme.js'
 import type { NowPlayingStyleId, NowPlayingStyleMeta } from './services/now-playing.js'
 import type { LyricSourceDefinition } from './services/lyric-sources.js'
 import type { ShareTarget } from './services/share.js'
+import type { RegistryUpdate } from './services/registry.js'
 import type { UrnKind } from './urn.js'
 
 declare module 'cordis' {
@@ -213,6 +214,14 @@ declare module 'cordis' {
     /* ── plugin-manager ──────────────────────────────── emit ── */
     'plugin-manager/enabled-changed'(payload: { id: string; enabled: boolean }): void
     'plugin-manager/changed'(): void
+
+    /* ── registry ───────────────────────────────────── emit ── */
+    /**
+     * Fired after EVERY completed update check, with the full current list —
+     * possibly empty, so a listener rendering a badge can clear it rather
+     * than go stale. See `RegistryService.checkUpdates`.
+     */
+    'registry/updates-available'(updates: readonly RegistryUpdate[]): void
   }
 }
 
@@ -275,6 +284,7 @@ export const DISPATCH_MODES = {
   'share/import': 'emit',
   'plugin-manager/enabled-changed': 'emit',
   'plugin-manager/changed': 'emit',
+  'registry/updates-available': 'emit',
 } as const satisfies Record<string, DispatchMode>
 
 export type BBeBeeEventName = keyof typeof DISPATCH_MODES

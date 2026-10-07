@@ -13,7 +13,11 @@ export interface CompileSourceOptions {
 }
 
 export interface BuildSourcesOptions {
-  /** Root directory containing source folders. Defaults to <repo>/sources */
+  /**
+   * Root directory containing source folders — typically one of the registry
+   * submodule's sibling dirs (`registry/music-sources`, `registry/lyric-sources`)
+   * or, with `--sources`, a single mixed directory routed per document.
+   */
   sourcesDir: string
   /** Output directory for compiled music-source JSON fixtures. Defaults to <repo>/fixtures/sources */
   outDir: string
@@ -152,6 +156,9 @@ export async function buildSources(opts: BuildSourcesOptions): Promise<string[]>
   const entries = await readdir(opts.sourcesDir, { withFileTypes: true })
   const sourceDirs = entries
     .filter((e) => e.isDirectory() && !e.name.startsWith('.') && !e.name.startsWith('_'))
+    // `unpacked` is the --unpack scratch output (registry/music-sources/unpacked),
+    // never a source — scanning it would fail with "No source JSON found".
+    .filter((e) => e.name !== 'unpacked')
     .map((e) => join(opts.sourcesDir, e.name))
 
   const writtenFiles: string[] = []

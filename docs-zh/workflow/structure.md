@@ -224,7 +224,9 @@ B_Be_Bee/
 │                                             ctx.fs，以及契约套件运行所在的
 │                                             按字节服务的 http fixture
 │
-├── sources/                                  多文件音源开发源码目录（source.json + source.js 双文件维护）
+├── registry/                                 git submodule（钉定版本）—— bbebeex-registry 内容注册表
+│                                             ([sources/registry.md](../sources/registry.md))；其 music-sources/ 与
+│                                             lyric-sources/ 正是 `pnpm build:sources` 的编译输入
 ├── fixtures/sources/                         编译后的单文件示例音源文档；黄金语料库 ([testing.md §6](./testing.md#6-testing-strategy))
 ├── scripts/                                  工程脚本（scripts/sources/ 音源打包、校验与热重载工具）
 ├── test/stubs/                               Node 无法加载的三个原生模块，由

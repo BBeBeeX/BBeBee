@@ -1,6 +1,8 @@
 {
   "sourceUrl": "https://www.bilibili.com",
   "sourceName": "Bilibili",
+  "version": "1.0.0",
+  "author": "BBeBee",
   "sourceGroup": "bilibili,video",
   "sourceComment": "Bilibili video & audio source.",
   "concurrentRate": "5/1000",

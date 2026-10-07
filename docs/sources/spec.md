@@ -351,20 +351,24 @@ export interface LyricRule { lyric: string; format?: string; offsetMs?: string }
 
 Complex sources often involve substantial JavaScript logic (e.g. signature mixing, multi-stage authentication, audio stream track ranking). Authoring hundreds of lines of JS inside an escaped `\n` string in a single JSON file is unergonomic.
 
-Sources in this repository adopt **dual-file authoring during development, compiled to single-file for distribution**:
-- **`sources/<id>/source.json`**: source metadata, allowed hosts, and rule mappings.
-- **`sources/<id>/source.js`**: pure, unescaped JavaScript helpers with IDE syntax highlighting, linting, and completion.
+Sources adopt **dual-file authoring during development, compiled to single-file for distribution**. The dual-file sources live in the registry repo ([bbebeex-registry](https://github.com/BBeBeeX/bbebeex-registry)), consumed by this repository as the pinned `registry/` submodule ([registry.md](./registry.md)):
+- **`registry/music-sources/<id>/source.json`**: source metadata, allowed hosts, and rule mappings.
+- **`registry/music-sources/<id>/source.js`**: pure, unescaped JavaScript helpers with IDE syntax highlighting, linting, and completion.
+- **`registry/lyric-sources/<id>/`**: the same dual-file layout for lyric sources.
 
-Build tooling validates and merges these files into single-file JSONs in `fixtures/sources/<id>.json`:
+Build tooling validates and merges these files into single-file JSONs in `fixtures/sources/<id>.json` (music) and `fixtures/lyric-sources/<id>.json` (lyric):
 ```bash
-# Compile all sources into fixtures/sources/
+# Compile the registry submodule's sources into fixtures/sources/ + fixtures/lyric-sources/
 pnpm build:sources
 
-# Watch sources/ directory for changes and hot-recompile
+# Watch both registry dirs for changes and hot-recompile
 pnpm watch:sources
 
+# Legacy: compile one mixed directory routed per document
+pnpm build:sources --sources <dir>
+
 # Unpack any single-file JSON back into dual-file source format
-node --experimental-strip-types scripts/sources/cli.ts --unpack fixtures/sources/bilibili.json sources/bilibili
+node --experimental-strip-types scripts/sources/cli.ts --unpack fixtures/sources/bilibili.json
 ```
 
 `browse` is `exploreUrl` + `ruleExplore`: each explore entry is a titled URL, and an item whose

@@ -1,0 +1,27 @@
+{
+  "id": "@BBeBee/plugin-registry",
+  "name": "@BBeBee/plugin-registry",
+  "displayName": "Registry",
+  "description": "ctx.contentRegistry — the community content index: update checks and installs for music sources, lyric sources, themes and desktop plugins.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": {
+    "BBeBee": "^0.1.0"
+  },
+  "enabled": true,
+  "dependencies": [],
+  "systemId": "layer-4",
+  "moduleId": "registry",
+  "entry": {
+    "main": "./dist/index.js"
+  },
+  "capabilities": [
+    "net:host/*"
+  ],
+  "contributes": {
+    "services": [
+      "contentRegistry"
+    ]
+  },
+  "effect": "contentRegistry"
+}

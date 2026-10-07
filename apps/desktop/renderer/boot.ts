@@ -64,7 +64,14 @@ import logConsole from '@BBeBee/plugin-log-console'
 import logFile from '@BBeBee/plugin-log-file'
 
 import { BOOTSTRAP_SERVICES, INITIAL_ENABLED } from './plugins.js'
-import { getBuiltinPluginRegistry, loadExternalPluginRegistry } from './dynamic-loader.js'
+// `installAndActivatePlugin` is handed to `ctx.contentRegistry` as the only
+// path for installing third-party plugin bundles — the desktop dynamic host
+// over `bbebee-plugin://` is the one privileged loader there is.
+import {
+  getBuiltinPluginRegistry,
+  installAndActivatePlugin,
+  loadExternalPluginRegistry,
+} from './dynamic-loader.js'
 // The ui-kit's inline-styled components (Artwork placeholder, ContextMenu,
 // JsonTree) read their palette from `c()` — wiring that module-level scheme to
 // `ctx.theme` is composition-root work, same as the service registrations above.
@@ -74,6 +81,7 @@ declare global {
   interface Window {
     BBeBee?: {
       paths: { get(kind: string): Promise<string | undefined> }
+      getAppVersion: () => Promise<string>
       shell: { openExternal(url: string): Promise<void> }
       dialog: { pickDirectory(): Promise<string | undefined> }
       files?: { getPath(file: File): string }
@@ -889,6 +897,16 @@ export async function boot(): Promise<App> {
         unloadPlugin: (id: string) => app.unloadPlugin(id),
       })
     }
+  })
+
+  // The content registry installs third-party plugin bundles through the
+  // desktop dynamic host. Every other install kind goes through the headless
+  // services; this bridge is the one platform-specific piece, and only the
+  // desktop has the `bbebee-plugin://` loader it needs.
+  app.ctx.inject(['contentRegistry'], (scoped) => {
+    scoped.contentRegistry.setPluginInstaller(async (bundle) => {
+      await installAndActivatePlugin(app, bundle.manifest.id, bundle.files, bundle.manifest)
+    })
   })
 
   return app

@@ -48,6 +48,7 @@ pnpm dev:desktop # Electron, with HMR across main, preload and renderer
 | | [sources/rule-engines.md](./sources/rule-engines.md) | 六大规则引擎语法（`@json`, `@css`, `@xpath`, `@js`, 正则, 模板）与组合器 |
 | | [sources/runtime.md](./sources/runtime.md) | 解析运行时生命周期、Cookie 与会话持久化、流解析与 QuickJS 沙箱隔离 |
 | | [sources/authoring.md](./sources/authoring.md) | 双文件开发工作流、编译器工具链、故障诊断与本地媒体文件扫描器 |
+| | [sources/registry.md](./sources/registry.md) | bbebeex-registry 内容注册表：索引格式、更新检查与安装流程 |
 | **数据模型** | [data-model/urn.md](./data-model/urn.md) | 实体统一资源定位符 URN 语法规范 (`BBeBee:<sourceId>:<kind>:<id>`) 与跨源关联 |
 | | [data-model/schema.md](./data-model/schema.md) | 实体关系图、SQLite 配置约定、完整数据表字典与运行时类型 |
 | | [data-model/events.md](./data-model/events.md) | Waterfall 瀑布流钩子与 Cordis 全生命周期强类型事件映射表 |

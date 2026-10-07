@@ -959,6 +959,78 @@ export interface PluginManagerService {
 
 ---
 
-## 25. 下一步阅读
+## 25. `ctx.contentRegistry` —— 第三方内容注册表
+
+**用途。** 第三方内容及其更新的应用内索引。社区注册表（[bbebeex-registry](https://github.com/BBeBeeX/bbebeex-registry)，以钉定版本的 `registry/` submodule 接入 —— [sources/registry.md](../sources/registry.md)）发布一份 `registry.json`，索引四类可安装内容：音源、歌词源、主题与桌面插件。本服务拉取该索引，将其与用户已安装内容比对，并经由各类型自己的服务完成安装 —— `ctx.sources.import`、`ctx.lyricSources.registerSource`、`ctx.theme.registerTheme`，以及桌面动态加载器。它刻意做成一个薄协调者：下游服务已校验的东西它不再校验，用户确认前必须看到的东西它也绝不隐藏。
+
+> ⚠️ **服务键是 `contentRegistry`，不是 `registry`。** 在 cordis 4 中，`registry` 这个键属于内核本身 —— 它的插件注册表服务，其方法以 `ctx.plugin` / `ctx.inject` 的形式暴露。
+
+```ts
+export type RegistryEntryKind = 'music-source' | 'lyric-source' | 'theme' | 'plugin'
+
+export interface RegistryEntry {
+  readonly id: string
+  readonly kind: RegistryEntryKind
+  readonly name: string
+  /** 最新发布的 semver。缺失 = "未版本化"；更新检查跳过此类条目。 */
+  readonly version?: string
+  readonly author?: string
+  readonly description?: string
+  readonly updatedAt?: string
+  readonly downloadUrl?: string
+  /** 仅供参考；暂不强制。 */
+  readonly minAppVersion?: string
+  /** 仅 music-source：文档的后端 URL（与已安装源的匹配键）。 */
+  readonly sourceUrl?: string
+  /** 仅 theme/plugin */
+  readonly previewUrl?: string
+  /** 仅 plugin */
+  readonly repoUrl?: string
+  readonly sha256?: string
+  readonly capabilities?: readonly string[]
+}
+
+export interface RegistryUpdate {
+  readonly kind: RegistryEntryKind
+  readonly id: string
+  readonly name: string
+  readonly installedVersion: string
+  readonly availableVersion: string
+  readonly downloadUrl?: string
+  /** 已安装副本为内置内容时为 true（今天：内置 lrclib 歌词源）。 */
+  readonly builtin?: boolean
+}
+
+export interface RegistryService {
+  /** 拉取注册表索引（endpoint 可经 store 覆盖），缓存最近一次成功副本供离线使用。 */
+  getIndex(force?: boolean): Promise<RegistryIndex>
+  /** 将已安装内容与索引比对；以结果触发 'registry/updates-available'。 */
+  checkUpdates(): Promise<readonly RegistryUpdate[]>
+  /** 上一次 checkUpdates() 的结果（供角标读取而无需重新拉取）。 */
+  updates(): readonly RegistryUpdate[]
+  /** 拉取条目的分发文档，返回确认对话框必须展示的信息。 */
+  fetchEntryDetails(entry: RegistryEntry): Promise<RegistryEntryDetails>
+  /** 安装/更新一个条目。调用方必须已经向用户展示详情（hosts / 插件风险）。 */
+  install(entry: RegistryEntry, opts?: { confirmed?: boolean }): Promise<void>
+  /** 组合根注入，使 plugin 类安装能到达桌面动态加载宿主。 */
+  setPluginInstaller(installer: (bundle: PluginInstallBundle) => Promise<void>): void
+}
+```
+
+| | Electron（桌面） | Expo（移动） |
+|---|---|---|
+| 无头服务 | `@BBeBee/plugin-registry` | `@BBeBee/plugin-registry` |
+| 持久化 | `ctx.store` 键 `registry.index-cache`（最近一次成功索引，离线用）与 `registry.prefs`（endpoint 覆盖、`lastCheckAt`） | 同左 |
+| 响应式事件 | `'registry/updates-available'` —— **每次**完成的检查（自动或手动）之后触发，携带完整更新列表，**包括空列表**（用于清除角标） | 同左 |
+| plugin 类安装 | 桌面动态加载宿主，由组合根经 `setPluginInstaller` 接入 | 不支持（桌面专属分发） |
+
+- **匹配语义**：音源按 `sourceUrl`（`SourceRecord` 的身份）匹配已安装记录；歌词源 / 主题 / 插件按各自 `id` 匹配。已安装副本版本低于条目 `version` 时产生一条 `RegistryUpdate`。
+- **各类型安装流程**：音源 → `ctx.sources.import`（完整导入管线，`originUri` = `downloadUrl`）；歌词源 → 形状校验后 `ctx.lyricSources.registerSource`；主题 → 与用户自建主题相同的暗/亮对比度门禁，然后 `ctx.theme.registerTheme`；插件 → 条目未发布 `sha256` 时拒绝安装，将下载包与摘要比对，再交给动态加载宿主。
+- **安全红线**：`fetchEntryDetails()` 的存在就是为了让确认对话框在导入**之前**说出音源文档的 `allowedHosts`；插件安装校验 `sha256` 并要求明确的风险确认；应用只消费 `dist/` 编译产物 —— 注册表仓里的条目源码仅供审核。
+- **自动检查**：`AppSettings.registryAutoCheck`（默认 `true`）—— 启动约 45 秒后首次检查，此后每 24 小时一次；手动检查不受影响。
+
+---
+
+## 26. 下一步阅读
 
 [05 —— 音频与播放](../audio/playback.md) 在这些服务之上构建播放引擎与 DSP 效果链。

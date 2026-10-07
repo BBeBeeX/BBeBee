@@ -24,7 +24,7 @@ describe('desktop dynamic-loader', () => {
   it('discovers workspace plugins dynamically without codegen', async () => {
     const registry = getBuiltinPluginRegistry()
     const keys = Object.keys(registry)
-    expect(keys.length).toBe(57)
+    expect(keys.length).toBe(59)
 
     // Check a representative plugin
     const playerEntry = registry['@BBeBee/plugin-player']
@@ -38,7 +38,7 @@ describe('desktop dynamic-loader', () => {
     expect(playerModule.default ?? playerModule).toBeDefined()
 
     // Also verify exported bundled registry matches
-    expect(Object.keys(bundled).length).toBe(57)
+    expect(Object.keys(bundled).length).toBe(59)
   })
 
   it('scans and builds dynamic registry entries from installed plugins', async () => {

@@ -1,0 +1,37 @@
+{
+  "name": "@BBeBee/plugin-registry-ui-desktop",
+  "version": "0.0.0",
+  "description": "Desktop views for @BBeBee/plugin-registry (registry screen and the registry settings card).",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.tsx",
+    "./package.json": "./package.json"
+  },
+  "main": "./src/index.tsx",
+  "types": "./src/index.tsx",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@BBeBee/plugin-registry": "workspace:*",
+    "@BBeBee/protocol": "workspace:*",
+    "@BBeBee/toolkit": "workspace:*",
+    "@BBeBee/ui-kit-desktop": "workspace:*",
+    "@BBeBee/ui-tokens": "workspace:*",
+    "cordis": "4.0.0-rc.9",
+    "react": "19.2.3"
+  },
+  "devDependencies": {
+    "@BBeBee/kernel": "workspace:*",
+    "@testing-library/react": "^16.3.3",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "react-dom": "19.2.3",
+    "vitest": "^4.1.11"
+  }
+}

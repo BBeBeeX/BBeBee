@@ -144,6 +144,11 @@ export const bundled: PluginRegistry = {
     manifest: {"id":"@BBeBee/plugin-queue","name":"@BBeBee/plugin-queue","displayName":"Queue","description":"The up-next list — a view of the queue ctx.player owns.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@BBeBee/plugin-player"],"systemId":"layer-4","moduleId":"playback","entry":{"main":"./dist/index.js","ui":{"desktop":"./dist/index.js","mobile":"./dist/index.js"}},"capabilities":[],"contributes":{},"effect":null},
     builtin: true,
   },
+  "@BBeBee/plugin-registry": {
+    load: () => import('@BBeBee/plugin-registry'),
+    manifest: {"id":"@BBeBee/plugin-registry","name":"@BBeBee/plugin-registry","displayName":"Registry","description":"ctx.contentRegistry — the community content index: update checks and installs for music sources, lyric sources, themes and desktop plugins.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-4","moduleId":"registry","entry":{"main":"./dist/index.js"},"capabilities":["net:host/*"],"contributes":{"services":["contentRegistry"]},"effect":"contentRegistry"},
+    builtin: true,
+  },
   "@BBeBee/plugin-settings": {
     load: () => import('@BBeBee/plugin-settings'),
     manifest: {"id":"@BBeBee/plugin-settings","name":"@BBeBee/plugin-settings","displayName":"Settings","description":"Global application preferences, settings service, and settings views.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-4","moduleId":"settings","entry":{"main":"./dist/index.js","ui":{"desktop":"./dist/index.js","mobile":"./dist/index.js"}},"capabilities":[],"contributes":{"services":["settings"]},"effect":"settings"},

@@ -111,6 +111,15 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
   '@BBeBee/plugin-visualizer-ui-desktop': {},
   '@BBeBee/plugin-share': {},
   '@BBeBee/plugin-share-ui-desktop': {},
+  // The community content index — update checks and installs for sources,
+  // lyric sources, themes and desktop plugins. Headless service; installs of
+  // the plugin kind reach the dynamic host through the bridge wired in
+  // boot.ts.
+  '@BBeBee/plugin-registry': {},
+  // Its desktop views: the 发现 (registry) screen and the sources-section
+  // settings card. Deferred together with the service — neither is needed
+  // for first paint, and the route lands in the sidebar when the pair loads.
+  '@BBeBee/plugin-registry-ui-desktop': {},
 }
 
 /**
@@ -130,6 +139,14 @@ export const DEFERRED_PLUGIN_IDS = [
   '@BBeBee/plugin-sleep-timer',
   '@BBeBee/plugin-history',
   '@BBeBee/plugin-history-ui-desktop',
+  // A network-touching service nothing on the first screen reads — its
+  // auto-check runs on its own timer, so it belongs with the other
+  // post-first-frame plugins.
+  '@BBeBee/plugin-registry',
+  // The registry's desktop views ride along with the service: the route
+  // contribution only exists once the service loads anyway, so deferring the
+  // pair together changes nothing about when the sidebar entry appears.
+  '@BBeBee/plugin-registry-ui-desktop',
 ] as const
 
 export const INITIAL_ENABLED: NonNullable<AppConfig['plugins']> = Object.fromEntries(

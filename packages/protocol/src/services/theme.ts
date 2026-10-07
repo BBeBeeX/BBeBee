@@ -86,6 +86,13 @@ export interface ThemeDefinition {
   name: string
   /** Optional theme description. */
   description?: string
+  /**
+   * Registry/distribution semantic version (e.g. '1.0.0'). Registry metadata;
+   * update checks treat absence as '0.0.0'.
+   */
+  version?: string
+  /** Author or maintainer. Registry metadata; absent for built-in themes. */
+  author?: string
   /** Whether this theme is dark mode. */
   isDark: boolean
   /** Full set of color tokens. */

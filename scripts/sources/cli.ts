@@ -1,9 +1,18 @@
 #!/usr/bin/env node
 /**
- * `pnpm build:sources` — compile multi-file sources in `sources/` into
- * self-contained single-file JSONs: music sources into `fixtures/sources/`,
- * lyric sources into `fixtures/lyric-sources/` (bundled into a generated TS
- * module for `plugin-lyric-sources` to import).
+ * `pnpm build:sources` — compile multi-file sources into self-contained
+ * single-file JSONs.
+ *
+ * Default flow reads the pinned registry submodule: music sources from
+ * `registry/music-sources/`, lyric sources from `registry/lyric-sources/`,
+ * compiled into `fixtures/sources/`, `fixtures/lyric-sources/` and the
+ * generated TS module that `plugin-lyric-sources` imports.
+ *
+ * `--sources <dir>` falls back to the legacy single-directory behavior: one
+ * mixed directory routed per document (music docs carry `sourceUrl`, lyric
+ * docs don't), with every lyric doc found aggregated into the generated
+ * module. `--lyric-sources <dir>` overrides just the lyric directory of the
+ * default flow (ignored together with `--sources`).
  */
 import { fileURLToPath } from 'node:url'
 import { dirname, join, resolve } from 'node:path'
@@ -11,7 +20,8 @@ import { watch } from 'node:fs'
 import { buildSources, unpackSource } from './index.ts'
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
-const defaultSourcesDir = join(repoRoot, 'sources')
+const defaultMusicSourcesDir = join(repoRoot, 'registry', 'music-sources')
+const defaultLyricSourcesDir = join(repoRoot, 'registry', 'lyric-sources')
 const defaultOutDir = join(repoRoot, 'fixtures', 'sources')
 const defaultLyricCodegenFile = join(
   repoRoot,
@@ -29,6 +39,7 @@ let isWatch = false
 let unpackTarget: string | undefined
 let unpackDest: string | undefined
 let customSourcesDir: string | undefined
+let customLyricSourcesDir: string | undefined
 let customOutDir: string | undefined
 
 for (let i = 0; i < args.length; i++) {
@@ -42,12 +53,13 @@ for (let i = 0; i < args.length; i++) {
     }
   } else if (arg === '--sources' && i + 1 < args.length) {
     customSourcesDir = args[++i]
+  } else if (arg === '--lyric-sources' && i + 1 < args.length) {
+    customLyricSourcesDir = args[++i]
   } else if (arg === '--out' && i + 1 < args.length) {
     customOutDir = args[++i]
   }
 }
 
-const sourcesDir = customSourcesDir ? resolve(process.cwd(), customSourcesDir) : defaultSourcesDir
 const outDir = customOutDir ? resolve(process.cwd(), customOutDir) : defaultOutDir
 // Lyric fixtures live next to the music ones: fixtures/sources → fixtures/lyric-sources.
 const lyricOutDir = join(resolve(outDir, '..'), 'lyric-sources')
@@ -55,13 +67,39 @@ const lyricCodegen = defaultLyricCodegenFile
 
 async function runBuild() {
   try {
-    const written = await buildSources({
-      sourcesDir,
-      outDir,
-      lyricOutDir,
-      lyricCodegenFile: lyricCodegen,
-      validate: true,
-    })
+    let written: string[]
+    if (customSourcesDir) {
+      // Legacy single-dir flow: one mixed directory routed per document,
+      // lyric docs still feeding the generated TS module.
+      written = await buildSources({
+        sourcesDir: resolve(process.cwd(), customSourcesDir),
+        outDir,
+        lyricOutDir,
+        lyricCodegenFile: lyricCodegen,
+        validate: true,
+      })
+    } else {
+      // Default flow: the registry submodule split into two sibling dirs.
+      // Music first (nothing routes to the lyric outputs), then lyric —
+      // the lyric run is what aggregates docs into the generated module.
+      const lyricDir = customLyricSourcesDir
+        ? resolve(process.cwd(), customLyricSourcesDir)
+        : defaultLyricSourcesDir
+      const musicWritten = await buildSources({
+        sourcesDir: defaultMusicSourcesDir,
+        outDir,
+        lyricOutDir,
+        validate: true,
+      })
+      const lyricWritten = await buildSources({
+        sourcesDir: lyricDir,
+        outDir,
+        lyricOutDir,
+        lyricCodegenFile: lyricCodegen,
+        validate: true,
+      })
+      written = [...musicWritten, ...lyricWritten]
+    }
     console.log(`[build:sources] Successfully compiled ${written.length} source(s):`)
     for (const f of written) {
       console.log(`  - ${f}`)
@@ -79,7 +117,9 @@ async function runBuild() {
 
 if (unpackTarget) {
   const targetPath = resolve(process.cwd(), unpackTarget)
-  const destDir = unpackDest ? resolve(process.cwd(), unpackDest) : join(sourcesDir, 'unpacked')
+  const destDir = unpackDest
+    ? resolve(process.cwd(), unpackDest)
+    : join(defaultMusicSourcesDir, 'unpacked')
   console.log(`[unpack:source] Unpacking ${targetPath} -> ${destDir}...`)
   try {
     const res = await unpackSource({ jsonFile: targetPath, outDir: destDir })
@@ -91,18 +131,31 @@ if (unpackTarget) {
     process.exitCode = 1
   }
 } else if (isWatch) {
-  console.log(`[watch:sources] Watching ${sourcesDir} for changes...`)
+  // One watcher per input directory, sharing a single debounce so changes
+  // landing in both dirs inside the debounce window collapse into one build.
+  const watchedDirs = customSourcesDir
+    ? [resolve(process.cwd(), customSourcesDir)]
+    : [defaultMusicSourcesDir, defaultLyricSourcesDir]
+  console.log(`[watch:sources] Watching ${watchedDirs.join(' and ')} for changes...`)
   await runBuild()
 
   let debounceTimer: ReturnType<typeof setTimeout> | undefined
-  watch(sourcesDir, { recursive: true }, (_eventType, filename) => {
-    if (!filename || filename.startsWith('.') || filename.endsWith('~')) return
+  let buildChain: Promise<void> = Promise.resolve()
+  const scheduleBuild = (filename: string | null) => {
     clearTimeout(debounceTimer)
     debounceTimer = setTimeout(async () => {
-      console.log(`[watch:sources] Change detected in ${filename}, recompiling...`)
-      await runBuild()
+      console.log(`[watch:sources] Change detected in ${filename ?? 'a watched dir'}, recompiling...`)
+      // Serialize rebuilds so overlapping runs never tear the fixtures.
+      buildChain = buildChain.then(runBuild)
+      await buildChain
     }, 150)
-  })
+  }
+  for (const dir of watchedDirs) {
+    watch(dir, { recursive: true }, (_eventType, filename) => {
+      if (!filename || filename.startsWith('.') || filename.endsWith('~')) return
+      scheduleBuild(filename)
+    })
+  }
 } else {
   await runBuild()
 }

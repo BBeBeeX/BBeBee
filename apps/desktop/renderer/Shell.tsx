@@ -20,6 +20,7 @@ import {
 } from 'react'
 import type { Context } from 'cordis'
 import type { RouteContribution, SettingsContribution } from '@BBeBee/protocol'
+import { REGISTRY_VIEWS } from '@BBeBee/plugin-registry/views'
 import { tablerIcon } from '@BBeBee/ui-kit-desktop'
 import { SleepTimerIndicator, TopBar, WindowControls, type ElectronCSSProperties, type TopBarProps } from './TopBar.js'
 import { importDroppedFiles } from './drop-import.js'
@@ -117,6 +118,26 @@ function useEntries(ctx: Context): { routes: readonly RouteContribution[]; entri
       .map((s) => ({ id: s.id, title: s.title, group: 'settings' as const })),
   ]
   return { routes: state.routes, entries }
+}
+
+/**
+ * Whether the last completed registry update check found anything.
+ *
+ * A dot on the 发现 sidebar entry, driven purely by the event: the check
+ * fires 'registry/updates-available' with the FULL result after every
+ * completed pass — including an empty one — so the dot clears itself when a
+ * check comes back clean. Everything else about updates is the registry
+ * screen's business; the shell only answers "is there anything new?".
+ */
+function useRegistryUpdatesAvailable(ctx: Context): boolean {
+  const [available, setAvailable] = useState(false)
+  useEffect(() => {
+    const off = ctx.on('registry/updates-available', (updates: readonly unknown[]) => {
+      setAvailable(Array.isArray(updates) && updates.length > 0)
+    })
+    return () => void off()
+  }, [ctx])
+  return available
 }
 
 class ViewBoundary extends Component<
@@ -248,6 +269,7 @@ const QUEUE_DRAWER_KEYFRAMES =
 
 export function Shell({ ctx }: { ctx: Context }) {
   const { entries } = useEntries(ctx)
+  const registryUpdatesAvailable = useRegistryUpdatesAvailable(ctx)
   // The recommend page is the home: it is where the brand logo in the
   // top-left goes and where a fresh window opens. Sources that cannot
   // recommend render their own empty state, so defaulting here is safe
@@ -1030,6 +1052,7 @@ export function Shell({ ctx }: { ctx: Context }) {
               const isActive =
                 currentId === entry.id ||
                 (currentId === 'album.view' && entry.id === 'library.home')
+              const showUpdateDot = entry.id === REGISTRY_VIEWS.screen && registryUpdatesAvailable
               return h(
                 'div',
                 { key: entry.id },
@@ -1062,7 +1085,9 @@ export function Shell({ ctx }: { ctx: Context }) {
                       }
                     },
                     style: {
-                      display: 'block',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
                       width: '100%',
                       textAlign: 'left',
                       padding: '8px 10px',
@@ -1075,7 +1100,21 @@ export function Shell({ ctx }: { ctx: Context }) {
                       font: 'inherit',
                     },
                   },
-                  entry.title,
+                  h('span', { style: { flex: 1, minWidth: 0 } }, entry.title),
+                  showUpdateDot
+                    ? h('span', {
+                        'data-testid': 'sidebar-registry-update-dot',
+                        'aria-label': '有可用更新',
+                        style: {
+                          flexShrink: 0,
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          background: 'var(--gradient-brand, var(--color-primary, #5F87FF))',
+                          boxShadow: 'var(--glow-brand-sm, 0 0 8px rgba(95, 135, 255, 0.5))',
+                        },
+                      })
+                    : null,
                 ),
               )
             }),

@@ -152,6 +152,11 @@ export interface SourceDocument {
   sourceIcon?: string
   /** The author's notes, shown in the editor. */
   sourceComment?: string
+  /**
+   * Registry/distribution semantic version of this document (e.g. '1.0.0').
+   * Optional; update checks treat absence as '0.0.0'.
+   */
+  version?: string
   enabled?: boolean
   sortOrder?: number
 

@@ -1098,7 +1098,79 @@ export interface PluginManagerService {
 
 ---
 
-## 25. Where to go next
+## 25. `ctx.contentRegistry` — third-party content registry
+
+**Purpose.** The in-app index of third-party content and its updates. The community registry ([bbebeex-registry](https://github.com/BBeBeeX/bbebeex-registry), wired in as the pinned `registry/` submodule — [sources/registry.md](../sources/registry.md)) publishes a `registry.json` indexing four kinds of installable content: music sources, lyric sources, themes and desktop plugins. This service fetches that index, compares it against what the user already has, and installs through the services that own each kind — `ctx.sources.import`, `ctx.lyricSources.registerSource`, `ctx.theme.registerTheme`, and the desktop dynamic loader. It is deliberately a thin coordinator: it validates nothing a downstream service already validates and hides nothing a user must see before confirming.
+
+> ⚠️ **The service key is `contentRegistry`, not `registry`.** On cordis 4 the `registry` key belongs to the kernel itself — its plugin-registry service, whose methods surface as `ctx.plugin` / `ctx.inject`.
+
+```ts
+export type RegistryEntryKind = 'music-source' | 'lyric-source' | 'theme' | 'plugin'
+
+export interface RegistryEntry {
+  readonly id: string
+  readonly kind: RegistryEntryKind
+  readonly name: string
+  /** Latest published semver. Absent = "not versioned"; update checks skip such entries. */
+  readonly version?: string
+  readonly author?: string
+  readonly description?: string
+  readonly updatedAt?: string
+  readonly downloadUrl?: string
+  /** Informational; not enforced yet. */
+  readonly minAppVersion?: string
+  /** music-source only: the document's backend URL (installed-source matching key). */
+  readonly sourceUrl?: string
+  /** theme/plugin only */
+  readonly previewUrl?: string
+  /** plugin only */
+  readonly repoUrl?: string
+  readonly sha256?: string
+  readonly capabilities?: readonly string[]
+}
+
+export interface RegistryUpdate {
+  readonly kind: RegistryEntryKind
+  readonly id: string
+  readonly name: string
+  readonly installedVersion: string
+  readonly availableVersion: string
+  readonly downloadUrl?: string
+  /** True when the installed copy is a built-in (today: the builtin- lrclib lyric source). */
+  readonly builtin?: boolean
+}
+
+export interface RegistryService {
+  /** Fetches the registry index (endpoint configurable via store), caching the last good copy for offline use. */
+  getIndex(force?: boolean): Promise<RegistryIndex>
+  /** Compares installed content against the index; fires 'registry/updates-available' with the result. */
+  checkUpdates(): Promise<readonly RegistryUpdate[]>
+  /** The previous checkUpdates() result (for badges without re-fetching). */
+  updates(): readonly RegistryUpdate[]
+  /** Fetches the distribution document for an entry and returns what the confirm dialog must show. */
+  fetchEntryDetails(entry: RegistryEntry): Promise<RegistryEntryDetails>
+  /** Installs/updates one entry. The caller must already have shown the user the details (hosts / plugin risk). */
+  install(entry: RegistryEntry, opts?: { confirmed?: boolean }): Promise<void>
+  /** Composition root sets this so plugin-kind installs can reach the desktop dynamic host. */
+  setPluginInstaller(installer: (bundle: PluginInstallBundle) => Promise<void>): void
+}
+```
+
+| | Electron (Desktop) | Expo (Mobile) |
+|---|---|---|
+| Headless service | `@BBeBee/plugin-registry` | `@BBeBee/plugin-registry` |
+| Persistence | `ctx.store` keys `registry.index-cache` (last good index, offline use) and `registry.prefs` (endpoint override, `lastCheckAt`) | Same |
+| Reactive Events | `'registry/updates-available'` — fired after **every** completed check (automatic or manual) with the full update list, **including the empty list** (which clears badges) | Same |
+| Plugin-kind installs | Desktop dynamic host, wired via `setPluginInstaller` at the composition root | Not supported (desktop-only distribution) |
+
+- **Matching semantics**: music sources match installed records by `sourceUrl` (the `SourceRecord` identity), lyric sources / themes / plugins by their `id`. An installed copy older than the entry's `version` produces a `RegistryUpdate`.
+- **Install flows per kind**: music source → `ctx.sources.import` (full import pipeline, `originUri` = `downloadUrl`); lyric source → shape-check then `ctx.lyricSources.registerSource`; theme → the same dark/light contrast gate a user-drafted theme goes through, then `ctx.theme.registerTheme`; plugin → refuse if the entry publishes no `sha256`, verify the downloaded bundle against the digest, then hand to the dynamic host.
+- **Security red lines**: `fetchEntryDetails()` exists so the confirm dialog can name a music document's `allowedHosts` before import; plugin installs verify `sha256` and require an explicit risk confirmation; the app only consumes `dist/` build artifacts — entry sources in the registry repo exist for review.
+- **Automatic checks**: `AppSettings.registryAutoCheck` (default `true`) — first check ~45 s after boot, then every 24 h; manual checks run regardless.
+
+---
+
+## 26. Where to go next
 
 [05 — Audio & Playback](../audio/playback.md) builds the playback engine and DSP chain on top of
 these services.

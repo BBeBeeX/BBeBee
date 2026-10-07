@@ -50,13 +50,13 @@ Rule prefixes select the execution engine:
 
 ## 4. Source Authoring Workflow
 
-- **Dual-file development in `sources/<id>/`**:
-  - `source.json`: Metadata, capabilities, rules, endpoints.
-  - `source.js`: External JavaScript library code with IDE syntax highlighting.
-- **CLI Commands**:
-  - `pnpm build:sources`: Compiles all `sources/` into single-file JSONs in `fixtures/sources/`.
-  - `pnpm watch:sources`: Watch mode for live re-compilation.
-  - `node --experimental-strip-types scripts/sources/cli.ts --unpack <file> [dest]`: Unpacks a single-file JSON back into `source.json` and `source.js`.
+- **Dual-file development lives in the registry repo** — `bbebeex-registry`, wired into this repo as the pinned `registry/` submodule (`registry/music-sources/<id>/`, `registry/lyric-sources/<id>/`). The main repo no longer keeps a top-level `sources/` directory.
+- **CLI Commands (main repo)**:
+  - `pnpm build:sources`: Compiles the submodule's dirs into single-file JSONs — `fixtures/sources/` (music) and `fixtures/lyric-sources/` (lyric) — and regenerates `plugin-lyric-sources`'s builtin module.
+  - `pnpm watch:sources`: Watch mode (one watcher per registry dir) for live re-compilation.
+  - `--sources <dir>`: legacy single-directory build (music + lyric mixed, routed per document); `--lyric-sources <dir>` overrides just the lyric dir of the default flow.
+  - `node --experimental-strip-types scripts/sources/cli.ts --unpack <file> [dest]`: Unpacks a single-file JSON back into `source.json` and `source.js` (default destination `registry/music-sources/unpacked`).
+- **Registry-side tooling** (in the registry repo, Node builtins only): `node scripts/compile.mjs` (compile + validate → `dist/`), `node scripts/compile.mjs --unpack <file> [dest]` (same unpack), `node scripts/generate-index.mjs` (regenerate `registry.json` + README), `node scripts/validate.mjs` (full validation). See the registry's `CONTRIBUTING.md`.
 
 ---
 
@@ -65,3 +65,16 @@ Rule prefixes select the execution engine:
 - **Audio Source Attribute**: Each audio source supports `needsLyricSource?: boolean` (defaults to `!ruleLyric`). If enabled, the player queries external lyric sources (`ctx.lyricSources`) with higher priority.
 - **Strict Data Sandbox**: External lyric sources execute in an isolated QuickJS realm or shadowed JS sandbox. They are passed **ONLY** `{ title, artist, duration }` and an egress-checked `httpFetch` bridge.
 - **Unified Normalization**: All external outputs (standard LRC strings, TTML, LRCLIB JSON, translated dual-line LRCs, line arrays) are parsed and converted into the application standard `Lyrics` contract.
+
+---
+
+## 6. Registry（第三方注册表）
+
+The community registry ([bbebeex-registry](https://github.com/BBeBeeX/bbebeex-registry)) publishes installable content as a `registry.json` index. The app consumes it through the `contentRegistry` service — see [docs/sources/registry.md](../docs/sources/registry.md).
+
+- **Four kinds of content**: `music-source`, `lyric-source`, `theme`, `plugin`.
+- **`registry.json` entry fields**: `id`, `kind`, `name`, `version`, `author`, `updatedAt`, `downloadUrl`, `minAppVersion`. Music-source entries additionally carry `sourceUrl` (their matching key against installed sources); plugin entries additionally carry `sha256` (integrity digest of the install bundle) and `capabilities`.
+- **Version semantics**: any content change must bump the entry's semver `version`; an entry missing `version` is treated as `0.0.0`. Lyric sources already use `version` for the built-in source's upgrade comparison.
+- **Install safety red lines**: a music source's `allowedHosts` must be shown to the user before install is confirmed; plugin installs verify the downloaded bundle against the entry's `sha256` and require an explicit risk confirmation; the app only consumes `dist/` build artifacts — per-entry source in the registry repo exists for human review, not for direct consumption.
+- **Built-in constraint**: the app ships exactly one built-in lyric source (lrclib) and no built-in music sources; the registry must not add new built-in sources.
+- Contribution rules and moderation standards live in the registry repo's `CONTRIBUTING.md` / `MODERATION.md`.

@@ -60,6 +60,7 @@
     "@BBeBee/plugin-player": "workspace:*",
     "@BBeBee/plugin-queue": "workspace:*",
     "@BBeBee/plugin-queue-ui-desktop": "workspace:*",
+    "@BBeBee/plugin-registry": "workspace:*",
     "@BBeBee/plugin-settings": "workspace:*",
     "@BBeBee/plugin-settings-ui-desktop": "workspace:*",
     "@BBeBee/plugin-share": "workspace:*",

@@ -132,7 +132,7 @@ The comprehensive technical specifications live in `docs/`:
 | Plugin System & DI | [docs/plugins/concepts.md](./docs/plugins/concepts.md), [docs/plugins/loading.md](./docs/plugins/loading.md), [docs/plugins/capabilities.md](./docs/plugins/capabilities.md) |
 | Core Services | [docs/services/overview.md](./docs/services/overview.md), [docs/services/contracts.md](./docs/services/contracts.md), [docs/services/logging.md](./docs/services/logging.md) |
 | Audio & DSP Chain | [docs/audio/engine.md](./docs/audio/engine.md), [docs/audio/playback.md](./docs/audio/playback.md), [docs/audio/dsp.md](./docs/audio/dsp.md) |
-| Music Sources | [docs/sources/spec.md](./docs/sources/spec.md), [docs/sources/rule-engines.md](./docs/sources/rule-engines.md), [docs/sources/runtime.md](./docs/sources/runtime.md) |
+| Music Sources | [docs/sources/spec.md](./docs/sources/spec.md), [docs/sources/rule-engines.md](./docs/sources/rule-engines.md), [docs/sources/runtime.md](./docs/sources/runtime.md), [docs/sources/registry.md](./docs/sources/registry.md) |
 | Data & Storage | [docs/data-model/urn.md](./docs/data-model/urn.md), [docs/data-model/schema.md](./docs/data-model/schema.md), [docs/data-model/events.md](./docs/data-model/events.md) |
 | UI & Design Tokens | [docs/ui/architecture.md](./docs/ui/architecture.md), [docs/ui/design-system.md](./docs/ui/design-system.md) |
 | Workflow & Testing | [docs/workflow/structure.md](./docs/workflow/structure.md), [docs/workflow/testing.md](./docs/workflow/testing.md) |

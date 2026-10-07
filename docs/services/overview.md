@@ -22,7 +22,7 @@ augmentation. Implementations live in `packages/core/*` and are the sole holders
 dependencies.
 
 > **Document structure.** This document introduces architectural principles, shared types (§0), and the virtual filesystem (§1).
-> The comprehensive service catalog (§§2–15, §§17–25) lives in [Core Service Contracts Catalog](./contracts.md).
+> The comprehensive service catalog (§§2–15, §§17–26) lives in [Core Service Contracts Catalog](./contracts.md).
 > Logging architecture (§16) lives in [Logging Architecture (Layer 3)](./logging.md).
 
 ---

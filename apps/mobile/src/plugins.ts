@@ -115,4 +115,8 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
   '@BBeBee/plugin-dsp': {},
   '@BBeBee/plugin-dsp-ui-mobile': {},
   '@BBeBee/plugin-visualizer': {},
+  // The community content index — update checks and installs for sources,
+  // lyric sources and themes. Headless on mobile: no plugin installer is
+  // set, so plugin-kind installs refuse with a clear error.
+  '@BBeBee/plugin-registry': {},
 }
