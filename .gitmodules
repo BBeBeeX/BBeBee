@@ -1,0 +1,3 @@
+[submodule "registry"]
+	path = registry
+	url = /home/revers/project/bbebeex-registry
