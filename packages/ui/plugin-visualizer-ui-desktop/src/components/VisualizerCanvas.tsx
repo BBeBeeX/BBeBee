@@ -12,7 +12,7 @@
  * Supports 4 color themes: 'accent', 'neon', 'rainbow', 'monochrome'.
  */
 
-import { createElement as h, useEffect, useRef } from 'react'
+import { createElement as h, useEffect, useRef, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { VisualizerColorTheme, VisualizerStyle } from '@BBeBee/protocol'
@@ -47,6 +47,27 @@ export function VisualizerCanvas({
   const { settings } = useVisualizer(ctx)
   const transport = useTransport(ctx)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  // Canvas 2D colors cannot read CSS variables, so the scheme lives in state:
+  // seeded from the attribute `applyThemeToDom` writes, kept in step by
+  // `theme/changed` — the render effect below redraws when it flips.
+  const [scheme, setScheme] = useState<'dark' | 'light'>(() =>
+    typeof document !== 'undefined' && document.documentElement.dataset.colorScheme === 'light'
+      ? 'light'
+      : 'dark',
+  )
+
+  useEffect(() => {
+    const off = ctx.on('theme/changed', (_theme, next) => {
+      setScheme(
+        next ??
+          (typeof document !== 'undefined' &&
+          document.documentElement.dataset.colorScheme === 'light'
+            ? 'light'
+            : 'dark'),
+      )
+    })
+    return () => void off()
+  }, [ctx])
 
   const activeStyle = previewStyle ?? settings.style ?? 'bars'
   const activeTheme = previewTheme ?? settings.colorTheme ?? 'accent'
@@ -63,6 +84,8 @@ export function VisualizerCanvas({
   const peaksRef = useRef<number[]>([])
   // Particles pool for 'particles' style
   const particlesRef = useRef<Particle[]>([])
+  // The scheme the current particle pool was tinted under
+  const poolSchemeRef = useRef<'dark' | 'light' | null>(null)
   // Phase & smoothed live energy for the 'wave' cinematic organic style
   const wavePhaseRef = useRef(0)
   const waveEnergyRef = useRef(0)
@@ -91,20 +114,35 @@ export function VisualizerCanvas({
         : null
     observer?.observe(canvas)
 
-    // Helper to generate color based on theme and normalized position (0..1)
+    // Helper to generate color based on theme and normalized position (0..1).
+    // Light mode needs darker ink than the dark palettes: the neons, pastels
+    // and white monochrome wash out against a light page.
     const getColor = (pos: number, alpha = 1): string => {
       switch (activeTheme) {
         case 'neon':
+          if (scheme === 'light') {
+            return `rgba(0, ${Math.round(166 - 27 * pos)}, ${Math.round(110 + 80 * pos)}, ${alpha})`
+          }
           return `rgba(${Math.round(96 * (1 - pos))}, ${Math.round(255 - 15 * pos)}, ${Math.round(180 + 75 * pos)}, ${alpha})`
         case 'rainbow': {
           const hue = Math.round(pos * 300)
-          return `hsla(${hue}, 85%, 60%, ${alpha})`
+          return `hsla(${hue}, 85%, ${scheme === 'light' ? 42 : 60}%, ${alpha})`
         }
         case 'monochrome':
-          return `rgba(235, 235, 245, ${alpha * 0.85})`
+          return scheme === 'light'
+            ? `rgba(60, 63, 90, ${alpha * 0.85})`
+            : `rgba(235, 235, 245, ${alpha * 0.85})`
         case 'accent':
         default: {
-          // Cyber Bee character visual: Electric Blue (95, 135, 255) -> Lavender (169, 156, 255)
+          // Cyber Bee character visual: Electric Blue (95, 135, 255) -> Lavender
+          // (169, 156, 255); light mode rides the theme's brand range
+          // (#3B66F5 -> #7048E8) so the bars stay saturated on white.
+          if (scheme === 'light') {
+            const r = Math.round(59 + (112 - 59) * pos)
+            const g = Math.round(102 + (72 - 102) * pos)
+            const b = Math.round(245 + (232 - 245) * pos)
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`
+          }
           const r = Math.round(95 + (169 - 95) * pos)
           const g = Math.round(135 + (156 - 135) * pos)
           const b = 255
@@ -247,8 +285,10 @@ export function VisualizerCanvas({
         g.strokeStyle = getColor(0.5, 0.4)
         g.stroke()
       } else if (activeStyle === 'particles') {
-        // Initialize particle pool if needed
-        if (particlesRef.current.length < 36) {
+        // Initialize particle pool if needed — and rebuild it when the scheme
+        // flipped, since particles bake their color at creation.
+        if (particlesRef.current.length < 36 || poolSchemeRef.current !== scheme) {
+          poolSchemeRef.current = scheme
           particlesRef.current = Array.from({ length: 36 }, (_, i) => ({
             x: Math.random() * w,
             y: Math.random() * h,
@@ -289,7 +329,7 @@ export function VisualizerCanvas({
       observer?.disconnect()
       if (animId) cancelAnimationFrame(animId)
     }
-  }, [isPlaying, activeStyle, activeTheme, height, frequencyDataRef, timeDomainDataRef])
+  }, [isPlaying, activeStyle, activeTheme, height, scheme, frequencyDataRef, timeDomainDataRef])
 
   if (!previewStyle && !settings.enabled) {
     return null

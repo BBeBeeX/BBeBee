@@ -12,11 +12,11 @@ const rowStyle: React.CSSProperties = {
   justifyContent: 'space-between',
   gap: 16,
   padding: '14px 4px',
-  borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+  borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.06))',
 }
 
-const titleStyle: React.CSSProperties = { fontSize: 13, fontWeight: 500, color: '#F5F5F7' }
-const descStyle: React.CSSProperties = { fontSize: 12, color: '#8E8E93', marginTop: 3, lineHeight: 1.45 }
+const titleStyle: React.CSSProperties = { fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary, #F5F5F7)' }
+const descStyle: React.CSSProperties = { fontSize: 12, color: 'var(--color-text-secondary, #8E8E93)', marginTop: 3, lineHeight: 1.45 }
 const sliderBoxStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',

@@ -308,7 +308,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
         margin: '0 auto',
         padding: '24px 32px',
         gap: 20,
-        color: '#f5f5f7',
+        color: 'var(--color-text-primary, #f5f5f7)',
       },
     },
     // Top Bar with Navigation Tabs and Latency
@@ -339,8 +339,8 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                 padding: '6px 14px',
                 borderRadius: tokens.radius.sm,
                 border: 'none',
-                background: activeTab === 'eq' ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
-                color: activeTab === 'eq' ? '#fff' : 'rgba(255, 255, 255, 0.6)',
+                background: activeTab === 'eq' ? 'var(--color-surface-selected, rgba(255, 255, 255, 0.15))' : 'transparent',
+                color: activeTab === 'eq' ? 'var(--color-text-primary, #fff)' : 'var(--color-text-secondary, rgba(255, 255, 255, 0.6))',
                 cursor: 'pointer',
                 fontWeight: 600,
                 fontSize: 13,
@@ -357,8 +357,8 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                 padding: '6px 14px',
                 borderRadius: tokens.radius.sm,
                 border: 'none',
-                background: activeTab === 'chain' ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
-                color: activeTab === 'chain' ? '#fff' : 'rgba(255, 255, 255, 0.6)',
+                background: activeTab === 'chain' ? 'var(--color-surface-selected, rgba(255, 255, 255, 0.15))' : 'transparent',
+                color: activeTab === 'chain' ? 'var(--color-text-primary, #fff)' : 'var(--color-text-secondary, rgba(255, 255, 255, 0.6))',
                 cursor: 'pointer',
                 fontWeight: 600,
                 fontSize: 13,
@@ -372,11 +372,11 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
         'div',
         {
           style: {
-            background: 'rgba(255, 255, 255, 0.08)',
+            background: 'var(--color-surface-selected, rgba(255, 255, 255, 0.08))',
             padding: '6px 12px',
             borderRadius: tokens.radius.sm,
             fontSize: 12,
-            color: 'rgba(255, 255, 255, 0.7)',
+            color: 'var(--color-text-secondary, rgba(255, 255, 255, 0.7))',
           },
         },
         `处理延迟: ${latencyMs} ms`,
@@ -638,7 +638,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                       style: {
                         background: 'none',
                         border: 'none',
-                        color: '#A0A0AE',
+                        color: 'var(--color-text-secondary, #A0A0AE)',
                         fontSize: 14,
                         fontWeight: 500,
                         cursor: 'pointer',
@@ -648,10 +648,10 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                         transition: 'color 0.15s ease',
                       },
                       onMouseEnter: (e) => {
-                        e.currentTarget.style.color = '#ffffff'
+                        e.currentTarget.style.color = 'var(--color-text-primary, #ffffff)'
                       },
                       onMouseLeave: (e) => {
-                        e.currentTarget.style.color = '#A0A0AE'
+                        e.currentTarget.style.color = 'var(--color-text-secondary, #A0A0AE)'
                       },
                     },
                     '保存预设',

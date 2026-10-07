@@ -138,8 +138,8 @@ export function VisualizerSettingsCard({ ctx }: VisualizerSettingsCardProps): Re
                 gap: 8,
                 padding: 16,
                 borderRadius: 8,
-                background: 'rgba(0, 0, 0, 0.35)',
-                border: '1px solid rgba(255, 255, 255, 0.06)',
+                background: 'var(--color-bg-tertiary, rgba(0, 0, 0, 0.35))',
+                border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.06))',
                 alignItems: 'center',
               },
             },
@@ -201,7 +201,7 @@ export function VisualizerSettingsCard({ ctx }: VisualizerSettingsCardProps): Re
                         : '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
                       background: isSelected
                         ? 'var(--surface-selected, rgba(95, 135, 255, 0.15))'
-                        : 'rgba(255, 255, 255, 0.03)',
+                        : 'var(--color-surface, rgba(255, 255, 255, 0.03))',
                       color: isSelected ? 'var(--text-primary, #FFFFFF)' : 'var(--text-tertiary, #8E8E93)',
                       cursor: 'pointer',
                       textAlign: 'left',
@@ -257,7 +257,7 @@ export function VisualizerSettingsCard({ ctx }: VisualizerSettingsCardProps): Re
                         : '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
                       background: isSelected
                         ? 'var(--surface-selected, rgba(95, 135, 255, 0.15))'
-                        : 'rgba(255, 255, 255, 0.03)',
+                        : 'var(--color-surface, rgba(255, 255, 255, 0.03))',
                       color: isSelected ? 'var(--text-primary, #FFFFFF)' : 'var(--text-tertiary, #8E8E93)',
                       cursor: 'pointer',
                     },

@@ -533,7 +533,7 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
                 source.allowedHosts.length > 0 &&
                 h(
                   'span',
-                  { style: { color: 'rgba(255, 255, 255, 0.4)' } },
+                  { style: { color: 'var(--text-secondary, #8E8E93)' } },
                   `域名白名单: ${source.allowedHosts.join(', ')}`,
                 ),
             ),

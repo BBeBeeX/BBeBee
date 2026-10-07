@@ -208,7 +208,7 @@ export function ShareLyricsModal({
                         ? 'var(--surface-selected, rgba(95, 135, 255, 0.2))'
                         : 'transparent',
                       color: isSelected
-                        ? '#FFFFFF'
+                        ? 'var(--color-text-primary, #FFFFFF)'
                         : 'var(--text-secondary, #8B95B0)',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
@@ -220,7 +220,7 @@ export function ShareLyricsModal({
                   },
                   tablerIcon(isSelected ? 'check' : 'circle', {
                     size: 14,
-                    color: isSelected ? '#4D8BFF' : 'rgba(255, 255, 255, 0.3)',
+                    color: isSelected ? '#4D8BFF' : 'var(--color-text-tertiary, rgba(255, 255, 255, 0.3))',
                   }),
                   h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis' } }, line),
                 )

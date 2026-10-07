@@ -463,7 +463,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
             boxSizing: 'border-box',
             padding: 10,
             borderRadius: 8,
-            background: 'rgba(0, 0, 0, 0.35)',
+            background: 'var(--color-bg-tertiary, rgba(0, 0, 0, 0.35))',
             border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.12))',
             color: 'var(--text-primary, #F5F7FF)',
             fontFamily: 'monospace',

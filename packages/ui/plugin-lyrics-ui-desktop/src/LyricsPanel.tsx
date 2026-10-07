@@ -186,7 +186,7 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
           {
             style: {
               fontSize: 14,
-              color: 'rgba(255, 255, 255, 0.6)',
+              color: 'var(--color-text-secondary, rgba(255, 255, 255, 0.6))',
               display: 'flex',
               alignItems: 'center',
               gap: 8,
@@ -276,7 +276,7 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
                 justifyContent: 'center',
                 gap: 16,
                 padding: '60px 0',
-                color: 'rgba(255, 255, 255, 0.5)',
+                color: 'var(--color-text-tertiary, rgba(255, 255, 255, 0.5))',
               },
             },
             h(
@@ -286,7 +286,7 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
                   width: 32,
                   height: 32,
                   borderRadius: '50%',
-                  border: '3px solid rgba(255, 255, 255, 0.1)',
+                  border: '3px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
                   borderTopColor: 'var(--color-primary, #5F87FF)',
                   animation: 'spin 1s linear infinite',
                 },
@@ -352,7 +352,7 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
                 justifyContent: 'center',
                 gap: 12,
                 padding: '80px 0',
-                color: 'rgba(255, 255, 255, 0.4)',
+                color: 'var(--color-text-tertiary, rgba(255, 255, 255, 0.4))',
                 textAlign: 'center',
               },
             },
@@ -369,7 +369,7 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
             status === 'no-lyrics' && supportsLyricSource === false
               ? h(
                   'span',
-                  { style: { fontSize: 13, color: 'rgba(255, 255, 255, 0.35)' } },
+                  { style: { fontSize: 13, color: 'var(--color-text-tertiary, rgba(255, 255, 255, 0.35))' } },
                   '可在设置「歌词源管理」中开启该音频源的外部歌词源支持',
                 )
               : null,
@@ -382,7 +382,7 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
                       background: 'rgba(255, 255, 255, 0.08)',
                       border: '1px solid rgba(255, 255, 255, 0.16)',
                       borderRadius: 6,
-                      color: 'rgba(255, 255, 255, 0.85)',
+                      color: 'var(--color-text-primary, rgba(255, 255, 255, 0.85))',
                       padding: '6px 14px',
                       fontSize: 13,
                       cursor: 'pointer',
@@ -415,7 +415,7 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
                   style: {
                     fontSize: 17,
                     lineHeight: 1.6,
-                    color: 'rgba(255, 255, 255, 0.75)',
+                    color: 'var(--color-text-secondary, rgba(255, 255, 255, 0.75))',
                     transition: 'color 0.2s ease',
                   },
                 },

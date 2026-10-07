@@ -14,7 +14,7 @@ const rowStyle: React.CSSProperties = {
   justifyContent: 'space-between',
   gap: 16,
   padding: '14px 4px',
-  borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+  borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.06))',
 }
 
 /**
@@ -81,10 +81,10 @@ export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
     h(
       'div',
       { style: { padding: '4px 4px 8px' } },
-      h('div', { style: { fontSize: 13, fontWeight: 500, color: '#F5F5F7' } }, '用户'),
+      h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary, #F5F5F7)' } }, '用户'),
       h(
         'div',
-        { style: { fontSize: 12, color: '#8E8E93', marginTop: 2 } },
+        { style: { fontSize: 12, color: 'var(--color-text-secondary, #8E8E93)', marginTop: 2 } },
         '本地用户资料，歌单等内容的创建者将显示此名称',
       ),
     ),
@@ -94,10 +94,10 @@ export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
       h(
         'div',
         { style: { flex: 1, minWidth: 0 } },
-        h('div', { style: { fontSize: 13, fontWeight: 500, color: '#F5F5F7' } }, '用户名'),
+        h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary, #F5F5F7)' } }, '用户名'),
         h(
           'div',
-          { style: { fontSize: 12, color: '#8E8E93', marginTop: 3 } },
+          { style: { fontSize: 12, color: 'var(--color-text-secondary, #8E8E93)', marginTop: 3 } },
           error ?? (justSaved ? '已保存' : '创建歌单时作为创建者显示'),
         ),
       ),
@@ -136,8 +136,8 @@ export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
     h(
       'div',
       { style: { ...rowStyle, borderBottom: 'none' } },
-      h('div', { style: { fontSize: 13, fontWeight: 500, color: '#F5F5F7' } }, '用户 ID'),
-      h('div', { style: { fontSize: 12, color: '#8E8E93' } }, userId || '—'),
+      h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary, #F5F5F7)' } }, '用户 ID'),
+      h('div', { style: { fontSize: 12, color: 'var(--color-text-secondary, #8E8E93)' } }, userId || '—'),
     ),
   )
 }

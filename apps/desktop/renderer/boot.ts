@@ -65,6 +65,10 @@ import logFile from '@BBeBee/plugin-log-file'
 
 import { BOOTSTRAP_SERVICES, INITIAL_ENABLED } from './plugins.js'
 import { getBuiltinPluginRegistry, loadExternalPluginRegistry } from './dynamic-loader.js'
+// The ui-kit's inline-styled components (Artwork placeholder, ContextMenu,
+// JsonTree) read their palette from `c()` — wiring that module-level scheme to
+// `ctx.theme` is composition-root work, same as the service registrations above.
+import { setScheme } from '@BBeBee/ui-kit-desktop'
 
 declare global {
   interface Window {
@@ -861,6 +865,18 @@ export async function boot(): Promise<App> {
 
     void scoped.settings.get().then(syncSettings)
     scoped.on('settings/changed', syncSettings)
+  })
+
+  // Keep the ui-kit's palette in step with the theme service. ⚠️ `theme/changed`
+  // only fires on *changes* — plugin-theme's init path applies the DOM
+  // variables but emits nothing — so the scheme must be seeded here once, or a
+  // light-mode session renders `c()`-colored components dark until the user
+  // switches themes.
+  app.ctx.inject(['theme'], (scoped) => {
+    setScheme(scoped.theme.getEffectiveScheme())
+    scoped.on('theme/changed', (_theme, scheme) => {
+      setScheme(scheme ?? scoped.theme.getEffectiveScheme())
+    })
   })
 
   // Register composite manifests and bridge dynamic lifecycle for plugin-manager

@@ -574,7 +574,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                     color: isSelected ? 'var(--color-primary, #5F87FF)' : 'var(--text-secondary, #C5CAD8)',
                   },
                 },
-                tablerIcon(s.icon || 'layout', { size: 18 }),
+                tablerIcon(s.icon || 'music', { size: 18 }),
               ),
               h(
                 'div',

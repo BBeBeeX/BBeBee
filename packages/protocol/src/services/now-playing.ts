@@ -57,11 +57,14 @@ export interface NowPlayingStyleMeta {
   config?: Record<string, unknown>
 }
 
+// ⚠️ Icon names must exist in the desktop icon registry
+// (`ui-kit-desktop/src/icons`): an unknown name falls through `tablerIcon`
+// and renders as clipped raw text instead of an icon.
 export const NOW_PLAYING_STYLES: readonly NowPlayingStyleMeta[] = [
-  { id: 'classic', name: '经典', description: '居中封面，经典布局', icon: 'layout-distribute-vertical', type: 'builtin' },
+  { id: 'classic', name: '经典', description: '居中封面，经典布局', icon: 'music', type: 'builtin' },
   { id: 'full-cover', name: '沉浸封面', description: '全屏模糊封面背景', icon: 'photo', type: 'builtin' },
-  { id: 'vinyl', name: '黑胶唱片', description: '旋转黑胶唱片风格', icon: 'vinyl', type: 'builtin' },
-  { id: 'compact', name: '左右分栏', description: '封面与信息并排显示', icon: 'layout-sidebar-right', type: 'builtin' },
+  { id: 'vinyl', name: '黑胶唱片', description: '旋转黑胶唱片风格', icon: 'disc', type: 'builtin' },
+  { id: 'compact', name: '左右分栏', description: '封面与信息并排显示', icon: 'layout-sidebar', type: 'builtin' },
   { id: 'cinematic', name: '映画歌词', description: '16:9 映画质感与动态声波', icon: 'wave-sine', type: 'builtin' },
 ] as const
 

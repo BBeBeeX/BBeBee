@@ -42,7 +42,7 @@ export function ShareActionButtons({
     borderRadius: tokens.radius.pill,
     background: 'rgba(255, 255, 255, 0.06)',
     border: '1px solid rgba(255, 255, 255, 0.1)',
-    color: 'rgba(255, 255, 255, 0.35)',
+    color: 'var(--color-text-disabled, rgba(255, 255, 255, 0.35))',
     cursor: 'not-allowed',
     fontSize: 13,
     fontWeight: 500,
