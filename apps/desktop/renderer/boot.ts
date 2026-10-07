@@ -210,8 +210,19 @@ export class DesktopAudioService extends Service implements AudioService {
   private activeEngineKey: 'mpv' | 'wasapi' | 'webaudio' = 'webaudio'
   private activeEngine!: AudioService
   private activeFiber?: Fiber
-  /** The last effect chain serialized for the native engine (mpv). */
-  private lastNativeAf?: string
+  /**
+   * The last dsp payload (effect chain + replaygain state) the dsp plugin
+   * serialized for the native engine (mpv). Kept whole, not just the `af`
+   * string: an engine (re)mount must restore replaygain too, or normalization
+   * silently dies while the EQ survives.
+   */
+  private lastNativeDsp?: {
+    af: string
+    replaygain?: string
+    replaygainClip?: boolean
+    replaygainPreamp?: string
+    replaygainFallback?: string
+  }
   private currentVolume = 0.8
   private currentMuted = false
   private currentAudioExclusive = false
@@ -236,18 +247,8 @@ export class DesktopAudioService extends Service implements AudioService {
     // engine; forward it over the bridge (no service dependency — the event
     // carries the composed string).
     this.ctx.on('dsp/af-changed', (e) => {
-      this.lastNativeAf = e.af
-      if (this.activeEngineKey === 'mpv' && this.config.bridgeCall) {
-        void this.config.bridgeCall('audio', 'mpvSetDspConfig', [
-          {
-            af: e.af,
-            replaygain: e.replaygain,
-            replaygainClip: e.replaygainClip,
-            replaygainPreamp: e.replaygainPreamp,
-            replaygainFallback: e.replaygainFallback,
-          },
-        ]).catch(() => {})
-      }
+      this.lastNativeDsp = e
+      this.pushNativeDsp()
     })
 
     const target = this.config.initialEngine ?? 'mpv'
@@ -448,6 +449,13 @@ export class DesktopAudioService extends Service implements AudioService {
     }
   }
 
+  /** Forward the remembered dsp payload to the native engine; no-op otherwise. */
+  private pushNativeDsp(): void {
+    if (this.activeEngineKey === 'mpv' && this.lastNativeDsp && this.config.bridgeCall) {
+      void this.config.bridgeCall('audio', 'mpvSetDspConfig', [this.lastNativeDsp]).catch(() => {})
+    }
+  }
+
   private async mountEngine(engineKey: 'mpv' | 'wasapi' | 'webaudio'): Promise<void> {
     this.ctx.logger?.info('desktop-audio: mounting backend engine [%s]', engineKey)
     const scoped = this.ctx.isolate('audio')
@@ -511,10 +519,11 @@ export class DesktopAudioService extends Service implements AudioService {
     if (this.currentDeviceId && this.currentDeviceId !== 'default') {
       await this.activeEngine.setOutputDevice(this.currentDeviceId).catch(() => {})
     }
-    // The native engine starts with a clean filter chain — push the effect
-    // chain the dsp plugin already serialized (no-op for webaudio).
-    if (effectiveKey === 'mpv' && this.lastNativeAf !== undefined && this.config.bridgeCall) {
-      void this.config.bridgeCall('audio', 'mpvSetDspConfig', [{ af: this.lastNativeAf }]).catch(() => {})
+    // The native engine starts with a clean filter chain — push the dsp
+    // payload the plugin already serialized, replaygain state included
+    // (no-op for webaudio).
+    if (effectiveKey === 'mpv') {
+      this.pushNativeDsp()
     }
     if (effectiveKey === 'mpv' && this.currentAudioExclusive && this.config.bridgeCall) {
       void this.config.bridgeCall('audio', 'mpvSetAudioExclusive', [this.currentAudioExclusive]).catch(() => {})

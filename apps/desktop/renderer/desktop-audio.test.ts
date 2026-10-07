@@ -62,4 +62,50 @@ describe('DesktopAudioService engine forwarding', () => {
     expect(svc.preloadNext).toBeUndefined()
     expect(svc.lastPreloadStatus).toBeUndefined()
   })
+
+  it('pushes the remembered dsp payload whole (replaygain included) for the mpv engine', () => {
+    // An engine (re)mount restores the last dsp payload as-is. Dropping the
+    // replaygain fields here used to kill loudness normalization on every
+    // engine switch while the EQ survived — the two halves of one payload
+    // must travel together.
+    const bridgeCall = vi.fn(async () => undefined)
+    const svc = new DesktopAudioService(new Context(), {
+      fetchBytes: async () => new ArrayBuffer(0),
+      bridgeCall,
+    })
+    const untyped = svc as unknown as Record<string, unknown>
+    untyped['activeEngineKey'] = 'mpv'
+    const dsp = {
+      af: 'volume=volume=-3.00dB,equalizer=f=1000:width_type=q:w=1.41:g=6',
+      replaygain: 'track',
+      replaygainClip: true,
+      replaygainPreamp: '4',
+      replaygainFallback: '0',
+    }
+    untyped['lastNativeDsp'] = dsp
+
+    ;(untyped['pushNativeDsp'] as () => void)()
+
+    expect(bridgeCall).toHaveBeenCalledTimes(1)
+    expect(bridgeCall).toHaveBeenCalledWith('audio', 'mpvSetDspConfig', [dsp])
+  })
+
+  it('does not push dsp config for the webaudio engine or before any dsp event', () => {
+    const bridgeCall = vi.fn(async () => undefined)
+    const svc = new DesktopAudioService(new Context(), {
+      fetchBytes: async () => new ArrayBuffer(0),
+      bridgeCall,
+    })
+    const untyped = svc as unknown as Record<string, unknown>
+
+    // No dsp payload seen yet.
+    untyped['activeEngineKey'] = 'mpv'
+    ;(untyped['pushNativeDsp'] as () => void)()
+    // A payload, but the webaudio engine has no native filter chain.
+    untyped['activeEngineKey'] = 'webaudio'
+    untyped['lastNativeDsp'] = { af: 'volume=volume=-3.00dB' }
+    ;(untyped['pushNativeDsp'] as () => void)()
+
+    expect(bridgeCall, 'neither case reaches the bridge').not.toHaveBeenCalled()
+  })
 })

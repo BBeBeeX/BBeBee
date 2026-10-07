@@ -830,7 +830,20 @@ private:
         fullAf += "@bbebee_astats:lavfi=[astats=metadata=1:reset=1]";
 
         if (mpv && mpvLib.set_property_string) {
-            mpvLib.set_property_string(mpv, "af", fullAf.c_str());
+            // mpv rejects a malformed fragment wholesale — without this check
+            // the whole chain (including a previously working one) dies
+            // silently while the DSP UI keeps claiming effects are enabled.
+            // The supervisor logs the error event; the in-flight load, if any,
+            // is unrelated and must not be failed by it.
+            const int r = mpvLib.set_property_string(mpv, "af", fullAf.c_str());
+            if (r < 0) {
+                std::cerr << "[audio-engine] af set failed with code " << r << ": " << fullAf << "\n";
+                JsonValue err = JsonValue::object();
+                err["type"] = "error";
+                err["action"] = "setDspConfig";
+                err["message"] = mpvLib.error_string ? mpvLib.error_string(r) : "failed to set the audio filter chain";
+                sendJson(err);
+            }
         }
     }
 

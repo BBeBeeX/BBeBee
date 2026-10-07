@@ -237,6 +237,46 @@ describe('AudioEngineSupervisor standalone native executable', () => {
     expect(supervisor.getEngineStatus().pcmTapAvailable).toBe(false)
   })
 
+  it('a setDspConfig error is logged but leaves an in-flight load alone', async () => {
+    // mpv refusing a malformed af string must not fail the unrelated load
+    // that happens to be in flight — the old error handler rejected every
+    // pending load for any non-append action, which would have turned a DSP
+    // typo into a spurious media-element degradation.
+    supervisor = new AudioEngineSupervisor({
+      info: () => {},
+      warn: () => {},
+      error: () => {},
+      debug: () => {},
+    })
+    const readyPromise = new Promise<void>((resolve) => {
+      supervisor!.onReady(() => resolve())
+    })
+    supervisor.start()
+    await readyPromise
+
+    const dispatch = (msg: unknown) =>
+      (supervisor as unknown as { handleWorkerMessage(m: unknown): void }).handleWorkerMessage(msg)
+
+    const loadPromise = supervisor.load(testWavUri)
+    dispatch({ type: 'error', action: 'setDspConfig', message: 'af set failed' })
+
+    // A local file may legitimately finish loading within the window — the
+    // assertion is not "still loading", it is "not rejected".
+    const outcome = await Promise.race([
+      loadPromise.then(
+        () => 'resolved' as const,
+        () => 'rejected' as const,
+      ),
+      new Promise<'pending'>((r) => setTimeout(() => r('pending'), 150)),
+    ])
+    expect(outcome, 'the DSP error must not fail the load').not.toBe('rejected')
+
+    // And the load itself still completes against the real engine. (The
+    // engine reports mpv's own path spelling, not the file:// URI — the
+    // 6-second tone is what identifies the file.)
+    await expect(loadPromise).resolves.toMatchObject({ durationMs: 6000 })
+  })
+
   it('forwards the stream playback flag for the degraded visualizer', () => {
     supervisor = new AudioEngineSupervisor()
     const sent: Array<Record<string, unknown>> = []

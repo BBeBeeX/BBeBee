@@ -328,6 +328,12 @@ export class AudioEngineSupervisor {
           p.reject(new Error(message))
           break
         }
+        // A DSP (filter chain) failure is neither a load failure nor fatal:
+        // mpv refused the af string, playback continues unprocessed. An
+        // in-flight load is unrelated and must survive it.
+        if (action === 'setDspConfig') {
+          break
+        }
         while (this.pendingLoads.length > 0) {
           const p = this.pendingLoads.shift()!
           clearTimeout(p.timer)
