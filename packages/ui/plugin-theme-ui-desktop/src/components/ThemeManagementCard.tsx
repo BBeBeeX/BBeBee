@@ -139,8 +139,42 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
   }
 
   return h(
-    'div',
-    { 'data-testid': 'theme-management-card' },
+    'section',
+    { 'data-testid': 'theme-management-card', style: { marginBottom: 32 } },
+    h(
+      'header',
+      {
+        style: {
+          paddingBottom: 4,
+          marginBottom: 2,
+        },
+      },
+      h(
+        'h3',
+        {
+          style: {
+            fontSize: 15,
+            fontWeight: 600,
+            color: 'var(--bb-text-primary, #FFFFFF)',
+            margin: 0,
+            letterSpacing: '-0.01em',
+          },
+        },
+        '外观模式',
+      ),
+      h(
+        'p',
+        {
+          style: {
+            fontSize: 12,
+            color: 'var(--text-secondary, #8E8E93)',
+            margin: '3px 0 0',
+            lineHeight: 1.4,
+          },
+        },
+        '切换应用深色、浅色或跟随系统外观',
+      ),
+    ),
     h(
       'div',
       {
@@ -173,11 +207,11 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
         h(
           'div',
           { style: { display: 'flex', flexDirection: 'column', gap: 3 } },
-          h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #F5F5F7)' } }, '外观模式'),
+          h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #F5F5F7)' } }, '色彩模式'),
           h(
             'div',
             { style: { fontSize: 12, color: 'var(--text-secondary, #8E8E93)', lineHeight: 1.45 } },
-            '切换应用深色、浅色或跟随系统外观',
+            '浅色、深色或随系统自动切换',
           ),
         ),
         h(

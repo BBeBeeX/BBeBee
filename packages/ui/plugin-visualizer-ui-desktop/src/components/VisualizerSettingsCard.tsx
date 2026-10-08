@@ -55,9 +55,9 @@ function Switch({
         width: 44,
         height: 24,
         borderRadius: 12,
-        background: checked ? 'var(--color-primary, #5F87FF)' : 'rgba(255, 255, 255, 0.15)',
+        background: checked ? 'var(--color-primary, #5F87FF)' : 'var(--switch-off-bg, rgba(255, 255, 255, 0.15))',
         boxShadow: checked ? 'var(--glow-brand-sm, 0 0 10px rgba(95, 135, 255, 0.35))' : 'none',
-        border: 'none',
+        border: checked ? '1px solid transparent' : '1px solid var(--border-subtle, rgba(0, 0, 0, 0.08))',
         padding: 2,
         cursor: disabled ? 'not-allowed' : 'pointer',
         display: 'flex',
@@ -85,14 +85,64 @@ export function VisualizerSettingsCard({ ctx }: VisualizerSettingsCardProps): Re
   const { settings, updateSettings } = useVisualizer(ctx)
 
   return h(
-    'div',
+    'section',
     {
+      'data-testid': 'visualizer-settings-card',
       style: {
         display: 'flex',
         flexDirection: 'column',
-        gap: 16,
+        marginBottom: 32,
       },
     },
+    h(
+      'header',
+      {
+        style: {
+          paddingBottom: 4,
+          marginBottom: 2,
+        },
+      },
+      h(
+        'h3',
+        {
+          style: {
+            fontSize: 15,
+            fontWeight: 600,
+            color: 'var(--bb-text-primary, #FFFFFF)',
+            margin: 0,
+            letterSpacing: '-0.01em',
+          },
+        },
+        '音频可视化',
+      ),
+      h(
+        'p',
+        {
+          style: {
+            fontSize: 12,
+            color: 'var(--text-secondary, #8E8E93)',
+            margin: '3px 0 0',
+            lineHeight: 1.4,
+          },
+        },
+        '在播放界面呈现音乐频率跳动与声波流动效果，自定义显示样式与色彩',
+      ),
+    ),
+    h(
+      'div',
+      {
+        style: {
+          display: 'flex',
+          flexDirection: 'column',
+          background: 'var(--settings-card-bg, var(--card-bg, var(--surface-1, rgba(255, 255, 255, 0.03))))',
+          border: '1px solid var(--settings-card-border, var(--border-subtle, rgba(255, 255, 255, 0.06)))',
+          borderRadius: 10,
+          padding: '16px 18px',
+          marginTop: 8,
+          boxShadow: 'var(--settings-card-shadow, none)',
+          gap: 16,
+        },
+      },
     // Header & Master Switch Row
     h(
       'div',
@@ -302,5 +352,6 @@ export function VisualizerSettingsCard({ ctx }: VisualizerSettingsCardProps): Re
           ),
         )
       : null,
+    ),
   )
 }

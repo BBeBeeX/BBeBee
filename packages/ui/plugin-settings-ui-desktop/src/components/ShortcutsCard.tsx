@@ -13,17 +13,21 @@ interface SettingsWriter {
   update(patch: Partial<AppSettings>): Promise<unknown>
 }
 
+function formatShortcut(val: string): string {
+  return val.replace(/CommandOrControl/g, 'Command/Control')
+}
+
 const SHORTCUT_ITEMS = [
-  { key: 'playPause', label: '播放 / 暂停', defaultVal: 'Ctrl+Alt+Space' },
-  { key: 'prevTrack', label: '上一首歌曲', defaultVal: 'Ctrl+Alt+Left' },
-  { key: 'nextTrack', label: '下一首歌曲', defaultVal: 'Ctrl+Alt+Right' },
-  { key: 'volumeUp', label: '增大音量 (+5%)', defaultVal: 'Ctrl+Alt+Up' },
-  { key: 'volumeDown', label: '调小音量 (-5%)', defaultVal: 'Ctrl+Alt+Down' },
-  { key: 'toggleLyrics', label: '显示 / 隐藏桌面歌词', defaultVal: 'Ctrl+Alt+L' },
-  { key: 'toggleWindow', label: '显示 / 隐藏音乐界面', defaultVal: 'Ctrl+Alt+W' },
-  { key: 'toggleLoved', label: '添加喜欢 / 取消喜欢', defaultVal: 'Ctrl+Alt+K' },
-  { key: 'seekForward', label: '歌曲快进 (+5秒)', defaultVal: 'Ctrl+Alt+]' },
-  { key: 'seekBackward', label: '歌曲快退 (-5秒)', defaultVal: 'Ctrl+Alt+[' },
+  { key: 'playPause', label: '播放 / 暂停', defaultVal: 'Command/Control+Alt+Space' },
+  { key: 'prevTrack', label: '上一首歌曲', defaultVal: 'Command/Control+Alt+Left' },
+  { key: 'nextTrack', label: '下一首歌曲', defaultVal: 'Command/Control+Alt+Right' },
+  { key: 'volumeUp', label: '增大音量 (+5%)', defaultVal: 'Command/Control+Alt+Up' },
+  { key: 'volumeDown', label: '调小音量 (-5%)', defaultVal: 'Command/Control+Alt+Down' },
+  { key: 'toggleLyrics', label: '显示 / 隐藏桌面歌词', defaultVal: 'Command/Control+Alt+L' },
+  { key: 'toggleWindow', label: '显示 / 隐藏音乐界面', defaultVal: 'Command/Control+Alt+W' },
+  { key: 'toggleLoved', label: '添加喜欢 / 取消喜欢', defaultVal: 'Command/Control+Alt+K' },
+  { key: 'seekForward', label: '歌曲快进 (+5秒)', defaultVal: 'Command/Control+Alt+]' },
+  { key: 'seekBackward', label: '歌曲快退 (-5秒)', defaultVal: 'Command/Control+Alt+[' },
 ] as const
 
 /**
@@ -85,11 +89,13 @@ export function ShortcutsCard({ ctx }: { ctx: Context }): ReactElement {
           onChange: (enabled) => onUpdateShortcuts({ ...shortcuts, enabled }),
         }),
       }),
-      ...SHORTCUT_ITEMS.map((item, index, arr) =>
-        h(SettingsRow, {
+      ...SHORTCUT_ITEMS.map((item, index, arr) => {
+        const raw = shortcuts.keybindings[item.key as keyof typeof shortcuts.keybindings] || item.defaultVal
+        const formatted = formatShortcut(raw)
+        return h(SettingsRow, {
           key: item.key,
           title: item.label,
-          description: `当前快捷键绑定: ${shortcuts.keybindings[item.key as keyof typeof shortcuts.keybindings] || item.defaultVal}`,
+          description: `当前快捷键绑定: ${formatted}`,
           borderBottom: index < arr.length - 1,
           action: h(
             'div',
@@ -105,10 +111,10 @@ export function ShortcutsCard({ ctx }: { ctx: Context }): ReactElement {
                 fontWeight: 600,
               },
             },
-            shortcuts.keybindings[item.key as keyof typeof shortcuts.keybindings] || item.defaultVal,
+            formatted,
           ),
-        }),
-      ),
+        })
+      }),
       h(
         'div',
         { style: { display: 'flex', justifyContent: 'flex-end', marginTop: 12 } },

@@ -412,19 +412,39 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
   }
 
   return h(
-    'div',
-    { 'data-testid': 'now-playing-styles-card' },
+    'section',
+    { 'data-testid': 'now-playing-styles-card', style: { marginBottom: 32 } },
     h(
-      'div',
-      { style: { padding: '4px 4px 12px' } },
+      'header',
+      {
+        style: {
+          paddingBottom: 4,
+          marginBottom: 2,
+        },
+      },
       h(
-        'div',
-        { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #F5F5F7)' } },
+        'h3',
+        {
+          style: {
+            fontSize: 15,
+            fontWeight: 600,
+            color: 'var(--bb-text-primary, #FFFFFF)',
+            margin: 0,
+            letterSpacing: '-0.01em',
+          },
+        },
         '播放页样式模板 (Now Playing Layout Styles)',
       ),
       h(
-        'div',
-        { style: { fontSize: 12, color: 'var(--text-secondary, #8E8E93)', marginTop: 2 } },
+        'p',
+        {
+          style: {
+            fontSize: 12,
+            color: 'var(--text-secondary, #8E8E93)',
+            margin: '3px 0 0',
+            lineHeight: 1.4,
+          },
+        },
         '选择全屏播放页呈现布局，支持原生内置样式与动态导入第三方沙箱模板插件',
       ),
     ),
@@ -434,7 +454,12 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
         style: {
           display: 'flex',
           flexDirection: 'column',
-          padding: '14px 4px',
+          background: 'var(--settings-card-bg, var(--card-bg, var(--surface-1, rgba(255, 255, 255, 0.03))))',
+          border: '1px solid var(--settings-card-border, var(--border-subtle, rgba(255, 255, 255, 0.06)))',
+          borderRadius: 10,
+          padding: '16px 18px',
+          marginTop: 8,
+          boxShadow: 'var(--settings-card-shadow, none)',
           gap: 16,
         },
       },
@@ -448,6 +473,8 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
             justifyContent: 'space-between',
             gap: 16,
             flexWrap: 'wrap',
+            paddingBottom: 16,
+            borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
           },
         },
         h(

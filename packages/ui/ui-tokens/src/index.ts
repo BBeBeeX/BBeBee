@@ -379,6 +379,17 @@ export function themeToCssVariables(
     '--settings-card-border': scheme === 'light' ? 'rgba(0, 0, 0, 0.08)' : t.border.subtle,
     '--settings-card-shadow': scheme === 'light' ? '0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)' : 'none',
     '--switch-off-bg': scheme === 'light' ? '#D1D5DB' : 'rgba(255, 255, 255, 0.15)',
+
+    // Desktop lyrics preview tokens
+    '--lyrics-preview-bg': scheme === 'light'
+      ? 'linear-gradient(135deg, rgba(0, 0, 0, 0.04) 0%, rgba(0, 0, 0, 0.02) 100%)'
+      : 'linear-gradient(135deg, rgba(30, 30, 40, 0.7) 0%, rgba(15, 15, 20, 0.85) 100%)',
+    '--lyrics-preview-border': scheme === 'light'
+      ? 'rgba(0, 0, 0, 0.08)'
+      : 'rgba(255, 255, 255, 0.1)',
+    '--lyrics-preview-window-bg': scheme === 'light'
+      ? 'rgba(0, 0, 0, 0.65)'
+      : 'rgba(0, 0, 0, 0.45)',
   }
 
   // Dimension and scale variables

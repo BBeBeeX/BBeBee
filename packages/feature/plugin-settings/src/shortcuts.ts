@@ -62,7 +62,8 @@ function registerKeybindings(
   const register = (acc: string | undefined, handler: () => void) => {
     if (!acc) return
     try {
-      const off = device.registerHotkey(acc, handler)
+      const normalized = acc.replace(/Command\/Control/g, 'CommandOrControl')
+      const off = device.registerHotkey(normalized, handler)
       if (off) disposers.push(off)
     } catch {
       // ignore unavailable accelerator

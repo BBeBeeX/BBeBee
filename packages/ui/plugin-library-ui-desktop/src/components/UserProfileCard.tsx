@@ -77,67 +77,90 @@ export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
 
   return h(
     'div',
-    { 'data-testid': 'user-profile-card' },
+    { 'data-testid': 'user-profile-card', style: { marginBottom: 32 } },
     h(
       'div',
-      { style: { padding: '4px 4px 8px' } },
-      h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary, #F5F5F7)' } }, '用户'),
+      {
+        style: {
+          display: 'flex',
+          flexDirection: 'column',
+          background: 'var(--settings-card-bg, var(--card-bg, var(--surface-1, rgba(255, 255, 255, 0.03))))',
+          border: '1px solid var(--settings-card-border, var(--border-subtle, rgba(255, 255, 255, 0.06)))',
+          borderRadius: 10,
+          padding: '16px 18px',
+          marginTop: 8,
+          boxShadow: 'var(--settings-card-shadow, none)',
+        },
+      },
       h(
         'div',
-        { style: { fontSize: 12, color: 'var(--color-text-secondary, #8E8E93)', marginTop: 2 } },
-        '本地用户资料，歌单等内容的创建者将显示此名称',
-      ),
-    ),
-    h(
-      'div',
-      { style: rowStyle },
-      h(
-        'div',
-        { style: { flex: 1, minWidth: 0 } },
-        h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary, #F5F5F7)' } }, '用户名'),
+        {
+          style: {
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 3,
+            paddingBottom: 12,
+            borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+          },
+        },
+        h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary, #F5F5F7)' } }, '用户'),
         h(
           'div',
-          { style: { fontSize: 12, color: 'var(--color-text-secondary, #8E8E93)', marginTop: 3 } },
-          error ?? (justSaved ? '已保存' : '创建歌单时作为创建者显示'),
+          { style: { fontSize: 12, color: 'var(--color-text-secondary, #8E8E93)', lineHeight: 1.45 } },
+          '本地用户资料，歌单等内容的创建者将显示此名称',
         ),
       ),
       h(
         'div',
-        { style: { display: 'flex', alignItems: 'center', gap: 8 } },
-        h(TextField, {
-          value: name,
-          onChange: setName,
-          placeholder: 'Mine',
-          testID: 'profile-name-input',
-        }),
+        { style: rowStyle },
         h(
-          'button',
-          {
-            type: 'button',
-            'data-testid': 'profile-name-save',
-            onClick: handleSave,
-            disabled: !library?.updateProfile,
-            style: {
-              padding: '6px 14px',
-              borderRadius: 6,
-              border: 'none',
-              background: 'var(--button-primary-bg, var(--color-primary, #5F87FF))',
-              color: '#FFFFFF',
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: library?.updateProfile ? 'pointer' : 'not-allowed',
-              flexShrink: 0,
+          'div',
+          { style: { flex: 1, minWidth: 0 } },
+          h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary, #F5F5F7)' } }, '用户名'),
+          h(
+            'div',
+            { style: { fontSize: 12, color: 'var(--color-text-secondary, #8E8E93)', marginTop: 3 } },
+            error ?? (justSaved ? '已保存' : '创建歌单时作为创建者显示'),
+          ),
+        ),
+        h(
+          'div',
+          { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+          h(TextField, {
+            value: name,
+            onChange: setName,
+            placeholder: 'Mine',
+            testID: 'profile-name-input',
+          }),
+          h(
+            'button',
+            {
+              type: 'button',
+              'data-testid': 'profile-name-save',
+              onClick: handleSave,
+              disabled: !library?.updateProfile,
+              style: {
+                padding: '6px 14px',
+                borderRadius: 6,
+                border: 'none',
+                background: 'var(--button-primary-bg, var(--color-primary, #5F87FF))',
+                color: '#FFFFFF',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: library?.updateProfile ? 'pointer' : 'not-allowed',
+                flexShrink: 0,
+              },
             },
-          },
-          justSaved ? '已保存' : '保存',
+            justSaved ? '已保存' : '保存',
+          ),
         ),
       ),
-    ),
-    h(
-      'div',
-      { style: { ...rowStyle, borderBottom: 'none' } },
-      h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary, #F5F5F7)' } }, '用户 ID'),
-      h('div', { style: { fontSize: 12, color: 'var(--color-text-secondary, #8E8E93)' } }, userId || '—'),
+      h(
+        'div',
+        { style: { ...rowStyle, borderBottom: 'none' } },
+        h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary, #F5F5F7)' } }, '用户 ID'),
+        h('div', { style: { fontSize: 12, color: 'var(--color-text-secondary, #8E8E93)' } }, userId || '—'),
+      ),
     ),
   )
 }
