@@ -113,8 +113,9 @@ export class ThemePlugin extends Service implements ThemeService {
     }
 
     // 2.5 Contribute this plugin's settings entries — the theme management
-    // card and the appearance-mode selector. The settings screen aggregates
-    // whatever is contributed and owns none of it (docs/08 §3).
+    // card. The settings screen aggregates whatever is contributed and owns
+    // none of it (docs/08 §3). Appearance mode is controlled directly inside
+    // the theme management card.
     this.ownCtx.inject(['ui'], (scoped) => {
       scoped.effect(function* () {
         yield scoped.ui.contribute({
@@ -126,27 +127,6 @@ export class ThemePlugin extends Service implements ThemeService {
           icon: 'palette',
           display: 'card',
           order: 20,
-        })
-        yield scoped.ui.contribute({
-          kind: 'settings',
-          id: 'theme.mode',
-          section: 'general',
-          title: '外观模式',
-          description: '切换应用深色/浅色/跟随系统外观',
-          icon: 'moon',
-          order: 30,
-          fields: [
-            {
-              key: 'theme',
-              type: 'select',
-              label: '主题模式',
-              options: [
-                { value: 'dark', label: '深色模式' },
-                { value: 'light', label: '浅色模式' },
-                { value: 'system', label: '跟随系统' },
-              ],
-            },
-          ],
         })
       }, 'theme-settings-contributions')
     })

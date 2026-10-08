@@ -90,7 +90,22 @@ export function DesktopLyricsSettingsCard({ ctx }: { ctx: Context }): ReactEleme
     ),
     h(
       'div',
-      { style: rowStyle },
+      {
+        style: {
+          display: 'flex',
+          flexDirection: 'column',
+          background: 'var(--settings-card-bg, var(--card-bg, var(--surface-1, rgba(255, 255, 255, 0.03))))',
+          border: '1px solid var(--settings-card-border, var(--border-subtle, rgba(255, 255, 255, 0.06)))',
+          borderRadius: 10,
+          padding: '2px 18px',
+          marginTop: 8,
+          marginBottom: 16,
+          boxShadow: 'var(--settings-card-shadow, none)',
+        },
+      },
+      h(
+        'div',
+        { style: rowStyle },
       h(
         'div',
         null,
@@ -227,6 +242,7 @@ export function DesktopLyricsSettingsCard({ ctx }: { ctx: Context }): ReactEleme
           }),
         ),
       ),
+    ),
     ),
     h(LyricsPreview, { settings }),
   )

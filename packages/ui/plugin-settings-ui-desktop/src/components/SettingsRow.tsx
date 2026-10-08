@@ -31,7 +31,7 @@ export function SettingsRow({
       style: {
         display: 'flex',
         flexDirection: 'column',
-        borderBottom: borderBottom ? '1px solid var(--border-subtle, rgba(255, 255, 255, 0.06))' : 'none',
+        borderBottom: borderBottom ? '1px solid var(--border-subtle, rgba(148, 163, 184, 0.15))' : 'none',
       },
     },
     h(
@@ -41,11 +41,20 @@ export function SettingsRow({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: isNested ? '12px 16px 12px 28px' : '14px 4px',
+          padding: isNested ? '12px 16px 12px 28px' : '14px 8px',
           gap: 16,
           background: isNested ? 'var(--surface-hover, rgba(255, 255, 255, 0.015))' : 'transparent',
           borderLeft: isNested ? '2px solid var(--border-default, rgba(255, 255, 255, 0.15))' : 'none',
+          borderRadius: 6,
           transition: 'background-color 0.15s ease',
+        },
+        onMouseEnter: (e: { currentTarget: HTMLElement }) => {
+          e.currentTarget.style.backgroundColor = 'var(--surface-hover, rgba(255, 255, 255, 0.04))'
+        },
+        onMouseLeave: (e: { currentTarget: HTMLElement }) => {
+          e.currentTarget.style.backgroundColor = isNested
+            ? 'var(--surface-hover, rgba(255, 255, 255, 0.015))'
+            : 'transparent'
         },
       },
       // Left side: Chevron (if expandable) + Title + Description

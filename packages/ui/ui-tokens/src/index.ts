@@ -201,6 +201,13 @@ export function cssVariables(scheme: Scheme): Record<string, string> {
   out['--logo-filter'] = scheme === 'light' ? 'brightness(0)' : 'none'
   out['--shadow-dropdown'] = scheme === 'light' ? '0 8px 24px rgba(0, 0, 0, 0.12)' : '0 12px 32px rgba(0, 0, 0, 0.65)'
   out['--shadow-modal'] = scheme === 'light' ? '0 16px 36px rgba(0, 0, 0, 0.15)' : '0 16px 36px rgba(0, 0, 0, 0.65)'
+  out['--card-bg'] = scheme === 'light' ? '#EDEDED' : palette.bg.raised
+  out['--card-border'] = scheme === 'light' ? 'rgba(0, 0, 0, 0.08)' : palette.border.subtle
+  out['--card-shadow'] = scheme === 'light' ? '0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)' : 'none'
+  out['--settings-card-bg'] = scheme === 'light' ? '#EDEDED' : palette.bg.raised
+  out['--settings-card-border'] = scheme === 'light' ? 'rgba(0, 0, 0, 0.08)' : palette.border.subtle
+  out['--settings-card-shadow'] = scheme === 'light' ? '0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)' : 'none'
+  out['--switch-off-bg'] = scheme === 'light' ? '#D1D5DB' : 'rgba(255, 255, 255, 0.15)'
   return out
 }
 
@@ -363,6 +370,15 @@ export function themeToCssVariables(
     '--logo-filter': scheme === 'light' ? 'brightness(0)' : 'none',
     '--shadow-dropdown': scheme === 'light' ? '0 8px 24px rgba(0, 0, 0, 0.12)' : '0 12px 32px rgba(0, 0, 0, 0.65)',
     '--shadow-modal': scheme === 'light' ? '0 16px 36px rgba(0, 0, 0, 0.15)' : '0 16px 36px rgba(0, 0, 0, 0.65)',
+
+    // Card & Settings section tokens
+    '--card-bg': scheme === 'light' ? (t.surface.s2 ?? '#EDF2FC') : t.surface.s1,
+    '--card-border': scheme === 'light' ? 'rgba(0, 0, 0, 0.08)' : t.border.subtle,
+    '--card-shadow': scheme === 'light' ? '0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)' : 'none',
+    '--settings-card-bg': scheme === 'light' ? (t.surface.s2 ?? '#EDF2FC') : t.surface.s1,
+    '--settings-card-border': scheme === 'light' ? 'rgba(0, 0, 0, 0.08)' : t.border.subtle,
+    '--settings-card-shadow': scheme === 'light' ? '0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)' : 'none',
+    '--switch-off-bg': scheme === 'light' ? '#D1D5DB' : 'rgba(255, 255, 255, 0.15)',
   }
 
   // Dimension and scale variables

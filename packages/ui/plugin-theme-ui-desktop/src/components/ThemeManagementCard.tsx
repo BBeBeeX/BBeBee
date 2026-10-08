@@ -147,7 +147,12 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
         style: {
           display: 'flex',
           flexDirection: 'column',
-          padding: '14px 4px',
+          background: 'var(--settings-card-bg, var(--card-bg, var(--surface-1, rgba(255, 255, 255, 0.03))))',
+          border: '1px solid var(--settings-card-border, var(--border-subtle, rgba(255, 255, 255, 0.06)))',
+          borderRadius: 10,
+          padding: '16px 18px',
+          marginTop: 8,
+          boxShadow: 'var(--settings-card-shadow, none)',
           gap: 16,
         },
       },

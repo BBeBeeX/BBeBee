@@ -256,7 +256,7 @@ contributions — a plugin's section disappears when the plugin does.
 | Section | Contributed by | Shape |
 |---|---|---|
 | `general` — 用户资料 | `plugin-library` (`library.profile`) | card, view in `plugin-library-ui-desktop` |
-| `general` — 主题管理 / 外观模式 | `plugin-theme` (`theme.settings` / `theme.mode`) | card (view in `plugin-theme-ui-desktop`) + `fields` |
+| `general` — 主题管理 / 外观模式 | `plugin-theme` (`theme.settings`) | card (view in `plugin-theme-ui-desktop`) |
 | `general` — 语言、closeToTray | settings service (kept rows) / composition root | kept row + `fields` |
 | `playback` — 播放页样式模板 | `plugin-now-playing` (`now-playing.styles`) | card, view in `plugin-now-playing-ui-desktop` |
 | `playback` — 过渡与衔接 | `plugin-player` (`player.transition`) | `fields` (gapless, crossfade, pause-on-unplug) |
