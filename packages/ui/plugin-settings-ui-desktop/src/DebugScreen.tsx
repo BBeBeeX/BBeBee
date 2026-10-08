@@ -75,8 +75,8 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
         flexDirection: 'column',
         height: '100%',
         width: '100%',
-        background: '#0D0E15',
-        color: '#E2E8F0',
+        background: 'var(--bg-app, #0D0E15)',
+        color: 'var(--text-primary, #E2E8F0)',
         padding: '32px 48px',
         boxSizing: 'border-box',
         overflowY: 'auto',
@@ -105,7 +105,7 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
             fontSize: 22,
             fontWeight: 700,
             margin: 0,
-            color: '#F8FAFC',
+            color: 'var(--text-primary, #F8FAFC)',
             letterSpacing: '-0.02em',
           },
         },
@@ -146,9 +146,9 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
               borderRadius: 16,
               fontSize: 12,
               fontWeight: 600,
-              background: isDebugMode ? 'rgba(34, 197, 94, 0.15)' : 'rgba(148, 163, 184, 0.15)',
-              color: isDebugMode ? '#4ADE80' : '#94A3B8',
-              border: `1px solid ${isDebugMode ? 'rgba(34, 197, 94, 0.3)' : 'rgba(148, 163, 184, 0.2)'}`,
+              background: isDebugMode ? 'rgba(34, 197, 94, 0.15)' : 'var(--surface-3, rgba(148, 163, 184, 0.15))',
+              color: isDebugMode ? 'var(--color-success, #4ADE80)' : 'var(--text-secondary, #94A3B8)',
+              border: `1px solid ${isDebugMode ? 'rgba(34, 197, 94, 0.3)' : 'var(--border-subtle, rgba(148, 163, 184, 0.2))'}`,
             },
           },
           h('span', {
@@ -156,7 +156,7 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
               width: 8,
               height: 8,
               borderRadius: '50%',
-              background: isDebugMode ? '#22C55E' : '#94A3B8',
+              background: isDebugMode ? '#22C55E' : 'var(--text-secondary, #94A3B8)',
             },
           }),
           isDebugMode ? 'Debug 模式已激活' : '生产环境 (Production)',
@@ -169,10 +169,10 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
             gap: 12,
-            background: 'rgba(255, 255, 255, 0.02)',
+            background: 'var(--surface-2, rgba(255, 255, 255, 0.02))',
             padding: 16,
             borderRadius: 8,
-            border: '1px solid rgba(255, 255, 255, 0.04)',
+            border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.04))',
           },
         },
         renderInfoItem('Node 环境', envNodeEnv || 'production'),
@@ -200,10 +200,10 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
             gap: 12,
-            background: 'rgba(255, 255, 255, 0.02)',
+            background: 'var(--surface-2, rgba(255, 255, 255, 0.02))',
             padding: 16,
             borderRadius: 8,
-            border: '1px solid rgba(255, 255, 255, 0.04)',
+            border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.04))',
           },
         },
         renderInfoItem('操作系统平台', platformInfo.platform),
@@ -219,11 +219,12 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
           style: {
             marginTop: 12,
             padding: '8px 12px',
-            background: 'rgba(0, 0, 0, 0.25)',
+            background: 'var(--surface-2, rgba(0, 0, 0, 0.25))',
             borderRadius: 6,
             fontSize: 12,
             fontFamily: 'monospace',
-            color: '#94A3B8',
+            color: 'var(--text-secondary, #94A3B8)',
+            border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.04))',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
@@ -263,10 +264,10 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
           h(
             'div',
             null,
-            h('div', { style: { fontSize: 16, fontWeight: 600, color: '#F8FAFC', marginBottom: 4 } }, '系统日志 (Discover)'),
+            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, '系统日志 (Discover)'),
             h(
               'div',
-              { style: { fontSize: 13, color: '#94A3B8', lineHeight: 1.5, marginBottom: 16 } },
+              { style: { fontSize: 13, color: 'var(--text-secondary, #94A3B8)', lineHeight: 1.5, marginBottom: 16 } },
               '查看 Cordis 微内核生命周期、服务装配及所有已注册插件输出的实时日志流。',
             ),
           ),
@@ -285,10 +286,10 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
           h(
             'div',
             null,
-            h('div', { style: { fontSize: 16, fontWeight: 600, color: '#F8FAFC', marginBottom: 4 } }, '第三方源网络日志 (HTTP Logs)'),
+            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, '第三方源网络日志 (HTTP Logs)'),
             h(
               'div',
-              { style: { fontSize: 13, color: '#94A3B8', lineHeight: 1.5, marginBottom: 16 } },
+              { style: { fontSize: 13, color: 'var(--text-secondary, #94A3B8)', lineHeight: 1.5, marginBottom: 16 } },
               '捕获由第三方音源插件发起的所有网络请求，实时分析请求方法、状态码及往返耗时。',
             ),
           ),
@@ -307,10 +308,10 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
           h(
             'div',
             null,
-            h('div', { style: { fontSize: 16, fontWeight: 600, color: '#F8FAFC', marginBottom: 4 } }, '主题变量色板 (Theme Palette)'),
+            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, '主题变量色板 (Theme Palette)'),
             h(
               'div',
-              { style: { fontSize: 13, color: '#94A3B8', lineHeight: 1.5, marginBottom: 16 } },
+              { style: { fontSize: 13, color: 'var(--text-secondary, #94A3B8)', lineHeight: 1.5, marginBottom: 16 } },
               '查看和检验当前激活主题的 themeToCssVariables 全部颜色令牌、透明度变体及 CSS 变量映射。',
             ),
           ),
@@ -329,10 +330,10 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
           h(
             'div',
             null,
-            h('div', { style: { fontSize: 16, fontWeight: 600, color: '#F8FAFC', marginBottom: 4 } }, '测试音源 (Test Sources)'),
+            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, '测试音源 (Test Sources)'),
             h(
               'div',
-              { style: { fontSize: 13, color: '#94A3B8', lineHeight: 1.5, marginBottom: 16 } },
+              { style: { fontSize: 13, color: 'var(--text-secondary, #94A3B8)', lineHeight: 1.5, marginBottom: 16 } },
               '单步调试与验证第三方音源的搜索规则、播放流直链解析与内置 JS 沙箱执行。',
             ),
           ),
@@ -351,10 +352,10 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
           h(
             'div',
             null,
-            h('div', { style: { fontSize: 16, fontWeight: 600, color: '#F8FAFC', marginBottom: 4 } }, '系统架构与插件拓扑 (Inspector)'),
+            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, '系统架构与插件拓扑 (Inspector)'),
             h(
               'div',
-              { style: { fontSize: 13, color: '#94A3B8', lineHeight: 1.5, marginBottom: 16 } },
+              { style: { fontSize: 13, color: 'var(--text-secondary, #94A3B8)', lineHeight: 1.5, marginBottom: 16 } },
               '以 PCB 电路主板与芯片走线视觉，实时监控系统 Layer 1~5 节点与 Cordis 服务装配。',
             ),
           ),
@@ -373,10 +374,10 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
           h(
             'div',
             null,
-            h('div', { style: { fontSize: 16, fontWeight: 600, color: '#F8FAFC', marginBottom: 4 } }, '开发者工具 (DevTools)'),
+            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, '开发者工具 (DevTools)'),
             h(
               'div',
-              { style: { fontSize: 13, color: '#94A3B8', lineHeight: 1.5, marginBottom: 16 } },
+              { style: { fontSize: 13, color: 'var(--text-secondary, #94A3B8)', lineHeight: 1.5, marginBottom: 16 } },
               '在独立窗口中打开当前窗口的 Chromium DevTools，检查渲染进程 DOM、网络与控制台输出。',
             ),
           ),
@@ -402,28 +403,29 @@ function renderInfoItem(label: string, value: string): ReactElement {
         gap: 4,
       },
     },
-    h('span', { style: { fontSize: 12, color: '#64748B' } }, label),
-    h('span', { style: { fontSize: 13, fontWeight: 500, color: '#E2E8F0', fontFamily: 'monospace' } }, value),
+    h('span', { style: { fontSize: 12, color: 'var(--text-secondary, #64748B)' } }, label),
+    h('span', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #E2E8F0)', fontFamily: 'monospace' } }, value),
   )
 }
 
 const cardStyle: React.CSSProperties = {
-  background: 'rgba(255, 255, 255, 0.03)',
-  border: '1px solid rgba(255, 255, 255, 0.06)',
+  background: 'var(--settings-card-bg, var(--card-bg, var(--surface-1, rgba(255, 255, 255, 0.03))))',
+  border: '1px solid var(--settings-card-border, var(--border-subtle, rgba(255, 255, 255, 0.06)))',
   borderRadius: 12,
   padding: 24,
   marginBottom: 20,
+  boxShadow: 'var(--settings-card-shadow, none)',
 }
 
 const cardTitleStyle: React.CSSProperties = {
   fontSize: 16,
   fontWeight: 600,
-  color: '#F8FAFC',
+  color: 'var(--text-primary, #F8FAFC)',
 }
 
 const cardSubtitleStyle: React.CSSProperties = {
   fontSize: 13,
-  color: '#94A3B8',
+  color: 'var(--text-secondary, #94A3B8)',
   marginTop: 4,
 }
 
@@ -431,8 +433,8 @@ const actionCardStyle: React.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   justifyContent: 'space-between',
-  background: 'rgba(255, 255, 255, 0.02)',
-  border: '1px solid rgba(255, 255, 255, 0.06)',
+  background: 'var(--surface-2, rgba(255, 255, 255, 0.02))',
+  border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.06))',
   borderRadius: 8,
   padding: 20,
 }

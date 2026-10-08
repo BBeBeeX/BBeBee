@@ -255,7 +255,7 @@ export class RegistryPlugin extends Service implements RegistryService {
           id: REGISTRY_VIEWS.screen,
           path: '/registry',
           title: '发现',
-          icon: 'download',
+          icon: 'compass',
           placement: ['tray'],
           order: 3,
         })

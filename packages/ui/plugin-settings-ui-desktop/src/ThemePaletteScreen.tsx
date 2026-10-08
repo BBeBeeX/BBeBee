@@ -167,8 +167,8 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
         flexDirection: 'column',
         height: '100%',
         width: '100%',
-        background: '#0D0E15',
-        color: '#E2E8F0',
+        background: 'var(--bg-app, #0D0E15)',
+        color: 'var(--text-primary, #E2E8F0)',
         padding: '32px 48px',
         boxSizing: 'border-box',
         overflowY: 'auto',
@@ -205,7 +205,7 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
                 fontSize: 22,
                 fontWeight: 700,
                 margin: 0,
-                color: '#F8FAFC',
+                color: 'var(--text-primary, #F8FAFC)',
                 letterSpacing: '-0.02em',
               },
             },
@@ -213,7 +213,7 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
           ),
           h(
             'div',
-            { style: { fontSize: 13, color: '#94A3B8', marginTop: 4 } },
+            { style: { fontSize: 13, color: 'var(--text-secondary, #94A3B8)', marginTop: 4 } },
             `当前主题: ${activeTheme.name} (${activeTheme.id}) · 模式: ${effectiveScheme.toUpperCase()} · 共 ${entries.length} 个 CSS 变量`,
           ),
         ),
@@ -236,9 +236,9 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
               gap: 8,
               padding: '6px 14px',
               borderRadius: 8,
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              background: 'rgba(255, 255, 255, 0.06)',
-              color: '#F8FAFC',
+              border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.12))',
+              background: 'var(--surface-2, rgba(255, 255, 255, 0.06))',
+              color: 'var(--text-primary, #F8FAFC)',
               cursor: 'pointer',
               fontSize: 13,
               fontWeight: 500,
@@ -265,9 +265,9 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
             style: {
               padding: '6px 12px',
               borderRadius: 8,
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              background: '#1A1C28',
-              color: '#F8FAFC',
+              border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.12))',
+              background: 'var(--surface-2, #1A1C28)',
+              color: 'var(--text-primary, #F8FAFC)',
               fontSize: 13,
               cursor: 'pointer',
             },
@@ -289,10 +289,10 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
           gap: 12,
           marginBottom: 28,
           flexWrap: 'wrap',
-          background: 'rgba(255, 255, 255, 0.03)',
+          background: 'var(--settings-card-bg, rgba(255, 255, 255, 0.03))',
           padding: '12px 16px',
           borderRadius: 10,
-          border: '1px solid rgba(255, 255, 255, 0.06)',
+          border: '1px solid var(--settings-card-border, rgba(255, 255, 255, 0.06))',
         },
       },
       // Search Box
@@ -305,7 +305,7 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
             style: {
               position: 'absolute',
               left: 10,
-              color: '#64748B',
+              color: 'var(--text-muted, #64748B)',
               pointerEvents: 'none',
               display: 'flex',
             },
@@ -322,9 +322,9 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
             width: '100%',
             padding: '8px 12px 8px 34px',
             borderRadius: 6,
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            background: 'rgba(0, 0, 0, 0.35)',
-            color: '#F8FAFC',
+            border: '1px solid var(--input-border, var(--border-subtle, rgba(255, 255, 255, 0.12)))',
+            background: 'var(--input-bg, var(--surface-2, rgba(0, 0, 0, 0.35)))',
+            color: 'var(--text-primary, #F8FAFC)',
             fontSize: 13,
             outline: 'none',
           },
@@ -372,17 +372,17 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
             style: {
               fontSize: 15,
               fontWeight: 600,
-              color: '#94A3B8',
+              color: 'var(--text-primary, #94A3B8)',
               marginBottom: 12,
               paddingBottom: 6,
-              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+              borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
             },
           },
           h('span', null, group.label),
-          h('span', { style: { fontSize: 12, color: '#64748B' } }, `${group.items.length} 项`),
+          h('span', { style: { fontSize: 12, color: 'var(--text-secondary, #64748B)' } }, `${group.items.length} 项`),
         ),
         h(
           'div',
@@ -416,9 +416,9 @@ function categoryButtonStyle(active: boolean): CSSProperties {
     fontSize: 12,
     fontWeight: 500,
     cursor: 'pointer',
-    border: `1px solid ${active ? 'var(--primary, #3B66F5)' : 'rgba(255, 255, 255, 0.08)'}`,
-    background: active ? 'rgba(59, 102, 245, 0.2)' : 'rgba(255, 255, 255, 0.03)',
-    color: active ? '#93C5FD' : '#94A3B8',
+    border: `1px solid ${active ? 'var(--primary, #3B66F5)' : 'var(--border-subtle, rgba(255, 255, 255, 0.08))'}`,
+    background: active ? 'var(--surface-selected, rgba(59, 102, 245, 0.2))' : 'var(--surface-2, rgba(255, 255, 255, 0.03))',
+    color: active ? 'var(--primary, #93C5FD)' : 'var(--text-secondary, #94A3B8)',
     transition: 'all 0.15s ease',
   }
 }
@@ -449,8 +449,8 @@ function SwatchCard({
         gap: 12,
         padding: '10px 14px',
         borderRadius: 8,
-        background: 'rgba(255, 255, 255, 0.02)',
-        border: '1px solid rgba(255, 255, 255, 0.06)',
+        background: 'var(--surface-1, rgba(255, 255, 255, 0.02))',
+        border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.06))',
         cursor: 'pointer',
         transition: 'background 0.15s ease, border-color 0.15s ease, transform 0.1s ease',
         userSelect: 'none',
@@ -458,13 +458,13 @@ function SwatchCard({
         overflow: 'hidden',
       },
       onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
-        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)'
+        e.currentTarget.style.background = 'var(--surface-2, rgba(255, 255, 255, 0.05))'
+        e.currentTarget.style.borderColor = 'var(--border-default, rgba(255, 255, 255, 0.15))'
         e.currentTarget.style.transform = 'translateY(-1px)'
       },
       onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)'
-        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.06)'
+        e.currentTarget.style.background = 'var(--surface-1, rgba(255, 255, 255, 0.02))'
+        e.currentTarget.style.borderColor = 'var(--border-subtle, rgba(255, 255, 255, 0.06))'
         e.currentTarget.style.transform = 'translateY(0)'
       },
     },
@@ -479,7 +479,7 @@ function SwatchCard({
           flexShrink: 0,
           position: 'relative',
           overflow: 'hidden',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
+          border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.15))',
           background:
             'repeating-conic-gradient(#262626 0% 25%, #181818 0% 50%) 50% / 10px 10px',
         },
@@ -504,7 +504,7 @@ function SwatchCard({
           style: {
             fontSize: 13,
             fontWeight: 600,
-            color: '#F8FAFC',
+            color: 'var(--text-primary, #F8FAFC)',
             fontFamily: 'monospace',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
@@ -518,7 +518,7 @@ function SwatchCard({
         {
           style: {
             fontSize: 11,
-            color: '#94A3B8',
+            color: 'var(--text-secondary, #94A3B8)',
             marginTop: 2,
             fontFamily: 'monospace',
             whiteSpace: 'nowrap',

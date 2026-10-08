@@ -234,6 +234,9 @@ export const ICON_ALIASES: Record<string, string> = {
   info: 'info-circle',
   'ℹ️': 'info-circle',
   'ℹ': 'info-circle',
+  compass: 'compass',
+  discover: 'compass',
+  '🧭': 'compass',
 }
 
 /**

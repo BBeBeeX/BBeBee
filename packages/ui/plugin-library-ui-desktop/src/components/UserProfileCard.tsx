@@ -76,8 +76,42 @@ export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
   }
 
   return h(
-    'div',
+    'section',
     { 'data-testid': 'user-profile-card', style: { marginBottom: 32 } },
+    h(
+      'header',
+      {
+        style: {
+          paddingBottom: 4,
+          marginBottom: 2,
+        },
+      },
+      h(
+        'h3',
+        {
+          style: {
+            fontSize: 15,
+            fontWeight: 600,
+            color: 'var(--bb-text-primary, #FFFFFF)',
+            margin: 0,
+            letterSpacing: '-0.01em',
+          },
+        },
+        '用户',
+      ),
+      h(
+        'p',
+        {
+          style: {
+            fontSize: 12,
+            color: 'var(--text-secondary, #8E8E93)',
+            margin: '3px 0 0',
+            lineHeight: 1.4,
+          },
+        },
+        '本地用户资料，歌单等内容的创建者将显示此名称',
+      ),
+    ),
     h(
       'div',
       {
@@ -94,25 +128,7 @@ export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
       },
       h(
         'div',
-        {
-          style: {
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 3,
-            paddingBottom: 12,
-            borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
-          },
-        },
-        h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary, #F5F5F7)' } }, '用户'),
-        h(
-          'div',
-          { style: { fontSize: 12, color: 'var(--color-text-secondary, #8E8E93)', lineHeight: 1.45 } },
-          '本地用户资料，歌单等内容的创建者将显示此名称',
-        ),
-      ),
-      h(
-        'div',
-        { style: rowStyle },
+        { style: { ...rowStyle, paddingTop: 4 } },
         h(
           'div',
           { style: { flex: 1, minWidth: 0 } },

@@ -594,4 +594,10 @@ export const TABLER_DEFINITIONS: Record<string, IconSvgDefinition> = {
       { tag: 'path', attrs: { d: 'M11 12h1v4h1' } },
     ],
   },
+  compass: {
+    elements: [
+      { tag: 'path', attrs: { d: 'M8 16l2 -6l6 -2l-2 6l-6 2' } },
+      { tag: 'path', attrs: { d: 'M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0' } },
+    ],
+  },
 }
