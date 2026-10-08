@@ -313,6 +313,15 @@ export function TrayIndicator({ ctx }: { ctx: Context }): ReactElement {
 
   const [items, setItems] = useState<readonly TrayContribution[]>(readTray)
 
+  const [updatesAvailable, setUpdatesAvailable] = useState(false)
+
+  useEffect(() => {
+    const off = ctx.on('registry/updates-available', (updates: readonly unknown[]) => {
+      setUpdatesAvailable(Array.isArray(updates) && updates.length > 0)
+    })
+    return () => void off()
+  }, [ctx])
+
   useEffect(() => {
     setItems(readTray())
     const off = ctx.on('ui/changed', () => {
@@ -363,6 +372,7 @@ export function TrayIndicator({ ctx }: { ctx: Context }): ReactElement {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          position: 'relative',
           width: 32,
           height: 32,
           borderRadius: '50%',
@@ -387,6 +397,21 @@ export function TrayIndicator({ ctx }: { ctx: Context }): ReactElement {
         },
       },
       tablerIcon(open ? 'chevron-up' : 'chevron-down', { size: 18 }),
+      updatesAvailable
+        ? h('span', {
+            'data-testid': 'topbar-tray-update-dot',
+            style: {
+              position: 'absolute',
+              top: 2,
+              right: 2,
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              background: '#EF4444',
+              boxShadow: '0 0 0 2px var(--bg-app, #0D0E15)',
+            },
+          })
+        : null,
     ),
     open
       ? h(
@@ -496,6 +521,7 @@ export function TrayIndicator({ ctx }: { ctx: Context }): ReactElement {
                         cursor: 'pointer',
                         padding: 0,
                         transition: 'background 0.15s ease, transform 0.12s ease, border-color 0.15s ease',
+                        position: 'relative',
                       },
                       onMouseEnter: (e: { currentTarget: HTMLElement }) => {
                         e.currentTarget.style.background = 'var(--surface-hover, rgba(255, 255, 255, 0.12))'
@@ -509,6 +535,24 @@ export function TrayIndicator({ ctx }: { ctx: Context }): ReactElement {
                       },
                     },
                     item.icon ? tablerIcon(item.icon, { size: 22 }) : tablerIcon('cube', { size: 22 }),
+                    updatesAvailable &&
+                    (item.id === 'registry.screen' ||
+                      item.id === '/registry' ||
+                      item.targetRoute === 'registry.screen' ||
+                      item.targetRoute === '/registry')
+                      ? h('span', {
+                          'data-testid': 'topbar-tray-item-update-dot',
+                          style: {
+                            position: 'absolute',
+                            top: 4,
+                            right: 4,
+                            width: 6,
+                            height: 6,
+                            borderRadius: '50%',
+                            background: '#EF4444',
+                          },
+                        })
+                      : null,
                   ),
                 ),
               ),

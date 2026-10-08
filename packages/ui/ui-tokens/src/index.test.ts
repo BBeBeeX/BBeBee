@@ -227,6 +227,17 @@ describe('Color Token System & Theme Management', () => {
     expect(lightVars['--bg-app']).toBe('#F0F4FC')
     expect(lightVars['--primary']).toBe('#3B66F5')
     expect(lightVars['--text-primary']).toBe('#080A10')
+
+    // Dynamic card & preview tokens from theme
+    expect(darkVars['--preview-card-bg']).toBe(midnightPurpleTheme.tokens.surface.s1)
+    expect(lightVars['--preview-card-bg']).toBe(midnightPurpleTheme.lightTokens!.surface.s2)
+    expect(darkVars['--lyrics-preview-bg']).toBe(darkVars['--preview-card-bg'])
+    expect(lightVars['--lyrics-preview-bg']).toBe(lightVars['--preview-card-bg'])
+    expect(lightVars['--input-bg']).toBe(midnightPurpleTheme.lightTokens!.bg.primary)
+    const themeWithoutOverrides = { ...midnightPurpleTheme, cssVariables: undefined, lightCssVariables: undefined }
+    const customLightVars = themeToCssVariables(themeWithoutOverrides, 'light')
+    expect(customLightVars['--switch-off-bg']).toBe(midnightPurpleTheme.lightTokens!.border.default)
+    expect(lightVars['--switch-off-bg']).toBe('#D1D5DB')
   })
 
   it('applyThemeToDom applies variables and data attributes to target element', () => {

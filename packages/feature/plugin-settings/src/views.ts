@@ -15,6 +15,8 @@ export const SETTINGS_VIEWS = {
   logs: 'debug.logs',
   /** Source HTTP requests logs viewer. */
   httpLogs: 'debug.http-logs',
+  /** Theme CSS variables palette viewer. */
+  themePalette: 'debug.theme-palette',
 } as const
 
 /** Routes are the same ids, because a route is what the shells navigate to. */

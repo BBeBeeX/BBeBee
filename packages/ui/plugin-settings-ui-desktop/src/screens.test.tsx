@@ -16,6 +16,7 @@ import { ShortcutsCard } from './components/ShortcutsCard.js'
 import { DebugScreen } from './DebugScreen.js'
 import { LogsScreen } from './LogsScreen.js'
 import { HttpLogsScreen } from './HttpLogsScreen.js'
+import { ThemePaletteScreen } from './ThemePaletteScreen.js'
 
 afterEach(() => {
   cleanup()
@@ -923,6 +924,11 @@ describe('SettingsScreen', () => {
     fireEvent.click(httpLogsBtn)
     expect(calls.includes('navigate:debug.http-logs')).toBe(true)
 
+    // Test navigation to Theme Palette
+    const themePaletteBtn = getByText('进入主题色板 →')
+    fireEvent.click(themePaletteBtn)
+    expect(calls.includes('navigate:debug.theme-palette')).toBe(true)
+
     // Test navigation to Test Sources
     const testSourcesBtn = getByText('进入音源测试 →')
     fireEvent.click(testSourcesBtn)
@@ -937,6 +943,25 @@ describe('SettingsScreen', () => {
     const backBtn = getByText('← 返回设置')
     fireEvent.click(backBtn)
     expect(calls.includes('navigate:settings.view')).toBe(true)
+  })
+
+  it('renders ThemePaletteScreen, toggles scheme, and filters variables', async () => {
+    const { ctx, calls } = await harness()
+    const { getByText, findByText, getByTestId } = render(h(ThemePaletteScreen, { ctx }))
+
+    expect(await findByText('主题变量色板 (Theme Palette)')).toBeTruthy()
+    expect(getByTestId('theme-palette-screen')).toBeTruthy()
+    expect(getByTestId('palette-swatch---bg-app')).toBeTruthy()
+
+    // Test scheme toggle
+    const schemeBtn = getByTestId('palette-scheme-toggle')
+    fireEvent.click(schemeBtn)
+    expect(getByText(/浅色模式 \(Light\)|深色模式 \(Dark\)/)).toBeTruthy()
+
+    // Test back button
+    const backBtn = getByText('← 返回调试页')
+    fireEvent.click(backBtn)
+    expect(calls.includes('navigate:debug.view')).toBe(true)
   })
 
   it('renders SettingsScreen and navigates to import sources, history, and debug', async () => {

@@ -208,6 +208,12 @@ export function cssVariables(scheme: Scheme): Record<string, string> {
   out['--settings-card-border'] = scheme === 'light' ? 'rgba(0, 0, 0, 0.08)' : palette.border.subtle
   out['--settings-card-shadow'] = scheme === 'light' ? '0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)' : 'none'
   out['--switch-off-bg'] = scheme === 'light' ? '#D1D5DB' : 'rgba(255, 255, 255, 0.15)'
+  out['--preview-card-bg'] = scheme === 'light' ? '#EDEDED' : palette.bg.raised
+  out['--preview-card-border'] = palette.border.subtle
+  out['--preview-window-bg'] = scheme === 'light' ? palette.bg.overlay : palette.bg.raised
+  out['--lyrics-preview-bg'] = out['--preview-card-bg']
+  out['--lyrics-preview-border'] = out['--preview-card-border']
+  out['--lyrics-preview-window-bg'] = out['--preview-window-bg']
   return out
 }
 
@@ -364,7 +370,7 @@ export function themeToCssVariables(
     '--bb-border-strong': t.border.default,
 
     // Form, surface & utility tokens
-    '--input-bg': scheme === 'light' ? '#FFFFFF' : t.surface.s1,
+    '--input-bg': scheme === 'light' ? t.bg.primary : t.surface.s1,
     '--input-border': t.border.subtle,
     '--input-focus-border': t.border.focus,
     '--logo-filter': scheme === 'light' ? 'brightness(0)' : 'none',
@@ -372,24 +378,23 @@ export function themeToCssVariables(
     '--shadow-modal': scheme === 'light' ? '0 16px 36px rgba(0, 0, 0, 0.15)' : '0 16px 36px rgba(0, 0, 0, 0.65)',
 
     // Card & Settings section tokens
-    '--card-bg': scheme === 'light' ? (t.surface.s2 ?? '#EDF2FC') : t.surface.s1,
-    '--card-border': scheme === 'light' ? 'rgba(0, 0, 0, 0.08)' : t.border.subtle,
+    '--card-bg': scheme === 'light' ? t.surface.s2 : t.surface.s1,
+    '--card-border': t.border.subtle,
     '--card-shadow': scheme === 'light' ? '0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)' : 'none',
-    '--settings-card-bg': scheme === 'light' ? (t.surface.s2 ?? '#EDF2FC') : t.surface.s1,
-    '--settings-card-border': scheme === 'light' ? 'rgba(0, 0, 0, 0.08)' : t.border.subtle,
+    '--settings-card-bg': scheme === 'light' ? t.surface.s2 : t.surface.s1,
+    '--settings-card-border': t.border.subtle,
     '--settings-card-shadow': scheme === 'light' ? '0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)' : 'none',
-    '--switch-off-bg': scheme === 'light' ? '#D1D5DB' : 'rgba(255, 255, 255, 0.15)',
+    '--switch-off-bg': scheme === 'light' ? t.border.default : t.surface.s3,
 
-    // Desktop lyrics preview tokens
-    '--lyrics-preview-bg': scheme === 'light'
-      ? 'linear-gradient(135deg, rgba(0, 0, 0, 0.04) 0%, rgba(0, 0, 0, 0.02) 100%)'
-      : 'linear-gradient(135deg, rgba(30, 30, 40, 0.7) 0%, rgba(15, 15, 20, 0.85) 100%)',
-    '--lyrics-preview-border': scheme === 'light'
-      ? 'rgba(0, 0, 0, 0.08)'
-      : 'rgba(255, 255, 255, 0.1)',
-    '--lyrics-preview-window-bg': scheme === 'light'
-      ? 'rgba(0, 0, 0, 0.65)'
-      : 'rgba(0, 0, 0, 0.45)',
+    // Generic preview card & window tokens
+    '--preview-card-bg': scheme === 'light' ? t.surface.s2 : t.surface.s1,
+    '--preview-card-border': t.border.subtle,
+    '--preview-window-bg': scheme === 'light' ? t.surface.s3 : t.surface.s2,
+
+    // Backward-compatible preview aliases
+    '--lyrics-preview-bg': scheme === 'light' ? t.surface.s2 : t.surface.s1,
+    '--lyrics-preview-border': t.border.subtle,
+    '--lyrics-preview-window-bg': scheme === 'light' ? t.surface.s3 : t.surface.s2,
   }
 
   // Dimension and scale variables

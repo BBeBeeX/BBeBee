@@ -12,12 +12,14 @@ import { ShortcutsCard } from './components/ShortcutsCard.js'
 import { DebugScreen } from './DebugScreen.js'
 import { LogsScreen } from './LogsScreen.js'
 import { HttpLogsScreen } from './HttpLogsScreen.js'
+import { ThemePaletteScreen } from './ThemePaletteScreen.js'
 
 export { SettingsScreen } from './SettingsScreen.js'
 export { ShortcutsCard } from './components/ShortcutsCard.js'
 export { DebugScreen } from './DebugScreen.js'
 export { LogsScreen } from './LogsScreen.js'
 export { HttpLogsScreen } from './HttpLogsScreen.js'
+export { ThemePaletteScreen } from './ThemePaletteScreen.js'
 
 export const name = 'plugin-settings-ui-desktop'
 export const inject = ['ui', 'settings']
@@ -39,7 +41,8 @@ export async function apply(ctx: Context) {
     yield ctx.ui.registerView(SETTINGS_VIEWS.logs, bound(ctx, LogsScreen))
     yield ctx.ui.registerView(SETTINGS_VIEWS.httpLogs, bound(ctx, HttpLogsScreen))
     yield ctx.ui.registerView(SETTINGS_VIEWS.shortcutsCard, bound(ctx, ShortcutsCard))
-}, 'settings-ui-desktop')
+    yield ctx.ui.registerView(SETTINGS_VIEWS.themePalette, bound(ctx, ThemePaletteScreen))
+  }, 'settings-ui-desktop')
 }
 
 export default { name, inject, apply }

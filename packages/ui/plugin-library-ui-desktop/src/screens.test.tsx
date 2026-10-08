@@ -1674,5 +1674,45 @@ describe('LocalMusicScreen', () => {
       expect(queryByTestId('batch-action-bar')).toBeNull()
     })
   })
+
+  it('opens create dropdown and triggers import share', async () => {
+    const { ctx } = await harness()
+    let shareImportCalled = false
+    class ShareStub extends Service {
+      constructor(c: Context) {
+        super(c, 'share')
+      }
+      openImport() {
+        shareImportCalled = true
+      }
+    }
+    await ctx.root.plugin(ShareStub)
+    await tick()
+
+    const { getByTestId, queryByTestId } = render(h(LibraryScreen, { ctx, mode: 'sidebar' }))
+    await act(async () => {
+      await tick()
+    })
+
+    const trigger = getByTestId('create-dropdown-trigger')
+    expect(trigger).toBeTruthy()
+    await act(async () => {
+      trigger.click()
+      await tick()
+    })
+
+    const shareItem = getByTestId('create-menu-import-share')
+    expect(shareItem).toBeTruthy()
+    expect(shareItem.textContent).toContain('导入分享')
+    expect(shareItem.textContent).toContain('读取分享卡片或图片')
+
+    await act(async () => {
+      shareItem.click()
+      await tick()
+    })
+
+    expect(shareImportCalled).toBe(true)
+    expect(queryByTestId('create-menu-import-share')).toBeNull()
+  })
 })
 

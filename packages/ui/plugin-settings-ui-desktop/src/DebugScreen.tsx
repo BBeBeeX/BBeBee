@@ -9,6 +9,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { serviceOf } from '@BBeBee/ui-core'
 import type { UiService, DeviceService } from '@BBeBee/protocol'
+import { SETTINGS_VIEWS } from '@BBeBee/plugin-settings/views'
 
 interface WindowWithBBeBee {
   BBeBee?: {
@@ -295,6 +296,28 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
             variant: 'primary',
             children: '进入 HTTP Logs 页面 →',
             onPress: () => ui?.navigate?.('debug.http-logs'),
+          }),
+        ),
+        // Theme Palette Card
+        h(
+          'div',
+          {
+            style: actionCardStyle,
+          },
+          h(
+            'div',
+            null,
+            h('div', { style: { fontSize: 16, fontWeight: 600, color: '#F8FAFC', marginBottom: 4 } }, '主题变量色板 (Theme Palette)'),
+            h(
+              'div',
+              { style: { fontSize: 13, color: '#94A3B8', lineHeight: 1.5, marginBottom: 16 } },
+              '查看和检验当前激活主题的 themeToCssVariables 全部颜色令牌、透明度变体及 CSS 变量映射。',
+            ),
+          ),
+          h(Button, {
+            variant: 'primary',
+            children: '进入主题色板 →',
+            onPress: () => ui?.navigate?.(SETTINGS_VIEWS.themePalette),
           }),
         ),
         // Test Sources Card

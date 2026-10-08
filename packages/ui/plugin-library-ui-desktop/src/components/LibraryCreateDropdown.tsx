@@ -10,6 +10,7 @@ export interface LibraryCreateDropdownProps {
   collapsedMenuPos?: { top: number; left: number } | null
   onOpenCreatePlaylist: () => void
   onOpenCreateCollection: () => void
+  onOpenImportShare?: () => void
 }
 
 export function LibraryCreateButton({
@@ -73,6 +74,7 @@ export function LibraryCreateMenu({
   collapsedMenuPos,
   onOpenCreatePlaylist,
   onOpenCreateCollection,
+  onOpenImportShare,
 }: LibraryCreateDropdownProps): ReactElement | null {
   if (!isCreateMenuOpen) return null
 
@@ -198,6 +200,59 @@ export function LibraryCreateMenu({
         { style: { flex: 1, minWidth: 0 } },
         h('div', { style: { color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600, fontSize: 14 } }, '文件夹'),
         h('div', { style: { color: 'var(--bb-text-secondary, #A0A0AE)', fontSize: 12, marginTop: 2 } }, '管理歌单'),
+      ),
+    ),
+    h('div', { style: { height: 1, backgroundColor: 'var(--border-subtle, rgba(255, 255, 255, 0.1))', margin: '4px 0' } }),
+    h(
+      'button',
+      {
+        type: 'button',
+        'data-testid': 'create-menu-import-share',
+        onClick: () => {
+          setIsCreateMenuOpen(false)
+          onOpenImportShare?.()
+        },
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          padding: '10px 14px',
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          textAlign: 'left',
+          width: '100%',
+          transition: 'background-color 0.15s ease',
+        },
+        onMouseEnter: (e: { currentTarget: HTMLElement }) => {
+          e.currentTarget.style.backgroundColor = 'var(--surface-hover, rgba(255, 255, 255, 0.08))'
+        },
+        onMouseLeave: (e: { currentTarget: HTMLElement }) => {
+          e.currentTarget.style.backgroundColor = 'transparent'
+        },
+      },
+      h(
+        'div',
+        {
+          style: {
+            width: 32,
+            height: 32,
+            borderRadius: '50%',
+            backgroundColor: 'var(--surface-1, var(--bb-bg-sunken, #3E3E3E))',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--bb-text-primary, #FFFFFF)',
+            flexShrink: 0,
+          },
+        },
+        tablerIcon('share', { size: 20 }),
+      ),
+      h(
+        'div',
+        { style: { flex: 1, minWidth: 0 } },
+        h('div', { style: { color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600, fontSize: 14 } }, '导入分享'),
+        h('div', { style: { color: 'var(--bb-text-secondary, #A0A0AE)', fontSize: 12, marginTop: 2 } }, '读取分享卡片或图片'),
       ),
     ),
   )

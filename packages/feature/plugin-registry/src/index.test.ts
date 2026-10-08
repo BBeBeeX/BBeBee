@@ -309,7 +309,7 @@ describe('ui contributions', () => {
         kind: 'route',
         id: REGISTRY_VIEWS.screen,
         path: '/registry',
-        placement: ['sidebar'],
+        placement: ['tray'],
       }),
       expect.objectContaining({
         kind: 'settings',

@@ -4,6 +4,7 @@ import type { Context } from 'cordis'
 import type {
   DownloadsService,
   PlayerService,
+  ShareService,
 } from '@BBeBee/protocol'
 import { tryParseUrn } from '@BBeBee/protocol'
 import { LIBRARY_VIEWS } from '@BBeBee/plugin-library/views'
@@ -861,6 +862,15 @@ export function LibraryScreen({
       onOpenCreateCollection: () => {
         setIsCreateMenuOpen(false)
         setShowCreateCollectionModal(true)
+      },
+      onOpenImportShare: () => {
+        setIsCreateMenuOpen(false)
+        const share = serviceOf<ShareService>(ctx, 'share')
+        if (share) {
+          share.openImport()
+        } else {
+          ctx.emit?.('share/import')
+        }
       },
     })
   }

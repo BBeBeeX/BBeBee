@@ -256,7 +256,7 @@ export class RegistryPlugin extends Service implements RegistryService {
           path: '/registry',
           title: '发现',
           icon: 'download',
-          placement: ['sidebar'],
+          placement: ['tray'],
           order: 3,
         })
         yield scoped.ui.contribute({
