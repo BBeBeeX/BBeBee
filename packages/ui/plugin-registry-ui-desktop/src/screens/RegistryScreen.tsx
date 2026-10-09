@@ -29,7 +29,7 @@ import { RegistryEntryCard } from '../components/RegistryEntryCard.js'
 interface RegistryServiceLike {
   getIndex(force?: boolean): Promise<RegistryIndex>
   fetchEntryDetails(entry: RegistryEntry): Promise<RegistryEntryDetails>
-  install(entry: RegistryEntry, opts?: { confirmed?: boolean }): Promise<void>
+  install(entry: RegistryEntry, opts?: { confirmed?: boolean; overwrite?: boolean }): Promise<void>
 }
 
 const KIND_TABS: readonly { kind: RegistryEntryKind; label: string }[] = [
@@ -168,13 +168,13 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
     [getRegistry],
   )
 
-  const confirmInstall = useCallback(async () => {
+  const confirmInstall = useCallback(async (opts?: { overwrite?: boolean }) => {
     const registry = getRegistry()
     if (!registry || !confirm) return
     setConfirmBusy(true)
     setConfirmError(null)
     try {
-      await registry.install(confirm.details.entry, { confirmed: true })
+      await registry.install(confirm.details.entry, { confirmed: true, overwrite: opts?.overwrite })
       setConfirm(undefined)
       // The owning services fire their changed events, which re-derives the
       // action states; this nonce is only a backstop for a kind whose event
@@ -377,7 +377,7 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
           action: confirm.action,
           busy: confirmBusy,
           error: confirmError,
-          onConfirm: () => void confirmInstall(),
+          onConfirm: (opts) => void confirmInstall(opts),
           onClose: () => {
             setConfirm(undefined)
             setConfirmError(null)

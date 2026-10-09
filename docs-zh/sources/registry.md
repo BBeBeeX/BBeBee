@@ -1,4 +1,4 @@
-# 内容注册表（bbebeex-registry）
+# 内容注册表（B_Be_Bee-registry）
 
 > **本篇回答的问题。** 应用如何从社区注册表发现、检查并安装第三方内容 —— 音源、歌词源、主题与桌面插件 —— 以及注册表仓库如何接入本 monorepo。
 
@@ -9,7 +9,7 @@
 ## 1. 仓库接入方式
 
 注册表内容存放在独立仓库
-[BBeBeeX/bbebeex-registry](https://github.com/BBeBeeX/bbebeex-registry)，本 monorepo 以 **git submodule 形式将其钉在 `registry/`** 消费：
+[BBeBeeX/B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)，本 monorepo 以 **git submodule 形式将其钉在 `registry/`** 消费：
 
 ```
 registry/
@@ -39,7 +39,7 @@ registry/
 ```jsonc
 {
   "generatedAt": "2026-10-07T10:22:39-04:00",
-  "repository": "BBeBeeX/bbebeex-registry",
+  "repository": "BBeBeeX/B_Be_Bee-registry",
   "entries": [
     {
       "id": "bilibili",
@@ -154,7 +154,7 @@ export interface RegistryService {
 ## 7. 下一步阅读
 
 [spec.md](./spec.md) 定义注册表 `music-source` 条目编译出的音源文档模型；[runtime.md](./runtime.md) 定义被导入的源能做什么、不能做什么；注册表仓的
-[CONTRIBUTING](https://github.com/BBeBeeX/bbebeex-registry/blob/main/CONTRIBUTING.md)
+[CONTRIBUTING](https://github.com/BBeBeeX/B_Be_Bee-registry/blob/main/CONTRIBUTING.md)
 与
-[MODERATION](https://github.com/BBeBeeX/bbebeex-registry/blob/main/MODERATION.md)
+[MODERATION](https://github.com/BBeBeeX/B_Be_Bee-registry/blob/main/MODERATION.md)
 定义条目如何进入注册表。

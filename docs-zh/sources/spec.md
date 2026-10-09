@@ -294,7 +294,7 @@ export interface LyricRule { lyric: string; format?: string; offsetMs?: string }
 
 当音源需要复杂的 JavaScript 代码（如混淆签名、多步会话建立、音轨协商等）时，直接在单文件 JSON 的 `"jsLib"` 中编写上百行带 `\n` 转义的代码是极不友好的。
 
-因此，音源采用**开发态拆分维护，构建态合并分发**。双文件源码存放在注册表仓库（[bbebeex-registry](https://github.com/BBeBeeX/bbebeex-registry)）中，本仓库以钉定版本的 `registry/` submodule 消费它（[registry.md](./registry.md)）：
+因此，音源采用**开发态拆分维护，构建态合并分发**。双文件源码存放在注册表仓库（[B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)）中，本仓库以钉定版本的 `registry/` submodule 消费它（[registry.md](./registry.md)）：
 - **`registry/music-sources/<id>/source.json`**：存放元数据、规则声明与 URL 模板。
 - **`registry/music-sources/<id>/source.js`**：存放未转义的原生 JavaScript，享受 IDE 完整的高亮、ESLint 校验与代码补全。
 - **`registry/lyric-sources/<id>/`**：歌词源沿用同样的双文件布局。

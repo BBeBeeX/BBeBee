@@ -7,7 +7,7 @@
  * itself is the kit's `Sheet` — no bespoke modal chrome.
  */
 
-import { createElement as h, type ReactElement } from 'react'
+import { createElement as h, useState, type ReactElement } from 'react'
 import type { RegistryEntryDetails } from '@BBeBee/protocol'
 import { normalizeVersion } from '@BBeBee/toolkit'
 import { Sheet, tablerIcon } from '@BBeBee/ui-kit-desktop'
@@ -19,7 +19,7 @@ export interface InstallConfirmDialogProps {
   action: 'install' | 'update'
   busy: boolean
   error: string | null
-  onConfirm: () => void
+  onConfirm: (options?: { overwrite?: boolean }) => void
   onClose: () => void
 }
 
@@ -58,6 +58,8 @@ export function InstallConfirmDialog({
   onClose,
 }: InstallConfirmDialogProps): ReactElement {
   const { entry, allowedHosts } = details
+  const [overwriteConfirmed, setOverwriteConfirmed] = useState(false)
+  const isLocallyModified = Boolean(details.isLocallyModified)
   const isUpdate = action === 'update'
   const verb = isUpdate ? '更新' : '安装'
 
@@ -122,6 +124,43 @@ export function InstallConfirmDialog({
                   'div',
                   { style: bodyTextStyle },
                   '这是内置歌词源的更新：安装会用注册表版本覆盖内置实现。',
+                )
+              : null,
+            isLocallyModified
+              ? h(
+                  'div',
+                  {
+                    'data-testid': 'registry-locally-modified-warning',
+                    style: {
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6,
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      border: '1px solid var(--color-error, #F43F5E)',
+                      background: 'rgba(244, 63, 94, 0.08)',
+                      color: 'var(--color-error, #F43F5E)',
+                      fontSize: 13,
+                      lineHeight: 1.5,
+                    },
+                  },
+                  h('strong', null, '⚠️ 本地修改覆盖确认'),
+                  h(
+                    'span',
+                    null,
+                    '检测到此源在本地被手动修改过。继续更新将覆盖本地改动。',
+                  ),
+                  h(
+                    'label',
+                    { style: { display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', marginTop: 4 } },
+                    h('input', {
+                      type: 'checkbox',
+                      'data-testid': 'registry-overwrite-checkbox',
+                      checked: overwriteConfirmed,
+                      onChange: (e: { target: { checked: boolean } }) => setOverwriteConfirmed(e.target.checked),
+                    }),
+                    h('span', { style: { color: 'var(--text-primary, #F5F7FF)', fontSize: 13 } }, '我确认覆盖本地修改并更新'),
+                  ),
                 )
               : null,
           )
@@ -231,8 +270,8 @@ export function InstallConfirmDialog({
           {
             type: 'button',
             'data-testid': 'registry-confirm-accept',
-            onClick: busy ? undefined : onConfirm,
-            disabled: busy,
+            onClick: busy || (isLocallyModified && !overwriteConfirmed) ? undefined : () => onConfirm({ overwrite: isLocallyModified && overwriteConfirmed }),
+            disabled: busy || (isLocallyModified && !overwriteConfirmed),
             style: {
               padding: '6px 16px',
               borderRadius: 999,
@@ -241,7 +280,8 @@ export function InstallConfirmDialog({
               color: 'var(--bb-accent-on, #FFFFFF)',
               fontWeight: 600,
               fontSize: 13,
-              cursor: busy ? 'default' : 'pointer',
+              cursor: busy || (isLocallyModified && !overwriteConfirmed) ? 'not-allowed' : 'pointer',
+              opacity: isLocallyModified && !overwriteConfirmed ? 0.5 : 1,
             },
           },
           busy ? `${verb}中…` : `确认${verb}`,

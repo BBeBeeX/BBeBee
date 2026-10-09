@@ -21,7 +21,7 @@ import { REGISTRY_VIEWS } from './views.js'
 
 /* ── fixtures ────────────────────────────────────────────────────────────── */
 
-const DEFAULT_ENDPOINT = 'https://raw.githubusercontent.com/BBeBeeX/bbebeex-registry/main/registry.json'
+const DEFAULT_ENDPOINT = 'https://raw.githubusercontent.com/BBeBeeX/B_Be_Bee-registry/main/registry.json'
 const INDEX_CACHE_KEY = 'registry.index-cache'
 const PREFS_KEY = 'registry.prefs'
 
@@ -592,6 +592,25 @@ describe('fetchEntryDetails', () => {
     )
     expect(details.allowedHosts).toEqual(['foo.example', 'cdn.foo.example'])
     expect(details.isBuiltinInstall).toBe(false)
+    expect(details.isLocallyModified).toBeUndefined()
+  })
+
+  it('flags a locally modified music source in fetchEntryDetails', async () => {
+    const url = 'https://cdn.example/foo.json'
+    const modifiedRecord = {
+      ...makeSourceRecord('https://foo.example', '1.0.0'),
+      locallyModified: true,
+    }
+    const { plugin } = await setupInitialized({
+      http: {
+        json: { [url]: { sourceUrl: 'https://foo.example', allowedHosts: ['foo.example'] } },
+      },
+      sources: [modifiedRecord],
+    })
+    const details = await plugin.fetchEntryDetails(
+      entryOf({ id: 'music-foo', kind: 'music-source', name: 'Foo Music', downloadUrl: url, sourceUrl: 'https://foo.example' }),
+    )
+    expect(details.isLocallyModified).toBe(true)
   })
 
   it('flags a builtin lyric-source install and surfaces its hosts', async () => {
@@ -644,6 +663,28 @@ describe('install', () => {
       entryOf({ id: 'music-foo', kind: 'music-source', name: 'Foo Music', downloadUrl: url, sourceUrl: 'https://foo.example' }),
     )
     expect(harness.sources.import).toHaveBeenCalledWith(document, { originUri: url })
+  })
+
+  it('forwards overwrite option to ctx.sources.import', async () => {
+    const url = 'https://cdn.example/foo-1.1.0.json'
+    const document = JSON.stringify({ sourceUrl: 'https://foo.example', sourceName: 'Foo Music', version: '1.1.0' })
+    const harness = await setupInitialized({
+      http: { json: { [url]: document } },
+      sources: [makeSourceRecord('https://foo.example', '1.0.0')],
+    })
+    harness.sources.import.mockResolvedValueOnce({
+      added: [],
+      updated: [{ record: makeSourceRecord('https://foo.example', '1.1.0'), changedFields: ['version'] }],
+      unchanged: [],
+      rejected: [],
+      conflicts: [],
+    })
+
+    await harness.plugin.install(
+      entryOf({ id: 'music-foo', kind: 'music-source', name: 'Foo Music', downloadUrl: url, sourceUrl: 'https://foo.example' }),
+      { overwrite: true },
+    )
+    expect(harness.sources.import).toHaveBeenCalledWith(document, { originUri: url, overwrite: true })
   })
 
   it('throws with the rejection messages when the music document is not imported', async () => {

@@ -961,7 +961,7 @@ export interface PluginManagerService {
 
 ## 25. `ctx.contentRegistry` —— 第三方内容注册表
 
-**用途。** 第三方内容及其更新的应用内索引。社区注册表（[bbebeex-registry](https://github.com/BBeBeeX/bbebeex-registry)，以钉定版本的 `registry/` submodule 接入 —— [sources/registry.md](../sources/registry.md)）发布一份 `registry.json`，索引四类可安装内容：音源、歌词源、主题与桌面插件。本服务拉取该索引，将其与用户已安装内容比对，并经由各类型自己的服务完成安装 —— `ctx.sources.import`、`ctx.lyricSources.registerSource`、`ctx.theme.registerTheme`，以及桌面动态加载器。它刻意做成一个薄协调者：下游服务已校验的东西它不再校验，用户确认前必须看到的东西它也绝不隐藏。
+**用途。** 第三方内容及其更新的应用内索引。社区注册表（[B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)，以钉定版本的 `registry/` submodule 接入 —— [sources/registry.md](../sources/registry.md)）发布一份 `registry.json`，索引四类可安装内容：音源、歌词源、主题与桌面插件。本服务拉取该索引，将其与用户已安装内容比对，并经由各类型自己的服务完成安装 —— `ctx.sources.import`、`ctx.lyricSources.registerSource`、`ctx.theme.registerTheme`，以及桌面动态加载器。它刻意做成一个薄协调者：下游服务已校验的东西它不再校验，用户确认前必须看到的东西它也绝不隐藏。
 
 > ⚠️ **服务键是 `contentRegistry`，不是 `registry`。** 在 cordis 4 中，`registry` 这个键属于内核本身 —— 它的插件注册表服务，其方法以 `ctx.plugin` / `ctx.inject` 的形式暴露。
 

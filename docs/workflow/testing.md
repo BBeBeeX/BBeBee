@@ -157,7 +157,7 @@ leak test, both of which cost a debugging session to discover the hard way.
 
 - **End users**: not a development task at all. In the app: **Settings → Sources → Import**, paste the string, review what it says it will do, confirm ([sources/authoring.md §9](../sources/authoring.md#9-importing-updating-and-sharing)). No install, no rebuild, no restart.
 - **Source authors & developers**:
-  To avoid writing hundreds of lines of escaped JavaScript inside a single JSON string, author sources as dual files (`source.json` + `source.js`) in the registry repo ([bbebeex-registry](https://github.com/BBeBeeX/bbebeex-registry)), consumed here as the pinned `registry/` submodule ([sources/registry.md](../sources/registry.md)): `registry/music-sources/<id>/` for music sources, `registry/lyric-sources/<id>/` for lyric sources.
+  To avoid writing hundreds of lines of escaped JavaScript inside a single JSON string, author sources as dual files (`source.json` + `source.js`) in the registry repo ([B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)), consumed here as the pinned `registry/` submodule ([sources/registry.md](../sources/registry.md)): `registry/music-sources/<id>/` for music sources, `registry/lyric-sources/<id>/` for lyric sources.
 
 | Command | What it does |
 |---|---|

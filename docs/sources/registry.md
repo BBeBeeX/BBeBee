@@ -1,4 +1,4 @@
-# The Content Registry (`bbebeex-registry`)
+# The Content Registry (`B_Be_Bee-registry`)
 
 > **What this answers.** How the app discovers, checks and installs third-party
 > content — music sources, lyric sources, themes and desktop plugins — from the
@@ -14,7 +14,7 @@ a first-party path beyond pasting whatever a forum thread says.
 ## 1. Repository wiring
 
 The registry lives in its own repository,
-[BBeBeeX/bbebeex-registry](https://github.com/BBeBeeX/bbebeex-registry), and is
+[BBeBeeX/B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry), and is
 consumed by this monorepo as a **git submodule pinned at `registry/`**:
 
 ```
@@ -52,7 +52,7 @@ registry/
 ```jsonc
 {
   "generatedAt": "2026-10-07T10:22:39-04:00",
-  "repository": "BBeBeeX/bbebeex-registry",
+  "repository": "BBeBeeX/B_Be_Bee-registry",
   "entries": [
     {
       "id": "bilibili",
@@ -195,7 +195,7 @@ opt-in, user-confirmed content.
 [spec.md](./spec.md) defines the music-source document model the registry's
 `music-source` entries compile to; [runtime.md](./runtime.md) defines what an
 imported source can and cannot do; the registry repo's
-[CONTRIBUTING](https://github.com/BBeBeeX/bbebeex-registry/blob/main/CONTRIBUTING.md)
+[CONTRIBUTING](https://github.com/BBeBeeX/B_Be_Bee-registry/blob/main/CONTRIBUTING.md)
 and
-[MODERATION](https://github.com/BBeBeeX/bbebeex-registry/blob/main/MODERATION.md)
+[MODERATION](https://github.com/BBeBeeX/B_Be_Bee-registry/blob/main/MODERATION.md)
 define how entries get in.

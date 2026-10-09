@@ -112,6 +112,7 @@ interface RegistryStubOptions {
   index?: RegistryIndex
   offline?: boolean
   allowedHosts?: readonly string[]
+  locallyModified?: boolean
 }
 
 function makeRegistryStub(options: RegistryStubOptions = {}) {
@@ -143,10 +144,11 @@ function makeRegistryStub(options: RegistryStubOptions = {}) {
         ...(entry.kind === 'music-source' || entry.kind === 'lyric-source'
           ? { allowedHosts: options.allowedHosts ?? ['cdn.example', 'music.example'] }
           : {}),
+        ...(options.locallyModified ? { isLocallyModified: true } : {}),
       }
     },
-    install: async (entry: RegistryEntry, opts?: { confirmed?: boolean }) => {
-      calls.push(`install:${entry.id}:${String(opts?.confirmed ?? false)}`)
+    install: async (entry: RegistryEntry, opts?: { confirmed?: boolean; overwrite?: boolean }) => {
+      calls.push(`install:${entry.id}:${String(opts?.confirmed ?? false)}${opts?.overwrite ? ':overwrite' : ''}`)
     },
     lastIndexFetchFailed: () => options.offline ?? false,
   }
@@ -360,6 +362,28 @@ describe('RegistryScreen', () => {
     const { ctx } = await harness({ offline: true })
     const { findByTestId } = render(h(RegistryScreen, { ctx }))
     expect(await findByTestId('registry-offline-hint')).toBeTruthy()
+  })
+
+  it('requires explicit overwrite confirmation when a music source was locally modified', async () => {
+    const { ctx, calls } = await harness({ locallyModified: true })
+    const { getByTestId, findByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-entry-music-new')
+
+    fireEvent.click(getByTestId('registry-tab-music-source'))
+    fireEvent.click(getByTestId('registry-action-music-new'))
+
+    await findByTestId('registry-confirm-dialog')
+    expect(getByTestId('registry-locally-modified-warning')).toBeTruthy()
+
+    const acceptBtn = getByTestId('registry-confirm-accept') as HTMLButtonElement
+    expect(acceptBtn.disabled).toBe(true)
+
+    const checkbox = getByTestId('registry-overwrite-checkbox')
+    fireEvent.click(checkbox)
+    expect(acceptBtn.disabled).toBe(false)
+
+    fireEvent.click(acceptBtn)
+    await waitFor(() => expect(calls).toContain('install:music-new:true:overwrite'))
   })
 })
 

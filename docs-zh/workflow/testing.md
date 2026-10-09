@@ -124,7 +124,7 @@ pnpm check                   # already green — the template ships passing test
 
 - **面向最终用户**：在应用内 **设置 → 音源 → 导入**，粘贴字符串，查看它声明自己会做什么，确认（[sources/authoring.md §9](../sources/authoring.md#9-导入更新与分享)）。无需安装、无需重新构建、无需重启。
 - **面向音源作者与开发者**：
-  为避免在一个巨大单行 JSON 字符串中调试复杂 JavaScript 代码，音源以双文件架构（`source.json` + `source.js`）开发于注册表仓库（[bbebeex-registry](https://github.com/BBeBeeX/bbebeex-registry)），本仓库以钉定版本的 `registry/` submodule 消费它（[sources/registry.md](../sources/registry.md)）：音源在 `registry/music-sources/<id>/`，歌词源在 `registry/lyric-sources/<id>/`。
+  为避免在一个巨大单行 JSON 字符串中调试复杂 JavaScript 代码，音源以双文件架构（`source.json` + `source.js`）开发于注册表仓库（[B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)），本仓库以钉定版本的 `registry/` submodule 消费它（[sources/registry.md](../sources/registry.md)）：音源在 `registry/music-sources/<id>/`，歌词源在 `registry/lyric-sources/<id>/`。
 
 | 命令 | 作用 |
 |---|---|

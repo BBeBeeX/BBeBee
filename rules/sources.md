@@ -50,7 +50,7 @@ Rule prefixes select the execution engine:
 
 ## 4. Source Authoring Workflow
 
-- **Dual-file development lives in the registry repo** — `bbebeex-registry`, wired into this repo as the pinned `registry/` submodule (`registry/music-sources/<id>/`, `registry/lyric-sources/<id>/`). The main repo no longer keeps a top-level `sources/` directory.
+- **Dual-file development lives in the registry repo** — `B_Be_Bee-registry`, wired into this repo as the pinned `registry/` submodule (`registry/music-sources/<id>/`, `registry/lyric-sources/<id>/`). The main repo no longer keeps a top-level `sources/` directory.
 - **CLI Commands (main repo)**:
   - `pnpm build:sources`: Compiles the submodule's dirs into single-file JSONs — `fixtures/sources/` (music) and `fixtures/lyric-sources/` (lyric) — and regenerates `plugin-lyric-sources`'s builtin module.
   - `pnpm watch:sources`: Watch mode (one watcher per registry dir) for live re-compilation.
@@ -70,7 +70,7 @@ Rule prefixes select the execution engine:
 
 ## 6. Registry（第三方注册表）
 
-The community registry ([bbebeex-registry](https://github.com/BBeBeeX/bbebeex-registry)) publishes installable content as a `registry.json` index. The app consumes it through the `contentRegistry` service — see [docs/sources/registry.md](../docs/sources/registry.md).
+The community registry ([B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)) publishes installable content as a `registry.json` index. The app consumes it through the `contentRegistry` service — see [docs/sources/registry.md](../docs/sources/registry.md).
 
 - **Four kinds of content**: `music-source`, `lyric-source`, `theme`, `plugin`.
 - **`registry.json` entry fields**: `id`, `kind`, `name`, `version`, `author`, `updatedAt`, `downloadUrl`, `minAppVersion`. Music-source entries additionally carry `sourceUrl` (their matching key against installed sources); plugin entries additionally carry `sha256` (integrity digest of the install bundle) and `capabilities`.

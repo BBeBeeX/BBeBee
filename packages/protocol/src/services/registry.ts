@@ -77,6 +77,8 @@ export interface RegistryEntryDetails {
   readonly entry: RegistryEntry
   readonly allowedHosts?: readonly string[]
   readonly isBuiltinInstall?: boolean
+  /** True when a music source already exists locally and was edited since import. */
+  readonly isLocallyModified?: boolean
 }
 
 /** Desktop-only plugin distribution: a JSON bundle `{ manifest, files }` fetched from downloadUrl. */
@@ -95,7 +97,7 @@ export interface RegistryService {
   /** Fetches the distribution document for an entry and returns what the confirm dialog must show. */
   fetchEntryDetails(entry: RegistryEntry): Promise<RegistryEntryDetails>
   /** Installs/updates one entry. The caller must already have shown the user the details (hosts / plugin risk). */
-  install(entry: RegistryEntry, opts?: { confirmed?: boolean }): Promise<void>
+  install(entry: RegistryEntry, opts?: { confirmed?: boolean; overwrite?: boolean }): Promise<void>
   /** Composition root sets this so plugin-kind installs can reach the desktop dynamic host. */
   setPluginInstaller(installer: (bundle: PluginInstallBundle) => Promise<void>): void
 }

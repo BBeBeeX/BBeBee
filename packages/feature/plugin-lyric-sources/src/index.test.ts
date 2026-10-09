@@ -442,6 +442,43 @@ describe('LyricSourcesPlugin Service', () => {
     expect(builtin?.script).toContain('toQueryString')
   })
 
+  it('preserves newer registry-updated stored builtin source on init', async () => {
+    const ctx = new Context()
+    const fakeStore: Record<string, unknown> = {
+      [STORE_LYRIC_SOURCES_KEY]: [
+        {
+          id: 'builtin-lrclib',
+          name: 'Updated LRCLIB',
+          version: '2.0.0',
+          author: 'LRCLIB Community',
+          enabled: true,
+          sortOrder: 2,
+          allowedHosts: ['lrclib.net'],
+          script: '// updated script from registry',
+        },
+      ],
+    }
+
+    ctx.provide('store', {
+      get: async (k: string) => fakeStore[k],
+      set: async (k: string, v: unknown) => {
+        fakeStore[k] = v
+      },
+    })
+
+    const plugin = new LyricSourcesPlugin(ctx)
+    await plugin[Service.init]()
+
+    const sources = plugin.getSources()
+    const builtin = sources.find((s) => s.id === 'builtin-lrclib')
+    expect(builtin).toBeDefined()
+    expect(builtin?.version).toBe('2.0.0')
+    expect(builtin?.name).toBe('Updated LRCLIB')
+    expect(builtin?.script).toBe('// updated script from registry')
+    expect(builtin?.enabled).toBe(true)
+    expect(builtin?.sortOrder).toBe(2)
+  })
+
   it('testSource reports clean error when no lyrics found', async () => {
     const emptyHttp: HttpService = (async (req: HttpRequest) => {
       if (req.url.includes('/api/get')) {

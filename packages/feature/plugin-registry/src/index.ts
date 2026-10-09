@@ -48,7 +48,7 @@ import { compareVersions, normalizeVersion } from './semver.js'
 import { REGISTRY_VIEWS } from './views.js'
 
 /** Where the community registry publishes its index. Overridable via `registry.prefs`. */
-const DEFAULT_ENDPOINT = 'https://raw.githubusercontent.com/BBeBeeX/bbebeex-registry/main/registry.json'
+const DEFAULT_ENDPOINT = 'https://raw.githubusercontent.com/BBeBeeX/B_Be_Bee-registry/main/registry.json'
 
 /** Store key: the last good index, for offline use. */
 const INDEX_CACHE_KEY = 'registry.index-cache'
@@ -410,19 +410,25 @@ export class RegistryPlugin extends Service implements RegistryService {
     // music-source | lyric-source: the egress allowlist is the sentence the
     // user judges before confirming.
     const allowedHosts = optionalStringArray(isRecord(doc) ? doc.allowedHosts : undefined)
+    const existing =
+      entry.kind === 'music-source' && entry.sourceUrl
+        ? this.sourcesService?.sources.find((r) => r.sourceUrl === entry.sourceUrl)
+        : undefined
+
     return {
       entry,
       ...(allowedHosts ? { allowedHosts } : {}),
       isBuiltinInstall: entry.kind === 'lyric-source' ? entry.id.startsWith('builtin-') : false,
+      ...(existing?.locallyModified ? { isLocallyModified: true } : {}),
     }
   }
 
   /* ── installs ──────────────────────────────────────────────────────────── */
 
-  async install(entry: RegistryEntry, _opts?: { confirmed?: boolean }): Promise<void> {
+  async install(entry: RegistryEntry, opts?: { confirmed?: boolean; overwrite?: boolean }): Promise<void> {
     switch (entry.kind) {
       case 'music-source':
-        return this.installMusicSource(entry)
+        return this.installMusicSource(entry, opts)
       case 'lyric-source':
         return this.installLyricSource(entry)
       case 'theme':
@@ -438,10 +444,16 @@ export class RegistryPlugin extends Service implements RegistryService {
    * user already has IS the update flow. The import pipeline validates the
    * document itself.
    */
-  private async installMusicSource(entry: RegistryEntry): Promise<void> {
+  private async installMusicSource(
+    entry: RegistryEntry,
+    opts?: { confirmed?: boolean; overwrite?: boolean },
+  ): Promise<void> {
     const url = this.requireDownloadUrl(entry)
     const text = await (await this.fetchDocument(url)).text()
-    const report = await this.requireSources().import(text, { originUri: url })
+    const report = await this.requireSources().import(text, {
+      originUri: url,
+      overwrite: opts?.overwrite,
+    })
 
     // The entry's `sourceUrl` is the identity to look for; when the index
     // omits it, any accepted document counts. Rejected and locally-modified

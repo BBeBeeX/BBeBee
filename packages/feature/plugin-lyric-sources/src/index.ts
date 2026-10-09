@@ -14,6 +14,7 @@ import type {
 } from '@BBeBee/protocol'
 import { executeLyricSource } from './sandbox.js'
 import { normalizeToLyrics } from './normalizer.js'
+import { compareVersions } from '@BBeBee/toolkit'
 import { BUILTIN_LYRIC_SOURCES as GENERATED_LYRIC_SOURCES } from './generated/builtin-lyric-sources.generated.js'
 
 export * from './sandbox.js'
@@ -112,9 +113,10 @@ export class LyricSourcesPlugin extends Service implements LyricSourcesService {
       if (Array.isArray(saved) && saved.length > 0) {
         // Merge or replace: a stored builtin whose version lags the compiled
         // document refreshes to it, keeping the user's enabled/sortOrder.
+        // A user-installed newer version from the registry is kept.
         this.sources = saved.map((s) => {
           const builtin = BUILTIN_LYRIC_SOURCES.find((b) => b.id === s.id)
-          if (builtin && s.version !== builtin.version) {
+          if (builtin && compareVersions(builtin.version, s.version) > 0) {
             return {
               ...builtin,
               enabled: s.enabled ?? true,

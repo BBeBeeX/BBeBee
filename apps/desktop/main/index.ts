@@ -34,7 +34,7 @@ import {
   type CloseContext,
 } from './window-policy.js'
 import { fileURLToPath } from 'node:url'
-import { dirname, join, extname, resolve } from 'node:path'
+import { dirname, join, extname, resolve, relative, isAbsolute } from 'node:path'
 import {
   existsSync,
   mkdirSync,
@@ -1152,7 +1152,8 @@ function registerHandlers(): void {
 
       for (const [relPath, content] of Object.entries(files)) {
         const filePath = resolve(targetDir, relPath)
-        if (!filePath.startsWith(resolve(targetDir))) {
+        const rel = relative(targetDir, filePath)
+        if (rel.startsWith('..') || isAbsolute(rel)) {
           throw new Error(`Path traversal rejected: ${relPath}`)
         }
         mkdirSync(dirname(filePath), { recursive: true })

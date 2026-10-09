@@ -351,7 +351,7 @@ export interface LyricRule { lyric: string; format?: string; offsetMs?: string }
 
 Complex sources often involve substantial JavaScript logic (e.g. signature mixing, multi-stage authentication, audio stream track ranking). Authoring hundreds of lines of JS inside an escaped `\n` string in a single JSON file is unergonomic.
 
-Sources adopt **dual-file authoring during development, compiled to single-file for distribution**. The dual-file sources live in the registry repo ([bbebeex-registry](https://github.com/BBeBeeX/bbebeex-registry)), consumed by this repository as the pinned `registry/` submodule ([registry.md](./registry.md)):
+Sources adopt **dual-file authoring during development, compiled to single-file for distribution**. The dual-file sources live in the registry repo ([B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)), consumed by this repository as the pinned `registry/` submodule ([registry.md](./registry.md)):
 - **`registry/music-sources/<id>/source.json`**: source metadata, allowed hosts, and rule mappings.
 - **`registry/music-sources/<id>/source.js`**: pure, unescaped JavaScript helpers with IDE syntax highlighting, linting, and completion.
 - **`registry/lyric-sources/<id>/`**: the same dual-file layout for lyric sources.
