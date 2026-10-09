@@ -168,13 +168,67 @@ export function InstallConfirmDialog({
       entry.kind === 'plugin'
         ? h(
             'div',
-            { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+            {
+              'data-testid': 'registry-plugin-confirm-details',
+              style: { display: 'flex', flexDirection: 'column', gap: 8 },
+            },
             h(
               'div',
               { style: warningStyle },
               tablerIcon('alert', { size: 16 }),
               h('span', null, '此插件将执行第三方代码，请仅安装你信任的来源。'),
             ),
+            entry.repoUrl
+              ? h(
+                  'div',
+                  {
+                    'data-testid': 'registry-plugin-repo-url',
+                    style: { display: 'flex', flexDirection: 'column', gap: 4 },
+                  },
+                  h('div', { style: sectionTitleStyle }, '代码仓库'),
+                  h(
+                    'a',
+                    {
+                      href: entry.repoUrl,
+                      target: '_blank',
+                      rel: 'noreferrer noopener',
+                      style: {
+                        color: 'var(--color-primary, #4E88FF)',
+                        fontSize: 12,
+                        textDecoration: 'none',
+                        wordBreak: 'break-all',
+                      },
+                    },
+                    entry.repoUrl,
+                  ),
+                )
+              : null,
+            entry.sha256
+              ? h(
+                  'div',
+                  {
+                    'data-testid': 'registry-plugin-sha256',
+                    style: { display: 'flex', flexDirection: 'column', gap: 4 },
+                  },
+                  h('div', { style: sectionTitleStyle }, '发布哈希 (SHA-256)'),
+                  h(
+                    'div',
+                    {
+                      style: {
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                        color: 'var(--text-muted, #7E859B)',
+                        wordBreak: 'break-all',
+                        background: 'var(--surface-2, rgba(255, 255, 255, 0.04))',
+                        padding: '4px 8px',
+                        borderRadius: 4,
+                        border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+                      },
+                    },
+                    entry.sha256,
+                  ),
+                )
+              : null,
             entry.capabilities?.length
               ? h(
                   'div',
@@ -182,7 +236,10 @@ export function InstallConfirmDialog({
                   h('div', { style: sectionTitleStyle }, '申请的能力'),
                   h(
                     'div',
-                    { style: { display: 'flex', gap: 4, flexWrap: 'wrap' } },
+                    {
+                      'data-testid': 'registry-plugin-capabilities',
+                      style: { display: 'flex', gap: 4, flexWrap: 'wrap' },
+                    },
                     entry.capabilities.map((capability) =>
                       h(
                         'span',

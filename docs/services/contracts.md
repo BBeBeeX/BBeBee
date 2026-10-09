@@ -1117,7 +1117,7 @@ export interface RegistryEntry {
   readonly description?: string
   readonly updatedAt?: string
   readonly downloadUrl?: string
-  /** Informational; not enforced yet. */
+  /** Optional; enforced in UI via minAppVersionBlock. */
   readonly minAppVersion?: string
   /** music-source only: the document's backend URL (installed-source matching key). */
   readonly sourceUrl?: string

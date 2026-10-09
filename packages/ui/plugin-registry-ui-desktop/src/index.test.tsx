@@ -93,7 +93,8 @@ const INDEX: RegistryIndex = {
       name: 'OK Plugin',
       version: '1.0.0',
       minAppVersion: '0.0.1',
-      capabilities: [],
+      repoUrl: 'https://github.com/example/plugin-ok',
+      capabilities: ['audio:dsp'],
       sha256: 'cd'.repeat(32),
     },
   ],
@@ -356,6 +357,21 @@ describe('RegistryScreen', () => {
     const hosts = getByTestId('registry-hosts-list')
     expect(hosts.textContent).toContain('cdn.example')
     expect(hosts.textContent).toContain('music.example')
+  })
+
+  it('shows repoUrl, capabilities, and sha256 for a plugin install', async () => {
+    const { ctx } = await harness()
+    const { getByTestId, findByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-tab-plugin')
+
+    fireEvent.click(getByTestId('registry-tab-plugin'))
+    fireEvent.click(getByTestId('registry-action-plugin-ok'))
+
+    const dialog = await findByTestId('registry-confirm-dialog')
+    expect(dialog).toBeTruthy()
+    expect(getByTestId('registry-plugin-repo-url').textContent).toContain('https://github.com/example/plugin-ok')
+    expect(getByTestId('registry-plugin-capabilities').textContent).toContain('audio:dsp')
+    expect(getByTestId('registry-plugin-sha256').textContent).toContain('cd'.repeat(32))
   })
 
   it('shows the 离线缓存 hint when the service reports a cache fallback', async () => {

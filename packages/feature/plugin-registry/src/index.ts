@@ -116,7 +116,7 @@ function sanitizeEntry(raw: unknown): RegistryEntry | undefined {
     minAppVersion: optionalString(raw.minAppVersion),
     sourceUrl: optionalString(raw.sourceUrl),
     previewUrl: optionalString(raw.previewUrl),
-    repoUrl: optionalString(raw.repoUrl),
+    repoUrl: optionalString(raw.repoUrl) ?? optionalString(raw.repo),
     sha256: optionalString(raw.sha256),
     capabilities: optionalStringArray(raw.capabilities),
   }

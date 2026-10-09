@@ -978,7 +978,7 @@ export interface RegistryEntry {
   readonly description?: string
   readonly updatedAt?: string
   readonly downloadUrl?: string
-  /** 仅供参考；暂不强制。 */
+  /** 可选；由 UI 层 minAppVersionBlock 强校验拦截。 */
   readonly minAppVersion?: string
   /** 仅 music-source：文档的后端 URL（与已安装源的匹配键）。 */
   readonly sourceUrl?: string

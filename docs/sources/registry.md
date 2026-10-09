@@ -38,12 +38,9 @@ registry/
   `music-sources/` and `lyric-sources/` into `fixtures/sources/` and
   `fixtures/lyric-sources/` plus the builtin lyric module
   ([authoring workflow](./spec.md#23-dual-file-authoring-vs-single-file-distribution)).
-- The submodule's URL is currently a local placeholder. After the remote
-  repository is created, point it at the real URL:
-
-  ```bash
-  git submodule set-url registry <url> && git submodule sync
-  ```
+- The submodule points to `https://github.com/BBeBeeX/B_Be_Bee-registry.git`
+  via a pinned git commit mechanism, with the pinned submodule commit kept in sync
+  with the remote `HEAD`.
 
 ---
 
@@ -79,7 +76,7 @@ registry/
 | `description` | all | One line shown in listings. |
 | `updatedAt` | all | The entry's last-commit date (ISO 8601), set by the index generator. |
 | `downloadUrl` | all | Where the installable artifact lives — always a `dist/` build artifact, never raw entry sources. |
-| `minAppVersion` | all | Minimum app version the entry needs. Informational; not enforced yet. |
+| `minAppVersion` | all | Minimum app version the entry needs (semver). Optional; absent means no version restriction. Enforced in UI via `minAppVersionBlock` — disables install and explains why when the running app is older. |
 | `sourceUrl` | music-source | The document's backend base URL — the installed-source matching key (§3). |
 | `previewUrl` | theme, plugin | Preview image for the install dialog. |
 | `repoUrl` | plugin | The plugin author's own repository. |
@@ -190,7 +187,16 @@ opt-in, user-confirmed content.
 
 ---
 
-## 7. Where to go next
+## 7. View placement
+
+The registry view ("发现" / Discovery, route `/registry`) is contributed to the desktop shell with `placement: ['tray']` rather than `sidebar`:
+
+1. **Information architecture hierarchy**: The left sidebar is reserved for primary audio playback and local library navigation (Search, Library, Albums, Playlists). Management tools and extensions (Registry, Downloads, History, Import Share) are aggregated in the TopBar tray to prevent navigation clutter.
+2. **Update notification coupling**: `apps/desktop/renderer/TopBar.tsx` hosts `TrayIndicator`, which subscribes to the `registry/updates-available` event. When updates are found, it displays an update indicator dot (`topbar-tray-update-dot`) on the tray toggle button and on the registry entry inside the tray panel. Placing the registry in the tray allows update notifications to alert the user promptly without polluting the core browsing sidebar.
+
+---
+
+## 8. Where to go next
 
 [spec.md](./spec.md) defines the music-source document model the registry's
 `music-source` entries compile to; [runtime.md](./runtime.md) defines what an

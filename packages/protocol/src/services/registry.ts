@@ -37,7 +37,7 @@ export interface RegistryEntry {
   /** Entry's last-commit date in the registry repo (ISO 8601). */
   readonly updatedAt?: string
   readonly downloadUrl?: string
-  /** Minimum app version this entry needs. Informational; not enforced yet. */
+  /** Minimum app version this entry needs (semver). Optional; enforced in UI via minAppVersionBlock. */
   readonly minAppVersion?: string
   /** music-source only: the document's backend URL (installed-source matching key). */
   readonly sourceUrl?: string
