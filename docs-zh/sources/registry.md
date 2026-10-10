@@ -38,15 +38,15 @@ registry/
   "repository": "BBeBeeX/B_Be_Bee-registry",
   "entries": [
     {
-      "id": "bilibili",
+      "id": "subsonic",
       "kind": "music-source",
-      "name": "Bilibili",
+      "name": "Subsonic",
       "version": "1.0.0",
       "author": "BBeBee",
       "description": "…",
       "updatedAt": "2026-10-07T10:22:39-04:00",
-      "downloadUrl": "https://…/dist/music-sources/bilibili.json",
-      "sourceUrl": "https://www.bilibili.com"
+      "downloadUrl": "https://…/dist/music-sources/subsonic.json",
+      "sourceUrl": "https://music.example.org"
     }
   ]
 }
@@ -122,22 +122,79 @@ export interface RegistryService {
 
 ---
 
-## 5. 各类型的安装流程
+## 5. 安装流程、作者仓库制品链与安全体系
 
-`install(entry)` 分派给拥有该类型的服务 —— 注册表服务是一个薄协调者：下游服务已校验的东西它不再校验，用户确认前必须看到的东西它也绝不隐藏：
+注册表建立了一套覆盖发现、下载、静态安全审计、确认对话框与本地防篡改锁定的完整安全门禁体系：
+
+### 5.1 GitHub Contents API 多目录发现机制
+
+`getIndex()` 不再单纯读取单个 `registry.json`，而是通过 GitHub Contents API 枚举 4 个分类目录：
+- `music-sources/`
+- `lyric-sources/`
+- `plugins/`
+- `themes/`
+
+各目录条目经解析与合法性清洗后聚合为统一索引。若网络或接口故障，服务会先回退到传统单一 `registry.json`，最后回退至本地 store 离线缓存（`registry.index-cache`），确保断网下仍可查看已缓存内容。
+
+### 5.2 作者仓库制品链
+
+针对第三方插件及作者独立仓库：
+1. **解析提交**：请求 `https://api.github.com/repos/{owner}/{repo}/commits/HEAD` 解析不可变的 HEAD 提交 SHA。
+2. **下载制品**：严格基于该 commit 钉定版本下载根目录 `manifest.json` 与 `index.js`（或 `index.json`）。
+3. **能力一致性校验**：严格比对 `manifest.json` 中声明的能力（capabilities）与注册表元数据。若 manifest 申请了未在注册表声明的能力或遗漏了声明能力，立即拒绝安装。
+
+### 5.3 内置安全审计插件（`ctx.securityAudit`）
+
+内置 `@BBeBee/plugin-security-audit`（Layer 4）提供静态源码扫描，涵盖 7 类高危安全模式（§1.4c）：
+- `dynamic-execution`：`eval()`、`new Function()`、定时器字符串执行、`vm` 沙箱逃逸。
+- `undeclared-egress`：未声明域名的外呼网络请求（对比 `allowedHosts` 白名单）。
+- `hardcoded-credentials`：硬编码私钥（`-----BEGIN PRIVATE KEY-----`）与 API 凭证（`ghp_`、`sk_live_`、AWS 密钥）。
+- `prototype-pollution`：原型污染变体（修改 `__proto__`、`Object.prototype`、`constructor.prototype`）。
+- `remote-dynamic-import`：动态 `import()` 引用远端不可信 URL。
+- `code-obfuscation`：密集 16 进制/Unicode 转义、压缩打包器特征。
+- `high-entropy-string`：香农熵扫描识别可疑加密或混淆载荷。
+
+审计结果区分为 `block`（高危阻断）与 `warn`（警告），存在 `block` 级别的条目默认禁止安装。
+
+### 5.4 安装前审计确认对话框
+
+在执行安装或更新前，桌面 UI（`packages/ui/plugin-registry-ui-desktop`）弹出 `InstallConfirmDialog`：
+- **安全审计报告（Security Audit Report）**：展示审计等级徽标（`通过 (Pass)` / `警告 (Warn)` / `高危风险 (Block)`）并逐条列出发现问题（类别、等级、代码片段、行号）。
+- **作者仓库与 Commit**：展示代码仓库直链与 commit SHA。
+- **提交差异（Commit Diff）**：更新时展示提交哈希前进差异（如 `a1b2c3d → e4f5g6h`）。
+- **阻断门禁（Block Gating）**：审计等级为 `block` 时确认按钮默认禁用，必须勾选 `我已知晓高危风险并确认强制安装` 复选框方可确认。
+
+### 5.5 `registry.lock.json` 防篡改锁定管理
+
+- **路径**：App 用户数据目录下的 `registry.lock.json`（同时同步到 `ctx.store` 的 `registry.lock`）。
+- **数据格式**：
+  ```jsonc
+  {
+    "version": 1,
+    "records": {
+      "custom-plugin": {
+        "id": "custom-plugin",
+        "kind": "plugin",
+        "repo": "https://github.com/alice/custom-plugin",
+        "commit": "a1b2c3d4e5f67890",
+        "sha256": "3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
+        "installedAt": 1775894400000
+      }
+    }
+  }
+  ```
+- **加载防篡改校验**：桌面端动态加载器（`apps/desktop/renderer/dynamic-loader.ts`）在应用启动或加载第三方插件时，重新计算入口文件 SHA-256 并与 `registry.lock.json` 比对。若哈希不符（文件遭外部篡改），标记为 `quarantined`（隔离）并拒绝加载，防止恶意代码注入。
+
+---
+
+## 6. 各类型的安装流程
 
 | 类型 | 流程 |
 |---|---|
-| `music-source` | 拉取 `dist/` 文档 → `ctx.sources.import(text, { originUri: downloadUrl })`。完整导入管线生效：校验、按 `sourceUrl` 去重、对 rejected/conflicted 行的呈现。若报告中不存在该条目 `sourceUrl` 对应的已接受行，安装会大声失败。 |
-| `lyric-source` | 拉取 `dist/` 文档 → 形状校验（`id` / `name` / `script`）→ `ctx.lyricSources.registerSource(doc)`。 |
-| `theme` | 拉取 `dist/` 文档 → 形状校验 → 与用户自建主题**相同的暗/亮双模式对比度门禁** → `ctx.theme.registerTheme(doc)`。 |
-| `plugin` | 拉取插件包（`{ manifest, files }` JSON）→ **条目未发布 `sha256` 时拒绝安装** → 将下载字节与摘要比对 → manifest 形状校验 → 经 `setPluginInstaller` 交给桌面动态加载宿主。仅桌面端。 |
-
-**安装安全红线 —— 在调用 `install()` 之前由 UI 强制：**
-
-- **`allowedHosts` 安装前明示。** `fetchEntryDetails()` 会提取音源文档的出站域名清单，让确认对话框说出该源被允许访问的每一个主机。域名清单是一句用户能自己判断的话；它必须在文档导入之前出现在屏幕上，而不是安装之后才被发现。
-- **插件安装是风险确认。** 对话框展示条目的 `repoUrl`、声明的 `capabilities` 与校验过的 `sha256`；用户明确确认后代码才会被加载。
-- **应用只消费 `dist/` 产物。** 注册表仓里的条目源码是给人审核用的（`MODERATION.md`）；运行时不会拉取它们。
+| `music-source` | 拉取 `dist/` 文档 → `ctx.sources.import(text, { originUri: downloadUrl })`。完整导入管线生效；写入 `registry.lock.json`。 |
+| `lyric-source` | 拉取文档/作者仓库 → 形状校验 → 静态安全审计 → `ctx.lyricSources.registerSource(doc)` → 写入 `registry.lock.json`。 |
+| `theme` | 拉取文档/作者仓库 → 形状校验 → WCAG AA 对比度门禁 → `ctx.theme.registerTheme(doc)` → 写入 `registry.lock.json`。 |
+| `plugin` | 拉取插件包/作者仓库 → 能力一致性校验 → 静态安全审计 → 经桌面动态加载宿主 `installAndActivatePlugin` 安装激活 → 写入 `registry.lock.json`。 |
 
 ---
 

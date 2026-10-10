@@ -10,6 +10,7 @@ import {
 import { Button, EmptyState, IconButton, Text } from '@BBeBee/ui-kit-desktop'
 import { serviceOf } from '@BBeBee/ui-core'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
+import { SourceConfigureModal } from '../components/SourceConfigureModal.js'
 
 const p = () => palettes.dark
 
@@ -19,6 +20,7 @@ export function SourcesListScreen({ ctx }: { ctx: Context }): ReactElement {
   const folders = useLocalFolders(ctx)
   const scanner = serviceOf<ScannerService>(ctx, 'scanner')
   const [confirming, setConfirming] = useState<string | undefined>(undefined)
+  const [configuringSourceId, setConfiguringSourceId] = useState<string | undefined>(undefined)
 
   const removeSource = (id: string) => {
     setConfirming(undefined)
@@ -104,6 +106,14 @@ export function SourcesListScreen({ ctx }: { ctx: Context }): ReactElement {
                   }),
                   !local
                     ? h(Button, {
+                        variant: 'secondary',
+                        onPress: () => setConfiguringSourceId(source.id),
+                        testID: `sources-list-configure-${source.id}`,
+                        children: 'Configure',
+                      })
+                    : null,
+                  !local
+                    ? h(Button, {
                         variant: source.enabled ? 'ghost' : 'secondary',
                         onPress: () => void ctx.sources.setEnabled(source.id, !source.enabled),
                         accessibilityLabel: source.enabled ? `Stop using ${source.name}` : `Use ${source.name}`,
@@ -142,6 +152,12 @@ export function SourcesListScreen({ ctx }: { ctx: Context }): ReactElement {
             )
           }),
         ),
+    h(SourceConfigureModal, {
+      ctx,
+      sourceId: configuringSourceId,
+      open: configuringSourceId !== undefined,
+      onClose: () => setConfiguringSourceId(undefined),
+    }),
   )
 }
 

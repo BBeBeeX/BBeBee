@@ -563,4 +563,46 @@ describe('LyricSourcesPlugin Service', () => {
       pluginId: '@BBeBee/plugin-lyric-sources',
     })
   })
+
+  it('updates source config and injects config into sandbox execution', async () => {
+    const root = new Context()
+    await root.plugin(LyricSourcesPlugin)
+
+    const svc = root.reflect.get('lyricSources', false) as LyricSourcesPlugin
+    await svc.registerSource({
+      id: 'custom-config-source',
+      name: 'Custom Config Source',
+      enabled: true,
+      sortOrder: 10,
+      config: { apiKey: 'initial-key', customField: 42 },
+      script: `
+        async function searchLyrics(query) {
+          const keyFromQuery = query.config ? query.config.apiKey : null;
+          const keyFromGlobal = typeof config === 'object' && config !== null ? config.apiKey : null;
+          return '[00:01.00]key:' + keyFromQuery + ':' + keyFromGlobal;
+        }
+      `,
+    })
+
+    const initialRes = await svc.testSource('custom-config-source', {
+      title: 'Song',
+      artist: 'Artist',
+      duration: 180000,
+    })
+    expect(initialRes.ok).toBe(true)
+    expect(initialRes.lyrics?.content).toContain('key:initial-key:initial-key')
+
+    // Update config
+    await svc.updateSourceConfig('custom-config-source', { apiKey: 'updated-secret-token' })
+    expect(svc.getSource('custom-config-source')?.config).toEqual({ apiKey: 'updated-secret-token' })
+
+    const updatedRes = await svc.testSource('custom-config-source', {
+      title: 'Song',
+      artist: 'Artist',
+      duration: 180000,
+    })
+    expect(updatedRes.ok).toBe(true)
+    expect(updatedRes.lyrics?.content).toContain('key:updated-secret-token:updated-secret-token')
+  })
 })
+

@@ -10,7 +10,7 @@
  */
 
 import type { DbService, SourceDocument, SourceRecord, SourceType, SqlValue } from '@BBeBee/protocol'
-import { docHashOf } from './identity.js'
+import { allowedHostsFor, docHashOf } from './identity.js'
 
 interface SourceRow {
   id: string
@@ -149,6 +149,30 @@ export class SourceStore {
     await this.db.exec(
       `UPDATE sources SET doc_json = ?, locally_modified = 1, updated_at = ? WHERE id = ?`,
       [updatedDocJson, now, id],
+    )
+  }
+
+  async updateSourceUrl(id: string, newUrl: string, now: number): Promise<void> {
+    const row = await this.db.get<{ doc_json: string }>(
+      `SELECT doc_json FROM sources WHERE id = ?`,
+      [id],
+    )
+    if (!row) return
+    let doc: Record<string, unknown> = {}
+    try {
+      doc = JSON.parse(row.doc_json) as Record<string, unknown>
+    } catch {
+      // ignore
+    }
+    doc.sourceUrl = newUrl
+    const updatedDocJson = JSON.stringify(doc)
+    const allowedHosts = allowedHostsFor(doc as unknown as SourceDocument)
+    const docHash = docHashOf(updatedDocJson)
+    await this.db.exec(
+      `UPDATE sources
+         SET source_url = ?, doc_json = ?, doc_hash = ?, allowed_hosts_json = ?, locally_modified = 1, updated_at = ?
+       WHERE id = ?`,
+      [newUrl, updatedDocJson, docHash, JSON.stringify(allowedHosts), now, id],
     )
   }
 

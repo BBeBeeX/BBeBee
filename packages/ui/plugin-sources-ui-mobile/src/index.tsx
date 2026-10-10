@@ -43,6 +43,9 @@ import type { ArtworkProps, TrackRowProps } from '@BBeBee/ui-core'
 import { useResolvedArtwork } from '@BBeBee/plugin-cache/hooks'
 import { useTrackMenu } from '@BBeBee/ui-menus'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
+import { SourceConfigureModal } from './SourceConfigureModal.js'
+
+export { SourceConfigureModal } from './SourceConfigureModal.js'
 
 const p = () => palettes.dark
 
@@ -577,6 +580,7 @@ export function SourcesListScreen({ ctx }: { ctx: Context }): ReactElement {
   const folders = useLocalFolders(ctx)
   const scanner = serviceOf<ScannerService>(ctx, 'scanner')
   const [confirming, setConfirming] = useState<string | undefined>(undefined)
+  const [configuringSourceId, setConfiguringSourceId] = useState<string | undefined>(undefined)
 
   const removeSource = (id: string) => {
     setConfirming(undefined)
@@ -631,6 +635,14 @@ export function SourcesListScreen({ ctx }: { ctx: Context }): ReactElement {
                   testID: `sources-list-test-${source.id}`,
                   children: 'Test',
                 }),
+                !local
+                  ? h(Button, {
+                      variant: 'secondary',
+                      onPress: () => setConfiguringSourceId(source.id),
+                      testID: `sources-list-configure-${source.id}`,
+                      children: 'Configure',
+                    })
+                  : null,
                 // The local row has no enable switch of its own: its folders
                 // are what can be switched off.
                 !local
@@ -673,6 +685,12 @@ export function SourcesListScreen({ ctx }: { ctx: Context }): ReactElement {
             )
           }),
         ),
+    h(SourceConfigureModal, {
+      ctx,
+      sourceId: configuringSourceId,
+      open: configuringSourceId !== undefined,
+      onClose: () => setConfiguringSourceId(undefined),
+    }),
   )
 }
 

@@ -62,8 +62,9 @@ const api = {
   },
   plugins: {
     listInstalled: (): Promise<
-      Array<{ id: string; version: string; manifest: unknown; dirName: string }>
+      Array<{ id: string; version: string; manifest: unknown; dirName: string; sha256?: string }>
     > => ipcRenderer.invoke('plugins:list-installed'),
+    getLock: (): Promise<unknown> => ipcRenderer.invoke('plugins:get-lock'),
     install: (
       pluginId: string,
       files: Record<string, string>,

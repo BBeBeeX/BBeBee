@@ -55,6 +55,7 @@
     "@BBeBee/plugin-queue": "workspace:*",
     "@BBeBee/plugin-queue-ui-mobile": "workspace:*",
     "@BBeBee/plugin-registry": "workspace:*",
+    "@BBeBee/plugin-security-audit": "workspace:*",
     "@BBeBee/plugin-settings": "workspace:*",
     "@BBeBee/plugin-settings-ui-mobile": "workspace:*",
     "@BBeBee/plugin-share": "workspace:*",

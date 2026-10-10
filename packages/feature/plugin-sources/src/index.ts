@@ -46,6 +46,7 @@ import type {
   CheckReport,
   DebugStep,
   Disposable,
+  HttpService,
   ImportOptions,
   ImportReport,
   MediaProvider,
@@ -56,11 +57,16 @@ import type {
   PageRequest,
   PlaylistDetail,
   SearchResult,
+  SecretsService,
   TrackLink,
+  SourceParams,
+  SourcePingParams,
+  SourcePingResult,
   SourceRecord,
   SourcesService,
   Track,
   TraceEvent,
+  UpdateSourceParams,
 } from '@BBeBee/protocol'
 import { artistKey } from '@BBeBee/toolkit'
 import { canSearchProvider } from './capabilities.js'
@@ -74,6 +80,7 @@ import {
   isShareable,
   parseSourceInput,
   recordFor,
+  secretKeysFor,
   validateDocument,
 } from './identity.js'
 import { SourceStore } from './store.js'
@@ -283,6 +290,8 @@ export class Sources extends Service implements SourcesService {
   private cacheWriter!: CacheWriter
   /** Mirrors the `sources` table, so reads are synchronous for the UI. */
   private records: SourceRecord[] = []
+  private secrets?: SecretsService
+  private http?: HttpService
   /** Deduplication for concurrent in-flight album requests: key -> Promise */
   private readonly inFlightAlbums = new Map<string, Promise<AlbumDetail | undefined>>()
   /** Deduplication for concurrent in-flight playlist requests: key -> Promise */
@@ -303,6 +312,20 @@ export class Sources extends Service implements SourcesService {
     this.store = new SourceStore(this.ownDb)
     this.cacheWriter = new CacheWriter(this.ownDb)
     this.records = await this.store.all()
+
+    this.ctx.inject(['secrets'], (scoped) => {
+      this.secrets = scoped.secrets
+      return () => {
+        this.secrets = undefined
+      }
+    })
+
+    this.ctx.inject(['http'], (scoped) => {
+      this.http = scoped.http
+      return () => {
+        this.http = undefined
+      }
+    })
 
     // Descriptors, not components: the headless plugin says what exists and
     // where it belongs; whichever view package was loaded for this target
@@ -1079,6 +1102,262 @@ export class Sources extends Service implements SourcesService {
     ])
   }
 
+  async updateSourceUrl(id: string, newUrl: string): Promise<void> {
+    this.ctx.logger.info(`sources: update source "${id}" sourceUrl=${newUrl}`)
+    await this.store.updateSourceUrl(id, newUrl, Date.now())
+    await this.refresh()
+    this.safeEmit(() => this.ctx.emit('source/changed', id, ['sourceUrl']))
+  }
+
+  async getSourceParams(id: string): Promise<SourceParams> {
+    const record = this.source(id)
+    if (!record) {
+      throw new Error(`Source "${id}" not found`)
+    }
+    const vars = await this.readVars(id)
+    const secretKeys = [...secretKeysFor(record.doc)]
+    const hasSecrets: Record<string, boolean> = {}
+
+    const secrets = this.secrets?.namespace(id)
+    if (secrets) {
+      for (const key of secretKeys) {
+        const val = await secrets.get(key)
+        hasSecrets[key] = val !== undefined && val !== ''
+      }
+    } else {
+      for (const key of secretKeys) {
+        hasSecrets[key] = false
+      }
+    }
+
+    return {
+      sourceUrl: record.sourceUrl,
+      host: record.sourceUrl,
+      vars,
+      secretKeys,
+      hasSecrets,
+      secrets: {},
+    }
+  }
+
+  async updateSourceParams(id: string, params: UpdateSourceParams): Promise<void> {
+    const record = this.source(id)
+    if (!record) {
+      throw new Error(`Source "${id}" not found`)
+    }
+
+    let urlChanged = false
+    const targetUrl = params.sourceUrl ?? params.host
+    if (targetUrl && targetUrl.trim() !== record.sourceUrl) {
+      await this.store.updateSourceUrl(id, targetUrl.trim(), Date.now())
+      urlChanged = true
+    }
+
+    const secretKeys = secretKeysFor(record.doc)
+    const secrets = this.secrets?.namespace(id)
+
+    // Handle secrets
+    if (params.secrets) {
+      for (const [key, value] of Object.entries(params.secrets)) {
+        if (secretKeys.has(key)) {
+          if (!secrets) {
+            this.ctx.logger.warn(`sources: cannot store credential "${key}" — no ctx.secrets available`)
+            continue
+          }
+          if (value === '') {
+            await secrets.delete(key)
+          } else if (value !== undefined) {
+            await secrets.set(key, value)
+          }
+        }
+      }
+    }
+
+    // Handle non-secret vars
+    if (params.vars) {
+      for (const [key, value] of Object.entries(params.vars)) {
+        if (!secretKeys.has(key)) {
+          if (value === '' || value === undefined) {
+            await this.clearVars(id, key)
+          } else {
+            await this.writeVar(id, key, value)
+          }
+        }
+      }
+    }
+
+    await this.refresh()
+    const changedFields: string[] = ['params']
+    if (urlChanged) changedFields.push('sourceUrl')
+    this.safeEmit(() => this.ctx.emit('source/changed', id, changedFields))
+  }
+
+  async testConnection(id: string, params?: SourcePingParams): Promise<SourcePingResult> {
+    const record = this.source(id)
+    if (!record) {
+      return { status: 'network_error', message: `Source "${id}" not found` }
+    }
+
+    const host = (params?.host ?? record.sourceUrl).trim().replace(/\/+$/, '')
+    let user = params?.user
+    let password = params?.password
+
+    // If user / password not passed, check params?.var or stored secrets / vars
+    if (!user || !password) {
+      if (params?.var) {
+        const parts = params.var.split(':')
+        user ??= parts[0]
+        password ??= parts.slice(1).join(':')
+      }
+    }
+
+    // Fallback to stored secrets / vars if still missing
+    const secrets = this.secrets?.namespace(id)
+    if (!user && secrets) {
+      user = await secrets.get('user')
+    }
+    if (!password && secrets) {
+      password = await secrets.get('password')
+    }
+    if ((!user || !password) && secrets) {
+      const storedVar = await secrets.get('var')
+      if (storedVar) {
+        const parts = storedVar.split(':')
+        user ??= parts[0]
+        password ??= parts.slice(1).join(':')
+      }
+    }
+    if (!user) {
+      const vars = await this.readVars(id)
+      user = vars['user']
+      if (!user && vars['var']) {
+        const parts = vars['var'].split(':')
+        user ??= parts[0]
+        password ??= parts.slice(1).join(':')
+      }
+    }
+
+    const isSubsonic =
+      record.doc.sourceGroup?.includes('subsonic') ||
+      record.doc.searchUrl?.includes('/rest/') ||
+      record.doc.exploreUrl?.includes('/rest/')
+
+    const start = Date.now()
+    if (isSubsonic) {
+      const pingUrl = `${host}/rest/ping.view?u=${encodeURIComponent(user ?? '')}&p=${encodeURIComponent(password ?? '')}&v=1.16.1&c=BBeBee&f=json`
+      try {
+        let status = 0
+        let text = ''
+        if (this.http) {
+          const resp = await this.http({
+            url: pingUrl,
+            method: 'GET',
+            timeoutMs: 8000,
+          })
+          status = resp.status
+          text = await resp.text()
+        } else {
+          const resp = await fetch(pingUrl, {
+            method: 'GET',
+            signal: AbortSignal.timeout(8000),
+          })
+          status = resp.status
+          text = await resp.text()
+        }
+        const latencyMs = Date.now() - start
+
+        if (status === 401 || status === 403) {
+          return {
+            status: 'auth_failed',
+            latencyMs,
+            message: `鉴权失败 (HTTP ${status}): 用户名或密码错误`,
+          }
+        }
+
+        let json: Record<string, unknown> | null = null
+        try {
+          json = JSON.parse(text) as Record<string, unknown>
+        } catch {
+          // not JSON
+        }
+
+        const subRes = (json?.['subsonic-response'] ?? json) as Record<string, unknown> | undefined
+        if (subRes) {
+          if (subRes.status === 'ok') {
+            const ver = subRes.version ? ` v${subRes.version}` : ''
+            return {
+              status: 'ok',
+              latencyMs,
+              serverVersion: typeof subRes.version === 'string' ? subRes.version : undefined,
+              message: `连接成功 (Subsonic${ver})`,
+            }
+          }
+          if (subRes.status === 'failed' || subRes.error) {
+            const errObj = subRes.error as { code?: number; message?: string } | undefined
+            const errCode = errObj?.code ? ` [Code ${errObj.code}]` : ''
+            const errMsg = errObj?.message ?? '用户名或密码无效'
+            return {
+              status: 'auth_failed',
+              latencyMs,
+              message: `鉴权失败${errCode}: ${errMsg}`,
+            }
+          }
+        }
+
+        if (status >= 200 && status < 300) {
+          return { status: 'ok', latencyMs, message: `连接成功 (HTTP ${status})` }
+        }
+
+        return {
+          status: 'network_error',
+          latencyMs,
+          message: `服务器响应异常 (HTTP ${status})`,
+        }
+      } catch (err: unknown) {
+        const latencyMs = Date.now() - start
+        return {
+          status: 'network_error',
+          latencyMs,
+          message: `无法连接服务器: ${err instanceof Error ? err.message : String(err)}`,
+        }
+      }
+    }
+
+    // Generic source probe
+    try {
+      let status = 0
+      if (this.http) {
+        const resp = await this.http({
+          url: host,
+          method: 'HEAD',
+          timeoutMs: 8000,
+        })
+        status = resp.status
+      } else {
+        const resp = await fetch(host, {
+          method: 'HEAD',
+          signal: AbortSignal.timeout(8000),
+        })
+        status = resp.status
+      }
+      const latencyMs = Date.now() - start
+      if (status === 401 || status === 403) {
+        return { status: 'auth_failed', latencyMs, message: `需要鉴权认证 (HTTP ${status})` }
+      }
+      if (status < 500) {
+        return { status: 'ok', latencyMs, message: `连接成功 (HTTP ${status})` }
+      }
+      return { status: 'network_error', latencyMs, message: `服务器不可达 (HTTP ${status})` }
+    } catch (err: unknown) {
+      const latencyMs = Date.now() - start
+      return {
+        status: 'network_error',
+        latencyMs,
+        message: `无法连接服务器: ${err instanceof Error ? err.message : String(err)}`,
+      }
+    }
+  }
+
   /** The user says two URNs are the same recording. Never overwritten. */
   link(a: string, b: string): Promise<void> {
     return linkManually(this.ownDb, a, b)
@@ -1278,6 +1557,7 @@ export {
   changedFields,
   exportableDocument,
   parseSourceInput,
+  secretKeysFor,
   sourceIdFor,
   validateDocument,
 } from './identity.js'

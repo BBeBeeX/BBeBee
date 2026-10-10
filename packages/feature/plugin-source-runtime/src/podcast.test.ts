@@ -12,7 +12,6 @@
  */
 
 import { createServer, type Server } from 'node:http'
-import { readFile } from 'node:fs/promises'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Context } from 'cordis'
 import { PathsNode } from '@BBeBee/core-paths-node'
@@ -71,14 +70,32 @@ beforeAll(async () => {
 
 afterAll(() => server.close())
 
-async function shipped(): Promise<Record<string, unknown>> {
-  const raw = await readFile(
-    new URL('../../../../fixtures/sources/podcast-json-feed.json', import.meta.url),
-    'utf8',
-  )
-  const doc = JSON.parse(raw) as Record<string, unknown>
-  // Pointed at the test server; everything else is the shipped document.
-  return { ...doc, sourceUrl: origin }
+function podcastDoc(): Record<string, unknown> {
+  return {
+    sourceUrl: origin,
+    sourceName: 'Example Podcast — JSON Feed',
+    version: '1.0.0',
+    author: 'BBeBee',
+    sourceType: 'podcast',
+    sourceGroup: 'podcast',
+    sourceComment: 'A podcast published as JSON Feed 1.1 (jsonfeed.org).',
+    exploreUrl: '{{source.url}}/feed.json',
+    ruleExplore: {
+      trackList: '$.items[*]',
+      trackId: '$.id',
+      title: '$.title',
+      artist: '$.author.name',
+      artwork: '$.image',
+      durationMs: '$.attachments[0].duration_in_seconds##$##000',
+      streamUrl: '$.attachments[0].url',
+      kind: '=track',
+    },
+    ruleStream: {
+      url: '={{track.streamUrl}}',
+      seekable: '=true',
+    },
+    allowedHosts: ['cdn.example.org'],
+  }
 }
 
 async function app() {
@@ -90,14 +107,14 @@ async function app() {
   await ctx.plugin(sourcesPlugin, {})
   await tick()
   await new MigrationRunner(ctx.db).apply('core', CORE_MIGRATIONS)
-  await ctx.sources.import(JSON.stringify([await shipped()]))
+  await ctx.sources.import(JSON.stringify([podcastDoc()]))
   await ctx.plugin(plugin, {})
   await tick()
   await tick()
   return ctx
 }
 
-describe('the shipped podcast document', () => {
+describe('the podcast document', () => {
   it('imports as a podcast, not as a music library', async () => {
     const ctx = await app()
     expect(ctx.sources.sources[0]!.type).toBe('podcast')

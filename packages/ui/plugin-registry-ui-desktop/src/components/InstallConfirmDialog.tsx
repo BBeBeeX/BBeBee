@@ -57,11 +57,17 @@ export function InstallConfirmDialog({
   onConfirm,
   onClose,
 }: InstallConfirmDialogProps): ReactElement {
-  const { entry, allowedHosts } = details
+  const { entry, allowedHosts, securityAudit, repoUrl, commit, commitDiff } = details
   const [overwriteConfirmed, setOverwriteConfirmed] = useState(false)
+  const [blockOverrideConfirmed, setBlockOverrideConfirmed] = useState(false)
   const isLocallyModified = Boolean(details.isLocallyModified)
   const isUpdate = action === 'update'
   const verb = isUpdate ? '更新' : '安装'
+  const isBlocked = securityAudit?.level === 'block'
+  const canConfirm =
+    !busy &&
+    (!isLocallyModified || overwriteConfirmed) &&
+    (!isBlocked || blockOverrideConfirmed)
 
   return h(
     Sheet,
@@ -178,7 +184,7 @@ export function InstallConfirmDialog({
               tablerIcon('alert', { size: 16 }),
               h('span', null, '此插件将执行第三方代码，请仅安装你信任的来源。'),
             ),
-            entry.repoUrl
+            repoUrl || entry.repoUrl
               ? h(
                   'div',
                   {
@@ -189,7 +195,7 @@ export function InstallConfirmDialog({
                   h(
                     'a',
                     {
-                      href: entry.repoUrl,
+                      href: repoUrl || entry.repoUrl,
                       target: '_blank',
                       rel: 'noreferrer noopener',
                       style: {
@@ -199,10 +205,49 @@ export function InstallConfirmDialog({
                         wordBreak: 'break-all',
                       },
                     },
-                    entry.repoUrl,
+                    repoUrl || entry.repoUrl,
                   ),
                 )
               : null,
+            commitDiff
+              ? h(
+                  'div',
+                  {
+                    'data-testid': 'registry-commit-diff',
+                    style: { display: 'flex', flexDirection: 'column', gap: 4 },
+                  },
+                  h('div', { style: sectionTitleStyle }, '提交差异 (Commit Diff)'),
+                  h(
+                    'div',
+                    { style: { fontFamily: 'monospace', fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } },
+                    h(
+                      'span',
+                      { style: { color: 'var(--text-muted, #7E859B)' } },
+                      commitDiff.previousCommit ? commitDiff.previousCommit.slice(0, 7) : '初始',
+                    ),
+                    ' → ',
+                    h(
+                      'span',
+                      { style: { color: 'var(--color-primary, #4E88FF)', fontWeight: 600 } },
+                      commitDiff.currentCommit.slice(0, 7),
+                    ),
+                  ),
+                )
+              : commit
+                ? h(
+                    'div',
+                    {
+                      'data-testid': 'registry-commit-info',
+                      style: { display: 'flex', flexDirection: 'column', gap: 4 },
+                    },
+                    h('div', { style: sectionTitleStyle }, '版本提交 (Commit)'),
+                    h(
+                      'div',
+                      { style: { fontFamily: 'monospace', fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } },
+                      commit.slice(0, 7),
+                    ),
+                  )
+                : null,
             entry.sha256
               ? h(
                   'div',
@@ -282,6 +327,161 @@ export function InstallConfirmDialog({
             entry.version ? h('div', { style: bodyTextStyle }, `版本 v${normalizeVersion(entry.version)}`) : null,
           )
         : null,
+      // Security audit report
+      securityAudit
+        ? h(
+            'div',
+            {
+              'data-testid': 'registry-security-audit-report',
+              style: {
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+                padding: '10px 12px',
+                borderRadius: 8,
+                background: 'var(--surface-2, rgba(255, 255, 255, 0.04))',
+                border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+              },
+            },
+            h(
+              'div',
+              { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+              h('div', { style: sectionTitleStyle }, '安全审计报告'),
+              h(
+                'span',
+                {
+                  'data-testid': 'registry-security-badge',
+                  style: {
+                    display: 'inline-flex',
+                    padding: '2px 8px',
+                    borderRadius: 999,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    background:
+                      securityAudit.level === 'block'
+                        ? 'rgba(244, 63, 94, 0.15)'
+                        : securityAudit.level === 'warn'
+                          ? 'rgba(245, 158, 11, 0.15)'
+                          : 'rgba(16, 185, 129, 0.15)',
+                    color:
+                      securityAudit.level === 'block'
+                        ? 'var(--color-error, #F43F5E)'
+                        : securityAudit.level === 'warn'
+                          ? 'var(--color-warning, #F59E0B)'
+                          : 'var(--color-success, #10B981)',
+                    border: `1px solid ${
+                      securityAudit.level === 'block'
+                        ? 'var(--color-error, #F43F5E)'
+                        : securityAudit.level === 'warn'
+                          ? 'var(--color-warning, #F59E0B)'
+                          : 'var(--color-success, #10B981)'
+                    }`,
+                  },
+                },
+                securityAudit.level === 'block'
+                  ? '高危风险 (Block)'
+                  : securityAudit.level === 'warn'
+                    ? '警告 (Warn)'
+                    : '通过 (Pass)',
+              ),
+            ),
+            securityAudit.findings.length
+              ? h(
+                  'div',
+                  {
+                    'data-testid': 'registry-security-findings',
+                    style: { display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 },
+                  },
+                  securityAudit.findings.map((finding, idx) =>
+                    h(
+                      'div',
+                      {
+                        key: idx,
+                        style: {
+                          fontSize: 12,
+                          padding: '6px 8px',
+                          borderRadius: 6,
+                          background:
+                            finding.level === 'block' ? 'rgba(244, 63, 94, 0.08)' : 'rgba(245, 158, 11, 0.08)',
+                          border: `1px solid ${
+                            finding.level === 'block' ? 'rgba(244, 63, 94, 0.2)' : 'rgba(245, 158, 11, 0.2)'
+                          }`,
+                          color:
+                            finding.level === 'block'
+                              ? 'var(--color-error, #F43F5E)'
+                              : 'var(--color-warning, #F59E0B)',
+                          lineHeight: 1.4,
+                        },
+                      },
+                      h(
+                        'div',
+                        { style: { fontWeight: 600, display: 'flex', justifyContent: 'space-between' } },
+                        h('span', null, `[${finding.category ?? finding.ruleId}] ${finding.level.toUpperCase()}`),
+                        (finding.line ?? finding.loc?.line) ? h('span', null, `L${finding.line ?? finding.loc?.line}`) : null,
+                      ),
+                      h('div', null, finding.message),
+                      finding.snippet
+                        ? h(
+                            'pre',
+                            {
+                              style: {
+                                margin: '4px 0 0 0',
+                                fontFamily: 'monospace',
+                                fontSize: 11,
+                                whiteSpace: 'pre-wrap',
+                                opacity: 0.85,
+                              },
+                            },
+                            finding.snippet,
+                          )
+                        : null,
+                    ),
+                  ),
+                )
+              : h(
+                  'div',
+                  { style: { fontSize: 12, color: 'var(--color-success, #10B981)' } },
+                  '未检测到已知安全风险或违规外呼。',
+                ),
+            isBlocked
+              ? h(
+                  'div',
+                  {
+                    'data-testid': 'registry-security-block-warning',
+                    style: {
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6,
+                      padding: '8px 10px',
+                      borderRadius: 6,
+                      background: 'rgba(244, 63, 94, 0.1)',
+                      border: '1px solid var(--color-error, #F43F5E)',
+                      color: 'var(--color-error, #F43F5E)',
+                      fontSize: 12,
+                      marginTop: 4,
+                    },
+                  },
+                  h('strong', null, '⚠️ 高危风险阻断'),
+                  h('span', null, '静态代码扫描发现高危操作，默认禁止安装以保护你的设备安全。'),
+                  h(
+                    'label',
+                    { style: { display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', marginTop: 4 } },
+                    h('input', {
+                      type: 'checkbox',
+                      'data-testid': 'registry-block-override-checkbox',
+                      checked: blockOverrideConfirmed,
+                      onChange: (e: { target: { checked: boolean } }) => setBlockOverrideConfirmed(e.target.checked),
+                    }),
+                    h(
+                      'span',
+                      { style: { color: 'var(--text-primary, #F5F7FF)', fontSize: 12 } },
+                      '我已知晓高危风险并确认强制安装',
+                    ),
+                  ),
+                )
+              : null,
+          )
+        : null,
       error
         ? h(
             'div',
@@ -327,8 +527,14 @@ export function InstallConfirmDialog({
           {
             type: 'button',
             'data-testid': 'registry-confirm-accept',
-            onClick: busy || (isLocallyModified && !overwriteConfirmed) ? undefined : () => onConfirm({ overwrite: isLocallyModified && overwriteConfirmed }),
-            disabled: busy || (isLocallyModified && !overwriteConfirmed),
+            onClick: canConfirm
+              ? () =>
+                  onConfirm({
+                    overwrite: isLocallyModified && overwriteConfirmed,
+                    ...(isBlocked && blockOverrideConfirmed ? { overwrite: isLocallyModified && overwriteConfirmed } : {}),
+                  })
+              : undefined,
+            disabled: !canConfirm,
             style: {
               padding: '6px 16px',
               borderRadius: 999,
@@ -337,8 +543,8 @@ export function InstallConfirmDialog({
               color: 'var(--bb-accent-on, #FFFFFF)',
               fontWeight: 600,
               fontSize: 13,
-              cursor: busy || (isLocallyModified && !overwriteConfirmed) ? 'not-allowed' : 'pointer',
-              opacity: isLocallyModified && !overwriteConfirmed ? 0.5 : 1,
+              cursor: !canConfirm ? 'not-allowed' : 'pointer',
+              opacity: !canConfirm ? 0.5 : 1,
             },
           },
           busy ? `${verb}中…` : `确认${verb}`,

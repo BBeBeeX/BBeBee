@@ -31,16 +31,14 @@ Two uses:
   raw payload with them, so `ruleStream` still resolves after a restart
   without re-running the search (docs/06 §4).
 - **`@js:` and `{{@js:…}}`**, with `jsLib` and the full `src` host surface
-  (docs/06 §8) — so a Subsonic document computes its own auth query, and
-  Bilibili computes WBI signatures and handles DASH stream negotiation.
-- **Sessions & Login.** The source variable, persistent per-source cookie jar,
-  and QR code login with RSA-OAEP cookie refreshes.
+  (docs/06 §8) — so a Subsonic document computes its own auth query.
+- **Sessions & Login.** The source variable and persistent per-source cookie jar.
 - **Artists & Playlists.** `ruleArtist` and `rulePlaylist` for rich catalog
-  resolution (UP host pages, favorites, series, and seasonal collections).
+  resolution.
 - **Explicit Qualities.** `ruleStream.qualities` and `doc.qualities` for
   declaring supported quality tiers ('low' | 'normal' | 'high' | 'lossless' | 'hi-res').
 
-So `direct-url.json`, `subsonic.json`, `podcast-json-feed.json`, and `bilibili.json` all run.
+So `subsonic.json` runs as the reference self-hosted source fixture.
 
 ## Authoring vs Distribution
 
@@ -60,7 +58,7 @@ pnpm build:sources
 pnpm watch:sources
 
 # Unpack any single-file source back into sources/<id>/
-node --experimental-strip-types scripts/sources/cli.ts --unpack fixtures/sources/bilibili.json sources/bilibili
+node --experimental-strip-types scripts/sources/cli.ts --unpack fixtures/sources/subsonic.json sources/subsonic
 ```
 
 Adding a document here is not how a *user* adds a source: they paste a string

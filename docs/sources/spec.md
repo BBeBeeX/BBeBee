@@ -368,7 +368,7 @@ pnpm watch:sources
 pnpm build:sources --sources <dir>
 
 # Unpack any single-file JSON back into dual-file source format
-node --experimental-strip-types scripts/sources/cli.ts --unpack fixtures/sources/bilibili.json
+node --experimental-strip-types scripts/sources/cli.ts --unpack fixtures/sources/subsonic.json
 ```
 
 `browse` is `exploreUrl` + `ruleExplore`: each explore entry is a titled URL, and an item whose
@@ -383,7 +383,7 @@ album-detail pipeline a browsed one does, and `ctx.sources.recommend` caches the
 way `browse` caches. `recommendUrl` is optional: a source whose recommendations are a curated list
 rather than an endpoint lets the `@js:` rule build its rows itself, with `result` arriving as
 `null`. What a backend answers when a recommended resource has since disappeared is the source's
-own policy — the bilibili source, for one, splits the answer in two: *gone* (the API says -404)
+own policy — a source can, for one, split the answer in two: *gone* (the API says -404)
 renders a placeholder card, "当前资源无效"; *transiently refused* (rate limiting, risk control, a
 timeout) renders a "加载失败" card naming the reason, with nothing cached so the next read of the
 page retries. A card's creator line is the playlist page's business, not the shelf's: one lookup

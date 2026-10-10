@@ -2288,6 +2288,56 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "contentRegistry"
   },
+  "@BBeBee/plugin-security-audit": {
+    "id": "@BBeBee/plugin-security-audit",
+    "name": "@BBeBee/plugin-security-audit",
+    "displayName": "Security Audit",
+    "description": "ctx.securityAudit — static code analysis and security auditing for sources and plugins.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-4",
+    "moduleId": "security",
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "securityAudit"
+      ]
+    },
+    "effect": "securityAudit"
+  },
+  "plugin-security-audit": {
+    "id": "@BBeBee/plugin-security-audit",
+    "name": "@BBeBee/plugin-security-audit",
+    "displayName": "Security Audit",
+    "description": "ctx.securityAudit — static code analysis and security auditing for sources and plugins.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-4",
+    "moduleId": "security",
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "securityAudit"
+      ]
+    },
+    "effect": "securityAudit"
+  },
   "@BBeBee/plugin-settings": {
     "id": "@BBeBee/plugin-settings",
     "name": "@BBeBee/plugin-settings",

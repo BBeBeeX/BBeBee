@@ -613,3 +613,24 @@ export function recordFor(
     failCount: 0,
   }
 }
+
+/**
+ * Which of a source's keys are credentials.
+ *
+ * `var` always — it is the field whose documented content is `username:password` —
+ * plus every id the document's own login form declares, and 'user' / 'password' for
+ * Subsonic-compatible sources.
+ */
+export function secretKeysFor(doc?: SourceDocument): Set<string> {
+  const keys = new Set<string>(['var'])
+  if (doc?.loginUi) {
+    for (const field of doc.loginUi) {
+      if (field.id) keys.add(field.id)
+    }
+  }
+  if (doc?.sourceGroup?.includes('subsonic')) {
+    keys.add('user')
+    keys.add('password')
+  }
+  return keys
+}

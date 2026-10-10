@@ -121,6 +121,7 @@ export class LyricSourcesPlugin extends Service implements LyricSourcesService {
               ...builtin,
               enabled: s.enabled ?? true,
               sortOrder: s.sortOrder ?? 0,
+              config: s.config ?? builtin.config,
             }
           }
           return s
@@ -206,6 +207,16 @@ export class LyricSourcesPlugin extends Service implements LyricSourcesService {
       await this.persistSources()
       this.ownCtx.logger.info(`lyricSources: source "${id}" enabled=${enabled}`)
     }
+  }
+
+  async updateSourceConfig(id: string, config: Record<string, unknown>): Promise<void> {
+    const src = this.sources.find((s) => s.id === id)
+    if (!src) {
+      throw new Error(`Lyric source "${id}" not found`)
+    }
+    src.config = { ...config }
+    await this.persistSources()
+    this.ownCtx.logger.info(`lyricSources: updated config for "${id}"`)
   }
 
   async reorder(sourceIds: string[]): Promise<void> {

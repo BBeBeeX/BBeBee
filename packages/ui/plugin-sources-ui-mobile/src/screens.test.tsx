@@ -32,9 +32,12 @@ import { DbNode } from '@BBeBee/core-db-node'
 import sourcesPlugin from '@BBeBee/plugin-sources'
 import type {
   Capabilities,
+  HttpRequest,
+  HttpResponse,
   MediaProvider,
   SearchQuery,
   SearchResult,
+  SecretsService,
   Track,
 } from '@BBeBee/protocol'
 import { tempDir, tick } from '@BBeBee/kernel/testing'
@@ -45,20 +48,42 @@ import { SearchScreen, SourcesListScreen, TestScreen, inject } from './index.js'
 
 afterEach(cleanup)
 
-/** A fake native host: a `div` that keeps the RN props it was given. */
+/** A fake native host: an element that keeps the RN props it was given. */
 function hostComponent(name: string) {
+  const tag = name === 'TextInput' ? 'input' : 'div'
   return function Host(props: Record<string, unknown> & { children?: ReactNode }) {
-    const { children, accessibilityLabel, accessibilityRole, onPress, testID } = props
+    const { children, accessibilityLabel, accessibilityRole, onPress, testID, onChangeText } = props
     return h(
-      'div',
+      tag,
       {
         'data-host': name,
         'data-label': typeof accessibilityLabel === 'string' ? accessibilityLabel : undefined,
         'data-role': typeof accessibilityRole === 'string' ? accessibilityRole : undefined,
         'data-testid': typeof testID === 'string' ? testID : undefined,
-        onClick: typeof onPress === 'function' ? (onPress as () => void) : undefined,
+        value: typeof props.value === 'string' ? props.value : undefined,
+        onClick:
+          typeof onPress === 'function'
+            ? (e: any) => {
+                e?.stopPropagation?.()
+                ;(onPress as () => void)()
+              }
+            : undefined,
+        onChange:
+          typeof onChangeText === 'function'
+            ? (e: any) => {
+                const val = e?.target?.value ?? String(e)
+                ;(onChangeText as (v: string) => void)(val)
+              }
+            : undefined,
+        onInput:
+          typeof onChangeText === 'function'
+            ? (e: any) => {
+                const val = e?.target?.value ?? String(e)
+                ;(onChangeText as (v: string) => void)(val)
+              }
+            : undefined,
       },
-      children,
+      tag === 'input' ? undefined : children,
     )
   }
 }
@@ -92,11 +117,53 @@ configureNative({
 })
 
 /** The scoped context a shell hands a view, plus the root for fixtures. */
-async function harness(): Promise<{ ctx: Context; admin: Context }> {
+async function harness(options?: {
+  httpHandler?: (req: HttpRequest) => Promise<HttpResponse>
+}): Promise<{ ctx: Context; admin: Context; secretsStore: Map<string, string> }> {
   const root = new Context()
   await root.plugin(PathsNode, { root: await tempDir('bbebee-mobile-screens') })
   await root.plugin(FsNode)
   await root.plugin(DbNode, { fileName: ':memory:' })
+
+  const secretsStore = new Map<string, string>()
+  const createSecrets = (prefix = ''): SecretsService => ({
+    isHardwareBacked: true,
+    maxValueBytes: 2048,
+    async get(key: string) {
+      return secretsStore.get(`${prefix}:${key}`)
+    },
+    async set(key: string, value: string) {
+      secretsStore.set(`${prefix}:${key}`, value)
+    },
+    async delete(key: string) {
+      secretsStore.delete(`${prefix}:${key}`)
+    },
+    async clear() {
+      for (const k of secretsStore.keys()) {
+        if (k.startsWith(`${prefix}:`)) secretsStore.delete(k)
+      }
+    },
+    namespace(ns: string) {
+      return createSecrets(`${prefix}:${ns}`)
+    },
+  })
+  root.provide('secrets', createSecrets('test'))
+
+  if (options?.httpHandler) {
+    const handler = options.httpHandler
+    root.provide('http', Object.assign(handler, {
+      cookies: {
+        jar: () => ({
+          ready: Promise.resolve(),
+          get: async () => [],
+          set: async () => {},
+          all: async () => [],
+          destroy: async () => {},
+        }),
+      },
+    }))
+  }
+
   await root.plugin(sourcesPlugin, {})
   await tick()
 
@@ -110,7 +177,7 @@ async function harness(): Promise<{ ctx: Context; admin: Context }> {
   root.inject(declared, (s) => void (scoped = s))
   await tick()
   if (!scoped) throw new Error('mobile screens harness: no scoped context')
-  return { ctx: scoped, admin: root }
+  return { ctx: scoped, admin: root, secretsStore }
 }
 
 /**
@@ -246,6 +313,188 @@ describe('SourcesListScreen on mobile', () => {
       container.querySelector('[data-testid="sources-list-toggle-local"]'),
       'the local row has no whole-source switch',
     ).toBeNull()
+  })
+
+  it('configures per-source parameters (host, secrets, vars), tests connection 3-state, and saves on mobile', async () => {
+    let pingResponse: HttpResponse | null = {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        'subsonic-response': {
+          status: 'ok',
+          version: '1.16.1',
+        },
+      }),
+      ok: true,
+      text: async () =>
+        JSON.stringify({
+          'subsonic-response': {
+            status: 'ok',
+            version: '1.16.1',
+          },
+        }),
+      json: async () => ({
+        'subsonic-response': {
+          status: 'ok',
+          version: '1.16.1',
+        },
+      }),
+    } as unknown as HttpResponse
+
+    const { ctx, admin, secretsStore } = await harness({
+      httpHandler: async () => {
+        if (!pingResponse) throw new Error('Network unreachable')
+        return pingResponse
+      },
+    })
+
+    const SUBSONIC_DOC = {
+      sourceUrl: 'https://subsonic.example.com',
+      sourceName: 'My Subsonic',
+      sourceGroup: 'self-hosted,subsonic',
+      loginUi: [
+        { id: 'user', label: 'Username', type: 'text' },
+        { id: 'password', label: 'Password', type: 'password' },
+      ],
+      ruleStream: { url: '={{source.url}}/rest/stream' },
+    }
+
+    const report = await admin.sources.import(JSON.stringify(SUBSONIC_DOC))
+    const id = report.added[0]!.id
+    await tick()
+
+    const { container } = render(h(SourcesListScreen, { ctx }))
+    await act(async () => {
+      await tick()
+    })
+
+    // Click Configure button
+    const configBtn = container.querySelector(
+      `[data-testid="sources-list-configure-${id}"]`,
+    ) as HTMLElement
+    expect(configBtn).toBeTruthy()
+    await act(async () => {
+      configBtn.click()
+      await tick()
+      await tick()
+    })
+
+    expect(container.querySelector('[data-testid="source-configure-modal"]')).toBeTruthy()
+
+    const type = (testID: string, val: string) => {
+      const field = container.querySelector(`[data-testid="${testID}"]`) as HTMLInputElement
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!
+      setter.call(field, val)
+      field.dispatchEvent(new Event('input', { bubbles: true }))
+      field.dispatchEvent(new Event('change', { bubbles: true }))
+    }
+
+    // 1. Check & change host, user, password
+    await act(async () => {
+      type('source-configure-host', 'https://new-subsonic.server.org')
+      type('source-configure-user', 'adminUser')
+      type('source-configure-password', 'secretPass123')
+      await tick()
+    })
+
+    // 2. Add custom variable
+    await act(async () => {
+      type('source-configure-new-var-key', 'clientApp')
+      type('source-configure-new-var-val', 'BBeBeeTest')
+      await tick()
+    })
+    const addBtn = container.querySelector('[data-testid="source-configure-add-var-btn"]') as HTMLElement
+    await act(async () => {
+      addBtn.click()
+      await tick()
+    })
+    expect(container.querySelector('[data-testid="source-configure-var-clientApp"]')).toBeTruthy()
+
+    // 3. Test Connection - State 1: OK
+    await act(async () => {
+      ;(container.querySelector('[data-testid="source-configure-test-btn"]') as HTMLElement).click()
+      await tick()
+      await tick()
+    })
+    const pingResult = container.querySelector(
+      '[data-testid="source-configure-ping-result"]',
+    ) as HTMLElement
+    expect(pingResult.textContent).toContain('Connected')
+    expect(pingResult.textContent).toContain('1.16.1')
+
+    // Test Connection - State 2: Auth Failed
+    pingResponse = {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        'subsonic-response': {
+          status: 'failed',
+          error: { code: 40, message: 'Wrong username or password' },
+        },
+      }),
+      ok: true,
+      text: async () =>
+        JSON.stringify({
+          'subsonic-response': {
+            status: 'failed',
+            error: { code: 40, message: 'Wrong username or password' },
+          },
+        }),
+      json: async () => ({
+        'subsonic-response': {
+          status: 'failed',
+          error: { code: 40, message: 'Wrong username or password' },
+        },
+      }),
+    } as unknown as HttpResponse
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="source-configure-test-btn"]') as HTMLElement).click()
+      await tick()
+      await tick()
+    })
+    expect(container.querySelector('[data-testid="source-configure-ping-result"]')?.textContent).toContain(
+      'Authentication Failed',
+    )
+
+    // Test Connection - State 3: Network Error
+    pingResponse = null
+    await act(async () => {
+      ;(container.querySelector('[data-testid="source-configure-test-btn"]') as HTMLElement).click()
+      await tick()
+      await tick()
+    })
+    expect(container.querySelector('[data-testid="source-configure-ping-result"]')?.textContent).toContain(
+      'Network Error',
+    )
+
+    // 4. Save
+    await act(async () => {
+      ;(container.querySelector('[data-testid="source-configure-save-btn"]') as HTMLElement).click()
+      await tick()
+      await tick()
+    })
+
+    // Verify modal closed
+    expect(container.querySelector('[data-testid="source-configure-modal"]')).toBeNull()
+
+    // Verify source host updated
+    expect(admin.sources.source(id)?.sourceUrl).toBe('https://new-subsonic.server.org')
+
+    // Verify allowed hosts recalculated
+    const allowed = admin.sources.source(id)?.allowedHosts ?? []
+    expect(allowed).toContain('new-subsonic.server.org')
+
+    // Verify secrets saved to secrets store (keychain)
+    expect(secretsStore.get(`test:${id}:user`)).toBe('adminUser')
+    expect(secretsStore.get(`test:${id}:password`)).toBe('secretPass123')
+
+    // Verify vars saved to database
+    const vars = await admin.sources.readVars(id)
+    expect(vars['clientApp']).toBe('BBeBeeTest')
+    // Secrets must NOT be in source_vars
+    expect(vars['user']).toBeUndefined()
+    expect(vars['password']).toBeUndefined()
   })
 })
 

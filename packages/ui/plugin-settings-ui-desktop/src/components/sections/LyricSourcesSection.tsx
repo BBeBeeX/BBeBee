@@ -1,4 +1,4 @@
-import { Button, Sheet, Switch, tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { Button, Sheet, Switch, TextField, tablerIcon } from '@BBeBee/ui-kit-desktop'
 import {
   createElement as h,
   useEffect,
@@ -206,6 +206,10 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
     null,
   )
   const [cacheCleared, setCacheCleared] = useState(false)
+  const [configuringSource, setConfiguringSource] = useState<LyricSourceDefinition | null>(null)
+  const [configText, setConfigText] = useState('')
+  const [configError, setConfigError] = useState<string | null>(null)
+  const [configSaving, setConfigSaving] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -499,6 +503,18 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
                   disabled: isTesting,
                   onPress: () => void handleTest(source.id),
                   children: isTesting ? '测试中...' : '测试',
+                }),
+                // Configure Button
+                h(Button, {
+                  variant: 'secondary',
+                  onPress: () => {
+                    setConfiguringSource(source)
+                    setConfigText(JSON.stringify(source.config ?? {}, null, 2))
+                    setConfigError(null)
+                  },
+                  accessibilityLabel: `配置歌词源 ${source.name}`,
+                  testID: `lyric-source-configure-${source.id}`,
+                  children: '配置',
                 }),
                 // Delete button
                 !isBuiltin &&
@@ -829,6 +845,111 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
             variant: 'primary',
             onPress: () => void handleImportSubmit(),
             children: '确认导入',
+          }),
+        ),
+      ),
+    ),
+
+    // 4. Lyric source configure modal
+    h(
+      Sheet,
+      {
+        open: configuringSource !== null,
+        onClose: () => {
+          setConfiguringSource(null)
+          setConfigError(null)
+        },
+        title: `配置歌词源 - ${configuringSource?.name ?? ''}`,
+        testID: 'lyric-source-configure-modal',
+      },
+      h(
+        'div',
+        {
+          style: {
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 14,
+            paddingTop: 6,
+          },
+        },
+        h(
+          'div',
+          { style: { fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } },
+          '自定义该歌词源的运行配置（JSON 对象）。此配置将在沙箱执行时通过 query.config 及全局 config 注入脚本，供 API 鉴权或自定义参数使用。',
+        ),
+        h(TextField, {
+          multiline: true,
+          rows: 8,
+          value: configText,
+          onChange: setConfigText,
+          placeholder: '{\n  "apiKey": "your-key-here",\n  "apiEndpoint": "https://..."\n}',
+          accessibilityLabel: '歌词源配置 JSON',
+          testID: 'lyric-source-configure-json',
+        }),
+        configError &&
+          h(
+            'div',
+            {
+              style: {
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 12,
+                color: '#FF453A',
+                background: 'rgba(255, 69, 58, 0.1)',
+                padding: '8px 12px',
+                borderRadius: 6,
+                border: '1px solid rgba(255, 69, 58, 0.25)',
+              },
+            },
+            tablerIcon('alert-circle', { size: 16 }),
+            h('span', null, configError),
+          ),
+        h(
+          'div',
+          {
+            style: {
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: 10,
+              marginTop: 6,
+            },
+          },
+          h(Button, {
+            variant: 'ghost',
+            onPress: () => {
+              setConfiguringSource(null)
+              setConfigError(null)
+            },
+            testID: 'lyric-source-configure-cancel-btn',
+            children: '取消',
+          }),
+          h(Button, {
+            variant: 'primary',
+            loading: configSaving,
+            onPress: async () => {
+              if (!configuringSource || !ctx) return
+              try {
+                const parsed = JSON.parse(configText.trim() || '{}')
+                if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+                  setConfigError('配置必须是有效的 JSON 对象 ({...})')
+                  return
+                }
+                setConfigSaving(true)
+                const svc = serviceOf<LyricSourcesService>(ctx, 'lyricSources')
+                await svc?.updateSourceConfig(configuringSource.id, parsed)
+                setConfigSaving(false)
+                setConfiguringSource(null)
+                setConfigError(null)
+                if (svc) setLyricSources([...svc.getSources()])
+              } catch (err: unknown) {
+                setConfigSaving(false)
+                setConfigError(err instanceof Error ? err.message : 'JSON 格式解析错误')
+              }
+            },
+            testID: 'lyric-source-configure-save-btn',
+            children: '保存配置',
           }),
         ),
       ),

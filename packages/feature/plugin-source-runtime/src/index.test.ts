@@ -517,7 +517,7 @@ describe('the shipped fixtures', () => {
     // If this fails, either the rule engine changed or the example did.
     const { ctx } = await harness()
     const raw = await readFile(
-      new URL('../../../../fixtures/sources/direct-url.json', import.meta.url),
+      new URL('../../../../fixtures/sources/subsonic.json', import.meta.url),
       'utf8',
     )
 
@@ -527,14 +527,15 @@ describe('the shipped fixtures', () => {
     await tick()
 
     const provider = ctx.sources.providers[0]!
-    const handle = await provider.resolveStream('anything', {
+    const handle = await provider.resolveStream('song-1', {
       quality: 'normal',
       saveData: false,
       acceptFormats: [],
     })
-    expect(handle.target).toBe('https://stream.example.org/live.mp3')
-    expect(handle.mimeType).toBe('audio/mpeg')
-    expect(handle.seekable, 'a live stream is not seekable').toBe(false)
+    expect(handle.target).toBe(
+      'https://music.example.org/rest/stream?id=song-1&f=json&v=1.16.1&c=BBeBee',
+    )
+    expect(handle.seekable).toBe(true)
   })
 
   it('round-trips through export unchanged', async () => {
@@ -542,7 +543,7 @@ describe('the shipped fixtures', () => {
     // comes back different, they stop trusting export (docs/07 §4.1).
     const { ctx } = await harness()
     const raw = await readFile(
-      new URL('../../../../fixtures/sources/direct-url.json', import.meta.url),
+      new URL('../../../../fixtures/sources/subsonic.json', import.meta.url),
       'utf8',
     )
     await ctx.sources.import(raw)

@@ -141,8 +141,9 @@ declare global {
       }
       plugins?: {
         listInstalled(): Promise<
-          Array<{ id: string; version: string; manifest: unknown; dirName: string }>
+          Array<{ id: string; version: string; manifest: unknown; dirName: string; sha256?: string }>
         >
+        getLock?(): Promise<unknown>
         install(
           pluginId: string,
           files: Record<string, string>,

@@ -38,3 +38,4 @@ export {
   type TreeFiberNode,
   type SearchablePlugin,
 } from './plugins.js'
+export { scanCode } from './security.js'

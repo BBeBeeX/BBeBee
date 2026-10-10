@@ -149,6 +149,11 @@ export const bundled: PluginRegistry = {
     manifest: {"id":"@BBeBee/plugin-registry","name":"@BBeBee/plugin-registry","displayName":"Registry","description":"ctx.contentRegistry — the community content index: update checks and installs for music sources, lyric sources, themes and desktop plugins.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-4","moduleId":"registry","entry":{"main":"./dist/index.js"},"capabilities":["net:host/*"],"contributes":{"services":["contentRegistry"]},"effect":"contentRegistry"},
     builtin: true,
   },
+  "@BBeBee/plugin-security-audit": {
+    load: () => import('@BBeBee/plugin-security-audit'),
+    manifest: {"id":"@BBeBee/plugin-security-audit","name":"@BBeBee/plugin-security-audit","displayName":"Security Audit","description":"ctx.securityAudit — static code analysis and security auditing for sources and plugins.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-4","moduleId":"security","entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["securityAudit"]},"effect":"securityAudit"},
+    builtin: true,
+  },
   "@BBeBee/plugin-settings": {
     load: () => import('@BBeBee/plugin-settings'),
     manifest: {"id":"@BBeBee/plugin-settings","name":"@BBeBee/plugin-settings","displayName":"Settings","description":"Global application preferences, settings service, and settings views.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-4","moduleId":"settings","entry":{"main":"./dist/index.js","ui":{"desktop":"./dist/index.js","mobile":"./dist/index.js"}},"capabilities":[],"contributes":{"services":["settings"]},"effect":"settings"},

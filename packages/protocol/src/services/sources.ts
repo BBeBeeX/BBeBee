@@ -224,6 +224,42 @@ export interface ProviderAuth {
   onStatusChange(cb: (s: AuthStatus) => void): Disposable
 }
 
+/* ── Source parameters & connectivity testing ──────────────────────────── */
+
+export type SourcePingStatus = 'ok' | 'auth_failed' | 'network_error'
+
+export interface SourcePingResult {
+  status: SourcePingStatus
+  message?: string
+  latencyMs?: number
+  serverVersion?: string
+}
+
+export interface SourcePingParams {
+  host?: string
+  user?: string
+  password?: string
+  var?: string
+  vars?: Record<string, string>
+  [key: string]: unknown
+}
+
+export interface SourceParams {
+  sourceUrl: string
+  host?: string
+  vars: Record<string, string>
+  secretKeys: readonly string[]
+  hasSecrets: Record<string, boolean>
+  secrets?: Record<string, string>
+}
+
+export interface UpdateSourceParams {
+  sourceUrl?: string
+  host?: string
+  vars?: Record<string, string>
+  secrets?: Record<string, string>
+}
+
 /* ── The provider ───────────────────────────────────────────────────────── */
 
 export interface ProviderLibrary {
@@ -459,6 +495,15 @@ export interface SourcesService {
   readVars(sourceId: string): Promise<Record<string, string>>
   writeVar(sourceId: string, key: string, value: string): Promise<void>
   clearVars(sourceId: string, key?: string): Promise<void>
+
+  /** Update a source's base URL and recompute allowed hosts. */
+  updateSourceUrl(id: string, newUrl: string): Promise<void>
+  /** Read combined parameters (non-secret vars from DB, secret key presence from secrets service). */
+  getSourceParams(id: string): Promise<SourceParams>
+  /** Update source parameters (host, vars, secrets). */
+  updateSourceParams(id: string, params: UpdateSourceParams): Promise<void>
+  /** Lightweight reachability & auth probe distinguishing ok, auth_failed, and network_error. */
+  testConnection(id: string, params?: SourcePingParams): Promise<SourcePingResult>
 
   /** The user says two URNs are one recording. Never overwritten by automation. */
   link(a: string, b: string): Promise<void>

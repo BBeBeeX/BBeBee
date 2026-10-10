@@ -268,7 +268,11 @@ export class SourceRuntime {
     // that did not touch the document. Rebuilding then would drop a warm
     // cookie jar to arrive at exactly the same source.
     const current = this.live.get(id)
-    if (current && current.record.docHash === record.docHash) return
+    if (current && current.record.docHash === record.docHash) {
+      this.vars.delete(id)
+      void this.loadVars(id)
+      return
+    }
     this.replace(record)
   }
 
@@ -477,7 +481,11 @@ export class SourceRuntime {
    */
   private secretKeysFor(sourceId: string): Set<string> {
     const doc = this.ctx.sources.source(sourceId)?.doc
-    return new Set(['var', ...(doc?.loginUi ?? []).map((field) => field.id)])
+    return new Set([
+      'var',
+      ...(doc?.loginUi ?? []).map((field) => field.id),
+      ...(doc?.sourceGroup?.includes('subsonic') ? ['user', 'password'] : []),
+    ])
   }
 
   /**

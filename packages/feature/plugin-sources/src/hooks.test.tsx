@@ -106,7 +106,7 @@ describe('useSourceImport', () => {
     })
     probe.rerender()
 
-    expect(state.report?.added.map((r) => r.name)).toEqual(['Example'])
+    expect(state.report?.added.map((r: { name: string }) => r.name)).toEqual(['Example'])
     expect(state.text, 'cleared on success').toBe('')
   })
 

@@ -311,7 +311,7 @@ pnpm watch:sources
 pnpm build:sources --sources <dir>
 
 # 反向解包现有单文件 JSON 为双文件开发结构
-node --experimental-strip-types scripts/sources/cli.ts --unpack fixtures/sources/bilibili.json
+node --experimental-strip-types scripts/sources/cli.ts --unpack fixtures/sources/subsonic.json
 ```
 
 `browse` 就是 `exploreUrl` + `ruleExplore`：每个探索条目是一个带标题的 URL，而 `childUrl` 非空的条目是要深入下去的节点，而不是拿来播放的叶子。文件夹树、流派列表、排行榜、播客 feed 的单集列表，用的都是同样三个字段 —— 这正是同一个 UI 组件能渲染它们全部的原因。
@@ -320,7 +320,7 @@ node --experimental-strip-types scripts/sources/cli.ts --unpack fixtures/sources
 推荐歌单页约定的页大小是 10。行就是探索行 —— `kind: 'album'` 带 `childUrl` —— 所以推荐的歌单
 和浏览到的歌单走同一条专辑详情管线，`ctx.sources.recommend` 缓存该页的方式也与 `browse` 完全
 一致。`recommendUrl` 可选：推荐内容是精选清单而非端点的源，让 `@js:` 规则自行构造行，此时
-`result` 以 `null` 传入。被推荐资源已经消失时后端如何应答，是源自己的策略 —— bilibili 源把答案
+`result` 以 `null` 传入。被推荐资源已经消失时后端如何应答，是源自己的策略 —— 音源可以把答案
 一分为二：*gone*（API 明确 -404）渲染"当前资源无效"占位卡；*暂时被拒*（限流、风控、超时）渲染
 "加载失败"卡并写明原因，且不落任何缓存，下次读取该页时自动重试。卡片的创作者一行属于歌单页
 而非推荐页：为一行字每卡片多打一个请求不值得，UP 主名等点开歌单页时再取。

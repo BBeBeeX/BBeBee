@@ -23,6 +23,7 @@
 // resolves. Erased at build time; this adds no runtime import.
 import type {} from 'cordis'
 import type { PluginManifest } from '../manifest.js'
+import type { SecurityAuditReport } from './security-audit.js'
 
 export type RegistryEntryKind = 'music-source' | 'lyric-source' | 'theme' | 'plugin'
 
@@ -43,7 +44,9 @@ export interface RegistryEntry {
   readonly sourceUrl?: string
   /** theme/plugin only: preview image URL. */
   readonly previewUrl?: string
-  /** plugin only */
+  /** Author repository URL or shorthand (e.g. https://github.com/owner/repo or owner/repo). */
+  readonly repo?: string
+  /** plugin/source: The author's code repository URL. */
   readonly repoUrl?: string
   readonly sha256?: string
   readonly capabilities?: readonly string[]
@@ -66,6 +69,22 @@ export interface RegistryUpdate {
   readonly builtin?: boolean
 }
 
+/** Record in registry.lock.json pinned to exact commit and content digest. */
+export interface RegistryLockRecord {
+  readonly id: string
+  readonly kind: RegistryEntryKind
+  readonly repo: string
+  readonly commit: string
+  readonly sha256: string
+  readonly installedAt: number
+}
+
+/** Complete structure of registry.lock.json in the user data directory. */
+export interface RegistryLockFile {
+  readonly version: 1
+  readonly records: Record<string, RegistryLockRecord>
+}
+
 /**
  * What the install flow needs to show the user BEFORE they confirm.
  *
@@ -79,6 +98,17 @@ export interface RegistryEntryDetails {
   readonly isBuiltinInstall?: boolean
   /** True when a music source already exists locally and was edited since import. */
   readonly isLocallyModified?: boolean
+  /** Static security analysis result for source code or plugin bundle. */
+  readonly securityAudit?: SecurityAuditReport
+  /** The resolved author repository URL. */
+  readonly repoUrl?: string
+  /** Exact git commit sha resolving the installation artifact. */
+  readonly commit?: string
+  /** Commit difference between currently installed and incoming update. */
+  readonly commitDiff?: {
+    readonly previousCommit?: string
+    readonly currentCommit: string
+  }
 }
 
 /** Desktop-only plugin distribution: a JSON bundle `{ manifest, files }` fetched from downloadUrl. */
@@ -100,7 +130,12 @@ export interface RegistryService {
   install(entry: RegistryEntry, opts?: { confirmed?: boolean; overwrite?: boolean }): Promise<void>
   /** Composition root sets this so plugin-kind installs can reach the desktop dynamic host. */
   setPluginInstaller(installer: (bundle: PluginInstallBundle) => Promise<void>): void
+  /** Read the registry lock file records. */
+  getLockFile?(): Promise<RegistryLockFile>
+  /** Retrieve a single lock record by ID. */
+  getLockRecord?(id: string): Promise<RegistryLockRecord | undefined>
 }
+
 
 declare module 'cordis' {
   interface Context {

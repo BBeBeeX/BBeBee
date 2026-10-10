@@ -232,7 +232,7 @@ export interface ProviderAuth {
 | `variable` | 只有 `variableComment` | Subsonic 的 `user:password`，由 `jsLib` 消费 |
 | `form` | `loginUi`（字段）+ `loginUrl`（提交到哪） | 自建服务器的 `/login` |
 | `webview` | `loginUrl` + `requiredCookies`，在 `ctx.shell` 中打开 | 登录是网页而非 API 的后端 |
-| `qrcode` | `loginType: 'qrcode'` + `loginQrJs` + `loginPollJs` | Web/二维码扫码登录流程（如 Bilibili） |
+| `qrcode` | `loginType: 'qrcode'` + `loginQrJs` + `loginPollJs` | Web/二维码扫码登录流程（如 Subsonic） |
 
 `loginCheckJs` 在每次响应之后运行，判定会话是否仍然有效；返回 false 会置 `status = 'expired'` 并发出 `source/auth-expired`。它对应的是"服务器又开始用登录页应答了"这件事 —— 没有任何 HTTP 状态码能可靠地表达它。
 

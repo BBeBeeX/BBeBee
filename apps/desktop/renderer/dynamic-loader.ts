@@ -8,7 +8,8 @@
  */
 
 import type { Plugin } from '@BBeBee/kernel'
-import type { PluginManifest } from '@BBeBee/protocol'
+import type { PluginManifest, RegistryLockFile, SecurityAuditService } from '@BBeBee/protocol'
+import { scanCode } from '@BBeBee/toolkit'
 
 export type DynamicLoadState =
   | 'active'
@@ -23,6 +24,7 @@ export interface DynamicRegistryEntry {
   load?: () => Promise<unknown>
   manifest: PluginManifest
   builtin?: boolean
+  quarantined?: boolean
 }
 
 export type DynamicPluginRegistry = Record<string, DynamicRegistryEntry>
@@ -46,6 +48,7 @@ export interface InstalledPluginRecord {
   version: string
   manifest: unknown
   dirName: string
+  sha256?: string
 }
 
 /**
@@ -107,19 +110,56 @@ export const bundled: DynamicPluginRegistry = getBuiltinPluginRegistry()
 /**
  * Scan for installed external plugins from the desktop host and build
  * dynamic registry entries with ESM imports over `bbebee-plugin://`.
+ *
+ * Verifies plugin integrity against `registry.lock.json` if available.
+ * If tampered, refuses loading and marks quarantined.
  */
-export async function loadExternalPluginRegistry(): Promise<DynamicPluginRegistry> {
+export async function loadExternalPluginRegistry(options?: {
+  lock?: RegistryLockFile | Record<string, { sha256?: string }>
+}): Promise<DynamicPluginRegistry> {
   const pluginsApi = typeof window !== 'undefined' ? window.BBeBee?.plugins : undefined
   if (!pluginsApi) return {}
 
   try {
     const list = await pluginsApi.listInstalled()
+    const lockData = (options?.lock ?? (await pluginsApi.getLock?.())) as
+      | RegistryLockFile
+      | Record<string, { sha256?: string }>
+      | undefined
+    const records = (lockData && 'records' in lockData ? lockData.records : lockData) as
+      | Record<string, { sha256?: string }>
+      | undefined
+
     const registry: DynamicPluginRegistry = {}
 
     for (const item of list) {
       if (!item.id || !item.manifest || typeof item.manifest !== 'object') continue
       const manifest = item.manifest as PluginManifest
       const entryMain = (manifest.entry?.main ?? './index.js').replace(/^\.?\//, '')
+
+      const lockRecord = records?.[item.id]
+      const isTampered = Boolean(
+        lockRecord?.sha256 &&
+          item.sha256 &&
+          lockRecord.sha256.trim().toLowerCase() !== item.sha256.trim().toLowerCase(),
+      )
+
+      if (isTampered) {
+        console.error(
+          `[dynamic-loader] Plugin "${item.id}" integrity mismatch against registry.lock.json (tampered). Quarantined.`,
+        )
+        registry[item.id] = {
+          manifest,
+          builtin: false,
+          quarantined: true,
+          load: async () => {
+            throw new Error(
+              `Plugin "${item.id}" refused to load: tampered code detected (sha256 mismatch against registry.lock.json)`,
+            )
+          },
+        }
+        continue
+      }
 
       const entry: DynamicRegistryEntry = {
         manifest,
@@ -144,16 +184,35 @@ export async function loadExternalPluginRegistry(): Promise<DynamicPluginRegistr
 /**
  * Install plugin files into the user plugins directory, register it into the
  * running kernel registry, and immediately load and activate it.
+ *
+ * Runs a pre-install security scan: if level is 'block', rejects installation.
  */
 export async function installAndActivatePlugin(
   app: DynamicPluginHost,
   pluginId: string,
   files: Record<string, string>,
   manifest: PluginManifest,
+  options?: {
+    securityAudit?: SecurityAuditService
+  },
 ): Promise<DynamicLoadedPlugin> {
   const pluginsApi = typeof window !== 'undefined' ? window.BBeBee?.plugins : undefined
   if (!pluginsApi) {
     throw new Error('Desktop plugins bridge is unavailable')
+  }
+
+  // Pre-install security scan: reject if audit level is 'block'
+  const scanner =
+    options?.securityAudit ??
+    (app as unknown as { ctx?: { securityAudit?: SecurityAuditService } }).ctx?.securityAudit
+  for (const [filename, content] of Object.entries(files)) {
+    if (typeof content === 'string' && (filename.endsWith('.js') || filename.endsWith('.ts'))) {
+      const report = scanner ? scanner.scan(content) : scanCode(content)
+      if (report.level === 'block') {
+        const issues = report.findings.map((f) => f.message).join('; ')
+        throw new Error(`Installation blocked by security audit for "${pluginId}" (${filename}): ${issues}`)
+      }
+    }
   }
 
   // 1. Write plugin files to user's installed-plugins directory via main process

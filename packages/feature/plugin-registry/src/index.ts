@@ -1,32 +1,22 @@
 /**
  * `plugin-registry` — the in-app index of third-party content and its updates.
  *
- * Implements `ctx.contentRegistry`: it fetches the community registry's
- * `registry.json`, compares it against what the user already has, and installs
- * through the services that own each kind — `ctx.sources.import` for music
- * sources, `ctx.lyricSources.registerSource` for lyric sources,
- * `ctx.theme.registerTheme` for themes, and a desktop-only installer bridge
- * for plugins. It validates nothing a downstream service already validates,
- * and hides nothing a user must see before confirming (a download host is a
- * security red line — see `fetchEntryDetails`).
- *
- * Every collaborator beyond `http` is optional: a shell without, say, a theme
- * service simply sees the theme half of its update checks and installs
- * refuse with a clear error rather than break the rest.
- *
- * ⚠️ The service key is `contentRegistry`, not `registry`: on cordis 4 the
- * `registry` key belongs to the kernel itself (its plugin-registry service,
- * whose methods surface as `ctx.plugin`/`ctx.inject`).
+ * Implements `ctx.contentRegistry`: discovers content via GitHub Contents API
+ * across music-sources, lyric-sources, themes, and plugins; validates integrity
+ * via registry.lock.json and static security scanning; installs through owning
+ * domain services.
  */
 
 import { Service } from '@BBeBee/kernel'
 import type { Context } from '@BBeBee/kernel'
 import type {
   AppSettings,
+  FsService,
   HttpService,
   HttpResponse,
   LyricSourceDefinition,
   LyricSourcesService,
+  PathsService,
   PluginInstallBundle,
   PluginManagerService,
   PluginManifest,
@@ -34,8 +24,13 @@ import type {
   RegistryEntryDetails,
   RegistryEntryKind,
   RegistryIndex,
+  RegistryLockFile,
+  RegistryLockRecord,
   RegistryService,
   RegistryUpdate,
+  SecurityAuditContext,
+  SecurityAuditReport,
+  SecurityAuditService,
   SettingsService,
   SourcesService,
   StoreService,
@@ -43,12 +38,25 @@ import type {
   ThemeService,
 } from '@BBeBee/protocol'
 import { sha256Hex } from '@BBeBee/protocol'
+import { scanCode } from '@BBeBee/toolkit'
 import { themeContrastIssues } from '@BBeBee/ui-tokens'
+import { RegistryLockManager } from './lock.js'
 import { compareVersions, normalizeVersion } from './semver.js'
 import { REGISTRY_VIEWS } from './views.js'
 
-/** Where the community registry publishes its index. Overridable via `registry.prefs`. */
-const DEFAULT_ENDPOINT = 'https://raw.githubusercontent.com/BBeBeeX/B_Be_Bee-registry/main/registry.json'
+/** GitHub Contents API base endpoint for community registry. Overridable via `registry.prefs`. */
+const DEFAULT_CONTENTS_API = 'https://api.github.com/repos/BBeBeeX/B_Be_Bee-registry/contents'
+const DEFAULT_REGISTRY_REPO = 'BBeBeeX/B_Be_Bee-registry'
+const DEFAULT_RAW_BASE = 'https://raw.githubusercontent.com/BBeBeeX/B_Be_Bee-registry/main'
+
+export const DEFAULT_ENDPOINT = DEFAULT_CONTENTS_API
+
+const REGISTRY_DIRS: readonly { readonly dir: string; readonly kind: RegistryEntryKind }[] = [
+  { dir: 'music-sources', kind: 'music-source' },
+  { dir: 'lyric-sources', kind: 'lyric-source' },
+  { dir: 'plugins', kind: 'plugin' },
+  { dir: 'themes', kind: 'theme' },
+]
 
 /** Store key: the last good index, for offline use. */
 const INDEX_CACHE_KEY = 'registry.index-cache'
@@ -71,11 +79,6 @@ interface RegistryPrefs {
 }
 
 export interface RegistryConfig {
-  /**
-   * Test hook for the automatic check's schedule. Defaults to 45 s after
-   * boot, then every 24 h. Exposed because a test that waits 45 seconds is
-   * a test nobody runs.
-   */
   autoCheckDelayMs?: number
   autoCheckIntervalMs?: number
 }
@@ -96,17 +99,48 @@ function optionalStringArray(value: unknown): readonly string[] | undefined {
   return items.length ? items : undefined
 }
 
+export function parseGitHubRepo(repoUrlOrShorthand?: string): { owner: string; repo: string } | undefined {
+  if (!repoUrlOrShorthand || typeof repoUrlOrShorthand !== 'string') return undefined
+  const cleaned = repoUrlOrShorthand.trim().replace(/\.git$/, '').replace(/\/+$/, '')
+  const match =
+    cleaned.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/([^/]+)\/([^/]+)$/) ??
+    cleaned.match(/^([a-zA-Z0-9._-]+)\/([a-zA-Z0-9._-]+)$/)
+  if (match && match[1] && match[2]) {
+    return { owner: match[1], repo: match[2] }
+  }
+  return undefined
+}
+
+export function checkCapabilitiesMatch(
+  manifestCaps: readonly string[] = [],
+  registryCaps: readonly string[] = [],
+): { matches: boolean; missingInManifest: string[]; unexpectedInManifest: string[] } {
+  const setM = new Set(manifestCaps)
+  const setR = new Set(registryCaps)
+  const missingInManifest = [...setR].filter((c) => !setM.has(c))
+  const unexpectedInManifest = [...setM].filter((c) => !setR.has(c))
+  return {
+    matches: missingInManifest.length === 0 && unexpectedInManifest.length === 0,
+    missingInManifest,
+    unexpectedInManifest,
+  }
+}
+
 /** Keep the entries a shape check can vouch for; drop the rest, with a count for the log. */
-function sanitizeEntry(raw: unknown): RegistryEntry | undefined {
+function sanitizeEntry(raw: unknown, defaultKind?: RegistryEntryKind): RegistryEntry | undefined {
   if (!isRecord(raw)) return undefined
-  const { id, kind, name } = raw
+  const { id, name } = raw
+  const kind =
+    typeof raw.kind === 'string' && ENTRY_KINDS.includes(raw.kind as RegistryEntryKind)
+      ? (raw.kind as RegistryEntryKind)
+      : defaultKind
   if (typeof id !== 'string' || !id) return undefined
-  if (typeof kind !== 'string' || !ENTRY_KINDS.includes(kind as RegistryEntryKind)) return undefined
+  if (!kind) return undefined
   if (typeof name !== 'string' || !name) return undefined
 
   return {
     id,
-    kind: kind as RegistryEntryKind,
+    kind,
     name,
     version: optionalString(raw.version),
     author: optionalString(raw.author),
@@ -116,6 +150,7 @@ function sanitizeEntry(raw: unknown): RegistryEntry | undefined {
     minAppVersion: optionalString(raw.minAppVersion),
     sourceUrl: optionalString(raw.sourceUrl),
     previewUrl: optionalString(raw.previewUrl),
+    repo: optionalString(raw.repo) ?? optionalString(raw.repoUrl),
     repoUrl: optionalString(raw.repoUrl) ?? optionalString(raw.repo),
     sha256: optionalString(raw.sha256),
     capabilities: optionalStringArray(raw.capabilities),
@@ -148,26 +183,17 @@ function hasIndexShape(value: unknown): value is RegistryIndex {
   return isRecord(value) && Array.isArray(value.entries)
 }
 
-/**
- * The version a stored music-source document declares. `docJson` is the
- * imported string verbatim, and older documents have no `version` field at
- * all — both mean '0.0.0'.
- */
 function documentVersion(docJson: string): string {
   try {
     const doc: unknown = JSON.parse(docJson)
     if (isRecord(doc) && typeof doc.version === 'string') return doc.version
   } catch {
-    // A stored document that does not parse is unversioned, not an error.
+    // Unversioned
   }
   return '0.0.0'
 }
 
 export class RegistryPlugin extends Service implements RegistryService {
-  /**
-   * ⚠️ Not `registry` — on cordis 4 that key is the kernel's own
-   * plugin-registry service (`ctx.plugin`/`ctx.inject` are its methods).
-   */
   static override readonly name = 'contentRegistry'
   static readonly inject = ['http']
 
@@ -182,6 +208,11 @@ export class RegistryPlugin extends Service implements RegistryService {
   private lyricSourcesService?: LyricSourcesService
   private themeService?: ThemeService
   private pluginManagerService?: PluginManagerService
+  private securityAuditService?: SecurityAuditService
+  private fsService?: FsService
+  private pathsService?: PathsService
+
+  private lockManager: RegistryLockManager
 
   /** The desktop-only bridge that installs a `{ manifest, files }` bundle. */
   private pluginInstaller?: (bundle: PluginInstallBundle) => Promise<void>
@@ -192,11 +223,7 @@ export class RegistryPlugin extends Service implements RegistryService {
   /** When the last completed check ran, for the settings card. Hydrated from the store on init. */
   private lastCheckAt?: number
 
-  /**
-   * Whether the most recent `getIndex()` had to fall back to the cached copy.
-   * `getIndex` resolves even when the network is down — a view cannot derive
-   * the fallback from its own return value, so it is reported here instead.
-   */
+  /** Whether the most recent `getIndex()` had to fall back to the cached copy. */
   private indexFetchFailed = false
 
   /** Cancels the current auto-check timers; also registered as a fiber effect. */
@@ -206,8 +233,8 @@ export class RegistryPlugin extends Service implements RegistryService {
     super(ctx, 'contentRegistry')
     this.ownCtx = ctx
     this.config = config
-    // A required dependency (`static inject`), so it is present at construction.
     this.http = ctx.http
+    this.lockManager = new RegistryLockManager()
   }
 
   async [Service.init]() {
@@ -215,12 +242,23 @@ export class RegistryPlugin extends Service implements RegistryService {
 
     this.ownCtx.inject(['store'], (scoped) => {
       this.storeService = scoped.store
+      this.updateLockManager()
       void scoped.store
         .get<RegistryPrefs>(PREFS_KEY)
         .then((prefs) => {
           if (typeof prefs?.lastCheckAt === 'number') this.lastCheckAt = prefs.lastCheckAt
         })
         .catch(() => {})
+    })
+
+    this.ownCtx.inject(['fs', 'paths'], (scoped) => {
+      this.fsService = scoped.fs
+      this.pathsService = scoped.paths
+      this.updateLockManager()
+    })
+
+    this.ownCtx.inject(['securityAudit'], (scoped) => {
+      this.securityAuditService = scoped.securityAudit
     })
 
     this.ownCtx.inject(['settings'], (scoped) => {
@@ -244,10 +282,6 @@ export class RegistryPlugin extends Service implements RegistryService {
       this.pluginManagerService = scoped['plugin-manager']
     })
 
-    // 2.6 Contribute this plugin's views — the registry screen and the
-    // settings card. The settings screen aggregates whatever is contributed
-    // and owns none of it, and the shell renders whatever routes are placed
-    // in its sidebar (docs/08 §3).
     this.ownCtx.inject(['ui'], (scoped) => {
       scoped.effect(function* () {
         yield scoped.ui.contribute({
@@ -272,16 +306,147 @@ export class RegistryPlugin extends Service implements RegistryService {
     })
   }
 
+  private updateLockManager(): void {
+    this.lockManager = new RegistryLockManager({
+      fs: this.fsService,
+      paths: this.pathsService,
+      store: this.storeService,
+    })
+  }
+
+  async getLockFile(): Promise<RegistryLockFile> {
+    return this.lockManager.read()
+  }
+
+  async getLockRecord(id: string): Promise<RegistryLockRecord | undefined> {
+    return this.lockManager.getRecord(id)
+  }
+
   /* ── the index ─────────────────────────────────────────────────────────── */
 
   async getIndex(_force = false): Promise<RegistryIndex> {
     const endpoint = await this.resolveEndpoint()
     try {
-      const raw = await this.http.get<unknown>(endpoint)
-      const { index, dropped } = sanitizeIndex(raw)
-      if (dropped > 0) {
-        this.ownCtx.logger.warn(`registry: dropped ${dropped} malformed entr${dropped === 1 ? 'y' : 'ies'} from the index`)
+      // 1. Direct index check: if endpoint directly returns an index with entries (e.g. test mock or mirror)
+      let directRaw: unknown
+      try {
+        directRaw = await this.http.get<unknown>(endpoint)
+      } catch {
+        // endpoint may be a base contents directory url that only responds to subpaths
       }
+
+      if (hasIndexShape(directRaw)) {
+        const { index, dropped } = sanitizeIndex(directRaw)
+        if (dropped > 0) {
+          this.ownCtx.logger.warn(`registry: dropped ${dropped} malformed entr${dropped === 1 ? 'y' : 'ies'} from the index`)
+        }
+        await this.writeIndexCache(index)
+        this.indexFetchFailed = false
+        return index
+      }
+
+      // If pointing directly to a .json file that wasn't an index shape, sanitizeIndex will error
+      if (endpoint.endsWith('.json') && directRaw !== undefined) {
+        const { index, dropped } = sanitizeIndex(directRaw)
+        if (dropped > 0) {
+          this.ownCtx.logger.warn(`registry: dropped ${dropped} malformed entr${dropped === 1 ? 'y' : 'ies'} from direct index`)
+        }
+        await this.writeIndexCache(index)
+        this.indexFetchFailed = false
+        return index
+      }
+
+      // 2. Otherwise, discover entries via GitHub Contents API across four directories
+      const entries: RegistryEntry[] = []
+      let totalDropped = 0
+
+      const contentsBase = endpoint.endsWith('/contents')
+        ? endpoint
+        : endpoint.includes('api.github.com')
+          ? endpoint
+          : DEFAULT_CONTENTS_API
+
+      for (const { dir, kind } of REGISTRY_DIRS) {
+        try {
+          const dirUrl = `${contentsBase}/${dir}`
+          const items = await this.http.get<unknown>(dirUrl)
+          if (!Array.isArray(items)) continue
+
+          for (const item of items) {
+            if (!isRecord(item)) continue
+            const itemName = typeof item.name === 'string' ? item.name : ''
+            const itemType = typeof item.type === 'string' ? item.type : ''
+            const downloadUrl = typeof item.download_url === 'string' ? item.download_url : undefined
+
+            let rawEntry: unknown = undefined
+            if ((itemType === 'file' || !itemType) && itemName.endsWith('.json')) {
+              const fileUrl = downloadUrl ?? `${DEFAULT_RAW_BASE}/${dir}/${itemName}`
+              try {
+                rawEntry = await this.http.get<unknown>(fileUrl)
+              } catch {
+                totalDropped++
+                continue
+              }
+            } else if (itemType === 'dir') {
+              let metaUrl: string | undefined
+              if (dir === 'themes') {
+                metaUrl = `${DEFAULT_RAW_BASE}/themes/${itemName}/theme.json`
+              } else if (dir === 'music-sources') {
+                metaUrl = `${DEFAULT_RAW_BASE}/dist/music-sources/${itemName}.json`
+              } else if (dir === 'lyric-sources') {
+                metaUrl = `${DEFAULT_RAW_BASE}/dist/lyric-sources/${itemName}.json`
+              } else if (dir === 'plugins') {
+                metaUrl = `${DEFAULT_RAW_BASE}/plugins/${itemName}.json`
+              }
+              if (metaUrl) {
+                try {
+                  rawEntry = await this.http.get<unknown>(metaUrl)
+                } catch {
+                  // directory without compiled meta
+                }
+              }
+            }
+
+            if (rawEntry) {
+              const entry = sanitizeEntry(rawEntry, kind)
+              if (entry) {
+                entries.push(entry)
+              } else {
+                totalDropped++
+              }
+            }
+          }
+        } catch (dirErr) {
+          // Fallback to single registry.json if available before failing to local cache
+          try {
+            const legacyRaw = await this.http.get<unknown>(DEFAULT_RAW_BASE + '/registry.json')
+            if (hasIndexShape(legacyRaw)) {
+              const { index, dropped } = sanitizeIndex(legacyRaw)
+              if (dropped > 0) {
+                this.ownCtx.logger.warn(`registry: dropped ${dropped} malformed entries from fallback registry.json`)
+              }
+              await this.writeIndexCache(index)
+              this.indexFetchFailed = false
+              return index
+            }
+          } catch {
+            // ignore
+          }
+          this.ownCtx.logger.warn(`registry: failed to read contents of "${dir}": ${String(dirErr)}`)
+          throw dirErr
+        }
+      }
+
+      if (totalDropped > 0) {
+        this.ownCtx.logger.warn(`registry: dropped ${totalDropped} malformed entries during discovery`)
+      }
+
+      const index: RegistryIndex = {
+        repository: DEFAULT_REGISTRY_REPO,
+        generatedAt: new Date().toISOString(),
+        entries,
+      }
+
       await this.writeIndexCache(index)
       this.indexFetchFailed = false
       return index
@@ -294,11 +459,6 @@ export class RegistryPlugin extends Service implements RegistryService {
     }
   }
 
-  /**
-   * Whether the most recent `getIndex()` call fell back to the cached copy —
-   * read-only view state, so a screen can say "离线缓存" instead of passing
-   * stale data off as live. The write path stays inside `getIndex()`.
-   */
   lastIndexFetchFailed(): boolean {
     return this.indexFetchFailed
   }
@@ -364,8 +524,6 @@ export class RegistryPlugin extends Service implements RegistryService {
     this.lastUpdates = updates
     await this.touchLastCheckAt()
 
-    // `emit` does not isolate the emitter from a throwing listener (see
-    // protocol/src/events.ts) — a badge render must not fail the check.
     this.safeEmit(() => this.ownCtx.emit('registry/updates-available', updates))
     return updates
   }
@@ -374,11 +532,6 @@ export class RegistryPlugin extends Service implements RegistryService {
     return this.lastUpdates
   }
 
-  /**
-   * When the last completed check ran (wall-clock ms), or `undefined` before
-   * the first one. Read-only view state for the settings card — the write
-   * path stays inside `checkUpdates()`.
-   */
   lastCheckedAt(): number | undefined {
     return this.lastCheckAt
   }
@@ -395,32 +548,201 @@ export class RegistryPlugin extends Service implements RegistryService {
     }
   }
 
+  /* ── security scan & author repo resolution ────────────────────────────── */
+
+  private scanCode(code: string, context?: SecurityAuditContext): SecurityAuditReport {
+    if (this.securityAuditService) {
+      return this.securityAuditService.scan(code, context)
+    }
+    return scanCode(code, context)
+  }
+
+  private async resolveAuthorRepoCommit(
+    owner: string,
+    repo: string,
+  ): Promise<{ commit: string; defaultBranch: string }> {
+    try {
+      const commitData = await this.http.get<{ sha?: string }>(
+        `https://api.github.com/repos/${owner}/${repo}/commits/HEAD`,
+      )
+      if (commitData && typeof commitData.sha === 'string' && commitData.sha) {
+        return { commit: commitData.sha, defaultBranch: 'main' }
+      }
+    } catch {
+      // Fall back to querying repo default branch
+    }
+
+    try {
+      const repoData = await this.http.get<{ default_branch?: string }>(
+        `https://api.github.com/repos/${owner}/${repo}`,
+      )
+      const branch = repoData.default_branch || 'main'
+      const branchCommit = await this.http.get<{ sha?: string }>(
+        `https://api.github.com/repos/${owner}/${repo}/commits/${branch}`,
+      )
+      if (branchCommit?.sha) {
+        return { commit: branchCommit.sha, defaultBranch: branch }
+      }
+    } catch (err) {
+      throw new Error(`registry: failed to resolve author repository "https://github.com/${owner}/${repo}": ${String(err)}`, { cause: err })
+    }
+
+    throw new Error(`registry: author repository "https://github.com/${owner}/${repo}" is unreachable or has no commits`)
+  }
+
   /* ── the confirm dialog's inputs ───────────────────────────────────────── */
 
   async fetchEntryDetails(entry: RegistryEntry): Promise<RegistryEntryDetails> {
-    // No extra fetch: the capabilities a user must see before installing
-    // code are on the index entry itself.
-    if (entry.kind === 'plugin') return { entry }
+    const repoInfo = parseGitHubRepo(entry.repoUrl ?? entry.repo)
+    const prevLock = await this.lockManager.getRecord(entry.id)
 
-    const url = this.requireDownloadUrl(entry)
-    const doc = await (await this.fetchDocument(url)).json<unknown>()
+    if (entry.kind === 'music-source' || entry.kind === 'lyric-source') {
+      let docText: string
+      let commit: string | undefined
+      let repoUrl: string | undefined
 
-    if (entry.kind === 'theme') return { entry }
+      if (repoInfo) {
+        repoUrl = `https://github.com/${repoInfo.owner}/${repoInfo.repo}`
+        const resolved = await this.resolveAuthorRepoCommit(repoInfo.owner, repoInfo.repo)
+        commit = resolved.commit
+        const rawUrl = `https://raw.githubusercontent.com/${repoInfo.owner}/${repoInfo.repo}/${commit}/index.json`
+        try {
+          docText = await (await this.fetchDocument(rawUrl)).text()
+        } catch (err) {
+          throw new Error(`registry: author repository "${repoInfo.owner}/${repoInfo.repo}" is missing root index.json (${String(err)})`, { cause: err })
+        }
+      } else {
+        const url = this.requireDownloadUrl(entry)
+        docText = await (await this.fetchDocument(url)).text()
+      }
 
-    // music-source | lyric-source: the egress allowlist is the sentence the
-    // user judges before confirming.
-    const allowedHosts = optionalStringArray(isRecord(doc) ? doc.allowedHosts : undefined)
-    const existing =
-      entry.kind === 'music-source' && entry.sourceUrl
-        ? this.sourcesService?.sources.find((r) => r.sourceUrl === entry.sourceUrl)
-        : undefined
+      let doc: unknown
+      try {
+        doc = JSON.parse(docText)
+      } catch {
+        // ignore malformed preview
+      }
 
-    return {
-      entry,
-      ...(allowedHosts ? { allowedHosts } : {}),
-      isBuiltinInstall: entry.kind === 'lyric-source' ? entry.id.startsWith('builtin-') : false,
-      ...(existing?.locallyModified ? { isLocallyModified: true } : {}),
+      const hosts: string[] = []
+      if (entry.sourceUrl) {
+        try {
+          hosts.push(new URL(entry.sourceUrl).hostname)
+        } catch {
+          // ignore
+        }
+      }
+      if (isRecord(doc)) {
+        if (typeof doc.sourceUrl === 'string' && doc.sourceUrl) {
+          try {
+            hosts.push(new URL(doc.sourceUrl).hostname)
+          } catch {
+            // ignore
+          }
+        }
+        const declared = optionalStringArray(doc.allowedHosts)
+        if (declared) hosts.push(...declared)
+      }
+      const allowedHosts = hosts.length ? [...new Set(hosts)] : undefined
+      const securityAudit = this.scanCode(docText, { allowedHosts })
+
+      let commitDiff: { previousCommit?: string; currentCommit: string } | undefined
+      if (prevLock && commit && prevLock.commit !== commit) {
+        commitDiff = { previousCommit: prevLock.commit, currentCommit: commit }
+      }
+
+      const existing =
+        entry.kind === 'music-source' && entry.sourceUrl
+          ? this.sourcesService?.sources.find((r) => r.sourceUrl === entry.sourceUrl)
+          : undefined
+
+      return {
+        entry,
+        ...(allowedHosts ? { allowedHosts } : {}),
+        isBuiltinInstall: entry.kind === 'lyric-source' ? entry.id.startsWith('builtin-') : false,
+        ...(existing?.locallyModified ? { isLocallyModified: true } : {}),
+        securityAudit,
+        ...(repoUrl ? { repoUrl } : {}),
+        ...(commit ? { commit } : {}),
+        ...(commitDiff ? { commitDiff } : {}),
+      }
     }
+
+    if (entry.kind === 'plugin') {
+      if (repoInfo) {
+        const repoUrl = `https://github.com/${repoInfo.owner}/${repoInfo.repo}`
+        const resolved = await this.resolveAuthorRepoCommit(repoInfo.owner, repoInfo.repo)
+        const commit = resolved.commit
+
+        const manifestUrl = `https://raw.githubusercontent.com/${repoInfo.owner}/${repoInfo.repo}/${commit}/manifest.json`
+        const indexUrl = `https://raw.githubusercontent.com/${repoInfo.owner}/${repoInfo.repo}/${commit}/index.js`
+
+        let manifest: PluginManifest
+        let indexJsCode: string
+        try {
+          manifest = await (await this.fetchDocument(manifestUrl)).json<PluginManifest>()
+        } catch (err) {
+          throw new Error(`registry: author repository "${repoInfo.owner}/${repoInfo.repo}" is missing root manifest.json (${String(err)})`, { cause: err })
+        }
+
+        try {
+          indexJsCode = await (await this.fetchDocument(indexUrl)).text()
+        } catch (err) {
+          throw new Error(`registry: author repository "${repoInfo.owner}/${repoInfo.repo}" is missing root index.js (${String(err)})`, { cause: err })
+        }
+
+        const capCheck = checkCapabilitiesMatch(manifest.capabilities ?? [], entry.capabilities ?? [])
+        if (!capCheck.matches) {
+          const diffs: string[] = []
+          if (capCheck.unexpectedInManifest.length) {
+            diffs.push(`manifest 申请但未在注册表声明: [${capCheck.unexpectedInManifest.join(', ')}]`)
+          }
+          if (capCheck.missingInManifest.length) {
+            diffs.push(`注册表声明但 manifest 未申请: [${capCheck.missingInManifest.join(', ')}]`)
+          }
+          throw new Error(
+            `registry: plugin "${entry.id}" capabilities mismatch between manifest and registry metadata: ${diffs.join('; ')}`,
+          )
+        }
+
+        const securityAudit = this.scanCode(indexJsCode)
+
+        let commitDiff: { previousCommit?: string; currentCommit: string } | undefined
+        if (prevLock && commit && prevLock.commit !== commit) {
+          commitDiff = { previousCommit: prevLock.commit, currentCommit: commit }
+        }
+
+        return {
+          entry,
+          securityAudit,
+          repoUrl,
+          commit,
+          ...(commitDiff ? { commitDiff } : {}),
+        }
+      }
+
+      // Legacy bundle details
+      let securityAudit: SecurityAuditReport | undefined
+      if (entry.downloadUrl) {
+        try {
+          const url = this.requireDownloadUrl(entry)
+          const bytes = await (await this.fetchDocument(url)).bytes()
+          const bundle: unknown = JSON.parse(new TextDecoder().decode(bytes))
+          if (isRecord(bundle) && isRecord(bundle.files) && typeof bundle.files['index.js'] === 'string') {
+            securityAudit = this.scanCode(bundle.files['index.js'] as string)
+          }
+        } catch {
+          // ignore details fetch failure for legacy bundle
+        }
+      }
+
+      return {
+        entry,
+        ...(securityAudit ? { securityAudit } : {}),
+      }
+    }
+
+    // Theme
+    return { entry }
   }
 
   /* ── installs ──────────────────────────────────────────────────────────── */
@@ -430,41 +752,96 @@ export class RegistryPlugin extends Service implements RegistryService {
       case 'music-source':
         return this.installMusicSource(entry, opts)
       case 'lyric-source':
-        return this.installLyricSource(entry)
+        return this.installLyricSource(entry, opts)
       case 'theme':
         return this.installTheme(entry)
       case 'plugin':
-        return this.installPlugin(entry)
+        return this.installPlugin(entry, opts)
     }
   }
 
-  /**
-   * Re-import updates the existing row — `SourceRecord` identity is
-   * `sourceUrl`, so installing a newer registry version of a document the
-   * user already has IS the update flow. The import pipeline validates the
-   * document itself.
-   */
   private async installMusicSource(
     entry: RegistryEntry,
     opts?: { confirmed?: boolean; overwrite?: boolean },
   ): Promise<void> {
-    const url = this.requireDownloadUrl(entry)
-    const text = await (await this.fetchDocument(url)).text()
+    const repoInfo = parseGitHubRepo(entry.repoUrl ?? entry.repo)
+    let text: string
+    let originUri: string
+    let repoUrl: string
+    let commit: string
+
+    if (repoInfo) {
+      repoUrl = `https://github.com/${repoInfo.owner}/${repoInfo.repo}`
+      const resolved = await this.resolveAuthorRepoCommit(repoInfo.owner, repoInfo.repo)
+      commit = resolved.commit
+      originUri = `https://raw.githubusercontent.com/${repoInfo.owner}/${repoInfo.repo}/${commit}/index.json`
+      try {
+        text = await (await this.fetchDocument(originUri)).text()
+      } catch (err) {
+        throw new Error(`registry: author repository "${repoInfo.owner}/${repoInfo.repo}" is missing root index.json (${String(err)})`, { cause: err })
+      }
+    } else {
+      originUri = this.requireDownloadUrl(entry)
+      repoUrl = originUri
+      commit = entry.version ?? '0.0.0'
+      text = await (await this.fetchDocument(originUri)).text()
+    }
+
+    const sha256 = sha256Hex(text)
+
+    let doc: unknown
+    try {
+      doc = JSON.parse(text)
+    } catch {
+      // ignore, ctx.sources.import will report format errors
+    }
+    const hosts: string[] = []
+    if (entry.sourceUrl) {
+      try {
+        hosts.push(new URL(entry.sourceUrl).hostname)
+      } catch {
+        // ignore
+      }
+    }
+    if (isRecord(doc)) {
+      if (typeof doc.sourceUrl === 'string' && doc.sourceUrl) {
+        try {
+          hosts.push(new URL(doc.sourceUrl).hostname)
+        } catch {
+          // ignore
+        }
+      }
+      const declared = optionalStringArray(doc.allowedHosts)
+      if (declared) hosts.push(...declared)
+    }
+    const allowedHosts = hosts.length ? [...new Set(hosts)] : undefined
+    const audit = this.scanCode(text, { allowedHosts })
+    if (audit.level === 'block' && !opts?.confirmed) {
+      throw new Error(`registry: security audit blocked installation of "${entry.id}": ${audit.findings.map((f) => f.message).join('; ')}`)
+    }
+
     const report = await this.requireSources().import(text, {
-      originUri: url,
+      originUri,
       overwrite: opts?.overwrite,
     })
 
-    // The entry's `sourceUrl` is the identity to look for; when the index
-    // omits it, any accepted document counts. Rejected and locally-modified
-    // rows do not.
     const matched = entry.sourceUrl
       ? report.added.some((r) => r.sourceUrl === entry.sourceUrl) ||
         report.updated.some((u) => u.record.sourceUrl === entry.sourceUrl) ||
         report.unchanged.some((r) => r.sourceUrl === entry.sourceUrl)
       : report.added.length + report.updated.length + report.unchanged.length > 0
 
-    if (matched) return
+    if (matched) {
+      await this.lockManager.setRecord({
+        id: entry.id,
+        kind: 'music-source',
+        repo: repoUrl,
+        commit,
+        sha256,
+        installedAt: Date.now(),
+      })
+      return
+    }
 
     const reasons = [
       ...report.rejected.map((r) => `${r.sourceName ?? `#${r.index}`}: ${r.error.message}`),
@@ -477,9 +854,35 @@ export class RegistryPlugin extends Service implements RegistryService {
     )
   }
 
-  private async installLyricSource(entry: RegistryEntry): Promise<void> {
-    const url = this.requireDownloadUrl(entry)
-    const doc = await (await this.fetchDocument(url)).json<unknown>()
+  private async installLyricSource(
+    entry: RegistryEntry,
+    opts?: { confirmed?: boolean },
+  ): Promise<void> {
+    const repoInfo = parseGitHubRepo(entry.repoUrl ?? entry.repo)
+    let doc: unknown
+    let repoUrl: string
+    let commit: string
+    let rawText: string
+
+    if (repoInfo) {
+      repoUrl = `https://github.com/${repoInfo.owner}/${repoInfo.repo}`
+      const resolved = await this.resolveAuthorRepoCommit(repoInfo.owner, repoInfo.repo)
+      commit = resolved.commit
+      const rawUrl = `https://raw.githubusercontent.com/${repoInfo.owner}/${repoInfo.repo}/${commit}/index.json`
+      try {
+        rawText = await (await this.fetchDocument(rawUrl)).text()
+        doc = JSON.parse(rawText)
+      } catch (err) {
+        throw new Error(`registry: author repository "${repoInfo.owner}/${repoInfo.repo}" is missing root index.json (${String(err)})`, { cause: err })
+      }
+    } else {
+      const url = this.requireDownloadUrl(entry)
+      repoUrl = url
+      commit = entry.version ?? '0.0.0'
+      rawText = await (await this.fetchDocument(url)).text()
+      doc = JSON.parse(rawText)
+    }
+
     if (
       !isRecord(doc) ||
       typeof doc.id !== 'string' || !doc.id.trim() ||
@@ -488,12 +891,46 @@ export class RegistryPlugin extends Service implements RegistryService {
     ) {
       throw new Error(`registry: the lyric source document for "${entry.id}" is missing non-empty id/name/script fields`)
     }
+
+    const sha256 = sha256Hex(rawText)
+    const audit = this.scanCode(doc.script as string, { allowedHosts: optionalStringArray(doc.allowedHosts) })
+    if (audit.level === 'block' && !opts?.confirmed) {
+      throw new Error(`registry: security audit blocked installation of lyric source "${entry.id}": ${audit.findings.map((f) => f.message).join('; ')}`)
+    }
+
     await this.requireLyricSources().registerSource(doc as unknown as LyricSourceDefinition)
+    await this.lockManager.setRecord({
+      id: entry.id,
+      kind: 'lyric-source',
+      repo: repoUrl,
+      commit,
+      sha256,
+      installedAt: Date.now(),
+    })
   }
 
   private async installTheme(entry: RegistryEntry): Promise<void> {
-    const url = this.requireDownloadUrl(entry)
-    const doc = await (await this.fetchDocument(url)).json<unknown>()
+    let doc: unknown
+    let rawText: string
+    let repoUrl: string
+    let commit: string
+
+    const repoInfo = parseGitHubRepo(entry.repoUrl ?? entry.repo)
+    if (repoInfo) {
+      repoUrl = `https://github.com/${repoInfo.owner}/${repoInfo.repo}`
+      const resolved = await this.resolveAuthorRepoCommit(repoInfo.owner, repoInfo.repo)
+      commit = resolved.commit
+      const rawUrl = `https://raw.githubusercontent.com/${repoInfo.owner}/${repoInfo.repo}/${commit}/theme.json`
+      rawText = await (await this.fetchDocument(rawUrl)).text()
+      doc = JSON.parse(rawText)
+    } else {
+      const url = this.requireDownloadUrl(entry)
+      repoUrl = url
+      commit = entry.version ?? '0.0.0'
+      rawText = await (await this.fetchDocument(url)).text()
+      doc = JSON.parse(rawText)
+    }
+
     if (
       !isRecord(doc) ||
       typeof doc.id !== 'string' || !doc.id ||
@@ -505,8 +942,6 @@ export class RegistryPlugin extends Service implements RegistryService {
     }
     const theme = doc as unknown as ThemeDefinition
 
-    // Same gate a user-drafted theme goes through: a theme nobody can read
-    // is not a theme the registry should hand out.
     const issues = [...themeContrastIssues(theme, 'dark'), ...themeContrastIssues(theme, 'light')]
     if (issues.length) {
       const detail = issues
@@ -516,9 +951,88 @@ export class RegistryPlugin extends Service implements RegistryService {
     }
 
     this.requireTheme().registerTheme(theme)
+    await this.lockManager.setRecord({
+      id: entry.id,
+      kind: 'theme',
+      repo: repoUrl,
+      commit,
+      sha256: sha256Hex(rawText),
+      installedAt: Date.now(),
+    })
   }
 
-  private async installPlugin(entry: RegistryEntry): Promise<void> {
+  private async installPlugin(
+    entry: RegistryEntry,
+    opts?: { confirmed?: boolean },
+  ): Promise<void> {
+    const repoInfo = parseGitHubRepo(entry.repoUrl ?? entry.repo)
+
+    if (repoInfo) {
+      const repoUrl = `https://github.com/${repoInfo.owner}/${repoInfo.repo}`
+      const resolved = await this.resolveAuthorRepoCommit(repoInfo.owner, repoInfo.repo)
+      const commit = resolved.commit
+
+      const manifestUrl = `https://raw.githubusercontent.com/${repoInfo.owner}/${repoInfo.repo}/${commit}/manifest.json`
+      const indexUrl = `https://raw.githubusercontent.com/${repoInfo.owner}/${repoInfo.repo}/${commit}/index.js`
+
+      let manifest: PluginManifest
+      let indexJsCode: string
+      try {
+        manifest = await (await this.fetchDocument(manifestUrl)).json<PluginManifest>()
+      } catch (err) {
+        throw new Error(`registry: author repository "${repoInfo.owner}/${repoInfo.repo}" is missing root manifest.json (${String(err)})`, { cause: err })
+      }
+
+      try {
+        indexJsCode = await (await this.fetchDocument(indexUrl)).text()
+      } catch (err) {
+        throw new Error(`registry: author repository "${repoInfo.owner}/${repoInfo.repo}" is missing root index.js (${String(err)})`, { cause: err })
+      }
+
+      const capCheck = checkCapabilitiesMatch(manifest.capabilities ?? [], entry.capabilities ?? [])
+      if (!capCheck.matches) {
+        const diffs: string[] = []
+        if (capCheck.unexpectedInManifest.length) {
+          diffs.push(`manifest 申请但未在注册表声明: [${capCheck.unexpectedInManifest.join(', ')}]`)
+        }
+        if (capCheck.missingInManifest.length) {
+          diffs.push(`注册表声明但 manifest 未申请: [${capCheck.missingInManifest.join(', ')}]`)
+        }
+        throw new Error(
+          `registry: plugin "${entry.id}" capabilities mismatch between manifest and registry metadata: ${diffs.join('; ')}`,
+        )
+      }
+
+      const audit = this.scanCode(indexJsCode)
+      if (audit.level === 'block' && !opts?.confirmed) {
+        throw new Error(
+          `registry: security audit blocked installation of plugin "${entry.id}": ${audit.findings.map((f) => f.message).join('; ')}`,
+        )
+      }
+
+      const installer = this.pluginInstaller
+      if (!installer) {
+        throw new Error('registry: plugin install is only supported on desktop')
+      }
+
+      const bundle: PluginInstallBundle = {
+        manifest,
+        files: { 'index.js': indexJsCode },
+      }
+      await installer(bundle)
+
+      await this.lockManager.setRecord({
+        id: entry.id,
+        kind: 'plugin',
+        repo: repoUrl,
+        commit,
+        sha256: sha256Hex(indexJsCode),
+        installedAt: Date.now(),
+      })
+      return
+    }
+
+    // Legacy bundle downloadUrl
     const url = this.requireDownloadUrl(entry)
     const bytes = await (await this.fetchDocument(url)).bytes()
 
@@ -552,11 +1066,27 @@ export class RegistryPlugin extends Service implements RegistryService {
       throw new Error(`registry: the manifest in the bundle for "${entry.id}" is missing id/version/entry.main`)
     }
 
+    if (files['index.js']) {
+      const audit = this.scanCode(files['index.js'])
+      if (audit.level === 'block' && !opts?.confirmed) {
+        throw new Error(`registry: security audit blocked installation of plugin "${entry.id}": ${audit.findings.map((f) => f.message).join('; ')}`)
+      }
+    }
+
     const installer = this.pluginInstaller
     if (!installer) {
       throw new Error('registry: plugin install is only supported on desktop')
     }
     await installer({ manifest, files })
+
+    await this.lockManager.setRecord({
+      id: entry.id,
+      kind: 'plugin',
+      repo: url,
+      commit: entry.version ?? '0.0.0',
+      sha256: digest,
+      installedAt: Date.now(),
+    })
   }
 
   setPluginInstaller(installer: (bundle: PluginInstallBundle) => Promise<void>): void {
@@ -565,7 +1095,6 @@ export class RegistryPlugin extends Service implements RegistryService {
 
   /* ── helpers ───────────────────────────────────────────────────────────── */
 
-  /** One round trip, status-checked: a 4xx/5xx is a failure, not a document. */
   private async fetchDocument(url: string): Promise<HttpResponse> {
     const response = await this.http({ url, method: 'GET' })
     if (response.status >= 400) {
@@ -632,7 +1161,6 @@ export class RegistryPlugin extends Service implements RegistryService {
     try {
       await this.storeService?.set<IndexCache>(INDEX_CACHE_KEY, { fetchedAt: Date.now(), index })
     } catch (err) {
-      // Failing to persist must not fail the fetch that just succeeded.
       this.ownCtx.logger.warn(`registry: failed to persist the index cache: ${String(err)}`)
     }
   }
@@ -677,8 +1205,6 @@ export class RegistryPlugin extends Service implements RegistryService {
       clearInterval(interval)
     }
     this.autoCheckCancel = cancel
-    // The fiber clears the timers even if this plugin is unloaded before
-    // either one fires.
     this.ownCtx.effect(() => cancel, 'registry-auto-check')
   }
 

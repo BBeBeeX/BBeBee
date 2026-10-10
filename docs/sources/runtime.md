@@ -285,7 +285,7 @@ How each flow is expressed in the document:
 | `variable` | `variableComment` only | Subsonic's `user:password`, consumed by `jsLib` |
 | `form` | `loginUi` (the fields) + `loginUrl` (where they go) | A self-hosted server's `/login` |
 | `webview` | `loginUrl` + `requiredCookies`, opened in `ctx.shell` | A backend whose login is a page, not an API |
-| `qrcode` | `loginType: 'qrcode'` + `loginQrJs` + `loginPollJs` | Web/QR sign-in flows (e.g. Bilibili) |
+| `qrcode` | `loginType: 'qrcode'` + `loginQrJs` + `loginPollJs` | Web/QR sign-in flows (e.g. Subsonic) |
 
 `loginCheckJs` runs after every response and decides whether the session is still good; returning
 false sets `status = 'expired'` and emits `source/auth-expired`. It is the source's equivalent of

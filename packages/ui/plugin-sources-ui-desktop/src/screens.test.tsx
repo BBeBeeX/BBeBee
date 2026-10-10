@@ -27,6 +27,9 @@ import type {
   SearchQuery,
   SearchResult,
   Track,
+  HttpRequest,
+  HttpResponse,
+  SecretsService,
 } from '@BBeBee/protocol'
 import { tempDir, tick } from '@BBeBee/kernel/testing'
 import { withListLayout } from '@BBeBee/ui-kit-desktop/testing'
@@ -63,11 +66,53 @@ afterEach(() => {
  * anyone tapped a track. Rendering against the real shape is what makes that
  * a failing test rather than a bug report.
  */
-async function harness(): Promise<{ ctx: Context; admin: Context }> {
+async function harness(options?: {
+  httpHandler?: (req: HttpRequest) => Promise<HttpResponse>
+}): Promise<{ ctx: Context; admin: Context; secretsStore: Map<string, string> }> {
   const root = new Context()
   await root.plugin(PathsNode, { root: await tempDir('bbebee-screens') })
   await root.plugin(FsNode)
   await root.plugin(DbNode, { fileName: ':memory:' })
+
+  const secretsStore = new Map<string, string>()
+  const createSecrets = (prefix = ''): SecretsService => ({
+    isHardwareBacked: true,
+    maxValueBytes: 2048,
+    async get(key: string) {
+      return secretsStore.get(`${prefix}:${key}`)
+    },
+    async set(key: string, value: string) {
+      secretsStore.set(`${prefix}:${key}`, value)
+    },
+    async delete(key: string) {
+      secretsStore.delete(`${prefix}:${key}`)
+    },
+    async clear() {
+      for (const k of secretsStore.keys()) {
+        if (k.startsWith(`${prefix}:`)) secretsStore.delete(k)
+      }
+    },
+    namespace(ns: string) {
+      return createSecrets(`${prefix}:${ns}`)
+    },
+  })
+  root.provide('secrets', createSecrets('test'))
+
+  if (options?.httpHandler) {
+    const handler = options.httpHandler
+    root.provide('http', Object.assign(handler, {
+      cookies: {
+        jar: () => ({
+          ready: Promise.resolve(),
+          get: async () => [],
+          set: async () => {},
+          all: async () => [],
+          destroy: async () => {},
+        }),
+      },
+    }))
+  }
+
   await root.plugin(sourcesPlugin, {})
   await tick()
 
@@ -85,7 +130,7 @@ async function harness(): Promise<{ ctx: Context; admin: Context }> {
   root.inject(declared, (s) => void (scoped = s))
   await tick()
   if (!scoped) throw new Error('screens harness: no scoped context')
-  return { ctx: scoped, admin: root }
+  return { ctx: scoped, admin: root, secretsStore }
 }
 
 const DOC = {
@@ -789,6 +834,180 @@ describe('SourcesListScreen', () => {
       await tick()
     })
     expect(calls).toEqual(['enable:dir-1:false', 'remove:dir-1'])
+  })
+
+  it('configures per-source parameters (host, secrets, vars), tests connection 3-state, and saves', async () => {
+    let pingResponse: HttpResponse | null = {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        'subsonic-response': {
+          status: 'ok',
+          version: '1.16.1',
+        },
+      }),
+      ok: true,
+      text: async () =>
+        JSON.stringify({
+          'subsonic-response': {
+            status: 'ok',
+            version: '1.16.1',
+          },
+        }),
+      json: async () => ({
+        'subsonic-response': {
+          status: 'ok',
+          version: '1.16.1',
+        },
+      }),
+    } as unknown as HttpResponse
+
+    const { ctx, admin, secretsStore } = await harness({
+      httpHandler: async () => {
+        if (!pingResponse) throw new Error('Network unreachable')
+        return pingResponse
+      },
+    })
+
+    const SUBSONIC_DOC = {
+      sourceUrl: 'https://subsonic.example.com',
+      sourceName: 'My Subsonic',
+      sourceGroup: 'self-hosted,subsonic',
+      loginUi: [
+        { id: 'user', label: 'Username', type: 'text' },
+        { id: 'password', label: 'Password', type: 'password' },
+      ],
+      ruleStream: { url: '={{source.url}}/rest/stream' },
+    }
+
+    const report = await admin.sources.import(JSON.stringify(SUBSONIC_DOC))
+    const id = report.added[0]!.id
+    await tick()
+
+    render(h(SourcesListScreen, { ctx }))
+    await act(async () => {
+      await tick()
+    })
+
+    // Click Configure button
+    await act(async () => {
+      screen.getByTestId(`sources-list-configure-${id}`).click()
+      await tick()
+      await tick()
+    })
+
+    expect(screen.getByTestId('source-configure-modal')).toBeTruthy()
+
+    // 1. Check & change host, user, password
+    expect(screen.getByTestId('source-configure-host')).toBeTruthy()
+    await act(async () => {
+      fireEvent.change(screen.getByTestId('source-configure-host'), {
+        target: { value: 'https://new-subsonic.server.org' },
+      })
+      fireEvent.change(screen.getByTestId('source-configure-user'), {
+        target: { value: 'adminUser' },
+      })
+      fireEvent.change(screen.getByTestId('source-configure-password'), {
+        target: { value: 'secretPass123' },
+      })
+      await tick()
+    })
+
+    // 2. Add custom variable
+    await act(async () => {
+      fireEvent.change(screen.getByTestId('source-configure-new-var-key'), {
+        target: { value: 'clientApp' },
+      })
+      fireEvent.change(screen.getByTestId('source-configure-new-var-val'), {
+        target: { value: 'BBeBeeTest' },
+      })
+      screen.getByTestId('source-configure-add-var-btn').click()
+      await tick()
+    })
+    expect(screen.getByTestId('source-configure-var-clientApp')).toBeTruthy()
+
+    // 3. Test Connection - State 1: OK
+    await act(async () => {
+      screen.getByTestId('source-configure-test-btn').click()
+      await tick()
+      await tick()
+    })
+    expect(screen.getByTestId('source-configure-ping-result').textContent).toContain('Connected')
+    expect(screen.getByTestId('source-configure-ping-result').textContent).toContain('1.16.1')
+
+    // Test Connection - State 2: Auth Failed
+    pingResponse = {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        'subsonic-response': {
+          status: 'failed',
+          error: { code: 40, message: 'Wrong username or password' },
+        },
+      }),
+      ok: true,
+      text: async () =>
+        JSON.stringify({
+          'subsonic-response': {
+            status: 'failed',
+            error: { code: 40, message: 'Wrong username or password' },
+          },
+        }),
+      json: async () => ({
+        'subsonic-response': {
+          status: 'failed',
+          error: { code: 40, message: 'Wrong username or password' },
+        },
+      }),
+    } as unknown as HttpResponse
+
+    await act(async () => {
+      screen.getByTestId('source-configure-test-btn').click()
+      await tick()
+      await tick()
+    })
+    expect(screen.getByTestId('source-configure-ping-result').textContent).toContain(
+      'Authentication Failed',
+    )
+
+    // Test Connection - State 3: Network Error
+    pingResponse = null
+    await act(async () => {
+      screen.getByTestId('source-configure-test-btn').click()
+      await tick()
+      await tick()
+    })
+    expect(screen.getByTestId('source-configure-ping-result').textContent).toContain(
+      'Network Error',
+    )
+
+    // 4. Save
+    await act(async () => {
+      screen.getByTestId('source-configure-save-btn').click()
+      await tick()
+      await tick()
+    })
+
+    // Verify modal closed
+    expect(screen.queryByTestId('source-configure-modal')).toBeNull()
+
+    // Verify source host updated
+    expect(admin.sources.source(id)?.sourceUrl).toBe('https://new-subsonic.server.org')
+
+    // Verify allowed hosts recalculated
+    const allowed = admin.sources.source(id)?.allowedHosts ?? []
+    expect(allowed).toContain('new-subsonic.server.org')
+
+    // Verify secrets saved to secrets store (keychain)
+    expect(secretsStore.get(`test:${id}:user`)).toBe('adminUser')
+    expect(secretsStore.get(`test:${id}:password`)).toBe('secretPass123')
+
+    // Verify vars saved to database
+    const vars = await admin.sources.readVars(id)
+    expect(vars['clientApp']).toBe('BBeBeeTest')
+    // Secrets must NOT be in source_vars
+    expect(vars['user']).toBeUndefined()
+    expect(vars['password']).toBeUndefined()
   })
 })
 

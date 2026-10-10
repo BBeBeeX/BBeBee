@@ -52,15 +52,15 @@ registry/
   "repository": "BBeBeeX/B_Be_Bee-registry",
   "entries": [
     {
-      "id": "bilibili",
+      "id": "subsonic",
       "kind": "music-source",
-      "name": "Bilibili",
+      "name": "Subsonic",
       "version": "1.0.0",
       "author": "BBeBee",
       "description": "…",
       "updatedAt": "2026-10-07T10:22:39-04:00",
-      "downloadUrl": "https://…/dist/music-sources/bilibili.json",
-      "sourceUrl": "https://www.bilibili.com"
+      "downloadUrl": "https://…/dist/music-sources/subsonic.json",
+      "sourceUrl": "https://music.example.org"
     }
   ]
 }
@@ -148,32 +148,79 @@ checks run regardless.
 
 ---
 
-## 5. Install flows per kind
+## 5. Install flows, author repository artifact chain & security audit
 
-`install(entry)` routes to the service that owns the kind — the registry
-service is a thin coordinator that validates nothing a downstream service
-already validates, and hides nothing a user must see before confirming:
+The registry operates an end-to-end security gating architecture covering discovery, downloading, static auditing, pre-installation confirmation, and tamper-resistant local locking:
+
+### 5.1 Discovery via GitHub Contents API
+
+Instead of querying a single monolithic `registry.json`, `getIndex()` enumerates 4 categorized directories via the GitHub Contents API:
+- `music-sources/`
+- `lyric-sources/`
+- `plugins/`
+- `themes/`
+
+Each directory item is parsed and sanitized. If the network or API fails, the service falls back first to a legacy single `registry.json` endpoint if available, and finally to the offline store cache (`registry.index-cache`).
+
+### 5.2 Author Repository Artifact Chain
+
+For third-party plugins and author repositories:
+1. **Commit resolution**: Queries `https://api.github.com/repos/{owner}/{repo}/commits/HEAD` to resolve the immutable HEAD commit SHA.
+2. **Artifact retrieval**: Downloads root `manifest.json` and `index.js` (or `index.json`) pinned to that exact commit.
+3. **Capability consistency check**: Verifies that capabilities declared in `manifest.json` strictly match those declared in registry metadata. If the manifest requests undeclared capabilities or misses declared ones, installation is rejected immediately.
+
+### 5.3 Static Security Audit (`ctx.securityAudit`)
+
+The built-in `@BBeBee/plugin-security-audit` plugin (Layer 4) provides static code analysis against 7 security hazard patterns (§1.4c):
+- `dynamic-execution`: `eval()`, `new Function()`, `setTimeout`/`setInterval` with string code, `vm` breakout.
+- `undeclared-egress`: Network requests (`fetch`, `XMLHttpRequest`, `WebSocket`, etc.) directed to hosts outside the declared `allowedHosts` allowlist.
+- `hardcoded-credentials`: Leaked private keys (`-----BEGIN PRIVATE KEY-----`), API tokens (`ghp_`, `sk_live_`, AWS keys).
+- `prototype-pollution`: Mutations to `__proto__`, `Object.prototype`, `constructor.prototype`.
+- `remote-dynamic-import`: Dynamic `import()` statements fetching remote URLs.
+- `code-obfuscation`: Dense hex/unicode escape sequences and packer signatures.
+- `high-entropy-string`: Shannon entropy scanning flagging potential packed/encrypted payloads.
+
+Findings are tagged as `block` (critical) or `warn` (suspicious). If any finding is at `block` level, installation is blocked by default.
+
+### 5.4 Pre-Installation Audit Confirmation Dialog
+
+Before any installation or update proceeds, the desktop UI (`packages/ui/plugin-registry-ui-desktop`) presents an `InstallConfirmDialog`:
+- **Security Audit Report**: Displays an audit severity badge (`通过 (Pass)` / `警告 (Warn)` / `高危风险 (Block)`) and lists individual findings (category, severity, code snippet, line number).
+- **Author repository & commit**: Shows the source repository link and commit SHA.
+- **Commit Diff**: For updates, displays the commit progression (e.g., `a1b2c3d → e4f5g6h`).
+- **Block Gating**: When audit level is `block`, the confirmation button is disabled by default. Installation requires explicit confirmation via the `我已知晓高危风险并确认强制安装` override checkbox.
+
+### 5.5 `registry.lock.json` Anti-Tampering Management
+
+- **Location**: Stored in the App User Data directory as `registry.lock.json` (also mirrored in `ctx.store` under `registry.lock`).
+- **Format**:
+  ```jsonc
+  {
+    "version": 1,
+    "records": {
+      "custom-plugin": {
+        "id": "custom-plugin",
+        "kind": "plugin",
+        "repo": "https://github.com/alice/custom-plugin",
+        "commit": "a1b2c3d4e5f67890",
+        "sha256": "3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
+        "installedAt": 1775894400000
+      }
+    }
+  }
+  ```
+- **Load-time Verification**: On boot, the desktop dynamic loader (`apps/desktop/renderer/dynamic-loader.ts`) recalculates the SHA-256 of installed plugins and compares them against `registry.lock.json`. If a mismatch is detected (tampered files), the plugin is marked `quarantined` and execution is refused to prevent malicious code injection.
+
+---
+
+## 6. Install flows per kind
 
 | Kind | Flow |
 |---|---|
-| `music-source` | Fetch the `dist/` document → `ctx.sources.import(text, { originUri: downloadUrl })`. The full import pipeline applies: validation, `sourceUrl` dedup, review of rejected/conflicted rows. Install fails loudly if the report shows no accepted row for the entry's `sourceUrl`. |
-| `lyric-source` | Fetch the `dist/` document → shape-check (`id` / `name` / `script`) → `ctx.lyricSources.registerSource(doc)`. |
-| `theme` | Fetch the `dist/` document → shape-check → the **same dark/light contrast gate** a user-drafted theme goes through → `ctx.theme.registerTheme(doc)`. |
-| `plugin` | Fetch the bundle (`{ manifest, files }` JSON) → **refuse if the entry publishes no `sha256`** → verify the downloaded bytes against the digest → shape-check the manifest → hand to the desktop dynamic host via `setPluginInstaller`. Desktop-only. |
-
-**Security red lines, enforced in the UI before `install()` is called:**
-
-- **`allowedHosts` is shown before install.** `fetchEntryDetails()` extracts
-  the music document's egress list so the confirm dialog can name every host
-  the source will be allowed to talk to. A host list is a sentence a user can
-  judge; it must be on screen before the document is imported, not discovered
-  afterwards.
-- **Plugin installs are a risk confirmation.** The dialog shows the entry's
-  `repoUrl`, declared `capabilities` and verified `sha256`; the user explicitly
-  confirms before code is loaded.
-- **The app only consumes `dist/` artifacts.** Entry sources in the registry
-  repo exist for human review (`MODERATION.md`); nothing fetches them at
-  runtime.
+| `music-source` | Fetch the `dist/` document → `ctx.sources.import(text, { originUri: downloadUrl })`. Full import pipeline applies; records pinned metadata in `registry.lock.json`. |
+| `lyric-source` | Fetch document / author repo → shape check → static security scan → `ctx.lyricSources.registerSource(doc)` → records in `registry.lock.json`. |
+| `theme` | Fetch document / author repo → shape check → WCAG AA contrast check → `ctx.theme.registerTheme(doc)` → records in `registry.lock.json`. |
+| `plugin` | Fetch bundle / author repo → capability consistency check → static security scan → desktop dynamic loader bridge `installAndActivatePlugin` → records in `registry.lock.json`. |
 
 ---
 

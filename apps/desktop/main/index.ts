@@ -34,6 +34,7 @@ import {
   type CloseContext,
 } from './window-policy.js'
 import { fileURLToPath } from 'node:url'
+import { createHash } from 'node:crypto'
 import { dirname, join, extname, resolve, relative, isAbsolute } from 'node:path'
 import {
   existsSync,
@@ -1088,11 +1089,23 @@ function registerHandlers(): void {
     }
   })
 
+  ipcMain.handle('plugins:get-lock', async () => {
+    try {
+      const lockPath = join(app.getPath('userData'), 'registry.lock.json')
+      if (existsSync(lockPath)) {
+        return JSON.parse(readFileSync(lockPath, 'utf8'))
+      }
+    } catch {
+      // ignore malformed lock
+    }
+    return undefined
+  })
+
   ipcMain.handle('plugins:list-installed', async () => {
     try {
       const root = getInstalledPluginsDir()
       const entries = readdirSync(root, { withFileTypes: true })
-      const plugins: Array<{ id: string; version: string; manifest: unknown; dirName: string }> = []
+      const plugins: Array<{ id: string; version: string; manifest: unknown; dirName: string; sha256?: string }> = []
 
       for (const entry of entries) {
         if (!entry.isDirectory()) continue
@@ -1126,11 +1139,30 @@ function registerHandlers(): void {
         }
 
         if (manifest && manifest['id']) {
+          const entryMain = (
+            typeof manifest['entry'] === 'object' &&
+            manifest['entry'] &&
+            typeof (manifest['entry'] as Record<string, unknown>)['main'] === 'string'
+              ? ((manifest['entry'] as Record<string, unknown>)['main'] as string)
+              : './index.js'
+          ).replace(/^\.?\//, '')
+          const mainFilePath = join(root, entry.name, entryMain)
+          let sha256: string | undefined
+          if (existsSync(mainFilePath)) {
+            try {
+              const buf = readFileSync(mainFilePath)
+              sha256 = createHash('sha256').update(buf).digest('hex')
+            } catch {
+              // ignore hash computation failure
+            }
+          }
+
           plugins.push({
             id: String(manifest['id']),
             version: String(manifest['version'] ?? '1.0.0'),
             manifest,
             dirName: entry.name,
+            ...(sha256 ? { sha256 } : {}),
           })
         }
       }

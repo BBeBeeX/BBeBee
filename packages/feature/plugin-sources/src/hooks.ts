@@ -21,6 +21,7 @@ import type {
   CatalogQuery,
   DebugStep,
   ImportReport,
+  LyricSourcesService,
   MediaProvider,
   Paged,
   PlayerService,
@@ -28,10 +29,14 @@ import type {
   QueueSourceContext,
   ScanSpecifiedDir,
   ScannerService,
+  SourceParams,
+  SourcePingParams,
+  SourcePingResult,
   SourceRecord,
   SourcesService,
   Track,
   TraceEvent,
+  UpdateSourceParams,
 } from '@BBeBee/protocol'
 import { canSearchProvider } from './capabilities.js'
 import { parseSourceInput } from './identity.js'
@@ -1119,3 +1124,170 @@ export function useRecommendFeed(
 
   return { items, loading, error, hasMore: !exhausted, loadMore, reload }
 }
+
+/* ── source parameters & connectivity testing ──────────────────────────── */
+
+export interface SourceParamsState {
+  params: SourceParams | undefined
+  record: SourceRecord | undefined
+  loading: boolean
+  error?: Error
+  pingState: {
+    loading: boolean
+    result?: SourcePingResult
+  }
+  testConnection: (probeParams?: SourcePingParams) => Promise<SourcePingResult>
+  saveParams: (updates: UpdateSourceParams) => Promise<void>
+  reload: () => void
+}
+
+export function useSourceParams(ctx: Context, sourceId: string | undefined): SourceParamsState {
+  const [params, setParams] = useState<SourceParams | undefined>(undefined)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<Error | undefined>(undefined)
+  const [pingState, setPingState] = useState<{ loading: boolean; result?: SourcePingResult }>({ loading: false })
+  const [generation, setGeneration] = useState(0)
+
+  const record = useMemo(() => {
+    if (!sourceId) return undefined
+    return ctx.sources.source(sourceId)
+  }, [ctx, sourceId, generation])
+
+  const load = useCallback(() => {
+    if (!sourceId) {
+      setParams(undefined)
+      setLoading(false)
+      setError(undefined)
+      return
+    }
+    setLoading(true)
+    setError(undefined)
+    ctx.sources
+      .getSourceParams(sourceId)
+      .then((p) => {
+        setParams(p)
+        setLoading(false)
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err : new Error(String(err)))
+        setLoading(false)
+      })
+  }, [ctx, sourceId])
+
+  useEffect(() => {
+    load()
+  }, [load, generation])
+
+  useEffect(() => {
+    const off = ctx.on('source/changed', (id) => {
+      if (id === sourceId) {
+        setGeneration((g) => g + 1)
+      }
+    })
+    return () => void off()
+  }, [ctx, sourceId])
+
+  const testConnection = useCallback(
+    async (probeParams?: SourcePingParams): Promise<SourcePingResult> => {
+      if (!sourceId) {
+        const res: SourcePingResult = { status: 'network_error', message: 'No source selected' }
+        setPingState({ loading: false, result: res })
+        return res
+      }
+      setPingState({ loading: true, result: undefined })
+      try {
+        const res = await ctx.sources.testConnection(sourceId, probeParams)
+        setPingState({ loading: false, result: res })
+        return res
+      } catch (err: unknown) {
+        const res: SourcePingResult = {
+          status: 'network_error',
+          message: err instanceof Error ? err.message : String(err),
+        }
+        setPingState({ loading: false, result: res })
+        return res
+      }
+    },
+    [ctx, sourceId],
+  )
+
+  const saveParams = useCallback(
+    async (updates: UpdateSourceParams): Promise<void> => {
+      if (!sourceId) return
+      setLoading(true)
+      try {
+        await ctx.sources.updateSourceParams(sourceId, updates)
+        setGeneration((g) => g + 1)
+      } finally {
+        setLoading(false)
+      }
+    },
+    [ctx, sourceId],
+  )
+
+  return {
+    params,
+    record,
+    loading,
+    error,
+    pingState,
+    testConnection,
+    saveParams,
+    reload: () => setGeneration((g) => g + 1),
+  }
+}
+
+export function useLyricSourceConfig(ctx: Context, sourceId: string | undefined) {
+  const [config, setConfig] = useState<Record<string, unknown> | undefined>(undefined)
+  const [loading, setLoading] = useState(false)
+  const [generation, setGeneration] = useState(0)
+
+  const source = useMemo(() => {
+    if (!sourceId) return undefined
+    const svc = serviceOf<LyricSourcesService>(ctx, 'lyricSources')
+    return svc?.getSource(sourceId)
+  }, [ctx, sourceId, generation])
+
+  useEffect(() => {
+    if (!sourceId) {
+      setConfig(undefined)
+      return
+    }
+    const svc = serviceOf<LyricSourcesService>(ctx, 'lyricSources')
+    const s = svc?.getSource(sourceId)
+    setConfig(s?.config ?? {})
+  }, [ctx, sourceId, generation])
+
+  useEffect(() => {
+    const off = ctx.on('lyric-sources/changed', () => {
+      setGeneration((g) => g + 1)
+    })
+    return () => void off()
+  }, [ctx])
+
+  const saveConfig = useCallback(
+    async (newConfig: Record<string, unknown>): Promise<void> => {
+      if (!sourceId) return
+      const svc = serviceOf<LyricSourcesService>(ctx, 'lyricSources')
+      if (!svc) throw new Error('No lyricSources service')
+      setLoading(true)
+      try {
+        await svc.updateSourceConfig(sourceId, newConfig)
+        setConfig(newConfig)
+        setGeneration((g) => g + 1)
+      } finally {
+        setLoading(false)
+      }
+    },
+    [ctx, sourceId],
+  )
+
+  return {
+    source,
+    config,
+    loading,
+    saveConfig,
+    reload: () => setGeneration((g) => g + 1),
+  }
+}
+

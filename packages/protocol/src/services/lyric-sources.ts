@@ -71,6 +71,8 @@ export interface LyricSourcesService {
   removeSource(id: string): Promise<boolean>
   /** Toggle whether a lyric source is enabled. */
   setEnabled(id: string, enabled: boolean): Promise<void>
+  /** Update custom configuration parameters for a lyric source. */
+  updateSourceConfig(id: string, config: Record<string, unknown>): Promise<void>
   /** Reorder lyric source priorities by passing an ordered list of IDs. */
   reorder(ids: string[]): Promise<void>
   /**

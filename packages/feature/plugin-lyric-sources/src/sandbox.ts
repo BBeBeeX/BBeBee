@@ -114,11 +114,12 @@ export async function executeLyricSource(
   rawQuery: LyricSearchQuery,
   services: SandboxServices = {},
 ): Promise<unknown> {
-  // Enforce strict data boundary: ONLY title, artist, and duration are passed
+  // Enforce strict data boundary: title, artist, duration, and optional source config
   const sanitizedQuery = Object.freeze({
     title: String(rawQuery.title ?? ''),
     artist: String(rawQuery.artist ?? ''),
     duration: Math.round(Number(rawQuery.duration ?? 0)),
+    ...(source.config !== undefined ? { config: Object.freeze({ ...source.config }) } : {}),
   })
 
   // 1. If QuickJS realm service (ctx.js) is available, use real engine realm
@@ -283,6 +284,7 @@ export async function executeLyricSource(
         }
 
         // User script
+        const config = typeof __config__ === 'object' && __config__ !== null ? __config__ : {};
         ${source.script}
 
         if (typeof searchLyrics === 'function') {
@@ -298,7 +300,7 @@ export async function executeLyricSource(
       })()
       `
 
-      return await realm.eval(runner, { __query__: sanitizedQuery })
+      return await realm.eval(runner, { __query__: sanitizedQuery, __config__: source.config ?? {} })
     } finally {
       realm.dispose()
     }
@@ -319,6 +321,7 @@ export async function executeLyricSource(
   const wrappedFunction = new Function(
     '__query__',
     'httpFetch',
+    'config',
     'window',
     'document',
     'process',
@@ -337,6 +340,7 @@ export async function executeLyricSource(
     wrappedFunction(
       sanitizedQuery,
       boundHttpFetch,
+      source.config ?? {},
       undefined,
       undefined,
       undefined,
