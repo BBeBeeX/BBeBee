@@ -6,7 +6,7 @@ Layer 4（feature）— BBeBee「音乐源规则语言」（legado 书源模式�
 
 > Pure logic: no Cordis, no platform SDK, and no I/O of any kind. It takes a rule and a scope and returns a value; every fetch belongs to `plugin-source-runtime`.
 
-纯粹性的回报：`fixtures/sources/` 的真实源文档语料可以在**无网络**的情况下对录制的 HTTP fixture 回放。ESLint 在此包内专门禁了 `cordis` 与 `@BBeBee/kernel`；唯一依赖是 `@BBeBee/protocol`（只取 `RuleError`）。
+纯粹性的回报：真实源文档语料可以在**无网络**的情况下对录制的 HTTP fixture 回放。ESLint 在此包内专门禁了 `cordis` 与 `@BBeBee/kernel`；唯一依赖是 `@BBeBee/protocol`（只取 `RuleError`）。
 
 **消费者**：唯一的 I/O 上下文是同层的 `plugin-source-runtime`（规则的求值者、网络与沙箱的提供者）。
 
@@ -121,4 +121,4 @@ $                 根
 
 - `docs/06-music-sources.md` §3/§8：规则语言、沙箱宿主面
 - `packages/feature/plugin-source-runtime/README.md`：唯一的 I/O 上下文
-- `fixtures/sources/`：规则语言的真实语料
+- `packages/feature/plugin-source-runtime/`：规则语言的真实测试语料与运行上下文

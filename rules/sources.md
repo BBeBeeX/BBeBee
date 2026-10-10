@@ -58,7 +58,6 @@ Rule prefixes select the execution engine:
   - Pure DMS-style metadata index storing entry pointers (`music-sources/{username}-{name}.json`, `lyric-sources/{username}-{name}.json`, `plugins/{username}-{name}.json`) and native themes (`themes/{username}-{name}/`).
   - Strict metadata validation via `node scripts/validate.mjs`.
 - **Main app repo tooling**:
-  - `fixtures/sources/` & `fixtures/lyric-sources/`: Single-file test golden fixtures.
   - `node --experimental-strip-types scripts/sources/cli.ts --unpack <file> [dest]`: Unpacks a single-file JSON back into `source.json` and `source.js` for inspection.
 
 ---

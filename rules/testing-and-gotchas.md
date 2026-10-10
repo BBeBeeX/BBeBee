@@ -11,7 +11,7 @@ Test conventions, common gotchas, and milestone status for BBeBee.
 | **Unit** | Pure logic: URN parsing, fractional indexing, transport state machine with mock audio |
 | **Conformance** | Shared test suite in `packages/protocol/src/conformance/` run against all `core-*` implementations |
 | **Integration** | Real Cordis context, real feature plugins, fake core services |
-| **Source Corpus** | Replay fixtures in `fixtures/sources/` through `plugin-source-runtime` |
+| **Source Corpus** | Replay reference documents through `plugin-source-runtime` |
 | **Leak Test** | Parameterized snapshot comparison before load and after dispose across every plugin |
 
 ### What Each Gate Catches

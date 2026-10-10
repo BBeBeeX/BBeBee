@@ -359,7 +359,7 @@ Sources adopt **dual-file authoring during development, compiled to single-file 
 In the main application repository, CLI tooling supports unpacking single-file JSONs back into dual-file format for inspection:
 ```bash
 # Unpack any single-file JSON back into dual-file source format
-node --experimental-strip-types scripts/sources/cli.ts --unpack fixtures/sources/subsonic.json [outDir]
+node --experimental-strip-types scripts/sources/cli.ts --unpack <path/to/source.json> [outDir]
 ```
 
 `browse` is `exploreUrl` + `ruleExplore`: each explore entry is a titled URL, and an item whose

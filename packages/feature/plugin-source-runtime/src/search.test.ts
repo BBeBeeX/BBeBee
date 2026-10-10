@@ -3,16 +3,16 @@
  *
  * This is the claim the whole string model rests on (docs/10 §M2): a
  * Subsonic-shaped source imported as *text* renders its search URL, fetches,
- * runs its rules, and returns tracks. The document under test is the one
- * shipped in `fixtures/sources/`, so a change to the rule engine that breaks
+ * runs its rules, and returns tracks. The document under test is the reference
+ * Subsonic document fixture, so a change to the rule engine that breaks
  * a real document fails here.
  */
 
-import { readFile } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
 import { RuleError } from '@BBeBee/protocol'
 import type { HttpRequest, HttpService, SourceRecord } from '@BBeBee/protocol'
 import { DocumentSource } from './source.js'
+import { subsonicDoc } from './subsonic-doc.fixture.js'
 
 const SUBSONIC_RESPONSE = {
   'subsonic-response': {
@@ -46,8 +46,7 @@ function fakeHttp(body: unknown, status = 200) {
 }
 
 async function shippedDocument(): Promise<Record<string, unknown>> {
-  const raw = await readFile(new URL('../../../../fixtures/sources/subsonic.json', import.meta.url), 'utf8')
-  return JSON.parse(raw) as Record<string, unknown>
+  return subsonicDoc()
 }
 
 function recordFor(doc: Record<string, unknown>): SourceRecord {

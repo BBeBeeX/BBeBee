@@ -266,7 +266,6 @@ B_Be_Bee/
 │                                             ctx.fs, and the byte-serving http fixture the
 │                                             conformance suite runs on
 │
-├── fixtures/sources/                         compiled single-file example source documents; golden corpus ([testing.md §6](./testing.md#6-testing-strategy))
 ├── scripts/                                  developer & build scripts (scripts/sources/ source packaging & watch tools)
 ├── test/stubs/                               the three native modules Node cannot load, aliased
 │                                             by vitest.config.ts: react-native-audio-api throws
@@ -328,7 +327,7 @@ There is deliberately **no `plugin-source-<protocol>` prefix any more**. A music
 source document ([sources/spec.md](../sources/spec.md)), not a package. The only two packages with `source`
 in the name are `plugin-source-runtime`, which interprets documents, and `plugin-source-local`,
 which has no HTTP to describe ([sources/authoring.md §12](../sources/authoring.md#12-what-is-not-a-string-local-files)).
-The example documents this repository ships live in `fixtures/sources/`, not in `packages/`.
+Official source implementations live in their respective independent repositories (e.g. `B_Be_Bee-subsonic`), indexed by `B_Be_Bee-registry`.
 
 `toolkit` shares `source-rules`' shape — **no manifest, so no lifecycle**: it is imported directly
 by whichever package needs it, coupling nothing. The charter is two-part. The **root** is pure,

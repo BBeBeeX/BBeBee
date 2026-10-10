@@ -19,11 +19,11 @@ export interface BuildSourcesOptions {
    * or, with `--sources`, a single mixed directory routed per document.
    */
   sourcesDir: string
-  /** Output directory for compiled music-source JSON fixtures. Defaults to <repo>/fixtures/sources */
+  /** Output directory for compiled music-source JSON files. Defaults to <repo>/dist/sources */
   outDir: string
   /**
-   * Output directory for compiled lyric-source JSON fixtures.
-   * Defaults to `<outDir>/../lyric-sources` (i.e. <repo>/fixtures/lyric-sources).
+   * Output directory for compiled lyric-source JSON files.
+   * Defaults to `<outDir>/../lyric-sources` (i.e. <repo>/dist/lyric-sources).
    */
   lyricOutDir?: string
   /**

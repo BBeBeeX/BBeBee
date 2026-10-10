@@ -89,7 +89,7 @@ The whole of [ADR-5](../architecture/overview.md#adr-5--music-sources-are-import
 `source-rules` (the language), `ctx.js` and both `core-js-quickjs-*` (the sandbox), the rest of
 `plugin-source-runtime` (search, explore, album, lyrics, login), the import/export/editor/tracer
 UI, and `ctx.secrets` with persistent cookie jars. `ctx.sources` aggregation and the
-identity-linking tables. The corpus in `fixtures/sources/` grows a Subsonic and a podcast-feed
+identity-linking tables. The source corpus in `plugin-source-runtime` grows a Subsonic and a podcast-feed
 document.
 
 **Exit criteria**

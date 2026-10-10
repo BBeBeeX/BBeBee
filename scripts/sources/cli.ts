@@ -5,7 +5,7 @@
  *
  * Default flow reads source directories if present: music sources from
  * `registry/music-sources/`, lyric sources from `registry/lyric-sources/`,
- * compiled into `fixtures/sources/`, `fixtures/lyric-sources/` and the
+ * compiled into `dist/sources/`, `dist/lyric-sources/` and the
  * generated TS module that `plugin-lyric-sources` imports.
  *
  * `--sources <dir>` compiles from a custom directory: one
@@ -22,7 +22,7 @@ import { buildSources, unpackSource } from './index.ts'
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const defaultMusicSourcesDir = join(repoRoot, 'registry', 'music-sources')
 const defaultLyricSourcesDir = join(repoRoot, 'registry', 'lyric-sources')
-const defaultOutDir = join(repoRoot, 'fixtures', 'sources')
+const defaultOutDir = join(repoRoot, 'dist', 'sources')
 const defaultLyricCodegenFile = join(
   repoRoot,
   'packages',
@@ -61,7 +61,7 @@ for (let i = 0; i < args.length; i++) {
 }
 
 const outDir = customOutDir ? resolve(process.cwd(), customOutDir) : defaultOutDir
-// Lyric fixtures live next to the music ones: fixtures/sources → fixtures/lyric-sources.
+// Lyric outputs live next to the music ones: dist/sources → dist/lyric-sources.
 const lyricOutDir = join(resolve(outDir, '..'), 'lyric-sources')
 const lyricCodegen = defaultLyricCodegenFile
 

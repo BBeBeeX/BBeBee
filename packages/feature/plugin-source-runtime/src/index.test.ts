@@ -9,8 +9,8 @@
  */
 
 import { createServer, type Server } from 'node:http'
-import { readFile } from 'node:fs/promises'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { subsonicDoc } from './subsonic-doc.fixture.js'
 import { Context } from 'cordis'
 import { PathsNode } from '@BBeBee/core-paths-node'
 import { FsNode } from '@BBeBee/core-fs-node'
@@ -510,16 +510,14 @@ describe('lifecycle', () => {
   })
 })
 
-describe('the shipped fixtures', () => {
-  it('imports and runs the example document in fixtures/sources', async () => {
-    // The corpus claim from docs/09 §6, at the size the corpus currently is:
-    // a document nobody compiled, imported as a string, resolves to a stream.
-    // If this fails, either the rule engine changed or the example did.
+describe('the reference Subsonic test document', () => {
+  it('imports and runs the reference Subsonic document', async () => {
+    // The corpus claim from docs/09 §6:
+    // a document imported as a string resolves to a stream.
+    // If this fails, either the rule engine changed or the document did.
     const { ctx } = await harness()
-    const raw = await readFile(
-      new URL('../../../../fixtures/sources/subsonic.json', import.meta.url),
-      'utf8',
-    )
+    const doc = subsonicDoc()
+    const raw = JSON.stringify(doc)
 
     const report = await ctx.sources.import(raw)
     expect(report.rejected, JSON.stringify(report.rejected)).toEqual([])
@@ -542,10 +540,8 @@ describe('the shipped fixtures', () => {
     // Export must emit what was imported. The first time a user's document
     // comes back different, they stop trusting export (docs/07 §4.1).
     const { ctx } = await harness()
-    const raw = await readFile(
-      new URL('../../../../fixtures/sources/subsonic.json', import.meta.url),
-      'utf8',
-    )
+    const doc = subsonicDoc()
+    const raw = JSON.stringify(doc)
     await ctx.sources.import(raw)
 
     const exported = await ctx.sources.export()

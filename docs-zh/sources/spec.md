@@ -302,7 +302,7 @@ export interface LyricRule { lyric: string; format?: string; offsetMs?: string }
 在主应用仓库中，CLI 工具链支持将单文件 JSON 反向解包为双文件结构以供排查：
 ```bash
 # 反向解包现有单文件 JSON 为双文件开发结构
-node --experimental-strip-types scripts/sources/cli.ts --unpack fixtures/sources/subsonic.json [outDir]
+node --experimental-strip-types scripts/sources/cli.ts --unpack <path/to/source.json> [outDir]
 ```
 
 `browse` 就是 `exploreUrl` + `ruleExplore`：每个探索条目是一个带标题的 URL，而 `childUrl` 非空的条目是要深入下去的节点，而不是拿来播放的叶子。文件夹树、流派列表、排行榜、播客 feed 的单集列表，用的都是同样三个字段 —— 这正是同一个 UI 组件能渲染它们全部的原因。

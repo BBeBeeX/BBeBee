@@ -7,11 +7,11 @@
  * id has been round-tripped through a shell that restarted in between.
  */
 
-import { readFile } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
 import { RuleError } from '@BBeBee/protocol'
 import type { HttpRequest, HttpService, SourceRecord } from '@BBeBee/protocol'
 import { DocumentSource } from './source.js'
+import { subsonicDoc } from './subsonic-doc.fixture.js'
 
 const ALBUMS = {
   'subsonic-response': {
@@ -267,8 +267,7 @@ describe('the shipped document', () => {
   it('browses, using the rules it actually ships with', async () => {
     // The fixture is the contract: a change to the rule engine that breaks a
     // real document fails here rather than in someone's library.
-    const raw = await readFile(new URL('../../../../fixtures/sources/subsonic.json', import.meta.url), 'utf8')
-    const shipped = JSON.parse(raw) as Record<string, unknown>
+    const shipped = subsonicDoc()
     const { http, requests } = fakeHttp(bodies)
     const s = new DocumentSource(
       { ...record(shipped), sourceUrl: BASE, allowedHosts: ['music.example.org'] },

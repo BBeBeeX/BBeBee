@@ -224,7 +224,6 @@ B_Be_Bee/
 │                                             ctx.fs，以及契约套件运行所在的
 │                                             按字节服务的 http fixture
 │
-├── fixtures/sources/                         编译后的单文件示例音源文档；黄金语料库 ([testing.md §6](./testing.md#6-testing-strategy))
 ├── scripts/                                  工程脚本（scripts/sources/ 音源打包、校验与热重载工具）
 ├── test/stubs/                               Node 无法加载的三个原生模块，由
 │                                             vitest.config.ts 别名：react-native-audio-api
@@ -264,7 +263,7 @@ B_Be_Bee/
 | `sdk/` | — | `sdk` —— 供外部插件使用的公开开发套件。在分层模型之外 |
 | `tooling/` | — | `tooling-*`。在分层模型之外，因为这里的任何东西都不随包发布 |
 
-如今刻意**不再有 `plugin-source-<protocol>` 前缀**。一个音乐后端是一份音源文档（[sources/spec.md](../sources/spec.md)），不是一个包。名字里带 `source` 的只有两个包：解释文档的 `plugin-source-runtime`，以及没有 HTTP 可描述的 `plugin-source-local`（[sources/authoring.md §12](../sources/authoring.md#12-what-is-not-a-string-local-files)）。本仓库随附的示例文档存放在 `fixtures/sources/`，而不在 `packages/` 里。
+如今刻意**不再有 `plugin-source-<protocol>` 前缀**。一个音乐后端是一份音源文档（[sources/spec.md](../sources/spec.md)），不是一个包。名字里带 `source` 的只有两个包：解释文档的 `plugin-source-runtime`，以及没有 HTTP 可描述的 `plugin-source-local`（[sources/authoring.md §12](../sources/authoring.md#12-what-is-not-a-string-local-files)）。官方音源实现存放在各自独立的仓库中（如 `B_Be_Bee-subsonic`），由 `B_Be_Bee-registry` 统一索引。
 
 `toolkit` 具有与 `source-rules` 相同的形态 —— **没有清单，因此没有生命周期**：它由任何需要它的包直接导入，不造成任何偶合。它的职责分为两部分。**根部**是纯净、零依赖的逻辑 —— 纯库绝不命名 `ctx.*` 服务；一旦代码需要服务，它就属于 `plugin-<feature>` 包。**`./hooks` 子路径**是唯一的刻意例外：共享的 React 绑定，代表每个视图包读取服务，仅通过服务键和类型化事件定位 —— 它不导入任何 `plugin-*` 包，因此绑定到传输层的视图绝不需要导入播放器功能包。
 

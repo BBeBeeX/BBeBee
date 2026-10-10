@@ -11,7 +11,7 @@
 | **单元** | Vitest | 纯逻辑：URN 解析、分数索引（fractional indexing）、智能播放列表编译、针对 mock `AudioService` 的播放控制状态机 |
 | **契约** | Vitest（Node）+ Detox（真机） | 以 `@BBeBee/protocol/conformance` 中的共享套件测试每一个 `core-*` 实现（[services/contracts.md §18](../services/contracts.md)）。**最重要的一层** |
 | **集成** | Vitest（内存中的 Context） | 真实的 Cordis Context、真实的功能插件、伪造的核心服务。覆盖插件加载顺序、瀑布（waterfall）钩子组合与卸载完整性 |
-| **音源语料库** | Vitest，响应内联录制在测试里 | `fixtures/sources/` 中的每一份示例文档都被端到端回放 —— 搜索、浏览、专辑、流 —— 因此任何破坏真实文档的规则引擎改动都会让 CI 失败。`pnpm source:record`（用于把这些响应移入 fixture 文件）是计划中的，尚未建成 |
+| **音源语料库** | Vitest，响应内联录制在测试里 | `plugin-source-runtime` 中的内置参考文档被端到端回放 —— 搜索、浏览、专辑、流 —— 任何破坏真实文档的规则引擎改动都会让 CI 失败。独立音源仓运行自身的验证门禁 |
 | **真机冒烟** | 人工，随每次发布 | 锁屏、蓝牙、拔出耳机、来电、无缝播放边界、后台存活（[audio/engine.md](../audio/engine.md)） |
 
 有两项测试值得几乎先于一切编写，因为它们把架构的核心主张固化成了代码：
@@ -128,11 +128,11 @@ pnpm check                   # already green — the template ships passing test
 
 | 命令 | 作用 |
 |---|---|
-| `pnpm build:sources` | 将本地源目录编译为 `fixtures/sources/` 单文件文档并生成内置歌词源模块 |
+| `pnpm build:sources` | 将本地源目录编译为 `dist/sources/` 单文件文档并生成内置歌词源模块 |
 | `pnpm build:sources --sources <dir>` | 编译指定源目录，按文档形态分流 |
 | `node --experimental-strip-types scripts/sources/cli.ts --unpack <file> [dest]` | 将现有的单文件 JSON 反向解包为 `source.json` + `source.js` 双文件开发结构以供排查 |
 
-有两个命令是**计划中的**（M2 收尾；用于在线测试后端），用于维护本仓库随附在 `fixtures/sources/` 中的*文档*：
+有两个命令是**计划中的**（M2 收尾；用于在线测试后端），用于在线维护 live 音源端点：
 
 | 命令（计划中） | 将来的作用 |
 |---|---|

@@ -48,7 +48,7 @@
 
 ### M2 —— 音源即字符串
 
-[ADR-5](../architecture/overview.md#adr-5--音源是导入的字符串由一个运行时解释) 的全部内容：`source-rules`（规则语言）、`ctx.js` 与两份 `core-js-quickjs-*`（沙箱）、`plugin-source-runtime` 的其余部分（搜索、探索、专辑、歌词、登录）、导入/导出/编辑器/tracer 的 UI，以及带持久化 cookie 罐的 `ctx.secrets`。`ctx.sources` 聚合与身份关联表。`fixtures/sources/` 语料库新增一份 Subsonic 文档和一份播客订阅源文档。
+[ADR-5](../architecture/overview.md#adr-5--音源是导入的字符串由一个运行时解释) 的全部内容：`source-rules`（规则语言）、`ctx.js` 与两份 `core-js-quickjs-*`（沙箱）、`plugin-source-runtime` 的其余部分（搜索、探索、专辑、歌词、登录）、导入/导出/编辑器/tracer 的 UI，以及带持久化 cookie 罐的 `ctx.secrets`。`ctx.sources` 聚合与身份关联表。`plugin-source-runtime` 语料库新增一份 Subsonic 文档和一份播客订阅源文档。
 
 **完成标准**
 - **粘贴一段字符串就能播放音乐。** 一份从文本导入的 Subsonic 文档——从未编译、从未安装——即可在三个平台上搜索、浏览与流式播放。

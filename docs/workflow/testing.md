@@ -11,7 +11,7 @@ Four layers, each catching something the others cannot.
 | **Unit** | Vitest | Pure logic: URN parsing, fractional indexing, smart-playlist compilation, the transport state machine against a mock `AudioService` |
 | **Conformance** | Vitest (Node) + Detox (device) | Every `core-*` implementation against the shared suite in `@BBeBee/protocol/conformance` ([services/contracts.md §18](../services/contracts.md)). **The most important layer** |
 | **Integration** | Vitest with an in-memory context | A real Cordis context, real feature plugins, fake core services. Covers plugin load order, waterfall composition, and unload completeness |
-| **Source corpus** | Vitest, responses recorded inline in the tests | Every example document in `fixtures/sources/` replayed end to end — search, explore, album, stream — so a rule-engine change that breaks real documents fails CI. `pnpm source:record` (to move these to fixture files) is planned, not built |
+| **Source corpus** | Vitest, responses recorded inline in the tests | In-tree reference documents in `plugin-source-runtime` replayed end to end — search, explore, album, stream — so a rule-engine change that breaks real documents fails CI. Independent source repos run their own validation gates |
 | **Device smoke** | Manual, per release | Lock screen, Bluetooth, headphone unplug, incoming call, gapless boundary, background survival ([audio/engine.md](../audio/engine.md)) |
 
 Two tests that are worth writing before almost anything else, because they encode the
@@ -161,11 +161,11 @@ leak test, both of which cost a debugging session to discover the hard way.
 
 | Command | What it does |
 |---|---|
-| `pnpm build:sources` | Compiles source directories (if present) into single-file documents in `fixtures/sources/` and generates the builtin lyric source module |
+| `pnpm build:sources` | Compiles source directories (if present) into single-file documents in `dist/sources/` and generates the builtin lyric source module |
 | `pnpm build:sources --sources <dir>` | Compiles a custom source directory, routed per document |
 | `node --experimental-strip-types scripts/sources/cli.ts --unpack <file> [dest]` | Unpacks any existing single-file JSON back into `source.json` + `source.js` dual-file format for inspection |
 
-Two commands are **planned** (M2 cleanup; for online backend testing) for working on the *documents this repository ships* in `fixtures/sources/`:
+Two commands are **planned** (M2 cleanup; for online backend testing) for working on live source endpoints:
 
 | Command (planned) | What it will do |
 |---|---|
