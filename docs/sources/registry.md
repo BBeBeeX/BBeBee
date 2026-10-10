@@ -11,58 +11,50 @@ a first-party path beyond pasting whatever a forum thread says.
 
 ---
 
-## 1. Repository wiring
+## 1. Repository architecture
 
-The registry lives in its own repository,
-[BBeBeeX/B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry), and is
-consumed by this monorepo as a **git submodule pinned at `registry/`**:
+The registry lives in its own standalone repository,
+[BBeBeeX/B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry).
+Unlike traditional monolithic registries with bundled dist outputs, `B_Be_Bee-registry` operates as a **decentralized, DMS-style metadata index**:
+third-party source and plugin code is hosted in the authors' own GitHub repositories, while the registry maintains pure metadata pointers.
 
 ```
-registry/
-├── music-sources/<id>/     dual-file music source development (source.json + source.js)
-├── lyric-sources/<id>/     dual-file lyric source development
-├── themes/<id>/            theme documents
-├── plugins/                plugin metadata files
-├── dist/                   compiled single-file documents the app actually downloads
-├── registry.json           the generated index (see §2)
-├── scripts/                compile / generate-index / validate (Node builtins only)
-├── CONTRIBUTING.md         how to submit an entry
-└── MODERATION.md           what maintainers check before publishing
+B_Be_Bee-registry/
+├── music-sources/{username}-{name}.json   # Music source metadata pointer
+├── lyric-sources/{username}-{name}.json   # Lyric source metadata pointer
+├── plugins/{username}-{pluginname}.json   # Plugin metadata pointer
+├── themes/{author}-{name}/                # In-repo theme definitions
+│   ├── theme.json                         # Color tokens (tokens.dark / tokens.light)
+│   └── preview.png                        # Preview screenshot
+├── scripts/
+│   ├── validate.mjs                       # CI gate, schema validation, negative tests
+│   └── lib/                               # Validation schemas and contrast checkers
+├── CONTRIBUTING.md                        # Author guidelines & schemas
+└── MODERATION.md                          # Authenticity & anti-impersonation review
 ```
 
-- The source of truth for content is the **entry directories**; `dist/` and
-  `registry.json` are **generated** (by `scripts/compile.mjs` and
-  `scripts/generate-index.mjs` respectively) and validated for freshness by
-  `scripts/validate.mjs`.
-- The main repo's `pnpm build:sources` compiles the submodule's
-  `music-sources/` and `lyric-sources/` into `fixtures/sources/` and
-  `fixtures/lyric-sources/` plus the builtin lyric module
-  ([authoring workflow](./spec.md#23-dual-file-authoring-vs-single-file-distribution)).
-- The submodule points to `https://github.com/BBeBeeX/B_Be_Bee-registry.git`
-  via a pinned git commit mechanism, with the pinned submodule commit kept in sync
-  with the remote `HEAD`.
+- **Zero centralized build output**: No `dist/` directory and no monolithic `registry.json`.
+- **Author repository contract**:
+  - Music & lyric sources: the author's repository hosts the source code and compiles a single root `index.json` artifact (e.g. [B_Be_Bee-subsonic](https://github.com/BBeBeeX/B_Be_Bee-subsonic) and [B_Be_Bee-lrclib](https://github.com/BBeBeeX/B_Be_Bee-lrclib)).
+  - Plugins: the author's repository provides a root `index.js` bundle alongside `manifest.json`.
+  - Themes: self-contained within `themes/{author}-{name}/` directly in the registry repository, requiring no external repo.
+- **Remote discovery**: The player application queries the registry via the GitHub Contents API (§5.1), caching metadata locally in `ctx.store`.
 
 ---
 
-## 2. `registry.json` — the index format
+## 2. Metadata schemas
+
+Each entry in `music-sources/`, `lyric-sources/`, and `plugins/` is an individual `{username}-{name}.json` file:
 
 ```jsonc
+// music-sources/bbebeex-subsonic.json
 {
-  "generatedAt": "2026-10-07T10:22:39-04:00",
-  "repository": "BBeBeeX/B_Be_Bee-registry",
-  "entries": [
-    {
-      "id": "subsonic",
-      "kind": "music-source",
-      "name": "Subsonic",
-      "version": "1.0.0",
-      "author": "BBeBee",
-      "description": "…",
-      "updatedAt": "2026-10-07T10:22:39-04:00",
-      "downloadUrl": "https://…/dist/music-sources/subsonic.json",
-      "sourceUrl": "https://music.example.org"
-    }
-  ]
+  "id": "subsonic",
+  "name": "Subsonic",
+  "version": "1.0.0",
+  "author": "BBeBee",
+  "description": "Subsonic-compatible music source with Navidrome / Airsonic support.",
+  "repo": "https://github.com/BBeBeeX/B_Be_Bee-subsonic"
 }
 ```
 

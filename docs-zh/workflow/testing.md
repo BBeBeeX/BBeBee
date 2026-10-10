@@ -124,14 +124,13 @@ pnpm check                   # already green — the template ships passing test
 
 - **面向最终用户**：在应用内 **设置 → 音源 → 导入**，粘贴字符串，查看它声明自己会做什么，确认（[sources/authoring.md §9](../sources/authoring.md#9-导入更新与分享)）。无需安装、无需重新构建、无需重启。
 - **面向音源作者与开发者**：
-  为避免在一个巨大单行 JSON 字符串中调试复杂 JavaScript 代码，音源以双文件架构（`source.json` + `source.js`）开发于注册表仓库（[B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)），本仓库以钉定版本的 `registry/` submodule 消费它（[sources/registry.md](../sources/registry.md)）：音源在 `registry/music-sources/<id>/`，歌词源在 `registry/lyric-sources/<id>/`。
+  为避免在一个巨大单行 JSON 字符串中调试复杂 JavaScript 代码，音源以双文件架构（`src/source.json` + `src/source.js`）开发于各自独立的 GitHub 仓库（例如 [B_Be_Bee-subsonic](https://github.com/BBeBeeX/B_Be_Bee-subsonic)、[B_Be_Bee-lrclib](https://github.com/BBeBeeX/B_Be_Bee-lrclib)）。在源仓库中，运行 `node scripts/compile.mjs` 编译为根目录 `index.json`，运行 `node scripts/validate.mjs` 校验规范与产物逐字节复现。
 
 | 命令 | 作用 |
 |---|---|
-| `pnpm build:sources` | 校验并将 submodule 的 `registry/music-sources/` 与 `registry/lyric-sources/` 编译输出为 `fixtures/sources/<id>.json` 与 `fixtures/lyric-sources/<id>.json` 单文件文档 |
-| `pnpm watch:sources` | 监听两个注册表目录中的文件变动，自动即时热重编 |
-| `pnpm build:sources --sources <dir>` | 旧用法：编译单个混合目录，按文档形态分流 |
-| `node --experimental-strip-types scripts/sources/cli.ts --unpack <file> [dest]` | 将现有的单文件 JSON 反向解包为 `source.json` + `source.js` 双文件开发结构 |
+| `pnpm build:sources` | 将本地源目录编译为 `fixtures/sources/` 单文件文档并生成内置歌词源模块 |
+| `pnpm build:sources --sources <dir>` | 编译指定源目录，按文档形态分流 |
+| `node --experimental-strip-types scripts/sources/cli.ts --unpack <file> [dest]` | 将现有的单文件 JSON 反向解包为 `source.json` + `source.js` 双文件开发结构以供排查 |
 
 有两个命令是**计划中的**（M2 收尾；用于在线测试后端），用于维护本仓库随附在 `fixtures/sources/` 中的*文档*：
 

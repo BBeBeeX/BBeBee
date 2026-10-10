@@ -961,7 +961,7 @@ export interface PluginManagerService {
 
 ## 25. `ctx.contentRegistry` —— 第三方内容注册表
 
-**用途。** 第三方内容及其更新的应用内索引。社区注册表（[B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)，以钉定版本的 `registry/` submodule 接入 —— [sources/registry.md](../sources/registry.md)）发布一份 `registry.json`，索引四类可安装内容：音源、歌词源、主题与桌面插件。本服务拉取该索引，将其与用户已安装内容比对，并经由各类型自己的服务完成安装 —— `ctx.sources.import`、`ctx.lyricSources.registerSource`、`ctx.theme.registerTheme`，以及桌面动态加载器。它刻意做成一个薄协调者：下游服务已校验的东西它不再校验，用户确认前必须看到的东西它也绝不隐藏。
+**用途。** 第三方内容及其更新的应用内索引。社区注册表（[B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)，对标 DMS 纯元数据索引仓库 —— [sources/registry.md](../sources/registry.md)）索引四类可安装内容：音源、歌词源、主题与桌面插件。音源、歌词源与插件为指向原作者 GitHub 仓库的指针，主题则直接存放在注册表中。本服务通过 GitHub Contents API（离线回退到本地缓存）拉取该索引，将其与用户已安装内容比对，并经由各类型自己的服务完成安装 —— `ctx.sources.import`、`ctx.lyricSources.registerSource`、`ctx.theme.registerTheme`，以及桌面动态加载器。它刻意做成一个薄协调者：下游服务已校验的东西它不再校验，用户确认前必须看到的东西它也绝不隐藏。
 
 > ⚠️ **服务键是 `contentRegistry`，不是 `registry`。** 在 cordis 4 中，`registry` 这个键属于内核本身 —— 它的插件注册表服务，其方法以 `ctx.plugin` / `ctx.inject` 的形式暴露。
 
@@ -1026,7 +1026,7 @@ export interface RegistryService {
 
 - **匹配语义**：音源按 `sourceUrl`（`SourceRecord` 的身份）匹配已安装记录；歌词源 / 主题 / 插件按各自 `id` 匹配。已安装副本版本低于条目 `version` 时产生一条 `RegistryUpdate`。
 - **各类型安装流程**：音源 → `ctx.sources.import`（完整导入管线，`originUri` = `downloadUrl`）；歌词源 → 形状校验后 `ctx.lyricSources.registerSource`；主题 → 与用户自建主题相同的暗/亮对比度门禁，然后 `ctx.theme.registerTheme`；插件 → 条目未发布 `sha256` 时拒绝安装，将下载包与摘要比对，再交给动态加载宿主。
-- **安全红线**：`fetchEntryDetails()` 的存在就是为了让确认对话框在导入**之前**说出音源文档的 `allowedHosts`；插件安装校验 `sha256` 并要求明确的风险确认；应用只消费 `dist/` 编译产物 —— 注册表仓里的条目源码仅供审核。
+- **安全红线**：`fetchEntryDetails()` 的存在就是为了让确认对话框在导入**之前**说出音源文档的 `allowedHosts`；插件安装校验 `sha256` 并要求明确的风险确认；下载插件经由 `@BBeBee/plugin-security-audit` 进行 7 项威胁扫描并在 `registry.lock.json` 中校验防篡改。
 - **自动检查**：`AppSettings.registryAutoCheck`（默认 `true`）—— 启动约 45 秒后首次检查，此后每 24 小时一次；手动检查不受影响。
 
 ---

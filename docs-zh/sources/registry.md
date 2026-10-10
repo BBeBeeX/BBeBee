@@ -6,49 +6,50 @@
 
 ---
 
-## 1. 仓库接入方式
+## 1. 仓库架构
 
 注册表内容存放在独立仓库
-[BBeBeeX/B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)，本 monorepo 以 **git submodule 形式将其钉在 `registry/`** 消费：
+[BBeBeeX/B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)。
+与包含打包产物的中心化旧模型不同，`B_Be_Bee-registry` 采用**去中心化 DMS 式纯元数据索引模型**：
+第三方音源和插件的源码完全托管在开发者自己的 GitHub 仓库中，注册表仅维护纯元数据指针。
 
 ```
-registry/
-├── music-sources/<id>/     音源双文件开发目录（source.json + source.js）
-├── lyric-sources/<id>/     歌词源双文件开发目录
-├── themes/<id>/            主题文档
-├── plugins/                插件元数据文件
-├── dist/                   应用实际下载的编译产物（单文件文档）
-├── registry.json           生成的索引（见 §2）
-├── scripts/                compile / generate-index / validate（仅用 Node 内置模块）
-├── CONTRIBUTING.md         条目提交流程
-└── MODERATION.md           发布前维护者审核标准
+B_Be_Bee-registry/
+├── music-sources/{username}-{name}.json   # 音乐源元数据指针
+├── lyric-sources/{username}-{name}.json   # 歌词源元数据指针
+├── plugins/{username}-{pluginname}.json   # 插件元数据指针
+├── themes/{author}-{name}/                # 主题文档（内容进仓）
+│   ├── theme.json                         # 颜色 Token 定义（tokens.dark / tokens.light）
+│   └── preview.png                        # 预览图
+├── scripts/
+│   ├── validate.mjs                       # CI 校验门禁与负向测试套件
+│   └── lib/                               # 校验规则与对比度检查模块
+├── CONTRIBUTING.md                        # 开发者规范与 Schema 指南
+└── MODERATION.md                          # 真实性与防冒名审核标准
 ```
 
-- 内容的**源头**是各条目目录；`dist/` 与 `registry.json` 是**生成物**（分别由 `scripts/compile.mjs` 与 `scripts/generate-index.mjs` 生成），`scripts/validate.mjs` 校验其新鲜度。
-- 主仓的 `pnpm build:sources` 将 submodule 的 `music-sources/` 与 `lyric-sources/` 编译进 `fixtures/sources/`、`fixtures/lyric-sources/` 及内置歌词模块（[开发工作流](./spec.md#23-开发态双文件维护与打包)）。
-- submodule 指向 `https://github.com/BBeBeeX/B_Be_Bee-registry.git`，通过 git submodule commit 钉定版本机制进行版本锁定，本地钉定提交与远端 `HEAD` 保持一致。
+- **零中心化生成物**：无 `dist/` 编译产物目录，无单一庞大的 `registry.json`。
+- **作者仓库产物契约**：
+  - 音频源与歌词源：作者仓库托管源码并在仓库根目录下提供单文件 `index.json` 规则文档（例如 [B_Be_Bee-subsonic](https://github.com/BBeBeeX/B_Be_Bee-subsonic) 与 [B_Be_Bee-lrclib](https://github.com/BBeBeeX/B_Be_Bee-lrclib)）。
+  - 插件：作者仓库根目录下提供 `index.js` 单文件 bundle 与 `manifest.json` 清单。
+  - 主题：直接存放在注册表仓内的 `themes/{author}-{name}/`，无需独立代码仓。
+- **远程发现**：客户端通过 GitHub Contents API 并发枚举各目录元数据（§5.1），并由本地 `ctx.store` 缓存。
 
 ---
 
-## 2. `registry.json` —— 索引格式
+## 2. 元数据 Schema 格式
+
+`music-sources/`、`lyric-sources/` 与 `plugins/` 下的条目均为独立的 `{username}-{name}.json` 文件：
 
 ```jsonc
+// music-sources/bbebeex-subsonic.json
 {
-  "generatedAt": "2026-10-07T10:22:39-04:00",
-  "repository": "BBeBeeX/B_Be_Bee-registry",
-  "entries": [
-    {
-      "id": "subsonic",
-      "kind": "music-source",
-      "name": "Subsonic",
-      "version": "1.0.0",
-      "author": "BBeBee",
-      "description": "…",
-      "updatedAt": "2026-10-07T10:22:39-04:00",
-      "downloadUrl": "https://…/dist/music-sources/subsonic.json",
-      "sourceUrl": "https://music.example.org"
-    }
-  ]
+  "id": "subsonic",
+  "name": "Subsonic",
+  "version": "1.0.0",
+  "author": "BBeBee",
+  "description": "Subsonic 兼容自建音源（支持 Navidrome 与 Airsonic）",
+  "repo": "https://github.com/BBeBeeX/B_Be_Bee-subsonic"
 }
 ```
 

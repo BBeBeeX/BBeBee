@@ -266,9 +266,6 @@ B_Be_Bee/
 │                                             ctx.fs, and the byte-serving http fixture the
 │                                             conformance suite runs on
 │
-├── registry/                                 git submodule (pinned) — the B_Be_Bee-registry content registry
-│                                             ([sources/registry.md](../sources/registry.md)); its music-sources/ and
-│                                             lyric-sources/ are what `pnpm build:sources` compiles
 ├── fixtures/sources/                         compiled single-file example source documents; golden corpus ([testing.md §6](./testing.md#6-testing-strategy))
 ├── scripts/                                  developer & build scripts (scripts/sources/ source packaging & watch tools)
 ├── test/stubs/                               the three native modules Node cannot load, aliased

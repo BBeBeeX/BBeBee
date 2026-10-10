@@ -65,6 +65,7 @@ The architecture documentation is organized into 9 topic directories:
 | | [sources/rule-engines.md](./sources/rule-engines.md) | Six rule engines (`@json`, `@css`, `@xpath`, `@js`, regex, template) & combinators |
 | | [sources/runtime.md](./sources/runtime.md) | Resolution lifecycle, cookie/session persistence, streams, and QuickJS sandbox |
 | | [sources/authoring.md](./sources/authoring.md) | Dual-file authoring workflow, source compiler, diagnostics, and local media |
+| | [sources/parameters.md](./sources/parameters.md) | Source configuration, loginUi parameters, credentials store, and connection testing |
 | | [sources/registry.md](./sources/registry.md) | The B_Be_Bee-registry content registry: index format, update checks, and install flows |
 | **Data Model** | [data-model/urn.md](./data-model/urn.md) | Entity URN grammar (`BBeBee:<sourceId>:<kind>:<id>`) and multi-source linking |
 | | [data-model/schema.md](./data-model/schema.md) | Entity-relationship model, SQLite conventions, and complete table catalog |

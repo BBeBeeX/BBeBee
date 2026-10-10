@@ -157,14 +157,13 @@ leak test, both of which cost a debugging session to discover the hard way.
 
 - **End users**: not a development task at all. In the app: **Settings → Sources → Import**, paste the string, review what it says it will do, confirm ([sources/authoring.md §9](../sources/authoring.md#9-importing-updating-and-sharing)). No install, no rebuild, no restart.
 - **Source authors & developers**:
-  To avoid writing hundreds of lines of escaped JavaScript inside a single JSON string, author sources as dual files (`source.json` + `source.js`) in the registry repo ([B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)), consumed here as the pinned `registry/` submodule ([sources/registry.md](../sources/registry.md)): `registry/music-sources/<id>/` for music sources, `registry/lyric-sources/<id>/` for lyric sources.
+  To avoid writing hundreds of lines of escaped JavaScript inside a single JSON string, author sources as dual files (`src/source.json` + `src/source.js`) in their own GitHub repositories (e.g. [B_Be_Bee-subsonic](https://github.com/BBeBeeX/B_Be_Bee-subsonic), [B_Be_Bee-lrclib](https://github.com/BBeBeeX/B_Be_Bee-lrclib)). In the source repository, `node scripts/compile.mjs` compiles them into root `index.json`, and `node scripts/validate.mjs` verifies schema compliance and byte-for-byte reproducibility.
 
 | Command | What it does |
 |---|---|
-| `pnpm build:sources` | Validates and compiles the submodule's `registry/music-sources/` + `registry/lyric-sources/` into self-contained single-file documents in `fixtures/sources/<id>.json` and `fixtures/lyric-sources/<id>.json` |
-| `pnpm watch:sources` | Watches both registry dirs and recompiles automatically on change |
-| `pnpm build:sources --sources <dir>` | Legacy: compiles one mixed directory, routed per document |
-| `node --experimental-strip-types scripts/sources/cli.ts --unpack <file> [dest]` | Unpacks any existing single-file JSON back into `source.json` + `source.js` dual-file format |
+| `pnpm build:sources` | Compiles source directories (if present) into single-file documents in `fixtures/sources/` and generates the builtin lyric source module |
+| `pnpm build:sources --sources <dir>` | Compiles a custom source directory, routed per document |
+| `node --experimental-strip-types scripts/sources/cli.ts --unpack <file> [dest]` | Unpacks any existing single-file JSON back into `source.json` + `source.js` dual-file format for inspection |
 
 Two commands are **planned** (M2 cleanup; for online backend testing) for working on the *documents this repository ships* in `fixtures/sources/`:
 

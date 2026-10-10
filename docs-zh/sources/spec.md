@@ -294,24 +294,15 @@ export interface LyricRule { lyric: string; format?: string; offsetMs?: string }
 
 当音源需要复杂的 JavaScript 代码（如混淆签名、多步会话建立、音轨协商等）时，直接在单文件 JSON 的 `"jsLib"` 中编写上百行带 `\n` 转义的代码是极不友好的。
 
-因此，音源采用**开发态拆分维护，构建态合并分发**。双文件源码存放在注册表仓库（[B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)）中，本仓库以钉定版本的 `registry/` submodule 消费它（[registry.md](./registry.md)）：
-- **`registry/music-sources/<id>/source.json`**：存放元数据、规则声明与 URL 模板。
-- **`registry/music-sources/<id>/source.js`**：存放未转义的原生 JavaScript，享受 IDE 完整的高亮、ESLint 校验与代码补全。
-- **`registry/lyric-sources/<id>/`**：歌词源沿用同样的双文件布局。
+因此，音源采用**开发态拆分维护，构建态合并分发**。每个音源或歌词源存放在各自独立的 GitHub 仓库（例如 [B_Be_Bee-subsonic](https://github.com/BBeBeeX/B_Be_Bee-subsonic) 或 [B_Be_Bee-lrclib](https://github.com/BBeBeeX/B_Be_Bee-lrclib)）中，社区注册表（[B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)）仅作为纯元数据指针索引它们：
+- **`src/source.json`**：存放元数据、规则声明、URL 模板与参数配置（`loginUi`）。
+- **`src/source.js`**：存放未转义的原生 JavaScript，享受 IDE 完整的高亮、ESLint 校验与代码补全。
+- 在源仓库中运行 `node scripts/compile.mjs`，会将 `src/source.json` 与 `src/source.js` 合并编译至仓库根目录的 `index.json`。
 
-构建工具将其统一编译为单个自包含 JSON（音源输出至 `fixtures/sources/<id>.json`，歌词源输出至 `fixtures/lyric-sources/<id>.json`）：
+在主应用仓库中，CLI 工具链支持将单文件 JSON 反向解包为双文件结构以供排查：
 ```bash
-# 编译注册表 submodule 的音源与歌词源 → fixtures/sources/ + fixtures/lyric-sources/
-pnpm build:sources
-
-# 监听两个注册表目录并自动热重编
-pnpm watch:sources
-
-# 旧用法：编译单个混合目录，按文档形态分流
-pnpm build:sources --sources <dir>
-
 # 反向解包现有单文件 JSON 为双文件开发结构
-node --experimental-strip-types scripts/sources/cli.ts --unpack fixtures/sources/subsonic.json
+node --experimental-strip-types scripts/sources/cli.ts --unpack fixtures/sources/subsonic.json [outDir]
 ```
 
 `browse` 就是 `exploreUrl` + `ruleExplore`：每个探索条目是一个带标题的 URL，而 `childUrl` 非空的条目是要深入下去的节点，而不是拿来播放的叶子。文件夹树、流派列表、排行榜、播客 feed 的单集列表，用的都是同样三个字段 —— 这正是同一个 UI 组件能渲染它们全部的原因。

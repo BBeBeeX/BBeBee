@@ -3,12 +3,12 @@
  * `pnpm build:sources` — compile multi-file sources into self-contained
  * single-file JSONs.
  *
- * Default flow reads the pinned registry submodule: music sources from
+ * Default flow reads source directories if present: music sources from
  * `registry/music-sources/`, lyric sources from `registry/lyric-sources/`,
  * compiled into `fixtures/sources/`, `fixtures/lyric-sources/` and the
  * generated TS module that `plugin-lyric-sources` imports.
  *
- * `--sources <dir>` falls back to the legacy single-directory behavior: one
+ * `--sources <dir>` compiles from a custom directory: one
  * mixed directory routed per document (music docs carry `sourceUrl`, lyric
  * docs don't), with every lyric doc found aggregated into the generated
  * module. `--lyric-sources <dir>` overrides just the lyric directory of the
@@ -79,7 +79,7 @@ async function runBuild() {
         validate: true,
       })
     } else {
-      // Default flow: the registry submodule split into two sibling dirs.
+      // Default flow: source directories split into two sibling dirs.
       // Music first (nothing routes to the lyric outputs), then lyric —
       // the lyric run is what aggregates docs into the generated module.
       const lyricDir = customLyricSourcesDir

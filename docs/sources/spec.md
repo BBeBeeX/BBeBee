@@ -351,24 +351,15 @@ export interface LyricRule { lyric: string; format?: string; offsetMs?: string }
 
 Complex sources often involve substantial JavaScript logic (e.g. signature mixing, multi-stage authentication, audio stream track ranking). Authoring hundreds of lines of JS inside an escaped `\n` string in a single JSON file is unergonomic.
 
-Sources adopt **dual-file authoring during development, compiled to single-file for distribution**. The dual-file sources live in the registry repo ([B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)), consumed by this repository as the pinned `registry/` submodule ([registry.md](./registry.md)):
-- **`registry/music-sources/<id>/source.json`**: source metadata, allowed hosts, and rule mappings.
-- **`registry/music-sources/<id>/source.js`**: pure, unescaped JavaScript helpers with IDE syntax highlighting, linting, and completion.
-- **`registry/lyric-sources/<id>/`**: the same dual-file layout for lyric sources.
+Sources adopt **dual-file authoring during development, compiled to single-file for distribution**. Each music or lyric source lives in its own independent GitHub repository (e.g. [B_Be_Bee-subsonic](https://github.com/BBeBeeX/B_Be_Bee-subsonic) or [B_Be_Bee-lrclib](https://github.com/BBeBeeX/B_Be_Bee-lrclib)), indexed by the community registry ([B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)) as a pure metadata pointer:
+- **`src/source.json`**: source metadata, allowed hosts, UI parameters (`loginUi`), and rule mappings.
+- **`src/source.js`**: pure, unescaped JavaScript helpers with IDE syntax highlighting, linting, and completion.
+- Running `node scripts/compile.mjs` in the source repository compiles `src/source.json` and `src/source.js` into the repository root `index.json`.
 
-Build tooling validates and merges these files into single-file JSONs in `fixtures/sources/<id>.json` (music) and `fixtures/lyric-sources/<id>.json` (lyric):
+In the main application repository, CLI tooling supports unpacking single-file JSONs back into dual-file format for inspection:
 ```bash
-# Compile the registry submodule's sources into fixtures/sources/ + fixtures/lyric-sources/
-pnpm build:sources
-
-# Watch both registry dirs for changes and hot-recompile
-pnpm watch:sources
-
-# Legacy: compile one mixed directory routed per document
-pnpm build:sources --sources <dir>
-
 # Unpack any single-file JSON back into dual-file source format
-node --experimental-strip-types scripts/sources/cli.ts --unpack fixtures/sources/subsonic.json
+node --experimental-strip-types scripts/sources/cli.ts --unpack fixtures/sources/subsonic.json [outDir]
 ```
 
 `browse` is `exploreUrl` + `ruleExplore`: each explore entry is a titled URL, and an item whose

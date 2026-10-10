@@ -14,8 +14,8 @@ export interface CompileSourceOptions {
 
 export interface BuildSourcesOptions {
   /**
-   * Root directory containing source folders — typically one of the registry
-   * submodule's sibling dirs (`registry/music-sources`, `registry/lyric-sources`)
+   * Root directory containing source folders — typically
+   * source directories (`registry/music-sources`, `registry/lyric-sources`)
    * or, with `--sources`, a single mixed directory routed per document.
    */
   sourcesDir: string
@@ -146,6 +146,15 @@ export async function compileSource(opts: CompileSourceOptions): Promise<string>
   return outputContent
 }
 
+async function dirExists(path: string): Promise<boolean> {
+  try {
+    const s = await stat(path)
+    return s.isDirectory()
+  } catch {
+    return false
+  }
+}
+
 /**
  * Scans a directory of source folders and compiles each into a single-file
  * JSON — music sources into `outDir`, lyric sources into `lyricOutDir`, and
@@ -153,6 +162,9 @@ export async function compileSource(opts: CompileSourceOptions): Promise<string>
  * plugin imports.
  */
 export async function buildSources(opts: BuildSourcesOptions): Promise<string[]> {
+  if (!(await dirExists(opts.sourcesDir))) {
+    return []
+  }
   const entries = await readdir(opts.sourcesDir, { withFileTypes: true })
   const sourceDirs = entries
     .filter((e) => e.isDirectory() && !e.name.startsWith('.') && !e.name.startsWith('_'))

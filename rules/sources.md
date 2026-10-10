@@ -50,13 +50,16 @@ Rule prefixes select the execution engine:
 
 ## 4. Source Authoring Workflow
 
-- **Dual-file development lives in the registry repo** — `B_Be_Bee-registry`, wired into this repo as the pinned `registry/` submodule (`registry/music-sources/<id>/`, `registry/lyric-sources/<id>/`). The main repo no longer keeps a top-level `sources/` directory.
-- **CLI Commands (main repo)**:
-  - `pnpm build:sources`: Compiles the submodule's dirs into single-file JSONs — `fixtures/sources/` (music) and `fixtures/lyric-sources/` (lyric) — and regenerates `plugin-lyric-sources`'s builtin module.
-  - `pnpm watch:sources`: Watch mode (one watcher per registry dir) for live re-compilation.
-  - `--sources <dir>`: legacy single-directory build (music + lyric mixed, routed per document); `--lyric-sources <dir>` overrides just the lyric dir of the default flow.
-  - `node --experimental-strip-types scripts/sources/cli.ts --unpack <file> [dest]`: Unpacks a single-file JSON back into `source.json` and `source.js` (default destination `registry/music-sources/unpacked`).
-- **Registry-side tooling** (in the registry repo, Node builtins only): `node scripts/compile.mjs` (compile + validate → `dist/`), `node scripts/compile.mjs --unpack <file> [dest]` (same unpack), `node scripts/generate-index.mjs` (regenerate `registry.json` + README), `node scripts/validate.mjs` (full validation). See the registry's `CONTRIBUTING.md`.
+- **Independent source repositories**: Each source lives in its own GitHub repository (e.g. `B_Be_Bee-subsonic`, `B_Be_Bee-lrclib`). Source development uses dual files (`src/source.json` + `src/source.js`).
+- **Source repository tooling** (Node builtins only):
+  - `node scripts/compile.mjs`: Compiles `src/source.json` and `src/source.js` into root `index.json`.
+  - `node scripts/validate.mjs`: Validates schema, readability, and byte-for-byte reproducibility against root `index.json`.
+- **Registry repository** (`B_Be_Bee-registry`):
+  - Pure DMS-style metadata index storing entry pointers (`music-sources/{username}-{name}.json`, `lyric-sources/{username}-{name}.json`, `plugins/{username}-{name}.json`) and native themes (`themes/{username}-{name}/`).
+  - Strict metadata validation via `node scripts/validate.mjs`.
+- **Main app repo tooling**:
+  - `fixtures/sources/` & `fixtures/lyric-sources/`: Single-file test golden fixtures.
+  - `node --experimental-strip-types scripts/sources/cli.ts --unpack <file> [dest]`: Unpacks a single-file JSON back into `source.json` and `source.js` for inspection.
 
 ---
 
