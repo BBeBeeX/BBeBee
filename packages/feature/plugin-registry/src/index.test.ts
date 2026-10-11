@@ -11,6 +11,7 @@ import type {
   PluginInfo,
   RegistryEntry,
   RegistryIndex,
+  RegistryTask,
   RegistryUpdate,
   SourceRecord,
   ThemeDefinition,
@@ -1084,6 +1085,255 @@ describe('automatic checks', () => {
 
     harness.ctx.emit('settings/changed', { ...DEFAULT_APP_SETTINGS, registryAutoCheck: false })
     expect(internals.autoCheckCancel).toBeUndefined()
+  })
+})
+
+/* ── the github-fetch download layer (Group 6) ───────────────────────────── */
+
+describe('github-fetch integration', () => {
+  it('walks the acceleration prefix chain when the official Contents API fails', async () => {
+    const prefix = 'https://ghproxy.example.com'
+    const base = 'https://api.github.com/repos/BBeBeeX/B_Be_Bee-registry/contents'
+    const harness = await setupInitialized({
+      http: {
+        status: {
+          [`${base}/music-sources`]: 403,
+          [`${base}/lyric-sources`]: 403,
+          [`${base}/plugins`]: 403,
+          [`${base}/themes`]: 403,
+        },
+        json: {
+          [`${prefix}/${base}/music-sources`]: [
+            { name: 'alice.json', type: 'file', download_url: 'https://cdn.example/music.json' },
+          ],
+          [`${prefix}/${base}/lyric-sources`]: [],
+          [`${prefix}/${base}/plugins`]: [],
+          [`${prefix}/${base}/themes`]: [],
+          'https://cdn.example/music.json': {
+            id: 'music-foo',
+            kind: 'music-source',
+            name: 'Foo Music',
+            version: '1.0.0',
+          },
+        },
+      },
+    })
+    harness.settings.getSync.mockReturnValue({
+      ...DEFAULT_APP_SETTINGS,
+      registryAutoCheck: false,
+      githubAccelerationPrefixes: [prefix],
+    })
+
+    // Every directory answered through the prefix candidate; the author-hosted
+    // download_url stayed a single official candidate.
+    const index = await harness.plugin.getIndex()
+    expect(index.entries.map((entry) => entry.id)).toEqual(['music-foo'])
+  })
+
+  it('serves the legacy registry.json fallback through jsDelivr when raw fails', async () => {
+    const rawRegistryJson =
+      'https://raw.githubusercontent.com/BBeBeeX/B_Be_Bee-registry/main/registry.json'
+    const viaJsDelivr = 'https://cdn.jsdelivr.net/gh/BBeBeeX/B_Be_Bee-registry@main/registry.json'
+    const harness = await setupInitialized({
+      http: {
+        status: { [rawRegistryJson]: 403 },
+        json: {
+          [viaJsDelivr]: { entries: [{ id: 'via-jsdelivr', kind: 'theme', name: 'Via jsDelivr' }] },
+        },
+      },
+    })
+
+    const index = await harness.plugin.getIndex()
+    expect(index.entries.map((entry) => entry.id)).toEqual(['via-jsdelivr'])
+  })
+
+  it('uses a configured endpoint override verbatim even with prefixes configured', async () => {
+    const mirror = 'https://mirror.example/registry.json'
+    const harness = await setupInitialized({
+      http: { json: { [mirror]: { entries: [{ id: 'from-mirror', kind: 'theme', name: 'Mirror' }] } } },
+    })
+    harness.settings.getSync.mockReturnValue({
+      ...DEFAULT_APP_SETTINGS,
+      registryAutoCheck: false,
+      githubAccelerationPrefixes: ['https://ghproxy.example.com'],
+    })
+    harness.data.set(PREFS_KEY, { endpoint: mirror })
+
+    const index = await harness.plugin.getIndex()
+    expect(index.entries.map((entry) => entry.id)).toEqual(['from-mirror'])
+  })
+})
+
+/* ── the task center (Group 3) ───────────────────────────────────────────── */
+
+describe('registry task center', () => {
+  const musicUrl = 'https://cdn.example/foo-task.json'
+  const musicDocument = JSON.stringify({ sourceUrl: 'https://foo.example', sourceName: 'Task Music' })
+  const musicEntry = () =>
+    entryOf({
+      id: 'music-task',
+      kind: 'music-source',
+      name: 'Task Music',
+      downloadUrl: musicUrl,
+      sourceUrl: 'https://foo.example',
+    })
+
+  it('walks the lifecycle: fetch creates the task, the install completes it', async () => {
+    const harness = await setupInitialized({
+      http: { json: { [musicUrl]: musicDocument } },
+      sources: [makeSourceRecord('https://foo.example', '1.0.0')],
+    })
+    harness.sources.import.mockResolvedValueOnce({
+      added: [makeSourceRecord('https://foo.example', '1.1.0')],
+      updated: [],
+      unchanged: [],
+      rejected: [],
+      conflicts: [],
+    })
+
+    const seen: (readonly RegistryTask[])[] = []
+    harness.ctx.on('registry/tasks-changed', (tasks) => seen.push(tasks))
+
+    // The fetch runs download → verify, then parks at pending ("等待确认").
+    await harness.plugin.fetchEntryDetails(musicEntry())
+    let tasks = harness.plugin.getTasks()
+    expect(tasks).toHaveLength(1)
+    expect(tasks[0]).toMatchObject({
+      entryId: 'music-task',
+      entryName: 'Task Music',
+      kind: 'music-source',
+      operation: 'install',
+      status: 'pending',
+      stage: 'verify',
+    })
+    expect(tasks[0]?.startedAt).toBeGreaterThan(0)
+    expect(tasks[0]?.finishedAt).toBeUndefined()
+
+    // The install resumes the same record and lands it as success.
+    await harness.plugin.install(musicEntry())
+    tasks = harness.plugin.getTasks()
+    expect(tasks).toHaveLength(1)
+    expect(tasks[0]).toMatchObject({ status: 'success', stage: 'install' })
+    expect(tasks[0]?.finishedAt).toBeGreaterThan(0)
+    expect(tasks[0]?.error).toBeUndefined()
+
+    // Every mutation announced the FULL snapshot; the last one matches getTasks().
+    expect(seen.length).toBeGreaterThanOrEqual(3)
+    expect(seen[seen.length - 1]).toEqual(harness.plugin.getTasks())
+  })
+
+  it('reports the install stage while a domain import is in flight', async () => {
+    const harness = await setupInitialized({
+      http: { json: { [musicUrl]: musicDocument } },
+      sources: [makeSourceRecord('https://foo.example', '1.0.0')],
+    })
+    let releaseImport: () => void = () => {}
+    harness.sources.import.mockImplementationOnce(
+      async () =>
+        new Promise<ImportReport>((resolve) => {
+          releaseImport = () =>
+            resolve({
+              added: [makeSourceRecord('https://foo.example', '1.1.0')],
+              updated: [],
+              unchanged: [],
+              rejected: [],
+              conflicts: [],
+            })
+        }),
+    )
+
+    const pendingInstall = harness.plugin.install(musicEntry())
+    await vi.waitFor(() => expect(harness.plugin.getTasks()[0]?.stage).toBe('install'))
+    expect(harness.plugin.getTasks()[0]).toMatchObject({ status: 'running' })
+
+    releaseImport()
+    await pendingInstall
+    expect(harness.plugin.getTasks()[0]?.status).toBe('success')
+  })
+
+  it('fails the task when fetchEntryDetails throws, keeping the error text', async () => {
+    const harness = await setupInitialized({
+      http: { fail: { [musicUrl]: new Error('offline') } },
+    })
+    await expect(harness.plugin.fetchEntryDetails(musicEntry())).rejects.toThrow(/offline/)
+
+    const tasks = harness.plugin.getTasks()
+    expect(tasks).toHaveLength(1)
+    expect(tasks[0]).toMatchObject({ entryId: 'music-task', status: 'failed', stage: 'download' })
+    expect(tasks[0]?.error).toContain('offline')
+    expect(tasks[0]?.finishedAt).toBeGreaterThan(0)
+  })
+
+  it('fails the task with the error text when the install throws', async () => {
+    const failingUrl = 'https://cdn.example/bad-theme-task.json'
+    const harness = await setupInitialized({
+      http: { json: { [failingUrl]: makeFailingTheme('bad-theme-task') } },
+    })
+
+    await expect(
+      harness.plugin.install(entryOf({ id: 'bad-theme-task', kind: 'theme', name: 'Bad', downloadUrl: failingUrl })),
+    ).rejects.toThrow(/failed the contrast check/)
+
+    const tasks = harness.plugin.getTasks()
+    expect(tasks).toHaveLength(1)
+    expect(tasks[0]).toMatchObject({ status: 'failed' })
+    expect(tasks[0]?.error).toContain('failed the contrast check')
+  })
+
+  it('keeps a task pending when the dialog is abandoned, and reuses it on the next fetch', async () => {
+    const harness = await setupInitialized({
+      http: { json: { [musicUrl]: musicDocument } },
+    })
+    await harness.plugin.fetchEntryDetails(musicEntry())
+    const first = harness.plugin.getTasks()[0]
+    expect(first?.status).toBe('pending')
+
+    // The user dismissed the confirm dialog. A later fetch of the same entry
+    // resets the same record instead of piling up a duplicate.
+    await harness.plugin.fetchEntryDetails(musicEntry())
+    const tasks = harness.plugin.getTasks()
+    expect(tasks).toHaveLength(1)
+    expect(tasks[0]?.id).toBe(first?.id)
+    expect(tasks[0]?.status).toBe('pending')
+  })
+
+  it('produces no task when the diagnostics rescan re-fetches an entry', async () => {
+    const harness = await setupInitialized({
+      http: { json: { [musicUrl]: musicDocument } },
+      sources: [makeSourceRecord('https://foo.example')],
+    })
+    harness.data.set(INDEX_CACHE_KEY, { fetchedAt: 1, index: { entries: [musicEntry()] } })
+
+    await harness.plugin.rescanEntry('music-task')
+    expect(harness.plugin.getTasks()).toEqual([])
+  })
+
+  it('clears only finished tasks — a pending one survives', async () => {
+    const harness = await setupInitialized({
+      http: {
+        json: { [musicUrl]: musicDocument },
+        fail: { 'https://cdn.example/broken-task.json': new Error('offline') },
+      },
+    })
+    await expect(
+      harness.plugin.fetchEntryDetails(
+        // A music source: its fetch actually downloads, so the failure is real.
+        entryOf({
+          id: 'broken-task',
+          kind: 'music-source',
+          name: 'Broken',
+          downloadUrl: 'https://cdn.example/broken-task.json',
+        }),
+      ),
+    ).rejects.toThrow(/offline/)
+    await harness.plugin.fetchEntryDetails(musicEntry())
+
+    expect(harness.plugin.getTasks()).toHaveLength(2)
+    harness.plugin.clearFinishedTasks()
+
+    const remaining = harness.plugin.getTasks()
+    expect(remaining).toHaveLength(1)
+    expect(remaining[0]).toMatchObject({ entryId: 'music-task', status: 'pending' })
   })
 })
 

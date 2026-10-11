@@ -20,6 +20,7 @@ import type {
   PluginInstallBundle,
   PluginManagerService,
   PluginManifest,
+  RegistryDiagnosticsReport,
   RegistryEntry,
   RegistryEntryDetails,
   RegistryEntryKind,
@@ -27,6 +28,7 @@ import type {
   RegistryLockFile,
   RegistryLockRecord,
   RegistryService,
+  RegistryTask,
   RegistryUpdate,
   SecurityAuditContext,
   SecurityAuditReport,
@@ -41,8 +43,34 @@ import { sha256Hex } from '@BBeBee/protocol'
 import { scanCode } from '@BBeBee/toolkit'
 import { themeContrastIssues } from '@BBeBee/ui-tokens'
 import { RegistryLockManager } from './lock.js'
+import { createGitHubFetch } from './github-fetch.js'
+import type { GitHubFetchLayer } from './github-fetch.js'
 import { compareVersions, normalizeVersion } from './semver.js'
+import {
+  activeTaskFor,
+  beginTask,
+  clearFinished,
+  completeTask,
+  createTaskRegistry,
+  failTask,
+  holdTaskForConfirmation,
+  setTaskProgress,
+  setTaskStage,
+  snapshotTasks,
+} from './tasks.js'
+import type { TaskRegistryState } from './tasks.js'
 import { REGISTRY_VIEWS } from './views.js'
+import {
+  AUDIT_FINDINGS_KEY,
+  CAPABILITY_MISMATCHES_KEY,
+  buildDiagnosticsReport,
+  dedupeEntriesById,
+} from './diagnostics.js'
+import type {
+  RegistryAuditFindingsMap,
+  RegistryCapabilityMismatchMap,
+  RegistryIndexAnomalies,
+} from './diagnostics.js'
 
 /** GitHub Contents API base endpoint for community registry. Overridable via `registry.prefs`. */
 const DEFAULT_CONTENTS_API = 'https://api.github.com/repos/BBeBeeX/B_Be_Bee-registry/contents'
@@ -71,6 +99,8 @@ const AUTO_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000
 interface IndexCache {
   fetchedAt: number
   index: RegistryIndex
+  /** Sanitizer anomalies from the fetch that produced this cache (optional for older caches). */
+  anomalies?: RegistryIndexAnomalies
 }
 
 interface RegistryPrefs {
@@ -154,10 +184,11 @@ function sanitizeEntry(raw: unknown, defaultKind?: RegistryEntryKind): RegistryE
     repoUrl: optionalString(raw.repoUrl) ?? optionalString(raw.repo),
     sha256: optionalString(raw.sha256),
     capabilities: optionalStringArray(raw.capabilities),
+    category: optionalString(raw.category),
   }
 }
 
-function sanitizeIndex(raw: unknown): { index: RegistryIndex; dropped: number } {
+function sanitizeIndex(raw: unknown): { index: RegistryIndex; dropped: number; duplicateIds: string[] } {
   if (!isRecord(raw) || !Array.isArray(raw.entries)) {
     throw new Error('registry: the index document is malformed (expected an object with an `entries` array)')
   }
@@ -171,12 +202,15 @@ function sanitizeIndex(raw: unknown): { index: RegistryIndex; dropped: number } 
       dropped++
     }
   }
+  // Duplicate ids used to slip through; keep the first occurrence and record
+  // the rest — the caller logs them and diagnostics surfaces them as conflicts.
+  const { unique, duplicateIds } = dedupeEntriesById(entries)
   const index: RegistryIndex = {
-    entries,
+    entries: unique,
     generatedAt: optionalString(raw.generatedAt),
     repository: optionalString(raw.repository),
   }
-  return { index, dropped }
+  return { index, dropped, duplicateIds }
 }
 
 function hasIndexShape(value: unknown): value is RegistryIndex {
@@ -193,12 +227,18 @@ function documentVersion(docJson: string): string {
   return '0.0.0'
 }
 
+/** The text a task record keeps for a failure — the message, not the stack. */
+function taskErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err)
+}
+
 export class RegistryPlugin extends Service implements RegistryService {
   static override readonly name = 'contentRegistry'
   static readonly inject = ['http']
 
   private readonly ownCtx: Context
   private readonly http: HttpService
+  private readonly githubFetch: GitHubFetchLayer
   private readonly config: RegistryConfig
 
   /* ── optional collaborators, captured in init ── */
@@ -214,6 +254,15 @@ export class RegistryPlugin extends Service implements RegistryService {
 
   private lockManager: RegistryLockManager
 
+  /**
+   * The task center: in-memory records of install/update operations as they
+   * move through download → verify → install. Deliberately not persisted — a
+   * task is short-lived activity reporting, and a store would resurrect stale
+   * "running" rows after a crash. Finished records are capped by the tasks
+   * module; active ones are never trimmed.
+   */
+  private readonly tasks: TaskRegistryState = createTaskRegistry()
+
   /** The desktop-only bridge that installs a `{ manifest, files }` bundle. */
   private pluginInstaller?: (bundle: PluginInstallBundle) => Promise<void>
 
@@ -226,6 +275,9 @@ export class RegistryPlugin extends Service implements RegistryService {
   /** Whether the most recent `getIndex()` had to fall back to the cached copy. */
   private indexFetchFailed = false
 
+  /** When that most recent failure happened, for the diagnostics report. */
+  private lastIndexFailureAt?: number
+
   /** Cancels the current auto-check timers; also registered as a fiber effect. */
   private autoCheckCancel?: () => void
 
@@ -234,6 +286,13 @@ export class RegistryPlugin extends Service implements RegistryService {
     this.ownCtx = ctx
     this.config = config
     this.http = ctx.http
+    this.githubFetch = createGitHubFetch({
+      http: ctx.http,
+      logger: ctx.logger,
+      // Read on every request: the settings service is captured by the
+      // init-time inject below, and region/prefix changes must apply live.
+      getSettings: () => this.settingsService?.getSync(),
+    })
     this.lockManager = new RegistryLockManager()
   }
 
@@ -325,7 +384,11 @@ export class RegistryPlugin extends Service implements RegistryService {
   /* ── the index ─────────────────────────────────────────────────────────── */
 
   async getIndex(_force = false): Promise<RegistryIndex> {
-    const endpoint = await this.resolveEndpoint()
+    const { endpoint, overridden } = await this.resolveEndpoint()
+    // A user-configured endpoint override *is* the official route: it is used
+    // verbatim and never accelerated. The default GitHub endpoints walk the
+    // full candidate chain (official → jsDelivr → custom prefixes).
+    const endpointOpts = overridden ? { onlyOfficial: true } : undefined
     try {
       // 1. Direct index check: if endpoint directly returns an index with entries (e.g. test mock or mirror)
       let directRaw: unknown
@@ -336,22 +399,18 @@ export class RegistryPlugin extends Service implements RegistryService {
       }
 
       if (hasIndexShape(directRaw)) {
-        const { index, dropped } = sanitizeIndex(directRaw)
-        if (dropped > 0) {
-          this.ownCtx.logger.warn(`registry: dropped ${dropped} malformed entr${dropped === 1 ? 'y' : 'ies'} from the index`)
-        }
-        await this.writeIndexCache(index)
+        const { index, dropped, duplicateIds } = sanitizeIndex(directRaw)
+        this.warnIndexAnomalies(dropped, duplicateIds, 'the index')
+        await this.writeIndexCache(index, { dropped, duplicateIds })
         this.indexFetchFailed = false
         return index
       }
 
       // If pointing directly to a .json file that wasn't an index shape, sanitizeIndex will error
       if (endpoint.endsWith('.json') && directRaw !== undefined) {
-        const { index, dropped } = sanitizeIndex(directRaw)
-        if (dropped > 0) {
-          this.ownCtx.logger.warn(`registry: dropped ${dropped} malformed entr${dropped === 1 ? 'y' : 'ies'} from direct index`)
-        }
-        await this.writeIndexCache(index)
+        const { index, dropped, duplicateIds } = sanitizeIndex(directRaw)
+        this.warnIndexAnomalies(dropped, duplicateIds, 'direct index')
+        await this.writeIndexCache(index, { dropped, duplicateIds })
         this.indexFetchFailed = false
         return index
       }
@@ -369,7 +428,7 @@ export class RegistryPlugin extends Service implements RegistryService {
       for (const { dir, kind } of REGISTRY_DIRS) {
         try {
           const dirUrl = `${contentsBase}/${dir}`
-          const items = await this.http.get<unknown>(dirUrl)
+          const items = await this.githubFetch.getJson<unknown>(dirUrl, endpointOpts)
           if (!Array.isArray(items)) continue
 
           for (const item of items) {
@@ -382,7 +441,7 @@ export class RegistryPlugin extends Service implements RegistryService {
             if ((itemType === 'file' || !itemType) && itemName.endsWith('.json')) {
               const fileUrl = downloadUrl ?? `${DEFAULT_RAW_BASE}/${dir}/${itemName}`
               try {
-                rawEntry = await this.http.get<unknown>(fileUrl)
+                rawEntry = await this.githubFetch.getJson<unknown>(fileUrl)
               } catch {
                 totalDropped++
                 continue
@@ -400,7 +459,7 @@ export class RegistryPlugin extends Service implements RegistryService {
               }
               if (metaUrl) {
                 try {
-                  rawEntry = await this.http.get<unknown>(metaUrl)
+                  rawEntry = await this.githubFetch.getJson<unknown>(metaUrl)
                 } catch {
                   // directory without compiled meta
                 }
@@ -419,13 +478,13 @@ export class RegistryPlugin extends Service implements RegistryService {
         } catch (dirErr) {
           // Fallback to single registry.json if available before failing to local cache
           try {
-            const legacyRaw = await this.http.get<unknown>(DEFAULT_RAW_BASE + '/registry.json')
+            const legacyRaw = await this.githubFetch.getJson<unknown>(
+              DEFAULT_RAW_BASE + '/registry.json',
+            )
             if (hasIndexShape(legacyRaw)) {
-              const { index, dropped } = sanitizeIndex(legacyRaw)
-              if (dropped > 0) {
-                this.ownCtx.logger.warn(`registry: dropped ${dropped} malformed entries from fallback registry.json`)
-              }
-              await this.writeIndexCache(index)
+              const { index, dropped, duplicateIds } = sanitizeIndex(legacyRaw)
+              this.warnIndexAnomalies(dropped, duplicateIds, 'fallback registry.json')
+              await this.writeIndexCache(index, { dropped, duplicateIds })
               this.indexFetchFailed = false
               return index
             }
@@ -441,17 +500,25 @@ export class RegistryPlugin extends Service implements RegistryService {
         this.ownCtx.logger.warn(`registry: dropped ${totalDropped} malformed entries during discovery`)
       }
 
+      // Discovery can also produce duplicate ids (two directories publishing
+      // the same id); run the same keep-first dedupe the direct paths use.
+      const { unique, duplicateIds } = dedupeEntriesById(entries)
+      if (duplicateIds.length > 0) {
+        this.ownCtx.logger.warn(`registry: dropped ${duplicateIds.length} duplicate index id${duplicateIds.length === 1 ? '' : 's'}: ${duplicateIds.join(', ')}`)
+      }
+
       const index: RegistryIndex = {
         repository: DEFAULT_REGISTRY_REPO,
         generatedAt: new Date().toISOString(),
-        entries,
+        entries: unique,
       }
 
-      await this.writeIndexCache(index)
+      await this.writeIndexCache(index, { dropped: totalDropped, duplicateIds })
       this.indexFetchFailed = false
       return index
     } catch (err) {
       this.indexFetchFailed = true
+      this.lastIndexFailureAt = Date.now()
       this.ownCtx.logger.warn(
         `registry: failed to fetch the index from ${endpoint}, falling back to the last good copy: ${String(err)}`,
       )
@@ -461,6 +528,192 @@ export class RegistryPlugin extends Service implements RegistryService {
 
   lastIndexFetchFailed(): boolean {
     return this.indexFetchFailed
+  }
+
+  /* ── diagnostics (§1.5) ──────────────────────────────────────────────────── */
+
+  /**
+   * Builds a diagnostics report from real service state only: the lock file,
+   * the persisted audit findings and capability mismatches, the index cache
+   * (entries, anomalies, age), the download layer's failure status and the
+   * installed-content services. Never invents a datum; a group with no source
+   * behind it stays empty.
+   */
+  async getDiagnostics(): Promise<RegistryDiagnosticsReport> {
+    const [lock, auditFindings, capabilityMismatches, cacheRecord] = await Promise.all([
+      this.lockManager.read(),
+      this.readStoreMap<RegistryAuditFindingsMap>(AUDIT_FINDINGS_KEY),
+      this.readStoreMap<RegistryCapabilityMismatchMap>(CAPABILITY_MISMATCHES_KEY),
+      this.readIndexCacheRecord(),
+    ])
+
+    const installedMusicSources = (this.sourcesService?.sources ?? []).map((record) => ({
+      sourceUrl: record.sourceUrl,
+      docVersion: documentVersion(record.docJson),
+      name: record.name,
+    }))
+    const installedLyricSources = (this.lyricSourcesService?.getSources() ?? []).map((source) => ({
+      id: source.id,
+      version: typeof source.version === 'string' ? source.version : undefined,
+    }))
+    const installedThemes = (this.themeService?.getThemes() ?? []).map((theme) => ({
+      id: theme.id,
+      version: typeof theme.version === 'string' ? theme.version : undefined,
+    }))
+    const installedPlugins = (this.pluginManagerService?.list() ?? []).map((info) => ({
+      id: info.id,
+      version: typeof info.version === 'string' ? info.version : undefined,
+      dependencies: info.dependencies,
+    }))
+
+    return buildDiagnosticsReport({
+      now: Date.now(),
+      auditFindings,
+      capabilityMismatches,
+      lockRecords: lock.records,
+      indexEntries: cacheRecord?.index.entries ?? [],
+      indexAnomalies: cacheRecord?.anomalies,
+      indexFetchFailed: this.indexFetchFailed,
+      lastIndexFailureAt: this.lastIndexFailureAt,
+      lastChainFailure: this.githubFetch.lastChainFailure?.(),
+      indexCacheFetchedAt: cacheRecord?.fetchedAt,
+      installed: {
+        musicSources: installedMusicSources,
+        lyricSources: installedLyricSources,
+        themes: installedThemes,
+        plugins: installedPlugins,
+      },
+    })
+  }
+
+  /**
+   * Re-runs `fetchEntryDetails` (static security scan included) for one entry
+   * and refreshes its stored audit findings / capability-mismatch records.
+   * Detection only — nothing is installed, so the install-stage `confirmed`
+   * gate never applies here. The entry is looked up in the cached index; a
+   * rescan against the live index is the user's "刷新" away.
+   */
+  async rescanEntry(entryId: string): Promise<void> {
+    const entry = (await this.readIndexCache())?.entries.find((candidate) => candidate.id === entryId)
+    if (!entry) {
+      throw new Error(
+        `registry: cannot rescan "${entryId}" — the entry is not in the cached index; refresh the index first`,
+      )
+    }
+    // Both record writes happen inside fetchEntryDetails (findings on success,
+    // capability mismatch before its throw), so a rethrown network error still
+    // leaves whatever was actually observed persisted.
+    await this.fetchEntryDetails(entry, { trackTask: false })
+  }
+
+  /* ── task center (§4.1) ─────────────────────────────────────────────────── */
+
+  /** The full task snapshot — active records plus the capped finished history, newest first. */
+  getTasks(): readonly RegistryTask[] {
+    return snapshotTasks(this.tasks)
+  }
+
+  /** Drops every finished (success/failed) record; pending/running ones stay. */
+  clearFinishedTasks(): void {
+    const removed = clearFinished(this.tasks)
+    if (removed > 0) {
+      this.ownCtx.logger.info(`[registry-tasks] cleared ${removed} finished task${removed === 1 ? '' : 's'}`)
+      this.emitTasksChanged()
+    }
+  }
+
+  private emitTasksChanged(): void {
+    this.safeEmit(() => this.ownCtx.emit('registry/tasks-changed', snapshotTasks(this.tasks)))
+  }
+
+  /** Begins (or resumes) the task record for one entry — `running`, stage `download`. */
+  private trackBegin(entry: RegistryEntry): void {
+    beginTask(this.tasks, { entryId: entry.id, entryName: entry.name, kind: entry.kind, now: Date.now() })
+    this.ownCtx.logger.info(`[registry-tasks] tracking "${entry.id}" (${entry.kind}) from the download stage`)
+    this.emitTasksChanged()
+  }
+
+  /** Stage reporting at the natural checkpoints; a no-op without a tracked running task. */
+  private trackStage(entryId: string, stage: RegistryTask['stage']): void {
+    if (!activeTaskFor(this.tasks, entryId)) return
+    setTaskStage(this.tasks, entryId, stage)
+    this.emitTasksChanged()
+  }
+
+  /** Attach naturally-known progress (artifact counts); never a synthesized percentage. */
+  private trackProgress(entryId: string, progress: { done: number; total: number }): void {
+    if (!activeTaskFor(this.tasks, entryId)) return
+    setTaskProgress(this.tasks, entryId, progress)
+    this.emitTasksChanged()
+  }
+
+  /** Fetch succeeded, install not started — the "等待确认" state before the dialog is confirmed. */
+  private trackHoldForConfirmation(entryId: string): void {
+    if (!activeTaskFor(this.tasks, entryId)) return
+    holdTaskForConfirmation(this.tasks, entryId)
+    this.emitTasksChanged()
+  }
+
+  private trackComplete(entryId: string): void {
+    if (!activeTaskFor(this.tasks, entryId)) return
+    completeTask(this.tasks, entryId, Date.now())
+    this.ownCtx.logger.info(`[registry-tasks] task for "${entryId}" completed`)
+    this.emitTasksChanged()
+  }
+
+  private trackFail(entryId: string, err: unknown): void {
+    if (!activeTaskFor(this.tasks, entryId)) return
+    failTask(this.tasks, entryId, taskErrorMessage(err), Date.now())
+    this.ownCtx.logger.warn(`[registry-tasks] task for "${entryId}" failed: ${String(err)}`)
+    this.emitTasksChanged()
+  }
+
+  /** Read a persisted diagnostics map, tolerating a missing store or garbage. */
+  private async readStoreMap<T extends Record<string, unknown>>(key: string): Promise<T> {
+    try {
+      const value = await this.storeService?.get<T>(key)
+      if (value && typeof value === 'object' && !Array.isArray(value)) return value
+    } catch (err) {
+      this.ownCtx.logger.warn(`[registry-diagnostics] failed to read "${key}" from the store: ${String(err)}`)
+    }
+    return {} as T
+  }
+
+  /**
+   * Persist the outcome of one security scan. Only block/warn reports are
+   * kept — a passing scan deletes the entry's record, so a fixed document
+   * stops showing up as a risk after a rescan.
+   */
+  private async recordAuditFindings(entryId: string, audit: SecurityAuditReport | undefined): Promise<void> {
+    if (!this.storeService || !audit) return
+    try {
+      const map = await this.readStoreMap<RegistryAuditFindingsMap>(AUDIT_FINDINGS_KEY)
+      if (audit.level === 'pass' || audit.findings.length === 0) {
+        delete map[entryId]
+      } else {
+        map[entryId] = { level: audit.level === 'block' ? 'block' : 'warn', findings: [...audit.findings], checkedAt: Date.now() }
+      }
+      await this.storeService.set<RegistryAuditFindingsMap>(AUDIT_FINDINGS_KEY, map)
+    } catch (err) {
+      this.ownCtx.logger.warn(`[registry-diagnostics] failed to persist audit findings for "${entryId}": ${String(err)}`)
+    }
+  }
+
+  /** Persist one manifest-vs-registry capabilities mismatch, keyed by entry id. */
+  private async recordCapabilityMismatch(entry: RegistryEntry, manifestCaps: readonly string[]): Promise<void> {
+    if (!this.storeService) return
+    try {
+      const map = await this.readStoreMap<RegistryCapabilityMismatchMap>(CAPABILITY_MISMATCHES_KEY)
+      map[entry.id] = {
+        entryId: entry.id,
+        expected: [...(entry.capabilities ?? [])],
+        actual: [...manifestCaps],
+        checkedAt: Date.now(),
+      }
+      await this.storeService.set<RegistryCapabilityMismatchMap>(CAPABILITY_MISMATCHES_KEY, map)
+    } catch (err) {
+      this.ownCtx.logger.warn(`[registry-diagnostics] failed to record capability mismatch for "${entry.id}": ${String(err)}`)
+    }
   }
 
   /* ── update checks ─────────────────────────────────────────────────────── */
@@ -562,7 +815,7 @@ export class RegistryPlugin extends Service implements RegistryService {
     repo: string,
   ): Promise<{ commit: string; defaultBranch: string }> {
     try {
-      const commitData = await this.http.get<{ sha?: string }>(
+      const commitData = await this.githubFetch.getJson<{ sha?: string }>(
         `https://api.github.com/repos/${owner}/${repo}/commits/HEAD`,
       )
       if (commitData && typeof commitData.sha === 'string' && commitData.sha) {
@@ -573,11 +826,11 @@ export class RegistryPlugin extends Service implements RegistryService {
     }
 
     try {
-      const repoData = await this.http.get<{ default_branch?: string }>(
+      const repoData = await this.githubFetch.getJson<{ default_branch?: string }>(
         `https://api.github.com/repos/${owner}/${repo}`,
       )
       const branch = repoData.default_branch || 'main'
-      const branchCommit = await this.http.get<{ sha?: string }>(
+      const branchCommit = await this.githubFetch.getJson<{ sha?: string }>(
         `https://api.github.com/repos/${owner}/${repo}/commits/${branch}`,
       )
       if (branchCommit?.sha) {
@@ -592,7 +845,33 @@ export class RegistryPlugin extends Service implements RegistryService {
 
   /* ── the confirm dialog's inputs ───────────────────────────────────────── */
 
-  async fetchEntryDetails(entry: RegistryEntry): Promise<RegistryEntryDetails> {
+  /**
+   * Fetches the distribution document for an entry and returns what the
+   * confirm dialog must show.
+   *
+   * Every user-facing fetch is also a task-center event: a task begins at the
+   * `download` stage and, on success, parks at `pending` ("等待确认") until
+   * the install actually starts. `rescanEntry` runs the same fetch with
+   * `trackTask: false` — a diagnostics rescan is not a user install flow and
+   * must not plant task rows.
+   */
+  async fetchEntryDetails(
+    entry: RegistryEntry,
+    opts?: { trackTask?: boolean },
+  ): Promise<RegistryEntryDetails> {
+    const track = opts?.trackTask ?? true
+    if (track) this.trackBegin(entry)
+    try {
+      const details = await this.fetchEntryDetailsForEntry(entry)
+      if (track) this.trackHoldForConfirmation(entry.id)
+      return details
+    } catch (err) {
+      if (track) this.trackFail(entry.id, err)
+      throw err
+    }
+  }
+
+  private async fetchEntryDetailsForEntry(entry: RegistryEntry): Promise<RegistryEntryDetails> {
     const repoInfo = parseGitHubRepo(entry.repoUrl ?? entry.repo)
     const prevLock = await this.lockManager.getRecord(entry.id)
 
@@ -607,13 +886,13 @@ export class RegistryPlugin extends Service implements RegistryService {
         commit = resolved.commit
         const rawUrl = `https://raw.githubusercontent.com/${repoInfo.owner}/${repoInfo.repo}/${commit}/index.json`
         try {
-          docText = await (await this.fetchDocument(rawUrl)).text()
+          docText = await (await this.fetchDocument(rawUrl, entry.id)).text()
         } catch (err) {
           throw new Error(`registry: author repository "${repoInfo.owner}/${repoInfo.repo}" is missing root index.json (${String(err)})`, { cause: err })
         }
       } else {
         const url = this.requireDownloadUrl(entry)
-        docText = await (await this.fetchDocument(url)).text()
+        docText = await (await this.fetchDocument(url, entry.id)).text()
       }
 
       let doc: unknown
@@ -643,6 +922,7 @@ export class RegistryPlugin extends Service implements RegistryService {
         if (declared) hosts.push(...declared)
       }
       const allowedHosts = hosts.length ? [...new Set(hosts)] : undefined
+      this.trackStage(entry.id, 'verify')
       const securityAudit = this.scanCode(docText, { allowedHosts })
 
       let commitDiff: { previousCommit?: string; currentCommit: string } | undefined
@@ -655,7 +935,7 @@ export class RegistryPlugin extends Service implements RegistryService {
           ? this.sourcesService?.sources.find((r) => r.sourceUrl === entry.sourceUrl)
           : undefined
 
-      return {
+      const details: RegistryEntryDetails = {
         entry,
         ...(allowedHosts ? { allowedHosts } : {}),
         isBuiltinInstall: entry.kind === 'lyric-source' ? entry.id.startsWith('builtin-') : false,
@@ -665,6 +945,11 @@ export class RegistryPlugin extends Service implements RegistryService {
         ...(commit ? { commit } : {}),
         ...(commitDiff ? { commitDiff } : {}),
       }
+      // The scan result is otherwise discarded between the confirm dialog and
+      // the install call; persist it so the diagnostics page can report risks
+      // without refetching.
+      await this.recordAuditFindings(entry.id, securityAudit)
+      return details
     }
 
     if (entry.kind === 'plugin') {
@@ -679,13 +964,13 @@ export class RegistryPlugin extends Service implements RegistryService {
         let manifest: PluginManifest
         let indexJsCode: string
         try {
-          manifest = await (await this.fetchDocument(manifestUrl)).json<PluginManifest>()
+          manifest = await (await this.fetchDocument(manifestUrl, entry.id)).json<PluginManifest>()
         } catch (err) {
           throw new Error(`registry: author repository "${repoInfo.owner}/${repoInfo.repo}" is missing root manifest.json (${String(err)})`, { cause: err })
         }
 
         try {
-          indexJsCode = await (await this.fetchDocument(indexUrl)).text()
+          indexJsCode = await (await this.fetchDocument(indexUrl, entry.id)).text()
         } catch (err) {
           throw new Error(`registry: author repository "${repoInfo.owner}/${repoInfo.repo}" is missing root index.js (${String(err)})`, { cause: err })
         }
@@ -699,11 +984,15 @@ export class RegistryPlugin extends Service implements RegistryService {
           if (capCheck.missingInManifest.length) {
             diffs.push(`注册表声明但 manifest 未申请: [${capCheck.missingInManifest.join(', ')}]`)
           }
+          // Recorded before the throw so the diagnostics page can name the
+          // mismatch even though no details were produced.
+          await this.recordCapabilityMismatch(entry, manifest.capabilities ?? [])
           throw new Error(
             `registry: plugin "${entry.id}" capabilities mismatch between manifest and registry metadata: ${diffs.join('; ')}`,
           )
         }
 
+        this.trackStage(entry.id, 'verify')
         const securityAudit = this.scanCode(indexJsCode)
 
         let commitDiff: { previousCommit?: string; currentCommit: string } | undefined
@@ -711,13 +1000,15 @@ export class RegistryPlugin extends Service implements RegistryService {
           commitDiff = { previousCommit: prevLock.commit, currentCommit: commit }
         }
 
-        return {
+        const details: RegistryEntryDetails = {
           entry,
           securityAudit,
           repoUrl,
           commit,
           ...(commitDiff ? { commitDiff } : {}),
         }
+        await this.recordAuditFindings(entry.id, securityAudit)
+        return details
       }
 
       // Legacy bundle details
@@ -725,9 +1016,10 @@ export class RegistryPlugin extends Service implements RegistryService {
       if (entry.downloadUrl) {
         try {
           const url = this.requireDownloadUrl(entry)
-          const bytes = await (await this.fetchDocument(url)).bytes()
+          const bytes = await (await this.fetchDocument(url, entry.id)).bytes()
           const bundle: unknown = JSON.parse(new TextDecoder().decode(bytes))
           if (isRecord(bundle) && isRecord(bundle.files) && typeof bundle.files['index.js'] === 'string') {
+            this.trackStage(entry.id, 'verify')
             securityAudit = this.scanCode(bundle.files['index.js'] as string)
           }
         } catch {
@@ -735,10 +1027,12 @@ export class RegistryPlugin extends Service implements RegistryService {
         }
       }
 
-      return {
+      const details: RegistryEntryDetails = {
         entry,
         ...(securityAudit ? { securityAudit } : {}),
       }
+      await this.recordAuditFindings(entry.id, securityAudit)
+      return details
     }
 
     // Theme
@@ -747,7 +1041,30 @@ export class RegistryPlugin extends Service implements RegistryService {
 
   /* ── installs ──────────────────────────────────────────────────────────── */
 
+  /**
+   * Installs/updates one entry. The caller must already have shown the user
+   * the details (hosts / plugin risk).
+   *
+   * The install is one task-center operation: it resumes the entry's pending
+   * ("等待确认") record — or starts one when the service is called directly
+   * without a fetch — runs it back through `download`, and finalizes it as
+   * `success` or `failed` with the extracted error text.
+   */
   async install(entry: RegistryEntry, opts?: { confirmed?: boolean; overwrite?: boolean }): Promise<void> {
+    this.trackBegin(entry)
+    try {
+      await this.installEntry(entry, opts)
+      this.trackComplete(entry.id)
+    } catch (err) {
+      this.trackFail(entry.id, err)
+      throw err
+    }
+  }
+
+  private async installEntry(
+    entry: RegistryEntry,
+    opts?: { confirmed?: boolean; overwrite?: boolean },
+  ): Promise<void> {
     switch (entry.kind) {
       case 'music-source':
         return this.installMusicSource(entry, opts)
@@ -776,7 +1093,7 @@ export class RegistryPlugin extends Service implements RegistryService {
       commit = resolved.commit
       originUri = `https://raw.githubusercontent.com/${repoInfo.owner}/${repoInfo.repo}/${commit}/index.json`
       try {
-        text = await (await this.fetchDocument(originUri)).text()
+        text = await (await this.fetchDocument(originUri, entry.id)).text()
       } catch (err) {
         throw new Error(`registry: author repository "${repoInfo.owner}/${repoInfo.repo}" is missing root index.json (${String(err)})`, { cause: err })
       }
@@ -784,7 +1101,7 @@ export class RegistryPlugin extends Service implements RegistryService {
       originUri = this.requireDownloadUrl(entry)
       repoUrl = originUri
       commit = entry.version ?? '0.0.0'
-      text = await (await this.fetchDocument(originUri)).text()
+      text = await (await this.fetchDocument(originUri, entry.id)).text()
     }
 
     const sha256 = sha256Hex(text)
@@ -815,11 +1132,13 @@ export class RegistryPlugin extends Service implements RegistryService {
       if (declared) hosts.push(...declared)
     }
     const allowedHosts = hosts.length ? [...new Set(hosts)] : undefined
+    this.trackStage(entry.id, 'verify')
     const audit = this.scanCode(text, { allowedHosts })
     if (audit.level === 'block' && !opts?.confirmed) {
       throw new Error(`registry: security audit blocked installation of "${entry.id}": ${audit.findings.map((f) => f.message).join('; ')}`)
     }
 
+    this.trackStage(entry.id, 'install')
     const report = await this.requireSources().import(text, {
       originUri,
       overwrite: opts?.overwrite,
@@ -870,7 +1189,7 @@ export class RegistryPlugin extends Service implements RegistryService {
       commit = resolved.commit
       const rawUrl = `https://raw.githubusercontent.com/${repoInfo.owner}/${repoInfo.repo}/${commit}/index.json`
       try {
-        rawText = await (await this.fetchDocument(rawUrl)).text()
+        rawText = await (await this.fetchDocument(rawUrl, entry.id)).text()
         doc = JSON.parse(rawText)
       } catch (err) {
         throw new Error(`registry: author repository "${repoInfo.owner}/${repoInfo.repo}" is missing root index.json (${String(err)})`, { cause: err })
@@ -879,7 +1198,7 @@ export class RegistryPlugin extends Service implements RegistryService {
       const url = this.requireDownloadUrl(entry)
       repoUrl = url
       commit = entry.version ?? '0.0.0'
-      rawText = await (await this.fetchDocument(url)).text()
+      rawText = await (await this.fetchDocument(url, entry.id)).text()
       doc = JSON.parse(rawText)
     }
 
@@ -893,11 +1212,13 @@ export class RegistryPlugin extends Service implements RegistryService {
     }
 
     const sha256 = sha256Hex(rawText)
+    this.trackStage(entry.id, 'verify')
     const audit = this.scanCode(doc.script as string, { allowedHosts: optionalStringArray(doc.allowedHosts) })
     if (audit.level === 'block' && !opts?.confirmed) {
       throw new Error(`registry: security audit blocked installation of lyric source "${entry.id}": ${audit.findings.map((f) => f.message).join('; ')}`)
     }
 
+    this.trackStage(entry.id, 'install')
     await this.requireLyricSources().registerSource(doc as unknown as LyricSourceDefinition)
     await this.lockManager.setRecord({
       id: entry.id,
@@ -921,13 +1242,13 @@ export class RegistryPlugin extends Service implements RegistryService {
       const resolved = await this.resolveAuthorRepoCommit(repoInfo.owner, repoInfo.repo)
       commit = resolved.commit
       const rawUrl = `https://raw.githubusercontent.com/${repoInfo.owner}/${repoInfo.repo}/${commit}/theme.json`
-      rawText = await (await this.fetchDocument(rawUrl)).text()
+      rawText = await (await this.fetchDocument(rawUrl, entry.id)).text()
       doc = JSON.parse(rawText)
     } else {
       const url = this.requireDownloadUrl(entry)
       repoUrl = url
       commit = entry.version ?? '0.0.0'
-      rawText = await (await this.fetchDocument(url)).text()
+      rawText = await (await this.fetchDocument(url, entry.id)).text()
       doc = JSON.parse(rawText)
     }
 
@@ -942,6 +1263,9 @@ export class RegistryPlugin extends Service implements RegistryService {
     }
     const theme = doc as unknown as ThemeDefinition
 
+    // The contrast gate is the theme path's verification stage — it is what
+    // can still reject the artifact before the domain lands it.
+    this.trackStage(entry.id, 'verify')
     const issues = [...themeContrastIssues(theme, 'dark'), ...themeContrastIssues(theme, 'light')]
     if (issues.length) {
       const detail = issues
@@ -950,6 +1274,7 @@ export class RegistryPlugin extends Service implements RegistryService {
       throw new Error(`registry: the theme "${entry.id}" failed the contrast check — ${detail}`)
     }
 
+    this.trackStage(entry.id, 'install')
     this.requireTheme().registerTheme(theme)
     await this.lockManager.setRecord({
       id: entry.id,
@@ -978,13 +1303,13 @@ export class RegistryPlugin extends Service implements RegistryService {
       let manifest: PluginManifest
       let indexJsCode: string
       try {
-        manifest = await (await this.fetchDocument(manifestUrl)).json<PluginManifest>()
+        manifest = await (await this.fetchDocument(manifestUrl, entry.id)).json<PluginManifest>()
       } catch (err) {
         throw new Error(`registry: author repository "${repoInfo.owner}/${repoInfo.repo}" is missing root manifest.json (${String(err)})`, { cause: err })
       }
 
       try {
-        indexJsCode = await (await this.fetchDocument(indexUrl)).text()
+        indexJsCode = await (await this.fetchDocument(indexUrl, entry.id)).text()
       } catch (err) {
         throw new Error(`registry: author repository "${repoInfo.owner}/${repoInfo.repo}" is missing root index.js (${String(err)})`, { cause: err })
       }
@@ -998,11 +1323,13 @@ export class RegistryPlugin extends Service implements RegistryService {
         if (capCheck.missingInManifest.length) {
           diffs.push(`注册表声明但 manifest 未申请: [${capCheck.missingInManifest.join(', ')}]`)
         }
+        await this.recordCapabilityMismatch(entry, manifest.capabilities ?? [])
         throw new Error(
           `registry: plugin "${entry.id}" capabilities mismatch between manifest and registry metadata: ${diffs.join('; ')}`,
         )
       }
 
+      this.trackStage(entry.id, 'verify')
       const audit = this.scanCode(indexJsCode)
       if (audit.level === 'block' && !opts?.confirmed) {
         throw new Error(
@@ -1019,6 +1346,7 @@ export class RegistryPlugin extends Service implements RegistryService {
         manifest,
         files: { 'index.js': indexJsCode },
       }
+      this.trackStage(entry.id, 'install')
       await installer(bundle)
 
       await this.lockManager.setRecord({
@@ -1034,11 +1362,12 @@ export class RegistryPlugin extends Service implements RegistryService {
 
     // Legacy bundle downloadUrl
     const url = this.requireDownloadUrl(entry)
-    const bytes = await (await this.fetchDocument(url)).bytes()
+    const bytes = await (await this.fetchDocument(url, entry.id)).bytes()
 
     if (!entry.sha256) {
       throw new Error(`registry: the plugin entry "${entry.id}" publishes no sha256 digest; refusing to install unverified code`)
     }
+    this.trackStage(entry.id, 'verify')
     const digest = sha256Hex(bytes)
     const expected = entry.sha256.trim().toLowerCase()
     if (digest !== expected) {
@@ -1077,6 +1406,10 @@ export class RegistryPlugin extends Service implements RegistryService {
     if (!installer) {
       throw new Error('registry: plugin install is only supported on desktop')
     }
+    // The one place the code naturally knows a count: the bundle's file
+    // inventory. No synthetic percentage is fabricated on top of it.
+    this.trackProgress(entry.id, { done: 0, total: Object.keys(files).length })
+    this.trackStage(entry.id, 'install')
     await installer({ manifest, files })
 
     await this.lockManager.setRecord({
@@ -1095,12 +1428,18 @@ export class RegistryPlugin extends Service implements RegistryService {
 
   /* ── helpers ───────────────────────────────────────────────────────────── */
 
-  private async fetchDocument(url: string): Promise<HttpResponse> {
-    const response = await this.http({ url, method: 'GET' })
-    if (response.status >= 400) {
-      throw new Error(`registry: download failed with status ${response.status} for ${url}`)
-    }
-    return response
+  /**
+   * The unified download choke point: every artifact fetch walks the
+   * github-fetch acceleration chain here. When the caller passes the entry it
+   * is fetching for, the download stage is reported to the task center —
+   * `fetchDocument` itself knows nothing about tasks.
+   */
+  private async fetchDocument(url: string, entryId?: string): Promise<HttpResponse> {
+    if (entryId) this.trackStage(entryId, 'download')
+    // Routed through the github-fetch layer: GitHub hosts walk the
+    // acceleration candidate chain, any other host keeps a single official
+    // candidate and is never rewritten.
+    return this.githubFetch.fetchDocument(url)
   }
 
   private requireDownloadUrl(entry: RegistryEntry): string {
@@ -1134,15 +1473,17 @@ export class RegistryPlugin extends Service implements RegistryService {
 
   /* ── persistence ───────────────────────────────────────────────────────── */
 
-  private async resolveEndpoint(): Promise<string> {
+  private async resolveEndpoint(): Promise<{ endpoint: string; overridden: boolean }> {
     try {
       const prefs = await this.storeService?.get<RegistryPrefs>(PREFS_KEY)
       const endpoint = prefs?.endpoint
-      if (typeof endpoint === 'string' && endpoint.trim()) return endpoint
+      if (typeof endpoint === 'string' && endpoint.trim()) {
+        return { endpoint, overridden: true }
+      }
     } catch (err) {
       this.ownCtx.logger.warn(`registry: failed to read the endpoint preference: ${String(err)}`)
     }
-    return DEFAULT_ENDPOINT
+    return { endpoint: DEFAULT_ENDPOINT, overridden: false }
   }
 
   private async readIndexCache(): Promise<RegistryIndex | undefined> {
@@ -1157,11 +1498,37 @@ export class RegistryPlugin extends Service implements RegistryService {
     return undefined
   }
 
-  private async writeIndexCache(index: RegistryIndex): Promise<void> {
+  /** The full cache record — fetchedAt and sanitizer anomalies included. */
+  private async readIndexCacheRecord(): Promise<IndexCache | undefined> {
     try {
-      await this.storeService?.set<IndexCache>(INDEX_CACHE_KEY, { fetchedAt: Date.now(), index })
+      const cached = await this.storeService?.get<IndexCache>(INDEX_CACHE_KEY)
+      if (cached && typeof cached.fetchedAt === 'number' && hasIndexShape(cached.index)) {
+        return cached
+      }
+    } catch (err) {
+      this.ownCtx.logger.warn(`registry: failed to read the index cache: ${String(err)}`)
+    }
+    return undefined
+  }
+
+  private async writeIndexCache(index: RegistryIndex, anomalies?: RegistryIndexAnomalies): Promise<void> {
+    try {
+      await this.storeService?.set<IndexCache>(INDEX_CACHE_KEY, {
+        fetchedAt: Date.now(),
+        index,
+        ...(anomalies && (anomalies.dropped > 0 || anomalies.duplicateIds.length > 0) ? { anomalies } : {}),
+      })
     } catch (err) {
       this.ownCtx.logger.warn(`registry: failed to persist the index cache: ${String(err)}`)
+    }
+  }
+
+  private warnIndexAnomalies(dropped: number, duplicateIds: readonly string[], source: string): void {
+    if (dropped > 0) {
+      this.ownCtx.logger.warn(`registry: dropped ${dropped} malformed entr${dropped === 1 ? 'y' : 'ies'} from ${source}`)
+    }
+    if (duplicateIds.length > 0) {
+      this.ownCtx.logger.warn(`registry: dropped ${duplicateIds.length} duplicate index id${duplicateIds.length === 1 ? '' : 's'} from ${source}: ${duplicateIds.join(', ')}`)
     }
   }
 

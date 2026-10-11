@@ -1127,6 +1127,8 @@ export interface RegistryEntry {
   readonly repoUrl?: string
   readonly sha256?: string
   readonly capabilities?: readonly string[]
+  /** plugin entries only: free-form category slug from the registry repo (e.g. `ui-enhancement`). */
+  readonly category?: string
 }
 
 export interface RegistryUpdate {
@@ -1153,14 +1155,26 @@ export interface RegistryService {
   install(entry: RegistryEntry, opts?: { confirmed?: boolean }): Promise<void>
   /** Composition root sets this so plugin-kind installs can reach the desktop dynamic host. */
   setPluginInstaller(installer: (bundle: PluginInstallBundle) => Promise<void>): void
+  /** Read the registry lock file records. */
+  getLockFile?(): Promise<RegistryLockFile>
+  /** Retrieve a single lock record by ID. */
+  getLockRecord?(id: string): Promise<RegistryLockRecord | undefined>
+  /** Health report: lock conflicts, audit risks, index/GitHub warnings, install summary. */
+  getDiagnostics?(): Promise<RegistryDiagnosticsReport>
+  /** Re-runs the details fetch + security scan for one entry (never creates task-center records). */
+  rescanEntry?(entryId: string): Promise<void>
+  /** Task-center snapshot: running + the last 50 finished install operations (in-memory only). */
+  getTasks?(): readonly RegistryTask[]
+  /** Drops finished (success/failed) task records; pending and running tasks are kept. */
+  clearFinishedTasks?(): void
 }
 ```
 
 | | Electron (Desktop) | Expo (Mobile) |
 |---|---|---|
 | Headless service | `@BBeBee/plugin-registry` | `@BBeBee/plugin-registry` |
-| Persistence | `ctx.store` keys `registry.index-cache` (last good index, offline use) and `registry.prefs` (endpoint override, `lastCheckAt`) | Same |
-| Reactive Events | `'registry/updates-available'` — fired after **every** completed check (automatic or manual) with the full update list, **including the empty list** (which clears badges) | Same |
+| Persistence | `ctx.store` keys `registry.index-cache` (last good index, offline use), `registry.prefs` (endpoint override, `lastCheckAt`), `registry.audit-findings` / `registry.capability-mismatches` (diagnostics inputs) | Same |
+| Reactive Events | `'registry/updates-available'` — fired after **every** completed check (automatic or manual) with the full update list, **including the empty list** (which clears badges); `'registry/tasks-changed'` — fired on every task-center mutation with the full task snapshot | Same |
 | Plugin-kind installs | Desktop dynamic host, wired via `setPluginInstaller` at the composition root | Not supported (desktop-only distribution) |
 
 - **Matching semantics**: music sources match installed records by `sourceUrl` (the `SourceRecord` identity), lyric sources / themes / plugins by their `id`. An installed copy older than the entry's `version` produces a `RegistryUpdate`.

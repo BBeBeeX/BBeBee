@@ -484,6 +484,11 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
             onToggleThirdPartySources: (enabled) => void update({ thirdPartySourcesEnabled: enabled }),
             onToggleThirdPartyLyricSources: (enabled) =>
               void update({ thirdPartyLyricSourcesEnabled: enabled }),
+            downloadRegion: settings.downloadRegion ?? 'global',
+            githubAccelerationPrefixes: settings.githubAccelerationPrefixes ?? [],
+            onUpdateDownloadRegion: (region) => void update({ downloadRegion: region }),
+            onUpdateGithubAccelerationPrefixes: (prefixes) =>
+              void update({ githubAccelerationPrefixes: [...prefixes] }),
           })
         : null,
 

@@ -177,9 +177,15 @@ export function minAppVersionBlock(entry: RegistryEntry, appVersion: string | un
   return undefined
 }
 
-/** The content events that change installed state and therefore the derivation. */
+/**
+ * The content events that change installed state and therefore the derivation.
+ * `source/removed` is here beside `source/imported` so an uninstall (which the
+ * sources service signals with its own event, not `source/imported`) also
+ * re-derives the action states.
+ */
 export const INSTALLED_CONTENT_EVENTS = [
   'source/imported',
+  'source/removed',
   'lyric-sources/changed',
   'theme/registry-changed',
   'plugin-manager/changed',

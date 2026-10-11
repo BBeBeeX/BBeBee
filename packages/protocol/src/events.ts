@@ -50,7 +50,7 @@ import type { ThemeDefinition } from './services/theme.js'
 import type { NowPlayingStyleId, NowPlayingStyleMeta } from './services/now-playing.js'
 import type { LyricSourceDefinition } from './services/lyric-sources.js'
 import type { ShareTarget } from './services/share.js'
-import type { RegistryUpdate } from './services/registry.js'
+import type { RegistryTask, RegistryUpdate } from './services/registry.js'
 import type { UrnKind } from './urn.js'
 
 declare module 'cordis' {
@@ -222,6 +222,13 @@ declare module 'cordis' {
      * than go stale. See `RegistryService.checkUpdates`.
      */
     'registry/updates-available'(updates: readonly RegistryUpdate[]): void
+    /**
+     * Fired after every task-center mutation — a task created, a stage
+     * advanced, a task finished or the finished records cleared — with the
+     * full current task list, newest first. Listeners re-render from the
+     * payload rather than accumulating deltas. See `RegistryService.getTasks`.
+     */
+    'registry/tasks-changed'(tasks: readonly RegistryTask[]): void
   }
 }
 
@@ -285,6 +292,7 @@ export const DISPATCH_MODES = {
   'plugin-manager/enabled-changed': 'emit',
   'plugin-manager/changed': 'emit',
   'registry/updates-available': 'emit',
+  'registry/tasks-changed': 'emit',
 } as const satisfies Record<string, DispatchMode>
 
 export type BBeBeeEventName = keyof typeof DISPATCH_MODES

@@ -85,6 +85,14 @@ export interface VisualizerSettings {
   sensitivity: number
 }
 
+/**
+ * Where the user downloads from, stored as a preference. Today it is advisory:
+ * the GitHub download layer always tries the official endpoint first and only
+ * reads this value into its logs; acceleration happens through
+ * `githubAccelerationPrefixes`.
+ */
+export type DownloadRegion = 'global' | 'mainland-china'
+
 export type AudioOutputEngine = 'webaudio' | 'mpv' | 'wasapi'
 
 export type LoudnessNormalizationMode = 'track' | 'album' | 'dynamic'
@@ -155,6 +163,20 @@ export interface AppSettings {
    * off leaves manual checks and installs working.
    */
   registryAutoCheck?: boolean
+  /**
+   * Download region preference (`'global'` by default). The GitHub download
+   * layer keeps the official endpoint first regardless of the region; the
+   * value is read (and surfaced in its logs) as a stored preference.
+   */
+  downloadRegion?: DownloadRegion
+  /**
+   * GitHub acceleration prefixes, in the order they are tried. Each entry is
+   * an HTTPS base URL (e.g. `https://ghproxy.example.com/`) that gets the
+   * original full URL appended, gh-proxy style. The system jsDelivr mirror
+   * is built in and not listed here; an empty list means no custom
+   * acceleration lines.
+   */
+  githubAccelerationPrefixes?: readonly string[]
   /** Desktop floating lyrics display settings. */
   desktopLyrics: DesktopLyricsSettings
   /** Global desktop keyboard shortcuts configuration. */
@@ -235,6 +257,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   thirdPartySourcesEnabled: true,
   thirdPartyLyricSourcesEnabled: true,
   registryAutoCheck: true,
+  downloadRegion: 'global',
+  githubAccelerationPrefixes: [],
   desktopLyrics: { ...DEFAULT_DESKTOP_LYRICS_SETTINGS },
   shortcuts: {
     enabled: DEFAULT_SHORTCUTS_SETTINGS.enabled,

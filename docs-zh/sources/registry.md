@@ -121,11 +121,24 @@ export interface RegistryService {
 
 **设置。** `AppSettings.registryAutoCheck`（默认 `true`）控制自动检查：启动约 45 秒后首次运行，此后每 24 小时一次。手动检查不受影响。
 
+**诊断。** `RegistryService` 另有两个*可选*方法 `getDiagnostics?()` 与 `rescanEntry?(entryId)` —— 未实现它们的旧实现/stub 依然合法，调用方须用可选链。`getDiagnostics()` 按四个严重度分组组装 `RegistryDiagnosticsReport`，每一项都来自真实服务状态（不编造数据，没有数据源的分组保持为空）：
+
+- **冲突（conflicts）** —— 锁记录存在但内容已不在本机（`lock-orphan:*`）；已安装内容与索引条目匹配却缺少锁记录（`lock-missing:*`，内置歌词源豁免）；索引清洗捕获的重复 id（`duplicate-id:*`）；已记录的 manifest 与注册表能力声明不一致（`cap-mismatch:*`）；已安装插件声明的依赖未安装（`deps-unmet:*`）。
+- **风险（risks）** —— 持久化的逐条目安全审计 findings：`fetchEntryDetails` 将扫描结果存入 store 键 `registry.audit-findings`（仅保留 block/warn；通过则删除记录），不再用完即弃。
+- **警告（warnings）** —— 索引元数据异常（丢弃条目数、重复 id）、最近一次索引拉取失败、GitHub 下载线路全部不可用（由下载层记录），以及拉取持续失败时超过 24 小时的索引缓存。
+- **信息（info）** —— 锁记录摘要与按类型的已安装版本一览。
+
+`rescanEntry(entryId)` 在缓存索引中查找该条目，重跑 `fetchEntryDetails`（含静态安全扫描）并刷新存储的 findings / 能力不一致记录。它只做检测 —— 不安装任何内容，因此安装阶段的 `confirmed` 门禁在此不生效。
+
+**任务中心。** `RegistryService` 还可选携带 `getTasks?()` 与 `clearFinishedTasks?()`，以及 `'registry/tasks-changed'` 事件（每次变更后以完整快照、新 → 旧触发）。每一次用户可见的安装/更新都会被记录为一个 `RegistryTask`，沿生命周期 `pending → running → success | failed` 流转，依次经过 `download → verify → install` 三个阶段；确认弹窗打开期间任务停留在 `pending`（"等待确认"）。任务仅存于内存 —— 进行中的记录加上最近 50 条已完成的记录 —— 不做持久化；`clearFinishedTasks` 只清除已完成的记录。
+
 ---
 
 ## 5. 安装流程、作者仓库制品链与安全体系
 
 注册表建立了一套覆盖发现、下载、静态安全审计、确认对话框与本地防篡改锁定的完整安全门禁体系：
+
+安装链路的每个阶段（下载/校验/安装）在执行时向任务中心（§4）上报；诊断重扫（`rescanEntry`）走相同的拉取路径但不上报。
 
 ### 5.1 GitHub Contents API 多目录发现机制
 
@@ -185,6 +198,25 @@ export interface RegistryService {
   }
   ```
 - **加载防篡改校验**：桌面端动态加载器（`apps/desktop/renderer/dynamic-loader.ts`）在应用启动或加载第三方插件时，重新计算入口文件 SHA-256 并与 `registry.lock.json` 比对。若哈希不符（文件遭外部篡改），标记为 `quarantined`（隔离）并拒绝加载，防止恶意代码注入。
+
+### 5.6 下载区域与 GitHub 加速
+
+注册表发起的所有 GitHub 请求 —— Contents 目录枚举、commit 解析与全部 raw/api 下载 —— 统一经过一个下载层（`plugin-registry/src/github-fetch.ts`）。每个 URL 会被展开为一条有序候选链：
+
+1. **官方地址** —— 原始 URL，永远第一。
+2. **jsDelivr（系统内置）** —— 仅当 URL 形如 `raw.githubusercontent.com/{owner}/{repo}/{commit}/{path}` 且 commit 段存在时生成，改写为 `https://cdn.jsdelivr.net/gh/{owner}/{repo}@{commit}/{path}`；`api.github.com` 与其它地址不会生成该候选。
+3. **自定义前缀** —— 每条已配置的加速前缀各生成一个候选（gh-proxy 风格：`前缀 + 原始完整 URL`），按用户排序依次尝试；对 raw 与 api 主机均适用。
+
+仅当上一个候选确实失败（传输错误或 HTTP 状态码 ≥ 400）时才切换下一个，绝不投机预判。每次切换都会通过 `ctx.logger` 记录一行（如 `[github-fetch] official failed (403), falling back to jsdelivr: …`），不以 toast 或弹窗打扰用户。非 GitHub 主机的 URL（例如作者自有的 `downloadUrl`）永远只保留官方一个候选，绝不会被改写。
+
+上述行为由两项设置支撑，入口在设置页「网络与代理」标签的「下载与 GitHub 加速」卡片：
+
+| 设置 | 含义 |
+|---|---|
+| `AppSettings.downloadRegion` | `'global'`（默认）或 `'mainland-china'`，作为偏好存储。当前仅为存储偏好：官方优先规则不变，区域值会出现在下载层日志行中。 |
+| `AppSettings.githubAccelerationPrefixes` | 有序的 HTTPS 前缀列表（如 `https://ghproxy.example.com/`），逐一拼接到原始完整 URL 之前；数组顺序即尝试顺序，编辑器在任意变更时上报完整数组，系统内置的 jsDelivr 行不占用该数组。 |
+
+`registry.prefs.endpoint` 覆盖端点（§4）语义保持不变：配置的覆盖端点**本身就是官方候选**，不会被二次加速 —— 只有默认 GitHub 端点才会走完整候选链。
 
 ---
 

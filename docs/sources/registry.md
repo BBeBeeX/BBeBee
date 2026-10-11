@@ -138,11 +138,53 @@ badges left by a previous check. There is no separate "check finished" event.
 automatic check: first run ~45 s after boot, then once every 24 h. Manual
 checks run regardless.
 
+**Diagnostics.** `RegistryService` also carries two *optional* methods,
+`getDiagnostics?()` and `rescanEntry?(entryId)` — a stub that predates them
+stays valid, and callers must use optional chaining. `getDiagnostics()`
+assembles a `RegistryDiagnosticsReport` in four severity groups, every item
+derived from real service state (nothing is invented; a group with no data
+source stays empty):
+
+- **conflicts** — `registry.lock.json` records whose content is no longer
+  installed (`lock-orphan:*`); installed content matching an index entry but
+  missing its lock record (`lock-missing:*`, builtin lyric sources exempt);
+  duplicate index ids caught by the sanitizer (`duplicate-id:*`); recorded
+  manifest-vs-registry capability mismatches (`cap-mismatch:*`); and installed
+  plugins whose declared dependencies are not installed (`deps-unmet:*`).
+- **risks** — the persisted per-entry security-audit findings:
+  `fetchEntryDetails` stores its scan result under the store key
+  `registry.audit-findings` (block/warn only; a passing scan deletes the
+  record) instead of discarding it.
+- **warnings** — index metadata anomalies (dropped entries, duplicate ids),
+  the most recent index fetch failure, an exhausted GitHub download chain
+  (recorded by the download layer), and an index cache older than 24 h while
+  fetching keeps failing.
+- **info** — a lock-file summary and per-kind installed-version overviews.
+
+`rescanEntry(entryId)` looks the entry up in the cached index, re-runs
+`fetchEntryDetails` (static security scan included) and refreshes the stored
+findings / capability-mismatch records. It is detection only — nothing is
+installed, so the install-stage `confirmed` gate never applies.
+
+**Task center.** `RegistryService` also optionally carries `getTasks?()` and
+`clearFinishedTasks?()` plus the `'registry/tasks-changed'` event (fired with
+the full snapshot, newest first, after every mutation). Each user-facing
+install/update is tracked as a `RegistryTask` walking the lifecycle
+`pending → running → success | failed` through the stages `download → verify
+→ install`; a task parks at `pending` ("等待确认") while the confirm dialog is
+open. Records live in memory only — the active ones plus the 50 most recently
+finished — and are never persisted; `clearFinishedTasks` removes only the
+finished ones.
+
 ---
 
 ## 5. Install flows, author repository artifact chain & security audit
 
 The registry operates an end-to-end security gating architecture covering discovery, downloading, static auditing, pre-installation confirmation, and tamper-resistant local locking:
+
+Every install chain reports its stages (download / verify / install) to the
+task center as it runs (§4); the diagnostics rescan (`rescanEntry`) walks the
+same fetch path but reports nothing.
 
 ### 5.1 Discovery via GitHub Contents API
 
@@ -202,6 +244,42 @@ Before any installation or update proceeds, the desktop UI (`packages/ui/plugin-
   }
   ```
 - **Load-time Verification**: On boot, the desktop dynamic loader (`apps/desktop/renderer/dynamic-loader.ts`) recalculates the SHA-256 of installed plugins and compares them against `registry.lock.json`. If a mismatch is detected (tampered files), the plugin is marked `quarantined` and execution is refused to prevent malicious code injection.
+
+### 5.6 Download region & GitHub acceleration
+
+Every GitHub request the registry makes — Contents enumeration, commit
+resolution, and all raw/api downloads — goes through one unified download layer
+(`plugin-registry/src/github-fetch.ts`). Each URL is expanded into an ordered
+candidate chain:
+
+1. **Official** — the original URL, always first.
+2. **jsDelivr** (system built-in) — generated only for
+   `raw.githubusercontent.com/{owner}/{repo}/{commit}/{path}` URLs with the
+   commit segment present, rewritten to
+   `https://cdn.jsdelivr.net/gh/{owner}/{repo}@{commit}/{path}`. `api.github.com`
+   URLs and anything else never get one.
+3. **Custom prefixes** — one candidate per configured acceleration prefix, in
+   the user's order, gh-proxy style (`prefix + original full URL`); applies to
+   both raw and api hosts.
+
+A candidate is abandoned only when it actually fails (transport error or HTTP
+status ≥ 400) — never speculatively. Every switch is logged through
+`ctx.logger` (`[github-fetch] official failed (403), falling back to jsdelivr: …`)
+and is never surfaced as a toast or dialog. A URL on any other host (for
+example an author's own `downloadUrl`) keeps exactly one candidate and is
+never rewritten.
+
+Two settings back this, edited in the settings screen's network tab
+("下载与 GitHub 加速" card):
+
+| Setting | Meaning |
+|---|---|
+| `AppSettings.downloadRegion` | `'global'` (default) or `'mainland-china'`, stored as a preference. Currently advisory only: the official-first rule never changes, and the region value surfaces in the download layer's log lines. |
+| `AppSettings.githubAccelerationPrefixes` | Ordered HTTPS base URLs (e.g. `https://ghproxy.example.com/`) that are prepended to the original full URL. Array order is try order; the editor reports the complete array on every change, and the built-in jsDelivr line is not part of the array. |
+
+The `registry.prefs.endpoint` override (§4) keeps its semantics: a configured
+override **is** the official candidate and is never accelerated — only the
+default GitHub endpoints walk the full chain.
 
 ---
 

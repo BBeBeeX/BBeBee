@@ -116,6 +116,11 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
   // the plugin kind reach the dynamic host through the bridge wired in
   // boot.ts.
   '@BBeBee/plugin-registry': {},
+  // Lazy GitHub star/contributor counts for registry entries — fetched only
+  // when the 发现 page's sort controls ask, cached for 24h, degraded on
+  // failure. Headless; both shells run it (the kernel's shells.test.ts pins
+  // feature parity, and nothing reads the service unless that UI asks).
+  '@BBeBee/plugin-registry-metadata': {},
   // Its desktop views: the 发现 (registry) screen and the sources-section
   // settings card. Deferred together with the service — neither is needed
   // for first paint, and the route lands in the sidebar when the pair loads.
@@ -143,6 +148,9 @@ export const DEFERRED_PLUGIN_IDS = [
   // auto-check runs on its own timer, so it belongs with the other
   // post-first-frame plugins.
   '@BBeBee/plugin-registry',
+  // Repo stats are read only from the 发现 screen's sort controls — never on
+  // the first screen — so it defers with the rest of the registry trio.
+  '@BBeBee/plugin-registry-metadata',
   // The registry's desktop views ride along with the service: the route
   // contribution only exists once the service loads anyway, so deferring the
   // pair together changes nothing about when the sidebar entry appears.

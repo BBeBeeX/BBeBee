@@ -61,6 +61,7 @@
     "@BBeBee/plugin-queue": "workspace:*",
     "@BBeBee/plugin-queue-ui-desktop": "workspace:*",
     "@BBeBee/plugin-registry": "workspace:*",
+    "@BBeBee/plugin-registry-metadata": "workspace:*",
     "@BBeBee/plugin-security-audit": "workspace:*",
     "@BBeBee/plugin-settings": "workspace:*",
     "@BBeBee/plugin-settings-ui-desktop": "workspace:*",

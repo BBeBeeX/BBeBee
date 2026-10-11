@@ -1,7 +1,8 @@
 import { Button, Select, Switch } from '@BBeBee/ui-kit-desktop'
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
-import type { ProxySettings, SourceRecord } from '@BBeBee/protocol'
+import type { DownloadRegion, ProxySettings, SourceRecord } from '@BBeBee/protocol'
+import { GitHubAccelerationEditor } from '../GitHubAccelerationEditor.js'
 import { SettingsRow } from '../SettingsRow.js'
 import { SettingsSection } from '../SettingsSection.js'
 
@@ -21,6 +22,12 @@ export interface NetworkSectionProps {
   onUpdateUserAgent: (userAgent: string) => void
   onToggleThirdPartySources: (enabled: boolean) => void
   onToggleThirdPartyLyricSources: (enabled: boolean) => void
+  /** Stored download-region preference (advisory; official endpoints stay first). */
+  downloadRegion: DownloadRegion
+  /** Ordered custom GitHub acceleration prefixes (the jsDelivr line is built in). */
+  githubAccelerationPrefixes: readonly string[]
+  onUpdateDownloadRegion: (region: DownloadRegion) => void
+  onUpdateGithubAccelerationPrefixes: (prefixes: readonly string[]) => void
 }
 
 export function NetworkSection({
@@ -36,6 +43,10 @@ export function NetworkSection({
   onUpdateUserAgent,
   onToggleThirdPartySources,
   onToggleThirdPartyLyricSources,
+  downloadRegion,
+  githubAccelerationPrefixes,
+  onUpdateDownloadRegion,
+  onUpdateGithubAccelerationPrefixes,
 }: NetworkSectionProps): ReactElement {
   return h(
     'div',
@@ -248,6 +259,35 @@ export function NetworkSection({
             ),
           )
         : null,
+    ),
+    h(
+      SettingsSection,
+      {
+        title: '下载与 GitHub 加速',
+        description:
+          '选择下载区域偏好，并为 GitHub 资源下载配置按序尝试的加速线路（官方地址始终优先）',
+      },
+      h(SettingsRow, {
+        title: '下载区域',
+        description: '存储的下载区域偏好；GitHub 请求仍以官方地址优先，加速由下方线路顺序决定',
+        action: h(
+          'div',
+          { 'data-testid': 'settings-download-region' },
+          h(Select<DownloadRegion>, {
+            value: downloadRegion,
+            options: [
+              { value: 'global', label: '全球' },
+              { value: 'mainland-china', label: '中国大陆' },
+            ],
+            accessibilityLabel: '下载区域',
+            onChange: onUpdateDownloadRegion,
+          }),
+        ),
+      }),
+      h(GitHubAccelerationEditor, {
+        prefixes: githubAccelerationPrefixes,
+        onUpdatePrefixes: onUpdateGithubAccelerationPrefixes,
+      }),
     ),
   )
 }

@@ -988,6 +988,8 @@ export interface RegistryEntry {
   readonly repoUrl?: string
   readonly sha256?: string
   readonly capabilities?: readonly string[]
+  /** 仅 plugin 条目：registry 仓的自由分类 slug（如 `ui-enhancement`）。 */
+  readonly category?: string
 }
 
 export interface RegistryUpdate {
@@ -1014,14 +1016,26 @@ export interface RegistryService {
   install(entry: RegistryEntry, opts?: { confirmed?: boolean }): Promise<void>
   /** 组合根注入，使 plugin 类安装能到达桌面动态加载宿主。 */
   setPluginInstaller(installer: (bundle: PluginInstallBundle) => Promise<void>): void
+  /** 读取 registry.lock.json 的锁记录。 */
+  getLockFile?(): Promise<RegistryLockFile>
+  /** 按 ID 检索单条锁记录。 */
+  getLockRecord?(id: string): Promise<RegistryLockRecord | undefined>
+  /** 健康报告：lock 冲突、审计风险、索引/GitHub 警告、安装摘要。 */
+  getDiagnostics?(): Promise<RegistryDiagnosticsReport>
+  /** 对一个条目重跑详情拉取 + 安全扫描（不产生任务中心记录）。 */
+  rescanEntry?(entryId: string): Promise<void>
+  /** 任务中心快照：进行中的任务 + 最近 50 条已完成记录（仅内存）。 */
+  getTasks?(): readonly RegistryTask[]
+  /** 清除已完成（成功/失败）的任务记录；等待确认与进行中的任务保留。 */
+  clearFinishedTasks?(): void
 }
 ```
 
 | | Electron（桌面） | Expo（移动） |
 |---|---|---|
 | 无头服务 | `@BBeBee/plugin-registry` | `@BBeBee/plugin-registry` |
-| 持久化 | `ctx.store` 键 `registry.index-cache`（最近一次成功索引，离线用）与 `registry.prefs`（endpoint 覆盖、`lastCheckAt`） | 同左 |
-| 响应式事件 | `'registry/updates-available'` —— **每次**完成的检查（自动或手动）之后触发，携带完整更新列表，**包括空列表**（用于清除角标） | 同左 |
+| 持久化 | `ctx.store` 键 `registry.index-cache`（最近一次成功索引，离线用）、`registry.prefs`（endpoint 覆盖、`lastCheckAt`）、`registry.audit-findings` / `registry.capability-mismatches`（诊断数据源） | 同左 |
+| 响应式事件 | `'registry/updates-available'` —— **每次**完成的检查（自动或手动）之后触发，携带完整更新列表，**包括空列表**（用于清除角标）；`'registry/tasks-changed'` —— 任务中心每次变更后触发，携带完整任务快照 | 同左 |
 | plugin 类安装 | 桌面动态加载宿主，由组合根经 `setPluginInstaller` 接入 | 不支持（桌面专属分发） |
 
 - **匹配语义**：音源按 `sourceUrl`（`SourceRecord` 的身份）匹配已安装记录；歌词源 / 主题 / 插件按各自 `id` 匹配。已安装副本版本低于条目 `version` 时产生一条 `RegistryUpdate`。

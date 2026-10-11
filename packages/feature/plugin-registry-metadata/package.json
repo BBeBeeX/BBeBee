@@ -1,0 +1,38 @@
+{
+  "name": "@BBeBee/plugin-registry-metadata",
+  "version": "0.0.0",
+  "description": "ctx.registryMetadata — lazy GitHub star and contributor counts for registry entries, cached for a day and degraded gracefully.",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@BBeBee/protocol": "workspace:*",
+    "@BBeBee/kernel": "workspace:*",
+    "cordis": "4.0.0-rc.9"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.11"
+  }
+}

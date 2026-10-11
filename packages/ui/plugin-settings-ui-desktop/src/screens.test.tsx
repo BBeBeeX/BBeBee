@@ -909,6 +909,121 @@ describe('SettingsScreen', () => {
     expect(await findByText(/Google 探测节点连通正常|代理连通/)).toBeTruthy()
   })
 
+  it('persists the download region selection from the network tab', async () => {
+    const { ctx, calls } = await harness({ downloadRegion: 'global' })
+    const { container, findByText } = render(h(SettingsScreen, { ctx }))
+
+    fireEvent.click(await findByText('网络与代理'))
+
+    const regionSelect = container.querySelector('select[aria-label="下载区域"]') as HTMLSelectElement
+    expect(regionSelect).toBeTruthy()
+    expect(regionSelect.value).toBe('global')
+
+    fireEvent.change(regionSelect, { target: { value: 'mainland-china' } })
+    await waitFor(() => {
+      expect(calls.some((c) => c.includes('"downloadRegion":"mainland-china"'))).toBe(true)
+    })
+  })
+
+  it('expands the GitHub acceleration editor and normalizes, adds and deletes prefixes', async () => {
+    const { ctx, calls } = await harness({ githubAccelerationPrefixes: ['https://a.example.com'] })
+    const { getByText, getByTestId, queryByTestId, findByText } = render(h(SettingsScreen, { ctx }))
+
+    fireEvent.click(await findByText('网络与代理'))
+
+    // Collapsed until 自定义 is clicked
+    expect(queryByTestId('settings-github-acceleration')).toBeNull()
+    fireEvent.click(getByText('自定义'))
+
+    // The system jsDelivr row is present and carries no controls of its own
+    const systemRow = getByTestId('settings-github-prefix-system')
+    expect(systemRow).toBeTruthy()
+    expect(systemRow.textContent).toContain('jsDelivr')
+    expect(systemRow.querySelector('button')).toBeNull()
+
+    // The stored prefix renders into its row
+    const row0 = getByTestId('settings-github-prefix-row-0')
+    const input0 = row0.querySelector('input') as HTMLInputElement
+    expect(input0.value).toBe('https://a.example.com')
+
+    // Add a row, type an unnormalized prefix, blur → trailing slash appended
+    fireEvent.click(getByTestId('settings-github-prefix-add'))
+    const row1 = getByTestId('settings-github-prefix-row-1')
+    const input1 = row1.querySelector('input') as HTMLInputElement
+    fireEvent.change(input1, { target: { value: 'https://b.example.com' } })
+    fireEvent.blur(input1)
+
+    await waitFor(() => {
+      expect(
+        calls.some((c) =>
+          c.includes(
+            '"githubAccelerationPrefixes":["https://a.example.com","https://b.example.com/"]',
+          ),
+        ),
+      ).toBe(true)
+    })
+
+    // Delete the first row → the remaining array is reported
+    const deleteBtn = getByTestId('settings-github-prefix-row-0').querySelector(
+      'button[aria-label="删除加速线路 1"]',
+    ) as HTMLButtonElement
+    fireEvent.click(deleteBtn)
+    await waitFor(() => {
+      expect(
+        calls.some((c) => c.includes('"githubAccelerationPrefixes":["https://b.example.com/"]')),
+      ).toBe(true)
+    })
+  })
+
+  it('keeps an invalid prefix visible (marked invalid) instead of silently dropping it', async () => {
+    const { ctx, calls } = await harness({ githubAccelerationPrefixes: [] })
+    const { getByText, getByTestId, findByText } = render(h(SettingsScreen, { ctx }))
+
+    fireEvent.click(await findByText('网络与代理'))
+    fireEvent.click(getByText('自定义'))
+
+    fireEvent.click(getByTestId('settings-github-prefix-add'))
+    const input = getByTestId('settings-github-prefix-row-0').querySelector('input') as HTMLInputElement
+    fireEvent.change(input, { target: { value: 'ftp://not-https.example.com' } })
+    fireEvent.blur(input)
+
+    await waitFor(() => {
+      expect(
+        calls.some((c) => c.includes('"githubAccelerationPrefixes":["ftp://not-https.example.com"]')),
+      ).toBe(true)
+    })
+    expect((input as HTMLInputElement).style.border).toContain('var(--state-error')
+  })
+
+  it('reorders acceleration prefixes via drag and drop', async () => {
+    const { ctx, calls } = await harness({
+      githubAccelerationPrefixes: ['https://a.example.com/', 'https://b.example.com/', 'https://c.example.com/'],
+    })
+    const { getByText, getByTestId, findByText } = render(h(SettingsScreen, { ctx }))
+
+    fireEvent.click(await findByText('网络与代理'))
+    fireEvent.click(getByText('自定义'))
+
+    const row0 = getByTestId('settings-github-prefix-row-0')
+    const row1 = getByTestId('settings-github-prefix-row-1')
+
+    // jsdom rects are all zero, so dragOver lands after the hovered row:
+    // dropping row 0 onto row 1 inserts it before row 2.
+    fireEvent.dragStart(row0)
+    fireEvent.dragOver(row1)
+    fireEvent.drop(row1)
+
+    await waitFor(() => {
+      expect(
+        calls.some((c) =>
+          c.includes(
+            '"githubAccelerationPrefixes":["https://b.example.com/","https://a.example.com/","https://c.example.com/"]',
+          ),
+        ),
+      ).toBe(true)
+    })
+  })
+
   it('renders DebugScreen and navigates to discover and http logs', async () => {
     const { ctx, calls } = await harness()
     const { getByText, findByText } = render(h(DebugScreen, { ctx }))

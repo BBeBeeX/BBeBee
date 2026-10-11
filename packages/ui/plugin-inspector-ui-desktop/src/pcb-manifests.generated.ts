@@ -2288,6 +2288,48 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "contentRegistry"
   },
+  "@BBeBee/plugin-registry-metadata": {
+    "id": "@BBeBee/plugin-registry-metadata",
+    "name": "@BBeBee/plugin-registry-metadata",
+    "displayName": "Registry Metadata",
+    "description": "ctx.registryMetadata — lazy GitHub star and contributor counts for registry entries, cached for a day and degraded gracefully.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-4",
+    "moduleId": "registry",
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {},
+    "effect": "registryMetadata"
+  },
+  "plugin-registry-metadata": {
+    "id": "@BBeBee/plugin-registry-metadata",
+    "name": "@BBeBee/plugin-registry-metadata",
+    "displayName": "Registry Metadata",
+    "description": "ctx.registryMetadata — lazy GitHub star and contributor counts for registry entries, cached for a day and degraded gracefully.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-4",
+    "moduleId": "registry",
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {},
+    "effect": "registryMetadata"
+  },
   "@BBeBee/plugin-security-audit": {
     "id": "@BBeBee/plugin-security-audit",
     "name": "@BBeBee/plugin-security-audit",

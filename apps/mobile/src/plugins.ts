@@ -119,4 +119,8 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
   // lyric sources and themes. Headless on mobile: no plugin installer is
   // set, so plugin-kind installs refuse with a clear error.
   '@BBeBee/plugin-registry': {},
+  // Lazy GitHub star/contributor counts for registry entries. Headless and
+  // inert on mobile — nothing reads it here — but the feature-parity gate
+  // (shells.test.ts) counts headless features, so both shells run it.
+  '@BBeBee/plugin-registry-metadata': {},
 }

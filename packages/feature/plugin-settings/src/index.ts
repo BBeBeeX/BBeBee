@@ -18,6 +18,21 @@ function mergeSettings(base: AppSettings, patch?: Partial<AppSettings>): AppSett
   return {
     ...base,
     ...patch,
+    // A region outside the known enum (e.g. from a hand-edited store) falls
+    // back to the built-in default instead of leaking through.
+    downloadRegion:
+      patch.downloadRegion === undefined
+        ? base.downloadRegion
+        : patch.downloadRegion === 'global' || patch.downloadRegion === 'mainland-china'
+          ? patch.downloadRegion
+          : DEFAULT_APP_SETTINGS.downloadRegion,
+    // Acceleration lines are an ordered list: a patch replaces the whole
+    // array (never merges element-wise), with non-string junk dropped.
+    githubAccelerationPrefixes: Array.isArray(patch.githubAccelerationPrefixes)
+      ? patch.githubAccelerationPrefixes.filter(
+          (p): p is string => typeof p === 'string' && p.length > 0,
+        )
+      : base.githubAccelerationPrefixes,
     desktopLyrics: {
       ...base.desktopLyrics,
       ...(patch.desktopLyrics ?? {}),

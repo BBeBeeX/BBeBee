@@ -50,6 +50,8 @@ export interface RegistryEntry {
   readonly repoUrl?: string
   readonly sha256?: string
   readonly capabilities?: readonly string[]
+  /** plugin entries only: free-form category slug from the registry repo (e.g. `ui-enhancement`). */
+  readonly category?: string
 }
 
 export interface RegistryIndex {
@@ -117,6 +119,23 @@ export interface PluginInstallBundle {
   readonly files: Record<string, string>
 }
 
+/** One tracked operation in the registry task center. Lifecycle: pending → running → success | failed. */
+export interface RegistryTask {
+  readonly id: string
+  readonly entryId: string
+  readonly entryName: string
+  readonly kind: RegistryEntryKind
+  readonly operation: 'install' | 'update'
+  /** Current stage while running; kept on the record for context after completion. */
+  readonly stage: 'download' | 'verify' | 'install'
+  readonly status: 'pending' | 'running' | 'success' | 'failed'
+  /** Optional measurable progress (e.g. artifact counts) when the code naturally knows it. */
+  readonly progress?: { readonly done: number; readonly total: number }
+  readonly error?: string
+  readonly startedAt: number
+  readonly finishedAt?: number
+}
+
 export interface RegistryService {
   /** Fetches the registry index (endpoint configurable via store), caching the last good copy for offline use. */
   getIndex(force?: boolean): Promise<RegistryIndex>
@@ -134,6 +153,59 @@ export interface RegistryService {
   getLockFile?(): Promise<RegistryLockFile>
   /** Retrieve a single lock record by ID. */
   getLockRecord?(id: string): Promise<RegistryLockRecord | undefined>
+  /**
+   * Builds a diagnostics report from real service state — lock/integrity
+   * conflicts, persisted security-audit findings, index anomalies and install
+   * summaries. Optional: implementations that cannot observe enough state may
+   * omit it, and callers must use `?.` accordingly.
+   */
+  getDiagnostics?(): Promise<RegistryDiagnosticsReport>
+  /**
+   * Re-runs `fetchEntryDetails` (including the static security scan) for one
+   * entry and refreshes the stored audit-findings / capability-mismatch
+   * records. Detection only — it never installs anything, so the
+   * install-stage `confirmed` gate does not apply. Optional, same caveat as
+   * `getDiagnostics`.
+   */
+  rescanEntry?(entryId: string): Promise<void>
+  /**
+   * The current task-center records — active (pending/running) operations plus
+   * the most recently finished ones, newest first. Optional: implementations
+   * without task tracking may omit it, and callers must use `?.` accordingly.
+   */
+  getTasks?(): readonly RegistryTask[]
+  /** Removes every finished (success/failed) task record. Pending/running ones are kept. Optional. */
+  clearFinishedTasks?(): void
+}
+
+/** The four buckets a diagnostic can land in, in descending severity. */
+export type RegistryDiagnosticGroup = 'conflict' | 'risk' | 'warning' | 'info'
+
+/** One finding on the diagnostics page. */
+export interface RegistryDiagnosticItem {
+  /** Stable key, e.g. `lock-orphan:subsonic`, `duplicate-id:xxx`, `audit:{entryId}`. */
+  readonly id: string
+  /** Which severity bucket the item belongs to. */
+  readonly group: RegistryDiagnosticGroup
+  /** Short headline shown on the card row. */
+  readonly title: string
+  /** One-to-two-sentence explanation, including the concrete evidence. */
+  readonly message: string
+  /** Related registry entry the user can jump to, when there is one. */
+  readonly entryId?: string
+  /** The entry's kind, when known — lets the UI route to the right tab. */
+  readonly kind?: RegistryEntryKind
+  /** When the item was detected (the report generation time). */
+  readonly detectedAt: number
+}
+
+/** The full diagnostics report: four fixed groups plus a generation timestamp. */
+export interface RegistryDiagnosticsReport {
+  readonly conflicts: readonly RegistryDiagnosticItem[]
+  readonly risks: readonly RegistryDiagnosticItem[]
+  readonly warnings: readonly RegistryDiagnosticItem[]
+  readonly info: readonly RegistryDiagnosticItem[]
+  readonly generatedAt: number
 }
 
 

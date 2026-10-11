@@ -150,7 +150,12 @@ export function InstallConfirmDialog({
                       lineHeight: 1.5,
                     },
                   },
-                  h('strong', null, '⚠️ 本地修改覆盖确认'),
+                  h(
+                    'strong',
+                    { style: { display: 'inline-flex', alignItems: 'center', gap: 6 } },
+                    tablerIcon('alert', { size: 14 }),
+                    '本地修改覆盖确认',
+                  ),
                   h(
                     'span',
                     null,
@@ -219,7 +224,7 @@ export function InstallConfirmDialog({
                   h('div', { style: sectionTitleStyle }, '提交差异 (Commit Diff)'),
                   h(
                     'div',
-                    { style: { fontFamily: 'monospace', fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } },
+                    { style: { fontFamily: 'var(--font-mono, ui-monospace, monospace)', fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } },
                     h(
                       'span',
                       { style: { color: 'var(--text-muted, #7E859B)' } },
@@ -243,7 +248,7 @@ export function InstallConfirmDialog({
                     h('div', { style: sectionTitleStyle }, '版本提交 (Commit)'),
                     h(
                       'div',
-                      { style: { fontFamily: 'monospace', fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } },
+                      { style: { fontFamily: 'var(--font-mono, ui-monospace, monospace)', fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } },
                       commit.slice(0, 7),
                     ),
                   )
@@ -260,7 +265,7 @@ export function InstallConfirmDialog({
                     'div',
                     {
                       style: {
-                        fontFamily: 'monospace',
+                        fontFamily: 'var(--font-mono, ui-monospace, monospace)',
                         fontSize: 11,
                         color: 'var(--text-muted, #7E859B)',
                         wordBreak: 'break-all',
@@ -426,7 +431,7 @@ export function InstallConfirmDialog({
                             {
                               style: {
                                 margin: '4px 0 0 0',
-                                fontFamily: 'monospace',
+                                fontFamily: 'var(--font-mono, ui-monospace, monospace)',
                                 fontSize: 11,
                                 whiteSpace: 'pre-wrap',
                                 opacity: 0.85,
@@ -461,7 +466,12 @@ export function InstallConfirmDialog({
                       marginTop: 4,
                     },
                   },
-                  h('strong', null, '⚠️ 高危风险阻断'),
+                  h(
+                    'strong',
+                    { style: { display: 'inline-flex', alignItems: 'center', gap: 6 } },
+                    tablerIcon('alert', { size: 14 }),
+                    '高危风险阻断',
+                  ),
                   h('span', null, '静态代码扫描发现高危操作，默认禁止安装以保护你的设备安全。'),
                   h(
                     'label',
@@ -510,6 +520,7 @@ export function InstallConfirmDialog({
             'data-testid': 'registry-confirm-cancel',
             onClick: onClose,
             disabled: busy,
+            className: 'bbreg-btn bbreg-btn-ghost',
             style: {
               padding: '6px 14px',
               borderRadius: 999,
@@ -535,6 +546,7 @@ export function InstallConfirmDialog({
                   })
               : undefined,
             disabled: !canConfirm,
+            className: 'bbreg-btn bbreg-btn-primary',
             style: {
               padding: '6px 16px',
               borderRadius: 999,

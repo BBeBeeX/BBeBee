@@ -11,25 +11,35 @@ import { Context, Service } from 'cordis'
 import { DEFAULT_APP_SETTINGS } from '@BBeBee/protocol'
 import type {
   AppSettings,
+  LyricSourceDefinition,
+  PluginInfo,
   RegistryEntry,
   RegistryEntryDetails,
   RegistryIndex,
+  RegistryLockRecord,
+  RegistryMetadataService,
+  RegistryTask,
   RegistryUpdate,
   SettingsService,
   SourceRecord,
+  ThemeDefinition,
 } from '@BBeBee/protocol'
 import { RegistryScreen } from './screens/RegistryScreen.js'
 import { RegistrySettingsCard } from './components/RegistrySettingsCard.js'
+import { RegistryEntryCard } from './components/RegistryEntryCard.js'
 import {
   deriveRegistryActionState,
   minAppVersionBlock,
   type InstalledContentSnapshot,
 } from './hooks/install-state.js'
+import { formatDateTime, formatDateMs } from './utils/format.js'
+import { isOfficialEntry, parseRepoOwner } from './utils/repo.js'
 import plugin from './index.js'
 import { REGISTRY_VIEWS } from '@BBeBee/plugin-registry/views'
 
 afterEach(() => {
   cleanup()
+  window.localStorage.clear()
   delete (window as unknown as { BBeBee?: unknown }).BBeBee
 })
 
@@ -67,6 +77,8 @@ const INDEX: RegistryIndex = {
       sourceUrl: 'https://a.example',
       downloadUrl: 'https://cdn.example/a.json',
       updatedAt: '2026-01-15T00:00:00Z',
+      // Official: published under the BBeBeeX organization.
+      repo: 'https://github.com/BBeBeeX/alpha-source',
     },
     {
       id: 'music-current',
@@ -75,8 +87,12 @@ const INDEX: RegistryIndex = {
       version: '1.0.0',
       sourceUrl: 'https://b.example',
       downloadUrl: 'https://cdn.example/b.json',
+      // Third-party.
+      repo: 'https://github.com/community/beta-source',
     },
+    // Official by the builtin- prefix, with no repo at all.
     { id: 'builtin-lrclib', kind: 'lyric-source', name: 'LRCLIB', version: '1.1.0', downloadUrl: 'https://cdn.example/lrclib.json' },
+    // No repo → third-party.
     { id: 'theme-neon', kind: 'theme', name: 'Neon', version: '2.0.0', previewUrl: 'https://cdn.example/neon.png' },
     {
       id: 'plugin-gated',
@@ -84,6 +100,8 @@ const INDEX: RegistryIndex = {
       name: 'Gated Plugin',
       version: '1.0.0',
       minAppVersion: '99.0.0',
+      repo: 'https://github.com/gated-author/gated-plugin',
+      category: 'security-permissions',
       capabilities: ['net:host/*'],
       sha256: 'ab'.repeat(32),
     },
@@ -94,8 +112,30 @@ const INDEX: RegistryIndex = {
       version: '1.0.0',
       minAppVersion: '0.0.1',
       repoUrl: 'https://github.com/example/plugin-ok',
+      category: 'ui-enhancement',
       capabilities: ['audio:dsp'],
       sha256: 'cd'.repeat(32),
+    },
+    {
+      id: 'plugin-remote',
+      kind: 'plugin',
+      name: 'Remote Plugin',
+      version: '1.0.0',
+      // Official, via the owner/repo shorthand.
+      repo: 'BBeBeeX/remote-plugin',
+      category: 'remote-mobile',
+      capabilities: ['net:host/*'],
+      sha256: 'ee'.repeat(32),
+    },
+    {
+      id: 'plugin-unknown',
+      kind: 'plugin',
+      name: 'Mystery Plugin',
+      version: '1.0.0',
+      repo: 'https://github.com/mystery-author/unknown-plugin',
+      // A slug the label map does not know — it must render verbatim.
+      category: 'mystery-slug',
+      sha256: 'ff'.repeat(32),
     },
   ],
 }
@@ -105,6 +145,54 @@ const INSTALLED: InstalledContentSnapshot = {
   lyricSources: [{ id: 'builtin-lrclib', name: 'LRCLIB', enabled: true, sortOrder: 0, script: '// noop', version: '1.0.0' }],
   themes: [],
   plugins: [],
+}
+
+/* ── task-center fixtures ────────────────────────────────────────────────── */
+
+const TASK_STARTED_AT = Date.UTC(2026, 0, 17, 8, 24)
+
+const RUNNING_TASK: RegistryTask = {
+  id: 'task-running',
+  entryId: 'music-new',
+  entryName: 'Alpha Source',
+  kind: 'music-source',
+  operation: 'install',
+  stage: 'download',
+  status: 'running',
+  startedAt: TASK_STARTED_AT,
+}
+const PENDING_TASK: RegistryTask = {
+  id: 'task-pending',
+  entryId: 'plugin-ok',
+  entryName: 'OK Plugin',
+  kind: 'plugin',
+  operation: 'install',
+  stage: 'verify',
+  status: 'pending',
+  startedAt: TASK_STARTED_AT - 60_000,
+}
+const SUCCESS_TASK: RegistryTask = {
+  id: 'task-success',
+  entryId: 'theme-neon',
+  entryName: 'Neon',
+  kind: 'theme',
+  operation: 'install',
+  stage: 'install',
+  status: 'success',
+  startedAt: TASK_STARTED_AT - 120_000,
+  finishedAt: TASK_STARTED_AT - 119_000,
+}
+const FAILED_TASK: RegistryTask = {
+  id: 'task-failed',
+  entryId: 'music-current',
+  entryName: 'Beta Source',
+  kind: 'music-source',
+  operation: 'install',
+  stage: 'install',
+  status: 'failed',
+  error: 'registry: the document for "music-current" was not imported — Doc: missing ruleStream',
+  startedAt: TASK_STARTED_AT - 180_000,
+  finishedAt: TASK_STARTED_AT - 179_000,
 }
 
 /* ── harness ─────────────────────────────────────────────────────────────── */
@@ -117,13 +205,55 @@ interface RegistryStubOptions {
   securityAudit?: any
   commit?: string
   commitDiff?: { previousCommit?: string; currentCommit: string }
+  /** `'owner/repo'` (as parsed from the entry) → the stats the stub answers. */
+  repoStats?: Record<string, { stars?: number; contributors?: number }>
+  /** False removes the registryMetadata service entirely (mobile-like). */
+  metadataService?: boolean
+  /** Entry id → lock record served by `getLockFile`; `false` removes the optional method. */
+  lockRecords?: Record<string, RegistryLockRecord> | false
+  /** Extra themes/plugins/lyric sources the installed-content stubs report as installed. */
+  installedThemes?: ThemeDefinition[]
+  installedPlugins?: PluginInfo[]
+  installedLyricSources?: LyricSourceDefinition[]
+  /** The task-center records `getTasks` serves (and the change event re-emits). */
+  tasks?: readonly RegistryTask[]
+  /** False removes the optional task-center methods entirely (quiet-degrade path). */
+  taskMethods?: boolean
+}
+
+function makeMetadataStub(
+  repoStats: RegistryStubOptions['repoStats'],
+  calls: string[],
+): Pick<RegistryMetadataService, 'getRepoStats' | 'peekRepoStats'> {
+  const table = repoStats ?? {}
+  return {
+    getRepoStats: async (owner: string, repo: string) => {
+      calls.push(`stats:${owner}/${repo}`)
+      return { owner, repo, fetchedAt: 1, ...(table[`${owner}/${repo}`] ?? {}) }
+    },
+    peekRepoStats: () => undefined,
+  }
 }
 
 function makeRegistryStub(options: RegistryStubOptions = {}) {
   const calls: string[] = []
   const index = options.index ?? INDEX
+  // The task center's records, mutated by emitTasks/clearFinishedTasks the
+  // way the real service mutates its own list.
+  const taskList: RegistryTask[] = [...(options.tasks ?? [])]
+  let notifyTasksChanged: (() => void) | undefined
   return {
     calls,
+    taskList,
+    /** The harness wires this to a `'registry/tasks-changed'` emit once the stub ctx exists. */
+    setTaskNotifier: (fn: () => void) => {
+      notifyTasksChanged = fn
+    },
+    /** Replace the whole task list and announce it, as the service's snapshots do. */
+    emitTasks: (tasks: readonly RegistryTask[]) => {
+      taskList.splice(0, taskList.length, ...tasks)
+      notifyTasksChanged?.()
+    },
     getIndex: async () => {
       calls.push('getIndex')
       return index
@@ -158,15 +288,42 @@ function makeRegistryStub(options: RegistryStubOptions = {}) {
       calls.push(`install:${entry.id}:${String(opts?.confirmed ?? false)}${opts?.overwrite ? ':overwrite' : ''}`)
     },
     lastIndexFetchFailed: () => options.offline ?? false,
+    // The optional lock-file read; `false` removes the method entirely so the
+    // quiet-degrade path can be exercised.
+    ...(options.lockRecords !== false
+      ? {
+          getLockFile: async () => {
+            calls.push('getLockFile')
+            return { version: 1 as const, records: options.lockRecords ?? {} }
+          },
+        }
+      : {}),
+    // The optional task-center read/clear; `false` removes both the same way.
+    ...(options.taskMethods !== false
+      ? {
+          getTasks: (): readonly RegistryTask[] => [...taskList],
+          clearFinishedTasks: () => {
+            calls.push('clear-finished-tasks')
+            for (let i = taskList.length - 1; i >= 0; i--) {
+              const status = taskList[i]?.status
+              if (status === 'success' || status === 'failed') taskList.splice(i, 1)
+            }
+            notifyTasksChanged?.()
+          },
+        }
+      : {}),
   }
 }
 
 async function harness(options: RegistryStubOptions & { appVersion?: string } = {}) {
   const registry = makeRegistryStub(options)
+  const metadata = makeMetadataStub(options.repoStats, registry.calls)
 
+  let registryCtx: Context | undefined
   class RegistryStub extends Service {
     constructor(ctx: Context) {
       super(ctx, 'contentRegistry')
+      registryCtx = ctx
     }
     getIndex = registry.getIndex
     checkUpdates = registry.checkUpdates
@@ -174,26 +331,64 @@ async function harness(options: RegistryStubOptions & { appVersion?: string } = 
     fetchEntryDetails = registry.fetchEntryDetails
     install = registry.install
     lastIndexFetchFailed = registry.lastIndexFetchFailed
+    getLockFile = registry.getLockFile
+    // Present only when the stub options keep them — the quiet-degrade test
+    // exercises the absent case, same as getLockFile above.
+    getTasks = registry.getTasks
+    clearFinishedTasks = registry.clearFinishedTasks
   }
 
-  const installed = INSTALLED
+  class RegistryMetadataStub extends Service {
+    constructor(ctx: Context) {
+      super(ctx, 'registryMetadata')
+    }
+    getRepoStats = metadata.getRepoStats
+    peekRepoStats = metadata.peekRepoStats
+  }
+
+  // A per-harness clone: uninstall tests mutate the installed content, and
+  // the shared fixture must stay pristine for the other cases.
+  const installed = {
+    musicSources: [...INSTALLED.musicSources],
+    lyricSources: [...INSTALLED.lyricSources, ...(options.installedLyricSources ?? [])],
+    themes: [...(options.installedThemes ?? [])],
+    plugins: [...(options.installedPlugins ?? [])],
+  }
   class SourcesStub extends Service {
     constructor(ctx: Context) {
       super(ctx, 'sources')
     }
-    sources = installed.musicSources
+    get sources() {
+      return installed.musicSources
+    }
+    remove = async (id: string) => {
+      registry.calls.push(`remove-source:${id}`)
+      installed.musicSources = installed.musicSources.filter((r) => r.id !== id)
+    }
   }
   class LyricSourcesStub extends Service {
     constructor(ctx: Context) {
       super(ctx, 'lyricSources')
     }
     getSources = () => installed.lyricSources
+    removeSource = async (id: string): Promise<boolean> => {
+      registry.calls.push(`remove-lyric-source:${id}`)
+      const before = installed.lyricSources.length
+      installed.lyricSources = installed.lyricSources.filter((s) => s.id !== id)
+      return installed.lyricSources.length < before
+    }
   }
   class ThemeStub extends Service {
     constructor(ctx: Context) {
       super(ctx, 'theme')
     }
     getThemes = () => installed.themes
+    removeTheme = (id: string): boolean => {
+      registry.calls.push(`remove-theme:${id}`)
+      const before = installed.themes.length
+      installed.themes = installed.themes.filter((t) => t.id !== id)
+      return installed.themes.length < before
+    }
   }
   class PluginManagerStub extends Service {
     constructor(ctx: Context) {
@@ -234,6 +429,7 @@ async function harness(options: RegistryStubOptions & { appVersion?: string } = 
   const root = new Context()
   await root.plugin(UiStub)
   await root.plugin(RegistryStub)
+  if (options.metadataService !== false) await root.plugin(RegistryMetadataStub)
   await root.plugin(SourcesStub)
   await root.plugin(LyricSourcesStub)
   await root.plugin(ThemeStub)
@@ -244,6 +440,11 @@ async function harness(options: RegistryStubOptions & { appVersion?: string } = 
   root.inject(['ui', 'contentRegistry', 'settings'], (s) => void (scoped = s))
   await new Promise((resolve) => setTimeout(resolve, 0))
   if (!scoped) throw new Error('failed to scope')
+
+  // The stub's task mutations become real event emissions on the service ctx.
+  registry.setTaskNotifier(() => {
+    registryCtx?.emit('registry/tasks-changed', [...registry.taskList])
+  })
 
   // The desktop bridge, as the preload would expose it.
   ;(window as unknown as { BBeBee?: unknown }).BBeBee = {
@@ -478,6 +679,491 @@ describe('RegistryScreen', () => {
   })
 })
 
+/* ── RegistryScreen: filters and sorting ─────────────────────────────────── */
+
+/** The rendered entry cards' testids, in visual order. */
+function cardIds(screen: HTMLElement): Array<string | null> {
+  return Array.from(screen.querySelectorAll('[data-testid^="registry-entry-"]')).map((el) =>
+    el.getAttribute('data-testid'),
+  )
+}
+
+describe('RegistryScreen filters and sorting', () => {
+  it('hides third-party entries while the third-party toggle is off, and restores them', async () => {
+    const { ctx } = await harness()
+    const { getByTestId, findByTestId, queryByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-entry-music-new')
+    expect(getByTestId('registry-entry-music-current')).toBeTruthy()
+
+    // music-new is BBeBeeX-published (official); music-current is community.
+    fireEvent.click(getByTestId('registry-official-toggle'))
+    await waitFor(() => expect(queryByTestId('registry-entry-music-current')).toBeNull())
+    expect(getByTestId('registry-entry-music-new')).toBeTruthy()
+
+    fireEvent.click(getByTestId('registry-official-toggle'))
+    await waitFor(() => expect(getByTestId('registry-entry-music-current')).toBeTruthy())
+  })
+
+  it('treats builtin entries as official and repo-less entries as third-party', async () => {
+    const { ctx } = await harness()
+    const { getByTestId, findByTestId, queryByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-entry-music-new')
+
+    // The builtin lyric source has no repo but is official by its id prefix.
+    fireEvent.click(getByTestId('registry-tab-lyric-source'))
+    await waitFor(() => expect(getByTestId('registry-entry-builtin-lrclib')).toBeTruthy())
+    fireEvent.click(getByTestId('registry-official-toggle'))
+    expect(getByTestId('registry-entry-builtin-lrclib')).toBeTruthy()
+
+    // A theme without any repository reads as third-party and disappears.
+    fireEvent.click(getByTestId('registry-tab-theme'))
+    await waitFor(() => expect(queryByTestId('registry-entry-theme-neon')).toBeNull())
+    expect(getByTestId('registry-empty')).toBeTruthy()
+  })
+
+  it('sorts by stars only once the key changes, keeps no-data last, and flips with the direction button', async () => {
+    const { ctx, calls } = await harness({
+      repoStats: {
+        'BBeBeeX/alpha-source': { stars: 500, contributors: 12 },
+        'community/beta-source': { stars: 900, contributors: 30 },
+        'gated-author/gated-plugin': { stars: 77, contributors: 5 },
+        'example/plugin-ok': { stars: 10, contributors: 2 },
+      },
+    })
+    const { getByTestId, findByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-entry-music-new')
+
+    // The name sort (the default) must not request any stats.
+    expect(calls.filter((call) => call.startsWith('stats:'))).toEqual([])
+
+    fireEvent.change(getByTestId('registry-sort').querySelector('select') as HTMLSelectElement, {
+      target: { value: 'stars' },
+    })
+
+    // Stars default to descending and start the lazy fetch.
+    await waitFor(() => expect(calls.some((call) => call.startsWith('stats:'))).toBe(true))
+    await waitFor(() =>
+      expect(cardIds(getByTestId('registry-screen'))).toEqual([
+        'registry-entry-music-current', // 900
+        'registry-entry-music-new', // 500
+      ]),
+    )
+    expect(getByTestId('registry-stats-music-current').textContent).toContain('900')
+    expect(getByTestId('registry-stats-music-new').textContent).toContain('500')
+
+    fireEvent.click(getByTestId('registry-sort-direction'))
+    await waitFor(() =>
+      expect(cardIds(getByTestId('registry-screen'))).toEqual([
+        'registry-entry-music-new',
+        'registry-entry-music-current',
+      ]),
+    )
+
+    // On the plugin tab the entries without stats trail the sorted ones,
+    // keeping their original relative order.
+    fireEvent.click(getByTestId('registry-tab-plugin'))
+    await waitFor(() =>
+      expect(cardIds(getByTestId('registry-screen'))).toEqual([
+        'registry-entry-plugin-gated', // 77
+        'registry-entry-plugin-ok', // 10
+        'registry-entry-plugin-remote', // no data
+        'registry-entry-plugin-unknown', // no data
+      ]),
+    )
+  })
+
+  it('filters plugins by category and copes with unknown slugs', async () => {
+    const { ctx } = await harness()
+    const { getByTestId, findByTestId, queryByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-entry-music-new')
+    // Only the plugin tab carries the category filter.
+    expect(queryByTestId('registry-category-filter')).toBeNull()
+
+    fireEvent.click(getByTestId('registry-tab-plugin'))
+    const filter = await waitFor(() => getByTestId('registry-category-filter'))
+    const select = filter.querySelector('select') as HTMLSelectElement
+    // Known slugs map to their label; unknown ones render verbatim.
+    expect(select.textContent).toContain('界面增强')
+    expect(select.textContent).toContain('mystery-slug')
+
+    fireEvent.change(select, { target: { value: 'ui-enhancement' } })
+    await waitFor(() => expect(queryByTestId('registry-entry-plugin-gated')).toBeNull())
+    expect(getByTestId('registry-entry-plugin-ok')).toBeTruthy()
+    expect(queryByTestId('registry-entry-plugin-remote')).toBeNull()
+
+    fireEvent.change(select, { target: { value: 'mystery-slug' } })
+    await waitFor(() => expect(getByTestId('registry-entry-plugin-unknown')).toBeTruthy())
+    expect(queryByTestId('registry-entry-plugin-ok')).toBeNull()
+  })
+
+  it('renders without stats and without crashing when the metadata service is absent', async () => {
+    const { ctx } = await harness({ metadataService: false })
+    const { getByTestId, findByTestId, queryByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-entry-music-new')
+
+    fireEvent.change(getByTestId('registry-sort').querySelector('select') as HTMLSelectElement, {
+      target: { value: 'contributors' },
+    })
+    // No service, no requests, no crash — the cards just stay unadorned.
+    await findByTestId('registry-entry-music-new')
+    expect(queryByTestId('registry-stats-music-new')).toBeNull()
+  })
+})
+
+/* ── RegistryScreen: favorites ───────────────────────────────────────────── */
+
+describe('RegistryScreen favorites', () => {
+  it('toggles the favorite heart, persists it to localStorage, and survives a remount', async () => {
+    const { ctx } = await harness()
+    const first = render(h(RegistryScreen, { ctx }))
+    const heart = await first.findByTestId('registry-favorite-music-new')
+    expect(heart.getAttribute('aria-pressed')).toBe('false')
+
+    fireEvent.click(heart)
+    expect(heart.getAttribute('aria-pressed')).toBe('true')
+    expect(JSON.parse(window.localStorage.getItem('bbebee_registry_favorites') ?? '[]')).toEqual([
+      'music-new',
+    ])
+
+    // A fresh mount (a new page load) reads the persisted set back.
+    first.unmount()
+    const second = render(h(RegistryScreen, { ctx }))
+    expect(
+      (await second.findByTestId('registry-favorite-music-new')).getAttribute('aria-pressed'),
+    ).toBe('true')
+  })
+
+  it('lists only the favorited entries across kinds on the favorites tab, with a count badge', async () => {
+    const { ctx } = await harness()
+    const { getByTestId, findByTestId, queryByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-entry-music-new')
+
+    // Nothing favorited yet: the dedicated empty state, no badge.
+    fireEvent.click(getByTestId('registry-tab-favorites'))
+    expect(await findByTestId('registry-favorites-empty')).toBeTruthy()
+    expect(getByTestId('registry-tab-favorites').textContent).not.toContain('0')
+    // The curated tabs keep the search box but drop the browsing controls.
+    expect(getByTestId('registry-search')).toBeTruthy()
+    expect(queryByTestId('registry-sort')).toBeNull()
+    expect(queryByTestId('registry-official-toggle')).toBeNull()
+
+    // Favorite one entry per kind, from their own kind tabs.
+    fireEvent.click(getByTestId('registry-tab-music-source'))
+    await findByTestId('registry-entry-music-new')
+    fireEvent.click(getByTestId('registry-favorite-music-new'))
+
+    fireEvent.click(getByTestId('registry-tab-theme'))
+    await findByTestId('registry-entry-theme-neon')
+    fireEvent.click(getByTestId('registry-favorite-theme-neon'))
+
+    // Both show up on the favorites tab; the rest of the catalog does not.
+    fireEvent.click(getByTestId('registry-tab-favorites'))
+    await findByTestId('registry-entry-music-new')
+    expect(getByTestId('registry-entry-theme-neon')).toBeTruthy()
+    expect(queryByTestId('registry-entry-music-current')).toBeNull()
+    expect(getByTestId('registry-tab-favorites').textContent).toContain('2')
+
+    // The search box still filters the curated list.
+    fireEvent.change(getByTestId('registry-search'), { target: { value: 'alpha' } })
+    await waitFor(() => expect(queryByTestId('registry-entry-theme-neon')).toBeNull())
+    expect(getByTestId('registry-entry-music-new')).toBeTruthy()
+  })
+
+  it('drops a card from the favorites tab when it is un-favorited, back to the empty state', async () => {
+    const { ctx } = await harness()
+    const { getByTestId, findByTestId, queryByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-entry-music-new')
+
+    fireEvent.click(getByTestId('registry-favorite-music-new'))
+    fireEvent.click(getByTestId('registry-tab-favorites'))
+    await findByTestId('registry-entry-music-new')
+
+    // The same heart un-favorites; the card leaves and the badge disappears.
+    fireEvent.click(getByTestId('registry-favorite-music-new'))
+    await waitFor(() => expect(queryByTestId('registry-entry-music-new')).toBeNull())
+    expect(await findByTestId('registry-favorites-empty')).toBeTruthy()
+    expect(getByTestId('registry-tab-favorites').textContent).not.toContain('1')
+  })
+})
+
+/* ── RegistryScreen: installed tab ───────────────────────────────────────── */
+
+const LOCK_RECORD: RegistryLockRecord = {
+  id: 'music-new',
+  kind: 'music-source',
+  repo: 'BBeBeeX/alpha-source',
+  commit: '1234567890abcdef',
+  sha256: 'ab'.repeat(32),
+  installedAt: Date.UTC(2026, 0, 17),
+}
+
+describe('RegistryScreen installed tab', () => {
+  it('lists installed and update entries with versions and lock metadata, and reuses the update confirm flow', async () => {
+    const { ctx, calls } = await harness({ lockRecords: { 'music-new': LOCK_RECORD } })
+    const { getByTestId, findByTestId, queryByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-entry-music-new')
+
+    fireEvent.click(getByTestId('registry-tab-installed'))
+    // Installed or updateable only: the two music sources and the builtin
+    // lyric source; nothing else in this harness is installed.
+    await findByTestId('registry-entry-music-new')
+    expect(getByTestId('registry-entry-music-current')).toBeTruthy()
+    expect(getByTestId('registry-entry-builtin-lrclib')).toBeTruthy()
+    expect(queryByTestId('registry-entry-theme-neon')).toBeNull()
+    expect(getByTestId('registry-tab-installed').textContent).toContain('3')
+
+    // Lock metadata: the short commit shows on the entry that has a record…
+    await waitFor(() =>
+      expect(getByTestId('registry-installed-meta-music-new').textContent).toContain('1234567'),
+    )
+    expect(getByTestId('registry-installed-meta-music-new').textContent).toContain('1.0.0')
+    // …and an entry without a record still shows its version.
+    expect(getByTestId('registry-installed-meta-music-current').textContent).toContain('1.0.0')
+
+    // The update action is the same two-step contract as on the kind tabs.
+    fireEvent.click(getByTestId('registry-action-music-new'))
+    await waitFor(() => expect(calls).toContain('details:music-new'))
+    expect(queryByTestId('registry-confirm-dialog')).toBeTruthy()
+  })
+
+  it('degrades quietly when the optional getLockFile method is absent', async () => {
+    const { ctx } = await harness({ lockRecords: false })
+    const { getByTestId, findByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-entry-music-new')
+
+    fireEvent.click(getByTestId('registry-tab-installed'))
+    await findByTestId('registry-entry-music-new')
+    // Version from the action state, no commit chip, no crash.
+    expect(getByTestId('registry-installed-meta-music-new').textContent).toContain('1.0.0')
+  })
+
+  it('uninstalls a music source through the two-step confirm and calls the sources service', async () => {
+    const { ctx, calls } = await harness()
+    const { getByTestId, findByTestId, queryByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-entry-music-new')
+
+    fireEvent.click(getByTestId('registry-tab-installed'))
+    await findByTestId('registry-entry-music-current')
+
+    // Arm, then cancel — the confirm step must be dismissible.
+    fireEvent.click(getByTestId('registry-uninstall-music-current'))
+    expect(getByTestId('registry-uninstall-confirm-music-current')).toBeTruthy()
+    fireEvent.click(getByTestId('registry-uninstall-cancel-music-current'))
+    expect(queryByTestId('registry-uninstall-confirm-music-current')).toBeNull()
+
+    // Arm again and confirm: the sources service removes the matched record.
+    fireEvent.click(getByTestId('registry-uninstall-music-current'))
+    fireEvent.click(getByTestId('registry-uninstall-confirm-music-current'))
+    await waitFor(() => expect(calls).toContain('remove-source:rec-https://b.example'))
+    // The stub really lost the record, so the card leaves the installed list.
+    await waitFor(() => expect(queryByTestId('registry-entry-music-current')).toBeNull())
+  })
+
+  it('uninstalls lyric sources and themes through their own services', async () => {
+    const extraLyric: RegistryEntry = {
+      id: 'ext-lyric',
+      kind: 'lyric-source',
+      name: 'Ext Lyric',
+      version: '1.0.0',
+      downloadUrl: 'https://cdn.example/ext.json',
+    }
+    const { ctx, calls } = await harness({
+      index: { entries: [...INDEX.entries, extraLyric] },
+      installedLyricSources: [
+        { id: 'ext-lyric', name: 'Ext Lyric', enabled: true, sortOrder: 1, script: '// noop', version: '1.0.0' },
+      ],
+      installedThemes: [
+        { id: 'theme-neon', name: 'Neon', version: '1.0.0', isDark: true, tokens: {} as ThemeDefinition['tokens'] },
+      ],
+    })
+    const { getByTestId, findByTestId, queryByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-entry-music-new')
+
+    fireEvent.click(getByTestId('registry-tab-installed'))
+    await findByTestId('registry-entry-theme-neon')
+
+    // Builtins get no uninstall affordance at all: no button, no note.
+    expect(queryByTestId('registry-uninstall-builtin-lrclib')).toBeNull()
+    expect(queryByTestId('registry-uninstall-note-builtin-lrclib')).toBeNull()
+
+    fireEvent.click(getByTestId('registry-uninstall-theme-neon'))
+    fireEvent.click(getByTestId('registry-uninstall-confirm-theme-neon'))
+    await waitFor(() => expect(calls).toContain('remove-theme:theme-neon'))
+    await waitFor(() => expect(queryByTestId('registry-entry-theme-neon')).toBeNull())
+
+    fireEvent.click(getByTestId('registry-uninstall-ext-lyric'))
+    fireEvent.click(getByTestId('registry-uninstall-confirm-ext-lyric'))
+    await waitFor(() => expect(calls).toContain('remove-lyric-source:ext-lyric'))
+    await waitFor(() => expect(queryByTestId('registry-entry-ext-lyric')).toBeNull())
+  })
+
+  it('shows the settings note instead of an uninstall button for plugin entries', async () => {
+    const { ctx, calls } = await harness({
+      installedPlugins: [
+        {
+          id: 'plugin-ok',
+          name: 'plugin-ok',
+          displayName: 'OK Plugin',
+          version: '1.0.0',
+          systemId: 'layer-5',
+          enabled: true,
+          state: 'ACTIVE',
+          waitingFor: [],
+          dependencies: [],
+          dependents: [],
+        },
+      ],
+    })
+    const { getByTestId, findByTestId, queryByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-entry-music-new')
+
+    fireEvent.click(getByTestId('registry-tab-installed'))
+    await findByTestId('registry-entry-plugin-ok')
+    // No remove API exists for plugins: no button, just the pointer to
+    // plugin management.
+    expect(queryByTestId('registry-uninstall-plugin-ok')).toBeNull()
+    expect(getByTestId('registry-uninstall-note-plugin-ok').textContent).toContain('插件管理')
+    expect(calls.some((call) => call.startsWith('remove-'))).toBe(false)
+  })
+})
+
+/* ── RegistryScreen: task center ─────────────────────────────────────────── */
+
+/** The rendered task rows' testids, in the order the drawer lists them. */
+function taskIds(screen: HTMLElement): Array<string | null> {
+  return Array.from(screen.querySelectorAll('[data-testid^="registry-task-item-"]')).map((el) =>
+    el.getAttribute('data-testid'),
+  )
+}
+
+describe('RegistryScreen task center', () => {
+  it('badges the number of running tasks and clears the badge when none run', async () => {
+    const { ctx, registry } = await harness()
+    const { getByTestId, findByTestId, queryByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-entry-music-new')
+
+    // Nothing tracked: the button is there, no number is shouted.
+    expect(getByTestId('registry-tasks-button')).toBeTruthy()
+    expect(queryByTestId('registry-tasks-badge')).toBeNull()
+
+    // One running task among finished ones → badge counts the running only.
+    registry.emitTasks([FAILED_TASK, RUNNING_TASK, SUCCESS_TASK])
+    await waitFor(() => expect(getByTestId('registry-tasks-badge').textContent).toBe('1'))
+
+    // The next snapshot without a running task removes the badge entirely.
+    registry.emitTasks([FAILED_TASK, SUCCESS_TASK])
+    await waitFor(() => expect(queryByTestId('registry-tasks-badge')).toBeNull())
+  })
+
+  it('opens the drawer listing each task with status, error and start time', async () => {
+    const { ctx } = await harness({ tasks: [RUNNING_TASK, PENDING_TASK, SUCCESS_TASK, FAILED_TASK] })
+    const { getByTestId, findByTestId, queryByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-entry-music-new')
+
+    fireEvent.click(getByTestId('registry-tasks-button'))
+    const drawer = await findByTestId('registry-task-drawer')
+    // The 任务 title lives on the kit Sheet's card, outside the content testid.
+    expect(drawer.closest('[role="dialog"]')?.textContent).toContain('任务')
+
+    // Newest → oldest, exactly the service snapshot's order.
+    expect(taskIds(getByTestId('registry-screen'))).toEqual([
+      'registry-task-item-task-running',
+      'registry-task-item-task-pending',
+      'registry-task-item-task-success',
+      'registry-task-item-task-failed',
+    ])
+
+    // Kind chip + entry name + status label per record.
+    const running = getByTestId('registry-task-item-task-running')
+    expect(running.textContent).toContain('音乐源')
+    expect(running.textContent).toContain('Alpha Source')
+    expect(getByTestId('registry-task-status-task-running').textContent).toBe('下载中')
+    expect(getByTestId('registry-task-status-task-pending').textContent).toBe('等待确认')
+    expect(getByTestId('registry-task-status-task-pending').textContent).toBeTruthy()
+    expect(getByTestId('registry-task-status-task-success').textContent).toBe('成功')
+    expect(getByTestId('registry-task-status-task-failed').textContent).toBe('失败')
+
+    // A failure keeps its complete error text; the start time is formatted.
+    const failed = getByTestId('registry-task-item-task-failed')
+    expect(failed.textContent).toContain(FAILED_TASK.error ?? '')
+    expect(failed.textContent).toContain(formatDateTime(FAILED_TASK.startedAt))
+
+    // Escape closes the drawer (the kit Sheet's own contract).
+    fireEvent.keyDown(drawer, { key: 'Escape' })
+    await waitFor(() => expect(queryByTestId('registry-task-drawer')).toBeNull())
+  })
+
+  it('clears only the finished tasks through the service, keeping pending ones', async () => {
+    const { ctx, calls } = await harness({ tasks: [FAILED_TASK, SUCCESS_TASK, PENDING_TASK] })
+    const { getByTestId, findByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-entry-music-new')
+
+    fireEvent.click(getByTestId('registry-tasks-button'))
+    await findByTestId('registry-task-drawer')
+
+    const clear = getByTestId('registry-tasks-clear') as HTMLButtonElement
+    expect(clear.disabled).toBe(false)
+    fireEvent.click(clear)
+    await waitFor(() => expect(calls).toContain('clear-finished-tasks'))
+
+    // The stub really removed the finished records and emitted the snapshot;
+    // only the pending row survives.
+    await waitFor(() => expect(taskIds(getByTestId('registry-screen'))).toEqual(['registry-task-item-task-pending']))
+  })
+
+  it('degrades quietly when the optional task methods are absent', async () => {
+    const { ctx, calls } = await harness({ taskMethods: false })
+    const { getByTestId, findByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-entry-music-new')
+
+    // No badge, and the drawer still opens — empty and crash-free.
+    fireEvent.click(getByTestId('registry-tasks-button'))
+    expect(await findByTestId('registry-task-drawer')).toBeTruthy()
+    expect(await findByTestId('registry-tasks-empty')).toBeTruthy()
+    expect((getByTestId('registry-tasks-clear') as HTMLButtonElement).disabled).toBe(true)
+    expect(calls).not.toContain('clear-finished-tasks')
+  })
+})
+
+/* ── RegistryEntryCard regressions ───────────────────────────────────────── */
+
+describe('RegistryEntryCard regressions', () => {
+  const entry: RegistryEntry = { id: 'card-x', kind: 'theme', name: 'X', version: '1.0.0' }
+
+  it('renders without favorite, installed-meta or uninstall affordances when the props are absent', () => {
+    const { getByTestId, queryByTestId } = render(
+      h(RegistryEntryCard, { entry, actionState: { state: 'install' }, onAction: () => {} }),
+    )
+    expect(getByTestId('registry-entry-card-x')).toBeTruthy()
+    expect(queryByTestId('registry-favorite-card-x')).toBeNull()
+    expect(queryByTestId('registry-installed-meta-card-x')).toBeNull()
+    expect(queryByTestId('registry-uninstall-card-x')).toBeNull()
+    expect(queryByTestId('registry-uninstall-note-card-x')).toBeNull()
+  })
+})
+
+/* ── parseRepoOwner / isOfficialEntry ────────────────────────────────────── */
+
+describe('parseRepoOwner / isOfficialEntry', () => {
+  const base = { kind: 'plugin', name: 'X' } as unknown as RegistryEntry
+
+  it('parses full URLs and shorthands, and judges officialness', () => {
+    expect(parseRepoOwner('https://github.com/BBeBeeX/repo.git')).toEqual({
+      owner: 'BBeBeeX',
+      repo: 'repo',
+    })
+    expect(parseRepoOwner('BBeBeeX/repo')).toEqual({ owner: 'BBeBeeX', repo: 'repo' })
+    expect(parseRepoOwner('https://cdn.example/a.json')).toBeUndefined()
+    expect(parseRepoOwner(undefined)).toBeUndefined()
+
+    expect(isOfficialEntry({ ...base, id: 'builtin-lrclib' })).toBe(true)
+    expect(isOfficialEntry({ ...base, id: 'ext', repo: 'bbebeex/anything' })).toBe(true)
+    expect(isOfficialEntry({ ...base, id: 'ext', repo: 'BBeBeeX/anything' })).toBe(true)
+    expect(isOfficialEntry({ ...base, id: 'ext', repo: 'someone/else' })).toBe(false)
+    expect(isOfficialEntry({ ...base, id: 'ext' })).toBe(false)
+  })
+})
+
 /* ── RegistrySettingsCard ────────────────────────────────────────────────── */
 
 describe('RegistrySettingsCard', () => {
@@ -542,6 +1228,16 @@ describe('deriveRegistryActionState / minAppVersionBlock', () => {
     expect(minAppVersionBlock(gated, '99.0.0')).toBeUndefined()
     expect(minAppVersionBlock(gated, undefined)).toBeUndefined()
     expect(minAppVersionBlock(INDEX.entries[0]!, '0.1.0')).toBeUndefined()
+  })
+})
+
+/* ── formatDateMs ────────────────────────────────────────────────────────── */
+
+describe('formatDateMs', () => {
+  it('formats a wall-clock timestamp as a locale date and degrades to —', () => {
+    expect(formatDateMs(undefined)).toBe('—')
+    expect(formatDateMs(Number.NaN)).toBe('—')
+    expect(formatDateMs(Date.UTC(2026, 0, 17))).not.toBe('—')
   })
 })
 

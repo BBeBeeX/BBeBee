@@ -149,6 +149,11 @@ export const bundled: PluginRegistry = {
     manifest: {"id":"@BBeBee/plugin-registry","name":"@BBeBee/plugin-registry","displayName":"Registry","description":"ctx.contentRegistry — the community content index: update checks and installs for music sources, lyric sources, themes and desktop plugins.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-4","moduleId":"registry","entry":{"main":"./dist/index.js"},"capabilities":["net:host/*"],"contributes":{"services":["contentRegistry"]},"effect":"contentRegistry"},
     builtin: true,
   },
+  "@BBeBee/plugin-registry-metadata": {
+    load: () => import('@BBeBee/plugin-registry-metadata'),
+    manifest: {"id":"@BBeBee/plugin-registry-metadata","name":"@BBeBee/plugin-registry-metadata","displayName":"Registry Metadata","description":"ctx.registryMetadata — lazy GitHub star and contributor counts for registry entries, cached for a day and degraded gracefully.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-4","moduleId":"registry","entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{},"effect":"registryMetadata"},
+    builtin: true,
+  },
   "@BBeBee/plugin-security-audit": {
     load: () => import('@BBeBee/plugin-security-audit'),
     manifest: {"id":"@BBeBee/plugin-security-audit","name":"@BBeBee/plugin-security-audit","displayName":"Security Audit","description":"ctx.securityAudit — static code analysis and security auditing for sources and plugins.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-4","moduleId":"security","entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["securityAudit"]},"effect":"securityAudit"},

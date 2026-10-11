@@ -24,11 +24,16 @@ import {
  *
  * Derivation is synchronous per render (so a freshly loaded index never
  * paints a frame of wrong buttons) and re-derived whenever any
- * installed-content event fires.
+ * installed-content event fires. `bump` lets the caller force one extra
+ * re-derivation — the backstop for a service whose change event has not
+ * landed (or does not exist): changing `entries` itself cannot do it, because
+ * the screen's backstop reshuffles the index object without touching the
+ * entries array inside it.
  */
 export function useRegistryActionStates(
   ctx: Context,
   entries: readonly RegistryEntry[],
+  bump = 0,
 ): ReadonlyMap<string, RegistryActionState> {
   const [nonce, setNonce] = useState(0)
 
@@ -42,8 +47,9 @@ export function useRegistryActionStates(
 
   return useMemo(
     () => deriveRegistryActionStates(entries, readInstalledContentSnapshot(ctx)),
-    // `nonce` invalidates the memo when an installed-content event fires.
-    [ctx, entries, nonce],
+    // `nonce` invalidates the memo when an installed-content event fires,
+    // `bump` when the caller knows a service changed without an event.
+    [ctx, entries, nonce, bump],
   )
 }
 

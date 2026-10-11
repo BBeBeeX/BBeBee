@@ -14,11 +14,23 @@ import { RegistrySettingsCard } from './components/RegistrySettingsCard.js'
 
 export { RegistryScreen }
 export { RegistrySettingsCard }
+export { RegistryFilterBar, categoryLabel, DEFAULT_SORT_DIR, type RegistrySortDir, type RegistrySortKey } from './components/RegistryFilterBar.js'
+export {
+  RegistryEntryCard,
+  type RegistryEntryCardStats,
+  type RegistryEntryCardInstalledMeta,
+  type RegistryEntryCardUninstall,
+} from './components/RegistryEntryCard.js'
+export { useFavorites, REGISTRY_FAVORITES_KEY } from './hooks/use-favorites.js'
+export { useRegistryLockRecords, type RegistryLockRecordsMap } from './hooks/use-lock-records.js'
+export { useRepoMetadata, type RepoStatsMap } from './hooks/use-repo-metadata.js'
+export { isOfficialEntry, parseRepoOwner, repoKey, type RepoRef } from './utils/repo.js'
 export {
   deriveRegistryActionState,
   deriveRegistryActionStates,
   minAppVersionBlock,
   isBuiltinEntry,
+  INSTALLED_CONTENT_EVENTS,
   type InstalledContentSnapshot,
   type RegistryActionState,
 } from './hooks/install-state.js'
