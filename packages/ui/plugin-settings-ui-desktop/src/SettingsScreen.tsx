@@ -459,6 +459,7 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
       // 5. Network & Proxy
       activeTab === 'network'
         ? h(NetworkSection, {
+            ctx,
             proxy,
             thirdPartySources,
             proxyTesting,

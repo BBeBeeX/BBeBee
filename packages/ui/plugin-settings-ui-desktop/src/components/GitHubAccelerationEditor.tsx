@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { createElement as h } from 'react'
 import type { DragEvent, ReactElement } from 'react'
-import { Button, tablerIcon } from '@BBeBee/ui-kit-desktop'
+import type { Context } from 'cordis'
+import { Button, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { SettingsRow } from './SettingsRow.js'
 
 /**
@@ -15,6 +16,8 @@ import { SettingsRow } from './SettingsRow.js'
  */
 
 export interface GitHubAccelerationEditorProps {
+  /** The app context — read for the interface language via `useI18n`. */
+  ctx: Context
   /** The user's custom prefixes, in try order (jsDelivr is implicit). */
   prefixes: readonly string[]
   /** Report the complete ordered array after any add / edit / delete / reorder. */
@@ -74,9 +77,11 @@ export function reorderPrefixes(
 }
 
 export function GitHubAccelerationEditor({
+  ctx,
   prefixes,
   onUpdatePrefixes,
 }: GitHubAccelerationEditorProps): ReactElement {
+  const { t } = useI18n(ctx)
   const [expanded, setExpanded] = useState(false)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [dropGap, setDropGap] = useState<number | null>(null)
@@ -151,12 +156,11 @@ export function GitHubAccelerationEditor({
     'div',
     null,
     h(SettingsRow, {
-      title: 'GitHub acceleration',
-      description:
-        'Configure acceleration endpoints for GitHub resource downloads, tried in order; the official URL is always tried first and only switched away from on failure',
+      title: t('settings:github.title'),
+      description: t('settings:github.description'),
       action: h(Button, {
         variant: 'secondary',
-        children: expanded ? 'Collapse endpoints' : 'Customize',
+        children: expanded ? t('settings:github.collapse') : t('settings:github.customize'),
         onPress: () => setExpanded((value) => !value),
       }),
     }),
@@ -204,12 +208,12 @@ export function GitHubAccelerationEditor({
                   color: 'var(--bb-text-secondary, #A5B4CE)',
                 },
               },
-              'System',
+              t('settings:github.systemBadge'),
             ),
             h(
               'span',
               { style: { fontSize: 12, color: 'var(--bb-text-primary, #F5F5F7)', flexShrink: 0 } },
-              'jsDelivr CDN (built-in)',
+              t('settings:github.jsdelivr'),
             ),
             h(
               'span',
@@ -250,7 +254,7 @@ export function GitHubAccelerationEditor({
                 type: 'text',
                 value: prefix,
                 placeholder: 'https://ghproxy.example.com/',
-                'aria-label': `Acceleration endpoint ${index + 1}`,
+                'aria-label': t('settings:github.endpointLabel', { index: index + 1 }),
                 onChange: (e: { target: { value: string } }) => handleChange(index, e.target.value),
                 onBlur: () => handleBlur(index),
                 style: inputStyle(isInvalid(prefix)),
@@ -259,7 +263,7 @@ export function GitHubAccelerationEditor({
                 'button',
                 {
                   type: 'button',
-                  'aria-label': `Delete acceleration endpoint ${index + 1}`,
+                  'aria-label': t('settings:github.deleteEndpoint', { index: index + 1 }),
                   onClick: () => handleDelete(index),
                   style: iconButtonStyle,
                 },
@@ -274,7 +278,7 @@ export function GitHubAccelerationEditor({
             {
               type: 'button',
               'data-testid': 'settings-github-prefix-add',
-              'aria-label': 'Add acceleration endpoint',
+              'aria-label': t('settings:github.addEndpoint'),
               onClick: () => onUpdatePrefixes([...prefixes, '']),
               style: {
                 ...iconButtonStyle,

@@ -55,6 +55,11 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
   '@BBeBee/plugin-inspector-ui-desktop': {},
   '@BBeBee/plugin-manager': {},
 
+  // ctx.i18n — interface language, resolved from settings.language ('zh'/'en'/'system')
+  // with BCP 47 negotiation through ctx.device.locale. Loaded early because
+  // view packages read it, but load order is inject-derived, not positional.
+  '@BBeBee/plugin-i18n': {},
+
   // M1's feature set. Load order is derived from `inject`, never declared
   // here: `plugin-player` waits for ctx.audio and ctx.sources, `plugin-source-*`
   // wait for ctx.sources, and none of them is sequenced (docs/02 §3).

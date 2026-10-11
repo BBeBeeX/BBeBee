@@ -1,4 +1,5 @@
 import { Button, Select, Switch } from '@BBeBee/ui-kit-desktop'
+import type { Context } from 'cordis'
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { DownloadRegion, ProxySettings, SourceRecord } from '@BBeBee/protocol'
@@ -7,6 +8,8 @@ import { SettingsRow } from '../SettingsRow.js'
 import { SettingsSection } from '../SettingsSection.js'
 
 export interface NetworkSectionProps {
+  /** The app context — passed through to the GitHub acceleration editor for i18n. */
+  ctx: Context
   proxy: ProxySettings
   thirdPartySources: readonly SourceRecord[]
   proxyTesting: boolean
@@ -31,6 +34,7 @@ export interface NetworkSectionProps {
 }
 
 export function NetworkSection({
+  ctx,
   proxy,
   thirdPartySources,
   proxyTesting,
@@ -285,6 +289,7 @@ export function NetworkSection({
         ),
       }),
       h(GitHubAccelerationEditor, {
+        ctx,
         prefixes: githubAccelerationPrefixes,
         onUpdatePrefixes: onUpdateGithubAccelerationPrefixes,
       }),

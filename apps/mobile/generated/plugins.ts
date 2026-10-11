@@ -94,6 +94,11 @@ export const bundled: PluginRegistry = {
     manifest: {"id":"@BBeBee/plugin-history","name":"@BBeBee/plugin-history","displayName":"Play History","description":"Play history and statistics — a view of the playback history ctx.player owns.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@BBeBee/plugin-player"],"systemId":"layer-4","moduleId":"storage","entry":{"main":"./dist/index.js","ui":{"desktop":"./dist/index.js","mobile":"./dist/index.js"}},"capabilities":[],"contributes":{},"effect":null},
     builtin: true,
   },
+  "@BBeBee/plugin-i18n": {
+    load: () => import('@BBeBee/plugin-i18n'),
+    manifest: {"id":"@BBeBee/plugin-i18n","name":"@BBeBee/plugin-i18n","displayName":"I18n","description":"ctx.i18n — interface-language catalogues, key-granular fallback and locale resolution driven by settings.language.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@BBeBee/plugin-settings"],"systemId":"layer-4","moduleId":"i18n","entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["i18n"]},"effect":"i18n"},
+    builtin: true,
+  },
   "@BBeBee/plugin-inspector": {
     load: () => import('@BBeBee/plugin-inspector'),
     manifest: {"id":"@BBeBee/plugin-inspector","name":"@BBeBee/plugin-inspector","displayName":"Plugin Inspector","description":"Fiber tree and labelled effects.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-4","moduleId":"inspector","entry":{"main":"./dist/index.js","ui":{"desktop":"./dist/index.js"}},"capabilities":[],"contributes":{"services":["inspector"]},"effect":"inspector"},

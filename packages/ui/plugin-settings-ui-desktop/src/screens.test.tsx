@@ -10,6 +10,7 @@ import { Context, Service } from 'cordis'
 import { serviceOf } from '@BBeBee/toolkit/hooks'
 import type { AppSettings, SettingsService, SettingsContribution, CacheClass, CacheStats, ThemeDefinition, NowPlayingStyleMeta, LyricSourceDefinition, SourceRecord, PluginInfo, PluginManagerService } from '@BBeBee/protocol'
 import { DEFAULT_APP_SETTINGS, NOW_PLAYING_STYLES } from '@BBeBee/protocol'
+import { apply as applyI18n } from '@BBeBee/plugin-i18n'
 import { midnightPurpleTheme, spotifyTheme } from '@BBeBee/ui-tokens'
 import { SettingsScreen } from './SettingsScreen.js'
 import { ShortcutsCard } from './components/ShortcutsCard.js'
@@ -24,7 +25,11 @@ afterEach(() => {
 })
 
 async function harness(initialSettings: Partial<AppSettings> = {}) {
-  let currentSettings: AppSettings = { ...DEFAULT_APP_SETTINGS, ...initialSettings }
+  // English by default: the suite asserts the en strings; language-specific
+  // behaviour (the live zh↔en switch) is covered explicitly below.
+  // English by default: the suite asserts the en strings; the live zh<->en
+  // switch is covered explicitly in the pilot test below.
+  let currentSettings: AppSettings = { ...DEFAULT_APP_SETTINGS, language: 'en', ...initialSettings }
   const calls: string[] = []
 
   class LogBufferStub extends Service {
@@ -71,7 +76,17 @@ async function harness(initialSettings: Partial<AppSettings> = {}) {
     }
   }
 
-  class SettingsStub extends Service implements Partial<SettingsService> {
+  class DeviceStub extends Service {
+  static override readonly name = 'device'
+  constructor(ctx: Context) {
+    super(ctx, 'device')
+  }
+  get locale(): string {
+    return 'en'
+  }
+}
+
+class SettingsStub extends Service implements Partial<SettingsService> {
     private appCtx: Context
 
     constructor(ctx: Context) {
@@ -457,6 +472,11 @@ async function harness(initialSettings: Partial<AppSettings> = {}) {
 
   const root = new Context()
   await root.plugin(SettingsStub)
+  await root.plugin(DeviceStub)
+  // The real i18n service: the pilot components read it through useI18n, so
+  // the harness boots the genuine plugin rather than stubbing the interface.
+  await applyI18n(root)
+/*I18N-DBG*/
   await root.plugin(CacheStub)
   await root.plugin(UiStub)
   await root.plugin(DspStub)
@@ -1411,5 +1431,36 @@ describe('SettingsScreen', () => {
     })
 
     expect(queryByTestId('lyric-source-configure-modal')).toBeNull()
+  })
+})
+
+/*
+ * The i18n pilot, end to end: the real plugin-i18n service is on the harness
+ * context, so flipping `settings.language` must re-render the screen's
+ * translated strings without a remount — the acceptance the feature layer
+ * owes every future migrated component.
+ */
+describe('SettingsScreen i18n pilot', () => {
+  it('switches the GitHub acceleration editor live when settings.language changes', async () => {
+    const { ctx } = await harness()
+    const settingsSvc = ctx.get('settings') as unknown as {
+      update(patch: Partial<AppSettings>): Promise<AppSettings>
+    }
+    const { getByText, findByText, queryByText } = render(h(SettingsScreen, { ctx }))
+
+    fireEvent.click(await findByText('Network & proxy'))
+    expect(getByText('Customize')).toBeTruthy()
+
+    await act(async () => {
+      await settingsSvc.update({ language: 'zh' })
+    })
+    expect(await findByText('自定义')).toBeTruthy()
+    expect(queryByText('Customize')).toBeNull()
+
+    await act(async () => {
+      await settingsSvc.update({ language: 'en' })
+    })
+    expect(await findByText('Customize')).toBeTruthy()
+    expect(queryByText('自定义')).toBeNull()
   })
 })

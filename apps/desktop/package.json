@@ -53,6 +53,7 @@
     "@BBeBee/plugin-log-console": "workspace:*",
     "@BBeBee/plugin-log-file": "workspace:*",
     "@BBeBee/plugin-manager": "workspace:*",
+    "@BBeBee/plugin-i18n": "workspace:*",
     "@BBeBee/plugin-mini-player": "workspace:*",
     "@BBeBee/plugin-mini-player-ui-desktop": "workspace:*",
     "@BBeBee/plugin-now-playing": "workspace:*",

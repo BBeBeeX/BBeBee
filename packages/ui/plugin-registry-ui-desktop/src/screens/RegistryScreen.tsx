@@ -580,6 +580,7 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
     view === 'diagnostics'
       ? null
       : h(RegistryFilterBar, {
+      ctx,
       query,
       onQueryChange: setQuery,
       showThirdParty: !officialOnly,

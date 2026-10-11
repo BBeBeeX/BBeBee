@@ -1610,6 +1610,60 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
+  "@BBeBee/plugin-i18n": {
+    "id": "@BBeBee/plugin-i18n",
+    "name": "@BBeBee/plugin-i18n",
+    "displayName": "I18n",
+    "description": "ctx.i18n — interface-language catalogues, key-granular fallback and locale resolution driven by settings.language.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [
+      "@BBeBee/plugin-settings"
+    ],
+    "systemId": "layer-4",
+    "moduleId": "i18n",
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "i18n"
+      ]
+    },
+    "effect": "i18n"
+  },
+  "plugin-i18n": {
+    "id": "@BBeBee/plugin-i18n",
+    "name": "@BBeBee/plugin-i18n",
+    "displayName": "I18n",
+    "description": "ctx.i18n — interface-language catalogues, key-granular fallback and locale resolution driven by settings.language.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [
+      "@BBeBee/plugin-settings"
+    ],
+    "systemId": "layer-4",
+    "moduleId": "i18n",
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "i18n"
+      ]
+    },
+    "effect": "i18n"
+  },
   "@BBeBee/plugin-inspector": {
     "id": "@BBeBee/plugin-inspector",
     "name": "@BBeBee/plugin-inspector",

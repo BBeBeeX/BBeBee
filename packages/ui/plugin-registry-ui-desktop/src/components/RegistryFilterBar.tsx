@@ -16,7 +16,8 @@
 
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import type { Context } from 'cordis'
+import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { PILL_BASE, tabPill } from '../styles.js'
 
 /** What the list can be ordered by. */
@@ -160,6 +161,8 @@ const SortPillSelect = PillSelect as unknown as (props: {
 }) => ReactElement
 
 export interface RegistryFilterBarProps {
+  /** The app context — read for the interface language via `useI18n`. */
+  ctx: Context
   query: string
   onQueryChange: (query: string) => void
   /** The third-party toggle's checked state (default true: everything shows). */
@@ -185,6 +188,7 @@ export interface RegistryFilterBarProps {
 }
 
 export function RegistryFilterBar({
+  ctx,
   query,
   onQueryChange,
   showThirdParty,
@@ -199,6 +203,7 @@ export function RegistryFilterBar({
   showCategoryFilter,
   showBrowseControls = true,
 }: RegistryFilterBarProps): ReactElement {
+  const { t } = useI18n(ctx)
   return h(
     'div',
     { style: barStyle, 'data-testid': 'registry-filter-bar' },
@@ -210,7 +215,7 @@ export function RegistryFilterBar({
         type: 'text',
         'data-testid': 'registry-search',
         className: 'bbreg-input',
-        placeholder: 'Search names, authors or descriptions…',
+        placeholder: t('registry:filter.searchPlaceholder'),
         value: query,
         onChange: (e: { target: { value: string } }) => onQueryChange(e.target.value),
         style: searchInputStyle,
@@ -229,13 +234,13 @@ export function RegistryFilterBar({
                   type: 'button',
                   'data-testid': 'registry-official-toggle',
                   'aria-pressed': showThirdParty,
-                  title: 'When off, only official entries published by the BBeBeeX organization are shown',
+                  title: t('registry:filter.showThirdPartyHint'),
                   onClick: () => onShowThirdPartyChange(!showThirdParty),
                   className: 'bbreg-btn bbreg-btn-ghost',
                   style: tabPill(showThirdParty),
                 },
                 showThirdParty ? tablerIcon('check', { size: 14 }) : null,
-                'Show third-party content',
+                t('registry:filter.showThirdParty'),
               )
             : null,
           showBrowseControls
@@ -245,12 +250,12 @@ export function RegistryFilterBar({
                 h(SortPillSelect, {
                   value: sortBy,
                   options: [
-                    { value: 'name', label: 'By name' },
-                    { value: 'stars', label: 'By stars' },
-                    { value: 'contributors', label: 'By contributors' },
+                    { value: 'name', label: t('registry:filter.sortByName') },
+                    { value: 'stars', label: t('registry:filter.sortByStars') },
+                    { value: 'contributors', label: t('registry:filter.sortByContributors') },
                   ],
                   onChange: onSortByChange,
-                  accessibilityLabel: 'Sort by',
+                  accessibilityLabel: t('registry:filter.sortBy'),
                 }),
               )
             : null,
@@ -261,7 +266,7 @@ export function RegistryFilterBar({
                   type: 'button',
                   'data-testid': 'registry-sort-direction',
                   'data-dir': sortDir,
-                  title: 'Toggle ascending / descending',
+                  title: t('registry:filter.toggleSortDirection'),
                   onClick: () => onSortDirChange(sortDir === 'asc' ? 'desc' : 'asc'),
                   className: 'bbreg-btn bbreg-btn-ghost',
                   style: {
@@ -272,7 +277,7 @@ export function RegistryFilterBar({
                   },
                 },
                 tablerIcon('arrows-sort', { size: 14 }),
-                sortDir === 'asc' ? 'Ascending' : 'Descending',
+                sortDir === 'asc' ? t('registry:filter.ascending') : t('registry:filter.descending'),
               )
             : null,
           showCategoryFilter
@@ -282,11 +287,11 @@ export function RegistryFilterBar({
                 h(PillSelect, {
                   value: category,
                   options: [
-                    { value: 'all', label: 'All categories' },
+                    { value: 'all', label: t('registry:filter.allCategories') },
                     ...categories.map((slug) => ({ value: slug, label: categoryLabel(slug) })),
                   ],
                   onChange: onCategoryChange,
-                  accessibilityLabel: 'Filter by category',
+                  accessibilityLabel: t('registry:filter.categoryFilter'),
                 }),
               )
             : null,

@@ -347,7 +347,9 @@ export class RegistryPlugin extends Service implements RegistryService {
           kind: 'route',
           id: REGISTRY_VIEWS.screen,
           path: '/registry',
-          title: 'Discover',
+          // i18n key (docs/services/i18n.md): resolved by the shells through
+          // `ctx.i18n.t()`, catalogue in `plugin-i18n/src/locales/registry.json`.
+          title: 'registry:route.discover',
           icon: 'compass',
           placement: ['tray'],
           order: 3,

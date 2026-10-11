@@ -1,0 +1,28 @@
+{
+  "en": {
+    "github": {
+      "title": "GitHub acceleration",
+      "description": "Configure acceleration endpoints for GitHub resource downloads, tried in order; the official URL is always tried first and only switched away from on failure",
+      "customize": "Customize",
+      "collapse": "Collapse endpoints",
+      "systemBadge": "System",
+      "jsdelivr": "jsDelivr CDN (built-in)",
+      "endpointLabel": "Acceleration endpoint {index}",
+      "deleteEndpoint": "Delete acceleration endpoint {index}",
+      "addEndpoint": "Add acceleration endpoint"
+    }
+  },
+  "zh": {
+    "github": {
+      "title": "GitHub 加速",
+      "description": "配置 GitHub 资源下载的加速线路，按顺序尝试；官方直连始终优先，仅在失败时切换",
+      "customize": "自定义",
+      "collapse": "收起加速线路",
+      "systemBadge": "系统",
+      "jsdelivr": "jsDelivr CDN（内置）",
+      "endpointLabel": "加速线路 {index}",
+      "deleteEndpoint": "删除加速线路 {index}",
+      "addEndpoint": "添加加速线路"
+    }
+  }
+}

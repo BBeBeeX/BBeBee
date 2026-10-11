@@ -1,0 +1,38 @@
+{
+  "name": "@BBeBee/plugin-i18n",
+  "version": "0.0.0",
+  "description": "Built-in i18n service: catalogue registry, key-granular fallback and locale resolution for ctx.i18n.",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check:locales": "node scripts/check-locales.mjs",
+    "test": "vitest run --root ../../.. plugin-i18n"
+  },
+  "dependencies": {
+    "@BBeBee/protocol": "workspace:*",
+    "@BBeBee/kernel": "workspace:*",
+    "cordis": "4.0.0-rc.9"
+  },
+  "devDependencies": {}
+}

@@ -22,6 +22,7 @@
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/ui-core": "workspace:*",
     "@BBeBee/ui-tokens": "workspace:*",
+    "cordis": "4.0.0-rc.9",
     "react": "19.2.3"
   },
   "devDependencies": {

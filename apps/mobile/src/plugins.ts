@@ -57,6 +57,10 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
   '@BBeBee/plugin-inspector': {},
   '@BBeBee/plugin-manager': {},
 
+  // ctx.i18n — interface language from settings.language + ctx.device.locale
+  // (see docs/services/i18n.md). Same allowlist position as desktop.
+  '@BBeBee/plugin-i18n': {},
+
   // M1's feature set, identical to desktop's. Load order is derived from
   // `inject`, never declared here (docs/02 §3).
   '@BBeBee/plugin-sources': {},

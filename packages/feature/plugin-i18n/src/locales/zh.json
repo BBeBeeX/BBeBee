@@ -1,0 +1,24 @@
+{
+  "common": {
+    "confirm": "确认",
+    "cancel": "取消",
+    "retry": "重试",
+    "loading": "加载中…",
+    "delete": "删除",
+    "create": "创建",
+    "save": "保存",
+    "share": "分享",
+    "download": "下载",
+    "search": "搜索",
+    "copy": "复制",
+    "copied": "已复制",
+    "close": "关闭",
+    "back": "返回",
+    "done": "完成",
+    "all": "全部",
+    "clear": "清空",
+    "edit": "编辑",
+    "empty": "暂无内容",
+    "error": "出错了"
+  }
+}

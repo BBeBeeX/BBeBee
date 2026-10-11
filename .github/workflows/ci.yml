@@ -46,6 +46,10 @@ jobs:
           restore-keys: eslint-${{ runner.os }}-
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
+      # Locale parity for the catalogues plugin-i18n ships: en/zh key sets
+      # must match across namespaces (third-party register() contributions
+      # are exempt — the runtime falls back per key).
+      - run: pnpm check:locales
 
   typecheck:
     name: Typecheck

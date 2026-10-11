@@ -24,6 +24,7 @@ export {
 } from './primitives.js'
 
 export { Button, IconButton } from './components/Button.js'
+export { useI18n, type UseI18nResult } from './hooks/use-i18n.js'
 export { TextField } from './components/TextField.js'
 export { Text } from './components/Text.js'
 export { Artwork } from './components/Artwork.js'

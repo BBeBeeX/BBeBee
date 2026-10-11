@@ -21,7 +21,7 @@ import {
 import type { Context } from 'cordis'
 import type { RouteContribution, SettingsContribution } from '@BBeBee/protocol'
 import { REGISTRY_VIEWS } from '@BBeBee/plugin-registry/views'
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { SleepTimerIndicator, TopBar, WindowControls, type ElectronCSSProperties, type TopBarProps } from './TopBar.js'
 import { importDroppedFiles } from './drop-import.js'
 
@@ -268,6 +268,9 @@ const QUEUE_DRAWER_KEYFRAMES =
   '@keyframes queueDrawerIn { from { transform: translateX(32px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }'
 
 export function Shell({ ctx }: { ctx: Context }) {
+  // Sidebar and view-frame titles are i18n keys (RouteContribution.title,
+  // docs/services/i18n.md); plain titles pass through  untouched.
+  const { t } = useI18n(ctx)
   const { entries } = useEntries(ctx)
   const registryUpdatesAvailable = useRegistryUpdatesAvailable(ctx)
   // The recommend page is the home: it is where the brand logo in the
@@ -1044,7 +1047,7 @@ export function Shell({ ctx }: { ctx: Context }) {
                         font: 'inherit',
                       },
                     },
-                    entry.title,
+                    t(entry.title),
                   ),
                 ),
             )
@@ -1100,7 +1103,7 @@ export function Shell({ ctx }: { ctx: Context }) {
                       font: 'inherit',
                     },
                   },
-                  h('span', { style: { flex: 1, minWidth: 0 } }, entry.title),
+                  h('span', { style: { flex: 1, minWidth: 0 } }, t(entry.title)),
                   showUpdateDot
                     ? h('span', {
                         'data-testid': 'sidebar-registry-update-dot',
@@ -1201,7 +1204,7 @@ export function Shell({ ctx }: { ctx: Context }) {
                         : h(
                             ViewBoundary,
                             {
-                              title: pageActive?.title ?? page.id ?? 'This view',
+                              title: t(pageActive?.title ?? page.id ?? 'This view'),
                               resetKey: isCurrent ? 'active' : 'inactive',
                               onError: (error) =>
                                 ctx.logger.error(

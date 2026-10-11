@@ -4,7 +4,7 @@
  */
 
 import { Button } from '@BBeBee/ui-kit-desktop'
-import { createElement as h, useState, useEffect } from 'react'
+import { createElement as h, useEffect, useMemo, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { serviceOf } from '@BBeBee/ui-core'
@@ -22,7 +22,15 @@ interface WindowWithBBeBee {
 
 export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
   const ui = serviceOf<UiService>(ctx, 'ui')
-  const device = serviceOf<DeviceService>(ctx, 'device')
+  /*
+   * useMemo, not a bare call: `serviceOf` hands back a fresh traceable proxy
+   * per access, and this value sits in the effect's dependency array — an
+   * unstable identity there re-runs the effect every render, and the setState
+   * inside it turns that into an endless render loop once a device service is
+   * on the context. It stayed dormant only because the service used to be
+   * absent everywhere this screen was mounted.
+   */
+  const device = useMemo(() => serviceOf<DeviceService>(ctx, 'device'), [ctx])
   const bbebee = typeof window !== 'undefined' ? (window as unknown as WindowWithBBeBee).BBeBee : undefined
   const nodeProc = typeof process !== 'undefined' ? process : undefined
 

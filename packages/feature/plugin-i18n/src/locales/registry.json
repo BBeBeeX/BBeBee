@@ -1,0 +1,40 @@
+{
+  "en": {
+    "filter": {
+      "searchPlaceholder": "Search names, authors or descriptions…",
+      "showThirdParty": "Show third-party content",
+      "showThirdPartyHint": "When off, only official entries published by the BBeBeeX organization are shown",
+      "sortBy": "Sort by",
+      "sortByName": "By name",
+      "sortByStars": "By stars",
+      "sortByContributors": "By contributors",
+      "toggleSortDirection": "Toggle ascending / descending",
+      "ascending": "Ascending",
+      "descending": "Descending",
+      "allCategories": "All categories",
+      "categoryFilter": "Filter by category"
+    },
+    "route": {
+      "discover": "Discover"
+    }
+  },
+  "zh": {
+    "filter": {
+      "searchPlaceholder": "搜索名称、作者或描述…",
+      "showThirdParty": "显示第三方内容",
+      "showThirdPartyHint": "关闭后仅显示 BBeBeeX 组织发布的官方条目",
+      "sortBy": "排序方式",
+      "sortByName": "按名称",
+      "sortByStars": "按星标",
+      "sortByContributors": "按贡献者",
+      "toggleSortDirection": "切换升序 / 降序",
+      "ascending": "升序",
+      "descending": "降序",
+      "allCategories": "全部分类",
+      "categoryFilter": "按分类筛选"
+    },
+    "route": {
+      "discover": "发现"
+    }
+  }
+}
