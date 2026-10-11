@@ -2,6 +2,10 @@
 
 Rules governing music source documents, rule engines, QuickJS sandboxing, and authoring in BBeBee.
 
+> **L2 · 何时读**：写音乐源 JSON、改 source-runtime/sandbox、或动第三方注册表与安装链路时。
+> **不读会怎样**：凭证写进源文档、`allowedHosts` 展示红线失守、把源当插件打包、registry 模型理解错（4 目录枚举而非单文件索引）。
+> **深读指引**：docs/sources/spec.md（模型与字段）、rule-engines.md（规则语言）、runtime.md（沙箱与 limits）、registry.md（注册表与安装流程，含安全扫描 13 条规则清单）、parameters.md（参数与歌词源沙箱）。
+
 ---
 
 ## 1. What a Source Is
@@ -20,8 +24,8 @@ Rule prefixes select the execution engine:
 | Prefix | Engine | Description |
 |---|---|---|
 | `@json:` | JSONPath | Queries nested JSON structures |
-| `@css:` | CSS Selector | DOM extraction (stubbed, parses but requires engine) |
-| `@xpath:` | XPath | XML/HTML extraction |
+| `@css:` | CSS Selector | DOM extraction (stub — parses, but evaluation raises `RuleEngineUnavailableError`) |
+| `@xpath:` | XPath | XML/HTML extraction (stub — parses, but evaluation raises `RuleEngineUnavailableError`) |
 | `@js:` | QuickJS Sandbox | Sandboxed JavaScript evaluation |
 | `=` | String Literal | Returns constant string |
 | *(bare)* | Inferred | Inferred based on syntax |
@@ -65,18 +69,18 @@ Rule prefixes select the execution engine:
 ## 5. Third-Party Lyric Sources & Sandbox
 
 - **Audio Source Attribute**: Each audio source supports `needsLyricSource?: boolean` (defaults to `!ruleLyric`). If enabled, the player queries external lyric sources (`ctx.lyricSources`) with higher priority.
-- **Strict Data Sandbox**: External lyric sources execute in an isolated QuickJS realm or shadowed JS sandbox. They are passed **ONLY** `{ title, artist, duration }` and an egress-checked `httpFetch` bridge.
+- **Strict Data Sandbox**: External lyric sources execute in an isolated QuickJS realm or shadowed JS sandbox. They are passed **ONLY** a frozen `{ title, artist, duration }` query — plus a frozen `config` copy when the source defines one — and an `httpFetch` bridge proxied by the host and restricted to the source's `allowedHosts`.
 - **Unified Normalization**: All external outputs (standard LRC strings, TTML, LRCLIB JSON, translated dual-line LRCs, line arrays) are parsed and converted into the application standard `Lyrics` contract.
 
 ---
 
 ## 6. Registry（第三方注册表）
 
-The community registry ([B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)) publishes installable content as a `registry.json` index. The app consumes it through the `contentRegistry` service — see [docs/sources/registry.md](../docs/sources/registry.md).
+The community registry ([B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)) is a decentralized metadata index: the app discovers entries by enumerating four categorized directories (`music-sources/`, `lyric-sources/`, `plugins/`, `themes/`) through the GitHub Contents API, falling back to a legacy single `registry.json` and then to the offline cache. The app consumes it through the `contentRegistry` service — see [docs/sources/registry.md](../docs/sources/registry.md).
 
 - **Four kinds of content**: `music-source`, `lyric-source`, `theme`, `plugin`.
-- **`registry.json` entry fields**: `id`, `kind`, `name`, `version`, `author`, `updatedAt`, `downloadUrl`, `minAppVersion`. Music-source entries additionally carry `sourceUrl` (their matching key against installed sources); plugin entries additionally carry `sha256` (integrity digest of the install bundle) and `capabilities`.
+- **Entry fields** (one `{username}-{name}.json` pointer per entry): `id`, `kind`, `name`, `description`, `version`, `author`, `updatedAt`, `downloadUrl`, `minAppVersion`. Music-source entries additionally carry `sourceUrl` (their matching key against installed sources); theme and plugin entries carry `previewUrl`; plugin entries additionally carry `repoUrl`, `category`, `sha256` (integrity digest of the install bundle) and `capabilities`.
 - **Version semantics**: any content change must bump the entry's semver `version`; an entry missing `version` is treated as `0.0.0`. Lyric sources already use `version` for the built-in source's upgrade comparison.
-- **Install safety red lines**: a music source's `allowedHosts` must be shown to the user before install is confirmed; plugin installs verify the downloaded bundle against the entry's `sha256` and require an explicit risk confirmation; the app only consumes `dist/` build artifacts — per-entry source in the registry repo exists for human review, not for direct consumption.
+- **Install safety red lines**: any source — imported as text or installed from the registry — must have its `allowedHosts` shown to the user before it takes effect; plugin installs verify the downloaded bundle against the entry's `sha256` and require an explicit risk confirmation; the app only consumes `dist/` build artifacts — per-entry source in the registry repo exists for human review, not for direct consumption.
 - **Built-in constraint**: the app ships exactly one built-in lyric source (lrclib) and no built-in music sources; the registry must not add new built-in sources.
 - Contribution rules and moderation standards live in the registry repo's `CONTRIBUTING.md` / `MODERATION.md`.

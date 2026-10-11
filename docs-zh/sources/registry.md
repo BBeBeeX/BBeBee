@@ -2,11 +2,13 @@
 
 > **本篇回答的问题。** 应用如何从社区注册表发现、检查并安装第三方内容 —— 音源、歌词源、主题与桌面插件 —— 以及注册表仓库如何接入本 monorepo。
 
-音源是被导入的字符串，不是插件（[spec.md](./spec.md)）。注册表就是这些字符串 —— 以及另外三类可安装内容 —— 被发布、版本化与审核的策展之地，让用户在"粘贴论坛帖里的任意字符串"之外，有一条第一方的内容获取路径。
+音源是被导入的字符串，不是插件（规范见 [rules/sources.md §1 — What a Source Is](../../rules/sources.md#1-what-a-source-is)（L2））。注册表就是这些字符串 —— 以及另外三类可安装内容 —— 被发布、版本化与审核的策展之地，让用户在"粘贴论坛帖里的任意字符串"之外，有一条第一方的内容获取路径。
 
 ---
 
 ## 1. 仓库架构
+
+（规范见 [rules/sources.md §6 — Registry](../../rules/sources.md#6-registry第三方注册表)（L2）：registry 仓库定位、四类内容、entry 字段与安装红线归该节；本节讲仓库结构与发现机制。）
 
 注册表内容存放在独立仓库
 [BBeBeeX/B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)。
@@ -39,6 +41,8 @@ B_Be_Bee-registry/
 
 ## 2. 元数据 Schema 格式
 
+（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)（L2）：entry 字段枚举与 version 语义归该节；本表展开每个字段的适用 kind 与含义。）
+
 `music-sources/`、`lyric-sources/` 与 `plugins/` 下的条目均为独立的 `{username}-{name}.json` 文件：
 
 ```jsonc
@@ -58,11 +62,11 @@ B_Be_Bee-registry/
 | `id` | 全部 | 稳定条目 id。是 `lyric-source` / `theme` / `plugin` 的匹配键（§3）。 |
 | `kind` | 全部 | `music-source` \| `lyric-source` \| `theme` \| `plugin`。 |
 | `name` | 全部 | 展示名。 |
-| `version` | 全部 | 最新发布的 semver 版本。**内容变更必须 bump 此字段**；缺失 `version` 视为 `0.0.0`，更新检查会跳过。内置歌词源已经用该字段比对注册表副本是否更新。 |
+| `version` | 全部 | 最新发布的 semver —— 内容变更必须 bump；缺失即视为 `0.0.0`，更新检查会跳过（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)（L2））。内置歌词源已经用该字段比对注册表副本是否更新。 |
 | `author` | 全部 | 署名，展示在安装对话框。 |
 | `description` | 全部 | 列表中展示的一行简介。 |
 | `updatedAt` | 全部 | 条目的最后提交日期（ISO 8601），由索引生成器写入。 |
-| `downloadUrl` | 全部 | 可安装产物的位置 —— 永远指向 `dist/` 编译产物，而不是条目源码。 |
+| `downloadUrl` | 全部 | 可安装产物的位置 —— 应用只消费 `dist/` 产物，从不消费条目源码（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)（L2））。 |
 | `minAppVersion` | 全部 | 条目所需的最低应用版本（semver）。可选字段；缺失即代表不限制应用版本。UI 侧通过 `minAppVersionBlock` 强校验拦截 —— 当当前运行的应用版本低于此版本时禁用安装并提示具体原因。 |
 | `sourceUrl` | music-source | 文档的后端基址 —— 与已安装音源的匹配键（§3）。 |
 | `previewUrl` | theme, plugin | 安装对话框的预览图。 |
@@ -74,6 +78,8 @@ B_Be_Bee-registry/
 ---
 
 ## 3. 匹配语义 —— 什么算"已安装"
+
+（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)（L2）：music-source 以 `sourceUrl` 为匹配键归该节；本节讲每种 kind 为何这样匹配。）
 
 `checkUpdates()` 将索引条目与用户已有内容比对。每类内容使用的身份各不相同，因为它复用该类内容自己的身份：
 
@@ -102,7 +108,7 @@ export interface RegistryService {
   updates(): readonly RegistryUpdate[]
   /** 拉取条目的分发文档，返回确认对话框必须展示的信息。 */
   fetchEntryDetails(entry: RegistryEntry): Promise<RegistryEntryDetails>
-  /** 安装/更新一个条目。调用方必须已经向用户展示详情（hosts / 插件风险）。 */
+  /** 安装/更新一个条目；调用方已向用户展示详情（hosts / 插件风险）—— 即 rules/sources.md §6 的 allowedHosts 展示红线。 */
   install(entry: RegistryEntry, opts?: { confirmed?: boolean }): Promise<void>
   /// 组合根注入，使 plugin 类安装能到达桌面动态加载宿主。
   setPluginInstaller(installer: (bundle: PluginInstallBundle) => Promise<void>): void
@@ -158,18 +164,27 @@ export interface RegistryService {
 2. **下载制品**：严格基于该 commit 钉定版本下载根目录 `manifest.json` 与 `index.js`（或 `index.json`）。
 3. **能力一致性校验**：严格比对 `manifest.json` 中声明的能力（capabilities）与注册表元数据。若 manifest 申请了未在注册表声明的能力或遗漏了声明能力，立即拒绝安装。
 
-### 5.3 内置安全审计插件（`ctx.securityAudit`）
+### 5.3 静态安全审计（`ctx.securityAudit`）
 
-内置 `@BBeBee/plugin-security-audit`（Layer 4）提供静态源码扫描，涵盖 7 类高危安全模式（§1.4c）：
-- `dynamic-execution`：`eval()`、`new Function()`、定时器字符串执行、`vm` 沙箱逃逸。
-- `undeclared-egress`：未声明域名的外呼网络请求（对比 `allowedHosts` 白名单）。
-- `hardcoded-credentials`：硬编码私钥（`-----BEGIN PRIVATE KEY-----`）与 API 凭证（`ghp_`、`sk_live_`、AWS 密钥）。
-- `prototype-pollution`：原型污染变体（修改 `__proto__`、`Object.prototype`、`constructor.prototype`）。
-- `remote-dynamic-import`：动态 `import()` 引用远端不可信 URL。
-- `code-obfuscation`：密集 16 进制/Unicode 转义、压缩打包器特征。
-- `high-entropy-string`：香农熵扫描识别可疑加密或混淆载荷。
+内置 `@BBeBee/plugin-security-audit` 插件（Layer 4）转出 `packages/feature/toolkit` 中的扫描器（`scanCode`）。它先跑 **8 条静态正则规则**，再做 **2 组动态扫描** —— 合计 13 个 rule id：
 
-审计结果区分为 `block`（高危阻断）与 `warn`（警告），存在 `block` 级别的条目默认禁止安装。
+静态规则（正则；每处命中记一条 finding）：
+
+- `eval-function-constructor` —— `eval()`、`new Function()`、`window/globalThis.eval()`（block）。
+- `dynamic-code-execution` —— 字符串代码形态的 `setTimeout`/`setInterval`、`vm.runIn*` / `new vm.Script`、`require('vm')`（block）。
+- `credential-private-key` —— `-----BEGIN … PRIVATE KEY-----` 私钥块（block）。
+- `credential-api-token` —— 高风险平台令牌（`ghp_…`、`github_pat_…`、`AKIA…`、`sk-…`）（block）。
+- `credential-generic-secret` —— 赋给 `api_key` / `secret_key` / `private_key` / `auth_token` 这类键的长字面量（warn）。
+- `prototype-pollution` —— 对 `__proto__`、`Object.prototype`、`constructor.prototype` 的改写（block）。
+- `remote-dynamic-import` —— 指向远端 URL 或不确定目标的动态 `import()`（block）。
+- `obfuscation-packer` —— 已知 JS packer / 混淆器包装特征（`eval(function(p,a,c,k,e,d/r)…`）（block）。
+
+动态扫描组：
+
+- **未声明出站** —— `undeclared-host-egress`：代码中的 URL 字面量，其主机不在条目声明的 `allowedHosts` 内（block）。
+- **混淆特征** —— 四个 id：`obfuscation-dense-hex`（密集 `\x` 转义；≥ 3 次 warn，≥ 6 次 block）、`obfuscation-dense-unicode`（密集 `\u00…` 转义，warn）、`obfuscation-packer-identifiers`（`_0x…` 标识符群，block）、`high-entropy-string`（40+ 字符字面量中香农熵 ≥ 4.8，warn）。
+
+findings 标记为 `block`（高危）或 `warn`（可疑）。只要存在任何 `block` 级 finding，默认拒绝安装。
 
 ### 5.4 安装前审计确认对话框
 
@@ -177,7 +192,7 @@ export interface RegistryService {
 - **安全审计报告（Security Audit Report）**：展示审计等级徽标（`通过 (Pass)` / `警告 (Warn)` / `高危风险 (Block)`）并逐条列出发现问题（类别、等级、代码片段、行号）。
 - **作者仓库与 Commit**：展示代码仓库直链与 commit SHA。
 - **提交差异（Commit Diff）**：更新时展示提交哈希前进差异（如 `a1b2c3d → e4f5g6h`）。
-- **阻断门禁（Block Gating）**：审计等级为 `block` 时确认按钮默认禁用，必须勾选 `我已知晓高危风险并确认强制安装` 复选框方可确认。
+- **阻断门禁（Block Gating）**：审计等级为 `block` 时确认按钮默认禁用 —— 即"用户显式确认高危风险"红线（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)（L2））；桌面 UI 以 `我已知晓高危风险并确认强制安装` 覆写复选框实现它。
 
 ### 5.5 `registry.lock.json` 防篡改锁定管理
 
@@ -232,18 +247,18 @@ export interface RegistryService {
 
 ---
 
-## 6. 内置内容约束
+## 7. 内置内容约束
 
-应用只内置**一个歌词源**（lrclib，索引中 id 为 `builtin-lrclib`），**不内置任何音乐源**。注册表不得新增内置源：内置内容随应用二进制发布并走内置升级比对，而注册表中的一切都是用户确认后的自愿安装内容。
+（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)（L2）：有且只有一个内置歌词源、无内置 music source、registry 不得新增 built-in。）原因：内置内容随应用二进制发布，走内置升级比对；而注册表中的一切都是用户确认后的自愿安装内容。今天的这一个内置内容就是 lrclib 歌词源（索引中 id 为 `builtin-lrclib`）。
 
-## 7. 视图选址
+## 8. 视图选址
 
 注册表视图（"发现"，路由 `/registry`）在桌面端 shell 中注册的放置位置为 `placement: ['tray']`（TopBar 右上角托盘），而非左侧 `sidebar`（侧边栏），决策依据如下：
 
 1. **信息架构层级分明**：左侧侧边栏专注于核心播放与本地曲库浏览（搜索、曲库、专辑、歌单等）；而扩展内容、工具箱与资源管理类视图（注册表/发现、下载管理、历史记录、导入分享）统一收拢于顶栏托盘（Tray）中，避免侧边栏层级过度膨胀。
 2. **更新通知徽标联动**：`apps/desktop/renderer/TopBar.tsx` 中的 `TrayIndicator` 监听 `registry/updates-available` 事件。当检测到可更新内容时，会在顶栏托盘触发按钮上展示全局更新红点（`topbar-tray-update-dot`），并在展开面板中的“发现”入口展示红点（`topbar-tray-item-update-dot`）。将注册表置于托盘中，使更新提醒能够醒目触达用户，同时不干扰核心音乐界面的日常使用。
 
-### 7.1 发现页功能面
+### 8.1 发现页功能面
 
 在四类 kind tab 之外，页面承载一组客户端视图功能（均为视图状态；除收藏外不做持久化）：
 
@@ -255,9 +270,9 @@ export interface RegistryService {
 
 ---
 
-## 8. 下一步阅读
+## 9. 下一步阅读
 
-[spec.md](./spec.md) 定义注册表 `music-source` 条目编译出的音源文档模型；[runtime.md](./runtime.md) 定义被导入的源能做什么、不能做什么；注册表仓的
+[spec.md](./spec.md) 定义注册表 `music-source` 条目编译出的音源文档模型；[runtime.md](./runtime.md) 定义被导入的源能做什么、不能做什么；[rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表) 是注册表模型的规范性摘要；注册表仓的
 [CONTRIBUTING](https://github.com/BBeBeeX/B_Be_Bee-registry/blob/main/CONTRIBUTING.md)
 与
 [MODERATION](https://github.com/BBeBeeX/B_Be_Bee-registry/blob/main/MODERATION.md)

@@ -46,13 +46,11 @@ erDiagram
 
 ## 3. Conventions
 
-- SQLite with `journal_mode = WAL`, `foreign_keys = ON`, `synchronous = NORMAL`.
-- Timestamps are **epoch milliseconds** as `INTEGER`. No date strings, no timezones stored.
-- Booleans are `INTEGER` 0/1.
-- JSON columns are `TEXT` holding JSON, named with a `_json` suffix.
-- Every table that mirrors remote data carries `fetched_at`, so staleness is answerable.
-- Foreign keys to catalogue rows are URN `TEXT`, not integer ids — an id from a backend is
-  meaningless without the source it came from, and joining on URNs keeps that impossible to get
+> 规范见 [rules/data-model.md §2 SQLite Database Conventions](../../rules/data-model.md#2-sqlite-database-conventions)（L2），本节只讲原理与用法。
+
+- The `fetched_at` column on remote-mirroring tables is what makes staleness answerable.
+- Catalogue foreign keys are URNs rather than backend integer ids, because an id from a backend is
+  meaningless without the source it came from; joining on URNs keeps that impossible to get
   wrong.
 - `ON DELETE CASCADE` wherever a child cannot exist alone; explicit cleanup where it can.
 
@@ -68,16 +66,16 @@ travel when the source is shared.
 
 ```sql
 CREATE TABLE sources (
-  id            TEXT PRIMARY KEY,          -- 'music-example-org-35be9fe2', derived ([sources/authoring.md §1.2](../sources/authoring.md#12-identity-the-source-id))
+  id            TEXT PRIMARY KEY,          -- 'music-example-org-35be9fe2', derived ([sources/spec.md §1.2](../sources/spec.md#12-identity-the-source-id))
   source_url    TEXT NOT NULL UNIQUE,      -- the document's identity; dedup key on import
   name          TEXT NOT NULL,             -- denormalised from doc_json for list rendering
   source_group  TEXT,                      -- comma-separated, free text
   source_type   TEXT NOT NULL DEFAULT 'music',  -- music|podcast|radio
-  doc_json      TEXT NOT NULL,             -- the SourceDocument, verbatim ([sources/spec.md §2.1](../sources/spec.md#21-top-level-document-structure))
+  doc_json      TEXT NOT NULL,             -- the SourceDocument, verbatim ([sources/spec.md §2.1](../sources/spec.md#21-top-level-fields))
   doc_hash      TEXT NOT NULL,             -- sha256 of doc_json; drives the import diff
   enabled       INTEGER NOT NULL DEFAULT 1,
   sort_order    INTEGER NOT NULL DEFAULT 0,
-  capabilities_json TEXT,                  -- derived Capabilities, cached ([sources/rule-engines.md §1.3](../sources/rule-engines.md#13-capabilities-are-derived-not-declared))
+  capabilities_json TEXT,                  -- derived Capabilities, cached ([sources/spec.md §1.3](../sources/spec.md#13-capabilities-are-derived-not-declared))
   allowed_hosts_json TEXT,                 -- the egress allowlist shown at import ([sources/runtime.md §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do))
   locally_modified INTEGER NOT NULL DEFAULT 0,  -- edited in-app since import
   origin_uri    TEXT,                      -- where it was imported from, if a URL
@@ -90,7 +88,7 @@ CREATE TABLE sources (
 );
 CREATE INDEX idx_sources_enabled ON sources(enabled, sort_order);
 
--- Per-source persisted state written by rules via src.vars ([sources/rule-engines.md §3.4](../sources/rule-engines.md#34-environment-inside-js)).
+-- Per-source persisted state written by rules via src.vars ([sources/rule-engines.md §3.4](../sources/rule-engines.md#34-variables-and-state)).
 -- Credential-grade: never exported, cleared by signOut().
 CREATE TABLE source_vars (
   source_id  TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
@@ -110,7 +108,7 @@ CREATE TABLE accounts (
 );
 
 -- Mobile only. Desktop keeps cookies in Chromium's own persisted partition
--- and never writes this table. See ../services/overview.md#21-cookie-jars.
+-- and never writes this table. See ../services/contracts.md#21-cookie-jars.
 CREATE TABLE cookie_jars (
   name        TEXT PRIMARY KEY,            -- the source id
   ciphertext  BLOB NOT NULL,               -- AES-GCM over the serialised jar
@@ -129,7 +127,7 @@ trusting export.
 **Unknown *top-level* fields survive an older app**, for the same reason: a document written for a
 newer runtime is stored and re-exported intact, and the fields this build does not understand are
 simply not read. An unknown field **inside a rule block** is refused at import instead
-([sources/rule-engines.md §2.2](../sources/rule-engines.md#22-the-rule-blocks)) — and the asymmetry is deliberate. A stray
+([sources/spec.md §2.2](../sources/spec.md#22-the-rule-blocks)) — and the asymmetry is deliberate. A stray
 top-level key is forward compatibility; `ruleSearch.titel` is a typo that would otherwise validate,
 never be read, and leave the source half-working in a way that looks like the backend changed.
 
@@ -155,7 +153,7 @@ there classifies a changed document as "unchanged" and skips it in silence.
 > **envelope-encrypted**: the AES key (small) in `ctx.secrets`, the ciphertext (unbounded) in
 > `cookie_jars`. The invariant is preserved — the key and the ciphertext are never in the same
 > store, and a leaked database file yields nothing
-> ([services/overview.md §2.1](../services/overview.md#21-cookie-jars),
+> ([services/contracts.md §2.1](../services/contracts.md#21-cookie-jars),
 > [services/contracts.md §6](../services/contracts.md#6-ctxsecrets--credential-storage)).
 >
 > ⚠️ **A source document must never contain a credential**, and `export()` cannot strip what it
@@ -558,18 +556,10 @@ The service emits `library/changed(kind, urns)` for favourites and playlist edit
 folding it into `library/changed` would mean emitting a kind that named something else.
 `library/profile-changed` fires when the local user is renamed.
 
-**The local user (`library_profile`) is one row**, seeded on first run with a UUID id and the
-name `Mine`, editable in Settings (`updateProfile` refuses an empty name and emits
-`library/profile-changed`). It has no per-playlist data: every created playlist displays the
-*current* profile name as its creator, so a rename applies everywhere at once — while a playlist
-that carries its own `owner` (a remote one from a source) keeps showing that. For the same
-"never opens empty" reason, the service also seeds one playlist named `我的歌单` on first run,
-and re-seeds only while the library holds no playlists at all.
+**The local user (`library_profile`) is one row.** `updateProfile` refuses an empty name and emits
+`library/profile-changed`.
 
-A collection is an organizational container for collection-level entities (playlists, albums,
-artists, and child collections). A collection **cannot** contain individual tracks; tracks belong
-exclusively to playlists or albums. `addToCollection` validates entity kinds and rejects any `track`
-URN with a `LibraryError` whose code is `invalid-urn`.
+> 规范见 [rules/data-model.md §6 Collections & Folders Structure](../../rules/data-model.md#6-collections--folders-structure)、[rules/data-model.md §7 Local User & Library Seeds](../../rules/data-model.md#7-local-user--library-seeds)（L2），本节只讲原理与用法。
 
 ### 4.7 Playback
 
@@ -745,7 +735,7 @@ CREATE TABLE plugin_records (
   installed_at INTEGER NOT NULL,
   updated_at   INTEGER NOT NULL,
   last_error   TEXT,
-  fail_count   INTEGER NOT NULL DEFAULT 0     -- 2 consecutive → quarantine ([plugins/loading.md §6.2](../plugins/loading.md#62-desktop-additions--plugin-loader-dynamic))
+  fail_count   INTEGER NOT NULL DEFAULT 0     -- 2 consecutive → quarantine ([plugins/loading.md §6.2](../plugins/loading.md#62-desktop-dynamic-loading--plugin-loader-dynamic))
 );
 
 CREATE TABLE capability_grants (
@@ -793,10 +783,11 @@ cover updates `last_access_at`, which is the LRU clock.
 Eviction is LRU **within a class**, each with its own quota, because the classes have very
 different value: evicting artwork costs a re-fetch and a visible flicker; evicting a stream costs
 the user a re-download. Defaults — artwork 512 MB desktop / 128 MB mobile, HTTP 64 MB, stream
-cache 1 GB / 256 MB — all configurable. The initial sweep is deferred to a 5-second background task
-after boot (avoiding disk I/O contention during cold start) and runs hourly thereafter; in the same pass
+cache 1 GB / 256 MB — all configurable. The initial sweep is deferred to a background task
+(avoiding disk I/O contention during cold start; 规范见
+[rules/services.md §5 Startup & Initialization Performance](../../rules/services.md#5-startup--initialization-performance)（L2）) and runs hourly thereafter; in the same pass
 files no row names are deleted and `cache_entries` rows whose file is gone are pruned. A file the
-user downloaded is a `media_bindings` row instead ([§4.5](#45-media-bindings-local-files-and-downloads)) and is never evicted.
+user downloaded is a `media_bindings` row instead ([§4.5](#45-local-media)) and is never evicted.
 
 ### 4.12 Legacy: providers
 
@@ -825,8 +816,8 @@ Deliberately transient. Persisting any of them would create staleness bugs with 
 |---|---|---|
 | `StreamHandle` | [runtime.md §6](../sources/runtime.md#6-stream-resolution) | Frequently expires; must be re-resolved, never trusted from storage |
 | `TransportState` | [playback.md §2](../audio/playback.md#2-ctxplayer--transport-and-queue) | Live; only a durable subset lands in `playback_state` |
-| `Capabilities` | [rule-engines.md §1.3](../sources/rule-engines.md#13-capabilities-are-derived-not-declared) | Computed from the source document's rule blocks. Cached in `sources.capabilities_json` purely so the UI can render before a source connects |
-| `Paged<T>`, cursors | [rule-engines.md §4.3](../sources/rule-engines.md#43-pagination-rate-limiting-and-caching) | Opaque and source-owned; meaningless after a session |
+| `Capabilities` | [spec.md §1.3](../sources/spec.md#13-capabilities-are-derived-not-declared) | Computed from the source document's rule blocks. Cached in `sources.capabilities_json` purely so the UI can render before a source connects |
+| `Paged<T>`, cursors | [runtime.md §4.3](../sources/runtime.md#43-pagination-rate-limiting-and-caching) | Opaque and source-owned; meaningless after a session |
 | `TraceEvent` | [authoring.md §10](../sources/authoring.md#10-diagnosing-a-broken-source) | A debug trace is about one run against one live backend; storing it would preserve a redacted answer to a question nobody asks twice |
 | `EffectSegment` | [dsp.md §3](../audio/dsp.md#3-ctxdsp--the-effect-chain) | Live `AudioNode`s. Only `params_json` persists |
 | `AuthStatus` | [runtime.md §5](../sources/runtime.md#5-authentication-and-session) | Recomputed at sign-in; `accounts` keeps only the durable summary |

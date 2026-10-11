@@ -61,7 +61,7 @@ B_Be_Bee/
 │   │   ├── babel.config.js
 │   │   └── android/ · ios/                    dev-client native projects
 │   └── desktop/                    ✅        Electron app
-│       ├── main/                              IPC hosts only, no domain logic ([architecture/layers.md §2](../architecture/layers.md#2-the-two-shells))
+│       ├── main/                              IPC hosts only, no domain logic ([architecture/layers.md §2](../architecture/layers.md#desktop))
 │       ├── preload/                           contextBridge surface
 │       ├── renderer/                          React DOM shell + the kernel (ADR-3)
 │       │   ├── boot.ts · plugins.ts             composition root + allowlist
@@ -113,11 +113,11 @@ B_Be_Bee/
 │   │   │                                      track is.
 │   │   ├── core-paths-node/        ✅        ctx.paths
 │   │   ├── core-paths-expo/        ✅
-│   │   ├── core-fs-node/           ✅        ctx.fs — virtual filesystem ([services/overview.md §1](../services/overview.md#1-virtual-filesystem-ctxfs))
+│   │   ├── core-fs-node/           ✅        ctx.fs — virtual filesystem ([services/overview.md §1](../services/overview.md#1-ctxfs--virtual-filesystem))
 │   │   ├── core-fs-expo/           ✅
-│   │   ├── core-db-node/           ✅        ctx.db — node:sqlite / expo-sqlite ([services/contracts.md §3](../services/contracts.md#3-ctxdb--sqlite-database))
+│   │   ├── core-db-node/           ✅        ctx.db — node:sqlite / expo-sqlite ([services/contracts.md §5](../services/contracts.md#5-ctxdb--sql))
 │   │   ├── core-db-expo/           ✅
-│   │   ├── core-store-fs/          ✅        ctx.store — one impl, via ctx.fs ([services/contracts.md §4](../services/contracts.md#4-ctxstore--key-value-store))
+│   │   ├── core-store-fs/          ✅        ctx.store — one impl, via ctx.fs ([services/contracts.md §4](../services/contracts.md#4-ctxstore--namespaced-keyvalue))
 │   │   ├── core-http-node/         ✅        ctx.http — the transport is a seam: desktop fills
 │   │   ├── core-http-rn/           ✅          it with Electron's net, mobile with expo/fetch
 │   │   ├── core-secrets-node/      ✅        ctx.secrets. ⚠️ named -node but platform-free: it
@@ -133,7 +133,7 @@ B_Be_Bee/
 │   │   ├── core-codec-node/        ✅        ctx.codec — tags via music-metadata over ctx.fs;
 │   │   ├── core-codec-rn/          ✅          -rn adds the device's decoder
 │   │   ├── core-audio-mpv/         ✅        ctx.audio — libmpv native engine (desktop subprocess)
-│   │   ├── core-audio-webaudio/    ✅        ctx.audio — Web Audio API graph (shared) ([audio/engine.md §1](../audio/engine.md#1-ctxaudio--the-web-audio-engine))
+│   │   ├── core-audio-webaudio/    ✅        ctx.audio — Web Audio API graph (shared) ([audio/engine.md §1](../audio/engine.md#1-ctxaudio--the-engine))
 │   │   ├── core-js-quickjs-node/   ✅        ctx.js — source sandbox ([services/contracts.md §19](../services/contracts.md#19-ctxjs--the-sandboxed-evaluator))
 │   │   ├── core-js-quickjs-expo/             ⚠️ the one M2 gap: Hermes has no WASM
 │   │   ├── core-desktop-bridge/    ✅        renderer↔main IPC clients + the main-side host.
@@ -144,7 +144,7 @@ B_Be_Bee/
 │   │   │                                      Cordis exporters, shared across platforms, that
 │   │   │                                      decide where a line ends up. The only layer that
 │   │   │                                      may write to the console; everything above it
-│   │   │                                      logs through ctx.logger ([services/logging.md §16](../services/logging.md#16-ctxlogger-and-log-transports)). Loaded from
+│   │   │                                      logs through ctx.logger ([services/logging.md §16](../services/logging.md#16-ctxlogger--logging-as-transport-plugins)). Loaded from
 │   │   │                                      each shell's bootstrap array, so they are running
 │   │   │                                      before the first feature plugin starts.
 │   │   ├── plugin-log-buffer/      ✅        ctx.logBuffer — the ring the log viewer reads
@@ -159,7 +159,7 @@ B_Be_Bee/
 │   │   │                                      (a Layer 2 dependency is `inject: ['fs']`), and
 │   │   │                                      never a transport (logging is `ctx.logger`).
 │   │   ├── source-rules/           ✅        the rule language as pure logic: no Cordis, no
-│   │   │                                       platform, no I/O ([sources/rule-engines.md §3](../sources/rule-engines.md#3-rule-language)). parse.ts the parser,
+│   │   │                                       platform, no I/O ([sources/rule-engines.md §3](../sources/rule-engines.md#3-the-rule-language)). parse.ts the parser,
 │   │   │                                       evaluate.ts the engine and its coercion,
 │   │   │                                       jsonpath.ts · template.ts the two dialects,
 │   │   │                                       regex-guard.ts the ReDoS bound
@@ -171,19 +171,19 @@ B_Be_Bee/
 │   │   │                                       service bindings (serviceOf, useServiceState,
 │   │   │                                       useTransport, useResolvedArtwork, …) so a view
 │   │   │                                       never imports another feature for one
-│   │   ├── plugin-source-runtime/  ✅        binds source-rules to ctx.http · ctx.js ([sources/runtime.md §4](../sources/runtime.md#4-source-runtime))
-│   │   ├── plugin-sources/         ✅        ctx.sources registry + catalogue ([sources/runtime.md §4.1](../sources/runtime.md#41-catalog-aggregation))
+│   │   ├── plugin-source-runtime/  ✅        binds source-rules to ctx.http · ctx.js ([sources/runtime.md §4](../sources/runtime.md#4-the-runtime))
+│   │   ├── plugin-sources/         ✅        ctx.sources registry + catalogue ([sources/runtime.md §4.2](../sources/runtime.md#42-the-resolution-pipeline))
 │   │   ├── plugin-album/           ✅        the album page: route + view id, reads through
-│   │   │                                       ctx.sources ([data-model/schema.md](../data-model/schema.md), [ui/architecture.md §2](../ui/architecture.md#2-descriptors-not-components))
+│   │   │                                       ctx.sources ([data-model/schema.md](../data-model/schema.md), [ui/architecture.md §2](../ui/architecture.md#2-contributions-are-descriptors))
 │   │   ├── plugin-source-local/    ✅        the one provider that is not a string ([sources/authoring.md §12](../sources/authoring.md#12-what-is-not-a-string-local-files))
 │   │   ├── plugin-local-scanner/   ✅        ctx.scanner — the ≥5,000-file corpus walk
-│   │   ├── plugin-player/          ✅        ctx.player — transport, queue, history ([audio/playback.md §2](../audio/playback.md#2-ctxplayer--transport-state-machine))
+│   │   ├── plugin-player/          ✅        ctx.player — transport, queue, history ([audio/playback.md §2](../audio/playback.md#2-ctxplayer--transport-and-queue))
 │   │   ├── plugin-now-playing/     ✅        the "what is playing" surfaces: the full-screen
 │   │   │                                       player and the bar that opens it ([audio/playback.md](../audio/playback.md), [ui/architecture.md §4](../ui/architecture.md#4-binding-services-to-react))
 │   │   ├── plugin-queue/           ✅        the up-next list, a view of ctx.player's queue
 │   │   ├── plugin-history/         ✅        ctx.player playback history and deduplicated records
 │   │   ├── plugin-ui/              ✅        ctx.ui contribution registry — descriptors
-│   │   │                                       only, so it holds no React ([ui/architecture.md §2](../ui/architecture.md#2-descriptors-not-components))
+│   │   │                                       only, so it holds no React ([ui/architecture.md §2](../ui/architecture.md#2-contributions-are-descriptors))
 │   │   ├── plugin-inspector/       ✅        fiber tree + labelled effects (M0 exit criterion)
 │   │   ├── plugin-dsp/             ✅        ctx.dsp — the effect chain, 9 built-in effects ([audio/dsp.md §3](../audio/dsp.md#3-ctxdsp--the-effect-chain))
 │   │   ├── plugin-download/        ✅        ctx.downloads — the task queue, the kept-downloads
@@ -374,7 +374,9 @@ than forbids:
 
 - **`apps/* → @BBeBee/kernel` and `apps/* → core-*`** exist only for the composition root — the
   `boot.ts` / `plugins.ts` pair per shell. Every other file under `apps/*` is plain Layer 5 and is
-  linted as such ([§3](#3-dependency-rules)).
+  linted as such ([§3](#3-dependency-rules)) — `apps/desktop/renderer/main.tsx` included: it
+  imports no kernel surface, and its deferred `app.loadPlugin()` calls run at idle time
+  (`requestIdleCallback`) through the `App` instance `boot()` returns.
 - **`apps/* → plugin-log-*`** is the same exception for the same reason. The transports are
   bootstrap entries, not registry ones — they come up after the core services and before the
   feature plugins, which is what Layer 3 *means* — and only the composition root may name a

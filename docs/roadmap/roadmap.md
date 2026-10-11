@@ -139,7 +139,7 @@ designed degradation rather than a break.
 
 The curation half that MD-3 deferred from M1 is in as well: `plugin-library` / `ctx.library` —
 playlists, favourites, collections, and smart playlists whose rule tree compiles to parameterised
-SQL — with screens on both shells ([data-model/schema.md §4.6](../data-model/schema.md#46-curation)).
+SQL — with screens on both shells ([data-model/schema.md §4.6](../data-model/schema.md#46-playlists-and-library)).
 
 ⚠️ **What "built" did and did not mean until recently.** Every package listed above was built and
 green, and *neither shell ran any of it*: the desktop bootstrap omitted `ctx.audio`, `ctx.codec`
@@ -187,7 +187,7 @@ rule language is too weak, because every document written after M2 is one someon
 ### M4 — It sounds good
 
 `plugin-dsp` and the built-in effects from
-[audio/playback.md §3](../audio/playback.md#built-in-effects). Chain editor UI in both shells.
+[audio/dsp.md](../audio/dsp.md#built-in-effects). Chain editor UI in both shells.
 
 > **Shipped.** `ctx.dsp` and all 9 built-in effects (`preamp`, `eq10`, `normalize`, `compressor`,
 > `reverb`, `widener`, `crossfeed`, `tempo-pitch`, `limiter`) are implemented and verified
@@ -223,16 +223,19 @@ rule language is too weak, because every document written after M2 is one someon
 
 ### M4.1 — Bit-Perfect Desktop Audio (WASAPI Exclusive)
 
-> **Descoped (removed before first working build).**
-> Exclusive-mode output (`core-audio-wasapi-native`, the sink worklet, the
+> **Descoped (the standalone sink was removed before first working build).**
+> Exclusive-mode output as originally planned (`core-audio-wasapi-native`, the sink worklet, the
 > `initWasapi`/`writeWasapi` bridge methods) was prototyped end to end and then
 > removed: shared output through `context.destination` covers current needs,
 > and the native pipeline carried a Rust toolchain plus a per-platform
-> verification burden for one OS. What survived from the work: the
+> verification burden for one OS. Exclusive mode itself survived, delivered by the
+> MPV Hi-Fi engine through libmpv's `--audio-exclusive=yes` (the `audioExclusive`
+> setting, default `false`, on an engine that already defaults to
+> `audioOutputEngine: 'wasapi'`). What survived from the work: the
 > bridge-first FFmpeg decode path, true streaming via the shared
 > `StreamedHandle`, source-header forwarding, and native-rate
 > `AudioContext` reconstruction (`audio/context-rebuilt`). Revisit if
-> bit-perfect output becomes a product requirement again.
+> bit-perfect output beyond the libmpv flag becomes a product requirement again.
 
 ---
 
@@ -250,16 +253,16 @@ Its scope shrank when sources became strings
 music backends no longer need this, so what remains is effects, scrobblers, lyric providers and
 transports — real, but no longer urgent. If that demand never materialises, **not building M5 is
 a valid outcome**, and the shelf design in
-[plugins/loading.md §6.2](../plugins/loading.md#62-desktop-additions--plugin-loader-dynamic) is what it cost.
+[plugins/loading.md §6.2](../plugins/loading.md#62-desktop-dynamic-loading--plugin-loader-dynamic) is what it cost.
 
 **Exit criteria**
 - An extension built outside the repo installs from a local file and a URL and runs **inside a
   `ctx.js` realm**, not in the renderer's — so the honesty note in
-  [plugins/concepts.md §7](../plugins/concepts.md#what-this-is-not) can finally be deleted rather than reworded.
+  [plugins/capabilities.md §7](../plugins/capabilities.md#what-this-is-not) can finally be deleted rather than reworded.
 - An extension requesting a capability it was not granted receives a `CapabilityError`, and the
   operation fails cleanly rather than crashing the app.
 - The gate holds on **both** platforms, including across the desktop bridge — the gap named in
-  [plugins/concepts.md §7](../plugins/concepts.md#where-the-gate-actually-runs) is closed, or M5 does not ship.
+  [plugins/capabilities.md §7](../plugins/capabilities.md#where-the-gate-actually-runs) is closed, or M5 does not ship.
 - An extension that throws on load twice is quarantined; the app boots normally afterwards and
   shows why.
 - Uninstalling disposes the fiber before removing files, and "remove data" drops exactly that
@@ -385,7 +388,7 @@ With ADR-1 amended, a third-party effect or scrobbler cannot be installed at all
 may never be built.
 
 *Mitigation* — the shelf design is kept and dated
-([plugins/loading.md §6.2](../plugins/loading.md#62-desktop-additions--plugin-loader-dynamic)), and the sandbox
+([plugins/loading.md §6.2](../plugins/loading.md#62-desktop-dynamic-loading--plugin-loader-dynamic)), and the sandbox
 M5 would need now ships with sources, so the remaining work is a service bridge rather than a
 subsystem. If demand appears, it is a milestone; if it does not, nothing was spent.
 

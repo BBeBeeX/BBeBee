@@ -47,11 +47,11 @@ flowchart TD
 ### 2.1 铁律：SQLite 中严禁存放敏感密钥
 
 1. **零密钥入库：** 任何口令、认证 Token、会话凭据或私钥绝对不得持久化在 SQLite 数据表（`sources`、`source_vars` 或日志表）中。
-2. **硬件密钥库背书：** 所有敏感字段均通过 `ctx.secrets` 存储在按源隔离的命名空间 `test:${sourceId}` 或 `source:${sourceId}` 下。在桌面端接入操作系统 Keychain（通过 Electron `safeStorage` 或原生 Keychain API）；在移动端接入 iOS Keychain / Android Keystore。
+2. **硬件密钥库背书：** 所有敏感值均路由至 `ctx.secrets`，存放在由源 id 构成的隔离命名空间下（`ctx.secrets.namespace(sourceId)`）。桌面端映射到操作系统 Keychain（经 Electron `safeStorage` 或原生 Keychain API）；移动端映射到 iOS Keychain / Android Keystore。
 3. **UI 纯只写掩码策略：** 界面绝不回显已存储的明文密码。密码字段在存在值时显示掩码点位符（`••••••••`）。用户输入新值即可覆盖写入，但无法通过前端组件检查或反射导出密钥。
 4. **沙箱出口白名单动态同步：** 当用户修改 `sourceUrl` 或 `host` 时，`updateSourceParams` 自动重新计算 `allowedHostsFor(sourceId)`：
    - 新主机名实时合并入该源的网络访问白名单。
-   - QuickJS 隔离沙箱发起 HTTP 请求时，任何未在出口白名单内的域名访问都会被立即拦截并抛出网络违规异常。
+   - 在 QuickJS 隔离沙箱内发起的任何 HTTP 请求，凡指向该出口白名单之外的主机，都会在离开应用前被以 `CapabilityError` 拒绝（[runtime.md §8](./runtime.md#8-信任导入的源能做什么不能做什么)；门控规范见 [rules/sources.md §3](../../rules/sources.md#3-sandboxing--security)（L2））。
 
 ---
 
@@ -95,6 +95,8 @@ flowchart TD
 
 ## 4. 歌词源配置规范与沙箱注入机制
 
+（规范见 [rules/sources.md §5 — Third-Party Lyric Sources & Sandbox](../../rules/sources.md#5-third-party-lyric-sources--sandbox)（L2）：沙箱数据边界归该节；本节讲配置注入的实现。）
+
 歌词源遵循 `plugin-lyric-sources` 规范。与音乐源使用平铺的 `source_vars` 表不同，歌词源支持结构化的 JSON 对象配置。
 
 ### 4.1 服务契约接口
@@ -111,9 +113,9 @@ export interface LyricSourcesService {
 ### 4.2 沙箱运行时动态注入
 
 在执行歌词检索请求时：
-1. **QuickJS 沙箱环境：** 沙箱环境全局注入不可变的 `source.config` 对象。
-2. **检索查询上下文：** 传入 `searchLyrics({ query, artist, title, config })` 的参数自带 `config: source.config ?? {}`。
-3. **降级解释器环境：** 降级脚本环境中自动绑定 `query.config = source.config`，确保规则引擎无需改动代码即可动态读取自定义端点、语言偏好或自定义请求头。
+1. **查询上下文：** 脚本拿到的是一个冻结的查询对象 —— `{ title, artist, duration }`，当源定义了配置时再加一份冻结的 `config` 副本 —— `searchLyrics` / `main` / `getLyrics` 收到的正是这个对象。
+2. **QuickJS 环境：** realm 额外暴露 `httpFetch`（宿主代理，限制在该源的 `allowedHosts` 之内）与一个顶层 `config` 绑定（`source.config ?? {}`）。
+3. **降级解释器：** 没有 `ctx.js` 时，同样的三个绑定以函数参数形态传入（`__query__`、`httpFetch`、`config`），脚本读取自定义 API 端点、语言偏好或请求头覆盖的方式完全一致。
 
 ---
 

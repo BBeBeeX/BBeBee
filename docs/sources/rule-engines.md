@@ -9,12 +9,11 @@ is one line in a form field, and a source author is debugging it on a phone.
 
 ### 3.1 Engines and prefixes
 
-The prefix picks the engine. With no prefix, the engine is inferred from the shape of the rule and
-the content type of the document being evaluated.
+（规范见 [rules/sources.md §2 — Rule Language](../../rules/sources.md#2-rule-language)（L2）：prefix selects the engine，无前缀时按规则形态与文档内容类型推断）This section expands each engine's usage and where it applies.
 
 | Form | Engine | Applies to |
 |---|---|---|
-| `@css:h3 a@text` · a bare CSS selector | CSS selection with an `@attr` / `@text` / `@html` tail. **Parses but not yet implemented** — evaluating one raises `RuleEngineUnavailableError` | HTML, XML |
+| `@css:h3 a@text` · a bare CSS selector | CSS selection with an `@attr` / `@text` / `@html` tail — unimplemented stub（规范见 [rules/sources.md §2](../../rules/sources.md#2-rule-language)（L2）：evaluation raises `RuleEngineUnavailableError`） | HTML, XML |
 | `@json:$.a.b[0]` · a rule starting `$.` | JSONPath | JSON |
 | `@xpath://div[@id="t"]/text()` · a rule starting `//` | XPath. **Parses but not yet implemented** — evaluating one raises `RuleEngineUnavailableError` | HTML, XML |
 | `:(\d+)kbps` | Regular expression; capture group 1, or group 0 if there is none | Any text |
@@ -31,7 +30,8 @@ it starts with `=`.** A constant `"audio/mpeg"` with no `=` is a CSS selector fo
 that does not exist, and the interpreter will tell you so rather than quietly returning the
 string.
 
-**The URL fields are the exception, and the only one.** `searchUrl` and `exploreUrl` are *URL
+**The URL fields are the exception, and the only one.** `searchUrl`, `exploreUrl` and
+`recommendUrl` are *URL
 templates*, not selectors: there is no document to select from at the point they are rendered —
 they are what produces the document. So they are interpolated as templates whether or not they
 start with `=`, and the leading `=` is optional there. Every other field in the document follows
@@ -60,9 +60,9 @@ scope:
 | `prefs` | The active `StreamPrefs` ([runtime.md §6](./runtime.md#6-stream-resolution)) — quality, `saveData`, formats |
 | `src` | The host object of [runtime.md §8](./runtime.md#8-trust-what-an-imported-source-can-and-cannot-do) — `md5`, `get`, `cache`, `vars`, … |
 
-⚠️ **A bare `{{ }}` is a path, not an expression.** `{{track.id}}` and `{{page}}` resolve a dotted
+（规范见 [rules/sources.md §2](../../rules/sources.md#2-rule-language)（L2）：bare `{{ }}` 是 path 不是表达式，仅 `{{@js:…}}` 进沙箱）In practice: `{{track.id}}` and `{{page}}` resolve a dotted
 path against the scope above and nothing more — `{{(page-1)*50}}` is *not* evaluated and fails as
-an unresolvable path. Only `{{@js:…}}` reaches the sandbox, and it needs one: a build without
+an unresolvable path. A build without
 `ctx.js` reports the affected capability absent rather than running the rule.
 
 The split is deliberate. Making every placeholder a script would put the sandbox on the path of
@@ -71,14 +71,10 @@ that `@js:` already covers explicitly.
 
 ### 3.3 Combinators and post-processing
 
-| Syntax | Meaning |
-|---|---|
-| `a || b` | First non-empty result wins. The idiom for a backend that renamed a field |
-| `a && b` | Concatenate every result, in order |
-| `a %% b` | Interleave the lists — `a[0], b[0], a[1], b[1], …`. N-way: `a %% b %% c` round-robins all three, and a list that runs out is skipped rather than padded |
-| `rule##pattern##replacement` | Regex-replace the result. `##pattern##` with no replacement deletes |
-| `rule##pattern##replacement###` | The trailing `###` makes it replace-first rather than replace-all |
-| `{{rule}}` inside a `=` template | Inline evaluation |
+The four base combinators are specified in [rules/sources.md §2 — Rule Language](../../rules/sources.md#2-rule-language)（L2）: `a || b` first non-empty result, `a && b` concatenation, `a %% b` interleave, `rule##pattern##replacement` regex replace. Two forms beyond that table:
+
+- `rule##pattern##replacement###` — the trailing `###` makes it replace-first rather than replace-all.
+- `{{rule}}` inside a `=` template — inline evaluation.
 
 `||` is the single most useful thing in the language: it is how a shared source survives a backend
 that adds a field without removing the old one, and it is why a well-written source keeps working

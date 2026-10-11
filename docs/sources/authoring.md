@@ -268,7 +268,7 @@ and `signOut` clears its cached rows.
 Keeping it as a `MediaProvider` rather than special-casing it is what keeps the catalogue, the
 player, and every screen from growing a "is this local?" branch — and it is why `plugin-download`
 can substitute a downloaded file for a stream without the player noticing
-([layers.md §3](../architecture/layers.md#3-the-layer-model)).
+([layers.md §5](../architecture/layers.md#5-composition-how-features-reach-each-other)).
 
 ### The local scanner
 
@@ -291,7 +291,7 @@ extracts artwork, and writes catalogue rows.
   covered by two specified dirs belongs to the one that last scanned it; the other's next walk
   re-points the entry and the reconcile that follows ends the scan restores visibility.
 - **Watching where possible.** `ctx.fs.watch` on desktop; interval polling on mobile, where the
-  API does not exist ([overview.md §1](../services/overview.md#1-core-capabilities-catalogue)).
+  API does not exist ([overview.md §1](../services/overview.md#1-ctxfs--virtual-filesystem)).
 
 ---
 
@@ -333,7 +333,7 @@ For the person authoring a document — in the app's editor, or in a text file t
 **Credentials**
 
 - [ ] `variableComment` says exactly what to type in the variable box, in the format expected.
-- [ ] No credential is written into the document itself. Export must be shareable as-is
+- [ ] No credential is written into the document itself（规范见 [rules/sources.md §3 — Sandboxing & Security](../../rules/sources.md#3-sandboxing--security)（L2））. Export must be shareable as-is
       ([§9](#9-importing-updating-and-sharing)).
 - [ ] `loginCheckJs` distinguishes "logged out" from "server error", or the app will re-login in a
       loop against an outage.

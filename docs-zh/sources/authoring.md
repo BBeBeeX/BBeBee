@@ -192,7 +192,7 @@ flowchart LR
 
 它与其他提供方别无二致 —— 本地曲库没有任何特权。它走同样的解析路径与同样的 URN 方案；唯一不同的是 `resolveStream`，它立即返回 `kind: 'local'`。它的 `auth.flow` 是 `{ kind: 'none' }`，`signIn` 立即 resolve，`signOut` 清掉它缓存的行。
 
-把它保留为一个 `MediaProvider` 而不是为它开特例，正是曲库、播放器和每个界面不必长出"这是本地吗？"分支的原因 —— 也正因如此，`plugin-download` 才能把下载好的文件替换掉流，而播放器毫无察觉（[layers.md §3](../architecture/layers.md#3-分层模型)）。
+把它保留为一个 `MediaProvider` 而不是为它开特例，正是曲库、播放器和每个界面不必长出"这是本地吗？"分支的原因 —— 也正因如此，`plugin-download` 才能把下载好的文件替换掉流，而播放器毫无察觉（[layers.md §5](../architecture/layers.md#5-组合功能之间如何触达彼此)）。
 
 ### 本地扫描器
 
@@ -202,7 +202,7 @@ flowchart LR
 - **可中断。** 以批次运行并使用 `AbortSignal`，每批结束做检查点存档，因此扫描中途一次挂起的代价是一批。
 - **对失败诚实。** 解码失败的文件被记为 `scan_entries.status = 'error'` 并附原因，出现在"无法导入"列表中，而不是无声无息地消失。
 - **禁用文件夹只隐藏音乐，不删除其数据行。** `setEnabled(dir, false)` 根据规则*当某启用的目录最近一次扫描生成了该曲目时，该曲目可用*重新计算 `tracks.available`：被禁用文件夹的曲目将从曲库的全部列表视图（曲目、专辑、艺术家、搜索）中移出；重新启用后无需重新扫描即可恢复。数据行绝不删除，因此播放队列恢复与歌单（通过 URN 而非列表检索）依然有效。若同一文件处于两个指定目录覆盖范围内，归属于最近扫描它的目录；另一目录的下一次扫描会重新指向该条目，且扫描结束后的对账流程会恢复其可见性。
-- **尽可能监听变化。** 桌面端使用 `ctx.fs.watch`；移动端没有该 API，改为间隔轮询（[overview.md §1](../services/overview.md#1-核心能力目录)）。
+- **尽可能监听变化。** 桌面端使用 `ctx.fs.watch`；移动端没有该 API，改为间隔轮询（[overview.md §1](../services/overview.md#1-ctxfs--虚拟文件系统)）。
 
 ---
 
@@ -236,7 +236,7 @@ flowchart LR
 **凭据**
 
 - [ ] `variableComment` 准确说明该往变量框里输入什么、按什么格式。
-- [ ] 任何凭据都不写进文档本身。导出的东西必须能原样分享（[§9](#9-导入更新与分享)）。
+- [ ] 任何凭据都不写进文档本身（规范见 [rules/sources.md §3 — Sandboxing & Security](../../rules/sources.md#3-sandboxing--security)（L2））。导出的东西必须能原样分享（[§9](#9-导入更新与分享)）。
 - [ ] `loginCheckJs` 能区分"已登出"与"服务器故障"，否则应用会在服务中断期间陷入循环重登。
 - [ ] 登出、重启应用，确认该源已登出且没有留下任何东西（[runtime.md §5.1](./runtime.md#51-会话持久化--cookie-在应用关闭后依然存活)）。
 

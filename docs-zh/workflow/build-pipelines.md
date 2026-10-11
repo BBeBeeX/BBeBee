@@ -7,7 +7,7 @@
 | 目标 | 打包器 | 入口 | 说明 |
 |---|---|---|---|
 | 移动端 | **Metro** | `apps/mobile/index.js` | 需要 `unstable_enablePackageExports` 以解析 Cordis 的 ESM `exports` 映射，并需要 `version: '2023-11'` 档位的 `@babel/plugin-proposal-decorators` |
-| 桌面渲染进程 | **Vite** | `apps/desktop/renderer/index.html` | 开发时使用原生 ESM；严格 CSP，唯一的让步是 `'wasm-unsafe-eval'`，没有它 QuickJS 无法编译、启动直接失败 —— 它**不是** `'unsafe-eval'`，因此没有任何外来的*JavaScript* 被加载 ([architecture/layers.md §2](../architecture/layers.md#2-两套外壳))。由 `renderer/csp.test.ts` 钉死 |
+| 桌面渲染进程 | **Vite** | `apps/desktop/renderer/index.html` | 开发时使用原生 ESM；严格 CSP，唯一的让步是 `'wasm-unsafe-eval'`，没有它 QuickJS 无法编译、启动直接失败 —— 它**不是** `'unsafe-eval'`，因此没有任何外来的*JavaScript* 被加载 ([architecture/layers.md §2](../architecture/layers.md#2-各平台的运行时模型))。由 `renderer/csp.test.ts` 钉死 |
 | 桌面主进程 + preload | **electron-vite** | `apps/desktop/main/index.ts` | CJS 输出；原生依赖外部化 |
 | 各包 | **tsup**（`protocol` 用 `tsc`） | 各包的 `src/index.ts` | 仅 ESM；`protocol` 只产出类型 |
 | QuickJS WASM | 内嵌进 bundle | `core-js-quickjs-node` | 经 `quickjs-emscripten-core` 使用**单文件**变体（`@jitl/quickjs-singlefile-browser-release-sync`），于是引擎就是某个 JS chunk 里的字节，绝不被获取 —— 一个要自己下载引擎的沙箱算不上沙箱 ([services/contracts.md §19](../services/contracts.md))。`getQuickJS()` 的存在就是为了否定这个东西：它选的是启动时才去获取的独立 `.wasm` 变体 —— 开发时由 Vite 提供 `index.html`，打包后则被 `file://` 渲染进程直接拒绝 —— 还会把全部四个变体（约 4 MB）拖进构建 |

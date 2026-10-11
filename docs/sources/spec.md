@@ -21,12 +21,12 @@ records what that cost and what it bought.
 
 ## 1. The model
 
+> Normative definition of a source: [rules/sources.md §1 — What a Source Is](../../rules/sources.md#1-what-a-source-is)（L2）. This section explains the model and why it is shaped this way.
+
 ### 1.1 One runtime, many sources
 
-There is exactly **one** piece of code that talks to remote music backends:
-`plugin-source-runtime`. It claims no service key of its own — it reads the `sources` table and
-registers one provider into `ctx.sources` per enabled row. Sources are rows; the runtime is the
-only interpreter of them, and there is no second one to keep in step.
+（规范见 [rules/sources.md §1 — What a Source Is](../../rules/sources.md#1-what-a-source-is)（L2），本节只讲原理与用法。）`plugin-source-runtime` claims no service key of its own — it reads the `sources` table and
+registers one provider into `ctx.sources` per enabled row. Sources are rows.
 
 ```mermaid
 flowchart LR
@@ -40,9 +40,8 @@ flowchart LR
 ```
 
 `MediaProvider` still exists, and everything above it — `ctx.sources`, `ctx.player`, the
-catalogue cache, the URN scheme — is unchanged. What changed is its population: it is now an
-**internal interface with exactly two implementations** (the runtime's per-source adapter, and
-local files), not an extension point third parties write against. Nobody outside this repository
+catalogue cache, the URN scheme — is unchanged. What changed is its population: it is an internal
+interface, not an extension point third parties write against（规范见 [rules/sources.md §1](../../rules/sources.md#1-what-a-source-is)（L2）：exactly two implementations — the runtime's per-source adapter, and local files）. Nobody outside this repository
 implements `MediaProvider`; they write a source document instead.
 
 ```ts
@@ -113,7 +112,7 @@ Two consequences worth stating, because both used to require plugin machinery:
 
 The old SPI asked a provider to declare `capabilities` and hope it matched the methods it
 implemented; under-declaring degraded the UI and over-declaring broke it. A source document has no
-such gap: **the runtime computes `Capabilities` from which rule blocks are present.**
+such gap（规范见 [rules/sources.md §1](../../rules/sources.md#1-what-a-source-is)（L2）：the runtime computes `Capabilities` from which rule blocks are present）. The derivation:
 
 | Present in the document | Enables |
 |---|---|
@@ -189,7 +188,7 @@ export interface SourceDocument {
   enabled?: boolean                               // default true
   sortOrder?: number
 
-  /** Hosts this source may talk to, beyond sourceUrl's own. Shown at import. §8 */
+  /** Hosts this source may talk to, beyond sourceUrl's own. Disclosed to the user before the source takes effect (rules/sources.md §6 red line; runtime.md §8). */
   allowedHosts?: string[]
 
   /** Requests per window, honoured by the runtime's scheduler. '3/1000' = 3 per second. */
@@ -235,7 +234,7 @@ export interface SourceDocument {
   ruleArtist?: ArtistRule
   rulePlaylist?: PlaylistRule
 
-  /** Whether this audio source requests external lyric sources (ctx.lyricSources). Defaults to !ruleLyric. */
+  /** Whether this audio source requests external lyric sources (ctx.lyricSources) — see rules/sources.md §5. */
   needsLyricSource?: boolean
 
   /* ── maintained by the app, not the author ──────────────────── */
@@ -351,30 +350,23 @@ export interface LyricRule { lyric: string; format?: string; offsetMs?: string }
 
 Complex sources often involve substantial JavaScript logic (e.g. signature mixing, multi-stage authentication, audio stream track ranking). Authoring hundreds of lines of JS inside an escaped `\n` string in a single JSON file is unergonomic.
 
-Sources adopt **dual-file authoring during development, compiled to single-file for distribution**. Each music or lyric source lives in its own independent GitHub repository (e.g. [B_Be_Bee-subsonic](https://github.com/BBeBeeX/B_Be_Bee-subsonic) or [B_Be_Bee-lrclib](https://github.com/BBeBeeX/B_Be_Bee-lrclib)), indexed by the community registry ([B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)) as a pure metadata pointer:
+Sources adopt **dual-file authoring during development, compiled to single-file for distribution**（规范见 [rules/sources.md §4 — Source Authoring Workflow](../../rules/sources.md#4-source-authoring-workflow)（L2），本节只讲原理与用法）. Each source lives in its own repository — e.g. [B_Be_Bee-subsonic](https://github.com/BBeBeeX/B_Be_Bee-subsonic) or [B_Be_Bee-lrclib](https://github.com/BBeBeeX/B_Be_Bee-lrclib) — which the community registry ([B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)) indexes as a metadata pointer:
 - **`src/source.json`**: source metadata, allowed hosts, UI parameters (`loginUi`), and rule mappings.
 - **`src/source.js`**: pure, unescaped JavaScript helpers with IDE syntax highlighting, linting, and completion.
-- Running `node scripts/compile.mjs` in the source repository compiles `src/source.json` and `src/source.js` into the repository root `index.json`.
+- `node scripts/compile.mjs` → the repository root `index.json`（规范见 [rules/sources.md §4](../../rules/sources.md#4-source-authoring-workflow)（L2））.
 
-In the main application repository, CLI tooling supports unpacking single-file JSONs back into dual-file format for inspection:
-```bash
-# Unpack any single-file JSON back into dual-file source format
-node --experimental-strip-types scripts/sources/cli.ts --unpack <path/to/source.json> [outDir]
-```
+In the main application repository, the `sources` CLI can unpack a single-file JSON back into the dual files for inspection（规范见 [rules/sources.md §4](../../rules/sources.md#4-source-authoring-workflow)（L2）：`node --experimental-strip-types scripts/sources/cli.ts --unpack <file> [dest]`).
 
 `browse` is `exploreUrl` + `ruleExplore`: each explore entry is a titled URL, and an item whose
 `childUrl` is non-empty is a node to descend into rather than a leaf to play. A folder tree, a
 genre list, a chart, and a podcast feed's episode list are all the same three fields, which is why
 one UI component renders all of them.
 
-`recommend` is `ruleRecommend` over an optional `recommendUrl` document: one page of curated
-playlist cards per call, ten being the page size the recommendation shelf assumes. Rows are explore
-rows — `kind: 'album'` with a `childUrl` — so a recommended playlist opens through the same
-album-detail pipeline a browsed one does, and `ctx.sources.recommend` caches the page exactly the
-way `browse` caches. `recommendUrl` is optional: a source whose recommendations are a curated list
-rather than an endpoint lets the `@js:` rule build its rows itself, with `result` arriving as
-`null`. What a backend answers when a recommended resource has since disappeared is the source's
-own policy — a source can, for one, split the answer in two: *gone* (the API says -404)
+`recommend` is `ruleRecommend` over an optional `recommendUrl` document（规范见 [rules/sources.md §2](../../rules/sources.md#2-rule-language)（L2）：one curated page per call、browse-row 映射、`recommendUrl` 可省且 `result` 为 `null`）, and
+`ctx.sources.recommend` caches the page exactly the
+way `browse` caches. Beyond that mechanism, one thing is the source's
+own policy: what a backend answers when a recommended resource has since disappeared. A
+source can, for one, split the answer in two: *gone* (the API says -404)
 renders a placeholder card, "当前资源无效"; *transiently refused* (rate limiting, risk control, a
 timeout) renders a "加载失败" card naming the reason, with nothing cached so the next read of the
 page retries. A card's creator line is the playlist page's business, not the shelf's: one lookup

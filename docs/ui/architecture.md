@@ -48,7 +48,7 @@ written.
 
 ### 1.1 Package internal organization & component decomposition
 
-To prevent UI packages from turning into monolithic files containing thousands of lines, each UI package is decomposed into single-responsibility submodules:
+To prevent UI packages from turning into monolithic files containing thousands of lines, each UI package is decomposed into single-responsibility submodules — the normative rules (no monolithic single-file packages, kit/menu/screen decomposition, helper hoisting, thin plugin entry) live in [rules/ui.md §1.1](../../rules/ui.md#11-package-internal-organization--single-responsibility-principle-srp) (L2):
 
 ```
 packages/ui/<package>/src/
@@ -61,10 +61,9 @@ packages/ui/<package>/src/
 └── index.tsx            ← Plugin registration facade (apply(ctx)) and backward-compatible re-exports
 ```
 
-Reaching beyond basic organization, UI packages and UI infrastructure follow consistent modularization rules:
+Docs-side specifics:
 - **UI Kit Component Structure**: Core UI kit packages (`ui-kit-mobile`, `ui-kit-desktop`) isolate theme tokens and styling primitives into `primitives.ts`, component definitions into atomic files under `src/components/*.tsx` (`Button`, `Text`, `TextField`, `Slider`, `Sheet`, `ContextMenu`, `List`, `Artwork`, `TrackRow`, `Toast`, `JsonTree`, plus desktop-only `StickyDetailBar` and `coverTheme`), and barrel re-export through `src/index.tsx`.
-- **Menu Controller Architecture**: Context menu hooks in `ui-menus` separate submenus (`src/submenus/*.ts`), individual entity menus (`src/menus/*.ts`), and anchor positioning utilities (`src/types.ts`).
-- **Screen View Decomposition**: Heavy screens with multiple view modes (such as `LibraryScreen`) decouple view renderings into `src/components/views/*` (`CollapsedLibraryView`, `ExpandedLibraryView`, `SidebarFolderView`), action and data hydration into `src/hooks/*` (`useLibraryHydration`, `useLibraryActions`), and control bars/modals into `src/components/*`.
+- **Screen View Decomposition**: Heavy screens with multiple view modes (such as `LibraryScreen`) decouple view renderings into `src/components/views/*` (`CollapsedLibraryView`, `ExpandedLibraryView`, `SidebarFolderView`), action and data hydration into `src/hooks/*` (`useLibraryHydration`, `useLibraryActions`, `useTableSort`), and control bars/modals into `src/components/*`.
 - **Pure Helper Hoisting**: Reusable pure logic that outgrows one feature (such as formatting durations, artwork IDs, and string helpers) belongs in `@BBeBee/toolkit` (Layer 4 pure library), maintaining a single source of truth across desktop and mobile without duplication.
 - **Share UI Modal & Canvas Architecture (`plugin-share-ui-desktop`)**: Modal workflows (`ShareTrackModal`, `SharePlaylistModal`, `ShareAlbumModal`, `ShareLyricsModal`) decouple shared presentation (`ShareModalHeader`, `BackgroundModeSelector`, `LocalSourceWarning`, `DisabledReasonToast`, `ShareActionButtons`) and state (`useShareModalState`). Previews render directly onto a live `<canvas>` using identical rendering functions (`drawTrackCard`, `drawPlaylistCard`, `drawAlbumCard`, `drawLyricsCard`) to ensure 100% pixel-perfect synchronization with exported PNGs, using non-distorting cover scaling (`drawImageCover`) and 3-line text wrapping (`wrapText`).
 
@@ -72,7 +71,7 @@ Reaching beyond basic organization, UI packages and UI infrastructure follow con
 
 ## 2. Contributions are descriptors
 
-Plugins never hand components to the shell directly. They register **descriptors** — serialisable
+Plugins never hand components to the shell directly — the rule (and the descriptor kinds) are normative in [rules/ui.md §2](../../rules/ui.md#2-descriptors-not-components) (L2). They register **descriptors** — serialisable
 declarations naming a view — and the shell resolves the name against its own registry.
 
 ```ts
@@ -246,9 +245,9 @@ export type SlotId =
   | 'status-bar'                 // desktop only; ignored on mobile
 ```
 
-> **Decoupled Bottom Bar Actions, Settings, and TopBar Tray**:
-> - Icons on the right side of the bottom player bar (Picture-in-Picture/mini player, floating lyrics toggle, play queue) are never hardcoded in `NowPlayingBar`. Instead, each plugin contributes its action button to the `'now-playing.actions'` slot and registers its view. The bar dynamically queries `ctx.ui.slotsFor('now-playing.actions')`, filtering with `when` and sorting by `order`.
-> - Feature plugin settings (such as DSP effects, cache management, source configuration) are dynamically contributed via `ctx.ui.contribute({ kind: 'settings', ... })` or `ctx.settings.contribute(...)` instead of hardcoded into the Settings screens. The settings screen source contains **no business fields owned by other plugins**: simple key/value config is declared as `fields` descriptors (the screen auto-renders a generic form — Boolean→Switch, Enum→Select, Number→Slider, Text→Input, Action→Button), while complex interactions (the desktop-lyrics live preview) use `display: 'card'` plus a view registered in that plugin's own UI package; a target with no view shows "not available on this platform" instead of a hole. Platform settings with no owning feature (closeToTray, proxy, User-Agent, audio engine/device) are contributed by the composition roots (`apps/*/boot.ts`) — which are exactly their appliers.
+> **Decoupled Bottom Bar Actions, Settings, and TopBar Tray** (规范见 [rules/ui.md §2](../../rules/ui.md#2-descriptors-not-components)（L2）— contributed, never hardcoded):
+> - Icons on the right side of the bottom player bar (Picture-in-Picture/mini player, floating lyrics toggle, play queue) are each a plugin's contribution to the `'now-playing.actions'` slot with its view registered. The bar dynamically queries `ctx.ui.slotsFor('now-playing.actions')`, filtering with `when` and sorting by `order`.
+> - Feature plugin settings (such as DSP effects, cache management, source configuration) come in via `ctx.ui.contribute({ kind: 'settings', ... })` or `ctx.settings.contribute(...)`. Simple key/value config is declared as `fields` descriptors (the screen auto-renders a generic form — Boolean→Switch, Enum→Select, Number→Slider, Text→Input, Action→Button), while complex interactions (the desktop-lyrics live preview) use `display: 'card'` plus a view registered in that plugin's own UI package; a target with no view shows "not available on this platform" instead of a hole. Platform settings with no owning feature (closeToTray, proxy, User-Agent, audio engine/device) are contributed by the composition roots (`apps/*/boot.ts`) — which are exactly their appliers.
 > - The desktop TopBar includes a Windows-like system tray toggle button beside the "Import & Share" button. It renders a downward arrow (`chevron-down`) when collapsed and an upward arrow (`chevron-up`) when expanded. Plugins self-determine whether they need to display in the main interface tray via `placement: ['tray']` on their route or via `TrayContribution`. Clicking a plugin icon in the tray popover triggers `ctx.ui.navigate(...)` to navigate the main view to that plugin's screen and closes the tray. Settings uses exactly this path: its route carries `'tray'` placement, so 设置 appears in the tray without any TopBar-specific code.
 
 Slot rendering is where a plugin's UI actually shows up:
@@ -352,11 +351,10 @@ which events invalidate which state — are written once. Only the JSX is writte
 
 ### Rendering rules
 
-- **No `useEffect` for domain work.** An effect that fetches, writes, or mutates domain state
-  belongs in a service method the component calls.
-- **Optimistic updates live in the service**, not the component, so both shells behave identically
+- **No `useEffect` for domain work.** 规范见 [rules/ui.md §3](../../rules/ui.md#3-hooks--state-binding)（L2）— an effect that fetches, writes, or mutates domain state belongs in a service method the component calls.
+- **Optimistic updates live in the service** ([rules/ui.md §3](../../rules/ui.md#3-hooks--state-binding)), not the component, so both shells behave identically
   when a write fails and rolls back.
-- **Lists virtualise.** `FlashList` on mobile, `@tanstack/react-virtual` on desktop. A library can
+- **Lists virtualise** ([rules/ui.md §3](../../rules/ui.md#3-hooks--state-binding)): `FlashList` on mobile, `@tanstack/react-virtual` on desktop. A library can
   hold 100k tracks; neither platform survives rendering that.
 - **A detail page's header scrolls away with its list.** The desktop `List` owns a `header` slot
   (hero, action bar — whatever scrolls off), a `sticky` slot (the `StickyDetailBar` that slides in
@@ -368,7 +366,8 @@ which events invalidate which state — are written once. Only the JSX is writte
   half the button. The virtualiser is offset by everything above the rows, *measured* off the
   spacer's real position (`scrollMargin`, watched by `ResizeObserver` and a scroll listener —
   a wrapped title makes it unknowable from props). The sticky bar and the pinned table header
-  must both be the scroller's **direct children**: `position: sticky` only sticks within its
+  must both be the scroller's **direct children**（规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2））:
+  `position: sticky` only sticks within its
   parent's box, so nesting them in the header would scroll them away exactly when they finish
   arriving.
 - **`player/position` is interpolated, never polled.** The event fires at 1 Hz
@@ -413,17 +412,15 @@ which events invalidate which state — are written once. Only the JSX is writte
 
 Right-click on desktop, long-press on mobile, one menu. `TrackRow.onMore`, `UnifiedLibraryRow.onMore`, and header action controls hand the pointer anchor to the screen; the screen holds a controller from `@BBeBee/ui-menus` and renders the kit's `ContextMenu`. The **model** — which actions exist for a track, a playlist, a collection, and what each one calls — is written once in `@BBeBee/ui-menus`; the kits know how to draw menu rows and nothing about playlists or queues, which is what keeps the shells' menus unified down to the order of the items.
 
-Two model details worth pinning: `TrackMenuOptions.lyrics` (the lyric lines a screen already shows) is what makes the 分享歌词 item offerable — the model never fetches lyrics itself; and a menu rendered inside an ancestor whose `transform`/`overflow` would clip fixed positioning (the play page's hover bottom bar) must pass `portal: true` so the kit mounts it on `document.body`. The fullscreen play page itself right-clicks to the playing track's menu — `useCurrentTrack` (shared with the bottom bar) resolves the track, the transport's `currentItemId` (queue-row fallback) targets 从队列中移除 at the real queue entry, and the lyric text on screen feeds 分享歌词.
+Two model details worth pinning: `TrackMenuOptions.lyrics` (the lyric lines a screen already shows) is what makes the 分享歌词 item offerable — the model never fetches lyrics itself; and a menu rendered inside an ancestor whose `transform`/`overflow` would clip fixed positioning (the play page's hover bottom bar) must pass `portal: true`（规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2））so the kit mounts it on `document.body`. The fullscreen play page itself right-clicks to the playing track's menu — `useCurrentTrack` (shared with the bottom bar) resolves the track, the transport's `currentItemId` (queue-row fallback) targets 从队列中移除 at the real queue entry, and the lyric text on screen feeds 分享歌词.
 
 #### Visual and Component Model
-- **Container styling**: High-contrast dark streaming card (`#242424`), 8px border radius, 4px padding, `0 12px 32px rgba(0,0,0,0.55)` depth shadow, and subtle 1px border (`rgba(255, 255, 255, 0.08)`).
-- **Dividers**: Menu items support `divider: true` to draw a 1px translucent separator line above critical or dangerous operations.
-- **Icons**: Standard operations (`pencil`, `trash`, `pin`, `plus`, `folder`, `play-filled`, `download`, `playlist`) resolve to Tabler SVG icons (`stroke: 1.25`) with consistent 16px geometry.
-- **Submenus & Viewport Clamping**: Submenu triggers render a chevron indicator (`chevron-right`). Submenus dynamically exclude cyclic candidates (e.g. "Add to other playlists" excludes the source playlist, "Move to folder" excludes the current folder and descendant folders). Submenu positioning computes real-time horizontal and vertical viewport flipping, dynamically clamping `maxHeight` and enabling internal scrolling so flyout menus never overflow the screen.
+- **Container styling, dividers, icons**: the menu card values (dark card theme, 1px translucent dividers, Tabler `stroke: 1.25` outline icons) are specified in [design-system.md §8.2](design-system.md#8-library-sidebar-modes--context-menu-design).
+- **Submenus & Viewport Clamping**: Submenu triggers render a chevron indicator (`chevron-right`). Submenus dynamically exclude cyclic candidates (e.g. "Add to other playlists" excludes the source playlist, "Move to folder" excludes the current folder and descendant folders). Submenu positioning computes real-time horizontal and vertical viewport flipping, dynamically clamping `maxHeight` and enabling internal scrolling so flyout menus never overflow the screen (values and formulas: [design-system.md §8.2](design-system.md#8-library-sidebar-modes--context-menu-design)).
 
 #### Entity Context Menu Specifications
 - **Track Context Menu**:
-  - `add-to-playlist`: "Add to playlist" submenu. Tracks belong exclusively to playlists or albums and cannot be added directly to folders.
+  - `add-to-playlist`: "Add to playlist" submenu — tracks belong to playlists/albums, never folders（文件夹语义规范见 [rules/ui.md §6](../../rules/ui.md#6-library-sidebars--context-menus-specification)（L2））.
   - `remove-from-playlist`: Danger tone with divider, shown only when the row is rendered within a playlist.
   - `add-favourite` / `remove-favourite`: Heart/unheart track in library and source.
   - `enqueue`: Append track to end of playback queue.
@@ -449,45 +446,36 @@ Two model details worth pinning: `TrackMenuOptions.lyrics` (the lyric lines a sc
   - `toggle-pin`: Pin/unpin folder in library list.
   - `create-playlist` & `create-folder`: Creates items directly within the selected folder.
   - `move-to-folder`: Move folder to another folder or root via `ctx.library.moveCollection`.
-  - `add-to-playlist`: "Add to other playlists". Uses `collectAllFolderTracks` to **recursively traverse** all nested playlist tracks, nested album tracks, and all nested subfolder contents without duplicates (folders do not contain direct tracks).
+  - `add-to-playlist`: "Add to other playlists". Uses `collectAllFolderTracks` for recursive, duplicate-free gathering across nested playlists, albums and subfolders（规范见 [rules/ui.md §6](../../rules/ui.md#6-library-sidebars--context-menus-specification)（L2））.
   - `enqueue`: Plays all aggregated tracks across the folder hierarchy.
 
 #### Library Presentation Modes
-- **Collapsed mode** (72px rail): Minimalist icon list with consistent folder outline icons. When entering a folder, displays a `chevron-left` return button below the top brand logo to navigate back to the root library.
-- **Sidebar mode** (260–340px): Standard view featuring inline expandable folders via rotating chevron controls (`chevron-down` / `chevron-right`), indented child items (28px padding), and dedicated folder detail view (`chevron-left Folder Title`). Playlists inside folders are automatically hidden from the root list (`containedPlaylistUrns`) and restored when moved to root.
-- **Expanded mode** (full-canvas): High-density 3-column table view (`Title`, `Date Added`, `Last Played`) with top breadcrumb navigation (`音乐库 < 文件夹名`).
+Layout metrics and folder interactions are specified in [design-system.md §8](design-system.md#8-library-sidebar-modes--context-menu-design) (L3):
+- **Collapsed mode** (72px rail): minimalist icon list; entering a folder shows a `chevron-left` return button below the top brand logo.
+- **Sidebar mode** (260–340px): inline expandable folders, dedicated folder detail view; playlists inside folders are automatically hidden from the root list (`containedPlaylistUrns`) and restored when moved to root.
+- **Expanded mode** (full-canvas): high-density 3-column table view with top breadcrumb navigation (`音乐库 < 文件夹名`).
 
 ### Detail screens, sorting & media views
 
-1. **Album, Playlist, Local Music & Favorites Track Tables**:
-   - **Track Deduplication**: Across `AlbumScreen`, `PlaylistDetailScreen`, `FavoritesScreen`, and `LocalMusicScreen`, raw track items are strictly deduplicated by track URN (`seen = new Set<string>()`), preventing duplicate rows, virtual list key collisions, and batch selection discrepancies.
-   - **Table Header Sorting**: Column headers (`#`, `标题`, `艺人`, `专辑`, `来源`, `添加日期`, `时长` with Tabler `clock` icon, `播放量`) support interactive sorting with ascending/descending directional indicators (`chevron-up` / `chevron-down`). Column headers omit the legacy checkmark.
-   - **Source Column & Source Sorting**: `AlbumScreen`, `FavoritesScreen`, and `PlaylistDetailScreen` include a dedicated "来源" (Source) column (omitted in `LocalMusicScreen` where all tracks are local), dynamically resolving names via `resolveTrackSourceName(ctx, trackUrn)` (e.g. `'本地'`, `'哔哩哔哩'`). The column header is clickable to toggle asc/desc, and the sort dropdown includes "来源", sorting by display name via `localeCompare(..., { numeric: true, sensitivity: 'base' })`.
-   - **Batch Operations Toolbar & Actions**: The three-dot menu on all four detail screens provides a flat "批量操作" entry (`list-check` icon, no nested submenu). Clicking toggles batch mode and reveals `BatchActionBar`:
-     - Native `<input type="checkbox">` for "全选" (Select All), matching track row checkboxes and supporting `indeterminate` (partial) and `checked` states;
-     - "批量播放" (`batch-play`): Plays selected tracks in current visual order;
-     - "添加到歌单" (`batch-add`): Opens popover/menu with accurate track count increments (`delta = active.tracks.length`);
-     - "删除" / "从最喜欢中删除" (`batch-delete`): Batch removes or unfavorites selected tracks;
-     - "退出批量操作" (`exit-batch`): Cancels selection and exits batch mode.
-   - **Action Bar Sort Menu**: Dropdown `ContextMenu` ("默认顺序" / "自定义顺序" with Tabler `arrows-sort` or `list` icon) providing rapid switching between sorting keys and directions.
-   - **Row Hover Library Action (`TrackLibraryActionButton`) & Popover**: Across track rows in `LocalMusicScreen`, `PlaylistDetailScreen`, `FavoritesScreen`, and `CollectionScreen`, the static checkmark is replaced with a hover action icon. When hovered, tracks not in library show `plus` (clicking saves to Favorites via `library.setSaved(track.urn, true)`); tracks in library show `heart-filled` (green heart), clicking opens a dedicated Spotify-style `SaveToPlaylistPopover` offering real-time playlist search, inline playlist creation, liked songs toggle, and folder tree navigation:
-     - Clicking "新建歌单" smoothly switches the top "查找歌单" search bar into an inline creation input with auto-focus, "确定" confirm button, and cancel button, while the list's "新建歌单" row is automatically hidden to eliminate duplicate actions;
-     - Confirm button is reinforced with `flexShrink: 0`, `whiteSpace: 'nowrap'`, and `minWidth: 44` with input `minWidth: 0` so button text is never compressed or truncated in Flexbox containers.
-   - **Album Header, Source Badge & Pagination**: `AlbumScreen` displays a gray framed badge (`album-source-badge`) at `top: 24, right: 32` when the album originates from a third-party source (`isThirdParty`). Third-party albums support incremental pagination (`pageSize: 30`) via `useAlbum`: virtual lists compute the halfway mark of the last page (`thresholdIndex = Math.max(0, count - pageSize) + Math.floor((count - Math.max(0, count - pageSize)) / 2)`) and trigger `album.loadMore` when scrolling past it, avoiding upfront bulk fetches and premature initial-mount triggers. Features an Action Bar heart button (`heart` / `heart-filled`) bound to `library.setSaved(album.urn, isSaved)` displaying saved albums in the user's Library. Local albums (`BBeBee:local:`) omit download buttons in header and rows, and omit the download menu item. Three-dot menu and header right-click provide "跳转原始资源", "加入文件夹", "添加到音乐库/从音乐库中删除", "加入播放列表", and "睡眠定时器" (omitting "加入歌单" and "转至专辑").
-   - **Playback Queue Alignment**: Playing tracks from a sorted table (single-tap or "Play All") passes the sorted URN sequence to `ctx.player.playFromContext`, ensuring the playback queue matches visual order.
-   - **Playlist Item ID Decoupling, Source Badge & Pagination**: In `PlaylistDetailScreen`, rows wrap data as `{ item, track, trackUrn, originalIndex }`, preserving item IDs across sort operations so that removals and context menus act on the correct playlist item. Third-party playlists (`isThirdParty`) display a gray framed badge (`playlist-source-badge`) at `top: 24, right: 32` and support half-page scroll pagination (30 tracks per page). User-created local playlists omit the source badge even when containing third-party tracks. Header right-click and three-dot menu provide "跳转原始资源".
-   - **Favorites Parity (`FavoritesScreen`)**: Styled with immersive purple gradient header, 56px play button, shuffle, real-time search filter, and `FavoriteTrackTableRow` with hover `TrackLibraryActionButton` (`heart-filled` / `heart` submenu).
+1. **Album, Playlist, Local Music & Favorites Track Tables** (设计规格见 [design-system.md §9](design-system.md#9-detail-screens-sorting--playback-history)，不变量见 [rules/ui.md §7](../../rules/ui.md#7-detail-screens-sorting--playback-history-specifications)（L2）):
+   - **Track Deduplication**: across `AlbumScreen`, `PlaylistDetailScreen`, `FavoritesScreen`, and `LocalMusicScreen`, raw track items are strictly deduplicated by track URN — normative in [rules/ui.md §7](../../rules/ui.md#7-detail-screens-sorting--playback-history-specifications) (L2).
+   - **Table Header Sorting**: column headers (`#`, `标题`, `艺人`, `专辑`, `来源`, `添加日期`, `时长`, `播放量`) support interactive sorting with ascending/descending directional indicators; the legacy checkmark is omitted — spec in [design-system.md §9.2](design-system.md#92-track-table-sorting--row-interactions).
+   - **Source Column & Source Sorting**: `AlbumScreen`, `FavoritesScreen`, and `PlaylistDetailScreen` include a dedicated "来源" column (omitted in `LocalMusicScreen` where all tracks are local), resolving names via `resolveTrackSourceName(ctx, trackUrn)`; the sort dropdown includes 来源, ordered by `localeCompare(..., { numeric: true, sensitivity: 'base' })` — spec in design-system.md §9.2.
+   - **Batch Operations Toolbar & Actions**: the three-dot menu provides a flat "批量操作" entry (`list-check` icon, no nested submenu) toggling `BatchActionBar` (select-all with `indeterminate`, 批量播放, 添加到歌单 with count increment `delta = active.tracks.length`, 删除/从最喜欢中删除, 退出批量操作) — spec in design-system.md §9.2.
+   - **Action Bar Sort Menu**: dropdown `ContextMenu` ("默认顺序" / "自定义顺序" with Tabler `arrows-sort` or `list` icon) for sort keys and directions — spec in design-system.md §9.2.
+   - **Row Hover Library Action (`TrackLibraryActionButton`) & Popover**: across track rows in `LocalMusicScreen`, `PlaylistDetailScreen`, `FavoritesScreen`, and `CollectionScreen`, the static checkmark is replaced with a hover action icon. Tracks not in library show `plus`, clicking writes **both stores** — `sources.setLoved(track.urn, true)` first, then `library.setSaved(track.urn, true)`（双写不变量见 [rules/ui.md §7](../../rules/ui.md#7-detail-screens-sorting--playback-history-specifications)（L2））; tracks in library show `heart-filled` (green heart), opening the Spotify-style `SaveToPlaylistPopover` (real-time playlist search, inline creation, liked-songs toggle, folder tree navigation) — spec in design-system.md §9.2.
+   - **Album Header, Source Badge & Pagination**: `AlbumScreen` shows a source badge (`album-source-badge`) for third-party albums, paginates incrementally (`pageSize: 30` via `useAlbum` half-page trigger), binds the Action Bar heart to `library.setSaved(album.urn, isSaved)`, and omits download affordances for local albums (`BBeBee:local:`) — spec in [design-system.md §9.3](design-system.md#93-album-screen-customizations-albumscreen) / [§13](design-system.md#13-source-badges-pagination--original-resources).
+   - **Playback Queue Alignment**: playing tracks from a sorted table (single-tap or "Play All") passes the sorted URN sequence to `ctx.player.playFromContext` — invariant in [rules/ui.md §7](../../rules/ui.md#7-detail-screens-sorting--playback-history-specifications) (L2).
+   - **Playlist Item ID Decoupling, Source Badge & Pagination**: in `PlaylistDetailScreen`, rows wrap data as `{ item, track, trackUrn, originalIndex }`, preserving item IDs across sort operations — invariant in rules/ui.md §7; third-party playlists show `playlist-source-badge` and paginate half-page (30 tracks per page); user-created local playlists omit the badge — spec in design-system.md §13.
+   - **Favorites Parity (`FavoritesScreen`)**: purple gradient header, 56px play button, shuffle, real-time search filter, and `FavoriteTrackTableRow` with hover `TrackLibraryActionButton` — spec in [design-system.md §9.4](design-system.md#94-favorites-screen-parity-favoritesscreen).
 
-2. **Local Music Dual Views (Tracks & Albums)**:
+2. **Local Music Dual Views (Tracks & Albums)** (spec in [design-system.md §9.5](design-system.md#95-local-music-dual-views--pagination-localmusicscreen)):
    - **Full Pagination**: `fetchAllLocalTracks` and `fetchAllLocalAlbums` recursively paginate in batches of 500 until all local items are retrieved, removing the former 100-item truncation.
-   - Header segmented toggle allows switching between "歌曲" (table list) and "专辑" (grid view).
-   - Album grid view aggregates local tracks into `LocalAlbumCard` components with cover artwork, title, artist, track count, and hover play trigger.
-   - Sort dropdown adapts dynamically to album-specific criteria (name, artist, year, track count).
+   - Header segmented toggle between "歌曲" (table list) and "专辑" (grid view); album grid aggregates local tracks into `LocalAlbumCard` components with hover play trigger; the sort dropdown adapts to album-specific criteria (name, artist, year, track count).
 
-3. **Playback History & Recent Plays**:
+3. **Playback History & Recent Plays** (spec in [design-system.md §9.6](design-system.md#96-playback-history--recent-plays-historyscreen--queuescreen)):
    - **Deduplication**: `HistoryScreen` (desktop and mobile) and `QueueScreen` (recent plays tab) de-duplicate tracks by `trackUrn`, retaining only the most recent playback record (with its relative timestamp and completion badge).
-   - **Play Count Indicator**: `HistoryScreen` displays a `播放 N 次` capsule badge indicating total plays per track.
-   - **Count Consistency**: Header counters (`(${uniqueRecords.length} 首)`) and empty state checks evaluate against deduplicated unique tracks.
+   - **Play Count Indicator**: `HistoryScreen` displays a `播放 N 次` capsule badge indicating total plays per track; header counters and empty-state checks evaluate against deduplicated unique tracks.
 
 ### The source surfaces
 
@@ -503,7 +491,7 @@ descriptors, nothing about them is privileged.
 | **Test a source** | Run one feature — search, browse, album, artist, playlist, lyrics, library, stream, a raw HTTP request, or arbitrary script — and show every rule's input, output and timing ([sources/authoring.md §10](../sources/authoring.md#10-diagnosing-a-broken-source)) | The list of test areas is the source's derived capability list, so the screen shows what that source can actually do; the trace is a long scrollable log, the closest thing in the app to a developer tool, and the reason a user can fix a source themselves |
 | **Search** | One query fanned out over the selected sources with `searchAll`, one result section per source ([sources/runtime.md §4.1](../sources/runtime.md#41-a-sources-lifetime)) | Before the first search the bar and the interface toggles are a hero; afterwards both collapse to the top and the results take the height. On desktop, search can also be executed directly from the persistent TopBar interactive input with its 2×2 matrix dropdown. The search screen (`sources.search`) accepts incoming `query` parameters and triggers `searchAll` automatically. **One toggle per interface, not per source** — a backend with a separate artist search shows `Source · Songs` and `Source · Artists` independently, and the selection reaches `searchAll` as `typesBySource`. Selections are stored as *exclusions*, so a source imported later joins the next search instead of being silently missed — and a source that failed, timed out or matched nothing keeps its own header instead of vanishing into a merged list. On desktop, results are organized into independent card panels (`SourcePanel`) with sticky headers (`position: sticky; top: 0`) and internal vertical scrolling (`maxHeight: min(520px, 60vh); overflowY: auto`), per-source "Load More" pagination buttons, and global expand/collapse controls. Tapping a track follows single-track playback policy (`urns: [track.urn]`), queuing solely the clicked track to avoid polluting the active playback queue. All panels strictly adhere to the design system color management tokens. |
 | **DSP & Equalizer** | 10-band graphic equalizer with preset switching (Flat, Bass Boost, Vocal, Treble), effect chain ordering, individual effect bypass toggles, and parameter editing (normalize, compressor, reverb, etc.). Contributed as `dsp.view`. Opened directly from the player or via an action button in the playback settings card. | Descriptors in `plugin-dsp-ui-*`. Desktop renders a dedicated view with vertical sliders; mobile provides touch-friendly vertical sliders, chip selectors, and full chain navigation |
-| **Settings Center** | Partitioned multi-page settings center (`settings.view`) with mutually exclusive panel navigation: General & Language, Playback & Audio, Desktop Lyrics (line mode, alignment, font, size, color picker, opacity, live preview), Global Hotkeys (master toggle + 10 keybindings), Network & Proxy (HTTP/HTTPS/SOCKS5, Google latency probe, per-source routing switches), Sources, Storage & Cache (directory badges with change/open folder buttons), Plugins (real-time manifest & fiber state inspection, search filter, 4-tier layer collapsible groups, dependency/dependents graph, enable/disable switches with dependent confirmation), and About with an Advanced Settings toggle guarding the Danger Zone. | Descriptors in `plugin-settings` and rendered by `plugin-settings-ui-*`. |
+| **Settings Center** | Single-page settings center (`settings.view`): a text-only tab rail (General & Language, Playback & Audio, Desktop Lyrics, Global Hotkeys, Network & Proxy, Sources, Storage & Cache, Plugins, About) whose active tab exclusively renders its section group in one naturally scrolling pane (mutually exclusive section rendering; sections carry `section-<id>` anchors). General & Language covers language and appearance; Desktop Lyrics has line mode, alignment, font, size, color picker, opacity, live preview; Global Hotkeys is a master toggle + 10 keybindings; Network & Proxy has HTTP/HTTPS/SOCKS5, Google latency probe, per-source routing switches; Storage & Cache shows directory badges with change/open folder buttons; Plugins has real-time manifest & fiber state inspection, search filter, 4-tier layer collapsible groups, dependency/dependents graph, enable/disable switches with dependent confirmation; About has an Advanced Settings toggle guarding the Danger Zone. | Descriptors in `plugin-settings` and rendered by `plugin-settings-ui-*`. |
 | **Debug & Diagnostics** | Dedicated diagnostic hub comprising three views: `debug.view` (Debug status, environment specs for Node, Electron, OS, Chromium), `debug.logs` (Discover live ring-buffer logs with search, level filters, NDJSON copy, clear), and `debug.http-logs` (live inspection of third-party source network requests with method, status badge, latency, and URL). | Descriptors in `plugin-settings` and views in `plugin-settings-ui-desktop`. |
 
 A download starts from the **⬇ control on a track row** (`TrackRow.onDownload`, present only where
@@ -571,27 +559,15 @@ The desktop shell organizes primary navigation between the left sidebar and the 
 1a. **Track & Album View Modes (紧凑/列表/平铺)**:
    - The album, playlist, favourites and local-music pages offer a **视图模式** section at the bottom of the 排序方式 dropdown menu (`viewModeMenuItems` in `ui-kit-desktop`): a flush-left muted heading (`MenuItemSpec.heading`, no icon slot, no hover) behind a hairline divider, then one entry per mode with a check on the active one.
    - **列表 (list)** is the default and matches the historical row: artwork, title with artists beneath, album, date, duration. **紧凑 (compact)** drops the artwork and promotes artists to their own column (header included). The local-albums tab additionally offers **平铺 (tiled)** — the current card grid (`LocalAlbumCard`) — as its default, with 列表/紧凑 rendering album rows instead.
-   - The choice persists per page in `localStorage` (`bbebee_view_mode:<key>` via `useViewMode`), so a page the user prefers compact stays compact across restarts.
+   - The choice persists per page in `localStorage` (`bbebee_view_mode:<key>` via `useViewMode`; spec in [design-system.md §9.2](design-system.md#92-track-table-sorting--row-interactions)), so a page the user prefers compact stays compact across restarts.
 
 2. **TopBar Interactive Search & 2×2 Matrix Dropdown**:
-   - **Collapse to a magnifier when squeezed**: A `ResizeObserver` on the center group measures
-     the search's real width; below 180px the whole search collapses to a single magnifier button
-     (`topbar-search-collapsed-button`). Clicking it expands the search across the bar — the tray
-     and profile icons are hidden while expanded — and focuses the input. Clicking anywhere
-     outside the search, pressing `Escape`, or committing a query restores the collapsed state and
-     brings the icons back. The window controls (Minimize/Maximize/Close) are **never** hidden:
+   - The visual and interaction spec — collapse to a magnifier when squeezed below 180px
+     (`ResizeObserver`-measured), dynamic search icon shift, the 2×2 matrix grid (Search Scope
+     sources with `useSearchSourceSelection(ctx)` + Search History tags in `localStorage`) — lives
+     in [design-system.md §6.6](design-system.md#66-component-affordances--micro-interactions).
+     The window controls (Minimize/Maximize/Close) are **never** hidden:
      their group is `flexShrink: 0` in both states.
-   - **Dynamic Search Icon Shift**:
-     - *Idle state*: The search icon (`search`) rests at the left padding (`left: 12px`).
-     - *Active / Focused state*: The icon smoothly slides across to the far right (`right: 12px`, with transition `all 200ms cubic-bezier(0.4, 0, 0.2, 1)`) and functions as an interactive submit button (`cursor: pointer`).
-     - *Dismissal*: Clicking outside the search area or pressing `Escape` unfocuses the input, dismisses the dropdown, and resets the icon back to the left edge.
-   - **2×2 Matrix Floating Dropdown Panel**:
-     - Automatically reveals directly beneath the input (`top: calc(100% + 8px)`, width 600px, z-index 1000) when the input is focused or query text is entered.
-     - Structured as a 2-row × 2-column grid:
-       - **Row 1**: Left header: "搜索范围" (`Search Scope`); Right header: "搜索历史" (`Search History`) accompanied by a subtle, high-transparency "清空" (`Clear`) button (`rgba(255, 255, 255, 0.4)`).
-       - **Row 2**:
-          - *Left cell (Search Scope)*: Third-party music source toggle buttons connected to `useSearchSourceSelection(ctx)`. Renders individual source interface chips (styled with active green `#1DB954` fill and black text) alongside "全部" (All) and "重置" (None) batch toggles. Source selections are maintained in a shared store backed by `useSyncExternalStore` and persisted as exclusions in `localStorage` (`bbebee_search_sources_excluded`) so that TopBar and `SearchScreen` stay strictly synchronized bi-directionally, and newly installed sources participate automatically.
-          - *Right cell (Search History)*: Interactive history tags stored in `localStorage` (`bbebee_search_history`, max 10 entries). Clicking any tag immediately executes that query. When history is empty, a subtle "暂无搜索历史" fallback is displayed.
     - **Search Submission & Screen Routing**:
       - Pressing `Enter`, clicking the shifted right search icon, or clicking a history tag commits the query into history, closes the matrix panel, and calls `navigate('sources.search', { query, sourceIds, typesBySource, searchTimestamp })`.
       - `SearchScreen` (`plugin-sources-ui-desktop`) watches incoming `query`, `sourceIds`, `typesBySource`, and `searchTimestamp` props via `useEffect` and automatically executes `search.searchAll(query, { sourceIds, typesBySource })`, ensuring search scope restrictions chosen in TopBar take immediate effect on the search screen.
@@ -606,11 +582,11 @@ The desktop shell organizes primary navigation between the left sidebar and the 
 
 4. **Safe Service Access in UI Hooks**:
    - Cordis Context instances are strictly scoped (`ctx.inject`). Accessing an un-injected property throws an error at runtime (`cannot get property "<name>" without inject`).
-   - Hooks in UI view layers inspecting optional services (e.g., `useSources`, `useLiveSourceIds`, `useSearchSourceOptions`) must always access service instances safely using `serviceOf<T>(ctx, key)` instead of raw member access `(ctx as any)[key]`.
+   - Hooks in UI view layers inspecting optional services (e.g., `useSources`, `useLiveSourceIds`, `useSearchSourceOptions`) must always access service instances safely using `serviceOf<T>(ctx, key)` instead of raw member access `(ctx as any)[key]` — the norm (including the ban on `serviceOf` in `useEffect`/`useCallback` dependency arrays) is merged into [rules/ui.md §3「Service access through `serviceOf`」](../../rules/ui.md#3-hooks--state-binding) (L2).
 
 5. **Fullscreen Play Page & Queue Drawer Layering**:
-   - The fullscreen play page (`now-playing.view`) is an **overlay stacked on the shell, not a branch swap**: the shell — and every cached page in it — stays mounted underneath (the overlay is `position: fixed`, opaque, z-index 100, rendered as a late child of the shell root). Returning from the play page therefore finds each page exactly as it was left: local state, scroll position and subscriptions intact. Do not reintroduce the early-return branch swap — it unmounted every cached page and was the reason page state evaporated.
-   - The **queue drawer floats above the play page**: `ui/navigate 'queue.view'` only toggles the drawer (`isQueueOpen`), never the fullscreen flag, and the drawer renders at z-index 120 while the play page is open (40 otherwise) so it slides over the overlay. Toggling again closes the drawer in place. Above the drawer sit only the share modals (130, via a stacking-context wrapper around `share.host`) and the desktop lyrics window (9999); the queue splitter rides at 125 so the drawer stays resizable over the play page.
+   - The fullscreen play page (`now-playing.view`) is an **overlay stacked on the shell, not a branch swap**: the shell — and every cached page in it — stays mounted underneath (the overlay is `position: fixed`, opaque, z-index 100, rendered as a late child of the shell root). Returning from the play page therefore finds each page exactly as it was left: local state, scroll position and subscriptions intact（规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2）— do not reintroduce the early-return branch swap）.
+   - The **queue drawer floats above the play page**: `ui/navigate 'queue.view'` only toggles the drawer (`isQueueOpen`), never the fullscreen flag（层级规格见 [design-system.md §6.8](design-system.md#68-shell-structure--layout-paradigms)）— it renders at z-index 120 while the play page is open (40 otherwise) so it slides over the overlay. Toggling again closes the drawer in place; the queue splitter rides at 125 so the drawer stays resizable over the play page.
 
 6. **Desktop Drag-and-Drop Import & Local Music Navigation**:
    - Dragging audio files or folders from the OS into any part of the desktop window triggers `importDroppedFiles(ctx, files)`.

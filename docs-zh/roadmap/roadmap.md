@@ -68,7 +68,7 @@
 
 仍未完成，且两项都需要真机才能收尾：**`core-js-quickjs-expo`** —— React Native 的 Hermes 没有 WebAssembly，因此移动端沙箱需要一个*原生* QuickJS 模块，进而需要一次 dev-client 重建，这正是它从一开始就被列为 M2 唯一新增原生依赖的原因（[services/contracts.md §19](../services/contracts.md#19-ctxjs--沙箱化求值器)）；以及在真实硬件上端到端地跑通两个外壳。在第一项落地之前，移动端上一份带脚本的文档会把受影响的能力报告为缺席，而不是提供一个无法工作的按钮 —— 这是设计之内的降级，而不是损坏。
 
-由 MD-3 从 M1 顺延下来的策展（curation）部分同样已就位：`plugin-library` / `ctx.library` —— 播放列表、收藏、合辑，以及规则树能编译为参数化 SQL 的智能播放列表 —— 在两个外壳上均有对应界面（[data-model/schema.md §4.6](../data-model/schema.md#46-策展)）。
+由 MD-3 从 M1 顺延下来的策展（curation）部分同样已就位：`plugin-library` / `ctx.library` —— 播放列表、收藏、合辑，以及规则树能编译为参数化 SQL 的智能播放列表 —— 在两个外壳上均有对应界面（[data-model/schema.md §4.6](../data-model/schema.md#46-播放列表与曲库)）。
 
 ⚠️ **直到最近，"已建成"意味着什么、又不意味着什么。** 上面列出的每一个包都已建成且全绿，而*两个外壳一个都没运行过它们*：桌面端的引导流程漏掉了 `ctx.audio`、`ctx.codec` 与 `ctx.http`，于是 `plugin-player` 被注释掉，扫描器与源运行时停在 PENDING，移动端外壳则还停留在 M0 —— 四个核心服务加一个 M0 演示插件。这如今已经修复，而且值得按它本来的失败模式记录在案：一个里程碑可以按包逐个"完成"却什么都没交付，因为完成标准针对的是*应用*本身。本可以更早抓住它的那个检查，是每个外壳一个启动测试，这也是接下来最显然该写的东西。
 
@@ -94,7 +94,7 @@
 
 ### M4 —— 听感达标
 
-`plugin-dsp` 与 [audio/playback.md §3](../audio/playback.md#内置效果) 中的内置效果。两个外壳中各有效果链编辑器 UI。
+`plugin-dsp` 与 [audio/dsp.md §3](../audio/dsp.md#内置效果) 中的内置效果。两个外壳中各有效果链编辑器 UI。
 
 > **已交付（Shipped）。** `ctx.dsp` 与全部 9 种内置效果（`preamp`、`eq10`、`normalize`、`compressor`、`reverb`、`widener`、`crossfeed`、`tempo-pitch`、`limiter`）均已实现并得到验证（[audio/dsp.md §3](../audio/dsp.md#3-ctxdsp--效果链)）：
 > - **统一跨平台效果**：EQ、normalize、compressor 与 reverb（以及其余 5 种效果）各凭一份纯 Web Audio 实现，即可在桌面端、iOS 与 Android 上运行。
@@ -115,8 +115,8 @@
 
 ### M4.1 —— 桌面端 Bit-Perfect 音频（WASAPI Exclusive）
 
-> **已缩减范围（Descoped，首个可用版本前移除）。**
-> 独占模式输出（`core-audio-wasapi-native`、接收端 worklet、`initWasapi`/`writeWasapi` 桥接方法）经历了端到端原型验证后被移除：通过 `context.destination` 的共享输出已满足当前需求，而原生流水线为一个操作系统引入了 Rust 工具链与逐平台验证负担。这项工作中保留下来的成果包括：桥优先的 FFmpeg 解码路径、通过共享 `StreamedHandle` 实现的真正流式播放、音源 header 转发，以及原生采样率 `AudioContext` 重建（`audio/context-rebuilt`）。若未来 bit-perfect 输出重新成为产品需求，再行审视。
+> **已缩减范围（Descoped，首个可用构建前移除的是独立 sink 原型）。**
+> 原计划中的独占模式输出（`core-audio-wasapi-native` 独立 sink、接收端 worklet、`initWasapi`/`writeWasapi` 桥接方法）经历了端到端原型验证后被移除：通过 `context.destination` 的共享输出已满足当前需求，而原生流水线为一个操作系统引入了 Rust 工具链与逐平台验证负担。独占模式能力本身保留了下来，由 MPV Hi-Fi 引擎经 libmpv 的 `--audio-exclusive=yes` 交付（即 `audioExclusive` 设置，默认 `false`，位于默认已是 `audioOutputEngine: 'wasapi'` 的引擎上）。这项工作中保留下来的成果包括：桥优先的 FFmpeg 解码路径、通过共享 `StreamedHandle` 实现的真正流式播放、音源 header 转发，以及原生采样率 `AudioContext` 重建（`audio/context-rebuilt`）。若未来需要超出 libmpv 开关的 bit-perfect 输出，再行审视。
 
 ---
 
@@ -124,12 +124,12 @@
 
 把 `ctx.js` 从"求值一条音源规则"推广为"承载一个扩展"：一座服务桥，其协议就是 [plugins/capabilities.md §7](../plugins/capabilities.md#能力语法) 的能力语法，外加安装、更新、卸载、能力授予与隔离（quarantine）。它排在 M2 之后而非之前，因为 realm、资源上限、宿主接触面的纪律与一致性测试套件都随音源一同到来——M5 是使用它们，而不是发明它们。
 
-音源变为字符串之后，它的范围缩小了（[修订后的 ADR-1](../architecture/overview.md#adr-1--插件在所有目标平台上都静态打包)）：音乐后端不再需要这个，剩下的只有效果器、scrobbler、歌词提供方与传输层——真实存在，但已不再紧迫。如果这种需求始终没有出现，**不建 M5 也是一种合法的结局**，而 [plugins/loading.md §6.2](../plugins/loading.md#62-桌面端的附加设计--plugin-loader-dynamic) 中留置在架上的设计就是它付出的代价。
+音源变为字符串之后，它的范围缩小了（[修订后的 ADR-1](../architecture/overview.md#adr-1--插件在所有目标平台上都静态打包)）：音乐后端不再需要这个，剩下的只有效果器、scrobbler、歌词提供方与传输层——真实存在，但已不再紧迫。如果这种需求始终没有出现，**不建 M5 也是一种合法的结局**，而 [plugins/loading.md §6.2](../plugins/loading.md#62-桌面端动态加载--plugin-loader-dynamic) 中留置在架上的设计就是它付出的代价。
 
 **完成标准**
-- 在仓库之外构建的扩展可以从本地文件或 URL 安装，并运行**在 `ctx.js` 的 realm 内**，而不是渲染进程的 realm——于是 [plugins/concepts.md §7](../plugins/concepts.md#它不是什么) 里那条诚实说明终于可以被删掉，而不是改写。
+- 在仓库之外构建的扩展可以从本地文件或 URL 安装，并运行**在 `ctx.js` 的 realm 内**，而不是渲染进程的 realm——于是 [plugins/capabilities.md §7](../plugins/capabilities.md#它不是什么) 里那条诚实说明终于可以被删掉，而不是改写。
 - 扩展请求未被授予的能力时收到 `CapabilityError`，操作干净地失败，而不是让应用崩溃。
-- 这道闸门在**两个**平台上都守得住，包括跨桌面桥——[plugins/concepts.md §7](../plugins/concepts.md#门实际运行的位置) 点名的缺口被关闭，否则 M5 不发布。
+- 这道闸门在**两个**平台上都守得住，包括跨桌面桥——[plugins/capabilities.md §7](../plugins/capabilities.md#门实际运行的位置) 点名的缺口被关闭，否则 M5 不发布。
 - 加载时连续抛错两次的扩展被隔离；此后应用正常启动，并说明原因。
 - 卸载时先销毁（dispose）fiber 再删除文件；"移除数据"恰好只删掉该扩展带命名空间前缀的表。
 
@@ -208,7 +208,7 @@ ADR-2 接受了视图要写两遍。失败模式是逻辑悄悄渗进视图—�
 
 ADR-1 修订之后，第三方效果器或 scrobbler 在 M5 之前完全无法安装，而 M5 可能永远不会建。
 
-*缓解措施* —— 留置在架上的设计继续保留并注明日期（[plugins/loading.md §6.2](../plugins/loading.md#62-桌面端的附加设计--plugin-loader-dynamic)），而 M5 所需要的那座沙箱如今已随音源一同交付，剩下的工作是一座服务桥，而不是一个子系统。需求出现，它就是一个里程碑；需求不出现，就没有花掉任何代价。
+*缓解措施* —— 留置在架上的设计继续保留并注明日期（[plugins/loading.md §6.2](../plugins/loading.md#62-桌面端动态加载--plugin-loader-dynamic)），而 M5 所需要的那座沙箱如今已随音源一同交付，剩下的工作是一座服务桥，而不是一个子系统。需求出现，它就是一个里程碑；需求不出现，就没有花掉任何代价。
 
 ### 🟡 两个大型框架之间的版本漂移
 

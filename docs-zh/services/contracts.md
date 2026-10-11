@@ -2,6 +2,35 @@
 
 > **历史章节映射：** 原 `docs-zh/04-core-services.md §2 – §15，§17 – §20`。
 
+## 目录
+
+- [2. `ctx.http` —— 出站 HTTP](#2-ctxhttp--出站-http)
+- [3. `ctx.ws` —— WebSocket](#3-ctxws--websocket)
+- [4. `ctx.store` —— 带命名空间的键值存储](#4-ctxstore--带命名空间的键值存储)
+- [5. `ctx.db` —— SQL](#5-ctxdb--sql)
+- [6. `ctx.secrets` —— 凭据存储](#6-ctxsecrets--凭据存储)
+- [7. `ctx.mediaSession` —— 正在播放与播放控制](#7-ctxmediasession--正在播放与播放控制)
+- [8. `ctx.notify` —— 用户通知](#8-ctxnotify--用户通知)
+- [9. `ctx.background` —— 长时任务与唤醒锁](#9-ctxbackground--长时任务与唤醒锁)
+- [10. `ctx.paths` —— 众所周知的位置](#10-ctxpaths--众所周知的位置)
+- [11. `ctx.device` —— 环境与输入](#11-ctxdevice--环境与输入)
+- [12. `ctx.crypto`](#12-ctxcrypto)
+- [13. `ctx.codec` —— 解码与元数据](#13-ctxcodec--解码与元数据)
+- [14. `ctx.shell` —— 跳出应用](#14-ctxshell--跳出应用)
+- [15. `ctx.i18n`](#15-ctxi18n)
+- [17. 运行时兼容性清单](#17-运行时兼容性清单)
+- [18. 契约测试](#18-契约测试)
+- [19. `ctx.js` —— 沙箱化求值器](#19-ctxjs--沙箱化求值器)
+- [20. `ctx.theme` —— 颜色管理与主题服务](#20-ctxtheme--颜色管理与主题服务)
+- [21. `ctx.nowPlaying` —— 正在播放呈现与沙箱化样式](#21-ctxnowplaying--正在播放呈现与沙箱化样式)
+- [22. `ctx.share` —— 实体分享与隐写术服务](#22-ctxshare--实体分享与隐写术服务)
+- [23. `ctx.settings` —— 设置中心与动态贡献](#23-ctxsettings--设置中心与动态贡献)
+- [24. `ctx['plugin-manager']` —— 插件检查、依赖图与生命周期管理](#24-ctxplugin-manager--插件检查依赖图与生命周期管理)
+- [25. `ctx.contentRegistry` —— 第三方内容注册表](#25-ctxcontentregistry--第三方内容注册表)
+- [26. 下一步阅读](#26-下一步阅读)
+
+> **范围边界。** 服务键的规范登记 —— 哪些键存在、每个键在各平台上由哪个包实现 —— 见 [rules/services.md §2](../../rules/services.md#2-standard-service-keys)（L2）。本目录保存完整契约、平台行为与设计理由。
+
 ## 2. `ctx.http` —— 出站 HTTP
 
 **用途。** 一个形如 `fetch` 的客户端，但*不受*浏览器规则约束。
@@ -244,7 +273,7 @@ export interface StoreService {
 损坏的 store 会被隔离（改名挪到一旁），应用以空 store 启动：设置是可以重建的，无法启动的
 应用不行。
 
-为了消除启动时的重复磁盘 I/O，`StoreConfig` 支持可选的 `initialData: Record<string, unknown>`。当宿主组合根在启动初预先读取了 `store.json`（例如在注册服务前预检持久化的音频输出引擎偏好设置）时，将该数据传入即可直接填充内存文档并标记已加载，彻底跳过二次读盘。
+> 规范见 [rules/services.md §5](../../rules/services.md#5-startup--initialization-performance)（L2），本节只讲原理与用法。
 
 ---
 
@@ -264,7 +293,7 @@ export interface DbService {
   /**
    * Register a plugin-owned schema. Tables are prefixed with the namespace,
    * migrations are versioned per namespace, and everything is dropped if the
-   * plugin is uninstalled with "remove data" selected. 参见 [data-model/migrations.md §6](../data-model/migrations.md#6-插件表结构生命周期)。
+   * plugin is uninstalled with "remove data" selected. 参见 [data-model/migrations.md §6](../data-model/migrations.md#6-迁移)。
    */
   defineSchema(namespace: string, migrations: Migration[]): Promise<void>
 }
@@ -652,7 +681,11 @@ export class JsMemoryError extends Error {}
   `expose`，这正是让
   [sources/runtime.md §8](../sources/runtime.md#8-信任导入的源能做什么不能做什么) 的宿主面
   成为一份穷尽清单而非摘要的原因。
-- **惰性 WASM 编译。** 在 `core-js-quickjs-node` 中，`[Service.init]()` 立即返回；QuickJS WASM 模块会在首次调用 `createRealm()` 时按需编译并缓存，防止 WebAssembly 编译在应用冷启动阶段增加 100~300ms 耗时。
+- **惰性 WASM 编译。**
+
+  > 规范见 [rules/services.md §5](../../rules/services.md#5-startup--initialization-performance)（L2），本节只讲原理与用法。
+
+  动机是启动开销：若无惰性编译，WebAssembly 编译会给应用冷启动增加 100~300ms。
 - **值靠克隆跨越，绝不靠引用。** realm 里的任何东西都无法保留来自宿主的活对象，因此它无法
   遍历对象图去够到某个服务 —— 这正是让同 realm "沙箱"一文不值的那个失败点。
 - **限制由引擎强制执行，而不是靠约定。** `while (true)` 会被中断，而不是被等待。这正是要
@@ -1040,7 +1073,7 @@ export interface RegistryService {
 
 - **匹配语义**：音源按 `sourceUrl`（`SourceRecord` 的身份）匹配已安装记录；歌词源 / 主题 / 插件按各自 `id` 匹配。已安装副本版本低于条目 `version` 时产生一条 `RegistryUpdate`。
 - **各类型安装流程**：音源 → `ctx.sources.import`（完整导入管线，`originUri` = `downloadUrl`）；歌词源 → 形状校验后 `ctx.lyricSources.registerSource`；主题 → 与用户自建主题相同的暗/亮对比度门禁，然后 `ctx.theme.registerTheme`；插件 → 条目未发布 `sha256` 时拒绝安装，将下载包与摘要比对，再交给动态加载宿主。
-- **安全红线**：`fetchEntryDetails()` 的存在就是为了让确认对话框在导入**之前**说出音源文档的 `allowedHosts`；插件安装校验 `sha256` 并要求明确的风险确认；下载插件经由 `@BBeBee/plugin-security-audit` 进行 7 项威胁扫描并在 `registry.lock.json` 中校验防篡改。
+- **安全红线**：`fetchEntryDetails()` 的存在就是为了让确认对话框在导入**之前**说出音源文档的 `allowedHosts`；插件安装校验 `sha256` 并要求明确的风险确认；下载插件经由 `@BBeBee/plugin-security-audit` 进行安全审计，检查 **13 条扫描规则（8 条静态规则 + 2 组动态扫描）**，完整性锁定在 `registry.lock.json` 中以检测篡改。
 - **自动检查**：`AppSettings.registryAutoCheck`（默认 `true`）—— 启动约 45 秒后首次检查，此后每 24 小时一次；手动检查不受影响。
 
 ### 25.1 伴生服务 `ctx.registryMetadata`

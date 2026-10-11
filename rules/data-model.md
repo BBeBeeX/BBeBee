@@ -2,6 +2,10 @@
 
 Rules governing URNs, SQLite storage, migrations, and event hooks in BBeBee.
 
+> **L2 · 何时读**：动 URN、SQLite 表、迁移或事件钩子时——WAL 约定、时间戳/布尔/JSON 列规范、waterfall 语义、状态所有权。
+> **不读会怎样**：迁移语句被驱动器静默截断、时间戳/布尔/JSON 存法跑偏、waterfall 的 `next` 误用吞掉链路数据。
+> **深读指引**：docs/data-model/urn.md（URN 设计动机）、schema.md §3–§4（表级细节）、events.md（事件正典）、migrations.md（迁移机制）。
+
 ---
 
 ## 1. URN (Uniform Resource Name)
@@ -52,7 +56,7 @@ Declared in `@BBeBee/protocol` augmenting Cordis's `Events`.
 | `player/before-resolve` | Waterfall | `plugin-download` substitutes a local file; `plugin-cache` a cached stream |
 | `http/request` | Waterfall | Source runtime injects headers/cookies; response caching and rate limits |
 | `dsp/build-chain` | Waterfall | Each audio effect inserts its DSP node segment |
-| `player/position` | Broadcast | Emitted at 1 Hz; UI interpolates with `requestAnimationFrame` (never poll) |
+| `player/position` | emit | Emitted at 1 Hz; UI interpolates with `requestAnimationFrame` (never poll) |
 
 > ⚠️ **A waterfall's `next` takes no arguments.** Cordis closes it over the original argument list.
 > A listener either:
@@ -65,6 +69,7 @@ Declared in `@BBeBee/protocol` augmenting Cordis's `Events`.
 
 Each piece of application state has exactly ONE owner:
 - Catalogue entities → `ctx.db` (written via `ctx.sources`)
+- Source documents → `ctx.sources` (persisted in `sources`)
 - Transport & queue → `ctx.player`
 - Audio nodes → `ctx.audio`
 - Effect parameters → `ctx.dsp`

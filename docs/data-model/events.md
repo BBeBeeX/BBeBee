@@ -4,7 +4,9 @@
 
 ## 5. The event map
 
-Declared once in `@BBeBee/protocol` by augmenting Cordis's `Events` interface. The dispatch mode is
+> 规范见 [rules/data-model.md §4 Events & Waterfall Hooks](../../rules/data-model.md#4-events--waterfall-hooks)（L2），本节只讲原理与用法。
+
+The dispatch mode is
 part of the contract: it determines whether a listener can block, transform, or veto.
 
 ```ts
@@ -46,7 +48,7 @@ declare module 'cordis' {
     /**
      * Decide what actually gets played.
      * `plugin-download` hooks this to substitute a local file when a binding
-     * exists; `plugin-failover` hooks it to retry on another source.
+     * exists; `plugin-cache` hooks it to substitute a cached stream.
      */
     'player/before-resolve'(
       urn: string,
@@ -144,9 +146,9 @@ declare module 'cordis' {
 }
 ```
 
-> ⚠️ A waterfall listener's `next` is closed over the original arguments and **ignores anything
-> passed to it**. Rewrite by mutating the argument in place, or short-circuit by returning without
-> calling `next`. The signatures above are strictly written `next: () => …` for that reason.
+> 规范见 [rules/data-model.md §4 Events & Waterfall Hooks](../../rules/data-model.md#4-events--waterfall-hooks)（L2），本节只讲原理与用法。
+>
+> The signatures in the map above are deliberately written `next: () => …`.
 
 | Event group | Mode | Why |
 |---|---|---|

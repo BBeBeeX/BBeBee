@@ -13,10 +13,13 @@ string, is contained by a different and much stronger mechanism
 
 ### Capability grammar
 
+规范见 [rules/plugins.md §5 Capability Grammar](../../rules/plugins.md#5-capability-grammar)（L2）；the table below expands
+each grant with its semantics and rationale.
+
 | Capability | Grants |
 |---|---|
 | `fs:read:<scope>` / `fs:write:<scope>` | Filesystem access within a named scope: `own`, `media`, `cache`, `downloads`, `logs`, or `all` |
-| `net:host/<pattern>` | Outbound HTTP **and WebSocket** to hosts matching a glob — one grant governs both `ctx.http` and `ctx.ws`. `net:host/*` is a broad grant and is labelled as such in the prompt. Includes a **persisted cookie jar scoped to this plugin instance** ([services/overview.md §2.1](../services/overview.md#21-cookie-jars)) — the core service owns the storage, so no `db` or `secrets` grant is needed for it. Matching is on hostname only, lowercased; a port cannot be granted separately |
+| `net:host/<pattern>` | Outbound HTTP **and WebSocket** to hosts matching a glob — one grant governs both `ctx.http` and `ctx.ws`. `net:host/*` is a broad grant and is labelled as such in the prompt. Includes a **persisted cookie jar scoped to this plugin instance** ([services/contracts.md §2.1](../services/contracts.md#21-cookie-jars)) — the core service owns the storage, so no `db` or `secrets` grant is needed for it. Matching is on hostname only, lowercased; a port cannot be granted separately |
 | `db:own` | Its own namespaced tables, outright — read, write, and schema. Indexes, triggers and views count: they are attributed by name, so a plugin's index is `{{ns}}_…` like its tables |
 | `db:read:<ns>` / `db:write:<ns>` / `db:*:<ns>` | Access to another namespace, by verb: `read` is `SELECT`, `write` is `INSERT`/`UPDATE`/`DELETE`, `*` is both plus `CREATE`/`DROP`/`ALTER`. The verbs do **not** nest — a plugin that reads and writes the catalogue declares `db:read:core` *and* `db:write:core`, so an install-time prompt can name exactly what it is asking for. Statements are classified by the most demanding thing they do, so a `DROP` cannot ride in behind a `SELECT` |
 | `secrets:own` | Its own credential namespace. There is no `secrets:all`. A plugin that only needs its login to persist does not need this — the cookie jar under `net:` already covers it |
@@ -97,10 +100,11 @@ core services:
 
 ### The gate fails closed
 
-A plugin's manifest is a *request*, never an authorisation. The loader trusts a manifest only for
-plugins marked `builtin` — first-party packages bundled with the app. Anything else must have a
-matching row in `capability_grants`; without one it is refused and recorded as `ungranted` rather
-than loaded. External desktop plugins loaded dynamically through `bbebee-plugin://` are strictly
+A plugin's manifest is a *request*, never an authorisation. 规范见
+[rules/plugins.md §7 Dual-Mode Plugin Loading](../../rules/plugins.md#7-dual-mode-plugin-loading)（L2）：the loader trusts a manifest
+only for plugins marked `builtin` — first-party packages bundled with the app; anything else needs
+a matching row in `capability_grants`, and without one it is refused and recorded as `ungranted`
+rather than loaded. External desktop plugins loaded dynamically through `bbebee-plugin://` are strictly
 subject to this check.
 
 This matters because the failure mode is silent: a host that simply forgot to pass its grants
@@ -156,7 +160,8 @@ something shipped rather than a subsystem to invent.
 
 ## 8. Writing a plugin: checklist
 
-- [ ] `name` set, and it matches the package name's suffix.
+- [ ] `name` set, and it matches the package name's suffix — 规范见
+      [rules/plugins.md §1 Shape](../../rules/plugins.md#1-shape)（L2）.
 - [ ] `inject` lists exactly what is needed — optional deps in object form.
 - [ ] No platform SDK imported ([architecture/layers.md §1](../architecture/layers.md#the-invariant)). Core plugins are the
       exception, and are the *only* exception.

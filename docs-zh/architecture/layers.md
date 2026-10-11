@@ -69,9 +69,9 @@
 | 层 | 包 | 负责什么 | 可依赖 | 绝不 |
 |---|---|---|---|---|
 | **5 —— UI 与业务功能** | `apps/mobile`、`apps/desktop/renderer`、`plugin-*-ui-mobile`、`plugin-*-ui-desktop`、`ui-kit-*`、`ui-core`、`ui-menus`、`ui-parity`、`ui-tokens` | 页面、导航、手势与键盘，以及把一条用户意图转换成一系列功能调用的编排 | Layer 0–4 | 平台 SDK；内核的引导表面；SQL；HTTP；`console.*`；业务状态（[§6](#6-状态归属)） |
-| **4 —— 功能插件** | 无 UI 的 `plugin-*`（`plugin-player`、`plugin-dsp`、`plugin-sources`、`plugin-source-runtime`、`plugin-source-local`、`plugin-download`、`plugin-library`、`plugin-album`、`plugin-now-playing`、`plugin-queue`、`plugin-lyrics`、`plugin-lyric-sources`、`plugin-cache`、`plugin-local-scanner`、`plugin-history`、`plugin-settings`、`plugin-theme`、`plugin-ui`、`plugin-mini-player`、`plugin-desktop-lyrics`、`plugin-desktop-taskbar`、`plugin-visualizer`、`plugin-sleep-timer`、`plugin-share`、`plugin-inspector`、`plugin-manager`），外加作为纯逻辑的 `source-rules` 与 `@BBeBee/toolkit` | 每个包承担一项业务能力，无 UI：状态、持久化、网络、事件 | Layer 0–3 | 平台 SDK；内核的引导表面；`console.*`；其他功能插件的内部 |
+| **4 —— 功能插件** | 无 UI 的 `plugin-*`（`plugin-player`、`plugin-dsp`、`plugin-sources`、`plugin-source-runtime`、`plugin-source-local`、`plugin-download`、`plugin-library`、`plugin-album`、`plugin-now-playing`、`plugin-queue`、`plugin-lyrics`、`plugin-lyric-sources`、`plugin-cache`、`plugin-local-scanner`、`plugin-history`、`plugin-settings`、`plugin-theme`、`plugin-ui`、`plugin-mini-player`、`plugin-desktop-lyrics`、`plugin-desktop-taskbar`、`plugin-visualizer`、`plugin-sleep-timer`、`plugin-share`、`plugin-inspector`、`plugin-manager`），外加作为纯逻辑的 `source-rules` 与 `@BBeBee/toolkit` | 每个包承担一项业务能力，无 UI：状态、持久化、网络、事件（键→包映射见 [rules/services.md §2 Standard Service Keys](../../rules/services.md#2-standard-service-keys)（L2）） | Layer 0–3 | 平台 SDK；内核的引导表面；`console.*`；其他功能插件的内部 |
 | **3 —— 日志传输** | `packages/logs/*` —— `plugin-log-buffer`、`plugin-log-console`、`plugin-log-file` | 一行日志最终落在哪里，仅此而已。每个传输都订阅 `ctx.logger`；由外壳决定运行哪一个（[contracts.md §16](../services/contracts.md)） | Layer 0–2 | 领域知识；平台 SDK。一个知道"曲目"为何物的传输就是一个功能插件 |
-| **2 —— 核心插件** | `packages/core/*` | 每个服务键对应一项平台能力，每个键背后在每个目标上都恰有一份实现 | Layer 0–1 —— **直接** | 领域知识。核心插件不得知道"曲目"是什么 |
+| **2 —— 核心插件** | `packages/core/*` | 每个服务键对应一项平台能力，每个键背后在每个目标上都恰有一份实现 | Layer 0–1 —— **直接** | 领域知识（规范见 [rules/services.md §1 Core Services Philosophy](../../rules/services.md#1-core-services-philosophy)（L2）） |
 | **1 —— 内核** | `@BBeBee/kernel` | Cordis `Context`、DI、fiber 与 effect、事件总线、配置加载、插件解析、能力门、核心迁移 | Layer 0（以及 Cordis） | 导入任何 `core-*` 或 `plugin-*`。内核不知道存在哪些插件 |
 | **0 —— 协议** | `@BBeBee/protocol` | 服务接口、实体类型、类型化事件表、常量，以及把实现钉在契约上的契约测试套件 | 什么都不依赖 | 发出运行时值；导入任何裸说明符（[structure.md §3](../workflow/structure.md#3-依赖规则)） |
 | **模型之外** | `packages/sdk`（插件开发者公开 SDK）、`packages/tooling/*`（tooling-check-changed、tooling-create-plugin、tooling-fixtures、tooling-gen-plugins） | 公开 SDK 契约、脚手架、构建管道与测试固件 | 按需依赖各层 | 业务领域状态 |
@@ -136,8 +136,8 @@ flowchart TD
 两条规则，都靠机械方式执行，都按目录限定作用范围（[workflow/structure.md §3](../workflow/structure.md#3-依赖规则)），因为代码评审无法可靠地兜住它们：
 
 > **1. `packages/core/*` 之外的任何包都不得导入平台 SDK。**
-
-无论是 `expo-file-system`、`node:fs`、`electron`，还是 `react-native` 的原生模块，都不行。
+>
+> 规范见 [rules/services.md §1 Core Services Philosophy](../../rules/services.md#1-core-services-philosophy)（L2），本节只讲原理与用法。
 
 > **2. Layer 2 之上的任何包都不得驱动内核。**
 
@@ -302,7 +302,7 @@ sequenceDiagram
 
 ### 引导插件集
 
-两个外壳的差异只体现在这张表里。这就是整个应用中平台特定的全部表面。
+两个外壳的差异只体现在这张表里。这就是整个应用中平台特定的全部表面。规范性的"键→实现"映射见 [rules/services.md §2 Standard Service Keys](../../rules/services.md#2-standard-service-keys)（L2）；本表只是注册视图。
 
 | 服务键 | `apps/mobile` 注册 | `apps/desktop` 注册 |
 |---|---|---|
@@ -372,19 +372,21 @@ sequenceDiagram
 
 为了防止插件系统退化成一锅共享可变状态的乱粥，每一份状态都有且只有一个所有者。
 
-| 状态 | 所有者 | 其他方经由 |
-|---|---|---|
-| 曲库条目（曲目、专辑……） | `ctx.db`，由 `ctx.sources` 代拥有它的源写入 | 通过 `ctx.sources` 查询，绝不跨插件边界跑裸 SQL |
-| 播放控制状态（是否在播、位置） | `ctx.player` | `player/*` 事件；`ctx.player.state` 快照 |
-| 队列 | `ctx.player`（持久化到 `queue_items`） | `queue/changed` 事件 |
-| 音频图节点 | `ctx.audio` | 绝不直接触碰；效果通过 `dsp/build-chain` 贡献片段 |
-| 效果参数 | `ctx.dsp`（持久化到 `effect_nodes`） | `ctx.dsp.setParam()` |
-| 认证令牌与源变量 | `ctx.secrets`，按源 id 为键 | 绝不离开该源的隔离作用域；绝不随源字符串一起导出 |
-| UI 贡献 | `ctx.ui` | 由外壳只读 |
-| 插件配置 | 内核，持久化在 `plugin_records` | 以插件的 `config` 参数形式交付；变更会重载 fiber |
-| 源文档 | `ctx.sources`，持久化在 `sources` | 以字符串形式导入、编辑与导出；一次编辑恰好只重载该源的 fiber |
+> **规范见 [rules/data-model.md §5 State Ownership](../../rules/data-model.md#5-state-ownership)（L2）** —— 所有权映射是规范性枚举，以该表为唯一事实来源；本节只讲原理与用法。
 
-React 不持有**任何业务状态**——只有视图状态（当前打开哪个标签、菜单是否展开）。强制执行的理由与钩子设计见 [ui/architecture.md §4](../ui/architecture.md#4-把服务绑定到-react)。
+其他方经由的途径（紧凑版）：
+
+- 曲库条目（曲目、专辑……）：通过 `ctx.sources` 查询，绝不跨插件边界跑裸 SQL
+- 播放控制状态（是否在播、位置）：`player/*` 事件；`ctx.player.state` 快照
+- 队列：`queue/changed` 事件
+- 音频图节点：绝不直接触碰；效果通过 `dsp/build-chain` 贡献片段
+- 效果参数：`ctx.dsp.setParam()`
+- 认证令牌与源变量：绝不离开该源的隔离作用域；绝不随源字符串一起导出
+- UI 贡献：由外壳只读
+- 插件配置：以插件的 `config` 参数形式交付；变更会重载 fiber
+- 源文档：以字符串形式导入、编辑与导出；一次编辑恰好只重载该源的 fiber
+
+React 在同一规则下的位置（不持有业务状态 —— 只有视图状态，比如当前打开哪个标签、菜单是否展开）；强制执行的理由与钩子设计见 [ui/architecture.md §4](../ui/architecture.md#4-把服务绑定到-react)。
 
 ---
 

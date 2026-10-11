@@ -4,14 +4,18 @@
 
 ## 6. Testing strategy
 
-Four layers, each catching something the others cannot.
+Five layers plus a manual device smoke pass, each catching something the others cannot. The
+authoritative layer table — Unit, Conformance, Integration, Source corpus, and the Leak Test
+layer — is [rules/testing-and-gotchas.md §1](../../rules/testing-and-gotchas.md#1-testing-strategy)（L2）; the matrix below records
+the tooling each layer runs on, plus the device smoke matrix this page owns.
 
-| Layer | Tool | What it covers |
+| Layer | Tool | Notes |
 |---|---|---|
-| **Unit** | Vitest | Pure logic: URN parsing, fractional indexing, smart-playlist compilation, the transport state machine against a mock `AudioService` |
-| **Conformance** | Vitest (Node) + Detox (device) | Every `core-*` implementation against the shared suite in `@BBeBee/protocol/conformance` ([services/contracts.md §18](../services/contracts.md)). **The most important layer** |
-| **Integration** | Vitest with an in-memory context | A real Cordis context, real feature plugins, fake core services. Covers plugin load order, waterfall composition, and unload completeness |
-| **Source corpus** | Vitest, responses recorded inline in the tests | In-tree reference documents in `plugin-source-runtime` replayed end to end — search, explore, album, stream — so a rule-engine change that breaks real documents fails CI. Independent source repos run their own validation gates |
+| **Unit** | Vitest | — |
+| **Conformance** | Vitest (Node) + Detox (device) | Against the shared suite in `@BBeBee/protocol/conformance` ([services/contracts.md §18](../services/contracts.md)) — **the most important layer** |
+| **Integration** | Vitest with an in-memory context | — |
+| **Source corpus** | Vitest, responses recorded inline in the tests | Independent source repos run their own validation gates |
+| **Leak test** | Vitest, parameterized over every plugin | The unload-totality claim in [§6](#6-testing-strategy) |
 | **Device smoke** | Manual, per release | Lock screen, Bluetooth, headphone unplug, incoming call, gapless boundary, background survival ([audio/engine.md](../audio/engine.md)) |
 
 Two tests that are worth writing before almost anything else, because they encode the
@@ -157,7 +161,7 @@ leak test, both of which cost a debugging session to discover the hard way.
 
 - **End users**: not a development task at all. In the app: **Settings → Sources → Import**, paste the string, review what it says it will do, confirm ([sources/authoring.md §9](../sources/authoring.md#9-importing-updating-and-sharing)). No install, no rebuild, no restart.
 - **Source authors & developers**:
-  To avoid writing hundreds of lines of escaped JavaScript inside a single JSON string, author sources as dual files (`src/source.json` + `src/source.js`) in their own GitHub repositories (e.g. [B_Be_Bee-subsonic](https://github.com/BBeBeeX/B_Be_Bee-subsonic), [B_Be_Bee-lrclib](https://github.com/BBeBeeX/B_Be_Bee-lrclib)). In the source repository, `node scripts/compile.mjs` compiles them into root `index.json`, and `node scripts/validate.mjs` verifies schema compliance and byte-for-byte reproducibility.
+  To avoid writing hundreds of lines of escaped JavaScript inside a single JSON string, author sources as dual files (`src/source.json` + `src/source.js`) in their own GitHub repositories (e.g. [B_Be_Bee-subsonic](https://github.com/BBeBeeX/B_Be_Bee-subsonic), [B_Be_Bee-lrclib](https://github.com/BBeBeeX/B_Be_Bee-lrclib)). （规范见 [rules/sources.md §4 — Source Authoring Workflow](../../rules/sources.md#4-source-authoring-workflow)（L2），本节只讲用法与背景：in-repo `compile.mjs` / `validate.mjs` 的 schema 校验与逐字节可复现要求归该节。）
 
 | Command | What it does |
 |---|---|
@@ -183,22 +187,22 @@ than a typo:
 
 | Gate | Catches |
 |---|---|
-| `no-restricted-imports` | A plugin reaching for a platform SDK instead of a `ctx.*` service ([architecture/layers.md §1](../architecture/layers.md#the-invariant)) |
-| Conformance suites | Two implementations of one service drifting apart — the thing they exist for |
+| `no-restricted-imports` | 规范见 [rules/testing-and-gotchas.md §1](../../rules/testing-and-gotchas.md#1-testing-strategy)（L2）；越界原理见 [architecture/layers.md §1](../architecture/layers.md#the-invariant) |
+| Conformance suites | 规范见 [rules/testing-and-gotchas.md §1](../../rules/testing-and-gotchas.md#1-testing-strategy)（L2）；契约见 [services/contracts.md §18](../services/contracts.md) |
 | `*-scope` suites | A capability gate that holds on one platform and not the other |
-| Leak test (`diffSnapshots`) | A plugin that does not unload cleanly ([§6](#6-testing-strategy)) |
-| `conventions.test.ts` | An un-awaited `ctx.plugin()`, which silently fails to propagate readiness |
+| Leak test (`diffSnapshots`) | 规范见 [rules/testing-and-gotchas.md §1](../../rules/testing-and-gotchas.md#1-testing-strategy)（L2）；参数化跑法见 [§6](#6-testing-strategy) |
+| `conventions.test.ts` | 规范见 [rules/testing-and-gotchas.md §1](../../rules/testing-and-gotchas.md#1-testing-strategy)（L2） |
 
 ### When something goes wrong
 
 | Symptom | Cause |
 |---|---|
-| Metro: *cannot resolve `cordis`* | `unstable_enablePackageExports` missing from `metro.config.js` — Cordis is ESM-only with an `exports` map ([services/contracts.md §17](../services/contracts.md#17-runtime-compatibility-checklist)) |
-| `@Inject` fails at runtime, compiles fine | Legacy decorators. Babel needs `{ version: '2023-11' }`; `tsconfig` must not set `experimentalDecorators` |
-| A plugin sits in `pending` forever | An injected service never became ACTIVE. `ctx.inspector.render()` prints the tree and names what each fiber waits for |
-| `app.start()` resolves but a service is not ready | An un-awaited `ctx.plugin()` somewhere. `pnpm test packages/kernel` will name the file |
-| `CapabilityError: … may not …` | The manifest is missing a capability, or the path/table is genuinely out of scope. Widen the manifest, never the gate |
-| `CapabilityError: host … not allowed` from a source | The document's rules reach a host it did not declare. Add it to `allowedHosts` and re-import, so the user sees it ([sources/spec.md §8](../sources/spec.md#8-sandboxing-the-quickjs-realm)) |
+| Metro: *cannot resolve `cordis`* | 规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2）。背景：Cordis is ESM-only with an `exports` map ([services/contracts.md §17](../services/contracts.md#17-runtime-compatibility-checklist)) |
+| `@Inject` fails at runtime, compiles fine | 规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2）；`tsconfig` must not set `experimentalDecorators` |
+| A plugin sits in `pending` forever | 规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2）；`ctx.inspector.render()` prints the tree and names what each fiber waits for |
+| `app.start()` resolves but a service is not ready | 规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2）；`pnpm test packages/kernel` will name the file |
+| `CapabilityError: … may not …` | 规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2） |
+| `CapabilityError: host … not allowed` from a source | 规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2）；add the host and re-import so the user sees it ([sources/runtime.md §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)) |
 | A source returns nothing, with no error | A rule matched nothing where the field was optional. The test screen shows what the backend actually answered ([sources/authoring.md §10](../sources/authoring.md#10-diagnosing-a-broken-source)); `check` finds it before a user does |
 | `JsTimeoutError` in a source | An `@js:` block looped, or awaited a request that never resolved. Limits are per evaluation and not configurable per source ([services/contracts.md §19](../services/contracts.md)) |
 | Renderer: *preload bridge is missing* | The renderer loaded without `preload/index.cjs` — rebuild, since preload must be CJS |

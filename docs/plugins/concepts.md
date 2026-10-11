@@ -26,57 +26,21 @@ A plugin is one of three things. Cordis accepts all three; BBeBee uses the first
 
 **A function.** For plugins that only register behaviour and provide no service.
 
-> ⚠️ **Make it `async`.** Cordis decides "is this a class?" with
-> `!!func.prototype`, and a plain `function apply(…)` has one — so it is `new`-ed as if it were a
-> service and **the disposer it returns is discarded**. The plugin loads, works, and never unloads:
-> exactly the failure this architecture claims is impossible, and invisible until something asks
-> why an unloaded plugin's provider is still registered. `async function`, arrow functions and
-> object-method shorthand have no prototype and are safe. `conventions.test.ts` fails the build on
-> the other shape.
+> 规范见 [rules/plugins.md §1 Shape](../../rules/plugins.md#1-shape)（L2）：entry points must be `async function`, an
+> arrow function, or method shorthand, with the canonical code for both shapes. 本节只讲原理与用法。
 
-```ts
-import type { Context } from '@BBeBee/protocol'
-
-export const name = 'plugin-media-keys'
-export const inject = ['player', 'device']
-
-export async function apply(ctx: Context) {
-  // Returning a function makes it the disposer for this plugin.
-  return ctx.device.onMediaKey((key) => {
-    if (key === 'play-pause') ctx.player.togglePlay()
-    if (key === 'next') ctx.player.next()
-  })
-}
-```
+The reason for the rule is worth understanding once: Cordis decides "is this a class?" with
+`!!func.prototype`, and a plain `function apply(…)` has one — so it is `new`-ed as if it were a
+service and **the disposer it returns is discarded**. The plugin loads, works, and never unloads:
+exactly the failure this architecture claims is impossible, and invisible until something asks
+why an unloaded plugin's provider is still registered. That is why `conventions.test.ts` fails
+the build on the other shape.
 
 **A `Service` subclass.** For plugins that claim a service key. The class *is* the plugin — pass
-the constructor itself to `ctx.plugin()`.
-
-```ts
-import { Service } from 'cordis'
-import type { Context, PlayerService } from '@BBeBee/protocol'
-
-export class Player extends Service implements PlayerService {
-  static inject = ['audio', 'db', 'mediaSession']
-
-  constructor(ctx: Context) {
-    super(ctx, 'player')   // claims ctx.player
-  }
-
-  // Runs after construction. Dependents stay blocked until it resolves,
-  // so ctx.player is never observed half-initialised.
-  async [Service.init]() {
-    await this.restoreQueue()
-    const off = this.ctx.mediaSession.onCommand((c) => this.handle(c))
-    return () => {           // returned disposer is collected by the fiber
-      off()
-      this.audioNode?.disconnect()
-    }
-  }
-
-  togglePlay(): void { /* … */ }
-}
-```
+the constructor itself to `ctx.plugin()` (canonical code in
+[rules/plugins.md §1 Shape](../../rules/plugins.md#1-shape)). The part to understand is `[Service.init]`: it runs after
+construction, and dependents stay blocked until it resolves — so a claimed key like `ctx.player`
+is never observed half-initialised. The disposer it returns is collected by the fiber.
 
 **An object with `apply`.** Equivalent to the function form; used when metadata reads better
 alongside the implementation.
@@ -97,11 +61,15 @@ Every plugin may carry these (from Cordis's `Plugin.Base`):
 
 Three conventions on top of Cordis, enforced by the kernel and tooling:
 
-- Every plugin package ships a **standardized `BBeBee.plugin.json` manifest** ([loading.md §6.3](loading.md#63-standardized-manifest-specification-bbebeepluginjson)) with 15 standard fields:
-  `id`, `name`, `displayName`, `description`, `version`, `author`, `engines`, `enabled`, `dependencies`, `systemId`, `moduleId`, `entry`, `capabilities`, `contributes`, `effect` (plus optional `platforms`).
-  The `systemId` field assigns the package to its architectural layer stratum (`"layer-1"` through `"layer-5"`), while `moduleId` maps it to its functional domain (`"sources"`, `"playback"`, `"lyrics"`, `"dsp"`, `"storage"`, `"settings"`, `"inspector"`, etc.).
+- Every plugin package ships a **standardized `BBeBee.plugin.json` manifest** ([loading.md §6.3](loading.md#63-standardized-manifest-specification-bbebeepluginjson)).
+  The 15 standardized fields, their enumerations, and the `systemId`-not-`subsystemId` naming
+  requirement are specified once in
+  [rules/plugins.md §6 Manifest Standards (`BBeBee.plugin.json`)](../../rules/plugins.md#6-manifest-standards-bbebeepluginjson)（L2）;
+  `systemId` assigns the package to its layer stratum (`"layer-2"` through `"layer-5"`), `moduleId` to its functional domain.
 - A plugin's **runtime module has a default export** that is the Cordis plugin, so the static loader on mobile and the dynamic loader on desktop treat every plugin identically.
-- **Dual-mode Loading Architecture**: Statically bundled on mobile via codegen (`apps/mobile/generated/plugins.ts`), while desktop dynamically discovers and loads all workspace built-ins via Vite dynamic globs (`getBuiltinPluginRegistry()`) and third-party plugins over the privileged `bbebee-plugin://` scheme without any static codegen file.
+- **Dual-mode Loading Architecture**: 规范见 [rules/plugins.md §7 Dual-Mode Plugin Loading](../../rules/plugins.md#7-dual-mode-plugin-loading)（L2）—
+  statically bundled on mobile via codegen, loaded dynamically on desktop with no static codegen
+  file; [loading.md §6](loading.md#6-loading) walks both sides as implemented.
 
 ---
 
@@ -131,62 +99,13 @@ data, but the runtime gives each one its own fiber precisely to inherit this
 
 ### The rule: every side effect goes through the fiber
 
-> Anything a plugin starts, it must register so the fiber can stop it.
+> 规范见 [rules/plugins.md §2 Every side effect goes through the fiber](../../rules/plugins.md#2-every-side-effect-goes-through-the-fiber)（L2），本节只讲原理与用法。
 
-A second, subtler rule follows from how services are handed out: **wrap a disposer that came back
-through a service proxy** rather than returning it straight. Services are reached through Cordis's
-tracing proxy, and the function that comes back through it is not the one the fiber collects — so
-the obvious line leaves the registration in place after unload.
-
-```ts
-// ❌ Looks right; the effect is still registered after this plugin unloads.
-export async function apply(ctx: Context) {
-  return ctx.dsp.registerEffect(effect)
-}
-
-// ✅ Wrapped in a local closure, which is what gets collected.
-export async function apply(ctx: Context) {
-  const off = ctx.dsp.registerEffect(effect)
-  return () => off()
-}
-```
-
-```ts
-export async function apply(ctx: Context) {
-  // ✅ Return a disposer.
-  const conn = ctx.ws.connect(url)
-  return () => conn.close()
-}
-
-export async function apply(ctx: Context) {
-  // ✅ Several disposables — use the generator form; they unwind in reverse.
-  return ctx.effect(function* () {
-    yield ctx.on('player/track-changed', onTrack)   // ctx.on returns its own disposer
-    const timer = setInterval(tick, 30_000)
-    yield () => clearInterval(timer)
-    yield ctx.ui.registerSlot('now-playing.actions', descriptor)
-  }, 'scrobbler')
-}
-```
-
-Anti-patterns, all of which produce a plugin that cannot be disabled:
-
-```ts
-// ❌ Listener outlives the plugin.
-window.addEventListener('resize', onResize)
-
-// ❌ Timer keeps firing into a dead context.
-setInterval(poll, 1000)
-
-// ❌ Module-level singleton shared across fibers; survives reload with stale state.
-let cache = new Map()
-
-// ❌ Escapes the fiber entirely — nothing can cancel it, and it may resolve
-//    after unload and touch disposed state.
-;(async () => { await longRunningScan() })()
-```
-
-For the last case, take a cancellation signal from the fiber and honour it:
+The subtle part is *why* the obvious line fails: services are reached through Cordis's tracing
+proxy, and the function that comes back through it is not the one the fiber collects — so the
+registration stays in place after unload unless the handle is wrapped in a local closure first.
+The anti-pattern to watch is the floating async IIFE, which escapes the fiber entirely; for it,
+the fiber hands you a cancellation signal:
 
 ```ts
 export async function apply(ctx: Context) {
@@ -210,8 +129,7 @@ and surfaces it in the plugin inspector, so a broken plugin is visible rather th
 
 ## 3. Dependencies
 
-`inject` is a declaration of need, not an import. Load order is *derived* from it; nothing in
-BBeBee sequences plugin startup by hand.
+> 规范见 [rules/plugins.md §3 Dependencies & Injections](../../rules/plugins.md#3-dependencies--injections)（L2），本节只讲原理与用法。
 
 ```ts
 // Array form — the usual case.
@@ -221,17 +139,12 @@ export const inject = ['db', 'http', 'fs']
 export const inject = { db: null, http: { timeoutMs: 5_000 } }
 ```
 
-> ⚠️ **Everything named in `inject` is required, in both forms.** Cordis's `Fiber._refresh()`
-> iterates every key and parks the fiber if any implementation is missing; a `null` value in the
-> object form means "no interception config", *not* "optional". This is asserted in
-> `packages/kernel/src/cordis-assumptions.test.ts` because it is easy to assume otherwise.
-
-The fiber stays `PENDING` until every injected service is `ACTIVE`.
+That everything named in `inject` is required — in *both* forms — is easy to assume otherwise, so
+it is asserted in `packages/kernel/src/cordis-assumptions.test.ts`: Cordis's `Fiber._refresh()`
+iterates every key and parks the fiber if any implementation is missing; a `null` value in the
+object form means "no interception config", *not* "optional".
 
 ### Optional dependencies
-
-There is no optional variant of `inject`. Express one as a **nested `ctx.inject()`**: the outer
-plugin activates immediately, and only the inner block waits.
 
 ```ts
 export const inject = ['db']            // hard requirement
@@ -258,15 +171,17 @@ export class Library extends Service {
 }
 ```
 
-> ⚠️ The decorator is a **2023-11 standard decorator**, not the legacy TypeScript form. Both the
+> ⚠️ The decorator is the **2023-11 standard decorator** — 规范见
+> [rules/plugins.md §3](../../rules/plugins.md#3-dependencies--injections)（L2）. Both the
 > Babel config (mobile) and `tsconfig` must be set accordingly —
 > [services/contracts.md §17](../services/contracts.md#17-runtime-compatibility-checklist).
 
 ### Choosing what to inject
 
-Inject the *narrowest* set that is genuinely required. A plugin that injects `db` merely to read
-one setting should inject `store` instead, so it stays loadable on a device where the database
-failed to open. Over-injecting turns a soft degradation into a hard one.
+The narrowest-set rule ([rules/plugins.md §3](../../rules/plugins.md#3-dependencies--injections)) earns its keep when a device
+degrades: a plugin that injects `db` merely to read one setting should inject `store` instead, so
+it stays loadable on a device where the database failed to open. Over-injecting turns a soft
+degradation into a hard one.
 
 ---
 

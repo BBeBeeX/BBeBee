@@ -94,7 +94,7 @@ export interface AggregatedSearch {
 
 `searchAll` 形状未变，但比以前更重要了：面对十几个质量参差的导入源，"按源分组的结果、附每个源各自的错误"正是"搜索坏了"与"你十二个源里有三个应答了、一个被限流、一个需要重新导入"之间的区别。
 
-搜索界面消费的正是这个数据形状，且绝不将其混杂合并。`useSourceSearch`（无头，由两个平台的外壳共享）执行扇出，`searchResultRows` 将答案展平为一个虚拟化列表，其各个分区以音源名称为标题 —— 一个失败、超时或未找到任何内容的源仍保留其标题栏，因此"没有匹配项"与"从未应答"绝不会看起来混淆。开关选择由 `useSearchSourceSelection` 提供：默认选中每个可搜索的提供方，用户的选择作为*排除项*存储，因此稍后新导入的源仍会自动参与下一次搜索。`canSearchProvider` 是服务与界面共享的唯一谓词，保证开关不会提供一个 `searchAll` 会静默跳过的音源（[ui/architecture.md §4](../ui/architecture.md#the-source-surfaces)）。
+搜索界面消费的正是这个数据形状，且绝不将其混杂合并。`useSourceSearch`（无头，由两个平台的外壳共享）执行扇出，`searchResultRows` 将答案展平为一个虚拟化列表，其各个分区以音源名称为标题 —— 一个失败、超时或未找到任何内容的源仍保留其标题栏，因此"没有匹配项"与"从未应答"绝不会看起来混淆。开关选择由 `useSearchSourceSelection` 提供：默认选中每个可搜索的提供方，用户的选择作为*排除项*存储，因此稍后新导入的源仍会自动参与下一次搜索。`canSearchProvider` 是服务与界面共享的唯一谓词，保证开关不会提供一个 `searchAll` 会静默跳过的音源（[ui/architecture.md §4](../ui/architecture.md#音源相关界面)）。
 
 该扇出背后的缓存写入是**服务自身负责**的，而非调用方。`searchAll` 经由 UI 包的上下文被调用，该上下文没有数据库访问权限，因此该步骤在初始化时捕获的句柄（通过 `CacheWriter`，位于 `Catalog` 与 `SourceStore` 旁）上运行，而不是在调用方的句柄上。如果把这个顺序搞反，在搜索结果中是无法察觉的 —— 无论哪种方式结果都会从内存中返回 —— 但很久之后会暴露为一个无法解析封面或标题的播放队列，因为这些数据行从未真正写入目录库。
 
@@ -171,7 +171,7 @@ export interface SearchResult {
 
 `total` 保持可选，因为一个抓取来的页面几乎从来不知道总数，而凭空编造一个只会产出说谎的进度条。
 
-详情端点（`getAlbum(urn, page?)` 与 `getPlaylist(urn, page?)`）同样参与该分页模型。当查询包含海量曲目、系列或合集的三方提供方时，消费方传入 `PageRequest`（通常每页 30 项），并在 `AlbumDetail` 或 `PlaylistDetail` 内接收 `hasMore` 与 `cursor`。运行时将此转换为源自身的分页参数（`pn`/`page_num` 与 `ps`/`page_size`），让视图在滚动时逐步分页加载，而不是预先加载数千首曲目。
+详情端点（`getAlbum(urn, page?)` 与 `getPlaylist(urn, page?)`）同样参与该分页模型（规范见 [rules/sources.md §2 — Detail Pagination](../../rules/sources.md#2-rule-language)（L2）：runtime 将页码/游标映射为 `pn`/`page_num`、`ps`/`page_size`，并在 `AlbumDetail` / `PlaylistDetail` 回传 `hasMore` 与 `cursor`）。当查询包含海量专辑、系列或合集的三方提供方时，消费方传入 `PageRequest`（通常每页 30 项），让视图在滚动时逐步分页加载，而不是预先加载数千首曲目。
 
 **限流**是 `concurrentRate`，由源自己隔离的 HTTP 栈强制执行，而不是由规则。`"3/1000"` 是每秒三个请求；`"1/2000"` 是每两秒一个。没有 `concurrentRate` 的源会得到一个保守默认值，因为往高了猜的失败模式，就是某个人的服务器封掉用户的 IP。
 
@@ -247,7 +247,7 @@ export interface ProviderAuth {
 
 登录一次就必须够用。许多后端把会话完全装在 cookie 里，于是一个随进程消亡的 jar 意味着每次启动都要登录一次。
 
-每个源拥有一个**持久化 cookie 罐**，以源 id 为键，由 `ctx.http` 提供（[overview.md §2.1](../services/overview.md#21-cookie-罐)）。没有任何规则需要管理它：它存在于该源隔离的 `ctx.http` 作用域中（[§4.1](#41-一个源的生命周期)），于是运行时替该源发出的每个请求都自动带上正确的 cookie，收到的每个 `Set-Cookie` 都会被存储，文档里一行 cookie 处理代码都不用写。
+每个源拥有一个**持久化 cookie 罐**，以源 id 为键，由 `ctx.http` 提供（[contracts.md §2.1](../services/contracts.md#21-cookie-罐)）。没有任何规则需要管理它：它存在于该源隔离的 `ctx.http` 作用域中（[§4.1](#41-一个源的生命周期)），于是运行时替该源发出的每个请求都自动带上正确的 cookie，收到的每个 `Set-Cookie` 都会被存储，文档里一行 cookie 处理代码都不用写。
 
 ```mermaid
 sequenceDiagram
@@ -261,7 +261,7 @@ sequenceDiagram
     U->>R: signIn({ username, password })
     R->>H: POST loginUrl
     H->>J: store Set-Cookie
-    J->>S: persist (encrypted, see [services/overview.md §2.1](../services/overview.md#21-cookie-罐))
+    J->>S: persist (encrypted, see [services/contracts.md §2.1](../services/contracts.md#21-cookie-罐))
     R-->>U: status = 'authenticated'
 
     Note over R,J: ── Next launch ──
@@ -286,7 +286,7 @@ sequenceDiagram
 - **过期被认真对待。** `Expires`/`Max-Age` 已过去的会话 cookie 在回灌时被丢弃而不是重放，否则会造出一种"明明已登录但每个请求都失败"的困惑状态。
 - **用户可以在不移除的情况下撤销。** 设置为每个源提供"清除已存会话"操作，清掉 jar、secrets 命名空间与 vars，同时保留该源的导入状态。
 
-> ⚠️ 一个持久化的 cookie 就是一件持有者凭据（bearer credential），有效期为服务器所选，可能长达数月。它值得与密码同等的保护，[services/overview.md §2.1](../services/overview.md#21-cookie-罐) 的存储设计正是如此对待它。这也意味着"登出"必须真正生效 —— 登出后仍留在磁盘上的 jar 是真实的安全漏洞，而不是不整洁。
+> ⚠️ 一个持久化的 cookie 就是一件持有者凭据（bearer credential），有效期为服务器所选，可能长达数月。它值得与密码同等的保护，[services/contracts.md §2.1](../services/contracts.md#21-cookie-罐) 的存储设计正是如此对待它。这也意味着"登出"必须真正生效 —— 登出后仍留在磁盘上的 jar 是真实的安全漏洞，而不是不整洁。
 
 ---
 
@@ -328,14 +328,14 @@ export interface StreamHandle {
 
 对那些棘手情形的处理：
 
-- **会过期的 URL。** 播放器在 `expiresAt` 距今不足 60 秒时重新解析；流中途遇到 `403` 时，它先重新解析一次并从当前位置续播，之后才把错误抛给用户。返回短时效 URL 的源应设置 `ruleStream.expiresAt`；一个不设置它却照样提供会过期 URL 的源，会制造出本系统中最令人困惑的一类 bug —— 这正是 `check`（[authoring.md §10](./authoring.md#10-诊断一个损坏的音源)）会把"第二次 HEAD 就拒绝的流 URL"标记出来的原因。
+- **会过期的 URL。** 播放器在 `expiresAt` 距今不足 60 秒时重新解析；流中途遇到 `403` 时，它先重新解析一次并从当前位置续播，之后才把错误抛给用户。返回短时效 URL 的源应设置 `ruleStream.expiresAt`；一个不设置它却照样提供会过期 URL 的源，会制造出本系统中最令人困惑的一类 bug —— 这正是 `check`（[authoring.md §10](./authoring.md#10-诊断一个坏掉的源)）会把"第二次 HEAD 就拒绝的流 URL"标记出来的原因。
 - **音质协商。** `{{prefs.*}}` 在 `ruleStream` 内处于作用域之中，因此由文档决定它能提供什么。它返回什么，句柄里就报告什么，于是 UI 展示的是真实码率而不是请求的码率。
 - **`saveData`。** 取自 `ctx.device.network().metered`。无视它的源不算坏了规矩，但下载策略引擎照样会拒绝启动任何传输。
 - **头部随句柄一起走。** 一个只在带 `Referer` 时才可用的流 URL 是常事，`ruleStream.headers` 就是源说明这一点的方式。`ctx.audio` 随加载请求一起收到它们；它们在日志中被脱敏。
 
 ---
 
-> **关于第 7 节的说明：** 错误诊断、规则失败码与测试套件详见 [authoring.md §7](./authoring.md#7-错误处理)。
+> **关于第 7 节的说明：** 错误诊断、规则失败码与测试套件详见 [authoring.md §7](./authoring.md#7-错误)。
 
 ---
 
@@ -343,11 +343,11 @@ export interface StreamHandle {
 
 > ⚠️ **一个源字符串就是一个陌生人写出来的程序。** `@js:`、`jsLib` 与 `{{ }}` 都是 JavaScript。把导入的源当成惰性配置是一种谎言，这个设计也不假装不是如此。
 
-让这件事变得可处理 —— 也确实比它所取代的插件模型更好 —— 的一点在于：一个源的执行环境*小到可以一一列举*。运行期加载的插件与渲染进程共享同一个 realm，什么都能碰到（[concepts.md §7](../plugins/concepts.md#它不是什么)）；而一个源碰不到下面这份清单之外的任何东西。
+让这件事变得可处理 —— 也确实比它所取代的插件模型更好 —— 的一点在于：一个源的执行环境*小到可以一一列举*。运行期加载的插件与渲染进程共享同一个 realm，什么都能碰到（[capabilities.md §7](../plugins/capabilities.md#它不是什么)）；而一个源碰不到下面这份清单之外的任何东西。
 
 ### 求值器
 
-源的 JavaScript 运行在 `ctx.js` 里 —— 一个**独立的解释器 realm**，两个平台都用 QuickJS —— 不引用应用的全局对象、Cordis 上下文、DOM 或模块系统。它正是 [concepts.md §7](../plugins/concepts.md#它不是什么) 所说的、真正的隔离所需要的独立 realm。音源是它如今就存在、而不是留待以后的原因；第三方插件将继承它（[roadmap.md §M5](../roadmap/roadmap.md#m5--沙箱上的第三方扩展)）。契约见 [contracts.md §19](../services/contracts.md#19-ctxjs--沙箱化求值器)。
+（规范见 [rules/sources.md §3 — Sandboxing & Security](../../rules/sources.md#3-sandboxing--security)（L2），本节只讲原理与用法：`ctx.js` 是独立解释器 realm，无宿主全局 / 无 Cordis / 无 DOM / 无模块系统，跨界仅值克隆）源的 JavaScript 运行在 `ctx.js` 里 —— 两个平台都用 QuickJS —— 它正是 [capabilities.md §7](../plugins/capabilities.md#它不是什么) 所说的、真正的隔离所需要的独立 realm。音源是它如今就存在、而不是留待以后的原因；第三方插件将继承它（[roadmap.md §M5](../roadmap/roadmap.md#m5--沙箱上的第三方扩展)）。契约见 [contracts.md §19](../services/contracts.md#19-ctxjs--沙箱化求值器)。
 
 一个源能看到的全部宿主接口面：
 
@@ -393,12 +393,11 @@ export interface SourceHost {
 
 ### 限制，以及每条限制为何存在
 
+门控规范 —— 出站请求在 `http/request` 瀑布钩子前后对照 manifest 的 `allowedHosts` 核查 —— 见 [rules/sources.md §3 — Sandboxing & Security](../../rules/sources.md#3-sandboxing--security)（L2）；本表记录具体的限制数值，以及每条限制为何存在。
+
 | 限制 | 数值 | 它挡住什么 |
 |---|---|---|
 | **主机允许列表** | `sourceUrl` 的主机加上 `allowedHosts`，按主机名匹配 | 向攻击者控制的端点外泄数据。指向任何其他主机的 URL 都会被以 `CapabilityError` 拒绝，无论它是字面写出的还是运行时算出来的 |
-
-`allowedHosts` 的条目是**主机名**，任何会在静默中被放宽成一个主机名的东西都会在导入时被拒绝。`nas:4533` 读起来像"这台主机的这个端口"，但匹配器里根本不存在端口 —— 端口会被丢弃，条目于是覆盖所有端口 —— 因此它会以一条点名该条目的消息被拒绝。路径出于同样的原因被拒绝。裸 scheme 什么都不会丢，所以 `https://cdn.example.org` 会被接受并规范化为它的主机。一个条目覆盖它的子域（`example.org` 接纳 `cdn.example.org`，绝不容纳 `notexample.org`）；单标签条目只匹配它自己，因此 `["org"]` 不可能意味着".org 中的任何地方"。
-
 | 每条规则的墙钟时间 | 2 秒（带网络的 `@js:` 为 10 秒） | 一条把搜索挂死的规则 |
 | 每次求值的内存 | 32 MB | 一个把应用 OOM 掉的源 |
 | 每条规则的 HTTP 调用次数 | 8 —— ⚠️ **尚未强制执行**；计数器还不存在 | 一条把一次搜索变成爬取的规则 |
@@ -406,7 +405,9 @@ export interface SourceHost {
 | 并发 | `concurrentRate`，默认保守 | 用户自己的服务器封掉用户的 IP |
 | `webView` 选项 | 仅桌面端，默认关闭，按源显式开启并带警告 | 一个带着用户会话的完整浏览器上下文，且能从一段粘贴的字符串触达 |
 
-允许列表是最重要的一条，它也是与 legado 的刻意分歧 —— legado 允许书源请求任何东西。导入时它以一份平实的主机名清单展示 —— "这个源将与这些主机通信：music.example.org、cdn.example.org" —— 因为这样一句话是用户真正能够判断的。
+`allowedHosts` 的条目是**主机名**，任何会在静默中被放宽成一个主机名的东西都会在导入时被拒绝。`nas:4533` 读起来像"这台主机的这个端口"，但匹配器里根本不存在端口 —— 端口会被丢弃，条目于是覆盖所有端口 —— 因此它会以一条点名该条目的消息被拒绝。路径出于同样的原因被拒绝。裸 scheme 什么都不会丢，所以 `https://cdn.example.org` 会被接受并规范化为它的主机。一个条目覆盖它的子域（`example.org` 接纳 `cdn.example.org`，绝不容纳 `notexample.org`）；单标签条目只匹配它自己，因此 `["org"]` 不可能意味着".org 中的任何地方"。
+
+允许列表是最重要的一条，它也是与 legado 的刻意分歧 —— legado 允许书源请求任何东西。导入时它以一份平实的主机名清单展示 —— "这个源将与这些主机通信：music.example.org、cdn.example.org" —— 因为这样一句话是用户真正能够判断的。registry 安装遵循同一展示红线（[rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)）。
 
 ### 一个敌意源仍然能做的事
 

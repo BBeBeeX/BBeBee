@@ -4,7 +4,7 @@
 > content — music sources, lyric sources, themes and desktop plugins — from the
 > community registry, and how the registry repo is wired into this monorepo.
 
-Music sources are imported strings, not plugins ([spec.md](./spec.md)). The
+Music sources are imported strings, not plugins（规范见 [rules/sources.md §1 — What a Source Is](../../rules/sources.md#1-what-a-source-is)（L2））. The
 registry is the curated place where such strings — and the other three kinds of
 installable content — are published, versioned and reviewed, so that users have
 a first-party path beyond pasting whatever a forum thread says.
@@ -12,6 +12,8 @@ a first-party path beyond pasting whatever a forum thread says.
 ---
 
 ## 1. Repository architecture
+
+（规范见 [rules/sources.md §6 — Registry](../../rules/sources.md#6-registry第三方注册表)（L2）：registry 仓库定位、四类内容、entry 字段与安装红线归该节；本节讲仓库结构与发现机制。）
 
 The registry lives in its own standalone repository,
 [BBeBeeX/B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry).
@@ -44,6 +46,8 @@ B_Be_Bee-registry/
 
 ## 2. Metadata schemas
 
+（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)（L2）：entry 字段枚举与 version 语义归该节；本表展开每个字段的适用 kind 与含义。）
+
 Each entry in `music-sources/`, `lyric-sources/`, and `plugins/` is an individual `{username}-{name}.json` file:
 
 ```jsonc
@@ -63,11 +67,11 @@ Each entry in `music-sources/`, `lyric-sources/`, and `plugins/` is an individua
 | `id` | all | Stable entry id. The matching key for `lyric-source` / `theme` / `plugin` (§3). |
 | `kind` | all | `music-source` \| `lyric-source` \| `theme` \| `plugin`. |
 | `name` | all | Display name. |
-| `version` | all | Latest published semver. **Any content change must bump it**; an entry without `version` is treated as `0.0.0` and skipped by update checks. The builtin lyric source already compares against this field to decide whether a registry copy is newer. |
+| `version` | all | Latest published semver — bump on any content change; absent = `0.0.0`, skipped by update checks（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)（L2））. The builtin lyric source compares against this field to decide whether a registry copy is newer. |
 | `author` | all | Attribution, shown in the install dialog. |
 | `description` | all | One line shown in listings. |
 | `updatedAt` | all | The entry's last-commit date (ISO 8601), set by the index generator. |
-| `downloadUrl` | all | Where the installable artifact lives — always a `dist/` build artifact, never raw entry sources. |
+| `downloadUrl` | all | Where the installable artifact lives — the app only consumes `dist/` artifacts, never raw entry sources（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)（L2））. |
 | `minAppVersion` | all | Minimum app version the entry needs (semver). Optional; absent means no version restriction. Enforced in UI via `minAppVersionBlock` — disables install and explains why when the running app is older. |
 | `sourceUrl` | music-source | The document's backend base URL — the installed-source matching key (§3). |
 | `previewUrl` | theme, plugin | Preview image for the install dialog. |
@@ -79,6 +83,8 @@ Each entry in `music-sources/`, `lyric-sources/`, and `plugins/` is an individua
 ---
 
 ## 3. Matching semantics — what counts as "installed"
+
+（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)（L2）：music-source 以 `sourceUrl` 为匹配键归该节；本节讲每种 kind 为何这样匹配。）
 
 `checkUpdates()` compares index entries against what the user already has.
 The identity differs per kind, because it reuses each kind's own identity:
@@ -111,7 +117,7 @@ export interface RegistryService {
   updates(): readonly RegistryUpdate[]
   /** Fetches the distribution document for an entry and returns what the confirm dialog must show. */
   fetchEntryDetails(entry: RegistryEntry): Promise<RegistryEntryDetails>
-  /** Installs/updates one entry. The caller must already have shown the user the details (hosts / plugin risk). */
+  /** Installs/updates one entry; the caller has already shown the user the details (hosts / plugin risk) — the allowedHosts disclosure red line in rules/sources.md §6. */
   install(entry: RegistryEntry, opts?: { confirmed?: boolean }): Promise<void>
   /** Composition root sets this so plugin-kind installs can reach the desktop dynamic host. */
   setPluginInstaller(installer: (bundle: PluginInstallBundle) => Promise<void>): void
@@ -206,14 +212,23 @@ For third-party plugins and author repositories:
 
 ### 5.3 Static Security Audit (`ctx.securityAudit`)
 
-The built-in `@BBeBee/plugin-security-audit` plugin (Layer 4) provides static code analysis against 7 security hazard patterns (§1.4c):
-- `dynamic-execution`: `eval()`, `new Function()`, `setTimeout`/`setInterval` with string code, `vm` breakout.
-- `undeclared-egress`: Network requests (`fetch`, `XMLHttpRequest`, `WebSocket`, etc.) directed to hosts outside the declared `allowedHosts` allowlist.
-- `hardcoded-credentials`: Leaked private keys (`-----BEGIN PRIVATE KEY-----`), API tokens (`ghp_`, `sk_live_`, AWS keys).
-- `prototype-pollution`: Mutations to `__proto__`, `Object.prototype`, `constructor.prototype`.
-- `remote-dynamic-import`: Dynamic `import()` statements fetching remote URLs.
-- `code-obfuscation`: Dense hex/unicode escape sequences and packer signatures.
-- `high-entropy-string`: Shannon entropy scanning flagging potential packed/encrypted payloads.
+The built-in `@BBeBee/plugin-security-audit` plugin (Layer 4) re-exports the scanner in `packages/feature/toolkit` (`scanCode`). It runs **8 static regex rules** followed by **2 dynamic scan groups** — 13 rule ids in all:
+
+Static rules (regex; one finding per match):
+
+- `eval-function-constructor` — `eval()`, `new Function()`, `window/globalThis.eval()` (block).
+- `dynamic-code-execution` — string-code `setTimeout`/`setInterval`, `vm.runIn*` / `new vm.Script`, `require('vm')` (block).
+- `credential-private-key` — `-----BEGIN … PRIVATE KEY-----` blocks (block).
+- `credential-api-token` — high-risk platform tokens (`ghp_…`, `github_pat_…`, `AKIA…`, `sk-…`) (block).
+- `credential-generic-secret` — long literals assigned to `api_key` / `secret_key` / `private_key` / `auth_token` style keys (warn).
+- `prototype-pollution` — mutations to `__proto__`, `Object.prototype`, `constructor.prototype` (block).
+- `remote-dynamic-import` — dynamic `import()` of remote URLs or indeterminate targets (block).
+- `obfuscation-packer` — known JS packer / obfuscation wrapper signatures (`eval(function(p,a,c,k,e,d/r)…`) (block).
+
+Dynamic scan groups:
+
+- **Undeclared egress** — `undeclared-host-egress`: URL literals in the code whose host is not in the entry's declared `allowedHosts` (block).
+- **Obfuscation features** — four ids: `obfuscation-dense-hex` (dense `\x` escapes; warn at ≥ 3 occurrences, block at ≥ 6), `obfuscation-dense-unicode` (dense `\u00…` escapes, warn), `obfuscation-packer-identifiers` (`_0x…` identifier swarms, block), `high-entropy-string` (Shannon entropy ≥ 4.8 in a 40+ character literal, warn).
 
 Findings are tagged as `block` (critical) or `warn` (suspicious). If any finding is at `block` level, installation is blocked by default.
 
@@ -223,7 +238,7 @@ Before any installation or update proceeds, the desktop UI (`packages/ui/plugin-
 - **Security Audit Report**: Displays an audit severity badge (`通过 (Pass)` / `警告 (Warn)` / `高危风险 (Block)`) and lists individual findings (category, severity, code snippet, line number).
 - **Author repository & commit**: Shows the source repository link and commit SHA.
 - **Commit Diff**: For updates, displays the commit progression (e.g., `a1b2c3d → e4f5g6h`).
-- **Block Gating**: When audit level is `block`, the confirmation button is disabled by default. Installation requires explicit confirmation via the `我已知晓高危风险并确认强制安装` override checkbox.
+- **Block Gating**: a `block` audit disables the confirm button by default — the explicit-risk-confirmation red line（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)（L2））; the desktop UI implements it as the `我已知晓高危风险并确认强制安装` override checkbox.
 
 ### 5.5 `registry.lock.json` Anti-Tampering Management
 
@@ -295,24 +310,23 @@ default GitHub endpoints walk the full chain.
 
 ---
 
-## 6. Built-in content constraint
+## 7. Built-in content constraint
 
-The app ships exactly **one built-in lyric source** (lrclib, id
-`builtin-lrclib` in the index) and **no built-in music sources**. The registry
-must not add new built-in sources: built-ins ship with the app binary and are
+（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)（L2）：exactly one built-in lyric source、无内置 music source、registry 不得新增 built-in。）The reason: built-ins ship with the app binary and are
 covered by the builtin-upgrade comparison, while everything in the registry is
-opt-in, user-confirmed content.
+opt-in, user-confirmed content. Today's one built-in is the lrclib lyric source (id
+`builtin-lrclib` in the index).
 
 ---
 
-## 7. View placement
+## 8. View placement
 
 The registry view ("发现" / Discovery, route `/registry`) is contributed to the desktop shell with `placement: ['tray']` rather than `sidebar`:
 
 1. **Information architecture hierarchy**: The left sidebar is reserved for primary audio playback and local library navigation (Search, Library, Albums, Playlists). Management tools and extensions (Registry, Downloads, History, Import Share) are aggregated in the TopBar tray to prevent navigation clutter.
 2. **Update notification coupling**: `apps/desktop/renderer/TopBar.tsx` hosts `TrayIndicator`, which subscribes to the `registry/updates-available` event. When updates are found, it displays an update indicator dot (`topbar-tray-update-dot`) on the tray toggle button and on the registry entry inside the tray panel. Placing the registry in the tray allows update notifications to alert the user promptly without polluting the core browsing sidebar.
 
-### 7.1 The Discovery page surface
+### 8.1 The Discovery page surface
 
 Beyond the four kind tabs, the screen carries a set of client-side view features (all view state; nothing beyond favorites is persisted):
 
@@ -324,11 +338,13 @@ Beyond the four kind tabs, the screen carries a set of client-side view features
 
 ---
 
-## 8. Where to go next
+## 9. Where to go next
 
 [spec.md](./spec.md) defines the music-source document model the registry's
 `music-source` entries compile to; [runtime.md](./runtime.md) defines what an
-imported source can and cannot do; the registry repo's
+imported source can and cannot do;
+[rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表) is the normative summary of the
+registry model; the registry repo's
 [CONTRIBUTING](https://github.com/BBeBeeX/B_Be_Bee-registry/blob/main/CONTRIBUTING.md)
 and
 [MODERATION](https://github.com/BBeBeeX/B_Be_Bee-registry/blob/main/MODERATION.md)

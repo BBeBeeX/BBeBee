@@ -4,14 +4,14 @@
 
 ## 6. Loading
 
-BBeBee implements a **dual-model loading architecture**:
-- **Mobile (`apps/mobile`)**: React Native's Metro bundler cannot resolve module paths computed at runtime, so mobile plugins are statically bundled via codegen (`apps/mobile/generated/plugins.ts`).
-- **Desktop (`apps/desktop`)**: Electron + Vite supports dynamic module evaluation. Desktop completely utilizes dynamic loading — discovering all workspace built-ins via Vite glob imports (`getBuiltinPluginRegistry()`) and third-party plugins via the privileged `bbebee-plugin://` bridge (`loadExternalPluginRegistry()`), requiring zero static codegen files.
+BBeBee implements a **Dual-Mode loading architecture** (规范见
+[rules/plugins.md §7 Dual-Mode Plugin Loading](../../rules/plugins.md#7-dual-mode-plugin-loading)（L2），本节只讲原理与用法):
+mobile is the static side (§6.1), desktop the dynamic side (§6.2).
 
 ### 6.1 Mobile target — `plugin-loader-static`
 
-Metro cannot resolve a module path computed at runtime, so mobile plugin imports must be statically
-analysable. A codegen step (`pnpm gen:plugins`, run pre-build and in dev watch) scans the
+Metro cannot resolve a module path computed at runtime (规范见
+[rules/plugins.md §7 Dual-Mode Plugin Loading](../../rules/plugins.md#7-dual-mode-plugin-loading)（L2）). A codegen step (`pnpm gen:plugins`, run pre-build and in dev watch) scans the
 workspace for packages containing a `BBeBee.plugin.json` and emits:
 
 ```ts
@@ -54,6 +54,8 @@ To maximize startup performance without breaking Cordis DI lifecycle:
 
 ### 6.2 Desktop dynamic loading — `plugin-loader-dynamic`
 
+> 规范见 [rules/plugins.md §7 Dual-Mode Plugin Loading](../../rules/plugins.md#7-dual-mode-plugin-loading)（L2），本节只讲原理与用法。
+
 Desktop implements runtime dynamic loading for external third-party plugins while maintaining sandbox integrity, `contextIsolation`, and a strict CSP:
 
 1. **Privileged Scheme in Main (`apps/desktop/main/index.ts`)**:
@@ -79,80 +81,64 @@ Desktop implements runtime dynamic loading for external third-party plugins whil
    - `installAndActivatePlugin(app, pluginId, files, manifest)`: Writes plugin files via the main process bridge, registers into `app.registerPlugin(id, entry)`, and activates in Cordis via `app.loadPlugin(id)`.
    - `uninstallExternalPlugin(app, pluginId)`: Safely disposes the Cordis fiber first via `app.unloadPlugin(id)` before deleting files from disk.
 
-4. **Kernel Dynamic Plugin Registration (`@BBeBee/kernel`)**:
-   - `app.registerPlugin(pluginId, entry)`: Appends to the active registry at runtime.
-   - `app.loadPlugin(pluginId)`: Instantiates and activates dynamic plugins with non-builtin capability checks (`ungranted` if unapproved).
-   - `app.unloadPlugin(pluginId)`: Unmounts fibers and unwinds disposers.
+4. **Kernel Dynamic Plugin Registration (`@BBeBee/kernel`)**: the three runtime APIs —
+   `app.registerPlugin(pluginId, entry)` (appends to the active registry), `app.loadPlugin(pluginId)`
+   (capability checks for non-builtins, `ungranted` rejection) and `app.unloadPlugin(pluginId)`
+   (unmounts fibers, unwinds disposers) — are specified in
+   [rules/plugins.md §7](../../rules/plugins.md#7-dual-mode-plugin-loading)（L2）.
 
 ### 6.3 Standardized Manifest Specification (`BBeBee.plugin.json`)
 
-Every plugin package across all layers (Kernel, Core, Logs, Feature, UI) carries a standardized `BBeBee.plugin.json` containing 15 standard fields (with optional `platforms`):
-
-| Field | Type | Description |
-|---|---|---|
-| `id` | `string` | Unique package ID matching npm package name (e.g. `"@BBeBee/plugin-sources-ui-desktop"`) |
-| `name` | `string` | Short technical name (e.g. `"sources-ui-desktop"`) |
-| `displayName` | `string` | Human-readable title (e.g. `"Music Sources (Desktop UI)"`) |
-| `description` | `string` | Clear description of the plugin's responsibilities |
-| `version` | `string` | Semantic version string (e.g. `"0.0.0"`) |
-| `author` | `string` | Author or organization (e.g. `"BBeBee Team"`) |
-| `engines` | `Record<string, string>` | Environment constraints, requiring `"BBeBee"` engine version (e.g. `{"BBeBee": ">=0.1.0", "node": ">=22.12.0"}`) |
-| `enabled` | `boolean` | Default activation flag |
-| `dependencies` | `string[]` | Array of prerequisite plugin IDs required to be loaded |
-| `systemId` | `string` | Architectural layer stratum ID: `"layer-1"` through `"layer-5"` |
-| `moduleId` | `string` | Functional domain grouping: `"sources"`, `"playback"`, `"lyrics"`, `"storage"`, `"dsp"`, `"settings"`, `"inspector"`, `"share"`, `"ui"`, `"core"`, `"logs"` |
-| `entry` | `PluginEntrypoints` | Entry paths (`{"main": "...", "ui": {"mobile"?: "...", "desktop"?: "..."}}`) |
-| `capabilities` | `Capability[]` | Capability grant requests (`["ui:component", "action:sources/*"]`) |
-| `contributes` | `PluginContributes` | Extension slots, routes, services schemas (`{"services": ["audio"], "routes": [...]}`) |
-| `effect` | `string \| null` | Core side effect tag (`"audio"`, `"fs"`, `"bridge"` or `null`) |
-| `platforms` | `PluginPlatform[]` | Optional platform target filter (`["desktop"]`, `["mobile"]`, or omitted for all) |
-
-> ⚠️ **Field Name Requirement:** The layer stratum ID is explicitly named **`systemId`** (not `subsystemId`).
+Every plugin package across Layers 2–5 (Core, Logs, Feature, UI) carries a standardized
+`BBeBee.plugin.json`. The 15 standardized fields (plus the optional `platforms` target filter),
+their enumerations, and the field-name requirement (`systemId`, never `subsystemId`) are specified
+once in [rules/plugins.md §6 Manifest Standards (`BBeBee.plugin.json`)](../../rules/plugins.md#6-manifest-standards-bbebeepluginjson)（L2）,
+which is authoritative over any wording here; the TypeScript shapes are `PluginManifest`,
+`PluginEntrypoints`, `PluginContributes` and `Capability` in `packages/protocol/src/manifest.ts`.
 
 #### Example Manifest:
 ```jsonc
 {
-  "id": "@BBeBee/plugin-sources-ui-desktop",
-  "name": "sources-ui-desktop",
-  "displayName": "Music Sources (Desktop UI)",
-  "description": "Desktop source management views, editor, and explorer.",
+  "id": "@BBeBee/plugin-sources",
+  "name": "@BBeBee/plugin-sources",
+  "displayName": "Sources",
+  "description": "ctx.sources — imported source documents, the registry, and the catalogue cache.",
   "version": "0.0.0",
   "author": "BBeBee Team",
   "engines": {
-    "BBeBee": ">=0.1.0",
-    "node": ">=22.12.0"
+    "BBeBee": "^0.1.0"
   },
   "enabled": true,
-  "dependencies": [
-    "@BBeBee/plugin-sources"
-  ],
-  "systemId": "layer-5",
+  "dependencies": [],
+  "systemId": "layer-4",
   "moduleId": "sources",
-  "platforms": ["desktop"],
   "entry": {
-    "main": "./src/index.tsx",
+    "main": "./dist/index.js",
     "ui": {
-      "desktop": "./src/index.tsx"
+      "desktop": "./dist/index.js",
+      "mobile": "./dist/index.js"
     }
   },
   "capabilities": [
-    "ui:component",
-    "action:sources/*"
+    "db:read:core",
+    "db:write:core"
   ],
   "contributes": {
-    "slots": [
-      "sidebar-primary"
+    "services": [
+      "sources"
     ]
-  }
+  },
+  "effect": "sources"
 }
 ```
 
 ### 6.4 Codegen Tooling (`@BBeBee/tooling-gen-plugins`)
 
-A single command (`pnpm gen:plugins`) scans all `BBeBee.plugin.json` manifests and produces:
-- `apps/mobile/generated/plugins.ts`: Static registry for mobile (Metro cannot resolve runtime module paths).
-- `packages/ui/plugin-inspector-ui-desktop/src/pcb-manifests.generated.ts`: `PLUGIN_MANIFESTS` dictionary used by the PCB topology inspector to visualize system layers, module domains, dependencies, and capabilities.
-*(Desktop no longer uses static codegen; it loads built-in and external plugins dynamically via Vite dynamic globs and the privileged `bbebee-plugin://` bridge).*
+> 规范见 [rules/plugins.md §8 Scaffolding & Codegen](../../rules/plugins.md#8-scaffolding--codegen)（L2），本节只讲原理与用法。
+
+One command (`pnpm gen:plugins`) scans every `BBeBee.plugin.json` in the workspace and regenerates
+the two committed artifacts specified there. Desktop produces no codegen artifact — discovery
+happens at runtime (§6.2).
 
 ### 6.5 Configuration
 

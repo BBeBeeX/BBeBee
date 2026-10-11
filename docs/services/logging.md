@@ -34,6 +34,8 @@ each closes a way of getting logging wrong that reads as reasonable at the call 
   file a bug report attaches. The shells are the one exemption, because a boot failure can happen
   before any transport is loaded.
 
+> 规范见 [rules/services.md §4](../../rules/services.md#4-layer-3-log-transports)（L2），本节只讲原理与用法：仅 Layer 3 传输插件可写 console；上层 feature/UI 插件必须经 `ctx.logger` 记日志。
+
 One consequence to be deliberate about: **bootstrap entries are not capability-gated**, so
 `plugin-log-file` writes with the shell's own `ctx.fs` rather than through the gate that would
 otherwise hold it to the `fs:write:logs` its manifest declares. That is the same bargain the core

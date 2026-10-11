@@ -47,11 +47,11 @@ flowchart TD
 ### 2.1 The Invariant: No Secrets in SQLite
 
 1. **Zero Secret Persistence in Database:** Under no circumstances are credentials, passwords, session tokens, or API secrets persisted in SQLite database tables (`sources`, `source_vars`, or logs).
-2. **Hardware-Backed Secret Storage:** All sensitive values are routed to `ctx.secrets` under the isolated namespace `test:${sourceId}` or `source:${sourceId}`. On desktop, this maps to OS Keychain (via Electron `safeStorage` or native keychain APIs); on mobile, this maps to iOS Keychain / Android Keystore.
+2. **Hardware-Backed Secret Storage:** All sensitive values are routed to `ctx.secrets` under the isolated namespace formed from the source's id (`ctx.secrets.namespace(sourceId)`). On desktop, this maps to OS Keychain (via Electron `safeStorage` or native keychain APIs); on mobile, this maps to iOS Keychain / Android Keystore.
 3. **UI Write-Only Exposure:** The UI never displays decrypted secrets in plaintext. Password fields render masked placeholder dots (`••••••••`). Users can enter a new password to overwrite existing credentials, but cannot exfiltrate stored credentials via UI inspection.
 4. **Automated Sandbox Egress Allowlist:** When a user updates `sourceUrl` or `host`, `updateSourceParams` automatically recomputes `allowedHostsFor(sourceId)`:
    - The new hostname is appended to the source's network egress allowlist.
-   - Any HTTP request initiated within the QuickJS isolated sandbox to hosts outside this egress list is rejected with an Egress Violation security error.
+   - Any HTTP request initiated within the QuickJS isolated sandbox to hosts outside this egress list is refused with a `CapabilityError` before it leaves the app ([runtime.md §8](./runtime.md#8-trust-what-an-imported-source-can-and-cannot-do); gating norm in [rules/sources.md §3](../../rules/sources.md#3-sandboxing--security)（L2）).
 
 ---
 
@@ -95,6 +95,8 @@ flowchart TD
 
 ## 4. Lyric Sources Configuration & Sandbox Injection
 
+（规范见 [rules/sources.md §5 — Third-Party Lyric Sources & Sandbox](../../rules/sources.md#5-third-party-lyric-sources--sandbox)（L2）：沙箱数据边界归该节；本节讲配置注入的实现。）
+
 Lyric sources implement the `plugin-lyric-sources` specification. Unlike music sources which rely on `source_vars` tables, lyric sources support arbitrary structured JSON configurations per source.
 
 ### 4.1 Schema & Service Interface
@@ -111,9 +113,9 @@ Configuration updates are saved into the source record's `config` column.
 ### 4.2 Sandbox Runtime Injection
 
 When a lyric query is executed:
-1. **QuickJS Environment:** The sandbox context exposes `source.config` as a frozen JavaScript object inside the evaluation realm.
-2. **Query Context:** The query parameter handed to `searchLyrics({ query, artist, title, config })` contains `config: source.config ?? {}`.
-3. **Fallback Evaluator:** Fallback script execution binds `query.config = source.config` so rule engines can dynamically read custom API endpoints, language preferences, or header overrides.
+1. **Query Context:** The script is handed a frozen query object — `{ title, artist, duration }`, plus a frozen `config` copy when the source defines one — and `searchLyrics` / `main` / `getLyrics` receive exactly that object.
+2. **QuickJS Environment:** The realm additionally exposes `httpFetch` (host-proxied, restricted to the source's `allowedHosts`) and a top-level `config` binding (`source.config ?? {}`).
+3. **Fallback Evaluator:** Without `ctx.js`, the same three bindings are applied as function parameters (`__query__`, `httpFetch`, `config`), so scripts read custom API endpoints, language preferences, or header overrides identically.
 
 ---
 

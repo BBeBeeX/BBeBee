@@ -23,55 +23,11 @@
 
 **一个函数。** 适用于只注册行为、不提供服务的插件。
 
-> ⚠️ **务必写成 `async`。** Cordis 用 `!!func.prototype` 来判断"这是不是一个类"，而普通的
-> `function apply(…)` 恰好有原型 —— 于是它会被当成服务那样 `new` 出来，**它返回的 disposer
-> 会被丢弃**。插件加载、工作、永不卸载：这正是本架构声称不可能发生的失败，而且在有人问起
-> "为什么已卸载插件的服务提供者仍然处于注册状态"之前一直不可见。`async function`、箭头函数
-> 与对象方法简写都没有原型，是安全的。`conventions.test.ts` 会对另一种形态直接判构建失败。
+> 规范见 [rules/plugins.md §1 Shape](../../rules/plugins.md#1-shape)（L2）：入口点必须是 `async function`、箭头函数或对象方法简写，两种形态的规范代码都在其中。本节只讲原理与用法。
 
-```ts
-import type { Context } from '@BBeBee/protocol'
+这条规则的理由值得理解一次：Cordis 用 `!!func.prototype` 来判断"这是不是一个类"，而普通的 `function apply(…)` 恰好有原型 —— 于是它会被当成服务那样 `new` 出来，**它返回的 disposer 会被丢弃**。插件加载、工作、永不卸载：这正是本架构声称不可能发生的失败，而且在有人问起"为什么已卸载插件的服务提供者仍然处于注册状态"之前一直不可见。这正是 `conventions.test.ts` 会对另一种形态判构建失败的原因。
 
-export const name = 'plugin-media-keys'
-export const inject = ['player', 'device']
-
-export async function apply(ctx: Context) {
-  // Returning a function makes it the disposer for this plugin.
-  return ctx.device.onMediaKey((key) => {
-    if (key === 'play-pause') ctx.player.togglePlay()
-    if (key === 'next') ctx.player.next()
-  })
-}
-```
-
-**一个 `Service` 子类。** 适用于要认领服务键的插件。类本身就是插件 —— 把构造函数本身传给
-`ctx.plugin()`。
-
-```ts
-import { Service } from 'cordis'
-import type { Context, PlayerService } from '@BBeBee/protocol'
-
-export class Player extends Service implements PlayerService {
-  static inject = ['audio', 'db', 'mediaSession']
-
-  constructor(ctx: Context) {
-    super(ctx, 'player')   // claims ctx.player
-  }
-
-  // Runs after construction. Dependents stay blocked until it resolves,
-  // so ctx.player is never observed half-initialised.
-  async [Service.init]() {
-    await this.restoreQueue()
-    const off = this.ctx.mediaSession.onCommand((c) => this.handle(c))
-    return () => {           // returned disposer is collected by the fiber
-      off()
-      this.audioNode?.disconnect()
-    }
-  }
-
-  togglePlay(): void { /* … */ }
-}
-```
+**一个 `Service` 子类。** 适用于要认领服务键的插件。类本身就是插件 —— 把构造函数本身传给 `ctx.plugin()`（规范代码见 [rules/plugins.md §1 Shape](../../rules/plugins.md#1-shape)）。需要理解的部分是 `[Service.init]`：它在构造之后运行，依赖方会一直阻塞到它 resolve —— 因此像 `ctx.player` 这样的已认领键绝不会被人观察到半初始化状态。它返回的 disposer 由 fiber 收集。
 
 **一个带 `apply` 的对象。** 与函数形式等价；当元数据与实现放在一起更易读时使用。
 
@@ -91,11 +47,14 @@ export class Player extends Service implements PlayerService {
 
 在 Cordis 之上再加三条约定，由内核与工具链强制执行：
 
-- 每个插件包都附带一份**标准化的 `BBeBee.plugin.json` 清单**（[loading.md §6.3](loading.md#63-插件标准化描述清单bbebeepluginjson)），包含 15 个规范字段：
-  `id`、`name`、`displayName`、`description`、`version`、`author`、`engines`、`enabled`、`dependencies`、`systemId`、`moduleId`、`entry`、`capabilities`、`contributes`、`effect`（以及可选的 `platforms`）。
-  其中 `systemId` 指明所属分层架构 ID（`"layer-1"` 到 `"layer-5"`），`moduleId` 指明功能模块/域 ID（`"sources"`、`"playback"`、`"lyrics"`、`"dsp"`、`"storage"`、`"settings"`、`"inspector"` 等）。
+- 每个插件包都附带一份**标准化的 `BBeBee.plugin.json` 清单**（[loading.md §6.3](loading.md#63-插件标准化描述清单bbebeepluginjson)）。
+  15 个规范字段、各自的枚举取值，以及 `systemId`（而非 `subsystemId`）的命名要求，统一规定于
+  [rules/plugins.md §6 Manifest Standards (`BBeBee.plugin.json`)](../../rules/plugins.md#6-manifest-standards-bbebeepluginjson)（L2）；
+  `systemId` 把包归入其分层（`"layer-2"` 至 `"layer-5"`），`moduleId` 归入其功能域。
 - 插件的**运行时模块拥有一个 default 导出**，即 Cordis 插件本身，因此移动端静态加载器与桌面端动态加载器可以用完全相同的方式对待每一个插件。
-- **双模加载架构**：移动端依托 codegen 生成的 `apps/mobile/generated/plugins.ts` 进行纯静态打包；桌面端全面采用动态加载机制 —— 通过 Vite 动态 glob 发现全部工作区内置插件（`getBuiltinPluginRegistry()`），并合流基于特权 `bbebee-plugin://` 协议动态发现的外部第三方插件，无需任何静态生成文件。
+- **双模加载架构（Dual-mode Loading Architecture）**：规范见 [rules/plugins.md §7 Dual-Mode Plugin Loading](../../rules/plugins.md#7-dual-mode-plugin-loading)（L2）——
+  移动端经 codegen 静态打包，桌面端动态加载、没有任何静态 codegen 文件；两侧的实现走读见
+  [loading.md §6](loading.md#6-加载)。
 
 ---
 
@@ -124,61 +83,9 @@ stateDiagram-v2
 
 ### 规则：一切副作用都必须经过 fiber
 
-> 插件启动的任何东西，都必须注册，让 fiber 能够停止它。
+> 规范见 [rules/plugins.md §2 Every side effect goes through the fiber](../../rules/plugins.md#2-every-side-effect-goes-through-the-fiber)（L2），本节只讲原理与用法。
 
-还有第二条更隐蔽的规则，它源自服务的分发方式：**凡是通过服务代理拿回来的 disposer，都要
-包一层**，而不是直接返回。服务都是经 Cordis 的追踪代理（tracing proxy）触达的，从代理里
-返回的那个函数并不是 fiber 会收集的那个 —— 所以最直观的写法会在卸载之后把注册留在原地。
-
-```ts
-// ❌ Looks right; the effect is still registered after this plugin unloads.
-export async function apply(ctx: Context) {
-  return ctx.dsp.registerEffect(effect)
-}
-
-// ✅ Wrapped in a local closure, which is what gets collected.
-export async function apply(ctx: Context) {
-  const off = ctx.dsp.registerEffect(effect)
-  return () => off()
-}
-```
-
-```ts
-export async function apply(ctx: Context) {
-  // ✅ Return a disposer.
-  const conn = ctx.ws.connect(url)
-  return () => conn.close()
-}
-
-export async function apply(ctx: Context) {
-  // ✅ Several disposables — use the generator form; they unwind in reverse.
-  return ctx.effect(function* () {
-    yield ctx.on('player/track-changed', onTrack)   // ctx.on returns its own disposer
-    const timer = setInterval(tick, 30_000)
-    yield () => clearInterval(timer)
-    yield ctx.ui.registerSlot('now-playing.actions', descriptor)
-  }, 'scrobbler')
-}
-```
-
-反模式 —— 以下每一种都会产出一个无法被停用的插件：
-
-```ts
-// ❌ Listener outlives the plugin.
-window.addEventListener('resize', onResize)
-
-// ❌ Timer keeps firing into a dead context.
-setInterval(poll, 1000)
-
-// ❌ Module-level singleton shared across fibers; survives reload with stale state.
-let cache = new Map()
-
-// ❌ Escapes the fiber entirely — nothing can cancel it, and it may resolve
-//    after unload and touch disposed state.
-;(async () => { await longRunningScan() })()
-```
-
-对于最后一种情况，应从 fiber 取一个取消信号并遵守它：
+微妙之处在于*为什么*最直观的写法会失败：服务都是经 Cordis 的追踪代理（tracing proxy）触达的，从代理里返回的那个函数并不是 fiber 会收集的那个 —— 所以除非把句柄先包进一个本地闭包，否则卸载之后注册仍会留在原地。要盯防的反模式是游离的异步 IIFE，它会彻底逃出 fiber；对付它，fiber 会递给你一个取消信号：
 
 ```ts
 export async function apply(ctx: Context) {
@@ -201,8 +108,7 @@ export async function apply(ctx: Context) {
 
 ## 3. 依赖
 
-`inject` 是需求的声明，而不是导入。加载顺序*由它推导*而来；BBeBee 中没有任何地方手工编排
-插件的启动顺序。
+> 规范见 [rules/plugins.md §3 Dependencies & Injections](../../rules/plugins.md#3-dependencies--injections)（L2），本节只讲原理与用法。
 
 ```ts
 // Array form — the usual case.
@@ -212,17 +118,12 @@ export const inject = ['db', 'http', 'fs']
 export const inject = { db: null, http: { timeoutMs: 5_000 } }
 ```
 
-> ⚠️ **`inject` 里写下的每一个键都是必需的，两种形式皆然。** Cordis 的 `Fiber._refresh()`
-> 会遍历每个键，只要有一个实现缺失就把 fiber 停在原地；对象形式里的 `null` 值表示"无拦截配置"，
-> *绝不是*"可选"。这一点已在 `packages/kernel/src/cordis-assumptions.test.ts` 中断言过，
-> 因为很容易想当然。
-
-fiber 保持 `PENDING`，直到每一个注入的服务都 `ACTIVE`。
+`inject` 里写下的每一个键都是必需的 —— *两种形式皆然* —— 这一点很容易想当然，所以它在
+`packages/kernel/src/cordis-assumptions.test.ts` 中被断言过：Cordis 的 `Fiber._refresh()`
+会遍历每个键，只要有一个实现缺失就把 fiber 停在原地；对象形式里的 `null` 值表示"无拦截配置"，
+*绝不是*"可选"。
 
 ### 可选依赖
-
-`inject` 没有可选变体。请把它表达为**嵌套的 `ctx.inject()`**：外层插件立即激活，
-只有内层代码块在等待。
 
 ```ts
 export const inject = ['db']            // hard requirement
@@ -249,14 +150,16 @@ export class Library extends Service {
 }
 ```
 
-> ⚠️ 这里的装饰器是 **2023-11 标准装饰器**，而非旧版 TypeScript 形式。Babel 配置（移动端）
+> ⚠️ 这里的装饰器是 **2023-11 标准装饰器** —— 规范见
+> [rules/plugins.md §3](../../rules/plugins.md#3-dependencies--injections)（L2）。Babel 配置（移动端）
 > 与 `tsconfig` 都必须相应设置 ——
 > [services/contracts.md §17](../services/contracts.md#17-运行时兼容性清单)。
 
 ### 注入什么
 
-只注入*确实需要*的最小集合。一个仅仅为了读取某个设置就注入 `db` 的插件，应该改为注入
-`store`，这样即便在数据库打开失败的设备上它仍能加载。过度注入会把软性降级变成硬性故障。
+最小集合规则（[rules/plugins.md §3](../../rules/plugins.md#3-dependencies--injections)）在设备降级时最能体现价值：
+一个仅仅为了读取某个设置就注入 `db` 的插件，应该改为注入 `store`，这样即便在数据库打开失败
+的设备上它仍能加载。过度注入会把软性降级变成硬性故障。
 
 ---
 

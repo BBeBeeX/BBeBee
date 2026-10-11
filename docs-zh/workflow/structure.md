@@ -34,16 +34,16 @@ B_Be_Bee/
 │
 ├── apps/                                   🔹 LAYER 5 —— 应用外壳
 │   ├── mobile/                     ✅        Expo app
-│   │   ├── src/boot.ts                        组合根：注册 core-*-expo ([architecture/layers.md §1](../architecture/layers.md#1-the-layer-model))
+│   │   ├── src/boot.ts                        组合根：注册 core-*-expo ([architecture/layers.md §1](../architecture/layers.md#1-分层模型))
 │   │   ├── src/plugins.ts                     允许清单，以数据形式存在 —— 什么都不导入
 │   │   ├── src/App.tsx                        挂载在 ctx.inject(['ui'], …) 之内
 │   │   ├── generated/plugins.ts               代码生成：静态插件导入 ([plugins/loading.md §6.1](../plugins/loading.md))
 │   │   ├── app.json · index.js                Expo 入口 + 配置
-│   │   ├── metro.config.js                    package exports + watchFolders ([build-pipelines.md §4](./build-pipelines.md#4-build-pipelines))
+│   │   ├── metro.config.js                    package exports + watchFolders ([build-pipelines.md §4](./build-pipelines.md#4-构建流水线))
 │   │   ├── babel.config.js
 │   │   └── android/ · ios/                    dev-client 原生工程
 │   └── desktop/                    ✅        Electron app
-│       ├── main/                              仅 IPC 宿主，不含领域逻辑 ([architecture/layers.md §2](../architecture/layers.md#2-the-two-shells))
+│       ├── main/                              仅 IPC 宿主，不含领域逻辑 ([architecture/layers.md §2](../architecture/layers.md#2-各平台的运行时模型))
 │       ├── preload/                           contextBridge 暴露面
 │       ├── renderer/                          React DOM 外壳 + 内核 (ADR-3)
 │       │   ├── boot.ts · plugins.ts             组合根 + 允许清单
@@ -70,18 +70,18 @@ B_Be_Bee/
 │   │           │                             哪些插件存在的内核就不是内核
 │   │           ├── index.ts                  两个表面，可得性并不对等：锁定的 Cordis
 │   │           │                             再导出对所有层开放，其下的引导表面只有
-│   │           │                             Layer 2 与组合根可用 ([architecture/layers.md §1](../architecture/layers.md#1-the-layer-model))
+│   │           │                             Layer 2 与组合根可用 ([architecture/layers.md §1](../architecture/layers.md#1-分层模型))
 │   │           │                             ── 按关注点划分，测试与主体同置：
 │   │           ├── bootstrap/                createApp、启动顺序、落定、外壳接线
 │   │           ├── config/                   解析、启用/禁用、默认值
 │   │           ├── loader/                   注册表 → ctx.plugin()，fiber 状态上报
-│   │           ├── capability-gate/          作用域划分与 SQL 守卫 ([plugins/capabilities.md §7](../plugins/capabilities.md#7-capability-model))。sql.ts 与
+│   │           ├── capability-gate/          作用域划分与 SQL 守卫 ([plugins/capabilities.md §7](../plugins/capabilities.md#7-能力模型))。sql.ts 与
 │   │           │                             apps/desktop/main 共享，因此一份允许清单
 │   │           │                             同时覆盖被闸的路径与 IPC 宿主
 │   │           ├── migrations/               核心 schema 迁移 ([data-model/migrations.md](../data-model/migrations.md))
 │   │           │                             ── 以及不属于任何单一关注点的：
 │   │           ├── fiber-state.ts            上游无法导出的 FiberState 镜像
-│   │           ├── testing.ts                @BBeBee/kernel/testing —— snapshotContext ([testing.md §6](./testing.md#6-testing-strategy))
+│   │           ├── testing.ts                @BBeBee/kernel/testing —— snapshotContext ([testing.md §6](./testing.md#6-测试策略))
 │   │           └── *.test.ts                 conventions · layers · cordis-assumptions：
 │   │                                         它们扫描的是工作区，不是内核
 │   │
@@ -142,14 +142,14 @@ B_Be_Bee/
 │   │   │                                       regex-guard.ts 是 ReDoS 上界
 │   │   ├── plugin-source-runtime/  ✅        把 source-rules 绑定到 ctx.http · ctx.js ([sources/runtime.md](../sources/runtime.md))
 │   │   ├── plugin-sources/         ✅        ctx.sources 注册表 + 目录 ([sources/spec.md](../sources/spec.md))
-│   │   ├── plugin-source-local/    ✅        唯一不是字符串的提供方 ([sources/authoring.md §12](../sources/authoring.md#12-what-is-not-a-string-local-files))
+│   │   ├── plugin-source-local/    ✅        唯一不是字符串的提供方 ([sources/authoring.md §12](../sources/authoring.md#12-不是字符串的东西本地文件))
 │   │   ├── plugin-local-scanner/   ✅        ctx.scanner —— ≥5,000 文件的语料遍历
 │   │   ├── plugin-player/          ✅        ctx.player —— 播放传输控制与核心播放器引擎 ([audio/playback.md](../audio/playback.md))
 │   │   ├── plugin-queue/           ✅        ctx.queue —— 播放队列管理与洗牌逻辑
 │   │   ├── plugin-history/         ✅        ctx.history —— 播放历史记录与去重
 │   │   ├── plugin-now-playing/     ✅        ctx.nowPlaying —— 正在播放状态与活跃曲目聚合
 │   │   ├── plugin-ui/              ✅        ctx.ui 贡献注册表 —— 只有描述符，
-│   │   │                                       因此它不持有任何 React ([ui/architecture.md §2](../ui/architecture.md#2-the-three-package-rule))
+│   │   │                                       因此它不持有任何 React ([ui/architecture.md §2](../ui/architecture.md#2-贡献即描述符))
 │   │   ├── plugin-inspector/       ✅        fiber 树 + 带标注的 effect (M0 完成标准)
 │   │   ├── plugin-dsp/             ✅        ctx.dsp —— 效果链，包含 9 个内置效果插件 ([audio/dsp.md](../audio/dsp.md))
 │   │   ├── plugin-library/          ✅       播放列表、收藏、智能列表
@@ -189,13 +189,13 @@ B_Be_Bee/
 │   │   ├── plugin-now-playing-ui-desktop/ ✅ ┐ 全屏播放器 + 底栏 / 迷你播放条
 │   │   ├── plugin-now-playing-ui-mobile/  ✅ ┘
 │   │   ├── plugin-sources-ui-desktop/ ✅     ┐ 搜索、音源列表、导入审查、
-│   │   ├── plugin-sources-ui-mobile/  ✅     ┘ 测试界面（模块化页面） ([ui/architecture.md §4](../ui/architecture.md#4-binding-services-to-react))
-│   │   ├── plugin-album-ui-desktop/  ✅      ┐ 单个专辑：标头、曲目、操作 ([ui/architecture.md §4](../ui/architecture.md#4-binding-services-to-react))
+│   │   ├── plugin-sources-ui-mobile/  ✅     ┘ 测试界面（模块化页面） ([ui/architecture.md §4](../ui/architecture.md#4-把服务绑定到-react))
+│   │   ├── plugin-album-ui-desktop/  ✅      ┐ 单个专辑：标头、曲目、操作 ([ui/architecture.md §4](../ui/architecture.md#4-把服务绑定到-react))
 │   │   ├── plugin-album-ui-mobile/   ✅      ┘
-│   │   ├── plugin-download-ui-desktop/ ✅    ┐ 下载队列与缓存管理 ([ui/architecture.md §4](../ui/architecture.md#4-binding-services-to-react))
+│   │   ├── plugin-download-ui-desktop/ ✅    ┐ 下载队列与缓存管理 ([ui/architecture.md §4](../ui/architecture.md#4-把服务绑定到-react))
 │   │   ├── plugin-download-ui-mobile/  ✅    ┘
 │   │   ├── plugin-library-ui-desktop/ ✅     ┐ 曲库（歌单、专辑、收藏夹）、
-│   │   ├── plugin-library-ui-mobile/  ✅     ┘ 单个歌单、收藏夹视图（模块化页面与弹窗） ([ui/architecture.md §4](../ui/architecture.md#4-binding-services-to-react))
+│   │   ├── plugin-library-ui-mobile/  ✅     ┘ 单个歌单、收藏夹视图（模块化页面与弹窗） ([ui/architecture.md §4](../ui/architecture.md#4-把服务绑定到-react))
 │   │   ├── plugin-local-scanner-ui-desktop/ ✅ ┐ 设置：扫描根目录
 │   │   ├── plugin-local-scanner-ui-mobile/  ✅ ┘
 │   │   ├── plugin-inspector-ui-desktop/ ✅   渲染出来的 fiber 树
@@ -207,7 +207,7 @@ B_Be_Bee/
 │   │   ├── plugin-share-ui-mobile/    ✅     ┘
 │   │   ├── plugin-theme-ui-desktop/   ✅     动态主题切换器、令牌编辑器与自定义主题导入
 │   │   ├── plugin-dsp-ui-desktop/  ✅        ┐ 10 段均衡器滑块、效果链排序、效果旁通
-│   │   ├── plugin-dsp-ui-mobile/   ✅        ┘ 与设置集成 ([ui/architecture.md §4](../ui/architecture.md#4-binding-services-to-react))
+│   │   ├── plugin-dsp-ui-mobile/   ✅        ┘ 与设置集成 ([ui/architecture.md §4](../ui/architecture.md#4-把服务绑定到-react))
 │   │   ├── plugin-settings-ui-desktop/ ✅    ┐ 设置中心：模块化分区、诊断与分类标签 ([ui/architecture.md §5](../ui/architecture.md))
 │   │   └── plugin-settings-ui-mobile/  ✅    ┘
 │   │
@@ -228,7 +228,7 @@ B_Be_Bee/
 ├── test/stubs/                               Node 无法加载的三个原生模块，由
 │                                             vitest.config.ts 别名：react-native-audio-api
 │                                             对任何真正原生的东西抛错，expo-sqlite 与
-│                                             expo-file-system 则真的能用 ([testing.md §6](./testing.md#6-testing-strategy))
+│                                             expo-file-system 则真的能用 ([testing.md §6](./testing.md#6-测试策略))
 ├── docs/                                     这套文档
 ├── eslint.config.js                          flat config；层规则都定义在这里 ([#3-依赖规则](#3-依赖规则))
 ├── tsconfig.base.json                        每个包的 tsconfig 都扩展它
@@ -243,7 +243,7 @@ B_Be_Bee/
 
 - **lint 规则认位置，不认拼写。** `packages/core/**` 就是获准触碰平台 SDK 的那组包，成员资格是关于文件系统的事实，而不是一种可能被一个名叫 `plugin-fs-helper` 的包悄悄蒙混过去命名约定。
 - **层的变更就是一次移动。** 把一个功能插件提升为核心服务，是 `git mv packages/feature/x packages/core/x`，它的规则随之改变，在同一个提交里、在评审中清晰可见。
-- **新包必须做出选择。** 脚手架写进 `feature/` 或 `ui/`（[§7](#7-开发工作流)），于是"这个包属于哪一层？"在创建时就被回答，而不是日后从它最终导入了什么来推断。
+- **新包必须做出选择。** 脚手架写进 `feature/` 或 `ui/`（[testing.md §7](./testing.md#7-开发工作流)），于是"这个包属于哪一层？"在创建时就被回答，而不是日后从它最终导入了什么来推断。
 
 代价是到处多出一个路径段 —— 在 `pnpm-workspace.yaml` 里、在每个包的 `extends` 里、以及在扫描工作区的测试里，后者现在靠扫描 `packages/*/*` 来定位一个包，而不是把名字拼到 `packages/` 后面。这笔代价只付一次，而且在这个布局落地时就已付清。扫描器拿目录列表当事实来源，而不是一份写死的清单，因此层目录可以改名 —— 事实上就从 `layerN-*` 改成了裸名 —— 而不必触碰它们。
 
@@ -263,7 +263,7 @@ B_Be_Bee/
 | `sdk/` | — | `sdk` —— 供外部插件使用的公开开发套件。在分层模型之外 |
 | `tooling/` | — | `tooling-*`。在分层模型之外，因为这里的任何东西都不随包发布 |
 
-如今刻意**不再有 `plugin-source-<protocol>` 前缀**。一个音乐后端是一份音源文档（[sources/spec.md](../sources/spec.md)），不是一个包。名字里带 `source` 的只有两个包：解释文档的 `plugin-source-runtime`，以及没有 HTTP 可描述的 `plugin-source-local`（[sources/authoring.md §12](../sources/authoring.md#12-what-is-not-a-string-local-files)）。官方音源实现存放在各自独立的仓库中（如 `B_Be_Bee-subsonic`），由 `B_Be_Bee-registry` 统一索引。
+如今刻意**不再有 `plugin-source-<protocol>` 前缀**。一个音乐后端是一份音源文档（[sources/spec.md](../sources/spec.md)），不是一个包。名字里带 `source` 的只有两个包：解释文档的 `plugin-source-runtime`，以及没有 HTTP 可描述的 `plugin-source-local`（[sources/authoring.md §12](../sources/authoring.md#12-不是字符串的东西本地文件)）。官方音源实现存放在各自独立的仓库中（如 `B_Be_Bee-subsonic`），由 `B_Be_Bee-registry` 统一索引。
 
 `toolkit` 具有与 `source-rules` 相同的形态 —— **没有清单，因此没有生命周期**：它由任何需要它的包直接导入，不造成任何偶合。它的职责分为两部分。**根部**是纯净、零依赖的逻辑 —— 纯库绝不命名 `ctx.*` 服务；一旦代码需要服务，它就属于 `plugin-<feature>` 包。**`./hooks` 子路径**是唯一的刻意例外：共享的 React 绑定，代表每个视图包读取服务，仅通过服务键和类型化事件定位 —— 它不导入任何 `plugin-*` 包，因此绑定到传输层的视图绝不需要导入播放器功能包。
 
@@ -297,7 +297,7 @@ flowchart TD
 
 有几条边值得读上两遍，因为它们是分层模型加以*约束*而非*禁止*的对象：
 
-- **`apps/* → @BBeBee/kernel` 与 `apps/* → core-*`** 只为组合根而存在 —— 每个外壳那一对 `boot.ts` / `plugins.ts`。`apps/*` 下的其余文件都是纯粹的 Layer 5，也被当作 Layer 5 来 lint（[§3](#3-依赖规则)）。
+- **`apps/* → @BBeBee/kernel` 与 `apps/* → core-*`** 只为组合根而存在 —— 每个外壳那一对 `boot.ts` / `plugins.ts`。`apps/*` 下的其余文件都是纯粹的 Layer 5，也被当作 Layer 5 来 lint（[§3](#3-依赖规则)）—— `apps/desktop/renderer/main.tsx` 也包括在内：它不导入任何内核面，其延迟的 `app.loadPlugin()` 调用经 `boot()` 返回的 `App` 实例在空闲时（`requestIdleCallback`）运行。
 - **`apps/* → plugin-log-*`** 是出于同样理由的同一个例外。传输层是引导条目，不是注册表条目 —— 它们在核心服务之后、功能插件之前启动，这正是 Layer 3 的*含义* —— 而只有组合根获准以导入的方式点名一个插件。仓库里没有其他任何东西导入传输层；一切都经 `ctx.logger` 记日志（[services/logging.md](../services/logging.md)）。
 - **`core-* → @BBeBee/kernel`** 是唯一一处由包（而非外壳）导入引导表面的地方：`core-db-*` 运行核心迁移，并为能力门划分 context 作用域。这正是 Layer 2 在履行其适配层职责。
 
@@ -515,7 +515,7 @@ export default tseslint.config(
 
 `layers.test.ts` 存在的理由是：允许清单是内核插件表面的*第二份副本*，而同一份清单的两份副本会漂移。有了它，向 `@BBeBee/kernel` 添加一个导出就强制给出一个深思熟虑的回答："这属于哪个表面？" —— 放进再导出块，每层都能调用；放在下面，就只有 Layer 2 能。
 
-仍待补上：检查任何 `plugin-*-ui-*` 包只通过其声明的**公共子路径**（`@BBeBee/plugin-x/hooks`、`/views`）访问其对应的无 UI 兄弟包，绝不深度导入 `src/*`。公共子路径规则目前属于约定而非强制；`eslint-plugin-import` 的 `no-restricted-paths` 是实现它的工具。视图包按设计需要从这些子路径导入*运行时值*（hooks 与视图 ID 常量，见 [ui/architecture.md §4](../ui/architecture.md#4-将服务绑定到-react)），因此笼统的“仅允许类型”检查是错误的：边界是包的公共暴露面，而非导入的类型还是值。
+仍待补上：检查任何 `plugin-*-ui-*` 包只通过其声明的**公共子路径**（`@BBeBee/plugin-x/hooks`、`/views`）访问其对应的无 UI 兄弟包，绝不深度导入 `src/*`。公共子路径规则目前属于约定而非强制；`eslint-plugin-import` 的 `no-restricted-paths` 是实现它的工具。视图包按设计需要从这些子路径导入*运行时值*（hooks 与视图 ID 常量，见 [ui/architecture.md §4](../ui/architecture.md#4-把服务绑定到-react)），因此笼统的“仅允许类型”检查是错误的：边界是包的公共暴露面，而非导入的类型还是值。
 
 ---
 

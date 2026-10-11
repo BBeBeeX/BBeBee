@@ -12,10 +12,12 @@
 
 ### 能力语法
 
+规范见 [rules/plugins.md §5 Capability Grammar](../../rules/plugins.md#5-capability-grammar)（L2）；下表逐项展开每个授权的语义与理由。
+
 | 能力 | 授予 |
 |---|---|
 | `fs:read:<scope>` / `fs:write:<scope>` | 在命名作用域内的文件系统访问：`own`、`media`、`cache`、`downloads`、`logs` 或 `all` |
-| `net:host/<pattern>` | 到匹配 glob 的主机的出站 HTTP **与 WebSocket** —— 一个授权同时管辖 `ctx.http` 与 `ctx.ws`。`net:host/*` 是一项宽泛授权，在授权提示中会被明确标注。包含一个**限定于本插件实例的持久化 cookie 罐**（[services/overview.md §2.1](../services/overview.md#21-cookie-罐)）—— 存储由核心服务持有，因此无需为此授予 `db` 或 `secrets`。匹配仅针对主机名（小写）；端口无法单独授权 |
+| `net:host/<pattern>` | 到匹配 glob 的主机的出站 HTTP **与 WebSocket** —— 一个授权同时管辖 `ctx.http` 与 `ctx.ws`。`net:host/*` 是一项宽泛授权，在授权提示中会被明确标注。包含一个**限定于本插件实例的持久化 cookie 罐**（[services/contracts.md §2.1](../services/contracts.md#21-cookie-罐)）—— 存储由核心服务持有，因此无需为此授予 `db` 或 `secrets`。匹配仅针对主机名（小写）；端口无法单独授权 |
 | `db:own` | 完全归属自己的命名空间表 —— 读、写与建表（schema）皆可。索引、触发器与视图也算在内：它们按名称归属，因此一个插件的索引和它的表一样叫 `{{ns}}_…` |
 | `db:read:<ns>` / `db:write:<ns>` / `db:*:<ns>` | 按动词访问其他命名空间：`read` 是 `SELECT`，`write` 是 `INSERT`/`UPDATE`/`DELETE`，`*` 是二者再加 `CREATE`/`DROP`/`ALTER`。各动词**不**相互蕴含 —— 一个既要读又要写曲库的插件必须同时声明 `db:read:core` *和* `db:write:core`，这样安装时的授权提示才能准确说出它到底在请求什么。语句按其所作所为中要求最高的一档归类，因此 `DROP` 不可能躲在 `SELECT` 身后蒙混过关 |
 | `secrets:own` | 自己的凭据命名空间。不存在 `secrets:all`。仅需要登录态得以保存的插件并不需要它 —— `net:` 下的 cookie 罐已经覆盖了这一点 |
@@ -92,11 +94,10 @@ function scopeContext(ctx: Context, opts: GrantOptions) {
 
 ### 门默认关闭（fail closed）
 
-插件的 manifest 是*请求*，永远不是授权。加载器只为标记了 `builtin` 的插件采信 manifest
-—— 即随应用打包的第一方包。其余一切必须在 `capability_grants` 中有一条对应的记录；没有就
-拒绝并标记为 `ungranted` 而非加载。桌面端通过 `bbebee-plugin://` 动态加载的外部第三方插件均严格受此检查约束。
-拒绝加载并记为 `ungranted`，而不是放行。如今每个插件都是 `builtin`，所以这个分支只有测试
-会走到 —— 这恰恰是保留它的原因。
+插件的 manifest 是*请求*，永远不是授权。规范见
+[rules/plugins.md §7 Dual-Mode Plugin Loading](../../rules/plugins.md#7-dual-mode-plugin-loading)（L2）：加载器只为标记了
+`builtin` 的插件采信 manifest —— 即随应用打包的第一方包；其余一切必须在 `capability_grants`
+中有一条对应的记录，没有就拒绝并记为 `ungranted` 而非加载。桌面端通过 `bbebee-plugin://` 动态加载的外部第三方插件均严格受此检查约束。
 
 这一点很重要，因为失败方式是无声的：如果宿主只是忘了传 grants，一个非 builtin 插件就会恰好
 拿到它为自己声明的一切 —— 包括 `net:host/*` —— 把审批变成一纸空文。
@@ -145,7 +146,8 @@ QuickJS realm，它的诞生是因为导入的音源是不受信任的代码、�
 
 ## 8. 编写插件：检查清单
 
-- [ ] 已设置 `name`，且与包名后缀一致。
+- [ ] 已设置 `name`，且与包名后缀一致 —— 规范见
+      [rules/plugins.md §1 Shape](../../rules/plugins.md#1-shape)（L2）。
 - [ ] `inject` 恰好列出所需内容 —— 可选依赖用对象形式。
 - [ ] 未导入任何平台 SDK（[architecture/layers.md §1](../architecture/layers.md#不变量)）。核心插件是例外，而且是
       *唯一*的例外。

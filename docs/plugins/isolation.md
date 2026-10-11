@@ -63,7 +63,9 @@ talking to the unisolated service.
 ## 5. Isolation and interception
 
 Two mechanisms let one service key mean different things in different parts of the plugin tree.
-BBeBee leans on both.
+BBeBee leans on both. The normative definitions are in
+[rules/plugins.md §4 Isolation and Interception](../../rules/plugins.md#4-isolation-and-interception)（L2）;
+this section walks the semantics with examples.
 
 ### `ctx.isolate(key)` — a private instance of a service
 

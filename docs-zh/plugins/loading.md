@@ -4,13 +4,14 @@
 
 ## 6. 加载
 
-BBeBee 采用**双模插件加载架构**：
-- **移动端（`apps/mobile`）**：Metro 无法在运行时解析动态计算出的模块路径，因此移动端插件依靠 codegen 脚本（`apps/mobile/generated/plugins.ts`）在构建期进行全静态绑定。
-- **桌面端（`apps/desktop`）**：Electron + Vite 原生支持 ESM 模块动态求值。桌面端全面采用动态加载机制 —— 通过 Vite 动态 glob（`getBuiltinPluginRegistry()`）发现所有工作区内置插件，并通过特权 `bbebee-plugin://` 协议桥接（`loadExternalPluginRegistry()`）加载外部第三方插件，无需任何静态代码生成文件。
+BBeBee 实现的是**双模（Dual-Mode）加载架构**（规范见
+[rules/plugins.md §7 Dual-Mode Plugin Loading](../../rules/plugins.md#7-dual-mode-plugin-loading)（L2），本节只讲原理与用法）：
+移动端是静态一侧（§6.1），桌面端是动态一侧（§6.2）。
 
 ### 6.1 移动端静态加载 —— `plugin-loader-static`
 
-Metro 无法解析运行时计算出的模块路径，因此移动端插件导入必须可被静态分析。一个代码生成步骤
+Metro 无法解析运行时计算出的模块路径（规范见
+[rules/plugins.md §7 Dual-Mode Plugin Loading](../../rules/plugins.md#7-dual-mode-plugin-loading)（L2））。一个代码生成步骤
 （`pnpm gen:plugins`，在构建前与开发监视期间运行）扫描工作区中含有 `BBeBee.plugin.json`
 的包，并生成：
 
@@ -43,7 +44,9 @@ codegen 即可构建。
 
 ### 6.2 桌面端动态加载 —— `plugin-loader-dynamic`
 
-桌面端现已完整实现第三方外部插件的运行时动态加载，同时保持沙箱隔离、`contextIsolation` 与严格的 CSP：
+> 规范见 [rules/plugins.md §7 Dual-Mode Plugin Loading](../../rules/plugins.md#7-dual-mode-plugin-loading)（L2），本节只讲原理与用法。
+
+桌面端为外部第三方插件实现了运行时动态加载，同时保持沙箱完整性、`contextIsolation` 与严格的 CSP：
 
 1. **主进程中的特权协议（`apps/desktop/main/index.ts`）**：
    在应用就绪前注册特权协议：
@@ -68,81 +71,65 @@ codegen 即可构建。
    - `installAndActivatePlugin(app, pluginId, files, manifest)`：通过主进程桥接写入文件，注册到内核 `app.registerPlugin(id, entry)`，并通过 `app.loadPlugin(id)` 立即激活。
    - `uninstallExternalPlugin(app, pluginId)`：先调用 `app.unloadPlugin(id)` 释放 Cordis fiber，而后再安全删除磁盘文件（保证析构顺序）。
 
-4. **内核动态注册扩展（`@BBeBee/kernel`）**：
-   - `app.registerPlugin(pluginId, entry)`：在运行时向活跃注册表动态追加插件条目。
-   - `app.loadPlugin(pluginId)`：支持运行时即时加载与能力网关校验（未获授权的非内置插件将被标记为 `ungranted` 并拒绝加载）。
-   - `app.unloadPlugin(pluginId)`：卸载 fiber 并反向执行所有资源释放器（disposers）。
+4. **内核动态插件注册（`@BBeBee/kernel`）**：三个运行时 API ——
+   `app.registerPlugin(pluginId, entry)`（向活跃注册表追加插件条目）、`app.loadPlugin(pluginId)`
+   （对非内置插件做能力检查，未授权即拒绝为 `ungranted`）与 `app.unloadPlugin(pluginId)`
+   （卸载 fiber 并反向展开 disposers）—— 规定见
+   [rules/plugins.md §7](../../rules/plugins.md#7-dual-mode-plugin-loading)（L2）。
 
 ### 6.3 插件标准化描述清单（`BBeBee.plugin.json`）
 
-系统内所有分层（Core、Logs、Feature、UI）的全部插件包均标准化包含一份具有 14 项规范字段的 `BBeBee.plugin.json`：
-
-| 字段名 | 类型 | 说明 |
-|---|---|---|
-| `id` | `string` | 唯一插件包 ID（必须与 npm package.json 的 name 一致，如 `"@BBeBee/plugin-sources-ui-desktop"`） |
-| `name` | `string` | 短技术名称（如 `"sources-ui-desktop"`） |
-| `displayName` | `string` | 面向用户的可读展示名称（如 `"Music Sources (Desktop UI)"`） |
-| `description` | `string` | 功能职责清晰描述 |
-| `version` | `string` | 语义化版本号（如 `"0.0.0"`） |
-| `author` | `string` | 插件作者或组织（如 `"BBeBee Team"`） |
-| `engines` | `Record<string, string>` | 运行时环境版本约束，必须包含 `"BBeBee"` 引擎版本（如 `{"BBeBee": ">=0.1.0", "node": ">=22.12.0"}`） |
-| `enabled` | `boolean` | 默认启用标志（`true`） |
-| `dependencies` | `string[]` | 前置依赖插件 ID 数组（必须已加载方可启动） |
-| `systemId` | `string` | 架构所在层级 ID：`"layer-1"` 到 `"layer-5"` |
-| `moduleId` | `string` | 所属功能模块/域 ID：`"sources"`、`"playback"`、`"lyrics"`、`"storage"`、`"dsp"`、`"settings"`、`"inspector"`、`"share"`、`"ui"`、`"core"`、`"logs"` |
-| `entry` | `PluginEntrypoints` | 模块入口路径（`{"main": "...", "ui": {"mobile"?: "...", "desktop"?: "..."}}`） |
-| `capabilities` | `Capability[]` | 申请的能力权限清单（`["ui:component", "action:sources/*"]`） |
-| `contributes` | `PluginContributes` | 扩展贡献槽位、路由与服务声明（`{"services": ["audio"], "routes": [...]}`） |
-| `effect` | `string \| null` | 核心副作用标识（如 `"audio"`, `"fs"`, `"bridge"` 或 `null`） |
-| `platforms` | `PluginPlatform[]` | 可选的目标平台约束（`["desktop"]`、`["mobile"]`，缺省为全平台） |
-
-> ⚠️ **字段命名规范：** 分层架构 ID 统一固定为 **`systemId`**（严禁写为 `subsystemId`）。
-> `entry.ui` 是可选且分目标平台的：插件可以只提供桌面视图而不提供移动端视图。当某个贡献项的视图在某个目标平台缺失时，外壳必须渲染占位符而非崩溃 —— 这是 ADR-2 的直接代价，UI 注册表把它显式化了（[ui/architecture.md §3](../ui/architecture.md#3-从描述符解析到视图)）。
+横跨 Layer 2–5（Core、Logs、Feature、UI）的每个插件包都携带一份标准化的 `BBeBee.plugin.json`。
+15 个规范字段（外加可选的 `platforms` 目标平台过滤器）、各自的枚举取值，以及字段命名要求
+（`systemId`，绝非 `subsystemId`），统一规定于
+[rules/plugins.md §6 Manifest Standards (`BBeBee.plugin.json`)](../../rules/plugins.md#6-manifest-standards-bbebeepluginjson)（L2），
+该节对本文任何措辞拥有最终权威；TypeScript 形态是 `packages/protocol/src/manifest.ts` 中的
+`PluginManifest`、`PluginEntrypoints`、`PluginContributes` 与 `Capability`。
 
 #### 清单示例：
 ```jsonc
 {
-  "id": "@BBeBee/plugin-sources-ui-desktop",
-  "name": "sources-ui-desktop",
-  "displayName": "Music Sources (Desktop UI)",
-  "description": "Desktop source management views, editor, and explorer.",
+  "id": "@BBeBee/plugin-sources",
+  "name": "@BBeBee/plugin-sources",
+  "displayName": "Sources",
+  "description": "ctx.sources — imported source documents, the registry, and the catalogue cache.",
   "version": "0.0.0",
   "author": "BBeBee Team",
   "engines": {
-    "BBeBee": ">=0.1.0",
-    "node": ">=22.12.0"
+    "BBeBee": "^0.1.0"
   },
   "enabled": true,
-  "dependencies": [
-    "@BBeBee/plugin-sources"
-  ],
-  "systemId": "layer-5",
+  "dependencies": [],
+  "systemId": "layer-4",
   "moduleId": "sources",
-  "platforms": ["desktop"],
   "entry": {
-    "main": "./src/index.tsx",
+    "main": "./dist/index.js",
     "ui": {
-      "desktop": "./src/index.tsx"
+      "desktop": "./dist/index.js",
+      "mobile": "./dist/index.js"
     }
   },
   "capabilities": [
-    "ui:component",
-    "action:sources/*"
+    "db:read:core",
+    "db:write:core"
   ],
   "contributes": {
-    "slots": [
-      "sidebar-primary"
+    "services": [
+      "sources"
     ]
-  }
+  },
+  "effect": "sources"
 }
 ```
 
+> `entry.ui` 是可选且分目标平台的：插件可以只提供桌面视图而不提供移动端视图。当某个贡献项的视图在某个目标平台缺失时，外壳必须渲染占位符而非崩溃 —— 这是 ADR-2 的直接代价，UI 注册表把它显式化了（[ui/architecture.md §3](../ui/architecture.md#3-从描述符解析到视图)）。
+
 ### 6.4 代码生成工具链（`@BBeBee/tooling-gen-plugins`）
 
-运行 `pnpm gen:plugins` 自动扫描全部插件包的 `BBeBee.plugin.json` 并生成：
-- `apps/mobile/generated/plugins.ts`：移动端静态注册表（Metro 无法在运行时计算模块路径）。
-- `packages/ui/plugin-inspector-ui-desktop/src/pcb-manifests.generated.ts`：导出全部 70+ 个插件清单的 `PLUGIN_MANIFESTS` 字典，供 PCB 架构拓扑检视器直接进行节点分层、模块归属、依赖及能力的实时可视化。
-*（桌面端不再使用静态生成文件，全面采用 Vite 动态加载机制与特权 `bbebee-plugin://` 协议桥接）。*
+> 规范见 [rules/plugins.md §8 Scaffolding & Codegen](../../rules/plugins.md#8-scaffolding--codegen)（L2），本节只讲原理与用法。
+
+一条命令（`pnpm gen:plugins`）扫描工作区中每一份 `BBeBee.plugin.json`，并重新生成其中规定的
+两份已提交产物。桌面端不产生任何 codegen 产物 —— 发现在运行时完成（§6.2）。
 
 ### 6.5 配置
 

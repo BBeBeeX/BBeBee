@@ -38,7 +38,7 @@ headless 包可以独立工作。没有 UI 包的插件依然能正常运行；�
 
 ### 1.1 包内部组织结构与组件解耦
 
-为防止 UI 包退化为包含数千行代码的单文件庞然大物，每个 UI 包均按单一职责拆分为细分子模块：
+为防止 UI 包退化为包含数千行代码的单文件庞然大物，每个 UI 包均按单一职责拆分为细分子模块 —— 规范性规则（禁止单文件巨石包、kit/菜单/屏幕解耦、辅助函数提升、薄插件入口）见 [rules/ui.md §1.1](../../rules/ui.md#11-package-internal-organization--single-responsibility-principle-srp)（L2）：
 
 ```
 packages/ui/<package>/src/
@@ -51,10 +51,9 @@ packages/ui/<package>/src/
 └── index.tsx            ← 插件注册门面（apply(ctx)）与向后兼容导出
 ```
 
-超越基本组织结构，UI 包与 UI 基础设施遵循一致的模块化规范：
+文档侧细节：
 - **UI Kit 组件结构**：核心 UI 套件包（`ui-kit-mobile`、`ui-kit-desktop`）将主题令牌和样式原语隔离到 `primitives.ts`，将组件定义放在 `src/components/*.tsx`（`Button`、`Text`、`TextField`、`Slider`、`Sheet`、`ContextMenu`、`List`、`Artwork`、`TrackRow`、`Toast`、`JsonTree`，以及桌面端专有的 `StickyDetailBar` 和 `coverTheme`），并通过 `src/index.tsx` 进行统一导出。
-- **菜单控制器架构**：`ui-menus` 中的上下文菜单 hooks 分离为子菜单（`src/submenus/*.ts`）、单个实体菜单（`src/menus/*.ts`）和锚点定位工具（`src/types.ts`）。
-- **重型屏幕视图解耦**：具有多种视图模式的复杂屏幕（如 `LibraryScreen`）将视图渲染解耦到 `src/components/views/*`（`CollapsedLibraryView`、`ExpandedLibraryView`、`SidebarFolderView`），将操作与数据注水解耦到 `src/hooks/*`（`useLibraryHydration`、`useLibraryActions`），将控制栏与弹窗解耦到 `src/components/*`。
+- **重型屏幕视图解耦**：具有多种视图模式的复杂屏幕（如 `LibraryScreen`）将视图渲染解耦到 `src/components/views/*`（`CollapsedLibraryView`、`ExpandedLibraryView`、`SidebarFolderView`），将操作与数据注水解耦到 `src/hooks/*`（`useLibraryHydration`、`useLibraryActions`、`useTableSort`），将控制栏与弹窗解耦到 `src/components/*`。
 - **纯辅助函数提升**：超出单一功能的纯逻辑工具（如时长格式化、封面 ID、字符串处理）归属于 `@BBeBee/toolkit`（Layer 4 纯库），在桌面和移动端之间保持单一事实来源，避免重复。
 - **分享 UI 弹窗与 Canvas 渲染架构（`plugin-share-ui-desktop`）**：模态工作流（`ShareTrackModal`、`SharePlaylistModal`、`ShareAlbumModal`、`ShareLyricsModal`）解耦共享展示组件（`ShareModalHeader`、`BackgroundModeSelector`、`LocalSourceWarning`、`DisabledReasonToast`、`ShareActionButtons`）与状态（`useShareModalState`）。预览图直接通过相同的绘制函数（`drawTrackCard`、`drawPlaylistCard`、`drawAlbumCard`、`drawLyricsCard`）渲染到实时 `<canvas>` 上，确保与导出的 PNG 图像 100% 像素级对齐，并使用非变形封面适配（`drawImageCover`）和 3 行文本自动换行（`wrapText`）。
 
@@ -62,7 +61,7 @@ packages/ui/<package>/src/
 
 ## 2. 贡献即描述符
 
-插件从不把组件直接交给外壳。它们注册的是**描述符（descriptor）** —— 指向某个视图的可序列化声明 —— 再由外壳在自己的注册表中解析这个名字。
+插件从不把组件直接交给外壳 —— 该规则（以及描述符的种类）规范见 [rules/ui.md §2](../../rules/ui.md#2-descriptors-not-components)（L2）。它们注册的是**描述符（descriptor）** —— 指向某个视图的可序列化声明 —— 再由外壳在自己的注册表中解析这个名字。
 
 ```ts
 export interface RouteContribution {
@@ -70,7 +69,7 @@ export interface RouteContribution {
   id: string                       // 'scrobble.history'
   path: string                     // '/scrobble/history'
   title: string                    // i18n key
-  icon?: string                    // name from the shared icon set
+  icon?: string                    // name from the shared icon set (Tabler icons, stroke 1.25 on desktop)
   /** Where the shell should offer navigation to it. */
   placement?: ('sidebar' | 'tab-bar' | 'more-menu' | 'tray')[]
   order?: number
@@ -221,9 +220,9 @@ export type SlotId =
   | 'status-bar'                 // desktop only; ignored on mobile
 ```
 
-> **注意：播放栏右侧操作区、设置页与顶部栏托盘完全解耦**：
-> - 播放栏右侧的图标（小窗模式/灵动岛、悬浮歌词开关、播放队列）不再硬编码在 `NowPlayingBar`，而是由对应插件向 `'now-playing.actions'` 槽位贡献并在视图注册表中注册组件，底栏按 `order` 升序与 `when` 谓词动态渲染。
-> - 各插件的配置选项由插件通过 `ctx.ui.contribute({ kind: 'settings', ... })` 或 `ctx.settings.contribute(...)` 自主向设置服务贡献，设置页自动聚合展示，支持内嵌卡片（`display: 'card'`）与导航行（`display: 'link'`）。设置页源码中**不出现任何归属其他插件的业务字段**：简单键值配置用 `fields` 字段描述符声明（设置页按描述符自动渲染通用表单，Boolean→Switch、Enum→Select、Number→Slider、Text→Input、Action→Button），复杂交互（如桌面歌词实时预览卡）用 `display: 'card'` + 在该插件自己的 UI 包中注册视图；无对应视图的目标平台显示"在此平台不可用"而非空洞。没有归属插件的平台段（closeToTray、代理、User-Agent、音频引擎/设备）由组合根 `apps/*/boot.ts` 贡献 —— 它们正是这些设置的执行者。
+> **播放栏右侧操作区、设置页与顶部栏托盘完全解耦**（规范见 [rules/ui.md §2](../../rules/ui.md#2-descriptors-not-components)（L2）—— 一律贡献而来，绝不硬编码）：
+> - 播放栏右侧的图标（小窗模式/灵动岛、悬浮歌词开关、播放队列）各自都是插件向 `'now-playing.actions'` 槽位的贡献并已在视图注册表中注册组件；底栏动态查询 `ctx.ui.slotsFor('now-playing.actions')`，按 `when` 过滤、按 `order` 排序。
+> - 各插件的设置（如 DSP 效果、缓存管理、音源配置）经 `ctx.ui.contribute({ kind: 'settings', ... })` 或 `ctx.settings.contribute(...)` 贡献而来。简单键值配置用 `fields` 描述符声明（设置页自动渲染通用表单 —— Boolean→Switch、Enum→Select、Number→Slider、Text→Input、Action→Button），复杂交互（桌面歌词实时预览）用 `display: 'card'` 加在该插件自己的 UI 包中注册的视图；没有对应视图的目标平台显示"在此平台不可用"而非空洞。没有归属插件的平台设置（closeToTray、代理、User-Agent、音频引擎/设备）由组合根（`apps/*/boot.ts`）贡献 —— 它们正是这些设置的执行者。
 > - 桌面端顶部栏在“导入分享”按钮旁提供类似 Windows 托盘的展开按钮（折叠时朝下箭头 `chevron-down`，展开时朝上箭头 `chevron-up`）。插件可在路由中通过 `placement: ['tray']` 或通过 `TrayContribution` 自主决定是否显示在主界面托盘中。点击托盘中的插件图标将通过 `ctx.ui.navigate(...)` 自动跳转至该插件主界面页面并收起托盘。设置页正是走了这条路：其路由携带 `'tray'` placement，因此“设置”无需任何顶部栏专属代码即可出现在托盘中。
 
 槽位渲染是插件的 UI 真正现身的地方：
@@ -311,10 +310,10 @@ export const usePosition = (ctx: Context) =>
 
 ### 渲染规则
 
-- **领域操作不用 `useEffect`。** 任何抓取、写入或修改领域状态的 effect，都应属于组件所调用的某个服务方法。
-- **乐观更新放在服务中**，而不是组件里，这样两个外壳在写入失败并回滚时的行为完全一致。
-- **列表必须虚拟化。** 移动端用 `FlashList`，桌面端用 `@tanstack/react-virtual`。曲库可能容纳 10 万首曲目；在哪个平台上直接渲染这么多都撑不住。
-- **详情页头部随列表一起向上滚动。** 桌面端 `List` 拥有 `header` 槽位（Banner 巨幅头图、操作栏 —— 一同滚出视口的部分）、`sticky` 槽位（随着头部播放按钮接近而从视口顶部平滑滑入的 `StickyDetailBar`，留下标题 + 播放按钮 + 表头 —— 即 Spotify 经典布局）、`stickyHeader` 槽位（紧贴在该栏正下方的固定表头）以及 `onScroll`。联动动画是经过精确测量的，而非随意假设（`useDetailBarCollapse` 在每次滚动事件中读取播放按钮到滚动视口顶部的实际距离）：当粘性栏边缘遮盖住半个按钮时，栏完成停靠 —— 其紧凑播放按钮平滑缩放进入。虚拟化列表的偏移量由行以上的所有内容计算，基于占位符的真实位置测量（`scrollMargin`，由 `ResizeObserver` 和滚动监听器共同监听 —— 换行的标题使其无法从 props 推导）。粘性栏与固定表头必须是滚动容器的**直接子节点**：`position: sticky` 只能在其父容器的边界盒内吸顶，若将其嵌套在 header 内部，就会在它们刚刚完全滑入时随 header 一同被滚出视口。
+- **领域操作不用 `useEffect`。** 规范见 [rules/ui.md §3](../../rules/ui.md#3-hooks--state-binding)（L2）—— 任何抓取、写入或修改领域状态的 effect，都应属于组件所调用的某个服务方法。
+- **乐观更新放在服务中**（[rules/ui.md §3](../../rules/ui.md#3-hooks--state-binding)），而不是组件里，这样两个外壳在写入失败并回滚时的行为完全一致。
+- **列表必须虚拟化**（[rules/ui.md §3](../../rules/ui.md#3-hooks--state-binding)）。移动端用 `FlashList`，桌面端用 `@tanstack/react-virtual`。曲库可能容纳 10 万首曲目；在哪个平台上直接渲染这么多都撑不住。
+- **详情页头部随列表一起向上滚动。** 桌面端 `List` 拥有 `header` 槽位（Banner 巨幅头图、操作栏 —— 一同滚出视口的部分）、`sticky` 槽位（随着头部播放按钮接近而从视口顶部平滑滑入的 `StickyDetailBar`，留下标题 + 播放按钮 + 表头 —— 即 Spotify 经典布局）、`stickyHeader` 槽位（紧贴在该栏正下方的固定表头）以及 `onScroll`。联动动画是经过精确测量的，而非随意假设（`useDetailBarCollapse` 在每次滚动事件中读取播放按钮到滚动视口顶部的实际距离）：当粘性栏边缘遮盖住半个按钮时，栏完成停靠 —— 其紧凑播放按钮平滑缩放进入。虚拟化列表的偏移量由行以上的所有内容计算，基于占位符的真实位置测量（`scrollMargin`，由 `ResizeObserver` 和滚动监听器共同监听 —— 换行的标题使其无法从 props 推导）。粘性栏与固定表头必须是滚动容器的**直接子节点**（规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2））：`position: sticky` 只能在其父容器的边界盒内吸顶，若将其嵌套在 header 内部，就会在它们刚刚完全滑入时随 header 一同被滚出视口。
 - **`player/position` 用插值，绝不轮询。** 该事件以 1 Hz 触发（[events.md §5](../data-model/events.md#5-事件表)）；进度条在两次事件之间用 `requestAnimationFrame` 做动画，并在每个事件到来时重新对齐。
 - **封面图先渲染 `blurhash`**，再加载图片（[schema.md §4.2](../data-model/schema.md#42-封面图)）。没有布局跳动，滚动时也没有灰色闪烁。远程封面请求**不携带 `Referer`**：多个 CDN 会在 Referer 为外部来源时返回防盗链 403 拒绝（Bilibili 的 `hdslb.com` 即如此，而在开发环境下渲染进程的 Referer 为 `localhost`），导致所有结果显示为破损图片，而同一 URL 在浏览器标签页中却能正常打开。
 - **封面在渲染前先经由 `ctx.cache` 解析。** 视图包渲染 UI 套件的 `Artwork` 时通过本地 `CachedArtwork` 调用 `useResolvedArtwork(ctx, ref)`（`@BBeBee/toolkit/hooks`）—— 内部自带绘制 `Artwork` 的 `TrackRow` 也通过 `CachedTrackRow` 渲染 —— 因此只要缓存中存在，交给 `<img>`/`Image` 的就是本地文件，且 `dominantColor`/identicon 回退覆盖了在途网络请求：远程 URL 绝不会直接被渲染。缓存副本还会回填 `artworks.local_uri`，这使得锁屏界面能够接收到本地 `Uri`（[contracts.md §7](../services/contracts.md)）。
@@ -327,17 +326,15 @@ export const usePosition = (ctx: Context) =>
 
 桌面端右键、移动端长按，共用一套菜单。`TrackRow.onMore`、`UnifiedLibraryRow.onMore` 与头部操作项将坐标锚点传递给页面；页面持有 `@BBeBee/ui-menus` 的控制器并渲染 UI Kit 的 `ContextMenu`。**菜单模型** —— 某首曲目、歌单、合集拥有哪些操作项，以及各项调用什么 —— 在 `@BBeBee/ui-menus` 中统一定义一次；UI 套件只知道如何绘制菜单行，对歌单或队列一无所知，这使得两个外壳的菜单能够统一到每一项的顺序。
 
-模型中有两个值得锁定的细节：`TrackMenuOptions.lyrics`（页面上已经展示的歌词行）是使“分享歌词”操作项可用的关键 —— 模型自身绝不会主动抓取歌词；在某些祖先节点的 `transform`/`overflow` 会裁剪绝对/固定定位的容器内渲染的菜单（如播放页的悬浮底栏），必须传入 `portal: true`，以便套件将其挂载到 `document.body` 上。全屏播放页本身支持右键弹出正在播放曲目的菜单 —— `useCurrentTrack`（与底栏共享）解析当前曲目，播放状态的 `currentItemId`（队列行回退）使“从队列中移除”准确作用于真实的队列条目，页面上的歌词文本则直接供给“分享歌词”。
+模型中有两个值得锁定的细节：`TrackMenuOptions.lyrics`（页面上已经展示的歌词行）是使“分享歌词”操作项可用的关键 —— 模型自身绝不会主动抓取歌词；在某些祖先节点的 `transform`/`overflow` 会裁剪绝对/固定定位的容器内渲染的菜单（如播放页的悬浮底栏），必须传入 `portal: true`（规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2）），以便套件将其挂载到 `document.body` 上。全屏播放页本身支持右键弹出正在播放曲目的菜单 —— `useCurrentTrack`（与底栏共享）解析当前曲目，播放状态的 `currentItemId`（队列行回退）使“从队列中移除”准确作用于真实的队列条目，页面上的歌词文本则直接供给“分享歌词”。
 
 #### 视觉与组件模型
-- **容器样式**：高对比度流媒体暗色卡片（`#242424`），8px 圆角，4px 内边距，深度阴影 `0 12px 32px rgba(0,0,0,0.55)`，1px 微弱边框（`rgba(255, 255, 255, 0.08)`）。
-- **分割线**：操作项支持 `divider: true`，在关键或高危操作上方绘制 1px 半透明分割线。
-- **图标**：标准操作（`pencil`、`trash`、`pin`、`plus`、`folder`、`play-filled`、`download`、`playlist`）解析为 Tabler SVG 矢量图标（`stroke: 1.25`），具备一致的 16px 几何尺寸。
-- **子菜单与视口边界自适应**：子菜单触发器渲染箭头指示（`chevron-right`）。子菜单动态排除循环嵌套候选项（例如“添加到其他歌单”排除源歌单，“移动到文件夹”排除当前文件夹及其子文件夹）。子菜单定位实时计算水平和垂直视口翻转，动态限制 `maxHeight` 并开启内部滚动条，确保弹出菜单绝不溢出应用窗口屏幕边界。
+- **容器样式、分割线与图标**：菜单卡片数值（深色卡片主题、1px 半透明分割线、Tabler `stroke: 1.25` 线框图标）规格见 [design-system.md §8.2](design-system.md#82-右键菜单设计规范)。
+- **子菜单与视口边界自适应**：子菜单触发器渲染箭头指示（`chevron-right`）。子菜单动态排除循环嵌套候选项（例如“添加到其他歌单”排除源歌单，“移动到文件夹”排除当前文件夹及其子文件夹）。子菜单定位实时计算水平和垂直视口翻转，动态限制 `maxHeight` 并开启内部滚动条，确保弹出菜单绝不溢出应用窗口屏幕边界（数值与公式见 [design-system.md §8.2](design-system.md#82-右键菜单设计规范)）。
 
 #### 实体上下文菜单规范
 - **曲目上下文菜单**：
-  - `add-to-playlist`：“添加到歌单”子菜单。单曲专属于歌单或专辑，不能直接添加到文件夹。
+  - `add-to-playlist`：“添加到歌单”子菜单。单曲归属歌单或专辑，绝不能进入文件夹（文件夹语义规范见 [rules/ui.md §6](../../rules/ui.md#6-library-sidebars--context-menus-specification)（L2））。
   - `remove-from-playlist`：高危删除色，带分割线，仅在该行渲染在歌单内部时显示。
   - `add-favourite` / `remove-favourite`：在曲库和音源中添加/取消喜欢。
   - `enqueue`：将曲目追加到播放队列末尾。
@@ -363,42 +360,36 @@ export const usePosition = (ctx: Context) =>
   - `toggle-pin`：在曲库列表中置顶/取消置顶文件夹。
   - `create-playlist` 与 `create-folder`：直接在选定文件夹内创建条目。
   - `move-to-folder`：通过 `ctx.library.moveCollection` 将文件夹移动到另一个文件夹或根目录。
-  - `add-to-playlist`：“添加到其他歌单”。使用 `collectAllFolderTracks` **递归遍历**所有嵌套歌单曲目、嵌套专辑曲目和所有嵌套子文件夹内容，去重合并（文件夹本身不直接包含单曲）。
+  - `add-to-playlist`：“添加到其他歌单”。使用 `collectAllFolderTracks` **递归遍历**所有嵌套歌单曲目、嵌套专辑曲目和所有嵌套子文件夹内容，去重合并（规范见 [rules/ui.md §6](../../rules/ui.md#6-library-sidebars--context-menus-specification)（L2）；文件夹本身不直接包含单曲）。
   - `enqueue`：将文件夹层级结构下的所有聚合曲目一起加入播放。
 
 #### 音乐库展示模式
-- **折叠模式**（72px 侧栏）：极简图标列表，带有统一的文件夹线框图标。进入文件夹后，在顶部品牌 Logo 下方显示 `chevron-left` 返回按钮以返回根曲库。
-- **侧边栏模式**（260–340px）：标准视图，通过旋转箭头控件（`chevron-down` / `chevron-right`）支持内联展开文件夹，子项缩进 28px 内边距，并提供专属文件夹详情视图（`chevron-left 文件夹标题`）。文件夹内的歌单自动从根列表中隐藏（`containedPlaylistUrns`），移回根目录时恢复显示。
-- **展开模式**（全屏画布）：高密度 3 列表格视图（`标题`、`添加日期`、`上次播放`），顶部带面包屑导航（`音乐库 < 文件夹名`）。
+布局尺寸与文件夹交互规格见 [design-system.md §8](design-system.md#8-曲库侧栏模式与右键菜单设计)（L3）：
+- **折叠模式**（72px 侧栏）：极简图标列表；进入文件夹后，顶部品牌 Logo 下方显示 `chevron-left` 返回按钮。
+- **侧边栏模式**（260–340px）：内联展开的文件夹、专属文件夹详情视图；文件夹内的歌单自动从根列表中隐藏（`containedPlaylistUrns`），移回根目录时恢复显示。
+- **展开模式**（全画布）：高密度 3 列表格视图，顶部带面包屑导航（`音乐库 < 文件夹名`）。
 
 ### 详情页、排序与媒体视图
 
-1. **专辑、歌单、本地音乐与最喜欢曲目表格**：
-   - **曲目去重**：在 `AlbumScreen`、`PlaylistDetailScreen`、`FavoritesScreen` 和 `LocalMusicScreen` 中，原始曲目列表均按曲目 URN 严格去重（`seen = new Set<string>()`），防止重复数据行、虚拟列表键冲突和批量选择异常。
-   - **表头交互排序**：列头（`#`、`标题`、`艺人`、`专辑`、`来源`、`添加日期`、`时长` 带 Tabler `clock` 图标、`播放量`）支持点击切换升序/降序，带方向指示器（`chevron-up` / `chevron-down`）。表头省略了旧版的勾选标记。
-   - **来源列与来源排序**：`AlbumScreen`、`FavoritesScreen` 和 `PlaylistDetailScreen` 包含专属“来源”列（在全部为本地曲目的 `LocalMusicScreen` 中省略），通过 `resolveTrackSourceName(ctx, trackUrn)` 动态解析名称（如 `'本地'`、`'哔哩哔哩'`）。列头可点击切换升/降序，排序下拉菜单包含“来源”，通过 `localeCompare(..., { numeric: true, sensitivity: 'base' })` 按显示名称排序。
-   - **批量操作工具栏与操作项**：四个详情页的三点菜单均提供平铺的“批量操作”入口（`list-check` 图标，无嵌套子菜单）。点击切换进入批量模式并显示 `BatchActionBar`：
-     - 原生 `<input type="checkbox">` 用于“全选”，与单曲行复选框样式一致，支持 `indeterminate`（部分选中）和 `checked` 状态；
-     - “批量播放”（`batch-play`）：按当前视觉顺序播放选中曲目；
-     - “添加到歌单”（`batch-add`）：打开弹出菜单，带精确的增量曲目计数（`delta = active.tracks.length`）；
-     - “删除” / “从最喜欢中删除”（`batch-delete`）：批量移除或取消喜欢选中曲目；
-     - “退出批量操作”（`exit-batch`）：取消选择并退出批量模式。
-   - **操作栏排序菜单**：下拉 `ContextMenu`（“默认顺序” / “自定义顺序”，带 Tabler `arrows-sort` 或 `list` 图标），支持快速切换排序键与方向。
-   - **单曲行悬停曲库操作按钮（`TrackLibraryActionButton`）与 Popover**：在 `LocalMusicScreen`、`PlaylistDetailScreen`、`FavoritesScreen` 和 `CollectionScreen` 中，曲目行的静态勾选被替换为悬停操作图标。鼠标悬停时，未入库曲目显示 `plus`（点击通过 `library.setSaved(track.urn, true)` 保存至“最喜欢”）；已入库曲目显示 `heart-filled`（绿心），点击弹出专属 Spotify 风格的 `SaveToPlaylistPopover`，提供实时歌单搜索、内联快速新建歌单、已喜欢歌曲切换和文件夹树导航：
-     - 点击“新建歌单”会平滑将顶部的“查找歌单”搜索栏切换为带自动聚焦的内联新建输入框、带有“确定”确认按钮和取消按钮，同时列表里的“新建歌单”行会自动隐藏，杜绝重复操作；
-     - 确认按钮强化了 `flexShrink: 0`、`whiteSpace: 'nowrap'` 与 `minWidth: 44`，输入框配置 `minWidth: 0`，确保按钮文字在 Flexbox 容器内绝不被挤压或换行截断。
-   - **专辑头部、来源徽标与分页**：当专辑来自三方音源（`isThirdParty`）时，`AlbumScreen` 在 `top: 24, right: 32` 显示灰色边框徽标（`album-source-badge`）。三方专辑通过 `useAlbum` 支持增量分页（`pageSize: 30`）：虚拟列表计算最后一页的中间半程点（`thresholdIndex = Math.max(0, count - pageSize) + Math.floor((count - Math.max(0, count - pageSize)) / 2)`），滚动越过该位置时触发 `album.loadMore`，避免预先全量抓取和初始挂载时的过早触发。操作栏提供爱心按钮（`heart` / `heart-filled`），绑定至 `library.setSaved(album.urn, isSaved)`，可在用户的音乐库中展示已保存专辑。本地专辑（`BBeBee:local:`）在头部和单曲行中省略下载按钮，并省略下载菜单项。三点菜单和头部右键提供“跳转原始资源”、“加入文件夹”、“添加到音乐库/从音乐库中删除”、“加入播放列表”和“睡眠定时器”（省略“加入歌单”和“转至专辑”）。
-   - **播放队列对齐**：从已排序表格播放单曲（单机单曲或“播放全部”）时，将排好序的 URN 序列传递给 `ctx.player.playFromContext`，确保播放队列与视觉顺序完全一致。
-   - **歌单项 ID 解耦、来源徽标与分页**：在 `PlaylistDetailScreen` 中，行数据被包装为 `{ item, track, trackUrn, originalIndex }`，在排序操作中保留条目 ID，确保删除和上下文菜单作用于正确的歌单条目。三方歌单（`isThirdParty`）在 `top: 24, right: 32` 显示灰色边框徽标（`playlist-source-badge`），并支持半页滚动分页（每页 30 首）。用户创建的本地歌单即使包含三方曲目也省略来源徽标。头部右键和三点菜单提供“跳转原始资源”。
-   - **最喜欢页面对齐（`FavoritesScreen`）**：采用沉浸式紫色渐变头部设计，配备 56px 播放按钮、随机播放、实时搜索过滤以及带悬停 `TrackLibraryActionButton`（`heart-filled` / `heart` 子菜单）的 `FavoriteTrackTableRow`。
+1. **专辑、歌单、本地音乐与最喜欢曲目表格**（设计规格见 [design-system.md §9](design-system.md#9-详情页排序与播放历史)，不变量见 [rules/ui.md §7](../../rules/ui.md#7-detail-screens-sorting--playback-history-specifications)（L2））：
+   - **曲目去重**：在 `AlbumScreen`、`PlaylistDetailScreen`、`FavoritesScreen` 和 `LocalMusicScreen` 中，原始曲目列表均按曲目 URN 严格去重 —— 规范见 [rules/ui.md §7](../../rules/ui.md#7-detail-screens-sorting--playback-history-specifications)（L2）。
+   - **表头交互排序**：列头（`#`、`标题`、`艺人`、`专辑`、`来源`、`添加日期`、`时长`、`播放量`）支持交互式排序与升/降序方向指示器；旧版勾选标记已省略 —— 规格见 [design-system.md §9.2](design-system.md#92-曲目表格排序与行交互)。
+   - **来源列与来源排序**：`AlbumScreen`、`FavoritesScreen` 和 `PlaylistDetailScreen` 包含专属“来源”列（全部为本地曲目的 `LocalMusicScreen` 省略），经 `resolveTrackSourceName(ctx, trackUrn)` 解析名称；排序下拉包含“来源”，按 `localeCompare(..., { numeric: true, sensitivity: 'base' })` 排序 —— 规格见 design-system.md §9.2。
+   - **批量操作工具栏与操作项**：四个详情页的三点菜单均提供平铺的“批量操作”入口（`list-check` 图标，无嵌套子菜单），切换 `BatchActionBar`（带 `indeterminate` 的全选、批量播放、带数量递增 `delta = active.tracks.length` 的添加到歌单、删除/从最喜欢中删除、退出批量操作）—— 规格见 design-system.md §9.2。
+   - **操作栏排序菜单**：下拉 `ContextMenu`（“默认顺序” / “自定义顺序”，带 Tabler `arrows-sort` 或 `list` 图标），用于排序键与方向 —— 规格见 design-system.md §9.2。
+   - **单曲行悬停曲库操作按钮（`TrackLibraryActionButton`）与 Popover**：在 `LocalMusicScreen`、`PlaylistDetailScreen`、`FavoritesScreen` 和 `CollectionScreen` 中，曲目行的静态勾选被替换为悬停操作图标。悬停时，未入库曲目显示 `plus`，点击**双写两个存储** —— 先 `sources.setLoved(track.urn, true)`，后 `library.setSaved(track.urn, true)`（双写不变量见 [rules/ui.md §7](../../rules/ui.md#7-detail-screens-sorting--playback-history-specifications)（L2））；已入库曲目显示 `heart-filled`（绿心），点击弹出 Spotify 风格的 `SaveToPlaylistPopover`（实时歌单搜索、内联新建、已喜欢切换、文件夹树导航）—— 规格见 [design-system.md §9.2](design-system.md#92-曲目表格排序与行交互)。
+   - **专辑头部、来源徽标与分页**：`AlbumScreen` 为三方专辑显示来源徽标（`album-source-badge`），经 `useAlbum` 半页触发增量分页（`pageSize: 30`），操作栏红心绑定 `library.setSaved(album.urn, isSaved)`，本地专辑（`BBeBee:local:`）省略下载相关功能 —— 规格见 [design-system.md §9.3](design-system.md#93-专辑页定制albumscreen) / [§13](design-system.md#13-音源徽标分页与原始资源)。
+   - **播放队列对齐**：从已排序表格播放曲目（单曲或“播放全部”）时，将排好序的 URN 序列传递给 `ctx.player.playFromContext` —— 不变量见 [rules/ui.md §7](../../rules/ui.md#7-detail-screens-sorting--playback-history-specifications)（L2）。
+   - **歌单项 ID 解耦、来源徽标与分页**：在 `PlaylistDetailScreen` 中，行数据被包装为 `{ item, track, trackUrn, originalIndex }`，在排序操作中保留条目 ID —— 不变量见 rules/ui.md §7；三方歌单显示 `playlist-source-badge` 并按半页分页（每页 30 首）；用户创建的本地歌单省略徽标 —— 规格见 design-system.md §13。
+   - **最喜欢页面对齐（`FavoritesScreen`）**：紫色渐变头部、56px 播放按钮、随机播放、实时搜索过滤，以及带悬停 `TrackLibraryActionButton`（`heart-filled` / `heart` 子菜单）的 `FavoriteTrackTableRow` —— 规格见 [design-system.md §9.4](design-system.md#94-最喜欢页面对齐favoritesscreen)。
 
-2. **本地音乐双视图（歌曲与专辑）**：
+2. **本地音乐双视图（歌曲与专辑）**（规格见 [design-system.md §9.5](design-system.md#95-本地音乐双视图与分页localmusicscreen)）：
    - **全量分页**：`fetchAllLocalTracks` 与 `fetchAllLocalAlbums` 以 500 项为批次递归分页，直到检索出所有本地条目，消除了以往的 100 项截断限制。
    - 头部提供分段切换器，可在“歌曲”（表格列表）与“专辑”（网格视图）之间切换。
    - 专辑网格视图将本地歌曲聚合为 `LocalAlbumCard` 组件，展示封面图、标题、艺人、曲目数量与悬停播放触发器。
    - 排序下拉菜单动态适配专辑专属指标（名称、艺人、年份、曲目数）。
 
-3. **播放历史与最近播放**：
+3. **播放历史与最近播放**（规格见 [design-system.md §9.6](design-system.md#96-播放历史与最近播放historyscreen-与-queuescreen)）：
    - **去重**：`HistoryScreen`（桌面与移动端）和 `QueueScreen`（最近播放标签页）按 `trackUrn` 对曲目去重，仅保留最近一次的播放记录（附带相对时间戳与完成度徽标）。
    - **播放次数指示**：`HistoryScreen` 显示 `播放 N 次` 胶囊徽标，指示每首单曲的总播放次数。
    - **计数一致性**：头部计数器（`(${uniqueRecords.length} 首)`）与空状态检查均针对去重后的唯一单曲进行计算。
@@ -414,7 +405,7 @@ export const usePosition = (ctx: Context) =>
 | **测试音源** | 运行单项功能 —— 搜索、浏览、专辑、艺人、歌单、歌词、曲库、流、原生 HTTP 请求或任意脚本 —— 并展示每条规则的输入、输出与耗时（[authoring.md §10](../sources/authoring.md#10-诊断一个坏掉的源)） | 测试区域列表正是音源派生出的能力列表，因此界面展示该音源实际支持的操作；追踪日志是一份长可滚动的记录，是应用中最接近开发者工具的东西，也是用户能够自己修好一个源的原因 |
 | **搜索** | 一个查询通过 `searchAll` 扇出到所有已选音源，每个源独立成展示块（[runtime.md §4.1](../sources/runtime.md#41-一个源的生命周期)） | 首次搜索前搜索条与接口开关居中为 Hero 态，提交后收缩至顶部，高度留给结果区。桌面端搜索亦可直接从顶部栏（TopBar）常驻交互输入框及其 2×2 矩阵面板触发。搜索界面（`sources.search`）接收传入的 `query` 参数并自动触发 `searchAll`。**按接口提供开关，而非按源** —— 拥有独立艺人搜索的后端会独立展示 `音源 · 单曲` 与 `音源 · 艺人`，选择以 `typesBySource` 传递给 `searchAll`。开关选择作为*排除项*存储，因此新导入的源会自动参与下一次搜索 —— 且失败、超时或无匹配的源保留其标题栏，而不是消失在合并列表中。桌面端结果按音源分组为独立卡片面板（`SourcePanel`），支持折叠展开与粘性吸顶头部（`position: sticky; top: 0`），面板内部支持垂直滚动（`maxHeight: min(520px, 60vh); overflowY: auto`），底部提供独立的“加载更多”分页加载；点击搜索单曲遵循单曲播放模式（`urns: [track.urn]`），队列仅包含并显示该单曲，不污染正在播放的队列；全面适配设计系统色彩管理。 |
 | **DSP 与均衡器** | 10 段图示均衡器，支持预设切换（平直、低音增强、人声、高音）、效果链重排、单个效果旁路开关与参数编辑（归一化、压限器、混响等）。作为 `dsp.view` 贡献。可直接从播放器或通过播放设置卡片中的操作按钮打开。 | 描述符在 `plugin-dsp-ui-*` 中。桌面端渲染带垂直滑块的专属视图；移动端提供触控友好的垂直滑块、胶囊选择器与完整链路导航 |
-| **设置中心** | 分区多页设置中心（`settings.view`），具有互斥面板导航：常规与语言、播放与音频、桌面歌词（单/双行模式、对齐、字体、字号、颜色选择器、不透明度、实时预览）、全局快捷键（主开关 + 10 组键位绑定）、网络与代理（HTTP/HTTPS/SOCKS5、Google 延迟测速、分源路由开关）、音源、存储与缓存（目录徽标，带更改/打开文件夹按钮）、插件（实时清单与 fiber 状态检视、搜索过滤、4 层折叠分组、依赖/被依赖图、带依赖确认的启用/禁用开关），以及带有防护危险区的高级设置开关的“关于”。 | 描述符在 `plugin-settings` 中，由 `plugin-settings-ui-*` 渲染。 |
+| **设置中心** | 单页设置中心（`settings.view`）：纯文字标签栏（常规与语言、播放与音频、桌面歌词、全局快捷键、网络与代理、音源、存储与缓存、插件、关于），当前激活的标签在单一自然滚动的窗格中独占地渲染其分区组（互斥分区渲染；各分区携带 `section-<id>` 锚点）。常规与语言覆盖语言与外观；桌面歌词有行模式、对齐、字体、字号、颜色选择器、不透明度、实时预览；全局快捷键是主开关 + 10 组键位绑定；网络与代理有 HTTP/HTTPS/SOCKS5、Google 延迟测速、分源路由开关；存储与缓存展示目录徽标，带更改/打开文件夹按钮；插件有实时清单与 fiber 状态检视、搜索过滤、4 层折叠分组、依赖/被依赖图、带依赖确认的启用/禁用开关；关于有守护危险区的高级设置开关。 | 描述符在 `plugin-settings` 中，由 `plugin-settings-ui-*` 渲染。 |
 | **调试与诊断** | 专属诊断中心，包含三个视图：`debug.view`（调试状态、Node/Electron/OS/Chromium 环境规格）、`debug.logs`（实时环形缓冲区日志发现，带搜索、级别过滤、NDJSON 复制、清除）与 `debug.http-logs`（三方音源网络请求实时检查，包含请求方法、状态码徽标、延迟与 URL）。 | 描述符在 `plugin-settings` 中，视图在 `plugin-settings-ui-desktop` 中。 |
 
 下载操作从**曲目行上的 ⬇ 控件**开始（`TrackRow.onDownload`，仅在加载了 `ctx.downloads` 时出现），位于曲库、专辑与搜索结果中。
@@ -429,7 +420,7 @@ export const usePosition = (ctx: Context) =>
 |---|---|---|
 | 路由器 | Expo Router（基于文件） | `ui-kit-desktop` 内一个小的内存路由器 |
 | 主界面骨架 | 底部标签栏 + 堆栈 | 常驻侧边栏 + 内容面板 + 顶部栏（TopBar） |
-| 贡献的路由 | 注册为动态路由；`placement` 决定进标签栏还是更多菜单 | 侧边栏条目按 `order` 排序 |
+| 贡献的路由 | 注册为动态路由；`placement` 决定进标签栏还是更多菜单 | 侧边栏条目按 `order` 排序（排除搜索与设置，它们走 TopBar） |
 | 返回 | 系统手势 / 硬件按键 | 应用内历史记录，外加 `Cmd/Ctrl+[` |
 | 深链接 | 经 `expo-linking` 使用 `BBeBee://` scheme | 同一 scheme 由 `main` 向操作系统注册 |
 
@@ -466,21 +457,10 @@ export const usePosition = (ctx: Context) =>
 1a. **曲目与专辑视图模式（紧凑/列表/平铺）**：
    - 专辑、歌单、最喜欢和本地音乐页面在“排序方式”下拉菜单的底部提供**视图模式**分区（`ui-kit-desktop` 中的 `viewModeMenuItems`）：在细分割线后贴左对齐的灰色标题（`MenuItemSpec.heading`，无图标槽，无悬停响应），然后是各个模式选项，当前模式带勾选。
    - **列表（list）** 是默认模式，与传统数据行一致：封面、带副标题艺人的曲目标题、专辑、日期、时长。**紧凑（compact）** 省略封面，并将艺人提升为独立列（包含表头）。本地专辑标签页额外提供**平铺（tiled）** —— 即当前的卡片网格（`LocalAlbumCard`）—— 作为默认视图，而“列表/紧凑”则渲染专辑数据行。
-   - 用户选择通过 `useViewMode` 按页面持久化在 `localStorage`（`bbebee_view_mode:<key>`）中，因此用户偏好紧凑视图的页面在重启后保持紧凑。
+   - 用户选择通过 `useViewMode` 按页面持久化在 `localStorage`（`bbebee_view_mode:<key>`；规格见 [design-system.md §9.2](design-system.md#92-曲目表格排序与行交互)）中，因此用户偏好紧凑视图的页面在重启后保持紧凑。
 
 2. **TopBar 交互式搜索与 2×2 矩阵浮动面板**：
-   - **宽度受限时折叠为放大镜**：中间容器上的 `ResizeObserver` 测量搜索框的实际宽度；低于 180px 时整个搜索收缩为单一的放大镜按钮（`topbar-search-collapsed-button`）。点击该按钮会使搜索框横向展开贯穿顶栏 —— 展开期间托盘和头像图标隐藏 —— 并聚焦输入框。点击搜索区以外任意位置、按下 `Escape` 或提交搜索均会恢复折叠状态并带回图标。窗口控制按钮（最小化/最大化/关闭）**绝不隐藏**：其容器在两种状态下均保持 `flexShrink: 0`。
-   - **动态搜索图标平移**：
-     - *闲置状态*：搜索图标（`search`）位于左侧内边距处（`left: 12px`）。
-     - *激活 / 聚焦状态*：图标平滑滑动至最右侧（`right: 12px`，过渡动画 `all 200ms cubic-bezier(0.4, 0, 0.2, 1)`），并作为可交互的提交按钮（`cursor: pointer`）。
-     - *取消聚焦*：点击搜索区域外部或按下 `Escape` 取消输入框聚焦，关闭浮动面板，并将图标复位回左侧边缘。
-   - **2×2 矩阵浮动面板**：
-     - 当输入框获得焦点或输入查询文本时，直接在输入框正下方自动展开（`top: calc(100% + 8px)`，宽度 600px，z-index 1000）。
-     - 结构化为 2 行 × 2 列网格：
-       - **第 1 行**：左侧标题：“搜索范围”；右侧标题：“搜索历史”，并附带微妙的高透“清空”按钮（`rgba(255, 255, 255, 0.4)`）。
-       - **第 2 行**：
-         - *左侧单元格（搜索范围）*：连接到 `useSearchSourceSelection(ctx)` 的第三方音源开关按钮。渲染各个音源接口胶囊（激活时呈现绿色填充 `#1DB954` 与黑色文字），旁边提供“全部”与“重置”批量开关。音源选择维护在由 `useSyncExternalStore` 支持的共享 store 中，并在 `localStorage`（`bbebee_search_sources_excluded`）中作为排除项持久化，确保 TopBar 与 `SearchScreen` 保持严格双向同步，且新安装的音源自动参与搜索。
-         - *右侧单元格（搜索历史）*：存储在 `localStorage`（`bbebee_search_history`，最多 10 条）中的交互式历史标签。点击任何标签立即执行该查询。历史记录为空时显示微妙的“暂无搜索历史”回退占位符。
+   - 视觉与交互规格 —— 中间区域被压缩到 180px 以下时折叠为放大镜（`ResizeObserver` 测量）、动态搜索图标平移、2×2 矩阵网格（带 `useSearchSourceSelection(ctx)` 的搜索范围音源 + `localStorage` 中的搜索历史标签）—— 见 [design-system.md §6.6](design-system.md#66-组件可供性与微交互)。窗口控制按钮（最小化/最大化/关闭）**绝不隐藏**：其容器在两种状态下均保持 `flexShrink: 0`。
    - **搜索提交与路由跳转**：
      - 按下 `Enter`、点击平移到右侧的搜索图标或点击历史标签，将查询提交到历史记录中，关闭矩阵面板，并调用 `navigate('sources.search', { query, sourceIds, typesBySource, searchTimestamp })`。
      - `SearchScreen`（`plugin-sources-ui-desktop`）通过 `useEffect` 监听传入的 `query`、`sourceIds`、`typesBySource` 和 `searchTimestamp` props，并自动执行 `search.searchAll(query, { sourceIds, typesBySource })`，确保 TopBar 中选择的搜索范围限制在搜索页面上即时生效。
@@ -492,11 +472,11 @@ export const usePosition = (ctx: Context) =>
 
 4. **UI Hooks 中的安全服务访问**：
    - Cordis 上下文实例受到严格的作用域限制（`ctx.inject`）。访问未注入的属性在运行时会抛出异常（`cannot get property "<name>" without inject`）。
-   - UI 视图层中检查可选服务的 Hooks（如 `useSources`、`useLiveSourceIds`、`useSearchSourceOptions`）必须始终使用 `serviceOf<T>(ctx, key)` 安全访问服务实例，严禁使用裸成员访问 `(ctx as any)[key]`。
+   - UI 视图层中检查可选服务的 Hooks（如 `useSources`、`useLiveSourceIds`、`useSearchSourceOptions`）必须始终使用 `serviceOf<T>(ctx, key)` 安全访问服务实例，严禁使用裸成员访问 `(ctx as any)[key]` —— 该规范（包括禁止把 `serviceOf` 放入 `useEffect`/`useCallback` 依赖数组）已合并入 [rules/ui.md §3「Service access through `serviceOf`」](../../rules/ui.md#3-hooks--state-binding)（L2）。
 
 5. **全屏播放页与队列抽屉层级结构**：
-   - 全屏播放页（`now-playing.view`）是**覆盖在应用外壳之上的固定蒙层，而非分支切换**：外壳 —— 以及其中每个缓存的页面 —— 保持挂载在下方（蒙层为 `position: fixed`，不透明，z-index 100，作为外壳根节点的后续子节点渲染）。因此从播放页返回时，每个页面都保持离开时的原样：本地状态、滚动位置和事件订阅完好无损。切勿重新引入早期返回的分支切换逻辑 —— 那会卸载每个缓存的页面，正是导致页面状态丢失的原因。
-   - **队列抽屉悬浮在播放页上方**：`ui/navigate 'queue.view'` 仅切换抽屉状态（`isQueueOpen`），绝不改变全屏标记；当播放页打开时，抽屉以 z-index 120 渲染（否则为 40），因此它能平滑滑过全屏蒙层之上。再次切换即可就地关闭抽屉。抽屉之上仅有分享弹窗（130，通过围绕 `share.host` 的层叠上下文包装器）和桌面歌词窗口（9999）；队列拖拽调节条处于 125，因此抽屉在全屏播放页上方仍可自由调整大小。
+   - 全屏播放页（`now-playing.view`）是**覆盖在应用外壳之上的固定蒙层，而非分支切换**：外壳 —— 以及其中每个缓存的页面 —— 保持挂载在下方（蒙层为 `position: fixed`，不透明，z-index 100，作为外壳根节点的后续子节点渲染）。因此从播放页返回时，每个页面都保持离开时的原样：本地状态、滚动位置和事件订阅完好无损（规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2）—— 不要重新引入早期返回的分支切换）。
+   - **队列抽屉悬浮在播放页上方**：`ui/navigate 'queue.view'` 仅切换抽屉状态（`isQueueOpen`），绝不改变全屏标记（层级规格见 [design-system.md §6.8](design-system.md#68-外壳结构与布局范式)）—— 播放页打开时抽屉以 z-index 120 渲染（否则为 40），因此能平滑滑过全屏蒙层之上。再次切换即可就地关闭抽屉；队列拖拽调节条处于 125，因此抽屉在全屏播放页上方仍可自由调整大小。
 
 6. **桌面端拖拽导入与本地音乐导航**：
    - 将音频文件或文件夹从操作系统拖入桌面窗口的任何部分，均会触发 `importDroppedFiles(ctx, files)`。

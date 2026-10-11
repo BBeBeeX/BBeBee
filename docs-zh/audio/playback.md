@@ -157,7 +157,7 @@ sequenceDiagram
 
 **`plugin-download`** 是第一个监听器：如果用户已下载该文件则直接返回，否则放行。**`plugin-cache`** 是第二个监听器，负责自动流缓存：远程句柄带请求头拉取并在播放时写入 `ctx.paths.cache/stream`，以 `stream:<urn>` 记入 `cache_entries` 表；后续的所有解析直接命中本地缓存，无需请求远程音源。未命中缓存时立即返回远程句柄，绝不拖延播放。缓存按 LRU 算法在 `stream` 类别内淘汰；禁用该插件时曲目降级为普通在线流媒体播放。
 
-封面图片走相同的插件缓存路径：`ctx.cache.artwork(ref)` 返回缓存文件，仅在未命中时下载，并更新 `artworks.local_uri`，使包括锁屏在内的所有读取者均能获取本地 `Uri`。渲染端绑定使用 `useResolvedArtwork` Hook（[ui/architecture.md §4](../ui/architecture.md#4-将服务绑定到-react)）。
+封面图片走相同的插件缓存路径：`ctx.cache.artwork(ref)` 返回缓存文件，仅在未命中时下载，并更新 `artworks.local_uri`，使包括锁屏在内的所有读取者均能获取本地 `Uri`。渲染端绑定使用 `useResolvedArtwork` Hook（[ui/architecture.md §4](../ui/architecture.md#4-把服务绑定到-react)）。
 
 下载任务本身是 `download_tasks` 表中的记录，由 Worker 调度并经由 **`ctx.downloads`** 暴露。每秒对已下载字节做检查点保存，暂停或中断后恢复时发送 `Range` 请求而无需从头重下。
 

@@ -6,8 +6,9 @@
 
 ### Core schema
 
-Forward-only, versioned, in `packages/kernel/src/migrations/`. Each is a numbered module applied
-in a transaction; the applied version is recorded.
+> 规范见 [rules/data-model.md §3 Database Migrations](../../rules/data-model.md#3-database-migrations)（L2），本节只讲原理与用法。
+
+They live in `packages/kernel/src/migrations/`, one numbered module per version.
 
 ```sql
 CREATE TABLE schema_migrations (
@@ -22,13 +23,14 @@ CREATE TABLE schema_migrations (
 newer database refuses to start with an explanatory message rather than attempting a rollback —
 a half-applied downgrade is worse than a clear failure.
 
-> **Each migration's statements and its bookkeeping row commit together, in one transaction.**
-> This is load-bearing, not tidiness: without it, an interruption partway through a multi-statement
-> migration leaves the tables created but the version unrecorded, so the next boot re-runs it into
-> `table already exists` — and every boot after that. The database becomes permanently unbootable
-> with no recourse but deleting files by hand. `MigrationDb` therefore requires a `transaction()`
-> method; it is not optional. `BEGIN IMMEDIATE` takes the write lock up front rather than
-> upgrading mid-transaction.
+> 规范见 [rules/data-model.md §3 Database Migrations](../../rules/data-model.md#3-database-migrations)（L2），本节只讲原理与用法。
+>
+> One transaction is load-bearing, not tidiness: without it, an interruption partway through a
+> multi-statement migration leaves the tables created but the version unrecorded, so the next boot
+> re-runs it into `table already exists` — and every boot after that. The database becomes
+> permanently unbootable with no recourse but deleting files by hand. `MigrationDb` therefore
+> requires a `transaction()` method; it is not optional. `BEGIN IMMEDIATE` takes the write lock up
+> front rather than upgrading mid-transaction.
 
 #### Core migrations catalog (`CORE_MIGRATIONS`)
 
@@ -53,41 +55,43 @@ their own:
 await ctx.db.defineSchema('plugin:@BBeBee/plugin-scrobble', [
   {
     version: 1,
-    up: `CREATE TABLE {{ns}}_submissions (
-           id TEXT PRIMARY KEY,
-           play_id TEXT NOT NULL,
-           submitted_at INTEGER,
-           status TEXT NOT NULL
-         )`,
+    up: [
+      `CREATE TABLE {{ns}}_submissions (
+         id TEXT PRIMARY KEY,
+         play_id TEXT NOT NULL,
+         submitted_at INTEGER,
+         status TEXT NOT NULL
+       )`,
+    ],
   },
-  { version: 2, up: `CREATE INDEX {{ns}}_status ON {{ns}}_submissions(status)` },
+  { version: 2, up: [`CREATE INDEX {{ns}}_status ON {{ns}}_submissions(status)`] },
 ])
 ```
 
 Rules:
 
-- `{{ns}}` expands to a sanitised prefix derived from the plugin id, so ownership is legible in
-  the schema. The transform is **lossy** — `-`, `.`, and `_` all fold to `_`, so `plugin:a-b` and
+- Expansion derives from the plugin id, so ownership is legible in the schema. The transform is
+  **lossy** — `-`, `.`, and `_` all fold to `_`, so `plugin:a-b` and
   `plugin:a.b` both yield `plugin_a_b`. Uniqueness is therefore enforced separately: a
   `schema_namespaces` table records which namespace owns each prefix, and a second namespace
   claiming it is refused with `NamespaceCollisionError` rather than silently sharing tables.
-- A plugin may only write its own tables, and may only `defineSchema` for
-  `plugin:<its own instance id>` — otherwise it could claim `core` and own the catalogue.
+- A plugin may only write its own tables — otherwise it could claim `core` and own the catalogue
+  (规范见 [rules/data-model.md §3 Database Migrations](../../rules/data-model.md#3-database-migrations)（L2）).
   **No first-party plugin currently ships its own schema** — the scanner, the player and the
   sources UI all read and write *core* tables under `db:read:core`/`db:write:core`. The
   `{{ns}}` machinery below is implemented in the kernel and tested, but exercised by no bundled
   plugin yet.
   Reading core tables requires `db:read:core`, and changing their rows requires `db:write:core` —
   a separate grant, not one implied by the first ([capabilities.md §7](../plugins/capabilities.md#capability-grammar)).
-  Each `up` entry is **one statement**: a driver runs the first and discards the rest in silence,
-  so a multi-statement string is refused before anything executes rather than half-applied with
-  its version recorded ([contracts.md §5](../services/contracts.md#5-ctxdb--sql)). That is what the array form
-  is for. `ATTACH`/`DETACH` are refused outright, since
+  Each `up` entry is one statement — the kernel refuses a multi-statement string before anything
+  executes, rather than half-applying it with its version recorded
+  (规范见 [rules/data-model.md §3 Database Migrations](../../rules/data-model.md#3-database-migrations)（L2）; [contracts.md §5](../services/contracts.md#5-ctxdb--sql)).
+  That is what the array form is for. `ATTACH`/`DETACH` are refused outright, since
   they would turn the database handle into an arbitrary-file primitive.
 - ⚠️ The check is a **regex over table identifiers, not a SQL parser**. It fails closed — an
   identifier it cannot attribute is treated as foreign — and it stops the ordinary mistake and the
   casual overreach. It is not a boundary against an author who is trying, who shares the runtime
-  anyway ([concepts.md §7](../plugins/concepts.md#where-the-gate-actually-runs)).
+  anyway ([capabilities.md §7](../plugins/capabilities.md#where-the-gate-actually-runs)).
 - Migrations run inside `ctx.plugin()`, so a failing migration fails that plugin only.
 - **Uninstall** offers "remove data" — drops the namespace's tables and its `schema_migrations`
   rows — or "keep data", leaving them dormant so a reinstall resumes where it left off. Defaulting

@@ -13,8 +13,9 @@ built-in runtime and sandboxed in its own JS realm. Adding a backend is a paste,
 ([ADR-5](./architecture/overview.md#adr-5--music-sources-are-imported-strings-interpreted-by-one-runtime),
 [sources/spec.md](./sources/spec.md)).
 
-> **Status.** M0 and M1 are built, and M2 (sources as strings) is built except where
-> [Roadmap & Risks](./roadmap/roadmap.md) names open items — notably `core-js-quickjs-expo` (mobile has
+> **Status.** M0 – M4 are built — M3 (offline downloads) and M4 (the DSP chain) shipped; see each
+> milestone's "Where it stands" / "Shipped" notes in [Roadmap & Risks](./roadmap/roadmap.md) for
+> open items — notably `core-js-quickjs-expo` (mobile has
 > no QuickJS sandbox yet) and the `@css:`/`@xpath:` rule engines. See the roadmap's
 > "Where it stands" section for the precise list. Every version number and API fact was verified
 > against `pnpm-lock.yaml` at the time of writing (see
@@ -121,9 +122,9 @@ For code comments and historical commits referencing `docs/01` through `docs/11`
 
 A Cordis `Context` is created inside the app's single JavaScript runtime — Hermes on mobile, the
 Electron renderer on desktop. That context is **Layer 1**, the kernel. **Layer 2** is a small set
-of **core plugins** that claim service keys (`ctx.fs`, `ctx.http`, `ctx.db`, `ctx.js`, …); they are
-the *only* code in the repository allowed to import a platform SDK or to drive the kernel, and
-there is one implementation per target behind each key. Above them sits **Layer 3**, three log
+of **core plugins** that claim service keys (`ctx.fs`, `ctx.http`, `ctx.db`, `ctx.js`, …), with one
+implementation per target behind each key — they alone may touch a platform SDK or drive the kernel
+(规范见 [rules/services.md §1](../rules/services.md#1-core-services-philosophy)（L2），本节只讲原理与用法). Above them sits **Layer 3**, three log
 transports that subscribe to `ctx.logger` and decide where a line ends up; then **Layer 4** feature
 plugins provide playback, DSP, downloads, the library and the sources, and **Layer 5** — the shells
 and the view packages — turns those into pages. None of them may reach past Layer 2 to the

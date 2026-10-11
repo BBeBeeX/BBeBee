@@ -61,7 +61,9 @@ export async function apply(ctx: Context) {
 
 ## 5. 隔离与拦截
 
-两种机制让同一个服务键在插件树的不同部分有不同含义。BBeBee 对二者都重度依赖。
+两种机制让同一个服务键在插件树的不同部分有不同含义。BBeBee 对二者都重度依赖。规范定义见
+[rules/plugins.md §4 Isolation and Interception](../../rules/plugins.md#4-isolation-and-interception)（L2）；
+本节用示例走读语义。
 
 ### `ctx.isolate(key)` —— 服务的私有实例
 

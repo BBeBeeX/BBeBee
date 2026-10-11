@@ -2,6 +2,35 @@
 
 > **Legacy Reference:** Formerly `docs/04-core-services.md §2 – §15, §17 – §20`.
 
+## 目录
+
+- [2. `ctx.http` — outbound HTTP](#2-ctxhttp--outbound-http)
+- [3. `ctx.ws` — WebSocket](#3-ctxws--websocket)
+- [4. `ctx.store` — namespaced key/value](#4-ctxstore--namespaced-keyvalue)
+- [5. `ctx.db` — SQL](#5-ctxdb--sql)
+- [6. `ctx.secrets` — credential storage](#6-ctxsecrets--credential-storage)
+- [7. `ctx.mediaSession` — now playing & transport controls](#7-ctxmediasession--now-playing--transport-controls)
+- [8. `ctx.notify` — user notifications](#8-ctxnotify--user-notifications)
+- [9. `ctx.background` — long work and wake locks](#9-ctxbackground--long-work-and-wake-locks)
+- [10. `ctx.paths` — well-known locations](#10-ctxpaths--well-known-locations)
+- [11. `ctx.device` — environment and input](#11-ctxdevice--environment-and-input)
+- [12. `ctx.crypto`](#12-ctxcrypto)
+- [13. `ctx.codec` — decoding and metadata](#13-ctxcodec--decoding-and-metadata)
+- [14. `ctx.shell` — leaving the app](#14-ctxshell--leaving-the-app)
+- [15. `ctx.i18n`](#15-ctxi18n)
+- [17. Runtime compatibility checklist](#17-runtime-compatibility-checklist)
+- [18. Contract tests](#18-contract-tests)
+- [19. `ctx.js` — the sandboxed evaluator](#19-ctxjs--the-sandboxed-evaluator)
+- [20. `ctx.theme` — color management & theme service](#20-ctxtheme--color-management--theme-service)
+- [21. `ctx.nowPlaying` — now playing presentation & sandboxed styles](#21-ctxnowplaying--now-playing-presentation--sandboxed-styles)
+- [22. `ctx.share` — sharing & steganography service](#22-ctxshare--sharing--steganography-service)
+- [23. `ctx.settings` — application settings & contribution registry](#23-ctxsettings--application-settings--contribution-registry)
+- [24. `ctx['plugin-manager']` — plugin inspection, dependencies & lifecycle manager](#24-ctxplugin-manager--plugin-inspection-dependencies--lifecycle-manager)
+- [25. `ctx.contentRegistry` — third-party content registry](#25-ctxcontentregistry--third-party-content-registry)
+- [26. Where to go next](#26-where-to-go-next)
+
+> **Scope boundary.** The normative registry of service keys — which keys exist and which package implements each on which platform — lives in [rules/services.md §2](../../rules/services.md#2-standard-service-keys) (L2). This catalog holds the full contracts, platform behavior and rationale.
+
 ## 2. `ctx.http` — outbound HTTP
 
 **Purpose.** A `fetch`-shaped client that is *not* subject to browser rules.
@@ -275,10 +304,7 @@ immediately and the pending batch is flushed by the plugin's disposer.
 A corrupt store is quarantined (renamed aside) and the app starts with an empty one: settings are
 recoverable, an unbootable app is not.
 
-To eliminate redundant startup reads, `StoreConfig` supports optional `initialData: Record<string, unknown>`.
-When the host composition root pre-reads `store.json` at boot (for example, to inspect persisted audio
-engine preferences before creating services), passing `initialData` seeds the document in memory and
-marks it loaded, completely skipping secondary disk I/O.
+> 规范见 [rules/services.md §5](../../rules/services.md#5-startup--initialization-performance)（L2），本节只讲原理与用法。
 
 ---
 
@@ -298,7 +324,7 @@ export interface DbService {
   /**
    * Register a plugin-owned schema. Tables are prefixed with the namespace,
    * migrations are versioned per namespace, and everything is dropped if the
-   * plugin is uninstalled with "remove data" selected. See [data-model/migrations.md §6](../data-model/migrations.md#6-plugin-schema-lifecycle).
+   * plugin is uninstalled with "remove data" selected. See [data-model/migrations.md §6](../data-model/migrations.md#plugin-owned-schemas).
    */
   defineSchema(namespace: string, migrations: Migration[]): Promise<void>
 }
@@ -720,9 +746,12 @@ Rules the contract is built around, each of which a naive embedding gets wrong:
   `expose`d by name, which is what makes the host surface in
   [sources/runtime.md §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do) an exhaustive
   list rather than a summary.
-- **Lazy WASM compilation.** In `core-js-quickjs-node`, `[Service.init]()` returns immediately;
-  the QuickJS WASM module is compiled and cached on demand on the first `createRealm()` call,
-  preventing WebAssembly compilation from adding 100~300ms to initial app startup.
+- **Lazy WASM compilation.**
+
+  > 规范见 [rules/services.md §5](../../rules/services.md#5-startup--initialization-performance)（L2），本节只讲原理与用法。
+
+  The motivation is startup cost: without the laziness, WebAssembly compilation would add
+  100~300ms to initial app startup.
 - **Values cross by cloning, never by reference.** Nothing inside the realm can retain a live
   object from the host, so it cannot walk the object graph to reach a service — the failure that
   makes same-realm "sandboxes" worthless.
@@ -797,7 +826,7 @@ export interface ThemeService {
 | Custom Themes | Dynamic JSON import (file / text) with fallback token hydration; deletable with fallback protection | Same |
 
 - **DOM Synchronization**: `plugin-theme` evaluates `themeToCssVariables(theme)` and injects them onto the root document element, alongside `data-theme="{id}"`.
-- **Protection of Built-In Themes**: `removeTheme(themeId)` rejects removal of built-in themes. If an active custom theme is deleted, it immediately falls back to the default theme (`midnight-purple`).
+- **Protection of Built-In Themes**: 规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2）— `removeTheme(themeId)` protects built-in themes; deleting the active custom theme falls back to the default (`midnight-purple`) immediately.
 - **Event Bus Integration**: Emits `theme/changed` when active theme changes, and `theme/registry-changed` whenever themes are added or removed.
 
 ---
@@ -1179,7 +1208,7 @@ export interface RegistryService {
 
 - **Matching semantics**: music sources match installed records by `sourceUrl` (the `SourceRecord` identity), lyric sources / themes / plugins by their `id`. An installed copy older than the entry's `version` produces a `RegistryUpdate`.
 - **Install flows per kind**: music source → `ctx.sources.import` (full import pipeline, `originUri` = `downloadUrl`); lyric source → shape-check then `ctx.lyricSources.registerSource`; theme → the same dark/light contrast gate a user-drafted theme goes through, then `ctx.theme.registerTheme`; plugin → refuse if the entry publishes no `sha256`, verify the downloaded bundle against the digest, then hand to the dynamic host.
-- **Security red lines**: `fetchEntryDetails()` exists so the confirm dialog can name a music document's `allowedHosts` before import; plugin installs verify `sha256` and require an explicit risk confirmation; downloaded plugins undergo security audits via `@BBeBee/plugin-security-audit` checking 7 threat patterns, and integrity is locked in `registry.lock.json` to detect tampering.
+- **Security red lines**: `fetchEntryDetails()` exists so the confirm dialog can name a music document's `allowedHosts` before import; plugin installs verify `sha256` and require an explicit risk confirmation; downloaded plugins undergo security audits via `@BBeBee/plugin-security-audit` checking **13 scanner rules (8 static + 2 dynamic scan groups)**, and integrity is locked in `registry.lock.json` to detect tampering.
 - **Automatic checks**: `AppSettings.registryAutoCheck` (default `true`) — first check ~45 s after boot, then every 24 h; manual checks run regardless.
 
 ### 25.1 The `ctx.registryMetadata` companion service

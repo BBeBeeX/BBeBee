@@ -2,6 +2,10 @@
 
 Guidelines for writing and modifying BBeBee plugins (Layers 2, 4, 5).
 
+> **L2 · 何时读**：写或改任何插件时——入口形态、fiber 副作用、`inject` 依赖、能力语法、15 字段 manifest。
+> **不读会怎样**：disposer 被丢弃导致卸载泄漏、误闯能力门禁、manifest 字段与代码事实不符，`pnpm check` 与运行期双双出错。
+> **深读指引**：docs/plugins/concepts.md §2–§3（生命周期与依赖原理）、docs/plugins/loading.md §6（加载架构）、docs/plugins/capabilities.md §7（门禁模型）。
+
 ---
 
 ## 1. Shape
@@ -103,7 +107,7 @@ Declared in each package's `BBeBee.plugin.json`, mediated by the kernel via inte
 
 | Capability | Grants |
 |---|---|
-| `fs:read:<scope>` / `fs:write:<scope>` | `own`, `media`, `cache`, `downloads`, or `all` |
+| `fs:read:<scope>` / `fs:write:<scope>` | `own`, `media`, `cache`, `downloads`, `logs`, or `all` |
 | `net:host/<glob>` | Outbound HTTP and WebSocket, plus a per-plugin persisted cookie jar |
 | `db:own` | Its own `{{ns}}_`-prefixed tables outright — read, write, schema |
 | `db:read:<ns>` / `db:write:<ns>` / `db:*:<ns>` | Another namespace, by verb. Reading & writing the catalogue is `db:read:core` *and* `db:write:core` |
@@ -125,15 +129,18 @@ Every plugin package across all layers (Core, Logs, Feature, UI) must carry a `B
 4. `description`: Clear summary of the package's responsibilities.
 5. `version`: Semantic version string (`"0.0.0"`).
 6. `author`: Plugin author/maintainer (`"BBeBee Team"`).
-7. `engines`: Platform runtime constraints (`{"node": ">=22.12.0"}`).
+7. `engines`: Engine compatibility constraints; the `BBeBee` engine is required (`{"BBeBee": "^0.1.0"}`).
 8. `enabled`: Default enabled boolean (`true`).
 9. `dependencies`: Explicit list of prerequisite plugin IDs (`["@BBeBee/plugin-sources"]`).
 10. `systemId`: Architectural layer stratum ID: `"layer-2"`, `"layer-3"`, `"layer-4"`, or `"layer-5"`.
     *(⚠️ Note: explicitly named `systemId`, never `subsystemId`).*
 11. `moduleId`: Functional domain grouping ID: `"sources"`, `"playback"`, `"lyrics"`, `"storage"`, `"dsp"`, `"settings"`, `"inspector"`, `"share"`, `"ui"`, `"core"`, `"logs"`.
-12. `entry`: Module entry points (`{"main": "...", "desktop": "...", "mobile": "..."}`).
-13. `capabilities`: Explicit permission tokens requested by the plugin.
-14. `contributes`: Extension slots, navigation routes, settings schemas (`{"slots": ["sidebar-primary"]}`).
+12. `entry`: Module entry points (`PluginEntrypoints`): `{"main": "./dist/index.js"}`, plus optional `"ui": {"mobile": "…", "desktop": "…"}`
+    for per-shell view entries.
+13. `capabilities`: Explicit permission tokens from the §5 grammar requested by the plugin
+    (e.g. `["db:read:core", "db:write:core"]`).
+14. `contributes`: Optional extension points (`PluginContributes`): `services` (service keys provided, `string[]`),
+    `settings` (settings schema, `string`), `slots` (extension slots, `string[]`).
 15. `effect`: Context property/service registered on `ctx` (e.g. `"player"`, `"audio"`), or `null` if none.
 
 ---

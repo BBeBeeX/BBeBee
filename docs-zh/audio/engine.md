@@ -139,7 +139,10 @@ flowchart LR
 - **设置中的音频输出引擎、独占模式与设备选择 (`audioOutputEngine`, `audioExclusive`, `audioOutputDeviceId`)**：
   用户可在桌面端设置界面的「音频输出引擎与设备」中自由配置驱动与物理设备：
   - **MPV Hi-Fi（Windows 默认）**：独立 native 原生引擎，WASAPI 直通输出、原生 DSP/EQ 与 FFT 可视化。
-  - **独占模式（`audioExclusive`，默认关闭）**：当选择 MPV 模式时，界面在音频输出驱动下方展示「独占模式」开关。开启后 libmpv 配置硬件独占访问（`--audio-exclusive=yes`），在 Windows 下使用 WASAPI 独占模式直通输出，绕过操作系统共享混音器与重采样，提供位完美（Bit-perfect）输出。通过 `ctx.audio.setAudioExclusive(exclusive)` / 桥接 `mpvSetAudioExclusive` 支持运行时无中断热切换。
+  - **独占模式（`audioExclusive`，默认关闭）**：当选择 MPV 模式时，界面在音频输出驱动下方展示「独占模式」开关。
+
+    > 规范见 [rules/services.md §7](../../rules/services.md#7-native-audio-engine--exclusive-mode)（L2），本节只讲原理与用法。
+
   - **WebAudio**：标准 Web Audio 共享混音图。
   - **可选择的音频输出设备**：
     - **系统硬件设备全量探测**：Electron 主进程通过授予 `'speaker-selection'` 与 `'media'` 权限解除 Chromium 设备标签屏蔽，并配合底层 OS 查询通道（Windows 注册表与 CIM MMDevices、macOS System Profiler、Linux pactl/aplay），精准获取当前系统中所有物理扬声器、耳机和外接 USB DAC 的真实友好名称（Friendly Name）。

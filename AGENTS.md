@@ -113,12 +113,12 @@ export async function apply(ctx: Context) {
 
 For deep requirements and domain rules, consult the dedicated rule files in `rules/`:
 
-- [rules/plugins.md](./rules/plugins.md): Plugin authoring details, service classes, dynamic loading, capabilities.
-- [rules/services.md](./rules/services.md): Core services catalog, platform SDK boundary, Layer 3 logging.
-- [rules/data-model.md](./rules/data-model.md): URN grammar, SQLite WAL & transactions, Waterfall event hooks.
-- [rules/ui.md](./rules/ui.md): Three-package UI convention, descriptors, hooks, and dark streaming design system.
-- [rules/sources.md](./rules/sources.md): Music sources JSON, 6 rule engines, QuickJS sandbox, authoring CLI.
-- [rules/testing-and-gotchas.md](./rules/testing-and-gotchas.md): Test gates, gotchas table, known project gaps.
+- [rules/plugins.md](./rules/plugins.md) `L2` — load when writing or modifying any plugin: entry shape, fiber side effects, DI, capability grammar, the 15-field manifest.
+- [rules/services.md](./rules/services.md) `L2` — load when touching core services, platform SDK boundaries, or logging: service keys, opaque URIs, Layer 3 discipline.
+- [rules/data-model.md](./rules/data-model.md) `L2` — load when touching URNs, SQLite, migrations, or events: storage conventions, waterfall semantics, state ownership.
+- [rules/ui.md](./rules/ui.md) `L2` — load when touching any UI package: three-package convention, hooks, hard constraints (design details live in [docs/ui/design-system.md](./docs/ui/design-system.md) `L3`).
+- [rules/sources.md](./rules/sources.md) `L2` — load when authoring music sources or touching the sandbox/registry: source documents, rule engines, install red lines.
+- [rules/testing-and-gotchas.md](./rules/testing-and-gotchas.md) `L2` — load when writing tests or debugging: the five test gates, the gotchas table, project status & version pins.
 
 ---
 
@@ -126,17 +126,19 @@ For deep requirements and domain rules, consult the dedicated rule files in `rul
 
 The comprehensive technical specifications live in `docs/`:
 
-| Topic | Primary Docs |
-|---|---|
-| Architecture & ADRs | [docs/architecture/overview.md](./docs/architecture/overview.md), [docs/architecture/layers.md](./docs/architecture/layers.md) |
-| Plugin System & DI | [docs/plugins/concepts.md](./docs/plugins/concepts.md), [docs/plugins/loading.md](./docs/plugins/loading.md), [docs/plugins/capabilities.md](./docs/plugins/capabilities.md) |
-| Core Services | [docs/services/overview.md](./docs/services/overview.md), [docs/services/contracts.md](./docs/services/contracts.md), [docs/services/logging.md](./docs/services/logging.md) |
-| Audio & DSP Chain | [docs/audio/engine.md](./docs/audio/engine.md), [docs/audio/playback.md](./docs/audio/playback.md), [docs/audio/dsp.md](./docs/audio/dsp.md) |
-| Music Sources | [docs/sources/spec.md](./docs/sources/spec.md), [docs/sources/rule-engines.md](./docs/sources/rule-engines.md), [docs/sources/runtime.md](./docs/sources/runtime.md), [docs/sources/registry.md](./docs/sources/registry.md) |
-| Data & Storage | [docs/data-model/urn.md](./docs/data-model/urn.md), [docs/data-model/schema.md](./docs/data-model/schema.md), [docs/data-model/events.md](./docs/data-model/events.md) |
-| UI & Design Tokens | [docs/ui/architecture.md](./docs/ui/architecture.md), [docs/ui/design-system.md](./docs/ui/design-system.md) |
-| Workflow & Testing | [docs/workflow/structure.md](./docs/workflow/structure.md), [docs/workflow/testing.md](./docs/workflow/testing.md) |
-| Roadmap | [docs/roadmap/roadmap.md](./docs/roadmap/roadmap.md), [docs/roadmap/archive-m1.md](./docs/roadmap/archive-m1.md) |
+Tags: `L2` = load for the matching task; `L3` = read on demand (large, detailed — jump to the section you need).
+
+| Topic | Primary Docs | Load when |
+|---|---|---|
+| Architecture & ADRs | [docs/README.md](./docs/README.md) `L2`, [docs/architecture/overview.md](./docs/architecture/overview.md) `L2`, [docs/architecture/layers.md](./docs/architecture/layers.md) `L3` | orientation & doc map, ADR history, boot sequence & layer boundaries |
+| Plugin System & DI | [docs/plugins/concepts.md](./docs/plugins/concepts.md) `L3`, [docs/plugins/loading.md](./docs/plugins/loading.md) `L3`, [docs/plugins/capabilities.md](./docs/plugins/capabilities.md) `L3`, [docs/plugins/isolation.md](./docs/plugins/isolation.md) `L3` | why the plugin model, loader, gate, and isolation behave as they do |
+| Core Services | [docs/services/overview.md](./docs/services/overview.md) `L3`, [docs/services/contracts.md](./docs/services/contracts.md) `L3` (in-file TOC), [docs/services/logging.md](./docs/services/logging.md) `L3` | per-service contracts & rationale; contracts.md carries an anchor TOC |
+| Audio & DSP Chain | [docs/audio/engine.md](./docs/audio/engine.md) `L3`, [docs/audio/playback.md](./docs/audio/playback.md) `L3`, [docs/audio/dsp.md](./docs/audio/dsp.md) `L3` | audio engines, transport state machine, DSP chain specifics |
+| Music Sources | [docs/sources/spec.md](./docs/sources/spec.md) `L3`, [docs/sources/rule-engines.md](./docs/sources/rule-engines.md) `L3`, [docs/sources/runtime.md](./docs/sources/runtime.md) `L3`, [docs/sources/registry.md](./docs/sources/registry.md) `L3`, [docs/sources/authoring.md](./docs/sources/authoring.md) `L3`, [docs/sources/parameters.md](./docs/sources/parameters.md) `L3` | source model, rule language, sandbox limits, registry & install flows, authoring workflow |
+| Data & Storage | [docs/data-model/urn.md](./docs/data-model/urn.md) `L3`, [docs/data-model/schema.md](./docs/data-model/schema.md) `L3`, [docs/data-model/events.md](./docs/data-model/events.md) `L3`, [docs/data-model/migrations.md](./docs/data-model/migrations.md) `L3` | table-level detail, the event canon, migration mechanics |
+| UI & Design Tokens | [docs/ui/architecture.md](./docs/ui/architecture.md) `L3`, [docs/ui/design-system.md](./docs/ui/design-system.md) `L3` | shell/rendering internals; design specs & visual values (migrated from rules/ui.md) |
+| Workflow & Testing | [docs/workflow/structure.md](./docs/workflow/structure.md) `L3`, [docs/workflow/testing.md](./docs/workflow/testing.md) `L3`, [docs/workflow/build-pipelines.md](./docs/workflow/build-pipelines.md) `L3` | repo layout, test workflow & PR checklist, build & version matrix |
+| Roadmap | [docs/roadmap/roadmap.md](./docs/roadmap/roadmap.md) `L3`, [docs/roadmap/archive-m1.md](./docs/roadmap/archive-m1.md) `L3` (archived, unmaintained) | milestone detail; the archive is a historical record only |
 
 ---
 

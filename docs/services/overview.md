@@ -9,16 +9,17 @@
 These are the only doors out of the sandbox. Core plugins are the one layer permitted to call a
 platform SDK or the kernel's bootstrap surface directly, and that privilege is the whole reason
 they exist: they convert *this machine's* API into a contract that Layers 3, 4 and 5 can be written
-against once. If a feature needs something not listed here, the answer is to add a core service —
-never to import a platform SDK ([architecture/layers.md §1](../architecture/layers.md#the-invariant)).
+against once.
 
-The price of the privilege is that a core plugin holds **no domain knowledge**. `ctx.fs` moves
-bytes and `ctx.db` runs SQL; neither knows what a track is. A core service that grows a concept
+> 规范见 [rules/services.md §1](../../rules/services.md#1-core-services-philosophy)（L2），本节只讲原理与用法：feature 缺平台能力时，答案是新增一个 core service，而不是 import platform SDK（[architecture/layers.md §1](../architecture/layers.md#the-invariant)）；core plugin 不持有领域知识。
+
+A core service that grows a concept
 from Layer 4 has put the seam at the wrong altitude, and the symptom is always the same — the two
 implementations stop being interchangeable.
 
-All interfaces live in `packages/protocol/src/services/` and are applied to the context by module
-augmentation. Implementations live in `packages/core/*` and are the sole holders of platform
+> 规范见 [rules/services.md §2](../../rules/services.md#2-standard-service-keys)（L2），本节只讲原理与用法。
+
+Implementations live in `packages/core/*` and are the sole holders of platform
 dependencies.
 
 > **Document structure.** This document introduces architectural principles, shared types (§0), and the virtual filesystem (§1).
@@ -55,7 +56,8 @@ export class CapabilityError extends Error {
 **Purpose.** Read, write, enumerate, and stream bytes, without any plugin knowing what a path
 looks like on the host.
 
-The central idea is that plugins never handle absolute paths. They ask for a well-known directory
+The central idea is that plugins never handle absolute paths (规范见
+[rules/services.md §3](../../rules/services.md#3-opaque-uris-and-paths)（L2），本节只讲原理与用法). They ask for a well-known directory
 and resolve relative to it, producing opaque `Uri` values. This is what makes the same code work
 against `file:///Users/x/Library/…`, `content://com.android.externalstorage/…`, and Expo's
 sandboxed document directory.

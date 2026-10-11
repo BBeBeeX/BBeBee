@@ -209,11 +209,8 @@ export interface SearchResult {
 `total` stays optional, because a scraped page almost never knows one and inventing it produces
 progress bars that lie.
 
-Detail endpoints (`getAlbum(urn, page?)` and `getPlaylist(urn, page?)`) also participate in this
-pagination model. When querying third-party providers with large albums, series or collections,
-consumers pass a `PageRequest` (typically 30 items per page) and receive `hasMore` and `cursor` within
-`AlbumDetail` or `PlaylistDetail`. The runtime translates this to the source's page parameters
-(`pn`/`page_num` and `ps`/`page_size`), allowing views to paginate incrementally on scroll rather than
+Detail endpoints (`getAlbum(urn, page?)` and `getPlaylist(urn, page?)`) participate in the same pagination model（规范见 [rules/sources.md §2 — Detail Pagination](../../rules/sources.md#2-rule-language)（L2）：runtime 将页码/游标映射为 `pn`/`page_num`、`ps`/`page_size`，并在 `AlbumDetail` / `PlaylistDetail` 回传 `hasMore` 与 `cursor`）. When querying third-party providers with large albums, series or collections,
+consumers pass a `PageRequest` (typically 30 items per page), allowing views to paginate incrementally on scroll rather than
 loading thousands of tracks up front.
 
 **Rate limiting** is `concurrentRate`, enforced by the source's isolated HTTP stack rather than by
@@ -314,7 +311,7 @@ Signing in once must be enough. Many backends carry their session entirely in co
 that dies with the process means a login prompt on every launch.
 
 Each source owns a **persistent cookie jar**, keyed by source id and supplied by `ctx.http`
-([services/overview.md §2.1](../services/overview.md#21-cookie-jars)). No rule manages it: it lives in the source's
+([services/contracts.md §2.1](../services/contracts.md#21-cookie-jars)). No rule manages it: it lives in the source's
 isolated `ctx.http` scope ([§4.1](#41-a-sources-lifetime)), so every request the runtime makes on
 that source's behalf sends the right cookies and every `Set-Cookie` is stored, with no cookie
 handling in the document at all.
@@ -331,7 +328,7 @@ sequenceDiagram
     U->>R: signIn({ username, password })
     R->>H: POST loginUrl
     H->>J: store Set-Cookie
-    J->>S: persist (encrypted, see [services/overview.md §2.1](../services/overview.md#21-cookie-jars))
+    J->>S: persist (encrypted, see [services/contracts.md §2.1](../services/contracts.md#21-cookie-jars))
     R-->>U: status = 'authenticated'
 
     Note over R,J: ── Next launch ──
@@ -368,7 +365,7 @@ The lifecycle rules:
 
 > ⚠️ A persisted cookie is a bearer credential with the lifetime the server chose, which may be
 > months. It deserves the same protection as a password, and the storage design in
-> [overview.md §2.1](../services/overview.md#21-cookie-jars) treats it that way. It also means "sign out"
+> [contracts.md §2.1](../services/contracts.md#21-cookie-jars) treats it that way. It also means "sign out"
 > genuinely has to work — a jar left on disk after sign-out is a security bug, not untidiness.
 
 ---
@@ -443,14 +440,13 @@ Handling of the awkward cases:
 
 What makes this tractable — and genuinely better than the plugin model it replaces — is that a
 source's execution environment is *small enough to enumerate*. Runtime-loaded plugins shared the
-renderer's realm and could reach anything ([concepts.md §7](../plugins/concepts.md#what-this-is-not)); a
+renderer's realm and could reach anything ([capabilities.md §7](../plugins/capabilities.md#what-this-is-not)); a
 source cannot reach anything that is not on the list below.
 
 ### The evaluator
 
-Source JavaScript runs in `ctx.js`, a **separate interpreter realm** — QuickJS on both platforms —
-with no reference to the app's globals, the Cordis context, the DOM, or the module system. It is
-the isolated realm that [concepts.md §7](../plugins/concepts.md#what-this-is-not) says real containment
+（规范见 [rules/sources.md §3 — Sandboxing & Security](../../rules/sources.md#3-sandboxing--security)（L2），本节只讲原理与用法：`ctx.js` 是独立解释器 realm，无宿主全局 / 无 Cordis / 无 DOM / 无模块系统，跨界仅值克隆）Source JavaScript runs in `ctx.js` — QuickJS on both platforms — and it is
+the isolated realm that [capabilities.md §7](../plugins/capabilities.md#what-this-is-not) says real containment
 requires. Sources are the reason it exists now rather than later; third-party plugins inherit it
 ([roadmap.md §M5](../roadmap/roadmap.md#m5--third-party-extensions-on-the-sandbox)). The contract is in
 [contracts.md §19](../services/contracts.md#19-ctxjs--the-sandboxed-evaluator).
@@ -500,9 +496,17 @@ the call, and no filesystem of any kind.
 
 ### The limits, and why each exists
 
+The gating norm — outbound requests checked against the manifest's `allowedHosts` before and after `http/request` waterfall hooks — is [rules/sources.md §3 — Sandboxing & Security](../../rules/sources.md#3-sandboxing--security)（L2）; this table records the concrete limits and why each exists.
+
 | Limit | Value | What it stops |
 |---|---|---|
 | **Host allowlist** | `sourceUrl`'s host plus `allowedHosts`, matched on hostname | Exfiltration to an attacker-controlled endpoint. A URL to any other host is refused with `CapabilityError`, whether it was written literally or computed at runtime |
+| Wall clock per rule | 2 s (10 s for `@js:` with network) | A rule that hangs the search |
+| Memory per evaluation | 32 MB | A source that OOMs the app |
+| HTTP calls per rule | 8 — ⚠️ **not yet enforced**; no counter exists | A rule that turns one search into a crawl |
+| Output size per rule | 1 MB | A selector that returns an entire page into a table cell |
+| Concurrency | `concurrentRate`, default conservative | The user's IP getting banned by their own server |
+| `webView` option | Desktop only, off by default, per-source opt-in with a warning | A full browser context with the user's session, reachable from a pasted string |
 
 `allowedHosts` entries are **hostnames**, and import refuses anything that would be silently widened
 to one. `nas:4533` reads as "this host on this port", but there is no port anywhere in the matcher —
@@ -511,17 +515,11 @@ the entry. A path is rejected for the same reason. A bare scheme drops nothing, 
 `https://cdn.example.org` is accepted and normalised to its host. An entry covers its subdomains
 (`example.org` admits `cdn.example.org`, never `notexample.org`); a single-label entry matches only
 itself, so `["org"]` cannot mean "anywhere in .org".
-| Wall clock per rule | 2 s (10 s for `@js:` with network) | A rule that hangs the search |
-| Memory per evaluation | 32 MB | A source that OOMs the app |
-| HTTP calls per rule | 8 — ⚠️ **not yet enforced**; no counter exists | A rule that turns one search into a crawl |
-| Output size per rule | 1 MB | A selector that returns an entire page into a table cell |
-| Concurrency | `concurrentRate`, default conservative | The user's IP getting banned by their own server |
-| `webView` option | Desktop only, off by default, per-source opt-in with a warning | A full browser context with the user's session, reachable from a pasted string |
 
 The allowlist is the important one, and it is a deliberate divergence from legado, which lets a
 book source request anything. It is shown at import as a plain list of hostnames — "this source
 will talk to: music.example.org, cdn.example.org" — because that sentence is one a user can
-actually judge.
+actually judge. Registry installs follow the same disclosure red line ([rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)).
 
 ### What a hostile source can still do
 

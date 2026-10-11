@@ -2,6 +2,10 @@
 
 Rules governing Layer 2 core services and platform integration in BBeBee.
 
+> **L2 · 何时读**：触碰核心服务、平台 SDK 边界或日志时——服务键枚举、opaque URI 用法、Layer 3 纪律。
+> **不读会怎样**：在 core 之外 import 平台 SDK、绕过 `ctx.logger` 直写 console、调用不存在的 paths API——架构红线与 lint 双炸。
+> **深读指引**：docs/services/contracts.md（逐服务契约，文首有锚点目录）、docs/services/overview.md（分层原理）、docs/services/logging.md（传输与脱敏）。
+
 ---
 
 ## 1. Core Services Philosophy
@@ -29,7 +33,7 @@ Declared in `packages/protocol/src/services/` and augmented onto `Context`:
 | `ctx.secrets` | Keychain and hardware-backed credential storage | `core-secrets-node`, `core-secrets-expo` |
 | `ctx.http` | Outbound HTTP with cookie jar and isolation | `core-http-node`, `core-http-rn` |
 | `ctx.ws` | WebSocket client with capability host checks | `core-http-node` / native |
-| `ctx.audio` | Web Audio API graph (`AudioContext`, DSP nodes) | `core-audio-webaudio` (shared), `core-audio-mpv` (desktop libmpv native engine in a crash-isolated subprocess, direct OS audio output with optional WASAPI exclusive mode, append-based gapless, real-PCM SPSC RingBuffer FFT spectrum & time-domain waveform, astats RMS/Peak levels) |
+| `ctx.audio` | Web Audio API graph (`AudioContext`, DSP nodes) | `core-audio-webaudio` (shared), `core-audio-mpv` (desktop: libmpv native engine in a crash-isolated subprocess, direct OS audio output with optional WASAPI exclusive mode, append-based gapless, real-PCM SPSC RingBuffer FFT spectrum & time-domain waveform, astats RMS/Peak levels; mobile also registers it — Route B in-process libmpv JNI/JSI bridge, see `apps/mobile/src/boot.ts`) |
 | `ctx.codec` | Audio metadata, tag reading, PCM decoding | `core-codec-node` (desktop FFmpeg bridge + music-metadata), `core-codec-rn` |
 | `ctx.device` | Network status, battery, media keys, platform info | `core-device-electron`, `core-device-expo` |
 | `ctx.mediaSession`| OS lock-screen now playing surface and controls | `core-media-session-electron`, `core-media-session-rn` |
@@ -63,9 +67,9 @@ Declared in `packages/protocol/src/services/` and augmented onto `Context`:
 ## 3. Opaque URIs and Paths
 
 - Plugins never handle raw filesystem absolute paths.
-- Plugins ask `ctx.paths` for a well-known directory (`data | cache | temp | music | downloads | logs`) and resolve relative to it:
+- Plugins read a well-known directory from `ctx.paths` (`appData`, `cache`, `temp`, `logs`, `downloads`, optional `music` — or `ctx.paths.get(kind)` for the `WellKnownDir` values `data | cache | temp | music | downloads | logs`) and build child Uris with `ctx.fs.join`:
   ```ts
-  const uri = ctx.paths.resolve('cache', 'covers/album-123.jpg')
+  const uri = ctx.fs.join(ctx.paths.cache, 'covers/album-123.jpg')
   await ctx.fs.writeFile(uri, bytes)
   ```
 
@@ -78,7 +82,7 @@ Declared in `packages/protocol/src/services/` and augmented onto `Context`:
   `plugin-log-buffer` maintains a ring buffer for crash reports and in-app log viewer.
   `plugin-log-file` writes rotating log files via `ctx.fs`.
 - Feature and UI plugins MUST log through `ctx.logger.info(...)`, `ctx.logger.warn(...)`, `ctx.logger.error(...)`.
-- `console.log` in Layer 4 and 5 is an ESLint build error.
+- `console.*` is an ESLint error in Layer 4 packages and the Layer 5 view packages (`packages/ui/*`); the app shells in `apps/*` are exempt, since a boot failure can happen before any transport is loaded.
 
 ---
 

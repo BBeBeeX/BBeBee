@@ -6,13 +6,15 @@
 > 外部世界的每一个服务键、它的 TypeScript 契约、它在各目标平台上的实现，以及两个平台真正存在
 > 差异的地方。
 
-这些是通向沙箱之外的唯一出口。核心插件是唯一被允许直接调用平台 SDK 或内核引导面（bootstrap surface）的一层，而这份特权正是它们存在的全部理由：它们把*这台机器的* API 转换成一份契约，让第 3、4、5 层只需对着它写一次。如果某个功能需要这里未列出的东西，正确答案是新增一个核心服务 —— 而绝不是直接导入平台 SDK
-（[architecture/layers.md §1](../architecture/layers.md#不变量)）。
+这些是通向沙箱之外的唯一出口。核心插件是唯一被允许直接调用平台 SDK 或内核引导面（bootstrap surface）的一层，而这份特权正是它们存在的全部理由：它们把*这台机器的* API 转换成一份契约，让第 3、4、5 层只需对着它写一次。
 
-这份特权的代价是：核心插件**不持有任何领域知识**。`ctx.fs` 搬运字节，`ctx.db` 跑 SQL；两者都不知道"曲目"是什么。一项长出了功能插件层概念的核心服务，就是把接缝放错了高度，而症状永远相同 —— 两份实现不再可以互换。
+> 规范见 [rules/services.md §1](../../rules/services.md#1-core-services-philosophy)（L2），本节只讲原理与用法：feature 缺平台能力时，答案是新增一个核心服务，而不是导入平台 SDK（[architecture/layers.md §1](../architecture/layers.md#不变量)）；核心插件不持有领域知识。
 
-所有接口都位于 `packages/protocol/src/services/`，并通过模块扩充（module augmentation）应用到 Context 上。实现位于
-`packages/core-*`，它们是唯一持有平台依赖的代码。
+一项长出了功能插件层概念的核心服务，就是把接缝放错了高度，而症状永远相同 —— 两份实现不再可以互换。
+
+> 规范见 [rules/services.md §2](../../rules/services.md#2-standard-service-keys)（L2），本节只讲原理与用法。
+
+实现位于 `packages/core/*`，它们是唯一持有平台依赖的代码。
 
 > **文档结构说明：** 本文档阐述核心架构设计原则、共享类型（§0）以及虚拟文件系统（§1）。
 > 详尽的核心服务契约目录（§§2–15, §§17–26）参见 [核心能力服务契约目录](./contracts.md)。
@@ -47,7 +49,8 @@ export class CapabilityError extends Error {
 
 **用途。** 读取、写入、枚举与流式传输字节，而任何插件都不必知道宿主机上的路径长什么样。
 
-核心思想是：插件从不处理绝对路径。它们请求一个众所周知的目录（well-known directory），并相对于它进行解析，得到不透明的
+核心思想是：插件从不处理绝对路径（规范见
+[rules/services.md §3](../../rules/services.md#3-opaque-uris-and-paths)（L2），本节只讲原理与用法）。它们请求一个众所周知的目录（well-known directory），并相对于它进行解析，得到不透明的
 `Uri` 值。正是这一点，让同一份代码可以同时工作于 `file:///Users/x/Library/…`、
 `content://com.android.externalstorage/…` 以及 Expo 的沙箱化文档目录。
 

@@ -4,7 +4,9 @@
 
 ## 5. 事件表
 
-在 `@BBeBee/protocol` 中通过扩充 Cordis 的 `Events` 接口一次性声明。派发模式是契约的一部分：它决定了监听器能否阻塞、变换或否决这次派发。
+> 规范见 [rules/data-model.md §4 Events & Waterfall Hooks](../../rules/data-model.md#4-events--waterfall-hooks)（L2），本节只讲原理与用法。
+
+派发模式是契约的一部分：它决定了监听器能否阻塞、变换或否决这次派发。
 
 ```ts
 declare module 'cordis' {
@@ -45,7 +47,7 @@ declare module 'cordis' {
     /**
      * 决定实际播放哪个流。
      * `plugin-download` 拦截此钩子在存在本地绑定时代换为本地文件；
-     * `plugin-failover` 拦截此钩子在当前音源失效时重试其他音源。
+     * `plugin-cache` 拦截此钩子代换为缓存的流。
      */
     'player/before-resolve'(
       urn: string,
@@ -143,7 +145,9 @@ declare module 'cordis' {
 }
 ```
 
-> ⚠️ 瀑布式监听器收到的 `next` 闭包捕获的是最初传入的参数，并且**忽略任何传给它的东西**。要改写值，就原地修改参数；要短路，就不调用 `next` 直接返回。上面的签名正是因此才严格写成 `next: () => …`。
+> 规范见 [rules/data-model.md §4 Events & Waterfall Hooks](../../rules/data-model.md#4-events--waterfall-hooks)（L2），本节只讲原理与用法。
+>
+> 上方事件表中的签名正是因此才刻意写成 `next: () => …`。
 
 | 事件组 | 模式 | 理由 |
 |---|---|---|

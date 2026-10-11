@@ -4,14 +4,15 @@
 
 ## 6. 测试策略
 
-四层测试，各自能捕获其他层无法捕获的问题。
+五层测试外加一次手动真机冒烟，各自能捕获其他层无法捕获的问题。权威分层表 —— 单元、契约、集成、音源语料库与泄漏测试 —— 见 [rules/testing-and-gotchas.md §1](../../rules/testing-and-gotchas.md#1-testing-strategy)（L2）；下表记录每层运行的工具，外加本页自有的真机冒烟矩阵。
 
 | 层 | 工具 | 覆盖内容 |
 |---|---|---|
-| **单元** | Vitest | 纯逻辑：URN 解析、分数索引（fractional indexing）、智能播放列表编译、针对 mock `AudioService` 的播放控制状态机 |
-| **契约** | Vitest（Node）+ Detox（真机） | 以 `@BBeBee/protocol/conformance` 中的共享套件测试每一个 `core-*` 实现（[services/contracts.md §18](../services/contracts.md)）。**最重要的一层** |
-| **集成** | Vitest（内存中的 Context） | 真实的 Cordis Context、真实的功能插件、伪造的核心服务。覆盖插件加载顺序、瀑布（waterfall）钩子组合与卸载完整性 |
-| **音源语料库** | Vitest，响应内联录制在测试里 | `plugin-source-runtime` 中的内置参考文档被端到端回放 —— 搜索、浏览、专辑、流 —— 任何破坏真实文档的规则引擎改动都会让 CI 失败。独立音源仓运行自身的验证门禁 |
+| **单元** | Vitest | — |
+| **契约** | Vitest（Node）+ Detox（真机） | 以 `@BBeBee/protocol/conformance` 中的共享套件测试每一个 `core-*` 实现（[services/contracts.md §18](../services/contracts.md)）—— **最重要的一层** |
+| **集成** | Vitest（内存中的 Context） | — |
+| **音源语料库** | Vitest，响应内联录制在测试里 | 独立音源仓运行自身的验证门禁 |
+| **泄漏测试** | Vitest，对每个插件参数化运行 | [§6](#6-测试策略) 的卸载完整性主张 |
 | **真机冒烟** | 人工，随每次发布 | 锁屏、蓝牙、拔出耳机、来电、无缝播放边界、后台存活（[audio/engine.md](../audio/engine.md)） |
 
 有两项测试值得几乎先于一切编写，因为它们把架构的核心主张固化成了代码：
@@ -124,7 +125,7 @@ pnpm check                   # already green — the template ships passing test
 
 - **面向最终用户**：在应用内 **设置 → 音源 → 导入**，粘贴字符串，查看它声明自己会做什么，确认（[sources/authoring.md §9](../sources/authoring.md#9-导入更新与分享)）。无需安装、无需重新构建、无需重启。
 - **面向音源作者与开发者**：
-  为避免在一个巨大单行 JSON 字符串中调试复杂 JavaScript 代码，音源以双文件架构（`src/source.json` + `src/source.js`）开发于各自独立的 GitHub 仓库（例如 [B_Be_Bee-subsonic](https://github.com/BBeBeeX/B_Be_Bee-subsonic)、[B_Be_Bee-lrclib](https://github.com/BBeBeeX/B_Be_Bee-lrclib)）。在源仓库中，运行 `node scripts/compile.mjs` 编译为根目录 `index.json`，运行 `node scripts/validate.mjs` 校验规范与产物逐字节复现。
+  为避免在一个巨大单行 JSON 字符串中调试复杂 JavaScript 代码，音源以双文件架构（`src/source.json` + `src/source.js`）开发于各自独立的 GitHub 仓库（例如 [B_Be_Bee-subsonic](https://github.com/BBeBeeX/B_Be_Bee-subsonic)、[B_Be_Bee-lrclib](https://github.com/BBeBeeX/B_Be_Bee-lrclib)）。（规范见 [rules/sources.md §4 — Source Authoring Workflow](../../rules/sources.md#4-source-authoring-workflow)（L2），本节只讲用法与背景：源仓内 `compile.mjs` / `validate.mjs` 的 schema 校验与逐字节可复现要求归该节。）
 
 | 命令 | 作用 |
 |---|---|
@@ -147,22 +148,22 @@ pnpm check                   # already green — the template ships passing test
 
 | 门 | 能抓住的问题 |
 |---|---|
-| `no-restricted-imports` | 插件伸手去够平台 SDK，而不是 `ctx.*` 服务（[architecture/layers.md §1](../architecture/layers.md#不变量)） |
-| 契约测试套件 | 同一服务的两份实现渐行渐远 —— 这正是套件存在的理由 |
+| `no-restricted-imports` | 规范见 [rules/testing-and-gotchas.md §1](../../rules/testing-and-gotchas.md#1-testing-strategy)（L2）；越界原理见 [architecture/layers.md §1](../architecture/layers.md#不变量) |
+| 契约测试套件 | 规范见 [rules/testing-and-gotchas.md §1](../../rules/testing-and-gotchas.md#1-testing-strategy)（L2）；契约见 [services/contracts.md §18](../services/contracts.md) |
 | `*-scope` 套件 | 能力门在某一平台成立、在另一平台失效 |
-| 泄漏测试（`diffSnapshots`） | 卸载不干净的插件（[§6](#6-测试策略)） |
-| `conventions.test.ts` | 未等待的 `ctx.plugin()`，会无声地使就绪状态无法传播 |
+| 泄漏测试（`diffSnapshots`） | 规范见 [rules/testing-and-gotchas.md §1](../../rules/testing-and-gotchas.md#1-testing-strategy)（L2）；参数化跑法见 [§6](#6-测试策略) |
+| `conventions.test.ts` | 规范见 [rules/testing-and-gotchas.md §1](../../rules/testing-and-gotchas.md#1-testing-strategy)（L2） |
 
 ### 出问题时
 
 | 症状 | 原因 |
 |---|---|
-| Metro：*无法解析 `cordis`* | `metro.config.js` 缺少 `unstable_enablePackageExports` —— Cordis 是纯 ESM，带 `exports` 映射（[services/contracts.md §17](../services/contracts.md#17-运行时兼容性清单)） |
-| `@Inject` 运行时失败、编译却通过 | 用了旧式装饰器。Babel 需要 `{ version: '2023-11' }`；`tsconfig` 不得设置 `experimentalDecorators` |
-| 插件永远停在 `pending` | 某个被注入的服务始终没有 ACTIVE。`ctx.inspector.render()` 会打印纤维树并注明每个 fiber 在等什么 |
-| `app.start()` 已 resolve 但某个服务尚未就绪 | 某处有未等待的 `ctx.plugin()`。`pnpm test packages/kernel` 会点名文件 |
-| `CapabilityError: … may not …` | manifest 缺少某项能力，或路径/表确实越界。要放宽的是 manifest，永远不要放宽门 |
-| 来自音源的 `CapabilityError: host … not allowed` | 文档的规则触达了它未声明的主机。把它加进 `allowedHosts` 并重新导入，让用户看得见 ([sources/spec.md §8](../sources/spec.md#8-quickjs-沙箱环境)) |
+| Metro：*无法解析 `cordis`* | 规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2）。背景：Cordis 是纯 ESM，带 `exports` 映射（[services/contracts.md §17](../services/contracts.md#17-运行时兼容性清单)） |
+| `@Inject` 运行时失败、编译却通过 | 规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2）；`tsconfig` 不得设置 `experimentalDecorators` |
+| 插件永远停在 `pending` | 规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2）；`ctx.inspector.render()` 会打印纤维树并注明每个 fiber 在等什么 |
+| `app.start()` 已 resolve 但某个服务尚未就绪 | 规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2）；`pnpm test packages/kernel` 会点名文件 |
+| `CapabilityError: … may not …` | 规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2） |
+| 来自音源的 `CapabilityError: host … not allowed` | 规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2）；把该主机加入 `allowedHosts` 并重新导入，让用户看得见 ([sources/runtime.md §8](../sources/runtime.md#8-信任导入的源能做什么不能做什么)) |
 | 音源不返回任何结果，也没有报错 | 某条规则在字段本可为空的地方什么都没匹配到。测试界面会展示后端实际返回了什么 ([sources/authoring.md §10](../sources/authoring.md#10-诊断一个坏掉的源))；`check` 会赶在用户之前找到它 |
 | 音源中出现 `JsTimeoutError` | 某个 `@js:` 块在死循环，或在等待一个永不 resolve 的请求。限制按每次求值计，不能按音源配置 ([services/contracts.md §19](../services/contracts.md)) |
 | 渲染进程：*preload bridge 缺失* | 渲染进程加载时没有拿到 `preload/index.cjs` —— 重新构建，preload 必须是 CJS |

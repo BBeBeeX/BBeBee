@@ -78,9 +78,9 @@ worth more than its shape.
 | Layer | Packages | Responsible for | May depend on | Never |
 |---|---|---|---|---|
 | **5 — UI & business function** | `apps/mobile`, `apps/desktop/renderer`, `plugin-*-ui-mobile`, `plugin-*-ui-desktop`, `ui-kit-*`, `ui-core`, `ui-menus`, `ui-parity`, `ui-tokens` | Pages, navigation, gestures and keyboard, and the orchestration that turns one user intent into a sequence of feature calls | Layers 0–4 | A platform SDK; the kernel's bootstrap surface; SQL; HTTP; `console.*`; domain state ([§6](#6-state-ownership)) |
-| **4 — Feature plugins** | headless `plugin-*` (`plugin-player`, `plugin-dsp`, `plugin-sources`, `plugin-source-runtime`, `plugin-source-local`, `plugin-download`, `plugin-library`, `plugin-album`, `plugin-now-playing`, `plugin-queue`, `plugin-lyrics`, `plugin-lyric-sources`, `plugin-cache`, `plugin-local-scanner`, `plugin-history`, `plugin-settings`, `plugin-theme`, `plugin-ui`, `plugin-mini-player`, `plugin-desktop-lyrics`, `plugin-desktop-taskbar`, `plugin-visualizer`, `plugin-sleep-timer`, `plugin-share`, `plugin-inspector`, `plugin-manager`), plus `source-rules` and `@BBeBee/toolkit` | One business capability each, headless: state, persistence, networking, events | Layers 0–3 | A platform SDK; the kernel's bootstrap surface; `console.*`; another feature plugin's internals |
+| **4 — Feature plugins** | headless `plugin-*` (`plugin-player`, `plugin-dsp`, `plugin-sources`, `plugin-source-runtime`, `plugin-source-local`, `plugin-download`, `plugin-library`, `plugin-album`, `plugin-now-playing`, `plugin-queue`, `plugin-lyrics`, `plugin-lyric-sources`, `plugin-cache`, `plugin-local-scanner`, `plugin-history`, `plugin-settings`, `plugin-theme`, `plugin-ui`, `plugin-mini-player`, `plugin-desktop-lyrics`, `plugin-desktop-taskbar`, `plugin-visualizer`, `plugin-sleep-timer`, `plugin-share`, `plugin-inspector`, `plugin-manager`), plus `source-rules` and `@BBeBee/toolkit` | One business capability each, headless: state, persistence, networking, events（键→包映射见 [rules/services.md §2 Standard Service Keys](../../rules/services.md#2-standard-service-keys)（L2）） | Layers 0–3 | A platform SDK; the kernel's bootstrap surface; `console.*`; another feature plugin's internals |
 | **3 — Log transports** | `packages/logs/*` — `plugin-log-buffer`, `plugin-log-console`, `plugin-log-file` | Where a log line ends up, and nothing else. Each subscribes to `ctx.logger`; the shell picks which run ([contracts.md §16](../services/contracts.md)) | Layers 0–2 | Domain knowledge; a platform SDK. A transport that knew what a track was would be a feature |
-| **2 — Core plugins** | `packages/core/*` | One platform capability per service key, with one implementation per target behind each key | Layers 0–1 — **directly** | Domain knowledge. A core plugin must not know what a track is |
+| **2 — Core plugins** | `packages/core/*` | One platform capability per service key, with one implementation per target behind each key | Layers 0–1 — **directly** | Domain knowledge（规范见 [rules/services.md §1 Core Services Philosophy](../../rules/services.md#1-core-services-philosophy)（L2）） |
 | **1 — Kernel** | `@BBeBee/kernel` | The Cordis `Context`, DI, fibers and effects, the event bus, config loading, plugin resolution, the capability gate, core migrations | Layer 0 (and Cordis) | Importing any `core-*` or `plugin-*`. The kernel does not know which plugins exist |
 | **0 — Protocol** | `@BBeBee/protocol` | Service interfaces, entity types, the typed event map, constants, and the conformance suites that hold implementations to them | Nothing at all | Emitting a runtime value; importing any bare specifier ([structure.md §3](../workflow/structure.md#3-dependency-rules)) |
 | **Outside model** | `packages/sdk` (plugin developer SDK), `packages/tooling/*` (tooling-check-changed, tooling-create-plugin, tooling-fixtures, tooling-gen-plugins) | Public SDK contracts, development scaffolds, build pipelines, and testing fixtures | Layers as needed | Domain state |
@@ -160,8 +160,8 @@ Two rules, both mechanical, both scoped by directory in
 reliably:
 
 > **1. No package outside `packages/core/*` may import a platform SDK.**
-
-Not `expo-file-system`, not `node:fs`, not `electron`, not `react-native`'s native modules.
+>
+> 规范见 [rules/services.md §1 Core Services Philosophy](../../rules/services.md#1-core-services-philosophy)（L2），本节只讲原理与用法。
 
 > **2. No package above Layer 2 may drive the kernel.**
 
@@ -399,6 +399,9 @@ Points worth internalising:
 ### Bootstrap plugin sets
 
 The shells differ only in this table. It is the entire platform-specific surface of the app.
+The normative key→implementation mapping lives in
+[rules/services.md §2 Standard Service Keys](../../rules/services.md#2-standard-service-keys)（L2）; this table is the
+registration view.
 
 | Service key | `apps/mobile` registers | `apps/desktop` registers |
 |---|---|---|
@@ -495,20 +498,23 @@ Full dispatch semantics for every event, including which of `emit` / `parallel` 
 To keep a plugin system from degenerating into shared mutable soup, each piece of state has
 exactly one owner.
 
-| State | Owner | Others get it via |
-|---|---|---|
-| Catalog rows (tracks, albums, …) | `ctx.db`, written by `ctx.sources` on behalf of the owning source | Query through `ctx.sources`, never raw SQL across plugin boundaries |
-| Transport state (playing, position) | `ctx.player` | `player/*` events; `ctx.player.state` snapshot |
-| Queue | `ctx.player` (persisted to `queue_items`) | `queue/changed` events |
-| Audio graph nodes | `ctx.audio` | Never touched directly; effects contribute segments via `dsp/build-chain` |
-| Effect parameters | `ctx.dsp` (persisted to `effect_nodes`) | `ctx.dsp.setParam()` |
-| Auth tokens, source variables | `ctx.secrets`, keyed per source id | Never leaves that source's isolated scope; never exported with the source string |
-| UI contributions | `ctx.ui` | Read-only from shells |
-| Plugin config | Kernel, persisted in `plugin_records` | Delivered as the plugin's `config` argument; changes reload the fiber |
-| Source documents | `ctx.sources`, persisted in `sources` | Imported, edited and exported as strings; an edit reloads exactly that source's fiber |
+> **规范见 [rules/data-model.md §5 State Ownership](../../rules/data-model.md#5-state-ownership)（L2）**——所有权映射是规范性枚举，以该表为唯一事实来源；本节只讲原理与用法。
 
-React holds **no domain state** — only view state (which tab is open, is this menu expanded).
-Enforcement rationale and hook design in [ui/architecture.md §4](../ui/architecture.md#4-binding-services-to-react).
+| State | Others get it via |
+|---|---|
+| Catalog rows (tracks, albums, …) | Query through `ctx.sources`, never raw SQL across plugin boundaries |
+| Transport state (playing, position) | `player/*` events; `ctx.player.state` snapshot |
+| Queue | `queue/changed` events |
+| Audio graph nodes | Never touched directly; effects contribute segments via `dsp/build-chain` |
+| Effect parameters | `ctx.dsp.setParam()` |
+| Auth tokens, source variables | Never leaves that source's isolated scope; never exported with the source string |
+| UI contributions | Read-only from shells |
+| Plugin config | Delivered as the plugin's `config` argument; changes reload the fiber |
+| Source documents | Imported, edited and exported as strings; an edit reloads exactly that source's fiber |
+
+React's part of the same rule (no domain state — only view state, like which tab is open or
+whether a menu is expanded); enforcement rationale and hook design in
+[ui/architecture.md §4](../ui/architecture.md#4-binding-services-to-react).
 
 ---
 

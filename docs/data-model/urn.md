@@ -11,12 +11,7 @@ Everything here lives in one SQLite database behind
 
 ## 1. Identity: the URN
 
-```
-BBeBee:<sourceId>:<kind>:<id>
-       │          │       └── source-local id, opaque, never parsed
-       │          └────────── track | album | artist | playlist | genre
-       └───────────────────── source id, derived from sourceUrl (sources/authoring.md §1.2)
-```
+> 规范见 [rules/data-model.md §1 URN (Uniform Resource Name)](../../rules/data-model.md#1-urn-uniform-resource-name)（L2），本节只讲原理与用法。
 
 Examples:
 
@@ -29,7 +24,7 @@ BBeBee:jellyfin-nas-local-1bb03370:playlist:7c11
 ### Why the source, not the backend kind
 
 Two Navidrome servers are two namespaces, and under the string model they are simply two imported
-documents with two `sourceUrl`s ([authoring.md §1.2](../sources/authoring.md#12-identity-the-source-id)). If
+documents with two `sourceUrl`s ([spec.md §1.2](../sources/spec.md#12-identity-the-source-id)). If
 the URN keyed on anything coarser — a protocol, a "plugin" — ids would collide the moment a user
 added a second server, and removing one would corrupt the other's rows.
 
@@ -38,11 +33,8 @@ made it "whichever namespace owns this id" rather than "which package produced t
 
 ### Why the same song is several rows
 
-A FLAC on a Navidrome server and an MP3 of the same recording on disk are **two rows with two
-URNs**, joined by a `track_links` row — not one merged row.
-
-This is the single most consequential modelling decision in the document, so the reasoning is
-worth stating:
+Take the norm from [rules/data-model.md §1](../../rules/data-model.md#1-urn-uniform-resource-name). This is the single
+most consequential modelling decision in the document, so the reasoning is worth stating:
 
 - They genuinely differ in the ways that matter — bitrate, availability, duration to the
   millisecond, artwork, whether they can be seeked.
@@ -52,7 +44,7 @@ worth stating:
   ([authoring.md §11](../sources/authoring.md#11-cross-source-identity-and-failover)).
 - A source removed from the app should take exactly its own rows with it.
 
-The unified library presents linked tracks as one item at *display* time. Storage stays faithful.
+Storage stays faithful.
 
 ### URN helpers
 
@@ -82,7 +74,6 @@ export function sourceOf(urn: string): string
 export function kindOf(urn: string): UrnKind
 ```
 
-`parseUrn` splits on the first three colons only, so source-local ids may contain colons.
 `tryParseUrn` returns `undefined` on malformed inputs without throwing.
 `formatUrn` validates that `sourceId` contains no colons/whitespace, `kind` is a valid `UrnKind`, and `id` is non-empty.
 

@@ -14,7 +14,7 @@
 
 ### 1.1 一个运行时，多个源
 
-与远程音乐后端通信的代码有且只有**一份**：`plugin-source-runtime`。它不认领任何属于自己的服务键 —— 它读取 `sources` 表，并为每个启用的行向 `ctx.sources` 注册一个提供方。源就是行；运行时是它们唯一的解释者，不存在需要与之保持同步的第二个解释者。
+（规范见 [rules/sources.md §1 — What a Source Is](../../rules/sources.md#1-what-a-source-is)（L2），本节只讲原理与用法：解释 `sources` 表的运行时只有一份。）`plugin-source-runtime` 不认领任何属于自己的服务键 —— 它读取 `sources` 表，并为每个启用的行向 `ctx.sources` 注册一个提供方。源就是行。
 
 ```mermaid
 flowchart LR
@@ -27,7 +27,7 @@ flowchart LR
     SVC --> PLAYER["ctx.player"]
 ```
 
-`MediaProvider` 仍然存在，它之上的一切 —— `ctx.sources`、`ctx.player`、曲库缓存、URN 方案 —— 都没有变。变的是它的实现者构成：它现在是一个**恰好有两个实现的内部接口**（运行时的每源适配器，以及本地文件），而不是第三方面向它编写的扩展点。本仓库之外没有人去实现 `MediaProvider`；他们改写的是一份源文档。
+`MediaProvider` 仍然存在，它之上的一切 —— `ctx.sources`、`ctx.player`、曲库缓存、URN 方案 —— 都没有变。变的是它的实现者构成：它现在是一个内部接口，而不是第三方面向它编写的扩展点（规范见 [rules/sources.md §1](../../rules/sources.md#1-what-a-source-is)（L2）：恰好两个实现 —— 运行时的每源适配器，与本地文件）。本仓库之外没有人去实现 `MediaProvider`；他们改写的是一份源文档。
 
 ```ts
 import type { Uri, Disposable } from '@BBeBee/protocol'
@@ -69,7 +69,7 @@ id         music-example-org-35be9fe2
 URN        BBeBee:music-example-org-35be9fe2:track:8f1a2c
 ```
 
-> 这个摘要用的是 **SHA-256**，后缀取的是其中的 32 位。这不是装饰：id 是一个主键，因此一次碰撞不只是让某个列表显示混乱 —— 它会让一个源的行覆盖另一个源的行。`doc_hash`（[schema.md §4.1](../data-model/schema.md#41-sources-accounts-and-sessions)）出于同样的原因用的是完整摘要，还要更糟一步：它决定一次重新导入算更新还是无操作，因此那里的碰撞会悄悄跳过这次更新。
+> 这个摘要用的是 **SHA-256**，后缀取的是其中的 32 位。这不是装饰：id 是一个主键，因此一次碰撞不只是让某个列表显示混乱 —— 它会让一个源的行覆盖另一个源的行。`doc_hash`（[schema.md §4.1](../data-model/schema.md#41-音源账号与会话)）出于同样的原因用的是完整摘要，还要更糟一步：它决定一次重新导入算更新还是无操作，因此那里的碰撞会悄悄跳过这次更新。
 
 这个 id 是推导出来的、稳定的，而且短到能放进一行日志里读。它占据 URN 的第二段，而这一段正是 [urn.md §1](../data-model/urn.md#1-身份标识urn) 一直保留给"拥有这个 id 的那个命名空间"的 —— 因此模型变了，URN 方案却不需要变。
 
@@ -80,7 +80,7 @@ URN        BBeBee:music-example-org-35be9fe2:track:8f1a2c
 
 ### 1.3 能力是推导出来的，不是声明出来的
 
-旧的 SPI 要求提供方声明 `capabilities`，然后寄希望于它与实际实现的方法一致；少报会降级 UI，多报会弄坏 UI。一份源文档不存在这种缝隙：**运行时根据出现了哪些规则块来计算 `Capabilities`。**
+旧的 SPI 要求提供方声明 `capabilities`，然后寄希望于它与实际实现的方法一致；少报会降级 UI，多报会弄坏 UI。一份源文档不存在这种缝隙（规范见 [rules/sources.md §1](../../rules/sources.md#1-what-a-source-is)（L2）：运行时根据出现了哪些规则块来计算 `Capabilities`）。推导规则：
 
 | 文档中存在的块 | 带来的能力 |
 |---|---|
@@ -144,7 +144,7 @@ export interface SourceDocument {
   enabled?: boolean                               // default true
   sortOrder?: number
 
-  /** Hosts this source may talk to, beyond sourceUrl's own. Shown at import. §8 */
+  /** Hosts this source may talk to, beyond sourceUrl's own. Disclosed to the user before the source takes effect (rules/sources.md §6 red line; runtime.md §8). */
   allowedHosts?: string[]
 
   /** Requests per window, honoured by the runtime's scheduler. '3/1000' = 3 per second. */
@@ -190,7 +190,7 @@ export interface SourceDocument {
   ruleArtist?: ArtistRule
   rulePlaylist?: PlaylistRule
 
-  /** 该音源是否请求外部歌词源（ctx.lyricSources）。默认为 !ruleLyric。 */
+  /** Whether this audio source requests external lyric sources (ctx.lyricSources) — see rules/sources.md §5. */
   needsLyricSource?: boolean
 
   /* ── maintained by the app, not the author ──────────────────── */
@@ -244,7 +244,7 @@ export interface AlbumRule {
   trackCount?: string
   /** Where ruleTrackList is evaluated. Absent means "the same document". */
   trackListUrl?: string
-  /** For album listings that nest: descend rather than produce tracks. */
+  /** Direct URL template to fetch album document if not already cached from browse. */
   childUrl?: string
 }
 
@@ -281,9 +281,18 @@ export interface StreamRule {
   seekable?: string               // truthy string; default probed with a HEAD
   /** Epoch ms. Its presence is what sets `capabilities.streaming.urlExpiry`. */
   expiresAt?: string
-  /** Requested or selected quality tier for this stream. */
+  /**
+   * The tier this resolve actually served, in the app's vocabulary.
+   *
+   * Distinct from `qualities`: that is the capability list a quality selector
+   * reads before anything resolves; this is what one track got, which is how
+   * the player can say "you asked for lossless, this is the 192K stream".
+   * Optional — a source that cannot know omits it — but a value outside
+   * `StreamQuality` is a `RuleError`, because nothing downstream can compare
+   * a tier that is not a tier.
+   */
   quality?: string
-  /** Quality tiers supported by this stream rule ('low' | 'normal' | 'high' | 'lossless' | 'hi-res'). */
+  /** Explicit quality tiers supported by this stream rule ('low' | 'normal' | 'high' | 'lossless' | 'hi-res'). */
   qualities?: StreamQuality[]
 }
 
@@ -294,29 +303,18 @@ export interface LyricRule { lyric: string; format?: string; offsetMs?: string }
 
 当音源需要复杂的 JavaScript 代码（如混淆签名、多步会话建立、音轨协商等）时，直接在单文件 JSON 的 `"jsLib"` 中编写上百行带 `\n` 转义的代码是极不友好的。
 
-因此，音源采用**开发态拆分维护，构建态合并分发**。每个音源或歌词源存放在各自独立的 GitHub 仓库（例如 [B_Be_Bee-subsonic](https://github.com/BBeBeeX/B_Be_Bee-subsonic) 或 [B_Be_Bee-lrclib](https://github.com/BBeBeeX/B_Be_Bee-lrclib)）中，社区注册表（[B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)）仅作为纯元数据指针索引它们：
-- **`src/source.json`**：存放元数据、规则声明、URL 模板与参数配置（`loginUi`）。
-- **`src/source.js`**：存放未转义的原生 JavaScript，享受 IDE 完整的高亮、ESLint 校验与代码补全。
-- 在源仓库中运行 `node scripts/compile.mjs`，会将 `src/source.json` 与 `src/source.js` 合并编译至仓库根目录的 `index.json`。
+因此，音源采用**开发态拆分维护，构建态合并分发**（规范见 [rules/sources.md §4 — Source Authoring Workflow](../../rules/sources.md#4-source-authoring-workflow)（L2），本节只讲原理与用法）。每个音源或歌词源存放在各自独立的 GitHub 仓库（例如 [B_Be_Bee-subsonic](https://github.com/BBeBeeX/B_Be_Bee-subsonic) 或 [B_Be_Bee-lrclib](https://github.com/BBeBeeX/B_Be_Bee-lrclib)）中，社区注册表（[B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)）仅作为纯元数据指针索引它们：
+- **`src/source.json`**：源元数据、allowedHosts、UI 参数（`loginUi`）与规则映射。
+- **`src/source.js`**：纯未转义的 JavaScript 辅助函数，享受 IDE 高亮、lint 与补全。
+- 在源仓库中运行 `node scripts/compile.mjs` → 生成仓库根目录的 `index.json`（规范见 [rules/sources.md §4](../../rules/sources.md#4-source-authoring-workflow)（L2））。
 
-在主应用仓库中，CLI 工具链支持将单文件 JSON 反向解包为双文件结构以供排查：
-```bash
-# 反向解包现有单文件 JSON 为双文件开发结构
-node --experimental-strip-types scripts/sources/cli.ts --unpack <path/to/source.json> [outDir]
-```
+在主应用仓库中，`sources` CLI 可将单文件 JSON 反向解包为双文件结构以供排查（规范见 [rules/sources.md §4](../../rules/sources.md#4-source-authoring-workflow)（L2）：`node --experimental-strip-types scripts/sources/cli.ts --unpack <file> [dest]`）。
 
 `browse` 就是 `exploreUrl` + `ruleExplore`：每个探索条目是一个带标题的 URL，而 `childUrl` 非空的条目是要深入下去的节点，而不是拿来播放的叶子。文件夹树、流派列表、排行榜、播客 feed 的单集列表，用的都是同样三个字段 —— 这正是同一个 UI 组件能渲染它们全部的原因。
 
-`recommend` 是 `ruleRecommend` 作用于可选 `recommendUrl` 文档：每次调用返回一页精选歌单卡片，
-推荐歌单页约定的页大小是 10。行就是探索行 —— `kind: 'album'` 带 `childUrl` —— 所以推荐的歌单
-和浏览到的歌单走同一条专辑详情管线，`ctx.sources.recommend` 缓存该页的方式也与 `browse` 完全
-一致。`recommendUrl` 可选：推荐内容是精选清单而非端点的源，让 `@js:` 规则自行构造行，此时
-`result` 以 `null` 传入。被推荐资源已经消失时后端如何应答，是源自己的策略 —— 音源可以把答案
-一分为二：*gone*（API 明确 -404）渲染"当前资源无效"占位卡；*暂时被拒*（限流、风控、超时）渲染
-"加载失败"卡并写明原因，且不落任何缓存，下次读取该页时自动重试。卡片的创作者一行属于歌单页
-而非推荐页：为一行字每卡片多打一个请求不值得，UP 主名等点开歌单页时再取。
+`recommend` 是 `ruleRecommend` 作用于可选 `recommendUrl` 文档（规范见 [rules/sources.md §2](../../rules/sources.md#2-rule-language)（L2）：每次调用一页精选清单、行按 browse 行映射、`recommendUrl` 可省且 `result` 为 `null`），`ctx.sources.recommend` 缓存该页的方式与 `browse` 完全一致。在这一机制之外，有一件事是源自己的策略：被推荐资源已经消失时后端如何应答。音源可以把答案一分为二：*gone*（API 明确 -404）渲染"当前资源无效"占位卡；*暂时被拒*（限流、风控、超时）渲染"加载失败"卡并写明原因，且不落任何缓存，下次读取该页时自动重试。卡片的创作者一行属于歌单页而非推荐页：为一行字每卡片多打一个请求不值得，UP 主名等点开歌单页时再取。
 
-**规则块内的未知字段会在导入时被拒绝。** 不是忽略 —— 是拒绝，并指明路径，因此 `{ "ruleSearch": { "titel": "$.title" } }` 会在导入界面上失败，而不是导入一个标题永远缺席的源。与顶层的非对称（[schema.md §4.1](../data-model/schema.md#41-sources-accounts-and-sessions)，在那里未知字段被原样保留、只是根本无人去读）是刻意的：`sourceName` 旁边多出来的一个键是向前兼容，而 `title` 旁边多出来的一个键是笔误 —— 恰好是笔误只产出静默、不产出错误的唯一一处。
+**规则块内的未知字段会在导入时被拒绝。** 不是忽略 —— 是拒绝，并指明路径，因此 `{ "ruleSearch": { "titel": "$.title" } }` 会在导入界面上失败，而不是导入一个标题永远缺席的源。与顶层的非对称（[schema.md §4.1](../data-model/schema.md#41-音源账号与会话)，在那里未知字段被原样保留、只是根本无人去读）是刻意的：`sourceName` 旁边多出来的一个键是向前兼容，而 `title` 旁边多出来的一个键是笔误 —— 恰好是笔误只产出静默、不产出错误的唯一一处。
 
 ### 2.4 一个完整的例子
 
