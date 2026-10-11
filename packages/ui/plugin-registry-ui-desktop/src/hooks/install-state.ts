@@ -172,7 +172,7 @@ export function minAppVersionBlock(entry: RegistryEntry, appVersion: string | un
   if (!entry.minAppVersion) return undefined
   if (appVersion === undefined) return undefined
   if (compareVersions(entry.minAppVersion, appVersion) > 0) {
-    return `需要 BBeBee ${normalizeVersion(entry.minAppVersion)} 或更高版本（当前 ${normalizeVersion(appVersion)}）`
+    return `Requires BBeBee ${normalizeVersion(entry.minAppVersion)} or later (current ${normalizeVersion(appVersion)})`
   }
   return undefined
 }

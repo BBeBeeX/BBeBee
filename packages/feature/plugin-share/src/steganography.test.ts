@@ -23,9 +23,9 @@ describe("steganography", () => {
     expect(decoded).toBe(message)
   })
 
-  it("handles Chinese characters and emojis in payload", () => {
+  it("handles unicode characters and emojis in payload", () => {
     const buffer = createTestBuffer(200, 200)
-    const message = "分享歌曲：七里香 - 周杰伦 🎵🐝 【BBeBee 音乐】"
+    const message = "Sharing song: Demo Song - Demo Artist 🎵🐝 [BBeBee Music]"
     const encoded = encodeSteganography(buffer, message)
     const decoded = decodeSteganography(encoded)
 

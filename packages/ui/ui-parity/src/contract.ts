@@ -85,7 +85,7 @@ export const COMPONENT_CONTRACT: ComponentSpec[] = [
       { name: 'onMore', note: 'Overflow. Desktop also binds right-click; mobile long-press.' },
       {
         name: 'onToggleLoved',
-        note: 'Toggle loved/favorite. Absent where the catalogue has no favourites.',
+        note: 'Toggle loved/favorite. Absent where the catalogue has no favorites.',
       },
       {
         name: 'onDownload',

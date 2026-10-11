@@ -73,7 +73,7 @@ cannot resolve on the build machine.
 | Both present | mpv decodes and feeds the OS audio output directly; native DSP/EQ; append-based gapless; real-PCM FFT visualizer via SPSC RingBuffer (with patched mpv PCM tap) + astats-driven RMS/Peak levels |
 
 In every degraded state the engine now reports its health (`ready.mpvAvailable`, surfaced as
-`ctx.audio.getEngineStatus()`) and the settings page shows an explicit “MPV 原生引擎不可用”
+`ctx.audio.getEngineStatus()`) and the settings page shows an explicit "MPV native engine unavailable"
 row instead of pretending the native engine is running. When running on standard unpatched libmpv
 or during degraded stream playback, the visualizer loop safely delivers zero-padded quiet frames
 without CPU spin or ungrounded synthetic sine/cosine waveforms. Real PCM samples feed the

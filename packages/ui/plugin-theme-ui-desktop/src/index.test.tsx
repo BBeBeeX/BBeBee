@@ -91,8 +91,8 @@ describe('ThemeManagementCard', () => {
     const { ctx, calls } = await harness()
     const { getByTestId, getByText } = render(h(ThemeManagementCard, { ctx }))
 
-    expect(getByText('Bee Music · Cyber Neon (蓝紫电光)')).toBeTruthy()
-    expect(getByText('Spotify 经典绿 (Spotify Classic)')).toBeTruthy()
+    expect(getByText('Bee Music · Cyber Neon')).toBeTruthy()
+    expect(getByText('Spotify Classic')).toBeTruthy()
 
     fireEvent.click(getByTestId('theme-option-spotify'))
     await waitFor(() => {
@@ -108,16 +108,16 @@ describe('ThemeManagementCard', () => {
     )
 
     fireEvent.click(getByTestId('import-theme-button'))
-    expect(getAllByText('导入色彩模式').length).toBeGreaterThanOrEqual(1)
+    expect(getAllByText('Import theme').length).toBeGreaterThanOrEqual(1)
 
     fireEvent.click(getByTestId('submit-import-theme'))
-    expect(getByTestId('import-theme-error').textContent).toContain('请输入或选择色彩模式 JSON')
+    expect(getByTestId('import-theme-error').textContent).toContain('Enter or choose a theme JSON')
 
     fireEvent.change(getByTestId('import-theme-textarea'), {
       target: {
         value: JSON.stringify({
           id: 'neon-cyber',
-          name: '霓虹赛博 (Neon Cyber)',
+          name: 'Neon Cyber',
           tokens: { brand: { primary: '#00FFFF' } },
         }),
       },

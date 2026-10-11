@@ -162,7 +162,7 @@ function updateTaskbar(state: TaskbarState): void {
 
       const success = mainWindow.setThumbarButtons([
         {
-          tooltip: '上一曲',
+          tooltip: 'Previous track',
           icon: icons.prev,
           flags: prevFlags,
           click: () => {
@@ -172,7 +172,7 @@ function updateTaskbar(state: TaskbarState): void {
           },
         },
         {
-          tooltip: state.isPlaying ? '暂停' : '播放',
+          tooltip: state.isPlaying ? 'Pause' : 'Play',
           icon: state.isPlaying ? icons.pause : icons.play,
           flags: playFlags,
           click: () => {
@@ -182,7 +182,7 @@ function updateTaskbar(state: TaskbarState): void {
           },
         },
         {
-          tooltip: '下一曲',
+          tooltip: 'Next track',
           icon: icons.next,
           flags: nextFlags,
           click: () => {
@@ -230,7 +230,7 @@ function updateTaskbar(state: TaskbarState): void {
 
       const menuTemplate: Electron.MenuItemConstructorOptions[] = [
         {
-          label: state.isPlaying ? '暂停' : '播放',
+          label: state.isPlaying ? 'Pause' : 'Play',
           enabled: Boolean(state.canPlayOrPause),
           click: () => {
             if (mainWindow && !mainWindow.isDestroyed()) {
@@ -239,7 +239,7 @@ function updateTaskbar(state: TaskbarState): void {
           },
         },
         {
-          label: '上一曲',
+          label: 'Previous track',
           enabled: Boolean(state.canPrevious),
           click: () => {
             if (mainWindow && !mainWindow.isDestroyed()) {
@@ -248,7 +248,7 @@ function updateTaskbar(state: TaskbarState): void {
           },
         },
         {
-          label: '下一曲',
+          label: 'Next track',
           enabled: Boolean(state.canNext),
           click: () => {
             if (mainWindow && !mainWindow.isDestroyed()) {
@@ -257,10 +257,10 @@ function updateTaskbar(state: TaskbarState): void {
           },
         },
         { type: 'separator' },
-        { label: '显示主界面', click: () => showWindow() },
+        { label: 'Show BBeBee', click: () => showWindow() },
         { type: 'separator' },
         {
-          label: '退出',
+          label: 'Quit',
           click: () => {
             quitting = true
             app.quit()
@@ -835,9 +835,9 @@ function registerHandlers(): void {
         localPath = decodeURIComponent(localPath.replace(/^file:\/\/\/?/, ''))
       }
     }
-    if (localPath === 'cache' || localPath.includes('默认缓存目录')) {
+    if (localPath === 'cache' || localPath.includes('Default cache directory')) {
       localPath = join(app.getPath('userData'), 'Cache')
-    } else if (localPath === 'downloads' || localPath.includes('默认下载目录')) {
+    } else if (localPath === 'downloads' || localPath.includes('Default downloads directory')) {
       localPath = join(app.getPath('downloads'), 'BBeBee')
     }
     try {
@@ -897,7 +897,7 @@ function registerHandlers(): void {
     ) => {
       const start = Date.now()
       if (!config?.host || !config?.port) {
-        return { ok: false, error: '代理服务器地址或端口不能为空' }
+        return { ok: false, error: 'Proxy server address or port cannot be empty' }
       }
 
       const proxyRule = buildProxyRules(config)
@@ -936,7 +936,7 @@ function registerHandlers(): void {
 
         return {
           ok: false,
-          error: lastError instanceof Error ? lastError.message : String(lastError || '连接超时'),
+          error: lastError instanceof Error ? lastError.message : String(lastError || 'Connection timed out'),
         }
       } catch (err: unknown) {
         return { ok: false, error: err instanceof Error ? err.message : String(err) }

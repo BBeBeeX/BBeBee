@@ -82,12 +82,12 @@ describe('NowPlayingStylesSection', () => {
     const { ctx, calls, settings } = await npHarness()
     const { getByText, getByTestId } = render(h(NowPlayingStylesSection, { ctx }))
 
-    expect(getByText('播放页样式模板 (Now Playing Layout Styles)')).toBeTruthy()
-    expect(getByText('经典')).toBeTruthy()
-    expect(getByText('映画歌词')).toBeTruthy()
-    expect(getByText('沉浸封面')).toBeTruthy()
-    expect(getByText('黑胶唱片')).toBeTruthy()
-    expect(getByText('左右分栏')).toBeTruthy()
+    expect(getByText('Now Playing Layout Styles')).toBeTruthy()
+    expect(getByText('Classic')).toBeTruthy()
+    expect(getByText('Cinematic Lyrics')).toBeTruthy()
+    expect(getByText('Immersive Cover')).toBeTruthy()
+    expect(getByText('Vinyl')).toBeTruthy()
+    expect(getByText('Side-by-side')).toBeTruthy()
 
     // Select cinematic style
     const cinematicCard = getByTestId('now-playing-style-cinematic')
@@ -107,14 +107,14 @@ describe('NowPlayingStylesSection', () => {
     // Open import modal
     const importBtn = getByTestId('import-style-button')
     fireEvent.click(importBtn)
-    expect(getByText('导入外部播放页样式插件')).toBeTruthy()
-    expect(getByText('沙箱隔离保障：')).toBeTruthy()
+    expect(getByText('Import an external now-playing style plugin')).toBeTruthy()
+    expect(getByText('Sandbox isolation:')).toBeTruthy()
 
     // Try submitting empty JSON -> error
     const submitBtn = getByTestId('submit-import-style')
     fireEvent.click(submitBtn)
     expect(getByTestId('import-style-error')).toBeTruthy()
-    expect(getByTestId('import-style-error').textContent).toContain('请输入或选择播放页模板插件 JSON 清单')
+    expect(getByTestId('import-style-error').textContent).toContain('Enter or select a now-playing template plugin JSON manifest')
 
     // Click load sample template button
     const loadSampleBtn = getByTestId('load-sample-template-button')
@@ -122,7 +122,7 @@ describe('NowPlayingStylesSection', () => {
 
     const textarea = getByTestId('style-manifest-textarea') as HTMLTextAreaElement
     expect(textarea.value).toContain('sample-neon-player')
-    expect(textarea.value).toContain('霓虹沙箱播放器')
+    expect(textarea.value).toContain('Neon Sandbox Player')
 
     // Submit valid sample template
     fireEvent.click(submitBtn)
@@ -134,8 +134,8 @@ describe('NowPlayingStylesSection', () => {
     })
 
     // Verify imported style card rendered with sandboxed badge
-    expect(getByText('霓虹沙箱播放器')).toBeTruthy()
-    expect(getByText('沙箱 🛡️')).toBeTruthy()
+    expect(getByText('Neon Sandbox Player')).toBeTruthy()
+    expect(getByText('Sandbox 🛡️')).toBeTruthy()
 
     // Delete custom style
     const deleteBtn = getByTestId('delete-style-sample-neon-player')

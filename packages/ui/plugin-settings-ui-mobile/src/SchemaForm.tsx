@@ -262,7 +262,7 @@ function FieldRow({
             : []),
           h(Button, {
             variant: 'secondary',
-            children: field.actionText ?? '执行',
+            children: field.actionText ?? 'Run',
             disabled: busy,
             onPress: () => void runAction(),
           }),
@@ -299,7 +299,7 @@ function FieldRow({
             ),
             h(SwitchRow, {
               checked: Boolean(record[entry.id]),
-              accessibilityLabel: `${entry.label} 开关`,
+              accessibilityLabel: `${entry.label} switch`,
               onChange: (checked: boolean) => void change(`${field.key}.${entry.id}`, checked),
             }),
           ),
@@ -318,7 +318,7 @@ function FieldRow({
           h(Text, {
             variant: 'xs',
             tone: 'muted',
-            children: value ? String(value) : (field.description ?? '在此平台不可用'),
+            children: value ? String(value) : (field.description ?? 'Not available on this platform'),
           }),
         ),
       )

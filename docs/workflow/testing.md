@@ -6,7 +6,7 @@
 
 Five layers plus a manual device smoke pass, each catching something the others cannot. The
 authoritative layer table — Unit, Conformance, Integration, Source corpus, and the Leak Test
-layer — is [rules/testing-and-gotchas.md §1](../../rules/testing-and-gotchas.md#1-testing-strategy)（L2）; the matrix below records
+layer — is [rules/testing-and-gotchas.md §1](../../rules/testing-and-gotchas.md#1-testing-strategy) (L2); the matrix below records
 the tooling each layer runs on, plus the device smoke matrix this page owns.
 
 | Layer | Tool | Notes |
@@ -161,7 +161,7 @@ leak test, both of which cost a debugging session to discover the hard way.
 
 - **End users**: not a development task at all. In the app: **Settings → Sources → Import**, paste the string, review what it says it will do, confirm ([sources/authoring.md §9](../sources/authoring.md#9-importing-updating-and-sharing)). No install, no rebuild, no restart.
 - **Source authors & developers**:
-  To avoid writing hundreds of lines of escaped JavaScript inside a single JSON string, author sources as dual files (`src/source.json` + `src/source.js`) in their own GitHub repositories (e.g. [B_Be_Bee-subsonic](https://github.com/BBeBeeX/B_Be_Bee-subsonic), [B_Be_Bee-lrclib](https://github.com/BBeBeeX/B_Be_Bee-lrclib)). （规范见 [rules/sources.md §4 — Source Authoring Workflow](../../rules/sources.md#4-source-authoring-workflow)（L2），本节只讲用法与背景：in-repo `compile.mjs` / `validate.mjs` 的 schema 校验与逐字节可复现要求归该节。）
+  To avoid writing hundreds of lines of escaped JavaScript inside a single JSON string, author sources as dual files (`src/source.json` + `src/source.js`) in their own GitHub repositories (e.g. [B_Be_Bee-subsonic](https://github.com/BBeBeeX/B_Be_Bee-subsonic), [B_Be_Bee-lrclib](https://github.com/BBeBeeX/B_Be_Bee-lrclib)). (see the spec at [rules/sources.md §4 — Source Authoring Workflow](../../rules/sources.md#4-source-authoring-workflow) (L2); this section covers only usage and background: the in-repo `compile.mjs` / `validate.mjs` schema validation and byte-for-byte reproducibility requirements belong to that section.)
 
 | Command | What it does |
 |---|---|
@@ -187,22 +187,22 @@ than a typo:
 
 | Gate | Catches |
 |---|---|
-| `no-restricted-imports` | 规范见 [rules/testing-and-gotchas.md §1](../../rules/testing-and-gotchas.md#1-testing-strategy)（L2）；越界原理见 [architecture/layers.md §1](../architecture/layers.md#the-invariant) |
-| Conformance suites | 规范见 [rules/testing-and-gotchas.md §1](../../rules/testing-and-gotchas.md#1-testing-strategy)（L2）；契约见 [services/contracts.md §18](../services/contracts.md) |
+| `no-restricted-imports` | see the spec at [rules/testing-and-gotchas.md §1](../../rules/testing-and-gotchas.md#1-testing-strategy) (L2); rationale at [architecture/layers.md §1](../architecture/layers.md#the-invariant) |
+| Conformance suites | see the spec at [rules/testing-and-gotchas.md §1](../../rules/testing-and-gotchas.md#1-testing-strategy) (L2); contracts at [services/contracts.md §18](../services/contracts.md) |
 | `*-scope` suites | A capability gate that holds on one platform and not the other |
-| Leak test (`diffSnapshots`) | 规范见 [rules/testing-and-gotchas.md §1](../../rules/testing-and-gotchas.md#1-testing-strategy)（L2）；参数化跑法见 [§6](#6-testing-strategy) |
-| `conventions.test.ts` | 规范见 [rules/testing-and-gotchas.md §1](../../rules/testing-and-gotchas.md#1-testing-strategy)（L2） |
+| Leak test (`diffSnapshots`) | see the spec at [rules/testing-and-gotchas.md §1](../../rules/testing-and-gotchas.md#1-testing-strategy) (L2); parameterized runs at [§6](#6-testing-strategy) |
+| `conventions.test.ts` | see the spec at [rules/testing-and-gotchas.md §1](../../rules/testing-and-gotchas.md#1-testing-strategy) (L2) |
 
 ### When something goes wrong
 
 | Symptom | Cause |
 |---|---|
-| Metro: *cannot resolve `cordis`* | 规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2）。背景：Cordis is ESM-only with an `exports` map ([services/contracts.md §17](../services/contracts.md#17-runtime-compatibility-checklist)) |
-| `@Inject` fails at runtime, compiles fine | 规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2）；`tsconfig` must not set `experimentalDecorators` |
-| A plugin sits in `pending` forever | 规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2）；`ctx.inspector.render()` prints the tree and names what each fiber waits for |
-| `app.start()` resolves but a service is not ready | 规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2）；`pnpm test packages/kernel` will name the file |
-| `CapabilityError: … may not …` | 规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2） |
-| `CapabilityError: host … not allowed` from a source | 规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2）；add the host and re-import so the user sees it ([sources/runtime.md §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)) |
+| Metro: *cannot resolve `cordis`* | see the spec at [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas) (L2). Background: Cordis is ESM-only with an `exports` map ([services/contracts.md §17](../services/contracts.md#17-runtime-compatibility-checklist)) |
+| `@Inject` fails at runtime, compiles fine | see the spec at [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas) (L2); `tsconfig` must not set `experimentalDecorators` |
+| A plugin sits in `pending` forever | see the spec at [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas) (L2); `ctx.inspector.render()` prints the tree and names what each fiber waits for |
+| `app.start()` resolves but a service is not ready | see the spec at [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas) (L2); `pnpm test packages/kernel` will name the file |
+| `CapabilityError: … may not …` | see the spec at [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas) (L2) |
+| `CapabilityError: host … not allowed` from a source | see the spec at [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas) (L2); add the host and re-import so the user sees it ([sources/runtime.md §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)) |
 | A source returns nothing, with no error | A rule matched nothing where the field was optional. The test screen shows what the backend actually answered ([sources/authoring.md §10](../sources/authoring.md#10-diagnosing-a-broken-source)); `check` finds it before a user does |
 | `JsTimeoutError` in a source | An `@js:` block looped, or awaited a request that never resolved. Limits are per evaluation and not configurable per source ([services/contracts.md §19](../services/contracts.md)) |
 | Renderer: *preload bridge is missing* | The renderer loaded without `preload/index.cjs` — rebuild, since preload must be CJS |

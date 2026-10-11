@@ -1,19 +1,19 @@
 /**
- * The registry diagnostics screen ("诊断"): a health report of the content
+ * The registry diagnostics screen ("Diagnostics"): a health report of the content
  * registry, assembled by the headless service from real state — lock/integrity
  * conflicts, persisted security-audit findings, index anomalies and install
  * summaries. The screen only renders it.
  *
- * It renders embedded inside the 发现 screen (which owns the page padding),
+ * It renders embedded inside the Discover screen (which owns the page padding),
  * so this root carries no chrome of its own — no double padding, no nested
  * scroll container.
  *
- * Four groups render in descending severity: 冲突 (red) → 风险 (amber) →
- * 警告 (amber, quieter treatment) → 信息 (neutral). The token set has one
+ * Four groups render in descending severity: Conflict (red) → Risk (amber) →
+ * Warning (amber, quieter treatment) → Info (neutral). The token set has one
  * warm semantic color, so the red→amber→neutral hierarchy is expressed by
  * intensity as well as hue: conflict and risk carry a severity accent bar and
  * tinted count badges; warnings are outlined only; info stays on surfaces.
- * Items carrying an `entryId` offer a 查看 jump through `onNavigateToEntry`;
+ * Items carrying an `entryId` offer a View jump through `onNavigateToEntry`;
  * the risk group offers a one-click rescan that re-runs the security scan for
  * every risky entry. The orchestrator wires this screen into the shell — the
  * route contribution lives elsewhere.
@@ -28,7 +28,7 @@ import { GHOST_BUTTON, PILL_BASE, TONE, WARNING_BANNER } from '../styles.js'
 
 export interface RegistryDiagnosticsScreenProps {
   ctx: Context
-  /** Jump to a registry entry (typically back into the 发现 screen with the entry highlighted). */
+  /** Jump to a registry entry (typically back into the Discover screen with the entry highlighted). */
   onNavigateToEntry?: (entryId: string, kind: RegistryEntryKind) => void
 }
 
@@ -42,10 +42,10 @@ const GROUP_ORDER: readonly {
   color: string
   severity: Severity
 }[] = [
-  { group: 'conflict', label: '冲突', empty: '暂无冲突', color: TONE.error, severity: 2 },
-  { group: 'risk', label: '风险', empty: '暂无风险', color: TONE.warning, severity: 2 },
-  { group: 'warning', label: '警告', empty: '暂无警告', color: TONE.warning, severity: 1 },
-  { group: 'info', label: '信息', empty: '暂无信息', color: TONE.neutral, severity: 0 },
+  { group: 'conflict', label: 'Conflict', empty: 'No conflicts', color: TONE.error, severity: 2 },
+  { group: 'risk', label: 'Risk', empty: 'No risks', color: TONE.warning, severity: 2 },
+  { group: 'warning', label: 'Warning', empty: 'No warnings', color: TONE.warning, severity: 1 },
+  { group: 'info', label: 'Info', empty: 'No info', color: TONE.neutral, severity: 0 },
 ]
 
 const groupListStyle = {
@@ -128,13 +128,13 @@ function groupItems(
 function messageForGroup(group: RegistryDiagnosticGroup): string {
   switch (group) {
     case 'conflict':
-      return '锁记录与实际安装不一致、索引重复或能力声明冲突'
+      return 'Lock records disagree with what is installed, duplicate index ids, or capability mismatches'
     case 'risk':
-      return '安全扫描在已拉取内容中发现了 block / warn 级别的风险'
+      return 'The security scan found block / warn level findings in fetched content'
     case 'warning':
-      return '索引拉取、缓存新鲜度等值得关注但不阻断的状态'
+      return 'Notable but non-blocking states such as index fetches and cache freshness'
     case 'info':
-      return '锁记录与已安装内容的摘要'
+      return 'A summary of lock records and installed content'
   }
 }
 
@@ -162,7 +162,7 @@ export function RegistryDiagnosticsScreen({ ctx, onNavigateToEntry }: RegistryDi
     }
     setBulkRescanning(false)
     if (failures > 0) {
-      setBulkError(`${failures} 个条目重新扫描失败，可稍后重试`)
+      setBulkError(`${failures} entries failed to rescan — try again later`)
     }
   }, [bulkRescanning, riskEntryIds, rescanEntry])
 
@@ -202,7 +202,7 @@ export function RegistryDiagnosticsScreen({ ctx, onNavigateToEntry }: RegistryDi
               className: 'bbreg-btn bbreg-btn-ghost',
               style: { ...GHOST_BUTTON, flexShrink: 0 },
             },
-            '查看',
+            'View',
           )
         : null,
     )
@@ -217,11 +217,11 @@ export function RegistryDiagnosticsScreen({ ctx, onNavigateToEntry }: RegistryDi
       h(
         'div',
         { style: { display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 200 } },
-        h('h2', { style: { margin: 0, fontSize: 18, fontWeight: 700 } }, '诊断'),
+        h('h2', { style: { margin: 0, fontSize: 18, fontWeight: 700 } }, 'Diagnostics'),
         h(
           'div',
           { style: { fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } },
-          '检查注册表的锁定一致性、安全风险与索引状态，全部数据来自真实服务状态',
+          'Checks registry lock consistency, security risks and index state — all data comes from real service state',
         ),
       ),
       h(
@@ -234,7 +234,7 @@ export function RegistryDiagnosticsScreen({ ctx, onNavigateToEntry }: RegistryDi
           className: 'bbreg-btn bbreg-btn-ghost',
           style: { ...PILL_BASE, background: 'var(--surface-2, rgba(255, 255, 255, 0.06))', borderColor: 'var(--border-subtle, rgba(255, 255, 255, 0.12))', color: 'var(--text-primary, #F5F7FF)', opacity: loading ? 0.6 : 1 },
         },
-        loading ? '生成中…' : '重新生成',
+        loading ? 'Generating…' : 'Regenerate',
       ),
     ),
     // Body states.
@@ -245,7 +245,7 @@ export function RegistryDiagnosticsScreen({ ctx, onNavigateToEntry }: RegistryDi
             'data-testid': 'registry-diagnostics-loading',
             style: { padding: '48px 0', textAlign: 'center', color: 'var(--text-tertiary, #8B95B0)', fontSize: 13 },
           },
-          '正在生成诊断报告…',
+          'Generating the diagnostics report…',
         )
       : serviceMissing
         ? h(
@@ -254,7 +254,7 @@ export function RegistryDiagnosticsScreen({ ctx, onNavigateToEntry }: RegistryDi
               'data-testid': 'registry-diagnostics-service-missing',
               style: { padding: '48px 0', textAlign: 'center', color: 'var(--text-tertiary, #8B95B0)', fontSize: 13 },
             },
-            '注册表诊断服务未加载，无法生成诊断报告。',
+            'The registry diagnostics service is not loaded; the report cannot be generated.',
           )
         : error && !report
           ? h(
@@ -263,7 +263,7 @@ export function RegistryDiagnosticsScreen({ ctx, onNavigateToEntry }: RegistryDi
                 'data-testid': 'registry-diagnostics-error',
                 style: { ...WARNING_BANNER, borderColor: TONE.error, color: TONE.error, textAlign: 'left' },
               },
-              `诊断报告生成失败：${error}`,
+              `Failed to generate the diagnostics report: ${error}`,
               h(
                 'button',
                 {
@@ -273,7 +273,7 @@ export function RegistryDiagnosticsScreen({ ctx, onNavigateToEntry }: RegistryDi
                   className: 'bbreg-btn bbreg-btn-ghost',
                   style: { ...GHOST_BUTTON, marginLeft: 12, verticalAlign: 'middle' },
                 },
-                '重试',
+                'Retry',
               ),
             )
           : report
@@ -323,7 +323,7 @@ export function RegistryDiagnosticsScreen({ ctx, onNavigateToEntry }: RegistryDi
                                 opacity: busy ? 0.6 : 1,
                               },
                             },
-                            busy ? '重扫中…' : '一键重新扫描',
+                            busy ? 'Rescanning…' : 'Rescan all',
                           )
                         : null,
                     ),

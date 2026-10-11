@@ -58,14 +58,14 @@ export function NowPlayingScreen({
   /* ── the track menu this page opens on right-click ─────────────────────── */
   const currentTrack = useCurrentTrack(ctx)
 
-  // The queue item behind the playing track — "从队列中移除" needs it. The
+  // The queue item behind the playing track — "Remove from queue" needs it. The
   // transport usually carries the id, but the queue row is the fallback.
   const queue = useQueue(ctx)
   const queueItemId =
     state.currentItemId ?? queue.find((item) => item.trackUrn === state.trackUrn)?.id
 
   // The current track's lyric text, when lyrics are in — what makes the
-  // "分享歌词" menu item offerable. Dropped when they belong to another track.
+  // "Share lyrics" menu item offerable. Dropped when they belong to another track.
   const lyricsService = serviceOf<LyricsService>(ctx, 'lyrics')
   const lyricsState = useServiceState<LyricsState>(
     ctx,

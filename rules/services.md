@@ -2,9 +2,9 @@
 
 Rules governing Layer 2 core services and platform integration in BBeBee.
 
-> **L2 · 何时读**：触碰核心服务、平台 SDK 边界或日志时——服务键枚举、opaque URI 用法、Layer 3 纪律。
-> **不读会怎样**：在 core 之外 import 平台 SDK、绕过 `ctx.logger` 直写 console、调用不存在的 paths API——架构红线与 lint 双炸。
-> **深读指引**：docs/services/contracts.md（逐服务契约，文首有锚点目录）、docs/services/overview.md（分层原理）、docs/services/logging.md（传输与脱敏）。
+> **L2 · When to read**: when touching core services, platform SDK boundaries, or logging — the service key enumeration, opaque URI usage, Layer 3 discipline.
+> **What goes wrong without it**: importing a platform SDK outside core, writing to the console bypassing `ctx.logger`, calling a paths API that does not exist — both the architectural red line and lint fail.
+> **Deeper reading**: docs/services/contracts.md (per-service contracts, anchor TOC at the top), docs/services/overview.md (layering principles), docs/services/logging.md (transports and redaction).
 
 ---
 

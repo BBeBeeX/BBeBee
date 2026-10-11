@@ -54,8 +54,8 @@ export function QueueButton({
     'button',
     {
       type: 'button',
-      'aria-label': '播放队列',
-      title: '播放队列',
+      'aria-label': 'Play queue',
+      title: 'Play queue',
       'data-testid': 'queue-button',
       onClick: handleClick,
       style: {
@@ -100,10 +100,10 @@ export function CachedArtwork({ ctx, ...props }: ArtworkProps & { ctx: Context }
 }
 
 export const PLAY_MODE_INFO: Record<PlayMode, { label: string; next: string }> = {
-  sequence: { label: '顺序播放', next: '切换为列表循环' },
-  'list-loop': { label: '列表循环', next: '切换为单曲循环' },
-  'single-loop': { label: '单曲循环', next: '切换为随机播放' },
-  shuffle: { label: '随机播放', next: '切换为顺序播放' },
+  sequence: { label: 'Sequential', next: 'Switch to list loop' },
+  'list-loop': { label: 'List loop', next: 'Switch to single loop' },
+  'single-loop': { label: 'Single loop', next: 'Switch to shuffle' },
+  shuffle: { label: 'Shuffle', next: 'Switch to sequential' },
 }
 
 export function renderPlayModeIcon(mode: PlayMode): ReactElement {
@@ -263,7 +263,7 @@ export function PlayModeButton({ ctx, mode }: { ctx: Context; mode?: PlayMode })
     'button',
     {
       type: 'button',
-      'aria-label': `播放模式: ${info.label}`,
+      'aria-label': `Play mode: ${info.label}`,
       title: `${info.label} (${info.next})`,
       onClick: handleClick,
       style: {
@@ -393,8 +393,8 @@ export function VolumeControl({
           'button',
           {
             type: 'button',
-            'aria-label': muted ? '恢复声音' : '静音',
-            title: muted ? '恢复声音' : '静音',
+            'aria-label': muted ? 'Unmute' : 'Mute',
+            title: muted ? 'Unmute' : 'Mute',
             onClick: () => ctx.player.setMuted(!muted),
             style: {
               display: 'inline-flex',
@@ -426,7 +426,7 @@ export function VolumeControl({
       {
         type: 'button',
         'aria-label': 'Volume',
-        title: muted ? '已静音 (点击展开调节栏)' : `音量 ${percent}% (点击展开调节栏)`,
+        title: muted ? 'Muted (click to adjust)' : `Volume ${percent}% (click to adjust)`,
         onClick: () => setOpen((prev) => !prev),
         style: {
           display: 'inline-flex',
@@ -670,7 +670,8 @@ export function NowPlayingBar({ ctx, currentRoute, onOpenNowPlaying, portalMenus
               minWidth: 0,
             },
           },
-          // 歌名被压缩时走马灯滚动，而不是省略号截断。
+          // When the title is squeezed it scrolls as a marquee instead of
+          // being cut off with an ellipsis.
           h(MarqueeText, {
             variant: 'sm',
             style: { flex: 1, minWidth: 0 },
@@ -684,8 +685,8 @@ export function NowPlayingBar({ ctx, currentRoute, onOpenNowPlaying, portalMenus
                   'data-testid': 'track-library-action-btn',
                   'aria-label': isInLibrary
                     ? `Add ${currentTrack.title} to playlist`
-                    : `Add ${currentTrack.title} to favourites`,
-                  title: isInLibrary ? '加入歌单' : '加入最喜欢的音乐',
+                    : `Add ${currentTrack.title} to favorites`,
+                  title: isInLibrary ? 'Add to playlist' : 'Add to Favorites',
                   onClick: (e: React.MouseEvent) => {
                     e.stopPropagation()
                     if (isInLibrary) {

@@ -162,13 +162,13 @@ describe('QueueScreen on mobile', () => {
         status: 'playing',
         currentItemId: 'q-1',
         trackUrn: 'BBeBee:bili:track:1',
-        nowPlaying: { title: '极端天气 MV', artist: 'UP主甲' },
+        nowPlaying: { title: 'Extreme Weather MV', artist: 'Uploader A' },
       },
       [{ id: 'q-1', trackUrn: 'BBeBee:bili:track:1', addedBy: 'user' }],
     )
     const { container } = render(h(QueueScreen, { ctx }))
-    expect(container.textContent).toContain('极端天气 MV')
-    expect(container.textContent).toContain('UP主甲')
+    expect(container.textContent).toContain('Extreme Weather MV')
+    expect(container.textContent).toContain('Uploader A')
     expect(container.textContent, 'no raw URN in the queue, ever').not.toContain('BBeBee:bili:')
   })
 

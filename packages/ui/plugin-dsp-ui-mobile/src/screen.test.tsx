@@ -72,18 +72,18 @@ class DspStub extends Service implements DspService {
   public definitions: any[] = [
     {
       id: 'preamp',
-      displayName: '前级增益 (Preamp)',
+      displayName: 'Preamp',
       defaultOrder: 10,
     },
     {
       id: 'eq10',
-      displayName: '10频段均衡器 (10-Band EQ)',
+      displayName: 'Equalizer',
       defaultOrder: 20,
-      presets: [{ name: '原声 (Flat)', params: { gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] } }],
+      presets: [{ name: 'Flat', params: { gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] } }],
     },
     {
       id: 'limiter',
-      displayName: '峰值限制器 (Peak Limiter)',
+      displayName: 'Peak Limiter',
       defaultOrder: 90,
     },
   ]
@@ -133,16 +133,16 @@ describe('plugin-dsp-ui-mobile', () => {
     const Card = (ctx.ui as any).viewFor('settings.loudness-normalization')
     expect(Card).toBeDefined()
     const { container } = render(h(Card, {}))
-    expect(container.textContent).toContain('曲目间音量响度标准化')
-    expect(container.textContent).toContain('启用音量响度标准化')
+    expect(container.textContent).toContain('Loudness normalization between tracks')
+    expect(container.textContent).toContain('Enable loudness normalization')
   })
 
   it('renders mobile DspScreen with controls', async () => {
     const { ctx } = await createHarness()
     const { container } = render(h(DspScreen, { ctx }))
 
-    expect(container.textContent).toContain('音频效果与均衡器 (DSP)')
-    expect(container.textContent).toContain('10 频段均衡器')
-    expect(container.textContent).toContain('启用均衡器')
+    expect(container.textContent).toContain('Audio effects & equalizer (DSP)')
+    expect(container.textContent).toContain('10-Band EQ')
+    expect(container.textContent).toContain('Enable equalizer')
   })
 })

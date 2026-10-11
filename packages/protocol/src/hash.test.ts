@@ -25,7 +25,7 @@ describe('sha256Hex', () => {
   })
 
   it('agrees on non-ASCII, including astral characters', () => {
-    for (const input of ['Björk', '日本語', '🎵🎶', 'a🎵b', 'Jóga — Homogenic']) {
+    for (const input of ['Björk', 'Ελληνικά', '🎵🎶', 'a🎵b', 'Jóga — Homogenic']) {
       expect(sha256Hex(input), input).toBe(ref(input))
     }
   })

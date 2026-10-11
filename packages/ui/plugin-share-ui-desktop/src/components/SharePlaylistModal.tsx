@@ -50,11 +50,11 @@ export function SharePlaylistModal({
     item: playlist,
     defaultThemeColor: '#8C52FF',
     isValid,
-    missingReason: '无法复制：歌单缺少有效标题等元数据',
+    missingReason: "Can't copy: the playlist is missing a valid name or other metadata",
   })
 
   const subtitle =
-    playlist.trackCount > 0 ? `歌单 • ${playlist.trackCount} 首歌曲` : '歌单'
+    playlist.trackCount > 0 ? `Playlist • ${playlist.trackCount} songs` : 'Playlist'
 
   const handleCopy = useCallback(() => {
     void copyBase64('playlist', playlist)
@@ -102,7 +102,7 @@ export function SharePlaylistModal({
           margin: '0 auto',
         },
       },
-      h(ShareModalHeader, { title: '分享歌单', onClose }),
+      h(ShareModalHeader, { title: 'Share playlist', onClose }),
       h(LocalSourceWarning, { show: isLocal }),
       h(ShareCardPreview, {
         title: playlist.name,

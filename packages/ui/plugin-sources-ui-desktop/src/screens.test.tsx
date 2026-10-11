@@ -208,15 +208,15 @@ function providerWith(
                     // named, but a folder with no urn — nothing to open.
                     {
                       id: sourceId + '-invalid-' + i,
-                      title: '当前资源无效',
-                      subtitle: '合集·失效示例 · sid 2933823',
+                      title: 'Invalid resource',
+                      subtitle: 'Collection · invalid sample · sid 2933823',
                       kind: 'folder' as const,
                       leaf: true,
                     }
                   : {
                       id: sourceId + '-card-' + n + '-' + i,
-                      title: '合集 ' + n + '-' + i,
-                      subtitle: 'UP 主',
+                      title: 'Collection ' + n + '-' + i,
+                      subtitle: 'Uploader',
                       kind: 'album' as const,
                       leaf: false,
                       urn: 'BBeBee:' + sourceId + ':album:s' + n + '-' + i,
@@ -684,7 +684,7 @@ describe('SearchScreen', () => {
       expect(pageCalled).toBe(2)
       expect(document.body.textContent).toContain('Alpha Initial Song')
       expect(document.body.textContent).toContain('Alpha More Song')
-      expect(document.body.textContent).toContain('已加载全部结果')
+      expect(document.body.textContent).toContain('All results loaded')
     })
   })
 
@@ -1050,7 +1050,7 @@ describe('RecommendScreen', () => {
     // named, and a click that goes nowhere — the album page is for albums.
     const cards = screen.getAllByTestId('recommend-card')
     expect(cards).toHaveLength(10)
-    expect(screen.getByText('当前资源无效')).toBeTruthy()
+    expect(screen.getByText('Invalid resource')).toBeTruthy()
     expect(screen.getByText(/sid 2933823/)).toBeTruthy()
   })
 
@@ -1065,7 +1065,7 @@ describe('RecommendScreen', () => {
       await tick()
     })
 
-    expect(screen.getByText('暂无推荐')).toBeTruthy()
+    expect(screen.getByText('No recommendations')).toBeTruthy()
   })
 
   it('shows recent played tracks albums row before sources when history exists', async () => {
@@ -1105,7 +1105,7 @@ describe('RecommendScreen', () => {
     })
 
     expect(screen.getByTestId('recommend-shelf-recent-albums')).toBeTruthy()
-    expect(screen.getByText('最近播放 · 专辑')).toBeTruthy()
+    expect(screen.getByText('Recently played · Albums')).toBeTruthy()
     expect(screen.getByText('Recent Album 1')).toBeTruthy()
   })
 
@@ -1144,7 +1144,7 @@ describe('RecommendScreen', () => {
     })
 
     expect(screen.getByTestId('recommend-shelf-favorite-albums')).toBeTruthy()
-    expect(screen.getByText('收藏随选 · 专辑')).toBeTruthy()
+    expect(screen.getByText('Favorites picks · Albums')).toBeTruthy()
     expect(screen.getByText('Favorite Album 1')).toBeTruthy()
   })
 })
@@ -1163,7 +1163,7 @@ describe('RecommendShelfRow', () => {
     render(
       h(RecommendShelfRow, {
         ctx,
-        title: '测试推荐行',
+        title: 'Test recommend shelf',
         testID: 'test-shelf',
         entries,
         onOpenCard: () => {},

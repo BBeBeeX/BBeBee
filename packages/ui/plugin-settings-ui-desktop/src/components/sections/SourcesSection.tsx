@@ -23,23 +23,23 @@ export function SourcesSection({
     {
       id: 'sources.settings',
       section: 'sources',
-      title: '音乐来源配置 (Music Sources)',
-      description: '查看已启用的网络音源、进行源能力健康诊断或管理第三方音源列表',
-      actionText: '管理音乐源',
+      title: 'Music source configuration (Music Sources)',
+      description: 'View enabled online sources, run source capability health checks, or manage third-party sources',
+      actionText: 'Manage music sources',
     },
     {
       id: 'sources.import',
       section: 'sources',
-      title: '导入音源 (Import Sources)',
-      description: '从剪贴板文本、本地 JSON 规则文件或网络 URL 导入第三方音源脚本 (Legado 格式)',
-      actionText: '导入音源',
+      title: 'Import sources (Import Sources)',
+      description: 'Import third-party source scripts (Legado format) from clipboard text, local JSON rule files or a URL',
+      actionText: 'Import sources',
     },
     {
       id: 'scanner.settings',
       section: 'sources',
-      title: '本地音乐文件夹 (Music Folders)',
-      description: '添加包含本地音频文件的文件夹，即时执行扫描并建立索引',
-      actionText: '管理文件夹',
+      title: 'Music folders',
+      description: 'Add folders containing local audio files; scanning and indexing run immediately',
+      actionText: 'Manage folders',
     },
   ]
 
@@ -49,8 +49,8 @@ export function SourcesSection({
     h(
       SettingsSection,
       {
-        title: '曲库音源与文件',
-        description: '管理音乐来源提供方、网络源能力诊断及本地媒体目录索引',
+        title: 'Music sources & files',
+        description: 'Manage music source providers, online source capability diagnostics and local media folder indexing',
       },
       items.map((item, idx) => {
         const isLast = idx === items.length - 1
@@ -64,7 +64,7 @@ export function SourcesSection({
           description: item.description,
           borderBottom: !isLast,
           action: h(Button, {
-            children: item.actionText ?? '管理',
+            children: item.actionText ?? 'Manage',
             onPress: () => {
               if (item.action) void item.action()
               else onNavigate(item.id)

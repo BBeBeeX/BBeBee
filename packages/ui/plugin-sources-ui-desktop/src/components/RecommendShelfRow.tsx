@@ -164,12 +164,12 @@ export function RecommendShelfRow({
     ),
     // ── Content body ─────────────────────────────────────────────────────────
     status === 'loading'
-      ? h(Text, { variant: 'sm', tone: 'muted' }, '加载中…')
+      ? h(Text, { variant: 'sm', tone: 'muted' }, 'Loading…')
       : status === 'error'
         ? h(
             'div',
             { style: { display: 'flex', flexDirection: 'column', gap: tokens.space[2] } },
-            h(Text, { variant: 'sm', tone: 'error' }, `加载失败：${errorMessage ?? ''}`),
+            h(Text, { variant: 'sm', tone: 'error' }, `Failed to load: ${errorMessage ?? ''}`),
             onRetry
               ? h(
                   'button',
@@ -186,7 +186,7 @@ export function RecommendShelfRow({
                       fontSize: 13,
                     },
                   },
-                  '重试',
+                  'Retry',
                 )
               : null,
           )
@@ -221,7 +221,7 @@ export function RecommendShelfRow({
                   h('button', {
                     type: 'button',
                     'data-testid': 'recommend-scroll-left',
-                    'aria-label': '向左滚动',
+                    'aria-label': 'Scroll left',
                     tabIndex: isHovered ? 0 : -1,
                     onClick: handleScrollLeft,
                     style: arrowButtonStyle,
@@ -329,7 +329,7 @@ export function RecommendShelfRow({
                   h('button', {
                     type: 'button',
                     'data-testid': 'recommend-scroll-right',
-                    'aria-label': '向右滚动',
+                    'aria-label': 'Scroll right',
                     tabIndex: isHovered ? 0 : -1,
                     onClick: handleScrollRight,
                     style: arrowButtonStyle,

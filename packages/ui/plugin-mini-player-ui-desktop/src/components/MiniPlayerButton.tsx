@@ -16,8 +16,8 @@ export function MiniPlayerButton({ ctx, style }: MiniPlayerButtonProps): ReactEl
     'button',
     {
       type: 'button',
-      'aria-label': visible ? '关闭小窗模式' : '打开小窗模式 / 灵动岛',
-      title: visible ? '关闭小窗模式' : '打开小窗模式 / 灵动岛',
+      'aria-label': visible ? 'Close mini player' : 'Open mini player / Dynamic Island',
+      title: visible ? 'Close mini player' : 'Open mini player / Dynamic Island',
       onClick: () => toggle(),
       style: {
         display: 'inline-flex',

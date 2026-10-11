@@ -121,7 +121,7 @@ export interface SettingsFieldDescriptor {
   min?: number
   max?: number
   step?: number
-  /** Value unit suffix (`slider`, e.g. 'px', '秒'). */
+  /** Value unit suffix (`slider`, e.g. 'px', 's'). */
   unit?: string
   /** Placeholder for text-like controls. */
   placeholder?: string
@@ -152,7 +152,7 @@ export interface SettingsContribution {
   order?: number
   /** Icon name from the shared icon set. */
   icon?: string
-  /** Text for the action button when rendered as a link row (e.g. '打开', '管理', '配置'). */
+  /** Text for the action button when rendered as a link row (e.g. 'Open', 'Manage', 'Configure'). */
   actionText?: string
   /**
    * Presentation type:

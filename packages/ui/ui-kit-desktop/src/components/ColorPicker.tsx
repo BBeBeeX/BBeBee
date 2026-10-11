@@ -12,14 +12,14 @@ export interface ColorPickerProps {
 }
 
 export const COLOR_PRESETS = [
-  { color: '#FFFFFF', label: '纯白' },
-  { color: '#5F87FF', label: '电光蓝' },
-  { color: '#7C86FF', label: '长春花蓝' },
-  { color: '#A99CFF', label: '薰衣草紫' },
-  { color: '#9B73F5', label: '柔紫' },
-  { color: '#60EFFF', label: '冰晶蓝' },
-  { color: '#1DB954', label: '翡翠绿' },
-  { color: '#EC4899', label: '霓虹粉' },
+  { color: '#FFFFFF', label: 'Pure White' },
+  { color: '#5F87FF', label: 'Electric Blue' },
+  { color: '#7C86FF', label: 'Periwinkle' },
+  { color: '#A99CFF', label: 'Lavender' },
+  { color: '#9B73F5', label: 'Soft Purple' },
+  { color: '#60EFFF', label: 'Ice Blue' },
+  { color: '#1DB954', label: 'Emerald Green' },
+  { color: '#EC4899', label: 'Neon Pink' },
 ]
 
 export function ColorPicker({ value, onChange, accessibilityLabel }: ColorPickerProps): ReactElement {

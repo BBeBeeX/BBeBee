@@ -29,30 +29,30 @@ export function cleanAndTagDeviceLabel(
   isVirtualHint?: boolean,
 ): { label: string; isVirtual: boolean } {
   let label = (rawLabel || '')
-    .replace(/^(默认\s*[-–:：]\s*|Default\s*[-–:：]\s*|系统默认\s*[-–:：]\s*)/i, '')
-    .replace(/\s*\((System Default|默认)\)$/i, '')
+    .replace(/^(Default\s*[-–:]\s*)/i, '')
+    .replace(/\s*\((System Default)\)$/i, '')
     .trim()
 
   if (
-    label === '系统默认音频设备 (System Default)' ||
-    label === '系统默认音频设备' ||
-    label === '系统默认音频终端 (WASAPI Exclusive)' ||
-    label === '默认音频终端 (WASAPI Exclusive)' ||
-    label === '系统默认音频输出 (System Default)'
+    label === 'System default audio device (System Default)' ||
+    label === 'System default audio device' ||
+    label === 'System default audio endpoint (WASAPI Exclusive)' ||
+    label === 'Default audio endpoint (WASAPI Exclusive)' ||
+    label === 'System default audio output (System Default)'
   ) {
     label = ''
   }
 
   const isVirtual = Boolean(
     isVirtualHint ||
-      /voicemeeter|vb-audio|vbaudio|virtual|虚拟|todesk|steam streaming|sonar|null sink|null-sink|null_sink|loopback|blackhole|soundflower|obs|easyeffects|pulseeffects|scream|discord/i.test(
+      /voicemeeter|vb-audio|vbaudio|virtual|todesk|steam streaming|sonar|null sink|null-sink|null_sink|loopback|blackhole|soundflower|obs|easyeffects|pulseeffects|scream|discord/i.test(
         `${label} ${id || ''}`,
       ),
   )
 
-  label = label.replace(/\s*(\(虚拟\)|\[虚拟\])\s*$/g, '').trim()
-  if (isVirtual && label && !label.endsWith('(虚拟)')) {
-    label = `${label} (虚拟)`
+  label = label.replace(/\s*(\(Virtual\)|\[Virtual\])\s*$/g, '').trim()
+  if (isVirtual && label && !label.endsWith('(Virtual)')) {
+    label = `${label} (Virtual)`
   }
 
   return { label, isVirtual }
@@ -131,7 +131,7 @@ export class AudioDeviceEnumerator {
 
     if (results.length === 0) {
       this.logWarn('no system audio devices discovered; returning default fallback device')
-      results.push({ id: 'default', label: '音频输出设备', isDefault: true, isVirtual: false })
+      results.push({ id: 'default', label: 'Audio output device', isDefault: true, isVirtual: false })
     } else {
       this.logInfo(`getOutputDevices returning ${results.length} processed devices:`, results)
     }
@@ -385,12 +385,12 @@ export class AudioDeviceEnumerator {
             const modes = match[5]
             if (modes && modes.includes('playback')) {
               const cardInfo = cards.get(cardNum)
-              const baseName = cardInfo?.friendly || `声卡 ${cardNum}`
+              const baseName = cardInfo?.friendly || `Sound card ${cardNum}`
               const isVirtual = /loopback|dummy|virtual|null/i.test(`${baseName} ${subName} ${cardInfo?.shortName || ''}`)
               const label = subName && subName !== baseName ? `${baseName} (${subName})` : baseName
               devices.push({
                 id: `hw:${cardNum},${devNum}`,
-                label: isVirtual ? `${label} (虚拟)` : label,
+                label: isVirtual ? `${label} (Virtual)` : label,
                 isDefault: cardNum === '0' && devNum === '0',
                 isVirtual,
               })
@@ -404,7 +404,7 @@ export class AudioDeviceEnumerator {
           const isVirtual = /loopback|dummy|virtual|null/i.test(`${cardInfo.friendly} ${cardInfo.shortName}`)
           devices.push({
             id: `hw:${cardNum},0`,
-            label: isVirtual ? `${cardInfo.friendly} (虚拟)` : cardInfo.friendly,
+            label: isVirtual ? `${cardInfo.friendly} (Virtual)` : cardInfo.friendly,
             isDefault: cardNum === '0',
             isVirtual,
           })

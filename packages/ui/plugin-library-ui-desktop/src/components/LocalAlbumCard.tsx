@@ -17,7 +17,7 @@ export function LocalAlbumCard({
   onPlay?: () => void
 }): ReactElement {
   const [hovered, setHovered] = useState(false)
-  const artists = album.artists?.map((a) => a.name).join(', ') || '未知艺人'
+  const artists = album.artists?.map((a) => a.name).join(', ') || 'Unknown artist'
 
   return h(
     'div',
@@ -69,8 +69,8 @@ export function LocalAlbumCard({
             'button',
             {
               type: 'button',
-              'aria-label': `播放 ${album.title}`,
-              title: `播放 ${album.title}`,
+              'aria-label': `Play ${album.title}`,
+              title: `Play ${album.title}`,
               onClick: (e: MouseEvent) => {
                 e.stopPropagation()
                 onPlay()
@@ -142,7 +142,7 @@ export function LocalAlbumCard({
             marginTop: 2,
           },
         },
-        `${album.year ? `${album.year} • ` : ''}${album.trackCount ? `${album.trackCount} 首歌曲` : '专辑'}`,
+        `${album.year ? `${album.year} • ` : ''}${album.trackCount ? `${album.trackCount} songs` : 'Album'}`,
       ),
     ),
   )

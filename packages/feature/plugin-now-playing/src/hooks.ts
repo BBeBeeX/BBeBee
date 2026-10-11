@@ -6,7 +6,7 @@
  * mobile view packages import this single hook so the preference is shared.
  *
  * `useTrackDetails` binds the headless aggregation in `details.ts` — the data
- * behind the "查看播放内容" modal — so the view holds no domain reads itself.
+ * behind the "See what's playing" modal — so the view holds no domain reads itself.
  */
 
 import { useCallback, useEffect, useState } from 'react'

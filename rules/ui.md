@@ -5,9 +5,9 @@ This file is the **normative (L2)** surface: hard constraints, invariants, and c
 Design specifications, visual values, and screen-level behaviour live in
 [docs/ui/design-system.md](../docs/ui/design-system.md) **(L3)**.
 
-> **L2 · 何时读**：写或改任何 UI 包时——三包约定、public subpaths、hooks、硬性视觉约束、沙箱皮肤红线。
-> **不读会怎样**：业务逻辑在双端 UI 包里写两遍、deep-import 越界、硬编码颜色破坏 Light Mode、`backgroundColor` 吞掉渐变。
-> **深读指引**：docs/ui/design-system.md（设计规格与视觉细节）、docs/ui/architecture.md（shell 与渲染原理）。
+> **L2 · When to read**: when writing or modifying any UI package — the three-package convention, public subpaths, hooks, hard visual constraints, the sandboxed-skin red lines.
+> **What goes wrong without it**: business logic written twice across the two UI packages, deep-import boundary violations, hardcoded colors breaking Light Mode, `backgroundColor` swallowing gradients.
+> **Deeper reading**: docs/ui/design-system.md (design specs and visual detail), docs/ui/architecture.md (shell and rendering principles).
 
 ---
 
@@ -57,7 +57,7 @@ ctx.ui.contribute({
   kind: 'settings',
   id: 'player.transition',
   section: 'playback',
-  title: '过渡与衔接',
+  title: 'Transition & crossfade',
   order: 20,
   fields: [/* simple key/value config is declared as data — never a hand-written form component */],
 })
@@ -92,7 +92,7 @@ Each shell resolves the contribution ID against its target view registry via `ct
 
 ## 4. Visual Design Language & Color System
 
-> 设计规格与细节见 [docs/ui/design-system.md §6](../docs/ui/design-system.md#6-multi-theme-color-system--visual-identity)（L3）。本节只保留硬性约束。
+> Design spec and details: see [docs/ui/design-system.md §6](../docs/ui/design-system.md#6-multi-theme-color-system--visual-identity) (L3). This section keeps only the hard constraints.
 
 ### Component Tokenization & Contrast Protection Rule
 - **No Hardcoded Foreground Colors**: Components in `packages/ui/*` must never hardcode `#FFFFFF` or `#000000` for general text, titles, borders, or icons. Always use semantic CSS variables (`var(--bb-text-primary, #FFFFFF)`, `var(--bb-text-secondary, #8E8E93)`, `var(--bb-bg-overlay)`, `var(--bb-border-subtle)`, `currentColor`).
@@ -105,7 +105,7 @@ Each shell resolves the contribution ID against its target view registry via `ct
 
 ### 4.1 Tabler Icons & Stroke Standard (`stroke = 1.25`)
 
-> 图标注册清单（`ICON_ALIASES`）与尺寸刻度见 [docs/ui/design-system.md §6.9](../docs/ui/design-system.md#69-iconography--stroke-standard-tabler-icons-stroke--125)（L3）。
+> The icon registry list (`ICON_ALIASES`) and the size scale: see [docs/ui/design-system.md §6.9](../docs/ui/design-system.md#69-iconography--stroke-standard-tabler-icons-stroke--125) (L3).
 
 1. **Global Stroke Width**: Standardized strictly to `stroke="1.25"` (`DEFAULT_STROKE_WIDTH = 1.25` in `packages/ui/ui-kit-desktop/src/icons/tabler.ts`).
 2. **Zero Handwritten SVG / Unicode Glyphs**: Never use raw unicode/emoji glyphs (e.g. `▶`, `⏸`, `🗑`, `✕`, `♡`, `⚙`, `🔍`) or ad-hoc `<svg>` elements in UI components. All icons must be rendered via `tablerIcon(name, props)`, `TablerIcon`, or components consuming `IconName` (e.g. `IconButton`, `EmptyState`). **Mobile exception**: there is no Tabler set on React Native, so `ui-kit-mobile`'s `ContextMenu` maps the shared menus' icon names to unicode glyphs (`MENU_ICON_GLYPHS`); a name without a mapping is hidden rather than rendered as raw text.
@@ -115,7 +115,7 @@ Each shell resolves the contribution ID against its target view registry via `ct
 
 ## 5. Desktop Settings Center & Diagnostics Specifications
 
-> 布局规格、贡献域清单与 diagnostics 细节见 [docs/ui/design-system.md §7](../docs/ui/design-system.md#7-desktop-settings-center--layout--diagnostics)（L3）。
+> Layout spec, the contribution-domain list and diagnostics details: see [docs/ui/design-system.md §7](../docs/ui/design-system.md#7-desktop-settings-center--layout--diagnostics) (L3).
 
 The settings screen owns none of the contributed domains. Each is contributed by the
 plugin that owns the behaviour; platform settings with no owning feature are
@@ -128,22 +128,22 @@ contributions — a plugin's section disappears when the plugin does.
 
 ## 6. Library Sidebars & Context Menus Specification
 
-> 布局模式与菜单视觉规格见 [docs/ui/design-system.md §8](../docs/ui/design-system.md#8-library-sidebar-modes--context-menu-design)（L3）。
+> Layout modes and menu visual spec: see [docs/ui/design-system.md §8](../docs/ui/design-system.md#8-library-sidebar-modes--context-menu-design) (L3).
 
 ### Context Menu Design Standards
-- **Folder (Collection) Semantics**: Folders are directory containers for collection-level entities (playlists, albums, artists, child folders). Folders **never** contain individual tracks; individual tracks belong to playlists and albums. Track context menus only offer "添加到歌单" (`add-to-playlist`), never "加入合集 / 移动至文件夹" (`add-to-collection`).
-- **Recursive Track Gathering**: When adding a folder's contents to other playlists ("添加至其他歌单") or playing a folder, `collectAllFolderTracks` (exported from `@BBeBee/plugin-library/hooks`) recursively scans all nested playlist tracks, nested album tracks, and all descendant subfolders without duplicates (folders do not contain direct tracks).
+- **Folder (Collection) Semantics**: Folders are directory containers for collection-level entities (playlists, albums, artists, child folders). Folders **never** contain individual tracks; individual tracks belong to playlists and albums. Track context menus only offer "Add to playlist" (`add-to-playlist`), never "Add to collection / Move to folder" (`add-to-collection`).
+- **Recursive Track Gathering**: When adding a folder's contents to other playlists ("Add to another playlist") or playing a folder, `collectAllFolderTracks` (exported from `@BBeBee/plugin-library/hooks`) recursively scans all nested playlist tracks, nested album tracks, and all descendant subfolders without duplicates (folders do not contain direct tracks).
 
 ---
 
 ## 7. Detail Screens, Sorting & Playback History Specifications
 
-> 布局规格、排序交互、批量操作、本地音乐双视图、播放历史与推荐书架见 [docs/ui/design-system.md §9](../docs/ui/design-system.md#9-detail-screens-sorting--playback-history)（L3）。
+> Layout spec, sorting interactions, batch operations, local-music dual views, play history and the recommendation shelves: see [docs/ui/design-system.md §9](../docs/ui/design-system.md#9-detail-screens-sorting--playback-history) (L3).
 
 ### Track Table Sorting & Row Interactions (`AlbumScreen`, `PlaylistDetailScreen`, `LocalMusicScreen`, `FavoritesScreen`, `CollectionScreen`)
 - **Strict Track Deduplication**:
   - `AlbumScreen`, `PlaylistDetailScreen`, `FavoritesScreen`, and `LocalMusicScreen` filter raw tracks/items by track URN (`seen = new Set<string>()`), ensuring duplicate rows are never rendered, preventing virtual list key collisions, and eliminating multi-selection count discrepancies.
-- **Favourite Dual-Write Invariant**: A track's "loved" lives in two stores — `track_stats.loved` (what the row's heart draws and the catalogue's `onlyLoved` answers) and its `library_items` row (what the Favourites shelf reads). **Every writer writes both**, catalogue first so the `library/changed` event the shelf write fires sees the final state: the row button, the track context menu (`trackMenuItems`), and the popover's liked toggle (`useSaveToPlaylistMenu.onToggleLiked`). A writer that touches only one store leaves a hearted track missing from Favourites — or an unfavourited row still drawing a heart.
+- **Favorite Dual-Write Invariant**: A track's "loved" lives in two stores — `track_stats.loved` (what the row's heart draws and the catalogue's `onlyLoved` answers) and its `library_items` row (what the Favorites shelf reads). **Every writer writes both**, catalogue first so the `library/changed` event the shelf write fires sees the final state: the row button, the track context menu (`trackMenuItems`), and the popover's liked toggle (`useSaveToPlaylistMenu.onToggleLiked`). A writer that touches only one store leaves a hearted track missing from Favorites — or an unfavorited row still drawing a heart.
 - **Playback Queue Coherence**:
   - Playing a single track or clicking "Play All / Play Album" passes the currently sorted/filtered track URN sequence to `ctx.player.playFromContext`.
   - Up-next playback order strictly follows the visual sorted order on screen.
@@ -155,10 +155,10 @@ contributions — a plugin's section disappears when the plugin does.
 ## 8. Mini Player & Dynamic Island Desktop Specifications
 
 Rules for desktop floating mini player, Dynamic Island secondary windows, and gestures.
-窗口状态、尺寸、阴影与玻璃质感规格见 [docs/ui/design-system.md §10](../docs/ui/design-system.md#10-mini-player--dynamic-island)（L3）。
+Window states, sizes, shadows and glass material spec: see [docs/ui/design-system.md §10](../docs/ui/design-system.md#10-mini-player--dynamic-island) (L3).
 
 ### Gesture-First Interaction & Clutter Elimination
-- **Zero Redundant Action Buttons**: Do **not** render explicit buttons for "折叠灵动岛", "脱离吸附", or "吸附到顶部". All mode transitions are driven by natural gestures.
+- **Zero Redundant Action Buttons**: Do **not** render explicit buttons for "Collapse Dynamic Island", "Detach", or "Snap to top". All mode transitions are driven by natural gestures.
 
 ### Secondary Window Artwork Safety
 - **Chromium Local Resource Boundary**: Secondary window renderers block raw `file://` URLs.
@@ -174,10 +174,10 @@ Rules for desktop floating mini player, Dynamic Island secondary windows, and ge
 ## 9. Now Playing Layout Styles & Sandboxed Dynamic Import
 
 Rules for full-screen player layout templates, sandboxed plugin execution, and settings integration.
-布局模板、设置集成与播放信息弹窗见 [docs/ui/design-system.md §11](../docs/ui/design-system.md#11-now-playing-layout-styles)（L3）。
+Layout templates, settings integration and the track-info modal: see [docs/ui/design-system.md §11](../docs/ui/design-system.md#11-now-playing-layout-styles) (L3).
 
 ### 9.1 Built-in Layout Styles
-> 五种内置布局模板见 [docs/ui/design-system.md §11.1](../docs/ui/design-system.md#111-built-in-layout-styles)（L3）。
+> The five built-in layout templates: see [docs/ui/design-system.md §11.1](../docs/ui/design-system.md#111-built-in-layout-styles) (L3).
 
 ### 9.2 Sandboxed External Plugin Dynamic Import (Option B)
 External developers can create custom HTML/CSS/JS player skins and users can dynamically import them. The security boundary is a hard constraint:
@@ -188,10 +188,10 @@ External developers can create custom HTML/CSS/JS player skins and users can dyn
 - **Injected Client SDK (`window.BBeBeePlayer`)**: the iframe host automatically injects a lightweight SDK bridge — `onSnapshot(callback)`, `play()` / `pause()` / `togglePlay()`, `previous()` / `next()`, `seek(positionMs)`, `toggleFavorite()` — and nothing beyond this surface.
 
 ### 9.3 Settings UI Integration (`NowPlayingStylesSection`)
-> 见 [docs/ui/design-system.md §11.2](../docs/ui/design-system.md#112-settings-ui-integration-nowplayingstylessection)（L3）。
+> See [docs/ui/design-system.md §11.2](../docs/ui/design-system.md#112-settings-ui-integration-nowplayingstylessection) (L3).
 
 ### 9.4 Track Playback Info Modal & Metadata Inspection (`TrackInfoModal`)
-> 见 [docs/ui/design-system.md §11.3](../docs/ui/design-system.md#113-track-playback-info-modal--metadata-inspection-trackinfomodal)（L3）。
+> See [docs/ui/design-system.md §11.3](../docs/ui/design-system.md#113-track-playback-info-modal--metadata-inspection-trackinfomodal) (L3).
 
 ### 9.5 Adaptive Title Wrapping & Chrome Clipping Preventions
 - **Volume Popover Portal Pattern**:
@@ -203,35 +203,35 @@ External developers can create custom HTML/CSS/JS player skins and users can dyn
 ## 10. Share UI & Card Rendering Engine (`plugin-share-ui-desktop`)
 
 Rules and design standards governing music sharing modals, live canvas rendering, and visual steganography generation.
-卡片几何、排版与组件拆分规格见 [docs/ui/design-system.md §12](../docs/ui/design-system.md#12-share-ui--card-rendering)（L3）。
+Card geometry, typography and component decomposition spec: see [docs/ui/design-system.md §12](../docs/ui/design-system.md#12-share-ui--card-rendering) (L3).
 
 ### 10.1 Live Canvas Rendering Architecture (100% Dual-Engine Parity)
 - **Eliminating Dual-Engine Divergence**: Previews must **not** use HTML/CSS DOM trees if the final exported asset is a Canvas image. Flexbox layout, font baseline alignment, kerning, and subpixel rounding inevitably diverge between HTML DOM and Canvas 2D contexts — the preview renders through the same canvas draw functions as the export.
 
 ### 10.2 Card Geometry & Typography Hierarchy
-> 见 [docs/ui/design-system.md §12.2](../docs/ui/design-system.md#122-card-geometry--typography-hierarchy)（L3）。
+> See [docs/ui/design-system.md §12.2](../docs/ui/design-system.md#122-card-geometry--typography-hierarchy) (L3).
 
 ### 10.3 Component Extraction & High-Cohesion Modals
-> 见 [docs/ui/design-system.md §12.3](../docs/ui/design-system.md#123-component-extraction--high-cohesion-modals)（L3）。
+> See [docs/ui/design-system.md §12.3](../docs/ui/design-system.md#123-component-extraction--high-cohesion-modals) (L3).
 
 ### 10.4 Lyrics Share Card Dimensions (Full Poster vs Inner Card Only)
-> 见 [docs/ui/design-system.md §12.4](../docs/ui/design-system.md#124-lyrics-share-card-dimensions-full-poster-vs-inner-card-only)（L3）。
+> See [docs/ui/design-system.md §12.4](../docs/ui/design-system.md#124-lyrics-share-card-dimensions-full-poster-vs-inner-card-only) (L3).
 
 ---
 
 ## 11. Third-Party Source Badges, Half-Page Pagination & Original Resources
 
 Rules for third-party indicators in detail screens, infinite scroll pagination, and navigation to original web resources.
-徽标视觉、分页公式与原始资源解析细节见 [docs/ui/design-system.md §13](../docs/ui/design-system.md#13-source-badges-pagination--original-resources)（L3）。
+Badge visuals, the pagination formula and original-resource resolution details: see [docs/ui/design-system.md §13](../docs/ui/design-system.md#13-source-badges-pagination--original-resources) (L3).
 
 #### 11.1 Source Badge in Detail Headers
-> 见 [docs/ui/design-system.md §13.1](../docs/ui/design-system.md#131-source-badge-in-detail-headers)（L3）。
+> See [docs/ui/design-system.md §13.1](../docs/ui/design-system.md#131-source-badge-in-detail-headers) (L3).
 
 #### 11.2 Half-Page Infinite Scroll Pagination
-> 见 [docs/ui/design-system.md §13.2](../docs/ui/design-system.md#132-half-page-infinite-scroll-pagination)（L3）。
+> See [docs/ui/design-system.md §13.2](../docs/ui/design-system.md#132-half-page-infinite-scroll-pagination) (L3).
 
-#### 11.3 Context Menu "跳转原始资源" & Safe External Navigation
-> 菜单注册与 URL 解析细节见 [docs/ui/design-system.md §13.3](../docs/ui/design-system.md#133-context-menu-跳转原始资源--safe-external-navigation)（L3）。Platform Invariant 1 保留于此：
+#### 11.3 Context Menu "Open original resource" & Safe External Navigation
+> Menu registration and URL resolution details: see [docs/ui/design-system.md §13.3](../docs/ui/design-system.md#133-context-menu-open-original-resource--safe-external-navigation) (L3). Platform Invariant 1 is preserved here:
 
 - **Platform Invariant 1 Preservation (`openExternalUrl`)**:
   - UI packages must NEVER import Electron or platform SDKs.

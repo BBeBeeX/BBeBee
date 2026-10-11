@@ -107,8 +107,8 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
       h(
         native.View as never,
         null,
-        h(Text, { variant: 'lg', children: '音频效果与均衡器 (DSP)' }),
-        h(Text, { variant: 'xs', tone: 'muted', children: '实时效果链与 10 频段图示均衡器' }),
+        h(Text, { variant: 'lg', children: 'Audio effects & equalizer (DSP)' }),
+        h(Text, { variant: 'xs', tone: 'muted', children: 'Live effect chain and 10-band graphic equalizer' }),
       ),
       h(
         native.View as never,
@@ -120,7 +120,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
             borderRadius: tokens.radius.sm,
           },
         },
-        h(Text, { variant: 'xs', children: `延迟: ${latencyMs}ms` }),
+        h(Text, { variant: 'xs', children: `Latency: ${latencyMs}ms` }),
       ),
     ),
 
@@ -139,7 +139,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
             backgroundColor: activeTab === 'eq' ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
           },
         },
-        h(Text, { variant: 'sm', tone: activeTab === 'eq' ? 'accent' : 'muted', children: '🎚️ 10 频段均衡器' }),
+        h(Text, { variant: 'sm', tone: activeTab === 'eq' ? 'accent' : 'muted', children: '🎚️ 10-Band EQ' }),
       ),
       h(
         native.Pressable as never,
@@ -152,7 +152,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
             backgroundColor: activeTab === 'chain' ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
           },
         },
-        h(Text, { variant: 'sm', tone: activeTab === 'chain' ? 'accent' : 'muted', children: '🔗 效果链编排' }),
+        h(Text, { variant: 'sm', tone: activeTab === 'chain' ? 'accent' : 'muted', children: '🔗 Effect chain' }),
       ),
     ),
 
@@ -177,7 +177,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
               justifyContent: 'space-between',
             },
           },
-          h(Text, { variant: 'md', children: '启用均衡器' }),
+          h(Text, { variant: 'md', children: 'Enable equalizer' }),
           renderToggle(eqEntry?.enabled ?? false, () => {
             void setEnabled('eq10', !(eqEntry?.enabled ?? false))
           }),
@@ -316,14 +316,14 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
               h(
                 native.View as never,
                 { style: { flexDirection: 'row', alignItems: 'center', gap: 12 } },
-                h(Text, { variant: 'xs', children: `增益: ${params.gainDb ?? 0}dB` }),
+                h(Text, { variant: 'xs', children: `Gain: ${params.gainDb ?? 0}dB` }),
                 h(
                   native.View as never,
                   { style: { flex: 1 } },
                   h(Slider, {
                     value: (Number(params.gainDb ?? 0)) + 20,
                     max: 40,
-                    accessibilityLabel: '前级增益',
+                    accessibilityLabel: 'Preamp gain',
                     onChange: (v) => void setParam('preamp', 'gainDb', Math.round(v - 20)),
                   }),
                 ),
@@ -333,14 +333,14 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
               h(
                 native.View as never,
                 { style: { flexDirection: 'row', alignItems: 'center', gap: 12 } },
-                h(Text, { variant: 'xs', children: `增益: ${params.gainDb ?? 0}dB` }),
+                h(Text, { variant: 'xs', children: `Gain: ${params.gainDb ?? 0}dB` }),
                 h(
                   native.View as never,
                   { style: { flex: 1 } },
                   h(Slider, {
                     value: (Number(params.gainDb ?? 0)) + 12,
                     max: 24,
-                    accessibilityLabel: '标准化增益',
+                    accessibilityLabel: 'Normalization gain',
                     onChange: (v) => void setParam('normalize', 'gainDb', Math.round(v - 12)),
                   }),
                 ),
@@ -363,21 +363,21 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
               h(
                 native.View as never,
                 { style: { flexDirection: 'row', alignItems: 'center', gap: 12 } },
-                h(Text, { variant: 'xs', children: `阈值: ${params.threshold ?? -24}dB` }),
+                h(Text, { variant: 'xs', children: `Threshold: ${params.threshold ?? -24}dB` }),
                 h(
                   native.View as never,
                   { style: { flex: 1 } },
                   h(Slider, {
                     value: (Number(params.threshold ?? -24)) + 60,
                     max: 60,
-                    accessibilityLabel: '压缩阈值',
+                    accessibilityLabel: 'Compressor threshold',
                     onChange: (v) => void setParam('compressor', 'threshold', Math.round(v - 60)),
                   }),
                 ),
                 def.presets &&
                   h(Button, {
-                    onPress: () => void applyPreset('compressor', '夜间模式 (Night Mode)'),
-                    children: '夜间',
+                    onPress: () => void applyPreset('compressor', 'Night Mode'),
+                    children: 'Night',
                   }),
               ),
 
@@ -385,14 +385,14 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
               h(
                 native.View as never,
                 { style: { flexDirection: 'row', alignItems: 'center', gap: 12 } },
-                h(Text, { variant: 'xs', children: `混响: ${Math.round((Number(params.mix ?? 0.25)) * 100)}%` }),
+                h(Text, { variant: 'xs', children: `Reverb: ${Math.round((Number(params.mix ?? 0.25)) * 100)}%` }),
                 h(
                   native.View as never,
                   { style: { flex: 1 } },
                   h(Slider, {
                     value: Math.round((Number(params.mix ?? 0.25)) * 100),
                     max: 100,
-                    accessibilityLabel: '混响比例',
+                    accessibilityLabel: 'Reverb mix',
                     onChange: (v) => void setParam('reverb', 'mix', Math.round(v) / 100),
                   }),
                 ),
@@ -402,14 +402,14 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
               h(
                 native.View as never,
                 { style: { flexDirection: 'row', alignItems: 'center', gap: 12 } },
-                h(Text, { variant: 'xs', children: `宽度: ${Number(params.width ?? 1.2).toFixed(1)}x` }),
+                h(Text, { variant: 'xs', children: `Width: ${Number(params.width ?? 1.2).toFixed(1)}x` }),
                 h(
                   native.View as never,
                   { style: { flex: 1 } },
                   h(Slider, {
                     value: Math.round((Number(params.width ?? 1.2)) * 50),
                     max: 100,
-                    accessibilityLabel: '宽度',
+                    accessibilityLabel: 'Stereo width',
                     onChange: (v) => void setParam('widener', 'width', Math.round(v) / 50),
                   }),
                 ),
@@ -419,14 +419,14 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
               h(
                 native.View as never,
                 { style: { flexDirection: 'row', alignItems: 'center', gap: 12 } },
-                h(Text, { variant: 'xs', children: `馈入: ${Math.round((Number(params.amount ?? 0.35)) * 100)}%` }),
+                h(Text, { variant: 'xs', children: `Crossfeed: ${Math.round((Number(params.amount ?? 0.35)) * 100)}%` }),
                 h(
                   native.View as never,
                   { style: { flex: 1 } },
                   h(Slider, {
                     value: Math.round((Number(params.amount ?? 0.35)) * 100),
                     max: 100,
-                    accessibilityLabel: '馈入量',
+                    accessibilityLabel: 'Crossfeed amount',
                     onChange: (v) => void setParam('crossfeed', 'amount', Math.round(v) / 100),
                   }),
                 ),
@@ -436,14 +436,14 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
               h(
                 native.View as never,
                 { style: { flexDirection: 'row', alignItems: 'center', gap: 12 } },
-                h(Text, { variant: 'xs', children: `上限: ${params.ceilingDb ?? -0.5}dB` }),
+                h(Text, { variant: 'xs', children: `Ceiling: ${params.ceilingDb ?? -0.5}dB` }),
                 h(
                   native.View as never,
                   { style: { flex: 1 } },
                   h(Slider, {
                     value: Math.round(((Number(params.ceilingDb ?? -0.5)) + 12) * 8.33),
                     max: 100,
-                    accessibilityLabel: '限制器上限',
+                    accessibilityLabel: 'Limiter ceiling',
                     onChange: (v) => void setParam('limiter', 'ceilingDb', -Math.round((100 - v) / 8.33 * 10) / 10),
                   }),
                 ),

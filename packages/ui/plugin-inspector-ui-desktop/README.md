@@ -1,29 +1,29 @@
 # @BBeBee/plugin-inspector-ui-desktop
 
-Layer 5（ui）— `plugin-inspector` 的桌面视图包：插件图（fiber 树 + 带标签 effect）的渲染端。
+Layer 5 (ui) — the desktop view package for `plugin-inspector`: the renderer for the plugin graph (fiber tree + labeled effects).
 
-## 概述
+## Overview
 
-M0 最后一条退出标准的 UI 半边：headless 的 `ctx.inspector` 产出可序列化快照，本包把它渲染出来。**纯结构**——数据完全来自 `ctx.inspector`。
+The UI half of M0's final exit criterion: the headless `ctx.inspector` produces serializable snapshots, and this package renders them. **Pure structure** — all data comes from `ctx.inspector`.
 
-## 源文件
+## Source files
 
 ### `src/index.tsx`
 
-**注册的视图与路由**（generator effect `'inspector-ui'`）：
+**Registered views and routes** (generator effect `'inspector-ui'`):
 
-- `ctx.ui.registerView('inspector.panel', bound(ctx, InspectorPanel))`；
-- `ctx.ui.contribute({ kind: 'route', id: 'inspector.panel', path: '/inspector', title: 'Inspector', icon: 'bug', placement: ['sidebar'], order: 900 })`——侧边栏末位的开发者路由。
+- `ctx.ui.registerView('inspector.panel', bound(ctx, InspectorPanel))`;
+- `ctx.ui.contribute({ kind: 'route', id: 'inspector.panel', path: '/inspector', title: 'Inspector', icon: 'bug', placement: ['sidebar'], order: 900 })` — the developer route at the end of the sidebar.
 
-**组件**：
+**Components**:
 
-- **`InspectorPanel({ ctx })`** — 顶层面板（等宽字体、13px）。`useState` 初始化为 `ctx.inspector.snapshot()`；**每 1 秒轮询一次**——fiber 树没有变更事件（插件加载卸载不会告诉任何人），轮询便宜且这是开发工具。头部："Plugin graph" 标题 + 状态计数摘要（`n pending · n active · …`，与 `render()` 的摘要同格式）。
-- **`Fiber({ node })`** — 递归渲染一个 fiber：名字（加粗）+ 状态徽章（`STATE_COLOR` 映射：ACTIVE 绿 / PENDING·LOADING 橙 / FAILED 红 / UNLOADING·DISPOSED·UNKNOWN 灰）+ `provides …`（紫）/ `waiting …`（橙）行——**"waiting" 一行就是"插件为何 PENDING"的答案**（docs/12 gotcha 表里 `ctx.inspector.render()` 的图形版）。子 fiber 用带左边框的嵌套 `<ul>`；effect（`Effects` 组件）以 `· label` 列在该 fiber 名下，递归展开嵌套 effect。
-- **`INSPECTOR_VIEW = 'inspector.panel'`** — 视图 id 常量。
+- **`InspectorPanel({ ctx })`** — the top-level panel (monospace, 13px). `useState` initialized from `ctx.inspector.snapshot()`; **polls once per second** — the fiber tree has no change events (plugin load/unload tells nobody), polling is cheap, and this is a dev tool. Header: the "Plugin graph" title + a status count summary (`n pending · n active · …`, same format as `render()`'s summary).
+- **`Fiber({ node })`** — renders one fiber recursively: name (bold) + status badge (`STATE_COLOR` map: ACTIVE green / PENDING·LOADING orange / FAILED red / UNLOADING·DISPOSED·UNKNOWN gray) + `provides …` (purple) / `waiting …` (orange) lines — **the "waiting" line is the answer to "why is this plugin PENDING"** (the graphical version of `ctx.inspector.render()` in the docs/12 gotcha table). Child fibers use a nested `<ul>` with a left border; effects (the `Effects` component) are listed as `· label` under their fiber, with nested effects expanded recursively.
+- **`INSPECTOR_VIEW = 'inspector.panel'`** — the view id constant.
 
-**`bound(ctx, Screen)`** — 本包注释是全仓库对这个模式最有戏剧性的记录：**"This is what made the inspector page a black window"**——shell 用自己的 context（`app.ready(['ui'])`）渲染视图，`InspectorPanel` 读 `ctx.inspector` 在**渲染期**抛 `cannot get property "inspector" without inject`；React 上方没有 error boundary，于是整棵树被卸载、页面只剩 body 的背景色。本包曾是最后一个没做闭合的视图包。`h(Screen, …)` 而非函数调用（hook 链独立）。
+**`bound(ctx, Screen)`** — this package's comment is the most dramatic record of the pattern in the whole repo: **"This is what made the inspector page a black window"** — the shell renders views with its own context (`app.ready(['ui'])`), and `InspectorPanel` reading `ctx.inspector` throws `cannot get property "inspector" without inject` **at render time**; with no error boundary above React the whole tree unmounted and the page was left with only the body's background color. This package used to be the last view package without the closure. `h(Screen, …)` rather than a function call (independent hook chain).
 
-## 声明与导出
+## Declaration and exports
 
 ```ts
 export const name = 'plugin-inspector-ui-desktop'
@@ -34,14 +34,14 @@ export async function apply(ctx)
 export default { name, inject, apply }
 ```
 
-仅桌面——移动端没有开发者面板（manifest 的 `entry.ui` 只声明 desktop）。
+Desktop only — there is no developer panel on mobile (the manifest's `entry.ui` declares desktop only).
 
-## 测试
+## Tests
 
-`src/index.test.tsx`：面板渲染与树结构的标记断言。
+`src/index.test.tsx`: markup assertions on the panel rendering and the tree structure.
 
-## 相关文档
+## Related docs
 
-- `packages/feature/plugin-inspector/README.md`：headless 侧（快照结构、护栏）
-- `docs/03-plugin-system.md` §2：fiber 树
-- `docs/12`（AGENTS.md §12 gotcha 表）：`ctx.inspector.render()` 的文本版
+- `packages/feature/plugin-inspector/README.md`: the headless side (snapshot structure, guardrails)
+- `docs/03-plugin-system.md` §2: the fiber tree
+- `docs/12` (the gotcha table in AGENTS.md §12): the textual version of `ctx.inspector.render()`

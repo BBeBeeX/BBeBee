@@ -125,7 +125,7 @@ export function setTaskProgress(
 
 /**
  * Park the entry's task at `pending` — the fetch succeeded but the install
- * has not started yet ("等待确认"). The stage is kept for context; only the
+ * has not started yet ("Awaiting confirmation"). The stage is kept for context; only the
  * status changes.
  */
 export function holdTaskForConfirmation(state: TaskRegistryState, entryId: string): void {

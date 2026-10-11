@@ -1,107 +1,107 @@
 # @BBeBee/plugin-library-ui-desktop
 
-Layer 5（ui）— `plugin-library`（headless）的桌面视图包：统一曲库首页、本地音乐、歌单详情、合集详情、收藏。
+Layer 5 (ui) — the desktop view package for `plugin-library` (headless): the unified music library home, local music, playlist detail, collection detail, and favorites.
 
-## 概述
+## Overview
 
-布局、手势与事件接线；所有派生值来自 `@BBeBee/plugin-library/hooks` 与 `@BBeBee/ui-menus`。`inject = ['ui', 'library', 'player', 'sources']`，`downloads` 等经 `serviceOf` 可选读取（没有就不画对应控件）。
+Layout, gestures and event wiring; every derived value comes from `@BBeBee/plugin-library/hooks` and `@BBeBee/ui-menus`. `inject = ['ui', 'library', 'player', 'sources']`; `downloads` and friends are read optionally via `serviceOf` (the matching control is not drawn without them).
 
-## 注册的视图
+## Registered views
 
-| id | 组件 | 说明 |
+| id | Component | Description |
 |---|---|---|
-| `library.home` | `LibraryScreen` | 统一曲库首页：单流混合展示（最喜欢音乐、本地音乐、歌单、已收藏专辑、合集目录） |
-| `library.local` | `LocalMusicScreen` | 本地音乐详情：本地扫描曲目列表、一键全部播放、跳转扫描设置 |
-| `library.playlist` | `PlaylistDetailScreen` | 歌单曲目；smart 歌单只读，不画删除键 |
-| `library.collection` | `CollectionScreen` | 合集成员：track 行可播（TrackRow + 右键菜单），album/playlist 行点入各自页面 |
-| `library.favorites` | `FavoritesScreen` | 收藏曲目 |
+| `library.home` | `LibraryScreen` | Unified music library home: a single mixed stream (Favorites, Local music, playlists, saved albums, collection folders) |
+| `library.local` | `LocalMusicScreen` | Local music detail: the locally scanned track list, one-click Play all, jump to scan settings |
+| `library.playlist` | `PlaylistDetailScreen` | Playlist tracks; smart playlists are read-only and draw no delete key |
+| `library.collection` | `CollectionScreen` | Collection members: track rows are playable (TrackRow + context menu), album/playlist rows open their own pages |
+| `library.favorites` | `FavoritesScreen` | Favorited tracks |
 
-## 核心交互设计
+## Core interaction design
 
-### LibraryScreen（统一曲库首页）
+### LibraryScreen (unified music library home)
 
-1. **已收藏专辑过滤**：仅通过 `useSaved(ctx, 'album')` 获取用户真正收藏到曲库的专辑，而非直接展示远端 catalogue 的全部专辑。
-2. **统一单流呈现**：歌单、已收藏专辑、合集目录，以及特殊的「最喜欢的音乐」和「本地音乐」置于同一列表流（`UnifiedItem`）中展示，不再割裂分块。
-3. **第一首歌曲封面**：若歌单或合集未设置独立封面，自动异步提取首首歌曲（或首个专辑）的封面展示。
-4. **行悬停与封面直达播放**：
-   - 鼠标悬停行时高亮背景，并在行尾浮现 `⋯` 操作菜单；
-   - 封面悬停时出现深色蒙层与白色播放箭头 `▶`，点击封面直接播放其全部内容，点击行其他部分进入对应页面；
-   - 彻底移除了行尾冗余的 `Open` 文本按钮。
-5. **顶部筛选胶囊**：提供 `歌单` / `专辑` / `目录` / `已下载` 按钮，点击单选过滤，再次点击选中的按钮取消筛选。
-6. **搜索与排序工具栏**：
-   - 点击放大镜展开搜索框，即时过滤当前条目；
-   - 排序下拉菜单支持 `最近播放`、`最近添加的内容`、`按字母排序`。
-7. **置顶/取消置顶**：右键或菜单支持 `置顶歌单` / `取消置顶歌单`，置顶项始终排在列表最前列。
+1. **Saved-album filtering**: only albums the user actually saved to the music library are fetched via `useSaved(ctx, 'album')`, rather than showing every album in the remote catalogue.
+2. **Single-stream presentation**: playlists, saved albums, collection folders, plus the special "Favorites" and "Local music" entries, are shown in one list stream (`UnifiedItem`) instead of separate blocks.
+3. **First-track artwork**: when a playlist or collection has no dedicated cover, the first track's (or first album's) cover is extracted asynchronously and shown automatically.
+4. **Row hover and cover-to-play**:
+   - hovering a row highlights the background and surfaces a `⋯` action menu at the row's end;
+   - hovering the cover shows a dark overlay with a white play arrow `▶`; clicking the cover plays all of its content, clicking elsewhere on the row opens the target page;
+   - the redundant `Open` text button at the row's end was removed entirely.
+5. **Top filter pills**: `Playlists` / `Albums` / `Folders` / `Downloaded` buttons; clicking one filters exclusively, clicking the active one again clears the filter.
+6. **Search and sort toolbar**:
+   - clicking the magnifier expands a search box that filters the current entries live;
+   - the sort dropdown supports `Recently played`, `Recently added`, `Alphabetical`.
+7. **Pin/unpin**: the context menu supports `Pin playlist` / `Unpin playlist`; pinned items always sort to the top of the list.
 
-### PlaylistDetailScreen（歌单详情页面）
+### PlaylistDetailScreen (playlist detail page)
 
-1. **表头点击排序**：表头列（`# 自定义顺序`、`标题`、`专辑`、`添加日期`、`🕒 时长`，已移除 `✔`）支持点击切换排序与升/降序，带有方向指示器（`▲`/`▼`）。
-2. **操作栏排序菜单**：操作栏提供「自定义顺序 ≣」下拉菜单（`ContextMenu`），支持自定义顺序、标题、艺人、专辑、添加日期、时长，以及升降序切换。
-3. **数据项绑定解耦**：内部数据统一包装为 `{ item, track, trackUrn, originalIndex }`，无论如何排序，右键菜单与曲目移除操作严格绑定到原始 `PlaylistItem.id`。
-4. **统一行库交互（TrackLibraryActionButton）**：行悬停时展示 `🖤` 图标，点击直接唤起「添加到歌单」二级菜单（支持新建歌单及快速添加到已有歌单）。
-5. **自适应播放队列**：点击单轨播放或点击绿色主播放按钮时，播放上下文队列实时对齐当前的排序与过滤结果。
-6. **滚动渐隐头部与封面主题色**：hero 与操作条随列表滚走；播放按钮靠近顶部时 `StickyDetailBar` 吸顶栏从视口上方滑入，滚过按钮一半高度时按钮被吸进吸顶栏（缩放动作），表头经 `stickyHeader` 插槽固定在吸顶栏正下方，表头默认不带排序箭头、悬停时显示列分隔线与箭头；渐变只覆盖头部区域（`headerGradient`，随内容滚走、底边精确过渡为纯色），下方内容与吸附表头同为纯色 `--bg-primary`；头部底色取自封面 `dominantColor`（无封面回退中性渐变）。
+1. **Header click sorting**: header columns (`# Custom order`, `Title`, `Album`, `Date added`, `🕒 Duration`, `✔` removed) support click-to-toggle sorting with ascending/descending and direction indicators (`▲`/`▼`).
+2. **Action bar sort menu**: the action bar provides a "Custom order ≣" dropdown (`ContextMenu`) supporting custom order, title, artist, album, date added, duration, plus ascending/descending toggling.
+3. **Decoupled data-item binding**: internal data is uniformly wrapped as `{ item, track, trackUrn, originalIndex }`; no matter the sort, the context menu and track-removal actions stay strictly bound to the original `PlaylistItem.id`.
+4. **Unified row library interaction (TrackLibraryActionButton)**: hovering a row shows a `🖤` icon; clicking opens the "Add to playlist" submenu directly (supports creating a new playlist and quick add to an existing one).
+5. **Adaptive play queue**: when tapping a track or the green primary play button, the playback context queue aligns in real time with the current sort and filter result.
+6. **Scroll-fade header and cover theme colour**: the hero and action bar scroll away with the list; when the play button nears the top, the `StickyDetailBar` sticky bar slides in from above the viewport and the button is docked into the sticky bar once scrolled past half its height (zoom action); the table header is fixed right below the sticky bar via the `stickyHeader` slot, shows no sort arrow by default and reveals column dividers and arrows on hover; the gradient covers only the header area (`headerGradient`, scrolls away with the content, transitions exactly into a solid colour at its bottom edge), and the content below and the docked header are both solid `--bg-primary`; the header tint comes from the cover's `dominantColor` (neutral gradient fallback without a cover).
 
-### LocalMusicScreen（本地音乐页面）
+### LocalMusicScreen (local music page)
 
-1. **破除 100 首限制（全量分页加载）**：通过 `fetchAllLocalTracks` 与 `fetchAllLocalAlbums` 分页递归遍历全部数据（批次 `limit: 500`），完整展示所有本地扫描歌曲与专辑，不再受首屏 100 条截断限制。
-2. **歌曲与专辑双视图切换**：顶部操作栏提供「歌曲」与「专辑」双模切换胶囊，支持在本地歌曲列表与本地专辑网格之间来回切换。
-3. **歌曲视图（Tracks Table）**：
-   - 表头列（`#`、`标题`、`专辑`、`🕒 时长`，已移除 `✔`）支持鼠标点击排序及正反序切换；
-   - 行悬停交互（`TrackLibraryActionButton`）：默认不显示图标，悬停在当前行时显示；若歌曲未在音乐库中，显示 `＋` 号，点击快速加入「最喜欢的音乐」（先 `sources.setLoved` 再 `library.setSaved`，双存储同写）；若已在库中，显示 `🖤`，点击弹出「添加到歌单」二级菜单。在库状态来自实时收藏集合（取消收藏后该行回到 `＋`），并非挂载时快照；
-   - 操作栏下拉菜单支持默认顺序、标题、艺人、专辑、时长排序，及升降序切换；
-   - 提供「播放全部」（`player.playNow`）与「⚙ 扫描设置」（跳转 `scanner.settings`）按钮。
-4. **专辑视图（Albums Grid）**：
-   - 自动按专辑名称归纳本地扫描曲目，提取第一首带封面的歌曲作为专辑封面；
-   - 采用 `LocalAlbumCard` 渲染专辑卡片，展示封面、专辑名、艺人、曲目数；
-   - 卡片悬停时呈现绿色悬浮播放按钮（`▶`），点击直接将整张本地专辑送入播放队列；点击卡片主体直接导航至对应专辑详情页（`album.view`）；
-   - 操作栏排序菜单动态切换为专辑维度：默认顺序、专辑名称、艺人、年份、曲目数，及升降序切换。
-5. **滚动渐隐头部**：歌曲与专辑两种模式一致——hero 与操作条随内容滚走，吸顶栏（标题 + 播放按钮）淡入接管；专辑模式无虚拟列表，由页面自带滚动容器实现同样结构。
-6. **拖拽导入与高亮联动**：
-   - 接收桌面端拖拽导入参数（`highlightUrn` / `highlightUrns`）；
-   - 触发时自动确保视图处于「歌曲」模式；
-   - 默认顺序下将新导入的歌曲置于列表最顶部，并通过滚动容器自动滚回顶部（`scrollTop = 0`）；
-   - 单曲行应用专属高亮样式（蓝色左边框 `3px solid var(--accent-primary, #5F87FF)` 与半透明背景 `rgba(95, 135, 255, 0.18)`），8 秒后视觉指示自动柔和淡出，保持列表排序位置不突变。
-7. **响应式数据流**：监听 `library/changed` 与 `scan/finished` 事件，外部扫描、导入以及曲目变更时自动触发数据重新加载并更新视图。
+1. **Breaking the 100-track limit (full paginated loading)**: `fetchAllLocalTracks` and `fetchAllLocalAlbums` walk all data page by page (batches of `limit: 500`), showing every locally scanned song and album, no longer truncated at the first-screen 100 rows.
+2. **Songs/albums dual view toggle**: the top action bar provides a "Songs" / "Albums" dual-mode capsule, switching between the local song list and the local album grid.
+3. **Tracks view (Tracks Table)**:
+   - header columns (`#`, `Title`, `Album`, `🕒 Duration`, `✔` removed) support click sorting and order reversal;
+   - row hover interaction (`TrackLibraryActionButton`): no icon by default, shown when the current row is hovered; if the song is not in the music library, a `+` is shown — clicking quickly adds it to "Favorites" (`sources.setLoved` first, then `library.setSaved`, dual-write); if already saved, a `🖤` is shown — clicking opens the "Add to playlist" submenu. In-library state comes from the live saved set (the row returns to `+` after unsaving), not a mount-time snapshot;
+   - the action bar dropdown supports sorting by default order, title, artist, album, duration, plus ascending/descending toggling;
+   - "Play all" (`player.playNow`) and "⚙ Scan settings" (jump to `scanner.settings`) buttons.
+4. **Albums view (Albums Grid)**:
+   - locally scanned tracks are grouped automatically by album name; the first track with artwork becomes the album cover;
+   - `LocalAlbumCard` renders album cards showing cover, album name, artist, track count;
+   - hovering a card shows a floating green play button (`▶`); clicking sends the whole local album into the play queue; clicking the card body navigates to the album detail page (`album.view`);
+   - the action bar sort menu switches dynamically to album dimensions: default order, album name, artist, year, track count, plus ascending/descending toggling.
+5. **Scroll-fade header**: identical in both songs and albums modes — the hero and action bar scroll away with the content, and the sticky bar (title + play button) fades in to take over; albums mode has no virtual list; the page's own scroll container achieves the same structure.
+6. **Drag-and-drop import with highlight coupling**:
+   - receives the desktop drag-and-drop import params (`highlightUrn` / `highlightUrns`);
+   - when triggered, automatically ensures the view is in "Songs" mode;
+   - under default order, newly imported songs are placed at the very top of the list and the scroll container scrolls back to the top (`scrollTop = 0`);
+   - the imported rows get a dedicated highlight style (blue left border `3px solid var(--accent-primary, #5F87FF)` and translucent background `rgba(95, 135, 255, 0.18)`); the visual indicator fades out softly after 8 seconds, keeping the list's sort position stable.
+7. **Reactive data flow**: listens to `library/changed` and `scan/finished`; external scans, imports, and track changes automatically trigger a data reload and view update.
 
-### CollectionScreen（合集/文件夹详情页面）
+### CollectionScreen (collection/folder detail page)
 
-1. **曲目行交互重构**：抽象为独立的 `CollectionTrackTableRow`，移除表头 `✔`；
-2. **行内操作**：曲目行悬停时浮现 `TrackLibraryActionButton`（`🖤` 点击唤起加入歌单菜单）及 `⋯` 操作菜单，点击可直接开始播放。
+1. **Track row interaction refactor**: abstracted into a standalone `CollectionTrackTableRow`, with the header `✔` removed;
+2. **In-row actions**: hovering a track row surfaces the `TrackLibraryActionButton` (clicking `🖤` opens the add-to-playlist menu) and a `⋯` action menu; clicking the row starts playback directly.
 
-### FavoritesScreen（已点赞的歌曲页面）
+### FavoritesScreen (Liked songs page)
 
-样式与 `LocalMusicScreen` 保持高度统一：
-1. **暗色渐变 Hero Header**：沉浸式"已点赞的歌曲"紫色主题（固定 `#450af5`，经 `headerGradient` 生成头部渐变，其下内容为纯色），大字标题，上方分类为「歌单」，副标题呈现已收藏歌曲统计数量。
-2. **操作栏与实时交互**：
-   - 56px 绿色圆形主播放大按钮（`▶`）与随机播放（`🔀`）；
-   - 实时搜索过滤框（`🔍` 在已点赞歌曲中搜索）；
-   - 排序方式下拉菜单（`ContextMenu`），支持默认顺序、标题、艺人、专辑、时长排序，及升降序切换。
-3. **多维排列表头**：`#`、`标题`、`专辑`、`🕒 时长`（已移除 `✔`）支持鼠标点击排序与升降序箭头提示。
-4. **表格行组件（FavoriteTrackTableRow）**：
-   - 序号与悬停播放键、40px 封面小图、标题与艺人、所属专辑；
-   - 行悬停浮现 `TrackLibraryActionButton`（展示 `🖤`，点击唤起「添加到歌单」二级菜单）；
-   - 悬停浮现 `⋯` 操作菜单（右键或点击均可触发统一上下文菜单）；
-   - 歌曲时长显示。
-5. **自适应播放队列**：点击单轨播放或点击全部播放时，自动使用当前排序/过滤后的曲目 URN 列表作为播放队列上下文。
-6. **滚动渐隐头部**：hero 与操作条随列表滚走；吸顶栏（标题 + 播放按钮）在播放按钮靠近时滑入、滚过其一半高度时吸附（缩放动作），底色为固定的点赞紫。
+Styling closely mirrors `LocalMusicScreen`:
+1. **Dark gradient hero header**: the immersive "Liked songs" purple theme (fixed `#450af5`, generating the header gradient via `headerGradient`, with solid colour beneath), a large title, the "Playlist" category above, and a subtitle showing the saved-songs count.
+2. **Action bar and live interactions**:
+   - a 56px green round primary play button (`▶`) and shuffle (`🔀`);
+   - a live search filter box (`🔍` search in Liked songs);
+   - a sort dropdown (`ContextMenu`) supporting default order, title, artist, album, duration, plus ascending/descending toggling.
+3. **Multi-key sortable header**: `#`, `Title`, `Album`, `🕒 Duration` (`✔` removed) support click sorting with ascending/descending arrow hints.
+4. **Table row component (FavoriteTrackTableRow)**:
+   - index and hover play key, 40px cover thumbnail, title and artist, parent album;
+   - hovering the row surfaces the `TrackLibraryActionButton` (showing `🖤`; clicking opens the "Add to playlist" submenu);
+   - hovering surfaces a `⋯` action menu (right-click or click both trigger the unified context menu);
+   - song duration display.
+5. **Adaptive play queue**: when tapping a track or Play all, the current sorted/filtered track URN list is automatically used as the playback queue context.
+6. **Scroll-fade header**: the hero and action bar scroll away with the list; the sticky bar (title + play button) slides in as the play button nears the top and docks once scrolled past half its height (zoom action), tinted the fixed like-purple.
 
-## 测试
+## Tests
 
-`screens.test.tsx`（jsdom + `withListLayout`，32 个用例全部通过）：
-- 库首页创建/删除/行点击打开；
-- 统一单流渲染（最喜欢的音乐、本地音乐、歌单、已收藏专辑、合集）与对应路由跳转；
-- 顶部筛选胶囊切换与还原；
-- 搜索输入过滤；
-- 封面遮罩播放箭头直达播放；
-- 右键上下文菜单置顶/取消置顶；
-- 歌单曲目播放与移除 item id；
-- 歌单表头点击排序、菜单切换升降序与排序队列断言；
-- 收藏页面通过爱心按钮取消收藏；
-- 收藏页面 Hero Header、操作栏、排列表头与大播放按钮测试；
-- 收藏页吸顶栏（sticky 定位 + 随滚动淡入的播放按钮）测试；
-- 收藏页面表头排序切换与排序播放队列断言；
-- 合集多类型成员渲染与打开；
-- 本地音乐页面渲染与全部播放；
-- 本地音乐歌曲视图排序与降序播放队列断言；
-- 本地音乐专辑视图切换、网格卡片渲染与按专辑名称排序断言。
+`screens.test.tsx` (jsdom + `withListLayout`, all 32 cases pass):
+- library home create/delete/open on row click;
+- unified single-stream rendering (Favorites, Local music, playlists, saved albums, collections) with the matching route jumps;
+- top filter pill toggling and restore;
+- search input filtering;
+- cover-overlay play arrow plays directly;
+- context menu pin/unpin;
+- playlist track playback and removal by item id;
+- playlist header click sorting, menu ascending/descending switching, and sorted queue assertions;
+- favorites page unfavorite via the heart button;
+- favorites page hero header, action bar, sortable header and large play button tests;
+- favorites page sticky bar (sticky positioning + play button fading in with scroll) tests;
+- favorites page header sort toggling and sorted queue assertions;
+- collection multi-kind member rendering and opening;
+- local music page rendering and Play all;
+- local music tracks-view sorting with descending queue assertions;
+- local music albums-view switching, grid card rendering, and sort-by-album-name assertions.

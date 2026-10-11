@@ -269,7 +269,7 @@ export function SourcePanel({
               color: 'var(--text-tertiary, #8B95B0)',
             },
           },
-          expanded ? '收起' : '展开',
+          expanded ? 'Collapse' : 'Expand',
         ),
       ),
     ),
@@ -322,7 +322,7 @@ export function SourcePanel({
                     fontSize: tokens.font.size.sm,
                   },
                 },
-                '正在搜索该源，请稍候…',
+                'Searching this source, please wait…',
               )
             : null,
           // Empty State
@@ -337,7 +337,7 @@ export function SourcePanel({
                     fontSize: tokens.font.size.sm,
                   },
                 },
-                '暂无匹配结果',
+                'No matching results',
               )
             : null,
           // Tracks List
@@ -496,7 +496,7 @@ export function SourcePanel({
               ),
             ),
           ),
-          // Panel Footer: "加载更多" Pagination Button
+          // Panel Footer: "Load more" pagination button
           !pending && !error && (hasMore || totalCount > 0)
             ? h(
                 'div',
@@ -518,7 +518,7 @@ export function SourcePanel({
                       disabled: isLoadingMore,
                       testID: `search-load-more-${sourceId}`,
                       onPress: () => onLoadMore?.(sourceId),
-                      children: isLoadingMore ? '加载中…' : '加载更多',
+                      children: isLoadingMore ? 'Loading…' : 'Load more',
                       style: {
                         minWidth: 120,
                         background: 'var(--surface-2, ' + scheme.bg.overlay + ')',
@@ -533,7 +533,7 @@ export function SourcePanel({
                         tone: 'muted',
                         style: { color: 'var(--text-tertiary, #8B95B0)', letterSpacing: 0.5 },
                       },
-                      '已加载全部结果',
+                      'All results loaded',
                     ),
                 paginationError
                   ? h(
@@ -548,11 +548,11 @@ export function SourcePanel({
                           fontSize: tokens.font.size.xs,
                         },
                       },
-                      h('span', null, `加载失败: ${paginationError.message}`),
+                      h('span', null, `Failed to load: ${paginationError.message}`),
                       h(Button, {
                         variant: 'ghost',
                         onPress: () => onLoadMore?.(sourceId),
-                        children: '重试',
+                        children: 'Retry',
                       }),
                     )
                   : null,

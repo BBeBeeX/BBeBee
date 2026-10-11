@@ -185,7 +185,7 @@ export function useSaveToPlaylistMenu(ctx: Context): SaveToPlaylistMenuControlle
 
   const open = useCallback(
     (track: SaveToPlaylistTrack, anchor?: MenuAnchor) => {
-      setActive({ tracks: [track], anchor: anchorOf(anchor), title: '添加到歌单' })
+      setActive({ tracks: [track], anchor: anchorOf(anchor), title: 'Add to playlist' })
       setLiked(track.loved ?? false)
       void loadMenuData([track])
     },
@@ -198,7 +198,7 @@ export function useSaveToPlaylistMenu(ctx: Context): SaveToPlaylistMenuControlle
         typeof item === 'string' ? { urn: item, title: item } : item,
       )
       const menuTitle =
-        title ?? (normalized.length > 1 ? `已选择 ${normalized.length} 首歌曲` : (normalized[0]?.title ?? '添加到歌单'))
+        title ?? (normalized.length > 1 ? `${normalized.length} songs selected` : (normalized[0]?.title ?? 'Add to playlist'))
       setActive({ tracks: normalized, anchor: anchorOf(anchor), title: menuTitle })
       setLiked(false)
       void loadMenuData(normalized)
@@ -344,7 +344,7 @@ export function useSaveToPlaylistMenu(ctx: Context): SaveToPlaylistMenuControlle
       onClose: close,
       x: active?.anchor.x ?? 0,
       y: active?.anchor.y ?? 0,
-      title: active?.title ?? '添加到歌单',
+      title: active?.title ?? 'Add to playlist',
       liked,
       likedCount,
       onToggleLiked,

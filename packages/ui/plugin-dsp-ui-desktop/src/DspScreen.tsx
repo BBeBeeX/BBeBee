@@ -122,7 +122,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isSavingPreset, setIsSavingPreset] = useState(false)
   const [newPresetName, setNewPresetName] = useState('')
-  const [selectedPresetName, setSelectedPresetName] = useState<string>('原声 (Flat)')
+  const [selectedPresetName, setSelectedPresetName] = useState<string>('Flat')
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null)
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
 
@@ -165,7 +165,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
   const matchedPreset = allPresets.find((p) =>
     p.gains.every((val, i) => val === (eqGains[i] ?? 0)),
   )
-  const displayPresetName = matchedPreset ? matchedPreset.name : '手动'
+  const displayPresetName = matchedPreset ? matchedPreset.name : 'Manual'
 
   const handleBandChange = (index: number, dbVal: number) => {
     const clamped = Math.max(-12, Math.min(12, Math.round(dbVal)))
@@ -173,7 +173,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
     next[index] = clamped
     void setParam('eq10', `band${index}`, clamped)
     void setParam('eq10', 'gains', next)
-    setSelectedPresetName('手动')
+    setSelectedPresetName('Manual')
   }
 
   const handleSelectPreset = (preset: { name: string; gains: number[] }) => {
@@ -188,8 +188,8 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
 
   const handleReset = () => {
     const flatGains = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    setSelectedPresetName('原声 (Flat)')
-    void applyPreset('eq10', '原声 (Flat)')
+    setSelectedPresetName('Flat')
+    void applyPreset('eq10', 'Flat')
     void setParam('eq10', 'gains', flatGains)
     flatGains.forEach((g, idx) => {
       void setParam('eq10', `band${idx}`, g)
@@ -224,7 +224,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
       // ignore
     }
     if (selectedPresetName === name) {
-      setSelectedPresetName('手动')
+      setSelectedPresetName('Manual')
     }
   }
 
@@ -326,7 +326,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
       h(
         'div',
         { style: { display: 'flex', alignItems: 'center', gap: 12 } },
-        h('h1', { style: { fontSize: 22, fontWeight: 700, margin: 0 } }, '音频效果器与均衡器 (DSP)'),
+        h('h1', { style: { fontSize: 22, fontWeight: 700, margin: 0 } }, 'Audio effects & equalizer (DSP)'),
         h(
           'div',
           { style: { display: 'flex', gap: 6, marginLeft: 16 } },
@@ -346,7 +346,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                 fontSize: 13,
               },
             },
-            '🎚️ 10 频段均衡器 (EQ)',
+            '🎚️ 10-Band equalizer (EQ)',
           ),
           h(
             'button',
@@ -364,7 +364,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                 fontSize: 13,
               },
             },
-            '🔗 效果链编排 (Effect Chain)',
+            '🔗 Effect chain (Effect Chain)',
           ),
         ),
       ),
@@ -379,7 +379,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
             color: 'var(--color-text-secondary, rgba(255, 255, 255, 0.7))',
           },
         },
-        `处理延迟: ${latencyMs} ms`,
+        `Processing latency: ${latencyMs} ms`,
       ),
     ),
 
@@ -412,7 +412,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                   letterSpacing: 0.5,
                 },
               },
-              '均衡器',
+              'Equalizer',
             ),
             h(
               'span',
@@ -427,12 +427,12 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                   border: isEqEnabled ? '1px solid var(--color-primary, #5F87FF)' : '1px solid var(--border-subtle, rgba(145, 176, 255, 0.10))',
                 },
               },
-              isEqEnabled ? '已启用' : '未启用（仍可调整参数与保存）',
+              isEqEnabled ? 'Enabled' : 'Disabled (parameters can still be adjusted and saved)',
             ),
           ),
           h(Switch, {
             checked: isEqEnabled,
-            accessibilityLabel: '启用 10 频段均衡器',
+            accessibilityLabel: 'Enable 10-band equalizer',
             onChange: (on) => void setEnabled('eq10', on),
           }),
         ),
@@ -455,7 +455,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
               transition: 'opacity 0.2s ease',
             },
           },
-          // Card Top Toolbar: 预设 dropdown & 保存预设
+          // Card top toolbar: preset dropdown & save preset
           h(
             'div',
             {
@@ -470,7 +470,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
             h(
               'div',
               { style: { display: 'flex', alignItems: 'center', gap: 8 } },
-              h('span', { style: { fontSize: 14, color: '#8E8E93', fontWeight: 500 } }, '预设'),
+              h('span', { style: { fontSize: 14, color: '#8E8E93', fontWeight: 500 } }, 'Presets'),
               // Dropdown Button
               h(
                 'div',
@@ -576,7 +576,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                             color: 'var(--text-tertiary, #8E8E93)',
                           },
                         },
-                        '自定义预设',
+                        'Custom presets',
                       ),
                     customPresets.map((preset) => {
                       const isSelected = displayPresetName === preset.name
@@ -609,7 +609,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                           'button',
                           {
                             type: 'button',
-                            'aria-label': `删除 ${preset.name}`,
+                            'aria-label': `Delete ${preset.name}`,
                             onClick: (e) => handleDeleteCustomPreset(preset.name, e),
                             style: {
                               background: 'none',
@@ -654,7 +654,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                         e.currentTarget.style.color = 'var(--color-text-secondary, #A0A0AE)'
                       },
                     },
-                    '保存预设',
+                    'Save preset',
                   )
                 : h(
                     'div',
@@ -663,7 +663,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                       type: 'text',
                       'data-testid': 'custom-preset-input',
                       value: newPresetName,
-                      placeholder: '预设名称...',
+                      placeholder: 'Preset name...',
                       autoFocus: true,
                       onChange: (e) => setNewPresetName(e.target.value),
                       onKeyDown: (e) => {
@@ -698,7 +698,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                           boxShadow: 'var(--glow-brand-sm, 0 0 12px rgba(117, 152, 255, 0.18))',
                         },
                       },
-                      '保存',
+                      'Save',
                     ),
                     h(
                       'button',
@@ -714,7 +714,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                           cursor: 'pointer',
                         },
                       },
-                      '取消',
+                      'Cancel',
                     ),
                   ),
             ),
@@ -946,7 +946,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                   e.currentTarget.style.background = 'transparent'
                 },
               },
-              '重置',
+              'Reset',
             ),
           ),
         ),
@@ -1007,7 +1007,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                 h('span', { style: { fontWeight: 600, fontSize: 15 } }, def.displayName),
                 h(Switch, {
                   checked: entry.enabled,
-                  accessibilityLabel: `启用 ${def.displayName}`,
+                  accessibilityLabel: `Enable ${def.displayName}`,
                   onChange: (on) => void setEnabled(entry.effectId, on),
                 }),
               ),
@@ -1017,12 +1017,12 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                 h(Button, {
                   disabled: index === 0,
                   onPress: () => void handleMoveUp(index),
-                  children: '↑ 上移',
+                  children: '↑ Move up',
                 }),
                 h(Button, {
                   disabled: index === chain.length - 1,
                   onPress: () => void handleMoveDown(index),
-                  children: '↓ 下移',
+                  children: '↓ Move down',
                 }),
               ),
             ),
@@ -1035,7 +1035,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                 h(
                   'span',
                   { style: { fontSize: 13, color: 'rgba(255, 255, 255, 0.7)', width: 140 } },
-                  `增益: ${params.gainDb ?? 0} dB`,
+                  `Gain: ${params.gainDb ?? 0} dB`,
                 ),
                 h(
                   'div',
@@ -1043,7 +1043,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                   h(Slider, {
                     value: Number(params.gainDb ?? 0) + 20,
                     max: 40,
-                    accessibilityLabel: '前级增益',
+                    accessibilityLabel: 'Preamp gain',
                     onChange: (v) => void setParam('preamp', 'gainDb', Math.round(v - 20)),
                   }),
                 ),
@@ -1056,15 +1056,15 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                 h(
                   'div',
                   { style: { display: 'flex', alignItems: 'center', gap: 12 } },
-                  h('span', { style: { fontSize: 13, color: 'rgba(255, 255, 255, 0.7)', width: 80 } }, '均衡模式:'),
+                  h('span', { style: { fontSize: 13, color: 'rgba(255, 255, 255, 0.7)', width: 80 } }, 'Mode:'),
                   h(
                     'div',
                     { style: { display: 'flex', gap: 6 } },
                     [
-                      { id: 'track', label: '单曲均衡 (Track)' },
-                      { id: 'album', label: '专辑均衡 (Album)' },
-                      { id: 'loudnorm', label: '动态 EBU R128' },
-                      { id: 'manual', label: '手动' },
+                      { id: 'track', label: 'Track' },
+                      { id: 'album', label: 'Album' },
+                      { id: 'loudnorm', label: 'Dynamic EBU R128' },
+                      { id: 'manual', label: 'Manual' },
                     ].map((m) =>
                       h(Button, {
                         key: m.id,
@@ -1082,8 +1082,8 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                     'span',
                     { style: { fontSize: 13, color: 'rgba(255, 255, 255, 0.7)', width: 140 } },
                     params.mode === 'loudnorm'
-                      ? `目标: ${params.targetLufs ?? -14} LUFS`
-                      : `当前增益: ${params.gainDb ?? 0} dB`,
+                      ? `Target: ${params.targetLufs ?? -14} LUFS`
+                      : `Current gain: ${params.gainDb ?? 0} dB`,
                   ),
                   params.mode !== 'loudnorm' &&
                     h(
@@ -1092,7 +1092,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                       h(Slider, {
                         value: Number(params.gainDb ?? 0) + 12,
                         max: 24,
-                        accessibilityLabel: '标准化增益',
+                        accessibilityLabel: 'Normalization gain',
                         onChange: (v) => void setParam('normalize', 'gainDb', Math.round(v - 12)),
                       }),
                     ),
@@ -1119,7 +1119,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                 h(
                   'span',
                   { style: { fontSize: 13, color: 'rgba(255, 255, 255, 0.7)', width: 140 } },
-                  `阈值: ${params.thresholdDb ?? -24} dB`,
+                  `Threshold: ${params.thresholdDb ?? -24} dB`,
                 ),
                 h(
                   'div',
@@ -1127,14 +1127,14 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                   h(Slider, {
                     value: Number(params.thresholdDb ?? -24) + 60,
                     max: 60,
-                    accessibilityLabel: '压缩阈值',
+                    accessibilityLabel: 'Compressor threshold',
                     onChange: (v) => void setParam('compressor', 'thresholdDb', Math.round(v - 60)),
                   }),
                 ),
                 def.presets &&
                   h(Button, {
-                    onPress: () => void applyPreset('compressor', '夜间模式 (Night Mode)'),
-                    children: '🌙 夜间模式',
+                    onPress: () => void applyPreset('compressor', 'Night Mode'),
+                    children: '🌙 Night Mode',
                   }),
               ),
 
@@ -1145,7 +1145,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                 h(
                   'span',
                   { style: { fontSize: 13, color: 'rgba(255, 255, 255, 0.7)', width: 140 } },
-                  `混响比例: ${Math.round((Number(params.mix ?? 0.25)) * 100)}%`,
+                  `Reverb mix: ${Math.round((Number(params.mix ?? 0.25)) * 100)}%`,
                 ),
                 h(
                   'div',
@@ -1153,7 +1153,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                   h(Slider, {
                     value: Math.round((Number(params.mix ?? 0.25)) * 100),
                     max: 100,
-                    accessibilityLabel: '混响比例',
+                    accessibilityLabel: 'Reverb mix',
                     onChange: (v) => void setParam('reverb', 'mix', Math.round(v) / 100),
                   }),
                 ),
@@ -1166,7 +1166,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                 h(
                   'span',
                   { style: { fontSize: 13, color: 'rgba(255, 255, 255, 0.7)', width: 140 } },
-                  `立体声宽度: ${Number(params.width ?? 1.2).toFixed(1)}x`,
+                  `Stereo width: ${Number(params.width ?? 1.2).toFixed(1)}x`,
                 ),
                 h(
                   'div',
@@ -1174,14 +1174,14 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                   h(Slider, {
                     value: Math.round((Number(params.width ?? 1.2)) * 50),
                     max: 100,
-                    accessibilityLabel: '立体声宽度',
+                    accessibilityLabel: 'Stereo width',
                     onChange: (v) => void setParam('widener', 'width', Math.round(v) / 50),
                   }),
                 ),
                 h(
                   'span',
                   { style: { fontSize: 12, color: 'rgba(255, 200, 50, 0.8)' } },
-                  '⚠️ 过度展宽可能降低单声道兼容性',
+                  '⚠️ Excessive widening may reduce mono compatibility',
                 ),
               ),
 
@@ -1192,7 +1192,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                 h(
                   'span',
                   { style: { fontSize: 13, color: 'rgba(255, 255, 255, 0.7)', width: 140 } },
-                  `馈入量: ${Math.round((Number(params.amount ?? 0.35)) * 100)}%`,
+                  `Crossfeed: ${Math.round((Number(params.amount ?? 0.35)) * 100)}%`,
                 ),
                 h(
                   'div',
@@ -1200,7 +1200,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                   h(Slider, {
                     value: Math.round((Number(params.amount ?? 0.35)) * 100),
                     max: 100,
-                    accessibilityLabel: '耳机交叉馈入量',
+                    accessibilityLabel: 'Headphone crossfeed amount',
                     onChange: (v) => void setParam('crossfeed', 'amount', Math.round(v) / 100),
                   }),
                 ),
@@ -1213,7 +1213,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                 h(
                   'span',
                   { style: { fontSize: 13, color: 'rgba(255, 255, 255, 0.7)', width: 140 } },
-                  `上限阈值: ${params.ceilingDb ?? -0.5} dB`,
+                  `Ceiling: ${params.ceilingDb ?? -0.5} dB`,
                 ),
                 h(
                   'div',
@@ -1221,7 +1221,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                   h(Slider, {
                     value: Math.round(((Number(params.ceilingDb ?? -0.5)) + 12) * 8.33),
                     max: 100,
-                    accessibilityLabel: '限制器上限',
+                    accessibilityLabel: 'Limiter ceiling',
                     onChange: (v) => void setParam('limiter', 'ceilingDb', -Math.round((100 - v) / 8.33 * 10) / 10),
                   }),
                 ),

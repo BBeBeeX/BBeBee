@@ -125,9 +125,9 @@ export interface PluginManifest {
   enabled?: boolean
   /** Required prerequisite plugin IDs. */
   dependencies?: string[]
-  /** Layer stratum identifier (子系统/所在层 ID), e.g. 'layer-2', 'layer-4'. */
+  /** Layer stratum identifier (subsystem/layer ID), e.g. 'layer-2', 'layer-4'. */
   systemId?: string
-  /** Functional domain module identifier (功能模块 ID), e.g. 'sources', 'playback'. */
+  /** Functional domain module identifier (functional module ID), e.g. 'sources', 'playback'. */
   moduleId?: string
   /**
    * Targets this plugin belongs in, when it is not all of them.

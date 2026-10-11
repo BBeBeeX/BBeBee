@@ -1,7 +1,7 @@
 /**
  * Cinematic layout — 16:9 minimal anime / music video (AMV) aesthetic.
  *
- * Redesigned to match the reference style (映画歌词):
+ * Redesigned to match the reference style (Cinematic Lyrics):
  * - Large blurred cover backdrop (opacity 0.34, blur 3.5px, scale 2, centered)
  * - Left section (~46%): larger album artwork (up to 460px) with crisp white border &
  *   pronounced double-layer bottom-right shadow (12px 16px 5px + 20px 28px 56px)

@@ -95,7 +95,7 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
       },
       h(Button, {
         variant: 'secondary',
-        children: '← 返回设置',
+        children: '← Back to settings',
         onPress: () => ui?.navigate?.('settings.view'),
       }),
       h(
@@ -109,7 +109,7 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
             letterSpacing: '-0.02em',
           },
         },
-        '调试与诊断 (Debug)',
+        'Debug & diagnostics (Debug)',
       ),
     ),
 
@@ -132,8 +132,8 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
         h(
           'div',
           null,
-          h('div', { style: cardTitleStyle }, '当前调试状态'),
-          h('div', { style: cardSubtitleStyle }, '检查内核与渲染进程的调试运行标志位'),
+          h('div', { style: cardTitleStyle }, 'Current debug status'),
+          h('div', { style: cardSubtitleStyle }, 'Checks the debug run flags of the kernel and renderer process'),
         ),
         h(
           'span',
@@ -159,7 +159,7 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
               background: isDebugMode ? '#22C55E' : 'var(--text-secondary, #94A3B8)',
             },
           }),
-          isDebugMode ? 'Debug 模式已激活' : '生产环境 (Production)',
+          isDebugMode ? 'Debug mode active' : 'Production environment (Production)',
         ),
       ),
       h(
@@ -175,9 +175,9 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
             border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.04))',
           },
         },
-        renderInfoItem('Node 环境', envNodeEnv || 'production'),
-        renderInfoItem('日志输出', 'RingBuffer (2000 lines)'),
-        renderInfoItem('隔离沙箱', 'QuickJS Realm Isolation'),
+        renderInfoItem('Node environment', envNodeEnv || 'production'),
+        renderInfoItem('Log output', 'RingBuffer (2000 lines)'),
+        renderInfoItem('Isolated sandbox', 'QuickJS Realm Isolation'),
       ),
     ),
 
@@ -190,8 +190,8 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
       h(
         'div',
         { style: { marginBottom: 16 } },
-        h('div', { style: cardTitleStyle }, '当前运行环境'),
-        h('div', { style: cardSubtitleStyle }, '硬件平台、引擎与宿主容器版本'),
+        h('div', { style: cardTitleStyle }, 'Current runtime environment'),
+        h('div', { style: cardSubtitleStyle }, 'Hardware platform, engine and host container versions'),
       ),
       h(
         'div',
@@ -206,12 +206,12 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
             border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.04))',
           },
         },
-        renderInfoItem('操作系统平台', platformInfo.platform),
-        renderInfoItem('处理器架构', platformInfo.arch),
-        renderInfoItem('Node.js 版本', platformInfo.node),
-        renderInfoItem('Electron 版本', platformInfo.electron),
-        renderInfoItem('Chromium 版本', platformInfo.chrome),
-        renderInfoItem('应用构建版本', platformInfo.appVersion),
+        renderInfoItem('Operating system platform', platformInfo.platform),
+        renderInfoItem('Processor architecture', platformInfo.arch),
+        renderInfoItem('Node.js version', platformInfo.node),
+        renderInfoItem('Electron version', platformInfo.electron),
+        renderInfoItem('Chromium version', platformInfo.chrome),
+        renderInfoItem('App build version', platformInfo.appVersion),
       ),
       h(
         'div',
@@ -243,8 +243,8 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
       h(
         'div',
         { style: { marginBottom: 20 } },
-        h('div', { style: cardTitleStyle }, '诊断工具与系统开发面板'),
-        h('div', { style: cardSubtitleStyle }, '排查内核事件、网络抓包、单步测试音源与监控系统架构拓扑'),
+        h('div', { style: cardTitleStyle }, 'Diagnostic tools & system dev panels'),
+        h('div', { style: cardSubtitleStyle }, 'Inspect kernel events, capture network traffic, test sources step by step and monitor the architecture topology'),
       ),
       h(
         'div',
@@ -264,16 +264,16 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
           h(
             'div',
             null,
-            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, '系统日志 (Discover)'),
+            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, 'System logs (Discover)'),
             h(
               'div',
               { style: { fontSize: 13, color: 'var(--text-secondary, #94A3B8)', lineHeight: 1.5, marginBottom: 16 } },
-              '查看 Cordis 微内核生命周期、服务装配及所有已注册插件输出的实时日志流。',
+              'Live log stream of the Cordis microkernel lifecycle, service assembly and all registered plugins.',
             ),
           ),
           h(Button, {
             variant: 'primary',
-            children: '进入 Discover 日志页 →',
+            children: 'Open Discover logs →',
             onPress: () => ui?.navigate?.('debug.logs'),
           }),
         ),
@@ -286,16 +286,16 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
           h(
             'div',
             null,
-            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, '第三方源网络日志 (HTTP Logs)'),
+            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, 'Third-party source network logs (HTTP Logs)'),
             h(
               'div',
               { style: { fontSize: 13, color: 'var(--text-secondary, #94A3B8)', lineHeight: 1.5, marginBottom: 16 } },
-              '捕获由第三方音源插件发起的所有网络请求，实时分析请求方法、状态码及往返耗时。',
+              'Captures every network request made by third-party source plugins, analyzing request method, status code and round-trip time in real time.',
             ),
           ),
           h(Button, {
             variant: 'primary',
-            children: '进入 HTTP Logs 页面 →',
+            children: 'Open HTTP logs page →',
             onPress: () => ui?.navigate?.('debug.http-logs'),
           }),
         ),
@@ -308,16 +308,16 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
           h(
             'div',
             null,
-            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, '主题变量色板 (Theme Palette)'),
+            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, 'Theme variable palette (Theme Palette)'),
             h(
               'div',
               { style: { fontSize: 13, color: 'var(--text-secondary, #94A3B8)', lineHeight: 1.5, marginBottom: 16 } },
-              '查看和检验当前激活主题的 themeToCssVariables 全部颜色令牌、透明度变体及 CSS 变量映射。',
+              'Inspect and verify every color token, opacity variant and CSS variable mapping produced by themeToCssVariables for the active theme.',
             ),
           ),
           h(Button, {
             variant: 'primary',
-            children: '进入主题色板 →',
+            children: 'Open theme palette →',
             onPress: () => ui?.navigate?.(SETTINGS_VIEWS.themePalette),
           }),
         ),
@@ -330,16 +330,16 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
           h(
             'div',
             null,
-            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, '测试音源 (Test Sources)'),
+            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, 'Test sources (Test Sources)'),
             h(
               'div',
               { style: { fontSize: 13, color: 'var(--text-secondary, #94A3B8)', lineHeight: 1.5, marginBottom: 16 } },
-              '单步调试与验证第三方音源的搜索规则、播放流直链解析与内置 JS 沙箱执行。',
+              'Step through and verify a third-party source\'s search rules, playback stream URL resolution and the built-in JS sandbox execution.',
             ),
           ),
           h(Button, {
             variant: 'primary',
-            children: '进入音源测试 →',
+            children: 'Open source tests →',
             onPress: () => ui?.navigate?.('sources.test'),
           }),
         ),
@@ -352,16 +352,16 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
           h(
             'div',
             null,
-            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, '系统架构与插件拓扑 (Inspector)'),
+            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, 'System architecture & plugin topology (Inspector)'),
             h(
               'div',
               { style: { fontSize: 13, color: 'var(--text-secondary, #94A3B8)', lineHeight: 1.5, marginBottom: 16 } },
-              '以 PCB 电路主板与芯片走线视觉，实时监控系统 Layer 1~5 节点与 Cordis 服务装配。',
+              'Monitor the system\'s Layer 1~5 nodes and Cordis service assembly in real time with a PCB circuit-board visual.',
             ),
           ),
           h(Button, {
             variant: 'primary',
-            children: '打开架构拓扑 (Inspector) →',
+            children: 'Open architecture topology (Inspector) →',
             onPress: () => ui?.navigate?.('inspector.panel'),
           }),
         ),
@@ -374,16 +374,16 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
           h(
             'div',
             null,
-            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, '开发者工具 (DevTools)'),
+            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, 'Developer tools (DevTools)'),
             h(
               'div',
               { style: { fontSize: 13, color: 'var(--text-secondary, #94A3B8)', lineHeight: 1.5, marginBottom: 16 } },
-              '在独立窗口中打开当前窗口的 Chromium DevTools，检查渲染进程 DOM、网络与控制台输出。',
+              'Open the current window\'s Chromium DevTools in a separate window to inspect the renderer DOM, network and console output.',
             ),
           ),
           h(Button, {
             variant: 'primary',
-            children: '打开开发者工具 →',
+            children: 'Open developer tools →',
             disabled: !bbebee?.devtools,
             onPress: () => void bbebee?.devtools?.open(),
           }),

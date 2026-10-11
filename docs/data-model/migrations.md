@@ -6,7 +6,7 @@
 
 ### Core schema
 
-> 规范见 [rules/data-model.md §3 Database Migrations](../../rules/data-model.md#3-database-migrations)（L2），本节只讲原理与用法。
+> see the spec at [rules/data-model.md §3 Database Migrations](../../rules/data-model.md#3-database-migrations) (L2); this section covers only principles and usage.
 
 They live in `packages/kernel/src/migrations/`, one numbered module per version.
 
@@ -23,7 +23,7 @@ CREATE TABLE schema_migrations (
 newer database refuses to start with an explanatory message rather than attempting a rollback —
 a half-applied downgrade is worse than a clear failure.
 
-> 规范见 [rules/data-model.md §3 Database Migrations](../../rules/data-model.md#3-database-migrations)（L2），本节只讲原理与用法。
+> see the spec at [rules/data-model.md §3 Database Migrations](../../rules/data-model.md#3-database-migrations) (L2); this section covers only principles and usage.
 >
 > One transaction is load-bearing, not tidiness: without it, an interruption partway through a
 > multi-statement migration leaves the tables created but the version unrecorded, so the next boot
@@ -76,7 +76,7 @@ Rules:
   `schema_namespaces` table records which namespace owns each prefix, and a second namespace
   claiming it is refused with `NamespaceCollisionError` rather than silently sharing tables.
 - A plugin may only write its own tables — otherwise it could claim `core` and own the catalogue
-  (规范见 [rules/data-model.md §3 Database Migrations](../../rules/data-model.md#3-database-migrations)（L2）).
+  (see the spec at [rules/data-model.md §3 Database Migrations](../../rules/data-model.md#3-database-migrations) (L2)).
   **No first-party plugin currently ships its own schema** — the scanner, the player and the
   sources UI all read and write *core* tables under `db:read:core`/`db:write:core`. The
   `{{ns}}` machinery below is implemented in the kernel and tested, but exercised by no bundled
@@ -85,7 +85,7 @@ Rules:
   a separate grant, not one implied by the first ([capabilities.md §7](../plugins/capabilities.md#capability-grammar)).
   Each `up` entry is one statement — the kernel refuses a multi-statement string before anything
   executes, rather than half-applying it with its version recorded
-  (规范见 [rules/data-model.md §3 Database Migrations](../../rules/data-model.md#3-database-migrations)（L2）; [contracts.md §5](../services/contracts.md#5-ctxdb--sql)).
+  (see the spec at [rules/data-model.md §3 Database Migrations](../../rules/data-model.md#3-database-migrations) (L2); [contracts.md §5](../services/contracts.md#5-ctxdb--sql)).
   That is what the array form is for. `ATTACH`/`DETACH` are refused outright, since
   they would turn the database handle into an arbitrary-file primitive.
 - ⚠️ The check is a **regex over table identifiers, not a SQL parser**. It fails closed — an

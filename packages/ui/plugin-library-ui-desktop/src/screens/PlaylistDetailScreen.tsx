@@ -118,7 +118,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
   }, [ctx, urn, isThirdPartyUrn, thirdPartyData.cursor, thirdPartyData.hasMore, thirdPartyData.loadingMore])
 
   const detail = isThirdPartyUrn ? thirdPartyData.detail : state.data
-  // 1. 歌曲去重：按 trackUrn 过滤重复项
+  // 1. Song dedup: filter duplicates by trackUrn
   const rawItems = useMemo(() => {
     const list = isThirdPartyUrn ? (thirdPartyData.detail?.items ?? []) : (state.data?.items ?? [])
     const seen = new Set<string>()
@@ -144,20 +144,21 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
   const [showEditModal, setShowEditModal] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortKey, setSortKey] = useState<PlaylistSortKey>('custom')
-  // 视图模式：列表为默认（与历史行为一致），紧凑不显示封面并把艺人单列。
+  // View mode: list is the default (matching previous behaviour); compact hides the artwork and gives the artist its own column.
   const [viewMode, setViewMode] = useViewMode('playlist-detail', 'list', ['compact', 'list'] as const)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [sortMenuAnchor, setSortMenuAnchor] = useState<MenuAnchor | null>(null)
   const [isBatchMode, setIsBatchMode] = useState(false)
   const [selectedUrns, setSelectedUrns] = useState<Set<string>>(new Set())
 
-  // 滚动折叠：吸顶栏在播放按钮靠近时从视口上方滑入，滚过按钮一半高度时
-  // 把按钮“吸”进吸顶栏（docked），表头吸附在吸顶栏正下方。
+  // Scroll collapse: the sticky bar slides in from above the viewport as the play button
+  // approaches, docks the button into the sticky bar once the scroll passes half its
+  // height (docked), and the table header docks right below the sticky bar.
   const collapse = useDetailBarCollapse({ barHeight: 64, anchorHeight: 56 })
   const menu = useTrackMenu(ctx, { fromPlaylistUrn: urn })
   const { isTrackInLibrary, handleAddToFavorites, openAddToPlaylistMenu, openBatchAddToPlaylistMenu, saveToPlaylistMenuProps } = useTrackLibraryInfo(ctx)
 
-  // 背景与吸顶栏的主题色：优先歌单封面，其次第一首歌的封面。
+  // Theme colour of the background and the sticky bar: the playlist cover first, then the first track's cover.
   const coverArtwork: ArtworkRef | undefined =
     detail?.artwork ?? tracks.get(rawItems[0]?.trackUrn ?? '')?.artwork
   const resolvedCover = useResolvedArtwork(ctx, coverArtwork)
@@ -294,13 +295,13 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
   if (!detail || isLoading) return h(EmptyState, { title: 'Loading…' })
 
   const sortLabelMap: Record<PlaylistSortKey, string> = {
-    custom: '自定义顺序',
-    title: '标题',
-    artist: '艺人',
-    album: '专辑',
-    source: '来源',
-    dateAdded: '添加日期',
-    duration: '时长',
+    custom: 'Custom order',
+    title: 'Title',
+    artist: 'Artist',
+    album: 'Album',
+    source: 'Source',
+    dateAdded: 'Date added',
+    duration: 'Duration',
   }
 
   const handleHeaderClick = (key: PlaylistSortKey) => {
@@ -314,13 +315,13 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
 
   const sortItems = sortMenuItems(
     [
-      { id: 'custom', label: '自定义顺序' },
-      { id: 'title', label: '标题' },
-      { id: 'artist', label: '艺人' },
-      { id: 'album', label: '专辑' },
-      { id: 'source', label: '来源' },
-      { id: 'dateAdded', label: '添加日期' },
-      { id: 'duration', label: '时长' },
+      { id: 'custom', label: 'Custom order' },
+      { id: 'title', label: 'Title' },
+      { id: 'artist', label: 'Artist' },
+      { id: 'album', label: 'Album' },
+      { id: 'source', label: 'Source' },
+      { id: 'dateAdded', label: 'Date added' },
+      { id: 'duration', label: 'Duration' },
     ],
     sortKey,
     (id) => setSortKey(id as PlaylistSortKey),
@@ -338,7 +339,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
       disabled: sortedUrns.length === 0,
     })
 
-  // 吸顶栏单独走 List 的 sticky 插槽（滚动容器的直接子节点）。
+  // The sticky bar rides the List's sticky slot (a direct child of the scroller).
   const stickyBar = h(StickyDetailBar, {
     title: detail.name,
     progress: collapse.slide,
@@ -347,8 +348,9 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
     playButton: renderPlayButton(48, 24, 'playlist-play-sticky'),
   })
 
-  // 渐变只存在于头部区域（随内容滚走），到底边精确过渡为纯色；下方内容
-  // 与吸附后的表头都是纯色 --bg-primary。
+  // The gradient exists only over the header area (scrolling away with the content)
+  // and transitions exactly into a solid colour at its bottom edge; the content below
+  // and the docked table header are both solid --bg-primary.
   const headerNode = h(
     'div',
     {
@@ -397,7 +399,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
         )
       : null,
     h(DetailHero, {
-      eyebrow: detail.isPublic !== false ? '公开歌单' : '歌单',
+      eyebrow: detail.isPublic !== false ? 'Public playlist' : 'Playlist',
       title: detail.name,
       titleSize: detail.name.length > 20 ? 40 : 54,
       onTitleClick: () => setShowEditModal(true),
@@ -443,7 +445,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
           (detail.owner?.[0] || 'B').toUpperCase(),
         ),
         h('span', { style: { fontWeight: 700, color: 'var(--bb-text-primary, #FFFFFF)' } }, detail.owner || 'BBeBee'),
-        h('span', null, ` • ${detail.isSmart ? '智能歌单' : `${detail.trackCount ?? urns.length} 首歌曲`}`),
+        h('span', null, ` • ${detail.isSmart ? 'Smart playlist' : `${detail.trackCount ?? urns.length} songs`}`),
         totalDurationStr ? h('span', null, `, ${totalDurationStr}`) : null,
       ),
     }),
@@ -462,7 +464,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
       h(
         'div',
         { style: { display: 'flex', alignItems: 'center', gap: 24 } },
-        // 折叠锚点：吸顶栏按这只大按钮的位置决定滑入与吸附时机。
+        // Collapse anchor: the sticky bar uses this large button's position to decide when to slide in and dock.
         h(
           'div',
           { ref: collapse.anchorRef, style: { display: 'flex' } },
@@ -472,7 +474,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
           'button',
           {
             type: 'button',
-            title: '下载',
+            title: 'Download',
             style: { background: 'none', border: 'none', color: 'var(--bb-text-secondary, #b3b3b3)', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
           },
           tablerIcon('download', { size: 24 }),
@@ -481,8 +483,8 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
           'button',
           {
             type: 'button',
-            title: '分享歌单',
-            'aria-label': '分享歌单',
+            title: 'Share playlist',
+            'aria-label': 'Share playlist',
             onClick: () => {
               const share = serviceOf<ShareService>(ctx, 'share')
               if (share && detail) {
@@ -513,7 +515,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
           {
             type: 'button',
             'data-testid': 'playlist-more-trigger',
-            title: '更多选项',
+            title: 'More options',
             style: { background: 'none', border: 'none', color: 'var(--bb-text-secondary, #b3b3b3)', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
             onClick: (e: ReactMouseEvent) => {
               const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
@@ -556,7 +558,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
           tablerIcon('search', { size: 18, color: 'var(--bb-text-secondary, #b3b3b3)' }),
           h('input', {
             type: 'text',
-            placeholder: '在歌单中搜索',
+            placeholder: 'Search in playlist',
             value: searchQuery,
             onChange: (e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value),
             style: {
@@ -574,7 +576,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
           {
             type: 'button',
             'data-testid': 'playlist-sort-trigger',
-            title: '排序方式',
+            title: 'Sort by',
             onClick: (e: ReactMouseEvent) => {
               const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
               setSortMenuAnchor({ x: rect.left, y: rect.bottom + 6 })
@@ -613,7 +615,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
         {
           type: 'button',
           onClick: () => {
-            const el = document.querySelector('input[placeholder="在歌单中搜索"]') as HTMLInputElement | null
+            const el = document.querySelector('input[placeholder="Search in playlist"]') as HTMLInputElement | null
             el?.focus()
           },
           style: {
@@ -631,7 +633,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
           },
         },
         tablerIcon('plus', { size: 18 }),
-        '添加',
+        'Add',
       ),
       h(
         'button',
@@ -653,7 +655,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
           },
         },
         tablerIcon('pencil', { size: 18 }),
-        '名称和详情',
+        'Name & details',
       ),
     ),
     isBatchMode
@@ -665,25 +667,26 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
           onBatchPlay: handleBatchPlay,
           onBatchAddToPlaylist: (anchor) => handleBatchAddToPlaylist(anchor),
           onBatchDelete: handleBatchDelete,
-          deleteLabel: '从歌单中删除',
+          deleteLabel: 'Remove from this playlist',
           onExitBatch: handleExitBatch,
         })
       : null,
     error ? h('div', { style: { padding: '0 32px 8px 32px' } }, h(Text, { variant: 'sm', tone: 'error' }, error)) : null,
   )
 
-  // 表头走 stickyHeader 插槽（滚动容器的直接子节点）——嵌在 header 盒内时
-  // sticky 只在父盒范围吸附，作为父盒最后一个子元素等于完全吸不住。
+  // The table header rides the stickyHeader slot (a direct child of the scroller) —
+  // nested inside the header box, sticky only docks within the parent box, and being
+  // the parent box's last child it effectively never docks at all.
   const tableHeaderNode = h(DetailTableHeader, {
     testID: 'playlist-table-header',
     accessibilityLabel: detail.name,
     columns: [
       { key: 'custom', label: '#', testID: 'playlist-sort-custom', width: 40, align: 'center' },
-      { key: 'title', label: '标题', testID: 'playlist-sort-title', flex: 2, paddingLeft: 12 },
-      { key: 'artist', label: '艺人', plain: true, flex: 1, visible: viewMode === 'compact' },
-      { key: 'album', label: '专辑', testID: 'playlist-sort-album', flex: 1.5, paddingLeft: 8 },
-      { key: 'source', label: '来源', testID: 'playlist-sort-source', flex: 1, paddingLeft: 8 },
-      { key: 'dateAdded', label: '添加日期', testID: 'playlist-sort-dateAdded', flex: 1, paddingLeft: 8 },
+      { key: 'title', label: 'Title', testID: 'playlist-sort-title', flex: 2, paddingLeft: 12 },
+      { key: 'artist', label: 'Artist', plain: true, flex: 1, visible: viewMode === 'compact' },
+      { key: 'album', label: 'Album', testID: 'playlist-sort-album', flex: 1.5, paddingLeft: 8 },
+      { key: 'source', label: 'Source', testID: 'playlist-sort-source', flex: 1, paddingLeft: 8 },
+      { key: 'dateAdded', label: 'Date added', testID: 'playlist-sort-dateAdded', flex: 1, paddingLeft: 8 },
       { key: 'duration', label: '', icon: tablerIcon('clock', { size: 18 }), testID: 'playlist-sort-duration', width: 120, align: 'right', paddingRight: 40 },
     ] satisfies DetailColumnSpec[],
     sortKey,
@@ -742,7 +745,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
             showSource: true,
             sourceName: resolveTrackSourceName(ctx, trackUrn),
             onPress: () => play(trackUrn),
-            // 取消收藏后那一行要回到加号：心形状态跟着实时收藏集合走。
+            // After unsaving, the row must return to a plus: the heart state follows the live saved set.
             inLibrary: isTrackInLibrary(track),
             onAddToFavorites: handleAddToFavorites,
             addedAt: item.addedAt,
@@ -769,7 +772,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
       x: sortMenuAnchor?.x ?? 0,
       y: sortMenuAnchor?.y ?? 0,
       items: viewModeMenuItems(sortItems, viewMode, setViewMode),
-      title: '排序方式',
+      title: 'Sort by',
     }),
     showEditModal
       ? h(EditPlaylistModal, {

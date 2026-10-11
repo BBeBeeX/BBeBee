@@ -11,7 +11,7 @@ Everything here lives in one SQLite database behind
 
 ## 1. Identity: the URN
 
-> 规范见 [rules/data-model.md §1 URN (Uniform Resource Name)](../../rules/data-model.md#1-urn-uniform-resource-name)（L2），本节只讲原理与用法。
+> see the spec at [rules/data-model.md §1 URN (Uniform Resource Name)](../../rules/data-model.md#1-urn-uniform-resource-name) (L2); this section covers only principles and usage.
 
 Examples:
 

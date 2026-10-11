@@ -1,5 +1,5 @@
 /**
- * Favourites: the `library_items` shelf.
+ * Favorites: the `library_items` shelf.
  *
  * One row per URN, so "saved" is a primary-key lookup rather than a flag on
  * every entity table — which is what lets an album from a Subsonic server and

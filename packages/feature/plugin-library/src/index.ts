@@ -1,7 +1,7 @@
 /**
  * `plugin-library` — `ctx.library`, the user's curation.
  *
- * Playlists, favourites and collections, over the tables docs/07 §4.6
+ * Playlists, favorites and collections, over the tables docs/07 §4.6
  * declares. The service is deliberately thin: each verb delegates to a module
  * that owns one table group, and this file's whole job is to emit the events
  * the rest of the app invalidates on.
@@ -94,7 +94,7 @@ export class Library extends Service implements LibraryService {
     // while the library holds no playlists at all.
     const existing = await this.playlists.list()
     if (existing.items.length === 0) {
-      await this.createPlaylist('我的歌单')
+      await this.createPlaylist('My playlist')
     }
 
     // Descriptors, not components: the headless plugin says what exists and
@@ -138,7 +138,7 @@ export class Library extends Service implements LibraryService {
           kind: 'route',
           id: LIBRARY_ROUTES.favorites,
           path: '/favorites',
-          title: 'Favourites',
+          title: 'Favorites',
           icon: 'heart',
           // Reached from inside the library rather than standalone chrome
           placement: [],
@@ -148,8 +148,8 @@ export class Library extends Service implements LibraryService {
           kind: 'settings',
           id: LIBRARY_VIEWS.profileSettings,
           section: 'general',
-          title: '用户资料',
-          description: '本地用户资料，歌单等内容的创建者将显示此名称',
+          title: 'User profile',
+          description: 'Local user profile; playlists and other content show this name as their creator',
           icon: 'user',
           display: 'card',
           order: 10,
@@ -158,7 +158,7 @@ export class Library extends Service implements LibraryService {
     )
   }
 
-  /* ── favourites ────────────────────────────────────────────────────── */
+  /* ── favorites ────────────────────────────────────────────────────── */
 
   isSaved(urn: string): Promise<boolean> {
     return this.saved.isSaved(urn)

@@ -11,19 +11,19 @@ export interface PluginDetailsProps {
 function formatRuntimeState(state: PluginRuntimeState): string {
   switch (state) {
     case 'ACTIVE':
-      return '运行中 (ACTIVE)'
+      return 'Running (ACTIVE)'
     case 'PENDING':
-      return '等待依赖中 (PENDING)'
+      return 'Waiting for dependencies (PENDING)'
     case 'LOADING':
-      return '加载中 (LOADING)'
+      return 'Loading (LOADING)'
     case 'FAILED':
-      return '启动失败 (FAILED)'
+      return 'Failed to start (FAILED)'
     case 'DISPOSED':
-      return '已释放 (DISPOSED)'
+      return 'Disposed (DISPOSED)'
     case 'UNLOADING':
-      return '卸载中 (UNLOADING)'
+      return 'Unloading (UNLOADING)'
     case 'UNLOADED':
-      return '未加载 (UNLOADED)'
+      return 'Unloaded (UNLOADED)'
     default:
       return `${state}`
   }
@@ -32,12 +32,12 @@ function formatRuntimeState(state: PluginRuntimeState): string {
 function formatConfigStatus(status?: ConfigStatus): string {
   switch (status) {
     case 'customized':
-      return '有可配置项且已自定义'
+      return 'Configurable and customized'
     case 'default':
-      return '有可配置项但用默认值'
+      return 'Configurable, using defaults'
     case 'none':
     default:
-      return '无可配置项'
+      return 'No configurable options'
   }
 }
 
@@ -90,12 +90,12 @@ export function PluginDetails({
     h(
       'div',
       { style: { display: 'flex', flexDirection: 'column', gap: 6 } },
-      renderDetailRow('完整名称', `${plugin.displayName} (${plugin.id})`),
-      renderDetailRow('版本', plugin.version || '0.0.0'),
-      renderDetailRow('作者', plugin.author || '—'),
-      renderDetailRow('配置状态', formatConfigStatus(plugin.configStatus)),
+      renderDetailRow('Full name', `${plugin.displayName} (${plugin.id})`),
+      renderDetailRow('Version', plugin.version || '0.0.0'),
+      renderDetailRow('Author', plugin.author || '—'),
+      renderDetailRow('Config status', formatConfigStatus(plugin.configStatus)),
       renderDetailRow(
-        '运行状态',
+        'Runtime state',
         h(
           'span',
           {
@@ -126,9 +126,9 @@ export function PluginDetails({
                 lineHeight: 1.4,
               },
             },
-            plugin.error ? h('div', null, `错误：${plugin.error}`) : null,
+            plugin.error ? h('div', null, `Error: ${plugin.error}`) : null,
             plugin.waitingFor.length > 0
-              ? h('div', null, `等待服务：${plugin.waitingFor.join(', ')}`)
+              ? h('div', null, `Waiting for services: ${plugin.waitingFor.join(', ')}`)
               : null,
           )
         : null,
@@ -160,7 +160,7 @@ export function PluginDetails({
               color: 'var(--text-secondary, #C5CAD8)',
             },
           },
-          `依赖 (${plugin.dependencies.length})`,
+          `Dependencies (${plugin.dependencies.length})`,
         ),
         h(
           'div',
@@ -172,7 +172,7 @@ export function PluginDetails({
               wordBreak: 'break-all',
             },
           },
-          plugin.dependencies.length ? plugin.dependencies.join(', ') : '无',
+          plugin.dependencies.length ? plugin.dependencies.join(', ') : 'None',
         ),
       ),
       h(
@@ -195,7 +195,7 @@ export function PluginDetails({
               color: 'var(--text-secondary, #C5CAD8)',
             },
           },
-          `被依赖 (${plugin.dependents.length})`,
+          `Dependents (${plugin.dependents.length})`,
         ),
         h(
           'div',
@@ -207,7 +207,7 @@ export function PluginDetails({
               wordBreak: 'break-all',
             },
           },
-          plugin.dependents.length ? plugin.dependents.join(', ') : '无',
+          plugin.dependents.length ? plugin.dependents.join(', ') : 'None',
         ),
       ),
     ),
@@ -229,17 +229,17 @@ export function PluginDetails({
             h(
               'div',
               { style: { display: 'flex', flexDirection: 'column', gap: 2 } },
-              h('span', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #FFFFFF)' } }, '启用插件'),
+              h('span', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #FFFFFF)' } }, 'Enable plugin'),
               h(
                 'span',
                 { style: { fontSize: 11, color: 'var(--text-tertiary, #8E8E93)' } },
-                plugin.enabled ? '已启用，关闭将立即卸载' : '未启用，开启将立即加载',
+                plugin.enabled ? 'Enabled; turning off unloads it immediately' : 'Not enabled; turning on loads it immediately',
               ),
             ),
             h(Switch, {
               checked: plugin.enabled,
               onChange: (checked) => onToggleEnabled?.(plugin, checked),
-              accessibilityLabel: `切换插件 ${plugin.displayName} 启用状态`,
+              accessibilityLabel: `Toggle plugin ${plugin.displayName} enabled state`,
             }),
           )
         : h(
@@ -252,7 +252,7 @@ export function PluginDetails({
                 paddingTop: 4,
               },
             },
-            '（插件启停功能已隐藏，需在「关于」页面开启高级设置）',
+            '(Plugin enable/disable is hidden; enable advanced settings on the "About" page)',
           )
       : null,
   )

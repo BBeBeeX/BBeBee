@@ -4,8 +4,8 @@ import { tablerIcon } from '@BBeBee/ui-kit-desktop'
 import type { DesktopLyricsPayload, DesktopLyricsAction } from './desktop-lyrics-types.js'
 
 const DEFAULT_PAYLOAD: DesktopLyricsPayload = {
-  currentLine: 'BBeBee 音乐',
-  nextLine: '聆听高品质音乐',
+  currentLine: 'BBeBee Music',
+  nextLine: 'Listen to high-quality music',
   fontSize: 24,
   opacity: 0.95,
   locked: false,
@@ -230,7 +230,7 @@ export function DesktopLyricsWindow(): ReactElement {
           'button',
           {
             style: toolbarButtonStyle,
-            title: '上一首',
+            title: 'Previous track',
             onClick: () => sendAction({ type: 'prev-track' }),
           },
           tablerIcon('skip-back', { size: 18 }),
@@ -240,7 +240,7 @@ export function DesktopLyricsWindow(): ReactElement {
           'button',
           {
             style: toolbarButtonStyle,
-            title: playing ? '暂停' : '播放',
+            title: playing ? 'Pause' : 'Play',
             onClick: () => sendAction({ type: 'toggle-play' }),
           },
           tablerIcon(playing ? 'pause' : 'play', { size: 18 }),
@@ -250,7 +250,7 @@ export function DesktopLyricsWindow(): ReactElement {
           'button',
           {
             style: toolbarButtonStyle,
-            title: '下一首',
+            title: 'Next track',
             onClick: () => sendAction({ type: 'next-track' }),
           },
           tablerIcon('skip-forward', { size: 18 }),
@@ -262,7 +262,7 @@ export function DesktopLyricsWindow(): ReactElement {
           'button',
           {
             style: toolbarButtonStyle,
-            title: '缩小字体',
+            title: 'Smaller font',
             onClick: () => sendAction({ type: 'set-font-size', size: Math.max(16, fontSize - 2) }),
           },
           'A-',
@@ -272,7 +272,7 @@ export function DesktopLyricsWindow(): ReactElement {
           'button',
           {
             style: toolbarButtonStyle,
-            title: '放大字体',
+            title: 'Larger font',
             onClick: () => sendAction({ type: 'set-font-size', size: Math.min(36, fontSize + 2) }),
           },
           'A+',
@@ -284,7 +284,7 @@ export function DesktopLyricsWindow(): ReactElement {
           'button',
           {
             style: { ...toolbarButtonStyle, color: locked ? '#A78BFA' : '#E0E0E0' },
-            title: locked ? '解除锁定' : '锁定歌词 (鼠标穿透)',
+            title: locked ? 'Unlock' : 'Lock lyrics (click-through)',
             onClick: () => sendAction({ type: 'toggle-lock' }),
           },
           tablerIcon(locked ? 'lock' : 'lock-open', { size: 18 }),
@@ -294,7 +294,7 @@ export function DesktopLyricsWindow(): ReactElement {
           'button',
           {
             style: { ...toolbarButtonStyle, color: '#EF4444' },
-            title: '关闭桌面歌词',
+            title: 'Close desktop lyrics',
             onClick: () => sendAction({ type: 'close' }),
           },
           tablerIcon('x', { size: 18 }),
@@ -308,7 +308,7 @@ export function DesktopLyricsWindow(): ReactElement {
         'button',
         {
           ref: unlockRef,
-          title: '解锁桌面歌词',
+          title: 'Unlock desktop lyrics',
           onClick: () => sendAction({ type: 'toggle-lock' }),
           style: {
             position: 'absolute',
@@ -330,7 +330,7 @@ export function DesktopLyricsWindow(): ReactElement {
           },
         },
         tablerIcon('lock-open', { size: 14 }),
-        '解锁',
+        'Unlock',
       ),
     // Current Line
     h(

@@ -1,11 +1,11 @@
 /**
- * Source-name resolution shared by every view that shows a "来源" column.
+ * Source-name resolution shared by every view that shows a "Source" column.
  *
  * A track's URN knows which source imported it, but a row shows the source's
  * *display* name, and the read goes through the `sources` service with
  * deliberate tolerance for the shapes older service versions expose. Written
  * once here so two view packages cannot grow two different spellings of
- * "本地" (docs/08 §4: if two view packages would write the same `if`, it
+ * "Local" (docs/08 §4: if two view packages would write the same `if`, it
  * belongs here).
  *
  * No feature package is imported — the service is reached through
@@ -19,7 +19,7 @@ import { tryParseUrn } from '@BBeBee/protocol'
 import { serviceOf } from './react.js'
 
 /**
- * Resolves the display name of a track's source (e.g. '哔哩哔哩', '本地', etc.).
+ * Resolves the display name of a track's source (e.g. 'Bilibili', 'Local', etc.).
  */
 export function resolveTrackSourceName(ctx: Context, urn?: string): string {
   if (!urn) return '-'
@@ -29,11 +29,11 @@ export function resolveTrackSourceName(ctx: Context, urn?: string): string {
     urn.startsWith('file:') ||
     urn.startsWith('bbebee-file:')
   ) {
-    return '本地'
+    return 'Local'
   }
   const parsed = tryParseUrn(urn)
   if (!parsed || !parsed.sourceId || parsed.sourceId === 'local') {
-    return '本地'
+    return 'Local'
   }
 
   const sources = serviceOf<SourcesService>(ctx, 'sources') ?? (ctx as unknown as { sources?: SourcesService }).sources

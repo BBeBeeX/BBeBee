@@ -1,5 +1,5 @@
 /**
- * The registry lock file as a per-entry map, for the 已安装 tab.
+ * The registry lock file as a per-entry map, for the Installed tab.
  *
  * Reads `ctx.contentRegistry.getLockFile?.()` — an optional method on the
  * service, so a registry build without the lock manager (or a test stub that

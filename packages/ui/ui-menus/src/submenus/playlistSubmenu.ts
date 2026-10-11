@@ -23,12 +23,12 @@ export function addToPlaylistSubmenu(
     ? playlists.filter((p) => p.urn !== opts.excludePlaylistUrn)
     : playlists
   return {
-    title: opts?.title ?? '添加到歌单',
-    searchPlaceholder: opts?.searchPlaceholder ?? '查找歌单',
-    emptyLabel: '没有匹配的歌单',
+    title: opts?.title ?? 'Add to playlist',
+    searchPlaceholder: opts?.searchPlaceholder ?? 'Find playlist',
+    emptyLabel: 'No matching playlists',
     create: {
-      label: '新建歌单',
-      placeholder: '歌单名称',
+      label: 'New playlist',
+      placeholder: 'Playlist name',
       onSelect: async (name) => {
         const playlist = await library.createPlaylist(name)
         await library.addTracks(playlist.urn, trackUrns)

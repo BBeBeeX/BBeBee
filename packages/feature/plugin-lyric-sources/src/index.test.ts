@@ -46,22 +46,22 @@ describe('Lyrics Normalizer', () => {
   it('normalizes Netease dual-lyric structure with translations', () => {
     const raw = {
       lrc: { lyric: `[00:01.00]Hello\n[00:05.00]World` },
-      tlyric: { lyric: `[00:01.00]你好\n[00:05.00]世界` },
+      tlyric: { lyric: `[00:01.00]Hello (translated)\n[00:05.00]World (translated)` },
     }
     const lyrics = normalizeToLyrics(raw)
     expect(lyrics).toBeDefined()
     expect(lyrics?.format).toBe('lrc')
     expect(lyrics?.synced).toBe(true)
     expect(lyrics?.content).toContain('[00:01.00]Hello')
-    expect(lyrics?.content).toContain('[00:01.00]你好')
+    expect(lyrics?.content).toContain('[00:01.00]Hello (translated)')
     expect(lyrics?.content).toContain('[00:05.00]World')
-    expect(lyrics?.content).toContain('[00:05.00]世界')
+    expect(lyrics?.content).toContain('[00:05.00]World (translated)')
   })
 
   it('normalizes line arrays with millisecond timestamps', () => {
     const raw = [
       { timeMs: 12000, text: 'First line' },
-      { timeMs: 18500, text: 'Second line', translation: '第二行' },
+      { timeMs: 18500, text: 'Second line', translation: 'Second line (translated)' },
     ]
     const lyrics = normalizeToLyrics(raw)
     expect(lyrics).toBeDefined()
@@ -69,7 +69,7 @@ describe('Lyrics Normalizer', () => {
     expect(lyrics?.synced).toBe(true)
     expect(lyrics?.content).toContain('[00:12.00]First line')
     expect(lyrics?.content).toContain('[00:18.50]Second line')
-    expect(lyrics?.content).toContain('[00:18.50]第二行')
+    expect(lyrics?.content).toContain('[00:18.50]Second line (translated)')
   })
 
   it('handles TTML markup', () => {
@@ -370,7 +370,7 @@ describe('LyricSourcesPlugin Service', () => {
       { http: mockHttp },
     )
 
-    expect(raw).toBe('[00:00.00]纯音乐，请欣赏')
+    expect(raw).toBe('[00:00.00]Instrumental')
   })
 
   it('propagates network error when all endpoints throw', async () => {
@@ -512,7 +512,7 @@ describe('LyricSourcesPlugin Service', () => {
     })
 
     expect(res.ok).toBe(false)
-    expect(res.error).toContain('未检索到匹配歌词')
+    expect(res.error).toContain('No matching lyrics found')
   })
 
   it('preserves lyricSources capability context when called from another scoped plugin context', async () => {

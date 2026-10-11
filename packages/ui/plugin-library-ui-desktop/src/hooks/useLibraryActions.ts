@@ -334,13 +334,13 @@ export function useLibraryActions({
         items: [
           {
             id: 'play-all',
-            label: '播放全部',
+            label: 'Play all',
             icon: tablerIcon('play', { size: 20 }),
             onSelect: onPlay,
           },
           {
             id: 'toggle-pin',
-            label: isPinned ? '取消置顶歌单' : '置顶歌单',
+            label: isPinned ? 'Unpin playlist' : 'Pin playlist',
             icon: tablerIcon('pin', { size: 20 }),
             onSelect: () => void togglePin(item),
           },

@@ -303,8 +303,8 @@ export const spotifyLightCssVariables: Record<string, string> = {
 
 export const spotifyTheme: ThemeDefinition = {
   id: 'spotify',
-  name: 'Spotify 经典绿 (Spotify Classic)',
-  description: '经典 Spotify 绿黑风格调色，保留原汁原味的极简暗黑与翡翠绿品牌视觉。',
+  name: 'Spotify Classic',
+  description: 'The classic Spotify green-on-black palette, preserving the original minimal dark look and emerald-green brand identity.',
   isDark: true,
   tokens: spotifyTokens,
   lightTokens: spotifyLightTokens,

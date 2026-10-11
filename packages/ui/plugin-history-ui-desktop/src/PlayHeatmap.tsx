@@ -16,16 +16,16 @@ export interface PlayHeatmapProps {
   onSelectDate?: (date: string | null) => void
 }
 
-/** Formats milliseconds into human-readable duration (e.g. 1小时30分钟). */
+/** Formats milliseconds into human-readable duration (e.g. 1 hr 30 min). */
 export function formatPlayDuration(ms: number): string {
-  if (ms <= 0) return '0 分钟'
+  if (ms <= 0) return '0 min'
   const totalMinutes = Math.floor(ms / 60000)
-  if (totalMinutes === 0) return '< 1 分钟'
+  if (totalMinutes === 0) return '< 1 min'
   const hours = Math.floor(totalMinutes / 60)
   const minutes = totalMinutes % 60
-  if (hours === 0) return `${minutes} 分钟`
-  if (minutes === 0) return `${hours} 小时`
-  return `${hours} 小时 ${minutes} 分钟`
+  if (hours === 0) return `${minutes} min`
+  if (minutes === 0) return `${hours} hr`
+  return `${hours} hr ${minutes} min`
 }
 
 /** Parse YYYY-MM-DD into a local Date without timezone offset issues. */
@@ -35,8 +35,8 @@ function parseIsoDate(str: string): Date {
 }
 
 const MONTH_NAMES = [
-  '1月', '2月', '3月', '4月', '5月', '6月',
-  '7月', '8月', '9月', '10月', '11月', '12月',
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ]
 
 
@@ -151,12 +151,12 @@ export function PlayHeatmap({ heatmap, selectedDate, onSelectDate }: PlayHeatmap
       h(
         'div',
         { style: { fontSize: 13, fontWeight: 600, color: 'var(--text-primary, #f5f5f7)' } },
-        '播放热力图',
+        'Play heatmap',
       ),
       h(
         'div',
         { style: { fontSize: 12, color: 'var(--text-secondary, #8e8e93)' } },
-        `最近一年共播放 ${totalPlays} 次 · 累计 ${formatPlayDuration(totalMs)}`,
+        `Played ${totalPlays} times in the past year · ${formatPlayDuration(totalMs)} total`,
       ),
     ),
     // Heatmap Container with horizontal scroll if needed
@@ -240,7 +240,7 @@ export function PlayHeatmap({ heatmap, selectedDate, onSelectDate }: PlayHeatmap
                     paddingRight: 4,
                   },
                 },
-                dayOfWeek === 1 ? '一' : dayOfWeek === 3 ? '三' : dayOfWeek === 5 ? '五' : '',
+                dayOfWeek === 1 ? 'Mon' : dayOfWeek === 3 ? 'Wed' : dayOfWeek === 5 ? 'Fri' : '',
               ),
             ),
           ),
@@ -272,8 +272,8 @@ export function PlayHeatmap({ heatmap, selectedDate, onSelectDate }: PlayHeatmap
                 const isSelected = selectedDate === day.date
                 const title =
                   day.count === 0
-                    ? `${day.date}: 无播放记录`
-                    : `${day.date}: ${day.count} 次播放 (${formatPlayDuration(day.msPlayed)})`
+                    ? `${day.date}: no play records`
+                    : `${day.date}: ${day.count} plays (${formatPlayDuration(day.msPlayed)})`
 
                 return h('div', {
                   key: day.date,
@@ -319,7 +319,7 @@ export function PlayHeatmap({ heatmap, selectedDate, onSelectDate }: PlayHeatmap
         ? h(
             'div',
             { style: { display: 'flex', alignItems: 'center', gap: 8 } },
-            h('span', { style: { color: 'var(--success, #57f287)' } }, `已筛选日期: ${selectedDate}`),
+            h('span', { style: { color: 'var(--success, #57f287)' } }, `Filtered date: ${selectedDate}`),
             h(
               'button',
               {
@@ -334,10 +334,10 @@ export function PlayHeatmap({ heatmap, selectedDate, onSelectDate }: PlayHeatmap
                   fontSize: 11,
                 },
               },
-              '清除筛选',
+              'Clear filter',
             ),
           )
-        : h('div', null, '点击格子可筛选对应日期的播放记录'),
+        : h('div', null, 'Click a cell to filter play records for that date'),
       // Legend
       h(
         'div',
@@ -348,7 +348,7 @@ export function PlayHeatmap({ heatmap, selectedDate, onSelectDate }: PlayHeatmap
             gap: 4,
           },
         },
-        h('span', null, '少'),
+        h('span', null, 'Less'),
         LEVEL_COLORS.map((color, idx) =>
           h('div', {
             key: idx,
@@ -360,7 +360,7 @@ export function PlayHeatmap({ heatmap, selectedDate, onSelectDate }: PlayHeatmap
             },
           }),
         ),
-        h('span', null, '多'),
+        h('span', null, 'More'),
       ),
     ),
   )

@@ -1,5 +1,5 @@
 /**
- * The registry settings card ("注册表与更新"), rendered inside 设置 → sources.
+ * The registry settings card ("Registry & updates"), rendered inside Settings → sources.
  *
  * Three things only: when the last check ran, the auto-check toggle (written
  * to the settings document), and a manual check whose result is listed inline
@@ -102,7 +102,7 @@ export function RegistrySettingsCard({ ctx }: { ctx: Context }): ReactElement {
       h(
         'div',
         { style: { display: 'flex', flexDirection: 'column', gap: 3 } },
-        h('div', { style: rowLabelStyle }, '上次检查'),
+        h('div', { style: rowLabelStyle }, 'Last checked'),
         h('div', { 'data-testid': 'registry-last-checked', style: rowDescStyle }, formatDateTime(lastCheckedAt)),
       ),
       h(
@@ -128,7 +128,7 @@ export function RegistrySettingsCard({ ctx }: { ctx: Context }): ReactElement {
           },
         },
         tablerIcon('download', { size: 14 }),
-        checking ? '检查中…' : '检查更新',
+        checking ? 'Checking…' : 'Check updates',
       ),
     ),
     // Auto-check toggle
@@ -138,13 +138,13 @@ export function RegistrySettingsCard({ ctx }: { ctx: Context }): ReactElement {
       h(
         'div',
         { style: { display: 'flex', flexDirection: 'column', gap: 3 } },
-        h('div', { style: rowLabelStyle }, '自动每日检查'),
-        h('div', { style: rowDescStyle }, '启动后自动检查一次社区内容更新，之后每天检查一次'),
+        h('div', { style: rowLabelStyle }, 'Daily auto-check'),
+        h('div', { style: rowDescStyle }, 'Checks for community content updates once at startup, then once a day'),
       ),
       h(Switch, {
         checked: autoCheck,
         onChange: toggleAutoCheck,
-        accessibilityLabel: '自动每日检查',
+        accessibilityLabel: 'Daily auto-check',
       }),
     ),
     error
@@ -168,7 +168,7 @@ export function RegistrySettingsCard({ ctx }: { ctx: Context }): ReactElement {
       ? h(
           'div',
           { style: { display: 'flex', flexDirection: 'column', gap: 6 } },
-          h('div', { style: rowLabelStyle }, `可用更新 (${updates.length})`),
+          h('div', { style: rowLabelStyle }, `Updates available (${updates.length})`),
           updates.map((update) =>
             h(
               'button',
@@ -191,7 +191,7 @@ export function RegistrySettingsCard({ ctx }: { ctx: Context }): ReactElement {
                   textAlign: 'left',
                 },
               },
-              update.builtin ? h('span', { style: rowDescStyle }, '[内置]') : null,
+              update.builtin ? h('span', { style: rowDescStyle }, '[Built-in]') : null,
               h('span', { style: { fontWeight: 600 } }, update.name),
               h(
                 'span',
@@ -205,7 +205,7 @@ export function RegistrySettingsCard({ ctx }: { ctx: Context }): ReactElement {
       : h(
           'div',
           { 'data-testid': 'registry-updates-empty', style: rowDescStyle },
-          '内容都是最新的。也可以在「发现」页浏览社区音乐源、歌词源、主题与插件。',
+          'Everything is up to date. You can also browse community music sources, lyric sources, themes and plugins on the Discover page.',
         ),
   )
 }

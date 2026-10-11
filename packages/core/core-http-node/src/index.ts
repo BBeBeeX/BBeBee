@@ -164,7 +164,7 @@ async function drainCapped(stream: ReadableStream<Uint8Array>, cap: number): Pro
     // The copy's own death is not the request's problem.
   }
   const text = chunks.join('')
-  return total > cap ? `${text.slice(0, cap)}…[已截断，共 ${total} 字符]` : text
+  return total > cap ? `${text.slice(0, cap)}…[truncated, ${total} chars in total]` : text
 }
 
 /**

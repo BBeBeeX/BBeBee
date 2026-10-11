@@ -524,16 +524,16 @@ describe('output devices and routing', () => {
     const origWindowDesc = Object.getOwnPropertyDescriptor(globalThis, 'window')
 
     const mockEnumerate = async () => [
-      { kind: 'audiooutput', deviceId: 'default', label: '默认 - 扬声器 (Realtek Audio)' },
-      { kind: 'audiooutput', deviceId: 'dev-realtek-123', label: '扬声器 (Realtek Audio)' },
+      { kind: 'audiooutput', deviceId: 'default', label: 'Default - Speaker (Realtek Audio)' },
+      { kind: 'audiooutput', deviceId: 'dev-realtek-123', label: 'Speaker (Realtek Audio)' },
       { kind: 'audiooutput', deviceId: 'dev-vm-456', label: 'VoiceMeeter Input' },
-      { kind: 'audioinput', deviceId: 'mic-1', label: '麦克风' },
+      { kind: 'audioinput', deviceId: 'mic-1', label: 'Microphone' },
     ]
 
     const mockBridgeCall = async (service: string, method: string) => {
       if (service === 'audio' && method === 'getOutputDevices') {
         return [
-          { id: '{0.0.0.00000000}.{realtek-guid}', label: '扬声器 (Realtek Audio)', isDefault: true, isVirtual: false },
+          { id: '{0.0.0.00000000}.{realtek-guid}', label: 'Speaker (Realtek Audio)', isDefault: true, isVirtual: false },
           { id: '{0.0.0.00000000}.{vm-guid}', label: 'VoiceMeeter Input (VB-Audio VoiceMeeter VAIO)', isDefault: false, isVirtual: true },
         ]
       }
@@ -557,16 +557,16 @@ describe('output devices and routing', () => {
 
       // Ensure every device id is strictly a Chromium deviceId
       expect(devices[0]!.id).toBe('default')
-      expect(devices[0]!.label).toBe('扬声器 (Realtek Audio)')
+      expect(devices[0]!.label).toBe('Speaker (Realtek Audio)')
       expect(devices[0]!.isVirtual).toBe(false)
 
       expect(devices[1]!.id).toBe('dev-realtek-123')
-      expect(devices[1]!.label).toBe('扬声器 (Realtek Audio)')
+      expect(devices[1]!.label).toBe('Speaker (Realtek Audio)')
       expect(devices[1]!.isVirtual).toBe(false)
 
       expect(devices[2]!.id).toBe('dev-vm-456')
       expect(devices[2]!.label).toContain('VoiceMeeter Input')
-      expect(devices[2]!.label).toContain('(虚拟)')
+      expect(devices[2]!.label).toContain('(Virtual)')
       expect(devices[2]!.isVirtual).toBe(true)
 
       // Ensure native OS IDs are NEVER injected
@@ -648,7 +648,7 @@ describe('native output-device resolution', () => {
       bridgeCall: async (service, method, args) => {
         if (service === 'audio' && method === 'getOutputDevices') {
           return [
-            { id: '{0.0.0.00000000}.{realtek}', label: '扬声器 (Realtek Audio)', isDefault: true, isVirtual: false },
+            { id: '{0.0.0.00000000}.{realtek}', label: 'Speaker (Realtek Audio)', isDefault: true, isVirtual: false },
             { id: '{0.0.0.00000000}.{vm}', label: 'VoiceMeeter Input (VB-Audio VoiceMeeter VAIO)', isDefault: false, isVirtual: true },
           ]
         }
@@ -665,7 +665,7 @@ describe('native output-device resolution', () => {
 
     const origNavDesc = Object.getOwnPropertyDescriptor(globalThis, 'navigator')
     const mockEnumerate = async () => [
-      { kind: 'audiooutput', deviceId: 'default', label: '默认 - 扬声器 (Realtek Audio)' },
+      { kind: 'audiooutput', deviceId: 'default', label: 'Default - Speaker (Realtek Audio)' },
       { kind: 'audiooutput', deviceId: 'dev-vm-456', label: 'VoiceMeeter Input' },
     ]
 
@@ -686,7 +686,7 @@ describe('native output-device resolution', () => {
       await audio.setOutputDevice('default')
       expect(bridgeDeviceSet).toBe('{0.0.0.00000000}.{realtek}')
       expect(sinkCalledWith).toBe('')
-      expect(audio.currentDeviceLabel).toBe('扬声器 (Realtek Audio)')
+      expect(audio.currentDeviceLabel).toBe('Speaker (Realtek Audio)')
     } finally {
       if (origNavDesc) {
         Object.defineProperty(globalThis, 'navigator', origNavDesc)

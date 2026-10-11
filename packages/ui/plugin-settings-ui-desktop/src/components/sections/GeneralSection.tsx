@@ -25,20 +25,20 @@ export function GeneralSection({
     h(
       SettingsSection,
       {
-        title: '常规与界面语言',
-        description: '设置应用程序的界面语言与显示偏好',
+        title: 'General & interface language',
+        description: 'Set the app interface language and display preferences',
       },
       h(SettingsRow, {
-        title: '界面语言',
-        description: '设置显示的语言选项',
+        title: 'Interface language',
+        description: 'Choose the display language',
         borderBottom: false,
         action: h(Select<'zh' | 'en'>, {
           value: settings.language === 'en' ? 'en' : 'zh',
           options: [
-            { value: 'zh', label: '简体中文' },
+            { value: 'zh', label: 'Simplified Chinese' },
             { value: 'en', label: 'English' },
           ],
-          accessibilityLabel: '界面语言',
+          accessibilityLabel: 'Interface language',
           onChange: (language) => void update({ language }),
         }),
       }),
@@ -46,16 +46,16 @@ export function GeneralSection({
     h(
       SettingsSection,
       {
-        title: '系统行为',
-        description: '桌面端窗口及托盘运行策略',
+        title: 'System behavior',
+        description: 'Desktop window and tray behavior',
       },
       h(SettingsRow, {
-        title: '关闭主窗口时最小化到系统托盘',
-        description: '开启后点击关闭按钮不会退出应用程序，而是保留在托盘后台运行',
+        title: 'Minimize to system tray when closing the main window',
+        description: 'When enabled, clicking the close button keeps the app running in the tray instead of quitting',
         borderBottom: false,
         action: h(Switch, {
           checked: settings.closeToTray,
-          accessibilityLabel: '关闭主窗口时最小化到系统托盘',
+          accessibilityLabel: 'Minimize to system tray when closing the main window',
           onChange: onCloseToTrayChange,
         }),
       }),

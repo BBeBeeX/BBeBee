@@ -19,22 +19,22 @@ const DEFAULT_PARAMS: CompressorParams = {
 
 export const CompressorEffect: EffectDefinition<CompressorParams> = {
   id: 'compressor',
-  displayName: '动态压缩器 (Compressor)',
+  displayName: 'Compressor',
   defaultOrder: 40,
   Params: createParamSchema(DEFAULT_PARAMS),
   presets: [
     {
-      name: '夜间模式 (Night Mode)',
+      name: 'Night Mode',
       params: { threshold: -28, knee: 30, ratio: 8, attack: 0.003, release: 0.25 },
       builtin: true,
     },
     {
-      name: '温和顺滑 (Subtle)',
+      name: 'Subtle',
       params: { threshold: -16, knee: 20, ratio: 2.5, attack: 0.01, release: 0.3 },
       builtin: true,
     },
     {
-      name: '强劲动态 (Heavy)',
+      name: 'Heavy',
       params: { threshold: -30, knee: 36, ratio: 12, attack: 0.002, release: 0.15 },
       builtin: true,
     },

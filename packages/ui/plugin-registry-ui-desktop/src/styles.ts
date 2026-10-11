@@ -1,5 +1,5 @@
 /**
- * Shared visual vocabulary for the registry UI package (the 发现 page family).
+ * Shared visual vocabulary for the registry UI package (the Discover page family).
  *
  * Pure style constants and one-line factories — no React, no domain logic, so
  * every screen and drawer draws its pills, chips, banners and badges from the
@@ -21,7 +21,7 @@ export const TONE = {
   success: 'var(--color-success, #10B981)',
   warning: 'var(--color-warning, #F59E0B)',
   error: 'var(--color-error, #F43F5E)',
-  /** Quiet metadata color — used for the neutral (等待确认 / 信息) states. */
+  /** Quiet metadata color — used for the neutral (Awaiting confirmation / Info) states. */
   neutral: 'var(--text-secondary, #C5CAD8)',
 } as const
 
@@ -53,7 +53,7 @@ export function tabPill(active: boolean) {
   } as const
 }
 
-/** The one chip: version, 内置, capabilities, kind labels, commit hashes. */
+/** The one chip: version, built-in, capabilities, kind labels, commit hashes. */
 export const CHIP = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -77,7 +77,7 @@ export const STAT_CHIP = {
   color: 'var(--text-tertiary, #8B95B0)',
 } as const
 
-/** The quiet outlined action (卸载, 取消, 查看, 清空已完成). */
+/** The quiet outlined action (Uninstall, Cancel, View, Clear finished). */
 export const GHOST_BUTTON = {
   display: 'inline-flex',
   alignItems: 'center',

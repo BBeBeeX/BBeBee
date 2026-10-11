@@ -1,60 +1,60 @@
 # @BBeBee/plugin-album
 
-Layer 4（feature）— **专辑页**：route/view 描述符与 `useAlbum` 读，从 `plugin-sources` 中拆出。
+Layer 4 (feature) — **the album page**: route/view descriptors and the `useAlbum` read, split out of `plugin-sources`.
 
-## 概述
+## Overview
 
-一个**表面（surface）插件**，刻意很薄：
+A **surface plugin**, deliberately thin:
 
-- 它拥有专辑 route（`/album/:urn`）与 view id（`album.view`）；
-- 它**不声明服务键**——专辑没有自己的状态：详情是读，播放是 `ctx.player` 的事；
-- 目录读仍走 `ctx.sources.getAlbum`：读留在写旁边（MD-3，docs/11 §1.3），`plugin-sources` 依旧是唯一持有目录表的服务。
+- It owns the album route (`/album/:urn`) and view id (`album.view`);
+- It **declares no service key** — an album has no state of its own: the details are a read, and playing is `ctx.player`'s business;
+- Catalogue reads still go through `ctx.sources.getAlbum`: reads stay next to writes (MD-3, docs/11 §1.3), and `plugin-sources` remains the only service holding the catalogue.
 
-拆分的收益：`plugin-sources` 不再背着一块屏幕；专辑专属的工作（跨源链接、补全、专辑编辑）从此有一个不属于源注册表的家。
+The benefit of the split: `plugin-sources` no longer carries a screen, and album-specific work (cross-source links, completion, album editing) now has a home that does not belong to the source registry.
 
-> `placement: []` 而不是省略：桌面 shell 对**缺失** placement 的 route 默认当作 `sidebar`（`r.placement?.includes('sidebar') ?? true`），省略会在侧栏多出一条孤零零的 "Album"。空数组才是"只靠导航到达"（docs/08 §3）。
+> `placement: []` rather than omitted: the desktop shell treats a route with a **missing** placement as `sidebar` by default (`r.placement?.includes('sidebar') ?? true`), so omitting it would add a lonely "Album" entry to the sidebar. The empty array is what means "reachable only via navigation" (docs/08 §3).
 
-## 源文件
+## Source files
 
 ### `src/index.ts`
 
-`apply(ctx)`：
+`apply(ctx)`:
 
-1. `ctx.logger.info('plugin-album: loaded')`；
-2. `ctx.inject(['ui'], scoped => scoped.effect(function*(){ yield scoped.ui.contribute({ kind: 'route', id: 'album.view', path: '/album/:urn', title: 'Album', placement: [], order: 0 }) }, 'album-ui-contributions'))`。
+1. `ctx.logger.info('plugin-album: loaded')`;
+2. `ctx.inject(['ui'], scoped => scoped.effect(function*(){ yield scoped.ui.contribute({ kind: 'route', id: 'album.view', path: '/album/:urn', title: 'Album', placement: [], order: 0 }) }, 'album-ui-contributions'))`.
 
-`ui` 不存在的构建不会卡住：嵌套 inject 是**子 fiber**，未激活只是没有贡献；父插件卸载时子 fiber 一起卸载（返回的 disposer `fiber.dispose()`）。
+A build without `ui` does not get stuck: the nested inject is a **child fiber** — being inactive just means no contribution; when the parent plugin unloads, the child fiber unloads with it (the returned disposer calls `fiber.dispose()`).
 
 ### `src/hooks.ts`
 
-| Hook | 说明 |
+| Hook | Description |
 |---|---|
-| `useAlbum(ctx, urn?)` | `AsyncState<AlbumDetail>`；`undefined` data 与读失败都进 `error`（屏幕对两者说同一句话："这张专辑显示不了"）；`urn` 为空时 `idle`。 |
+| `useAlbum(ctx, urn?)` | `AsyncState<AlbumDetail>`; both `undefined` data and a failed read land in `error` (the screen says the same sentence to both: "this album cannot be shown"); with an empty `urn`, `idle`. |
 
 ### `src/views.ts`
 
 ```ts
 ALBUM_VIEWS = { album: 'album.view' }
-ALBUM_ROUTES = ALBUM_VIEWS   // 同值
+ALBUM_ROUTES = ALBUM_VIEWS   // same values
 ```
 
-## 测试
+## Tests
 
-- `src/index.test.ts`（4）——注册 route 描述符（内容逐字断言）、没有 `ui` 时正常加载、两条卸载快照（有/无 ui）无泄漏。
-- `src/hooks.test.tsx`（3）——读到专辑、缺失专辑进 error 而非空成功、无 urn 时 idle。
+- `src/index.test.ts` (4) — registers the route descriptor (asserted verbatim), loads fine without `ui`, and two unload snapshots (with/without ui) show no leaks.
+- `src/hooks.test.tsx` (3) — reads an album, a missing album lands in error rather than an empty success, and `idle` with no urn.
 
-## 导出
+## Exports
 
 ```ts
 // '.'
 export const name = 'plugin-album'
 export function apply(ctx)
-// './hooks'：useAlbum
-// './views'：ALBUM_VIEWS / ALBUM_ROUTES
+// './hooks': useAlbum
+// './views': ALBUM_VIEWS / ALBUM_ROUTES
 ```
 
-## 相关文档
+## Related docs
 
-- `docs/08-ui-architecture.md` §2–§3：descriptor、双壳、placement
-- `packages/feature/plugin-sources/README.md`：`getAlbum/listAlbums` 仍在那边
-- 视图半边：`packages/ui/plugin-album-ui-desktop/`、`packages/ui/plugin-album-ui-mobile/`
+- `docs/08-ui-architecture.md` §2–§3: descriptors, the two shells, placement
+- `packages/feature/plugin-sources/README.md`: `getAlbum/listAlbums` still live there
+- View halves: `packages/ui/plugin-album-ui-desktop/`, `packages/ui/plugin-album-ui-mobile/`

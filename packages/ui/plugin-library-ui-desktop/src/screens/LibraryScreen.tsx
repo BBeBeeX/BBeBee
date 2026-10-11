@@ -41,7 +41,7 @@ export interface LibraryScreenProps {
    * The route the shell is actually showing right now — not the last
    * `ui/navigate` event. Shell-internal navigation (opening an album,
    * back/forward, home, settings) never emits that event, so the quick
-   * entries (喜欢 / 本地和下载) may only highlight from this prop.
+   * entries (Favorites / Local & downloads) may only highlight from this prop.
    */
   activeViewId?: string
   folderId?: string | null
@@ -218,12 +218,12 @@ export function LibraryScreen({
 
   const favoriteUrns = useMemo(() => savedTrackEntries.data?.map((e) => e.urn) ?? [], [savedTrackEntries.data])
 
-  // 本地用户即创建者：歌单行的 creator 与 "歌单 • X" 副标题都用它。
+  // The local user is the creator: used by both the playlist row's creator and the "Playlist • X" subtitle.
   const profile = useLibraryProfile(ctx)
   const creatorName = profile?.name ?? 'Mine'
 
-  // 收藏夹和本地音乐不再是下方列表里的两张卡：它们作为两个快捷入口渲染在
-  // 音乐库标题之下、筛选工具条之上（见 renderQuickItem）。
+  // Favorites and Local music are no longer two cards in the list below: they render as
+  // two quick entries under the music library title and above the filter toolbar (see renderQuickItem).
 
   const playlistItems: UnifiedItem[] = useMemo(() => {
     return (playlists.data ?? [])
@@ -241,8 +241,8 @@ export function LibraryScreen({
           kind: 'playlist',
           title: playlist.name,
           subtitle: playlist.isSmart
-            ? '智能歌单'
-            : `歌单 • ${playlist.owner ?? creatorName}`,
+            ? 'Smart playlist'
+            : `Playlist • ${playlist.owner ?? creatorName}`,
           creator: playlist.owner ?? creatorName,
           artwork: playlist.artwork ?? playlistFirstTrackArtworks.get(playlist.urn),
           artworkSeed: playlist.urn,
@@ -262,7 +262,7 @@ export function LibraryScreen({
     return (savedAlbumEntries.data ?? []).map((entry) => {
       const detail = albumsMap.get(entry.urn)
       const title = detail?.title ?? entry.urn
-      const artists = detail?.artists?.map((a) => a.name).join(', ') ?? '专辑'
+      const artists = detail?.artists?.map((a) => a.name).join(', ') ?? 'Album'
       const isPinned = isItemPinned({ id: entry.urn, urn: entry.urn })
       const trackUrns = detail?.tracks?.map((t) => t.urn) ?? []
       const lastPlayedAt = trackUrns.length > 0 ? Math.max(0, ...trackUrns.map((u) => historyMap.get(u) ?? 0)) : 0
@@ -274,7 +274,7 @@ export function LibraryScreen({
         urn: entry.urn,
         kind: 'album' as const,
         title,
-        subtitle: `专辑 • ${artists}`,
+        subtitle: `Album • ${artists}`,
         creator: artists,
         artwork: detail?.artwork,
         artworkSeed: entry.urn,
@@ -301,7 +301,7 @@ export function LibraryScreen({
         id: collection.id,
         kind: 'collection',
         title: collection.name,
-        subtitle: `文件夹 • ${collection.itemCount ?? 0} 个项目`,
+        subtitle: `Folder • ${collection.itemCount ?? 0} items`,
         creator: creatorName,
         artwork: collectionFirstArtworks.get(collection.id),
         artworkSeed: collection.id,
@@ -327,7 +327,7 @@ export function LibraryScreen({
         urn: entry.urn,
         kind: 'artist' as const,
         title: name,
-        subtitle: '艺人',
+        subtitle: 'Artist',
         creator: name,
         artwork: undefined,
         artworkSeed: entry.urn,
@@ -399,7 +399,7 @@ export function LibraryScreen({
               urn: matchedPlaylist.urn,
               kind: 'playlist',
               title: matchedPlaylist.name,
-              subtitle: matchedPlaylist.isSmart ? '智能歌单' : `歌单 • ${matchedPlaylist.owner ?? creatorName}`,
+              subtitle: matchedPlaylist.isSmart ? 'Smart playlist' : `Playlist • ${matchedPlaylist.owner ?? creatorName}`,
               creator: matchedPlaylist.owner ?? creatorName,
               artwork: matchedPlaylist.artwork ?? playlistFirstTrackArtworks.get(matchedPlaylist.urn),
               artworkSeed: matchedPlaylist.urn,
@@ -442,8 +442,8 @@ export function LibraryScreen({
                 urn: entry.urn,
                 kind: 'playlist',
                 title: trackObj.title,
-                subtitle: trackObj.artists?.map((a) => a.name).join(', ') ?? '单曲',
-                creator: trackObj.artists?.map((a) => a.name).join(', ') ?? '未知艺人',
+                subtitle: trackObj.artists?.map((a) => a.name).join(', ') ?? 'Single',
+                creator: trackObj.artists?.map((a) => a.name).join(', ') ?? 'Unknown artist',
                 artwork: trackObj.artwork,
                 artworkSeed: entry.urn,
                 pinned: false,
@@ -478,7 +478,7 @@ export function LibraryScreen({
                   urn: detail.urn,
                   kind: 'playlist',
                   title: detail.name,
-                  subtitle: detail.isSmart ? '智能歌单' : `歌单 • ${detail.owner ?? creatorName}`,
+                  subtitle: detail.isSmart ? 'Smart playlist' : `Playlist • ${detail.owner ?? creatorName}`,
                   creator: detail.owner ?? creatorName,
                   artwork: detail.artwork ?? playlistFirstTrackArtworks.get(detail.urn),
                   artworkSeed: detail.urn,
@@ -513,14 +513,14 @@ export function LibraryScreen({
               const album = await ctx.sources?.getAlbum(entry.urn)
               if (album) {
                 const title = album.title ?? entry.urn
-                const artists = album.artists?.map((a) => a.name).join(', ') ?? '专辑'
+                const artists = album.artists?.map((a) => a.name).join(', ') ?? 'Album'
                 const isPinned = isItemPinned({ id: entry.urn, urn: entry.urn })
                 results.push({
                   id: entry.urn,
                   urn: entry.urn,
                   kind: 'album',
                   title,
-                  subtitle: `专辑 • ${artists}`,
+                  subtitle: `Album • ${artists}`,
                   creator: artists,
                   artwork: album.artwork,
                   artworkSeed: entry.urn,
@@ -550,7 +550,7 @@ export function LibraryScreen({
             urn: entry.urn,
             kind: 'playlist',
             title: entry.urn,
-            subtitle: '项目',
+            subtitle: 'Items',
             creator: '',
             artwork: undefined,
             artworkSeed: entry.urn,
@@ -699,25 +699,25 @@ export function LibraryScreen({
   const sortMenuItems: MenuItemSpec[] = [
     {
       id: 'creator',
-      label: '创建者',
+      label: 'Creator',
       icon: sortMode === 'creator' ? tablerIcon('check', { size: 18 }) : undefined,
       onSelect: () => setSortMode('creator'),
     },
     {
       id: 'recent-added',
-      label: '最近添加',
+      label: 'Recently added',
       icon: sortMode === 'recent-added' ? tablerIcon('check', { size: 18 }) : undefined,
       onSelect: () => setSortMode('recent-added'),
     },
     {
       id: 'recent-played',
-      label: '最近播放',
+      label: 'Recently played',
       icon: sortMode === 'recent-played' ? tablerIcon('check', { size: 18 }) : undefined,
       onSelect: () => setSortMode('recent-played'),
     },
     {
       id: 'alphabetical',
-      label: '按字母排序',
+      label: 'Alphabetical',
       icon: sortMode === 'alphabetical' ? tablerIcon('check', { size: 18 }) : undefined,
       onSelect: () => setSortMode('alphabetical'),
     },
@@ -741,8 +741,8 @@ export function LibraryScreen({
         {
           type: 'button',
           'data-testid': 'create-dropdown-trigger',
-          'aria-label': '创建',
-          title: '创建',
+          'aria-label': 'Create',
+          title: 'Create',
           onClick: () => setIsCreateMenuOpen((prev) => !prev),
           style: {
             width: 28,
@@ -781,8 +781,9 @@ export function LibraryScreen({
     )
   }
 
-  // 极简侧边栏快捷入口：扁平行、图标 + 文字 + 数量，选中项圆角浅灰高亮。
-  // 颜色走 light-dark()，随颜色模式在浅色（黑图标/深灰字/浅灰底）与深色间切换。
+  // Minimal sidebar quick entries: flat rows of icon + text + count, the selected one
+  // highlighted with a rounded light grey. Colours go through light-dark(), switching
+  // between light (black icon / dark grey text / light grey background) and dark with the colour mode.
   const renderQuickItem = (
     icon: 'heart' | 'download',
     label: string,
@@ -975,7 +976,7 @@ export function LibraryScreen({
         x: sortMenuAnchor?.x ?? 0,
         y: sortMenuAnchor?.y ?? 0,
         items: sortMenuItems,
-        title: '排序方式',
+        title: 'Sort by',
       }),
     )
   }
@@ -1087,7 +1088,7 @@ export function LibraryScreen({
           onMouseEnter: () => setIsHeaderHovered(true),
           onMouseLeave: () => setIsHeaderHovered(false),
           onClick: () => handleModeChange('collapsed'),
-          title: '收起音乐库',
+          title: 'Collapse music library',
         },
         isHeaderHovered
           ? tablerIcon('layout-sidebar-left-collapse', { size: 26, color: 'var(--bb-text-primary, currentColor)' })
@@ -1102,7 +1103,7 @@ export function LibraryScreen({
               transition: 'color 0.15s ease',
             },
           },
-          '音乐库',
+          'Music library',
         ),
       ),
       h(
@@ -1112,8 +1113,8 @@ export function LibraryScreen({
           'button',
           {
             type: 'button',
-            'aria-label': '展开音乐库',
-            title: '展开音乐库',
+            'aria-label': 'Expand music library',
+            title: 'Expand music library',
             onClick: () => handleModeChange('expanded'),
             style: {
               width: 32,
@@ -1142,11 +1143,11 @@ export function LibraryScreen({
     h(
       'nav',
       {
-        'aria-label': '音乐库快捷入口',
+        'aria-label': 'Music library quick links',
         style: { display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 16 },
       },
-      renderQuickItem('heart', '喜欢', favoriteUrns.length, LIBRARY_VIEWS.favorites),
-      renderQuickItem('download', '本地和下载', localTracks.length, LIBRARY_VIEWS.local),
+      renderQuickItem('heart', 'Favorites', favoriteUrns.length, LIBRARY_VIEWS.favorites),
+      renderQuickItem('download', 'Local & downloads', localTracks.length, LIBRARY_VIEWS.local),
     ),
     h(LibraryToolbar, {
       activeFilter,
@@ -1167,8 +1168,8 @@ export function LibraryScreen({
       filteredItems.length === 0
         ? h(EmptyState, {
             icon: 'music',
-            title: '没有找到内容',
-            description: '导入音乐源、扫描本地文件夹或调整筛选条件。',
+            title: 'Nothing found',
+            description: 'Import a music source, scan local folders, or adjust the filters.',
           })
         : h(
             List<

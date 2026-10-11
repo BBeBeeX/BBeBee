@@ -119,27 +119,27 @@ export function LoudnessNormalizationCard({ ctx }: { ctx: Context }): ReactEleme
     native.View as never,
     null,
     renderSectionHeader(
-      '曲目间音量响度标准化 (Loudness Normalization)',
-      '基于 ReplayGain 与 EBU R128 标准自动平衡不同曲目的音量落差',
+      'Loudness normalization between tracks (Loudness Normalization)',
+      'Automatically balances volume differences between tracks based on ReplayGain and EBU R128',
     ),
     renderCard([
       renderRow(
-        '启用音量响度标准化',
-        isEnabled ? '自动校准曲目响度至标准电平' : '保持原始增益输出',
+        'Enable loudness normalization',
+        isEnabled ? 'Automatically calibrates track loudness to a standard level' : 'Keeps the original gain level',
         renderToggle(isEnabled, handleToggle),
       ),
       isEnabled
         ? h(
             native.View as never,
             { style: { gap: tokens.space[2], marginTop: tokens.space[1] } },
-            h(Text, { variant: 'xs', tone: 'muted', children: '标准化模式' }),
+            h(Text, { variant: 'xs', tone: 'muted', children: 'Normalization mode' }),
             h(
               native.View as never,
               { style: { flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space[1] } },
               [
-                { id: 'track' as LoudnessNormalizationMode, label: '单曲模式' },
-                { id: 'album' as LoudnessNormalizationMode, label: '专辑模式' },
-                { id: 'dynamic' as LoudnessNormalizationMode, label: '动态 R128' },
+                { id: 'track' as LoudnessNormalizationMode, label: 'Track mode' },
+                { id: 'album' as LoudnessNormalizationMode, label: 'Album mode' },
+                { id: 'dynamic' as LoudnessNormalizationMode, label: 'Dynamic R128' },
               ].map((m) =>
                 h(Button, {
                   key: m.id,
@@ -149,14 +149,14 @@ export function LoudnessNormalizationCard({ ctx }: { ctx: Context }): ReactEleme
                 }),
               ),
             ),
-            h(Text, { variant: 'xs', tone: 'muted', children: `目标响度基准 (${currentLufs} LUFS)` }),
+            h(Text, { variant: 'xs', tone: 'muted', children: `Target loudness (${currentLufs} LUFS)` }),
             h(
               native.View as never,
               { style: { flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space[1] } },
               [
-                { lufs: -14, label: '流媒体 (-14)' },
-                { lufs: -18, label: '古典 (-18)' },
-                { lufs: -11, label: '高响度 (-11)' },
+                { lufs: -14, label: 'Streaming (-14)' },
+                { lufs: -18, label: 'Classical (-18)' },
+                { lufs: -11, label: 'Loud (-11)' },
               ].map((item) =>
                 h(Button, {
                   key: item.lufs,

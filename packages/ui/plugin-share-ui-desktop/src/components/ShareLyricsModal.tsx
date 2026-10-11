@@ -76,11 +76,11 @@ export function ShareLyricsModal({
 
   const handleCopyText = useCallback(async () => {
     if (!canCopy) {
-      showDisabledReason('无法复制歌词：请至少勾选一行歌词')
+      showDisabledReason("Can't copy lyrics: select at least one lyric line")
       return
     }
     try {
-      const textToCopy = `${activeLines.join('\n')}\n\n—— ${lyrics.artist}《${lyrics.title}》`
+      const textToCopy = `${activeLines.join('\n')}\n\n—— ${lyrics.artist} "${lyrics.title}"`
       const ok = await copyToClipboard(textToCopy)
       if (ok) {
         setCopiedText(true)
@@ -88,11 +88,11 @@ export function ShareLyricsModal({
         setTimeout(() => setCopiedText(false), 2000)
       } else {
         ctx.logger?.error('Failed to copy lyrics via clipboard')
-        showDisabledReason('无法复制：剪贴板写入失败，请检查系统权限')
+        showDisabledReason("Can't copy: writing to the clipboard failed, check system permissions")
       }
     } catch (err) {
       ctx.logger?.error(`Failed to copy lyrics: ${String(err)}`)
-      showDisabledReason('无法复制：剪贴板写入失败，请检查系统权限')
+      showDisabledReason("Can't copy: writing to the clipboard failed, check system permissions")
     }
   }, [ctx, activeLines, lyrics.artist, lyrics.title, canCopy, showDisabledReason])
 
@@ -113,8 +113,8 @@ export function ShareLyricsModal({
         cardOnly: isCardOnly,
       })
       const filename = isCardOnly
-        ? `${lyrics.artist} - ${lyrics.title} (歌词卡片).png`
-        : `${lyrics.artist} - ${lyrics.title} (歌词分享).png`
+        ? `${lyrics.artist} - ${lyrics.title} (Lyrics card).png`
+        : `${lyrics.artist} - ${lyrics.title} (Lyrics share).png`
       downloadCanvasAsPng(canvas, filename)
     } catch (err) {
       ctx.logger?.error(`Failed to download lyrics share image: ${String(err)}`)
@@ -140,7 +140,7 @@ export function ShareLyricsModal({
           margin: '0 auto',
         },
       },
-      h(ShareModalHeader, { title: '分享歌词', onClose }),
+      h(ShareModalHeader, { title: 'Share lyrics', onClose }),
       h(ShareCardPreview, {
         title: lyrics.title,
         subtitle: lyrics.artist,
@@ -173,8 +173,8 @@ export function ShareLyricsModal({
                   justifyContent: 'space-between',
                 },
               },
-              h('span', null, '点击歌词选择分享行 (最多6行)'),
-              h('span', null, `${activeLines.length} 行已选`),
+              h('span', null, 'Tap lyric lines to choose what gets shared (up to 6)'),
+              h('span', null, `${activeLines.length} selected`),
             ),
             h(
               'div',
@@ -261,7 +261,7 @@ export function ShareLyricsModal({
               transition: 'all 0.15s ease',
             },
           },
-          '整张海报 (大图)',
+          'Full poster (large)',
         ),
         h(
           'button',
@@ -281,7 +281,7 @@ export function ShareLyricsModal({
               transition: 'all 0.15s ease',
             },
           },
-          '仅内部卡片 (小图)',
+          'Inner card only (small)',
         ),
       ),
       imageScope === 'full'
@@ -299,12 +299,12 @@ export function ShareLyricsModal({
         canDownload: true,
         onCopy: handleCopyText,
         onDownload: handleDownload,
-        onDisabledCopyClick: () => showDisabledReason('无法复制歌词：请至少勾选一行歌词'),
+        onDisabledCopyClick: () => showDisabledReason("Can't copy lyrics: select at least one lyric line"),
         onDisabledDownloadClick: () => {},
-        copyText: '复制歌词',
-        copiedText: '已复制歌词',
-        downloadText: '下载图片',
-        downloadingText: '生成中…',
+        copyText: 'Copy lyrics',
+        copiedText: 'Copied lyrics',
+        downloadText: 'Download image',
+        downloadingText: 'Generating…',
       }),
     ),
   )

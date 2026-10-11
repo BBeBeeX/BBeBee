@@ -50,12 +50,12 @@ export function ShareAlbumModal({
     item: album,
     defaultThemeColor: '#FF416C',
     isValid,
-    missingReason: '无法复制：专辑缺少有效标题等元数据',
+    missingReason: "Can't copy: the album is missing a valid title or other metadata",
   })
 
-  const subtitleParts = ['专辑']
+  const subtitleParts = ['Album']
   if (album.artist) subtitleParts.push(album.artist)
-  if (album.trackCount > 0) subtitleParts.push(`${album.trackCount} 首歌曲`)
+  if (album.trackCount > 0) subtitleParts.push(`${album.trackCount} songs`)
   if (album.year) subtitleParts.push(String(album.year))
   const subtitle = subtitleParts.join(' • ')
 
@@ -105,7 +105,7 @@ export function ShareAlbumModal({
           margin: '0 auto',
         },
       },
-      h(ShareModalHeader, { title: '分享专辑', onClose }),
+      h(ShareModalHeader, { title: 'Share album', onClose }),
       h(LocalSourceWarning, { show: isLocal }),
       h(ShareCardPreview, {
         title: album.title,

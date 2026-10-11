@@ -14,19 +14,19 @@ import type { UiService, ThemeService, ThemeDefinition } from '@BBeBee/protocol'
 
 const CATEGORY_MAP: Record<string, { label: string; match: (key: string) => boolean }> = {
   background: {
-    label: '背景 (Background)',
+    label: 'Background',
     match: (k) => k.startsWith('--bg-') || k === '--player-bg' || k.startsWith('--color-bg-'),
   },
   surface: {
-    label: '表面 (Surface)',
+    label: 'Surface',
     match: (k) => k.startsWith('--surface-') || k.startsWith('--color-surface'),
   },
   text: {
-    label: '文本 (Text)',
+    label: 'Text',
     match: (k) => k.startsWith('--text-') || k.startsWith('--color-text-'),
   },
   brand: {
-    label: '品牌与高亮 (Brand & Accent)',
+    label: 'Brand & Accent',
     match: (k) =>
       k.startsWith('--primary') ||
       k.startsWith('--accent') ||
@@ -34,11 +34,11 @@ const CATEGORY_MAP: Record<string, { label: string; match: (key: string) => bool
       k.startsWith('--color-accent'),
   },
   border: {
-    label: '边框 (Border)',
+    label: 'Border',
     match: (k) => k.startsWith('--border-'),
   },
   cardsAndForms: {
-    label: '卡片与表单 (Cards & Forms)',
+    label: 'Cards & Forms',
     match: (k) =>
       k.startsWith('--card-') ||
       k.startsWith('--settings-card-') ||
@@ -48,11 +48,11 @@ const CATEGORY_MAP: Record<string, { label: string; match: (key: string) => bool
       k.startsWith('--logo-'),
   },
   preview: {
-    label: '通用预览与窗口 (Preview & Window)',
+    label: 'Preview & Window',
     match: (k) => k.startsWith('--preview-') || k.startsWith('--lyrics-preview-'),
   },
   semanticAndMusic: {
-    label: '语义与音乐 (Semantic & Music)',
+    label: 'Semantic & Music',
     match: (k) =>
       k === '--success' ||
       k === '--warning' ||
@@ -64,15 +64,15 @@ const CATEGORY_MAP: Record<string, { label: string; match: (key: string) => bool
       k.startsWith('--color-waveform'),
   },
   gradients: {
-    label: '渐变色彩 (Gradients)',
+    label: 'Gradients',
     match: (k) => k.startsWith('--gradient-'),
   },
   glows: {
-    label: '发光光晕 (Glows)',
+    label: 'Glows',
     match: (k) => k.startsWith('--glow-'),
   },
   legacy: {
-    label: '兼容传统变量 (Legacy --bb-*)',
+    label: 'Legacy --bb-*',
     match: (k) => k.startsWith('--bb-'),
   },
 }
@@ -122,7 +122,7 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
 
   const groupedEntries = useMemo(() => {
     if (selectedCategory !== 'all' || searchQuery.trim() !== '') {
-      return [{ categoryKey: 'filtered', label: `筛选结果 (${filteredEntries.length})`, items: filteredEntries }]
+      return [{ categoryKey: 'filtered', label: `Filtered results (${filteredEntries.length})`, items: filteredEntries }]
     }
 
     const groups: { categoryKey: string; label: string; items: [string, string][] }[] = []
@@ -138,7 +138,7 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
 
     const remaining = entries.filter(([k]) => !handled.has(k))
     if (remaining.length > 0) {
-      groups.push({ categoryKey: 'other', label: '其他变量 (Other)', items: remaining })
+      groups.push({ categoryKey: 'other', label: 'Other variables (Other)', items: remaining })
     }
 
     return groups
@@ -192,7 +192,7 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
         { style: { display: 'flex', alignItems: 'center', gap: 16 } },
         h(Button, {
           variant: 'secondary',
-          children: '← 返回调试页',
+          children: '← Back to debug',
           onPress: () => ui?.navigate?.('debug.view'),
         }),
         h(
@@ -209,12 +209,12 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
                 letterSpacing: '-0.02em',
               },
             },
-            '主题变量色板 (Theme Palette)',
+            'Theme variable palette (Theme Palette)',
           ),
           h(
             'div',
             { style: { fontSize: 13, color: 'var(--text-secondary, #94A3B8)', marginTop: 4 } },
-            `当前主题: ${activeTheme.name} (${activeTheme.id}) · 模式: ${effectiveScheme.toUpperCase()} · 共 ${entries.length} 个 CSS 变量`,
+            `Current theme: ${activeTheme.name} (${activeTheme.id}) · Scheme: ${effectiveScheme.toUpperCase()} · ${entries.length} CSS variables in total`,
           ),
         ),
       ),
@@ -228,7 +228,7 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
           {
             type: 'button',
             'data-testid': 'palette-scheme-toggle',
-            title: `切换为 ${effectiveScheme === 'dark' ? '浅色' : '深色'} 模式预览`,
+            title: `Switch to ${effectiveScheme === 'dark' ? 'light' : 'dark'} scheme preview`,
             onClick: () => setEffectiveScheme((prev) => (prev === 'dark' ? 'light' : 'dark')),
             style: {
               display: 'flex',
@@ -245,7 +245,7 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
             },
           },
           effectiveScheme === 'dark' ? tablerIcon('moon', { size: 16 }) : tablerIcon('sun', { size: 16 }),
-          h('span', null, effectiveScheme === 'dark' ? '深色模式 (Dark)' : '浅色模式 (Light)'),
+          h('span', null, effectiveScheme === 'dark' ? 'Dark mode (Dark)' : 'Light mode (Light)'),
         ),
         // Builtin theme switcher
         h(
@@ -315,7 +315,7 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
         h('input', {
           type: 'text',
           'data-testid': 'palette-search-input',
-          placeholder: '搜索变量名或色值 (如 --surface, #FFFFFF, rgba...)',
+          placeholder: 'Search variable names or values (e.g. --surface, #FFFFFF, rgba...)',
           value: searchQuery,
           onChange: (e: { target: { value: string } }) => setSearchQuery(e.target.value),
           style: {
@@ -341,7 +341,7 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
             onClick: () => setSelectedCategory('all'),
             style: categoryButtonStyle(selectedCategory === 'all'),
           },
-          '全部',
+          'All',
         ),
         ...Object.entries(CATEGORY_MAP).map(([catKey, catDef]) =>
           h(
@@ -382,7 +382,7 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
             },
           },
           h('span', null, group.label),
-          h('span', { style: { fontSize: 12, color: 'var(--text-secondary, #64748B)' } }, `${group.items.length} 项`),
+          h('span', { style: { fontSize: 12, color: 'var(--text-secondary, #64748B)' } }, `${group.items.length} items`),
         ),
         h(
           'div',
@@ -442,7 +442,7 @@ function SwatchCard({
     {
       'data-testid': `palette-swatch-${varName}`,
       onClick: onCopy,
-      title: '点击复制 var(...)',
+      title: 'Click to copy var(...)',
       style: {
         display: 'flex',
         alignItems: 'center',
@@ -543,7 +543,7 @@ function SwatchCard({
               fontWeight: 700,
             },
           },
-          '已复制',
+          'Copied',
         )
       : null,
   )

@@ -8,7 +8,8 @@
  * even though the engine runs `video=no`. One missing soname fails the whole
  * dlopen and the engine drops to its no-mpv fallback, where playback still
  * works (Chromium media element) but the visualizer and native device
- * switching are dead — the "mpv 模式下可视化和切换输出设备无效" report. An
+ * switching are dead — the "visualizer and output-device switching do not
+ * work in mpv mode" report. An
  * allowlist of media libraries cannot express that closure; a denylist of
  * the glibc core can. Shipping a private libc would be actively dangerous,
  * and libstdc++/libgcc_s exist on any distro that can start Electron, so

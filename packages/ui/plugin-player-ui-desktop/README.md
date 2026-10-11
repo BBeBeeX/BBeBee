@@ -1,52 +1,52 @@
 # @BBeBee/plugin-player-ui-desktop
 
-Layer 5（ui）— `plugin-player`（headless）的桌面视图包。
+Layer 5 (ui) — the desktop view package of `plugin-player` (headless).
 
-## 概述
+## Overview
 
-布局、手势与事件接线——别无其他。每个值都来自 headless 包的 hook，如果这里有个 `if` 在移动视图里也成立，它就属于 `plugin-player/hooks`（docs/08 §1）。
+Layout, gestures, and event wiring — nothing else. Every value comes from a headless-package hook, and if an `if` here would also hold in the mobile view, it belongs in `plugin-player/hooks` (docs/08 §1).
 
-**平台形状的差异**：桌面上的"正在播放"面是一个**常驻底部走带条**而非整屏——这是真正由平台决定的差异，也正是 ADR-2 接受把视图写两遍的原因。
+**The platform-shape difference**: the desktop "now playing" surface is a **persistent bottom transport bar** rather than a full screen — a difference genuinely decided by the platform, and exactly why ADR-2 accepts paying to write the views twice.
 
-## 源文件
+## Source files
 
 ### `src/index.tsx`
 
-**注册的视图**（generator effect `'player-ui-desktop'`，绑定到 headless 的 `PLAYER_VIEWS` id）：
+**Registered views** (generator effect `'player-ui-desktop'`, bound to the headless `PLAYER_VIEWS` ids):
 
-| id | 组件 |
+| id | Component |
 |---|---|
 | `player.now-playing` | `NowPlayingBar` |
 | `player.queue` | `QueueScreen` |
 
-**组件**：
+**Components**:
 
-- **`NowPlayingBar({ ctx })`** — 常驻底部走带条（`role="region"` + `aria-label="Now playing"`，上边框分隔、`bg.raised` 底）。`useTransport`/`usePosition`/`useDuration`/`useTransportAvailability` 四个 headless hook 供数。三段布局：
-  - 左：⏮ / ⏯ / ⏭ 三个 `IconButton`。**⏯ 是一个控件两个状态**（`can.canPause ? '⏸' : '▶'`，label 同步切换）——"一个时而变暂停的播放键是每个播放器都有的，两个控件就错了"；可用性由 `useTransportAvailability` 决定 disabled。
-  - 中：进度区。**`stalled` 不是 `paused`**：UI 显示 "Buffering…"、锁屏继续报 playing，underrun 时谁也不闪。`Slider` 只接 `onCommit`（"每一帧都 seek 的 scrubber 不可用"），`disabled: !can.canSeek`；时间标签用 `formatDuration`。
-  - 右：🔇/🔊 切换 + 音量 `Slider`（0–100，`onCommit` 换算回 0–1）。
-- **`QueueScreen({ ctx })`** — up-next 列表。空队列 → `EmptyState`（🎵 "Nothing queued"）；否则 `List<QueueItem>`（`estimatedItemSize: tokens.size.row`，`keyExtractor: item.id`）+ `TrackRow`，`active: item.id === state.currentItemId`。两个诚实让步（注释明说）：
-  1. 队列里是 URN 不是 track——行组件用 `{ urn, title: urn, artists: [] }` 充数，"标题随后续里程碑的目录读取到来"；
-  2. `PlayerService` 尚无"跳到这条队列项"，所以行点击是 `playNow([urn])` 而非假装重新定位队列——"一个悄悄做错事的可供性，比一个做得更少的可供性更糟"。
+- **`NowPlayingBar({ ctx })`** — the persistent bottom transport bar (`role="region"` + `aria-label="Now playing"`, top border separator, `bg.raised` background). Fed by the four headless hooks `useTransport`/`usePosition`/`useDuration`/`useTransportAvailability`. Three-section layout:
+  - Left: three `IconButton`s ⏮ / ⏯ / ⏭. **⏯ is one control with two states** (`can.canPause ? '⏸' : '▶'`, the label switching with it) — "a play button that sometimes becomes pause is in every player; two controls is wrong"; availability from `useTransportAvailability` decides `disabled`.
+  - Middle: the progress area. **`stalled` is not `paused`**: the UI shows "Buffering…", the lock screen keeps reporting playing, and on underrun neither blinks. The `Slider` takes only `onCommit` ("a scrubber that seeks on every frame is unusable"), `disabled: !can.canSeek`; time labels use `formatDuration`.
+  - Right: the 🔇/🔊 toggle + a volume `Slider` (0–100, `onCommit` converts back to 0–1).
+- **`QueueScreen({ ctx })`** — the up-next list. Empty queue → `EmptyState` (🎵 "Nothing queued"); otherwise `List<QueueItem>` (`estimatedItemSize: tokens.size.row`, `keyExtractor: item.id`) + `TrackRow`, `active: item.id === state.currentItemId`. Two honest compromises (stated in comments):
+  1. The queue holds URNs, not tracks — the row component makes do with `{ urn, title: urn, artists: [] }`, "titles arrive with a later milestone's catalogue reads";
+  2. `PlayerService` has no "jump to this queue item" yet, so a row click is `playNow([urn])` rather than pretending to reposition the queue — "an affordance that quietly does the wrong thing is worse than one that does less".
 
-**`bound(ctx, Screen)`** — 闭包本插件 `apply` 时的 context（shell 的 context 只有 `ui`，hooks 读 `ctx.player` 会抛 `cannot get property "player" without inject`——"设备上抛错、测试全绿"正是此 bug 的形状，因为测试建的是 root context）。必须 `h(Screen, …)` 而非函数调用（hook 链会被拼错）。
+**`bound(ctx, Screen)`** — closes over the context at this plugin's `apply` time (the shell's context carries only `ui`; the hooks reading `ctx.player` there throw `cannot get property "player" without inject` — "throws on device, all tests green" is exactly the shape of that bug, because tests build a root context). Must be `h(Screen, …)` rather than a function call (the hook chain would be misassembled).
 
-## 声明与导出
+## Declaration & exports
 
 ```ts
 export const name = 'plugin-player-ui-desktop'
 export const inject = ['ui', 'player']
 export function NowPlayingBar / QueueScreen
-export async function apply(ctx)      // generator effect：registerView × 2
+export async function apply(ctx)      // generator effect: registerView × 2
 export default { name, inject, apply }
 ```
 
-## 测试
+## Tests
 
-`src/index.test.tsx`：走带条与队列屏的标记断言（控件可达性、stalled 文案、空态）。
+`src/index.test.tsx`: markup assertions for the transport bar and queue screen (control accessibility, the `stalled` copy, empty state).
 
-## 相关文档
+## Related docs
 
-- `docs/05-audio-playback.md`：transport 状态（`stalled` 语义）
-- `packages/feature/plugin-player/README.md`：hooks 与视图 id 的来源
-- `packages/ui/plugin-player-ui-mobile/README.md`：孪生半边（整屏版）
+- `docs/05-audio-playback.md`: the transport state (the `stalled` semantics)
+- `packages/feature/plugin-player/README.md`: where the hooks and view ids come from
+- `packages/ui/plugin-player-ui-mobile/README.md`: the twin half (full-screen version)

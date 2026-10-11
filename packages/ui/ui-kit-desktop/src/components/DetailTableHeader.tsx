@@ -17,7 +17,7 @@ export interface DetailColumnSpec {
   paddingRight?: number
   /** Rendered before the label (the duration column's clock). */
   icon?: ReactNode
-  /** A plain div — not clickable, never shows a sort arrow (compact 艺人). */
+  /** A plain div — not clickable, never shows a sort arrow (compact artist). */
   plain?: boolean
   /** false removes the column (view-mode dependent columns). */
   visible?: boolean

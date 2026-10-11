@@ -35,7 +35,7 @@ export const SOURCES_VIEWS = {
   recommend: 'sources.recommend',
   /**
    * One source's whole recommendation feed as a grid, twenty cards per
-   * step, with a show-more control — the page "显示全部" lands on.
+   * step, with a show-more control — the page "Show all" lands on.
    */
   recommendAll: 'sources.recommend.all',
 } as const

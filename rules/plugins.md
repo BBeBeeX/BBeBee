@@ -2,9 +2,9 @@
 
 Guidelines for writing and modifying BBeBee plugins (Layers 2, 4, 5).
 
-> **L2 · 何时读**：写或改任何插件时——入口形态、fiber 副作用、`inject` 依赖、能力语法、15 字段 manifest。
-> **不读会怎样**：disposer 被丢弃导致卸载泄漏、误闯能力门禁、manifest 字段与代码事实不符，`pnpm check` 与运行期双双出错。
-> **深读指引**：docs/plugins/concepts.md §2–§3（生命周期与依赖原理）、docs/plugins/loading.md §6（加载架构）、docs/plugins/capabilities.md §7（门禁模型）。
+> **L2 · When to read**: when writing or modifying any plugin — entry shape, fiber side effects, `inject` dependencies, capability grammar, the 15-field manifest.
+> **What goes wrong without it**: a discarded disposer leaks on unload, the capability gate trips unexpectedly, manifest fields disagree with the code — `pnpm check` and runtime both fail.
+> **Deeper reading**: docs/plugins/concepts.md §2–§3 (lifecycle and dependency principles), docs/plugins/loading.md §6 (loading architecture), docs/plugins/capabilities.md §7 (the gate model).
 
 ---
 

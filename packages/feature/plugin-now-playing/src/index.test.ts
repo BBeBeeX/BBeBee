@@ -132,8 +132,8 @@ describe('plugin-now-playing style preference', () => {
     // Register custom sandboxed plugin style
     const customStyle = {
       id: 'neon-cyberpunk',
-      name: '霓虹赛博',
-      description: '动态全息流光沙箱插件',
+      name: 'Neon Cyber',
+      description: 'Dynamic holographic glow sandbox plugin',
       icon: 'sparkles',
       author: 'Tester',
       htmlContent: '<html><body>Hello Neon</body></html>',

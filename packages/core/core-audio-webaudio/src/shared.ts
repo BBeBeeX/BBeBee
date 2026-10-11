@@ -300,14 +300,14 @@ function isGenericPlaceholder(label: string): boolean {
   const trimmed = label.trim()
   return (
     trimmed === '' ||
-    trimmed === '音频输出设备' ||
-    trimmed.startsWith('音频输出设备 (') ||
-    trimmed === '系统默认音频设备 (System Default)' ||
-    trimmed === '系统默认音频设备' ||
-    trimmed === '系统默认音频终端 (WASAPI Exclusive)' ||
-    trimmed === '默认音频终端 (WASAPI Exclusive)' ||
-    trimmed === '系统默认音频输出 (System Default)' ||
-    trimmed === '默认音频设备' ||
+    trimmed === 'Audio output device' ||
+    trimmed.startsWith('Audio output device (') ||
+    trimmed === 'System default audio device (System Default)' ||
+    trimmed === 'System default audio device' ||
+    trimmed === 'System default audio endpoint (WASAPI Exclusive)' ||
+    trimmed === 'Default audio endpoint (WASAPI Exclusive)' ||
+    trimmed === 'System default audio output (System Default)' ||
+    trimmed === 'Default audio device' ||
     trimmed === 'Default Audio Device' ||
     trimmed === 'Audio Output Device'
   )
@@ -316,9 +316,9 @@ function isGenericPlaceholder(label: string): boolean {
 function normalizeBaseLabel(l: string): string {
   return (l || '')
     .toLowerCase()
-    .replace(/\s*(\(虚拟\)|\[虚拟\])\s*$/g, '')
-    .replace(/^(默认\s*[-–:：]\s*|default\s*[-–:：]\s*|系统默认\s*[-–:：]\s*)/i, '')
-    .replace(/\s*\((system default|默认)\)$/i, '')
+    .replace(/\s*(\(virtual\)|\[virtual\])\s*$/g, '')
+    .replace(/^(default\s*[-–:]\s*|system default\s*[-–:]\s*)/i, '')
+    .replace(/\s*\((system default|default)\)$/i, '')
     .trim()
 }
 
@@ -328,8 +328,8 @@ function cleanAndTagDeviceLabel(
   isVirtualHint?: boolean,
 ): { label: string; isVirtual: boolean } {
   let label = (rawLabel || '')
-    .replace(/^(默认\s*[-–:：]\s*|Default\s*[-–:：]\s*|系统默认\s*[-–:：]\s*)/i, '')
-    .replace(/\s*\((System Default|默认)\)$/i, '')
+    .replace(/^(default\s*[-–:]\s*|system default\s*[-–:]\s*)/i, '')
+    .replace(/\s*\((System Default|Default)\)$/i, '')
     .trim()
 
   if (isGenericPlaceholder(label)) {
@@ -338,14 +338,14 @@ function cleanAndTagDeviceLabel(
 
   const isVirtual = Boolean(
     isVirtualHint ||
-      /voicemeeter|vb-audio|vbaudio|virtual|虚拟|todesk|steam streaming|sonar|null sink|null-sink|null_sink|loopback|blackhole|soundflower|obs|easyeffects|pulseeffects|scream|discord/i.test(
+      /voicemeeter|vb-audio|vbaudio|virtual|todesk|steam streaming|sonar|null sink|null-sink|null_sink|loopback|blackhole|soundflower|obs|easyeffects|pulseeffects|scream|discord/i.test(
         `${label} ${id || ''}`,
       ),
   )
 
-  label = label.replace(/\s*(\(虚拟\)|\[虚拟\])\s*$/g, '').trim()
-  if (isVirtual && label && !label.endsWith('(虚拟)')) {
-    label = `${label} (虚拟)`
+  label = label.replace(/\s*(\(Virtual\)|\[Virtual\])\s*$/g, '').trim()
+  if (isVirtual && label && !label.endsWith('(Virtual)')) {
+    label = `${label} (Virtual)`
   }
 
   return { label, isVirtual }
@@ -506,7 +506,7 @@ export async function enumerateOutputDevices(opts: {
 
     const finalLabel = !isGenericPlaceholder(cleanLabel)
       ? cleanLabel
-      : (matchedBridge?.label && !isGenericPlaceholder(matchedBridge.label) ? matchedBridge.label : '音频输出设备')
+      : (matchedBridge?.label && !isGenericPlaceholder(matchedBridge.label) ? matchedBridge.label : 'Audio output device')
 
     opts.logger?.debug?.(
       'audio: processed device[%d]: id="%s", final="%s", isVirtual=%s',
@@ -529,7 +529,7 @@ export async function enumerateOutputDevices(opts: {
 
   // Fallback only if enumerateDevices returned nothing (e.g. headless unit tests)
   if (bridgeDevices.length > 0) {
-    const fallbackLabel = cleanAndTagDeviceLabel(bridgeDevices[0]!.label).label || '音频输出设备'
+    const fallbackLabel = cleanAndTagDeviceLabel(bridgeDevices[0]!.label).label || 'Audio output device'
     opts.logger?.warn?.('audio: fallback to bridge devices (1 device): %s', fallbackLabel)
     return [
       {
@@ -542,5 +542,5 @@ export async function enumerateOutputDevices(opts: {
   }
 
   opts.logger?.warn?.('audio: default fallback (no devices discovered anywhere)')
-  return [{ id: 'default', label: '音频输出设备', isDefault: true, isVirtual: false }]
+  return [{ id: 'default', label: 'Audio output device', isDefault: true, isVirtual: false }]
 }

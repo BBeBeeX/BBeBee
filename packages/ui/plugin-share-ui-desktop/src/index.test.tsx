@@ -76,26 +76,26 @@ describe('plugin-share-ui-desktop', () => {
   it('renders ShareCardPreview for track and lyrics', () => {
     const { container: trackContainer } = render(
       h(ShareCardPreview, {
-        title: '七里香',
-        subtitle: '周杰伦',
+        title: 'Orange Sky',
+        subtitle: 'Demo Artist',
         themeColor: '#FF6B00',
         backgroundMode: 'gradient',
       }),
     )
-    expect(trackContainer.textContent).toContain('七里香')
-    expect(trackContainer.textContent).toContain('周杰伦')
+    expect(trackContainer.textContent).toContain('Orange Sky')
+    expect(trackContainer.textContent).toContain('Demo Artist')
 
     const { container: lyricsContainer } = render(
       h(ShareCardPreview, {
-        title: '幸福不是情歌',
-        subtitle: '刘若英',
+        title: 'Demo Song',
+        subtitle: 'Demo Artist',
         themeColor: '#79486D',
         backgroundMode: 'cover',
-        lyrics: ['人生的挫折 好在有舍就有得', '曾真心付出的 都会是值得的'],
+        lyrics: ['Every setback finds its own reward', 'What was given truly always pays off'],
       }),
     )
-    expect(lyricsContainer.textContent).toContain('幸福不是情歌')
-    expect(lyricsContainer.textContent).toContain('人生的挫折 好在有舍就有得')
+    expect(lyricsContainer.textContent).toContain('Demo Song')
+    expect(lyricsContainer.textContent).toContain('Every setback finds its own reward')
   })
 
   it('renders ShareTrackModal with background modes and action buttons', () => {
@@ -112,11 +112,11 @@ describe('plugin-share-ui-desktop', () => {
         },
       }),
     )
-    expect(baseElement.textContent).toContain('分享歌曲')
-    expect(baseElement.textContent).toContain('背景调节')
-    expect(baseElement.textContent).toContain('纯主题色')
-    expect(baseElement.textContent).toContain('复制 Base64')
-    expect(baseElement.textContent).toContain('下载图片')
+    expect(baseElement.textContent).toContain('Share song')
+    expect(baseElement.textContent).toContain('Background')
+    expect(baseElement.textContent).toContain('Solid theme color')
+    expect(baseElement.textContent).toContain('Copy Base64')
+    expect(baseElement.textContent).toContain('Download image')
   })
 
   it('renders SharePlaylistModal with background modes and action buttons', () => {
@@ -133,12 +133,12 @@ describe('plugin-share-ui-desktop', () => {
         },
       }),
     )
-    expect(baseElement.textContent).toContain('分享歌单')
+    expect(baseElement.textContent).toContain('Share playlist')
     expect(baseElement.textContent).toContain('My Favorites')
-    expect(baseElement.textContent).toContain('背景调节')
-    expect(baseElement.textContent).toContain('纯主题色')
-    expect(baseElement.textContent).toContain('复制 Base64')
-    expect(baseElement.textContent).toContain('下载图片')
+    expect(baseElement.textContent).toContain('Background')
+    expect(baseElement.textContent).toContain('Solid theme color')
+    expect(baseElement.textContent).toContain('Copy Base64')
+    expect(baseElement.textContent).toContain('Download image')
   })
 
   it('renders ShareLyricsModal with lyric lines', () => {
@@ -150,16 +150,16 @@ describe('plugin-share-ui-desktop', () => {
         onClose: () => {},
         lyrics: {
           trackUrn: 'source:test:track:1',
-          title: '幸福不是情歌',
-          artist: '刘若英',
-          lines: ['人生的挫折 好在有舍就有得', '曾真心付出的 都会是值得的'],
+          title: 'Demo Song',
+          artist: 'Demo Artist',
+          lines: ['Every setback finds its own reward', 'What was given truly always pays off'],
         },
       }),
     )
-    expect(baseElement.textContent).toContain('分享歌词')
-    expect(baseElement.textContent).toContain('人生的挫折 好在有舍就有得')
-    expect(baseElement.textContent).toContain('复制歌词')
-    expect(baseElement.textContent).toContain('下载图片')
+    expect(baseElement.textContent).toContain('Share lyrics')
+    expect(baseElement.textContent).toContain('Every setback finds its own reward')
+    expect(baseElement.textContent).toContain('Copy lyrics')
+    expect(baseElement.textContent).toContain('Download image')
   })
 
   it('renders ImportShareModal with dropzone and base64 input', () => {
@@ -171,9 +171,9 @@ describe('plugin-share-ui-desktop', () => {
         onClose: () => {},
       }),
     )
-    expect(baseElement.textContent).toContain('读取 / 导入分享')
-    expect(baseElement.textContent).toContain('拖放分享图片至此')
-    expect(baseElement.textContent).toContain('或者直接粘贴 Base64 数据：')
+    expect(baseElement.textContent).toContain('Read / import share')
+    expect(baseElement.textContent).toContain('Drop a share image here')
+    expect(baseElement.textContent).toContain('Or paste Base64 data directly:')
   })
 
   it('handles play now and enqueue in ImportShareModal', async () => {
@@ -200,12 +200,12 @@ describe('plugin-share-ui-desktop', () => {
       }),
     )
 
-    const input = getByPlaceholderText('粘贴 Base64 分享数据…')
+    const input = getByPlaceholderText('Paste Base64 share data…')
     fireEvent.change(input, { target: { value: b64 } })
 
     expect(getByText('Shared Song')).toBeDefined()
 
-    const playNowBtn = getByText('立即播放')
+    const playNowBtn = getByText('Play now')
     fireEvent.click(playNowBtn)
     await Promise.resolve()
 
@@ -228,12 +228,12 @@ describe('plugin-share-ui-desktop', () => {
         },
       }),
     )
-    expect(baseElement.textContent).toContain('分享专辑')
+    expect(baseElement.textContent).toContain('Share album')
     expect(baseElement.textContent).toContain('Fantasy')
     expect(baseElement.textContent).toContain('Jay Chou')
-    expect(baseElement.textContent).toContain('纯主题色')
-    expect(baseElement.textContent).toContain('复制 Base64')
-    expect(baseElement.textContent).toContain('下载图片')
+    expect(baseElement.textContent).toContain('Solid theme color')
+    expect(baseElement.textContent).toContain('Copy Base64')
+    expect(baseElement.textContent).toContain('Download image')
   })
 
   it('shows disabled explanation toast when disabled copy button is clicked in ShareLyricsModal', () => {
@@ -245,16 +245,16 @@ describe('plugin-share-ui-desktop', () => {
         onClose: () => {},
         lyrics: {
           trackUrn: 'source:test:track:1',
-          title: '幸福不是情歌',
-          artist: '刘若英',
-          lines: ['第一句歌词', '第二句歌词'],
+          title: 'Demo Song',
+          artist: 'Demo Artist',
+          lines: ['First demo lyric line', 'Second demo lyric line'],
         },
       }),
     )
 
     // Initially 2 lines are selected. Unselect them to make copy disabled.
     const lyricRowButtons = getAllByRole('button').filter(
-      (el) => el.textContent?.includes('第一句歌词') || el.textContent?.includes('第二句歌词'),
+      (el) => el.textContent?.includes('First demo lyric line') || el.textContent?.includes('Second demo lyric line'),
     )
     expect(lyricRowButtons.length).toBe(2)
     fireEvent.click(lyricRowButtons[0]!)
@@ -271,7 +271,7 @@ describe('plugin-share-ui-desktop', () => {
     fireEvent.click(disabledBtn)
     const toast = getByTestId('copy-disabled-reason-toast')
     expect(toast).toBeDefined()
-    expect(toast.textContent).toContain('无法复制歌词：请至少勾选一行歌词')
+    expect(toast.textContent).toContain("Can't copy lyrics: select at least one lyric line")
   })
 
   it('shows disabled explanation toast when metadata is invalid in ShareAlbumModal', () => {
@@ -296,7 +296,7 @@ describe('plugin-share-ui-desktop', () => {
     fireEvent.click(disabledBtn)
     const toast = getByTestId('copy-disabled-reason-toast')
     expect(toast).toBeDefined()
-    expect(toast.textContent).toContain('无法复制：专辑缺少有效标题等元数据')
+    expect(toast.textContent).toContain("Can't copy: the album is missing a valid title or other metadata")
   })
 
   it('displays warning banner and disables copy/download for local track', () => {
@@ -318,7 +318,7 @@ describe('plugin-share-ui-desktop', () => {
     // Warning banner should be visible
     const warning = getByTestId('local-source-warning')
     expect(warning).toBeDefined()
-    expect(warning.textContent).toContain('无法分享本地音乐')
+    expect(warning.textContent).toContain("Can't share local music")
 
     // Copy and download buttons should be disabled
     const copyBtn = getByTestId('copy-base64-disabled-btn')
@@ -326,15 +326,15 @@ describe('plugin-share-ui-desktop', () => {
     expect(copyBtn).toBeDefined()
     expect(downloadBtn).toBeDefined()
 
-    // Clicking disabled copy button shows '无法分享本地音乐'
+    // Clicking disabled copy button shows the local-music warning
     fireEvent.click(copyBtn)
     let toast = getByTestId('copy-disabled-reason-toast')
-    expect(toast.textContent).toContain('无法分享本地音乐')
+    expect(toast.textContent).toContain("Can't share local music")
 
-    // Clicking disabled download button shows '无法分享本地音乐'
+    // Clicking disabled download button shows the local-music warning
     fireEvent.click(downloadBtn)
     toast = getByTestId('copy-disabled-reason-toast')
-    expect(toast.textContent).toContain('无法分享本地音乐')
+    expect(toast.textContent).toContain("Can't share local music")
   })
 
   it('displays warning banner and disables copy/download for local playlist and album', () => {
@@ -351,7 +351,7 @@ describe('plugin-share-ui-desktop', () => {
         },
       }),
     )
-    expect(getPlaylistTestId('local-source-warning').textContent).toContain('无法分享本地音乐')
+    expect(getPlaylistTestId('local-source-warning').textContent).toContain("Can't share local music")
     expect(getPlaylistTestId('copy-base64-disabled-btn')).toBeDefined()
     expect(getPlaylistTestId('download-disabled-btn')).toBeDefined()
 
@@ -369,7 +369,7 @@ describe('plugin-share-ui-desktop', () => {
         },
       }),
     )
-    expect(getAlbumTestId('local-source-warning').textContent).toContain('无法分享本地音乐')
+    expect(getAlbumTestId('local-source-warning').textContent).toContain("Can't share local music")
     expect(getAlbumTestId('copy-base64-disabled-btn')).toBeDefined()
     expect(getAlbumTestId('download-disabled-btn')).toBeDefined()
   })
@@ -444,7 +444,7 @@ describe('plugin-share-ui-desktop', () => {
       }),
     )
 
-    const input = getByPlaceholderText('粘贴 Base64 分享数据…')
+    const input = getByPlaceholderText('Paste Base64 share data…')
     fireEvent.change(input, { target: { value: b64WithHttpCover } })
 
     const img = getByAltText('artwork') as HTMLImageElement

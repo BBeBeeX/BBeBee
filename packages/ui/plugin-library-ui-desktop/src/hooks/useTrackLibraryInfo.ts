@@ -20,9 +20,9 @@ export function useTrackLibraryInfo(ctx: Context) {
 
   // A row's `track.loved` is the value of whoever handed the row over — the
   // local screen's mount-time snapshot can be stale by hours. When a
-  // favourite write fires `library/changed`, re-read the changed URNs from
+  // favorite write fires `library/changed`, re-read the changed URNs from
   // the catalogue so the heart follows the truth and not the snapshot; this
-  // is what makes unfavourite drop a row's heart back to a plus.
+  // is what makes unfavorite drop a row's heart back to a plus.
   const [lovedLive, setLovedLive] = useState<Map<string, boolean>>(new Map())
   useEffect(() => {
     const off = ctx.on('library/changed', (kind, urns) => {
@@ -93,10 +93,10 @@ export function useTrackLibraryInfo(ctx: Context) {
     const items: MenuItemSpec[] = [
       {
         id: 'create-new-playlist',
-        label: '新建歌单',
+        label: 'New playlist',
         icon: 'plus',
         onSelect: async () => {
-          const name = window.prompt('歌单名称：')
+          const name = window.prompt('Playlist name:')
           if (name && name.trim()) {
             const p = await library.createPlaylist(name.trim())
             if (p) await library.addTracks(p.urn, [track.urn])

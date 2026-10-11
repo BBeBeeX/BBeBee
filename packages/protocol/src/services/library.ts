@@ -1,5 +1,5 @@
 /**
- * `ctx.library` — the user's curation: playlists, favourites, collections.
+ * `ctx.library` — the user's curation: playlists, favorites, collections.
  *
  * Deliberately *not* the catalogue. `ctx.sources` owns which backends exist and
  * what they hold; this service owns what the user did with it. The split is
@@ -8,7 +8,7 @@
  *
  * Three shapes of curation, one service:
  *
- *   favourites   `library_items` — "this URN is saved", toggleable, one row
+ *   favorites   `library_items` — "this URN is saved", toggleable, one row
  *   playlists    `playlists` + `playlist_items` — an ordered list of tracks,
  *                or a **smart** playlist, which stores a rule tree and
  *                resolves it to tracks at read time
@@ -114,7 +114,7 @@ export interface AddTracksOptions {
 /* ── The service ────────────────────────────────────────────────────────── */
 
 export interface LibraryService {
-  /* ── favourites ────────────────────────────────────────────────────── */
+  /* ── favorites ────────────────────────────────────────────────────── */
 
   /** Whether the URN is on a shelf. Invalid URNs answer `false`, never throw. */
   isSaved(urn: string): Promise<boolean>
@@ -134,7 +134,7 @@ export interface LibraryService {
   /**
    * Pin or unpin a saved row.
    *
-   * Pins are what keep a favourite at the top of a 500-row shelf without a
+   * Pins are what keep a favorite at the top of a 500-row shelf without a
    * separate "sort" the user has to re-apply after every sync.
    */
   setPinned(urn: string, pinned: boolean): Promise<void>

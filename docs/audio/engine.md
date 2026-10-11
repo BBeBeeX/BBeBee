@@ -148,7 +148,7 @@ effects are rebuilt without ever touching a playing source. The two lifetimes ar
   - **Engine Choice (Default: MPV Hi-Fi on Windows, WebAudio elsewhere)**: MPV Hi-Fi provides native crash isolation and direct WASAPI output; WebAudio provides the standard Web Audio graph.
   - **Exclusive Mode (`audioExclusive`, default: `false`)**: When the MPV Hi-Fi engine is active, a dedicated toggle switch appears beneath the audio backend selector.
 
-    > 规范见 [rules/services.md §7](../../rules/services.md#7-native-audio-engine--exclusive-mode)（L2），本节只讲原理与用法。
+    > see the spec at [rules/services.md §7](../../rules/services.md#7-native-audio-engine--exclusive-mode) (L2); this section covers only principles and usage.
 
   - **Selectable Audio Output Devices**:
     - **Full System Hardware Probing**: Electron main process unmasks Chromium device labels by handling `'speaker-selection'` and `'media'` permissions, while querying native OS subsystems (Windows Registry & CIM MMDevices, macOS System Profiler, Linux pactl/aplay) to resolve exact hardware friendly names (speakers, headphones, external USB DACs).

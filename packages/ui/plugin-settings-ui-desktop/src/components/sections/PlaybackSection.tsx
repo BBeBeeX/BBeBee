@@ -155,53 +155,54 @@ export function PlaybackSection({
     const t = text.trim()
     return (
       t === '' ||
-      t === '音频输出设备' ||
-      t.startsWith('音频输出设备 (') ||
-      t === '系统默认音频设备 (System Default)' ||
-      t === '系统默认音频设备' ||
-      t === '系统默认音频终端 (WASAPI Exclusive)' ||
-      t === '默认音频终端 (WASAPI Exclusive)' ||
-      t === '系统默认音频输出 (System Default)' ||
-      t === '默认音频设备' ||
+      t === 'Audio output device' ||
+      t.startsWith('Audio output device (') ||
+      t === 'System default audio device (System Default)' ||
+      t === 'System default audio device' ||
+      t === 'System default audio endpoint (WASAPI Exclusive)' ||
+      t === 'Default audio endpoint (WASAPI Exclusive)' ||
+      t === 'System default audio output (System Default)' ||
+      t === 'Default audio device' ||
       t === 'Default Audio Device' ||
       t === 'Audio Output Device'
     )
   }
 
   const formatDeviceLabel = (label: string, id?: string, isVirtual?: boolean): string => {
+    // Also strip localized (zh) OS prefixes/suffixes via \u escapes.
     let clean = (label || '')
-      .replace(/^(默认\s*[-–:：]\s*|Default\s*[-–:：]\s*|系统默认\s*[-–:：]\s*)/i, '')
-      .replace(/\s*\((System Default|默认)\)$/i, '')
+      .replace(/^(\u9ED8\u8BA4\s*[-–:：]\s*|Default\s*[-–:：]\s*|\u7CFB\u7EDF\u9ED8\u8BA4\s*[-–:：]\s*)/i, '')
+      .replace(/\s*\((System Default|\u9ED8\u8BA4)\)$/i, '')
       .trim()
 
     if (isGenericPlaceholder(clean)) {
       const realDevice = outputDevices.find((o) => !isGenericPlaceholder(o.label))
       if (realDevice?.label) {
         clean = realDevice.label
-          .replace(/^(默认\s*[-–:：]\s*|Default\s*[-–:：]\s*|系统默认\s*[-–:：]\s*)/i, '')
-          .replace(/\s*\((System Default|默认)\)$/i, '')
+          .replace(/^(\u9ED8\u8BA4\s*[-–:：]\s*|Default\s*[-–:：]\s*|\u7CFB\u7EDF\u9ED8\u8BA4\s*[-–:：]\s*)/i, '')
+          .replace(/\s*\((System Default|\u9ED8\u8BA4)\)$/i, '')
           .trim()
       }
     }
 
     if (isGenericPlaceholder(clean)) {
-      clean = '音频输出设备'
+      clean = 'Audio output device'
     }
 
     const virtualDetected =
       isVirtual ||
-      /voicemeeter|vb-audio|vbaudio|virtual|虚拟|todesk|steam streaming|sonar|null sink|null-sink|null_sink|loopback|blackhole|soundflower|obs|easyeffects|pulseeffects|scream|discord/i.test(
+      /voicemeeter|vb-audio|vbaudio|virtual|\u865A\u62DF|todesk|steam streaming|sonar|null sink|null-sink|null_sink|loopback|blackhole|soundflower|obs|easyeffects|pulseeffects|scream|discord/i.test(
         `${clean} ${id || ''}`,
       )
 
-    clean = clean.replace(/\s*(\(虚拟\)|\[虚拟\])\s*$/g, '').trim()
-    if (virtualDetected && clean !== '音频输出设备') {
-      clean = `${clean} (虚拟)`
+    clean = clean.replace(/\s*(\(\u865A\u62DF\)|\[\u865A\u62DF\])\s*$/g, '').trim()
+    if (virtualDetected && clean !== 'Audio output device') {
+      clean = `${clean} (Virtual)`
     }
     return clean
   }
 
-  const rawList = outputDevices.length > 0 ? outputDevices : [{ id: 'default', label: '音频输出设备', isDefault: true }]
+  const rawList = outputDevices.length > 0 ? outputDevices : [{ id: 'default', label: 'Audio output device', isDefault: true }]
 
   const deviceOptions: Array<{ value: string; label: string }> = []
   const seenLabels = new Set<string>()
@@ -219,10 +220,10 @@ export function PlaybackSection({
 
   // Ensure currentDeviceId is included in options so Select always renders a valid selection
   if (!deviceOptions.some((o) => o.value === currentDeviceId)) {
-    const fallbackLabel = deviceOptions[0]?.label || '音频输出设备'
+    const fallbackLabel = deviceOptions[0]?.label || 'Audio output device'
     deviceOptions.unshift({
       value: currentDeviceId,
-      label: currentDeviceId === 'default' ? fallbackLabel : `指定设备 (${currentDeviceId})`,
+      label: currentDeviceId === 'default' ? fallbackLabel : `Selected device (${currentDeviceId})`,
     })
   }
 
@@ -235,15 +236,15 @@ export function PlaybackSection({
     h(
       SettingsSection,
       {
-        title: '音频输出引擎与设备',
-        description: '选择音频输出驱动与物理输出设备',
+        title: 'Audio output engine & devices',
+        description: 'Choose the audio output driver and physical output device',
       },
       h(SettingsRow, {
-        title: '音频输出驱动 (Audio Backend)',
+        title: 'Audio output driver (Audio Backend)',
         description:
           isMpv
-            ? '当前：MPV（独立原生引擎，WASAPI 直通输出与原生 DSP/EQ）'
-            : '当前：WebAudio（标准 Web Audio 共享混音）',
+            ? 'Current: MPV (standalone native engine with WASAPI passthrough output and native DSP/EQ)'
+            : 'Current: WebAudio (standard Web Audio shared mixing)',
         action: h(
           'div',
           { style: { display: 'flex', gap: 6 } },
@@ -269,13 +270,13 @@ export function PlaybackSection({
       }),
       isMpv &&
         h(SettingsRow, {
-          title: '独占模式 (Exclusive Mode)',
+          title: 'Exclusive mode',
           description: settings.audioExclusive
-            ? '已开启：MPV 独占音频输出设备（WASAPI 独占），提供位完美音频输出，其他应用程序在此期间将无法发声'
-            : '已关闭：与其他应用程序共享音频输出设备（WASAPI 共享模式）',
+            ? 'On: MPV takes exclusive control of the audio output device (WASAPI exclusive) for bit-perfect output; other applications cannot play sound meanwhile'
+            : 'Off: shares the audio output device with other applications (WASAPI shared mode)',
           action: h(Switch, {
             checked: settings.audioExclusive ?? false,
-            accessibilityLabel: '独占模式',
+            accessibilityLabel: 'Exclusive mode',
             onChange: (checked: boolean) => {
               ctx.logger?.info('playback-settings: user toggled audioExclusive -> %s', checked)
               void update({ audioExclusive: checked })
@@ -296,20 +297,20 @@ export function PlaybackSection({
         engineStatus &&
         (!engineStatus.running || !engineStatus.mpvAvailable)
         ? h(SettingsRow, {
-            title: '⚠️ MPV 原生引擎不可用，已回退到 Chromium 解码',
+            title: '⚠️ MPV native engine unavailable, fell back to Chromium decoding',
             description: !engineStatus.running
-              ? '原生音频引擎进程未运行（未找到 audio-engine 可执行文件或启动失败）。播放仍可进行，但音频可视化与输出设备切换暂不可用。'
-              : '未能加载 libmpv（库文件缺失或依赖不全）。播放仍可进行，但音频可视化与输出设备切换暂不可用。请重新部署引擎目录下的 libmpv 及其全部依赖。',
+              ? 'The native audio engine process is not running (audio-engine executable missing or failed to start). Playback still works, but audio visualization and output device switching are unavailable.'
+              : 'Failed to load libmpv (library missing or incomplete dependencies). Playback still works, but audio visualization and output device switching are unavailable. Redeploy libmpv and all of its dependencies in the engine directory.',
             borderBottom: false,
           })
         : null,
       h(SettingsRow, {
-        title: '音频输出设备 (Output Device)',
-        description: `当前输出目的地：${selectedDeviceLabel}`,
+        title: 'Audio output device (Output Device)',
+        description: `Current output destination: ${selectedDeviceLabel}`,
         action: h(Select, {
           value: currentDeviceId,
           options: deviceOptions,
-          accessibilityLabel: '音频输出设备',
+          accessibilityLabel: 'Audio output device',
           onChange: (newDeviceId: string) => {
             ctx.logger?.info('playback-settings: user selected output device "%s"', newDeviceId)
             void update({ audioOutputDeviceId: newDeviceId })

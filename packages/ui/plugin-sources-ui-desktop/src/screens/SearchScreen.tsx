@@ -151,7 +151,7 @@ export function SearchScreen({
             h(TextField, {
               value: text,
               onChange: setText,
-              placeholder: '搜索歌曲、专辑、艺术家…',
+              placeholder: 'Search songs, albums, artists…',
               accessibilityLabel: 'Search query',
               testID: 'search-input',
             }),
@@ -161,14 +161,14 @@ export function SearchScreen({
             disabled: !canSearch,
             loading: busy,
             testID: 'search-submit',
-            children: '搜索',
+            children: 'Search',
           }),
           submitted
             ? h(Button, {
                 variant: 'ghost',
                 onPress: clear,
                 testID: 'search-clear',
-                children: '清空',
+                children: 'Clear',
               })
             : null,
         ),
@@ -187,20 +187,20 @@ export function SearchScreen({
           ...selection.interfaces.map((iface) =>
             h(SourceChip, {
               key: iface.id,
-              label: `${iface.sourceName} · ${iface.kind === 'track' ? '单曲' : '歌手'}`,
+              label: `${iface.sourceName} · ${iface.kind === 'track' ? 'Track' : 'Artist'}`,
               selected: selection.isInterfaceSelected(iface.id),
               disabled: !iface.searchable,
               onPress: () => selection.toggleInterface(iface.id),
-              accessibilityLabel: `${selection.isInterfaceSelected(iface.id) ? '不搜索' : '搜索'} ${iface.sourceName} ${iface.kind === 'track' ? '单曲' : '歌手'}`,
+              accessibilityLabel: `${selection.isInterfaceSelected(iface.id) ? 'Exclude from search' : 'Search'} ${iface.sourceName} ${iface.kind === 'track' ? 'Track' : 'Artist'}`,
               testID: `search-source-${iface.sourceId}-${iface.kind}`,
             }),
           ),
           selection.interfaces.some((iface) => iface.searchable)
             ? h(SourceChip, {
-                label: selection.allSelected ? '取消全选' : '全选',
+                label: selection.allSelected ? 'Deselect all' : 'Select all',
                 selected: false,
                 onPress: selection.toggleAll,
-                accessibilityLabel: selection.allSelected ? '取消全选音源' : '全选所有音源',
+                accessibilityLabel: selection.allSelected ? 'Deselect all sources' : 'Select all sources',
                 testID: 'search-toggle-all',
               })
             : null,
@@ -231,7 +231,7 @@ export function SearchScreen({
                 variant: 'md',
                 style: { color: 'var(--text-secondary, ' + scheme.text.secondary + ')' },
               },
-              '输入关键词，跨音源统一搜索',
+              'Type a keyword to search across all sources',
             ),
             h(
               Text,
@@ -240,13 +240,13 @@ export function SearchScreen({
                 tone: 'muted',
                 style: { color: 'var(--text-tertiary, #8B95B0)' },
               },
-              '每个音源独立成卡片面板，可折叠展开并支持分页加载更多',
+              'Each source renders as its own card panel — collapsible, with paginated loading',
             ),
           )
         : search.status === 'error' && search.error
           ? h(EmptyState, {
               icon: 'alert',
-              title: '搜索失败',
+              title: 'Search failed',
               description: search.error.message,
               action: h(Button, {
                 variant: 'secondary',
@@ -255,13 +255,13 @@ export function SearchScreen({
                     sourceIds: selection.selectedIds,
                     typesBySource: selection.typesBySource,
                   }),
-                children: '重试',
+                children: 'Retry',
               }),
             })
           : busy
             ? h(EmptyState, {
-                title: `正在搜索 “${search.text}”…`,
-                description: '等待各已选音源返回检索结果。',
+                title: `Searching "${search.text}"…`,
+                description: 'Waiting for the selected sources to return results.',
               })
             : h(
                 'div',
@@ -300,7 +300,7 @@ export function SearchScreen({
                           },
                         },
                         tablerIcon('search', { size: 14, color: 'var(--text-tertiary, #8B95B0)' }),
-                        h('span', null, `检索到 ${bySource.length} 个音源的结果`),
+                        h('span', null, `Results from ${bySource.length} sources`),
                       ),
                       h(
                         'div',
@@ -315,13 +315,13 @@ export function SearchScreen({
                           variant: 'ghost',
                           testID: 'search-expand-all',
                           onPress: expandAll,
-                          children: '全部展开',
+                          children: 'Expand all',
                         }),
                         h(Button, {
                           variant: 'ghost',
                           testID: 'search-collapse-all',
                           onPress: collapseAll,
-                          children: '全部收起',
+                          children: 'Collapse all',
                         }),
                       ),
                     )

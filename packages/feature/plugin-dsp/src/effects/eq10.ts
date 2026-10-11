@@ -14,19 +14,19 @@ const DEFAULT_PARAMS: Eq10Params = {
 }
 
 export const EQ_PRESETS = [
-  { name: '原声 (Flat)', params: { gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }, builtin: true },
-  { name: '低音增强 (Bass Boost)', params: { gains: [6, 5, 4, 2, 1, 0, 0, 0, 0, 0] }, builtin: true },
-  { name: '清晰人声 (Vocal)', params: { gains: [-2, -1, 0, 2, 4, 3, 2, 1, 0, -1] }, builtin: true },
-  { name: '清亮高音 (Treble)', params: { gains: [0, 0, 0, 0, 0, 1, 2, 3, 5, 6] }, builtin: true },
-  { name: '摇滚 (Rock)', params: { gains: [5, 3, 2, 0, -1, -1, 1, 3, 4, 5] }, builtin: true },
-  { name: '流行 (Pop)', params: { gains: [-1, 1, 3, 4, 3, 1, -1, 0, 2, 3] }, builtin: true },
-  { name: '电子乐 (Electronic)', params: { gains: [5, 4, 2, 0, -2, 1, 2, 4, 5, 4] }, builtin: true },
-  { name: '古典 (Classical)', params: { gains: [4, 3, 2, 1, -1, -1, 0, 2, 3, 3] }, builtin: true },
+  { name: 'Flat', params: { gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }, builtin: true },
+  { name: 'Bass Boost', params: { gains: [6, 5, 4, 2, 1, 0, 0, 0, 0, 0] }, builtin: true },
+  { name: 'Vocal', params: { gains: [-2, -1, 0, 2, 4, 3, 2, 1, 0, -1] }, builtin: true },
+  { name: 'Treble', params: { gains: [0, 0, 0, 0, 0, 1, 2, 3, 5, 6] }, builtin: true },
+  { name: 'Rock', params: { gains: [5, 3, 2, 0, -1, -1, 1, 3, 4, 5] }, builtin: true },
+  { name: 'Pop', params: { gains: [-1, 1, 3, 4, 3, 1, -1, 0, 2, 3] }, builtin: true },
+  { name: 'Electronic', params: { gains: [5, 4, 2, 0, -2, 1, 2, 4, 5, 4] }, builtin: true },
+  { name: 'Classical', params: { gains: [4, 3, 2, 1, -1, -1, 0, 2, 3, 3] }, builtin: true },
 ]
 
 export const Eq10Effect: EffectDefinition<Eq10Params> = {
   id: 'eq10',
-  displayName: '均衡器 (Equalizer)',
+  displayName: 'Equalizer',
   defaultOrder: 20,
   Params: createParamSchema(DEFAULT_PARAMS),
   presets: EQ_PRESETS,

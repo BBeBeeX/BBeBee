@@ -1,29 +1,29 @@
 # @BBeBee/plugin-now-playing-ui-mobile
 
-Layer 5（ui）— `plugin-now-playing`（headless）的移动视图包：`plugin-now-playing-ui-desktop` 的孪生半边。
+Layer 5 (ui) — the mobile view package for `plugin-now-playing` (headless): the twin half of `plugin-now-playing-ui-desktop`.
 
-## 概述
+## Overview
 
-同样的 hooks、同样的两块面——整屏播放器与迷你播放条（mini-player），只有元素与形状不同。从 `plugin-player` 的移动视图包整体迁入。`ctx.player` 经 `inject`；对 headless 包是运行时依赖。
+The same hooks, the same two surfaces — the fullscreen player and the mini-player bar — with only elements and shapes differing. Migrated wholesale from `plugin-player`'s mobile view package. `ctx.player` via `inject`; runtime dependency on the headless package.
 
-## 源文件
+## Source files
 
 ### `src/index.tsx`
 
-**注册的视图**（generator effect `'now-playing-ui-mobile'`）：
+**Registered views** (generator effect `'now-playing-ui-mobile'`):
 
-| id | 组件 |
+| id | component |
 |---|---|
 | `now-playing.view` | `NowPlayingScreen` |
 | `now-playing.bar` | `NowPlayingBar` |
 
-- **`NowPlayingScreen({ ctx, onClose? })`** — 全屏播放器（居中竖排、`bg.base` 底）。与桌面同一组 hook。**封面先行且大**（200px）——"在手机上这个屏大部分就是封面，这是底栏唯一做不到的事"；曲名 `numberOfLines: 2`；`stalled` → "Buffering…"；进度 `Slider` 只接 `onCommit`；走带三键与桌面逐字相同（⏯ 一个控件两个状态、可用性 hook 决定 disabled）。
-- **`NowPlayingBar({ ctx, onOpenNowPlaying? })`** — 迷你播放条：封面 + 曲名/艺人 + ⏯，整条 `Pressable` 打开全屏（`accessibilityLabel: 'Open now playing'`）。空闲且无曲目时**不占高度**（`display: 'none'`）。打开优先走 shell 的 `onOpenNowPlaying`，否则 `ui.navigate(NOW_PLAYING_VIEWS.nowPlaying)`。
-- 封面统一经 `CachedArtwork`（`useResolvedArtwork`）。
+- **`NowPlayingScreen({ ctx, onClose? })`** — fullscreen player (centered column on `bg.base`). Same hook set as desktop. **Artwork first and large** (200px) — "on a phone this screen is mostly the artwork, the one thing a bottom bar cannot do"; title `numberOfLines: 2`; `stalled` → "Buffering…"; the progress `Slider` is only wired to `onCommit`; the three transport keys are verbatim the same as desktop (⏯ one control with two states, availability hooks decide `disabled`).
+- **`NowPlayingBar({ ctx, onOpenNowPlaying? })`** — the mini-player bar: artwork + title/artist + ⏯, the whole strip a `Pressable` that opens fullscreen (`accessibilityLabel: 'Open now playing'`). When idle with no track it **takes no height** (`display: 'none'`). Opening prefers the shell's `onOpenNowPlaying`, otherwise `ui.navigate(NOW_PLAYING_VIEWS.nowPlaying)`.
+- Artwork is resolved uniformly through `CachedArtwork` (`useResolvedArtwork`).
 
-**`bound(ctx, Screen)`** — 与所有视图包相同：闭包本插件 `apply` 时的 context；`h(Screen, …)` 而非函数调用。
+**`bound(ctx, Screen)`** — as in every view package: closes over the context at this plugin's `apply` time; `h(Screen, …)` rather than a function call.
 
-## 声明与导出
+## Declaration and exports
 
 ```ts
 export const name = 'plugin-now-playing-ui-mobile'
@@ -33,13 +33,13 @@ export async function apply(ctx)
 export default { name, inject, apply }
 ```
 
-## 测试（`src/screen.test.tsx`）
+## Tests (`src/screen.test.tsx`)
 
-DOM host 组件（`configureNative`）：迷你条渲染标题/艺人与 play/pause、点 ⏯ 触发 `togglePlay`、点条触发 `onOpenNowPlaying` 并导航到 `now-playing.view`；整屏渲染标题/艺人/专辑、关闭键回调、Next 触发 `next`。
+DOM host components (`configureNative`): the mini bar renders title/artist and play/pause, tapping ⏯ triggers `togglePlay`, tapping the bar triggers `onOpenNowPlaying` and navigates to `now-playing.view`; the fullscreen screen renders title/artist/album, the close key callback, and Next triggers `next`.
 
-## 相关文档
+## Related docs
 
-- `packages/ui/plugin-now-playing-ui-desktop/README.md`：孪生半边
-- `packages/feature/plugin-now-playing/README.md`：headless 侧
-- `packages/ui/plugin-queue-ui-mobile/README.md`：队列页（`plugin-queue`）
-- `apps/mobile/`：`configureNative` 与路由挂载点
+- `packages/ui/plugin-now-playing-ui-desktop/README.md`: the twin half
+- `packages/feature/plugin-now-playing/README.md`: the headless side
+- `packages/ui/plugin-queue-ui-mobile/README.md`: the queue page (`plugin-queue`)
+- `apps/mobile/`: `configureNative` and the route mount points

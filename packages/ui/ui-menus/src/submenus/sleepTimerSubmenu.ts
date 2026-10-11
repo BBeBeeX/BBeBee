@@ -14,7 +14,7 @@ export function sleepTimerSubmenu(
   if (sleepTimer.state.active) {
     items.push({
       id: 'timer-cancel',
-      label: '关闭睡眠定时器',
+      label: 'Turn off sleep timer',
       icon: 'x',
       tone: 'danger',
       onSelect: () => sleepTimer.cancel(),
@@ -24,49 +24,49 @@ export function sleepTimerSubmenu(
   items.push(
     {
       id: 'timer-5m',
-      label: '5 分钟',
+      label: '5 min',
       onSelect: () => sleepTimer.startDuration(5 * 60 * 1000),
     },
     {
       id: 'timer-10m',
-      label: '10 分钟',
+      label: '10 min',
       onSelect: () => sleepTimer.startDuration(10 * 60 * 1000),
     },
     {
       id: 'timer-15m',
-      label: '15 分钟',
+      label: '15 min',
       onSelect: () => sleepTimer.startDuration(15 * 60 * 1000),
     },
     {
       id: 'timer-30m',
-      label: '30 分钟',
+      label: '30 min',
       onSelect: () => sleepTimer.startDuration(30 * 60 * 1000),
     },
     {
       id: 'timer-45m',
-      label: '45 分钟',
+      label: '45 min',
       onSelect: () => sleepTimer.startDuration(45 * 60 * 1000),
     },
     {
       id: 'timer-1h',
-      label: '1 小时',
+      label: '1 hr',
       onSelect: () => sleepTimer.startDuration(60 * 60 * 1000),
     },
     {
       id: 'timer-end-of-track',
-      label: '曲目结束时',
+      label: 'End of track',
       onSelect: () => sleepTimer.startEndOfTrack(),
     },
   )
 
   return {
-    title: '睡眠定时器',
+    title: 'sleep timer',
     create: {
-      label: '自定义时间',
-      placeholder: '自定义时间 (单位: 分钟)',
+      label: 'Custom time',
+      placeholder: 'Custom time (in minutes)',
       alwaysVisible: true,
       placement: 'bottom',
-      buttonLabel: '确定',
+      buttonLabel: 'OK',
       onSelect: (val: string) => {
         const trimmed = val.trim()
         const timeMatch = /^(\d{1,2}):(\d{2})$/.exec(trimmed)

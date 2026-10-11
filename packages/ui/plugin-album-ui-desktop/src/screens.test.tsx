@@ -156,7 +156,7 @@ describe('AlbumScreen', () => {
 
       expect(getAllByText('Homogenic').length).toBeGreaterThan(0)
       await act(async () => {
-        // 页面滚动折叠后 hero 与吸顶栏各有一个 Play album，点第一个（hero）。
+        // After the page scrolls and collapses, the hero and the sticky bar each have a Play album; click the first (hero).
         getAllByText('Play album')[0]!.click()
         await tick()
       })
@@ -261,9 +261,9 @@ describe('AlbumScreen', () => {
         await tick()
       })
 
-      // Click "降序" in the menu
+      // Click "Descending" in the menu
       await act(async () => {
-        getByText('降序').click()
+        getByText('Descending').click()
         await tick()
       })
 
@@ -339,18 +339,18 @@ describe('AlbumScreen', () => {
       })
 
       // Check items
-      expect(getByText('加入文件夹')).toBeTruthy()
-      expect(getByText('添加到音乐库')).toBeTruthy()
-      expect(getByText('加入播放列表')).toBeTruthy()
-      expect(getByText('下载')).toBeTruthy()
+      expect(getByText('Add to folder')).toBeTruthy()
+      expect(getByText('Add to music library')).toBeTruthy()
+      expect(getByText('Add to play queue')).toBeTruthy()
+      expect(getByText('Download')).toBeTruthy()
 
       // Removed items
-      expect(queryByText('加入歌单')).toBeNull()
-      expect(queryByText('转至专辑')).toBeNull()
+      expect(queryByText('Add to playlist')).toBeNull()
+      expect(queryByText('Go to album')).toBeNull()
 
-      // Clicking '添加到音乐库' in menu saves the album
+      // Clicking 'Add to music library' in menu saves the album
       await act(async () => {
-        getByText('添加到音乐库').click()
+        getByText('Add to music library').click()
         await tick()
       })
       expect(library.calls).toContain(`save:${ALBUM_URN}:true`)
@@ -366,13 +366,13 @@ describe('AlbumScreen', () => {
       })
 
       const albumCol = getByTestId('album-sort-album')
-      expect(albumCol.textContent).toContain('专辑')
+      expect(albumCol.textContent).toContain('Album')
 
       await act(async () => {
         albumCol.click()
         await tick()
       })
-      // 表头默认不带箭头；悬停表头后，当前排序列显示方向箭头。
+      // Headers show no arrow by default; after hovering a header, the current sort column shows a direction arrow.
       expect(albumCol.querySelector('[data-icon="chevron-up"]')).toBeNull()
       await act(async () => {
         fireEvent.mouseOver(albumCol)
@@ -390,7 +390,7 @@ describe('AlbumScreen', () => {
         await tick()
       })
 
-      const addButtons = getAllByTitle('加入最喜欢的音乐')
+      const addButtons = getAllByTitle('Add to Favorites')
       expect(addButtons.length).toBeGreaterThan(0)
       const firstBtn = addButtons[0]!
       expect(firstBtn.querySelector('[data-icon="plus"]')).toBeTruthy()
@@ -412,7 +412,7 @@ describe('AlbumScreen', () => {
         await tick()
       })
 
-      expect(getByText('添加到歌单')).toBeTruthy()
+      expect(getByText('Add to playlist')).toBeTruthy()
       expect(getByText('My Playlist')).toBeTruthy()
     })
   })
@@ -491,7 +491,7 @@ describe('AlbumScreen', () => {
 
       // 2. Source column header present
       const header = getByTestId('album-table-header')
-      expect(header.textContent).toContain('来源')
+      expect(header.textContent).toContain('Source')
 
       // 3. Batch mode initially off
       expect(queryByTestId('batch-action-bar')).toBeNull()
@@ -504,7 +504,7 @@ describe('AlbumScreen', () => {
       })
 
       // Click batch operations to enter batch mode directly
-      const batchOpItem = getByText('批量操作')
+      const batchOpItem = getByText('Batch operations')
       expect(batchOpItem).toBeTruthy()
       await act(async () => {
         batchOpItem.click()

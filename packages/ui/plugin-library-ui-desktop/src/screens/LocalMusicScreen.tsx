@@ -16,7 +16,7 @@ import { fetchAllLocalAlbums, fetchAllLocalTracks } from '@BBeBee/plugin-library
 type LocalTrackSortKey = 'default' | 'title' | 'artist' | 'album' | 'duration'
 type LocalAlbumSortKey = 'default' | 'title' | 'artist' | 'year' | 'count'
 
-/** 专辑的列表/紧凑行：平铺模式仍用 LocalAlbumCard 网格。 */
+/** Album list/compact rows: flat mode still uses the LocalAlbumCard grid. */
 function LocalAlbumRow({
   ctx,
   album,
@@ -28,13 +28,13 @@ function LocalAlbumRow({
   ctx: Context
   album: Album
   index: number
-  /** 紧凑视图：无封面，艺人独立成列。 */
+  /** Compact view: no artwork, artist as its own column. */
   compact?: boolean
   onOpen: () => void
   onPlay?: () => void
 }): ReactElement {
   const [hovered, setHovered] = useState(false)
-  const artists = album.artists?.map((a) => a.name).join(', ') || '未知艺人'
+  const artists = album.artists?.map((a) => a.name).join(', ') || 'Unknown artist'
 
   return h(
     'div',
@@ -77,8 +77,8 @@ function LocalAlbumRow({
             {
               type: 'button',
               'data-testid': `local-album-play-${album.urn}`,
-              'aria-label': `播放 ${album.title}`,
-              title: `播放 ${album.title}`,
+              'aria-label': `Play ${album.title}`,
+              title: `Play ${album.title}`,
               onClick: (e: ReactMouseEvent) => {
                 e.stopPropagation()
                 onPlay()
@@ -227,7 +227,7 @@ function LocalAlbumRow({
           whiteSpace: 'nowrap',
         },
       },
-      album.trackCount ? `${album.trackCount} 首歌曲` : '-',
+      album.trackCount ? `${album.trackCount} songs` : '-',
     ),
   )
 }
@@ -257,9 +257,9 @@ export function LocalMusicScreen({
   const [isBatchMode, setIsBatchMode] = useState(false)
   const [selectedUrns, setSelectedUrns] = useState<Set<string>>(new Set())
   const [moreMenuAnchor, setMoreMenuAnchor] = useState<MenuAnchor | null>(null)
-  // 滚动折叠：吸顶栏在播放按钮靠近时滑入，滚过按钮一半高度时吸附（docked）。
+  // Scroll collapse: the sticky bar slides in as the play button approaches the top, and docks once the scroll passes half its height (docked).
   const collapse = useDetailBarCollapse({ barHeight: 64, anchorHeight: 56 })
-  // 视图模式：歌曲页默认列表，专辑页默认平铺（卡片网格），选择按页记忆。
+  // View mode: tracks page defaults to list, albums page defaults to tiled (card grid); the choice is remembered per page.
   const [trackViewMode, setTrackViewMode] = useViewMode('local-tracks', 'list', ['compact', 'list'] as const)
   const [albumViewMode, setAlbumViewMode] = useViewMode('local-albums', 'tiled', ['compact', 'list', 'tiled'] as const)
   const player = serviceOf<PlayerService>(ctx, 'player')
@@ -331,7 +331,7 @@ export function LocalMusicScreen({
           // Synthesize albums from local tracks if listAlbums returned empty
           const map = new Map<string, Album>()
           for (const t of loadedTracks) {
-            const albumTitle = t.albumTitle || '未知专辑'
+            const albumTitle = t.albumTitle || 'Unknown album'
             const key = t.albumUrn || `BBeBee:local:album:${encodeURIComponent(albumTitle)}`
             if (!map.has(key)) {
               map.set(key, {
@@ -441,7 +441,7 @@ export function LocalMusicScreen({
     const toPlay = Array.from(selectedUrns)
     if (toPlay.length > 0) {
       void player?.playNow(toPlay, {
-        context: { kind: 'local', label: '本地音乐' },
+        context: { kind: 'local', label: 'Local music' },
       })
     }
   }
@@ -478,21 +478,21 @@ export function LocalMusicScreen({
       return [
         {
           id: 'batch-play',
-          label: '批量播放',
+          label: 'Play selected',
           icon: tablerIcon('play', { size: 20 }),
           disabled: selectedUrns.size === 0,
           onSelect: handleBatchPlay,
         },
         {
           id: 'batch-add',
-          label: '添加到歌单',
+          label: 'Add to playlist',
           icon: tablerIcon('plus', { size: 20 }),
           disabled: selectedUrns.size === 0,
           onSelect: () => handleBatchAddToPlaylist(),
         },
         {
           id: 'batch-delete',
-          label: '删除',
+          label: 'Delete',
           icon: tablerIcon('trash', { size: 20 }),
           tone: 'danger',
           disabled: selectedUrns.size === 0,
@@ -500,7 +500,7 @@ export function LocalMusicScreen({
         },
         {
           id: 'batch-exit',
-          label: '退出批量操作',
+          label: 'Exit batch operations',
           icon: tablerIcon('x', { size: 20 }),
           divider: true,
           onSelect: handleExitBatch,
@@ -511,7 +511,7 @@ export function LocalMusicScreen({
     return [
       {
         id: 'batch-operations',
-        label: '批量操作',
+        label: 'Batch operations',
         icon: tablerIcon('list-check', { size: 20 }),
         onSelect: () => setIsBatchMode(true),
       },
@@ -588,28 +588,28 @@ export function LocalMusicScreen({
   }
 
   const trackSortLabelMap: Record<LocalTrackSortKey, string> = {
-    default: '默认顺序',
-    title: '标题',
-    artist: '艺人',
-    album: '专辑',
-    duration: '时长',
+    default: 'Default order',
+    title: 'Title',
+    artist: 'Artist',
+    album: 'Album',
+    duration: 'Duration',
   }
 
   const albumSortLabelMap: Record<LocalAlbumSortKey, string> = {
-    default: '默认顺序',
-    title: '专辑名称',
-    artist: '艺人',
-    year: '年份',
-    count: '曲目数',
+    default: 'Default order',
+    title: 'Album name',
+    artist: 'Artist',
+    year: 'Year',
+    count: 'Track count',
   }
 
   const trackSortItems = sortMenuItems(
     [
-      { id: 'default', label: '默认顺序' },
-      { id: 'title', label: '标题' },
-      { id: 'artist', label: '艺人' },
-      { id: 'album', label: '专辑' },
-      { id: 'duration', label: '时长' },
+      { id: 'default', label: 'Default order' },
+      { id: 'title', label: 'Title' },
+      { id: 'artist', label: 'Artist' },
+      { id: 'album', label: 'Album' },
+      { id: 'duration', label: 'Duration' },
     ],
     trackSortKey,
     (id) => setTrackSortKey(id as LocalTrackSortKey),
@@ -618,11 +618,11 @@ export function LocalMusicScreen({
 
   const albumSortItems = sortMenuItems(
     [
-      { id: 'default', label: '默认顺序' },
-      { id: 'title', label: '专辑名称' },
-      { id: 'artist', label: '艺人' },
-      { id: 'year', label: '年份' },
-      { id: 'count', label: '曲目数' },
+      { id: 'default', label: 'Default order' },
+      { id: 'title', label: 'Album name' },
+      { id: 'artist', label: 'Artist' },
+      { id: 'year', label: 'Year' },
+      { id: 'count', label: 'Track count' },
     ],
     albumSortKey,
     (id) => setAlbumSortKey(id as LocalAlbumSortKey),
@@ -634,35 +634,35 @@ export function LocalMusicScreen({
       size,
       iconSize,
       testID,
-      ariaLabel: '播放全部',
+      ariaLabel: 'Play all',
       onPress: () =>
         sortedTrackUrns[0] &&
-        player?.playNow(sortedTrackUrns, { context: { kind: 'local', label: '本地音乐' } }),
+        player?.playNow(sortedTrackUrns, { context: { kind: 'local', label: 'Local music' } }),
       disabled: sortedTrackUrns.length === 0,
     })
 
-  // 随列表一起滚走的部分：hero、视图切换、操作条、（歌曲模式的）表头。
-  // 吸顶栏单独走 sticky 插槽/滚动容器的直接子节点。
+  // Parts that scroll away with the list: hero, view switcher, action bar, (tracks-mode) table header.
+  // The sticky bar rides the sticky slot / a direct child of the scroller.
   const stickyBar = h(StickyDetailBar, {
-    title: '本地音乐',
+    title: 'Local music',
     progress: collapse.slide,
     docked: collapse.docked,
     playButton: renderPlayButton(48, 24, 'local-music-play-sticky'),
   })
 
-  // 渐变只存在于头部区域（随内容滚走），下方内容为纯色。
+  // The gradient exists only over the header area (scrolling away with the content); the content below is solid.
   const headerNode = h(
     'div',
     { style: { background: headerGradient(undefined) } },
     h(DetailHero, {
-      eyebrow: '本地音乐',
-      title: viewMode === 'tracks' ? '本地文件' : '本地专辑',
+      eyebrow: 'Local music',
+      title: viewMode === 'tracks' ? 'Local files' : 'Local albums',
       subtitle:
         viewMode === 'tracks'
-          ? `来自本地电脑的文件 • ${tracks.length} 首歌曲`
-          : `来自本地电脑的专辑 • ${albums.length} 张专辑`,
+          ? `Files from this computer • ${tracks.length} songs`
+          : `Albums from this computer • ${albums.length} albums`,
     }),
-    // View Mode Switcher: [ 歌曲 ]  [ 专辑 ]
+    // View Mode Switcher: [ Songs ]  [ Albums ]
     h(
       'div',
       {
@@ -692,7 +692,7 @@ export function LocalMusicScreen({
             transition: 'all 0.15s ease',
           },
         },
-        '歌曲',
+        'Songs',
       ),
       h(
         'button',
@@ -712,7 +712,7 @@ export function LocalMusicScreen({
             transition: 'all 0.15s ease',
           },
         },
-        '专辑',
+        'Albums',
       ),
     ),
     // Action Bar
@@ -730,18 +730,18 @@ export function LocalMusicScreen({
       h(
         'div',
         { style: { display: 'flex', alignItems: 'center', gap: 24 } },
-        // 折叠锚点：吸顶栏按这只大按钮的位置决定滑入与吸附时机。
+        // Collapse anchor: the sticky bar uses this large button's position to decide when to slide in and dock.
         h('div', { ref: collapse.anchorRef, style: { display: 'flex' } }, renderPlayButton(56, 28, 'local-music-play')),
         h(
           'button',
           {
             type: 'button',
-            title: '随机播放',
+            title: 'Shuffle',
             style: { background: 'none', border: 'none', color: 'var(--bb-text-secondary, #b3b3b3)', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
             onClick: () => {
               if (sortedTrackUrns.length > 0) {
                 const shuffled = [...sortedTrackUrns].sort(() => Math.random() - 0.5)
-                void player?.playNow(shuffled, { context: { kind: 'local', label: '本地音乐' } })
+                void player?.playNow(shuffled, { context: { kind: 'local', label: 'Local music' } })
               }
             },
           },
@@ -752,7 +752,7 @@ export function LocalMusicScreen({
           {
             type: 'button',
             'data-testid': 'local-music-more-trigger',
-            title: '更多选项',
+            title: 'More options',
             onClick: (e: ReactMouseEvent) => {
               const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
               setMoreMenuAnchor({ x: rect.left, y: rect.bottom + 6 })
@@ -781,7 +781,7 @@ export function LocalMusicScreen({
           tablerIcon('search', { size: 18, color: 'var(--bb-text-secondary, #b3b3b3)' }),
           h('input', {
             type: 'text',
-            placeholder: viewMode === 'tracks' ? '在本地文件中搜索' : '在本地专辑中搜索',
+            placeholder: viewMode === 'tracks' ? 'Search local files' : 'Search local albums',
             value: searchQuery,
             onChange: (e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value),
             style: {
@@ -799,7 +799,7 @@ export function LocalMusicScreen({
           {
             type: 'button',
             onClick: () => ctx.ui.navigate('scanner.settings'),
-            title: '扫描目录设置',
+            title: 'Scan settings',
             style: {
               background: 'none',
               border: 'none',
@@ -827,7 +827,7 @@ export function LocalMusicScreen({
             {
               type: 'button',
               'data-testid': 'local-music-sort-trigger',
-              title: '排序方式',
+              title: 'Sort by',
               onClick: (e: ReactMouseEvent) => {
                 const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
                 setSortMenuAnchor({ x: rect.left, y: rect.bottom + 6 })
@@ -859,24 +859,25 @@ export function LocalMusicScreen({
           onBatchPlay: handleBatchPlay,
           onBatchAddToPlaylist: (anchor) => handleBatchAddToPlaylist(anchor),
           onBatchDelete: handleBatchDelete,
-          deleteLabel: '删除',
+          deleteLabel: 'Delete',
           onExitBatch: handleExitBatch,
         })
       : null,
     error ? h('div', { style: { padding: '0 32px 8px 32px' } }, h(Text, { variant: 'sm', tone: 'error' }, error)) : null,
   )
 
-  // 表头走 stickyHeader 插槽（滚动容器的直接子节点）——嵌在 header 盒内时
-  // sticky 只在父盒范围吸附，作为父盒最后一个子元素等于完全吸不住。
+  // The table header rides the stickyHeader slot (a direct child of the scroller) —
+  // nested inside the header box, sticky only docks within the parent box, and being
+  // the parent box's last child it effectively never docks at all.
   const tableHeaderNode = viewMode === 'tracks'
     ? h(DetailTableHeader, {
         testID: 'local-table-header',
-        accessibilityLabel: '本地音乐',
+        accessibilityLabel: 'Local music',
         columns: [
           { key: 'default', label: '#', testID: 'local-sort-default', width: 40, align: 'center' },
-          { key: 'title', label: '标题', testID: 'local-sort-title', flex: 2, paddingLeft: 12 },
-          { key: 'artist', label: '艺人', plain: true, flex: 1, visible: trackViewMode === 'compact' },
-          { key: 'album', label: '专辑', testID: 'local-sort-album', flex: 1.5, paddingLeft: 8 },
+          { key: 'title', label: 'Title', testID: 'local-sort-title', flex: 2, paddingLeft: 12 },
+          { key: 'artist', label: 'Artist', plain: true, flex: 1, visible: trackViewMode === 'compact' },
+          { key: 'album', label: 'Album', testID: 'local-sort-album', flex: 1.5, paddingLeft: 8 },
           { key: 'duration', label: '', icon: tablerIcon('clock', { size: 18 }), testID: 'local-sort-duration', width: 120, align: 'right', paddingRight: 40 },
         ] satisfies DetailColumnSpec[],
         sortKey: trackSortKey,
@@ -891,13 +892,13 @@ export function LocalMusicScreen({
       ? undefined
       : h(DetailTableHeader, {
           testID: 'local-albums-table-header',
-          accessibilityLabel: '本地专辑',
+          accessibilityLabel: 'Local albums',
           columns: [
             { key: 'default', label: '#', testID: 'local-album-sort-default', width: 40, align: 'center' },
-            { key: 'title', label: '专辑', testID: 'local-album-sort-title', flex: 2, paddingLeft: 12 },
-            { key: 'artist', label: '艺人', testID: 'local-album-sort-artist', flex: 1.5, visible: albumViewMode === 'compact' },
-            { key: 'year', label: '年份', testID: 'local-album-sort-year', flex: 1 },
-            { key: 'count', label: '曲目数', testID: 'local-album-sort-count', width: 100, align: 'right' },
+            { key: 'title', label: 'Album', testID: 'local-album-sort-title', flex: 2, paddingLeft: 12 },
+            { key: 'artist', label: 'Artist', testID: 'local-album-sort-artist', flex: 1.5, visible: albumViewMode === 'compact' },
+            { key: 'year', label: 'Year', testID: 'local-album-sort-year', flex: 1 },
+            { key: 'count', label: 'Track count', testID: 'local-album-sort-count', width: 100, align: 'right' },
           ] satisfies DetailColumnSpec[],
           sortKey: albumSortKey,
           sortDirection: albumSortOrder,
@@ -905,15 +906,15 @@ export function LocalMusicScreen({
           solid: collapse.docked,
         })
 
-  // 专辑模式的内容（平铺网格或行列表），直接在滚动流里，不再自带滚动容器。
+  // Album mode content (tiled grid or row list) sits directly in the scroll flow, with no scroller of its own.
   const albumsContent = loading
-    ? h(EmptyState, { key: 'album-loading', title: '加载中…' })
+    ? h(EmptyState, { key: 'album-loading', title: 'Loading…' })
     : sortedAlbums.length === 0
     ? h(EmptyState, {
         key: 'album-empty',
         icon: 'disc',
-        title: '暂无本地专辑',
-        description: '添加包含专辑信息的本地音乐文件夹后，专辑将在此显示。',
+        title: 'No local albums yet',
+        description: 'After adding a local music folder with album metadata, albums will appear here.',
       })
     : albumViewMode === 'tiled'
     ? h(
@@ -947,7 +948,7 @@ export function LocalMusicScreen({
                 const urns = albumTracks.map((t) => t.urn)
                 if (urns[0]) {
                   void player?.playNow(urns, {
-                    context: { kind: 'album', label: album.title ?? '本地音乐' },
+                    context: { kind: 'album', label: album.title ?? 'Local music' },
                   })
                 }
               },
@@ -973,7 +974,7 @@ export function LocalMusicScreen({
               const urns = albumTracks.map((t) => t.urn)
               if (urns[0]) {
                 void player?.playNow(urns, {
-                  context: { kind: 'album', label: album.title ?? '本地音乐' },
+                  context: { kind: 'album', label: album.title ?? 'Local music' },
                 })
               }
             },
@@ -984,7 +985,7 @@ export function LocalMusicScreen({
   return h(
     'section',
     {
-      'aria-label': '本地音乐',
+      'aria-label': 'Local music',
       style: {
         display: 'flex',
         flexDirection: 'column',
@@ -995,12 +996,12 @@ export function LocalMusicScreen({
       },
     },
     viewMode === 'tracks'
-      ? // 歌曲模式：头部随虚拟列表一起滚动，吸顶栏浮在其上。
+      ? // Tracks mode: the header scrolls with the virtual list and the sticky bar floats above it.
         h(
           'div',
           { key: 'track-list-container', ref: collapse.scrollerRef, style: { flex: 1, minHeight: 0 } },
           loading
-            ? h('div', { style: { overflowY: 'auto', height: '100%' } }, stickyBar, headerNode, h(EmptyState, { title: '加载中…' }))
+            ? h('div', { style: { overflowY: 'auto', height: '100%' } }, stickyBar, headerNode, h(EmptyState, { title: 'Loading…' }))
             : h(List<Track>, {
                 testID: 'local-tracks-list',
                 header: headerNode,
@@ -1012,8 +1013,8 @@ export function LocalMusicScreen({
                 keyExtractor: (t) => t.urn,
                 empty: h(EmptyState, {
                   icon: 'folder',
-                  title: '暂无本地音乐',
-                  description: '添加音乐文件夹后，扫描的歌曲将在此显示。',
+                  title: 'No local music yet',
+                  description: 'After adding a music folder, the scanned songs will appear here.',
                 }),
                 renderItem: (t, index) =>
                   h(LibraryTrackRow, {
@@ -1028,7 +1029,7 @@ export function LocalMusicScreen({
                     compact: trackViewMode === 'compact',
                     onPress: () =>
                       player?.playFromContext(t.urn, sortedTrackUrns, {
-                        context: { kind: 'local', label: '本地音乐' },
+                        context: { kind: 'local', label: 'Local music' },
                       }),
                     onMore: (anchor) => menu.open({ track: t }, anchor),
                     onAddToFavorites: handleAddToFavorites,
@@ -1037,7 +1038,7 @@ export function LocalMusicScreen({
                   }),
               }),
         )
-      : // 专辑模式：没有虚拟列表，滚动容器由本页自己提供，头部同样随内容滚走。
+      : // Albums mode: no virtual list; this page provides its own scroller, and the header likewise scrolls away with the content.
         h(
           'div',
           {
@@ -1059,7 +1060,7 @@ export function LocalMusicScreen({
       x: moreMenuAnchor?.x ?? 0,
       y: moreMenuAnchor?.y ?? 0,
       items: moreMenuItems,
-      title: '更多选项',
+      title: 'More options',
     }),
     h(ContextMenu, {
       open: sortMenuAnchor !== null,
@@ -1072,7 +1073,7 @@ export function LocalMusicScreen({
           : viewModeMenuItems(albumSortItems, albumViewMode, setAlbumViewMode, {
               allowTiled: true,
             }),
-      title: '排序方式',
+      title: 'Sort by',
     }),
   )
 }

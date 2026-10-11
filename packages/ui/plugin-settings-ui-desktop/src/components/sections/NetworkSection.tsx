@@ -54,31 +54,31 @@ export function NetworkSection({
     h(
       SettingsSection,
       {
-        title: '第三方服务设置',
-        description: '控制第三方音源与歌词源的启停，以及对外请求所使用的 User-Agent',
+        title: 'Third-party service settings',
+        description: 'Control third-party music and lyric sources, and the User-Agent used for outgoing requests',
       },
       h(SettingsRow, {
-        title: '启用第三方音乐源',
-        description: '关闭后暂停所有已导入第三方音源的搜索与播放解析，本地文件不受影响',
+        title: 'Enable third-party music sources',
+        description: 'When off, search and playback resolution of all imported third-party music sources is paused; local files are unaffected',
         action: h(Switch, {
           checked: thirdPartySourcesEnabled,
-          accessibilityLabel: '启用第三方音乐源',
+          accessibilityLabel: 'Enable third-party music sources',
           onChange: onToggleThirdPartySources,
         }),
       }),
       h(SettingsRow, {
-        title: '启用第三方歌词源',
-        description: '关闭后播放时不再通过歌词源检索歌词；下方歌词源列表中的单独开关会保留',
+        title: 'Enable third-party lyric sources',
+        description: 'When off, lyrics are no longer fetched through lyric sources during playback; individual switches in the lyric source list below are preserved',
         action: h(Switch, {
           checked: thirdPartyLyricSourcesEnabled,
-          accessibilityLabel: '启用第三方歌词源',
+          accessibilityLabel: 'Enable third-party lyric sources',
           onChange: onToggleThirdPartyLyricSources,
         }),
       }),
       h(SettingsRow, {
         title: 'User-Agent',
         description:
-          '作为 HTTP User-Agent 请求头随所有网络请求发送；留空使用内置默认值。音源自带的 header 规则优先生效',
+          'Sent as the HTTP User-Agent header with every network request; leave empty to use the built-in default. Header rules carried by a music source take precedence',
         action: h('input', {
           type: 'text',
           value: userAgent,
@@ -102,15 +102,15 @@ export function NetworkSection({
     h(
       SettingsSection,
       {
-        title: '网络代理设置',
-        description: '配置应用外部请求与在线音源的网络代理协议与路由策略',
+        title: 'Network proxy settings',
+        description: 'Configure the proxy protocol and routing strategy for outgoing requests and online sources',
       },
       h(SettingsRow, {
-        title: '启用网络代理',
-        description: '开启后将通过自定义代理服务器转发网络与音乐请求',
+        title: 'Enable network proxy',
+        description: 'When on, network and music requests are forwarded through the custom proxy server',
         action: h(Switch, {
           checked: proxy.enabled,
-          accessibilityLabel: '启用网络代理',
+          accessibilityLabel: 'Enable network proxy',
           onChange: (enabled) => onUpdateProxy({ ...proxy, enabled }),
         }),
       }),
@@ -119,22 +119,22 @@ export function NetworkSection({
             'div',
             null,
             h(SettingsRow, {
-              title: '代理协议类型',
-              description: '选择代理服务器支持的传输协议',
+              title: 'Proxy protocol',
+              description: 'Choose the transport protocol supported by the proxy server',
               action: h(Select<'http' | 'https' | 'socks5'>, {
                 value: proxy.protocol,
                 options: [
-                  { value: 'http', label: 'HTTP 代理' },
-                  { value: 'https', label: 'HTTPS 代理' },
-                  { value: 'socks5', label: 'SOCKS5 代理' },
+                  { value: 'http', label: 'HTTP proxy' },
+                  { value: 'https', label: 'HTTPS proxy' },
+                  { value: 'socks5', label: 'SOCKS5 proxy' },
                 ],
-                accessibilityLabel: '代理协议类型',
+                accessibilityLabel: 'Proxy protocol',
                 onChange: (protocol) => onUpdateProxy({ ...proxy, protocol }),
               }),
             }),
             h(SettingsRow, {
-              title: '服务器主机与端口',
-              description: '设置代理服务器的主机 IP 或域名以及监听端口',
+              title: 'Server host & port',
+              description: 'Set the proxy server host IP or domain and its listening port',
               action: h(
                 'div',
                 { style: { display: 'flex', gap: 8, alignItems: 'center' } },
@@ -142,7 +142,7 @@ export function NetworkSection({
                   type: 'text',
                   value: proxy.host,
                   placeholder: '127.0.0.1',
-                  'aria-label': '代理服务器主机',
+                  'aria-label': 'Proxy server host',
                   onChange: (e: { target: { value: string } }) =>
                     onUpdateProxy({ ...proxy, host: e.target.value.trim() }),
                   style: {
@@ -162,7 +162,7 @@ export function NetworkSection({
                   type: 'number',
                   value: proxy.port || '',
                   placeholder: '7890',
-                  'aria-label': '代理服务器端口',
+                  'aria-label': 'Proxy server port',
                   onChange: (e: { target: { value: string } }) =>
                     onUpdateProxy({ ...proxy, port: Number(e.target.value) || 0 }),
                   style: {
@@ -181,7 +181,7 @@ export function NetworkSection({
                   variant: 'secondary',
                   disabled: proxyTesting || !proxy.host || !proxy.port,
                   loading: proxyTesting,
-                  children: '测试 Google 连接',
+                  children: 'Test Google connection',
                   onPress: onTestProxy,
                 }),
               ),
@@ -205,8 +205,8 @@ export function NetworkSection({
                     },
                   },
                   proxyTestResult.ok
-                    ? `✓ Google 探测节点连通正常，响应延迟: ${proxyTestResult.latencyMs ?? 0}ms`
-                    : `✕ 代理连接失败: ${proxyTestResult.error || '连接超时或服务器无响应'}`,
+                    ? `✓ Google probe reachable, response latency: ${proxyTestResult.latencyMs ?? 0}ms`
+                    : `✕ Proxy connection failed: ${proxyTestResult.error || 'connection timed out or server did not respond'}`,
                 )
               : null,
             // Third-party Sources individual proxy management
@@ -225,12 +225,12 @@ export function NetworkSection({
                 h(
                   'div',
                   { style: { fontSize: 14, fontWeight: 600, color: 'var(--bb-text-primary, #F8FAFC)' } },
-                  '第三方音源代理独立分流',
+                  'Per-source proxy routing for third-party music sources',
                 ),
                 h(
                   'div',
                   { style: { fontSize: 12, color: '#8E8E93', marginTop: 2 } },
-                  '为已安装的每个第三方音乐来源单独指定是否启用网络代理',
+                  'Enable the network proxy individually for each installed third-party music source',
                 ),
               ),
               thirdPartySources.length > 0
@@ -239,11 +239,11 @@ export function NetworkSection({
                     return h(SettingsRow, {
                       key: s.id,
                       title: s.name || s.id,
-                      description: s.group ? `分组: ${s.group} · ${s.sourceUrl}` : s.sourceUrl,
+                      description: s.group ? `Group: ${s.group} · ${s.sourceUrl}` : s.sourceUrl,
                       borderBottom: index < arr.length - 1,
                       action: h(Switch, {
                         checked: isEnabled,
-                        accessibilityLabel: `${s.name || s.id} 启用代理`,
+                        accessibilityLabel: `Enable proxy for ${s.name || s.id}`,
                         onChange: (checked) => {
                           const nextRules = { ...proxy.sourceRules, [s.id]: checked }
                           onUpdateProxy({ ...proxy, sourceRules: nextRules })
@@ -254,7 +254,7 @@ export function NetworkSection({
                 : h(
                     'div',
                     { style: { color: '#8E8E93', fontSize: 13, padding: '8px 0' } },
-                    '当前尚未安装第三方音乐源。导入源规则后即可在此处单独开启代理。',
+                    'No third-party music sources installed yet. Import source rules to enable the proxy individually here.',
                   ),
             ),
           )
@@ -263,23 +263,23 @@ export function NetworkSection({
     h(
       SettingsSection,
       {
-        title: '下载与 GitHub 加速',
+        title: 'Download & GitHub acceleration',
         description:
-          '选择下载区域偏好，并为 GitHub 资源下载配置按序尝试的加速线路（官方地址始终优先）',
+          'Choose the download region preference and configure acceleration endpoints for GitHub resource downloads, tried in order (the official URL always comes first)',
       },
       h(SettingsRow, {
-        title: '下载区域',
-        description: '存储的下载区域偏好；GitHub 请求仍以官方地址优先，加速由下方线路顺序决定',
+        title: 'Download region',
+        description: 'Stored download region preference; GitHub requests still prefer the official URL, and acceleration follows the endpoint order below',
         action: h(
           'div',
           { 'data-testid': 'settings-download-region' },
           h(Select<DownloadRegion>, {
             value: downloadRegion,
             options: [
-              { value: 'global', label: '全球' },
-              { value: 'mainland-china', label: '中国大陆' },
+              { value: 'global', label: 'Global' },
+              { value: 'mainland-china', label: 'Mainland China' },
             ],
-            accessibilityLabel: '下载区域',
+            accessibilityLabel: 'Download region',
             onChange: onUpdateDownloadRegion,
           }),
         ),

@@ -39,20 +39,20 @@ export function addToCollectionOnlyItems(
     urns,
     opts.currentFolderId ? collections.filter((c) => c.id !== opts.currentFolderId) : collections,
     {
-      title: '移动至文件夹',
-      searchPlaceholder: '查找文件夹',
-      createLabel: '新建文件夹',
+      title: 'Move to folder',
+      searchPlaceholder: 'Find folder',
+      createLabel: 'New folder',
       currentFolderId: opts.currentFolderId,
       onMoved: opts.onMoved,
     },
   )
   const items: MenuItemSpec[] = []
 
-  // 1. 删除 (if provided)
+  // 1. Delete (if provided)
   if (opts.onDelete) {
     items.push({
       id: 'delete-album',
-      label: '删除',
+      label: 'Delete',
       icon: 'delete',
       tone: 'danger',
       divider: true,
@@ -60,11 +60,11 @@ export function addToCollectionOnlyItems(
     })
   }
 
-  // 2. 置顶歌单 / 专辑
+  // 2. Pin playlist / album
   if (opts.onTogglePin) {
     items.push({
       id: 'toggle-pin',
-      label: opts.pinned ? '取消置顶歌单' : '置顶歌单',
+      label: opts.pinned ? 'Unpin playlist' : 'Pin playlist',
       icon: 'pin',
       onSelect: opts.onTogglePin,
     })
@@ -75,14 +75,14 @@ export function addToCollectionOnlyItems(
     if (originalUrl) {
       items.push({
         id: 'open-original-resource',
-        label: '跳转原始资源',
+        label: 'Open original resource',
         icon: 'share-box',
         onSelect: () => openExternalUrl(originalUrl),
       })
     }
   }
 
-  if (submenu) items.push({ id: 'add-to-collection', label: '移动至文件夹', icon: 'folder', submenu })
+  if (submenu) items.push({ id: 'add-to-collection', label: 'Move to folder', icon: 'folder', submenu })
   return items
 }
 
@@ -172,21 +172,21 @@ export function collectionMenuItems(
   const downloads = serviceOf<DownloadsService>(ctx, 'downloads')
   const items: MenuItemSpec[] = []
 
-  // 1. 重命名 (if provided)
+  // 1. Rename (if provided)
   if (opts.onRename) {
     items.push({
       id: 'rename-collection',
-      label: '重命名',
+      label: 'Rename',
       icon: 'pencil',
       onSelect: opts.onRename,
     })
   }
 
-  // 2. 删除 (if provided)
+  // 2. Delete (if provided)
   if (opts.onDelete) {
     items.push({
       id: 'delete-collection',
-      label: '删除',
+      label: 'Delete',
       icon: 'delete',
       tone: 'danger',
       divider: true,
@@ -194,37 +194,37 @@ export function collectionMenuItems(
     })
   }
 
-  // 3. 置顶文件夹
+  // 3. Pin folder
   if (opts.onTogglePin) {
     items.push({
       id: 'toggle-pin',
-      label: opts.pinned ? '取消置顶文件夹' : '置顶文件夹',
+      label: opts.pinned ? 'Unpin folder' : 'Pin folder',
       icon: 'pin',
       onSelect: opts.onTogglePin,
     })
   }
 
-  // 4. 创建歌单
+  // 4. Create playlist
   if (opts.onCreatePlaylist) {
     items.push({
       id: 'create-playlist',
-      label: '创建歌单',
+      label: 'Create playlist',
       icon: 'create-playlist',
       onSelect: opts.onCreatePlaylist,
     })
   }
 
-  // 5. 创建歌单文件夹
+  // 5. Create playlist folder
   if (opts.onCreateFolder) {
     items.push({
       id: 'create-folder',
-      label: '创建歌单文件夹',
+      label: 'Create playlist folder',
       icon: 'create-folder',
       onSelect: opts.onCreateFolder,
     })
   }
 
-  // 6. 移动至文件夹
+  // 6. Move to folder
   if (opts.onMoveToFolder || (library && opts.collectionId)) {
     const availableFolders = collections.filter((c) => c.id !== opts.collectionId)
     const folderSubmenu = addToCollectionSubmenu(
@@ -232,9 +232,9 @@ export function collectionMenuItems(
       opts.collectionId ? [opts.collectionId] : [],
       availableFolders,
       {
-        title: '移动至文件夹',
-        searchPlaceholder: '查找文件夹',
-        createLabel: '新建文件夹',
+        title: 'Move to folder',
+        searchPlaceholder: 'Find folder',
+        createLabel: 'New folder',
         currentFolderId: opts.parentId ?? undefined,
         onSelectFolder: async (targetFolderId) => {
           if (opts.onMoveToFolder) {
@@ -248,41 +248,41 @@ export function collectionMenuItems(
     if (folderSubmenu) {
       items.push({
         id: 'move-to-folder',
-        label: '移动至文件夹',
+        label: 'Move to folder',
         icon: 'folder',
         submenu: folderSubmenu,
       })
     }
   }
 
-  // 7. 播放
+  // 7. Play
   if (opts.onPlay || (player && trackUrns.length > 0)) {
     items.push({
       id: 'enqueue',
-      label: '播放',
+      label: 'Play',
       icon: 'play',
       onSelect: opts.onPlay ?? (() => player?.enqueueLast([...trackUrns])),
     })
   }
 
-  // 8. 下载
+  // 8. Download
   if (downloads && trackUrns.length > 0) {
     items.push({
       id: 'download',
-      label: '下载',
+      label: 'Download',
       icon: 'download',
       onSelect: () => void downloads.enqueue([...trackUrns]),
     })
   }
 
-  // 9. 添加至其他歌单
+  // 9. Add to another playlist
   const submenu = addToPlaylistSubmenu(library, trackUrns, playlists, {
-    title: '添加至其他歌单',
+    title: 'Add to another playlist',
   })
   if (submenu) {
     items.push({
       id: 'add-to-playlist',
-      label: '添加至其他歌单',
+      label: 'Add to another playlist',
       icon: 'plus',
       submenu,
     })

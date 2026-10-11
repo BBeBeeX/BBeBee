@@ -590,7 +590,7 @@ describe('plugin-lyrics', () => {
   })
 
   it('cleanTrackTitle normalizes remastered and version noise from track titles', () => {
-    expect(cleanTrackTitle('桜流し (2021 Remastered)')).toBe('桜流し')
+    expect(cleanTrackTitle('Demo Song (2021 Remastered)')).toBe('Demo Song')
     expect(cleanTrackTitle('Hotel California - 2013 Remaster')).toBe('Hotel California')
     expect(cleanTrackTitle('Let It Be (Remastered 2009)')).toBe('Let It Be')
     expect(cleanTrackTitle('Creep (Live at the Astoria)')).toBe('Creep')

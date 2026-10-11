@@ -294,7 +294,7 @@ describe('searchAll', () => {
     const sourceId = report.added[0]!.id
     const track = {
       urn: `BBeBee:${sourceId}:track:1`,
-      title: '极端天气 MV',
+      title: 'Demo Song MV',
       artists: [],
     } as Track
     sources.register(
@@ -308,7 +308,7 @@ describe('searchAll', () => {
     await (ui.sources as Sources).searchAll(query)
 
     const cached = await sources.getTracks([track.urn])
-    expect(cached.map((t) => t.title)).toEqual(['极端天气 MV'])
+    expect(cached.map((t) => t.title)).toEqual(['Demo Song MV'])
   })
 })
 

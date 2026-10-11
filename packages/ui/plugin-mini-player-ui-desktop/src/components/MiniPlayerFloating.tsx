@@ -74,7 +74,7 @@ export function MiniPlayerFloating({
             cursor: 'pointer',
           },
           onClick: onRestoreMain,
-          title: '点击恢复主窗口',
+          title: 'Click to restore the main window',
         },
         h(IslandArtwork, {
           artworkUri: data.artworkUri,
@@ -119,7 +119,7 @@ export function MiniPlayerFloating({
                 whiteSpace: 'nowrap',
               },
             },
-            data.title || '暂无播放歌曲',
+            data.title || 'Nothing playing',
           ),
           h(
             'div',
@@ -180,8 +180,8 @@ export function MiniPlayerFloating({
           'button',
           {
             type: 'button',
-            'aria-label': '还原主播放器',
-            title: '还原主播放器',
+            'aria-label': 'Restore main player',
+            title: 'Restore main player',
             onClick: onRestoreMain,
             style: {
               display: 'flex',
@@ -205,8 +205,8 @@ export function MiniPlayerFloating({
           'button',
           {
             type: 'button',
-            'aria-label': '关闭小窗',
-            title: '关闭小窗',
+            'aria-label': 'Close mini player',
+            title: 'Close mini player',
             onClick: onClose,
             style: {
               display: 'flex',

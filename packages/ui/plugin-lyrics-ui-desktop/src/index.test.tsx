@@ -137,7 +137,7 @@ describe('LyricsPanel', () => {
     lyrics.setState({ status: 'no-lyrics', lyrics: undefined })
 
     const html = renderToStaticMarkup(h(LyricsPanel, { ctx }))
-    expect(html).toContain('暂无歌词')
+    expect(html).toContain('No lyrics')
   })
 
   it('displays error state with retry option on failure', async () => {
@@ -151,6 +151,6 @@ describe('LyricsPanel', () => {
   it('renders share lyrics button when lyrics and track are present', async () => {
     const { ctx } = await createHarness()
     const html = renderToStaticMarkup(h(LyricsPanel, { ctx }))
-    expect(html).toContain('分享歌词')
+    expect(html).toContain('Share lyrics')
   })
 })

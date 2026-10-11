@@ -67,8 +67,9 @@ export class VisualizerPlugin extends Service implements VisualizerService {
           kind: 'settings',
           id: VISUALIZER_VIEWS.settings,
           section: 'playback',
-          title: '音频可视化',
-          description: '在播放界面呈现音乐频率跳动与声波流动效果，自定义显示样式与色彩',
+          title: 'Audio visualization',
+          description:
+            'Show animated music frequency and waveform effects in the player, with custom styles and colors',
           display: 'card',
           order: 80,
         })

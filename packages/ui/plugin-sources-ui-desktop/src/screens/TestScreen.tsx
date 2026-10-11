@@ -173,7 +173,7 @@ export function TestScreen({ ctx, sourceId }: { ctx: Context; sourceId?: string 
         h(Text, { variant: 'lg' }, 'Test a source'),
         h(Button, {
           variant: 'ghost',
-          children: '← 返回 Debug',
+          children: '← Back to debug',
           onPress: () => serviceOf<UiService>(ctx, 'ui')?.navigate?.('debug.view'),
         }),
       ),

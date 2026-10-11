@@ -41,8 +41,8 @@ export function TransportButtons({
       'button',
       {
         type: 'button',
-        'aria-label': '上一曲',
-        title: '上一曲',
+        'aria-label': 'Previous track',
+        title: 'Previous track',
         disabled: !data.canPrevious,
         onClick: () => onAction({ type: 'previous' }),
         style: {
@@ -81,8 +81,8 @@ export function TransportButtons({
       'button',
       {
         type: 'button',
-        'aria-label': isPlaying ? '暂停' : '播放',
-        title: isPlaying ? '暂停' : '播放',
+        'aria-label': isPlaying ? 'Pause' : 'Play',
+        title: isPlaying ? 'Pause' : 'Play',
         disabled: !data.canPlayOrPause,
         onClick: () => onAction({ type: 'togglePlay' }),
         style: {
@@ -127,8 +127,8 @@ export function TransportButtons({
       'button',
       {
         type: 'button',
-        'aria-label': '下一曲',
-        title: '下一曲',
+        'aria-label': 'Next track',
+        title: 'Next track',
         disabled: !data.canNext,
         onClick: () => onAction({ type: 'next' }),
         style: {

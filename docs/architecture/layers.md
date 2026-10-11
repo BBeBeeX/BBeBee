@@ -78,9 +78,9 @@ worth more than its shape.
 | Layer | Packages | Responsible for | May depend on | Never |
 |---|---|---|---|---|
 | **5 — UI & business function** | `apps/mobile`, `apps/desktop/renderer`, `plugin-*-ui-mobile`, `plugin-*-ui-desktop`, `ui-kit-*`, `ui-core`, `ui-menus`, `ui-parity`, `ui-tokens` | Pages, navigation, gestures and keyboard, and the orchestration that turns one user intent into a sequence of feature calls | Layers 0–4 | A platform SDK; the kernel's bootstrap surface; SQL; HTTP; `console.*`; domain state ([§6](#6-state-ownership)) |
-| **4 — Feature plugins** | headless `plugin-*` (`plugin-player`, `plugin-dsp`, `plugin-sources`, `plugin-source-runtime`, `plugin-source-local`, `plugin-download`, `plugin-library`, `plugin-album`, `plugin-now-playing`, `plugin-queue`, `plugin-lyrics`, `plugin-lyric-sources`, `plugin-cache`, `plugin-local-scanner`, `plugin-history`, `plugin-settings`, `plugin-theme`, `plugin-ui`, `plugin-mini-player`, `plugin-desktop-lyrics`, `plugin-desktop-taskbar`, `plugin-visualizer`, `plugin-sleep-timer`, `plugin-share`, `plugin-inspector`, `plugin-manager`), plus `source-rules` and `@BBeBee/toolkit` | One business capability each, headless: state, persistence, networking, events（键→包映射见 [rules/services.md §2 Standard Service Keys](../../rules/services.md#2-standard-service-keys)（L2）） | Layers 0–3 | A platform SDK; the kernel's bootstrap surface; `console.*`; another feature plugin's internals |
+| **4 — Feature plugins** | headless `plugin-*` (`plugin-player`, `plugin-dsp`, `plugin-sources`, `plugin-source-runtime`, `plugin-source-local`, `plugin-download`, `plugin-library`, `plugin-album`, `plugin-now-playing`, `plugin-queue`, `plugin-lyrics`, `plugin-lyric-sources`, `plugin-cache`, `plugin-local-scanner`, `plugin-history`, `plugin-settings`, `plugin-theme`, `plugin-ui`, `plugin-mini-player`, `plugin-desktop-lyrics`, `plugin-desktop-taskbar`, `plugin-visualizer`, `plugin-sleep-timer`, `plugin-share`, `plugin-inspector`, `plugin-manager`), plus `source-rules` and `@BBeBee/toolkit` | One business capability each, headless: state, persistence, networking, events (key→package mapping: see [rules/services.md §2 Standard Service Keys](../../rules/services.md#2-standard-service-keys) (L2)) | Layers 0–3 | A platform SDK; the kernel's bootstrap surface; `console.*`; another feature plugin's internals |
 | **3 — Log transports** | `packages/logs/*` — `plugin-log-buffer`, `plugin-log-console`, `plugin-log-file` | Where a log line ends up, and nothing else. Each subscribes to `ctx.logger`; the shell picks which run ([contracts.md §16](../services/contracts.md)) | Layers 0–2 | Domain knowledge; a platform SDK. A transport that knew what a track was would be a feature |
-| **2 — Core plugins** | `packages/core/*` | One platform capability per service key, with one implementation per target behind each key | Layers 0–1 — **directly** | Domain knowledge（规范见 [rules/services.md §1 Core Services Philosophy](../../rules/services.md#1-core-services-philosophy)（L2）） |
+| **2 — Core plugins** | `packages/core/*` | One platform capability per service key, with one implementation per target behind each key | Layers 0–1 — **directly** | Domain knowledge (see the spec at [rules/services.md §1 Core Services Philosophy](../../rules/services.md#1-core-services-philosophy) (L2)) |
 | **1 — Kernel** | `@BBeBee/kernel` | The Cordis `Context`, DI, fibers and effects, the event bus, config loading, plugin resolution, the capability gate, core migrations | Layer 0 (and Cordis) | Importing any `core-*` or `plugin-*`. The kernel does not know which plugins exist |
 | **0 — Protocol** | `@BBeBee/protocol` | Service interfaces, entity types, the typed event map, constants, and the conformance suites that hold implementations to them | Nothing at all | Emitting a runtime value; importing any bare specifier ([structure.md §3](../workflow/structure.md#3-dependency-rules)) |
 | **Outside model** | `packages/sdk` (plugin developer SDK), `packages/tooling/*` (tooling-check-changed, tooling-create-plugin, tooling-fixtures, tooling-gen-plugins) | Public SDK contracts, development scaffolds, build pipelines, and testing fixtures | Layers as needed | Domain state |
@@ -161,7 +161,7 @@ reliably:
 
 > **1. No package outside `packages/core/*` may import a platform SDK.**
 >
-> 规范见 [rules/services.md §1 Core Services Philosophy](../../rules/services.md#1-core-services-philosophy)（L2），本节只讲原理与用法。
+> see the spec at [rules/services.md §1 Core Services Philosophy](../../rules/services.md#1-core-services-philosophy) (L2); this section covers only principles and usage.
 
 > **2. No package above Layer 2 may drive the kernel.**
 
@@ -400,7 +400,7 @@ Points worth internalising:
 
 The shells differ only in this table. It is the entire platform-specific surface of the app.
 The normative key→implementation mapping lives in
-[rules/services.md §2 Standard Service Keys](../../rules/services.md#2-standard-service-keys)（L2）; this table is the
+[rules/services.md §2 Standard Service Keys](../../rules/services.md#2-standard-service-keys) (L2); this table is the
 registration view.
 
 | Service key | `apps/mobile` registers | `apps/desktop` registers |
@@ -498,7 +498,7 @@ Full dispatch semantics for every event, including which of `emit` / `parallel` 
 To keep a plugin system from degenerating into shared mutable soup, each piece of state has
 exactly one owner.
 
-> **规范见 [rules/data-model.md §5 State Ownership](../../rules/data-model.md#5-state-ownership)（L2）**——所有权映射是规范性枚举，以该表为唯一事实来源；本节只讲原理与用法。
+> **see the spec at [rules/data-model.md §5 State Ownership](../../rules/data-model.md#5-state-ownership) (L2)** — the ownership mapping is a normative enumeration and that table is the single source of truth; this section covers only principles and usage.
 
 | State | Others get it via |
 |---|---|

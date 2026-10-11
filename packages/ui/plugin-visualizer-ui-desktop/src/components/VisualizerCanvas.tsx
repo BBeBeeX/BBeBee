@@ -209,7 +209,7 @@ export function VisualizerCanvas({
           g.fillRect(x, Math.max(0, peakY), barWidth, 2 * dpr)
         }
       } else if (activeStyle === 'wave') {
-        // Cinematic organic waveform (映画歌词 style, ported from the
+        // Cinematic organic waveform (cinematic-lyrics style, ported from the
         // now-playing CinematicLayout): three layered sine bands under a
         // strong tapered envelope, stroked with a gradient that fades to
         // transparent at both ends plus a soft glow. Live audio only lifts

@@ -68,10 +68,10 @@ describe('stored playlists', () => {
     expect(created.description).toBe('south')
 
     const page = await library.listPlaylists()
-    // The seed's 我的歌单 sits beside the newly created playlist.
+    // The seed's My playlist sits beside the newly created playlist.
     expect(page.items).toHaveLength(2)
     expect(page.items.map((p) => p.urn)).toContain(created.urn)
-    expect(page.items.map((p) => p.name)).toContain('我的歌单')
+    expect(page.items.map((p) => p.name)).toContain('My playlist')
 
     const detail = await library.getPlaylist(created.urn)
     expect(detail?.items).toEqual([])

@@ -328,7 +328,7 @@ describe('FavoritesScreen on mobile', () => {
     })
 
     await act(async () => {
-      ;(container.querySelector('[data-label="Remove Alpha from favourites"]') as HTMLElement).click()
+      ;(container.querySelector('[data-label="Remove Alpha from favorites"]') as HTMLElement).click()
       await tick()
     })
 

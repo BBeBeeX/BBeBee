@@ -16,17 +16,17 @@ export interface VisualizerSettingsCardProps {
 }
 
 const STYLES: { id: VisualizerStyle; label: string; icon: string; desc: string }[] = [
-  { id: 'bars', label: '频谱柱状图', icon: 'chart-bar', desc: '经典多频段跳动频谱条' },
-  { id: 'wave', label: '平滑波形图', icon: 'wave-sine', desc: '柔和流动的声波示波曲线' },
-  { id: 'circle', label: '环形辐射谱', icon: 'circle-dot', desc: '中心辐射 360 度动态光圈' },
-  { id: 'particles', label: '律动光点', icon: 'sparkles', desc: '随音量脉冲浮动的粒子点群' },
+  { id: 'bars', label: 'Spectrum bars', icon: 'chart-bar', desc: 'Classic multi-band jumping spectrum bars' },
+  { id: 'wave', label: 'Smooth wave', icon: 'wave-sine', desc: 'A soft, flowing oscilloscope curve' },
+  { id: 'circle', label: 'Radial circle', icon: 'circle-dot', desc: 'A 360-degree dynamic halo radiating from the center' },
+  { id: 'particles', label: 'Pulsing particles', icon: 'sparkles', desc: 'A swarm of particles floating with the volume pulse' },
 ]
 
 const THEMES: { id: VisualizerColorTheme; label: string; color: string }[] = [
-  { id: 'accent', label: '角色霓光', color: 'linear-gradient(135deg, #5F87FF, #A99CFF)' },
-  { id: 'neon', label: '极光青绿', color: 'linear-gradient(135deg, #00FF87, #60EFFF)' },
-  { id: 'rainbow', label: '彩虹幻彩', color: 'linear-gradient(135deg, #FF0844, #FFB199, #FEE140, #38F9D7)' },
-  { id: 'monochrome', label: '极简银白', color: 'linear-gradient(135deg, #FFFFFF, #8E8E93)' },
+  { id: 'accent', label: 'Brand neon', color: 'linear-gradient(135deg, #5F87FF, #A99CFF)' },
+  { id: 'neon', label: 'Aurora teal', color: 'linear-gradient(135deg, #00FF87, #60EFFF)' },
+  { id: 'rainbow', label: 'Iridescent rainbow', color: 'linear-gradient(135deg, #FF0844, #FFB199, #FEE140, #38F9D7)' },
+  { id: 'monochrome', label: 'Minimal silver', color: 'linear-gradient(135deg, #FFFFFF, #8E8E93)' },
 ]
 
 function Switch({
@@ -113,7 +113,7 @@ export function VisualizerSettingsCard({ ctx }: VisualizerSettingsCardProps): Re
             letterSpacing: '-0.01em',
           },
         },
-        '音频可视化',
+        'Audio visualization',
       ),
       h(
         'p',
@@ -125,7 +125,7 @@ export function VisualizerSettingsCard({ ctx }: VisualizerSettingsCardProps): Re
             lineHeight: 1.4,
           },
         },
-        '在播放界面呈现音乐频率跳动与声波流动效果，自定义显示样式与色彩',
+        'Shows music-frequency and sound-wave animations in the playback UI, with custom display styles and colors',
       ),
     ),
     h(
@@ -158,16 +158,16 @@ export function VisualizerSettingsCard({ ctx }: VisualizerSettingsCardProps): Re
       h(
         'div',
         { style: { display: 'flex', flexDirection: 'column', gap: 3 } },
-        h(Text, { variant: 'sm', children: '音频可视化 (Audio Visualizer)' }),
+        h(Text, { variant: 'sm', children: 'Audio Visualizer' }),
         h(Text, {
           variant: 'xs',
           tone: 'muted',
-          children: '启用后在全屏播放界面实时展示跳动频谱或波形',
+          children: 'Once enabled, shows a live spectrum or waveform in the full-screen playback UI',
         }),
       ),
       h(Switch, {
         checked: settings.enabled,
-        accessibilityLabel: '音频可视化',
+        accessibilityLabel: 'Audio visualization',
         onChange: (checked) => {
           void updateSettings({ enabled: checked })
         },
@@ -203,7 +203,7 @@ export function VisualizerSettingsCard({ ctx }: VisualizerSettingsCardProps): Re
                   alignItems: 'center',
                 },
               },
-              h(Text, { variant: 'xs', tone: 'muted', children: '实时效果预览' }),
+              h(Text, { variant: 'xs', tone: 'muted', children: 'Live preview' }),
               h(Text, {
                 variant: 'xs',
                 tone: 'muted',
@@ -222,7 +222,7 @@ export function VisualizerSettingsCard({ ctx }: VisualizerSettingsCardProps): Re
           h(
             'div',
             { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
-            h(Text, { variant: 'sm', children: '显示样式' }),
+            h(Text, { variant: 'sm', children: 'Display style' }),
             h(
               'div',
               {
@@ -278,7 +278,7 @@ export function VisualizerSettingsCard({ ctx }: VisualizerSettingsCardProps): Re
           h(
             'div',
             { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
-            h(Text, { variant: 'sm', children: '色彩主题' }),
+            h(Text, { variant: 'sm', children: 'Color theme' }),
             h(
               'div',
               {
@@ -333,7 +333,7 @@ export function VisualizerSettingsCard({ ctx }: VisualizerSettingsCardProps): Re
             h(
               'div',
               { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
-              h(Text, { variant: 'sm', children: '幅度灵敏度' }),
+              h(Text, { variant: 'sm', children: 'Amplitude sensitivity' }),
               h(Text, {
                 variant: 'xs',
                 tone: 'muted',
@@ -343,7 +343,7 @@ export function VisualizerSettingsCard({ ctx }: VisualizerSettingsCardProps): Re
             h(Slider, {
               value: Math.round((settings.sensitivity ?? 1) * 100),
               max: 200,
-              accessibilityLabel: '幅度灵敏度',
+              accessibilityLabel: 'Amplitude sensitivity',
               onChange: (val) => {
                 const sensitivity = Math.max(0.5, Math.min(2.0, Math.round(val) / 100))
                 void updateSettings({ sensitivity })

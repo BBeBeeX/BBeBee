@@ -41,18 +41,18 @@ class DspStub extends Service implements DspService {
   public definitions: any[] = [
     {
       id: 'preamp',
-      displayName: '前级增益 (Preamp)',
+      displayName: 'Preamp',
       defaultOrder: 10,
     },
     {
       id: 'eq10',
-      displayName: '10频段均衡器 (10-Band EQ)',
+      displayName: 'Equalizer',
       defaultOrder: 20,
-      presets: [{ name: '原声 (Flat)', params: { gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] } }],
+      presets: [{ name: 'Flat', params: { gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] } }],
     },
     {
       id: 'limiter',
-      displayName: '峰值限制器 (Peak Limiter)',
+      displayName: 'Peak Limiter',
       defaultOrder: 90,
     },
   ]
@@ -102,26 +102,26 @@ describe('plugin-dsp-ui-desktop', () => {
     const Card = (ctx.ui as any).viewFor('settings.loudness-normalization')
     expect(Card).toBeDefined()
     const html = renderToStaticMarkup(h(Card, {}))
-    expect(html).toContain('曲目间音量响度标准化')
-    expect(html).toContain('启用音量响度标准化')
+    expect(html).toContain('Loudness normalization between tracks')
+    expect(html).toContain('Enable loudness normalization')
   })
 
   it('renders DspScreen with EQ sliders and titles', async () => {
     const { ctx } = await createHarness()
     const html = renderToStaticMarkup(h(DspScreen, { ctx }))
 
-    expect(html).toContain('音频效果器与均衡器 (DSP)')
-    expect(html).toContain('10 频段均衡器 (EQ)')
-    expect(html).toContain('效果链编排 (Effect Chain)')
-    expect(html).toContain('处理延迟: 0 ms')
-    expect(html).toContain('均衡器')
-    expect(html).toContain('预设')
-    expect(html).toContain('重置')
-    expect(html).toContain('保存预设')
+    expect(html).toContain('Audio effects &amp; equalizer (DSP)')
+    expect(html).toContain('10-Band equalizer (EQ)')
+    expect(html).toContain('Effect chain (Effect Chain)')
+    expect(html).toContain('Processing latency: 0 ms')
+    expect(html).toContain('Equalizer')
+    expect(html).toContain('Presets')
+    expect(html).toContain('Reset')
+    expect(html).toContain('Save preset')
     expect(html).toContain('31Hz')
     expect(html).toContain('16KHz')
     expect(html).toContain('+12dB')
     expect(html).toContain('-12dB')
-    expect(html).toContain('已启用')
+    expect(html).toContain('Enabled')
   })
 })

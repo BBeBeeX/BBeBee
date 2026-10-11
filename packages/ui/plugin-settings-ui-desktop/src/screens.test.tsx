@@ -171,10 +171,10 @@ async function harness(initialSettings: Partial<AppSettings> = {}) {
       { effectId: 'reverb', enabled: true, ordinal: 50 },
     ]
     public definitions = [
-      { id: 'eq10', displayName: '10频段均衡器', defaultOrder: 20 },
-      { id: 'normalize', displayName: '响度标准化', defaultOrder: 30 },
-      { id: 'compressor', displayName: '动态压缩器', defaultOrder: 40 },
-      { id: 'reverb', displayName: '空间混响', defaultOrder: 50 },
+      { id: 'eq10', displayName: 'Equalizer', defaultOrder: 20 },
+      { id: 'normalize', displayName: 'Normalization', defaultOrder: 30 },
+      { id: 'compressor', displayName: 'Compressor', defaultOrder: 40 },
+      { id: 'reverb', displayName: 'Reverb', defaultOrder: 50 },
     ]
     public latencyMs = 2
 
@@ -307,7 +307,7 @@ async function harness(initialSettings: Partial<AppSettings> = {}) {
     public lyricSources: LyricSourceDefinition[] = [
       {
         id: 'builtin-lrclib',
-        name: 'LRCLIB (默认歌词源)',
+        name: 'LRCLIB (default lyric source)',
         enabled: true,
         sortOrder: 0,
         script: 'async function searchLyrics() {}',
@@ -356,8 +356,8 @@ async function harness(initialSettings: Partial<AppSettings> = {}) {
       {
         id: '@BBeBee/core-audio',
         name: 'core-audio',
-        displayName: '音频核心',
-        description: '音频播放底层驱动',
+        displayName: 'Audio core',
+        description: 'Low-level audio playback driver',
         version: '0.1.0',
         author: 'BBeBee Team',
         systemId: 'layer-2',
@@ -372,8 +372,8 @@ async function harness(initialSettings: Partial<AppSettings> = {}) {
       {
         id: '@BBeBee/log-console',
         name: 'log-console',
-        displayName: '控制台日志',
-        description: '标准控制台输出通道',
+        displayName: 'Console logs',
+        description: 'Standard console output channel',
         version: '0.1.0',
         author: 'BBeBee Team',
         systemId: 'layer-3',
@@ -388,8 +388,8 @@ async function harness(initialSettings: Partial<AppSettings> = {}) {
       {
         id: '@BBeBee/plugin-theme',
         name: 'plugin-theme',
-        displayName: '主题管理',
-        description: '主题服务与色彩管理',
+        displayName: 'Theme manager',
+        description: 'Theme service and color management',
         version: '0.1.0',
         author: 'BBeBee Team',
         systemId: 'layer-4',
@@ -404,8 +404,8 @@ async function harness(initialSettings: Partial<AppSettings> = {}) {
       {
         id: '@BBeBee/plugin-settings',
         name: 'plugin-settings',
-        displayName: '设置中心',
-        description: '用户偏好与设置',
+        displayName: 'Settings center',
+        description: 'User preferences and settings',
         version: '0.1.0',
         author: 'BBeBee Team',
         systemId: 'layer-4',
@@ -420,8 +420,8 @@ async function harness(initialSettings: Partial<AppSettings> = {}) {
       {
         id: '@BBeBee/ui-player',
         name: 'ui-player',
-        displayName: '播放器界面',
-        description: '播放器视图与控制器',
+        displayName: 'Player UI',
+        description: 'Player views and controllers',
         version: '0.1.0',
         author: 'BBeBee Team',
         systemId: 'layer-5',
@@ -480,20 +480,20 @@ async function harness(initialSettings: Partial<AppSettings> = {}) {
     return h(
       'section',
       null,
-      h('h3', null, '音频效果与均衡器 (DSP)'),
-      h('div', null, '10 频段图示均衡器 (10-Band EQ)'),
-      h('div', null, '均衡器预设风格'),
-      h('button', { onClick: () => void dsp.applyPreset('eq10', '原声 (Flat)') }, '原声'),
-      h('div', null, '音量响度标准化 (Normalization)'),
-      h('div', null, '标准化目标响度预设'),
-      h('button', { onClick: () => void dsp.applyPreset('normalize', '流媒体标准 (-14 LUFS)') }, '流媒体 (-14)'),
-      h('div', null, '动态范围压缩器 (Compressor)'),
-      h('div', null, '压缩模式风格'),
-      h('button', { onClick: () => void dsp.applyPreset('compressor', '夜间模式 (Night Mode)') }, '🌙 夜间模式'),
-      h('div', null, '空间混响效果 (Reverb)'),
-      h('div', null, '混响空间类型'),
-      h('button', { onClick: () => void dsp.applyPreset('reverb', '音乐大厅 (Concert Hall)') }, '音乐大厅'),
-      h('button', { onClick: () => ui.navigate('dsp.view') }, '打开音效面板 →'),
+      h('h3', null, 'Audio effects & equalizer (DSP)'),
+      h('div', null, '10-Band graphic equalizer (10-Band EQ)'),
+      h('div', null, 'Equalizer preset styles'),
+      h('button', { onClick: () => void dsp.applyPreset('eq10', 'Flat') }, 'Flat'),
+      h('div', null, 'Loudness normalization (Normalization)'),
+      h('div', null, 'Normalization target loudness presets'),
+      h('button', { onClick: () => void dsp.applyPreset('normalize', 'Streaming (-14 LUFS)') }, 'Streaming (-14)'),
+      h('div', null, 'Dynamic range compressor (Compressor)'),
+      h('div', null, 'Compression preset styles'),
+      h('button', { onClick: () => void dsp.applyPreset('compressor', 'Night Mode') }, '🌙 Night Mode'),
+      h('div', null, 'Spatial reverb (Reverb)'),
+      h('div', null, 'Reverb space type'),
+      h('button', { onClick: () => void dsp.applyPreset('reverb', 'Concert Hall') }, 'Concert Hall'),
+      h('button', { onClick: () => ui.navigate('dsp.view') }, 'Open audio effects panel →'),
     )
   }
 
@@ -501,7 +501,7 @@ async function harness(initialSettings: Partial<AppSettings> = {}) {
   settingsSvc.contribute({
     id: 'settings.dsp',
     section: 'playback',
-    title: '音频效果与均衡器 (DSP)',
+    title: 'Audio effects & equalizer (DSP)',
     display: 'card',
   })
 
@@ -521,10 +521,10 @@ describe('SettingsScreen', () => {
     settingsSvc.contribute({
       id: 'mock.general.fields',
       section: 'general',
-      title: 'Mock 外观',
+      title: 'Mock appearance',
       order: 5,
-      fields: [{ key: 'language', type: 'select', label: 'Mock 语言', options: [
-        { value: 'zh', label: '简体中文' },
+      fields: [{ key: 'language', type: 'select', label: 'Mock language', options: [
+        { value: 'zh', label: 'Simplified Chinese' },
         { value: 'en', label: 'English' },
       ] }],
     })
@@ -533,17 +533,17 @@ describe('SettingsScreen', () => {
     settingsSvc.contribute({
       id: 'mock.general.card',
       section: 'general',
-      title: 'Mock 卡片',
+      title: 'Mock card',
       display: 'card',
       order: 6,
     })
 
     const { getByTestId, container, findByText } = render(h(SettingsScreen, { ctx }))
-    await findByText('Mock 外观')
+    await findByText('Mock appearance')
     expect(getByTestId('mock-general-card')).toBeTruthy()
 
     // The schema field writes through the settings document by dot path.
-    const select = container.querySelector('select[aria-label="Mock 语言"]') as HTMLSelectElement
+    const select = container.querySelector('select[aria-label="Mock language"]') as HTMLSelectElement
     fireEvent.change(select, { target: { value: 'en' } })
     await waitFor(() => {
       expect(calls.some((c) => c.includes('"language":"en"'))).toBe(true)
@@ -558,26 +558,26 @@ describe('SettingsScreen', () => {
     settingsSvc.contribute({
       id: 'mock.general.noview',
       section: 'general',
-      title: '无视图卡片',
+      title: 'Card without a view',
       display: 'card',
     })
 
     const { findByText } = render(h(SettingsScreen, { ctx }))
-    expect(await findByText('在此平台不可用')).toBeTruthy()
+    expect(await findByText('Not available on this platform')).toBeTruthy()
   })
 
   it('renders tabs and general settings by default', async () => {
     const { ctx } = await harness()
     const { getByText, getAllByText } = render(h(SettingsScreen, { ctx }))
 
-    expect(getAllByText('常规与语言').length).toBeGreaterThanOrEqual(2)
-    expect(getByText('播放与音频')).toBeTruthy()
-    expect(getByText('曲库与来源')).toBeTruthy()
-    expect(getByText('存储与缓存')).toBeTruthy()
-    expect(getByText('关于应用')).toBeTruthy()
+    expect(getAllByText('General & language').length).toBeGreaterThanOrEqual(2)
+    expect(getByText('Playback & Audio')).toBeTruthy()
+    expect(getByText('Library & sources')).toBeTruthy()
+    expect(getByText('Storage & cache')).toBeTruthy()
+    expect(getByText('About')).toBeTruthy()
 
-    expect(getByText('界面语言')).toBeTruthy()
-    expect(getByText('关闭主窗口时最小化到系统托盘')).toBeTruthy()
+    expect(getByText('Interface language')).toBeTruthy()
+    expect(getByText('Minimize to system tray when closing the main window')).toBeTruthy()
   })
 
   it('switches to playback tab, toggles exclusive mode, and renders the transition schema fields', async () => {
@@ -587,25 +587,25 @@ describe('SettingsScreen', () => {
     ;(ctx.get('settings') as unknown as { contribute(c: SettingsContribution): void }).contribute({
       id: 'player.transition',
       section: 'playback',
-      title: '过渡与衔接',
+      title: 'Transition & crossfade',
       fields: [
-        { key: 'gaplessPlayback', type: 'switch', label: '无缝播放 (Gapless Playback)' },
-        { key: 'crossfadeEnabled', type: 'switch', label: '曲目交叉淡入淡出 (Crossfade)' },
-        { key: 'crossfadeDurationSeconds', type: 'slider', label: '淡入淡出持续时间', min: 1, max: 10, unit: '秒', when: () => true },
-        { key: 'pauseOnUnplug', type: 'switch', label: '拔出音频设备时自动暂停' },
+        { key: 'gaplessPlayback', type: 'switch', label: 'Gapless playback' },
+        { key: 'crossfadeEnabled', type: 'switch', label: 'Crossfade' },
+        { key: 'crossfadeDurationSeconds', type: 'slider', label: 'Fade duration', min: 1, max: 10, unit: 's', when: () => true },
+        { key: 'pauseOnUnplug', type: 'switch', label: 'Pause when the audio device is unplugged' },
       ],
     })
     const { getByText, findByText, container } = render(h(SettingsScreen, { ctx }))
 
-    const playbackTab = await findByText('播放与音频')
+    const playbackTab = await findByText('Playback & Audio')
     fireEvent.click(playbackTab)
 
-    expect(await findByText('无缝播放 (Gapless Playback)')).toBeTruthy()
-    expect(getByText('曲目交叉淡入淡出 (Crossfade)')).toBeTruthy()
-    expect(getByText('独占模式 (Exclusive Mode)')).toBeTruthy()
+    expect(await findByText('Gapless playback')).toBeTruthy()
+    expect(getByText('Crossfade')).toBeTruthy()
+    expect(getByText('Exclusive mode')).toBeTruthy()
 
     // Find and click the toggle switch for exclusive mode
-    const exclusiveSwitch = document.querySelector('button[aria-label="独占模式"]') as HTMLButtonElement
+    const exclusiveSwitch = document.querySelector('button[aria-label="Exclusive mode"]') as HTMLButtonElement
     expect(exclusiveSwitch).toBeTruthy()
     fireEvent.click(exclusiveSwitch)
 
@@ -615,7 +615,7 @@ describe('SettingsScreen', () => {
 
     // Transition switches write their dot paths through the settings document
     const crossfadeSwitch = container.querySelector(
-      'button[aria-label="曲目交叉淡入淡出 (Crossfade)"]',
+      'button[aria-label="Crossfade"]',
     ) as HTMLButtonElement
     expect(crossfadeSwitch).toBeTruthy()
     fireEvent.click(crossfadeSwitch)
@@ -629,10 +629,10 @@ describe('SettingsScreen', () => {
     const { ctx, calls } = await harness()
     const { findByText } = render(h(SettingsScreen, { ctx }))
 
-    const storageTab = await findByText('存储与缓存')
+    const storageTab = await findByText('Storage & cache')
     fireEvent.click(storageTab)
 
-    const clearButton = await findByText('清除全部缓存')
+    const clearButton = await findByText('Clear all cache')
     fireEvent.click(clearButton)
 
     await waitFor(() => {
@@ -645,31 +645,31 @@ describe('SettingsScreen', () => {
     const { findByText, getByText, queryByText } = render(h(SettingsScreen, { ctx }))
 
     // Switch to about tab where reset button is located
-    const aboutTab = await findByText('关于应用')
+    const aboutTab = await findByText('About')
     fireEvent.click(aboutTab)
 
     // Initially danger zone is hidden
-    expect(queryByText('危险区域')).toBeNull()
+    expect(queryByText('Danger zone')).toBeNull()
 
-    // Check "高级设置"
+    // Check "Advanced settings"
     const advCheckbox = document.querySelector('input[type="checkbox"]') as HTMLInputElement
     expect(advCheckbox).toBeTruthy()
     fireEvent.click(advCheckbox)
 
     // Now danger zone is visible
-    expect(await findByText('危险区域')).toBeTruthy()
-    expect(getByText('调试与诊断中心 (Debug)')).toBeTruthy()
+    expect(await findByText('Danger zone')).toBeTruthy()
+    expect(getByText('Debug & diagnostics center (Debug)')).toBeTruthy()
 
-    // Click "进入 Debug"
-    const debugBtn = getByText(/进入 Debug/)
+    // Click "Open Debug"
+    const debugBtn = getByText(/Open Debug/)
     fireEvent.click(debugBtn)
     expect(calls.includes('navigate:debug.view')).toBe(true)
 
     // Test Reset
-    const resetButton = await findByText('恢复默认设置')
+    const resetButton = await findByText('Restore defaults')
     fireEvent.click(resetButton)
 
-    const confirmButton = await findByText('确认重置')
+    const confirmButton = await findByText('Confirm reset')
     fireEvent.click(confirmButton)
 
     await waitFor(() => {
@@ -681,11 +681,11 @@ describe('SettingsScreen', () => {
     const { ctx } = await harness()
     const { findByText, getByText } = render(h(SettingsScreen, { ctx }))
 
-    const aboutTab = await findByText('关于应用')
+    const aboutTab = await findByText('About')
     fireEvent.click(aboutTab)
 
-    expect(await findByText('跨平台插件化音乐播放器 · Version 0.1.0')).toBeTruthy()
-    expect(getByText('微内核架构')).toBeTruthy()
+    expect(await findByText('Cross-platform plugin-based music player · Version 0.1.0')).toBeTruthy()
+    expect(getByText('Microkernel architecture')).toBeTruthy()
   })
 
   it('displays and modifies EQ, normalize, compressor, reverb in playback tab and navigates to dsp.view', async () => {
@@ -693,41 +693,41 @@ describe('SettingsScreen', () => {
     const { findByText, getByText } = render(h(SettingsScreen, { ctx }))
 
     // Switch to playback tab
-    const playbackTab = await findByText('播放与音频')
+    const playbackTab = await findByText('Playback & Audio')
     fireEvent.click(playbackTab)
 
-    expect(await findByText('音频效果与均衡器 (DSP)')).toBeTruthy()
+    expect(await findByText('Audio effects & equalizer (DSP)')).toBeTruthy()
 
     // 1. Check EQ
-    expect(getByText('10 频段图示均衡器 (10-Band EQ)')).toBeTruthy()
-    expect(getByText('均衡器预设风格')).toBeTruthy()
-    const flatButton = getByText('原声')
+    expect(getByText('10-Band graphic equalizer (10-Band EQ)')).toBeTruthy()
+    expect(getByText('Equalizer preset styles')).toBeTruthy()
+    const flatButton = getByText('Flat')
     fireEvent.click(flatButton)
-    expect(calls.some((c) => c.includes('dsp:applyPreset:eq10:原声 (Flat)'))).toBe(true)
+    expect(calls.some((c) => c.includes('dsp:applyPreset:eq10:Flat'))).toBe(true)
 
     // 2. Check Normalize
-    expect(getByText('音量响度标准化 (Normalization)')).toBeTruthy()
-    expect(getByText('标准化目标响度预设')).toBeTruthy()
-    const lufsButton = getByText('流媒体 (-14)')
+    expect(getByText('Loudness normalization (Normalization)')).toBeTruthy()
+    expect(getByText('Normalization target loudness presets')).toBeTruthy()
+    const lufsButton = getByText('Streaming (-14)')
     fireEvent.click(lufsButton)
-    expect(calls.some((c) => c.includes('dsp:applyPreset:normalize:流媒体标准 (-14 LUFS)'))).toBe(true)
+    expect(calls.some((c) => c.includes('dsp:applyPreset:normalize:Streaming (-14 LUFS)'))).toBe(true)
 
     // 3. Check Compressor
-    expect(getByText('动态范围压缩器 (Compressor)')).toBeTruthy()
-    expect(getByText('压缩模式风格')).toBeTruthy()
-    const nightButton = getByText('🌙 夜间模式')
+    expect(getByText('Dynamic range compressor (Compressor)')).toBeTruthy()
+    expect(getByText('Compression preset styles')).toBeTruthy()
+    const nightButton = getByText('🌙 Night Mode')
     fireEvent.click(nightButton)
-    expect(calls.some((c) => c.includes('dsp:applyPreset:compressor:夜间模式 (Night Mode)'))).toBe(true)
+    expect(calls.some((c) => c.includes('dsp:applyPreset:compressor:Night Mode'))).toBe(true)
 
     // 4. Check Reverb
-    expect(getByText('空间混响效果 (Reverb)')).toBeTruthy()
-    expect(getByText('混响空间类型')).toBeTruthy()
-    const hallButton = getByText('音乐大厅')
+    expect(getByText('Spatial reverb (Reverb)')).toBeTruthy()
+    expect(getByText('Reverb space type')).toBeTruthy()
+    const hallButton = getByText('Concert Hall')
     fireEvent.click(hallButton)
-    expect(calls.some((c) => c.includes('dsp:applyPreset:reverb:音乐大厅 (Concert Hall)'))).toBe(true)
+    expect(calls.some((c) => c.includes('dsp:applyPreset:reverb:Concert Hall'))).toBe(true)
 
-    // 5. Click "打开音效面板 →" to navigate to dsp.view
-    const dspBtn = getByText('打开音效面板 →')
+    // 5. Click "Open audio effects panel →" to navigate to dsp.view
+    const dspBtn = getByText('Open audio effects panel →')
     fireEvent.click(dspBtn)
     expect(calls.includes('navigate:dsp.view')).toBe(true)
   })
@@ -750,10 +750,10 @@ describe('SettingsScreen', () => {
     }
 
     // Default volume is removed completely from the UI
-    expect(container.textContent).not.toContain('默认音量')
+    expect(container.textContent).not.toContain('Default volume')
 
     // Clicking playback tab replaces active section
-    fireEvent.click(getByText('播放与音频'))
+    fireEvent.click(getByText('Playback & Audio'))
     expect(container.querySelector('#section-playback')).toBeTruthy()
     expect(container.querySelector('#section-general')).toBeNull()
   })
@@ -761,19 +761,19 @@ describe('SettingsScreen', () => {
   it('renders visualizer settings when visualizer.settings view is registered', async () => {
     const { ctx } = await harness()
     ctx.ui.registerView('visualizer.settings', () =>
-      h('div', { 'data-testid': 'mock-visualizer-settings' }, '音频可视化 Mock Visualizer Settings'),
+      h('div', { 'data-testid': 'mock-visualizer-settings' }, 'Audio visualization Mock Visualizer Settings'),
     )
     ;(ctx.get('settings') as unknown as { contribute(c: SettingsContribution): void }).contribute({
       id: 'visualizer.settings',
       section: 'playback',
-      title: '音频可视化',
+      title: 'Audio visualization',
       display: 'card',
     })
     const { container, findByText } = render(h(SettingsScreen, { ctx }))
-    const playbackTab = await findByText('播放与音频')
+    const playbackTab = await findByText('Playback & Audio')
     fireEvent.click(playbackTab)
     expect(container.querySelector('[data-testid="mock-visualizer-settings"]')).toBeTruthy()
-    expect(container.textContent).toContain('音频可视化')
+    expect(container.textContent).toContain('Audio visualization')
   })
 
   it('updates language via Select dropdown', async () => {
@@ -781,7 +781,7 @@ describe('SettingsScreen', () => {
     const { container } = render(h(SettingsScreen, { ctx }))
 
     // Language select
-    const langSelect = container.querySelector('select[aria-label="界面语言"]') as HTMLSelectElement
+    const langSelect = container.querySelector('select[aria-label="Interface language"]') as HTMLSelectElement
     expect(langSelect).toBeTruthy()
     expect(langSelect.value).toBe('zh')
     fireEvent.change(langSelect, { target: { value: 'en' } })
@@ -797,7 +797,7 @@ describe('SettingsScreen', () => {
     expect(container.querySelector('#section-general')).toBeTruthy()
     expect(container.querySelector('#section-playback')).toBeNull()
 
-    const playbackTab = await findByText('播放与音频')
+    const playbackTab = await findByText('Playback & Audio')
     fireEvent.click(playbackTab)
 
     expect(container.querySelector('#section-playback')).toBeTruthy()
@@ -809,21 +809,21 @@ describe('SettingsScreen', () => {
     const { ctx } = await harness({ downloadDir: '/custom/downloads', cacheDir: '/custom/cache' })
     const { getByText, container, findByText } = render(h(SettingsScreen, { ctx }))
 
-    const storageTab = await findByText('存储与缓存')
+    const storageTab = await findByText('Storage & cache')
     fireEvent.click(storageTab)
 
-    expect(getByText('下载目录')).toBeTruthy()
+    expect(getByText('Downloads directory')).toBeTruthy()
     expect(container.textContent).toContain('/custom/downloads')
-    expect(getByText('歌曲缓存目录')).toBeTruthy()
+    expect(getByText('Song cache directory')).toBeTruthy()
     expect(container.textContent).toContain('/custom/cache')
 
     const changeButtons = Array.from(container.querySelectorAll('button')).filter(
-      (b) => b.textContent === '更改目录',
+      (b) => b.textContent === 'Change directory',
     )
     expect(changeButtons.length).toBe(2)
 
     const openButtons = Array.from(container.querySelectorAll('button')).filter(
-      (b) => b.textContent === '打开文件夹',
+      (b) => b.textContent === 'Open folder',
     )
     expect(changeButtons.length).toBe(2)
     expect(openButtons.length).toBe(2)
@@ -840,12 +840,12 @@ describe('SettingsScreen', () => {
     ;(ctx.get('settings') as unknown as { contribute(c: SettingsContribution): void }).contribute({
       id: 'settings.shortcuts',
       section: 'shortcuts',
-      title: '全局快捷键',
+      title: 'Global shortcuts',
       display: 'card',
     })
     const { getByTestId, findByText } = render(h(SettingsScreen, { ctx }))
 
-    const shortcutsTab = await findByText('全局快捷键')
+    const shortcutsTab = await findByText('Global shortcuts')
     fireEvent.click(shortcutsTab)
     expect(getByTestId('mock-shortcuts-card')).toBeTruthy()
   })
@@ -856,23 +856,23 @@ describe('SettingsScreen', () => {
     ;(ctx.get('settings') as unknown as { contribute(c: SettingsContribution): void }).contribute({
       id: 'settings.shortcuts',
       section: 'shortcuts',
-      title: '全局快捷键',
+      title: 'Global shortcuts',
       display: 'card',
     })
     const { container, getByText, getAllByText, findByText } = render(h(SettingsScreen, { ctx }))
 
-    const shortcutsTab = await findByText('全局快捷键')
+    const shortcutsTab = await findByText('Global shortcuts')
     fireEvent.click(shortcutsTab)
 
-    expect(getAllByText('全局快捷键').length).toBeGreaterThanOrEqual(1)
-    expect(getByText('启用全局快捷键')).toBeTruthy()
-    expect(getByText('播放 / 暂停')).toBeTruthy()
-    expect(getByText('增大音量 (+5%)')).toBeTruthy()
-    expect(getByText('显示 / 隐藏桌面歌词')).toBeTruthy()
-    expect(getByText('显示 / 隐藏音乐界面')).toBeTruthy()
+    expect(getAllByText('Global shortcuts').length).toBeGreaterThanOrEqual(1)
+    expect(getByText('Enable global shortcuts')).toBeTruthy()
+    expect(getByText('Play / Pause')).toBeTruthy()
+    expect(getByText('Volume up (+5%)')).toBeTruthy()
+    expect(getByText('Show / hide desktop lyrics')).toBeTruthy()
+    expect(getByText('Show / hide music UI')).toBeTruthy()
 
     // Toggle master shortcuts switch
-    const switchBtn = container.querySelector('button[aria-label="启用全局快捷键"]') as HTMLButtonElement
+    const switchBtn = container.querySelector('button[aria-label="Enable global shortcuts"]') as HTMLButtonElement
     expect(switchBtn).toBeTruthy()
     fireEvent.click(switchBtn)
 
@@ -881,7 +881,7 @@ describe('SettingsScreen', () => {
     })
 
     // Click reset default shortcuts
-    const resetBtn = getByText('恢复默认快捷键')
+    const resetBtn = getByText('Restore default shortcuts')
     fireEvent.click(resetBtn)
     await waitFor(() => {
       expect(calls.some((c) => c.includes('CommandOrControl+Alt+Space'))).toBe(true)
@@ -893,29 +893,29 @@ describe('SettingsScreen', () => {
     const { getByText, findByText } = render(h(SettingsScreen, { ctx }))
     // (the shortcuts block above uses container/getByText/getAllByText)
 
-    const networkTab = await findByText('网络与代理')
+    const networkTab = await findByText('Network & proxy')
     fireEvent.click(networkTab)
 
-    expect(getByText('网络代理设置')).toBeTruthy()
-    expect(getByText('启用网络代理')).toBeTruthy()
-    expect(getByText('代理协议类型')).toBeTruthy()
-    expect(getByText('服务器主机与端口')).toBeTruthy()
-    expect(getByText('第三方音源代理独立分流')).toBeTruthy()
+    expect(getByText('Network proxy settings')).toBeTruthy()
+    expect(getByText('Enable network proxy')).toBeTruthy()
+    expect(getByText('Proxy protocol')).toBeTruthy()
+    expect(getByText('Server host & port')).toBeTruthy()
+    expect(getByText('Per-source proxy routing for third-party music sources')).toBeTruthy()
 
-    const testBtn = getByText('测试 Google 连接')
+    const testBtn = getByText('Test Google connection')
     expect(testBtn).toBeTruthy()
     fireEvent.click(testBtn)
 
-    expect(await findByText(/Google 探测节点连通正常|代理连通/)).toBeTruthy()
+    expect(await findByText(/Google probe reachable|Proxy connection failed/)).toBeTruthy()
   })
 
   it('persists the download region selection from the network tab', async () => {
     const { ctx, calls } = await harness({ downloadRegion: 'global' })
     const { container, findByText } = render(h(SettingsScreen, { ctx }))
 
-    fireEvent.click(await findByText('网络与代理'))
+    fireEvent.click(await findByText('Network & proxy'))
 
-    const regionSelect = container.querySelector('select[aria-label="下载区域"]') as HTMLSelectElement
+    const regionSelect = container.querySelector('select[aria-label="Download region"]') as HTMLSelectElement
     expect(regionSelect).toBeTruthy()
     expect(regionSelect.value).toBe('global')
 
@@ -929,11 +929,11 @@ describe('SettingsScreen', () => {
     const { ctx, calls } = await harness({ githubAccelerationPrefixes: ['https://a.example.com'] })
     const { getByText, getByTestId, queryByTestId, findByText } = render(h(SettingsScreen, { ctx }))
 
-    fireEvent.click(await findByText('网络与代理'))
+    fireEvent.click(await findByText('Network & proxy'))
 
-    // Collapsed until 自定义 is clicked
+    // Collapsed until Customize is clicked
     expect(queryByTestId('settings-github-acceleration')).toBeNull()
-    fireEvent.click(getByText('自定义'))
+    fireEvent.click(getByText('Customize'))
 
     // The system jsDelivr row is present and carries no controls of its own
     const systemRow = getByTestId('settings-github-prefix-system')
@@ -965,7 +965,7 @@ describe('SettingsScreen', () => {
 
     // Delete the first row → the remaining array is reported
     const deleteBtn = getByTestId('settings-github-prefix-row-0').querySelector(
-      'button[aria-label="删除加速线路 1"]',
+      'button[aria-label="Delete acceleration endpoint 1"]',
     ) as HTMLButtonElement
     fireEvent.click(deleteBtn)
     await waitFor(() => {
@@ -979,8 +979,8 @@ describe('SettingsScreen', () => {
     const { ctx, calls } = await harness({ githubAccelerationPrefixes: [] })
     const { getByText, getByTestId, findByText } = render(h(SettingsScreen, { ctx }))
 
-    fireEvent.click(await findByText('网络与代理'))
-    fireEvent.click(getByText('自定义'))
+    fireEvent.click(await findByText('Network & proxy'))
+    fireEvent.click(getByText('Customize'))
 
     fireEvent.click(getByTestId('settings-github-prefix-add'))
     const input = getByTestId('settings-github-prefix-row-0').querySelector('input') as HTMLInputElement
@@ -1001,8 +1001,8 @@ describe('SettingsScreen', () => {
     })
     const { getByText, getByTestId, findByText } = render(h(SettingsScreen, { ctx }))
 
-    fireEvent.click(await findByText('网络与代理'))
-    fireEvent.click(getByText('自定义'))
+    fireEvent.click(await findByText('Network & proxy'))
+    fireEvent.click(getByText('Customize'))
 
     const row0 = getByTestId('settings-github-prefix-row-0')
     const row1 = getByTestId('settings-github-prefix-row-1')
@@ -1028,41 +1028,41 @@ describe('SettingsScreen', () => {
     const { ctx, calls } = await harness()
     const { getByText, findByText } = render(h(DebugScreen, { ctx }))
 
-    expect(await findByText('调试与诊断 (Debug)')).toBeTruthy()
-    expect(getByText('当前调试状态')).toBeTruthy()
-    expect(getByText('当前运行环境')).toBeTruthy()
-    expect(getByText('系统日志 (Discover)')).toBeTruthy()
-    expect(getByText('第三方源网络日志 (HTTP Logs)')).toBeTruthy()
-    expect(getByText('测试音源 (Test Sources)')).toBeTruthy()
-    expect(getByText('系统架构与插件拓扑 (Inspector)')).toBeTruthy()
+    expect(await findByText('Debug & diagnostics (Debug)')).toBeTruthy()
+    expect(getByText('Current debug status')).toBeTruthy()
+    expect(getByText('Current runtime environment')).toBeTruthy()
+    expect(getByText('System logs (Discover)')).toBeTruthy()
+    expect(getByText('Third-party source network logs (HTTP Logs)')).toBeTruthy()
+    expect(getByText('Test sources (Test Sources)')).toBeTruthy()
+    expect(getByText('System architecture & plugin topology (Inspector)')).toBeTruthy()
 
     // Test navigation to Discover logs
-    const discoverBtn = getByText('进入 Discover 日志页 →')
+    const discoverBtn = getByText('Open Discover logs →')
     fireEvent.click(discoverBtn)
     expect(calls.includes('navigate:debug.logs')).toBe(true)
 
     // Test navigation to HTTP logs
-    const httpLogsBtn = getByText('进入 HTTP Logs 页面 →')
+    const httpLogsBtn = getByText('Open HTTP logs page →')
     fireEvent.click(httpLogsBtn)
     expect(calls.includes('navigate:debug.http-logs')).toBe(true)
 
     // Test navigation to Theme Palette
-    const themePaletteBtn = getByText('进入主题色板 →')
+    const themePaletteBtn = getByText('Open theme palette →')
     fireEvent.click(themePaletteBtn)
     expect(calls.includes('navigate:debug.theme-palette')).toBe(true)
 
     // Test navigation to Test Sources
-    const testSourcesBtn = getByText('进入音源测试 →')
+    const testSourcesBtn = getByText('Open source tests →')
     fireEvent.click(testSourcesBtn)
     expect(calls.includes('navigate:sources.test')).toBe(true)
 
     // Test navigation to Inspector
-    const inspectorBtn = getByText('打开架构拓扑 (Inspector) →')
+    const inspectorBtn = getByText('Open architecture topology (Inspector) →')
     fireEvent.click(inspectorBtn)
     expect(calls.includes('navigate:inspector.panel')).toBe(true)
 
     // Test back button
-    const backBtn = getByText('← 返回设置')
+    const backBtn = getByText('← Back to settings')
     fireEvent.click(backBtn)
     expect(calls.includes('navigate:settings.view')).toBe(true)
   })
@@ -1071,17 +1071,17 @@ describe('SettingsScreen', () => {
     const { ctx, calls } = await harness()
     const { getByText, findByText, getByTestId } = render(h(ThemePaletteScreen, { ctx }))
 
-    expect(await findByText('主题变量色板 (Theme Palette)')).toBeTruthy()
+    expect(await findByText('Theme variable palette (Theme Palette)')).toBeTruthy()
     expect(getByTestId('theme-palette-screen')).toBeTruthy()
     expect(getByTestId('palette-swatch---bg-app')).toBeTruthy()
 
     // Test scheme toggle
     const schemeBtn = getByTestId('palette-scheme-toggle')
     fireEvent.click(schemeBtn)
-    expect(getByText(/浅色模式 \(Light\)|深色模式 \(Dark\)/)).toBeTruthy()
+    expect(getByText(/Light mode \(Light\)|Dark mode \(Dark\)/)).toBeTruthy()
 
     // Test back button
-    const backBtn = getByText('← 返回调试页')
+    const backBtn = getByText('← Back to debug')
     fireEvent.click(backBtn)
     expect(calls.includes('navigate:debug.view')).toBe(true)
   })
@@ -1090,24 +1090,24 @@ describe('SettingsScreen', () => {
     const { ctx, calls } = await harness()
     const { getByText, findByText, queryByText } = render(h(SettingsScreen, { ctx }))
 
-    expect(await findByText('常规与界面语言')).toBeTruthy()
+    expect(await findByText('General & interface language')).toBeTruthy()
 
     // Test navigation to Import Sources (in sources tab)
-    const sourcesTab = await findByText('曲库与来源')
+    const sourcesTab = await findByText('Library & sources')
     fireEvent.click(sourcesTab)
-    const importSourcesBtn = getByText('导入音源')
+    const importSourcesBtn = getByText('Import sources')
     fireEvent.click(importSourcesBtn)
     expect(calls.includes('navigate:sources.import')).toBe(true)
 
     // Playback history was moved out of settings into more-menu
-    expect(queryByText('查看播放历史')).toBeNull()
+    expect(queryByText('View play history')).toBeNull()
 
     // Test navigation to Debug center (revealed via Advanced Settings in About tab)
-    const aboutTab = await findByText('关于应用')
+    const aboutTab = await findByText('About')
     fireEvent.click(aboutTab)
     const advCheckbox = document.querySelector('input[type="checkbox"]') as HTMLInputElement
     if (advCheckbox) fireEvent.click(advCheckbox)
-    const debugBtn = getByText('进入 Debug 调试中心 →')
+    const debugBtn = getByText('Open Debug center →')
     fireEvent.click(debugBtn)
     expect(calls.includes('navigate:debug.view')).toBe(true)
   })
@@ -1119,8 +1119,8 @@ describe('SettingsScreen', () => {
       // @ts-expect-error test without process
       delete globalThis.process
       const { findByText, getByText } = render(h(DebugScreen, { ctx }))
-      expect(await findByText('调试与诊断 (Debug)')).toBeTruthy()
-      expect(getByText('生产环境 (Production)')).toBeTruthy()
+      expect(await findByText('Debug & diagnostics (Debug)')).toBeTruthy()
+      expect(getByText('Production environment (Production)')).toBeTruthy()
     } finally {
       globalThis.process = originalProcess
     }
@@ -1130,16 +1130,16 @@ describe('SettingsScreen', () => {
     const { ctx, calls } = await harness()
     const { getByText, findByText } = render(h(LogsScreen, { ctx }))
 
-    expect(await findByText('系统日志 (Discover Logs)')).toBeTruthy()
+    expect(await findByText('System logs (Discover Logs)')).toBeTruthy()
     expect(await findByText('kernel: cordis booted successfully')).toBeTruthy()
 
     // Test clear logs
-    const clearBtn = getByText('清空日志')
+    const clearBtn = getByText('Clear logs')
     fireEvent.click(clearBtn)
     expect(calls.includes('clearLogBuffer')).toBe(true)
 
     // Test back button
-    const backBtn = getByText('← 返回调试')
+    const backBtn = getByText('← Back to debug')
     fireEvent.click(backBtn)
     expect(calls.includes('navigate:debug.view')).toBe(true)
   })
@@ -1148,13 +1148,13 @@ describe('SettingsScreen', () => {
     const { ctx, calls } = await harness()
     const { getByText, findByText } = render(h(HttpLogsScreen, { ctx }))
 
-    expect(await findByText('第三方源 HTTP 日志 (HTTP Logs)')).toBeTruthy()
+    expect(await findByText('Third-party source HTTP logs (HTTP Logs)')).toBeTruthy()
     expect(await findByText('https://api.example.com/search?q=test')).toBeTruthy()
     expect(getByText('GET')).toBeTruthy()
     expect(getByText('200')).toBeTruthy()
 
     // Test back button
-    const backBtn = getByText('← 返回调试')
+    const backBtn = getByText('← Back to debug')
     fireEvent.click(backBtn)
     expect(calls.includes('navigate:debug.view')).toBe(true)
   })
@@ -1165,51 +1165,51 @@ describe('SettingsScreen', () => {
     const { ctx, calls } = await harness()
     const { container, findByText, getByText, getAllByText, getByPlaceholderText, queryByText } = render(h(SettingsScreen, { ctx }))
 
-    const pluginsTab = await findByText('插件')
+    const pluginsTab = await findByText('Plugins')
     fireEvent.click(pluginsTab)
 
-    expect(await findByText('核心 (core)')).toBeTruthy()
-    expect(getByText('— 桌面端的底层基础设施')).toBeTruthy()
-    expect(getByText('日志 (logs)')).toBeTruthy()
-    expect(getByText('功能 (feature)')).toBeTruthy()
-    expect(getByText('界面 (ui)')).toBeTruthy()
+    expect(await findByText('Core')).toBeTruthy()
+    expect(getByText('— Desktop low-level infrastructure')).toBeTruthy()
+    expect(getByText('Logs')).toBeTruthy()
+    expect(getByText('Features')).toBeTruthy()
+    expect(getByText('UI')).toBeTruthy()
 
     // Test search filter
-    const searchInput = getByPlaceholderText('搜索插件…')
+    const searchInput = getByPlaceholderText('Search plugins…')
     fireEvent.change(searchInput, { target: { value: 'theme' } })
 
-    expect(getByText('主题管理')).toBeTruthy()
-    expect(queryByText('音频核心')).toBeNull()
+    expect(getByText('Theme manager')).toBeTruthy()
+    expect(queryByText('Audio core')).toBeNull()
 
     // Clear search
     fireEvent.change(searchInput, { target: { value: '' } })
-    expect(await findByText('音频核心')).toBeTruthy()
+    expect(await findByText('Audio core')).toBeTruthy()
 
     // Expand plugin card for details
-    const themeCardChevron = container.querySelector('[role="button"][aria-label^="展开 主题管理"]') as HTMLElement
+    const themeCardChevron = container.querySelector('[role="button"][aria-label^="Expand Theme manager"]') as HTMLElement
     expect(themeCardChevron).toBeTruthy()
     fireEvent.click(themeCardChevron)
 
     // Key-value details
-    expect(getByText('完整名称')).toBeTruthy()
+    expect(getByText('Full name')).toBeTruthy()
     expect(getAllByText(/@BBeBee\/plugin-theme/).length).toBeGreaterThanOrEqual(2)
-    expect(getByText('依赖 (1)')).toBeTruthy()
-    expect(getByText('被依赖 (2)')).toBeTruthy()
+    expect(getByText('Dependencies (1)')).toBeTruthy()
+    expect(getByText('Dependents (2)')).toBeTruthy()
 
     // 1. Initially without advanced settings: enable/disable switch is hidden and hint is shown
     expect(container.querySelector('button[role="switch"]')).toBeNull()
-    expect(getByText('（插件启停功能已隐藏，需在「关于」页面开启高级设置）')).toBeTruthy()
+    expect(getByText('(Plugin enable/disable is hidden; enable advanced settings on the "About" page)')).toBeTruthy()
 
-    // 2. Open About tab and enable "高级设置"
-    const aboutTab = getByText('关于应用')
+    // 2. Open About tab and enable "Advanced settings"
+    const aboutTab = getByText('About')
     fireEvent.click(aboutTab)
     const advancedCheckbox = container.querySelector('input[type="checkbox"]') as HTMLInputElement
     expect(advancedCheckbox).toBeTruthy()
     fireEvent.click(advancedCheckbox)
 
     // 3. Switch back to Plugins tab
-    fireEvent.click(getByText('插件'))
-    const themeCardChevron2 = container.querySelector('[role="button"][aria-label^="展开 主题管理"]') as HTMLElement
+    fireEvent.click(getByText('Plugins'))
+    const themeCardChevron2 = container.querySelector('[role="button"][aria-label^="Expand Theme manager"]') as HTMLElement
     expect(themeCardChevron2).toBeTruthy()
     fireEvent.click(themeCardChevron2)
 
@@ -1219,8 +1219,8 @@ describe('SettingsScreen', () => {
     fireEvent.click(themeSwitch)
 
     // Confirmation sheet opens
-    expect(await findByText('停用插件确认')).toBeTruthy()
-    expect(getAllByText(/设置中心/).length).toBeGreaterThanOrEqual(2)
+    expect(await findByText('Confirm disabling plugin')).toBeTruthy()
+    expect(getAllByText(/Settings center/).length).toBeGreaterThanOrEqual(2)
 
     // Confirm disable
     const confirmBtn = container.querySelector('[data-testid="confirm-disable-plugin-btn"]') as HTMLButtonElement
@@ -1321,17 +1321,17 @@ describe('SettingsScreen', () => {
     settingsSvc!.contribute({
       id: 'player.transition',
       section: 'playback',
-      title: '过渡与衔接',
+      title: 'Transition & crossfade',
       fields: [
-        { key: 'gaplessPlayback', type: 'switch', label: '无缝播放 (Gapless Playback)' },
-        { key: 'crossfadeEnabled', type: 'switch', label: '曲目交叉淡入淡出 (Crossfade)' },
+        { key: 'gaplessPlayback', type: 'switch', label: 'Gapless playback' },
+        { key: 'crossfadeEnabled', type: 'switch', label: 'Crossfade' },
         {
           key: 'crossfadeDurationSeconds',
           type: 'slider',
-          label: '淡入淡出持续时间',
+          label: 'Fade duration',
           min: 1,
           max: 10,
-          unit: '秒',
+          unit: 's',
           when: () => {
             return (
               serviceOf<{ getSync(): AppSettings }>(playerScoped!, 'settings')?.getSync()
@@ -1346,7 +1346,7 @@ describe('SettingsScreen', () => {
     settingsSvc!.contribute({
       id: 'settings.missing-card',
       section: 'playback',
-      title: '未提供视图的扩展卡片',
+      title: 'Extension card without a view',
       display: 'card',
     })
 
@@ -1354,26 +1354,26 @@ describe('SettingsScreen', () => {
     const { findByText, getByText, queryByText } = render(h(SettingsScreen, { ctx: settingsScoped }))
 
     // 6. Switch to Playback tab
-    const playbackTab = await findByText('播放与音频')
+    const playbackTab = await findByText('Playback & Audio')
     fireEvent.click(playbackTab)
 
     // 7. Verify Playback tab rendered safely without throwing
-    expect(await findByText('音频输出引擎与设备')).toBeTruthy()
+    expect(await findByText('Audio output engine & devices')).toBeTruthy()
 
     // Degradation 1: Audio device falls back to placeholder when audio service is not providing devices
-    expect(getByText('当前输出目的地：音频输出设备')).toBeTruthy()
+    expect(getByText('Current output destination: Audio output device')).toBeTruthy()
 
     // Degradation 2: Missing card view renders fallback badge
-    expect(getByText('未提供视图的扩展卡片')).toBeTruthy()
-    expect(getByText('在此平台不可用')).toBeTruthy()
+    expect(getByText('Extension card without a view')).toBeTruthy()
+    expect(getByText('Not available on this platform')).toBeTruthy()
 
     // Schema form fields render safely
-    expect(getByText('过渡与衔接')).toBeTruthy()
-    expect(getByText('无缝播放 (Gapless Playback)')).toBeTruthy()
-    expect(getByText('曲目交叉淡入淡出 (Crossfade)')).toBeTruthy()
+    expect(getByText('Transition & crossfade')).toBeTruthy()
+    expect(getByText('Gapless playback')).toBeTruthy()
+    expect(getByText('Crossfade')).toBeTruthy()
 
     // Since crossfadeEnabled is false, slider is not rendered
-    expect(queryByText('淡入淡出持续时间')).toBeNull()
+    expect(queryByText('Fade duration')).toBeNull()
 
     // 8. Dynamically update crossfadeEnabled to true -> when predicate re-evaluates via serviceOf
     await act(async () => {
@@ -1381,7 +1381,7 @@ describe('SettingsScreen', () => {
     })
 
     // Slider now renders!
-    expect(await findByText('淡入淡出持续时间')).toBeTruthy()
+    expect(await findByText('Fade duration')).toBeTruthy()
   })
 
   it('renders LyricSourcesSection, opens configure modal, edits JSON config and saves', async () => {

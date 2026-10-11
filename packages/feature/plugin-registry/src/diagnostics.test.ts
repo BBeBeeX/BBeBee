@@ -366,8 +366,8 @@ describe('getDiagnostics — audit risks and rescanEntry', () => {
     const risk = before.risks.find((item) => item.id === 'audit:music-foo')
     expect(risk).toBeDefined()
     expect(risk?.entryId).toBe('music-foo')
-    expect(risk?.message).toContain('1 个 block')
-    expect(risk?.message).toContain('1 个 warn')
+    expect(risk?.message).toContain('1 block')
+    expect(risk?.message).toContain('1 warn')
     expect(risk?.message).toContain('Dangerous constructor')
 
     // The document now scans clean: the record is deleted, the risk disappears.
@@ -465,7 +465,7 @@ describe('getDiagnostics — plugin dependencies', () => {
     const conflict = report.conflicts.find((item) => item.id === 'deps-unmet:p1')
     expect(conflict).toBeDefined()
     expect(conflict?.message).toContain('p3')
-    expect(conflict?.message).not.toContain('p2、')
+    expect(conflict?.message).not.toContain('p2, ')
   })
 })
 
@@ -526,9 +526,9 @@ describe('getDiagnostics — info group', () => {
     const report = await harness.plugin.getDiagnostics()
     const summary = report.info.find((item) => item.id === 'lock-summary')
     expect(summary).toBeDefined()
-    expect(summary?.message).toContain('共 2 条')
-    expect(summary?.message).toContain('插件 1')
-    expect(summary?.message).toContain('界面主题 1')
+    expect(summary?.message).toContain('Total 2 lock record(s)')
+    expect(summary?.message).toContain('Plugin 1')
+    expect(summary?.message).toContain('Theme 1')
 
     const pluginOverview = report.info.find((item) => item.id === 'installed-overview:plugin')
     expect(pluginOverview?.message).toContain('ext-plugin@1.0.0')
@@ -542,7 +542,7 @@ describe('getDiagnostics — info group', () => {
   it('summarizes an empty registry cleanly', async () => {
     const harness = await setupInitialized()
     const report = await harness.plugin.getDiagnostics()
-    expect(report.info.find((item) => item.id === 'lock-summary')?.message).toContain('尚无锁记录')
+    expect(report.info.find((item) => item.id === 'lock-summary')?.message).toContain('No lock records yet')
     expect(report.conflicts).toEqual([])
     expect(report.risks).toEqual([])
   })

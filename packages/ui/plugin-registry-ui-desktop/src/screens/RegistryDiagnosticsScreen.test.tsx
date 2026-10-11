@@ -36,23 +36,23 @@ const REPORT: RegistryDiagnosticsReport = {
     item(
       'lock-orphan:subsonic',
       'conflict',
-      '锁记录指向的内容已不在本机：subsonic',
-      'registry.lock.json 中仍保留 subsonic 的锁定记录，但对应内容已不再安装。',
+      'Lock record points to content no longer installed: subsonic',
+      'registry.lock.json still carries a lock record for subsonic, but the content is no longer installed.',
       { entryId: 'subsonic', kind: 'music-source' },
     ),
   ],
   risks: [
-    item('audit:bad-plugin', 'risk', '安全扫描风险：Bad Plugin', '共 1 个 block、0 个 warn，首条：eval 检测。', {
+    item('audit:bad-plugin', 'risk', 'Security scan risk: Bad Plugin', '1 block and 0 warn finding(s) in total; first: eval detection.', {
       entryId: 'bad-plugin',
       kind: 'plugin',
     }),
-    item('audit:second', 'risk', '安全扫描风险：Second', '共 0 个 block、2 个 warn。', {
+    item('audit:second', 'risk', 'Security scan risk: Second', '0 block and 2 warn finding(s) in total.', {
       entryId: 'second',
       kind: 'lyric-source',
     }),
   ],
-  warnings: [item('index-fetch-failed', 'warning', '索引拉取失败', '索引最近一次拉取失败（离线）。')],
-  info: [item('lock-summary', 'info', '锁记录摘要', '锁记录共 2 条（插件 1、界面主题 1）。')],
+  warnings: [item('index-fetch-failed', 'warning', 'Index fetch failed', 'The most recent index fetch failed (offline).')],
+  info: [item('lock-summary', 'info', 'Lock record summary', 'Total 2 lock record(s) (Plugin 1, Theme 1).')],
   generatedAt: 1_000,
 }
 
@@ -147,23 +147,23 @@ describe('RegistryDiagnosticsScreen', () => {
 
     // Count badges answer "how many", the header answers "what is this".
     const conflict = getByTestId('registry-diagnostics-group-conflict')
-    expect(conflict.textContent).toContain('冲突')
+    expect(conflict.textContent).toContain('Conflict')
     expect(conflict.textContent).toContain('1')
     const risk = getByTestId('registry-diagnostics-group-risk')
-    expect(risk.textContent).toContain('风险')
+    expect(risk.textContent).toContain('Risk')
     expect(risk.textContent).toContain('2')
     expect(screen.textContent).toContain('subsonic')
   })
 
-  it('shows the 轻文案 for groups without items', async () => {
+  it('shows the light copy for groups without items', async () => {
     const { ctx } = await harness({ report: EMPTY_REPORT })
     const { getByTestId, findByTestId } = render(h(RegistryDiagnosticsScreen, { ctx }))
 
     await findByTestId('registry-diagnostics-group-conflict')
-    expect(getByTestId('registry-diagnostics-empty-conflict').textContent).toContain('暂无冲突')
-    expect(getByTestId('registry-diagnostics-empty-risk').textContent).toContain('暂无风险')
-    expect(getByTestId('registry-diagnostics-empty-warning').textContent).toContain('暂无警告')
-    expect(getByTestId('registry-diagnostics-empty-info').textContent).toContain('暂无信息')
+    expect(getByTestId('registry-diagnostics-empty-conflict').textContent).toContain('No conflicts')
+    expect(getByTestId('registry-diagnostics-empty-risk').textContent).toContain('No risks')
+    expect(getByTestId('registry-diagnostics-empty-warning').textContent).toContain('No warnings')
+    expect(getByTestId('registry-diagnostics-empty-info').textContent).toContain('No info')
   })
 
   it('shows a loading state while the report is being generated', async () => {
@@ -176,7 +176,7 @@ describe('RegistryDiagnosticsScreen', () => {
     await findByTestId('registry-diagnostics-item-lock-summary')
   })
 
-  it('jumps to an entry via the 查看 button and omits it for items without an entryId', async () => {
+  it('jumps to an entry via the View button and omits it for items without an entryId', async () => {
     const { ctx } = await harness()
     const navigated: Array<{ entryId: string; kind: RegistryEntryKind }> = []
     const { getByTestId, findByTestId, queryByTestId } = render(
@@ -202,17 +202,17 @@ describe('RegistryDiagnosticsScreen', () => {
     expect(calls).toEqual(['getDiagnostics'])
 
     const button = getByTestId('registry-diagnostics-rescan') as HTMLButtonElement
-    expect(button.textContent).toContain('一键重新扫描')
+    expect(button.textContent).toContain('Rescan all')
     fireEvent.click(button)
 
     // First rescan holds: the button reads as busy and disables.
     await waitFor(() => expect(button.disabled).toBe(true))
-    expect(button.textContent).toContain('重扫中…')
+    expect(button.textContent).toContain('Rescanning…')
     expect(rescanCalls).toEqual(['bad-plugin'])
 
     gate.resolve()
     await waitFor(() => expect(rescanCalls).toEqual(['bad-plugin', 'second']))
-    await waitFor(() => expect(button.textContent).toContain('一键重新扫描'))
+    await waitFor(() => expect(button.textContent).toContain('Rescan all'))
     // The hook refreshed the report after the rescans.
     expect(calls.filter((call) => call === 'getDiagnostics')).toHaveLength(3)
   })

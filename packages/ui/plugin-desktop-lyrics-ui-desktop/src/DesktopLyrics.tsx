@@ -110,14 +110,14 @@ export function DesktopLyrics({ ctx }: DesktopLyricsProps): ReactElement | null 
       : undefined
   const hasNativeBridge = Boolean(bridge)
 
-  // 1. 同步桌面歌词开关状态
+  // 1. Sync the desktop lyrics visibility state
   useEffect(() => {
     if (!hasNativeBridge || !bridge) return
     const targetPos = posX >= 0 && posY >= 0 ? { x: posX, y: posY } : undefined
     void bridge.setVisible(isEnabled, targetPos)
   }, [hasNativeBridge, bridge, isEnabled])
 
-  // 2. 同步桌面歌词位置坐标（仅在启用且坐标发生数值变化时触发）
+  // 2. Sync desktop lyrics position (fires only while enabled, and only when the coordinates numerically change)
   useEffect(() => {
     if (!hasNativeBridge || !bridge || !isEnabled) return
     if (posX >= 0 && posY >= 0) {
@@ -125,13 +125,13 @@ export function DesktopLyrics({ ctx }: DesktopLyricsProps): ReactElement | null 
     }
   }, [hasNativeBridge, bridge, isEnabled, posX, posY])
 
-  // 3. 同步锁定/穿透状态
+  // 3. Sync the lock/click-through state
   useEffect(() => {
     if (!hasNativeBridge || !bridge || !isEnabled) return
     void bridge.setLocked(isLocked)
   }, [hasNativeBridge, bridge, isEnabled, isLocked])
 
-  // 4. 同步歌词内容、字号、颜色与播放状态
+  // 4. Sync lyrics content, font size, color, and playback state
   useEffect(() => {
     if (!hasNativeBridge || !bridge || !isEnabled) return
 
@@ -169,7 +169,8 @@ export function DesktopLyrics({ ctx }: DesktopLyricsProps): ReactElement | null 
     artist,
   ])
 
-  // 监听原生窗口拖拽位置移动并实时保存至设置（仅在数值变化时更新，彻底阻断回环）
+  // Listen to native window drag movements and persist them to settings in real time
+  // (updates only on numeric change, fully blocking the feedback loop)
   useEffect(() => {
     if (!hasNativeBridge || !bridge?.onMoved) return
 

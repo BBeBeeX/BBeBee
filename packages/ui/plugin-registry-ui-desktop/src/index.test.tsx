@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * Desktop registry UI tests — the "发现" screen and the settings card,
+ * Desktop registry UI tests — the "Discover" screen and the settings card,
  * rendered against stub services the way the shell would bind them.
  */
 
@@ -488,7 +488,7 @@ describe('RegistryScreen', () => {
     fireEvent.change(getByTestId('registry-search'), { target: { value: 'ann' } })
     await waitFor(() => expect(getByTestId('registry-entry-music-new')).toBeTruthy())
 
-    fireEvent.change(getByTestId('registry-search'), { target: { value: '不存在的内容' } })
+    fireEvent.change(getByTestId('registry-search'), { target: { value: 'nonexistent content' } })
     await waitFor(() => expect(getByTestId('registry-empty')).toBeTruthy())
   })
 
@@ -496,21 +496,21 @@ describe('RegistryScreen', () => {
     const { ctx } = await harness()
     const { findByTestId, getByTestId } = render(h(RegistryScreen, { ctx }))
 
-    // 1.1.0 in the registry vs 1.0.0 installed → 更新.
+    // 1.1.0 in the registry vs 1.0.0 installed → update.
     const updateBtn = await findByTestId('registry-action-music-new')
     expect(updateBtn.getAttribute('data-state')).toBe('update')
-    expect(updateBtn.textContent).toContain('更新')
+    expect(updateBtn.textContent).toContain('Update')
 
-    // 1.0.0 == 1.0.0 → 已安装, disabled.
+    // 1.0.0 == 1.0.0 → installed, disabled.
     const installedBtn = getByTestId('registry-action-music-current')
     expect(installedBtn.getAttribute('data-state')).toBe('installed')
     expect((installedBtn as HTMLButtonElement).disabled).toBe(true)
-    expect(installedBtn.textContent).toContain('已安装')
+    expect(installedBtn.textContent).toContain('Installed')
 
-    // The builtin lrclib lyric source: 内置 tag + update flow.
+    // The builtin lrclib lyric source: built-in tag + update flow.
     fireEvent.click(getByTestId('registry-tab-lyric-source'))
     const lrclibEntry = await findByTestId('registry-entry-builtin-lrclib')
-    expect(lrclibEntry.textContent).toContain('内置')
+    expect(lrclibEntry.textContent).toContain('Built-in')
     expect(getByTestId('registry-action-builtin-lrclib').getAttribute('data-state')).toBe('update')
   })
 
@@ -522,7 +522,7 @@ describe('RegistryScreen', () => {
     const gated = await findByTestId('registry-entry-plugin-gated')
     const gatedBtn = getByTestId('registry-action-plugin-gated')
     expect((gatedBtn as HTMLButtonElement).disabled).toBe(true)
-    expect(gated.textContent).toContain('需要 BBeBee 99.0.0 或更高版本')
+    expect(gated.textContent).toContain('Requires BBeBee 99.0.0 or later')
     expect(gated.textContent).toContain('net:host/*')
 
     // Within range → actionable.
@@ -534,7 +534,7 @@ describe('RegistryScreen', () => {
     const { ctx, calls } = await harness()
     const { getByTestId, findByTestId, queryByTestId } = render(h(RegistryScreen, { ctx }))
 
-    // A theme nobody has → 安装, on the theme tab.
+    // A theme nobody has → install, on the theme tab.
     fireEvent.click(getByTestId('registry-tab-theme'))
     const fresh = await findByTestId('registry-entry-theme-neon')
     expect(fresh).toBeTruthy()
@@ -581,7 +581,7 @@ describe('RegistryScreen', () => {
     expect(getByTestId('registry-plugin-sha256').textContent).toContain('cd'.repeat(32))
   })
 
-  it('shows the 离线缓存 hint when the service reports a cache fallback', async () => {
+  it('shows the offline-cache hint when the service reports a cache fallback', async () => {
     const { ctx } = await harness({ offline: true })
     const { findByTestId } = render(h(RegistryScreen, { ctx }))
     expect(await findByTestId('registry-offline-hint')).toBeTruthy()
@@ -636,7 +636,7 @@ describe('RegistryScreen', () => {
 
     await findByTestId('registry-confirm-dialog')
     expect(getByTestId('registry-security-audit-report')).toBeTruthy()
-    expect(getByTestId('registry-security-badge').textContent).toContain('警告 (Warn)')
+    expect(getByTestId('registry-security-badge').textContent).toContain('Warn')
     expect(getByTestId('registry-security-findings').textContent).toContain('undeclared-egress')
     expect(getByTestId('registry-commit-diff').textContent).toContain('1234567')
     expect(getByTestId('registry-commit-diff').textContent).toContain('abcdef1')
@@ -663,7 +663,7 @@ describe('RegistryScreen', () => {
     fireEvent.click(getByTestId('registry-action-plugin-ok'))
 
     await findByTestId('registry-confirm-dialog')
-    expect(getByTestId('registry-security-badge').textContent).toContain('高危风险 (Block)')
+    expect(getByTestId('registry-security-badge').textContent).toContain('Block')
     expect(getByTestId('registry-security-block-warning')).toBeTruthy()
 
     const acceptBtn = getByTestId('registry-confirm-accept') as HTMLButtonElement
@@ -784,7 +784,7 @@ describe('RegistryScreen filters and sorting', () => {
     const filter = await waitFor(() => getByTestId('registry-category-filter'))
     const select = filter.querySelector('select') as HTMLSelectElement
     // Known slugs map to their label; unknown ones render verbatim.
-    expect(select.textContent).toContain('界面增强')
+    expect(select.textContent).toContain('UI enhancement')
     expect(select.textContent).toContain('mystery-slug')
 
     fireEvent.change(select, { target: { value: 'ui-enhancement' } })
@@ -1023,7 +1023,7 @@ describe('RegistryScreen installed tab', () => {
     // No remove API exists for plugins: no button, just the pointer to
     // plugin management.
     expect(queryByTestId('registry-uninstall-plugin-ok')).toBeNull()
-    expect(getByTestId('registry-uninstall-note-plugin-ok').textContent).toContain('插件管理')
+    expect(getByTestId('registry-uninstall-note-plugin-ok').textContent).toContain('plugin management')
     expect(calls.some((call) => call.startsWith('remove-'))).toBe(false)
   })
 })
@@ -1063,8 +1063,8 @@ describe('RegistryScreen task center', () => {
 
     fireEvent.click(getByTestId('registry-tasks-button'))
     const drawer = await findByTestId('registry-task-drawer')
-    // The 任务 title lives on the kit Sheet's card, outside the content testid.
-    expect(drawer.closest('[role="dialog"]')?.textContent).toContain('任务')
+    // The Tasks title lives on the kit Sheet's card, outside the content testid.
+    expect(drawer.closest('[role="dialog"]')?.textContent).toContain('Tasks')
 
     // Newest → oldest, exactly the service snapshot's order.
     expect(taskIds(getByTestId('registry-screen'))).toEqual([
@@ -1076,13 +1076,13 @@ describe('RegistryScreen task center', () => {
 
     // Kind chip + entry name + status label per record.
     const running = getByTestId('registry-task-item-task-running')
-    expect(running.textContent).toContain('音乐源')
+    expect(running.textContent).toContain('Music source')
     expect(running.textContent).toContain('Alpha Source')
-    expect(getByTestId('registry-task-status-task-running').textContent).toBe('下载中')
-    expect(getByTestId('registry-task-status-task-pending').textContent).toBe('等待确认')
+    expect(getByTestId('registry-task-status-task-running').textContent).toBe('Downloading')
+    expect(getByTestId('registry-task-status-task-pending').textContent).toBe('Awaiting confirmation')
     expect(getByTestId('registry-task-status-task-pending').textContent).toBeTruthy()
-    expect(getByTestId('registry-task-status-task-success').textContent).toBe('成功')
-    expect(getByTestId('registry-task-status-task-failed').textContent).toBe('失败')
+    expect(getByTestId('registry-task-status-task-success').textContent).toBe('Success')
+    expect(getByTestId('registry-task-status-task-failed').textContent).toBe('Failed')
 
     // A failure keeps its complete error text; the start time is formatted.
     const failed = getByTestId('registry-task-item-task-failed')
@@ -1182,7 +1182,7 @@ describe('RegistrySettingsCard', () => {
     const { ctx, calls, navigateCalls } = await harness()
     const { getByTestId, findByTestId, getByText } = render(h(RegistrySettingsCard, { ctx }))
 
-    expect(getByTestId('registry-last-checked').textContent).toBe('从未')
+    expect(getByTestId('registry-last-checked').textContent).toBe('Never')
     fireEvent.click(getByTestId('registry-check-updates'))
 
     await waitFor(() => expect(calls).toContain('checkUpdates'))
@@ -1192,7 +1192,7 @@ describe('RegistrySettingsCard', () => {
 
     fireEvent.click(item)
     expect(navigateCalls).toEqual([REGISTRY_VIEWS.screen])
-    expect(getByText(/可用更新/)).toBeTruthy()
+    expect(getByText(/Updates available/)).toBeTruthy()
   })
 })
 

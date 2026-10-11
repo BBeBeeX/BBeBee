@@ -4,7 +4,7 @@
 
 ## 5. The event map
 
-> 规范见 [rules/data-model.md §4 Events & Waterfall Hooks](../../rules/data-model.md#4-events--waterfall-hooks)（L2），本节只讲原理与用法。
+> see the spec at [rules/data-model.md §4 Events & Waterfall Hooks](../../rules/data-model.md#4-events--waterfall-hooks) (L2); this section covers only principles and usage.
 
 The dispatch mode is
 part of the contract: it determines whether a listener can block, transform, or veto.
@@ -146,7 +146,7 @@ declare module 'cordis' {
 }
 ```
 
-> 规范见 [rules/data-model.md §4 Events & Waterfall Hooks](../../rules/data-model.md#4-events--waterfall-hooks)（L2），本节只讲原理与用法。
+> see the spec at [rules/data-model.md §4 Events & Waterfall Hooks](../../rules/data-model.md#4-events--waterfall-hooks) (L2); this section covers only principles and usage.
 >
 > The signatures in the map above are deliberately written `next: () => …`.
 

@@ -2,7 +2,7 @@
 
 > **Legacy Reference:** Formerly `docs/04-core-services.md §2 – §15, §17 – §20`.
 
-## 目录
+## Contents
 
 - [2. `ctx.http` — outbound HTTP](#2-ctxhttp--outbound-http)
 - [3. `ctx.ws` — WebSocket](#3-ctxws--websocket)
@@ -304,7 +304,7 @@ immediately and the pending batch is flushed by the plugin's disposer.
 A corrupt store is quarantined (renamed aside) and the app starts with an empty one: settings are
 recoverable, an unbootable app is not.
 
-> 规范见 [rules/services.md §5](../../rules/services.md#5-startup--initialization-performance)（L2），本节只讲原理与用法。
+> see the spec at [rules/services.md §5](../../rules/services.md#5-startup--initialization-performance) (L2); this section covers only principles and usage.
 
 ---
 
@@ -748,7 +748,7 @@ Rules the contract is built around, each of which a naive embedding gets wrong:
   list rather than a summary.
 - **Lazy WASM compilation.**
 
-  > 规范见 [rules/services.md §5](../../rules/services.md#5-startup--initialization-performance)（L2），本节只讲原理与用法。
+  > see the spec at [rules/services.md §5](../../rules/services.md#5-startup--initialization-performance) (L2); this section covers only principles and usage.
 
   The motivation is startup cost: without the laziness, WebAssembly compilation would add
   100~300ms to initial app startup.
@@ -826,7 +826,7 @@ export interface ThemeService {
 | Custom Themes | Dynamic JSON import (file / text) with fallback token hydration; deletable with fallback protection | Same |
 
 - **DOM Synchronization**: `plugin-theme` evaluates `themeToCssVariables(theme)` and injects them onto the root document element, alongside `data-theme="{id}"`.
-- **Protection of Built-In Themes**: 规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2）— `removeTheme(themeId)` protects built-in themes; deleting the active custom theme falls back to the default (`midnight-purple`) immediately.
+- **Protection of Built-In Themes**: see the spec at [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas) (L2) — `removeTheme(themeId)` protects built-in themes; deleting the active custom theme falls back to the default (`midnight-purple`) immediately.
 - **Event Bus Integration**: Emits `theme/changed` when active theme changes, and `theme/registry-changed` whenever themes are added or removed.
 
 ---
@@ -1213,7 +1213,7 @@ export interface RegistryService {
 
 ### 25.1 The `ctx.registryMetadata` companion service
 
-The 发现 page's star/contributor sorting reads a separate headless service, `@BBeBee/plugin-registry-metadata`, instead of growing `RegistryService`:
+The Discover page's star/contributor sorting reads a separate headless service, `@BBeBee/plugin-registry-metadata`, instead of growing `RegistryService`:
 
 ```ts
 /** GitHub stats for one `owner/repo`. Absent numeric fields mean "unknown this round". */

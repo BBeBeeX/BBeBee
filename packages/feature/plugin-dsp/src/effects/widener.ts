@@ -13,13 +13,13 @@ const DEFAULT_PARAMS: WidenerParams = {
 
 export const WidenerEffect: EffectDefinition<WidenerParams> = {
   id: 'widener',
-  displayName: '立体声展宽 (Widener)',
+  displayName: 'Widener',
   defaultOrder: 60,
   Params: createParamSchema(DEFAULT_PARAMS),
   presets: [
-    { name: '适度展宽 (Moderate)', params: { width: 1.2, delayMs: 12 }, builtin: true },
-    { name: '开阔声场 (Wide)', params: { width: 1.5, delayMs: 18 }, builtin: true },
-    { name: '单声道收窄 (Narrow)', params: { width: 0.5, delayMs: 5 }, builtin: true },
+    { name: 'Moderate', params: { width: 1.2, delayMs: 12 }, builtin: true },
+    { name: 'Wide', params: { width: 1.5, delayMs: 18 }, builtin: true },
+    { name: 'Narrow', params: { width: 0.5, delayMs: 5 }, builtin: true },
   ],
   buildLavfi(params: Record<string, unknown>): string {
     const width = typeof params['width'] === 'number' ? Math.max(0, Math.min(4, params['width'] as number)) : 1.2

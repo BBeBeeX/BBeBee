@@ -237,9 +237,9 @@ describe('NowPlayingScreen on mobile', () => {
     const { ctx, calls } = await harness({ status: 'playing' })
     const { container } = render(h(NowPlayingScreen, { ctx }))
 
-    const switchBtn = container.querySelector('[data-role="button"][data-label^="切换播放页样式"]') as HTMLElement
+    const switchBtn = container.querySelector('[data-role="button"][data-label^="Switch now-playing style"]') as HTMLElement
     expect(switchBtn).toBeTruthy()
-    expect(switchBtn.getAttribute('data-label')).toContain('切换播放页样式')
+    expect(switchBtn.getAttribute('data-label')).toContain('Switch now-playing style')
 
     await act(async () => {
       switchBtn.click()

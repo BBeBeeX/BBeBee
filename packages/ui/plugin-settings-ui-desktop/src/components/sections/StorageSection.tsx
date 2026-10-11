@@ -63,23 +63,23 @@ export function StorageSection({
     h(
       SettingsSection,
       {
-        title: '离线存储与下载目录',
-        description: '管理离线已下载音乐的本地保存目录及任务策略',
+        title: 'Offline storage & downloads directory',
+        description: 'Manage the local directory for downloaded music and its task policy',
       },
       h(SettingsRow, {
-        title: '下载目录',
+        title: 'Downloads directory',
         description: cleanDisplayPath(currentDownloadsDir),
         action: h(
           'div',
           { style: { display: 'flex', gap: 8 } },
           h(Button, {
             variant: 'secondary',
-            children: '更改目录',
+            children: 'Change directory',
             onPress: onPickDownloadDir,
           }),
           h(Button, {
             variant: 'secondary',
-            children: '打开文件夹',
+            children: 'Open folder',
             onPress: onOpenDownloadDir,
           }),
         ),
@@ -95,7 +95,7 @@ export function StorageSection({
           description: item.description,
           borderBottom: false,
           action: h(Button, {
-            children: item.actionText ?? '查看详情',
+            children: item.actionText ?? 'View details',
             onPress: () => {
               if (item.action) void item.action()
               else onNavigate(item.id)
@@ -107,36 +107,36 @@ export function StorageSection({
     h(
       SettingsSection,
       {
-        title: '临时缓存与存储目录',
-        description: '在线媒体流临时缓冲文件与封面缓存存储路径与清理',
+        title: 'Temp cache & storage directories',
+        description: 'Storage paths and cleanup for online media stream buffering and artwork cache',
       },
       h(SettingsRow, {
-        title: '歌曲缓存目录',
+        title: 'Song cache directory',
         description: cleanDisplayPath(currentCacheDir),
         action: h(
           'div',
           { style: { display: 'flex', gap: 8 } },
           h(Button, {
             variant: 'secondary',
-            children: '更改目录',
+            children: 'Change directory',
             onPress: onPickCacheDir,
           }),
           h(Button, {
             variant: 'secondary',
-            children: '打开文件夹',
+            children: 'Open folder',
             onPress: onOpenCacheDir,
           }),
         ),
       }),
       h(SettingsRow, {
-        title: '缓存占用空间',
-        description: `总计: ${formatBytes(usage.totalBytes)} (封面: ${formatBytes(usage.artworkBytes)} · 媒体流: ${formatBytes(usage.streamBytes)})`,
+        title: 'Cache usage',
+        description: `Total: ${formatBytes(usage.totalBytes)} (artwork: ${formatBytes(usage.artworkBytes)} · streams: ${formatBytes(usage.streamBytes)})`,
         borderBottom: false,
         action: h(Button, {
           variant: 'secondary',
           disabled: clearingCache || usage.totalBytes === 0,
           loading: clearingCache,
-          children: '清除全部缓存',
+          children: 'Clear all cache',
           onPress: onClearCache,
         }),
       }),

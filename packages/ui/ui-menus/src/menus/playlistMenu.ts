@@ -48,13 +48,13 @@ export function playlistMenuItems(
   const downloads = serviceOf<DownloadsService>(ctx, 'downloads')
   const items: MenuItemSpec[] = []
 
-  // 0. 批量操作 (if provided)
+  // 0. Batch operations (if provided)
   if (opts.onToggleBatchMode) {
     if (opts.isBatchMode) {
       if (opts.onBatchPlay) {
         items.push({
           id: 'batch-play',
-          label: '批量播放',
+          label: 'Play selected',
           icon: 'play',
           onSelect: opts.onBatchPlay,
         })
@@ -62,7 +62,7 @@ export function playlistMenuItems(
       if (opts.onBatchAddToPlaylist) {
         items.push({
           id: 'batch-add-to-playlist',
-          label: '添加到歌单',
+          label: 'Add to playlist',
           icon: 'plus',
           onSelect: opts.onBatchAddToPlaylist,
         })
@@ -70,7 +70,7 @@ export function playlistMenuItems(
       if (opts.onBatchDelete) {
         items.push({
           id: 'batch-delete',
-          label: '删除',
+          label: 'Delete',
           icon: 'trash',
           tone: 'danger',
           onSelect: opts.onBatchDelete,
@@ -78,7 +78,7 @@ export function playlistMenuItems(
       }
       items.push({
         id: 'batch-exit',
-        label: '退出批量操作',
+        label: 'Exit batch operations',
         icon: 'x',
         divider: true,
         onSelect: opts.onToggleBatchMode,
@@ -86,7 +86,7 @@ export function playlistMenuItems(
     } else {
       items.push({
         id: 'batch-operations',
-        label: '批量操作',
+        label: 'Batch operations',
         icon: 'list-check',
         divider: true,
         onSelect: opts.onToggleBatchMode,
@@ -94,21 +94,21 @@ export function playlistMenuItems(
     }
   }
 
-  // 1. 编辑详情 (if provided)
+  // 1. Edit details (if provided)
   if (opts.onEdit) {
     items.push({
       id: 'edit-details',
-      label: '编辑详情',
+      label: 'Edit details',
       icon: 'pencil',
       onSelect: opts.onEdit,
     })
   }
 
-  // 2. 删除 (if provided)
+  // 2. Delete (if provided)
   if (opts.onDelete) {
     items.push({
       id: 'delete-playlist',
-      label: '删除',
+      label: 'Delete',
       icon: 'delete',
       tone: 'danger',
       divider: true,
@@ -116,52 +116,52 @@ export function playlistMenuItems(
     })
   }
 
-  // 3. 置顶歌单
+  // 3. Pin playlist
   if (opts.onTogglePin) {
     items.push({
       id: 'toggle-pin',
-      label: opts.pinned ? '取消置顶歌单' : '置顶歌单',
+      label: opts.pinned ? 'Unpin playlist' : 'Pin playlist',
       icon: 'pin',
       onSelect: opts.onTogglePin,
     })
   }
 
-  // 4. 添加到音乐库
+  // 4. Add to music library
   if (library && opts.isSaved !== true) {
     items.push({
       id: 'save-to-library',
-      label: '添加到音乐库',
+      label: 'Add to music library',
       icon: 'plus',
       onSelect: () => library.setSaved(playlist.urn, true),
     })
   }
 
-  // 5. 播放 / 加入播放列表
+  // 5. Play / Add to play queue
   if (player && tracks.length > 0) {
     items.push({
       id: 'enqueue',
-      label: '播放',
+      label: 'Play',
       icon: 'play',
       onSelect: () => player.enqueueLast([...tracks]),
     })
   }
 
-  // 6. 下载
+  // 6. Download
   if (downloads && tracks.length > 0) {
     items.push({
       id: 'download',
-      label: '下载',
+      label: 'Download',
       icon: 'download',
       onSelect: () => void downloads.enqueue([...tracks]),
     })
   }
 
-  // 6.5. 分享歌单
+  // 6.5. Share playlist
   const share = serviceOf<ShareService>(ctx, 'share')
   if (share) {
     items.push({
       id: 'share-playlist',
-      label: '分享歌单',
+      label: 'Share playlist',
       icon: 'share',
       onSelect: async () => {
         let resolvedTracks: (Track | ShareTrackData)[] | undefined
@@ -187,32 +187,32 @@ export function playlistMenuItems(
     })
   }
 
-  // 7. 添加至其他歌单
+  // 7. Add to another playlist
   const submenu = addToPlaylistSubmenu(library, tracks, playlists, {
-    title: '添加至其他歌单',
+    title: 'Add to another playlist',
     excludePlaylistUrn: playlist.urn,
   })
   if (submenu) {
     items.push({
       id: 'add-to-playlist',
-      label: '添加至其他歌单',
+      label: 'Add to another playlist',
       icon: 'plus',
       submenu,
     })
   }
 
-  // 8. 移动至文件夹
+  // 8. Move to folder
   const collectionSubmenu = addToCollectionSubmenu(library, [playlist.urn], collections, {
-    title: '移动至文件夹',
-    searchPlaceholder: '查找文件夹',
-    createLabel: '新建文件夹',
+    title: 'Move to folder',
+    searchPlaceholder: 'Find folder',
+    createLabel: 'New folder',
     currentFolderId: opts.currentFolderId,
     onMoved: opts.onMoved,
   })
   if (collectionSubmenu) {
     items.push({
       id: 'add-to-collection',
-      label: '移动至文件夹',
+      label: 'Move to folder',
       icon: 'folder',
       submenu: collectionSubmenu,
     })
@@ -222,7 +222,7 @@ export function playlistMenuItems(
   if (originalUrl) {
     items.push({
       id: 'open-original-resource',
-      label: '跳转原始资源',
+      label: 'Open original resource',
       icon: 'share-box',
       onSelect: () => openExternalUrl(originalUrl),
     })

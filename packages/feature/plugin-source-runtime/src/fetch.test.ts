@@ -49,7 +49,8 @@ describe('charset', () => {
     /*
      * The failure this fixes is silent: `response.text()` decodes UTF-8
      * unconditionally, so a GBK page parsed, matched, and imported as mojibake
-     * without one error on the way. These bytes are 中文 in GBK.
+     * without one error on the way. These bytes are the GBK encoding of the
+     * two characters '\u4e2d\u6587' ("Chinese").
      */
     const gbk = new Uint8Array([0xd6, 0xd0, 0xce, 0xc4])
     const http = vi.fn(async () => respond({ body: gbk, headers: { 'content-type': 'text/html' } }))
@@ -61,7 +62,7 @@ describe('charset', () => {
       site,
     )
 
-    expect(fetched.text).toBe('中文')
+    expect(fetched.text).toBe('\u4e2d\u6587')
     expect(fetched.text).not.toContain('�')
   })
 

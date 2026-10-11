@@ -2,9 +2,9 @@
 
 Rules governing URNs, SQLite storage, migrations, and event hooks in BBeBee.
 
-> **L2 · 何时读**：动 URN、SQLite 表、迁移或事件钩子时——WAL 约定、时间戳/布尔/JSON 列规范、waterfall 语义、状态所有权。
-> **不读会怎样**：迁移语句被驱动器静默截断、时间戳/布尔/JSON 存法跑偏、waterfall 的 `next` 误用吞掉链路数据。
-> **深读指引**：docs/data-model/urn.md（URN 设计动机）、schema.md §3–§4（表级细节）、events.md（事件正典）、migrations.md（迁移机制）。
+> **L2 · When to read**: when touching URNs, SQLite tables, migrations, or event hooks — WAL conventions, timestamp/boolean/JSON column conventions, waterfall semantics, state ownership.
+> **What goes wrong without it**: migration statements silently truncated by the driver, timestamp/boolean/JSON storage drifting off spec, a waterfall's `next` misused so chain data is swallowed.
+> **Deeper reading**: docs/data-model/urn.md (URN design rationale), schema.md §3–§4 (table-level detail), events.md (the event canon), migrations.md (migration mechanics).
 
 ---
 
@@ -90,5 +90,5 @@ Each piece of application state has exactly ONE owner:
 
 ## 7. Local User & Library Seeds
 
-- **One profile row**: `library_profile` (core migration v6) holds the local user — UUID id, name defaulting to `Mine`, editable via `ctx.library.updateProfile` (Settings → 通用 → 用户). Created playlists display the *current* profile name as creator (`playlist.owner` wins for remote ones); renames emit `library/profile-changed`.
-- **Never-empty library**: on init `plugin-library` seeds one playlist named `我的歌单` while the library holds no playlists, so the curation page never opens empty.
+- **One profile row**: `library_profile` (core migration v6) holds the local user — UUID id, name defaulting to `Mine`, editable via `ctx.library.updateProfile` (Settings → General → User). Created playlists display the *current* profile name as creator (`playlist.owner` wins for remote ones); renames emit `library/profile-changed`.
+- **Never-empty library**: on init `plugin-library` seeds one playlist named `My playlist` while the library holds no playlists, so the curation page never opens empty.

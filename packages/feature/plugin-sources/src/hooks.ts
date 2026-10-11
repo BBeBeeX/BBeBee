@@ -916,7 +916,7 @@ function addCount(parts: string[], count: number | undefined, noun: string): voi
  * Every track matching `query`, across all pages.
  *
  * A view renders one page at a time, but "play this list" means the whole list
- * it stands for — the local library, the favourites — not just the rows that
+ * it stands for — the local library, the favorites — not just the rows that
  * have scrolled in so far.
  */
 export async function listAllTracks(ctx: Context, query: CatalogQuery): Promise<readonly Track[]> {

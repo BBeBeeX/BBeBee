@@ -4,14 +4,14 @@
 
 ## 6. Loading
 
-BBeBee implements a **Dual-Mode loading architecture** (规范见
-[rules/plugins.md §7 Dual-Mode Plugin Loading](../../rules/plugins.md#7-dual-mode-plugin-loading)（L2），本节只讲原理与用法):
+BBeBee implements a **Dual-Mode loading architecture** (see the spec at
+[rules/plugins.md §7 Dual-Mode Plugin Loading](../../rules/plugins.md#7-dual-mode-plugin-loading) (L2); this section covers only principles and usage):
 mobile is the static side (§6.1), desktop the dynamic side (§6.2).
 
 ### 6.1 Mobile target — `plugin-loader-static`
 
-Metro cannot resolve a module path computed at runtime (规范见
-[rules/plugins.md §7 Dual-Mode Plugin Loading](../../rules/plugins.md#7-dual-mode-plugin-loading)（L2）). A codegen step (`pnpm gen:plugins`, run pre-build and in dev watch) scans the
+Metro cannot resolve a module path computed at runtime (see the spec at
+[rules/plugins.md §7 Dual-Mode Plugin Loading](../../rules/plugins.md#7-dual-mode-plugin-loading) (L2)). A codegen step (`pnpm gen:plugins`, run pre-build and in dev watch) scans the
 workspace for packages containing a `BBeBee.plugin.json` and emits:
 
 ```ts
@@ -54,7 +54,7 @@ To maximize startup performance without breaking Cordis DI lifecycle:
 
 ### 6.2 Desktop dynamic loading — `plugin-loader-dynamic`
 
-> 规范见 [rules/plugins.md §7 Dual-Mode Plugin Loading](../../rules/plugins.md#7-dual-mode-plugin-loading)（L2），本节只讲原理与用法。
+> see the spec at [rules/plugins.md §7 Dual-Mode Plugin Loading](../../rules/plugins.md#7-dual-mode-plugin-loading) (L2); this section covers only principles and usage.
 
 Desktop implements runtime dynamic loading for external third-party plugins while maintaining sandbox integrity, `contextIsolation`, and a strict CSP:
 
@@ -85,14 +85,14 @@ Desktop implements runtime dynamic loading for external third-party plugins whil
    `app.registerPlugin(pluginId, entry)` (appends to the active registry), `app.loadPlugin(pluginId)`
    (capability checks for non-builtins, `ungranted` rejection) and `app.unloadPlugin(pluginId)`
    (unmounts fibers, unwinds disposers) — are specified in
-   [rules/plugins.md §7](../../rules/plugins.md#7-dual-mode-plugin-loading)（L2）.
+   [rules/plugins.md §7](../../rules/plugins.md#7-dual-mode-plugin-loading) (L2).
 
 ### 6.3 Standardized Manifest Specification (`BBeBee.plugin.json`)
 
 Every plugin package across Layers 2–5 (Core, Logs, Feature, UI) carries a standardized
 `BBeBee.plugin.json`. The 15 standardized fields (plus the optional `platforms` target filter),
 their enumerations, and the field-name requirement (`systemId`, never `subsystemId`) are specified
-once in [rules/plugins.md §6 Manifest Standards (`BBeBee.plugin.json`)](../../rules/plugins.md#6-manifest-standards-bbebeepluginjson)（L2）,
+once in [rules/plugins.md §6 Manifest Standards (`BBeBee.plugin.json`)](../../rules/plugins.md#6-manifest-standards-bbebeepluginjson) (L2),
 which is authoritative over any wording here; the TypeScript shapes are `PluginManifest`,
 `PluginEntrypoints`, `PluginContributes` and `Capability` in `packages/protocol/src/manifest.ts`.
 
@@ -134,7 +134,7 @@ which is authoritative over any wording here; the TypeScript shapes are `PluginM
 
 ### 6.4 Codegen Tooling (`@BBeBee/tooling-gen-plugins`)
 
-> 规范见 [rules/plugins.md §8 Scaffolding & Codegen](../../rules/plugins.md#8-scaffolding--codegen)（L2），本节只讲原理与用法。
+> see the spec at [rules/plugins.md §8 Scaffolding & Codegen](../../rules/plugins.md#8-scaffolding--codegen) (L2); this section covers only principles and usage.
 
 One command (`pnpm gen:plugins`) scans every `BBeBee.plugin.json` in the workspace and regenerates
 the two committed artifacts specified there. Desktop produces no codegen artifact — discovery

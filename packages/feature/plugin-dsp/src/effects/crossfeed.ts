@@ -13,13 +13,13 @@ const DEFAULT_PARAMS: CrossfeedParams = {
 
 export const CrossfeedEffect: EffectDefinition<CrossfeedParams> = {
   id: 'crossfeed',
-  displayName: '耳机交叉馈入 (Crossfeed)',
+  displayName: 'Crossfeed',
   defaultOrder: 65,
   Params: createParamSchema(DEFAULT_PARAMS),
   presets: [
-    { name: '自然舒缓 (Natural)', params: { amount: 0.35, cutoffHz: 700 }, builtin: true },
-    { name: '强效混合 (High)', params: { amount: 0.6, cutoffHz: 800 }, builtin: true },
-    { name: '轻度减疲劳 (Subtle)', params: { amount: 0.2, cutoffHz: 650 }, builtin: true },
+    { name: 'Natural', params: { amount: 0.35, cutoffHz: 700 }, builtin: true },
+    { name: 'High', params: { amount: 0.6, cutoffHz: 800 }, builtin: true },
+    { name: 'Subtle', params: { amount: 0.2, cutoffHz: 650 }, builtin: true },
   ],
   buildLavfi(params: Record<string, unknown>): string {
     const amount = typeof params['amount'] === 'number' ? Math.max(0, Math.min(1, params['amount'] as number)) : 0.35

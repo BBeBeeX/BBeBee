@@ -31,7 +31,7 @@ export function addToCollectionSubmenu(
   if (opts?.currentFolderId) {
     items.push({
       id: '__move_root',
-      label: '移至根目录',
+      label: 'Move to root',
       icon: 'folder',
       onSelect: async () => {
         if (opts.onSelectFolder) {
@@ -68,12 +68,12 @@ export function addToCollectionSubmenu(
   }
 
   return {
-    title: opts?.title ?? '加入合集',
-    searchPlaceholder: opts?.searchPlaceholder ?? '查找合集',
-    emptyLabel: '没有匹配的合集',
+    title: opts?.title ?? 'Add to collection',
+    searchPlaceholder: opts?.searchPlaceholder ?? 'Find collection',
+    emptyLabel: 'No matching collections',
     create: {
-      label: opts?.createLabel ?? '新建合集',
-      placeholder: '合集名称',
+      label: opts?.createLabel ?? 'New collection',
+      placeholder: 'Collection name',
       onSelect: async (name) => {
         const collection = await library.createCollection(name)
         if (opts?.onSelectFolder) {

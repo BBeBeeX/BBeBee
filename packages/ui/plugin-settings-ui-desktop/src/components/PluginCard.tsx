@@ -41,8 +41,8 @@ export function PluginCard({
         role: 'button',
         tabIndex: 0,
         'aria-label': expanded
-          ? `收起 ${plugin.displayName || plugin.name}`
-          : `展开 ${plugin.displayName || plugin.name}`,
+          ? `Collapse ${plugin.displayName || plugin.name}`
+          : `Expand ${plugin.displayName || plugin.name}`,
         onClick: () => setExpanded((prev) => !prev),
         onKeyDown: (e: { key: string }) => {
           if (e.key === 'Enter' || e.key === ' ') {

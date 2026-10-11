@@ -26,8 +26,8 @@ export function TrackLibraryActionButton({
     'button',
     {
       type: 'button',
-      'aria-label': inLibrary ? `Add ${track.title} to playlist` : `Add ${track.title} to favourites`,
-      title: inLibrary ? '加入歌单' : '加入最喜欢的音乐',
+      'aria-label': inLibrary ? `Add ${track.title} to playlist` : `Add ${track.title} to favorites`,
+      title: inLibrary ? 'Add to playlist' : 'Add to Favorites',
       onClick: (e: MouseEvent) => {
         e.stopPropagation()
         if (inLibrary) {

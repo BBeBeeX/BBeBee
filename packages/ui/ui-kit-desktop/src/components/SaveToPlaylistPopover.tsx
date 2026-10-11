@@ -202,7 +202,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
       {
         ref: containerRef,
         role: 'dialog',
-        'aria-label': props.accessibilityLabel ?? props.title ?? '添加到歌单',
+        'aria-label': props.accessibilityLabel ?? props.title ?? 'Add to playlist',
         'data-testid': props.testID,
         onClick: (e: { stopPropagation(): void }) => e.stopPropagation(),
         onKeyDown: (e: KeyboardEvent) => {
@@ -228,7 +228,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
           padding: '8px 0 6px 0',
         },
       },
-      // Header: 添加到歌单
+      // Header: Add to playlist
       h(
         'div',
         {
@@ -239,9 +239,9 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
             color: 'var(--bb-text-primary, #ffffff)',
           },
         },
-        props.title ?? '添加到歌单',
+        props.title ?? 'Add to playlist',
       ),
-      // Search Box / Create Box: 查找歌单 or 新建歌单
+      // Search Box / Create Box: Find playlist or New playlist
       isCreatingTopLevel
         ? h(
             'div',
@@ -261,7 +261,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
             h('input', {
               autoFocus: true,
               type: 'text',
-              placeholder: '歌单名称',
+              placeholder: 'Playlist name',
               value: newPlaylistName,
               onChange: (e: React.ChangeEvent<HTMLInputElement>) => setNewPlaylistName(e.target.value),
               onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -306,13 +306,13 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                   boxSizing: 'border-box',
                 },
               },
-              '确定',
+              'OK',
             ),
             h(
               'button',
               {
                 type: 'button',
-                'aria-label': '取消',
+                'aria-label': 'Cancel',
                 onClick: () => {
                   setIsCreatingTopLevel(false)
                   setNewPlaylistName('')
@@ -348,7 +348,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
             h('input', {
               ref: inputRef,
               type: 'text',
-              placeholder: '查找歌单',
+              placeholder: 'Find playlist',
               value: filter,
               onChange: (e: React.ChangeEvent<HTMLInputElement>) => setFilter(e.target.value),
               style: {
@@ -374,7 +374,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
             flexDirection: 'column',
           },
         },
-        // Action: ＋ 新建歌单
+        // Action: ＋ New playlist
         !isCreatingTopLevel
           ? h(
               RowItem,
@@ -402,11 +402,11 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
               h(
                 'div',
                 { style: { flex: 1, fontSize: 14, fontWeight: 600, color: 'var(--bb-text-primary, #ffffff)' } },
-                '新建歌单',
+                'New playlist',
               ),
             )
           : null,
-        // Section: 保存位置
+        // Section: Save location
         h(
           'div',
           {
@@ -417,9 +417,9 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
               padding: '8px 8px 4px 8px',
             },
           },
-          '保存位置',
+          'Save location',
         ),
-        // Row: 已点赞的歌曲
+        // Row: Liked songs
         h(
           RowItem,
           {
@@ -460,7 +460,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                   textOverflow: 'ellipsis',
                 },
               },
-              '已点赞的歌曲',
+              'Liked songs',
             ),
             h(
               'div',
@@ -474,13 +474,13 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                 },
               },
               tablerIcon('pin', { size: 16, color: '#a7a7a7' }),
-              `${(props.likedCount ?? 0).toLocaleString()} 首歌曲`,
+              `${(props.likedCount ?? 0).toLocaleString()} songs`,
             ),
           ),
           // Checkmark
           h(CheckmarkCircle, { checked: props.liked ?? false }),
         ),
-        // Section: 最近更新
+        // Section: Recently updated
         h(
           'div',
           {
@@ -491,7 +491,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
               padding: '10px 8px 4px 8px',
             },
           },
-          '最近更新',
+          'Recently updated',
         ),
         // Matching regular playlists
         matchingPlaylists.map((playlist) =>
@@ -558,7 +558,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                   },
                 },
                 playlist.pinned ? tablerIcon('pin', { size: 16, color: 'var(--color-primary, #5F87FF)' }) : null,
-                `${playlist.trackCount ?? 0} 首歌曲`,
+                `${playlist.trackCount ?? 0} songs`,
               ),
             ),
             h(CheckmarkCircle, { checked: playlist.containsTrack ?? false }),
@@ -622,14 +622,14 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
               h(
                 'div',
                 { style: { fontSize: 12, color: 'var(--bb-text-secondary, #a7a7a7)' } },
-                `${collection.playlistCount ?? collection.playlists.length} 个歌单`,
+                `${collection.playlistCount ?? collection.playlists.length} playlists`,
               ),
             ),
             tablerIcon('chevron-right', { size: 18, color: 'var(--bb-text-secondary, #a7a7a7)' }),
           )
         }),
       ),
-      // Footer: 取消
+      // Footer: Cancel
       h(
         'div',
         {
@@ -655,7 +655,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
               borderRadius: 4,
             },
           },
-          '取消',
+          'Cancel',
         ),
       ),
     ),
@@ -700,7 +700,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
             },
             activeFolder.name,
           ),
-          // Submenu Action: ＋ 新建歌单
+          // Submenu Action: ＋ New playlist
           creatingInFolderId === activeFolder.id
             ? h(
                 'div',
@@ -715,7 +715,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                 h('input', {
                   type: 'text',
                   autoFocus: true,
-                  placeholder: '歌单名称',
+                  placeholder: 'Playlist name',
                   value: newPlaylistName,
                   onChange: (e: React.ChangeEvent<HTMLInputElement>) => setNewPlaylistName(e.target.value),
                   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -758,7 +758,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                       boxSizing: 'border-box',
                     },
                   },
-                  '确定',
+                  'OK',
                 ),
               )
             : h(
@@ -783,13 +783,13 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                 h(
                   'div',
                   { style: { flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--bb-text-primary, #ffffff)' } },
-                  '新建歌单',
+                  'New playlist',
                 ),
               ),
           h('div', {
             style: { height: 1, background: 'var(--bb-border-subtle, #383838)', margin: '4px 8px 6px 8px' },
           }),
-          // Submenu Section: 最近更新
+          // Submenu Section: Recently updated
           h(
             'div',
             {
@@ -800,7 +800,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                 padding: '4px 10px',
               },
             },
-            '最近更新',
+            'Recently updated',
           ),
           activeFolder.playlists.map((playlist) =>
             h(
@@ -854,7 +854,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                 h(
                   'div',
                   { style: { fontSize: 11, color: 'var(--bb-text-secondary, #a7a7a7)' } },
-                  `${playlist.trackCount ?? 0} 首歌曲`,
+                  `${playlist.trackCount ?? 0} songs`,
                 ),
               ),
               h(CheckmarkCircle, { checked: playlist.containsTrack ?? false }),

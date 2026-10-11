@@ -189,7 +189,7 @@ describe('QueueScreen', () => {
     // React stringifies the boolean attribute, so "off" is draggable="false".
     const row = container.querySelector('[data-item-id="b"]') as HTMLElement
     expect(row.getAttribute('draggable')).toBe('false')
-    expect(container.textContent).toContain('暂不支持拖拽排序')
+    expect(container.textContent).toContain('drag-to-reorder is not supported yet')
 
     // Even a synthetic drag finds no handlers: nothing reaches moveItem.
     fireEvent(row, new MouseEvent('dragstart', { bubbles: true }))
@@ -208,7 +208,7 @@ describe('QueueScreen', () => {
         status: 'playing',
         currentItemId: 'a',
         trackUrn: 'BBeBee:bili:track:1',
-        nowPlaying: { title: '极端天气 MV', artist: 'UP主甲' },
+        nowPlaying: { title: 'Extreme Weather MV', artist: 'Uploader A' },
       },
       [
         { id: 'a', trackUrn: 'BBeBee:bili:track:1', addedBy: 'user' },
@@ -217,8 +217,8 @@ describe('QueueScreen', () => {
     )
     const { container } = withListLayout(() => render(h(QueueScreen, { ctx })))
 
-    expect(container.textContent).toContain('极端天气 MV')
-    expect(container.textContent).toContain('UP主甲')
+    expect(container.textContent).toContain('Extreme Weather MV')
+    expect(container.textContent).toContain('Uploader A')
     expect(container.textContent).toContain('Loading…')
     expect(container.textContent, 'no raw URN in the queue, ever').not.toContain('BBeBee:bili:')
   })
@@ -250,7 +250,7 @@ describe('QueueScreen', () => {
     )
   })
 
-  it('displays 当前播放 and 下一首播放 with green highlight on playing track', async () => {
+  it('displays Now playing and Next up with green highlight on playing track', async () => {
     const { ctx } = await harness(
       { currentItemId: 'a', nowPlaying: { title: 'Now Track', artist: 'Artist 1' } },
       [
@@ -263,8 +263,8 @@ describe('QueueScreen', () => {
       },
     )
     const { container } = withListLayout(() => render(h(QueueScreen, { ctx })))
-    expect(container.textContent).toContain('当前播放')
-    expect(container.textContent).toContain('下一首播放')
+    expect(container.textContent).toContain('Now playing')
+    expect(container.textContent).toContain('Next up')
     const activeSpan = container.querySelector('span[data-active="true"]')
     expect(activeSpan?.textContent).toBe('Now Track')
     expect(activeSpan?.getAttribute('style')).toContain('--primary')
@@ -293,7 +293,7 @@ describe('QueueScreen', () => {
       },
     )
     const { container } = withListLayout(() => render(h(QueueScreen, { ctx })))
-    expect(container.textContent).toContain('下一首歌来自：')
+    expect(container.textContent).toContain('Next up from:')
     expect(container.textContent).toContain('My Cool Playlist')
     expect(container.textContent).not.toContain('Current Album')
   })
@@ -316,10 +316,10 @@ describe('QueueScreen', () => {
       },
     )
     const { container } = withListLayout(() => render(h(QueueScreen, { ctx })))
-    expect(container.textContent).toContain('下一首歌来自： 本地音乐')
+    expect(container.textContent).toContain('Next up from: Local music')
   })
 
-  it('switches to 最近播放 tab and lists play history', async () => {
+  it('switches to Recently played tab and lists play history', async () => {
     const { ctx } = await harness(
       {},
       [{ id: 'a', trackUrn: 'BBeBee:local:track:a', addedBy: 'user' }],
@@ -338,7 +338,7 @@ describe('QueueScreen', () => {
       ],
     )
     const { container } = withListLayout(() => render(h(QueueScreen, { ctx })))
-    const histTab = container.querySelector('button[aria-label="最近播放"]') as HTMLElement
+    const histTab = container.querySelector('button[aria-label="Recently played"]') as HTMLElement
     act(() => {
       fireEvent.click(histTab)
     })
@@ -346,10 +346,10 @@ describe('QueueScreen', () => {
       await Promise.resolve()
     })
     expect(container.textContent).toContain('Historical Track')
-    expect(container.textContent).toContain('分钟前')
+    expect(container.textContent).toContain('min ago')
   })
 
-  it('de-duplicates tracks in 最近播放 tab showing only the most recent entry', async () => {
+  it('de-duplicates tracks in Recently played tab showing only the most recent entry', async () => {
     const { ctx, calls } = await harness(
       {},
       [{ id: 'a', trackUrn: 'BBeBee:local:track:a', addedBy: 'user' }],
@@ -385,14 +385,14 @@ describe('QueueScreen', () => {
       ],
     )
     const { container } = withListLayout(() => render(h(QueueScreen, { ctx })))
-    const histTab = container.querySelector('button[aria-label="最近播放"]') as HTMLElement
+    const histTab = container.querySelector('button[aria-label="Recently played"]') as HTMLElement
     act(() => {
       fireEvent.click(histTab)
     })
     await act(async () => {
       await Promise.resolve()
     })
-    const historyList = container.querySelector('div[role="list"][aria-label="最近播放"]')
+    const historyList = container.querySelector('div[role="list"][aria-label="Recently played"]')
     expect(historyList).not.toBeNull()
     const items = historyList?.querySelectorAll('[role="listitem"]')
     expect(items).toHaveLength(2)
@@ -422,8 +422,8 @@ describe('the queue row menu', () => {
       // `ctx.player` is loaded, so "add to the play queue" is offered; no
       // library and no downloads here, so their items are absent instead of
       // present and throwing.
-      expect(container.textContent).toContain('加入播放列表')
-      expect(container.textContent).not.toContain('下载')
+      expect(container.textContent).toContain('Add to play queue')
+      expect(container.textContent).not.toContain('Download')
       expect(container.querySelector('[role="menu"]')).toBeTruthy()
     })
   })

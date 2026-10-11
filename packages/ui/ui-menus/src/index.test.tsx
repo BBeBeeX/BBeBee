@@ -206,7 +206,7 @@ describe('trackMenuItems', () => {
     const items = trackMenuItems(h.ctx, { track }, { playlists })
     expect(items.map((i) => i.id)).toEqual([
       'add-to-playlist',
-      'remove-favourite',
+      'remove-favorite',
       'enqueue',
       'download',
       'go-to-album',
@@ -216,7 +216,7 @@ describe('trackMenuItems', () => {
   it('omits what the build cannot do rather than offering a failing item', async () => {
     const h = await harness({ downloads: false, player: false, ui: false })
     const items = trackMenuItems(h.ctx, { track: { ...track, loved: false } }, {})
-    expect(items.map((i) => i.id)).toEqual(['add-to-playlist', 'add-favourite'])
+    expect(items.map((i) => i.id)).toEqual(['add-to-playlist', 'add-favorite'])
   })
 
   it('offers “remove from this playlist” only inside a playlist', async () => {
@@ -238,7 +238,7 @@ describe('trackMenuItems', () => {
     const items = trackMenuItems(h.ctx, { track, queueItemId: 'queue-entry-1' }, { playlists })
     const removeItem = items.find((i) => i.id === 'remove-from-queue')
     expect(removeItem).toBeTruthy()
-    expect(removeItem?.label).toBe('从队列中移除')
+    expect(removeItem?.label).toBe('Remove from queue')
     expect(removeItem?.tone).toBe('danger')
     await press(items, 'remove-from-queue')
     expect(h.player.calls).toContain('removeItems:queue-entry-1')
@@ -249,7 +249,7 @@ describe('trackMenuItems', () => {
     const items = trackMenuItems(h.ctx, { track, historyRecordId: 'hist-1' }, { playlists })
     const removeItem = items.find((i) => i.id === 'remove-from-history')
     expect(removeItem).toBeTruthy()
-    expect(removeItem?.label).toBe('从最近播放中移除')
+    expect(removeItem?.label).toBe('Remove from history')
     expect(removeItem?.tone).toBe('danger')
     await press(items, 'remove-from-history')
     expect(h.player.calls).toContain('removeHistory:hist-1')
@@ -257,14 +257,14 @@ describe('trackMenuItems', () => {
 
   it('unlikes through both stores, so the heart and the shelf agree', async () => {
     const h = await harness()
-    await press(trackMenuItems(h.ctx, { track }, { playlists }), 'remove-favourite')
+    await press(trackMenuItems(h.ctx, { track }, { playlists }), 'remove-favorite')
     expect(h.sources.calls).toEqual([`loved:${URN}:false`])
     expect(h.library.calls).toEqual([`save:${URN}:false`])
   })
 
   it('likes through both stores, so the heart and the shelf agree', async () => {
     const h = await harness()
-    await press(trackMenuItems(h.ctx, { track: { ...track, loved: false } }, { playlists }), 'add-favourite')
+    await press(trackMenuItems(h.ctx, { track: { ...track, loved: false } }, { playlists }), 'add-favorite')
     expect(h.sources.calls).toEqual([`loved:${URN}:true`])
     expect(h.library.calls).toEqual([`save:${URN}:true`])
   })
@@ -286,17 +286,17 @@ describe('trackMenuItems', () => {
     const items = trackMenuItems(h.ctx, { track }, { playlists })
     const timerItem = items.find((i) => i.id === 'sleep-timer')
     expect(timerItem).toBeTruthy()
-    expect(timerItem?.label).toBe('睡眠定时器')
+    expect(timerItem?.label).toBe('sleep timer')
     expect(timerItem?.submenu).toBeTruthy()
   })
 
-  it('shows (已开启) on sleep timer label when timer is active', async () => {
+  it('shows "(on)" on sleep timer label when timer is active', async () => {
     const h = await harness({ sleepTimer: true })
     h.sleepTimer.startDuration(600_000)
     const items = trackMenuItems(h.ctx, { track }, { playlists })
     const timerItem = items.find((i) => i.id === 'sleep-timer')
     expect(timerItem).toBeTruthy()
-    expect(timerItem?.label).toBe('睡眠定时器 (已开启)')
+    expect(timerItem?.label).toBe('sleep timer (on)')
   })
 
   it('offers share-track when share service is present and triggers shareTrack on press', async () => {
@@ -304,7 +304,7 @@ describe('trackMenuItems', () => {
     const items = trackMenuItems(h.ctx, { track }, { playlists })
     const shareItem = items.find((i) => i.id === 'share-track')
     expect(shareItem).toBeTruthy()
-    expect(shareItem?.label).toBe('分享歌曲')
+    expect(shareItem?.label).toBe('Share song')
     await press(items, 'share-track')
     expect(h.share.calls).toContain(`shareTrack:${URN}`)
   })
@@ -316,9 +316,9 @@ describe('trackMenuItems', () => {
     const bare = trackMenuItems(h.ctx, { track }, { playlists })
     expect(bare.some((i) => i.id === 'share-lyrics')).toBe(false)
 
-    const items = trackMenuItems(h.ctx, { track }, { playlists, lyrics: { lines: ['第一句', '第二句'] } })
+    const items = trackMenuItems(h.ctx, { track }, { playlists, lyrics: { lines: ['First line', 'Second line'] } })
     const lyricsItem = items.find((i) => i.id === 'share-lyrics')
-    expect(lyricsItem?.label).toBe('分享歌词')
+    expect(lyricsItem?.label).toBe('Share lyrics')
     await press(items, 'share-lyrics')
     expect(h.share.calls).toContain(`shareLyrics:${URN}:2`)
   })
@@ -337,7 +337,7 @@ describe('trackMenuItems', () => {
     )
     const infoItem = items.find((i) => i.id === 'track-info')
     expect(infoItem).toBeTruthy()
-    expect(infoItem?.label).toBe('查看播放内容')
+    expect(infoItem?.label).toBe("See what's playing")
     await press(items, 'track-info')
     expect(shownTrack).toBe(track)
   })
@@ -354,7 +354,7 @@ describe('useSaveToPlaylistMenu', () => {
       await result.current.menuProps.onToggleLiked()
     })
     // Catalogue's loved flag first, then the shelf write — the order every
-    // favourite writer uses, because the `library/changed` event the shelf
+    // favorite writer uses, because the `library/changed` event the shelf
     // write fires is when listeners re-read.
     expect(h.sources.calls).toEqual([`loved:${URN}:false`])
     expect(h.library.calls).toEqual([`save:${URN}:false`])
@@ -390,20 +390,20 @@ describe('the sleep-timer submenu', () => {
   it('lists preset intervals, end-of-track, and offers custom time create when inactive', () => {
     const stub = new SleepTimerStub(new Context()) as unknown as SleepTimerService
     const submenu = sleepTimerSubmenu(stub)
-    expect(submenu?.title).toBe('睡眠定时器')
-    expect(submenu?.create?.label).toBe('自定义时间')
-    expect(submenu?.create?.placeholder).toBe('自定义时间 (单位: 分钟)')
+    expect(submenu?.title).toBe('sleep timer')
+    expect(submenu?.create?.label).toBe('Custom time')
+    expect(submenu?.create?.placeholder).toBe('Custom time (in minutes)')
     expect(submenu?.create?.alwaysVisible).toBe(true)
     expect(submenu?.create?.placement).toBe('bottom')
-    expect(submenu?.create?.buttonLabel).toBe('确定')
+    expect(submenu?.create?.buttonLabel).toBe('OK')
     expect(submenu?.items.map((i) => i.label)).toEqual([
-      '5 分钟',
-      '10 分钟',
-      '15 分钟',
-      '30 分钟',
-      '45 分钟',
-      '1 小时',
-      '曲目结束时',
+      '5 min',
+      '10 min',
+      '15 min',
+      '30 min',
+      '45 min',
+      '1 hr',
+      'End of track',
     ])
     expect(submenu?.items.some((i) => i.id === 'timer-cancel')).toBe(false)
   })
@@ -443,7 +443,7 @@ describe('the sleep-timer submenu', () => {
     const submenu = sleepTimerSubmenu(stub as unknown as SleepTimerService)!
     const cancelItem = submenu.items.find((i) => i.id === 'timer-cancel')
     expect(cancelItem).toBeTruthy()
-    expect(cancelItem?.label).toBe('关闭睡眠定时器')
+    expect(cancelItem?.label).toBe('Turn off sleep timer')
     expect(cancelItem?.tone).toBe('danger')
 
     await cancelItem?.onSelect?.()
@@ -458,8 +458,8 @@ describe('the add-to-playlist submenu', () => {
       [URN],
       playlists,
     )
-    expect(submenu?.searchPlaceholder).toBe('查找歌单')
-    expect(submenu?.create?.label).toBe('新建歌单')
+    expect(submenu?.searchPlaceholder).toBe('Find playlist')
+    expect(submenu?.create?.label).toBe('New playlist')
     expect(submenu?.items.map((i) => i.label)).toEqual(['Road trip', 'Loved'])
     // A smart playlist has no row an add could write, so it is disabled.
     expect(submenu?.items[1]?.disabled).toBe(true)
@@ -487,8 +487,8 @@ describe('the add-to-collection submenu', () => {
   it('filters, creates and lists, exactly like the playlist one', async () => {
     const h = await harness()
     const submenu = addToCollectionSubmenu(h.library as unknown as LibraryService, [ALBUM], h.library.collections)
-    expect(submenu?.searchPlaceholder).toBe('查找合集')
-    expect(submenu?.create?.label).toBe('新建合集')
+    expect(submenu?.searchPlaceholder).toBe('Find collection')
+    expect(submenu?.create?.label).toBe('New collection')
     expect(submenu?.items.map((i) => i.label)).toEqual(['Shelf'])
 
     await submenu!.create?.onSelect('New shelf')
@@ -535,7 +535,7 @@ describe('the add-to-collection submenu', () => {
     )!
     const moveRoot = submenu.items.find((i) => i.id === '__move_root')
     expect(moveRoot).toBeTruthy()
-    expect(moveRoot?.label).toBe('移至根目录')
+    expect(moveRoot?.label).toBe('Move to root')
     expect(submenu.items.some((i) => i.id === 'col-1')).toBe(false)
 
     await moveRoot?.onSelect?.()
@@ -591,7 +591,7 @@ describe('addToCollectionOnlyItems', () => {
     })
     const deleteItem = items.find((i) => i.id === 'delete-album')
     expect(deleteItem).toBeDefined()
-    expect(deleteItem?.label).toBe('删除')
+    expect(deleteItem?.label).toBe('Delete')
     expect(deleteItem?.tone).toBe('danger')
     deleteItem?.onSelect?.()
     expect(onDelete).toHaveBeenCalledTimes(1)
@@ -644,9 +644,9 @@ describe('playlistMenuItems', () => {
       { onEdit, onDelete },
     )
     expect(items[0]?.id).toBe('edit-details')
-    expect(items[0]?.label).toBe('编辑详情')
+    expect(items[0]?.label).toBe('Edit details')
     expect(items[1]?.id).toBe('delete-playlist')
-    expect(items[1]?.label).toBe('删除')
+    expect(items[1]?.label).toBe('Delete')
     expect(items[1]?.divider).toBe(true)
 
     await press(items, 'edit-details')
@@ -667,7 +667,7 @@ describe('playlistMenuItems', () => {
     )
     const shareItem = items.find((i) => i.id === 'share-playlist')
     expect(shareItem).toBeTruthy()
-    expect(shareItem?.label).toBe('分享歌单')
+    expect(shareItem?.label).toBe('Share playlist')
     await press(items, 'share-playlist')
     expect(h.share.calls).toContain('sharePlaylist:BBeBee:local:playlist:1:1')
   })
@@ -687,7 +687,7 @@ describe('playlistMenuItems', () => {
     const batchItem = items.find((i) => i.id === 'batch-operations')
     expect(batchItem).toBeTruthy()
     expect(batchItem?.submenu).toBeUndefined()
-    expect(batchItem?.label).toBe('批量操作')
+    expect(batchItem?.label).toBe('Batch operations')
     expect(batchItem?.icon).toBe('list-check')
 
     const activeBatchItems = playlistMenuItems(
@@ -821,7 +821,7 @@ describe('resolveOriginalResourceUrl & openExternalUrl', () => {
     const items = trackMenuItems(h.ctx, { track: thirdPartyTrack })
     const openItem = items.find((i) => i.id === 'open-original-resource')
     expect(openItem).toBeDefined()
-    expect(openItem?.label).toBe('跳转原始资源')
+    expect(openItem?.label).toBe('Open original resource')
   })
 
   it('includes open-original-resource item in playlistMenuItems for third-party playlist', async () => {
@@ -833,7 +833,7 @@ describe('resolveOriginalResourceUrl & openExternalUrl', () => {
     )
     const openItem = items.find((i) => i.id === 'open-original-resource')
     expect(openItem).toBeDefined()
-    expect(openItem?.label).toBe('跳转原始资源')
+    expect(openItem?.label).toBe('Open original resource')
   })
 
   it('calls window.open in openExternalUrl fallback', () => {

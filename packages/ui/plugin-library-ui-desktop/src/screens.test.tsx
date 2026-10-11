@@ -184,7 +184,7 @@ class SourcesStub extends Service {
     return undefined
   }
   get(id: string) {
-    if (id === 'bilibili') return { id: 'bilibili', displayName: '哔哩哔哩' }
+    if (id === 'bilibili') return { id: 'bilibili', displayName: 'Bilibili' }
     return undefined
   }
   async getPlaylist(urn: string, page?: { cursor?: string; limit?: number }) {
@@ -279,11 +279,11 @@ describe('LibraryScreen', () => {
       // only that one.
       view.rerender(h(LibraryScreen, { ctx, activeViewId: 'library.favorites' }))
       const current = view.container.querySelector('button[aria-current="page"]')
-      expect(current?.textContent).toContain('喜欢')
+      expect(current?.textContent).toContain('Favorites')
 
       view.rerender(h(LibraryScreen, { ctx, activeViewId: 'library.local' }))
       const local = view.container.querySelector('button[aria-current="page"]')
-      expect(local?.textContent).toContain('本地和下载')
+      expect(local?.textContent).toContain('Local & downloads')
     })
   })
 
@@ -316,27 +316,27 @@ describe('LibraryScreen', () => {
         await tick()
       })
 
-      expect(container.textContent).toContain('喜欢')
-      expect(container.textContent).toContain('本地和下载')
+      expect(container.textContent).toContain('Favorites')
+      expect(container.textContent).toContain('Local & downloads')
       expect(container.textContent).toContain('Road trip')
       expect(container.textContent).toContain('Ambient mix')
       expect(container.textContent).toContain('Homogenic')
 
       await act(async () => {
-        getByText('本地和下载').click()
+        getByText('Local & downloads').click()
         await tick()
       })
       expect(ui.calls).toContain('library.local:{}')
 
       await act(async () => {
-        getByText('喜欢').click()
+        getByText('Favorites').click()
         await tick()
       })
       expect(ui.calls).toContain('library.favorites:{}')
     })
   })
 
-  it('filters items by top toggle buttons (歌单, 专辑, 目录, 已下载)', async () => {
+  it('filters items by top toggle buttons (playlists, albums, folders, downloaded)', async () => {
     const { ctx, library } = await harness()
     library.collections = [{ id: 'col-1', name: 'Ambient mix', position: 'a', createdAt: 0 }]
     library.saved = [TRACK, ALBUM_URN]
@@ -346,30 +346,30 @@ describe('LibraryScreen', () => {
         await tick()
       })
 
-      // Click '歌单'
+      // Click 'Playlists'
       await act(async () => {
-        getByText('歌单').click()
+        getByText('Playlists').click()
         await tick()
       })
       expect(container.textContent).toContain('Road trip')
-      // The 喜欢 / 本地和下载 quick entries live above the toolbar and are
+      // The Favorites / Local & downloads quick entries live above the toolbar and are
       // independent of the active filter.
-      expect(container.textContent).toContain('本地和下载')
+      expect(container.textContent).toContain('Local & downloads')
       expect(container.textContent).not.toContain('Homogenic')
       expect(container.textContent).not.toContain('Ambient mix')
 
-      // Click '专辑'
+      // Click 'Albums'
       await act(async () => {
-        getByText('专辑').click()
+        getByText('Albums').click()
         await tick()
       })
       expect(container.textContent).toContain('Homogenic')
       expect(container.textContent).not.toContain('Road trip')
       expect(container.textContent).not.toContain('Ambient mix')
 
-      // Toggle off by clicking '专辑' again
+      // Toggle off by clicking 'Albums' again
       await act(async () => {
-        getByText('专辑').click()
+        getByText('Albums').click()
         await tick()
       })
       expect(container.textContent).toContain('Road trip')
@@ -388,7 +388,7 @@ describe('LibraryScreen', () => {
 
       // Open search input
       await act(async () => {
-        getByLabelText('搜索').click()
+        getByLabelText('Search').click()
         await tick()
       })
 
@@ -420,7 +420,7 @@ describe('LibraryScreen', () => {
         await tick()
       })
 
-      const playOverlay = getByTitle('播放 Road trip')
+      const playOverlay = getByTitle('Play Road trip')
       expect(playOverlay).toBeTruthy()
 
       await act(async () => {
@@ -453,7 +453,7 @@ describe('LibraryScreen', () => {
         await tick()
       })
 
-      const pinItem = getByText('置顶歌单')
+      const pinItem = getByText('Pin playlist')
       expect(pinItem).toBeTruthy()
 
       await act(async () => {
@@ -474,7 +474,7 @@ describe('LibraryScreen', () => {
         await tick()
       })
 
-      const expandBtn = getByLabelText('展开文件夹')
+      const expandBtn = getByLabelText('Expand folder')
       expect(expandBtn).toBeTruthy()
 
       // Click to expand inline
@@ -483,7 +483,7 @@ describe('LibraryScreen', () => {
         await tick()
       })
 
-      const foldBtn = getByLabelText('折叠文件夹')
+      const foldBtn = getByLabelText('Collapse folder')
       expect(foldBtn).toBeTruthy()
 
       // Click to fold inline
@@ -492,7 +492,7 @@ describe('LibraryScreen', () => {
         await tick()
       })
 
-      expect(getByLabelText('展开文件夹')).toBeTruthy()
+      expect(getByLabelText('Expand folder')).toBeTruthy()
     })
   })
 
@@ -512,7 +512,7 @@ describe('LibraryScreen', () => {
       })
 
       // In folder view: back button is rendered
-      const backBtn = getByTitle('返回音乐库')
+      const backBtn = getByTitle('Back to music library')
       expect(backBtn).toBeTruthy()
 
       // Click back button to return to root library
@@ -521,8 +521,8 @@ describe('LibraryScreen', () => {
         await tick()
       })
 
-      expect(queryByTitle('返回音乐库')).toBeNull()
-      expect(getByText('音乐库')).toBeTruthy()
+      expect(queryByTitle('Back to music library')).toBeNull()
+      expect(getByText('Music library')).toBeTruthy()
     })
   })
 
@@ -537,7 +537,7 @@ describe('LibraryScreen', () => {
         await tick()
       })
 
-      const backBtn = getByLabelText('返回音乐库')
+      const backBtn = getByLabelText('Back to music library')
       expect(backBtn).toBeTruthy()
 
       await act(async () => {
@@ -545,7 +545,7 @@ describe('LibraryScreen', () => {
         await tick()
       })
 
-      expect(queryByLabelText('返回音乐库')).toBeNull()
+      expect(queryByLabelText('Back to music library')).toBeNull()
     })
   })
 
@@ -561,7 +561,7 @@ describe('LibraryScreen', () => {
       })
 
       expect(getByText('Ambient mix')).toBeTruthy()
-      const backNav = getByTitle('返回音乐库')
+      const backNav = getByTitle('Back to music library')
       expect(backNav).toBeTruthy()
 
       await act(async () => {
@@ -569,8 +569,8 @@ describe('LibraryScreen', () => {
         await tick()
       })
 
-      expect(queryByTitle('返回音乐库')).toBeNull()
-      expect(getByText('音乐库')).toBeTruthy()
+      expect(queryByTitle('Back to music library')).toBeNull()
+      expect(getByText('Music library')).toBeTruthy()
     })
   })
 
@@ -589,7 +589,7 @@ describe('LibraryScreen', () => {
         await tick()
       })
 
-      const editItem = getByText('编辑详情')
+      const editItem = getByText('Edit details')
       expect(editItem).toBeTruthy()
 
       await act(async () => {
@@ -636,7 +636,7 @@ describe('LibraryScreen', () => {
         await tick()
       })
 
-      const renameItem = getByText('重命名')
+      const renameItem = getByText('Rename')
       expect(renameItem).toBeTruthy()
 
       await act(async () => {
@@ -674,7 +674,7 @@ describe('LibraryScreen', () => {
         fireEvent.contextMenu(playlistRow)
         await tick()
       })
-      const deletePlaylistItem = getByText('删除')
+      const deletePlaylistItem = getByText('Delete')
       expect(deletePlaylistItem).toBeTruthy()
       await act(async () => {
         deletePlaylistItem.click()
@@ -682,7 +682,7 @@ describe('LibraryScreen', () => {
       })
       // Modal should be shown, not deleted yet
       expect(library.calls).not.toContain(`delete:${PLAYLIST_URN}`)
-      expect(getByText('确定要删除歌单“Road trip”吗？此操作无法撤销。')).toBeTruthy()
+      expect(getByText('Delete playlist "Road trip"? This cannot be undone.')).toBeTruthy()
 
       // Cancel deletion
       await act(async () => {
@@ -698,7 +698,7 @@ describe('LibraryScreen', () => {
         await tick()
       })
       await act(async () => {
-        getByText('删除').click()
+        getByText('Delete').click()
         await tick()
       })
       await act(async () => {
@@ -713,14 +713,14 @@ describe('LibraryScreen', () => {
         fireEvent.contextMenu(albumRow)
         await tick()
       })
-      const deleteAlbumItem = getByText('删除')
+      const deleteAlbumItem = getByText('Delete')
       expect(deleteAlbumItem).toBeTruthy()
       await act(async () => {
         deleteAlbumItem.click()
         await tick()
       })
       expect(library.calls).not.toContain(`save:${ALBUM_URN}:false`)
-      expect(getByText('确定要从音乐库中删除专辑“Homogenic”吗？')).toBeTruthy()
+      expect(getByText('Remove the album "Homogenic" from the music library?')).toBeTruthy()
 
       // Cancel deletion
       await act(async () => {
@@ -736,7 +736,7 @@ describe('LibraryScreen', () => {
         await tick()
       })
       await act(async () => {
-        getByText('删除').click()
+        getByText('Delete').click()
         await tick()
       })
       await act(async () => {
@@ -751,7 +751,7 @@ describe('LibraryScreen', () => {
         fireEvent.contextMenu(folderRow)
         await tick()
       })
-      const deleteFolderItem = getByText('删除')
+      const deleteFolderItem = getByText('Delete')
       expect(deleteFolderItem).toBeTruthy()
       await act(async () => {
         deleteFolderItem.click()
@@ -780,7 +780,7 @@ describe('LibraryScreen', () => {
         await tick()
       })
       await act(async () => {
-        getByText('删除').click()
+        getByText('Delete').click()
         await tick()
       })
       await act(async () => {
@@ -945,13 +945,13 @@ describe('PlaylistDetailScreen', () => {
         await tick()
       })
 
-      // Click "升序" in menu
+      // Click "Ascending" in menu
       await act(async () => {
-        getByText('升序').click()
+        getByText('Ascending').click()
         await tick()
       })
 
-      // Clicking '来源' sorts by source
+      // Clicking 'Source' sorts by source
       expect(getByTestId('playlist-sort-source')).toBeTruthy()
       await act(async () => {
         getByTestId('playlist-sort-source').click()
@@ -972,7 +972,7 @@ describe('PlaylistDetailScreen', () => {
       })
       const badge = getByTestId('playlist-source-badge')
       expect(badge).toBeTruthy()
-      expect(badge.textContent).toBe('哔哩哔哩')
+      expect(badge.textContent).toBe('Bilibili')
     })
   })
 
@@ -1002,7 +1002,7 @@ describe('PlaylistDetailScreen', () => {
         await tick()
       })
 
-      expect(getByText('跳转原始资源')).toBeTruthy()
+      expect(getByText('Open original resource')).toBeTruthy()
     })
   })
 
@@ -1020,7 +1020,7 @@ describe('PlaylistDetailScreen', () => {
 
       // 2. Source column is rendered in header
       const header = getByTestId('playlist-table-header')
-      expect(header.textContent).toContain('来源')
+      expect(header.textContent).toContain('Source')
 
       // 3. Batch mode initially off
       expect(queryByTestId('batch-action-bar')).toBeNull()
@@ -1032,8 +1032,8 @@ describe('PlaylistDetailScreen', () => {
         await tick()
       })
 
-      // Click 批量操作 to enter batch mode
-      const batchOpItem = getByText('批量操作')
+      // Click Batch operations to enter batch mode
+      const batchOpItem = getByText('Batch operations')
       expect(batchOpItem).toBeTruthy()
       await act(async () => {
         batchOpItem.click()
@@ -1079,8 +1079,8 @@ describe('FavoritesScreen', () => {
         await tick()
       })
 
-      expect(getByText('添加到歌单')).toBeTruthy()
-      expect(getByText('新建歌单')).toBeTruthy()
+      expect(getByText('Add to playlist')).toBeTruthy()
+      expect(getByText('New playlist')).toBeTruthy()
     })
   })
 
@@ -1092,17 +1092,17 @@ describe('FavoritesScreen', () => {
         await tick()
       })
 
-      expect(container.textContent).toContain('已点赞的歌曲')
-      expect(container.textContent).toContain('已收藏的音乐 • 1 首歌曲')
-      expect(container.textContent).toContain('歌单')
+      expect(container.textContent).toContain('Liked songs')
+      expect(container.textContent).toContain('Saved music • 1 song')
+      expect(container.textContent).toContain('Playlist')
 
-      // 滚动折叠后的吸顶栏：吸附在滚动容器顶部，随滚动淡入。
+      // The sticky bar after scroll collapse: docked at the top of the scroller, fading in with scroll.
       const sticky = getByTestId('sticky-detail-bar')
       expect(sticky.style.position).toBe('sticky')
       expect(getByTestId('favorites-play-sticky')).toBeTruthy()
 
       expect(getByTestId('favorites-play')).toBeTruthy()
-      expect(getByPlaceholderText('在已点赞歌曲中搜索')).toBeTruthy()
+      expect(getByPlaceholderText('Search in Liked songs')).toBeTruthy()
       expect(getByTestId('favorites-sort-default')).toBeTruthy()
       expect(getByTestId('favorites-sort-title')).toBeTruthy()
       expect(getByTestId('favorites-sort-album')).toBeTruthy()
@@ -1194,7 +1194,7 @@ describe('FavoritesScreen', () => {
 
       // 2. Source column is rendered in header
       const header = getByTestId('favorites-table-header')
-      expect(header.textContent).toContain('来源')
+      expect(header.textContent).toContain('Source')
 
       // 3. Batch mode
       expect(queryByTestId('batch-action-bar')).toBeNull()
@@ -1205,7 +1205,7 @@ describe('FavoritesScreen', () => {
         await tick()
       })
 
-      const batchOpItem = getByText('批量操作')
+      const batchOpItem = getByText('Batch operations')
       expect(batchOpItem).toBeTruthy()
       await act(async () => {
         batchOpItem.click()
@@ -1264,7 +1264,7 @@ describe('LocalMusicScreen', () => {
         await tick()
       })
 
-      expect(container.textContent).toContain('本地音乐')
+      expect(container.textContent).toContain('Local music')
       expect(container.textContent).toContain('Alpha')
 
       await act(async () => {
@@ -1287,7 +1287,7 @@ describe('LocalMusicScreen', () => {
       // Initially on tracks view
       expect(getByTestId('local-tab-tracks')).toBeTruthy()
       expect(getByTestId('local-tab-albums')).toBeTruthy()
-      expect(container.textContent).toContain('本地文件')
+      expect(container.textContent).toContain('Local files')
       expect(container.textContent).toContain('Alpha')
 
       // Switch to albums view
@@ -1297,7 +1297,7 @@ describe('LocalMusicScreen', () => {
       })
 
       // When in albums view
-      expect(container.textContent).toContain('本地专辑')
+      expect(container.textContent).toContain('Local albums')
       expect(getByTestId('local-albums-grid')).toBeTruthy()
 
       // Switch back to tracks view
@@ -1307,7 +1307,7 @@ describe('LocalMusicScreen', () => {
       })
 
       // Back on tracks view
-      expect(container.textContent).toContain('本地文件')
+      expect(container.textContent).toContain('Local files')
       expect(container.textContent).toContain('Alpha')
     })
   })
@@ -1335,9 +1335,9 @@ describe('LocalMusicScreen', () => {
         await tick()
       })
 
-      // Choose "降序"
+      // Choose "Descending"
       await act(async () => {
-        getByText('降序').click()
+        getByText('Descending').click()
         await tick()
       })
 
@@ -1376,9 +1376,9 @@ describe('LocalMusicScreen', () => {
         await tick()
       })
 
-      // Select "专辑名称"
+      // Select "Album name"
       await act(async () => {
-        getByText('专辑名称').click()
+        getByText('Album name').click()
         await tick()
       })
 
@@ -1411,13 +1411,13 @@ describe('LocalMusicScreen', () => {
       // In tiled mode, table header should NOT be present
       expect(queryByTestId('local-albums-table-header')).toBeNull()
 
-      // Switch view mode to "列表"
+      // Switch view mode to "List"
       await act(async () => {
         getByTestId('local-music-sort-trigger').click()
         await tick()
       })
       await act(async () => {
-        getByText('列表').click()
+        getByText('List').click()
         await tick()
       })
 
@@ -1450,13 +1450,13 @@ describe('LocalMusicScreen', () => {
       // the bare URN never appears at the head of a call string.
       expect(player.calls.some((c) => c.startsWith('now:BBeBee:local:track:1'))).toBe(true)
 
-      // Switch to "紧凑" mode
+      // Switch to "Compact" mode
       await act(async () => {
         getByTestId('local-music-sort-trigger').click()
         await tick()
       })
       await act(async () => {
-        getByText('紧凑').click()
+        getByText('Compact').click()
         await tick()
       })
 
@@ -1466,7 +1466,7 @@ describe('LocalMusicScreen', () => {
     })
   })
 
-  it('shows ＋ button when track is not in library and adds to favorites on click', async () => {
+  it('shows + button when track is not in library and adds to favorites on click', async () => {
     const { ctx, library } = await harness()
     library.saved = [] // not saved
     await withListLayout(async () => {
@@ -1475,7 +1475,7 @@ describe('LocalMusicScreen', () => {
         await tick()
       })
 
-      const addBtn = getByLabelText('Add Alpha to favourites')
+      const addBtn = getByLabelText('Add Alpha to favorites')
       expect(addBtn).toBeTruthy()
       expect(addBtn.querySelector('[data-icon="plus"]')).toBeTruthy()
 
@@ -1638,7 +1638,7 @@ describe('LocalMusicScreen', () => {
 
       // 2. LocalMusicScreen does NOT have source column
       const header = getByTestId('local-table-header')
-      expect(header.textContent).not.toContain('来源')
+      expect(header.textContent).not.toContain('Source')
 
       // 3. Batch mode
       expect(queryByTestId('batch-action-bar')).toBeNull()
@@ -1649,7 +1649,7 @@ describe('LocalMusicScreen', () => {
         await tick()
       })
 
-      const batchOpItem = getByText('批量操作')
+      const batchOpItem = getByText('Batch operations')
       expect(batchOpItem).toBeTruthy()
       await act(async () => {
         batchOpItem.click()
@@ -1703,8 +1703,8 @@ describe('LocalMusicScreen', () => {
 
     const shareItem = getByTestId('create-menu-import-share')
     expect(shareItem).toBeTruthy()
-    expect(shareItem.textContent).toContain('导入分享')
-    expect(shareItem.textContent).toContain('读取分享卡片或图片')
+    expect(shareItem.textContent).toContain('Import share')
+    expect(shareItem.textContent).toContain('Read a share card or image')
 
     await act(async () => {
       shareItem.click()

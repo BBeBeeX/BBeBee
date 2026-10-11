@@ -115,7 +115,7 @@ export function QuadArtworkCollage({
             },
           },
           tablerIcon('pencil', { size: 40, color: 'currentColor' }),
-          h('span', { style: { fontSize: 14, fontWeight: 600 } }, '选择照片'),
+          h('span', { style: { fontSize: 14, fontWeight: 600 } }, 'Choose photo'),
         )
       : null,
   )

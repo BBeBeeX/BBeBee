@@ -1,20 +1,20 @@
 # @BBeBee/plugin-history-ui-mobile
 
-Layer 5（ui）— `plugin-history`（headless）的移动端视图包：播放历史与统计页面。
+Layer 5 (ui) — the mobile view package for `plugin-history` (headless): the play history and statistics page.
 
-## 概述
+## Overview
 
-把 `history.view` 注册并绑定到移动端 React Native shell。数据来自 `@BBeBee/plugin-player/hooks`（`usePlayHistory`、`usePlayHistoryStats`），组件采用 `@BBeBee/ui-kit-mobile`（`List`、`TrackRow`、`ContextMenu`）。
+Registers `history.view` and binds it to the mobile React Native shell. Data comes from `@BBeBee/plugin-player/hooks` (`usePlayHistory`, `usePlayHistoryStats`), and components use `@BBeBee/ui-kit-mobile` (`List`, `TrackRow`, `ContextMenu`).
 
-## 注册的视图
+## Registered views
 
-| id | 组件 | 说明 |
+| id | Component | Description |
 |---|---|---|
-| `history.view` | `HistoryScreen` | 移动端播放历史与统计页面 |
+| `history.view` | `HistoryScreen` | The mobile play history and statistics page |
 
-## 核心功能
+## Core features
 
-1. **顶部统计面板**：展示总播放次数、累计播放时长及今日听歌数。
-2. **曲目去重**：按 `trackUrn` 严格去重，仅保留每首曲目最新一次播放记录。
-3. **播放次数徽标**：在每首曲目右侧展示 `播放 N 次` 胶囊徽标。
-4. **单曲播放与长按菜单**：轻触即播，长按呼出曲目快捷菜单。
+1. **Top stats panel**: shows total plays, total listening time, and tracks heard today.
+2. **Track deduplication**: strictly deduplicates by `trackUrn`, keeping only each track's most recent play record.
+3. **Play count badge**: shows an `N plays` pill badge to the right of each track.
+4. **Single-track playback and long-press menu**: tap to play; long-press opens the track quick-action menu.

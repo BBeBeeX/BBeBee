@@ -19,11 +19,11 @@ export function formatDateMs(ms: number | undefined): string {
   return date.toLocaleDateString()
 }
 
-/** Wall-clock ms → a short locale date-time, for the settings card's 上次检查 row. */
+/** Wall-clock ms → a short locale date-time, for the settings card's Last checked row. */
 export function formatDateTime(ms: number | undefined): string {
-  if (ms === undefined) return '从未'
+  if (ms === undefined) return 'Never'
   const date = new Date(ms)
-  if (Number.isNaN(date.getTime())) return '从未'
+  if (Number.isNaN(date.getTime())) return 'Never'
   return date.toLocaleString()
 }
 

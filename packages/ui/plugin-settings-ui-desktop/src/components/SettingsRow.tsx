@@ -74,7 +74,7 @@ export function SettingsRow({
               'button',
               {
                 type: 'button',
-                'aria-label': expanded ? `收起 ${title}` : `展开 ${title}`,
+                'aria-label': expanded ? `Collapse ${title}` : `Expand ${title}`,
                 onClick: onToggleExpand,
                 style: {
                   background: 'none',

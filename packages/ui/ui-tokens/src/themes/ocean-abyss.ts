@@ -283,8 +283,8 @@ export const oceanAbyssLightCssVariables: Record<string, string> = {
 
 export const oceanAbyssTheme: ThemeDefinition = {
   id: 'ocean-abyss',
-  name: '深海秘境 · Ocean Abyss',
-  description: '静谧幽邃的深海幽蓝与灵动荧光青碧，沉浸空灵的声音海洋',
+  name: 'Ocean Abyss',
+  description: 'Serene deep-sea blue and luminous fluorescent teal — an immersive, ethereal ocean of sound',
   isDark: true,
   tokens: oceanAbyssTokens,
   lightTokens: oceanAbyssLightTokens,

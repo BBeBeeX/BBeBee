@@ -58,15 +58,16 @@ describe('artistKey', () => {
   })
 
   it('falls back to a stable hash for a name the slug cannot represent', () => {
-    // The bug this exists for: an ASCII-only slug collapses every CJK name to
-    // the empty string, so `|| 'unknown'` made one artist row for all of them.
-    expect(artistKey('洛天依')).toMatch(/^[0-9a-f]{16}$/)
-    expect(artistKey('洛天依')).toBe(artistKey('洛天依'))
+    // The bug this exists for: an ASCII-only slug collapses every non-Latin
+    // name to the empty string, so `|| 'unknown'` made one artist row for all
+    // of them.
+    expect(artistKey('Мираж')).toMatch(/^[0-9a-f]{16}$/)
+    expect(artistKey('Мираж')).toBe(artistKey('Мираж'))
   })
 
   it('gives different non-Latin names different keys', () => {
-    expect(artistKey('洛天依')).not.toBe(artistKey('言和'))
-    expect(artistKey('中国天气')).not.toBe(artistKey('好奇三知'))
+    expect(artistKey('Мираж')).not.toBe(artistKey('Каскад'))
+    expect(artistKey('Северное сияние')).not.toBe(artistKey('Южный крест'))
   })
 })
 

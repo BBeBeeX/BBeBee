@@ -224,7 +224,7 @@ export class Downloads extends Service implements DownloadsService {
         kind: 'route',
         id: DOWNLOADS_VIEWS.page,
         path: '/downloads',
-        title: '下载管理',
+        title: 'Downloads',
         icon: 'download',
         placement: ['tray'],
         order: 30,

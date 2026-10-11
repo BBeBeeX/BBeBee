@@ -112,7 +112,7 @@ const HistoryTrackRow = memo(
               color: 'var(--text-secondary, #8e8e93)',
             },
           },
-          `播放 ${playCount} 次`,
+          `${playCount} ${playCount === 1 ? 'play' : 'plays'}`,
         ),
         record.completed
           ? h(
@@ -126,7 +126,7 @@ const HistoryTrackRow = memo(
                   color: 'var(--success, #39d353)',
                 },
               },
-              '完播',
+              'Completed',
             )
           : record.skipped
             ? h(
@@ -140,7 +140,7 @@ const HistoryTrackRow = memo(
                     color: 'var(--text-secondary, #8e8e93)',
                   },
                 },
-                '跳过',
+                'Skipped',
               )
             : null,
         h('span', null, formatHistoryTime(record.startedAt)),
@@ -177,13 +177,13 @@ function formatHistoryTime(timestamp: number): string {
   const minutes = String(date.getMinutes()).padStart(2, '0')
   const timeStr = `${hours}:${minutes}`
 
-  if (isToday) return `今天 ${timeStr}`
-  if (isYesterday) return `昨天 ${timeStr}`
+  if (isToday) return `Today ${timeStr}`
+  if (isYesterday) return `Yesterday ${timeStr}`
 
   const month = date.getMonth() + 1
   const day = date.getDate()
   if (date.getFullYear() === now.getFullYear()) {
-    return `${month}月${day}日 ${timeStr}`
+    return `${month}/${day} ${timeStr}`
   }
   return `${date.getFullYear()}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')} ${timeStr}`
 }
@@ -218,7 +218,7 @@ function StatCard({
 }
 
 function fallbackTrack(urn: string): Track {
-  return { urn, title: '加载中…', artists: [] }
+  return { urn, title: 'Loading…', artists: [] }
 }
 
 export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
@@ -295,11 +295,11 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
       h(
         'div',
         null,
-        h('h1', { style: { fontSize: 24, fontWeight: 700, margin: 0, color: 'var(--text-primary, #f5f5f7)' } }, '播放历史'),
+        h('h1', { style: { fontSize: 24, fontWeight: 700, margin: 0, color: 'var(--text-primary, #f5f5f7)' } }, 'Play history'),
         h(
           'div',
           { style: { fontSize: 12, color: 'var(--text-secondary, #8e8e93)', marginTop: 4 } },
-          '记录每一首触动心弦的旋律与听歌足迹',
+          'Every melody that touched your heart, and the footprint of your listening',
         ),
       ),
       // Clear history actions
@@ -307,7 +307,7 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
         ? h(
             'div',
             { style: { display: 'flex', alignItems: 'center', gap: 8 } },
-            h('span', { style: { fontSize: 12, color: 'var(--error, #ff453a)' } }, '确定清空历史记录？'),
+            h('span', { style: { fontSize: 12, color: 'var(--error, #ff453a)' } }, 'Clear play history?'),
             h(
               'button',
               {
@@ -322,7 +322,7 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
                   fontSize: 12,
                 },
               },
-              '确定',
+              'OK',
             ),
             h(
               'button',
@@ -338,7 +338,7 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
                   fontSize: 12,
                 },
               },
-              '取消',
+              'Cancel',
             ),
           )
         : h(
@@ -357,7 +357,7 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
                 transition: 'all 0.15s',
               },
             },
-            '清空历史',
+            'Clear history',
           ),
     ),
     // Stat Cards
@@ -373,24 +373,24 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
         },
       },
       h(StatCard, {
-        title: '总播放次数',
-        value: `${stats.totalPlays.toLocaleString()} 次`,
-        subtext: '累计播放足迹',
+        title: 'Total plays',
+        value: `${stats.totalPlays.toLocaleString()} plays`,
+        subtext: 'All-time play count',
       }),
       h(StatCard, {
-        title: '累计播放时长',
+        title: 'Total listening time',
         value: formatPlayDuration(stats.totalMsPlayed),
-        subtext: '沉浸音乐的时间',
+        subtext: 'Time immersed in music',
       }),
       h(StatCard, {
-        title: '今日播放',
-        value: `${stats.todayPlays} 首`,
-        subtext: '今天听过的曲目',
+        title: 'Played today',
+        value: `${stats.todayPlays} tracks`,
+        subtext: 'Tracks heard today',
       }),
       h(StatCard, {
-        title: '完播率',
+        title: 'Completion rate',
         value: completionRate,
-        subtext: `${stats.completedPlays} 首完整播放`,
+        subtext: `${stats.completedPlays} played to completion`,
       }),
     ),
     // Heatmap
@@ -419,18 +419,18 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
         'div',
         { style: { fontSize: 14, fontWeight: 600, color: 'var(--text-primary, #f5f5f7)' } },
         selectedDate
-          ? `${selectedDate} 的播放记录 (${uniqueRecords.length} 首)`
-          : `最近播放记录 (${uniqueRecords.length} 首)`,
+          ? `Play records for ${selectedDate} (${uniqueRecords.length} tracks)`
+          : `Recent play records (${uniqueRecords.length} tracks)`,
       ),
     ),
     // Track List or Empty State
     uniqueRecords.length === 0 && !loading
       ? h(EmptyState, {
           icon: 'music',
-          title: selectedDate ? `${selectedDate} 无播放记录` : '暂无播放记录',
+          title: selectedDate ? `No play records for ${selectedDate}` : 'No play records yet',
           description: selectedDate
-            ? '这一天还没有听歌，挑选一首开始播放吧。'
-            : '从曲库播放音乐后，播放历史与统计将显示在这里。',
+            ? 'No listening on this day yet — pick a track and press play.'
+            : 'After playing music from the library, your play history and statistics will appear here.',
         })
       : h(
           'div',

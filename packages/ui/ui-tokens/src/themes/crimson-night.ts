@@ -283,8 +283,8 @@ export const crimsonNightLightCssVariables: Record<string, string> = {
 
 export const crimsonNightTheme: ThemeDefinition = {
   id: 'crimson-night',
-  name: '绯红暗夜 · Crimson Night',
-  description: '深邃黑曜石搭配极光绯红，热烈深沉的暗夜血月风范',
+  name: 'Crimson Night',
+  description: 'Deep obsidian paired with aurora crimson — the intense, brooding aura of a blood moon at night',
   isDark: true,
   tokens: crimsonNightTokens,
   lightTokens: crimsonNightLightTokens,

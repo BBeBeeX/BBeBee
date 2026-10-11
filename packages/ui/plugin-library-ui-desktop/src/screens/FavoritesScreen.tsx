@@ -14,14 +14,14 @@ import { useTrackLibraryInfo } from '../hooks/useTrackLibraryInfo.js'
 
 type FavoriteSortKey = 'default' | 'title' | 'artist' | 'album' | 'source' | 'duration'
 
-/** 收藏夹没有封面：Spotify 给“已点赞的歌曲”的固定紫色就是它的主题色。 */
+/** Favorites have no cover: Spotify's fixed purple for "Liked songs" is its theme colour. */
 const FAVORITES_TINT = '#450af5'
 
 export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
   const saved = useSaved(ctx, 'track')
   const entries = saved.data ?? []
   const rawUrns = useMemo(() => entries.map((entry) => entry.urn), [entries])
-  // 1. 歌曲去重：过滤重复的 URN
+  // 1. Song dedup: filter out duplicate URNs
   const urns = useMemo(() => {
     const seen = new Set<string>()
     return rawUrns.filter((u) => {
@@ -42,9 +42,9 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
   const [isBatchMode, setIsBatchMode] = useState(false)
   const [selectedUrns, setSelectedUrns] = useState<Set<string>>(new Set())
 
-  // 滚动折叠：吸顶栏在播放按钮靠近时滑入，滚过按钮一半高度时吸附（docked）。
+  // Scroll collapse: the sticky bar slides in as the play button approaches the top, and docks once the scroll passes half its height (docked).
   const collapse = useDetailBarCollapse({ barHeight: 64, anchorHeight: 56 })
-  // 视图模式：列表为默认（与历史行为一致），紧凑不显示封面并把艺人单列。
+  // View mode: list is the default (matching previous behaviour); compact hides the artwork and gives the artist its own column.
   const [viewMode, setViewMode] = useViewMode('favorites', 'list', ['compact', 'list'] as const)
   const menu = useTrackMenu(ctx)
   const { isTrackInLibrary, handleAddToFavorites, openAddToPlaylistMenu, openBatchAddToPlaylistMenu, saveToPlaylistMenuProps } = useTrackLibraryInfo(ctx)
@@ -105,22 +105,22 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
   const sortedUrns = useMemo(() => sortedTracks.map((t) => t.urn), [sortedTracks])
 
   const sortLabelMap: Record<FavoriteSortKey, string> = {
-    default: '默认顺序',
-    title: '标题',
-    artist: '艺人',
-    album: '专辑',
-    source: '来源',
-    duration: '时长',
+    default: 'Default order',
+    title: 'Title',
+    artist: 'Artist',
+    album: 'Album',
+    source: 'Source',
+    duration: 'Duration',
   }
 
   const sortItems = sortMenuItems(
     [
-      { id: 'default', label: '默认顺序' },
-      { id: 'title', label: '标题' },
-      { id: 'artist', label: '艺人' },
-      { id: 'album', label: '专辑' },
-      { id: 'source', label: '来源' },
-      { id: 'duration', label: '时长' },
+      { id: 'default', label: 'Default order' },
+      { id: 'title', label: 'Title' },
+      { id: 'artist', label: 'Artist' },
+      { id: 'album', label: 'Album' },
+      { id: 'source', label: 'Source' },
+      { id: 'duration', label: 'Duration' },
     ],
     sortKey,
     (id) => setSortKey(id as FavoriteSortKey),
@@ -158,7 +158,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
     const toPlay = Array.from(selectedUrns)
     if (toPlay.length > 0) {
       void player?.playNow(toPlay, {
-        context: { kind: 'favorites', label: '收藏夹' },
+        context: { kind: 'favorites', label: 'Favorites' },
       })
     }
   }
@@ -200,21 +200,21 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
       return [
         {
           id: 'batch-play',
-          label: '批量播放',
+          label: 'Play selected',
           icon: tablerIcon('play', { size: 20 }),
           disabled: selectedUrns.size === 0,
           onSelect: handleBatchPlay,
         },
         {
           id: 'batch-add',
-          label: '添加到歌单',
+          label: 'Add to playlist',
           icon: tablerIcon('plus', { size: 20 }),
           disabled: selectedUrns.size === 0,
           onSelect: () => handleBatchAddToPlaylist(),
         },
         {
           id: 'batch-delete',
-          label: '从“最喜欢的音乐”中删除',
+          label: 'Remove from Favorites',
           icon: tablerIcon('trash', { size: 20 }),
           tone: 'danger',
           disabled: selectedUrns.size === 0,
@@ -222,7 +222,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
         },
         {
           id: 'batch-exit',
-          label: '退出批量操作',
+          label: 'Exit batch operations',
           icon: tablerIcon('x', { size: 20 }),
           divider: true,
           onSelect: handleExitBatch,
@@ -233,7 +233,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
     return [
       {
         id: 'batch-operations',
-        label: '批量操作',
+        label: 'Batch operations',
         icon: tablerIcon('list-check', { size: 20 }),
         onSelect: () => setIsBatchMode(true),
       },
@@ -245,32 +245,32 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
       size,
       iconSize,
       testID,
-      ariaLabel: '播放全部',
+      ariaLabel: 'Play all',
       onPress: () =>
         sortedUrns[0] &&
         player?.playFromContext(sortedUrns[0], sortedUrns, {
-          context: { kind: 'favorites', label: '收藏夹' },
+          context: { kind: 'favorites', label: 'Favorites' },
         }),
       disabled: sortedUrns.length === 0,
     })
 
-  // 吸顶栏单独走 List 的 sticky 插槽（滚动容器的直接子节点）。
+  // The sticky bar rides the List's sticky slot (a direct child of the scroller).
   const stickyBar = h(StickyDetailBar, {
-    title: '已点赞的歌曲',
+    title: 'Liked songs',
     progress: collapse.slide,
     docked: collapse.docked,
     tint: FAVORITES_TINT,
     playButton: renderPlayButton(48, 24, 'favorites-play-sticky'),
   })
 
-  // 渐变只存在于头部区域（随内容滚走），下方内容为纯色。
+  // The gradient exists only over the header area (scrolling away with the content); the content below is solid.
   const headerNode = h(
     'div',
     { style: { background: headerGradient(FAVORITES_TINT) } },
     h(DetailHero, {
-      eyebrow: '歌单',
-      title: '已点赞的歌曲',
-      subtitle: `已收藏的音乐 • ${urns.length} 首歌曲`,
+      eyebrow: 'Playlist',
+      title: 'Liked songs',
+      subtitle: `Saved music • ${urns.length} ${urns.length === 1 ? 'song' : 'songs'}`,
     }),
     // Action Bar
     h(
@@ -287,7 +287,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
       h(
         'div',
         { style: { display: 'flex', alignItems: 'center', gap: 24 } },
-        // 折叠锚点：吸顶栏按这只大按钮的位置决定滑入与吸附时机。
+        // Collapse anchor: the sticky bar uses this large button's position to decide when to slide in and dock.
         h(
           'div',
           { ref: collapse.anchorRef, style: { display: 'flex' } },
@@ -297,14 +297,14 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
           'button',
           {
             type: 'button',
-            title: '随机播放',
+            title: 'Shuffle',
             style: { background: 'none', border: 'none', color: 'var(--bb-text-secondary, #b3b3b3)', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
             onClick: () => {
               if (sortedUrns.length > 0) {
                 const shuffled = [...sortedUrns].sort(() => Math.random() - 0.5)
                 if (shuffled[0])
                   void player?.playFromContext(shuffled[0], shuffled, {
-                    context: { kind: 'favorites', label: '收藏夹' },
+                    context: { kind: 'favorites', label: 'Favorites' },
                   })
               }
             },
@@ -316,7 +316,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
           {
             type: 'button',
             'data-testid': 'favorites-more-trigger',
-            title: '更多选项',
+            title: 'More options',
             style: { background: 'none', border: 'none', color: 'var(--bb-text-secondary, #b3b3b3)', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
             onClick: (e: ReactMouseEvent) => {
               const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
@@ -345,7 +345,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
           tablerIcon('search', { size: 18, color: 'var(--bb-text-secondary, #b3b3b3)' }),
           h('input', {
             type: 'text',
-            placeholder: '在已点赞歌曲中搜索',
+            placeholder: 'Search in Liked songs',
             value: searchQuery,
             onChange: (e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value),
             style: {
@@ -373,7 +373,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
             {
               type: 'button',
               'data-testid': 'favorites-sort-trigger',
-              title: '排序方式',
+              title: 'Sort by',
               onClick: (e: ReactMouseEvent) => {
                 const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
                 setSortMenuAnchor({ x: rect.left, y: rect.bottom + 6 })
@@ -405,26 +405,26 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
           onBatchPlay: handleBatchPlay,
           onBatchAddToPlaylist: (anchor) => handleBatchAddToPlaylist(anchor),
           onBatchDelete: handleBatchDelete,
-          deleteLabel: '从“最喜欢”中删除',
+          deleteLabel: 'Remove from Favorites',
           onExitBatch: handleExitBatch,
         })
       : null,
     error ? h('div', { style: { padding: '0 32px 8px 32px' } }, h(Text, { variant: 'sm', tone: 'error' }, error)) : null,
     saved.status === 'error'
-      ? h('div', { style: { padding: '0 32px 8px 32px' } }, h(Text, { tone: 'error' }, `Could not read favourites: ${saved.error?.message}`))
+      ? h('div', { style: { padding: '0 32px 8px 32px' } }, h(Text, { tone: 'error' }, `Could not read favorites: ${saved.error?.message}`))
       : null,
   )
 
-  // 表头走 stickyHeader 插槽（滚动容器的直接子节点）。
+  // The table header rides the stickyHeader slot (a direct child of the scroller).
   const tableHeaderNode = h(DetailTableHeader, {
     testID: 'favorites-table-header',
-    accessibilityLabel: '已点赞的歌曲',
+    accessibilityLabel: 'Liked songs',
     columns: [
       { key: 'default', label: '#', testID: 'favorites-sort-default', width: 40, align: 'center' },
-      { key: 'title', label: '标题', testID: 'favorites-sort-title', flex: 2, paddingLeft: 12 },
-      { key: 'artist', label: '艺人', plain: true, flex: 1, visible: viewMode === 'compact' },
-      { key: 'album', label: '专辑', testID: 'favorites-sort-album', flex: 1.5, paddingLeft: 8 },
-      { key: 'source', label: '来源', testID: 'favorites-sort-source', flex: 1, paddingLeft: 8 },
+      { key: 'title', label: 'Title', testID: 'favorites-sort-title', flex: 2, paddingLeft: 12 },
+      { key: 'artist', label: 'Artist', plain: true, flex: 1, visible: viewMode === 'compact' },
+      { key: 'album', label: 'Album', testID: 'favorites-sort-album', flex: 1.5, paddingLeft: 8 },
+      { key: 'source', label: 'Source', testID: 'favorites-sort-source', flex: 1, paddingLeft: 8 },
       { key: 'duration', label: '', icon: tablerIcon('clock', { size: 18 }), testID: 'favorites-sort-duration', width: 120, align: 'right', paddingRight: 40 },
     ] satisfies DetailColumnSpec[],
     sortKey,
@@ -436,7 +436,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
   return h(
     'section',
     {
-      'aria-label': '已点赞的歌曲',
+      'aria-label': 'Liked songs',
       style: {
         display: 'flex',
         flexDirection: 'column',
@@ -461,11 +461,11 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
         keyExtractor: (t) => t.urn,
         empty:
           saved.status === 'loading'
-            ? h(EmptyState, { title: '加载中…' })
+            ? h(EmptyState, { title: 'Loading…' })
             : h(EmptyState, {
                 icon: 'heart',
-                title: '暂无已点赞歌曲',
-                description: '在曲库中收藏歌曲后，歌曲将在此显示。',
+                title: 'No liked songs yet',
+                description: 'After saving songs in the music library, they will appear here.',
               }),
         renderItem: (t, index) =>
           h(LibraryTrackRow, {
@@ -480,11 +480,11 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
             sourceName: resolveTrackSourceName(ctx, t.urn),
             onPress: () =>
               player?.playFromContext(t.urn, sortedUrns, {
-                context: { kind: 'favorites', label: '收藏夹' },
+                context: { kind: 'favorites', label: 'Favorites' },
               }),
             onMore: (anchor) => menu.open({ track: t }, anchor),
             onOpenPlaylistMenu: openAddToPlaylistMenu,
-            // 取消收藏后那一行要回到加号：心形状态跟着实时收藏集合走。
+            // After unsaving, the row must return to a plus: the heart state follows the live saved set.
             inLibrary: isTrackInLibrary(t),
             onAddToFavorites: handleAddToFavorites,
           }),
@@ -498,7 +498,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
       x: sortMenuAnchor?.x ?? 0,
       y: sortMenuAnchor?.y ?? 0,
       items: viewModeMenuItems(sortItems, viewMode, setViewMode),
-      title: '排序方式',
+      title: 'Sort by',
     }),
     h(ContextMenu, {
       open: moreMenuAnchor !== null,
@@ -506,7 +506,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
       x: moreMenuAnchor?.x ?? 0,
       y: moreMenuAnchor?.y ?? 0,
       items: moreMenuItems,
-      title: '已点赞的歌曲',
+      title: 'Liked songs',
     }),
   )
 }

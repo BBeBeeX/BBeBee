@@ -45,7 +45,7 @@ export function ContributionBlock({ ctx, contribution, onNavigate }: Contributio
               background: 'rgba(255, 255, 255, 0.04)',
             },
           },
-          '在此平台不可用',
+          'Not available on this platform',
         ),
       }),
     )
@@ -61,7 +61,7 @@ export function ContributionBlock({ ctx, contribution, onNavigate }: Contributio
     description: contribution.description,
     borderBottom: false,
     action: h(Button, {
-      children: contribution.actionText ?? '打开',
+      children: contribution.actionText ?? 'Open',
       onPress: () => {
         if (contribution.action) void contribution.action()
         else (onNavigate ?? ((id: string) => serviceNavigate(ctx, id)))(contribution.id)

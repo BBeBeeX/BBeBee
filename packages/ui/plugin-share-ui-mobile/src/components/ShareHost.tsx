@@ -17,10 +17,10 @@ import { Button, EmptyState, Sheet, TextField, Text, nativePrimitives } from '@B
 import { tokens } from '@BBeBee/ui-tokens'
 
 const TYPE_LABEL: Record<ShareTarget['type'], string> = {
-  track: '歌曲',
-  playlist: '歌单',
-  lyrics: '歌词',
-  album: '专辑',
+  track: 'Song',
+  playlist: 'Playlist',
+  lyrics: 'Lyrics',
+  album: 'Album',
 }
 
 /** One human line for an envelope, shared by the share and import panels. */
@@ -32,15 +32,15 @@ function describe(envelope: ShareMetadataEnvelope): string {
     }
     case 'playlist': {
       const d = envelope.data as SharePlaylistData
-      return `${d.name}（${d.trackCount} 首）`
+      return `${d.name} (${d.trackCount} songs)`
     }
     case 'album': {
       const d = envelope.data as ShareAlbumData
-      return `${d.title}${d.artist ? ` — ${d.artist}` : ''}（${d.trackCount} 首）`
+      return `${d.title}${d.artist ? ` — ${d.artist}` : ''} (${d.trackCount} songs)`
     }
     case 'lyrics': {
       const d = envelope.data as ShareLyricsData
-      return `${d.title} — ${d.artist}（歌词）`
+      return `${d.title} — ${d.artist} (lyrics)`
     }
   }
 }
@@ -117,14 +117,14 @@ function SharePanel({
     target.type === 'track'
       ? `${target.track.title} — ${target.track.artist}`
       : target.type === 'playlist'
-        ? `${target.playlist.name}（${target.playlist.trackCount} 首）`
+        ? `${target.playlist.name} (${target.playlist.trackCount} songs)`
         : target.type === 'album'
           ? `${target.album.title}${target.album.artist ? ` — ${target.album.artist}` : ''}`
-          : `${target.lyrics.title} — ${target.lyrics.artist}（歌词）`
+          : `${target.lyrics.title} — ${target.lyrics.artist} (lyrics)`
 
   return h(
     Sheet,
-    { open: true, onClose, title: `分享${TYPE_LABEL[target.type]}` },
+    { open: true, onClose, title: `Share ${TYPE_LABEL[target.type].toLowerCase()}` },
     h(
       native.View as never,
       { style: { gap: tokens.space[3], paddingBottom: tokens.space[4] } },
@@ -135,14 +135,14 @@ function SharePanel({
         multiline: true,
         rows: 4,
         disabled: true,
-        placeholder: share ? undefined : '分享服务未就绪',
+        placeholder: share ? undefined : 'Share service not ready',
       }),
       h(
         Text,
         { variant: 'sm', tone: 'muted' },
         share
-          ? '长按分享码即可复制；图片卡片请使用桌面端生成。任意 BBeBee 端都可通过「读取分享卡片」粘贴导入。'
-          : '分享服务尚未就绪，稍后再试。',
+          ? 'Long-press the share code to copy it; generate image cards on desktop. Any BBeBee client can paste-import via "Read share card".'
+          : 'The share service is not ready yet — try again later.',
       ),
     ),
   )
@@ -157,13 +157,13 @@ function ImportPanel({ ctx, onClose }: { ctx: Context; onClose: () => void }): R
 
   const decode = () => {
     if (!share) {
-      setError('分享服务未就绪')
+      setError('Share service not ready')
       return
     }
     const trimmed = code.trim()
     if (!trimmed) {
       setDecoded(null)
-      setError('请先粘贴分享码')
+      setError('Paste a share code first')
       return
     }
     const envelope = share.decodeMetadata(trimmed)
@@ -172,7 +172,7 @@ function ImportPanel({ ctx, onClose }: { ctx: Context; onClose: () => void }): R
       setError(null)
     } else {
       setDecoded(null)
-      setError('无法解析分享码：不是有效的 BBeBee 分享数据包')
+      setError("Can't parse the share code: not a valid BBeBee share package")
     }
   }
 
@@ -180,7 +180,7 @@ function ImportPanel({ ctx, onClose }: { ctx: Context; onClose: () => void }): R
     if (!decoded) return
     const player = serviceOf<PlayerService>(ctx, 'player')
     if (!player) {
-      setError('播放器服务未就绪')
+      setError('Player service not ready')
       return
     }
     try {
@@ -188,7 +188,7 @@ function ImportPanel({ ctx, onClose }: { ctx: Context; onClose: () => void }): R
       onClose()
     } catch (err) {
       ctx.logger.error(`plugin-share-ui-mobile: failed to play shared item: ${String(err)}`)
-      setError(`播放失败: ${String(err)}`)
+      setError(`Playback failed: ${String(err)}`)
     }
   }
 
@@ -196,7 +196,7 @@ function ImportPanel({ ctx, onClose }: { ctx: Context; onClose: () => void }): R
     if (!decoded) return
     const player = serviceOf<PlayerService>(ctx, 'player')
     if (!player) {
-      setError('播放器服务未就绪')
+      setError('Player service not ready')
       return
     }
     try {
@@ -204,13 +204,13 @@ function ImportPanel({ ctx, onClose }: { ctx: Context; onClose: () => void }): R
       onClose()
     } catch (err) {
       ctx.logger.error(`plugin-share-ui-mobile: failed to enqueue shared item: ${String(err)}`)
-      setError(`加入队列失败: ${String(err)}`)
+      setError(`Failed to add to queue: ${String(err)}`)
     }
   }
 
   return h(
     Sheet,
-    { open: true, onClose, title: '读取分享卡片' },
+    { open: true, onClose, title: 'Read share card' },
     h(
       native.View as never,
       { style: { gap: tokens.space[3], paddingBottom: tokens.space[4] } },
@@ -219,20 +219,20 @@ function ImportPanel({ ctx, onClose }: { ctx: Context; onClose: () => void }): R
         onChange: (next) => {
           setCode(next)
           // A fresh paste invalidates the previous result; leaving it on
-          // screen would let 播放 act on an envelope the user replaced.
+          // screen would let Play act on an envelope the user replaced.
           setDecoded(null)
         },
         multiline: true,
         rows: 4,
-        placeholder: '粘贴 Base64 分享码',
+        placeholder: 'Paste Base64 share code',
         error: error ?? undefined,
       }),
       decoded
-        ? h(Text, { variant: 'lg' }, `已识别${TYPE_LABEL[decoded.type]}：${describe(decoded)}`)
+        ? h(Text, { variant: 'lg' }, `Recognized ${TYPE_LABEL[decoded.type].toLowerCase()}: ${describe(decoded)}`)
         : h(EmptyState, {
             icon: '⇪',
-            title: '粘贴分享码',
-            description: '从其他 BBeBee 端复制的分享码粘贴到上方即可导入。',
+            title: 'Paste a share code',
+            description: 'Paste a share code copied from another BBeBee client above to import it.',
           }),
       decoded && decoded.type !== 'lyrics'
         ? h(
@@ -245,7 +245,7 @@ function ImportPanel({ ctx, onClose }: { ctx: Context; onClose: () => void }): R
                 variant: 'primary',
                 onPress: handlePlayNow,
                 testID: 'share-import-play',
-                children: '立即播放',
+                children: 'Play now',
               }),
             ),
             h(
@@ -255,7 +255,7 @@ function ImportPanel({ ctx, onClose }: { ctx: Context; onClose: () => void }): R
                 variant: 'secondary',
                 onPress: handleEnqueue,
                 testID: 'share-import-enqueue',
-                children: '加入队列',
+                children: 'Add to queue',
               }),
             ),
           )
@@ -264,7 +264,7 @@ function ImportPanel({ ctx, onClose }: { ctx: Context; onClose: () => void }): R
         variant: 'secondary',
         onPress: decode,
         testID: 'share-import-decode',
-        children: '解析分享码',
+        children: 'Decode share code',
       }),
     ),
   )

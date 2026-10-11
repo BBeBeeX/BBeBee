@@ -284,7 +284,7 @@ describe('core-audio-mpv', () => {
     const mockBridgeCall = async (service: string, method: string, args: unknown[]) => {
       if (service === 'audio' && method === 'getOutputDevices') {
         return [
-          { id: '{0.0.0.00000000}.{wasapi-realtek}', label: '扬声器 (Realtek Audio)', isDefault: true, isVirtual: false },
+          { id: '{0.0.0.00000000}.{wasapi-realtek}', label: 'Speaker (Realtek Audio)', isDefault: true, isVirtual: false },
           { id: '{0.0.0.00000000}.{wasapi-vm}', label: 'VoiceMeeter Input (VB-Audio VoiceMeeter VAIO)', isDefault: false, isVirtual: true },
         ]
       }
@@ -302,7 +302,7 @@ describe('core-audio-mpv', () => {
 
     const origNavDesc = Object.getOwnPropertyDescriptor(globalThis, 'navigator')
     const mockEnumerate = async () => [
-      { kind: 'audiooutput', deviceId: 'default', label: '默认 - 扬声器 (Realtek Audio)' },
+      { kind: 'audiooutput', deviceId: 'default', label: 'Default - Speaker (Realtek Audio)' },
       { kind: 'audiooutput', deviceId: 'dev-vm-789', label: 'VoiceMeeter Input' },
     ]
 
@@ -318,7 +318,7 @@ describe('core-audio-mpv', () => {
       expect(devices[0]!.id).toBe('default')
       expect(devices[1]!.id).toBe('dev-vm-789')
       expect(devices[1]!.isVirtual).toBe(true)
-      expect(devices[1]!.label).toContain('(虚拟)')
+      expect(devices[1]!.label).toContain('(Virtual)')
 
       // Set to VoiceMeeter by Chromium deviceId
       await audio.setOutputDevice('dev-vm-789')

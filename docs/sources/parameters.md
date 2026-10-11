@@ -51,7 +51,7 @@ flowchart TD
 3. **UI Write-Only Exposure:** The UI never displays decrypted secrets in plaintext. Password fields render masked placeholder dots (`••••••••`). Users can enter a new password to overwrite existing credentials, but cannot exfiltrate stored credentials via UI inspection.
 4. **Automated Sandbox Egress Allowlist:** When a user updates `sourceUrl` or `host`, `updateSourceParams` automatically recomputes `allowedHostsFor(sourceId)`:
    - The new hostname is appended to the source's network egress allowlist.
-   - Any HTTP request initiated within the QuickJS isolated sandbox to hosts outside this egress list is refused with a `CapabilityError` before it leaves the app ([runtime.md §8](./runtime.md#8-trust-what-an-imported-source-can-and-cannot-do); gating norm in [rules/sources.md §3](../../rules/sources.md#3-sandboxing--security)（L2）).
+   - Any HTTP request initiated within the QuickJS isolated sandbox to hosts outside this egress list is refused with a `CapabilityError` before it leaves the app ([runtime.md §8](./runtime.md#8-trust-what-an-imported-source-can-and-cannot-do); see the gating spec at [rules/sources.md §3](../../rules/sources.md#3-sandboxing--security) (L2)).
 
 ---
 
@@ -95,7 +95,7 @@ flowchart TD
 
 ## 4. Lyric Sources Configuration & Sandbox Injection
 
-（规范见 [rules/sources.md §5 — Third-Party Lyric Sources & Sandbox](../../rules/sources.md#5-third-party-lyric-sources--sandbox)（L2）：沙箱数据边界归该节；本节讲配置注入的实现。）
+(see the spec at [rules/sources.md §5 — Third-Party Lyric Sources & Sandbox](../../rules/sources.md#5-third-party-lyric-sources--sandbox) (L2): the sandbox data boundary belongs to that section; this section covers the implementation of configuration injection.)
 
 Lyric sources implement the `plugin-lyric-sources` specification. Unlike music sources which rely on `source_vars` tables, lyric sources support arbitrary structured JSON configurations per source.
 

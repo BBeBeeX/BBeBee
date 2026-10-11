@@ -11,17 +11,17 @@ export function PluginTrafficLight({
   state,
 }: PluginTrafficLightProps): ReactElement {
   let color = 'var(--bb-state-error, var(--error, #EF4444))'
-  let label = '未启用'
+  let label = 'Not enabled'
   let glow = 'rgba(239, 68, 68, 0.4)'
 
   if (enabled) {
     if (state === 'ACTIVE') {
       color = 'var(--bb-state-ok, var(--success, #22C55E))'
-      label = '已启用 · 运行正常 (ACTIVE)'
+      label = 'Enabled · running normally (ACTIVE)'
       glow = 'rgba(34, 197, 94, 0.4)'
     } else {
       color = 'var(--bb-state-warn, var(--warning, #F59E0B))'
-      label = `已启用 · ${state}`
+      label = `Enabled · ${state}`
       glow = 'rgba(245, 158, 11, 0.4)'
     }
   }

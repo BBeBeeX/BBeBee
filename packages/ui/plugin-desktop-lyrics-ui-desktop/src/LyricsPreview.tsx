@@ -59,7 +59,7 @@ export function LyricsPreview({ settings }: LyricsPreviewProps): ReactElement {
             fontWeight: 600,
           },
         },
-        '桌面歌词实时预览效果',
+        'Live desktop lyrics preview',
       ),
       h(
         'span',
@@ -72,7 +72,7 @@ export function LyricsPreview({ settings }: LyricsPreviewProps): ReactElement {
             borderRadius: 999,
           },
         },
-        `${lineMode === 'double' ? '双行' : '单行'} · ${fontSize}px · ${Math.round(opacity * 100)}%透明度`,
+        `${lineMode === 'double' ? 'Double line' : 'Single line'} · ${fontSize}px · ${Math.round(opacity * 100)}% opacity`,
       ),
     ),
     // Floating lyrics container simulation
@@ -106,7 +106,7 @@ export function LyricsPreview({ settings }: LyricsPreviewProps): ReactElement {
             textOverflow: 'ellipsis',
           },
         },
-        '♪ 哪怕生命如尘 也要绚烂如火',
+        '♪ Even if life is dust, let it blaze like fire',
       ),
       // Line 2 (Next line, shown only in double mode)
       lineMode === 'double'
@@ -128,7 +128,7 @@ export function LyricsPreview({ settings }: LyricsPreviewProps): ReactElement {
                 textOverflow: 'ellipsis',
               },
             },
-            '♫ 让热爱冲破现实的重重枷锁',
+            '♫ Let passion break the chains of reality',
           )
         : null,
     ),

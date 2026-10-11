@@ -399,30 +399,30 @@ export class Player extends Service implements PlayerService {
           kind: 'settings',
           id: 'player.transition',
           section: 'playback',
-          title: '过渡与衔接',
-          description: '连续播放歌曲时的淡入淡出与连接体验',
+          title: 'Transitions',
+          description: 'Fade in/out and track-to-track continuity while songs play back to back',
           icon: 'arrows-join',
           order: 20,
           fields: [
             {
               key: 'gaplessPlayback',
               type: 'switch',
-              label: '无缝播放 (Gapless Playback)',
-              description: '在两首歌曲之间消除解码停顿，体验连贯的听歌流动感',
+              label: 'Gapless playback',
+              description: 'Removes decoding pauses between songs for a continuous listening flow',
             },
             {
               key: 'crossfadeEnabled',
               type: 'switch',
-              label: '曲目交叉淡入淡出 (Crossfade)',
-              description: '上一曲即将结束时提前淡入下一曲',
+              label: 'Crossfade',
+              description: 'Fades in the next track before the current one ends',
             },
             {
               key: 'crossfadeDurationSeconds',
               type: 'slider',
-              label: '淡入淡出持续时间',
+              label: 'Crossfade duration',
               min: 1,
               max: 10,
-              unit: '秒',
+              unit: 's',
               when: () => {
                 const settings = serviceOf<{ getSync(): AppSettings }>(ownCtx, 'settings')
                 return settings?.getSync()?.crossfadeEnabled ?? false
@@ -431,8 +431,8 @@ export class Player extends Service implements PlayerService {
             {
               key: 'pauseOnUnplug',
               type: 'switch',
-              label: '拔出音频设备时自动暂停',
-              description: '断开耳机或蓝牙连接时即刻暂停音乐，防止外放打扰',
+              label: 'Pause when audio device is unplugged',
+              description: 'Pauses music immediately when headphones or Bluetooth disconnect, preventing accidental loud playback',
             },
           ],
           refreshEvents: ['settings/changed'],

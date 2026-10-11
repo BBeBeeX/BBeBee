@@ -1,6 +1,6 @@
 /**
  * Registry extension metadata: per-repository GitHub stats (stars, contributor
- * count) surfaced on the 发现 page's sort controls. The registry repo itself
+ * count) surfaced on the Discover page's sort controls. The registry repo itself
  * never carries these numbers — they are read lazily from the GitHub API and
  * cached client-side, so entries render without blocking on the network.
  */

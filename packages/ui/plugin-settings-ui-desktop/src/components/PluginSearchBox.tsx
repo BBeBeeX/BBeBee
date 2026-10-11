@@ -10,7 +10,7 @@ export interface PluginSearchBoxProps {
 export function PluginSearchBox({
   value,
   onChange,
-  placeholder = '搜索插件…',
+  placeholder = 'Search plugins…',
 }: PluginSearchBoxProps): ReactElement {
   return h(
     'div',
@@ -71,7 +71,7 @@ export function PluginSearchBox({
           {
             type: 'button',
             onClick: () => onChange(''),
-            'aria-label': '清空搜索',
+            'aria-label': 'Clear search',
             'data-testid': 'plugin-search-clear',
             style: {
               position: 'absolute',

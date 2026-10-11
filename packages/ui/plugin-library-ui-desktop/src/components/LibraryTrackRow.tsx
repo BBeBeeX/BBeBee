@@ -12,39 +12,39 @@ export interface LibraryTrackRowProps {
   ctx: Context
   track: Track
   index: number
-  /** 紧凑视图：无封面，艺人独立成列。 */
+  /** Compact view: no artwork, artist as its own column. */
   compact?: boolean
-  /** 实时收藏状态：未收藏显示加号，已收藏显示红心。 */
+  /** Live saved state: shows a plus when unsaved, a red heart when saved. */
   inLibrary: boolean
-  /** 是否高亮显示（例如刚刚拖拽导入的歌曲）。 */
+  /** Whether to highlight the row (e.g. a track just drag-and-drop imported). */
   highlighted?: boolean
   onPress: () => void
   onMore: (anchor: { x: number; y: number }) => void
   onOpenPlaylistMenu: (track: Track, anchor: MenuAnchor) => void
-  /** 加号点击时的收藏动作（不传则加号无副作用）。 */
+  /** Favorite action when the plus is clicked (the plus has no side effect when omitted). */
   onAddToFavorites?: (track: Track) => void
-  /** 传入后专辑名变为可点击链接（本地音乐页跳转专辑）。 */
+  /** When passed, the album name becomes a clickable link (local music page jumps to the album). */
   onOpenAlbum?: (track: Track) => void
-  /** 传入后显示“添加日期”列（歌单页）。 */
+  /** When passed, shows the "Date added" column (playlist page). */
   addedAt?: number
-  /** 传入后显示“从此歌单中删除”按钮（歌单页，smart 歌单除外）。 */
+  /** When passed, shows the "Remove from this playlist" button (playlist page, except smart playlists). */
   onRemove?: () => void
   isSmart?: boolean
   playlistName?: string
-  /** 批量模式：首列显示复选框，整行点击触发选中 */
+  /** Batch mode: the first column shows a checkbox; clicking the row toggles selection */
   batchMode?: boolean
   selected?: boolean
   onToggleSelect?: () => void
-  /** 是否展示来源列 */
+  /** Whether to show the source column */
   showSource?: boolean
   sourceName?: string
 }
 
 /**
- * The detail table's track row, written once for 本地音乐 / 收藏 / 歌单.
+ * The detail table's track row, written once for Local music / Favorites / Playlists.
  *
  * The column skeleton is shared — #/play, artwork + title + artist, optional
- * compact 艺人 column, album, optional added-date, actions (library button,
+ * compact artist column, album, optional added-date, actions (library button,
  * duration, more) — and each page opts into its extras by prop: the album
  * link (`onOpenAlbum`), the added-date column (`addedAt`), the remove button
  * (`onRemove`).
@@ -136,7 +136,7 @@ export function LibraryTrackRow({
         ? h('input', {
             type: 'checkbox',
             'data-testid': `track-checkbox-${track.urn}`,
-            'aria-label': selected ? '取消选择' : '选择',
+            'aria-label': selected ? 'Deselect' : 'Select',
             checked: selected,
             onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
               e.stopPropagation()
@@ -200,7 +200,7 @@ export function LibraryTrackRow({
             justifyContent: 'center',
           },
         },
-        // 歌名/作者名被截断时，悬浮 2 秒浮出完整名字的 label。
+        // When the song/artist name is truncated, hovering for 2s reveals a label with the full name.
         h(
           HoverLabel,
           { label: track.title, style: { display: 'block' } },
@@ -271,7 +271,7 @@ export function LibraryTrackRow({
           ),
         )
       : null,
-    // Col 3: Album (本地音乐页为可点击链接)
+    // Col 3: Album (a clickable link on the local music page)
     h(
       'div',
       {
@@ -293,8 +293,8 @@ export function LibraryTrackRow({
               role: 'button',
               tabIndex: 0,
               'data-testid': `track-album-link-${track.urn}`,
-              'aria-label': `查看专辑：${track.albumTitle}`,
-              title: `查看专辑：${track.albumTitle}`,
+              'aria-label': `View album: ${track.albumTitle}`,
+              title: `View album: ${track.albumTitle}`,
               onClick: (e: ReactMouseEvent) => {
                 e.stopPropagation()
                 onOpenAlbum(track)
@@ -322,7 +322,7 @@ export function LibraryTrackRow({
           )
         : track.albumTitle || '-',
     ),
-    // Col: Source name (专辑页/最喜欢页/歌单页)
+    // Col: Source name (album/favorites/playlist pages)
     showSource
       ? h(
           'div',
@@ -342,7 +342,7 @@ export function LibraryTrackRow({
           sourceName ?? '-',
         )
       : null,
-    // Col 4: Added date (歌单页)
+    // Col 4: Added date (playlist page)
     addedAt !== undefined
       ? h(
           'div',
@@ -426,7 +426,7 @@ export function LibraryTrackRow({
         {
           type: 'button',
           'aria-label': 'More',
-          title: '更多',
+          title: 'More',
           onClick: (e: ReactMouseEvent) => {
             e.stopPropagation()
             const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()

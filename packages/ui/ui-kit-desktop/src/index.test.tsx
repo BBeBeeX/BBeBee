@@ -287,8 +287,8 @@ describe('StickyDetailBar', () => {
 describe('DetailTableHeader', () => {
   const columns = [
     { key: 'default', label: '#', testID: 'c-#', width: 40, align: 'center' as const },
-    { key: 'title', label: '标题', testID: 'c-title', flex: 2, paddingLeft: 12 },
-    { key: 'artist', label: '艺人', plain: true, flex: 1, visible: false },
+    { key: 'title', label: 'Title', testID: 'c-title', flex: 2, paddingLeft: 12 },
+    { key: 'artist', label: 'Artist', plain: true, flex: 1, visible: false },
     { key: 'duration', label: '', testID: 'c-duration', width: 120, align: 'right' as const },
   ]
 
@@ -303,15 +303,15 @@ describe('DetailTableHeader', () => {
 
   it('hides the invisible column and shows no arrows before hover', () => {
     const out = html(h(DetailTableHeader, { columns, sortKey: 'title', sortDirection: 'asc' }))
-    expect(out).not.toContain('>艺人<')
+    expect(out).not.toContain('>Artist<')
     expect(out).not.toContain('chevron-up')
   })
 })
 
 describe('DetailPlayButton', () => {
   it('is a named circular button, disabled rather than hidden', () => {
-    const out = html(h(DetailPlayButton, { onPress: () => {}, testID: 'play', ariaLabel: '播放全部', disabled: true }))
-    expect(out).toContain('aria-label="播放全部"')
+    const out = html(h(DetailPlayButton, { onPress: () => {}, testID: 'play', ariaLabel: 'Play all', disabled: true }))
+    expect(out).toContain('aria-label="Play all"')
     expect(out).toContain('data-testid="play"')
     expect(out).toContain('disabled')
     expect(out).toContain('not-allowed')
@@ -326,14 +326,14 @@ describe('DetailPlayButton', () => {
 
 describe('DetailHero', () => {
   it('stacks eyebrow / title / subtitle without a cover', () => {
-    const out = html(h(DetailHero, { eyebrow: '歌单', title: '已点赞的歌曲', subtitle: '已收藏的音乐 • 3 首歌曲' }))
-    expect(out).toContain('已点赞的歌曲')
-    expect(out).toContain('已收藏的音乐 • 3 首歌曲')
+    const out = html(h(DetailHero, { eyebrow: 'Playlist', title: 'Liked songs', subtitle: 'Saved music • 3 songs' }))
+    expect(out).toContain('Liked songs')
+    expect(out).toContain('Saved music • 3 songs')
     expect(out).toContain('flex-direction:column')
   })
 
   it('clamps the title at two lines and switches to a row with a cover', () => {
-    const out = html(h(DetailHero, { eyebrow: '专辑', title: 'Homogenic', titleSize: 40, cover: h('div', null, 'cover') }))
+    const out = html(h(DetailHero, { eyebrow: 'Album', title: 'Homogenic', titleSize: 40, cover: h('div', null, 'cover') }))
     expect(out).toContain('-webkit-line-clamp:2')
     expect(out).toContain('flex-direction:row')
     expect(out).toContain('cover')
@@ -571,20 +571,20 @@ describe('ContextMenu', () => {
   const items = [
     {
       id: 'add',
-      label: '加入歌单',
+      label: 'Add to playlist',
       submenu: {
-        title: '加入歌单',
-        searchPlaceholder: '查找歌单',
-        create: { label: '新建歌单', placeholder: '歌单名称', onSelect: vi.fn() },
+        title: 'Add to playlist',
+        searchPlaceholder: 'Find playlist',
+        create: { label: 'New playlist', placeholder: 'Playlist name', onSelect: vi.fn() },
         items: [
           { id: 'p1', label: 'Road trip', onSelect: vi.fn() },
           { id: 'p2', label: 'Late night', onSelect: vi.fn() },
         ],
-        emptyLabel: '没有匹配的歌单',
+        emptyLabel: 'No matching playlists',
       },
     },
-    { id: 'queue', label: '加入播放列表', onSelect: vi.fn() },
-    { id: 'remove', label: '从最喜欢的歌曲中删除', tone: 'danger' as const, onSelect: vi.fn() },
+    { id: 'queue', label: 'Add to play queue', onSelect: vi.fn() },
+    { id: 'remove', label: 'Remove from Favorites', tone: 'danger' as const, onSelect: vi.fn() },
   ]
 
   it('renders nothing while closed', () => {
@@ -602,11 +602,11 @@ describe('ContextMenu', () => {
         x: 10,
         y: 10,
         title: 'Jóga',
-        items: [{ id: 'queue', label: '加入播放列表', onSelect }],
+        items: [{ id: 'queue', label: 'Add to play queue', onSelect }],
       }),
     )
     const row = Array.from(container.querySelectorAll('[role="menuitem"]')).find(
-      (node) => node.textContent === '加入播放列表',
+      (node) => node.textContent === 'Add to play queue',
     ) as HTMLElement
     expect(row).toBeTruthy()
     fireEvent.click(row)
@@ -617,11 +617,11 @@ describe('ContextMenu', () => {
   it('opens a submenu with a filter, a create row and the list', () => {
     const { container } = render(h(ContextMenu, { open: true, onClose: () => {}, x: 0, y: 0, items }))
     const add = Array.from(container.querySelectorAll('[role="menuitem"]')).find(
-      (node) => node.textContent?.startsWith('加入歌单'),
+      (node) => node.textContent?.startsWith('Add to playlist'),
     ) as HTMLElement
     fireEvent.click(add)
 
-    expect(container.textContent).toContain('新建歌单')
+    expect(container.textContent).toContain('New playlist')
     expect(container.textContent).toContain('Road trip')
     expect(container.querySelector('[data-testid="context-menu-filter"]')).toBeTruthy()
   })
@@ -630,7 +630,7 @@ describe('ContextMenu', () => {
     const { container } = render(h(ContextMenu, { open: true, onClose: () => {}, x: 0, y: 0, items }))
     fireEvent.click(
       Array.from(container.querySelectorAll('[role="menuitem"]')).find((node) =>
-        node.textContent?.startsWith('加入歌单'),
+        node.textContent?.startsWith('Add to playlist'),
       ) as HTMLElement,
     )
 
@@ -650,25 +650,25 @@ describe('ContextMenu', () => {
     const testItems = [
       {
         id: 'add',
-        label: '加入歌单',
+        label: 'Add to playlist',
         submenu: {
-          title: '加入歌单',
-          searchPlaceholder: '查找歌单',
-          create: { label: '新建歌单', placeholder: '歌单名称', onSelect: onCreate },
+          title: 'Add to playlist',
+          searchPlaceholder: 'Find playlist',
+          create: { label: 'New playlist', placeholder: 'Playlist name', onSelect: onCreate },
           items: [{ id: 'p1', label: 'Road trip', onSelect: vi.fn() }],
-          emptyLabel: '没有匹配的歌单',
+          emptyLabel: 'No matching playlists',
         },
       },
     ]
     const { container } = render(h(ContextMenu, { open: true, onClose: () => {}, x: 0, y: 0, items: testItems }))
     fireEvent.click(
       Array.from(container.querySelectorAll('[role="menuitem"]')).find((node) =>
-        node.textContent?.startsWith('加入歌单'),
+        node.textContent?.startsWith('Add to playlist'),
       ) as HTMLElement,
     )
     expect(container.querySelector('[data-testid="context-menu-filter"]')).toBeTruthy()
     const createBtn = Array.from(container.querySelectorAll('[role="menuitem"]')).find((node) =>
-      node.textContent?.includes('新建歌单'),
+      node.textContent?.includes('New playlist'),
     ) as HTMLElement
     fireEvent.click(createBtn)
 
@@ -691,19 +691,19 @@ describe('ContextMenu', () => {
   it('opens a submenu on hover without clicking, and closes when hovering another item', () => {
     const { container } = render(h(ContextMenu, { open: true, onClose: () => {}, x: 0, y: 0, items }))
     const add = Array.from(container.querySelectorAll('[role="menuitem"]')).find((node) =>
-      node.textContent?.startsWith('加入歌单'),
+      node.textContent?.startsWith('Add to playlist'),
     ) as HTMLElement
     const queue = Array.from(container.querySelectorAll('[role="menuitem"]')).find((node) =>
-      node.textContent?.startsWith('加入播放列表'),
+      node.textContent?.startsWith('Add to play queue'),
     ) as HTMLElement
 
     expect(container.textContent).not.toContain('Road trip')
 
-    // Hovering over "加入歌单" displays the submenu
+    // Hovering over "Add to playlist" displays the submenu
     fireEvent.mouseEnter(add)
     expect(container.textContent).toContain('Road trip')
 
-    // Hovering over "加入播放列表" (which has no submenu) closes it
+    // Hovering over "Add to play queue" (which has no submenu) closes it
     fireEvent.mouseEnter(queue)
     expect(container.textContent).not.toContain('Road trip')
   })
@@ -714,7 +714,7 @@ describe('ContextMenu', () => {
 
     const { container } = render(h(ContextMenu, { open: true, onClose: () => {}, x: 100, y: 500, items }))
     const add = Array.from(container.querySelectorAll('[role="menuitem"]')).find((node) =>
-      node.textContent?.startsWith('加入歌单'),
+      node.textContent?.startsWith('Add to playlist'),
     ) as HTMLElement
 
     vi.spyOn(add, 'getBoundingClientRect').mockReturnValue({
@@ -764,19 +764,19 @@ describe('SaveToPlaylistPopover', () => {
     )
 
     const popover = within(getByTestId('save-popover'))
-    expect(popover.getByText('新建歌单')).toBeTruthy()
-    expect(popover.getByPlaceholderText('查找歌单')).toBeTruthy()
+    expect(popover.getByText('New playlist')).toBeTruthy()
+    expect(popover.getByPlaceholderText('Find playlist')).toBeTruthy()
 
-    // Click '新建歌单' row
-    fireEvent.click(popover.getByText('新建歌单'))
+    // Click 'New playlist' row
+    fireEvent.click(popover.getByText('New playlist'))
 
-    // The list row for '新建歌单' should now be hidden
-    expect(popover.queryByText('新建歌单')).toBeNull()
+    // The list row for 'New playlist' should now be hidden
+    expect(popover.queryByText('New playlist')).toBeNull()
 
     // The top input should be shown for creating playlist
-    const input = popover.getByPlaceholderText('歌单名称') as HTMLInputElement
+    const input = popover.getByPlaceholderText('Playlist name') as HTMLInputElement
     expect(input).toBeTruthy()
-    const confirmBtn = popover.getByText('确定')
+    const confirmBtn = popover.getByText('OK')
     expect(confirmBtn).toBeTruthy()
     expect(confirmBtn.style.whiteSpace).toBe('nowrap')
     expect(confirmBtn.style.flexShrink).toBe('0')

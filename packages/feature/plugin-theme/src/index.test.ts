@@ -34,7 +34,7 @@ describe('ThemePlugin', () => {
 
     const customTheme: ThemeDefinition = {
       id: 'custom-neon',
-      name: '自定义霓虹',
+      name: 'Custom Neon',
       isDark: true,
       tokens: {
         ...midnightPurpleTheme.tokens,
@@ -67,7 +67,7 @@ describe('ThemePlugin', () => {
 
     const customTheme: ThemeDefinition = {
       id: 'custom-solar',
-      name: '暖阳金',
+      name: 'Warm Gold',
       isDark: true,
       tokens: {
         ...midnightPurpleTheme.tokens,

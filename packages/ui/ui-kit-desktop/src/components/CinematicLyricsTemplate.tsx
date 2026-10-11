@@ -1,5 +1,5 @@
 /**
- * CinematicLyricsTemplate — the 映画 (cinematic) lyrics template.
+ * CinematicLyricsTemplate — the cinematic lyrics template.
  *
  * A reusable lyrics display template: the full lyric list in the cinematic
  * cursive type — subtitle-style like an AMV.
@@ -136,7 +136,7 @@ export function CinematicLyricsTemplate(props: CinematicLyricsTemplateProps): Re
     {
       'data-testid': 'cinematic-lyrics-block',
       role: 'region',
-      'aria-label': '歌词',
+      'aria-label': 'Lyrics',
       style: {
         position: 'relative',
         display: 'flex',
@@ -195,7 +195,7 @@ export function CinematicLyricsTemplate(props: CinematicLyricsTemplateProps): Re
                 textAlign: 'center',
               },
             },
-            isPlaying ? '♪ 愿音乐治愈所有的伤痕 ♪' : 'No Surprises',
+            isPlaying ? '♪ May the music heal every wound ♪' : 'No Surprises',
           )
         : isSynced
           ? lines.map((line, idx) => {
@@ -216,9 +216,9 @@ export function CinematicLyricsTemplate(props: CinematicLyricsTemplateProps): Re
                   'data-active': isCurrent ? 'true' : undefined,
                   'data-testid': clickable ? `cinematic-lyric-line-${idx}` : undefined,
                   'aria-label': clickable
-                    ? `${line.text}（${Math.floor((line.timeMs ?? 0) / 60000)}:${String(
+                    ? `${line.text} (${Math.floor((line.timeMs ?? 0) / 60000)}:${String(
                         Math.floor(((line.timeMs ?? 0) % 60000) / 1000),
-                      ).padStart(2, '0')}）`
+                      ).padStart(2, '0')})`
                     : undefined,
                   onClick: clickable ? () => seekTo(line.timeMs as number) : undefined,
                   onKeyDown: clickable
@@ -316,7 +316,7 @@ export function CinematicLyricsTemplate(props: CinematicLyricsTemplateProps): Re
             },
           },
           tablerIcon('chevron-down', { size: 14 }),
-          '回到当前歌词',
+          'Back to current lyric',
         )
       : null,
   )

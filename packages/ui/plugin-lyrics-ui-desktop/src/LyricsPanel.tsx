@@ -177,7 +177,7 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
                     border: '1px solid rgba(95, 135, 255, 0.35)',
                   },
                 },
-                '歌词源',
+                'Lyric source',
               )
             : null,
         ),
@@ -206,8 +206,8 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
             'button',
             {
               type: 'button',
-              title: '分享歌词',
-              'aria-label': '分享歌词',
+              title: 'Share lyrics',
+              'aria-label': 'Share lyrics',
               onClick: () => {
                 const share = serviceOf<ShareService>(ctx, 'share')
                 if (share) {
@@ -240,7 +240,7 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
               },
             },
             tablerIcon('share', { size: 16 }),
-            h('span', null, '分享歌词'),
+            h('span', null, 'Share lyrics'),
           )
         : null,
     ),
@@ -361,16 +361,16 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
               'span',
               { style: { fontSize: 16 } },
               status === 'idle'
-                ? '暂无播放歌曲'
+                ? 'Nothing playing'
                 : supportsLyricSource === false
-                  ? '当前音源未启用外部歌词源'
-                  : '暂无歌词',
+                  ? 'External lyric sources are not enabled for this music source'
+                  : 'No lyrics',
             ),
             status === 'no-lyrics' && supportsLyricSource === false
               ? h(
                   'span',
                   { style: { fontSize: 13, color: 'var(--color-text-tertiary, rgba(255, 255, 255, 0.35))' } },
-                  '可在设置「歌词源管理」中开启该音频源的外部歌词源支持',
+                  'You can enable external lyric source support for this music source in Settings → "Lyric source management"',
                 )
               : null,
             status === 'no-lyrics' && supportsLyricSource !== false
@@ -396,7 +396,7 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
                       e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'
                     },
                   },
-                  '重新检索歌词',
+                  'Search lyrics again',
                 )
               : null,
           )
@@ -529,7 +529,7 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
             },
           },
           tablerIcon('chevron-down', { size: 18 }),
-          '回到当前歌词',
+          'Back to current lyric',
         )
       : null,
   )

@@ -29,24 +29,24 @@ import { upcomingDropToQueueIndex } from './reorder.js'
 
 /** Label shown for a context that carries a kind but no label. */
 const CONTEXT_KIND_LABELS: Record<QueueSourceContext['kind'], string> = {
-  album: '专辑',
-  playlist: '歌单',
-  artist: '歌手',
-  search: '搜索',
-  radio: '电台',
-  local: '本地音乐',
-  favorites: '收藏夹',
+  album: 'Album',
+  playlist: 'Playlist',
+  artist: 'Artist',
+  search: 'Search',
+  radio: 'Radio',
+  local: 'Local music',
+  favorites: 'Favorites',
 }
 
 function formatRelativeTime(timestamp: number): string {
   const diff = Date.now() - timestamp
   const minutes = Math.floor(diff / 60000)
-  if (minutes < 1) return '刚刚'
-  if (minutes < 60) return `${minutes} 分钟前`
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes} min ago`
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours} 小时前`
+  if (hours < 24) return `${hours} hr ago`
   const days = Math.floor(hours / 24)
-  if (days < 7) return `${days} 天前`
+  if (days < 7) return `${days} days ago`
   return new Date(timestamp).toLocaleDateString()
 }
 
@@ -361,7 +361,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
           'button',
           {
             type: 'button',
-            'aria-label': '队列',
+            'aria-label': 'Queue',
             onClick: () => setTab('queue'),
             style: {
               display: 'flex',
@@ -384,7 +384,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
                 transition: 'color 0.15s ease',
               },
             },
-            '队列',
+            'Queue',
           ),
           tab === 'queue'
             ? h('div', {
@@ -402,7 +402,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
           'button',
           {
             type: 'button',
-            'aria-label': '最近播放',
+            'aria-label': 'Recently played',
             onClick: () => setTab('history'),
             style: {
               display: 'flex',
@@ -425,7 +425,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
                 transition: 'color 0.15s ease',
               },
             },
-            '最近播放',
+            'Recently played',
           ),
           tab === 'history'
             ? h('div', {
@@ -444,8 +444,8 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
         'button',
         {
           type: 'button',
-          'aria-label': '关闭',
-          title: '关闭',
+          'aria-label': 'Close',
+          title: 'Close',
           onClick: handleClose,
           style: {
             display: 'inline-flex',
@@ -514,7 +514,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
     const contextLabel = nextContext
       ? (nextContext.label ?? CONTEXT_KIND_LABELS[nextContext.kind])
       : undefined
-    const nextTitle = nextItem && contextLabel ? `下一首歌来自： ${contextLabel}` : '下一首播放'
+    const nextTitle = nextItem && contextLabel ? `Next up from: ${contextLabel}` : 'Next up'
 
     return h(
       'div',
@@ -526,7 +526,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
           minHeight: 0,
         },
       },
-      // Section 1: 当前播放
+      // Section 1: Now playing
       h(
         'div',
         null,
@@ -540,11 +540,11 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
               marginBottom: 8,
             },
           },
-          '当前播放',
+          'Now playing',
         ),
         h(
           'div',
-          { role: 'list', 'aria-label': '当前播放' },
+          { role: 'list', 'aria-label': 'Now playing' },
           h(
             'div',
             { role: 'listitem', key: currentItem.id },
@@ -562,7 +562,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
           ),
         ),
       ),
-      // Section 2: 下一首播放
+      // Section 2: Next up
       h(
         'div',
         null,
@@ -589,7 +589,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
                   marginBottom: 8,
                 },
               },
-              '随机播放中：顺序由随机种子决定，暂不支持拖拽排序',
+              'Shuffle is on: order is decided by the random seed; drag-to-reorder is not supported yet',
             )
           : null,
         upcomingItems.length > 0
@@ -657,7 +657,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
                   padding: '12px 10px',
                 },
               },
-              '队列中暂无更多待播歌曲',
+              'No more songs queued',
             ),
       ),
     )
@@ -667,8 +667,8 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
     if (uniqueHistoryRecords.length === 0 && !historyLoading) {
       return h(EmptyState, {
         icon: 'music',
-        title: '暂无播放记录',
-        description: '从曲库播放音乐后，最近播放的歌曲将显示在这里。',
+        title: 'No play records yet',
+        description: 'After playing music from the library, your recently played songs will appear here.',
       })
     }
 
@@ -676,7 +676,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
       'div',
       {
         role: 'list',
-        'aria-label': '最近播放',
+        'aria-label': 'Recently played',
         style: {
           display: 'flex',
           flexDirection: 'column',

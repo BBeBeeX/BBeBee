@@ -114,10 +114,10 @@ export interface DiagnosticsInput {
 const INDEX_CACHE_STALE_MS = 24 * 60 * 60 * 1000
 
 const KIND_LABELS: Readonly<Record<RegistryEntryKind, string>> = {
-  'music-source': '音乐源',
-  'lyric-source': '歌词源',
-  theme: '界面主题',
-  plugin: '插件',
+  'music-source': 'Music source',
+  'lyric-source': 'Lyric source',
+  theme: 'Theme',
+  plugin: 'Plugin',
 }
 
 function kindLabel(kind: RegistryEntryKind): string {
@@ -146,10 +146,10 @@ function capabilityDiff(
   }
 }
 
-/** `a、b、c` — long lists truncate with a trailing count. */
+/** `a, b, c` — long lists truncate with a trailing count. */
 function summarizeList(parts: readonly string[], max = 8): string {
-  if (parts.length <= max) return parts.join('、')
-  return `${parts.slice(0, max).join('、')} 等 ${parts.length} 项`
+  if (parts.length <= max) return parts.join(', ')
+  return `${parts.slice(0, max).join(', ')} … (${parts.length} in total)`
 }
 
 /**
@@ -216,8 +216,8 @@ function buildConflicts(input: DiagnosticsInput, entriesById: ReadonlyMap<string
       items.push({
         id: `lock-orphan:${record.id}`,
         group: 'conflict',
-        title: `锁记录指向的内容已不在本机：${record.id}`,
-        message: `registry.lock.json 中仍保留「${record.id}」（${kindLabel(record.kind)}，安装于 ${formatTime(record.installedAt)}）的锁定记录，但对应内容已不再安装，可能被手动移除。`,
+        title: `Lock record points to content no longer installed: ${record.id}`,
+        message: `registry.lock.json still carries a lock record for "${record.id}" (${kindLabel(record.kind)}, installed at ${formatTime(record.installedAt)}), but the content is no longer installed; it may have been removed manually.`,
         entryId: record.id,
         kind: record.kind,
         detectedAt: now,
@@ -246,8 +246,8 @@ function buildConflicts(input: DiagnosticsInput, entriesById: ReadonlyMap<string
       items.push({
         id: `lock-missing:${entry.id}`,
         group: 'conflict',
-        title: `已安装内容缺少锁记录：${entry.id}`,
-        message: `${kindLabel(entry.kind)}「${entry.name}」（${entry.id}）已安装且与注册表条目匹配，但 registry.lock.json 中没有对应的完整性记录；它可能不是经注册表安装的，或锁记录已丢失。`,
+        title: `Installed content is missing a lock record: ${entry.id}`,
+        message: `${kindLabel(entry.kind)} "${entry.name}" (${entry.id}) is installed and matches a registry index entry, but registry.lock.json has no integrity record for it; it may not have been installed through the registry, or the lock record was lost.`,
         entryId: entry.id,
         kind: entry.kind,
         detectedAt: now,
@@ -260,8 +260,8 @@ function buildConflicts(input: DiagnosticsInput, entriesById: ReadonlyMap<string
     items.push({
       id: `duplicate-id:${id}`,
       group: 'conflict',
-      title: `索引条目 id 重复：${id}`,
-      message: `最近一次索引清洗发现多条 id 为「${id}」的条目，已保留首条；重复发布通常意味着注册表仓库的元数据出了问题。`,
+      title: `Duplicate index entry id: ${id}`,
+      message: `The last index sanitization found multiple entries with id "${id}" and kept the first one; duplicate publishing usually means the registry repository's metadata is broken.`,
       entryId: id,
       kind: entriesById.get(id)?.kind,
       detectedAt: now,
@@ -273,16 +273,16 @@ function buildConflicts(input: DiagnosticsInput, entriesById: ReadonlyMap<string
     const diff = capabilityDiff(mismatch.actual, mismatch.expected)
     const parts: string[] = []
     if (diff.unexpectedInManifest.length) {
-      parts.push(`manifest 申请但未在注册表声明: [${diff.unexpectedInManifest.join(', ')}]`)
+      parts.push(`declared in the manifest but missing from the registry: [${diff.unexpectedInManifest.join(', ')}]`)
     }
     if (diff.missingInManifest.length) {
-      parts.push(`注册表声明但 manifest 未申请: [${diff.missingInManifest.join(', ')}]`)
+      parts.push(`declared in the registry but missing from the manifest: [${diff.missingInManifest.join(', ')}]`)
     }
     items.push({
       id: `cap-mismatch:${mismatch.entryId}`,
       group: 'conflict',
-      title: `能力声明不一致：${mismatch.entryId}`,
-      message: `插件「${mismatch.entryId}」的 manifest 能力与注册表元数据不一致（检查于 ${formatTime(mismatch.checkedAt)}）：${parts.join('; ') || '内容完全一致'}。该插件的详情获取与安装会被拒绝。`,
+      title: `Capability declaration mismatch: ${mismatch.entryId}`,
+      message: `Plugin "${mismatch.entryId}" has manifest capabilities that diverge from the registry metadata (checked at ${formatTime(mismatch.checkedAt)}): ${parts.join('; ') || 'they match exactly'}. Fetching details and installing this plugin will be rejected.`,
       entryId: mismatch.entryId,
       kind: entriesById.get(mismatch.entryId)?.kind ?? 'plugin',
       detectedAt: now,
@@ -296,8 +296,8 @@ function buildConflicts(input: DiagnosticsInput, entriesById: ReadonlyMap<string
       items.push({
         id: `deps-unmet:${plugin.id}`,
         group: 'conflict',
-        title: `插件依赖未满足：${plugin.id}`,
-        message: `插件「${plugin.id}」声明依赖 ${summarizeList(unmet)}，但对应插件未安装，相关功能可能无法工作。`,
+        title: `Plugin dependencies unmet: ${plugin.id}`,
+        message: `Plugin "${plugin.id}" declares dependencies on ${summarizeList(unmet)}, but those plugins are not installed; related features may not work.`,
         entryId: plugin.id,
         kind: 'plugin',
         detectedAt: now,
@@ -318,8 +318,8 @@ function buildRisks(input: DiagnosticsInput, entriesById: ReadonlyMap<string, Re
     items.push({
       id: `audit:${entryId}`,
       group: 'risk',
-      title: `安全扫描风险：${entriesById.get(entryId)?.name ?? entryId}`,
-      message: `共 ${blocks} 个 block、${warns} 个 warn，首条：${first?.message ?? ''}（检查于 ${formatTime(record.checkedAt)}）。`,
+      title: `Security scan risk: ${entriesById.get(entryId)?.name ?? entryId}`,
+      message: `${blocks} block and ${warns} warn finding(s) in total; first: ${first?.message ?? ''} (checked at ${formatTime(record.checkedAt)}).`,
       entryId,
       kind: entriesById.get(entryId)?.kind ?? input.lockRecords[entryId]?.kind,
       detectedAt: input.now,
@@ -334,13 +334,13 @@ function buildWarnings(input: DiagnosticsInput): RegistryDiagnosticItem[] {
 
   if (indexAnomalies && (indexAnomalies.dropped > 0 || indexAnomalies.duplicateIds.length > 0)) {
     const duplicates = indexAnomalies.duplicateIds.length
-      ? `，并发现重复 id：${summarizeList(indexAnomalies.duplicateIds)}`
+      ? `, and duplicate ids were found: ${summarizeList(indexAnomalies.duplicateIds)}`
       : ''
     items.push({
       id: 'metadata-anomalies',
       group: 'warning',
-      title: '索引元数据异常',
-      message: `最近一次索引清洗丢弃了 ${indexAnomalies.dropped} 条畸形条目${duplicates}。`,
+      title: 'Index metadata anomalies',
+      message: `The last index sanitization dropped ${indexAnomalies.dropped} malformed entries${duplicates}.`,
       detectedAt: now,
     })
   }
@@ -349,8 +349,8 @@ function buildWarnings(input: DiagnosticsInput): RegistryDiagnosticItem[] {
     items.push({
       id: 'index-fetch-failed',
       group: 'warning',
-      title: '索引拉取失败',
-      message: `索引最近一次拉取失败（${formatTime(input.lastIndexFailureAt ?? now)}），当前展示的是离线缓存。`,
+      title: 'Index fetch failed',
+      message: `The most recent index fetch failed (${formatTime(input.lastIndexFailureAt ?? now)}); what is shown now is the offline cache.`,
       detectedAt: now,
     })
   }
@@ -361,8 +361,8 @@ function buildWarnings(input: DiagnosticsInput): RegistryDiagnosticItem[] {
     items.push({
       id: 'github-chain-failure',
       group: 'warning',
-      title: 'GitHub 下载线路不可用',
-      message: `GitHub 加速线路全部不可用（${formatTime(input.lastChainFailure.at)}，最后错误：${input.lastChainFailure.error}，URL：${input.lastChainFailure.url}）。`,
+      title: 'GitHub download endpoints unavailable',
+      message: `All GitHub acceleration endpoints are unavailable (${formatTime(input.lastChainFailure.at)}; last error: ${input.lastChainFailure.error}; URL: ${input.lastChainFailure.url}).`,
       detectedAt: now,
     })
   }
@@ -375,8 +375,8 @@ function buildWarnings(input: DiagnosticsInput): RegistryDiagnosticItem[] {
     items.push({
       id: 'index-cache-stale',
       group: 'warning',
-      title: '索引缓存已过期',
-      message: `索引缓存写入于 ${formatTime(input.indexCacheFetchedAt)}（超过 24 小时）且最近拉取失败，列表内容可能已过期。`,
+      title: 'Index cache is stale',
+      message: `The index cache was written at ${formatTime(input.indexCacheFetchedAt)} (more than 24 hours ago) and the latest fetch failed; the list content may be outdated.`,
       detectedAt: now,
     })
   }
@@ -400,15 +400,15 @@ function buildInfo(input: DiagnosticsInput): RegistryDiagnosticItem[] {
   const distribution = (Object.entries(byKind) as readonly [RegistryEntryKind, number][])
     .filter(([, count]) => count > 0)
     .map(([kind, count]) => `${kindLabel(kind)} ${count}`)
-    .join('、')
+    .join(', ')
   items.push({
     id: 'lock-summary',
     group: 'info',
-    title: '锁记录摘要',
+    title: 'Lock record summary',
     message:
       records.length === 0
-        ? '尚无锁记录 —— 还没有通过注册表安装过内容。'
-        : `锁记录共 ${records.length} 条（${distribution}），最近安装于 ${formatTime(latestInstalledAt)}。`,
+        ? 'No lock records yet — nothing has been installed through the registry.'
+        : `Total ${records.length} lock record(s) (${distribution}), most recently installed at ${formatTime(latestInstalledAt)}.`,
     detectedAt: now,
   })
 
@@ -418,7 +418,7 @@ function buildInfo(input: DiagnosticsInput): RegistryDiagnosticItem[] {
     {
       kind: 'music-source',
       labels: installed.musicSources.map(
-        (s) => `${s.name ?? s.sourceUrl ?? '未知来源'}@${s.docVersion ?? '0.0.0'}`,
+        (s) => `${s.name ?? s.sourceUrl ?? 'Unknown source'}@${s.docVersion ?? '0.0.0'}`,
       ),
     },
     {
@@ -439,8 +439,8 @@ function buildInfo(input: DiagnosticsInput): RegistryDiagnosticItem[] {
     items.push({
       id: `installed-overview:${kind}`,
       group: 'info',
-      title: `${kindLabel(kind)}已安装一览`,
-      message: `${kindLabel(kind)}共 ${labels.length} 项：${summarizeList(labels)}`,
+      title: `Installed ${kindLabel(kind)} overview`,
+      message: `${kindLabel(kind)} — ${labels.length} installed: ${summarizeList(labels)}`,
       detectedAt: now,
     })
   }

@@ -50,7 +50,7 @@ export function ShareTrackModal({
     item: track,
     defaultThemeColor: '#FF6B00',
     isValid,
-    missingReason: '无法复制：缺少有效标题等元数据',
+    missingReason: "Can't copy: missing a valid title or other metadata",
   })
 
   const handleCopy = useCallback(() => {
@@ -99,7 +99,7 @@ export function ShareTrackModal({
           margin: '0 auto',
         },
       },
-      h(ShareModalHeader, { title: '分享歌曲', onClose }),
+      h(ShareModalHeader, { title: 'Share song', onClose }),
       h(LocalSourceWarning, { show: isLocal }),
       h(ShareCardPreview, {
         title: track.title,

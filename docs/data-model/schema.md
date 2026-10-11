@@ -46,7 +46,7 @@ erDiagram
 
 ## 3. Conventions
 
-> 规范见 [rules/data-model.md §2 SQLite Database Conventions](../../rules/data-model.md#2-sqlite-database-conventions)（L2），本节只讲原理与用法。
+> see the spec at [rules/data-model.md §2 SQLite Database Conventions](../../rules/data-model.md#2-sqlite-database-conventions) (L2); this section covers only principles and usage.
 
 - The `fetched_at` column on remote-mirroring tables is what makes staleness answerable.
 - Catalogue foreign keys are URNs rather than backend integer ids, because an id from a backend is
@@ -511,7 +511,7 @@ migrations, and the view packages call it rather than touching `ctx.db` (MD-3, [
 
 ```ts
 interface LibraryService {
-  // favourites — library_items
+  // favorites — library_items
   isSaved(urn: string): Promise<boolean>
   setSaved(urn: string, saved: boolean): Promise<void>
   listSaved(kind?: SavedKind, page?: PageRequest): Promise<Paged<LibraryEntry>>
@@ -551,7 +551,7 @@ transaction as its item rows, so the derived columns cannot disagree with them. 
 idempotent — saving an already-saved URN keeps its original `added_at`, so a second screen
 re-saving it cannot silently reorder the shelf.
 
-The service emits `library/changed(kind, urns)` for favourites and playlist edits, and
+The service emits `library/changed(kind, urns)` for favorites and playlist edits, and
 `library/collections-changed()` for collections: a collection has no URN and no `UrnKind`, so
 folding it into `library/changed` would mean emitting a kind that named something else.
 `library/profile-changed` fires when the local user is renamed.
@@ -559,7 +559,7 @@ folding it into `library/changed` would mean emitting a kind that named somethin
 **The local user (`library_profile`) is one row.** `updateProfile` refuses an empty name and emits
 `library/profile-changed`.
 
-> 规范见 [rules/data-model.md §6 Collections & Folders Structure](../../rules/data-model.md#6-collections--folders-structure)、[rules/data-model.md §7 Local User & Library Seeds](../../rules/data-model.md#7-local-user--library-seeds)（L2），本节只讲原理与用法。
+> see the spec at [rules/data-model.md §6 Collections & Folders Structure](../../rules/data-model.md#6-collections--folders-structure) and [rules/data-model.md §7 Local User & Library Seeds](../../rules/data-model.md#7-local-user--library-seeds) (L2); this section covers only principles and usage.
 
 ### 4.7 Playback
 
@@ -784,8 +784,8 @@ Eviction is LRU **within a class**, each with its own quota, because the classes
 different value: evicting artwork costs a re-fetch and a visible flicker; evicting a stream costs
 the user a re-download. Defaults — artwork 512 MB desktop / 128 MB mobile, HTTP 64 MB, stream
 cache 1 GB / 256 MB — all configurable. The initial sweep is deferred to a background task
-(avoiding disk I/O contention during cold start; 规范见
-[rules/services.md §5 Startup & Initialization Performance](../../rules/services.md#5-startup--initialization-performance)（L2）) and runs hourly thereafter; in the same pass
+(avoiding disk I/O contention during cold start; see the spec at
+[rules/services.md §5 Startup & Initialization Performance](../../rules/services.md#5-startup--initialization-performance) (L2)) and runs hourly thereafter; in the same pass
 files no row names are deleted and `cache_entries` rows whose file is gone are pruned. A file the
 user downloaded is a `media_bindings` row instead ([§4.5](#45-local-media)) and is never evicted.
 

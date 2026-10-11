@@ -124,7 +124,7 @@ A Cordis `Context` is created inside the app's single JavaScript runtime — Her
 Electron renderer on desktop. That context is **Layer 1**, the kernel. **Layer 2** is a small set
 of **core plugins** that claim service keys (`ctx.fs`, `ctx.http`, `ctx.db`, `ctx.js`, …), with one
 implementation per target behind each key — they alone may touch a platform SDK or drive the kernel
-(规范见 [rules/services.md §1](../rules/services.md#1-core-services-philosophy)（L2），本节只讲原理与用法). Above them sits **Layer 3**, three log
+(see the spec at [rules/services.md §1](../rules/services.md#1-core-services-philosophy) (L2); this section covers only principles and usage). Above them sits **Layer 3**, three log
 transports that subscribe to `ctx.logger` and decide where a line ends up; then **Layer 4** feature
 plugins provide playback, DSP, downloads, the library and the sources, and **Layer 5** — the shells
 and the view packages — turns those into pages. None of them may reach past Layer 2 to the

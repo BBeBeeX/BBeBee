@@ -119,29 +119,29 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
         backgroundColor: p().bg.base,
         padding: tokens.space[4],
       },
-      accessibilityLabel: '设置',
+      accessibilityLabel: 'Settings',
     },
     // Screen Title
     h(
       native.View as never,
       { style: { marginBottom: tokens.space[2] } },
-      h(Text, { variant: 'xl', children: '设置' }),
-      h(Text, { variant: 'sm', tone: 'muted', children: '全局应用偏好与播放配置' }),
+      h(Text, { variant: 'xl', children: 'Settings' }),
+      h(Text, { variant: 'sm', tone: 'muted', children: 'App-wide preferences and playback configuration' }),
     ),
 
     // 1. General Section
-    renderSectionHeader('外观与语言', '主题视觉模式及多语言配置'),
+    renderSectionHeader('Appearance & language', 'Theme visual mode and multilingual configuration'),
     renderCard([
       renderRow(
-        '界面语言',
-        settings.language === 'zh' ? '简体中文' : settings.language === 'en' ? 'English' : '跟随系统',
+        'Interface language',
+        settings.language === 'zh' ? 'Simplified Chinese' : settings.language === 'en' ? 'English' : 'Follow system',
         h(
           native.View as never,
           { style: { flexDirection: 'row', gap: tokens.space[1] } },
           h(Button, {
             variant: settings.language === 'zh' ? 'primary' : 'secondary',
             onPress: () => void update({ language: 'zh' }),
-            children: '中文',
+            children: 'Chinese',
           }),
           h(Button, {
             variant: settings.language === 'en' ? 'primary' : 'secondary',
@@ -151,7 +151,7 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
           h(Button, {
             variant: settings.language === 'system' ? 'primary' : 'secondary',
             onPress: () => void update({ language: 'system' }),
-            children: '自动',
+            children: 'Auto',
           }),
         ),
       ),
@@ -163,11 +163,11 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
     ),
 
     // 2. Playback Section
-    renderSectionHeader('播放与音频', '音频流衔接与播放行为'),
+    renderSectionHeader('Playback & Audio', 'Audio stream joining and playback behavior'),
     renderCard([
       renderRow(
-        '音频输出引擎',
-        'WebAudio 系统原生引擎 (iOS CoreAudio / Android Oboe)',
+        'Audio output engine',
+        'WebAudio system-native engine (iOS CoreAudio / Android Oboe)',
         h(
           native.View as never,
           { style: { flexDirection: 'row', gap: tokens.space[1] } },
@@ -180,7 +180,7 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
             variant: 'secondary',
             disabled: true,
             onPress: () => {},
-            children: 'MPV Hi-Fi (规划中)',
+            children: 'MPV Hi-Fi (planned)',
           }),
         ),
       ),
@@ -196,23 +196,23 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
       ? h(
           native.View as never,
           { key: 'section-sources' },
-          renderSectionHeader('曲库与来源', '音乐来源管理与导入'),
+          renderSectionHeader('Library & sources', 'Music source management and import'),
           renderCard(sourcesContribs.map((c) => h(ContributionBlock, { key: c.id, ctx, contribution: c, onNavigate: handleNavigate }))),
         )
       : null,
 
     // 4. Storage Section
-    renderSectionHeader('存储与缓存', '本地临时文件管理'),
+    renderSectionHeader('Storage & cache', 'Local temporary file management'),
     renderCard([
       renderRow(
-        '缓存占用',
-        `总计: ${formatBytes(usage.totalBytes)} (封面: ${formatBytes(usage.artworkBytes)})`,
+        'Cache usage',
+        `Total: ${formatBytes(usage.totalBytes)} (artwork: ${formatBytes(usage.artworkBytes)})`,
         h(Button, {
           variant: 'secondary',
           disabled: clearingCache || usage.totalBytes === 0,
           loading: clearingCache,
           onPress: handleClearCache,
-          children: '清除缓存',
+          children: 'Clear cache',
         }),
       ),
       ...storageContribs.map((c) => h(ContributionBlock, { key: c.id, ctx, contribution: c, onNavigate: handleNavigate })),
@@ -230,9 +230,9 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
     }),
 
     // 6. About & Reset Section
-    renderSectionHeader('关于应用', '版本及系统重置'),
+    renderSectionHeader('About', 'Version and system reset'),
     renderCard([
-      renderRow('版本', 'BBeBee 0.1.0 · Cordis 微内核', null),
+      renderRow('Version', 'BBeBee 0.1.0 · Cordis microkernel', null),
       confirmingReset
         ? h(
             native.View as never,
@@ -240,18 +240,18 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
             h(Button, {
               variant: 'primary',
               onPress: handleReset,
-              children: '确认重置',
+              children: 'Confirm reset',
             }),
             h(Button, {
               variant: 'secondary',
               onPress: () => setConfirmingReset(false),
-              children: '取消',
+              children: 'Cancel',
             }),
           )
         : h(Button, {
             variant: 'secondary',
             onPress: () => setConfirmingReset(true),
-            children: '恢复默认设置',
+            children: 'Restore defaults',
           }),
     ]),
   )

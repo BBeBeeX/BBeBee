@@ -18,16 +18,16 @@ function formatShortcut(val: string): string {
 }
 
 const SHORTCUT_ITEMS = [
-  { key: 'playPause', label: '播放 / 暂停', defaultVal: 'Command/Control+Alt+Space' },
-  { key: 'prevTrack', label: '上一首歌曲', defaultVal: 'Command/Control+Alt+Left' },
-  { key: 'nextTrack', label: '下一首歌曲', defaultVal: 'Command/Control+Alt+Right' },
-  { key: 'volumeUp', label: '增大音量 (+5%)', defaultVal: 'Command/Control+Alt+Up' },
-  { key: 'volumeDown', label: '调小音量 (-5%)', defaultVal: 'Command/Control+Alt+Down' },
-  { key: 'toggleLyrics', label: '显示 / 隐藏桌面歌词', defaultVal: 'Command/Control+Alt+L' },
-  { key: 'toggleWindow', label: '显示 / 隐藏音乐界面', defaultVal: 'Command/Control+Alt+W' },
-  { key: 'toggleLoved', label: '添加喜欢 / 取消喜欢', defaultVal: 'Command/Control+Alt+K' },
-  { key: 'seekForward', label: '歌曲快进 (+5秒)', defaultVal: 'Command/Control+Alt+]' },
-  { key: 'seekBackward', label: '歌曲快退 (-5秒)', defaultVal: 'Command/Control+Alt+[' },
+  { key: 'playPause', label: 'Play / Pause', defaultVal: 'Command/Control+Alt+Space' },
+  { key: 'prevTrack', label: 'Previous song', defaultVal: 'Command/Control+Alt+Left' },
+  { key: 'nextTrack', label: 'Next song', defaultVal: 'Command/Control+Alt+Right' },
+  { key: 'volumeUp', label: 'Volume up (+5%)', defaultVal: 'Command/Control+Alt+Up' },
+  { key: 'volumeDown', label: 'Volume down (-5%)', defaultVal: 'Command/Control+Alt+Down' },
+  { key: 'toggleLyrics', label: 'Show / hide desktop lyrics', defaultVal: 'Command/Control+Alt+L' },
+  { key: 'toggleWindow', label: 'Show / hide music UI', defaultVal: 'Command/Control+Alt+W' },
+  { key: 'toggleLoved', label: 'Like / unlike', defaultVal: 'Command/Control+Alt+K' },
+  { key: 'seekForward', label: 'Seek forward (+5s)', defaultVal: 'Command/Control+Alt+]' },
+  { key: 'seekBackward', label: 'Seek backward (-5s)', defaultVal: 'Command/Control+Alt+[' },
 ] as const
 
 /**
@@ -73,19 +73,19 @@ export function ShortcutsCard({ ctx }: { ctx: Context }): ReactElement {
     h(
       'div',
       { style: { padding: '4px 4px 12px' } },
-      h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #F5F5F7)' } }, '全局快捷键'),
+      h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #F5F5F7)' } }, 'Global shortcuts'),
       h(
         'div',
         { style: { fontSize: 12, color: 'var(--text-secondary, #8E8E93)', marginTop: 2 } },
-        '在操作系统后台通过键盘组合键全局控制音乐播放、音量与窗口显隐',
+        'Control music playback, volume and window visibility globally from the OS via keyboard combinations',
       ),
     ),
-    h(SettingsSection, { title: '组合键绑定' }, h(SettingsRow, {
-        title: '启用全局快捷键',
-        description: '默认启用。切换至其他应用或游戏时依然可通过快捷键控制播放',
+    h(SettingsSection, { title: 'Key bindings' }, h(SettingsRow, {
+        title: 'Enable global shortcuts',
+        description: 'Enabled by default. Playback stays controllable via shortcuts even when another app or game has focus',
         action: h(Switch, {
           checked: shortcuts.enabled,
-          accessibilityLabel: '启用全局快捷键',
+          accessibilityLabel: 'Enable global shortcuts',
           onChange: (enabled) => onUpdateShortcuts({ ...shortcuts, enabled }),
         }),
       }),
@@ -95,7 +95,7 @@ export function ShortcutsCard({ ctx }: { ctx: Context }): ReactElement {
         return h(SettingsRow, {
           key: item.key,
           title: item.label,
-          description: `当前快捷键绑定: ${formatted}`,
+          description: `Current key binding: ${formatted}`,
           borderBottom: index < arr.length - 1,
           action: h(
             'div',
@@ -120,7 +120,7 @@ export function ShortcutsCard({ ctx }: { ctx: Context }): ReactElement {
         { style: { display: 'flex', justifyContent: 'flex-end', marginTop: 12 } },
         h(Button, {
           variant: 'secondary',
-          children: '恢复默认快捷键',
+          children: 'Restore default shortcuts',
           onPress: () =>
             onUpdateShortcuts({
               enabled: true,

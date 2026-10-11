@@ -69,7 +69,7 @@ Stated explicitly, because each of these would change the architecture if reintr
   app does not editorialise beyond that ([sources/runtime.md §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)).
 - **Not a general-purpose extension host.** Plugins are first-party packages — statically bundled
   on mobile, loaded dynamically on desktop
-  (规范见 [rules/plugins.md §7 Dual-Mode Plugin Loading](../../rules/plugins.md#7-dual-mode-plugin-loading)（L2）). Imported *sources* are the extension story, and they are contained by a real
+  (see the spec at [rules/plugins.md §7 Dual-Mode Plugin Loading](../../rules/plugins.md#7-dual-mode-plugin-loading) (L2)). Imported *sources* are the extension story, and they are contained by a real
   interpreter boundary rather than by the plugin capability model, which is documented honestly as
   *defense in depth, not a sandbox* ([plugins/capabilities.md §7](../plugins/capabilities.md#7-capability-model)).
 - **No web build in scope.** React Native Web would technically work, but decision **ADR-2**
@@ -106,7 +106,7 @@ chosen, what was rejected, and what it costs.
 > music source. Sources are no longer packages, so that justification is gone; the final ruling,
 > recorded below, keeps the desktop dynamic loader (which had already shipped for built-ins and
 > external plugins) while mobile remains static — the normative description is
-> [rules/plugins.md §7 Dual-Mode Plugin Loading](../../rules/plugins.md#7-dual-mode-plugin-loading)（L2）.
+> [rules/plugins.md §7 Dual-Mode Plugin Loading](../../rules/plugins.md#7-dual-mode-plugin-loading) (L2).
 
 **Decision** *(final, as amended)*. One plugin manifest format. Mobile bundles statically: a
 codegen step emits static `import` statements into `apps/mobile/generated/plugins.ts`, because
@@ -125,7 +125,7 @@ disappeared when sources became data on both platforms, and what remains for it 
 effects, scrobblers, lyric providers) did not then justify an install/update/quarantine flow, a
 capability-grant UI, and a per-plugin gate that
 [capabilities.md §7](../plugins/capabilities.md#where-the-gate-actually-runs) admits does not hold on desktop. The machinery was
-retained regardless and is the desktop half of the Dual-Mode design ([rules/plugins.md §7](../../rules/plugins.md#7-dual-mode-plugin-loading)（L2）).
+retained regardless and is the desktop half of the Dual-Mode design ([rules/plugins.md §7](../../rules/plugins.md#7-dual-mode-plugin-loading) (L2)).
 
 **Rejected — runtime marketplace on both.** Same reasoning, plus: on iOS, downloading and
 executing new JavaScript requires an interpreter sandbox. That sandbox now exists for a different
@@ -252,7 +252,7 @@ Terms used with a precise meaning throughout these documents.
 
 | Term | Meaning |
 |---|---|
-| **Layer 0–5** | The six layers of [layers.md §1](./layers.md#1-the-layer-model): **0** protocol, **1** kernel, **2** core plugins, **3** log transports, **4** feature plugins, **5** UI & business function. A package's layer decides what it may import — 规范见 [rules/services.md §1 Core Services Philosophy](../../rules/services.md#1-core-services-philosophy) 与 [§4 Layer 3: Log Transports](../../rules/services.md#4-layer-3-log-transports)（L2）。 |
+| **Layer 0–5** | The six layers of [layers.md §1](./layers.md#1-the-layer-model): **0** protocol, **1** kernel, **2** core plugins, **3** log transports, **4** feature plugins, **5** UI & business function. A package's layer decides what it may import — see the spec at [rules/services.md §1 Core Services Philosophy](../../rules/services.md#1-core-services-philosophy) and [§4 Layer 3: Log Transports](../../rules/services.md#4-layer-3-log-transports) (L2). |
 | **Kernel** | `@BBeBee/kernel` — Cordis plus BBeBee's bootstrap, config loading, plugin resolution, and capability gate. Layer 1. Not a Cordis concept. |
 | **Context** (`ctx`) | A Cordis `Context`. Simultaneously a DI container, an event bus, and a lifecycle scope. Every plugin receives its own derived context. |
 | **Service** | A capability claimed on a stable context key (`ctx.fs`). Declared in `@BBeBee/protocol`, provided by exactly one plugin at a time within a given isolation scope. |

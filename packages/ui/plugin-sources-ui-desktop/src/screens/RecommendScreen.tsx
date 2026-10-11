@@ -48,8 +48,8 @@ export function RecommendScreen({
     },
     !hasAnyContent
       ? h(EmptyState, {
-          title: '暂无推荐',
-          description: '导入一个实现了推荐接口的音乐源后，这里会出现它的推荐歌单。',
+          title: 'No recommendations',
+          description: 'Once a music source implementing the recommendation interface is imported, its recommended playlists will appear here.',
         })
       : h(
           Fragment,
@@ -59,7 +59,7 @@ export function RecommendScreen({
             ? h(RecommendShelfRow, {
                 key: 'recent-played-albums',
                 ctx,
-                title: '最近播放 · 专辑',
+                title: 'Recently played · Albums',
                 testID: 'recommend-shelf-recent-albums',
                 entries: recentAlbums,
                 onOpenCard: openCard,
@@ -70,7 +70,7 @@ export function RecommendScreen({
             ? h(RecommendShelfRow, {
                 key: 'favorite-albums',
                 ctx,
-                title: '收藏随选 · 专辑',
+                title: 'Favorites picks · Albums',
                 testID: 'recommend-shelf-favorite-albums',
                 entries: favoriteAlbums,
                 onOpenCard: openCard,
@@ -112,10 +112,10 @@ function RecommendShelf({
 
   return h(RecommendShelfRow, {
     ctx,
-    title: `${sourceName} · 推荐歌单`,
+    title: `${sourceName} · Recommended playlists`,
     testID: `recommend-shelf-${sourceId}`,
     action: {
-      label: '显示全部',
+      label: 'Show all',
       onPress: showAll,
       testID: 'recommend-show-all',
     },

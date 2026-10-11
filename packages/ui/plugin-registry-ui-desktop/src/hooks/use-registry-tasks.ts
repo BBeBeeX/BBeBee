@@ -30,7 +30,7 @@ export interface UseRegistryTasksResult {
   tasks: readonly RegistryTask[]
   /** Tasks currently running — the header badge count. */
   runningCount: number
-  /** True when the service exposes `clearFinishedTasks` (the drawer's 清空已完成 button). */
+  /** True when the service exposes `clearFinishedTasks` (the drawer's Clear finished button). */
   canClear: boolean
   /** Removes every finished (success/failed) record; a no-op when the method is absent. */
   clearFinished: () => void

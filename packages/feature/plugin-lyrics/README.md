@@ -1,56 +1,56 @@
 # @BBeBee/plugin-lyrics
 
-Layer 4（feature）— `ctx.lyrics`：歌词获取、多级缓存、进度同步与统一状态。
+Layer 4 (feature) — `ctx.lyrics`: lyrics fetching, multi-level caching, progress sync, and unified state.
 
-## 概述
+## Overview
 
-`plugin-lyrics` 负责音频播放过程中的歌词生命周期管理。它连接播放走带、音源系统与本地持久层，为界面端（如播放页全屏歌词面板、桌面悬浮歌词）提供一致的同步状态与事件订阅。
+`plugin-lyrics` manages the lyrics lifecycle during audio playback. It bridges the playback transport, the source system, and the local persistence layer, providing consistent sync state and event subscriptions for UI consumers (such as the full-screen lyrics panel on the now-playing page and desktop floating lyrics).
 
-当曲目切换时，插件自动发起歌词获取流程，并在播放推进时（通过 `player/position` 事件及内部算法）计算当前正在演唱的歌词行索引，向整个应用广播。
+When the track changes, the plugin automatically starts the lyrics fetch flow, and as playback advances (via the `player/position` event and internal algorithms) it computes the index of the currently sung lyric line and broadcasts it to the whole app.
 
-## 服务声明
+## Service declaration
 
-- `class LyricsPlugin extends Service implements LyricsService`，`super(ctx, 'lyrics')` → `ctx.lyrics`（接口定义在 `@BBeBee/protocol`）。
-- **必需注入**：`['player', 'db', 'sources']`。
-- **可选注入**：`['ui']`（若存在则声明贡献 `now-playing.panel` 插槽描述符）。
-- **能力声明**：`db:read:core`、`db:write:core`（读写 SQLite 核心目录库的 `lyrics` 表）。
+- `class LyricsPlugin extends Service implements LyricsService`, `super(ctx, 'lyrics')` → `ctx.lyrics` (interface defined in `@BBeBee/protocol`).
+- **Required injections**: `['player', 'db', 'sources']`.
+- **Optional injections**: `['ui']` (if present, declares the `now-playing.panel` slot descriptor).
+- **Capabilities**: `db:read:core`, `db:write:core` (reads/writes the `lyrics` table of the core SQLite catalog).
 
-## 核心机制
+## Core mechanics
 
-### 1. 多级缓存与获取策略
+### 1. Multi-level caching and fetch strategy
 
-调用 `getLyricsForTrack(trackUrn)` 时遵循三级缓存回退策略：
+Calling `getLyricsForTrack(trackUrn)` follows a three-level cache fallback strategy:
 
 ```
-[ 请求歌词 ]
+[ Request lyrics ]
     │
     ▼
-1. 内存 LRU 缓存 (memoryCache) ──── 命中 ───► 返回
-    │ 未命中
+1. In-memory LRU cache (memoryCache) ──── hit ───► return
+    │ miss
     ▼
-2. 本地 SQLite (lyrics 表) ───────── 命中 ───► 填充内存 ───► 返回
-    │ 未命中
+2. Local SQLite (lyrics table) ───────── hit ───► fill memory ───► return
+    │ miss
     ▼
-3. 音源提供方 (ctx.sources.forUrn) ── 命中 ───► 持久化至 DB & 内存 ───► 返回
-    │ 失败 / 无提供方
+3. Source provider (ctx.sources.forUrn) ── hit ───► persist to DB & memory ───► return
+    │ failure / no provider
     ▼
-[ 状态置为 no-lyrics 或 error ]
+[ State set to no-lyrics or error ]
 ```
 
-1. **内存缓存**：快速应对列表来回切歌，默认容量限制，避免重复反序列化。
-2. **SQLite 存储**：在 `lyrics` 表中持久化字段 `(track_urn, format, content, synced, offset_ms, language)`，离线可用且避免浪费用户流量。
-3. **音源解析**：通过 `ctx.sources.forUrn(trackUrn)` 找到对应的音源提供者。若该提供者支持 `getLyrics(trackId)`，则发起请求解析（例如 Bilibili 字幕转 LRC 或 Subsonic 歌词接口），获取后自动回写数据库。
-4. **空值缓存（Negative Caching）**：若音源提供者无歌词或返回空内容，系统将在内存 `negativeCache` 及 SQLite 数据库中写入空值标记（`format: 'none'`），TTL 默认为 1 天（24 小时）。在有效期内重复播放该曲目时直接拦截网络请求，防止单曲循环或重播时造成多余的网络开销。调用 `retry()` 时会自动清除对应空值标记。
+1. **Memory cache**: quickly handles switching back and forth within a list, with a default capacity limit, avoiding repeated deserialization.
+2. **SQLite storage**: persists fields `(track_urn, format, content, synced, offset_ms, language)` in the `lyrics` table; available offline and saves user bandwidth.
+3. **Source resolution**: finds the matching source provider via `ctx.sources.forUrn(trackUrn)`. If the provider supports `getLyrics(trackId)`, a request is made and parsed (e.g. Bilibili subtitles converted to LRC, or the Subsonic lyrics API); the result is automatically written back to the database.
+4. **Negative caching**: if the source provider has no lyrics or returns empty content, the system writes an empty marker (`format: 'none'`) into both the in-memory `negativeCache` and the SQLite database, with a default TTL of 1 day (24 hours). While valid, replaying that track short-circuits network requests entirely, preventing wasted network overhead from single-track loops or replays. Calling `retry()` automatically clears the corresponding empty marker.
 
-### 2. 播放进度与同步对齐
+### 2. Playback progress and sync alignment
 
-- 监听 `player/track-changed`：自增内部 generation 标号（防切歌竞态），重置状态并异步加载新曲目歌词。
-- 监听 `player/position`：基于二分查找算法（来自 `@BBeBee/toolkit` 的 `findActiveLyricIndex`）计算匹配的时间戳行，当命中行变化时触发 `lyrics/active-changed`。
-- 监听 `player/state-changed`：响应 loading 与 idle 等走带状态，友好显示 loading 提示或清理画布。
+- Listens to `player/track-changed`: increments the internal generation counter (guarding against track-switch races), resets state, and asynchronously loads the new track's lyrics.
+- Listens to `player/position`: uses a binary-search algorithm (`findActiveLyricIndex` from `@BBeBee/toolkit`) to compute the matching timestamp line, and fires `lyrics/active-changed` when the active line changes.
+- Listens to `player/state-changed`: responds to transport states such as loading and idle, showing a friendly loading hint or clearing the canvas.
 
-## 公开 API
+## Public API
 
-### 状态快照
+### State snapshot
 
 `ctx.lyrics.state`:
 ```ts
@@ -64,15 +64,15 @@ interface LyricsState {
 }
 ```
 
-### 方法
+### Methods
 
-| 方法 | 说明 |
+| Method | Description |
 |---|---|
-| `getLyricsForTrack(trackUrn)` | 查询指定 URN 的歌词（内存 → SQLite → 音源） |
+| `getLyricsForTrack(trackUrn)` | Fetch lyrics for the given URN (memory → SQLite → sources) |
 
-### 事件
+### Events
 
-| 事件 | 负载 | 说明 |
+| Event | Payload | Description |
 |---|---|---|
-| `lyrics/changed` | `LyricsState` | 歌词整体状态变更（曲目变化、加载完成、错误等） |
-| `lyrics/active-changed` | `number` | 当前正在演唱的高亮行索引变更 |
+| `lyrics/changed` | `LyricsState` | Overall lyrics state change (track change, load finished, error, etc.) |
+| `lyrics/active-changed` | `number` | The highlighted (currently sung) line index changed |

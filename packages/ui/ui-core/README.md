@@ -1,47 +1,47 @@
 # @BBeBee/ui-core
 
-Layer 5（ui）— 服务与 React 之间的接缝。
+Layer 5 (ui) — the seam between services and React.
 
-## 概述
+## Overview
 
-只依赖 `react` 与 `@BBeBee/protocol`（再无其他），因此两个 kit 建在同一批 hooks 上，feature 的**状态**逻辑只写一次、像素写两次（docs/08 §4）。
+It depends only on `react` and `@BBeBee/protocol` (nothing else), so both kits are built on the same hooks: a feature's **state** logic is written once, its pixels twice (docs/08 §4).
 
-本层存在的意义是执行一条规则：**React 不持有领域状态。** 服务拥有它，组件订阅它。这里任何开始长得像 reducer 的东西都属于服务。
+This layer exists to enforce one rule: **React does not own domain state.** Services own it; components subscribe to it. Anything here that starts to look like a reducer belongs in a service.
 
-## 源文件
+## Source files
 
-### `src/index.ts` — 服务读取与订阅 hooks
+### `src/index.ts` — service reads and subscription hooks
 
-| 导出 | 作用 |
+| Export | Purpose |
 |---|---|
-| `serviceOf<T>(ctx, key): T \| undefined` | 从 context 读服务，未加载时返回 `undefined`——`undefined` 是正常状态而非错误（插件可被禁用、服务可能不在本平台），渲染占位符才是 docs/08 §3 要求的行为。⚠️ **`ctx[key]` 不是正确的问法**：在插件级 context（视图唯一会拿到的种类）上，cordis 的代理对任何未注入属性都会**抛错**，连 `ctx.player?.x` 都来不及短路——"tests 答 undefined、设备上抛错"的著名 bug 根源。`reflect.get(key, false)`（"非必需"读取）在 root 与 scoped context 上都有答案。 |
-| `useService<T>(ctx, key)` | `serviceOf` 的 hook 形式；缺席时经 `useDebugValue` 在 devtools 里显示 `key (absent)`。 |
-| `useServiceState<T>(ctx, events, select, options?)` | 订阅服务状态（`useSyncExternalStore` 封装）。要点：store 经 `useMemo` 存活于重渲染之间（否则每次渲染重订阅、防循环的缓存被丢弃）；**`select` 刻意不进依赖**——它几乎在每个调用点都是内联的，进依赖会每次渲染重建 store；`deps` 是调用方声明"选择本身变了"的方式。`select` 每次通知和每次渲染都会跑，必须便宜；**不要求引用稳定**——store 会缓存并比较（见 `store.ts`）。 |
-| `AsyncState<T>` / `isReady` | `{ status: 'idle'\|'loading'\|'ready'\|'error', data?, error? }`。刻意**不是**数据获取库：它存在的意义是让视图不必为 loading/failure 自造 `useEffect`——docs/08 §4 禁止在领域工作里使用它。 |
+| `serviceOf<T>(ctx, key): T \| undefined` | Reads a service from the context, returning `undefined` when it is not loaded — `undefined` is a normal state, not an error (a plugin can be disabled, a service may not exist on this platform); rendering a placeholder is what docs/08 §3 requires. ⚠️ **`ctx[key]` is not the right question to ask**: on a plugin-scoped context (the only kind a view ever gets), cordis's proxy **throws** on any non-injected property, so even `ctx.player?.x` never gets to short-circuit — the root of the famous "tests answer undefined, on-device it throws" bug. `reflect.get(key, false)` (a "non-required" read) has an answer on both root and scoped contexts. |
+| `useService<T>(ctx, key)` | The hook form of `serviceOf`; when absent, shows `key (absent)` in devtools via `useDebugValue`. |
+| `useServiceState<T>(ctx, events, select, options?)` | Subscribes to service state (a `useSyncExternalStore` wrapper). Key points: the store lives across re-renders via `useMemo` (otherwise every render resubscribes and the loop-guard cache is thrown away); **`select` is deliberately not in the dependencies** — it is inline at nearly every call site, and adding it would rebuild the store every render; `deps` is the caller's way of saying "the selection itself changed". `select` runs on every notification and every render and must be cheap; **reference stability is not required** — the store caches and compares (see `store.ts`). |
+| `AsyncState<T>` / `isReady` | `{ status: 'idle'\|'loading'\|'ready'\|'error', data?, error? }`. Deliberately **not** a data-fetching library: it exists so views do not have to hand-roll `useEffect`s for loading/failure — docs/08 §4 forbids using it for domain work. |
 
-### `src/props.ts` — 两个 kit 共同的 props 契约（types only）
+### `src/props.ts` — the shared props contract of both kits (types only)
 
-写一次、写在契约层，让 desktop 的 `Button` 与 mobile 的 `Button` 不可能漂移成不同形状——那种漂移会让每个插件作者付两次钱、付到永远。**纯类型**：不 import React、不 import 平台，两个 kit 与 parity gate 都能读。
+Written once, at the contract layer, so the desktop `Button` and the mobile `Button` cannot drift into different shapes — that drift makes every plugin author pay twice, forever. **Pure types**: no React import, no platform import; both kits and the parity gate can read it.
 
-- **`CommonProps`** — 每个组件都有，调用方永远不必问哪些有：`testID?`（两端一个名字，各 kit 映射到自己的属性）与 `accessibilityLabel?`（docs/08 §8 强制每个可交互元素有可访问名，逐组件决策必然被遗忘——所以写在这里一处）。
-- 组件 props 类型逐一列出：`ButtonProps`（`onPress` 而非 `onClick`——一个名字跨两个 kit，tap 不是 click；`loading` 同时表示进度**并禁用**，两个 prop 会漂移一个不会）、`IconButtonProps`（`accessibilityLabel` **必填**——图标没有文字可回退）、`TrackRowProps`（`active` = **正在播放**，不等于选中；`onMore` 桌面绑右键、移动绑长按）、`SliderProps`（**`onChange` 与 `onCommit` 分离**——拖动的每一帧都 seek 是 scrubber 不可用的原因）、`SheetProps`、`ListProps<T>`（`keyExtractor` 必填——10 万曲库需要稳定 keys；`estimatedItemSize` 桌面虚拟化器需要、FlashList 自测并忽略，"一个 prop 被一端忽略比两份契约便宜"）、`EmptyStateProps`、`ToastProps`、`TextProps`（`variant` 只收刻度名，**裸像素永不传入**）、`TextFieldProps`（**两端都受控**——一端非受控一端受控正是 parity gate 要防的分歧；`multiline` 存在的理由是用户会粘贴几百行 JSON 的源文档；`autoCorrect` 默认关——规则被静默纠错会无解释地失败）、`ArtworkProps`。
-- 联合类型：`Tone`、`TextVariant`、`ButtonVariant`。
+- **`CommonProps`** — every component has it, so callers never have to ask which do: `testID?` (one name on both ends, each kit maps it to its own property) and `accessibilityLabel?` (docs/08 §8 mandates an accessible name on every interactive element; a per-component decision would inevitably be forgotten — so it lives here, once).
+- Component prop types, one by one: `ButtonProps` (`onPress` rather than `onClick` — one name across both kits; a tap is not a click; `loading` both shows progress **and disables**, two props can drift, one cannot), `IconButtonProps` (`accessibilityLabel` **required** — an icon has no text to fall back on), `TrackRowProps` (`active` = **now playing**, not selected; `onMore` binds right-click on desktop, long-press on mobile), `SliderProps` (**`onChange` and `onCommit` are separate** — seeking on every drag frame is what makes a scrubber unusable), `SheetProps`, `ListProps<T>` (`keyExtractor` required — a 100k-track library needs stable keys; `estimatedItemSize` the desktop virtualizer needs and FlashList measures itself and ignores — "a prop ignored by one end is cheaper than two contracts"), `EmptyStateProps`, `ToastProps`, `TextProps` (`variant` only accepts scale names, **bare pixels never pass in**), `TextFieldProps` (**controlled on both ends** — one end uncontrolled and the other controlled is exactly the divergence the parity gate guards against; `multiline` exists because users will paste source documents that are hundreds of lines of JSON; `autoCorrect` defaults off — a rule silently "corrected" fails without explanation), `ArtworkProps`.
+- Union types: `Tone`, `TextVariant`, `ButtonVariant`.
 
-### `src/store.ts` — 服务状态作为外部 store
+### `src/store.ts` — service state as an external store
 
-`useSyncExternalStore` 需要 `subscribe` 与 `getSnapshot`，两者的规则都容易错、错了很难看见。在 React 之外建它们才使规则可测：hook 需要渲染器，store 什么都不需要。
+`useSyncExternalStore` needs `subscribe` and `getSnapshot`, and both have rules that are easy to get wrong and hard to see. Building them outside React is what makes the rules testable: a hook needs a renderer, a store needs nothing.
 
-| 导出 | 作用 |
+| Export | Purpose |
 |---|---|
-| `createServiceStore(ctx, events, select, options?)` | 一个服务的 store，由一组事件使失效。核心：**快照被缓存、只在选择真正变化时替换**——返回新对象/新数组的 selector 在这里安全，直通 `useSyncExternalStore` 则会死循环（"应用很慢"而非报错）。`subscribe` 里事件回调**先 `read()` 再 `onChange()`**：React 在通知后立即调 `getSnapshot`，那里读到陈旧值就是落后一拍的渲染。 |
-| `shallowArrayEqual(a, b)` | 按元素身份比较数组。列表 selector 的常见情形：队列每次 `queue/changed` 都是新数组但元素相同，因包装变了重渲染 5000 行列表就是滚动卡顿。 |
-| `shallowEqual(a, b)` | 一层深的对象比较，给构建小 record 的 selector。 |
+| `createServiceStore(ctx, events, select, options?)` | One service's store, invalidated by a set of events. Core: **snapshots are cached and replaced only when the selection actually changes** — a selector returning a new object/array is safe here; piped straight into `useSyncExternalStore` it would loop forever ("the app is slow", not an error). In `subscribe` the event callback **calls `read()` before `onChange()`**: React calls `getSnapshot` immediately after the notification, and reading a stale value there is a render one beat behind. |
+| `shallowArrayEqual(a, b)` | Compares arrays by element identity. The common list-selector case: the queue is a new array on every `queue/changed` but with identical elements; re-rendering a 5000-row list because the wrapper changed is scroll jank. |
+| `shallowEqual(a, b)` | One-level-deep object comparison, for selectors that build small records. |
 
-## 测试
+## Tests
 
-`src/store.test.ts`：store 的缓存/失效行为、两种比较器的语义——不需要渲染器。
+`src/store.test.ts`: the store's cache/invalidation behavior and the semantics of both comparators — no renderer needed.
 
-## 相关文档
+## Related docs
 
-- `docs/08-ui-architecture.md` §3/§4：视图模型与 hooks 规则
-- `packages/feature/plugin-player/README.md`、`packages/feature/plugin-sources/README.md`：消费这些 hooks 的 feature hooks
+- `docs/08-ui-architecture.md` §3/§4: the view model and hook rules
+- `packages/feature/plugin-player/README.md`, `packages/feature/plugin-sources/README.md`: the feature hooks that consume these hooks

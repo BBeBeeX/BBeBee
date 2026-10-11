@@ -151,12 +151,12 @@ export function GitHubAccelerationEditor({
     'div',
     null,
     h(SettingsRow, {
-      title: 'GitHub 加速',
+      title: 'GitHub acceleration',
       description:
-        '为 GitHub 资源下载配置按顺序尝试的加速线路；官方地址始终第一个尝试，仅在失败时切换',
+        'Configure acceleration endpoints for GitHub resource downloads, tried in order; the official URL is always tried first and only switched away from on failure',
       action: h(Button, {
         variant: 'secondary',
-        children: expanded ? '收起线路' : '自定义',
+        children: expanded ? 'Collapse endpoints' : 'Customize',
         onPress: () => setExpanded((value) => !value),
       }),
     }),
@@ -204,12 +204,12 @@ export function GitHubAccelerationEditor({
                   color: 'var(--bb-text-secondary, #A5B4CE)',
                 },
               },
-              '系统',
+              'System',
             ),
             h(
               'span',
               { style: { fontSize: 12, color: 'var(--bb-text-primary, #F5F5F7)', flexShrink: 0 } },
-              'jsDelivr CDN（系统内置）',
+              'jsDelivr CDN (built-in)',
             ),
             h(
               'span',
@@ -250,7 +250,7 @@ export function GitHubAccelerationEditor({
                 type: 'text',
                 value: prefix,
                 placeholder: 'https://ghproxy.example.com/',
-                'aria-label': `加速线路 ${index + 1}`,
+                'aria-label': `Acceleration endpoint ${index + 1}`,
                 onChange: (e: { target: { value: string } }) => handleChange(index, e.target.value),
                 onBlur: () => handleBlur(index),
                 style: inputStyle(isInvalid(prefix)),
@@ -259,7 +259,7 @@ export function GitHubAccelerationEditor({
                 'button',
                 {
                   type: 'button',
-                  'aria-label': `删除加速线路 ${index + 1}`,
+                  'aria-label': `Delete acceleration endpoint ${index + 1}`,
                   onClick: () => handleDelete(index),
                   style: iconButtonStyle,
                 },
@@ -274,7 +274,7 @@ export function GitHubAccelerationEditor({
             {
               type: 'button',
               'data-testid': 'settings-github-prefix-add',
-              'aria-label': '添加加速线路',
+              'aria-label': 'Add acceleration endpoint',
               onClick: () => onUpdatePrefixes([...prefixes, '']),
               style: {
                 ...iconButtonStyle,

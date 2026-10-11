@@ -12,9 +12,9 @@ export interface SortOrder {
 
 /**
  * The sort dropdown every detail table offers: one entry per key with a check
- * on the active one, a hairline, then 升序/降序. Written once here so four
- * screens cannot grow four dialects of the same menu; pass no `order` for a
- * menu that only picks a key.
+ * on the active one, a hairline, then ascending/descending. Written once here
+ * so four screens cannot grow four dialects of the same menu; pass no `order`
+ * for a menu that only picks a key.
  */
 export function sortMenuItems(
   options: readonly SortOption[],
@@ -33,13 +33,13 @@ export function sortMenuItems(
     items.push(
       {
         id: 'order-asc',
-        label: '升序',
+        label: 'Ascending',
         icon: order.value === 'asc' ? 'check' : undefined,
         onSelect: () => order.onChange('asc'),
       },
       {
         id: 'order-desc',
-        label: '降序',
+        label: 'Descending',
         icon: order.value === 'desc' ? 'check' : undefined,
         onSelect: () => order.onChange('desc'),
       },

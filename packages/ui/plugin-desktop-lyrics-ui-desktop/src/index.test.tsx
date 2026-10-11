@@ -203,7 +203,7 @@ describe('DesktopLyrics', () => {
     player.setPosition(500) // Before 00:01.00
     const html = renderToStaticMarkup(h(DesktopLyrics, { ctx }))
 
-    expect(html).toContain('(前奏) Floating Song')
+    expect(html).toContain('(Intro) Floating Song')
     expect(html).toContain('First Floating Lyric')
   })
 
@@ -213,7 +213,7 @@ describe('DesktopLyrics', () => {
     player.setPosition(4000) // At 00:03.00 blank line
     const html = renderToStaticMarkup(h(DesktopLyrics, { ctx }))
 
-    expect(html).toContain('♪ 间奏 ♪')
+    expect(html).toContain('♪ Interlude ♪')
     expect(html).toContain('Verse 2')
     expect(html).not.toContain('Floating Song - Floating Artist')
   })
@@ -224,7 +224,7 @@ describe('DesktopLyrics', () => {
     player.setPosition(6000) // At 00:05.00 blank line at end
     const html = renderToStaticMarkup(h(DesktopLyrics, { ctx }))
 
-    expect(html).toContain('♪ 尾奏 ♪')
+    expect(html).toContain('♪ Outro ♪')
   })
 
   it('returns null when invisible', async () => {
@@ -251,24 +251,24 @@ describe('DesktopLyricsSettingsCard', () => {
 
   it('renders every display row and the live preview', async () => {
     const { getByText, container } = await renderCard()
-    expect(getByText('桌面歌词设置')).toBeTruthy()
-    expect(getByText('开启桌面歌词')).toBeTruthy()
-    expect(getByText('歌词显示行数')).toBeTruthy()
-    expect(getByText('文本对齐方式')).toBeTruthy()
-    expect(getByText('歌词字体')).toBeTruthy()
-    expect(getByText('歌词字号')).toBeTruthy()
-    expect(getByText('歌词高亮颜色')).toBeTruthy()
-    expect(getByText('文字透明度')).toBeTruthy()
+    expect(getByText('Desktop lyrics settings')).toBeTruthy()
+    expect(getByText('Enable desktop lyrics')).toBeTruthy()
+    expect(getByText('Lyric line count')).toBeTruthy()
+    expect(getByText('Text alignment')).toBeTruthy()
+    expect(getByText('Lyrics font')).toBeTruthy()
+    expect(getByText('Lyrics font size')).toBeTruthy()
+    expect(getByText('Lyrics highlight color')).toBeTruthy()
+    expect(getByText('Text opacity')).toBeTruthy()
 
     const preview = container.querySelector('[data-testid="desktop-lyrics-preview"]')
     expect(preview).toBeTruthy()
-    expect(preview?.textContent).toContain('桌面歌词实时预览效果')
+    expect(preview?.textContent).toContain('Live desktop lyrics preview')
   })
 
   it('toggles visibility through the service and persists enabled state', async () => {
     const { container, settings, desktopLyrics } = await renderCard()
     const lyricsSwitch = container.querySelector(
-      'button[aria-label="开启桌面歌词"]',
+      'button[aria-label="Enable desktop lyrics"]',
     ) as HTMLButtonElement
     expect(lyricsSwitch).toBeTruthy()
     fireEvent.click(lyricsSwitch)
@@ -282,7 +282,7 @@ describe('DesktopLyricsSettingsCard', () => {
   it('changes line mode through the settings document', async () => {
     const { container, settings } = await renderCard()
     const lineModeSelect = container.querySelector(
-      'select[aria-label="歌词显示行数"]',
+      'select[aria-label="Lyric line count"]',
     ) as HTMLSelectElement
     expect(lineModeSelect).toBeTruthy()
     fireEvent.change(lineModeSelect, { target: { value: 'single' } })

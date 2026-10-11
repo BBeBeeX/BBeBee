@@ -3,7 +3,7 @@
  * `useToggleFavorite`, the one control two stores share.
  *
  * The heart has to write both `track_stats.loved` (what draws it) and the
- * library shelf (what the Favourites screen lists). A hook that wrote only one
+ * library shelf (what the Favorites screen lists). A hook that wrote only one
  * would leave the two disagreeing in a way the user sees; a hook that threw
  * because one service was absent would take the other down with it.
  */

@@ -79,7 +79,7 @@ export function useRecentPlayedAlbums(ctx: Context): UseRecentPlayedAlbumsResult
 
           if (cancelled) return
 
-          const title = albumDetail?.title || track.albumTitle || '未知专辑'
+          const title = albumDetail?.title || track.albumTitle || 'Unknown album'
           const subtitle =
             albumDetail?.artists?.map((a) => a.name).join(', ') ||
             track.artists?.map((a) => a.name).join(', ') ||

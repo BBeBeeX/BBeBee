@@ -40,9 +40,9 @@ export interface WindowControlsProps {
 
 function formatSleepTimerRemaining(targetEpochMs?: number, mode?: SleepTimerMode): string {
   if (mode === 'end-of-track') {
-    return '播完本曲'
+    return 'End of track'
   }
-  if (!targetEpochMs) return '运行中'
+  if (!targetEpochMs) return 'Running'
   const diffMs = Math.max(0, targetEpochMs - Date.now())
   const totalSeconds = Math.ceil(diffMs / 1000)
   const minutes = Math.floor(totalSeconds / 60)
@@ -50,12 +50,12 @@ function formatSleepTimerRemaining(targetEpochMs?: number, mode?: SleepTimerMode
   if (minutes >= 60) {
     const hours = Math.floor(minutes / 60)
     const remMin = minutes % 60
-    return `${hours}小时${remMin}分钟`
+    return `${hours}h ${remMin}m`
   }
   if (minutes > 0) {
-    return `${minutes}分${seconds.toString().padStart(2, '0')}秒`
+    return `${minutes}m ${seconds.toString().padStart(2, '0')}s`
   }
-  return `${seconds}秒`
+  return `${seconds}s`
 }
 
 export function SleepTimerIndicator({ ctx }: { ctx: Context }): ReactElement | null {
@@ -163,8 +163,8 @@ export function SleepTimerIndicator({ ctx }: { ctx: Context }): ReactElement | n
       'button',
       {
         type: 'button',
-        'aria-label': `睡眠定时器：${remainingText}，点击查看详情`,
-        title: `睡眠定时器：${remainingText}（点击查看详情）`,
+        'aria-label': `Sleep timer: ${remainingText}, click for details`,
+        title: `Sleep timer: ${remainingText} (click for details)`,
         'data-testid': 'topbar-sleep-timer-indicator',
         onClick: handleClickIndicator,
         style: {
@@ -230,7 +230,7 @@ export function SleepTimerIndicator({ ctx }: { ctx: Context }): ReactElement | n
                 },
               },
               tablerIcon('alarm', { size: 16, color: 'var(--color-primary, #5F87FF)' }),
-              '睡眠定时器运行中',
+              'Sleep timer running',
             ),
             h(
               'div',
@@ -242,8 +242,8 @@ export function SleepTimerIndicator({ ctx }: { ctx: Context }): ReactElement | n
                 },
               },
               timerState.mode === 'end-of-track'
-                ? '将在本曲播放完毕后自动停止播放。'
-                : '距离自动停止播放还剩：',
+                ? 'Playback will stop automatically when this track finishes.'
+                : 'Playback stops in:',
               timerState.mode !== 'end-of-track'
                 ? h(
                     'div',
@@ -290,7 +290,7 @@ export function SleepTimerIndicator({ ctx }: { ctx: Context }): ReactElement | n
                 },
               },
               tablerIcon('x', { size: 14 }),
-              '取消定时器',
+              'Cancel timer',
             ),
           ),
         )
@@ -364,8 +364,8 @@ export function TrayIndicator({ ctx }: { ctx: Context }): ReactElement {
       'button',
       {
         type: 'button',
-        'aria-label': '应用托盘',
-        title: open ? '收起插件托盘' : '展开插件托盘',
+        'aria-label': 'App tray',
+        title: open ? 'Collapse plugin tray' : 'Expand plugin tray',
         'data-testid': 'topbar-tray-button',
         onClick: () => setOpen((prev) => !prev),
         style: {
@@ -452,7 +452,7 @@ export function TrayIndicator({ ctx }: { ctx: Context }): ReactElement {
                 letterSpacing: '0.04em',
               },
             },
-            h('span', null, '插件托盘'),
+            h('span', null, 'Plugin tray'),
             h(
               'span',
               {
@@ -479,7 +479,7 @@ export function TrayIndicator({ ctx }: { ctx: Context }): ReactElement {
                     textAlign: 'center',
                   },
                 },
-                '暂无托盘插件',
+                'No tray plugins',
               )
             : h(
                 'div',
@@ -1048,7 +1048,7 @@ export function TopBar({
             {
               type: 'button',
               'aria-label': 'Expand search',
-              title: '搜索',
+              title: 'Search',
               'data-testid': 'topbar-search-collapsed-button',
               onClick: () => {
                 setSearchExpanded(true)
@@ -1226,7 +1226,7 @@ export function TopBar({
                   rowGap: 12,
                 },
               },
-              // Row 1 Left (1, 1): 搜索范围
+              // Row 1 Left (1, 1): Search scope
               h(
                 'div',
                 {
@@ -1239,9 +1239,9 @@ export function TopBar({
                     letterSpacing: 0.5,
                   },
                 },
-                '搜索范围',
+                'Search scope',
               ),
-              // Row 1 Right (1, 2): 搜索历史 + 清空
+              // Row 1 Right (1, 2): Search history + clear
               h(
                 'div',
                 {
@@ -1255,13 +1255,13 @@ export function TopBar({
                     letterSpacing: 0.5,
                   },
                 },
-                h('span', null, '搜索历史'),
+                h('span', null, 'Search history'),
                 history.length > 0
                   ? h(
                       'button',
                       {
                         type: 'button',
-                        'aria-label': '清空搜索历史',
+                        'aria-label': 'Clear search history',
                         onClick: (e: { stopPropagation: () => void }) => {
                           e.stopPropagation()
                           handleClearHistory()
@@ -1283,16 +1283,16 @@ export function TopBar({
                           e.currentTarget.style.color = 'var(--text-muted, #626A80)'
                         },
                       },
-                      '清空',
+                      'Clear',
                     )
                   : null,
               ),
-              // Row 2 Left (2, 1): 第三方源 toggle button
+              // Row 2 Left (2, 1): third-party sources toggle button
               h(
                 'div',
                 {
                   role: 'group',
-                  'aria-label': '第三方搜索源选择',
+                  'aria-label': 'Third-party search source selection',
                   style: {
                     display: 'flex',
                     flexWrap: 'wrap',
@@ -1306,13 +1306,13 @@ export function TopBar({
                   ? h(
                       'span',
                       { style: { fontSize: 12, color: 'var(--text-muted, #626A80)', padding: '4px 0' } },
-                      '暂无第三方搜索源',
+                      'No third-party search sources',
                     )
                   : [
                       ...selection.interfaces.map((iface) => {
                         const selected = selection.isInterfaceSelected(iface.id)
                         const disabled = !iface.searchable
-                        const label = `${iface.sourceName} · ${iface.kind === 'track' ? '单曲' : '歌手'}`
+                        const label = `${iface.sourceName} · ${iface.kind === 'track' ? 'Track' : 'Artist'}`
                         return h(
                           'button',
                           {
@@ -1403,17 +1403,17 @@ export function TopBar({
                                 e.currentTarget.style.color = 'var(--text-secondary, rgba(255, 255, 255, 0.6))'
                               },
                             },
-                            selection.allSelected ? '全不选' : '全选',
+                            selection.allSelected ? 'Deselect all' : 'Select all',
                           )
                         : null,
                     ],
               ),
-              // Row 2 Right (2, 2): 搜索历史 tags
+              // Row 2 Right (2, 2): Search history tags
               h(
                 'div',
                 {
                   role: 'group',
-                  'aria-label': '搜索历史列表',
+                  'aria-label': 'Search history list',
                   style: {
                     display: 'flex',
                     flexWrap: 'wrap',
@@ -1427,7 +1427,7 @@ export function TopBar({
                   ? h(
                       'span',
                       { style: { fontSize: 12, color: 'var(--text-muted, rgba(255, 255, 255, 0.35))', padding: '4px 0' } },
-                      '暂无搜索历史',
+                      'No search history yet',
                     )
                   : history.map((item) =>
                       h(

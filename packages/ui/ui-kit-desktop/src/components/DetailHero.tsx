@@ -3,18 +3,18 @@ import type { CSSProperties, ReactElement, ReactNode } from 'react'
 import { HoverLabel } from './HoverLabel.js'
 
 export interface DetailHeroProps {
-  /** The small uppercase category line above the title (歌单 / 专辑 / 本地音乐). */
+  /** The small uppercase category line above the title (playlist / album / Local music). */
   eyebrow: string
   title: string
   /** Title font size; pages with long names compute their own (default 56). */
   titleSize?: number
   /** Makes the title clickable (the playlist's click-to-edit). */
   onTitleClick?: () => void
-  /** A plain one-line subtitle under the title (本地/收藏 pages). */
+  /** A plain one-line subtitle under the title (Local/Favorites pages). */
   subtitle?: string
   /** An optional free-form description paragraph (the playlist's description). */
   description?: ReactNode
-  /** The meta row under the title — avatar + owner + counts (歌单/专辑 pages). */
+  /** The meta row under the title — avatar + owner + counts (playlist/album pages). */
   meta?: ReactNode
   /** Left cover slot (collage/artwork); presence switches the layout to a row. */
   cover?: ReactNode
@@ -40,7 +40,7 @@ export function DetailHero(props: DetailHeroProps): ReactElement {
     color: 'var(--bb-text-primary, #FFFFFF)',
     letterSpacing: '-0.03em',
     wordBreak: 'break-word',
-    // 超长标题最多两行，超出省略——不撑破布局。
+    // Very long titles clamp at two lines with an ellipsis — never break the layout.
     display: '-webkit-box',
     WebkitBoxOrient: 'vertical',
     WebkitLineClamp: 2,

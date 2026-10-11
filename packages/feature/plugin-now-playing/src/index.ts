@@ -201,8 +201,9 @@ export async function apply(ctx: Context) {
         kind: 'settings',
         id: NOW_PLAYING_VIEWS.stylesSettings,
         section: 'playback',
-        title: '播放页样式模板 (Now Playing Layout Styles)',
-        description: '选择全屏播放页呈现布局，支持原生内置样式与动态导入第三方沙箱模板插件',
+        title: 'Now Playing Layout Styles',
+        description:
+          'Choose the layout of the full-screen player page; supports built-in styles and dynamically imported third-party sandbox template plugins',
         icon: 'layout',
         display: 'card',
         order: 10,

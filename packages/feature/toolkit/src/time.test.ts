@@ -41,12 +41,12 @@ describe('formatTotalDuration', () => {
   })
 
   it('formats under an hour as minutes and seconds', () => {
-    expect(formatTotalDuration([{ durationMs: 125_000 }])).toBe('2 分钟 5 秒')
+    expect(formatTotalDuration([{ durationMs: 125_000 }])).toBe('2 min 5 sec')
   })
 
   it('formats over an hour as hours and minutes', () => {
-    expect(formatTotalDuration([{ durationMs: 3_665_000 }])).toBe('1 小时 1 分钟')
-    expect(formatTotalDuration([{ durationMs: 7_200_000 }])).toBe('2 小时 0 分钟')
+    expect(formatTotalDuration([{ durationMs: 3_665_000 }])).toBe('1 hr 1 min')
+    expect(formatTotalDuration([{ durationMs: 7_200_000 }])).toBe('2 hr 0 min')
   })
 })
 
@@ -60,20 +60,22 @@ describe('formatAddedDate', () => {
 
   it('names today and yesterday', () => {
     const now = Date.now()
-    expect(formatAddedDate(now - 3_600_000)).toBe('今天')
-    expect(formatAddedDate(now - 25 * 3_600_000)).toBe('昨天')
+    expect(formatAddedDate(now - 3_600_000)).toBe('Today')
+    expect(formatAddedDate(now - 25 * 3_600_000)).toBe('Yesterday')
   })
 
   it('counts days, then weeks, before the date stops being relative', () => {
     const now = Date.now()
-    expect(formatAddedDate(now - 3 * DAY)).toBe('3天前')
-    expect(formatAddedDate(now - 2 * 7 * DAY)).toBe('2周前')
+    expect(formatAddedDate(now - 3 * DAY)).toBe('3 days ago')
+    expect(formatAddedDate(now - 2 * 7 * DAY)).toBe('2 weeks ago')
   })
 
   it('falls back to the full date past a month', () => {
     const timestamp = Date.now() - 40 * DAY
     const d = new Date(timestamp)
-    expect(formatAddedDate(timestamp)).toBe(`${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`)
+    expect(formatAddedDate(timestamp)).toBe(
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
+    )
   })
 })
 
@@ -81,7 +83,7 @@ describe('formatPlayedDate', () => {
   it('spells a played timestamp the same way an added one is', () => {
     const now = Date.now()
     expect(formatPlayedDate(undefined)).toBe('-')
-    expect(formatPlayedDate(now - 3_600_000)).toBe('今天')
-    expect(formatPlayedDate(now - 25 * 3_600_000)).toBe('昨天')
+    expect(formatPlayedDate(now - 3_600_000)).toBe('Today')
+    expect(formatPlayedDate(now - 25 * 3_600_000)).toBe('Yesterday')
   })
 })

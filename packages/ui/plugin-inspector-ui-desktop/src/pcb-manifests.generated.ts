@@ -1670,7 +1670,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "id": "@BBeBee/plugin-library",
     "name": "@BBeBee/plugin-library",
     "displayName": "Library",
-    "description": "ctx.library — playlists, favourites, collections and smart playlists.",
+    "description": "ctx.library — playlists, favorites, collections and smart playlists.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -1704,7 +1704,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "id": "@BBeBee/plugin-library",
     "name": "@BBeBee/plugin-library",
     "displayName": "Library",
-    "description": "ctx.library — playlists, favourites, collections and smart playlists.",
+    "description": "ctx.library — playlists, favorites, collections and smart playlists.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {

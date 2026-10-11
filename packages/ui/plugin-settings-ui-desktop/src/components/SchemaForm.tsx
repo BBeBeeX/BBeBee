@@ -249,7 +249,7 @@ function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | n
               { style: { display: 'flex', gap: 8 } },
               h(Button, {
                 variant: 'secondary',
-                children: field.actionText ?? '更改目录',
+                children: field.actionText ?? 'Change directory',
                 onPress: async () => {
                   const picked = await bridge.pick()
                   if (picked) void change(field.key, picked)
@@ -257,7 +257,7 @@ function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | n
               }),
               h(Button, {
                 variant: 'secondary',
-                children: '打开文件夹',
+                children: 'Open folder',
                 disabled: !value,
                 onPress: () => bridge.open(String(value ?? '')),
               }),
@@ -277,7 +277,7 @@ function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | n
         borderBottom: false,
         action: h(Button, {
           variant: 'secondary',
-          children: field.actionText ?? '执行',
+          children: field.actionText ?? 'Run',
           loading: busy,
           onPress: () => void runAction(),
         }),
@@ -303,7 +303,7 @@ function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | n
             borderBottom: index < entries.length - 1,
             action: h(Switch, {
               checked: Boolean(record[entry.id]),
-              accessibilityLabel: `${entry.label} 开关`,
+              accessibilityLabel: `${entry.label} switch`,
               onChange: (checked: boolean) => void change(`${field.key}.${entry.id}`, checked),
             }),
           }),

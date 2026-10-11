@@ -159,7 +159,7 @@ describe('Subsonic connectivity test (3-state verification)', () => {
     })
 
     expect(result.status).toBe('ok')
-    expect(result.message).toContain('连接成功')
+    expect(result.message).toContain('Connected')
     expect(result.message).toContain('v1.16.1')
     expect(typeof result.latencyMs).toBe('number')
   })

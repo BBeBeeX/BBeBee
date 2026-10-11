@@ -44,8 +44,8 @@ export function DesktopLyricsToggle({ ctx }: { ctx: Context }): ReactElement {
     'button',
     {
       type: 'button',
-      'aria-label': isVisible ? '隐藏桌面歌词' : '显示桌面歌词',
-      title: isVisible ? '隐藏桌面歌词' : '显示桌面歌词',
+      'aria-label': isVisible ? 'Hide desktop lyrics' : 'Show desktop lyrics',
+      title: isVisible ? 'Hide desktop lyrics' : 'Show desktop lyrics',
       onClick: handleToggle,
       style: {
         display: 'inline-flex',
@@ -78,6 +78,6 @@ export function DesktopLyricsToggle({ ctx }: { ctx: Context }): ReactElement {
         e.currentTarget.style.transform = 'scale(1)'
       },
     },
-    '词',
+    'Ly',
   )
 }

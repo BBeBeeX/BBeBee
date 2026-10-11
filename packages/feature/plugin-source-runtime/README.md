@@ -1,129 +1,129 @@
 # @BBeBee/plugin-source-runtime
 
-Layer 4（feature）— **整个仓库里唯一的源文档解释器**：把用户以文本导入的"音乐源字符串"（legado 书源模型的 JSON 文档）变成可播放的 `MediaProvider`。
+Layer 4 (feature) — **the only source-document interpreter in the entire repository**: it turns the "music source string" the user imports as text (a JSON document in the legado book-source model) into a playable `MediaProvider`.
 
-## 概述
+## Overview
 
-音乐源**不是插件**——它是一条 `sources` 表的行。本包是唯一把行变成可播放实体的东西，且没有第二个解释器要保持同步（"Sources are rows; this is the only thing that turns one into something playable"）。
+A music source **is not a plugin** — it is a row in the `sources` table. This package is the only thing that turns a row into a playable entity, and there is no second interpreter to keep in sync ("Sources are rows; this is the only thing that turns one into something playable").
 
-它**不占用服务键**（不是 `Service` 子类）：读 `ctx.sources.sources`，为每个启用的可解释行注册一个 `MediaProvider`，每个源在自己的 fiber、自己的 `ctx.isolate('http')` 里运行。
+It **owns no service key** (it is not a `Service` subclass): it reads `ctx.sources.sources` and registers one `MediaProvider` for each enabled, interpretable row; each source runs in its own fiber and its own `ctx.isolate('http')`.
 
-- 必需注入：`['http', 'db', 'sources']`。
-- 可选注入（嵌套 `ctx.inject`，这是 Cordis 表达可选依赖的方式）：`['js']`（QuickJS 沙箱——没有它的构建仍能跑所有不需要 `@js:` 的文档）、`['secrets']`（凭据存储）。两者独立：一个构建可能只有沙箱没有 keychain，或反之。
-- 能力声明：`net:host/*`（主机在文档导入前不可知，per-source 收窄发生在 `startOne` 的 intercept 上）、`db:read:core`、`db:write:core`；contributes slot `settings.sources`。
-- 规则求值全部委托给 `@BBeBee/source-rules`（纯逻辑）；**所有网络抓取都在本包**。
+- Required injections: `['http', 'db', 'sources']`.
+- Optional injections (nested `ctx.inject`, Cordis's way of expressing optional dependencies): `['js']` (the QuickJS sandbox — a build without it still runs every document that needs no `@js:`), `['secrets']` (credential storage). The two are independent: a build may have the sandbox but no keychain, or the reverse.
+- Capabilities: `net:host/*` (hosts are unknowable before document import; the per-source narrowing happens on the `startOne` intercept), `db:read:core`, `db:write:core`; contributes the `settings.sources` slot.
+- Rule evaluation is entirely delegated to `@BBeBee/source-rules` (pure logic); **all network fetching lives in this package**.
 
-## 源文件
+## Source files
 
-### `src/index.ts` — 插件入口与"活源"管理
+### `src/index.ts` — plugin entry and "live source" management
 
-**`SourceRuntime`**：
+**`SourceRuntime`**:
 
-- `live: Map<sourceId, LiveSource>` — 一个源改动只拆除那一个源。
-- **`start()`** — `sync()` 后挂监听：`source/imported → sync`、`source/changed → reload(id)`、`source/removed → stop(id)`。回调包在 `safely()` 里（fire-and-forget 事件里的未捕获 rejection 会把触发它的导入流程一起带崩）。⚠️ `start()` 必须在两个嵌套注入**之后**调用——启动源会加载凭据，先启动会在没有 keychain 时读它，把已登录源报成 anonymous。
-- **`sync()`** — `wanted = sources.filter(r => r.enabled && isInterpretable(r.doc))`。⚠️ `isInterpretable` 是关键守卫：scanner 会给 `local` 写一条**无规则的行**，不加守卫会注册出第二个 provider 与真身竞争。文档没变的行**保留 fiber**（保住温热的 cookie jar）；`docHash` 变了才 replace；单个源启动失败只 warn 不连坐。
-- **`startOne(record)`** — 每源生命周期核心：
-  1. `ctx.isolate('http')` —— **每源一个 fiber、一个隔离的 HTTP 栈**：两个同型后端互相看不到对方的 cookie，一个慢源不会拖住另一个源；
-  2. `intercept('http', { scopeId, allowedHosts })` —— 把通配 `net:host/*` 收窄到文档声明的 hosts；
-  3. 构造 `DocumentSource`，挂 `auth.onStatusChange`（expired → emit `source/auth-expired`：过期是**事件不是错误**，源保持注册、缓存目录仍可浏览）；
-  4. `sources.register(this.reporting(provider))` —— disposer 包在本地闭包里（穿过 service proxy 的不是 fiber 收集的那个）；`source.dispose()` 释放 realm（一个没人能回收的 WASM 分配）。
-- **`reporting(provider)`** — 包装 `getTrack`/`resolveStream`，捕获 `RuleError` 上报后重抛。按 `sourceId\0block.field` 在 60s 窗口内合并去重（一百首队列里一条烂规则 = 一个事实而不是一百个事件）。
-- **凭据的落点由 key 决定** — `secretKeysFor(sourceId)` = `{'var'} ∪ doc.loginUi[].id` 写入 `ctx.secrets`（OS keychain）；没有 `ctx.secrets` 的构建**拒绝存储凭据**而不是降级写进明文的 `source_vars`。非凭据值走 `ctx.sources.writeVar`，内存镜像保证 `src.vars.get` 同步可用。
-- **`forget(sourceId, scoped)`** — sign-out 的真正实现：**三个存储全部尝试**（cookie jar、secrets namespace、source_vars），任何失败都收集、最后汇总抛错——后两个存储里是密码本身，因第一个失败就停下会把用户留在看不见的登录态里。
-- **`trackPayload`/`albumPayload`** — 只读 SQL 取 `tracks.raw_json`/`albums.raw_json`（表名是调用点的字面量，绝不出自输入）。
+- `live: Map<sourceId, LiveSource>` — changing one source tears down only that one source.
+- **`start()`** — after `sync()`, attaches listeners: `source/imported → sync`, `source/changed → reload(id)`, `source/removed → stop(id)`. Callbacks are wrapped in `safely()` (an uncaught rejection in a fire-and-forget event would take down the import flow that triggered it). ⚠️ `start()` must be called **after** the two nested injections — starting sources loads credentials; starting earlier would read them without a keychain and report signed-in sources as anonymous.
+- **`sync()`** — `wanted = sources.filter(r => r.enabled && isInterpretable(r.doc))`. ⚠️ `isInterpretable` is the critical guard: the scanner writes a **rule-less row** for `local`; without the guard a second provider would be registered to compete with the real one. Rows whose document did not change **keep their fiber** (preserving the warm cookie jar); only a changed `docHash` triggers a replace; a single source failing to start only warns, never cascades.
+- **`startOne(record)`** — the per-source lifecycle core:
+  1. `ctx.isolate('http')` — **one fiber and one isolated HTTP stack per source**: two identically shaped backends cannot see each other's cookies, and one slow source cannot hold up another;
+  2. `intercept('http', { scopeId, allowedHosts })` — narrows the wildcard `net:host/*` down to the hosts the document declares;
+  3. constructs a `DocumentSource` and attaches `auth.onStatusChange` (expired → emit `source/auth-expired`: expiry is an **event, not an error** — the source stays registered and the cached catalog remains browsable);
+  4. `sources.register(this.reporting(provider))` — the disposer is wrapped in a local closure (what crosses the service proxy is not the function the fiber collects); `source.dispose()` releases the realm (a WASM allocation nobody else can reclaim).
+- **`reporting(provider)`** — wraps `getTrack`/`resolveStream`, catching `RuleError`, reporting it, then rethrowing. Deduplicated within a 60s window keyed by `sourceId\0block.field` (one bad rule in a 100-track queue = one fact, not one hundred events).
+- **Where credentials land is decided by the key** — `secretKeysFor(sourceId)` = `{'var'} ∪ doc.loginUi[].id`, written to `ctx.secrets` (the OS keychain); a build without `ctx.secrets` **refuses to store credentials** rather than degrading into plaintext `source_vars`. Non-credential values go through `ctx.sources.writeVar`, with an in-memory mirror keeping `src.vars.get` synchronously available.
+- **`forget(sourceId, scoped)`** — the real implementation of sign-out: **all three storages are attempted** (cookie jar, secrets namespace, source_vars); any failure is collected and a summary error is thrown at the end — the latter two storages hold the passwords themselves, and stopping at the first failure would leave the user stuck in an invisible signed-in state.
+- **`trackPayload`/`albumPayload`** — read-only SQL fetching `tracks.raw_json`/`albums.raw_json` (table names are literals at the call site, never derived from input).
 
-### `src/source.ts` — 一份文档 → 一个 MediaProvider（1851 行）
+### `src/source.ts` — one document → one MediaProvider (1851 lines)
 
-**`DocumentSource`**（导出）与内部的 `DocumentAuth`：
+**`DocumentSource`** (exported) and the internal `DocumentAuth`:
 
-- **`DocumentAuth`** — flow 由文档推导，优先级：`loginUi` 非空 → `form`（**表单优先于 variableComment**——给双字段登录呈现单行变量框是没人能完成的屏幕）；否则 `variableComment` → `variable`；否则 `none`。`status` 是**派生的不是快照的**（检查每个声明字段是否已存）——构造时快照会在持久化变量加载前读取，每次重启都把已登录源报成 anonymous。`refresh()` 单飞合并并发 401 风暴，一旦 expired 就不再尝试（`signIn` 是唯一清除者）——对 401 一切的后端重试循环是打向用户自己服务器的 credential-stuffing。
-- **`DocumentSource`** — 构造器**不求值任何规则**（构造期求值曾让整个插件 FAILED、所有源每次启动都不可用）。
-  - **realm 管理**：`js` 适配器把 `@js:` 体包成 async 箭头（既接受表达式也接受带 `return` 的多语句体）。**realm 每源一个、生命周期 = 源的生命周期**（`jsLib` 和 `src.cache` 是文档积累的状态）；**中毒的 realm 被替换而不是复用**——`ctx.js` 对超限的 realm 会退役它，复用死 realm 意味着一次超时永久砖化该源。
-  - **能力派生 getter**（`searchable`/`browsable`/`albumable`/`lyricable`）：两段式——文档描述了它 **且** 本构建能跑其规则（`rulesRunnable`；URL 模板不当规则 parse，`{{source.url}}/x` 会被推断成 CSS 选择器）。
-  - **`search(query, page)`** — `searchUrl` 经 `evaluateUrlTemplate`（URL 模板不是选择器，`=` 可省）→ `parseUrlObject` 拆 URL+options → `assertAllowed` → `withReauth(fetchChecked)` → `evaluateListRule` → `rowToTrack`。payload（后端原始元素 ∪ 规则求值字段，规则胜出）随结果返回，由 `ctx.sources` 写进 `raw_json`。`hasMore = tracks.length > 0`（后端很少说总数，编造 total 产生会撒谎的进度条）。
-  - **`browse(nodeId?, page?)`** — 三段式（explore → ruleExplore → ruleTrackList）：阶段由 node id 携带而非推断；节点 id 自包含（base64url，重启后导航栈恢复仍可用）；有 `childUrl` = 有地方可去，无 = 可以播放。
-  - **`getAlbum(id)`** — `childUrl` 来自 browse 存的 payload（没有则报"browse 到它一次"，不是"没有这张专辑"）；`ruleAlbum.trackListUrl` 存在时歌曲在另一个文档里。
-  - **`getLyrics(id)`** — 对 **track 的存储 payload** 求值（为歌词重新跑一次搜索是荒谬的）；规则产出 URL → 抓回歌词，否则产物就是歌词；格式 `lrc|ttml|plain` 或嗅探 `[mm:ss.xx]`。
-  - **`resolveStream(id, prefs)`** — URN 变成字节的一刻。scope 的 `track.id` 由调用者的值**最后铺开**（存储 payload 里的 id 不能顶掉要解析的那首）。`ruleStream.url` 求值 → **`assertAllowed(target)`**——这是唯一离开本包、由 `ctx.audio` 在 scoped http 之外直接抓取的产物，没有这一查 egress allowlist 管不住真正搬运字节的请求。`seekable` 未声明时 `probe()`：HEAD 看 `Accept-Ranges`，状态码细拆（405/501=可播、404/410=NotFound、401/403=Auth、429=RateLimit、≥500=Network）——把所有状态塌成 NotFound 曾制造三个谎言。其余可选字段（`mimeType`/`byteLength`/`expiresAt`/`bitrateKbps`/`quality`/`headers`）逐一 `renderOptional`，其中 **`quality` 必须是 `STREAM_QUALITIES` 之一**——文档报了一个不是档位的值会让下游无法比较，所以抛 `RuleError` 而不是丢弃。
-  - **`login()`** — 文档自己写请求体（form/JSON），会话落在源自己的 cookie jar；所有失败归一为 `AuthError`（调用者的问题只有"凭据行不行"）。
-  - **`withReauth`** — `AuthError` 且 form 流 → refresh 一次后重试，**只重试一次**；`fetchChecked` 跑 `doc.loginCheckJs`——没有 HTTP 状态能可靠表达"服务器又开始回登录页了"。
-  - **`debug(step)`** — tracer 入口；`secrets()` 给出强脱敏名单（`var` 及其按 `:` 拆分的两半 + loginUi 各字段值——trace 是会被贴到论坛求援的东西）。
+- **`DocumentAuth`** — the flow is derived from the document, in priority order: non-empty `loginUi` → `form` (**form takes precedence over variableComment** — presenting a single-line variable box for a two-field login is a screen nobody can complete); otherwise `variableComment` → `variable`; otherwise `none`. `status` is **derived, not snapshotted** (each declared field is checked for existence) — snapshotting at construction would read before the persisted variables load, reporting signed-in sources as anonymous on every restart. `refresh()` single-flights concurrent 401 storms, and once expired never retries (`signIn` is the only clearer) — retrying everything against a backend that returns 401 is credential-stuffing aimed at the user's own server.
+- **`DocumentSource`** — the constructor **evaluates no rules** (evaluating during construction once FAILED the whole plugin, leaving every source unusable on every startup).
+  - **Realm management**: the `js` adapter wraps `@js:` bodies into async arrows (accepting both expressions and multi-statement bodies with `return`). **One realm per source, lifecycle = the source's lifecycle** (`jsLib` and `src.cache` are state the document accumulates); **a poisoned realm is replaced, not reused** — `ctx.js` retires a realm that exceeds its limits; reusing a dead realm would permanently brick that source after one timeout.
+  - **Capability-derived getters** (`searchable`/`browsable`/`albumable`/`lyricable`): two-stage — the document describes it **and** this build can run its rules (`rulesRunnable`; a malformed URL template does not parse as a rule, and `{{source.url}}/x` would be inferred as a CSS selector).
+  - **`search(query, page)`** — `searchUrl` goes through `evaluateUrlTemplate` (a URL template is not a selector; `=` may be omitted) → `parseUrlObject` splits URL + options → `assertAllowed` → `withReauth(fetchChecked)` → `evaluateListRule` → `rowToTrack`. The payload (the backend's raw element ∪ the rule-evaluated fields, rules winning) is returned with the results and written into `raw_json` by `ctx.sources`. `hasMore = tracks.length > 0` (backends rarely state a total; inventing one produces a progress bar that lies).
+  - **`browse(nodeId?, page?)`** — three stages (explore → ruleExplore → ruleTrackList): the stage is carried by the node id rather than inferred; node ids are self-contained (base64url, still usable after the navigation stack is restored on restart); having a `childUrl` means there is somewhere to go, not having one means it is playable.
+  - **`getAlbum(id)`** — `childUrl` comes from the payload stored by browse (without one, the answer is "browse to it once", not "this album does not exist"); when `ruleAlbum.trackListUrl` exists, the songs live in another document.
+  - **`getLyrics(id)`** — evaluated against the **track's stored payload** (re-running the search just for lyrics would be absurd); if the rule yields a URL, the lyrics are fetched, otherwise the payload is the lyrics; format `lrc|ttml|plain` or sniffed from `[mm:ss.xx]`.
+  - **`resolveStream(id, prefs)`** — the moment a URN becomes bytes. The scope's `track.id` is **spread last** from the caller's value (the id in the stored payload must not override the track being resolved). `ruleStream.url` is evaluated → **`assertAllowed(target)`** — this is the only artifact that leaves this package, fetched directly by `ctx.audio` outside the scoped http; without this check the egress allowlist cannot govern the request that actually carries the bytes. When `seekable` is undeclared, `probe()`: HEAD looks at `Accept-Ranges`, with fine-grained status mapping (405/501=playable, 404/410=NotFound, 401/403=Auth, 429=RateLimit, ≥500=Network) — collapsing all statuses into NotFound once told three lies. The remaining optional fields (`mimeType`/`byteLength`/`expiresAt`/`bitrateKbps`/`quality`/`headers`) go through `renderOptional` one by one, where **`quality` must be one of `STREAM_QUALITIES`** — a document reporting a value that is not a tier would leave downstream unable to compare, so it throws `RuleError` rather than dropping it.
+  - **`login()`** — the document writes its own request body (form/JSON); the session lands in the source's own cookie jar; every failure is normalized to `AuthError` (the only question for the caller is "do the credentials work").
+  - **`withReauth`** — on `AuthError` with the form flow → refresh once and retry, **retrying only once**; `fetchChecked` runs `doc.loginCheckJs` — no HTTP status can reliably express "the server started serving the login page again".
+  - **`debug(step)`** — the tracer entry point; `secrets()` returns the strong redaction list (`var` plus its two `:`-split halves, plus every loginUi field value — a trace is the thing that gets pasted into forums asking for help).
 
-### `src/fetch.ts` — 抓取规则求值所需的文档
+### `src/fetch.ts` — fetching the documents the rules need
 
-- **`parseUrlObject(rendered)`** — legado 的"URL 对象"语法 `URL,{"method":"POST","body":"q={{key}}"}`；切在**第一个后面跟着可解析 JSON 对象的逗号**上（URL 和 body 里都可能有逗号）；options blob 坏了整串当 URL。
-- **`fetchDocument(...)`** — 组装请求 → `withRetries` → 按内容类型 parse：自称 JSON 但 parse 失败回落为文本（"自称为 JSON 的 HTML 错误页"很常见）。返回 `{ value, text, baseUrl（重定向后）, status }`。
-- **`withRetries`** — 只重试 `isRetryable` 的失败；退避 `100·2^(i-1)` 封顶 2000ms；**服务器自己的 `Retry-After` 享受更高天花板（60s）**——把 4 秒的等待钳到 2 秒等于保证再次被拒。
-- **`statusError(status, …)`** — 状态码 → 错误类，与 probe 共用一张映射：**状态码不是诊断**（401 读成 not-found 会跳过重登路径，500 读成不可重试会把一个 blip 变成停掉的队列）。
-- **`decode(response, charset)`** — charset 存在时用 `TextDecoder(charset)`：legado 源大量是 GBK/Big5 的中文站点，无条件按 UTF-8 解是无声的乱码页。
-- Cookie 不在本文件处理——jar 属于 `ctx.http`（per-plugin 持久 jar）；sign-out 由 runtime 的 `forget` 清。
+- **`parseUrlObject(rendered)`** — legado's "URL object" syntax `URL,{"method":"POST","body":"q={{key}}"}`; it splits at **the first comma followed by a parseable JSON object** (both the URL and the body may contain commas); a broken options blob leaves the whole string as the URL.
+- **`fetchDocument(...)`** — assembles the request → `withRetries` → parses by content type: a payload claiming to be JSON but failing to parse falls back to text ("an HTML error page claiming to be JSON" is common). Returns `{ value, text, baseUrl (after redirects), status }`.
+- **`withRetries`** — retries only `isRetryable` failures; backoff `100·2^(i-1)` capped at 2000ms; **the server's own `Retry-After` enjoys a higher ceiling (60s)** — clamping a 4-second wait to 2 seconds guarantees another rejection.
+- **`statusError(status, …)`** — status code → error class, sharing one mapping with the probe: **a status code is not a diagnosis** (reading 401 as not-found skips the re-login path; reading 500 as non-retryable turns a blip into a stalled queue).
+- **`decode(response, charset)`** — when a charset is present, uses `TextDecoder(charset)`: many legado sources are Chinese sites serving GBK/Big5; unconditionally decoding as UTF-8 produces silently mojibake pages.
+- Cookies are not handled in this file — the jar belongs to `ctx.http` (a per-plugin persistent jar); sign-out clears it via the runtime's `forget`.
 
-### `src/capabilities.ts` — 从文档推导能力
+### `src/capabilities.ts` — deriving capabilities from the document
 
-**核心原则："Nothing is declared."** 一个源能做什么，跟着它含有哪些规则块走；**存在但为空的块算不存在**（空块是写了一半的文档）。
+**Core principle: "Nothing is declared."** What a source can do follows from which rule blocks it contains; **a block that exists but is empty counts as absent** (an empty block is a half-written document).
 
-- **`hasRules(block)`** — 块存在且至少一个值非空白。
-- **`isInterpretable(doc)`** — 任一规则块有规则，或 `searchUrl`/`exploreUrl` 存在（守卫 scanner 写的无规则 `local` 行）。
-- **`capabilitiesFor(doc, opts)`** — `opts` 由 `DocumentSource` 的 getter 算好（能力为真 = 文档描述了它 且 构建跑得动）。映射：`search.albums/artists/playlists` 恒 false（诚实答案是不猜）；**没有 `albums` 能力标志**——`getAlbum` 的存在就是信号；`streaming.seekable` 来自文档或服务器的 `Accept-Ranges`（不能 range 的流不能 seek，UI 收起拖动条）；`urlExpiry` = `ruleStream.expiresAt` 存在即信号；`rateLimit = parseRate(doc.concurrentRate)`（`'3/1000'` → `{ requests: 3, windowMs: 1000 }`）。
+- **`hasRules(block)`** — the block exists and at least one value is non-blank.
+- **`isInterpretable(doc)`** — any rule block has rules, or `searchUrl`/`exploreUrl` exists (guarding the rule-less `local` row written by the scanner).
+- **`capabilitiesFor(doc, opts)`** — `opts` is computed by `DocumentSource`'s getters (capability true = the document describes it and the build can run it). Mapping: `search.albums/artists/playlists` are always false (the honest answer is not to guess); **there is no `albums` capability flag** — the existence of `getAlbum` is the signal; `streaming.seekable` comes from the document or the server's `Accept-Ranges` (a stream that cannot range cannot seek; the UI hides the scrub bar); `urlExpiry` = the presence of `ruleStream.expiresAt` is the signal; `rateLimit = parseRate(doc.concurrentRate)` (`'3/1000'` → `{ requests: 3, windowMs: 1000 }`).
 
-### `src/host.ts` — `src`：源文档能看到的全部宿主面
+### `src/host.ts` — `src`: the entire host surface a source document can see
 
-docs/06 §8 的清单即契约：**没有 `fetch`、没有 `require`、没有活得比调用久的 timer、没有文件系统**。"一段粘贴的字符串能做什么"的答案可以靠读一个文件回答。
+The docs/06 §8 list is the contract: **no `fetch`, no `require`, no timer that outlives the call, no file system**. The answer to "what can a pasted string do" can be given by reading one file.
 
-- **`createSourceHost(deps)`** — 返回 `{ cache, functions }`；`functions` 是 `__src_*` 命名的平铺函数，逐个 `realm.expose`——跨界的是"一次调用 + 一个克隆值"，绝不是宿主对象图。
-- 两个承重性质：
-  1. **`src.get`/`src.post` 走源自己的 scoped HTTP**，内部先 `assertAllowed`——egress allowlist 对**脚本算出来的 URL** 与模板渲染的 URL 一视同仁，绕过它沙箱就是中间有洞的隔离故事；
-  2. **`src.vars` 是凭据级的**：per-source、永不导出、sign-out 清除。
-- **`SourceCache`** — 内存、TTL 有界、256 条上限 + 淘汰最老——"没有天花板的缓存是顶着友好名字的泄漏"。
-- **`SRC_SHIM`** — realm 侧脚本（先于任何 `jsLib` preload）：组装冻结的 `globalThis.src`：`get/post`、`parse.json`（`html`/`xml` **故意缺席**且调用时抛清晰错误）、`crypto`（md5/sha1/sha256/hmac/base64/randomHex）、`cache.get/put`、`vars.get/put`、`url.encode/decode/resolve`、`time.now`、`log`。
+- **`createSourceHost(deps)`** — returns `{ cache, functions }`; `functions` are flat functions named `__src_*`, `realm.expose`d one by one — what crosses the boundary is "one call + one cloned value", never a host object graph.
+- Two load-bearing properties:
+  1. **`src.get`/`src.post` go through the source's own scoped HTTP**, with `assertAllowed` first — the egress allowlist treats **script-computed URLs** the same as template-rendered URLs; bypassing it would make the sandbox a story of isolation with a hole in the middle;
+  2. **`src.vars` is credential-grade**: per-source, never exported, cleared on sign-out.
+- **`SourceCache`** — in-memory, TTL-bounded, capped at 256 entries + evicts the oldest — "a cache without a ceiling is a leak wearing a friendly name".
+- **`SRC_SHIM`** — the realm-side script (preloaded before any `jsLib`): assembles the frozen `globalThis.src`: `get/post`, `parse.json` (`html`/`xml` are **deliberately absent** and throw a clear error when called), `crypto` (md5/sha1/sha256/hmac/base64/randomHex), `cache.get/put`, `vars.get/put`, `url.encode/decode/resolve`, `time.now`, `log`.
 
-### `src/list-rule.ts` — 列表规则求值
+### `src/list-rule.ts` — list rule evaluation
 
-- **两段式**：`trackList` 选出重复元素（保留对象）；其余每个字段对其中一个元素求值，`{{item}}` 在 scope 里命名它。
-- 字段规则 `parseRule` **每页一次**而不是每字段每行一次（50 行 × 8 字段曾 parse 400 遍）。
-- **三种"没取到"分开计数、绝不吞掉**（`ListRowsResult`）：`dropped`（缺必需字段或求值抛错的行——丢弃而非半成品入库）、`duplicates`（同页重复 trackId 会变成一个 URN 悄悄覆盖前者）、`incomplete`（**可选**字段失败——行保留、字段缺席；失败 ≠ 匹配为空，但对可选字段答案相同：不加）。空白即缺席（`"  "` 会产出打不回来的 URN）。
-- **`rowToTrack`** — 显式类型收敛；`coerceDuration` 接受 `213`/`"3:33"`/`"213.4s"`，其余抛 `RuleError`——把 NaN 写进目录，很久之后才会以"拖动条不动"的形式浮现。返回 plain record 而非 `Track`——URN 命名空间是调用方的事。
-- `RuleSyntaxError` 必须在此边界包成 `RuleError`（带 block/field/sourceId），否则它穿过所有按 `code` 分支的处理器。
+- **Two-stage**: `trackList` selects the repeating elements (objects are kept); every other field is evaluated against one of those elements, with `{{item}}` naming it in scope.
+- Field rules are parsed by `parseRule` **once per page**, not once per field per row (50 rows × 8 fields used to parse 400 times).
+- **Three kinds of "did not get it" are counted separately and never swallowed** (`ListRowsResult`): `dropped` (rows missing a required field or whose evaluation threw — dropped rather than half-finished into the catalog), `duplicates` (a duplicate trackId on the same page would become one URN silently overriding the former), `incomplete` (**optional** field failed — the row is kept, the field is absent; failure ≠ an empty match, but the answer for an optional field is the same: leave it out). Blank means absent (`"  "` would produce an unrecoverable URN).
+- **`rowToTrack`** — explicit type narrowing; `coerceDuration` accepts `213`/`"3:33"`/`"213.4s"`, anything else throws `RuleError` — writing a NaN into the catalog only surfaces much later as "the scrub bar does not move". Returns a plain record rather than a `Track` — URN namespacing is the caller's business.
+- `RuleSyntaxError` must be wrapped into a `RuleError` (with block/field/sourceId) at this boundary, otherwise it slips past every handler that branches on `code`.
 
-### `src/trace.ts` — 规则追踪器
+### `src/trace.ts` — the rule tracer
 
-烂掉的源"可修复"而非"仅损坏"的原因（等价于 legado 的源调试屏，docs/06 §10）。三个承重性质：
+Why a broken source is "fixable" rather than "just broken" (equivalent to legado's source debug screen, docs/06 §10). Three load-bearing properties:
 
-1. **流式而非收集**——最需要解释的步骤是**还在跑的**那一步（向已停止应答的服务器的请求显示为一条无 status 的 `http` 行，这就是全部诊断）；
-2. **所有步骤都出现，包括成功的**——失败通常发生在空结果之前两步；
-3. **默认脱敏**——Subsonic URL 按惯例带密码 hash 和 salt。
+1. **Streaming, not collecting** — the step that most needs explaining is the one **still running** (a request to a server that stopped answering shows as an `http` line with no status; that is the entire diagnosis);
+2. **All steps appear, including successful ones** — failures usually happen two steps before the empty result;
+3. **Redacted by default** — Subsonic URLs conventionally carry a password hash and salt.
 
-- **`TraceCollector`** — 手写异步队列：push 永不阻塞（慢读者不能拖慢被 trace 的运行）；close 清空缓冲再结束迭代（不丢最后的事件）。`rule`/`error`/`result` 入口都经 `redactForTrace`；preview 截 400 字符。
-- **`tracedHttp(http, collector)`** — 包装 `HttpService`，每请求一行（status/ms/bytes；body 只能被调用者消费一次，所以 bytes 取 `content-length` 头）；**失败时也发一行 `status: 0`** 再重抛。
+- **`TraceCollector`** — a hand-written async queue: push never blocks (a slow reader cannot slow down the run being traced); close drains the buffer before ending the iteration (the last events are not lost). The `rule`/`error`/`result` entries all pass through `redactForTrace`; previews are truncated to 400 characters.
+- **`tracedHttp(http, collector)`** — wraps an `HttpService`, one line per request (status/ms/bytes; the body can only be consumed once by the caller, so bytes come from the `content-length` header); **on failure it also emits a line with `status: 0`** before rethrowing.
 
-## 信任模型与 allowlist 的执行点
+## Trust model and where the allowlist is enforced
 
-源是**粘贴的字符串**，不是第一方代码。沙箱（`ctx.js` QuickJS）**约束的是 reach，不是 intent**——没有 ambient globals、值克隆跨界、限额由引擎执行。allowlist 三层纵深防御：
+A source is a **pasted string**, not first-party code. The sandbox (`ctx.js` QuickJS) **constrains reach, not intent** — no ambient globals, values clone across the boundary, limits enforced by the engine. The allowlist is three layers of defense in depth:
 
-| 执行点 | 位置 | 管住什么 |
+| Enforcement point | Location | Governs |
 |---|---|---|
-| `assertAllowed` | `DocumentSource` 内每次抓取前（含 `resolveStream` 的流 URL） | 模板渲染出的每一个 URL |
-| `allowedHosts` intercept | 隔离的 `ctx.http` 内部（waterfall 前后都校验） | 实际发出的每个 HTTP 请求 |
-| `src.get`/`src.post` 内 `assertAllowed` | `host.ts` | **脚本计算出的 URL** |
+| `assertAllowed` | inside `DocumentSource`, before every fetch (including the stream URL in `resolveStream`) | every URL a template renders |
+| `allowedHosts` intercept | inside the isolated `ctx.http` (validated before and after the waterfall) | every HTTP request actually sent |
+| `assertAllowed` inside `src.get`/`src.post` | `host.ts` | **script-computed URLs** |
 
-**凭据永不进文档**：`var` 与 `loginUi` 字段进 `ctx.secrets`，导出文档天然可分享。
+**Credentials never enter the document**: `var` and `loginUi` fields go into `ctx.secrets`, so an exported document is naturally shareable.
 
-## 配置
+## Configuration
 
 ```ts
 export interface SourceRuntimeConfig {
-  defaultRate?: string  // 已声明、尚未消费——应用于文档未写 concurrentRate 的源（M2 接线）
+  defaultRate?: string  // declared, not yet consumed — applied to sources whose document omits concurrentRate (M2 wiring)
 }
 ```
 
-## 事件
+## Events
 
-| 方向 | 事件 |
+| Direction | Events |
 |---|---|
-| 消费 | `source/imported`（→ sync）、`source/changed`（→ reload）、`source/removed`（→ stop） |
-| 发出 | `source/rule-failed`（60s 合并窗口）、`source/auth-expired`（serial） |
+| Consumes | `source/imported` (→ sync), `source/changed` (→ reload), `source/removed` (→ stop) |
+| Emits | `source/rule-failed` (60s dedupe window), `source/auth-expired` (serial) |
 
-## 导出
+## Exports
 
 ```ts
 export const name = 'plugin-source-runtime'
@@ -136,8 +136,8 @@ export async function apply(ctx, config?)
 export default { name, inject, apply }
 ```
 
-## 相关文档
+## Related docs
 
-- `docs/06-music-sources.md`：源文档、规则语言、信任、调试
-- `packages/feature/source-rules/README.md`：纯逻辑规则引擎
-- `packages/core/core-js-quickjs-*`：`ctx.js` 沙箱
+- `docs/06-music-sources.md`: source documents, the rule language, trust, debugging
+- `packages/feature/source-rules/README.md`: the pure-logic rule engine
+- `packages/core/core-js-quickjs-*`: the `ctx.js` sandbox

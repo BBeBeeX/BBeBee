@@ -1,6 +1,6 @@
 /**
- * Global shortcut registration — the orchestration behind the "全局快捷键"
- * settings section.
+ * Global shortcut registration — the orchestration behind the "Global
+ * shortcuts" settings section.
  *
  * This used to live in a `useEffect` of the desktop settings screen, which
  * was both a layering mistake and a bug: a global hotkey is business

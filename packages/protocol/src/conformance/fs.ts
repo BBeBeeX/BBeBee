@@ -215,7 +215,7 @@ export const fsConformance: ConformanceSuite<FsSubject> = {
       name: 'handles unicode filenames',
       because: 'music libraries are full of them, and normalisation differs by platform',
       async run({ fs, scratch }) {
-        const name = 'Björk — Jóga (日本語).flac'
+        const name = 'Björk — Jóga (Ελληνικά).flac'
         const uri = fs.join(scratch, name)
         await fs.writeFile(uri, 'x')
         assert(await fs.exists(uri), 'unicode file should be findable by the uri that wrote it')

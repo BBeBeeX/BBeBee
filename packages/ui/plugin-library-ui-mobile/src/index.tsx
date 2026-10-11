@@ -2,7 +2,7 @@
  * React Native views for `@BBeBee/plugin-library`.
  *
  * The same four screens as the desktop twin: the library (playlists, albums
- * and collections), one playlist, one collection, and favourites. Layout and
+ * and collections), one playlist, one collection, and favorites. Layout and
  * event wiring only — the reads, the reload rules and every derived value come
  * from `@BBeBee/plugin-library/hooks` (docs/08 §1).
  *
@@ -140,7 +140,7 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
       h(Button, {
         variant: 'secondary',
         onPress: () => ctx.ui.navigate(LIBRARY_VIEWS.favorites),
-        children: 'Favourites',
+        children: 'Favorites',
       }),
     ),
     h(
@@ -469,7 +469,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
   )
 }
 
-/* ── favourites ────────────────────────────────────────────────────────── */
+/* ── favorites ────────────────────────────────────────────────────────── */
 
 export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
   const native = nativePrimitives()
@@ -489,14 +489,14 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
     h(
       native.View as never,
       { style: { flexDirection: 'row', alignItems: 'center', gap: tokens.space[2] } },
-      h(Text, { variant: 'xl' }, 'Favourites'),
+      h(Text, { variant: 'xl' }, 'Favorites'),
       h(Text, { variant: 'sm', tone: 'muted' }, `${urns.length} saved`),
       h(Button, {
         variant: 'secondary',
         onPress: () =>
           urns[0] &&
           player?.playFromContext(urns[0], urns, {
-            context: { kind: 'favorites', label: '收藏夹' },
+            context: { kind: 'favorites', label: 'Favorites' },
           }),
         disabled: urns.length === 0,
         children: 'Play all',
@@ -504,7 +504,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
     ),
     error ? h(Text, { variant: 'sm', tone: 'error' }, error) : null,
     saved.status === 'error'
-      ? h(Text, { tone: 'error' }, `Could not read favourites: ${saved.error?.message}`)
+      ? h(Text, { tone: 'error' }, `Could not read favorites: ${saved.error?.message}`)
       : null,
     h(
       native.View as never,
@@ -531,14 +531,14 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
                 track,
                 onPress: () =>
                   player?.playFromContext(entryUrn, urns, {
-                    context: { kind: 'favorites', label: '收藏夹' },
+                    context: { kind: 'favorites', label: 'Favorites' },
                   }),
                 onMore: (anchor) => menu.open({ track }, anchor),
               }),
             ),
             h(IconButton, {
               icon: '♥',
-              accessibilityLabel: `Remove ${track.title} from favourites`,
+              accessibilityLabel: `Remove ${track.title} from favorites`,
               variant: 'primary',
               onPress: () => {
                 setError(undefined)
@@ -653,7 +653,7 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
         onPress: () =>
           trackUrns[0] &&
           void player?.playNow(trackUrns, {
-            context: { kind: 'playlist', label: detail.collection?.name ?? '合集' },
+            context: { kind: 'playlist', label: detail.collection?.name ?? 'Collection' },
           }),
         disabled: trackUrns.length === 0,
         testID: 'collection-play',
@@ -684,7 +684,7 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
                   track: member.track,
                   onPress: () =>
                     void player?.playNow(trackUrns, {
-                      context: { kind: 'playlist', label: detail.collection?.name ?? '合集' },
+                      context: { kind: 'playlist', label: detail.collection?.name ?? 'Collection' },
                     }),
                   onMore: (anchor) => menu.open({ track: member.track! }, anchor),
                 }),

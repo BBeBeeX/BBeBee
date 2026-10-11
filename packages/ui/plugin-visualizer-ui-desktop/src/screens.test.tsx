@@ -68,8 +68,8 @@ describe('plugin-visualizer-ui-desktop', () => {
     expect(canvasResult.container.querySelector('canvas')).toBeDefined()
 
     const settingsResult = render(h(VisualizerSettingsCard, { ctx: mockCtx }))
-    expect(settingsResult.getByText('音频可视化 (Audio Visualizer)')).toBeDefined()
-    expect(settingsResult.getByText('显示样式')).toBeDefined()
-    expect(settingsResult.getByText('色彩主题')).toBeDefined()
+    expect(settingsResult.getByText('Audio Visualizer')).toBeDefined()
+    expect(settingsResult.getByText('Display style')).toBeDefined()
+    expect(settingsResult.getByText('Color theme')).toBeDefined()
   })
 })

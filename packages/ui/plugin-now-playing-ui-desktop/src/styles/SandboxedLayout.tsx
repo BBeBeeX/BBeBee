@@ -284,7 +284,7 @@ export function SandboxedLayout({
   }, [ctx, state.status, trackUrn, snapshot])
 
   const fullHtml = useMemo(() => {
-    return buildSandboxedHtml(meta.htmlContent ?? '<div style="color:white;padding:24px;">未提供插件内容</div>')
+    return buildSandboxedHtml(meta.htmlContent ?? '<div style="color:white;padding:24px;">No plugin content provided</div>')
   }, [meta.htmlContent])
 
   return h(

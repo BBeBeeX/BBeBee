@@ -4,7 +4,7 @@
 > content — music sources, lyric sources, themes and desktop plugins — from the
 > community registry, and how the registry repo is wired into this monorepo.
 
-Music sources are imported strings, not plugins（规范见 [rules/sources.md §1 — What a Source Is](../../rules/sources.md#1-what-a-source-is)（L2））. The
+Music sources are imported strings, not plugins (see the spec at [rules/sources.md §1 — What a Source Is](../../rules/sources.md#1-what-a-source-is) (L2)). The
 registry is the curated place where such strings — and the other three kinds of
 installable content — are published, versioned and reviewed, so that users have
 a first-party path beyond pasting whatever a forum thread says.
@@ -13,7 +13,7 @@ a first-party path beyond pasting whatever a forum thread says.
 
 ## 1. Repository architecture
 
-（规范见 [rules/sources.md §6 — Registry](../../rules/sources.md#6-registry第三方注册表)（L2）：registry 仓库定位、四类内容、entry 字段与安装红线归该节；本节讲仓库结构与发现机制。）
+(see the spec at [rules/sources.md §6 — Registry](../../rules/sources.md#6-registry-third-party-registry) (L2): the registry repository's positioning, the four content kinds, entry fields and install red lines belong to that section; this section covers the repository structure and the discovery mechanism.)
 
 The registry lives in its own standalone repository,
 [BBeBeeX/B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry).
@@ -46,7 +46,7 @@ B_Be_Bee-registry/
 
 ## 2. Metadata schemas
 
-（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)（L2）：entry 字段枚举与 version 语义归该节；本表展开每个字段的适用 kind 与含义。）
+(see the spec at [rules/sources.md §6](../../rules/sources.md#6-registry-third-party-registry) (L2): the entry field enumerations and version semantics belong to that section; this table expands each field's applicable kinds and meaning.)
 
 Each entry in `music-sources/`, `lyric-sources/`, and `plugins/` is an individual `{username}-{name}.json` file:
 
@@ -67,24 +67,24 @@ Each entry in `music-sources/`, `lyric-sources/`, and `plugins/` is an individua
 | `id` | all | Stable entry id. The matching key for `lyric-source` / `theme` / `plugin` (§3). |
 | `kind` | all | `music-source` \| `lyric-source` \| `theme` \| `plugin`. |
 | `name` | all | Display name. |
-| `version` | all | Latest published semver — bump on any content change; absent = `0.0.0`, skipped by update checks（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)（L2））. The builtin lyric source compares against this field to decide whether a registry copy is newer. |
+| `version` | all | Latest published semver — bump on any content change; absent = `0.0.0`, skipped by update checks (see the spec at [rules/sources.md §6](../../rules/sources.md#6-registry-third-party-registry) (L2)). The builtin lyric source compares against this field to decide whether a registry copy is newer. |
 | `author` | all | Attribution, shown in the install dialog. |
 | `description` | all | One line shown in listings. |
 | `updatedAt` | all | The entry's last-commit date (ISO 8601), set by the index generator. |
-| `downloadUrl` | all | Where the installable artifact lives — the app only consumes `dist/` artifacts, never raw entry sources（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)（L2））. |
+| `downloadUrl` | all | Where the installable artifact lives — the app only consumes `dist/` artifacts, never raw entry sources (see the spec at [rules/sources.md §6](../../rules/sources.md#6-registry-third-party-registry) (L2)). |
 | `minAppVersion` | all | Minimum app version the entry needs (semver). Optional; absent means no version restriction. Enforced in UI via `minAppVersionBlock` — disables install and explains why when the running app is older. |
 | `sourceUrl` | music-source | The document's backend base URL — the installed-source matching key (§3). |
 | `previewUrl` | theme, plugin | Preview image for the install dialog. |
 | `repoUrl` | plugin | The plugin author's own repository. |
 | `sha256` | plugin | Integrity digest of the plugin bundle (§5). |
 | `capabilities` | plugin | The manifest capabilities the bundle declares. |
-| `category` | plugin | Free-form category slug (e.g. `ui-enhancement`) the 发现 page's category filter groups by. Unknown slugs pass through verbatim. |
+| `category` | plugin | Free-form category slug (e.g. `ui-enhancement`) the Discover page's category filter groups by. Unknown slugs pass through verbatim. |
 
 ---
 
 ## 3. Matching semantics — what counts as "installed"
 
-（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)（L2）：music-source 以 `sourceUrl` 为匹配键归该节；本节讲每种 kind 为何这样匹配。）
+(see the spec at [rules/sources.md §6](../../rules/sources.md#6-registry-third-party-registry) (L2): music-source matching on `sourceUrl` belongs to that section; this section explains why each kind matches the way it does.)
 
 `checkUpdates()` compares index entries against what the user already has.
 The identity differs per kind, because it reuses each kind's own identity:
@@ -178,7 +178,7 @@ installed, so the install-stage `confirmed` gate never applies.
 the full snapshot, newest first, after every mutation). Each user-facing
 install/update is tracked as a `RegistryTask` walking the lifecycle
 `pending → running → success | failed` through the stages `download → verify
-→ install`; a task parks at `pending` ("等待确认") while the confirm dialog is
+→ install`; a task parks at `pending` ("Awaiting confirmation") while the confirm dialog is
 open. Records live in memory only — the active ones plus the 50 most recently
 finished — and are never persisted; `clearFinishedTasks` removes only the
 finished ones.
@@ -235,10 +235,10 @@ Findings are tagged as `block` (critical) or `warn` (suspicious). If any finding
 ### 5.4 Pre-Installation Audit Confirmation Dialog
 
 Before any installation or update proceeds, the desktop UI (`packages/ui/plugin-registry-ui-desktop`) presents an `InstallConfirmDialog`:
-- **Security Audit Report**: Displays an audit severity badge (`通过 (Pass)` / `警告 (Warn)` / `高危风险 (Block)`) and lists individual findings (category, severity, code snippet, line number).
+- **Security Audit Report**: Displays an audit severity badge (`Pass` / `Warn` / `Block`) and lists individual findings (category, severity, code snippet, line number).
 - **Author repository & commit**: Shows the source repository link and commit SHA.
 - **Commit Diff**: For updates, displays the commit progression (e.g., `a1b2c3d → e4f5g6h`).
-- **Block Gating**: a `block` audit disables the confirm button by default — the explicit-risk-confirmation red line（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)（L2））; the desktop UI implements it as the `我已知晓高危风险并确认强制安装` override checkbox.
+- **Block Gating**: a `block` audit disables the confirm button by default — the explicit-risk-confirmation red line (see the spec at [rules/sources.md §6](../../rules/sources.md#6-registry-third-party-registry) (L2)); the desktop UI implements it as the "I acknowledge the high-risk findings and confirm forced installation" override checkbox.
 
 ### 5.5 `registry.lock.json` Anti-Tampering Management
 
@@ -286,7 +286,7 @@ example an author's own `downloadUrl`) keeps exactly one candidate and is
 never rewritten.
 
 Two settings back this, edited in the settings screen's network tab
-("下载与 GitHub 加速" card):
+("Downloads & GitHub acceleration" card):
 
 | Setting | Meaning |
 |---|---|
@@ -312,7 +312,7 @@ default GitHub endpoints walk the full chain.
 
 ## 7. Built-in content constraint
 
-（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)（L2）：exactly one built-in lyric source、无内置 music source、registry 不得新增 built-in。）The reason: built-ins ship with the app binary and are
+(see the spec at [rules/sources.md §6](../../rules/sources.md#6-registry-third-party-registry) (L2): exactly one built-in lyric source, no built-in music source, and the registry must not add new built-ins.) The reason: built-ins ship with the app binary and are
 covered by the builtin-upgrade comparison, while everything in the registry is
 opt-in, user-confirmed content. Today's one built-in is the lrclib lyric source (id
 `builtin-lrclib` in the index).
@@ -321,7 +321,7 @@ opt-in, user-confirmed content. Today's one built-in is the lrclib lyric source 
 
 ## 8. View placement
 
-The registry view ("发现" / Discovery, route `/registry`) is contributed to the desktop shell with `placement: ['tray']` rather than `sidebar`:
+The registry view (Discover, route `/registry`) is contributed to the desktop shell with `placement: ['tray']` rather than `sidebar`:
 
 1. **Information architecture hierarchy**: The left sidebar is reserved for primary audio playback and local library navigation (Search, Library, Albums, Playlists). Management tools and extensions (Registry, Downloads, History, Import Share) are aggregated in the TopBar tray to prevent navigation clutter.
 2. **Update notification coupling**: `apps/desktop/renderer/TopBar.tsx` hosts `TrayIndicator`, which subscribes to the `registry/updates-available` event. When updates are found, it displays an update indicator dot (`topbar-tray-update-dot`) on the tray toggle button and on the registry entry inside the tray panel. Placing the registry in the tray allows update notifications to alert the user promptly without polluting the core browsing sidebar.
@@ -330,11 +330,11 @@ The registry view ("发现" / Discovery, route `/registry`) is contributed to th
 
 Beyond the four kind tabs, the screen carries a set of client-side view features (all view state; nothing beyond favorites is persisted):
 
-- **Third-party filter** — the "显示第三方内容" toggle, on by default. Officialness has exactly one rule: the entry's `repo`/`repoUrl` owner equals the `BBeBeeX` GitHub organization. Organization names are globally unique and cannot be spoofed, so the repository owner is the only trust anchor; an entry that publishes no repository — the built-in lyric sources included — reads as third-party and is hidden while the toggle is off.
+- **Third-party filter** — the "Show third-party content" toggle, on by default. Officialness has exactly one rule: the entry's `repo`/`repoUrl` owner equals the `BBeBeeX` GitHub organization. Organization names are globally unique and cannot be spoofed, so the repository owner is the only trust anchor; an entry that publishes no repository — the built-in lyric sources included — reads as third-party and is hidden while the toggle is off.
 - **Sorting** — by name (locale compare), or by GitHub stars / contributor count through the companion `ctx.registryMetadata` service (contracts §25.1). Stats requests fire only while a numeric sort key is active, cache for 24 h, degrade to "—" on failure, and never block rendering.
 - **Plugin category filter** — options derive from the `category` slugs actually present in the index (§2); unknown slugs pass through untranslated instead of crashing.
-- **收藏 / 已安装 tabs** — favorites are a localStorage id set (`bbebee_registry_favorites`); the installed tab lists what the content services report as installed or updateable, annotates lock-record commit/date metadata (§5.5), and offers uninstall for the kinds whose owning services expose a remove API (plugins have none — the tab points at plugin management instead).
-- **Task center & diagnostics** — the header task button and the 诊断 tab render the optional service surfaces documented in §4.
+- **Favorites / Installed tabs** — favorites are a localStorage id set (`bbebee_registry_favorites`); the installed tab lists what the content services report as installed or updateable, annotates lock-record commit/date metadata (§5.5), and offers uninstall for the kinds whose owning services expose a remove API (plugins have none — the tab points at plugin management instead).
+- **Task center & diagnostics** — the header task button and the Diagnostics tab render the optional service surfaces documented in §4.
 
 ---
 
@@ -343,7 +343,7 @@ Beyond the four kind tabs, the screen carries a set of client-side view features
 [spec.md](./spec.md) defines the music-source document model the registry's
 `music-source` entries compile to; [runtime.md](./runtime.md) defines what an
 imported source can and cannot do;
-[rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表) is the normative summary of the
+[rules/sources.md §6](../../rules/sources.md#6-registry-third-party-registry) is the normative summary of the
 registry model; the registry repo's
 [CONTRIBUTING](https://github.com/BBeBeeX/B_Be_Bee-registry/blob/main/CONTRIBUTING.md)
 and

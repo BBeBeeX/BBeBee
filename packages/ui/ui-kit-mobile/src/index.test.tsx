@@ -400,17 +400,17 @@ describe('ContextMenu on mobile', () => {
   const items = [
     {
       id: 'add',
-      label: '加入歌单',
+      label: 'Add to playlist',
       submenu: {
-        title: '加入歌单',
-        searchPlaceholder: '查找歌单',
-        create: { label: '新建歌单', placeholder: '歌单名称', onSelect: vi.fn() },
+        title: 'Add to playlist',
+        searchPlaceholder: 'Find playlist',
+        create: { label: 'New playlist', placeholder: 'Playlist name', onSelect: vi.fn() },
         items: [{ id: 'p1', label: 'Road trip', onSelect: vi.fn() }],
-        emptyLabel: '没有匹配的歌单',
+        emptyLabel: 'No matching playlists',
       },
     },
-    { id: 'queue', label: '加入播放列表', onSelect: vi.fn() },
-    { id: 'remove', label: '从\u201c最喜欢的歌曲\u201d中删除', tone: 'danger' as const, onSelect: vi.fn() },
+    { id: 'queue', label: 'Add to play queue', onSelect: vi.fn() },
+    { id: 'remove', label: 'Remove from Favorites', tone: 'danger' as const, onSelect: vi.fn() },
   ]
 
   it('renders rows and reports a press, then closes', () => {
@@ -424,10 +424,10 @@ describe('ContextMenu on mobile', () => {
         x: 0,
         y: 0,
         title: 'Jóga',
-        items: [{ id: 'queue', label: '加入播放列表', onSelect }],
+        items: [{ id: 'queue', label: 'Add to play queue', onSelect }],
       }),
     )
-    const row = container.querySelector('[data-label="加入播放列表"]') as HTMLElement | null
+    const row = container.querySelector('[data-label="Add to play queue"]') as HTMLElement | null
     expect(row, 'the row is rendered').toBeTruthy()
     row!.click()
     expect(onSelect).toHaveBeenCalledOnce()
@@ -439,11 +439,11 @@ describe('ContextMenu on mobile', () => {
   it('replaces its contents for a submenu, with a filter and a create row', () => {
     configureNative({ ...NATIVE_DOM })
     const { container } = render(h(ContextMenu, { open: true, onClose: vi.fn(), x: 0, y: 0, items }))
-    fireEvent.click(container.querySelector('[data-label="加入歌单"]') as HTMLElement)
+    fireEvent.click(container.querySelector('[data-label="Add to playlist"]') as HTMLElement)
 
-    expect(container.textContent).toContain('\u2039 加入歌单')
+    expect(container.textContent).toContain('\u2039 Add to playlist')
     expect(container.querySelector('[data-testid="context-menu-filter"]')).toBeTruthy()
-    expect(container.textContent).toContain('新建歌单')
+    expect(container.textContent).toContain('New playlist')
     expect(container.textContent).toContain('Road trip')
   })
 })

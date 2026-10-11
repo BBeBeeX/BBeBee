@@ -106,7 +106,7 @@ export class SettingsPlugin extends Service implements SettingsService {
           kind: 'route',
           id: SETTINGS_ROUTES.main,
           path: '/settings',
-          title: '设置',
+          title: 'Settings',
           icon: 'settings',
           // 'tray' opts the page into the desktop top-bar tray: Ui.tray maps
           // tray-placed routes into tray items. The shells exclude this id
@@ -122,8 +122,9 @@ export class SettingsPlugin extends Service implements SettingsService {
           kind: 'settings',
           id: SETTINGS_VIEWS.shortcutsCard,
           section: 'shortcuts',
-          title: '全局快捷键',
-          description: '在操作系统后台通过键盘组合键全局控制音乐播放、音量与窗口显隐',
+          title: 'Global shortcuts',
+          description:
+            'Control music playback, volume, and window show/hide globally from the OS with keyboard shortcuts',
           icon: 'keyboard',
           display: 'card',
           order: 10,

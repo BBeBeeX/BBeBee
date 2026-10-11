@@ -19,10 +19,10 @@ interface GroupSpec {
 }
 
 const GROUPS: readonly GroupSpec[] = [
-  { systemId: 'layer-2', title: '核心 (core)', description: '桌面端的底层基础设施' },
-  { systemId: 'layer-3', title: '日志 (logs)' },
-  { systemId: 'layer-4', title: '功能 (feature)' },
-  { systemId: 'layer-5', title: '界面 (ui)' },
+  { systemId: 'layer-2', title: 'Core', description: 'Desktop low-level infrastructure' },
+  { systemId: 'layer-3', title: 'Logs' },
+  { systemId: 'layer-4', title: 'Features' },
+  { systemId: 'layer-5', title: 'UI' },
 ]
 
 export function PluginsSection({ ctx, showAdvancedSettings = false }: PluginsSectionProps): ReactElement {
@@ -118,8 +118,8 @@ export function PluginsSection({ ctx, showAdvancedSettings = false }: PluginsSec
       {
         open: Boolean(pendingDisable),
         onClose: () => setPendingDisable(null),
-        title: '停用插件确认',
-        accessibilityLabel: '停用插件确认',
+        title: 'Confirm disabling plugin',
+        accessibilityLabel: 'Confirm disabling plugin',
       },
       pendingDisable
         ? h(
@@ -135,7 +135,7 @@ export function PluginsSection({ ctx, showAdvancedSettings = false }: PluginsSec
                   lineHeight: 1.5,
                 },
               },
-              `停用「${pendingDisable.plugin.displayName}」可能会影响以下正在运行的依赖项：`,
+              `Disabling "${pendingDisable.plugin.displayName}" may affect the following running dependents:`,
             ),
             h(
               'ul',
@@ -166,7 +166,7 @@ export function PluginsSection({ ctx, showAdvancedSettings = false }: PluginsSec
                   lineHeight: 1.4,
                 },
               },
-              '若继续停用，依赖该插件的功能可能无法正常运行。是否确认停用？',
+              'If you continue, features that depend on this plugin may stop working. Disable it?',
             ),
             h(
               'div',
@@ -179,7 +179,7 @@ export function PluginsSection({ ctx, showAdvancedSettings = false }: PluginsSec
                 },
               },
               h(Button, {
-                children: '取消',
+                children: 'Cancel',
                 variant: 'secondary',
                 onPress: () => setPendingDisable(null),
               }),
@@ -200,7 +200,7 @@ export function PluginsSection({ ctx, showAdvancedSettings = false }: PluginsSec
                     fontSize: 13,
                   },
                 },
-                '确认停用',
+                'Disable plugin',
               ),
             ),
           )

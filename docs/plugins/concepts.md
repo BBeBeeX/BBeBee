@@ -26,8 +26,8 @@ A plugin is one of three things. Cordis accepts all three; BBeBee uses the first
 
 **A function.** For plugins that only register behaviour and provide no service.
 
-> 规范见 [rules/plugins.md §1 Shape](../../rules/plugins.md#1-shape)（L2）：entry points must be `async function`, an
-> arrow function, or method shorthand, with the canonical code for both shapes. 本节只讲原理与用法。
+> see the spec at [rules/plugins.md §1 Shape](../../rules/plugins.md#1-shape) (L2): entry points must be `async function`, an
+> arrow function, or method shorthand, with the canonical code for both shapes. This section covers only principles and usage.
 
 The reason for the rule is worth understanding once: Cordis decides "is this a class?" with
 `!!func.prototype`, and a plain `function apply(…)` has one — so it is `new`-ed as if it were a
@@ -64,10 +64,10 @@ Three conventions on top of Cordis, enforced by the kernel and tooling:
 - Every plugin package ships a **standardized `BBeBee.plugin.json` manifest** ([loading.md §6.3](loading.md#63-standardized-manifest-specification-bbebeepluginjson)).
   The 15 standardized fields, their enumerations, and the `systemId`-not-`subsystemId` naming
   requirement are specified once in
-  [rules/plugins.md §6 Manifest Standards (`BBeBee.plugin.json`)](../../rules/plugins.md#6-manifest-standards-bbebeepluginjson)（L2）;
+  [rules/plugins.md §6 Manifest Standards (`BBeBee.plugin.json`)](../../rules/plugins.md#6-manifest-standards-bbebeepluginjson) (L2);
   `systemId` assigns the package to its layer stratum (`"layer-2"` through `"layer-5"`), `moduleId` to its functional domain.
 - A plugin's **runtime module has a default export** that is the Cordis plugin, so the static loader on mobile and the dynamic loader on desktop treat every plugin identically.
-- **Dual-mode Loading Architecture**: 规范见 [rules/plugins.md §7 Dual-Mode Plugin Loading](../../rules/plugins.md#7-dual-mode-plugin-loading)（L2）—
+- **Dual-mode Loading Architecture**: see the spec at [rules/plugins.md §7 Dual-Mode Plugin Loading](../../rules/plugins.md#7-dual-mode-plugin-loading) (L2) —
   statically bundled on mobile via codegen, loaded dynamically on desktop with no static codegen
   file; [loading.md §6](loading.md#6-loading) walks both sides as implemented.
 
@@ -99,7 +99,7 @@ data, but the runtime gives each one its own fiber precisely to inherit this
 
 ### The rule: every side effect goes through the fiber
 
-> 规范见 [rules/plugins.md §2 Every side effect goes through the fiber](../../rules/plugins.md#2-every-side-effect-goes-through-the-fiber)（L2），本节只讲原理与用法。
+> see the spec at [rules/plugins.md §2 Every side effect goes through the fiber](../../rules/plugins.md#2-every-side-effect-goes-through-the-fiber) (L2); this section covers only principles and usage.
 
 The subtle part is *why* the obvious line fails: services are reached through Cordis's tracing
 proxy, and the function that comes back through it is not the one the fiber collects — so the
@@ -129,7 +129,7 @@ and surfaces it in the plugin inspector, so a broken plugin is visible rather th
 
 ## 3. Dependencies
 
-> 规范见 [rules/plugins.md §3 Dependencies & Injections](../../rules/plugins.md#3-dependencies--injections)（L2），本节只讲原理与用法。
+> see the spec at [rules/plugins.md §3 Dependencies & Injections](../../rules/plugins.md#3-dependencies--injections) (L2); this section covers only principles and usage.
 
 ```ts
 // Array form — the usual case.
@@ -171,8 +171,8 @@ export class Library extends Service {
 }
 ```
 
-> ⚠️ The decorator is the **2023-11 standard decorator** — 规范见
-> [rules/plugins.md §3](../../rules/plugins.md#3-dependencies--injections)（L2）. Both the
+> ⚠️ The decorator is the **2023-11 standard decorator** — see the spec at
+> [rules/plugins.md §3](../../rules/plugins.md#3-dependencies--injections) (L2). Both the
 > Babel config (mobile) and `tsconfig` must be set accordingly —
 > [services/contracts.md §17](../services/contracts.md#17-runtime-compatibility-checklist).
 

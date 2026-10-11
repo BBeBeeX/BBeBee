@@ -1,6 +1,6 @@
 /**
- * Track playback details — the headless aggregation behind the "查看播放内容"
- * modal.
+ * Track playback details — the headless aggregation behind the "See what's
+ * playing" modal.
  *
  * What used to be a ~150-line `loadData` inside the desktop modal component
  * (raw SQL against `media_bindings`/`scan_entries`, `fs.stat` fallbacks, codec
@@ -26,7 +26,7 @@ import { parseUrn } from '@BBeBee/protocol'
 import { formatBytes, formatDuration } from '@BBeBee/toolkit'
 import { serviceOf } from '@BBeBee/toolkit/hooks'
 
-/** Everything the "查看播放内容" modal renders, display-ready. */
+/** Everything the "See what's playing" modal renders, display-ready. */
 export interface TrackDetails {
   isLocal: boolean
   title: string
@@ -34,9 +34,9 @@ export interface TrackDetails {
   album?: string
   fileName?: string
   filePath?: string
-  /** Toolkit-formatted; `undefined` when no source could answer, shown as 未知. */
+  /** Toolkit-formatted; `undefined` when no source could answer, shown as Unknown. */
   fileSize?: string
-  /** `undefined` when no source could answer, shown as 未知. */
+  /** `undefined` when no source could answer, shown as Unknown. */
   modifiedTime?: string
   sourceId: string
   sourceTrackId: string
@@ -73,7 +73,7 @@ interface ScanRow {
 }
 
 function formatChannels(count: number): string {
-  return count === 1 ? '1 (单声道 Mono)' : count === 2 ? '2 (立体声 Stereo)' : `${count} 声道`
+  return count === 1 ? '1 (Mono)' : count === 2 ? '2 (Stereo)' : `${count} channels`
 }
 
 function formatSampleRate(rate: number): string {
@@ -241,7 +241,7 @@ export async function resolveTrackDetails(ctx: Context, track: Track): Promise<T
       else if (fmt.includes('m4a') || fmt.includes('alac') || fmt.includes('aac')) tagType = 'MP4 / iTunes'
       else if (fmt.includes('ape')) tagType = 'APEv2'
       else if (fmt.includes('wav')) tagType = 'RIFF INFO / ID3'
-      else tagType = '内置音频标签'
+      else tagType = 'Built-in audio tags'
     }
 
     // Physical calculation fallback: if bitrate is missing or abnormal (< 32 kbps)
@@ -278,18 +278,18 @@ export async function resolveTrackDetails(ctx: Context, track: Track): Promise<T
         }
       } else if (stream.quality) {
         const qualityMap: Record<string, string> = {
-          lossless: '920 kbps (无损)',
+          lossless: '920 kbps (Lossless)',
           'hi-res': '1,411 kbps (Hi-Res)',
-          high: '320 kbps (高品质)',
-          medium: '192 kbps (标准)',
-          standard: '192 kbps (标准)',
-          low: '128 kbps (省流)',
+          high: '320 kbps (High quality)',
+          medium: '192 kbps (Standard)',
+          standard: '192 kbps (Standard)',
+          low: '128 kbps (Data saver)',
         }
         bitrate = qualityMap[stream.quality] ?? '320 kbps'
       }
     }
-    if (!channels) channels = '2 (立体声 Stereo)'
-    tagType = '在线流媒体 (无独立元数据标签)'
+    if (!channels) channels = '2 (Stereo)'
+    tagType = 'Online streaming (no separate metadata tags)'
   }
 
   // Audio output device & WASAPI / MPV specs
@@ -309,14 +309,14 @@ export async function resolveTrackDetails(ctx: Context, track: Track): Promise<T
     }
   }
   if (!outputDevice) {
-    outputDevice = (isMpv || isWasapi) ? '默认音频输出终端 (WASAPI)' : '默认系统音频输出终端'
+    outputDevice = (isMpv || isWasapi) ? 'Default audio output endpoint (WASAPI)' : 'Default system audio output endpoint'
   }
 
   const outputEngine = isMpv
-    ? 'MPV Hi-Fi (原生崩溃隔离 & WASAPI 直通)'
+    ? 'MPV Hi-Fi (native crash isolation & WASAPI passthrough)'
     : isWasapi
-      ? 'WASAPI (系统共享混音)'
-      : 'Web Audio (系统共享混音)'
+      ? 'WASAPI (system shared mixing)'
+      : 'Web Audio (system shared mixing)'
 
   const parsedSourceRate = sampleRate ? parseInt(sampleRate.replace(/[^0-9]/g, ''), 10) : 44100
   const hwSampleRateNum = audio?.sampleRate && audio.sampleRate > 0 ? audio.sampleRate : parsedSourceRate
@@ -329,11 +329,11 @@ export async function resolveTrackDetails(ctx: Context, track: Track): Promise<T
   const outputBitDepth = `${hwBitDepthNum}-bit Float`
 
   const pcmBandwidth = Math.round((hwSampleRateNum * hwChannelsNum * hwBitDepthNum) / 1000)
-  const outputBandwidth = `${pcmBandwidth.toLocaleString()} kbps (未压缩 PCM 带宽)`
+  const outputBandwidth = `${pcmBandwidth.toLocaleString()} kbps (uncompressed PCM bandwidth)`
 
   const fallbackArtist = (track as unknown as { artist?: string }).artist
   const artistDisplay =
-    track.artists?.map((a) => a.name).filter(Boolean).join(', ') || fallbackArtist || '未知艺人'
+    track.artists?.map((a) => a.name).filter(Boolean).join(', ') || fallbackArtist || 'Unknown artist'
   const fallbackAlbum = (track as unknown as { album?: string }).album
   const albumDisplay = track.albumTitle || fallbackAlbum
 
@@ -350,10 +350,10 @@ export async function resolveTrackDetails(ctx: Context, track: Track): Promise<T
     sourceTrackId,
     duration,
     sampleRate: sampleRate ?? '44,100 Hz',
-    channels: channels ?? '2 (立体声 Stereo)',
-    bitrate: bitrate ?? (isLocalTrack ? '未知' : '320 kbps'),
-    codec: codec ?? (isLocalTrack ? '未知' : 'AAC / MP3'),
-    tagType: tagType ?? '未知',
+    channels: channels ?? '2 (Stereo)',
+    bitrate: bitrate ?? (isLocalTrack ? 'Unknown' : '320 kbps'),
+    codec: codec ?? (isLocalTrack ? 'Unknown' : 'AAC / MP3'),
+    tagType: tagType ?? 'Unknown',
     outputDevice,
     outputEngine,
     outputSampleRate,

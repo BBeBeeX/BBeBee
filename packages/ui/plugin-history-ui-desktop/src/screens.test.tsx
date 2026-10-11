@@ -39,11 +39,11 @@ describe('PlayHeatmap logic', () => {
   })
 
   it('formats play duration correctly', () => {
-    expect(formatPlayDuration(0)).toBe('0 分钟')
-    expect(formatPlayDuration(30000)).toBe('< 1 分钟')
-    expect(formatPlayDuration(180000)).toBe('3 分钟')
-    expect(formatPlayDuration(3600000)).toBe('1 小时')
-    expect(formatPlayDuration(5400000)).toBe('1 小时 30 分钟')
+    expect(formatPlayDuration(0)).toBe('0 min')
+    expect(formatPlayDuration(30000)).toBe('< 1 min')
+    expect(formatPlayDuration(180000)).toBe('3 min')
+    expect(formatPlayDuration(3600000)).toBe('1 hr')
+    expect(formatPlayDuration(5400000)).toBe('1 hr 30 min')
   })
 
   it('renders days and handles cell click', () => {
@@ -135,7 +135,7 @@ describe('HistoryScreen', () => {
   it('shows empty state when no history exists', async () => {
     const { ctx } = await harness({ records: [] })
     const { findByText } = withListLayout(() => render(h(HistoryScreen, { ctx })))
-    expect(await findByText('暂无播放记录')).toBeTruthy()
+    expect(await findByText('No play records yet')).toBeTruthy()
   })
 
   it('renders stats cards and track records', async () => {
@@ -161,10 +161,10 @@ describe('HistoryScreen', () => {
     const { ctx, calls } = await harness({ records, tracks })
     const { findByText } = withListLayout(() => render(h(HistoryScreen, { ctx })))
 
-    expect(await findByText('播放历史')).toBeTruthy()
-    expect(await findByText('总播放次数')).toBeTruthy()
+    expect(await findByText('Play history')).toBeTruthy()
+    expect(await findByText('Total plays')).toBeTruthy()
     expect(await findByText('Song One')).toBeTruthy()
-    expect(await findByText('完播')).toBeTruthy()
+    expect(await findByText('Completed')).toBeTruthy()
 
     // Test clicking track to play
     const trackTitle = await findByText('Song One')
@@ -186,10 +186,10 @@ describe('HistoryScreen', () => {
     const { ctx, calls } = await harness({ records })
     const { findByText } = withListLayout(() => render(h(HistoryScreen, { ctx })))
 
-    const clearBtn = await findByText('清空历史')
+    const clearBtn = await findByText('Clear history')
     fireEvent.click(clearBtn)
 
-    const confirmBtn = await findByText('确定')
+    const confirmBtn = await findByText('OK')
     fireEvent.click(confirmBtn)
     expect(calls).toContain('clearHistory')
   })
@@ -246,8 +246,8 @@ describe('HistoryScreen', () => {
     const { ctx } = await harness({ records, tracks })
     const { findByText, findAllByText } = withListLayout(() => render(h(HistoryScreen, { ctx })))
 
-    // De-duplicated count in header: (2 首)
-    expect(await findByText('最近播放记录 (2 首)')).toBeTruthy()
+    // De-duplicated count in header: (2 tracks)
+    expect(await findByText('Recent play records (2 tracks)')).toBeTruthy()
 
     // Each unique track rendered once
     const dupTitles = await findAllByText('Song Repeated')
@@ -256,11 +256,11 @@ describe('HistoryScreen', () => {
     expect(singleTitles).toHaveLength(1)
 
     // Play count badge
-    expect(await findByText('播放 3 次')).toBeTruthy()
-    expect(await findByText('播放 1 次')).toBeTruthy()
+    expect(await findByText('3 plays')).toBeTruthy()
+    expect(await findByText('1 play')).toBeTruthy()
   })
 
-  it('offers “从最近播放中移除” in context menu and calls removeHistory', async () => {
+  it('offers "Remove from history" in context menu and calls removeHistory', async () => {
     const records: PlayRecord[] = [
       {
         id: 'rec-1',
@@ -287,7 +287,7 @@ describe('HistoryScreen', () => {
     expect(row).toBeTruthy()
     fireEvent.contextMenu(row, { clientX: 100, clientY: 100 })
 
-    const removeOption = await findByText('从最近播放中移除')
+    const removeOption = await findByText('Remove from history')
     expect(removeOption).toBeTruthy()
     fireEvent.click(removeOption)
     expect(calls).toContain('removeHistory:rec-1')

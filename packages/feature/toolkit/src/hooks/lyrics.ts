@@ -252,7 +252,7 @@ export function useCurrentLyric(ctx: Context): CurrentLyricInfo {
   const hasLines = lines.length > 0
   const title = transport.nowPlaying?.title
   const artist = transport.nowPlaying?.artist
-  const fallbackTitle = title ? `${title}${artist ? ` - ${artist}` : ''}` : 'BBeBee 音乐'
+  const fallbackTitle = title ? `${title}${artist ? ` - ${artist}` : ''}` : 'BBeBee Music'
 
   let stage: LyricPlaybackStage
   let currentLine: LyricLine | undefined
@@ -262,7 +262,7 @@ export function useCurrentLyric(ctx: Context): CurrentLyricInfo {
 
   if (!isTrackUrnMatch || status === 'loading-song' || status === 'loading-lyrics') {
     stage = 'loading'
-    displayCurrentLine = '歌词加载中…'
+    displayCurrentLine = 'Loading lyrics…'
     displayNextLine = undefined
   } else if (parsed.synced && hasLines) {
     if (activeIndex === -1) {
@@ -270,7 +270,7 @@ export function useCurrentLyric(ctx: Context): CurrentLyricInfo {
       const firstUpcoming =
         lines.find((l) => l.timeMs !== undefined && l.text.trim().length > 0) ?? lines[0]
       nextLine = firstUpcoming
-      displayCurrentLine = title ? `(前奏) ${title}` : '♪ 前奏 ♪'
+      displayCurrentLine = title ? `(Intro) ${title}` : '♪ Intro ♪'
       displayNextLine = firstUpcoming?.text
     } else {
       currentLine = lines[activeIndex]
@@ -283,11 +283,11 @@ export function useCurrentLyric(ctx: Context): CurrentLyricInfo {
       if (isCurrentEmpty) {
         if (upcoming) {
           stage = 'interlude'
-          displayCurrentLine = '♪ 间奏 ♪'
+          displayCurrentLine = '♪ Interlude ♪'
           displayNextLine = upcoming.text
         } else {
           stage = 'outro'
-          displayCurrentLine = '♪ 尾奏 ♪'
+          displayCurrentLine = '♪ Outro ♪'
           displayNextLine = undefined
         }
       } else {
@@ -299,20 +299,20 @@ export function useCurrentLyric(ctx: Context): CurrentLyricInfo {
   } else if (!parsed.synced && hasLines) {
     stage = 'unsynced'
     displayCurrentLine = fallbackTitle
-    displayNextLine = lines[0]?.text?.trim() ? lines[0].text : '纯文本歌词'
+    displayNextLine = lines[0]?.text?.trim() ? lines[0].text : 'Plain-text lyrics'
     currentLine = lines[0]
   } else if (status === 'no-lyrics' || (status === 'ready' && !hasLines)) {
     stage = 'no-lyrics'
     displayCurrentLine = fallbackTitle
-    displayNextLine = '暂无歌词'
+    displayNextLine = 'No lyrics'
   } else if (status === 'error') {
     stage = 'no-lyrics'
     displayCurrentLine = fallbackTitle
-    displayNextLine = '歌词加载失败'
+    displayNextLine = 'Failed to load lyrics'
   } else {
     stage = 'idle'
     displayCurrentLine = fallbackTitle
-    displayNextLine = transport.status === 'playing' ? undefined : '聆听高品质音乐'
+    displayNextLine = transport.status === 'playing' ? undefined : 'Listen to high-quality music'
   }
 
   return {

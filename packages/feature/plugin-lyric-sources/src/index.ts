@@ -305,8 +305,8 @@ export class LyricSourcesPlugin extends Service implements LyricSourcesService {
         ok: false,
         durationMs,
         error: isRawEmpty
-          ? '未检索到匹配歌词 (该歌词源暂未收录该歌曲或搜索条件未命中)'
-          : '歌词源已返回数据，但无法识别为有效歌词格式',
+          ? 'No matching lyrics found (the lyric source does not include this song yet, or the search criteria did not match)'
+          : 'The lyric source returned data, but it could not be recognized as a valid lyrics format',
       }
     } catch (err) {
       const durationMs = Date.now() - start

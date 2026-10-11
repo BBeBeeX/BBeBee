@@ -1,51 +1,51 @@
 # @BBeBee/plugin-library
 
-Layer 4（feature）— `ctx.library`：用户的**整理**（playlists、favourites、collections），以及现在的**库首页**。
+Layer 4 (feature) — `ctx.library`: the user's **curation** (playlists, favorites, collections), and now the **library home**.
 
-## 概述
+## Overview
 
-- **读面**：`sources.library` 已删除，库首页由本插件的 `library.home` 承担：同时显示 playlists、albums（读 `ctx.sources`）与 collections。
-- **collections 是文件夹**：成员可任意 URN —— **album、playlist、track**（以及 artist）；可嵌套（`parent_id`）。歌单/专辑以**自身引用**入合集，其中的歌曲因此"间接"进入库；不复制目录行。
-- **playlists 是队列式有序歌曲表**：可有 smart 规则、可来自远端源；详情页可单曲删除。
-- 目录读仍在 `ctx.sources`；本插件只写 `playlists` / `playlist_items` / `library_items` / `collections` / `collection_items`（docs/07 §4.6）。
+- **Read surface**: `sources.library` has been removed; the library home is handled by this plugin's `library.home`, showing playlists, albums (read via `ctx.sources`), and collections together.
+- **Collections are folders**: members can be any URN — **album, playlist, track** (and artist); they can nest (`parent_id`). Playlists/albums enter a collection by **self-reference**, so the songs inside reach the library "indirectly"; no catalog rows are duplicated.
+- **Playlists are a queue-style ordered song table**: they can carry smart rules and can come from remote sources; the detail page supports per-song deletion.
+- Catalog reads stay in `ctx.sources`; this plugin only writes `playlists` / `playlist_items` / `library_items` / `collections` / `collection_items` (docs/07 §4.6).
 
-## 视图与路由
+## Views and routes
 
 ```ts
 LIBRARY_VIEWS = {
   home: 'library.home',            // /library       sidebar + tab-bar, order 0
-  playlist: 'library.playlist',    // /playlist/:urn 无 placement
-  collection: 'library.collection',// /collection/:id 无 placement
+  playlist: 'library.playlist',    // /playlist/:urn no placement
+  collection: 'library.collection',// /collection/:id no placement
   favorites: 'library.favorites',  // /favorites     sidebar, order 1
-  local: 'library.local',          // /local-music   无 placement
+  local: 'library.local',          // /local-music   no placement
 }
 ```
 
-## 源文件
+## Source files
 
-| 文件 | 内容 |
+| File | Contents |
 |---|---|
-| `src/index.ts` | `Library` 服务：favourites（`library_items`，幂等保存/置顶）、playlists（创建/改名/删除/加删移曲目/智能规则，`track_count`/`duration_ms` 与曲目同事务重算）、collections（嵌套、成员增删）；emit `library/changed` 与 `library/collections-changed`；贡献 5 条 route |
-| `src/playlists.ts` | `playlists` + `playlist_items`；`between()` 分数索引移动一行、`recount` 同事务、smart 树解析为参数化 SQL（`smart.ts`） |
-| `src/smart.ts` | 规则树 → WHERE，字段白名单 + 值一律绑定（`inLast` 只对日期字段等） |
-| `src/saved.ts` | `library_items`：保存保留原 `added_at`、pinned 优先 |
-| `src/collections.ts` | 文件夹语义：任意 URN、`(collection_id, urn)` 幂等、同级分数索引、FK 级联删子树 |
-| `src/hooks.ts` | 双壳共享：`usePlaylists/usePlaylist/useSaved/useCollections/useToggleFavorite/useCollectionDetail`（成员按 kind hydrate：track→Track、album→标题/艺人、playlist→名称/曲目数） |
-| `src/views.ts` | 上面的 id 常量 |
+| `src/index.ts` | The `Library` service: favorites (`library_items`, idempotent save/pin), playlists (create/rename/delete/add-remove-move tracks/smart rules, `track_count`/`duration_ms` recomputed in the same transaction as tracks), collections (nesting, member add/remove); emits `library/changed` and `library/collections-changed`; contributes 5 routes |
+| `src/playlists.ts` | `playlists` + `playlist_items`; `between()` fractional-index row moves, `recount` in the same transaction, smart trees compiled into parameterized SQL (`smart.ts`) |
+| `src/smart.ts` | Rule tree → WHERE, field whitelist + values always bound (`inLast` only for date fields, etc.) |
+| `src/saved.ts` | `library_items`: saving keeps the original `added_at`, pinned first |
+| `src/collections.ts` | Folder semantics: any URN, `(collection_id, urn)` idempotent, sibling fractional index, FK cascading subtree delete |
+| `src/hooks.ts` | Shared by both shells: `usePlaylists/usePlaylist/useSaved/useCollections/useToggleFavorite/useCollectionDetail` (members hydrated by kind: track→Track, album→title/artist, playlist→name/track count) |
+| `src/views.ts` | The id constants above |
 
-## 事件与能力
+## Events and capabilities
 
-- emit：`library/changed(kind, urns)`、`library/collections-changed()`。
-- manifest：`db:read:core`、`db:write:core`；`contributes.services: ['library']`。
-- 对 `@BBeBee/ui-menus`：歌单菜单"加入合集"把**歌单 URN** 作为成员加入（不是快照）；曲目菜单"加入合集"加曲目 URN。
+- Emits: `library/changed(kind, urns)`, `library/collections-changed()`.
+- Manifest: `db:read:core`, `db:write:core`; `contributes.services: ['library']`.
+- For `@BBeBee/ui-menus`: the playlist menu's "Add to collection" adds the **playlist URN** as a member (not a snapshot); the track menu's "Add to collection" adds the track URN.
 
-## 测试
+## Tests
 
-`smart.test.ts`（编译器安全边界）、`playlists.test.ts`（顺序/移动单行/智能只读/派生列一致）、`saved.test.ts`、`collections.test.ts`（嵌套/幂等/级联）、`index.test.ts`（生命周期/泄漏/事件）、`hooks.test.tsx`。
+`smart.test.ts` (compiler safety boundaries), `playlists.test.ts` (ordering/single-row moves/smart read-only/derived column consistency), `saved.test.ts`, `collections.test.ts` (nesting/idempotence/cascade), `index.test.ts` (lifecycle/leaks/events), `hooks.test.tsx`.
 
-## 相关文档
+## Related docs
 
-- `docs/07-data-model.md` §4.6：五张表与 smart 规则
-- `docs/08-ui-architecture.md` §2–§4：descriptor 与 hooks
-- 视图半边：`packages/ui/plugin-library-ui-desktop/`、`packages/ui/plugin-library-ui-mobile/`
-- 菜单模型：`packages/ui/ui-menus/`
+- `docs/07-data-model.md` §4.6: the five tables and smart rules
+- `docs/08-ui-architecture.md` §2–§4: descriptors and hooks
+- View twins: `packages/ui/plugin-library-ui-desktop/`, `packages/ui/plugin-library-ui-mobile/`
+- Menu model: `packages/ui/ui-menus/`

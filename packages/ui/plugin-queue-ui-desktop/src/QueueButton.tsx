@@ -42,8 +42,8 @@ export function QueueButton({
     'button',
     {
       type: 'button',
-      'aria-label': '播放队列',
-      title: '播放队列',
+      'aria-label': 'Play queue',
+      title: 'Play queue',
       'data-testid': 'queue-button',
       onClick: handleClick,
       style: {

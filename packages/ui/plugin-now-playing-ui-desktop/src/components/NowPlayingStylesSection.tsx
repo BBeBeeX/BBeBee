@@ -13,8 +13,8 @@ interface SettingsWriter {
 const SAMPLE_PLUGIN_MANIFEST = JSON.stringify(
   {
     id: 'sample-neon-player',
-    name: '霓虹沙箱播放器',
-    description: '外部 HTML 动态沙箱模板，具备完整封面、歌词、进度拖拽与基础控制功能',
+    name: 'Neon Sandbox Player',
+    description: 'External HTML dynamic sandbox template with full artwork, lyrics, seek bar and basic playback controls',
     author: 'BBeBee Community',
     version: '1.0.0',
     htmlContent: `<!DOCTYPE html>
@@ -188,7 +188,7 @@ const SAMPLE_PLUGIN_MANIFEST = JSON.stringify(
     <div class="info-pane">
       <div class="badge">🛡️ SANDBOX PLUGIN</div>
       <div>
-        <div id="title" class="title">等待播放</div>
+        <div id="title" class="title">Nothing playing</div>
         <div id="artist" class="artist">-</div>
       </div>
       <div id="lyric" class="lyrics-box">-</div>
@@ -200,10 +200,10 @@ const SAMPLE_PLUGIN_MANIFEST = JSON.stringify(
         <span id="dur">00:00</span>
       </div>
       <div class="controls">
-        <button id="prev" class="btn" title="上一曲">⏮</button>
-        <button id="play" class="btn btn-play" title="播放/暂停">▶</button>
-        <button id="next" class="btn" title="下一曲">⏭</button>
-        <button id="fav" class="btn btn-fav" title="添加至我喜欢">♥</button>
+        <button id="prev" class="btn" title="Previous track">⏮</button>
+        <button id="play" class="btn btn-play" title="Play/Pause">▶</button>
+        <button id="next" class="btn" title="Next track">⏭</button>
+        <button id="fav" class="btn btn-fav" title="Add to Favorites">♥</button>
       </div>
     </div>
   </div>
@@ -218,8 +218,8 @@ const SAMPLE_PLUGIN_MANIFEST = JSON.stringify(
     if (window.BBeBeePlayer) {
       window.BBeBeePlayer.onSnapshot((data) => {
         lastSnapshot = data;
-        document.getElementById('title').textContent = data.title || '未知曲目';
-        document.getElementById('artist').textContent = data.artist || '未知艺人';
+        document.getElementById('title').textContent = data.title || 'Unknown track';
+        document.getElementById('artist').textContent = data.artist || 'Unknown artist';
         const coverEl = document.getElementById('cover');
         const phEl = document.getElementById('cover-ph');
         if (data.cover) {
@@ -352,7 +352,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
       }
     }
     reader.onerror = () => {
-      setImportError('读取文件失败')
+      setImportError('Failed to read the file')
     }
     reader.readAsText(file)
     e.target.value = ''
@@ -366,26 +366,26 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
   const handleImportSubmit = async () => {
     try {
       if (!importJson.trim()) {
-        throw new Error('请输入或选择播放页模板插件 JSON 清单')
+        throw new Error('Enter or select a now-playing template plugin JSON manifest')
       }
       const parsed = JSON.parse(importJson) as Partial<NowPlayingStyleMeta>
-      if (!parsed || typeof parsed !== 'object') throw new Error('无效的 JSON 格式')
-      if (!parsed.id || typeof parsed.id !== 'string') throw new Error('缺少插件 id 字段')
-      if (!parsed.name || typeof parsed.name !== 'string') throw new Error('缺少插件 name 字段')
+      if (!parsed || typeof parsed !== 'object') throw new Error('Invalid JSON')
+      if (!parsed.id || typeof parsed.id !== 'string') throw new Error('Missing plugin id field')
+      if (!parsed.name || typeof parsed.name !== 'string') throw new Error('Missing plugin name field')
       if (!parsed.htmlContent || typeof parsed.htmlContent !== 'string') {
-        throw new Error('缺少插件 htmlContent 页面内容')
+        throw new Error('Missing plugin htmlContent page content')
       }
 
       const cleanId = parsed.id.trim()
       const isBuiltinConflict = NOW_PLAYING_STYLES.some((b) => b.id === cleanId)
       if (isBuiltinConflict) {
-        throw new Error(`插件 ID "${cleanId}" 与内置官方样式冲突，请更换 id`)
+        throw new Error(`Plugin id "${cleanId}" conflicts with a built-in official style — choose another id`)
       }
 
       const newStyle: NowPlayingStyleMeta = {
         id: cleanId,
         name: parsed.name.trim(),
-        description: parsed.description ? parsed.description.trim() : '用户自定义导入的沙箱播放页模板',
+        description: parsed.description ? parsed.description.trim() : 'User-imported sandboxed now-playing template',
         author: parsed.author ? parsed.author.trim() : 'Community',
         version: parsed.version ? parsed.version.trim() : '1.0.0',
         icon: parsed.icon ?? 'layout',
@@ -433,7 +433,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
             letterSpacing: '-0.01em',
           },
         },
-        '播放页样式模板 (Now Playing Layout Styles)',
+        'Now Playing Layout Styles',
       ),
       h(
         'p',
@@ -445,7 +445,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
             lineHeight: 1.4,
           },
         },
-        '选择全屏播放页呈现布局，支持原生内置样式与动态导入第三方沙箱模板插件',
+        'Choose the full-screen now-playing layout — built-in styles plus dynamically imported third-party sandbox template plugins',
       ),
     ),
     h(
@@ -480,11 +480,11 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
         h(
           'div',
           { style: { display: 'flex', flexDirection: 'column', gap: 3 } },
-          h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #F5F5F7)' } }, '界面布局'),
+          h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #F5F5F7)' } }, 'Layout'),
           h(
             'div',
             { style: { fontSize: 12, color: 'var(--text-secondary, #8E8E93)', lineHeight: 1.45 } },
-            `已加载 ${styles.length} 套样式模板 · 当前使用: ${styles.find((s) => s.id === currentStyleId)?.name ?? currentStyleId}`,
+            `${styles.length} style templates loaded · In use: ${styles.find((s) => s.id === currentStyleId)?.name ?? currentStyleId}`,
           ),
         ),
         h(
@@ -523,7 +523,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
             },
           },
           tablerIcon('plus', { size: 14 }),
-          '导入样式插件',
+          'Import style plugin',
         ),
       ),
 
@@ -620,7 +620,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                           letterSpacing: 0.3,
                         },
                       },
-                      '沙箱 🛡️',
+                      'Sandbox 🛡️',
                     )
                   : h(
                       'span',
@@ -634,7 +634,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                           color: 'var(--text-secondary, #8E8E93)',
                         },
                       },
-                      '内置',
+                      'Built-in',
                     ),
                 isSelected
                   ? h(
@@ -653,7 +653,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                         },
                       },
                       tablerIcon('check', { size: 11 }),
-                      '使用中',
+                      'In use',
                     )
                   : null,
                 isSandboxed
@@ -661,8 +661,8 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                       'button',
                       {
                         type: 'button',
-                        title: `删除 ${s.name}`,
-                        'aria-label': `删除 ${s.name}`,
+                        title: `Delete ${s.name}`,
+                        'aria-label': `Delete ${s.name}`,
                         'data-testid': `delete-style-${s.id}`,
                         onClick: (e: { stopPropagation(): void }) => handleDeleteStyle(e, s.id),
                         style: {
@@ -729,7 +729,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                   borderTop: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.04))',
                 },
               },
-              s.author ? `by ${s.author}${s.version ? ` · v${s.version}` : ''}` : '官方提供',
+              s.author ? `by ${s.author}${s.version ? ` · v${s.version}` : ''}` : 'Official',
             ),
           )
         }),
@@ -745,7 +745,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
           setShowImportModal(false)
           setImportError(null)
         },
-        title: '导入外部播放页样式插件',
+        title: 'Import an external now-playing style plugin',
       },
       h(
         'div',
@@ -782,8 +782,8 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
           h(
             'div',
             null,
-            h('strong', { style: { color: '#34C759' } }, '沙箱隔离保障：'),
-            '外部播放页插件在严格无同源权限的 iframe 沙箱中运行，无母应用 DOM、本地存储或任意网络访问权限。插件仅通过白名单接收当前曲目的封面、主题色、标题、歌词与进度等基础数据。',
+            h('strong', { style: { color: '#34C759' } }, 'Sandbox isolation: '),
+            'External now-playing plugins run inside a strictly sandboxed iframe with no same-origin privileges — no access to the host application DOM, local storage, or arbitrary network. Plugins receive only whitelisted basics about the current track: artwork, theme color, title, lyrics and progress.',
           ),
         ),
 
@@ -801,7 +801,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
           h(
             'div',
             { style: { fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } },
-            '插件清单文件格式 (JSON):',
+            'Plugin manifest file format (JSON):',
           ),
           h(
             'div',
@@ -822,7 +822,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                   cursor: 'pointer',
                 },
               },
-              '载入示例模板',
+              'Load sample template',
             ),
             h(
               'button',
@@ -840,7 +840,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                   cursor: 'pointer',
                 },
               },
-              '选择 JSON 文件',
+              'Choose a JSON file',
             ),
           ),
         ),
@@ -859,7 +859,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
             setImportJson(e.target.value)
             setImportError(null)
           },
-          placeholder: '在此粘贴包含 id, name, htmlContent 的插件 JSON 清单...',
+          placeholder: 'Paste a plugin JSON manifest containing id, name, htmlContent here…',
           'data-testid': 'style-manifest-textarea',
           style: {
             width: '100%',
@@ -918,7 +918,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                 fontSize: 13,
               },
             },
-            '取消',
+            'Cancel',
           ),
           h(
             'button',
@@ -937,7 +937,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                 fontSize: 13,
               },
             },
-            '导入并启用',
+            'Import and apply',
           ),
         ),
       ),

@@ -1,7 +1,7 @@
 {
   "name": "@BBeBee/plugin-library",
   "version": "0.0.0",
-  "description": "ctx.library — playlists, favourites and collections.",
+  "description": "ctx.library — playlists, favorites and collections.",
   "type": "module",
   "license": "MIT",
   "exports": {

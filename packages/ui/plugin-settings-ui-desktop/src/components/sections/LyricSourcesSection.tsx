@@ -27,10 +27,10 @@ export interface LyricSourcesSectionProps {
 const SAMPLE_SOURCE_JSON = JSON.stringify(
   {
     id: 'sample-netease-lrc',
-    name: '第三方歌词源示例 (网易云公开接口)',
+    name: 'Third-party lyric source sample (NetEase Cloud Music public API)',
     version: '1.0.0',
     author: 'Community',
-    description: '通过公开接口搜索并匹配 LRC 格式同步歌词',
+    description: 'Searches and matches synced lyrics in LRC format through a public API',
     allowedHosts: ['music.163.com'],
     script: `// query: { title: string, artist: string, duration: number }
 async function searchLyrics(query) {
@@ -64,7 +64,7 @@ const SAMPLE_LRCLIB_JSON = JSON.stringify(
     name: 'LRCLIB (lrclib.net)',
     version: '1.3.0',
     author: 'LRCLIB Community / BBeBee',
-    description: '基于 lrclib.net 开放 API 的全球高质量歌词源，支持根据歌名、歌手与时长精准匹配百万级逐行同步 LRC 歌词与纯文本歌词。',
+    description: 'A global high-quality lyric source based on the lrclib.net open API; precisely matches millions of line-synced LRC lyrics and plain-text lyrics by title, artist and duration.',
     allowedHosts: ['lrclib.net'],
     script: `// query: { title: string, artist: string, duration: number }
 async function searchLyrics(query) {
@@ -130,7 +130,7 @@ async function searchLyrics(query) {
           if (data) {
             if (data.syncedLyrics && data.syncedLyrics.trim()) return data.syncedLyrics;
             if (data.plainLyrics && data.plainLyrics.trim()) return data.plainLyrics;
-            if (data.instrumental) return '[00:00.00]纯音乐，请欣赏';
+            if (data.instrumental) return '[00:00.00]Instrumental';
           }
         }
       } catch (err) {
@@ -160,7 +160,7 @@ async function searchLyrics(query) {
         if (match) {
           if (match.syncedLyrics && match.syncedLyrics.trim()) return match.syncedLyrics;
           if (match.plainLyrics && match.plainLyrics.trim()) return match.plainLyrics;
-          if (match.instrumental) return '[00:00.00]纯音乐，请欣赏';
+          if (match.instrumental) return '[00:00.00]Instrumental';
         }
       }
     }
@@ -284,8 +284,8 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
             duration: player?.state?.durationMs ?? 0,
           }
         : {
-            title: '晴天',
-            artist: '周杰伦',
+            title: 'Demo Song',
+            artist: 'Demo Artist',
             duration: 269000,
           }
       const res = await svc.testSource(id, testQuery)
@@ -308,14 +308,14 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
     setImportError(null)
 
     if (!importText.trim()) {
-      setImportError('请输入或选择歌词源配置 JSON')
+      setImportError('Please enter or select a lyric source configuration JSON')
       return
     }
 
     try {
       const parsed = JSON.parse(importText) as Partial<LyricSourceDefinition>
       if (!parsed.id || !parsed.name || !parsed.script) {
-        setImportError('歌词源配置必须包含有效 id, name 以及 script 属性')
+        setImportError('The lyric source configuration must contain valid id, name and script properties')
         return
       }
 
@@ -336,7 +336,7 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
       setImportText('')
       setLyricSources([...svc.getSources()])
     } catch (e) {
-      setImportError(e instanceof Error ? e.message : 'JSON 格式解析错误')
+      setImportError(e instanceof Error ? e.message : 'JSON parse error')
     }
   }
 
@@ -362,9 +362,9 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
     h(
       SettingsSection,
       {
-        title: '第三方歌词源管理 (Lyric Sources)',
+        title: 'Lyric source management (Lyric Sources)',
         description:
-          '管理外部第三方歌词源规则。歌词源在独立沙箱中执行，仅能获取歌名、歌手和时长数据。',
+          'Manage external third-party lyric source rules. Sources run in an isolated sandbox and can only access the title, artist and duration.',
       },
       h(
         'div',
@@ -383,15 +383,15 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
         h(
           'div',
           null,
-          h('div', { style: { fontSize: 13, fontWeight: 600 } }, '歌词源扩展库'),
+          h('div', { style: { fontSize: 13, fontWeight: 600 } }, 'Lyric source library'),
           h(
             'div',
             { style: { fontSize: 12, color: 'var(--text-secondary, #8E8E93)', marginTop: 2 } },
-            `当前已载入 ${lyricSources.length} 个歌词源。系统将按优先级自上而下匹配歌词。`,
+            `${lyricSources.length} lyric sources loaded. Lyrics are matched top-down by priority.`,
           ),
         ),
         h(Button, {
-          children: '导入歌词源',
+          children: 'Import lyric source',
           onPress: () => {
             setImportError(null)
             setShowImportModal(true)
@@ -467,7 +467,7 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
                       color: isBuiltin ? 'var(--color-primary, #5F87FF)' : '#34C759',
                     },
                   },
-                  isBuiltin ? '内置源' : '沙箱隔离 🛡️',
+                  isBuiltin ? 'Built-in' : 'Sandboxed 🛡️',
                 ),
                 source.version &&
                   h(
@@ -487,7 +487,7 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
                   disabled: idx === 0,
                   onPress: () => void handleMoveOrder(idx, 'up'),
                   children: '↑',
-                  accessibilityLabel: '上移',
+                  accessibilityLabel: 'Move up',
                 }),
                 // Move Down
                 h(Button, {
@@ -495,14 +495,14 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
                   disabled: idx === lyricSources.length - 1,
                   onPress: () => void handleMoveOrder(idx, 'down'),
                   children: '↓',
-                  accessibilityLabel: '下移',
+                  accessibilityLabel: 'Move down',
                 }),
                 // Test Button
                 h(Button, {
                   variant: 'secondary',
                   disabled: isTesting,
                   onPress: () => void handleTest(source.id),
-                  children: isTesting ? '测试中...' : '测试',
+                  children: isTesting ? 'Testing...' : 'Test',
                 }),
                 // Configure Button
                 h(Button, {
@@ -512,21 +512,21 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
                     setConfigText(JSON.stringify(source.config ?? {}, null, 2))
                     setConfigError(null)
                   },
-                  accessibilityLabel: `配置歌词源 ${source.name}`,
+                  accessibilityLabel: `Configure lyric source ${source.name}`,
                   testID: `lyric-source-configure-${source.id}`,
-                  children: '配置',
+                  children: 'Configure',
                 }),
                 // Delete button
                 !isBuiltin &&
                   h(Button, {
                     variant: 'danger',
                     onPress: () => void handleRemoveLyricSource(source.id),
-                    children: '删除',
+                    children: 'Delete',
                   }),
                 // Enable/disable switch
                 h(Switch, {
                   checked: source.enabled,
-                  accessibilityLabel: `启用歌词源 ${source.name}`,
+                  accessibilityLabel: `Enable lyric source ${source.name}`,
                   onChange: (checked) => void handleToggleLyricSource(source.id, checked),
                 }),
               ),
@@ -550,7 +550,7 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
                 h(
                   'span',
                   { style: { color: 'var(--text-secondary, #8E8E93)' } },
-                  `域名白名单: ${source.allowedHosts.join(', ')}`,
+                  `Allowed hosts: ${source.allowedHosts.join(', ')}`,
                 ),
             ),
 
@@ -583,11 +583,11 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
                     'strong',
                     null,
                     testResult.result.ok
-                      ? `✅ 测试成功 (耗时 ${testResult.result.durationMs ?? 0}ms)`
-                      : `❌ 测试失败 (耗时 ${testResult.result.durationMs ?? 0}ms)`,
+                      ? `✅ Test passed (${testResult.result.durationMs ?? 0}ms)`
+                      : `❌ Test failed (${testResult.result.durationMs ?? 0}ms)`,
                   ),
                   testResult.result.lyrics &&
-                    h('span', null, `格式: ${testResult.result.lyrics.format}`),
+                    h('span', null, `Format: ${testResult.result.lyrics.format}`),
                 ),
                 testResult.result.error && h('div', null, testResult.result.error),
                 testResult.result.lyrics?.content &&
@@ -618,27 +618,27 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
     h(
       SettingsSection,
       {
-        title: '音频源歌词策略 (Audio Source Policy)',
+        title: 'Audio source lyric policy (Audio Source Policy)',
         description:
-          '设置各个音频源是否需要外置第三方歌词源。未开启时优先使用音频源自带歌词，获取失败时自动转为第三方歌词源兜底。',
+          'Set whether each audio source requires an external third-party lyric source. When off, the audio source\'s built-in lyrics are preferred, falling back to third-party lyric sources automatically on failure.',
       },
       audioSources.length === 0
         ? h(
             'div',
             { style: { fontSize: 13, color: 'var(--text-secondary, #8E8E93)', padding: '8px 0' } },
-            '暂无已启用的音频源',
+            'No enabled audio sources',
           )
         : audioSources.map((source, index) =>
             h(SettingsRow, {
               key: source.id,
               title: source.name,
-              description: `ID: ${source.id}${source.group ? ` · 分组: ${source.group}` : ''} · ${
-                source.needsLyricSource ? '优先使用外部歌词源' : '优先自带歌词 (缺省时使用歌词源)'
+              description: `ID: ${source.id}${source.group ? ` · Group: ${source.group}` : ''} · ${
+                source.needsLyricSource ? 'Prefers external lyric sources' : 'Prefers built-in lyrics (falls back to lyric sources)'
               }`,
               borderBottom: index < audioSources.length - 1,
               action: h(Switch, {
                 checked: Boolean(source.needsLyricSource),
-                accessibilityLabel: `音频源 ${source.name} 强制使用外部歌词源`,
+                accessibilityLabel: `Audio source ${source.name} forced to use external lyric sources`,
                 onChange: (checked) => void handleToggleNeedsLyricSource(source.id, checked),
               }),
             }),
@@ -649,13 +649,13 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
     h(
       SettingsSection,
       {
-        title: '本地歌词缓存 (Lyric Cache)',
+        title: 'Local lyric cache (Lyric Cache)',
         description:
-          '已检索获取的歌词会自动在本地 SQLite 数据库中持久化缓存，离线及重复播放即时加载。',
+          'Fetched lyrics are automatically persisted in the local SQLite database and load instantly offline or on repeat plays.',
       },
       h(SettingsRow, {
-        title: '本地歌词持久化缓存',
-        description: '清除内存及本地 SQLite 数据库中所有已缓存的歌词文档，下次播放时将重新向源发起检索。',
+        title: 'Persistent local lyric cache',
+        description: 'Clears all cached lyric documents from memory and the local SQLite database; the next playback fetches them from the source again.',
         action: h(Button, {
           variant: 'secondary',
           onPress: async () => {
@@ -665,7 +665,7 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
             setCacheCleared(true)
             setTimeout(() => setCacheCleared(false), 2000)
           },
-          children: cacheCleared ? '已清空缓存' : '清空歌词缓存',
+          children: cacheCleared ? 'Cache cleared' : 'Clear lyric cache',
         }),
       }),
     ),
@@ -679,7 +679,7 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
           setShowImportModal(false)
           setImportError(null)
         },
-        title: '导入第三方歌词源',
+        title: 'Import third-party lyric source',
       },
       h(
         'div',
@@ -716,8 +716,8 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
           h(
             'div',
             null,
-            h('strong', { style: { color: '#34C759' } }, '严格沙箱隔离保护：'),
-            '第三方歌词源脚本运行在独立沙箱中，严格限制仅能获取当前曲目的「歌名、歌手、时长」三项最小必要数据，彻底隔绝母应用 DOM、本地存储或凭据。',
+            h('strong', { style: { color: '#34C759' } }, 'Strict sandbox isolation: '),
+            'Third-party lyric source scripts run in an isolated sandbox, strictly limited to the minimal data of the current track — title, artist and duration — and completely cut off from the host app\'s DOM, local storage or credentials.',
           ),
         ),
 
@@ -735,7 +735,7 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
           h(
             'div',
             { style: { fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } },
-            '支持粘贴包含 id, name, script 的完整歌词源 JSON 配置：',
+            'Paste a full lyric source JSON configuration containing id, name and script:',
           ),
           h(
             'div',
@@ -746,7 +746,7 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
                 setImportText(SAMPLE_LRCLIB_JSON)
                 setImportError(null)
               },
-              children: '载入 LRCLIB 模板',
+              children: 'Load LRCLIB template',
             }),
             h(Button, {
               variant: 'secondary',
@@ -754,12 +754,12 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
                 setImportText(SAMPLE_SOURCE_JSON)
                 setImportError(null)
               },
-              children: '载入示例源模板',
+              children: 'Load sample source template',
             }),
             h(Button, {
               variant: 'secondary',
               onPress: () => fileInputRef.current?.click(),
-              children: '选择本地文件',
+              children: 'Choose local file',
             }),
           ),
         ),
@@ -780,7 +780,7 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
             setImportText(e.target.value)
             setImportError(null)
           },
-          placeholder: '在此粘贴歌词源 JSON 配置文本...',
+          placeholder: 'Paste lyric source JSON configuration text here...',
           rows: 14,
           style: {
             width: '100%',
@@ -839,12 +839,12 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
               setShowImportModal(false)
               setImportError(null)
             },
-            children: '取消',
+            children: 'Cancel',
           }),
           h(Button, {
             variant: 'primary',
             onPress: () => void handleImportSubmit(),
-            children: '确认导入',
+            children: 'Import',
           }),
         ),
       ),
@@ -859,7 +859,7 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
           setConfiguringSource(null)
           setConfigError(null)
         },
-        title: `配置歌词源 - ${configuringSource?.name ?? ''}`,
+        title: `Configure lyric source - ${configuringSource?.name ?? ''}`,
         testID: 'lyric-source-configure-modal',
       },
       h(
@@ -875,7 +875,7 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
         h(
           'div',
           { style: { fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } },
-          '自定义该歌词源的运行配置（JSON 对象）。此配置将在沙箱执行时通过 query.config 及全局 config 注入脚本，供 API 鉴权或自定义参数使用。',
+          'Customize this lyric source\'s runtime configuration (a JSON object). It is injected into the script as query.config and the global config when the sandbox runs, for API authentication or custom parameters.',
         ),
         h(TextField, {
           multiline: true,
@@ -883,7 +883,7 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
           value: configText,
           onChange: setConfigText,
           placeholder: '{\n  "apiKey": "your-key-here",\n  "apiEndpoint": "https://..."\n}',
-          accessibilityLabel: '歌词源配置 JSON',
+          accessibilityLabel: 'Lyric source config JSON',
           testID: 'lyric-source-configure-json',
         }),
         configError &&
@@ -923,7 +923,7 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
               setConfigError(null)
             },
             testID: 'lyric-source-configure-cancel-btn',
-            children: '取消',
+            children: 'Cancel',
           }),
           h(Button, {
             variant: 'primary',
@@ -933,7 +933,7 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
               try {
                 const parsed = JSON.parse(configText.trim() || '{}')
                 if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-                  setConfigError('配置必须是有效的 JSON 对象 ({...})')
+                  setConfigError('Configuration must be a valid JSON object ({...})')
                   return
                 }
                 setConfigSaving(true)
@@ -945,11 +945,11 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
                 if (svc) setLyricSources([...svc.getSources()])
               } catch (err: unknown) {
                 setConfigSaving(false)
-                setConfigError(err instanceof Error ? err.message : 'JSON 格式解析错误')
+                setConfigError(err instanceof Error ? err.message : 'JSON parse error')
               }
             },
             testID: 'lyric-source-configure-save-btn',
-            children: '保存配置',
+            children: 'Save config',
           }),
         ),
       ),

@@ -30,7 +30,7 @@ export async function apply(ctx: Context, config: ShareConfig = {}) {
       yield innerCtx.ui.contribute({
         kind: "command",
         id: SHARE_COMMANDS.openImport,
-        title: "读取分享卡片",
+        title: "Read share card",
         run: () => {
           innerCtx.share?.openImport()
         },

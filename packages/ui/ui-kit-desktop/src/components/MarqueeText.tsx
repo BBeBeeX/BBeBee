@@ -16,7 +16,7 @@ export interface MarqueeTextProps {
 }
 
 /**
- * A single line of text that plays a marquee (走马灯) once it overflows.
+ * A single line of text that plays a marquee once it overflows.
  *
  * Layout-wise it is a one-line ellipsis text with `display: block`, so it
  * drops in wherever `Text numberOfLines={1}` was clipped. When the content is

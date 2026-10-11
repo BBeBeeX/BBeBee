@@ -41,7 +41,7 @@ describe('plugin-library', () => {
     expect(typeof asContract.setSaved).toBe('function')
     // A fresh library is seeded with one default playlist — the curation page
     // must not open empty.
-    expect((await asContract.listPlaylists()).items.map((p) => p.name)).toEqual(['我的歌单'])
+    expect((await asContract.listPlaylists()).items.map((p) => p.name)).toEqual(['My playlist'])
   })
 
   it('seeds a local user profile, and renames it', async () => {

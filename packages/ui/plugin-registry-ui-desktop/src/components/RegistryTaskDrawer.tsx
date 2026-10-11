@@ -7,7 +7,8 @@
  * `useRegistryTasks` (the service's snapshot); the drawer holds none.
  *
  * Status chips share one treatment (`statusChip`): colored text over a tint
- * of the same tone — 进行中 primary, 成功 green, 失败 red, 等待确认 neutral.
+ * of the same tone — running primary, success green, failed red, awaiting
+ * confirmation neutral.
  * Rows carry a slim progress bar when the record knows its done/total; the
  * empty state uses the package's shared ghost-icon treatment.
  */
@@ -29,16 +30,16 @@ export interface RegistryTaskDrawerProps {
 }
 
 const KIND_LABELS: Record<RegistryEntryKind, string> = {
-  'music-source': '音乐源',
-  'lyric-source': '歌词源',
-  theme: '界面主题',
-  plugin: '插件',
+  'music-source': 'Music source',
+  'lyric-source': 'Lyric source',
+  theme: 'Theme',
+  plugin: 'Plugin',
 }
 
 const RUN_STAGE_LABELS: Record<RegistryTask['stage'], string> = {
-  download: '下载中',
-  verify: '校验中',
-  install: '安装中',
+  download: 'Downloading',
+  verify: 'Verifying',
+  install: 'Installing',
 }
 
 /** The status chip's text and tone, straight off the service's record. */
@@ -46,13 +47,13 @@ function statusFor(task: RegistryTask): { label: string; color: string } {
   switch (task.status) {
     case 'pending':
       // Waiting on the user is a neutral state, not an active one.
-      return { label: '等待确认', color: TONE.neutral }
+      return { label: 'Awaiting confirmation', color: TONE.neutral }
     case 'running':
       return { label: RUN_STAGE_LABELS[task.stage], color: TONE.primary }
     case 'success':
-      return { label: '成功', color: TONE.success }
+      return { label: 'Success', color: TONE.success }
     case 'failed':
-      return { label: '失败', color: TONE.error }
+      return { label: 'Failed', color: TONE.error }
   }
 }
 
@@ -106,8 +107,8 @@ export function RegistryTaskDrawer({
     {
       open: true,
       onClose,
-      title: '任务',
-      accessibilityLabel: '任务中心',
+      title: 'Tasks',
+      accessibilityLabel: 'Task Center',
     },
     h(
       'div',
@@ -119,8 +120,8 @@ export function RegistryTaskDrawer({
           'div',
           { style: { fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } },
           tasks.length > 0
-            ? `安装与更新记录（新 → 旧，共 ${tasks.length} 条）`
-            : '安装与更新记录',
+            ? `Install & update records (new → old, ${tasks.length} in total)`
+            : 'Install & update records',
         ),
         clearEnabled
           ? h(
@@ -133,7 +134,7 @@ export function RegistryTaskDrawer({
                 style: clearButtonStyle(true),
               },
               tablerIcon('trash', { size: 12 }),
-              '清空已完成',
+              'Clear finished',
             )
           : h(
               'button',
@@ -143,7 +144,7 @@ export function RegistryTaskDrawer({
                 disabled: true,
                 style: clearButtonStyle(false),
               },
-              '清空已完成',
+              'Clear finished',
             ),
       ),
       tasks.length === 0
@@ -152,8 +153,8 @@ export function RegistryTaskDrawer({
             { 'data-testid': 'registry-tasks-empty' },
             h(RegistryEmptyState, {
               icon: 'list-check',
-              title: '暂无任务',
-              description: '安装音乐源、主题或插件时会在这里显示进度',
+              title: 'No tasks yet',
+              description: 'Progress shows here while you install a music source, theme or plugin',
               compact: true,
             }),
           )

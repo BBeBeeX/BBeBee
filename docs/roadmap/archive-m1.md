@@ -9,7 +9,7 @@
 > ⚠️ **Historical record.** The package names below are the ones that existed during M1. The
 > screens have since been split into surface plugins — `plugin-album` (the album page),
 > `plugin-now-playing` (the full-screen player and the bar that opens it), `plugin-queue` (the
-> up-next list) — and `plugin-library` owns playlists, favourites and collections. For the
+> up-next list) — and `plugin-library` owns playlists, favorites and collections. For the
 > current package layout see [workflow/structure.md §1](../workflow/structure.md#1-repository-layout), and for the
 > current state of each milestone see [roadmap.md](./roadmap.md).
 
@@ -59,7 +59,7 @@ Deferred deliberately, with where each lands. Nothing here is blocked by an M1 d
 | `ctx.js` — the **implementation** | M2 | The contract lands in `@BBeBee/protocol` with the docs, because [services/contracts.md §19](../services/contracts.md#19-ctxjs--the-sandboxed-evaluator) is what M2 is built against and a contract nobody can read is not a plan. No `core-js-quickjs-*` package exists, nothing injects `js`, and no M1 code path evaluates a script |
 | Authentication, `ctx.secrets`, persistent cookie jars | M2 | No M1 source has credentials. Building the jar with no backend to sign into tests nothing ([sources/runtime.md §5.1](../sources/runtime.md#51-session-persistence--cookies-survive-the-app)) |
 | Cross-source fan-out in anger, `track_links`, identity linking | M2 | `searchAll` exists and is exercised, but two sources — one of which cannot search — is not a fan-out. `ctx.sources.searchLocal` covers the catalogue in the meantime |
-| `plugin-library` / `ctx.library` — playlists, favourites, collections | M2 | MD-3. None of M1's five screens curates anything, and the catalogue reads that used to justify the package now live on `ctx.sources` |
+| `plugin-library` / `ctx.library` — playlists, favorites, collections | M2 | MD-3. None of M1's five screens curates anything, and the catalogue reads that used to justify the package now live on `ctx.sources` |
 | `plugin-download`, bindings with `origin: 'download'` | M3 | The waterfall it hooks is live in M1 with no listeners — which is exactly the control arm its regression test compares against |
 | `ctx.dsp` and every effect | M4 | The splice point exists in the M1 graph and stays empty (§4.2) |
 | Capability prompts, quarantine, any runtime-loaded code | M5, if ever | Every plugin is `builtin` and statically bundled ([ADR-1 as amended](../architecture/overview.md#adr-1--plugins-are-statically-bundled-on-every-target)) |
@@ -120,7 +120,7 @@ Three services, three responsibilities, no overlap:
 | Service | Package | Owns |
 |---|---|---|
 | `ctx.sources` | `plugin-sources` | Which backends exist, and what they hold: registration, lookup by URN, the search fan-out, the catalogue cache, and the FTS5 index |
-| `ctx.library` | `plugin-library` | The user's curation: playlists, favourites, collections. **M2** |
+| `ctx.library` | `plugin-library` | The user's curation: playlists, favorites, collections. **M2** |
 | `ctx.player` | `plugin-player` | Playback: transport, queue, resolution, history |
 
 The view packages call `ctx.sources` and never touch `ctx.db`.
@@ -868,7 +868,7 @@ parameter whose only argument is its default is not a filter, it is a promise ab
 wrong place — `kinds` lands when albums and artists are indexed and there is something to choose
 between.
 
-`ctx.library` — playlists, favourites, collections — is specified with M2, when something
+`ctx.library` — playlists, favorites, collections — is specified with M2, when something
 actually curates.
 
 ### 5.2 `ctx.scanner`

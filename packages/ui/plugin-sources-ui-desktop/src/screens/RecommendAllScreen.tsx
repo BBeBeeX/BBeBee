@@ -10,7 +10,7 @@ import { RecommendCard } from '../components/RecommendCard.js'
 /**
  * One source's whole recommendation feed, as a grid.
  *
- * The page "显示全部" lands on. Twenty cards per step — two of the feed's
+ * The page "Show all" lands on. Twenty cards per step — two of the feed's
  * ten-card pages — and a show-more control beneath, until a short page says
  * the curated list has run out and the control stands down.
  */
@@ -40,20 +40,20 @@ export function RecommendAllScreen({
       'data-testid': 'recommend-all-screen',
       style: { display: 'flex', flexDirection: 'column', gap: tokens.space[4], padding: tokens.space[4] },
     },
-    h(Text, { variant: 'lg', testID: 'recommend-all-title' }, `${name ?? '推荐'} · 全部推荐歌单`),
+    h(Text, { variant: 'lg', testID: 'recommend-all-title' }, `${name ?? 'Recommendations'} · All recommended playlists`),
     !sourceId
-      ? h(EmptyState, { title: '未选择音乐源', description: '从推荐页的“显示全部”进入。' })
+      ? h(EmptyState, { title: 'No music source selected', description: 'Enter from "Show all" on the recommendations page.' })
       : feed.items.length === 0 && feed.loading
-        ? h(Text, { variant: 'sm', tone: 'muted' }, '加载中…')
+        ? h(Text, { variant: 'sm', tone: 'muted' }, 'Loading…')
         : feed.items.length === 0 && feed.error
           ? h(
               'div',
               { style: { display: 'flex', flexDirection: 'column', gap: tokens.space[2] } },
-              h(Text, { variant: 'sm', tone: 'error' }, `推荐加载失败：${feed.error.message}`),
-              h(Button, { onPress: feed.loadMore, testID: 'recommend-retry', children: '重试' }),
+              h(Text, { variant: 'sm', tone: 'error' }, `Failed to load recommendations: ${feed.error.message}`),
+              h(Button, { onPress: feed.loadMore, testID: 'recommend-retry', children: 'Retry' }),
             )
           : feed.items.length === 0
-            ? h(EmptyState, { title: '这个源暂时没有推荐', description: '它实现了推荐接口，但推荐列表是空的。' })
+            ? h(EmptyState, { title: 'This source has no recommendations yet', description: 'It implements the recommendation interface, but the recommendation list is empty.' })
             : h(
                 Fragment,
                 null,
@@ -80,7 +80,7 @@ export function RecommendAllScreen({
                   ),
                 ),
                 feed.error
-                  ? h(Text, { variant: 'sm', tone: 'error' }, `加载失败：${feed.error.message}`)
+                  ? h(Text, { variant: 'sm', tone: 'error' }, `Failed to load: ${feed.error.message}`)
                   : null,
                 feed.hasMore
                   ? h(
@@ -91,7 +91,7 @@ export function RecommendAllScreen({
                         testID: 'recommend-show-more',
                         disabled: feed.loading,
                         loading: feed.loading,
-                        children: feed.loading ? '加载中…' : '显示更多',
+                        children: feed.loading ? 'Loading…' : 'Show more',
                       }),
                     )
                   : null,

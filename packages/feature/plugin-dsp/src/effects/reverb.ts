@@ -55,22 +55,22 @@ function createSyntheticImpulse(
 
 export const ReverbEffect: EffectDefinition<ReverbParams> = {
   id: 'reverb',
-  displayName: '空间混响 (Reverb)',
+  displayName: 'Reverb',
   defaultOrder: 50,
   Params: createParamSchema(DEFAULT_PARAMS),
   presets: [
     {
-      name: '小型房间 (Small Room)',
+      name: 'Small Room',
       params: { mix: 0.15, decay: 0.8, preDelay: 0.01 },
       builtin: true,
     },
     {
-      name: '音乐大厅 (Concert Hall)',
+      name: 'Concert Hall',
       params: { mix: 0.3, decay: 2.5, preDelay: 0.03 },
       builtin: true,
     },
     {
-      name: '板式混响 (Plate)',
+      name: 'Plate',
       params: { mix: 0.25, decay: 1.8, preDelay: 0.005 },
       builtin: true,
     },

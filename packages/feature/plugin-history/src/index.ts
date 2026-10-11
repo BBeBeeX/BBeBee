@@ -29,7 +29,7 @@ export async function apply(ctx: Context) {
         kind: 'route',
         id: HISTORY_ROUTES.history,
         path: '/history',
-        title: '播放历史',
+        title: 'Play history',
         icon: 'history',
         placement: ['tray', 'tab-bar'],
         order: 25,

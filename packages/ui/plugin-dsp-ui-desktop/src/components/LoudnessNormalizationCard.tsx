@@ -261,19 +261,19 @@ export function LoudnessNormalizationCard({ ctx }: { ctx: Context }): ReactEleme
   return h(
     SectionWrapper,
     {
-      title: '曲目间音量响度标准化 (Loudness Normalization)',
-      description: '基于 ReplayGain 与 EBU R128 标准自动平衡不同曲目的音量差异，消除忽大忽小的落差',
+      title: 'Loudness normalization between tracks (Loudness Normalization)',
+      description: 'Automatically balances volume differences between tracks based on ReplayGain and EBU R128, eliminating jarring loudness jumps',
     },
     h(
       RowWrapper,
       {
-        title: '启用音量响度标准化',
+        title: 'Enable loudness normalization',
         description: isEnabled
-          ? '已开启：自动校准每首歌曲的感知响度至标准电平，防止切换歌曲时音量突变'
-          : '已关闭：以音频源文件原始增益电平输出',
+          ? 'On: automatically calibrates the perceived loudness of every song to a standard level, preventing sudden volume jumps between tracks'
+          : 'Off: plays back at the original gain level of the audio source files',
         action: h(Switch, {
           checked: isEnabled,
-          accessibilityLabel: '曲目间音量响度标准化',
+          accessibilityLabel: 'Loudness normalization between tracks',
           onChange: handleToggle,
         }),
         borderBottom: isEnabled,
@@ -285,20 +285,20 @@ export function LoudnessNormalizationCard({ ctx }: { ctx: Context }): ReactEleme
         null,
         h(RowWrapper, {
           isNested: true,
-          title: '标准化模式',
+          title: 'Normalization mode',
           description:
             currentMode === 'album'
-              ? '专辑均衡：保持同一张专辑内曲目间的动态强弱对比，适合整张专辑连贯播放'
+              ? 'Album mode: preserves the dynamic contrast between tracks on the same album, ideal for playing an album straight through'
               : currentMode === 'dynamic'
-                ? '动态 EBU R128：实时响度测量与平滑归一化，适合没有预置 ReplayGain 标签的音源'
-                : '单曲均衡：每首曲目独立匹配目标响度，适合歌单混排与随机播放',
+                ? 'Dynamic EBU R128: real-time loudness measurement with smooth normalization, ideal for sources without ReplayGain tags'
+                : 'Track mode: matches each track to the target loudness independently, ideal for mixed playlists and shuffle playback',
           action: h(
             'div',
             { style: { display: 'flex', gap: 6 } },
             [
-              { id: 'track' as LoudnessNormalizationMode, label: '单曲模式' },
-              { id: 'album' as LoudnessNormalizationMode, label: '专辑模式' },
-              { id: 'dynamic' as LoudnessNormalizationMode, label: '动态 R128' },
+              { id: 'track' as LoudnessNormalizationMode, label: 'Track mode' },
+              { id: 'album' as LoudnessNormalizationMode, label: 'Album mode' },
+              { id: 'dynamic' as LoudnessNormalizationMode, label: 'Dynamic R128' },
             ].map((m) =>
               h(Button, {
                 key: m.id,
@@ -311,16 +311,16 @@ export function LoudnessNormalizationCard({ ctx }: { ctx: Context }): ReactEleme
         }),
         h(RowWrapper, {
           isNested: true,
-          title: '目标响度基准 (Target LUFS)',
-          description: `基准参考目标: ${currentLufs} LUFS (符合流媒体与人耳等响度曲线)`,
+          title: 'Target loudness (Target LUFS)',
+          description: `Reference target: ${currentLufs} LUFS (matches streaming platforms and equal-loudness contours)`,
           borderBottom: false,
           action: h(
             'div',
             { style: { display: 'flex', gap: 6 } },
             [
-              { lufs: -14, label: '流媒体 (-14)' },
-              { lufs: -18, label: '古典安静 (-18)' },
-              { lufs: -11, label: '高响度 (-11)' },
+              { lufs: -14, label: 'Streaming (-14)' },
+              { lufs: -18, label: 'Classical quiet (-18)' },
+              { lufs: -11, label: 'Loud (-11)' },
             ].map((item) =>
               h(Button, {
                 key: item.lufs,

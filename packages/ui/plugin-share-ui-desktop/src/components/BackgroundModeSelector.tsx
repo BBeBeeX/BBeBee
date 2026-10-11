@@ -13,13 +13,13 @@ export interface BackgroundModeSelectorProps {
 export function BackgroundModeSelector({
   mode,
   onChange,
-  label = '背景调节',
+  label = 'Background',
   compact = false,
 }: BackgroundModeSelectorProps): ReactElement {
   const modes: Array<{ id: BackgroundMode; label: string }> = [
-    { id: 'cover', label: compact ? '主题色' : '纯主题色' },
-    { id: 'gradient', label: '渐变' },
-    { id: 'black', label: '纯黑' },
+    { id: 'cover', label: compact ? 'Theme color' : 'Solid theme color' },
+    { id: 'gradient', label: 'Gradient' },
+    { id: 'black', label: 'Solid black' },
   ]
 
   return h(

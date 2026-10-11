@@ -23,15 +23,15 @@ export const TempoPitchEffect: EffectDefinition<TempoPitchParams> & {
   onSelfDisable?: () => void
 } = {
   id: 'tempo-pitch',
-  displayName: '变速变调 (Tempo & Pitch)',
+  displayName: 'Tempo & Pitch',
   defaultOrder: 70,
   Params: createParamSchema(DEFAULT_PARAMS),
   presets: [
-    { name: '正常 (1.0x)', params: { tempo: 1.0, pitch: 1.0 }, builtin: true },
-    { name: '稍快 (1.2x)', params: { tempo: 1.2, pitch: 1.0 }, builtin: true },
-    { name: '快速 (1.5x)', params: { tempo: 1.5, pitch: 1.0 }, builtin: true },
-    { name: '低音调 (-2 semitones)', params: { tempo: 1.0, pitch: 0.89 }, builtin: true },
-    { name: '高音调 (+2 semitones)', params: { tempo: 1.0, pitch: 1.12 }, builtin: true },
+    { name: 'Normal (1.0x)', params: { tempo: 1.0, pitch: 1.0 }, builtin: true },
+    { name: 'Slightly fast (1.2x)', params: { tempo: 1.2, pitch: 1.0 }, builtin: true },
+    { name: 'Fast (1.5x)', params: { tempo: 1.5, pitch: 1.0 }, builtin: true },
+    { name: 'Lower pitch (-2 semitones)', params: { tempo: 1.0, pitch: 0.89 }, builtin: true },
+    { name: 'Higher pitch (+2 semitones)', params: { tempo: 1.0, pitch: 1.12 }, builtin: true },
   ],
   buildLavfi(params: Record<string, unknown>): string {
     const num = (key: string, dflt: number) =>

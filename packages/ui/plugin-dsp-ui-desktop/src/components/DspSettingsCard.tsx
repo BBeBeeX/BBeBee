@@ -237,38 +237,38 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
   return h(
     SectionWrapper,
     {
-      title: '音频效果与均衡器 (DSP)',
-      description: '图示均衡器、动态压缩与空间混响调音面板',
+      title: 'Audio effects & equalizer (DSP)',
+      description: 'Tuning panel for the graphic equalizer, dynamic compression and spatial reverb',
     },
     // 1. EQ
     h(
       RowWrapper,
       {
-        title: '10 频段图示均衡器 (10-Band EQ)',
-        description: '调整各频段增益，塑造更加适合耳机或音响的声音曲线',
+        title: '10-Band graphic equalizer (10-Band EQ)',
+        description: 'Adjust the gain of each band to shape a sound curve better suited to headphones or speakers',
         expandable: eqEntry?.enabled ?? false,
         expanded: eqExpanded,
         onToggleExpand: () => setEqExpanded((prev) => !prev),
         action: h(Switch, {
           checked: eqEntry?.enabled ?? false,
-          accessibilityLabel: '启用 10 频段均衡器',
+          accessibilityLabel: 'Enable 10-band equalizer',
           onChange: (checked) => void setEnabled('eq10', checked),
         }),
       },
       eqEntry?.enabled
         ? h(RowWrapper, {
             isNested: true,
-            title: '均衡器预设风格',
-            description: '快速切换平直、低音增强、清晰人声等调音风格',
+            title: 'Equalizer preset styles',
+            description: 'Quickly switch between Flat, Bass Boost, Vocal and other tuning styles',
             borderBottom: false,
             action: h(
               'div',
               { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
               [
-                { id: '原声 (Flat)', label: '原声' },
-                { id: '低音增强 (Bass Boost)', label: '低音增强' },
-                { id: '清晰人声 (Vocal)', label: '清晰人声' },
-                { id: '清亮高音 (Treble)', label: '清亮高音' },
+                { id: 'Flat', label: 'Flat' },
+                { id: 'Bass Boost', label: 'Bass Boost' },
+                { id: 'Vocal', label: 'Vocal' },
+                { id: 'Treble', label: 'Treble' },
               ].map((p) =>
                 h(Button, {
                   key: p.id,
@@ -285,14 +285,14 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
     h(
       RowWrapper,
       {
-        title: '动态范围压缩器 (Compressor)',
-        description: '抑制突发的高音量并提升微弱细节，平抑动态范围',
+        title: 'Dynamic range compressor (Compressor)',
+        description: 'Tames sudden loud peaks, lifts quiet details and smooths the dynamic range',
         expandable: compEntry?.enabled ?? false,
         expanded: compExpanded,
         onToggleExpand: () => setCompExpanded((prev) => !prev),
         action: h(Switch, {
           checked: compEntry?.enabled ?? false,
-          accessibilityLabel: '启用动态压缩器',
+          accessibilityLabel: 'Enable dynamic compressor',
           onChange: (checked) => void setEnabled('compressor', checked),
         }),
       },
@@ -302,15 +302,15 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
             null,
             h(RowWrapper, {
               isNested: true,
-              title: '压缩模式风格',
-              description: '选择适合夜间收听或强劲动态的压缩曲线',
+              title: 'Compression preset styles',
+              description: 'Choose a compression curve for quiet night listening or strong dynamics',
               action: h(
                 'div',
                 { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
                 [
-                  { id: '夜间模式 (Night Mode)', label: '🌙 夜间模式' },
-                  { id: '温和顺滑 (Subtle)', label: '温和顺滑' },
-                  { id: '强劲动态 (Heavy)', label: '强劲动态' },
+                  { id: 'Night Mode', label: '🌙 Night Mode' },
+                  { id: 'Subtle', label: 'Subtle' },
+                  { id: 'Heavy', label: 'Heavy' },
                 ].map((p) =>
                   h(Button, {
                     key: p.id,
@@ -323,8 +323,8 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
             }),
             h(RowWrapper, {
               isNested: true,
-              title: '压缩阈值 (Threshold)',
-              description: `触发压缩的信号电平上限: ${compParams.threshold ?? -24} dB`,
+              title: 'Compressor threshold (Threshold)',
+              description: `Signal level ceiling that triggers compression: ${compParams.threshold ?? -24} dB`,
               borderBottom: false,
               action: h(
                 'div',
@@ -335,7 +335,7 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
                   h(Slider, {
                     value: Number(compParams.threshold ?? -24) + 60,
                     max: 60,
-                    accessibilityLabel: '压缩阈值',
+                    accessibilityLabel: 'Compressor threshold',
                     onChange: (v) => void setParam('compressor', 'threshold', Math.round(v - 60)),
                   }),
                 ),
@@ -353,14 +353,14 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
     h(
       RowWrapper,
       {
-        title: '空间混响效果 (Reverb)',
-        description: '合成自然空间声学反射与混响尾音，营造沉浸式空间氛围',
+        title: 'Spatial reverb (Reverb)',
+        description: 'Synthesizes natural acoustic reflections and reverb tails for an immersive sense of space',
         expandable: reverbEntry?.enabled ?? false,
         expanded: reverbExpanded,
         onToggleExpand: () => setReverbExpanded((prev) => !prev),
         action: h(Switch, {
           checked: reverbEntry?.enabled ?? false,
-          accessibilityLabel: '启用空间混响',
+          accessibilityLabel: 'Enable spatial reverb',
           onChange: (checked) => void setEnabled('reverb', checked),
         }),
       },
@@ -370,15 +370,15 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
             null,
             h(RowWrapper, {
               isNested: true,
-              title: '混响空间类型',
-              description: '切换不同声学空间的脉冲反射模型',
+              title: 'Reverb space type',
+              description: 'Switch between impulse response models of different acoustic spaces',
               action: h(
                 'div',
                 { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
                 [
-                  { id: '小型房间 (Small Room)', label: '小型房间' },
-                  { id: '音乐大厅 (Concert Hall)', label: '音乐大厅' },
-                  { id: '板式混响 (Plate)', label: '板式混响' },
+                  { id: 'Small Room', label: 'Small Room' },
+                  { id: 'Concert Hall', label: 'Concert Hall' },
+                  { id: 'Plate', label: 'Plate' },
                 ].map((p) =>
                   h(Button, {
                     key: p.id,
@@ -391,8 +391,8 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
             }),
             h(RowWrapper, {
               isNested: true,
-              title: '混响干湿比 (Mix)',
-              description: `湿声比例: ${Math.round(Number(reverbParams.mix ?? 0.25) * 100)}%`,
+              title: 'Reverb wet-dry mix (Mix)',
+              description: `Wet level: ${Math.round(Number(reverbParams.mix ?? 0.25) * 100)}%`,
               borderBottom: false,
               action: h(
                 'div',
@@ -403,7 +403,7 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
                   h(Slider, {
                     value: Math.round(Number(reverbParams.mix ?? 0.25) * 100),
                     max: 100,
-                    accessibilityLabel: '混响比例',
+                    accessibilityLabel: 'Reverb mix',
                     onChange: (v) => void setParam('reverb', 'mix', Math.round(v) / 100),
                   }),
                 ),
@@ -419,11 +419,11 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
     ),
     // 5. Open full DSP screen button
     h(RowWrapper, {
-      title: '高级效果器调音与编排',
-      description: `当前效果链包含 ${chain.length} 个处理节点，延迟: ${latencyMs}ms`,
+      title: 'Advanced effect tuning and routing',
+      description: `The current effect chain contains ${chain.length} processing nodes, latency: ${latencyMs}ms`,
       borderBottom: false,
       action: h(Button, {
-        children: '打开音效面板 →',
+        children: 'Open audio effects panel →',
         onPress: () => {
           serviceOf<UiService>(ctx, 'ui')?.navigate?.('dsp.view')
         },

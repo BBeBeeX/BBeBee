@@ -194,7 +194,7 @@ export function HttpLogsScreen({ ctx }: { ctx: Context }): ReactElement {
         { style: { display: 'flex', alignItems: 'center', gap: 16 } },
         h(Button, {
           variant: 'secondary',
-          children: '← 返回调试',
+          children: '← Back to debug',
           onPress: () => ui?.navigate?.('debug.view'),
         }),
         h(
@@ -210,16 +210,16 @@ export function HttpLogsScreen({ ctx }: { ctx: Context }): ReactElement {
                 color: '#F8FAFC',
               },
             },
-            '第三方源 HTTP 日志 (HTTP Logs)',
+            'Third-party source HTTP logs (HTTP Logs)',
           ),
           h(
             'span',
             { style: { fontSize: 12, color: '#64748B' } },
-            `监控第三方音乐源发起的 HTTP 请求与响应，共捕获 ${captureCount} 条网络记录` +
+            `Monitors HTTP requests and responses made by third-party music sources, ${captureCount} network records captured` +
               (hasJournal
                 ? captureEnabled
-                  ? '，点击行可展开请求头与响应详情'
-                  : '，详情记录已关闭，新请求仅记摘要行'
+                  ? '. Click a row to expand request and response details'
+                  : '. Detail capture is off; new requests record the summary line only'
                 : ''),
           ),
         ),
@@ -230,7 +230,7 @@ export function HttpLogsScreen({ ctx }: { ctx: Context }): ReactElement {
         hasJournal ? renderCaptureSwitch(captureEnabled, toggleCapture) : null,
         h(Button, {
           variant: 'danger',
-          children: '清空日志',
+          children: 'Clear logs',
           onPress: handleClear,
         }),
       ),
@@ -255,7 +255,7 @@ export function HttpLogsScreen({ ctx }: { ctx: Context }): ReactElement {
       // Search input
       h('input', {
         type: 'text',
-        placeholder: '过滤目标 URL、域名或请求路径…',
+        placeholder: 'Filter by target URL, domain or request path…',
         value: searchTerm,
         onChange: (e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value),
         style: {
@@ -273,10 +273,10 @@ export function HttpLogsScreen({ ctx }: { ctx: Context }): ReactElement {
       h(
         'div',
         { style: { display: 'flex', gap: 6 } },
-        renderFilterBtn('all', '全部', statusFilter, setStatusFilter),
-        renderFilterBtn('2xx', '2xx 成功', statusFilter, setStatusFilter),
-        renderFilterBtn('3xx', '3xx 重定向', statusFilter, setStatusFilter),
-        renderFilterBtn('error', '异常 / 4xx / 5xx', statusFilter, setStatusFilter),
+        renderFilterBtn('all', 'All', statusFilter, setStatusFilter),
+        renderFilterBtn('2xx', '2xx success', statusFilter, setStatusFilter),
+        renderFilterBtn('3xx', '3xx redirect', statusFilter, setStatusFilter),
+        renderFilterBtn('error', 'Errors / 4xx / 5xx', statusFilter, setStatusFilter),
       ),
     ),
 
@@ -305,7 +305,7 @@ export function HttpLogsScreen({ ctx }: { ctx: Context }): ReactElement {
                 fontSize: 13,
               },
             },
-            '暂无第三方源发起的 HTTP 请求记录',
+            'No HTTP requests from third-party sources yet',
           )
         : h(
             'div',
@@ -328,11 +328,11 @@ export function HttpLogsScreen({ ctx }: { ctx: Context }): ReactElement {
                 },
               },
               h('span', { style: { width: 32 } }, ''),
-              h('span', { style: { width: 100 } }, '时间'),
-              h('span', { style: { width: 64 } }, '方法'),
-              h('span', { style: { width: 64 } }, '状态码'),
-              h('span', { style: { width: 80 } }, '耗时'),
-              h('span', { style: { flex: 1 } }, '请求地址 (URL) / 详情'),
+              h('span', { style: { width: 100 } }, 'Time'),
+              h('span', { style: { width: 64 } }, 'Method'),
+              h('span', { style: { width: 64 } }, 'Status'),
+              h('span', { style: { width: 80 } }, 'Duration'),
+              h('span', { style: { flex: 1 } }, 'Request URL / details'),
             ),
             hasJournal
               ? filteredJournal.map((entry) =>
@@ -463,7 +463,7 @@ const DETAIL_LABEL_WIDTH = 110
 function renderHeaderTable(headers: Record<string, string>): ReactElement {
   const names = Object.keys(headers)
   if (names.length === 0) {
-    return h('div', { style: { color: '#64748B', padding: '4px 0' } }, '（无）')
+    return h('div', { style: { color: '#64748B', padding: '4px 0' } }, '(none)')
   }
   return h(
     'div',
@@ -485,7 +485,7 @@ function renderHeaderTable(headers: Record<string, string>): ReactElement {
 
 function renderBodyBlock(body: string | undefined, label: string): ReactElement {
   if (body === undefined) {
-    return h('div', { style: { color: '#64748B', padding: '4px 0' } }, '（未捕获）')
+    return h('div', { style: { color: '#64748B', padding: '4px 0' } }, '(not captured)')
   }
   let text = body
   const trimmed = body.trimStart()
@@ -557,20 +557,20 @@ function renderJournalDetail(entry: HttpLogEntry): ReactElement {
       ? h(
           'div',
           { style: { color: '#F87171' } },
-          `请求失败：${entry.error}`,
+          `Request failed: ${entry.error}`,
         )
       : null,
-    detailSection('请求头 (Request Headers)', renderHeaderTable(entry.requestHeaders)),
+    detailSection('Request headers (Request Headers)', renderHeaderTable(entry.requestHeaders)),
     detailSection(
-      '请求体 (Request Body)',
-      renderBodyBlock(entry.requestBody, entry.requestBody ? `长度 ${entry.requestBody.length} 字符` : ''),
+      'Request body (Request Body)',
+      renderBodyBlock(entry.requestBody, entry.requestBody ? `Length ${entry.requestBody.length} chars` : ''),
     ),
-    detailSection('响应头 (Response Headers)', renderHeaderTable(entry.responseHeaders)),
+    detailSection('Response headers (Response Headers)', renderHeaderTable(entry.responseHeaders)),
     detailSection(
-      '响应体 (Response Body)',
+      'Response body (Response Body)',
       renderBodyBlock(
         entry.responseBody,
-        entry.responseBody ? `长度 ${entry.responseBody.length} 字符` : '',
+        entry.responseBody ? `Length ${entry.responseBody.length} chars` : '',
       ),
     ),
   )
@@ -626,8 +626,8 @@ function renderCaptureSwitch(enabled: boolean, onToggle: () => void): ReactEleme
         color: '#CBD5E1',
       },
       title: enabled
-        ? '记录请求头与响应详情；关闭后新请求仅记摘要行'
-        : '当前仅记摘要行；开启后新请求记录完整头与体',
+        ? 'Record request and response details; when off, new requests record the summary line only'
+        : 'Currently recording the summary line only; turn on to record full headers and bodies for new requests',
     },
     h(
       'span',
@@ -655,7 +655,7 @@ function renderCaptureSwitch(enabled: boolean, onToggle: () => void): ReactEleme
         },
       }),
     ),
-    h('span', null, '记录详情'),
+    h('span', null, 'Record details'),
   )
 }
 

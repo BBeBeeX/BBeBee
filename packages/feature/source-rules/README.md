@@ -1,124 +1,124 @@
 # @BBeBee/source-rules
 
-Layer 4（feature）— BBeBee「音乐源规则语言」（legado 书源模式的音频版）的**纯逻辑实现**：解析、求值、模板展开、JSONPath、正则防护。
+Layer 4 (feature) — the **pure-logic implementation** of BBeBee's "music source rule language" (the audio version of the legado book-source model): parsing, evaluation, template expansion, JSONPath, regex guarding.
 
-## 概述
+## Overview
 
 > Pure logic: no Cordis, no platform SDK, and no I/O of any kind. It takes a rule and a scope and returns a value; every fetch belongs to `plugin-source-runtime`.
 
-纯粹性的回报：真实源文档语料可以在**无网络**的情况下对录制的 HTTP fixture 回放。ESLint 在此包内专门禁了 `cordis` 与 `@BBeBee/kernel`；唯一依赖是 `@BBeBee/protocol`（只取 `RuleError`）。
+The payoff of purity: real source-document corpora can be replayed against recorded HTTP fixtures with **no network**. ESLint specifically bans `cordis` and `@BBeBee/kernel` inside this package; the only dependency is `@BBeBee/protocol` (just for `RuleError`).
 
-**消费者**：唯一的 I/O 上下文是同层的 `plugin-source-runtime`（规则的求值者、网络与沙箱的提供者）。
+**Consumers**: the only I/O context is the sibling `plugin-source-runtime` (the rule evaluator, and the provider of networking and the sandbox).
 
-**成熟度**：部分实现（M1 切片）。`=` 模板、JSONPath、regex、`@js:` 已可用；`css` 与 `xpath` 引擎的标记解析器尚未落地，使用时抛 `RuleEngineUnavailableError`（能力推导因此不会给出一个会失败的按钮）。
+**Maturity**: partially implemented (the M1 slice). `=` templates, JSONPath, regex, and `@js:` are available; the markup parsers for the `css` and `xpath` engines have not landed yet and throw `RuleEngineUnavailableError` when used (so capability derivation never offers a button that would fail).
 
-## 设计哲学
+## Design philosophy
 
-一条贯穿每个文件的主线：**作者在手机上、对着一个昨天改版的后端调试规则**。因此——缺席与空串分离；坏规则大声失败并携带文档摘录与归属（block/field/sourceId）；语法错误精确到字符并给出修法提示；误打的操作符被识别为笔误而非静默吞掉；来自陌生人的正则被验伤并双向设界；求值可逐原子追踪。
+One thread running through every file: **an author debugging rules on a phone, against a backend that changed yesterday**. Hence — absence and empty string are separated; bad rules fail loudly carrying a document excerpt and attribution (block/field/sourceId); syntax errors are precise to the character and include a fix hint; mistyped operators are recognized as typos rather than silently swallowed; regexes from strangers are vetted and bounded in both directions; evaluation is traceable atom by atom.
 
-## 源文件
+## Source files
 
-### `src/parse.ts` — 规则解析
+### `src/parse.ts` — rule parsing
 
-把一行规则解析为求值管道。文法优先级：**`||` 最松，其次 `%%`，最紧 `&&`**（legado 的优先级，`a && b || c` 意为「先 a 再 b，否则 c」）：
+Parses one line of rule into an evaluation pipeline. Grammar precedence: **`||` loosest, then `%%`, tightest `&&`** (legado's precedence; `a && b || c` means "a then b, otherwise c"):
 
 ```
-rule        := alternative ( '||' alternative )*      // 第一个非空者胜
-alternative := concat ( '%%' concat )*                // 交错
-concat      := atom ( '&&' atom )*                    // 拼接
+rule        := alternative ( '||' alternative )*      // the first non-empty one wins
+alternative := concat ( '%%' concat )*                // interleave
+concat      := atom ( '&&' atom )*                    // concatenate
 atom        := ( '@put:{…}' | '@get:{…}' )* engine-selector replacement*
 replacement := '##' pattern ( '##' replacement )? '###'?
 ```
 
-- **`parseRule(rule): ParsedRule`** — 主入口。"Pure and total: an unparseable rule is still a rule that fails"（解析失败也是确定性行为，抛 `RuleSyntaxError`）。
-- **`inferEngine(selector)`** — 无前缀时推断：`=` → `template`；`$.`/`$[` → `json`；`//` → `xpath`；`:` → `regex`；**其余一律 `css`**。裸常量因此是**选择器**而非字面量（字面量必须写 `=`），解释器会拒绝而不是悄悄返回文本。
-- 内部细节：`scanRegions` 先保护 `##…##` 正则体与 `{…}` 指令体（**未闭合的 `##` 吞掉操作符是语法错误**而非静默截断）；`matchBrace` 用计数配花括号（体内容纳嵌套模板）；`takeReplacements` 处理 `###`（只替换第一个匹配）后缀与尾部奇数段（= 删除）；`<js>…</js>` 是 `@js:` 的块形式，两端锚定；空原子 → `engine: 'empty'`（求值时贡献零值，让 `||` 链穿过它）；误打操作符的残留（如 `$.a|||$.b` 切出 `|$.b`）明确报错并提示「若真是选择器请写 `@css:`」。
-- 类型：`Engine`、`Replacement`、`Atom`、`Concat`、`Interleave`、`ParsedRule`（`source` 保留原文供报错与 tracer 用）。
+- **`parseRule(rule): ParsedRule`** — the main entry. "Pure and total: an unparseable rule is still a rule that fails" (a parse failure is also deterministic behavior; it throws `RuleSyntaxError`).
+- **`inferEngine(selector)`** — when unprefixed, infers: `=` → `template`; `$.`/`$[` → `json`; `//` → `xpath`; `:` → `regex`; **everything else is `css`**. A bare constant is therefore a **selector**, not a literal (literals must be written `=`), and the interpreter rejects it rather than quietly returning the text.
+- Internal details: `scanRegions` first protects the `##…##` regex bodies and `{…}` directive bodies (**an unclosed `##` swallowing operators is a syntax error**, not a silent truncation); `matchBrace` counts braces (so bodies may contain nested templates); `takeReplacements` handles the `###` suffix (replace only the first match) and a trailing odd segment (= delete); `<js>…</js>` is the block form of `@js:`, anchored at both ends; an empty atom → `engine: 'empty'` (contributes nothing at evaluation, letting the `||` chain pass through); the residue of a mistyped operator (e.g. `$.a|||$.b` splits out `|$.b`) is an explicit error with the hint "if it really is a selector, write `@css:`".
+- Types: `Engine`, `Replacement`, `Atom`, `Concat`, `Interleave`, `ParsedRule` (`source` keeps the original text for error reporting and the tracer).
 
-### `src/template.ts` — `=` 模板与 `{{ }}` 展开
+### `src/template.ts` — `=` templates and `{{ }}` expansion
 
-- **`TemplateScope`** — `{{ }}` 能看到的**纯数据快照**（刻意不做活对象图，规则无法触回运行时）：`{ source?, track?, album?, prefs?, key?, page?, baseUrl?, item? }`；`item` 是列表规则求值字段时的当前行元素。
-- **`JsEvaluator`** — 沙箱的**函数抽象**而非 realm 本体；无沙箱的调用方传 `undefined` 即可，得到的是文档化的拒绝。
-- **`isTemplate(rule)`** — 是否以 `=` 开头。
-- **`evaluateRule(rule, scope, site, js?)`** — 求值一条字段规则。非 `=` 规则一律抛 `RuleError`——**拒绝而非当作字面量放过**（「把不认识的规则当文本」是最难排查的失败模式）。
-- **`evaluateUrlTemplate(rule, scope, site, js?)`** — 求值 **URL 模板字段**（`searchUrl`/`exploreUrl`）。它们不是规则：不从文档中选择，而是**构造取文档的请求**，所以 `{{ }}` 直接插值、**前导 `=` 可选**。
-- **`renderTemplate(template, scope, site, js?)`** — 核心渲染：
-  - `{{@js:expr}}` 是**唯一不是路径的占位符**，无沙箱时抛 `RuleError`；
-  - 路径是**点分路径 + 数组下标**，不是 JavaScript 求值；只走**自有属性**（`{{track.constructor.name}}` 解析为空而不是立足点）；
-  - 解析为空 / 得到对象 → `RuleError`——流 URL 少一个 id 会三步之后变成没人能诊断的 404，宁可在此报错；
-  - 两遍处理（先收集占位符逐个 await，再拼回——`String.replace` 不能接异步回调）；
-  - **不平衡的 `{{ }}` 抛错**，且只检查**模板本身**（剥掉合法占位符后）——远端歌名真叫 `Live {{2019}}` 不能反过来使正确的模板失败；
-  - ⚠️ 插值逐字、不做 URL 编码（编码过滤器 `{{x|url}}` 属于完整语言）。
+- **`TemplateScope`** — the **plain data snapshot** `{{ }}` can see (deliberately not a live object graph; rules cannot reach back into the runtime): `{ source?, track?, album?, prefs?, key?, page?, baseUrl?, item? }`; `item` is the current row element when evaluating list-rule fields.
+- **`JsEvaluator`** — a **function abstraction** of the sandbox, not the realm itself; a caller without a sandbox passes `undefined` and receives a documented rejection.
+- **`isTemplate(rule)`** — whether the rule starts with `=`.
+- **`evaluateRule(rule, scope, site, js?)`** — evaluates one field rule. A non-`=` rule always throws `RuleError` — **rejected, not passed through as a literal** ("treating an unrecognized rule as text" is the hardest failure mode to debug).
+- **`evaluateUrlTemplate(rule, scope, site, js?)`** — evaluates **URL template fields** (`searchUrl`/`exploreUrl`). They are not rules: they do not select from a document, they **construct the request that fetches one**, so `{{ }}` interpolates directly and the **leading `=` is optional**.
+- **`renderTemplate(template, scope, site, js?)`** — the core renderer:
+  - `{{@js:expr}}` is the **only placeholder that is not a path**; without a sandbox it throws `RuleError`;
+  - paths are **dotted paths + array indices**, not JavaScript evaluation; only **own properties** are walked (`{{track.constructor.name}}` resolves to empty rather than providing a foothold);
+  - resolving to empty / yielding an object → `RuleError` — a stream URL missing one id becomes an undiagnosable 404 three steps later; better to fail here;
+  - two passes (first collect the placeholders and await each one, then stitch back — `String.replace` cannot take an async callback);
+  - **unbalanced `{{ }}` throws**, and only the **template itself** is checked (after stripping legitimate placeholders) — a remote song genuinely titled `Live {{2019}}` must not make a correct template fail;
+  - ⚠️ interpolation is verbatim, with no URL encoding (an encoding filter like `{{x|url}}` belongs to the full language).
 
-### `src/evaluate.ts` — 求值器
+### `src/evaluate.ts` — the evaluator
 
-两条总法则：**「缺席」与「空串」是两回事**（选择器匹配零个节点 → 返回零个值；匹配到空串 → 返回 `''`，由调用方判断哪个算失败）；**坏规则必须大声失败**（不可解析的选择器是带规则名的错误，绝不静默空结果——那与「有效但过期的规则」无法事后区分）。
+Two overarching laws: **"absent" and "empty string" are different things** (a selector matching zero nodes → zero values; matching an empty string → `''`, and the caller decides which counts as failure); **bad rules must fail loudly** (an unparseable selector is an error carrying the rule name, never a silent empty result — that would be indistinguishable after the fact from "a valid but stale rule").
 
-- **`RuleContext`** — `{ document, scope, site, vars?, js?, trace? }`。`document` 是已解析文档（今天是 JSON；标记引擎落地后是 DOM）；`vars` 供 `@put`/`@get`；`js` 缺失时 `@js:` 规则失败为**引擎问题**而非规则问题——「这个 app 跑不了你的源」和「你的源坏了」是两种话。
-- **`engineAvailable(engine, { js? })`** — `template/json/regex/empty` 恒可用；`js` 仅当有沙箱；`css`/`xpath` 当前不可用。
-- **`evaluate(rule, ctx): Promise<string[]>`** / **`evaluateNodes`**（保留原始值，列表规则选元素用）/ **`evaluateParsed`**（复用已 parse 的规则，省去 N 次重解析）。
-- **求值管道**：`runParsed` 按序试各 `alternative`，**第一个产出非空结果者胜**（「后端改了字段名，文档里新旧两条规则都带着」能继续工作的机制）；`runInterleave` **顺序执行而非 `Promise.all`**（前一个 atom 可能 `@put` 后一个要 `@get` 的变量），之后按下标轮转交错；`runAtom` 中 `@put` 先跑、`@get` **必须穿过替换管道**（曾有 bug 返回了未变换的值——「本语言最坏的失败」：看起来工作、产出错误文本）。
-- **引擎分派**：`json` → 文档必须是对象，否则 `RuleError` 消息用 `describe()` 说清文档到底是什么（`an HTML page`/`text`/…）——后端用 200 回 HTML 登录页时，若 JSONPath 对文本「匹配不到就返回空」，搜索就显示成空后端；`js` → 文档绑定为 **`result`**（legado 里 `@js:` 是后处理器，跑在上一个 atom 选出的东西上）；`regex` → 全局匹配，优先捕获组 1、无则整体匹配，零长匹配立即 break，产出上限 `MAX_REGEX_MATCHES`；`css`/`xpath` → `RuleEngineUnavailableError`。
-- **`toText(value)`** — 对象 → `JSON.stringify`：选错了子树时看到 JSON 比 `[object Object]` 更能让人立刻发现错误。
-- **`asRuleError`** — 携带 block/field、sourceId、**文档摘录**（先截断到 4096 再序列化），并**按来源脱敏**：只要 `scope.source.var` 存在就把它加进 secrets。
+- **`RuleContext`** — `{ document, scope, site, vars?, js?, trace? }`. `document` is the parsed document (JSON today; a DOM once the markup engines land); `vars` backs `@put`/`@get`; when `js` is missing, a `@js:` rule fails as an **engine problem, not a rule problem** — "this app cannot run your source" and "your source is broken" are two different messages.
+- **`engineAvailable(engine, { js? })`** — `template/json/regex/empty` always available; `js` only with a sandbox; `css`/`xpath` currently unavailable.
+- **`evaluate(rule, ctx): Promise<string[]>`** / **`evaluateNodes`** (keeps raw values; used by list rules to select elements) / **`evaluateParsed`** (reuses an already-parsed rule, skipping N re-parses).
+- **The evaluation pipeline**: `runParsed` tries each `alternative` in order and **the first to produce a non-empty result wins** (the mechanism that keeps working when "the backend renamed a field and the document carries both the old and new rules"); `runInterleave` **executes sequentially, not `Promise.all`** (an earlier atom may `@put` a variable a later one `@get`s), then interleaves by index rotation; in `runAtom`, `@put` runs first and `@get` **must pass through the replacement pipeline** (there was once a bug returning the untransformed value — "the worst failure of this language": it looks like it works and produces wrong text).
+- **Engine dispatch**: `json` → the document must be an object, otherwise the `RuleError` message uses `describe()` to say what the document actually is (`an HTML page`/`text`/…) — when a backend answers a 200 with an HTML login page, if JSONPath "returns empty when nothing matches" against text, search would render as an empty backend; `js` → the document is bound as **`result`** (in legado, `@js:` is a post-processor running on whatever the previous atom selected); `regex` → global matching, preferring capture group 1 and falling back to the whole match, breaking immediately on zero-length matches, capped at `MAX_REGEX_MATCHES`; `css`/`xpath` → `RuleEngineUnavailableError`.
+- **`toText(value)`** — objects → `JSON.stringify`: seeing JSON makes a wrongly selected subtree obvious far sooner than `[object Object]`.
+- **`asRuleError`** — carries block/field, sourceId, and a **document excerpt** (truncated to 4096 before serialization), and is **redacted by provenance**: as long as `scope.source.var` exists it is added to secrets.
 
-### `src/jsonpath.ts` — 刻意的 JSONPath 子集
+### `src/jsonpath.ts` — a deliberate JSONPath subset
 
-不是通用实现：真实文档只用几种形状，而完整 JSONPath 的 filter 表达式会在本该**声明式**的一半语言里塞进一个脚本面——计算属于 `@js:`、属于沙箱后面。
+Not a general implementation: real documents only use a few shapes, and full JSONPath's filter expressions would inject a scripting surface into the half of the language that should stay **declarative** — computation belongs to `@js:`, behind the sandbox.
 
 ```
-$                 根
-.name  ['name']   属性（单引号或双引号）
-[0] [-1]          下标，负数从尾部数
-[*]  .*           全部元素/值
-..name            所有具名后代
+$                 root
+.name  ['name']   property (single or double quotes)
+[0] [-1]          index, negative counts from the end
+[*]  .*           all elements/values
+..name            all named descendants
 ```
 
-其余一律**解析期**抛 `RuleSyntaxError`（dialect `'JSONPath'`）——「无结果」正是有效但写错的路径的返回，事后无从区分。明确拒绝：`..*`、filter、切片、并集、前导零下标。
+Everything else throws `RuleSyntaxError` at **parse time** (dialect `'JSONPath'`) — "no results" is exactly what a valid-but-wrong path returns, and the two are indistinguishable after the fact. Explicitly rejected: `..*`, filters, slices, unions, leading-zero indices.
 
-- **`parseJsonPath(path): Step[]`** — 一次词法化，求值变成走步；**`queryJsonPath(root, path)`** — 文档序输出全部匹配。
-- 安全细节：属性名字符白名单 `[A-Za-z0-9_\-@:+~]`（`-`/`@` 在内——真实文档有 `subsonic-response`、`@attributes`；`| & # $ { }` 在外——`$.a|b` 是漏打的 `||`，不是名为 `a|b` 的属性）；property 步只走自有属性（`$.constructor` 不能从解析后的 JSON 摸出 `Object`）；wildcard 用循环而非 spread（`push(...huge)` 在 10 万+ 元素时爆栈）；`..name` 递归限深 512（陌生后端的深嵌套文档曾打爆栈）。
+- **`parseJsonPath(path): Step[]`** — one lexing pass; evaluation becomes walking steps; **`queryJsonPath(root, path)`** — all matches in document order.
+- Safety details: the property-name whitelist is `[A-Za-z0-9_\-@:+~]` (`-`/`@` included — real documents have `subsonic-response` and `@attributes`; `| & # $ { }` excluded — `$.a|b` is a mistyped `||`, not a property named `a|b`); property steps only walk own properties (`$.constructor` cannot fish `Object` out of parsed JSON); the wildcard uses a loop rather than spread (`push(...huge)` blows the stack past ~100k elements); `..name` recursion is depth-capped at 512 (a deeply nested document from a stranger once blew the stack).
 
-### `src/regex-guard.ts` — ReDoS 防护
+### `src/regex-guard.ts` — ReDoS protection
 
-规则模式来自**导入的文档**，而 JS 正则引擎是回溯式且**不可中断**的（没有定时器、worker 或信号能让它停下；实测 24 字符输入耗 372ms，50,000 字符永不返回）。这是**诚实的部分方案**——拒绝能爆炸的模式 + 限制喂给模式的文本量；自我定位准确：**「这是一个界，不是一个证明」**。
+Rule patterns come from **imported documents**, and the JS regex engine is backtracking and **uninterruptible** (no timer, worker, or signal can stop it; 24 characters of input measured 372ms; 50,000 characters never returns). This is an **honest partial solution** — reject patterns that can explode + limit how much text is fed to them; its self-assessment is accurate: **"this is a bound, not a proof"**.
 
-- **`isUnsafeRegex(pattern)`** — **小状态机而非正则**（「用一个正则去检测危险正则是被咬两次的绝妙方式」）。检测：量词作用在自身含量词的组上（`(a+)+`）、或量词作用在含顶层轮换的组上（`(a|aa)+`）。细节：`?` 单独不算；`{n}` 在**组上关闭时**算乘法（`(.*a){20}b` ≙ `(.*a)+`）、在体内行内不算（`(a{2})+` 真安全）；字符类内跳过。
-- **`compileRuleRegex(pattern, flags)`** — 先验伤再编译；不安全或编译抛错都归一为 `UnsafeRegexError`（拒绝发生在作者能改的地方，而不是在别人手机上把 app 冻住）。
-- **`boundInput(text)`** — 截到 `MAX_REGEX_INPUT`（256 KiB）；单规则匹配上限 `MAX_REGEX_MATCHES`（10,000）。
+- **`isUnsafeRegex(pattern)`** — a **small state machine, not a regex** ("using a regex to detect dangerous regexes is a lovely way to get bitten twice"). Detects: a quantifier applied to a group that itself contains a quantifier (`(a+)+`), or a quantifier applied to a group containing a top-level alternation (`(a|aa)+`). Details: a lone `?` does not count; `{n}` counts as multiplication **when it closes a group** (`(.*a){20}b` ≙ `(.*a)+`) but not inline within a body (`(a{2})+` is genuinely safe); skipped inside character classes.
+- **`compileRuleRegex(pattern, flags)`** — vetted before compiled; unsafe or a compile throw both normalize to `UnsafeRegexError` (the rejection happens where the author can fix it, instead of freezing someone's phone).
+- **`boundInput(text)`** — truncated to `MAX_REGEX_INPUT` (256 KiB); per-rule match cap `MAX_REGEX_MATCHES` (10,000).
 
-### `src/syntax-error.ts` — 统一语法错误
+### `src/syntax-error.ts` — the unified syntax error
 
-`RuleSyntaxError extends Error { rule, dialect }`，`dialect: 'rule' | 'JSONPath'` 保留「哪个文法拒绝了这个串」这个真实区分。头注记录了存在**两个**同名类的往事（parse.ts 一个、jsonpath.ts 一个）：`e instanceof RuleSyntaxError` 能处理坏路径、却在坏规则上静默漏过——同名不同身份、编译器不报。
+`RuleSyntaxError extends Error { rule, dialect }`, with `dialect: 'rule' | 'JSONPath'` preserving the real distinction of "which grammar rejected this string". The header comment records the episode of there being **two** same-named classes (one in parse.ts, one in jsonpath.ts): `e instanceof RuleSyntaxError` handled bad paths yet silently missed bad rules — same name, different identity, and the compiler said nothing.
 
-### `src/index.ts` — 公开导出面
+### `src/index.ts` — the public export surface
 
-按模块全量 re-export（该包 API 的权威清单）：`engineAvailable`、`evaluate`、`evaluateNodes`、`evaluateParsed`、`toText`、`parseJsonPath`、`queryJsonPath`、`parseRule`、`inferEngine`、`evaluateRule`、`evaluateUrlTemplate`、`isTemplate`、`renderTemplate`、`compileRuleRegex`、`isUnsafeRegex`、`boundInput`、`RuleSyntaxError`、`RuleEngineUnavailableError`、`UnsafeRegexError`、`MAX_REGEX_INPUT`、`MAX_REGEX_MATCHES` 及各类型。
+Full re-export per module (the authoritative list of the package's API): `engineAvailable`, `evaluate`, `evaluateNodes`, `evaluateParsed`, `toText`, `parseJsonPath`, `queryJsonPath`, `parseRule`, `inferEngine`, `evaluateRule`, `evaluateUrlTemplate`, `isTemplate`, `renderTemplate`, `compileRuleRegex`, `isUnsafeRegex`, `boundInput`, `RuleSyntaxError`, `RuleEngineUnavailableError`, `UnsafeRegexError`, `MAX_REGEX_INPUT`, `MAX_REGEX_MATCHES`, and the types.
 
-## 规则语言语法速查（以本包现状为准）
+## Rule language syntax cheat sheet (as of this package's current state)
 
-| 前缀 | 引擎 | 现状 |
+| Prefix | Engine | Status |
 |---|---|---|
-| `@css:` | CSS 选择器 | **不可用**（抛 `RuleEngineUnavailableError`） |
-| `@json:` / `$.`/`$[` | JSONPath | 可用 |
-| `@xpath:` / `//` | XPath | **不可用** |
-| `@js:` / `<js>…</js>` | 沙箱脚本 | 可用（需 `JsEvaluator`；文档绑定为 `result`） |
-| `=` | 模板 | 可用 |
-| `:` | 正则 | 可用（全局匹配、取捕获组 1） |
-| 无前缀 | 推断 | 其余 → css（裸常量是选择器不是字面量） |
+| `@css:` | CSS selector | **unavailable** (throws `RuleEngineUnavailableError`) |
+| `@json:` / `$.`/`$[` | JSONPath | available |
+| `@xpath:` / `//` | XPath | **unavailable** |
+| `@js:` / `<js>…</js>` | sandboxed script | available (needs a `JsEvaluator`; the document is bound as `result`) |
+| `=` | template | available |
+| `:` | regex | available (global match, capture group 1) |
+| no prefix | inferred | everything else → css (a bare constant is a selector, not a literal) |
 
-| 组合符 | 语义 |
+| Combinator | Semantics |
 |---|---|
-| `\|\|` | 备选，第一个非空结果者胜 |
-| `%%` | 交错合并（按序求值、按下标轮转） |
-| `&&` | 拼接 |
-| `##pat##repl##` | 正则替换；替换文本为**字面量**（`$1` 不解释）；`###` 后缀只替换第一个匹配 |
-| `@put:{key:rule}` / `@get:{key}` | 求值内变量（`@get` 会穿过替换管道） |
+| `\|\|` | alternatives; the first non-empty result wins |
+| `%%` | interleaved merge (evaluated in order, rotated by index) |
+| `&&` | concatenation |
+| `##pat##repl##` | regex replace; the replacement text is a **literal** (`$1` is not interpreted); the `###` suffix replaces only the first match |
+| `@put:{key:rule}` / `@get:{key}` | in-evaluation variables (`@get` passes through the replacement pipeline) |
 
-`{{dotted.path}}`（自有属性路径）与 `{{@js:expr}}`（唯一非路径占位符）是模板占位符。**legado 风格的 `@text`/`@attr:` 等属性提取函数尚不存在**（随标记引擎一起到来）。
+`{{dotted.path}}` (own-property paths) and `{{@js:expr}}` (the only non-path placeholder) are the template placeholders. **legado-style attribute-extraction functions like `@text`/`@attr:` do not exist yet** (they arrive with the markup engines).
 
-## 相关文档
+## Related docs
 
-- `docs/06-music-sources.md` §3/§8：规则语言、沙箱宿主面
-- `packages/feature/plugin-source-runtime/README.md`：唯一的 I/O 上下文
-- `packages/feature/plugin-source-runtime/`：规则语言的真实测试语料与运行上下文
+- `docs/06-music-sources.md` §3/§8: the rule language, the sandbox host surface
+- `packages/feature/plugin-source-runtime/README.md`: the only I/O context
+- `packages/feature/plugin-source-runtime/`: the rule language's real test corpus and runtime context

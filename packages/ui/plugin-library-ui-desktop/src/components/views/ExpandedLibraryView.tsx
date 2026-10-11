@@ -32,7 +32,7 @@ export interface ExpandedLibraryViewProps {
 
   activeFilter: LibraryFilterKey
   setActiveFilter: (filter: LibraryFilterKey) => void
-  /** The 艺人 chip only makes sense when the library actually holds artists. */
+  /** The artist chip only makes sense when the library actually holds artists. */
   hasArtists?: boolean
 
   filteredItems: readonly UnifiedItem[]
@@ -103,7 +103,7 @@ export function ExpandedLibraryView({
             {
               type: 'button',
               onClick: () => setActiveFolderId(null),
-              title: '返回音乐库',
+              title: 'Back to music library',
               style: {
                 background: 'transparent',
                 border: 'none',
@@ -121,13 +121,13 @@ export function ExpandedLibraryView({
                 e.currentTarget.style.color = 'var(--bb-text-secondary, #A0A0AE)'
               },
             },
-            '音乐库',
+            'Music library',
           ),
           tablerIcon('chevron-left', { size: 22, color: 'var(--bb-text-secondary, #666666)' }),
           h(
             'h1',
             { style: { fontSize: 24, fontWeight: 700, color: 'var(--bb-text-primary, #FFFFFF)', margin: 0 } },
-            activeCollection?.name ?? '文件夹',
+            activeCollection?.name ?? 'Folder',
           ),
         ),
         h(
@@ -140,8 +140,8 @@ export function ExpandedLibraryView({
                 'button',
                 {
                   type: 'button',
-                  'aria-label': '更多选项',
-                  title: '更多选项',
+                  'aria-label': 'More options',
+                  title: 'More options',
                   onClick: (e: { clientX: number; clientY: number }) => {
                     openCollectionMenu(
                       activeCollection,
@@ -176,8 +176,8 @@ export function ExpandedLibraryView({
             'button',
             {
               type: 'button',
-              'aria-label': '收起音乐库',
-              title: '收起音乐库',
+              'aria-label': 'Collapse music library',
+              title: 'Collapse music library',
               onClick: () => handleModeChange('sidebar'),
               style: {
                 width: 32,
@@ -226,7 +226,7 @@ export function ExpandedLibraryView({
               fontWeight: 600,
             },
           },
-          '创建者: 你',
+          'By you',
         ),
         h(
           'div',
@@ -249,7 +249,7 @@ export function ExpandedLibraryView({
             h('input', {
               value: searchQuery,
               onChange: (e: { target: { value: string } }) => setSearchQuery(e.target.value),
-              placeholder: '在歌单中搜索',
+              placeholder: 'Search in playlist',
               style: {
                 background: 'transparent',
                 border: 'none',
@@ -299,9 +299,9 @@ export function ExpandedLibraryView({
               marginBottom: 8,
             },
           },
-          h('div', { style: { flex: 2 } }, '标题'),
-          h('div', { style: { flex: 1 } }, '添加日期'),
-          h('div', { style: { flex: 1, textAlign: 'right' } }, '已播'),
+          h('div', { style: { flex: 2 } }, 'Title'),
+          h('div', { style: { flex: 1 } }, 'Date added'),
+          h('div', { style: { flex: 1, textAlign: 'right' } }, 'Plays'),
         ),
         filteredFolderItems.map((item) => {
           const isFav = item.kind === 'favorite'
@@ -389,7 +389,7 @@ export function ExpandedLibraryView({
                   'div',
                   { style: { display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 } },
                   item.pinned
-                    ? h('span', { title: '已置顶', style: { display: 'inline-flex', alignItems: 'center', color: 'var(--color-primary, #5F87FF)', marginRight: 2 } }, tablerIcon('pin', { size: 16, color: 'var(--color-primary, #5F87FF)' }))
+                    ? h('span', { title: 'Pinned', style: { display: 'inline-flex', alignItems: 'center', color: 'var(--color-primary, #5F87FF)', marginRight: 2 } }, tablerIcon('pin', { size: 16, color: 'var(--color-primary, #5F87FF)' }))
                     : null,
                   h(
                     'span',
@@ -452,7 +452,7 @@ export function ExpandedLibraryView({
           marginBottom: 20,
         },
       },
-      h('h1', { style: { fontSize: 26, fontWeight: 700, color: 'var(--bb-text-primary, #FFFFFF)', margin: 0 } }, '音乐库'),
+      h('h1', { style: { fontSize: 26, fontWeight: 700, color: 'var(--bb-text-primary, #FFFFFF)', margin: 0 } }, 'Music library'),
       h(
         'div',
         { style: { display: 'flex', alignItems: 'center', gap: 12, position: 'relative' } },
@@ -462,8 +462,8 @@ export function ExpandedLibraryView({
           'button',
           {
             type: 'button',
-            'aria-label': '收起音乐库',
-            title: '收起音乐库',
+            'aria-label': 'Collapse music library',
+            title: 'Collapse music library',
             onClick: () => handleModeChange('sidebar'),
             style: {
               width: 32,
@@ -548,7 +548,7 @@ export function ExpandedLibraryView({
           h('input', {
             value: searchQuery,
             onChange: (e: { target: { value: string } }) => setSearchQuery(e.target.value),
-            placeholder: '在音乐库中搜索',
+            placeholder: 'Search the music library',
             style: {
               background: 'transparent',
               border: 'none',
@@ -598,9 +598,9 @@ export function ExpandedLibraryView({
             marginBottom: 8,
           },
         },
-        h('div', { style: { flex: 2 } }, '标题'),
-        h('div', { style: { flex: 1 } }, '添加日期'),
-        h('div', { style: { flex: 1, textAlign: 'right' } }, '已播'),
+        h('div', { style: { flex: 2 } }, 'Title'),
+        h('div', { style: { flex: 1 } }, 'Date added'),
+        h('div', { style: { flex: 1, textAlign: 'right' } }, 'Plays'),
       ),
       filteredItems.map((item) => {
         const isFav = item.kind === 'favorite'

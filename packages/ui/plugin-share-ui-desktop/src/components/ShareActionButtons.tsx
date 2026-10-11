@@ -29,11 +29,11 @@ export function ShareActionButtons({
   onDownload,
   onDisabledCopyClick,
   onDisabledDownloadClick,
-  copyText = '复制 Base64',
-  copiedText = '已复制 Base64',
-  downloadText = '下载图片',
-  downloadingText = '生成中…',
-  copyDisabledTestId = copyText.includes('歌词') ? 'copy-lyrics-disabled-btn' : 'copy-base64-disabled-btn',
+  copyText = 'Copy Base64',
+  copiedText = 'Copied Base64',
+  downloadText = 'Download image',
+  downloadingText = 'Generating…',
+  copyDisabledTestId = copyText.includes('lyrics') ? 'copy-lyrics-disabled-btn' : 'copy-base64-disabled-btn',
   downloadDisabledTestId = 'download-disabled-btn',
 }: ShareActionButtonsProps): ReactElement {
   const disabledBtnStyle = {

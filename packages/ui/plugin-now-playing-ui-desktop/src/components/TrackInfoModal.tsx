@@ -74,7 +74,7 @@ export function TrackInfoModal({
             userSelect: 'text',
           },
         },
-        value ?? '未知',
+        value ?? 'Unknown',
       ),
       onCopy && value
         ? h(
@@ -82,7 +82,7 @@ export function TrackInfoModal({
             {
               type: 'button',
               onClick: onCopy,
-              title: isCopied ? '已复制' : '复制',
+              title: isCopied ? 'Copied' : 'Copy',
               style: {
                 background: 'transparent',
                 border: 'none',
@@ -135,7 +135,7 @@ export function TrackInfoModal({
           h(
             'span',
             { style: { fontSize: 17, fontWeight: 700, color: 'var(--text-primary, #FFFFFF)' } },
-            '播放内容详情',
+            'Track details',
           ),
         ),
         h(
@@ -167,7 +167,7 @@ export function TrackInfoModal({
                 fontSize: 14,
               },
             },
-            '正在读取音轨技术参数…',
+            'Reading track technical details…',
           )
         : details
           ? h(
@@ -198,26 +198,26 @@ export function TrackInfoModal({
                       marginBottom: 6,
                     },
                   },
-                  details.isLocal ? '本地音乐属性' : '歌曲源属性',
+                  details.isLocal ? 'Local music properties' : 'Song source properties',
                 ),
-                renderRow('歌曲标题', details.title),
-                renderRow('艺人', details.artist),
-                details.album ? renderRow('唱片专辑', details.album) : null,
-                renderRow('存储类型', details.isLocal ? '本地音乐文件' : '第三方网络音乐源'),
+                renderRow('Title', details.title),
+                renderRow('Artist', details.artist),
+                details.album ? renderRow('Album', details.album) : null,
+                renderRow('Storage', details.isLocal ? 'Local music file' : 'Third-party online music source'),
                 details.isLocal
                   ? h(
                       'div',
                       null,
-                      renderRow('文件名', details.fileName),
-                      renderRow('文件路径', details.filePath, handleCopyPath, copiedPath),
-                      renderRow('文件大小', details.fileSize),
-                      renderRow('最后修改时间', details.modifiedTime),
+                      renderRow('File name', details.fileName),
+                      renderRow('File path', details.filePath, handleCopyPath, copiedPath),
+                      renderRow('File size', details.fileSize),
+                      renderRow('Last modified', details.modifiedTime),
                     )
                   : h(
                       'div',
                       null,
-                      renderRow('第三方源 ID', details.sourceId),
-                      renderRow('当前歌曲源 ID', details.sourceTrackId),
+                      renderRow('Third-party source ID', details.sourceId),
+                      renderRow('Current source track ID', details.sourceTrackId),
                     ),
               ),
               // Section 2: Audio Technical Specs
@@ -236,14 +236,14 @@ export function TrackInfoModal({
                       marginBottom: 6,
                     },
                   },
-                  '音频规格与元数据',
+                  'Audio specs & metadata',
                 ),
-                renderRow('曲目时长', details.duration),
-                renderRow('采样率 (Sample Rate)', details.sampleRate),
-                renderRow('声道数 (Channels)', details.channels),
-                renderRow('比特率 (Bitrate)', details.bitrate),
-                renderRow('编码格式 (Codec)', details.codec),
-                renderRow('标签类型 (Tag Type)', details.tagType),
+                renderRow('Duration', details.duration),
+                renderRow('Sample rate', details.sampleRate),
+                renderRow('Channels', details.channels),
+                renderRow('Bitrate', details.bitrate),
+                renderRow('Codec', details.codec),
+                renderRow('Tag type', details.tagType),
               ),
               // Section 3: Audio Output & WASAPI Specs
               h(
@@ -261,14 +261,14 @@ export function TrackInfoModal({
                       marginBottom: 6,
                     },
                   },
-                  '音频输出终端 (Audio Output)',
+                  'Audio output endpoint',
                 ),
-                renderRow('输出音频设备', details.outputDevice),
-                renderRow('输出驱动引擎', details.outputEngine),
-                renderRow('DAC 硬件采样率', details.outputSampleRate),
-                renderRow('硬件输出声道', details.outputChannels),
-                renderRow('量化位深与格式', details.outputBitDepth),
-                renderRow('PCM 输出带宽', details.outputBandwidth),
+                renderRow('Output device', details.outputDevice),
+                renderRow('Output engine', details.outputEngine),
+                renderRow('DAC sample rate', details.outputSampleRate),
+                renderRow('Hardware output channels', details.outputChannels),
+                renderRow('Bit depth & format', details.outputBitDepth),
+                renderRow('PCM output bandwidth', details.outputBandwidth),
               ),
             )
           : null,

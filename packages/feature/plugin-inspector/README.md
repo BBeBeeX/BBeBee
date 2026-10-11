@@ -1,59 +1,59 @@
 # @BBeBee/plugin-inspector
 
-Layer 4（feature）— `ctx.inspector`：把插件图变成可读数据的检查器。
+Layer 4 (feature) — `ctx.inspector`: the inspector that turns the plugin graph into readable data.
 
-## 概述
+## Overview
 
-M0 的最后一条退出标准是"插件检查器能展示带标签 effect 的 fiber 树"。这不是锦上添花——本架构的核心主张是**卸载一个插件必须是彻底的**，而判断它是否还握着什么的唯一办法就是看它的 effect 树。检查器因此是承载一切其余不变量的那个不变量的调试工具。
+M0's final exit criterion was "the plugin inspector can show the fiber tree with labeled effects". This is not a nice-to-have — the architecture's core claim is that **unloading a plugin must be total**, and the only way to tell whether it still holds anything is to look at its effect tree. The inspector is therefore the debugging tool for the invariant that carries every other invariant.
 
-刻意 headless：它产出可序列化的快照（`InspectorSnapshot`），由每个壳（desktop/mobile）各自渲染。见 docs/03 §2。
+Deliberately headless: it produces serializable snapshots (`InspectorSnapshot`), which each shell (desktop/mobile) renders itself. See docs/03 §2.
 
-## 源文件
+## Source files
 
 ### `src/index.ts`
 
-包内唯一源文件，包含快照数据结构、`Inspector` 服务与插件入口。
+The package's only source file, containing the snapshot data structures, the `Inspector` service, and the plugin entry point.
 
-**数据结构**：
+**Data structures**:
 
-- `EffectNode` — 一个带标签的 effect 及其嵌套子 effect。
-- `FiberNode` — fiber 树节点：`name` / `uid`（销毁后为 `null`）/ `state` / `inject` / `waitingFor` / `provides` / `effects` / `children`。
-- `InspectorSnapshot` — `{ root, counts, stalled }`：
-  - `counts`：各 fiber 状态的数量（表头统计行用）；
-  - `stalled`：已加载但非 `ACTIVE` 的 fiber 及其原因（`waitingFor`）。
+- `EffectNode` — a labeled effect and its nested child effects.
+- `FiberNode` — a node of the fiber tree: `name` / `uid` (`null` after destruction) / `state` / `inject` / `waitingFor` / `provides` / `effects` / `children`.
+- `InspectorSnapshot` — `{ root, counts, stalled }`:
+  - `counts`: the count of each fiber state (used by the header's stats row);
+  - `stalled`: fibers that are loaded but not `ACTIVE`, with their reason (`waitingFor`).
 
-**`Inspector extends Service`**（占用 `ctx.inspector` 服务键）：
+**`Inspector extends Service`** (occupies the `ctx.inspector` service key):
 
-| 成员 | 作用 |
+| Member | Purpose |
 |---|---|
-| `snapshot(): InspectorSnapshot` | 遍历 fiber 树。Cordis 只通过 registry 暴露 fiber、亲缘关系藏在 `fiber.parent.fiber` 里，所以树按 parent 分组重建。**深度护栏 32**：`parent` 成环会让检查器挂死，挂死的调试工具比没有更糟；截断不是静默的——`warnOnce` 明说"this is a cycle in parentage"。 |
-| `render(): string` | 纯文本树（`├─`/`└─` + effect `·` 行），供日志、bug 报告和终端使用；尾部附状态统计摘要。 |
-| `providedBy(fiber)` | 反查 `ctx.reflect.store`，列出该 fiber 提供的服务键。 |
+| `snapshot(): InspectorSnapshot` | Walks the fiber tree. Cordis only exposes fibers through the registry and kinship is hidden inside `fiber.parent.fiber`, so the tree is rebuilt grouped by parent. **Depth guard of 32**: a `parent` cycle would hang the inspector, and a hung debugging tool is worse than none; the truncation is not silent — `warnOnce` says outright "this is a cycle in parentage". |
+| `render(): string` | A plain-text tree (`├─`/`└─` plus effect `·` lines), for logs, bug reports, and the terminal; a state statistics summary is appended at the end. |
+| `providedBy(fiber)` | Looks back through `ctx.reflect.store` and lists the service keys that fiber provides. |
 
-**承重细节**：
+**Load-bearing details**:
 
-- `isAvailable()` 用 try/catch 读 `fiber.ctx[name]`：**必需注入缺失时 Cordis 抛 `cannot get required service … in inactive context`** 而非返回 `undefined`——恰恰是检查器要展示的那种坏状态。诊断工具绝不能在它诊断的坏状态上自己抛错。
-- `warnOnce()`：检查器天然被反复读取（它是 fiber 树的活视图），任何日志必须在源头去重，否则 UI 每次渲染都会把"一次性事实"变成日志洪水。
-- 未知 fiber 状态渲染为 `UNKNOWN` 并告警一次：`cordis` 锁定在 rc 版本正是为了防它自己挪动状态值；没有这条，漂移只会表现为一个没人读的徽章。
+- `isAvailable()` reads `fiber.ctx[name]` inside try/catch: **when a required injection is missing, Cordis throws `cannot get required service … in inactive context`** rather than returning `undefined` — exactly the kind of broken state the inspector exists to display. A diagnostic tool must never throw on the very broken state it diagnoses.
+- `warnOnce()`: the inspector is naturally read over and over (it is a live view of the fiber tree), so any log must be deduplicated at the source, otherwise every UI render turns a "one-time fact" into a log flood.
+- An unknown fiber state renders as `UNKNOWN` with a single warning: `cordis` is pinned to an rc version precisely so it cannot move its state values underneath us; without this, drift would only ever surface as a badge nobody reads.
 
-## 配置与能力
+## Configuration and capabilities
 
-- 无配置、无 inject、`capabilities: []`。
-- 贡献服务键：`inspector`。
+- No config, no inject, `capabilities: []`.
+- Contributes the service key: `inspector`.
 
-## 导出
+## Exports
 
 ```ts
 export class Inspector extends Service   // ctx.inspector
 export interface EffectNode / FiberNode / InspectorSnapshot
 export const name = 'plugin-inspector'
-export async function apply(ctx: Context)  // 刻意 await ctx.plugin(Inspector)
+export async function apply(ctx: Context)  // deliberately awaits ctx.plugin(Inspector)
 export default { name, apply }
 ```
 
-> ⚠️ `apply` 必须是 `async function`（Cordis 用 `!!func.prototype` 判定"是否类"，普通 `function` 会被 new 掉、返回的 disposer 丢失），且内部刻意 `await ctx.plugin(...)`——不 await 的子插件不传播就绪状态。`conventions.test.ts` 强制这两种形态。
+> ⚠️ `apply` must be an `async function` (Cordis uses `!!func.prototype` to decide "is this a class"; a plain `function` gets `new`-ed and the returned disposer is lost), and it deliberately `await`s `ctx.plugin(...)` internally — an un-awaited child plugin does not propagate readiness. `conventions.test.ts` enforces both shapes.
 
-## 相关文档
+## Related docs
 
-- `docs/03-plugin-system.md` §2：生命周期与 fiber 树
-- `docs/09-project-structure.md`：分层与依赖规则
+- `docs/03-plugin-system.md` §2: lifecycle and the fiber tree
+- `docs/09-project-structure.md`: layering and dependency rules

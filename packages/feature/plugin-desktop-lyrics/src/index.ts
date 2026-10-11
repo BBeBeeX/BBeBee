@@ -97,8 +97,9 @@ export class DesktopLyricsService extends Service implements IDesktopLyricsServi
           kind: 'settings',
           id: DESKTOP_LYRICS_VIEWS.settingsCard,
           section: 'lyrics',
-          title: '桌面歌词设置',
-          description: '配置悬浮桌面歌词的显示行数、对齐、字体、字号、颜色及透明度',
+          title: 'Desktop lyrics settings',
+          description:
+            'Configure the floating desktop lyrics: lines shown, alignment, font, size, color, and opacity',
           icon: 'message',
           display: 'card',
           order: 10,

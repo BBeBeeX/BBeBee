@@ -13,7 +13,7 @@ string, is contained by a different and much stronger mechanism
 
 ### Capability grammar
 
-规范见 [rules/plugins.md §5 Capability Grammar](../../rules/plugins.md#5-capability-grammar)（L2）；the table below expands
+see the spec at [rules/plugins.md §5 Capability Grammar](../../rules/plugins.md#5-capability-grammar) (L2); the table below expands
 each grant with its semantics and rationale.
 
 | Capability | Grants |
@@ -100,8 +100,8 @@ core services:
 
 ### The gate fails closed
 
-A plugin's manifest is a *request*, never an authorisation. 规范见
-[rules/plugins.md §7 Dual-Mode Plugin Loading](../../rules/plugins.md#7-dual-mode-plugin-loading)（L2）：the loader trusts a manifest
+A plugin's manifest is a *request*, never an authorisation. see the spec at
+[rules/plugins.md §7 Dual-Mode Plugin Loading](../../rules/plugins.md#7-dual-mode-plugin-loading) (L2): the loader trusts a manifest
 only for plugins marked `builtin` — first-party packages bundled with the app; anything else needs
 a matching row in `capability_grants`, and without one it is refused and recorded as `ungranted`
 rather than loaded. External desktop plugins loaded dynamically through `bbebee-plugin://` are strictly
@@ -160,8 +160,8 @@ something shipped rather than a subsystem to invent.
 
 ## 8. Writing a plugin: checklist
 
-- [ ] `name` set, and it matches the package name's suffix — 规范见
-      [rules/plugins.md §1 Shape](../../rules/plugins.md#1-shape)（L2）.
+- [ ] `name` set, and it matches the package name's suffix — see the spec at
+      [rules/plugins.md §1 Shape](../../rules/plugins.md#1-shape) (L2).
 - [ ] `inject` lists exactly what is needed — optional deps in object form.
 - [ ] No platform SDK imported ([architecture/layers.md §1](../architecture/layers.md#the-invariant)). Core plugins are the
       exception, and are the *only* exception.

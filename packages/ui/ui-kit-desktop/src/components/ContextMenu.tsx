@@ -359,13 +359,13 @@ export function ContextMenu(props: ContextMenuProps): ReactElement | null {
                   },
                   disabled: draft.trim().length === 0,
                   testID: 'context-menu-create-confirm',
-                  children: submenu.create.buttonLabel ?? '确定',
+                  children: submenu.create.buttonLabel ?? 'OK',
                 }),
                 h(
                   'button',
                   {
                     type: 'button',
-                    'aria-label': '取消',
+                    'aria-label': 'Cancel',
                     onClick: () => {
                       setCreating(false)
                       setDraft('')
@@ -454,7 +454,7 @@ export function ContextMenu(props: ContextMenuProps): ReactElement | null {
                         },
                         disabled: draft.trim().length === 0,
                         testID: 'context-menu-create-confirm',
-                        children: submenu.create.buttonLabel ?? '确定',
+                        children: submenu.create.buttonLabel ?? 'OK',
                       }),
                     )
                   : h(MenuRow, {

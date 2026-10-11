@@ -33,15 +33,15 @@ export interface TabItem {
 }
 
 export const TABS: readonly TabItem[] = [
-  { id: 'general', label: '常规与语言' },
-  { id: 'playback', label: '播放与音频' },
-  { id: 'lyrics', label: '桌面歌词' },
-  { id: 'shortcuts', label: '全局快捷键' },
-  { id: 'network', label: '网络与代理' },
-  { id: 'sources', label: '曲库与来源' },
-  { id: 'storage', label: '存储与缓存' },
-  { id: 'plugins', label: '插件' },
-  { id: 'about', label: '关于应用' },
+  { id: 'general', label: 'General & language' },
+  { id: 'playback', label: 'Playback & Audio' },
+  { id: 'lyrics', label: 'Desktop lyrics' },
+  { id: 'shortcuts', label: 'Global shortcuts' },
+  { id: 'network', label: 'Network & proxy' },
+  { id: 'sources', label: 'Library & sources' },
+  { id: 'storage', label: 'Storage & cache' },
+  { id: 'plugins', label: 'Plugins' },
+  { id: 'about', label: 'About' },
 ]
 
 function cleanDisplayPath(rawPath?: string): string {
@@ -176,8 +176,8 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
   const paths = serviceOf<PathsService>(ctx, 'paths')
   const defaultDownloadsDir = paths?.downloads
     ? `${paths.downloads}/BBeBee`
-    : '默认下载目录 (Downloads/BBeBee)'
-  const defaultCacheDir = paths?.cache ? `${paths.cache}/BBeBee` : '默认缓存目录 (Cache/BBeBee)'
+    : 'Default downloads directory (Downloads/BBeBee)'
+  const defaultCacheDir = paths?.cache ? `${paths.cache}/BBeBee` : 'Default cache directory (Cache/BBeBee)'
   const currentDownloadsDir = settings.downloadDir || defaultDownloadsDir
   const currentCacheDir = settings.cacheDir || defaultCacheDir
 
@@ -331,7 +331,7 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
             letterSpacing: -0.3,
           },
         },
-        '设置',
+        'Settings',
       ),
       allTabs.map((tab) => {
         const isActive = activeTab === tab.id

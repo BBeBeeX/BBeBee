@@ -1,7 +1,7 @@
 /**
  * `plugin-registry-metadata` — lazy GitHub stats for registry entries.
  *
- * Implements `ctx.registryMetadata`: the 发现 page's sort controls want star
+ * Implements `ctx.registryMetadata`: the Discover page's sort controls want star
  * and contributor numbers the registry index itself never carries. They are
  * read lazily from the GitHub API, cached in the store for 24 hours, merged
  * per-repo across concurrent callers, and capped at three simultaneous

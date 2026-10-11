@@ -1,5 +1,5 @@
 /**
- * Favourites: one row per URN, pinned rows first, and a re-save that does not
+ * Favorites: one row per URN, pinned rows first, and a re-save that does not
  * reorder the shelf.
  */
 

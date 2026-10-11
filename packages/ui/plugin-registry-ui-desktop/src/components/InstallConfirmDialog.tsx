@@ -62,7 +62,7 @@ export function InstallConfirmDialog({
   const [blockOverrideConfirmed, setBlockOverrideConfirmed] = useState(false)
   const isLocallyModified = Boolean(details.isLocallyModified)
   const isUpdate = action === 'update'
-  const verb = isUpdate ? '更新' : '安装'
+  const verb = isUpdate ? 'Update' : 'Install'
   const isBlocked = securityAudit?.level === 'block'
   const canConfirm =
     !busy &&
@@ -99,11 +99,11 @@ export function InstallConfirmDialog({
                 'span',
                 null,
                 isUpdate
-                  ? '更新后将替换现有版本；若该源在本地被修改过，覆盖时需要再次确认。'
-                  : '导入后，此源将能够访问下列主机，请确认你信任它们。',
+                  ? 'Updating replaces the existing version; if this source was modified locally, overwriting requires confirmation again.'
+                  : 'After the import, this source will be able to reach the hosts below — confirm you trust them.',
               ),
             ),
-            h('div', { style: sectionTitleStyle }, '允许访问的主机'),
+            h('div', { style: sectionTitleStyle }, 'Allowed hosts'),
             allowedHosts?.length
               ? h(
                   'ul',
@@ -123,13 +123,13 @@ export function InstallConfirmDialog({
               : h(
                   'div',
                   { style: bodyTextStyle },
-                  '该文档未声明允许访问的主机（allowedHosts），请谨慎确认来源。',
+                  'This document declares no allowed hosts (allowedHosts) — verify its origin carefully.',
                 ),
             isBuiltinEntry(entry)
               ? h(
                   'div',
                   { style: bodyTextStyle },
-                  '这是内置歌词源的更新：安装会用注册表版本覆盖内置实现。',
+                  'This updates a built-in lyric source: installing overwrites the built-in implementation with the registry version.',
                 )
               : null,
             isLocallyModified
@@ -154,12 +154,12 @@ export function InstallConfirmDialog({
                     'strong',
                     { style: { display: 'inline-flex', alignItems: 'center', gap: 6 } },
                     tablerIcon('alert', { size: 14 }),
-                    '本地修改覆盖确认',
+                    'Confirm overwriting local changes',
                   ),
                   h(
                     'span',
                     null,
-                    '检测到此源在本地被手动修改过。继续更新将覆盖本地改动。',
+                    'Detected that this source was modified locally by hand. Continuing the update will overwrite those local changes.',
                   ),
                   h(
                     'label',
@@ -170,7 +170,7 @@ export function InstallConfirmDialog({
                       checked: overwriteConfirmed,
                       onChange: (e: { target: { checked: boolean } }) => setOverwriteConfirmed(e.target.checked),
                     }),
-                    h('span', { style: { color: 'var(--text-primary, #F5F7FF)', fontSize: 13 } }, '我确认覆盖本地修改并更新'),
+                    h('span', { style: { color: 'var(--text-primary, #F5F7FF)', fontSize: 13 } }, 'I confirm overwriting the local changes and updating'),
                   ),
                 )
               : null,
@@ -187,7 +187,7 @@ export function InstallConfirmDialog({
               'div',
               { style: warningStyle },
               tablerIcon('alert', { size: 16 }),
-              h('span', null, '此插件将执行第三方代码，请仅安装你信任的来源。'),
+              h('span', null, 'This plugin will run third-party code — only install sources you trust.'),
             ),
             repoUrl || entry.repoUrl
               ? h(
@@ -196,7 +196,7 @@ export function InstallConfirmDialog({
                     'data-testid': 'registry-plugin-repo-url',
                     style: { display: 'flex', flexDirection: 'column', gap: 4 },
                   },
-                  h('div', { style: sectionTitleStyle }, '代码仓库'),
+                  h('div', { style: sectionTitleStyle }, 'Repository'),
                   h(
                     'a',
                     {
@@ -221,14 +221,14 @@ export function InstallConfirmDialog({
                     'data-testid': 'registry-commit-diff',
                     style: { display: 'flex', flexDirection: 'column', gap: 4 },
                   },
-                  h('div', { style: sectionTitleStyle }, '提交差异 (Commit Diff)'),
+                  h('div', { style: sectionTitleStyle }, 'Commit diff'),
                   h(
                     'div',
                     { style: { fontFamily: 'var(--font-mono, ui-monospace, monospace)', fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } },
                     h(
                       'span',
                       { style: { color: 'var(--text-muted, #7E859B)' } },
-                      commitDiff.previousCommit ? commitDiff.previousCommit.slice(0, 7) : '初始',
+                      commitDiff.previousCommit ? commitDiff.previousCommit.slice(0, 7) : 'initial',
                     ),
                     ' → ',
                     h(
@@ -245,7 +245,7 @@ export function InstallConfirmDialog({
                       'data-testid': 'registry-commit-info',
                       style: { display: 'flex', flexDirection: 'column', gap: 4 },
                     },
-                    h('div', { style: sectionTitleStyle }, '版本提交 (Commit)'),
+                    h('div', { style: sectionTitleStyle }, 'Commit'),
                     h(
                       'div',
                       { style: { fontFamily: 'var(--font-mono, ui-monospace, monospace)', fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } },
@@ -260,7 +260,7 @@ export function InstallConfirmDialog({
                     'data-testid': 'registry-plugin-sha256',
                     style: { display: 'flex', flexDirection: 'column', gap: 4 },
                   },
-                  h('div', { style: sectionTitleStyle }, '发布哈希 (SHA-256)'),
+                  h('div', { style: sectionTitleStyle }, 'Release hash (SHA-256)'),
                   h(
                     'div',
                     {
@@ -283,7 +283,7 @@ export function InstallConfirmDialog({
               ? h(
                   'div',
                   { style: { display: 'flex', flexDirection: 'column', gap: 6 } },
-                  h('div', { style: sectionTitleStyle }, '申请的能力'),
+                  h('div', { style: sectionTitleStyle }, 'Requested capabilities'),
                   h(
                     'div',
                     {
@@ -315,7 +315,7 @@ export function InstallConfirmDialog({
               ? h(
                   'div',
                   { style: bodyTextStyle },
-                  `需要应用版本 ≥ ${normalizeVersion(entry.minAppVersion)}`,
+                  `Requires app version ≥ ${normalizeVersion(entry.minAppVersion)}`,
                 )
               : null,
           )
@@ -327,9 +327,9 @@ export function InstallConfirmDialog({
             h(
               'div',
               { style: bodyTextStyle },
-              `${isUpdate ? '更新' : '导入'}主题「${entry.name}」${entry.author ? `（作者 ${entry.author}）` : ''}。导入后会自动通过对比度检查，未通过的主题会被拒绝。`,
+              `${isUpdate ? 'Update' : 'Import'} the theme "${entry.name}"${entry.author ? ` (by ${entry.author})` : ''}. Contrast is checked automatically on import; themes that fail are rejected.`,
             ),
-            entry.version ? h('div', { style: bodyTextStyle }, `版本 v${normalizeVersion(entry.version)}`) : null,
+            entry.version ? h('div', { style: bodyTextStyle }, `Version v${normalizeVersion(entry.version)}`) : null,
           )
         : null,
       // Security audit report
@@ -351,7 +351,7 @@ export function InstallConfirmDialog({
             h(
               'div',
               { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
-              h('div', { style: sectionTitleStyle }, '安全审计报告'),
+              h('div', { style: sectionTitleStyle }, 'Security audit report'),
               h(
                 'span',
                 {
@@ -384,10 +384,10 @@ export function InstallConfirmDialog({
                   },
                 },
                 securityAudit.level === 'block'
-                  ? '高危风险 (Block)'
+                  ? 'Block'
                   : securityAudit.level === 'warn'
-                    ? '警告 (Warn)'
-                    : '通过 (Pass)',
+                    ? 'Warn'
+                    : 'Pass',
               ),
             ),
             securityAudit.findings.length
@@ -446,7 +446,7 @@ export function InstallConfirmDialog({
               : h(
                   'div',
                   { style: { fontSize: 12, color: 'var(--color-success, #10B981)' } },
-                  '未检测到已知安全风险或违规外呼。',
+                  'No known security risks or undeclared network calls detected.',
                 ),
             isBlocked
               ? h(
@@ -470,9 +470,9 @@ export function InstallConfirmDialog({
                     'strong',
                     { style: { display: 'inline-flex', alignItems: 'center', gap: 6 } },
                     tablerIcon('alert', { size: 14 }),
-                    '高危风险阻断',
+                    'Blocked by a high-risk finding',
                   ),
-                  h('span', null, '静态代码扫描发现高危操作，默认禁止安装以保护你的设备安全。'),
+                  h('span', null, 'Static code scanning found high-risk operations; installation is blocked by default to protect your device.'),
                   h(
                     'label',
                     { style: { display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', marginTop: 4 } },
@@ -485,7 +485,7 @@ export function InstallConfirmDialog({
                     h(
                       'span',
                       { style: { color: 'var(--text-primary, #F5F7FF)', fontSize: 12 } },
-                      '我已知晓高危风险并确认强制安装',
+                      'I understand the high-risk findings and confirm installing anyway',
                     ),
                   ),
                 )
@@ -531,7 +531,7 @@ export function InstallConfirmDialog({
               fontSize: 13,
             },
           },
-          '取消',
+          'Cancel',
         ),
         h(
           'button',
@@ -559,7 +559,7 @@ export function InstallConfirmDialog({
               opacity: !canConfirm ? 0.5 : 1,
             },
           },
-          busy ? `${verb}中…` : `确认${verb}`,
+          busy ? `${verb}ing…` : `Confirm ${verb.toLowerCase()}`,
         ),
       ),
     ),

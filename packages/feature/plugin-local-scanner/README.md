@@ -1,105 +1,105 @@
 # @BBeBee/plugin-local-scanner
 
-Layer 4（feature）— `ctx.scanner`：本机文件系统的扫描器。
+Layer 4 (feature) — `ctx.scanner`: the scanner for the local filesystem.
 
-## 概述
+## Overview
 
-遍历用户指定的音乐目录、读取标签元数据、把文件写入目录表（catalogue）。与 `plugin-source-local` 的分工（docs/06 §8）：**本包负责"填充"**（从磁盘把文件变成目录条目），`plugin-source-local` 负责"应答"（回答目录里有什么、如何播放）。
+Walks the user-designated music directories, reads tag metadata, and writes files into the catalogue. Division of labor with `plugin-source-local` (docs/06 §8): **this package fills** (turns files on disk into catalogue entries), `plugin-source-local` answers (says what is in the catalogue and how to play it).
 
-设计目标三条，每条都有测试背书：
+Three design goals, each backed by a test:
 
-| 性质 | 含义 |
+| Property | Meaning |
 |---|---|
-| **增量** | 用 `(size, mtime)` 对照 `scan_entries` 决定是否打开文件——重扫未变化的库只花 stat 调用的成本 |
-| **可中断** | 每批一个事务、`AbortSignal` 取消、每批一个检查点——挂起最多损失一个批次 |
-| **诚实** | 解不开的文件带着原因记为 error 条目，绝不静默跳过 |
+| **Incremental** | `(size, mtime)` against `scan_entries` decides whether a file is opened at all — rescanning an unchanged library costs only stat calls |
+| **Interruptible** | One transaction per batch, `AbortSignal` cancellation, one checkpoint per batch — a suspension loses at most one batch |
+| **Honest** | A file that cannot be decoded is recorded as an error entry with its reason, never silently skipped |
 
-## 服务声明
+## Service declaration
 
-- `class Scanner extends Service implements ScannerService`，`super(ctx, 'scanner')` → `ctx.scanner`。
-- 必需注入：`['fs', 'db', 'codec']`；可选注入（嵌套）：`['ui']`（设置页描述符）、`['background']`（轮询回退）。
-- 能力声明：`fs:read:media`、`fs:read:all`、`db:read:core`、`db:write:core`、`background`。
+- `class Scanner extends Service implements ScannerService`, `super(ctx, 'scanner')` → `ctx.scanner`.
+- Required injections: `['fs', 'db', 'codec']`; optional (nested) injections: `['ui']` (the settings page descriptor), `['background']` (the polling fallback).
+- Capabilities: `fs:read:media`, `fs:read:all`, `db:read:core`, `db:write:core`, `background`.
 
-## 源文件
+## Source files
 
-### `src/index.ts` — ScannerService 与扫描流程
+### `src/index.ts` — ScannerService and the scan flow
 
-**配置（`ScannerConfig`）**：`batchSize=200`（每事务文件数）、`extensions`（默认 16 种：mp3/flac/m4a/aac/ogg/oga/opus/wav/aiff/aif/wma/alac/ape/wv/dsf/dff/m4b）、`sourceId='local'`、`pollIntervalMinutes=1440`（1 天）、`watchDebounceMs=2000`。
+**Config (`ScannerConfig`)**: `batchSize=200` (files per transaction), `extensions` (default 16: mp3/flac/m4a/aac/ogg/oga/opus/wav/aiff/aif/wma/alac/ape/wv/dsf/dff/m4b), `sourceId='local'`, `pollIntervalMinutes=1440` (1 day), `watchDebounceMs=2000`.
 
-**公开 API**：
+**Public API**:
 
-| 成员 | 作用 |
+| Member | Purpose |
 |---|---|
-| `roots` / `progress` | 扫描根列表（内存缓存）/ `{ rootId, done, total? }` |
-| `addRoot(uri, opts?)` | 默认 `recursive: true`；重复添加 = 重新启用（upsert） |
-| `removeRoot(id, opts?)` | `forgetTracks: true` 时逐 entry `forgetFile` 并 emit `library/changed` |
-| `setEnabled(id, on)` | 启停某根并重建 watcher |
-| `scan(opts?)` | 主入口。返回 `ScanSummary` |
-| `cancel()` | abort 内部控制器 |
+| `roots` / `progress` | The list of scan roots (in-memory cache) / `{ rootId, done, total? }` |
+| `addRoot(uri, opts?)` | Defaults to `recursive: true`; adding again = re-enable (upsert) |
+| `removeRoot(id, opts?)` | With `forgetTracks: true`, runs `forgetFile` per entry and emits `library/changed` |
+| `setEnabled(id, on)` | Enable/disable a root and rebuild the watcher |
+| `scan(opts?)` | The main entry. Returns `ScanSummary` |
+| `cancel()` | Aborts the internal controller |
 
-**扫描流程**：`scan` 用 `inFlight` promise 串行化（watch 事件、轮询、手动扫描可能同时到达，两个并发遍历会互相覆盖 abort 控制器）→ 信号桥接到内部 `AbortController` → 每根：`scan/started` → BFS `walk` → 一次性读入该根的 `scan_entries` → 分批 `importBatch`（每批一个事务、更新 progress、emit `scan/progress` 与 `library/changed`）→ 收尾 emit `scan/finished`。
+**Scan flow**: `scan` is serialized with an `inFlight` promise (a watch event, a poll, and a manual scan can all arrive at once, and two concurrent walks would overwrite each other's abort controller) → the signal is bridged to an internal `AbortController` → per root: `scan/started` → BFS `walk` → read that root's `scan_entries` in one go → batched `importBatch` (one transaction per batch, progress updates, emit `scan/progress` and `library/changed`) → finish with `scan/finished`.
 
-**BFS 护栏**：`MAX_SCAN_DEPTH=24`、`MAX_SCAN_DIRS=20_000`、`visited` 去重。`ctx.fs.list` 会跟随目录符号链接，`ln -s . loop` 会让队列永不排空；深度上限单独不够（两个互链的目录指数级产生新路径），目录预算让爆炸在两个维度上都有限。读不了的目录不算失败但计入 `unreadable` 并置 `truncated`。
+**BFS guards**: `MAX_SCAN_DEPTH=24`, `MAX_SCAN_DIRS=20_000`, `visited` dedup. `ctx.fs.list` follows directory symlinks, so `ln -s . loop` makes the queue never drain; the depth cap alone is not enough (two mutually-linked directories produce new paths exponentially), and the directory budget keeps the blow-up finite in both dimensions. An unreadable directory does not count as a failure but is counted in `unreadable` and sets `truncated`.
 
-**对账（最重要的不变量）**：**只有完整视图才允许删除**。`complete = !aborted && !truncated`；"消失的文件"只在 complete 时删除。被截断的 walk 与"从磁盘消失"不可区分，基于部分视图对账会静默删掉仍在磁盘上的文件——比它所替代的挂起更糟（挂起至少可见）。`summary.incomplete` 跨根粘滞。不完整时**宁可过时不可错误**。
+**Reconciliation (the most important invariant)**: **only a complete view may delete**. `complete = !aborted && !truncated`; "gone files" are deleted only when complete. A truncated walk is indistinguishable from "vanished from disk", and reconciling on a partial view would silently delete files that are still on disk — worse than the hang it replaced (a hang is at least visible). `summary.incomplete` is sticky across roots. When incomplete: **stale over wrong, always**.
 
-**watch/轮询三层回退**：`ctx.fs.watch`（桌面理想路径，防抖 `watchDebounceMs`）→ `ctx.background.schedule('scanner:poll', …)`（移动端，OS 调度器）→ 自有链式 `setTimeout` 轮询（链式而非 interval——超时的扫描不能让下一次排在它后面；桌面在 `core-background-electron` 落地前的必需回退）。
+**watch/poll three-tier fallback**: `ctx.fs.watch` (the desktop ideal path, debounced by `watchDebounceMs`) → `ctx.background.schedule('scanner:poll', …)` (mobile, the OS scheduler) → its own chained `setTimeout` polling (chained rather than an interval — a scan that overruns must not have the next one queued behind it; the required fallback on desktop until `core-background-electron` lands).
 
-**与 `ctx.sources` 的关系**：catalogue 外键指向 `sources` 行，扫描器作为写入者必须先保证源行存在——`ensureSourceRow()` 写入最小行（id 默认 `'local'`，`source_url = 'bbebee://local/<id>'`，`doc_json` 是一份真实文档：`{ sourceName: 'This device', sourceComment: 'Files on this device. Managed by the scanner, not imported.' }`）。
+**Relationship with `ctx.sources`**: the catalogue's foreign keys point at `sources` rows, so the scanner, as the writer, must first ensure the source row exists — `ensureSourceRow()` writes the minimal row (id defaults to `'local'`, `source_url = 'bbebee://local/<id>'`, and `doc_json` is a real document: `{ sourceName: 'This device', sourceComment: 'Files on this device. Managed by the scanner, not imported.' }`).
 
-### `src/import.ts` — 文件如何变成目录条目
+### `src/import.ts` — how a file becomes a catalogue entry
 
-遍历决定看哪些文件，这里决定它们意味着什么。所有写入走调用方持有的同一事务——"挂起最多损失一批，绝不损失半个 track"。
+The walk decides which files to look at; this decides what they mean. All writes go through the caller's single transaction — "a suspension loses at most one batch, never half a track".
 
-- **`importTrack(ctx, input)`**：标题回退到文件名 → `artworks`（内容寻址 id 去重封面；⚠️ `blurhash`/`dominant_color` 留 NULL——`ctx.codec` 解音频不解图像，是已声明的降级）→ `albums`（`COALESCE(excluded.x, albums.x)`：新数据缺失不覆盖旧值）→ `tracks` upsert → `track_artists` 先删后插（role `'main'`，连接表而非自由文本——"Artist feat. Other" 作自由文本会让 featuring 不可浏览）→ `genres`/`track_genres`（归一化小写）→ `external_ids`（isrc/mbid："M2 的身份链接要 join 的东西，现在记录便宜"）→ **`media_bindings`**（`origin: 'scan'`——这个绑定本身就是"这个 track 是磁盘上的一个文件"的全部含义；M3 下载插件写同形 `origin: 'download'` 的行，播放器因此不需要知道"下载"这个概念）。
-- **`forgetFile(ctx, uri)`**：删绑定；track 已无剩余绑定则连 track 行一起删（对本地源，文件就是 track）。
-- **`splitArtists(value)`**：拆分标签里内联的多艺术家。`/` 只在两侧有空白时才算分隔符（AC/DC 是一支乐队）；`feat./ft./with` 需要两侧空白。
-- **`sortKey` 是再导出而非自定义**：目录排序规则属于 `@BBeBee/protocol`，不属于先到的写入者——来源缓存曾长出自己的副本，导致 "The Beatles" 在列表里出现两次。
+- **`importTrack(ctx, input)`**: title falls back to the file name → `artworks` (content-addressed id dedupes covers; ⚠️ `blurhash`/`dominant_color` stay NULL — `ctx.codec` decodes audio, not images, a declared degradation) → `albums` (`COALESCE(excluded.x, albums.x)`: missing new data does not clobber old values) → `tracks` upsert → `track_artists` delete-then-insert (role `'main'`, a junction table rather than free text — "Artist feat. Other" as free text would make featuring unbrowsable) → `genres`/`track_genres` (normalized lower-case) → `external_ids` (isrc/mbid: "M2 records cheaply now what identity linking will need to join on") → **`media_bindings`** (`origin: 'scan'` — this binding is the entire meaning of "this track is a file on disk"; the M3 download plugin writes same-shaped `origin: 'download'` rows, which is why the player never needs the concept of "downloaded").
+- **`forgetFile(ctx, uri)`**: deletes the binding; if the track has no remaining bindings, deletes the track row too (for the local source, the file is the track).
+- **`splitArtists(value)`**: splits multiple artists inlined in a tag. `/` only counts as a separator when it has whitespace on both sides (AC/DC is one band); `feat./ft./with` require surrounding whitespace.
+- **`sortKey` is a re-export, not a local copy**: catalogue sort rules belong to `@BBeBee/protocol`, not to whichever writer got there first — the source cache once grew its own copy, which made "The Beatles" appear twice in a list.
 
-### `src/ids.ts` — 稳定 id 的派生
+### `src/ids.ts` — how stable ids are derived
 
-派生而非随机：同一文件必须每次扫描产生相同 URN，否则一次重扫就孤儿化所有指向它的播放列表条目、队列行和播放记录。
+Derived, not random: the same file must produce the same URN on every scan, otherwise one rescan orphans every playlist entry, queue row, and play record pointing at it.
 
-- **`stableId(...parts)`**：parts 用 NUL（`\x00`）join，64 位 = **两轮不同盐的 FNV-1a**（零依赖、跨平台稳定；明说不是安全哈希也不当它用）。
-- **`trackId(uri)`** / **`albumId(title, artist)`** / **`artistId(name)`**：`normalise`（trim + 小写 + 空白折叠）后派生。
-- **`artworkId(bytes)`**：内容寻址（两轮不同盐 + 字节数）——两张文件共享同一封面则共享一行 artwork；单轮 32 位在库规模下会碰撞，而碰撞意味着一张专辑静默拿到别人的封面。
+- **`stableId(...parts)`**: parts joined with NUL (`\x00`), 64 bits = **two FNV-1a rounds over different salts** (zero dependencies, stable across platforms; explicitly not a security hash and never treated as one).
+- **`trackId(uri)`** / **`albumId(title, artist)`** / **`artistId(name)`**: derived after `normalise` (trim + lower-case + whitespace collapse).
+- **`artworkId(bytes)`**: content-addressed (two rounds over different salts + the byte count) — two files sharing a cover share one artwork row; a single 32-bit round collides at library scale, and a collision here silently gives one album another's cover.
 
-> 注意：本文件含字面控制字符（`\x00`/`\x01` 作 join 分隔符），某些工具会把它判为二进制。
+> Note: this file contains literal control characters (`\x00`/`\x01` as join separators); some tools will classify it as binary.
 
-### `src/hooks.ts` — React hooks（双壳共享）
+### `src/hooks.ts` — React hooks (shared by both shells)
 
-核心是进度：扫描按批发事件，只看结果的设置屏在大库上会静止几分钟，看起来像坏了。
+The core is progress: a scan emits events per batch, and a settings screen that only looks at the result would sit frozen for minutes on a large library, looking broken.
 
-- **`useScanRoots(ctx)`** — 订阅 `scan/started|finished` 与 `library/changed`，返回 `ctx.scanner.roots`。
-- **`useScanState(ctx): ScanState`** — `{ progress?, running, lastSummary? }`；`scan/finished` 时**清空 progress**——扫描结束后冻结在 90% 的进度条比没有进度条更糟。
-- **`summarise(summary?)`** — 摘要成一句话。⚠️ **`incomplete` 压过一切计数，不是它们的脚注**：截断的扫描渲染成 "nothing changed" 会告诉用户库已对账而事实相反。
+- **`useScanRoots(ctx)`** — subscribes to `scan/started|finished` and `library/changed`, returns `ctx.scanner.roots`.
+- **`useScanState(ctx): ScanState`** — `{ progress?, running, lastSummary? }`; on `scan/finished` it **clears progress** — a progress bar frozen at 90% after the scan ended is worse than no progress bar.
+- **`summarise(summary?)`** — summarizes into one sentence. ⚠️ **`incomplete` overrides every count; it is not their footnote**: rendering a truncated scan as "nothing changed" would tell the user the library is reconciled when the opposite is true.
 
-### `src/views.ts` — 视图 id 常量
+### `src/views.ts` — view id constants
 
 ```ts
 export const SCANNER_VIEWS = { settings: 'scanner.settings' } as const
 ```
 
-只有 id；实际组件由各平台 UI 包经 `ctx.ui.registerView` 绑定。init 注册的是 settings 描述符（section `'sources'`，标题 "Music folders"）——描述符不是组件，视图包未加载的平台上设置页仍能列出并显示"此平台不可用"。
+Ids only; actual components are bound by each platform's UI package via `ctx.ui.registerView`. init registers the settings descriptor (section `'sources'`, title "Music folders") — the descriptor is not a component, so on a platform whose view package is not loaded the settings page can still list it and show "not available on this platform".
 
-## 写库表
+## Tables written
 
-`sources`（确保行）、`scan_roots`、`scan_entries`（`status ∈ { ok, error }`，error 带原因）、`tracks`、`albums`、`artists`、`track_artists`、`album_artists`、`genres`、`track_genres`、`artworks`、`external_ids`、`media_bindings`——全部 upsert 语义，天然幂等。
+`sources` (ensured row), `scan_roots`, `scan_entries` (`status ∈ { ok, error }`, error carries a reason), `tracks`, `albums`, `artists`, `track_artists`, `album_artists`, `genres`, `track_genres`, `artworks`, `external_ids`, `media_bindings` — all upsert semantics, naturally idempotent.
 
-## 导出
+## Exports
 
 ```ts
 export const name = 'plugin-local-scanner'
 export interface ScannerConfig
-export async function apply(ctx, config?)   // 刻意 await ctx.plugin(Scanner, config)
+export async function apply(ctx, config?)   // deliberately awaits ctx.plugin(Scanner, config)
 export { importTrack, forgetFile, splitArtists, sortKey } from './import.js'
 export { trackId, albumId, artistId, artworkId } from './ids.js'
-// './hooks'：useScanRoots / useScanState / summarise
-// './views'：SCANNER_VIEWS
+// './hooks': useScanRoots / useScanState / summarise
+// './views': SCANNER_VIEWS
 ```
 
-## 相关文档
+## Related docs
 
-- `docs/06-music-sources.md` §8/§12：本地源与扫描器分工
-- `docs/11-roadmap-M1.md`：增量扫描退出标准
-- `packages/feature/plugin-source-local/README.md`：应答端
+- `docs/06-music-sources.md` §8/§12: local sources and the scanner division of labor
+- `docs/11-roadmap-M1.md`: the incremental-scan exit criterion
+- `packages/feature/plugin-source-local/README.md`: the answering side

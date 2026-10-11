@@ -1,38 +1,38 @@
 # @BBeBee/plugin-album-ui-mobile
 
-Layer 5（ui）— `plugin-album`（headless）的移动视图包：`plugin-album-ui-desktop` 的孪生半边。
+Layer 5 (ui) — the mobile view package for `plugin-album` (headless): the twin half of `plugin-album-ui-desktop`.
 
-## 概述
+## Overview
 
-与桌面版**同一组 hooks、同一套播放语义**——只有元素与形状不同。领域状态来自 `@BBeBee/plugin-album/hooks`；kit 原语经 `nativePrimitives()` 取用；`ctx.sources` 经 `inject`，`player` / `downloads` 走 `serviceOf`（可选）。依赖 headless 的 `@BBeBee/plugin-album` 与 `@BBeBee/plugin-sources`（返回库的兜底 route id）。
+The **same set of hooks and the same playback semantics** as the desktop version — only the elements and shapes differ. Domain state comes from `@BBeBee/plugin-album/hooks`; kit primitives are obtained via `nativePrimitives()`; `ctx.sources` via `inject`, `player` / `downloads` through `serviceOf` (optional). Depends on the headless `@BBeBee/plugin-album` and `@BBeBee/plugin-sources` (which returns the fallback library route id).
 
-## 源文件
+## Source files
 
 ### `src/index.tsx`
 
-**注册的视图**：`album.view` → `AlbumScreen`（generator effect，fiber 名 `'album-ui-mobile'`）。
+**Registered view**: `album.view` → `AlbumScreen` (generator effect, fiber name `'album-ui-mobile'`).
 
-**移动端差异**（行为与桌面一致）：
+**Mobile differences** (behaviour matches the desktop):
 
-- 顶部一条 **`‹ Library` 返回控件**：shell 传了 `onBack` 就用它；没有时兜底 `ui.navigate(SOURCES_VIEWS.library)`——不让用户停在一个走不出去的屏上（错误态的 "Back to library" 按钮走同一条路）；
-- header **居中竖排**（200px 封面、标题 `numberOfLines: 2`），桌面为横排；
-- "Play album" 同样**禁用而非隐藏**；
-- 单轨点播与桌面逐字相同：`playFromContext(track, 全部曲目, { context: { kind: 'album', urn, label } })`，跳转优先，否则整张专辑成为队列并从点击处起播；**播放不导航**，mini-player 自己宣布正在播放；
-- 下载按钮 → `ctx.downloads.enqueue([urn])`，没有 downloads 就不画。
+- a **`‹ Library` back control** at the top: used when the shell passes `onBack`; otherwise falls back to `ui.navigate(SOURCES_VIEWS.library)` — never leaving the user stranded on a screen with no way out (the error state's "Back to library" button takes the same path);
+- the header is **centred and vertical** (200px cover, title `numberOfLines: 2`), where the desktop is horizontal;
+- "Play album" is likewise **disabled rather than hidden**;
+- single-track taps are verbatim identical to the desktop: `playFromContext(track, all tracks, { context: { kind: 'album', urn, label } })` — jump if already queued, otherwise the whole album becomes the queue starting at the tap; **playback never navigates**, the mini-player announces what is playing;
+- download button → `ctx.downloads.enqueue([urn])`; not drawn when there are no downloads.
 
-**`bound(ctx, Screen)`** — 与所有视图包相同：闭包本插件 `apply` 时的 context；`h(Screen, …)` 而非函数调用。
+**`bound(ctx, Screen)`** — the same as every view package: closes over the context captured by this plugin's `apply`; `h(Screen, …)` rather than a function call.
 
-## 测试（`src/screen.test.tsx`）
+## Tests (`src/screen.test.tsx`)
 
-jsdom + Testing Library。先 `configureNative({…})` 注入 DOM host 组件（含 `FlashList` 桩），与 `apps/mobile` 交出真 RN 用的是同一条缝。4 个用例：
+jsdom + Testing Library. First `configureNative({…})` injects the DOM host components (including a `FlashList` stub) — the same seam `apps/mobile` hands real RN through. 4 cases:
 
-1. 画出专辑 + "Play album" → `playNow([A, B])`；
-2. 点 "Jóga" → `playFromContext(B, [A, B], { kind: 'album', urn, label: 'Homogenic' })`；
-3. 下载按钮 → `enqueue([A])`（DOM host 会把点击冒泡进行 `Pressable`，RN 的 responder 不会——"不触发播放"由桌面孪生钉住，那里 kit 显式 stopPropagation）；
-4. 缺失专辑 → "Album unavailable" + "Back to library" 兜底导航到 `sources.library`。
+1. draws the album + "Play album" → `playNow([A, B])`;
+2. tapping "Jóga" → `playFromContext(B, [A, B], { kind: 'album', urn, label: 'Homogenic' })`;
+3. download button → `enqueue([A])` (the DOM host bubbles clicks into the `Pressable`, which RN's responder system would not — "does not trigger playback" is pinned by the desktop twin, where the kit stops propagation explicitly);
+4. missing album → "Album unavailable" + "Back to library" falls back to navigating to `sources.library`.
 
-## 相关文档
+## Related docs
 
-- `packages/feature/plugin-album/README.md`：headless 侧
-- `packages/ui/plugin-album-ui-desktop/README.md`：孪生半边（含更完整的桌面侧行为描述）
-- `packages/ui/plugin-sources-ui-mobile/README.md`：库/搜索屏（导航入口）
+- `packages/feature/plugin-album/README.md`: the headless side
+- `packages/ui/plugin-album-ui-desktop/README.md`: the twin half (with a fuller description of the desktop behaviour)
+- `packages/ui/plugin-sources-ui-mobile/README.md`: library/search screens (navigation entry)

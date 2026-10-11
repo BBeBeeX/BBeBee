@@ -183,7 +183,7 @@ export class QueueModel {
    * What follows `id`, honouring repeat. `undefined` means the queue ended.
    *
    * Shuffle never ends: a permutation that runs out wraps to its head, which
-   * is what "随机播放" means — the order is random, the music is continuous.
+   * is what "shuffle" means — the order is random, the music is continuous.
    * A plain sequence without repeat-all is the only way a queue runs out.
    */
   next(id: string | undefined, repeat: RepeatMode): QueueEntry | undefined {

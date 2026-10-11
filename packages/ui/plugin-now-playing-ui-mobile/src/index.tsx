@@ -411,7 +411,7 @@ function StyleSwitcherButton({ styleId, setStyle }: {
     native.Pressable as never,
     {
       accessibilityRole: 'button',
-      accessibilityLabel: `切换播放页样式: ${next.name}`,
+      accessibilityLabel: `Switch now-playing style: ${next.name}`,
       onPress: () => setStyle(next.id),
       style: {
         alignSelf: 'flex-end',
@@ -421,7 +421,7 @@ function StyleSwitcherButton({ styleId, setStyle }: {
         backgroundColor: 'rgba(255, 255, 255, 0.1)',
       },
     },
-    h(Text, { variant: 'sm', children: `🎨 ${styles[currentIdx]?.name ?? '经典'}` }),
+    h(Text, { variant: 'sm', children: `🎨 ${styles[currentIdx]?.name ?? 'Classic'}` }),
   )
 }
 

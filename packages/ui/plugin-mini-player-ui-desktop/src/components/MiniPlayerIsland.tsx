@@ -66,7 +66,7 @@ export function MiniPlayerIsland({
             WebkitAppRegion: 'drag',
           },
           onDoubleClick: onCollapse,
-          title: '双击折叠灵动岛',
+          title: 'Double-click to collapse the island',
         },
         // Top Row: Artwork + Metadata + WaveBars & Actions
         h(
@@ -84,7 +84,7 @@ export function MiniPlayerIsland({
             {
               style: { WebkitAppRegion: 'no-drag', cursor: 'pointer' },
               onClick: onRestoreMain,
-              title: '点击恢复主窗口',
+              title: 'Click to restore the main window',
             },
             h(IslandArtwork, {
               artworkUri: data.artworkUri,
@@ -118,7 +118,7 @@ export function MiniPlayerIsland({
                   whiteSpace: 'nowrap',
                 },
               },
-              data.title || '暂无播放歌曲',
+              data.title || 'Nothing playing',
             ),
             h(
               'div',
@@ -164,7 +164,7 @@ export function MiniPlayerIsland({
               'div',
               {
                 onClick: onCollapse,
-                title: '点击收起灵动岛',
+                title: 'Click to collapse the island',
                 style: {
                   display: 'flex',
                   alignItems: 'center',
@@ -179,8 +179,8 @@ export function MiniPlayerIsland({
               'button',
               {
                 type: 'button',
-                'aria-label': '恢复主窗口',
-                title: '恢复主窗口',
+                'aria-label': 'Restore main window',
+                title: 'Restore main window',
                 onClick: onRestoreMain,
                 style: {
                   display: 'flex',
@@ -203,8 +203,8 @@ export function MiniPlayerIsland({
               'button',
               {
                 type: 'button',
-                'aria-label': '关闭小窗',
-                title: '关闭小窗',
+                'aria-label': 'Close mini player',
+                title: 'Close mini player',
                 onClick: onClose,
                 style: {
                   display: 'flex',
@@ -293,7 +293,7 @@ export function MiniPlayerIsland({
           transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
           WebkitAppRegion: 'drag',
         },
-        title: '点击展开灵动岛',
+        title: 'Click to expand the island',
       },
       // Left: Mini Artwork Disc (22px)
       h(
@@ -340,7 +340,7 @@ export function MiniPlayerIsland({
                 textOverflow: 'ellipsis',
               },
             },
-            data.title || '暂无播放',
+            data.title || 'Nothing playing',
           ),
           data.artist &&
             h(
@@ -373,8 +373,8 @@ export function MiniPlayerIsland({
           'button',
           {
             type: 'button',
-            'aria-label': isPlaying ? '暂停' : '播放',
-            title: isPlaying ? '暂停' : '播放',
+            'aria-label': isPlaying ? 'Pause' : 'Play',
+            title: isPlaying ? 'Pause' : 'Play',
             onClick: (e: { stopPropagation: () => void }) => {
               e.stopPropagation()
               onAction({ type: 'togglePlay' })

@@ -240,7 +240,7 @@ describe('plugin-dsp', () => {
     const fiber = await ctx.plugin(DspPlugin)
 
     await ctx.dsp.setEnabled('eq10', true)
-    await ctx.dsp.applyPreset('eq10', '低音增强 (Bass Boost)')
+    await ctx.dsp.applyPreset('eq10', 'Bass Boost')
 
     const params = ctx.dsp.getParams?.('eq10') ?? {}
     expect(params.gains).toEqual([6, 5, 4, 2, 1, 0, 0, 0, 0, 0])

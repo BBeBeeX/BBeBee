@@ -46,7 +46,7 @@ export function useShareModalState<
   item,
   defaultThemeColor = '#8C52FF',
   isValid = true,
-  missingReason = '无法复制：缺少有效标题等元数据',
+  missingReason = "Can't copy: missing a valid title or other metadata",
 }: UseShareModalStateOptions<T>) {
   const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>('cover')
   const [copied, setCopied] = useState(false)
@@ -85,7 +85,7 @@ export function useShareModalState<
       data: ShareTrackData | SharePlaylistData | ShareAlbumData | ShareLyricsData,
     ) => {
       if (isLocal) {
-        showDisabledReason('无法分享本地音乐')
+        showDisabledReason("Can't share local music")
         return
       }
       if (!canCopy) {
@@ -112,11 +112,11 @@ export function useShareModalState<
           setTimeout(() => setCopied(false), 2000)
         } else {
           ctx.logger?.error('Failed to copy base64 via clipboard')
-          showDisabledReason('无法复制：剪贴板写入失败，请检查系统权限')
+          showDisabledReason("Can't copy: writing to the clipboard failed, check system permissions")
         }
       } catch (err) {
         ctx.logger?.error(`Failed to copy base64: ${String(err)}`)
-        showDisabledReason('无法复制：剪贴板写入失败，请检查系统权限')
+        showDisabledReason("Can't copy: writing to the clipboard failed, check system permissions")
       }
     },
     [ctx, isLocal, canCopy, missingReason, httpArtwork, showDisabledReason],
@@ -124,14 +124,14 @@ export function useShareModalState<
 
   const handleDisabledCopyClick = useCallback(() => {
     if (isLocal) {
-      showDisabledReason('无法分享本地音乐')
+      showDisabledReason("Can't share local music")
     } else {
       showDisabledReason(missingReason)
     }
   }, [isLocal, missingReason, showDisabledReason])
 
   const handleDisabledDownloadClick = useCallback(() => {
-    showDisabledReason('无法分享本地音乐')
+    showDisabledReason("Can't share local music")
   }, [showDisabledReason])
 
   return {

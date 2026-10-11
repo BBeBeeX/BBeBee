@@ -347,18 +347,18 @@ export class Sources extends Service implements SourcesService {
           kind: 'settings',
           id: SOURCES_VIEWS.sourceList,
           section: 'sources',
-          title: '音乐来源配置 (Music Sources)',
-          description: '查看已启用的网络音源、进行源能力健康诊断或管理第三方音源列表',
-          actionText: '管理音乐源',
+          title: 'Music Sources',
+          description: 'View enabled network music sources, run source capability health checks, or manage the third-party source list',
+          actionText: 'Manage music sources',
           order: 10,
         })
         yield scoped.ui.contribute({
           kind: 'settings',
           id: SOURCES_ROUTES.sourceImport,
           section: 'sources',
-          title: '导入音源 (Import Sources)',
-          description: '从剪贴板文本、本地 JSON 规则文件或网络 URL 导入第三方音源脚本 (Legado 格式)',
-          actionText: '导入音源',
+          title: 'Import Sources',
+          description: 'Import third-party source scripts (Legado format) from clipboard text, a local JSON rule file, or a network URL',
+          actionText: 'Import sources',
           order: 20,
         })
         yield scoped.ui.contribute({
@@ -1270,7 +1270,7 @@ export class Sources extends Service implements SourcesService {
           return {
             status: 'auth_failed',
             latencyMs,
-            message: `鉴权失败 (HTTP ${status}): 用户名或密码错误`,
+            message: `Authentication failed (HTTP ${status}): wrong username or password`,
           }
         }
 
@@ -1289,36 +1289,36 @@ export class Sources extends Service implements SourcesService {
               status: 'ok',
               latencyMs,
               serverVersion: typeof subRes.version === 'string' ? subRes.version : undefined,
-              message: `连接成功 (Subsonic${ver})`,
+              message: `Connected (Subsonic${ver})`,
             }
           }
           if (subRes.status === 'failed' || subRes.error) {
             const errObj = subRes.error as { code?: number; message?: string } | undefined
             const errCode = errObj?.code ? ` [Code ${errObj.code}]` : ''
-            const errMsg = errObj?.message ?? '用户名或密码无效'
+            const errMsg = errObj?.message ?? 'Invalid username or password'
             return {
               status: 'auth_failed',
               latencyMs,
-              message: `鉴权失败${errCode}: ${errMsg}`,
+              message: `Authentication failed${errCode}: ${errMsg}`,
             }
           }
         }
 
         if (status >= 200 && status < 300) {
-          return { status: 'ok', latencyMs, message: `连接成功 (HTTP ${status})` }
+          return { status: 'ok', latencyMs, message: `Connected (HTTP ${status})` }
         }
 
         return {
           status: 'network_error',
           latencyMs,
-          message: `服务器响应异常 (HTTP ${status})`,
+          message: `Unexpected server response (HTTP ${status})`,
         }
       } catch (err: unknown) {
         const latencyMs = Date.now() - start
         return {
           status: 'network_error',
           latencyMs,
-          message: `无法连接服务器: ${err instanceof Error ? err.message : String(err)}`,
+          message: `Cannot reach the server: ${err instanceof Error ? err.message : String(err)}`,
         }
       }
     }
@@ -1342,18 +1342,18 @@ export class Sources extends Service implements SourcesService {
       }
       const latencyMs = Date.now() - start
       if (status === 401 || status === 403) {
-        return { status: 'auth_failed', latencyMs, message: `需要鉴权认证 (HTTP ${status})` }
+        return { status: 'auth_failed', latencyMs, message: `Authentication required (HTTP ${status})` }
       }
       if (status < 500) {
-        return { status: 'ok', latencyMs, message: `连接成功 (HTTP ${status})` }
+        return { status: 'ok', latencyMs, message: `Connected (HTTP ${status})` }
       }
-      return { status: 'network_error', latencyMs, message: `服务器不可达 (HTTP ${status})` }
+      return { status: 'network_error', latencyMs, message: `Server unreachable (HTTP ${status})` }
     } catch (err: unknown) {
       const latencyMs = Date.now() - start
       return {
         status: 'network_error',
         latencyMs,
-        message: `无法连接服务器: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Cannot reach the server: ${err instanceof Error ? err.message : String(err)}`,
       }
     }
   }

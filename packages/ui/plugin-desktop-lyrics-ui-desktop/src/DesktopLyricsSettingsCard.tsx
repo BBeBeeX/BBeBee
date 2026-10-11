@@ -81,11 +81,11 @@ export function DesktopLyricsSettingsCard({ ctx }: { ctx: Context }): ReactEleme
     h(
       'div',
       { style: { padding: '4px 4px 8px' } },
-      h('div', { style: titleStyle }, '桌面歌词设置'),
+      h('div', { style: titleStyle }, 'Desktop lyrics settings'),
       h(
         'div',
         { style: descStyle },
-        '配置悬浮桌面歌词的显示行数、对齐、字体、字号、颜色及透明度',
+        'Configure line count, alignment, font, size, color, and opacity for the floating desktop lyrics',
       ),
     ),
     h(
@@ -109,12 +109,12 @@ export function DesktopLyricsSettingsCard({ ctx }: { ctx: Context }): ReactEleme
       h(
         'div',
         null,
-        h('div', { style: titleStyle }, '开启桌面歌词'),
-        h('div', { style: descStyle }, '在屏幕最上层显示悬浮桌面歌词窗口'),
+        h('div', { style: titleStyle }, 'Enable desktop lyrics'),
+        h('div', { style: descStyle }, 'Show the floating desktop lyrics window on top of the screen'),
       ),
       h(Switch, {
         checked: visible,
-        accessibilityLabel: '开启桌面歌词',
+        accessibilityLabel: 'Enable desktop lyrics',
         onChange: toggleVisible,
       }),
     ),
@@ -124,16 +124,16 @@ export function DesktopLyricsSettingsCard({ ctx }: { ctx: Context }): ReactEleme
       h(
         'div',
         null,
-        h('div', { style: titleStyle }, '歌词显示行数'),
-        h('div', { style: descStyle }, '选择同时显示当前歌词与下一句歌词，或仅显示单行'),
+        h('div', { style: titleStyle }, 'Lyric line count'),
+        h('div', { style: descStyle }, 'Show the current and next lyric line together, or a single line only'),
       ),
       h(Select<'single' | 'double'>, {
         value: settings.lineMode,
         options: [
-          { value: 'double', label: '双行显示' },
-          { value: 'single', label: '单行显示' },
+          { value: 'double', label: 'Double line' },
+          { value: 'single', label: 'Single line' },
         ],
-        accessibilityLabel: '歌词显示行数',
+        accessibilityLabel: 'Lyric line count',
         onChange: (lineMode) => update({ lineMode }),
       }),
     ),
@@ -143,17 +143,17 @@ export function DesktopLyricsSettingsCard({ ctx }: { ctx: Context }): ReactEleme
       h(
         'div',
         null,
-        h('div', { style: titleStyle }, '文本对齐方式'),
-        h('div', { style: descStyle }, '配置歌词文字在窗口内的水平排版方向'),
+        h('div', { style: titleStyle }, 'Text alignment'),
+        h('div', { style: descStyle }, 'Set the horizontal layout direction of lyrics inside the window'),
       ),
       h(Select<'center' | 'left' | 'right'>, {
         value: settings.align,
         options: [
-          { value: 'center', label: '居中对齐' },
-          { value: 'left', label: '左对齐' },
-          { value: 'right', label: '右对齐' },
+          { value: 'center', label: 'Center' },
+          { value: 'left', label: 'Left' },
+          { value: 'right', label: 'Right' },
         ],
-        accessibilityLabel: '文本对齐方式',
+        accessibilityLabel: 'Text alignment',
         onChange: (align) => update({ align }),
       }),
     ),
@@ -163,20 +163,20 @@ export function DesktopLyricsSettingsCard({ ctx }: { ctx: Context }): ReactEleme
       h(
         'div',
         null,
-        h('div', { style: titleStyle }, '歌词字体'),
-        h('div', { style: descStyle }, '选择歌词呈现的字型族'),
+        h('div', { style: titleStyle }, 'Lyrics font'),
+        h('div', { style: descStyle }, 'Choose the font family lyrics render in'),
       ),
       h(Select<string>, {
         value: settings.fontFamily,
         options: [
-          { value: 'system-ui', label: '系统默认' },
-          { value: 'PingFang SC, -apple-system', label: '苹方 (PingFang SC)' },
-          { value: 'Microsoft YaHei, Segoe UI', label: '微软雅黑 (YaHei)' },
-          { value: 'SimHei, sans-serif', label: '黑体 (SimHei)' },
-          { value: 'KaiTi, STKaiti, serif', label: '楷体 (KaiTi)' },
-          { value: 'JetBrains Mono, monospace', label: '等宽代码体' },
+          { value: 'system-ui', label: 'System default' },
+          { value: 'PingFang SC, -apple-system', label: 'PingFang SC' },
+          { value: 'Microsoft YaHei, Segoe UI', label: 'Microsoft YaHei' },
+          { value: 'SimHei, sans-serif', label: 'SimHei' },
+          { value: 'KaiTi, STKaiti, serif', label: 'KaiTi' },
+          { value: 'JetBrains Mono, monospace', label: 'Monospace' },
         ],
-        accessibilityLabel: '歌词字体',
+        accessibilityLabel: 'Lyrics font',
         onChange: (fontFamily) => update({ fontFamily }),
       }),
     ),
@@ -186,8 +186,8 @@ export function DesktopLyricsSettingsCard({ ctx }: { ctx: Context }): ReactEleme
       h(
         'div',
         null,
-        h('div', { style: titleStyle }, '歌词字号'),
-        h('div', { style: descStyle }, `当前字号大小: ${settings.fontSize}px`),
+        h('div', { style: titleStyle }, 'Lyrics font size'),
+        h('div', { style: descStyle }, `Current size: ${settings.fontSize}px`),
       ),
       h(
         'div',
@@ -198,7 +198,7 @@ export function DesktopLyricsSettingsCard({ ctx }: { ctx: Context }): ReactEleme
           h(Slider, {
             value: settings.fontSize,
             max: 48,
-            accessibilityLabel: '歌词字号',
+            accessibilityLabel: 'Lyrics font size',
             onChange: (size: number) => update({ fontSize: Math.max(14, Math.round(size)) }),
           }),
         ),
@@ -210,12 +210,12 @@ export function DesktopLyricsSettingsCard({ ctx }: { ctx: Context }): ReactEleme
       h(
         'div',
         null,
-        h('div', { style: titleStyle }, '歌词高亮颜色'),
-        h('div', { style: descStyle }, '主播放行歌词的高亮渲染颜色'),
+        h('div', { style: titleStyle }, 'Lyrics highlight color'),
+        h('div', { style: descStyle }, 'Highlight color for the active lyric line'),
       ),
       h(ColorPicker, {
         value: settings.textColor,
-        accessibilityLabel: '歌词高亮颜色',
+        accessibilityLabel: 'Lyrics highlight color',
         onChange: (textColor) => update({ textColor }),
       }),
     ),
@@ -225,8 +225,8 @@ export function DesktopLyricsSettingsCard({ ctx }: { ctx: Context }): ReactEleme
       h(
         'div',
         null,
-        h('div', { style: titleStyle }, '文字透明度'),
-        h('div', { style: descStyle }, `当前透明度: ${Math.round(settings.opacity * 100)}%`),
+        h('div', { style: titleStyle }, 'Text opacity'),
+        h('div', { style: descStyle }, `Current opacity: ${Math.round(settings.opacity * 100)}%`),
       ),
       h(
         'div',
@@ -237,7 +237,7 @@ export function DesktopLyricsSettingsCard({ ctx }: { ctx: Context }): ReactEleme
           h(Slider, {
             value: Math.round(settings.opacity * 100),
             max: 100,
-            accessibilityLabel: '文字透明度',
+            accessibilityLabel: 'Text opacity',
             onChange: (op: number) => update({ opacity: Math.max(20, Math.round(op)) / 100 }),
           }),
         ),

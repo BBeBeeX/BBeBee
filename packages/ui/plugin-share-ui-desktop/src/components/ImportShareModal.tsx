@@ -53,7 +53,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
       setExtractedCoverUrl(null)
       setImageLoadError(false)
     } else {
-      setErrorMsg('无法解析 Base64 数据：非有效的 BBeBee 分享数据包')
+      setErrorMsg('Cannot parse the Base64 data: not a valid BBeBee share package')
     }
   }, [])
 
@@ -66,7 +66,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
       const dataUrl = e.target?.result as string
       if (!dataUrl) {
         setIsDecoding(false)
-        setErrorMsg('文件读取失败')
+        setErrorMsg('Failed to read the file')
         return
       }
       const img = new Image()
@@ -78,7 +78,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
           const canvasCtx = canvas.getContext('2d', { willReadFrequently: true })
           if (!canvasCtx) {
             setIsDecoding(false)
-            setErrorMsg('创建 Canvas 失败')
+            setErrorMsg('Failed to create the canvas')
             return
           }
           canvasCtx.drawImage(img, 0, 0)
@@ -87,7 +87,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
 
           if (!hiddenPayload) {
             setIsDecoding(false)
-            setErrorMsg('未在该图片中检测到 BBeBee 隐写分享数据')
+            setErrorMsg('No BBeBee steganographic share data detected in this image')
             return
           }
 
@@ -158,22 +158,22 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
               // Extraction failed, fall back to metadata artwork URL
             }
           } else {
-            setErrorMsg('图片中的隐写数据格式损坏或不匹配')
+            setErrorMsg('The steganographic data in the image is corrupted or of a mismatched format')
           }
         } catch (err) {
           setIsDecoding(false)
-          setErrorMsg(`解析隐写失败: ${String(err)}`)
+          setErrorMsg(`Failed to decode steganography: ${String(err)}`)
         }
       }
       img.onerror = () => {
         setIsDecoding(false)
-        setErrorMsg('图片加载解码失败')
+        setErrorMsg('Failed to load and decode the image')
       }
       img.src = dataUrl
     }
     reader.onerror = () => {
       setIsDecoding(false)
-      setErrorMsg('文件读取失败')
+      setErrorMsg('Failed to read the file')
     }
     reader.readAsDataURL(file)
   }, [])
@@ -182,7 +182,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
     if (!decoded) return
     const player = serviceOf<PlayerService>(ctx, 'player')
     if (!player) {
-      setErrorMsg('播放器服务未就绪')
+      setErrorMsg('Player service not ready')
       return
     }
 
@@ -204,7 +204,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
       }
     } catch (err) {
       ctx.logger?.error(`Failed to play shared item: ${String(err)}`)
-      setErrorMsg(`播放失败: ${String(err)}`)
+      setErrorMsg(`Playback failed: ${String(err)}`)
     }
   }
 
@@ -212,7 +212,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
     if (!decoded) return
     const player = serviceOf<PlayerService>(ctx, 'player')
     if (!player) {
-      setErrorMsg('播放器服务未就绪')
+      setErrorMsg('Player service not ready')
       return
     }
 
@@ -234,7 +234,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
       }
     } catch (err) {
       ctx.logger?.error(`Failed to enqueue shared item: ${String(err)}`)
-      setErrorMsg(`加入队列失败: ${String(err)}`)
+      setErrorMsg(`Failed to add to queue: ${String(err)}`)
     }
   }
 
@@ -242,7 +242,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
     if (!decoded) return
     const library = serviceOf<LibraryService>(ctx, 'library')
     if (!library) {
-      setErrorMsg('音乐库服务未就绪')
+      setErrorMsg('Library service not ready')
       return
     }
 
@@ -260,7 +260,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
       handleClose()
     } catch (err) {
       ctx.logger?.error(`Failed to save to library: ${String(err)}`)
-      setErrorMsg(`收藏失败: ${String(err)}`)
+      setErrorMsg(`Failed to favorite: ${String(err)}`)
     }
   }
 
@@ -294,7 +294,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
         h(
           'span',
           { style: { fontSize: 17, fontWeight: 700, color: 'var(--text-primary, #FFFFFF)' } },
-          '读取 / 导入分享',
+          'Read / import share',
         ),
         h(
           'button',
@@ -357,12 +357,12 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
               h(
                 'div',
                 { style: { fontSize: 13, fontWeight: 600, color: 'var(--bb-text-primary, #FFFFFF)' } },
-                isDecoding ? '正在读取隐写数据…' : '拖放分享图片至此，或点击上传',
+                isDecoding ? 'Reading steganographic data…' : 'Drop a share image here, or click to upload',
               ),
               h(
                 'div',
                 { style: { fontSize: 11, color: 'var(--text-muted, #8B95B0)' } },
-                '自动解析 PNG 图片中隐写的歌曲或歌单',
+                'Automatically decodes the song or playlist hidden inside a PNG image',
               ),
             ),
             // Or Paste Base64
@@ -375,11 +375,11 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
               h(
                 'div',
                 { style: { fontSize: 12, color: 'var(--text-muted, #8B95B0)' } },
-                '或者直接粘贴 Base64 数据：',
+                'Or paste Base64 data directly:',
               ),
               h(TextField, {
                 value: pastedText,
-                placeholder: '粘贴 Base64 分享数据…',
+                placeholder: 'Paste Base64 share data…',
                 onChange: (val: string) => {
                   setPastedText(val)
                   if (val.trim().length > 10) {
@@ -502,10 +502,10 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
                   decoded.type === 'track'
                     ? (decoded.data as ShareTrackData).artist
                     : decoded.type === 'playlist'
-                      ? `歌单 • ${(decoded.data as SharePlaylistData).trackCount} 首歌曲`
+                      ? `Playlist • ${(decoded.data as SharePlaylistData).trackCount} songs`
                       : decoded.type === 'album'
-                        ? `专辑 • ${(decoded.data as ShareAlbumData).artist || '未知艺人'} • ${(decoded.data as ShareAlbumData).trackCount} 首歌曲`
-                        : `歌词 • ${(decoded.data as ShareLyricsData).artist}`,
+                        ? `Album • ${(decoded.data as ShareAlbumData).artist || 'Unknown artist'} • ${(decoded.data as ShareAlbumData).trackCount} songs`
+                        : `Lyrics • ${(decoded.data as ShareLyricsData).artist}`,
                 ),
                 h(
                   'div',
@@ -517,7 +517,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
                       fontWeight: 600,
                     },
                   },
-                  `类型：${decoded.type.toUpperCase()} • 隐写校验成功`,
+                  `Type: ${decoded.type.toUpperCase()} • steganography verified`,
                 ),
               ),
             ),
@@ -551,7 +551,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
                 h(Button, {
                   variant: 'secondary',
                   onPress: resetState,
-                  children: '重新选择',
+                  children: 'Choose again',
                 }),
               ),
               decoded.type !== 'lyrics'
@@ -561,7 +561,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
                     h(Button, {
                       variant: 'primary',
                       onPress: handlePlayNow,
-                      children: '立即播放',
+                      children: 'Play now',
                     }),
                   )
                 : null,
@@ -572,7 +572,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
                     h(Button, {
                       variant: 'secondary',
                       onPress: handleEnqueue,
-                      children: '加入队列',
+                      children: 'Add to queue',
                     }),
                   )
                 : null,
@@ -583,7 +583,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
                     h(Button, {
                       variant: 'secondary',
                       onPress: handleSaveToLibrary,
-                      children: '收藏',
+                      children: 'Favorite',
                     }),
                   )
                 : null,

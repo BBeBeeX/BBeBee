@@ -86,7 +86,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
       }
     }
     reader.onerror = () => {
-      setImportError('读取文件失败')
+      setImportError('Failed to read file')
     }
     reader.readAsText(file)
     e.target.value = ''
@@ -95,12 +95,12 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
   const handleImportSubmit = () => {
     try {
       if (!importJson.trim()) {
-        throw new Error('请输入或选择色彩模式 JSON')
+        throw new Error('Enter or choose a theme JSON')
       }
       const parsed = JSON.parse(importJson) as Partial<ThemeDefinition>
-      if (!parsed || typeof parsed !== 'object') throw new Error('无效的 JSON 格式')
-      if (!parsed.id || typeof parsed.id !== 'string') throw new Error('缺少主题 id 字段')
-      if (!parsed.name || typeof parsed.name !== 'string') throw new Error('缺少主题 name 字段')
+      if (!parsed || typeof parsed !== 'object') throw new Error('Invalid JSON format')
+      if (!parsed.id || typeof parsed.id !== 'string') throw new Error('Missing theme id field')
+      if (!parsed.name || typeof parsed.name !== 'string') throw new Error('Missing theme name field')
 
       const newTheme: ThemeDefinition = {
         id: parsed.id.trim(),
@@ -160,7 +160,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
             letterSpacing: '-0.01em',
           },
         },
-        '外观模式',
+        'Appearance mode',
       ),
       h(
         'p',
@@ -172,7 +172,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
             lineHeight: 1.4,
           },
         },
-        '切换应用深色、浅色或跟随系统外观',
+        'Switch the app between dark, light, or follow the system appearance',
       ),
     ),
     h(
@@ -207,18 +207,18 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
         h(
           'div',
           { style: { display: 'flex', flexDirection: 'column', gap: 3 } },
-          h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #F5F5F7)' } }, '色彩模式'),
+          h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #F5F5F7)' } }, 'Theme'),
           h(
             'div',
             { style: { fontSize: 12, color: 'var(--text-secondary, #8E8E93)', lineHeight: 1.45 } },
-            '浅色、深色或随系统自动切换',
+            'Light, dark, or follow the system automatically',
           ),
         ),
         h(
           'div',
           {
             role: 'radiogroup',
-            'aria-label': '外观模式',
+            'aria-label': 'Appearance mode',
             style: {
               display: 'inline-flex',
               padding: 3,
@@ -229,9 +229,9 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
             },
           },
           [
-            { id: 'system', label: '跟随系统' },
-            { id: 'dark', label: '深色模式' },
-            { id: 'light', label: '浅色模式' },
+            { id: 'system', label: 'Follow system' },
+            { id: 'dark', label: 'Dark mode' },
+            { id: 'light', label: 'Light mode' },
           ].map((mode) => {
             const isSelected = appearanceMode === mode.id
             return h(
@@ -283,11 +283,11 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
         h(
           'div',
           { style: { display: 'flex', flexDirection: 'column', gap: 3 } },
-          h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #F5F5F7)' } }, '界面主题'),
+          h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #F5F5F7)' } }, 'Interface theme'),
           h(
             'div',
             { style: { fontSize: 12, color: 'var(--text-secondary, #8E8E93)', lineHeight: 1.45 } },
-            '选择全应用色彩方案，或导入自定义主题',
+            'Choose the app-wide color scheme, or import a custom theme',
           ),
         ),
         h(
@@ -326,7 +326,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
             },
           },
           tablerIcon('plus', { size: 14 }),
-          '导入色彩模式',
+          'Import theme',
         ),
       ),
       h(
@@ -402,8 +402,8 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
                   {
                     role: 'button',
                     tabIndex: 0,
-                    title: `删除 ${t.name}`,
-                    'aria-label': `删除 ${t.name}`,
+                    title: `Delete ${t.name}`,
+                    'aria-label': `Delete ${t.name}`,
                     'data-testid': `delete-theme-${t.id}`,
                     onClick: (e: { stopPropagation(): void }) => {
                       e.stopPropagation()
@@ -442,8 +442,8 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
           setShowImportModal(false)
           setImportError(null)
         },
-        title: '导入色彩模式',
-        accessibilityLabel: '导入色彩模式',
+        title: 'Import theme',
+        accessibilityLabel: 'Import theme',
       },
       h(
         'div',
@@ -451,7 +451,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
         h(
           'p',
           { style: { margin: 0, fontSize: 13, color: 'var(--text-secondary, #C5CAD8)', lineHeight: 1.5 } },
-          '支持从本地选择包含主题配置的 JSON 文件，或直接在下方输入/粘贴 JSON 配置。导入成功后将自动应用。',
+          'Choose a local JSON file containing a theme configuration, or type/paste the JSON below. It is applied automatically once imported.',
         ),
         h(
           'div',
@@ -484,7 +484,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
               },
             },
             tablerIcon('upload', { size: 14 }),
-            '选择本地 JSON 文件',
+            'Choose a local JSON file',
           ),
         ),
         h('textarea', {
@@ -494,7 +494,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
             setImportError(null)
           },
           placeholder:
-            '在此粘贴色彩模式 JSON 配置，例如：\n{\n  "id": "my-neon",\n  "name": "霓虹幻彩",\n  "tokens": {\n    "brand": { "primary": "#00FFCC" }\n  }\n}',
+            'Paste a theme JSON configuration here, e.g.:\n{\n  "id": "my-neon",\n  "name": "Neon Fantasy",\n  "tokens": {\n    "brand": { "primary": "#00FFCC" }\n  }\n}',
           rows: 8,
           'data-testid': 'import-theme-textarea',
           style: {
@@ -550,7 +550,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
                 fontSize: 13,
               },
             },
-            '取消',
+            'Cancel',
           ),
           h(
             'button',
@@ -569,7 +569,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
                 fontSize: 13,
               },
             },
-            '导入并启用',
+            'Import & enable',
           ),
         ),
       ),

@@ -209,7 +209,7 @@ export interface SearchResult {
 `total` stays optional, because a scraped page almost never knows one and inventing it produces
 progress bars that lie.
 
-Detail endpoints (`getAlbum(urn, page?)` and `getPlaylist(urn, page?)`) participate in the same pagination model（规范见 [rules/sources.md §2 — Detail Pagination](../../rules/sources.md#2-rule-language)（L2）：runtime 将页码/游标映射为 `pn`/`page_num`、`ps`/`page_size`，并在 `AlbumDetail` / `PlaylistDetail` 回传 `hasMore` 与 `cursor`）. When querying third-party providers with large albums, series or collections,
+Detail endpoints (`getAlbum(urn, page?)` and `getPlaylist(urn, page?)`) participate in the same pagination model (see the spec at [rules/sources.md §2 — Detail Pagination](../../rules/sources.md#2-rule-language) (L2): the runtime maps page/cursor parameters to `pn`/`page_num` and `ps`/`page_size`, and returns `hasMore` and `cursor` in `AlbumDetail` / `PlaylistDetail`). When querying third-party providers with large albums, series or collections,
 consumers pass a `PageRequest` (typically 30 items per page), allowing views to paginate incrementally on scroll rather than
 loading thousands of tracks up front.
 
@@ -406,8 +406,8 @@ export interface StreamHandle {
 ```
 
 `ruleStream.quality` is what turns a document's own tier language into that field. A source whose
-backend names tiers differently maps them itself — the Bilibili document maps `30216 流畅 → low`,
-`30232 标准 → normal`, `30280 高品质 → high`, `30250 杜比全景声 → lossless`, `30251 Hi-Res 无损 →
+backend names tiers differently maps them itself — the Bilibili document maps `30216 Smooth → low`,
+`30232 Standard → normal`, `30280 High quality → high`, `30250 Dolby Atmos → lossless`, `30251 Hi-Res lossless →
 hi-res` — so the app compares and displays tiers it knows, never backend ids.
 
 Handling of the awkward cases:
@@ -445,7 +445,7 @@ source cannot reach anything that is not on the list below.
 
 ### The evaluator
 
-（规范见 [rules/sources.md §3 — Sandboxing & Security](../../rules/sources.md#3-sandboxing--security)（L2），本节只讲原理与用法：`ctx.js` 是独立解释器 realm，无宿主全局 / 无 Cordis / 无 DOM / 无模块系统，跨界仅值克隆）Source JavaScript runs in `ctx.js` — QuickJS on both platforms — and it is
+(see the spec at [rules/sources.md §3 — Sandboxing & Security](../../rules/sources.md#3-sandboxing--security) (L2); this section covers only principles and usage: `ctx.js` is a standalone interpreter realm with no host globals, no Cordis, no DOM and no module system, and values cross the boundary only by cloning) Source JavaScript runs in `ctx.js` — QuickJS on both platforms — and it is
 the isolated realm that [capabilities.md §7](../plugins/capabilities.md#what-this-is-not) says real containment
 requires. Sources are the reason it exists now rather than later; third-party plugins inherit it
 ([roadmap.md §M5](../roadmap/roadmap.md#m5--third-party-extensions-on-the-sandbox)). The contract is in
@@ -496,7 +496,7 @@ the call, and no filesystem of any kind.
 
 ### The limits, and why each exists
 
-The gating norm — outbound requests checked against the manifest's `allowedHosts` before and after `http/request` waterfall hooks — is [rules/sources.md §3 — Sandboxing & Security](../../rules/sources.md#3-sandboxing--security)（L2）; this table records the concrete limits and why each exists.
+The gating norm — outbound requests checked against the manifest's `allowedHosts` before and after `http/request` waterfall hooks — is [rules/sources.md §3 — Sandboxing & Security](../../rules/sources.md#3-sandboxing--security) (L2); this table records the concrete limits and why each exists.
 
 | Limit | Value | What it stops |
 |---|---|---|
@@ -519,7 +519,7 @@ itself, so `["org"]` cannot mean "anywhere in .org".
 The allowlist is the important one, and it is a deliberate divergence from legado, which lets a
 book source request anything. It is shown at import as a plain list of hostnames — "this source
 will talk to: music.example.org, cdn.example.org" — because that sentence is one a user can
-actually judge. Registry installs follow the same disclosure red line ([rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)).
+actually judge. Registry installs follow the same disclosure red line ([rules/sources.md §6](../../rules/sources.md#6-registry-third-party-registry)).
 
 ### What a hostile source can still do
 

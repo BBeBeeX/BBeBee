@@ -101,7 +101,7 @@ export const bundled: PluginRegistry = {
   },
   "@BBeBee/plugin-library": {
     load: () => import('@BBeBee/plugin-library'),
-    manifest: {"id":"@BBeBee/plugin-library","name":"@BBeBee/plugin-library","displayName":"Library","description":"ctx.library — playlists, favourites, collections and smart playlists.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@BBeBee/plugin-sources"],"systemId":"layer-4","moduleId":"storage","entry":{"main":"./dist/index.js","ui":{"desktop":"./dist/index.js","mobile":"./dist/index.js"}},"capabilities":["db:read:core","db:write:core"],"contributes":{"services":["library"]},"effect":"library"},
+    manifest: {"id":"@BBeBee/plugin-library","name":"@BBeBee/plugin-library","displayName":"Library","description":"ctx.library — playlists, favorites, collections and smart playlists.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@BBeBee/plugin-sources"],"systemId":"layer-4","moduleId":"storage","entry":{"main":"./dist/index.js","ui":{"desktop":"./dist/index.js","mobile":"./dist/index.js"}},"capabilities":["db:read:core","db:write:core"],"contributes":{"services":["library"]},"effect":"library"},
     builtin: true,
   },
   "@BBeBee/plugin-local-scanner": {

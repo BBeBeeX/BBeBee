@@ -131,7 +131,7 @@ const metaSeparatorStyle = {
   flexShrink: 0,
 } as const
 
-/** The 内置 badge: official content, tinted with the brand rather than neutral. */
+/** The built-in badge: official content, tinted with the brand rather than neutral. */
 const builtinChipStyle = {
   ...CHIP,
   color: 'var(--color-primary, #5F87FF)',
@@ -179,9 +179,9 @@ function favoriteColor(favorite: boolean): string {
 }
 
 function actionLabel(state: RegistryActionState): string {
-  if (state.state === 'install') return '安装'
-  if (state.state === 'update') return '更新'
-  return '已安装'
+  if (state.state === 'install') return 'Install'
+  if (state.state === 'update') return 'Update'
+  return 'Installed'
 }
 
 export function RegistryEntryCard({
@@ -212,7 +212,7 @@ export function RegistryEntryCard({
     showPreview
       ? h('img', {
           src: entry.previewUrl,
-          alt: `${entry.name} 预览`,
+          alt: `${entry.name} preview`,
           loading: 'lazy',
           style: previewStyle,
         })
@@ -224,7 +224,7 @@ export function RegistryEntryCard({
       entry.version
         ? h('span', { style: { ...CHIP, flexShrink: 0 } }, `v${normalizeVersion(entry.version)}`)
         : null,
-      isBuiltinEntry(entry) ? h('span', { style: builtinChipStyle }, '内置') : null,
+      isBuiltinEntry(entry) ? h('span', { style: builtinChipStyle }, 'Built-in') : null,
       // The favorite heart: outline when unmarked, filled rose when marked.
       // Only rendered when the screen wires a toggle, so other usages of the
       // card are untouched.
@@ -235,8 +235,8 @@ export function RegistryEntryCard({
               type: 'button',
               'data-testid': `registry-favorite-${entry.id}`,
               'aria-pressed': favorite,
-              'aria-label': favorite ? '取消收藏' : '收藏',
-              title: favorite ? '取消收藏' : '收藏',
+              'aria-label': favorite ? 'Remove from favorites' : 'Add to favorites',
+              title: favorite ? 'Remove from favorites' : 'Add to favorites',
               onClick: onToggleFavorite,
               className: 'bbreg-favorite',
               style: { ...favoriteButtonStyle, color: favoriteColor(favorite) },
@@ -261,7 +261,7 @@ export function RegistryEntryCard({
         ? h(
             'span',
             { key: 'stats', 'data-testid': `registry-stats-${entry.id}`, style: { display: 'inline-flex', alignItems: 'center', gap: 4 } },
-            h('span', { style: STAT_CHIP }, '星标', h('span', null, stats.stars !== undefined ? formatCompactCount(stats.stars) : '—')),
+            h('span', { style: STAT_CHIP }, 'Stars', h('span', null, stats.stars !== undefined ? formatCompactCount(stats.stars) : '—')),
             h(
               'span',
               { style: STAT_CHIP },
@@ -308,7 +308,7 @@ export function RegistryEntryCard({
           },
           blockedReason
             ? `${blockedReason}`
-            : `需要应用版本 ≥ ${normalizeVersion(entry.minAppVersion)}`,
+            : `Requires app version ≥ ${normalizeVersion(entry.minAppVersion)}`,
         )
       : null,
     !entry.minAppVersion && blockedReason
@@ -328,7 +328,7 @@ export function RegistryEntryCard({
             style: installedMetaStyle,
           },
           tablerIcon('lock', { size: 11 }),
-          h('span', null, `已安装 v${normalizeVersion(installedMeta.installedVersion)}`),
+          h('span', null, `Installed v${normalizeVersion(installedMeta.installedVersion)}`),
           installedMeta.commit
             ? h('span', { style: { ...CHIP, fontSize: 10, padding: '1px 6px' } }, installedMeta.commit.slice(0, 7))
             : null,
@@ -346,7 +346,7 @@ export function RegistryEntryCard({
             ? h(
                 'span',
                 { key: 'uninstall-armed', style: { display: 'inline-flex', alignItems: 'center', gap: 6, marginRight: 'auto', flexWrap: 'wrap' } },
-                h('span', { style: { fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } }, '确认卸载？'),
+                h('span', { style: { fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } }, 'Uninstall this?'),
                 h(
                   'button',
                   {
@@ -369,7 +369,7 @@ export function RegistryEntryCard({
                       cursor: uninstallBusy ? 'default' : 'pointer',
                     },
                   },
-                  uninstallBusy ? '卸载中…' : '确认卸载',
+                  uninstallBusy ? 'Uninstalling…' : 'Confirm uninstall',
                 ),
                 h(
                   'button',
@@ -381,7 +381,7 @@ export function RegistryEntryCard({
                     className: 'bbreg-btn bbreg-btn-ghost',
                     style: { ...GHOST_BUTTON, opacity: uninstallBusy ? 0.6 : 1, cursor: uninstallBusy ? 'default' : 'pointer' },
                   },
-                  '取消',
+                  'Cancel',
                 ),
               )
             : h(
@@ -392,12 +392,12 @@ export function RegistryEntryCard({
                   'data-testid': `registry-uninstall-${entry.id}`,
                   disabled: uninstallBusy,
                   onClick: uninstallBusy ? undefined : () => setUninstallArmed(true),
-                  title: '卸载已安装的内容',
+                  title: 'Uninstall the installed content',
                   className: 'bbreg-btn bbreg-btn-ghost',
                   style: { ...GHOST_BUTTON, marginRight: 'auto', opacity: uninstallBusy ? 0.6 : 1, cursor: uninstallBusy ? 'default' : 'pointer' },
                 },
                 tablerIcon('trash', { size: 13 }),
-                uninstallBusy ? '卸载中…' : '卸载',
+                uninstallBusy ? 'Uninstalling…' : 'Uninstall',
               )
           : h(
               'span',
@@ -410,7 +410,7 @@ export function RegistryEntryCard({
                   color: 'var(--text-tertiary, #8B95B0)',
                 },
               },
-              '请到插件管理/设置中卸载',
+              'Uninstall it from plugin management / settings',
             )
         : null,
       h(
@@ -446,7 +446,7 @@ export function RegistryEntryCard({
           },
         },
         isUpdate ? tablerIcon('download', { size: 14 }) : null,
-        busy ? (isUpdate ? '更新中…' : '安装中…') : actionLabel(actionState),
+        busy ? (isUpdate ? 'Updating…' : 'Installing…') : actionLabel(actionState),
       ),
     ),
   )

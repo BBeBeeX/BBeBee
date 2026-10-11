@@ -138,7 +138,7 @@ affected capabilities as absent rather than offering a button that cannot work, 
 designed degradation rather than a break.
 
 The curation half that MD-3 deferred from M1 is in as well: `plugin-library` / `ctx.library` —
-playlists, favourites, collections, and smart playlists whose rule tree compiles to parameterised
+playlists, favorites, collections, and smart playlists whose rule tree compiles to parameterised
 SQL — with screens on both shells ([data-model/schema.md §4.6](../data-model/schema.md#46-playlists-and-library)).
 
 ⚠️ **What "built" did and did not mean until recently.** Every package listed above was built and

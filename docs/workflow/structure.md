@@ -189,7 +189,7 @@ B_Be_Bee/
 │   │   ├── plugin-download/        ✅        ctx.downloads — the task queue, the kept-downloads
 │   │   │                                       directory, If-Range resume, the Wi-Fi/charging
 │   │   │                                       policy, and before-resolve substitution ([audio/playback.md](../audio/playback.md), [data-model/schema.md](../data-model/schema.md))
-│   │   ├── plugin-library/         ✅        ctx.library — playlists, favourites, smart lists,
+│   │   ├── plugin-library/         ✅        ctx.library — playlists, favorites, smart lists,
 │   │   │                                       collections ([data-model/schema.md](../data-model/schema.md))
 │   │   ├── plugin-lyrics/          ✅        ctx.lyrics — lyric cache, source resolution and sync
 │   │   ├── plugin-lyric-sources/   ✅        ctx.lyricSources — third-party external lyric sources
@@ -236,7 +236,7 @@ B_Be_Bee/
 │   │   ├── plugin-download-ui-desktop/ ✅    ┐ the download queue and cache ([ui/architecture.md §4](../ui/architecture.md#4-binding-services-to-react))
 │   │   ├── plugin-download-ui-mobile/  ✅    ┘
 │   │   ├── plugin-library-ui-desktop/ ✅     ┐ the library (playlists, albums, collections),
-│   │   ├── plugin-library-ui-mobile/  ✅     ┘ one playlist, one collection, favourites (modular screens & modals) ([ui/architecture.md §4](../ui/architecture.md#4-binding-services-to-react))
+│   │   ├── plugin-library-ui-mobile/  ✅     ┘ one playlist, one collection, favorites (modular screens & modals) ([ui/architecture.md §4](../ui/architecture.md#4-binding-services-to-react))
 │   │   ├── plugin-local-scanner-ui-desktop/ ✅ ┐ settings: scan roots
 │   │   ├── plugin-local-scanner-ui-mobile/  ✅ ┘
 │   │   ├── plugin-inspector-ui-desktop/ ✅   the fiber tree, rendered

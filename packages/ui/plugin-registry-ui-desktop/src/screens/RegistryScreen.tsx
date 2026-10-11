@@ -1,15 +1,16 @@
 /**
- * The registry screen ("发现 / 注册表"): the community index, browsable by
+ * The registry screen ("Discover / registry"): the community index, browsable by
  * kind, searchable, filterable (third-party toggle, plugin categories) and
  * sortable (name, stars, contributors), with install/update actions per entry
- * — plus two curated views beside the kind tabs: 收藏 (the user's favorited
- * entries, persisted in localStorage) and 已安装 (everything the installed
- * content services report as installed or updateable, with lock-file
- * metadata and uninstall for the kinds whose services have a remove API) —
- * and a 诊断 tab rendering the service's health report (lock conflicts,
- * audit risks, warnings, install summary) assembled from real state.
+ * — plus two curated views beside the kind tabs: Favorites (the user's
+ * favorited entries, persisted in localStorage) and Installed (everything the
+ * installed content services report as installed or updateable, with
+ * lock-file metadata and uninstall for the kinds whose services have a remove
+ * API) — and a Diagnostics tab rendering the service's health report (lock
+ * conflicts, audit risks, warnings, install summary) assembled from real
+ * state.
  *
- * The header also hosts the 任务 (task center) button: a badge counts the
+ * The header also hosts the Tasks (task center) button: a badge counts the
  * operations currently running, and the drawer lists every tracked
  * install/update — stage, progress, error, start time — straight from the
  * service's `'registry/tasks-changed'` snapshots. No task state machine lives
@@ -83,10 +84,10 @@ interface ThemeRemoveLike {
 }
 
 const KIND_TABS: readonly { kind: RegistryEntryKind; label: string }[] = [
-  { kind: 'music-source', label: '音乐源' },
-  { kind: 'lyric-source', label: '歌词源' },
-  { kind: 'theme', label: '界面主题' },
-  { kind: 'plugin', label: '插件' },
+  { kind: 'music-source', label: 'Music source' },
+  { kind: 'lyric-source', label: 'Lyric source' },
+  { kind: 'theme', label: 'Theme' },
+  { kind: 'plugin', label: 'Plugin' },
 ]
 
 /** What the tab row can show: the four kinds plus the curated and diagnostic views. */
@@ -190,7 +191,8 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
   // Filter/sort view state — nothing here is domain state, so none of it is
   // persisted: the page always opens showing everything, names A→Z. The sort
   // and the third-party toggle only mean something on a kind tab; the
-  // curated tabs (收藏 / 已安装) hide those controls and keep the search box.
+  // curated tabs (Favorites / Installed) hide those controls and keep the
+  // search box.
   const [officialOnly, setOfficialOnly] = useState(false)
   const [sortBy, setSortBy] = useState<RegistrySortKey>('name')
   const [sortDir, setSortDir] = useState<RegistrySortDir>('asc')
@@ -249,7 +251,7 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
         setLoadError(null)
         // The service swallows fetch failures and serves its cached copy; it
         // reports the fallback through this getter so the screen can say
-        // "离线缓存" instead of passing stale data off as live.
+        // "offline cache" instead of passing stale data off as live.
         const fetchFailed = (
           registry as RegistryServiceLike & { lastIndexFetchFailed?: () => boolean }
         ).lastIndexFetchFailed?.()
@@ -320,14 +322,14 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
           const record = entry.sourceUrl
             ? sources?.sources.find((r) => r.sourceUrl === entry.sourceUrl)
             : undefined
-          if (!sources || !record) throw new Error('未找到对应的已安装音乐源')
+          if (!sources || !record) throw new Error('Matching installed music source not found')
           await sources.remove(record.id)
         } else if (entry.kind === 'lyric-source') {
           const removed = await serviceOf<LyricSourcesRemoveLike>(ctx, 'lyricSources')?.removeSource(entry.id)
-          if (!removed) throw new Error('歌词源不存在或已被移除')
+          if (!removed) throw new Error('The lyric source does not exist or was already removed')
         } else if (entry.kind === 'theme') {
           const removed = serviceOf<ThemeRemoveLike>(ctx, 'theme')?.removeTheme(entry.id)
-          if (!removed) throw new Error('该主题无法移除（内置主题受保护）')
+          if (!removed) throw new Error('This theme cannot be removed (built-in themes are protected)')
         }
         // Same backstop as the install path: the owning service has already
         // changed, force the action-state memo to re-derive against it.
@@ -462,7 +464,7 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
     setSortDir(DEFAULT_SORT_DIR[key])
   }, [])
 
-  // Diagnostics "查看" jump: land on the entry's kind tab with the entry name
+  // Diagnostics "View" jump: land on the entry's kind tab with the entry name
   // pre-filled in the search box, so the card is the one thing on screen. An
   // entry missing from the index (removed between report and click) still
   // switches tabs rather than doing nothing.
@@ -500,11 +502,11 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
       h(
         'div',
         { style: headerTitleBlockStyle },
-        h('h1', { style: { margin: 0, fontSize: 20, fontWeight: 700 } }, '发现'),
+        h('h1', { style: { margin: 0, fontSize: 20, fontWeight: 700 } }, 'Discover'),
         h(
           'div',
           { style: { fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } },
-          '浏览社区音乐源、歌词源、界面主题与插件，一键安装或更新',
+          'Browse community music sources, lyric sources, themes and plugins — install or update in one click',
         ),
       ),
       h(
@@ -518,19 +520,19 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
                 style: offlineBadgeStyle,
               },
               tablerIcon('history', { size: 12 }),
-              '离线缓存',
+              'Offline cache',
             )
           : null,
         // The task-center button sits between the offline hint and the refresh
         // button: the badge counts running tasks only, so an abandoned
-        // "等待确认" record never keeps the number lit forever.
+        // "awaiting confirmation" record never keeps the number lit forever.
         h(
           'button',
           {
             type: 'button',
             'data-testid': 'registry-tasks-button',
             onClick: () => setTasksOpen(true),
-            'aria-label': runningCount > 0 ? `任务（${runningCount} 个进行中）` : '任务',
+            'aria-label': runningCount > 0 ? `Tasks (${runningCount} running)` : 'Tasks',
             className: 'bbreg-btn bbreg-btn-ghost',
             style: headerButtonStyle,
           },
@@ -569,7 +571,7 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
             className: 'bbreg-btn bbreg-btn-ghost',
             style: { ...headerButtonStyle, opacity: refreshing || loading ? 0.6 : 1 },
           },
-          refreshing ? '刷新中…' : '刷新',
+          refreshing ? 'Refreshing…' : 'Refresh',
         ),
       ),
     ),
@@ -611,21 +613,21 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
       // empty favorites list needs no "0" shouted at the user.
       kindTabButton(
         'favorites',
-        '收藏',
+        'Favorites',
         favorites.size > 0 ? String(favorites.size) : null,
         view === 'favorites',
         () => setView('favorites'),
       ),
       kindTabButton(
         'installed',
-        '已安装',
+        'Installed',
         installedCount > 0 ? String(installedCount) : null,
         view === 'installed',
         () => setView('installed'),
       ),
       kindTabButton(
         'diagnostics',
-        '诊断',
+        'Diagnostics',
         null,
         view === 'diagnostics',
         () => setView('diagnostics'),
@@ -643,8 +645,8 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
             { 'data-testid': 'registry-service-missing' },
             h(RegistryEmptyState, {
               icon: 'alert',
-              title: '注册表服务未加载',
-              description: '无法浏览社区内容，请稍后重试',
+              title: 'Registry service not loaded',
+              description: 'Cannot browse community content — try again later',
             }),
           )
         : loadError
@@ -652,7 +654,7 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
               'div',
               { 'data-testid': 'registry-load-error', style: { ...ERROR_BANNER, display: 'flex', alignItems: 'center', gap: 8 } },
               tablerIcon('alert', { size: 14 }),
-              `注册表加载失败：${loadError}`,
+              `Failed to load the registry: ${loadError}`,
             )
           : visible.length === 0
             ? view === 'favorites' && !query
@@ -661,8 +663,8 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
                   { 'data-testid': 'registry-favorites-empty' },
                   h(RegistryEmptyState, {
                     icon: 'heart',
-                    title: '还没有收藏的条目',
-                    description: '点击卡片上的收藏按钮把常用的内容留在这里',
+                    title: 'No favorites yet',
+                    description: 'Use the heart button on a card to keep the content you reach for here',
                   }),
                 )
               : view === 'installed' && !query
@@ -671,8 +673,8 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
                     { 'data-testid': 'registry-installed-empty' },
                     h(RegistryEmptyState, {
                       icon: 'download',
-                      title: '还没有已安装的内容',
-                      description: '去各个分类页安装感兴趣的音乐源、歌词源、主题或插件吧',
+                      title: 'Nothing installed yet',
+                      description: 'Install music sources, lyric sources, themes or plugins you like from the kind tabs',
                     }),
                   )
                 : h(
@@ -680,8 +682,8 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
                     { 'data-testid': 'registry-empty' },
                     h(RegistryEmptyState, {
                       icon: query ? 'search' : 'adjustments',
-                      title: query ? '没有匹配的内容' : '该分类下暂无内容',
-                      description: query ? '换个关键词，或清除筛选条件后再试试' : undefined,
+                      title: query ? 'No matching content' : 'Nothing in this category yet',
+                      description: query ? 'Try a different keyword, or clear the filters and search again' : undefined,
                     }),
                   )
             : h(

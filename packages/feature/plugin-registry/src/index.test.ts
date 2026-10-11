@@ -1194,7 +1194,7 @@ describe('registry task center', () => {
     const seen: (readonly RegistryTask[])[] = []
     harness.ctx.on('registry/tasks-changed', (tasks) => seen.push(tasks))
 
-    // The fetch runs download → verify, then parks at pending ("等待确认").
+    // The fetch runs download → verify, then parks at pending ("Awaiting confirmation").
     await harness.plugin.fetchEntryDetails(musicEntry())
     let tasks = harness.plugin.getTasks()
     expect(tasks).toHaveLength(1)

@@ -7,16 +7,16 @@ export type LibraryFilterKey = 'all' | 'playlist' | 'album' | 'artist' | 'downlo
 export type LibrarySortMode = 'creator' | 'recent-added' | 'recent-played' | 'alphabetical'
 
 export const LIBRARY_FILTER_BUTTONS = [
-  { key: 'playlist', label: '歌单' },
-  { key: 'album', label: '专辑' },
-  { key: 'artist', label: '艺人' },
+  { key: 'playlist', label: 'Playlists' },
+  { key: 'album', label: 'Albums' },
+  { key: 'artist', label: 'Artists' },
 ] as const
 
 export const LIBRARY_SORT_LABELS: Record<LibrarySortMode, string> = {
-  creator: '创建者',
-  'recent-added': '最近添加',
-  'recent-played': '最近播放',
-  alphabetical: '按字母排序',
+  creator: 'Creator',
+  'recent-added': 'Recently added',
+  'recent-played': 'Recently played',
+  alphabetical: 'Alphabetical',
 }
 
 export interface LibraryToolbarProps {
@@ -28,7 +28,7 @@ export interface LibraryToolbarProps {
   setSearchQuery: (query: string) => void
   sortMode: LibrarySortMode
   setSortMenuAnchor: (anchor: MenuAnchor | undefined) => void
-  /** The 艺人 chip only makes sense when the library actually holds artists. */
+  /** The artist chip only makes sense when the library actually holds artists. */
   hasArtists?: boolean
   /** Rendered at the far right of the filter row (the create + trigger). */
   createSlot?: ReactElement
@@ -127,8 +127,8 @@ export function LibraryToolbar({
           'button',
           {
             type: 'button',
-            'aria-label': '搜索',
-            title: '搜索',
+            'aria-label': 'Search',
+            title: 'Search',
             onClick: () => setSearchOpen((prev) => !prev),
             style: {
               width: 28,
@@ -149,7 +149,7 @@ export function LibraryToolbar({
           ? h(TextField, {
               value: searchQuery,
               onChange: setSearchQuery,
-              placeholder: '搜索音乐库内容...',
+              placeholder: 'Search the library...',
               testID: 'library-search-input',
             })
           : null,

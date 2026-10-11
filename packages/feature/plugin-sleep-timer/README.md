@@ -1,22 +1,22 @@
 # @BBeBee/plugin-sleep-timer
 
-Layer 4 (feature) — `ctx.sleepTimer`：管理睡眠定时关闭播放逻辑。
+Layer 4 (feature) — `ctx.sleepTimer`: manages the sleep-timer stop-playback logic.
 
-## 概述
+## Overview
 
-支持按设定倒计时时长（如 5min / 10min / 15min / 30min / 45min / 1h / 自定义分钟）、指定时间点、或在当前曲目结束时自动停止播放。
+Supports stopping playback after a set countdown (e.g. 5min / 10min / 15min / 30min / 45min / 1h / custom minutes), at a specified point in time, or automatically when the current track ends.
 
-刻意 headless：它只管理定时状态并调用 `ctx.player.pause()`，无平台特定依赖。
+Deliberately headless: it only manages the timer state and calls `ctx.player.pause()`, with no platform-specific dependencies.
 
-## 源文件
+## Source files
 
 ### `src/index.ts`
-- `SleepTimer extends Service`（占用 `ctx.sleepTimer` 服务键）：
-  - `startDuration(ms)`: 设定倒计时毫秒数，到期暂停播放。
-  - `startAtEpoch(epochMs)`: 设定指定时间戳，到期暂停播放。
-  - `startEndOfTrack()`: 监听曲目完成事件（`player/track-completed` 或播放结束 `player/state-changed`），在曲目自然结束时暂停。
-  - `cancel()`: 取消当前正在运行的定时器。
-  - `state`: 获取当前定时器状态 `{ active, mode, targetEpochMs, durationMs }`。
+- `SleepTimer extends Service` (occupies the `ctx.sleepTimer` service key):
+  - `startDuration(ms)`: set a countdown in milliseconds; playback pauses when it expires.
+  - `startAtEpoch(epochMs)`: set a target timestamp; playback pauses when it expires.
+  - `startEndOfTrack()`: listens for track completion (`player/track-completed` or playback ended via `player/state-changed`) and pauses when the track ends naturally.
+  - `cancel()`: cancel the currently running timer.
+  - `state`: the current timer state `{ active, mode, targetEpochMs, durationMs }`.
 
 ### `src/hooks.ts`
-- `useSleepTimer(ctx)`: 响应式 React hook，订阅 `sleep-timer/changed` 与 `sleep-timer/fired`。
+- `useSleepTimer(ctx)`: a reactive React hook subscribing to `sleep-timer/changed` and `sleep-timer/fired`.

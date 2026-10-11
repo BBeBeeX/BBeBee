@@ -1,111 +1,111 @@
 # @BBeBee/plugin-player
 
-Layer 4（feature）— `ctx.player`：transport（走带控制）、queue（队列）、resolution（播放解析）、history（播放历史）。
+Layer 4 (feature) — `ctx.player`: transport, queue, resolution, history.
 
-## 概述
+## Overview
 
-播放器决定"**播什么、什么时候播**"；`ctx.dsp` 决定听起来怎样，`ctx.audio` 拥有音频图——本插件对后两者的唯一触碰点是 `chainInput`（源节点永远连它而不是 destination，中间的空位就是 DSP 链条，源与效果器因此各自有独立生命周期）。
+The player decides "**what to play and when**"; `ctx.dsp` decides how it sounds, and `ctx.audio` owns the audio graph — the only point where this plugin touches the latter two is `chainInput` (the source node always connects to it rather than to the destination; the gap in between is the DSP chain, so sources and effects each keep independent lifecycles).
 
-它是 `player/before-resolve` waterfall 的发起方：**Player 不知道字节从哪来**——`plugin-download` 挂上来替换成本地文件、failover 换 linked URN 重试，Player 一行不改（"有无 plugin-download 播放行为一致"的对照测试的控制臂就在这）。
+It is the initiator of the `player/before-resolve` waterfall: **the Player does not know where the bytes come from** — `plugin-download` hooks in to swap in a local file, failover retries with a linked URN, and the Player does not change by a single line (this is the control arm of the "playback behaves identically with or without plugin-download" comparison test).
 
-## 服务声明
+## Service declaration
 
-- `class Player extends Service implements PlayerService`，`super(ctx, 'player')` → `ctx.player`（接口在 `protocol/src/services/audio.ts`）。
-- 必需注入：`['audio', 'sources', 'db']`。
-- 可选注入（嵌套 `ctx.inject`，缺失时降级不崩溃）：`['mediaSession']`（锁屏/系统媒体控制）、`['ui']`（贡献 route/command）、`['background']`（wake lock 与挂起前检查点）。
-- 隐式读取（鸭子类型）：`ctx.device.network()`（计费网络 → `saveData`）、`ctx.codec.supportedFormats()`。
+- `class Player extends Service implements PlayerService`, `super(ctx, 'player')` → `ctx.player` (interface in `protocol/src/services/audio.ts`).
+- Required injections: `['audio', 'sources', 'db']`.
+- Optional injections (nested `ctx.inject`, degrades instead of crashing when missing): `['mediaSession']` (lock screen / system media controls), `['ui']` (contributes route/command), `['background']` (wake lock and pre-suspend checkpoint).
+- Implicit reads (duck typing): `ctx.device.network()` (metered network → `saveData`), `ctx.codec.supportedFormats()`.
 
-**能力声明**：`audio`、`mediaSession`、`background`、`db:read:core`、`db:write:core`（队列/状态/历史表都在 `core` 命名空间；两个动词不嵌套所以都要）。
+**Capabilities**: `audio`, `mediaSession`, `background`, `db:read:core`, `db:write:core` (the queue/state/history tables all live in the `core` namespace; the two verbs do not nest, so both are required).
 
-## 源文件
+## Source files
 
-### `src/index.ts` — 主服务 `Player`
+### `src/index.ts` — the main `Player` service
 
-**公开 API（`ctx.player` 表面）**：
+**Public API (the `ctx.player` surface)**:
 
-| 方法 | 作用 |
+| Method | Purpose |
 |---|---|
-| `state` / `queue` | 走带状态快照 / 队列项（存储序） |
-| `play()` / `pause()` / `togglePlay()` / `stop()` | 基本走带。`loading` 期间的暂停靠 `playIntent=false` 在加载完成时兑现；`stalled` 视同播放。 |
-| `seek(ms)` | 暂停时用 play-then-pause 技巧让媒体元素定位 |
-| `next()` / `previous()` | previous 在位置 > `previousThresholdMs`（默认 3s）时先 seek(0)"重播当前曲" |
-| `setVolume/setMuted/setRepeat/setShuffle` | 委托 `ctx.audio` + 状态 + 持久化；shuffle 开启时生成新种子 |
-| `playNow(urns, opts?)` | **整队替换**：经 `player/before-enqueue` waterfall 过滤 → 换队列 → 定位目标歌曲（随机模式下调用 `rotateShuffle` 循环旋转置换序列，使目标歌曲置顶为第 0 首并保持后续随机待播序列）→ 播放目标曲目 |
-| `playFromContext(urn, contextUrns?, opts?)` | **列表语境的点播**：URN 已在队列（按播放序，含 shuffle）→ 原队列不动、跳到该项；不在 → 用 `contextUrns`（专辑/本地库等被点击行所属的列表）整队替换并从点击处播；语境缺失或不含该曲 → 单曲播放 |
-| `enqueueNext / enqueueLast / removeItems / moveItem / clearQueue` | 队列操作。删到正在播的那首则 `stop()`，不悄悄跳曲；`moveItem` 只写一行（fractional index 的回报） |
-| `upcoming()` / `refresh()` | 播放序的"接下来"；1 Hz 时钟的一跳（发 `player/position`、驱动 prefetch/crossfade/节流持久化） |
+| `state` / `queue` | Transport state snapshot / queue items (storage order) |
+| `play()` / `pause()` / `togglePlay()` / `stop()` | Basic transport. Pausing during `loading` relies on `playIntent=false` being honored once loading finishes; `stalled` counts as playing. |
+| `seek(ms)` | While paused, uses the play-then-pause trick to make the media element seek |
+| `next()` / `previous()` | previous seeks to 0 and "replays the current track" when position > `previousThresholdMs` (default 3s) |
+| `setVolume/setMuted/setRepeat/setShuffle` | Delegates to `ctx.audio` + state + persistence; enabling shuffle generates a new seed |
+| `playNow(urns, opts?)` | **Replaces the whole queue**: filtered through the `player/before-enqueue` waterfall → swap queue → locate the target song (in shuffle mode calls `rotateShuffle` to rotationally shift the permutation so the target song lands on top as track 0 while preserving the rest of the random upcoming sequence) → plays the target track |
+| `playFromContext(urn, contextUrns?, opts?)` | **On-demand playback in a list context**: if the URN is already in the queue (in play order, including shuffle) → the queue is untouched, jump to that item; if not → replace the whole queue with `contextUrns` (the list the clicked row belongs to, e.g. album/local library) and start from the clicked position; if context is missing or does not contain the song → single-track playback |
+| `enqueueNext / enqueueLast / removeItems / moveItem / clearQueue` | Queue operations. Removing the currently playing track calls `stop()` rather than silently skipping; `moveItem` writes exactly one row (the payoff of fractional index) |
+| `upcoming()` / `refresh()` | The "up next" in play order; one tick of the 1 Hz clock (emits `player/position`, drives prefetch/crossfade/throttled persistence) |
 
-**播放解析流程（URN → 可播放流）**：结束上一曲 → 置 `loading`、发 `player/track-changed` → **gapless 快路径**（prefetch 命中直接 attach）→ 否则 `resolveStream`（构造 `StreamPrefs` → `player/before-resolve` waterfall → `ctx.sources.forUrn(...).resolveStream`）→ `ctx.audio.load(handle.target, { strategy, ... })` → attach 到 `chainInput`。策略选择：远程 → `stream`；本地超过 `bufferMaxBytes`（默认 ~150MB）→ `stream`（buffered 持有的是解码后 PCM，约文件体积 10 倍）；否则 `buffer`。
+**Playback resolution flow (URN → playable stream)**: end the previous track → set `loading`, emit `player/track-changed` → **gapless fast path** (attach directly if prefetch hit) → otherwise `resolveStream` (build `StreamPrefs` → `player/before-resolve` waterfall → `ctx.sources.forUrn(...).resolveStream`) → `ctx.audio.load(handle.target, { strategy, ... })` → attach to `chainInput`. Strategy selection: remote → `stream`; local larger than `bufferMaxBytes` (default ~150MB) → `stream` (a buffered node holds decoded PCM, roughly 10x the file size); otherwise `buffer`.
 
-**错误处理**：按 `SourceError.code` 分派——`auth` → emit `source/auth-expired`（serial）后停止；`rate-limit` → 按 `retryAfterMs` 重试一次；`network` → 指数退避重试 3 次；`not-found` → `markUnavailable` 灰化后跳曲。`maxSkipStreak`（默认 10）防 repeat-all 下的无限跳曲风暴。
+**Error handling**: dispatched by `SourceError.code` — `auth` → emit `source/auth-expired` (serial) then stop; `rate-limit` → retry once after `retryAfterMs`; `network` → exponential backoff, 3 retries; `not-found` → `markUnavailable` (grey out) then skip. `maxSkipStreak` (default 10) prevents an infinite skip storm under repeat-all.
 
-**平台策略（interruption 表，docs/05 §5）**：interruption `began` 暂停并记住"是我们暂停的"；`ended + shouldResume` 仅当如此时恢复；**route `device-removed`（拔耳机/断蓝牙）立即暂停、绝不自行恢复**——不可配置。
+**Platform policy (interruption table, docs/05 §5)**: interruption `began` pauses and remembers "we were the one who paused"; `ended + shouldResume` resumes only in that case; **route `device-removed` (headphones unplugged / Bluetooth dropped) pauses immediately and never resumes on its own** — not configurable.
 
-**关键不变量**：`playIntent` 解决"加载完成时的 autoplay 标志已过时"的竞态（按 play 立刻按 pause 不会自顾自响起来）；teardown 顺序：清 ticker → 取消 prefetch → 清 fading → 结算进行中的 play → detach → 释放 wake lock → 强制持久化；mediaSession teardown 必须 `clear()`，否则锁屏留下"幽灵曲目"。
+**Key invariants**: `playIntent` resolves the race where "the autoplay flag is stale by the time loading finishes" (pressing play then immediately pause must not start playing on its own); teardown order: clear ticker → cancel prefetch → clear fading → settle the in-flight play → detach → release wake lock → force persistence; mediaSession teardown must `clear()`, otherwise the lock screen keeps a "ghost track".
 
-### `src/queue.ts` — 队列模型（纯逻辑，无 audio/DB/时钟）
+### `src/queue.ts` — queue model (pure logic, no audio/DB/clock)
 
-`QueueModel` + `permute`（种子化 Fisher–Yates）。核心决策：
+`QueueModel` + `permute` (seeded Fisher–Yates). Core decisions:
 
-1. **位置是 fractional index key**（base-36 字符串，来自 protocol 的 `between`/`sequence`，Greenspan 中点算法）：`move()` 算出新 key 后**只 UPDATE 一行**；键按字典序 `ORDER BY`，排序交给 SQLite。5000 首的队列拖一首不用重写尾部。
-2. **Shuffle = 种子 + 确定性排列**：`mulberry32` PRNG。每次开启生成新种子（再 shuffle 不是同一个序）、种子持久化（重启后是同一个序）——所以 `previous()` 有意义、UI 能如实展示 upcoming。
-3. **Shuffle 点播旋转（`rotateShuffle(firstId)`）**：在随机模式下点播列表中某一特定歌曲时，将当前伪随机置换序列进行循环移位旋转，保证目标歌曲立即排在首位播放，且其余歌曲保持既定随机待播序列，避免随机模式下点歌跳播了其他歌曲。
+1. **Position is a fractional index key** (base-36 string, from the protocol's `between`/`sequence`, Greenspan midpoint algorithm): after `move()` computes the new key it **UPDATEs exactly one row**; keys are `ORDER BY` lexicographically — sorting is left to SQLite. Dragging one song in a 5000-track queue does not rewrite the tail.
+2. **Shuffle = seed + deterministic permutation**: `mulberry32` PRNG. A new seed is generated each time shuffle is enabled (re-shuffling is not the same order), and the seed is persisted (same order after restart) — so `previous()` is meaningful and the UI can faithfully show upcoming.
+3. **Shuffle on-demand rotation (`rotateShuffle(firstId)`)**: when a specific song in the list is requested in shuffle mode, the current pseudo-random permutation is cyclically rotated so the target song plays immediately first while the rest keep their established random upcoming order, avoiding skipping to unrelated songs when requesting a track in shuffle mode.
 
-`next()`/`previous()` 尊重 `repeat`：`'one'` 原地重复（不 re-resolve，复用已加载 buffer）；回绕只在 `'all'`。
+`next()`/`previous()` respect `repeat`: `'one'` repeats in place (no re-resolve; reuses the loaded buffer); wrap-around only under `'all'`.
 
-### `src/store.ts` — `PlayerStore`：SQL 持久层（纯 SQL，无事件）
+### `src/store.ts` — `PlayerStore`: SQL persistence layer (pure SQL, no events)
 
-| 方法 | 表 | 说明 |
+| Method | Table | Notes |
 |---|---|---|
-| `loadQueue / replaceQueue / insertQueue / removeQueue` | `queue_items` | replace 是事务内 DELETE+重插；`playback_state.current_item_id` 是 `ON DELETE SET NULL`，所以**先换队列后存状态**。损坏的 `source_context_json` 只损失一行"来自"信息，不拖垮插件 init。 |
-| `moveQueueItem` | `queue_items` | **一行** UPDATE |
-| `loadState / saveState` | `playback_state` | 单行表 UPSERT（currentItemId、positionMs、repeat、shuffle、seed、volume、muted） |
-| `recordPlay(record)` | `play_history` + `track_stats` | **一个事务**：append 事实行（`scrobble_state='pending'`）+ UPSERT 派生统计 |
-| `markUnavailable(urn)` | `tracks` | `available = 0`：灰显而非隐藏 |
-| `nowPlaying(urn)` | tracks ⋈ albums ⋈ artworks | 锁屏元数据；封面只给本地 Uri |
+| `loadQueue / replaceQueue / insertQueue / removeQueue` | `queue_items` | replace is a DELETE + re-insert inside one transaction; `playback_state.current_item_id` is `ON DELETE SET NULL`, so **swap the queue first, then save state**. Corrupted `source_context_json` only loses one row of "came from" info; it does not take down plugin init. |
+| `moveQueueItem` | `queue_items` | **one-row** UPDATE |
+| `loadState / saveState` | `playback_state` | single-row table UPSERT (currentItemId, positionMs, repeat, shuffle, seed, volume, muted) |
+| `recordPlay(record)` | `play_history` + `track_stats` | **one transaction**: append the fact row (`scrobble_state='pending'`) + UPSERT derived stats |
+| `markUnavailable(urn)` | `tracks` | `available = 0`: grey out rather than hide |
+| `nowPlaying(urn)` | tracks ⋈ albums ⋈ artworks | lock-screen metadata; artwork only for local Uri |
 
-### `src/hooks.ts` — 两个 UI 壳共用的 React hooks
+### `src/hooks.ts` — React hooks shared by the two UI shells
 
-逻辑写一次（ADR-2：headless 里写逻辑，JSX 写两次），基于 `ui-core` 的 `useServiceState`：
+Logic written once (ADR-2: logic lives in the headless package, JSX written twice), built on `ui-core`'s `useServiceState`:
 
-| 导出 | 说明 |
+| Export | Description |
 |---|---|
-| `useTransport(ctx)` | 订阅 `player/state-changed` + `player/track-changed` |
-| `useQueue(ctx)` | 订阅 `queue/changed`；逐元素比较，内容不变不触发 5000 行列表重渲染 |
-| `useTracksByUrn(ctx, urns)` | URN → 目录行的批量解析（`ctx.sources.getTracks`，一次分块读）。会话内缓存；`library/changed` 清缓存。经 `serviceOf` 读取——目录是**增强**而非依赖：无 sources 服务或目录答不出的 URN 返回空 map，视图交给 `queueTrackFallback` |
-| `queueTrackFallback(item, nowPlaying, isCurrent)` | 队列行在目录答案到来前/缺席时显示什么：**绝不显示 URN**——当前项借用 transport 的 nowPlaying（封面/标题/艺人，播放器本就为锁屏解析），其余显示 "Loading…"。永远 Loading… 是缓存 bug，不是回退成 URN 的理由 |
-| `usePosition(ctx)` | **rAF 插值 hook**：以 1 Hz 的 `player/position` 为锚点、`requestAnimationFrame` 补帧。每秒变约 60 次，只给进度条/时间标签用 |
-| `useTransportAvailability(ctx)` | `{ canPlay, canPause, canSeek, canNext, canPrevious }`——控件可用性判定只写一次 |
-| `useDuration(ctx)` | `durationMs > 0` 才返回，区分"未知"与直播流 |
-| `isPlayingLike(status)` | 用户视角：`playing \|\| stalled \|\| loading`。⚠️ 与服务侧私有版本（无 `loading`）**故意不同**：那边是音频语义，这边是用户视角 |
-| `formatDuration(ms?)` | `mm:ss` / `h:mm:ss`；无效输入 `--:--` |
+| `useTransport(ctx)` | Subscribes to `player/state-changed` + `player/track-changed` |
+| `useQueue(ctx)` | Subscribes to `queue/changed`; element-wise comparison, so no re-render of a 5000-row list when content is unchanged |
+| `useTracksByUrn(ctx, urns)` | Batch resolution of URN → catalog rows (`ctx.sources.getTracks`, one chunked read). Cached per session; `library/changed` clears the cache. Read via `serviceOf` — the catalog is an **enhancement, not a dependency**: a missing sources service or a URN the catalog cannot answer yields an empty map, and the view falls back to `queueTrackFallback` |
+| `queueTrackFallback(item, nowPlaying, isCurrent)` | What a queue row shows before the catalog answers / when it is absent: **never show the URN** — the current item borrows the transport's nowPlaying (artwork/title/artist, which the player already resolves for the lock screen), everything else shows "Loading…". Being stuck on Loading… forever is a cache bug, not a reason to fall back to the URN |
+| `usePosition(ctx)` | **rAF interpolation hook**: anchored on the 1 Hz `player/position`, with `requestAnimationFrame` filling frames. Updates ~60 times per second; only for progress bars/time labels |
+| `useTransportAvailability(ctx)` | `{ canPlay, canPause, canSeek, canNext, canPrevious }` — control availability decided in one place |
+| `useDuration(ctx)` | Returns only when `durationMs > 0`, distinguishing "unknown" from live streams |
+| `isPlayingLike(status)` | The user's view: `playing \|\| stalled \|\| loading`. ⚠️ **Intentionally different** from the service-side private version (no `loading`): that one is audio semantics, this one is the user's view |
+| `formatDuration(ms?)` | `mm:ss` / `h:mm:ss`; invalid input `--:--` |
 
-### `src/contributions.ts` — 贡献 id 常量
+### `src/contributions.ts` — contributed id constants
 
 ```ts
 PLAYER_COMMANDS = { togglePlay: 'player.togglePlay', next: 'player.next', previous: 'player.previous' }
 ```
 
-init 时只注册三个 command（`togglePlay` 默认键位 `Space`；命令不依赖视图——桌面进命令面板，移动端进 more-menu）。**没有 route、没有 slot、没有 view**。
+Init registers only three commands (`togglePlay` defaults to the `Space` key; commands do not depend on views — the command palette on desktop, the more-menu on mobile). **No route, no slot, no view**.
 
-> 三块播放界面都已拆成 surface 插件：整屏播放器与常驻走带条/迷你条在 `plugin-now-playing`（`now-playing.view` / `now-playing.bar`），up-next 队列在 `plugin-queue`（`queue.view`）。transport 服务不该因为一块屏幕改动而改动。hooks（`useTransport`/`usePosition`/`useDuration`/`useTransportAvailability`/`useQueue`/`useTracksByUrn`）仍在 `plugin-player/hooks`，随服务走。
+> All three playback surfaces have been split into surface plugins: the full-screen player and the persistent transport bar/mini bar live in `plugin-now-playing` (`now-playing.view` / `now-playing.bar`), the up-next queue in `plugin-queue` (`queue.view`). The transport service should not change because one screen changed. The hooks (`useTransport`/`usePosition`/`useDuration`/`useTransportAvailability`/`useQueue`/`useTracksByUrn`) stay in `plugin-player/hooks`, alongside the service.
 
-## 事件
+## Events
 
-| 方向 | 事件 |
+| Direction | Events |
 |---|---|
-| emit | `player/state-changed`、`player/track-changed`、`player/position`（1 Hz，UI 用 rAF 插值，不许轮询）、`player/error`、`queue/changed` |
-| 派发（他人监听） | `player/track-completed`（`ctx.parallel`，scrobbler 消费）、`source/auth-expired`（`ctx.serial`） |
-| 发起 waterfall | `player/before-resolve`、`player/before-enqueue`（监听者原地改参数后调 `next()`——Cordis 的 `next` 不收参数） |
+| Emits | `player/state-changed`, `player/track-changed`, `player/position` (1 Hz; UI interpolates with rAF, polling forbidden), `player/error`, `queue/changed` |
+| Dispatched (others listen) | `player/track-completed` (`ctx.parallel`, consumed by the scrobbler), `source/auth-expired` (`ctx.serial`) |
+| Initiates waterfalls | `player/before-resolve`, `player/before-enqueue` (listeners mutate the argument in place then call `next()` — Cordis's `next` takes no argument) |
 
-## 配置（`PlayerConfig`）
+## Configuration (`PlayerConfig`)
 
-`previousThresholdMs=3000`、`transition='gapless'`（`'gapless'|'crossfade'|'neither'` 三态互斥——同时做会产生双重淡出）、`crossfadeMs=0`、`tickMs=1000`、`saveThrottleMs=5000`、`retryBackoffMs=500`、`bufferMaxBytes≈150MB`、`maxSkipStreak=10`、`stallTimeoutMs=30000`、`deviceId='this-device'`（为多设备同步预留）。
+`previousThresholdMs=3000`, `transition='gapless'` (`'gapless'|'crossfade'|'neither'` — mutually exclusive; doing both would double-fade), `crossfadeMs=0`, `tickMs=1000`, `saveThrottleMs=5000`, `retryBackoffMs=500`, `bufferMaxBytes≈150MB`, `maxSkipStreak=10`, `stallTimeoutMs=30000`, `deviceId='this-device'` (reserved for multi-device sync).
 
-**Prefetch/gapless/crossfade**：prefetch 窗口 `max(15s, crossfadeMs+5s)`，在 `refresh()` 里解析**下一首**并必须以 buffer 策略预载（无缝交接等不起网络读）；crossfade 时出曲 source 放进 `fading` 由定时器稍后回收（立刻 dispose 会让 ramp 永远不发声）；**身份随音频移动**——交接时更新 `currentItemId`、发 `track-changed`，否则走带/锁屏/历史都以为还在播上一首。
+**Prefetch/gapless/crossfade**: the prefetch window is `max(15s, crossfadeMs+5s)`, resolving the **next** track inside `refresh()` and it must preload with the buffer strategy (a seamless handover cannot wait on a network read); during crossfade the outgoing source goes into `fading` and is reclaimed by a timer later (disposing immediately would mute the ramp forever); **identity moves with the audio** — on handover update `currentItemId` and emit `track-changed`, otherwise the transport/lock screen/history all believe the previous track is still playing.
 
-## 相关文档
+## Related docs
 
-- `docs/05-audio-playback.md`：transport 状态机、interruption 表、DSP
-- `docs/07-data-model.md`：`queue_items`/`playback_state`/`play_history`/`track_stats`
-- `packages/core/core-audio-webaudio/`：音频图实现
+- `docs/05-audio-playback.md`: transport state machine, interruption table, DSP
+- `docs/07-data-model.md`: `queue_items`/`playback_state`/`play_history`/`track_stats`
+- `packages/core/core-audio-webaudio/`: the audio graph implementation

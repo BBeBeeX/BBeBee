@@ -62,7 +62,7 @@ export function EditPlaylistModal({
   return h(
     'div',
     {
-      'aria-label': '编辑详情',
+      'aria-label': 'Edit details',
       style: {
         position: 'fixed',
         inset: 0,
@@ -94,12 +94,12 @@ export function EditPlaylistModal({
       h(
         'div',
         { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
-        h('h2', { style: { margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--bb-text-primary, #FFFFFF)' } }, '编辑详情'),
+        h('h2', { style: { margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--bb-text-primary, #FFFFFF)' } }, 'Edit details'),
         h(
           'button',
           {
             type: 'button',
-            'aria-label': '关闭',
+            'aria-label': 'Close',
             onClick: onClose,
             style: {
               background: 'transparent',
@@ -140,7 +140,7 @@ export function EditPlaylistModal({
           previewUrl
             ? h('img', {
                 src: previewUrl,
-                alt: '封面预览',
+                alt: 'Cover preview',
                 style: { width: '100%', height: '100%', objectFit: 'cover' },
               })
             : tablerIcon('music', { size: 52, color: '#555555' }),
@@ -162,7 +162,7 @@ export function EditPlaylistModal({
               },
             },
             tablerIcon('camera', { size: 40, color: 'currentColor' }),
-            h('span', { style: { fontSize: 13, fontWeight: 600 } }, '选择照片'),
+            h('span', { style: { fontSize: 13, fontWeight: 600 } }, 'Choose photo'),
           ),
           h('input', {
             ref: fileInputRef,
@@ -178,12 +178,12 @@ export function EditPlaylistModal({
           h(
             'div',
             null,
-            h('label', { style: { display: 'block', fontSize: 11, color: '#A0A0AE', marginBottom: 4, fontWeight: 600 } }, '名称'),
+            h('label', { style: { display: 'block', fontSize: 11, color: '#A0A0AE', marginBottom: 4, fontWeight: 600 } }, 'Name'),
             h('input', {
               type: 'text',
               value: name,
               onChange: (e: ChangeEvent<HTMLInputElement>) => setName(e.target.value),
-              placeholder: '添加名称',
+              placeholder: 'Add a name',
               'data-testid': 'edit-playlist-name',
               style: {
                 width: '100%',
@@ -202,11 +202,11 @@ export function EditPlaylistModal({
           h(
             'div',
             null,
-            h('label', { style: { display: 'block', fontSize: 11, color: '#A0A0AE', marginBottom: 4, fontWeight: 600 } }, '简介'),
+            h('label', { style: { display: 'block', fontSize: 11, color: '#A0A0AE', marginBottom: 4, fontWeight: 600 } }, 'Description'),
             h('textarea', {
               value: description,
               onChange: (e: ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value),
-              placeholder: '添加可选简介',
+              placeholder: 'Add an optional description',
               rows: 3,
               'data-testid': 'edit-playlist-description',
               style: {
@@ -228,7 +228,7 @@ export function EditPlaylistModal({
           h(
             'div',
             null,
-            h('label', { style: { display: 'block', fontSize: 11, color: '#A0A0AE', marginBottom: 4, fontWeight: 600 } }, '封面图片网址 (可选)'),
+            h('label', { style: { display: 'block', fontSize: 11, color: '#A0A0AE', marginBottom: 4, fontWeight: 600 } }, 'Cover image URL (optional)'),
             h('input', {
               type: 'text',
               value: artworkUrl,
@@ -236,7 +236,7 @@ export function EditPlaylistModal({
                 setArtworkUrl(e.target.value)
                 setPreviewUrl(e.target.value)
               },
-              placeholder: 'https://... 或点击左侧上传',
+              placeholder: 'https://... or upload from the left',
               'data-testid': 'edit-playlist-artwork',
               style: {
                 width: '100%',
@@ -260,7 +260,7 @@ export function EditPlaylistModal({
         h(
           'span',
           { style: { fontSize: 11, color: '#888888' } },
-          '选择照片即表示你同意我们将其用作歌单封面。',
+          'By choosing a photo you agree to let us use it as the playlist cover.',
         ),
         h(
           'div',
@@ -268,14 +268,14 @@ export function EditPlaylistModal({
           h(Button, {
             variant: 'ghost',
             onPress: onClose,
-            children: '取消',
+            children: 'Cancel',
           }),
           h(Button, {
             variant: 'primary',
             disabled: !name.trim() || saving,
             onPress: handleSave,
             testID: 'edit-playlist-save',
-            children: saving ? '保存中…' : '保存',
+            children: saving ? 'Saving…' : 'Save',
           }),
         ),
       ),

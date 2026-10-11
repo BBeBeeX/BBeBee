@@ -2,9 +2,9 @@
 
 Rules governing music source documents, rule engines, QuickJS sandboxing, and authoring in BBeBee.
 
-> **L2 · 何时读**：写音乐源 JSON、改 source-runtime/sandbox、或动第三方注册表与安装链路时。
-> **不读会怎样**：凭证写进源文档、`allowedHosts` 展示红线失守、把源当插件打包、registry 模型理解错（4 目录枚举而非单文件索引）。
-> **深读指引**：docs/sources/spec.md（模型与字段）、rule-engines.md（规则语言）、runtime.md（沙箱与 limits）、registry.md（注册表与安装流程，含安全扫描 13 条规则清单）、parameters.md（参数与歌词源沙箱）。
+> **L2 · When to read**: when writing music-source JSON, modifying the source runtime/sandbox, or touching the third-party registry and install chain.
+> **What goes wrong without it**: credentials written into source documents, the `allowedHosts` disclosure red line breached, sources packaged as plugins, the registry model misunderstood (a four-directory enumeration, not a single-file index).
+> **Deeper reading**: docs/sources/spec.md (model and fields), rule-engines.md (the rule language), runtime.md (sandbox and limits), registry.md (the registry and install flows, including the 13-rule security scan list), parameters.md (parameters and the lyric-source sandbox).
 
 ---
 
@@ -32,7 +32,7 @@ Rule prefixes select the execution engine:
 
 - URL template fields (`searchUrl`, `exploreUrl`, `recommendUrl`) use `{{ }}` for variable substitution (path, not expression).
 - **Detail Pagination** (`ruleAlbum`, `rulePlaylist`): `getAlbum(id, page?)` and `getPlaylist(id, page?)` accept an optional `PageRequest`. The runtime maps page numbers/cursors to query parameters (`pn`/`page_num`, `ps`/`page_size`) and propagates `hasMore` and `cursor` in `AlbumDetail` / `PlaylistDetail`, enabling infinite scroll without eager bulk fetching.
-- **Multi-P Video & Virtual Album Expansion** (`ruleAlbum.childUrl`, Bilibili): Multi-part videos map to tracks with `<bvid>_p<page>` suffix (defaulting to P1 for plain BVIDs). When `payload.childUrl` is not cached from previous browsing, `ruleAlbum.childUrl` acts as a dynamic URL fallback, allowing direct navigation to albums from tracks ("转至专辑"). Multi-P tracks resolve accurate stream audio and lyrics by targeting the page's specific `cid` from cached `pagelist`, and external links append `?p=<page>`.
+- **Multi-P Video & Virtual Album Expansion** (`ruleAlbum.childUrl`, Bilibili): Multi-part videos map to tracks with `<bvid>_p<page>` suffix (defaulting to P1 for plain BVIDs). When `payload.childUrl` is not cached from previous browsing, `ruleAlbum.childUrl` acts as a dynamic URL fallback, allowing direct navigation to albums from tracks ("Go to album"). Multi-P tracks resolve accurate stream audio and lyrics by targeting the page's specific `cid` from cached `pagelist`, and external links append `?p=<page>`.
 - **Recommendations** (`ruleRecommend`, optional `recommendUrl`): one page of curated playlist cards per call — the recommendation shelf renders the first page ("show all" pages through the rest). Rows are browse rows (`kind: 'album'`/`'playlist'` with `childUrl`), so a recommended playlist opens through the same album-detail pipeline a browsed one does. `recommendUrl` is optional: a source whose recommendations are a curated list lets the `@js:` rule build rows from nothing (`result` is `null`).
 - Only `{{@js:...}}` reaches the QuickJS sandbox.
 - Combinators:
@@ -74,7 +74,7 @@ Rule prefixes select the execution engine:
 
 ---
 
-## 6. Registry（第三方注册表）
+## 6. Registry (third-party registry)
 
 The community registry ([B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)) is a decentralized metadata index: the app discovers entries by enumerating four categorized directories (`music-sources/`, `lyric-sources/`, `plugins/`, `themes/`) through the GitHub Contents API, falling back to a legacy single `registry.json` and then to the offline cache. The app consumes it through the `contentRegistry` service — see [docs/sources/registry.md](../docs/sources/registry.md).
 

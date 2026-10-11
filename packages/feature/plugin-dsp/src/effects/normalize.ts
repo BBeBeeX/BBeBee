@@ -21,14 +21,14 @@ const DEFAULT_PARAMS: NormalizeParams = {
 
 export const NormalizeEffect: EffectDefinition<NormalizeParams> = {
   id: 'normalize',
-  displayName: '响度标准化 (Normalization)',
+  displayName: 'Normalization',
   defaultOrder: 5,
   Params: createParamSchema(DEFAULT_PARAMS),
   presets: [
-    { name: '流媒体标准 (-14 LUFS)', params: { targetLufs: -14, gainDb: 0, mode: 'track', preampDb: 0, fallbackGainDb: 0 }, builtin: true },
-    { name: '古典安静 (-18 LUFS)', params: { targetLufs: -18, gainDb: -4, mode: 'album', preampDb: 0, fallbackGainDb: -4 }, builtin: true },
-    { name: '高响度广播 (-11 LUFS)', params: { targetLufs: -11, gainDb: 3, mode: 'track', preampDb: 0, fallbackGainDb: 0 }, builtin: true },
-    { name: '动态 EBU R128 (loudnorm)', params: { targetLufs: -14, gainDb: 0, mode: 'loudnorm', preampDb: 0, fallbackGainDb: 0 }, builtin: true },
+    { name: 'Streaming (-14 LUFS)', params: { targetLufs: -14, gainDb: 0, mode: 'track', preampDb: 0, fallbackGainDb: 0 }, builtin: true },
+    { name: 'Classical quiet (-18 LUFS)', params: { targetLufs: -18, gainDb: -4, mode: 'album', preampDb: 0, fallbackGainDb: -4 }, builtin: true },
+    { name: 'Loud broadcast (-11 LUFS)', params: { targetLufs: -11, gainDb: 3, mode: 'track', preampDb: 0, fallbackGainDb: 0 }, builtin: true },
+    { name: 'Dynamic EBU R128 (loudnorm)', params: { targetLufs: -14, gainDb: 0, mode: 'loudnorm', preampDb: 0, fallbackGainDb: 0 }, builtin: true },
   ],
   buildLavfi(params: Record<string, unknown>): string {
     const mode = params['mode'] as NormalizeMode | undefined

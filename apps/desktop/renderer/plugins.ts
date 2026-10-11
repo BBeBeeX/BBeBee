@@ -75,8 +75,8 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
   // playback streaming, with no branch in the player either way.
   '@BBeBee/plugin-download': {},
   '@BBeBee/plugin-download-ui-desktop': {},
-  // Curation: playlists, favourites, collections and smart playlists. Its
-  // routes put Playlists and Favourites in the sidebar; the playlist detail
+  // Curation: playlists, favorites, collections and smart playlists. Its
+  // routes put Playlists and Favorites in the sidebar; the playlist detail
   // screen is reached from the list, so it has no placement (docs/08 §3).
   '@BBeBee/plugin-library': {},
   '@BBeBee/plugin-library-ui-desktop': {},
@@ -117,11 +117,11 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
   // boot.ts.
   '@BBeBee/plugin-registry': {},
   // Lazy GitHub star/contributor counts for registry entries — fetched only
-  // when the 发现 page's sort controls ask, cached for 24h, degraded on
+  // when the Discover page's sort controls ask, cached for 24h, degraded on
   // failure. Headless; both shells run it (the kernel's shells.test.ts pins
   // feature parity, and nothing reads the service unless that UI asks).
   '@BBeBee/plugin-registry-metadata': {},
-  // Its desktop views: the 发现 (registry) screen and the sources-section
+  // Its desktop views: the Discover (registry) screen and the sources-section
   // settings card. Deferred together with the service — neither is needed
   // for first paint, and the route lands in the sidebar when the pair loads.
   '@BBeBee/plugin-registry-ui-desktop': {},
@@ -148,7 +148,7 @@ export const DEFERRED_PLUGIN_IDS = [
   // auto-check runs on its own timer, so it belongs with the other
   // post-first-frame plugins.
   '@BBeBee/plugin-registry',
-  // Repo stats are read only from the 发现 screen's sort controls — never on
+  // Repo stats are read only from the Discover screen's sort controls — never on
   // the first screen — so it defers with the rest of the registry trio.
   '@BBeBee/plugin-registry-metadata',
   // The registry's desktop views ride along with the service: the route

@@ -16,7 +16,7 @@ export interface CollapsedLibraryViewProps {
   setCollapsedMenuPos: (pos: { top: number; left: number }) => void
   renderCreateMenu: (isCollapsed: boolean) => ReactElement | null
   items: readonly UnifiedItem[]
-  /** The two quick entries (喜欢 / 本地和下载) stay visible even collapsed. */
+  /** The two quick entries (Favorites / Local & downloads) stay visible even collapsed. */
   favoriteCount: number
   localCount: number
   activeViewId?: string
@@ -102,8 +102,8 @@ export function CollapsedLibraryView({
       'button',
       {
         type: 'button',
-        'aria-label': '展开音乐库',
-        title: '展开音乐库',
+        'aria-label': 'Expand music library',
+        title: 'Expand music library',
         onClick: () => handleModeChange('sidebar'),
         style: {
           width: 44,
@@ -134,8 +134,8 @@ export function CollapsedLibraryView({
           'button',
           {
             type: 'button',
-            'aria-label': '返回音乐库',
-            title: '返回音乐库',
+            'aria-label': 'Back to music library',
+            title: 'Back to music library',
             onClick: () => setActiveFolderId(null),
             style: {
               width: 36,
@@ -169,8 +169,8 @@ export function CollapsedLibraryView({
         {
           type: 'button',
           'data-testid': 'create-dropdown-trigger',
-          'aria-label': '创建',
-          title: '创建',
+          'aria-label': 'Create',
+          title: 'Create',
           onClick: (e: { currentTarget: HTMLElement }) => {
             const rect = e.currentTarget.getBoundingClientRect()
             setCollapsedMenuPos({ top: rect.top, left: rect.right + 12 })
@@ -213,15 +213,15 @@ export function CollapsedLibraryView({
       ),
       renderCreateMenu(true),
     ),
-    // 喜欢 / 本地和下载: the two quick entries keep their place on the rail.
+    // Favorites / Local & downloads: the two quick entries keep their place on the rail.
     h(
       'div',
       {
-        'aria-label': '音乐库快捷入口',
+        'aria-label': 'Music library quick links',
         style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 12 },
       },
-      quickTile('heart', LIBRARY_VIEWS.favorites, '喜欢', favoriteCount),
-      quickTile('download', LIBRARY_VIEWS.local, '本地和下载', localCount),
+      quickTile('heart', LIBRARY_VIEWS.favorites, 'Favorites', favoriteCount),
+      quickTile('download', LIBRARY_VIEWS.local, 'Local & downloads', localCount),
     ),
     h(
       'div',

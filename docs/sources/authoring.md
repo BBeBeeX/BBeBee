@@ -333,7 +333,7 @@ For the person authoring a document — in the app's editor, or in a text file t
 **Credentials**
 
 - [ ] `variableComment` says exactly what to type in the variable box, in the format expected.
-- [ ] No credential is written into the document itself（规范见 [rules/sources.md §3 — Sandboxing & Security](../../rules/sources.md#3-sandboxing--security)（L2））. Export must be shareable as-is
+- [ ] No credential is written into the document itself (see the spec at [rules/sources.md §3 — Sandboxing & Security](../../rules/sources.md#3-sandboxing--security) (L2)). Export must be shareable as-is
       ([§9](#9-importing-updating-and-sharing)).
 - [ ] `loginCheckJs` distinguishes "logged out" from "server error", or the app will re-login in a
       loop against an outage.

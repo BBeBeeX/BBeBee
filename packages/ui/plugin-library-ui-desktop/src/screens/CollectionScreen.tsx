@@ -106,7 +106,7 @@ function CollectionTrackTableRow({
         {
           type: 'button',
           'aria-label': 'More',
-          title: '更多',
+          title: 'More',
           onClick: (e: ReactMouseEvent) => {
             e.stopPropagation()
             const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
@@ -221,7 +221,7 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
         onPress: () =>
           trackUrns[0] &&
           void players?.playNow(trackUrns, {
-            context: { kind: 'playlist', label: detail.collection?.name ?? '合集' },
+            context: { kind: 'playlist', label: detail.collection?.name ?? 'Collection' },
           }),
         disabled: trackUrns.length === 0,
         testID: 'collection-play',
@@ -251,7 +251,7 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
               onPress: () =>
                 void players
                   ?.playNow(trackUrns, {
-                    context: { kind: 'playlist', label: detail.collection?.name ?? '合集' },
+                    context: { kind: 'playlist', label: detail.collection?.name ?? 'Collection' },
                   })
                   .then(() => {
                     /* playNow starts at the first track; the context is the collection */

@@ -1,48 +1,48 @@
 # @BBeBee/plugin-queue
 
-Layer 4（feature）— **up-next 队列页**，从 `plugin-player` 拆出。
+Layer 4 (feature) — **the up-next queue page**, split out of `plugin-player`.
 
-## 概述
+## Overview
 
-一个**表面（surface）插件**：
+A **surface plugin**:
 
-- 拥有 route `queue.view`（`/queue`，tab-bar + sidebar，order 20）与 view id；
-- **不声明服务键**——队列模型（有序项、当前项、跳转语义）属于 `ctx.player`；读它的 hooks（`useQueue`/`useTracksByUrn`/`queueTrackFallback`）留在 `plugin-player/hooks`，随服务走；
-- 与 `plugin-now-playing` 的分工：那个插件管"现在播什么"（整屏 + 走带条），这个管"接下来播什么"。
+- Owns the route `queue.view` (`/queue`, tab-bar + sidebar, order 20) and its view id;
+- **Declares no service key** — the queue model (ordered items, the current item, jump semantics) belongs to `ctx.player`; the hooks that read it (`useQueue`/`useTracksByUrn`/`queueTrackFallback`) stay in `plugin-player/hooks`, next to the service;
+- Division of labor with `plugin-now-playing`: that plugin handles "what is playing now" (full screen + transport bar), this one handles "what plays next".
 
-拆出的收益：`plugin-player` 现在没有任何 route/view（只剩三个 command），transport 服务不必因为一块屏幕改动而改动。
+The benefit of the split: `plugin-player` now has no route/view at all (only three commands remain), and the transport service no longer changes because a screen does.
 
-## 源文件
+## Source files
 
 ### `src/index.ts`
 
-`apply(ctx)`：`ctx.logger.info('plugin-queue: loaded')`，然后 `ctx.inject(['ui'], scoped => scoped.effect(function*(){ yield scoped.ui.contribute({ kind: 'route', id: QUEUE_ROUTES.queue, path: '/queue', title: 'Queue', icon: 'list', placement: ['tab-bar', 'sidebar'], order: 20 }) }, 'queue-ui-contributions'))`。
+`apply(ctx)`: `ctx.logger.info('plugin-queue: loaded')`, then `ctx.inject(['ui'], scoped => scoped.effect(function*(){ yield scoped.ui.contribute({ kind: 'route', id: QUEUE_ROUTES.queue, path: '/queue', title: 'Queue', icon: 'list', placement: ['tab-bar', 'sidebar'], order: 20 }) }, 'queue-ui-contributions'))`.
 
-`ui` 不存在的构建不会卡住（子 fiber 未激活只是没有贡献）。
+A build without `ui` does not get stuck (an inactive child fiber just contributes nothing).
 
 ### `src/views.ts`
 
 ```ts
 QUEUE_VIEWS = { queue: 'queue.view' }
-QUEUE_ROUTES = QUEUE_VIEWS   // 同值
+QUEUE_ROUTES = QUEUE_VIEWS   // same values
 ```
 
-## 测试
+## Tests
 
-`src/index.test.ts`（4）——注册 route 描述符（内容逐字断言）、没有 `ui` 时正常加载、两条卸载快照（有/无 ui）无泄漏。
+`src/index.test.ts` (4) — registers the route descriptor (asserted verbatim), loads fine without `ui`, and two unload snapshots (with/without ui) show no leaks.
 
-## 导出
+## Exports
 
 ```ts
 // '.'
 export const name = 'plugin-queue'
 export function apply(ctx)
-// './views'：QUEUE_VIEWS / QUEUE_ROUTES
+// './views': QUEUE_VIEWS / QUEUE_ROUTES
 ```
 
-## 相关文档
+## Related docs
 
-- `docs/05-audio-playback.md` §2：队列与 transport 状态
-- `docs/08-ui-architecture.md` §2–§3：descriptor、双壳、placement
-- 视图半边：`packages/ui/plugin-queue-ui-desktop/`、`packages/ui/plugin-queue-ui-mobile/`
-- 被拆出的来源：`packages/feature/plugin-player/README.md`
+- `docs/05-audio-playback.md` §2: the queue and transport state
+- `docs/08-ui-architecture.md` §2–§3: descriptors, the two shells, placement
+- View halves: `packages/ui/plugin-queue-ui-desktop/`, `packages/ui/plugin-queue-ui-mobile/`
+- The package it was split from: `packages/feature/plugin-player/README.md`

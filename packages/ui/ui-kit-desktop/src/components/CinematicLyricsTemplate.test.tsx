@@ -151,7 +151,7 @@ describe('CinematicLyricsTemplate', () => {
     const { container } = render(
       h(CinematicLyricsTemplate, { ctx, displayPosition: 0, isPlaying: true }),
     )
-    expect(container.textContent).toContain('♪ 愿音乐治愈所有的伤痕 ♪')
+    expect(container.textContent).toContain('♪ May the music heal every wound ♪')
   })
 
   it('pauses auto-follow on wheel and offers a return-to-current button', async () => {
@@ -182,7 +182,7 @@ describe('CinematicLyricsTemplate', () => {
     )
 
     expect(container.textContent).not.toContain('First line')
-    expect(container.textContent).toContain('♪ 愿音乐治愈所有的伤痕 ♪')
+    expect(container.textContent).toContain('♪ May the music heal every wound ♪')
   })
 
   it('renders plain lyrics as a uniform sheet without highlight or click targets', async () => {

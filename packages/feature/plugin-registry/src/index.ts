@@ -347,7 +347,7 @@ export class RegistryPlugin extends Service implements RegistryService {
           kind: 'route',
           id: REGISTRY_VIEWS.screen,
           path: '/registry',
-          title: '发现',
+          title: 'Discover',
           icon: 'compass',
           placement: ['tray'],
           order: 3,
@@ -356,8 +356,8 @@ export class RegistryPlugin extends Service implements RegistryService {
           kind: 'settings',
           id: REGISTRY_VIEWS.settingsCard,
           section: 'sources',
-          title: '注册表与更新',
-          description: '浏览社区音乐源/歌词源/主题/插件，检查更新',
+          title: 'Registry & updates',
+          description: 'Browse community music sources, lyric sources, themes, and plugins; check for updates',
           display: 'card',
           order: 15,
         })
@@ -591,7 +591,7 @@ export class RegistryPlugin extends Service implements RegistryService {
    * and refreshes its stored audit findings / capability-mismatch records.
    * Detection only — nothing is installed, so the install-stage `confirmed`
    * gate never applies here. The entry is looked up in the cached index; a
-   * rescan against the live index is the user's "刷新" away.
+   * rescan against the live index is the user's "Refresh" away.
    */
   async rescanEntry(entryId: string): Promise<void> {
     const entry = (await this.readIndexCache())?.entries.find((candidate) => candidate.id === entryId)
@@ -647,7 +647,7 @@ export class RegistryPlugin extends Service implements RegistryService {
     this.emitTasksChanged()
   }
 
-  /** Fetch succeeded, install not started — the "等待确认" state before the dialog is confirmed. */
+  /** Fetch succeeded, install not started — the "Awaiting confirmation" state before the dialog is confirmed. */
   private trackHoldForConfirmation(entryId: string): void {
     if (!activeTaskFor(this.tasks, entryId)) return
     holdTaskForConfirmation(this.tasks, entryId)
@@ -850,7 +850,7 @@ export class RegistryPlugin extends Service implements RegistryService {
    * confirm dialog must show.
    *
    * Every user-facing fetch is also a task-center event: a task begins at the
-   * `download` stage and, on success, parks at `pending` ("等待确认") until
+   * `download` stage and, on success, parks at `pending` ("Awaiting confirmation") until
    * the install actually starts. `rescanEntry` runs the same fetch with
    * `trackTask: false` — a diagnostics rescan is not a user install flow and
    * must not plant task rows.
@@ -979,10 +979,10 @@ export class RegistryPlugin extends Service implements RegistryService {
         if (!capCheck.matches) {
           const diffs: string[] = []
           if (capCheck.unexpectedInManifest.length) {
-            diffs.push(`manifest 申请但未在注册表声明: [${capCheck.unexpectedInManifest.join(', ')}]`)
+            diffs.push(`declared in the manifest but missing from the registry: [${capCheck.unexpectedInManifest.join(', ')}]`)
           }
           if (capCheck.missingInManifest.length) {
-            diffs.push(`注册表声明但 manifest 未申请: [${capCheck.missingInManifest.join(', ')}]`)
+            diffs.push(`declared in the registry but missing from the manifest: [${capCheck.missingInManifest.join(', ')}]`)
           }
           // Recorded before the throw so the diagnostics page can name the
           // mismatch even though no details were produced.
@@ -1046,7 +1046,7 @@ export class RegistryPlugin extends Service implements RegistryService {
    * the details (hosts / plugin risk).
    *
    * The install is one task-center operation: it resumes the entry's pending
-   * ("等待确认") record — or starts one when the service is called directly
+   * ("Awaiting confirmation") record — or starts one when the service is called directly
    * without a fetch — runs it back through `download`, and finalizes it as
    * `success` or `failed` with the extracted error text.
    */
@@ -1318,10 +1318,10 @@ export class RegistryPlugin extends Service implements RegistryService {
       if (!capCheck.matches) {
         const diffs: string[] = []
         if (capCheck.unexpectedInManifest.length) {
-          diffs.push(`manifest 申请但未在注册表声明: [${capCheck.unexpectedInManifest.join(', ')}]`)
+          diffs.push(`declared in the manifest but missing from the registry: [${capCheck.unexpectedInManifest.join(', ')}]`)
         }
         if (capCheck.missingInManifest.length) {
-          diffs.push(`注册表声明但 manifest 未申请: [${capCheck.missingInManifest.join(', ')}]`)
+          diffs.push(`declared in the registry but missing from the manifest: [${capCheck.missingInManifest.join(', ')}]`)
         }
         await this.recordCapabilityMismatch(entry, manifest.capabilities ?? [])
         throw new Error(

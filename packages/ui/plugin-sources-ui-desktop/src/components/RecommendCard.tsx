@@ -86,7 +86,7 @@ export function RecommendCard({
           },
         },
         // The play chip is for cards that open something playable. A
-        // placeholder ("当前资源无效") opens nothing, and offering a play
+        // placeholder ("invalid resource") opens nothing, and offering a play
         // button that does nothing is the lie the chip exists to avoid.
         entry.kind === 'album'
           ? h(

@@ -134,7 +134,7 @@ export function PluginGroupPanel({
                 fontStyle: 'italic',
               },
             },
-            '无匹配的插件',
+            'No matching plugins',
           )
         : h(
             'div',

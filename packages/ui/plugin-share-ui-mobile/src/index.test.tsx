@@ -173,7 +173,7 @@ describe('plugin-share-ui-mobile', () => {
       await tick()
     })
 
-    expect(container.textContent).toContain('分享歌曲')
+    expect(container.textContent).toContain('Share song')
     expect(container.textContent).toContain('Shared Song — Shared Artist')
   })
 
@@ -205,7 +205,7 @@ describe('plugin-share-ui-mobile', () => {
       await tick()
     })
 
-    const input = getByPlaceholderText('粘贴 Base64 分享码')
+    const input = getByPlaceholderText('Paste Base64 share code')
     await act(async () => {
       fireEvent.change(input, { target: { value: b64 } })
       await tick()
@@ -215,7 +215,7 @@ describe('plugin-share-ui-mobile', () => {
       await tick()
     })
 
-    expect(getByText('已识别歌曲：Shared Song — Shared Artist')).toBeDefined()
+    expect(getByText('Recognized song: Shared Song — Shared Artist')).toBeDefined()
 
     await act(async () => {
       fireEvent.click(getByTestId('share-import-play'))
@@ -235,7 +235,7 @@ describe('plugin-share-ui-mobile', () => {
     })
 
     await act(async () => {
-      fireEvent.change(getByPlaceholderText('粘贴 Base64 分享码'), {
+      fireEvent.change(getByPlaceholderText('Paste Base64 share code'), {
         target: { value: 'not-a-bbebee-payload' },
       })
       await tick()
@@ -245,7 +245,7 @@ describe('plugin-share-ui-mobile', () => {
       await tick()
     })
 
-    expect(container.textContent).toContain('无法解析分享码')
+    expect(container.textContent).toContain("Can't parse the share code")
   })
 
   it('enqueues an album from a decoded code', async () => {
@@ -269,7 +269,7 @@ describe('plugin-share-ui-mobile', () => {
       await tick()
     })
     await act(async () => {
-      fireEvent.change(getByPlaceholderText('粘贴 Base64 分享码'), { target: { value: b64 } })
+      fireEvent.change(getByPlaceholderText('Paste Base64 share code'), { target: { value: b64 } })
       fireEvent.click(getByTestId('share-import-decode'))
       await tick()
     })

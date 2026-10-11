@@ -30,10 +30,10 @@ export function ConfirmDeleteModal({
   if (!target) return null
 
   const isPlaylist = target.type === 'playlist'
-  const title = isPlaylist ? '删除歌单' : '删除专辑'
+  const title = isPlaylist ? 'Delete playlist' : 'Delete album'
   const message = isPlaylist
-    ? `确定要删除歌单“${target.name}”吗？此操作无法撤销。`
-    : `确定要从音乐库中删除专辑“${target.name}”吗？`
+    ? `Delete playlist "${target.name}"? This cannot be undone.`
+    : `Remove the album "${target.name}" from the music library?`
 
   return h(
     'div',
@@ -75,7 +75,7 @@ export function ConfirmDeleteModal({
           variant: 'ghost',
           onPress: onClose,
           testID: 'confirm-delete-cancel',
-          children: '取消',
+          children: 'Cancel',
         }),
         h(Button, {
           variant: 'danger',
@@ -83,7 +83,7 @@ export function ConfirmDeleteModal({
             void onConfirm()
           },
           testID: 'confirm-delete-button',
-          children: '删除',
+          children: 'Delete',
         }),
       ),
     ),

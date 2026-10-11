@@ -1,22 +1,22 @@
 # @BBeBee/plugin-sources-ui-desktop
 
-Layer 5（ui）— `plugin-sources`（headless）的桌面视图包：布局、手势与事件接线，别无其他。
+Layer 5 (ui) — the desktop view package for `plugin-sources` (headless): layout, gestures and event wiring, nothing more.
 
-## 概述
+## Overview
 
-把 headless 贡献的 4 个视图 id（`SOURCES_VIEWS`）绑到桌面 kit 组件上。全部领域状态来自 `@BBeBee/plugin-sources/hooks`；服务经注入的 `ctx.sources` 访问；对 headless 包只有 devDependency（类型/常量/测试用）——不是运行时 import，符合"Layer 5 对 Layer 4 仅 types"的规则。
+Binds the 4 view ids contributed by the headless package (`SOURCES_VIEWS`) to desktop kit components. All domain state comes from `@BBeBee/plugin-sources/hooks`; services are accessed through the injected `ctx.sources`; the headless package is only a devDependency (types/constants/tests) — not a runtime import, per the "Layer 5 sees Layer 4 as types only" rule.
 
-> 专辑页已拆到 `plugin-album-ui-desktop`（`album.view`）。本包只保留库/搜索/源列表/导入/测试五屏；库与搜索屏导航专辑时从 `@BBeBee/plugin-album/views` 取 route id（`ALBUM_VIEWS.album`）。
+> The album page has moved to `plugin-album-ui-desktop` (`album.view`). This package keeps only the five screens: library / search / source list / import / test; when the library and search screens navigate to an album they take the route id from `@BBeBee/plugin-album/views` (`ALBUM_VIEWS.album`).
 
-**共同纪律**（文件头注释）：loading / empty / failed 三态必须区分——混同会让用户面对一块空白而不知是没扫完还是读库失败。`Pending`（`EmptyState`）与 `Failed`（⚠ + 错误信息 + "Try again" 重试）是这条纪律的实现。
+**Shared discipline** (file-header comment): the loading / empty / failed states must be kept distinct — conflating them leaves the user staring at a blank area with no idea whether scanning is unfinished or the library read failed. `Pending` (`EmptyState`) and `Failed` (⚠ + error message + a "Try again" retry) are the implementation of that discipline.
 
-## 源文件
+## Source files
 
 ### `src/index.tsx`
 
-**注册的视图**（`apply` 经 generator effect `yield ctx.ui.registerView(...)`，fiber 名 `'sources-ui-desktop'`）：
+**Registered views** (`apply` registers via generator effect `yield ctx.ui.registerView(...)`, fiber name `'sources-ui-desktop'`):
 
-| id | 组件 |
+| id | component |
 |---|---|
 | `sources.search` | `SearchScreen` |
 | `sources.settings` | `SourcesListScreen` |
@@ -25,38 +25,38 @@ Layer 5（ui）— `plugin-sources`（headless）的桌面视图包：布局、�
 | `sources.recommend` | `RecommendScreen` |
 | `sources.recommendAll` | `RecommendAllScreen` |
 
-全部视图均注册在 `apply` 中，按需导航加载。
+All views are registered in `apply` and loaded on navigation.
 
-**各屏幕**：
+**Screens**:
 
-- **`AlbumScreen`** — 已迁至 `plugin-album-ui-desktop`（`album.view`）；库与搜索屏只负责导航到该 route id。
-- **`ImportScreen`** — 粘贴源字符串（单个文档或整个 set）。本屏存在的理由：论坛粘贴来的 set 是不透明的，"静默加进 11 个源"的导入是用户无法撤销的，所以**按按钮之前就要点名将会导入什么**。`useSourceImport`（输入即解析的 `preview`、每次提交的**全部** `issues`、`busy`/`report`/`submit`/`reset`）→ 多行 `TextField`（`rows: 14`，placeholder 含 `ruleStream`）→ 预览块（`aria-label='What will be imported'`，"N source(s)" + 名字列表）→ `Import` 按钮（`disabled: busy || !preview`）+ `Clear` → 结果行 `summariseImport(report)`："N added, N updated, N unchanged, N rejected"，**永不为空字符串**（"nothing to import" 也要说出来，否则读起来像按钮没工作）。
-- **`SearchScreen`** — 跨源搜索与音源分面板展示。hero 态：搜索条在顶部、源开关居中；提交后两者收缩到顶部，剩余高度给结果。状态全部来自 headless：`useSearchSourceSelection`（**排除式**选择——所有可搜索的源默认选中，后导入的源自动加入下一次搜索）、`useSourceSearch`（`searchAll`，generation 防后发结果被先发覆盖；支持 `loadMore(sourceId)` 针对单源追加分页）。结果区顶部提供总源数统计与「全部展开 / 全部收起」快捷开关；每个音源的结果独立封装为 **`SourcePanel`** 卡片面板：
-  - **头部吸顶与独立展开**：面板头支持点击折叠/展开，带平滑旋转指示箭头、音源名称、状态统计徽标与请求耗时；配置 `position: sticky; top: 0; zIndex: 10` 与不透明毛玻璃表面底色，在面板内部滚动时**面板头始终固定吸顶常驻可见**；
-  - **面板内部滚动约束**：容器设定 `maxHeight: min(520px, 60vh)`，内容区域配置 `flex: 1; minHeight: 0; overflowY: 'auto'`，使单源的多页搜索曲目在面板内部平滑滚动浏览；
-  - **单源独立分页加载**：面板底部提供「加载更多」按钮（`variant: 'secondary'`），点击仅拉取当前源的下一页结果并追加合并至当前面板；
-  - **单曲播放入队规范**：track 行点击调用 `playFromList(ctx, track.urn, { urns: [track.urn], context: { kind: 'search', label: search.text } })`，遵循单曲播放模式，播放队列中**仅加入并显示该单曲**，避免搜索试听污染用户的整段播放队列；专辑行导航 `/album/:urn`；
-  - **色彩管理体系适配**：全面采用 CSS 主题自定义属性（`var(--surface-1)`、`var(--border-subtle)`、`var(--color-primary)` 等）与 `background:` 简写，严格跟随系统主题动态自适应变色。
-- **`TestScreen({ sourceId })`** — 单源逐能力测试（docs/06 §10）。桌面用原生 `<select>` 选源；每个测试区只在 provider 的派生能力/方法存在时出现——Search（`capabilities.search.tracks`）、Browse、Album/Artist/Playlist/Lyrics（方法存在）、Library list（`capabilities.library.read`）、Stream（有 provider 即有，质量选项来自 `capabilities.streaming.qualities`），外加两个与文档无关的探针：经源自身 client 发 HTTP（GET/POST、URL、headers JSON、body）与脚本（文档函数在作用域内，code + args JSON）。所有运行流进右栏 `TraceList`（`<ol aria-live="polite">`、mono 字体、每条左侧 3px 色条）：`http` → `METHOD url → status (Nms)`（**status 0 显式写成 "no response"**）、`error` → `✗`、`result` → `✓`、`log` → `·`，`value` 事件用 `JsonTree`（解析失败则原样文本）。左栏 440px 独立滚动，未跑过显示 "No trace yet"。**包括成功的每一步都显示**——失败通常发生在空结果往前两步；数据已在上游 redacted，这里只排版。
-- **`RecommendScreen`** — 推荐流主屏。顶部展示两行个人动态专辑货架（"最近播放 · 专辑"由 `useRecentPlayedAlbums` 读取最近 20 首去重播放记录所在专辑；"收藏随选 · 专辑"由 `useFavoriteAlbums` 随机抽取 20 首收藏歌曲所在专辑），之后动态渲染各支持推荐能力的第三方源歌单货架（`RecommendShelf`，每源提供"显示全部"跳至 `RecommendAllScreen`）。货架通用组件 `RecommendShelfRow` 实现两端内收的弧形封面轮播（bent-ends carousel：仅当前可见最左与最右卡片呈 `perspective + rotateY(±22deg)` 3D 向内弯曲并辅以圆柱光影渐变，到达第一张或最后一张时自动取消对应侧的翻折与箭头，外层设 `overflowY: 'hidden'` 防止劫持页面垂直滚动，鼠标悬浮时 ❮ / ❯ 磨砂玻璃大按钮平滑淡入）。
-- **`RecommendAllScreen({ sourceId, name })`** — 单源推荐全量网格屏（瀑布流）。将该源的推荐条目排布为响应式卡片网格，底部支持分页加载。
+- **`AlbumScreen`** — moved to `plugin-album-ui-desktop` (`album.view`); the library and search screens only navigate to that route id.
+- **`ImportScreen`** — paste a source string (a single document or a whole set). The reason this screen exists: a set pasted from a forum is opaque, and an import that "silently adds 11 sources" is one the user cannot undo, so **the button must name what will be imported before it is pressed**. `useSourceImport` (`preview` parsed as you type, **all** `issues` of each submit, `busy`/`report`/`submit`/`reset`) → multi-line `TextField` (`rows: 14`, placeholder mentions `ruleStream`) → preview block (`aria-label='What will be imported'`, "N source(s)" + list of names) → an `Import` button (`disabled: busy || !preview`) + `Clear` → result row `summariseImport(report)`: "N added, N updated, N unchanged, N rejected", **never an empty string** ("nothing to import" must also be said, otherwise it reads as if the button did nothing).
+- **`SearchScreen`** — cross-source search with per-source panels. Hero state: the search bar sits on top with the source switches centred; after submit both shrink to the top and the remaining height goes to the results. All state comes from the headless package: `useSearchSourceSelection` (**exclusion-style** selection — every searchable source is selected by default, and newly imported sources join the next search automatically), `useSourceSearch` (`searchAll`, generation-guarded so late results never overwrite earlier ones; supports `loadMore(sourceId)` for per-source pagination). The top of the results area shows a total-source-count summary and quick "Expand all / Collapse all" switches; each source's results are wrapped in an independent **`SourcePanel`** card:
+  - **Sticky header and independent collapse**: the panel header can be clicked to collapse/expand, with a smoothly rotating chevron, the source name, a status summary badge and request duration; configured with `position: sticky; top: 0; zIndex: 10` and an opaque frosted-glass surface, the **panel header stays pinned and visible while the panel body scrolls**;
+  - **Constrained inner scrolling**: the container sets `maxHeight: min(520px, 60vh)`, the content area uses `flex: 1; minHeight: 0; overflowY: 'auto'`, so a single source's multi-page search results scroll smoothly inside its panel;
+  - **Per-source pagination**: the bottom of the panel has a "Load more" button (`variant: 'secondary'`) that fetches only the current source's next page and appends it to the panel;
+  - **Single-track enqueue semantics**: clicking a track row calls `playFromList(ctx, track.urn, { urns: [track.urn], context: { kind: 'search', label: search.text } })`, following the single-track playback mode — **only that one track** is added to and shown in the play queue, so auditioning from search never pollutes the user's real queue; album rows navigate to `/album/:urn`;
+  - **Theme-aware colors**: everything uses CSS theme custom properties (`var(--surface-1)`, `var(--border-subtle)`, `var(--color-primary)` etc.) with `background:` shorthand, so the panels adapt to the active theme dynamically.
+- **`TestScreen({ sourceId })`** — per-source capability-by-capability testing (docs/06 §10). The desktop uses a native `<select>` to pick the source; each test section appears only when the provider's derived capability/method exists — Search (`capabilities.search.tracks`), Browse, Album/Artist/Playlist/Lyrics (method exists), Library list (`capabilities.library.read`), Stream (present for any provider, quality options from `capabilities.streaming.qualities`), plus two probes that are not in the doc: HTTP via the source's own client (GET/POST, URL, headers JSON, body) and script (document functions in scope, code + args JSON). All runs flow into the right-hand `TraceList` (`<ol aria-live="polite">`, mono font, a 3px color bar on the left of each row): `http` → `METHOD url → status (Nms)` (**status 0 is spelled out as "no response"**), `error` → `✗`, `result` → `✓`, `log` → `·`, and `value` events use `JsonTree` (raw text when parsing fails). The left column is a 440px independent scroller and shows "No trace yet" before the first run. **Every step is shown, including successful ones** — failures usually happen two steps before the empty result; data is redacted upstream, this screen only lays it out.
+- **`RecommendScreen`** — the main recommendation feed. The top shows two rows of personal album shelves ("Recently played · Albums" via `useRecentPlayedAlbums`, reading the albums behind the 20 most recent deduplicated plays; "Favorites picks · Albums" via `useFavoriteAlbums`, sampling the albums behind 20 random favorite songs), followed by dynamic playlist shelves for each third-party source that supports recommendations (`RecommendShelf`, each with a "Show all" jump to `RecommendAllScreen`). The shared shelf component `RecommendShelfRow` implements a bent-ends carousel with inset covers (only the leftmost and rightmost currently visible cards bend inward via `perspective + rotateY(±22deg)` 3D plus a cylindrical light-shade gradient; the bend and arrow on a given side disappear automatically at the first or last card; the outer container sets `overflowY: 'hidden'` so it never hijacks vertical page scrolling; large frosted-glass ❮ / ❯ buttons fade in on hover).
+- **`RecommendAllScreen({ sourceId, name })`** — the full single-source recommendation grid (waterfall). Lays out the source's recommendation entries as a responsive card grid with pagination at the bottom.
 
-**`bound(ctx, Screen)`** — 绑定到**本插件**的 context 而非 shell 的（shell 渲染视图用的是 `app.ready(['ui'])` 的 context，读 `ctx.sources` 会抛 `cannot get property … without inject`）；必须 `h(Screen, …)` 而非 `Screen(…)`——函数调用会把子组件的 hooks 拼进父组件的 hook 链表。
+**`bound(ctx, Screen)`** — binds to **this plugin's** context, not the shell's (the shell renders views with the context from `app.ready(['ui'])`; reading `ctx.sources` on it throws `cannot get property … without inject`); it must call `h(Screen, …)` rather than `Screen(…)` — invoking the function directly would splice the child component's hooks into the parent's hook list.
 
-## 测试（`src/screens.test.tsx`）
+## Tests (`src/screens.test.tsx`)
 
-jsdom + Testing Library，**对真实 `ctx.sources` 渲染而非 mock**——值得钉住的是交互语义（粘贴后提交前显示什么、坏文档给用户留下什么）。harness：真实 `FsNode`/`DbNode(':memory:')`/`sourcesPlugin`，然后从**包自己的 `inject` 派生** scoped context（两者不会漂移）。23 个用例：
+jsdom + Testing Library, **rendering against a real `ctx.sources` rather than a mock** — what is worth pinning is the interaction semantics (what shows after pasting but before submitting, what a bad document leaves behind for the user). Harness: real `FsNode`/`DbNode(':memory:')`/`sourcesPlugin`, then a scoped context derived from **the package's own `inject`** (so the two cannot drift). 23 cases:
 
-1. **Import（4）**——预览先于写入（`sources` 仍为 0）、空输入禁用、导入成功报 "1 added"、坏粘贴**保留输入 + 一次给出全部问题**；
-2. **Test（3）**——测试区随 provider 的能力/方法出现且不多不少、选择器默认第一源、未跑 trace 显示 "No trace yet"；
-3. **Search（6）**——搜索前只有搜索条与源开关（没有空结果屏）、每源一个独立 section（标题、"1 track"、track 标题）、失败源报错且其余源照常显示、被 toggle 关掉的源不会被问、单曲/艺人过滤透传、外部参数唤醒联动；
-4. **SourcesList（3）**——源开关切换与响应、确认删除对话框保护、本地源文件夹管理；
-5. **RecommendScreen（5）**——单源推荐流渲染、无效资源占位符防御、无推荐空状态、最近播放专辑推荐行置顶渲染、收藏随选专辑推荐行置顶渲染；
-6. **RecommendShelfRow（1）**——两端内收弧形卡片弯曲、边界卡片平整恢复、悬浮大箭头交互与滚动联动；
-7. **RecommendAllScreen（1）**——全量网格排布与触底加载。
+1. **Import (4)** — preview happens before any write (`sources` still 0), empty input is disabled, a successful import reports "1 added", a bad paste **keeps the input + reports all issues at once**;
+2. **Test (3)** — test sections appear exactly when the provider's capabilities/methods exist, the selector defaults to the first source, an unrun trace shows "No trace yet";
+3. **Search (6)** — before searching only the search bar and source switches exist (no empty-result screen), one independent section per source (title, "1 track", track titles), a failing source reports its error while the others render normally, toggled-off sources are never asked, single-track/artist filters pass through, external-parameter wake-up linkage;
+4. **SourcesList (3)** — source toggles and their response, the delete-confirmation dialog guard, local source folder management;
+5. **RecommendScreen (5)** — single-source recommendation feed renders, invalid-resource placeholder defense, empty state without recommendations, recently-played album shelf renders on top, favorites-picks album shelf renders on top;
+6. **RecommendShelfRow (1)** — bent-ends curved cards, flat restoration at the boundary cards, hover arrow interaction linked to scrolling;
+7. **RecommendAllScreen (1)** — full grid layout and load-more at the bottom.
 
-## 相关文档
+## Related docs
 
-- `docs/08-ui-architecture.md`：descriptors、双壳、渲染规则
-- `packages/feature/plugin-sources/README.md`：headless 侧的 hooks 与视图 id
-- `packages/ui/plugin-sources-ui-mobile/README.md`：孪生半边
+- `docs/08-ui-architecture.md`: descriptors, twin shells, rendering rules
+- `packages/feature/plugin-sources/README.md`: the headless side's hooks and view ids
+- `packages/ui/plugin-sources-ui-mobile/README.md`: the twin half

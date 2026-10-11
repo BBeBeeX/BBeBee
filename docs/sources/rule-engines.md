@@ -9,11 +9,11 @@ is one line in a form field, and a source author is debugging it on a phone.
 
 ### 3.1 Engines and prefixes
 
-（规范见 [rules/sources.md §2 — Rule Language](../../rules/sources.md#2-rule-language)（L2）：prefix selects the engine，无前缀时按规则形态与文档内容类型推断）This section expands each engine's usage and where it applies.
+(see the spec at [rules/sources.md §2 — Rule Language](../../rules/sources.md#2-rule-language) (L2): the prefix selects the engine, and a prefixless rule is inferred from its shape and the document's content type) This section expands each engine's usage and where it applies.
 
 | Form | Engine | Applies to |
 |---|---|---|
-| `@css:h3 a@text` · a bare CSS selector | CSS selection with an `@attr` / `@text` / `@html` tail — unimplemented stub（规范见 [rules/sources.md §2](../../rules/sources.md#2-rule-language)（L2）：evaluation raises `RuleEngineUnavailableError`） | HTML, XML |
+| `@css:h3 a@text` · a bare CSS selector | CSS selection with an `@attr` / `@text` / `@html` tail — unimplemented stub (see the spec at [rules/sources.md §2](../../rules/sources.md#2-rule-language) (L2): evaluation raises `RuleEngineUnavailableError`) | HTML, XML |
 | `@json:$.a.b[0]` · a rule starting `$.` | JSONPath | JSON |
 | `@xpath://div[@id="t"]/text()` · a rule starting `//` | XPath. **Parses but not yet implemented** — evaluating one raises `RuleEngineUnavailableError` | HTML, XML |
 | `:(\d+)kbps` | Regular expression; capture group 1, or group 0 if there is none | Any text |
@@ -60,7 +60,7 @@ scope:
 | `prefs` | The active `StreamPrefs` ([runtime.md §6](./runtime.md#6-stream-resolution)) — quality, `saveData`, formats |
 | `src` | The host object of [runtime.md §8](./runtime.md#8-trust-what-an-imported-source-can-and-cannot-do) — `md5`, `get`, `cache`, `vars`, … |
 
-（规范见 [rules/sources.md §2](../../rules/sources.md#2-rule-language)（L2）：bare `{{ }}` 是 path 不是表达式，仅 `{{@js:…}}` 进沙箱）In practice: `{{track.id}}` and `{{page}}` resolve a dotted
+(see the spec at [rules/sources.md §2](../../rules/sources.md#2-rule-language) (L2): a bare `{{ }}` is a path, not an expression — only `{{@js:…}}` enters the sandbox) In practice: `{{track.id}}` and `{{page}}` resolve a dotted
 path against the scope above and nothing more — `{{(page-1)*50}}` is *not* evaluated and fails as
 an unresolvable path. A build without
 `ctx.js` reports the affected capability absent rather than running the rule.
@@ -71,7 +71,7 @@ that `@js:` already covers explicitly.
 
 ### 3.3 Combinators and post-processing
 
-The four base combinators are specified in [rules/sources.md §2 — Rule Language](../../rules/sources.md#2-rule-language)（L2）: `a || b` first non-empty result, `a && b` concatenation, `a %% b` interleave, `rule##pattern##replacement` regex replace. Two forms beyond that table:
+The four base combinators are specified in [rules/sources.md §2 — Rule Language](../../rules/sources.md#2-rule-language) (L2): `a || b` first non-empty result, `a && b` concatenation, `a %% b` interleave, `rule##pattern##replacement` regex replace. Two forms beyond that table:
 
 - `rule##pattern##replacement###` — the trailing `###` makes it replace-first rather than replace-all.
 - `{{rule}}` inside a `=` template — inline evaluation.

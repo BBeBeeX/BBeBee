@@ -131,10 +131,10 @@ class SettingsStub extends Service implements Partial<SettingsService> {
       { effectId: 'reverb', enabled: true, ordinal: 50 },
     ]
     public definitions = [
-      { id: 'eq10', displayName: '10频段均衡器', defaultOrder: 20 },
-      { id: 'normalize', displayName: '响度标准化', defaultOrder: 30 },
-      { id: 'compressor', displayName: '动态压缩器', defaultOrder: 40 },
-      { id: 'reverb', displayName: '空间混响', defaultOrder: 50 },
+      { id: 'eq10', displayName: 'Equalizer', defaultOrder: 20 },
+      { id: 'normalize', displayName: 'Normalization', defaultOrder: 30 },
+      { id: 'compressor', displayName: 'Compressor', defaultOrder: 40 },
+      { id: 'reverb', displayName: 'Reverb', defaultOrder: 50 },
     ] as unknown as readonly EffectDefinition<never>[]
     public latencyMs = 2
 
@@ -164,16 +164,16 @@ class SettingsStub extends Service implements Partial<SettingsService> {
       return h(
         native.View as never,
         null,
-        h(Text, { children: '音频效果与均衡器 (DSP)' }),
-        h(Text, { children: '10 频段均衡器 (EQ)' }),
-        h(Text, { children: '原声' }),
-        h(Text, { children: '音量响度标准化 (Normalize)' }),
-        h(Text, { children: '流媒体 (-14)' }),
-        h(Text, { children: '动态压缩器 (Compressor)' }),
-        h(Text, { children: '夜间模式' }),
-        h(Text, { children: '空间混响效果 (Reverb)' }),
-        h(Text, { children: '音乐大厅' }),
-        h(Text, { children: '高级效果器调音与编排' }),
+        h(Text, { children: 'Audio effects & equalizer (DSP)' }),
+        h(Text, { children: '10-Band equalizer (EQ)' }),
+        h(Text, { children: 'Flat' }),
+        h(Text, { children: 'Loudness normalization (Normalize)' }),
+        h(Text, { children: 'Streaming (-14)' }),
+        h(Text, { children: 'Dynamic compressor (Compressor)' }),
+        h(Text, { children: 'Night Mode' }),
+        h(Text, { children: 'Spatial reverb (Reverb)' }),
+        h(Text, { children: 'Concert Hall' }),
+        h(Text, { children: 'Advanced effect tuning and routing' }),
       )
     }
 
@@ -181,7 +181,7 @@ class SettingsStub extends Service implements Partial<SettingsService> {
     ;(ctx.settings as any).contribute({
       id: 'settings.dsp',
       section: 'playback',
-      title: '音频效果与均衡器 (DSP)',
+      title: 'Audio effects & equalizer (DSP)',
       display: 'card',
     })
 
@@ -198,36 +198,36 @@ class SettingsStub extends Service implements Partial<SettingsService> {
       const { ctx } = await createHarness()
       const { container } = render(h(SettingsScreen, { ctx }))
 
-      expect(container.textContent).toContain('设置')
-      expect(container.textContent).toContain('外观与语言')
-      expect(container.textContent).toContain('播放与音频')
-      expect(container.textContent).toContain('音频效果与均衡器 (DSP)')
+      expect(container.textContent).toContain('Settings')
+      expect(container.textContent).toContain('Appearance & language')
+      expect(container.textContent).toContain('Playback & Audio')
+      expect(container.textContent).toContain('Audio effects & equalizer (DSP)')
 
       // 1. EQ
-      expect(container.textContent).toContain('10 频段均衡器 (EQ)')
-      expect(container.textContent).toContain('原声')
+      expect(container.textContent).toContain('10-Band equalizer (EQ)')
+      expect(container.textContent).toContain('Flat')
 
       // 2. Normalize
-      expect(container.textContent).toContain('音量响度标准化 (Normalize)')
-      expect(container.textContent).toContain('流媒体 (-14)')
+      expect(container.textContent).toContain('Loudness normalization (Normalize)')
+      expect(container.textContent).toContain('Streaming (-14)')
 
       // 3. Compressor
-      expect(container.textContent).toContain('动态压缩器 (Compressor)')
-      expect(container.textContent).toContain('夜间模式')
+      expect(container.textContent).toContain('Dynamic compressor (Compressor)')
+      expect(container.textContent).toContain('Night Mode')
 
       // 4. Reverb
-      expect(container.textContent).toContain('空间混响效果 (Reverb)')
-      expect(container.textContent).toContain('音乐大厅')
+      expect(container.textContent).toContain('Spatial reverb (Reverb)')
+      expect(container.textContent).toContain('Concert Hall')
 
       // 5. Advanced panel link
-      expect(container.textContent).toContain('高级效果器调音与编排')
+      expect(container.textContent).toContain('Advanced effect tuning and routing')
     })
 
     it('renders audio output engine options and allows switching between WebAudio and MPV Hi-Fi', async () => {
       const { ctx } = await createHarness()
       const { container } = render(h(SettingsScreen, { ctx }))
 
-      expect(container.textContent).toContain('音频输出引擎')
+      expect(container.textContent).toContain('Audio output engine')
       expect(container.textContent).toContain('WebAudio')
       expect(container.textContent).toContain('MPV Hi-Fi')
     })
@@ -237,13 +237,13 @@ class SettingsStub extends Service implements Partial<SettingsService> {
       ;(ctx.settings as any).contribute({
         id: 'custom.feature',
         section: 'custom',
-        title: '自定义扩展设置',
-        description: '动态注册的配置项',
-        actionText: '打开扩展',
+        title: 'Custom extension settings',
+        description: 'Dynamically registered configuration',
+        actionText: 'Open extension',
       })
       const { container } = render(h(SettingsScreen, { ctx }))
-      expect(container.textContent).toContain('自定义扩展设置')
-      expect(container.textContent).toContain('动态注册的配置项')
-      expect(container.textContent).toContain('打开扩展')
+      expect(container.textContent).toContain('Custom extension settings')
+      expect(container.textContent).toContain('Dynamically registered configuration')
+      expect(container.textContent).toContain('Open extension')
     })
   })

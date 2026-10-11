@@ -66,9 +66,9 @@ export function StyleSwitcher({ ctx, styleId, onStyleChange }: StyleSwitcherProp
       'button',
       {
         type: 'button',
-        'aria-label': '切换播放页样式',
+        'aria-label': 'Switch now-playing style',
         'data-testid': 'style-switcher-button',
-        title: '切换播放页样式',
+        title: 'Switch now-playing style',
         onClick: () => setOpen((prev) => !prev),
         style: {
           display: 'flex',
@@ -101,7 +101,7 @@ export function StyleSwitcher({ ctx, styleId, onStyleChange }: StyleSwitcherProp
           'div',
           {
             role: 'menu',
-            'aria-label': '播放页样式',
+            'aria-label': 'Now-playing styles',
             style: {
               position: 'absolute',
               top: '100%',

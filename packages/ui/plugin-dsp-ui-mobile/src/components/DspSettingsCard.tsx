@@ -86,12 +86,12 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
   return h(
     native.View as never,
     null,
-    renderSectionHeader('音频效果与均衡器 (DSP)', '图示均衡器、响度标准化、动态压缩与空间混响'),
+    renderSectionHeader('Audio effects & equalizer (DSP)', 'Graphic EQ, loudness normalization, dynamic compression and spatial reverb'),
     renderCard([
       // 1. EQ
       renderRow(
-        '10 频段均衡器 (EQ)',
-        '调节各频段增益，塑造适宜听感',
+        '10-Band equalizer (EQ)',
+        'Adjust per-band gain to shape the sound',
         renderToggle(eqEntry?.enabled ?? false, () =>
           void setEnabled('eq10', !(eqEntry?.enabled ?? false)),
         ),
@@ -101,10 +101,10 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
             native.View as never,
             { style: { flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space[1], paddingVertical: 2 } },
             [
-              { id: '原声 (Flat)', label: '原声' },
-              { id: '低音增强 (Bass Boost)', label: '低音' },
-              { id: '清晰人声 (Vocal)', label: '人声' },
-              { id: '清亮高音 (Treble)', label: '高音' },
+              { id: 'Flat', label: 'Flat' },
+              { id: 'Bass Boost', label: 'Bass' },
+              { id: 'Vocal', label: 'Vocal' },
+              { id: 'Treble', label: 'Treble' },
             ].map((preset) =>
               h(Button, {
                 key: preset.id,
@@ -118,8 +118,8 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
 
       // 2. Compressor
       renderRow(
-        '动态压缩器 (Compressor)',
-        '抑制大爆发音量，提升微弱细节',
+        'Dynamic compressor (Compressor)',
+        'Tames loud peaks and lifts quiet details',
         renderToggle(compEntry?.enabled ?? false, () =>
           void setEnabled('compressor', !(compEntry?.enabled ?? false)),
         ),
@@ -129,9 +129,9 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
             native.View as never,
             { style: { flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space[1], paddingVertical: 2 } },
             [
-              { id: '夜间模式 (Night Mode)', label: '夜间模式' },
-              { id: '温和顺滑 (Subtle)', label: '温和顺滑' },
-              { id: '强劲动态 (Heavy)', label: '强劲动态' },
+              { id: 'Night Mode', label: 'Night Mode' },
+              { id: 'Subtle', label: 'Subtle' },
+              { id: 'Heavy', label: 'Heavy' },
             ].map((preset) =>
               h(Button, {
                 key: preset.id,
@@ -145,8 +145,8 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
 
       // 4. Reverb
       renderRow(
-        '空间混响效果 (Reverb)',
-        '合成自然空间反射与混响尾音',
+        'Spatial reverb (Reverb)',
+        'Synthesizes natural spatial reflections and reverb tails',
         renderToggle(reverbEntry?.enabled ?? false, () =>
           void setEnabled('reverb', !(reverbEntry?.enabled ?? false)),
         ),
@@ -159,9 +159,9 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
               native.View as never,
               { style: { flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space[1], paddingVertical: 2 } },
               [
-                { id: '小型房间 (Small Room)', label: '小型房间' },
-                { id: '音乐大厅 (Concert Hall)', label: '音乐大厅' },
-                { id: '板式混响 (Plate)', label: '板式混响' },
+                { id: 'Small Room', label: 'Small Room' },
+                { id: 'Concert Hall', label: 'Concert Hall' },
+                { id: 'Plate', label: 'Plate' },
               ].map((preset) =>
                 h(Button, {
                   key: preset.id,
@@ -174,12 +174,12 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
             h(Text, {
               variant: 'xs',
               tone: 'muted',
-              children: `混响比例: ${Math.round(Number(reverbParams.mix ?? 0.25) * 100)}%`,
+              children: `Reverb mix: ${Math.round(Number(reverbParams.mix ?? 0.25) * 100)}%`,
             }),
             h(Slider, {
               value: Math.round(Number(reverbParams.mix ?? 0.25) * 100),
               max: 100,
-              accessibilityLabel: '混响比例',
+              accessibilityLabel: 'Reverb mix',
               onChange: (v) => void setParam('reverb', 'mix', Math.round(v) / 100),
             }),
           )
@@ -187,10 +187,10 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
 
       // 5. Advanced Panel Link
       renderRow(
-        '高级效果器调音与编排',
-        `处理节点: ${chain.length} · 延迟: ${latencyMs}ms`,
+        'Advanced effect tuning and routing',
+        `Nodes: ${chain.length} · Latency: ${latencyMs}ms`,
         h(Button, {
-          children: '效果器面板',
+          children: 'Effects panel',
           onPress: () => {
             ctx.ui?.navigate?.('dsp.view')
           },

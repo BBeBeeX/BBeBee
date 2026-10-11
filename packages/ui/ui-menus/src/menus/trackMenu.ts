@@ -49,7 +49,7 @@ export interface TrackMenuOptions {
   isHistory?: boolean
   /**
    * The lyric text of the track, when the calling screen already has it on
-   * screen; its presence (with the share service) makes "分享歌词" offerable.
+   * screen; its presence (with the share service) makes "Share lyrics" offerable.
    * The model never fetches lyrics itself.
    */
   lyrics?: { lines: readonly string[] }
@@ -79,14 +79,14 @@ export function trackMenuItems(
   const items: MenuItemSpec[] = []
 
   const submenu = addToPlaylistSubmenu(library, [track.urn], opts.playlists ?? [])
-  if (submenu) items.push({ id: 'add-to-playlist', label: '加入歌单', icon: 'plus', submenu })
+  if (submenu) items.push({ id: 'add-to-playlist', label: 'Add to playlist', icon: 'plus', submenu })
 
   if (library && opts.fromPlaylistUrn && target.playlistItemId) {
     const playlistUrn = opts.fromPlaylistUrn
     const itemId = target.playlistItemId
     items.push({
       id: 'remove-from-playlist',
-      label: '从此歌单中删除',
+      label: 'Remove from this playlist',
       icon: 'minus',
       tone: 'danger',
       onSelect: () => library.removeItems(playlistUrn, [itemId]),
@@ -97,7 +97,7 @@ export function trackMenuItems(
     const queueItemId = target.queueItemId
     items.push({
       id: 'remove-from-queue',
-      label: '从队列中移除',
+      label: 'Remove from queue',
       icon: 'trash',
       tone: 'danger',
       onSelect: () => player.removeItems([queueItemId]),
@@ -108,7 +108,7 @@ export function trackMenuItems(
     const historyTarget = target.historyRecordId ?? track.urn
     items.push({
       id: 'remove-from-history',
-      label: '从最近播放中移除',
+      label: 'Remove from history',
       icon: 'trash',
       tone: 'danger',
       onSelect: () => void player.removeHistory?.(historyTarget),
@@ -117,8 +117,8 @@ export function trackMenuItems(
 
   if (track.loved) {
     items.push({
-      id: 'remove-favourite',
-      label: '从“最喜欢的音乐”中删除',
+      id: 'remove-favorite',
+      label: 'Remove from Favorites',
       icon: 'heart',
       tone: 'danger',
       onSelect: async () => {
@@ -128,8 +128,8 @@ export function trackMenuItems(
     })
   } else if (sources || library) {
     items.push({
-      id: 'add-favourite',
-      label: '添加至“最喜欢的音乐”',
+      id: 'add-favorite',
+      label: 'Add to Favorites',
       icon: 'heart-filled',
       onSelect: async () => {
         await sources?.setLoved(track.urn, true)
@@ -141,7 +141,7 @@ export function trackMenuItems(
   if (player) {
     items.push({
       id: 'enqueue',
-      label: '加入播放列表',
+      label: 'Add to play queue',
       icon: 'playlist-add',
       onSelect: () => player.enqueueLast([track.urn]),
     })
@@ -150,7 +150,7 @@ export function trackMenuItems(
   if (downloads) {
     items.push({
       id: 'download',
-      label: '下载',
+      label: 'Download',
       icon: 'download',
       onSelect: () => void downloads.enqueue([track.urn]),
     })
@@ -160,7 +160,7 @@ export function trackMenuItems(
   if (share) {
     items.push({
       id: 'share-track',
-      label: '分享歌曲',
+      label: 'Share song',
       icon: 'share',
       onSelect: () => share.shareTrack(track),
     })
@@ -170,7 +170,7 @@ export function trackMenuItems(
       const lines = [...lyricLines]
       items.push({
         id: 'share-lyrics',
-        label: '分享歌词',
+        label: 'Share lyrics',
         icon: 'share',
         onSelect: () => share.shareLyrics(track, lines),
       })
@@ -182,7 +182,7 @@ export function trackMenuItems(
   if (sleepSubmenu) {
     items.push({
       id: 'sleep-timer',
-      label: sleepTimer?.state.active ? '睡眠定时器 (已开启)' : '睡眠定时器',
+      label: sleepTimer?.state.active ? 'sleep timer (on)' : 'sleep timer',
       icon: 'clock',
       submenu: sleepSubmenu,
     })
@@ -192,7 +192,7 @@ export function trackMenuItems(
     const albumUrn = track.albumUrn
     items.push({
       id: 'go-to-album',
-      label: '转至专辑',
+      label: 'Go to album',
       icon: 'disc',
       // 'album.view' is plugin-album's view descriptor id — serialized data,
       // so the menu model carries the literal rather than importing the
@@ -204,7 +204,7 @@ export function trackMenuItems(
   if (opts.onShowTrackInfo) {
     items.push({
       id: 'track-info',
-      label: '查看播放内容',
+      label: "See what's playing",
       icon: 'info-circle',
       onSelect: () => opts.onShowTrackInfo!(track),
     })
@@ -214,7 +214,7 @@ export function trackMenuItems(
   if (originalUrl) {
     items.push({
       id: 'open-original-resource',
-      label: '跳转原始资源',
+      label: 'Open original resource',
       icon: 'share-box',
       onSelect: () => openExternalUrl(originalUrl),
     })

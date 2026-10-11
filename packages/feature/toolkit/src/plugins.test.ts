@@ -87,9 +87,9 @@ describe('toolkit: plugins', () => {
 
   describe('filterPlugins', () => {
     const list = [
-      { id: '@BBeBee/plugin-player', name: 'plugin-player', displayName: '播放器', moduleId: 'playback' },
-      { id: '@BBeBee/plugin-lyrics', name: 'plugin-lyrics', displayName: '歌词', moduleId: 'lyrics' },
-      { id: '@BBeBee/plugin-theme', name: 'plugin-theme', displayName: '主题', moduleId: 'ui' },
+      { id: '@BBeBee/plugin-player', name: 'plugin-player', displayName: 'Player', moduleId: 'playback' },
+      { id: '@BBeBee/plugin-lyrics', name: 'plugin-lyrics', displayName: 'Lyrics', moduleId: 'lyrics' },
+      { id: '@BBeBee/plugin-theme', name: 'plugin-theme', displayName: 'Theme', moduleId: 'ui' },
     ]
 
     it('returns all when query is empty', () => {
@@ -99,7 +99,7 @@ describe('toolkit: plugins', () => {
 
     it('filters case-insensitively across id, name, displayName, moduleId', () => {
       expect(filterPlugins(list, 'play')).toHaveLength(1)
-      expect(filterPlugins(list, '歌词')).toHaveLength(1)
+      expect(filterPlugins(list, 'Lyrics')).toHaveLength(1)
       expect(filterPlugins(list, 'LYRICS')).toHaveLength(1)
       expect(filterPlugins(list, 'ui')).toHaveLength(1)
       expect(filterPlugins(list, 'nonexistent')).toHaveLength(0)

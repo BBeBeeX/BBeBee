@@ -139,22 +139,22 @@ describe('TrackInfoModal', () => {
       h(TrackInfoModal, { ctx, track, open: true, onClose: () => {} }),
     )
 
-    expect(await findByText('播放内容详情')).toBeTruthy()
+    expect(await findByText('Track details')).toBeTruthy()
     expect(getAllByText('Hotel California').length).toBe(2)
     expect(getByText('Eagles')).toBeTruthy()
-    expect(getByText('本地音乐文件')).toBeTruthy()
+    expect(getByText('Local music file')).toBeTruthy()
     expect(getByText('Hotel California.flac')).toBeTruthy()
     expect(getByText('/Music/Eagles/Hotel California.flac')).toBeTruthy()
     expect(getByText('42 MB')).toBeTruthy()
     expect(getByText('6:31')).toBeTruthy()
     expect(getAllByText('44,100 Hz').length).toBeGreaterThanOrEqual(1)
-    expect(getAllByText('2 (立体声 Stereo)').length).toBeGreaterThanOrEqual(1)
+    expect(getAllByText('2 (Stereo)').length).toBeGreaterThanOrEqual(1)
     expect(getByText('920 kbps')).toBeTruthy()
     expect(getByText('FLAC')).toBeTruthy()
     expect(getByText('Vorbis, ID3v2.3')).toBeTruthy()
 
     // Third party fields should not be present
-    expect(queryByText('第三方源 ID')).toBeNull()
+    expect(queryByText('Third-party source ID')).toBeNull()
   })
 
   it('renders third-party source details', async () => {
@@ -179,20 +179,20 @@ describe('TrackInfoModal', () => {
       h(TrackInfoModal, { ctx, track, open: true, onClose: () => { closed = true } }),
     )
 
-    expect(await findByText('播放内容详情')).toBeTruthy()
+    expect(await findByText('Track details')).toBeTruthy()
     expect(getByText('Bilibili Audio')).toBeTruthy()
     expect(getByText('UP Master')).toBeTruthy()
-    expect(getByText('第三方网络音乐源')).toBeTruthy()
-    expect(getByText('第三方源 ID')).toBeTruthy()
+    expect(getByText('Third-party online music source')).toBeTruthy()
+    expect(getByText('Third-party source ID')).toBeTruthy()
     expect(getByText('bilibili')).toBeTruthy()
-    expect(getByText('当前歌曲源 ID')).toBeTruthy()
+    expect(getByText('Current source track ID')).toBeTruthy()
     expect(getByText('BV1xx411c7mD')).toBeTruthy()
     expect(getAllByText('48,000 Hz').length).toBeGreaterThanOrEqual(1)
     expect(getByText('320 kbps')).toBeTruthy()
     expect(getByText('M4A')).toBeTruthy()
 
     // Local fields should not be present
-    expect(queryByText('文件路径')).toBeNull()
+    expect(queryByText('File path')).toBeNull()
 
     // Test close button
     const closeBtn = getByLabelText('Close')
@@ -225,7 +225,7 @@ describe('TrackInfoModal', () => {
       h(TrackInfoModal, { ctx, track, open: true, onClose: () => {} }),
     )
 
-    const copyBtn = await findByTitle('复制')
+    const copyBtn = await findByTitle('Copy')
     fireEvent.click(copyBtn)
     expect(writeTextMock).toHaveBeenCalledWith('/Music/test.mp3')
   })
@@ -256,7 +256,7 @@ describe('TrackInfoModal', () => {
     )
 
     expect(await findByText('Scoped Track')).toBeTruthy()
-    expect(await findByText('播放内容详情')).toBeTruthy()
+    expect(await findByText('Track details')).toBeTruthy()
   })
 
   it('recovers local file info via stream.target and fs.stat when DB has no binding', async () => {
@@ -315,10 +315,10 @@ describe('TrackInfoModal', () => {
 
     expect(await findByText('320 kbps')).toBeTruthy()
     expect(getByText('USB DAC Hi-Res Audio')).toBeTruthy()
-    expect(getByText('WASAPI (系统共享混音)')).toBeTruthy()
+    expect(getByText('WASAPI (system shared mixing)')).toBeTruthy()
     expect(getByText('96,000 Hz')).toBeTruthy()
     expect(getByText('24-bit Float')).toBeTruthy()
-    expect(getByText('4,608 kbps (未压缩 PCM 带宽)')).toBeTruthy()
+    expect(getByText('4,608 kbps (uncompressed PCM bandwidth)')).toBeTruthy()
   })
 
   it('corrects abnormal truncated bitrate (< 32 kbps) using physical file calculation', async () => {
@@ -374,7 +374,7 @@ describe('TrackInfoModal', () => {
     )
 
     expect(await findByText('Audiophile Track')).toBeTruthy()
-    expect(getByText('MPV Hi-Fi (原生崩溃隔离 & WASAPI 直通)')).toBeTruthy()
+    expect(getByText('MPV Hi-Fi (native crash isolation & WASAPI passthrough)')).toBeTruthy()
   })
 })
 

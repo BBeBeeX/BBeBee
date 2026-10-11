@@ -35,7 +35,7 @@ export function RenameFolderModal({
   return h(
     'div',
     {
-      'aria-label': '重命名文件夹',
+      'aria-label': 'Rename folder',
       style: {
         position: 'fixed',
         inset: 0,
@@ -63,11 +63,11 @@ export function RenameFolderModal({
           gap: 16,
         },
       },
-      h('h3', { style: { margin: 0, fontSize: 16, color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600 } }, '重命名文件夹'),
+      h('h3', { style: { margin: 0, fontSize: 16, color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600 } }, 'Rename folder'),
       h(TextField, {
         value: name,
         onChange: setName,
-        placeholder: '文件夹名称',
+        placeholder: 'Folder name',
         testID: 'rename-collection-name',
       }),
       h(
@@ -76,14 +76,14 @@ export function RenameFolderModal({
         h(Button, {
           variant: 'ghost',
           onPress: onClose,
-          children: '取消',
+          children: 'Cancel',
         }),
         h(Button, {
           variant: 'primary',
           disabled: !name.trim() || saving,
           onPress: handleSave,
           testID: 'rename-collection-save',
-          children: saving ? '保存中…' : '保存',
+          children: saving ? 'Saving…' : 'Save',
         }),
       ),
     ),

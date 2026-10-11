@@ -61,7 +61,7 @@ export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
     if (!library?.updateProfile) return
     const trimmed = name.trim()
     if (!trimmed) {
-      setError('用户名不能为空')
+      setError('Username cannot be empty')
       return
     }
     void library
@@ -97,7 +97,7 @@ export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
             letterSpacing: '-0.01em',
           },
         },
-        '用户',
+        'User',
       ),
       h(
         'p',
@@ -109,7 +109,7 @@ export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
             lineHeight: 1.4,
           },
         },
-        '本地用户资料，歌单等内容的创建者将显示此名称',
+        'Local user profile; playlists and other content will show this name as their creator',
       ),
     ),
     h(
@@ -132,11 +132,11 @@ export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
         h(
           'div',
           { style: { flex: 1, minWidth: 0 } },
-          h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary, #F5F5F7)' } }, '用户名'),
+          h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary, #F5F5F7)' } }, 'Username'),
           h(
             'div',
             { style: { fontSize: 12, color: 'var(--color-text-secondary, #8E8E93)', marginTop: 3 } },
-            error ?? (justSaved ? '已保存' : '创建歌单时作为创建者显示'),
+            error ?? (justSaved ? 'Saved' : 'Shown as the creator when you create playlists'),
           ),
         ),
         h(
@@ -167,14 +167,14 @@ export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
                 flexShrink: 0,
               },
             },
-            justSaved ? '已保存' : '保存',
+            justSaved ? 'Saved' : 'Save',
           ),
         ),
       ),
       h(
         'div',
         { style: { ...rowStyle, borderBottom: 'none' } },
-        h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary, #F5F5F7)' } }, '用户 ID'),
+        h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary, #F5F5F7)' } }, 'User ID'),
         h('div', { style: { fontSize: 12, color: 'var(--color-text-secondary, #8E8E93)' } }, userId || '—'),
       ),
     ),

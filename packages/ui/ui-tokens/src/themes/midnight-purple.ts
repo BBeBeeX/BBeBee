@@ -450,8 +450,8 @@ export const midnightPurpleLightCssVariables: Record<string, string> = {
 
 export const midnightPurpleTheme: ThemeDefinition = {
   id: 'midnight-purple',
-  name: 'Bee Music · Cyber Neon (蓝紫电光)',
-  description: '以 Bee 角色为视觉核心，黑白对比与冰蓝、电光蓝、薰衣草紫连续光谱，通透微光与沉浸深黑。',
+  name: 'Bee Music · Cyber Neon',
+  description: 'Bee-character visuals at the core: black-and-white contrast over a continuous spectrum of ice blue, electric blue, and lavender, with translucent glow on immersive deep black.',
   isDark: true,
   tokens: midnightPurpleTokens,
   lightTokens: midnightPurpleLightTokens,

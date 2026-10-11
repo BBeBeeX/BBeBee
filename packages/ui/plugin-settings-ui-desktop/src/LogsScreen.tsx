@@ -99,7 +99,7 @@ export function LogsScreen({ ctx }: { ctx: Context }): ReactElement {
         { style: { display: 'flex', alignItems: 'center', gap: 16 } },
         h(Button, {
           variant: 'secondary',
-          children: '← 返回调试',
+          children: '← Back to debug',
           onPress: () => ui?.navigate?.('debug.view'),
         }),
         h(
@@ -115,12 +115,12 @@ export function LogsScreen({ ctx }: { ctx: Context }): ReactElement {
                 color: '#F8FAFC',
               },
             },
-            '系统日志 (Discover Logs)',
+            'System logs (Discover Logs)',
           ),
           h(
             'span',
             { style: { fontSize: 12, color: '#64748B' } },
-            `共缓冲 ${records.length} 条记录，当前匹配 ${filtered.length} 条 (最新排在最前)`,
+            `${records.length} records buffered, ${filtered.length} matching (newest first)`,
           ),
         ),
       ),
@@ -129,12 +129,12 @@ export function LogsScreen({ ctx }: { ctx: Context }): ReactElement {
         { style: { display: 'flex', gap: 10 } },
         h(Button, {
           variant: 'secondary',
-          children: copied ? '✓ 已复制 NDJSON' : '复制全量日志',
+          children: copied ? '✓ NDJSON copied' : 'Copy all logs',
           onPress: handleCopy,
         }),
         h(Button, {
           variant: 'danger',
-          children: '清空日志',
+          children: 'Clear logs',
           onPress: handleClear,
         }),
       ),
@@ -159,7 +159,7 @@ export function LogsScreen({ ctx }: { ctx: Context }): ReactElement {
       // Search box
       h('input', {
         type: 'text',
-        placeholder: '搜索日志内容、模块或 Scope…',
+        placeholder: 'Search log content, module or scope…',
         value: searchTerm,
         onChange: (e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value),
         style: {
@@ -177,7 +177,7 @@ export function LogsScreen({ ctx }: { ctx: Context }): ReactElement {
       h(
         'div',
         { style: { display: 'flex', gap: 6 } },
-        renderLevelButton('all', '全部', levelFilter, setLevelFilter),
+        renderLevelButton('all', 'All', levelFilter, setLevelFilter),
         renderLevelButton('info', 'INFO', levelFilter, setLevelFilter),
         renderLevelButton('warn', 'WARN', levelFilter, setLevelFilter),
         renderLevelButton('error', 'ERROR', levelFilter, setLevelFilter),
@@ -211,7 +211,7 @@ export function LogsScreen({ ctx }: { ctx: Context }): ReactElement {
                 fontSize: 13,
               },
             },
-            '暂无符合条件的日志记录',
+            'No log records match the current filters',
           )
         : filtered.map((rec, index) => renderLogRow(rec, index)),
     ),

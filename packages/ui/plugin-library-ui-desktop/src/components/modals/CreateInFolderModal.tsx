@@ -36,7 +36,7 @@ export function CreateInFolderModal({
   return h(
     'div',
     {
-      'aria-label': isPlaylist ? '在文件夹中创建歌单' : '创建文件夹',
+      'aria-label': isPlaylist ? 'Create playlist in folder' : 'Create folder',
       style: {
         position: 'fixed',
         inset: 0,
@@ -64,11 +64,11 @@ export function CreateInFolderModal({
           gap: 16,
         },
       },
-      h('h3', { style: { margin: 0, fontSize: 16, color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600 } }, isPlaylist ? '在文件夹中创建歌单' : '创建文件夹'),
+      h('h3', { style: { margin: 0, fontSize: 16, color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600 } }, isPlaylist ? 'Create playlist in folder' : 'Create folder'),
       h(TextField, {
         value: name,
         onChange: setName,
-        placeholder: isPlaylist ? '新歌单名称' : '新文件夹名称',
+        placeholder: isPlaylist ? 'New playlist name' : 'New folder name',
         testID: isPlaylist ? 'folder-create-playlist-name' : 'folder-create-subfolder-name',
       }),
       h(
@@ -77,14 +77,14 @@ export function CreateInFolderModal({
         h(Button, {
           variant: 'ghost',
           onPress: onClose,
-          children: '取消',
+          children: 'Cancel',
         }),
         h(Button, {
           variant: 'primary',
           disabled: !name.trim() || saving,
           onPress: handleCreate,
           testID: 'folder-create-submit',
-          children: saving ? '创建中…' : '创建',
+          children: saving ? 'Creating…' : 'Create',
         }),
       ),
     ),

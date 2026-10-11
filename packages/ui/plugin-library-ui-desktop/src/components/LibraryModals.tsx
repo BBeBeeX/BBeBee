@@ -100,11 +100,11 @@ export function LibraryModals({
             boxShadow: 'var(--shadow-modal, 0 8px 32px rgba(0, 0, 0, 0.8))',
           },
         },
-        h('h3', { style: { margin: 0, fontSize: 16, color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600 } }, '创建歌单'),
+        h('h3', { style: { margin: 0, fontSize: 16, color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600 } }, 'Create playlist'),
         h(TextField, {
           value: draft,
           onChange: setDraft,
-          placeholder: '新歌单名称',
+          placeholder: 'New playlist name',
           testID: 'playlists-new-name',
         }),
         h(
@@ -116,7 +116,7 @@ export function LibraryModals({
               setShowCreatePlaylistModal(false)
               setDraft('')
             },
-            children: '取消',
+            children: 'Cancel',
           }),
           h(Button, {
             variant: 'primary',
@@ -126,7 +126,7 @@ export function LibraryModals({
             },
             disabled: draft.trim().length === 0,
             testID: 'playlists-create',
-            children: '创建',
+            children: 'Create',
           }),
         ),
       ),
@@ -160,11 +160,11 @@ export function LibraryModals({
             boxShadow: 'var(--shadow-modal, 0 8px 32px rgba(0, 0, 0, 0.8))',
           },
         },
-        h('h3', { style: { margin: 0, fontSize: 16, color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600 } }, '创建文件夹'),
+        h('h3', { style: { margin: 0, fontSize: 16, color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600 } }, 'Create folder'),
         h(TextField, {
           value: collectionDraft,
           onChange: setCollectionDraft,
-          placeholder: '新文件夹名称',
+          placeholder: 'New folder name',
           testID: 'collections-new-name',
         }),
         h(
@@ -176,7 +176,7 @@ export function LibraryModals({
               setShowCreateCollectionModal(false)
               setCollectionDraft('')
             },
-            children: '取消',
+            children: 'Cancel',
           }),
           h(Button, {
             variant: 'primary',
@@ -186,7 +186,7 @@ export function LibraryModals({
             },
             disabled: collectionDraft.trim().length === 0,
             testID: 'collections-create',
-            children: '创建',
+            children: 'Create',
           }),
         ),
       ),

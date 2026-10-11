@@ -61,11 +61,11 @@ export interface NowPlayingStyleMeta {
 // (`ui-kit-desktop/src/icons`): an unknown name falls through `tablerIcon`
 // and renders as clipped raw text instead of an icon.
 export const NOW_PLAYING_STYLES: readonly NowPlayingStyleMeta[] = [
-  { id: 'classic', name: '经典', description: '居中封面，经典布局', icon: 'music', type: 'builtin' },
-  { id: 'full-cover', name: '沉浸封面', description: '全屏模糊封面背景', icon: 'photo', type: 'builtin' },
-  { id: 'vinyl', name: '黑胶唱片', description: '旋转黑胶唱片风格', icon: 'disc', type: 'builtin' },
-  { id: 'compact', name: '左右分栏', description: '封面与信息并排显示', icon: 'layout-sidebar', type: 'builtin' },
-  { id: 'cinematic', name: '映画歌词', description: '16:9 映画质感与动态声波', icon: 'wave-sine', type: 'builtin' },
+  { id: 'classic', name: 'Classic', description: 'Centred artwork, classic layout', icon: 'music', type: 'builtin' },
+  { id: 'full-cover', name: 'Immersive Cover', description: 'Full-screen blurred artwork background', icon: 'photo', type: 'builtin' },
+  { id: 'vinyl', name: 'Vinyl', description: 'Spinning vinyl record style', icon: 'disc', type: 'builtin' },
+  { id: 'compact', name: 'Side-by-side', description: 'Artwork and info side by side', icon: 'layout-sidebar', type: 'builtin' },
+  { id: 'cinematic', name: 'Cinematic Lyrics', description: '16:9 cinematic aesthetic with dynamic waveform', icon: 'wave-sine', type: 'builtin' },
 ] as const
 
 export const DEFAULT_NOW_PLAYING_STYLE: NowPlayingStyleId = 'classic'

@@ -189,7 +189,7 @@ export function useLibraryProfile(ctx: Context): UserProfile | undefined {
  * (docs/07 §4.7), and its `library_items` row, which is what the shelf reads.
  * The heart writes **both**, because a user pressing one heart has expressed
  * one intent and the two stores disagreeing is a bug they would see: a
- * hearted track missing from Favourites, or an unsaved one still in the
+ * hearted track missing from Favorites, or an unsaved one still in the
  * heart's list.
  *
  * Both reads go through `serviceOf`, so a build with no library (or a test

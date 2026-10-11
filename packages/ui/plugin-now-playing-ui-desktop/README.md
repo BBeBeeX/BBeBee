@@ -1,46 +1,46 @@
 # @BBeBee/plugin-now-playing-ui-desktop
 
-Layer 5（ui）— `plugin-now-playing`（headless）的桌面视图包："正在播放"的两块面。
+Layer 5 (ui) — the desktop view package for `plugin-now-playing` (headless): the two "Now playing" surfaces.
 
-## 概述
+## Overview
 
-把 `now-playing.bar` 与 `now-playing.view` 绑到桌面 kit 上，从 `plugin-player` 的桌面视图包整体迁入。领域状态全部来自 `@BBeBee/plugin-player/hooks`；`ctx.player` 经 `inject` 访问。对 headless 包是运行时依赖（hooks 与 view id）。
+Binds `now-playing.bar` and `now-playing.view` onto the desktop kit; migrated wholesale from `plugin-player`'s desktop view package. All domain state comes from `@BBeBee/plugin-player/hooks`; `ctx.player` is accessed via `inject`. Runtime dependency on the headless package (hooks and view ids).
 
-**平台形状的差异**：桌面上的"正在播放"面是一个**常驻底部走带条**（bar），整屏播放页由它打开——这是真正由平台决定的差异，也正是 ADR-2 接受把视图写两遍的原因。
+**Platform shape difference**: on desktop the "Now playing" surface is a **persistent bottom transport bar** (bar) from which the fullscreen play page is opened — a genuinely platform-decided difference, and exactly why ADR-2 accepted writing the views twice.
 
-## 源文件
+## Source files
 
 ### `src/index.tsx`
 
-**注册的视图**（generator effect `'now-playing-ui-desktop'`）：
+**Registered views** (generator effect `'now-playing-ui-desktop'`):
 
-| id | 组件 |
+| id | component |
 |---|---|
 | `now-playing.bar` | `NowPlayingBar` |
 | `now-playing.view` | `NowPlayingScreen` |
 
-- **`NowPlayingBar({ ctx, onOpenNowPlaying? })`** — 常驻底部走带条（`role="region"` + `aria-label="Now playing"`）。`useTransport`/`usePosition`/`useDuration`/`useTransportAvailability` 四个 headless hook 供数。三段布局：左侧封面（点击/回车打开播放页）与 ⏮ / ⏯ / ⏭ 三个 `IconButton`（**⏯ 是一个控件两个状态**，label 同步切换）；中间进度 `Slider`（只接 `onCommit`，`disabled: !can.canSeek`）+ `formatDuration` 两端时间——**`stalled` 显示 "Buffering…" 而非暂停**；右侧音量。打开播放页优先走 shell 的 `onOpenNowPlaying`，否则 `ui.navigate(NOW_PLAYING_VIEWS.nowPlaying)`。
-- **`NowPlayingScreen({ ctx, onClose? })`** — 整屏播放页（居中竖排）。大封面（280px）、曲名/艺人/专辑、`Buffering…`、进度条与走带三键（与 bar 同语义）；左上角关闭键（`aria-label="Close now playing"`）。曲名未解析到时显示 "Loading…"，**绝不显示 URN**。
-- 封面统一经 `CachedArtwork`（`useResolvedArtwork`）解析：缓存未命中先画 fallback，不把远端 URL 交给第二个请求。
+- **`NowPlayingBar({ ctx, onOpenNowPlaying? })`** — the persistent bottom transport bar (`role="region"` + `aria-label="Now playing"`). Fed by the four headless hooks `useTransport`/`usePosition`/`useDuration`/`useTransportAvailability`. Three-part layout: artwork on the left (click/Enter opens the play page) with the ⏮ / ⏯ / ⏭ `IconButton` trio (**⏯ is one control with two states**, its label flips accordingly); the progress `Slider` in the middle (only wired to `onCommit`, `disabled: !can.canSeek`) with `formatDuration` times on both ends — **`stalled` shows "Buffering…" rather than paused**; volume on the right. Opening the play page prefers the shell's `onOpenNowPlaying`, otherwise `ui.navigate(NOW_PLAYING_VIEWS.nowPlaying)`.
+- **`NowPlayingScreen({ ctx, onClose? })`** — the fullscreen play page (centered column). Large artwork (280px), title/artist/album, `Buffering…`, the progress bar and the same three transport keys (same semantics as the bar); close key in the top-left corner (`aria-label="Close now playing"`). When the title cannot be resolved it shows "Loading…" and **never the URN**.
+- Artwork is resolved uniformly through `CachedArtwork` (`useResolvedArtwork`): on a cache miss the fallback paints first, and the remote URL is never handed to a second request.
 
-**`bound(ctx, Screen)`** — 闭包本插件 `apply` 时的 context（shell 的 context 只有 `ui`，hooks 读 `ctx.player` 会抛 `cannot get property "player" without inject`）；必须 `h(Screen, …)` 而非函数调用。
+**`bound(ctx, Screen)`** — closes over the context at this plugin's `apply` time (the shell's context has only `ui`; hooks reading `ctx.player` would throw `cannot get property "player" without inject`); must be `h(Screen, …)` rather than a function call.
 
-## 声明与导出
+## Declaration and exports
 
 ```ts
 export const name = 'plugin-now-playing-ui-desktop'
 export const inject = ['ui', 'player']
 export function NowPlayingBar / NowPlayingScreen
-export async function apply(ctx)      // generator effect：registerView × 2
+export async function apply(ctx)      // generator effect: registerView × 2
 export default { name, inject, apply }
 ```
 
-## 测试（`src/screens.test.tsx`）
+## Tests (`src/screens.test.tsx`)
 
-静态标记断言（`renderToStaticMarkup`）：每个走带控件的 `aria-label`、一个控件两种状态的 play/pause、`stalled` 显示 Buffering 且仍可暂停、无时长时 Seek 禁用、队列末尾 Next 禁用、`--:--` 占位、标题/艺人与封面的打开按钮、整屏的关闭键与时间显示。
+Static markup assertions (`renderToStaticMarkup`): every transport control's `aria-label`, one play/pause control with two states, `stalled` showing Buffering while still pausable, Seek disabled with no duration, Next disabled at the end of the queue, the `--:--` placeholder, title/artist and the artwork's open button, the fullscreen close key and time display.
 
-## 相关文档
+## Related docs
 
-- `packages/feature/plugin-now-playing/README.md`：headless 侧与 view id
-- `packages/ui/plugin-now-playing-ui-mobile/README.md`：孪生半边
-- `packages/ui/plugin-queue-ui-desktop/README.md`：队列页（`plugin-queue`）
+- `packages/feature/plugin-now-playing/README.md`: the headless side and view ids
+- `packages/ui/plugin-now-playing-ui-mobile/README.md`: the twin half
+- `packages/ui/plugin-queue-ui-desktop/README.md`: the queue page (`plugin-queue`)

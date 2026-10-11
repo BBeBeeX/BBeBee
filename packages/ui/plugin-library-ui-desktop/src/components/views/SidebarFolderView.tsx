@@ -91,7 +91,7 @@ export function SidebarFolderView({
             overflow: 'hidden',
           },
           onClick: () => setActiveFolderId(null),
-          title: '返回音乐库',
+          title: 'Back to music library',
         },
         tablerIcon('chevron-left', { size: 24, color: 'currentColor' }),
         h(
@@ -106,7 +106,7 @@ export function SidebarFolderView({
               textOverflow: 'ellipsis',
             },
           },
-          activeCollection?.name ?? '文件夹',
+          activeCollection?.name ?? 'Folder',
         ),
       ),
       h(
@@ -119,8 +119,8 @@ export function SidebarFolderView({
               'button',
               {
                 type: 'button',
-                'aria-label': '更多选项',
-                title: '更多选项',
+                'aria-label': 'More options',
+                title: 'More options',
                 onClick: (e: { clientX: number; clientY: number }) => {
                   openCollectionMenu(
                     activeCollection,
@@ -155,8 +155,8 @@ export function SidebarFolderView({
           'button',
           {
             type: 'button',
-            'aria-label': '展开音乐库',
-            title: '展开音乐库',
+            'aria-label': 'Expand music library',
+            title: 'Expand music library',
             onClick: () => handleModeChange('expanded'),
             style: {
               width: 32,
@@ -197,7 +197,7 @@ export function SidebarFolderView({
             fontWeight: 600,
           },
         },
-        '创建者: 你',
+        'By you',
       ),
     ),
     h(
@@ -217,8 +217,8 @@ export function SidebarFolderView({
           'button',
           {
             type: 'button',
-            'aria-label': '搜索',
-            title: '搜索',
+            'aria-label': 'Search',
+            title: 'Search',
             onClick: () => setSearchOpen((prev) => !prev),
             style: {
               width: 28,
@@ -239,7 +239,7 @@ export function SidebarFolderView({
           ? h(TextField, {
               value: searchQuery,
               onChange: setSearchQuery,
-              placeholder: '在文件夹中搜索...',
+              placeholder: 'Search in folder...',
               testID: 'folder-search-input',
             })
           : null,
@@ -272,8 +272,8 @@ export function SidebarFolderView({
       filteredFolderItems.length === 0
         ? h(EmptyState, {
             icon: 'folder',
-            title: '文件夹为空',
-            description: '点击创建添加歌单，或从音乐库中添加内容。',
+            title: 'This folder is empty',
+            description: 'Click create to add a playlist, or add content from the music library.',
           })
         : h(List<UnifiedItem>, {
             testID: 'folder-items-list',

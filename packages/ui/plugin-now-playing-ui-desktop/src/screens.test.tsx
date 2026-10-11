@@ -201,7 +201,7 @@ describe('NowPlayingBar', () => {
     const { getByTestId } = render(h(NowPlayingBar, { ctx }))
     const btn = getByTestId('queue-button')
     expect(btn).toBeTruthy()
-    expect(btn.getAttribute('aria-label')).toBe('播放队列')
+    expect(btn.getAttribute('aria-label')).toBe('Play queue')
     fireEvent.click(btn)
     expect(calls).toContain('navigate:queue.view')
   })
@@ -339,8 +339,8 @@ describe('NowPlayingBar', () => {
   it('renders a toggle button for desktop lyrics to the left of volume control', async () => {
     const { ctx } = await harness({ status: 'playing' })
     const out = html(h(NowPlayingBar, { ctx }))
-    expect(out).toContain('aria-label="显示桌面歌词"')
-    expect(out).toContain('词')
+    expect(out).toContain('aria-label="Show desktop lyrics"')
+    expect(out).toContain('Ly')
   })
 
   it('synchronizes desktop lyrics toggle state with desktopLyrics service and settings', async () => {
@@ -366,13 +366,13 @@ describe('NowPlayingBar', () => {
     await ctx.plugin(DesktopLyricsStub)
 
     const out = html(h(NowPlayingBar, { ctx }))
-    expect(out).toContain('aria-label="隐藏桌面歌词"')
+    expect(out).toContain('aria-label="Hide desktop lyrics"')
   })
 
   it('places play mode button to the left of previous track and volume control to the right of next track', async () => {
     const { ctx } = await harness({ status: 'playing', playMode: 'sequence' })
     const out = html(h(NowPlayingBar, { ctx }))
-    const playModeIdx = out.indexOf('播放模式: 顺序播放')
+    const playModeIdx = out.indexOf('Play mode: Sequential')
     const prevIdx = out.indexOf('aria-label="Previous track"')
     const nextIdx = out.indexOf('aria-label="Next track"')
     const volIdx = out.indexOf('aria-label="Volume"')
@@ -388,16 +388,16 @@ describe('NowPlayingBar', () => {
       const { ctx } = await harness({ status: 'playing', playMode: mode })
       const out = html(h(NowPlayingBar, { ctx }))
       if (mode === 'single-loop') {
-        expect(out).toContain('播放模式: 单曲循环')
+        expect(out).toContain('Play mode: Single loop')
         expect(out).toContain('data-icon="repeat-once"')
       } else if (mode === 'sequence') {
-        expect(out).toContain('播放模式: 顺序播放')
+        expect(out).toContain('Play mode: Sequential')
         expect(out).toContain('data-icon="list-numbers"')
       } else if (mode === 'list-loop') {
-        expect(out).toContain('播放模式: 列表循环')
+        expect(out).toContain('Play mode: List loop')
         expect(out).toContain('data-icon="repeat"')
       } else if (mode === 'shuffle') {
-        expect(out).toContain('播放模式: 随机播放')
+        expect(out).toContain('Play mode: Shuffle')
         expect(out).toContain('data-icon="shuffle"')
       }
     }
@@ -407,7 +407,7 @@ describe('NowPlayingBar', () => {
     const { ctx } = await harness({ status: 'playing', muted: true, volume: 0.8 })
     const out = html(h(NowPlayingBar, { ctx }))
     expect(out).toContain('data-icon="volume-off"')
-    expect(out).toContain('title="已静音 (点击展开调节栏)"')
+    expect(out).toContain('title="Muted (click to adjust)"')
   })
 
   it('renders volume waves corresponding to volume level when unmuted', async () => {
@@ -435,7 +435,7 @@ describe('NowPlayingBar', () => {
   it('cycles play mode when clicking play mode button', async () => {
     const { ctx, calls } = await harness({ status: 'playing', playMode: 'sequence' })
     const { container } = render(h(NowPlayingBar, { ctx }))
-    const btn = container.querySelector('button[aria-label^="播放模式"]') as HTMLButtonElement
+    const btn = container.querySelector('button[aria-label^="Play mode"]') as HTMLButtonElement
     expect(btn).not.toBeNull()
     fireEvent.click(btn)
     expect(calls).toContain('cyclePlayMode')
@@ -457,7 +457,7 @@ describe('NowPlayingBar', () => {
     expect(dialog?.textContent).toContain('60%')
 
     // Mute toggle inside dialog
-    const muteBtn = container.querySelector('button[aria-label="静音"]') as HTMLButtonElement
+    const muteBtn = container.querySelector('button[aria-label="Mute"]') as HTMLButtonElement
     expect(muteBtn).not.toBeNull()
     fireEvent.click(muteBtn)
     expect(calls).toContain('muted:true')
@@ -475,7 +475,7 @@ describe('NowPlayingBar', () => {
     const { getByLabelText, findByText } = render(h(NowPlayingBar, { ctx }))
     const coverBtn = getByLabelText('Open now playing')
     fireEvent.contextMenu(coverBtn)
-    expect(await findByText('加入播放列表')).toBeTruthy()
+    expect(await findByText('Add to play queue')).toBeTruthy()
   })
 
   it('renders favorite/playlist action button next to track name and toggles state', async () => {
@@ -489,18 +489,18 @@ describe('NowPlayingBar', () => {
     })
     const { getByTestId, findByText } = render(h(NowPlayingBar, { ctx }))
     const btn = getByTestId('track-library-action-btn')
-    expect(btn.getAttribute('title')).toBe('加入最喜欢的音乐')
-    expect(btn.getAttribute('aria-label')).toBe('Add Bohemian Rhapsody to favourites')
+    expect(btn.getAttribute('title')).toBe('Add to Favorites')
+    expect(btn.getAttribute('aria-label')).toBe('Add Bohemian Rhapsody to favorites')
 
-    // Click to add to favourites
+    // Click to add to favorites
     fireEvent.click(btn)
     expect(calls).toContain('setSaved:BBeBee:local:track:1:true')
-    expect(btn.getAttribute('title')).toBe('加入歌单')
+    expect(btn.getAttribute('title')).toBe('Add to playlist')
     expect(btn.getAttribute('aria-label')).toBe('Add Bohemian Rhapsody to playlist')
 
     // Click again to open playlist menu
     fireEvent.click(btn)
-    expect(await findByText('添加到歌单')).toBeTruthy()
+    expect(await findByText('Add to playlist')).toBeTruthy()
   })
 
   it('does not render library action button when nothing is playing', async () => {
@@ -520,7 +520,7 @@ describe('NowPlayingBar', () => {
     })
     const { getByLabelText, findByText, container } = render(h(NowPlayingBar, { ctx, portalMenus: true }))
     fireEvent.contextMenu(getByLabelText('Open now playing'))
-    expect(await findByText('加入播放列表')).toBeTruthy()
+    expect(await findByText('Add to play queue')).toBeTruthy()
     // The menu lives outside the bar's own tree — the body, not the container.
     expect(container.querySelector('[role="menu"]')).toBeNull()
     expect(document.querySelector('[role="menu"]')).toBeTruthy()
@@ -589,7 +589,7 @@ describe('NowPlayingScreen', () => {
     )
     const switcherBtn = container.querySelector('[data-testid="style-switcher-button"]') as HTMLButtonElement
     expect(switcherBtn).toBeTruthy()
-    expect(switcherBtn.getAttribute('aria-label')).toBe('切换播放页样式')
+    expect(switcherBtn.getAttribute('aria-label')).toBe('Switch now-playing style')
 
     // Popover is initially closed
     expect(container.querySelector('[role="menu"]')).toBeNull()
@@ -598,7 +598,7 @@ describe('NowPlayingScreen', () => {
     fireEvent.click(switcherBtn)
     const menu = container.querySelector('[role="menu"]')
     expect(menu).toBeTruthy()
-    expect(menu?.getAttribute('aria-label')).toBe('播放页样式')
+    expect(menu?.getAttribute('aria-label')).toBe('Now-playing styles')
 
     // Options for all 5 templates exist
     for (const styleId of ['classic', 'full-cover', 'vinyl', 'compact', 'cinematic']) {
@@ -717,9 +717,9 @@ describe('NowPlayingScreen', () => {
     const { container, findByText, getByText } = render(h(NowPlayingScreen, { ctx }))
 
     fireEvent.contextMenu(container.querySelector('[aria-label="Now playing"]') as HTMLElement)
-    expect(await findByText('从队列中移除')).toBeTruthy()
+    expect(await findByText('Remove from queue')).toBeTruthy()
 
-    fireEvent.click(getByText('从队列中移除'))
+    fireEvent.click(getByText('Remove from queue'))
     expect(calls).toContain('removeItems:q1')
     // Acting on the item closes the menu.
     expect(container.querySelector('[role="menu"]')).toBeNull()
@@ -744,7 +744,7 @@ describe('NowPlayingScreen', () => {
         status: 'ready',
         trackUrn: 'BBeBee:local:track:1',
         offsetMs: 0,
-        lyrics: { format: 'lrc', content: '[00:01]第一句歌词\n[00:02]第二句歌词', synced: true },
+        lyrics: { format: 'lrc', content: '[00:01]First lyric line\n[00:02]Second lyric line', synced: true },
       }
       constructor(c: Context) {
         super(c, 'lyrics')
@@ -765,19 +765,19 @@ describe('NowPlayingScreen', () => {
     lyrics.state = { ...lyrics.state, trackUrn: 'BBeBee:local:track:other' }
     const without = render(h(NowPlayingScreen, { ctx }))
     fireEvent.contextMenu(without.container.querySelector('[aria-label="Now playing"]') as HTMLElement)
-    expect(await without.findByText('分享歌曲')).toBeTruthy()
-    expect(without.queryByText('分享歌词')).toBeNull()
+    expect(await without.findByText('Share song')).toBeTruthy()
+    expect(without.queryByText('Share lyrics')).toBeNull()
 
     // Lyrics for the playing track add the item, and it shares their text.
     lyrics.state = { ...lyrics.state, trackUrn: 'BBeBee:local:track:1' }
     const { container, findByText, getByText } = render(h(NowPlayingScreen, { ctx }))
     fireEvent.contextMenu(container.querySelector('[aria-label="Now playing"]') as HTMLElement)
-    expect(await findByText('分享歌词')).toBeTruthy()
-    fireEvent.click(getByText('分享歌词'))
-    expect(share.calls).toContain('shareLyrics:BBeBee:local:track:1:第一句歌词|第二句歌词')
+    expect(await findByText('Share lyrics')).toBeTruthy()
+    fireEvent.click(getByText('Share lyrics'))
+    expect(share.calls).toContain('shareLyrics:BBeBee:local:track:1:First lyric line|Second lyric line')
   })
 
-  it('opens track info modal when clicking 查看播放内容 from context menu', async () => {
+  it('opens track info modal when clicking "See what\'s playing" from context menu', async () => {
     const { ctx } = await harness({
       status: 'playing',
       trackUrn: 'BBeBee:local:track:1',
@@ -787,12 +787,12 @@ describe('NowPlayingScreen', () => {
     const { container, findByText, getByText, findByRole } = render(h(NowPlayingScreen, { ctx }))
     fireEvent.contextMenu(container.querySelector('[aria-label="Now playing"]') as HTMLElement)
 
-    expect(await findByText('查看播放内容')).toBeTruthy()
-    fireEvent.click(getByText('查看播放内容'))
+    expect(await findByText("See what's playing")).toBeTruthy()
+    fireEvent.click(getByText("See what's playing"))
 
     const dialog = await findByRole('dialog')
     expect(dialog).toBeTruthy()
-    expect(dialog.textContent).toContain('播放内容详情')
+    expect(dialog.textContent).toContain('Track details')
     expect(dialog.textContent).toContain('Hotel California')
     expect(dialog.textContent).toContain('Eagles')
   })

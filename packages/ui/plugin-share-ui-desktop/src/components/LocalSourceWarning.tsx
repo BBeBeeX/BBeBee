@@ -9,7 +9,7 @@ export interface LocalSourceWarningProps {
 
 export function LocalSourceWarning({
   show,
-  message = '无法分享本地音乐',
+  message = "Can't share local music",
 }: LocalSourceWarningProps): ReactElement | null {
   if (!show) return null
 

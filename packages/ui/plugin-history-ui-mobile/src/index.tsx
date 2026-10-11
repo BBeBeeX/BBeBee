@@ -31,18 +31,18 @@ function CachedTrackRow({ ctx, ...props }: TrackRowProps & { ctx: Context }): Re
 }
 
 function fallbackTrack(urn: string): Track {
-  return { urn, title: '加载中…', artists: [] }
+  return { urn, title: 'Loading…', artists: [] }
 }
 
 function formatPlayDuration(ms: number): string {
-  if (ms <= 0) return '0 分钟'
+  if (ms <= 0) return '0 min'
   const totalMinutes = Math.floor(ms / 60000)
-  if (totalMinutes === 0) return '< 1 分钟'
+  if (totalMinutes === 0) return '< 1 min'
   const hours = Math.floor(totalMinutes / 60)
   const minutes = totalMinutes % 60
-  if (hours === 0) return `${minutes} 分钟`
-  if (minutes === 0) return `${hours} 小时`
-  return `${hours} 小时 ${minutes} 分钟`
+  if (hours === 0) return `${minutes} min`
+  if (minutes === 0) return `${hours} hr`
+  return `${hours} hr ${minutes} min`
 }
 
 export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
@@ -72,8 +72,8 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
   if (uniqueRecords.length === 0 && !loading) {
     return h(EmptyState, {
       icon: '🎵',
-      title: '暂无播放记录',
-      description: '从曲库播放音乐后，播放历史与统计将显示在这里。',
+      title: 'No play records yet',
+      description: 'After playing music from the library, your play history and statistics will appear here.',
     })
   }
 
@@ -89,7 +89,7 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
           borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
         },
       },
-      h(Text, { variant: 'lg', children: '播放历史' }),
+      h(Text, { variant: 'lg', children: 'Play history' }),
       h(
         'div',
         {
@@ -101,14 +101,14 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
             color: '#8e8e93',
           },
         },
-        h('span', null, `总播放: ${stats.totalPlays} 次`),
-        h('span', null, `累计时长: ${formatPlayDuration(stats.totalMsPlayed)}`),
-        h('span', null, `今日: ${stats.todayPlays} 首`),
+        h('span', null, `Total plays: ${stats.totalPlays}`),
+        h('span', null, `Total time: ${formatPlayDuration(stats.totalMsPlayed)}`),
+        h('span', null, `Today: ${stats.todayPlays} tracks`),
       ),
     ),
     h(List<PlayRecord>, {
       items: uniqueRecords,
-      accessibilityLabel: '播放历史',
+      accessibilityLabel: 'Play history',
       estimatedItemSize: tokens.size.row,
       keyExtractor: (item) => item.id,
       renderItem: (item) => {
@@ -150,7 +150,7 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
                 whiteSpace: 'nowrap',
               },
             },
-            `播放 ${playCount} 次`,
+            `${playCount} ${playCount === 1 ? 'play' : 'plays'}`,
           ),
         )
       },

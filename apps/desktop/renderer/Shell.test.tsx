@@ -560,11 +560,11 @@ describe('the desktop shell', () => {
       ui.routes = [
         { kind: 'route', id: 'library.home', path: '/library', title: 'Library', placement: ['sidebar'] },
         { kind: 'route', id: 'sources.search', path: '/search', title: 'Search', placement: ['sidebar'] },
-        { kind: 'route', id: 'settings.view', path: '/settings', title: '设置', placement: ['sidebar'] },
+        { kind: 'route', id: 'settings.view', path: '/settings', title: 'Settings', placement: ['sidebar'] },
         { kind: 'route', id: 'sources.import', path: '/sources/import', title: 'Import a source', placement: [] },
         { kind: 'route', id: 'sources.test', path: '/sources/test', title: 'Test a source', placement: [] },
-        { kind: 'route', id: 'history.view', path: '/history', title: '播放历史', placement: ['more-menu'] },
-        { kind: 'route', id: 'dsp', path: '/dsp', title: '音频效果 (DSP)', placement: [] },
+        { kind: 'route', id: 'history.view', path: '/history', title: 'Play history', placement: ['more-menu'] },
+        { kind: 'route', id: 'dsp', path: '/dsp', title: 'Audio effects (DSP)', placement: [] },
         { kind: 'route', id: 'inspector', path: '/inspector', title: 'Inspector', placement: [] },
       ]
       ui.views.set('library.home', () => h('p', null, 'Library Screen'))
@@ -572,11 +572,11 @@ describe('the desktop shell', () => {
         { kind: 'settings', id: 'sources.settings', title: 'Music sources' },
         { kind: 'settings', id: 'scanner.settings', title: 'Music folders' },
         { kind: 'settings', id: 'downloads.page', title: 'Downloads' },
-        { kind: 'settings', id: 'dsp.settings', title: '音频效果与均衡器' },
-        { kind: 'settings', id: 'settings.dsp', title: '均衡器设置' },
-        { kind: 'settings', id: 'settings.view', title: '设置' },
-        { kind: 'settings', id: 'sources.import', title: '导入音源' },
-        { kind: 'settings', id: 'visualizer.settings', title: '音频可视化' },
+        { kind: 'settings', id: 'dsp.settings', title: 'Audio effects & equalizer' },
+        { kind: 'settings', id: 'settings.dsp', title: 'Equalizer settings' },
+        { kind: 'settings', id: 'settings.view', title: 'Settings' },
+        { kind: 'settings', id: 'sources.import', title: 'Import a music source' },
+        { kind: 'settings', id: 'visualizer.settings', title: 'Audio visualization' },
         { kind: 'settings', id: 'custom.settings', title: 'Custom Setting' },
       ]
       ui.views.set('sources.settings', () => h('p', null, 'sources'))
@@ -593,19 +593,23 @@ describe('the desktop shell', () => {
     const nav = container.querySelector('nav')
     expect(nav?.textContent).toContain('Library')
     expect(nav?.textContent).not.toContain('Search')
-    expect(nav?.textContent).not.toContain('设置')
+    // The settings dashboard page is excluded; its title ("Settings") is
+    // identical to the sidebar's settings-group heading, so exclusion is
+    // asserted against the rendered entry buttons rather than the nav text.
+    const sidebarButtons = Array.from(nav?.querySelectorAll('button') ?? [])
+    expect(sidebarButtons.map((b) => b.textContent)).not.toContain('Settings')
     expect(nav?.textContent).not.toContain('Import a source')
     expect(nav?.textContent).not.toContain('Test a source')
-    expect(nav?.textContent).not.toContain('导入音源')
-    expect(nav?.textContent).not.toContain('音频可视化')
-    expect(nav?.textContent).not.toContain('播放历史')
-    expect(nav?.textContent).not.toContain('音频效果 (DSP)')
+    expect(nav?.textContent).not.toContain('Import a music source')
+    expect(nav?.textContent).not.toContain('Audio visualization')
+    expect(nav?.textContent).not.toContain('Play history')
+    expect(nav?.textContent).not.toContain('Audio effects (DSP)')
     expect(nav?.textContent).not.toContain('Inspector')
     expect(nav?.textContent).not.toContain('Music sources')
     expect(nav?.textContent).not.toContain('Music folders')
     expect(nav?.textContent).not.toContain('Downloads')
-    expect(nav?.textContent).not.toContain('音频效果与均衡器')
-    expect(nav?.textContent).not.toContain('均衡器设置')
+    expect(nav?.textContent).not.toContain('Audio effects & equalizer')
+    expect(nav?.textContent).not.toContain('Equalizer settings')
     expect(nav?.textContent).toContain('Custom Setting')
   })
 
@@ -757,9 +761,9 @@ describe('the desktop shell', () => {
     expect(submitBtn).not.toBeNull()
     const matrix = container.querySelector('[data-testid="search-matrix-panel"]') as HTMLElement
     expect(matrix).not.toBeNull()
-    expect(matrix.textContent).toContain('搜索范围')
-    expect(matrix.textContent).toContain('搜索历史')
-    expect(matrix.textContent).toContain('暂无搜索历史')
+    expect(matrix.textContent).toContain('Search scope')
+    expect(matrix.textContent).toContain('Search history')
+    expect(matrix.textContent).toContain('No search history yet')
 
     // Source toggle button exists from SourcesStub
     const bilibiliToggle = container.querySelector('[data-testid="search-source-toggle-bilibili:track"]') as HTMLButtonElement
@@ -828,13 +832,13 @@ describe('the desktop shell', () => {
     await act(async () => {
       searchInput.click()
     })
-    const clearHistoryBtn = container.querySelector('button[aria-label="清空搜索历史"]') as HTMLButtonElement
+    const clearHistoryBtn = container.querySelector('button[aria-label="Clear search history"]') as HTMLButtonElement
     expect(clearHistoryBtn).not.toBeNull()
     await act(async () => {
       clearHistoryBtn.click()
     })
     expect(container.querySelector('[data-testid="search-history-item-Chopin"]')).toBeNull()
-    expect(container.textContent).toContain('暂无搜索历史')
+    expect(container.textContent).toContain('No search history yet')
   })
 
   it('renders sleep timer alarm icon in topbar when active, shows countdown on hover, and allows cancellation', async () => {
@@ -865,7 +869,7 @@ describe('the desktop shell', () => {
 
     const indicator = container.querySelector('[data-testid="topbar-sleep-timer-indicator"]') as HTMLButtonElement
     expect(indicator).not.toBeNull()
-    expect(indicator.textContent).toContain('15分00秒')
+    expect(indicator.textContent).toContain('15m 00s')
 
     // Hover to reveal popover
     const parentContainer = indicator.parentElement as HTMLElement
@@ -875,7 +879,7 @@ describe('the desktop shell', () => {
 
     const popover = container.querySelector('[data-testid="sleep-timer-popover"]')
     expect(popover).not.toBeNull()
-    expect(popover?.textContent).toContain('睡眠定时器运行中')
+    expect(popover?.textContent).toContain('Sleep timer running')
 
     const cancelBtn = container.querySelector('[data-testid="cancel-sleep-timer-button"]') as HTMLButtonElement
     expect(cancelBtn).not.toBeNull()
@@ -1006,14 +1010,14 @@ describe('the desktop shell', () => {
     const { container } = await mount((ui) => {
       ui.routes = [
         { kind: 'route', id: 'library.home', path: '/library', title: 'Library', placement: ['sidebar'] },
-        { kind: 'route', id: 'dsp.view', path: '/dsp', title: '音频效果 (DSP)', placement: ['tray'] },
+        { kind: 'route', id: 'dsp.view', path: '/dsp', title: 'Audio effects (DSP)', placement: ['tray'] },
         { kind: 'route', id: 'inspector.panel', path: '/inspector', title: 'Inspector', placement: ['tray'] },
       ]
       ui.views.set('library.home', () => h('p', null, 'Library Screen'))
       ui.views.set('dsp.view', () => h('p', null, 'DSP Screen'))
       ui.views.set('inspector.panel', () => h('p', null, 'Inspector Screen'))
       ui.tray = [
-        { kind: 'tray', id: 'dsp.view', title: '音频效果 (DSP)', icon: 'tune', targetRoute: 'dsp.view' },
+        { kind: 'tray', id: 'dsp.view', title: 'Audio effects (DSP)', icon: 'tune', targetRoute: 'dsp.view' },
         { kind: 'tray', id: 'inspector.panel', title: 'Inspector', icon: 'bug', targetRoute: 'inspector.panel' },
       ]
     })
@@ -1034,14 +1038,14 @@ describe('the desktop shell', () => {
     expect(trayButton.querySelector('svg')?.getAttribute('data-icon')).toBe('chevron-up')
     const popover = container.querySelector('[data-testid="topbar-tray-popover"]') as HTMLElement
     expect(popover).not.toBeNull()
-    expect(popover.textContent).toContain('插件托盘')
+    expect(popover.textContent).toContain('Plugin tray')
 
     // Contributed plugin items rendered in tray
     const dspItem = container.querySelector('[data-testid="topbar-tray-item-dsp.view"]') as HTMLButtonElement
     const inspectorItem = container.querySelector('[data-testid="topbar-tray-item-inspector.panel"]') as HTMLButtonElement
     expect(dspItem).not.toBeNull()
     expect(inspectorItem).not.toBeNull()
-    expect(dspItem.title).toBe('音频效果 (DSP)')
+    expect(dspItem.title).toBe('Audio effects (DSP)')
     expect(inspectorItem.title).toBe('Inspector')
 
     // Click DSP plugin icon in tray
@@ -1074,8 +1078,8 @@ describe('the desktop shell', () => {
       (ui) => {
         ui.routes = [
           { kind: 'route', id: 'library.home', path: '/library', title: 'Library', placement: ['sidebar'] },
-          { kind: 'route', id: 'history.view', path: '/history', title: '播放历史', icon: 'history', placement: ['tray', 'tab-bar'] },
-          { kind: 'route', id: 'downloads.page', path: '/downloads', title: '下载管理', icon: 'download', placement: ['tray'] },
+          { kind: 'route', id: 'history.view', path: '/history', title: 'Play history', icon: 'history', placement: ['tray', 'tab-bar'] },
+          { kind: 'route', id: 'downloads.page', path: '/downloads', title: 'Download manager', icon: 'download', placement: ['tray'] },
         ]
         ui.views.set('library.home', () => h('p', null, 'Library Screen'))
         ui.views.set('history.view', () => h('p', null, 'History Screen'))
@@ -1084,7 +1088,7 @@ describe('the desktop shell', () => {
           {
             kind: 'tray',
             id: 'share.import',
-            title: '导入分享',
+            title: 'Import share',
             icon: 'share-box',
             order: 40,
             action: () => {
@@ -1122,18 +1126,18 @@ describe('the desktop shell', () => {
     expect(downloadsTrayItem).not.toBeNull()
     expect(importShareTrayItem).not.toBeNull()
 
-    expect(historyTrayItem.title).toBe('播放历史')
-    expect(downloadsTrayItem.title).toBe('下载管理')
-    expect(importShareTrayItem.title).toBe('导入分享')
+    expect(historyTrayItem.title).toBe('Play history')
+    expect(downloadsTrayItem.title).toBe('Download manager')
+    expect(importShareTrayItem.title).toBe('Import share')
 
-    // Click '播放历史' in tray
+    // Click 'Play history' in tray
     await act(async () => {
       fireEvent.click(historyTrayItem)
     })
     expect(container.querySelector('[data-testid="topbar-tray-popover"]')).toBeNull()
     expect(container.textContent).toContain('History Screen')
 
-    // Reopen tray and click '下载管理'
+    // Reopen tray and click 'Download manager'
     await act(async () => {
       fireEvent.click(trayButton)
     })
@@ -1143,7 +1147,7 @@ describe('the desktop shell', () => {
     expect(container.querySelector('[data-testid="topbar-tray-popover"]')).toBeNull()
     expect(container.textContent).toContain('Downloads Screen')
 
-    // Reopen tray and click '导入分享'
+    // Reopen tray and click 'Import share'
     await act(async () => {
       fireEvent.click(trayButton)
     })
@@ -1181,7 +1185,7 @@ describe('the desktop shell', () => {
       (ui) => {
         ui.routes = [
           route('sources.recommend', 'Home'),
-          route('library.local', '本地文件'),
+          route('library.local', 'Local files'),
         ]
         ui.views.set('sources.recommend', () => h('div', null, 'Home Screen'))
         ui.views.set('library.local', (props: any) => {

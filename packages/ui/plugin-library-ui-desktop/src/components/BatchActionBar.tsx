@@ -23,7 +23,7 @@ export function BatchActionBar({
   onBatchAddToPlaylist,
   onBatchDelete,
   onExitBatch,
-  deleteLabel = '删除',
+  deleteLabel = 'Delete',
   deleteDisabled = false,
 }: BatchActionBarProps): ReactElement {
   const hasSelection = selectedCount > 0
@@ -84,7 +84,7 @@ export function BatchActionBar({
             accentColor: 'var(--color-primary, #5F87FF)',
           },
         }),
-        h('span', null, allSelected ? '取消全选' : '全选'),
+        h('span', null, allSelected ? 'Deselect all' : 'Select all'),
       ),
       h(
         'span',
@@ -92,7 +92,7 @@ export function BatchActionBar({
           'data-testid': 'batch-selected-count',
           style: { fontSize: 13, color: 'var(--bb-text-secondary, #b3b3b3)' },
         },
-        `已选择 ${selectedCount} / ${totalCount} 首`,
+        `Selected ${selectedCount} / ${totalCount} songs`,
       ),
     ),
     // Right: Action buttons
@@ -122,7 +122,7 @@ export function BatchActionBar({
           },
         },
         tablerIcon('play', { size: 16 }),
-        '批量播放',
+        'Play selected',
       ),
       h(
         'button',
@@ -150,7 +150,7 @@ export function BatchActionBar({
           },
         },
         tablerIcon('plus', { size: 16 }),
-        '添加到',
+        'Add to',
       ),
       onBatchDelete
         ? h(
@@ -201,7 +201,7 @@ export function BatchActionBar({
           },
         },
         tablerIcon('x', { size: 16 }),
-        '退出批量操作',
+        'Exit batch operations',
       ),
     ),
   )

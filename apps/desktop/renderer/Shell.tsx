@@ -75,7 +75,7 @@ function useEntries(ctx: Context): { routes: readonly RouteContribution[]; entri
           r.id === 'history.view' ||
           r.id === 'downloads.page' ||
           r.title === 'Search' ||
-          r.title === '设置'
+          r.title === 'Settings'
         ) {
           return false
         }
@@ -109,7 +109,7 @@ function useEntries(ctx: Context): { routes: readonly RouteContribution[]; entri
           s.id === 'sources.import' ||
           s.id === 'visualizer.settings' ||
           s.id === 'history.view' ||
-          s.title === '设置'
+          s.title === 'Settings'
         ) {
           return false
         }
@@ -123,7 +123,7 @@ function useEntries(ctx: Context): { routes: readonly RouteContribution[]; entri
 /**
  * Whether the last completed registry update check found anything.
  *
- * A dot on the 发现 sidebar entry, driven purely by the event: the check
+ * A dot on the Discover sidebar entry, driven purely by the event: the check
  * fires 'registry/updates-available' with the FULL result after every
  * completed pass — including an empty one — so the dot clears itself when a
  * check comes back clean. Everything else about updates is the registry
@@ -530,10 +530,10 @@ export function Shell({ ctx }: { ctx: Context }) {
       void importDroppedFiles(ctx, files)
         .then(({ imported, folders, failed, importedUrns }) => {
           const parts: string[] = []
-          if (folders > 0) parts.push(`已添加 ${folders} 个文件夹，正在扫描`)
-          if (imported > 0) parts.push(`已导入 ${imported} 首曲目`)
-          if (failed > 0) parts.push(`${failed} 项无法导入`)
-          setDropMessage(parts.length > 0 ? parts.join('，') : '未发现可导入的内容')
+          if (folders > 0) parts.push(`Added ${folders} folders, scanning`)
+          if (imported > 0) parts.push(`Imported ${imported} tracks`)
+          if (failed > 0) parts.push(`${failed} items failed to import`)
+          setDropMessage(parts.length > 0 ? parts.join(', ') : 'No importable content found')
 
           if (imported > 0 || folders > 0 || (importedUrns && importedUrns.length > 0)) {
             navigateTo(
@@ -544,7 +544,7 @@ export function Shell({ ctx }: { ctx: Context }) {
             )
           }
         })
-        .catch(() => setDropMessage('导入失败，请重试'))
+        .catch(() => setDropMessage('Import failed, please try again'))
     },
     [ctx, navigateTo],
   )
@@ -1017,7 +1017,7 @@ export function Shell({ ctx }: { ctx: Context }) {
                 mode: libraryMode,
                 onModeChange: setLibraryMode,
                 onOpenAlbum: (urn: string) => navigateTo('album.view', { urn }),
-                // The quick entries (喜欢 / 本地和下载) highlight from the
+                // The quick entries (Favorites / Local and downloads) highlight from the
                 // route actually on screen, so shell-internal navigation —
                 // opening an album, back/forward, home — clears them too.
                 activeViewId: currentId,
@@ -1104,7 +1104,7 @@ export function Shell({ ctx }: { ctx: Context }) {
                   showUpdateDot
                     ? h('span', {
                         'data-testid': 'sidebar-registry-update-dot',
-                        'aria-label': '有可用更新',
+                        'aria-label': 'Updates available',
                         style: {
                           flexShrink: 0,
                           width: 8,
@@ -1196,7 +1196,7 @@ export function Shell({ ctx }: { ctx: Context }) {
                               },
                             },
                             tablerIcon('music', { size: 52, style: { opacity: 0.6 } }),
-                            h('div', { style: { fontSize: 15, fontWeight: 500 } }, '选择歌单或专辑开始播放'),
+                            h('div', { style: { fontSize: 15, fontWeight: 500 } }, 'Select a playlist or album to start playing'),
                           )
                         : h(
                             ViewBoundary,
@@ -1376,7 +1376,7 @@ export function Shell({ ctx }: { ctx: Context }) {
                 boxShadow: 'var(--shadow-modal, 0 12px 48px rgba(0, 0, 0, 0.5))',
               },
             },
-            dropMessage ?? '松开鼠标，导入音乐文件或文件夹',
+            dropMessage ?? 'Drop to import music files or folders',
           ),
         )
       : null,

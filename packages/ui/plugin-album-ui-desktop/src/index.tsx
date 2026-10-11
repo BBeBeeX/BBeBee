@@ -59,7 +59,7 @@ function TrackLibraryActionButton({
   onOpenPlaylistMenu: (track: Track, anchor: MenuAnchor) => void
 }): ReactElement {
   // Optimistic until the truth catches up — and reset whenever it does: an
-  // unfavourite from any surface flips the prop, drops the optimism, and the
+  // unfavorite from any surface flips the prop, drops the optimism, and the
   // row is a plus again.
   const [optimisticInLibrary, setOptimisticInLibrary] = useState(false)
   useEffect(() => {
@@ -71,8 +71,8 @@ function TrackLibraryActionButton({
     'button',
     {
       type: 'button',
-      'aria-label': inLibrary ? `Add ${track.title} to playlist` : `Add ${track.title} to favourites`,
-      title: inLibrary ? '加入歌单' : '加入最喜欢的音乐',
+      'aria-label': inLibrary ? `Add ${track.title} to playlist` : `Add ${track.title} to favorites`,
+      title: inLibrary ? 'Add to playlist' : 'Add to Favorites',
       onClick: (e: React.MouseEvent) => {
         e.stopPropagation()
         if (inLibrary) {
@@ -123,7 +123,7 @@ function AlbumTrackTableRow({
   index: number
   albumTitle?: string
   inLibrary: boolean
-  /** 紧凑视图：艺人独立成列。 */
+  /** Compact view: artist as its own column. */
   compact?: boolean
   batchMode?: boolean
   selected?: boolean
@@ -184,7 +184,7 @@ function AlbumTrackTableRow({
         ? h('input', {
             type: 'checkbox',
             'data-testid': `album-track-checkbox-${track.urn}`,
-            'aria-label': `选择 ${track.title}`,
+            'aria-label': `Select ${track.title}`,
             checked: selected,
             onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
               e.stopPropagation()
@@ -203,7 +203,7 @@ function AlbumTrackTableRow({
           : String(index + 1),
     ),
     // Col 2: Title and Artist
-    // 歌名/作者名被截断时，悬浮 2 秒浮出完整名字的 label。
+    // When the song/artist name is truncated, hovering for 2s reveals a label with the full name.
     h(
       'div',
       {
@@ -387,7 +387,7 @@ function AlbumTrackTableRow({
         {
           type: 'button',
           'aria-label': 'More',
-          title: '更多',
+          title: 'More',
           onClick: (e: React.MouseEvent) => {
             e.stopPropagation()
             const rect = e.currentTarget.getBoundingClientRect()
@@ -429,7 +429,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   const [sortKey, setSortKey] = useState<AlbumSortKey>('trackNo')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [sortMenuAnchor, setSortMenuAnchor] = useState<MenuAnchor | null>(null)
-  // 视图模式：列表为默认（与历史行为一致），紧凑把艺人单列。
+  // View mode: list is the default (matching previous behaviour); compact gives the artist its own column.
   const [viewMode, setViewMode] = useViewMode('album-detail', 'list', ['compact', 'list'] as const)
   const [albumMenuAnchor, setAlbumMenuAnchor] = useState<MenuAnchor | null>(null)
   const [collections, setCollections] = useState<readonly Collection[]>([])
@@ -437,14 +437,14 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   const [savedTrackUrns, setSavedTrackUrns] = useState<Set<string>>(new Set())
   const [isBatchMode, setIsBatchMode] = useState(false)
   const [selectedUrns, setSelectedUrns] = useState<Set<string>>(new Set())
-  // 滚动折叠：吸顶栏在播放按钮靠近时滑入，滚过按钮一半高度时吸附（docked）。
+  // Scroll collapse: the sticky bar slides in as the play button approaches the top, and docks once the scroll passes half its height (docked).
   const collapse = useDetailBarCollapse({ barHeight: 64, anchorHeight: 56 })
   // A row's `track.loved` is the value at the album's last fetch, which can be
-  // hours old. When a favourite write fires `library/changed`, re-read the
+  // hours old. When a favorite write fires `library/changed`, re-read the
   // changed URNs so the heart follows the truth and not the fetch snapshot.
   const [lovedOverrides, setLovedOverrides] = useState<Map<string, boolean>>(new Map())
 
-  // 背景与吸顶栏的主题色来自专辑封面（dominantColor，缺失时画布提取）。
+  // The theme colour of the background and the sticky bar comes from the album cover (dominantColor; extracted from the canvas when missing).
   const resolvedCover = useResolvedArtwork(ctx, album.data?.artwork)
   const tint = useImageColor(resolvedCover?.sourceUrl, resolvedCover?.dominantColor)
 
@@ -674,28 +674,28 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   const sourceName = sourcePlugin?.doc?.sourceName || sourceRecord?.displayName || sourceId
 
   const collectionSubmenu = addToCollectionSubmenu(library, [detail.urn], collections, {
-    title: '加入文件夹',
+    title: 'Add to folder',
   })
 
   const albumMenuItems: MenuItemSpec[] = isBatchMode
     ? [
         {
           id: 'batch-play',
-          label: '批量播放',
+          label: 'Play selected',
           icon: tablerIcon('play', { size: 20 }),
           disabled: selectedUrns.size === 0,
           onSelect: handleBatchPlay,
         },
         {
           id: 'batch-add',
-          label: '添加到歌单',
+          label: 'Add to playlist',
           icon: tablerIcon('plus', { size: 20 }),
           disabled: selectedUrns.size === 0,
           onSelect: () => handleBatchAddToPlaylist(),
         },
         {
           id: 'batch-delete',
-          label: '从“最喜欢的音乐”中删除',
+          label: 'Remove from Favorites',
           icon: tablerIcon('trash', { size: 20 }),
           tone: 'danger',
           disabled: selectedUrns.size === 0,
@@ -703,7 +703,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
         },
         {
           id: 'batch-exit',
-          label: '退出批量操作',
+          label: 'Exit batch operations',
           icon: tablerIcon('x', { size: 20 }),
           divider: true,
           onSelect: handleExitBatch,
@@ -712,7 +712,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
     : [
         {
           id: 'batch-operations',
-          label: '批量操作',
+          label: 'Batch operations',
           icon: tablerIcon('list-check', { size: 20 }),
           divider: true,
           onSelect: () => setIsBatchMode(true),
@@ -723,7 +723,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   if (albumResourceUrl) {
     albumMenuItems.push({
       id: 'open-original-resource',
-      label: '跳转原始资源',
+      label: 'Open original resource',
       icon: tablerIcon('share-box', { size: 20 }),
       onSelect: () => openExternalUrl(albumResourceUrl),
     })
@@ -732,7 +732,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   if (collectionSubmenu) {
     albumMenuItems.push({
       id: 'add-to-folder',
-      label: '加入文件夹',
+      label: 'Add to folder',
       icon: tablerIcon('folder', { size: 20 }),
       submenu: collectionSubmenu,
     })
@@ -740,7 +740,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
 
   albumMenuItems.push({
     id: 'toggle-library',
-    label: isSaved ? '从音乐库中删除' : '添加到音乐库',
+    label: isSaved ? 'Remove from music library' : 'Add to music library',
     icon: isSaved ? tablerIcon('heart', { size: 20 }) : tablerIcon('heart-filled', { size: 20 }),
     tone: isSaved ? 'danger' : undefined,
     onSelect: () => void handleToggleSave(),
@@ -749,7 +749,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   if (player) {
     albumMenuItems.push({
       id: 'enqueue',
-      label: '加入播放列表',
+      label: 'Add to play queue',
       icon: tablerIcon('playlist-add', { size: 20 }),
       onSelect: () => player.enqueueLast(sortedUrns),
     })
@@ -758,7 +758,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   if (!isLocalAlbum && downloads) {
     albumMenuItems.push({
       id: 'download',
-      label: '下载',
+      label: 'Download',
       icon: tablerIcon('download', { size: 20 }),
       onSelect: () => void downloads.enqueue(sortedUrns),
     })
@@ -768,7 +768,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   if (share && detail) {
     albumMenuItems.push({
       id: 'share-album',
-      label: '分享专辑',
+      label: 'Share album',
       icon: tablerIcon('share', { size: 20 }),
       onSelect: () => {
         const coverUrl = typeof detail.artwork === 'string'
@@ -778,7 +778,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
           {
             urn: detail.urn,
             title: detail.title,
-            artist: detail.artists?.map((a) => a.name).join(', ') || '未知艺人',
+            artist: detail.artists?.map((a) => a.name).join(', ') || 'Unknown artist',
             artwork: coverUrl,
             year: detail.year,
             trackCount: detail.tracks.length,
@@ -793,7 +793,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   if (sleepSubmenu) {
     albumMenuItems.push({
       id: 'sleep-timer',
-      label: sleepTimer?.state.active ? '睡眠定时器 (已开启)' : '睡眠定时器',
+      label: sleepTimer?.state.active ? 'Sleep timer (on)' : 'Sleep timer',
       icon: tablerIcon('clock', { size: 20 }),
       submenu: sleepSubmenu,
     })
@@ -809,21 +809,21 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   }
 
   const sortLabelMap: Record<AlbumSortKey, string> = {
-    trackNo: '默认顺序',
-    title: '标题',
-    album: '专辑',
-    plays: '专辑',
-    source: '来源',
-    duration: '时长',
+    trackNo: 'Default order',
+    title: 'Title',
+    album: 'Album',
+    plays: 'Album',
+    source: 'Source',
+    duration: 'Duration',
   }
 
   const sortItems = sortMenuItems(
     [
-      { id: 'trackNo', label: '默认顺序' },
-      { id: 'title', label: '标题' },
-      { id: 'album', label: '专辑' },
-      { id: 'source', label: '来源' },
-      { id: 'duration', label: '时长' },
+      { id: 'trackNo', label: 'Default order' },
+      { id: 'title', label: 'Title' },
+      { id: 'album', label: 'Album' },
+      { id: 'source', label: 'Source' },
+      { id: 'duration', label: 'Duration' },
     ],
     sortKey,
     (id) => setSortKey(id as AlbumSortKey),
@@ -847,8 +847,8 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
       disabled: detail.tracks.length === 0,
     })
 
-  // 随列表一起滚走的部分：封面 hero、操作条、表头。
-  // 吸顶栏单独走 List 的 sticky 插槽（滚动容器的直接子节点）。
+  // Parts that scroll away with the list: cover hero, action bar, table header.
+  // The sticky bar rides the List's sticky slot (a direct child of the scroller).
   const stickyBar = h(StickyDetailBar, {
     title: detail.title,
     progress: collapse.slide,
@@ -857,8 +857,9 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
     playButton: renderPlayButton(48, 24, 'album-play-sticky'),
   })
 
-  // 渐变只存在于头部区域（随内容滚走），到底边精确过渡为纯色；下方内容
-  // 与吸附后的表头都是纯色 --bg-primary。
+  // The gradient exists only over the header area (it scrolls away with the
+  // content) and transitions exactly into a solid colour at its bottom edge;
+  // the content below and the docked table header are both solid --bg-primary.
   const headerNode = h(
     'div',
     {
@@ -893,7 +894,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
         )
       : null,
     h(DetailHero, {
-      eyebrow: '专辑',
+      eyebrow: 'Album',
       title: detail.title,
       titleSize: detail.title.length > 25 ? 40 : 54,
       cover: h(
@@ -944,9 +945,9 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
             ? detail.artists[0].name[0].toUpperCase()
             : tablerIcon('music', { size: 18 }),
         ),
-        h('span', { style: { fontWeight: 700, color: 'var(--bb-text-primary, #FFFFFF)' } }, detail.artists?.map((a) => a.name).join(', ') || '未知艺人'),
+        h('span', { style: { fontWeight: 700, color: 'var(--bb-text-primary, #FFFFFF)' } }, detail.artists?.map((a) => a.name).join(', ') || 'Unknown artist'),
         yearText ? h('span', null, ` • ${yearText}`) : null,
-        h('span', null, ` • ${detail.tracks.length} 首歌曲`),
+        h('span', null, ` • ${detail.tracks.length} songs`),
         totalDurationStr ? h('span', null, `, ${totalDurationStr}`) : null,
       ),
     }),
@@ -965,13 +966,13 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
       h(
         'div',
         { style: { display: 'flex', alignItems: 'center', gap: 24 } },
-        // 折叠锚点：吸顶栏按这只大按钮的位置决定滑入与吸附时机。
+        // Collapse anchor: the sticky bar uses this large button's position to decide when to slide in and dock.
         h('div', { ref: collapse.anchorRef, style: { display: 'flex' } }, renderPlayButton(56, 28, undefined)),
         h(
           'button',
           {
             type: 'button',
-            title: '随机播放',
+            title: 'Shuffle',
             style: { background: 'none', border: 'none', color: 'var(--bb-text-secondary, #b3b3b3)', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
             onClick: () => {
               if (sortedUrns.length > 0) {
@@ -989,8 +990,8 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
           {
             type: 'button',
             'data-testid': 'album-heart-trigger',
-            'aria-label': isSaved ? '从音乐库中删除' : '添加到音乐库',
-            title: isSaved ? '从音乐库中删除' : '添加到音乐库',
+            'aria-label': isSaved ? 'Remove from music library' : 'Add to music library',
+            title: isSaved ? 'Remove from music library' : 'Add to music library',
             onClick: () => void handleToggleSave(),
             style: {
               background: 'none',
@@ -1013,7 +1014,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
               {
                 type: 'button',
                 'data-testid': 'album-download-all',
-                title: '下载全部',
+                title: 'Download all',
                 style: { background: 'none', border: 'none', color: 'var(--bb-text-secondary, #b3b3b3)', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
                 onClick: () => void downloads.enqueue(sortedUrns),
               },
@@ -1025,8 +1026,8 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
           {
             type: 'button',
             'data-testid': 'album-share-action-btn',
-            title: '分享专辑',
-            'aria-label': '分享专辑',
+            title: 'Share album',
+            'aria-label': 'Share album',
             onClick: () => {
               const shareService = serviceOf<ShareService>(ctx, 'share')
               if (shareService && detail) {
@@ -1037,7 +1038,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
                   {
                     urn: detail.urn,
                     title: detail.title,
-                    artist: detail.artists?.map((a) => a.name).join(', ') || '未知艺人',
+                    artist: detail.artists?.map((a) => a.name).join(', ') || 'Unknown artist',
                     artwork: coverUrl,
                     year: detail.year,
                     trackCount: detail.tracks.length,
@@ -1071,7 +1072,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
           {
             type: 'button',
             'data-testid': 'album-more-trigger',
-            title: '更多选项',
+            title: 'More options',
             style: { background: 'none', border: 'none', color: 'var(--bb-text-secondary, #b3b3b3)', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
             onClick: async (e) => {
               const rect = e.currentTarget.getBoundingClientRect()
@@ -1107,7 +1108,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
             {
               type: 'button',
               'data-testid': 'album-sort-trigger',
-              title: '排序方式',
+              title: 'Sort by',
               onClick: (e: React.MouseEvent) => {
                 const rect = e.currentTarget.getBoundingClientRect()
                 setSortMenuAnchor({ x: rect.left, y: rect.bottom + 6 })
@@ -1139,23 +1140,24 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
           onBatchPlay: handleBatchPlay,
           onBatchAddToPlaylist: (anchor) => handleBatchAddToPlaylist(anchor),
           onBatchDelete: handleBatchDelete,
-          deleteLabel: '从“最喜欢”中删除',
+          deleteLabel: 'Remove from Favorites',
           onExitBatch: handleExitBatch,
         })
       : null,
   )
 
-  // 表头走 stickyHeader 插槽（滚动容器的直接子节点）——嵌在 header 盒内时
-  // sticky 只在父盒范围吸附，作为父盒最后一个子元素等于完全吸不住。
+  // The table header rides the stickyHeader slot (a direct child of the scroller) —
+  // nested inside the header box, sticky only docks within the parent box, and being
+  // the parent box's last child it effectively never docks at all.
   const tableHeaderNode = h(DetailTableHeader, {
     testID: 'album-table-header',
     accessibilityLabel: detail.title,
     columns: [
       { key: 'trackNo', label: '#', testID: 'album-sort-trackNo', width: 40, align: 'center' },
-      { key: 'title', label: '标题', testID: 'album-sort-title', flex: 2, paddingLeft: 12 },
-      { key: 'artist', label: '艺人', plain: true, flex: 1, visible: viewMode === 'compact' },
-      { key: 'album', label: '专辑', testID: 'album-sort-album', flex: 1.5, fixed: true, sortKeys: ['album', 'plays'] },
-      { key: 'source', label: '来源', testID: 'album-sort-source', flex: 1, paddingLeft: 8 },
+      { key: 'title', label: 'Title', testID: 'album-sort-title', flex: 2, paddingLeft: 12 },
+      { key: 'artist', label: 'Artist', plain: true, flex: 1, visible: viewMode === 'compact' },
+      { key: 'album', label: 'Album', testID: 'album-sort-album', flex: 1.5, fixed: true, sortKeys: ['album', 'plays'] },
+      { key: 'source', label: 'Source', testID: 'album-sort-source', flex: 1, paddingLeft: 8 },
       { key: 'duration', label: '', icon: tablerIcon('clock', { size: 18 }), testID: 'album-sort-duration', width: 130, align: 'right', paddingRight: 40 },
     ] satisfies DetailColumnSpec[],
     sortKey,
@@ -1236,7 +1238,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
       x: sortMenuAnchor?.x ?? 0,
       y: sortMenuAnchor?.y ?? 0,
       items: viewModeMenuItems(sortItems, viewMode, setViewMode),
-      title: '排序方式',
+      title: 'Sort by',
     }),
     h(SaveToPlaylistPopover, saveToPlaylistMenu.menuProps),
   )

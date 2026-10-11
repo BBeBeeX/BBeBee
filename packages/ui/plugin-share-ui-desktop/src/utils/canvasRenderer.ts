@@ -418,7 +418,7 @@ export async function drawPlaylistCard(
   const titleTotalH = Math.max(1, titleLines.length) * titleLineH
 
   ctx.font = "500 18px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
-  const subtitle = playlist.subtitle || (playlist.trackCount > 0 ? `歌单 • ${playlist.trackCount} 首歌曲` : "歌单")
+  const subtitle = playlist.subtitle || (playlist.trackCount > 0 ? `Playlist • ${playlist.trackCount} songs` : "Playlist")
   const subtitleLines = wrapText(ctx, subtitle, textW, 3)
   const subtitleLineH = 26
   const subtitleTotalH = Math.max(1, subtitleLines.length) * subtitleLineH
@@ -534,9 +534,9 @@ export async function drawAlbumCard(
 
   let subtitle = album.subtitle
   if (!subtitle) {
-    const subtitleParts = ["专辑"]
+    const subtitleParts = ["Album"]
     if (album.artist) subtitleParts.push(album.artist)
-    if (album.trackCount > 0) subtitleParts.push(`${album.trackCount} 首歌曲`)
+    if (album.trackCount > 0) subtitleParts.push(`${album.trackCount} songs`)
     if (album.year) subtitleParts.push(String(album.year))
     subtitle = subtitleParts.join(" • ")
   }
@@ -805,7 +805,7 @@ export async function generateTrackCardCanvas(
     imgData.data.set(encoded.data)
     ctx.putImageData(imgData, 0, 0)
   } catch (err) {
-    throw new Error(`隐写数据嵌入失败: ${String(err)}`, { cause: err })
+    throw new Error(`Failed to embed steganographic data: ${String(err)}`, { cause: err })
   }
 
   return canvas
@@ -828,7 +828,7 @@ export async function generatePlaylistCardCanvas(
     imgData.data.set(encoded.data)
     ctx.putImageData(imgData, 0, 0)
   } catch (err) {
-    throw new Error(`隐写数据嵌入失败: ${String(err)}`, { cause: err })
+    throw new Error(`Failed to embed steganographic data: ${String(err)}`, { cause: err })
   }
 
   return canvas
@@ -851,7 +851,7 @@ export async function generateAlbumCardCanvas(
     imgData.data.set(encoded.data)
     ctx.putImageData(imgData, 0, 0)
   } catch (err) {
-    throw new Error(`隐写数据嵌入失败: ${String(err)}`, { cause: err })
+    throw new Error(`Failed to embed steganographic data: ${String(err)}`, { cause: err })
   }
 
   return canvas
@@ -875,7 +875,7 @@ export async function generateLyricsCardCanvas(
     imgData.data.set(encoded.data)
     ctx.putImageData(imgData, 0, 0)
   } catch (err) {
-    throw new Error(`隐写数据嵌入失败: ${String(err)}`, { cause: err })
+    throw new Error(`Failed to embed steganographic data: ${String(err)}`, { cause: err })
   }
 
   return canvas

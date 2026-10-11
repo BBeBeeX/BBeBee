@@ -83,8 +83,8 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
   // playback streaming, with no branch in the player either way.
   '@BBeBee/plugin-download': {},
   '@BBeBee/plugin-download-ui-mobile': {},
-  // Curation: playlists, favourites, collections and smart playlists. Mobile
-  // shows Playlists as a tab; Favourites is reached from that screen, because
+  // Curation: playlists, favorites, collections and smart playlists. Mobile
+  // shows Playlists as a tab; Favorites is reached from that screen, because
   // the tab bar is full and a fourth tab is a product decision, not a wiring
   // one (docs/08 §7).
   '@BBeBee/plugin-library': {},

@@ -42,64 +42,64 @@ const STATIC_RULES: readonly RegexRule[] = [
   // 1. eval / Function constructor
   {
     id: 'eval-function-constructor',
-    name: 'eval / Function 构造器',
+    name: 'eval / Function constructor',
     level: 'block',
     pattern: /\b(?:eval|Function|new\s+Function)\s*\(|(?:window|globalThis|global)\.eval\s*\(/g,
-    message: (m) => `检测到危险代码执行构造器: "${m[0].trim()}"`,
+    message: (m) => `Detected dangerous code execution constructor: "${m[0].trim()}"`,
   },
   // 2. Dynamic code execution (vm / string execution in timers)
   {
     id: 'dynamic-code-execution',
-    name: '动态代码执行',
+    name: 'Dynamic code execution',
     level: 'block',
     pattern: /\b(?:setTimeout|setInterval)\s*\(\s*['"`]|(?:vm\.(?:runInContext|runInNewContext|runInThisContext|Script))\b|require\s*\(\s*['"](?:node:)?vm['"]\s*\)/g,
-    message: (m) => `检测到动态代码或沙箱突破特征: "${m[0].trim()}"`,
+    message: (m) => `Detected dynamic code execution or sandbox escape pattern: "${m[0].trim()}"`,
   },
   // 4. Hardcoded credentials
   {
     id: 'credential-private-key',
-    name: '私钥硬编码',
+    name: 'Hardcoded private key',
     level: 'block',
     pattern: /-----BEGIN (?:[A-Z0-9_-]+ )?PRIVATE KEY-----/g,
-    message: () => '检测到硬编码的私钥凭据 (Private Key)',
+    message: () => 'Detected hardcoded private key credential (Private Key)',
   },
   {
     id: 'credential-api-token',
-    name: 'API 密钥 / Token 泄露',
+    name: 'API key / token leak',
     level: 'block',
     pattern: /\b(?:ghp_[a-zA-Z0-9]{36}|github_pat_[a-zA-Z0-9_]{82}|AKIA[0-9A-Z]{16}|sk-[a-zA-Z0-9]{20,})\b/g,
-    message: (m) => `检测到高风险硬编码平台密钥或凭证: "${m[0].slice(0, 8)}..."`,
+    message: (m) => `Detected high-risk hardcoded platform key or credential: "${m[0].slice(0, 8)}..."`,
   },
   {
     id: 'credential-generic-secret',
-    name: '敏感凭证特征',
+    name: 'Sensitive credential pattern',
     level: 'warn',
     pattern: /(?:api_key|apiKey|secret_key|private_key|auth_token)\s*[:=]\s*['"][a-zA-Z0-9_-]{24,}['"]/gi,
-    message: () => '检测到可能硬编码的 API 密钥或敏感凭据',
+    message: () => 'Detected possibly hardcoded API key or sensitive credential',
   },
   // 5. Prototype pollution
   {
     id: 'prototype-pollution',
-    name: '原型污染风险',
+    name: 'Prototype pollution risk',
     level: 'block',
     pattern: /\b__proto__\b|\bconstructor\s*\.\s*prototype\b|Object\s*\.\s*prototype\s*\[/g,
-    message: (m) => `检测到原型污染危险语法: "${m[0].trim()}"`,
+    message: (m) => `Detected dangerous prototype pollution syntax: "${m[0].trim()}"`,
   },
   // 6. Remote dynamic import
   {
     id: 'remote-dynamic-import',
-    name: '远程或动态 import() 执行',
+    name: 'Remote or dynamic import() execution',
     level: 'block',
     pattern: /\bimport\s*\(\s*['"`]https?:\/\/|\bimport\s*\(\s*[a-zA-Z0-9_$]+(?:\.[a-zA-Z0-9_$]+|\([^)]*\))?\s*\)/g,
-    message: (m) => `检测到远程或未确定的动态代码导入: "${m[0].trim()}"`,
+    message: (m) => `Detected remote or unresolved dynamic code import: "${m[0].trim()}"`,
   },
   // 7. Obfuscation signatures
   {
     id: 'obfuscation-packer',
-    name: '代码打包器混淆特征',
+    name: 'JavaScript packer obfuscation pattern',
     level: 'block',
     pattern: /eval\s*\(\s*function\s*\(\s*p\s*,\s*a\s*,\s*c\s*,\s*k\s*,\s*e\s*,\s*[dr]\s*\)/g,
-    message: () => '检测到已知的 JS Packer / 混淆加密执行外壳',
+    message: () => 'Detected a known JS Packer / obfuscated execution wrapper',
   },
 ]
 
@@ -142,7 +142,7 @@ function scanUndeclaredHosts(code: string, context?: SecurityAuditContext): Find
       const { line, column, snippet } = getLineAndColumn(code, match.index)
       findings.push({
         ruleId: 'undeclared-host-egress',
-        message: `检测到未声明的外发网络请求主机: "${host}" (允许列表: [${allowed.join(', ') || '无'}])`,
+        message: `Detected an undeclared outbound network request host: "${host}" (allowlist: [${allowed.join(', ') || 'none'}])`,
         level: 'block',
         loc: { line, column },
         snippet,
@@ -162,7 +162,7 @@ function scanObfuscationFeatures(code: string): Finding[] {
     const { line, column, snippet } = getLineAndColumn(code, firstIndex)
     findings.push({
       ruleId: 'obfuscation-dense-hex',
-      message: `检测到密集十六进制转义特征 (${hexMatches.length} 处)，疑似代码混淆`,
+      message: `Detected dense hex escape pattern (${hexMatches.length} occurrences), likely obfuscated code`,
       level: 'block',
       loc: { line, column },
       snippet,
@@ -172,7 +172,7 @@ function scanObfuscationFeatures(code: string): Finding[] {
     const { line, column, snippet } = getLineAndColumn(code, firstIndex)
     findings.push({
       ruleId: 'obfuscation-dense-hex',
-      message: `检测到多处十六进制转义字符 (${hexMatches.length} 处)`,
+      message: `Detected multiple hex escape characters (${hexMatches.length} occurrences)`,
       level: 'warn',
       loc: { line, column },
       snippet,
@@ -185,7 +185,7 @@ function scanObfuscationFeatures(code: string): Finding[] {
     const { line, column, snippet } = getLineAndColumn(code, firstIndex)
     findings.push({
       ruleId: 'obfuscation-dense-unicode',
-      message: `检测到密集 Unicode 转义字符 (${unicodeMatches.length} 处)，疑似代码混淆`,
+      message: `Detected dense Unicode escape characters (${unicodeMatches.length} occurrences), likely obfuscated code`,
       level: 'warn',
       loc: { line, column },
       snippet,
@@ -198,7 +198,7 @@ function scanObfuscationFeatures(code: string): Finding[] {
     const { line, column, snippet } = getLineAndColumn(code, firstIndex)
     findings.push({
       ruleId: 'obfuscation-packer-identifiers',
-      message: `检测到代码混淆特征标识符 (_0x... 出现 ${hexIdentMatches.length} 次)`,
+      message: `Detected obfuscation-pattern identifiers (_0x... appeared ${hexIdentMatches.length} times)`,
       level: 'block',
       loc: { line, column },
       snippet,
@@ -215,7 +215,7 @@ function scanObfuscationFeatures(code: string): Finding[] {
         const { line, column, snippet } = getLineAndColumn(code, idx)
         findings.push({
           ruleId: 'high-entropy-string',
-          message: `检测到超高信息熵字符串 (长度 ${content.length}, 熵值 ${entropy.toFixed(2)})，疑似编码后载荷`,
+          message: `Detected a very high-entropy string (length ${content.length}, entropy ${entropy.toFixed(2)}), likely an encoded payload`,
           level: 'warn',
           loc: { line, column },
           snippet,

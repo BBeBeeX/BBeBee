@@ -1,54 +1,54 @@
 # @BBeBee/plugin-desktop-lyrics
 
-Layer 4（feature）— `ctx.desktopLyrics`：桌面歌词无 UI 状态机与控制中心。
+Layer 4 (feature) — `ctx.desktopLyrics`: the headless state machine and control center for desktop lyrics.
 
-## 概述
+## Overview
 
-`plugin-desktop-lyrics` 管理桌面歌词的显示状态、排版设置与锁定模式。它作为无头（Headless）服务运行，将状态广播给界面层（例如 Electron 独立原生歌词窗口适配器或开发期浮动覆层）。
+`plugin-desktop-lyrics` manages the desktop lyrics' display state, typography settings, and locked mode. It runs as a headless service and broadcasts its state to the UI layer (for example the Electron standalone native lyrics window adapter, or a floating overlay during development).
 
-同时贡献全局命令 `desktop-lyrics.toggle`，供主播放界面工具栏、托盘菜单或键盘快捷键调用。
+It also contributes the global command `desktop-lyrics.toggle`, for the main player toolbar, the tray menu, or a keyboard shortcut to call.
 
-## 服务声明
+## Service declaration
 
-- `class DesktopLyricsService extends Service`，`super(ctx, 'desktopLyrics')` → `ctx.desktopLyrics`。
-- **必需注入**：`[]`（无底层硬依赖，即使无网络或音源离线也能管理桌面歌词界面状态）。
-- **可选注入**：`['ui']`（贡献 `desktop-lyrics.toggle` 命令）。
-- **能力声明**：贡献服务 `desktopLyrics`。
+- `class DesktopLyricsService extends Service`, `super(ctx, 'desktopLyrics')` → `ctx.desktopLyrics`.
+- **Required injections**: `[]` (no hard lower-layer dependencies; the desktop lyrics UI state can be managed even with no network or offline sources).
+- **Optional injections**: `['ui']` (contributes the `desktop-lyrics.toggle` command).
+- **Capabilities**: contributes the `desktopLyrics` service.
 
-## 公开 API
+## Public API
 
-### 状态快照
+### State snapshot
 
 `ctx.desktopLyrics.state`:
 ```ts
 interface DesktopLyricsState {
-  visible: boolean          // 是否显示桌面歌词
-  showNextLine: boolean     // 是否展示次行预读歌词
-  fontSize: number          // 字体大小 (14 - 40px)
-  opacity: number           // 背景与字体透明度 (0.2 - 1.0)
-  position: { x: number, y: number } // 窗口位置
-  locked: boolean           // 是否锁定（锁定模式下支持鼠标事件穿透）
+  visible: boolean          // whether the desktop lyrics are shown
+  showNextLine: boolean     // whether the next-line preview is shown
+  fontSize: number          // font size (14 - 40px)
+  opacity: number           // background and text opacity (0.2 - 1.0)
+  position: { x: number, y: number } // window position
+  locked: boolean           // whether locked (locked mode lets mouse events pass through)
 }
 ```
 
-### 方法
+### Methods
 
-| 方法 | 说明 |
+| Method | Description |
 |---|---|
-| `toggleVisible()` | 切换桌面歌词的显示与隐藏 |
-| `setVisible(visible: boolean)` | 设置桌面歌词可见性 |
-| `setShowNextLine(show: boolean)` | 设置是否显示双行歌词 |
-| `setFontSize(size: number)` | 设置歌词字号（自动 clamp 限制范围 14-40） |
-| `setOpacity(opacity: number)` | 设置透明度（自动 clamp 限制范围 0.2-1.0） |
-| `setPosition(pos: DesktopLyricsPosition)` | 设置/记忆窗口位置坐标 |
-| `setLocked(locked: boolean)` | 设置锁定状态（结合 Electron 开启鼠标穿透） |
+| `toggleVisible()` | Toggle the desktop lyrics shown/hidden |
+| `setVisible(visible: boolean)` | Set desktop lyrics visibility |
+| `setShowNextLine(show: boolean)` | Set whether the two-line (next line) lyrics are shown |
+| `setFontSize(size: number)` | Set the lyric font size (automatically clamped to 14-40) |
+| `setOpacity(opacity: number)` | Set opacity (automatically clamped to 0.2-1.0) |
+| `setPosition(pos: DesktopLyricsPosition)` | Set/remember the window position coordinates |
+| `setLocked(locked: boolean)` | Set the locked state (with Electron, enables mouse-event pass-through) |
 
-### 命令贡献
+### Command contribution
 
-- `desktop-lyrics.toggle`：切换桌面歌词显示/隐藏。
+- `desktop-lyrics.toggle`: toggle the desktop lyrics shown/hidden.
 
-### 事件
+### Events
 
-| 事件 | 负载 | 说明 |
+| Event | Payload | Description |
 |---|---|---|
-| `desktop-lyrics/changed` | `DesktopLyricsState` | 桌面歌词状态属性发生任何变更时广播 |
+| `desktop-lyrics/changed` | `DesktopLyricsState` | Broadcast whenever any desktop lyrics state property changes |

@@ -540,7 +540,7 @@ export interface SourcesService {
    * answers questions and returns plain data, and `ctx.sources` caches those
    * answers into the catalogue tables (§1). Reads belong beside the writes
    * rather than in a second service that would have to agree with them.
-   * Playlists, favourites and collections are `ctx.library`'s, not these.
+   * Playlists, favorites and collections are `ctx.library`'s, not these.
    */
   listTracks(q?: CatalogQuery): Promise<Paged<Track>>
   listAlbums(q?: CatalogQuery): Promise<Paged<Album>>

@@ -32,7 +32,7 @@ describe('identicon', () => {
   it('mirrors the left three columns onto the right two', () => {
     // Vertical symmetry is what makes the shape read as deliberate rather
     // than as noise; every row must be a palindrome.
-    for (const seed of ['BBeBee:local:album:abc', 'a', 'b', '♪♪', '日本語のタイトル']) {
+    for (const seed of ['BBeBee:local:album:abc', 'a', 'b', '♪♪', 'Japanese title']) {
       const cells = identicon(seed)!.cells
       for (let row = 0; row < 5; row++) {
         for (let column = 0; column < 5; column++) {

@@ -33,7 +33,7 @@ export function ContributionBlock({ ctx, contribution, onNavigate }: Contributio
       contribution.description
         ? h(Text, { variant: 'xs', tone: 'muted', children: contribution.description })
         : null,
-      h(Text, { variant: 'xs', tone: 'muted', children: '在此平台不可用' }),
+      h(Text, { variant: 'xs', tone: 'muted', children: 'Not available on this platform' }),
     )
   }
 
@@ -62,7 +62,7 @@ export function ContributionBlock({ ctx, contribution, onNavigate }: Contributio
     ),
     h(Button, {
       variant: 'secondary',
-      children: contribution.actionText ?? '打开',
+      children: contribution.actionText ?? 'Open',
       onPress: () => {
         if (contribution.action) void contribution.action()
         else onNavigate?.(contribution.id)

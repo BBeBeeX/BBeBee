@@ -37,7 +37,7 @@ describe('parseUrn', () => {
   })
 
   it('round-trips through formatUrn', () => {
-    const urn = 'BBeBee:local:playlist:favourites'
+    const urn = 'BBeBee:local:playlist:favorites'
     expect(formatUrn(parseUrn(urn))).toBe(urn)
   })
 })

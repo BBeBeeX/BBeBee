@@ -1,5 +1,5 @@
 /**
- * The 发现 page's filter bar: search, the third-party toggle, the sort
+ * The Discover page's filter bar: search, the third-party toggle, the sort
  * controls, and the plugin-only category filter.
  *
  * Presentational only — every value arrives as a prop and every change leaves
@@ -31,15 +31,15 @@ export const DEFAULT_SORT_DIR: Record<RegistrySortKey, RegistrySortDir> = {
   contributors: 'desc',
 }
 
-/** Known plugin category slugs → 中文标签; unknown slugs render verbatim. */
+/** Known plugin category slugs → English labels; unknown slugs render verbatim. */
 const CATEGORY_LABELS: Record<string, string> = {
-  'ui-enhancement': '界面增强',
-  'notifications-integration': '通知集成',
-  'development-runtime': '开发运行时',
-  'security-permissions': '安全与权限',
-  'remote-mobile': '远程与移动',
-  'marketplace-management': '市场管理',
-  other: '其他',
+  'ui-enhancement': 'UI enhancement',
+  'notifications-integration': 'Notifications integration',
+  'development-runtime': 'Development runtime',
+  'security-permissions': 'Security & permissions',
+  'remote-mobile': 'Remote & mobile',
+  'marketplace-management': 'Marketplace management',
+  other: 'Other',
 }
 
 export function categoryLabel(slug: string): string {
@@ -210,7 +210,7 @@ export function RegistryFilterBar({
         type: 'text',
         'data-testid': 'registry-search',
         className: 'bbreg-input',
-        placeholder: '搜索名称、作者或描述…',
+        placeholder: 'Search names, authors or descriptions…',
         value: query,
         onChange: (e: { target: { value: string } }) => onQueryChange(e.target.value),
         style: searchInputStyle,
@@ -229,13 +229,13 @@ export function RegistryFilterBar({
                   type: 'button',
                   'data-testid': 'registry-official-toggle',
                   'aria-pressed': showThirdParty,
-                  title: '关闭后仅显示 BBeBeeX 组织发布的官方条目',
+                  title: 'When off, only official entries published by the BBeBeeX organization are shown',
                   onClick: () => onShowThirdPartyChange(!showThirdParty),
                   className: 'bbreg-btn bbreg-btn-ghost',
                   style: tabPill(showThirdParty),
                 },
                 showThirdParty ? tablerIcon('check', { size: 14 }) : null,
-                '显示第三方内容',
+                'Show third-party content',
               )
             : null,
           showBrowseControls
@@ -245,12 +245,12 @@ export function RegistryFilterBar({
                 h(SortPillSelect, {
                   value: sortBy,
                   options: [
-                    { value: 'name', label: '按名称' },
-                    { value: 'stars', label: '按 Star 数' },
-                    { value: 'contributors', label: '按贡献者' },
+                    { value: 'name', label: 'By name' },
+                    { value: 'stars', label: 'By stars' },
+                    { value: 'contributors', label: 'By contributors' },
                   ],
                   onChange: onSortByChange,
-                  accessibilityLabel: '排序方式',
+                  accessibilityLabel: 'Sort by',
                 }),
               )
             : null,
@@ -261,7 +261,7 @@ export function RegistryFilterBar({
                   type: 'button',
                   'data-testid': 'registry-sort-direction',
                   'data-dir': sortDir,
-                  title: '切换升序 / 降序',
+                  title: 'Toggle ascending / descending',
                   onClick: () => onSortDirChange(sortDir === 'asc' ? 'desc' : 'asc'),
                   className: 'bbreg-btn bbreg-btn-ghost',
                   style: {
@@ -272,7 +272,7 @@ export function RegistryFilterBar({
                   },
                 },
                 tablerIcon('arrows-sort', { size: 14 }),
-                sortDir === 'asc' ? '升序' : '降序',
+                sortDir === 'asc' ? 'Ascending' : 'Descending',
               )
             : null,
           showCategoryFilter
@@ -282,11 +282,11 @@ export function RegistryFilterBar({
                 h(PillSelect, {
                   value: category,
                   options: [
-                    { value: 'all', label: '全部分类' },
+                    { value: 'all', label: 'All categories' },
                     ...categories.map((slug) => ({ value: slug, label: categoryLabel(slug) })),
                   ],
                   onChange: onCategoryChange,
-                  accessibilityLabel: '按分类筛选',
+                  accessibilityLabel: 'Filter by category',
                 }),
               )
             : null,

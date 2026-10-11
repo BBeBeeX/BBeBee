@@ -11,13 +11,13 @@ const DEFAULT_PARAMS: LimiterParams = {
 
 export const LimiterEffect: EffectDefinition<LimiterParams> = {
   id: 'limiter',
-  displayName: '峰值限制器 (Peak Limiter)',
+  displayName: 'Peak Limiter',
   defaultOrder: 90,
   Params: createParamSchema(DEFAULT_PARAMS),
   presets: [
-    { name: '安全防破音 (-0.5 dB)', params: { ceilingDb: -0.5 }, builtin: true },
-    { name: '严格限制 (-1.0 dB)', params: { ceilingDb: -1.0 }, builtin: true },
-    { name: '微弱限制 (-0.1 dB)', params: { ceilingDb: -0.1 }, builtin: true },
+    { name: 'Anti-clip (-0.5 dB)', params: { ceilingDb: -0.5 }, builtin: true },
+    { name: 'Strict limit (-1.0 dB)', params: { ceilingDb: -1.0 }, builtin: true },
+    { name: 'Gentle limit (-0.1 dB)', params: { ceilingDb: -0.1 }, builtin: true },
   ],
   buildLavfi(params: Record<string, unknown>): string {
     const ceiling = typeof params['ceilingDb'] === 'number'

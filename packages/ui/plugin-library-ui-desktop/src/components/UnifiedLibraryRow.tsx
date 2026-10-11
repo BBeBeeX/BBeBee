@@ -130,7 +130,7 @@ export function UnifiedLibraryRow({
                 e.stopPropagation()
                 item.onPlay()
               },
-              title: `播放 ${item.title}`,
+              title: `Play ${item.title}`,
               style: {
                 position: 'absolute',
                 inset: 0,
@@ -153,7 +153,7 @@ export function UnifiedLibraryRow({
         'div',
         { style: { display: 'flex', alignItems: 'center', gap: 4 } },
         h(Text, { numberOfLines: 1 }, item.title),
-        isFav ? h('span', { style: { display: 'none' } }, '最喜欢的音乐') : null,
+        isFav ? h('span', { style: { display: 'none' } }, 'Favorites') : null,
       ),
       h(
         'div',
@@ -169,8 +169,8 @@ export function UnifiedLibraryRow({
           'button',
           {
             type: 'button',
-            'aria-label': isExpanded ? '折叠文件夹' : '展开文件夹',
-            title: isExpanded ? '折叠' : '展开',
+            'aria-label': isExpanded ? 'Collapse folder' : 'Expand folder',
+            title: isExpanded ? 'Collapse' : 'Expand',
             onClick: (e: { stopPropagation(): void }) => {
               e.stopPropagation()
               onToggleExpand?.()

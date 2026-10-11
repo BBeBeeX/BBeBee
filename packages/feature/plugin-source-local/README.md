@@ -1,72 +1,72 @@
 # @BBeBee/plugin-source-local
 
-Layer 4（feature）— 本机文件作为 `MediaProvider`：与其他源毫无特权的平等一员。
+Layer 4 (feature) — local files as a `MediaProvider`: a fully equal citizen with zero privilege over other sources.
 
-## 概述
+## Overview
 
-本地库**刻意不受优待**：它走与其他服务器完全相同的 SPI、相同的 URN 方案、相同的 resolve 路径。唯一不同的方法是 `resolveStream`——它对 `kind: 'local'` 立即应答。这也正是 M3 的下载插件能"在播放器毫不知情的情况下"插入的原因：一条下载来的 track 与本地 track 同形、只是 `media_bindings.origin` 不同。
+The local library is **deliberately not favored**: it goes through exactly the same SPI, the same URN scheme, and the same resolve path as every other server. The only method that differs is `resolveStream` — it answers `kind: 'local'` immediately. This is also why the M3 download plugin can hook in "without the player ever knowing": a downloaded track and a local track are shaped identically, differing only in `media_bindings.origin`.
 
-它的 `auth` 是平凡实现 `NoAuth`（`flow: 'none'`），四行——恰恰证明了"要求每个 provider 都实现 auth"的成本是零（docs/06 §1.1）。
+Its `auth` is the trivial `NoAuth` (`flow: 'none'`), four lines — which precisely proves that "requiring every provider to implement auth" costs nothing (docs/06 §1.1).
 
-**与 `plugin-local-scanner` 的分工**：扫描器负责**填充**（从磁盘把文件变成目录条目），本包负责**应答**（回答目录里有什么、如何播放）。写入者与应答者分离，读写同一批表（docs/06 §8）。
+**Division of labor with `plugin-local-scanner`**: the scanner does the **filling** (turning files on disk into catalog entries), this package does the **answering** (what is in the catalog, how to play it). Writer and responder are separated; both read and write the same tables (docs/06 §8).
 
-## 源文件
+## Source files
 
 ### `src/index.ts`
 
-包内唯一源文件：`SourceLocal` 服务、`NoAuth`、能力常量与插件入口。
+The package's only source file: the `SourceLocal` service, `NoAuth`, the capability constants, and the plugin entry.
 
-**`SourceLocal extends Service`**（占用 `ctx.sourceLocal` 服务键；`static inject = ['db', 'fs', 'sources']`）：
+**`SourceLocal extends Service`** (owns the `ctx.sourceLocal` service key; `static inject = ['db', 'fs', 'sources']`):
 
-| 成员 | 作用 |
+| Member | Purpose |
 |---|---|
-| `[Service.init]()` | 嵌套注入 `['scanner']`（拿扫描根列表，缺失只是功能降级）；向 `ctx.sources.register(this.provider())` 注册 provider——注册本身就是 disposer，卸载插件或登出都会让下游"看不见"它。⚠️ disposer 包在本地闭包里再返回：穿过 service proxy 的不是 fiber 会收集的那个函数。启动时 `logger.info` 一行注册日志——"我的本地音乐不见了"必须能从日志文件回答。 |
-| `provider(): MediaProvider` | 组装交给 `ctx.sources` 的 provider 对象。 |
+| `[Service.init]()` | Nested injection of `['scanner']` (fetches the scan-root list; missing only degrades the feature); registers the provider via `ctx.sources.register(this.provider())` — the registration itself is the disposer, so unloading the plugin or signing out makes downstream stop "seeing" it. ⚠️ The disposer is wrapped in a local closure before being returned: what crosses the service proxy is not the function the fiber would collect. On startup one `logger.info` registration line is written — "my local music disappeared" must be answerable from the log file. |
+| `provider(): MediaProvider` | Assembles the provider object handed to `ctx.sources`. |
 
-**必需核心面**：
+**Required core surface**:
 
-- `getTrack(id)` — 直查该 URN 的行。早期版本先列整个目录第一页再回退，是"每首歌两次查询"的浪费——这是播放器逐曲调用的路径。
-- `getTracks(ids)` — 批量版。SPI 有这个成员的全部理由：`ids.map(getTrack)` 是 N 次往返，而队列恢复一次就要整条队列。
-- `resolveStream(id, prefs)` — **URN 变成字节的一刻，也是唯一与远程 provider 不同的方法**。查 `media_bindings` 拿文件、`ctx.fs.exists` 校验（文件没了要按播放器分支的错误分类报 `NotFoundError`，而不是拖到解码时失败）、`ctx.fs.toPlayableUri` 收尾——这是 **Android SAF 泄漏的显式化**：用户选择的文件夹是解码器打不开的 `content://` 树 URI，就在这里变成能打开的东西（docs/04 §1）。产物带 `codec`/`bitrateKbps`/`sampleRate`/`byteLength`。
-- `ping()` — 便宜（按契约）：根存在且可读即可。
+- `getTrack(id)` — queries the row for that URN directly. An earlier version listed the entire catalog's first page and then fell back — "two queries per song" of waste; this is the path the player calls per track.
+- `getTracks(ids)` — the batch version. The entire reason the SPI has this member: `ids.map(getTrack)` is N round trips, while a queue restore needs the whole queue at once.
+- `resolveStream(id, prefs)` — **the moment a URN becomes bytes, and the only method that differs from a remote provider**. Looks up `media_bindings` for the file, verifies with `ctx.fs.exists` (a missing file must surface as the player's `NotFoundError` error branch, not fail later at decode time), then finishes with `ctx.fs.toPlayableUri` — this is the **explicit un-leaking of Android SAF**: the folder the user picked is a `content://` tree URI the decoder cannot open, and right here it becomes something that can be opened (docs/04 §1). The result carries `codec`/`bitrateKbps`/`sampleRate`/`byteLength`.
+- `ping()` — cheap (by contract): the root exists and is readable.
 
-**可选面**：
+**Optional surface**:
 
-- `search(query, page)` — 应答自 `ctx.sources` 维护的 FTS 索引（按本 sourceId 收窄）。一个索引两个入口（这里与 `searchLocal`），而不是两套会漂移的分词配置。能力常量里 `fullText: true` 因此成立——本包自己不建索引。
-- `browse(nodeId?, page?)` — 本地库的"探索"面就是文件夹树。目录来自 `ctx.fs`；**文件只有被扫描器真正导入过才是叶子**——一整个不支持的文件的目录浏览为空，而不是一堆播不了的 track。性能：整个文件夹两条查询（`scan_entries` 的 uri→urn 批量映射 + tracks 批量读），300 首的目录曾是 600 次往返。读目录失败**先写日志再抛**：抛错只是用户没在看的那块屏幕上的消息，"哪个文件夹读不了"才是全部诊断——SAF 权限被吊销和 U 盘被拔在 UI 上长得一模一样。
-- `getAlbum` / `getArtist` — 委托 `ctx.sources` 的目录 hydrate。
-- `getArtwork(id)` — 封面已在磁盘上，id 就是知道位置的那一行（`artworks.local_uri`）。
+- `search(query, page)` — answered from the FTS index maintained by `ctx.sources` (narrowed by this sourceId). One index, two entry points (here and `searchLocal`), rather than two tokenizer configurations that drift apart. The `fullText: true` capability constant holds for this reason — this package does not build an index itself.
+- `browse(nodeId?, page?)` — the local library's "explore" surface is the folder tree. Directories come from `ctx.fs`; **a file is a leaf only if the scanner actually imported it** — browsing a folder of entirely unsupported files yields an empty result, not a pile of unplayable tracks. Performance: two queries per folder (a `scan_entries` uri→urn batch map + a batched tracks read); a 300-track folder used to cost 600 round trips. A directory read failure **logs first, then throws**: the throw is only a message on a screen the user may not be looking at — "which folder failed to read" is the whole diagnosis. A revoked SAF permission and an unplugged USB drive look identical in the UI.
+- `getAlbum` / `getArtist` — delegated to `ctx.sources`' catalog hydration.
+- `getArtwork(id)` — the artwork is already on disk; the id is the row that knows where (`artworks.local_uri`).
 
-**登出 = `forgetEverything()`**：没有凭据，所以清除的是目录行与扫描簿记（`scan_entries`/`media_bindings`/`tracks`/`albums`/`artists`，一个事务），本地等价于清 cookie jar；**文件本身是用户的，绝不触碰**。随后 emit `library/changed` 与 `source/signed-out`。
+**Sign-out = `forgetEverything()`**: there are no credentials, so what gets cleared is the catalog rows and scan bookkeeping (`scan_entries`/`media_bindings`/`tracks`/`albums`/`artists`, one transaction) — the local equivalent of clearing the cookie jar; **the files themselves belong to the user and are never touched**. Then emits `library/changed` and `source/signed-out`.
 
-**能力常量 `CAPABILITIES`**：search（tracks + fullText）、browse、artwork、library.read、streaming `{ qualities: ['lossless'], seekable: true, urlExpiry: false }`——"磁盘上的文件永远可 seek、永不过期"，说出来 UI 才能不试探就给出拖动条。
+**Capability constants `CAPABILITIES`**: search (tracks + fullText), browse, artwork, library.read, streaming `{ qualities: ['lossless'], seekable: true, urlExpiry: false }` — "a file on disk is always seekable and never expires"; only by saying so can the UI offer a scrub bar without probing.
 
-## 配置
+## Configuration
 
 ```ts
 export interface SourceLocalConfig {
-  sourceId?: string    // 默认 'local'，必须与扫描器的一致
-  displayName?: string // 默认 'This device'
+  sourceId?: string    // default 'local', must match the scanner's
+  displayName?: string // default 'This device'
 }
 ```
 
-## 能力声明
+## Capabilities
 
-`fs:read:all`、`db:read:core`、`db:write:core`。
+`fs:read:all`, `db:read:core`, `db:write:core`.
 
-## 导出
+## Exports
 
 ```ts
 export class SourceLocal extends Service      // ctx.sourceLocal
 export interface SourceLocalConfig
 export const name = 'plugin-source-local'
-export async function apply(ctx, config?)     // 刻意 await ctx.plugin(SourceLocal, config)
+export async function apply(ctx, config?)     // deliberately awaits ctx.plugin(SourceLocal, config)
 export default { name, apply }
 export { parseUrn }
 ```
 
-## 相关文档
+## Related docs
 
-- `docs/06-music-sources.md` §1/§8：MediaProvider SPI、本地源的平等地位
-- `docs/04-core-services.md` §1：`ctx.fs.toPlayableUri` 与 SAF
-- `packages/feature/plugin-local-scanner/README.md`：写入端
+- `docs/06-music-sources.md` §1/§8: the MediaProvider SPI, the local source's equal standing
+- `docs/04-core-services.md` §1: `ctx.fs.toPlayableUri` and SAF
+- `packages/feature/plugin-local-scanner/README.md`: the writing side
