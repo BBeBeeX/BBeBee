@@ -47,11 +47,12 @@ export function repoKey(ref: RepoRef): string {
 }
 
 /**
- * Official entries: the built-in lyric sources, and anything published under
- * the official organization. An entry with no repository is third-party.
+ * Official entries: anything published under the official GitHub organization.
+ * Organization names are globally unique and cannot be spoofed, so the
+ * repository owner is the single trust anchor — an entry that publishes no
+ * repository (including the built-in lyric sources) reads as third-party.
  */
 export function isOfficialEntry(entry: RegistryEntry): boolean {
-  if (entry.id.startsWith('builtin-')) return true
   const ref = entryRepo(entry)
   return ref !== undefined && ref.owner.toLowerCase() === OFFICIAL_OWNER
 }

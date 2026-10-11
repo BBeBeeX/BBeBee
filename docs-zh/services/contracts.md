@@ -1043,6 +1043,43 @@ export interface RegistryService {
 - **安全红线**：`fetchEntryDetails()` 的存在就是为了让确认对话框在导入**之前**说出音源文档的 `allowedHosts`；插件安装校验 `sha256` 并要求明确的风险确认；下载插件经由 `@BBeBee/plugin-security-audit` 进行 7 项威胁扫描并在 `registry.lock.json` 中校验防篡改。
 - **自动检查**：`AppSettings.registryAutoCheck`（默认 `true`）—— 启动约 45 秒后首次检查，此后每 24 小时一次；手动检查不受影响。
 
+### 25.1 伴生服务 `ctx.registryMetadata`
+
+发现页的 star / 贡献者排序读取独立的无头服务 `@BBeBee/plugin-registry-metadata`，而不是扩充 `RegistryService`：
+
+```ts
+/** 一个 `owner/repo` 的 GitHub 统计。缺失的数值字段表示"本轮未知"。 */
+export interface RegistryRepoStats {
+  readonly owner: string
+  readonly repo: string
+  /** `GET /repos/{owner}/{repo}` 返回的 `stargazers_count`。 */
+  readonly stars?: number
+  /** 近似贡献者数（`/contributors?per_page=100` 单页最多 100 条）。 */
+  readonly contributors?: number
+  /** 统计获取时间（epoch ms）。 */
+  readonly fetchedAt: number
+  /** 为 true 表示新请求失败、返回了超过 TTL 的缓存值。 */
+  readonly stale?: boolean
+  /** 无法产出数据时设置（限流、网络失败、仓库不存在）。 */
+  readonly error?: string
+}
+
+export interface RegistryMetadataService {
+  /** 惰性获取 —— 或读取 24h 缓存 —— 一个仓库的 GitHub 统计。绝不抛错。 */
+  getRepoStats(owner: string, repo: string): Promise<RegistryRepoStats>
+  /** 只读缓存，不发网络。从未获取过时返回 undefined。 */
+  peekRepoStats(owner: string, repo: string): RegistryRepoStats | undefined
+}
+```
+
+| | Electron（桌面） | Expo（移动） |
+|---|---|---|
+| 无头服务 | `@BBeBee/plugin-registry-metadata` | 同左 |
+| 持久化 | `ctx.store` 键 `registry-metadata.cache`（每 `owner/repo` 24h TTL） | 同左 |
+| 降级 | 429/403 限流后本地退避约 60 分钟；失败返回标记 `stale` 的过期缓存，或携带 `error` 的结果 —— 绝不抛错 | 同左 |
+
+请求由调用方驱动（UI 仅在数值排序键激活时发起），同仓库的并发请求合并，全局并发上限 3。registry 仓本身永不携带这些数字。
+
 ---
 
 ## 26. 下一步阅读

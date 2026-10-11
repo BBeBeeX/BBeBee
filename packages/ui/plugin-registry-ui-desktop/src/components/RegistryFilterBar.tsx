@@ -229,7 +229,7 @@ export function RegistryFilterBar({
                   type: 'button',
                   'data-testid': 'registry-official-toggle',
                   'aria-pressed': showThirdParty,
-                  title: '关闭后仅显示官方（BBeBeeX 发布或内置）条目',
+                  title: '关闭后仅显示 BBeBeeX 组织发布的官方条目',
                   onClick: () => onShowThirdPartyChange(!showThirdParty),
                   className: 'bbreg-btn bbreg-btn-ghost',
                   style: tabPill(showThirdParty),

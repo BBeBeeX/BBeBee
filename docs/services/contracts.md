@@ -1182,6 +1182,43 @@ export interface RegistryService {
 - **Security red lines**: `fetchEntryDetails()` exists so the confirm dialog can name a music document's `allowedHosts` before import; plugin installs verify `sha256` and require an explicit risk confirmation; downloaded plugins undergo security audits via `@BBeBee/plugin-security-audit` checking 7 threat patterns, and integrity is locked in `registry.lock.json` to detect tampering.
 - **Automatic checks**: `AppSettings.registryAutoCheck` (default `true`) — first check ~45 s after boot, then every 24 h; manual checks run regardless.
 
+### 25.1 The `ctx.registryMetadata` companion service
+
+The 发现 page's star/contributor sorting reads a separate headless service, `@BBeBee/plugin-registry-metadata`, instead of growing `RegistryService`:
+
+```ts
+/** GitHub stats for one `owner/repo`. Absent numeric fields mean "unknown this round". */
+export interface RegistryRepoStats {
+  readonly owner: string
+  readonly repo: string
+  /** `stargazers_count` from `GET /repos/{owner}/{repo}`. */
+  readonly stars?: number
+  /** Approximate contributor count (one page of up to 100 from `/contributors?per_page=100`). */
+  readonly contributors?: number
+  /** Epoch ms when the stats were fetched. */
+  readonly fetchedAt: number
+  /** True when the value came from cache past its TTL because a fresh fetch failed. */
+  readonly stale?: boolean
+  /** Set when the lookup could not produce data (rate limit, network failure, missing repo). */
+  readonly error?: string
+}
+
+export interface RegistryMetadataService {
+  /** Lazily fetches — or reads from the 24h cache — GitHub stats for one repository. Never throws. */
+  getRepoStats(owner: string, repo: string): Promise<RegistryRepoStats>
+  /** Cached stats only, no network. Undefined when nothing has been fetched yet. */
+  peekRepoStats(owner: string, repo: string): RegistryRepoStats | undefined
+}
+```
+
+| | Electron (Desktop) | Expo (Mobile) |
+|---|---|---|
+| Headless service | `@BBeBee/plugin-registry-metadata` | Same |
+| Persistence | `ctx.store` key `registry-metadata.cache` (24 h TTL per `owner/repo`) | Same |
+| Degradation | 429/403 rate limits back off for ~60 min; failures return stale cache flagged `stale`, or a result carrying `error` — never throw | Same |
+
+Requests are caller-driven (the UI only asks while a numeric sort key is active), deduplicated per repository in flight, and capped at 3 concurrent fetches. The registry repo itself never carries these numbers.
+
 ---
 
 ## 26. Where to go next

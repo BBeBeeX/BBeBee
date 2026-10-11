@@ -69,6 +69,7 @@ B_Be_Bee-registry/
 | `repoUrl` | plugin | 插件作者本人的仓库。 |
 | `sha256` | plugin | 插件包的完整性摘要（§5）。 |
 | `capabilities` | plugin | 包内 manifest 声明的能力清单。 |
+| `category` | plugin | 自由分类 slug（如 `ui-enhancement`），发现页的分类筛选按它分组；未知 slug 原文透传。 |
 
 ---
 
@@ -241,6 +242,16 @@ export interface RegistryService {
 
 1. **信息架构层级分明**：左侧侧边栏专注于核心播放与本地曲库浏览（搜索、曲库、专辑、歌单等）；而扩展内容、工具箱与资源管理类视图（注册表/发现、下载管理、历史记录、导入分享）统一收拢于顶栏托盘（Tray）中，避免侧边栏层级过度膨胀。
 2. **更新通知徽标联动**：`apps/desktop/renderer/TopBar.tsx` 中的 `TrayIndicator` 监听 `registry/updates-available` 事件。当检测到可更新内容时，会在顶栏托盘触发按钮上展示全局更新红点（`topbar-tray-update-dot`），并在展开面板中的“发现”入口展示红点（`topbar-tray-item-update-dot`）。将注册表置于托盘中，使更新提醒能够醒目触达用户，同时不干扰核心音乐界面的日常使用。
+
+### 7.1 发现页功能面
+
+在四类 kind tab 之外，页面承载一组客户端视图功能（均为视图状态；除收藏外不做持久化）：
+
+- **第三方筛选** —— “显示第三方内容”开关，默认开启。官方判定只有一条规则：条目 `repo`/`repoUrl` 的 owner 等于 GitHub 组织 `BBeBeeX`。组织名全局唯一、无法仿冒，因此仓库 owner 是唯一信任锚点；未发布仓库的条目——包括内置歌词源——一律视为第三方，在开关关闭时被隐藏。
+- **排序** —— 按名称（本地化比较），或按 GitHub star 数 / 贡献者数，经由伴生服务 `ctx.registryMetadata`（contracts §25.1）。仅当数值排序键激活时才发起请求，结果缓存 24 小时，失败降级为“—”，绝不阻塞渲染。
+- **插件分类筛选** —— 选项来自索引中实际出现的 `category` slug（§2）；未知 slug 原文透传而非崩溃。
+- **收藏 / 已安装 tab** —— 收藏是 localStorage 中的 id 集合（`bbebee_registry_favorites`）；已安装 tab 列出各内容服务报告为已安装或可更新的条目，附带 lock 记录的 commit/日期信息（§5.5），并为拥有移除 API 的类型提供卸载（插件类型没有移除 API，此时指向插件管理）。
+- **任务中心与诊断** —— 顶栏任务按钮与“诊断”tab 渲染 §4 记录的可选服务面。
 
 ---
 

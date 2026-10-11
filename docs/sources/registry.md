@@ -74,6 +74,7 @@ Each entry in `music-sources/`, `lyric-sources/`, and `plugins/` is an individua
 | `repoUrl` | plugin | The plugin author's own repository. |
 | `sha256` | plugin | Integrity digest of the plugin bundle (§5). |
 | `capabilities` | plugin | The manifest capabilities the bundle declares. |
+| `category` | plugin | Free-form category slug (e.g. `ui-enhancement`) the 发现 page's category filter groups by. Unknown slugs pass through verbatim. |
 
 ---
 
@@ -310,6 +311,16 @@ The registry view ("发现" / Discovery, route `/registry`) is contributed to th
 
 1. **Information architecture hierarchy**: The left sidebar is reserved for primary audio playback and local library navigation (Search, Library, Albums, Playlists). Management tools and extensions (Registry, Downloads, History, Import Share) are aggregated in the TopBar tray to prevent navigation clutter.
 2. **Update notification coupling**: `apps/desktop/renderer/TopBar.tsx` hosts `TrayIndicator`, which subscribes to the `registry/updates-available` event. When updates are found, it displays an update indicator dot (`topbar-tray-update-dot`) on the tray toggle button and on the registry entry inside the tray panel. Placing the registry in the tray allows update notifications to alert the user promptly without polluting the core browsing sidebar.
+
+### 7.1 The Discovery page surface
+
+Beyond the four kind tabs, the screen carries a set of client-side view features (all view state; nothing beyond favorites is persisted):
+
+- **Third-party filter** — the "显示第三方内容" toggle, on by default. Officialness has exactly one rule: the entry's `repo`/`repoUrl` owner equals the `BBeBeeX` GitHub organization. Organization names are globally unique and cannot be spoofed, so the repository owner is the only trust anchor; an entry that publishes no repository — the built-in lyric sources included — reads as third-party and is hidden while the toggle is off.
+- **Sorting** — by name (locale compare), or by GitHub stars / contributor count through the companion `ctx.registryMetadata` service (contracts §25.1). Stats requests fire only while a numeric sort key is active, cache for 24 h, degrade to "—" on failure, and never block rendering.
+- **Plugin category filter** — options derive from the `category` slugs actually present in the index (§2); unknown slugs pass through untranslated instead of crashing.
+- **收藏 / 已安装 tabs** — favorites are a localStorage id set (`bbebee_registry_favorites`); the installed tab lists what the content services report as installed or updateable, annotates lock-record commit/date metadata (§5.5), and offers uninstall for the kinds whose owning services expose a remove API (plugins have none — the tab points at plugin management instead).
+- **Task center & diagnostics** — the header task button and the 诊断 tab render the optional service surfaces documented in §4.
 
 ---
 

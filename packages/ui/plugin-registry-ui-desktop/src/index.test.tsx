@@ -90,7 +90,7 @@ const INDEX: RegistryIndex = {
       // Third-party.
       repo: 'https://github.com/community/beta-source',
     },
-    // Official by the builtin- prefix, with no repo at all.
+    // No repo → third-party under the owner-only rule, builtin or not.
     { id: 'builtin-lrclib', kind: 'lyric-source', name: 'LRCLIB', version: '1.1.0', downloadUrl: 'https://cdn.example/lrclib.json' },
     // No repo → third-party.
     { id: 'theme-neon', kind: 'theme', name: 'Neon', version: '2.0.0', previewUrl: 'https://cdn.example/neon.png' },
@@ -704,18 +704,19 @@ describe('RegistryScreen filters and sorting', () => {
     await waitFor(() => expect(getByTestId('registry-entry-music-current')).toBeTruthy())
   })
 
-  it('treats builtin entries as official and repo-less entries as third-party', async () => {
+  it('judges officialness by repo owner only: builtin and repo-less entries are third-party', async () => {
     const { ctx } = await harness()
     const { getByTestId, findByTestId, queryByTestId } = render(h(RegistryScreen, { ctx }))
     await findByTestId('registry-entry-music-new')
 
-    // The builtin lyric source has no repo but is official by its id prefix.
+    // The builtin lyric source publishes no repo — the organization owner is
+    // the only trust anchor, so even a builtin entry reads as third-party.
     fireEvent.click(getByTestId('registry-tab-lyric-source'))
     await waitFor(() => expect(getByTestId('registry-entry-builtin-lrclib')).toBeTruthy())
     fireEvent.click(getByTestId('registry-official-toggle'))
-    expect(getByTestId('registry-entry-builtin-lrclib')).toBeTruthy()
+    await waitFor(() => expect(queryByTestId('registry-entry-builtin-lrclib')).toBeNull())
 
-    // A theme without any repository reads as third-party and disappears.
+    // A theme without any repository reads as third-party and disappears too.
     fireEvent.click(getByTestId('registry-tab-theme'))
     await waitFor(() => expect(queryByTestId('registry-entry-theme-neon')).toBeNull())
     expect(getByTestId('registry-empty')).toBeTruthy()
@@ -1156,7 +1157,8 @@ describe('parseRepoOwner / isOfficialEntry', () => {
     expect(parseRepoOwner('https://cdn.example/a.json')).toBeUndefined()
     expect(parseRepoOwner(undefined)).toBeUndefined()
 
-    expect(isOfficialEntry({ ...base, id: 'builtin-lrclib' })).toBe(true)
+    expect(isOfficialEntry({ ...base, id: 'builtin-lrclib' })).toBe(false)
+    expect(isOfficialEntry({ ...base, id: 'builtin-lrclib', repo: 'BBeBeeX/lrclib' })).toBe(true)
     expect(isOfficialEntry({ ...base, id: 'ext', repo: 'bbebeex/anything' })).toBe(true)
     expect(isOfficialEntry({ ...base, id: 'ext', repo: 'BBeBeeX/anything' })).toBe(true)
     expect(isOfficialEntry({ ...base, id: 'ext', repo: 'someone/else' })).toBe(false)
