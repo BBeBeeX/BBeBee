@@ -303,9 +303,11 @@ function updateTaskbar(state: TaskbarState): void {
 
 
 function isDebug(): boolean {
-  const val = process.env['DEBUG'] || process.env['BBEBEE_DEBUG']
-  if (val && val !== '0' && val !== 'false') return true
-  return process.argv.includes('--debug')
+  const val = process.env['DEBUG'] ?? process.env['BBEBEE_DEBUG']
+  if (val === '0' || val === 'false') return false
+  if (val) return true
+  if (process.argv.includes('--debug')) return true
+  return Boolean(process.env['ELECTRON_RENDERER_URL'])
 }
 
 function createWindow(): BrowserWindow {

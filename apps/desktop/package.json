@@ -6,7 +6,6 @@
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
-    "dev:debug": "DEBUG=1 electron-vite dev",
     "build:audio-engine": "node scripts/build-audio-engine.js",
     "test:audio-engine": "node scripts/test-audio-engine.js",
     "build": "node scripts/build-audio-engine.js && electron-vite build",

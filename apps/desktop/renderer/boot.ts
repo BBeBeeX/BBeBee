@@ -175,8 +175,9 @@ function isDevelopment(): boolean {
 }
 
 function isDebug(): boolean {
-  return Boolean(
-    window.BBeBee?.isDebug ||
+  if (typeof window.BBeBee?.isDebug === 'boolean') return window.BBeBee.isDebug
+  return (
+    isDevelopment() ||
     (typeof location !== 'undefined' && new URLSearchParams(location.search).has('debug'))
   )
 }

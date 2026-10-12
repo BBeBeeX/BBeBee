@@ -202,11 +202,13 @@ const api = {
     },
   },
   versions: { electron: process.versions.electron, node: process.versions.node },
-  isDebug: Boolean(
-    (process.env['DEBUG'] && process.env['DEBUG'] !== '0' && process.env['DEBUG'] !== 'false') ||
-    process.env['BBEBEE_DEBUG'] ||
-    process.argv.includes('--debug'),
-  ),
+  isDebug: (() => {
+    const val = process.env['DEBUG'] ?? process.env['BBEBEE_DEBUG']
+    if (val === '0' || val === 'false') return false
+    if (val) return true
+    if (process.argv.includes('--debug')) return true
+    return Boolean(process.env['ELECTRON_RENDERER_URL'])
+  })(),
 } as const
 
 export type BBeBeeBridge = typeof api

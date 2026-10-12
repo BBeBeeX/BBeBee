@@ -75,9 +75,9 @@ declare const __DEV__: boolean
 /**
  * Whether the mobile app is running in debug mode.
  *
- * Only active in development (`__DEV__`).
- * Can be enabled via `EXPO_PUBLIC_DEBUG=1`, `DEBUG=1`, `BBEBEE_DEBUG=1`,
- * or global flag `__DEBUG__`.
+ * Enabled by default in development (`__DEV__`), and always off in release
+ * builds. Can be explicitly overridden in dev via `EXPO_PUBLIC_DEBUG=0`,
+ * `DEBUG=0`, `BBEBEE_DEBUG=0`, or global flag `__DEBUG__`.
  */
 export function isDebug(): boolean {
   if (typeof __DEV__ !== 'undefined' && !__DEV__) return false
@@ -88,7 +88,9 @@ export function isDebug(): boolean {
     typeof process !== 'undefined' && process.env
       ? process.env['EXPO_PUBLIC_DEBUG'] ?? process.env['DEBUG'] ?? process.env['BBEBEE_DEBUG']
       : undefined
-  return envDebug !== undefined && envDebug !== '' && envDebug !== '0' && envDebug !== 'false'
+  if (envDebug === '0' || envDebug === 'false') return false
+  if (envDebug !== undefined && envDebug !== '') return true
+  return typeof __DEV__ !== 'undefined' ? __DEV__ : true
 }
 
 /**
