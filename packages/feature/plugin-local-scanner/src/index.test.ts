@@ -229,7 +229,7 @@ describe('scanning', () => {
   })
 
   it('re-imports a file whose size or mtime changed', async () => {
-    const h = await harness()
+    const h = await harness({ canWatch: false })
     const a = await h.write('a.mp3')
     await h.scanner.addSpecifiedDir(h.uri)
     await h.scanner.scan()

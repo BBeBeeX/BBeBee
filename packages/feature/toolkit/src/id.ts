@@ -27,8 +27,8 @@ function fnv1a(value: string): string {
 
 /** 64 bits, as two rounds over different salts. Collisions stay theoretical. */
 export function stableId(...parts: (string | undefined)[]) {
-  const joined = parts.map((p) => p ?? '').join(' ')
-  return `${fnv1a(joined)}${fnv1a(`${joined}`)}`
+  const joined = parts.map((p) => p ?? '').join('\x00')
+  return `${fnv1a(joined)}${fnv1a(`\x01${joined}`)}`
 }
 
 /** Normalised for matching: case-folded, trimmed, whitespace collapsed. */

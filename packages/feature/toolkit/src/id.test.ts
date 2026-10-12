@@ -10,16 +10,19 @@ describe('stableId', () => {
 
   it('separates inputs that would concatenate into the same string', () => {
     // 'ab' + 'c' and 'a' + 'bc' join to the same 'abc' unless the join
-    // carries a separator; the space in `join(' ')` is load-bearing.
+    // carries a NUL separator (`join('\x00')`), including when parts contain spaces.
     expect(stableId('ab', 'c')).not.toBe(stableId('a', 'bc'))
+    expect(stableId('a b', 'c')).not.toBe(stableId('a', 'b c'))
   })
 
   it('folds undefined parts to empty rather than the string "undefined"', () => {
     expect(stableId('album', undefined)).toBe(stableId('album', ''))
   })
 
-  it('is 16 hex characters', () => {
-    expect(stableId('track', 'x')).toMatch(/^[0-9a-f]{16}$/)
+  it('is 16 hex characters across two distinct 32-bit rounds', () => {
+    const id = stableId('track', 'x')
+    expect(id).toMatch(/^[0-9a-f]{16}$/)
+    expect(id.slice(0, 8)).not.toBe(id.slice(8, 16))
   })
 })
 
