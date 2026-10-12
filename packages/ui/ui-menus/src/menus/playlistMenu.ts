@@ -16,6 +16,7 @@ import { addToPlaylistSubmenu } from '../submenus/playlistSubmenu.js'
 import { addToCollectionSubmenu } from '../submenus/collectionSubmenu.js'
 import { useMenuState, type MenuController } from '../types.js'
 import { openExternalUrl, resolveOriginalResourceUrl } from '../utils/resourceUrls.js'
+import { menuTranslate } from '../utils/i18n.js'
 
 export interface PlaylistMenuOptions {
   pinned?: boolean
@@ -54,7 +55,7 @@ export function playlistMenuItems(
       if (opts.onBatchPlay) {
         items.push({
           id: 'batch-play',
-          label: 'Play selected',
+          label: menuTranslate(ctx, 'app:common.menu.playSelected', 'Play selected'),
           icon: 'play',
           onSelect: opts.onBatchPlay,
         })
@@ -62,7 +63,7 @@ export function playlistMenuItems(
       if (opts.onBatchAddToPlaylist) {
         items.push({
           id: 'batch-add-to-playlist',
-          label: 'Add to playlist',
+          label: menuTranslate(ctx, 'app:common.menu.addToPlaylist', 'Add to playlist'),
           icon: 'plus',
           onSelect: opts.onBatchAddToPlaylist,
         })
@@ -70,7 +71,7 @@ export function playlistMenuItems(
       if (opts.onBatchDelete) {
         items.push({
           id: 'batch-delete',
-          label: 'Delete',
+          label: menuTranslate(ctx, 'app:common.delete', 'Delete'),
           icon: 'trash',
           tone: 'danger',
           onSelect: opts.onBatchDelete,
@@ -78,7 +79,7 @@ export function playlistMenuItems(
       }
       items.push({
         id: 'batch-exit',
-        label: 'Exit batch operations',
+        label: menuTranslate(ctx, 'app:common.menu.exitBatchOperations', 'Exit batch operations'),
         icon: 'x',
         divider: true,
         onSelect: opts.onToggleBatchMode,
@@ -86,7 +87,7 @@ export function playlistMenuItems(
     } else {
       items.push({
         id: 'batch-operations',
-        label: 'Batch operations',
+        label: menuTranslate(ctx, 'app:common.menu.batchOperations', 'Batch operations'),
         icon: 'list-check',
         divider: true,
         onSelect: opts.onToggleBatchMode,
@@ -98,7 +99,7 @@ export function playlistMenuItems(
   if (opts.onEdit) {
     items.push({
       id: 'edit-details',
-      label: 'Edit details',
+      label: menuTranslate(ctx, 'app:common.menu.editDetails', 'Edit details'),
       icon: 'pencil',
       onSelect: opts.onEdit,
     })
@@ -108,7 +109,7 @@ export function playlistMenuItems(
   if (opts.onDelete) {
     items.push({
       id: 'delete-playlist',
-      label: 'Delete',
+      label: menuTranslate(ctx, 'app:common.delete', 'Delete'),
       icon: 'delete',
       tone: 'danger',
       divider: true,
@@ -120,7 +121,9 @@ export function playlistMenuItems(
   if (opts.onTogglePin) {
     items.push({
       id: 'toggle-pin',
-      label: opts.pinned ? 'Unpin playlist' : 'Pin playlist',
+      label: opts.pinned
+        ? menuTranslate(ctx, 'app:common.menu.unpinPlaylist', 'Unpin playlist')
+        : menuTranslate(ctx, 'app:common.menu.pinPlaylist', 'Pin playlist'),
       icon: 'pin',
       onSelect: opts.onTogglePin,
     })
@@ -130,7 +133,7 @@ export function playlistMenuItems(
   if (library && opts.isSaved !== true) {
     items.push({
       id: 'save-to-library',
-      label: 'Add to music library',
+      label: menuTranslate(ctx, 'app:common.menu.addToMusicLibrary', 'Add to music library'),
       icon: 'plus',
       onSelect: () => library.setSaved(playlist.urn, true),
     })
@@ -140,7 +143,7 @@ export function playlistMenuItems(
   if (player && tracks.length > 0) {
     items.push({
       id: 'enqueue',
-      label: 'Play',
+      label: menuTranslate(ctx, 'app:common.detailPlayButton.play', 'Play'),
       icon: 'play',
       onSelect: () => player.enqueueLast([...tracks]),
     })
@@ -150,7 +153,7 @@ export function playlistMenuItems(
   if (downloads && tracks.length > 0) {
     items.push({
       id: 'download',
-      label: 'Download',
+      label: menuTranslate(ctx, 'app:common.menu.download', 'Download'),
       icon: 'download',
       onSelect: () => void downloads.enqueue([...tracks]),
     })
@@ -161,7 +164,7 @@ export function playlistMenuItems(
   if (share) {
     items.push({
       id: 'share-playlist',
-      label: 'Share playlist',
+      label: menuTranslate(ctx, 'app:common.menu.sharePlaylist', 'Share playlist'),
       icon: 'share',
       onSelect: async () => {
         let resolvedTracks: (Track | ShareTrackData)[] | undefined
@@ -189,13 +192,14 @@ export function playlistMenuItems(
 
   // 7. Add to another playlist
   const submenu = addToPlaylistSubmenu(library, tracks, playlists, {
-    title: 'Add to another playlist',
+    title: menuTranslate(ctx, 'app:common.menu.addToAnotherPlaylist', 'Add to another playlist'),
     excludePlaylistUrn: playlist.urn,
+    ctx,
   })
   if (submenu) {
     items.push({
       id: 'add-to-playlist',
-      label: 'Add to another playlist',
+      label: menuTranslate(ctx, 'app:common.menu.addToAnotherPlaylist', 'Add to another playlist'),
       icon: 'plus',
       submenu,
     })
@@ -203,16 +207,17 @@ export function playlistMenuItems(
 
   // 8. Move to folder
   const collectionSubmenu = addToCollectionSubmenu(library, [playlist.urn], collections, {
-    title: 'Move to folder',
-    searchPlaceholder: 'Find folder',
-    createLabel: 'New folder',
+    title: menuTranslate(ctx, 'app:common.menu.moveToFolder', 'Move to folder'),
+    searchPlaceholder: menuTranslate(ctx, 'app:common.menu.findFolder', 'Find folder'),
+    createLabel: menuTranslate(ctx, 'app:common.menu.newFolder', 'New folder'),
     currentFolderId: opts.currentFolderId,
     onMoved: opts.onMoved,
+    ctx,
   })
   if (collectionSubmenu) {
     items.push({
       id: 'add-to-collection',
-      label: 'Move to folder',
+      label: menuTranslate(ctx, 'app:common.menu.moveToFolder', 'Move to folder'),
       icon: 'folder',
       submenu: collectionSubmenu,
     })
@@ -222,7 +227,7 @@ export function playlistMenuItems(
   if (originalUrl) {
     items.push({
       id: 'open-original-resource',
-      label: 'Open original resource',
+      label: menuTranslate(ctx, 'app:common.menu.openOriginalResource', 'Open original resource'),
       icon: 'share-box',
       onSelect: () => openExternalUrl(originalUrl),
     })

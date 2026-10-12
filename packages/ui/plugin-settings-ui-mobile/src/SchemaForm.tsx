@@ -75,6 +75,8 @@ function FieldRow({
 }): ReactElement | null {
   const native = nativePrimitives()
   const { t } = useI18n(ctx)
+  const fieldLabel = field.label.includes(':') ? t(field.label) : field.label
+  const fieldDescription = field.description && field.description.includes(':') ? t(field.description) : field.description
   const { values, change } = useSettingsFields(ctx, contribution)
   const [options, setOptions] = useState<readonly SettingsFieldOption[] | undefined>(field.options)
   const [entries, setEntries] = useState<readonly SwitchListEntry[]>([])
@@ -171,14 +173,14 @@ function FieldRow({
           h(
             native.View as never,
             { style: { flex: 1 } },
-            h(Text, { variant: 'md', children: field.label }),
-            field.description
-              ? h(Text, { variant: 'xs', tone: 'muted', children: field.description })
+            h(Text, { variant: 'md', children: fieldLabel }),
+            fieldDescription
+              ? h(Text, { variant: 'xs', tone: 'muted', children: fieldDescription })
               : null,
           ),
           h(SwitchRow, {
             checked: Boolean(value),
-            accessibilityLabel: field.label,
+            accessibilityLabel: fieldLabel,
             onChange: (checked: boolean) => void change(field.key, checked),
           }),
         ),
@@ -190,9 +192,9 @@ function FieldRow({
         h(
           native.View as never,
           { key: 'row', style: { gap: tokens.space[1] } },
-          h(Text, { variant: 'md', children: field.label }),
-          ...(field.description
-            ? [h(Text, { variant: 'xs', tone: 'muted', children: field.description })]
+          h(Text, { variant: 'md', children: fieldLabel }),
+          ...(fieldDescription
+            ? [h(Text, { variant: 'xs', tone: 'muted', children: fieldDescription })]
             : []),
           optionButtons(opts, value),
         ),
@@ -207,17 +209,17 @@ function FieldRow({
           { key: 'row', style: { gap: tokens.space[1] } },
           h(Text, {
             variant: 'md',
-            children: field.label,
+            children: fieldLabel,
           }),
           h(Text, {
             variant: 'xs',
             tone: 'muted',
-            children: [field.description, `${numeric}${field.unit ?? ''}`].filter(Boolean).join(' · '),
+            children: [fieldDescription, `${numeric}${field.unit ?? ''}`].filter(Boolean).join(' · '),
           }),
           h(Slider, {
             value: numeric,
             max: field.max ?? 100,
-            accessibilityLabel: field.label,
+            accessibilityLabel: fieldLabel,
             onChange: (v: number) => void change(field.key, Math.round(v)),
           }),
         ),
@@ -230,16 +232,16 @@ function FieldRow({
         h(
           native.View as never,
           { key: 'row', style: { gap: tokens.space[1] } },
-          h(Text, { variant: 'md', children: field.label }),
-          ...(field.description
-            ? [h(Text, { variant: 'xs', tone: 'muted', children: field.description })]
+          h(Text, { variant: 'md', children: fieldLabel }),
+          ...(fieldDescription
+            ? [h(Text, { variant: 'xs', tone: 'muted', children: fieldDescription })]
             : []),
           h(native.TextInput as never, {
             value: value == null ? '' : String(value),
             onChangeText: (v: string) =>
               void change(field.key, field.type === 'number' ? Number(v) || 0 : v),
             placeholder: field.placeholder,
-            accessibilityLabel: field.label,
+            accessibilityLabel: fieldLabel,
             style: {
               backgroundColor: 'rgba(255, 255, 255, 0.08)',
               borderRadius: tokens.radius.sm,
@@ -257,9 +259,9 @@ function FieldRow({
         h(
           native.View as never,
           { key: 'row', style: { gap: tokens.space[1] } },
-          h(Text, { variant: 'md', children: field.label }),
-          ...(field.description
-            ? [h(Text, { variant: 'xs', tone: 'muted', children: field.description })]
+          h(Text, { variant: 'md', children: fieldLabel }),
+          ...(fieldDescription
+            ? [h(Text, { variant: 'xs', tone: 'muted', children: fieldDescription })]
             : []),
           h(Button, {
             variant: 'secondary',
@@ -274,9 +276,9 @@ function FieldRow({
       const record =
         typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {}
       parts.push(
-        h(Text, { key: 'head', variant: 'md', children: field.label }),
-        ...(field.description
-          ? [h(Text, { key: 'desc', variant: 'xs', tone: 'muted', children: field.description })]
+        h(Text, { key: 'head', variant: 'md', children: fieldLabel }),
+        ...(fieldDescription
+          ? [h(Text, { key: 'desc', variant: 'xs', tone: 'muted', children: fieldDescription })]
           : []),
         ...entries.map((entry) =>
           h(
@@ -315,11 +317,11 @@ function FieldRow({
         h(
           native.View as never,
           { key: 'row', style: { gap: tokens.space[1] } },
-          h(Text, { variant: 'md', children: field.label }),
+          h(Text, { variant: 'md', children: fieldLabel }),
           h(Text, {
             variant: 'xs',
             tone: 'muted',
-            children: value ? String(value) : (field.description ?? t('settings:contributionBlock.notAvailableOnPlatform')),
+            children: value ? String(value) : (fieldDescription ?? t('settings:contributionBlock.notAvailableOnPlatform')),
           }),
         ),
       )
@@ -350,13 +352,15 @@ export interface SchemaFormProps {
  * components live anywhere: a plugin declares `fields`, this renders them.
  */
 export function SchemaForm({ ctx, contribution }: SchemaFormProps): ReactElement {
+  const { t } = useI18n(ctx)
+  const translateText = (text?: string): string | undefined => (text && text.includes(':') ? t(text) : text)
   const fields = contribution.fields ?? []
   return h(
     nativePrimitives().View as never,
     { style: { gap: tokens.space[3] } },
-    h(Text, { variant: 'sm', tone: 'accent', children: contribution.title }),
+    h(Text, { variant: 'sm', tone: 'accent', children: translateText(contribution.title) ?? contribution.title }),
     contribution.description
-      ? h(Text, { variant: 'xs', tone: 'muted', children: contribution.description })
+      ? h(Text, { variant: 'xs', tone: 'muted', children: translateText(contribution.description) })
       : null,
     ...fields.map((field) => h(FieldRow, { key: field.key, ctx, contribution, field })),
   )

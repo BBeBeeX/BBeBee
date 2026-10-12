@@ -23,6 +23,8 @@ export interface ContributionBlockProps {
  */
 export function ContributionBlock({ ctx, contribution, onNavigate }: ContributionBlockProps): ReactElement {
   const { t } = useI18n(ctx)
+  const translateText = (text?: string): string | undefined => (text && text.includes(':') ? t(text) : text)
+
   if (contribution.display === 'card') {
     const CardView = ctx.ui?.viewFor?.(contribution.id) as
       | React.ComponentType<{ ctx: Context }>
@@ -33,8 +35,8 @@ export function ContributionBlock({ ctx, contribution, onNavigate }: Contributio
       { key: contribution.id, 'data-testid': `contribution-unavailable-${contribution.id}` },
       h(SettingsRow, {
         ctx,
-        title: contribution.title,
-        description: contribution.description,
+        title: translateText(contribution.title) ?? contribution.title,
+        description: translateText(contribution.description),
         borderBottom: false,
         action: h(
           'span',
@@ -60,11 +62,11 @@ export function ContributionBlock({ ctx, contribution, onNavigate }: Contributio
   return h(SettingsRow, {
     ctx,
     key: contribution.id,
-    title: contribution.title,
-    description: contribution.description,
+    title: translateText(contribution.title) ?? contribution.title,
+    description: translateText(contribution.description),
     borderBottom: false,
     action: h(Button, {
-      children: contribution.actionText ?? t('settings:contributionBlock.open'),
+      children: (contribution.actionText ? translateText(contribution.actionText) : undefined) ?? t('settings:contributionBlock.open'),
       onPress: () => {
         if (contribution.action) void contribution.action()
         else (onNavigate ?? ((id: string) => serviceNavigate(ctx, id)))(contribution.id)

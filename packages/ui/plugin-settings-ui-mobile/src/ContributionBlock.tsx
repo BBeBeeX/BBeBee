@@ -21,6 +21,7 @@ export interface ContributionBlockProps {
 export function ContributionBlock({ ctx, contribution, onNavigate }: ContributionBlockProps): ReactElement {
   const native = nativePrimitives()
   const { t } = useI18n(ctx)
+  const translateText = (text?: string): string | undefined => (text && text.includes(':') ? t(text) : text)
 
   if (contribution.display === 'card') {
     const CardView = ctx.ui?.viewFor?.(contribution.id) as
@@ -30,9 +31,9 @@ export function ContributionBlock({ ctx, contribution, onNavigate }: Contributio
     return h(
       native.View as never,
       { key: contribution.id, 'data-testid': `contribution-unavailable-${contribution.id}` },
-      h(Text, { variant: 'md', children: contribution.title }),
+      h(Text, { variant: 'md', children: translateText(contribution.title) ?? contribution.title }),
       contribution.description
-        ? h(Text, { variant: 'xs', tone: 'muted', children: contribution.description })
+        ? h(Text, { variant: 'xs', tone: 'muted', children: translateText(contribution.description) })
         : null,
       h(Text, { variant: 'xs', tone: 'muted', children: t('settings:contributionBlock.notAvailableOnPlatform') }),
     )
@@ -56,14 +57,14 @@ export function ContributionBlock({ ctx, contribution, onNavigate }: Contributio
     h(
       native.View as never,
       { style: { flex: 1 } },
-      h(Text, { variant: 'md', children: contribution.title }),
+      h(Text, { variant: 'md', children: translateText(contribution.title) ?? contribution.title }),
       contribution.description
-        ? h(Text, { variant: 'xs', tone: 'muted', children: contribution.description })
+        ? h(Text, { variant: 'xs', tone: 'muted', children: translateText(contribution.description) })
         : null,
     ),
     h(Button, {
       variant: 'secondary',
-      children: contribution.actionText ?? t('settings:contributionBlock.open'),
+      children: (contribution.actionText ? translateText(contribution.actionText) : undefined) ?? t('settings:contributionBlock.open'),
       onPress: () => {
         if (contribution.action) void contribution.action()
         else onNavigate?.(contribution.id)

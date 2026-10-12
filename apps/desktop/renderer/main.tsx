@@ -12,6 +12,7 @@ import { Shell } from './Shell.js'
 import { DesktopLyricsWindow } from './DesktopLyricsWindow.js'
 import { MiniPlayerWindow } from '@BBeBee/plugin-mini-player-ui-desktop'
 import { DEFERRED_PLUGIN_IDS } from './plugins.js'
+import { renderBootErrorMessage } from './boot-error.js'
 
 const root = createRoot(document.getElementById('root')!)
 
@@ -146,12 +147,12 @@ if (isMiniPlayerWindow) {
       })
     })
   .catch((error: unknown) => {
-    // A boot failure must be visible, not a blank window.
+    const errorStr = error instanceof Error ? (error.stack ?? error.message) : String(error)
     root.render(
       h(
         'pre',
         { style: { padding: 24, color: '#FF5C5C', whiteSpace: 'pre-wrap' } },
-        `BBeBee failed to start:\n\n${error instanceof Error ? (error.stack ?? error.message) : String(error)}`,
+        renderBootErrorMessage(errorStr),
       ),
     )
   })

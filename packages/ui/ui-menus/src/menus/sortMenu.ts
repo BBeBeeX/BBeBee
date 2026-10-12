@@ -1,4 +1,6 @@
+import type { Context } from 'cordis'
 import type { MenuItemSpec } from '@BBeBee/ui-core'
+import { menuTranslate } from '../utils/i18n.js'
 
 export interface SortOption {
   id: string
@@ -21,6 +23,7 @@ export function sortMenuItems(
   activeId: string,
   onPick: (id: string) => void,
   order?: SortOrder,
+  ctx?: Context,
 ): MenuItemSpec[] {
   const items: MenuItemSpec[] = options.map((option, index) => ({
     id: `sort-${option.id}`,
@@ -33,13 +36,13 @@ export function sortMenuItems(
     items.push(
       {
         id: 'order-asc',
-        label: 'Ascending',
+        label: menuTranslate(ctx, 'app:common.menu.ascending', 'Ascending'),
         icon: order.value === 'asc' ? 'check' : undefined,
         onSelect: () => order.onChange('asc'),
       },
       {
         id: 'order-desc',
-        label: 'Descending',
+        label: menuTranslate(ctx, 'app:common.menu.descending', 'Descending'),
         icon: order.value === 'desc' ? 'check' : undefined,
         onSelect: () => order.onChange('desc'),
       },

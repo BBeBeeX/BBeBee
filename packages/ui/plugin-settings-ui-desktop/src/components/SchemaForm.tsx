@@ -345,12 +345,14 @@ export interface SchemaFormProps {
  * declares `fields`, this renders them.
  */
 export function SchemaForm({ ctx, contribution }: SchemaFormProps): ReactElement {
+  const { t } = useI18n(ctx)
+  const translateText = (text?: string): string | undefined => (text && text.includes(':') ? t(text) : text)
   const fields = contribution.fields ?? []
   return h(
     SettingsSection,
     {
-      title: contribution.title,
-      description: contribution.description,
+      title: translateText(contribution.title) ?? contribution.title,
+      description: translateText(contribution.description),
     },
     fields.map((field) => h(FieldRow, { key: field.key, ctx, contribution, field })),
   )

@@ -26,7 +26,8 @@ import { PluginsSection } from './components/sections/PluginsSection.js'
 import { AboutSection } from './components/sections/AboutSection.js'
 import { ContributionBlock, groupBySection } from './components/ContributionBlock.js'
 
-export { TABS, type SettingsTab, type TabItem } from './tabs.js'
+import { TABS, type SettingsTab, type TabItem } from './tabs.js'
+export { TABS, type SettingsTab, type TabItem }
 
 /** Localised tab labels. `TABS` keeps English labels as the exported fallback. */
 function tabLabel(t: (key: string) => string, id: string): string {

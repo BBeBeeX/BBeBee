@@ -114,6 +114,33 @@ let currentTaskbarState: TaskbarState = {
   canNext: false,
 }
 
+let currentLocale = 'en'
+
+const TRAY_I18N = {
+  en: {
+    play: 'Play',
+    pause: 'Pause',
+    prev: 'Previous track',
+    next: 'Next track',
+    show: 'Show BBeBee',
+    quit: 'Quit',
+  },
+  zh: {
+    play: '播放',
+    pause: '暂停',
+    prev: '上一首',
+    next: '下一首',
+    show: '显示 BBeBee',
+    quit: '退出',
+  },
+} as const
+
+function getTrayText(key: keyof typeof TRAY_I18N['en']): string {
+  const isZh = currentLocale.startsWith('zh')
+  const lang = isZh ? 'zh' : 'en'
+  return TRAY_I18N[lang][key]
+}
+
 let taskbarIcons: {
   play: Electron.NativeImage
   pause: Electron.NativeImage
@@ -162,7 +189,7 @@ function updateTaskbar(state: TaskbarState): void {
 
       const success = mainWindow.setThumbarButtons([
         {
-          tooltip: 'Previous track',
+          tooltip: getTrayText('prev'),
           icon: icons.prev,
           flags: prevFlags,
           click: () => {
@@ -172,7 +199,7 @@ function updateTaskbar(state: TaskbarState): void {
           },
         },
         {
-          tooltip: state.isPlaying ? 'Pause' : 'Play',
+          tooltip: state.isPlaying ? getTrayText('pause') : getTrayText('play'),
           icon: state.isPlaying ? icons.pause : icons.play,
           flags: playFlags,
           click: () => {
@@ -182,7 +209,7 @@ function updateTaskbar(state: TaskbarState): void {
           },
         },
         {
-          tooltip: 'Next track',
+          tooltip: getTrayText('next'),
           icon: icons.next,
           flags: nextFlags,
           click: () => {
@@ -230,7 +257,7 @@ function updateTaskbar(state: TaskbarState): void {
 
       const menuTemplate: Electron.MenuItemConstructorOptions[] = [
         {
-          label: state.isPlaying ? 'Pause' : 'Play',
+          label: state.isPlaying ? getTrayText('pause') : getTrayText('play'),
           enabled: Boolean(state.canPlayOrPause),
           click: () => {
             if (mainWindow && !mainWindow.isDestroyed()) {
@@ -239,7 +266,7 @@ function updateTaskbar(state: TaskbarState): void {
           },
         },
         {
-          label: 'Previous track',
+          label: getTrayText('prev'),
           enabled: Boolean(state.canPrevious),
           click: () => {
             if (mainWindow && !mainWindow.isDestroyed()) {
@@ -248,7 +275,7 @@ function updateTaskbar(state: TaskbarState): void {
           },
         },
         {
-          label: 'Next track',
+          label: getTrayText('next'),
           enabled: Boolean(state.canNext),
           click: () => {
             if (mainWindow && !mainWindow.isDestroyed()) {
@@ -257,10 +284,10 @@ function updateTaskbar(state: TaskbarState): void {
           },
         },
         { type: 'separator' },
-        { label: 'Show BBeBee', click: () => showWindow() },
+        { label: getTrayText('show'), click: () => showWindow() },
         { type: 'separator' },
         {
-          label: 'Quit',
+          label: getTrayText('quit'),
           click: () => {
             quitting = true
             app.quit()
@@ -624,10 +651,10 @@ function createTray(): Tray | undefined {
     created.setToolTip('BBeBee')
     created.setContextMenu(
       Menu.buildFromTemplate([
-        { label: 'Show BBeBee', click: () => showWindow() },
+        { label: getTrayText('show'), click: () => showWindow() },
         { type: 'separator' },
         {
-          label: 'Quit',
+          label: getTrayText('quit'),
           click: () => {
             quitting = true
             app.quit()
@@ -985,7 +1012,6 @@ function registerHandlers(): void {
    * non-empty string is ignored, so a misbehaving renderer cannot corrupt
    * the shared state.
    */
-  let currentLocale = 'en'
   ipcMain.handle('locale:get', () => currentLocale)
   ipcMain.handle('locale:notify', (_event, locale: unknown) => {
     if (typeof locale !== 'string' || locale.length === 0 || locale === currentLocale) return
@@ -993,6 +1019,7 @@ function registerHandlers(): void {
     for (const window of BrowserWindow.getAllWindows()) {
       if (!window.isDestroyed()) window.webContents.send('locale:changed', locale)
     }
+    updateTaskbar(currentTaskbarState)
   })
 
   ipcMain.handle(

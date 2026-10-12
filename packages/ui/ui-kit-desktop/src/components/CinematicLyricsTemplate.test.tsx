@@ -63,9 +63,24 @@ async function harness(opts: { transport?: Partial<TransportState>; lyrics?: Lyr
     }
   }
 
+  class I18nStub extends Service {
+    constructor(ctx: Context) {
+      super(ctx, 'i18n')
+    }
+    locale = 'en'
+    t = (key: string) => {
+      if (key === 'lyrics:lyrics.healingMusicPlaceholder') return '♪ May the music heal every wound ♪'
+      if (key === 'lyrics:lyrics.noLyrics') return 'No lyrics available'
+      return key
+    }
+    register = () => () => {}
+    onLocaleChange = () => () => {}
+  }
+
   const ctx = new Context()
   await ctx.plugin(PlayerStub)
   await ctx.plugin(LyricsStub)
+  await ctx.plugin(I18nStub)
   return { ctx, calls }
 }
 

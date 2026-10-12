@@ -18,6 +18,6 @@ export function getLocalizedPlayModeLabel(t: (k: string) => string, mode: PlayMo
     case 'shuffle':
       return t('nowPlaying:nowPlaying.shuffle')
     default:
-      return PLAY_MODE_INFO[mode]?.label ?? mode
+      return (PLAY_MODE_INFO as Record<string, { label: string } | undefined>)[mode]?.label ?? String(mode)
   }
 }

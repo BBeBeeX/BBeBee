@@ -60,6 +60,20 @@ class MiniPlayerStub extends Service {
   }
 }
 
+class I18nStub extends Service {
+  locale = 'en'
+  constructor(ctx: Context) {
+    super(ctx, 'i18n')
+  }
+  t = (key: string) => {
+    if (key === 'miniPlayer:miniPlayerButton.openMiniPlayerDynamicIsland') return 'Open mini player / Dynamic Island'
+    if (key === 'miniPlayer:miniPlayerButton.closeMiniPlayer') return 'Close mini player'
+    return key
+  }
+  register = () => () => {}
+  onLocaleChange = () => () => {}
+}
+
 const mockData: MiniPlayerData = {
   title: 'Test Island Song',
   artist: 'Island Artist',
@@ -141,9 +155,10 @@ describe('plugin-mini-player-ui-desktop', () => {
     expect(html).toContain('3:00')
   })
 
-  it('renders MiniPlayerButton static markup', () => {
+  it('renders MiniPlayerButton static markup', async () => {
     const ctx = new Context()
-    ctx.plugin(MiniPlayerStub)
+    await ctx.plugin(MiniPlayerStub)
+    await ctx.plugin(I18nStub)
 
     const html = renderToStaticMarkup(h(MiniPlayerButton, { ctx }))
     expect(html).toContain('Open mini player / Dynamic Island')

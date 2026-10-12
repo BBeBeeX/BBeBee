@@ -10,6 +10,7 @@ import type {
   SourcesService,
 } from '@BBeBee/protocol'
 import { anchorOf } from '../types.js'
+import { menuTranslate } from '../utils/i18n.js'
 
 export interface SaveToPlaylistTrack {
   urn: string
@@ -185,11 +186,15 @@ export function useSaveToPlaylistMenu(ctx: Context): SaveToPlaylistMenuControlle
 
   const open = useCallback(
     (track: SaveToPlaylistTrack, anchor?: MenuAnchor) => {
-      setActive({ tracks: [track], anchor: anchorOf(anchor), title: 'Add to playlist' })
+      setActive({
+        tracks: [track],
+        anchor: anchorOf(anchor),
+        title: menuTranslate(ctx, 'app:common.menu.addToPlaylist', 'Add to playlist'),
+      })
       setLiked(track.loved ?? false)
       void loadMenuData([track])
     },
-    [loadMenuData],
+    [loadMenuData, ctx],
   )
 
   const openBatch = useCallback(
@@ -198,12 +203,21 @@ export function useSaveToPlaylistMenu(ctx: Context): SaveToPlaylistMenuControlle
         typeof item === 'string' ? { urn: item, title: item } : item,
       )
       const menuTitle =
-        title ?? (normalized.length > 1 ? `${normalized.length} songs selected` : (normalized[0]?.title ?? 'Add to playlist'))
+        title ??
+        (normalized.length > 1
+          ? menuTranslate(
+              ctx,
+              'app:common.menu.nSongsSelected',
+              `${normalized.length} songs selected`,
+              { count: normalized.length },
+            )
+          : (normalized[0]?.title ??
+            menuTranslate(ctx, 'app:common.menu.addToPlaylist', 'Add to playlist')))
       setActive({ tracks: normalized, anchor: anchorOf(anchor), title: menuTitle })
       setLiked(false)
       void loadMenuData(normalized)
     },
-    [loadMenuData],
+    [loadMenuData, ctx],
   )
 
   const onToggleLiked = useCallback(async () => {
@@ -344,7 +358,7 @@ export function useSaveToPlaylistMenu(ctx: Context): SaveToPlaylistMenuControlle
       onClose: close,
       x: active?.anchor.x ?? 0,
       y: active?.anchor.y ?? 0,
-      title: active?.title ?? 'Add to playlist',
+      title: active?.title ?? menuTranslate(ctx, 'app:common.menu.addToPlaylist', 'Add to playlist'),
       liked,
       likedCount,
       onToggleLiked,

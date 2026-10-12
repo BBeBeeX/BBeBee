@@ -180,7 +180,7 @@ function Shell({ ctx }: { ctx: Context }) {
         : h(
             Text,
             { style: { padding: 24, color: '#A0A0AE' } },
-            '"Now playing" has no mobile view.',
+            t('app:common.app.nowPlayingNoMobileView'),
           ),
     )
   }
@@ -206,10 +206,10 @@ function Shell({ ctx }: { ctx: Context }) {
             {
               onPress: goBack,
               accessibilityRole: 'button',
-              accessibilityLabel: 'Go back',
+              accessibilityLabel: t('app:common.app.goBack'),
               style: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
             },
-            h(Text, { style: { color: '#7C5CFF', fontSize: 16, fontWeight: '600' } }, '‹ Back'),
+            h(Text, { style: { color: '#7C5CFF', fontSize: 16, fontWeight: '600' } }, t('app:common.app.backPill')),
           ),
         )
       : null,

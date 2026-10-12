@@ -62,7 +62,7 @@ export function buildSandboxedHtml(htmlBody: string): string {
   </script>
 </head>
 <body>
-\${htmlBody}
+${htmlBody}
 </body>
 </html>`
 }

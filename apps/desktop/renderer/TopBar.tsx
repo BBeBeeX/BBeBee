@@ -39,11 +39,15 @@ export interface WindowControlsProps {
   ctx: Context
 }
 
-function formatSleepTimerRemaining(targetEpochMs?: number, mode?: SleepTimerMode): string {
+function formatSleepTimerRemaining(
+  targetEpochMs?: number,
+  mode?: SleepTimerMode,
+  t?: (key: string) => string,
+): string {
   if (mode === 'end-of-track') {
-    return 'End of track'
+    return t ? t('app:common.top.endOfTrack') : 'End of track'
   }
-  if (!targetEpochMs) return 'Running'
+  if (!targetEpochMs) return t ? t('app:common.top.running') : 'Running'
   const diffMs = Math.max(0, targetEpochMs - Date.now())
   const totalSeconds = Math.ceil(diffMs / 1000)
   const minutes = Math.floor(totalSeconds / 60)
@@ -108,7 +112,7 @@ export function SleepTimerIndicator({ ctx }: { ctx: Context }): ReactElement | n
 
   if (!timerState.active) return null
 
-  const remainingText = formatSleepTimerRemaining(timerState.targetEpochMs, timerState.mode)
+  const remainingText = formatSleepTimerRemaining(timerState.targetEpochMs, timerState.mode, t)
 
   const handleMouseEnter = () => {
     if (closeTimeoutRef.current) {
@@ -166,7 +170,7 @@ export function SleepTimerIndicator({ ctx }: { ctx: Context }): ReactElement | n
       {
         type: 'button',
         'aria-label': t('app:common.top.sleepTimerDetails', { remainingText }),
-        title: `Sleep timer: ${remainingText} (click for details)`,
+        title: t('app:common.top.sleepTimerDetails', { remainingText }),
         'data-testid': 'topbar-sleep-timer-indicator',
         onClick: handleClickIndicator,
         style: {
@@ -232,7 +236,7 @@ export function SleepTimerIndicator({ ctx }: { ctx: Context }): ReactElement | n
                 },
               },
               tablerIcon('alarm', { size: 16, color: 'var(--color-primary, #5F87FF)' }),
-              'Sleep timer running',
+              t('app:common.top.sleepTimerRunning'),
             ),
             h(
               'div',
@@ -244,8 +248,8 @@ export function SleepTimerIndicator({ ctx }: { ctx: Context }): ReactElement | n
                 },
               },
               timerState.mode === 'end-of-track'
-                ? 'Playback will stop automatically when this track finishes.'
-                : 'Playback stops in:',
+                ? t('app:common.top.sleepTimerTrackFinish')
+                : t('app:common.top.playbackStopsIn'),
               timerState.mode !== 'end-of-track'
                 ? h(
                     'div',
@@ -292,7 +296,7 @@ export function SleepTimerIndicator({ ctx }: { ctx: Context }): ReactElement | n
                 },
               },
               tablerIcon('x', { size: 14 }),
-              'Cancel timer',
+              t('app:common.top.cancelTimer'),
             ),
           ),
         )
@@ -483,7 +487,7 @@ export function TrayIndicator({ ctx }: { ctx: Context }): ReactElement {
                     textAlign: 'center',
                   },
                 },
-                'No tray plugins',
+                t('app:common.top.noTrayPlugins'),
               )
             : h(
                 'div',
@@ -1246,7 +1250,7 @@ export function TopBar({
                     letterSpacing: 0.5,
                   },
                 },
-                'Search scope',
+                t('app:common.top.searchScope'),
               ),
               // Row 1 Right (1, 2): Search history + clear
               h(
@@ -1290,7 +1294,7 @@ export function TopBar({
                           e.currentTarget.style.color = 'var(--text-muted, #626A80)'
                         },
                       },
-                      'Clear',
+                      t('app:common.top.clear'),
                     )
                   : null,
               ),
@@ -1313,7 +1317,7 @@ export function TopBar({
                   ? h(
                       'span',
                       { style: { fontSize: 12, color: 'var(--text-muted, #626A80)', padding: '4px 0' } },
-                      'No third-party search sources',
+                      t('app:common.top.noThirdPartySearchSources'),
                     )
                   : [
                       ...selection.interfaces.map((iface) => {
@@ -1436,7 +1440,7 @@ export function TopBar({
                   ? h(
                       'span',
                       { style: { fontSize: 12, color: 'var(--text-muted, rgba(255, 255, 255, 0.35))', padding: '4px 0' } },
-                      'No search history yet',
+                      t('app:common.top.noSearchHistoryYet'),
                     )
                   : history.map((item) =>
                       h(

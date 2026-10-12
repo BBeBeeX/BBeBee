@@ -554,9 +554,9 @@ export function Shell({ ctx }: { ctx: Context }) {
             )
           }
         })
-        .catch(() => setDropMessage('Import failed, please try again'))
+        .catch(() => setDropMessage(t('app:common.shell.importFailed')))
     },
-    [ctx, navigateTo],
+    [ctx, navigateTo, t],
   )
 
   const currentItem: HistoryItem | undefined =
@@ -850,7 +850,7 @@ export function Shell({ ctx }: { ctx: Context }) {
           : h(
               'div',
               { style: { padding: 24, color: 'var(--text-tertiary, #8B92A6)' } },
-              '"Now playing" has no desktop view.',
+              t('app:common.shell.nowPlayingNoDesktopView'),
             ),
       ),
       BottomBar
@@ -1082,7 +1082,7 @@ export function Shell({ ctx }: { ctx: Context }) {
                           textTransform: 'uppercase',
                         },
                       },
-                      'Settings',
+                      t('app:common.shell.settingsSection'),
                     )
                   : null,
                 h(
@@ -1155,8 +1155,8 @@ export function Shell({ ctx }: { ctx: Context }) {
                     'div',
                     { style: { padding: 24, color: 'var(--text-tertiary, #8B92A6)' } },
                     active
-                      ? `"${translateTitle(active.title)}" has no desktop view.`
-                      : 'No plugin has contributed a route.',
+                      ? t('app:common.shell.hasNoDesktopView', { title: translateTitle(active.title) })
+                      : t('app:common.shell.noPluginRoute'),
                   )
                 : Array.from(pagesToRender.values()).map((page) => {
                   const isCurrent = page.key === currentKey
@@ -1234,8 +1234,8 @@ export function Shell({ ctx }: { ctx: Context }) {
                           'div',
                           { style: { padding: 24, color: 'var(--text-tertiary, #8B92A6)' } },
                           pageActive
-                            ? `"${translateTitle(pageActive.title)}" has no desktop view.`
-                            : 'No plugin has contributed a route.',
+                            ? t('app:common.shell.hasNoDesktopView', { title: translateTitle(pageActive.title) })
+                            : t('app:common.shell.noPluginRoute'),
                         ),
                   )
                 }),
@@ -1393,7 +1393,7 @@ export function Shell({ ctx }: { ctx: Context }) {
                 boxShadow: 'var(--shadow-modal, 0 12px 48px rgba(0, 0, 0, 0.5))',
               },
             },
-            dropMessage ?? 'Drop to import music files or folders',
+            dropMessage ?? t('app:common.shell.dropToImport'),
           ),
         )
       : null,

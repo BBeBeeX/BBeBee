@@ -29,6 +29,8 @@ export function SettingsRow({
   borderBottom = true,
 }: SettingsRowProps): ReactElement {
   const { t } = useI18n(ctx)
+  const displayTitle = title.includes(':') ? t(title) : title
+  const displayDescription = description && description.includes(':') ? t(description) : description
   return h(
     'div',
     {
@@ -79,8 +81,8 @@ export function SettingsRow({
               {
                 type: 'button',
                 'aria-label': expanded
-                  ? t('settings:settingsRow.collapse', { title })
-                  : t('settings:settingsRow.expand', { title }),
+                  ? t('settings:settingsRow.collapse', { title: displayTitle })
+                  : t('settings:settingsRow.expand', { title: displayTitle }),
                 onClick: onToggleExpand,
                 style: {
                   background: 'none',
@@ -125,9 +127,9 @@ export function SettingsRow({
                 gap: 8,
               },
             },
-            title,
+            displayTitle,
           ),
-          description
+          displayDescription
             ? h(
                 'div',
                 {
@@ -138,7 +140,7 @@ export function SettingsRow({
                     lineHeight: 1.45,
                   },
                 },
-                description,
+                displayDescription,
               )
             : null,
         ),

@@ -1,6 +1,8 @@
+import type { Context } from 'cordis'
 import { parseUrn } from '@BBeBee/protocol'
 import type { MenuItemSpec, SubmenuSpec } from '@BBeBee/ui-core'
 import type { Collection, LibraryService } from '@BBeBee/protocol'
+import { menuTranslate } from '../utils/i18n.js'
 
 /**
  * "Move/add to a collection" — the folder counterpart of the playlist submenu.
@@ -16,6 +18,7 @@ export function addToCollectionSubmenu(
     currentFolderId?: string
     onSelectFolder?: (folderId: string | null) => void | Promise<void>
     onMoved?: (targetFolderId?: string | null) => void
+    ctx?: Context
   },
 ): SubmenuSpec | undefined {
   const allowedUrns = urns.filter((urn) => {
@@ -31,7 +34,7 @@ export function addToCollectionSubmenu(
   if (opts?.currentFolderId) {
     items.push({
       id: '__move_root',
-      label: 'Move to root',
+      label: menuTranslate(opts?.ctx, 'app:common.menu.moveToRoot', 'Move to root'),
       icon: 'folder',
       onSelect: async () => {
         if (opts.onSelectFolder) {
@@ -68,12 +71,12 @@ export function addToCollectionSubmenu(
   }
 
   return {
-    title: opts?.title ?? 'Add to collection',
-    searchPlaceholder: opts?.searchPlaceholder ?? 'Find collection',
-    emptyLabel: 'No matching collections',
+    title: opts?.title ?? menuTranslate(opts?.ctx, 'app:common.menu.addToCollection', 'Add to collection'),
+    searchPlaceholder: opts?.searchPlaceholder ?? menuTranslate(opts?.ctx, 'app:common.menu.findCollection', 'Find collection'),
+    emptyLabel: menuTranslate(opts?.ctx, 'app:common.menu.noMatchingCollections', 'No matching collections'),
     create: {
-      label: opts?.createLabel ?? 'New collection',
-      placeholder: 'Collection name',
+      label: opts?.createLabel ?? menuTranslate(opts?.ctx, 'app:common.menu.newCollection', 'New collection'),
+      placeholder: menuTranslate(opts?.ctx, 'app:common.menu.collectionName', 'Collection name'),
       onSelect: async (name) => {
         const collection = await library.createCollection(name)
         if (opts?.onSelectFolder) {

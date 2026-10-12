@@ -13,6 +13,7 @@ import { addToPlaylistSubmenu } from '../submenus/playlistSubmenu.js'
 import { addToCollectionSubmenu } from '../submenus/collectionSubmenu.js'
 import { useMenuState, type MenuController } from '../types.js'
 import { openExternalUrl, resolveOriginalResourceUrl } from '../utils/resourceUrls.js'
+import { menuTranslate } from '../utils/i18n.js'
 
 export interface AddToCollectionOptions {
   pinned?: boolean
@@ -39,11 +40,12 @@ export function addToCollectionOnlyItems(
     urns,
     opts.currentFolderId ? collections.filter((c) => c.id !== opts.currentFolderId) : collections,
     {
-      title: 'Move to folder',
-      searchPlaceholder: 'Find folder',
-      createLabel: 'New folder',
+      title: menuTranslate(ctx, 'app:common.menu.moveToFolder', 'Move to folder'),
+      searchPlaceholder: menuTranslate(ctx, 'app:common.menu.findFolder', 'Find folder'),
+      createLabel: menuTranslate(ctx, 'app:common.menu.newFolder', 'New folder'),
       currentFolderId: opts.currentFolderId,
       onMoved: opts.onMoved,
+      ctx,
     },
   )
   const items: MenuItemSpec[] = []
@@ -52,7 +54,7 @@ export function addToCollectionOnlyItems(
   if (opts.onDelete) {
     items.push({
       id: 'delete-album',
-      label: 'Delete',
+      label: menuTranslate(ctx, 'app:common.delete', 'Delete'),
       icon: 'delete',
       tone: 'danger',
       divider: true,
@@ -64,7 +66,9 @@ export function addToCollectionOnlyItems(
   if (opts.onTogglePin) {
     items.push({
       id: 'toggle-pin',
-      label: opts.pinned ? 'Unpin playlist' : 'Pin playlist',
+      label: opts.pinned
+        ? menuTranslate(ctx, 'app:common.menu.unpinPlaylist', 'Unpin playlist')
+        : menuTranslate(ctx, 'app:common.menu.pinPlaylist', 'Pin playlist'),
       icon: 'pin',
       onSelect: opts.onTogglePin,
     })
@@ -75,14 +79,14 @@ export function addToCollectionOnlyItems(
     if (originalUrl) {
       items.push({
         id: 'open-original-resource',
-        label: 'Open original resource',
+        label: menuTranslate(ctx, 'app:common.menu.openOriginalResource', 'Open original resource'),
         icon: 'share-box',
         onSelect: () => openExternalUrl(originalUrl),
       })
     }
   }
 
-  if (submenu) items.push({ id: 'add-to-collection', label: 'Move to folder', icon: 'folder', submenu })
+  if (submenu) items.push({ id: 'add-to-collection', label: menuTranslate(ctx, 'app:common.menu.moveToFolder', 'Move to folder'), icon: 'folder', submenu })
   return items
 }
 
@@ -176,7 +180,7 @@ export function collectionMenuItems(
   if (opts.onRename) {
     items.push({
       id: 'rename-collection',
-      label: 'Rename',
+      label: menuTranslate(ctx, 'app:common.menu.rename', 'Rename'),
       icon: 'pencil',
       onSelect: opts.onRename,
     })
@@ -186,7 +190,7 @@ export function collectionMenuItems(
   if (opts.onDelete) {
     items.push({
       id: 'delete-collection',
-      label: 'Delete',
+      label: menuTranslate(ctx, 'app:common.delete', 'Delete'),
       icon: 'delete',
       tone: 'danger',
       divider: true,
@@ -198,7 +202,9 @@ export function collectionMenuItems(
   if (opts.onTogglePin) {
     items.push({
       id: 'toggle-pin',
-      label: opts.pinned ? 'Unpin folder' : 'Pin folder',
+      label: opts.pinned
+        ? menuTranslate(ctx, 'app:common.menu.unpinFolder', 'Unpin folder')
+        : menuTranslate(ctx, 'app:common.menu.pinFolder', 'Pin folder'),
       icon: 'pin',
       onSelect: opts.onTogglePin,
     })
@@ -208,7 +214,7 @@ export function collectionMenuItems(
   if (opts.onCreatePlaylist) {
     items.push({
       id: 'create-playlist',
-      label: 'Create playlist',
+      label: menuTranslate(ctx, 'app:common.menu.createPlaylist', 'Create playlist'),
       icon: 'create-playlist',
       onSelect: opts.onCreatePlaylist,
     })
@@ -218,7 +224,7 @@ export function collectionMenuItems(
   if (opts.onCreateFolder) {
     items.push({
       id: 'create-folder',
-      label: 'Create playlist folder',
+      label: menuTranslate(ctx, 'app:common.menu.createPlaylistFolder', 'Create playlist folder'),
       icon: 'create-folder',
       onSelect: opts.onCreateFolder,
     })
@@ -232,10 +238,11 @@ export function collectionMenuItems(
       opts.collectionId ? [opts.collectionId] : [],
       availableFolders,
       {
-        title: 'Move to folder',
-        searchPlaceholder: 'Find folder',
-        createLabel: 'New folder',
+        title: menuTranslate(ctx, 'app:common.menu.moveToFolder', 'Move to folder'),
+        searchPlaceholder: menuTranslate(ctx, 'app:common.menu.findFolder', 'Find folder'),
+        createLabel: menuTranslate(ctx, 'app:common.menu.newFolder', 'New folder'),
         currentFolderId: opts.parentId ?? undefined,
+        ctx,
         onSelectFolder: async (targetFolderId) => {
           if (opts.onMoveToFolder) {
             opts.onMoveToFolder(targetFolderId)
@@ -248,7 +255,7 @@ export function collectionMenuItems(
     if (folderSubmenu) {
       items.push({
         id: 'move-to-folder',
-        label: 'Move to folder',
+        label: menuTranslate(ctx, 'app:common.menu.moveToFolder', 'Move to folder'),
         icon: 'folder',
         submenu: folderSubmenu,
       })
@@ -259,7 +266,7 @@ export function collectionMenuItems(
   if (opts.onPlay || (player && trackUrns.length > 0)) {
     items.push({
       id: 'enqueue',
-      label: 'Play',
+      label: menuTranslate(ctx, 'app:common.detailPlayButton.play', 'Play'),
       icon: 'play',
       onSelect: opts.onPlay ?? (() => player?.enqueueLast([...trackUrns])),
     })
@@ -269,7 +276,7 @@ export function collectionMenuItems(
   if (downloads && trackUrns.length > 0) {
     items.push({
       id: 'download',
-      label: 'Download',
+      label: menuTranslate(ctx, 'app:common.menu.download', 'Download'),
       icon: 'download',
       onSelect: () => void downloads.enqueue([...trackUrns]),
     })
@@ -277,12 +284,13 @@ export function collectionMenuItems(
 
   // 9. Add to another playlist
   const submenu = addToPlaylistSubmenu(library, trackUrns, playlists, {
-    title: 'Add to another playlist',
+    title: menuTranslate(ctx, 'app:common.menu.addToAnotherPlaylist', 'Add to another playlist'),
+    ctx,
   })
   if (submenu) {
     items.push({
       id: 'add-to-playlist',
-      label: 'Add to another playlist',
+      label: menuTranslate(ctx, 'app:common.menu.addToAnotherPlaylist', 'Add to another playlist'),
       icon: 'plus',
       submenu,
     })

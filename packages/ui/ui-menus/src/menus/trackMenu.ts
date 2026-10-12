@@ -18,6 +18,7 @@ import { addToPlaylistSubmenu } from '../submenus/playlistSubmenu.js'
 import { sleepTimerSubmenu } from '../submenus/sleepTimerSubmenu.js'
 import { useMenuState, type MenuController } from '../types.js'
 import { openExternalUrl, resolveOriginalResourceUrl } from '../utils/resourceUrls.js'
+import { menuTranslate } from '../utils/i18n.js'
 
 export interface TrackMenuTarget {
   track: Track
@@ -78,15 +79,15 @@ export function trackMenuItems(
   const track = target.track
   const items: MenuItemSpec[] = []
 
-  const submenu = addToPlaylistSubmenu(library, [track.urn], opts.playlists ?? [])
-  if (submenu) items.push({ id: 'add-to-playlist', label: 'Add to playlist', icon: 'plus', submenu })
+  const submenu = addToPlaylistSubmenu(library, [track.urn], opts.playlists ?? [], { ctx })
+  if (submenu) items.push({ id: 'add-to-playlist', label: menuTranslate(ctx, 'app:common.menu.addToPlaylist', 'Add to playlist'), icon: 'plus', submenu })
 
   if (library && opts.fromPlaylistUrn && target.playlistItemId) {
     const playlistUrn = opts.fromPlaylistUrn
     const itemId = target.playlistItemId
     items.push({
       id: 'remove-from-playlist',
-      label: 'Remove from this playlist',
+      label: menuTranslate(ctx, 'app:common.menu.removeFromPlaylist', 'Remove from this playlist'),
       icon: 'minus',
       tone: 'danger',
       onSelect: () => library.removeItems(playlistUrn, [itemId]),
@@ -97,7 +98,7 @@ export function trackMenuItems(
     const queueItemId = target.queueItemId
     items.push({
       id: 'remove-from-queue',
-      label: 'Remove from queue',
+      label: menuTranslate(ctx, 'app:common.menu.removeFromQueue', 'Remove from queue'),
       icon: 'trash',
       tone: 'danger',
       onSelect: () => player.removeItems([queueItemId]),
@@ -108,7 +109,7 @@ export function trackMenuItems(
     const historyTarget = target.historyRecordId ?? track.urn
     items.push({
       id: 'remove-from-history',
-      label: 'Remove from history',
+      label: menuTranslate(ctx, 'app:common.menu.removeFromHistory', 'Remove from history'),
       icon: 'trash',
       tone: 'danger',
       onSelect: () => void player.removeHistory?.(historyTarget),
@@ -118,7 +119,7 @@ export function trackMenuItems(
   if (track.loved) {
     items.push({
       id: 'remove-favorite',
-      label: 'Remove from Favorites',
+      label: menuTranslate(ctx, 'app:common.menu.removeFromFavorites', 'Remove from Favorites'),
       icon: 'heart',
       tone: 'danger',
       onSelect: async () => {
@@ -129,7 +130,7 @@ export function trackMenuItems(
   } else if (sources || library) {
     items.push({
       id: 'add-favorite',
-      label: 'Add to Favorites',
+      label: menuTranslate(ctx, 'app:common.menu.addToFavorites', 'Add to Favorites'),
       icon: 'heart-filled',
       onSelect: async () => {
         await sources?.setLoved(track.urn, true)
@@ -141,7 +142,7 @@ export function trackMenuItems(
   if (player) {
     items.push({
       id: 'enqueue',
-      label: 'Add to play queue',
+      label: menuTranslate(ctx, 'app:common.menu.addToPlayQueue', 'Add to play queue'),
       icon: 'playlist-add',
       onSelect: () => player.enqueueLast([track.urn]),
     })
@@ -150,7 +151,7 @@ export function trackMenuItems(
   if (downloads) {
     items.push({
       id: 'download',
-      label: 'Download',
+      label: menuTranslate(ctx, 'app:common.menu.download', 'Download'),
       icon: 'download',
       onSelect: () => void downloads.enqueue([track.urn]),
     })
@@ -160,7 +161,7 @@ export function trackMenuItems(
   if (share) {
     items.push({
       id: 'share-track',
-      label: 'Share song',
+      label: menuTranslate(ctx, 'app:common.menu.shareSong', 'Share song'),
       icon: 'share',
       onSelect: () => share.shareTrack(track),
     })
@@ -170,7 +171,7 @@ export function trackMenuItems(
       const lines = [...lyricLines]
       items.push({
         id: 'share-lyrics',
-        label: 'Share lyrics',
+        label: menuTranslate(ctx, 'app:common.menu.shareLyrics', 'Share lyrics'),
         icon: 'share',
         onSelect: () => share.shareLyrics(track, lines),
       })
@@ -178,11 +179,13 @@ export function trackMenuItems(
   }
 
   const sleepTimer = serviceOf<SleepTimerService>(ctx, 'sleepTimer')
-  const sleepSubmenu = sleepTimerSubmenu(sleepTimer)
+  const sleepSubmenu = sleepTimerSubmenu(sleepTimer, ctx)
   if (sleepSubmenu) {
     items.push({
       id: 'sleep-timer',
-      label: sleepTimer?.state.active ? 'sleep timer (on)' : 'sleep timer',
+      label: sleepTimer?.state.active
+        ? menuTranslate(ctx, 'app:common.menu.sleepTimerOn', 'sleep timer (on)')
+        : menuTranslate(ctx, 'app:common.menu.sleepTimer', 'sleep timer'),
       icon: 'clock',
       submenu: sleepSubmenu,
     })
@@ -192,7 +195,7 @@ export function trackMenuItems(
     const albumUrn = track.albumUrn
     items.push({
       id: 'go-to-album',
-      label: 'Go to album',
+      label: menuTranslate(ctx, 'app:common.menu.goToAlbum', 'Go to album'),
       icon: 'disc',
       // 'album.view' is plugin-album's view descriptor id — serialized data,
       // so the menu model carries the literal rather than importing the
@@ -204,7 +207,7 @@ export function trackMenuItems(
   if (opts.onShowTrackInfo) {
     items.push({
       id: 'track-info',
-      label: "See what's playing",
+      label: menuTranslate(ctx, 'app:common.menu.seeWhatsPlaying', "See what's playing"),
       icon: 'info-circle',
       onSelect: () => opts.onShowTrackInfo!(track),
     })
@@ -214,7 +217,7 @@ export function trackMenuItems(
   if (originalUrl) {
     items.push({
       id: 'open-original-resource',
-      label: 'Open original resource',
+      label: menuTranslate(ctx, 'app:common.menu.openOriginalResource', 'Open original resource'),
       icon: 'share-box',
       onSelect: () => openExternalUrl(originalUrl),
     })
