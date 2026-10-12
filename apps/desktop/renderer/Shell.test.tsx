@@ -1224,5 +1224,75 @@ describe('the desktop shell', () => {
     expect(localProps?.highlightUrn).toBe('BBeBee:local:track:dropped-1')
     expect(localProps?.highlightUrns).toEqual(['BBeBee:local:track:dropped-1'])
   })
+
+  it('resolves RouteContribution.title i18n keys in sidebar and TopBar tray and updates live on locale change', async () => {
+    let emitLocale: ((locale: string) => void) | undefined
+    class I18nStub extends Service {
+      static override readonly name = 'i18n'
+      locale = 'en'
+      private listeners = new Set<(locale: string) => void>()
+      constructor(ctx: Context) {
+        super(ctx, 'i18n')
+        emitLocale = (next: string) => {
+          this.locale = next
+          for (const listener of [...this.listeners]) listener(next)
+        }
+      }
+      t = (key: string) => {
+        if (key === 'registry:route.discover') {
+          return this.locale === 'zh' ? '发现' : 'Discover'
+        }
+        return key
+      }
+      register = () => () => {}
+      onLocaleChange = (cb: (locale: string) => void) => {
+        this.listeners.add(cb)
+        return () => void this.listeners.delete(cb)
+      }
+    }
+
+    const { container } = await mount(
+      (ui) => {
+        ui.routes = [
+          {
+            kind: 'route',
+            id: 'registry.screen',
+            path: '/registry',
+            title: 'registry:route.discover',
+            icon: 'compass',
+            placement: ['sidebar', 'tray'],
+          },
+        ]
+        ui.views.set('registry.screen', () => h('div', null, 'Registry Screen'))
+      },
+      async (ctx) => {
+        await ctx.plugin(I18nStub)
+      },
+    )
+
+    // Sidebar entry resolved to English
+    expect(container.textContent).toContain('Discover')
+    expect(container.textContent).not.toContain('registry:route.discover')
+
+    // Open TopBar tray and verify tray item title/aria-label resolved to English
+    const trayBtn = container.querySelector('[data-testid="topbar-tray-button"]') as HTMLElement
+    await act(async () => {
+      fireEvent.click(trayBtn)
+    })
+    const trayItem = container.querySelector(
+      '[data-testid="topbar-tray-item-registry.screen"]',
+    ) as HTMLElement
+    expect(trayItem.getAttribute('title')).toBe('Discover')
+    expect(trayItem.getAttribute('aria-label')).toBe('Discover')
+
+    // Switch locale to zh -> sidebar and tray item update live without reload
+    await act(async () => {
+      emitLocale?.('zh')
+    })
+    expect(container.textContent).toContain('发现')
+    expect(trayItem.getAttribute('title')).toBe('发现')
+    expect(trayItem.getAttribute('aria-label')).toBe('发现')
+  })
 })
+
 

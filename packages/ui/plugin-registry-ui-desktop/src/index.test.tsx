@@ -4,13 +4,14 @@
  * rendered against stub services the way the shell would bind them.
  */
 
-import { describe, expect, it, afterEach } from 'vitest'
+import { describe, expect, it, beforeEach, afterEach } from 'vitest'
 import { createElement as h } from 'react'
-import { fireEvent, render, cleanup, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, cleanup, waitFor } from '@testing-library/react'
 import { Context, Service } from 'cordis'
 import { DEFAULT_APP_SETTINGS } from '@BBeBee/protocol'
 import type {
   AppSettings,
+  I18nService,
   LyricSourceDefinition,
   PluginInfo,
   RegistryEntry,
@@ -37,9 +38,28 @@ import { isOfficialEntry, parseRepoOwner } from './utils/repo.js'
 import plugin from './index.js'
 import { REGISTRY_VIEWS } from '@BBeBee/plugin-registry/views'
 
+const memoryStorage = new Map<string, string>()
+const mockLocalStorage = {
+  getItem: (k: string) => memoryStorage.get(k) ?? null,
+  setItem: (k: string, v: string) => void memoryStorage.set(k, String(v)),
+  removeItem: (k: string) => void memoryStorage.delete(k),
+  clear: () => void memoryStorage.clear(),
+}
+
+beforeEach(() => {
+  if (!window.localStorage || typeof window.localStorage.clear !== 'function') {
+    Object.defineProperty(window, 'localStorage', {
+      value: mockLocalStorage,
+      writable: true,
+      configurable: true,
+    })
+  }
+  window.localStorage.clear()
+})
+
 afterEach(() => {
   cleanup()
-  window.localStorage.clear()
+  window.localStorage?.clear?.()
   delete (window as unknown as { BBeBee?: unknown }).BBeBee
 })
 
@@ -397,7 +417,11 @@ async function harness(options: RegistryStubOptions & { appVersion?: string } = 
     list = () => installed.plugins
   }
 
-  let currentSettings: AppSettings = { ...DEFAULT_APP_SETTINGS, registryAutoCheck: true }
+  let currentSettings: AppSettings = {
+    ...DEFAULT_APP_SETTINGS,
+    language: 'en',
+    registryAutoCheck: true,
+  }
   class SettingsStub extends Service implements Partial<SettingsService> {
     private appCtx: Context
     constructor(ctx: Context) {
@@ -410,6 +434,62 @@ async function harness(options: RegistryStubOptions & { appVersion?: string } = 
       currentSettings = { ...currentSettings, ...patch }
       this.appCtx.emit('settings/changed', currentSettings)
       return currentSettings
+    }
+    onSettingsChange = (cb: (s: AppSettings) => void) => this.appCtx.on('settings/changed', cb)
+  }
+
+  const REGISTRY_STRINGS: Record<string, Record<string, string>> = {
+    en: {
+      'registry:filter.searchPlaceholder': 'Search names, authors or descriptions…',
+      'registry:filter.showThirdParty': 'Show third-party content',
+      'registry:filter.showThirdPartyHint':
+        'When off, only official entries published by the BBeBeeX organization are shown',
+      'registry:filter.sortBy': 'Sort by',
+      'registry:filter.sortByName': 'By name',
+      'registry:filter.sortByStars': 'By stars',
+      'registry:filter.sortByContributors': 'By contributors',
+      'registry:filter.toggleSortDirection': 'Toggle ascending / descending',
+      'registry:filter.ascending': 'Ascending',
+      'registry:filter.descending': 'Descending',
+      'registry:filter.allCategories': 'All categories',
+      'registry:filter.categoryFilter': 'Filter by category',
+    },
+    zh: {
+      'registry:filter.searchPlaceholder': '搜索名称、作者或描述…',
+      'registry:filter.showThirdParty': '显示第三方内容',
+      'registry:filter.showThirdPartyHint': '关闭后仅显示 BBeBeeX 组织发布的官方条目',
+      'registry:filter.sortBy': '排序方式',
+      'registry:filter.sortByName': '按名称',
+      'registry:filter.sortByStars': '按星标',
+      'registry:filter.sortByContributors': '按贡献者',
+      'registry:filter.toggleSortDirection': '切换升序 / 降序',
+      'registry:filter.ascending': '升序',
+      'registry:filter.descending': '降序',
+      'registry:filter.allCategories': '全部分类',
+      'registry:filter.categoryFilter': '按分类筛选',
+    },
+  }
+
+  class I18nStub extends Service implements I18nService {
+    static override readonly name = 'i18n'
+    locale = 'en'
+    private listeners = new Set<(locale: string) => void>()
+    constructor(ctx: Context) {
+      super(ctx, 'i18n')
+      ctx.on('settings/changed', (next: AppSettings) => {
+        const nextLocale = next.language === 'zh' ? 'zh' : 'en'
+        if (nextLocale !== this.locale) {
+          this.locale = nextLocale
+          for (const listener of [...this.listeners]) listener(this.locale)
+        }
+      })
+    }
+    t = (key: string): string =>
+      REGISTRY_STRINGS[this.locale]?.[key] ?? REGISTRY_STRINGS['en']?.[key] ?? key
+    register = () => () => {}
+    onLocaleChange = (cb: (locale: string) => void) => {
+      this.listeners.add(cb)
+      return () => void this.listeners.delete(cb)
     }
   }
 
@@ -435,9 +515,10 @@ async function harness(options: RegistryStubOptions & { appVersion?: string } = 
   await root.plugin(ThemeStub)
   await root.plugin(PluginManagerStub)
   await root.plugin(SettingsStub)
+  await root.plugin(I18nStub)
 
   let scoped: Context | undefined
-  root.inject(['ui', 'contentRegistry', 'settings'], (s) => void (scoped = s))
+  root.inject(['ui', 'contentRegistry', 'settings', 'i18n'], (s) => void (scoped = s))
   await new Promise((resolve) => setTimeout(resolve, 0))
   if (!scoped) throw new Error('failed to scope')
 
@@ -1287,3 +1368,36 @@ describe('plugin-registry-ui-desktop', () => {
     expect(views.has(REGISTRY_VIEWS.settingsCard)).toBe(true)
   })
 })
+
+describe('RegistryFilterBar i18n pilot', () => {
+  it('switches filter bar labels live when settings.language changes between en and zh', async () => {
+    const { ctx } = await harness()
+    const { getByTestId, findByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-entry-music-new')
+
+    expect(getByTestId('registry-official-toggle').textContent).toContain('Show third-party content')
+    expect((getByTestId('registry-search') as HTMLInputElement).placeholder).toBe(
+      'Search names, authors or descriptions…',
+    )
+    expect(getByTestId('registry-sort-direction').textContent).toContain('Ascending')
+
+    await act(async () => {
+      await ctx.settings.update({ language: 'zh' })
+    })
+    expect(getByTestId('registry-official-toggle').textContent).toContain('显示第三方内容')
+    expect((getByTestId('registry-search') as HTMLInputElement).placeholder).toBe(
+      '搜索名称、作者或描述…',
+    )
+    expect(getByTestId('registry-sort-direction').textContent).toContain('升序')
+
+    await act(async () => {
+      await ctx.settings.update({ language: 'en' })
+    })
+    expect(getByTestId('registry-official-toggle').textContent).toContain('Show third-party content')
+    expect((getByTestId('registry-search') as HTMLInputElement).placeholder).toBe(
+      'Search names, authors or descriptions…',
+    )
+    expect(getByTestId('registry-sort-direction').textContent).toContain('Ascending')
+  })
+})
+

@@ -269,9 +269,10 @@ const QUEUE_DRAWER_KEYFRAMES =
 
 export function Shell({ ctx }: { ctx: Context }) {
   // Sidebar and view-frame titles are i18n keys (RouteContribution.title,
-  // docs/services/i18n.md); plain titles pass through  untouched.
+  // docs/services/i18n.md); plain titles pass through untouched.
   const { t } = useI18n(ctx)
-  const { entries } = useEntries(ctx)
+  const translateTitle = (title: string): string => (title.includes(':') ? t(title) : title)
+  const { routes, entries } = useEntries(ctx)
   const registryUpdatesAvailable = useRegistryUpdatesAvailable(ctx)
   // The recommend page is the home: it is where the brand logo in the
   // top-left goes and where a fresh window opens. Sources that cannot
@@ -1047,7 +1048,7 @@ export function Shell({ ctx }: { ctx: Context }) {
                         font: 'inherit',
                       },
                     },
-                    t(entry.title),
+                    translateTitle(entry.title),
                   ),
                 ),
             )
@@ -1103,7 +1104,7 @@ export function Shell({ ctx }: { ctx: Context }) {
                       font: 'inherit',
                     },
                   },
-                  h('span', { style: { flex: 1, minWidth: 0 } }, t(entry.title)),
+                  h('span', { style: { flex: 1, minWidth: 0 } }, translateTitle(entry.title)),
                   showUpdateDot
                     ? h('span', {
                         'data-testid': 'sidebar-registry-update-dot',
@@ -1147,7 +1148,7 @@ export function Shell({ ctx }: { ctx: Context }) {
                     'div',
                     { style: { padding: 24, color: 'var(--text-tertiary, #8B92A6)' } },
                     active
-                      ? `"${active.title}" has no desktop view.`
+                      ? `"${translateTitle(active.title)}" has no desktop view.`
                       : 'No plugin has contributed a route.',
                   )
                 : Array.from(pagesToRender.values()).map((page) => {
@@ -1161,8 +1162,12 @@ export function Shell({ ctx }: { ctx: Context }) {
                           }>
                         | undefined)
                     : undefined
+                  const matchedRoute = routes.find((r) => r.id === page.id)
                   const pageActive =
                     entries.find((e) => e.id === page.id) ??
+                    (matchedRoute
+                      ? { id: matchedRoute.id, title: matchedRoute.title, group: 'main' as const }
+                      : undefined) ??
                     (page.id ? { id: page.id, title: page.id, group: 'main' as const } : defaultEntry)
 
                   return h(
@@ -1204,7 +1209,7 @@ export function Shell({ ctx }: { ctx: Context }) {
                         : h(
                             ViewBoundary,
                             {
-                              title: t(pageActive?.title ?? page.id ?? 'This view'),
+                              title: translateTitle(pageActive?.title ?? page.id ?? 'This view'),
                               resetKey: isCurrent ? 'active' : 'inactive',
                               onError: (error) =>
                                 ctx.logger.error(
@@ -1221,7 +1226,7 @@ export function Shell({ ctx }: { ctx: Context }) {
                           'div',
                           { style: { padding: 24, color: 'var(--text-tertiary, #8B92A6)' } },
                           pageActive
-                            ? `"${pageActive.title}" has no desktop view.`
+                            ? `"${translateTitle(pageActive.title)}" has no desktop view.`
                             : 'No plugin has contributed a route.',
                         ),
                   )

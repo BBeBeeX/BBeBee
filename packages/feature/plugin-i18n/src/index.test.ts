@@ -127,11 +127,17 @@ describe('locale resolution', () => {
     expect(fr.ctx.i18n.locale).toBe('en')
 
     // A locale a plugin registered is a real negotiation target, not a
-    // hypothetical: once `fr` exists, `fr-FR` resolves to it.
-    await fr.ctx.i18n.register('extra', { fr: { greeting: 'Bonjour' }, en: { greeting: 'Hello' } })
-    fr.settings.emit('system')
+    // hypothetical: once `fr` exists, `fr-FR` resolves to it immediately, and
+    // disposing that registration falls back to `en`.
+    const disposeFr = fr.ctx.i18n.register('extra', {
+      fr: { greeting: 'Bonjour' },
+      en: { greeting: 'Hello' },
+    })
     expect(fr.ctx.i18n.locale).toBe('fr')
     expect(fr.ctx.i18n.t('extra:greeting')).toBe('Bonjour')
+
+    disposeFr()
+    expect(fr.ctx.i18n.locale).toBe('en')
   })
 
   it('follows settings.language changes and stops following after unload', async () => {
@@ -230,8 +236,9 @@ describe('warnings', () => {
     expect(warns.length).toBeGreaterThan(0)
   })
 
-  it('warns once per missing param and keeps the placeholder', async () => {
+  it('warns once per missing param and keeps the placeholder (whether params is omitted or incomplete)', async () => {
     const { ctx, warns } = await harness('en')
+    expect(ctx.i18n.t('settings:github.endpointLabel')).toBe('Acceleration endpoint {index}')
     expect(ctx.i18n.t('settings:github.endpointLabel', { other: 'x' })).toBe(
       'Acceleration endpoint {index}',
     )

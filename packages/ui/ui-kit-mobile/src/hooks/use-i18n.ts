@@ -42,7 +42,7 @@ export function useI18n(ctx: Context): UseI18nResult {
 
   const t = useCallback<I18nService['t']>(
     (key, params) => serviceOf<I18nService>(ctx, 'i18n')?.t(key, params) ?? key,
-    [ctx],
+    [ctx, locale],
   )
 
   return { locale, t }

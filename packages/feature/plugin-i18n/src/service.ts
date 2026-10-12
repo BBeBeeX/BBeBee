@@ -167,6 +167,9 @@ export class I18nPlugin extends Service implements I18nService {
     const list = this.registrations.get(namespace) ?? []
     list.push(registration)
     this.registrations.set(namespace, list)
+    if (this.unsubscribeSettings) {
+      this.applyLanguage(this.ctx.settings.getSync().language)
+    }
 
     let disposed = false
     return () => {
@@ -177,6 +180,9 @@ export class I18nPlugin extends Service implements I18nService {
       const index = current.indexOf(registration)
       if (index >= 0) current.splice(index, 1)
       if (current.length === 0) this.registrations.delete(namespace)
+      if (this.unsubscribeSettings) {
+        this.applyLanguage(this.ctx.settings.getSync().language)
+      }
     }
   }
 
@@ -224,9 +230,9 @@ export class I18nPlugin extends Service implements I18nService {
   }
 
   private interpolate(key: string, template: string, params?: Record<string, string | number>): string {
-    if (!params) return template
+    if (!template.includes('{')) return template
     return template.replace(PARAM_PATTERN, (placeholder, name: string) => {
-      const value = params[name]
+      const value = params?.[name]
       if (value === undefined) {
         this.warnOnce(`i18n: key "${key}" is missing param "{${name}}" — keeping the placeholder`)
         return placeholder

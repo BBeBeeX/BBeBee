@@ -15,7 +15,7 @@
 import { createElement as h, useEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { SleepTimerMode, SleepTimerService, TrayContribution } from '@BBeBee/protocol'
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { useSearchSourceSelection, type SearchInterfaceKind } from '@BBeBee/plugin-sources/hooks'
 import { useSleepTimer } from '@BBeBee/plugin-sleep-timer/hooks'
 import logoWhiteUrl from './assets/logo-white.png'
@@ -299,6 +299,8 @@ export function SleepTimerIndicator({ ctx }: { ctx: Context }): ReactElement | n
 }
 
 export function TrayIndicator({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
+  const translateTitle = (title: string): string => (title.includes(':') ? t(title) : title)
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
 
@@ -490,15 +492,16 @@ export function TrayIndicator({ ctx }: { ctx: Context }): ReactElement {
                     gap: 6,
                   },
                 },
-                ...items.map((item) =>
-                  h(
+                ...items.map((item) => {
+                  const itemTitle = translateTitle(item.title)
+                  return h(
                     'button',
                     {
                       key: item.id,
                       type: 'button',
                       'data-testid': `topbar-tray-item-${item.id}`,
-                      title: item.title,
-                      'aria-label': item.title,
+                      title: itemTitle,
+                      'aria-label': itemTitle,
                       onClick: () => {
                         setOpen(false)
                         if (item.action) {
@@ -553,8 +556,8 @@ export function TrayIndicator({ ctx }: { ctx: Context }): ReactElement {
                           },
                         })
                       : null,
-                  ),
-                ),
+                  )
+                }),
               ),
         )
       : null,

@@ -60,8 +60,10 @@ describe('useI18n', () => {
   it('re-renders on locale change without remount', async () => {
     const { ctx, emitLocale } = await ctxWithI18n()
     const { result } = renderHook(() => useI18n(ctx))
+    const initialT = result.current.t
     act(() => emitLocale('zh'))
     expect(result.current.locale).toBe('zh')
+    expect(result.current.t).not.toBe(initialT)
     expect(result.current.t('app:common.confirm')).toBe('确认')
   })
 

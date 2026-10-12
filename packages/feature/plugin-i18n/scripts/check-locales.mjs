@@ -17,8 +17,10 @@
  * Wired into CI (`.github/workflows/ci.yml`, Lint job) and runnable as
  * `pnpm check:locales`.
  */
+import console from 'node:console'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))

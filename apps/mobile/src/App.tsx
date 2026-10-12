@@ -20,6 +20,7 @@ import { ActivityIndicator, BackHandler, Pressable, Text, View } from 'react-nat
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import type { Context } from 'cordis'
 import type { RouteContribution, SettingsContribution } from '@BBeBee/protocol'
+import { useI18n } from '@BBeBee/ui-kit-mobile'
 import { boot } from './boot'
 
 /** What the tab bar can navigate to: a route, or a settings page. */
@@ -77,6 +78,8 @@ function useTabs(ctx: Context): Tab[] {
 }
 
 function Shell({ ctx }: { ctx: Context }) {
+  const { t } = useI18n(ctx)
+  const translateTitle = (title: string): string => (title.includes(':') ? t(title) : title)
   const tabs = useTabs(ctx)
   const defaultTab = tabs[0]
   const [isFullscreenNowPlaying, setIsFullscreenNowPlaying] = useState(false)
@@ -238,13 +241,14 @@ function Shell({ ctx }: { ctx: Context }) {
         const isSelected =
           activeTab?.id === tab.id ||
           (currentId === 'album.view' && tab.id === 'library.home')
+        const tabTitle = translateTitle(tab.title)
         return h(
           Pressable,
           {
             key: tab.id,
             onPress: () => navigateTo(tab.id),
             accessibilityRole: 'tab',
-            accessibilityLabel: tab.title,
+            accessibilityLabel: tabTitle,
             accessibilityState: { selected: isSelected },
             style: { flex: 1, padding: 14, alignItems: 'center' },
           },
@@ -254,7 +258,7 @@ function Shell({ ctx }: { ctx: Context }) {
               numberOfLines: 1,
               style: { color: isSelected ? '#F5F5F7' : '#5A5A68' },
             },
-            tab.title,
+            tabTitle,
           ),
         )
       }),

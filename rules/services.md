@@ -58,6 +58,7 @@ Declared in `packages/protocol/src/services/` and augmented onto `Context`:
 | `ctx.downloads` | Resumable background download task queue and media bindings | `plugin-download` |
 | `ctx.cache` | Eviction-bounded media cache for streams and covers | `plugin-cache` |
 | `ctx.settings` | User app settings (theme, audio engine & exclusive mode, shortcuts) and dynamic contribution registry | `plugin-settings` |
+| `ctx.i18n` | Interface localization (`t`, `register`, `onLocaleChange`) with BCP 47 negotiation and key-granular fallback | `plugin-i18n` |
 | `ctx.theme` | Theme registry, token injection, dynamic theme management | `plugin-theme` |
 | `ctx.share` | Metadata serialization, image steganography, track/playlist/album/lyrics sharing | `plugin-share` |
 | `ctx['plugin-manager']` | Plugin registry, runtime fiber states, dependency graph, and persistent lifecycle management | `plugin-manager` |

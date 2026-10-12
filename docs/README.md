@@ -59,6 +59,7 @@ The architecture documentation is organized into 9 topic directories:
 | **Services** | [services/overview.md](./services/overview.md) | Core service design principles, opaque `Uri`, and `ctx.fs` virtual filesystem |
 | | [services/contracts.md](./services/contracts.md) | Catalog of core service contracts (`http`, `ws`, `store`, `db`, `secrets`, etc.) |
 | | [services/logging.md](./services/logging.md) | Layer 3 log transports (`ctx.logger`, ring buffer, console, file rotation) |
+| | [services/i18n.md](./services/i18n.md) | `ctx.i18n` localization service, `namespace:path` keys, BCP 47 negotiation, and `useI18n` hook |
 | **Audio** | [audio/engine.md](./audio/engine.md) | `ctx.audio` Web Audio engine, graph topology, and platform bridges |
 | | [audio/playback.md](./audio/playback.md) | `ctx.player` transport state machine, resolution pipeline, queue, and OS integration |
 | | [audio/dsp.md](./audio/dsp.md) | `ctx.dsp` effect chain assembly and built-in processors (EQ, compressor, reverb) |
