@@ -189,7 +189,7 @@ const buildSamplePluginManifest = (t: I18nService['t']): string =>
     <div class="info-pane">
       <div class="badge">🛡️ SANDBOX PLUGIN</div>
       <div>
-        <div id="title" class="title">Nothing playing</div>
+        <div id="title" class="title">${t('nowPlaying:nowPlaying.nothingPlaying')}</div>
         <div id="artist" class="artist">-</div>
       </div>
       <div id="lyric" class="lyrics-box">-</div>
@@ -201,10 +201,10 @@ const buildSamplePluginManifest = (t: I18nService['t']): string =>
         <span id="dur">00:00</span>
       </div>
       <div class="controls">
-        <button id="prev" class="btn" title="Previous track">⏮</button>
-        <button id="play" class="btn btn-play" title="Play/Pause">▶</button>
-        <button id="next" class="btn" title="Next track">⏭</button>
-        <button id="fav" class="btn btn-fav" title="Add to Favorites">♥</button>
+        <button id="prev" class="btn" title="${t('nowPlaying:nowPlayingStyles.previousTrack')}">⏮</button>
+        <button id="play" class="btn btn-play" title="${t('nowPlaying:nowPlayingStyles.playPause')}">▶</button>
+        <button id="next" class="btn" title="${t('nowPlaying:nowPlayingStyles.nextTrack')}">⏭</button>
+        <button id="fav" class="btn btn-fav" title="${t('nowPlaying:nowPlayingStyles.addToFavorites')}">♥</button>
       </div>
     </div>
   </div>

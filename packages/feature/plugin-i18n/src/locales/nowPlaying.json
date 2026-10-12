@@ -29,6 +29,8 @@
       "playModeTitleShuffle": "Shuffle (Switch to sequential)",
       "playModeTitleSingleLoop": "Single loop (Switch to shuffle)",
       "playQueue": "Play queue",
+      "sampleTrackArtist": "Radiohead",
+      "sampleTrackTitle": "No Surprises",
       "seek": "Seek",
       "sequential": "Sequential",
       "shuffle": "Shuffle",
@@ -41,6 +43,7 @@
       "volumeTitleMuted": "Muted (click to adjust)"
     },
     "nowPlayingStyles": {
+      "addToFavorites": "Add to Favorites",
       "byAuthor": "by {author}",
       "byAuthorVersion": "by {author} · v{version}",
       "chooseJsonFile": "Choose a JSON file",
@@ -150,6 +153,8 @@
       "playModeTitleShuffle": "随机播放（切换为顺序播放）",
       "playModeTitleSingleLoop": "单曲循环（切换为随机播放）",
       "playQueue": "播放队列",
+      "sampleTrackArtist": "Radiohead",
+      "sampleTrackTitle": "No Surprises",
       "seek": "定位",
       "sequential": "顺序播放",
       "shuffle": "随机播放",
@@ -162,6 +167,7 @@
       "volumeTitleMuted": "已静音（点击调整）"
     },
     "nowPlayingStyles": {
+      "addToFavorites": "添加到收藏",
       "byAuthor": "作者 {author}",
       "byAuthorVersion": "作者 {author} · v{version}",
       "chooseJsonFile": "选择 JSON 文件",

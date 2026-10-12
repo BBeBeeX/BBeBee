@@ -2,6 +2,7 @@
   "common": {
     "all": "All",
     "app": {
+      "bootFailed": "BBeBee failed to start:\n\n{error}",
       "hasNoMobileView": "\"{currentId}\" has no mobile view.",
       "noPluginRoute": "No plugin has contributed a route."
     },

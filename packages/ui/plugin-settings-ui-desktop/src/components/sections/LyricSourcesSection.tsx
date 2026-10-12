@@ -346,7 +346,7 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
       setImportText('')
       setLyricSources([...svc.getSources()])
     } catch (e) {
-      setImportError(e instanceof Error ? e.message : 'JSON parse error')
+      setImportError(e instanceof Error ? e.message : t('settings:lyricSources.jSONParseError'))
     }
   }
 

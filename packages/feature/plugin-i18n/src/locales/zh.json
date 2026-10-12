@@ -2,6 +2,7 @@
   "common": {
     "all": "全部",
     "app": {
+      "bootFailed": "BBeBee 启动失败：\n\n{error}",
       "hasNoMobileView": "“{currentId}”没有移动端视图。",
       "noPluginRoute": "没有插件贡献路由。"
     },

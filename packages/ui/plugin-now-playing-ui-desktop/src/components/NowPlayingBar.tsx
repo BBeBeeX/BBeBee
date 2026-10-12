@@ -100,12 +100,7 @@ export function CachedArtwork({ ctx, ...props }: ArtworkProps & { ctx: Context }
   return h(Artwork, { ...props, artwork })
 }
 
-export const PLAY_MODE_INFO: Record<PlayMode, { label: string; next: string }> = {
-  sequence: { label: 'Sequential', next: 'Switch to list loop' },
-  'list-loop': { label: 'List loop', next: 'Switch to single loop' },
-  'single-loop': { label: 'Single loop', next: 'Switch to shuffle' },
-  shuffle: { label: 'Shuffle', next: 'Switch to sequential' },
-}
+export { PLAY_MODE_INFO, getLocalizedPlayModeLabel } from '../play-mode-info.js'
 
 /**
  * Play mode → catalogue key for its translated label. The `next` hint in

@@ -197,7 +197,7 @@ export function CinematicLyricsTemplate(props: CinematicLyricsTemplateProps): Re
                 textAlign: 'center',
               },
             },
-            isPlaying ? '♪ May the music heal every wound ♪' : 'No Surprises',
+            isPlaying ? t('lyrics:lyrics.healingMusicPlaceholder') : t('lyrics:lyrics.noLyrics'),
           )
         : isSynced
           ? lines.map((line, idx) => {

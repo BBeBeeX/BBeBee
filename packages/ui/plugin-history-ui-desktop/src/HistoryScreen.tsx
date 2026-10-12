@@ -220,8 +220,8 @@ function StatCard({
   )
 }
 
-function fallbackTrack(urn: string): Track {
-  return { urn, title: 'Loading…', artists: [] }
+function fallbackTrack(urn: string, title = ''): Track {
+  return { urn, title, artists: [] }
 }
 
 export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {

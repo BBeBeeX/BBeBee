@@ -30,8 +30,8 @@ function CachedTrackRow({ ctx, ...props }: TrackRowProps & { ctx: Context }): Re
   })
 }
 
-function fallbackTrack(urn: string): Track {
-  return { urn, title: 'Loading…', artists: [] }
+function fallbackTrack(urn: string, title = ''): Track {
+  return { urn, title, artists: [] }
 }
 
 function formatPlayDuration(t: I18nService['t'], ms: number): string {

@@ -26,8 +26,8 @@ export function CinematicLayout(props: NowPlayingLayoutProps): ReactElement {
   const isPlaying = state.status === 'playing'
 
   // Actual track title and artist from real-time transport state
-  const trackTitle = state.nowPlaying?.title ?? (state.trackUrn ? t('nowPlaying:nowPlaying.loading') : 'No Surprises')
-  const trackArtist = state.nowPlaying?.artist ?? (state.trackUrn ? '—' : 'Radiohead')
+  const trackTitle = state.nowPlaying?.title ?? (state.trackUrn ? t('nowPlaying:nowPlaying.loading') : t('nowPlaying:nowPlaying.sampleTrackTitle'))
+  const trackArtist = state.nowPlaying?.artist ?? (state.trackUrn ? '—' : t('nowPlaying:nowPlaying.sampleTrackArtist'))
 
   return h(
     'div',

@@ -89,7 +89,7 @@ export function NetworkSection({
         action: h('input', {
           type: 'text',
           value: userAgent,
-          placeholder: 'BBeBee/0.1',
+          placeholder: t('settings:network.userAgentPlaceholder'),
           'aria-label': t('settings:network.userAgent'),
           onChange: (e: { target: { value: string } }) => onUpdateUserAgent(e.target.value),
           style: {
@@ -151,7 +151,7 @@ export function NetworkSection({
                 h('input', {
                   type: 'text',
                   value: proxy.host,
-                  placeholder: '127.0.0.1',
+                  placeholder: t('settings:network.proxyHostPlaceholder'),
                   'aria-label': t('settings:network.proxyServerHost'),
                   onChange: (e: { target: { value: string } }) =>
                     onUpdateProxy({ ...proxy, host: e.target.value.trim() }),

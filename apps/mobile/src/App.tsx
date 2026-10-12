@@ -21,6 +21,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import type { Context } from 'cordis'
 import type { RouteContribution, SettingsContribution } from '@BBeBee/protocol'
 import { useI18n } from '@BBeBee/ui-kit-mobile'
+import { renderBootErrorMessage } from './boot-error'
 import { boot } from './boot'
 
 /** What the tab bar can navigate to: a route, or a settings page. */
@@ -280,12 +281,10 @@ export default function App() {
   }, [])
 
   if (error) {
-    // Boot failed: the i18n service is unavailable, so the English source
-    // string is rendered directly instead of going through t().
     return h(
       SafeAreaView,
       { style: { flex: 1, backgroundColor: '#0B0B0F' } },
-      h(Text, { style: { padding: 24, color: '#FF5C5C' } }, `BBeBee failed to start:\n\n${error}`),
+      h(Text, { style: { padding: 24, color: '#FF5C5C' } }, renderBootErrorMessage(error)),
     )
   }
   if (!ctx) {
