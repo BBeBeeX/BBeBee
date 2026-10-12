@@ -62,8 +62,8 @@ for (const [i, line] of tsv.split('\n').entries()) {
   candidates.add(`${file} :: ${text}`)
 }
 
-// 3+4. Load allowlist (lines `file :: text`; `#` comments and blanks ignored).
-let allowlist
+// 3+4. Load allowlist if present (lines `file :: text`; `#` comments and blanks ignored).
+let allowlist = new Set()
 try {
   allowlist = new Set(
     readFileSync(ALLOWLIST, 'utf8')
@@ -72,8 +72,8 @@ try {
       .filter((l) => l && l.includes('::')),
   )
 } catch {
-  console.error(`check-no-hardcoded: cannot read allowlist at ${ALLOWLIST}`)
-  process.exit(2)
+  // Allowlist is optional when there are 0 unmigrated strings.
+  allowlist = new Set()
 }
 
 const violations = [...candidates].filter((c) => !allowlist.has(c)).sort()

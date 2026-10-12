@@ -944,7 +944,7 @@ export function TopBar({
         },
         h('img', {
           src: logoWhiteUrl,
-          alt: 'BBeBee',
+          alt: t('app:common.top.bBeBee'),
           width: 22,
           height: 22,
           style: {

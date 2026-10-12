@@ -2,6 +2,7 @@ import { createElement as h, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { AppSettings } from '@BBeBee/protocol'
 import { Select, Switch, useI18n } from '@BBeBee/ui-kit-desktop'
+import { getLanguageOptions } from './language-options.js'
 import { SettingsRow } from '../SettingsRow.js'
 import { SettingsSection } from '../SettingsSection.js'
 
@@ -39,15 +40,7 @@ export function GeneralSection({
         borderBottom: false,
         action: h(Select<'zh' | 'en' | 'system'>, {
           value: settings.language,
-          options: [
-            // Native names by convention (macOS/iOS/browser settings do the
-            // same): a user who cannot read the current UI language can still
-            // find their own. "中文"/"English" are proper names — identical in
-            // every locale, never translated (see i18n-allowlist.txt).
-            { value: 'zh', label: '中文' },
-            { value: 'en', label: 'English' },
-            { value: 'system', label: t('settings:index.followSystem') },
-          ],
+          options: getLanguageOptions(t),
           accessibilityLabel: t('settings:general.interfaceLanguage'),
           onChange: (language) => void update({ language }),
         }),
