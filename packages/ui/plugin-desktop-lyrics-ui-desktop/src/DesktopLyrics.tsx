@@ -17,7 +17,7 @@ import { useDesktopLyricsState } from '@BBeBee/plugin-desktop-lyrics/hooks'
 import { serviceOf } from '@BBeBee/ui-core'
 import { DEFAULT_APP_SETTINGS, type AppSettings, type SettingsService } from '@BBeBee/protocol'
 import { tokens } from '@BBeBee/ui-tokens'
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 
 export interface DesktopLyricsProps {
   ctx: Context
@@ -67,6 +67,7 @@ function useDesktopLyricsSettings(ctx: Context) {
 }
 
 export function DesktopLyrics({ ctx }: DesktopLyricsProps): ReactElement | null {
+  const { t } = useI18n(ctx)
   const {
     visible,
     showNextLine,
@@ -319,7 +320,7 @@ export function DesktopLyrics({ ctx }: DesktopLyricsProps): ReactElement | null 
     'div',
     {
       role: 'complementary',
-      'aria-label': 'Desktop lyrics overlay',
+      'aria-label': t('lyrics:desktopLyrics.desktopLyricsOverlay'),
       onMouseEnter: () => setHovered(true),
       onMouseLeave: () => setHovered(false),
       onMouseDown: handleMouseDown,
@@ -369,8 +370,8 @@ export function DesktopLyrics({ ctx }: DesktopLyricsProps): ReactElement | null 
         'button',
         {
           type: 'button',
-          title: 'Previous track',
-          'aria-label': 'Previous track',
+          title: t('lyrics:desktopLyrics.previousTrack'),
+          'aria-label': t('lyrics:desktopLyrics.previousTrack'),
           onClick: () => void ctx.player?.previous?.(),
           style: buttonStyle,
         },
@@ -381,8 +382,8 @@ export function DesktopLyrics({ ctx }: DesktopLyricsProps): ReactElement | null 
         'button',
         {
           type: 'button',
-          title: isPlaying ? 'Pause' : 'Play',
-          'aria-label': isPlaying ? 'Pause' : 'Play',
+          title: isPlaying ? t('lyrics:desktopLyrics.pause') : t('lyrics:desktopLyrics.play'),
+          'aria-label': isPlaying ? t('lyrics:desktopLyrics.pause') : t('lyrics:desktopLyrics.play'),
           onClick: () => void ctx.player?.togglePlay?.(),
           style: { ...buttonStyle, color: 'var(--color-primary, #5F87FF)' },
         },
@@ -393,8 +394,8 @@ export function DesktopLyrics({ ctx }: DesktopLyricsProps): ReactElement | null 
         'button',
         {
           type: 'button',
-          title: 'Next track',
-          'aria-label': 'Next track',
+          title: t('lyrics:desktopLyrics.nextTrack'),
+          'aria-label': t('lyrics:desktopLyrics.nextTrack'),
           onClick: () => void ctx.player?.next?.(),
           style: buttonStyle,
         },
@@ -407,8 +408,8 @@ export function DesktopLyrics({ ctx }: DesktopLyricsProps): ReactElement | null 
         'button',
         {
           type: 'button',
-          title: 'Decrease font size',
-          'aria-label': 'Decrease font size',
+          title: t('lyrics:desktopLyrics.decreaseFontSize'),
+          'aria-label': t('lyrics:desktopLyrics.decreaseFontSize'),
           onClick: () => setFontSize(fontSize - 2),
           style: buttonStyle,
         },
@@ -418,8 +419,8 @@ export function DesktopLyrics({ ctx }: DesktopLyricsProps): ReactElement | null 
         'button',
         {
           type: 'button',
-          title: 'Increase font size',
-          'aria-label': 'Increase font size',
+          title: t('lyrics:desktopLyrics.increaseFontSize'),
+          'aria-label': t('lyrics:desktopLyrics.increaseFontSize'),
           onClick: () => setFontSize(fontSize + 2),
           style: buttonStyle,
         },
@@ -430,8 +431,8 @@ export function DesktopLyrics({ ctx }: DesktopLyricsProps): ReactElement | null 
         'button',
         {
           type: 'button',
-          title: 'Decrease opacity',
-          'aria-label': 'Decrease opacity',
+          title: t('lyrics:desktopLyrics.decreaseOpacity'),
+          'aria-label': t('lyrics:desktopLyrics.decreaseOpacity'),
           onClick: () => setOpacity(Number((opacity - 0.1).toFixed(1))),
           style: buttonStyle,
         },
@@ -441,8 +442,8 @@ export function DesktopLyrics({ ctx }: DesktopLyricsProps): ReactElement | null 
         'button',
         {
           type: 'button',
-          title: 'Increase opacity',
-          'aria-label': 'Increase opacity',
+          title: t('lyrics:desktopLyrics.increaseOpacity'),
+          'aria-label': t('lyrics:desktopLyrics.increaseOpacity'),
           onClick: () => setOpacity(Number((opacity + 0.1).toFixed(1))),
           style: buttonStyle,
         },
@@ -453,8 +454,8 @@ export function DesktopLyrics({ ctx }: DesktopLyricsProps): ReactElement | null 
         'button',
         {
           type: 'button',
-          title: showNextLine ? 'Single line mode' : 'Double line mode',
-          'aria-label': showNextLine ? 'Single line mode' : 'Double line mode',
+          title: showNextLine ? t('lyrics:desktopLyrics.singleLineMode') : t('lyrics:desktopLyrics.doubleLineMode'),
+          'aria-label': showNextLine ? t('lyrics:desktopLyrics.singleLineMode') : t('lyrics:desktopLyrics.doubleLineMode'),
           onClick: () => setShowNextLine(!showNextLine),
           style: {
             ...buttonStyle,
@@ -468,8 +469,8 @@ export function DesktopLyrics({ ctx }: DesktopLyricsProps): ReactElement | null 
         'button',
         {
           type: 'button',
-          title: locked ? 'Unlock position' : 'Lock position',
-          'aria-label': locked ? 'Unlock position' : 'Lock position',
+          title: locked ? t('lyrics:desktopLyrics.unlockPosition') : t('lyrics:desktopLyrics.lockPosition'),
+          'aria-label': locked ? t('lyrics:desktopLyrics.unlockPosition') : t('lyrics:desktopLyrics.lockPosition'),
           onClick: () => setLocked(!locked),
           style: buttonStyle,
         },
@@ -480,8 +481,8 @@ export function DesktopLyrics({ ctx }: DesktopLyricsProps): ReactElement | null 
         'button',
         {
           type: 'button',
-          title: 'Hide desktop lyrics',
-          'aria-label': 'Hide desktop lyrics',
+          title: t('lyrics:desktopLyrics.hideDesktopLyrics'),
+          'aria-label': t('lyrics:desktopLyrics.hideDesktopLyrics'),
           onClick: () => setVisible(false),
           style: { ...buttonStyle, color: 'var(--error, #EF4444)' },
         },

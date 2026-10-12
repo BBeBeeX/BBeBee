@@ -3209,6 +3209,9 @@ importers:
 
   packages/ui/ui-kit-desktop:
     dependencies:
+      '@BBeBee/plugin-i18n':
+        specifier: workspace:*
+        version: link:../../feature/plugin-i18n
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol

@@ -1,6 +1,7 @@
 import { createElement as h, useRef } from 'react'
 import type { ReactElement, MouseEvent } from 'react'
 import type { MiniPlayerData, MiniPlayerAction } from '@BBeBee/protocol'
+import { useBridgeLocale } from '@BBeBee/ui-kit-desktop'
 
 export function formatTime(ms: number): string {
   if (!ms || isNaN(ms) || ms < 0) return '0:00'
@@ -21,6 +22,9 @@ export function TransportButtons({
   onAction,
   size = 'md',
 }: TransportButtonsProps): ReactElement {
+  // No ctx here (this renders inside the ctx-less mini-player window):
+  // strings resolve through the preload `locale` bridge.
+  const { t } = useBridgeLocale()
   const isPlaying = data.status === 'playing'
   const buttonSize = size === 'sm' ? 26 : 32
   const playButtonSize = size === 'sm' ? 30 : 36
@@ -41,8 +45,8 @@ export function TransportButtons({
       'button',
       {
         type: 'button',
-        'aria-label': 'Previous track',
-        title: 'Previous track',
+        'aria-label': t('miniPlayer:miniPlayerControls.previousTrack'),
+        title: t('miniPlayer:miniPlayerControls.previousTrack'),
         disabled: !data.canPrevious,
         onClick: () => onAction({ type: 'previous' }),
         style: {
@@ -81,8 +85,12 @@ export function TransportButtons({
       'button',
       {
         type: 'button',
-        'aria-label': isPlaying ? 'Pause' : 'Play',
-        title: isPlaying ? 'Pause' : 'Play',
+        'aria-label': isPlaying
+          ? t('miniPlayer:miniPlayerControls.pause')
+          : t('miniPlayer:miniPlayerControls.play'),
+        title: isPlaying
+          ? t('miniPlayer:miniPlayerControls.pause')
+          : t('miniPlayer:miniPlayerControls.play'),
         disabled: !data.canPlayOrPause,
         onClick: () => onAction({ type: 'togglePlay' }),
         style: {
@@ -127,8 +135,8 @@ export function TransportButtons({
       'button',
       {
         type: 'button',
-        'aria-label': 'Next track',
-        title: 'Next track',
+        'aria-label': t('miniPlayer:miniPlayerControls.nextTrack'),
+        title: t('miniPlayer:miniPlayerControls.nextTrack'),
         disabled: !data.canNext,
         onClick: () => onAction({ type: 'next' }),
         style: {

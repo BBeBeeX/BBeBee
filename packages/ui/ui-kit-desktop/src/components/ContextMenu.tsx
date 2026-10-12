@@ -2,8 +2,11 @@ import { createElement as h, Fragment, useEffect, useLayoutEffect, useRef, useSt
 import type React from 'react'
 import type { KeyboardEvent, ReactElement } from 'react'
 import { createPortal } from 'react-dom'
+import type { Context } from 'cordis'
 import { tokens } from '@BBeBee/ui-tokens'
 import type { ContextMenuProps, MenuItemSpec } from '@BBeBee/ui-core'
+import { serviceOf } from '@BBeBee/ui-core'
+import type { I18nService } from '@BBeBee/protocol'
 import { c, common, useHover } from '../theme.js'
 import { tablerIcon } from '../icons/index.js'
 import { Button } from './Button.js'
@@ -14,7 +17,23 @@ const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffec
 
 const MENU_WIDTH = 248
 
-export function ContextMenu(props: ContextMenuProps): ReactElement | null {
+export function ContextMenu(
+  props: ContextMenuProps & {
+    /**
+     * Optional Cordis context. When provided, the kit-owned chrome copy
+     * (fallbacks for missing titles, the create-row buttons, the empty-filter
+     * line) is translated via `useI18n`; without it the built-in English copy
+     * renders. Item labels stay the caller's responsibility.
+     */
+    ctx?: Context
+  },
+): ReactElement | null {
+  // Deliberately hook-free: the kit's tree() tests invoke components as plain
+  // functions. Locale changes reach this component because its
+  // useI18n-subscribed ancestors re-render it.
+  const i18n = props.ctx ? serviceOf<I18nService>(props.ctx, 'i18n') : undefined
+  // English copy stays verbatim until a caller threads `ctx` (i18n sweep).
+  const t = (key: string, fallback: string): string => i18n?.t(key) ?? fallback
   const [submenuState, setSubmenuState] = useState<
     { id: string; rect?: { top: number; right: number; bottom: number; left: number } } | undefined
   >(undefined)
@@ -220,7 +239,7 @@ export function ContextMenu(props: ContextMenuProps): ReactElement | null {
         ref: menuRef,
         role: 'menu',
         ...common(props),
-        'aria-label': props.accessibilityLabel ?? props.title ?? 'Actions',
+        'aria-label': props.accessibilityLabel ?? props.title ?? t('app:common.contextMenu.actions', 'Actions'),
         onClick: (event: { stopPropagation(): void }) => event.stopPropagation(),
         onKeyDown: (event: { key: string }) => {
           if (event.key === 'Escape') close()
@@ -290,7 +309,7 @@ export function ContextMenu(props: ContextMenuProps): ReactElement | null {
           {
             ref: submenuRef,
             role: 'menu',
-            'aria-label': submenu.title ?? 'Submenu',
+            'aria-label': submenu.title ?? t('app:common.contextMenu.submenu', 'Submenu'),
             onClick: (event: { stopPropagation(): void }) => event.stopPropagation(),
             style: {
               position: 'fixed',
@@ -359,13 +378,13 @@ export function ContextMenu(props: ContextMenuProps): ReactElement | null {
                   },
                   disabled: draft.trim().length === 0,
                   testID: 'context-menu-create-confirm',
-                  children: submenu.create.buttonLabel ?? 'OK',
+                  children: submenu.create.buttonLabel ?? t('app:common.confirm', 'OK'),
                 }),
                 h(
                   'button',
                   {
                     type: 'button',
-                    'aria-label': 'Cancel',
+                    'aria-label': t('app:common.cancel', 'Cancel'),
                     onClick: () => {
                       setCreating(false)
                       setDraft('')
@@ -454,7 +473,7 @@ export function ContextMenu(props: ContextMenuProps): ReactElement | null {
                         },
                         disabled: draft.trim().length === 0,
                         testID: 'context-menu-create-confirm',
-                        children: submenu.create.buttonLabel ?? 'OK',
+                        children: submenu.create.buttonLabel ?? t('app:common.confirm', 'OK'),
                       }),
                     )
                   : h(MenuRow, {
@@ -470,7 +489,7 @@ export function ContextMenu(props: ContextMenuProps): ReactElement | null {
                     h(
                       'div',
                       { key: '__empty', style: { padding: tokens.space[3] } },
-                      h(Text, { variant: 'sm', tone: 'muted', children: submenu.emptyLabel ?? 'No matches' }),
+                      h(Text, { variant: 'sm', tone: 'muted', children: submenu.emptyLabel ?? t('app:common.contextMenu.noMatches', 'No matches') }),
                     ),
                   ]
                 : visible.map((item) =>

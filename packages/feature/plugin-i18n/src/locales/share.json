@@ -1,0 +1,222 @@
+{
+  "en": {
+    "backgroundModeSelector": {
+      "background": "Background",
+      "gradient": "Gradient",
+      "solidBlack": "Solid black",
+      "solidThemeColor": "Solid theme color",
+      "themeColor": "Theme color"
+    },
+    "importShare": {
+      "close": "Close",
+      "dropAShareImageHere": "Drop a share image here, or click to upload",
+      "pasteBase64ShareData": "Paste Base64 share data…",
+      "readingSteganographicData": "Reading steganographic data…",
+      "readOrImportShare": "Read / import share",
+      "automaticallyDecodesSongOrPlaylist": "Automatically decodes the song or playlist hidden inside a PNG image",
+      "orPasteBase64DataDirectly": "Or paste Base64 data directly:",
+      "cannotParseBase64Data": "Cannot parse the Base64 data: not a valid BBeBee share package",
+      "failedToReadTheFile": "Failed to read the file",
+      "failedToCreateTheCanvas": "Failed to create the canvas",
+      "noSteganographicDataDetected": "No BBeBee steganographic share data detected in this image",
+      "steganographicDataCorrupted": "The steganographic data in the image is corrupted or of a mismatched format",
+      "failedToDecodeSteganography": "Failed to decode steganography: {err}",
+      "failedToLoadAndDecodeTheImage": "Failed to load and decode the image",
+      "libraryServiceNotReady": "Library service not ready",
+      "playbackFailed": "Playback failed: {err}",
+      "failedToAddToQueue": "Failed to add to queue: {err}",
+      "failedToFavorite": "Failed to favorite: {err}",
+      "chooseAgain": "Choose again",
+      "playNow": "Play now",
+      "addToQueue": "Add to queue",
+      "favorite": "Favorite",
+      "unknownArtist": "Unknown artist",
+      "albumSubtitle": {
+        "one": "Album • {artist} • {trackCount} song",
+        "other": "Album • {artist} • {trackCount} songs"
+      },
+      "lyricsSubtitle": "Lyrics • {artist}",
+      "typeSteganographyVerified": "Type: {type} • steganography verified",
+      "artworkAlt": "artwork"
+    },
+    "localSourceWarning": {
+      "canTShareLocalMusic": "Can't share local music"
+    },
+    "shareActionButtons": {
+      "generating": "Generating…",
+      "copyBase64": "Copy Base64",
+      "copiedBase64": "Copied Base64",
+      "downloadImage": "Download image",
+      "copyLyrics": "Copy lyrics",
+      "copiedLyrics": "Copied lyrics"
+    },
+    "shareAlbum": {
+      "canTCopyTheAlbum": "Can't copy: the album is missing a valid title or other metadata",
+      "shareAlbum": "Share album",
+      "albumLabel": "Album",
+      "trackCountSongs": {
+        "one": "{trackCount} song",
+        "other": "{trackCount} songs"
+      }
+    },
+    "shareHost": {
+      "albumTitle": "{title} ({trackCount} songs)",
+      "albumTitleWithArtist": "{title} — {artist} ({trackCount} songs)",
+      "canTParseTheShare": "Can't parse the share code: not a valid BBeBee share package",
+      "lyricsTitle": "{title} — {artist} (lyrics)",
+      "pasteAShareCode": "Paste a share code",
+      "pasteAShareCodeCopied": "Paste a share code copied from another BBeBee client above to import it.",
+      "pasteAShareCodeFirst": "Paste a share code first",
+      "pasteBase64ShareCode": "Paste Base64 share code",
+      "playerServiceNotReady": "Player service not ready",
+      "playlistTitle": "{name} ({trackCount} songs)",
+      "readShareCard": "Read share card",
+      "shareServiceNotReady": "Share service not ready",
+      "shareType": "Share {type}",
+      "targetAlbum": "{title}",
+      "targetAlbumWithArtist": "{title} — {artist}",
+      "targetLyrics": "{title} — {artist} (lyrics)",
+      "targetPlaylist": "{name} ({trackCount} songs)",
+      "targetTrack": "{title} — {artist}",
+      "typeLabel": {
+        "song": "Song",
+        "playlist": "Playlist",
+        "lyrics": "Lyrics",
+        "album": "Album"
+      },
+      "recognizedType": "Recognized {type}: {description}",
+      "longPressHint": "Long-press the share code to copy it; generate image cards on desktop. Any BBeBee client can paste-import via \"Read share card\".",
+      "shareServiceNotReadyYet": "The share service is not ready yet — try again later.",
+      "decodeShareCode": "Decode share code"
+    },
+    "shareLyrics": {
+      "canTCopyLyricsSelect": "Can't copy lyrics: select at least one lyric line",
+      "canTCopyWritingTo": "Can't copy: writing to the clipboard failed, check system permissions",
+      "shareLyrics": "Share lyrics",
+      "tapLyricLinesToChoose": "Tap lyric lines to choose what gets shared (up to 6)",
+      "linesSelected": "{count} selected",
+      "fullPosterLarge": "Full poster (large)",
+      "innerCardOnlySmall": "Inner card only (small)"
+    },
+    "sharePlaylist": {
+      "canTCopyThePlaylist": "Can't copy: the playlist is missing a valid name or other metadata",
+      "playlistSongs": "Playlist • {trackCount} songs",
+      "sharePlaylist": "Share playlist",
+      "playlistLabel": "Playlist"
+    },
+    "shareTrack": {
+      "canTCopyMissingA": "Can't copy: missing a valid title or other metadata",
+      "shareSong": "Share song"
+    }
+  },
+  "zh": {
+    "backgroundModeSelector": {
+      "background": "背景",
+      "gradient": "渐变",
+      "solidBlack": "纯黑",
+      "solidThemeColor": "主题纯色",
+      "themeColor": "主题色"
+    },
+    "importShare": {
+      "close": "关闭",
+      "dropAShareImageHere": "将分享图片拖到此处，或点击上传",
+      "pasteBase64ShareData": "粘贴 Base64 分享数据…",
+      "readingSteganographicData": "正在读取隐写数据…",
+      "readOrImportShare": "读取 / 导入分享",
+      "automaticallyDecodesSongOrPlaylist": "自动解码隐藏在 PNG 图片中的歌曲或播放列表",
+      "orPasteBase64DataDirectly": "或直接粘贴 Base64 数据：",
+      "cannotParseBase64Data": "无法解析 Base64 数据：不是有效的 BBeBee 分享包",
+      "failedToReadTheFile": "读取文件失败",
+      "failedToCreateTheCanvas": "创建画布失败",
+      "noSteganographicDataDetected": "该图片中未检测到 BBeBee 隐写分享数据",
+      "steganographicDataCorrupted": "图片中的隐写数据已损坏或格式不匹配",
+      "failedToDecodeSteganography": "隐写解码失败：{err}",
+      "failedToLoadAndDecodeTheImage": "加载并解码图片失败",
+      "libraryServiceNotReady": "音乐库服务未就绪",
+      "playbackFailed": "播放失败：{err}",
+      "failedToAddToQueue": "添加到播放队列失败：{err}",
+      "failedToFavorite": "收藏失败：{err}",
+      "chooseAgain": "重新选择",
+      "playNow": "立即播放",
+      "addToQueue": "添加到播放队列",
+      "favorite": "收藏",
+      "unknownArtist": "未知艺人",
+      "albumSubtitle": {
+        "one": "专辑 • {artist} • {trackCount} 首歌",
+        "other": "专辑 • {artist} • {trackCount} 首歌"
+      },
+      "lyricsSubtitle": "歌词 • {artist}",
+      "typeSteganographyVerified": "类型：{type} • 隐写校验通过",
+      "artworkAlt": "封面"
+    },
+    "localSourceWarning": {
+      "canTShareLocalMusic": "无法分享本地音乐"
+    },
+    "shareActionButtons": {
+      "generating": "生成中…",
+      "copyBase64": "复制 Base64",
+      "copiedBase64": "Base64 已复制",
+      "downloadImage": "下载图片",
+      "copyLyrics": "复制歌词",
+      "copiedLyrics": "歌词已复制"
+    },
+    "shareAlbum": {
+      "canTCopyTheAlbum": "无法复制：专辑缺少有效标题或其他元数据",
+      "shareAlbum": "分享专辑",
+      "albumLabel": "专辑",
+      "trackCountSongs": {
+        "one": "{trackCount} 首歌",
+        "other": "{trackCount} 首歌"
+      }
+    },
+    "shareHost": {
+      "albumTitle": "{title}（{trackCount} 首歌）",
+      "albumTitleWithArtist": "{title} — {artist}（{trackCount} 首歌）",
+      "canTParseTheShare": "无法解析分享码：不是有效的 BBeBee 分享包",
+      "lyricsTitle": "{title} — {artist}（歌词）",
+      "pasteAShareCode": "粘贴分享码",
+      "pasteAShareCodeCopied": "在上方粘贴从其他 BBeBee 客户端复制的分享码以导入。",
+      "pasteAShareCodeFirst": "请先粘贴分享码",
+      "pasteBase64ShareCode": "粘贴 Base64 分享码",
+      "playerServiceNotReady": "播放服务未就绪",
+      "playlistTitle": "{name}（{trackCount} 首歌）",
+      "readShareCard": "读取分享卡",
+      "shareServiceNotReady": "分享服务未就绪",
+      "shareType": "分享{type}",
+      "targetAlbum": "{title}",
+      "targetAlbumWithArtist": "{title} — {artist}",
+      "targetLyrics": "{title} — {artist}（歌词）",
+      "targetPlaylist": "{name}（{trackCount} 首歌）",
+      "targetTrack": "{title} — {artist}",
+      "typeLabel": {
+        "song": "歌曲",
+        "playlist": "播放列表",
+        "lyrics": "歌词",
+        "album": "专辑"
+      },
+      "recognizedType": "已识别{type}：{description}",
+      "longPressHint": "长按分享码可复制；图片卡片请在桌面端生成。任意 BBeBee 客户端都可以通过「读取分享卡」粘贴导入。",
+      "shareServiceNotReadyYet": "分享服务尚未就绪 — 请稍后再试。",
+      "decodeShareCode": "解码分享码"
+    },
+    "shareLyrics": {
+      "canTCopyLyricsSelect": "无法复制歌词：请至少选择一行歌词",
+      "canTCopyWritingTo": "无法复制：写入剪贴板失败，请检查系统权限",
+      "shareLyrics": "分享歌词",
+      "tapLyricLinesToChoose": "点按歌词行选择要分享的内容（最多 6 行）",
+      "linesSelected": "{count} 行已选中",
+      "fullPosterLarge": "完整海报（大图）",
+      "innerCardOnlySmall": "仅内卡片（小图）"
+    },
+    "sharePlaylist": {
+      "canTCopyThePlaylist": "无法复制：播放列表缺少有效名称或其他元数据",
+      "playlistSongs": "播放列表 • {trackCount} 首歌",
+      "sharePlaylist": "分享播放列表",
+      "playlistLabel": "播放列表"
+    },
+    "shareTrack": {
+      "canTCopyMissingA": "无法复制：缺少有效标题或其他元数据",
+      "shareSong": "分享歌曲"
+    }
+  }
+}

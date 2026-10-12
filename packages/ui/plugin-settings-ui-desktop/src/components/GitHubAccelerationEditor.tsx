@@ -156,6 +156,7 @@ export function GitHubAccelerationEditor({
     'div',
     null,
     h(SettingsRow, {
+      ctx,
       title: t('settings:github.title'),
       description: t('settings:github.description'),
       action: h(Button, {

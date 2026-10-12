@@ -21,7 +21,7 @@ import type {
 import { parseLrc, findActiveLyricIndex } from '@BBeBee/toolkit'
 import { serviceOf, useServiceState } from '@BBeBee/ui-core'
 import { useResolvedArtwork } from '@BBeBee/toolkit/hooks'
-import { useImageColor } from '@BBeBee/ui-kit-desktop'
+import { useImageColor, useI18n } from '@BBeBee/ui-kit-desktop'
 import type { NowPlayingLayoutProps } from './index.js'
 
 export interface SandboxedLayoutProps extends NowPlayingLayoutProps {
@@ -106,6 +106,7 @@ export function SandboxedLayout({
   duration,
   meta,
 }: SandboxedLayoutProps): ReactElement {
+  const { t } = useI18n(ctx)
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
   const isPlaying = state.status === 'playing'
 
@@ -284,8 +285,11 @@ export function SandboxedLayout({
   }, [ctx, state.status, trackUrn, snapshot])
 
   const fullHtml = useMemo(() => {
-    return buildSandboxedHtml(meta.htmlContent ?? '<div style="color:white;padding:24px;">No plugin content provided</div>')
-  }, [meta.htmlContent])
+    return buildSandboxedHtml(
+      meta.htmlContent ??
+        `<div style="color:white;padding:24px;">${t('nowPlaying:sandboxedLayout.noPluginContentProvided')}</div>`,
+    )
+  }, [meta.htmlContent, t])
 
   return h(
     'div',

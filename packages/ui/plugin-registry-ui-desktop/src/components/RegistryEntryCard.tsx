@@ -23,11 +23,13 @@
  */
 
 import { createElement as h, useState, type ReactElement } from 'react'
+import type { Context } from 'cordis'
 import type { RegistryEntry } from '@BBeBee/protocol'
 import { tablerIcon } from '@BBeBee/ui-kit-desktop'
 import { normalizeVersion } from '@BBeBee/toolkit'
 import { isBuiltinEntry, type RegistryActionState } from '../hooks/install-state.js'
 import { formatCompactCount, formatDateMs, formatShortDate } from '../utils/format.js'
+import { useOptionalI18n } from '../utils/optional-i18n.js'
 import { CHIP, GHOST_BUTTON, STAT_CHIP, TONE } from '../styles.js'
 
 /** Lazily-fetched GitHub stats for the entry's repository, if it has one. */
@@ -57,6 +59,12 @@ export interface RegistryEntryCardUninstall {
 }
 
 export interface RegistryEntryCardProps {
+  /**
+   * The app context — read for the interface language. Optional so unit
+   * tests can render the card without a kernel context; absent, the
+   * copy degrades to the catalogue keys.
+   */
+  ctx?: Context
   entry: RegistryEntry
   actionState: RegistryActionState
   /** Set when `minAppVersion` blocks the install — the button renders disabled with this reason. */
@@ -178,13 +186,17 @@ function favoriteColor(favorite: boolean): string {
   return favorite ? TONE.error : 'var(--text-tertiary, #8B95B0)'
 }
 
-function actionLabel(state: RegistryActionState): string {
-  if (state.state === 'install') return 'Install'
-  if (state.state === 'update') return 'Update'
-  return 'Installed'
+/** The `t()` signature from `useI18n`, for the label helpers below. */
+type Translate = (key: string, params?: Record<string, string | number>) => string
+
+function actionLabel(t: Translate, state: RegistryActionState): string {
+  if (state.state === 'install') return t('registry:registryEntry.install')
+  if (state.state === 'update') return t('registry:registryEntry.update')
+  return t('registry:registryEntry.installed')
 }
 
 export function RegistryEntryCard({
+  ctx,
   entry,
   actionState,
   blockedReason,
@@ -196,6 +208,7 @@ export function RegistryEntryCard({
   uninstall,
   onAction,
 }: RegistryEntryCardProps): ReactElement {
+  const { t } = useOptionalI18n(ctx)
   const installed = actionState.state === 'installed'
   const disabled = installed || Boolean(blockedReason) || busy
   const isUpdate = actionState.state === 'update'
@@ -212,7 +225,7 @@ export function RegistryEntryCard({
     showPreview
       ? h('img', {
           src: entry.previewUrl,
-          alt: `${entry.name} preview`,
+          alt: t('registry:registryEntry.previewAlt', { name: entry.name }),
           loading: 'lazy',
           style: previewStyle,
         })
@@ -224,7 +237,7 @@ export function RegistryEntryCard({
       entry.version
         ? h('span', { style: { ...CHIP, flexShrink: 0 } }, `v${normalizeVersion(entry.version)}`)
         : null,
-      isBuiltinEntry(entry) ? h('span', { style: builtinChipStyle }, 'Built-in') : null,
+      isBuiltinEntry(entry) ? h('span', { style: builtinChipStyle }, t('registry:registryEntry.builtIn')) : null,
       // The favorite heart: outline when unmarked, filled rose when marked.
       // Only rendered when the screen wires a toggle, so other usages of the
       // card are untouched.
@@ -235,8 +248,8 @@ export function RegistryEntryCard({
               type: 'button',
               'data-testid': `registry-favorite-${entry.id}`,
               'aria-pressed': favorite,
-              'aria-label': favorite ? 'Remove from favorites' : 'Add to favorites',
-              title: favorite ? 'Remove from favorites' : 'Add to favorites',
+              'aria-label': favorite ? t('registry:registryEntry.removeFromFavorites') : t('registry:registryEntry.addToFavorites'),
+              title: favorite ? t('registry:registryEntry.removeFromFavorites') : t('registry:registryEntry.addToFavorites'),
               onClick: onToggleFavorite,
               className: 'bbreg-favorite',
               style: { ...favoriteButtonStyle, color: favoriteColor(favorite) },
@@ -261,7 +274,7 @@ export function RegistryEntryCard({
         ? h(
             'span',
             { key: 'stats', 'data-testid': `registry-stats-${entry.id}`, style: { display: 'inline-flex', alignItems: 'center', gap: 4 } },
-            h('span', { style: STAT_CHIP }, 'Stars', h('span', null, stats.stars !== undefined ? formatCompactCount(stats.stars) : '—')),
+            h('span', { style: STAT_CHIP }, t('registry:registryEntry.stars'), h('span', null, stats.stars !== undefined ? formatCompactCount(stats.stars) : '—')),
             h(
               'span',
               { style: STAT_CHIP },
@@ -308,7 +321,7 @@ export function RegistryEntryCard({
           },
           blockedReason
             ? `${blockedReason}`
-            : `Requires app version ≥ ${normalizeVersion(entry.minAppVersion)}`,
+            : t('registry:registryEntry.requiresAppVersion', { version: normalizeVersion(entry.minAppVersion) }),
         )
       : null,
     !entry.minAppVersion && blockedReason
@@ -346,7 +359,7 @@ export function RegistryEntryCard({
             ? h(
                 'span',
                 { key: 'uninstall-armed', style: { display: 'inline-flex', alignItems: 'center', gap: 6, marginRight: 'auto', flexWrap: 'wrap' } },
-                h('span', { style: { fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } }, 'Uninstall this?'),
+                h('span', { style: { fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } }, t('registry:registryEntry.uninstallThis')),
                 h(
                   'button',
                   {
@@ -369,7 +382,7 @@ export function RegistryEntryCard({
                       cursor: uninstallBusy ? 'default' : 'pointer',
                     },
                   },
-                  uninstallBusy ? 'Uninstalling…' : 'Confirm uninstall',
+                  uninstallBusy ? t('registry:registryEntry.uninstalling') : t('registry:registryEntry.confirmUninstall'),
                 ),
                 h(
                   'button',
@@ -381,7 +394,7 @@ export function RegistryEntryCard({
                     className: 'bbreg-btn bbreg-btn-ghost',
                     style: { ...GHOST_BUTTON, opacity: uninstallBusy ? 0.6 : 1, cursor: uninstallBusy ? 'default' : 'pointer' },
                   },
-                  'Cancel',
+                  t('app:common.cancel'),
                 ),
               )
             : h(
@@ -392,12 +405,12 @@ export function RegistryEntryCard({
                   'data-testid': `registry-uninstall-${entry.id}`,
                   disabled: uninstallBusy,
                   onClick: uninstallBusy ? undefined : () => setUninstallArmed(true),
-                  title: 'Uninstall the installed content',
+                  title: t('registry:registryEntry.uninstallTheInstalledContent'),
                   className: 'bbreg-btn bbreg-btn-ghost',
                   style: { ...GHOST_BUTTON, marginRight: 'auto', opacity: uninstallBusy ? 0.6 : 1, cursor: uninstallBusy ? 'default' : 'pointer' },
                 },
                 tablerIcon('trash', { size: 13 }),
-                uninstallBusy ? 'Uninstalling…' : 'Uninstall',
+                uninstallBusy ? t('registry:registryEntry.uninstalling') : t('registry:registryEntry.uninstall'),
               )
           : h(
               'span',
@@ -410,7 +423,7 @@ export function RegistryEntryCard({
                   color: 'var(--text-tertiary, #8B95B0)',
                 },
               },
-              'Uninstall it from plugin management / settings',
+              t('registry:registryEntry.uninstallFromPluginManagement'),
             )
         : null,
       h(
@@ -446,7 +459,11 @@ export function RegistryEntryCard({
           },
         },
         isUpdate ? tablerIcon('download', { size: 14 }) : null,
-        busy ? (isUpdate ? 'Updating…' : 'Installing…') : actionLabel(actionState),
+        busy
+          ? isUpdate
+            ? t('registry:registryEntry.updating')
+            : t('registry:registryEntry.installing')
+          : actionLabel(t, actionState),
       ),
     ),
   )

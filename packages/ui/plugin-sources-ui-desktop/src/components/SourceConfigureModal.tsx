@@ -2,7 +2,7 @@ import { createElement as h, useEffect, useState, type ReactElement } from 'reac
 import type { Context } from 'cordis'
 import type { SourcePingResult } from '@BBeBee/protocol'
 import { useSourceParams } from '@BBeBee/plugin-sources/hooks'
-import { Button, Sheet, Text, TextField } from '@BBeBee/ui-kit-desktop'
+import { Button, Sheet, Text, TextField, useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
 
 export interface SourceConfigureModalProps {
@@ -23,6 +23,7 @@ export function SourceConfigureModal({
   open,
   onClose,
 }: SourceConfigureModalProps): ReactElement | null {
+  const { t } = useI18n(ctx)
   const { params, record, loading, pingState, testConnection, saveParams } = useSourceParams(
     ctx,
     sourceId,
@@ -87,23 +88,23 @@ export function SourceConfigureModal({
   const renderPingBadge = (result: SourcePingResult) => {
     let borderColor = 'rgba(148, 163, 184, 0.2)'
     let bgColor = 'rgba(255, 255, 255, 0.05)'
-    let statusText = 'Unknown'
+    let statusText = t('sources:sourceConfigure.pingUnknown')
     let statusTone: 'ok' | 'warn' | 'error' = 'ok'
 
     if (result.status === 'ok') {
       borderColor = 'rgba(52, 199, 89, 0.4)'
       bgColor = 'rgba(52, 199, 89, 0.12)'
-      statusText = 'Connected'
+      statusText = t('sources:sourceConfigure.pingConnected')
       statusTone = 'ok'
     } else if (result.status === 'auth_failed') {
       borderColor = 'rgba(245, 158, 11, 0.4)'
       bgColor = 'rgba(245, 158, 11, 0.12)'
-      statusText = 'Authentication Failed'
+      statusText = t('sources:sourceConfigure.pingAuthFailed')
       statusTone = 'warn'
     } else if (result.status === 'network_error') {
       borderColor = 'rgba(239, 68, 68, 0.4)'
       bgColor = 'rgba(239, 68, 68, 0.12)'
-      statusText = 'Network Error'
+      statusText = t('sources:sourceConfigure.pingNetworkError')
       statusTone = 'error'
     }
 
@@ -143,7 +144,7 @@ export function SourceConfigureModal({
     {
       open,
       onClose,
-      title: `Configure ${record?.name ?? 'Source'}`,
+      title: t('sources:sourceConfigure.title', { name: record?.name ?? t('sources:test.sourceWord') }),
       testID: 'source-configure-modal',
     },
     h(
@@ -159,7 +160,7 @@ export function SourceConfigureModal({
         },
       },
       loading && !params
-        ? h(Text, { variant: 'sm', tone: 'muted' }, 'Loading parameters...')
+        ? h(Text, { variant: 'sm', tone: 'muted' }, t('sources:sourceConfigure.loadingParameters'))
         : h(
             'div',
             { style: { display: 'flex', flexDirection: 'column', gap: tokens.space[3] } },
@@ -167,18 +168,18 @@ export function SourceConfigureModal({
             h(
               'div',
               { style: { display: 'flex', flexDirection: 'column', gap: tokens.space[1] } },
-              h(Text, { variant: 'sm' }, 'Server Host / URL'),
+              h(Text, { variant: 'sm' }, t('sources:sourceConfigure.serverHostLabel')),
               h(TextField, {
                 value: host,
                 onChange: setHost,
                 placeholder: 'https://music.example.org',
-                accessibilityLabel: 'Server Host / URL',
+                accessibilityLabel: t('sources:sourceConfigure.serverHostLabel'),
                 testID: 'source-configure-host',
               }),
               h(
                 Text,
                 { variant: 'xs', tone: 'muted' },
-                'Updating host automatically updates the sandbox network egress allowlist.',
+                t('sources:sourceConfigure.hostHint'),
               ),
             ),
 
@@ -197,11 +198,11 @@ export function SourceConfigureModal({
               h(
                 'div',
                 { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
-                h(Text, { variant: 'sm' }, 'Credentials'),
+                h(Text, { variant: 'sm' }, t('sources:sourceConfigure.credentials')),
                 h(
                   Text,
                   { variant: 'xs', tone: 'accent' },
-                  '🔒 Keychain Secure Storage (write-only)',
+                  t('sources:sourceConfigure.keychainNote'),
                 ),
               ),
               ...declaredSecretKeys.map((key) => {
@@ -213,7 +214,7 @@ export function SourceConfigureModal({
                   h(TextField, {
                     value: secrets[key] ?? '',
                     onChange: (val) => setSecrets((prev) => ({ ...prev, [key]: val })),
-                    placeholder: secrets[key] ? '••••••••' : `Enter ${key}`,
+                    placeholder: secrets[key] ? '••••••••' : t('sources:sourceConfigure.enterKeyPlaceholder', { key }),
                     secure: isPass,
                     accessibilityLabel: key,
                     testID: `source-configure-${key}`,
@@ -234,7 +235,7 @@ export function SourceConfigureModal({
                   paddingTop: tokens.space[3],
                 },
               },
-              h(Text, { variant: 'sm' }, 'Variables (source_vars)'),
+              h(Text, { variant: 'sm' }, t('sources:sourceConfigure.variables')),
               ...Object.entries(vars).map(([k, v]) =>
                 h(
                   'div',
@@ -247,7 +248,7 @@ export function SourceConfigureModal({
                     h(TextField, {
                       value: v,
                       onChange: (val) => setVars((prev) => ({ ...prev, [k]: val })),
-                      accessibilityLabel: `Variable ${k}`,
+                      accessibilityLabel: t('sources:sourceConfigure.variableLabel', { k }),
                       testID: `source-configure-var-${k}`,
                     }),
                   ),
@@ -260,7 +261,7 @@ export function SourceConfigureModal({
                         return next
                       })
                     },
-                    accessibilityLabel: `Delete ${k}`,
+                    accessibilityLabel: t('sources:sourceConfigure.deleteVariable', { k }),
                     testID: `source-configure-var-del-${k}`,
                     children: '✕',
                   }),
@@ -274,8 +275,8 @@ export function SourceConfigureModal({
                   h(TextField, {
                     value: newVarKey,
                     onChange: setNewVarKey,
-                    placeholder: 'New key',
-                    accessibilityLabel: 'New variable key',
+                    placeholder: t('sources:sourceConfigure.newKey'),
+                    accessibilityLabel: t('sources:sourceConfigure.newVariableKeyLabel'),
                     testID: 'source-configure-new-var-key',
                   }),
                 ),
@@ -283,8 +284,8 @@ export function SourceConfigureModal({
                   h(TextField, {
                     value: newVarValue,
                     onChange: setNewVarValue,
-                    placeholder: 'Value',
-                    accessibilityLabel: 'New variable value',
+                    placeholder: t('sources:sourceConfigure.value'),
+                    accessibilityLabel: t('sources:sourceConfigure.newVariableValueLabel'),
                     testID: 'source-configure-new-var-val',
                   }),
                 ),
@@ -298,7 +299,7 @@ export function SourceConfigureModal({
                     setNewVarValue('')
                   },
                   testID: 'source-configure-add-var-btn',
-                  children: 'Add',
+                  children: t('sources:sourceConfigure.add'),
                 }),
               ),
             ),
@@ -318,13 +319,13 @@ export function SourceConfigureModal({
               h(
                 'div',
                 { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
-                h(Text, { variant: 'sm' }, 'Connectivity Test'),
+                h(Text, { variant: 'sm' }, t('sources:sourceConfigure.connectivityTest')),
                 h(Button, {
                   variant: 'secondary',
                   loading: pingState.loading,
                   onPress: handleTest,
                   testID: 'source-configure-test-btn',
-                  children: pingState.loading ? 'Testing...' : 'Test Connection',
+                  children: pingState.loading ? t('sources:sourceConfigure.testing') : t('sources:sourceConfigure.testConnection'),
                 }),
               ),
               pingState.result ? renderPingBadge(pingState.result) : null,
@@ -350,14 +351,14 @@ export function SourceConfigureModal({
                 variant: 'ghost',
                 onPress: onClose,
                 testID: 'source-configure-cancel-btn',
-                children: 'Cancel',
+                children: t('app:common.cancel'),
               }),
               h(Button, {
                 variant: 'primary',
                 loading: saving,
                 onPress: handleSave,
                 testID: 'source-configure-save-btn',
-                children: 'Save Parameters',
+                children: t('sources:sourceConfigure.saveParameters'),
               }),
             ),
           ),

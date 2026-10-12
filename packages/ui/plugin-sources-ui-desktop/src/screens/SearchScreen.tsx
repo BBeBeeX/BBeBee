@@ -14,6 +14,7 @@ import {
   Text,
   TextField,
   tablerIcon,
+  useI18n,
 } from '@BBeBee/ui-kit-desktop'
 import { serviceOf } from '@BBeBee/ui-core'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
@@ -36,6 +37,7 @@ export function SearchScreen({
   searchTimestamp?: number
   onOpenAlbum?: (urn: string) => void
 }): ReactElement {
+  const { t } = useI18n(ctx)
   const scheme = p()
   const search = useSourceSearch(ctx)
   const selection = useSearchSourceSelection(ctx)
@@ -110,7 +112,7 @@ export function SearchScreen({
     h(
       'section',
       {
-        'aria-label': 'Search',
+        'aria-label': t('sources:search.search'),
         style: {
           display: 'flex',
           flexDirection: 'column',
@@ -151,8 +153,8 @@ export function SearchScreen({
             h(TextField, {
               value: text,
               onChange: setText,
-              placeholder: 'Search songs, albums, artists…',
-              accessibilityLabel: 'Search query',
+              placeholder: t('sources:search.searchSongsAlbumsArtists'),
+              accessibilityLabel: t('sources:search.searchQuery'),
               testID: 'search-input',
             }),
           ),
@@ -161,14 +163,14 @@ export function SearchScreen({
             disabled: !canSearch,
             loading: busy,
             testID: 'search-submit',
-            children: 'Search',
+            children: t('sources:search.search'),
           }),
           submitted
             ? h(Button, {
                 variant: 'ghost',
                 onPress: clear,
                 testID: 'search-clear',
-                children: 'Clear',
+                children: t('app:common.clear'),
               })
             : null,
         ),
@@ -176,7 +178,7 @@ export function SearchScreen({
           'div',
           {
             role: 'group',
-            'aria-label': 'Sources and interfaces to search',
+            'aria-label': t('sources:search.sourcesAndInterfacesToSearch'),
             style: {
               display: 'flex',
               flexWrap: 'wrap',
@@ -187,20 +189,20 @@ export function SearchScreen({
           ...selection.interfaces.map((iface) =>
             h(SourceChip, {
               key: iface.id,
-              label: `${iface.sourceName} · ${iface.kind === 'track' ? 'Track' : 'Artist'}`,
+              label: `${iface.sourceName} · ${t(iface.kind === 'track' ? 'sources:search.track' : 'sources:search.artist')}`,
               selected: selection.isInterfaceSelected(iface.id),
               disabled: !iface.searchable,
               onPress: () => selection.toggleInterface(iface.id),
-              accessibilityLabel: `${selection.isInterfaceSelected(iface.id) ? 'Exclude from search' : 'Search'} ${iface.sourceName} ${iface.kind === 'track' ? 'Track' : 'Artist'}`,
+              accessibilityLabel: `${t(selection.isInterfaceSelected(iface.id) ? 'sources:search.excludeFromSearch' : 'sources:search.search')} ${iface.sourceName} ${t(iface.kind === 'track' ? 'sources:search.track' : 'sources:search.artist')}`,
               testID: `search-source-${iface.sourceId}-${iface.kind}`,
             }),
           ),
           selection.interfaces.some((iface) => iface.searchable)
             ? h(SourceChip, {
-                label: selection.allSelected ? 'Deselect all' : 'Select all',
+                label: selection.allSelected ? t('sources:search.deselectAll') : t('sources:search.selectAll'),
                 selected: false,
                 onPress: selection.toggleAll,
-                accessibilityLabel: selection.allSelected ? 'Deselect all sources' : 'Select all sources',
+                accessibilityLabel: selection.allSelected ? t('sources:search.deselectAllSources') : t('sources:search.selectAllSources'),
                 testID: 'search-toggle-all',
               })
             : null,
@@ -231,7 +233,7 @@ export function SearchScreen({
                 variant: 'md',
                 style: { color: 'var(--text-secondary, ' + scheme.text.secondary + ')' },
               },
-              'Type a keyword to search across all sources',
+              t('sources:search.typeAKeyword'),
             ),
             h(
               Text,
@@ -240,13 +242,13 @@ export function SearchScreen({
                 tone: 'muted',
                 style: { color: 'var(--text-tertiary, #8B95B0)' },
               },
-              'Each source renders as its own card panel — collapsible, with paginated loading',
+              t('sources:search.eachSourceRenders'),
             ),
           )
         : search.status === 'error' && search.error
           ? h(EmptyState, {
               icon: 'alert',
-              title: 'Search failed',
+              title: t('sources:search.searchFailed'),
               description: search.error.message,
               action: h(Button, {
                 variant: 'secondary',
@@ -255,18 +257,18 @@ export function SearchScreen({
                     sourceIds: selection.selectedIds,
                     typesBySource: selection.typesBySource,
                   }),
-                children: 'Retry',
+                children: t('app:common.retry'),
               }),
             })
           : busy
             ? h(EmptyState, {
-                title: `Searching "${search.text}"…`,
-                description: 'Waiting for the selected sources to return results.',
+                title: t('sources:search.searching', { text: search.text }),
+                description: t('sources:search.waitingForTheSelectedSources'),
               })
             : h(
                 'div',
                 {
-                  'aria-label': 'Search results',
+                  'aria-label': t('sources:search.searchResults'),
                   style: {
                     flex: 1,
                     minHeight: 0,
@@ -300,7 +302,7 @@ export function SearchScreen({
                           },
                         },
                         tablerIcon('search', { size: 14, color: 'var(--text-tertiary, #8B95B0)' }),
-                        h('span', null, `Results from ${bySource.length} sources`),
+                        h('span', null, t('sources:search.resultsFromSources', { length: bySource.length })),
                       ),
                       h(
                         'div',
@@ -315,13 +317,13 @@ export function SearchScreen({
                           variant: 'ghost',
                           testID: 'search-expand-all',
                           onPress: expandAll,
-                          children: 'Expand all',
+                          children: t('sources:search.expandAll'),
                         }),
                         h(Button, {
                           variant: 'ghost',
                           testID: 'search-collapse-all',
                           onPress: collapseAll,
-                          children: 'Collapse all',
+                          children: t('sources:search.collapseAll'),
                         }),
                       ),
                     )

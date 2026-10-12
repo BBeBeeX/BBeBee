@@ -6,6 +6,35 @@ import { Context, Service } from '@BBeBee/kernel'
 import type { ChainEntry, DspService } from '@BBeBee/protocol'
 import { DspScreen } from './DspScreen.js'
 import pluginDspUi from './index.js'
+import dspCatalogue from '../../../feature/plugin-i18n/src/locales/dsp.json'
+
+/**
+ * English i18n service for tests: serves the real dsp catalogue so components
+ * under test render the same copy the app shows (mirrors the DefaultI18nStub
+ * in apps/desktop/renderer/Shell.test.tsx).
+ */
+class I18nStub extends Service {
+  static override readonly name = 'i18n'
+  locale = 'en'
+  private listeners = new Set<(locale: string) => void>()
+  constructor(ctx: Context) {
+    super(ctx, 'i18n')
+  }
+  t = (key: string, params?: Record<string, string | number>): string => {
+    const sep = key.indexOf(':')
+    if (sep < 0 || key.slice(0, sep) !== 'dsp') return key
+    let cur: unknown = (dspCatalogue as { en: unknown }).en
+    for (const part of key.slice(sep + 1).split('.')) {
+      cur = (cur as Record<string, unknown> | undefined)?.[part]
+    }
+    if (typeof cur !== 'string') return key
+    return params ? cur.replace(/\{(\w+)\}/g, (_, k: string) => String(params[k] ?? `{${k}}`)) : cur
+  }
+  onLocaleChange = (cb: (locale: string) => void): (() => void) => {
+    this.listeners.add(cb)
+    return () => void this.listeners.delete(cb)
+  }
+}
 
 class UiStub extends Service {
   public views = new Map<string, any>()
@@ -85,6 +114,7 @@ async function createHarness() {
   const ctx = new Context()
   await ctx.plugin(UiStub)
   await ctx.plugin(DspStub)
+  await ctx.plugin(I18nStub)
   await ctx.plugin(pluginDspUi)
   return { ctx }
 }

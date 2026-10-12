@@ -1,6 +1,7 @@
 import { createElement as h, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { MiniPlayerData, MiniPlayerAction } from '@BBeBee/protocol'
+import { useBridgeLocale } from '@BBeBee/ui-kit-desktop'
 import { IslandArtwork } from './IslandArtwork.js'
 import { IslandWaveBars } from './IslandWaveBars.js'
 import { TransportButtons, ProgressBar } from './MiniPlayerControls.js'
@@ -20,6 +21,9 @@ export function MiniPlayerFloating({
   onRestoreMain,
   onClose,
 }: MiniPlayerFloatingProps): ReactElement {
+  // No ctx here (this renders inside the ctx-less mini-player window):
+  // strings resolve through the preload `locale` bridge.
+  const { t } = useBridgeLocale()
   const [hovered, setHovered] = useState(false)
   const isPlaying = data.status === 'playing'
 
@@ -74,7 +78,7 @@ export function MiniPlayerFloating({
             cursor: 'pointer',
           },
           onClick: onRestoreMain,
-          title: 'Click to restore the main window',
+          title: t('miniPlayer:miniPlayerFloating.clickToRestoreTheMain'),
         },
         h(IslandArtwork, {
           artworkUri: data.artworkUri,
@@ -119,7 +123,7 @@ export function MiniPlayerFloating({
                 whiteSpace: 'nowrap',
               },
             },
-            data.title || 'Nothing playing',
+            data.title || t('miniPlayer:miniPlayerFloating.nothingPlaying'),
           ),
           h(
             'div',
@@ -180,8 +184,8 @@ export function MiniPlayerFloating({
           'button',
           {
             type: 'button',
-            'aria-label': 'Restore main player',
-            title: 'Restore main player',
+            'aria-label': t('miniPlayer:miniPlayerFloating.restoreMainPlayer'),
+            title: t('miniPlayer:miniPlayerFloating.restoreMainPlayer'),
             onClick: onRestoreMain,
             style: {
               display: 'flex',
@@ -205,8 +209,8 @@ export function MiniPlayerFloating({
           'button',
           {
             type: 'button',
-            'aria-label': 'Close mini player',
-            title: 'Close mini player',
+            'aria-label': t('miniPlayer:miniPlayerFloating.closeMiniPlayer'),
+            title: t('miniPlayer:miniPlayerFloating.closeMiniPlayer'),
             onClick: onClose,
             style: {
               display: 'flex',

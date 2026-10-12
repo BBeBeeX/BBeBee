@@ -23,6 +23,8 @@ import type { Context } from 'cordis'
 // Augmentations
 import type {} from '@BBeBee/protocol'
 import type { EffectNode, FiberNode, InspectorSnapshot } from '@BBeBee/plugin-inspector'
+import { useI18n } from '@BBeBee/ui-kit-desktop'
+import inspectorCatalogue from '../../../feature/plugin-i18n/src/locales/inspector.json'
 import {
   type EdgeType,
   type FilterOptions,
@@ -45,11 +47,35 @@ export const INSPECTOR_VIEW = 'inspector.panel'
 
 interface ErrorBoundaryProps {
   children: ReactNode
+  /**
+   * Translator for the fault copy. Optional so the boundary stays renderable in
+   * unit tests, where it falls back to English.
+   */
+  t?: (key: string, params?: Record<string, string | number>) => string
 }
 
 interface ErrorBoundaryState {
   hasError: boolean
   error: Error | null
+}
+
+const EN_INSPECTOR = (inspectorCatalogue as unknown as { en: Record<string, unknown> }).en
+
+/**
+ * English fallback for the error boundary when no translator is supplied
+ * (unit tests render the boundary without one). Production always passes
+ * `t` from `useI18n`.
+ */
+function fallbackEnT(key: string, params?: Record<string, string | number>): string {
+  const path = key.startsWith('inspector:') ? key.slice('inspector:'.length) : key
+  let cur: unknown = EN_INSPECTOR
+  for (const part of path.split('.')) {
+    cur = (cur as Record<string, unknown> | undefined)?.[part]
+  }
+  if (typeof cur !== 'string') return key
+  return params
+    ? cur.replace(/\{(\w+)\}/g, (_, k: string) => String(params[k] ?? `{${k}}`))
+    : cur
 }
 
 export class InspectorErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
@@ -72,6 +98,7 @@ export class InspectorErrorBoundary extends Component<ErrorBoundaryProps, ErrorB
 
   override render(): ReactNode {
     if (this.state.hasError) {
+      const translate = this.props.t ?? fallbackEnT
       return (
         <div
           data-testid="inspector-error-fallback"
@@ -108,7 +135,7 @@ export class InspectorErrorBoundary extends Component<ErrorBoundaryProps, ErrorB
                 gap: 8,
               }}
             >
-              ⚡ CIRCUIT TELEMETRY FAULT
+              {translate('inspector:index.circuitTelemetryFault')}
             </h2>
             <p
               style={{
@@ -118,8 +145,7 @@ export class InspectorErrorBoundary extends Component<ErrorBoundaryProps, ErrorB
                 margin: '0 0 16px 0',
               }}
             >
-              A transient error interrupted circuit rendering. The application shell
-              remains operational.
+              {translate('inspector:index.aTransientErrorInterruptedCircuit')}
             </p>
             <pre
               style={{
@@ -149,7 +175,7 @@ export class InspectorErrorBoundary extends Component<ErrorBoundaryProps, ErrorB
                 fontWeight: 700,
               }}
             >
-              ↻ REBOOT INSPECTOR CIRCUIT
+              {translate('inspector:index.rebootInspectorCircuit')}
             </button>
           </div>
         </div>
@@ -160,14 +186,16 @@ export class InspectorErrorBoundary extends Component<ErrorBoundaryProps, ErrorB
 }
 
 export function InspectorPanel(props: { ctx: Context }): ReactElement {
+  const { t } = useI18n(props.ctx)
   return (
-    <InspectorErrorBoundary>
+    <InspectorErrorBoundary t={t}>
       <InspectorPanelInner {...props} />
     </InspectorErrorBoundary>
   )
 }
 
 function InspectorPanelInner({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const adapter = useMemo(() => new CordisGraphAdapter(ctx), [ctx])
 
   // Live Graph Model State
@@ -288,9 +316,9 @@ function InspectorPanelInner({ ctx }: { ctx: Context }): ReactElement {
 
   // Current focal entity display label
   const focusedTargetName = useMemo(() => {
-    if (focus.mode === 'overview' || !focus.id) return 'OVERVIEW'
+    if (focus.mode === 'overview' || !focus.id) return t('inspector:graphToolbar.overview')
     if (focus.type === 'layer') {
-      return `Layer: ${focus.id}`
+      return t('inspector:index.layer', { id: focus.id })
     }
     if (focus.type === 'plugin') {
       const p = graph.plugins.find((plug) => plug.id === focus.id)
@@ -298,14 +326,14 @@ function InspectorPanelInner({ ctx }: { ctx: Context }): ReactElement {
     }
     if (focus.type === 'service') {
       const s = graph.services.find((serv) => serv.id === focus.id || serv.name === focus.id)
-      return s ? `Service: ${s.name}` : `Service: ${focus.id}`
+      return t('inspector:index.service', { name: s ? s.name : focus.id })
     }
     if (focus.type === 'event') {
       const ev = graph.events.find((e) => e.id === focus.id || e.name === focus.id)
-      return ev ? `Event: ${ev.name}` : `Event: ${focus.id}`
+      return t('inspector:index.event', { name: ev ? ev.name : focus.id })
     }
     return focus.id
-  }, [focus, graph])
+  }, [focus, graph, t])
 
   // Extract contextual subgraph centered on the focus target
   const focusedGraph = useMemo(() => {
@@ -494,6 +522,7 @@ function InspectorPanelInner({ ctx }: { ctx: Context }): ReactElement {
     >
       {/* Top Header / Toolbar */}
       <GraphToolbar
+        ctx={ctx}
         focus={focus}
         onUpdateFocus={setFocus}
         filters={filters}
@@ -519,6 +548,7 @@ function InspectorPanelInner({ ctx }: { ctx: Context }): ReactElement {
       >
         {/* Left: Collapsible Plugin Hierarchy Tree */}
         <PluginTree
+          ctx={ctx}
           graph={graph}
           selectedNodeId={selectedNodeId}
           onSelectPlugin={handleSelectPluginFromTree}
@@ -546,6 +576,7 @@ function InspectorPanelInner({ ctx }: { ctx: Context }): ReactElement {
 
         {/* Right: Technical Inspector Drawer */}
         <PluginInspector
+          ctx={ctx}
           graph={graph}
           selectedNodeId={selectedNodeId}
           selectedEdgeId={selectedEdgeId}
@@ -560,6 +591,7 @@ function InspectorPanelInner({ ctx }: { ctx: Context }): ReactElement {
 
       {/* Bottom Status Bar */}
       <StatusBar
+        ctx={ctx}
         graph={graph}
         zoom={zoom}
         visibleNodeCount={layout.nodes.length}
@@ -580,7 +612,7 @@ function InspectorPanelInner({ ctx }: { ctx: Context }): ReactElement {
           pointerEvents: 'none',
         }}
       >
-        <h1>Plugin graph</h1>
+        <h1>{t('inspector:index.pluginGraph')}</h1>
         {graph.plugins.map((p) => (
           <div key={p.id}>
             <span>{p.name}</span>
@@ -624,7 +656,7 @@ export async function apply(ctx: Context) {
       kind: 'route',
       id: INSPECTOR_VIEW,
       path: '/inspector',
-      title: 'Inspector',
+      title: 'inspector:index.inspector',
       icon: 'bug',
       placement: ['tray'],
       order: 900,

@@ -12,10 +12,14 @@
  */
 
 import { memo, type ReactElement } from 'react'
+import type { Context } from 'cordis'
+import { useI18n } from '@BBeBee/ui-kit-desktop'
 import type { FilterOptions, GraphFocus, LayerId } from '../graph-model.js'
 import { ALL_LAYER_IDS, SYSTEM_LAYERS } from '../layer-resolver.js'
 
 export interface GraphToolbarProps {
+  /** The app context — read for the interface language via `useI18n`. */
+  ctx: Context
   focus: GraphFocus
   onUpdateFocus: (updater: (prev: GraphFocus) => GraphFocus) => void
   filters: FilterOptions
@@ -29,6 +33,7 @@ export interface GraphToolbarProps {
 }
 
 export const GraphToolbar = memo(function GraphToolbar({
+  ctx,
   focus,
   onUpdateFocus,
   filters,
@@ -39,6 +44,7 @@ export const GraphToolbar = memo(function GraphToolbar({
   onResetLayout,
   focusedTargetName,
 }: GraphToolbarProps): ReactElement {
+  const { t } = useI18n(ctx)
   const isFocusMode = focus.mode === 'focus'
 
   const handleSearchChange = (value: string) => {
@@ -109,7 +115,7 @@ export const GraphToolbar = memo(function GraphToolbar({
               textTransform: 'uppercase',
             }}
           >
-            CORDIS TOPOLOGY
+            {t('inspector:graphToolbar.cORDISTOPOLOGY')}
           </span>
         </div>
 
@@ -140,7 +146,7 @@ export const GraphToolbar = memo(function GraphToolbar({
               transition: 'all 0.15s ease',
             }}
           >
-            OVERVIEW
+            {t('inspector:graphToolbar.overview')}
           </button>
           <button
             data-testid="mode-focus-button"
@@ -159,7 +165,7 @@ export const GraphToolbar = memo(function GraphToolbar({
               transition: 'all 0.15s ease',
             }}
           >
-            FOCUS
+            {t('inspector:graphToolbar.focus')}
           </button>
         </div>
 
@@ -177,7 +183,7 @@ export const GraphToolbar = memo(function GraphToolbar({
           }}
         >
           <span style={{ color: '#64748b', fontSize: 10, fontWeight: 700 }}>
-            {isFocusMode ? 'FOCUS:' : 'MODE:'}
+            {isFocusMode ? t('inspector:graphToolbar.fOCUS') : t('inspector:graphToolbar.mODE')}
           </span>
           <span
             style={{
@@ -191,14 +197,16 @@ export const GraphToolbar = memo(function GraphToolbar({
             }}
             title={focusedTargetName}
           >
-            {isFocusMode ? focusedTargetName || 'OVERVIEW' : 'GLOBAL TOPOLOGY'}
+            {isFocusMode
+              ? focusedTargetName || t('inspector:graphToolbar.overview')
+              : t('inspector:graphToolbar.globalTopology')}
           </span>
         </div>
 
         {/* Depth Selector: [1] [2] [3] [ALL] (Active in Focus mode) */}
         {isFocusMode && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ color: '#64748b', fontSize: 10, fontWeight: 700 }}>DEPTH:</span>
+            <span style={{ color: '#64748b', fontSize: 10, fontWeight: 700 }}>{t('inspector:graphToolbar.dEPTH')}</span>
             <div
               style={{
                 display: 'flex',
@@ -210,6 +218,7 @@ export const GraphToolbar = memo(function GraphToolbar({
             >
               {[1, 2, 3, 99].map((d) => {
                 const label = d === 99 ? 'ALL' : String(d)
+                const labelText = d === 99 ? t('inspector:graphToolbar.all') : String(d)
                 const isSelected = (d === 99 && focus.depth >= 99) || focus.depth === d
 
                 return (
@@ -230,7 +239,7 @@ export const GraphToolbar = memo(function GraphToolbar({
                       transition: 'all 0.12s ease',
                     }}
                   >
-                    {label}
+                    {labelText}
                   </button>
                 )
               })}
@@ -259,7 +268,7 @@ export const GraphToolbar = memo(function GraphToolbar({
             onChange={toggleDependencies}
             style={{ accentColor: '#38bdf8' }}
           />
-          Dependencies
+          {t('inspector:graphToolbar.dependencies')}
         </label>
 
         {/* ☑ Services */}
@@ -280,7 +289,7 @@ export const GraphToolbar = memo(function GraphToolbar({
             onChange={toggleServices}
             style={{ accentColor: '#2dd4bf' }}
           />
-          Services
+          {t('inspector:graphToolbar.services')}
         </label>
 
         {/* ☐ Events (Default OFF) */}
@@ -301,7 +310,7 @@ export const GraphToolbar = memo(function GraphToolbar({
             onChange={toggleEvents}
             style={{ accentColor: '#c084fc' }}
           />
-          Events
+          {t('inspector:graphToolbar.events')}
         </label>
       </div>
 
@@ -312,7 +321,7 @@ export const GraphToolbar = memo(function GraphToolbar({
           <input
             type="text"
             data-testid="toolbar-search-input"
-            placeholder="Search..."
+            placeholder={t('inspector:graphToolbar.search')}
             value={filters.searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
             style={{
@@ -359,7 +368,7 @@ export const GraphToolbar = memo(function GraphToolbar({
                 key={lid}
                 data-testid={`filter-layer-${lid}`}
                 onClick={() => toggleLayer(lid)}
-                title={`Toggle ${l.name} layer`}
+                title={t('inspector:graphToolbar.toggleLayer', { name: l.name })}
                 style={{
                   background: isSelected ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
                   border: isSelected ? `1px solid ${l.color}` : '1px solid rgba(255, 255, 255, 0.08)',
@@ -392,7 +401,7 @@ export const GraphToolbar = memo(function GraphToolbar({
           <button
             data-testid="zoom-in-button"
             onClick={onZoomIn}
-            title="Zoom In"
+            title={t('inspector:graphToolbar.zoomIn')}
             style={{
               background: 'transparent',
               border: 'none',
@@ -408,7 +417,7 @@ export const GraphToolbar = memo(function GraphToolbar({
           <button
             data-testid="zoom-out-button"
             onClick={onZoomOut}
-            title="Zoom Out"
+            title={t('inspector:graphToolbar.zoomOut')}
             style={{
               background: 'transparent',
               border: 'none',
@@ -424,7 +433,7 @@ export const GraphToolbar = memo(function GraphToolbar({
           <button
             data-testid="fit-view-button"
             onClick={onFitView}
-            title="Fit View"
+            title={t('inspector:graphToolbar.fitView')}
             style={{
               background: 'transparent',
               border: 'none',
@@ -436,12 +445,12 @@ export const GraphToolbar = memo(function GraphToolbar({
               fontWeight: 700,
             }}
           >
-            FIT
+            {t('inspector:graphToolbar.fit')}
           </button>
           <button
             data-testid="reset-layout-button"
             onClick={onResetLayout}
-            title="Reset Layout"
+            title={t('inspector:graphToolbar.resetLayout')}
             style={{
               background: 'transparent',
               border: 'none',
@@ -453,7 +462,7 @@ export const GraphToolbar = memo(function GraphToolbar({
               fontWeight: 700,
             }}
           >
-            RESET
+            {t('inspector:graphToolbar.reset')}
           </button>
         </div>
       </div>

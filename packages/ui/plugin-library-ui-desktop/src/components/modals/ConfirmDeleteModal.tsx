@@ -1,6 +1,7 @@
 import { createElement as h, useEffect } from 'react'
 import type { MouseEvent as ReactMouseEvent, ReactElement } from 'react'
-import { Button, Text } from '@BBeBee/ui-kit-desktop'
+import type { Context } from 'cordis'
+import { Button, Text, useI18n } from '@BBeBee/ui-kit-desktop'
 
 export interface DeleteConfirmTarget {
   type: 'playlist' | 'album'
@@ -10,14 +11,17 @@ export interface DeleteConfirmTarget {
 }
 
 export function ConfirmDeleteModal({
+  ctx,
   target,
   onClose,
   onConfirm,
 }: {
+  ctx: Context
   target: DeleteConfirmTarget | null
   onClose: () => void
   onConfirm: () => Promise<void> | void
 }): ReactElement | null {
+  const { t } = useI18n(ctx)
   useEffect(() => {
     if (!target) return
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -30,10 +34,10 @@ export function ConfirmDeleteModal({
   if (!target) return null
 
   const isPlaylist = target.type === 'playlist'
-  const title = isPlaylist ? 'Delete playlist' : 'Delete album'
+  const title = isPlaylist ? t('library:confirmDelete.deletePlaylist') : t('library:confirmDelete.deleteAlbum')
   const message = isPlaylist
-    ? `Delete playlist "${target.name}"? This cannot be undone.`
-    : `Remove the album "${target.name}" from the music library?`
+    ? t('library:confirmDelete.deletePlaylistThisCannotBe', { name: target.name })
+    : t('library:confirmDelete.removeTheAlbumFromThe', { name: target.name })
 
   return h(
     'div',
@@ -75,7 +79,7 @@ export function ConfirmDeleteModal({
           variant: 'ghost',
           onPress: onClose,
           testID: 'confirm-delete-cancel',
-          children: 'Cancel',
+          children: t('app:common.cancel'),
         }),
         h(Button, {
           variant: 'danger',
@@ -83,7 +87,7 @@ export function ConfirmDeleteModal({
             void onConfirm()
           },
           testID: 'confirm-delete-button',
-          children: 'Delete',
+          children: t('library:localMusic.delete'),
         }),
       ),
     ),

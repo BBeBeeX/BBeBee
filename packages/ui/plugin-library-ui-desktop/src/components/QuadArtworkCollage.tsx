@@ -2,7 +2,7 @@ import { createElement as h, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { ArtworkRef, Track } from '@BBeBee/protocol'
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { CachedArtwork } from './CachedArtwork.js'
 
 export function QuadArtworkCollage({
@@ -20,6 +20,7 @@ export function QuadArtworkCollage({
   radius?: number
   onEdit?: () => void
 }): ReactElement {
+  const { t } = useI18n(ctx)
   const [hovered, setHovered] = useState(false)
 
   const artworksWithTracks = tracks.filter((t): t is Track => Boolean(t?.artwork))
@@ -115,7 +116,7 @@ export function QuadArtworkCollage({
             },
           },
           tablerIcon('pencil', { size: 40, color: 'currentColor' }),
-          h('span', { style: { fontSize: 14, fontWeight: 600 } }, 'Choose photo'),
+          h('span', { style: { fontSize: 14, fontWeight: 600 } }, t('library:quadArtworkCollage.choosePhoto')),
         )
       : null,
   )

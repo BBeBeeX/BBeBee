@@ -141,7 +141,13 @@ function useRegistryUpdatesAvailable(ctx: Context): boolean {
 }
 
 class ViewBoundary extends Component<
-  { title: string; onError: (error: Error) => void; resetKey?: string; children?: ReactNode },
+  {
+    title: string
+    t: (key: string, params?: Record<string, string | number>) => string
+    onError: (error: Error) => void
+    resetKey?: string
+    children?: ReactNode
+  },
   { error?: Error }
 > {
   override state: { error?: Error } = {}
@@ -167,7 +173,7 @@ class ViewBoundary extends Component<
     return h(
       'div',
       { style: { padding: 24, color: 'var(--error, #EF4444)', fontFamily: 'ui-monospace, monospace' } },
-      h('h2', { style: { fontSize: 16, margin: '0 0 8px' } }, `"${this.props.title}" failed to render`),
+      h('h2', { style: { fontSize: 16, margin: '0 0 8px' } }, this.props.t('app:common.shell.failedToRender', { title: this.props.title })),
       h(
         'pre',
         { style: { margin: 0, whiteSpace: 'pre-wrap', fontSize: 12, color: 'var(--warning, #F59E0B)' } },
@@ -534,10 +540,10 @@ export function Shell({ ctx }: { ctx: Context }) {
       void importDroppedFiles(ctx, files)
         .then(({ imported, folders, failed, importedUrns }) => {
           const parts: string[] = []
-          if (folders > 0) parts.push(`Added ${folders} folders, scanning`)
-          if (imported > 0) parts.push(`Imported ${imported} tracks`)
-          if (failed > 0) parts.push(`${failed} items failed to import`)
-          setDropMessage(parts.length > 0 ? parts.join(', ') : 'No importable content found')
+          if (folders > 0) parts.push(t('app:common.shell.addedFoldersScanning', { folders }))
+          if (imported > 0) parts.push(t('app:common.shell.importedTracks', { imported }))
+          if (failed > 0) parts.push(t('app:common.shell.itemsFailedToImport', { failed }))
+          setDropMessage(parts.length > 0 ? parts.join(', ') : t('app:common.shell.noImportableContent'))
 
           if (imported > 0 || folders > 0 || (importedUrns && importedUrns.length > 0)) {
             navigateTo(
@@ -770,7 +776,7 @@ export function Shell({ ctx }: { ctx: Context }) {
           'button',
           {
             type: 'button',
-            'aria-label': 'Close now playing',
+            'aria-label': t('app:common.shell.closeNowPlaying'),
             onClick: () => setIsFullscreenNowPlaying(false),
             style: {
               display: 'flex',
@@ -817,7 +823,7 @@ export function Shell({ ctx }: { ctx: Context }) {
             },
           },
           h(SleepTimerIndicator, { ctx }),
-          h(WindowControls, null),
+          h(WindowControls, { ctx }),
         ),
       ),
       h(
@@ -830,7 +836,8 @@ export function Shell({ ctx }: { ctx: Context }) {
           ? h(
               ViewBoundary,
               {
-                title: 'Now playing',
+                title: t('app:common.shell.nowPlaying'),
+                t,
                 onError: (error) =>
                   ctx.logger.error(`ui: now playing threw: ${error.stack ?? error.message}`),
               },
@@ -1015,7 +1022,7 @@ export function Shell({ ctx }: { ctx: Context }) {
                     : { height: '100%', width: '100%', display: 'flex', flexDirection: 'column' },
               },
               libraryMode === 'expanded' ? topBar : null,
-              h('span', { style: { display: 'none' } }, 'Library'),
+              h('span', { style: { display: 'none' } }, t('app:common.shell.library')),
               h(LibraryView, {
                 ctx,
                 mode: libraryMode,
@@ -1108,7 +1115,7 @@ export function Shell({ ctx }: { ctx: Context }) {
                   showUpdateDot
                     ? h('span', {
                         'data-testid': 'sidebar-registry-update-dot',
-                        'aria-label': 'Updates available',
+                        'aria-label': t('app:common.shell.updatesAvailable'),
                         style: {
                           flexShrink: 0,
                           width: 8,
@@ -1204,12 +1211,13 @@ export function Shell({ ctx }: { ctx: Context }) {
                               },
                             },
                             tablerIcon('music', { size: 52, style: { opacity: 0.6 } }),
-                            h('div', { style: { fontSize: 15, fontWeight: 500 } }, 'Select a playlist or album to start playing'),
+                            h('div', { style: { fontSize: 15, fontWeight: 500 } }, t('app:common.shell.selectAPlaylistOrAlbum')),
                           )
                         : h(
                             ViewBoundary,
                             {
-                              title: translateTitle(pageActive?.title ?? page.id ?? 'This view'),
+                              title: translateTitle(pageActive?.title ?? page.id ?? t('app:common.shell.thisView')),
+                              t,
                               resetKey: isCurrent ? 'active' : 'inactive',
                               onError: (error) =>
                                 ctx.logger.error(
@@ -1265,7 +1273,8 @@ export function Shell({ ctx }: { ctx: Context }) {
             h(
               ViewBoundary,
               {
-                title: 'Queue',
+                title: t('app:common.shell.queue'),
+                t,
                 onError: (error) =>
                   ctx.logger.error(`ui: queue panel threw: ${error.stack ?? error.message}`),
               },

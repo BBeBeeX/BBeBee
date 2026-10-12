@@ -31,6 +31,21 @@ import enApp from './locales/en.json'
 import zhApp from './locales/zh.json'
 import registryLocales from './locales/registry.json'
 import settingsLocales from './locales/settings.json'
+import albumLocales from './locales/album.json'
+import downloadLocales from './locales/download.json'
+import dspLocales from './locales/dsp.json'
+import historyLocales from './locales/history.json'
+import inspectorLocales from './locales/inspector.json'
+import libraryLocales from './locales/library.json'
+import localScannerLocales from './locales/localScanner.json'
+import lyricsLocales from './locales/lyrics.json'
+import miniPlayerLocales from './locales/miniPlayer.json'
+import nowPlayingLocales from './locales/nowPlaying.json'
+import queueLocales from './locales/queue.json'
+import shareLocales from './locales/share.json'
+import sourcesLocales from './locales/sources.json'
+import themeLocales from './locales/theme.json'
+import visualizerLocales from './locales/visualizer.json'
 
 /** A single `register()` call's payload, removable as a unit by its disposer. */
 interface Registration {
@@ -123,6 +138,24 @@ export class I18nPlugin extends Service implements I18nService {
     })
     this.register('registry', flattenPerLocale(registryLocales))
     this.register('settings', flattenPerLocale(settingsLocales))
+    // Group 3 Wave C / round-2 namespaces: every UI package migrated in
+    // Group 3 reads through one of these. Registered here (not per-plugin)
+    // because the catalogues ship with plugin-i18n itself.
+    this.register('album', flattenPerLocale(albumLocales))
+    this.register('download', flattenPerLocale(downloadLocales))
+    this.register('dsp', flattenPerLocale(dspLocales))
+    this.register('history', flattenPerLocale(historyLocales))
+    this.register('inspector', flattenPerLocale(inspectorLocales))
+    this.register('library', flattenPerLocale(libraryLocales))
+    this.register('localScanner', flattenPerLocale(localScannerLocales))
+    this.register('lyrics', flattenPerLocale(lyricsLocales))
+    this.register('miniPlayer', flattenPerLocale(miniPlayerLocales))
+    this.register('nowPlaying', flattenPerLocale(nowPlayingLocales))
+    this.register('queue', flattenPerLocale(queueLocales))
+    this.register('share', flattenPerLocale(shareLocales))
+    this.register('sources', flattenPerLocale(sourcesLocales))
+    this.register('theme', flattenPerLocale(themeLocales))
+    this.register('visualizer', flattenPerLocale(visualizerLocales))
 
     // Subscribe before reading: a change landing between read and subscribe
     // would otherwise be lost, leaving the locale stale until the next edit.

@@ -2,7 +2,7 @@ import { createElement as h, useState, useCallback, useMemo } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { ShareLyricsData } from '@BBeBee/protocol'
-import { Sheet, tablerIcon, useImageColor } from '@BBeBee/ui-kit-desktop'
+import { Sheet, tablerIcon, useI18n, useImageColor } from '@BBeBee/ui-kit-desktop'
 import { useResolvedArtwork } from '@BBeBee/toolkit/hooks'
 import { copyToClipboard } from '../utils/clipboard.js'
 import {
@@ -30,6 +30,7 @@ export function ShareLyricsModal({
   open,
   onClose,
 }: ShareLyricsModalProps): ReactElement | null {
+  const { t } = useI18n(ctx)
   const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>('cover')
   const [imageScope, setImageScope] = useState<'full' | 'card'>('full')
   const [selectedIndices, setSelectedIndices] = useState<number[]>(() => {
@@ -76,7 +77,7 @@ export function ShareLyricsModal({
 
   const handleCopyText = useCallback(async () => {
     if (!canCopy) {
-      showDisabledReason("Can't copy lyrics: select at least one lyric line")
+      showDisabledReason(t('share:shareLyrics.canTCopyLyricsSelect'))
       return
     }
     try {
@@ -88,13 +89,13 @@ export function ShareLyricsModal({
         setTimeout(() => setCopiedText(false), 2000)
       } else {
         ctx.logger?.error('Failed to copy lyrics via clipboard')
-        showDisabledReason("Can't copy: writing to the clipboard failed, check system permissions")
+        showDisabledReason(t('share:shareLyrics.canTCopyWritingTo'))
       }
     } catch (err) {
       ctx.logger?.error(`Failed to copy lyrics: ${String(err)}`)
-      showDisabledReason("Can't copy: writing to the clipboard failed, check system permissions")
+      showDisabledReason(t('share:shareLyrics.canTCopyWritingTo'))
     }
-  }, [ctx, activeLines, lyrics.artist, lyrics.title, canCopy, showDisabledReason])
+  }, [ctx, t, activeLines, lyrics.artist, lyrics.title, canCopy, showDisabledReason])
 
   const handleDownload = useCallback(async () => {
     try {
@@ -140,7 +141,7 @@ export function ShareLyricsModal({
           margin: '0 auto',
         },
       },
-      h(ShareModalHeader, { title: 'Share lyrics', onClose }),
+      h(ShareModalHeader, { ctx, title: t('share:shareLyrics.shareLyrics'), onClose }),
       h(ShareCardPreview, {
         title: lyrics.title,
         subtitle: lyrics.artist,
@@ -173,8 +174,8 @@ export function ShareLyricsModal({
                   justifyContent: 'space-between',
                 },
               },
-              h('span', null, 'Tap lyric lines to choose what gets shared (up to 6)'),
-              h('span', null, `${activeLines.length} selected`),
+              h('span', null, t('share:shareLyrics.tapLyricLinesToChoose')),
+              h('span', null, t('share:shareLyrics.linesSelected', { count: activeLines.length })),
             ),
             h(
               'div',
@@ -261,7 +262,7 @@ export function ShareLyricsModal({
               transition: 'all 0.15s ease',
             },
           },
-          'Full poster (large)',
+          t('share:shareLyrics.fullPosterLarge'),
         ),
         h(
           'button',
@@ -281,11 +282,12 @@ export function ShareLyricsModal({
               transition: 'all 0.15s ease',
             },
           },
-          'Inner card only (small)',
+          t('share:shareLyrics.innerCardOnlySmall'),
         ),
       ),
       imageScope === 'full'
         ? h(BackgroundModeSelector, {
+            ctx,
             mode: backgroundMode,
             onChange: setBackgroundMode,
             compact: true,
@@ -293,18 +295,17 @@ export function ShareLyricsModal({
         : null,
       h(DisabledReasonToast, { message: disabledReason }),
       h(ShareActionButtons, {
+        ctx,
         canCopy,
         copied: copiedText,
         downloading,
         canDownload: true,
         onCopy: handleCopyText,
         onDownload: handleDownload,
-        onDisabledCopyClick: () => showDisabledReason("Can't copy lyrics: select at least one lyric line"),
+        onDisabledCopyClick: () => showDisabledReason(t('share:shareLyrics.canTCopyLyricsSelect')),
         onDisabledDownloadClick: () => {},
-        copyText: 'Copy lyrics',
-        copiedText: 'Copied lyrics',
-        downloadText: 'Download image',
-        downloadingText: 'Generating…',
+        copyText: t('share:shareActionButtons.copyLyrics'),
+        copiedText: t('share:shareActionButtons.copiedLyrics'),
       }),
     ),
   )

@@ -14,6 +14,53 @@ import { midnightPurpleTheme, spotifyTheme } from '@BBeBee/ui-tokens'
 import { ThemeManagementCard } from './components/ThemeManagementCard.js'
 import { THEME_VIEWS } from '@BBeBee/plugin-theme/views'
 import plugin from './index.js'
+import themeLocales from '../../../feature/plugin-i18n/src/locales/theme.json'
+import appLocales from '../../../feature/plugin-i18n/src/locales/en.json'
+
+/**
+ * English stub for `ctx.i18n` — resolves keys against the shipped en
+ * catalogues so assertions keep reading the English copy. Test-only; the
+ * real service is provided by `@BBeBee/plugin-i18n` in the app.
+ */
+class I18nStub extends Service {
+  public locale = 'en'
+  private catalogues: Record<string, Record<string, string>> = {}
+
+  constructor(ctx: Context) {
+    super(ctx, 'i18n')
+    const flatten = (node: unknown, prefix: string, out: Record<string, string>): void => {
+      if (typeof node === 'string') {
+        out[prefix] = node
+        return
+      }
+      if (typeof node === 'object' && node !== null) {
+        for (const [k, v] of Object.entries(node)) flatten(v, prefix ? `${prefix}.${k}` : k, out)
+      }
+    }
+    const themeEn: Record<string, string> = {}
+    const appEn: Record<string, string> = {}
+    flatten((themeLocales as unknown as { en: unknown }).en, '', themeEn)
+    flatten(appLocales as unknown, '', appEn)
+    this.catalogues = { theme: themeEn, app: appEn }
+  }
+
+  t = (key: string, params?: Record<string, string | number>): string => {
+    const sep = key.indexOf(':')
+    let text = key
+    if (sep > 0) {
+      const hit = this.catalogues[key.slice(0, sep)]?.[key.slice(sep + 1)]
+      if (hit !== undefined) text = hit
+    }
+    if (params) {
+      text = text.replace(/\{(\w+)\}/g, (m: string, p: string) =>
+        params[p] !== undefined ? String(params[p]) : m,
+      )
+    }
+    return text
+  }
+
+  onLocaleChange = (): (() => void) => () => {}
+}
 
 afterEach(() => {
   cleanup()
@@ -75,6 +122,7 @@ async function harness() {
   }
 
   const root = new Context()
+  await root.plugin(I18nStub)
   await root.plugin(SettingsStub)
   await root.plugin(ThemeStub)
 

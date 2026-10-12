@@ -7,7 +7,8 @@ import {
   useLocalFolders,
   useSources,
 } from '@BBeBee/plugin-sources/hooks'
-import { Button, EmptyState, IconButton, Text } from '@BBeBee/ui-kit-desktop'
+import { Button, EmptyState, IconButton, Text, useI18n } from '@BBeBee/ui-kit-desktop'
+import type { I18nService } from '@BBeBee/protocol'
 import { serviceOf } from '@BBeBee/ui-core'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
 import { SourceConfigureModal } from '../components/SourceConfigureModal.js'
@@ -15,6 +16,7 @@ import { SourceConfigureModal } from '../components/SourceConfigureModal.js'
 const p = () => palettes.dark
 
 export function SourcesListScreen({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const scheme = p()
   const sources = useSources(ctx)
   const folders = useLocalFolders(ctx)
@@ -30,25 +32,25 @@ export function SourcesListScreen({ ctx }: { ctx: Context }): ReactElement {
   return h(
     'section',
     { style: { display: 'flex', flexDirection: 'column', gap: tokens.space[4], padding: tokens.space[4] } },
-    h(Text, { variant: 'lg' }, 'Music sources'),
+    h(Text, { variant: 'lg' }, t('sources:sourcesList.musicSources')),
     h(
       'div',
       { style: { display: 'flex', gap: tokens.space[2] } },
       h(Button, {
         onPress: () => serviceOf<UiService>(ctx, 'ui')?.navigate(SOURCES_VIEWS.sourceImport),
         testID: 'sources-list-import',
-        children: 'Import a source',
+        children: t('sources:import.importASource'),
       }),
     ),
     sources.length === 0
       ? h(EmptyState, {
-          title: 'No sources yet',
-          description: 'Import a source string to add a music backend.',
+          title: t('sources:sourcesList.noSourcesYet'),
+          description: t('sources:sourcesList.importASourceStringTo'),
         })
       : h(
           'ul',
           {
-            'aria-label': 'Imported sources',
+            'aria-label': t('sources:sourcesList.importedSources'),
             style: {
               margin: 0,
               padding: 0,
@@ -90,7 +92,7 @@ export function SourcesListScreen({ ctx }: { ctx: Context }): ReactElement {
                   h(Text, { variant: 'md' }, source.name),
                   h(Text, { variant: 'sm', tone: 'muted' }, source.sourceUrl),
                   ...(!source.enabled
-                    ? [h(Text, { variant: 'sm', tone: 'muted' }, 'disabled')]
+                    ? [h(Text, { variant: 'sm', tone: 'muted' }, t('sources:sourcesList.disabled'))]
                     : source.lastError
                       ? [h(Text, { variant: 'sm', tone: 'muted' }, source.lastError)]
                       : []),
@@ -102,23 +104,23 @@ export function SourcesListScreen({ ctx }: { ctx: Context }): ReactElement {
                     variant: 'secondary',
                     onPress: () => serviceOf<UiService>(ctx, 'ui')?.navigate(SOURCES_VIEWS.sourceTest, { sourceId: source.id }),
                     testID: `sources-list-test-${source.id}`,
-                    children: 'Test',
+                    children: t('sources:sourcesList.test'),
                   }),
                   !local
                     ? h(Button, {
                         variant: 'secondary',
                         onPress: () => setConfiguringSourceId(source.id),
                         testID: `sources-list-configure-${source.id}`,
-                        children: 'Configure',
+                        children: t('sources:sourcesList.configure'),
                       })
                     : null,
                   !local
                     ? h(Button, {
                         variant: source.enabled ? 'ghost' : 'secondary',
                         onPress: () => void ctx.sources.setEnabled(source.id, !source.enabled),
-                        accessibilityLabel: source.enabled ? `Stop using ${source.name}` : `Use ${source.name}`,
+                        accessibilityLabel: source.enabled ? t('sources:sourcesList.stopUsing', { name: source.name }) : t('sources:sourcesList.useSource', { name: source.name }),
                         testID: `sources-list-toggle-${source.id}`,
-                        children: source.enabled ? 'Disable' : 'Enable',
+                        children: source.enabled ? t('sources:sourcesList.disable') : t('sources:sourcesList.enable'),
                       })
                     : null,
                   !local
@@ -126,29 +128,29 @@ export function SourcesListScreen({ ctx }: { ctx: Context }): ReactElement {
                       ? h(
                           'div',
                           { style: { display: 'flex', gap: tokens.space[2], alignItems: 'center' } },
-                          h(Text, { variant: 'sm', tone: 'warn' }, 'Delete source and its cached tracks?'),
+                          h(Text, { variant: 'sm', tone: 'warn' }, t('sources:sourcesList.deleteSourceConfirm')),
                           h(Button, {
                             onPress: () => removeSource(source.id),
-                            accessibilityLabel: `Delete ${source.name} and its cached tracks`,
+                            accessibilityLabel: t('sources:sourcesList.deleteAndItsCachedTracks', { name: source.name }),
                             testID: `sources-list-delete-confirm-${source.id}`,
-                            children: 'Delete',
+                            children: t('app:common.delete'),
                           }),
                           h(Button, {
                             variant: 'ghost',
                             onPress: () => setConfirming(undefined),
-                            children: 'Cancel',
+                            children: t('app:common.cancel'),
                           }),
                         )
                       : h(IconButton, {
                           icon: 'trash',
-                          accessibilityLabel: `Delete ${source.name}`,
+                          accessibilityLabel: t('sources:sourcesList.deleteSource', { name: source.name }),
                           onPress: () => setConfirming(source.id),
                           testID: `sources-list-delete-${source.id}`,
                         })
                     : null,
                 ),
               ),
-              local ? h(LocalFolders, { folders, scanner }) : null,
+              local ? h(LocalFolders, { folders, scanner, t }) : null,
             )
           }),
         ),
@@ -164,9 +166,11 @@ export function SourcesListScreen({ ctx }: { ctx: Context }): ReactElement {
 function LocalFolders({
   folders,
   scanner,
+  t,
 }: {
   folders: readonly ScanSpecifiedDir[]
   scanner: ScannerService | undefined
+  t: I18nService['t']
 }): ReactElement | null {
   const scheme = p()
   if (!scanner) return null
@@ -174,13 +178,13 @@ function LocalFolders({
     return h(Text, {
       variant: 'sm',
       tone: 'muted',
-      children: 'No folders yet — add one under Settings → Music folders.',
+      children: t('sources:sourcesList.noFoldersYet'),
     })
   }
   return h(
     'ul',
     {
-      'aria-label': 'Local music folders',
+      'aria-label': t('sources:sourcesList.localMusicFolders'),
       style: {
         margin: 0,
         padding: 0,
@@ -219,13 +223,13 @@ function LocalFolders({
           h(Button, {
             variant: 'ghost',
             onPress: () => void scanner.setEnabled(dir.id, !dir.enabled),
-            accessibilityLabel: dir.enabled ? `Disable ${dir.uri}` : `Enable ${dir.uri}`,
+            accessibilityLabel: dir.enabled ? `${t('sources:sourcesList.disable')} ${dir.uri}` : `${t('sources:sourcesList.enable')} ${dir.uri}`,
             testID: `source-folder-toggle-${dir.id}`,
-            children: dir.enabled ? 'Disable' : 'Enable',
+            children: dir.enabled ? t('sources:sourcesList.disable') : t('sources:sourcesList.enable'),
           }),
           h(IconButton, {
             icon: 'trash',
-            accessibilityLabel: `Remove ${dir.uri}`,
+            accessibilityLabel: t('sources:sourcesList.removeFolder', { uri: dir.uri }),
             onPress: () => void scanner.removeSpecifiedDir(dir.id),
             testID: `source-folder-remove-${dir.id}`,
           }),

@@ -7,7 +7,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { VisualizerColorTheme, VisualizerStyle } from '@BBeBee/protocol'
 import { useVisualizer } from '@BBeBee/plugin-visualizer/hooks'
-import { Slider, Text, tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { Slider, Text, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
 import { VisualizerCanvas } from './VisualizerCanvas.js'
 
@@ -15,19 +15,42 @@ export interface VisualizerSettingsCardProps {
   ctx: Context
 }
 
-const STYLES: { id: VisualizerStyle; label: string; icon: string; desc: string }[] = [
-  { id: 'bars', label: 'Spectrum bars', icon: 'chart-bar', desc: 'Classic multi-band jumping spectrum bars' },
-  { id: 'wave', label: 'Smooth wave', icon: 'wave-sine', desc: 'A soft, flowing oscilloscope curve' },
-  { id: 'circle', label: 'Radial circle', icon: 'circle-dot', desc: 'A 360-degree dynamic halo radiating from the center' },
-  { id: 'particles', label: 'Pulsing particles', icon: 'sparkles', desc: 'A swarm of particles floating with the volume pulse' },
+const STYLES: { id: VisualizerStyle; icon: string }[] = [
+  { id: 'bars', icon: 'chart-bar' },
+  { id: 'wave', icon: 'wave-sine' },
+  { id: 'circle', icon: 'circle-dot' },
+  { id: 'particles', icon: 'sparkles' },
 ]
 
-const THEMES: { id: VisualizerColorTheme; label: string; color: string }[] = [
-  { id: 'accent', label: 'Brand neon', color: 'linear-gradient(135deg, #5F87FF, #A99CFF)' },
-  { id: 'neon', label: 'Aurora teal', color: 'linear-gradient(135deg, #00FF87, #60EFFF)' },
-  { id: 'rainbow', label: 'Iridescent rainbow', color: 'linear-gradient(135deg, #FF0844, #FFB199, #FEE140, #38F9D7)' },
-  { id: 'monochrome', label: 'Minimal silver', color: 'linear-gradient(135deg, #FFFFFF, #8E8E93)' },
+const THEMES: { id: VisualizerColorTheme; color: string }[] = [
+  { id: 'accent', color: 'linear-gradient(135deg, #5F87FF, #A99CFF)' },
+  { id: 'neon', color: 'linear-gradient(135deg, #00FF87, #60EFFF)' },
+  { id: 'rainbow', color: 'linear-gradient(135deg, #FF0844, #FFB199, #FEE140, #38F9D7)' },
+  { id: 'monochrome', color: 'linear-gradient(135deg, #FFFFFF, #8E8E93)' },
 ]
+
+/** i18n catalogue keys for the style/theme option labels (`visualizer:` namespace). */
+const STYLE_LABEL_KEYS: Record<VisualizerStyle, string> = {
+  bars: 'visualizer:visualizerSettings.spectrumBars',
+  wave: 'visualizer:visualizerSettings.smoothWave',
+  circle: 'visualizer:visualizerSettings.radialCircle',
+  particles: 'visualizer:visualizerSettings.pulsingParticles',
+}
+
+const THEME_LABEL_KEYS: Record<VisualizerColorTheme, string> = {
+  accent: 'visualizer:visualizerSettings.brandNeon',
+  neon: 'visualizer:visualizerSettings.auroraTeal',
+  rainbow: 'visualizer:visualizerSettings.iridescentRainbow',
+  monochrome: 'visualizer:visualizerSettings.minimalSilver',
+}
+
+/** i18n catalogue keys for the style description captions (`visualizer:` namespace). */
+const STYLE_DESC_KEYS: Record<VisualizerStyle, string> = {
+  bars: 'visualizer:visualizerSettings.barsDesc',
+  wave: 'visualizer:visualizerSettings.waveDesc',
+  circle: 'visualizer:visualizerSettings.circleDesc',
+  particles: 'visualizer:visualizerSettings.particlesDesc',
+}
 
 function Switch({
   checked,
@@ -83,6 +106,7 @@ function Switch({
 
 export function VisualizerSettingsCard({ ctx }: VisualizerSettingsCardProps): ReactElement {
   const { settings, updateSettings } = useVisualizer(ctx)
+  const { t } = useI18n(ctx)
 
   return h(
     'section',
@@ -113,7 +137,7 @@ export function VisualizerSettingsCard({ ctx }: VisualizerSettingsCardProps): Re
             letterSpacing: '-0.01em',
           },
         },
-        'Audio visualization',
+        t('visualizer:visualizerSettings.audioVisualizationTitle'),
       ),
       h(
         'p',
@@ -125,7 +149,7 @@ export function VisualizerSettingsCard({ ctx }: VisualizerSettingsCardProps): Re
             lineHeight: 1.4,
           },
         },
-        'Shows music-frequency and sound-wave animations in the playback UI, with custom display styles and colors',
+        t('visualizer:visualizerSettings.audioVisualizationDesc'),
       ),
     ),
     h(
@@ -158,16 +182,16 @@ export function VisualizerSettingsCard({ ctx }: VisualizerSettingsCardProps): Re
       h(
         'div',
         { style: { display: 'flex', flexDirection: 'column', gap: 3 } },
-        h(Text, { variant: 'sm', children: 'Audio Visualizer' }),
+        h(Text, { variant: 'sm', children: t('visualizer:visualizerSettings.audioVisualizerRowTitle') }),
         h(Text, {
           variant: 'xs',
           tone: 'muted',
-          children: 'Once enabled, shows a live spectrum or waveform in the full-screen playback UI',
+          children: t('visualizer:visualizerSettings.audioVisualizerRowDesc'),
         }),
       ),
       h(Switch, {
         checked: settings.enabled,
-        accessibilityLabel: 'Audio visualization',
+        accessibilityLabel: t('visualizer:visualizerSettings.audioVisualizationTitle'),
         onChange: (checked) => {
           void updateSettings({ enabled: checked })
         },
@@ -203,11 +227,11 @@ export function VisualizerSettingsCard({ ctx }: VisualizerSettingsCardProps): Re
                   alignItems: 'center',
                 },
               },
-              h(Text, { variant: 'xs', tone: 'muted', children: 'Live preview' }),
+              h(Text, { variant: 'xs', tone: 'muted', children: t('visualizer:visualizerSettings.livePreview') }),
               h(Text, {
                 variant: 'xs',
                 tone: 'muted',
-                children: STYLES.find((s) => s.id === settings.style)?.label ?? '',
+                children: settings.style ? t(STYLE_LABEL_KEYS[settings.style]) : '',
               }),
             ),
             h(VisualizerCanvas, {
@@ -222,7 +246,7 @@ export function VisualizerSettingsCard({ ctx }: VisualizerSettingsCardProps): Re
           h(
             'div',
             { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
-            h(Text, { variant: 'sm', children: 'Display style' }),
+            h(Text, { variant: 'sm', children: t('visualizer:visualizerSettings.displayStyle') }),
             h(
               'div',
               {
@@ -265,10 +289,10 @@ export function VisualizerSettingsCard({ ctx }: VisualizerSettingsCardProps): Re
                     tablerIcon(st.icon as 'chart-bar' | 'wave-sine', { size: 16 }),
                     h(Text, {
                       variant: isSelected ? 'md' : 'sm',
-                      children: st.label,
+                      children: t(STYLE_LABEL_KEYS[st.id]),
                     }),
                   ),
-                  h(Text, { variant: 'xs', tone: 'muted', children: st.desc }),
+                  h(Text, { variant: 'xs', tone: 'muted', children: t(STYLE_DESC_KEYS[st.id]) }),
                 )
               }),
             ),
@@ -278,7 +302,7 @@ export function VisualizerSettingsCard({ ctx }: VisualizerSettingsCardProps): Re
           h(
             'div',
             { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
-            h(Text, { variant: 'sm', children: 'Color theme' }),
+            h(Text, { variant: 'sm', children: t('visualizer:visualizerSettings.colorTheme') }),
             h(
               'div',
               {
@@ -320,7 +344,7 @@ export function VisualizerSettingsCard({ ctx }: VisualizerSettingsCardProps): Re
                       background: theme.color,
                     },
                   }),
-                  h(Text, { variant: 'sm', children: theme.label }),
+                  h(Text, { variant: 'sm', children: t(THEME_LABEL_KEYS[theme.id]) }),
                 )
               }),
             ),
@@ -333,7 +357,7 @@ export function VisualizerSettingsCard({ ctx }: VisualizerSettingsCardProps): Re
             h(
               'div',
               { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
-              h(Text, { variant: 'sm', children: 'Amplitude sensitivity' }),
+              h(Text, { variant: 'sm', children: t('visualizer:visualizerSettings.amplitudeSensitivity') }),
               h(Text, {
                 variant: 'xs',
                 tone: 'muted',
@@ -343,7 +367,7 @@ export function VisualizerSettingsCard({ ctx }: VisualizerSettingsCardProps): Re
             h(Slider, {
               value: Math.round((settings.sensitivity ?? 1) * 100),
               max: 200,
-              accessibilityLabel: 'Amplitude sensitivity',
+              accessibilityLabel: t('visualizer:visualizerSettings.amplitudeSensitivity'),
               onChange: (val) => {
                 const sensitivity = Math.max(0.5, Math.min(2.0, Math.round(val) / 100))
                 void updateSettings({ sensitivity })

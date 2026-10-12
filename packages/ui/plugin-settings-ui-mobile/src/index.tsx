@@ -8,7 +8,7 @@ import type { Context } from 'cordis'
 import type { UiService } from '@BBeBee/protocol'
 import { SETTINGS_VIEWS } from '@BBeBee/plugin-settings/views'
 import { useAppSettings, useAvailableSettings, useCacheStats } from '@BBeBee/plugin-settings/hooks'
-import { Button, Text, nativePrimitives } from '@BBeBee/ui-kit-mobile'
+import { Button, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
 import { ContributionBlock, groupBySection } from './ContributionBlock.js'
 
@@ -24,6 +24,7 @@ function formatBytes(bytes: number): string {
 
 export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
   const native = nativePrimitives()
+  const { t } = useI18n(ctx)
   const { settings, update, reset } = useAppSettings(ctx)
   const { usage, clear } = useCacheStats(ctx)
   const availableSettings = useAvailableSettings(ctx)
@@ -119,39 +120,41 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
         backgroundColor: p().bg.base,
         padding: tokens.space[4],
       },
-      accessibilityLabel: 'Settings',
+      accessibilityLabel: t('settings:mobile.settings'),
     },
     // Screen Title
     h(
       native.View as never,
       { style: { marginBottom: tokens.space[2] } },
-      h(Text, { variant: 'xl', children: 'Settings' }),
-      h(Text, { variant: 'sm', tone: 'muted', children: 'App-wide preferences and playback configuration' }),
+      h(Text, { variant: 'xl', children: t('settings:mobile.settings') }),
+      h(Text, { variant: 'sm', tone: 'muted', children: t('settings:mobile.appWidePreferences') }),
     ),
 
     // 1. General Section
-    renderSectionHeader('Appearance & language', 'Theme visual mode and multilingual configuration'),
+    renderSectionHeader(t('settings:mobile.appearanceLanguage'), t('settings:mobile.themeVisualMode')),
     renderCard([
       renderRow(
-        'Interface language',
-        settings.language === 'zh' ? 'Simplified Chinese' : settings.language === 'en' ? 'English' : 'Follow system',
+        t('settings:general.interfaceLanguage'),
+        // Native names by convention (see GeneralSection.tsx): proper names,
+        // identical in every locale, never translated.
+        settings.language === 'zh' ? '中文' : settings.language === 'en' ? 'English' : t('settings:index.followSystem'),
         h(
           native.View as never,
           { style: { flexDirection: 'row', gap: tokens.space[1] } },
           h(Button, {
             variant: settings.language === 'zh' ? 'primary' : 'secondary',
             onPress: () => void update({ language: 'zh' }),
-            children: 'Chinese',
+            children: '中文',
           }),
           h(Button, {
             variant: settings.language === 'en' ? 'primary' : 'secondary',
             onPress: () => void update({ language: 'en' }),
-            children: 'EN',
+            children: 'English',
           }),
           h(Button, {
             variant: settings.language === 'system' ? 'primary' : 'secondary',
             onPress: () => void update({ language: 'system' }),
-            children: 'Auto',
+            children: t('settings:index.followSystem'),
           }),
         ),
       ),
@@ -163,24 +166,24 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
     ),
 
     // 2. Playback Section
-    renderSectionHeader('Playback & Audio', 'Audio stream joining and playback behavior'),
+    renderSectionHeader(t('settings:settings.playbackAudio'), t('settings:mobile.audioStreamJoining')),
     renderCard([
       renderRow(
-        'Audio output engine',
-        'WebAudio system-native engine (iOS CoreAudio / Android Oboe)',
+        t('settings:mobile.audioOutputEngine'),
+        t('settings:mobile.webAudioEngine'),
         h(
           native.View as never,
           { style: { flexDirection: 'row', gap: tokens.space[1] } },
           h(Button, {
             variant: 'primary',
             onPress: () => void update({ audioOutputEngine: 'webaudio' }),
-            children: 'WebAudio',
+            children: t('settings:mobile.webAudio'),
           }),
           h(Button, {
             variant: 'secondary',
             disabled: true,
             onPress: () => {},
-            children: 'MPV Hi-Fi (planned)',
+            children: t('settings:mobile.mpvPlanned'),
           }),
         ),
       ),
@@ -196,23 +199,23 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
       ? h(
           native.View as never,
           { key: 'section-sources' },
-          renderSectionHeader('Library & sources', 'Music source management and import'),
+          renderSectionHeader(t('settings:settings.librarySources'), t('settings:mobile.musicSourceManagement')),
           renderCard(sourcesContribs.map((c) => h(ContributionBlock, { key: c.id, ctx, contribution: c, onNavigate: handleNavigate }))),
         )
       : null,
 
     // 4. Storage Section
-    renderSectionHeader('Storage & cache', 'Local temporary file management'),
+    renderSectionHeader(t('settings:settings.storageCache'), t('settings:mobile.localTempFiles')),
     renderCard([
       renderRow(
-        'Cache usage',
-        `Total: ${formatBytes(usage.totalBytes)} (artwork: ${formatBytes(usage.artworkBytes)})`,
+        t('settings:storage.cacheUsage'),
+        t('settings:mobile.totalArtwork', { total: formatBytes(usage.totalBytes), artwork: formatBytes(usage.artworkBytes) }),
         h(Button, {
           variant: 'secondary',
           disabled: clearingCache || usage.totalBytes === 0,
           loading: clearingCache,
           onPress: handleClearCache,
-          children: 'Clear cache',
+          children: t('settings:mobile.clearCache'),
         }),
       ),
       ...storageContribs.map((c) => h(ContributionBlock, { key: c.id, ctx, contribution: c, onNavigate: handleNavigate })),
@@ -230,9 +233,9 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
     }),
 
     // 6. About & Reset Section
-    renderSectionHeader('About', 'Version and system reset'),
+    renderSectionHeader(t('settings:settings.about'), t('settings:mobile.versionReset')),
     renderCard([
-      renderRow('Version', 'BBeBee 0.1.0 · Cordis microkernel', null),
+      renderRow(t('settings:mobile.version'), 'BBeBee 0.1.0 · Cordis microkernel', null),
       confirmingReset
         ? h(
             native.View as never,
@@ -240,18 +243,18 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
             h(Button, {
               variant: 'primary',
               onPress: handleReset,
-              children: 'Confirm reset',
+              children: t('settings:mobile.confirmReset'),
             }),
             h(Button, {
               variant: 'secondary',
               onPress: () => setConfirmingReset(false),
-              children: 'Cancel',
+              children: t('app:common.cancel'),
             }),
           )
         : h(Button, {
             variant: 'secondary',
             onPress: () => setConfirmingReset(true),
-            children: 'Restore defaults',
+            children: t('settings:mobile.restoreDefaults'),
           }),
     ]),
   )

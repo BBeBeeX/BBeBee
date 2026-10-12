@@ -1,7 +1,7 @@
 import { createElement as h, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { SettingsContribution, UiService } from '@BBeBee/protocol'
-import { Button } from '@BBeBee/ui-kit-desktop'
+import { Button, useI18n } from '@BBeBee/ui-kit-desktop'
 import { SchemaForm } from './SchemaForm.js'
 import { SettingsRow } from './SettingsRow.js'
 
@@ -22,6 +22,7 @@ export interface ContributionBlockProps {
  *   navigation/action button.
  */
 export function ContributionBlock({ ctx, contribution, onNavigate }: ContributionBlockProps): ReactElement {
+  const { t } = useI18n(ctx)
   if (contribution.display === 'card') {
     const CardView = ctx.ui?.viewFor?.(contribution.id) as
       | React.ComponentType<{ ctx: Context }>
@@ -31,6 +32,7 @@ export function ContributionBlock({ ctx, contribution, onNavigate }: Contributio
       'div',
       { key: contribution.id, 'data-testid': `contribution-unavailable-${contribution.id}` },
       h(SettingsRow, {
+        ctx,
         title: contribution.title,
         description: contribution.description,
         borderBottom: false,
@@ -45,7 +47,7 @@ export function ContributionBlock({ ctx, contribution, onNavigate }: Contributio
               background: 'rgba(255, 255, 255, 0.04)',
             },
           },
-          'Not available on this platform',
+          t('settings:contributionBlock.notAvailableOnPlatform'),
         ),
       }),
     )
@@ -56,12 +58,13 @@ export function ContributionBlock({ ctx, contribution, onNavigate }: Contributio
   }
 
   return h(SettingsRow, {
+    ctx,
     key: contribution.id,
     title: contribution.title,
     description: contribution.description,
     borderBottom: false,
     action: h(Button, {
-      children: contribution.actionText ?? 'Open',
+      children: contribution.actionText ?? t('settings:contributionBlock.open'),
       onPress: () => {
         if (contribution.action) void contribution.action()
         else (onNavigate ?? ((id: string) => serviceNavigate(ctx, id)))(contribution.id)

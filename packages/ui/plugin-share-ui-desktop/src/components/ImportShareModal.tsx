@@ -11,7 +11,7 @@ import type {
   ShareLyricsData,
 } from '@BBeBee/protocol'
 import { serviceOf } from '@BBeBee/ui-core'
-import { Button, Sheet, tablerIcon, TextField } from '@BBeBee/ui-kit-desktop'
+import { Button, Sheet, tablerIcon, TextField, useI18n } from '@BBeBee/ui-kit-desktop'
 import { decodeSteganography } from '@BBeBee/plugin-share/steganography'
 import { decodeMetadata } from '@BBeBee/plugin-share/metadata'
 
@@ -22,6 +22,7 @@ export interface ImportShareModalProps {
 }
 
 export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps): ReactElement | null {
+  const { t } = useI18n(ctx)
   const [pastedText, setPastedText] = useState('')
   const [decoded, setDecoded] = useState<ShareMetadataEnvelope | null>(null)
   const [extractedCoverUrl, setExtractedCoverUrl] = useState<string | null>(null)
@@ -53,9 +54,9 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
       setExtractedCoverUrl(null)
       setImageLoadError(false)
     } else {
-      setErrorMsg('Cannot parse the Base64 data: not a valid BBeBee share package')
+      setErrorMsg(t('share:importShare.cannotParseBase64Data'))
     }
-  }, [])
+  }, [t])
 
   // Decode from an image file using HTML5 canvas
   const handleImageFile = useCallback((file: File) => {
@@ -66,7 +67,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
       const dataUrl = e.target?.result as string
       if (!dataUrl) {
         setIsDecoding(false)
-        setErrorMsg('Failed to read the file')
+        setErrorMsg(t('share:importShare.failedToReadTheFile'))
         return
       }
       const img = new Image()
@@ -78,7 +79,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
           const canvasCtx = canvas.getContext('2d', { willReadFrequently: true })
           if (!canvasCtx) {
             setIsDecoding(false)
-            setErrorMsg('Failed to create the canvas')
+            setErrorMsg(t('share:importShare.failedToCreateTheCanvas'))
             return
           }
           canvasCtx.drawImage(img, 0, 0)
@@ -87,7 +88,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
 
           if (!hiddenPayload) {
             setIsDecoding(false)
-            setErrorMsg('No BBeBee steganographic share data detected in this image')
+            setErrorMsg(t('share:importShare.noSteganographicDataDetected'))
             return
           }
 
@@ -158,31 +159,31 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
               // Extraction failed, fall back to metadata artwork URL
             }
           } else {
-            setErrorMsg('The steganographic data in the image is corrupted or of a mismatched format')
+            setErrorMsg(t('share:importShare.steganographicDataCorrupted'))
           }
         } catch (err) {
           setIsDecoding(false)
-          setErrorMsg(`Failed to decode steganography: ${String(err)}`)
+          setErrorMsg(t('share:importShare.failedToDecodeSteganography', { err: String(err) }))
         }
       }
       img.onerror = () => {
         setIsDecoding(false)
-        setErrorMsg('Failed to load and decode the image')
+        setErrorMsg(t('share:importShare.failedToLoadAndDecodeTheImage'))
       }
       img.src = dataUrl
     }
     reader.onerror = () => {
       setIsDecoding(false)
-      setErrorMsg('Failed to read the file')
+      setErrorMsg(t('share:importShare.failedToReadTheFile'))
     }
     reader.readAsDataURL(file)
-  }, [])
+  }, [t])
 
   const handlePlayNow = async () => {
     if (!decoded) return
     const player = serviceOf<PlayerService>(ctx, 'player')
     if (!player) {
-      setErrorMsg('Player service not ready')
+      setErrorMsg(t('share:shareHost.playerServiceNotReady'))
       return
     }
 
@@ -204,7 +205,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
       }
     } catch (err) {
       ctx.logger?.error(`Failed to play shared item: ${String(err)}`)
-      setErrorMsg(`Playback failed: ${String(err)}`)
+      setErrorMsg(t('share:importShare.playbackFailed', { err: String(err) }))
     }
   }
 
@@ -212,7 +213,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
     if (!decoded) return
     const player = serviceOf<PlayerService>(ctx, 'player')
     if (!player) {
-      setErrorMsg('Player service not ready')
+      setErrorMsg(t('share:shareHost.playerServiceNotReady'))
       return
     }
 
@@ -234,7 +235,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
       }
     } catch (err) {
       ctx.logger?.error(`Failed to enqueue shared item: ${String(err)}`)
-      setErrorMsg(`Failed to add to queue: ${String(err)}`)
+      setErrorMsg(t('share:importShare.failedToAddToQueue', { err: String(err) }))
     }
   }
 
@@ -242,7 +243,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
     if (!decoded) return
     const library = serviceOf<LibraryService>(ctx, 'library')
     if (!library) {
-      setErrorMsg('Library service not ready')
+      setErrorMsg(t('share:importShare.libraryServiceNotReady'))
       return
     }
 
@@ -260,7 +261,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
       handleClose()
     } catch (err) {
       ctx.logger?.error(`Failed to save to library: ${String(err)}`)
-      setErrorMsg(`Failed to favorite: ${String(err)}`)
+      setErrorMsg(t('share:importShare.failedToFavorite', { err: String(err) }))
     }
   }
 
@@ -294,14 +295,14 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
         h(
           'span',
           { style: { fontSize: 17, fontWeight: 700, color: 'var(--text-primary, #FFFFFF)' } },
-          'Read / import share',
+          t('share:importShare.readOrImportShare'),
         ),
         h(
           'button',
           {
             type: 'button',
             onClick: handleClose,
-            'aria-label': 'Close',
+            'aria-label': t('share:importShare.close'),
             style: {
               background: 'transparent',
               border: 'none',
@@ -357,12 +358,12 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
               h(
                 'div',
                 { style: { fontSize: 13, fontWeight: 600, color: 'var(--bb-text-primary, #FFFFFF)' } },
-                isDecoding ? 'Reading steganographic data…' : 'Drop a share image here, or click to upload',
+                isDecoding ? t('share:importShare.readingSteganographicData') : t('share:importShare.dropAShareImageHere'),
               ),
               h(
                 'div',
                 { style: { fontSize: 11, color: 'var(--text-muted, #8B95B0)' } },
-                'Automatically decodes the song or playlist hidden inside a PNG image',
+                t('share:importShare.automaticallyDecodesSongOrPlaylist'),
               ),
             ),
             // Or Paste Base64
@@ -375,11 +376,11 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
               h(
                 'div',
                 { style: { fontSize: 12, color: 'var(--text-muted, #8B95B0)' } },
-                'Or paste Base64 data directly:',
+                t('share:importShare.orPasteBase64DataDirectly'),
               ),
               h(TextField, {
                 value: pastedText,
-                placeholder: 'Paste Base64 share data…',
+                placeholder: t('share:importShare.pasteBase64ShareData'),
                 onChange: (val: string) => {
                   setPastedText(val)
                   if (val.trim().length > 10) {
@@ -451,7 +452,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
                   return displayArtwork && !imageLoadError
                     ? h('img', {
                         src: displayArtwork,
-                        alt: 'artwork',
+                        alt: t('share:importShare.artworkAlt'),
                         referrerPolicy: 'no-referrer',
                         loading: 'lazy',
                         onError: () => setImageLoadError(true),
@@ -502,10 +503,22 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
                   decoded.type === 'track'
                     ? (decoded.data as ShareTrackData).artist
                     : decoded.type === 'playlist'
-                      ? `Playlist • ${(decoded.data as SharePlaylistData).trackCount} songs`
+                      ? t('share:sharePlaylist.playlistSongs', { trackCount: (decoded.data as SharePlaylistData).trackCount })
                       : decoded.type === 'album'
-                        ? `Album • ${(decoded.data as ShareAlbumData).artist || 'Unknown artist'} • ${(decoded.data as ShareAlbumData).trackCount} songs`
-                        : `Lyrics • ${(decoded.data as ShareLyricsData).artist}`,
+                        ? t(
+                            (decoded.data as ShareAlbumData).trackCount === 1
+                              ? 'share:importShare.albumSubtitle.one'
+                              : 'share:importShare.albumSubtitle.other',
+                            {
+                              artist:
+                                (decoded.data as ShareAlbumData).artist ||
+                                t('share:importShare.unknownArtist'),
+                              trackCount: (decoded.data as ShareAlbumData).trackCount,
+                            },
+                          )
+                        : t('share:importShare.lyricsSubtitle', {
+                            artist: (decoded.data as ShareLyricsData).artist,
+                          }),
                 ),
                 h(
                   'div',
@@ -517,7 +530,9 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
                       fontWeight: 600,
                     },
                   },
-                  `Type: ${decoded.type.toUpperCase()} • steganography verified`,
+                  t('share:importShare.typeSteganographyVerified', {
+                    type: decoded.type.toUpperCase(),
+                  }),
                 ),
               ),
             ),
@@ -551,7 +566,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
                 h(Button, {
                   variant: 'secondary',
                   onPress: resetState,
-                  children: 'Choose again',
+                  children: t('share:importShare.chooseAgain'),
                 }),
               ),
               decoded.type !== 'lyrics'
@@ -561,7 +576,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
                     h(Button, {
                       variant: 'primary',
                       onPress: handlePlayNow,
-                      children: 'Play now',
+                      children: t('share:importShare.playNow'),
                     }),
                   )
                 : null,
@@ -572,7 +587,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
                     h(Button, {
                       variant: 'secondary',
                       onPress: handleEnqueue,
-                      children: 'Add to queue',
+                      children: t('share:importShare.addToQueue'),
                     }),
                   )
                 : null,
@@ -583,7 +598,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
                     h(Button, {
                       variant: 'secondary',
                       onPress: handleSaveToLibrary,
-                      children: 'Favorite',
+                      children: t('share:importShare.favorite'),
                     }),
                   )
                 : null,

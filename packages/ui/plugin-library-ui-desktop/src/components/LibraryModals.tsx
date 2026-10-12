@@ -2,7 +2,7 @@ import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { Collection, Playlist } from '@BBeBee/protocol'
-import { Button, TextField } from '@BBeBee/ui-kit-desktop'
+import { Button, TextField, useI18n } from '@BBeBee/ui-kit-desktop'
 import { EditPlaylistModal } from './modals/EditPlaylistModal.js'
 import { RenameFolderModal } from './modals/RenameFolderModal.js'
 import { CreateInFolderModal } from './modals/CreateInFolderModal.js'
@@ -40,6 +40,7 @@ export interface LibraryModalsProps {
 }
 
 export function LibraryModals({
+  ctx,
   showCreatePlaylistModal,
   setShowCreatePlaylistModal,
   draft,
@@ -68,6 +69,7 @@ export function LibraryModals({
   setConfirmDeleteTarget,
   onConfirmDelete,
 }: LibraryModalsProps): ReactElement {
+  const { t } = useI18n(ctx)
   return h(
     'div',
     null,
@@ -100,11 +102,11 @@ export function LibraryModals({
             boxShadow: 'var(--shadow-modal, 0 8px 32px rgba(0, 0, 0, 0.8))',
           },
         },
-        h('h3', { style: { margin: 0, fontSize: 16, color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600 } }, 'Create playlist'),
+        h('h3', { style: { margin: 0, fontSize: 16, color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600 } }, t('library:libraryModals.createPlaylist')),
         h(TextField, {
           value: draft,
           onChange: setDraft,
-          placeholder: 'New playlist name',
+          placeholder: t('library:libraryModals.newPlaylistName'),
           testID: 'playlists-new-name',
         }),
         h(
@@ -116,7 +118,7 @@ export function LibraryModals({
               setShowCreatePlaylistModal(false)
               setDraft('')
             },
-            children: 'Cancel',
+            children: t('app:common.cancel'),
           }),
           h(Button, {
             variant: 'primary',
@@ -126,7 +128,7 @@ export function LibraryModals({
             },
             disabled: draft.trim().length === 0,
             testID: 'playlists-create',
-            children: 'Create',
+            children: t('app:common.create'),
           }),
         ),
       ),
@@ -160,11 +162,11 @@ export function LibraryModals({
             boxShadow: 'var(--shadow-modal, 0 8px 32px rgba(0, 0, 0, 0.8))',
           },
         },
-        h('h3', { style: { margin: 0, fontSize: 16, color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600 } }, 'Create folder'),
+        h('h3', { style: { margin: 0, fontSize: 16, color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600 } }, t('library:libraryModals.createFolder')),
         h(TextField, {
           value: collectionDraft,
           onChange: setCollectionDraft,
-          placeholder: 'New folder name',
+          placeholder: t('library:libraryModals.newFolderName'),
           testID: 'collections-new-name',
         }),
         h(
@@ -176,7 +178,7 @@ export function LibraryModals({
               setShowCreateCollectionModal(false)
               setCollectionDraft('')
             },
-            children: 'Cancel',
+            children: t('app:common.cancel'),
           }),
           h(Button, {
             variant: 'primary',
@@ -186,31 +188,35 @@ export function LibraryModals({
             },
             disabled: collectionDraft.trim().length === 0,
             testID: 'collections-create',
-            children: 'Create',
+            children: t('app:common.create'),
           }),
         ),
       ),
     ),
     // Edit Playlist Modal
     h(EditPlaylistModal, {
+      ctx,
       playlist: editingPlaylist,
       onClose: () => setEditingPlaylist(null),
       onSave: onUpdatePlaylist,
     }),
     // Rename Folder Modal
     h(RenameFolderModal, {
+      ctx,
       collection: renamingCollection,
       onClose: () => setRenamingCollection(null),
       onRename: onRenameCollection,
     }),
     // Create in Folder Modal
     h(CreateInFolderModal, {
+      ctx,
       target: createInFolderModal,
       onClose: () => setCreateInFolderModal(null),
       onCreate: onCreateInFolder,
     }),
     // Confirm Delete Modal
     h(ConfirmDeleteModal, {
+      ctx,
       target: confirmDeleteTarget,
       onClose: () => setConfirmDeleteTarget(null),
       onConfirm: onConfirmDelete,

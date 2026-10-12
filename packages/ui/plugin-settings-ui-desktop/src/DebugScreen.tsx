@@ -3,7 +3,7 @@
  * Shows debug status, environment details, and navigation to discover/HTTP logs.
  */
 
-import { Button } from '@BBeBee/ui-kit-desktop'
+import { Button, useI18n } from '@BBeBee/ui-kit-desktop'
 import { createElement as h, useEffect, useMemo, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
@@ -21,6 +21,7 @@ interface WindowWithBBeBee {
 }
 
 export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const ui = serviceOf<UiService>(ctx, 'ui')
   /*
    * useMemo, not a bare call: `serviceOf` hands back a fresh traceable proxy
@@ -103,7 +104,7 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
       },
       h(Button, {
         variant: 'secondary',
-        children: '← Back to settings',
+        children: t('settings:settings.backToSettings'),
         onPress: () => ui?.navigate?.('settings.view'),
       }),
       h(
@@ -117,7 +118,7 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
             letterSpacing: '-0.02em',
           },
         },
-        'Debug & diagnostics (Debug)',
+        t('settings:debug.title'),
       ),
     ),
 
@@ -140,8 +141,8 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
         h(
           'div',
           null,
-          h('div', { style: cardTitleStyle }, 'Current debug status'),
-          h('div', { style: cardSubtitleStyle }, 'Checks the debug run flags of the kernel and renderer process'),
+          h('div', { style: cardTitleStyle }, t('settings:debug.currentDebugStatus')),
+          h('div', { style: cardSubtitleStyle }, t('settings:debug.checksTheDebugRunFlags')),
         ),
         h(
           'span',
@@ -167,7 +168,7 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
               background: isDebugMode ? '#22C55E' : 'var(--text-secondary, #94A3B8)',
             },
           }),
-          isDebugMode ? 'Debug mode active' : 'Production environment (Production)',
+          isDebugMode ? t('settings:debug.debugModeActive') : t('settings:debug.productionEnvironment'),
         ),
       ),
       h(
@@ -183,9 +184,9 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
             border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.04))',
           },
         },
-        renderInfoItem('Node environment', envNodeEnv || 'production'),
-        renderInfoItem('Log output', 'RingBuffer (2000 lines)'),
-        renderInfoItem('Isolated sandbox', 'QuickJS Realm Isolation'),
+        renderInfoItem(t('settings:debug.nodeEnvironment'), envNodeEnv || 'production'),
+        renderInfoItem(t('settings:debug.logOutput'), 'RingBuffer (2000 lines)'),
+        renderInfoItem(t('settings:debug.isolatedSandbox'), 'QuickJS Realm Isolation'),
       ),
     ),
 
@@ -198,8 +199,8 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
       h(
         'div',
         { style: { marginBottom: 16 } },
-        h('div', { style: cardTitleStyle }, 'Current runtime environment'),
-        h('div', { style: cardSubtitleStyle }, 'Hardware platform, engine and host container versions'),
+        h('div', { style: cardTitleStyle }, t('settings:debug.currentRuntimeEnvironment')),
+        h('div', { style: cardSubtitleStyle }, t('settings:debug.hardwarePlatformEngineAndHost')),
       ),
       h(
         'div',
@@ -214,12 +215,12 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
             border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.04))',
           },
         },
-        renderInfoItem('Operating system platform', platformInfo.platform),
-        renderInfoItem('Processor architecture', platformInfo.arch),
-        renderInfoItem('Node.js version', platformInfo.node),
-        renderInfoItem('Electron version', platformInfo.electron),
-        renderInfoItem('Chromium version', platformInfo.chrome),
-        renderInfoItem('App build version', platformInfo.appVersion),
+        renderInfoItem(t('settings:debug.osPlatform'), platformInfo.platform),
+        renderInfoItem(t('settings:debug.cpuArch'), platformInfo.arch),
+        renderInfoItem(t('settings:debug.nodeVersion'), platformInfo.node),
+        renderInfoItem(t('settings:debug.electronVersion'), platformInfo.electron),
+        renderInfoItem(t('settings:debug.chromiumVersion'), platformInfo.chrome),
+        renderInfoItem(t('settings:debug.appBuildVersion'), platformInfo.appVersion),
       ),
       h(
         'div',
@@ -238,7 +239,7 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
             whiteSpace: 'nowrap',
           },
         },
-        `UA: ${platformInfo.userAgent || 'Desktop App Shell'}`,
+        t('settings:debug.uA', { userAgent: platformInfo.userAgent || t('settings:debug.desktopAppShell') }),
       ),
     ),
 
@@ -251,8 +252,8 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
       h(
         'div',
         { style: { marginBottom: 20 } },
-        h('div', { style: cardTitleStyle }, 'Diagnostic tools & system dev panels'),
-        h('div', { style: cardSubtitleStyle }, 'Inspect kernel events, capture network traffic, test sources step by step and monitor the architecture topology'),
+        h('div', { style: cardTitleStyle }, t('settings:debug.diagnosticToolsSystemDevPanels')),
+        h('div', { style: cardSubtitleStyle }, t('settings:debug.inspectKernelEventsCaptureNetwork')),
       ),
       h(
         'div',
@@ -272,16 +273,16 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
           h(
             'div',
             null,
-            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, 'System logs (Discover)'),
+            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, t('settings:debug.systemLogsDiscover')),
             h(
               'div',
               { style: { fontSize: 13, color: 'var(--text-secondary, #94A3B8)', lineHeight: 1.5, marginBottom: 16 } },
-              'Live log stream of the Cordis microkernel lifecycle, service assembly and all registered plugins.',
+              t('settings:debug.discoverDesc'),
             ),
           ),
           h(Button, {
             variant: 'primary',
-            children: 'Open Discover logs →',
+            children: t('settings:debug.openDiscoverLogs'),
             onPress: () => ui?.navigate?.('debug.logs'),
           }),
         ),
@@ -294,16 +295,16 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
           h(
             'div',
             null,
-            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, 'Third-party source network logs (HTTP Logs)'),
+            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, t('settings:debug.thirdPartySourceNetworkLogs')),
             h(
               'div',
               { style: { fontSize: 13, color: 'var(--text-secondary, #94A3B8)', lineHeight: 1.5, marginBottom: 16 } },
-              'Captures every network request made by third-party source plugins, analyzing request method, status code and round-trip time in real time.',
+              t('settings:debug.httpLogsDesc'),
             ),
           ),
           h(Button, {
             variant: 'primary',
-            children: 'Open HTTP logs page →',
+            children: t('settings:debug.openHttpLogs'),
             onPress: () => ui?.navigate?.('debug.http-logs'),
           }),
         ),
@@ -316,16 +317,16 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
           h(
             'div',
             null,
-            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, 'Theme variable palette (Theme Palette)'),
+            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, t('settings:debug.themeVariablePaletteThemePalette')),
             h(
               'div',
               { style: { fontSize: 13, color: 'var(--text-secondary, #94A3B8)', lineHeight: 1.5, marginBottom: 16 } },
-              'Inspect and verify every color token, opacity variant and CSS variable mapping produced by themeToCssVariables for the active theme.',
+              t('settings:debug.themePaletteDesc'),
             ),
           ),
           h(Button, {
             variant: 'primary',
-            children: 'Open theme palette →',
+            children: t('settings:debug.openThemePalette'),
             onPress: () => ui?.navigate?.(SETTINGS_VIEWS.themePalette),
           }),
         ),
@@ -338,16 +339,16 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
           h(
             'div',
             null,
-            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, 'Test sources (Test Sources)'),
+            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, t('settings:debug.testSourcesTestSources')),
             h(
               'div',
               { style: { fontSize: 13, color: 'var(--text-secondary, #94A3B8)', lineHeight: 1.5, marginBottom: 16 } },
-              'Step through and verify a third-party source\'s search rules, playback stream URL resolution and the built-in JS sandbox execution.',
+              t('settings:debug.testSourcesDesc'),
             ),
           ),
           h(Button, {
             variant: 'primary',
-            children: 'Open source tests →',
+            children: t('settings:debug.openSourceTests'),
             onPress: () => ui?.navigate?.('sources.test'),
           }),
         ),
@@ -360,16 +361,16 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
           h(
             'div',
             null,
-            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, 'System architecture & plugin topology (Inspector)'),
+            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, t('settings:debug.systemArchitecturePluginTopologyInspector')),
             h(
               'div',
               { style: { fontSize: 13, color: 'var(--text-secondary, #94A3B8)', lineHeight: 1.5, marginBottom: 16 } },
-              'Monitor the system\'s Layer 1~5 nodes and Cordis service assembly in real time with a PCB circuit-board visual.',
+              t('settings:debug.inspectorDesc'),
             ),
           ),
           h(Button, {
             variant: 'primary',
-            children: 'Open architecture topology (Inspector) →',
+            children: t('settings:debug.openInspector'),
             onPress: () => ui?.navigate?.('inspector.panel'),
           }),
         ),
@@ -382,16 +383,16 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
           h(
             'div',
             null,
-            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, 'Developer tools (DevTools)'),
+            h('div', { style: { fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #F8FAFC)', marginBottom: 4 } }, t('settings:debug.developerToolsDevTools')),
             h(
               'div',
               { style: { fontSize: 13, color: 'var(--text-secondary, #94A3B8)', lineHeight: 1.5, marginBottom: 16 } },
-              'Open the current window\'s Chromium DevTools in a separate window to inspect the renderer DOM, network and console output.',
+              t('settings:debug.devToolsDesc'),
             ),
           ),
           h(Button, {
             variant: 'primary',
-            children: 'Open developer tools →',
+            children: t('settings:debug.openDevTools'),
             disabled: !bbebee?.devtools,
             onPress: () => void bbebee?.devtools?.open(),
           }),

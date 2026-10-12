@@ -1,4 +1,4 @@
-import { Button, Select, Switch } from '@BBeBee/ui-kit-desktop'
+import { Button, Select, Switch, useI18n } from '@BBeBee/ui-kit-desktop'
 import { createElement as h, useCallback, useEffect, useRef, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { AppSettings, AudioService, OutputDevice, SettingsContribution } from '@BBeBee/protocol'
@@ -22,6 +22,7 @@ export function PlaybackSection({
   contributions = [],
   onNavigate,
 }: PlaybackSectionProps): ReactElement {
+  const { t } = useI18n(ctx)
   const [outputDevices, setOutputDevices] = useState<OutputDevice[]>([])
   const [engineStatus, setEngineStatus] = useState<{ running: boolean; mpvAvailable: boolean } | undefined>(
     undefined,
@@ -124,6 +125,11 @@ export function PlaybackSection({
   const isMpv = currentEngine === 'mpv' || currentEngine === 'wasapi'
   const currentDeviceId = settings.audioOutputDeviceId ?? 'default'
 
+  // Localised display name for the "no real device found" placeholder. The
+  // matching inside `isGenericPlaceholder` stays on the English driver
+  // labels — those are data, not UI copy.
+  const audioOutputDeviceLabel = t('settings:playback.audioOutputDevice')
+
   useEffect(() => {
     void fetchDevices(`engine-${currentEngine}`)
     void fetchEngineStatus()
@@ -186,7 +192,7 @@ export function PlaybackSection({
     }
 
     if (isGenericPlaceholder(clean)) {
-      clean = 'Audio output device'
+      clean = audioOutputDeviceLabel
     }
 
     const virtualDetected =
@@ -196,13 +202,13 @@ export function PlaybackSection({
       )
 
     clean = clean.replace(/\s*(\(\u865A\u62DF\)|\[\u865A\u62DF\])\s*$/g, '').trim()
-    if (virtualDetected && clean !== 'Audio output device') {
+    if (virtualDetected && clean !== audioOutputDeviceLabel) {
       clean = `${clean} (Virtual)`
     }
     return clean
   }
 
-  const rawList = outputDevices.length > 0 ? outputDevices : [{ id: 'default', label: 'Audio output device', isDefault: true }]
+  const rawList = outputDevices.length > 0 ? outputDevices : [{ id: 'default', label: audioOutputDeviceLabel, isDefault: true }]
 
   const deviceOptions: Array<{ value: string; label: string }> = []
   const seenLabels = new Set<string>()
@@ -220,10 +226,10 @@ export function PlaybackSection({
 
   // Ensure currentDeviceId is included in options so Select always renders a valid selection
   if (!deviceOptions.some((o) => o.value === currentDeviceId)) {
-    const fallbackLabel = deviceOptions[0]?.label || 'Audio output device'
+    const fallbackLabel = deviceOptions[0]?.label || audioOutputDeviceLabel
     deviceOptions.unshift({
       value: currentDeviceId,
-      label: currentDeviceId === 'default' ? fallbackLabel : `Selected device (${currentDeviceId})`,
+      label: currentDeviceId === 'default' ? fallbackLabel : t('settings:playback.selectedDevice', { deviceId: currentDeviceId }),
     })
   }
 
@@ -236,15 +242,13 @@ export function PlaybackSection({
     h(
       SettingsSection,
       {
-        title: 'Audio output engine & devices',
-        description: 'Choose the audio output driver and physical output device',
+        title: t('settings:playback.audioOutputEngineDevices'),
+        description: t('settings:playback.chooseTheAudioOutputDriver'),
       },
       h(SettingsRow, {
-        title: 'Audio output driver (Audio Backend)',
-        description:
-          isMpv
-            ? 'Current: MPV (standalone native engine with WASAPI passthrough output and native DSP/EQ)'
-            : 'Current: WebAudio (standard Web Audio shared mixing)',
+        ctx,
+        title: t('settings:playback.audioOutputDriverAudioBackend'),
+        description: isMpv ? t('settings:playback.currentMpv') : t('settings:playback.currentWebAudio'),
         action: h(
           'div',
           { style: { display: 'flex', gap: 6 } },
@@ -255,7 +259,7 @@ export function PlaybackSection({
               void update({ audioOutputEngine: 'mpv' })
               void fetchDevices('engine-switch')
             },
-            children: 'MPV Hi-Fi',
+            children: t('settings:playback.mpvHiFi'),
           }),
           h(Button, {
             variant: currentEngine === 'webaudio' ? 'primary' : 'secondary',
@@ -264,19 +268,20 @@ export function PlaybackSection({
               void update({ audioOutputEngine: 'webaudio' })
               void fetchDevices('engine-switch')
             },
-            children: 'WebAudio',
+            children: t('settings:playback.webAudio'),
           }),
         ),
       }),
       isMpv &&
         h(SettingsRow, {
-          title: 'Exclusive mode',
+          ctx,
+          title: t('settings:playback.exclusiveMode'),
           description: settings.audioExclusive
-            ? 'On: MPV takes exclusive control of the audio output device (WASAPI exclusive) for bit-perfect output; other applications cannot play sound meanwhile'
-            : 'Off: shares the audio output device with other applications (WASAPI shared mode)',
+            ? t('settings:playback.exclusiveOn')
+            : t('settings:playback.exclusiveOff'),
           action: h(Switch, {
             checked: settings.audioExclusive ?? false,
-            accessibilityLabel: 'Exclusive mode',
+            accessibilityLabel: t('settings:playback.exclusiveMode'),
             onChange: (checked: boolean) => {
               ctx.logger?.info('playback-settings: user toggled audioExclusive -> %s', checked)
               void update({ audioExclusive: checked })
@@ -297,20 +302,22 @@ export function PlaybackSection({
         engineStatus &&
         (!engineStatus.running || !engineStatus.mpvAvailable)
         ? h(SettingsRow, {
-            title: '⚠️ MPV native engine unavailable, fell back to Chromium decoding',
+          ctx,
+            title: t('settings:playback.mPVNativeEngineUnavailableFell'),
             description: !engineStatus.running
-              ? 'The native audio engine process is not running (audio-engine executable missing or failed to start). Playback still works, but audio visualization and output device switching are unavailable.'
-              : 'Failed to load libmpv (library missing or incomplete dependencies). Playback still works, but audio visualization and output device switching are unavailable. Redeploy libmpv and all of its dependencies in the engine directory.',
+              ? t('settings:playback.engineNotRunning')
+              : t('settings:playback.libmpvMissing'),
             borderBottom: false,
           })
         : null,
       h(SettingsRow, {
-        title: 'Audio output device (Output Device)',
-        description: `Current output destination: ${selectedDeviceLabel}`,
+        ctx,
+        title: t('settings:playback.audioOutputDeviceOutputDevice'),
+        description: t('settings:playback.currentOutputDestination', { selectedDeviceLabel }),
         action: h(Select, {
           value: currentDeviceId,
           options: deviceOptions,
-          accessibilityLabel: 'Audio output device',
+          accessibilityLabel: t('settings:playback.audioOutputDevice'),
           onChange: (newDeviceId: string) => {
             ctx.logger?.info('playback-settings: user selected output device "%s"', newDeviceId)
             void update({ audioOutputDeviceId: newDeviceId })

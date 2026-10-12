@@ -21,7 +21,7 @@
 import { act, cleanup, render } from '@testing-library/react'
 import { createElement as h, type ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Context } from 'cordis'
+import { Context, Service } from 'cordis'
 import { PathsNode } from '@BBeBee/core-paths-node'
 import { FsNode } from '@BBeBee/core-fs-node'
 import { DbNode } from '@BBeBee/core-db-node'
@@ -30,6 +30,7 @@ import scannerPlugin from '@BBeBee/plugin-local-scanner'
 import { tempDir, tick } from '@BBeBee/kernel/testing'
 import { configureNative } from '@BBeBee/ui-kit-mobile'
 import { ScanSpecifiedDirsScreen, inject } from './index.js'
+import localScannerCatalogue from '../../../feature/plugin-i18n/src/locales/localScanner.json'
 
 afterEach(cleanup)
 
@@ -79,6 +80,45 @@ configureNative({
   TextInput: hostComponent('TextInput'),
 })
 
+/**
+ * English i18n service for tests: serves the real `localScanner` catalogue so
+ * the screen renders the same copy the app shows in English. Mirrors the
+ * `DefaultI18nStub` in `apps/desktop/renderer/Shell.test.tsx`.
+ */
+const SCANNER_CATALOGUE: Record<string, { en: unknown }> = {
+  localScanner: { en: (localScannerCatalogue as { en: unknown }).en },
+}
+
+class DefaultI18nStub extends Service {
+  static override readonly name = 'i18n'
+  locale = 'en'
+  private listeners = new Set<(locale: string) => void>()
+
+  constructor(ctx: Context) {
+    super(ctx, 'i18n')
+  }
+
+  t = (key: string, params?: Record<string, string | number>): string => {
+    const sep = key.indexOf(':')
+    if (sep < 0) return key
+    const catalogue = SCANNER_CATALOGUE[key.slice(0, sep)]?.en
+    if (!catalogue) return key
+    let cur: unknown = catalogue
+    for (const part of key.slice(sep + 1).split('.')) {
+      cur = (cur as Record<string, unknown> | undefined)?.[part]
+    }
+    if (typeof cur !== 'string') return key
+    return params
+      ? cur.replace(/\{(\w+)\}/g, (_, k: string) => String(params[k] ?? `{${k}}`))
+      : cur
+  }
+
+  onLocaleChange = (cb: (locale: string) => void): (() => void) => {
+    this.listeners.add(cb)
+    return () => void this.listeners.delete(cb)
+  }
+}
+
 /** The scoped context a shell hands a view, plus the root for fixtures. */
 async function harness(): Promise<{ ctx: Context; admin: Context }> {
   const root = new Context()
@@ -89,14 +129,17 @@ async function harness(): Promise<{ ctx: Context; admin: Context }> {
   // activates and `ctx.scanner` never appears.
   await root.plugin(CodecNode)
   await root.plugin(scannerPlugin)
+  await root.plugin(DefaultI18nStub)
   await tick()
 
   /*
-   * Scoped to **this package's own `inject`**, minus `ui`. Derived rather than
-   * written out, so a screen that reads an undeclared service throws here
-   * exactly as it would in the app.
+   * Scoped to **this package's own `inject`**, minus `ui`, plus `i18n`: the
+   * screen reads it through `useI18n`, which degrades to raw keys without the
+   * service, so the stub keeps the English-copy assertions below honest.
+   * Derived rather than written out, so a screen that reads an undeclared
+   * service throws here exactly as it would in the app.
    */
-  const declared = inject.filter((name) => name !== 'ui')
+  const declared = [...inject.filter((name) => name !== 'ui'), 'i18n']
   let scoped: Context | undefined
   root.inject(declared, (s) => void (scoped = s))
   // The scanner's init is genuinely async — it writes its source row, loads

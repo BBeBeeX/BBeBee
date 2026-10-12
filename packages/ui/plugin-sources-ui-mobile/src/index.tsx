@@ -10,7 +10,7 @@ import { createElement as h, Fragment, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
-import type { DownloadsService, ImportReport, ScanSpecifiedDir, ScannerService, TraceEvent, UiService } from '@BBeBee/protocol'
+import type { DownloadsService, I18nService, ImportReport, ScanSpecifiedDir, ScannerService, TraceEvent, UiService } from '@BBeBee/protocol'
 import { ALBUM_VIEWS } from '@BBeBee/plugin-album/views'
 import { SOURCES_VIEWS } from '@BBeBee/plugin-sources/views'
 import {
@@ -37,6 +37,7 @@ import {
   TextField,
   TrackRow,
   nativePrimitives,
+  useI18n,
 } from '@BBeBee/ui-kit-mobile'
 import { serviceOf } from '@BBeBee/ui-core'
 import type { ArtworkProps, TrackRowProps } from '@BBeBee/ui-core'
@@ -79,6 +80,7 @@ export function SearchScreen({
   query?: string
   onOpenAlbum?: (urn: string) => void
 }): ReactElement {
+  const { t } = useI18n(ctx)
   const native = nativePrimitives()
   const scheme = p()
   const downloads = serviceOf<DownloadsService>(ctx, 'downloads')
@@ -119,7 +121,7 @@ export function SearchScreen({
     h(
     native.View as never,
     {
-      accessibilityLabel: 'Search',
+      accessibilityLabel: t('sources:search.search'),
       style: {
         flex: 1,
         backgroundColor: scheme.bg.base,
@@ -136,8 +138,8 @@ export function SearchScreen({
       h(TextField, {
         value: text,
         onChange: setText,
-        placeholder: 'Songs, albums, artists…',
-        accessibilityLabel: 'Search query',
+        placeholder: t('sources:index.songsAlbumsArtists'),
+        accessibilityLabel: t('sources:search.searchQuery'),
         testID: 'search-input',
       }),
       h(
@@ -148,17 +150,17 @@ export function SearchScreen({
           disabled: !canSearch,
           loading: busy,
           testID: 'search-submit',
-          children: 'Search',
+          children: t('sources:search.search'),
         }),
         submitted
-          ? h(Button, { variant: 'ghost', onPress: clear, testID: 'search-clear', children: 'Clear' })
+          ? h(Button, { variant: 'ghost', onPress: clear, testID: 'search-clear', children: t('app:common.clear') })
           : null,
       ),
       h(
         native.View as never,
         {
           accessibilityRole: 'group',
-          accessibilityLabel: 'Sources and interfaces to search',
+          accessibilityLabel: t('sources:search.sourcesAndInterfacesToSearch'),
           style: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: tokens.space[1] },
         },
         // One toggle per *interface*, not per source: a backend whose user
@@ -167,20 +169,20 @@ export function SearchScreen({
         ...selection.interfaces.map((iface) =>
           h(SourceChip, {
             key: iface.id,
-            label: `${iface.sourceName} · ${iface.kind === 'track' ? 'Songs' : 'Artists'}`,
+            label: `${iface.sourceName} · ${t(iface.kind === 'track' ? 'sources:index.songs' : 'sources:index.artists')}`,
             selected: selection.isInterfaceSelected(iface.id),
             disabled: !iface.searchable,
             onPress: () => selection.toggleInterface(iface.id),
-            accessibilityLabel: `${selection.isInterfaceSelected(iface.id) ? 'Do not search' : 'Search'} ${iface.sourceName} ${iface.kind === 'track' ? 'songs' : 'artists'}`,
+            accessibilityLabel: `${t(selection.isInterfaceSelected(iface.id) ? 'sources:index.doNotSearch' : 'sources:search.search')} ${iface.sourceName} ${t(iface.kind === 'track' ? 'sources:index.songs' : 'sources:index.artists')}`,
             testID: `search-source-${iface.sourceId}-${iface.kind}`,
           }),
         ),
         selection.interfaces.some((iface) => iface.searchable)
           ? h(SourceChip, {
-              label: selection.allSelected ? 'None' : 'All',
+              label: selection.allSelected ? t('sources:index.none') : t('sources:index.all'),
               selected: false,
               onPress: selection.toggleAll,
-              accessibilityLabel: selection.allSelected ? 'Deselect every source' : 'Select every source',
+              accessibilityLabel: selection.allSelected ? t('sources:index.deselectEverySource') : t('sources:index.selectEverySource'),
               testID: 'search-toggle-all',
             })
           : null,
@@ -191,7 +193,7 @@ export function SearchScreen({
       : search.status === 'error' && search.error
         ? h(EmptyState, {
             icon: '⚠',
-            title: 'Search failed',
+            title: t('sources:search.searchFailed'),
             description: search.error.message,
             action: h(Button, {
               variant: 'secondary',
@@ -200,26 +202,26 @@ export function SearchScreen({
                   sourceIds: selection.selectedIds,
                   typesBySource: selection.typesBySource,
                 }),
-              children: 'Try again',
+              children: t('sources:search.tryAgain'),
             }),
           })
         : busy
           ? h(EmptyState, {
-              title: `Searching for “${search.text}”…`,
-              description: 'Waiting for every selected source to answer.',
+              title: t('sources:index.searchingFor', { text: search.text }),
+              description: t('sources:index.waitingForEverySelectedSource'),
             })
           : h(
               native.View as never,
               { style: { flex: 1, minHeight: 0 } },
               h(List<SearchResultRow>, {
                 items: rows,
-                accessibilityLabel: 'Search results',
+                accessibilityLabel: t('sources:search.searchResults'),
                 estimatedItemSize: tokens.size.row,
                 keyExtractor: (row) => row.key,
                 empty: h(EmptyState, {
                   icon: '🔎',
-                  title: 'Nothing found',
-                  description: 'No selected source had a match. Try a different search or source set.',
+                  title: t('sources:index.nothingFound'),
+                  description: t('sources:index.noSelectedSourceHadA'),
                 }),
                 renderItem: (row) =>
                   row.kind === 'header'
@@ -405,6 +407,7 @@ function ResultLine({
  * sources is one the user cannot undo without knowing which eleven.
  */
 export function ImportScreen({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const native = nativePrimitives()
   const state = useSourceImport(ctx)
   const scheme = p()
@@ -412,19 +415,19 @@ export function ImportScreen({ ctx }: { ctx: Context }): ReactElement {
   return h(
     native.View as never,
     { style: { flex: 1, padding: tokens.space[4], gap: tokens.space[4] } },
-    h(Text, { variant: 'lg' }, 'Import a source'),
+    h(Text, { variant: 'lg' }, t('sources:import.importASource')),
     h(
       Text,
       { variant: 'sm', tone: 'muted' },
-      'Paste a source string — one document or a whole set. Nothing is written until you import.',
+      t('sources:import.pasteInstructions'),
     ),
     h(TextField, {
       value: state.text,
       onChange: state.setText,
       multiline: true,
       rows: 10,
-      placeholder: '{ "sourceUrl": "https://…", "sourceName": "…" }',
-      accessibilityLabel: 'Source string',
+      placeholder: t('sources:index.sourceUrlHttpsSourceName'),
+      accessibilityLabel: t('sources:import.sourceStringLabel'),
       testID: 'source-import-input',
       ...(state.issues.length > 0
         ? { error: state.issues.map((i) => (i.path ? `${i.path}: ${i.message}` : i.message)).join('\n') }
@@ -434,7 +437,7 @@ export function ImportScreen({ ctx }: { ctx: Context }): ReactElement {
       ? h(
           native.View as never,
           {
-            accessibilityLabel: 'What will be imported',
+            accessibilityLabel: t('sources:import.whatWillBeImported'),
             style: {
               padding: tokens.space[3],
               borderRadius: tokens.radius.sm,
@@ -445,7 +448,9 @@ export function ImportScreen({ ctx }: { ctx: Context }): ReactElement {
           h(
             Text,
             { variant: 'sm', tone: 'muted' },
-            `${state.preview.count} source${state.preview.count === 1 ? '' : 's'} in this string`,
+            state.preview.count === 1
+              ? t('sources:index.previewOne', { count: state.preview.count })
+              : t('sources:index.previewOther', { count: state.preview.count }),
           ),
           ...state.preview.names.map((name) => h(Text, { key: name, variant: 'sm' }, name)),
         )
@@ -458,48 +463,50 @@ export function ImportScreen({ ctx }: { ctx: Context }): ReactElement {
         disabled: state.busy || !state.preview,
         loading: state.busy,
         testID: 'source-import-submit',
-        children: 'Import',
+        children: t('sources:import.importButton'),
       }),
       h(Button, {
         variant: 'ghost',
         onPress: state.reset,
         disabled: state.busy,
-        children: 'Clear',
+        children: t('app:common.clear'),
       }),
     ),
-    state.report ? h(Text, { variant: 'sm', tone: 'muted' }, summariseImport(state.report)) : null,
+    state.report ? h(Text, { variant: 'sm', tone: 'muted' }, summariseImport(state.report, t)) : null,
   )
 }
 
 /** What an import did, in a sentence. Never empty — see the desktop twin. */
-function summariseImport(report: ImportReport): string {
+function summariseImport(report: ImportReport, t: I18nService['t']): string {
   const parts: string[] = []
-  if (report.added.length) parts.push(`${report.added.length} added`)
-  if (report.updated.length) parts.push(`${report.updated.length} updated`)
-  if (report.unchanged.length) parts.push(`${report.unchanged.length} unchanged`)
-  if (report.rejected.length) parts.push(`${report.rejected.length} rejected`)
-  return parts.length > 0 ? parts.join(', ') : 'nothing to import'
+  if (report.added.length) parts.push(t('sources:import.summaryAdded', { count: report.added.length }))
+  if (report.updated.length) parts.push(t('sources:import.summaryUpdated', { count: report.updated.length }))
+  if (report.unchanged.length) parts.push(t('sources:import.summaryUnchanged', { count: report.unchanged.length }))
+  if (report.rejected.length) parts.push(t('sources:import.summaryRejected', { count: report.rejected.length }))
+  return parts.length > 0 ? parts.join(', ') : t('sources:import.summaryNothing')
 }
 
 /** Every step, including the ones that worked. See the desktop twin. */
 function TraceList({
   events,
   running,
+  t,
 }: {
   events: readonly TraceEvent[]
   running: boolean
+  t: I18nService['t']
 }): ReactElement {
   const native = nativePrimitives()
   const scheme = p()
   if (events.length === 0) {
     return h(EmptyState, {
-      title: running ? 'Running…' : 'No trace yet',
-      description: running ? undefined : 'Run a step to see what each rule receives and produces.',
+      title: running ? t('sources:test.running') : t('sources:test.noTraceYet'),
+      description: running ? undefined : t('sources:test.traceStepHintMobile'),
     })
   }
   return h(
     native.View as never,
-    { accessibilityLabel: 'Trace', style: { gap: tokens.space[1] } },
+    { accessibilityLabel: t('sources:test.trace'), style: { gap: tokens.space[1] } },
     ...events.map((event, i) =>
       h(
         native.View as never,
@@ -514,23 +521,27 @@ function TraceList({
             maxHeight: event.kind === 'value' ? 420 : undefined,
           },
         },
-        event.kind === 'value' ? valueBlock(event) : h(Text, { variant: 'sm' }, traceLine(event)),
+        event.kind === 'value' ? valueBlock(event) : h(Text, { variant: 'sm' }, traceLine(t, event)),
       ),
     ),
   )
 }
 
 /** One event as text. Redacted upstream; this only lays it out. */
-function traceLine(event: TraceEvent): string {
+function traceLine(t: I18nService['t'], event: TraceEvent): string {
   switch (event.kind) {
     case 'http':
-      return `${event.method} ${event.url} → ${event.status === 0 ? 'no response' : event.status} (${event.ms}ms)`
+      return event.status === 0
+        ? t('sources:test.httpNoResponse', { method: event.method, url: event.url, ms: event.ms })
+        : t('sources:test.httpWithStatus', { method: event.method, url: event.url, status: event.status, ms: event.ms })
     case 'error':
-      return `✗ ${event.block ? `${event.block}.${event.field ?? ''} ` : ''}${event.message}`
+      return event.block
+        ? t('sources:test.errorWithBlock', { block: event.block, field: event.field ?? '', message: event.message })
+        : t('sources:test.errorSimple', { message: event.message })
     case 'result':
-      return `✓ ${event.summary}`
+      return t('sources:test.resultLine', { summary: event.summary })
     case 'log':
-      return `· ${event.message}`
+      return t('sources:test.logLine', { message: event.message })
     // Value events render through `valueBlock`, never as a line; this branch
     // exists so the switch stays total if a kind is ever added.
     default:
@@ -574,6 +585,7 @@ function valueBlock(event: Extract<TraceEvent, { kind: 'value' }>): ReactElement
  * rather than controls that would not mean anything for files on disk.
  */
 export function SourcesListScreen({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const native = nativePrimitives()
   const scheme = p()
   const sources = useSources(ctx)
@@ -591,20 +603,20 @@ export function SourcesListScreen({ ctx }: { ctx: Context }): ReactElement {
   return h(
     native.View as never,
     { style: { flex: 1, padding: tokens.space[4], gap: tokens.space[4] } },
-    h(Text, { variant: 'lg' }, 'Music sources'),
+    h(Text, { variant: 'lg' }, t('sources:sourcesList.musicSources')),
     h(Button, {
       onPress: () => serviceOf<UiService>(ctx, 'ui')?.navigate(SOURCES_VIEWS.sourceImport),
       testID: 'sources-list-import',
-      children: 'Import a source',
+      children: t('sources:import.importASource'),
     }),
     sources.length === 0
       ? h(EmptyState, {
-          title: 'No sources yet',
-          description: 'Import a source string to add a music backend.',
+          title: t('sources:sourcesList.noSourcesYet'),
+          description: t('sources:sourcesList.importASourceStringTo'),
         })
       : h(
           native.View as never,
-          { accessibilityLabel: 'Imported sources', style: { gap: tokens.space[2] } },
+          { accessibilityLabel: t('sources:sourcesList.importedSources'), style: { gap: tokens.space[2] } },
           ...sources.map((source) => {
             const local = isLocalSource(source)
             return h(
@@ -622,7 +634,7 @@ export function SourcesListScreen({ ctx }: { ctx: Context }): ReactElement {
               h(Text, { variant: 'md' }, source.name),
               h(Text, { variant: 'sm', tone: 'muted' }, source.sourceUrl),
               !source.enabled
-                ? h(Text, { variant: 'sm', tone: 'muted' }, 'disabled')
+                ? h(Text, { variant: 'sm', tone: 'muted' }, t('sources:sourcesList.disabled'))
                 : source.lastError
                   ? h(Text, { variant: 'sm', tone: 'muted' }, source.lastError)
                   : null,
@@ -633,14 +645,14 @@ export function SourcesListScreen({ ctx }: { ctx: Context }): ReactElement {
                   variant: 'secondary',
                   onPress: () => serviceOf<UiService>(ctx, 'ui')?.navigate(SOURCES_VIEWS.sourceTest, { sourceId: source.id }),
                   testID: `sources-list-test-${source.id}`,
-                  children: 'Test',
+                  children: t('sources:sourcesList.test'),
                 }),
                 !local
                   ? h(Button, {
                       variant: 'secondary',
                       onPress: () => setConfiguringSourceId(source.id),
                       testID: `sources-list-configure-${source.id}`,
-                      children: 'Configure',
+                      children: t('sources:sourcesList.configure'),
                     })
                   : null,
                 // The local row has no enable switch of its own: its folders
@@ -649,39 +661,39 @@ export function SourcesListScreen({ ctx }: { ctx: Context }): ReactElement {
                   ? h(Button, {
                       variant: source.enabled ? 'ghost' : 'secondary',
                       onPress: () => void ctx.sources.setEnabled(source.id, !source.enabled),
-                      accessibilityLabel: source.enabled ? `Stop using ${source.name}` : `Use ${source.name}`,
+                      accessibilityLabel: source.enabled ? t('sources:sourcesList.stopUsing', { name: source.name }) : t('sources:sourcesList.useSource', { name: source.name }),
                       testID: `sources-list-toggle-${source.id}`,
-                      children: source.enabled ? 'Disable' : 'Enable',
+                      children: source.enabled ? t('sources:sourcesList.disable') : t('sources:sourcesList.enable'),
                     })
                   : null,
                 !local && confirming === source.id
-                  ? h(Text, { variant: 'sm', tone: 'warn' }, 'Delete source and its cached tracks?')
+                  ? h(Text, { variant: 'sm', tone: 'warn' }, t('sources:sourcesList.deleteSourceConfirm'))
                   : null,
                 !local && confirming === source.id
                   ? h(Button, {
                       onPress: () => removeSource(source.id),
-                      accessibilityLabel: `Delete ${source.name} and its cached tracks`,
+                      accessibilityLabel: t('sources:sourcesList.deleteAndItsCachedTracks', { name: source.name }),
                       testID: `sources-list-delete-confirm-${source.id}`,
-                      children: 'Delete',
+                      children: t('app:common.delete'),
                     })
                   : null,
                 !local && confirming === source.id
                   ? h(Button, {
                       variant: 'ghost',
                       onPress: () => setConfirming(undefined),
-                      children: 'Cancel',
+                      children: t('app:common.cancel'),
                     })
                   : null,
                 !local && confirming !== source.id
                   ? h(IconButton, {
                       icon: '🗑',
-                      accessibilityLabel: `Delete ${source.name}`,
+                      accessibilityLabel: t('sources:sourcesList.deleteSource', { name: source.name }),
                       onPress: () => setConfirming(source.id),
                       testID: `sources-list-delete-${source.id}`,
                     })
                   : null,
               ),
-              local ? h(LocalFolders, { folders, scanner }) : null,
+              local ? h(LocalFolders, { folders, scanner, t }) : null,
             )
           }),
         ),
@@ -702,9 +714,11 @@ export function SourcesListScreen({ ctx }: { ctx: Context }): ReactElement {
 function LocalFolders({
   folders,
   scanner,
+  t,
 }: {
   folders: readonly ScanSpecifiedDir[]
   scanner: ScannerService | undefined
+  t: I18nService['t']
 }): ReactElement | null {
   const native = nativePrimitives()
   const scheme = p()
@@ -713,13 +727,13 @@ function LocalFolders({
     return h(Text, {
       variant: 'sm',
       tone: 'muted',
-      children: 'No folders yet — add one under Settings → Music folders.',
+      children: t('sources:sourcesList.noFoldersYet'),
     })
   }
   return h(
     native.View as never,
     {
-      accessibilityLabel: 'Local music folders',
+      accessibilityLabel: t('sources:sourcesList.localMusicFolders'),
       style: {
         gap: tokens.space[1],
         borderTopWidth: 1,
@@ -750,14 +764,14 @@ function LocalFolders({
         h(Button, {
           variant: 'ghost',
           onPress: () => void scanner.setEnabled(dir.id, !dir.enabled),
-          accessibilityLabel: dir.enabled ? `Disable ${dir.uri}` : `Enable ${dir.uri}`,
+          accessibilityLabel: dir.enabled ? `${t('sources:sourcesList.disable')} ${dir.uri}` : `${t('sources:sourcesList.enable')} ${dir.uri}`,
           testID: `source-folder-toggle-${dir.id}`,
-          children: dir.enabled ? 'Disable' : 'Enable',
+          children: dir.enabled ? t('sources:sourcesList.disable') : t('sources:sourcesList.enable'),
         }),
         // Keeps the tracks, like Music folders.
         h(IconButton, {
           icon: '🗑',
-          accessibilityLabel: `Remove ${dir.uri}`,
+          accessibilityLabel: t('sources:sourcesList.removeFolder', { uri: dir.uri }),
           onPress: () => void scanner.removeSpecifiedDir(dir.id),
           testID: `source-folder-remove-${dir.id}`,
         }),
@@ -782,6 +796,7 @@ function pageOf(text: string): number | undefined {
  * React Native has no native select to borrow.
  */
 export function TestScreen({ ctx, sourceId }: { ctx: Context; sourceId?: string }): ReactElement {
+  const { t } = useI18n(ctx)
   const native = nativePrimitives()
   const scheme = p()
   const sources = useSources(ctx)
@@ -825,14 +840,14 @@ export function TestScreen({ ctx, sourceId }: { ctx: Context; sourceId?: string 
       try {
         const parsed: unknown = JSON.parse(headersJson)
         if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-          setRequestError('headers must be a JSON object')
+          setRequestError(t('sources:test.headersMustBeObject'))
           return
         }
         headers = Object.fromEntries(
           Object.entries(parsed as Record<string, unknown>).map(([k, v]) => [k, String(v)]),
         )
       } catch (error) {
-        setRequestError(`headers are not valid JSON: ${error instanceof Error ? error.message : String(error)}`)
+        setRequestError(t('sources:test.headersNotValidJson', { message: error instanceof Error ? error.message : String(error) }))
         return
       }
     }
@@ -854,10 +869,10 @@ export function TestScreen({ ctx, sourceId }: { ctx: Context; sourceId?: string 
     return h(
       native.View as never,
       { style: { flex: 1, padding: tokens.space[4], gap: tokens.space[4] } },
-      h(Text, { variant: 'lg' }, 'Test a source'),
+      h(Text, { variant: 'lg' }, t('sources:test.testASource')),
       h(EmptyState, {
-        title: 'No sources yet',
-        description: 'Import a source string first, then test it here.',
+        title: t('sources:sourcesList.noSourcesYet'),
+        description: t('sources:test.importASourceStringFirst'),
       }),
     )
   }
@@ -901,24 +916,24 @@ export function TestScreen({ ctx, sourceId }: { ctx: Context; sourceId?: string 
         disabled: trace.running || disabled,
         loading: trace.running,
         testID,
-        children: 'Run',
+        children: t('sources:test.run'),
       }),
     )
 
   return h(
     native.View as never,
     { style: { flex: 1, padding: tokens.space[4], gap: tokens.space[4] } },
-    h(Text, { variant: 'lg' }, 'Test a source'),
+    h(Text, { variant: 'lg' }, t('sources:test.testASource')),
 
     h(Button, {
       onPress: () => setPickerOpen(!pickerOpen),
       testID: 'test-source-select',
-      children: `${selected?.name ?? 'Pick a source'} ▾`,
+      children: `${selected?.name ?? t('sources:test.pickASource')} ▾`,
     }),
     pickerOpen
       ? h(
           native.View as never,
-          { accessibilityLabel: 'Source to test', style: { gap: tokens.space[1] } },
+          { accessibilityLabel: t('sources:test.sourceToTest'), style: { gap: tokens.space[1] } },
           ...sources.map((s) =>
             h(Button, {
               key: s.id,
@@ -939,55 +954,55 @@ export function TestScreen({ ctx, sourceId }: { ctx: Context; sourceId?: string 
       ? h(
           Text,
           { variant: 'sm', tone: 'muted' },
-          'This source is not active right now — enable it in the source list to exercise its features.',
+          t('sources:test.sourceNotActive'),
         )
       : null,
     provider && provider.capabilities.search.tracks
-      ? area('Search', 'test-run-search', [
-          field('Keyword', searchText, setSearchText, 'test-search-text'),
-          field('Page', searchPage, setSearchPage, 'test-search-page', '1'),
+      ? area(t('sources:search.search'), 'test-run-search', [
+          field(t('sources:test.fieldKeyword'), searchText, setSearchText, 'test-search-text'),
+          field(t('sources:test.fieldPage'), searchPage, setSearchPage, 'test-search-page', '1'),
         ], () => trace.run({ kind: 'search', text: searchText, ...(pageOf(searchPage) ? { page: pageOf(searchPage) } : {}) }), !searchText.trim())
       : null,
     provider && provider.capabilities.browse
-      ? area('Browse', 'test-run-browse', [
-          field('Node id (empty for the root)', browseNode, setBrowseNode, 'test-browse-node'),
-          field('Page', browsePage, setBrowsePage, 'test-browse-page', '1'),
+      ? area(t('sources:test.areaBrowse'), 'test-run-browse', [
+          field(t('sources:test.fieldBrowseNode'), browseNode, setBrowseNode, 'test-browse-node'),
+          field(t('sources:test.fieldPage'), browsePage, setBrowsePage, 'test-browse-page', '1'),
         ], () => trace.run({ kind: 'browse', ...(browseNode.trim() ? { nodeId: browseNode.trim() } : {}), ...(pageOf(browsePage) ? { page: pageOf(browsePage) } : {}) }), false)
       : null,
     provider && typeof provider.getAlbum === 'function'
-      ? area('Album', 'test-run-album', [
-          field('Album id', albumId, setAlbumId, 'test-album-id'),
+      ? area(t('sources:test.areaAlbum'), 'test-run-album', [
+          field(t('sources:test.fieldAlbumId'), albumId, setAlbumId, 'test-album-id'),
         ], () => trace.run({ kind: 'album', id: albumId.trim() }), !albumId.trim())
       : null,
     provider && typeof provider.getArtist === 'function'
-      ? area('Artist', 'test-run-artist', [
-          field('Artist id', artistId, setArtistId, 'test-artist-id'),
+      ? area(t('sources:search.artist'), 'test-run-artist', [
+          field(t('sources:test.fieldArtistId'), artistId, setArtistId, 'test-artist-id'),
         ], () => trace.run({ kind: 'artist', id: artistId.trim() }), !artistId.trim())
       : null,
     provider && typeof provider.getPlaylist === 'function'
-      ? area('Playlist', 'test-run-playlist', [
-          field('Playlist id', playlistId, setPlaylistId, 'test-playlist-id'),
-          field('Page', playlistPage, setPlaylistPage, 'test-playlist-page', '1'),
+      ? area(t('sources:test.areaPlaylist'), 'test-run-playlist', [
+          field(t('sources:test.fieldPlaylistId'), playlistId, setPlaylistId, 'test-playlist-id'),
+          field(t('sources:test.fieldPage'), playlistPage, setPlaylistPage, 'test-playlist-page', '1'),
         ], () => trace.run({ kind: 'playlist', id: playlistId.trim(), ...(pageOf(playlistPage) ? { page: pageOf(playlistPage) } : {}) }), !playlistId.trim())
       : null,
     provider && typeof provider.getLyrics === 'function'
-      ? area('Lyrics', 'test-run-lyrics', [
-          field('Track id', lyricsId, setLyricsId, 'test-lyrics-id'),
+      ? area(t('sources:test.areaLyrics'), 'test-run-lyrics', [
+          field(t('sources:test.fieldTrackId'), lyricsId, setLyricsId, 'test-lyrics-id'),
         ], () => trace.run({ kind: 'lyrics', id: lyricsId.trim() }), !lyricsId.trim())
       : null,
     provider && provider.capabilities.library.read
-      ? area('Library list', 'test-run-library', [
-          field("Kind ('track', 'album', 'artist' or 'playlist')", libraryKind, setLibraryKind, 'test-library-kind'),
-          field('Page', libraryPage, setLibraryPage, 'test-library-page', '1'),
+      ? area(t('sources:test.areaLibraryList'), 'test-run-library', [
+          field(t('sources:test.fieldLibraryKind'), libraryKind, setLibraryKind, 'test-library-kind'),
+          field(t('sources:test.fieldPage'), libraryPage, setLibraryPage, 'test-library-page', '1'),
         ], () => trace.run({ kind: 'library', list: (libraryKind.trim() || 'playlist') as 'playlist', ...(pageOf(libraryPage) ? { page: pageOf(libraryPage) } : {}) }), false)
       : null,
     provider
-      ? area('Stream', 'test-run-stream', [
-          field('Track id', streamId, setStreamId, 'test-stream-id'),
+      ? area(t('sources:test.areaStream'), 'test-run-stream', [
+          field(t('sources:test.fieldTrackId'), streamId, setStreamId, 'test-stream-id'),
         ], () => trace.run({ kind: 'stream', id: streamId.trim() }), !streamId.trim())
       : null,
 
-    area('HTTP request — through this source\'s own client', 'test-run-http', [
+    area(t('sources:test.areaHttp'), 'test-run-http', [
       h(
         native.View as never,
         { key: 'method', style: { flexDirection: 'row', gap: tokens.space[2] } },
@@ -1004,18 +1019,18 @@ export function TestScreen({ ctx, sourceId }: { ctx: Context; sourceId?: string 
           children: 'POST',
         }),
       ),
-      field('URL', url, setUrl, 'test-url', 'https://…'),
-      field('Headers (JSON, optional)', headersJson, setHeadersJson, 'test-headers', '{ "User-Agent": "…" }'),
-      ...(method === 'POST' ? [field('Body', body, setBody, 'test-body')] : []),
+      field(t('sources:test.fieldUrl'), url, setUrl, 'test-url', 'https://…'),
+      field(t('sources:test.fieldHeaders'), headersJson, setHeadersJson, 'test-headers', '{ "User-Agent": "…" }'),
+      ...(method === 'POST' ? [field(t('sources:test.fieldBody'), body, setBody, 'test-body')] : []),
     ], runHttp, !url.trim()),
 
-    area('Script — the document\'s functions are in scope', 'test-run-js', [
-      field('Code', code, setCode, 'test-code', "return getBiliArtist('9469745')"),
-      field('Arguments (JSON — its keys become variables)', argsJson, setArgsJson, 'test-args', '{ "key": "test" }'),
+    area(t('sources:test.areaScript'), 'test-run-js', [
+      field(t('sources:test.fieldCode'), code, setCode, 'test-code', "return getBiliArtist('9469745')"),
+      field(t('sources:test.fieldArgs'), argsJson, setArgsJson, 'test-args', '{ "key": "test" }'),
     ], runJs, !code.trim()),
 
     requestError ? h(Text, { variant: 'sm', tone: 'muted' }, requestError) : null,
-    h(TraceList, { events: trace.events, running: trace.running }),
+    h(TraceList, { events: trace.events, running: trace.running, t }),
   )
 }
 

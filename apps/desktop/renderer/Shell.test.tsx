@@ -18,6 +18,49 @@ import { Context, Service } from 'cordis'
 import type { SleepTimerState } from '@BBeBee/protocol'
 import { resetSearchSourceSelection } from '@BBeBee/plugin-sources/hooks'
 import { Shell } from './Shell.js'
+import enCatalogue from '../../../packages/feature/plugin-i18n/src/locales/en.json'
+import zhCatalogue from '../../../packages/feature/plugin-i18n/src/locales/zh.json'
+import registryCatalogue from '../../../packages/feature/plugin-i18n/src/locales/registry.json'
+
+const CATALOGUES: Record<string, { en: unknown; zh: unknown }> = {
+  app: { en: enCatalogue, zh: zhCatalogue },
+  registry: { en: registryCatalogue.en, zh: registryCatalogue.zh },
+}
+
+/**
+ * Default i18n service for tests: serves the real catalogue so components
+ * under test render the same copy the app shows. Supports locale switching
+ * for the live-update test.
+ */
+class DefaultI18nStub extends Service {
+  static override readonly name = 'i18n'
+  locale = 'en'
+  private listeners = new Set<(locale: string) => void>()
+  constructor(ctx: Context) {
+    super(ctx, 'i18n')
+  }
+  setLocale = (next: string): void => {
+    this.locale = next
+    for (const listener of [...this.listeners]) listener(next)
+  }
+  t = (key: string, params?: Record<string, string | number>): string => {
+    const sep = key.indexOf(':')
+    if (sep < 0) return key
+    const ns = key.slice(0, sep)
+    const catalogue = CATALOGUES[ns]?.[this.locale === 'zh' ? 'zh' : 'en']
+    if (!catalogue) return key
+    let cur: unknown = catalogue
+    for (const part of key.slice(sep + 1).split('.')) {
+      cur = (cur as Record<string, unknown> | undefined)?.[part]
+    }
+    if (typeof cur !== 'string') return key
+    return params ? cur.replace(/\{(\w+)\}/g, (_, k: string) => String(params[k] ?? `{${k}}`)) : cur
+  }
+  onLocaleChange = (cb: (locale: string) => void): (() => void) => {
+    this.listeners.add(cb)
+    return () => void this.listeners.delete(cb)
+  }
+}
 
 /** Just the slice of `ctx.ui` the shell reads. */
 class UiStub extends Service {
@@ -116,14 +159,15 @@ async function mount(
 ) {
   const ctx = new Context()
   await ctx.plugin(UiStub)
+  await ctx.plugin(DefaultI18nStub)
   if (setupCtx) await setupCtx(ctx)
   await new Promise((resolve) => setTimeout(resolve, 10))
   register(ctx.ui as unknown as UiStub)
 
   // The context the shell is really given: `app.ready(['ui'])`, which has
-  // `ui` injected and nothing else.
+  // `ui` injected and nothing else — plus `i18n` for the interface language.
   const shellCtx = await new Promise<Context>((resolve) => {
-    void ctx.inject(['ui'], (scoped) => void resolve(scoped))
+    void ctx.inject(['ui', 'i18n'], (scoped) => void resolve(scoped))
   })
   await new Promise((resolve) => setTimeout(resolve, 10))
 
@@ -1226,49 +1270,19 @@ describe('the desktop shell', () => {
   })
 
   it('resolves RouteContribution.title i18n keys in sidebar and TopBar tray and updates live on locale change', async () => {
-    let emitLocale: ((locale: string) => void) | undefined
-    class I18nStub extends Service {
-      static override readonly name = 'i18n'
-      locale = 'en'
-      private listeners = new Set<(locale: string) => void>()
-      constructor(ctx: Context) {
-        super(ctx, 'i18n')
-        emitLocale = (next: string) => {
-          this.locale = next
-          for (const listener of [...this.listeners]) listener(next)
-        }
-      }
-      t = (key: string) => {
-        if (key === 'registry:route.discover') {
-          return this.locale === 'zh' ? '发现' : 'Discover'
-        }
-        return key
-      }
-      register = () => () => {}
-      onLocaleChange = (cb: (locale: string) => void) => {
-        this.listeners.add(cb)
-        return () => void this.listeners.delete(cb)
-      }
-    }
-
-    const { container } = await mount(
-      (ui) => {
-        ui.routes = [
-          {
-            kind: 'route',
-            id: 'registry.screen',
-            path: '/registry',
-            title: 'registry:route.discover',
-            icon: 'compass',
-            placement: ['sidebar', 'tray'],
-          },
-        ]
-        ui.views.set('registry.screen', () => h('div', null, 'Registry Screen'))
-      },
-      async (ctx) => {
-        await ctx.plugin(I18nStub)
-      },
-    )
+    const { container, ctx } = await mount((ui) => {
+      ui.routes = [
+        {
+          kind: 'route',
+          id: 'registry.screen',
+          path: '/registry',
+          title: 'registry:route.discover',
+          icon: 'compass',
+          placement: ['sidebar', 'tray'],
+        },
+      ]
+      ui.views.set('registry.screen', () => h('div', null, 'Registry Screen'))
+    })
 
     // Sidebar entry resolved to English
     expect(container.textContent).toContain('Discover')
@@ -1287,7 +1301,7 @@ describe('the desktop shell', () => {
 
     // Switch locale to zh -> sidebar and tray item update live without reload
     await act(async () => {
-      emitLocale?.('zh')
+      ;(ctx.i18n as unknown as DefaultI18nStub).setLocale('zh')
     })
     expect(container.textContent).toContain('发现')
     expect(trayItem.getAttribute('title')).toBe('发现')

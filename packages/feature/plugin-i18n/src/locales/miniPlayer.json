@@ -1,0 +1,66 @@
+{
+  "en": {
+    "islandArtwork": {
+      "albumArt": "Album Art"
+    },
+    "miniPlayerButton": {
+      "closeMiniPlayer": "Close mini player",
+      "openMiniPlayerDynamicIsland": "Open mini player / Dynamic Island"
+    },
+    "miniPlayerControls": {
+      "nextTrack": "Next track",
+      "pause": "Pause",
+      "play": "Play",
+      "previousTrack": "Previous track"
+    },
+    "miniPlayerFloating": {
+      "clickToRestoreTheMain": "Click to restore the main window",
+      "closeMiniPlayer": "Close mini player",
+      "nothingPlaying": "Nothing playing",
+      "restoreMainPlayer": "Restore main player"
+    },
+    "miniPlayerIsland": {
+      "clickToCollapseTheIsland": "Click to collapse the island",
+      "clickToExpandTheIsland": "Click to expand the island",
+      "clickToRestoreTheMainWindow": "Click to restore the main window",
+      "closeMiniPlayer": "Close mini player",
+      "doubleClickToCollapseThe": "Double-click to collapse the island",
+      "nothingPlaying": "Nothing playing",
+      "pause": "Pause",
+      "play": "Play",
+      "restoreMainWindow": "Restore main window"
+    }
+  },
+  "zh": {
+    "islandArtwork": {
+      "albumArt": "专辑封面"
+    },
+    "miniPlayerButton": {
+      "closeMiniPlayer": "关闭迷你播放器",
+      "openMiniPlayerDynamicIsland": "打开迷你播放器 / 灵动岛"
+    },
+    "miniPlayerControls": {
+      "nextTrack": "下一首",
+      "pause": "暂停",
+      "play": "播放",
+      "previousTrack": "上一首"
+    },
+    "miniPlayerFloating": {
+      "clickToRestoreTheMain": "点击恢复主窗口",
+      "closeMiniPlayer": "关闭迷你播放器",
+      "nothingPlaying": "无正在播放",
+      "restoreMainPlayer": "恢复主播放器"
+    },
+    "miniPlayerIsland": {
+      "clickToCollapseTheIsland": "点击收起灵动岛",
+      "clickToExpandTheIsland": "点击展开灵动岛",
+      "clickToRestoreTheMainWindow": "点击恢复主窗口",
+      "closeMiniPlayer": "关闭迷你播放器",
+      "doubleClickToCollapseThe": "双击收起灵动岛",
+      "nothingPlaying": "无正在播放",
+      "pause": "暂停",
+      "play": "播放",
+      "restoreMainWindow": "恢复主窗口"
+    }
+  }
+}

@@ -2,7 +2,7 @@ import { createElement as h, useState } from 'react'
 import type { KeyboardEvent, MouseEvent, ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { Album } from '@BBeBee/protocol'
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { CachedArtwork } from './CachedArtwork.js'
 
 export function LocalAlbumCard({
@@ -16,8 +16,9 @@ export function LocalAlbumCard({
   onOpen: () => void
   onPlay?: () => void
 }): ReactElement {
+  const { t } = useI18n(ctx)
   const [hovered, setHovered] = useState(false)
-  const artists = album.artists?.map((a) => a.name).join(', ') || 'Unknown artist'
+  const artists = album.artists?.map((a) => a.name).join(', ') || t('library:library.unknownArtist')
 
   return h(
     'div',
@@ -69,8 +70,8 @@ export function LocalAlbumCard({
             'button',
             {
               type: 'button',
-              'aria-label': `Play ${album.title}`,
-              title: `Play ${album.title}`,
+              'aria-label': t('library:library.playItem', { title: album.title }),
+              title: t('library:library.playItem', { title: album.title }),
               onClick: (e: MouseEvent) => {
                 e.stopPropagation()
                 onPlay()
@@ -142,7 +143,13 @@ export function LocalAlbumCard({
             marginTop: 2,
           },
         },
-        `${album.year ? `${album.year} • ` : ''}${album.trackCount ? `${album.trackCount} songs` : 'Album'}`,
+        album.year
+          ? album.trackCount
+            ? t('library:localAlbum.yearAndTracks', { year: album.year, trackCount: album.trackCount })
+            : t('library:localAlbum.yearAndAlbum', { year: album.year })
+          : album.trackCount
+            ? t('library:localAlbum.tracks', { trackCount: album.trackCount })
+            : t('library:localAlbum.albumFallback'),
       ),
     ),
   )

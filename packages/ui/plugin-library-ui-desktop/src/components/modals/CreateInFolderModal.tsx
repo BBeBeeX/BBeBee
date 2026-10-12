@@ -1,16 +1,20 @@
 import { createElement as h, useEffect, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent, ReactElement } from 'react'
-import { Button, TextField } from '@BBeBee/ui-kit-desktop'
+import type { Context } from 'cordis'
+import { Button, TextField, useI18n } from '@BBeBee/ui-kit-desktop'
 
 export function CreateInFolderModal({
+  ctx,
   target,
   onClose,
   onCreate,
 }: {
+  ctx: Context
   target: { type: 'playlist' | 'folder'; folderId: string } | null
   onClose: () => void
   onCreate: (name: string) => Promise<void>
 }): ReactElement | null {
+  const { t } = useI18n(ctx)
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -36,7 +40,7 @@ export function CreateInFolderModal({
   return h(
     'div',
     {
-      'aria-label': isPlaylist ? 'Create playlist in folder' : 'Create folder',
+      'aria-label': isPlaylist ? t('library:createInFolder.createPlaylistInFolder') : t('library:createInFolder.createFolder'),
       style: {
         position: 'fixed',
         inset: 0,
@@ -64,11 +68,11 @@ export function CreateInFolderModal({
           gap: 16,
         },
       },
-      h('h3', { style: { margin: 0, fontSize: 16, color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600 } }, isPlaylist ? 'Create playlist in folder' : 'Create folder'),
+      h('h3', { style: { margin: 0, fontSize: 16, color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600 } }, isPlaylist ? t('library:createInFolder.createPlaylistInFolder') : t('library:createInFolder.createFolder')),
       h(TextField, {
         value: name,
         onChange: setName,
-        placeholder: isPlaylist ? 'New playlist name' : 'New folder name',
+        placeholder: isPlaylist ? t('library:libraryModals.newPlaylistName') : t('library:libraryModals.newFolderName'),
         testID: isPlaylist ? 'folder-create-playlist-name' : 'folder-create-subfolder-name',
       }),
       h(
@@ -77,14 +81,14 @@ export function CreateInFolderModal({
         h(Button, {
           variant: 'ghost',
           onPress: onClose,
-          children: 'Cancel',
+          children: t('app:common.cancel'),
         }),
         h(Button, {
           variant: 'primary',
           disabled: !name.trim() || saving,
           onPress: handleCreate,
           testID: 'folder-create-submit',
-          children: saving ? 'Creating…' : 'Create',
+          children: saving ? t('library:createInFolder.creating') : t('app:common.create'),
         }),
       ),
     ),

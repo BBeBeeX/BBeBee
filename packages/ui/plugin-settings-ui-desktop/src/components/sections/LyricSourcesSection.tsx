@@ -1,13 +1,15 @@
-import { Button, Sheet, Switch, TextField, tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { Button, Sheet, Switch, TextField, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import {
   createElement as h,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactElement,
 } from 'react'
 import type { Context } from 'cordis'
 import type {
+  I18nService,
   LyricSourceDefinition,
   LyricSourcesService,
   LyricSourceTestResult,
@@ -21,16 +23,21 @@ import { SettingsRow } from '../SettingsRow.js'
 import { SettingsSection } from '../SettingsSection.js'
 
 export interface LyricSourcesSectionProps {
-  ctx?: Context
+  ctx: Context
 }
 
-const SAMPLE_SOURCE_JSON = JSON.stringify(
-  {
-    id: 'sample-netease-lrc',
-    name: 'Third-party lyric source sample (NetEase Cloud Music public API)',
-    version: '1.0.0',
-    author: 'Community',
-    description: 'Searches and matches synced lyrics in LRC format through a public API',
+/**
+ * Sample templates shown in the import sheet. The human-readable
+ * descriptions are localised; the scripts and identifiers are data.
+ */
+const buildSampleSourceJson = (t: I18nService['t']): string =>
+  JSON.stringify(
+    {
+      id: 'sample-netease-lrc',
+      name: 'Third-party lyric source sample (NetEase Cloud Music public API)',
+      version: '1.0.0',
+      author: 'Community',
+      description: t('settings:lyricSources.searchesAndMatchesSyncedLyrics'),
     allowedHosts: ['music.163.com'],
     script: `// query: { title: string, artist: string, duration: number }
 async function searchLyrics(query) {
@@ -53,18 +60,19 @@ async function searchLyrics(query) {
     return null;
   }
 }`,
-  },
-  null,
-  2,
-)
+    },
+    null,
+    2,
+  )
 
-const SAMPLE_LRCLIB_JSON = JSON.stringify(
-  {
-    id: 'lrclib-net',
-    name: 'LRCLIB (lrclib.net)',
-    version: '1.3.0',
-    author: 'LRCLIB Community / BBeBee',
-    description: 'A global high-quality lyric source based on the lrclib.net open API; precisely matches millions of line-synced LRC lyrics and plain-text lyrics by title, artist and duration.',
+const buildSampleLrclibJson = (t: I18nService['t']): string =>
+  JSON.stringify(
+    {
+      id: 'lrclib-net',
+      name: 'LRCLIB (lrclib.net)',
+      version: '1.3.0',
+      author: 'LRCLIB Community / BBeBee',
+      description: t('settings:lyricSources.aGlobalHighQualityLyric'),
     allowedHosts: ['lrclib.net'],
     script: `// query: { title: string, artist: string, duration: number }
 async function searchLyrics(query) {
@@ -190,12 +198,15 @@ async function searchLyrics(query) {
 
   return null;
 }`,
-  },
-  null,
-  2,
-)
+    },
+    null,
+    2,
+  )
 
 export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactElement {
+  const { t } = useI18n(ctx)
+  const sampleSourceJson = useMemo(() => buildSampleSourceJson(t), [t])
+  const sampleLrclibJson = useMemo(() => buildSampleLrclibJson(t), [t])
   const [lyricSources, setLyricSources] = useState<LyricSourceDefinition[]>([])
   const [audioSources, setAudioSources] = useState<readonly SourceRecord[]>([])
   const [showImportModal, setShowImportModal] = useState(false)
@@ -214,7 +225,6 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (!ctx) return
     const updateLyrics = (list?: readonly LyricSourceDefinition[]) => {
       if (list) {
         setLyricSources([...list])
@@ -241,21 +251,21 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
   }, [ctx])
 
   const handleToggleLyricSource = async (id: string, enabled: boolean) => {
-    const svc = ctx ? serviceOf<LyricSourcesService>(ctx, 'lyricSources') : undefined
+    const svc = serviceOf<LyricSourcesService>(ctx, 'lyricSources')
     if (!svc) return
     await svc.setEnabled(id, enabled)
     setLyricSources([...svc.getSources()])
   }
 
   const handleRemoveLyricSource = async (id: string) => {
-    const svc = ctx ? serviceOf<LyricSourcesService>(ctx, 'lyricSources') : undefined
+    const svc = serviceOf<LyricSourcesService>(ctx, 'lyricSources')
     if (!svc) return
     await svc.removeSource(id)
     setLyricSources([...svc.getSources()])
   }
 
   const handleMoveOrder = async (index: number, direction: 'up' | 'down') => {
-    const svc = ctx ? serviceOf<LyricSourcesService>(ctx, 'lyricSources') : undefined
+    const svc = serviceOf<LyricSourcesService>(ctx, 'lyricSources')
     if (!svc) return
     const targetIndex = direction === 'up' ? index - 1 : index + 1
     if (targetIndex < 0 || targetIndex >= lyricSources.length) return
@@ -270,12 +280,12 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
   }
 
   const handleTest = async (id: string) => {
-    const svc = ctx ? serviceOf<LyricSourcesService>(ctx, 'lyricSources') : undefined
+    const svc = serviceOf<LyricSourcesService>(ctx, 'lyricSources')
     if (!svc) return
     setTestingId(id)
     setTestResult(null)
     try {
-      const player = ctx ? serviceOf<PlayerService>(ctx, 'player') : undefined
+      const player = serviceOf<PlayerService>(ctx, 'player')
       const nowPlaying = player?.state?.nowPlaying
       const testQuery = nowPlaying?.title
         ? {
@@ -284,7 +294,7 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
             duration: player?.state?.durationMs ?? 0,
           }
         : {
-            title: 'Demo Song',
+            title: t('settings:lyricSources.demoSong'),
             artist: 'Demo Artist',
             duration: 269000,
           }
@@ -296,26 +306,26 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
   }
 
   const handleToggleNeedsLyricSource = async (sourceId: string, needed: boolean) => {
-    const svc = ctx ? serviceOf<SourcesService>(ctx, 'sources') : undefined
+    const svc = serviceOf<SourcesService>(ctx, 'sources')
     if (!svc) return
     await svc.setNeedsLyricSource(sourceId, needed)
     setAudioSources(svc.sources ?? [])
   }
 
   const handleImportSubmit = async () => {
-    const svc = ctx ? serviceOf<LyricSourcesService>(ctx, 'lyricSources') : undefined
+    const svc = serviceOf<LyricSourcesService>(ctx, 'lyricSources')
     if (!svc) return
     setImportError(null)
 
     if (!importText.trim()) {
-      setImportError('Please enter or select a lyric source configuration JSON')
+      setImportError(t('settings:lyricSources.importEmptyError'))
       return
     }
 
     try {
       const parsed = JSON.parse(importText) as Partial<LyricSourceDefinition>
       if (!parsed.id || !parsed.name || !parsed.script) {
-        setImportError('The lyric source configuration must contain valid id, name and script properties')
+        setImportError(t('settings:lyricSources.importInvalidError'))
         return
       }
 
@@ -362,9 +372,8 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
     h(
       SettingsSection,
       {
-        title: 'Lyric source management (Lyric Sources)',
-        description:
-          'Manage external third-party lyric source rules. Sources run in an isolated sandbox and can only access the title, artist and duration.',
+        title: t('settings:lyricSources.lyricSourceManagementLyricSources'),
+        description: t('settings:lyricSources.manageDesc'),
       },
       h(
         'div',
@@ -383,15 +392,15 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
         h(
           'div',
           null,
-          h('div', { style: { fontSize: 13, fontWeight: 600 } }, 'Lyric source library'),
+          h('div', { style: { fontSize: 13, fontWeight: 600 } }, t('settings:lyricSources.lyricSourceLibrary')),
           h(
             'div',
             { style: { fontSize: 12, color: 'var(--text-secondary, #8E8E93)', marginTop: 2 } },
-            `${lyricSources.length} lyric sources loaded. Lyrics are matched top-down by priority.`,
+            t('settings:lyricSources.lyricSourcesLoadedLyricsAre', { length: lyricSources.length }),
           ),
         ),
         h(Button, {
-          children: 'Import lyric source',
+          children: t('settings:lyricSources.importLyricSource'),
           onPress: () => {
             setImportError(null)
             setShowImportModal(true)
@@ -467,7 +476,7 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
                       color: isBuiltin ? 'var(--color-primary, #5F87FF)' : '#34C759',
                     },
                   },
-                  isBuiltin ? 'Built-in' : 'Sandboxed 🛡️',
+                  isBuiltin ? t('settings:lyricSources.builtIn') : t('settings:lyricSources.sandboxed'),
                 ),
                 source.version &&
                   h(
@@ -487,7 +496,7 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
                   disabled: idx === 0,
                   onPress: () => void handleMoveOrder(idx, 'up'),
                   children: '↑',
-                  accessibilityLabel: 'Move up',
+                  accessibilityLabel: t('settings:lyricSources.moveUp'),
                 }),
                 // Move Down
                 h(Button, {
@@ -495,14 +504,14 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
                   disabled: idx === lyricSources.length - 1,
                   onPress: () => void handleMoveOrder(idx, 'down'),
                   children: '↓',
-                  accessibilityLabel: 'Move down',
+                  accessibilityLabel: t('settings:lyricSources.moveDown'),
                 }),
                 // Test Button
                 h(Button, {
                   variant: 'secondary',
                   disabled: isTesting,
                   onPress: () => void handleTest(source.id),
-                  children: isTesting ? 'Testing...' : 'Test',
+                  children: isTesting ? t('settings:lyricSources.testing') : t('settings:lyricSources.test'),
                 }),
                 // Configure Button
                 h(Button, {
@@ -512,21 +521,21 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
                     setConfigText(JSON.stringify(source.config ?? {}, null, 2))
                     setConfigError(null)
                   },
-                  accessibilityLabel: `Configure lyric source ${source.name}`,
+                  accessibilityLabel: t('settings:lyricSources.configureLyricSource', { name: source.name }),
                   testID: `lyric-source-configure-${source.id}`,
-                  children: 'Configure',
+                  children: t('settings:lyricSources.configure'),
                 }),
                 // Delete button
                 !isBuiltin &&
                   h(Button, {
                     variant: 'danger',
                     onPress: () => void handleRemoveLyricSource(source.id),
-                    children: 'Delete',
+                    children: t('app:common.delete'),
                   }),
                 // Enable/disable switch
                 h(Switch, {
                   checked: source.enabled,
-                  accessibilityLabel: `Enable lyric source ${source.name}`,
+                  accessibilityLabel: t('settings:lyricSources.enableLyricSource', { name: source.name }),
                   onChange: (checked) => void handleToggleLyricSource(source.id, checked),
                 }),
               ),
@@ -550,7 +559,7 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
                 h(
                   'span',
                   { style: { color: 'var(--text-secondary, #8E8E93)' } },
-                  `Allowed hosts: ${source.allowedHosts.join(', ')}`,
+                  t('settings:lyricSources.allowedHosts', { hosts: source.allowedHosts.join(', ') }),
                 ),
             ),
 
@@ -583,11 +592,11 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
                     'strong',
                     null,
                     testResult.result.ok
-                      ? `✅ Test passed (${testResult.result.durationMs ?? 0}ms)`
-                      : `❌ Test failed (${testResult.result.durationMs ?? 0}ms)`,
+                      ? t('settings:lyricSources.testPassed', { durationMs: testResult.result.durationMs ?? 0 })
+                      : t('settings:lyricSources.testFailed', { durationMs: testResult.result.durationMs ?? 0 }),
                   ),
                   testResult.result.lyrics &&
-                    h('span', null, `Format: ${testResult.result.lyrics.format}`),
+                    h('span', null, t('settings:lyricSources.format', { format: testResult.result.lyrics.format })),
                 ),
                 testResult.result.error && h('div', null, testResult.result.error),
                 testResult.result.lyrics?.content &&
@@ -618,27 +627,38 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
     h(
       SettingsSection,
       {
-        title: 'Audio source lyric policy (Audio Source Policy)',
-        description:
-          'Set whether each audio source requires an external third-party lyric source. When off, the audio source\'s built-in lyrics are preferred, falling back to third-party lyric sources automatically on failure.',
+        title: t('settings:lyricSources.audioSourceLyricPolicyAudio'),
+        description: t('settings:lyricSources.audioPolicyDesc'),
       },
       audioSources.length === 0
         ? h(
             'div',
             { style: { fontSize: 13, color: 'var(--text-secondary, #8E8E93)', padding: '8px 0' } },
-            'No enabled audio sources',
+            t('settings:lyricSources.noEnabledAudioSources'),
           )
         : audioSources.map((source, index) =>
             h(SettingsRow, {
+              ctx,
               key: source.id,
               title: source.name,
-              description: `ID: ${source.id}${source.group ? ` · Group: ${source.group}` : ''} · ${
-                source.needsLyricSource ? 'Prefers external lyric sources' : 'Prefers built-in lyrics (falls back to lyric sources)'
-              }`,
+              description: source.group
+                ? t('settings:lyricSources.idWithGroup', {
+                    id: source.id,
+                    group: source.group,
+                    preference: source.needsLyricSource
+                      ? t('settings:lyricSources.prefersExternal')
+                      : t('settings:lyricSources.prefersBuiltIn'),
+                  })
+                : t('settings:lyricSources.idWithoutGroup', {
+                    id: source.id,
+                    preference: source.needsLyricSource
+                      ? t('settings:lyricSources.prefersExternal')
+                      : t('settings:lyricSources.prefersBuiltIn'),
+                  }),
               borderBottom: index < audioSources.length - 1,
               action: h(Switch, {
                 checked: Boolean(source.needsLyricSource),
-                accessibilityLabel: `Audio source ${source.name} forced to use external lyric sources`,
+                accessibilityLabel: t('settings:lyricSources.audioSourceForcedToUse', { name: source.name }),
                 onChange: (checked) => void handleToggleNeedsLyricSource(source.id, checked),
               }),
             }),
@@ -649,23 +669,22 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
     h(
       SettingsSection,
       {
-        title: 'Local lyric cache (Lyric Cache)',
-        description:
-          'Fetched lyrics are automatically persisted in the local SQLite database and load instantly offline or on repeat plays.',
+        title: t('settings:lyricSources.localLyricCacheLyricCache'),
+        description: t('settings:lyricSources.cacheDesc'),
       },
       h(SettingsRow, {
-        title: 'Persistent local lyric cache',
-        description: 'Clears all cached lyric documents from memory and the local SQLite database; the next playback fetches them from the source again.',
+        ctx,
+        title: t('settings:lyricSources.persistentLocalLyricCache'),
+        description: t('settings:lyricSources.clearsAllCachedLyricDocuments'),
         action: h(Button, {
           variant: 'secondary',
           onPress: async () => {
-            if (!ctx) return
             const lyricsSvc = serviceOf<LyricsService>(ctx, 'lyrics')
             await lyricsSvc?.clearCache?.()
             setCacheCleared(true)
             setTimeout(() => setCacheCleared(false), 2000)
           },
-          children: cacheCleared ? 'Cache cleared' : 'Clear lyric cache',
+          children: cacheCleared ? t('settings:lyricSources.cacheCleared') : t('settings:lyricSources.clearLyricCache'),
         }),
       }),
     ),
@@ -679,7 +698,7 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
           setShowImportModal(false)
           setImportError(null)
         },
-        title: 'Import third-party lyric source',
+        title: t('settings:lyricSources.importThirdPartyLyricSource'),
       },
       h(
         'div',
@@ -716,8 +735,8 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
           h(
             'div',
             null,
-            h('strong', { style: { color: '#34C759' } }, 'Strict sandbox isolation: '),
-            'Third-party lyric source scripts run in an isolated sandbox, strictly limited to the minimal data of the current track — title, artist and duration — and completely cut off from the host app\'s DOM, local storage or credentials.',
+            h('strong', { style: { color: '#34C759' } }, t('settings:lyricSources.strictSandboxIsolation')),
+            t('settings:lyricSources.sandboxNote'),
           ),
         ),
 
@@ -735,7 +754,7 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
           h(
             'div',
             { style: { fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } },
-            'Paste a full lyric source JSON configuration containing id, name and script:',
+            t('settings:lyricSources.pastePrompt'),
           ),
           h(
             'div',
@@ -743,23 +762,23 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
             h(Button, {
               variant: 'secondary',
               onPress: () => {
-                setImportText(SAMPLE_LRCLIB_JSON)
+                setImportText(sampleLrclibJson)
                 setImportError(null)
               },
-              children: 'Load LRCLIB template',
+              children: t('settings:lyricSources.loadLrclibTemplate'),
             }),
             h(Button, {
               variant: 'secondary',
               onPress: () => {
-                setImportText(SAMPLE_SOURCE_JSON)
+                setImportText(sampleSourceJson)
                 setImportError(null)
               },
-              children: 'Load sample source template',
+              children: t('settings:lyricSources.loadSampleTemplate'),
             }),
             h(Button, {
               variant: 'secondary',
               onPress: () => fileInputRef.current?.click(),
-              children: 'Choose local file',
+              children: t('settings:lyricSources.chooseLocalFile'),
             }),
           ),
         ),
@@ -780,7 +799,7 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
             setImportText(e.target.value)
             setImportError(null)
           },
-          placeholder: 'Paste lyric source JSON configuration text here...',
+          placeholder: t('settings:lyricSources.pasteLyricSourceJSONConfiguration'),
           rows: 14,
           style: {
             width: '100%',
@@ -839,12 +858,12 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
               setShowImportModal(false)
               setImportError(null)
             },
-            children: 'Cancel',
+            children: t('app:common.cancel'),
           }),
           h(Button, {
             variant: 'primary',
             onPress: () => void handleImportSubmit(),
-            children: 'Import',
+            children: t('settings:lyricSources.importButton'),
           }),
         ),
       ),
@@ -859,7 +878,7 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
           setConfiguringSource(null)
           setConfigError(null)
         },
-        title: `Configure lyric source - ${configuringSource?.name ?? ''}`,
+        title: t('settings:lyricSources.configureTitle', { name: configuringSource?.name ?? '' }),
         testID: 'lyric-source-configure-modal',
       },
       h(
@@ -875,15 +894,15 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
         h(
           'div',
           { style: { fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } },
-          'Customize this lyric source\'s runtime configuration (a JSON object). It is injected into the script as query.config and the global config when the sandbox runs, for API authentication or custom parameters.',
+          t('settings:lyricSources.configureDesc'),
         ),
         h(TextField, {
           multiline: true,
           rows: 8,
           value: configText,
           onChange: setConfigText,
-          placeholder: '{\n  "apiKey": "your-key-here",\n  "apiEndpoint": "https://..."\n}',
-          accessibilityLabel: 'Lyric source config JSON',
+          placeholder: t('settings:lyricSources.configJsonExample'),
+          accessibilityLabel: t('settings:lyricSources.configJsonLabel'),
           testID: 'lyric-source-configure-json',
         }),
         configError &&
@@ -923,17 +942,17 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
               setConfigError(null)
             },
             testID: 'lyric-source-configure-cancel-btn',
-            children: 'Cancel',
+            children: t('app:common.cancel'),
           }),
           h(Button, {
             variant: 'primary',
             loading: configSaving,
             onPress: async () => {
-              if (!configuringSource || !ctx) return
+              if (!configuringSource) return
               try {
                 const parsed = JSON.parse(configText.trim() || '{}')
                 if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-                  setConfigError('Configuration must be a valid JSON object ({...})')
+                  setConfigError(t('settings:lyricSources.configMustBeObject'))
                   return
                 }
                 setConfigSaving(true)
@@ -945,11 +964,11 @@ export function LyricSourcesSection({ ctx }: LyricSourcesSectionProps): ReactEle
                 if (svc) setLyricSources([...svc.getSources()])
               } catch (err: unknown) {
                 setConfigSaving(false)
-                setConfigError(err instanceof Error ? err.message : 'JSON parse error')
+                setConfigError(err instanceof Error ? err.message : t('settings:lyricSources.jSONParseError'))
               }
             },
             testID: 'lyric-source-configure-save-btn',
-            children: 'Save config',
+            children: t('settings:lyricSources.saveConfig'),
           }),
         ),
       ),

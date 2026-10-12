@@ -3,7 +3,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { UiService } from '@BBeBee/protocol'
 import { serviceOf } from '@BBeBee/toolkit/hooks'
-import { Button, Slider } from '@BBeBee/ui-kit-desktop'
+import { Button, Slider, useI18n } from '@BBeBee/ui-kit-desktop'
 import { useDsp } from '@BBeBee/plugin-dsp/hooks'
 
 function Switch({
@@ -222,6 +222,7 @@ function RowWrapper({
 }
 
 export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const { chain, latencyMs, setEnabled, applyPreset, getParams, setParam } = useDsp(ctx)
   const [eqExpanded, setEqExpanded] = useState(true)
   const [compExpanded, setCompExpanded] = useState(true)
@@ -237,38 +238,38 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
   return h(
     SectionWrapper,
     {
-      title: 'Audio effects & equalizer (DSP)',
-      description: 'Tuning panel for the graphic equalizer, dynamic compression and spatial reverb',
+      title: t('dsp:dspSettings.audioEffectsEqualizerDSP'),
+      description: t('dsp:dspSettings.tuningPanelForTheGraphic'),
     },
     // 1. EQ
     h(
       RowWrapper,
       {
-        title: '10-Band graphic equalizer (10-Band EQ)',
-        description: 'Adjust the gain of each band to shape a sound curve better suited to headphones or speakers',
+        title: t('dsp:dspSettings.bandGraphicEqualizerBandEQ'),
+        description: t('dsp:dspSettings.adjustTheGainOfEach'),
         expandable: eqEntry?.enabled ?? false,
         expanded: eqExpanded,
         onToggleExpand: () => setEqExpanded((prev) => !prev),
         action: h(Switch, {
           checked: eqEntry?.enabled ?? false,
-          accessibilityLabel: 'Enable 10-band equalizer',
+          accessibilityLabel: t('dsp:dsp.enableTenBandEqualizer'),
           onChange: (checked) => void setEnabled('eq10', checked),
         }),
       },
       eqEntry?.enabled
         ? h(RowWrapper, {
             isNested: true,
-            title: 'Equalizer preset styles',
-            description: 'Quickly switch between Flat, Bass Boost, Vocal and other tuning styles',
+            title: t('dsp:dspSettings.equalizerPresetStyles'),
+            description: t('dsp:dspSettings.quicklySwitchBetweenFlatBass'),
             borderBottom: false,
             action: h(
               'div',
               { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
               [
-                { id: 'Flat', label: 'Flat' },
-                { id: 'Bass Boost', label: 'Bass Boost' },
-                { id: 'Vocal', label: 'Vocal' },
-                { id: 'Treble', label: 'Treble' },
+                { id: 'Flat', label: t('dsp:dspSettings.flat') },
+                { id: 'Bass Boost', label: t('dsp:dspSettings.bassBoost') },
+                { id: 'Vocal', label: t('dsp:dspSettings.vocal') },
+                { id: 'Treble', label: t('dsp:dspSettings.treble') },
               ].map((p) =>
                 h(Button, {
                   key: p.id,
@@ -285,14 +286,14 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
     h(
       RowWrapper,
       {
-        title: 'Dynamic range compressor (Compressor)',
-        description: 'Tames sudden loud peaks, lifts quiet details and smooths the dynamic range',
+        title: t('dsp:dspSettings.dynamicRangeCompressorCompressor'),
+        description: t('dsp:dspSettings.tamesSuddenLoudPeaksLifts'),
         expandable: compEntry?.enabled ?? false,
         expanded: compExpanded,
         onToggleExpand: () => setCompExpanded((prev) => !prev),
         action: h(Switch, {
           checked: compEntry?.enabled ?? false,
-          accessibilityLabel: 'Enable dynamic compressor',
+          accessibilityLabel: t('dsp:dspSettings.enableDynamicCompressor'),
           onChange: (checked) => void setEnabled('compressor', checked),
         }),
       },
@@ -302,15 +303,15 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
             null,
             h(RowWrapper, {
               isNested: true,
-              title: 'Compression preset styles',
-              description: 'Choose a compression curve for quiet night listening or strong dynamics',
+              title: t('dsp:dspSettings.compressionPresetStyles'),
+              description: t('dsp:dspSettings.chooseACompressionCurveFor'),
               action: h(
                 'div',
                 { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
                 [
-                  { id: 'Night Mode', label: '🌙 Night Mode' },
-                  { id: 'Subtle', label: 'Subtle' },
-                  { id: 'Heavy', label: 'Heavy' },
+                  { id: 'Night Mode', label: t('dsp:dspSettings.nightMode') },
+                  { id: 'Subtle', label: t('dsp:dspSettings.subtle') },
+                  { id: 'Heavy', label: t('dsp:dspSettings.heavy') },
                 ].map((p) =>
                   h(Button, {
                     key: p.id,
@@ -323,8 +324,10 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
             }),
             h(RowWrapper, {
               isNested: true,
-              title: 'Compressor threshold (Threshold)',
-              description: `Signal level ceiling that triggers compression: ${compParams.threshold ?? -24} dB`,
+              title: t('dsp:dspSettings.compressorThresholdThreshold'),
+              description: t('dsp:dspSettings.signalLevelCeilingDescription', {
+                value: Number(compParams.threshold ?? -24),
+              }),
               borderBottom: false,
               action: h(
                 'div',
@@ -335,14 +338,14 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
                   h(Slider, {
                     value: Number(compParams.threshold ?? -24) + 60,
                     max: 60,
-                    accessibilityLabel: 'Compressor threshold',
+                    accessibilityLabel: t('dsp:dsp.compressorThresholdLabel'),
                     onChange: (v) => void setParam('compressor', 'threshold', Math.round(v - 60)),
                   }),
                 ),
                 h(
                   'span',
                   { style: { fontSize: 12, color: '#8E8E93', width: 34, textAlign: 'right' } },
-                  `${compParams.threshold ?? -24}dB`,
+                  t('dsp:dsp.dbValue', { value: Number(compParams.threshold ?? -24) }),
                 ),
               ),
             }),
@@ -353,14 +356,14 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
     h(
       RowWrapper,
       {
-        title: 'Spatial reverb (Reverb)',
-        description: 'Synthesizes natural acoustic reflections and reverb tails for an immersive sense of space',
+        title: t('dsp:dspSettings.spatialReverbReverb'),
+        description: t('dsp:dspSettings.synthesizesNaturalAcousticReflectionsAnd'),
         expandable: reverbEntry?.enabled ?? false,
         expanded: reverbExpanded,
         onToggleExpand: () => setReverbExpanded((prev) => !prev),
         action: h(Switch, {
           checked: reverbEntry?.enabled ?? false,
-          accessibilityLabel: 'Enable spatial reverb',
+          accessibilityLabel: t('dsp:dspSettings.enableSpatialReverb'),
           onChange: (checked) => void setEnabled('reverb', checked),
         }),
       },
@@ -370,15 +373,15 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
             null,
             h(RowWrapper, {
               isNested: true,
-              title: 'Reverb space type',
-              description: 'Switch between impulse response models of different acoustic spaces',
+              title: t('dsp:dspSettings.reverbSpaceType'),
+              description: t('dsp:dspSettings.switchBetweenImpulseResponseModels'),
               action: h(
                 'div',
                 { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
                 [
-                  { id: 'Small Room', label: 'Small Room' },
-                  { id: 'Concert Hall', label: 'Concert Hall' },
-                  { id: 'Plate', label: 'Plate' },
+                  { id: 'Small Room', label: t('dsp:dspSettings.smallRoom') },
+                  { id: 'Concert Hall', label: t('dsp:dspSettings.concertHall') },
+                  { id: 'Plate', label: t('dsp:dspSettings.plate') },
                 ].map((p) =>
                   h(Button, {
                     key: p.id,
@@ -391,8 +394,10 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
             }),
             h(RowWrapper, {
               isNested: true,
-              title: 'Reverb wet-dry mix (Mix)',
-              description: `Wet level: ${Math.round(Number(reverbParams.mix ?? 0.25) * 100)}%`,
+              title: t('dsp:dspSettings.reverbWetDryMixMix'),
+              description: t('dsp:dspSettings.wetLevelDescription', {
+                value: Math.round(Number(reverbParams.mix ?? 0.25) * 100),
+              }),
               borderBottom: false,
               action: h(
                 'div',
@@ -403,14 +408,14 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
                   h(Slider, {
                     value: Math.round(Number(reverbParams.mix ?? 0.25) * 100),
                     max: 100,
-                    accessibilityLabel: 'Reverb mix',
+                    accessibilityLabel: t('dsp:dsp.reverbMixLabel'),
                     onChange: (v) => void setParam('reverb', 'mix', Math.round(v) / 100),
                   }),
                 ),
                 h(
                   'span',
                   { style: { fontSize: 12, color: '#8E8E93', width: 34, textAlign: 'right' } },
-                  `${Math.round(Number(reverbParams.mix ?? 0.25) * 100)}%`,
+                  t('dsp:dsp.percentValue', { value: Math.round(Number(reverbParams.mix ?? 0.25) * 100) }),
                 ),
               ),
             }),
@@ -419,11 +424,14 @@ export function DspSettingsCard({ ctx }: { ctx: Context }): ReactElement {
     ),
     // 5. Open full DSP screen button
     h(RowWrapper, {
-      title: 'Advanced effect tuning and routing',
-      description: `The current effect chain contains ${chain.length} processing nodes, latency: ${latencyMs}ms`,
+      title: t('dsp:dspSettings.advancedEffectTuningAndRouting'),
+      description:
+        chain.length === 1
+          ? t('dsp:dspSettings.effectChainSummary.one', { count: chain.length, latency: latencyMs })
+          : t('dsp:dspSettings.effectChainSummary.other', { count: chain.length, latency: latencyMs }),
       borderBottom: false,
       action: h(Button, {
-        children: 'Open audio effects panel →',
+        children: t('dsp:dspSettings.openAudioEffectsPanel'),
         onPress: () => {
           serviceOf<UiService>(ctx, 'ui')?.navigate?.('dsp.view')
         },

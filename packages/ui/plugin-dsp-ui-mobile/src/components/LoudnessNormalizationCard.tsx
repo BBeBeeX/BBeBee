@@ -3,13 +3,14 @@ import type { ReactElement, ReactNode } from 'react'
 import type { Context } from 'cordis'
 import type { LoudnessNormalizationMode, SettingsService } from '@BBeBee/protocol'
 import { serviceOf, useServiceState } from '@BBeBee/ui-core'
-import { Button, Text, nativePrimitives } from '@BBeBee/ui-kit-mobile'
+import { Button, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
 import { useDsp } from '@BBeBee/plugin-dsp/hooks'
 
 const p = () => palettes.dark
 
 export function LoudnessNormalizationCard({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const native = nativePrimitives()
   const { chain, setEnabled, setParam } = useDsp(ctx)
   const normEntry = chain.find((c) => c.effectId === 'normalize')
@@ -119,27 +120,29 @@ export function LoudnessNormalizationCard({ ctx }: { ctx: Context }): ReactEleme
     native.View as never,
     null,
     renderSectionHeader(
-      'Loudness normalization between tracks (Loudness Normalization)',
-      'Automatically balances volume differences between tracks based on ReplayGain and EBU R128',
+      t('dsp:loudnessNormalization.loudnessNormalizationBetweenTracksLoudness'),
+      t('dsp:loudnessNormalization.automaticallyBalancesVolumeDifferences'),
     ),
     renderCard([
       renderRow(
-        'Enable loudness normalization',
-        isEnabled ? 'Automatically calibrates track loudness to a standard level' : 'Keeps the original gain level',
+        t('dsp:loudnessNormalization.enableLoudnessNormalization'),
+        isEnabled
+          ? t('dsp:loudnessNormalization.automaticallyCalibratesTrackLoudnessTo')
+          : t('dsp:loudnessNormalization.keepsTheOriginalGainLevel'),
         renderToggle(isEnabled, handleToggle),
       ),
       isEnabled
         ? h(
             native.View as never,
             { style: { gap: tokens.space[2], marginTop: tokens.space[1] } },
-            h(Text, { variant: 'xs', tone: 'muted', children: 'Normalization mode' }),
+            h(Text, { variant: 'xs', tone: 'muted', children: t('dsp:loudnessNormalization.normalizationMode') }),
             h(
               native.View as never,
               { style: { flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space[1] } },
               [
-                { id: 'track' as LoudnessNormalizationMode, label: 'Track mode' },
-                { id: 'album' as LoudnessNormalizationMode, label: 'Album mode' },
-                { id: 'dynamic' as LoudnessNormalizationMode, label: 'Dynamic R128' },
+                { id: 'track' as LoudnessNormalizationMode, label: t('dsp:loudnessNormalization.trackMode') },
+                { id: 'album' as LoudnessNormalizationMode, label: t('dsp:loudnessNormalization.albumMode') },
+                { id: 'dynamic' as LoudnessNormalizationMode, label: t('dsp:loudnessNormalization.dynamicR128') },
               ].map((m) =>
                 h(Button, {
                   key: m.id,
@@ -149,14 +152,14 @@ export function LoudnessNormalizationCard({ ctx }: { ctx: Context }): ReactEleme
                 }),
               ),
             ),
-            h(Text, { variant: 'xs', tone: 'muted', children: `Target loudness (${currentLufs} LUFS)` }),
+            h(Text, { variant: 'xs', tone: 'muted', children: t('dsp:loudnessNormalization.targetLoudnessValue', { value: currentLufs }) }),
             h(
               native.View as never,
               { style: { flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space[1] } },
               [
-                { lufs: -14, label: 'Streaming (-14)' },
-                { lufs: -18, label: 'Classical (-18)' },
-                { lufs: -11, label: 'Loud (-11)' },
+                { lufs: -14, label: t('dsp:loudnessNormalization.streaming') },
+                { lufs: -18, label: t('dsp:loudnessNormalization.classical') },
+                { lufs: -11, label: t('dsp:loudnessNormalization.loud') },
               ].map((item) =>
                 h(Button, {
                   key: item.lufs,

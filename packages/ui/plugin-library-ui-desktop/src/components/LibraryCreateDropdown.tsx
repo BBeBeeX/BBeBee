@@ -1,8 +1,10 @@
 import { createElement as h } from 'react'
 import type { ReactElement, RefObject } from 'react'
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
+import type { Context } from 'cordis'
 
 export interface LibraryCreateDropdownProps {
+  ctx: Context
   isCreateMenuOpen: boolean
   setIsCreateMenuOpen: (open: boolean | ((prev: boolean) => boolean)) => void
   createMenuRef?: RefObject<HTMLDivElement | null>
@@ -14,19 +16,22 @@ export interface LibraryCreateDropdownProps {
 }
 
 export function LibraryCreateButton({
+  ctx,
   isCreateMenuOpen,
   onClick,
 }: {
+  ctx: Context
   isCreateMenuOpen: boolean
   onClick: () => void
 }): ReactElement {
+  const { t } = useI18n(ctx)
   return h(
     'button',
     {
       type: 'button',
       'data-testid': 'create-dropdown-trigger',
-      'aria-label': 'Create',
-      title: 'Create',
+      'aria-label': t('library:libraryCreateDropdown.create'),
+      title: t('library:libraryCreateDropdown.create'),
       onClick,
       style: {
         display: 'flex',
@@ -62,11 +67,12 @@ export function LibraryCreateButton({
       },
       tablerIcon('plus', { size: 20 }),
     ),
-    h('span', { style: { fontSize: 13, fontWeight: 600 } }, 'Create'),
+    h('span', { style: { fontSize: 13, fontWeight: 600 } }, t('library:libraryCreateDropdown.create')),
   )
 }
 
 export function LibraryCreateMenu({
+  ctx,
   isCreateMenuOpen,
   setIsCreateMenuOpen,
   createMenuRef,
@@ -76,6 +82,7 @@ export function LibraryCreateMenu({
   onOpenCreateCollection,
   onOpenImportShare,
 }: LibraryCreateDropdownProps): ReactElement | null {
+  const { t } = useI18n(ctx)
   if (!isCreateMenuOpen) return null
 
   return h(
@@ -146,8 +153,8 @@ export function LibraryCreateMenu({
       h(
         'div',
         { style: { flex: 1, minWidth: 0 } },
-        h('div', { style: { color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600, fontSize: 14 } }, 'Playlist'),
-        h('div', { style: { color: 'var(--bb-text-secondary, #A0A0AE)', fontSize: 12, marginTop: 2 } }, 'Create a playlist with songs or episodes'),
+        h('div', { style: { color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600, fontSize: 14 } }, t('library:libraryCreateDropdown.playlist')),
+        h('div', { style: { color: 'var(--bb-text-secondary, #A0A0AE)', fontSize: 12, marginTop: 2 } }, t('library:libraryCreateDropdown.createAPlaylistWithSongs')),
       ),
     ),
     h('div', { style: { height: 1, backgroundColor: 'var(--border-subtle, rgba(255, 255, 255, 0.1))', margin: '4px 0' } }),
@@ -198,8 +205,8 @@ export function LibraryCreateMenu({
       h(
         'div',
         { style: { flex: 1, minWidth: 0 } },
-        h('div', { style: { color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600, fontSize: 14 } }, 'Folder'),
-        h('div', { style: { color: 'var(--bb-text-secondary, #A0A0AE)', fontSize: 12, marginTop: 2 } }, 'Manage playlists'),
+        h('div', { style: { color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600, fontSize: 14 } }, t('library:libraryCreateDropdown.folder')),
+        h('div', { style: { color: 'var(--bb-text-secondary, #A0A0AE)', fontSize: 12, marginTop: 2 } }, t('library:libraryCreateDropdown.managePlaylists')),
       ),
     ),
     h('div', { style: { height: 1, backgroundColor: 'var(--border-subtle, rgba(255, 255, 255, 0.1))', margin: '4px 0' } }),
@@ -251,8 +258,8 @@ export function LibraryCreateMenu({
       h(
         'div',
         { style: { flex: 1, minWidth: 0 } },
-        h('div', { style: { color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600, fontSize: 14 } }, 'Import share'),
-        h('div', { style: { color: 'var(--bb-text-secondary, #A0A0AE)', fontSize: 12, marginTop: 2 } }, 'Read a share card or image'),
+        h('div', { style: { color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600, fontSize: 14 } }, t('library:libraryCreateDropdown.importShare')),
+        h('div', { style: { color: 'var(--bb-text-secondary, #A0A0AE)', fontSize: 12, marginTop: 2 } }, t('library:libraryCreateDropdown.readAShareCardOr')),
       ),
     ),
   )

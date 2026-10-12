@@ -1,10 +1,12 @@
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { createElement as h, useState, type ReactElement } from 'react'
+import type { Context } from 'cordis'
 import type { PluginInfo } from '@BBeBee/protocol'
 import { PluginTrafficLight } from './PluginTrafficLight.js'
 import { PluginDetails } from './PluginDetails.js'
 
 export interface PluginCardProps {
+  ctx: Context
   plugin: PluginInfo
   showAdvancedSettings?: boolean
   onToggleEnabled?: (plugin: PluginInfo, enabled: boolean) => void
@@ -12,11 +14,13 @@ export interface PluginCardProps {
 }
 
 export function PluginCard({
+  ctx,
   plugin,
   showAdvancedSettings = false,
   onToggleEnabled,
   defaultExpanded = false,
 }: PluginCardProps): ReactElement {
+  const { t } = useI18n(ctx)
   const [expanded, setExpanded] = useState(defaultExpanded)
 
   return h(
@@ -41,8 +45,8 @@ export function PluginCard({
         role: 'button',
         tabIndex: 0,
         'aria-label': expanded
-          ? `Collapse ${plugin.displayName || plugin.name}`
-          : `Expand ${plugin.displayName || plugin.name}`,
+          ? t('settings:settingsRow.collapse', { title: plugin.displayName || plugin.name })
+          : t('settings:settingsRow.expand', { title: plugin.displayName || plugin.name }),
         onClick: () => setExpanded((prev) => !prev),
         onKeyDown: (e: { key: string }) => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -110,6 +114,7 @@ export function PluginCard({
           },
         },
         h(PluginTrafficLight, {
+          ctx,
           enabled: plugin.enabled,
           state: plugin.state,
         }),
@@ -132,6 +137,7 @@ export function PluginCard({
     // Expanded details
     expanded
       ? h(PluginDetails, {
+          ctx,
           plugin,
           showAdvancedSettings,
           onToggleEnabled,

@@ -1,0 +1,46 @@
+{
+  "en": {
+    "index": {
+      "addOneAndItsMusic": "Add one and its music appears in your library as it is scanned.",
+      "disable": "Disable",
+      "enable": "Enable",
+      "noFoldersYet": "No folders yet",
+      "scanNow": "Scan now",
+      "scannedFiles": "Scanned {done} files",
+      "scannedOf": "Scanned {done} of {total}",
+      "scanning": "Scanning…",
+      "musicFolders": "Music folders",
+      "addFolder": "Add folder",
+      "scanProgress": "Scan progress",
+      "scan": "Scan",
+      "scanUri": "Scan {uri}",
+      "disableUri": "Disable {uri}",
+      "enableUri": "Enable {uri}",
+      "removeUri": "Remove {uri}",
+      "lastScan": "Last scan: {summary}",
+      "removeKeepsTracks": "Removing a folder keeps the tracks it found. Nothing is deleted from disk."
+    }
+  },
+  "zh": {
+    "index": {
+      "addOneAndItsMusic": "添加文件夹，其中的音乐将在扫描完成后出现在你的音乐库中。",
+      "disable": "禁用",
+      "enable": "启用",
+      "noFoldersYet": "还没有文件夹",
+      "scanNow": "立即扫描",
+      "scannedFiles": "已扫描 {done} 个文件",
+      "scannedOf": "已扫描 {done} / {total}",
+      "scanning": "扫描中…",
+      "musicFolders": "音乐文件夹",
+      "addFolder": "添加文件夹",
+      "scanProgress": "扫描进度",
+      "scan": "扫描",
+      "scanUri": "扫描 {uri}",
+      "disableUri": "禁用 {uri}",
+      "enableUri": "启用 {uri}",
+      "removeUri": "移除 {uri}",
+      "lastScan": "上次扫描：{summary}",
+      "removeKeepsTracks": "移除文件夹后，它找到的曲目会保留，磁盘上的文件不会被删除。"
+    }
+  }
+}

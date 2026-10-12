@@ -2,6 +2,7 @@ import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { tokens } from '@BBeBee/ui-tokens'
+import { useI18n } from '@BBeBee/ui-kit-desktop'
 import { useMiniPlayerState } from '@BBeBee/plugin-mini-player/hooks'
 
 export interface MiniPlayerButtonProps {
@@ -10,14 +11,19 @@ export interface MiniPlayerButtonProps {
 }
 
 export function MiniPlayerButton({ ctx, style }: MiniPlayerButtonProps): ReactElement {
+  const { t } = useI18n(ctx)
   const { visible, toggle } = useMiniPlayerState(ctx)
 
   return h(
     'button',
     {
       type: 'button',
-      'aria-label': visible ? 'Close mini player' : 'Open mini player / Dynamic Island',
-      title: visible ? 'Close mini player' : 'Open mini player / Dynamic Island',
+      'aria-label': visible
+        ? t('miniPlayer:miniPlayerButton.closeMiniPlayer')
+        : t('miniPlayer:miniPlayerButton.openMiniPlayerDynamicIsland'),
+      title: visible
+        ? t('miniPlayer:miniPlayerButton.closeMiniPlayer')
+        : t('miniPlayer:miniPlayerButton.openMiniPlayerDynamicIsland'),
       onClick: () => toggle(),
       style: {
         display: 'inline-flex',

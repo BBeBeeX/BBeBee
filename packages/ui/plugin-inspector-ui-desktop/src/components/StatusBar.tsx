@@ -6,9 +6,13 @@
  */
 
 import { memo, type ReactElement } from 'react'
+import type { Context } from 'cordis'
+import { useI18n } from '@BBeBee/ui-kit-desktop'
 import type { PluginGraph } from '../graph-model.js'
 
 export interface StatusBarProps {
+  /** The app context — read for the interface language via `useI18n`. */
+  ctx: Context
   graph: PluginGraph
   zoom: number
   visibleNodeCount: number
@@ -16,11 +20,13 @@ export interface StatusBarProps {
 }
 
 export const StatusBar = memo(function StatusBar({
+  ctx,
   graph,
   zoom,
   visibleNodeCount,
   visibleEdgeCount,
 }: StatusBarProps): ReactElement {
+  const { t } = useI18n(ctx)
   const { counts } = graph
   const hasFailed = counts.failedPlugins > 0
   const hasPending = counts.pendingPlugins > 0
@@ -54,45 +60,53 @@ export const StatusBar = memo(function StatusBar({
             }}
           />
           <span style={{ color: '#f8fafc', fontWeight: 600 }}>
-            {hasFailed ? 'RUNTIME WARNING' : 'RUNTIME ACTIVE'}
+            {hasFailed ? t('inspector:status.rUNTIMEWARNING') : t('inspector:status.rUNTIMEACTIVE')}
           </span>
         </div>
 
         <div>
-          PLUGINS:{' '}
-          <span style={{ color: '#38bdf8' }}>{counts.activePlugins} active</span>
+          {t('inspector:statusBar.plugins')}{' '}
+          <span style={{ color: '#38bdf8' }}>
+            {t('inspector:statusBar.active', { count: counts.activePlugins })}
+          </span>
           {counts.pendingPlugins > 0 && (
             <span style={{ color: '#f59e0b', marginLeft: 6 }}>
-              ({counts.pendingPlugins} pending)
+              {t('inspector:statusBar.pending', { count: counts.pendingPlugins })}
             </span>
           )}
           {counts.failedPlugins > 0 && (
             <span style={{ color: '#ef4444', marginLeft: 6 }}>
-              ({counts.failedPlugins} failed)
+              {t('inspector:statusBar.failed', { count: counts.failedPlugins })}
             </span>
           )}
-          <span style={{ color: '#64748b', marginLeft: 6 }}>/ {counts.totalPlugins} total</span>
+          <span style={{ color: '#64748b', marginLeft: 6 }}>
+            {t('inspector:statusBar.total', { count: counts.totalPlugins })}
+          </span>
         </div>
 
         <div>
-          SERVICES: <span style={{ color: '#2dd4bf' }}>{counts.totalServices}</span>
+          {t('inspector:statusBar.services')}{' '}
+          <span style={{ color: '#2dd4bf' }}>{counts.totalServices}</span>
         </div>
 
         <div>
-          EVENTS: <span style={{ color: '#c084fc' }}>{counts.totalEvents}</span>
+          {t('inspector:statusBar.events')}{' '}
+          <span style={{ color: '#c084fc' }}>{counts.totalEvents}</span>
         </div>
       </div>
 
       {/* Right: Viewport Telemetry */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
         <div>
-          VISIBLE:{' '}
+          {t('inspector:statusBar.visible')}{' '}
           <span style={{ color: '#e2e8f0' }}>
-            {visibleNodeCount} nodes, {visibleEdgeCount} traces
+            {t('inspector:statusBar.nodes', { count: visibleNodeCount })},{' '}
+            {t('inspector:statusBar.traces', { count: visibleEdgeCount })}
           </span>
         </div>
         <div>
-          ZOOM: <span style={{ color: '#e2e8f0' }}>{Math.round(zoom * 100)}%</span>
+          {t('inspector:statusBar.zoom')}{' '}
+          <span style={{ color: '#e2e8f0' }}>{Math.round(zoom * 100)}%</span>
         </div>
       </div>
     </div>

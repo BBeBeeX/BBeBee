@@ -8,7 +8,7 @@ import { createElement as h, Fragment, useMemo } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
-import type { PlayRecord, Track } from '@BBeBee/protocol'
+import type { I18nService, PlayRecord, Track } from '@BBeBee/protocol'
 import { HISTORY_VIEWS } from '@BBeBee/plugin-history/views'
 import {
   usePlayHistory,
@@ -16,7 +16,7 @@ import {
   useTracksByUrn,
   useTransport,
 } from '@BBeBee/plugin-player/hooks'
-import { ContextMenu, EmptyState, List, Text, TrackRow } from '@BBeBee/ui-kit-mobile'
+import { ContextMenu, EmptyState, List, Text, TrackRow, useI18n } from '@BBeBee/ui-kit-mobile'
 import { useResolvedArtwork } from '@BBeBee/plugin-cache/hooks'
 import { useTrackMenu } from '@BBeBee/ui-menus'
 import type { TrackRowProps } from '@BBeBee/ui-core'
@@ -34,18 +34,19 @@ function fallbackTrack(urn: string): Track {
   return { urn, title: 'Loading…', artists: [] }
 }
 
-function formatPlayDuration(ms: number): string {
-  if (ms <= 0) return '0 min'
+function formatPlayDuration(t: I18nService['t'], ms: number): string {
+  if (ms <= 0) return t('history:playHeatmap.durationZero')
   const totalMinutes = Math.floor(ms / 60000)
-  if (totalMinutes === 0) return '< 1 min'
+  if (totalMinutes === 0) return t('history:playHeatmap.durationUnderOneMinute')
   const hours = Math.floor(totalMinutes / 60)
   const minutes = totalMinutes % 60
-  if (hours === 0) return `${minutes} min`
-  if (minutes === 0) return `${hours} hr`
-  return `${hours} hr ${minutes} min`
+  if (hours === 0) return t('history:playHeatmap.durationMinutes', { minutes })
+  if (minutes === 0) return t('history:playHeatmap.durationHours', { hours })
+  return t('history:playHeatmap.hrMin', { hours, minutes })
 }
 
 export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const { records, loading } = usePlayHistory(ctx, { limit: 200 })
   const { uniqueRecords, playCountMap } = useMemo(() => {
     const counts = new Map<string, number>()
@@ -72,8 +73,8 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
   if (uniqueRecords.length === 0 && !loading) {
     return h(EmptyState, {
       icon: '🎵',
-      title: 'No play records yet',
-      description: 'After playing music from the library, your play history and statistics will appear here.',
+      title: t('history:index.noPlayRecordsYet'),
+      description: t('history:index.afterPlayingMusicFromThe'),
     })
   }
 
@@ -89,7 +90,7 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
           borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
         },
       },
-      h(Text, { variant: 'lg', children: 'Play history' }),
+      h(Text, { variant: 'lg', children: t('history:history.playHistory') }),
       h(
         'div',
         {
@@ -101,18 +102,24 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
             color: '#8e8e93',
           },
         },
-        h('span', null, `Total plays: ${stats.totalPlays}`),
-        h('span', null, `Total time: ${formatPlayDuration(stats.totalMsPlayed)}`),
-        h('span', null, `Today: ${stats.todayPlays} tracks`),
+        h('span', null, t('history:index.totalPlays', { totalPlays: stats.totalPlays })),
+        h(
+          'span',
+          null,
+          t('history:index.totalTime', { duration: formatPlayDuration(t, stats.totalMsPlayed) }),
+        ),
+        h('span', null, t('history:index.todayTracks', { todayPlays: stats.todayPlays })),
       ),
     ),
     h(List<PlayRecord>, {
       items: uniqueRecords,
-      accessibilityLabel: 'Play history',
+      accessibilityLabel: t('history:history.playHistory'),
       estimatedItemSize: tokens.size.row,
       keyExtractor: (item) => item.id,
       renderItem: (item) => {
-        const track = tracks.get(item.trackUrn) ?? fallbackTrack(item.trackUrn)
+        const track =
+          tracks.get(item.trackUrn) ??
+          { ...fallbackTrack(item.trackUrn), title: t('history:history.loading') }
         const isActive = transport.trackUrn === item.trackUrn
         const playCount = playCountMap.get(item.trackUrn) ?? 1
         return h(
@@ -150,7 +157,9 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
                 whiteSpace: 'nowrap',
               },
             },
-            `${playCount} ${playCount === 1 ? 'play' : 'plays'}`,
+            playCount === 1
+              ? t('history:history.plays.one', { count: playCount })
+              : t('history:history.plays.other', { count: playCount }),
           ),
         )
       },

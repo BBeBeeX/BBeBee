@@ -3,7 +3,7 @@ import type { Context } from 'cordis'
 import type { BrowseEntry, UiService } from '@BBeBee/protocol'
 import { SOURCES_VIEWS } from '@BBeBee/plugin-sources/views'
 import { useRecommendShelf, useRecommendSources } from '@BBeBee/plugin-sources/hooks'
-import { EmptyState } from '@BBeBee/ui-kit-desktop'
+import { EmptyState, useI18n } from '@BBeBee/ui-kit-desktop'
 import { serviceOf } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
 import { RecommendShelfRow } from '../components/RecommendShelfRow.js'
@@ -27,6 +27,7 @@ export function RecommendScreen({
   ctx: Context
   onOpenAlbum?: (urn: string) => void
 }): ReactElement {
+  const { t } = useI18n(ctx)
   const sources = useRecommendSources(ctx)
   const { albums: recentAlbums } = useRecentPlayedAlbums(ctx)
   const { albums: favoriteAlbums } = useFavoriteAlbums(ctx)
@@ -42,14 +43,14 @@ export function RecommendScreen({
   return h(
     'section',
     {
-      'aria-label': 'Recommendations',
+      'aria-label': t('sources:recommend.recommendations'),
       'data-testid': 'recommend-screen',
       style: { display: 'flex', flexDirection: 'column', gap: tokens.space[5], padding: tokens.space[4] },
     },
     !hasAnyContent
       ? h(EmptyState, {
-          title: 'No recommendations',
-          description: 'Once a music source implementing the recommendation interface is imported, its recommended playlists will appear here.',
+          title: t('sources:recommend.noRecommendations'),
+          description: t('sources:recommend.onceAMusicSourceImplementing'),
         })
       : h(
           Fragment,
@@ -59,7 +60,7 @@ export function RecommendScreen({
             ? h(RecommendShelfRow, {
                 key: 'recent-played-albums',
                 ctx,
-                title: 'Recently played · Albums',
+                title: t('sources:recommend.recentlyPlayedAlbums'),
                 testID: 'recommend-shelf-recent-albums',
                 entries: recentAlbums,
                 onOpenCard: openCard,
@@ -70,7 +71,7 @@ export function RecommendScreen({
             ? h(RecommendShelfRow, {
                 key: 'favorite-albums',
                 ctx,
-                title: 'Favorites picks · Albums',
+                title: t('sources:recommend.favoritesPicksAlbums'),
                 testID: 'recommend-shelf-favorite-albums',
                 entries: favoriteAlbums,
                 onOpenCard: openCard,
@@ -101,6 +102,7 @@ function RecommendShelf({
   sourceName: string
   onOpenCard: (entry: BrowseEntry) => void
 }): ReactElement {
+  const { t } = useI18n(ctx)
   const shelf = useRecommendShelf(ctx, sourceId)
 
   const showAll = () => {
@@ -112,10 +114,10 @@ function RecommendShelf({
 
   return h(RecommendShelfRow, {
     ctx,
-    title: `${sourceName} · Recommended playlists`,
+    title: t('sources:recommend.recommendedPlaylists', { sourceName }),
     testID: `recommend-shelf-${sourceId}`,
     action: {
-      label: 'Show all',
+      label: t('sources:recommend.showAll'),
       onPress: showAll,
       testID: 'recommend-show-all',
     },

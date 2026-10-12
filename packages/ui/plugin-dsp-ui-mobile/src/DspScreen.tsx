@@ -5,7 +5,7 @@
 import { createElement as h, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import { Button, Slider, Text, nativePrimitives } from '@BBeBee/ui-kit-mobile'
+import { Button, Slider, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
 import { useDsp } from '@BBeBee/plugin-dsp/hooks'
 import { EQ10_BANDS } from '@BBeBee/plugin-dsp/effects'
@@ -17,6 +17,7 @@ export interface DspScreenProps {
 const p = () => palettes.dark
 
 export function DspScreen({ ctx }: DspScreenProps): ReactElement {
+  const { t } = useI18n(ctx)
   const native = nativePrimitives()
   const { chain, definitions, latencyMs, setEnabled, setOrder, setParam, applyPreset, getParams } =
     useDsp(ctx)
@@ -107,8 +108,8 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
       h(
         native.View as never,
         null,
-        h(Text, { variant: 'lg', children: 'Audio effects & equalizer (DSP)' }),
-        h(Text, { variant: 'xs', tone: 'muted', children: 'Live effect chain and 10-band graphic equalizer' }),
+        h(Text, { variant: 'lg', children: t('dsp:dspSettings.audioEffectsEqualizerDSP') }),
+        h(Text, { variant: 'xs', tone: 'muted', children: t('dsp:dsp.liveEffectChainSubtitle') }),
       ),
       h(
         native.View as never,
@@ -120,7 +121,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
             borderRadius: tokens.radius.sm,
           },
         },
-        h(Text, { variant: 'xs', children: `Latency: ${latencyMs}ms` }),
+        h(Text, { variant: 'xs', children: t('dsp:dsp.latencyReadout', { value: latencyMs }) }),
       ),
     ),
 
@@ -139,7 +140,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
             backgroundColor: activeTab === 'eq' ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
           },
         },
-        h(Text, { variant: 'sm', tone: activeTab === 'eq' ? 'accent' : 'muted', children: '🎚️ 10-Band EQ' }),
+        h(Text, { variant: 'sm', tone: activeTab === 'eq' ? 'accent' : 'muted', children: t('dsp:dsp.tabEqualizerMobile') }),
       ),
       h(
         native.Pressable as never,
@@ -152,7 +153,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
             backgroundColor: activeTab === 'chain' ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
           },
         },
-        h(Text, { variant: 'sm', tone: activeTab === 'chain' ? 'accent' : 'muted', children: '🔗 Effect chain' }),
+        h(Text, { variant: 'sm', tone: activeTab === 'chain' ? 'accent' : 'muted', children: t('dsp:dsp.tabEffectChainMobile') }),
       ),
     ),
 
@@ -177,7 +178,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
               justifyContent: 'space-between',
             },
           },
-          h(Text, { variant: 'md', children: 'Enable equalizer' }),
+          h(Text, { variant: 'md', children: t('dsp:dsp.enableEqualizer') }),
           renderToggle(eqEntry?.enabled ?? false, () => {
             void setEnabled('eq10', !(eqEntry?.enabled ?? false))
           }),
@@ -236,7 +237,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
                 h(Slider, {
                   value: gain + 12,
                   max: 24,
-                  accessibilityLabel: `${label} gain`,
+                  accessibilityLabel: t('dsp:dsp.eqBandGainAria', { label }),
                   onChange: (v) => handleBandChange(idx, v - 12),
                 }),
               ),
@@ -316,14 +317,14 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
               h(
                 native.View as never,
                 { style: { flexDirection: 'row', alignItems: 'center', gap: 12 } },
-                h(Text, { variant: 'xs', children: `Gain: ${params.gainDb ?? 0}dB` }),
+                h(Text, { variant: 'xs', children: t('dsp:dsp.gainReadoutCompact', { value: Number(params.gainDb ?? 0) }) }),
                 h(
                   native.View as never,
                   { style: { flex: 1 } },
                   h(Slider, {
                     value: (Number(params.gainDb ?? 0)) + 20,
                     max: 40,
-                    accessibilityLabel: 'Preamp gain',
+                    accessibilityLabel: t('dsp:dsp.preampGainLabel'),
                     onChange: (v) => void setParam('preamp', 'gainDb', Math.round(v - 20)),
                   }),
                 ),
@@ -333,14 +334,14 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
               h(
                 native.View as never,
                 { style: { flexDirection: 'row', alignItems: 'center', gap: 12 } },
-                h(Text, { variant: 'xs', children: `Gain: ${params.gainDb ?? 0}dB` }),
+                h(Text, { variant: 'xs', children: t('dsp:dsp.gainReadoutCompact', { value: Number(params.gainDb ?? 0) }) }),
                 h(
                   native.View as never,
                   { style: { flex: 1 } },
                   h(Slider, {
                     value: (Number(params.gainDb ?? 0)) + 12,
                     max: 24,
-                    accessibilityLabel: 'Normalization gain',
+                    accessibilityLabel: t('dsp:dsp.normalizationGainLabel'),
                     onChange: (v) => void setParam('normalize', 'gainDb', Math.round(v - 12)),
                   }),
                 ),
@@ -363,21 +364,21 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
               h(
                 native.View as never,
                 { style: { flexDirection: 'row', alignItems: 'center', gap: 12 } },
-                h(Text, { variant: 'xs', children: `Threshold: ${params.threshold ?? -24}dB` }),
+                h(Text, { variant: 'xs', children: t('dsp:dsp.thresholdReadoutCompact', { value: Number(params.threshold ?? -24) }) }),
                 h(
                   native.View as never,
                   { style: { flex: 1 } },
                   h(Slider, {
                     value: (Number(params.threshold ?? -24)) + 60,
                     max: 60,
-                    accessibilityLabel: 'Compressor threshold',
+                    accessibilityLabel: t('dsp:dsp.compressorThresholdLabel'),
                     onChange: (v) => void setParam('compressor', 'threshold', Math.round(v - 60)),
                   }),
                 ),
                 def.presets &&
                   h(Button, {
                     onPress: () => void applyPreset('compressor', 'Night Mode'),
-                    children: 'Night',
+                    children: t('dsp:dsp.nightPresetShort'),
                   }),
               ),
 
@@ -385,14 +386,14 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
               h(
                 native.View as never,
                 { style: { flexDirection: 'row', alignItems: 'center', gap: 12 } },
-                h(Text, { variant: 'xs', children: `Reverb: ${Math.round((Number(params.mix ?? 0.25)) * 100)}%` }),
+                h(Text, { variant: 'xs', children: t('dsp:dsp.reverbReadout', { value: Math.round((Number(params.mix ?? 0.25)) * 100) }) }),
                 h(
                   native.View as never,
                   { style: { flex: 1 } },
                   h(Slider, {
                     value: Math.round((Number(params.mix ?? 0.25)) * 100),
                     max: 100,
-                    accessibilityLabel: 'Reverb mix',
+                    accessibilityLabel: t('dsp:dsp.reverbMixLabel'),
                     onChange: (v) => void setParam('reverb', 'mix', Math.round(v) / 100),
                   }),
                 ),
@@ -402,14 +403,14 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
               h(
                 native.View as never,
                 { style: { flexDirection: 'row', alignItems: 'center', gap: 12 } },
-                h(Text, { variant: 'xs', children: `Width: ${Number(params.width ?? 1.2).toFixed(1)}x` }),
+                h(Text, { variant: 'xs', children: t('dsp:dsp.widthReadout', { value: Number(params.width ?? 1.2).toFixed(1) }) }),
                 h(
                   native.View as never,
                   { style: { flex: 1 } },
                   h(Slider, {
                     value: Math.round((Number(params.width ?? 1.2)) * 50),
                     max: 100,
-                    accessibilityLabel: 'Stereo width',
+                    accessibilityLabel: t('dsp:dsp.stereoWidthLabel'),
                     onChange: (v) => void setParam('widener', 'width', Math.round(v) / 50),
                   }),
                 ),
@@ -419,14 +420,14 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
               h(
                 native.View as never,
                 { style: { flexDirection: 'row', alignItems: 'center', gap: 12 } },
-                h(Text, { variant: 'xs', children: `Crossfeed: ${Math.round((Number(params.amount ?? 0.35)) * 100)}%` }),
+                h(Text, { variant: 'xs', children: t('dsp:dsp.crossfeedReadoutCompact', { value: Math.round((Number(params.amount ?? 0.35)) * 100) }) }),
                 h(
                   native.View as never,
                   { style: { flex: 1 } },
                   h(Slider, {
                     value: Math.round((Number(params.amount ?? 0.35)) * 100),
                     max: 100,
-                    accessibilityLabel: 'Crossfeed amount',
+                    accessibilityLabel: t('dsp:dsp.crossfeedAmountLabel'),
                     onChange: (v) => void setParam('crossfeed', 'amount', Math.round(v) / 100),
                   }),
                 ),
@@ -436,14 +437,14 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
               h(
                 native.View as never,
                 { style: { flexDirection: 'row', alignItems: 'center', gap: 12 } },
-                h(Text, { variant: 'xs', children: `Ceiling: ${params.ceilingDb ?? -0.5}dB` }),
+                h(Text, { variant: 'xs', children: t('dsp:dsp.ceilingReadoutCompact', { value: Number(params.ceilingDb ?? -0.5) }) }),
                 h(
                   native.View as never,
                   { style: { flex: 1 } },
                   h(Slider, {
                     value: Math.round(((Number(params.ceilingDb ?? -0.5)) + 12) * 8.33),
                     max: 100,
-                    accessibilityLabel: 'Limiter ceiling',
+                    accessibilityLabel: t('dsp:dsp.limiterCeilingLabel'),
                     onChange: (v) => void setParam('limiter', 'ceilingDb', -Math.round((100 - v) / 8.33 * 10) / 10),
                   }),
                 ),

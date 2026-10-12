@@ -488,7 +488,7 @@ class SettingsStub extends Service implements Partial<SettingsService> {
   await root.plugin(PluginManagerStub)
 
   let scoped: Context | undefined
-  root.inject(['ui', 'settings', 'dsp', 'plugin-manager'], (s) => void (scoped = s))
+  root.inject(['ui', 'settings', 'dsp', 'plugin-manager', 'i18n'], (s) => void (scoped = s))
   await new Promise((r) => setTimeout(r, 0))
   if (!scoped) throw new Error('Failed to create scoped context in harness')
 
@@ -800,8 +800,8 @@ describe('SettingsScreen', () => {
     const { ctx, calls } = await harness({ language: 'zh' })
     const { container } = render(h(SettingsScreen, { ctx }))
 
-    // Language select
-    const langSelect = container.querySelector('select[aria-label="Interface language"]') as HTMLSelectElement
+    // Language select (aria-label is translated; harness uses zh)
+    const langSelect = container.querySelector('select[aria-label="界面语言"]') as HTMLSelectElement
     expect(langSelect).toBeTruthy()
     expect(langSelect.value).toBe('zh')
     fireEvent.change(langSelect, { target: { value: 'en' } })
@@ -1253,7 +1253,7 @@ describe('SettingsScreen', () => {
   })
 
   it('renders playback tab safely under scoped context with missing optional services and schema field when predicates', async () => {
-    let currentSettings: AppSettings = { ...DEFAULT_APP_SETTINGS, crossfadeEnabled: false }
+    let currentSettings: AppSettings = { ...DEFAULT_APP_SETTINGS, language: 'en', crossfadeEnabled: false }
 
     class SettingsStub extends Service implements Partial<SettingsService> {
       private appCtx: Context
@@ -1312,13 +1312,25 @@ describe('SettingsScreen', () => {
       }
     }
 
+    class DummyDeviceStub extends Service {
+      static override readonly name = 'device'
+      constructor(ctx: Context) {
+        super(ctx, 'device')
+      }
+      get locale(): string {
+        return 'en'
+      }
+    }
+
     const root = new Context()
     await root.plugin(SettingsStub)
     await root.plugin(UiStub)
     await root.plugin(DummyAudioStub)
+    await root.plugin(DummyDeviceStub)
+    await applyI18n(root)
 
     let settingsScoped: Context | undefined
-    root.inject(['ui', 'settings'], (s) => void (settingsScoped = s))
+    root.inject(['ui', 'settings', 'i18n'], (s) => void (settingsScoped = s))
 
     let playerScoped: Context | undefined
     root.inject(['audio'], (s) => void (playerScoped = s))

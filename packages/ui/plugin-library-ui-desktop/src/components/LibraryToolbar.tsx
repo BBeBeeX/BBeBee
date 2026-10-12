@@ -1,25 +1,34 @@
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { MenuAnchor } from '@BBeBee/ui-core'
-import { TextField, tablerIcon } from '@BBeBee/ui-kit-desktop'
+import type { Context } from 'cordis'
+import { TextField, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 
 export type LibraryFilterKey = 'all' | 'playlist' | 'album' | 'artist' | 'downloaded'
 export type LibrarySortMode = 'creator' | 'recent-added' | 'recent-played' | 'alphabetical'
 
+/**
+ * Filter buttons: stable keys plus the i18n key for each label.
+ * Render the label with `t(labelKey)` — never the key itself.
+ */
 export const LIBRARY_FILTER_BUTTONS = [
-  { key: 'playlist', label: 'Playlists' },
-  { key: 'album', label: 'Albums' },
-  { key: 'artist', label: 'Artists' },
+  { key: 'playlist', labelKey: 'library:libraryToolbar.playlists' },
+  { key: 'album', labelKey: 'library:libraryToolbar.albums' },
+  { key: 'artist', labelKey: 'library:libraryToolbar.artists' },
 ] as const
 
+/**
+ * i18n keys for the sort-mode labels — render with `t(LIBRARY_SORT_LABELS[sortMode])`.
+ */
 export const LIBRARY_SORT_LABELS: Record<LibrarySortMode, string> = {
-  creator: 'Creator',
-  'recent-added': 'Recently added',
-  'recent-played': 'Recently played',
-  alphabetical: 'Alphabetical',
+  creator: 'library:library.creator',
+  'recent-added': 'library:library.recentlyAdded',
+  'recent-played': 'library:library.recentlyPlayed',
+  alphabetical: 'library:library.alphabetical',
 }
 
 export interface LibraryToolbarProps {
+  ctx: Context
   activeFilter: LibraryFilterKey
   setActiveFilter: (filter: LibraryFilterKey) => void
   searchOpen: boolean
@@ -35,6 +44,7 @@ export interface LibraryToolbarProps {
 }
 
 export function LibraryToolbar({
+  ctx,
   activeFilter,
   setActiveFilter,
   searchOpen,
@@ -46,6 +56,7 @@ export function LibraryToolbar({
   hasArtists = true,
   createSlot,
 }: LibraryToolbarProps): ReactElement {
+  const { t } = useI18n(ctx)
   const filterButtons = LIBRARY_FILTER_BUTTONS.filter(({ key }) => key !== 'artist' || hasArtists)
   return h(
     'div',
@@ -64,7 +75,7 @@ export function LibraryToolbar({
           flexWrap: 'wrap',
         },
       },
-      filterButtons.map(({ key, label }, index) => {
+      filterButtons.map(({ key, labelKey }, index) => {
         const active = activeFilter === key
         return [
           // Hairline split between the flat filter buttons.
@@ -103,7 +114,7 @@ export function LibraryToolbar({
                 transition: 'all 0.15s ease',
               },
             },
-            label,
+            t(labelKey),
           ),
         ]
       }),
@@ -127,8 +138,8 @@ export function LibraryToolbar({
           'button',
           {
             type: 'button',
-            'aria-label': 'Search',
-            title: 'Search',
+            'aria-label': t('library:libraryToolbar.search'),
+            title: t('library:libraryToolbar.search'),
             onClick: () => setSearchOpen((prev) => !prev),
             style: {
               width: 28,
@@ -149,7 +160,7 @@ export function LibraryToolbar({
           ? h(TextField, {
               value: searchQuery,
               onChange: setSearchQuery,
-              placeholder: 'Search the library...',
+              placeholder: t('library:libraryToolbar.searchTheLibrary'),
               testID: 'library-search-input',
             })
           : null,
@@ -173,7 +184,7 @@ export function LibraryToolbar({
               cursor: 'pointer',
             },
           },
-          searchOpen ? null : h('span', null, LIBRARY_SORT_LABELS[sortMode]),
+          searchOpen ? null : h('span', null, t(LIBRARY_SORT_LABELS[sortMode])),
           tablerIcon('list', { size: 20 }),
         ),
     ),

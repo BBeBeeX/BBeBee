@@ -19,6 +19,7 @@ import { withListLayout } from '@BBeBee/ui-kit-desktop/testing'
 import { Context, Service } from 'cordis'
 import type { PlayRecord, QueueItem, Track, TransportState } from '@BBeBee/protocol'
 import { QueueScreen } from './index.js'
+import queueCatalogue from '../../../feature/plugin-i18n/src/locales/queue.json'
 
 afterEach(() => {
   cleanup()
@@ -84,7 +85,31 @@ async function harness(
       urns.map((urn) => catalogue[urn]).filter((t): t is Track => t !== undefined)
   }
 
+  /**
+   * English-only i18n stub — the same shape as `DefaultI18nStub` in
+   * `apps/desktop/renderer/Shell.test.tsx`, serving the `queue` catalogue.
+   */
+  class EnglishI18nStub extends Service {
+    static override readonly name = 'i18n'
+    locale = 'en'
+    constructor(ctx: Context) {
+      super(ctx, 'i18n')
+    }
+    t = (key: string, params?: Record<string, string | number>): string => {
+      const sep = key.indexOf(':')
+      if (sep < 0) return key
+      let cur: unknown = (queueCatalogue as { en: Record<string, unknown> }).en
+      for (const part of key.slice(sep + 1).split('.')) {
+        cur = (cur as Record<string, unknown> | undefined)?.[part]
+      }
+      if (typeof cur !== 'string') return key
+      return params ? cur.replace(/\{(\w+)\}/g, (_, k: string) => String(params[k] ?? `{${k}}`)) : cur
+    }
+    onLocaleChange = (_cb: (locale: string) => void): (() => void) => () => {}
+  }
+
   const ctx = new Context()
+  await ctx.plugin(EnglishI18nStub)
   await ctx.plugin(PlayerStub)
   if (Object.keys(catalogue).length > 0) await ctx.plugin(SourcesStub)
   return { ctx, calls }

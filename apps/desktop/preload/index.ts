@@ -180,6 +180,27 @@ const api = {
     },
   },
   platform: process.platform,
+  /**
+   * Interface locale for ctx-less windows (desktop-lyrics, mini-player).
+   *
+   * These windows never boot the Cordis app, so they cannot use `ctx.i18n`.
+   * The main window's renderer — which does have ctx — pushes the resolved
+   * locale through `notify` whenever it changes; main remembers it and fans
+   * `locale:changed` out to every window. Mechanical plumbing only: no
+   * catalogue data crosses this bridge, the renderer resolves keys against
+   * the catalogues it statically imports (`@BBeBee/plugin-i18n`).
+   */
+  locale: {
+    getLocale: (): Promise<string> => ipcRenderer.invoke('locale:get'),
+    notify: (locale: string): Promise<void> => ipcRenderer.invoke('locale:notify', locale),
+    onLocaleChange: (callback: (locale: string) => void): (() => void) => {
+      const listener = (_event: unknown, locale: string) => callback(locale)
+      ipcRenderer.on('locale:changed', listener)
+      return () => {
+        ipcRenderer.removeListener('locale:changed', listener)
+      }
+    },
+  },
   versions: { electron: process.versions.electron, node: process.versions.node },
   isDebug: Boolean(
     (process.env['DEBUG'] && process.env['DEBUG'] !== '0' && process.env['DEBUG'] !== 'false') ||

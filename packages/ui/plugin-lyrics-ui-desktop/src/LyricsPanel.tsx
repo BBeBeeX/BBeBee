@@ -16,7 +16,7 @@ import type { Context } from 'cordis'
 import type { ShareService } from '@BBeBee/protocol'
 import { serviceOf } from '@BBeBee/ui-core'
 import { formatDuration, type LyricLine } from '@BBeBee/toolkit'
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { useNowPlaying } from '@BBeBee/toolkit/hooks'
 import { useActiveLyricIndex, useLyrics } from '@BBeBee/plugin-lyrics/hooks'
 import { tokens } from '@BBeBee/ui-tokens'
@@ -28,6 +28,7 @@ export interface LyricsPanelProps {
 }
 
 export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
+  const { t } = useI18n(ctx)
   const { status, parsed, error, offsetMs, supportsLyricSource, sourceType, retry } = useLyrics(ctx)
   const nowPlaying = useNowPlaying(ctx)
   const activeIndex = useActiveLyricIndex(ctx, parsed.lines, offsetMs)
@@ -106,7 +107,7 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
     'div',
     {
       role: 'region',
-      'aria-label': 'Lyrics panel',
+      'aria-label': t('lyrics:lyrics.lyricsPanel'),
       style: {
         position: 'relative',
         display: 'flex',
@@ -162,7 +163,7 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
               gap: 8,
             },
           },
-          h('span', null, nowPlaying?.title ?? (status === 'loading-song' ? 'Loading song…' : 'BBeBee Music')),
+          h('span', null, nowPlaying?.title ?? (status === 'loading-song' ? t('lyrics:lyrics.loadingSong') : t('lyrics:lyrics.bBeBeeMusic'))),
           sourceType === 'lyric-source'
             ? h(
                 'span',
@@ -177,7 +178,7 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
                     border: '1px solid rgba(95, 135, 255, 0.35)',
                   },
                 },
-                'Lyric source',
+                t('lyrics:lyrics.lyricSourceBadge'),
               )
             : null,
         ),
@@ -206,8 +207,8 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
             'button',
             {
               type: 'button',
-              title: 'Share lyrics',
-              'aria-label': 'Share lyrics',
+              title: t('lyrics:lyrics.shareLyrics'),
+              'aria-label': t('lyrics:lyrics.shareLyrics'),
               onClick: () => {
                 const share = serviceOf<ShareService>(ctx, 'share')
                 if (share) {
@@ -240,7 +241,7 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
               },
             },
             tablerIcon('share', { size: 16 }),
-            h('span', null, 'Share lyrics'),
+            h('span', null, t('lyrics:lyrics.shareLyrics')),
           )
         : null,
     ),
@@ -292,7 +293,7 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
                 },
               },
             ),
-            h('span', { style: { fontSize: 14 } }, 'Loading lyrics…'),
+            h('span', { style: { fontSize: 14 } }, t('lyrics:lyrics.loadingLyrics')),
           )
         : null,
 
@@ -312,7 +313,7 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
               },
             },
             tablerIcon('alert', { size: 36, color: 'var(--error, #EF4444)' }),
-            h('span', { style: { fontSize: 15, color: 'var(--error, #EF4444)' } }, error || 'Failed to load lyrics'),
+            h('span', { style: { fontSize: 15, color: 'var(--error, #EF4444)' } }, error || t('lyrics:lyrics.failedToLoadLyrics')),
             h(
               'button',
               {
@@ -335,7 +336,7 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
                   e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'
                 },
               },
-              'Retry',
+              t('app:common.retry'),
             ),
           )
         : null,
@@ -361,16 +362,16 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
               'span',
               { style: { fontSize: 16 } },
               status === 'idle'
-                ? 'Nothing playing'
+                ? t('lyrics:lyrics.nothingPlaying')
                 : supportsLyricSource === false
-                  ? 'External lyric sources are not enabled for this music source'
-                  : 'No lyrics',
+                  ? t('lyrics:lyrics.externalSourcesNotEnabled')
+                  : t('lyrics:lyrics.noLyrics'),
             ),
             status === 'no-lyrics' && supportsLyricSource === false
               ? h(
                   'span',
                   { style: { fontSize: 13, color: 'var(--color-text-tertiary, rgba(255, 255, 255, 0.35))' } },
-                  'You can enable external lyric source support for this music source in Settings → "Lyric source management"',
+                  t('lyrics:lyrics.enableExternalSourceHint'),
                 )
               : null,
             status === 'no-lyrics' && supportsLyricSource !== false
@@ -396,7 +397,7 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
                       e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'
                     },
                   },
-                  'Search lyrics again',
+                  t('lyrics:lyrics.searchLyricsAgain'),
                 )
               : null,
           )
@@ -529,7 +530,7 @@ export function LyricsPanel({ ctx, style }: LyricsPanelProps): ReactElement {
             },
           },
           tablerIcon('chevron-down', { size: 18 }),
-          'Back to current lyric',
+          t('lyrics:lyrics.backToCurrentLyric'),
         )
       : null,
   )

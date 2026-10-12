@@ -21,6 +21,7 @@ import { tick } from '@BBeBee/kernel/testing'
 import { configureNative } from '@BBeBee/ui-kit-mobile'
 import { decodeMetadata, encodeMetadata } from '@BBeBee/plugin-share/metadata'
 import pluginShareUiMobile, { ShareHost } from './index.js'
+import shareCatalogue from '../../../feature/plugin-i18n/src/locales/share.json'
 
 afterEach(cleanup)
 
@@ -141,6 +142,29 @@ class PlayerStub extends Service {
   }
 }
 
+/**
+ * English-only i18n stub — the same shape as `DefaultI18nStub` in
+ * `apps/desktop/renderer/Shell.test.tsx`, serving the `share` catalogue.
+ */
+class EnglishI18nStub extends Service {
+  static override readonly name = 'i18n'
+  locale = 'en'
+  constructor(ctx: Context) {
+    super(ctx, 'i18n')
+  }
+  t = (key: string, params?: Record<string, string | number>): string => {
+    const sep = key.indexOf(':')
+    if (sep < 0) return key
+    let cur: unknown = (shareCatalogue as { en: Record<string, unknown> }).en
+    for (const part of key.slice(sep + 1).split('.')) {
+      cur = (cur as Record<string, unknown> | undefined)?.[part]
+    }
+    if (typeof cur !== 'string') return key
+    return params ? cur.replace(/\{(\w+)\}/g, (_, k: string) => String(params[k] ?? `{${k}}`)) : cur
+  }
+  onLocaleChange = (_cb: (locale: string) => void): (() => void) => () => {}
+}
+
 const TRACK = {
   urn: 'source:test:track:shared_99',
   title: 'Shared Song',
@@ -149,6 +173,7 @@ const TRACK = {
 
 async function harness(): Promise<Context> {
   const ctx = new Context()
+  await ctx.plugin(EnglishI18nStub)
   await ctx.plugin(UiStub)
   await ctx.plugin(ShareStub)
   await ctx.plugin(PlayerStub)

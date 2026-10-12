@@ -8,7 +8,7 @@ import type {
   ShareLyricsData,
 } from '@BBeBee/protocol'
 import { encodeMetadata } from '@BBeBee/plugin-share/metadata'
-import { useImageColor } from '@BBeBee/ui-kit-desktop'
+import { useImageColor, useI18n } from '@BBeBee/ui-kit-desktop'
 import { useResolvedArtwork } from '@BBeBee/toolkit/hooks'
 import { copyToClipboard } from '../utils/clipboard.js'
 import { isLocalSource } from '../utils/sourceHelper.js'
@@ -46,8 +46,10 @@ export function useShareModalState<
   item,
   defaultThemeColor = '#8C52FF',
   isValid = true,
-  missingReason = "Can't copy: missing a valid title or other metadata",
+  missingReason,
 }: UseShareModalStateOptions<T>) {
+  const { t } = useI18n(ctx)
+  const resolvedMissingReason = missingReason ?? t('share:shareTrack.canTCopyMissingA')
   const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>('cover')
   const [copied, setCopied] = useState(false)
   const [downloading, setDownloading] = useState(false)
@@ -85,11 +87,11 @@ export function useShareModalState<
       data: ShareTrackData | SharePlaylistData | ShareAlbumData | ShareLyricsData,
     ) => {
       if (isLocal) {
-        showDisabledReason("Can't share local music")
+        showDisabledReason(t('share:localSourceWarning.canTShareLocalMusic'))
         return
       }
       if (!canCopy) {
-        showDisabledReason(missingReason)
+        showDisabledReason(resolvedMissingReason)
         return
       }
       try {
@@ -112,27 +114,27 @@ export function useShareModalState<
           setTimeout(() => setCopied(false), 2000)
         } else {
           ctx.logger?.error('Failed to copy base64 via clipboard')
-          showDisabledReason("Can't copy: writing to the clipboard failed, check system permissions")
+          showDisabledReason(t('share:shareLyrics.canTCopyWritingTo'))
         }
       } catch (err) {
         ctx.logger?.error(`Failed to copy base64: ${String(err)}`)
-        showDisabledReason("Can't copy: writing to the clipboard failed, check system permissions")
+        showDisabledReason(t('share:shareLyrics.canTCopyWritingTo'))
       }
     },
-    [ctx, isLocal, canCopy, missingReason, httpArtwork, showDisabledReason],
+    [ctx, t, isLocal, canCopy, resolvedMissingReason, httpArtwork, showDisabledReason],
   )
 
   const handleDisabledCopyClick = useCallback(() => {
     if (isLocal) {
-      showDisabledReason("Can't share local music")
+      showDisabledReason(t('share:localSourceWarning.canTShareLocalMusic'))
     } else {
-      showDisabledReason(missingReason)
+      showDisabledReason(resolvedMissingReason)
     }
-  }, [isLocal, missingReason, showDisabledReason])
+  }, [isLocal, t, resolvedMissingReason, showDisabledReason])
 
   const handleDisabledDownloadClick = useCallback(() => {
-    showDisabledReason("Can't share local music")
-  }, [showDisabledReason])
+    showDisabledReason(t('share:localSourceWarning.canTShareLocalMusic'))
+  }, [t, showDisabledReason])
 
   return {
     backgroundMode,

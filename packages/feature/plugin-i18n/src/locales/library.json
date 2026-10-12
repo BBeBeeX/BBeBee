@@ -1,0 +1,488 @@
+{
+  "en": {
+    "batchAction": {
+      "addTo": "Add to",
+      "deselectAll": "Deselect all",
+      "selectAll": "Select all",
+      "selectedSongs": "Selected {selectedCount} / {totalCount} songs"
+    },
+    "builtinMenu": {
+      "pinPlaylist": "Pin playlist",
+      "unpinPlaylist": "Unpin playlist"
+    },
+    "collapsedLibrary": {
+      "backToMusicLibrary": "Back to music library",
+      "expandMusicLibrary": "Expand music library",
+      "libraryCollapsed": "Library Collapsed",
+      "musicLibraryQuickLinks": "Music library quick links"
+    },
+    "collection": {
+      "addAlbumsOrPlaylistsFrom": "Add albums or playlists from the library.",
+      "collectionFallback": "Collection",
+      "collections": "Collections",
+      "collectionsDescription": "A folder of your own: albums and playlists in one place. Collections can nest.",
+      "couldNotOpenTheCollection": "Could not open the collection",
+      "itemsOne": "{count} item",
+      "itemsOther": "{count} items",
+      "loading": "Loading…",
+      "noCollectionChosen": "No collection chosen",
+      "nothingInThisCollectionYet": "Nothing in this collection yet"
+    },
+    "confirmDelete": {
+      "deleteAlbum": "Delete album",
+      "deletePlaylist": "Delete playlist",
+      "deletePlaylistThisCannotBe": "Delete playlist \"{name}\"? This cannot be undone.",
+      "removeTheAlbumFromThe": "Remove the album \"{name}\" from the music library?"
+    },
+    "createInFolder": {
+      "createFolder": "Create folder",
+      "createPlaylistInFolder": "Create playlist in folder",
+      "creating": "Creating…"
+    },
+    "editPlaylist": {
+      "addAName": "Add a name",
+      "addAnOptionalDescription": "Add an optional description",
+      "close": "Close",
+      "coverImageURLOptional": "Cover image URL (optional)",
+      "coverPreview": "Cover preview",
+      "description": "Description",
+      "editDetails": "Edit details",
+      "httpsOrUploadFromThe": "https://... or upload from the left",
+      "name": "Name",
+      "nameAndDetails": "Name & details",
+      "photoConsent": "By choosing a photo you agree to let us use it as the playlist cover.",
+      "saving": "Saving…"
+    },
+    "expandedLibrary": {
+      "collapseMusicLibrary": "Collapse music library",
+      "dateAdded": "Date added",
+      "folderExpanded": "Folder Expanded",
+      "libraryExpanded": "Library Expanded",
+      "moreOptions": "More options",
+      "musicLibrary": "Music library",
+      "pinned": "Pinned",
+      "plays": "Plays",
+      "searchInPlaylist": "Search in playlist",
+      "searchTheMusicLibrary": "Search the music library",
+      "title": "Title"
+    },
+    "favorites": {
+      "afterSavingSongsInThe": "After saving songs in the music library, they will appear here.",
+      "album": "Album",
+      "artist": "Artist",
+      "batchOperations": "Batch operations",
+      "couldNotReadFavorites": "Could not read favorites: {message}",
+      "defaultOrder": "Default order",
+      "duration": "Duration",
+      "exitBatchOperations": "Exit batch operations",
+      "favorites": "Favorites",
+      "likedSongs": "Liked songs",
+      "noLikedSongsYet": "No liked songs yet",
+      "playAll": "Play all",
+      "playSelected": "Play selected",
+      "removeFromFavorites": "Remove from Favorites",
+      "savedMusicOne": "Saved music • {length} song",
+      "savedMusicOther": "Saved music • {length} songs",
+      "savedOne": "{count} saved",
+      "savedOther": "{count} saved",
+      "searchInLikedSongs": "Search in Liked songs",
+      "shuffle": "Shuffle",
+      "sortBy": "Sort by",
+      "source": "Source",
+      "title": "Title"
+    },
+    "index": {
+      "couldNotReadPlaylists": "Could not read playlists: {message}",
+      "createAPlaylistOrA": "Create a playlist or a collection, or import a source to fill the album list.",
+      "moreActionsFor": "More actions for {name}",
+      "newCollectionName": "New collection name",
+      "nothingSavedYet": "Nothing saved yet",
+      "playlistsAlbumsCollections": "{playlists} playlists · {length} albums · {collections} collections",
+      "removeFrom": "Remove {title} from {name}",
+      "removeFromFavorites": "Remove {title} from favorites",
+      "saveATrackFromThe": "Save a track from the library and it lands here."
+    },
+    "library": {
+      "album": "Album • {artists}",
+      "albumsDescription": "Everything the catalogue knows, in the order the sources reported it.",
+      "alphabetical": "Alphabetical",
+      "byYou": "By you",
+      "creator": "Creator",
+      "deleteItem": "Delete {title}",
+      "folderItemsOne": "Folder • {count} item",
+      "folderItemsOther": "Folder • {count} items",
+      "importAMusicSourceScan": "Import a music source, scan local folders, or adjust the filters.",
+      "items": "Items",
+      "library": "Library",
+      "localAndDownloads": "Local & downloads",
+      "nothingFound": "Nothing found",
+      "open": "Open",
+      "playItem": "Play {title}",
+      "playlistByOwner": "Playlist • {owner}",
+      "recentlyAdded": "Recently added",
+      "recentlyPlayed": "Recently played",
+      "single": "Single",
+      "smartPlaylist": "Smart playlist",
+      "unknownArtist": "Unknown artist"
+    },
+    "libraryCreateDropdown": {
+      "create": "Create",
+      "createAPlaylistWithSongs": "Create a playlist with songs or episodes",
+      "folder": "Folder",
+      "importShare": "Import share",
+      "managePlaylists": "Manage playlists",
+      "playlist": "Playlist",
+      "readAShareCardOr": "Read a share card or image"
+    },
+    "libraryModals": {
+      "createFolder": "Create folder",
+      "createPlaylist": "Create playlist",
+      "newFolderName": "New folder name",
+      "newPlaylistName": "New playlist name"
+    },
+    "libraryToolbar": {
+      "albums": "Albums",
+      "artists": "Artists",
+      "playlists": "Playlists",
+      "search": "Search",
+      "searchTheLibrary": "Search the library..."
+    },
+    "libraryTrack": {
+      "deselect": "Deselect",
+      "more": "More",
+      "removeFromPlaylist": "Remove from {name}",
+      "select": "Select",
+      "viewAlbum": "View album: {albumTitle}"
+    },
+    "localAlbum": {
+      "albumFallback": "Album",
+      "tracks": "{trackCount} songs",
+      "unknownAlbum": "Unknown album",
+      "yearAndAlbum": "{year} • Album",
+      "yearAndTracks": "{year} • {trackCount} songs"
+    },
+    "localMusic": {
+      "afterAddingALocalMusic": "After adding a local music folder with album metadata, albums will appear here.",
+      "afterAddingAMusicFolder": "After adding a music folder, the scanned songs will appear here.",
+      "albumName": "Album name",
+      "albumsFromThisComputerAlbums": "Albums from this computer • {length} albums",
+      "delete": "Delete",
+      "filesFromThisComputerSongs": "Files from this computer • {length} songs",
+      "localAlbums": "Local albums",
+      "localFiles": "Local files",
+      "localMusic": "Local music",
+      "noLocalAlbumsYet": "No local albums yet",
+      "noLocalMusicYet": "No local music yet",
+      "scanSettings": "Scan settings",
+      "searchLocalAlbums": "Search local albums",
+      "searchLocalFiles": "Search local files",
+      "songs": "Songs",
+      "trackCount": "Track count",
+      "year": "Year"
+    },
+    "playlistDetail": {
+      "add": "Add",
+      "addTracksToFill": "Add tracks from the library to fill this playlist.",
+      "couldNotOpenThePlaylist": "Could not open the playlist",
+      "customOrder": "Custom order",
+      "dateAdded": "Date added",
+      "download": "Download",
+      "noPlaylistChosen": "No playlist chosen",
+      "noTrackMatchesPlaylistRules": "No track in the catalogue matches this playlist's rules right now.",
+      "noTrackMatchesTheseRules": "No track in the catalogue matches these rules right now.",
+      "nothingHereYet": "Nothing here yet",
+      "play": "Play",
+      "playlist": "Playlist",
+      "publicPlaylist": "Public playlist",
+      "removeFromThisPlaylist": "Remove from this playlist",
+      "sharePlaylist": "Share playlist",
+      "smartPlaylist": " • Smart playlist",
+      "smartPlaylistDescription": "Smart playlist — tracks come from its rules",
+      "songCount": " • {count} songs",
+      "tracksOne": "{count} track",
+      "tracksOther": "{count} tracks"
+    },
+    "quadArtworkCollage": {
+      "choosePhoto": "Choose photo"
+    },
+    "renameFolder": {
+      "folderName": "Folder name",
+      "renameFolder": "Rename folder"
+    },
+    "sidebarFolder": {
+      "clickCreateToAddA": "Click create to add a playlist, or add content from the music library.",
+      "noItemsYet": "No items yet",
+      "searchInFolder": "Search in folder...",
+      "thisFolderIsEmpty": "This folder is empty"
+    },
+    "trackLibraryActionButton": {
+      "addToFavorites": "Add {title} to favorites",
+      "addToFavorites2": "Add to Favorites",
+      "addToPlaylist": "Add {title} to playlist",
+      "addToPlaylist2": "Add to playlist",
+      "newPlaylist": "New playlist",
+      "playlistNamePrompt": "Playlist name:"
+    },
+    "unifiedLibrary": {
+      "collapse": "Collapse",
+      "collapseFolder": "Collapse folder",
+      "expand": "Expand",
+      "expandFolder": "Expand folder",
+      "favorites": "Favorites"
+    },
+    "userProfile": {
+      "description": "Local user profile; playlists and other content will show this name as their creator",
+      "mine": "Mine",
+      "save": "Save",
+      "saved": "Saved",
+      "shownAsTheCreatorWhen": "Shown as the creator when you create playlists",
+      "title": "User",
+      "userID": "User ID",
+      "username": "Username",
+      "usernameCannotBeEmpty": "Username cannot be empty"
+    }
+  },
+  "zh": {
+    "batchAction": {
+      "addTo": "添加到",
+      "deselectAll": "取消全选",
+      "selectAll": "全选",
+      "selectedSongs": "已选 {selectedCount} / {totalCount} 首"
+    },
+    "builtinMenu": {
+      "pinPlaylist": "固定播放列表",
+      "unpinPlaylist": "取消固定播放列表"
+    },
+    "collapsedLibrary": {
+      "backToMusicLibrary": "返回音乐库",
+      "expandMusicLibrary": "展开音乐库",
+      "libraryCollapsed": "音乐库已收起",
+      "musicLibraryQuickLinks": "音乐库快捷链接"
+    },
+    "collection": {
+      "addAlbumsOrPlaylistsFrom": "从音乐库添加专辑或播放列表。",
+      "collectionFallback": "合集",
+      "collections": "合集",
+      "collectionsDescription": "属于你自己的文件夹：专辑和播放列表汇聚一处，合集可以嵌套。",
+      "couldNotOpenTheCollection": "无法打开该合集",
+      "itemsOne": "{count} 个项目",
+      "itemsOther": "{count} 个项目",
+      "loading": "加载中…",
+      "noCollectionChosen": "未选择合集",
+      "nothingInThisCollectionYet": "该合集暂无内容"
+    },
+    "confirmDelete": {
+      "deleteAlbum": "删除专辑",
+      "deletePlaylist": "删除播放列表",
+      "deletePlaylistThisCannotBe": "删除播放列表“{name}”？此操作无法撤销。",
+      "removeTheAlbumFromThe": "将专辑“{name}”从音乐库中移除？"
+    },
+    "createInFolder": {
+      "createFolder": "新建文件夹",
+      "createPlaylistInFolder": "在文件夹中新建播放列表",
+      "creating": "创建中…"
+    },
+    "editPlaylist": {
+      "addAName": "添加名称",
+      "addAnOptionalDescription": "添加可选描述",
+      "close": "关闭",
+      "coverImageURLOptional": "封面图片 URL（可选）",
+      "coverPreview": "封面预览",
+      "description": "描述",
+      "editDetails": "编辑详情",
+      "httpsOrUploadFromThe": "https://... 或从左侧上传",
+      "name": "名称",
+      "nameAndDetails": "名称与详情",
+      "photoConsent": "选择照片即表示你同意我们将其用作播放列表封面。",
+      "saving": "保存中…"
+    },
+    "expandedLibrary": {
+      "collapseMusicLibrary": "收起音乐库",
+      "dateAdded": "添加日期",
+      "folderExpanded": "文件夹已展开",
+      "libraryExpanded": "音乐库已展开",
+      "moreOptions": "更多选项",
+      "musicLibrary": "音乐库",
+      "pinned": "已固定",
+      "plays": "播放次数",
+      "searchInPlaylist": "在播放列表中搜索",
+      "searchTheMusicLibrary": "搜索音乐库",
+      "title": "标题"
+    },
+    "favorites": {
+      "afterSavingSongsInThe": "在音乐库中收藏歌曲后，它们会显示在这里。",
+      "album": "专辑",
+      "artist": "艺人",
+      "batchOperations": "批量操作",
+      "couldNotReadFavorites": "无法读取收藏：{message}",
+      "defaultOrder": "默认排序",
+      "duration": "时长",
+      "exitBatchOperations": "退出批量操作",
+      "favorites": "收藏",
+      "likedSongs": "喜欢的歌曲",
+      "noLikedSongsYet": "暂无喜欢的歌曲",
+      "playAll": "全部播放",
+      "playSelected": "播放所选",
+      "removeFromFavorites": "从收藏中移除",
+      "savedMusicOne": "收藏的音乐 • {length} 首",
+      "savedMusicOther": "收藏的音乐 • {length} 首",
+      "savedOne": "{count} 首已收藏",
+      "savedOther": "{count} 首已收藏",
+      "searchInLikedSongs": "在喜欢的歌曲中搜索",
+      "shuffle": "随机播放",
+      "sortBy": "排序方式",
+      "source": "来源",
+      "title": "标题"
+    },
+    "index": {
+      "couldNotReadPlaylists": "无法读取播放列表：{message}",
+      "createAPlaylistOrA": "创建播放列表或合集，或导入音乐源以填充专辑列表。",
+      "moreActionsFor": "{name} 的更多操作",
+      "newCollectionName": "新合集名称",
+      "nothingSavedYet": "暂无收藏内容",
+      "playlistsAlbumsCollections": "{playlists} 个播放列表 · {length} 张专辑 · {collections} 个合集",
+      "removeFrom": "将 {title} 从 {name} 中移除",
+      "removeFromFavorites": "将 {title} 从收藏中移除",
+      "saveATrackFromThe": "从音乐库收藏曲目后会显示在这里。"
+    },
+    "library": {
+      "album": "专辑 • {artists}",
+      "albumsDescription": "目录中的全部内容，按音乐源上报的顺序排列。",
+      "alphabetical": "按字母顺序",
+      "byYou": "你创建的",
+      "creator": "创建者",
+      "deleteItem": "删除{title}",
+      "folderItemsOne": "文件夹 • {count} 个项目",
+      "folderItemsOther": "文件夹 • {count} 个项目",
+      "importAMusicSourceScan": "导入音乐源、扫描本地文件夹或调整筛选条件。",
+      "items": "项目",
+      "library": "音乐库",
+      "localAndDownloads": "本地与下载",
+      "nothingFound": "未找到内容",
+      "open": "打开",
+      "playItem": "播放{title}",
+      "playlistByOwner": "播放列表 • {owner}",
+      "recentlyAdded": "最近添加",
+      "recentlyPlayed": "最近播放",
+      "single": "单曲",
+      "smartPlaylist": "智能播放列表",
+      "unknownArtist": "未知艺人"
+    },
+    "libraryCreateDropdown": {
+      "create": "新建",
+      "createAPlaylistWithSongs": "用歌曲创建播放列表",
+      "folder": "文件夹",
+      "importShare": "导入分享",
+      "managePlaylists": "管理播放列表",
+      "playlist": "播放列表",
+      "readAShareCardOr": "读取分享卡片或图片"
+    },
+    "libraryModals": {
+      "createFolder": "新建文件夹",
+      "createPlaylist": "新建播放列表",
+      "newFolderName": "新文件夹名称",
+      "newPlaylistName": "新播放列表名称"
+    },
+    "libraryToolbar": {
+      "albums": "专辑",
+      "artists": "艺人",
+      "playlists": "播放列表",
+      "search": "搜索",
+      "searchTheLibrary": "搜索音乐库…"
+    },
+    "libraryTrack": {
+      "deselect": "取消选择",
+      "more": "更多",
+      "removeFromPlaylist": "从{name}中移除",
+      "select": "选择",
+      "viewAlbum": "查看专辑：{albumTitle}"
+    },
+    "localAlbum": {
+      "albumFallback": "专辑",
+      "tracks": "{trackCount} 首歌",
+      "unknownAlbum": "未知专辑",
+      "yearAndAlbum": "{year} • 专辑",
+      "yearAndTracks": "{year} • {trackCount} 首歌"
+    },
+    "localMusic": {
+      "afterAddingALocalMusic": "添加带专辑元数据的本地音乐文件夹后，专辑会显示在这里。",
+      "afterAddingAMusicFolder": "添加音乐文件夹后，扫描到的歌曲会显示在这里。",
+      "albumName": "专辑名称",
+      "albumsFromThisComputerAlbums": "来自本机的专辑 • {length} 张专辑",
+      "delete": "删除",
+      "filesFromThisComputerSongs": "来自本机的文件 • {length} 首歌",
+      "localAlbums": "本地专辑",
+      "localFiles": "本地文件",
+      "localMusic": "本地音乐",
+      "noLocalAlbumsYet": "暂无本地专辑",
+      "noLocalMusicYet": "暂无本地音乐",
+      "scanSettings": "扫描设置",
+      "searchLocalAlbums": "搜索本地专辑",
+      "searchLocalFiles": "搜索本地文件",
+      "songs": "歌曲",
+      "trackCount": "曲目数",
+      "year": "年份"
+    },
+    "playlistDetail": {
+      "add": "添加",
+      "addTracksToFill": "从音乐库添加曲目以填充该播放列表。",
+      "couldNotOpenThePlaylist": "无法打开该播放列表",
+      "customOrder": "自定义排序",
+      "dateAdded": "添加日期",
+      "download": "下载",
+      "noPlaylistChosen": "未选择播放列表",
+      "noTrackMatchesPlaylistRules": "目前没有曲目符合该播放列表的规则。",
+      "noTrackMatchesTheseRules": "目前没有曲目符合这些规则。",
+      "nothingHereYet": "这里还没有内容",
+      "play": "播放",
+      "playlist": "播放列表",
+      "publicPlaylist": "公开播放列表",
+      "removeFromThisPlaylist": "从该播放列表中移除",
+      "sharePlaylist": "分享播放列表",
+      "smartPlaylist": " • 智能播放列表",
+      "smartPlaylistDescription": "智能播放列表 — 曲目由其规则生成",
+      "songCount": " • {count} 首歌",
+      "tracksOne": "{count} 首歌",
+      "tracksOther": "{count} 首歌"
+    },
+    "quadArtworkCollage": {
+      "choosePhoto": "选择照片"
+    },
+    "renameFolder": {
+      "folderName": "文件夹名称",
+      "renameFolder": "重命名文件夹"
+    },
+    "sidebarFolder": {
+      "clickCreateToAddA": "点击新建以添加播放列表，或从音乐库添加内容。",
+      "noItemsYet": "暂无项目",
+      "searchInFolder": "在文件夹中搜索…",
+      "thisFolderIsEmpty": "该文件夹为空"
+    },
+    "trackLibraryActionButton": {
+      "addToFavorites": "将“{title}”添加到收藏",
+      "addToFavorites2": "添加到收藏",
+      "addToPlaylist": "将“{title}”添加到播放列表",
+      "addToPlaylist2": "添加到播放列表",
+      "newPlaylist": "新建播放列表",
+      "playlistNamePrompt": "播放列表名称："
+    },
+    "unifiedLibrary": {
+      "collapse": "收起",
+      "collapseFolder": "收起文件夹",
+      "expand": "展开",
+      "expandFolder": "展开文件夹",
+      "favorites": "收藏"
+    },
+    "userProfile": {
+      "description": "本地用户个人资料；播放列表和其他内容将以此名称作为创建者。",
+      "mine": "我的",
+      "save": "保存",
+      "saved": "已保存",
+      "shownAsTheCreatorWhen": "创建播放列表时将显示为创建者",
+      "title": "用户",
+      "userID": "用户 ID",
+      "username": "用户名",
+      "usernameCannotBeEmpty": "用户名不能为空"
+    }
+  }
+}

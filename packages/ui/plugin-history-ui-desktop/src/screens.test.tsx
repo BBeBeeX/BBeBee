@@ -11,10 +11,67 @@ import { Context, Service } from 'cordis'
 import type { PlayHistoryHeatmapDay, PlayHistoryStats, PlayRecord, Track, TransportState } from '@BBeBee/protocol'
 import { HistoryScreen } from './HistoryScreen.js'
 import { PlayHeatmap, getHeatmapLevel, formatPlayDuration } from './PlayHeatmap.js'
+import historyCatalogue from '../../../feature/plugin-i18n/src/locales/history.json'
+import appCatalogueEn from '../../../feature/plugin-i18n/src/locales/en.json'
+import appCatalogueZh from '../../../feature/plugin-i18n/src/locales/zh.json'
+
+const CATALOGUES: Record<string, { en: unknown; zh: unknown }> = {
+  app: { en: appCatalogueEn, zh: appCatalogueZh },
+  history: { en: historyCatalogue.en, zh: historyCatalogue.zh },
+}
+
+/**
+ * Default i18n service for tests: serves the real catalogue so components
+ * under test render the same copy the app shows.
+ */
+class DefaultI18nStub extends Service {
+  static override readonly name = 'i18n'
+  locale = 'en'
+  private listeners = new Set<(locale: string) => void>()
+  constructor(ctx: Context) {
+    super(ctx, 'i18n')
+  }
+  setLocale = (next: string): void => {
+    this.locale = next
+    for (const listener of [...this.listeners]) listener(next)
+  }
+  t = (key: string, params?: Record<string, string | number>): string => {
+    const sep = key.indexOf(':')
+    if (sep < 0) return key
+    const ns = key.slice(0, sep)
+    const catalogue = CATALOGUES[ns]?.[this.locale === 'zh' ? 'zh' : 'en']
+    if (!catalogue) return key
+    let cur: unknown = catalogue
+    for (const part of key.slice(sep + 1).split('.')) {
+      cur = (cur as Record<string, unknown> | undefined)?.[part]
+    }
+    if (typeof cur !== 'string') return key
+    return params ? cur.replace(/\{(\w+)\}/g, (_, k: string) => String(params[k] ?? `{${k}}`)) : cur
+  }
+  onLocaleChange = (cb: (locale: string) => void): (() => void) => {
+    this.listeners.add(cb)
+    return () => void this.listeners.delete(cb)
+  }
+}
 
 afterEach(() => {
   cleanup()
 })
+
+/**
+ * English-only stub for the pure `formatPlayDuration` helper: serves the real
+ * `history` catalogue verbatim so duration expectations are unaffected by
+ * i18n wiring.
+ */
+function enT(key: string, params?: Record<string, string | number>): string {
+  const path = key.startsWith('history:') ? key.slice('history:'.length) : key
+  let cur: unknown = historyCatalogue.en
+  for (const part of path.split('.')) {
+    cur = (cur as Record<string, unknown> | undefined)?.[part]
+  }
+  if (typeof cur !== 'string') return key
+  return params ? cur.replace(/\{(\w+)\}/g, (_, k: string) => String(params[k] ?? `{${k}}`)) : cur
+}
 
 const IDLE: TransportState = {
   status: 'idle',
@@ -39,11 +96,11 @@ describe('PlayHeatmap logic', () => {
   })
 
   it('formats play duration correctly', () => {
-    expect(formatPlayDuration(0)).toBe('0 min')
-    expect(formatPlayDuration(30000)).toBe('< 1 min')
-    expect(formatPlayDuration(180000)).toBe('3 min')
-    expect(formatPlayDuration(3600000)).toBe('1 hr')
-    expect(formatPlayDuration(5400000)).toBe('1 hr 30 min')
+    expect(formatPlayDuration(enT, 0)).toBe('0 min')
+    expect(formatPlayDuration(enT, 30000)).toBe('< 1 min')
+    expect(formatPlayDuration(enT, 180000)).toBe('3 min')
+    expect(formatPlayDuration(enT, 3600000)).toBe('1 hr')
+    expect(formatPlayDuration(enT, 5400000)).toBe('1 hr 30 min')
   })
 
   it('renders days and handles cell click', () => {
@@ -125,6 +182,7 @@ async function harness(options: {
   }
 
   const ctx = new Context()
+  await ctx.plugin(DefaultI18nStub)
   await ctx.plugin(PlayerStub)
   await ctx.plugin(SourcesStub)
 

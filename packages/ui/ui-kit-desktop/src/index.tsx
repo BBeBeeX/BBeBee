@@ -18,6 +18,7 @@ export * from './manifest.js'
 
 export { setScheme } from './theme.js'
 export { useI18n, type UseI18nResult } from './hooks/use-i18n.js'
+export { useBridgeLocale, type UseBridgeLocaleResult } from './hooks/use-bridge-locale.js'
 export { Button, IconButton } from './components/Button.js'
 export { TextField } from './components/TextField.js'
 export { Text } from './components/Text.js'

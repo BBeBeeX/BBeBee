@@ -21,6 +21,7 @@ import type { Context } from 'cordis'
 import { findActiveLyricIndex, parseLrc, type ParsedLyrics } from '@BBeBee/toolkit'
 import { tablerIcon } from '../icons/index.js'
 import { serviceOf, useServiceState } from '@BBeBee/ui-core'
+import { useI18n } from '../hooks/use-i18n.js'
 import type { LyricsService, LyricsState } from '@BBeBee/protocol'
 
 /* ── Cursive / handwriting font stack (shared with the cinematic style) ─── */
@@ -55,6 +56,7 @@ export interface CinematicLyricsTemplateProps {
 
 export function CinematicLyricsTemplate(props: CinematicLyricsTemplateProps): ReactElement {
   const { ctx, displayPosition, trackUrn, isPlaying, canSeek = true, onSeek, style } = props
+  const { t } = useI18n(ctx)
 
   /* ── lyrics state ─────────────────────────────────────────────────────── */
   const lyricsService = serviceOf<LyricsService>(ctx, 'lyrics')
@@ -136,7 +138,7 @@ export function CinematicLyricsTemplate(props: CinematicLyricsTemplateProps): Re
     {
       'data-testid': 'cinematic-lyrics-block',
       role: 'region',
-      'aria-label': 'Lyrics',
+      'aria-label': t('app:common.cinematicLyricsTemplate.lyrics'),
       style: {
         position: 'relative',
         display: 'flex',
@@ -316,7 +318,7 @@ export function CinematicLyricsTemplate(props: CinematicLyricsTemplateProps): Re
             },
           },
           tablerIcon('chevron-down', { size: 14 }),
-          'Back to current lyric',
+          t('app:common.cinematicLyricsTemplate.backToCurrentLyric'),
         )
       : null,
   )

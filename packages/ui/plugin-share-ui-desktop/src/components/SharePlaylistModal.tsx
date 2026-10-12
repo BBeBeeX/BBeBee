@@ -2,7 +2,7 @@ import { createElement as h, useCallback } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { SharePlaylistData } from '@BBeBee/protocol'
-import { Sheet } from '@BBeBee/ui-kit-desktop'
+import { Sheet, useI18n } from '@BBeBee/ui-kit-desktop'
 import {
   generatePlaylistCardCanvas,
   downloadCanvasAsPng,
@@ -28,6 +28,7 @@ export function SharePlaylistModal({
   open,
   onClose,
 }: SharePlaylistModalProps): ReactElement | null {
+  const { t } = useI18n(ctx)
   const isValid = Boolean(playlist && playlist.name && playlist.name.trim().length > 0)
   const {
     backgroundMode,
@@ -50,11 +51,13 @@ export function SharePlaylistModal({
     item: playlist,
     defaultThemeColor: '#8C52FF',
     isValid,
-    missingReason: "Can't copy: the playlist is missing a valid name or other metadata",
+    missingReason: t('share:sharePlaylist.canTCopyThePlaylist'),
   })
 
   const subtitle =
-    playlist.trackCount > 0 ? `Playlist • ${playlist.trackCount} songs` : 'Playlist'
+    playlist.trackCount > 0
+      ? t('share:sharePlaylist.playlistSongs', { trackCount: playlist.trackCount })
+      : t('share:sharePlaylist.playlistLabel')
 
   const handleCopy = useCallback(() => {
     void copyBase64('playlist', playlist)
@@ -102,8 +105,8 @@ export function SharePlaylistModal({
           margin: '0 auto',
         },
       },
-      h(ShareModalHeader, { title: 'Share playlist', onClose }),
-      h(LocalSourceWarning, { show: isLocal }),
+      h(ShareModalHeader, { ctx, title: t('share:sharePlaylist.sharePlaylist'), onClose }),
+      h(LocalSourceWarning, { ctx, show: isLocal }),
       h(ShareCardPreview, {
         title: playlist.name,
         subtitle,
@@ -112,12 +115,10 @@ export function SharePlaylistModal({
         backgroundMode,
         type: 'playlist',
       }),
-      h(BackgroundModeSelector, {
-        mode: backgroundMode,
-        onChange: setBackgroundMode,
-      }),
+      h(BackgroundModeSelector, { ctx, mode: backgroundMode, onChange: setBackgroundMode }),
       h(DisabledReasonToast, { message: disabledReason }),
       h(ShareActionButtons, {
+        ctx,
         canCopy,
         copied,
         downloading,

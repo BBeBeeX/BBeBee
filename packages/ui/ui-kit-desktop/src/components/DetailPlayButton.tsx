@@ -1,5 +1,8 @@
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
+import type { Context } from 'cordis'
+import { serviceOf } from '@BBeBee/ui-core'
+import type { I18nService } from '@BBeBee/protocol'
 import { tablerIcon } from '../icons/index.js'
 
 export interface DetailPlayButtonProps {
@@ -15,16 +18,27 @@ export interface DetailPlayButtonProps {
    * query by text (the album page's "Play album").
    */
   srText?: string
+  /**
+   * Optional Cordis context. When provided, the fallback aria-label is
+   * translated via `useI18n`; without it the built-in English copy renders.
+   */
+  ctx?: Context
 }
 
 /** The circular primary play button every detail page's action bar rides on. */
 export function DetailPlayButton(props: DetailPlayButtonProps): ReactElement {
+  // Deliberately hook-free: the kit's tree() tests invoke components as plain
+  // functions. Locale changes reach this component because its
+  // useI18n-subscribed ancestors re-render it.
+  const i18n = props.ctx ? serviceOf<I18nService>(props.ctx, 'i18n') : undefined
+  // English copy stays verbatim until a caller threads `ctx` (i18n sweep).
+  const t = (key: string, fallback: string): string => i18n?.t(key) ?? fallback
   return h(
     'button',
     {
       type: 'button',
       'data-testid': props.testID,
-      'aria-label': props.ariaLabel ?? 'Play',
+      'aria-label': props.ariaLabel ?? t('app:common.detailPlayButton.play', 'Play'),
       onClick: props.onPress,
       disabled: props.disabled,
       style: {

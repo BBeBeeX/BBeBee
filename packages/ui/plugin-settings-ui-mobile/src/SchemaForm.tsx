@@ -7,7 +7,7 @@ import type {
   SettingsFieldOption,
 } from '@BBeBee/protocol'
 import { useSettingsFields } from '@BBeBee/plugin-settings/hooks'
-import { Button, Slider, Text } from '@BBeBee/ui-kit-mobile'
+import { Button, Slider, Text, useI18n } from '@BBeBee/ui-kit-mobile'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
 import { nativePrimitives } from '@BBeBee/ui-kit-mobile'
 
@@ -74,6 +74,7 @@ function FieldRow({
   field: SettingsFieldDescriptor
 }): ReactElement | null {
   const native = nativePrimitives()
+  const { t } = useI18n(ctx)
   const { values, change } = useSettingsFields(ctx, contribution)
   const [options, setOptions] = useState<readonly SettingsFieldOption[] | undefined>(field.options)
   const [entries, setEntries] = useState<readonly SwitchListEntry[]>([])
@@ -262,7 +263,7 @@ function FieldRow({
             : []),
           h(Button, {
             variant: 'secondary',
-            children: field.actionText ?? 'Run',
+            children: field.actionText ?? t('settings:schemaForm.run'),
             disabled: busy,
             onPress: () => void runAction(),
           }),
@@ -299,7 +300,7 @@ function FieldRow({
             ),
             h(SwitchRow, {
               checked: Boolean(record[entry.id]),
-              accessibilityLabel: `${entry.label} switch`,
+              accessibilityLabel: t('settings:schemaForm.entrySwitch', { label: entry.label }),
               onChange: (checked: boolean) => void change(`${field.key}.${entry.id}`, checked),
             }),
           ),
@@ -318,7 +319,7 @@ function FieldRow({
           h(Text, {
             variant: 'xs',
             tone: 'muted',
-            children: value ? String(value) : (field.description ?? 'Not available on this platform'),
+            children: value ? String(value) : (field.description ?? t('settings:contributionBlock.notAvailableOnPlatform')),
           }),
         ),
       )

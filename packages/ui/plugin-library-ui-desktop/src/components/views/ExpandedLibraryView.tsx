@@ -3,7 +3,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { Collection } from '@BBeBee/protocol'
 import type { MenuAnchor } from '@BBeBee/ui-core'
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { formatAddedDate, formatPlayedDate } from '@BBeBee/toolkit'
 import { CachedArtwork } from '../CachedArtwork.js'
 import type { UnifiedItem } from '../UnifiedLibraryRow.js'
@@ -68,11 +68,12 @@ export function ExpandedLibraryView({
   modals,
   contextMenus,
 }: ExpandedLibraryViewProps): ReactElement {
+  const { t } = useI18n(ctx)
   if (activeFolderId !== null) {
     return h(
       'section',
       {
-        'aria-label': activeCollection?.name ?? 'Folder Expanded',
+        'aria-label': activeCollection?.name ?? t('library:expandedLibrary.folderExpanded'),
         style: {
           display: 'flex',
           flexDirection: 'column',
@@ -103,7 +104,7 @@ export function ExpandedLibraryView({
             {
               type: 'button',
               onClick: () => setActiveFolderId(null),
-              title: 'Back to music library',
+              title: t('library:collapsedLibrary.backToMusicLibrary'),
               style: {
                 background: 'transparent',
                 border: 'none',
@@ -121,13 +122,13 @@ export function ExpandedLibraryView({
                 e.currentTarget.style.color = 'var(--bb-text-secondary, #A0A0AE)'
               },
             },
-            'Music library',
+            t('library:expandedLibrary.musicLibrary'),
           ),
           tablerIcon('chevron-left', { size: 22, color: 'var(--bb-text-secondary, #666666)' }),
           h(
             'h1',
             { style: { fontSize: 24, fontWeight: 700, color: 'var(--bb-text-primary, #FFFFFF)', margin: 0 } },
-            activeCollection?.name ?? 'Folder',
+            activeCollection?.name ?? t('library:libraryCreateDropdown.folder'),
           ),
         ),
         h(
@@ -140,8 +141,8 @@ export function ExpandedLibraryView({
                 'button',
                 {
                   type: 'button',
-                  'aria-label': 'More options',
-                  title: 'More options',
+                  'aria-label': t('library:expandedLibrary.moreOptions'),
+                  title: t('library:expandedLibrary.moreOptions'),
                   onClick: (e: { clientX: number; clientY: number }) => {
                     openCollectionMenu(
                       activeCollection,
@@ -176,8 +177,8 @@ export function ExpandedLibraryView({
             'button',
             {
               type: 'button',
-              'aria-label': 'Collapse music library',
-              title: 'Collapse music library',
+              'aria-label': t('library:expandedLibrary.collapseMusicLibrary'),
+              title: t('library:expandedLibrary.collapseMusicLibrary'),
               onClick: () => handleModeChange('sidebar'),
               style: {
                 width: 32,
@@ -226,7 +227,7 @@ export function ExpandedLibraryView({
               fontWeight: 600,
             },
           },
-          'By you',
+          t('library:library.byYou'),
         ),
         h(
           'div',
@@ -249,7 +250,7 @@ export function ExpandedLibraryView({
             h('input', {
               value: searchQuery,
               onChange: (e: { target: { value: string } }) => setSearchQuery(e.target.value),
-              placeholder: 'Search in playlist',
+              placeholder: t('library:expandedLibrary.searchInPlaylist'),
               style: {
                 background: 'transparent',
                 border: 'none',
@@ -278,7 +279,7 @@ export function ExpandedLibraryView({
                 cursor: 'pointer',
               },
             },
-            h('span', null, LIBRARY_SORT_LABELS[sortMode]),
+            h('span', null, t(LIBRARY_SORT_LABELS[sortMode])),
             tablerIcon('list', { size: 20 }),
           ),
         ),
@@ -299,9 +300,9 @@ export function ExpandedLibraryView({
               marginBottom: 8,
             },
           },
-          h('div', { style: { flex: 2 } }, 'Title'),
-          h('div', { style: { flex: 1 } }, 'Date added'),
-          h('div', { style: { flex: 1, textAlign: 'right' } }, 'Plays'),
+          h('div', { style: { flex: 2 } }, t('library:expandedLibrary.title')),
+          h('div', { style: { flex: 1 } }, t('library:expandedLibrary.dateAdded')),
+          h('div', { style: { flex: 1, textAlign: 'right' } }, t('library:expandedLibrary.plays')),
         ),
         filteredFolderItems.map((item) => {
           const isFav = item.kind === 'favorite'
@@ -389,7 +390,7 @@ export function ExpandedLibraryView({
                   'div',
                   { style: { display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 } },
                   item.pinned
-                    ? h('span', { title: 'Pinned', style: { display: 'inline-flex', alignItems: 'center', color: 'var(--color-primary, #5F87FF)', marginRight: 2 } }, tablerIcon('pin', { size: 16, color: 'var(--color-primary, #5F87FF)' }))
+                    ? h('span', { title: t('library:expandedLibrary.pinned'), style: { display: 'inline-flex', alignItems: 'center', color: 'var(--color-primary, #5F87FF)', marginRight: 2 } }, tablerIcon('pin', { size: 16, color: 'var(--color-primary, #5F87FF)' }))
                     : null,
                   h(
                     'span',
@@ -429,7 +430,7 @@ export function ExpandedLibraryView({
   return h(
     'section',
     {
-      'aria-label': 'Library Expanded',
+      'aria-label': t('library:expandedLibrary.libraryExpanded'),
       style: {
         display: 'flex',
         flexDirection: 'column',
@@ -452,7 +453,7 @@ export function ExpandedLibraryView({
           marginBottom: 20,
         },
       },
-      h('h1', { style: { fontSize: 26, fontWeight: 700, color: 'var(--bb-text-primary, #FFFFFF)', margin: 0 } }, 'Music library'),
+      h('h1', { style: { fontSize: 26, fontWeight: 700, color: 'var(--bb-text-primary, #FFFFFF)', margin: 0 } }, t('library:expandedLibrary.musicLibrary')),
       h(
         'div',
         { style: { display: 'flex', alignItems: 'center', gap: 12, position: 'relative' } },
@@ -462,8 +463,8 @@ export function ExpandedLibraryView({
           'button',
           {
             type: 'button',
-            'aria-label': 'Collapse music library',
-            title: 'Collapse music library',
+            'aria-label': t('library:expandedLibrary.collapseMusicLibrary'),
+            title: t('library:expandedLibrary.collapseMusicLibrary'),
             onClick: () => handleModeChange('sidebar'),
             style: {
               width: 32,
@@ -503,7 +504,7 @@ export function ExpandedLibraryView({
       h(
         'div',
         { style: { display: 'flex', gap: 8, alignItems: 'center' } },
-        LIBRARY_FILTER_BUTTONS.filter(({ key }) => key !== 'artist' || hasArtists).map(({ key, label }) => {
+        LIBRARY_FILTER_BUTTONS.filter(({ key }) => key !== 'artist' || hasArtists).map(({ key, labelKey }) => {
           const active = activeFilter === key
           return h(
             'button',
@@ -523,7 +524,7 @@ export function ExpandedLibraryView({
                 transition: 'all 0.15s ease',
               },
             },
-            label,
+            t(labelKey),
           )
         }),
       ),
@@ -548,7 +549,7 @@ export function ExpandedLibraryView({
           h('input', {
             value: searchQuery,
             onChange: (e: { target: { value: string } }) => setSearchQuery(e.target.value),
-            placeholder: 'Search the music library',
+            placeholder: t('library:expandedLibrary.searchTheMusicLibrary'),
             style: {
               background: 'transparent',
               border: 'none',
@@ -577,7 +578,7 @@ export function ExpandedLibraryView({
               cursor: 'pointer',
             },
           },
-          h('span', null, LIBRARY_SORT_LABELS[sortMode]),
+          h('span', null, t(LIBRARY_SORT_LABELS[sortMode])),
           tablerIcon('list', { size: 20 }),
         ),
       ),
@@ -598,9 +599,9 @@ export function ExpandedLibraryView({
             marginBottom: 8,
           },
         },
-        h('div', { style: { flex: 2 } }, 'Title'),
-        h('div', { style: { flex: 1 } }, 'Date added'),
-        h('div', { style: { flex: 1, textAlign: 'right' } }, 'Plays'),
+        h('div', { style: { flex: 2 } }, t('library:expandedLibrary.title')),
+        h('div', { style: { flex: 1 } }, t('library:expandedLibrary.dateAdded')),
+        h('div', { style: { flex: 1, textAlign: 'right' } }, t('library:expandedLibrary.plays')),
       ),
       filteredItems.map((item) => {
         const isFav = item.kind === 'favorite'

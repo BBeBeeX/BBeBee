@@ -6,6 +6,7 @@
 import { createElement as h, useEffect, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
+import { useI18n } from '@BBeBee/ui-kit-desktop'
 import { serviceOf } from '@BBeBee/ui-core'
 import type {
   ProxySettings,
@@ -44,6 +45,32 @@ export const TABS: readonly TabItem[] = [
   { id: 'about', label: 'About' },
 ]
 
+/** Localised tab labels. `TABS` keeps English labels as the exported fallback. */
+function tabLabel(t: (key: string) => string, id: string): string {
+  switch (id) {
+    case 'general':
+      return t('settings:settings.generalLanguage')
+    case 'playback':
+      return t('settings:settings.playbackAudio')
+    case 'lyrics':
+      return t('settings:settings.desktopLyrics')
+    case 'shortcuts':
+      return t('settings:settings.globalShortcuts')
+    case 'network':
+      return t('settings:settings.networkProxy')
+    case 'sources':
+      return t('settings:settings.librarySources')
+    case 'storage':
+      return t('settings:settings.storageCache')
+    case 'plugins':
+      return t('settings:settings.plugins')
+    case 'about':
+      return t('settings:settings.about')
+    default:
+      return id.charAt(0).toUpperCase() + id.slice(1)
+  }
+}
+
 function cleanDisplayPath(rawPath?: string): string {
   if (!rawPath) return ''
   let p = rawPath
@@ -57,6 +84,7 @@ function cleanDisplayPath(rawPath?: string): string {
 }
 
 export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false)
 
@@ -119,10 +147,10 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
   )
 
   const allTabs: readonly TabItem[] = [
-    ...TABS,
+    ...TABS.map((tab) => ({ ...tab, label: tabLabel(t, tab.id) })),
     ...customSectionIds.map((s) => ({
       id: s,
-      label: s.charAt(0).toUpperCase() + s.slice(1),
+      label: tabLabel(t, s),
     })),
   ]
 
@@ -175,9 +203,11 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
   // guarantee. This screen only edits the configuration.
   const paths = serviceOf<PathsService>(ctx, 'paths')
   const defaultDownloadsDir = paths?.downloads
-    ? `${paths.downloads}/BBeBee`
-    : 'Default downloads directory (Downloads/BBeBee)'
-  const defaultCacheDir = paths?.cache ? `${paths.cache}/BBeBee` : 'Default cache directory (Cache/BBeBee)'
+    ? t('settings:settings.bBeBee', { downloads: paths.downloads })
+    : t('settings:settings.defaultDownloadsDir')
+  const defaultCacheDir = paths?.cache
+    ? t('settings:settings.bBeBee2', { cache: paths.cache })
+    : t('settings:settings.defaultCacheDir')
   const currentDownloadsDir = settings.downloadDir || defaultDownloadsDir
   const currentCacheDir = settings.cacheDir || defaultCacheDir
 
@@ -331,7 +361,7 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
             letterSpacing: -0.3,
           },
         },
-        'Settings',
+        t('settings:mobile.settings'),
       ),
       allTabs.map((tab) => {
         const isActive = activeTab === tab.id
@@ -412,6 +442,7 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
             'div',
             { id: 'section-general', key: 'general' },
             h(GeneralSection, {
+              ctx,
               settings,
               update,
               onCloseToTrayChange: handleCloseToTrayChange,
@@ -531,6 +562,7 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
       // 9. About & Danger Zone
       activeTab === 'about'
         ? h(AboutSection, {
+            ctx,
             showAdvancedSettings,
             resetting,
             onToggleAdvancedSettings: handleToggleAdvancedSettings,

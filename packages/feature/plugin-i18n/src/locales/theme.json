@@ -1,0 +1,50 @@
+{
+  "en": {
+    "themeManagement": {
+      "appearanceMode": "Appearance mode",
+      "darkMode": "Dark mode",
+      "followSystem": "Follow system",
+      "importTheme": "Import theme",
+      "interfaceTheme": "Interface theme",
+      "lightMode": "Light mode",
+      "theme": "Theme",
+      "appearanceModeDesc": "Switch the app between dark, light, or follow the system appearance",
+      "themeModeDesc": "Light, dark, or follow the system automatically",
+      "interfaceThemeDesc": "Choose the app-wide color scheme, or import a custom theme",
+      "importHint": "Choose a local JSON file containing a theme configuration, or type/paste the JSON below. It is applied automatically once imported.",
+      "chooseLocalJsonFile": "Choose a local JSON file",
+      "importAndEnable": "Import & enable",
+      "importPlaceholder": "Paste a theme JSON configuration here, e.g.:\n{\n  \"id\": \"my-neon\",\n  \"name\": \"Neon Fantasy\",\n  \"tokens\": {\n    \"brand\": { \"primary\": \"#00FFCC\" }\n  }\n}",
+      "importFailedReadFile": "Failed to read file",
+      "importEmptyJson": "Enter or choose a theme JSON",
+      "importInvalidJson": "Invalid JSON format",
+      "importMissingId": "Missing theme id field",
+      "importMissingName": "Missing theme name field",
+      "deleteTheme": "Delete {name}"
+    }
+  },
+  "zh": {
+    "themeManagement": {
+      "appearanceMode": "外观模式",
+      "darkMode": "深色模式",
+      "followSystem": "跟随系统",
+      "importTheme": "导入主题",
+      "interfaceTheme": "界面主题",
+      "lightMode": "浅色模式",
+      "theme": "主题",
+      "appearanceModeDesc": "在深色、浅色之间切换，或跟随系统外观",
+      "themeModeDesc": "浅色、深色，或自动跟随系统",
+      "interfaceThemeDesc": "选择全局配色方案，或导入自定义主题",
+      "importHint": "选择包含主题配置的本地 JSON 文件，或在下方输入/粘贴 JSON。导入后将自动应用。",
+      "chooseLocalJsonFile": "选择本地 JSON 文件",
+      "importAndEnable": "导入并启用",
+      "importPlaceholder": "在此粘贴主题 JSON 配置，例如：\n{\n  \"id\": \"my-neon\",\n  \"name\": \"Neon Fantasy\",\n  \"tokens\": {\n    \"brand\": { \"primary\": \"#00FFCC\" }\n  }\n}",
+      "importFailedReadFile": "读取文件失败",
+      "importEmptyJson": "请输入或选择主题 JSON",
+      "importInvalidJson": "JSON 格式无效",
+      "importMissingId": "缺少主题 id 字段",
+      "importMissingName": "缺少主题 name 字段",
+      "deleteTheme": "删除 {name}"
+    }
+  }
+}

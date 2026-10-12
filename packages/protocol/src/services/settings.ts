@@ -237,7 +237,17 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   theme: 'dark',
   themeId: 'midnight-purple',
   nowPlayingStyle: 'classic',
-  language: 'zh',
+  /**
+   * New installs follow the OS language. `plugin-settings` merges stored
+   * values over these defaults (`mergeSettings`), so this change never
+   * rewrites an existing user's explicit choice — only users without a
+   * stored `language` see the new default.
+   *
+   * `'system'` resolves in `ctx.i18n` through BCP 47 negotiation against
+   * the known catalogue locales (`device.locale`, e.g. `zh-HK` → `zh`,
+   * `fr-FR` → `en`), so an unsupported OS language lands on English.
+   */
+  language: 'system',
   defaultVolume: 80,
   crossfadeEnabled: false,
   crossfadeDurationSeconds: 3,

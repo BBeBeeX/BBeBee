@@ -1,4 +1,4 @@
-import { Button, ColorPicker, Select, Slider, Switch, TextField } from '@BBeBee/ui-kit-desktop'
+import { Button, ColorPicker, Select, Slider, Switch, TextField, useI18n } from '@BBeBee/ui-kit-desktop'
 import { createElement as h, useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties, ReactElement } from 'react'
 import type { Context } from 'cordis'
@@ -75,6 +75,7 @@ interface FieldRowProps {
  * contribution.
  */
 function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | null {
+  const { t } = useI18n(ctx)
   const { values, change } = useSettingsFields(ctx, contribution)
   const [options, setOptions] = useState<readonly SettingsFieldOption[] | undefined>(field.options)
   const [entries, setEntries] = useState<readonly SwitchListEntry[]>([])
@@ -159,6 +160,7 @@ function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | n
   switch (field.type) {
     case 'switch':
       row = h(SettingsRow, {
+        ctx,
         title: field.label,
         description: field.description,
         borderBottom: false,
@@ -172,6 +174,7 @@ function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | n
     case 'select': {
       const opts = options ?? []
       row = h(SettingsRow, {
+        ctx,
         title: field.label,
         description: field.description,
         borderBottom: false,
@@ -190,6 +193,7 @@ function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | n
     case 'slider': {
       const numeric = Number(value ?? field.min ?? 0)
       row = h(SettingsRow, {
+        ctx,
         title: field.label,
         description: [field.description, `${numeric}${field.unit ?? ''}`].filter(Boolean).join(' · '),
         borderBottom: false,
@@ -213,6 +217,7 @@ function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | n
     case 'text':
     case 'number':
       row = h(SettingsRow, {
+        ctx,
         title: field.label,
         description: field.description,
         borderBottom: false,
@@ -227,6 +232,7 @@ function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | n
       break
     case 'color':
       row = h(SettingsRow, {
+        ctx,
         title: field.label,
         description: field.description,
         borderBottom: false,
@@ -240,6 +246,7 @@ function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | n
     case 'directory': {
       const bridge = desktopBridge()
       row = h(SettingsRow, {
+        ctx,
         title: field.label,
         description: value ? cleanDisplayPath(String(value)) : field.description,
         borderBottom: false,
@@ -249,7 +256,7 @@ function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | n
               { style: { display: 'flex', gap: 8 } },
               h(Button, {
                 variant: 'secondary',
-                children: field.actionText ?? 'Change directory',
+                children: field.actionText ?? t('settings:schemaForm.changeDirectory'),
                 onPress: async () => {
                   const picked = await bridge.pick()
                   if (picked) void change(field.key, picked)
@@ -257,7 +264,7 @@ function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | n
               }),
               h(Button, {
                 variant: 'secondary',
-                children: 'Open folder',
+                children: t('settings:schemaForm.openFolder'),
                 disabled: !value,
                 onPress: () => bridge.open(String(value ?? '')),
               }),
@@ -272,12 +279,13 @@ function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | n
     }
     case 'action':
       row = h(SettingsRow, {
+        ctx,
         title: field.label,
         description: field.description,
         borderBottom: false,
         action: h(Button, {
           variant: 'secondary',
-          children: field.actionText ?? 'Run',
+          children: field.actionText ?? t('settings:schemaForm.run'),
           loading: busy,
           onPress: () => void runAction(),
         }),
@@ -290,12 +298,14 @@ function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | n
         'div',
         null,
         h(SettingsRow, {
+          ctx,
           title: field.label,
           description: field.description,
           borderBottom: entries.length === 0,
         }),
         entries.map((entry, index) =>
           h(SettingsRow, {
+            ctx,
             key: entry.id,
             isNested: true,
             title: entry.label,
@@ -303,7 +313,7 @@ function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | n
             borderBottom: index < entries.length - 1,
             action: h(Switch, {
               checked: Boolean(record[entry.id]),
-              accessibilityLabel: `${entry.label} switch`,
+              accessibilityLabel: t('settings:schemaForm.entrySwitch', { label: entry.label }),
               onChange: (checked: boolean) => void change(`${field.key}.${entry.id}`, checked),
             }),
           }),
@@ -313,6 +323,7 @@ function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | n
     }
     default:
       row = h(SettingsRow, {
+        ctx,
         title: field.label,
         description: field.description,
         borderBottom: false,

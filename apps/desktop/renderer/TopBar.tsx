@@ -36,6 +36,7 @@ export interface ElectronCSSProperties extends CSSProperties {
 
 export interface WindowControlsProps {
   style?: CSSProperties
+  ctx: Context
 }
 
 function formatSleepTimerRemaining(targetEpochMs?: number, mode?: SleepTimerMode): string {
@@ -59,6 +60,7 @@ function formatSleepTimerRemaining(targetEpochMs?: number, mode?: SleepTimerMode
 }
 
 export function SleepTimerIndicator({ ctx }: { ctx: Context }): ReactElement | null {
+  const { t } = useI18n(ctx)
   const timerState = useSleepTimer(ctx)
   const [hovered, setHovered] = useState(false)
   const [pinned, setPinned] = useState(false)
@@ -163,7 +165,7 @@ export function SleepTimerIndicator({ ctx }: { ctx: Context }): ReactElement | n
       'button',
       {
         type: 'button',
-        'aria-label': `Sleep timer: ${remainingText}, click for details`,
+        'aria-label': t('app:common.top.sleepTimerDetails', { remainingText }),
         title: `Sleep timer: ${remainingText} (click for details)`,
         'data-testid': 'topbar-sleep-timer-indicator',
         onClick: handleClickIndicator,
@@ -366,8 +368,8 @@ export function TrayIndicator({ ctx }: { ctx: Context }): ReactElement {
       'button',
       {
         type: 'button',
-        'aria-label': 'App tray',
-        title: open ? 'Collapse plugin tray' : 'Expand plugin tray',
+        'aria-label': t('app:common.top.appTray'),
+        title: open ? t('app:common.top.collapsePluginTray') : t('app:common.top.expandPluginTray'),
         'data-testid': 'topbar-tray-button',
         onClick: () => setOpen((prev) => !prev),
         style: {
@@ -454,7 +456,7 @@ export function TrayIndicator({ ctx }: { ctx: Context }): ReactElement {
                 letterSpacing: '0.04em',
               },
             },
-            h('span', null, 'Plugin tray'),
+            h('span', null, t('app:common.top.pluginTray')),
             h(
               'span',
               {
@@ -564,7 +566,8 @@ export function TrayIndicator({ ctx }: { ctx: Context }): ReactElement {
   )
 }
 
-export function WindowControls({ style }: WindowControlsProps = {}): ReactElement {
+export function WindowControls({ style, ctx }: WindowControlsProps): ReactElement {
+  const { t } = useI18n(ctx)
   const [isMaximized, setIsMaximized] = useState(false)
 
   useEffect(() => {
@@ -592,7 +595,7 @@ export function WindowControls({ style }: WindowControlsProps = {}): ReactElemen
     'div',
     {
       role: 'group',
-      'aria-label': 'Window controls',
+      'aria-label': t('app:common.top.windowControls'),
       style: {
         display: 'flex',
         alignItems: 'center',
@@ -607,8 +610,8 @@ export function WindowControls({ style }: WindowControlsProps = {}): ReactElemen
       'button',
       {
         type: 'button',
-        'aria-label': 'Minimize window',
-        title: 'Minimize',
+        'aria-label': t('app:common.top.minimizeWindow'),
+        title: t('app:common.top.minimize'),
         onClick: handleMinimize,
         style: {
           display: 'flex',
@@ -638,8 +641,8 @@ export function WindowControls({ style }: WindowControlsProps = {}): ReactElemen
       'button',
       {
         type: 'button',
-        'aria-label': isMaximized ? 'Restore window' : 'Maximize window',
-        title: isMaximized ? 'Restore' : 'Maximize',
+        'aria-label': isMaximized ? t('app:common.top.restoreWindow') : t('app:common.top.maximizeWindow'),
+        title: isMaximized ? t('app:common.top.restore') : t('app:common.top.maximize'),
         onClick: handleMaximize,
         style: {
           display: 'flex',
@@ -671,8 +674,8 @@ export function WindowControls({ style }: WindowControlsProps = {}): ReactElemen
       'button',
       {
         type: 'button',
-        'aria-label': 'Close window',
-        title: 'Close',
+        'aria-label': t('app:common.top.closeWindow'),
+        title: t('app:common.top.close'),
         onClick: handleClose,
         style: {
           display: 'flex',
@@ -727,6 +730,7 @@ export function TopBar({
   onBack,
   onForward,
 }: TopBarProps): ReactElement {
+  const { t } = useI18n(ctx)
   const selection = useSearchSourceSelection(ctx)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchActive, setSearchActive] = useState(false)
@@ -876,7 +880,7 @@ export function TopBar({
     'header',
     {
       role: 'banner',
-      'aria-label': 'Application Header',
+      'aria-label': t('app:common.top.applicationHeader'),
       style: {
         display: 'flex',
         alignItems: 'center',
@@ -913,8 +917,8 @@ export function TopBar({
         'button',
         {
           type: 'button',
-          'aria-label': 'BBeBee Home',
-          title: 'BBeBee',
+          'aria-label': t('app:common.top.bBeBeeHome'),
+          title: t('app:common.top.bBeBee'),
           onClick: onHome,
           style: {
             display: 'flex',
@@ -955,8 +959,8 @@ export function TopBar({
         'button',
         {
           type: 'button',
-          'aria-label': 'Go back',
-          title: 'Back',
+          'aria-label': t('app:common.top.goBack'),
+          title: t('app:common.top.back'),
           disabled: !canGoBack,
           onClick: handleBack,
           style: {
@@ -992,8 +996,8 @@ export function TopBar({
         'button',
         {
           type: 'button',
-          'aria-label': 'Go forward',
-          title: 'Forward',
+          'aria-label': t('app:common.top.goForward'),
+          title: t('app:common.top.forward'),
           disabled: !canGoForward,
           onClick: handleForward,
           style: {
@@ -1050,8 +1054,8 @@ export function TopBar({
             'button',
             {
               type: 'button',
-              'aria-label': 'Expand search',
-              title: 'Search',
+              'aria-label': t('app:common.top.expandSearch'),
+              title: t('app:common.top.search'),
               'data-testid': 'topbar-search-collapsed-button',
               onClick: () => {
                 setSearchExpanded(true)
@@ -1115,8 +1119,8 @@ export function TopBar({
         // Search input
         h('input', {
           type: 'text',
-          'aria-label': 'Search',
-          placeholder: 'What do you want to play?',
+          'aria-label': t('app:common.top.search'),
+          placeholder: t('app:common.top.whatDoYouWantTo'),
           value: searchQuery,
           onChange: (e: { target: { value: string } }) => {
             setSearchQuery(e.target.value)
@@ -1145,7 +1149,7 @@ export function TopBar({
               'button',
               {
                 type: 'button',
-                'aria-label': 'Clear search',
+                'aria-label': t('app:common.top.clearSearch'),
                 onClick: (e: { stopPropagation: () => void }) => {
                   e.stopPropagation()
                   setSearchQuery('')
@@ -1171,8 +1175,8 @@ export function TopBar({
               'button',
               {
                 type: 'button',
-                'aria-label': 'Submit search',
-                title: 'Search',
+                'aria-label': t('app:common.top.submitSearch'),
+                title: t('app:common.top.search'),
                 onClick: (e: { stopPropagation: () => void }) => {
                   e.stopPropagation()
                   const currentVal = (searchContainerRef.current?.querySelector('input') as HTMLInputElement)?.value
@@ -1258,13 +1262,13 @@ export function TopBar({
                     letterSpacing: 0.5,
                   },
                 },
-                h('span', null, 'Search history'),
+                h('span', null, t('app:common.top.searchHistory')),
                 history.length > 0
                   ? h(
                       'button',
                       {
                         type: 'button',
-                        'aria-label': 'Clear search history',
+                        'aria-label': t('app:common.top.clearSearchHistory'),
                         onClick: (e: { stopPropagation: () => void }) => {
                           e.stopPropagation()
                           handleClearHistory()
@@ -1295,7 +1299,7 @@ export function TopBar({
                 'div',
                 {
                   role: 'group',
-                  'aria-label': 'Third-party search source selection',
+                  'aria-label': t('app:common.top.thirdPartySearchSourceSelection'),
                   style: {
                     display: 'flex',
                     flexWrap: 'wrap',
@@ -1315,7 +1319,9 @@ export function TopBar({
                       ...selection.interfaces.map((iface) => {
                         const selected = selection.isInterfaceSelected(iface.id)
                         const disabled = !iface.searchable
-                        const label = `${iface.sourceName} · ${iface.kind === 'track' ? 'Track' : 'Artist'}`
+                        const label = iface.kind === 'track'
+                          ? t('app:common.top.sourceTrackLabel', { sourceName: iface.sourceName })
+                          : t('app:common.top.sourceArtistLabel', { sourceName: iface.sourceName })
                         return h(
                           'button',
                           {
@@ -1406,7 +1412,7 @@ export function TopBar({
                                 e.currentTarget.style.color = 'var(--text-secondary, rgba(255, 255, 255, 0.6))'
                               },
                             },
-                            selection.allSelected ? 'Deselect all' : 'Select all',
+                            selection.allSelected ? t('app:common.top.deselectAll') : t('app:common.top.selectAll'),
                           )
                         : null,
                     ],
@@ -1416,7 +1422,7 @@ export function TopBar({
                 'div',
                 {
                   role: 'group',
-                  'aria-label': 'Search history list',
+                  'aria-label': t('app:common.top.searchHistoryList'),
                   style: {
                     display: 'flex',
                     flexWrap: 'wrap',
@@ -1505,8 +1511,8 @@ export function TopBar({
             'button',
             {
               type: 'button',
-              'aria-label': 'User profile',
-              title: 'Profile',
+              'aria-label': t('app:common.top.userProfile'),
+              title: t('app:common.top.profile'),
               onClick: onOpenSettings,
               style: {
                 display: 'flex',
@@ -1534,7 +1540,7 @@ export function TopBar({
             tablerIcon('user', { size: 20 }),
           ),
       // Contiguous Window Controls Group — never hidden.
-      h(WindowControls, null),
+      h(WindowControls, { ctx }),
     ),
   )
 }

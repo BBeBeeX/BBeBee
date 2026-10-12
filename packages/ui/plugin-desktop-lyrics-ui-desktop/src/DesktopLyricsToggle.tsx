@@ -3,6 +3,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { DesktopLyricsService, DesktopLyricsSettings, SettingsService } from '@BBeBee/protocol'
 import { serviceOf, useServiceState } from '@BBeBee/ui-core'
+import { useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
 
 /**
@@ -10,6 +11,7 @@ import { tokens } from '@BBeBee/ui-tokens'
  * Synchronized bidirectionally with ctx.desktopLyrics and ctx.settings.
  */
 export function DesktopLyricsToggle({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const isVisible = useServiceState<boolean>(
     ctx,
     ['desktop-lyrics/changed', 'settings/changed'],
@@ -44,8 +46,8 @@ export function DesktopLyricsToggle({ ctx }: { ctx: Context }): ReactElement {
     'button',
     {
       type: 'button',
-      'aria-label': isVisible ? 'Hide desktop lyrics' : 'Show desktop lyrics',
-      title: isVisible ? 'Hide desktop lyrics' : 'Show desktop lyrics',
+      'aria-label': isVisible ? t('lyrics:desktopLyrics.hideDesktopLyrics') : t('lyrics:desktopLyricsToggle.showDesktopLyrics'),
+      title: isVisible ? t('lyrics:desktopLyrics.hideDesktopLyrics') : t('lyrics:desktopLyricsToggle.showDesktopLyrics'),
       'data-testid': 'desktop-lyrics-toggle',
       onClick: handleToggle,
       style: {
@@ -79,6 +81,6 @@ export function DesktopLyricsToggle({ ctx }: { ctx: Context }): ReactElement {
         e.currentTarget.style.transform = 'scale(1)'
       },
     },
-    'Lyrics',
+    t('lyrics:desktopLyricsToggle.lyrics'),
   )
 }

@@ -4,7 +4,8 @@ import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import type { DownloadTask, PlayerService } from '@BBeBee/protocol'
 import { downloadProgress, holdLabel } from '@BBeBee/plugin-download/hooks'
-import { Button, IconButton, Text } from '@BBeBee/ui-kit-desktop'
+import { Button, IconButton, Text, useI18n } from '@BBeBee/ui-kit-desktop'
+import type { UseI18nResult } from '@BBeBee/ui-kit-desktop'
 import { serviceOf } from '@BBeBee/ui-core'
 import { formatBytes } from '@BBeBee/toolkit'
 import { tokens } from '@BBeBee/ui-tokens'
@@ -12,6 +13,7 @@ import { p } from './palette.js'
 import { ProgressBar } from './ProgressBar.js'
 
 export function DownloadRow({ ctx, task }: { ctx: Context; task: DownloadTask }): ReactElement {
+  const { t } = useI18n(ctx)
   const scheme = p()
   const progress = downloadProgress(task)
   const player = serviceOf<PlayerService>(ctx, 'player')
@@ -41,16 +43,16 @@ export function DownloadRow({ ctx, task }: { ctx: Context; task: DownloadTask })
           tone: task.state === 'failed' ? 'error' : 'muted',
           numberOfLines: 1,
         },
-        statusLine(task),
+        statusLine(t, task),
       ),
       progress !== undefined
-        ? h(ProgressBar, { value: progress, label: `Progress for ${task.title}` })
+        ? h(ProgressBar, { value: progress, label: t('download:download.progressFor', { title: task.title }) })
         : null,
     ),
     h(
       'div',
       { style: { display: 'flex', gap: tokens.space[2], flexShrink: 0 } },
-      ...actionsFor(ctx, task, player),
+      ...actionsFor(t, ctx, task, player),
     ),
   )
 }
@@ -64,6 +66,7 @@ export function DownloadRow({ ctx, task }: { ctx: Context; task: DownloadTask })
  * transferring.
  */
 function actionsFor(
+  t: UseI18nResult['t'],
   ctx: Context,
   task: DownloadTask,
   player: PlayerService | undefined,
@@ -78,12 +81,12 @@ function actionsFor(
         onPress: () => void player?.playNow([task.trackUrn]),
         disabled: !player,
         testID: `download-play-${task.id}`,
-        children: 'Play',
+        children: t('download:index.play'),
       }),
       h(IconButton, {
         key: 'remove',
         icon: 'trash',
-        accessibilityLabel: `Delete ${task.title}`,
+        accessibilityLabel: t('download:index.deleteTask', { title: task.title }),
         onPress: () => void ctx.downloads.remove(task.id),
         testID: `download-remove-${task.id}`,
       }),
@@ -98,12 +101,12 @@ function actionsFor(
         variant: 'secondary',
         onPress: () => void ctx.downloads.retry(task.id),
         testID: `download-retry-${task.id}`,
-        children: 'Retry',
+        children: t('app:common.retry'),
       }),
       h(IconButton, {
         key: 'remove',
         icon: 'trash',
-        accessibilityLabel: `Delete ${task.title}`,
+        accessibilityLabel: t('download:index.deleteTask', { title: task.title }),
         onPress: () => void ctx.downloads.remove(task.id),
         testID: `download-remove-${task.id}`,
       }),
@@ -118,7 +121,7 @@ function actionsFor(
         variant: 'secondary',
         onPress: () => void ctx.downloads.resume(task.id),
         testID: `download-resume-${task.id}`,
-        children: 'Resume',
+        children: t('download:index.resume'),
       }),
     )
   } else {
@@ -128,7 +131,7 @@ function actionsFor(
         variant: 'ghost',
         onPress: () => void ctx.downloads.pause(task.id),
         testID: `download-pause-${task.id}`,
-        children: 'Pause',
+        children: t('download:index.pause'),
       }),
     )
   }
@@ -137,7 +140,7 @@ function actionsFor(
     h(IconButton, {
       key: 'cancel',
       icon: 'x',
-      accessibilityLabel: `Cancel ${task.title}`,
+      accessibilityLabel: t('download:index.cancelTask', { title: task.title }),
       onPress: () => void ctx.downloads.cancel(task.id),
       testID: `download-cancel-${task.id}`,
     }),
@@ -146,28 +149,31 @@ function actionsFor(
 }
 
 /** One line saying where a task is, in the user's terms. */
-function statusLine(task: DownloadTask): string {
+function statusLine(t: UseI18nResult['t'], task: DownloadTask): string {
   const hold = holdLabel(task)
   if (hold) return task.state === 'paused' ? `Paused — ${hold.toLowerCase()}` : hold
   switch (task.state) {
     case 'queued':
-      return 'Queued'
+      return t('download:index.queued')
     case 'running':
       return task.bytesTotal
-        ? `${formatBytes(task.bytesDone)} of ${formatBytes(task.bytesTotal)}`
+        ? t('download:index.bytesOfTotal', {
+            done: formatBytes(task.bytesDone),
+            total: formatBytes(task.bytesTotal),
+          })
         : formatBytes(task.bytesDone)
     case 'paused':
-      return `Paused · ${formatBytes(task.bytesDone)}`
+      return t('download:index.pausedWithBytes', { bytes: formatBytes(task.bytesDone) })
     case 'done':
       // A kept download is the user's to keep; a cache entry is evictable.
       return task.kept
         ? task.quality
-          ? `Downloaded · ${task.quality}`
-          : 'Downloaded'
-        : 'Cached'
+          ? t('download:download.downloaded', { quality: task.quality })
+          : t('download:index.downloaded')
+        : t('download:index.cached')
     case 'failed':
-      return task.error ?? 'Failed'
+      return task.error ?? t('download:index.failed')
     case 'canceled':
-      return 'Canceled'
+      return t('download:index.canceled')
   }
 }

@@ -126,6 +126,11 @@ declare global {
         }): Promise<void>
         onAction(callback: (action: 'togglePlay' | 'previous' | 'next') => void): () => void
       }
+      locale?: {
+        getLocale(): Promise<string>
+        notify(locale: string): Promise<void>
+        onLocaleChange(callback: (locale: string) => void): () => void
+      }
       miniPlayer?: {
         open(options?: { mode?: 'normal' | 'attached' | 'expanded' }): Promise<void>
         close(): Promise<void>

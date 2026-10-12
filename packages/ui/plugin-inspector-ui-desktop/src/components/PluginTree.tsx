@@ -12,11 +12,15 @@
  */
 
 import { memo, useMemo, useState, type ReactElement } from 'react'
+import type { Context } from 'cordis'
 import { filterPlugins } from '@BBeBee/toolkit'
+import { useI18n } from '@BBeBee/ui-kit-desktop'
 import type { LayerId, PluginGraph, PluginNode } from '../graph-model.js'
 import { ALL_LAYER_IDS, SYSTEM_LAYERS } from '../layer-resolver.js'
 
 export interface PluginTreeProps {
+  /** The app context — read for the interface language via `useI18n`. */
+  ctx: Context
   graph: PluginGraph
   selectedNodeId: string | null
   onSelectPlugin: (id: string) => void
@@ -34,11 +38,13 @@ const STATUS_DOT_COLORS: Record<string, string> = {
 }
 
 export const PluginTree = memo(function PluginTree({
+  ctx,
   graph,
   selectedNodeId,
   onSelectPlugin,
   onSelectLayer,
 }: PluginTreeProps): ReactElement {
+  const { t } = useI18n(ctx)
   // Collapsed layer state: all expanded by default
   const [collapsedLayers, setCollapsedLayers] = useState<Record<string, boolean>>({})
   const [filterText, setFilterText] = useState('')
@@ -93,11 +99,11 @@ export const PluginTree = memo(function PluginTree({
             marginBottom: 8,
           }}
         >
-          PLUGIN HIERARCHY
+          {t('inspector:pluginTree.pLUGINHIERARCHY')}
         </div>
         <input
           type="text"
-          placeholder="Filter tree..."
+          placeholder={t('inspector:pluginTree.filterTree')}
           value={filterText}
           onChange={(e) => setFilterText(e.target.value)}
           style={{
@@ -165,7 +171,7 @@ export const PluginTree = memo(function PluginTree({
                       e.stopPropagation()
                       onSelectLayer?.(layerId)
                     }}
-                    title={`Focus ${layerInfo.name} Layer`}
+                    title={t('inspector:pluginTree.focusLayer', { name: layerInfo.name })}
                     style={{
                       fontWeight: 600,
                       color: '#cbd5e1',
@@ -182,7 +188,7 @@ export const PluginTree = memo(function PluginTree({
                       e.stopPropagation()
                       onSelectLayer?.(layerId)
                     }}
-                    title={`Focus on ${layerInfo.name} Layer`}
+                    title={t('inspector:pluginTree.focusOnLayer', { name: layerInfo.name })}
                     style={{
                       background: 'rgba(56, 189, 248, 0.1)',
                       border: '1px solid rgba(56, 189, 248, 0.25)',
@@ -194,7 +200,7 @@ export const PluginTree = memo(function PluginTree({
                       fontFamily: 'inherit',
                     }}
                   >
-                    FOCUS
+                    {t('inspector:graphToolbar.focus')}
                   </button>
                   <span
                     style={{
@@ -215,7 +221,7 @@ export const PluginTree = memo(function PluginTree({
                 <div style={{ paddingLeft: 18, marginTop: 2 }}>
                   {plugins.length === 0 ? (
                     <div style={{ padding: '4px 8px', fontSize: 10, color: '#475569' }}>
-                      (empty)
+                      {t('inspector:pluginTree.empty')}
                     </div>
                   ) : (
                     plugins.map((p) => {

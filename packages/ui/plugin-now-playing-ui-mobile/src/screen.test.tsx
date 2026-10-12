@@ -15,6 +15,46 @@ import type { NowPlayingStyleId, QueueItem, Track, TransportState } from '@BBeBe
 import { configureNative } from '@BBeBee/ui-kit-mobile'
 import { NowPlayingBar, NowPlayingScreen } from './index.js'
 
+import nowPlayingCatalogue from '../../../feature/plugin-i18n/src/locales/nowPlaying.json'
+
+const CATALOGUES: Record<string, { en: unknown; zh: unknown }> = {
+  nowPlaying: { en: nowPlayingCatalogue.en, zh: nowPlayingCatalogue.zh },
+}
+
+/**
+ * English i18n stub serving the real `nowPlaying` catalogue, so components
+ * under test render the same copy the app shows.
+ */
+class DefaultI18nStub extends Service {
+  static override readonly name = 'i18n'
+  locale = 'en'
+  private listeners = new Set<(locale: string) => void>()
+  constructor(ctx: Context) {
+    super(ctx, 'i18n')
+  }
+  setLocale = (next: string): void => {
+    this.locale = next
+    for (const listener of [...this.listeners]) listener(next)
+  }
+  t = (key: string, params?: Record<string, string | number>): string => {
+    const sep = key.indexOf(':')
+    if (sep < 0) return key
+    const ns = key.slice(0, sep)
+    const catalogue = CATALOGUES[ns]?.[this.locale === 'zh' ? 'zh' : 'en']
+    if (!catalogue) return key
+    let cur: unknown = catalogue
+    for (const part of key.slice(sep + 1).split('.')) {
+      cur = (cur as Record<string, unknown> | undefined)?.[part]
+    }
+    if (typeof cur !== 'string') return key
+    return params ? cur.replace(/\{(\w+)\}/g, (_, k: string) => String(params[k] ?? `{${k}}`)) : cur
+  }
+  onLocaleChange = (cb: (locale: string) => void): (() => void) => {
+    this.listeners.add(cb)
+    return () => void this.listeners.delete(cb)
+  }
+}
+
 afterEach(cleanup)
 
 function hostComponent(name: string) {
@@ -139,6 +179,7 @@ async function harness(
   if (Object.keys(catalogue).length > 0) await ctx.plugin(SourcesStub)
   await ctx.plugin(UiStub)
   await ctx.plugin(NowPlayingStub)
+  await ctx.plugin(DefaultI18nStub)
   return { ctx, calls }
 }
 

@@ -1,16 +1,17 @@
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import type { Context } from 'cordis'
+import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 
 export interface LocalSourceWarningProps {
+  ctx: Context
   show: boolean
   message?: string
 }
 
-export function LocalSourceWarning({
-  show,
-  message = "Can't share local music",
-}: LocalSourceWarningProps): ReactElement | null {
+export function LocalSourceWarning(props: LocalSourceWarningProps): ReactElement | null {
+  const { t } = useI18n(props.ctx)
+  const { show, message = t('share:localSourceWarning.canTShareLocalMusic') } = props
   if (!show) return null
 
   return h(

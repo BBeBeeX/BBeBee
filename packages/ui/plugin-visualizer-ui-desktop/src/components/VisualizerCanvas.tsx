@@ -18,6 +18,7 @@ import type { Context } from 'cordis'
 import type { VisualizerColorTheme, VisualizerStyle } from '@BBeBee/protocol'
 import { useTransport } from '@BBeBee/toolkit/hooks'
 import { useAudioData, useVisualizer } from '@BBeBee/plugin-visualizer/hooks'
+import { useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
 
 export interface VisualizerCanvasProps {
@@ -45,6 +46,7 @@ export function VisualizerCanvas({
   previewTheme,
 }: VisualizerCanvasProps): ReactElement | null {
   const { settings } = useVisualizer(ctx)
+  const { t } = useI18n(ctx)
   const transport = useTransport(ctx)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   // Canvas 2D colors cannot read CSS variables, so the scheme lives in state:
@@ -336,7 +338,7 @@ export function VisualizerCanvas({
   }
 
   return h('div', {
-    'aria-label': 'Audio visualizer',
+    'aria-label': t('visualizer:visualizerCanvas.audioVisualizer'),
     role: 'img',
     style: {
       width: '100%',

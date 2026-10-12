@@ -3,7 +3,7 @@ import type { KeyboardEvent, MouseEvent as ReactMouseEvent, ReactElement } from 
 import type { Context } from 'cordis'
 import type { Track } from '@BBeBee/protocol'
 import type { MenuAnchor } from '@BBeBee/ui-core'
-import { HoverLabel, tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { HoverLabel, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { formatAddedDate, formatDuration } from '@BBeBee/toolkit'
 import { CachedArtwork } from './CachedArtwork.js'
 import { TrackLibraryActionButton } from './TrackLibraryActionButton.js'
@@ -71,6 +71,7 @@ export function LibraryTrackRow({
   showSource,
   sourceName,
 }: LibraryTrackRowProps): ReactElement {
+  const { t } = useI18n(ctx)
   const [hovered, setHovered] = useState(false)
   const artists = track.artists?.map((a) => a.name).join(', ')
 
@@ -136,7 +137,7 @@ export function LibraryTrackRow({
         ? h('input', {
             type: 'checkbox',
             'data-testid': `track-checkbox-${track.urn}`,
-            'aria-label': selected ? 'Deselect' : 'Select',
+            'aria-label': selected ? t('library:libraryTrack.deselect') : t('library:libraryTrack.select'),
             checked: selected,
             onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
               e.stopPropagation()
@@ -293,8 +294,8 @@ export function LibraryTrackRow({
               role: 'button',
               tabIndex: 0,
               'data-testid': `track-album-link-${track.urn}`,
-              'aria-label': `View album: ${track.albumTitle}`,
-              title: `View album: ${track.albumTitle}`,
+              'aria-label': t('library:libraryTrack.viewAlbum', { albumTitle: track.albumTitle }),
+              title: t('library:libraryTrack.viewAlbum', { albumTitle: track.albumTitle }),
               onClick: (e: ReactMouseEvent) => {
                 e.stopPropagation()
                 onOpenAlbum(track)
@@ -376,6 +377,7 @@ export function LibraryTrackRow({
         },
       },
       h(TrackLibraryActionButton, {
+        ctx,
         track,
         hovered,
         inLibrary,
@@ -387,8 +389,13 @@ export function LibraryTrackRow({
             'button',
             {
               type: 'button',
-              'aria-label': `Remove ${track.title} from ${playlistName ?? 'playlist'}`,
-              title: `Remove from ${playlistName ?? 'playlist'}`,
+              'aria-label': t('library:index.removeFrom', {
+                title: track.title,
+                name: playlistName ?? t('library:playlistDetail.playlist'),
+              }),
+              title: t('library:libraryTrack.removeFromPlaylist', {
+                name: playlistName ?? t('library:playlistDetail.playlist'),
+              }),
               onClick: (e: ReactMouseEvent) => {
                 e.stopPropagation()
                 onRemove()
@@ -425,8 +432,8 @@ export function LibraryTrackRow({
         'button',
         {
           type: 'button',
-          'aria-label': 'More',
-          title: 'More',
+          'aria-label': t('library:libraryTrack.more'),
+          title: t('library:libraryTrack.more'),
           onClick: (e: ReactMouseEvent) => {
             e.stopPropagation()
             const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()

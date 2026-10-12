@@ -18,7 +18,7 @@
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { NowPlayingStyleId, UiService } from '@BBeBee/protocol'
+import type { I18nService, NowPlayingStyleId, UiService } from '@BBeBee/protocol'
 import { NOW_PLAYING_STYLES } from '@BBeBee/protocol'
 import { formatDuration } from '@BBeBee/toolkit'
 import { NOW_PLAYING_VIEWS } from '@BBeBee/plugin-now-playing/views'
@@ -29,7 +29,7 @@ import {
   useTransport,
   useTransportAvailability,
 } from '@BBeBee/plugin-player/hooks'
-import { Artwork, IconButton, Slider, Text, nativePrimitives } from '@BBeBee/ui-kit-mobile'
+import { Artwork, IconButton, Slider, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { useResolvedArtwork } from '@BBeBee/plugin-cache/hooks'
 import { serviceOf, useServiceState, type ArtworkProps } from '@BBeBee/ui-core'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
@@ -49,18 +49,19 @@ function CachedArtwork({ ctx, ...props }: ArtworkProps & { ctx: Context }): Reac
 /** Transport controls row — shared across all styles. */
 function TransportRow({ ctx, can }: { ctx: Context; can: ReturnType<typeof useTransportAvailability> }): ReactElement {
   const native = nativePrimitives()
+  const { t } = useI18n(ctx)
   return h(
     native.View as never,
     { style: { flexDirection: 'row', alignItems: 'center', gap: tokens.space[4] } },
     h(IconButton, {
       icon: '⏮',
-      accessibilityLabel: 'Previous track',
+      accessibilityLabel: t('nowPlaying:nowPlayingStyles.previousTrack'),
       disabled: !can.canPrevious,
       onPress: () => void ctx.player.previous(),
     }),
     h(IconButton, {
       icon: can.canPause ? '⏸' : '▶',
-      accessibilityLabel: can.canPause ? 'Pause' : 'Play',
+      accessibilityLabel: can.canPause ? t('nowPlaying:nowPlaying.pause') : t('nowPlaying:nowPlaying.play'),
       variant: 'primary',
       size: tokens.size.iconLarge,
       disabled: !can.canPlay && !can.canPause,
@@ -68,7 +69,7 @@ function TransportRow({ ctx, can }: { ctx: Context; can: ReturnType<typeof useTr
     }),
     h(IconButton, {
       icon: '⏭',
-      accessibilityLabel: 'Next track',
+      accessibilityLabel: t('nowPlaying:nowPlayingStyles.nextTrack'),
       disabled: !can.canNext,
       onPress: () => void ctx.player.next(),
     }),
@@ -76,8 +77,8 @@ function TransportRow({ ctx, can }: { ctx: Context; can: ReturnType<typeof useTr
 }
 
 /** Seek bar + timestamps — shared across all styles. */
-function SeekBar({ ctx, position, duration, can }: {
-  ctx: Context; position: number; duration: number | undefined; can: ReturnType<typeof useTransportAvailability>
+function SeekBar({ ctx, position, duration, can, t }: {
+  ctx: Context; position: number; duration: number | undefined; can: ReturnType<typeof useTransportAvailability>; t: I18nService['t']
 }): ReactElement {
   const native = nativePrimitives()
   return h(
@@ -87,7 +88,7 @@ function SeekBar({ ctx, position, duration, can }: {
       value: duration ? Math.min(position, duration) : 0,
       max: duration ?? 0,
       disabled: !can.canSeek || !duration,
-      accessibilityLabel: 'Seek',
+      accessibilityLabel: t('nowPlaying:nowPlaying.seek'),
       onCommit: (value: number) => void ctx.player.seek(value),
     }),
     h(
@@ -99,9 +100,10 @@ function SeekBar({ ctx, position, duration, can }: {
   )
 }
 
-/** Track info block — shared across all styles. */
-function TrackInfo({ state, align = 'center' }: {
+/** Track info block — shared across all styles. Presentational: labels arrive translated from the call site. */
+function TrackInfo({ state, align = 'center', loadingLabel, nothingPlayingLabel }: {
   state: ReturnType<typeof useTransport>; align?: 'center' | 'flex-start'
+  loadingLabel: string; nothingPlayingLabel: string
 }): ReactElement {
   const native = nativePrimitives()
   return h(
@@ -110,7 +112,7 @@ function TrackInfo({ state, align = 'center' }: {
     h(Text, {
       variant: 'xl',
       numberOfLines: 1,
-      children: state.nowPlaying?.title ?? (state.trackUrn ? 'Loading…' : 'Nothing playing'),
+      children: state.nowPlaying?.title ?? (state.trackUrn ? loadingLabel : nothingPlayingLabel),
     }),
     state.nowPlaying?.artist
       ? h(Text, { variant: 'md', tone: 'muted', numberOfLines: 1, children: state.nowPlaying.artist })
@@ -129,6 +131,7 @@ function ClassicMobileLayout({ ctx, state, position, duration, can, onClose }: {
   can: ReturnType<typeof useTransportAvailability>; onClose?: () => void
 }): ReactElement {
   const native = nativePrimitives()
+  const { t } = useI18n(ctx)
   return h(
     native.View as never,
     {
@@ -141,11 +144,15 @@ function ClassicMobileLayout({ ctx, state, position, duration, can, onClose }: {
         backgroundColor: p().bg.base,
       },
     },
-    onClose ? h(CloseButton, { onClose }) : null,
+    onClose ? h(CloseButton, { onClose, t }) : null,
     h(CachedArtwork, { ctx, artwork: state.nowPlaying?.artwork, seed: state.trackUrn, size: 280, radius: tokens.radius.lg }),
-    h(TrackInfo, { state }),
-    state.status === 'stalled' ? h(Text, { variant: 'sm', tone: 'muted', children: 'Buffering…' }) : null,
-    h(SeekBar, { ctx, position, duration, can }),
+    h(TrackInfo, {
+      state,
+      loadingLabel: t('nowPlaying:nowPlaying.loading'),
+      nothingPlayingLabel: t('nowPlaying:nowPlaying.nothingPlaying'),
+    }),
+    state.status === 'stalled' ? h(Text, { variant: 'sm', tone: 'muted', children: t('nowPlaying:nowPlaying.buffering') }) : null,
+    h(SeekBar, { ctx, position, duration, can, t }),
     h(TransportRow, { ctx, can }),
   )
 }
@@ -158,6 +165,7 @@ function FullCoverMobileLayout({ ctx, state, position, duration, can, onClose }:
   can: ReturnType<typeof useTransportAvailability>; onClose?: () => void
 }): ReactElement {
   const native = nativePrimitives()
+  const { t } = useI18n(ctx)
   return h(
     native.View as never,
     {
@@ -193,11 +201,15 @@ function FullCoverMobileLayout({ ctx, state, position, duration, can, onClose }:
         radius: 0,
       }),
     ),
-    onClose ? h(CloseButton, { onClose }) : null,
+    onClose ? h(CloseButton, { onClose, t }) : null,
     h(CachedArtwork, { ctx, artwork: state.nowPlaying?.artwork, seed: state.trackUrn, size: 240, radius: tokens.radius.lg }),
-    h(TrackInfo, { state }),
-    state.status === 'stalled' ? h(Text, { variant: 'sm', tone: 'muted', children: 'Buffering…' }) : null,
-    h(SeekBar, { ctx, position, duration, can }),
+    h(TrackInfo, {
+      state,
+      loadingLabel: t('nowPlaying:nowPlaying.loading'),
+      nothingPlayingLabel: t('nowPlaying:nowPlaying.nothingPlaying'),
+    }),
+    state.status === 'stalled' ? h(Text, { variant: 'sm', tone: 'muted', children: t('nowPlaying:nowPlaying.buffering') }) : null,
+    h(SeekBar, { ctx, position, duration, can, t }),
     h(TransportRow, { ctx, can }),
   )
 }
@@ -210,6 +222,7 @@ function VinylMobileLayout({ ctx, state, position, duration, can, onClose }: {
   can: ReturnType<typeof useTransportAvailability>; onClose?: () => void
 }): ReactElement {
   const native = nativePrimitives()
+  const { t } = useI18n(ctx)
   const discSize = 260
   return h(
     native.View as never,
@@ -223,12 +236,12 @@ function VinylMobileLayout({ ctx, state, position, duration, can, onClose }: {
         backgroundColor: p().bg.base,
       },
     },
-    onClose ? h(CloseButton, { onClose }) : null,
+    onClose ? h(CloseButton, { onClose, t }) : null,
     /* vinyl disc: circular artwork */
     h(
       native.View as never,
       {
-        accessibilityLabel: 'Vinyl disc',
+        accessibilityLabel: t('nowPlaying:vinylLayout.vinylDisc'),
         style: {
           width: discSize + 30,
           height: discSize + 30,
@@ -248,9 +261,13 @@ function VinylMobileLayout({ ctx, state, position, duration, can, onClose }: {
         radius: discSize / 2,
       }),
     ),
-    h(TrackInfo, { state }),
-    state.status === 'stalled' ? h(Text, { variant: 'sm', tone: 'muted', children: 'Buffering…' }) : null,
-    h(SeekBar, { ctx, position, duration, can }),
+    h(TrackInfo, {
+      state,
+      loadingLabel: t('nowPlaying:nowPlaying.loading'),
+      nothingPlayingLabel: t('nowPlaying:nowPlaying.nothingPlaying'),
+    }),
+    state.status === 'stalled' ? h(Text, { variant: 'sm', tone: 'muted', children: t('nowPlaying:nowPlaying.buffering') }) : null,
+    h(SeekBar, { ctx, position, duration, can, t }),
     h(TransportRow, { ctx, can }),
   )
 }
@@ -263,6 +280,7 @@ function CompactMobileLayout({ ctx, state, position, duration, can, onClose }: {
   can: ReturnType<typeof useTransportAvailability>; onClose?: () => void
 }): ReactElement {
   const native = nativePrimitives()
+  const { t } = useI18n(ctx)
   return h(
     native.View as never,
     {
@@ -274,7 +292,7 @@ function CompactMobileLayout({ ctx, state, position, duration, can, onClose }: {
         backgroundColor: p().bg.base,
       },
     },
-    onClose ? h(CloseButton, { onClose }) : null,
+    onClose ? h(CloseButton, { onClose, t }) : null,
     /* top row: artwork + info side-by-side */
     h(
       native.View as never,
@@ -286,7 +304,7 @@ function CompactMobileLayout({ ctx, state, position, duration, can, onClose }: {
         h(Text, {
           variant: 'xl',
           numberOfLines: 2,
-          children: state.nowPlaying?.title ?? (state.trackUrn ? 'Loading…' : 'Nothing playing'),
+          children: state.nowPlaying?.title ?? (state.trackUrn ? t('nowPlaying:nowPlaying.loading') : t('nowPlaying:nowPlaying.nothingPlaying')),
         }),
         state.nowPlaying?.artist
           ? h(Text, { variant: 'md', tone: 'muted', numberOfLines: 1, children: state.nowPlaying.artist })
@@ -296,8 +314,8 @@ function CompactMobileLayout({ ctx, state, position, duration, can, onClose }: {
           : null,
       ),
     ),
-    state.status === 'stalled' ? h(Text, { variant: 'sm', tone: 'muted', children: 'Buffering…' }) : null,
-    h(SeekBar, { ctx, position, duration, can }),
+    state.status === 'stalled' ? h(Text, { variant: 'sm', tone: 'muted', children: t('nowPlaying:nowPlaying.buffering') }) : null,
+    h(SeekBar, { ctx, position, duration, can, t }),
     h(TransportRow, { ctx, can }),
   )
 }
@@ -310,6 +328,7 @@ function CinematicMobileLayout({ ctx, state, position, duration, can, onClose }:
   can: ReturnType<typeof useTransportAvailability>; onClose?: () => void
 }): ReactElement {
   const native = nativePrimitives()
+  const { t } = useI18n(ctx)
   return h(
     native.View as never,
     {
@@ -346,7 +365,7 @@ function CinematicMobileLayout({ ctx, state, position, duration, can, onClose }:
         radius: 0,
       }),
     ),
-    onClose ? h(CloseButton, { onClose }) : null,
+    onClose ? h(CloseButton, { onClose, t }) : null,
     /* Square artwork with white border */
     h(
       native.View as never,
@@ -367,22 +386,26 @@ function CinematicMobileLayout({ ctx, state, position, duration, can, onClose }:
         radius: 0,
       }),
     ),
-    h(TrackInfo, { state }),
-    state.status === 'stalled' ? h(Text, { variant: 'sm', tone: 'muted', children: 'Buffering…' }) : null,
-    h(SeekBar, { ctx, position, duration, can }),
+    h(TrackInfo, {
+      state,
+      loadingLabel: t('nowPlaying:nowPlaying.loading'),
+      nothingPlayingLabel: t('nowPlaying:nowPlaying.nothingPlaying'),
+    }),
+    state.status === 'stalled' ? h(Text, { variant: 'sm', tone: 'muted', children: t('nowPlaying:nowPlaying.buffering') }) : null,
+    h(SeekBar, { ctx, position, duration, can, t }),
     h(TransportRow, { ctx, can }),
   )
 }
 
 /* ── Close button ──────────────────────────────────────────────────────── */
 
-function CloseButton({ onClose }: { onClose: () => void }): ReactElement {
+function CloseButton({ onClose, t }: { onClose: () => void; t: I18nService['t'] }): ReactElement {
   const native = nativePrimitives()
   return h(
     native.Pressable as never,
     {
       accessibilityRole: 'button',
-      accessibilityLabel: 'Close player',
+      accessibilityLabel: t('nowPlaying:nowPlaying.closePlayer'),
       onPress: onClose,
       style: {
         alignSelf: 'flex-start',
@@ -398,8 +421,8 @@ function CloseButton({ onClose }: { onClose: () => void }): ReactElement {
 
 /* ── Style switcher button ─────────────────────────────────────────────── */
 
-function StyleSwitcherButton({ styleId, setStyle }: {
-  styleId: NowPlayingStyleId; setStyle: (id: NowPlayingStyleId) => void
+function StyleSwitcherButton({ styleId, setStyle, t }: {
+  styleId: NowPlayingStyleId; setStyle: (id: NowPlayingStyleId) => void; t: I18nService['t']
 }): ReactElement {
   const native = nativePrimitives()
   const styles = NOW_PLAYING_STYLES
@@ -411,7 +434,7 @@ function StyleSwitcherButton({ styleId, setStyle }: {
     native.Pressable as never,
     {
       accessibilityRole: 'button',
-      accessibilityLabel: `Switch now-playing style: ${next.name}`,
+      accessibilityLabel: t('nowPlaying:index.switchNowPlayingStyle', { name: next.name }),
       onPress: () => setStyle(next.id),
       style: {
         alignSelf: 'flex-end',
@@ -445,6 +468,7 @@ export interface NowPlayingScreenProps {
 /** The full-screen player with switchable layout styles. */
 export function NowPlayingScreen({ ctx, onClose }: NowPlayingScreenProps): ReactElement {
   const native = nativePrimitives()
+  const { t } = useI18n(ctx)
   const state = useTransport(ctx)
   const position = usePosition(ctx)
   const duration = useDuration(ctx)
@@ -456,10 +480,10 @@ export function NowPlayingScreen({ ctx, onClose }: NowPlayingScreenProps): React
   return h(
     native.View as never,
     {
-      accessibilityLabel: 'Now playing',
+      accessibilityLabel: t('nowPlaying:nowPlaying.nowPlaying'),
       style: { flex: 1, backgroundColor: p().bg.base },
     },
-    h(StyleSwitcherButton, { styleId, setStyle }),
+    h(StyleSwitcherButton, { styleId, setStyle, t }),
     h(Layout, { ctx, state, position, duration, can, onClose }),
   )
 }
@@ -473,6 +497,7 @@ export interface NowPlayingBarProps {
 /** The persistent transport bar on mobile. */
 export function NowPlayingBar({ ctx, onOpenNowPlaying }: NowPlayingBarProps): ReactElement {
   const native = nativePrimitives()
+  const { t } = useI18n(ctx)
   const state = useTransport(ctx)
   const can = useTransportAvailability(ctx)
   const actionSlots = useServiceState(
@@ -498,7 +523,7 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying }: NowPlayingBarProps): Re
     native.Pressable as never,
     {
       accessibilityRole: 'button',
-      accessibilityLabel: 'Open now playing',
+      accessibilityLabel: t('nowPlaying:nowPlaying.openNowPlaying'),
       onPress: handleOpen,
       style: {
         flexDirection: 'row',
@@ -535,7 +560,7 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying }: NowPlayingBarProps): Re
         h(Text, {
           variant: 'sm',
           numberOfLines: 1,
-          children: state.nowPlaying?.title ?? (state.trackUrn ? 'Loading…' : 'Nothing playing'),
+          children: state.nowPlaying?.title ?? (state.trackUrn ? t('nowPlaying:nowPlaying.loading') : t('nowPlaying:nowPlaying.nothingPlaying')),
         }),
         state.nowPlaying?.artist
           ? h(Text, {
@@ -564,7 +589,7 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying }: NowPlayingBarProps): Re
       })(),
       h(IconButton, {
         icon: can.canPause ? '⏸' : '▶',
-        accessibilityLabel: can.canPause ? 'Pause' : 'Play',
+        accessibilityLabel: can.canPause ? t('nowPlaying:nowPlaying.pause') : t('nowPlaying:nowPlaying.play'),
         variant: 'ghost',
         size: tokens.size.icon,
         disabled: !can.canPlay && !can.canPause,

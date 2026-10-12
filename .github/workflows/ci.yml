@@ -50,6 +50,9 @@ jobs:
       # must match across namespaces (third-party register() contributions
       # are exempt — the runtime falls back per key).
       - run: pnpm check:locales
+      # Anti-rot: no new hardcoded UI strings in tsx (reviewed exceptions
+      # live in i18n-allowlist.txt at the repo root).
+      - run: pnpm check:i18n-gate
 
   typecheck:
     name: Typecheck

@@ -32,7 +32,7 @@ import { useAlbums } from '@BBeBee/plugin-sources/hooks'
 import { useTracksByUrn } from '@BBeBee/plugin-player/hooks'
 import { useResolvedArtwork } from '@BBeBee/plugin-cache/hooks'
 import type { ArtworkProps } from '@BBeBee/ui-core'
-import { Artwork, Button, ContextMenu, EmptyState, IconButton, List, Text, TextField, TrackRow, nativePrimitives } from '@BBeBee/ui-kit-mobile'
+import { Artwork, Button, ContextMenu, EmptyState, IconButton, List, Text, TextField, TrackRow, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { serviceOf } from '@BBeBee/ui-core'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
 import { useAddToCollection, useCollectionMenu, usePlaylistMenu, useTrackMenu } from '@BBeBee/ui-menus'
@@ -57,6 +57,7 @@ function CachedArtwork({ ctx, ...props }: ArtworkProps & { ctx: Context }): Reac
 }
 
 export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const native = nativePrimitives()
   const playlists = usePlaylists(ctx)
   const collections = useCollections(ctx)
@@ -126,21 +127,21 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
     native.View as never,
     {
       style: { flex: 1, backgroundColor: p().bg.base, padding: tokens.space[4], gap: tokens.space[3] },
-      accessibilityLabel: 'Library',
+      accessibilityLabel: t('library:library.library'),
     },
     h(
       native.View as never,
       { style: { flexDirection: 'row', alignItems: 'baseline', gap: tokens.space[2], flexWrap: 'wrap' } },
-      h(Text, { variant: 'xl' }, 'Library'),
+      h(Text, { variant: 'xl' }, t('library:library.library')),
       h(
         Text,
         { variant: 'sm', tone: 'muted' },
-        `${summary.playlists} playlists · ${albums.items.length} albums · ${summary.collections} collections`,
+        t('library:index.playlistsAlbumsCollections', { playlists: summary.playlists, length: albums.items.length, collections: summary.collections }),
       ),
       h(Button, {
         variant: 'secondary',
         onPress: () => ctx.ui.navigate(LIBRARY_VIEWS.favorites),
-        children: 'Favorites',
+        children: t('library:unifiedLibrary.favorites'),
       }),
     ),
     h(
@@ -152,7 +153,7 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
         h(TextField, {
           value: draft,
           onChange: setDraft,
-          placeholder: 'New playlist name',
+          placeholder: t('library:libraryModals.newPlaylistName'),
           testID: 'playlists-new-name',
         }),
       ),
@@ -160,7 +161,7 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
         onPress: createPlaylist,
         disabled: draft.trim().length === 0,
         testID: 'playlists-create',
-        children: 'Create',
+        children: t('app:common.create'),
       }),
     ),
     h(
@@ -172,7 +173,7 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
         h(TextField, {
           value: collectionDraft,
           onChange: setCollectionDraft,
-          placeholder: 'New collection name',
+          placeholder: t('library:index.newCollectionName'),
           testID: 'collections-new-name',
         }),
       ),
@@ -181,12 +182,12 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
         onPress: createCollection,
         disabled: collectionDraft.trim().length === 0,
         testID: 'collections-create',
-        children: 'Create',
+        children: t('app:common.create'),
       }),
     ),
     error ? h(Text, { variant: 'sm', tone: 'error', testID: 'playlists-error' }, error) : null,
     playlists.status === 'error'
-      ? h(Text, { tone: 'error' }, `Could not read playlists: ${playlists.error?.message}`)
+      ? h(Text, { tone: 'error' }, t('library:index.couldNotReadPlaylists', { message: playlists.error?.message ?? '' }))
       : null,
     h(
       native.View as never,
@@ -204,19 +205,19 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
                 : `${row.kind}-heading`,
         empty: h(EmptyState, {
           icon: '♪',
-          title: 'Nothing here yet',
-          description: 'Create a playlist or a collection, or import a source to fill the album list.',
+          title: t('library:playlistDetail.nothingHereYet'),
+          description: t('library:index.createAPlaylistOrA'),
         }),
         renderItem: (row) => {
           if (row.kind === 'albums-heading') {
             return h(
               native.View as never,
               { style: { paddingVertical: tokens.space[3] } },
-              h(Text, { variant: 'lg' }, 'Albums'),
+              h(Text, { variant: 'lg' }, t('library:libraryToolbar.albums')),
               h(
                 Text,
                 { variant: 'sm', tone: 'muted' },
-                'Everything the catalogue knows, in the order the sources reported it.',
+                t('library:library.albumsDescription'),
               ),
             )
           }
@@ -232,16 +233,17 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
             return h(
               native.View as never,
               { style: { paddingVertical: tokens.space[3] } },
-              h(Text, { variant: 'lg' }, 'Collections'),
+              h(Text, { variant: 'lg' }, t('library:collection.collections')),
               h(
                 Text,
                 { variant: 'sm', tone: 'muted' },
-                'A folder of your own: albums and playlists in one place. Collections can nest.',
+                t('library:collection.collectionsDescription'),
               ),
             )
           }
           if (row.kind === 'playlist') {
             return h(PlaylistRow, {
+              ctx,
               playlist: row.playlist,
               onOpen: () => ctx.ui.navigate(LIBRARY_VIEWS.playlist, { urn: row.playlist.urn }),
               onDelete: () =>
@@ -252,6 +254,7 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
             })
           }
           return h(CollectionRow, {
+            ctx,
             collection: row.collection,
             onOpen: () => ctx.ui.navigate(LIBRARY_VIEWS.collection, { id: row.collection.id }),
             onDelete: () =>
@@ -270,16 +273,19 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
 }
 
 function PlaylistRow({
+  ctx,
   playlist,
   onOpen,
   onDelete,
   onMore,
 }: {
+  ctx: Context
   playlist: Playlist
   onOpen: () => void
   onDelete: () => void
   onMore: (anchor?: MenuAnchor) => void
 }): ReactElement {
+  const { t } = useI18n(ctx)
   const native = nativePrimitives()
   return h(
     native.Pressable as never,
@@ -299,19 +305,23 @@ function PlaylistRow({
       h(
         Text,
         { variant: 'sm', tone: 'muted', numberOfLines: 1 },
-        playlist.isSmart ? 'Smart playlist' : `${playlist.trackCount ?? 0} tracks`,
+        playlist.isSmart
+          ? t('library:library.smartPlaylist')
+          : (playlist.trackCount ?? 0) === 1
+            ? t('library:playlistDetail.tracksOne', { count: playlist.trackCount ?? 0 })
+            : t('library:playlistDetail.tracksOther', { count: playlist.trackCount ?? 0 }),
       ),
     ),
-    h(Button, { variant: 'ghost', onPress: onOpen, children: 'Open' }),
+    h(Button, { variant: 'ghost', onPress: onOpen, children: t('library:library.open') }),
     h(IconButton, {
       icon: '⋯',
-      accessibilityLabel: `More actions for ${playlist.name}`,
+      accessibilityLabel: t('library:index.moreActionsFor', { name: playlist.name }),
       variant: 'ghost',
       onPress: () => onMore(),
     }),
     h(IconButton, {
       icon: '🗑',
-      accessibilityLabel: `Delete ${playlist.name}`,
+      accessibilityLabel: t('library:library.deleteItem', { title: playlist.name }),
       variant: 'ghost',
       onPress: onDelete,
     }),
@@ -319,16 +329,19 @@ function PlaylistRow({
 }
 
 function CollectionRow({
+  ctx,
   collection,
   onOpen,
   onDelete,
   onMore,
 }: {
+  ctx: Context
   collection: Collection
   onOpen: () => void
   onDelete: () => void
   onMore: (anchor?: MenuAnchor) => void
 }): ReactElement {
+  const { t } = useI18n(ctx)
   const native = nativePrimitives()
   return h(
     native.Pressable as never,
@@ -345,18 +358,24 @@ function CollectionRow({
       native.View as never,
       { style: { flex: 1, minWidth: 0 } },
       h(Text, { numberOfLines: 1 }, collection.name),
-      h(Text, { variant: 'sm', tone: 'muted' }, `${collection.itemCount ?? 0} items`),
+      h(
+        Text,
+        { variant: 'sm', tone: 'muted' },
+        (collection.itemCount ?? 0) === 1
+          ? t('library:collection.itemsOne', { count: collection.itemCount ?? 0 })
+          : t('library:collection.itemsOther', { count: collection.itemCount ?? 0 }),
+      ),
     ),
-    h(Button, { variant: 'ghost', onPress: onOpen, children: 'Open' }),
+    h(Button, { variant: 'ghost', onPress: onOpen, children: t('library:library.open') }),
     h(IconButton, {
       icon: '⋯',
-      accessibilityLabel: `More actions for ${collection.name}`,
+      accessibilityLabel: t('library:index.moreActionsFor', { name: collection.name }),
       variant: 'ghost',
       onPress: () => onMore(),
     }),
     h(IconButton, {
       icon: '🗑',
-      accessibilityLabel: `Delete ${collection.name}`,
+      accessibilityLabel: t('library:library.deleteItem', { title: collection.name }),
       variant: 'ghost',
       onPress: onDelete,
     }),
@@ -366,6 +385,7 @@ function CollectionRow({
 /* ── one playlist ──────────────────────────────────────────────────────── */
 
 export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string }): ReactElement {
+  const { t } = useI18n(ctx)
   const native = nativePrimitives()
   const state = usePlaylist(ctx, urn)
   const detail = state.data
@@ -381,11 +401,11 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
     })
   }
 
-  if (!urn) return h(EmptyState, { title: 'No playlist chosen' })
+  if (!urn) return h(EmptyState, { title: t('library:playlistDetail.noPlaylistChosen') })
   if (state.status === 'error') {
-    return h(EmptyState, { title: 'Could not open the playlist', description: state.error?.message })
+    return h(EmptyState, { title: t('library:playlistDetail.couldNotOpenThePlaylist'), description: state.error?.message })
   }
-  if (!detail) return h(EmptyState, { title: 'Loading…' })
+  if (!detail) return h(EmptyState, { title: t('library:collection.loading') })
 
   return h(
     native.View as never,
@@ -401,15 +421,17 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
           Text,
           { variant: 'sm', tone: 'muted' },
           detail.isSmart
-            ? 'Smart playlist — tracks come from its rules'
-            : `${detail.trackCount ?? urns.length} tracks`,
+            ? t('library:playlistDetail.smartPlaylistDescription')
+            : (detail.trackCount ?? urns.length) === 1
+              ? t('library:playlistDetail.tracksOne', { count: detail.trackCount ?? urns.length })
+              : t('library:playlistDetail.tracksOther', { count: detail.trackCount ?? urns.length }),
         ),
       ),
       h(Button, {
         onPress: () => urns[0] && play(urns[0]),
         disabled: urns.length === 0,
         testID: 'playlist-play',
-        children: 'Play',
+        children: t('library:playlistDetail.play'),
       }),
     ),
     error ? h(Text, { variant: 'sm', tone: 'error' }, error) : null,
@@ -422,10 +444,10 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
         keyExtractor: (trackUrn, index) => `${trackUrn}:${index}`,
         empty: h(EmptyState, {
           icon: '♪',
-          title: 'Nothing here yet',
+          title: t('library:playlistDetail.nothingHereYet'),
           description: detail.isSmart
-            ? 'No track in the catalogue matches these rules right now.'
-            : 'Add tracks from the library to fill this playlist.',
+            ? t('library:playlistDetail.noTrackMatchesTheseRules')
+            : t('library:playlistDetail.addTracksToFill'),
         }),
         renderItem: (trackUrn, index) => {
           const track = tracks.get(trackUrn)
@@ -450,7 +472,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
                   // The item's own id, not the track URN: the same track twice
                   // in a playlist is two rows, and removing one must not
                   // remove both.
-                  accessibilityLabel: `Remove ${track.title} from ${detail.name}`,
+                  accessibilityLabel: t('library:index.removeFrom', { title: track.title, name: detail.name }),
                   variant: 'ghost',
                   onPress: () => {
                     const item = detail.items[index]
@@ -472,6 +494,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
 /* ── favorites ────────────────────────────────────────────────────────── */
 
 export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const native = nativePrimitives()
   const saved = useSaved(ctx, 'track')
   const entries = saved.data ?? []
@@ -489,22 +512,28 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
     h(
       native.View as never,
       { style: { flexDirection: 'row', alignItems: 'center', gap: tokens.space[2] } },
-      h(Text, { variant: 'xl' }, 'Favorites'),
-      h(Text, { variant: 'sm', tone: 'muted' }, `${urns.length} saved`),
+      h(Text, { variant: 'xl' }, t('library:unifiedLibrary.favorites')),
+      h(
+        Text,
+        { variant: 'sm', tone: 'muted' },
+        urns.length === 1
+          ? t('library:favorites.savedOne', { count: urns.length })
+          : t('library:favorites.savedOther', { count: urns.length }),
+      ),
       h(Button, {
         variant: 'secondary',
         onPress: () =>
           urns[0] &&
           player?.playFromContext(urns[0], urns, {
-            context: { kind: 'favorites', label: 'Favorites' },
+            context: { kind: 'favorites', label: t('library:favorites.favorites') },
           }),
         disabled: urns.length === 0,
-        children: 'Play all',
+        children: t('library:favorites.playAll'),
       }),
     ),
     error ? h(Text, { variant: 'sm', tone: 'error' }, error) : null,
     saved.status === 'error'
-      ? h(Text, { tone: 'error' }, `Could not read favorites: ${saved.error?.message}`)
+      ? h(Text, { tone: 'error' }, t('library:favorites.couldNotReadFavorites', { message: saved.error?.message ?? '' }))
       : null,
     h(
       native.View as never,
@@ -515,8 +544,8 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
         keyExtractor: (entryUrn) => entryUrn,
         empty: h(EmptyState, {
           icon: '♡',
-          title: 'Nothing saved yet',
-          description: 'Save a track from the library and it lands here.',
+          title: t('library:index.nothingSavedYet'),
+          description: t('library:index.saveATrackFromThe'),
         }),
         renderItem: (entryUrn) => {
           const track = tracks.get(entryUrn)
@@ -531,14 +560,14 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
                 track,
                 onPress: () =>
                   player?.playFromContext(entryUrn, urns, {
-                    context: { kind: 'favorites', label: 'Favorites' },
+                    context: { kind: 'favorites', label: t('library:favorites.favorites') },
                   }),
                 onMore: (anchor) => menu.open({ track }, anchor),
               }),
             ),
             h(IconButton, {
               icon: '♥',
-              accessibilityLabel: `Remove ${track.title} from favorites`,
+              accessibilityLabel: t('library:index.removeFromFavorites', { title: track.title }),
               variant: 'primary',
               onPress: () => {
                 setError(undefined)
@@ -568,6 +597,7 @@ function AlbumRow({
   onOpen: () => void
   onMore: (anchor?: MenuAnchor) => void
 }): ReactElement {
+  const { t } = useI18n(ctx)
   const native = nativePrimitives()
   return h(
     native.Pressable as never,
@@ -605,7 +635,7 @@ function AlbumRow({
     ),
     h(IconButton, {
       icon: '⋯',
-      accessibilityLabel: `More actions for ${album.title}`,
+      accessibilityLabel: t('library:index.moreActionsFor', { name: album.title }),
       variant: 'ghost',
       onPress: () => onMore(),
     }),
@@ -621,6 +651,7 @@ function AlbumRow({
  * there.
  */
 export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): ReactElement {
+  const { t } = useI18n(ctx)
   const native = nativePrimitives()
   const state = useCollectionDetail(ctx, id)
   const detail = state.data
@@ -631,11 +662,11 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
   const menu = useTrackMenu(ctx)
   const player = serviceOf<{ playNow(urns: string[], opts?: { context?: QueueSourceContext }): Promise<void> }>(ctx, 'player')
 
-  if (!id) return h(EmptyState, { title: 'No collection chosen' })
+  if (!id) return h(EmptyState, { title: t('library:collection.noCollectionChosen') })
   if (state.status === 'error') {
-    return h(EmptyState, { title: 'Could not open the collection', description: state.error?.message })
+    return h(EmptyState, { title: t('library:collection.couldNotOpenTheCollection'), description: state.error?.message })
   }
-  if (!detail) return h(EmptyState, { title: 'Loading…' })
+  if (!detail) return h(EmptyState, { title: t('library:collection.loading') })
 
   return h(
     native.View as never,
@@ -646,18 +677,24 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
       h(
         native.View as never,
         { style: { flex: 1, minWidth: 0 } },
-        h(Text, { variant: 'xl', numberOfLines: 1 }, detail.collection?.name ?? 'Collection'),
-        h(Text, { variant: 'sm', tone: 'muted' }, `${members.length} items`),
+        h(Text, { variant: 'xl', numberOfLines: 1 }, detail.collection?.name ?? t('library:collection.collectionFallback')),
+        h(
+          Text,
+          { variant: 'sm', tone: 'muted' },
+          members.length === 1
+            ? t('library:collection.itemsOne', { count: members.length })
+            : t('library:collection.itemsOther', { count: members.length }),
+        ),
       ),
       h(Button, {
         onPress: () =>
           trackUrns[0] &&
           void player?.playNow(trackUrns, {
-            context: { kind: 'playlist', label: detail.collection?.name ?? 'Collection' },
+            context: { kind: 'playlist', label: detail.collection?.name ?? t('library:collection.collectionFallback') },
           }),
         disabled: trackUrns.length === 0,
         testID: 'collection-play',
-        children: 'Play',
+        children: t('library:playlistDetail.play'),
       }),
     ),
     h(
@@ -669,8 +706,8 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
         keyExtractor: (member) => member.urn,
         empty: h(EmptyState, {
           icon: '🗂',
-          title: 'Nothing in this collection yet',
-          description: 'Add albums or playlists from the library.',
+          title: t('library:collection.nothingInThisCollectionYet'),
+          description: t('library:collection.addAlbumsOrPlaylistsFrom'),
         }),
         renderItem: (member) => {
           if (member.kind === 'track' && member.track) {
@@ -684,7 +721,7 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
                   track: member.track,
                   onPress: () =>
                     void player?.playNow(trackUrns, {
-                      context: { kind: 'playlist', label: detail.collection?.name ?? 'Collection' },
+                      context: { kind: 'playlist', label: detail.collection?.name ?? t('library:collection.collectionFallback') },
                     }),
                   onMore: (anchor) => menu.open({ track: member.track! }, anchor),
                 }),

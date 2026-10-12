@@ -1,10 +1,12 @@
-import { Button } from '@BBeBee/ui-kit-desktop'
+import { Button, useI18n } from '@BBeBee/ui-kit-desktop'
 import { createElement as h } from 'react'
 import type { ReactElement, ChangeEvent } from 'react'
+import type { Context } from 'cordis'
 import { SettingsRow } from '../SettingsRow.js'
 import { SettingsSection } from '../SettingsSection.js'
 
 export interface AboutSectionProps {
+  ctx: Context
   showAdvancedSettings: boolean
   resetting: boolean
   onToggleAdvancedSettings: (show: boolean) => void
@@ -17,6 +19,7 @@ const BBEBEE_LOGO_DATA_URL =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAH0AAACWBAMAAAABLZpXAAAAD1BMVEUQFBX///9mZ2fe396srKxD0ysfAAACh0lEQVRo3u3ZfXKrIBAA8A3mACIeAEkOIGkOoDH3P9OjOk2VL3fZee+PNzidJs34yy4LIlKQrKOF6quvvvr/wz/MHDutN3eU7wGEjZymAQaMHwGgCc/q4h+HfnInimh4uGLjQ1ABBVjfRs98ADb/HiIJrOFx9VsL4CcwpdMPvNJBAmtO0V6NjT/1fHnBXE3FQhm/LgV7aH0qeMJ3h2J1qdKlrx+9b8AYG1B53+0boBM9n/Fql3J/KAby+p9+Y7bZ9BO++0VTNv2E3yWtc9UP/Mtsh+tzIbTRRrh37u+3xfl19EaPu+V5EDPPAyxMDzPTC6aPDAWaD4cy0TdMH8wkRB8MZqpvmF4wvd8DeS/e7ylfgBO/3br3x4XoleevRO9/RPZjtgPOfe81gOrlxPR9bgAgvJcA3SvN88cxVOAPLSjxPaf+xwREke+YXhaP/8dybEBD9CPcDg2gzh9uRX3b98BMjr/GVEXz5xZ/P41cSzxc7E8BB1mQ//frFL+D4+K7qm3T2E0WxXdpt/EFBNI3mx9K/XV9vclSL9h+ipYP73V8BYf2Px/Ysvr18dsv2nec68f1/+cuOtii8Vc8f23xX8Xz/xZ/Si2AMt4Y/YmfXAEm/frI/AyWH34BUv6z0B3zK8iUn2XKHwuY8I1M+xnhZcYP577xdmSofs7Fv5x7mfPNqRdM3/ibPwyveV4By6sOCup/zTUf0//efhzZD5nwmPEv9huHJdfPPc0Bdf2b5etpEE+g5OdP7PyHfAKne8vzpPX3+QbA331+Dw/a+vV8C+rf7t8I3v5RZAuP4gVv/81Yzv6fWSj7p/7x/qr//6q++uqrr57kbYm3yv0o98va7zfuSxJf0/4Bf17uCrH7aT4AAAAASUVORK5CYII='
 
 export function AboutSection({
+  ctx,
   showAdvancedSettings,
   resetting,
   onToggleAdvancedSettings,
@@ -24,14 +27,15 @@ export function AboutSection({
   onReset,
   onNavigate,
 }: AboutSectionProps): ReactElement {
+  const { t } = useI18n(ctx)
   return h(
     'div',
     { id: 'section-about' },
     h(
       SettingsSection,
       {
-        title: 'About BBeBee',
-        description: 'App architecture and version information',
+        title: t('settings:about.aboutBBeBee'),
+        description: t('settings:about.appArchitectureAndVersionInformation'),
       },
       // Brand header badge
       h(
@@ -65,7 +69,7 @@ export function AboutSection({
           },
           h('img', {
             src: BBEBEE_LOGO_DATA_URL,
-            alt: 'BBeBee Logo',
+            alt: t('settings:about.bBeBeeLogo'),
             width: 38,
             height: 38,
             style: { display: 'block', objectFit: 'contain' },
@@ -74,25 +78,28 @@ export function AboutSection({
         h(
           'div',
           null,
-          h('div', { style: { fontSize: 18, fontWeight: 700, color: 'var(--text-primary, #F5F5F7)' } }, 'BBeBee'),
+          h('div', { style: { fontSize: 18, fontWeight: 700, color: 'var(--text-primary, #F5F5F7)' } }, t('settings:about.bBeBee')),
           h(
             'div',
             { style: { fontSize: 12, color: 'var(--text-secondary, #8E8E93)', marginTop: 2 } },
-            'Cross-platform plugin-based music player · Version 0.1.0',
+            t('settings:about.tagline'),
           ),
         ),
       ),
       h(SettingsRow, {
-        title: 'Microkernel architecture',
-        description: 'Built on Cordis dependency injection and lifecycle management, with features fully decoupled into independent plugins',
+        ctx,
+        title: t('settings:about.microkernelArchitecture'),
+        description: t('settings:about.builtOnCordisDependencyInjection'),
       }),
       h(SettingsRow, {
-        title: 'Secure sandbox',
-        description: 'Source parsing runs in an isolated QuickJS Realm sandbox, fully cut off from network and local permissions',
+        ctx,
+        title: t('settings:about.secureSandbox'),
+        description: t('settings:about.sourceParsingRunsInAn'),
       }),
       h(SettingsRow, {
-        title: 'Open-source license',
-        description: 'Open-sourced under the MIT license — free, flexible, transparent',
+        ctx,
+        title: t('settings:about.openSourceLicense'),
+        description: t('settings:about.openSourcedUnderTheMIT'),
         borderBottom: false,
       }),
     ),
@@ -138,7 +145,7 @@ export function AboutSection({
             height: 15,
           },
         }),
-        h('span', { style: { fontWeight: 500 } }, 'Advanced settings'),
+        h('span', { style: { fontWeight: 500 } }, t('settings:about.advancedSettings')),
       ),
     ),
     // Developer diagnostics and Danger zone appear only when advanced settings is enabled
@@ -146,17 +153,17 @@ export function AboutSection({
       h(
         SettingsSection,
         {
-          title: 'Developer & system diagnostics',
-          description: 'View the runtime environment, live Discover logs, source testing and the microkernel architecture topology (Inspector)',
+          title: t('settings:about.developerSystemDiagnostics'),
+          description: t('settings:about.viewTheRuntimeEnvironmentLive'),
         },
         h(SettingsRow, {
-          title: 'Debug & diagnostics center (Debug)',
-          description:
-            'Environment info, Discover system logs, source HTTP capture, source testing and the Inspector architecture topology',
+          ctx,
+          title: t('settings:about.debugDiagnosticsCenterDebug'),
+          description: t('settings:about.diagnosticsDesc'),
           borderBottom: false,
           action: h(Button, {
             variant: 'secondary',
-            children: 'Open Debug center →',
+            children: t('settings:about.openDebugCenter'),
             onPress: () => onNavigate('debug.view'),
           }),
         }),
@@ -165,12 +172,13 @@ export function AboutSection({
       h(
         SettingsSection,
         {
-          title: 'Danger zone',
-          description: 'Low-level configuration reset options',
+          title: t('settings:about.dangerZone'),
+          description: t('settings:about.lowLevelConfigurationResetOptions'),
         },
         h(SettingsRow, {
-          title: 'Reset all settings',
-          description: 'Restore all preferences to their initial defaults (downloaded songs and playlists are not deleted)',
+          ctx,
+          title: t('settings:about.resetAllSettings'),
+          description: t('settings:about.restoreAllPreferencesToTheir'),
           borderBottom: false,
           action: resetting
             ? h(
@@ -178,18 +186,18 @@ export function AboutSection({
                 { style: { display: 'flex', gap: 8 } },
                 h(Button, {
                   variant: 'primary',
-                  children: 'Confirm reset',
+                  children: t('settings:mobile.confirmReset'),
                   onPress: onReset,
                 }),
                 h(Button, {
                   variant: 'ghost',
-                  children: 'Cancel',
+                  children: t('app:common.cancel'),
                   onPress: () => onSetResetting(false),
                 }),
               )
             : h(Button, {
                 variant: 'secondary',
-                children: 'Restore defaults',
+                children: t('settings:mobile.restoreDefaults'),
                 onPress: () => onSetResetting(true),
               }),
         }),

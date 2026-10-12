@@ -48,7 +48,13 @@ function fail(message) {
  * `en.json`/`zh.json` are per-locale files that together form the `app`
  * namespace; the per-namespace files carry their locales side by side.
  * Either way the comparison is over the same shape: locales side by side.
+ *
+ * Every `<ns>.json` file in the locales dir is checked: adding a new
+ * namespace file automatically extends this gate (no hardcoded list to
+ * drift out of sync — previously only app/registry/settings were covered,
+ * which let a zh-only key in miniPlayer.json slip through).
  */
+import { readdirSync } from 'node:fs'
 const catalogues = [
   {
     namespace: 'app',
@@ -57,14 +63,13 @@ const catalogues = [
       zh: JSON.parse(readFileSync(join(localesDir, 'zh.json'), 'utf8')),
     },
   },
-  {
-    namespace: 'registry',
-    locales: JSON.parse(readFileSync(join(localesDir, 'registry.json'), 'utf8')),
-  },
-  {
-    namespace: 'settings',
-    locales: JSON.parse(readFileSync(join(localesDir, 'settings.json'), 'utf8')),
-  },
+  ...readdirSync(localesDir)
+    .filter((f) => f.endsWith('.json') && f !== 'en.json' && f !== 'zh.json')
+    .sort()
+    .map((f) => ({
+      namespace: f.replace(/\.json$/, ''),
+      locales: JSON.parse(readFileSync(join(localesDir, f), 'utf8')),
+    })),
 ]
 
 /** Locale tags the plugin ships, in a stable order. */

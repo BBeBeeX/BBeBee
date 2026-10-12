@@ -6,13 +6,14 @@ import { LIBRARY_VIEWS } from '@BBeBee/plugin-library/views'
 import { formatDuration } from '@BBeBee/toolkit'
 import { useCollectionDetail, type CollectionMember } from '@BBeBee/plugin-library/hooks'
 import { serviceOf, type MenuAnchor } from '@BBeBee/ui-core'
-import { Artwork, Button, ContextMenu, EmptyState, List, SaveToPlaylistPopover, Text, tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { Artwork, Button, ContextMenu, EmptyState, List, SaveToPlaylistPopover, Text, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { useTrackMenu } from '@BBeBee/ui-menus'
 import { tokens } from '@BBeBee/ui-tokens'
 import { TrackLibraryActionButton } from '../components/TrackLibraryActionButton.js'
 import { useTrackLibraryInfo } from '../hooks/useTrackLibraryInfo.js'
 
 function CollectionTrackTableRow({
+  ctx,
   track,
   onPress,
   onMore,
@@ -20,6 +21,7 @@ function CollectionTrackTableRow({
   onAddToFavorites,
   onOpenPlaylistMenu,
 }: {
+  ctx: Context
   track: Track
   onPress: () => void
   onMore: (anchor: MenuAnchor) => void
@@ -27,6 +29,7 @@ function CollectionTrackTableRow({
   onAddToFavorites?: (track: Track) => void
   onOpenPlaylistMenu: (track: Track, anchor: MenuAnchor) => void
 }): ReactElement {
+  const { t } = useI18n(ctx)
   const [hovered, setHovered] = useState(false)
   const artists = track.artists?.map((a) => a.name).join(', ')
 
@@ -83,6 +86,7 @@ function CollectionTrackTableRow({
         },
       },
       h(TrackLibraryActionButton, {
+        ctx,
         track,
         hovered,
         inLibrary,
@@ -105,8 +109,8 @@ function CollectionTrackTableRow({
         'button',
         {
           type: 'button',
-          'aria-label': 'More',
-          title: 'More',
+          'aria-label': t('library:libraryTrack.more'),
+          title: t('library:libraryTrack.more'),
           onClick: (e: ReactMouseEvent) => {
             e.stopPropagation()
             const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
@@ -179,6 +183,7 @@ function MemberRow({ member, onOpen }: { member: CollectionMember; onOpen: () =>
  * because hiding it would silently lose something the user put there.
  */
 export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): ReactElement {
+  const { t } = useI18n(ctx)
   const state = useCollectionDetail(ctx, id)
   const detail = state.data
   const tracks = detail?.members ?? []
@@ -194,18 +199,18 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
   } = useTrackLibraryInfo(ctx)
 
 
-  if (!id) return h(EmptyState, { title: 'No collection chosen' })
+  if (!id) return h(EmptyState, { title: t('library:collection.noCollectionChosen') })
   if (state.status === 'error') {
-    return h(EmptyState, { title: 'Could not open the collection', description: state.error?.message })
+    return h(EmptyState, { title: t('library:collection.couldNotOpenTheCollection'), description: state.error?.message })
   }
-  if (!detail) return h(EmptyState, { title: 'Loading…' })
+  if (!detail) return h(EmptyState, { title: t('library:collection.loading') })
 
   const players = serviceOf<{ playNow(urns: string[], opts?: PlayNowOptions): Promise<void> }>(ctx, 'player')
 
   return h(
     'section',
     {
-      'aria-label': detail.collection?.name ?? 'Collection',
+      'aria-label': detail.collection?.name ?? t('library:collection.collectionFallback'),
       style: { display: 'flex', flexDirection: 'column', gap: tokens.space[3], padding: tokens.space[4], height: '100%' },
     },
     h(
@@ -214,18 +219,24 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
       h(
         'div',
         { style: { flex: 1, minWidth: 0 } },
-        h(Text, { variant: 'xl', numberOfLines: 1 }, detail.collection?.name ?? 'Collection'),
-        h(Text, { variant: 'sm', tone: 'muted' }, `${detail.members.length} items`),
+        h(Text, { variant: 'xl', numberOfLines: 1 }, detail.collection?.name ?? t('library:collection.collectionFallback')),
+        h(
+          Text,
+          { variant: 'sm', tone: 'muted' },
+          detail.members.length === 1
+            ? t('library:collection.itemsOne', { count: detail.members.length })
+            : t('library:collection.itemsOther', { count: detail.members.length }),
+        ),
       ),
       h(Button, {
         onPress: () =>
           trackUrns[0] &&
           void players?.playNow(trackUrns, {
-            context: { kind: 'playlist', label: detail.collection?.name ?? 'Collection' },
+            context: { kind: 'playlist', label: detail.collection?.name ?? t('library:collection.collectionFallback') },
           }),
         disabled: trackUrns.length === 0,
         testID: 'collection-play',
-        children: 'Play',
+        children: t('library:playlistDetail.play'),
       }),
     ),
     h(
@@ -238,12 +249,13 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
         keyExtractor: (member) => member.urn,
         empty: h(EmptyState, {
           icon: 'folder',
-          title: 'Nothing in this collection yet',
-          description: 'Add albums or playlists from the library.',
+          title: t('library:collection.nothingInThisCollectionYet'),
+          description: t('library:collection.addAlbumsOrPlaylistsFrom'),
         }),
         renderItem: (member) => {
           if (member.kind === 'track' && member.track) {
             return h(CollectionTrackTableRow, {
+              ctx,
               track: member.track,
               inLibrary: isTrackInLibrary(member.track, true),
               onAddToFavorites: handleAddToFavorites,
@@ -251,7 +263,7 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
               onPress: () =>
                 void players
                   ?.playNow(trackUrns, {
-                    context: { kind: 'playlist', label: detail.collection?.name ?? 'Collection' },
+                    context: { kind: 'playlist', label: detail.collection?.name ?? t('library:collection.collectionFallback') },
                   })
                   .then(() => {
                     /* playNow starts at the first track; the context is the collection */

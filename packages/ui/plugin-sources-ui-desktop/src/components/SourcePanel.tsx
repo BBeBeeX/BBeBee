@@ -2,7 +2,7 @@ import { createElement as h, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { Album, Artist, DownloadsService, Playlist, SourceError, Track, UiService } from '@BBeBee/protocol'
 import { playFromList, type SourcePaginationState } from '@BBeBee/plugin-sources/hooks'
-import { Button, Text, tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { Button, Text, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { serviceOf } from '@BBeBee/ui-core'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
 import { CachedArtwork, CachedTrackRow } from './CachedArtwork.js'
@@ -55,6 +55,7 @@ export function SourcePanel({
   onOpenAlbum,
   onTrackMenu,
 }: SourcePanelProps): ReactElement {
+  const { t } = useI18n(ctx)
   const scheme = p()
   const downloads = serviceOf<DownloadsService>(ctx, 'downloads')
   const [headerHovered, setHeaderHovered] = useState(false)
@@ -66,18 +67,42 @@ export function SourcePanel({
   const totalCount = trackCount + albumCount + artistCount + playlistCount
 
   const summaryParts: string[] = []
-  if (trackCount > 0) summaryParts.push(`${trackCount} ${trackCount === 1 ? 'track' : 'tracks'}`)
-  if (albumCount > 0) summaryParts.push(`${albumCount} ${albumCount === 1 ? 'album' : 'albums'}`)
-  if (artistCount > 0) summaryParts.push(`${artistCount} ${artistCount === 1 ? 'artist' : 'artists'}`)
-  if (playlistCount > 0) summaryParts.push(`${playlistCount} ${playlistCount === 1 ? 'playlist' : 'playlists'}`)
+  if (trackCount > 0) {
+    summaryParts.push(
+      t(trackCount === 1 ? 'sources:source.trackCountOne' : 'sources:source.trackCountOther', {
+        count: trackCount,
+      }),
+    )
+  }
+  if (albumCount > 0) {
+    summaryParts.push(
+      t(albumCount === 1 ? 'sources:source.albumCountOne' : 'sources:source.albumCountOther', {
+        count: albumCount,
+      }),
+    )
+  }
+  if (artistCount > 0) {
+    summaryParts.push(
+      t(artistCount === 1 ? 'sources:source.artistCountOne' : 'sources:source.artistCountOther', {
+        count: artistCount,
+      }),
+    )
+  }
+  if (playlistCount > 0) {
+    summaryParts.push(
+      t(playlistCount === 1 ? 'sources:source.playlistCountOne' : 'sources:source.playlistCountOther', {
+        count: playlistCount,
+      }),
+    )
+  }
 
   const detailText = error
     ? error.message
     : pending
-      ? 'still searching…'
+      ? t('sources:source.stillSearching')
       : summaryParts.length > 0
         ? summaryParts.join(' · ')
-        : 'no matches'
+        : t('sources:source.noMatches')
 
   const openAlbum = (urn: string) => {
     onOpenAlbum?.(urn)
@@ -112,7 +137,7 @@ export function SourcePanel({
         role: 'button',
         tabIndex: 0,
         'aria-expanded': expanded,
-        'aria-label': `${sourceName} panel`,
+        'aria-label': t('sources:source.panelAriaLabel', { sourceName }),
         'data-testid': `source-panel-header-${sourceId}`,
         onClick: onToggle,
         onKeyDown: (e: { key: string; preventDefault: () => void }) => {
@@ -269,7 +294,7 @@ export function SourcePanel({
               color: 'var(--text-tertiary, #8B95B0)',
             },
           },
-          expanded ? 'Collapse' : 'Expand',
+          expanded ? t('sources:source.collapse') : t('sources:source.expand'),
         ),
       ),
     ),
@@ -322,7 +347,7 @@ export function SourcePanel({
                     fontSize: tokens.font.size.sm,
                   },
                 },
-                'Searching this source, please wait…',
+                t('sources:source.pendingSearchMessage'),
               )
             : null,
           // Empty State
@@ -337,7 +362,7 @@ export function SourcePanel({
                     fontSize: tokens.font.size.sm,
                   },
                 },
-                'No matching results',
+                t('sources:source.noMatchingResults'),
               )
             : null,
           // Tracks List
@@ -518,7 +543,7 @@ export function SourcePanel({
                       disabled: isLoadingMore,
                       testID: `search-load-more-${sourceId}`,
                       onPress: () => onLoadMore?.(sourceId),
-                      children: isLoadingMore ? 'Loading…' : 'Load more',
+                      children: isLoadingMore ? t('sources:source.loading') : t('sources:source.loadMore'),
                       style: {
                         minWidth: 120,
                         background: 'var(--surface-2, ' + scheme.bg.overlay + ')',
@@ -533,7 +558,7 @@ export function SourcePanel({
                         tone: 'muted',
                         style: { color: 'var(--text-tertiary, #8B95B0)', letterSpacing: 0.5 },
                       },
-                      'All results loaded',
+                      t('sources:source.allResultsLoaded'),
                     ),
                 paginationError
                   ? h(
@@ -548,11 +573,11 @@ export function SourcePanel({
                           fontSize: tokens.font.size.xs,
                         },
                       },
-                      h('span', null, `Failed to load: ${paginationError.message}`),
+                      h('span', null, t('sources:source.failedToLoad', { message: paginationError.message })),
                       h(Button, {
                         variant: 'ghost',
                         onPress: () => onLoadMore?.(sourceId),
-                        children: 'Retry',
+                        children: t('app:common.retry'),
                       }),
                     )
                   : null,

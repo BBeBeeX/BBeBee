@@ -1,7 +1,10 @@
 import { createElement as h, useEffect, useState } from 'react'
 import type { ReactElement, ReactNode } from 'react'
+import type { Context } from 'cordis'
 import { tokens } from '@BBeBee/ui-tokens'
 import type { ContextMenuProps, MenuItemSpec } from '@BBeBee/ui-core'
+import { serviceOf } from '@BBeBee/ui-core'
+import type { I18nService } from '@BBeBee/protocol'
 import { c, common, nativePrimitives } from '../primitives.js'
 import { Text } from './Text.js'
 import { TextField } from './TextField.js'
@@ -92,8 +95,24 @@ function MenuRow({
  * Kit-side, the menu is dumb: it renders `MenuItemSpec`s and reports presses.
  * Which actions exist, and what they do, is built once by `@BBeBee/ui-menus`.
  */
-export function ContextMenu(props: ContextMenuProps): ReactElement | null {
+export function ContextMenu(
+  props: ContextMenuProps & {
+    /**
+     * Optional Cordis context. When provided, the kit-owned chrome copy (the
+     * back row, the create-row buttons, the empty-filter line) is translated
+     * via `useI18n`; without it the built-in English copy renders. Item
+     * labels stay the caller's responsibility.
+     */
+    ctx?: Context
+  },
+): ReactElement | null {
   const native = nativePrimitives()
+  // Deliberately hook-free: the kit's tree() tests invoke components as plain
+  // functions. Locale changes reach this component because its
+  // useI18n-subscribed ancestors re-render it.
+  const i18n = props.ctx ? serviceOf<I18nService>(props.ctx, 'i18n') : undefined
+  // English copy stays verbatim until a caller threads `ctx` (i18n sweep).
+  const t = (key: string, fallback: string): string => i18n?.t(key) ?? fallback
   const [submenuId, setSubmenuId] = useState<string | undefined>(undefined)
   const [filter, setFilter] = useState('')
   const [creating, setCreating] = useState(false)
@@ -134,7 +153,7 @@ export function ContextMenu(props: ContextMenuProps): ReactElement | null {
     ? [
         h(MenuRow, {
           key: '__back',
-          item: { id: '__back', label: `\u2039 ${submenu.title ?? 'Back'}` },
+          item: { id: '__back', label: `\u2039 ${submenu.title ?? t('app:common.back', 'Back')}` },
           onActivate: () => {
             setSubmenuId(undefined)
             setFilter('')
@@ -173,7 +192,7 @@ export function ContextMenu(props: ContextMenuProps): ReactElement | null {
                 },
                 disabled: draft.trim().length === 0,
                 testID: 'context-menu-create-confirm',
-                children: submenu.create.buttonLabel ?? 'OK',
+                children: submenu.create.buttonLabel ?? t('app:common.confirm', 'OK'),
               }),
             )
           : submenu.searchPlaceholder
@@ -234,7 +253,7 @@ export function ContextMenu(props: ContextMenuProps): ReactElement | null {
                       },
                       disabled: draft.trim().length === 0,
                       testID: 'context-menu-create-confirm',
-                      children: submenu.create.buttonLabel ?? 'OK',
+                      children: submenu.create.buttonLabel ?? t('app:common.confirm', 'OK'),
                     }),
                   )
                 : h(MenuRow, {
@@ -249,7 +268,7 @@ export function ContextMenu(props: ContextMenuProps): ReactElement | null {
                 h(
                   native.View as never,
                   { key: '__empty', style: { padding: tokens.space[3] } },
-                  h(Text, { variant: 'sm', tone: 'muted', children: submenu.emptyLabel ?? 'No matches' }),
+                  h(Text, { variant: 'sm', tone: 'muted', children: submenu.emptyLabel ?? t('app:common.contextMenu.noMatches', 'No matches') }),
                 ),
               ]
             : visible.map((item) => h(MenuRow, { key: item.id, item, onActivate: activate }))

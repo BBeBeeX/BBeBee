@@ -13,10 +13,11 @@ import type {} from '@BBeBee/protocol'
 import type { ScanSpecifiedDir } from '@BBeBee/protocol'
 import { SCANNER_VIEWS } from '@BBeBee/plugin-local-scanner/views'
 import { summarise, useScanSpecifiedDirs, useScanState } from '@BBeBee/plugin-local-scanner/hooks'
-import { Button, EmptyState, IconButton, List, Text } from '@BBeBee/ui-kit-desktop'
+import { Button, EmptyState, IconButton, List, Text, useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
 
 export function ScanSpecifiedDirsScreen({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const dirs = useScanSpecifiedDirs(ctx)
   const scan = useScanState(ctx)
 
@@ -36,22 +37,22 @@ export function ScanSpecifiedDirsScreen({ ctx }: { ctx: Context }): ReactElement
     h(
       'header',
       { style: { display: 'flex', alignItems: 'center', gap: tokens.space[3] } },
-      h(Text, { variant: 'lg', children: 'Music folders' }),
-      h(Button, { onPress: () => void addFolder(), children: 'Add folder' }),
+      h(Text, { variant: 'lg', children: t('localScanner:index.musicFolders') }),
+      h(Button, { onPress: () => void addFolder(), children: t('localScanner:index.addFolder') }),
       h(Button, {
         variant: 'secondary',
         // Disabled while running rather than hidden: a control that vanishes
         // mid-scan makes the screen look like it lost the button.
         disabled: scan.running,
         onPress: () => void ctx.scanner.scan(),
-        accessibilityLabel: 'Scan now',
-        children: scan.running ? 'Scanning…' : 'Scan now',
+        accessibilityLabel: t('localScanner:index.scanNow'),
+        children: scan.running ? t('localScanner:index.scanning') : t('localScanner:index.scanNow'),
       }),
       scan.running
         ? h(Button, {
             variant: 'ghost',
             onPress: () => ctx.scanner.cancel(),
-            children: 'Cancel',
+            children: t('app:common.cancel'),
           })
         : null,
     ),
@@ -60,26 +61,26 @@ export function ScanSpecifiedDirsScreen({ ctx }: { ctx: Context }): ReactElement
     scan.progress
       ? h(Text, {
           tone: 'muted',
-          accessibilityLabel: 'Scan progress',
+          accessibilityLabel: t('localScanner:index.scanProgress'),
           children: scan.progress.total
-            ? `Scanned ${scan.progress.done} of ${scan.progress.total}`
-            : `Scanned ${scan.progress.done} files`,
+            ? t('localScanner:index.scannedOf', { done: scan.progress.done, total: scan.progress.total })
+            : t('localScanner:index.scannedFiles', { done: scan.progress.done }),
         })
       : scan.lastSummary
         ? h(Text, {
             tone: scan.lastSummary.errors > 0 ? 'warn' : 'muted',
-            children: `Last scan: ${summarise(scan.lastSummary)}`,
+            children: t('localScanner:index.lastScan', { summary: summarise(scan.lastSummary) }),
           })
         : null,
     h(List<ScanSpecifiedDir>, {
       items: dirs,
-      accessibilityLabel: 'Music folders',
+      accessibilityLabel: t('localScanner:index.musicFolders'),
       estimatedItemSize: tokens.size.row,
       keyExtractor: (dir) => dir.id,
       empty: h(EmptyState, {
         icon: 'folder',
-        title: 'No folders yet',
-        description: 'Add one and its music appears in your library as it is scanned.',
+        title: t('localScanner:index.noFoldersYet'),
+        description: t('localScanner:index.addOneAndItsMusic'),
       }),
       renderItem: (dir) =>
         h(
@@ -107,20 +108,22 @@ export function ScanSpecifiedDirsScreen({ ctx }: { ctx: Context }): ReactElement
             variant: 'ghost',
             disabled: scan.running || !dir.enabled,
             onPress: () => void ctx.scanner.scan({ specifiedDirId: dir.id }),
-            accessibilityLabel: `Scan ${dir.uri}`,
-            children: 'Scan',
+            accessibilityLabel: t('localScanner:index.scanUri', { uri: dir.uri }),
+            children: t('localScanner:index.scan'),
           }),
           h(Button, {
             variant: 'ghost',
             onPress: () => void ctx.scanner.setEnabled(dir.id, !dir.enabled),
-            accessibilityLabel: dir.enabled ? `Disable ${dir.uri}` : `Enable ${dir.uri}`,
-            children: dir.enabled ? 'Disable' : 'Enable',
+            accessibilityLabel: dir.enabled
+              ? t('localScanner:index.disableUri', { uri: dir.uri })
+              : t('localScanner:index.enableUri', { uri: dir.uri }),
+            children: dir.enabled ? t('localScanner:index.disable') : t('localScanner:index.enable'),
           }),
           h(IconButton, {
             icon: 'trash',
             // Removing a specified dir keeps its tracks by default: losing a library
             // to a mis-clicked button is far worse than a stale row.
-            accessibilityLabel: `Remove ${dir.uri}`,
+            accessibilityLabel: t('localScanner:index.removeUri', { uri: dir.uri }),
             onPress: () => void ctx.scanner.removeSpecifiedDir(dir.id),
           }),
         ),
@@ -128,7 +131,7 @@ export function ScanSpecifiedDirsScreen({ ctx }: { ctx: Context }): ReactElement
     h(Text, {
       variant: 'sm',
       tone: 'muted',
-      children: 'Removing a folder keeps the tracks it found. Nothing is deleted from disk.',
+      children: t('localScanner:index.removeKeepsTracks'),
     }),
   )
 }

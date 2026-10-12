@@ -1,8 +1,10 @@
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { createElement as h } from 'react'
 import type { ReactElement, ReactNode } from 'react'
+import type { Context } from 'cordis'
 
 export interface SettingsRowProps {
+  ctx: Context
   title: string
   description?: string
   action?: ReactNode
@@ -15,6 +17,7 @@ export interface SettingsRowProps {
 }
 
 export function SettingsRow({
+  ctx,
   title,
   description,
   action,
@@ -25,6 +28,7 @@ export function SettingsRow({
   children,
   borderBottom = true,
 }: SettingsRowProps): ReactElement {
+  const { t } = useI18n(ctx)
   return h(
     'div',
     {
@@ -74,7 +78,9 @@ export function SettingsRow({
               'button',
               {
                 type: 'button',
-                'aria-label': expanded ? `Collapse ${title}` : `Expand ${title}`,
+                'aria-label': expanded
+                  ? t('settings:settingsRow.collapse', { title })
+                  : t('settings:settingsRow.expand', { title }),
                 onClick: onToggleExpand,
                 style: {
                   background: 'none',

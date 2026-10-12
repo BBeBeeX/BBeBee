@@ -3,7 +3,7 @@
  * Live in-app log viewer reading from `ctx.logBuffer`.
  */
 
-import { Button } from '@BBeBee/ui-kit-desktop'
+import { Button, useI18n } from '@BBeBee/ui-kit-desktop'
 import { createElement as h, useEffect, useMemo, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
@@ -17,6 +17,7 @@ interface LogBufferService {
 }
 
 export function LogsScreen({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const ui = serviceOf<UiService>(ctx, 'ui')
   const [records, setRecords] = useState<readonly LogRecord[]>([])
   const [levelFilter, setLevelFilter] = useState<'all' | LogLevel>('all')
@@ -99,7 +100,7 @@ export function LogsScreen({ ctx }: { ctx: Context }): ReactElement {
         { style: { display: 'flex', alignItems: 'center', gap: 16 } },
         h(Button, {
           variant: 'secondary',
-          children: '← Back to debug',
+          children: t('settings:settings.backToDebug'),
           onPress: () => ui?.navigate?.('debug.view'),
         }),
         h(
@@ -115,12 +116,12 @@ export function LogsScreen({ ctx }: { ctx: Context }): ReactElement {
                 color: '#F8FAFC',
               },
             },
-            'System logs (Discover Logs)',
+            t('settings:logs.title'),
           ),
           h(
             'span',
             { style: { fontSize: 12, color: '#64748B' } },
-            `${records.length} records buffered, ${filtered.length} matching (newest first)`,
+            t('settings:logs.recordsBuffered', { records: records.length, filtered: filtered.length }),
           ),
         ),
       ),
@@ -129,12 +130,12 @@ export function LogsScreen({ ctx }: { ctx: Context }): ReactElement {
         { style: { display: 'flex', gap: 10 } },
         h(Button, {
           variant: 'secondary',
-          children: copied ? '✓ NDJSON copied' : 'Copy all logs',
+          children: copied ? t('settings:logs.nDJSONCopied') : t('settings:logs.copyAllLogs'),
           onPress: handleCopy,
         }),
         h(Button, {
           variant: 'danger',
-          children: 'Clear logs',
+          children: t('settings:logs.clearLogs'),
           onPress: handleClear,
         }),
       ),
@@ -159,7 +160,7 @@ export function LogsScreen({ ctx }: { ctx: Context }): ReactElement {
       // Search box
       h('input', {
         type: 'text',
-        placeholder: 'Search log content, module or scope…',
+        placeholder: t('settings:logs.searchLogContentModuleOr'),
         value: searchTerm,
         onChange: (e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value),
         style: {
@@ -177,7 +178,7 @@ export function LogsScreen({ ctx }: { ctx: Context }): ReactElement {
       h(
         'div',
         { style: { display: 'flex', gap: 6 } },
-        renderLevelButton('all', 'All', levelFilter, setLevelFilter),
+        renderLevelButton('all', t('app:common.all'), levelFilter, setLevelFilter),
         renderLevelButton('info', 'INFO', levelFilter, setLevelFilter),
         renderLevelButton('warn', 'WARN', levelFilter, setLevelFilter),
         renderLevelButton('error', 'ERROR', levelFilter, setLevelFilter),
@@ -211,7 +212,7 @@ export function LogsScreen({ ctx }: { ctx: Context }): ReactElement {
                 fontSize: 13,
               },
             },
-            'No log records match the current filters',
+            t('settings:logs.noMatchingRecords'),
           )
         : filtered.map((rec, index) => renderLogRow(rec, index)),
     ),

@@ -2,7 +2,7 @@ import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { SettingsContribution } from '@BBeBee/protocol'
-import { Button, Text } from '@BBeBee/ui-kit-mobile'
+import { Button, Text, useI18n } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
 import { nativePrimitives } from '@BBeBee/ui-kit-mobile'
 import { SchemaForm } from './SchemaForm.js'
@@ -20,6 +20,7 @@ export interface ContributionBlockProps {
  */
 export function ContributionBlock({ ctx, contribution, onNavigate }: ContributionBlockProps): ReactElement {
   const native = nativePrimitives()
+  const { t } = useI18n(ctx)
 
   if (contribution.display === 'card') {
     const CardView = ctx.ui?.viewFor?.(contribution.id) as
@@ -33,7 +34,7 @@ export function ContributionBlock({ ctx, contribution, onNavigate }: Contributio
       contribution.description
         ? h(Text, { variant: 'xs', tone: 'muted', children: contribution.description })
         : null,
-      h(Text, { variant: 'xs', tone: 'muted', children: 'Not available on this platform' }),
+      h(Text, { variant: 'xs', tone: 'muted', children: t('settings:contributionBlock.notAvailableOnPlatform') }),
     )
   }
 
@@ -62,7 +63,7 @@ export function ContributionBlock({ ctx, contribution, onNavigate }: Contributio
     ),
     h(Button, {
       variant: 'secondary',
-      children: contribution.actionText ?? 'Open',
+      children: contribution.actionText ?? t('settings:contributionBlock.open'),
       onPress: () => {
         if (contribution.action) void contribution.action()
         else onNavigate?.(contribution.id)

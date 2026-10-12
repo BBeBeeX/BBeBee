@@ -34,6 +34,40 @@ import type {
 import { tempDir, tick } from '@BBeBee/kernel/testing'
 import { withListLayout } from '@BBeBee/ui-kit-desktop/testing'
 import { resetSearchSourceSelection } from '@BBeBee/plugin-sources/hooks'
+import sourcesCatalogue from '../../../feature/plugin-i18n/src/locales/sources.json'
+import appCatalogue from '../../../feature/plugin-i18n/src/locales/en.json'
+
+/**
+ * i18n service for tests: serves the real `sources` + `app` catalogues so
+ * components under test render the same copy the app shows.
+ */
+class DefaultI18nStub extends Service {
+  static override readonly name = 'i18n'
+  locale = 'en'
+  private listeners = new Set<(locale: string) => void>()
+  constructor(ctx: Context) {
+    super(ctx, 'i18n')
+  }
+  t = (key: string, params?: Record<string, string | number>): string => {
+    const sep = key.indexOf(':')
+    if (sep < 0) return key
+    const ns = key.slice(0, sep)
+    const catalogue = ns === 'sources' ? sourcesCatalogue.en : ns === 'app' ? appCatalogue : undefined
+    if (!catalogue) return key
+    let cur: unknown = catalogue
+    for (const part of key.slice(sep + 1).split('.')) {
+      cur = (cur as Record<string, unknown> | undefined)?.[part]
+    }
+    if (typeof cur !== 'string') return key
+    return params ? cur.replace(/\{(\w+)\}/g, (_, k: string) => String(params[k] ?? `{${k}}`)) : cur
+  }
+  onLocaleChange = (cb: (locale: string) => void): (() => void) => {
+    this.listeners.add(cb)
+    return () => {
+      this.listeners.delete(cb)
+    }
+  }
+}
 import {
   ImportScreen,
   RecommendAllScreen,
@@ -114,6 +148,7 @@ async function harness(options?: {
   }
 
   await root.plugin(sourcesPlugin, {})
+  await root.plugin(DefaultI18nStub)
   await tick()
 
   /*

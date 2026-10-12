@@ -110,6 +110,16 @@ if (isMiniPlayerWindow) {
   boot()
     .then(async (app) => {
       const ctx = await app.ready(['ui'], { timeoutMs: 10_000 })
+      // Fan the resolved interface locale out to ctx-less windows. The
+      // desktop-lyrics and mini-player renderers never boot the Cordis app,
+      // so they read the locale through the preload `locale` bridge: main
+      // remembers the last notified value (`locale:get`) and rebroadcasts
+      // changes (`locale:changed`) to every window.
+      const pushLocale = (locale: string): void => {
+        void window.BBeBee?.locale?.notify?.(locale)
+      }
+      pushLocale(ctx.i18n.locale)
+      ctx.i18n.onLocaleChange(pushLocale)
       root.render(h(StrictMode, null, h(Shell, { ctx })))
 
       // Load deferred non-first-screen plugins during idle after first frame

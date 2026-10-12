@@ -13,6 +13,8 @@ import type { Context } from '@BBeBee/kernel'
 import { I18nPlugin } from './service.js'
 
 export { I18nPlugin, flattenCatalogue, negotiateLocale } from './service.js'
+export { BUILT_IN_CATALOGUES } from './catalogues.js'
+export type { BuiltInCatalogues } from './catalogues.js'
 
 export const name = 'plugin-i18n'
 export const inject = ['settings', 'device']

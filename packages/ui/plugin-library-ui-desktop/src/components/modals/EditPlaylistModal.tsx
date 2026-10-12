@@ -1,17 +1,21 @@
 import { createElement as h, useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, MouseEvent as ReactMouseEvent, ReactElement } from 'react'
+import type { Context } from 'cordis'
 import type { Playlist } from '@BBeBee/protocol'
-import { Button, tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { Button, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 
 export function EditPlaylistModal({
+  ctx,
   playlist,
   onClose,
   onSave,
 }: {
+  ctx: Context
   playlist: (Playlist & { description?: string }) | null
   onClose: () => void
   onSave: (patch: { name: string; description?: string; artworkUrl?: string }) => Promise<void>
 }): ReactElement | null {
+  const { t } = useI18n(ctx)
   const [name, setName] = useState(playlist?.name ?? '')
   const [description, setDescription] = useState(playlist?.description ?? '')
   const [artworkUrl, setArtworkUrl] = useState(playlist?.artwork?.sourceUrl ?? '')
@@ -62,7 +66,7 @@ export function EditPlaylistModal({
   return h(
     'div',
     {
-      'aria-label': 'Edit details',
+      'aria-label': t('library:editPlaylist.editDetails'),
       style: {
         position: 'fixed',
         inset: 0,
@@ -94,12 +98,12 @@ export function EditPlaylistModal({
       h(
         'div',
         { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
-        h('h2', { style: { margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--bb-text-primary, #FFFFFF)' } }, 'Edit details'),
+        h('h2', { style: { margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--bb-text-primary, #FFFFFF)' } }, t('library:editPlaylist.editDetails')),
         h(
           'button',
           {
             type: 'button',
-            'aria-label': 'Close',
+            'aria-label': t('library:editPlaylist.close'),
             onClick: onClose,
             style: {
               background: 'transparent',
@@ -140,7 +144,7 @@ export function EditPlaylistModal({
           previewUrl
             ? h('img', {
                 src: previewUrl,
-                alt: 'Cover preview',
+                alt: t('library:editPlaylist.coverPreview'),
                 style: { width: '100%', height: '100%', objectFit: 'cover' },
               })
             : tablerIcon('music', { size: 52, color: '#555555' }),
@@ -162,7 +166,7 @@ export function EditPlaylistModal({
               },
             },
             tablerIcon('camera', { size: 40, color: 'currentColor' }),
-            h('span', { style: { fontSize: 13, fontWeight: 600 } }, 'Choose photo'),
+            h('span', { style: { fontSize: 13, fontWeight: 600 } }, t('library:quadArtworkCollage.choosePhoto')),
           ),
           h('input', {
             ref: fileInputRef,
@@ -178,12 +182,12 @@ export function EditPlaylistModal({
           h(
             'div',
             null,
-            h('label', { style: { display: 'block', fontSize: 11, color: '#A0A0AE', marginBottom: 4, fontWeight: 600 } }, 'Name'),
+            h('label', { style: { display: 'block', fontSize: 11, color: '#A0A0AE', marginBottom: 4, fontWeight: 600 } }, t('library:editPlaylist.name')),
             h('input', {
               type: 'text',
               value: name,
               onChange: (e: ChangeEvent<HTMLInputElement>) => setName(e.target.value),
-              placeholder: 'Add a name',
+              placeholder: t('library:editPlaylist.addAName'),
               'data-testid': 'edit-playlist-name',
               style: {
                 width: '100%',
@@ -202,11 +206,11 @@ export function EditPlaylistModal({
           h(
             'div',
             null,
-            h('label', { style: { display: 'block', fontSize: 11, color: '#A0A0AE', marginBottom: 4, fontWeight: 600 } }, 'Description'),
+            h('label', { style: { display: 'block', fontSize: 11, color: '#A0A0AE', marginBottom: 4, fontWeight: 600 } }, t('library:editPlaylist.description')),
             h('textarea', {
               value: description,
               onChange: (e: ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value),
-              placeholder: 'Add an optional description',
+              placeholder: t('library:editPlaylist.addAnOptionalDescription'),
               rows: 3,
               'data-testid': 'edit-playlist-description',
               style: {
@@ -228,7 +232,7 @@ export function EditPlaylistModal({
           h(
             'div',
             null,
-            h('label', { style: { display: 'block', fontSize: 11, color: '#A0A0AE', marginBottom: 4, fontWeight: 600 } }, 'Cover image URL (optional)'),
+            h('label', { style: { display: 'block', fontSize: 11, color: '#A0A0AE', marginBottom: 4, fontWeight: 600 } }, t('library:editPlaylist.coverImageURLOptional')),
             h('input', {
               type: 'text',
               value: artworkUrl,
@@ -236,7 +240,7 @@ export function EditPlaylistModal({
                 setArtworkUrl(e.target.value)
                 setPreviewUrl(e.target.value)
               },
-              placeholder: 'https://... or upload from the left',
+              placeholder: t('library:editPlaylist.httpsOrUploadFromThe'),
               'data-testid': 'edit-playlist-artwork',
               style: {
                 width: '100%',
@@ -260,7 +264,7 @@ export function EditPlaylistModal({
         h(
           'span',
           { style: { fontSize: 11, color: '#888888' } },
-          'By choosing a photo you agree to let us use it as the playlist cover.',
+          t('library:editPlaylist.photoConsent'),
         ),
         h(
           'div',
@@ -268,14 +272,14 @@ export function EditPlaylistModal({
           h(Button, {
             variant: 'ghost',
             onPress: onClose,
-            children: 'Cancel',
+            children: t('app:common.cancel'),
           }),
           h(Button, {
             variant: 'primary',
             disabled: !name.trim() || saving,
             onPress: handleSave,
             testID: 'edit-playlist-save',
-            children: saving ? 'Saving…' : 'Save',
+            children: saving ? t('library:editPlaylist.saving') : t('library:userProfile.save'),
           }),
         ),
       ),

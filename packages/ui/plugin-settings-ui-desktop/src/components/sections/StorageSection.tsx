@@ -1,4 +1,4 @@
-import { Button } from '@BBeBee/ui-kit-desktop'
+import { Button, useI18n } from '@BBeBee/ui-kit-desktop'
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
@@ -14,7 +14,7 @@ export interface StorageUsage {
 }
 
 export interface StorageSectionProps {
-  ctx?: Context
+  ctx: Context
   currentDownloadsDir: string
   currentCacheDir: string
   usage: StorageUsage
@@ -54,6 +54,7 @@ export function StorageSection({
   onClearCache,
   onNavigate,
 }: StorageSectionProps): ReactElement {
+  const { t } = useI18n(ctx)
   const storageContribs = contributions.filter((c) => c.section === 'storage')
   const items: readonly SettingsContribution[] = storageContribs
 
@@ -63,23 +64,24 @@ export function StorageSection({
     h(
       SettingsSection,
       {
-        title: 'Offline storage & downloads directory',
-        description: 'Manage the local directory for downloaded music and its task policy',
+        title: t('settings:storage.offlineStorageDownloadsDirectory'),
+        description: t('settings:storage.manageTheLocalDirectoryFor'),
       },
       h(SettingsRow, {
-        title: 'Downloads directory',
+        ctx,
+        title: t('settings:storage.downloadsDirectory'),
         description: cleanDisplayPath(currentDownloadsDir),
         action: h(
           'div',
           { style: { display: 'flex', gap: 8 } },
           h(Button, {
             variant: 'secondary',
-            children: 'Change directory',
+            children: t('settings:schemaForm.changeDirectory'),
             onPress: onPickDownloadDir,
           }),
           h(Button, {
             variant: 'secondary',
-            children: 'Open folder',
+            children: t('settings:schemaForm.openFolder'),
             onPress: onOpenDownloadDir,
           }),
         ),
@@ -90,12 +92,13 @@ export function StorageSection({
           if (CardView) return h(CardView, { key: item.id, ctx })
         }
         return h(SettingsRow, {
+          ctx,
           key: item.id,
           title: item.title,
           description: item.description,
           borderBottom: false,
           action: h(Button, {
-            children: item.actionText ?? 'View details',
+            children: item.actionText ?? t('settings:storage.viewDetails'),
             onPress: () => {
               if (item.action) void item.action()
               else onNavigate(item.id)
@@ -107,36 +110,42 @@ export function StorageSection({
     h(
       SettingsSection,
       {
-        title: 'Temp cache & storage directories',
-        description: 'Storage paths and cleanup for online media stream buffering and artwork cache',
+        title: t('settings:storage.tempCacheStorageDirectories'),
+        description: t('settings:storage.storagePathsAndCleanupFor'),
       },
       h(SettingsRow, {
-        title: 'Song cache directory',
+        ctx,
+        title: t('settings:storage.songCacheDirectory'),
         description: cleanDisplayPath(currentCacheDir),
         action: h(
           'div',
           { style: { display: 'flex', gap: 8 } },
           h(Button, {
             variant: 'secondary',
-            children: 'Change directory',
+            children: t('settings:schemaForm.changeDirectory'),
             onPress: onPickCacheDir,
           }),
           h(Button, {
             variant: 'secondary',
-            children: 'Open folder',
+            children: t('settings:schemaForm.openFolder'),
             onPress: onOpenCacheDir,
           }),
         ),
       }),
       h(SettingsRow, {
-        title: 'Cache usage',
-        description: `Total: ${formatBytes(usage.totalBytes)} (artwork: ${formatBytes(usage.artworkBytes)} · streams: ${formatBytes(usage.streamBytes)})`,
+        ctx,
+        title: t('settings:storage.cacheUsage'),
+        description: t('settings:storage.cacheUsageDetail', {
+          total: formatBytes(usage.totalBytes),
+          artwork: formatBytes(usage.artworkBytes),
+          streams: formatBytes(usage.streamBytes),
+        }),
         borderBottom: false,
         action: h(Button, {
           variant: 'secondary',
           disabled: clearingCache || usage.totalBytes === 0,
           loading: clearingCache,
-          children: 'Clear all cache',
+          children: t('settings:storage.clearAllCache'),
           onPress: onClearCache,
         }),
       }),

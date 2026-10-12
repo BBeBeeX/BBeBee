@@ -27,6 +27,7 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "check:locales": "node scripts/check-locales.mjs",
+    "inventory:i18n": "node scripts/inventory-ui-strings.mjs --root ../../..",
     "test": "vitest run --root ../../.. plugin-i18n"
   },
   "dependencies": {

@@ -3,7 +3,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { Collection } from '@BBeBee/protocol'
 import type { MenuAnchor } from '@BBeBee/ui-core'
-import { EmptyState, List, TextField, tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { EmptyState, List, TextField, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { UnifiedLibraryRow, type UnifiedItem } from '../UnifiedLibraryRow.js'
 import { LIBRARY_SORT_LABELS, type LibrarySortMode } from '../LibraryToolbar.js'
 
@@ -50,10 +50,11 @@ export function SidebarFolderView({
   modals,
   contextMenus,
 }: SidebarFolderViewProps): ReactElement {
+  const { t } = useI18n(ctx)
   return h(
     'section',
     {
-      'aria-label': activeCollection?.name ?? 'Folder',
+      'aria-label': activeCollection?.name ?? t('library:libraryCreateDropdown.folder'),
       style: {
         display: 'flex',
         flexDirection: 'column',
@@ -91,7 +92,7 @@ export function SidebarFolderView({
             overflow: 'hidden',
           },
           onClick: () => setActiveFolderId(null),
-          title: 'Back to music library',
+          title: t('library:collapsedLibrary.backToMusicLibrary'),
         },
         tablerIcon('chevron-left', { size: 24, color: 'currentColor' }),
         h(
@@ -106,7 +107,7 @@ export function SidebarFolderView({
               textOverflow: 'ellipsis',
             },
           },
-          activeCollection?.name ?? 'Folder',
+          activeCollection?.name ?? t('library:libraryCreateDropdown.folder'),
         ),
       ),
       h(
@@ -119,8 +120,8 @@ export function SidebarFolderView({
               'button',
               {
                 type: 'button',
-                'aria-label': 'More options',
-                title: 'More options',
+                'aria-label': t('library:expandedLibrary.moreOptions'),
+                title: t('library:expandedLibrary.moreOptions'),
                 onClick: (e: { clientX: number; clientY: number }) => {
                   openCollectionMenu(
                     activeCollection,
@@ -155,8 +156,8 @@ export function SidebarFolderView({
           'button',
           {
             type: 'button',
-            'aria-label': 'Expand music library',
-            title: 'Expand music library',
+            'aria-label': t('library:collapsedLibrary.expandMusicLibrary'),
+            title: t('library:collapsedLibrary.expandMusicLibrary'),
             onClick: () => handleModeChange('expanded'),
             style: {
               width: 32,
@@ -197,7 +198,7 @@ export function SidebarFolderView({
             fontWeight: 600,
           },
         },
-        'By you',
+        t('library:library.byYou'),
       ),
     ),
     h(
@@ -217,8 +218,8 @@ export function SidebarFolderView({
           'button',
           {
             type: 'button',
-            'aria-label': 'Search',
-            title: 'Search',
+            'aria-label': t('library:libraryToolbar.search'),
+            title: t('library:libraryToolbar.search'),
             onClick: () => setSearchOpen((prev) => !prev),
             style: {
               width: 28,
@@ -239,7 +240,7 @@ export function SidebarFolderView({
           ? h(TextField, {
               value: searchQuery,
               onChange: setSearchQuery,
-              placeholder: 'Search in folder...',
+              placeholder: t('library:sidebarFolder.searchInFolder'),
               testID: 'folder-search-input',
             })
           : null,
@@ -262,7 +263,7 @@ export function SidebarFolderView({
             cursor: 'pointer',
           },
         },
-        h('span', null, LIBRARY_SORT_LABELS[sortMode]),
+        h('span', null, t(LIBRARY_SORT_LABELS[sortMode])),
         h('span', { style: { display: 'inline-flex', alignItems: 'center' } }, tablerIcon('list', { size: 20 })),
       ),
     ),
@@ -272,15 +273,15 @@ export function SidebarFolderView({
       filteredFolderItems.length === 0
         ? h(EmptyState, {
             icon: 'folder',
-            title: 'This folder is empty',
-            description: 'Click create to add a playlist, or add content from the music library.',
+            title: t('library:sidebarFolder.thisFolderIsEmpty'),
+            description: t('library:sidebarFolder.clickCreateToAddA'),
           })
         : h(List<UnifiedItem>, {
             testID: 'folder-items-list',
             items: filteredFolderItems,
             estimatedItemSize: 64,
             keyExtractor: (item) => item.id,
-            empty: h(EmptyState, { title: 'No items yet' }),
+            empty: h(EmptyState, { title: t('library:sidebarFolder.noItemsYet') }),
             renderItem: (item) => h(UnifiedLibraryRow, { key: item.id, ctx, item }),
           }),
     ),

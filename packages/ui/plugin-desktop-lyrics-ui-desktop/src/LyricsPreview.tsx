@@ -8,9 +8,19 @@ import type { DesktopLyricsSettings } from '@BBeBee/protocol'
 
 export interface LyricsPreviewProps {
   settings: DesktopLyricsSettings
+  /**
+   * Pre-translated line-mode label for the preview badge. Translated by the
+   * caller — this presentational component has no ctx and stays i18n-free.
+   */
+  lineModeLabel: string
+  /**
+   * Pre-translated badge caption for the preview header. Translated by the
+   * caller, same as `lineModeLabel`.
+   */
+  livePreviewBadge: string
 }
 
-export function LyricsPreview({ settings }: LyricsPreviewProps): ReactElement {
+export function LyricsPreview({ settings, lineModeLabel, livePreviewBadge }: LyricsPreviewProps): ReactElement {
   const {
     lineMode = 'double',
     align = 'center',
@@ -59,7 +69,7 @@ export function LyricsPreview({ settings }: LyricsPreviewProps): ReactElement {
             fontWeight: 600,
           },
         },
-        'Live desktop lyrics preview',
+        livePreviewBadge,
       ),
       h(
         'span',
@@ -72,7 +82,7 @@ export function LyricsPreview({ settings }: LyricsPreviewProps): ReactElement {
             borderRadius: 999,
           },
         },
-        `${lineMode === 'double' ? 'Double line' : 'Single line'} · ${fontSize}px · ${Math.round(opacity * 100)}% opacity`,
+        `${lineModeLabel} · ${fontSize}px · ${Math.round(opacity * 100)}% opacity`,
       ),
     ),
     // Floating lyrics container simulation

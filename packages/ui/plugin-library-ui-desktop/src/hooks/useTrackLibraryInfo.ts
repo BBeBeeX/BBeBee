@@ -5,8 +5,10 @@ import { usePlaylists, useSaved } from '@BBeBee/plugin-library/hooks'
 import type { MenuAnchor, MenuItemSpec } from '@BBeBee/ui-core'
 import { serviceOf } from '@BBeBee/ui-core'
 import { useSaveToPlaylistMenu } from '@BBeBee/ui-menus'
+import { useI18n } from '@BBeBee/ui-kit-desktop'
 
 export function useTrackLibraryInfo(ctx: Context) {
+  const { t } = useI18n(ctx)
   const library = serviceOf<LibraryService>(ctx, 'library')
   const sources = serviceOf<SourcesService>(ctx, 'sources')
   const savedTracks = useSaved(ctx, 'track')
@@ -93,10 +95,10 @@ export function useTrackLibraryInfo(ctx: Context) {
     const items: MenuItemSpec[] = [
       {
         id: 'create-new-playlist',
-        label: 'New playlist',
+        label: t('library:trackLibraryActionButton.newPlaylist'),
         icon: 'plus',
         onSelect: async () => {
-          const name = window.prompt('Playlist name:')
+          const name = window.prompt(t('library:trackLibraryActionButton.playlistNamePrompt'))
           if (name && name.trim()) {
             const p = await library.createPlaylist(name.trim())
             if (p) await library.addTracks(p.urn, [track.urn])
@@ -115,7 +117,7 @@ export function useTrackLibraryInfo(ctx: Context) {
       })),
     ]
     return items
-  }, [saveToPlaylistMenu.menuProps.open, activeTrack, library, playlists.data])
+  }, [saveToPlaylistMenu.menuProps.open, activeTrack, library, playlists.data, t])
 
   return {
     isTrackInLibrary,

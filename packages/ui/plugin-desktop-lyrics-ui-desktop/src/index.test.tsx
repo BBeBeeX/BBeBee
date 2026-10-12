@@ -14,6 +14,26 @@ import { DesktopLyrics } from './DesktopLyrics.js'
 import { DesktopLyricsSettingsCard } from './DesktopLyricsSettingsCard.js'
 import { DESKTOP_LYRICS_VIEWS } from '@BBeBee/plugin-desktop-lyrics/views'
 import pluginDesktopLyricsUi from './index.js'
+import lyricsCatalogue from '../../../feature/plugin-i18n/src/locales/lyrics.json'
+
+/** Minimal i18n service serving the real English catalogue for tests. */
+class I18nStub extends Service {
+  static override readonly name = 'i18n'
+  locale = 'en'
+  constructor(ctx: Context) {
+    super(ctx, 'i18n')
+  }
+  t = (key: string): string => {
+    const sep = key.indexOf(':')
+    if (sep < 0 || key.slice(0, sep) !== 'lyrics') return key
+    let cur: unknown = lyricsCatalogue.en
+    for (const part of key.slice(sep + 1).split('.')) {
+      cur = (cur as Record<string, unknown> | undefined)?.[part]
+    }
+    return typeof cur === 'string' ? cur : key
+  }
+  onLocaleChange = (): (() => void) => () => {}
+}
 
 class UiStub extends Service {
   public views = new Map<string, any>()
@@ -169,6 +189,7 @@ async function createHarness() {
   await ctx.plugin(LyricsStub)
   await ctx.plugin(DesktopLyricsStub)
   await ctx.plugin(SettingsStub)
+  await ctx.plugin(I18nStub)
   await ctx.plugin(pluginDesktopLyricsUi)
 
   const player = (ctx as unknown as { player: PlayerStub }).player

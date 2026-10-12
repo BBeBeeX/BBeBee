@@ -27,7 +27,7 @@ import { useAlbum } from '@BBeBee/plugin-album/hooks'
 import { resolveTrackSourceName, useResolvedArtwork } from '@BBeBee/toolkit/hooks'
 import { formatDuration, formatTotalDuration } from '@BBeBee/toolkit'
 import { addToCollectionSubmenu, openExternalUrl, resolveOriginalResourceUrl, sleepTimerSubmenu, sortMenuItems, useSaveToPlaylistMenu, useTrackMenu } from '@BBeBee/ui-menus'
-import { Artwork, ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, HoverLabel, List, SaveToPlaylistPopover, StickyDetailBar, tablerIcon, useDetailBarCollapse, useImageColor, headerGradient, viewModeMenuItems, useViewMode } from '@BBeBee/ui-kit-desktop'
+import { Artwork, ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, HoverLabel, List, SaveToPlaylistPopover, StickyDetailBar, tablerIcon, useDetailBarCollapse, useI18n, useImageColor, headerGradient, viewModeMenuItems, useViewMode } from '@BBeBee/ui-kit-desktop'
 import { serviceOf } from '@BBeBee/ui-core'
 import type { ArtworkProps, MenuAnchor, MenuItemSpec } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
@@ -51,12 +51,24 @@ function TrackLibraryActionButton({
   inLibrary: initialInLibrary,
   onAddToFavorites,
   onOpenPlaylistMenu,
+  addToPlaylistAriaLabel,
+  addToFavoritesAriaLabel,
+  addToPlaylistTitle,
+  addToFavoritesTitle,
 }: {
   track: Track
   hovered: boolean
   inLibrary: boolean
   onAddToFavorites?: () => void
   onOpenPlaylistMenu: (track: Track, anchor: MenuAnchor) => void
+  /** Pre-translated by the ctx-owning call site — this component has no ctx. */
+  addToPlaylistAriaLabel: string
+  /** Pre-translated by the ctx-owning call site — this component has no ctx. */
+  addToFavoritesAriaLabel: string
+  /** Pre-translated by the ctx-owning call site — this component has no ctx. */
+  addToPlaylistTitle: string
+  /** Pre-translated by the ctx-owning call site — this component has no ctx. */
+  addToFavoritesTitle: string
 }): ReactElement {
   // Optimistic until the truth catches up — and reset whenever it does: an
   // unfavorite from any surface flips the prop, drops the optimism, and the
@@ -71,8 +83,8 @@ function TrackLibraryActionButton({
     'button',
     {
       type: 'button',
-      'aria-label': inLibrary ? `Add ${track.title} to playlist` : `Add ${track.title} to favorites`,
-      title: inLibrary ? 'Add to playlist' : 'Add to Favorites',
+      'aria-label': inLibrary ? addToPlaylistAriaLabel : addToFavoritesAriaLabel,
+      title: inLibrary ? addToPlaylistTitle : addToFavoritesTitle,
       onClick: (e: React.MouseEvent) => {
         e.stopPropagation()
         if (inLibrary) {
@@ -102,6 +114,17 @@ function TrackLibraryActionButton({
   )
 }
 
+/** UI copy for the row's icon buttons, pre-translated by the ctx-owning call site. */
+interface AlbumTrackRowLabels {
+  download: string
+  more: string
+  addToPlaylistAriaLabel: string
+  addToFavoritesAriaLabel: string
+  addToPlaylistTitle: string
+  addToFavoritesTitle: string
+  selectTrackAriaLabel: string
+}
+
 function AlbumTrackTableRow({
   track,
   index,
@@ -118,6 +141,7 @@ function AlbumTrackTableRow({
   onPress,
   onDownload,
   onMore,
+  labels,
 }: {
   track: Track
   index: number
@@ -135,6 +159,7 @@ function AlbumTrackTableRow({
   onPress: () => void
   onDownload?: () => void
   onMore: (anchor: { x: number; y: number }) => void
+  labels: AlbumTrackRowLabels
 }): ReactElement {
   const [hovered, setHovered] = useState(false)
   const artists = track.artists?.map((a) => a.name).join(', ')
@@ -184,7 +209,7 @@ function AlbumTrackTableRow({
         ? h('input', {
             type: 'checkbox',
             'data-testid': `album-track-checkbox-${track.urn}`,
-            'aria-label': `Select ${track.title}`,
+            'aria-label': labels.selectTrackAriaLabel,
             checked: selected,
             onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
               e.stopPropagation()
@@ -341,8 +366,8 @@ function AlbumTrackTableRow({
             'button',
             {
               type: 'button',
-              'aria-label': 'Download',
-              title: 'Download',
+              'aria-label': labels.download,
+              title: labels.download,
               onClick: (e: React.MouseEvent) => {
                 e.stopPropagation()
                 onDownload()
@@ -368,6 +393,10 @@ function AlbumTrackTableRow({
             inLibrary,
             onAddToFavorites: () => onAddToFavorites?.(track),
             onOpenPlaylistMenu,
+            addToPlaylistAriaLabel: labels.addToPlaylistAriaLabel,
+            addToFavoritesAriaLabel: labels.addToFavoritesAriaLabel,
+            addToPlaylistTitle: labels.addToPlaylistTitle,
+            addToFavoritesTitle: labels.addToFavoritesTitle,
           })
         : null,
       h(
@@ -386,8 +415,8 @@ function AlbumTrackTableRow({
         'button',
         {
           type: 'button',
-          'aria-label': 'More',
-          title: 'More',
+          'aria-label': labels.more,
+          title: labels.more,
           onClick: (e: React.MouseEvent) => {
             e.stopPropagation()
             const rect = e.currentTarget.getBoundingClientRect()
@@ -426,6 +455,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   const sleepTimer = serviceOf<SleepTimerService>(ctx, 'sleepTimer')
   const menu = useTrackMenu(ctx)
   const saveToPlaylistMenu = useSaveToPlaylistMenu(ctx)
+  const { t } = useI18n(ctx)
   const [sortKey, setSortKey] = useState<AlbumSortKey>('trackNo')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [sortMenuAnchor, setSortMenuAnchor] = useState<MenuAnchor | null>(null)
@@ -645,12 +675,12 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   }
 
   if (album.status === 'loading' || album.status === 'idle') {
-    return h(Pending, { label: 'Loading album…' })
+    return h(Pending, { label: t('album:index.loadingAlbum') })
   }
   if (album.status === 'error' || !album.data) {
     return h(EmptyState, {
       icon: 'alert',
-      title: 'Album unavailable',
+      title: t('album:index.albumUnavailable'),
       description: album.error?.message,
     })
   }
@@ -674,28 +704,28 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   const sourceName = sourcePlugin?.doc?.sourceName || sourceRecord?.displayName || sourceId
 
   const collectionSubmenu = addToCollectionSubmenu(library, [detail.urn], collections, {
-    title: 'Add to folder',
+    title: t('album:index.addToFolder'),
   })
 
   const albumMenuItems: MenuItemSpec[] = isBatchMode
     ? [
         {
           id: 'batch-play',
-          label: 'Play selected',
+          label: t('album:index.playSelected'),
           icon: tablerIcon('play', { size: 20 }),
           disabled: selectedUrns.size === 0,
           onSelect: handleBatchPlay,
         },
         {
           id: 'batch-add',
-          label: 'Add to playlist',
+          label: t('album:index.addToPlaylist2'),
           icon: tablerIcon('plus', { size: 20 }),
           disabled: selectedUrns.size === 0,
           onSelect: () => handleBatchAddToPlaylist(),
         },
         {
           id: 'batch-delete',
-          label: 'Remove from Favorites',
+          label: t('album:index.removeFromFavorites'),
           icon: tablerIcon('trash', { size: 20 }),
           tone: 'danger',
           disabled: selectedUrns.size === 0,
@@ -703,7 +733,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
         },
         {
           id: 'batch-exit',
-          label: 'Exit batch operations',
+          label: t('album:index.exitBatchOperations'),
           icon: tablerIcon('x', { size: 20 }),
           divider: true,
           onSelect: handleExitBatch,
@@ -712,7 +742,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
     : [
         {
           id: 'batch-operations',
-          label: 'Batch operations',
+          label: t('album:index.batchOperations'),
           icon: tablerIcon('list-check', { size: 20 }),
           divider: true,
           onSelect: () => setIsBatchMode(true),
@@ -723,7 +753,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   if (albumResourceUrl) {
     albumMenuItems.push({
       id: 'open-original-resource',
-      label: 'Open original resource',
+      label: t('album:index.openOriginalResource'),
       icon: tablerIcon('share-box', { size: 20 }),
       onSelect: () => openExternalUrl(albumResourceUrl),
     })
@@ -732,7 +762,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   if (collectionSubmenu) {
     albumMenuItems.push({
       id: 'add-to-folder',
-      label: 'Add to folder',
+      label: t('album:index.addToFolder'),
       icon: tablerIcon('folder', { size: 20 }),
       submenu: collectionSubmenu,
     })
@@ -740,7 +770,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
 
   albumMenuItems.push({
     id: 'toggle-library',
-    label: isSaved ? 'Remove from music library' : 'Add to music library',
+    label: isSaved ? t('album:index.removeFromMusicLibrary') : t('album:index.addToMusicLibrary'),
     icon: isSaved ? tablerIcon('heart', { size: 20 }) : tablerIcon('heart-filled', { size: 20 }),
     tone: isSaved ? 'danger' : undefined,
     onSelect: () => void handleToggleSave(),
@@ -749,7 +779,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   if (player) {
     albumMenuItems.push({
       id: 'enqueue',
-      label: 'Add to play queue',
+      label: t('album:index.addToPlayQueue'),
       icon: tablerIcon('playlist-add', { size: 20 }),
       onSelect: () => player.enqueueLast(sortedUrns),
     })
@@ -758,7 +788,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   if (!isLocalAlbum && downloads) {
     albumMenuItems.push({
       id: 'download',
-      label: 'Download',
+      label: t('album:index.download'),
       icon: tablerIcon('download', { size: 20 }),
       onSelect: () => void downloads.enqueue(sortedUrns),
     })
@@ -768,7 +798,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   if (share && detail) {
     albumMenuItems.push({
       id: 'share-album',
-      label: 'Share album',
+      label: t('album:index.shareAlbum'),
       icon: tablerIcon('share', { size: 20 }),
       onSelect: () => {
         const coverUrl = typeof detail.artwork === 'string'
@@ -778,7 +808,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
           {
             urn: detail.urn,
             title: detail.title,
-            artist: detail.artists?.map((a) => a.name).join(', ') || 'Unknown artist',
+            artist: detail.artists?.map((a) => a.name).join(', ') || t('album:index.unknownArtist'),
             artwork: coverUrl,
             year: detail.year,
             trackCount: detail.tracks.length,
@@ -793,7 +823,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   if (sleepSubmenu) {
     albumMenuItems.push({
       id: 'sleep-timer',
-      label: sleepTimer?.state.active ? 'Sleep timer (on)' : 'Sleep timer',
+      label: sleepTimer?.state.active ? `${t('album:index.sleepTimer')} (on)` : t('album:index.sleepTimer'),
       icon: tablerIcon('clock', { size: 20 }),
       submenu: sleepSubmenu,
     })
@@ -809,21 +839,21 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   }
 
   const sortLabelMap: Record<AlbumSortKey, string> = {
-    trackNo: 'Default order',
-    title: 'Title',
-    album: 'Album',
-    plays: 'Album',
-    source: 'Source',
-    duration: 'Duration',
+    trackNo: t('album:index.defaultOrder'),
+    title: t('album:index.title'),
+    album: t('album:index.album'),
+    plays: t('album:index.album'),
+    source: t('album:index.source'),
+    duration: t('album:index.duration'),
   }
 
   const sortItems = sortMenuItems(
     [
-      { id: 'trackNo', label: 'Default order' },
-      { id: 'title', label: 'Title' },
-      { id: 'album', label: 'Album' },
-      { id: 'source', label: 'Source' },
-      { id: 'duration', label: 'Duration' },
+      { id: 'trackNo', label: t('album:index.defaultOrder') },
+      { id: 'title', label: t('album:index.title') },
+      { id: 'album', label: t('album:index.album') },
+      { id: 'source', label: t('album:index.source') },
+      { id: 'duration', label: t('album:index.duration') },
     ],
     sortKey,
     (id) => setSortKey(id as AlbumSortKey),
@@ -838,8 +868,8 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
       size,
       iconSize,
       testID,
-      ariaLabel: 'Play album',
-      srText: 'Play album',
+      ariaLabel: t('album:index.playAlbum'),
+      srText: t('album:index.playAlbum'),
       onPress: () =>
         void player?.playNow(sortedUrns, {
           context: { kind: 'album', urn: detail.urn, label: detail.title },
@@ -894,7 +924,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
         )
       : null,
     h(DetailHero, {
-      eyebrow: 'Album',
+      eyebrow: t('album:index.album'),
       title: detail.title,
       titleSize: detail.title.length > 25 ? 40 : 54,
       cover: h(
@@ -945,9 +975,9 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
             ? detail.artists[0].name[0].toUpperCase()
             : tablerIcon('music', { size: 18 }),
         ),
-        h('span', { style: { fontWeight: 700, color: 'var(--bb-text-primary, #FFFFFF)' } }, detail.artists?.map((a) => a.name).join(', ') || 'Unknown artist'),
+        h('span', { style: { fontWeight: 700, color: 'var(--bb-text-primary, #FFFFFF)' } }, detail.artists?.map((a) => a.name).join(', ') || t('album:index.unknownArtist')),
         yearText ? h('span', null, ` • ${yearText}`) : null,
-        h('span', null, ` • ${detail.tracks.length} songs`),
+        h('span', null, t('album:index.songs', { length: detail.tracks.length })),
         totalDurationStr ? h('span', null, `, ${totalDurationStr}`) : null,
       ),
     }),
@@ -972,7 +1002,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
           'button',
           {
             type: 'button',
-            title: 'Shuffle',
+            title: t('album:index.shuffle'),
             style: { background: 'none', border: 'none', color: 'var(--bb-text-secondary, #b3b3b3)', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
             onClick: () => {
               if (sortedUrns.length > 0) {
@@ -990,8 +1020,8 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
           {
             type: 'button',
             'data-testid': 'album-heart-trigger',
-            'aria-label': isSaved ? 'Remove from music library' : 'Add to music library',
-            title: isSaved ? 'Remove from music library' : 'Add to music library',
+            'aria-label': isSaved ? t('album:index.removeFromMusicLibrary') : t('album:index.addToMusicLibrary'),
+            title: isSaved ? t('album:index.removeFromMusicLibrary') : t('album:index.addToMusicLibrary'),
             onClick: () => void handleToggleSave(),
             style: {
               background: 'none',
@@ -1014,7 +1044,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
               {
                 type: 'button',
                 'data-testid': 'album-download-all',
-                title: 'Download all',
+                title: t('album:index.downloadAll'),
                 style: { background: 'none', border: 'none', color: 'var(--bb-text-secondary, #b3b3b3)', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
                 onClick: () => void downloads.enqueue(sortedUrns),
               },
@@ -1026,8 +1056,8 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
           {
             type: 'button',
             'data-testid': 'album-share-action-btn',
-            title: 'Share album',
-            'aria-label': 'Share album',
+            title: t('album:index.shareAlbum'),
+            'aria-label': t('album:index.shareAlbum'),
             onClick: () => {
               const shareService = serviceOf<ShareService>(ctx, 'share')
               if (shareService && detail) {
@@ -1038,7 +1068,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
                   {
                     urn: detail.urn,
                     title: detail.title,
-                    artist: detail.artists?.map((a) => a.name).join(', ') || 'Unknown artist',
+                    artist: detail.artists?.map((a) => a.name).join(', ') || t('album:index.unknownArtist'),
                     artwork: coverUrl,
                     year: detail.year,
                     trackCount: detail.tracks.length,
@@ -1072,7 +1102,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
           {
             type: 'button',
             'data-testid': 'album-more-trigger',
-            title: 'More options',
+            title: t('album:index.moreOptions'),
             style: { background: 'none', border: 'none', color: 'var(--bb-text-secondary, #b3b3b3)', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
             onClick: async (e) => {
               const rect = e.currentTarget.getBoundingClientRect()
@@ -1108,7 +1138,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
             {
               type: 'button',
               'data-testid': 'album-sort-trigger',
-              title: 'Sort by',
+              title: t('album:index.sortBy'),
               onClick: (e: React.MouseEvent) => {
                 const rect = e.currentTarget.getBoundingClientRect()
                 setSortMenuAnchor({ x: rect.left, y: rect.bottom + 6 })
@@ -1134,13 +1164,20 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
     isBatchMode
       ? h(BatchActionBar, {
           selectedCount: selectedUrns.size,
-          totalCount: sortedUrns.length,
           allSelected,
+          selectAllLabel: allSelected ? t('album:batchAction.deselectAll') : t('album:batchAction.selectAll'),
+          selectedCountLabel: t('album:batchAction.selectedSongs', {
+            selectedCount: selectedUrns.size,
+            totalCount: sortedUrns.length,
+          }),
+          exitLabel: t('album:index.exitBatchOperations'),
           onToggleSelectAll: handleToggleSelectAll,
           onBatchPlay: handleBatchPlay,
           onBatchAddToPlaylist: (anchor) => handleBatchAddToPlaylist(anchor),
+          playLabel: t('album:batchAction.play'),
+          addToLabel: t('album:batchAction.addTo'),
           onBatchDelete: handleBatchDelete,
-          deleteLabel: 'Remove from Favorites',
+          deleteLabel: t('album:index.removeFromFavorites'),
           onExitBatch: handleExitBatch,
         })
       : null,
@@ -1154,10 +1191,10 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
     accessibilityLabel: detail.title,
     columns: [
       { key: 'trackNo', label: '#', testID: 'album-sort-trackNo', width: 40, align: 'center' },
-      { key: 'title', label: 'Title', testID: 'album-sort-title', flex: 2, paddingLeft: 12 },
-      { key: 'artist', label: 'Artist', plain: true, flex: 1, visible: viewMode === 'compact' },
-      { key: 'album', label: 'Album', testID: 'album-sort-album', flex: 1.5, fixed: true, sortKeys: ['album', 'plays'] },
-      { key: 'source', label: 'Source', testID: 'album-sort-source', flex: 1, paddingLeft: 8 },
+      { key: 'title', label: t('album:index.title'), testID: 'album-sort-title', flex: 2, paddingLeft: 12 },
+      { key: 'artist', label: t('album:index.artist'), plain: true, flex: 1, visible: viewMode === 'compact' },
+      { key: 'album', label: t('album:index.album'), testID: 'album-sort-album', flex: 1.5, fixed: true, sortKeys: ['album', 'plays'] },
+      { key: 'source', label: t('album:index.source'), testID: 'album-sort-source', flex: 1, paddingLeft: 8 },
       { key: 'duration', label: '', icon: tablerIcon('clock', { size: 18 }), testID: 'album-sort-duration', width: 130, align: 'right', paddingRight: 40 },
     ] satisfies DetailColumnSpec[],
     sortKey,
@@ -1189,12 +1226,12 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
         stickyHeader: tableHeaderNode,
         onScroll: collapse.handleScroll,
         items: sortedTracks,
-        accessibilityLabel: `Tracks on ${detail.title}`,
+        accessibilityLabel: t('album:index.tracksOn', { title: detail.title }),
         estimatedItemSize: tokens.size.row,
         keyExtractor: (track) => track.urn,
         pageSize: 30,
         onEndReached: isThirdParty && album.hasMore ? album.loadMore : undefined,
-        empty: h(EmptyState, { title: 'This album has no tracks' }),
+        empty: h(EmptyState, { title: t('album:index.thisAlbumHasNoTracks') }),
         renderItem: (track, index) =>
           h(AlbumTrackTableRow, {
             track,
@@ -1220,6 +1257,15 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
             },
             onDownload: !isLocalAlbum && downloads ? () => void downloads.enqueue([track.urn]) : undefined,
             onMore: (anchor) => menu.open({ track }, anchor),
+            labels: {
+              download: t('album:index.download'),
+              more: t('album:index.more'),
+              addToPlaylistAriaLabel: t('album:index.addToPlaylist', { title: track.title }),
+              addToFavoritesAriaLabel: t('album:index.addToFavorites', { title: track.title }),
+              addToPlaylistTitle: t('album:index.addToPlaylist2'),
+              addToFavoritesTitle: t('album:index.addToFavorites2'),
+              selectTrackAriaLabel: t('album:index.selectTrack', { title: track.title }),
+            },
           }),
       }),
     ),
@@ -1238,7 +1284,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
       x: sortMenuAnchor?.x ?? 0,
       y: sortMenuAnchor?.y ?? 0,
       items: viewModeMenuItems(sortItems, viewMode, setViewMode),
-      title: 'Sort by',
+      title: t('album:index.sortBy'),
     }),
     h(SaveToPlaylistPopover, saveToPlaylistMenu.menuProps),
   )

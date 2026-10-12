@@ -1,25 +1,33 @@
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
+import type { Context } from 'cordis'
 import { tokens } from '@BBeBee/ui-tokens'
+import { useI18n } from '@BBeBee/ui-kit-desktop'
 import type { BackgroundMode } from '../utils/canvasRenderer.js'
 
 export interface BackgroundModeSelectorProps {
+  ctx: Context
   mode: BackgroundMode
   onChange: (mode: BackgroundMode) => void
   label?: string
   compact?: boolean
 }
 
-export function BackgroundModeSelector({
-  mode,
-  onChange,
-  label = 'Background',
-  compact = false,
-}: BackgroundModeSelectorProps): ReactElement {
+export function BackgroundModeSelector(props: BackgroundModeSelectorProps): ReactElement {
+  const { t } = useI18n(props.ctx)
+  const {
+    mode,
+    onChange,
+    label = t('share:backgroundModeSelector.background'),
+    compact = false,
+  } = props
   const modes: Array<{ id: BackgroundMode; label: string }> = [
-    { id: 'cover', label: compact ? 'Theme color' : 'Solid theme color' },
-    { id: 'gradient', label: 'Gradient' },
-    { id: 'black', label: 'Solid black' },
+    {
+      id: 'cover',
+      label: t(compact ? 'share:backgroundModeSelector.themeColor' : 'share:backgroundModeSelector.solidThemeColor'),
+    },
+    { id: 'gradient', label: t('share:backgroundModeSelector.gradient') },
+    { id: 'black', label: t('share:backgroundModeSelector.solidBlack') },
   ]
 
   return h(

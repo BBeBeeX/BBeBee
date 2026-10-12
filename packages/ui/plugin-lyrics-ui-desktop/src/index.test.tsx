@@ -6,6 +6,29 @@ import { Context, Service } from 'cordis'
 import type { LyricsState, TransportState } from '@BBeBee/protocol'
 import { LyricsPanel } from './LyricsPanel.js'
 import pluginLyricsUi from './index.js'
+import lyricsCatalogue from '../../../feature/plugin-i18n/src/locales/lyrics.json'
+import appCatalogue from '../../../feature/plugin-i18n/src/locales/en.json'
+
+/** Minimal i18n service serving the real English catalogues for tests. */
+class I18nStub extends Service {
+  static override readonly name = 'i18n'
+  locale = 'en'
+  constructor(ctx: Context) {
+    super(ctx, 'i18n')
+  }
+  t = (key: string): string => {
+    const sep = key.indexOf(':')
+    if (sep < 0) return key
+    const root = key.slice(0, sep) === 'app' ? appCatalogue : key.slice(0, sep) === 'lyrics' ? lyricsCatalogue.en : null
+    if (!root) return key
+    let cur: unknown = root
+    for (const part of key.slice(sep + 1).split('.')) {
+      cur = (cur as Record<string, unknown> | undefined)?.[part]
+    }
+    return typeof cur === 'string' ? cur : key
+  }
+  onLocaleChange = (): (() => void) => () => {}
+}
 
 class UiStub extends Service {
   public views = new Map<string, any>()
@@ -98,6 +121,7 @@ async function createHarness() {
   await ctx.plugin(UiStub)
   await ctx.plugin(PlayerStub)
   await ctx.plugin(LyricsStub)
+  await ctx.plugin(I18nStub)
   await ctx.plugin(pluginLyricsUi)
 
   return {

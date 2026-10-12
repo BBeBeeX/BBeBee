@@ -225,7 +225,7 @@ function Shell({ ctx }: { ctx: Context }) {
         : h(
             Text,
             { style: { padding: 24, color: '#A0A0AE' } },
-            currentId ? `"${currentId}" has no mobile view.` : 'No plugin has contributed a route.',
+            currentId ? t('app:common.app.hasNoMobileView', { currentId }) : t('app:common.app.noPluginRoute'),
           ),
     ),
     BottomBar
@@ -280,6 +280,8 @@ export default function App() {
   }, [])
 
   if (error) {
+    // Boot failed: the i18n service is unavailable, so the English source
+    // string is rendered directly instead of going through t().
     return h(
       SafeAreaView,
       { style: { flex: 1, backgroundColor: '#0B0B0F' } },

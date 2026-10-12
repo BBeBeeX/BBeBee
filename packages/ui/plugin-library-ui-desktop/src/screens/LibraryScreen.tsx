@@ -16,7 +16,7 @@ import {
 } from '@BBeBee/plugin-library/hooks'
 import type { MenuAnchor, MenuItemSpec } from '@BBeBee/ui-core'
 import { serviceOf } from '@BBeBee/ui-core'
-import { ContextMenu, EmptyState, List, Text, tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { ContextMenu, EmptyState, List, Text, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { useAddToCollection, useCollectionMenu, usePlaylistMenu } from '@BBeBee/ui-menus'
 import { UnifiedLibraryRow, type UnifiedItem } from '../components/UnifiedLibraryRow.js'
 import { LibraryCreateButton, LibraryCreateMenu } from '../components/LibraryCreateDropdown.js'
@@ -58,6 +58,7 @@ export function LibraryScreen({
   folderId: propFolderId,
   onFolderChange,
 }: LibraryScreenProps): ReactElement {
+  const { t } = useI18n(ctx)
   const [localMode, setLocalMode] = useState<'collapsed' | 'sidebar' | 'expanded'>('sidebar')
   const currentMode = propMode ?? localMode
 
@@ -220,7 +221,7 @@ export function LibraryScreen({
 
   // The local user is the creator: used by both the playlist row's creator and the "Playlist • X" subtitle.
   const profile = useLibraryProfile(ctx)
-  const creatorName = profile?.name ?? 'Mine'
+  const creatorName = profile?.name ?? t('library:userProfile.mine')
 
   // Favorites and Local music are no longer two cards in the list below: they render as
   // two quick entries under the music library title and above the filter toolbar (see renderQuickItem).
@@ -241,8 +242,8 @@ export function LibraryScreen({
           kind: 'playlist',
           title: playlist.name,
           subtitle: playlist.isSmart
-            ? 'Smart playlist'
-            : `Playlist • ${playlist.owner ?? creatorName}`,
+            ? t('library:library.smartPlaylist')
+            : t('library:library.playlistByOwner', { owner: playlist.owner ?? creatorName }),
           creator: playlist.owner ?? creatorName,
           artwork: playlist.artwork ?? playlistFirstTrackArtworks.get(playlist.urn),
           artworkSeed: playlist.urn,
@@ -256,13 +257,13 @@ export function LibraryScreen({
           onMore: (anchor) => openPlaylistMenu(playlist, anchor, isPinned),
         }
       })
-  }, [allSaved.data, containedPlaylistUrns, ctx, creatorName, fail, isItemPinned, openPlaylistMenu, playPlaylist, playlistFirstTrackArtworks, playlists.data])
+  }, [allSaved.data, containedPlaylistUrns, ctx, creatorName, fail, isItemPinned, openPlaylistMenu, playPlaylist, playlistFirstTrackArtworks, playlists.data, t])
 
   const albumItems: UnifiedItem[] = useMemo(() => {
     return (savedAlbumEntries.data ?? []).map((entry) => {
       const detail = albumsMap.get(entry.urn)
       const title = detail?.title ?? entry.urn
-      const artists = detail?.artists?.map((a) => a.name).join(', ') ?? 'Album'
+      const artists = detail?.artists?.map((a) => a.name).join(', ') ?? t('library:localAlbum.albumFallback')
       const isPinned = isItemPinned({ id: entry.urn, urn: entry.urn })
       const trackUrns = detail?.tracks?.map((t) => t.urn) ?? []
       const lastPlayedAt = trackUrns.length > 0 ? Math.max(0, ...trackUrns.map((u) => historyMap.get(u) ?? 0)) : 0
@@ -274,7 +275,7 @@ export function LibraryScreen({
         urn: entry.urn,
         kind: 'album' as const,
         title,
-        subtitle: `Album • ${artists}`,
+        subtitle: t('library:library.album', { artists }),
         creator: artists,
         artwork: detail?.artwork,
         artworkSeed: entry.urn,
@@ -292,7 +293,7 @@ export function LibraryScreen({
         onMore: (anchor) => openAlbumMenu({ urn: entry.urn, title }, anchor, isPinned),
       }
     })
-  }, [albumsMap, ctx, downloads?.tasks, fail, historyMap, isItemPinned, onOpenAlbum, openAlbumMenu, playAlbum, savedAlbumEntries.data])
+  }, [albumsMap, ctx, downloads?.tasks, fail, historyMap, isItemPinned, onOpenAlbum, openAlbumMenu, playAlbum, savedAlbumEntries.data, t])
 
   const collectionItems: UnifiedItem[] = useMemo(() => {
     return (collections.data ?? []).map((collection) => {
@@ -301,7 +302,10 @@ export function LibraryScreen({
         id: collection.id,
         kind: 'collection',
         title: collection.name,
-        subtitle: `Folder • ${collection.itemCount ?? 0} items`,
+        subtitle:
+          (collection.itemCount ?? 0) === 1
+            ? t('library:library.folderItemsOne', { count: collection.itemCount ?? 0 })
+            : t('library:library.folderItemsOther', { count: collection.itemCount ?? 0 }),
         creator: creatorName,
         artwork: collectionFirstArtworks.get(collection.id),
         artworkSeed: collection.id,
@@ -327,7 +331,7 @@ export function LibraryScreen({
         urn: entry.urn,
         kind: 'artist' as const,
         title: name,
-        subtitle: 'Artist',
+        subtitle: t('library:favorites.artist'),
         creator: name,
         artwork: undefined,
         artworkSeed: entry.urn,
@@ -340,7 +344,7 @@ export function LibraryScreen({
         onMore: (anchor) => openBuiltinMenu(name, () => {}, isPinned, { id: entry.urn }, anchor),
       }
     })
-  }, [ctx, isItemPinned, openBuiltinMenu, savedArtistEntries.data])
+  }, [ctx, isItemPinned, openBuiltinMenu, savedArtistEntries.data, t])
 
   const allItems = useMemo(() => {
     return [...playlistItems, ...albumItems, ...collectionItems, ...artistItems]
@@ -399,7 +403,7 @@ export function LibraryScreen({
               urn: matchedPlaylist.urn,
               kind: 'playlist',
               title: matchedPlaylist.name,
-              subtitle: matchedPlaylist.isSmart ? 'Smart playlist' : `Playlist • ${matchedPlaylist.owner ?? creatorName}`,
+              subtitle: matchedPlaylist.isSmart ? t('library:library.smartPlaylist') : t('library:library.playlistByOwner', { owner: matchedPlaylist.owner ?? creatorName }),
               creator: matchedPlaylist.owner ?? creatorName,
               artwork: matchedPlaylist.artwork ?? playlistFirstTrackArtworks.get(matchedPlaylist.urn),
               artworkSeed: matchedPlaylist.urn,
@@ -442,8 +446,8 @@ export function LibraryScreen({
                 urn: entry.urn,
                 kind: 'playlist',
                 title: trackObj.title,
-                subtitle: trackObj.artists?.map((a) => a.name).join(', ') ?? 'Single',
-                creator: trackObj.artists?.map((a) => a.name).join(', ') ?? 'Unknown artist',
+                subtitle: trackObj.artists?.map((a) => a.name).join(', ') ?? t('library:library.single'),
+                creator: trackObj.artists?.map((a) => a.name).join(', ') ?? t('library:library.unknownArtist'),
                 artwork: trackObj.artwork,
                 artworkSeed: entry.urn,
                 pinned: false,
@@ -478,7 +482,7 @@ export function LibraryScreen({
                   urn: detail.urn,
                   kind: 'playlist',
                   title: detail.name,
-                  subtitle: detail.isSmart ? 'Smart playlist' : `Playlist • ${detail.owner ?? creatorName}`,
+                  subtitle: detail.isSmart ? t('library:library.smartPlaylist') : t('library:library.playlistByOwner', { owner: detail.owner ?? creatorName }),
                   creator: detail.owner ?? creatorName,
                   artwork: detail.artwork ?? playlistFirstTrackArtworks.get(detail.urn),
                   artworkSeed: detail.urn,
@@ -513,14 +517,14 @@ export function LibraryScreen({
               const album = await ctx.sources?.getAlbum(entry.urn)
               if (album) {
                 const title = album.title ?? entry.urn
-                const artists = album.artists?.map((a) => a.name).join(', ') ?? 'Album'
+                const artists = album.artists?.map((a) => a.name).join(', ') ?? t('library:localAlbum.albumFallback')
                 const isPinned = isItemPinned({ id: entry.urn, urn: entry.urn })
                 results.push({
                   id: entry.urn,
                   urn: entry.urn,
                   kind: 'album',
                   title,
-                  subtitle: `Album • ${artists}`,
+                  subtitle: t('library:library.album', { artists }),
                   creator: artists,
                   artwork: album.artwork,
                   artworkSeed: entry.urn,
@@ -550,7 +554,7 @@ export function LibraryScreen({
             urn: entry.urn,
             kind: 'playlist',
             title: entry.urn,
-            subtitle: 'Items',
+            subtitle: t('library:library.items'),
             creator: '',
             artwork: undefined,
             artworkSeed: entry.urn,
@@ -584,6 +588,7 @@ export function LibraryScreen({
       playPlaylist,
       playlistFirstTrackArtworks,
       playlists.data,
+      t,
     ],
   )
 
@@ -632,7 +637,7 @@ export function LibraryScreen({
     return () => {
       cancelled = true
     }
-  }, [expandedFolderIds, activeFolderId, generation])
+  }, [expandedFolderIds, activeFolderId, generation, t])
 
   const activeCollection = useMemo(() => {
     if (!activeFolderId) return undefined
@@ -699,25 +704,25 @@ export function LibraryScreen({
   const sortMenuItems: MenuItemSpec[] = [
     {
       id: 'creator',
-      label: 'Creator',
+      label: t('library:library.creator'),
       icon: sortMode === 'creator' ? tablerIcon('check', { size: 18 }) : undefined,
       onSelect: () => setSortMode('creator'),
     },
     {
       id: 'recent-added',
-      label: 'Recently added',
+      label: t('library:library.recentlyAdded'),
       icon: sortMode === 'recent-added' ? tablerIcon('check', { size: 18 }) : undefined,
       onSelect: () => setSortMode('recent-added'),
     },
     {
       id: 'recent-played',
-      label: 'Recently played',
+      label: t('library:library.recentlyPlayed'),
       icon: sortMode === 'recent-played' ? tablerIcon('check', { size: 18 }) : undefined,
       onSelect: () => setSortMode('recent-played'),
     },
     {
       id: 'alphabetical',
-      label: 'Alphabetical',
+      label: t('library:library.alphabetical'),
       icon: sortMode === 'alphabetical' ? tablerIcon('check', { size: 18 }) : undefined,
       onSelect: () => setSortMode('alphabetical'),
     },
@@ -725,6 +730,7 @@ export function LibraryScreen({
 
   const renderCreateButton = () => {
     return h(LibraryCreateButton, {
+      ctx,
       isCreateMenuOpen,
       onClick: () => setIsCreateMenuOpen((prev) => !prev),
     })
@@ -741,8 +747,8 @@ export function LibraryScreen({
         {
           type: 'button',
           'data-testid': 'create-dropdown-trigger',
-          'aria-label': 'Create',
-          title: 'Create',
+          'aria-label': t('library:libraryCreateDropdown.create'),
+          title: t('library:libraryCreateDropdown.create'),
           onClick: () => setIsCreateMenuOpen((prev) => !prev),
           style: {
             width: 28,
@@ -851,6 +857,7 @@ export function LibraryScreen({
 
   const renderCreateMenu = (isCollapsed: boolean) => {
     return h(LibraryCreateMenu, {
+      ctx,
       isCreateMenuOpen,
       setIsCreateMenuOpen,
       createMenuRef,
@@ -976,7 +983,7 @@ export function LibraryScreen({
         x: sortMenuAnchor?.x ?? 0,
         y: sortMenuAnchor?.y ?? 0,
         items: sortMenuItems,
-        title: 'Sort by',
+        title: t('library:favorites.sortBy'),
       }),
     )
   }
@@ -1050,7 +1057,7 @@ export function LibraryScreen({
   return h(
     'section',
     {
-      'aria-label': 'Library',
+      'aria-label': t('library:library.library'),
       style: {
         display: 'flex',
         flexDirection: 'column',
@@ -1088,7 +1095,7 @@ export function LibraryScreen({
           onMouseEnter: () => setIsHeaderHovered(true),
           onMouseLeave: () => setIsHeaderHovered(false),
           onClick: () => handleModeChange('collapsed'),
-          title: 'Collapse music library',
+          title: t('library:expandedLibrary.collapseMusicLibrary'),
         },
         isHeaderHovered
           ? tablerIcon('layout-sidebar-left-collapse', { size: 26, color: 'var(--bb-text-primary, currentColor)' })
@@ -1103,7 +1110,7 @@ export function LibraryScreen({
               transition: 'color 0.15s ease',
             },
           },
-          'Music library',
+          t('library:expandedLibrary.musicLibrary'),
         ),
       ),
       h(
@@ -1113,8 +1120,8 @@ export function LibraryScreen({
           'button',
           {
             type: 'button',
-            'aria-label': 'Expand music library',
-            title: 'Expand music library',
+            'aria-label': t('library:collapsedLibrary.expandMusicLibrary'),
+            title: t('library:collapsedLibrary.expandMusicLibrary'),
             onClick: () => handleModeChange('expanded'),
             style: {
               width: 32,
@@ -1143,13 +1150,14 @@ export function LibraryScreen({
     h(
       'nav',
       {
-        'aria-label': 'Music library quick links',
+        'aria-label': t('library:collapsedLibrary.musicLibraryQuickLinks'),
         style: { display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 16 },
       },
-      renderQuickItem('heart', 'Favorites', favoriteUrns.length, LIBRARY_VIEWS.favorites),
-      renderQuickItem('download', 'Local & downloads', localTracks.length, LIBRARY_VIEWS.local),
+      renderQuickItem('heart', t('library:unifiedLibrary.favorites'), favoriteUrns.length, LIBRARY_VIEWS.favorites),
+      renderQuickItem('download', t('library:library.localAndDownloads'), localTracks.length, LIBRARY_VIEWS.local),
     ),
     h(LibraryToolbar, {
+      ctx,
       activeFilter,
       setActiveFilter,
       searchOpen,
@@ -1168,8 +1176,8 @@ export function LibraryScreen({
       filteredItems.length === 0
         ? h(EmptyState, {
             icon: 'music',
-            title: 'Nothing found',
-            description: 'Import a music source, scan local folders, or adjust the filters.',
+            title: t('library:library.nothingFound'),
+            description: t('library:library.importAMusicSourceScan'),
           })
         : h(
             List<
@@ -1185,7 +1193,7 @@ export function LibraryScreen({
               items: displayItems,
               estimatedItemSize: 64,
               keyExtractor: (item) => (item.isChild ? `${item.id}:child` : item.id),
-              empty: h(EmptyState, { title: 'No items yet' }),
+              empty: h(EmptyState, { title: t('library:sidebarFolder.noItemsYet') }),
               renderItem: (item) =>
                 h(UnifiedLibraryRow, {
                   key: item.isChild ? `${item.id}:child` : item.id,

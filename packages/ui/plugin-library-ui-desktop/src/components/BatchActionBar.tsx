@@ -1,7 +1,9 @@
 import { createElement as h, type ReactElement, type MouseEvent as ReactMouseEvent } from 'react'
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
+import type { Context } from 'cordis'
 
 export interface BatchActionBarProps {
+  ctx: Context
   selectedCount: number
   totalCount: number
   allSelected: boolean
@@ -15,6 +17,7 @@ export interface BatchActionBarProps {
 }
 
 export function BatchActionBar({
+  ctx,
   selectedCount,
   totalCount,
   allSelected,
@@ -23,10 +26,12 @@ export function BatchActionBar({
   onBatchAddToPlaylist,
   onBatchDelete,
   onExitBatch,
-  deleteLabel = 'Delete',
+  deleteLabel,
   deleteDisabled = false,
 }: BatchActionBarProps): ReactElement {
+  const { t } = useI18n(ctx)
   const hasSelection = selectedCount > 0
+  const resolvedDeleteLabel = deleteLabel ?? t('app:common.delete')
 
   return h(
     'div',
@@ -84,7 +89,7 @@ export function BatchActionBar({
             accentColor: 'var(--color-primary, #5F87FF)',
           },
         }),
-        h('span', null, allSelected ? 'Deselect all' : 'Select all'),
+        h('span', null, allSelected ? t('library:batchAction.deselectAll') : t('library:batchAction.selectAll')),
       ),
       h(
         'span',
@@ -92,7 +97,7 @@ export function BatchActionBar({
           'data-testid': 'batch-selected-count',
           style: { fontSize: 13, color: 'var(--bb-text-secondary, #b3b3b3)' },
         },
-        `Selected ${selectedCount} / ${totalCount} songs`,
+        t('library:batchAction.selectedSongs', { selectedCount, totalCount }),
       ),
     ),
     // Right: Action buttons
@@ -122,7 +127,7 @@ export function BatchActionBar({
           },
         },
         tablerIcon('play', { size: 16 }),
-        'Play selected',
+        t('library:favorites.playSelected'),
       ),
       h(
         'button',
@@ -150,7 +155,7 @@ export function BatchActionBar({
           },
         },
         tablerIcon('plus', { size: 16 }),
-        'Add to',
+        t('library:batchAction.addTo'),
       ),
       onBatchDelete
         ? h(
@@ -176,7 +181,7 @@ export function BatchActionBar({
               },
             },
             tablerIcon('trash', { size: 16 }),
-            deleteLabel,
+            resolvedDeleteLabel,
           )
         : null,
       h(
@@ -201,7 +206,7 @@ export function BatchActionBar({
           },
         },
         tablerIcon('x', { size: 16 }),
-        'Exit batch operations',
+        t('library:favorites.exitBatchOperations'),
       ),
     ),
   )

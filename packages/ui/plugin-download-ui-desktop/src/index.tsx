@@ -19,13 +19,15 @@ import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import { DOWNLOADS_VIEWS } from '@BBeBee/plugin-download/views'
 import { summariseDownloads, useDownloadPolicy, useDownloadTasks } from '@BBeBee/plugin-download/hooks'
-import { Button, EmptyState, Text } from '@BBeBee/ui-kit-desktop'
+import { Button, EmptyState, Text, useI18n } from '@BBeBee/ui-kit-desktop'
+import type { UseI18nResult } from '@BBeBee/ui-kit-desktop'
 import { formatBytes } from '@BBeBee/toolkit'
 import { tokens } from '@BBeBee/ui-tokens'
 import { DownloadSection } from './components/DownloadSection.js'
 import { PolicyToggle } from './components/PolicyToggle.js'
 
 export function DownloadsScreen({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const tasks = useDownloadTasks(ctx)
   const policy = useDownloadPolicy(ctx)
   const summary = summariseDownloads(tasks)
@@ -43,7 +45,7 @@ export function DownloadsScreen({ ctx }: { ctx: Context }): ReactElement {
   return h(
     'section',
     {
-      'aria-label': 'Downloads',
+      'aria-label': t('download:index.downloads'),
       style: {
         display: 'flex',
         flexDirection: 'column',
@@ -54,14 +56,14 @@ export function DownloadsScreen({ ctx }: { ctx: Context }): ReactElement {
     h(
       'header',
       { style: { display: 'flex', alignItems: 'baseline', gap: tokens.space[3] } },
-      h(Text, { variant: 'lg' }, 'Downloads'),
-      h(Text, { variant: 'sm', tone: 'muted' }, summaryLine(summary)),
+      h(Text, { variant: 'lg' }, t('download:index.downloads')),
+      h(Text, { variant: 'sm', tone: 'muted' }, summaryLine(t, summary)),
       clearable.length > 0
         ? h(Button, {
             variant: 'secondary',
             onPress: () => void ctx.downloads.clearFinished(),
             testID: 'downloads-clear',
-            children: 'Clear finished',
+            children: t('download:index.clearFinished'),
           })
         : null,
     ),
@@ -71,17 +73,17 @@ export function DownloadsScreen({ ctx }: { ctx: Context }): ReactElement {
       'div',
       {
         role: 'group',
-        'aria-label': 'Download network policy',
+        'aria-label': t('download:index.downloadNetworkPolicy'),
         style: { display: 'flex', alignItems: 'center', gap: tokens.space[2] },
       },
       h(PolicyToggle, {
-        label: 'Wi-Fi only',
+        label: t('download:index.wiFiOnly'),
         active: policy.wifiOnly,
         onPress: () => void ctx.downloads.setPolicy({ wifiOnly: !policy.wifiOnly }),
         testID: 'downloads-wifi-only',
       }),
       h(PolicyToggle, {
-        label: 'Charging only',
+        label: t('download:index.chargingOnly'),
         active: policy.chargingOnly,
         onPress: () => void ctx.downloads.setPolicy({ chargingOnly: !policy.chargingOnly }),
         testID: 'downloads-charging-only',
@@ -90,26 +92,26 @@ export function DownloadsScreen({ ctx }: { ctx: Context }): ReactElement {
     tasks.length === 0
       ? h(EmptyState, {
           icon: 'download',
-          title: 'No downloads',
-          description:
-            'A remote track is kept here after it plays once, so the next play needs no network. Tracks you download explicitly are saved and never evicted; cached ones are.',
+          title: t('download:index.noDownloads'),
+          description: t('download:index.emptyDescription'),
         })
       : null,
     active.length > 0
-      ? h(DownloadSection, { ctx, title: 'In progress', tasks: active })
+      ? h(DownloadSection, { ctx, title: t('download:index.inProgress'), tasks: active })
       : null,
     finished.length > 0
-      ? h(DownloadSection, { ctx, title: 'Downloaded', tasks: finished })
+      ? h(DownloadSection, { ctx, title: t('download:index.downloaded'), tasks: finished })
       : null,
   )
 }
 
-function summaryLine(summary: ReturnType<typeof summariseDownloads>): string {
+function summaryLine(t: UseI18nResult['t'], summary: ReturnType<typeof summariseDownloads>): string {
   const parts: string[] = []
-  if (summary.active) parts.push(`${summary.active} in progress`)
-  if (summary.done) parts.push(`${summary.done} downloaded · ${formatBytes(summary.bytes)}`)
-  if (summary.failed) parts.push(`${summary.failed} failed`)
-  return parts.length > 0 ? parts.join(' · ') : 'Nothing yet'
+  if (summary.active) parts.push(t('download:index.inProgress2', { active: summary.active }))
+  if (summary.done)
+    parts.push(t('download:index.summaryDownloaded', { done: summary.done, bytes: formatBytes(summary.bytes) }))
+  if (summary.failed) parts.push(t('download:index.summaryFailed', { failed: summary.failed }))
+  return parts.length > 0 ? parts.join(' · ') : t('download:index.nothingYet')
 }
 
 export const name = 'plugin-download-ui-desktop'

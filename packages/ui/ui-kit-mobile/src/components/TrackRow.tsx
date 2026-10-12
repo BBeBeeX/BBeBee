@@ -1,14 +1,31 @@
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
+import type { Context } from 'cordis'
 import { tokens } from '@BBeBee/ui-tokens'
 import type { TrackRowProps } from '@BBeBee/ui-core'
+import { serviceOf } from '@BBeBee/ui-core'
+import type { I18nService } from '@BBeBee/protocol'
 import { common, nativePrimitives } from '../primitives.js'
 import { Text } from './Text.js'
 import { Artwork } from './Artwork.js'
 import { IconButton } from './Button.js'
 
-export function TrackRow(props: TrackRowProps): ReactElement {
+export function TrackRow(
+  props: TrackRowProps & {
+    /**
+     * Optional Cordis context. When provided, the icon-button labels are
+     * translated via `useI18n`; without it the built-in English copy renders.
+     */
+    ctx?: Context
+  },
+): ReactElement {
   const native = nativePrimitives()
+  // Deliberately hook-free: the kit's tree() tests invoke this component as a
+  // plain function. Locale changes reach it because its useI18n-subscribed
+  // ancestors re-render it.
+  const i18n = props.ctx ? serviceOf<I18nService>(props.ctx, 'i18n') : undefined
+  // English copy stays verbatim until a caller threads `ctx` (i18n sweep).
+  const t = (key: string, fallback: string): string => i18n?.t(key) ?? fallback
   const { active = false, showArtwork = true, showAlbum = false } = props
   const artists = props.track.artists?.map((a) => a.name).join(', ')
   return h(
@@ -65,16 +82,18 @@ export function TrackRow(props: TrackRowProps): ReactElement {
     props.onToggleLoved
       ? h(IconButton, {
           icon: props.track.loved ? '♥' : '♡',
-          accessibilityLabel: props.track.loved ? 'Unlike' : 'Like',
+          accessibilityLabel: props.track.loved
+            ? t('app:common.track.unlike', 'Unlike')
+            : t('app:common.track.like', 'Like'),
           variant: props.track.loved ? 'primary' : 'ghost',
           onPress: props.onToggleLoved,
         })
       : null,
     props.onDownload && !props.track.urn.startsWith('BBeBee:local:')
-      ? h(IconButton, { icon: '⬇', accessibilityLabel: 'Download', onPress: props.onDownload })
+      ? h(IconButton, { icon: '⬇', accessibilityLabel: t('app:common.track.download', 'Download'), onPress: props.onDownload })
       : null,
     props.onMore
-      ? h(IconButton, { icon: '⋯', accessibilityLabel: 'More', onPress: props.onMore })
+      ? h(IconButton, { icon: '⋯', accessibilityLabel: t('app:common.track.more', 'More'), onPress: props.onMore })
       : null,
   )
 }

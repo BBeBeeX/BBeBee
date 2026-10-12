@@ -1,20 +1,21 @@
 import { createElement as h, useEffect, useRef, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { AppSettings, NowPlayingService, NowPlayingStyleMeta } from '@BBeBee/protocol'
+import type { AppSettings, I18nService, NowPlayingService, NowPlayingStyleMeta } from '@BBeBee/protocol'
 import { NOW_PLAYING_STYLES } from '@BBeBee/protocol'
 import { serviceOf } from '@BBeBee/toolkit/hooks'
-import { Sheet, tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { Sheet, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 
 interface SettingsWriter {
   getSync(): AppSettings
   update(patch: Partial<AppSettings>): Promise<unknown>
 }
 
-const SAMPLE_PLUGIN_MANIFEST = JSON.stringify(
-  {
-    id: 'sample-neon-player',
-    name: 'Neon Sandbox Player',
-    description: 'External HTML dynamic sandbox template with full artwork, lyrics, seek bar and basic playback controls',
+const buildSamplePluginManifest = (t: I18nService['t']): string =>
+  JSON.stringify(
+    {
+      id: 'sample-neon-player',
+      name: 'Neon Sandbox Player',
+      description: t('nowPlaying:nowPlayingStyles.externalHTMLDynamicSandboxTemplate'),
     author: 'BBeBee Community',
     version: '1.0.0',
     htmlContent: `<!DOCTYPE html>
@@ -262,10 +263,10 @@ const SAMPLE_PLUGIN_MANIFEST = JSON.stringify(
   </script>
 </body>
 </html>`,
-  },
-  null,
-  2,
-)
+    },
+    null,
+    2,
+  )
 
 export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement {
   const nowPlayingService = ctx ? serviceOf<NowPlayingService>(ctx, 'nowPlaying') : undefined
@@ -281,6 +282,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
   const [importJson, setImportJson] = useState('')
   const [importError, setImportError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { t } = useI18n(ctx)
 
   useEffect(() => {
     if (!ctx) return
@@ -352,40 +354,40 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
       }
     }
     reader.onerror = () => {
-      setImportError('Failed to read the file')
+      setImportError(t('nowPlaying:nowPlayingStyles.failedToReadFile'))
     }
     reader.readAsText(file)
     e.target.value = ''
   }
 
   const handleLoadSample = () => {
-    setImportJson(SAMPLE_PLUGIN_MANIFEST)
+    setImportJson(buildSamplePluginManifest(t))
     setImportError(null)
   }
 
   const handleImportSubmit = async () => {
     try {
       if (!importJson.trim()) {
-        throw new Error('Enter or select a now-playing template plugin JSON manifest')
+        throw new Error(t('nowPlaying:nowPlayingStyles.enterOrSelectManifest'))
       }
       const parsed = JSON.parse(importJson) as Partial<NowPlayingStyleMeta>
-      if (!parsed || typeof parsed !== 'object') throw new Error('Invalid JSON')
-      if (!parsed.id || typeof parsed.id !== 'string') throw new Error('Missing plugin id field')
-      if (!parsed.name || typeof parsed.name !== 'string') throw new Error('Missing plugin name field')
+      if (!parsed || typeof parsed !== 'object') throw new Error(t('nowPlaying:nowPlayingStyles.invalidJson'))
+      if (!parsed.id || typeof parsed.id !== 'string') throw new Error(t('nowPlaying:nowPlayingStyles.missingPluginIdField'))
+      if (!parsed.name || typeof parsed.name !== 'string') throw new Error(t('nowPlaying:nowPlayingStyles.missingPluginNameField'))
       if (!parsed.htmlContent || typeof parsed.htmlContent !== 'string') {
-        throw new Error('Missing plugin htmlContent page content')
+        throw new Error(t('nowPlaying:nowPlayingStyles.missingPluginHtmlContent'))
       }
 
       const cleanId = parsed.id.trim()
       const isBuiltinConflict = NOW_PLAYING_STYLES.some((b) => b.id === cleanId)
       if (isBuiltinConflict) {
-        throw new Error(`Plugin id "${cleanId}" conflicts with a built-in official style — choose another id`)
+        throw new Error(t('nowPlaying:nowPlayingStyles.pluginIdConflictsWithA', { cleanId }))
       }
 
       const newStyle: NowPlayingStyleMeta = {
         id: cleanId,
         name: parsed.name.trim(),
-        description: parsed.description ? parsed.description.trim() : 'User-imported sandboxed now-playing template',
+        description: parsed.description ? parsed.description.trim() : t('nowPlaying:nowPlayingStyles.userImportedTemplateDescription'),
         author: parsed.author ? parsed.author.trim() : 'Community',
         version: parsed.version ? parsed.version.trim() : '1.0.0',
         icon: parsed.icon ?? 'layout',
@@ -433,7 +435,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
             letterSpacing: '-0.01em',
           },
         },
-        'Now Playing Layout Styles',
+        t('nowPlaying:nowPlayingStyles.sectionTitle'),
       ),
       h(
         'p',
@@ -445,7 +447,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
             lineHeight: 1.4,
           },
         },
-        'Choose the full-screen now-playing layout — built-in styles plus dynamically imported third-party sandbox template plugins',
+        t('nowPlaying:nowPlayingStyles.sectionSubtitle'),
       ),
     ),
     h(
@@ -480,11 +482,11 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
         h(
           'div',
           { style: { display: 'flex', flexDirection: 'column', gap: 3 } },
-          h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #F5F5F7)' } }, 'Layout'),
+          h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #F5F5F7)' } }, t('nowPlaying:nowPlayingStyles.layout')),
           h(
             'div',
             { style: { fontSize: 12, color: 'var(--text-secondary, #8E8E93)', lineHeight: 1.45 } },
-            `${styles.length} style templates loaded · In use: ${styles.find((s) => s.id === currentStyleId)?.name ?? currentStyleId}`,
+            t('nowPlaying:nowPlayingStyles.stylesLoadedInUse', { count: styles.length, name: styles.find((s) => s.id === currentStyleId)?.name ?? currentStyleId }),
           ),
         ),
         h(
@@ -523,7 +525,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
             },
           },
           tablerIcon('plus', { size: 14 }),
-          'Import style plugin',
+          t('nowPlaying:nowPlayingStyles.importStylePlugin'),
         ),
       ),
 
@@ -620,7 +622,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                           letterSpacing: 0.3,
                         },
                       },
-                      'Sandbox 🛡️',
+                      t('nowPlaying:nowPlayingStyles.sandboxedBadge'),
                     )
                   : h(
                       'span',
@@ -653,7 +655,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                         },
                       },
                       tablerIcon('check', { size: 11 }),
-                      'In use',
+                      t('nowPlaying:nowPlayingStyles.inUse'),
                     )
                   : null,
                 isSandboxed
@@ -661,8 +663,8 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                       'button',
                       {
                         type: 'button',
-                        title: `Delete ${s.name}`,
-                        'aria-label': `Delete ${s.name}`,
+                        title: t('nowPlaying:nowPlayingStyles.deleteStyle', { name: s.name }),
+                        'aria-label': t('nowPlaying:nowPlayingStyles.deleteStyle', { name: s.name }),
                         'data-testid': `delete-style-${s.id}`,
                         onClick: (e: { stopPropagation(): void }) => handleDeleteStyle(e, s.id),
                         style: {
@@ -729,7 +731,11 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                   borderTop: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.04))',
                 },
               },
-              s.author ? `by ${s.author}${s.version ? ` · v${s.version}` : ''}` : 'Official',
+              s.author
+                ? s.version
+                  ? t('nowPlaying:nowPlayingStyles.byAuthorVersion', { author: s.author, version: s.version })
+                  : t('nowPlaying:nowPlayingStyles.byAuthor', { author: s.author })
+                : t('nowPlaying:nowPlayingStyles.official'),
             ),
           )
         }),
@@ -745,7 +751,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
           setShowImportModal(false)
           setImportError(null)
         },
-        title: 'Import an external now-playing style plugin',
+        title: t('nowPlaying:nowPlayingStyles.importAnExternalNowPlaying'),
       },
       h(
         'div',
@@ -782,8 +788,8 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
           h(
             'div',
             null,
-            h('strong', { style: { color: '#34C759' } }, 'Sandbox isolation: '),
-            'External now-playing plugins run inside a strictly sandboxed iframe with no same-origin privileges — no access to the host application DOM, local storage, or arbitrary network. Plugins receive only whitelisted basics about the current track: artwork, theme color, title, lyrics and progress.',
+            h('strong', { style: { color: '#34C759' } }, `${t('nowPlaying:nowPlayingStyles.sandboxIsolation')} `),
+            t('nowPlaying:nowPlayingStyles.sandboxDescription'),
           ),
         ),
 
@@ -801,7 +807,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
           h(
             'div',
             { style: { fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } },
-            'Plugin manifest file format (JSON):',
+            t('nowPlaying:nowPlayingStyles.pluginManifestFormat'),
           ),
           h(
             'div',
@@ -822,7 +828,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                   cursor: 'pointer',
                 },
               },
-              'Load sample template',
+              t('nowPlaying:nowPlayingStyles.loadSampleTemplate'),
             ),
             h(
               'button',
@@ -840,7 +846,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                   cursor: 'pointer',
                 },
               },
-              'Choose a JSON file',
+              t('nowPlaying:nowPlayingStyles.chooseJsonFile'),
             ),
           ),
         ),
@@ -859,7 +865,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
             setImportJson(e.target.value)
             setImportError(null)
           },
-          placeholder: 'Paste a plugin JSON manifest containing id, name, htmlContent here…',
+          placeholder: t('nowPlaying:nowPlayingStyles.pasteAPluginJSONManifest'),
           'data-testid': 'style-manifest-textarea',
           style: {
             width: '100%',
@@ -918,7 +924,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                 fontSize: 13,
               },
             },
-            'Cancel',
+            t('app:common.cancel'),
           ),
           h(
             'button',
@@ -937,7 +943,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                 fontSize: 13,
               },
             },
-            'Import and apply',
+            t('nowPlaying:nowPlayingStyles.importAndApply'),
           ),
         ),
       ),

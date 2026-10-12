@@ -20,6 +20,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@BBeBee/plugin-i18n": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/toolkit": "workspace:*",
     "@BBeBee/ui-core": "workspace:*",

@@ -15,13 +15,21 @@
 
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
+import type { Context } from 'cordis'
 import type { RegistryEntryKind, RegistryTask } from '@BBeBee/protocol'
 import { Sheet, tablerIcon } from '@BBeBee/ui-kit-desktop'
 import { formatDateTime } from '../utils/format.js'
 import { RegistryEmptyState } from './RegistryEmptyState.js'
+import { useOptionalI18n } from '../utils/optional-i18n.js'
 import { CHIP, GHOST_BUTTON, TONE, statusChip } from '../styles.js'
 
 export interface RegistryTaskDrawerProps {
+  /**
+   * The app context — read for the interface language. Optional so unit
+   * tests can render the drawer without a kernel context; absent, the
+   * copy degrades to the catalogue keys.
+   */
+  ctx?: Context
   tasks: readonly RegistryTask[]
   /** False when the service lacks the optional `clearFinishedTasks`. */
   canClear: boolean
@@ -29,31 +37,40 @@ export interface RegistryTaskDrawerProps {
   onClose: () => void
 }
 
-const KIND_LABELS: Record<RegistryEntryKind, string> = {
-  'music-source': 'Music source',
-  'lyric-source': 'Lyric source',
-  theme: 'Theme',
-  plugin: 'Plugin',
+/** The `t()` signature from `useI18n`, for the label helpers below. */
+type Translate = (key: string, params?: Record<string, string | number>) => string
+
+const KIND_LABELS: Record<RegistryEntryKind, (t: Translate) => string> = {
+  'music-source': (t) => t('registry:registry.musicSource'),
+  'lyric-source': (t) => t('registry:registry.lyricSource'),
+  theme: (t) => t('registry:registry.theme'),
+  plugin: (t) => t('registry:registry.plugin'),
 }
 
-const RUN_STAGE_LABELS: Record<RegistryTask['stage'], string> = {
-  download: 'Downloading',
-  verify: 'Verifying',
-  install: 'Installing',
+/** Stage labels map 1:1 onto fixed catalogue keys — no runtime key assembly. */
+function stageLabel(t: Translate, stage: RegistryTask['stage']): string {
+  switch (stage) {
+    case 'download':
+      return t('registry:registryTask.stageDownloading')
+    case 'verify':
+      return t('registry:registryTask.stageVerifying')
+    case 'install':
+      return t('registry:registryTask.stageInstalling')
+  }
 }
 
 /** The status chip's text and tone, straight off the service's record. */
-function statusFor(task: RegistryTask): { label: string; color: string } {
+function statusFor(t: Translate, task: RegistryTask): { label: string; color: string } {
   switch (task.status) {
     case 'pending':
       // Waiting on the user is a neutral state, not an active one.
-      return { label: 'Awaiting confirmation', color: TONE.neutral }
+      return { label: t('registry:registryTask.awaitingConfirmation'), color: TONE.neutral }
     case 'running':
-      return { label: RUN_STAGE_LABELS[task.stage], color: TONE.primary }
+      return { label: stageLabel(t, task.stage), color: TONE.primary }
     case 'success':
-      return { label: 'Success', color: TONE.success }
+      return { label: t('registry:registryTask.success'), color: TONE.success }
     case 'failed':
-      return { label: 'Failed', color: TONE.error }
+      return { label: t('registry:registryTask.failed'), color: TONE.error }
   }
 }
 
@@ -94,11 +111,13 @@ const errorBoxStyle = {
 } as const
 
 export function RegistryTaskDrawer({
+  ctx,
   tasks,
   canClear,
   onClearFinished,
   onClose,
 }: RegistryTaskDrawerProps): ReactElement {
+  const { t } = useOptionalI18n(ctx)
   const finishedCount = tasks.filter((task) => task.status === 'success' || task.status === 'failed').length
   const clearEnabled = canClear && finishedCount > 0
 
@@ -107,8 +126,8 @@ export function RegistryTaskDrawer({
     {
       open: true,
       onClose,
-      title: 'Tasks',
-      accessibilityLabel: 'Task Center',
+      title: t('registry:registryTask.tasks'),
+      accessibilityLabel: t('registry:registryTask.taskCenter'),
     },
     h(
       'div',
@@ -120,8 +139,8 @@ export function RegistryTaskDrawer({
           'div',
           { style: { fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } },
           tasks.length > 0
-            ? `Install & update records (new → old, ${tasks.length} in total)`
-            : 'Install & update records',
+            ? t('registry:registryTask.recordsWithCount', { count: tasks.length })
+            : t('registry:registryTask.records'),
         ),
         clearEnabled
           ? h(
@@ -134,7 +153,7 @@ export function RegistryTaskDrawer({
                 style: clearButtonStyle(true),
               },
               tablerIcon('trash', { size: 12 }),
-              'Clear finished',
+              t('registry:registryTask.clearFinished'),
             )
           : h(
               'button',
@@ -144,7 +163,7 @@ export function RegistryTaskDrawer({
                 disabled: true,
                 style: clearButtonStyle(false),
               },
-              'Clear finished',
+              t('registry:registryTask.clearFinished'),
             ),
       ),
       tasks.length === 0
@@ -153,8 +172,8 @@ export function RegistryTaskDrawer({
             { 'data-testid': 'registry-tasks-empty' },
             h(RegistryEmptyState, {
               icon: 'list-check',
-              title: 'No tasks yet',
-              description: 'Progress shows here while you install a music source, theme or plugin',
+              title: t('registry:registryTask.noTasksYet'),
+              description: t('registry:registryTask.progressShowsHereWhileYou'),
               compact: true,
             }),
           )
@@ -162,7 +181,7 @@ export function RegistryTaskDrawer({
             'div',
             { style: { display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 380, overflowY: 'auto' } },
             tasks.map((task) => {
-              const status = statusFor(task)
+              const status = statusFor(t, task)
               return h(
                 'div',
                 {
@@ -173,7 +192,7 @@ export function RegistryTaskDrawer({
                 h(
                   'div',
                   { style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' } },
-                  h('span', { style: CHIP }, KIND_LABELS[task.kind]),
+                  h('span', { style: CHIP }, KIND_LABELS[task.kind](t)),
                   h(
                     'span',
                     {

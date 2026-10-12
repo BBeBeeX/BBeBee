@@ -2,8 +2,10 @@ import { createElement as h, useEffect, useLayoutEffect, useRef, useState } from
 import type React from 'react'
 import type { KeyboardEvent, ReactElement } from 'react'
 import { createPortal } from 'react-dom'
-import type { ArtworkRef } from '@BBeBee/protocol'
+import type { Context } from 'cordis'
+import type { ArtworkRef, I18nService } from '@BBeBee/protocol'
 import { tokens } from '@BBeBee/ui-tokens'
+import { serviceOf } from '@BBeBee/ui-core'
 import { Artwork } from './Artwork.js'
 import { tablerIcon } from '../icons/index.js'
 
@@ -55,6 +57,13 @@ export interface SaveToPlaylistPopoverProps {
    * play page's hover bottom bar).
    */
   portal?: boolean
+  /**
+   * Optional Cordis context. When provided, the kit-owned chrome copy
+   * (headers, placeholders, buttons, section titles, count subtitles) is
+   * translated via `useI18n`; without it the built-in English copy renders.
+   * Playlist/folder names stay the caller's data.
+   */
+  ctx?: Context
 }
 
 export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactElement | null {
@@ -69,6 +78,13 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
   const submenuRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const wasOpenRef = useRef(props.open)
+  // Deliberately hook-free: the kit's tree() tests invoke components as plain
+  // functions. Locale changes reach this component because its
+  // useI18n-subscribed ancestors re-render it.
+  const i18n = props.ctx ? serviceOf<I18nService>(props.ctx, 'i18n') : undefined
+  // English copy stays verbatim until a caller threads `ctx` (i18n sweep).
+  const t = (key: string, fallback: string, params?: Record<string, string | number>): string =>
+    i18n?.t(key, params) ?? fallback
 
   useEffect(() => {
     if (wasOpenRef.current && !props.open) {
@@ -202,7 +218,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
       {
         ref: containerRef,
         role: 'dialog',
-        'aria-label': props.accessibilityLabel ?? props.title ?? 'Add to playlist',
+        'aria-label': props.accessibilityLabel ?? props.title ?? t('app:common.saveToPlaylist.addToPlaylist', 'Add to playlist'),
         'data-testid': props.testID,
         onClick: (e: { stopPropagation(): void }) => e.stopPropagation(),
         onKeyDown: (e: KeyboardEvent) => {
@@ -239,7 +255,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
             color: 'var(--bb-text-primary, #ffffff)',
           },
         },
-        props.title ?? 'Add to playlist',
+        props.title ?? t('app:common.saveToPlaylist.addToPlaylist', 'Add to playlist'),
       ),
       // Search Box / Create Box: Find playlist or New playlist
       isCreatingTopLevel
@@ -261,7 +277,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
             h('input', {
               autoFocus: true,
               type: 'text',
-              placeholder: 'Playlist name',
+              placeholder: t('app:common.saveToPlaylist.playlistName', 'Playlist name'),
               value: newPlaylistName,
               onChange: (e: React.ChangeEvent<HTMLInputElement>) => setNewPlaylistName(e.target.value),
               onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -306,13 +322,13 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                   boxSizing: 'border-box',
                 },
               },
-              'OK',
+              t('app:common.confirm', 'OK'),
             ),
             h(
               'button',
               {
                 type: 'button',
-                'aria-label': 'Cancel',
+                'aria-label': t('app:common.cancel', 'Cancel'),
                 onClick: () => {
                   setIsCreatingTopLevel(false)
                   setNewPlaylistName('')
@@ -348,7 +364,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
             h('input', {
               ref: inputRef,
               type: 'text',
-              placeholder: 'Find playlist',
+              placeholder: t('app:common.saveToPlaylist.findPlaylist', 'Find playlist'),
               value: filter,
               onChange: (e: React.ChangeEvent<HTMLInputElement>) => setFilter(e.target.value),
               style: {
@@ -402,7 +418,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
               h(
                 'div',
                 { style: { flex: 1, fontSize: 14, fontWeight: 600, color: 'var(--bb-text-primary, #ffffff)' } },
-                'New playlist',
+                t('app:common.saveToPlaylist.newPlaylist', 'New playlist'),
               ),
             )
           : null,
@@ -417,7 +433,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
               padding: '8px 8px 4px 8px',
             },
           },
-          'Save location',
+          t('app:common.saveToPlaylist.saveLocation', 'Save location'),
         ),
         // Row: Liked songs
         h(
@@ -460,7 +476,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                   textOverflow: 'ellipsis',
                 },
               },
-              'Liked songs',
+              t('app:common.saveToPlaylist.likedSongs', 'Liked songs'),
             ),
             h(
               'div',
@@ -474,7 +490,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                 },
               },
               tablerIcon('pin', { size: 16, color: '#a7a7a7' }),
-              `${(props.likedCount ?? 0).toLocaleString()} songs`,
+              t('app:common.saveToPlaylist.songsCount', '{count} songs', { count: (props.likedCount ?? 0).toLocaleString() }),
             ),
           ),
           // Checkmark
@@ -491,7 +507,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
               padding: '10px 8px 4px 8px',
             },
           },
-          'Recently updated',
+          t('app:common.saveToPlaylist.recentlyUpdated', 'Recently updated'),
         ),
         // Matching regular playlists
         matchingPlaylists.map((playlist) =>
@@ -558,7 +574,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                   },
                 },
                 playlist.pinned ? tablerIcon('pin', { size: 16, color: 'var(--color-primary, #5F87FF)' }) : null,
-                `${playlist.trackCount ?? 0} songs`,
+                t('app:common.saveToPlaylist.songsCount', '{count} songs', { count: playlist.trackCount ?? 0 }),
               ),
             ),
             h(CheckmarkCircle, { checked: playlist.containsTrack ?? false }),
@@ -622,7 +638,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
               h(
                 'div',
                 { style: { fontSize: 12, color: 'var(--bb-text-secondary, #a7a7a7)' } },
-                `${collection.playlistCount ?? collection.playlists.length} playlists`,
+                t('app:common.saveToPlaylist.playlistsCount', '{count} playlists', { count: collection.playlistCount ?? collection.playlists.length }),
               ),
             ),
             tablerIcon('chevron-right', { size: 18, color: 'var(--bb-text-secondary, #a7a7a7)' }),
@@ -655,7 +671,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
               borderRadius: 4,
             },
           },
-          'Cancel',
+          t('app:common.cancel', 'Cancel'),
         ),
       ),
     ),
@@ -715,7 +731,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                 h('input', {
                   type: 'text',
                   autoFocus: true,
-                  placeholder: 'Playlist name',
+                  placeholder: t('app:common.saveToPlaylist.playlistName', 'Playlist name'),
                   value: newPlaylistName,
                   onChange: (e: React.ChangeEvent<HTMLInputElement>) => setNewPlaylistName(e.target.value),
                   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -758,7 +774,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                       boxSizing: 'border-box',
                     },
                   },
-                  'OK',
+                  t('app:common.confirm', 'OK'),
                 ),
               )
             : h(
@@ -783,7 +799,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                 h(
                   'div',
                   { style: { flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--bb-text-primary, #ffffff)' } },
-                  'New playlist',
+                  t('app:common.saveToPlaylist.newPlaylist', 'New playlist'),
                 ),
               ),
           h('div', {
@@ -800,7 +816,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                 padding: '4px 10px',
               },
             },
-            'Recently updated',
+            t('app:common.saveToPlaylist.recentlyUpdated', 'Recently updated'),
           ),
           activeFolder.playlists.map((playlist) =>
             h(
@@ -854,7 +870,7 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
                 h(
                   'div',
                   { style: { fontSize: 11, color: 'var(--bb-text-secondary, #a7a7a7)' } },
-                  `${playlist.trackCount ?? 0} songs`,
+                  t('app:common.saveToPlaylist.songsCount', '{count} songs', { count: playlist.trackCount ?? 0 }),
                 ),
               ),
               h(CheckmarkCircle, { checked: playlist.containsTrack ?? false }),

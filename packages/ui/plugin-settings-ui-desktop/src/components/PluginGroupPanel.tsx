@@ -1,9 +1,11 @@
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { createElement as h, useState, type ReactElement } from 'react'
+import type { Context } from 'cordis'
 import type { PluginInfo } from '@BBeBee/protocol'
 import { PluginCard } from './PluginCard.js'
 
 export interface PluginGroupPanelProps {
+  ctx: Context
   title: string
   systemId: string
   plugins: readonly PluginInfo[]
@@ -14,6 +16,7 @@ export interface PluginGroupPanelProps {
 }
 
 export function PluginGroupPanel({
+  ctx,
   title,
   systemId,
   plugins,
@@ -22,6 +25,7 @@ export function PluginGroupPanel({
   onToggleEnabled,
   defaultExpanded = true,
 }: PluginGroupPanelProps): ReactElement {
+  const { t } = useI18n(ctx)
   const [expanded, setExpanded] = useState(defaultExpanded)
 
   return h(
@@ -134,7 +138,7 @@ export function PluginGroupPanel({
                 fontStyle: 'italic',
               },
             },
-            'No matching plugins',
+            t('settings:plugins.noMatchingPlugins'),
           )
         : h(
             'div',
@@ -150,6 +154,7 @@ export function PluginGroupPanel({
             plugins.map((plugin) =>
               h(PluginCard, {
                 key: plugin.id,
+                ctx,
                 plugin,
                 showAdvancedSettings,
                 onToggleEnabled,

@@ -8,25 +8,25 @@ import { createElement as h, useState, useEffect, useMemo } from 'react'
 import type { ReactElement, CSSProperties } from 'react'
 import type { Context } from 'cordis'
 import { serviceOf } from '@BBeBee/ui-core'
-import { Button, tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { Button, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { themeToCssVariables, defaultTheme, builtInThemes, type Scheme } from '@BBeBee/ui-tokens'
 import type { UiService, ThemeService, ThemeDefinition } from '@BBeBee/protocol'
 
-const CATEGORY_MAP: Record<string, { label: string; match: (key: string) => boolean }> = {
+const CATEGORY_MAP: Record<string, { labelKey: string; match: (key: string) => boolean }> = {
   background: {
-    label: 'Background',
+    labelKey: 'settings:themePalette.background',
     match: (k) => k.startsWith('--bg-') || k === '--player-bg' || k.startsWith('--color-bg-'),
   },
   surface: {
-    label: 'Surface',
+    labelKey: 'settings:themePalette.surface',
     match: (k) => k.startsWith('--surface-') || k.startsWith('--color-surface'),
   },
   text: {
-    label: 'Text',
+    labelKey: 'settings:themePalette.text',
     match: (k) => k.startsWith('--text-') || k.startsWith('--color-text-'),
   },
   brand: {
-    label: 'Brand & Accent',
+    labelKey: 'settings:themePalette.brandAccent',
     match: (k) =>
       k.startsWith('--primary') ||
       k.startsWith('--accent') ||
@@ -34,11 +34,11 @@ const CATEGORY_MAP: Record<string, { label: string; match: (key: string) => bool
       k.startsWith('--color-accent'),
   },
   border: {
-    label: 'Border',
+    labelKey: 'settings:themePalette.border',
     match: (k) => k.startsWith('--border-'),
   },
   cardsAndForms: {
-    label: 'Cards & Forms',
+    labelKey: 'settings:themePalette.cardsForms',
     match: (k) =>
       k.startsWith('--card-') ||
       k.startsWith('--settings-card-') ||
@@ -48,11 +48,11 @@ const CATEGORY_MAP: Record<string, { label: string; match: (key: string) => bool
       k.startsWith('--logo-'),
   },
   preview: {
-    label: 'Preview & Window',
+    labelKey: 'settings:themePalette.previewWindow',
     match: (k) => k.startsWith('--preview-') || k.startsWith('--lyrics-preview-'),
   },
   semanticAndMusic: {
-    label: 'Semantic & Music',
+    labelKey: 'settings:themePalette.semanticMusic',
     match: (k) =>
       k === '--success' ||
       k === '--warning' ||
@@ -64,20 +64,21 @@ const CATEGORY_MAP: Record<string, { label: string; match: (key: string) => bool
       k.startsWith('--color-waveform'),
   },
   gradients: {
-    label: 'Gradients',
+    labelKey: 'settings:themePalette.gradients',
     match: (k) => k.startsWith('--gradient-'),
   },
   glows: {
-    label: 'Glows',
+    labelKey: 'settings:themePalette.glows',
     match: (k) => k.startsWith('--glow-'),
   },
   legacy: {
-    label: 'Legacy --bb-*',
+    labelKey: 'settings:themePalette.legacyBb',
     match: (k) => k.startsWith('--bb-'),
   },
 }
 
 export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const ui = serviceOf<UiService>(ctx, 'ui')
   const themeService = serviceOf<ThemeService>(ctx, 'theme')
 
@@ -108,41 +109,52 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
     return Object.entries(cssVariables)
   }, [cssVariables])
 
+  // Localised category labels; the match predicates stay locale-independent.
+  const categories = useMemo(
+    () =>
+      Object.entries(CATEGORY_MAP).map(([catKey, catDef]) => ({
+        catKey,
+        match: catDef.match,
+        label: t(catDef.labelKey),
+      })),
+    [t],
+  )
+
   const filteredEntries = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
     return entries.filter(([key, val]) => {
       if (selectedCategory !== 'all') {
-        const cat = CATEGORY_MAP[selectedCategory]
+        const cat = categories.find((c) => c.catKey === selectedCategory)
         if (cat && !cat.match(key)) return false
       }
       if (!q) return true
       return key.toLowerCase().includes(q) || val.toLowerCase().includes(q)
     })
-  }, [entries, searchQuery, selectedCategory])
+  }, [entries, categories, searchQuery, selectedCategory])
 
   const groupedEntries = useMemo(() => {
     if (selectedCategory !== 'all' || searchQuery.trim() !== '') {
-      return [{ categoryKey: 'filtered', label: `Filtered results (${filteredEntries.length})`, items: filteredEntries }]
+      return [{ categoryKey: 'filtered', label: t('settings:themePalette.filteredResults', { count: filteredEntries.length }), items: filteredEntries }]
     }
 
     const groups: { categoryKey: string; label: string; items: [string, string][] }[] = []
     const handled = new Set<string>()
 
-    for (const [catKey, catDef] of Object.entries(CATEGORY_MAP)) {
-      const items = entries.filter(([k]) => catDef.match(k))
+    for (const { catKey, match, label } of categories) {
+      const items = entries.filter(([k]) => match(k))
       if (items.length > 0) {
-        groups.push({ categoryKey: catKey, label: catDef.label, items })
+        groups.push({ categoryKey: catKey, label, items })
         items.forEach(([k]) => handled.add(k))
       }
     }
 
     const remaining = entries.filter(([k]) => !handled.has(k))
     if (remaining.length > 0) {
-      groups.push({ categoryKey: 'other', label: 'Other variables (Other)', items: remaining })
+      groups.push({ categoryKey: 'other', label: t('settings:themePalette.otherVariablesOther'), items: remaining })
     }
 
     return groups
-  }, [entries, filteredEntries, selectedCategory, searchQuery])
+  }, [entries, filteredEntries, selectedCategory, searchQuery, categories, t])
 
   const handleCopy = (key: string, val: string) => {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
@@ -192,7 +204,7 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
         { style: { display: 'flex', alignItems: 'center', gap: 16 } },
         h(Button, {
           variant: 'secondary',
-          children: '← Back to debug',
+          children: t('settings:settings.backToDebug'),
           onPress: () => ui?.navigate?.('debug.view'),
         }),
         h(
@@ -209,12 +221,17 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
                 letterSpacing: '-0.02em',
               },
             },
-            'Theme variable palette (Theme Palette)',
+            t('settings:debug.themeVariablePaletteThemePalette'),
           ),
           h(
             'div',
             { style: { fontSize: 13, color: 'var(--text-secondary, #94A3B8)', marginTop: 4 } },
-            `Current theme: ${activeTheme.name} (${activeTheme.id}) · Scheme: ${effectiveScheme.toUpperCase()} · ${entries.length} CSS variables in total`,
+            t('settings:themePalette.currentTheme', {
+              name: activeTheme.name,
+              id: activeTheme.id,
+              scheme: effectiveScheme.toUpperCase(),
+              count: entries.length,
+            }),
           ),
         ),
       ),
@@ -228,7 +245,10 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
           {
             type: 'button',
             'data-testid': 'palette-scheme-toggle',
-            title: `Switch to ${effectiveScheme === 'dark' ? 'light' : 'dark'} scheme preview`,
+            title:
+              effectiveScheme === 'dark'
+                ? t('settings:themePalette.switchToLightPreview')
+                : t('settings:themePalette.switchToDarkPreview'),
             onClick: () => setEffectiveScheme((prev) => (prev === 'dark' ? 'light' : 'dark')),
             style: {
               display: 'flex',
@@ -245,7 +265,7 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
             },
           },
           effectiveScheme === 'dark' ? tablerIcon('moon', { size: 16 }) : tablerIcon('sun', { size: 16 }),
-          h('span', null, effectiveScheme === 'dark' ? 'Dark mode (Dark)' : 'Light mode (Light)'),
+          h('span', null, effectiveScheme === 'dark' ? t('settings:themePalette.darkMode') : t('settings:themePalette.lightMode')),
         ),
         // Builtin theme switcher
         h(
@@ -315,7 +335,7 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
         h('input', {
           type: 'text',
           'data-testid': 'palette-search-input',
-          placeholder: 'Search variable names or values (e.g. --surface, #FFFFFF, rgba...)',
+          placeholder: t('settings:themePalette.searchVariableNamesOrValues'),
           value: searchQuery,
           onChange: (e: { target: { value: string } }) => setSearchQuery(e.target.value),
           style: {
@@ -341,9 +361,9 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
             onClick: () => setSelectedCategory('all'),
             style: categoryButtonStyle(selectedCategory === 'all'),
           },
-          'All',
+          t('app:common.all'),
         ),
-        ...Object.entries(CATEGORY_MAP).map(([catKey, catDef]) =>
+        ...categories.map(({ catKey, label }) =>
           h(
             'button',
             {
@@ -352,7 +372,7 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
               onClick: () => setSelectedCategory(catKey),
               style: categoryButtonStyle(selectedCategory === catKey),
             },
-            catDef.label.split(' ')[0],
+            label.split(' ')[0],
           ),
         ),
       ),
@@ -382,7 +402,7 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
             },
           },
           h('span', null, group.label),
-          h('span', { style: { fontSize: 12, color: 'var(--text-secondary, #64748B)' } }, `${group.items.length} items`),
+          h('span', { style: { fontSize: 12, color: 'var(--text-secondary, #64748B)' } }, t(group.items.length === 1 ? 'settings:themePalette.itemsCount.one' : 'settings:themePalette.itemsCount.other', { count: group.items.length })),
         ),
         h(
           'div',
@@ -396,6 +416,7 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
           ...group.items.map(([key, val]) =>
             h(SwatchCard, {
               key,
+              ctx,
               varName: key,
               value: val,
               isCopied: copiedKey === key,
@@ -424,17 +445,20 @@ function categoryButtonStyle(active: boolean): CSSProperties {
 }
 
 function SwatchCard({
+  ctx,
   varName,
   value,
   isCopied,
   onCopy,
 }: {
+  ctx: Context
   varName: string
   value: string
   isCopied: boolean
   onCopy: () => void
   isComplex: boolean
 }): ReactElement {
+  const { t } = useI18n(ctx)
   const isGlow = value.includes('0 0 ') && !value.includes('gradient(')
 
   return h(
@@ -442,7 +466,7 @@ function SwatchCard({
     {
       'data-testid': `palette-swatch-${varName}`,
       onClick: onCopy,
-      title: 'Click to copy var(...)',
+      title: t('settings:themePalette.clickToCopyVar'),
       style: {
         display: 'flex',
         alignItems: 'center',
@@ -543,7 +567,7 @@ function SwatchCard({
               fontWeight: 700,
             },
           },
-          'Copied',
+          t('app:common.copied'),
         )
       : null,
   )

@@ -10,6 +10,7 @@
   "scripts": {
     "check": "pnpm typecheck && pnpm lint && pnpm test",
     "check:locales": "node packages/feature/plugin-i18n/scripts/check-locales.mjs",
+    "check:i18n-gate": "node packages/feature/plugin-i18n/scripts/check-no-hardcoded.mjs",
     "check:changed": "node --experimental-strip-types packages/tooling/tooling-check-changed/src/cli.ts",
     "typecheck": "pnpm -r --no-sort typecheck",
     "lint": "eslint . --cache --cache-location node_modules/.cache/eslint/.eslintcache --cache-strategy content",

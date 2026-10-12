@@ -1,7 +1,7 @@
 import { createElement as h, useEffect, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
 import { QUEUE_VIEWS } from '@BBeBee/plugin-queue/views'
 
@@ -17,6 +17,7 @@ export function QueueButton({
   ctx,
   currentRoute,
 }: QueueButtonProps): ReactElement {
+  const { t } = useI18n(ctx)
   const [activeRoute, setActiveRoute] = useState<string | undefined>(currentRoute)
 
   useEffect(() => {
@@ -42,8 +43,8 @@ export function QueueButton({
     'button',
     {
       type: 'button',
-      'aria-label': 'Play queue',
-      title: 'Play queue',
+      'aria-label': t('queue:queueButton.playQueue'),
+      title: t('queue:queueButton.playQueue'),
       'data-testid': 'queue-button',
       onClick: handleClick,
       style: {

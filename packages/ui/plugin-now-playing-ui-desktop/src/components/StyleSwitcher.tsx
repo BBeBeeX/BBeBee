@@ -12,7 +12,7 @@ import type { Context } from 'cordis'
 import type { NowPlayingService, NowPlayingStyleId } from '@BBeBee/protocol'
 import { NOW_PLAYING_STYLES } from '@BBeBee/protocol'
 import { serviceOf, shallowArrayEqual, useServiceState } from '@BBeBee/ui-core'
-import { Text, tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { Text, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
 
 export interface StyleSwitcherProps {
@@ -24,6 +24,7 @@ export interface StyleSwitcherProps {
 export function StyleSwitcher({ ctx, styleId, onStyleChange }: StyleSwitcherProps): ReactElement {
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const { t } = useI18n(ctx)
 
   const styles = useServiceState(
     ctx,
@@ -66,9 +67,9 @@ export function StyleSwitcher({ ctx, styleId, onStyleChange }: StyleSwitcherProp
       'button',
       {
         type: 'button',
-        'aria-label': 'Switch now-playing style',
+        'aria-label': t('nowPlaying:styleSwitcher.switchNowPlayingStyle'),
         'data-testid': 'style-switcher-button',
-        title: 'Switch now-playing style',
+        title: t('nowPlaying:styleSwitcher.switchNowPlayingStyle'),
         onClick: () => setOpen((prev) => !prev),
         style: {
           display: 'flex',
@@ -101,7 +102,7 @@ export function StyleSwitcher({ ctx, styleId, onStyleChange }: StyleSwitcherProp
           'div',
           {
             role: 'menu',
-            'aria-label': 'Now-playing styles',
+            'aria-label': t('nowPlaying:styleSwitcher.nowPlayingStyles'),
             style: {
               position: 'absolute',
               top: '100%',

@@ -3,7 +3,6 @@ import { tablerIcon } from '@BBeBee/ui-kit-desktop'
 
 export interface BatchActionBarProps {
   selectedCount: number
-  totalCount: number
   allSelected: boolean
   onToggleSelectAll: () => void
   onBatchPlay: () => void
@@ -12,19 +11,35 @@ export interface BatchActionBarProps {
   onExitBatch: () => void
   deleteLabel?: string
   deleteDisabled?: boolean
+  /** Pre-translated by the ctx-owning call site — this component has no ctx. */
+  playLabel: string
+  /** Pre-translated by the ctx-owning call site — this component has no ctx. */
+  addToLabel: string
+  /** Pre-translated by the ctx-owning call site — this component has no ctx. */
+  selectAllLabel: string
+  /** Pre-translated by the ctx-owning call site — this component has no ctx. */
+  selectedCountLabel: string
+  /** Pre-translated by the ctx-owning call site — this component has no ctx. */
+  exitLabel: string
 }
 
 export function BatchActionBar({
   selectedCount,
-  totalCount,
   allSelected,
   onToggleSelectAll,
   onBatchPlay,
   onBatchAddToPlaylist,
   onBatchDelete,
   onExitBatch,
+  // Fallback only: the call site always passes a translated label. This
+  // matches app:common.delete's en verbatim, so no album catalogue key is created.
   deleteLabel = 'Delete',
   deleteDisabled = false,
+  playLabel,
+  addToLabel,
+  selectAllLabel,
+  selectedCountLabel,
+  exitLabel,
 }: BatchActionBarProps): ReactElement {
   const hasSelection = selectedCount > 0
 
@@ -84,7 +99,7 @@ export function BatchActionBar({
             accentColor: 'var(--color-primary, #5F87FF)',
           },
         }),
-        h('span', null, allSelected ? 'Deselect all' : 'Select all'),
+        h('span', null, selectAllLabel),
       ),
       h(
         'span',
@@ -92,7 +107,7 @@ export function BatchActionBar({
           'data-testid': 'batch-selected-count',
           style: { fontSize: 13, color: 'var(--bb-text-secondary, #b3b3b3)' },
         },
-        `Selected ${selectedCount} / ${totalCount} songs`,
+        selectedCountLabel,
       ),
     ),
     // Right: Action buttons
@@ -122,7 +137,7 @@ export function BatchActionBar({
           },
         },
         tablerIcon('play', { size: 16 }),
-        'Play',
+        playLabel,
       ),
       h(
         'button',
@@ -150,7 +165,7 @@ export function BatchActionBar({
           },
         },
         tablerIcon('plus', { size: 16 }),
-        'Add to',
+        addToLabel,
       ),
       onBatchDelete
         ? h(
@@ -201,7 +216,7 @@ export function BatchActionBar({
           },
         },
         tablerIcon('x', { size: 16 }),
-        'Exit batch operations',
+        exitLabel,
       ),
     ),
   )

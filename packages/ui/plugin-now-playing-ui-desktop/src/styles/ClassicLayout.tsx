@@ -9,13 +9,14 @@
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import { formatDuration } from '@BBeBee/toolkit'
-import { IconButton, Slider, Text } from '@BBeBee/ui-kit-desktop'
+import { IconButton, Slider, Text, useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
 import { CachedArtwork, PlayModeButton, VolumeControl } from '../components/NowPlayingBar.js'
 import type { NowPlayingLayoutProps } from './index.js'
 
 export function ClassicLayout(props: NowPlayingLayoutProps): ReactElement {
   const { ctx, state, displayPosition, duration, can, PanelComponent, VisualizerComponent } = props
+  const { t } = useI18n(ctx)
 
   const playerMain = h(
     'div',
@@ -52,7 +53,7 @@ export function ClassicLayout(props: NowPlayingLayoutProps): ReactElement {
       h(Text, {
         variant: 'xl',
         numberOfLines: 2,
-        children: state.nowPlaying?.title ?? (state.trackUrn ? 'Loading…' : 'Nothing playing'),
+        children: state.nowPlaying?.title ?? (state.trackUrn ? t('nowPlaying:nowPlaying.loading') : t('nowPlaying:nowPlaying.nothingPlaying')),
       }),
       state.nowPlaying?.artist
         ? h(Text, { variant: 'md', tone: 'muted', numberOfLines: 1, children: state.nowPlaying.artist })
@@ -63,7 +64,7 @@ export function ClassicLayout(props: NowPlayingLayoutProps): ReactElement {
     ),
     VisualizerComponent ? h(VisualizerComponent, { ctx }) : null,
     state.status === 'stalled'
-      ? h(Text, { variant: 'sm', tone: 'muted', children: 'Buffering…' })
+      ? h(Text, { variant: 'sm', tone: 'muted', children: t('nowPlaying:nowPlaying.buffering') })
       : null,
     h(
       'div',
@@ -80,7 +81,7 @@ export function ClassicLayout(props: NowPlayingLayoutProps): ReactElement {
         value: duration ? Math.min(displayPosition, duration) : 0,
         max: duration ?? 0,
         disabled: !can.canSeek || !duration,
-        accessibilityLabel: 'Seek',
+        accessibilityLabel: t('nowPlaying:nowPlaying.seek'),
         onChange: props.onSeekChange,
         onCommit: props.onSeekCommit,
       }),
@@ -97,13 +98,13 @@ export function ClassicLayout(props: NowPlayingLayoutProps): ReactElement {
       h(PlayModeButton, { ctx, mode: state.playMode }),
       h(IconButton, {
         icon: 'skip-back',
-        accessibilityLabel: 'Previous track',
+        accessibilityLabel: t('nowPlaying:nowPlayingStyles.previousTrack'),
         disabled: !can.canPrevious,
         onPress: () => void ctx.player.previous(),
       }),
       h(IconButton, {
         icon: can.canPause ? 'pause-filled' : 'play-filled',
-        accessibilityLabel: can.canPause ? 'Pause' : 'Play',
+        accessibilityLabel: can.canPause ? t('nowPlaying:nowPlaying.pause') : t('nowPlaying:nowPlaying.play'),
         variant: 'primary',
         size: tokens.size.iconLarge,
         disabled: !can.canPlay && !can.canPause,
@@ -111,7 +112,7 @@ export function ClassicLayout(props: NowPlayingLayoutProps): ReactElement {
       }),
       h(IconButton, {
         icon: 'skip-forward',
-        accessibilityLabel: 'Next track',
+        accessibilityLabel: t('nowPlaying:nowPlayingStyles.nextTrack'),
         disabled: !can.canNext,
         onPress: () => void ctx.player.next(),
       }),

@@ -4,26 +4,43 @@
 
 import { createElement as h, useState } from 'react'
 import type { ReactElement } from 'react'
+import type { Context } from 'cordis'
+import { serviceOf } from '@BBeBee/ui-core'
+import type { I18nService } from '@BBeBee/protocol'
 
 export interface ColorPickerProps {
   value: string
   onChange: (color: string) => void
   accessibilityLabel?: string
+  /**
+   * Optional Cordis context. When provided, preset names are translated via
+   * `useI18n`; without it the built-in English names render.
+   */
+  ctx?: Context
 }
 
-export const COLOR_PRESETS = [
-  { color: '#FFFFFF', label: 'Pure White' },
-  { color: '#5F87FF', label: 'Electric Blue' },
-  { color: '#7C86FF', label: 'Periwinkle' },
-  { color: '#A99CFF', label: 'Lavender' },
-  { color: '#9B73F5', label: 'Soft Purple' },
-  { color: '#60EFFF', label: 'Ice Blue' },
-  { color: '#1DB954', label: 'Emerald Green' },
-  { color: '#EC4899', label: 'Neon Pink' },
-]
+const COLOR_PRESET_DEFS = [
+  { color: '#FFFFFF', labelKey: 'app:common.colorPicker.pureWhite', fallback: 'Pure White' },
+  { color: '#5F87FF', labelKey: 'app:common.colorPicker.electricBlue', fallback: 'Electric Blue' },
+  { color: '#7C86FF', labelKey: 'app:common.colorPicker.periwinkle', fallback: 'Periwinkle' },
+  { color: '#A99CFF', labelKey: 'app:common.colorPicker.lavender', fallback: 'Lavender' },
+  { color: '#9B73F5', labelKey: 'app:common.colorPicker.softPurple', fallback: 'Soft Purple' },
+  { color: '#60EFFF', labelKey: 'app:common.colorPicker.iceBlue', fallback: 'Ice Blue' },
+  { color: '#1DB954', labelKey: 'app:common.colorPicker.emeraldGreen', fallback: 'Emerald Green' },
+  { color: '#EC4899', labelKey: 'app:common.colorPicker.neonPink', fallback: 'Neon Pink' },
+] as const
 
-export function ColorPicker({ value, onChange, accessibilityLabel }: ColorPickerProps): ReactElement {
+/** Preset swatches with their built-in English names (untranslated data export). */
+export const COLOR_PRESETS = COLOR_PRESET_DEFS.map(({ color, fallback }) => ({ color, label: fallback }))
+
+export function ColorPicker({ value, onChange, accessibilityLabel, ctx }: ColorPickerProps): ReactElement {
   const [customVal, setCustomVal] = useState(value)
+  // Deliberately hook-free: the kit's tree() tests invoke components as plain
+  // functions. Locale changes reach this component because its
+  // useI18n-subscribed ancestors re-render it.
+  const i18n = ctx ? serviceOf<I18nService>(ctx, 'i18n') : undefined
+  // English copy stays verbatim until a caller threads `ctx` (i18n sweep).
+  const t = (key: string, fallback: string): string => i18n?.t(key) ?? fallback
 
   return h(
     'div',
@@ -36,13 +53,14 @@ export function ColorPicker({ value, onChange, accessibilityLabel }: ColorPicker
       },
       'aria-label': accessibilityLabel,
     },
-    COLOR_PRESETS.map((preset) => {
+    COLOR_PRESET_DEFS.map((preset) => {
       const isSelected = value.toLowerCase() === preset.color.toLowerCase()
+      const label = t(preset.labelKey, preset.fallback)
       return h('button', {
         key: preset.color,
         type: 'button',
-        title: preset.label,
-        'aria-label': `${preset.label} (${preset.color})`,
+        title: label,
+        'aria-label': `${label} (${preset.color})`,
         'aria-pressed': isSelected,
         onClick: () => {
           setCustomVal(preset.color)

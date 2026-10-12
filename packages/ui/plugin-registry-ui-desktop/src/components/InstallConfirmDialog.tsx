@@ -8,12 +8,20 @@
  */
 
 import { createElement as h, useState, type ReactElement } from 'react'
+import type { Context } from 'cordis'
 import type { RegistryEntryDetails } from '@BBeBee/protocol'
 import { normalizeVersion } from '@BBeBee/toolkit'
 import { Sheet, tablerIcon } from '@BBeBee/ui-kit-desktop'
 import { isBuiltinEntry } from '../hooks/install-state.js'
+import { useOptionalI18n } from '../utils/optional-i18n.js'
 
 export interface InstallConfirmDialogProps {
+  /**
+   * The app context — read for the interface language. Optional so unit
+   * tests can render the dialog without a kernel context; absent, the
+   * copy degrades to the catalogue keys.
+   */
+  ctx?: Context
   details: RegistryEntryDetails
   /** What was clicked — the dialog's wording differs slightly for an update. */
   action: 'install' | 'update'
@@ -50,6 +58,7 @@ const warningStyle = {
 } as const
 
 export function InstallConfirmDialog({
+  ctx,
   details,
   action,
   busy,
@@ -57,25 +66,60 @@ export function InstallConfirmDialog({
   onConfirm,
   onClose,
 }: InstallConfirmDialogProps): ReactElement {
+  const { t } = useOptionalI18n(ctx)
   const { entry, allowedHosts, securityAudit, repoUrl, commit, commitDiff } = details
   const [overwriteConfirmed, setOverwriteConfirmed] = useState(false)
   const [blockOverrideConfirmed, setBlockOverrideConfirmed] = useState(false)
   const isLocallyModified = Boolean(details.isLocallyModified)
   const isUpdate = action === 'update'
-  const verb = isUpdate ? 'Update' : 'Install'
   const isBlocked = securityAudit?.level === 'block'
   const canConfirm =
     !busy &&
     (!isLocallyModified || overwriteConfirmed) &&
     (!isBlocked || blockOverrideConfirmed)
+  // The identity line has four decomposed catalogue keys (name / name+version
+  // / name+author / name+version+author) — no runtime key assembly.
+  const identityText = entry.version
+    ? entry.author
+      ? t('registry:installConfirm.identityFull', {
+          name: entry.name,
+          version: normalizeVersion(entry.version),
+          author: entry.author,
+        })
+      : t('registry:installConfirm.identityVersion', {
+          name: entry.name,
+          version: normalizeVersion(entry.version),
+        })
+    : entry.author
+      ? t('registry:installConfirm.identityAuthor', { name: entry.name, author: entry.author })
+      : t('registry:installConfirm.identityName', { name: entry.name })
+  const titleText = isUpdate
+    ? t('registry:installConfirm.updateTitle', { name: entry.name })
+    : t('registry:installConfirm.installTitle', { name: entry.name })
+  // The accept button's wording also comes in decomposed pairs (installing /
+  // updating, confirm-install / confirm-update) — branch, don't interpolate.
+  const acceptText = busy
+    ? isUpdate
+      ? t('registry:installConfirm.updating')
+      : t('registry:installConfirm.installing')
+    : isUpdate
+      ? t('registry:installConfirm.confirmUpdate')
+      : t('registry:installConfirm.confirmInstall')
+  const themeDisclosureText = isUpdate
+    ? entry.author
+      ? t('registry:installConfirm.updateThemeWithAuthor', { name: entry.name, author: entry.author })
+      : t('registry:installConfirm.updateTheme', { name: entry.name })
+    : entry.author
+      ? t('registry:installConfirm.importThemeWithAuthor', { name: entry.name, author: entry.author })
+      : t('registry:installConfirm.importTheme', { name: entry.name })
 
   return h(
     Sheet,
     {
       open: true,
       onClose: busy ? () => {} : onClose,
-      title: `${verb} ${entry.name}`,
-      accessibilityLabel: `${verb} ${entry.name}`,
+      title: titleText,
+      accessibilityLabel: titleText,
     },
     h(
       'div',
@@ -84,7 +128,7 @@ export function InstallConfirmDialog({
       h(
         'div',
         { style: bodyTextStyle },
-        `${entry.name}${entry.version ? ` v${normalizeVersion(entry.version)}` : ''}${entry.author ? ` · ${entry.author}` : ''}`,
+        identityText,
       ),
       // Kind-specific disclosures
       entry.kind === 'music-source' || entry.kind === 'lyric-source'
@@ -99,11 +143,11 @@ export function InstallConfirmDialog({
                 'span',
                 null,
                 isUpdate
-                  ? 'Updating replaces the existing version; if this source was modified locally, overwriting requires confirmation again.'
-                  : 'After the import, this source will be able to reach the hosts below — confirm you trust them.',
+                  ? t('registry:installConfirm.updatingReplacesTheExistingVersion')
+                  : t('registry:installConfirm.afterTheImportThisSource'),
               ),
             ),
-            h('div', { style: sectionTitleStyle }, 'Allowed hosts'),
+            h('div', { style: sectionTitleStyle }, t('registry:installConfirm.allowedHosts')),
             allowedHosts?.length
               ? h(
                   'ul',
@@ -123,13 +167,13 @@ export function InstallConfirmDialog({
               : h(
                   'div',
                   { style: bodyTextStyle },
-                  'This document declares no allowed hosts (allowedHosts) — verify its origin carefully.',
+                  t('registry:installConfirm.thisDocumentDeclaresNoAllowedHosts'),
                 ),
             isBuiltinEntry(entry)
               ? h(
                   'div',
                   { style: bodyTextStyle },
-                  'This updates a built-in lyric source: installing overwrites the built-in implementation with the registry version.',
+                  t('registry:installConfirm.thisUpdatesABuiltInLyricSource'),
                 )
               : null,
             isLocallyModified
@@ -154,12 +198,12 @@ export function InstallConfirmDialog({
                     'strong',
                     { style: { display: 'inline-flex', alignItems: 'center', gap: 6 } },
                     tablerIcon('alert', { size: 14 }),
-                    'Confirm overwriting local changes',
+                    t('registry:installConfirm.confirmOverwritingLocalChanges'),
                   ),
                   h(
                     'span',
                     null,
-                    'Detected that this source was modified locally by hand. Continuing the update will overwrite those local changes.',
+                    t('registry:installConfirm.detectedThatThisSourceWasModifiedLocally'),
                   ),
                   h(
                     'label',
@@ -170,7 +214,7 @@ export function InstallConfirmDialog({
                       checked: overwriteConfirmed,
                       onChange: (e: { target: { checked: boolean } }) => setOverwriteConfirmed(e.target.checked),
                     }),
-                    h('span', { style: { color: 'var(--text-primary, #F5F7FF)', fontSize: 13 } }, 'I confirm overwriting the local changes and updating'),
+                    h('span', { style: { color: 'var(--text-primary, #F5F7FF)', fontSize: 13 } }, t('registry:installConfirm.iConfirmOverwritingTheLocal')),
                   ),
                 )
               : null,
@@ -187,7 +231,7 @@ export function InstallConfirmDialog({
               'div',
               { style: warningStyle },
               tablerIcon('alert', { size: 16 }),
-              h('span', null, 'This plugin will run third-party code — only install sources you trust.'),
+              h('span', null, t('registry:installConfirm.thisPluginWillRunThird')),
             ),
             repoUrl || entry.repoUrl
               ? h(
@@ -196,7 +240,7 @@ export function InstallConfirmDialog({
                     'data-testid': 'registry-plugin-repo-url',
                     style: { display: 'flex', flexDirection: 'column', gap: 4 },
                   },
-                  h('div', { style: sectionTitleStyle }, 'Repository'),
+                  h('div', { style: sectionTitleStyle }, t('registry:installConfirm.repository')),
                   h(
                     'a',
                     {
@@ -221,14 +265,16 @@ export function InstallConfirmDialog({
                     'data-testid': 'registry-commit-diff',
                     style: { display: 'flex', flexDirection: 'column', gap: 4 },
                   },
-                  h('div', { style: sectionTitleStyle }, 'Commit diff'),
+                  h('div', { style: sectionTitleStyle }, t('registry:installConfirm.commitDiff')),
                   h(
                     'div',
                     { style: { fontFamily: 'var(--font-mono, ui-monospace, monospace)', fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } },
                     h(
                       'span',
                       { style: { color: 'var(--text-muted, #7E859B)' } },
-                      commitDiff.previousCommit ? commitDiff.previousCommit.slice(0, 7) : 'initial',
+                      commitDiff.previousCommit
+                        ? commitDiff.previousCommit.slice(0, 7)
+                        : t('registry:installConfirm.initialCommit'),
                     ),
                     ' → ',
                     h(
@@ -245,7 +291,7 @@ export function InstallConfirmDialog({
                       'data-testid': 'registry-commit-info',
                       style: { display: 'flex', flexDirection: 'column', gap: 4 },
                     },
-                    h('div', { style: sectionTitleStyle }, 'Commit'),
+                    h('div', { style: sectionTitleStyle }, t('registry:installConfirm.commit')),
                     h(
                       'div',
                       { style: { fontFamily: 'var(--font-mono, ui-monospace, monospace)', fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } },
@@ -260,7 +306,7 @@ export function InstallConfirmDialog({
                     'data-testid': 'registry-plugin-sha256',
                     style: { display: 'flex', flexDirection: 'column', gap: 4 },
                   },
-                  h('div', { style: sectionTitleStyle }, 'Release hash (SHA-256)'),
+                  h('div', { style: sectionTitleStyle }, t('registry:installConfirm.releaseHashSHA')),
                   h(
                     'div',
                     {
@@ -283,7 +329,7 @@ export function InstallConfirmDialog({
               ? h(
                   'div',
                   { style: { display: 'flex', flexDirection: 'column', gap: 6 } },
-                  h('div', { style: sectionTitleStyle }, 'Requested capabilities'),
+                  h('div', { style: sectionTitleStyle }, t('registry:installConfirm.requestedCapabilities')),
                   h(
                     'div',
                     {
@@ -315,7 +361,9 @@ export function InstallConfirmDialog({
               ? h(
                   'div',
                   { style: bodyTextStyle },
-                  `Requires app version ≥ ${normalizeVersion(entry.minAppVersion)}`,
+                  t('registry:installConfirm.requiresAppVersion', {
+                    version: normalizeVersion(entry.minAppVersion),
+                  }),
                 )
               : null,
           )
@@ -327,9 +375,15 @@ export function InstallConfirmDialog({
             h(
               'div',
               { style: bodyTextStyle },
-              `${isUpdate ? 'Update' : 'Import'} the theme "${entry.name}"${entry.author ? ` (by ${entry.author})` : ''}. Contrast is checked automatically on import; themes that fail are rejected.`,
+              themeDisclosureText,
             ),
-            entry.version ? h('div', { style: bodyTextStyle }, `Version v${normalizeVersion(entry.version)}`) : null,
+            entry.version
+              ? h(
+                  'div',
+                  { style: bodyTextStyle },
+                  t('registry:installConfirm.versionLine', { version: normalizeVersion(entry.version) }),
+                )
+              : null,
           )
         : null,
       // Security audit report
@@ -351,7 +405,7 @@ export function InstallConfirmDialog({
             h(
               'div',
               { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
-              h('div', { style: sectionTitleStyle }, 'Security audit report'),
+              h('div', { style: sectionTitleStyle }, t('registry:installConfirm.securityAuditReport')),
               h(
                 'span',
                 {
@@ -384,10 +438,10 @@ export function InstallConfirmDialog({
                   },
                 },
                 securityAudit.level === 'block'
-                  ? 'Block'
+                  ? t('registry:installConfirm.securityBadgeBlock')
                   : securityAudit.level === 'warn'
-                    ? 'Warn'
-                    : 'Pass',
+                    ? t('registry:installConfirm.securityBadgeWarn')
+                    : t('registry:installConfirm.securityBadgePass'),
               ),
             ),
             securityAudit.findings.length
@@ -446,7 +500,7 @@ export function InstallConfirmDialog({
               : h(
                   'div',
                   { style: { fontSize: 12, color: 'var(--color-success, #10B981)' } },
-                  'No known security risks or undeclared network calls detected.',
+                  t('registry:installConfirm.noKnownSecurityRisks'),
                 ),
             isBlocked
               ? h(
@@ -470,9 +524,9 @@ export function InstallConfirmDialog({
                     'strong',
                     { style: { display: 'inline-flex', alignItems: 'center', gap: 6 } },
                     tablerIcon('alert', { size: 14 }),
-                    'Blocked by a high-risk finding',
+                    t('registry:installConfirm.blockedByAHighRiskFinding'),
                   ),
-                  h('span', null, 'Static code scanning found high-risk operations; installation is blocked by default to protect your device.'),
+                  h('span', null, t('registry:installConfirm.staticCodeScanningFoundHigh')),
                   h(
                     'label',
                     { style: { display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', marginTop: 4 } },
@@ -485,7 +539,7 @@ export function InstallConfirmDialog({
                     h(
                       'span',
                       { style: { color: 'var(--text-primary, #F5F7FF)', fontSize: 12 } },
-                      'I understand the high-risk findings and confirm installing anyway',
+                      t('registry:installConfirm.iUnderstandTheHighRiskFindings'),
                     ),
                   ),
                 )
@@ -531,7 +585,7 @@ export function InstallConfirmDialog({
               fontSize: 13,
             },
           },
-          'Cancel',
+          t('app:common.cancel'),
         ),
         h(
           'button',
@@ -559,7 +613,7 @@ export function InstallConfirmDialog({
               opacity: !canConfirm ? 0.5 : 1,
             },
           },
-          busy ? `${verb}ing…` : `Confirm ${verb.toLowerCase()}`,
+          acceptText,
         ),
       ),
     ),

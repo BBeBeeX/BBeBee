@@ -8,7 +8,7 @@ import type {
 } from '@BBeBee/protocol'
 import { tryParseUrn } from '@BBeBee/protocol'
 import type { MenuAnchor, MenuItemSpec } from '@BBeBee/ui-core'
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { collectAllFolderTracks } from '@BBeBee/plugin-library/hooks'
 import type { useAddToCollection, useCollectionMenu, usePlaylistMenu } from '@BBeBee/ui-menus'
 import type { DeleteConfirmTarget } from '../components/modals/ConfirmDeleteModal.js'
@@ -45,6 +45,7 @@ export function useLibraryActions({
   setError,
   fail,
 }: UseLibraryActionsParams) {
+  const { t } = useI18n(ctx)
   const [pinnedExtraIds, setPinnedExtraIds] = useState<Set<string>>(new Set())
 
   const [simpleMenu, setSimpleMenu] = useState<{
@@ -334,20 +335,20 @@ export function useLibraryActions({
         items: [
           {
             id: 'play-all',
-            label: 'Play all',
+            label: t('library:favorites.playAll'),
             icon: tablerIcon('play', { size: 20 }),
             onSelect: onPlay,
           },
           {
             id: 'toggle-pin',
-            label: isPinned ? 'Unpin playlist' : 'Pin playlist',
+            label: isPinned ? t('library:builtinMenu.unpinPlaylist') : t('library:builtinMenu.pinPlaylist'),
             icon: tablerIcon('pin', { size: 20 }),
             onSelect: () => void togglePin(item),
           },
         ],
       })
     },
-    [togglePin],
+    [togglePin, t],
   )
 
   const createPlaylist = (name: string, activeFolderId: string | null) => {

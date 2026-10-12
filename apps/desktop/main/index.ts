@@ -973,6 +973,28 @@ function registerHandlers(): void {
     },
   )
 
+  /**
+   * Interface-locale fan-out for ctx-less windows.
+   *
+   * The desktop-lyrics and mini-player windows never boot the Cordis app, so
+   * they cannot read `ctx.i18n`. The main window's renderer — which does have
+   * ctx — reports the resolved locale through `locale:notify` whenever it
+   * changes; main remembers the last value (`locale:get`) and rebroadcasts
+   * (`locale:changed`) to every window. Ctx-less renderers read through the
+   * preload `locale` bridge. The payload is type-checked: anything but a
+   * non-empty string is ignored, so a misbehaving renderer cannot corrupt
+   * the shared state.
+   */
+  let currentLocale = 'en'
+  ipcMain.handle('locale:get', () => currentLocale)
+  ipcMain.handle('locale:notify', (_event, locale: unknown) => {
+    if (typeof locale !== 'string' || locale.length === 0 || locale === currentLocale) return
+    currentLocale = locale
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.isDestroyed()) window.webContents.send('locale:changed', locale)
+    }
+  })
+
   ipcMain.handle(
     'desktop-lyrics:set-visible',
     (_event, visible: boolean, position?: { x: number; y: number }) => {

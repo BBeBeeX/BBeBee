@@ -10,9 +10,13 @@
  */
 
 import { memo, type ReactElement } from 'react'
+import type { Context } from 'cordis'
+import { useI18n } from '@BBeBee/ui-kit-desktop'
 import type { FocusType, PluginGraph } from '../graph-model.js'
 
 export interface PluginInspectorProps {
+  /** The app context — read for the interface language via `useI18n`. */
+  ctx: Context
   graph: PluginGraph
   selectedNodeId: string | null
   selectedEdgeId: string | null
@@ -22,6 +26,7 @@ export interface PluginInspectorProps {
 }
 
 export const PluginInspector = memo(function PluginInspector({
+  ctx,
   graph,
   selectedNodeId,
   selectedEdgeId,
@@ -29,6 +34,7 @@ export const PluginInspector = memo(function PluginInspector({
   onSelectNode,
   onFocusNode,
 }: PluginInspectorProps): ReactElement {
+  const { t } = useI18n(ctx)
   // Find selected entity
   const selectedPlugin = selectedNodeId
     ? graph.plugins.find((p) => p.id === selectedNodeId)
@@ -90,14 +96,14 @@ export const PluginInspector = memo(function PluginInspector({
           }}
         >
           {selectedPlugin
-            ? 'PLUGIN INSPECTOR'
+            ? t('inspector:pluginInspector.pluginInspector')
             : selectedService
-              ? 'SERVICE INSPECTOR'
+              ? t('inspector:pluginInspector.serviceInspector')
               : selectedEvent
-                ? 'EVENT INSPECTOR'
+                ? t('inspector:pluginInspector.eventInspector')
                 : selectedEdge
-                  ? 'RELATIONSHIP INSPECTOR'
-                  : 'SYSTEM OVERVIEW'}
+                  ? t('inspector:pluginInspector.relationshipInspector')
+                  : t('inspector:pluginInspector.systemOverview')}
         </span>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -116,9 +122,9 @@ export const PluginInspector = memo(function PluginInspector({
                 cursor: 'pointer',
                 fontFamily: 'inherit',
               }}
-              title="Focus graph on this node"
+              title={t('inspector:pluginInspector.focusGraphOnThisNode')}
             >
-              FOCUS
+              {t('inspector:graphToolbar.focus')}
             </button>
           )}
 
@@ -132,7 +138,7 @@ export const PluginInspector = memo(function PluginInspector({
               fontSize: 14,
               padding: '2px 6px',
             }}
-            title="Close panel"
+            title={t('inspector:pluginInspector.closePanel')}
           >
             ✕
           </button>
@@ -253,9 +259,13 @@ export const PluginInspector = memo(function PluginInspector({
                 }}
               >
                 <div style={{ fontWeight: 700, marginBottom: 4 }}>
-                  ⚠ PENDING INJECTION
+                  {t('inspector:pluginInspector.pendingInjection')}
                 </div>
-                <div>Waiting for services: {selectedPlugin.waitingFor.join(', ')}</div>
+                <div>
+                  {t('inspector:pluginInspector.waitingForServices', {
+                    services: selectedPlugin.waitingFor.join(', '),
+                  })}
+                </div>
               </div>
             )}
 
@@ -269,10 +279,14 @@ export const PluginInspector = memo(function PluginInspector({
                   marginBottom: 6,
                 }}
               >
-                PROVIDES SERVICES ({selectedPlugin.provides.length})
+                {t('inspector:pluginInspector.providesServices', {
+                  count: selectedPlugin.provides.length,
+                })}
               </div>
               {selectedPlugin.provides.length === 0 ? (
-                <div style={{ color: '#475569', fontSize: 11 }}>none</div>
+                <div style={{ color: '#475569', fontSize: 11 }}>
+                  {t('inspector:pluginInspector.none')}
+                </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {selectedPlugin.provides.map((s) => (
@@ -306,10 +320,14 @@ export const PluginInspector = memo(function PluginInspector({
                   marginBottom: 6,
                 }}
               >
-                REQUIRES SERVICES ({selectedPlugin.requires.length})
+                {t('inspector:pluginInspector.requiresServices', {
+                  count: selectedPlugin.requires.length,
+                })}
               </div>
               {selectedPlugin.requires.length === 0 ? (
-                <div style={{ color: '#475569', fontSize: 11 }}>none</div>
+                <div style={{ color: '#475569', fontSize: 11 }}>
+                  {t('inspector:pluginInspector.none')}
+                </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {selectedPlugin.requires.map((r) => {
@@ -353,10 +371,14 @@ export const PluginInspector = memo(function PluginInspector({
                   marginBottom: 6,
                 }}
               >
-                DEPENDENCIES ({selectedPlugin.dependencies.length})
+                {t('inspector:pluginInspector.dependencies', {
+                  count: selectedPlugin.dependencies.length,
+                })}
               </div>
               {selectedPlugin.dependencies.length === 0 ? (
-                <div style={{ color: '#475569', fontSize: 11 }}>none</div>
+                <div style={{ color: '#475569', fontSize: 11 }}>
+                  {t('inspector:pluginInspector.none')}
+                </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {selectedPlugin.dependencies.map((dep) => (
@@ -391,7 +413,9 @@ export const PluginInspector = memo(function PluginInspector({
                     marginBottom: 6,
                   }}
                 >
-                  EVENT HOOKS ({selectedPlugin.eventsListened.length})
+                  {t('inspector:pluginInspector.eventHooks', {
+                    count: selectedPlugin.eventsListened.length,
+                  })}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {selectedPlugin.eventsListened.map((ev) => (
@@ -426,7 +450,9 @@ export const PluginInspector = memo(function PluginInspector({
                     marginBottom: 6,
                   }}
                 >
-                  LABELLED EFFECTS ({selectedPlugin.effects.length})
+                  {t('inspector:pluginInspector.labelledEffects', {
+                    count: selectedPlugin.effects.length,
+                  })}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {selectedPlugin.effects.map((eff, i) => (
@@ -482,7 +508,7 @@ export const PluginInspector = memo(function PluginInspector({
 
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginBottom: 6 }}>
-                PROVIDER
+                {t('inspector:pluginInspector.provider')}
               </div>
               {selectedService.provider ? (
                 <div
@@ -499,16 +525,20 @@ export const PluginInspector = memo(function PluginInspector({
                   ○ {selectedService.provider}
                 </div>
               ) : (
-                <div style={{ color: '#ef4444' }}>None (Missing Provider)</div>
+                <div style={{ color: '#ef4444' }}>
+                  {t('inspector:pluginInspector.missingProvider')}
+                </div>
               )}
             </div>
 
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginBottom: 6 }}>
-                CONSUMERS ({selectedService.consumers.length})
+                {t('inspector:pluginInspector.consumers', {
+                  count: selectedService.consumers.length,
+                })}
               </div>
               {selectedService.consumers.length === 0 ? (
-                <div style={{ color: '#475569' }}>none</div>
+                <div style={{ color: '#475569' }}>{t('inspector:pluginInspector.none')}</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {selectedService.consumers.map((c) => (
@@ -541,16 +571,18 @@ export const PluginInspector = memo(function PluginInspector({
                 ● {selectedEvent.name}
               </div>
               <div style={{ fontSize: 11, color: '#64748b', marginTop: 3 }}>
-                Active Listeners: {selectedEvent.listenersCount}
+                {t('inspector:pluginInspector.activeListeners', {
+                  count: selectedEvent.listenersCount,
+                })}
               </div>
             </div>
 
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginBottom: 6 }}>
-                SUBSCRIBING PLUGINS
+                {t('inspector:pluginInspector.sUBSCRIBINGPLUGINS')}
               </div>
               {selectedEvent.listeners.length === 0 ? (
-                <div style={{ color: '#475569' }}>Dynamic listeners only</div>
+                <div style={{ color: '#475569' }}>{t('inspector:pluginInspector.dynamicListenersOnly')}</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {selectedEvent.listeners.map((l) => (
@@ -580,7 +612,7 @@ export const PluginInspector = memo(function PluginInspector({
           <div data-testid="inspector-edge-detail">
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: '#f8fafc' }}>
-                RELATIONSHIP
+                {t('inspector:pluginInspector.relationship')}
               </div>
               <div
                 style={{
@@ -590,7 +622,7 @@ export const PluginInspector = memo(function PluginInspector({
                   marginTop: 3,
                 }}
               >
-                {selectedEdge.type} TRACE
+                {t('inspector:pluginInspector.edgeTrace', { type: selectedEdge.type })}
               </div>
             </div>
 
@@ -603,7 +635,9 @@ export const PluginInspector = memo(function PluginInspector({
                 marginBottom: 16,
               }}
             >
-              <div style={{ fontSize: 10, color: '#64748b', marginBottom: 2 }}>SOURCE</div>
+              <div style={{ fontSize: 10, color: '#64748b', marginBottom: 2 }}>
+                {t('inspector:pluginInspector.source')}
+              </div>
               <div
                 onClick={() => onSelectNode(selectedEdge.source)}
                 style={{
@@ -617,13 +651,15 @@ export const PluginInspector = memo(function PluginInspector({
               </div>
 
               <div style={{ fontSize: 10, color: '#64748b', marginBottom: 2 }}>
-                RELATION / LABEL
+                {t('inspector:pluginInspector.relationLabel')}
               </div>
               <div style={{ fontWeight: 600, color: '#fbbf24', marginBottom: 12 }}>
                 {selectedEdge.label ?? selectedEdge.type}
               </div>
 
-              <div style={{ fontSize: 10, color: '#64748b', marginBottom: 2 }}>TARGET</div>
+              <div style={{ fontSize: 10, color: '#64748b', marginBottom: 2 }}>
+                {t('inspector:pluginInspector.target')}
+              </div>
               <div
                 onClick={() => onSelectNode(selectedEdge.target)}
                 style={{ fontWeight: 600, color: '#38bdf8', cursor: 'pointer' }}
@@ -645,7 +681,7 @@ export const PluginInspector = memo(function PluginInspector({
                 marginBottom: 12,
               }}
             >
-              SYSTEM ARCHITECTURE
+              {t('inspector:pluginInspector.sYSTEMARCHITECTURE')}
             </div>
 
             <div
@@ -660,35 +696,43 @@ export const PluginInspector = memo(function PluginInspector({
                 fontSize: 11,
               }}
             >
-              Click any plugin, service IC, or orthogonal trace to inspect internal DI
-              wiring, dependencies, and lifecycle states.
+              {t('inspector:pluginInspector.systemOverviewHint')}
             </div>
 
             <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 8 }}>
-              LAYER STRATA
+              {t('inspector:pluginInspector.lAYERSTRATA')}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {graph.layers.map((l) => (
-                <div
-                  key={l.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '6px 10px',
-                    background: 'rgba(255, 255, 255, 0.02)',
-                    borderRadius: 4,
-                    borderLeft: `3px solid ${l.color}`,
-                  }}
-                >
-                  <span style={{ fontWeight: 600, color: '#cbd5e1' }}>
-                    L{l.order} · {l.name}
-                  </span>
-                  <span style={{ color: '#64748b' }}>
-                    {graph.plugins.filter((p) => p.layer === l.id).length} plugins
-                  </span>
-                </div>
-              ))}
+              {graph.layers.map((l) => {
+                const layerPluginCount = graph.plugins.filter((p) => p.layer === l.id).length
+                return (
+                  <div
+                    key={l.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '6px 10px',
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      borderRadius: 4,
+                      borderLeft: `3px solid ${l.color}`,
+                    }}
+                  >
+                    <span style={{ fontWeight: 600, color: '#cbd5e1' }}>
+                      L{l.order} · {l.name}
+                    </span>
+                    <span style={{ color: '#64748b' }}>
+                      {layerPluginCount === 1
+                        ? t('inspector:pluginInspector.pluginCount.one', {
+                            count: layerPluginCount,
+                          })
+                        : t('inspector:pluginInspector.pluginCount.other', {
+                            count: layerPluginCount,
+                          })}
+                    </span>
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}

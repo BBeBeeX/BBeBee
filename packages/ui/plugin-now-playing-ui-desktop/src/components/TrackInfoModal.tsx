@@ -3,7 +3,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { Track } from '@BBeBee/protocol'
 import { useTrackDetails } from '@BBeBee/plugin-now-playing/hooks'
-import { Sheet, tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { Sheet, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 
 export interface TrackInfoModalProps {
   ctx: Context
@@ -23,6 +23,7 @@ export function TrackInfoModal({
   // only renders the rows it returns.
   const { details, loading } = useTrackDetails(ctx, track, open)
   const [copiedPath, setCopiedPath] = useState(false)
+  const { t } = useI18n(ctx)
 
   const handleCopyPath = useCallback(async () => {
     if (!details?.filePath) return
@@ -74,7 +75,7 @@ export function TrackInfoModal({
             userSelect: 'text',
           },
         },
-        value ?? 'Unknown',
+        value ?? t('nowPlaying:trackInfo.unknownValue'),
       ),
       onCopy && value
         ? h(
@@ -82,7 +83,7 @@ export function TrackInfoModal({
             {
               type: 'button',
               onClick: onCopy,
-              title: isCopied ? 'Copied' : 'Copy',
+              title: isCopied ? t('nowPlaying:trackInfo.copied') : t('nowPlaying:trackInfo.copy'),
               style: {
                 background: 'transparent',
                 border: 'none',
@@ -135,7 +136,7 @@ export function TrackInfoModal({
           h(
             'span',
             { style: { fontSize: 17, fontWeight: 700, color: 'var(--text-primary, #FFFFFF)' } },
-            'Track details',
+            t('nowPlaying:trackInfo.trackDetails'),
           ),
         ),
         h(
@@ -143,7 +144,7 @@ export function TrackInfoModal({
           {
             type: 'button',
             onClick: onClose,
-            'aria-label': 'Close',
+            'aria-label': t('nowPlaying:trackInfo.close'),
             style: {
               background: 'transparent',
               border: 'none',
@@ -167,7 +168,7 @@ export function TrackInfoModal({
                 fontSize: 14,
               },
             },
-            'Reading track technical details…',
+            t('nowPlaying:trackInfo.readingDetails'),
           )
         : details
           ? h(
@@ -198,26 +199,26 @@ export function TrackInfoModal({
                       marginBottom: 6,
                     },
                   },
-                  details.isLocal ? 'Local music properties' : 'Song source properties',
+                  details.isLocal ? t('nowPlaying:trackInfo.localMusicProperties') : t('nowPlaying:trackInfo.songSourceProperties'),
                 ),
-                renderRow('Title', details.title),
-                renderRow('Artist', details.artist),
-                details.album ? renderRow('Album', details.album) : null,
-                renderRow('Storage', details.isLocal ? 'Local music file' : 'Third-party online music source'),
+                renderRow(t('nowPlaying:trackInfo.labelTitle'), details.title),
+                renderRow(t('nowPlaying:trackInfo.labelArtist'), details.artist),
+                details.album ? renderRow(t('nowPlaying:trackInfo.labelAlbum'), details.album) : null,
+                renderRow(t('nowPlaying:trackInfo.labelStorage'), details.isLocal ? t('nowPlaying:trackInfo.localMusicFile') : t('nowPlaying:trackInfo.thirdPartyOnlineMusicSource')),
                 details.isLocal
                   ? h(
                       'div',
                       null,
-                      renderRow('File name', details.fileName),
-                      renderRow('File path', details.filePath, handleCopyPath, copiedPath),
-                      renderRow('File size', details.fileSize),
-                      renderRow('Last modified', details.modifiedTime),
+                      renderRow(t('nowPlaying:trackInfo.labelFileName'), details.fileName),
+                      renderRow(t('nowPlaying:trackInfo.labelFilePath'), details.filePath, handleCopyPath, copiedPath),
+                      renderRow(t('nowPlaying:trackInfo.labelFileSize'), details.fileSize),
+                      renderRow(t('nowPlaying:trackInfo.labelLastModified'), details.modifiedTime),
                     )
                   : h(
                       'div',
                       null,
-                      renderRow('Third-party source ID', details.sourceId),
-                      renderRow('Current source track ID', details.sourceTrackId),
+                      renderRow(t('nowPlaying:trackInfo.labelThirdPartySourceId'), details.sourceId),
+                      renderRow(t('nowPlaying:trackInfo.labelCurrentSourceTrackId'), details.sourceTrackId),
                     ),
               ),
               // Section 2: Audio Technical Specs
@@ -236,14 +237,14 @@ export function TrackInfoModal({
                       marginBottom: 6,
                     },
                   },
-                  'Audio specs & metadata',
+                  t('nowPlaying:trackInfo.audioSpecsAndMetadata'),
                 ),
-                renderRow('Duration', details.duration),
-                renderRow('Sample rate', details.sampleRate),
-                renderRow('Channels', details.channels),
-                renderRow('Bitrate', details.bitrate),
-                renderRow('Codec', details.codec),
-                renderRow('Tag type', details.tagType),
+                renderRow(t('nowPlaying:trackInfo.labelDuration'), details.duration),
+                renderRow(t('nowPlaying:trackInfo.labelSampleRate'), details.sampleRate),
+                renderRow(t('nowPlaying:trackInfo.labelChannels'), details.channels),
+                renderRow(t('nowPlaying:trackInfo.labelBitrate'), details.bitrate),
+                renderRow(t('nowPlaying:trackInfo.labelCodec'), details.codec),
+                renderRow(t('nowPlaying:trackInfo.labelTagType'), details.tagType),
               ),
               // Section 3: Audio Output & WASAPI Specs
               h(
@@ -261,14 +262,14 @@ export function TrackInfoModal({
                       marginBottom: 6,
                     },
                   },
-                  'Audio output endpoint',
+                  t('nowPlaying:trackInfo.audioOutputEndpoint'),
                 ),
-                renderRow('Output device', details.outputDevice),
-                renderRow('Output engine', details.outputEngine),
-                renderRow('DAC sample rate', details.outputSampleRate),
-                renderRow('Hardware output channels', details.outputChannels),
-                renderRow('Bit depth & format', details.outputBitDepth),
-                renderRow('PCM output bandwidth', details.outputBandwidth),
+                renderRow(t('nowPlaying:trackInfo.labelOutputDevice'), details.outputDevice),
+                renderRow(t('nowPlaying:trackInfo.labelOutputEngine'), details.outputEngine),
+                renderRow(t('nowPlaying:trackInfo.labelDacSampleRate'), details.outputSampleRate),
+                renderRow(t('nowPlaying:trackInfo.labelHardwareOutputChannels'), details.outputChannels),
+                renderRow(t('nowPlaying:trackInfo.labelBitDepthAndFormat'), details.outputBitDepth),
+                renderRow(t('nowPlaying:trackInfo.labelPcmOutputBandwidth'), details.outputBandwidth),
               ),
             )
           : null,

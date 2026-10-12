@@ -16,7 +16,7 @@ import { ALBUM_VIEWS } from '@BBeBee/plugin-album/views'
 import { useAlbum } from '@BBeBee/plugin-album/hooks'
 import { useResolvedArtwork } from '@BBeBee/plugin-cache/hooks'
 import { useTrackMenu } from '@BBeBee/ui-menus'
-import { Artwork, Button, ContextMenu, EmptyState, List, Text, TrackRow, nativePrimitives } from '@BBeBee/ui-kit-mobile'
+import { Artwork, Button, ContextMenu, EmptyState, List, Text, TrackRow, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { serviceOf } from '@BBeBee/ui-core'
 import type { ArtworkProps, TrackRowProps } from '@BBeBee/ui-core'
 import { LIBRARY_VIEWS } from '@BBeBee/plugin-library/views'
@@ -62,6 +62,7 @@ export function AlbumScreen({
   const album = useAlbum(ctx, urn)
   const downloads = serviceOf<DownloadsService>(ctx, 'downloads')
   const menu = useTrackMenu(ctx)
+  const { t } = useI18n(ctx)
 
   const handleBack = () => {
     // The shell's own back handler when it passed one; otherwise the library,
@@ -71,14 +72,14 @@ export function AlbumScreen({
   }
 
   if (album.status === 'loading' || album.status === 'idle') {
-    return h(Pending, { label: 'Loading album…' })
+    return h(Pending, { label: t('album:index.loadingAlbum') })
   }
   if (album.status === 'error' || !album.data) {
     return h(EmptyState, {
       icon: '⚠',
-      title: 'Album unavailable',
+      title: t('album:index.albumUnavailable'),
       description: album.error?.message,
-      action: h(Button, { onPress: handleBack, variant: 'secondary', children: 'Back to library' }),
+      action: h(Button, { onPress: handleBack, variant: 'secondary', children: t('album:index.backToLibrary') }),
     })
   }
 
@@ -103,7 +104,7 @@ export function AlbumScreen({
         native.Pressable as never,
         {
           accessibilityRole: 'button',
-          accessibilityLabel: 'Back to library',
+          accessibilityLabel: t('album:index.backToLibrary'),
           onPress: handleBack,
           style: {
             flexDirection: 'row',
@@ -112,7 +113,7 @@ export function AlbumScreen({
             paddingHorizontal: tokens.space[2],
           },
         },
-        h(Text, { variant: 'sm', tone: 'accent', children: '‹ Library' }),
+        h(Text, { variant: 'sm', tone: 'accent', children: t('album:index.backToLibraryShort') }),
       ),
     ),
     h(
@@ -130,16 +131,16 @@ export function AlbumScreen({
           void player?.playNow(urns, {
             context: { kind: 'album', urn: detail.urn, label: detail.title },
           }),
-        children: 'Play album',
+        children: t('album:index.playAlbum'),
         disabled: detail.tracks.length === 0,
       }),
     ),
     h(List<Track>, {
       items: detail.tracks,
-      accessibilityLabel: `Tracks on ${detail.title}`,
+      accessibilityLabel: t('album:index.tracksOn', { title: detail.title }),
       estimatedItemSize: tokens.size.row,
       keyExtractor: (track) => track.urn,
-      empty: h(EmptyState, { title: 'This album has no tracks' }),
+      empty: h(EmptyState, { title: t('album:index.thisAlbumHasNoTracks') }),
       renderItem: (track) =>
         h(CachedTrackRow, {
           ctx,

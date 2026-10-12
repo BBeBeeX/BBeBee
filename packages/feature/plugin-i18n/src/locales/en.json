@@ -1,24 +1,148 @@
 {
   "common": {
-    "confirm": "OK",
-    "cancel": "Cancel",
-    "retry": "Retry",
-    "loading": "Loading…",
-    "delete": "Delete",
-    "create": "Create",
-    "save": "Save",
-    "share": "Share",
-    "download": "Download",
-    "search": "Search",
-    "copy": "Copy",
-    "copied": "Copied",
-    "close": "Close",
-    "back": "Back",
-    "done": "Done",
     "all": "All",
+    "app": {
+      "hasNoMobileView": "\"{currentId}\" has no mobile view.",
+      "noPluginRoute": "No plugin has contributed a route."
+    },
+    "back": "Back",
+    "cancel": "Cancel",
+    "cinematicLyricsTemplate": {
+      "backToCurrentLyric": "Back to current lyric",
+      "lyrics": "Lyrics"
+    },
     "clear": "Clear",
+    "close": "Close",
+    "colorPicker": {
+      "electricBlue": "Electric Blue",
+      "emeraldGreen": "Emerald Green",
+      "iceBlue": "Ice Blue",
+      "lavender": "Lavender",
+      "neonPink": "Neon Pink",
+      "periwinkle": "Periwinkle",
+      "pureWhite": "Pure White",
+      "softPurple": "Soft Purple"
+    },
+    "confirm": "OK",
+    "context": {
+      "cancel": "Cancel"
+    },
+    "contextMenu": {
+      "actions": "Actions",
+      "noMatches": "No matches",
+      "submenu": "Submenu"
+    },
+    "copied": "Copied",
+    "copy": "Copy",
+    "create": "Create",
+    "delete": "Delete",
+    "desktopLyrics": {
+      "closeDesktopLyrics": "Close desktop lyrics",
+      "defaultCurrentLine": "BBeBee Music",
+      "defaultNextLine": "Listen to high-quality music",
+      "largerFont": "Larger font",
+      "lockLyrics": "Lock lyrics (click-through)",
+      "nextTrack": "Next track",
+      "pause": "Pause",
+      "play": "Play",
+      "previousTrack": "Previous track",
+      "smallerFont": "Smaller font",
+      "unlock": "Unlock",
+      "unlockDesktopLyrics": "Unlock desktop lyrics"
+    },
+    "detailPlayButton": {
+      "play": "Play"
+    },
+    "done": "Done",
+    "download": "Download",
     "edit": "Edit",
     "empty": "Nothing here yet",
-    "error": "Something went wrong"
+    "error": "Something went wrong",
+    "jsonTree": {
+      "collapseAll": "Collapse all",
+      "expandAll": "Expand all"
+    },
+    "loading": "Loading…",
+    "retry": "Retry",
+    "save": "Save",
+    "saveToPlaylist": {
+      "addToPlaylist": "Add to playlist",
+      "findPlaylist": "Find playlist",
+      "likedSongs": "Liked songs",
+      "newPlaylist": "New playlist",
+      "playlistName": "Playlist name",
+      "playlistsCount": "{count} playlists",
+      "recentlyUpdated": "Recently updated",
+      "saveLocation": "Save location",
+      "songsCount": "{count} songs"
+    },
+    "search": "Search",
+    "share": "Share",
+    "shell": {
+      "addedFoldersScanning": "Added {folders} folders, scanning",
+      "closeNowPlaying": "Close now playing",
+      "failedToRender": "\"{title}\" failed to render",
+      "importedTracks": "Imported {imported} tracks",
+      "itemsFailedToImport": "{failed} items failed to import",
+      "library": "Library",
+      "noImportableContent": "No importable content found",
+      "nowPlaying": "Now playing",
+      "queue": "Queue",
+      "selectAPlaylistOrAlbum": "Select a playlist or album to start playing",
+      "thisView": "This view",
+      "updatesAvailable": "Updates available"
+    },
+    "top": {
+      "appTray": "App tray",
+      "applicationHeader": "Application Header",
+      "artist": "Artist",
+      "bBeBee": "BBeBee",
+      "bBeBeeHome": "BBeBee Home",
+      "back": "Back",
+      "clearSearch": "Clear search",
+      "clearSearchHistory": "Clear search history",
+      "close": "Close",
+      "closeWindow": "Close window",
+      "collapsePluginTray": "Collapse plugin tray",
+      "deselectAll": "Deselect all",
+      "expandPluginTray": "Expand plugin tray",
+      "expandSearch": "Expand search",
+      "forward": "Forward",
+      "goBack": "Go back",
+      "goForward": "Go forward",
+      "maximize": "Maximize",
+      "maximizeWindow": "Maximize window",
+      "minimize": "Minimize",
+      "minimizeWindow": "Minimize window",
+      "pluginTray": "Plugin tray",
+      "profile": "Profile",
+      "restore": "Restore",
+      "restoreWindow": "Restore window",
+      "search": "Search",
+      "searchHistory": "Search history",
+      "searchHistoryList": "Search history list",
+      "selectAll": "Select all",
+      "sleepTimerDetails": "Sleep timer: {remainingText}, click for details",
+      "sourceArtistLabel": "{sourceName} · Artist",
+      "sourceTrackLabel": "{sourceName} · Track",
+      "submitSearch": "Submit search",
+      "thirdPartySearchSourceSelection": "Third-party search source selection",
+      "track": "Track",
+      "userProfile": "User profile",
+      "whatDoYouWantTo": "What do you want to play?",
+      "windowControls": "Window controls"
+    },
+    "track": {
+      "download": "Download",
+      "like": "Like",
+      "more": "More",
+      "unlike": "Unlike"
+    },
+    "viewMode": {
+      "compact": "Compact",
+      "list": "List",
+      "tiled": "Tiled",
+      "viewMode": "View mode"
+    }
   }
 }

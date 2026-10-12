@@ -42,6 +42,7 @@ import type {
 } from '@BBeBee/protocol'
 import { serviceOf } from '@BBeBee/toolkit/hooks'
 import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { useOptionalI18n } from '../utils/optional-i18n.js'
 import { useAppVersion, useRegistryActionStates } from '../hooks/use-registry.js'
 import { useFavorites } from '../hooks/use-favorites.js'
 import { useRegistryLockRecords } from '../hooks/use-lock-records.js'
@@ -83,12 +84,24 @@ interface ThemeRemoveLike {
   removeTheme(themeId: string): boolean
 }
 
-const KIND_TABS: readonly { kind: RegistryEntryKind; label: string }[] = [
-  { kind: 'music-source', label: 'Music source' },
-  { kind: 'lyric-source', label: 'Lyric source' },
-  { kind: 'theme', label: 'Theme' },
-  { kind: 'plugin', label: 'Plugin' },
-]
+const KIND_TABS: readonly RegistryEntryKind[] = ['music-source', 'lyric-source', 'theme', 'plugin']
+
+/** The `t()` signature from `useI18n`, for the render helpers below. */
+type Translate = (key: string, params?: Record<string, string | number>) => string
+
+/** Kind tab labels map 1:1 onto fixed catalogue keys — no runtime key assembly. */
+function kindTabLabel(t: Translate, kind: RegistryEntryKind): string {
+  switch (kind) {
+    case 'music-source':
+      return t('registry:registry.musicSource')
+    case 'lyric-source':
+      return t('registry:registry.lyricSource')
+    case 'theme':
+      return t('registry:registry.theme')
+    case 'plugin':
+      return t('registry:registry.plugin')
+  }
+}
 
 /** What the tab row can show: the four kinds plus the curated and diagnostic views. */
 type RegistryView = RegistryEntryKind | 'favorites' | 'installed' | 'diagnostics'
@@ -177,6 +190,7 @@ function errorMessage(err: unknown): string {
 }
 
 export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useOptionalI18n(ctx)
   // ⚠️ `serviceOf` returns a fresh proxy per call, so it must never sit in a
   // hook dependency array. Read it inside effects and handlers, keyed on
   // `ctx` — the same discipline ThemeManagementCard follows.
@@ -322,14 +336,16 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
           const record = entry.sourceUrl
             ? sources?.sources.find((r) => r.sourceUrl === entry.sourceUrl)
             : undefined
-          if (!sources || !record) throw new Error('Matching installed music source not found')
+          // The error lands in the error banner below the grid — user-facing
+          // copy, so it carries catalogue keys, not dev-English.
+          if (!sources || !record) throw new Error(t('registry:registry.musicSourceUninstallMatchNotFound'))
           await sources.remove(record.id)
         } else if (entry.kind === 'lyric-source') {
           const removed = await serviceOf<LyricSourcesRemoveLike>(ctx, 'lyricSources')?.removeSource(entry.id)
-          if (!removed) throw new Error('The lyric source does not exist or was already removed')
+          if (!removed) throw new Error(t('registry:registry.lyricSourceUninstallGone'))
         } else if (entry.kind === 'theme') {
           const removed = serviceOf<ThemeRemoveLike>(ctx, 'theme')?.removeTheme(entry.id)
-          if (!removed) throw new Error('This theme cannot be removed (built-in themes are protected)')
+          if (!removed) throw new Error(t('registry:registry.themeUninstallProtected'))
         }
         // Same backstop as the install path: the owning service has already
         // changed, force the action-state memo to re-derive against it.
@@ -340,7 +356,7 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
         setUninstallingId(undefined)
       }
     },
-    [ctx],
+    [ctx, t],
   )
 
   /**
@@ -502,11 +518,11 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
       h(
         'div',
         { style: headerTitleBlockStyle },
-        h('h1', { style: { margin: 0, fontSize: 20, fontWeight: 700 } }, 'Discover'),
+        h('h1', { style: { margin: 0, fontSize: 20, fontWeight: 700 } }, t('registry:registry.discover')),
         h(
           'div',
           { style: { fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } },
-          'Browse community music sources, lyric sources, themes and plugins — install or update in one click',
+          t('registry:registry.browseSubtitle'),
         ),
       ),
       h(
@@ -520,7 +536,7 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
                 style: offlineBadgeStyle,
               },
               tablerIcon('history', { size: 12 }),
-              'Offline cache',
+              t('registry:registry.offlineCache'),
             )
           : null,
         // The task-center button sits between the offline hint and the refresh
@@ -532,7 +548,10 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
             type: 'button',
             'data-testid': 'registry-tasks-button',
             onClick: () => setTasksOpen(true),
-            'aria-label': runningCount > 0 ? `Tasks (${runningCount} running)` : 'Tasks',
+            'aria-label':
+              runningCount > 0
+                ? t('registry:registryTask.tasksRunningCount', { count: runningCount })
+                : t('registry:registryTask.tasks'),
             className: 'bbreg-btn bbreg-btn-ghost',
             style: headerButtonStyle,
           },
@@ -571,7 +590,7 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
             className: 'bbreg-btn bbreg-btn-ghost',
             style: { ...headerButtonStyle, opacity: refreshing || loading ? 0.6 : 1 },
           },
-          refreshing ? 'Refreshing…' : 'Refresh',
+          refreshing ? t('registry:registry.refreshing') : t('registry:registry.refresh'),
         ),
       ),
     ),
@@ -600,13 +619,13 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
     h(
       'div',
       { style: tabsRowStyle },
-      KIND_TABS.map((tab) =>
+      KIND_TABS.map((kind) =>
         kindTabButton(
-          tab.kind,
-          tab.label,
-          String(counts.get(tab.kind) ?? 0),
-          view === tab.kind,
-          () => setView(tab.kind),
+          kind,
+          kindTabLabel(t, kind),
+          String(counts.get(kind) ?? 0),
+          view === kind,
+          () => setView(kind),
         ),
       ),
       h('span', { key: 'tab-divider', 'data-testid': 'registry-tab-divider', style: TAB_DIVIDER }),
@@ -614,21 +633,21 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
       // empty favorites list needs no "0" shouted at the user.
       kindTabButton(
         'favorites',
-        'Favorites',
+        t('registry:registry.favorites'),
         favorites.size > 0 ? String(favorites.size) : null,
         view === 'favorites',
         () => setView('favorites'),
       ),
       kindTabButton(
         'installed',
-        'Installed',
+        t('registry:registry.installed'),
         installedCount > 0 ? String(installedCount) : null,
         view === 'installed',
         () => setView('installed'),
       ),
       kindTabButton(
         'diagnostics',
-        'Diagnostics',
+        t('registry:registryDiagnostics.diagnostics'),
         null,
         view === 'diagnostics',
         () => setView('diagnostics'),
@@ -646,8 +665,8 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
             { 'data-testid': 'registry-service-missing' },
             h(RegistryEmptyState, {
               icon: 'alert',
-              title: 'Registry service not loaded',
-              description: 'Cannot browse community content — try again later',
+              title: t('registry:registry.registryServiceNotLoaded'),
+              description: t('registry:registry.cannotBrowseCommunityContentTry'),
             }),
           )
         : loadError
@@ -655,7 +674,7 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
               'div',
               { 'data-testid': 'registry-load-error', style: { ...ERROR_BANNER, display: 'flex', alignItems: 'center', gap: 8 } },
               tablerIcon('alert', { size: 14 }),
-              `Failed to load the registry: ${loadError}`,
+              t('registry:registry.failedToLoadTheRegistry', { loadError }),
             )
           : visible.length === 0
             ? view === 'favorites' && !query
@@ -664,8 +683,8 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
                   { 'data-testid': 'registry-favorites-empty' },
                   h(RegistryEmptyState, {
                     icon: 'heart',
-                    title: 'No favorites yet',
-                    description: 'Use the heart button on a card to keep the content you reach for here',
+                    title: t('registry:registry.noFavoritesYet'),
+                    description: t('registry:registry.useTheHeartButtonOn'),
                   }),
                 )
               : view === 'installed' && !query
@@ -674,8 +693,8 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
                     { 'data-testid': 'registry-installed-empty' },
                     h(RegistryEmptyState, {
                       icon: 'download',
-                      title: 'Nothing installed yet',
-                      description: 'Install music sources, lyric sources, themes or plugins you like from the kind tabs',
+                      title: t('registry:registry.nothingInstalledYet'),
+                      description: t('registry:registry.installMusicSourcesLyricSources'),
                     }),
                   )
                 : h(
@@ -683,8 +702,8 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
                     { 'data-testid': 'registry-empty' },
                     h(RegistryEmptyState, {
                       icon: query ? 'search' : 'adjustments',
-                      title: query ? 'No matching content' : 'Nothing in this category yet',
-                      description: query ? 'Try a different keyword, or clear the filters and search again' : undefined,
+                      title: query ? t('registry:registry.noMatchingContent') : t('registry:registry.nothingInThisCategoryYet'),
+                      description: query ? t('registry:registry.tryADifferentKeyword') : undefined,
                     }),
                   )
             : h(
@@ -698,6 +717,7 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
                   const uninstallBase = uninstallFor(entry)
                   return h(RegistryEntryCard, {
                     key: entry.id,
+                    ctx,
                     entry,
                     actionState,
                     blockedReason: blocked,
@@ -735,6 +755,7 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
       : null,
     confirm
       ? h(InstallConfirmDialog, {
+          ctx,
           details: confirm.details,
           action: confirm.action,
           busy: confirmBusy,
@@ -748,6 +769,7 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
       : null,
     tasksOpen
       ? h(RegistryTaskDrawer, {
+          ctx,
           tasks,
           canClear,
           onClearFinished: clearFinished,

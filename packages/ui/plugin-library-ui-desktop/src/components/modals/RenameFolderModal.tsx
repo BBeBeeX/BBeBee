@@ -1,17 +1,21 @@
 import { createElement as h, useEffect, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent, ReactElement } from 'react'
+import type { Context } from 'cordis'
 import type { Collection } from '@BBeBee/protocol'
-import { Button, TextField } from '@BBeBee/ui-kit-desktop'
+import { Button, TextField, useI18n } from '@BBeBee/ui-kit-desktop'
 
 export function RenameFolderModal({
+  ctx,
   collection,
   onClose,
   onRename,
 }: {
+  ctx: Context
   collection: Collection | null
   onClose: () => void
   onRename: (id: string, newName: string) => Promise<void>
 }): ReactElement | null {
+  const { t } = useI18n(ctx)
   const [name, setName] = useState(collection?.name ?? '')
   const [saving, setSaving] = useState(false)
 
@@ -35,7 +39,7 @@ export function RenameFolderModal({
   return h(
     'div',
     {
-      'aria-label': 'Rename folder',
+      'aria-label': t('library:renameFolder.renameFolder'),
       style: {
         position: 'fixed',
         inset: 0,
@@ -63,11 +67,11 @@ export function RenameFolderModal({
           gap: 16,
         },
       },
-      h('h3', { style: { margin: 0, fontSize: 16, color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600 } }, 'Rename folder'),
+      h('h3', { style: { margin: 0, fontSize: 16, color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 600 } }, t('library:renameFolder.renameFolder')),
       h(TextField, {
         value: name,
         onChange: setName,
-        placeholder: 'Folder name',
+        placeholder: t('library:renameFolder.folderName'),
         testID: 'rename-collection-name',
       }),
       h(
@@ -76,14 +80,14 @@ export function RenameFolderModal({
         h(Button, {
           variant: 'ghost',
           onPress: onClose,
-          children: 'Cancel',
+          children: t('app:common.cancel'),
         }),
         h(Button, {
           variant: 'primary',
           disabled: !name.trim() || saving,
           onPress: handleSave,
           testID: 'rename-collection-save',
-          children: saving ? 'Saving…' : 'Save',
+          children: saving ? t('library:editPlaylist.saving') : t('library:userProfile.save'),
         }),
       ),
     ),

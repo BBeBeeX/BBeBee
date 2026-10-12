@@ -11,7 +11,7 @@ import {
   useTransport,
   useTransportAvailability,
 } from '@BBeBee/toolkit/hooks'
-import { Artwork, ContextMenu, IconButton, MarqueeText, SaveToPlaylistPopover, Slider, Text, tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { Artwork, ContextMenu, IconButton, MarqueeText, SaveToPlaylistPopover, Slider, Text, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { useSaveToPlaylistMenu, useTrackMenu } from '@BBeBee/ui-menus'
 import { useResolvedArtwork } from '@BBeBee/toolkit/hooks'
 import { serviceOf, useServiceState, type ArtworkProps } from '@BBeBee/ui-core'
@@ -45,6 +45,7 @@ export function QueueButton({
   }, [ctx])
 
   const isQueueActive = activeRoute === 'queue.view'
+  const { t } = useI18n(ctx)
 
   const handleClick = () => {
     ctx.ui?.navigate?.('queue.view')
@@ -54,8 +55,8 @@ export function QueueButton({
     'button',
     {
       type: 'button',
-      'aria-label': 'Play queue',
-      title: 'Play queue',
+      'aria-label': t('nowPlaying:nowPlaying.playQueue'),
+      title: t('nowPlaying:nowPlaying.playQueue'),
       'data-testid': 'queue-button',
       onClick: handleClick,
       style: {
@@ -106,6 +107,27 @@ export const PLAY_MODE_INFO: Record<PlayMode, { label: string; next: string }> =
   shuffle: { label: 'Shuffle', next: 'Switch to sequential' },
 }
 
+/**
+ * Play mode → catalogue key for its translated label. The `next` hint in
+ * `PLAY_MODE_INFO` stays English (public API surface), so the button's full
+ * tooltip — "<current label> (Switch to <next label>)" — uses its own
+ * per-mode catalogue key below, branched on full literal keys.
+ */
+const PLAY_MODE_LABEL_KEY: Record<PlayMode, string> = {
+  sequence: 'nowPlaying:nowPlaying.sequential',
+  'list-loop': 'nowPlaying:nowPlaying.listLoop',
+  'single-loop': 'nowPlaying:nowPlaying.singleLoop',
+  shuffle: 'nowPlaying:nowPlaying.shuffle',
+}
+
+/** Current play mode → full tooltip title (already includes both labels). */
+const PLAY_MODE_TITLE_KEY: Record<PlayMode, string> = {
+  sequence: 'nowPlaying:nowPlaying.playModeTitleSequence',
+  'list-loop': 'nowPlaying:nowPlaying.playModeTitleListLoop',
+  'single-loop': 'nowPlaying:nowPlaying.playModeTitleSingleLoop',
+  shuffle: 'nowPlaying:nowPlaying.playModeTitleShuffle',
+}
+
 export function renderPlayModeIcon(mode: PlayMode): ReactElement {
   switch (mode) {
     case 'shuffle':
@@ -139,9 +161,12 @@ export function renderVolumeIcon(volume: number, muted: boolean, size = 22): Rea
 export function VerticalSlider({
   value,
   onChange,
+  accessibilityLabel,
 }: {
   value: number
   onChange: (val: number) => void
+  /** Translated label passed by the caller; falls back to English without one. */
+  accessibilityLabel?: string
 }): ReactElement {
   const trackRef = useRef<HTMLDivElement>(null)
   const isDragging = useRef(false)
@@ -185,7 +210,7 @@ export function VerticalSlider({
       ref: trackRef,
       role: 'slider',
       tabIndex: 0,
-      'aria-label': 'Vertical volume slider',
+      'aria-label': accessibilityLabel ?? 'Vertical volume slider',
       'aria-valuemin': 0,
       'aria-valuemax': 100,
       'aria-valuenow': value,
@@ -254,7 +279,9 @@ export function VerticalSlider({
 
 export function PlayModeButton({ ctx, mode }: { ctx: Context; mode?: PlayMode }): ReactElement {
   const currentMode = mode ?? 'sequence'
-  const info = PLAY_MODE_INFO[currentMode] ?? PLAY_MODE_INFO.sequence
+  const { t } = useI18n(ctx)
+  const label = t(PLAY_MODE_LABEL_KEY[currentMode] ?? PLAY_MODE_LABEL_KEY.sequence)
+  const title = t(PLAY_MODE_TITLE_KEY[currentMode] ?? PLAY_MODE_TITLE_KEY.sequence)
   const handleClick = () => {
     ctx.player.cyclePlayMode()
   }
@@ -263,8 +290,8 @@ export function PlayModeButton({ ctx, mode }: { ctx: Context; mode?: PlayMode })
     'button',
     {
       type: 'button',
-      'aria-label': `Play mode: ${info.label}`,
-      title: `${info.label} (${info.next})`,
+      'aria-label': t('nowPlaying:nowPlaying.playMode', { label }),
+      title,
       onClick: handleClick,
       style: {
         display: 'inline-flex',
@@ -308,6 +335,7 @@ export function VolumeControl({
   const containerRef = useRef<HTMLDivElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
   const [coords, setCoords] = useState<{ left: number; bottom: number } | null>(null)
+  const { t } = useI18n(ctx)
 
   const updateCoords = useCallback(() => {
     if (containerRef.current) {
@@ -358,7 +386,7 @@ export function VolumeControl({
         {
           ref: popoverRef,
           role: 'dialog',
-          'aria-label': 'Volume control popover',
+          'aria-label': t('nowPlaying:nowPlaying.volumeControlPopover'),
           style: {
             position: portal && coords ? 'fixed' : 'absolute',
             ...(portal && coords
@@ -384,6 +412,7 @@ export function VolumeControl({
         ),
         h(VerticalSlider, {
           value: percent,
+          accessibilityLabel: t('nowPlaying:nowPlaying.verticalVolumeSlider'),
           onChange: (val) => {
             if (muted) ctx.player.setMuted(false)
             ctx.player.setVolume(val / 100)
@@ -393,8 +422,8 @@ export function VolumeControl({
           'button',
           {
             type: 'button',
-            'aria-label': muted ? 'Unmute' : 'Mute',
-            title: muted ? 'Unmute' : 'Mute',
+            'aria-label': muted ? t('nowPlaying:nowPlaying.unmute') : t('nowPlaying:nowPlaying.mute'),
+            title: muted ? t('nowPlaying:nowPlaying.unmute') : t('nowPlaying:nowPlaying.mute'),
             onClick: () => ctx.player.setMuted(!muted),
             style: {
               display: 'inline-flex',
@@ -425,8 +454,8 @@ export function VolumeControl({
       'button',
       {
         type: 'button',
-        'aria-label': 'Volume',
-        title: muted ? 'Muted (click to adjust)' : `Volume ${percent}% (click to adjust)`,
+        'aria-label': t('nowPlaying:nowPlaying.volume'),
+        title: muted ? t('nowPlaying:nowPlaying.volumeTitleMuted') : t('nowPlaying:nowPlaying.volumeTitle', { percent }),
         onClick: () => setOpen((prev) => !prev),
         style: {
           display: 'inline-flex',
@@ -495,6 +524,7 @@ export function NowPlayingBar({ ctx, currentRoute, onOpenNowPlaying, portalMenus
   const [isInLibrary, setIsInLibrary] = useState(false)
 
   const currentTrack = useCurrentTrack(ctx)
+  const { t } = useI18n(ctx)
 
   const actionSlots = useServiceState(
     ctx,
@@ -566,7 +596,7 @@ export function NowPlayingBar({ ctx, currentRoute, onOpenNowPlaying, portalMenus
     'div',
     {
       role: 'region',
-      'aria-label': 'Now playing',
+      'aria-label': t('nowPlaying:nowPlaying.nowPlaying'),
       style: {
         display: 'flex',
         alignItems: 'center',
@@ -598,7 +628,7 @@ export function NowPlayingBar({ ctx, currentRoute, onOpenNowPlaying, portalMenus
         {
           role: 'button',
           tabIndex: 0,
-          'aria-label': 'Open now playing',
+          'aria-label': t('nowPlaying:nowPlaying.openNowPlaying'),
           onClick: handleOpenNowPlaying,
           onContextMenu: (e: React.MouseEvent) => {
             e.preventDefault()
@@ -675,7 +705,7 @@ export function NowPlayingBar({ ctx, currentRoute, onOpenNowPlaying, portalMenus
           h(MarqueeText, {
             variant: 'sm',
             style: { flex: 1, minWidth: 0 },
-            children: state.nowPlaying?.title ?? (state.trackUrn ? 'Loading…' : 'Nothing playing'),
+            children: state.nowPlaying?.title ?? (state.trackUrn ? t('nowPlaying:nowPlaying.loading') : t('nowPlaying:nowPlaying.nothingPlaying')),
           }),
           currentTrack
             ? h(
@@ -684,9 +714,9 @@ export function NowPlayingBar({ ctx, currentRoute, onOpenNowPlaying, portalMenus
                   type: 'button',
                   'data-testid': 'track-library-action-btn',
                   'aria-label': isInLibrary
-                    ? `Add ${currentTrack.title} to playlist`
-                    : `Add ${currentTrack.title} to favorites`,
-                  title: isInLibrary ? 'Add to playlist' : 'Add to Favorites',
+                    ? t('nowPlaying:nowPlaying.addToPlaylist', { title: currentTrack.title })
+                    : t('nowPlaying:nowPlaying.addToFavorites', { title: currentTrack.title }),
+                  title: isInLibrary ? t('nowPlaying:nowPlaying.addToPlaylist2') : t('nowPlaying:nowPlaying.addToFavorites2'),
                   onClick: (e: React.MouseEvent) => {
                     e.stopPropagation()
                     if (isInLibrary) {
@@ -751,7 +781,7 @@ export function NowPlayingBar({ ctx, currentRoute, onOpenNowPlaying, portalMenus
         h(PlayModeButton, { ctx, mode: state.playMode }),
         h(IconButton, {
           icon: 'skip-back',
-          accessibilityLabel: 'Previous track',
+          accessibilityLabel: t('nowPlaying:nowPlayingStyles.previousTrack'),
           disabled: !can.canPrevious,
           onPress: () => void ctx.player.previous(),
         }),
@@ -759,14 +789,14 @@ export function NowPlayingBar({ ctx, currentRoute, onOpenNowPlaying, portalMenus
           // One control, two states: a play button that is sometimes a pause
           // button is what every player has, and two controls would be wrong.
           icon: can.canPause ? 'pause-filled' : 'play-filled',
-          accessibilityLabel: can.canPause ? 'Pause' : 'Play',
+          accessibilityLabel: can.canPause ? t('nowPlaying:nowPlaying.pause') : t('nowPlaying:nowPlaying.play'),
           variant: 'primary',
           disabled: !can.canPlay && !can.canPause,
           onPress: () => ctx.player.togglePlay(),
         }),
         h(IconButton, {
           icon: 'skip-forward',
-          accessibilityLabel: 'Next track',
+          accessibilityLabel: t('nowPlaying:nowPlayingStyles.nextTrack'),
           disabled: !can.canNext,
           onPress: () => void ctx.player.next(),
         }),
@@ -799,7 +829,7 @@ export function NowPlayingBar({ ctx, currentRoute, onOpenNowPlaying, portalMenus
             },
           },
           state.status === 'stalled'
-            ? h(Text, { variant: 'xs', tone: 'muted', children: 'Buffering…' })
+            ? h(Text, { variant: 'xs', tone: 'muted', children: t('nowPlaying:nowPlaying.buffering') })
             : null,
         ),
         h(
@@ -815,7 +845,7 @@ export function NowPlayingBar({ ctx, currentRoute, onOpenNowPlaying, portalMenus
           value: duration ? Math.min(displayPosition, duration) : 0,
           max: duration ?? 0,
           disabled: !can.canSeek || !duration,
-          accessibilityLabel: 'Seek',
+          accessibilityLabel: t('nowPlaying:nowPlaying.seek'),
           onChange: (value: number) => setSeekingPosition(value),
           onCommit: (value: number) => {
             setSeekingPosition(undefined)

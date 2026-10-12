@@ -15,6 +15,7 @@ import { Context, Service } from 'cordis'
 import type { DownloadPolicy, DownloadTask } from '@BBeBee/protocol'
 import { tick } from '@BBeBee/kernel/testing'
 import { DownloadsScreen, inject } from './index.js'
+import downloadCatalogue from '../../../feature/plugin-i18n/src/locales/download.json'
 
 afterEach(cleanup)
 
@@ -82,6 +83,45 @@ class PlayerStub extends Service {
   }
 }
 
+/**
+ * English i18n service for tests: serves the real `download` catalogue so the
+ * screen renders the same copy the app shows in English. Mirrors the
+ * `DefaultI18nStub` in `apps/desktop/renderer/Shell.test.tsx`.
+ */
+const DOWNLOAD_CATALOGUE: Record<string, { en: unknown }> = {
+  download: { en: (downloadCatalogue as { en: unknown }).en },
+}
+
+class DefaultI18nStub extends Service {
+  static override readonly name = 'i18n'
+  locale = 'en'
+  private listeners = new Set<(locale: string) => void>()
+
+  constructor(ctx: Context) {
+    super(ctx, 'i18n')
+  }
+
+  t = (key: string, params?: Record<string, string | number>): string => {
+    const sep = key.indexOf(':')
+    if (sep < 0) return key
+    const catalogue = DOWNLOAD_CATALOGUE[key.slice(0, sep)]?.en
+    if (!catalogue) return key
+    let cur: unknown = catalogue
+    for (const part of key.slice(sep + 1).split('.')) {
+      cur = (cur as Record<string, unknown> | undefined)?.[part]
+    }
+    if (typeof cur !== 'string') return key
+    return params
+      ? cur.replace(/\{(\w+)\}/g, (_, k: string) => String(params[k] ?? `{${k}}`))
+      : cur
+  }
+
+  onLocaleChange = (cb: (locale: string) => void): (() => void) => {
+    this.listeners.add(cb)
+    return () => void this.listeners.delete(cb)
+  }
+}
+
 /** The scoped context a shell hands a view, plus the root for fixtures. */
 async function harness(): Promise<{
   ctx: Context
@@ -91,14 +131,17 @@ async function harness(): Promise<{
   const root = new Context()
   await root.plugin(DownloadsStub)
   await root.plugin(PlayerStub)
+  await root.plugin(DefaultI18nStub)
   await tick()
 
   /*
-   * Scoped to this package's own `inject`, minus `ui`. Derived rather than
-   * written out, so a screen that reads an undeclared service throws here
-   * exactly as it would in the app.
+   * Scoped to this package's own `inject`, minus `ui`, plus `i18n`: the
+   * screens read it through `useI18n`, which degrades to raw keys without the
+   * service, so the stub keeps the English-copy assertions below honest.
+   * Derived rather than written out, so a screen that reads an undeclared
+   * service throws here exactly as it would in the app.
    */
-  const declared = inject.filter((name) => name !== 'ui')
+  const declared = [...inject.filter((name) => name !== 'ui'), 'i18n']
   let scoped: Context | undefined
   root.inject(declared, (s) => void (scoped = s))
   await tick()

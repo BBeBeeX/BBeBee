@@ -13,34 +13,40 @@ import type {
 } from '@BBeBee/protocol'
 import { useShareModalState } from '@BBeBee/plugin-share/hooks'
 import { serviceOf } from '@BBeBee/ui-core'
-import { Button, EmptyState, Sheet, TextField, Text, nativePrimitives } from '@BBeBee/ui-kit-mobile'
+import { Button, EmptyState, Sheet, TextField, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
 
-const TYPE_LABEL: Record<ShareTarget['type'], string> = {
-  track: 'Song',
-  playlist: 'Playlist',
-  lyrics: 'Lyrics',
-  album: 'Album',
+/** Full-literal catalogue keys for the share type names — never built at runtime. */
+const TYPE_LABEL_KEYS: Record<ShareTarget['type'], string> = {
+  track: 'share:shareHost.typeLabel.song',
+  playlist: 'share:shareHost.typeLabel.playlist',
+  lyrics: 'share:shareHost.typeLabel.lyrics',
+  album: 'share:shareHost.typeLabel.album',
 }
 
 /** One human line for an envelope, shared by the share and import panels. */
-function describe(envelope: ShareMetadataEnvelope): string {
+function describe(
+  t: (key: string, params?: Record<string, string | number>) => string,
+  envelope: ShareMetadataEnvelope,
+): string {
   switch (envelope.type) {
     case 'track': {
       const d = envelope.data as ShareTrackData
-      return `${d.title} — ${d.artist}`
+      return t('share:shareHost.targetTrack', { title: d.title, artist: d.artist })
     }
     case 'playlist': {
       const d = envelope.data as SharePlaylistData
-      return `${d.name} (${d.trackCount} songs)`
+      return t('share:shareHost.targetPlaylist', { name: d.name, trackCount: d.trackCount })
     }
     case 'album': {
       const d = envelope.data as ShareAlbumData
-      return `${d.title}${d.artist ? ` — ${d.artist}` : ''} (${d.trackCount} songs)`
+      return d.artist
+        ? t('share:shareHost.albumTitleWithArtist', { title: d.title, artist: d.artist, trackCount: d.trackCount })
+        : t('share:shareHost.albumTitle', { title: d.title, trackCount: d.trackCount })
     }
     case 'lyrics': {
       const d = envelope.data as ShareLyricsData
-      return `${d.title} — ${d.artist} (lyrics)`
+      return t('share:shareHost.targetLyrics', { title: d.title, artist: d.artist })
     }
   }
 }
@@ -103,6 +109,7 @@ function SharePanel({
   target: ShareTarget
   onClose: () => void
 }): ReactElement {
+  const { t } = useI18n(ctx)
   const native = nativePrimitives()
   const share = serviceOf<ShareService>(ctx, 'share')
 
@@ -115,16 +122,22 @@ function SharePanel({
 
   const summary =
     target.type === 'track'
-      ? `${target.track.title} — ${target.track.artist}`
+      ? t('share:shareHost.targetTrack', { title: target.track.title, artist: target.track.artist })
       : target.type === 'playlist'
-        ? `${target.playlist.name} (${target.playlist.trackCount} songs)`
+        ? t('share:shareHost.targetPlaylist', { name: target.playlist.name, trackCount: target.playlist.trackCount })
         : target.type === 'album'
-          ? `${target.album.title}${target.album.artist ? ` — ${target.album.artist}` : ''}`
-          : `${target.lyrics.title} — ${target.lyrics.artist} (lyrics)`
+          ? target.album.artist
+            ? t('share:shareHost.targetAlbumWithArtist', { title: target.album.title, artist: target.album.artist })
+            : t('share:shareHost.targetAlbum', { title: target.album.title })
+          : t('share:shareHost.targetLyrics', { title: target.lyrics.title, artist: target.lyrics.artist })
 
   return h(
     Sheet,
-    { open: true, onClose, title: `Share ${TYPE_LABEL[target.type].toLowerCase()}` },
+    {
+      open: true,
+      onClose,
+      title: t('share:shareHost.shareType', { type: t(TYPE_LABEL_KEYS[target.type]).toLowerCase() }),
+    },
     h(
       native.View as never,
       { style: { gap: tokens.space[3], paddingBottom: tokens.space[4] } },
@@ -135,20 +148,19 @@ function SharePanel({
         multiline: true,
         rows: 4,
         disabled: true,
-        placeholder: share ? undefined : 'Share service not ready',
+        placeholder: share ? undefined : t('share:shareHost.shareServiceNotReady'),
       }),
       h(
         Text,
         { variant: 'sm', tone: 'muted' },
-        share
-          ? 'Long-press the share code to copy it; generate image cards on desktop. Any BBeBee client can paste-import via "Read share card".'
-          : 'The share service is not ready yet — try again later.',
+        share ? t('share:shareHost.longPressHint') : t('share:shareHost.shareServiceNotReadyYet'),
       ),
     ),
   )
 }
 
 function ImportPanel({ ctx, onClose }: { ctx: Context; onClose: () => void }): ReactElement {
+  const { t } = useI18n(ctx)
   const native = nativePrimitives()
   const share = serviceOf<ShareService>(ctx, 'share')
   const [code, setCode] = useState('')
@@ -157,13 +169,13 @@ function ImportPanel({ ctx, onClose }: { ctx: Context; onClose: () => void }): R
 
   const decode = () => {
     if (!share) {
-      setError('Share service not ready')
+      setError(t('share:shareHost.shareServiceNotReady'))
       return
     }
     const trimmed = code.trim()
     if (!trimmed) {
       setDecoded(null)
-      setError('Paste a share code first')
+      setError(t('share:shareHost.pasteAShareCodeFirst'))
       return
     }
     const envelope = share.decodeMetadata(trimmed)
@@ -172,7 +184,7 @@ function ImportPanel({ ctx, onClose }: { ctx: Context; onClose: () => void }): R
       setError(null)
     } else {
       setDecoded(null)
-      setError("Can't parse the share code: not a valid BBeBee share package")
+      setError(t('share:shareHost.canTParseTheShare'))
     }
   }
 
@@ -180,7 +192,7 @@ function ImportPanel({ ctx, onClose }: { ctx: Context; onClose: () => void }): R
     if (!decoded) return
     const player = serviceOf<PlayerService>(ctx, 'player')
     if (!player) {
-      setError('Player service not ready')
+      setError(t('share:shareHost.playerServiceNotReady'))
       return
     }
     try {
@@ -188,7 +200,7 @@ function ImportPanel({ ctx, onClose }: { ctx: Context; onClose: () => void }): R
       onClose()
     } catch (err) {
       ctx.logger.error(`plugin-share-ui-mobile: failed to play shared item: ${String(err)}`)
-      setError(`Playback failed: ${String(err)}`)
+      setError(t('share:importShare.playbackFailed', { err: String(err) }))
     }
   }
 
@@ -196,7 +208,7 @@ function ImportPanel({ ctx, onClose }: { ctx: Context; onClose: () => void }): R
     if (!decoded) return
     const player = serviceOf<PlayerService>(ctx, 'player')
     if (!player) {
-      setError('Player service not ready')
+      setError(t('share:shareHost.playerServiceNotReady'))
       return
     }
     try {
@@ -204,13 +216,13 @@ function ImportPanel({ ctx, onClose }: { ctx: Context; onClose: () => void }): R
       onClose()
     } catch (err) {
       ctx.logger.error(`plugin-share-ui-mobile: failed to enqueue shared item: ${String(err)}`)
-      setError(`Failed to add to queue: ${String(err)}`)
+      setError(t('share:importShare.failedToAddToQueue', { err: String(err) }))
     }
   }
 
   return h(
     Sheet,
-    { open: true, onClose, title: 'Read share card' },
+    { open: true, onClose, title: t('share:shareHost.readShareCard') },
     h(
       native.View as never,
       { style: { gap: tokens.space[3], paddingBottom: tokens.space[4] } },
@@ -224,15 +236,22 @@ function ImportPanel({ ctx, onClose }: { ctx: Context; onClose: () => void }): R
         },
         multiline: true,
         rows: 4,
-        placeholder: 'Paste Base64 share code',
+        placeholder: t('share:shareHost.pasteBase64ShareCode'),
         error: error ?? undefined,
       }),
       decoded
-        ? h(Text, { variant: 'lg' }, `Recognized ${TYPE_LABEL[decoded.type].toLowerCase()}: ${describe(decoded)}`)
+        ? h(
+            Text,
+            { variant: 'lg' },
+            t('share:shareHost.recognizedType', {
+              type: t(TYPE_LABEL_KEYS[decoded.type]).toLowerCase(),
+              description: describe(t, decoded),
+            }),
+          )
         : h(EmptyState, {
             icon: '⇪',
-            title: 'Paste a share code',
-            description: 'Paste a share code copied from another BBeBee client above to import it.',
+            title: t('share:shareHost.pasteAShareCode'),
+            description: t('share:shareHost.pasteAShareCodeCopied'),
           }),
       decoded && decoded.type !== 'lyrics'
         ? h(
@@ -245,7 +264,7 @@ function ImportPanel({ ctx, onClose }: { ctx: Context; onClose: () => void }): R
                 variant: 'primary',
                 onPress: handlePlayNow,
                 testID: 'share-import-play',
-                children: 'Play now',
+                children: t('share:importShare.playNow'),
               }),
             ),
             h(
@@ -255,7 +274,7 @@ function ImportPanel({ ctx, onClose }: { ctx: Context; onClose: () => void }): R
                 variant: 'secondary',
                 onPress: handleEnqueue,
                 testID: 'share-import-enqueue',
-                children: 'Add to queue',
+                children: t('share:importShare.addToQueue'),
               }),
             ),
           )
@@ -264,7 +283,7 @@ function ImportPanel({ ctx, onClose }: { ctx: Context; onClose: () => void }): R
         variant: 'secondary',
         onPress: decode,
         testID: 'share-import-decode',
-        children: 'Decode share code',
+        children: t('share:shareHost.decodeShareCode'),
       }),
     ),
   )

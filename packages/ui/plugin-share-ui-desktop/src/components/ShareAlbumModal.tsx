@@ -2,7 +2,7 @@ import { createElement as h, useCallback } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { ShareAlbumData } from '@BBeBee/protocol'
-import { Sheet } from '@BBeBee/ui-kit-desktop'
+import { Sheet, useI18n } from '@BBeBee/ui-kit-desktop'
 import {
   generateAlbumCardCanvas,
   downloadCanvasAsPng,
@@ -28,6 +28,7 @@ export function ShareAlbumModal({
   open,
   onClose,
 }: ShareAlbumModalProps): ReactElement | null {
+  const { t } = useI18n(ctx)
   const isValid = Boolean(album && album.title && album.title.trim().length > 0)
   const {
     backgroundMode,
@@ -50,12 +51,18 @@ export function ShareAlbumModal({
     item: album,
     defaultThemeColor: '#FF416C',
     isValid,
-    missingReason: "Can't copy: the album is missing a valid title or other metadata",
+    missingReason: t('share:shareAlbum.canTCopyTheAlbum'),
   })
 
-  const subtitleParts = ['Album']
+  const subtitleParts = [t('share:shareAlbum.albumLabel')]
   if (album.artist) subtitleParts.push(album.artist)
-  if (album.trackCount > 0) subtitleParts.push(`${album.trackCount} songs`)
+  if (album.trackCount > 0)
+    subtitleParts.push(
+      t(
+        album.trackCount === 1 ? 'share:shareAlbum.trackCountSongs.one' : 'share:shareAlbum.trackCountSongs.other',
+        { trackCount: album.trackCount },
+      ),
+    )
   if (album.year) subtitleParts.push(String(album.year))
   const subtitle = subtitleParts.join(' • ')
 
@@ -105,8 +112,8 @@ export function ShareAlbumModal({
           margin: '0 auto',
         },
       },
-      h(ShareModalHeader, { title: 'Share album', onClose }),
-      h(LocalSourceWarning, { show: isLocal }),
+      h(ShareModalHeader, { ctx, title: t('share:shareAlbum.shareAlbum'), onClose }),
+      h(LocalSourceWarning, { ctx, show: isLocal }),
       h(ShareCardPreview, {
         title: album.title,
         subtitle,
@@ -115,12 +122,10 @@ export function ShareAlbumModal({
         backgroundMode,
         type: 'album',
       }),
-      h(BackgroundModeSelector, {
-        mode: backgroundMode,
-        onChange: setBackgroundMode,
-      }),
+      h(BackgroundModeSelector, { ctx, mode: backgroundMode, onChange: setBackgroundMode }),
       h(DisabledReasonToast, { message: disabledReason }),
       h(ShareActionButtons, {
+        ctx,
         canCopy,
         copied,
         downloading,

@@ -1,7 +1,7 @@
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { LIBRARY_VIEWS } from '@BBeBee/plugin-library/views'
 import { CachedArtwork } from '../CachedArtwork.js'
 import type { UnifiedItem } from '../UnifiedLibraryRow.js'
@@ -40,6 +40,7 @@ export function CollapsedLibraryView({
   modals,
   contextMenus,
 }: CollapsedLibraryViewProps): ReactElement {
+  const { t } = useI18n(ctx)
   // Same light-dark pairing as the sidebar quick rows, so the collapsed rail
   // reads as the same menu squeezed down to icons.
   const quickTile = (icon: 'heart' | 'download', viewId: string, label: string, count: number) => {
@@ -84,7 +85,7 @@ export function CollapsedLibraryView({
   return h(
     'section',
     {
-      'aria-label': 'Library Collapsed',
+      'aria-label': t('library:collapsedLibrary.libraryCollapsed'),
       style: {
         display: 'flex',
         flexDirection: 'column',
@@ -102,8 +103,8 @@ export function CollapsedLibraryView({
       'button',
       {
         type: 'button',
-        'aria-label': 'Expand music library',
-        title: 'Expand music library',
+        'aria-label': t('library:collapsedLibrary.expandMusicLibrary'),
+        title: t('library:collapsedLibrary.expandMusicLibrary'),
         onClick: () => handleModeChange('sidebar'),
         style: {
           width: 44,
@@ -134,8 +135,8 @@ export function CollapsedLibraryView({
           'button',
           {
             type: 'button',
-            'aria-label': 'Back to music library',
-            title: 'Back to music library',
+            'aria-label': t('library:collapsedLibrary.backToMusicLibrary'),
+            title: t('library:collapsedLibrary.backToMusicLibrary'),
             onClick: () => setActiveFolderId(null),
             style: {
               width: 36,
@@ -169,8 +170,8 @@ export function CollapsedLibraryView({
         {
           type: 'button',
           'data-testid': 'create-dropdown-trigger',
-          'aria-label': 'Create',
-          title: 'Create',
+          'aria-label': t('library:libraryCreateDropdown.create'),
+          title: t('library:libraryCreateDropdown.create'),
           onClick: (e: { currentTarget: HTMLElement }) => {
             const rect = e.currentTarget.getBoundingClientRect()
             setCollapsedMenuPos({ top: rect.top, left: rect.right + 12 })
@@ -217,11 +218,11 @@ export function CollapsedLibraryView({
     h(
       'div',
       {
-        'aria-label': 'Music library quick links',
+        'aria-label': t('library:collapsedLibrary.musicLibraryQuickLinks'),
         style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 12 },
       },
-      quickTile('heart', LIBRARY_VIEWS.favorites, 'Favorites', favoriteCount),
-      quickTile('download', LIBRARY_VIEWS.local, 'Local & downloads', localCount),
+      quickTile('heart', LIBRARY_VIEWS.favorites, t('library:unifiedLibrary.favorites'), favoriteCount),
+      quickTile('download', LIBRARY_VIEWS.local, t('library:library.localAndDownloads'), localCount),
     ),
     h(
       'div',

@@ -3,7 +3,7 @@ import type { Context } from 'cordis'
 import type { DesktopLyricsService, DesktopLyricsSettings, SettingsService } from '@BBeBee/protocol'
 import { DEFAULT_DESKTOP_LYRICS_SETTINGS } from '@BBeBee/protocol'
 import { serviceOf } from '@BBeBee/toolkit/hooks'
-import { ColorPicker, Select, Slider, Switch } from '@BBeBee/ui-kit-desktop'
+import { ColorPicker, Select, Slider, Switch, useI18n } from '@BBeBee/ui-kit-desktop'
 import { LyricsPreview } from './LyricsPreview.js'
 
 const rowStyle: React.CSSProperties = {
@@ -33,6 +33,7 @@ const sliderBoxStyle: React.CSSProperties = {
  * only subscribes and dispatches.
  */
 export function DesktopLyricsSettingsCard({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const [settings, setSettings] = useState<DesktopLyricsSettings>(() => ({
     ...DEFAULT_DESKTOP_LYRICS_SETTINGS,
     ...(serviceOf<SettingsService>(ctx, 'settings')?.getSync()?.desktopLyrics ?? {}),
@@ -81,11 +82,11 @@ export function DesktopLyricsSettingsCard({ ctx }: { ctx: Context }): ReactEleme
     h(
       'div',
       { style: { padding: '4px 4px 8px' } },
-      h('div', { style: titleStyle }, 'Desktop lyrics settings'),
+      h('div', { style: titleStyle }, t('lyrics:desktopLyricsSettings.desktopLyricsSettings')),
       h(
         'div',
         { style: descStyle },
-        'Configure line count, alignment, font, size, color, and opacity for the floating desktop lyrics',
+        t('lyrics:desktopLyricsSettings.configureDescription'),
       ),
     ),
     h(
@@ -109,12 +110,12 @@ export function DesktopLyricsSettingsCard({ ctx }: { ctx: Context }): ReactEleme
       h(
         'div',
         null,
-        h('div', { style: titleStyle }, 'Enable desktop lyrics'),
-        h('div', { style: descStyle }, 'Show the floating desktop lyrics window on top of the screen'),
+        h('div', { style: titleStyle }, t('lyrics:desktopLyricsSettings.enableDesktopLyrics')),
+        h('div', { style: descStyle }, t('lyrics:desktopLyricsSettings.showTheFloatingDesktopLyrics')),
       ),
       h(Switch, {
         checked: visible,
-        accessibilityLabel: 'Enable desktop lyrics',
+        accessibilityLabel: t('lyrics:desktopLyricsSettings.enableDesktopLyrics'),
         onChange: toggleVisible,
       }),
     ),
@@ -124,16 +125,16 @@ export function DesktopLyricsSettingsCard({ ctx }: { ctx: Context }): ReactEleme
       h(
         'div',
         null,
-        h('div', { style: titleStyle }, 'Lyric line count'),
-        h('div', { style: descStyle }, 'Show the current and next lyric line together, or a single line only'),
+        h('div', { style: titleStyle }, t('lyrics:desktopLyricsSettings.lyricLineCount')),
+        h('div', { style: descStyle }, t('lyrics:desktopLyricsSettings.showTheCurrentAndNext')),
       ),
       h(Select<'single' | 'double'>, {
         value: settings.lineMode,
         options: [
-          { value: 'double', label: 'Double line' },
-          { value: 'single', label: 'Single line' },
+          { value: 'double', label: t('lyrics:desktopLyricsSettings.doubleLine') },
+          { value: 'single', label: t('lyrics:desktopLyricsSettings.singleLine') },
         ],
-        accessibilityLabel: 'Lyric line count',
+        accessibilityLabel: t('lyrics:desktopLyricsSettings.lyricLineCount'),
         onChange: (lineMode) => update({ lineMode }),
       }),
     ),
@@ -143,17 +144,17 @@ export function DesktopLyricsSettingsCard({ ctx }: { ctx: Context }): ReactEleme
       h(
         'div',
         null,
-        h('div', { style: titleStyle }, 'Text alignment'),
-        h('div', { style: descStyle }, 'Set the horizontal layout direction of lyrics inside the window'),
+        h('div', { style: titleStyle }, t('lyrics:desktopLyricsSettings.textAlignment')),
+        h('div', { style: descStyle }, t('lyrics:desktopLyricsSettings.setTheHorizontalLayoutDirection')),
       ),
       h(Select<'center' | 'left' | 'right'>, {
         value: settings.align,
         options: [
-          { value: 'center', label: 'Center' },
-          { value: 'left', label: 'Left' },
-          { value: 'right', label: 'Right' },
+          { value: 'center', label: t('lyrics:desktopLyricsSettings.center') },
+          { value: 'left', label: t('lyrics:desktopLyricsSettings.left') },
+          { value: 'right', label: t('lyrics:desktopLyricsSettings.right') },
         ],
-        accessibilityLabel: 'Text alignment',
+        accessibilityLabel: t('lyrics:desktopLyricsSettings.textAlignment'),
         onChange: (align) => update({ align }),
       }),
     ),
@@ -163,20 +164,20 @@ export function DesktopLyricsSettingsCard({ ctx }: { ctx: Context }): ReactEleme
       h(
         'div',
         null,
-        h('div', { style: titleStyle }, 'Lyrics font'),
-        h('div', { style: descStyle }, 'Choose the font family lyrics render in'),
+        h('div', { style: titleStyle }, t('lyrics:desktopLyricsSettings.lyricsFont')),
+        h('div', { style: descStyle }, t('lyrics:desktopLyricsSettings.chooseTheFontFamilyLyrics')),
       ),
       h(Select<string>, {
         value: settings.fontFamily,
         options: [
-          { value: 'system-ui', label: 'System default' },
-          { value: 'PingFang SC, -apple-system', label: 'PingFang SC' },
-          { value: 'Microsoft YaHei, Segoe UI', label: 'Microsoft YaHei' },
-          { value: 'SimHei, sans-serif', label: 'SimHei' },
-          { value: 'KaiTi, STKaiti, serif', label: 'KaiTi' },
-          { value: 'JetBrains Mono, monospace', label: 'Monospace' },
+          { value: 'system-ui', label: t('lyrics:desktopLyricsSettings.systemDefault') },
+          { value: 'PingFang SC, -apple-system', label: t('lyrics:desktopLyricsSettings.pingFangSC') },
+          { value: 'Microsoft YaHei, Segoe UI', label: t('lyrics:desktopLyricsSettings.microsoftYaHei') },
+          { value: 'SimHei, sans-serif', label: t('lyrics:desktopLyricsSettings.simHei') },
+          { value: 'KaiTi, STKaiti, serif', label: t('lyrics:desktopLyricsSettings.kaiTi') },
+          { value: 'JetBrains Mono, monospace', label: t('lyrics:desktopLyricsSettings.monospace') },
         ],
-        accessibilityLabel: 'Lyrics font',
+        accessibilityLabel: t('lyrics:desktopLyricsSettings.lyricsFont'),
         onChange: (fontFamily) => update({ fontFamily }),
       }),
     ),
@@ -186,8 +187,8 @@ export function DesktopLyricsSettingsCard({ ctx }: { ctx: Context }): ReactEleme
       h(
         'div',
         null,
-        h('div', { style: titleStyle }, 'Lyrics font size'),
-        h('div', { style: descStyle }, `Current size: ${settings.fontSize}px`),
+        h('div', { style: titleStyle }, t('lyrics:desktopLyricsSettings.lyricsFontSize')),
+        h('div', { style: descStyle }, t('lyrics:desktopLyricsSettings.currentFontSize', { n: settings.fontSize })),
       ),
       h(
         'div',
@@ -198,7 +199,7 @@ export function DesktopLyricsSettingsCard({ ctx }: { ctx: Context }): ReactEleme
           h(Slider, {
             value: settings.fontSize,
             max: 48,
-            accessibilityLabel: 'Lyrics font size',
+            accessibilityLabel: t('lyrics:desktopLyricsSettings.lyricsFontSize'),
             onChange: (size: number) => update({ fontSize: Math.max(14, Math.round(size)) }),
           }),
         ),
@@ -210,12 +211,12 @@ export function DesktopLyricsSettingsCard({ ctx }: { ctx: Context }): ReactEleme
       h(
         'div',
         null,
-        h('div', { style: titleStyle }, 'Lyrics highlight color'),
-        h('div', { style: descStyle }, 'Highlight color for the active lyric line'),
+        h('div', { style: titleStyle }, t('lyrics:desktopLyricsSettings.lyricsHighlightColor')),
+        h('div', { style: descStyle }, t('lyrics:desktopLyricsSettings.highlightColorForTheActive')),
       ),
       h(ColorPicker, {
         value: settings.textColor,
-        accessibilityLabel: 'Lyrics highlight color',
+        accessibilityLabel: t('lyrics:desktopLyricsSettings.lyricsHighlightColor'),
         onChange: (textColor) => update({ textColor }),
       }),
     ),
@@ -225,8 +226,8 @@ export function DesktopLyricsSettingsCard({ ctx }: { ctx: Context }): ReactEleme
       h(
         'div',
         null,
-        h('div', { style: titleStyle }, 'Text opacity'),
-        h('div', { style: descStyle }, `Current opacity: ${Math.round(settings.opacity * 100)}%`),
+        h('div', { style: titleStyle }, t('lyrics:desktopLyricsSettings.textOpacity')),
+        h('div', { style: descStyle }, t('lyrics:desktopLyricsSettings.currentOpacity', { n: Math.round(settings.opacity * 100) })),
       ),
       h(
         'div',
@@ -237,13 +238,22 @@ export function DesktopLyricsSettingsCard({ ctx }: { ctx: Context }): ReactEleme
           h(Slider, {
             value: Math.round(settings.opacity * 100),
             max: 100,
-            accessibilityLabel: 'Text opacity',
+            accessibilityLabel: t('lyrics:desktopLyricsSettings.textOpacity'),
             onChange: (op: number) => update({ opacity: Math.max(20, Math.round(op)) / 100 }),
           }),
         ),
       ),
     ),
     ),
-    h(LyricsPreview, { settings }),
+    h(LyricsPreview, {
+      settings,
+      // Presentational component without ctx: labels are translated here.
+      lineModeLabel: t(
+        settings.lineMode === 'double'
+          ? 'lyrics:desktopLyricsSettings.doubleLine'
+          : 'lyrics:desktopLyricsSettings.singleLine',
+      ),
+      livePreviewBadge: t('lyrics:desktopLyricsSettings.livePreview'),
+    }),
   )
 }

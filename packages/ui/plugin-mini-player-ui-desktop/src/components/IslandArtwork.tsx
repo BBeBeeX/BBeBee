@@ -1,5 +1,6 @@
 import { createElement as h, useEffect, useState } from 'react'
 import type { ReactElement } from 'react'
+import { useBridgeLocale } from '@BBeBee/ui-kit-desktop'
 
 export interface IslandArtworkProps {
   artworkUri?: string
@@ -16,6 +17,9 @@ export function IslandArtwork({
   size = 48,
   isVinyl = true,
 }: IslandArtworkProps): ReactElement {
+  // No ctx here (this renders inside the ctx-less mini-player window):
+  // strings resolve through the preload `locale` bridge.
+  const { t } = useBridgeLocale()
   const borderRadius = isVinyl ? '50%' : 8
   const [loadError, setLoadError] = useState(false)
 
@@ -54,7 +58,7 @@ export function IslandArtwork({
     showImage
       ? h('img', {
           src: resolvedUri,
-          alt: title ?? 'Album Art',
+          alt: title ?? t('miniPlayer:islandArtwork.albumArt'),
           referrerPolicy: 'no-referrer',
           crossOrigin: 'anonymous',
           onError: () => setLoadError(true),

@@ -19,7 +19,8 @@ import {
   useDownloadPolicy,
   useDownloadTasks,
 } from '@BBeBee/plugin-download/hooks'
-import { Button, EmptyState, IconButton, Text, nativePrimitives } from '@BBeBee/ui-kit-mobile'
+import { Button, EmptyState, IconButton, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
+import type { UseI18nResult } from '@BBeBee/ui-kit-mobile'
 import { serviceOf } from '@BBeBee/ui-core'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
 import { formatBytes } from '@BBeBee/toolkit'
@@ -27,6 +28,7 @@ import { formatBytes } from '@BBeBee/toolkit'
 const p = () => palettes.dark
 
 export function DownloadsScreen({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const native = nativePrimitives()
   const tasks = useDownloadTasks(ctx)
   const policy = useDownloadPolicy(ctx)
@@ -55,14 +57,14 @@ export function DownloadsScreen({ ctx }: { ctx: Context }): ReactElement {
     h(
       native.View as never,
       { style: { flexDirection: 'row', alignItems: 'center', gap: tokens.space[3] } },
-      h(Text, { variant: 'lg' }, 'Downloads'),
-      h(Text, { variant: 'sm', tone: 'muted', numberOfLines: 1 }, summaryLine(summary)),
+      h(Text, { variant: 'lg' }, t('download:index.downloads')),
+      h(Text, { variant: 'sm', tone: 'muted', numberOfLines: 1 }, summaryLine(t, summary)),
       clearable.length > 0
         ? h(Button, {
             variant: 'secondary',
             onPress: () => void ctx.downloads.clearFinished(),
             testID: 'downloads-clear',
-            children: 'Clear',
+            children: t('app:common.clear'),
           })
         : null,
     ),
@@ -72,17 +74,17 @@ export function DownloadsScreen({ ctx }: { ctx: Context }): ReactElement {
       native.View as never,
       {
         accessibilityRole: 'group',
-        accessibilityLabel: 'Download network policy',
+        accessibilityLabel: t('download:index.downloadNetworkPolicy'),
         style: { flexDirection: 'row', alignItems: 'center', gap: tokens.space[2] },
       },
       h(PolicyToggle, {
-        label: 'Wi-Fi only',
+        label: t('download:index.wiFiOnly'),
         active: policy.wifiOnly,
         onPress: () => void ctx.downloads.setPolicy({ wifiOnly: !policy.wifiOnly }),
         testID: 'downloads-wifi-only',
       }),
       h(PolicyToggle, {
-        label: 'Charging only',
+        label: t('download:index.chargingOnly'),
         active: policy.chargingOnly,
         onPress: () => void ctx.downloads.setPolicy({ chargingOnly: !policy.chargingOnly }),
         testID: 'downloads-charging-only',
@@ -91,14 +93,13 @@ export function DownloadsScreen({ ctx }: { ctx: Context }): ReactElement {
     tasks.length === 0
       ? h(EmptyState, {
           icon: '⬇',
-          title: 'No downloads',
-          description:
-            'A remote track is kept here after it plays once, so the next play needs no network.',
+          title: t('download:index.noDownloads'),
+          description: t('download:index.emptyDescriptionCompact'),
         })
       : null,
-    active.length > 0 ? h(DownloadSection, { ctx, title: 'In progress', tasks: active }) : null,
+    active.length > 0 ? h(DownloadSection, { ctx, title: t('download:index.inProgress'), tasks: active }) : null,
     finished.length > 0
-      ? h(DownloadSection, { ctx, title: 'Downloaded', tasks: finished })
+      ? h(DownloadSection, { ctx, title: t('download:index.downloaded'), tasks: finished })
       : null,
   )
 }
@@ -150,12 +151,15 @@ function PolicyToggle({
   )
 }
 
-function summaryLine(summary: ReturnType<typeof summariseDownloads>): string {
+function summaryLine(t: UseI18nResult['t'], summary: ReturnType<typeof summariseDownloads>): string {
   const parts: string[] = []
-  if (summary.active) parts.push(`${summary.active} in progress`)
-  if (summary.done) parts.push(`${summary.done} · ${formatBytes(summary.bytes)}`)
-  if (summary.failed) parts.push(`${summary.failed} failed`)
-  return parts.length > 0 ? parts.join(' · ') : 'Nothing yet'
+  if (summary.active) parts.push(t('download:index.inProgress2', { active: summary.active }))
+  if (summary.done)
+    parts.push(
+      t('download:index.summaryDownloadedCompact', { done: summary.done, bytes: formatBytes(summary.bytes) }),
+    )
+  if (summary.failed) parts.push(t('download:index.summaryFailed', { failed: summary.failed }))
+  return parts.length > 0 ? parts.join(' · ') : t('download:index.nothingYet')
 }
 
 function DownloadSection({
@@ -177,6 +181,7 @@ function DownloadSection({
 }
 
 function DownloadRow({ ctx, task }: { ctx: Context; task: DownloadTask }): ReactElement {
+  const { t } = useI18n(ctx)
   const native = nativePrimitives()
   const scheme = p()
   const progress = downloadProgress(task)
@@ -201,16 +206,16 @@ function DownloadRow({ ctx, task }: { ctx: Context; task: DownloadTask }): React
       h(
         Text,
         { variant: 'xs', tone: task.state === 'failed' ? 'error' : 'muted', numberOfLines: 2 },
-        statusLine(task),
+        statusLine(t, task),
       ),
       progress !== undefined
-        ? h(ProgressBar, { value: progress, label: `Progress for ${task.title}` })
+        ? h(ProgressBar, { value: progress, label: t('download:download.progressFor', { title: task.title }) })
         : null,
     ),
     h(
       native.View as never,
       { style: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: tokens.space[2] } },
-      ...actionsFor(ctx, task, player),
+      ...actionsFor(t, ctx, task, player),
     ),
   )
 }
@@ -220,6 +225,7 @@ function DownloadRow({ ctx, task }: { ctx: Context; task: DownloadTask }): React
  * offering "Resume" on a running task is an affordance that lies.
  */
 function actionsFor(
+  t: UseI18nResult['t'],
   ctx: Context,
   task: DownloadTask,
   player: PlayerService | undefined,
@@ -234,12 +240,12 @@ function actionsFor(
         onPress: () => void player?.playNow([task.trackUrn]),
         disabled: !player,
         testID: `download-play-${task.id}`,
-        children: 'Play',
+        children: t('download:index.play'),
       }),
       h(IconButton, {
         key: 'remove',
         icon: '🗑',
-        accessibilityLabel: `Delete ${task.title}`,
+        accessibilityLabel: t('download:index.deleteTask', { title: task.title }),
         onPress: () => void ctx.downloads.remove(task.id),
         testID: `download-remove-${task.id}`,
       }),
@@ -253,12 +259,12 @@ function actionsFor(
         variant: 'secondary',
         onPress: () => void ctx.downloads.retry(task.id),
         testID: `download-retry-${task.id}`,
-        children: 'Retry',
+        children: t('app:common.retry'),
       }),
       h(IconButton, {
         key: 'remove',
         icon: '🗑',
-        accessibilityLabel: `Delete ${task.title}`,
+        accessibilityLabel: t('download:index.deleteTask', { title: task.title }),
         onPress: () => void ctx.downloads.remove(task.id),
         testID: `download-remove-${task.id}`,
       }),
@@ -272,21 +278,21 @@ function actionsFor(
           variant: 'secondary',
           onPress: () => void ctx.downloads.resume(task.id),
           testID: `download-resume-${task.id}`,
-          children: 'Resume',
+          children: t('download:index.resume'),
         })
       : h(Button, {
           key: 'pause',
           variant: 'ghost',
           onPress: () => void ctx.downloads.pause(task.id),
           testID: `download-pause-${task.id}`,
-          children: 'Pause',
+          children: t('download:index.pause'),
         }),
   )
   actions.push(
     h(IconButton, {
       key: 'cancel',
       icon: '✕',
-      accessibilityLabel: `Cancel ${task.title}`,
+      accessibilityLabel: t('download:index.cancelTask', { title: task.title }),
       onPress: () => void ctx.downloads.cancel(task.id),
       testID: `download-cancel-${task.id}`,
     }),
@@ -295,25 +301,28 @@ function actionsFor(
 }
 
 /** One line saying where a task is, in the user's terms. */
-function statusLine(task: DownloadTask): string {
+function statusLine(t: UseI18nResult['t'], task: DownloadTask): string {
   const hold = holdLabel(task)
   if (hold) return task.state === 'paused' ? `Paused — ${hold.toLowerCase()}` : hold
   switch (task.state) {
     case 'queued':
-      return 'Queued'
+      return t('download:index.queued')
     case 'running':
       return task.bytesTotal
-        ? `${formatBytes(task.bytesDone)} of ${formatBytes(task.bytesTotal)}`
+        ? t('download:index.bytesOfTotal', {
+            done: formatBytes(task.bytesDone),
+            total: formatBytes(task.bytesTotal),
+          })
         : formatBytes(task.bytesDone)
     case 'paused':
-      return `Paused · ${formatBytes(task.bytesDone)}`
+      return t('download:index.pausedWithBytes', { bytes: formatBytes(task.bytesDone) })
     case 'done':
       // A kept download is the user's to keep; a cache entry is evictable.
-      return task.kept ? 'Downloaded' : 'Cached'
+      return task.kept ? t('download:index.downloaded') : t('download:index.cached')
     case 'failed':
-      return task.error ?? 'Failed'
+      return task.error ?? t('download:index.failed')
     case 'canceled':
-      return 'Canceled'
+      return t('download:index.canceled')
   }
 }
 

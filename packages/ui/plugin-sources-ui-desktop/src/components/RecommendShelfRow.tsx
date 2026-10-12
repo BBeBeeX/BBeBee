@@ -8,7 +8,7 @@ import {
 } from 'react'
 import type { Context } from 'cordis'
 import type { BrowseEntry } from '@BBeBee/protocol'
-import { Text } from '@BBeBee/ui-kit-desktop'
+import { Text, useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
 import { RecommendCard } from './RecommendCard.js'
 
@@ -51,6 +51,7 @@ export function RecommendShelfRow({
   errorMessage,
   onRetry,
 }: RecommendShelfRowProps): ReactElement {
+  const { t } = useI18n(ctx)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isHovered, setIsHovered] = useState(false)
   const [hasOverflow, setHasOverflow] = useState(false)
@@ -164,12 +165,12 @@ export function RecommendShelfRow({
     ),
     // ── Content body ─────────────────────────────────────────────────────────
     status === 'loading'
-      ? h(Text, { variant: 'sm', tone: 'muted' }, 'Loading…')
+      ? h(Text, { variant: 'sm', tone: 'muted' }, t('sources:source.loading'))
       : status === 'error'
         ? h(
             'div',
             { style: { display: 'flex', flexDirection: 'column', gap: tokens.space[2] } },
-            h(Text, { variant: 'sm', tone: 'error' }, `Failed to load: ${errorMessage ?? ''}`),
+            h(Text, { variant: 'sm', tone: 'error' }, t('sources:source.failedToLoad', { message: errorMessage ?? '' })),
             onRetry
               ? h(
                   'button',
@@ -186,7 +187,7 @@ export function RecommendShelfRow({
                       fontSize: 13,
                     },
                   },
-                  'Retry',
+                  t('app:common.retry'),
                 )
               : null,
           )
@@ -221,7 +222,7 @@ export function RecommendShelfRow({
                   h('button', {
                     type: 'button',
                     'data-testid': 'recommend-scroll-left',
-                    'aria-label': 'Scroll left',
+                    'aria-label': t('sources:recommendShelf.scrollLeft'),
                     tabIndex: isHovered ? 0 : -1,
                     onClick: handleScrollLeft,
                     style: arrowButtonStyle,
@@ -329,7 +330,7 @@ export function RecommendShelfRow({
                   h('button', {
                     type: 'button',
                     'data-testid': 'recommend-scroll-right',
-                    'aria-label': 'Scroll right',
+                    'aria-label': t('sources:recommendShelf.scrollRight'),
                     tabIndex: isHovered ? 0 : -1,
                     onClick: handleScrollRight,
                     style: arrowButtonStyle,

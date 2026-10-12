@@ -1,6 +1,6 @@
 import { createElement as h, useEffect, useRef, useState } from 'react'
 import type { ReactElement } from 'react'
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { tablerIcon, useBridgeLocale } from '@BBeBee/ui-kit-desktop'
 import type { DesktopLyricsPayload, DesktopLyricsAction } from './desktop-lyrics-types.js'
 
 const DEFAULT_PAYLOAD: DesktopLyricsPayload = {
@@ -17,8 +17,15 @@ const DEFAULT_PAYLOAD: DesktopLyricsPayload = {
 }
 
 export function DesktopLyricsWindow(): ReactElement {
+  // No Cordis ctx in this window (it never boots the app): UI strings come
+  // from the preload `locale` bridge via `useBridgeLocale`, resolved against
+  // the built-in catalogues with per-key fallback.
+  const { t } = useBridgeLocale()
   const [data, setData] = useState<DesktopLyricsPayload>(DEFAULT_PAYLOAD)
   const [hovered, setHovered] = useState(false)
+  // True once the main process has pushed real lyric data; before that the
+  // placeholder lines render from the catalogue, not the English defaults.
+  const [hasData, setHasData] = useState(false)
 
   /**
    * Manual window drag: a `-webkit-app-region: drag` root would swallow the
@@ -95,11 +102,13 @@ export function DesktopLyricsWindow(): ReactElement {
     // Get current data if available on initial mount
     void (bridge as { getData?: () => Promise<unknown> }).getData?.()?.then((initial) => {
       if (initial) {
+        setHasData(true)
         setData((prev) => ({ ...prev, ...(initial as Partial<DesktopLyricsPayload>) }))
       }
     })
 
     const off = bridge.onData((incoming: unknown) => {
+      setHasData(true)
       setData((prev) => ({ ...prev, ...(incoming as Partial<DesktopLyricsPayload>) }))
     })
 
@@ -124,6 +133,13 @@ export function DesktopLyricsWindow(): ReactElement {
     textColor = '#FFFFFF',
     lineMode = 'double',
   } = data
+
+  // Placeholder lines come from the catalogue until real data arrives, so a
+  // Chinese UI never flashes the English defaults on window open.
+  const displayCurrentLine = hasData
+    ? currentLine
+    : t('app:common.desktopLyrics.defaultCurrentLine')
+  const displayNextLine = hasData ? nextLine : t('app:common.desktopLyrics.defaultNextLine')
 
   // While locked the window is click-through. Main polls the OS cursor and
   // reports window-relative coordinates; the unlock pill shows only while the
@@ -230,7 +246,7 @@ export function DesktopLyricsWindow(): ReactElement {
           'button',
           {
             style: toolbarButtonStyle,
-            title: 'Previous track',
+            title: t('app:common.desktopLyrics.previousTrack'),
             onClick: () => sendAction({ type: 'prev-track' }),
           },
           tablerIcon('skip-back', { size: 18 }),
@@ -240,7 +256,9 @@ export function DesktopLyricsWindow(): ReactElement {
           'button',
           {
             style: toolbarButtonStyle,
-            title: playing ? 'Pause' : 'Play',
+            title: playing
+              ? t('app:common.desktopLyrics.pause')
+              : t('app:common.desktopLyrics.play'),
             onClick: () => sendAction({ type: 'toggle-play' }),
           },
           tablerIcon(playing ? 'pause' : 'play', { size: 18 }),
@@ -250,7 +268,7 @@ export function DesktopLyricsWindow(): ReactElement {
           'button',
           {
             style: toolbarButtonStyle,
-            title: 'Next track',
+            title: t('app:common.desktopLyrics.nextTrack'),
             onClick: () => sendAction({ type: 'next-track' }),
           },
           tablerIcon('skip-forward', { size: 18 }),
@@ -262,7 +280,7 @@ export function DesktopLyricsWindow(): ReactElement {
           'button',
           {
             style: toolbarButtonStyle,
-            title: 'Smaller font',
+            title: t('app:common.desktopLyrics.smallerFont'),
             onClick: () => sendAction({ type: 'set-font-size', size: Math.max(16, fontSize - 2) }),
           },
           'A-',
@@ -272,7 +290,7 @@ export function DesktopLyricsWindow(): ReactElement {
           'button',
           {
             style: toolbarButtonStyle,
-            title: 'Larger font',
+            title: t('app:common.desktopLyrics.largerFont'),
             onClick: () => sendAction({ type: 'set-font-size', size: Math.min(36, fontSize + 2) }),
           },
           'A+',
@@ -284,7 +302,9 @@ export function DesktopLyricsWindow(): ReactElement {
           'button',
           {
             style: { ...toolbarButtonStyle, color: locked ? '#A78BFA' : '#E0E0E0' },
-            title: locked ? 'Unlock' : 'Lock lyrics (click-through)',
+            title: locked
+              ? t('app:common.desktopLyrics.unlock')
+              : t('app:common.desktopLyrics.lockLyrics'),
             onClick: () => sendAction({ type: 'toggle-lock' }),
           },
           tablerIcon(locked ? 'lock' : 'lock-open', { size: 18 }),
@@ -294,7 +314,7 @@ export function DesktopLyricsWindow(): ReactElement {
           'button',
           {
             style: { ...toolbarButtonStyle, color: '#EF4444' },
-            title: 'Close desktop lyrics',
+            title: t('app:common.desktopLyrics.closeDesktopLyrics'),
             onClick: () => sendAction({ type: 'close' }),
           },
           tablerIcon('x', { size: 18 }),
@@ -308,7 +328,7 @@ export function DesktopLyricsWindow(): ReactElement {
         'button',
         {
           ref: unlockRef,
-          title: 'Unlock desktop lyrics',
+          title: t('app:common.desktopLyrics.unlockDesktopLyrics'),
           onClick: () => sendAction({ type: 'toggle-lock' }),
           style: {
             position: 'absolute',
@@ -330,7 +350,7 @@ export function DesktopLyricsWindow(): ReactElement {
           },
         },
         tablerIcon('lock-open', { size: 14 }),
-        'Unlock',
+        t('app:common.desktopLyrics.unlock'),
       ),
     // Current Line
     h(
@@ -353,11 +373,11 @@ export function DesktopLyricsWindow(): ReactElement {
           transition: 'all 0.25s ease',
         },
       },
-      currentLine || '...',
+      displayCurrentLine || '...',
     ),
     // Next Line (if available and double line mode)
     lineMode !== 'single' &&
-      nextLine &&
+      displayNextLine &&
       h(
         'div',
         {
@@ -378,7 +398,7 @@ export function DesktopLyricsWindow(): ReactElement {
             transition: 'all 0.25s ease',
           },
         },
-        nextLine,
+        displayNextLine,
       ),
   )
 }

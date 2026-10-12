@@ -3,9 +3,47 @@ import { describe, expect, it, vi } from 'vitest'
 import { createElement as h } from 'react'
 import { render } from '@testing-library/react'
 import type { Context } from 'cordis'
-import { Context as CordisContext } from 'cordis'
+import { Context as CordisContext, Service } from 'cordis'
 import { apply, name, inject, VisualizerCanvas, VisualizerSettingsCard } from './index.js'
 import { DEFAULT_VISUALIZER_SETTINGS } from '@BBeBee/protocol'
+import visualizerLocales from '../../../feature/plugin-i18n/src/locales/visualizer.json'
+
+/**
+ * English stub for `ctx.i18n` — resolves keys against the shipped en
+ * catalogue so assertions keep reading the English copy. Test-only; the
+ * real service is provided by `@BBeBee/plugin-i18n` in the app.
+ */
+class I18nStub extends Service {
+  public locale = 'en'
+  private en: Record<string, string> = {}
+
+  constructor(ctx: Context) {
+    super(ctx, 'i18n')
+    const flatten = (node: unknown, prefix: string): void => {
+      if (typeof node === 'string') {
+        this.en[prefix] = node
+        return
+      }
+      if (typeof node === 'object' && node !== null) {
+        for (const [k, v] of Object.entries(node)) flatten(v, prefix ? `${prefix}.${k}` : k)
+      }
+    }
+    flatten((visualizerLocales as { en: unknown }).en, '')
+  }
+
+  t = (key: string, params?: Record<string, string | number>): string => {
+    const path = key.startsWith('visualizer:') ? key.slice('visualizer:'.length) : null
+    let text = path !== null && this.en[path] !== undefined ? this.en[path]! : key
+    if (params) {
+      text = text.replace(/\{(\w+)\}/g, (m: string, p: string) =>
+        params[p] !== undefined ? String(params[p]) : m,
+      )
+    }
+    return text
+  }
+
+  onLocaleChange = (): (() => void) => () => {}
+}
 
 describe('plugin-visualizer-ui-desktop', () => {
   it('declares correct name and dependencies', () => {
@@ -44,8 +82,9 @@ describe('plugin-visualizer-ui-desktop', () => {
     dispose()
   })
 
-  it('renders VisualizerCanvas and VisualizerSettingsCard without throwing', () => {
+  it('renders VisualizerCanvas and VisualizerSettingsCard without throwing', async () => {
     const mockCtx = new CordisContext() as unknown as Context
+    await mockCtx.plugin(I18nStub)
     const untyped = mockCtx as unknown as Record<string, unknown>
     const mockSettings = { ...DEFAULT_VISUALIZER_SETTINGS }
 

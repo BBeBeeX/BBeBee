@@ -6,6 +6,7 @@ import { Context, Service } from '@BBeBee/kernel'
 import type { AppSettings, SettingsService, SettingsContribution, CacheClass, CacheStats, DspService, ChainEntry, EffectDefinition } from '@BBeBee/protocol'
 import { DEFAULT_APP_SETTINGS } from '@BBeBee/protocol'
 import { configureNative, Text, nativePrimitives } from '@BBeBee/ui-kit-mobile'
+import settingsCatalogue from '../../../feature/plugin-i18n/src/locales/settings.json'
 import pluginSettingsUi, { SettingsScreen } from './index.js'
 
 afterEach(cleanup)
@@ -151,9 +152,45 @@ class SettingsStub extends Service implements Partial<SettingsService> {
     getParams = () => ({})
   }
 
+  /**
+   * Minimal `i18n` service stub resolving `settings:*` keys against the real
+   * catalogue, so the `useI18n` binding in the screens resolves to the English
+   * copy the assertions below check. Mirrors `DefaultI18nStub` in
+   * `apps/desktop/renderer/Shell.test.tsx`.
+   */
+  class DefaultI18nStub extends Service {
+    static override readonly name = 'i18n'
+    locale = 'en'
+    private listeners = new Set<(locale: string) => void>()
+
+    constructor(ctx: Context) {
+      super(ctx, 'i18n')
+    }
+
+    t = (key: string, params?: Record<string, string | number>): string => {
+      const sep = key.indexOf(':')
+      if (sep < 0) return key
+      const catalogue = settingsCatalogue.en as Record<string, unknown>
+      let cur: unknown = catalogue
+      for (const part of key.slice(sep + 1).split('.')) {
+        cur = (cur as Record<string, unknown> | undefined)?.[part]
+      }
+      if (typeof cur !== 'string') return key
+      return params
+        ? cur.replace(/\{(\w+)\}/g, (_, k: string) => String(params[k] ?? `{${k}}`))
+        : cur
+    }
+
+    onLocaleChange = (cb: (locale: string) => void): (() => void) => {
+      this.listeners.add(cb)
+      return () => void this.listeners.delete(cb)
+    }
+  }
+
   async function createHarness() {
     const ctx = new Context()
     await ctx.plugin(UiStub)
+    await ctx.plugin(DefaultI18nStub)
     await ctx.plugin(SettingsStub)
     await ctx.plugin(CacheStub)
     await ctx.plugin(DspStub)

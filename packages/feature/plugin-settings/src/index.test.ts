@@ -78,6 +78,23 @@ describe('plugin-settings', () => {
     expect(settings.language).toBe(DEFAULT_APP_SETTINGS.language)
   })
 
+  it('defaults new installs to follow-system without touching stored choices', async () => {
+    // Fresh install: no stored language → the 'system' default, resolved
+    // against the OS locale at runtime by ctx.i18n (BCP 47 → en fallback).
+    const fresh = await harness()
+    await fresh.plugin(SettingsPlugin)
+    await tick()
+    expect(DEFAULT_APP_SETTINGS.language).toBe('system')
+    expect(fresh.settings.getSync().language).toBe('system')
+
+    // Existing user: a stored explicit choice always wins over the default —
+    // changing the default must never rewrite it.
+    const existing = await harness({ language: 'zh' })
+    await existing.plugin(SettingsPlugin)
+    await tick()
+    expect(existing.settings.getSync().language).toBe('zh')
+  })
+
   it('updates settings, persists them, and emits settings/changed event', async () => {
     const ctx = await harness()
     await ctx.plugin(SettingsPlugin)

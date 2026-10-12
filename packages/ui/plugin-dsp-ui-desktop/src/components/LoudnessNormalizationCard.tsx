@@ -3,7 +3,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { LoudnessNormalizationMode, SettingsService } from '@BBeBee/protocol'
 import { serviceOf, useServiceState } from '@BBeBee/toolkit/hooks'
-import { Button } from '@BBeBee/ui-kit-desktop'
+import { Button, useI18n } from '@BBeBee/ui-kit-desktop'
 import { useDsp } from '@BBeBee/plugin-dsp/hooks'
 
 function Switch({
@@ -222,6 +222,7 @@ function RowWrapper({
 }
 
 export function LoudnessNormalizationCard({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const { chain, setEnabled, setParam } = useDsp(ctx)
   const normEntry = chain.find((c) => c.effectId === 'normalize')
 
@@ -261,19 +262,19 @@ export function LoudnessNormalizationCard({ ctx }: { ctx: Context }): ReactEleme
   return h(
     SectionWrapper,
     {
-      title: 'Loudness normalization between tracks (Loudness Normalization)',
-      description: 'Automatically balances volume differences between tracks based on ReplayGain and EBU R128, eliminating jarring loudness jumps',
+      title: t('dsp:loudnessNormalization.loudnessNormalizationBetweenTracksLoudness'),
+      description: t('dsp:loudnessNormalization.automaticallyBalancesVolumeDifferencesBetween'),
     },
     h(
       RowWrapper,
       {
-        title: 'Enable loudness normalization',
+        title: t('dsp:loudnessNormalization.enableLoudnessNormalization'),
         description: isEnabled
-          ? 'On: automatically calibrates the perceived loudness of every song to a standard level, preventing sudden volume jumps between tracks'
-          : 'Off: plays back at the original gain level of the audio source files',
+          ? t('dsp:loudnessNormalization.onAutomaticallyCalibrates')
+          : t('dsp:loudnessNormalization.offPlaysBackOriginal'),
         action: h(Switch, {
           checked: isEnabled,
-          accessibilityLabel: 'Loudness normalization between tracks',
+          accessibilityLabel: t('dsp:loudnessNormalization.loudnessNormalizationAria'),
           onChange: handleToggle,
         }),
         borderBottom: isEnabled,
@@ -285,20 +286,20 @@ export function LoudnessNormalizationCard({ ctx }: { ctx: Context }): ReactEleme
         null,
         h(RowWrapper, {
           isNested: true,
-          title: 'Normalization mode',
+          title: t('dsp:loudnessNormalization.normalizationMode'),
           description:
             currentMode === 'album'
-              ? 'Album mode: preserves the dynamic contrast between tracks on the same album, ideal for playing an album straight through'
+              ? t('dsp:loudnessNormalization.albumModePreservesDynamic')
               : currentMode === 'dynamic'
-                ? 'Dynamic EBU R128: real-time loudness measurement with smooth normalization, ideal for sources without ReplayGain tags'
-                : 'Track mode: matches each track to the target loudness independently, ideal for mixed playlists and shuffle playback',
+                ? t('dsp:loudnessNormalization.dynamicEbuR128Realtime')
+                : t('dsp:loudnessNormalization.trackModeMatchesEach'),
           action: h(
             'div',
             { style: { display: 'flex', gap: 6 } },
             [
-              { id: 'track' as LoudnessNormalizationMode, label: 'Track mode' },
-              { id: 'album' as LoudnessNormalizationMode, label: 'Album mode' },
-              { id: 'dynamic' as LoudnessNormalizationMode, label: 'Dynamic R128' },
+              { id: 'track' as LoudnessNormalizationMode, label: t('dsp:loudnessNormalization.trackMode') },
+              { id: 'album' as LoudnessNormalizationMode, label: t('dsp:loudnessNormalization.albumMode') },
+              { id: 'dynamic' as LoudnessNormalizationMode, label: t('dsp:loudnessNormalization.dynamicR128') },
             ].map((m) =>
               h(Button, {
                 key: m.id,
@@ -311,16 +312,18 @@ export function LoudnessNormalizationCard({ ctx }: { ctx: Context }): ReactEleme
         }),
         h(RowWrapper, {
           isNested: true,
-          title: 'Target loudness (Target LUFS)',
-          description: `Reference target: ${currentLufs} LUFS (matches streaming platforms and equal-loudness contours)`,
+          title: t('dsp:loudnessNormalization.targetLoudnessTargetLUFS'),
+          description: t('dsp:loudnessNormalization.referenceTargetMatchesStreaming', {
+            value: currentLufs,
+          }),
           borderBottom: false,
           action: h(
             'div',
             { style: { display: 'flex', gap: 6 } },
             [
-              { lufs: -14, label: 'Streaming (-14)' },
-              { lufs: -18, label: 'Classical quiet (-18)' },
-              { lufs: -11, label: 'Loud (-11)' },
+              { lufs: -14, label: t('dsp:loudnessNormalization.streaming') },
+              { lufs: -18, label: t('dsp:loudnessNormalization.classicalQuiet') },
+              { lufs: -11, label: t('dsp:loudnessNormalization.loud') },
             ].map((item) =>
               h(Button, {
                 key: item.lufs,

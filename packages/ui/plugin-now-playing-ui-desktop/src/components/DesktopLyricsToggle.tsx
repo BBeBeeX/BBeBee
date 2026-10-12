@@ -4,12 +4,14 @@ import type { Context } from 'cordis'
 import type { DesktopLyricsService, DesktopLyricsSettings, SettingsService } from '@BBeBee/protocol'
 import { serviceOf, useServiceState } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
+import { useI18n } from '@BBeBee/ui-kit-desktop'
 
 /**
  * Toggle button for floating desktop lyrics.
  * Synchronized bidirectionally with ctx.desktopLyrics and ctx.settings.
  */
 export function DesktopLyricsToggle({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const isVisible = useServiceState<boolean>(
     ctx,
     ['desktop-lyrics/changed', 'settings/changed'],
@@ -44,8 +46,8 @@ export function DesktopLyricsToggle({ ctx }: { ctx: Context }): ReactElement {
     'button',
     {
       type: 'button',
-      'aria-label': isVisible ? 'Hide desktop lyrics' : 'Show desktop lyrics',
-      title: isVisible ? 'Hide desktop lyrics' : 'Show desktop lyrics',
+      'aria-label': isVisible ? t('nowPlaying:desktopLyricsToggle.hideDesktopLyrics') : t('nowPlaying:desktopLyricsToggle.showDesktopLyrics'),
+      title: isVisible ? t('nowPlaying:desktopLyricsToggle.hideDesktopLyrics') : t('nowPlaying:desktopLyricsToggle.showDesktopLyrics'),
       onClick: handleToggle,
       style: {
         display: 'inline-flex',

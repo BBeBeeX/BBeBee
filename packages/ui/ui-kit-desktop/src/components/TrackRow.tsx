@@ -1,14 +1,31 @@
 import { createElement as h } from 'react'
 import type React from 'react'
+import type { Context } from 'cordis'
 import { tokens } from '@BBeBee/ui-tokens'
 import type { TrackRowProps } from '@BBeBee/ui-core'
+import { serviceOf } from '@BBeBee/ui-core'
+import type { I18nService } from '@BBeBee/protocol'
 import { common, useHover } from '../theme.js'
 import { Artwork } from './Artwork.js'
 import { Text } from './Text.js'
 import { IconButton } from './Button.js'
 
-export function TrackRow(props: TrackRowProps) {
+export function TrackRow(
+  props: TrackRowProps & {
+    /**
+     * Optional Cordis context. When provided, the icon-button labels are
+     * translated via `useI18n`; without it the built-in English copy renders.
+     */
+    ctx?: Context
+  },
+) {
   const { active = false, showArtwork = true, showAlbum = false } = props
+  // Deliberately hook-free: the kit's tree() tests invoke components as plain
+  // functions. Locale changes reach this component because its
+  // useI18n-subscribed ancestors re-render it.
+  const i18n = props.ctx ? serviceOf<I18nService>(props.ctx, 'i18n') : undefined
+  // English copy stays verbatim until a caller threads `ctx` (i18n sweep).
+  const t = (key: string, fallback: string): string => i18n?.t(key) ?? fallback
   const [hovered, hoverProps] = useHover()
   const artists = props.track.artists?.map((a) => a.name).join(', ')
 
@@ -73,7 +90,9 @@ export function TrackRow(props: TrackRowProps) {
           { onClick: (e: { stopPropagation: () => void }) => e.stopPropagation() },
           h(IconButton, {
             icon: props.track.loved ? 'heart-filled' : 'heart',
-            accessibilityLabel: props.track.loved ? 'Unlike' : 'Like',
+            accessibilityLabel: props.track.loved
+              ? t('app:common.track.unlike', 'Unlike')
+              : t('app:common.track.like', 'Like'),
             variant: props.track.loved ? 'primary' : 'ghost',
             onPress: props.onToggleLoved,
           }),
@@ -85,7 +104,7 @@ export function TrackRow(props: TrackRowProps) {
           { onClick: (e: { stopPropagation: () => void }) => e.stopPropagation() },
           h(IconButton, {
             icon: 'download',
-            accessibilityLabel: 'Download',
+            accessibilityLabel: t('app:common.track.download', 'Download'),
             onPress: props.onDownload,
           }),
         )
@@ -103,7 +122,7 @@ export function TrackRow(props: TrackRowProps) {
               visibility: hovered ? 'visible' : 'hidden',
             },
           },
-          h(IconButton, { icon: 'dots', accessibilityLabel: 'More', onPress: () => {} }),
+          h(IconButton, { icon: 'dots', accessibilityLabel: t('app:common.track.more', 'More'), onPress: () => {} }),
         )
       : null,
   )

@@ -3,7 +3,7 @@ import type { ChangeEvent, MouseEvent as ReactMouseEvent, ReactElement } from 'r
 import type { Context } from 'cordis'
 import type { Album, PlayerService, SourcesService, Track } from '@BBeBee/protocol'
 import { serviceOf, type MenuAnchor, type MenuItemSpec } from '@BBeBee/ui-core'
-import { ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, List, SaveToPlaylistPopover, StickyDetailBar, Text, tablerIcon, useDetailBarCollapse, viewModeMenuItems, useViewMode, headerGradient } from '@BBeBee/ui-kit-desktop'
+import { ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, List, SaveToPlaylistPopover, StickyDetailBar, Text, tablerIcon, useDetailBarCollapse, viewModeMenuItems, useViewMode, headerGradient, useI18n } from '@BBeBee/ui-kit-desktop'
 import { sortMenuItems, useTrackMenu } from '@BBeBee/ui-menus'
 import { tokens } from '@BBeBee/ui-tokens'
 import { CachedArtwork } from '../components/CachedArtwork.js'
@@ -33,8 +33,9 @@ function LocalAlbumRow({
   onOpen: () => void
   onPlay?: () => void
 }): ReactElement {
+  const { t } = useI18n(ctx)
   const [hovered, setHovered] = useState(false)
-  const artists = album.artists?.map((a) => a.name).join(', ') || 'Unknown artist'
+  const artists = album.artists?.map((a) => a.name).join(', ') || t('library:library.unknownArtist')
 
   return h(
     'div',
@@ -77,8 +78,8 @@ function LocalAlbumRow({
             {
               type: 'button',
               'data-testid': `local-album-play-${album.urn}`,
-              'aria-label': `Play ${album.title}`,
-              title: `Play ${album.title}`,
+              'aria-label': t('library:library.playItem', { title: album.title }),
+              title: t('library:library.playItem', { title: album.title }),
               onClick: (e: ReactMouseEvent) => {
                 e.stopPropagation()
                 onPlay()
@@ -243,6 +244,7 @@ export function LocalMusicScreen({
   highlightUrn,
   highlightUrns,
 }: LocalMusicScreenProps): ReactElement {
+  const { t } = useI18n(ctx)
   const [tracks, setTracks] = useState<readonly Track[]>([])
   const [albums, setAlbums] = useState<readonly Album[]>([])
   const [viewMode, setViewMode] = useState<'tracks' | 'albums'>('tracks')
@@ -312,6 +314,7 @@ export function LocalMusicScreen({
       setLoading(false)
       return
     }
+    const unknownAlbumLabel = t('library:localAlbum.unknownAlbum')
 
     const loadAlbums = fetchAllLocalAlbums(sources).catch(() => [] as Album[])
 
@@ -331,7 +334,7 @@ export function LocalMusicScreen({
           // Synthesize albums from local tracks if listAlbums returned empty
           const map = new Map<string, Album>()
           for (const t of loadedTracks) {
-            const albumTitle = t.albumTitle || 'Unknown album'
+            const albumTitle = t.albumTitle || unknownAlbumLabel
             const key = t.albumUrn || `BBeBee:local:album:${encodeURIComponent(albumTitle)}`
             if (!map.has(key)) {
               map.set(key, {
@@ -355,7 +358,7 @@ export function LocalMusicScreen({
         setError(err instanceof Error ? err.message : String(err))
         setLoading(false)
       })
-  }, [ctx])
+  }, [ctx, t])
 
   useEffect(() => {
     reload()
@@ -441,7 +444,7 @@ export function LocalMusicScreen({
     const toPlay = Array.from(selectedUrns)
     if (toPlay.length > 0) {
       void player?.playNow(toPlay, {
-        context: { kind: 'local', label: 'Local music' },
+        context: { kind: 'local', label: t('library:localMusic.localMusic') },
       })
     }
   }
@@ -478,21 +481,21 @@ export function LocalMusicScreen({
       return [
         {
           id: 'batch-play',
-          label: 'Play selected',
+          label: t('library:favorites.playSelected'),
           icon: tablerIcon('play', { size: 20 }),
           disabled: selectedUrns.size === 0,
           onSelect: handleBatchPlay,
         },
         {
           id: 'batch-add',
-          label: 'Add to playlist',
+          label: t('library:trackLibraryActionButton.addToPlaylist2'),
           icon: tablerIcon('plus', { size: 20 }),
           disabled: selectedUrns.size === 0,
           onSelect: () => handleBatchAddToPlaylist(),
         },
         {
           id: 'batch-delete',
-          label: 'Delete',
+          label: t('library:localMusic.delete'),
           icon: tablerIcon('trash', { size: 20 }),
           tone: 'danger',
           disabled: selectedUrns.size === 0,
@@ -500,7 +503,7 @@ export function LocalMusicScreen({
         },
         {
           id: 'batch-exit',
-          label: 'Exit batch operations',
+          label: t('library:favorites.exitBatchOperations'),
           icon: tablerIcon('x', { size: 20 }),
           divider: true,
           onSelect: handleExitBatch,
@@ -511,12 +514,12 @@ export function LocalMusicScreen({
     return [
       {
         id: 'batch-operations',
-        label: 'Batch operations',
+        label: t('library:favorites.batchOperations'),
         icon: tablerIcon('list-check', { size: 20 }),
         onSelect: () => setIsBatchMode(true),
       },
     ]
-  }, [isBatchMode, selectedUrns, sortedTrackUrns])
+  }, [isBatchMode, selectedUrns, sortedTrackUrns, t])
 
   const albumUrnByTitle = useMemo(() => {
     const map = new Map<string, string>()
@@ -588,28 +591,28 @@ export function LocalMusicScreen({
   }
 
   const trackSortLabelMap: Record<LocalTrackSortKey, string> = {
-    default: 'Default order',
-    title: 'Title',
-    artist: 'Artist',
-    album: 'Album',
-    duration: 'Duration',
+    default: t('library:favorites.defaultOrder'),
+    title: t('library:favorites.title'),
+    artist: t('library:favorites.artist'),
+    album: t('library:favorites.album'),
+    duration: t('library:favorites.duration'),
   }
 
   const albumSortLabelMap: Record<LocalAlbumSortKey, string> = {
-    default: 'Default order',
-    title: 'Album name',
-    artist: 'Artist',
-    year: 'Year',
-    count: 'Track count',
+    default: t('library:favorites.defaultOrder'),
+    title: t('library:localMusic.albumName'),
+    artist: t('library:favorites.artist'),
+    year: t('library:localMusic.year'),
+    count: t('library:localMusic.trackCount'),
   }
 
   const trackSortItems = sortMenuItems(
     [
-      { id: 'default', label: 'Default order' },
-      { id: 'title', label: 'Title' },
-      { id: 'artist', label: 'Artist' },
-      { id: 'album', label: 'Album' },
-      { id: 'duration', label: 'Duration' },
+      { id: 'default', label: t('library:favorites.defaultOrder') },
+      { id: 'title', label: t('library:favorites.title') },
+      { id: 'artist', label: t('library:favorites.artist') },
+      { id: 'album', label: t('library:favorites.album') },
+      { id: 'duration', label: t('library:favorites.duration') },
     ],
     trackSortKey,
     (id) => setTrackSortKey(id as LocalTrackSortKey),
@@ -618,11 +621,11 @@ export function LocalMusicScreen({
 
   const albumSortItems = sortMenuItems(
     [
-      { id: 'default', label: 'Default order' },
-      { id: 'title', label: 'Album name' },
-      { id: 'artist', label: 'Artist' },
-      { id: 'year', label: 'Year' },
-      { id: 'count', label: 'Track count' },
+      { id: 'default', label: t('library:favorites.defaultOrder') },
+      { id: 'title', label: t('library:localMusic.albumName') },
+      { id: 'artist', label: t('library:favorites.artist') },
+      { id: 'year', label: t('library:localMusic.year') },
+      { id: 'count', label: t('library:localMusic.trackCount') },
     ],
     albumSortKey,
     (id) => setAlbumSortKey(id as LocalAlbumSortKey),
@@ -634,17 +637,17 @@ export function LocalMusicScreen({
       size,
       iconSize,
       testID,
-      ariaLabel: 'Play all',
+      ariaLabel: t('library:favorites.playAll'),
       onPress: () =>
         sortedTrackUrns[0] &&
-        player?.playNow(sortedTrackUrns, { context: { kind: 'local', label: 'Local music' } }),
+        player?.playNow(sortedTrackUrns, { context: { kind: 'local', label: t('library:localMusic.localMusic') } }),
       disabled: sortedTrackUrns.length === 0,
     })
 
   // Parts that scroll away with the list: hero, view switcher, action bar, (tracks-mode) table header.
   // The sticky bar rides the sticky slot / a direct child of the scroller.
   const stickyBar = h(StickyDetailBar, {
-    title: 'Local music',
+    title: t('library:localMusic.localMusic'),
     progress: collapse.slide,
     docked: collapse.docked,
     playButton: renderPlayButton(48, 24, 'local-music-play-sticky'),
@@ -655,12 +658,12 @@ export function LocalMusicScreen({
     'div',
     { style: { background: headerGradient(undefined) } },
     h(DetailHero, {
-      eyebrow: 'Local music',
-      title: viewMode === 'tracks' ? 'Local files' : 'Local albums',
+      eyebrow: t('library:localMusic.localMusic'),
+      title: viewMode === 'tracks' ? t('library:localMusic.localFiles') : t('library:localMusic.localAlbums'),
       subtitle:
         viewMode === 'tracks'
-          ? `Files from this computer • ${tracks.length} songs`
-          : `Albums from this computer • ${albums.length} albums`,
+          ? t('library:localMusic.filesFromThisComputerSongs', { length: tracks.length })
+          : t('library:localMusic.albumsFromThisComputerAlbums', { length: albums.length }),
     }),
     // View Mode Switcher: [ Songs ]  [ Albums ]
     h(
@@ -692,7 +695,7 @@ export function LocalMusicScreen({
             transition: 'all 0.15s ease',
           },
         },
-        'Songs',
+        t('library:localMusic.songs'),
       ),
       h(
         'button',
@@ -712,7 +715,7 @@ export function LocalMusicScreen({
             transition: 'all 0.15s ease',
           },
         },
-        'Albums',
+        t('library:libraryToolbar.albums'),
       ),
     ),
     // Action Bar
@@ -736,12 +739,12 @@ export function LocalMusicScreen({
           'button',
           {
             type: 'button',
-            title: 'Shuffle',
+            title: t('library:favorites.shuffle'),
             style: { background: 'none', border: 'none', color: 'var(--bb-text-secondary, #b3b3b3)', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
             onClick: () => {
               if (sortedTrackUrns.length > 0) {
                 const shuffled = [...sortedTrackUrns].sort(() => Math.random() - 0.5)
-                void player?.playNow(shuffled, { context: { kind: 'local', label: 'Local music' } })
+                void player?.playNow(shuffled, { context: { kind: 'local', label: t('library:localMusic.localMusic') } })
               }
             },
           },
@@ -752,7 +755,7 @@ export function LocalMusicScreen({
           {
             type: 'button',
             'data-testid': 'local-music-more-trigger',
-            title: 'More options',
+            title: t('library:expandedLibrary.moreOptions'),
             onClick: (e: ReactMouseEvent) => {
               const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
               setMoreMenuAnchor({ x: rect.left, y: rect.bottom + 6 })
@@ -781,7 +784,7 @@ export function LocalMusicScreen({
           tablerIcon('search', { size: 18, color: 'var(--bb-text-secondary, #b3b3b3)' }),
           h('input', {
             type: 'text',
-            placeholder: viewMode === 'tracks' ? 'Search local files' : 'Search local albums',
+            placeholder: viewMode === 'tracks' ? t('library:localMusic.searchLocalFiles') : t('library:localMusic.searchLocalAlbums'),
             value: searchQuery,
             onChange: (e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value),
             style: {
@@ -799,7 +802,7 @@ export function LocalMusicScreen({
           {
             type: 'button',
             onClick: () => ctx.ui.navigate('scanner.settings'),
-            title: 'Scan settings',
+            title: t('library:localMusic.scanSettings'),
             style: {
               background: 'none',
               border: 'none',
@@ -827,7 +830,7 @@ export function LocalMusicScreen({
             {
               type: 'button',
               'data-testid': 'local-music-sort-trigger',
-              title: 'Sort by',
+              title: t('library:favorites.sortBy'),
               onClick: (e: ReactMouseEvent) => {
                 const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
                 setSortMenuAnchor({ x: rect.left, y: rect.bottom + 6 })
@@ -852,6 +855,7 @@ export function LocalMusicScreen({
     ),
     isBatchMode && viewMode === 'tracks'
       ? h(BatchActionBar, {
+          ctx,
           selectedCount: selectedUrns.size,
           totalCount: sortedTrackUrns.length,
           allSelected,
@@ -859,7 +863,7 @@ export function LocalMusicScreen({
           onBatchPlay: handleBatchPlay,
           onBatchAddToPlaylist: (anchor) => handleBatchAddToPlaylist(anchor),
           onBatchDelete: handleBatchDelete,
-          deleteLabel: 'Delete',
+          deleteLabel: t('library:localMusic.delete'),
           onExitBatch: handleExitBatch,
         })
       : null,
@@ -872,12 +876,12 @@ export function LocalMusicScreen({
   const tableHeaderNode = viewMode === 'tracks'
     ? h(DetailTableHeader, {
         testID: 'local-table-header',
-        accessibilityLabel: 'Local music',
+        accessibilityLabel: t('library:localMusic.localMusic'),
         columns: [
           { key: 'default', label: '#', testID: 'local-sort-default', width: 40, align: 'center' },
-          { key: 'title', label: 'Title', testID: 'local-sort-title', flex: 2, paddingLeft: 12 },
-          { key: 'artist', label: 'Artist', plain: true, flex: 1, visible: trackViewMode === 'compact' },
-          { key: 'album', label: 'Album', testID: 'local-sort-album', flex: 1.5, paddingLeft: 8 },
+          { key: 'title', label: t('library:favorites.title'), testID: 'local-sort-title', flex: 2, paddingLeft: 12 },
+          { key: 'artist', label: t('library:favorites.artist'), plain: true, flex: 1, visible: trackViewMode === 'compact' },
+          { key: 'album', label: t('library:favorites.album'), testID: 'local-sort-album', flex: 1.5, paddingLeft: 8 },
           { key: 'duration', label: '', icon: tablerIcon('clock', { size: 18 }), testID: 'local-sort-duration', width: 120, align: 'right', paddingRight: 40 },
         ] satisfies DetailColumnSpec[],
         sortKey: trackSortKey,
@@ -892,13 +896,13 @@ export function LocalMusicScreen({
       ? undefined
       : h(DetailTableHeader, {
           testID: 'local-albums-table-header',
-          accessibilityLabel: 'Local albums',
+          accessibilityLabel: t('library:localMusic.localAlbums'),
           columns: [
             { key: 'default', label: '#', testID: 'local-album-sort-default', width: 40, align: 'center' },
-            { key: 'title', label: 'Album', testID: 'local-album-sort-title', flex: 2, paddingLeft: 12 },
-            { key: 'artist', label: 'Artist', testID: 'local-album-sort-artist', flex: 1.5, visible: albumViewMode === 'compact' },
-            { key: 'year', label: 'Year', testID: 'local-album-sort-year', flex: 1 },
-            { key: 'count', label: 'Track count', testID: 'local-album-sort-count', width: 100, align: 'right' },
+            { key: 'title', label: t('library:favorites.album'), testID: 'local-album-sort-title', flex: 2, paddingLeft: 12 },
+            { key: 'artist', label: t('library:favorites.artist'), testID: 'local-album-sort-artist', flex: 1.5, visible: albumViewMode === 'compact' },
+            { key: 'year', label: t('library:localMusic.year'), testID: 'local-album-sort-year', flex: 1 },
+            { key: 'count', label: t('library:localMusic.trackCount'), testID: 'local-album-sort-count', width: 100, align: 'right' },
           ] satisfies DetailColumnSpec[],
           sortKey: albumSortKey,
           sortDirection: albumSortOrder,
@@ -908,13 +912,13 @@ export function LocalMusicScreen({
 
   // Album mode content (tiled grid or row list) sits directly in the scroll flow, with no scroller of its own.
   const albumsContent = loading
-    ? h(EmptyState, { key: 'album-loading', title: 'Loading…' })
+    ? h(EmptyState, { key: 'album-loading', title: t('library:collection.loading') })
     : sortedAlbums.length === 0
     ? h(EmptyState, {
         key: 'album-empty',
         icon: 'disc',
-        title: 'No local albums yet',
-        description: 'After adding a local music folder with album metadata, albums will appear here.',
+        title: t('library:localMusic.noLocalAlbumsYet'),
+        description: t('library:localMusic.afterAddingALocalMusic'),
       })
     : albumViewMode === 'tiled'
     ? h(
@@ -948,7 +952,7 @@ export function LocalMusicScreen({
                 const urns = albumTracks.map((t) => t.urn)
                 if (urns[0]) {
                   void player?.playNow(urns, {
-                    context: { kind: 'album', label: album.title ?? 'Local music' },
+                    context: { kind: 'album', label: album.title ?? t('library:localMusic.localMusic') },
                   })
                 }
               },
@@ -974,7 +978,7 @@ export function LocalMusicScreen({
               const urns = albumTracks.map((t) => t.urn)
               if (urns[0]) {
                 void player?.playNow(urns, {
-                  context: { kind: 'album', label: album.title ?? 'Local music' },
+                  context: { kind: 'album', label: album.title ?? t('library:localMusic.localMusic') },
                 })
               }
             },
@@ -985,7 +989,7 @@ export function LocalMusicScreen({
   return h(
     'section',
     {
-      'aria-label': 'Local music',
+      'aria-label': t('library:localMusic.localMusic'),
       style: {
         display: 'flex',
         flexDirection: 'column',
@@ -1001,7 +1005,7 @@ export function LocalMusicScreen({
           'div',
           { key: 'track-list-container', ref: collapse.scrollerRef, style: { flex: 1, minHeight: 0 } },
           loading
-            ? h('div', { style: { overflowY: 'auto', height: '100%' } }, stickyBar, headerNode, h(EmptyState, { title: 'Loading…' }))
+            ? h('div', { style: { overflowY: 'auto', height: '100%' } }, stickyBar, headerNode, h(EmptyState, { title: t('library:collection.loading') }))
             : h(List<Track>, {
                 testID: 'local-tracks-list',
                 header: headerNode,
@@ -1013,25 +1017,25 @@ export function LocalMusicScreen({
                 keyExtractor: (t) => t.urn,
                 empty: h(EmptyState, {
                   icon: 'folder',
-                  title: 'No local music yet',
-                  description: 'After adding a music folder, the scanned songs will appear here.',
+                  title: t('library:localMusic.noLocalMusicYet'),
+                  description: t('library:localMusic.afterAddingAMusicFolder'),
                 }),
-                renderItem: (t, index) =>
+                renderItem: (track, index) =>
                   h(LibraryTrackRow, {
                     ctx,
-                    track: t,
+                    track,
                     index,
                     batchMode: isBatchMode,
-                    selected: selectedUrns.has(t.urn),
-                    onToggleSelect: () => handleToggleSelect(t.urn),
-                    inLibrary: isTrackInLibrary(t),
-                    highlighted: activeHighlights.has(t.urn),
+                    selected: selectedUrns.has(track.urn),
+                    onToggleSelect: () => handleToggleSelect(track.urn),
+                    inLibrary: isTrackInLibrary(track),
+                    highlighted: activeHighlights.has(track.urn),
                     compact: trackViewMode === 'compact',
                     onPress: () =>
-                      player?.playFromContext(t.urn, sortedTrackUrns, {
-                        context: { kind: 'local', label: 'Local music' },
+                      player?.playFromContext(track.urn, sortedTrackUrns, {
+                        context: { kind: 'local', label: t('library:localMusic.localMusic') },
                       }),
-                    onMore: (anchor) => menu.open({ track: t }, anchor),
+                    onMore: (anchor) => menu.open({ track }, anchor),
                     onAddToFavorites: handleAddToFavorites,
                     onOpenPlaylistMenu: openAddToPlaylistMenu,
                     onOpenAlbum: handleOpenAlbum,
@@ -1060,7 +1064,7 @@ export function LocalMusicScreen({
       x: moreMenuAnchor?.x ?? 0,
       y: moreMenuAnchor?.y ?? 0,
       items: moreMenuItems,
-      title: 'More options',
+      title: t('library:expandedLibrary.moreOptions'),
     }),
     h(ContextMenu, {
       open: sortMenuAnchor !== null,
@@ -1073,7 +1077,7 @@ export function LocalMusicScreen({
           : viewModeMenuItems(albumSortItems, albumViewMode, setAlbumViewMode, {
               allowTiled: true,
             }),
-      title: 'Sort by',
+      title: t('library:favorites.sortBy'),
     }),
   )
 }

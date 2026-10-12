@@ -12,7 +12,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { AppSettings, RegistryUpdate } from '@BBeBee/protocol'
 import { serviceOf } from '@BBeBee/toolkit/hooks'
-import { Switch, tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { Switch, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { REGISTRY_VIEWS } from '@BBeBee/plugin-registry/views'
 import { formatDateTime } from '../utils/format.js'
 
@@ -34,6 +34,7 @@ const rowDescStyle = {
 } as const
 
 export function RegistrySettingsCard({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const registry = serviceOf<RegistryServiceLike>(ctx, 'contentRegistry')
   const settings = serviceOf<SettingsServiceLike>(ctx, 'settings')
 
@@ -102,7 +103,7 @@ export function RegistrySettingsCard({ ctx }: { ctx: Context }): ReactElement {
       h(
         'div',
         { style: { display: 'flex', flexDirection: 'column', gap: 3 } },
-        h('div', { style: rowLabelStyle }, 'Last checked'),
+        h('div', { style: rowLabelStyle }, t('registry:registrySettings.lastChecked')),
         h('div', { 'data-testid': 'registry-last-checked', style: rowDescStyle }, formatDateTime(lastCheckedAt)),
       ),
       h(
@@ -128,7 +129,7 @@ export function RegistrySettingsCard({ ctx }: { ctx: Context }): ReactElement {
           },
         },
         tablerIcon('download', { size: 14 }),
-        checking ? 'Checking…' : 'Check updates',
+        checking ? t('registry:registrySettings.checking') : t('registry:registrySettings.checkUpdates'),
       ),
     ),
     // Auto-check toggle
@@ -138,13 +139,13 @@ export function RegistrySettingsCard({ ctx }: { ctx: Context }): ReactElement {
       h(
         'div',
         { style: { display: 'flex', flexDirection: 'column', gap: 3 } },
-        h('div', { style: rowLabelStyle }, 'Daily auto-check'),
-        h('div', { style: rowDescStyle }, 'Checks for community content updates once at startup, then once a day'),
+        h('div', { style: rowLabelStyle }, t('registry:registrySettings.dailyAutoCheck')),
+        h('div', { style: rowDescStyle }, t('registry:registrySettings.checksForCommunityContentUpdates')),
       ),
       h(Switch, {
         checked: autoCheck,
         onChange: toggleAutoCheck,
-        accessibilityLabel: 'Daily auto-check',
+        accessibilityLabel: t('registry:registrySettings.dailyAutoCheck'),
       }),
     ),
     error
@@ -168,7 +169,7 @@ export function RegistrySettingsCard({ ctx }: { ctx: Context }): ReactElement {
       ? h(
           'div',
           { style: { display: 'flex', flexDirection: 'column', gap: 6 } },
-          h('div', { style: rowLabelStyle }, `Updates available (${updates.length})`),
+          h('div', { style: rowLabelStyle }, t('registry:registrySettings.updatesAvailableCount', { count: updates.length })),
           updates.map((update) =>
             h(
               'button',
@@ -191,7 +192,7 @@ export function RegistrySettingsCard({ ctx }: { ctx: Context }): ReactElement {
                   textAlign: 'left',
                 },
               },
-              update.builtin ? h('span', { style: rowDescStyle }, '[Built-in]') : null,
+              update.builtin ? h('span', { style: rowDescStyle }, t('registry:registrySettings.builtIn')) : null,
               h('span', { style: { fontWeight: 600 } }, update.name),
               h(
                 'span',
@@ -205,7 +206,7 @@ export function RegistrySettingsCard({ ctx }: { ctx: Context }): ReactElement {
       : h(
           'div',
           { 'data-testid': 'registry-updates-empty', style: rowDescStyle },
-          'Everything is up to date. You can also browse community music sources, lyric sources, themes and plugins on the Discover page.',
+          t('registry:registrySettings.everythingIsUpToDate'),
         ),
   )
 }

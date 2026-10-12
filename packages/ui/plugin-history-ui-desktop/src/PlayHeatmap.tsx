@@ -9,23 +9,50 @@ import { createElement as h, useMemo } from 'react'
 import type { ReactElement } from 'react'
 import type { PlayHistoryHeatmapDay } from '@BBeBee/protocol'
 import { tokens } from '@BBeBee/ui-tokens'
+import historyCatalogue from '../../../feature/plugin-i18n/src/locales/history.json'
+
+const EN_HISTORY = (historyCatalogue as unknown as { en: Record<string, unknown> }).en
+
+/**
+ * English fallback for standalone renders (unit tests) where no translator
+ * is supplied. Production always passes `t` from the owning screen.
+ */
+function fallbackEnT(key: string, params?: Record<string, string | number>): string {
+  const path = key.startsWith('history:') ? key.slice('history:'.length) : key
+  let cur: unknown = EN_HISTORY
+  for (const part of path.split('.')) {
+    cur = (cur as Record<string, unknown> | undefined)?.[part]
+  }
+  if (typeof cur !== 'string') return key
+  return params
+    ? cur.replace(/\{(\w+)\}/g, (_, k: string) => String(params[k] ?? `{${k}}`))
+    : cur
+}
+
+/** Translator type shared with the owning screen's `useI18n` result. */
+export type TranslateFn = (key: string, params?: Record<string, string | number>) => string
 
 export interface PlayHeatmapProps {
   heatmap: readonly PlayHistoryHeatmapDay[]
   selectedDate?: string | null
   onSelectDate?: (date: string | null) => void
+  /**
+   * Supplied by the call site (`HistoryScreen` owns the ctx). Optional so the
+   * component stays renderable in unit tests; English catalogue is the fallback.
+   */
+  t?: TranslateFn
 }
 
 /** Formats milliseconds into human-readable duration (e.g. 1 hr 30 min). */
-export function formatPlayDuration(ms: number): string {
-  if (ms <= 0) return '0 min'
+export function formatPlayDuration(t: TranslateFn, ms: number): string {
+  if (ms <= 0) return t('history:playHeatmap.durationZero')
   const totalMinutes = Math.floor(ms / 60000)
-  if (totalMinutes === 0) return '< 1 min'
+  if (totalMinutes === 0) return t('history:playHeatmap.durationUnderOneMinute')
   const hours = Math.floor(totalMinutes / 60)
   const minutes = totalMinutes % 60
-  if (hours === 0) return `${minutes} min`
-  if (minutes === 0) return `${hours} hr`
-  return `${hours} hr ${minutes} min`
+  if (hours === 0) return t('history:playHeatmap.durationMinutes', { minutes })
+  if (minutes === 0) return t('history:playHeatmap.durationHours', { hours })
+  return t('history:playHeatmap.hrMin', { hours, minutes })
 }
 
 /** Parse YYYY-MM-DD into a local Date without timezone offset issues. */
@@ -34,10 +61,21 @@ function parseIsoDate(str: string): Date {
   return new Date(parts[0] ?? 1970, (parts[1] ?? 1) - 1, parts[2] ?? 1)
 }
 
-const MONTH_NAMES = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-]
+/** Full-literal month keys for the heatmap header row (UI display). */
+const MONTH_KEYS = [
+  'history:playHeatmap.jan',
+  'history:playHeatmap.feb',
+  'history:playHeatmap.mar',
+  'history:playHeatmap.apr',
+  'history:playHeatmap.may',
+  'history:playHeatmap.jun',
+  'history:playHeatmap.jul',
+  'history:playHeatmap.aug',
+  'history:playHeatmap.sep',
+  'history:playHeatmap.oct',
+  'history:playHeatmap.nov',
+  'history:playHeatmap.dec',
+] as const
 
 
 /** Green intensity levels matching GitHub's dark theme palette. */
@@ -62,7 +100,8 @@ interface MonthHeader {
   weekIndex: number
 }
 
-export function PlayHeatmap({ heatmap, selectedDate, onSelectDate }: PlayHeatmapProps): ReactElement {
+export function PlayHeatmap({ heatmap, selectedDate, onSelectDate, t }: PlayHeatmapProps): ReactElement {
+  const translate = t ?? fallbackEnT
   const { weeks, monthHeaders, totalPlays, totalMs } = useMemo(() => {
     if (!heatmap || heatmap.length === 0 || !heatmap[0]) {
       return { weeks: [], monthHeaders: [], totalPlays: 0, totalMs: 0 }
@@ -111,8 +150,8 @@ export function PlayHeatmap({ heatmap, selectedDate, onSelectDate }: PlayHeatmap
       if (firstValidDay) {
         const d = parseIsoDate(firstValidDay.date)
         const m = d.getMonth()
-        if (m !== lastMonth && MONTH_NAMES[m]) {
-          headers.push({ month: MONTH_NAMES[m] ?? '', weekIndex: w })
+        if (m !== lastMonth && MONTH_KEYS[m]) {
+          headers.push({ month: MONTH_KEYS[m] ?? '', weekIndex: w })
           lastMonth = m
         }
       }
@@ -151,12 +190,15 @@ export function PlayHeatmap({ heatmap, selectedDate, onSelectDate }: PlayHeatmap
       h(
         'div',
         { style: { fontSize: 13, fontWeight: 600, color: 'var(--text-primary, #f5f5f7)' } },
-        'Play heatmap',
+        translate('history:playHeatmap.title'),
       ),
       h(
         'div',
         { style: { fontSize: 12, color: 'var(--text-secondary, #8e8e93)' } },
-        `Played ${totalPlays} times in the past year · ${formatPlayDuration(totalMs)} total`,
+        translate('history:playHeatmap.playedSummary', {
+          plays: totalPlays,
+          duration: formatPlayDuration(translate, totalMs),
+        }),
       ),
     ),
     // Heatmap Container with horizontal scroll if needed
@@ -201,7 +243,7 @@ export function PlayHeatmap({ heatmap, selectedDate, onSelectDate }: PlayHeatmap
                   left: 24 + hdr.weekIndex * 13, // 10px cell + 3px gap
                 },
               },
-              hdr.month,
+              translate(hdr.month),
             ),
           ),
         ),
@@ -240,7 +282,13 @@ export function PlayHeatmap({ heatmap, selectedDate, onSelectDate }: PlayHeatmap
                     paddingRight: 4,
                   },
                 },
-                dayOfWeek === 1 ? 'Mon' : dayOfWeek === 3 ? 'Wed' : dayOfWeek === 5 ? 'Fri' : '',
+                dayOfWeek === 1
+                  ? translate('history:playHeatmap.mon')
+                  : dayOfWeek === 3
+                    ? translate('history:playHeatmap.wed')
+                    : dayOfWeek === 5
+                      ? translate('history:playHeatmap.fri')
+                      : '',
               ),
             ),
           ),
@@ -272,8 +320,12 @@ export function PlayHeatmap({ heatmap, selectedDate, onSelectDate }: PlayHeatmap
                 const isSelected = selectedDate === day.date
                 const title =
                   day.count === 0
-                    ? `${day.date}: no play records`
-                    : `${day.date}: ${day.count} plays (${formatPlayDuration(day.msPlayed)})`
+                    ? translate('history:playHeatmap.noPlayRecords', { date: day.date })
+                    : translate('history:playHeatmap.cellTitle', {
+                        date: day.date,
+                        count: day.count,
+                        duration: formatPlayDuration(translate, day.msPlayed),
+                      })
 
                 return h('div', {
                   key: day.date,
@@ -319,7 +371,7 @@ export function PlayHeatmap({ heatmap, selectedDate, onSelectDate }: PlayHeatmap
         ? h(
             'div',
             { style: { display: 'flex', alignItems: 'center', gap: 8 } },
-            h('span', { style: { color: 'var(--success, #57f287)' } }, `Filtered date: ${selectedDate}`),
+            h('span', { style: { color: 'var(--success, #57f287)' } }, translate('history:playHeatmap.filteredDate', { selectedDate })),
             h(
               'button',
               {
@@ -334,10 +386,10 @@ export function PlayHeatmap({ heatmap, selectedDate, onSelectDate }: PlayHeatmap
                   fontSize: 11,
                 },
               },
-              'Clear filter',
+              translate('history:playHeatmap.clearFilter'),
             ),
           )
-        : h('div', null, 'Click a cell to filter play records for that date'),
+        : h('div', null, translate('history:playHeatmap.clickACellToFilter')),
       // Legend
       h(
         'div',
@@ -348,7 +400,7 @@ export function PlayHeatmap({ heatmap, selectedDate, onSelectDate }: PlayHeatmap
             gap: 4,
           },
         },
-        h('span', null, 'Less'),
+        h('span', null, translate('history:playHeatmap.less')),
         LEVEL_COLORS.map((color, idx) =>
           h('div', {
             key: idx,
@@ -360,7 +412,7 @@ export function PlayHeatmap({ heatmap, selectedDate, onSelectDate }: PlayHeatmap
             },
           }),
         ),
-        h('span', null, 'More'),
+        h('span', null, translate('history:playHeatmap.more')),
       ),
     ),
   )

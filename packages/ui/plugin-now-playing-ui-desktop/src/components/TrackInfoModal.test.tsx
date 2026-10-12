@@ -6,6 +6,46 @@ import { Context, Service } from 'cordis'
 import type { Track } from '@BBeBee/protocol'
 import { TrackInfoModal } from './TrackInfoModal.js'
 
+import nowPlayingCatalogue from '../../../../feature/plugin-i18n/src/locales/nowPlaying.json'
+
+const CATALOGUES: Record<string, { en: unknown; zh: unknown }> = {
+  nowPlaying: { en: nowPlayingCatalogue.en, zh: nowPlayingCatalogue.zh },
+}
+
+/**
+ * English i18n stub serving the real `nowPlaying` catalogue, so components
+ * under test render the same copy the app shows.
+ */
+class DefaultI18nStub extends Service {
+  static override readonly name = 'i18n'
+  locale = 'en'
+  private listeners = new Set<(locale: string) => void>()
+  constructor(ctx: Context) {
+    super(ctx, 'i18n')
+  }
+  setLocale = (next: string): void => {
+    this.locale = next
+    for (const listener of [...this.listeners]) listener(next)
+  }
+  t = (key: string, params?: Record<string, string | number>): string => {
+    const sep = key.indexOf(':')
+    if (sep < 0) return key
+    const ns = key.slice(0, sep)
+    const catalogue = CATALOGUES[ns]?.[this.locale === 'zh' ? 'zh' : 'en']
+    if (!catalogue) return key
+    let cur: unknown = catalogue
+    for (const part of key.slice(sep + 1).split('.')) {
+      cur = (cur as Record<string, unknown> | undefined)?.[part]
+    }
+    if (typeof cur !== 'string') return key
+    return params ? cur.replace(/\{(\w+)\}/g, (_, k: string) => String(params[k] ?? `{${k}}`)) : cur
+  }
+  onLocaleChange = (cb: (locale: string) => void): (() => void) => {
+    this.listeners.add(cb)
+    return () => void this.listeners.delete(cb)
+  }
+}
+
 afterEach(() => {
   cleanup()
 })
@@ -84,6 +124,7 @@ const makeArtists = (name: string) => [
 describe('TrackInfoModal', () => {
   it('renders nothing when not open or track is null', () => {
     const ctx = new Context()
+    new DefaultI18nStub(ctx)
     const { container, rerender } = render(
       h(TrackInfoModal, { ctx, track: null, open: false, onClose: () => {} }),
     )
@@ -100,6 +141,7 @@ describe('TrackInfoModal', () => {
 
   it('renders local file info and audio specifications', async () => {
     const ctx = new Context()
+    new DefaultI18nStub(ctx)
     const db = new DbStub(ctx)
     db.data['binding'] = {
       uri: 'file:///Music/Eagles/Hotel%20California.flac',
@@ -159,6 +201,7 @@ describe('TrackInfoModal', () => {
 
   it('renders third-party source details', async () => {
     const ctx = new Context()
+    new DefaultI18nStub(ctx)
     const player = new PlayerStub(ctx)
     player.currentStream = {
       format: 'm4a',
@@ -202,6 +245,7 @@ describe('TrackInfoModal', () => {
 
   it('copies file path when clicking copy button', async () => {
     const ctx = new Context()
+    new DefaultI18nStub(ctx)
     const db = new DbStub(ctx)
     db.data['binding'] = {
       uri: 'file:///Music/test.mp3',
@@ -233,6 +277,7 @@ describe('TrackInfoModal', () => {
   it('functions correctly without throwing under a scoped context where db/codec are not injected', async () => {
     const root = new Context()
     new PlayerStub(root)
+    new DefaultI18nStub(root)
     let scopedCtx!: Context
     await root.plugin({
       name: 'test-scoped-plugin',
@@ -261,6 +306,7 @@ describe('TrackInfoModal', () => {
 
   it('recovers local file info via stream.target and fs.stat when DB has no binding', async () => {
     const ctx = new Context()
+    new DefaultI18nStub(ctx)
     new DbStub(ctx) // empty DB
     const player = new PlayerStub(ctx)
     player.currentStream = {
@@ -295,6 +341,7 @@ describe('TrackInfoModal', () => {
 
   it('calculates third-party bitrate dynamically and renders WASAPI output specs', async () => {
     const ctx = new Context()
+    new DefaultI18nStub(ctx)
     new AudioStub(ctx) // activeEngineName: wasapi, sampleRate: 96000
     const player = new PlayerStub(ctx)
     player.currentStream = {
@@ -323,6 +370,7 @@ describe('TrackInfoModal', () => {
 
   it('corrects abnormal truncated bitrate (< 32 kbps) using physical file calculation', async () => {
     const ctx = new Context()
+    new DefaultI18nStub(ctx)
     const db = new DbStub(ctx)
     db.data['binding'] = {
       uri: 'file:///Music/HiRes.flac',
@@ -356,6 +404,7 @@ describe('TrackInfoModal', () => {
 
   it('displays MPV Hi-Fi output engine label when activeEngine is mpv', async () => {
     const ctx = new Context()
+    new DefaultI18nStub(ctx)
     new DbStub(ctx)
     new CodecStub(ctx)
     new PlayerStub(ctx)

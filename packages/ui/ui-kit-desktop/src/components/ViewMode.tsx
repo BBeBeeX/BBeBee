@@ -47,25 +47,43 @@ export function useViewMode<T extends string>(
 
 const MODE_LABELS = { compact: 'Compact', list: 'List', tiled: 'Tiled' } as const
 
+/** Full literal keys per mode — never build i18n keys at runtime. */
+const MODE_LABEL_KEYS = {
+  compact: 'app:common.viewMode.compact',
+  list: 'app:common.viewMode.list',
+  tiled: 'app:common.viewMode.tiled',
+} as const
+
 /**
  * Append the View mode section to a sort menu: a hairline divider closes the
  * sort options, then a flush-left muted View mode heading and one entry per
  * mode, a check icon marking the active one.
+ *
+ * Pass the caller's `t` (from `useI18n`) to translate the heading and mode
+ * labels; without it the built-in English copy renders.
  */
 export function viewModeMenuItems(
   base: MenuItemSpec[],
   value: TrackViewMode | AlbumViewMode,
   onChange: (mode: TrackViewMode | AlbumViewMode) => void,
   opts: { allowTiled?: boolean } = {},
+  t?: (key: string) => string,
 ): MenuItemSpec[] {
+  // English copy stays verbatim until a caller passes `t` (i18n sweep).
+  const tr = (key: string, fallback: string): string => (t ? t(key) : fallback)
   const modes: (TrackViewMode | AlbumViewMode)[] = opts.allowTiled
     ? ['compact', 'list', 'tiled']
     : ['compact', 'list']
   const section: MenuItemSpec[] = [
-    { id: 'view-mode-header', label: 'View mode', heading: true, disabled: true },
+    {
+      id: 'view-mode-header',
+      label: tr('app:common.viewMode.viewMode', 'View mode'),
+      heading: true,
+      disabled: true,
+    },
     ...modes.map((mode) => ({
       id: `view-mode-${mode}`,
-      label: MODE_LABELS[mode],
+      label: tr(MODE_LABEL_KEYS[mode], MODE_LABELS[mode]),
       icon: value === mode ? tablerIcon('check', { size: 16 }) : undefined,
       onSelect: () => onChange(mode),
     })),

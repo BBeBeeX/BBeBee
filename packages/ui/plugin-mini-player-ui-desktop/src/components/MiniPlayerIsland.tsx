@@ -1,6 +1,7 @@
 import { createElement as h, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { MiniPlayerData, MiniPlayerAction } from '@BBeBee/protocol'
+import { useBridgeLocale } from '@BBeBee/ui-kit-desktop'
 import { IslandArtwork } from './IslandArtwork.js'
 import { IslandWaveBars } from './IslandWaveBars.js'
 import { TransportButtons, ProgressBar } from './MiniPlayerControls.js'
@@ -26,6 +27,9 @@ export function MiniPlayerIsland({
   onRestoreMain,
   onClose,
 }: MiniPlayerIslandProps): ReactElement {
+  // No ctx here (this renders inside the ctx-less mini-player window):
+  // strings resolve through the preload `locale` bridge.
+  const { t } = useBridgeLocale()
   const [hovered, setHovered] = useState(false)
   const isPlaying = data.status === 'playing'
 
@@ -66,7 +70,7 @@ export function MiniPlayerIsland({
             WebkitAppRegion: 'drag',
           },
           onDoubleClick: onCollapse,
-          title: 'Double-click to collapse the island',
+          title: t('miniPlayer:miniPlayerIsland.doubleClickToCollapseThe'),
         },
         // Top Row: Artwork + Metadata + WaveBars & Actions
         h(
@@ -84,7 +88,7 @@ export function MiniPlayerIsland({
             {
               style: { WebkitAppRegion: 'no-drag', cursor: 'pointer' },
               onClick: onRestoreMain,
-              title: 'Click to restore the main window',
+              title: t('miniPlayer:miniPlayerIsland.clickToRestoreTheMainWindow'),
             },
             h(IslandArtwork, {
               artworkUri: data.artworkUri,
@@ -118,7 +122,7 @@ export function MiniPlayerIsland({
                   whiteSpace: 'nowrap',
                 },
               },
-              data.title || 'Nothing playing',
+              data.title || t('miniPlayer:miniPlayerIsland.nothingPlaying'),
             ),
             h(
               'div',
@@ -164,7 +168,7 @@ export function MiniPlayerIsland({
               'div',
               {
                 onClick: onCollapse,
-                title: 'Click to collapse the island',
+                title: t('miniPlayer:miniPlayerIsland.clickToCollapseTheIsland'),
                 style: {
                   display: 'flex',
                   alignItems: 'center',
@@ -179,8 +183,8 @@ export function MiniPlayerIsland({
               'button',
               {
                 type: 'button',
-                'aria-label': 'Restore main window',
-                title: 'Restore main window',
+                'aria-label': t('miniPlayer:miniPlayerIsland.restoreMainWindow'),
+                title: t('miniPlayer:miniPlayerIsland.restoreMainWindow'),
                 onClick: onRestoreMain,
                 style: {
                   display: 'flex',
@@ -203,8 +207,8 @@ export function MiniPlayerIsland({
               'button',
               {
                 type: 'button',
-                'aria-label': 'Close mini player',
-                title: 'Close mini player',
+                'aria-label': t('miniPlayer:miniPlayerIsland.closeMiniPlayer'),
+                title: t('miniPlayer:miniPlayerIsland.closeMiniPlayer'),
                 onClick: onClose,
                 style: {
                   display: 'flex',
@@ -293,7 +297,7 @@ export function MiniPlayerIsland({
           transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
           WebkitAppRegion: 'drag',
         },
-        title: 'Click to expand the island',
+        title: t('miniPlayer:miniPlayerIsland.clickToExpandTheIsland'),
       },
       // Left: Mini Artwork Disc (22px)
       h(
@@ -340,7 +344,7 @@ export function MiniPlayerIsland({
                 textOverflow: 'ellipsis',
               },
             },
-            data.title || 'Nothing playing',
+            data.title || t('miniPlayer:miniPlayerIsland.nothingPlaying'),
           ),
           data.artist &&
             h(
@@ -373,8 +377,12 @@ export function MiniPlayerIsland({
           'button',
           {
             type: 'button',
-            'aria-label': isPlaying ? 'Pause' : 'Play',
-            title: isPlaying ? 'Pause' : 'Play',
+            'aria-label': isPlaying
+              ? t('miniPlayer:miniPlayerIsland.pause')
+              : t('miniPlayer:miniPlayerIsland.play'),
+            title: isPlaying
+              ? t('miniPlayer:miniPlayerIsland.pause')
+              : t('miniPlayer:miniPlayerIsland.play'),
             onClick: (e: { stopPropagation: () => void }) => {
               e.stopPropagation()
               onAction({ type: 'togglePlay' })

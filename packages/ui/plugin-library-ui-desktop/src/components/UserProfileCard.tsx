@@ -1,7 +1,7 @@
 import { createElement as h, useEffect, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { serviceOf } from '@BBeBee/toolkit/hooks'
-import { TextField } from '@BBeBee/ui-kit-desktop'
+import { TextField, useI18n } from '@BBeBee/ui-kit-desktop'
 
 interface LibraryProfileApi {
   getProfile(): Promise<{ id: string; name: string }>
@@ -23,6 +23,7 @@ const rowStyle: React.CSSProperties = {
  * screen embeds this card wherever the profile contribution lands.
  */
 export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const library = serviceOf<LibraryProfileApi>(ctx, 'library')
 
   const [name, setName] = useState('')
@@ -61,7 +62,7 @@ export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
     if (!library?.updateProfile) return
     const trimmed = name.trim()
     if (!trimmed) {
-      setError('Username cannot be empty')
+      setError(t('library:userProfile.usernameCannotBeEmpty'))
       return
     }
     void library
@@ -97,7 +98,7 @@ export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
             letterSpacing: '-0.01em',
           },
         },
-        'User',
+        t('library:userProfile.title'),
       ),
       h(
         'p',
@@ -109,7 +110,7 @@ export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
             lineHeight: 1.4,
           },
         },
-        'Local user profile; playlists and other content will show this name as their creator',
+        t('library:userProfile.description'),
       ),
     ),
     h(
@@ -132,11 +133,11 @@ export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
         h(
           'div',
           { style: { flex: 1, minWidth: 0 } },
-          h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary, #F5F5F7)' } }, 'Username'),
+          h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary, #F5F5F7)' } }, t('library:userProfile.username')),
           h(
             'div',
             { style: { fontSize: 12, color: 'var(--color-text-secondary, #8E8E93)', marginTop: 3 } },
-            error ?? (justSaved ? 'Saved' : 'Shown as the creator when you create playlists'),
+            error ?? (justSaved ? t('library:userProfile.saved') : t('library:userProfile.shownAsTheCreatorWhen')),
           ),
         ),
         h(
@@ -145,7 +146,7 @@ export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
           h(TextField, {
             value: name,
             onChange: setName,
-            placeholder: 'Mine',
+            placeholder: t('library:userProfile.mine'),
             testID: 'profile-name-input',
           }),
           h(
@@ -167,14 +168,14 @@ export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
                 flexShrink: 0,
               },
             },
-            justSaved ? 'Saved' : 'Save',
+            justSaved ? t('library:userProfile.saved') : t('library:userProfile.save'),
           ),
         ),
       ),
       h(
         'div',
         { style: { ...rowStyle, borderBottom: 'none' } },
-        h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary, #F5F5F7)' } }, 'User ID'),
+        h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary, #F5F5F7)' } }, t('library:userProfile.userID')),
         h('div', { style: { fontSize: 12, color: 'var(--color-text-secondary, #8E8E93)' } }, userId || '—'),
       ),
     ),

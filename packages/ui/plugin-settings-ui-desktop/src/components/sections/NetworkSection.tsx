@@ -1,4 +1,4 @@
-import { Button, Select, Switch } from '@BBeBee/ui-kit-desktop'
+import { Button, Select, Switch, useI18n } from '@BBeBee/ui-kit-desktop'
 import type { Context } from 'cordis'
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
@@ -52,42 +52,45 @@ export function NetworkSection({
   onUpdateDownloadRegion,
   onUpdateGithubAccelerationPrefixes,
 }: NetworkSectionProps): ReactElement {
+  const { t } = useI18n(ctx)
   return h(
     'div',
     { id: 'section-network' },
     h(
       SettingsSection,
       {
-        title: 'Third-party service settings',
-        description: 'Control third-party music and lyric sources, and the User-Agent used for outgoing requests',
+        title: t('settings:network.thirdPartyServiceSettings'),
+        description: t('settings:network.controlThirdPartyMusicAnd'),
       },
       h(SettingsRow, {
-        title: 'Enable third-party music sources',
-        description: 'When off, search and playback resolution of all imported third-party music sources is paused; local files are unaffected',
+        ctx,
+        title: t('settings:network.enableThirdPartyMusicSources'),
+        description: t('settings:network.whenOffSearchAndPlayback'),
         action: h(Switch, {
           checked: thirdPartySourcesEnabled,
-          accessibilityLabel: 'Enable third-party music sources',
+          accessibilityLabel: t('settings:network.enableThirdPartyMusicSources'),
           onChange: onToggleThirdPartySources,
         }),
       }),
       h(SettingsRow, {
-        title: 'Enable third-party lyric sources',
-        description: 'When off, lyrics are no longer fetched through lyric sources during playback; individual switches in the lyric source list below are preserved',
+        ctx,
+        title: t('settings:network.enableThirdPartyLyricSources'),
+        description: t('settings:network.whenOffLyricsAreNo'),
         action: h(Switch, {
           checked: thirdPartyLyricSourcesEnabled,
-          accessibilityLabel: 'Enable third-party lyric sources',
+          accessibilityLabel: t('settings:network.enableThirdPartyLyricSources'),
           onChange: onToggleThirdPartyLyricSources,
         }),
       }),
       h(SettingsRow, {
-        title: 'User-Agent',
-        description:
-          'Sent as the HTTP User-Agent header with every network request; leave empty to use the built-in default. Header rules carried by a music source take precedence',
+        ctx,
+        title: t('settings:network.userAgent'),
+        description: t('settings:network.userAgentDescription'),
         action: h('input', {
           type: 'text',
           value: userAgent,
           placeholder: 'BBeBee/0.1',
-          'aria-label': 'User-Agent',
+          'aria-label': t('settings:network.userAgent'),
           onChange: (e: { target: { value: string } }) => onUpdateUserAgent(e.target.value),
           style: {
             width: 280,
@@ -106,15 +109,16 @@ export function NetworkSection({
     h(
       SettingsSection,
       {
-        title: 'Network proxy settings',
-        description: 'Configure the proxy protocol and routing strategy for outgoing requests and online sources',
+        title: t('settings:network.networkProxySettings'),
+        description: t('settings:network.configureTheProxyProtocolAnd'),
       },
       h(SettingsRow, {
-        title: 'Enable network proxy',
-        description: 'When on, network and music requests are forwarded through the custom proxy server',
+        ctx,
+        title: t('settings:network.enableNetworkProxy'),
+        description: t('settings:network.whenOnNetworkAndMusic'),
         action: h(Switch, {
           checked: proxy.enabled,
-          accessibilityLabel: 'Enable network proxy',
+          accessibilityLabel: t('settings:network.enableNetworkProxy'),
           onChange: (enabled) => onUpdateProxy({ ...proxy, enabled }),
         }),
       }),
@@ -123,22 +127,24 @@ export function NetworkSection({
             'div',
             null,
             h(SettingsRow, {
-              title: 'Proxy protocol',
-              description: 'Choose the transport protocol supported by the proxy server',
+              ctx,
+              title: t('settings:network.proxyProtocol'),
+              description: t('settings:network.chooseTheTransportProtocolSupported'),
               action: h(Select<'http' | 'https' | 'socks5'>, {
                 value: proxy.protocol,
                 options: [
-                  { value: 'http', label: 'HTTP proxy' },
-                  { value: 'https', label: 'HTTPS proxy' },
-                  { value: 'socks5', label: 'SOCKS5 proxy' },
+                  { value: 'http', label: t('settings:network.hTTPProxy') },
+                  { value: 'https', label: t('settings:network.hTTPSProxy') },
+                  { value: 'socks5', label: t('settings:network.sOCKS5Proxy') },
                 ],
-                accessibilityLabel: 'Proxy protocol',
+                accessibilityLabel: t('settings:network.proxyProtocol'),
                 onChange: (protocol) => onUpdateProxy({ ...proxy, protocol }),
               }),
             }),
             h(SettingsRow, {
-              title: 'Server host & port',
-              description: 'Set the proxy server host IP or domain and its listening port',
+              ctx,
+              title: t('settings:network.serverHostPort'),
+              description: t('settings:network.setTheProxyServerHost'),
               action: h(
                 'div',
                 { style: { display: 'flex', gap: 8, alignItems: 'center' } },
@@ -146,7 +152,7 @@ export function NetworkSection({
                   type: 'text',
                   value: proxy.host,
                   placeholder: '127.0.0.1',
-                  'aria-label': 'Proxy server host',
+                  'aria-label': t('settings:network.proxyServerHost'),
                   onChange: (e: { target: { value: string } }) =>
                     onUpdateProxy({ ...proxy, host: e.target.value.trim() }),
                   style: {
@@ -166,7 +172,7 @@ export function NetworkSection({
                   type: 'number',
                   value: proxy.port || '',
                   placeholder: '7890',
-                  'aria-label': 'Proxy server port',
+                  'aria-label': t('settings:network.proxyServerPort'),
                   onChange: (e: { target: { value: string } }) =>
                     onUpdateProxy({ ...proxy, port: Number(e.target.value) || 0 }),
                   style: {
@@ -185,7 +191,7 @@ export function NetworkSection({
                   variant: 'secondary',
                   disabled: proxyTesting || !proxy.host || !proxy.port,
                   loading: proxyTesting,
-                  children: 'Test Google connection',
+                  children: t('settings:network.testGoogleConnection'),
                   onPress: onTestProxy,
                 }),
               ),
@@ -209,8 +215,13 @@ export function NetworkSection({
                     },
                   },
                   proxyTestResult.ok
-                    ? `✓ Google probe reachable, response latency: ${proxyTestResult.latencyMs ?? 0}ms`
-                    : `✕ Proxy connection failed: ${proxyTestResult.error || 'connection timed out or server did not respond'}`,
+                    ? t('settings:network.googleProbeReachable', {
+                        latencyMs: proxyTestResult.latencyMs ?? 0,
+                      })
+                    : t('settings:network.proxyConnectionFailed', {
+                        error:
+                          proxyTestResult.error || t('settings:network.proxyConnectionTimedOut'),
+                      }),
                 )
               : null,
             // Third-party Sources individual proxy management
@@ -229,25 +240,28 @@ export function NetworkSection({
                 h(
                   'div',
                   { style: { fontSize: 14, fontWeight: 600, color: 'var(--bb-text-primary, #F8FAFC)' } },
-                  'Per-source proxy routing for third-party music sources',
+                  t('settings:network.perSourceProxyRouting'),
                 ),
                 h(
                   'div',
                   { style: { fontSize: 12, color: '#8E8E93', marginTop: 2 } },
-                  'Enable the network proxy individually for each installed third-party music source',
+                  t('settings:network.perSourceProxyRoutingDesc'),
                 ),
               ),
               thirdPartySources.length > 0
                 ? thirdPartySources.map((s, index, arr) => {
                     const isEnabled = proxy.sourceRules[s.id] ?? false
                     return h(SettingsRow, {
+                      ctx,
                       key: s.id,
                       title: s.name || s.id,
-                      description: s.group ? `Group: ${s.group} · ${s.sourceUrl}` : s.sourceUrl,
+                      description: s.group
+                        ? t('settings:network.group', { group: s.group, sourceUrl: s.sourceUrl })
+                        : s.sourceUrl,
                       borderBottom: index < arr.length - 1,
                       action: h(Switch, {
                         checked: isEnabled,
-                        accessibilityLabel: `Enable proxy for ${s.name || s.id}`,
+                        accessibilityLabel: t('settings:network.enableProxyFor', { name: s.name || s.id }),
                         onChange: (checked) => {
                           const nextRules = { ...proxy.sourceRules, [s.id]: checked }
                           onUpdateProxy({ ...proxy, sourceRules: nextRules })
@@ -258,7 +272,7 @@ export function NetworkSection({
                 : h(
                     'div',
                     { style: { color: '#8E8E93', fontSize: 13, padding: '8px 0' } },
-                    'No third-party music sources installed yet. Import source rules to enable the proxy individually here.',
+                    t('settings:network.noThirdPartySourcesYet'),
                   ),
             ),
           )
@@ -267,23 +281,23 @@ export function NetworkSection({
     h(
       SettingsSection,
       {
-        title: 'Download & GitHub acceleration',
-        description:
-          'Choose the download region preference and configure acceleration endpoints for GitHub resource downloads, tried in order (the official URL always comes first)',
+        title: t('settings:network.downloadGitHubAcceleration'),
+        description: t('settings:network.downloadSectionDesc'),
       },
       h(SettingsRow, {
-        title: 'Download region',
-        description: 'Stored download region preference; GitHub requests still prefer the official URL, and acceleration follows the endpoint order below',
+        ctx,
+        title: t('settings:network.downloadRegion'),
+        description: t('settings:network.storedDownloadRegionPreferenceGitHub'),
         action: h(
           'div',
           { 'data-testid': 'settings-download-region' },
           h(Select<DownloadRegion>, {
             value: downloadRegion,
             options: [
-              { value: 'global', label: 'Global' },
-              { value: 'mainland-china', label: 'Mainland China' },
+              { value: 'global', label: t('settings:network.global') },
+              { value: 'mainland-china', label: t('settings:network.mainlandChina') },
             ],
-            accessibilityLabel: 'Download region',
+            accessibilityLabel: t('settings:network.downloadRegion'),
             onChange: onUpdateDownloadRegion,
           }),
         ),

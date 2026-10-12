@@ -15,9 +15,33 @@ import { Context, Service } from 'cordis'
 import type { AlbumDetail, DownloadTask } from '@BBeBee/protocol'
 import { tick } from '@BBeBee/kernel/testing'
 import { withListLayout } from '@BBeBee/ui-kit-desktop/testing'
+import albumCatalogue from '../../../feature/plugin-i18n/src/locales/album.json'
 import { AlbumScreen } from './index.js'
 
 afterEach(cleanup)
+
+/**
+ * English-only i18n stub: components under test render the same copy the
+ * app shows. Only the `album` namespace is needed here.
+ */
+class I18nStub extends Service {
+  static override readonly name = 'i18n'
+  readonly locale = 'en'
+  constructor(ctx: Context) {
+    super(ctx, 'i18n')
+  }
+  t = (key: string, params?: Record<string, string | number>): string => {
+    const sep = key.indexOf(':')
+    if (sep < 0 || key.slice(0, sep) !== 'album') return key
+    let cur: unknown = (albumCatalogue as { en: unknown }).en
+    for (const part of key.slice(sep + 1).split('.')) {
+      cur = (cur as Record<string, unknown> | undefined)?.[part]
+    }
+    if (typeof cur !== 'string') return key
+    return params ? cur.replace(/\{(\w+)\}/g, (_, k: string) => String(params[k] ?? `{${k}}`)) : cur
+  }
+  onLocaleChange = (): (() => void) => () => {}
+}
 
 const ALBUM_URN = 'BBeBee:remote:album:one'
 const TRACK_A = 'BBeBee:remote:track:a'
@@ -132,6 +156,7 @@ async function harness() {
   await root.plugin(DownloadsStub)
   await root.plugin(UiStub)
   await root.plugin(LibraryStub)
+  await root.plugin(I18nStub)
   let scoped: Context | undefined
   root.inject(['ui', 'sources', 'player', 'downloads', 'library'], (s) => void (scoped = s))
   await tick()
@@ -424,6 +449,7 @@ describe('AlbumScreen', () => {
     new DownloadsStub(ctx)
     new UiStub(ctx)
     new LibraryStub(ctx)
+    new I18nStub(ctx)
 
     await withListLayout(async () => {
       const { getByTestId } = render(h(AlbumScreen, { ctx, urn: ALBUM_URN }))
@@ -443,6 +469,7 @@ describe('AlbumScreen', () => {
     new DownloadsStub(ctx)
     new UiStub(ctx)
     new LibraryStub(ctx)
+    new I18nStub(ctx)
 
     await withListLayout(async () => {
       const { queryByTestId } = render(h(AlbumScreen, { ctx, urn: LOCAL_ALBUM_URN }))
@@ -460,6 +487,7 @@ describe('AlbumScreen', () => {
     new DownloadsStub(ctx)
     new UiStub(ctx)
     new LibraryStub(ctx)
+    new I18nStub(ctx)
 
     const dupAlbumUrn = 'BBeBee:remote:album:dup'
     const origGetAlbum = sources.getAlbum.bind(sources)

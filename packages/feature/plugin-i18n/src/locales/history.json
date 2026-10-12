@@ -1,0 +1,156 @@
+{
+  "en": {
+    "history": {
+      "allTimePlayCount": "All-time play count",
+      "clearHistory": "Clear history",
+      "clearPlayHistory": "Clear play history?",
+      "completed": "Completed",
+      "completionRate": "Completion rate",
+      "loading": "Loading…",
+      "noListeningOnThisDay": "No listening on this day yet — pick a track and press play.",
+      "noPlayRecordsFor": "No play records for {selectedDate}",
+      "playHistory": "Play history",
+      "playRecordsFor": {
+        "one": "Play records for {date} ({count} track)",
+        "other": "Play records for {date} ({count} tracks)"
+      },
+      "playedToCompletion": "{completedPlays} played to completion",
+      "playedToday": "Played today",
+      "plays": {
+        "one": "{count} play",
+        "other": "{count} plays"
+      },
+      "recentPlayRecords": {
+        "one": "Recent play records ({count} track)",
+        "other": "Recent play records ({count} tracks)"
+      },
+      "skipped": "Skipped",
+      "subtitle": "Every melody that touched your heart, and the footprint of your listening",
+      "timeImmersedInMusic": "Time immersed in music",
+      "todayAt": "Today {time}",
+      "totalListeningTime": "Total listening time",
+      "totalPlays": "Total plays",
+      "tracks": {
+        "one": "{count} track",
+        "other": "{count} tracks"
+      },
+      "tracksHeardToday": "Tracks heard today",
+      "yesterdayAt": "Yesterday {time}"
+    },
+    "index": {
+      "afterPlayingMusicFromThe": "After playing music from the library, your play history and statistics will appear here.",
+      "noPlayRecordsYet": "No play records yet",
+      "todayTracks": "Today: {todayPlays} tracks",
+      "totalPlays": "Total plays: {totalPlays}",
+      "totalTime": "Total time: {duration}"
+    },
+    "playHeatmap": {
+      "apr": "Apr",
+      "aug": "Aug",
+      "cellTitle": "{date}: {count} plays ({duration})",
+      "clearFilter": "Clear filter",
+      "clickACellToFilter": "Click a cell to filter play records for that date",
+      "dec": "Dec",
+      "durationHours": "{hours} hr",
+      "durationMinutes": "{minutes} min",
+      "durationUnderOneMinute": "< 1 min",
+      "durationZero": "0 min",
+      "feb": "Feb",
+      "filteredDate": "Filtered date: {selectedDate}",
+      "fri": "Fri",
+      "hrMin": "{hours} hr {minutes} min",
+      "jan": "Jan",
+      "jul": "Jul",
+      "jun": "Jun",
+      "less": "Less",
+      "mar": "Mar",
+      "may": "May",
+      "mon": "Mon",
+      "more": "More",
+      "noPlayRecords": "{date}: no play records",
+      "nov": "Nov",
+      "oct": "Oct",
+      "playedSummary": "Played {plays} times in the past year · {duration} total",
+      "sep": "Sep",
+      "title": "Play heatmap",
+      "wed": "Wed"
+    }
+  },
+  "zh": {
+    "history": {
+      "allTimePlayCount": "历史累计播放",
+      "clearHistory": "清除历史",
+      "clearPlayHistory": "清除播放历史？",
+      "completed": "已播完",
+      "completionRate": "播完率",
+      "loading": "加载中…",
+      "noListeningOnThisDay": "今天还没有聆听——先选一首曲目播放吧。",
+      "noPlayRecordsFor": "{selectedDate} 暂无播放记录",
+      "playHistory": "播放历史",
+      "playRecordsFor": {
+        "one": "{date} 的播放记录（{count} 首）",
+        "other": "{date} 的播放记录（{count} 首）"
+      },
+      "playedToCompletion": "{completedPlays} 首播完",
+      "playedToday": "今日已播",
+      "plays": {
+        "one": "播放 {count} 次",
+        "other": "播放 {count} 次"
+      },
+      "recentPlayRecords": {
+        "one": "最近的播放记录（{count} 首）",
+        "other": "最近的播放记录（{count} 首）"
+      },
+      "skipped": "已跳过",
+      "subtitle": "触动你内心的每一段旋律，以及你聆听的足迹",
+      "timeImmersedInMusic": "沉浸音乐的时间",
+      "todayAt": "今天 {time}",
+      "totalListeningTime": "累计聆听时长",
+      "totalPlays": "累计播放",
+      "tracks": {
+        "one": "{count} 首",
+        "other": "{count} 首"
+      },
+      "tracksHeardToday": "今日听过的曲目",
+      "yesterdayAt": "昨天 {time}"
+    },
+    "index": {
+      "afterPlayingMusicFromThe": "从音乐库播放音乐后，播放历史和统计将显示在这里。",
+      "noPlayRecordsYet": "暂无播放记录",
+      "todayTracks": "今日：{todayPlays} 首",
+      "totalPlays": "累计播放：{totalPlays}",
+      "totalTime": "总时长：{duration}"
+    },
+    "playHeatmap": {
+      "apr": "4月",
+      "aug": "8月",
+      "cellTitle": "{date}：播放 {count} 次（{duration}）",
+      "clearFilter": "清除筛选",
+      "clickACellToFilter": "点击单元格按日期筛选播放记录",
+      "dec": "12月",
+      "durationHours": "{hours} 小时",
+      "durationMinutes": "{minutes} 分钟",
+      "durationUnderOneMinute": "不足 1 分钟",
+      "durationZero": "0 分钟",
+      "feb": "2月",
+      "filteredDate": "筛选日期：{selectedDate}",
+      "fri": "五",
+      "hrMin": "{hours} 小时 {minutes} 分钟",
+      "jan": "1月",
+      "jul": "7月",
+      "jun": "6月",
+      "less": "较少",
+      "mar": "3月",
+      "may": "5月",
+      "mon": "一",
+      "more": "较多",
+      "noPlayRecords": "{date}：暂无播放记录",
+      "nov": "11月",
+      "oct": "10月",
+      "playedSummary": "过去一年播放 {plays} 次 · 共 {duration}",
+      "sep": "9月",
+      "title": "播放热力图",
+      "wed": "三"
+    }
+  }
+}

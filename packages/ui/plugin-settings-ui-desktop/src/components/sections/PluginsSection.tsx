@@ -1,4 +1,4 @@
-import { Button, Sheet } from '@BBeBee/ui-kit-desktop'
+import { Button, Sheet, useI18n } from '@BBeBee/ui-kit-desktop'
 import { createElement as h, useMemo, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { serviceOf, useServiceState } from '@BBeBee/ui-core'
@@ -14,18 +14,20 @@ export interface PluginsSectionProps {
 
 interface GroupSpec {
   systemId: string
-  title: string
-  description?: string
+  titleKey?: string
+  fallbackTitle: string
+  descriptionKey?: string
 }
 
 const GROUPS: readonly GroupSpec[] = [
-  { systemId: 'layer-2', title: 'Core', description: 'Desktop low-level infrastructure' },
-  { systemId: 'layer-3', title: 'Logs' },
-  { systemId: 'layer-4', title: 'Features' },
-  { systemId: 'layer-5', title: 'UI' },
+  { systemId: 'layer-2', titleKey: 'settings:plugins.core', fallbackTitle: 'Core', descriptionKey: 'settings:plugins.desktopLowLevelInfrastructure' },
+  { systemId: 'layer-3', titleKey: 'settings:plugins.logs', fallbackTitle: 'Logs' },
+  { systemId: 'layer-4', titleKey: 'settings:plugins.features', fallbackTitle: 'Features' },
+  { systemId: 'layer-5', titleKey: 'settings:plugins.ui', fallbackTitle: 'UI' },
 ]
 
 export function PluginsSection({ ctx, showAdvancedSettings = false }: PluginsSectionProps): ReactElement {
+  const { t } = useI18n(ctx)
   const [searchQuery, setSearchQuery] = useState('')
   const [pendingDisable, setPendingDisable] = useState<{
     plugin: PluginInfo
@@ -94,6 +96,7 @@ export function PluginsSection({ ctx, showAdvancedSettings = false }: PluginsSec
     },
     // Search box
     h(PluginSearchBox, {
+      ctx,
       value: searchQuery,
       onChange: setSearchQuery,
     }),
@@ -103,9 +106,10 @@ export function PluginsSection({ ctx, showAdvancedSettings = false }: PluginsSec
       const groupPlugins = filteredPlugins.filter((p) => p.systemId === g.systemId)
       return h(PluginGroupPanel, {
         key: g.systemId,
-        title: g.title,
+        ctx,
+        title: g.titleKey ? t(g.titleKey) : g.fallbackTitle,
         systemId: g.systemId,
-        description: g.description,
+        description: g.descriptionKey ? t(g.descriptionKey) : undefined,
         plugins: groupPlugins,
         showAdvancedSettings,
         onToggleEnabled: handleToggle,
@@ -118,8 +122,8 @@ export function PluginsSection({ ctx, showAdvancedSettings = false }: PluginsSec
       {
         open: Boolean(pendingDisable),
         onClose: () => setPendingDisable(null),
-        title: 'Confirm disabling plugin',
-        accessibilityLabel: 'Confirm disabling plugin',
+        title: t('settings:plugins.confirmDisablingPlugin'),
+        accessibilityLabel: t('settings:plugins.confirmDisablingPlugin'),
       },
       pendingDisable
         ? h(
@@ -135,7 +139,9 @@ export function PluginsSection({ ctx, showAdvancedSettings = false }: PluginsSec
                   lineHeight: 1.5,
                 },
               },
-              `Disabling "${pendingDisable.plugin.displayName}" may affect the following running dependents:`,
+              t('settings:plugins.disablingMayAffectTheFollowing', {
+                displayName: pendingDisable.plugin.displayName,
+              }),
             ),
             h(
               'ul',
@@ -166,7 +172,7 @@ export function PluginsSection({ ctx, showAdvancedSettings = false }: PluginsSec
                   lineHeight: 1.4,
                 },
               },
-              'If you continue, features that depend on this plugin may stop working. Disable it?',
+              t('settings:plugins.ifYouContinue'),
             ),
             h(
               'div',
@@ -179,7 +185,7 @@ export function PluginsSection({ ctx, showAdvancedSettings = false }: PluginsSec
                 },
               },
               h(Button, {
-                children: 'Cancel',
+                children: t('app:common.cancel'),
                 variant: 'secondary',
                 onPress: () => setPendingDisable(null),
               }),
@@ -200,7 +206,7 @@ export function PluginsSection({ ctx, showAdvancedSettings = false }: PluginsSec
                     fontSize: 13,
                   },
                 },
-                'Disable plugin',
+                t('settings:plugins.disablePlugin'),
               ),
             ),
           )

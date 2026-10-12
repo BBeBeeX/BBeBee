@@ -1,6 +1,9 @@
 import { createElement as h, useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, ReactElement } from 'react'
+import type { Context } from 'cordis'
 import { tokens, type Palette } from '@BBeBee/ui-tokens'
+import { serviceOf } from '@BBeBee/ui-core'
+import type { I18nService } from '@BBeBee/protocol'
 import { c } from '../theme.js'
 import { tablerIcon } from '../icons/index.js'
 
@@ -223,7 +226,18 @@ export function JsonTree(props: {
   controls?: boolean
   testID?: string
   accessibilityLabel?: string
+  /**
+   * Optional Cordis context. When provided, the expand/collapse controls are
+   * translated via `useI18n`; without it the built-in English copy renders.
+   */
+  ctx?: Context
 }): ReactElement {
+  // Deliberately hook-free: the kit's tree() tests invoke components as plain
+  // functions. Locale changes reach this component because its
+  // useI18n-subscribed ancestors re-render it.
+  const i18n = props.ctx ? serviceOf<I18nService>(props.ctx, 'i18n') : undefined
+  // English copy stays verbatim until a caller threads `ctx` (i18n sweep).
+  const t = (key: string, fallback: string): string => i18n?.t(key) ?? fallback
   const palette = c()
   const [directive, setDirective] = useState<JsonDirective | undefined>(undefined)
   const frame: JsonFrame = {
@@ -265,7 +279,7 @@ export function JsonTree(props: {
                 padding: 0,
               },
             },
-            'Expand all',
+            t('app:common.jsonTree.expandAll', 'Expand all'),
           ),
           h(
             'button',
@@ -281,7 +295,7 @@ export function JsonTree(props: {
                 padding: 0,
               },
             },
-            'Collapse all',
+            t('app:common.jsonTree.collapseAll', 'Collapse all'),
           ),
         )
       : null,

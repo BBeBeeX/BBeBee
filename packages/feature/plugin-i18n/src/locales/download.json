@@ -1,0 +1,70 @@
+{
+  "en": {
+    "download": {
+      "downloaded": "Downloaded · {quality}",
+      "progressFor": "Progress for {title}"
+    },
+    "index": {
+      "cached": "Cached",
+      "chargingOnly": "Charging only",
+      "downloadNetworkPolicy": "Download network policy",
+      "downloaded": "Downloaded",
+      "downloads": "Downloads",
+      "inProgress": "In progress",
+      "inProgress2": "{active} in progress",
+      "noDownloads": "No downloads",
+      "wiFiOnly": "Wi-Fi only",
+      "clearFinished": "Clear finished",
+      "nothingYet": "Nothing yet",
+      "summaryDownloaded": "{done} downloaded · {bytes}",
+      "summaryDownloadedCompact": "{done} · {bytes}",
+      "summaryFailed": "{failed} failed",
+      "play": "Play",
+      "resume": "Resume",
+      "pause": "Pause",
+      "deleteTask": "Delete {title}",
+      "cancelTask": "Cancel {title}",
+      "queued": "Queued",
+      "bytesOfTotal": "{done} of {total}",
+      "pausedWithBytes": "Paused · {bytes}",
+      "canceled": "Canceled",
+      "failed": "Failed",
+      "emptyDescription": "A remote track is kept here after it plays once, so the next play needs no network. Tracks you download explicitly are saved and never evicted; cached ones are.",
+      "emptyDescriptionCompact": "A remote track is kept here after it plays once, so the next play needs no network."
+    }
+  },
+  "zh": {
+    "download": {
+      "downloaded": "已下载 · {quality}",
+      "progressFor": "{title} 的下载进度"
+    },
+    "index": {
+      "cached": "已缓存",
+      "chargingOnly": "仅充电时",
+      "downloadNetworkPolicy": "下载网络策略",
+      "downloaded": "已下载",
+      "downloads": "下载",
+      "inProgress": "进行中",
+      "inProgress2": "{active} 个进行中",
+      "noDownloads": "暂无下载",
+      "wiFiOnly": "仅 Wi-Fi",
+      "clearFinished": "清空已完成",
+      "nothingYet": "暂无",
+      "summaryDownloaded": "{done} 个已下载 · {bytes}",
+      "summaryDownloadedCompact": "{done} · {bytes}",
+      "summaryFailed": "{failed} 个失败",
+      "play": "播放",
+      "resume": "继续",
+      "pause": "暂停",
+      "deleteTask": "删除 {title}",
+      "cancelTask": "取消 {title}",
+      "queued": "排队中",
+      "bytesOfTotal": "{done} / {total}",
+      "pausedWithBytes": "已暂停 · {bytes}",
+      "canceled": "已取消",
+      "failed": "失败",
+      "emptyDescription": "远程曲目在播放一次后会保留在此处，下次播放无需联网。手动下载的曲目会被保存且永不清除；缓存的曲目则会被清除。",
+      "emptyDescriptionCompact": "远程曲目在播放一次后会保留在此处，下次播放无需联网。"
+    }
+  }
+}

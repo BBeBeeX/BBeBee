@@ -1,0 +1,66 @@
+{
+  "en": {
+    "index": {
+      "afterPlayingMusicFromThe": "After playing music from the library, your recently played songs will appear here.",
+      "close": "Close",
+      "daysAgo": "{days} days ago",
+      "hrAgo": "{hours} hr ago",
+      "minAgo": "{minutes} min ago",
+      "nextUpFrom": "Next up from: {contextLabel}",
+      "noPlayRecordsYet": "No play records yet",
+      "nothingQueued": "Nothing queued",
+      "nowPlaying": "Now playing",
+      "playSomethingFromYourLibrary": "Play something from your library and it will show up here.",
+      "queue": "Queue",
+      "recentlyPlayed": "Recently played",
+      "justNow": "just now",
+      "nextUp": "Next up",
+      "shuffleOnNote": "Shuffle is on: order is decided by the random seed; drag-to-reorder is not supported yet",
+      "noMoreSongsQueued": "No more songs queued",
+      "contextKindLabels": {
+        "album": "Album",
+        "playlist": "Playlist",
+        "artist": "Artist",
+        "search": "Search",
+        "radio": "Radio",
+        "local": "Local music",
+        "favorites": "Favorites"
+      }
+    },
+    "queueButton": {
+      "playQueue": "Play queue"
+    }
+  },
+  "zh": {
+    "index": {
+      "afterPlayingMusicFromThe": "从音乐库播放音乐后，最近播放的歌曲将显示在这里。",
+      "close": "关闭",
+      "daysAgo": "{days} 天前",
+      "hrAgo": "{hours} 小时前",
+      "minAgo": "{minutes} 分钟前",
+      "nextUpFrom": "下一首来自：{contextLabel}",
+      "noPlayRecordsYet": "暂无播放记录",
+      "nothingQueued": "队列为空",
+      "nowPlaying": "正在播放",
+      "playSomethingFromYourLibrary": "从音乐库播放内容后会显示在这里。",
+      "queue": "播放队列",
+      "recentlyPlayed": "最近播放",
+      "justNow": "刚刚",
+      "nextUp": "接下来播放",
+      "shuffleOnNote": "已开启随机播放：播放顺序由随机种子决定，暂不支持拖拽排序",
+      "noMoreSongsQueued": "队列中没有更多歌曲",
+      "contextKindLabels": {
+        "album": "专辑",
+        "playlist": "播放列表",
+        "artist": "艺人",
+        "search": "搜索",
+        "radio": "电台",
+        "local": "本地音乐",
+        "favorites": "收藏"
+      }
+    },
+    "queueButton": {
+      "playQueue": "播放队列"
+    }
+  }
+}

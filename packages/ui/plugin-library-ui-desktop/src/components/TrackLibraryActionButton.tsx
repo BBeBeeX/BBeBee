@@ -1,22 +1,26 @@
 import { createElement as h, useEffect, useState } from 'react'
 import type { MouseEvent, ReactElement } from 'react'
+import type { Context } from 'cordis'
 import type { Track } from '@BBeBee/protocol'
 import type { MenuAnchor } from '@BBeBee/ui-core'
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 
 export function TrackLibraryActionButton({
+  ctx,
   track,
   hovered,
   inLibrary: initialInLibrary,
   onAddToFavorites,
   onOpenPlaylistMenu,
 }: {
+  ctx: Context
   track: Track
   hovered: boolean
   inLibrary: boolean
   onAddToFavorites?: () => void
   onOpenPlaylistMenu: (track: Track, anchor: MenuAnchor) => void
 }): ReactElement {
+  const { t } = useI18n(ctx)
   const [inLibrary, setInLibrary] = useState(initialInLibrary)
   useEffect(() => {
     setInLibrary(initialInLibrary)
@@ -26,8 +30,10 @@ export function TrackLibraryActionButton({
     'button',
     {
       type: 'button',
-      'aria-label': inLibrary ? `Add ${track.title} to playlist` : `Add ${track.title} to favorites`,
-      title: inLibrary ? 'Add to playlist' : 'Add to Favorites',
+      'aria-label': inLibrary
+        ? t('library:trackLibraryActionButton.addToPlaylist', { title: track.title })
+        : t('library:trackLibraryActionButton.addToFavorites', { title: track.title }),
+      title: inLibrary ? t('library:trackLibraryActionButton.addToPlaylist2') : t('library:trackLibraryActionButton.addToFavorites2'),
       onClick: (e: MouseEvent) => {
         e.stopPropagation()
         if (inLibrary) {

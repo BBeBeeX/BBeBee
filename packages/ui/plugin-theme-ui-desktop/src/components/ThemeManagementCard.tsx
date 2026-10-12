@@ -2,7 +2,7 @@ import { createElement as h, useEffect, useRef, useState, type ReactElement } fr
 import type { Context } from 'cordis'
 import type { AppSettings, ThemeDefinition, ThemeService } from '@BBeBee/protocol'
 import { serviceOf } from '@BBeBee/toolkit/hooks'
-import { Sheet, tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { Sheet, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { midnightPurpleTheme } from '@BBeBee/ui-tokens'
 
 /**
@@ -11,6 +11,7 @@ import { midnightPurpleTheme } from '@BBeBee/ui-tokens'
  * in the settings document.
  */
 export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const settings = serviceOf<{ getSync(): AppSettings; update(p: unknown): Promise<unknown> }>(
     ctx,
     'settings',
@@ -86,7 +87,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
       }
     }
     reader.onerror = () => {
-      setImportError('Failed to read file')
+      setImportError(t('theme:themeManagement.importFailedReadFile'))
     }
     reader.readAsText(file)
     e.target.value = ''
@@ -95,12 +96,12 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
   const handleImportSubmit = () => {
     try {
       if (!importJson.trim()) {
-        throw new Error('Enter or choose a theme JSON')
+        throw new Error(t('theme:themeManagement.importEmptyJson'))
       }
       const parsed = JSON.parse(importJson) as Partial<ThemeDefinition>
-      if (!parsed || typeof parsed !== 'object') throw new Error('Invalid JSON format')
-      if (!parsed.id || typeof parsed.id !== 'string') throw new Error('Missing theme id field')
-      if (!parsed.name || typeof parsed.name !== 'string') throw new Error('Missing theme name field')
+      if (!parsed || typeof parsed !== 'object') throw new Error(t('theme:themeManagement.importInvalidJson'))
+      if (!parsed.id || typeof parsed.id !== 'string') throw new Error(t('theme:themeManagement.importMissingId'))
+      if (!parsed.name || typeof parsed.name !== 'string') throw new Error(t('theme:themeManagement.importMissingName'))
 
       const newTheme: ThemeDefinition = {
         id: parsed.id.trim(),
@@ -160,7 +161,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
             letterSpacing: '-0.01em',
           },
         },
-        'Appearance mode',
+        t('theme:themeManagement.appearanceMode'),
       ),
       h(
         'p',
@@ -172,7 +173,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
             lineHeight: 1.4,
           },
         },
-        'Switch the app between dark, light, or follow the system appearance',
+        t('theme:themeManagement.appearanceModeDesc'),
       ),
     ),
     h(
@@ -207,18 +208,18 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
         h(
           'div',
           { style: { display: 'flex', flexDirection: 'column', gap: 3 } },
-          h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #F5F5F7)' } }, 'Theme'),
+          h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #F5F5F7)' } }, t('theme:themeManagement.theme')),
           h(
             'div',
             { style: { fontSize: 12, color: 'var(--text-secondary, #8E8E93)', lineHeight: 1.45 } },
-            'Light, dark, or follow the system automatically',
+            t('theme:themeManagement.themeModeDesc'),
           ),
         ),
         h(
           'div',
           {
             role: 'radiogroup',
-            'aria-label': 'Appearance mode',
+            'aria-label': t('theme:themeManagement.appearanceMode'),
             style: {
               display: 'inline-flex',
               padding: 3,
@@ -228,11 +229,11 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
               gap: 4,
             },
           },
-          [
-            { id: 'system', label: 'Follow system' },
-            { id: 'dark', label: 'Dark mode' },
-            { id: 'light', label: 'Light mode' },
-          ].map((mode) => {
+          ([
+            { id: 'system', labelKey: 'theme:themeManagement.followSystem' },
+            { id: 'dark', labelKey: 'theme:themeManagement.darkMode' },
+            { id: 'light', labelKey: 'theme:themeManagement.lightMode' },
+          ] as const).map((mode) => {
             const isSelected = appearanceMode === mode.id
             return h(
               'button',
@@ -264,7 +265,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
                   transition: 'all 0.15s ease',
                 },
               },
-              mode.label,
+              t(mode.labelKey),
             )
           }),
         ),
@@ -283,11 +284,11 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
         h(
           'div',
           { style: { display: 'flex', flexDirection: 'column', gap: 3 } },
-          h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #F5F5F7)' } }, 'Interface theme'),
+          h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #F5F5F7)' } }, t('theme:themeManagement.interfaceTheme')),
           h(
             'div',
             { style: { fontSize: 12, color: 'var(--text-secondary, #8E8E93)', lineHeight: 1.45 } },
-            'Choose the app-wide color scheme, or import a custom theme',
+            t('theme:themeManagement.interfaceThemeDesc'),
           ),
         ),
         h(
@@ -326,7 +327,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
             },
           },
           tablerIcon('plus', { size: 14 }),
-          'Import theme',
+          t('theme:themeManagement.importTheme'),
         ),
       ),
       h(
@@ -340,12 +341,12 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
             width: '100%',
           },
         },
-        themes.map((t) => {
-          const isSelected = currentThemeId === t.id
-          const isMidnight = t.id === 'midnight-purple'
-          const isSpotify = t.id === 'spotify'
-          const isCrimson = t.id === 'crimson-night'
-          const isOcean = t.id === 'ocean-abyss'
+        themes.map((theme) => {
+          const isSelected = currentThemeId === theme.id
+          const isMidnight = theme.id === 'midnight-purple'
+          const isSpotify = theme.id === 'spotify'
+          const isCrimson = theme.id === 'crimson-night'
+          const isOcean = theme.id === 'ocean-abyss'
           const isCustom = !isMidnight && !isSpotify && !isCrimson && !isOcean
           const swatchBg = isMidnight
             ? 'linear-gradient(135deg, #5F87FF 0%, #7C86FF 50%, #A99CFF 100%)'
@@ -355,16 +356,16 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
                 ? '#FF2D55'
                 : isOcean
                   ? '#06B6D4'
-                  : t.tokens?.brand?.primary ?? 'var(--color-primary, #5F87FF)'
+                  : theme.tokens?.brand?.primary ?? 'var(--color-primary, #5F87FF)'
 
           return h(
             'button',
             {
-              key: t.id,
+              key: theme.id,
               type: 'button',
-              onClick: () => handleThemeChange(t.id),
+              onClick: () => handleThemeChange(theme.id),
               'aria-pressed': isSelected,
-              'data-testid': `theme-option-${t.id}`,
+              'data-testid': `theme-option-${theme.id}`,
               style: {
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -395,24 +396,24 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
                 boxShadow: '0 0 4px rgba(0, 0, 0, 0.3)',
               },
             }),
-            t.name,
+            theme.name,
             isCustom
               ? h(
                   'span',
                   {
                     role: 'button',
                     tabIndex: 0,
-                    title: `Delete ${t.name}`,
-                    'aria-label': `Delete ${t.name}`,
-                    'data-testid': `delete-theme-${t.id}`,
+                    title: t('theme:themeManagement.deleteTheme', { name: theme.name }),
+                    'aria-label': t('theme:themeManagement.deleteTheme', { name: theme.name }),
+                    'data-testid': `delete-theme-${theme.id}`,
                     onClick: (e: { stopPropagation(): void }) => {
                       e.stopPropagation()
-                      handleDeleteTheme(t.id)
+                      handleDeleteTheme(theme.id)
                     },
                     onKeyDown: (e: { key: string; stopPropagation(): void }) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.stopPropagation()
-                        handleDeleteTheme(t.id)
+                        handleDeleteTheme(theme.id)
                       }
                     },
                     style: {
@@ -442,8 +443,8 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
           setShowImportModal(false)
           setImportError(null)
         },
-        title: 'Import theme',
-        accessibilityLabel: 'Import theme',
+        title: t('theme:themeManagement.importTheme'),
+        accessibilityLabel: t('theme:themeManagement.importTheme'),
       },
       h(
         'div',
@@ -451,7 +452,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
         h(
           'p',
           { style: { margin: 0, fontSize: 13, color: 'var(--text-secondary, #C5CAD8)', lineHeight: 1.5 } },
-          'Choose a local JSON file containing a theme configuration, or type/paste the JSON below. It is applied automatically once imported.',
+          t('theme:themeManagement.importHint'),
         ),
         h(
           'div',
@@ -484,7 +485,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
               },
             },
             tablerIcon('upload', { size: 14 }),
-            'Choose a local JSON file',
+            t('theme:themeManagement.chooseLocalJsonFile'),
           ),
         ),
         h('textarea', {
@@ -493,8 +494,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
             setImportJson(e.target.value)
             setImportError(null)
           },
-          placeholder:
-            'Paste a theme JSON configuration here, e.g.:\n{\n  "id": "my-neon",\n  "name": "Neon Fantasy",\n  "tokens": {\n    "brand": { "primary": "#00FFCC" }\n  }\n}',
+          placeholder: t('theme:themeManagement.importPlaceholder'),
           rows: 8,
           'data-testid': 'import-theme-textarea',
           style: {
@@ -550,7 +550,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
                 fontSize: 13,
               },
             },
-            'Cancel',
+            t('app:common.cancel'),
           ),
           h(
             'button',
@@ -569,7 +569,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
                 fontSize: 13,
               },
             },
-            'Import & enable',
+            t('theme:themeManagement.importAndEnable'),
           ),
         ),
       ),

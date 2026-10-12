@@ -1,17 +1,22 @@
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { createElement as h, type ReactElement } from 'react'
+import type { Context } from 'cordis'
 
 export interface PluginSearchBoxProps {
+  ctx: Context
   value: string
   onChange: (value: string) => void
   placeholder?: string
 }
 
 export function PluginSearchBox({
+  ctx,
   value,
   onChange,
-  placeholder = 'Search plugins…',
+  placeholder,
 }: PluginSearchBoxProps): ReactElement {
+  const { t } = useI18n(ctx)
+  const effectivePlaceholder = placeholder ?? t('settings:pluginSearchBox.searchPlugins')
   return h(
     'div',
     {
@@ -41,8 +46,8 @@ export function PluginSearchBox({
       type: 'text',
       value,
       onChange: (e: { target: { value: string } }) => onChange(e.target.value),
-      placeholder,
-      'aria-label': placeholder,
+      placeholder: effectivePlaceholder,
+      'aria-label': effectivePlaceholder,
       'data-testid': 'plugin-search-input',
       style: {
         width: '100%',
@@ -71,7 +76,7 @@ export function PluginSearchBox({
           {
             type: 'button',
             onClick: () => onChange(''),
-            'aria-label': 'Clear search',
+            'aria-label': t('settings:pluginSearchBox.clearSearch'),
             'data-testid': 'plugin-search-clear',
             style: {
               position: 'absolute',

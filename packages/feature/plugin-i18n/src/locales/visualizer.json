@@ -1,0 +1,56 @@
+{
+  "en": {
+    "visualizerCanvas": {
+      "audioVisualizer": "Audio visualizer"
+    },
+    "visualizerSettings": {
+      "auroraTeal": "Aurora teal",
+      "brandNeon": "Brand neon",
+      "iridescentRainbow": "Iridescent rainbow",
+      "minimalSilver": "Minimal silver",
+      "pulsingParticles": "Pulsing particles",
+      "radialCircle": "Radial circle",
+      "smoothWave": "Smooth wave",
+      "spectrumBars": "Spectrum bars",
+      "audioVisualizationTitle": "Audio visualization",
+      "audioVisualizationDesc": "Shows music-frequency and sound-wave animations in the playback UI, with custom display styles and colors",
+      "audioVisualizerRowTitle": "Audio Visualizer",
+      "audioVisualizerRowDesc": "Once enabled, shows a live spectrum or waveform in the full-screen playback UI",
+      "livePreview": "Live preview",
+      "displayStyle": "Display style",
+      "colorTheme": "Color theme",
+      "amplitudeSensitivity": "Amplitude sensitivity",
+      "barsDesc": "Classic multi-band jumping spectrum bars",
+      "waveDesc": "A soft, flowing oscilloscope curve",
+      "circleDesc": "A 360-degree dynamic halo radiating from the center",
+      "particlesDesc": "A swarm of particles floating with the volume pulse"
+    }
+  },
+  "zh": {
+    "visualizerCanvas": {
+      "audioVisualizer": "音频可视化"
+    },
+    "visualizerSettings": {
+      "auroraTeal": "极光青",
+      "brandNeon": "品牌霓虹",
+      "iridescentRainbow": "虹彩",
+      "minimalSilver": "极简银",
+      "pulsingParticles": "脉冲粒子",
+      "radialCircle": "径向圆环",
+      "smoothWave": "平滑波形",
+      "spectrumBars": "频谱柱",
+      "audioVisualizationTitle": "音频可视化",
+      "audioVisualizationDesc": "在播放界面中显示音乐频谱和声波动画，可自定义显示样式与配色",
+      "audioVisualizerRowTitle": "音频可视化",
+      "audioVisualizerRowDesc": "启用后，在全屏播放界面中显示实时频谱或波形",
+      "livePreview": "实时预览",
+      "displayStyle": "显示样式",
+      "colorTheme": "配色主题",
+      "amplitudeSensitivity": "振幅灵敏度",
+      "barsDesc": "经典多频段跳动频谱柱",
+      "waveDesc": "柔和流动的示波器曲线",
+      "circleDesc": "从中心向外辐射的 360° 动态光环",
+      "particlesDesc": "随音量脉动漂浮的粒子群"
+    }
+  }
+}

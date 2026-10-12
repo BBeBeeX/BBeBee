@@ -6,7 +6,7 @@ import { useSaved } from '@BBeBee/plugin-library/hooks'
 import { resolveTrackSourceName, useTracksByUrn } from '@BBeBee/toolkit/hooks'
 import { serviceOf, type MenuAnchor, type MenuItemSpec } from '@BBeBee/ui-core'
 import { sortMenuItems, useTrackMenu } from '@BBeBee/ui-menus'
-import { ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, List, SaveToPlaylistPopover, StickyDetailBar, Text, tablerIcon, useDetailBarCollapse, headerGradient, viewModeMenuItems, useViewMode } from '@BBeBee/ui-kit-desktop'
+import { ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, List, SaveToPlaylistPopover, StickyDetailBar, Text, tablerIcon, useDetailBarCollapse, headerGradient, viewModeMenuItems, useViewMode, useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
 import { LibraryTrackRow } from '../components/LibraryTrackRow.js'
 import { BatchActionBar } from '../components/BatchActionBar.js'
@@ -18,6 +18,7 @@ type FavoriteSortKey = 'default' | 'title' | 'artist' | 'album' | 'source' | 'du
 const FAVORITES_TINT = '#450af5'
 
 export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const saved = useSaved(ctx, 'track')
   const entries = saved.data ?? []
   const rawUrns = useMemo(() => entries.map((entry) => entry.urn), [entries])
@@ -105,22 +106,22 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
   const sortedUrns = useMemo(() => sortedTracks.map((t) => t.urn), [sortedTracks])
 
   const sortLabelMap: Record<FavoriteSortKey, string> = {
-    default: 'Default order',
-    title: 'Title',
-    artist: 'Artist',
-    album: 'Album',
-    source: 'Source',
-    duration: 'Duration',
+    default: t('library:favorites.defaultOrder'),
+    title: t('library:favorites.title'),
+    artist: t('library:favorites.artist'),
+    album: t('library:favorites.album'),
+    source: t('library:favorites.source'),
+    duration: t('library:favorites.duration'),
   }
 
   const sortItems = sortMenuItems(
     [
-      { id: 'default', label: 'Default order' },
-      { id: 'title', label: 'Title' },
-      { id: 'artist', label: 'Artist' },
-      { id: 'album', label: 'Album' },
-      { id: 'source', label: 'Source' },
-      { id: 'duration', label: 'Duration' },
+      { id: 'default', label: t('library:favorites.defaultOrder') },
+      { id: 'title', label: t('library:favorites.title') },
+      { id: 'artist', label: t('library:favorites.artist') },
+      { id: 'album', label: t('library:favorites.album') },
+      { id: 'source', label: t('library:favorites.source') },
+      { id: 'duration', label: t('library:favorites.duration') },
     ],
     sortKey,
     (id) => setSortKey(id as FavoriteSortKey),
@@ -158,7 +159,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
     const toPlay = Array.from(selectedUrns)
     if (toPlay.length > 0) {
       void player?.playNow(toPlay, {
-        context: { kind: 'favorites', label: 'Favorites' },
+        context: { kind: 'favorites', label: t('library:favorites.favorites') },
       })
     }
   }
@@ -200,21 +201,21 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
       return [
         {
           id: 'batch-play',
-          label: 'Play selected',
+          label: t('library:favorites.playSelected'),
           icon: tablerIcon('play', { size: 20 }),
           disabled: selectedUrns.size === 0,
           onSelect: handleBatchPlay,
         },
         {
           id: 'batch-add',
-          label: 'Add to playlist',
+          label: t('library:trackLibraryActionButton.addToPlaylist2'),
           icon: tablerIcon('plus', { size: 20 }),
           disabled: selectedUrns.size === 0,
           onSelect: () => handleBatchAddToPlaylist(),
         },
         {
           id: 'batch-delete',
-          label: 'Remove from Favorites',
+          label: t('library:favorites.removeFromFavorites'),
           icon: tablerIcon('trash', { size: 20 }),
           tone: 'danger',
           disabled: selectedUrns.size === 0,
@@ -222,7 +223,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
         },
         {
           id: 'batch-exit',
-          label: 'Exit batch operations',
+          label: t('library:favorites.exitBatchOperations'),
           icon: tablerIcon('x', { size: 20 }),
           divider: true,
           onSelect: handleExitBatch,
@@ -233,30 +234,30 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
     return [
       {
         id: 'batch-operations',
-        label: 'Batch operations',
+        label: t('library:favorites.batchOperations'),
         icon: tablerIcon('list-check', { size: 20 }),
         onSelect: () => setIsBatchMode(true),
       },
     ]
-  }, [isBatchMode, selectedUrns, sortedUrns])
+  }, [isBatchMode, selectedUrns, sortedUrns, t])
 
   const renderPlayButton = (size: number, iconSize: number, testID: string | undefined) =>
     h(DetailPlayButton, {
       size,
       iconSize,
       testID,
-      ariaLabel: 'Play all',
+      ariaLabel: t('library:favorites.playAll'),
       onPress: () =>
         sortedUrns[0] &&
         player?.playFromContext(sortedUrns[0], sortedUrns, {
-          context: { kind: 'favorites', label: 'Favorites' },
+          context: { kind: 'favorites', label: t('library:favorites.favorites') },
         }),
       disabled: sortedUrns.length === 0,
     })
 
   // The sticky bar rides the List's sticky slot (a direct child of the scroller).
   const stickyBar = h(StickyDetailBar, {
-    title: 'Liked songs',
+    title: t('library:favorites.likedSongs'),
     progress: collapse.slide,
     docked: collapse.docked,
     tint: FAVORITES_TINT,
@@ -268,9 +269,12 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
     'div',
     { style: { background: headerGradient(FAVORITES_TINT) } },
     h(DetailHero, {
-      eyebrow: 'Playlist',
-      title: 'Liked songs',
-      subtitle: `Saved music • ${urns.length} ${urns.length === 1 ? 'song' : 'songs'}`,
+      eyebrow: t('library:playlistDetail.playlist'),
+      title: t('library:favorites.likedSongs'),
+      subtitle:
+        urns.length === 1
+          ? t('library:favorites.savedMusicOne', { length: urns.length })
+          : t('library:favorites.savedMusicOther', { length: urns.length }),
     }),
     // Action Bar
     h(
@@ -297,14 +301,14 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
           'button',
           {
             type: 'button',
-            title: 'Shuffle',
+            title: t('library:favorites.shuffle'),
             style: { background: 'none', border: 'none', color: 'var(--bb-text-secondary, #b3b3b3)', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
             onClick: () => {
               if (sortedUrns.length > 0) {
                 const shuffled = [...sortedUrns].sort(() => Math.random() - 0.5)
                 if (shuffled[0])
                   void player?.playFromContext(shuffled[0], shuffled, {
-                    context: { kind: 'favorites', label: 'Favorites' },
+                    context: { kind: 'favorites', label: t('library:favorites.favorites') },
                   })
               }
             },
@@ -316,7 +320,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
           {
             type: 'button',
             'data-testid': 'favorites-more-trigger',
-            title: 'More options',
+            title: t('library:expandedLibrary.moreOptions'),
             style: { background: 'none', border: 'none', color: 'var(--bb-text-secondary, #b3b3b3)', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
             onClick: (e: ReactMouseEvent) => {
               const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
@@ -345,7 +349,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
           tablerIcon('search', { size: 18, color: 'var(--bb-text-secondary, #b3b3b3)' }),
           h('input', {
             type: 'text',
-            placeholder: 'Search in Liked songs',
+            placeholder: t('library:favorites.searchInLikedSongs'),
             value: searchQuery,
             onChange: (e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value),
             style: {
@@ -373,7 +377,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
             {
               type: 'button',
               'data-testid': 'favorites-sort-trigger',
-              title: 'Sort by',
+              title: t('library:favorites.sortBy'),
               onClick: (e: ReactMouseEvent) => {
                 const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
                 setSortMenuAnchor({ x: rect.left, y: rect.bottom + 6 })
@@ -398,6 +402,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
     ),
     isBatchMode
       ? h(BatchActionBar, {
+          ctx,
           selectedCount: selectedUrns.size,
           totalCount: sortedUrns.length,
           allSelected: sortedUrns.length > 0 && selectedUrns.size === sortedUrns.length,
@@ -405,26 +410,26 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
           onBatchPlay: handleBatchPlay,
           onBatchAddToPlaylist: (anchor) => handleBatchAddToPlaylist(anchor),
           onBatchDelete: handleBatchDelete,
-          deleteLabel: 'Remove from Favorites',
+          deleteLabel: t('library:favorites.removeFromFavorites'),
           onExitBatch: handleExitBatch,
         })
       : null,
     error ? h('div', { style: { padding: '0 32px 8px 32px' } }, h(Text, { variant: 'sm', tone: 'error' }, error)) : null,
     saved.status === 'error'
-      ? h('div', { style: { padding: '0 32px 8px 32px' } }, h(Text, { tone: 'error' }, `Could not read favorites: ${saved.error?.message}`))
+      ? h('div', { style: { padding: '0 32px 8px 32px' } }, h(Text, { tone: 'error' }, t('library:favorites.couldNotReadFavorites', { message: saved.error?.message ?? '' })))
       : null,
   )
 
   // The table header rides the stickyHeader slot (a direct child of the scroller).
   const tableHeaderNode = h(DetailTableHeader, {
     testID: 'favorites-table-header',
-    accessibilityLabel: 'Liked songs',
+    accessibilityLabel: t('library:favorites.likedSongs'),
     columns: [
       { key: 'default', label: '#', testID: 'favorites-sort-default', width: 40, align: 'center' },
-      { key: 'title', label: 'Title', testID: 'favorites-sort-title', flex: 2, paddingLeft: 12 },
-      { key: 'artist', label: 'Artist', plain: true, flex: 1, visible: viewMode === 'compact' },
-      { key: 'album', label: 'Album', testID: 'favorites-sort-album', flex: 1.5, paddingLeft: 8 },
-      { key: 'source', label: 'Source', testID: 'favorites-sort-source', flex: 1, paddingLeft: 8 },
+      { key: 'title', label: t('library:favorites.title'), testID: 'favorites-sort-title', flex: 2, paddingLeft: 12 },
+      { key: 'artist', label: t('library:favorites.artist'), plain: true, flex: 1, visible: viewMode === 'compact' },
+      { key: 'album', label: t('library:favorites.album'), testID: 'favorites-sort-album', flex: 1.5, paddingLeft: 8 },
+      { key: 'source', label: t('library:favorites.source'), testID: 'favorites-sort-source', flex: 1, paddingLeft: 8 },
       { key: 'duration', label: '', icon: tablerIcon('clock', { size: 18 }), testID: 'favorites-sort-duration', width: 120, align: 'right', paddingRight: 40 },
     ] satisfies DetailColumnSpec[],
     sortKey,
@@ -436,7 +441,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
   return h(
     'section',
     {
-      'aria-label': 'Liked songs',
+      'aria-label': t('library:favorites.likedSongs'),
       style: {
         display: 'flex',
         flexDirection: 'column',
@@ -461,31 +466,31 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
         keyExtractor: (t) => t.urn,
         empty:
           saved.status === 'loading'
-            ? h(EmptyState, { title: 'Loading…' })
+            ? h(EmptyState, { title: t('library:collection.loading') })
             : h(EmptyState, {
                 icon: 'heart',
-                title: 'No liked songs yet',
-                description: 'After saving songs in the music library, they will appear here.',
+                title: t('library:favorites.noLikedSongsYet'),
+                description: t('library:favorites.afterSavingSongsInThe'),
               }),
-        renderItem: (t, index) =>
+        renderItem: (track, index) =>
           h(LibraryTrackRow, {
             ctx,
-            track: t,
+            track,
             index,
             compact: viewMode === 'compact',
             batchMode: isBatchMode,
-            selected: selectedUrns.has(t.urn),
-            onToggleSelect: () => handleToggleSelect(t.urn),
+            selected: selectedUrns.has(track.urn),
+            onToggleSelect: () => handleToggleSelect(track.urn),
             showSource: true,
-            sourceName: resolveTrackSourceName(ctx, t.urn),
+            sourceName: resolveTrackSourceName(ctx, track.urn),
             onPress: () =>
-              player?.playFromContext(t.urn, sortedUrns, {
-                context: { kind: 'favorites', label: 'Favorites' },
+              player?.playFromContext(track.urn, sortedUrns, {
+                context: { kind: 'favorites', label: t('library:favorites.favorites') },
               }),
-            onMore: (anchor) => menu.open({ track: t }, anchor),
+            onMore: (anchor) => menu.open({ track }, anchor),
             onOpenPlaylistMenu: openAddToPlaylistMenu,
             // After unsaving, the row must return to a plus: the heart state follows the live saved set.
-            inLibrary: isTrackInLibrary(t),
+            inLibrary: isTrackInLibrary(track),
             onAddToFavorites: handleAddToFavorites,
           }),
       }),
@@ -498,7 +503,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
       x: sortMenuAnchor?.x ?? 0,
       y: sortMenuAnchor?.y ?? 0,
       items: viewModeMenuItems(sortItems, viewMode, setViewMode),
-      title: 'Sort by',
+      title: t('library:favorites.sortBy'),
     }),
     h(ContextMenu, {
       open: moreMenuAnchor !== null,
@@ -506,7 +511,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
       x: moreMenuAnchor?.x ?? 0,
       y: moreMenuAnchor?.y ?? 0,
       items: moreMenuItems,
-      title: 'Liked songs',
+      title: t('library:favorites.likedSongs'),
     }),
   )
 }

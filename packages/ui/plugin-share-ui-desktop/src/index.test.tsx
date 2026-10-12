@@ -4,6 +4,7 @@ import { createElement as h } from 'react'
 import { render, fireEvent, cleanup } from '@testing-library/react'
 import { Context, Service } from 'cordis'
 import pluginShareUi from './index.js'
+import shareCatalogue from '../../../feature/plugin-i18n/src/locales/share.json'
 import { ShareCardPreview } from './components/ShareCardPreview.js'
 import { ShareTrackModal } from './components/ShareTrackModal.js'
 import { SharePlaylistModal } from './components/SharePlaylistModal.js'
@@ -59,6 +60,37 @@ class PlayerStub extends Service {
   }
 }
 
+/**
+ * English-only i18n stub — the same shape as `DefaultI18nStub` in
+ * `apps/desktop/renderer/Shell.test.tsx`, but serving the `share` catalogue so
+ * components under test render the copy the app shows.
+ */
+class EnglishI18nStub extends Service {
+  static override readonly name = 'i18n'
+  locale = 'en'
+  constructor(ctx: Context) {
+    super(ctx, 'i18n')
+  }
+  t = (key: string, params?: Record<string, string | number>): string => {
+    const sep = key.indexOf(':')
+    if (sep < 0) return key
+    let cur: unknown = (shareCatalogue as { en: Record<string, unknown> }).en
+    for (const part of key.slice(sep + 1).split('.')) {
+      cur = (cur as Record<string, unknown> | undefined)?.[part]
+    }
+    if (typeof cur !== 'string') return key
+    return params ? cur.replace(/\{(\w+)\}/g, (_, k: string) => String(params[k] ?? `{${k}}`)) : cur
+  }
+  onLocaleChange = (_cb: (locale: string) => void): (() => void) => () => {}
+}
+
+/** A context with the English i18n stub installed — views render real copy. */
+async function testCtx(): Promise<Context> {
+  const ctx = new Context()
+  await ctx.plugin(EnglishI18nStub)
+  return ctx
+}
+
 describe('plugin-share-ui-desktop', () => {
   afterEach(() => {
     cleanup()
@@ -98,8 +130,8 @@ describe('plugin-share-ui-desktop', () => {
     expect(lyricsContainer.textContent).toContain('Every setback finds its own reward')
   })
 
-  it('renders ShareTrackModal with background modes and action buttons', () => {
-    const ctx = new Context()
+  it('renders ShareTrackModal with background modes and action buttons', async () => {
+    const ctx = await testCtx()
     const { baseElement } = render(
       h(ShareTrackModal, {
         ctx,
@@ -119,8 +151,8 @@ describe('plugin-share-ui-desktop', () => {
     expect(baseElement.textContent).toContain('Download image')
   })
 
-  it('renders SharePlaylistModal with background modes and action buttons', () => {
-    const ctx = new Context()
+  it('renders SharePlaylistModal with background modes and action buttons', async () => {
+    const ctx = await testCtx()
     const { baseElement } = render(
       h(SharePlaylistModal, {
         ctx,
@@ -141,8 +173,8 @@ describe('plugin-share-ui-desktop', () => {
     expect(baseElement.textContent).toContain('Download image')
   })
 
-  it('renders ShareLyricsModal with lyric lines', () => {
-    const ctx = new Context()
+  it('renders ShareLyricsModal with lyric lines', async () => {
+    const ctx = await testCtx()
     const { baseElement } = render(
       h(ShareLyricsModal, {
         ctx,
@@ -162,8 +194,8 @@ describe('plugin-share-ui-desktop', () => {
     expect(baseElement.textContent).toContain('Download image')
   })
 
-  it('renders ImportShareModal with dropzone and base64 input', () => {
-    const ctx = new Context()
+  it('renders ImportShareModal with dropzone and base64 input', async () => {
+    const ctx = await testCtx()
     const { baseElement } = render(
       h(ImportShareModal, {
         ctx,
@@ -177,7 +209,7 @@ describe('plugin-share-ui-desktop', () => {
   })
 
   it('handles play now and enqueue in ImportShareModal', async () => {
-    const ctx = new Context()
+    const ctx = await testCtx()
     ctx.plugin(PlayerStub)
     const { serviceOf } = await import('@BBeBee/ui-core')
     const player = serviceOf<PlayerStub>(ctx, 'player')!
@@ -213,8 +245,8 @@ describe('plugin-share-ui-desktop', () => {
     expect(closed).toBe(true)
   })
 
-  it('renders ShareAlbumModal with album details and actions', () => {
-    const ctx = new Context()
+  it('renders ShareAlbumModal with album details and actions', async () => {
+    const ctx = await testCtx()
     const { baseElement } = render(
       h(ShareAlbumModal, {
         ctx,
@@ -236,8 +268,8 @@ describe('plugin-share-ui-desktop', () => {
     expect(baseElement.textContent).toContain('Download image')
   })
 
-  it('shows disabled explanation toast when disabled copy button is clicked in ShareLyricsModal', () => {
-    const ctx = new Context()
+  it('shows disabled explanation toast when disabled copy button is clicked in ShareLyricsModal', async () => {
+    const ctx = await testCtx()
     const { getByTestId, queryByTestId, getAllByRole } = render(
       h(ShareLyricsModal, {
         ctx,
@@ -274,8 +306,8 @@ describe('plugin-share-ui-desktop', () => {
     expect(toast.textContent).toContain("Can't copy lyrics: select at least one lyric line")
   })
 
-  it('shows disabled explanation toast when metadata is invalid in ShareAlbumModal', () => {
-    const ctx = new Context()
+  it('shows disabled explanation toast when metadata is invalid in ShareAlbumModal', async () => {
+    const ctx = await testCtx()
     const { getByTestId, queryByTestId } = render(
       h(ShareAlbumModal, {
         ctx,
@@ -299,8 +331,8 @@ describe('plugin-share-ui-desktop', () => {
     expect(toast.textContent).toContain("Can't copy: the album is missing a valid title or other metadata")
   })
 
-  it('displays warning banner and disables copy/download for local track', () => {
-    const ctx = new Context()
+  it('displays warning banner and disables copy/download for local track', async () => {
+    const ctx = await testCtx()
     const { getByTestId } = render(
       h(ShareTrackModal, {
         ctx,
@@ -337,8 +369,8 @@ describe('plugin-share-ui-desktop', () => {
     expect(toast.textContent).toContain("Can't share local music")
   })
 
-  it('displays warning banner and disables copy/download for local playlist and album', () => {
-    const ctx = new Context()
+  it('displays warning banner and disables copy/download for local playlist and album', async () => {
+    const ctx = await testCtx()
     const { getByTestId: getPlaylistTestId } = render(
       h(SharePlaylistModal, {
         ctx,
@@ -435,7 +467,7 @@ describe('plugin-share-ui-desktop', () => {
       artwork: 'https://cdn.example.com/online_cover.jpg',
     })
 
-    const ctx = new Context()
+    const ctx = await testCtx()
     const { getByPlaceholderText, getByAltText } = render(
       h(ImportShareModal, {
         ctx,

@@ -14,7 +14,7 @@ import type {} from '@BBeBee/protocol'
 import type { QueueItem } from '@BBeBee/protocol'
 import { QUEUE_VIEWS } from '@BBeBee/plugin-queue/views'
 import { queueTrackFallback, useQueue, useTracksByUrn, useTransport } from '@BBeBee/plugin-player/hooks'
-import { ContextMenu, EmptyState, List, TrackRow } from '@BBeBee/ui-kit-mobile'
+import { ContextMenu, EmptyState, List, TrackRow, useI18n } from '@BBeBee/ui-kit-mobile'
 import { useResolvedArtwork } from '@BBeBee/plugin-cache/hooks'
 import { useTrackMenu } from '@BBeBee/ui-menus'
 import type { TrackRowProps } from '@BBeBee/ui-core'
@@ -32,6 +32,7 @@ function CachedTrackRow({ ctx, ...props }: TrackRowProps & { ctx: Context }): Re
 
 /** The up-next list. */
 export function QueueScreen({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const queue = useQueue(ctx)
   const state = useTransport(ctx)
   // Cover, title and artist come from the catalogue read the list does for
@@ -44,8 +45,8 @@ export function QueueScreen({ ctx }: { ctx: Context }): ReactElement {
   if (queue.length === 0) {
     return h(EmptyState, {
       icon: '🎵',
-      title: 'Nothing queued',
-      description: 'Play something from your library and it will show up here.',
+      title: t('queue:index.nothingQueued'),
+      description: t('queue:index.playSomethingFromYourLibrary'),
     })
   }
 
@@ -54,7 +55,7 @@ export function QueueScreen({ ctx }: { ctx: Context }): ReactElement {
     null,
     h(List<QueueItem>, {
       items: queue,
-      accessibilityLabel: 'Queue',
+      accessibilityLabel: t('queue:index.queue'),
       estimatedItemSize: tokens.size.row,
       keyExtractor: (item) => item.id,
       renderItem: (item) => {

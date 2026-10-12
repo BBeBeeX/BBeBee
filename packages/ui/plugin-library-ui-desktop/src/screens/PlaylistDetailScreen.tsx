@@ -7,7 +7,7 @@ import { usePlaylist } from '@BBeBee/plugin-library/hooks'
 import { resolveTrackSourceName, useResolvedArtwork, useTracksByUrn } from '@BBeBee/toolkit/hooks'
 import { serviceOf, type MenuAnchor } from '@BBeBee/ui-core'
 import { sortMenuItems, usePlaylistMenu, useTrackMenu } from '@BBeBee/ui-menus'
-import { ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, List, SaveToPlaylistPopover, StickyDetailBar, Text, tablerIcon, useDetailBarCollapse, useImageColor, headerGradient, viewModeMenuItems, useViewMode } from '@BBeBee/ui-kit-desktop'
+import { ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, List, SaveToPlaylistPopover, StickyDetailBar, Text, tablerIcon, useDetailBarCollapse, useImageColor, headerGradient, viewModeMenuItems, useViewMode, useI18n } from '@BBeBee/ui-kit-desktop'
 import { formatTotalDuration } from '@BBeBee/toolkit'
 import { tokens } from '@BBeBee/ui-tokens'
 import { QuadArtworkCollage } from '../components/QuadArtworkCollage.js'
@@ -19,6 +19,7 @@ import { useTrackLibraryInfo } from '../hooks/useTrackLibraryInfo.js'
 type PlaylistSortKey = 'custom' | 'title' | 'artist' | 'album' | 'source' | 'dateAdded' | 'duration'
 
 export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string }): ReactElement {
+  const { t } = useI18n(ctx)
   const sources = serviceOf<SourcesService>(ctx, 'sources')
   const parsedUrn = tryParseUrn(urn ?? '')
   const isThirdPartyUrn = Boolean(parsedUrn && parsedUrn.sourceId && parsedUrn.sourceId !== 'local')
@@ -288,20 +289,20 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
   const isError = isThirdPartyUrn ? Boolean(thirdPartyData.error) : state.status === 'error'
   const errorMessage = isThirdPartyUrn ? thirdPartyData.error?.message : state.error?.message
   const isLoading = isThirdPartyUrn ? thirdPartyData.loading : state.status === 'loading'
-  if (!urn) return h(EmptyState, { title: 'No playlist chosen' })
+  if (!urn) return h(EmptyState, { title: t('library:playlistDetail.noPlaylistChosen') })
   if (isError) {
-    return h(EmptyState, { title: 'Could not open the playlist', description: errorMessage })
+    return h(EmptyState, { title: t('library:playlistDetail.couldNotOpenThePlaylist'), description: errorMessage })
   }
-  if (!detail || isLoading) return h(EmptyState, { title: 'Loading…' })
+  if (!detail || isLoading) return h(EmptyState, { title: t('library:collection.loading') })
 
   const sortLabelMap: Record<PlaylistSortKey, string> = {
-    custom: 'Custom order',
-    title: 'Title',
-    artist: 'Artist',
-    album: 'Album',
-    source: 'Source',
-    dateAdded: 'Date added',
-    duration: 'Duration',
+    custom: t('library:playlistDetail.customOrder'),
+    title: t('library:favorites.title'),
+    artist: t('library:favorites.artist'),
+    album: t('library:favorites.album'),
+    source: t('library:favorites.source'),
+    dateAdded: t('library:playlistDetail.dateAdded'),
+    duration: t('library:favorites.duration'),
   }
 
   const handleHeaderClick = (key: PlaylistSortKey) => {
@@ -315,13 +316,13 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
 
   const sortItems = sortMenuItems(
     [
-      { id: 'custom', label: 'Custom order' },
-      { id: 'title', label: 'Title' },
-      { id: 'artist', label: 'Artist' },
-      { id: 'album', label: 'Album' },
-      { id: 'source', label: 'Source' },
-      { id: 'dateAdded', label: 'Date added' },
-      { id: 'duration', label: 'Duration' },
+      { id: 'custom', label: t('library:playlistDetail.customOrder') },
+      { id: 'title', label: t('library:favorites.title') },
+      { id: 'artist', label: t('library:favorites.artist') },
+      { id: 'album', label: t('library:favorites.album') },
+      { id: 'source', label: t('library:favorites.source') },
+      { id: 'dateAdded', label: t('library:playlistDetail.dateAdded') },
+      { id: 'duration', label: t('library:favorites.duration') },
     ],
     sortKey,
     (id) => setSortKey(id as PlaylistSortKey),
@@ -334,7 +335,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
       size,
       iconSize,
       testID,
-      ariaLabel: 'Play',
+      ariaLabel: t('library:playlistDetail.play'),
       onPress: () => sortedUrns[0] && play(sortedUrns[0]),
       disabled: sortedUrns.length === 0,
     })
@@ -399,7 +400,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
         )
       : null,
     h(DetailHero, {
-      eyebrow: detail.isPublic !== false ? 'Public playlist' : 'Playlist',
+      eyebrow: detail.isPublic !== false ? t('library:playlistDetail.publicPlaylist') : t('library:playlistDetail.playlist'),
       title: detail.name,
       titleSize: detail.name.length > 20 ? 40 : 54,
       onTitleClick: () => setShowEditModal(true),
@@ -445,7 +446,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
           (detail.owner?.[0] || 'B').toUpperCase(),
         ),
         h('span', { style: { fontWeight: 700, color: 'var(--bb-text-primary, #FFFFFF)' } }, detail.owner || 'BBeBee'),
-        h('span', null, ` • ${detail.isSmart ? 'Smart playlist' : `${detail.trackCount ?? urns.length} songs`}`),
+        h('span', null, detail.isSmart ? t('library:playlistDetail.smartPlaylist') : t('library:playlistDetail.songCount', { count: detail.trackCount ?? urns.length })),
         totalDurationStr ? h('span', null, `, ${totalDurationStr}`) : null,
       ),
     }),
@@ -474,7 +475,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
           'button',
           {
             type: 'button',
-            title: 'Download',
+            title: t('library:playlistDetail.download'),
             style: { background: 'none', border: 'none', color: 'var(--bb-text-secondary, #b3b3b3)', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
           },
           tablerIcon('download', { size: 24 }),
@@ -483,8 +484,8 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
           'button',
           {
             type: 'button',
-            title: 'Share playlist',
-            'aria-label': 'Share playlist',
+            title: t('library:playlistDetail.sharePlaylist'),
+            'aria-label': t('library:playlistDetail.sharePlaylist'),
             onClick: () => {
               const share = serviceOf<ShareService>(ctx, 'share')
               if (share && detail) {
@@ -515,7 +516,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
           {
             type: 'button',
             'data-testid': 'playlist-more-trigger',
-            title: 'More options',
+            title: t('library:expandedLibrary.moreOptions'),
             style: { background: 'none', border: 'none', color: 'var(--bb-text-secondary, #b3b3b3)', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
             onClick: (e: ReactMouseEvent) => {
               const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
@@ -558,7 +559,8 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
           tablerIcon('search', { size: 18, color: 'var(--bb-text-secondary, #b3b3b3)' }),
           h('input', {
             type: 'text',
-            placeholder: 'Search in playlist',
+            'data-testid': 'playlist-search-input',
+            placeholder: t('library:expandedLibrary.searchInPlaylist'),
             value: searchQuery,
             onChange: (e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value),
             style: {
@@ -576,7 +578,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
           {
             type: 'button',
             'data-testid': 'playlist-sort-trigger',
-            title: 'Sort by',
+            title: t('library:favorites.sortBy'),
             onClick: (e: ReactMouseEvent) => {
               const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
               setSortMenuAnchor({ x: rect.left, y: rect.bottom + 6 })
@@ -615,7 +617,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
         {
           type: 'button',
           onClick: () => {
-            const el = document.querySelector('input[placeholder="Search in playlist"]') as HTMLInputElement | null
+            const el = document.querySelector('input[data-testid="playlist-search-input"]') as HTMLInputElement | null
             el?.focus()
           },
           style: {
@@ -633,7 +635,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
           },
         },
         tablerIcon('plus', { size: 18 }),
-        'Add',
+        t('library:playlistDetail.add'),
       ),
       h(
         'button',
@@ -655,11 +657,12 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
           },
         },
         tablerIcon('pencil', { size: 18 }),
-        'Name & details',
+        t('library:editPlaylist.nameAndDetails'),
       ),
     ),
     isBatchMode
       ? h(BatchActionBar, {
+          ctx,
           selectedCount: selectedUrns.size,
           totalCount: sortedUrns.length,
           allSelected,
@@ -667,7 +670,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
           onBatchPlay: handleBatchPlay,
           onBatchAddToPlaylist: (anchor) => handleBatchAddToPlaylist(anchor),
           onBatchDelete: handleBatchDelete,
-          deleteLabel: 'Remove from this playlist',
+          deleteLabel: t('library:playlistDetail.removeFromThisPlaylist'),
           onExitBatch: handleExitBatch,
         })
       : null,
@@ -682,11 +685,11 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
     accessibilityLabel: detail.name,
     columns: [
       { key: 'custom', label: '#', testID: 'playlist-sort-custom', width: 40, align: 'center' },
-      { key: 'title', label: 'Title', testID: 'playlist-sort-title', flex: 2, paddingLeft: 12 },
-      { key: 'artist', label: 'Artist', plain: true, flex: 1, visible: viewMode === 'compact' },
-      { key: 'album', label: 'Album', testID: 'playlist-sort-album', flex: 1.5, paddingLeft: 8 },
-      { key: 'source', label: 'Source', testID: 'playlist-sort-source', flex: 1, paddingLeft: 8 },
-      { key: 'dateAdded', label: 'Date added', testID: 'playlist-sort-dateAdded', flex: 1, paddingLeft: 8 },
+      { key: 'title', label: t('library:favorites.title'), testID: 'playlist-sort-title', flex: 2, paddingLeft: 12 },
+      { key: 'artist', label: t('library:favorites.artist'), plain: true, flex: 1, visible: viewMode === 'compact' },
+      { key: 'album', label: t('library:favorites.album'), testID: 'playlist-sort-album', flex: 1.5, paddingLeft: 8 },
+      { key: 'source', label: t('library:favorites.source'), testID: 'playlist-sort-source', flex: 1, paddingLeft: 8 },
+      { key: 'dateAdded', label: t('library:playlistDetail.dateAdded'), testID: 'playlist-sort-dateAdded', flex: 1, paddingLeft: 8 },
       { key: 'duration', label: '', icon: tablerIcon('clock', { size: 18 }), testID: 'playlist-sort-duration', width: 120, align: 'right', paddingRight: 40 },
     ] satisfies DetailColumnSpec[],
     sortKey,
@@ -726,10 +729,10 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
         keyExtractor: (row) => row.item.id,
         empty: h(EmptyState, {
           icon: 'music',
-          title: 'Nothing here yet',
+          title: t('library:playlistDetail.nothingHereYet'),
           description: detail.isSmart
-            ? 'No track in the catalogue matches this playlist\'s rules right now.'
-            : 'Add tracks from the library to fill this playlist.',
+            ? t('library:playlistDetail.noTrackMatchesPlaylistRules')
+            : t('library:playlistDetail.addTracksToFill'),
         }),
         renderItem: (row, index) => {
           const { track, item, trackUrn } = row
@@ -772,10 +775,11 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
       x: sortMenuAnchor?.x ?? 0,
       y: sortMenuAnchor?.y ?? 0,
       items: viewModeMenuItems(sortItems, viewMode, setViewMode),
-      title: 'Sort by',
+      title: t('library:favorites.sortBy'),
     }),
     showEditModal
       ? h(EditPlaylistModal, {
+          ctx,
           playlist: detail,
           onClose: () => setShowEditModal(false),
           onSave: async (patch) => {

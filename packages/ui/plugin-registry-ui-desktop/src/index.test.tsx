@@ -453,6 +453,11 @@ async function harness(options: RegistryStubOptions & { appVersion?: string } = 
       'registry:filter.descending': 'Descending',
       'registry:filter.allCategories': 'All categories',
       'registry:filter.categoryFilter': 'Filter by category',
+      // Round-2 sweep keys for the settings card (verbatim catalogue copy —
+      // the stub does not interpolate, so templates keep their placeholders).
+      'registry:registrySettings.updatesAvailableCount': 'Updates available ({count})',
+      'registry:registrySettings.everythingIsUpToDate':
+        'Everything is up to date. You can also browse community music sources, lyric sources, themes and plugins on the Discover page.',
     },
     zh: {
       'registry:filter.searchPlaceholder': '搜索名称、作者或描述…',
@@ -467,6 +472,9 @@ async function harness(options: RegistryStubOptions & { appVersion?: string } = 
       'registry:filter.descending': '降序',
       'registry:filter.allCategories': '全部分类',
       'registry:filter.categoryFilter': '按分类筛选',
+      'registry:registrySettings.updatesAvailableCount': '有可用更新（{count}）',
+      'registry:registrySettings.everythingIsUpToDate':
+        '一切已是最新。你也可以在发现页浏览社区音乐源、歌词源、主题和插件。',
     },
   }
 

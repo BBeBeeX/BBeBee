@@ -20,10 +20,10 @@ import {
   useResolvedArtwork,
 } from '@BBeBee/toolkit/hooks'
 import { useTrackMenu } from '@BBeBee/ui-menus'
-import { ContextMenu, EmptyState, List, TrackRow } from '@BBeBee/ui-kit-desktop'
+import { ContextMenu, EmptyState, List, TrackRow, useI18n } from '@BBeBee/ui-kit-desktop'
 import type { MenuAnchor, TrackRowProps } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
-import { PlayHeatmap, formatPlayDuration } from './PlayHeatmap.js'
+import { PlayHeatmap, formatPlayDuration, type TranslateFn } from './PlayHeatmap.js'
 
 const CachedTrackRow = memo(
   function CachedTrackRow({ ctx, ...props }: TrackRowProps & { ctx: Context }): ReactElement {
@@ -62,6 +62,7 @@ const HistoryTrackRow = memo(
     onContextMenu,
     onMore,
   }: HistoryTrackRowProps): ReactElement {
+    const { t } = useI18n(ctx)
     return h(
       'div',
       {
@@ -112,7 +113,9 @@ const HistoryTrackRow = memo(
               color: 'var(--text-secondary, #8e8e93)',
             },
           },
-          `${playCount} ${playCount === 1 ? 'play' : 'plays'}`,
+          playCount === 1
+            ? t('history:history.plays.one', { count: playCount })
+            : t('history:history.plays.other', { count: playCount }),
         ),
         record.completed
           ? h(
@@ -126,7 +129,7 @@ const HistoryTrackRow = memo(
                   color: 'var(--success, #39d353)',
                 },
               },
-              'Completed',
+              t('history:history.completed'),
             )
           : record.skipped
             ? h(
@@ -140,10 +143,10 @@ const HistoryTrackRow = memo(
                     color: 'var(--text-secondary, #8e8e93)',
                   },
                 },
-                'Skipped',
+                t('history:history.skipped'),
               )
             : null,
-        h('span', null, formatHistoryTime(record.startedAt)),
+        h('span', null, formatHistoryTime(t, record.startedAt)),
       ),
     )
   },
@@ -158,7 +161,7 @@ const HistoryTrackRow = memo(
     prev.playCount === next.playCount,
 )
 
-function formatHistoryTime(timestamp: number): string {
+function formatHistoryTime(t: TranslateFn, timestamp: number): string {
   const date = new Date(timestamp)
   const now = new Date()
   const isToday =
@@ -177,8 +180,8 @@ function formatHistoryTime(timestamp: number): string {
   const minutes = String(date.getMinutes()).padStart(2, '0')
   const timeStr = `${hours}:${minutes}`
 
-  if (isToday) return `Today ${timeStr}`
-  if (isYesterday) return `Yesterday ${timeStr}`
+  if (isToday) return t('history:history.todayAt', { time: timeStr })
+  if (isYesterday) return t('history:history.yesterdayAt', { time: timeStr })
 
   const month = date.getMonth() + 1
   const day = date.getDate()
@@ -222,6 +225,7 @@ function fallbackTrack(urn: string): Track {
 }
 
 export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [confirmClear, setConfirmClear] = useState(false)
 
@@ -295,11 +299,11 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
       h(
         'div',
         null,
-        h('h1', { style: { fontSize: 24, fontWeight: 700, margin: 0, color: 'var(--text-primary, #f5f5f7)' } }, 'Play history'),
+        h('h1', { style: { fontSize: 24, fontWeight: 700, margin: 0, color: 'var(--text-primary, #f5f5f7)' } }, t('history:history.playHistory')),
         h(
           'div',
           { style: { fontSize: 12, color: 'var(--text-secondary, #8e8e93)', marginTop: 4 } },
-          'Every melody that touched your heart, and the footprint of your listening',
+          t('history:history.subtitle'),
         ),
       ),
       // Clear history actions
@@ -307,7 +311,7 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
         ? h(
             'div',
             { style: { display: 'flex', alignItems: 'center', gap: 8 } },
-            h('span', { style: { fontSize: 12, color: 'var(--error, #ff453a)' } }, 'Clear play history?'),
+            h('span', { style: { fontSize: 12, color: 'var(--error, #ff453a)' } }, t('history:history.clearPlayHistory')),
             h(
               'button',
               {
@@ -322,7 +326,7 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
                   fontSize: 12,
                 },
               },
-              'OK',
+              t('app:common.confirm'),
             ),
             h(
               'button',
@@ -338,7 +342,7 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
                   fontSize: 12,
                 },
               },
-              'Cancel',
+              t('app:common.cancel'),
             ),
           )
         : h(
@@ -357,7 +361,7 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
                 transition: 'all 0.15s',
               },
             },
-            'Clear history',
+            t('history:history.clearHistory'),
           ),
     ),
     // Stat Cards
@@ -373,24 +377,30 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
         },
       },
       h(StatCard, {
-        title: 'Total plays',
-        value: `${stats.totalPlays.toLocaleString()} plays`,
-        subtext: 'All-time play count',
+        title: t('history:history.totalPlays'),
+        value:
+          stats.totalPlays === 1
+            ? t('history:history.plays.one', { count: stats.totalPlays.toLocaleString() })
+            : t('history:history.plays.other', { count: stats.totalPlays.toLocaleString() }),
+        subtext: t('history:history.allTimePlayCount'),
       }),
       h(StatCard, {
-        title: 'Total listening time',
-        value: formatPlayDuration(stats.totalMsPlayed),
-        subtext: 'Time immersed in music',
+        title: t('history:history.totalListeningTime'),
+        value: formatPlayDuration(t, stats.totalMsPlayed),
+        subtext: t('history:history.timeImmersedInMusic'),
       }),
       h(StatCard, {
-        title: 'Played today',
-        value: `${stats.todayPlays} tracks`,
-        subtext: 'Tracks heard today',
+        title: t('history:history.playedToday'),
+        value:
+          stats.todayPlays === 1
+            ? t('history:history.tracks.one', { count: stats.todayPlays })
+            : t('history:history.tracks.other', { count: stats.todayPlays }),
+        subtext: t('history:history.tracksHeardToday'),
       }),
       h(StatCard, {
-        title: 'Completion rate',
+        title: t('history:history.completionRate'),
         value: completionRate,
-        subtext: `${stats.completedPlays} played to completion`,
+        subtext: t('history:history.playedToCompletion', { completedPlays: stats.completedPlays }),
       }),
     ),
     // Heatmap
@@ -401,6 +411,7 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
         heatmap,
         selectedDate,
         onSelectDate: (date) => setSelectedDate(date),
+        t,
       }),
     ),
     // Track List Header
@@ -419,18 +430,30 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
         'div',
         { style: { fontSize: 14, fontWeight: 600, color: 'var(--text-primary, #f5f5f7)' } },
         selectedDate
-          ? `Play records for ${selectedDate} (${uniqueRecords.length} tracks)`
-          : `Recent play records (${uniqueRecords.length} tracks)`,
+          ? uniqueRecords.length === 1
+            ? t('history:history.playRecordsFor.one', {
+                date: selectedDate,
+                count: uniqueRecords.length,
+              })
+            : t('history:history.playRecordsFor.other', {
+                date: selectedDate,
+                count: uniqueRecords.length,
+              })
+          : uniqueRecords.length === 1
+            ? t('history:history.recentPlayRecords.one', { count: uniqueRecords.length })
+            : t('history:history.recentPlayRecords.other', { count: uniqueRecords.length }),
       ),
     ),
     // Track List or Empty State
     uniqueRecords.length === 0 && !loading
       ? h(EmptyState, {
           icon: 'music',
-          title: selectedDate ? `No play records for ${selectedDate}` : 'No play records yet',
+          title: selectedDate
+            ? t('history:history.noPlayRecordsFor', { selectedDate })
+            : t('history:index.noPlayRecordsYet'),
           description: selectedDate
-            ? 'No listening on this day yet — pick a track and press play.'
-            : 'After playing music from the library, your play history and statistics will appear here.',
+            ? t('history:history.noListeningOnThisDay')
+            : t('history:index.afterPlayingMusicFromThe'),
         })
       : h(
           'div',
@@ -445,7 +468,9 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
             estimatedItemSize: 56,
             keyExtractor: (r) => r.id,
             renderItem: (record) => {
-              const track = tracks.get(record.trackUrn) ?? fallbackTrack(record.trackUrn)
+              const track =
+                tracks.get(record.trackUrn) ??
+                { ...fallbackTrack(record.trackUrn), title: t('history:history.loading') }
               const isActive = transport.trackUrn === record.trackUrn
               const playCount = playCountMap.get(record.trackUrn) ?? 1
 

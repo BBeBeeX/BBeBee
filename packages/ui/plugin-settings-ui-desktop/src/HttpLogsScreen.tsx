@@ -9,12 +9,12 @@
  * whose transport keeps no journal.
  */
 
-import { Button } from '@BBeBee/ui-kit-desktop'
+import { Button, useI18n } from '@BBeBee/ui-kit-desktop'
 import { createElement as h, useEffect, useMemo, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { serviceOf } from '@BBeBee/ui-core'
-import type { HttpLogEntry, HttpService, UiService, LogRecord } from '@BBeBee/protocol'
+import type { HttpLogEntry, HttpService, UiService, LogRecord, I18nService } from '@BBeBee/protocol'
 
 interface LogBufferService {
   all: readonly LogRecord[]
@@ -35,6 +35,7 @@ interface ParsedHttpLog {
 const HTTP_REGEX = /\[HTTP\]\s+([A-Z]+)\s+(.+?)\s+->\s+(\d+)\s+\((\d+)ms\)/
 
 export function HttpLogsScreen({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const ui = serviceOf<UiService>(ctx, 'ui')
   const [entries, setEntries] = useState<readonly HttpLogEntry[]>([])
   const [records, setRecords] = useState<readonly LogRecord[]>([])
@@ -194,7 +195,7 @@ export function HttpLogsScreen({ ctx }: { ctx: Context }): ReactElement {
         { style: { display: 'flex', alignItems: 'center', gap: 16 } },
         h(Button, {
           variant: 'secondary',
-          children: '← Back to debug',
+          children: t('settings:settings.backToDebug'),
           onPress: () => ui?.navigate?.('debug.view'),
         }),
         h(
@@ -210,16 +211,16 @@ export function HttpLogsScreen({ ctx }: { ctx: Context }): ReactElement {
                 color: '#F8FAFC',
               },
             },
-            'Third-party source HTTP logs (HTTP Logs)',
+            t('settings:httpLogs.title'),
           ),
           h(
             'span',
             { style: { fontSize: 12, color: '#64748B' } },
-            `Monitors HTTP requests and responses made by third-party music sources, ${captureCount} network records captured` +
+            t('settings:httpLogs.monitorsHTTPRequestsAndResponses', { captureCount }) +
               (hasJournal
                 ? captureEnabled
-                  ? '. Click a row to expand request and response details'
-                  : '. Detail capture is off; new requests record the summary line only'
+                  ? t('settings:httpLogs.journalHintClickRow')
+                  : t('settings:httpLogs.journalHintCaptureOff')
                 : ''),
           ),
         ),
@@ -227,10 +228,10 @@ export function HttpLogsScreen({ ctx }: { ctx: Context }): ReactElement {
       h(
         'div',
         { style: { display: 'flex', alignItems: 'center', gap: 12 } },
-        hasJournal ? renderCaptureSwitch(captureEnabled, toggleCapture) : null,
+        hasJournal ? renderCaptureSwitch(captureEnabled, toggleCapture, t) : null,
         h(Button, {
           variant: 'danger',
-          children: 'Clear logs',
+          children: t('settings:logs.clearLogs'),
           onPress: handleClear,
         }),
       ),
@@ -255,7 +256,7 @@ export function HttpLogsScreen({ ctx }: { ctx: Context }): ReactElement {
       // Search input
       h('input', {
         type: 'text',
-        placeholder: 'Filter by target URL, domain or request path…',
+        placeholder: t('settings:httpLogs.filterByTargetURLDomain'),
         value: searchTerm,
         onChange: (e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value),
         style: {
@@ -273,10 +274,10 @@ export function HttpLogsScreen({ ctx }: { ctx: Context }): ReactElement {
       h(
         'div',
         { style: { display: 'flex', gap: 6 } },
-        renderFilterBtn('all', 'All', statusFilter, setStatusFilter),
-        renderFilterBtn('2xx', '2xx success', statusFilter, setStatusFilter),
-        renderFilterBtn('3xx', '3xx redirect', statusFilter, setStatusFilter),
-        renderFilterBtn('error', 'Errors / 4xx / 5xx', statusFilter, setStatusFilter),
+        renderFilterBtn('all', t('app:common.all'), statusFilter, setStatusFilter),
+        renderFilterBtn('2xx', t('settings:httpLogs.filter2xx'), statusFilter, setStatusFilter),
+        renderFilterBtn('3xx', t('settings:httpLogs.filter3xx'), statusFilter, setStatusFilter),
+        renderFilterBtn('error', t('settings:httpLogs.filterErrors'), statusFilter, setStatusFilter),
       ),
     ),
 
@@ -305,7 +306,7 @@ export function HttpLogsScreen({ ctx }: { ctx: Context }): ReactElement {
                 fontSize: 13,
               },
             },
-            'No HTTP requests from third-party sources yet',
+            t('settings:httpLogs.noRequestsYet'),
           )
         : h(
             'div',
@@ -328,11 +329,11 @@ export function HttpLogsScreen({ ctx }: { ctx: Context }): ReactElement {
                 },
               },
               h('span', { style: { width: 32 } }, ''),
-              h('span', { style: { width: 100 } }, 'Time'),
-              h('span', { style: { width: 64 } }, 'Method'),
-              h('span', { style: { width: 64 } }, 'Status'),
-              h('span', { style: { width: 80 } }, 'Duration'),
-              h('span', { style: { flex: 1 } }, 'Request URL / details'),
+              h('span', { style: { width: 100 } }, t('settings:httpLogs.time')),
+              h('span', { style: { width: 64 } }, t('settings:httpLogs.method')),
+              h('span', { style: { width: 64 } }, t('settings:httpLogs.status')),
+              h('span', { style: { width: 80 } }, t('settings:httpLogs.duration')),
+              h('span', { style: { flex: 1 } }, t('settings:httpLogs.requestURLDetails')),
             ),
             hasJournal
               ? filteredJournal.map((entry) =>
@@ -345,6 +346,7 @@ export function HttpLogsScreen({ ctx }: { ctx: Context }): ReactElement {
                       ? () =>
                           setExpandedSn((prev) => (prev === entry.sn ? null : entry.sn))
                       : undefined,
+                    t,
                   ),
                 )
               : filteredFallback.map((item) => renderHttpRow(item)),
@@ -379,6 +381,7 @@ function renderJournalRow(
   entry: HttpLogEntry,
   expanded: boolean,
   onToggle: (() => void) | undefined,
+  t: I18nService['t'],
 ): ReactElement {
   const timeStr = timeStrOf(entry.time)
   const statusColor = entry.status === undefined ? '#F87171' : statusColorOf(entry.status)
@@ -454,16 +457,16 @@ function renderJournalRow(
         entry.error ? `${entry.url} — ${entry.error}` : entry.url,
       ),
     ),
-    expanded ? renderJournalDetail(entry) : null,
+    expanded ? renderJournalDetail(entry, t) : null,
   )
 }
 
 const DETAIL_LABEL_WIDTH = 110
 
-function renderHeaderTable(headers: Record<string, string>): ReactElement {
+function renderHeaderTable(headers: Record<string, string>, t: I18nService['t']): ReactElement {
   const names = Object.keys(headers)
   if (names.length === 0) {
-    return h('div', { style: { color: '#64748B', padding: '4px 0' } }, '(none)')
+    return h('div', { style: { color: '#64748B', padding: '4px 0' } }, t('settings:httpLogs.none'))
   }
   return h(
     'div',
@@ -483,9 +486,9 @@ function renderHeaderTable(headers: Record<string, string>): ReactElement {
   )
 }
 
-function renderBodyBlock(body: string | undefined, label: string): ReactElement {
+function renderBodyBlock(body: string | undefined, label: string, t: I18nService['t']): ReactElement {
   if (body === undefined) {
-    return h('div', { style: { color: '#64748B', padding: '4px 0' } }, '(not captured)')
+    return h('div', { style: { color: '#64748B', padding: '4px 0' } }, t('settings:httpLogs.notCaptured'))
   }
   let text = body
   const trimmed = body.trimStart()
@@ -539,7 +542,7 @@ function detailSection(title: string, content: ReactElement): ReactElement {
 }
 
 /** The expanded half of a journal row: request, then response, each whole. */
-function renderJournalDetail(entry: HttpLogEntry): ReactElement {
+function renderJournalDetail(entry: HttpLogEntry, t: I18nService['t']): ReactElement {
   return h(
     'div',
     {
@@ -557,20 +560,25 @@ function renderJournalDetail(entry: HttpLogEntry): ReactElement {
       ? h(
           'div',
           { style: { color: '#F87171' } },
-          `Request failed: ${entry.error}`,
+          t('settings:httpLogs.requestFailed', { error: entry.error }),
         )
       : null,
-    detailSection('Request headers (Request Headers)', renderHeaderTable(entry.requestHeaders)),
+    detailSection(t('settings:httpLogs.requestHeaders'), renderHeaderTable(entry.requestHeaders, t)),
     detailSection(
-      'Request body (Request Body)',
-      renderBodyBlock(entry.requestBody, entry.requestBody ? `Length ${entry.requestBody.length} chars` : ''),
+      t('settings:httpLogs.requestBody'),
+      renderBodyBlock(
+        entry.requestBody,
+        entry.requestBody ? t('settings:httpLogs.lengthChars', { length: entry.requestBody.length }) : '',
+        t,
+      ),
     ),
-    detailSection('Response headers (Response Headers)', renderHeaderTable(entry.responseHeaders)),
+    detailSection(t('settings:httpLogs.responseHeaders'), renderHeaderTable(entry.responseHeaders, t)),
     detailSection(
-      'Response body (Response Body)',
+      t('settings:httpLogs.responseBody'),
       renderBodyBlock(
         entry.responseBody,
-        entry.responseBody ? `Length ${entry.responseBody.length} chars` : '',
+        entry.responseBody ? t('settings:httpLogs.lengthChars', { length: entry.responseBody.length }) : '',
+        t,
       ),
     ),
   )
@@ -610,7 +618,7 @@ function renderFilterBtn(
  * and its row expands. Off: new rows record the summary line only and show
  * no chevron — there is nothing behind them to expand onto.
  */
-function renderCaptureSwitch(enabled: boolean, onToggle: () => void): ReactElement {
+function renderCaptureSwitch(enabled: boolean, onToggle: () => void, t: I18nService['t']): ReactElement {
   return h(
     'label',
     {
@@ -626,8 +634,8 @@ function renderCaptureSwitch(enabled: boolean, onToggle: () => void): ReactEleme
         color: '#CBD5E1',
       },
       title: enabled
-        ? 'Record request and response details; when off, new requests record the summary line only'
-        : 'Currently recording the summary line only; turn on to record full headers and bodies for new requests',
+        ? t('settings:httpLogs.captureOnTitle')
+        : t('settings:httpLogs.captureOffTitle'),
     },
     h(
       'span',
@@ -655,7 +663,7 @@ function renderCaptureSwitch(enabled: boolean, onToggle: () => void): ReactEleme
         },
       }),
     ),
-    h('span', null, 'Record details'),
+    h('span', null, t('settings:httpLogs.recordDetails')),
   )
 }
 

@@ -15,17 +15,18 @@
  */
 import { createElement as h, type ReactElement } from 'react'
 import { formatDuration } from '@BBeBee/toolkit'
-import { CinematicLyricsTemplate, CURSIVE_FONT, Slider } from '@BBeBee/ui-kit-desktop'
+import { CinematicLyricsTemplate, CURSIVE_FONT, Slider, useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
 import { CachedArtwork } from '../components/NowPlayingBar.js'
 import type { NowPlayingLayoutProps } from './index.js'
 
 export function CinematicLayout(props: NowPlayingLayoutProps): ReactElement {
   const { ctx, state, displayPosition, duration, can, onSeekChange, onSeekCommit, VisualizerComponent } = props
+  const { t } = useI18n(ctx)
   const isPlaying = state.status === 'playing'
 
   // Actual track title and artist from real-time transport state
-  const trackTitle = state.nowPlaying?.title ?? (state.trackUrn ? 'Loading…' : 'No Surprises')
+  const trackTitle = state.nowPlaying?.title ?? (state.trackUrn ? t('nowPlaying:nowPlaying.loading') : 'No Surprises')
   const trackArtist = state.nowPlaying?.artist ?? (state.trackUrn ? '—' : 'Radiohead')
 
   return h(
@@ -277,7 +278,7 @@ export function CinematicLayout(props: NowPlayingLayoutProps): ReactElement {
                 value: duration ? Math.min(displayPosition, duration) : 0,
                 max: duration ?? 0,
                 disabled: !can.canSeek || !duration,
-                accessibilityLabel: 'Seek',
+                accessibilityLabel: t('nowPlaying:nowPlaying.seek'),
                 onChange: onSeekChange,
                 onCommit: onSeekCommit,
               }),

@@ -1,13 +1,16 @@
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
+import type { Context } from 'cordis'
+import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 
 export interface ShareModalHeaderProps {
+  ctx: Context
   title: string
   onClose: () => void
 }
 
-export function ShareModalHeader({ title, onClose }: ShareModalHeaderProps): ReactElement {
+export function ShareModalHeader({ ctx, title, onClose }: ShareModalHeaderProps): ReactElement {
+  const { t } = useI18n(ctx)
   return h(
     'div',
     {
@@ -29,7 +32,7 @@ export function ShareModalHeader({ title, onClose }: ShareModalHeaderProps): Rea
       {
         type: 'button',
         onClick: onClose,
-        'aria-label': 'Close',
+        'aria-label': t('app:common.close'),
         style: {
           background: 'transparent',
           border: 'none',

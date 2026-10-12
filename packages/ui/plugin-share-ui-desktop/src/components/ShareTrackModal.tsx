@@ -2,7 +2,7 @@ import { createElement as h, useCallback } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { ShareTrackData } from '@BBeBee/protocol'
-import { Sheet } from '@BBeBee/ui-kit-desktop'
+import { Sheet, useI18n } from '@BBeBee/ui-kit-desktop'
 import {
   generateTrackCardCanvas,
   downloadCanvasAsPng,
@@ -28,6 +28,7 @@ export function ShareTrackModal({
   open,
   onClose,
 }: ShareTrackModalProps): ReactElement | null {
+  const { t } = useI18n(ctx)
   const isValid = Boolean(track && track.title && track.title.trim().length > 0)
   const {
     backgroundMode,
@@ -50,7 +51,7 @@ export function ShareTrackModal({
     item: track,
     defaultThemeColor: '#FF6B00',
     isValid,
-    missingReason: "Can't copy: missing a valid title or other metadata",
+    missingReason: t('share:shareTrack.canTCopyMissingA'),
   })
 
   const handleCopy = useCallback(() => {
@@ -99,8 +100,8 @@ export function ShareTrackModal({
           margin: '0 auto',
         },
       },
-      h(ShareModalHeader, { title: 'Share song', onClose }),
-      h(LocalSourceWarning, { show: isLocal }),
+      h(ShareModalHeader, { ctx, title: t('share:shareTrack.shareSong'), onClose }),
+      h(LocalSourceWarning, { ctx, show: isLocal }),
       h(ShareCardPreview, {
         title: track.title,
         subtitle: track.artist,
@@ -109,12 +110,10 @@ export function ShareTrackModal({
         backgroundMode,
         type: 'track',
       }),
-      h(BackgroundModeSelector, {
-        mode: backgroundMode,
-        onChange: setBackgroundMode,
-      }),
+      h(BackgroundModeSelector, { ctx, mode: backgroundMode, onChange: setBackgroundMode }),
       h(DisabledReasonToast, { message: disabledReason }),
       h(ShareActionButtons, {
+        ctx,
         canCopy,
         copied,
         downloading,

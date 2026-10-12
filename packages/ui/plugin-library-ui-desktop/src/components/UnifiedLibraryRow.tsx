@@ -3,7 +3,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { ArtworkRef } from '@BBeBee/protocol'
 import type { MenuAnchor } from '@BBeBee/ui-core'
-import { Text, tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { Text, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
 import { CachedArtwork } from './CachedArtwork.js'
 
@@ -41,6 +41,7 @@ export function UnifiedLibraryRow({
   onToggleExpand?: () => void
   isChild?: boolean
 }): ReactElement {
+  const { t } = useI18n(ctx)
   const [isHovered, setIsHovered] = useState(false)
   const isFav = item.kind === 'favorite'
   const isArt = item.kind === 'artist'
@@ -130,7 +131,7 @@ export function UnifiedLibraryRow({
                 e.stopPropagation()
                 item.onPlay()
               },
-              title: `Play ${item.title}`,
+              title: t('library:library.playItem', { title: item.title }),
               style: {
                 position: 'absolute',
                 inset: 0,
@@ -153,7 +154,7 @@ export function UnifiedLibraryRow({
         'div',
         { style: { display: 'flex', alignItems: 'center', gap: 4 } },
         h(Text, { numberOfLines: 1 }, item.title),
-        isFav ? h('span', { style: { display: 'none' } }, 'Favorites') : null,
+        isFav ? h('span', { style: { display: 'none' } }, t('library:unifiedLibrary.favorites')) : null,
       ),
       h(
         'div',
@@ -169,8 +170,8 @@ export function UnifiedLibraryRow({
           'button',
           {
             type: 'button',
-            'aria-label': isExpanded ? 'Collapse folder' : 'Expand folder',
-            title: isExpanded ? 'Collapse' : 'Expand',
+            'aria-label': isExpanded ? t('library:unifiedLibrary.collapseFolder') : t('library:unifiedLibrary.expandFolder'),
+            title: isExpanded ? t('library:unifiedLibrary.collapse') : t('library:unifiedLibrary.expand'),
             onClick: (e: { stopPropagation(): void }) => {
               e.stopPropagation()
               onToggleExpand?.()
@@ -214,7 +215,7 @@ export function UnifiedLibraryRow({
     // Automated test compatibility hook
     item.onDelete
       ? h('button', {
-          'aria-label': `Delete ${item.title}`,
+          'aria-label': t('library:library.deleteItem', { title: item.title }),
           style: { display: 'none' },
           onClick: (e: { stopPropagation(): void }) => {
             e.stopPropagation()

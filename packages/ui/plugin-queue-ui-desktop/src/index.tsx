@@ -22,31 +22,32 @@ import {
   useTransport,
   useUpcoming,
 } from '@BBeBee/toolkit/hooks'
-import { Artwork, ContextMenu, EmptyState, tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { Artwork, ContextMenu, EmptyState, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
+import type { UseI18nResult } from '@BBeBee/ui-kit-desktop'
 import { useTrackMenu } from '@BBeBee/ui-menus'
 import { tokens } from '@BBeBee/ui-tokens'
 import { upcomingDropToQueueIndex } from './reorder.js'
 
-/** Label shown for a context that carries a kind but no label. */
-const CONTEXT_KIND_LABELS: Record<QueueSourceContext['kind'], string> = {
-  album: 'Album',
-  playlist: 'Playlist',
-  artist: 'Artist',
-  search: 'Search',
-  radio: 'Radio',
-  local: 'Local music',
-  favorites: 'Favorites',
+/** Catalogue keys for the label shown for a context that carries a kind but no label. */
+const CONTEXT_KIND_LABEL_KEYS: Record<QueueSourceContext['kind'], string> = {
+  album: 'queue:index.contextKindLabels.album',
+  playlist: 'queue:index.contextKindLabels.playlist',
+  artist: 'queue:index.contextKindLabels.artist',
+  search: 'queue:index.contextKindLabels.search',
+  radio: 'queue:index.contextKindLabels.radio',
+  local: 'queue:index.contextKindLabels.local',
+  favorites: 'queue:index.contextKindLabels.favorites',
 }
 
-function formatRelativeTime(timestamp: number): string {
+function formatRelativeTime(t: UseI18nResult['t'], timestamp: number): string {
   const diff = Date.now() - timestamp
   const minutes = Math.floor(diff / 60000)
-  if (minutes < 1) return 'just now'
-  if (minutes < 60) return `${minutes} min ago`
+  if (minutes < 1) return t('queue:index.justNow')
+  if (minutes < 60) return t('queue:index.minAgo', { minutes })
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours} hr ago`
+  if (hours < 24) return t('queue:index.hrAgo', { hours })
   const days = Math.floor(hours / 24)
-  if (days < 7) return `${days} days ago`
+  if (days < 7) return t('queue:index.daysAgo', { days })
   return new Date(timestamp).toLocaleDateString()
 }
 
@@ -236,6 +237,7 @@ export interface QueueScreenProps {
 
 /** The up-next and recent play history screen. */
 export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
+  const { t } = useI18n(ctx)
   const [tab, setTab] = useState<'queue' | 'history'>('queue')
   const queue = useQueue(ctx)
   const upcoming = useUpcoming(ctx)
@@ -361,7 +363,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
           'button',
           {
             type: 'button',
-            'aria-label': 'Queue',
+            'aria-label': t('queue:index.queue'),
             onClick: () => setTab('queue'),
             style: {
               display: 'flex',
@@ -384,7 +386,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
                 transition: 'color 0.15s ease',
               },
             },
-            'Queue',
+            t('queue:index.queue'),
           ),
           tab === 'queue'
             ? h('div', {
@@ -402,7 +404,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
           'button',
           {
             type: 'button',
-            'aria-label': 'Recently played',
+            'aria-label': t('queue:index.recentlyPlayed'),
             onClick: () => setTab('history'),
             style: {
               display: 'flex',
@@ -425,7 +427,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
                 transition: 'color 0.15s ease',
               },
             },
-            'Recently played',
+            t('queue:index.recentlyPlayed'),
           ),
           tab === 'history'
             ? h('div', {
@@ -444,8 +446,8 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
         'button',
         {
           type: 'button',
-          'aria-label': 'Close',
-          title: 'Close',
+          'aria-label': t('queue:index.close'),
+          title: t('queue:index.close'),
           onClick: handleClose,
           style: {
             display: 'inline-flex',
@@ -479,8 +481,8 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
     if (queue.length === 0) {
       return h(EmptyState, {
         icon: 'music',
-        title: 'Nothing queued',
-        description: 'Play something from your library and it will show up here.',
+        title: t('queue:index.nothingQueued'),
+        description: t('queue:index.playSomethingFromYourLibrary'),
       })
     }
 
@@ -496,8 +498,8 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
     if (!currentItem) {
       return h(EmptyState, {
         icon: 'music',
-        title: 'Nothing queued',
-        description: 'Play something from your library and it will show up here.',
+        title: t('queue:index.nothingQueued'),
+        description: t('queue:index.playSomethingFromYourLibrary'),
       })
     }
     const currentTrack =
@@ -512,9 +514,10 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
     const nextItem = upcomingItems[0]
     const nextContext = nextItem?.sourceContext
     const contextLabel = nextContext
-      ? (nextContext.label ?? CONTEXT_KIND_LABELS[nextContext.kind])
+      ? (nextContext.label ?? t(CONTEXT_KIND_LABEL_KEYS[nextContext.kind]))
       : undefined
-    const nextTitle = nextItem && contextLabel ? `Next up from: ${contextLabel}` : 'Next up'
+    const nextTitle =
+      nextItem && contextLabel ? t('queue:index.nextUpFrom', { contextLabel }) : t('queue:index.nextUp')
 
     return h(
       'div',
@@ -540,11 +543,11 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
               marginBottom: 8,
             },
           },
-          'Now playing',
+          t('queue:index.nowPlaying'),
         ),
         h(
           'div',
-          { role: 'list', 'aria-label': 'Now playing' },
+          { role: 'list', 'aria-label': t('queue:index.nowPlaying') },
           h(
             'div',
             { role: 'listitem', key: currentItem.id },
@@ -589,7 +592,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
                   marginBottom: 8,
                 },
               },
-              'Shuffle is on: order is decided by the random seed; drag-to-reorder is not supported yet',
+              t('queue:index.shuffleOnNote'),
             )
           : null,
         upcomingItems.length > 0
@@ -657,7 +660,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
                   padding: '12px 10px',
                 },
               },
-              'No more songs queued',
+              t('queue:index.noMoreSongsQueued'),
             ),
       ),
     )
@@ -667,8 +670,8 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
     if (uniqueHistoryRecords.length === 0 && !historyLoading) {
       return h(EmptyState, {
         icon: 'music',
-        title: 'No play records yet',
-        description: 'After playing music from the library, your recently played songs will appear here.',
+        title: t('queue:index.noPlayRecordsYet'),
+        description: t('queue:index.afterPlayingMusicFromThe'),
       })
     }
 
@@ -676,7 +679,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
       'div',
       {
         role: 'list',
-        'aria-label': 'Recently played',
+        'aria-label': t('queue:index.recentlyPlayed'),
         style: {
           display: 'flex',
           flexDirection: 'column',
@@ -698,7 +701,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
             ctx,
             track,
             active: isActive,
-            extraRight: formatRelativeTime(record.startedAt),
+            extraRight: formatRelativeTime(t, record.startedAt),
             onPress: () => void ctx.player.playFromContext(record.trackUrn, uniqueHistoryUrns),
             onMore: (anchor) => menu.open({ track, historyRecordId: record.id }, anchor),
           }),

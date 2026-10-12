@@ -12,6 +12,46 @@ import type { AppSettings, NowPlayingStyleMeta, SettingsService } from '@BBeBee/
 import { DEFAULT_APP_SETTINGS, NOW_PLAYING_STYLES } from '@BBeBee/protocol'
 import { NowPlayingStylesSection } from './components/NowPlayingStylesSection.js'
 
+import nowPlayingCatalogue from '../../../feature/plugin-i18n/src/locales/nowPlaying.json'
+
+const CATALOGUES: Record<string, { en: unknown; zh: unknown }> = {
+  nowPlaying: { en: nowPlayingCatalogue.en, zh: nowPlayingCatalogue.zh },
+}
+
+/**
+ * English i18n stub serving the real `nowPlaying` catalogue, so components
+ * under test render the same copy the app shows.
+ */
+class DefaultI18nStub extends Service {
+  static override readonly name = 'i18n'
+  locale = 'en'
+  private listeners = new Set<(locale: string) => void>()
+  constructor(ctx: Context) {
+    super(ctx, 'i18n')
+  }
+  setLocale = (next: string): void => {
+    this.locale = next
+    for (const listener of [...this.listeners]) listener(next)
+  }
+  t = (key: string, params?: Record<string, string | number>): string => {
+    const sep = key.indexOf(':')
+    if (sep < 0) return key
+    const ns = key.slice(0, sep)
+    const catalogue = CATALOGUES[ns]?.[this.locale === 'zh' ? 'zh' : 'en']
+    if (!catalogue) return key
+    let cur: unknown = catalogue
+    for (const part of key.slice(sep + 1).split('.')) {
+      cur = (cur as Record<string, unknown> | undefined)?.[part]
+    }
+    if (typeof cur !== 'string') return key
+    return params ? cur.replace(/\{(\w+)\}/g, (_, k: string) => String(params[k] ?? `{${k}}`)) : cur
+  }
+  onLocaleChange = (cb: (locale: string) => void): (() => void) => {
+    this.listeners.add(cb)
+    return () => void this.listeners.delete(cb)
+  }
+}
+
 afterEach(() => {
   cleanup()
 })
@@ -68,6 +108,7 @@ async function npHarness() {
   const root = new Context()
   await root.plugin(SettingsStub)
   await root.plugin(NowPlayingStub)
+  await root.plugin(DefaultI18nStub)
 
   let scoped: Context | undefined
   root.inject(['settings', 'nowPlaying'], (s) => void (scoped = s))

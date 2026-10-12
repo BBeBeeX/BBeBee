@@ -20,7 +20,7 @@ import {
   useTransportAvailability,
 } from '@BBeBee/toolkit/hooks'
 import { tablerIcon } from '@BBeBee/ui-kit-desktop'
-import { ContextMenu } from '@BBeBee/ui-kit-desktop'
+import { ContextMenu, useI18n } from '@BBeBee/ui-kit-desktop'
 import { useServiceState, serviceOf, shallowArrayEqual } from '@BBeBee/ui-core'
 import { useTrackMenu } from '@BBeBee/ui-menus'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
@@ -54,6 +54,7 @@ export function NowPlayingScreen({
   const can = useTransportAvailability(ctx)
   const displayPosition = seekingPosition ?? position
   const { styleId } = useNowPlayingStyle(ctx)
+  const { t } = useI18n(ctx)
 
   /* ── the track menu this page opens on right-click ─────────────────────── */
   const currentTrack = useCurrentTrack(ctx)
@@ -129,7 +130,7 @@ export function NowPlayingScreen({
     'div',
     {
       role: 'region',
-      'aria-label': 'Now playing',
+      'aria-label': t('nowPlaying:nowPlaying.nowPlaying'),
       onContextMenu: handleContextMenu,
       onMouseMove: showCloseButton
         ? (e: React.MouseEvent) => {
@@ -161,7 +162,7 @@ export function NowPlayingScreen({
           'button',
           {
             type: 'button',
-            'aria-label': 'Close now playing',
+            'aria-label': t('nowPlaying:nowPlaying.closeNowPlaying'),
             onClick: onClose,
             onMouseEnter: () => setIsTopHovered(true),
             style: {

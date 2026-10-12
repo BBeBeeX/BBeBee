@@ -314,6 +314,17 @@ describe('negotiateLocale()', () => {
   it('is case- and separator-insensitive', () => {
     expect(negotiateLocale('ZH_hans_CN', available)).toBe('zh')
   })
+
+  // The 'system' default for new installs resolves through this helper:
+  // supported OS languages map to their catalogue, anything else to English.
+  it.each([
+    ['zh-CN', 'zh'],
+    ['zh-HK', 'zh'],
+    ['en-US', 'en'],
+    ['fr-FR', 'en'],
+  ])('system-locale %s resolves to %s', (tag, expected) => {
+    expect(negotiateLocale(tag, available)).toBe(expected)
+  })
 })
 
 /* ── Catalogue helper ───────────────────────────────────────────────────── */

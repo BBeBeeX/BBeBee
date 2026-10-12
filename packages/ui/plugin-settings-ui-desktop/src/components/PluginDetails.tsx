@@ -1,51 +1,55 @@
-import { Switch } from '@BBeBee/ui-kit-desktop'
+import { Switch, useI18n } from '@BBeBee/ui-kit-desktop'
 import { createElement as h, type ReactElement } from 'react'
+import type { Context } from 'cordis'
 import type { PluginInfo, ConfigStatus, PluginRuntimeState } from '@BBeBee/protocol'
 
 export interface PluginDetailsProps {
+  ctx: Context
   plugin: PluginInfo
   showAdvancedSettings?: boolean
   onToggleEnabled?: (plugin: PluginInfo, enabled: boolean) => void
 }
 
-function formatRuntimeState(state: PluginRuntimeState): string {
+function formatRuntimeState(state: PluginRuntimeState, t: (key: string) => string): string {
   switch (state) {
     case 'ACTIVE':
-      return 'Running (ACTIVE)'
+      return t('settings:pluginDetails.stateActive')
     case 'PENDING':
-      return 'Waiting for dependencies (PENDING)'
+      return t('settings:pluginDetails.statePending')
     case 'LOADING':
-      return 'Loading (LOADING)'
+      return t('settings:pluginDetails.stateLoading')
     case 'FAILED':
-      return 'Failed to start (FAILED)'
+      return t('settings:pluginDetails.stateFailed')
     case 'DISPOSED':
-      return 'Disposed (DISPOSED)'
+      return t('settings:pluginDetails.stateDisposed')
     case 'UNLOADING':
-      return 'Unloading (UNLOADING)'
+      return t('settings:pluginDetails.stateUnloading')
     case 'UNLOADED':
-      return 'Unloaded (UNLOADED)'
+      return t('settings:pluginDetails.stateUnloaded')
     default:
       return `${state}`
   }
 }
 
-function formatConfigStatus(status?: ConfigStatus): string {
+function formatConfigStatus(status: ConfigStatus | undefined, t: (key: string) => string): string {
   switch (status) {
     case 'customized':
-      return 'Configurable and customized'
+      return t('settings:pluginDetails.configCustomized')
     case 'default':
-      return 'Configurable, using defaults'
+      return t('settings:pluginDetails.configDefault')
     case 'none':
     default:
-      return 'No configurable options'
+      return t('settings:pluginDetails.configNone')
   }
 }
 
 export function PluginDetails({
+  ctx,
   plugin,
   showAdvancedSettings = false,
   onToggleEnabled,
 }: PluginDetailsProps): ReactElement {
+  const { t } = useI18n(ctx)
   const isFeatureOrUi = plugin.systemId === 'layer-4' || plugin.systemId === 'layer-5'
 
   const renderDetailRow = (label: string, value: string | ReactElement) =>
@@ -90,12 +94,12 @@ export function PluginDetails({
     h(
       'div',
       { style: { display: 'flex', flexDirection: 'column', gap: 6 } },
-      renderDetailRow('Full name', `${plugin.displayName} (${plugin.id})`),
-      renderDetailRow('Version', plugin.version || '0.0.0'),
-      renderDetailRow('Author', plugin.author || '—'),
-      renderDetailRow('Config status', formatConfigStatus(plugin.configStatus)),
+      renderDetailRow(t('settings:pluginDetails.fullName'), `${plugin.displayName} (${plugin.id})`),
+      renderDetailRow(t('settings:pluginDetails.version'), plugin.version || '0.0.0'),
+      renderDetailRow(t('settings:pluginDetails.author'), plugin.author || '—'),
+      renderDetailRow(t('settings:pluginDetails.configStatus'), formatConfigStatus(plugin.configStatus, t)),
       renderDetailRow(
-        'Runtime state',
+        t('settings:pluginDetails.runtimeState'),
         h(
           'span',
           {
@@ -108,7 +112,7 @@ export function PluginDetails({
                     : 'var(--text-secondary, #C5CAD8)',
             },
           },
-          formatRuntimeState(plugin.state),
+          formatRuntimeState(plugin.state, t),
         ),
       ),
       plugin.state === 'FAILED' && (plugin.error || plugin.waitingFor.length > 0)
@@ -126,9 +130,9 @@ export function PluginDetails({
                 lineHeight: 1.4,
               },
             },
-            plugin.error ? h('div', null, `Error: ${plugin.error}`) : null,
+            plugin.error ? h('div', null, t('settings:pluginDetails.error', { error: plugin.error })) : null,
             plugin.waitingFor.length > 0
-              ? h('div', null, `Waiting for services: ${plugin.waitingFor.join(', ')}`)
+              ? h('div', null, t('settings:pluginDetails.waitingForServices', { services: plugin.waitingFor.join(', ') }))
               : null,
           )
         : null,
@@ -160,7 +164,7 @@ export function PluginDetails({
               color: 'var(--text-secondary, #C5CAD8)',
             },
           },
-          `Dependencies (${plugin.dependencies.length})`,
+          t('settings:pluginDetails.dependenciesCount', { count: plugin.dependencies.length }),
         ),
         h(
           'div',
@@ -172,7 +176,7 @@ export function PluginDetails({
               wordBreak: 'break-all',
             },
           },
-          plugin.dependencies.length ? plugin.dependencies.join(', ') : 'None',
+          plugin.dependencies.length ? plugin.dependencies.join(', ') : t('settings:pluginDetails.none'),
         ),
       ),
       h(
@@ -195,7 +199,7 @@ export function PluginDetails({
               color: 'var(--text-secondary, #C5CAD8)',
             },
           },
-          `Dependents (${plugin.dependents.length})`,
+          t('settings:pluginDetails.dependentsCount', { count: plugin.dependents.length }),
         ),
         h(
           'div',
@@ -207,7 +211,7 @@ export function PluginDetails({
               wordBreak: 'break-all',
             },
           },
-          plugin.dependents.length ? plugin.dependents.join(', ') : 'None',
+          plugin.dependents.length ? plugin.dependents.join(', ') : t('settings:pluginDetails.none'),
         ),
       ),
     ),
@@ -229,17 +233,21 @@ export function PluginDetails({
             h(
               'div',
               { style: { display: 'flex', flexDirection: 'column', gap: 2 } },
-              h('span', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #FFFFFF)' } }, 'Enable plugin'),
+              h('span', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #FFFFFF)' } }, t('settings:pluginDetails.enablePlugin')),
               h(
                 'span',
                 { style: { fontSize: 11, color: 'var(--text-tertiary, #8E8E93)' } },
-                plugin.enabled ? 'Enabled; turning off unloads it immediately' : 'Not enabled; turning on loads it immediately',
+                plugin.enabled
+                  ? t('settings:pluginDetails.enabledTurningOffUnloadsIt')
+                  : t('settings:pluginDetails.notEnabledTurningOnLoads'),
               ),
             ),
             h(Switch, {
               checked: plugin.enabled,
               onChange: (checked) => onToggleEnabled?.(plugin, checked),
-              accessibilityLabel: `Toggle plugin ${plugin.displayName} enabled state`,
+              accessibilityLabel: t('settings:pluginDetails.togglePluginEnabledState', {
+                displayName: plugin.displayName,
+              }),
             }),
           )
         : h(
@@ -252,7 +260,7 @@ export function PluginDetails({
                 paddingTop: 4,
               },
             },
-            '(Plugin enable/disable is hidden; enable advanced settings on the "About" page)',
+            t('settings:pluginDetails.enableHidden'),
           )
       : null,
   )
