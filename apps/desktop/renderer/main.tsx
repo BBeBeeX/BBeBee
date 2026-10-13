@@ -119,8 +119,10 @@ if (isMiniPlayerWindow) {
       const pushLocale = (locale: string): void => {
         void window.BBeBee?.locale?.notify?.(locale)
       }
-      pushLocale(ctx.i18n.locale)
-      ctx.i18n.onLocaleChange(pushLocale)
+      app.ctx.inject(['i18n'], (scoped) => {
+        pushLocale(scoped.i18n.locale)
+        return scoped.i18n.onLocaleChange(pushLocale)
+      })
       root.render(h(StrictMode, null, h(Shell, { ctx })))
 
       // Load deferred non-first-screen plugins during idle after first frame
