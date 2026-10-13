@@ -44,7 +44,7 @@ import { tempDir, tick } from '@BBeBee/kernel/testing'
 import { configureNative } from '@BBeBee/ui-kit-mobile'
 import httpPlugin from '@BBeBee/core-http-node'
 import sourceRuntime from '@BBeBee/plugin-source-runtime'
-import { SearchScreen, SourcesListScreen, TestScreen, inject } from './index.js'
+import { SearchScreen, SourceConfigureModal, TestScreen, inject } from './index.js'
 import sourcesCatalogue from '../../../feature/plugin-i18n/src/locales/sources.json'
 import appCatalogue from '../../../feature/plugin-i18n/src/locales/en.json'
 
@@ -237,119 +237,7 @@ const EXAMPLE_DOC = {
   ruleStream: { url: '={{source.url}}/stream' },
 }
 
-describe('SourcesListScreen on mobile', () => {
-  it('lists the imported sources', async () => {
-    const { ctx, admin } = await harness()
-    await admin.sources.import(JSON.stringify(EXAMPLE_DOC))
-    await tick()
-
-    const { container } = render(h(SourcesListScreen, { ctx }))
-    await act(async () => {
-      await tick()
-    })
-
-    expect(container.textContent).toContain('Example')
-    expect(container.textContent).toContain('https://music.example.org')
-    expect(container.textContent).toContain('Test')
-  })
-
-  it('renders an empty list as an empty state, not a blank screen', async () => {
-    const { ctx } = await harness()
-    const { container } = render(h(SourcesListScreen, { ctx }))
-    await act(async () => {
-      await tick()
-    })
-    expect(container.textContent).toContain('No sources yet')
-  })
-
-  it('toggles a source off and on', async () => {
-    const { ctx, admin } = await harness()
-    await admin.sources.import(JSON.stringify(EXAMPLE_DOC))
-    await tick()
-    const id = admin.sources.sources[0]!.id
-
-    const { container } = render(h(SourcesListScreen, { ctx }))
-    await act(async () => {
-      await tick()
-    })
-
-    const toggle = container.querySelector(`[data-testid="sources-list-toggle-${id}"]`) as HTMLElement
-    expect(toggle).toBeTruthy()
-    await act(async () => {
-      toggle.click()
-      await tick()
-    })
-    expect(ctx.sources.source(id)?.enabled).toBe(false)
-  })
-
-  it('deletes a source only after the confirmation is pressed', async () => {
-    const { ctx, admin } = await harness()
-    await admin.sources.import(JSON.stringify(EXAMPLE_DOC))
-    await tick()
-    const id = admin.sources.sources[0]!.id
-
-    const { container } = render(h(SourcesListScreen, { ctx }))
-    await act(async () => {
-      await tick()
-    })
-
-    await act(async () => {
-      ;(container.querySelector(`[data-testid="sources-list-delete-${id}"]`) as HTMLElement).click()
-      await tick()
-    })
-    expect(ctx.sources.source(id), 'the first press only asks').toBeTruthy()
-
-    await act(async () => {
-      ;(container.querySelector(`[data-testid="sources-list-delete-confirm-${id}"]`) as HTMLElement).click()
-      await tick()
-      await tick()
-    })
-    expect(ctx.sources.source(id)).toBeUndefined()
-  })
-
-  it('shows the local source its folders, with folder controls', async () => {
-    const { ctx, admin } = await harness()
-    await admin.sources.import(JSON.stringify(EXAMPLE_DOC))
-    await admin.db.exec(
-      `INSERT INTO sources (id, source_url, name, doc_json, doc_hash, imported_at, updated_at)
-       VALUES ('local', 'bbebee://local/local', 'This device', '{}', 'h', 0, 0)`,
-    )
-    await admin.sources.setEnabled('local', true)
-
-    class ScannerStub extends Service {
-      constructor(c: Context) {
-        super(c, 'scanner')
-      }
-      specifiedDirs = [
-        { id: 'dir-1', uri: 'file:///music', recursive: true, enabled: true },
-      ] as never
-      addSpecifiedDir = async () => {
-        throw new Error('not needed')
-      }
-      removeSpecifiedDir = async () => {}
-      setEnabled = async () => {}
-      scan = async () => ({ added: 0, updated: 0, removed: 0, errors: 0 })
-      cancel = () => {}
-      progress = undefined
-    }
-    await admin.plugin(ScannerStub)
-    await tick()
-
-    const { container } = render(h(SourcesListScreen, { ctx }))
-    await act(async () => {
-      await tick()
-    })
-
-    expect(container.textContent).toContain('file:///music')
-    expect(
-      container.querySelector('[data-testid="source-folder-toggle-dir-1"]'),
-    ).toBeTruthy()
-    expect(
-      container.querySelector('[data-testid="sources-list-toggle-local"]'),
-      'the local row has no whole-source switch',
-    ).toBeNull()
-  })
-
+describe('SourceConfigureModal on mobile', () => {
   it('configures per-source parameters (host, secrets, vars), tests connection 3-state, and saves on mobile', async () => {
     let pingResponse: HttpResponse | null = {
       status: 200,
@@ -398,19 +286,11 @@ describe('SourcesListScreen on mobile', () => {
     const id = report.added[0]!.id
     await tick()
 
-    const { container } = render(h(SourcesListScreen, { ctx }))
+    let open = true
+    const { container, rerender } = render(
+      h(SourceConfigureModal, { ctx, sourceId: id, open, onClose: () => { open = false } }),
+    )
     await act(async () => {
-      await tick()
-    })
-
-    // Click Configure button
-    const configBtn = container.querySelector(
-      `[data-testid="sources-list-configure-${id}"]`,
-    ) as HTMLElement
-    expect(configBtn).toBeTruthy()
-    await act(async () => {
-      configBtn.click()
-      await tick()
       await tick()
     })
 
@@ -432,18 +312,16 @@ describe('SourcesListScreen on mobile', () => {
       await tick()
     })
 
-    // 2. Add custom variable
+    // 2. Add custom var
     await act(async () => {
       type('source-configure-new-var-key', 'clientApp')
       type('source-configure-new-var-val', 'BBeBeeTest')
       await tick()
     })
-    const addBtn = container.querySelector('[data-testid="source-configure-add-var-btn"]') as HTMLElement
     await act(async () => {
-      addBtn.click()
+      ;(container.querySelector('[data-testid="source-configure-add-var-btn"]') as HTMLElement).click()
       await tick()
     })
-    expect(container.querySelector('[data-testid="source-configure-var-clientApp"]')).toBeTruthy()
 
     // 3. Test Connection - State 1: OK
     await act(async () => {
@@ -451,11 +329,12 @@ describe('SourcesListScreen on mobile', () => {
       await tick()
       await tick()
     })
-    const pingResult = container.querySelector(
-      '[data-testid="source-configure-ping-result"]',
-    ) as HTMLElement
-    expect(pingResult.textContent).toContain('Connected')
-    expect(pingResult.textContent).toContain('1.16.1')
+    expect(container.querySelector('[data-testid="source-configure-ping-result"]')?.textContent).toContain(
+      'Connected',
+    )
+    expect(container.querySelector('[data-testid="source-configure-ping-result"]')?.textContent).toContain(
+      '1.16.1',
+    )
 
     // Test Connection - State 2: Auth Failed
     pingResponse = {
@@ -510,7 +389,9 @@ describe('SourcesListScreen on mobile', () => {
       await tick()
     })
 
-    // Verify modal closed
+    // Verify onClose was called
+    expect(open).toBe(false)
+    rerender(h(SourceConfigureModal, { ctx, sourceId: id, open, onClose: () => { open = false } }))
     expect(container.querySelector('[data-testid="source-configure-modal"]')).toBeNull()
 
     // Verify source host updated

@@ -19,7 +19,6 @@ Binds the 4 view ids contributed by the headless package (`SOURCES_VIEWS`) to de
 | id | component |
 |---|---|
 | `sources.search` | `SearchScreen` |
-| `sources.settings` | `SourcesListScreen` |
 | `sources.import` | `ImportScreen` |
 | `sources.test` | `TestScreen` |
 | `sources.recommend` | `RecommendScreen` |

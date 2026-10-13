@@ -177,8 +177,12 @@ const NO_FOLDERS: readonly ScanSpecifiedDir[] = []
  * has a source to key on — so the source list shows its **folders** rather than
  * import/delete controls that would not mean anything for files on disk.
  */
-export function isLocalSource(record: SourceRecord): boolean {
-  return record.sourceUrl.startsWith('bbebee://local/')
+export function isLocalSource(record: SourceRecord | { sourceUrl: string; id?: string }): boolean {
+  return (
+    record.sourceUrl === 'bbebee://local' ||
+    record.sourceUrl.startsWith('bbebee://local/') ||
+    record.id === 'local'
+  )
 }
 
 /**
@@ -1151,7 +1155,8 @@ export function useSourceParams(ctx: Context, sourceId: string | undefined): Sou
 
   const record = useMemo(() => {
     if (!sourceId) return undefined
-    return ctx.sources.source(sourceId)
+    const svc = serviceOf<SourcesService>(ctx, 'sources')
+    return svc?.source(sourceId)
   }, [ctx, sourceId, generation])
 
   const load = useCallback(() => {
@@ -1161,9 +1166,14 @@ export function useSourceParams(ctx: Context, sourceId: string | undefined): Sou
       setError(undefined)
       return
     }
+    const svc = serviceOf<SourcesService>(ctx, 'sources')
+    if (!svc) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
     setError(undefined)
-    ctx.sources
+    svc
       .getSourceParams(sourceId)
       .then((p) => {
         setParams(p)
@@ -1195,9 +1205,15 @@ export function useSourceParams(ctx: Context, sourceId: string | undefined): Sou
         setPingState({ loading: false, result: res })
         return res
       }
+      const svc = serviceOf<SourcesService>(ctx, 'sources')
+      if (!svc) {
+        const res: SourcePingResult = { status: 'network_error', message: 'Sources service unavailable' }
+        setPingState({ loading: false, result: res })
+        return res
+      }
       setPingState({ loading: true, result: undefined })
       try {
-        const res = await ctx.sources.testConnection(sourceId, probeParams)
+        const res = await svc.testConnection(sourceId, probeParams)
         setPingState({ loading: false, result: res })
         return res
       } catch (err: unknown) {
@@ -1215,9 +1231,11 @@ export function useSourceParams(ctx: Context, sourceId: string | undefined): Sou
   const saveParams = useCallback(
     async (updates: UpdateSourceParams): Promise<void> => {
       if (!sourceId) return
+      const svc = serviceOf<SourcesService>(ctx, 'sources')
+      if (!svc) return
       setLoading(true)
       try {
-        await ctx.sources.updateSourceParams(sourceId, updates)
+        await svc.updateSourceParams(sourceId, updates)
         setGeneration((g) => g + 1)
       } finally {
         setLoading(false)
@@ -1385,7 +1403,7 @@ export function useAudioSourcesStatus(ctx: Context): AudioSourcesStatusState {
   )
 
   const testAll = useCallback(async (): Promise<void> => {
-    const enabledIds = sources.filter((s) => s.enabled).map((s) => s.id)
+    const enabledIds = sources.filter((s) => s.enabled && !isLocalSource(s)).map((s) => s.id)
     await Promise.all(enabledIds.map((id) => testConnection(id)))
   }, [sources, testConnection])
 

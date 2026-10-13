@@ -45,7 +45,7 @@ Three design goals, each backed by a test:
 
 **watch/poll three-tier fallback**: `ctx.fs.watch` (the desktop ideal path, debounced by `watchDebounceMs`) → `ctx.background.schedule('scanner:poll', …)` (mobile, the OS scheduler) → its own chained `setTimeout` polling (chained rather than an interval — a scan that overruns must not have the next one queued behind it; the required fallback on desktop until `core-background-electron` lands).
 
-**Relationship with `ctx.sources`**: the catalogue's foreign keys point at `sources` rows, so the scanner, as the writer, must first ensure the source row exists — `ensureSourceRow()` writes the minimal row (id defaults to `'local'`, `source_url = 'bbebee://local/<id>'`, and `doc_json` is a real document: `{ sourceName: 'This device', sourceComment: 'Files on this device. Managed by the scanner, not imported.' }`).
+**Relationship with `ctx.sources`**: the catalogue's foreign keys point at `sources` rows, so the scanner, as the writer, must first ensure the source row exists — `ensureSourceRow()` writes the minimal row (id defaults to `'local'`, `source_url = 'bbebee://local'`, and `doc_json` is a real document: `{ sourceName: 'This device', sourceComment: 'Files on this device. Managed by the scanner, not imported.' }`).
 
 ### `src/import.ts` — how a file becomes a catalogue entry
 

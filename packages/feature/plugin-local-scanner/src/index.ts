@@ -1064,8 +1064,9 @@ export class Scanner extends Service implements ScannerService {
    */
   private async ensureSourceRow(): Promise<void> {
     const id = this.config.sourceId
+    const sourceUrl = id === 'local' ? 'bbebee://local' : `bbebee://local/${id}`
     const doc = JSON.stringify({
-      sourceUrl: `bbebee://local/${id}`,
+      sourceUrl,
       sourceName: 'This device',
       sourceComment: 'Files on this device. Managed by the scanner, not imported.',
     })
@@ -1074,7 +1075,7 @@ export class Scanner extends Service implements ScannerService {
                             enabled, imported_at, updated_at)
        VALUES (?, ?, 'This device', 'music', ?, ?, 1, ?, ?)
        ON CONFLICT(id) DO NOTHING`,
-      [id, `bbebee://local/${id}`, doc, `local-${id}`, Date.now(), Date.now()],
+      [id, sourceUrl, doc, `local-${id}`, Date.now(), Date.now()],
     )
   }
 }

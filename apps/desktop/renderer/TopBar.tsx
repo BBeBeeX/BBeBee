@@ -16,7 +16,7 @@ import { createElement as h, useEffect, useRef, useState, type CSSProperties, ty
 import type { Context } from 'cordis'
 import type { SleepTimerMode, SleepTimerService, TrayContribution } from '@BBeBee/protocol'
 import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
-import { useSearchSourceSelection, useAudioSourcesStatus, type SearchInterfaceKind } from '@BBeBee/plugin-sources/hooks'
+import { useSearchSourceSelection, useAudioSourcesStatus, isLocalSource, type SearchInterfaceKind } from '@BBeBee/plugin-sources/hooks'
 import { useSleepTimer } from '@BBeBee/plugin-sleep-timer/hooks'
 import logoWhiteUrl from './assets/logo-white.png'
 
@@ -575,7 +575,7 @@ export function ProfileSourcesIndicator({
   onOpenSettings,
 }: {
   ctx: Context
-  onOpenSettings?: () => void
+  onOpenSettings?: (tab?: string) => void
 }): ReactElement {
   const { t } = useI18n(ctx)
   const [open, setOpen] = useState(false)
@@ -920,33 +920,35 @@ export function ProfileSourcesIndicator({
                         },
                         badgeText,
                       ),
-                      h(
-                        'button',
-                        {
-                          type: 'button',
-                          'data-testid': `test-source-btn-${item.id}`,
-                          title: t('app:common.top.testConnection'),
-                          disabled: item.isPinging || !item.enabled,
-                          onClick: (e: { stopPropagation: () => void }) => {
-                            e.stopPropagation()
-                            void testConnection(item.id)
-                          },
-                          style: {
-                            background: 'none',
-                            border: 'none',
-                            color: item.isPinging
-                              ? 'var(--text-tertiary, #8B92A6)'
-                              : 'var(--text-secondary, #C5CAD8)',
-                            cursor: item.isPinging ? 'wait' : 'pointer',
-                            padding: 4,
-                            display: 'flex',
-                            alignItems: 'center',
-                            borderRadius: 4,
-                            transition: 'color 0.15s ease',
-                          },
-                        },
-                        tablerIcon('refresh', { size: 13 }),
-                      ),
+                      !isLocalSource(item)
+                        ? h(
+                            'button',
+                            {
+                              type: 'button',
+                              'data-testid': `test-source-btn-${item.id}`,
+                              title: t('app:common.top.testConnection'),
+                              disabled: item.isPinging || !item.enabled,
+                              onClick: (e: { stopPropagation: () => void }) => {
+                                e.stopPropagation()
+                                void testConnection(item.id)
+                              },
+                              style: {
+                                background: 'none',
+                                border: 'none',
+                                color: item.isPinging
+                                  ? 'var(--text-tertiary, #8B92A6)'
+                                  : 'var(--text-secondary, #C5CAD8)',
+                                cursor: item.isPinging ? 'wait' : 'pointer',
+                                padding: 4,
+                                display: 'flex',
+                                alignItems: 'center',
+                                borderRadius: 4,
+                                transition: 'color 0.15s ease',
+                              },
+                            },
+                            tablerIcon('refresh', { size: 13 }),
+                          )
+                        : null,
                     ),
                   )
                 }),
@@ -969,7 +971,7 @@ export function ProfileSourcesIndicator({
                 'data-testid': 'topbar-manage-sources-btn',
                 onClick: () => {
                   setOpen(false)
-                  onOpenSettings?.()
+                  onOpenSettings?.('sources')
                 },
                 style: {
                   background: 'none',
@@ -1140,7 +1142,7 @@ export interface TopBarProps {
       typesBySource?: Readonly<Record<string, readonly SearchInterfaceKind[]>>
     },
   ) => void
-  onOpenSettings?: () => void
+  onOpenSettings?: (tab?: string) => void
   canGoBack?: boolean
   canGoForward?: boolean
   onBack?: () => void

@@ -454,14 +454,14 @@ describe('the source list drives the fibers', () => {
      */
     const { ctx } = await harness([radio()], async (db) => {
       const doc = JSON.stringify({
-        sourceUrl: 'bbebee://local/local',
+        sourceUrl: 'bbebee://local',
         sourceName: 'This device',
         sourceComment: 'Files on this device. Managed by the scanner, not imported.',
       })
       await db.exec(
         `INSERT INTO sources (id, source_url, name, source_type, doc_json, doc_hash,
                               enabled, imported_at, updated_at)
-         VALUES ('local', 'bbebee://local/local', 'This device', 'music', ?, 'local-local', 1, ?, ?)`,
+         VALUES ('local', 'bbebee://local', 'This device', 'music', ?, 'local-local', 1, ?, ?)`,
         [doc, Date.now(), Date.now()],
       )
     })

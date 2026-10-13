@@ -57,7 +57,7 @@ describe('sha256Hex', () => {
       'https://music.example.org',
       'https://music.example.org/',
       'http://127.0.0.1:4533',
-      'bbebee://local/local',
+      'bbebee://local',
     ]) {
       expect(sha256Hex(url), url).toBe(ref(url))
     }

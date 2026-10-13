@@ -428,7 +428,7 @@ describe('importing documents', () => {
     const { ctx, sources } = await withSources()
     await ctx.db.exec(
       `INSERT INTO sources (id, source_url, name, doc_json, doc_hash, imported_at, updated_at)
-       VALUES ('local', 'bbebee://local/local', 'This device', '{}', 'h', 0, 0)`,
+       VALUES ('local', 'bbebee://local', 'This device', '{}', 'h', 0, 0)`,
     )
     await sources.import(JSON.stringify(doc()))
 

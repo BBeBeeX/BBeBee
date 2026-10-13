@@ -84,7 +84,7 @@ import {
   validateDocument,
 } from './identity.js'
 import { SourceStore } from './store.js'
-import { SOURCES_ROUTES, SOURCES_VIEWS } from './views.js'
+import { SOURCES_ROUTES } from './views.js'
 
 export interface SourcesConfig {
   /**
@@ -342,15 +342,6 @@ export class Sources extends Service implements SourcesService {
           // on desktop, a tab on mobile, next to the library.
           placement: ['tab-bar', 'sidebar'],
           order: 1,
-        })
-        yield scoped.ui.contribute({
-          kind: 'settings',
-          id: SOURCES_VIEWS.sourceList,
-          section: 'sources',
-          title: 'Music Sources',
-          description: 'View enabled network music sources, run source capability health checks, or manage the third-party source list',
-          actionText: 'Manage music sources',
-          order: 10,
         })
         yield scoped.ui.contribute({
           kind: 'settings',

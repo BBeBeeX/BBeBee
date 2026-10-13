@@ -1,16 +1,30 @@
-import { Button, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
-import { createElement as h } from 'react'
-import type { ReactElement } from 'react'
+import { Button, IconButton, Sheet, Text, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
+import { createElement as h, useMemo, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { I18nService, SettingsContribution } from '@BBeBee/protocol'
-import { useAudioSourcesStatus, type AudioSourceStatusItem } from '@BBeBee/plugin-sources/hooks'
+import type { I18nService, SettingsContribution, SourcesService, UiService } from '@BBeBee/protocol'
+import { SOURCES_VIEWS } from '@BBeBee/plugin-sources/views'
+import {
+  isLocalSource,
+  useAudioSourcesStatus,
+  type AudioSourceStatusItem,
+} from '@BBeBee/plugin-sources/hooks'
+import { serviceOf } from '@BBeBee/ui-core'
+import { tokens } from '@BBeBee/ui-tokens'
 import { SettingsRow } from '../SettingsRow.js'
 import { SettingsSection } from '../SettingsSection.js'
+import { SourceConfigureModal } from '../SourceConfigureModal.js'
 
 export interface SourcesSectionProps {
   ctx: Context
   contributions?: readonly SettingsContribution[]
   onNavigate: (route: string) => void
+}
+
+interface SourceGroup {
+  name: string
+  items: readonly AudioSourceStatusItem[]
+  isMultiple: boolean
+  isLocal: boolean
 }
 
 function getLocalizedTitle(
@@ -68,13 +82,26 @@ function AudioSourceRow({
   item,
   t,
   onTest,
-  onManage,
+  onDebug,
+  onConfigure,
+  onToggle,
+  onDelete,
+  confirmingDeleteId,
+  onSetConfirmingDeleteId,
+  isNestedInstance = false,
 }: {
   item: AudioSourceStatusItem
   t: I18nService['t']
   onTest: (id: string) => void
-  onManage: (id: string) => void
+  onDebug: (id: string) => void
+  onConfigure: (id: string) => void
+  onToggle: (id: string, enabled: boolean) => void
+  onDelete: (id: string) => void
+  confirmingDeleteId: string | undefined
+  onSetConfirmingDeleteId: (id: string | undefined) => void
+  isNestedInstance?: boolean
 }): ReactElement {
+  const local = isLocalSource(item.record)
   const isAuth = item.authStatus.state === 'authenticated'
   const isExpired = item.authStatus.state === 'expired'
   const isAuthError = item.authStatus.state === 'error'
@@ -85,7 +112,12 @@ function AudioSourceRow({
   let probeBg = 'rgba(255, 255, 255, 0.05)'
   let probeColor = 'var(--text-secondary, #C5CAD8)'
 
-  if (!item.enabled) {
+  if (local) {
+    dotColor = item.enabled ? '#22C55E' : '#64748B'
+    probeText = t('settings:sources.ready')
+    probeBg = 'rgba(34, 197, 94, 0.15)'
+    probeColor = '#4ADE80'
+  } else if (!item.enabled) {
     dotColor = '#64748B'
     probeText = t('settings:sources.offline')
     probeBg = 'rgba(255, 255, 255, 0.04)'
@@ -115,7 +147,11 @@ function AudioSourceRow({
   let authBg = 'rgba(255, 255, 255, 0.06)'
   let authColor = 'var(--text-secondary, #C5CAD8)'
 
-  if (item.authStatus.state === 'authenticated') {
+  if (local) {
+    authText = t('settings:sources.localFiles')
+    authBg = 'rgba(255, 255, 255, 0.06)'
+    authColor = 'var(--text-secondary, #C5CAD8)'
+  } else if (item.authStatus.state === 'authenticated') {
     authText = t('settings:sources.authenticated')
     authBg = 'rgba(34, 197, 94, 0.12)'
     authColor = '#4ADE80'
@@ -129,6 +165,8 @@ function AudioSourceRow({
     authColor = '#F87171'
   }
 
+  const isConfirmingDelete = confirmingDeleteId === item.id
+
   return h(
     'div',
     {
@@ -138,12 +176,13 @@ function AudioSourceRow({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '12px 14px',
+        padding: isNestedInstance ? '10px 12px' : '12px 14px',
         margin: '6px 0',
         borderRadius: 8,
-        background: 'rgba(255, 255, 255, 0.03)',
+        background: isNestedInstance ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.03)',
         border: '1px solid rgba(255, 255, 255, 0.06)',
         gap: 12,
+        opacity: item.enabled ? 1 : 0.6,
       },
     },
     h(
@@ -250,29 +289,231 @@ function AudioSourceRow({
         probeText,
       ),
     ),
+    !local
+      ? h(
+          'div',
+          {
+            style: {
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              flexShrink: 0,
+            },
+          },
+          // 1. 测试按钮 (本地不需要测试)
+          h(Button, {
+            variant: 'secondary',
+            testID: `settings-source-test-${item.id}`,
+            disabled: item.isPinging || !item.enabled,
+            onPress: () => onTest(item.id),
+            children: item.isPinging ? '…' : t('settings:sources.test'),
+          }),
+          // 2. 调试按钮 (内容为音乐源页的测试按钮)
+          h(Button, {
+            variant: 'secondary',
+            testID: `settings-source-debug-${item.id}`,
+            onPress: () => onDebug(item.id),
+            children: t('settings:sources.debug'),
+          }),
+          // 3. 配置按钮 (将已配置音源的管理 变成 音乐源页的配置)
+          h(Button, {
+            variant: 'secondary',
+            testID: `settings-source-configure-${item.id}`,
+            onPress: () => onConfigure(item.id),
+            children: t('sources:sourcesList.configure'),
+          }),
+          // 4. 最右边：禁用/启用 icon
+          h(IconButton, {
+            icon: item.enabled ? 'ban' : 'check',
+            accessibilityLabel: item.enabled
+              ? t('sources:sourcesList.disable')
+              : t('sources:sourcesList.enable'),
+            testID: `settings-source-toggle-${item.id}`,
+            onPress: () => onToggle(item.id, !item.enabled),
+          }),
+          // 5. 最右边：垃圾桶 icon (含确认提示)
+          isConfirmingDelete
+            ? h(
+                'div',
+                { style: { display: 'flex', gap: tokens.space[2], alignItems: 'center' } },
+                h(Text, { variant: 'sm', tone: 'warn' }, t('sources:sourcesList.deleteSourceConfirm')),
+                h(Button, {
+                  onPress: () => onDelete(item.id),
+                  testID: `settings-source-delete-confirm-${item.id}`,
+                  children: t('app:common.delete'),
+                }),
+                h(Button, {
+                  variant: 'ghost',
+                  onPress: () => onSetConfirmingDeleteId(undefined),
+                  children: t('app:common.cancel'),
+                }),
+              )
+            : h(IconButton, {
+                icon: 'trash',
+                accessibilityLabel: t('sources:sourcesList.deleteSource', { name: item.name }),
+                testID: `settings-source-delete-${item.id}`,
+                onPress: () => onSetConfirmingDeleteId(item.id),
+              }),
+        )
+      : null,
+  )
+}
+
+function AudioSourceGroupCard({
+  group,
+  t,
+  onClick,
+  onToggleGroup,
+  onDeleteGroup,
+  confirmingGroupId,
+  onSetConfirmingGroupId,
+}: {
+  group: SourceGroup
+  t: I18nService['t']
+  onClick: () => void
+  onToggleGroup: (group: SourceGroup) => void
+  onDeleteGroup: (group: SourceGroup) => void
+  confirmingGroupId: string | undefined
+  onSetConfirmingGroupId: (name: string | undefined) => void
+}): ReactElement {
+  const isConfirmingDelete = confirmingGroupId === group.name
+  const anyEnabled = group.items.some((i) => i.enabled)
+  const allConnected = group.items.every(
+    (i) => i.enabled && (i.authStatus.state === 'authenticated' || i.ping?.status === 'ok'),
+  )
+  const anyConnected = group.items.some(
+    (i) => i.enabled && (i.authStatus.state === 'authenticated' || i.ping?.status === 'ok'),
+  )
+
+  const dotColor = !anyEnabled
+    ? '#64748B'
+    : allConnected || anyConnected
+      ? '#22C55E'
+      : '#EF4444'
+
+  return h(
+    'div',
+    {
+      key: group.name,
+      'data-testid': `settings-source-group-card-${group.name}`,
+      onClick,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '12px 14px',
+        margin: '6px 0',
+        borderRadius: 8,
+        background: 'rgba(255, 255, 255, 0.03)',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        gap: 12,
+        cursor: 'pointer',
+        transition: 'background 0.15s ease, border-color 0.15s ease',
+      },
+    },
     h(
       'div',
       {
         style: {
           display: 'flex',
           alignItems: 'center',
-          gap: 6,
-          flexShrink: 0,
+          gap: 10,
+          minWidth: 0,
+          flex: 1,
         },
       },
-      h(Button, {
-        variant: 'secondary',
-        testID: `settings-source-test-${item.id}`,
-        disabled: item.isPinging || !item.enabled,
-        onPress: () => onTest(item.id),
-        children: item.isPinging ? '…' : t('settings:sources.test'),
+      h('span', {
+        'data-testid': `settings-source-group-dot-${group.name}`,
+        style: {
+          width: 8,
+          height: 8,
+          borderRadius: '50%',
+          backgroundColor: dotColor,
+          flexShrink: 0,
+        },
       }),
-      h(Button, {
-        variant: 'ghost',
-        testID: `settings-source-manage-${item.id}`,
-        onPress: () => onManage(item.id),
-        children: t('settings:sources.manage'),
+      h(
+        'div',
+        {
+          style: {
+            display: 'flex',
+            flexDirection: 'column',
+            minWidth: 0,
+            overflow: 'hidden',
+          },
+        },
+        h(
+          'span',
+          {
+            style: {
+              fontSize: 13,
+              fontWeight: 600,
+              color: 'var(--bb-text-primary, #FFFFFF)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            },
+          },
+          group.name,
+        ),
+        h(
+          'span',
+          {
+            'data-testid': `settings-source-group-count-${group.name}`,
+            style: {
+              fontSize: 11,
+              color: 'var(--text-secondary, #8E8E93)',
+              marginTop: 2,
+            },
+          },
+          `${group.items.length} ${t('settings:sources.instancesCount', { count: group.items.length })} · ${t('settings:sources.clickToViewInstances')}`,
+        ),
+      ),
+    ),
+    h(
+      'div',
+      {
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          flexShrink: 0,
+        },
+        onClick: (e: { stopPropagation: () => void }) => e.stopPropagation(),
+      },
+      tablerIcon('chevron-right', { size: 16, color: 'var(--text-tertiary, #8E8E93)' }),
+      // 最右边：禁用/启用 icon
+      h(IconButton, {
+        icon: anyEnabled ? 'ban' : 'check',
+        accessibilityLabel: anyEnabled
+          ? t('sources:sourcesList.disable')
+          : t('sources:sourcesList.enable'),
+        testID: `settings-source-group-toggle-${group.name}`,
+        onPress: () => onToggleGroup(group),
       }),
+      // 最右边：垃圾桶 icon
+      isConfirmingDelete
+        ? h(
+            'div',
+            { style: { display: 'flex', gap: tokens.space[2], alignItems: 'center' } },
+            h(Text, { variant: 'sm', tone: 'warn' }, t('sources:sourcesList.deleteSourceConfirm')),
+            h(Button, {
+              onPress: () => onDeleteGroup(group),
+              testID: `settings-source-group-delete-confirm-${group.name}`,
+              children: t('app:common.delete'),
+            }),
+            h(Button, {
+              variant: 'ghost',
+              onPress: () => onSetConfirmingGroupId(undefined),
+              children: t('app:common.cancel'),
+            }),
+          )
+        : h(IconButton, {
+            icon: 'trash',
+            accessibilityLabel: t('sources:sourcesList.deleteSource', { name: group.name }),
+            testID: `settings-source-group-delete-${group.name}`,
+            onPress: () => onSetConfirmingGroupId(group.name),
+          }),
     ),
   )
 }
@@ -286,18 +527,34 @@ export function SourcesSection({
   const sourcesContribs = contributions.filter((c) => c.section === 'sources')
   const { items: audioSources, testConnection, testAll } = useAudioSourcesStatus(ctx)
 
+  const [configuringSourceId, setConfiguringSourceId] = useState<string | undefined>(undefined)
+  const [activeGroupModal, setActiveGroupModal] = useState<SourceGroup | null>(null)
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | undefined>(undefined)
+  const [confirmingGroupId, setConfirmingGroupId] = useState<string | undefined>(undefined)
+
+  // Group audio sources by source name
+  const sourceGroups = useMemo<readonly SourceGroup[]>(() => {
+    const map = new Map<string, AudioSourceStatusItem[]>()
+    for (const item of audioSources) {
+      const key = item.name.trim() || item.id
+      const list = map.get(key) ?? []
+      list.push(item)
+      map.set(key, list)
+    }
+    return Array.from(map.entries()).map(([name, items]) => ({
+      name,
+      items,
+      isMultiple: items.length > 1,
+      isLocal: items.some((i) => isLocalSource(i.record)),
+    }))
+  }, [audioSources])
+
   const connectedCount = audioSources.filter(
-    (item) => item.enabled && (item.authStatus.state === 'authenticated' || item.ping?.status === 'ok'),
+    (item) => item.enabled && (isLocalSource(item.record) || item.authStatus.state === 'authenticated' || item.ping?.status === 'ok'),
   ).length
 
-  const items: readonly SettingsContribution[] = sourcesContribs.length > 0 ? sourcesContribs : [
-    {
-      id: 'sources.settings',
-      section: 'sources',
-      title: t('settings:sources.musicSourceConfigurationMusicSources'),
-      description: t('settings:sources.viewEnabledOnlineSourcesRun'),
-      actionText: t('settings:sources.manageMusicSources'),
-    },
+  // Filter out 'sources.settings' and 'sources.list' (music source configuration card deleted as requested)
+  const rawItems: readonly SettingsContribution[] = sourcesContribs.length > 0 ? sourcesContribs : [
     {
       id: 'sources.import',
       section: 'sources',
@@ -313,6 +570,52 @@ export function SourcesSection({
       actionText: t('settings:sources.manageFolders'),
     },
   ]
+  const items = rawItems.filter(
+    (item) => item.id !== 'sources.settings' && item.id !== 'sources.list' && item.title !== 'Music Sources',
+  )
+
+  const handleDebug = (id: string) => {
+    const ui = serviceOf<UiService>(ctx, 'ui')
+    if (ui?.navigate) {
+      ui.navigate(SOURCES_VIEWS.sourceTest, { sourceId: id })
+    } else {
+      onNavigate(SOURCES_VIEWS.sourceTest)
+    }
+  }
+
+  const handleToggle = (id: string, enabled: boolean) => {
+    const sourcesSvc = serviceOf<SourcesService>(ctx, 'sources')
+    void sourcesSvc?.setEnabled?.(id, enabled)
+  }
+
+  const handleDelete = (id: string) => {
+    setConfirmingDeleteId(undefined)
+    const sourcesSvc = serviceOf<SourcesService>(ctx, 'sources')
+    void sourcesSvc?.remove?.(id, { forgetCatalogue: true })
+  }
+
+  const handleToggleGroup = (group: SourceGroup) => {
+    const sourcesSvc = serviceOf<SourcesService>(ctx, 'sources')
+    const anyEnabled = group.items.some((i) => i.enabled)
+    const target = !anyEnabled
+    for (const item of group.items) {
+      void sourcesSvc?.setEnabled?.(item.id, target)
+    }
+  }
+
+  const handleDeleteGroup = (group: SourceGroup) => {
+    setConfirmingGroupId(undefined)
+    const sourcesSvc = serviceOf<SourcesService>(ctx, 'sources')
+    for (const item of group.items) {
+      void sourcesSvc?.remove?.(item.id, { forgetCatalogue: true })
+    }
+  }
+
+  // Find updated active group if sources state changes
+  const currentActiveGroup = useMemo(() => {
+    if (!activeGroupModal) return null
+    return sourceGroups.find((g) => g.name === activeGroupModal.name) ?? null
+  }, [activeGroupModal, sourceGroups])
 
   return h(
     'div',
@@ -361,15 +664,9 @@ export function SourcesSection({
           h(Button, {
             variant: 'secondary',
             testID: 'settings-sources-test-all',
-            disabled: audioSources.length === 0,
+            disabled: audioSources.filter((s) => !isLocalSource(s.record)).length === 0,
             onPress: () => void testAll(),
             children: t('settings:sources.testAll'),
-          }),
-          h(Button, {
-            variant: 'secondary',
-            testID: 'settings-sources-manage-all',
-            onPress: () => onNavigate('sources.settings'),
-            children: t('settings:sources.manageMusicSources'),
           }),
         ),
       ),
@@ -387,15 +684,33 @@ export function SourcesSection({
             },
             t('settings:sources.viewEnabledOnlineSourcesRun'),
           )
-        : audioSources.map((item) =>
-            h(AudioSourceRow, {
-              key: item.id,
-              item,
+        : sourceGroups.map((group) => {
+            if (group.isMultiple) {
+              return h(AudioSourceGroupCard, {
+                key: group.name,
+                group,
+                t,
+                onClick: () => setActiveGroupModal(group),
+                onToggleGroup: handleToggleGroup,
+                onDeleteGroup: handleDeleteGroup,
+                confirmingGroupId,
+                onSetConfirmingGroupId: setConfirmingGroupId,
+              })
+            }
+            const singleItem = group.items[0]!
+            return h(AudioSourceRow, {
+              key: singleItem.id,
+              item: singleItem,
               t,
               onTest: (id) => void testConnection(id),
-              onManage: () => onNavigate('sources.settings'),
-            }),
-          ),
+              onDebug: handleDebug,
+              onConfigure: (id) => setConfiguringSourceId(id),
+              onToggle: handleToggle,
+              onDelete: handleDelete,
+              confirmingDeleteId,
+              onSetConfirmingDeleteId: setConfirmingDeleteId,
+            })
+          }),
     ),
     h(
       SettingsSection,
@@ -425,6 +740,55 @@ export function SourcesSection({
         })
       }),
     ),
+
+    // Multi-instance popout sheet ("点击那个卡片 跳出实例列表")
+    currentActiveGroup
+      ? h(
+          Sheet,
+          {
+            open: true,
+            onClose: () => setActiveGroupModal(null),
+            title: `${currentActiveGroup.name} - ${t('settings:sources.instancesList')}`,
+            testID: 'source-instances-modal',
+          },
+          h(
+            'div',
+            {
+              'data-testid': `source-instances-list-${currentActiveGroup.name}`,
+              style: {
+                display: 'flex',
+                flexDirection: 'column',
+                gap: tokens.space[2],
+                maxHeight: '75vh',
+                overflowY: 'auto',
+                paddingRight: tokens.space[1],
+              },
+            },
+            currentActiveGroup.items.map((item) =>
+              h(AudioSourceRow, {
+                key: item.id,
+                item,
+                t,
+                onTest: (id) => void testConnection(id),
+                onDebug: handleDebug,
+                onConfigure: (id) => setConfiguringSourceId(id),
+                onToggle: handleToggle,
+                onDelete: handleDelete,
+                confirmingDeleteId,
+                onSetConfirmingDeleteId: setConfirmingDeleteId,
+                isNestedInstance: true,
+              }),
+            ),
+          ),
+        )
+      : null,
+
+    // Source Configuration Modal
+    h(SourceConfigureModal, {
+      ctx,
+      sourceId: configuringSourceId,
+      open: configuringSourceId !== undefined,
+      onClose: () => setConfiguringSourceId(undefined),
+    }),
   )
 }
-

@@ -219,6 +219,18 @@ export const TABLER_DEFINITIONS: Record<string, IconSvgDefinition> = {
       { tag: 'path', attrs: { d: 'M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3' } },
     ],
   },
+  ban: {
+    elements: [
+      { tag: 'circle', attrs: { cx: 12, cy: 12, r: 9 } },
+      { tag: 'path', attrs: { d: 'M5.7 5.7l12.6 12.6' } },
+    ],
+  },
+  power: {
+    elements: [
+      { tag: 'path', attrs: { d: 'M7 6a7.75 7.75 0 1 0 10 0' } },
+      { tag: 'path', attrs: { d: 'M12 4l0 8' } },
+    ],
+  },
   x: {
     elements: [
       { tag: 'path', attrs: { d: 'M18 6l-12 12' } },

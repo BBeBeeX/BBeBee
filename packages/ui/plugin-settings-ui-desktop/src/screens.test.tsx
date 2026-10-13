@@ -163,8 +163,8 @@ class SettingsStub extends Service implements Partial<SettingsService> {
       super(ctx, 'ui')
     }
 
-    navigate = (id: string) => {
-      calls.push(`navigate:${id}`)
+    navigate = (id: string, params?: unknown) => {
+      calls.push(`navigate:${id}${params ? `:${JSON.stringify(params)}` : ''}`)
     }
 
     viewFor = (id: string) => {
@@ -286,11 +286,28 @@ class SettingsStub extends Service implements Partial<SettingsService> {
     static override readonly name = 'sources'
     public sources: SourceRecord[] = [
       {
+        id: 'local',
+        name: 'This device',
+        sourceUrl: 'bbebee://local',
+        type: 'music',
+        doc: { sourceName: 'This device' } as any,
+        docJson: '{}',
+        docHash: 'hash-local',
+        enabled: true,
+        sortOrder: -1,
+        allowedHosts: [],
+        locallyModified: false,
+        importedAt: 0,
+        updatedAt: 0,
+        failCount: 0,
+        needsLyricSource: false,
+      },
+      {
         id: 'mock-bili',
         name: 'Bilibili Music',
         sourceUrl: 'https://bilibili.com',
         type: 'music',
-        doc: {} as any,
+        doc: { sourceName: 'Bilibili Music' } as any,
         docJson: '{}',
         docHash: 'hash',
         enabled: true,
@@ -302,10 +319,89 @@ class SettingsStub extends Service implements Partial<SettingsService> {
         failCount: 0,
         needsLyricSource: false,
       },
+      {
+        id: 'mock-subsonic-1',
+        name: 'Navidrome',
+        sourceUrl: 'https://navi1.example.com',
+        type: 'music',
+        doc: { sourceName: 'Navidrome' } as any,
+        docJson: '{}',
+        docHash: 'hash1',
+        enabled: true,
+        sortOrder: 1,
+        allowedHosts: [],
+        locallyModified: false,
+        importedAt: 0,
+        updatedAt: 0,
+        failCount: 0,
+        needsLyricSource: false,
+      },
+      {
+        id: 'mock-subsonic-2',
+        name: 'Navidrome',
+        sourceUrl: 'https://navi2.example.com',
+        type: 'music',
+        doc: { sourceName: 'Navidrome' } as any,
+        docJson: '{}',
+        docHash: 'hash2',
+        enabled: true,
+        sortOrder: 2,
+        allowedHosts: [],
+        locallyModified: false,
+        importedAt: 0,
+        updatedAt: 0,
+        failCount: 0,
+        needsLyricSource: false,
+      },
     ]
 
     constructor(ctx: Context) {
       super(ctx, 'sources')
+    }
+
+    source = (id: string) => {
+      return this.sources.find((s) => s.id === id)
+    }
+
+    readVars = async (_id: string) => {
+      return {}
+    }
+
+    getSourceParams = async (id: string) => {
+      const s = this.source(id)
+      return {
+        sourceUrl: s?.sourceUrl ?? '',
+        host: s?.sourceUrl ?? '',
+        vars: {},
+        secretKeys: ['user', 'password'],
+        hasSecrets: {},
+        secrets: {},
+      }
+    }
+
+    saveSourceParams = async (id: string, _params: unknown) => {
+      calls.push(`sources:saveSourceParams:${id}`)
+      return { ok: true }
+    }
+
+    testSourceConnection = async (id: string, _params?: unknown) => {
+      calls.push(`sources:testSourceConnection:${id}`)
+      return { status: 'ok' as const, latencyMs: 25 }
+    }
+
+    setEnabled = async (id: string, enabled: boolean) => {
+      calls.push(`sources:setEnabled:${id}:${enabled}`)
+      const s = this.sources.find((item) => item.id === id)
+      if (s) {
+        ;(s as { enabled: boolean }).enabled = enabled
+        this.ctx.emit('source/changed', id, ['enabled'])
+      }
+    }
+
+    remove = async (id: string) => {
+      calls.push(`sources:remove:${id}`)
+      this.sources = this.sources.filter((item) => item.id !== id)
+      this.ctx.emit('source/removed', id, true)
     }
 
     setNeedsLyricSource = async (id: string, needed: boolean) => {
@@ -1451,10 +1547,10 @@ describe('SettingsScreen', () => {
     expect(queryByTestId('lyric-source-configure-modal')).toBeNull()
   })
 
-  it('renders SourcesSection with configured sources, tests connection, and navigates', async () => {
+  it('renders SourcesSection with configured sources, handles local, single and multi-instance sources', async () => {
     const { ctx, calls } = await harness()
     const navigatedRoutes: string[] = []
-    const { getByTestId, findByText } = render(
+    const { getByTestId, queryByTestId, findByText } = render(
       h(SourcesSection, {
         ctx,
         onNavigate: (route) => navigatedRoutes.push(route),
@@ -1467,28 +1563,80 @@ describe('SettingsScreen', () => {
     expect(getByTestId('settings-source-auth-mock-bili')).toBeTruthy()
     expect(getByTestId('settings-source-probe-mock-bili')).toBeTruthy()
 
-    // Test connection for mock-bili
+    // 1. Local source: no test button, no debug, no configure, no toggle, no delete. Shows ready badge.
+    expect(getByTestId('settings-source-item-local')).toBeTruthy()
+    expect(getByTestId('settings-source-probe-local').textContent).toBe('Ready')
+    expect(queryByTestId('settings-source-test-local')).toBeNull()
+    expect(queryByTestId('settings-source-debug-local')).toBeNull()
+    expect(queryByTestId('settings-source-configure-local')).toBeNull()
+    expect(queryByTestId('settings-source-toggle-local')).toBeNull()
+    expect(queryByTestId('settings-source-delete-local')).toBeNull()
+
+    // 2. Test connection for mock-bili
     await act(async () => {
       fireEvent.click(getByTestId('settings-source-test-mock-bili'))
     })
     expect(calls.includes('sources:testConnection:mock-bili')).toBe(true)
 
-    // Test all button
+    // 3. Debug button for mock-bili navigates to sources.test with sourceId
+    await act(async () => {
+      fireEvent.click(getByTestId('settings-source-debug-mock-bili'))
+    })
+    expect(calls.some((c) => c.includes('navigate:sources.test') && c.includes('mock-bili'))).toBe(true)
+
+    // 4. Configure button for mock-bili opens SourceConfigureModal
+    expect(queryByTestId('source-configure-modal')).toBeNull()
+    await act(async () => {
+      fireEvent.click(getByTestId('settings-source-configure-mock-bili'))
+    })
+    expect(getByTestId('source-configure-modal')).toBeTruthy()
+
+    // Close modal
+    await act(async () => {
+      fireEvent.click(getByTestId('source-configure-cancel-btn'))
+    })
+    expect(queryByTestId('source-configure-modal')).toBeNull()
+
+    // 5. Test all button (skips local, tests all enabled non-local sources)
     await act(async () => {
       fireEvent.click(getByTestId('settings-sources-test-all'))
     })
     expect(calls.filter((c) => c === 'sources:testConnection:mock-bili').length).toBe(2)
+    expect(calls.includes('sources:testConnection:mock-subsonic-1')).toBe(true)
+    expect(calls.includes('sources:testConnection:local')).toBe(false)
 
-    // Manage buttons trigger onNavigate
+    // 6. Toggle button for mock-bili toggles enabled
     await act(async () => {
-      fireEvent.click(getByTestId('settings-source-manage-mock-bili'))
+      fireEvent.click(getByTestId('settings-source-toggle-mock-bili'))
     })
-    expect(navigatedRoutes).toContain('sources.settings')
+    expect(calls.includes('sources:setEnabled:mock-bili:false')).toBe(true)
 
+    // 7. Delete button for mock-bili asks for confirmation
     await act(async () => {
-      fireEvent.click(getByTestId('settings-sources-manage-all'))
+      fireEvent.click(getByTestId('settings-source-delete-mock-bili'))
     })
-    expect(navigatedRoutes.filter((r) => r === 'sources.settings').length).toBe(2)
+    expect(getByTestId('settings-source-delete-confirm-mock-bili')).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(getByTestId('settings-source-delete-confirm-mock-bili'))
+    })
+    expect(calls.includes('sources:remove:mock-bili')).toBe(true)
+
+    // 8. Multi-instance source: Navidrome group card
+    expect(getByTestId('settings-source-group-card-Navidrome')).toBeTruthy()
+    expect(getByTestId('settings-source-group-count-Navidrome').textContent).toContain('2')
+
+    // Clicking group card opens instances list sheet
+    expect(queryByTestId('source-instances-list-Navidrome')).toBeNull()
+    await act(async () => {
+      fireEvent.click(getByTestId('settings-source-group-card-Navidrome'))
+    })
+    expect(getByTestId('source-instances-list-Navidrome')).toBeTruthy()
+    expect(getByTestId('settings-source-item-mock-subsonic-1')).toBeTruthy()
+    expect(getByTestId('settings-source-item-mock-subsonic-2')).toBeTruthy()
+
+    // 9. Music sources and files cards: sources.settings / sources.list is not rendered
+    expect(queryByTestId('settings-contribution-sources.settings')).toBeNull()
+    expect(queryByTestId('settings-contribution-sources.list')).toBeNull()
   })
 })
 

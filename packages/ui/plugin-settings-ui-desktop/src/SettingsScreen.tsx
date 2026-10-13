@@ -67,9 +67,24 @@ function cleanDisplayPath(rawPath?: string): string {
   return p
 }
 
-export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
+export function SettingsScreen({
+  ctx,
+  tab,
+  section,
+}: {
+  ctx: Context
+  tab?: SettingsTab
+  section?: SettingsTab
+}): ReactElement {
   const { t } = useI18n(ctx)
-  const [activeTab, setActiveTab] = useState<SettingsTab>('general')
+  const [activeTab, setActiveTab] = useState<SettingsTab>(tab ?? section ?? 'general')
+
+  useEffect(() => {
+    const target = tab ?? section
+    if (target) {
+      setActiveTab(target)
+    }
+  }, [tab, section])
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false)
 
   useEffect(() => {

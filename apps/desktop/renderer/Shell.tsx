@@ -961,8 +961,8 @@ export function Shell({ ctx }: { ctx: Context }) {
       ) => {
         navigateTo('sources.search', { query, ...opts, searchTimestamp: Date.now() })
       },
-      onOpenSettings: () => {
-        navigateTo('settings.view')
+      onOpenSettings: (tab = 'sources') => {
+        navigateTo('settings.view', { tab })
       },
     }),
   )

@@ -10,14 +10,12 @@ import { createElement as h, Fragment, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
-import type { DownloadsService, I18nService, ImportReport, ScanSpecifiedDir, ScannerService, TraceEvent, UiService } from '@BBeBee/protocol'
+import type { DownloadsService, I18nService, ImportReport, TraceEvent, UiService } from '@BBeBee/protocol'
 import { ALBUM_VIEWS } from '@BBeBee/plugin-album/views'
 import { SOURCES_VIEWS } from '@BBeBee/plugin-sources/views'
 import {
-  isLocalSource,
   playFromList,
   searchResultRows,
-  useLocalFolders,
   useSearchSourceSelection,
   useSourceImport,
   useSourceSearch,
@@ -30,7 +28,6 @@ import {
   ContextMenu,
   Button,
   EmptyState,
-  IconButton,
   JsonTree,
   List,
   Text,
@@ -44,7 +41,6 @@ import type { ArtworkProps, TrackRowProps } from '@BBeBee/ui-core'
 import { useResolvedArtwork } from '@BBeBee/plugin-cache/hooks'
 import { useTrackMenu } from '@BBeBee/ui-menus'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
-import { SourceConfigureModal } from './SourceConfigureModal.js'
 
 export { SourceConfigureModal } from './SourceConfigureModal.js'
 
@@ -578,207 +574,7 @@ function valueBlock(event: Extract<TraceEvent, { kind: 'value' }>): ReactElement
 
 /* ── the source list ───────────────────────────────────────────────────── */
 
-/**
- * The imported sources — the hub everything else hangs off. See the desktop
- * twin: use/do-not-use keeps the cached library, delete takes it too and asks
- * once, and the local-files row shows the folders it is actually made of
- * rather than controls that would not mean anything for files on disk.
- */
-export function SourcesListScreen({ ctx }: { ctx: Context }): ReactElement {
-  const { t } = useI18n(ctx)
-  const native = nativePrimitives()
-  const scheme = p()
-  const sources = useSources(ctx)
-  const folders = useLocalFolders(ctx)
-  const scanner = serviceOf<ScannerService>(ctx, 'scanner')
-  const [confirming, setConfirming] = useState<string | undefined>(undefined)
-  const [configuringSourceId, setConfiguringSourceId] = useState<string | undefined>(undefined)
 
-  const removeSource = (id: string) => {
-    setConfirming(undefined)
-    // `forgetCatalogue` because this is the *delete* button, not the switch.
-    void ctx.sources.remove(id, { forgetCatalogue: true })
-  }
-
-  return h(
-    native.View as never,
-    { style: { flex: 1, padding: tokens.space[4], gap: tokens.space[4] } },
-    h(Text, { variant: 'lg' }, t('sources:sourcesList.musicSources')),
-    h(Button, {
-      onPress: () => serviceOf<UiService>(ctx, 'ui')?.navigate(SOURCES_VIEWS.sourceImport),
-      testID: 'sources-list-import',
-      children: t('sources:import.importASource'),
-    }),
-    sources.length === 0
-      ? h(EmptyState, {
-          title: t('sources:sourcesList.noSourcesYet'),
-          description: t('sources:sourcesList.importASourceStringTo'),
-        })
-      : h(
-          native.View as never,
-          { accessibilityLabel: t('sources:sourcesList.importedSources'), style: { gap: tokens.space[2] } },
-          ...sources.map((source) => {
-            const local = isLocalSource(source)
-            return h(
-              native.View as never,
-              {
-                key: source.id,
-                style: {
-                  padding: tokens.space[3],
-                  borderRadius: tokens.radius.sm,
-                  backgroundColor: scheme.bg.raised,
-                  gap: tokens.space[1],
-                  opacity: source.enabled ? 1 : 0.6,
-                },
-              },
-              h(Text, { variant: 'md' }, source.name),
-              h(Text, { variant: 'sm', tone: 'muted' }, source.sourceUrl),
-              !source.enabled
-                ? h(Text, { variant: 'sm', tone: 'muted' }, t('sources:sourcesList.disabled'))
-                : source.lastError
-                  ? h(Text, { variant: 'sm', tone: 'muted' }, source.lastError)
-                  : null,
-              h(
-                native.View as never,
-                { style: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: tokens.space[2] } },
-                h(Button, {
-                  variant: 'secondary',
-                  onPress: () => serviceOf<UiService>(ctx, 'ui')?.navigate(SOURCES_VIEWS.sourceTest, { sourceId: source.id }),
-                  testID: `sources-list-test-${source.id}`,
-                  children: t('sources:sourcesList.test'),
-                }),
-                !local
-                  ? h(Button, {
-                      variant: 'secondary',
-                      onPress: () => setConfiguringSourceId(source.id),
-                      testID: `sources-list-configure-${source.id}`,
-                      children: t('sources:sourcesList.configure'),
-                    })
-                  : null,
-                // The local row has no enable switch of its own: its folders
-                // are what can be switched off.
-                !local
-                  ? h(Button, {
-                      variant: source.enabled ? 'ghost' : 'secondary',
-                      onPress: () => void ctx.sources.setEnabled(source.id, !source.enabled),
-                      accessibilityLabel: source.enabled ? t('sources:sourcesList.stopUsing', { name: source.name }) : t('sources:sourcesList.useSource', { name: source.name }),
-                      testID: `sources-list-toggle-${source.id}`,
-                      children: source.enabled ? t('sources:sourcesList.disable') : t('sources:sourcesList.enable'),
-                    })
-                  : null,
-                !local && confirming === source.id
-                  ? h(Text, { variant: 'sm', tone: 'warn' }, t('sources:sourcesList.deleteSourceConfirm'))
-                  : null,
-                !local && confirming === source.id
-                  ? h(Button, {
-                      onPress: () => removeSource(source.id),
-                      accessibilityLabel: t('sources:sourcesList.deleteAndItsCachedTracks', { name: source.name }),
-                      testID: `sources-list-delete-confirm-${source.id}`,
-                      children: t('app:common.delete'),
-                    })
-                  : null,
-                !local && confirming === source.id
-                  ? h(Button, {
-                      variant: 'ghost',
-                      onPress: () => setConfirming(undefined),
-                      children: t('app:common.cancel'),
-                    })
-                  : null,
-                !local && confirming !== source.id
-                  ? h(IconButton, {
-                      icon: '🗑',
-                      accessibilityLabel: t('sources:sourcesList.deleteSource', { name: source.name }),
-                      onPress: () => setConfirming(source.id),
-                      testID: `sources-list-delete-${source.id}`,
-                    })
-                  : null,
-              ),
-              local ? h(LocalFolders, { folders, scanner, t }) : null,
-            )
-          }),
-        ),
-    h(SourceConfigureModal, {
-      ctx,
-      sourceId: configuringSourceId,
-      open: configuringSourceId !== undefined,
-      onClose: () => setConfiguringSourceId(undefined),
-    }),
-  )
-}
-
-/**
- * The folders behind the local source, said on the source's own row. See the
- * desktop twin: the same elements the Music folders screen manages, minus the
- * section entirely on a build without the scanner.
- */
-function LocalFolders({
-  folders,
-  scanner,
-  t,
-}: {
-  folders: readonly ScanSpecifiedDir[]
-  scanner: ScannerService | undefined
-  t: I18nService['t']
-}): ReactElement | null {
-  const native = nativePrimitives()
-  const scheme = p()
-  if (!scanner) return null
-  if (folders.length === 0) {
-    return h(Text, {
-      variant: 'sm',
-      tone: 'muted',
-      children: t('sources:sourcesList.noFoldersYet'),
-    })
-  }
-  return h(
-    native.View as never,
-    {
-      accessibilityLabel: t('sources:sourcesList.localMusicFolders'),
-      style: {
-        gap: tokens.space[1],
-        borderTopWidth: 1,
-        borderTopColor: scheme.border.subtle,
-        paddingTop: tokens.space[2],
-      },
-    },
-    ...folders.map((dir) =>
-      h(
-        native.View as never,
-        {
-          key: dir.id,
-          style: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: tokens.space[2],
-            opacity: dir.enabled ? 1 : 0.5,
-          },
-        },
-        h(
-          native.View as never,
-          { style: { flex: 1, minWidth: 0 } },
-          h(Text, { variant: 'sm', numberOfLines: 1 }, dir.uri),
-          dir.lastError
-            ? h(Text, { variant: 'sm', tone: 'error', numberOfLines: 1, children: dir.lastError })
-            : null,
-        ),
-        h(Button, {
-          variant: 'ghost',
-          onPress: () => void scanner.setEnabled(dir.id, !dir.enabled),
-          accessibilityLabel: dir.enabled ? `${t('sources:sourcesList.disable')} ${dir.uri}` : `${t('sources:sourcesList.enable')} ${dir.uri}`,
-          testID: `source-folder-toggle-${dir.id}`,
-          children: dir.enabled ? t('sources:sourcesList.disable') : t('sources:sourcesList.enable'),
-        }),
-        // Keeps the tracks, like Music folders.
-        h(IconButton, {
-          icon: '🗑',
-          accessibilityLabel: t('sources:sourcesList.removeFolder', { uri: dir.uri }),
-          onPress: () => void scanner.removeSpecifiedDir(dir.id),
-          testID: `source-folder-remove-${dir.id}`,
-        }),
-      ),
-    ),
-  )
-}
 
 /* ── testing a source, feature by feature ──────────────────────────────── */
 
@@ -1071,7 +867,6 @@ export async function apply(ctx: Context) {
   ctx.logger.info('plugin-sources-ui-mobile: loaded')
   return ctx.effect(function* () {
     yield ctx.ui.registerView(SOURCES_VIEWS.search, bound(ctx, SearchScreen))
-    yield ctx.ui.registerView(SOURCES_VIEWS.sourceList, bound(ctx, SourcesListScreen))
     yield ctx.ui.registerView(SOURCES_VIEWS.sourceImport, bound(ctx, ImportScreen))
     yield ctx.ui.registerView(SOURCES_VIEWS.sourceTest, bound(ctx, TestScreen))
   }, 'sources-ui-mobile')
