@@ -207,7 +207,7 @@ export async function buildSources(opts: BuildSourcesOptions): Promise<string[]>
  * Emits the TS module bundling every compiled lyric source, so
  * `plugin-lyric-sources` ships them without carrying per-platform code.
  */
-async function writeLyricSourceCodegen(
+export async function writeLyricSourceCodegen(
   docs: LyricSourceDefinition[],
   outFile: string,
 ): Promise<void> {

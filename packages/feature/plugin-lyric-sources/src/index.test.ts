@@ -370,7 +370,7 @@ describe('LyricSourcesPlugin Service', () => {
       { http: mockHttp },
     )
 
-    expect(raw).toBe('[00:00.00]Instrumental')
+    expect(raw).toBe('[00:00.00]纯音乐，请欣赏')
   })
 
   it('propagates network error when all endpoints throw', async () => {
@@ -603,6 +603,71 @@ describe('LyricSourcesPlugin Service', () => {
     })
     expect(updatedRes.ok).toBe(true)
     expect(updatedRes.lyrics?.content).toContain('key:updated-secret-token:updated-secret-token')
+  })
+
+  it('syncBuiltinFromRemote upgrades builtin source when GitHub returns a newer version', async () => {
+    const ctx = new Context()
+    const fakeStore: Record<string, unknown> = {}
+    ctx.provide('store', {
+      get: async (k: string) => fakeStore[k],
+      set: async (k: string, v: unknown) => {
+        fakeStore[k] = v
+      },
+    })
+
+    const mockHttp: HttpService = (async (req: HttpRequest) => {
+      expect(req.url).toContain('index.json')
+      const remoteDoc = {
+        id: 'builtin-lrclib',
+        name: 'LRCLIB (Updated From GitHub)',
+        version: '2.0.0',
+        author: 'LRCLIB Community',
+        enabled: true,
+        sortOrder: 0,
+        allowedHosts: ['lrclib.net'],
+        script: '// Updated script from GitHub\nasync function searchLyrics() { return "[00:00.00]v2"; }',
+      }
+      return {
+        status: 200,
+        headers: {},
+        text: async () => JSON.stringify(remoteDoc),
+        json: async () => remoteDoc,
+        arrayBuffer: async () => new ArrayBuffer(0),
+        stream: () => ({} as any),
+      }
+    }) as unknown as HttpService
+
+    ctx.provide('http', mockHttp)
+
+    const plugin = new LyricSourcesPlugin(ctx)
+    await plugin[Service.init]()
+
+    const updated = await plugin.syncBuiltinFromRemote()
+    expect(updated).toBe(true)
+
+    const current = plugin.getSource('builtin-lrclib')
+    expect(current?.version).toBe('2.0.0')
+    expect(current?.name).toBe('LRCLIB (Updated From GitHub)')
+    expect(current?.script).toContain('v2')
+
+    // Persisted to store
+    const stored = fakeStore[STORE_LYRIC_SOURCES_KEY] as any[]
+    expect(stored.find((s) => s.id === 'builtin-lrclib')?.version).toBe('2.0.0')
+  })
+
+  it('syncBuiltinFromRemote gracefully handles network failure across all mirrors', async () => {
+    const ctx = new Context()
+    const failingHttp: HttpService = (async () => {
+      throw new Error('Network error')
+    }) as unknown as HttpService
+
+    ctx.provide('http', failingHttp)
+
+    const plugin = new LyricSourcesPlugin(ctx)
+    await plugin[Service.init]()
+
+    const updated = await plugin.syncBuiltinFromRemote()
+    expect(updated).toBe(false)
   })
 })
 

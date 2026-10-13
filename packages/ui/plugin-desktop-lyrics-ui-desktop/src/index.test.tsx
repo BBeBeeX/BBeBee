@@ -255,6 +255,18 @@ describe('DesktopLyrics', () => {
     const html = renderToStaticMarkup(h(DesktopLyrics, { ctx }))
     expect(html).toBe('')
   })
+
+  it('renders safely when player is not injected or missing', async () => {
+    const app = new Context()
+    await app.plugin(I18nStub)
+    await app.plugin(DesktopLyricsStub)
+    await app.plugin(LyricsStub)
+    await app.plugin(SettingsStub)
+
+    // ctx has no player service installed
+    const html = renderToStaticMarkup(h(DesktopLyrics, { ctx: app }))
+    expect(html).toContain('Desktop lyrics overlay')
+  })
 })
 
 describe('DesktopLyricsSettingsCard', () => {

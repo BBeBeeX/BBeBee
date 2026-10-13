@@ -9,13 +9,13 @@
  * - Dark mode modern aesthetics
  */
 
-import { createElement as h, useEffect, useRef, useState } from 'react'
-import type { ReactElement } from 'react'
+import { Component, createElement as h, useEffect, useRef, useState } from 'react'
+import type { ErrorInfo, ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { useCurrentLyric } from '@BBeBee/toolkit/hooks'
 import { useDesktopLyricsState } from '@BBeBee/plugin-desktop-lyrics/hooks'
 import { serviceOf } from '@BBeBee/ui-core'
-import { DEFAULT_APP_SETTINGS, type AppSettings, type SettingsService } from '@BBeBee/protocol'
+import { DEFAULT_APP_SETTINGS, type AppSettings, type PlayerService, type SettingsService } from '@BBeBee/protocol'
 import { tokens } from '@BBeBee/ui-tokens'
 import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 
@@ -66,7 +66,40 @@ function useDesktopLyricsSettings(ctx: Context) {
   return settings.desktopLyrics
 }
 
-export function DesktopLyrics({ ctx }: DesktopLyricsProps): ReactElement | null {
+export interface DesktopLyricsErrorBoundaryProps {
+  children: ReactElement | null
+}
+
+export interface DesktopLyricsErrorBoundaryState {
+  hasError: boolean
+}
+
+export class DesktopLyricsErrorBoundary extends Component<
+  DesktopLyricsErrorBoundaryProps,
+  DesktopLyricsErrorBoundaryState
+> {
+  constructor(props: DesktopLyricsErrorBoundaryProps) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError(): DesktopLyricsErrorBoundaryState {
+    return { hasError: true }
+  }
+
+  override componentDidCatch(_error: Error, _errorInfo: ErrorInfo) {
+    // Prevent unhandled desktop lyrics crash from breaking the application
+  }
+
+  override render() {
+    if (this.state.hasError) {
+      return null
+    }
+    return this.props.children
+  }
+}
+
+function DesktopLyricsInner({ ctx }: DesktopLyricsProps): ReactElement | null {
   const { t } = useI18n(ctx)
   const {
     visible,
@@ -223,11 +256,14 @@ export function DesktopLyrics({ ctx }: DesktopLyricsProps): ReactElement | null 
           })
         }
       } else if (action.type === 'toggle-play') {
-        ctx.player?.togglePlay?.()
+        const player = serviceOf<PlayerService>(ctx, 'player')
+        player?.togglePlay?.()
       } else if (action.type === 'next-track') {
-        void ctx.player?.next?.()
+        const player = serviceOf<PlayerService>(ctx, 'player')
+        void player?.next?.()
       } else if (action.type === 'prev-track') {
-        void ctx.player?.previous?.()
+        const player = serviceOf<PlayerService>(ctx, 'player')
+        void player?.previous?.()
       } else if (action.type === 'set-font-size' && typeof action.size === 'number') {
         const newSize = action.size
         setFontSize(newSize)
@@ -259,7 +295,7 @@ export function DesktopLyrics({ ctx }: DesktopLyricsProps): ReactElement | null 
     return () => {
       off()
     }
-  }, [hasNativeBridge, bridge, locked, setLocked, setFontSize, setVisible, ctx.player, ctx])
+  }, [hasNativeBridge, bridge, locked, setLocked, setFontSize, setVisible, ctx])
 
   if (hasNativeBridge) {
     return null
@@ -372,7 +408,10 @@ export function DesktopLyrics({ ctx }: DesktopLyricsProps): ReactElement | null 
           type: 'button',
           title: t('lyrics:desktopLyrics.previousTrack'),
           'aria-label': t('lyrics:desktopLyrics.previousTrack'),
-          onClick: () => void ctx.player?.previous?.(),
+          onClick: () => {
+            const player = serviceOf<PlayerService>(ctx, 'player')
+            void player?.previous?.()
+          },
           style: buttonStyle,
         },
         tablerIcon('skip-back', { size: 18 }),
@@ -384,7 +423,10 @@ export function DesktopLyrics({ ctx }: DesktopLyricsProps): ReactElement | null 
           type: 'button',
           title: isPlaying ? t('lyrics:desktopLyrics.pause') : t('lyrics:desktopLyrics.play'),
           'aria-label': isPlaying ? t('lyrics:desktopLyrics.pause') : t('lyrics:desktopLyrics.play'),
-          onClick: () => void ctx.player?.togglePlay?.(),
+          onClick: () => {
+            const player = serviceOf<PlayerService>(ctx, 'player')
+            void player?.togglePlay?.()
+          },
           style: { ...buttonStyle, color: 'var(--color-primary, #5F87FF)' },
         },
         tablerIcon(isPlaying ? 'pause-filled' : 'play-filled', { size: 18 }),
@@ -396,7 +438,10 @@ export function DesktopLyrics({ ctx }: DesktopLyricsProps): ReactElement | null 
           type: 'button',
           title: t('lyrics:desktopLyrics.nextTrack'),
           'aria-label': t('lyrics:desktopLyrics.nextTrack'),
-          onClick: () => void ctx.player?.next?.(),
+          onClick: () => {
+            const player = serviceOf<PlayerService>(ctx, 'player')
+            void player?.next?.()
+          },
           style: buttonStyle,
         },
         tablerIcon('skip-forward', { size: 18 }),
@@ -539,6 +584,10 @@ export function DesktopLyrics({ ctx }: DesktopLyricsProps): ReactElement | null 
         )
       : null,
   )
+}
+
+export function DesktopLyrics(props: DesktopLyricsProps): ReactElement | null {
+  return h(DesktopLyricsErrorBoundary, null, h(DesktopLyricsInner, props))
 }
 
 const buttonStyle: React.CSSProperties = {

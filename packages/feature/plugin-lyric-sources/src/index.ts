@@ -102,8 +102,90 @@ export class LyricSourcesPlugin extends Service implements LyricSourcesService {
     })
   }
 
+  private syncPromise?: Promise<boolean>
+
+  /**
+   * Automatically check the official GitHub repository (and accelerated CDN mirrors)
+   * for updates to the built-in lyric source. If a newer version is published, it seamlessly
+   * upgrades the in-memory definition and persists it to the store.
+   */
+  async syncBuiltinFromRemote(): Promise<boolean> {
+    if (this.syncPromise) return this.syncPromise
+    if (!this.httpService) return false
+    this.syncPromise = this.doSyncBuiltinFromRemote().finally(() => {
+      this.syncPromise = undefined
+    })
+    return this.syncPromise
+  }
+
+  private async doSyncBuiltinFromRemote(): Promise<boolean> {
+    if (!this.httpService) return false
+    try {
+      const mirrors = [
+        'https://raw.githubusercontent.com/BBeBeeX/B_Be_Bee-lrclib/main/index.json',
+        'https://cdn.jsdelivr.net/gh/BBeBeeX/B_Be_Bee-lrclib@main/index.json',
+        'https://fastly.jsdelivr.net/gh/BBeBeeX/B_Be_Bee-lrclib@main/index.json',
+      ]
+
+      for (const url of mirrors) {
+        try {
+          const res = await this.httpService({
+            url,
+            method: 'GET',
+            timeoutMs: 4000,
+            headers: {
+              'User-Agent': 'BBeBee-MusicPlayer/1.0.0',
+            },
+          })
+
+          if (res.status === 200) {
+            const remoteDoc = (await res.json()) as LyricSourceDefinition
+            if (
+              remoteDoc &&
+              remoteDoc.id === 'builtin-lrclib' &&
+              typeof remoteDoc.version === 'string' &&
+              typeof remoteDoc.script === 'string' &&
+              remoteDoc.script.trim()
+            ) {
+              const current = this.sources.find((s) => s.id === 'builtin-lrclib')
+              const currentVersion = current?.version ?? '0.0.0'
+              if (compareVersions(remoteDoc.version, currentVersion) > 0) {
+                const index = this.sources.findIndex((s) => s.id === 'builtin-lrclib')
+                const upgraded: LyricSourceDefinition = {
+                  ...remoteDoc,
+                  enabled: current?.enabled ?? remoteDoc.enabled ?? true,
+                  sortOrder: current?.sortOrder ?? remoteDoc.sortOrder ?? 0,
+                  config: current?.config ?? remoteDoc.config,
+                }
+                if (index >= 0) {
+                  this.sources[index] = upgraded
+                } else {
+                  this.sources.unshift(upgraded)
+                }
+                await this.persistSources()
+                this.ownCtx.logger.info(
+                  `lyricSources: upgraded builtin source "${remoteDoc.id}" from v${currentVersion} to v${remoteDoc.version} via GitHub`,
+                )
+                return true
+              }
+              return false
+            }
+          }
+        } catch {
+          // Try next mirror
+        }
+      }
+    } catch (e) {
+      this.ownCtx.logger.warn(`lyricSources: background sync failed: ${String(e)}`)
+    }
+    return false
+  }
+
   async [Service.init](): Promise<void> {
     await this.loadSourcesFromStore()
+    if (this.httpService) {
+      void this.syncBuiltinFromRemote()
+    }
   }
 
   private async loadSourcesFromStore(): Promise<void> {

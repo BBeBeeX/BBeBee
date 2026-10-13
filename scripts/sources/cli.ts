@@ -17,7 +17,48 @@
 import { fileURLToPath } from 'node:url'
 import { dirname, join, resolve } from 'node:path'
 import { watch } from 'node:fs'
-import { buildSources, unpackSource } from './index.ts'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { execSync } from 'node:child_process'
+import { buildSources, unpackSource, writeLyricSourceCodegen } from './index.ts'
+import { validateLyricSourceDocument } from './validator.ts'
+import type { LyricSourceDefinition } from '@BBeBee/protocol'
+
+async function fetchOfficialLyricSource(): Promise<LyricSourceDefinition | null> {
+  const mirrors = [
+    'https://raw.githubusercontent.com/BBeBeeX/B_Be_Bee-lrclib/main/index.json',
+    'https://cdn.jsdelivr.net/gh/BBeBeeX/B_Be_Bee-lrclib@main/index.json',
+    'https://fastly.jsdelivr.net/gh/BBeBeeX/B_Be_Bee-lrclib@main/index.json',
+  ]
+
+  for (const url of mirrors) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(3000) })
+      if (res.ok) {
+        const doc = (await res.json()) as Record<string, unknown>
+        validateLyricSourceDocument(doc)
+        return doc as unknown as LyricSourceDefinition
+      }
+    } catch {
+      // Continue to curl fallback
+    }
+
+    try {
+      const stdout = execSync(`curl -s -L --max-time 4 "${url}"`, {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      })
+      if (stdout && stdout.trim().startsWith('{')) {
+        const doc = JSON.parse(stdout) as Record<string, unknown>
+        validateLyricSourceDocument(doc)
+        return doc as unknown as LyricSourceDefinition
+      }
+    } catch {
+      // Try next mirror
+    }
+  }
+
+  return null
+}
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const defaultMusicSourcesDir = join(repoRoot, 'registry', 'music-sources')
@@ -98,6 +139,26 @@ async function runBuild() {
         lyricCodegenFile: lyricCodegen,
         validate: true,
       })
+      if (lyricWritten.length === 0 && lyricCodegen) {
+        console.log(
+          '[build:sources] No local lyric sources found; fetching official source from GitHub (BBeBeeX/B_Be_Bee-lrclib)...',
+        )
+        const remoteDoc = await fetchOfficialLyricSource()
+        if (remoteDoc) {
+          const outFile = join(lyricOutDir, `${remoteDoc.id}.json`)
+          await mkdir(lyricOutDir, { recursive: true })
+          await writeFile(outFile, JSON.stringify(remoteDoc, null, 2) + '\n', 'utf8')
+          await writeLyricSourceCodegen([remoteDoc], lyricCodegen)
+          lyricWritten.push(outFile)
+          console.log(
+            `[build:sources] Fetched and compiled remote lyric source from GitHub: ${remoteDoc.name} (v${remoteDoc.version})`,
+          )
+        } else {
+          console.warn(
+            '[build:sources] Could not reach GitHub/jsdelivr mirror; preserving existing generated lyric sources if present.',
+          )
+        }
+      }
       written = [...musicWritten, ...lyricWritten]
     }
     console.log(`[build:sources] Successfully compiled ${written.length} source(s):`)

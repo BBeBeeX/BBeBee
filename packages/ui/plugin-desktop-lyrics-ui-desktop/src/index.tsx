@@ -5,12 +5,12 @@
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import { DesktopLyrics, type DesktopLyricsProps } from './DesktopLyrics.js'
+import { DesktopLyrics, DesktopLyricsErrorBoundary, type DesktopLyricsProps } from './DesktopLyrics.js'
 import { DesktopLyricsSettingsCard } from './DesktopLyricsSettingsCard.js'
 import { DesktopLyricsToggle } from './DesktopLyricsToggle.js'
 import { DESKTOP_LYRICS_VIEWS } from '@BBeBee/plugin-desktop-lyrics/views'
 
-export { DesktopLyrics, type DesktopLyricsProps, DesktopLyricsSettingsCard, DesktopLyricsToggle }
+export { DesktopLyrics, DesktopLyricsErrorBoundary, type DesktopLyricsProps, DesktopLyricsSettingsCard, DesktopLyricsToggle }
 
 export const name = 'plugin-desktop-lyrics-ui-desktop'
 export const inject = ['ui', 'desktopLyrics']

@@ -741,11 +741,11 @@ export class RegistryPlugin extends Service implements RegistryService {
       const byId = new Map(this.lyricSourcesService.getSources().map((source) => [source.id, source]))
       for (const entry of index.entries) {
         if (entry.kind !== 'lyric-source' || !entry.version) continue
-        const source = byId.get(entry.id)
+        const source = byId.get(entry.id) ?? (entry.id === 'bbebeex-lrclib' ? byId.get('builtin-lrclib') : undefined)
         if (!source) continue
         const installed = typeof source.version === 'string' ? source.version : '0.0.0'
         if (compareVersions(entry.version, installed) > 0) {
-          updates.push(this.updateFor(entry, installed, entry.id.startsWith('builtin-')))
+          updates.push(this.updateFor(entry, installed, entry.id.startsWith('builtin-') || source.id === 'builtin-lrclib'))
         }
       }
     }
@@ -940,7 +940,7 @@ export class RegistryPlugin extends Service implements RegistryService {
       const details: RegistryEntryDetails = {
         entry,
         ...(allowedHosts ? { allowedHosts } : {}),
-        isBuiltinInstall: entry.kind === 'lyric-source' ? entry.id.startsWith('builtin-') : false,
+        isBuiltinInstall: entry.kind === 'lyric-source' ? (entry.id.startsWith('builtin-') || entry.id === 'bbebeex-lrclib') : false,
         ...(existing?.locallyModified ? { isLocallyModified: true } : {}),
         securityAudit,
         ...(repoUrl ? { repoUrl } : {}),

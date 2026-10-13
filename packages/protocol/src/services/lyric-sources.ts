@@ -82,6 +82,8 @@ export interface LyricSourcesService {
   searchLyrics(query: LyricSearchQuery): Promise<Lyrics | undefined>
   /** Test a specific lyric source with a test query. */
   testSource(id: string, query: LyricSearchQuery): Promise<LyricSourceTestResult>
+  /** Sync / auto-update built-in lyric source from GitHub if a newer version is published. */
+  syncBuiltinFromRemote?(): Promise<boolean>
 }
 
 declare module 'cordis' {
