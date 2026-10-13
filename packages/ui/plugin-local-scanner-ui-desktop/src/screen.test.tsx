@@ -24,11 +24,9 @@ import { DbNode } from '@BBeBee/core-db-node'
 import { CodecNode } from '@BBeBee/core-codec-node'
 import uiPlugin from '@BBeBee/plugin-ui'
 import scannerPlugin from '@BBeBee/plugin-local-scanner'
-import { SCANNER_VIEWS } from '@BBeBee/plugin-local-scanner/views'
 import { withListLayout } from '@BBeBee/ui-kit-desktop/testing'
 import { tempDir, tick } from '@BBeBee/kernel/testing'
 import { ScanSpecifiedDirsScreen, inject } from './index.js'
-import plugin from './index.js'
 import localScannerCatalogue from '../../../feature/plugin-i18n/src/locales/localScanner.json'
 
 afterEach(cleanup)
@@ -108,32 +106,6 @@ function buttonNamed(container: HTMLElement, text: string): HTMLButtonElement | 
   )
 }
 
-describe('the scan screen is reachable', () => {
-  it('is contributed as a settings page with a view bound to it', async () => {
-    const { admin } = await harness()
-    await admin.plugin(plugin)
-    await tick()
-
-    const settings = admin.ui.settings.map((s) => s.id)
-    expect(settings, 'the scanner contributes a settings page').toContain(SCANNER_VIEWS.settings)
-    expect(
-      admin.ui.viewFor(SCANNER_VIEWS.settings),
-      'and this package binds a view to it — the pair a shell needs to render it',
-    ).toBeDefined()
-  })
-
-  it('is not left out of missingViews, which is how a shell reports a hole', async () => {
-    // Before the view package loads, the contribution is a hole. After, it is
-    // not. Both halves matter: the first is what the shell must be able to
-    // report, the second is what this package exists to fill.
-    const { admin } = await harness()
-    expect(admin.ui.missingViews()).toContain(SCANNER_VIEWS.settings)
-
-    await admin.plugin(plugin)
-    await tick()
-    expect(admin.ui.missingViews()).not.toContain(SCANNER_VIEWS.settings)
-  })
-})
 
 describe('ScanSpecifiedDirsScreen', () => {
   it('offers a scan button that starts a scan', async () => {

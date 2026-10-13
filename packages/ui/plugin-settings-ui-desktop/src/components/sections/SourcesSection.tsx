@@ -1,13 +1,14 @@
 import { Button, IconButton, Sheet, Text, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
-import { createElement as h, useMemo, useState, type ReactElement } from 'react'
+import { createElement as h, useEffect, useMemo, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { I18nService, SettingsContribution, SourcesService, UiService } from '@BBeBee/protocol'
+import type { FsService, I18nService, ScannerService, SettingsContribution, SourcesService, UiService } from '@BBeBee/protocol'
 import { SOURCES_VIEWS } from '@BBeBee/plugin-sources/views'
 import {
   isLocalSource,
   useAudioSourcesStatus,
   type AudioSourceStatusItem,
 } from '@BBeBee/plugin-sources/hooks'
+import { summarise, useScanSpecifiedDirs, useScanState } from '@BBeBee/plugin-local-scanner/hooks'
 import { serviceOf } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
 import { SettingsRow } from '../SettingsRow.js'
@@ -38,9 +39,6 @@ function getLocalizedTitle(
   if (item.id === 'sources.import' || item.title === 'Import Sources') {
     return t('settings:sources.importSourcesImportSources')
   }
-  if (item.id === 'scanner.settings' || item.title === 'Music folders') {
-    return t('settings:sources.musicFolders')
-  }
   return item.title
 }
 
@@ -54,9 +52,6 @@ function getLocalizedDescription(
   }
   if (item.id === 'sources.import' || item.description?.startsWith('Import third-party')) {
     return t('settings:sources.importThirdPartySourceScripts')
-  }
-  if (item.id === 'scanner.settings' || item.description?.startsWith('Add folders')) {
-    return t('settings:sources.addFoldersContainingLocalAudio')
   }
   return item.description
 }
@@ -72,9 +67,6 @@ function getLocalizedActionText(
   if (item.id === 'sources.import' || item.actionText === 'Import sources') {
     return t('settings:sources.importSources')
   }
-  if (item.id === 'scanner.settings' || item.actionText === 'Manage folders') {
-    return t('settings:sources.manageFolders')
-  }
   return item.actionText ?? t('settings:sources.manage')
 }
 
@@ -89,6 +81,10 @@ function AudioSourceRow({
   confirmingDeleteId,
   onSetConfirmingDeleteId,
   isNestedInstance = false,
+  onOpenLocalFolders,
+  onAddLocalFolder,
+  onScanLocal,
+  isScanning = false,
 }: {
   item: AudioSourceStatusItem
   t: I18nService['t']
@@ -100,6 +96,10 @@ function AudioSourceRow({
   confirmingDeleteId: string | undefined
   onSetConfirmingDeleteId: (id: string | undefined) => void
   isNestedInstance?: boolean
+  onOpenLocalFolders?: () => void
+  onAddLocalFolder?: () => void
+  onScanLocal?: () => void
+  isScanning?: boolean
 }): ReactElement {
   const local = isLocalSource(item.record)
   const isAuth = item.authStatus.state === 'authenticated'
@@ -165,13 +165,15 @@ function AudioSourceRow({
     authColor = '#F87171'
   }
 
+  const itemKey = local ? 'local' : item.id
   const isConfirmingDelete = confirmingDeleteId === item.id
 
   return h(
     'div',
     {
       key: item.id,
-      'data-testid': `settings-source-item-${item.id}`,
+      'data-testid': `settings-source-item-${itemKey}`,
+      onClick: local ? onOpenLocalFolders : undefined,
       style: {
         display: 'flex',
         alignItems: 'center',
@@ -183,6 +185,8 @@ function AudioSourceRow({
         border: '1px solid rgba(255, 255, 255, 0.06)',
         gap: 12,
         opacity: item.enabled ? 1 : 0.6,
+        cursor: local ? 'pointer' : 'default',
+        transition: 'background 0.15s ease, border-color 0.15s ease',
       },
     },
     h(
@@ -197,7 +201,7 @@ function AudioSourceRow({
         },
       },
       h('span', {
-        'data-testid': `settings-source-dot-${item.id}`,
+        'data-testid': `settings-source-dot-${itemKey}`,
         style: {
           width: 8,
           height: 8,
@@ -259,7 +263,7 @@ function AudioSourceRow({
       h(
         'span',
         {
-          'data-testid': `settings-source-auth-${item.id}`,
+          'data-testid': `settings-source-auth-${itemKey}`,
           style: {
             fontSize: 11,
             fontWeight: 600,
@@ -275,7 +279,7 @@ function AudioSourceRow({
       h(
         'span',
         {
-          'data-testid': `settings-source-probe-${item.id}`,
+          'data-testid': `settings-source-probe-${itemKey}`,
           style: {
             fontSize: 11,
             fontWeight: 600,
@@ -289,8 +293,36 @@ function AudioSourceRow({
         probeText,
       ),
     ),
-    !local
+    local
       ? h(
+          'div',
+          {
+            style: {
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              flexShrink: 0,
+            },
+            onClick: (e: { stopPropagation: () => void }) => e.stopPropagation(),
+          },
+          // 1. 添加文件夹
+          h(Button, {
+            variant: 'secondary',
+            testID: 'settings-source-add-folder-local',
+            onPress: () => onAddLocalFolder?.(),
+            children: t('localScanner:index.addFolder'),
+          }),
+          // 2. 立即扫描
+          h(Button, {
+            variant: 'secondary',
+            testID: 'settings-source-scan-local',
+            disabled: isScanning,
+            onPress: () => onScanLocal?.(),
+            children: isScanning ? t('localScanner:index.scanning') : t('localScanner:index.scanNow'),
+          }),
+          tablerIcon('chevron-right', { size: 16, color: 'var(--text-tertiary, #8E8E93)' }),
+        )
+      : h(
           'div',
           {
             style: {
@@ -354,8 +386,7 @@ function AudioSourceRow({
                 testID: `settings-source-delete-${item.id}`,
                 onPress: () => onSetConfirmingDeleteId(item.id),
               }),
-        )
-      : null,
+        ),
   )
 }
 
@@ -527,10 +558,22 @@ export function SourcesSection({
   const sourcesContribs = contributions.filter((c) => c.section === 'sources')
   const { items: audioSources, testConnection, testAll } = useAudioSourcesStatus(ctx)
 
+  const specifiedDirs = useScanSpecifiedDirs(ctx)
+  const scan = useScanState(ctx)
+
   const [configuringSourceId, setConfiguringSourceId] = useState<string | undefined>(undefined)
   const [activeGroupModal, setActiveGroupModal] = useState<SourceGroup | null>(null)
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | undefined>(undefined)
   const [confirmingGroupId, setConfirmingGroupId] = useState<string | undefined>(undefined)
+  const [isLocalFoldersSheetOpen, setIsLocalFoldersSheetOpen] = useState(false)
+  const [isScanModalOpen, setIsScanModalOpen] = useState(false)
+  const [confirmingDeleteFolderId, setConfirmingDeleteFolderId] = useState<string | undefined>(undefined)
+
+  useEffect(() => {
+    if (scan.running) {
+      setIsScanModalOpen(true)
+    }
+  }, [scan.running])
 
   // Group audio sources by source name
   const sourceGroups = useMemo<readonly SourceGroup[]>(() => {
@@ -553,7 +596,7 @@ export function SourcesSection({
     (item) => item.enabled && (isLocalSource(item.record) || item.authStatus.state === 'authenticated' || item.ping?.status === 'ok'),
   ).length
 
-  // Filter out 'sources.settings' and 'sources.list' (music source configuration card deleted as requested)
+  // Filter out 'sources.settings', 'sources.list', and 'scanner.settings'
   const rawItems: readonly SettingsContribution[] = sourcesContribs.length > 0 ? sourcesContribs : [
     {
       id: 'sources.import',
@@ -562,16 +605,14 @@ export function SourcesSection({
       description: t('settings:sources.importThirdPartySourceScripts'),
       actionText: t('settings:sources.importSources'),
     },
-    {
-      id: 'scanner.settings',
-      section: 'sources',
-      title: t('settings:sources.musicFolders'),
-      description: t('settings:sources.addFoldersContainingLocalAudio'),
-      actionText: t('settings:sources.manageFolders'),
-    },
   ]
   const items = rawItems.filter(
-    (item) => item.id !== 'sources.settings' && item.id !== 'sources.list' && item.title !== 'Music Sources',
+    (item) =>
+      item.id !== 'sources.settings' &&
+      item.id !== 'sources.list' &&
+      item.title !== 'Music Sources' &&
+      item.id !== 'scanner.settings' &&
+      item.title !== 'Music folders',
   )
 
   const handleDebug = (id: string) => {
@@ -611,6 +652,43 @@ export function SourcesSection({
     }
   }
 
+  const handleAddFolder = async () => {
+    const fs = serviceOf<FsService>(ctx, 'fs')
+    const scanner = serviceOf<ScannerService>(ctx, 'scanner')
+    if (!fs || !scanner) return
+    const uri = await fs.pickDirectory()
+    if (uri) {
+      const dir = await scanner.addSpecifiedDir(uri)
+      setIsScanModalOpen(true)
+      void scanner.scan({ specifiedDirId: dir.id })
+    }
+  }
+
+  const handleScanNow = () => {
+    const scanner = serviceOf<ScannerService>(ctx, 'scanner')
+    if (!scanner) return
+    setIsScanModalOpen(true)
+    void scanner.scan()
+  }
+
+  const handleScanFolder = (dirId: string) => {
+    const scanner = serviceOf<ScannerService>(ctx, 'scanner')
+    if (!scanner) return
+    setIsScanModalOpen(true)
+    void scanner.scan({ specifiedDirId: dirId })
+  }
+
+  const handleToggleFolder = (dirId: string, enabled: boolean) => {
+    const scanner = serviceOf<ScannerService>(ctx, 'scanner')
+    void scanner?.setEnabled?.(dirId, enabled)
+  }
+
+  const handleDeleteFolder = (dirId: string) => {
+    setConfirmingDeleteFolderId(undefined)
+    const scanner = serviceOf<ScannerService>(ctx, 'scanner')
+    void scanner?.removeSpecifiedDir?.(dirId)
+  }
+
   // Find updated active group if sources state changes
   const currentActiveGroup = useMemo(() => {
     if (!activeGroupModal) return null
@@ -620,6 +698,37 @@ export function SourcesSection({
   return h(
     'div',
     { id: 'section-sources' },
+    // 1. 音乐源与文件 (移到已配置音源上面)
+    h(
+      SettingsSection,
+      {
+        id: 'section-sources-files',
+        title: t('settings:sources.musicSourcesFiles'),
+        description: t('settings:sources.manageMusicSourceProvidersOnline'),
+      },
+      items.map((item, idx) => {
+        const isLast = idx === items.length - 1
+        if (item.display === 'card' && ctx) {
+          const CardView = ctx.ui?.viewFor?.(item.id) as React.ComponentType<{ ctx: Context }> | undefined
+          if (CardView) return h(CardView, { key: item.id, ctx })
+        }
+        return h(SettingsRow, {
+          ctx,
+          key: item.id,
+          title: getLocalizedTitle(t, item),
+          description: getLocalizedDescription(t, item),
+          borderBottom: !isLast,
+          action: h(Button, {
+            children: getLocalizedActionText(t, item),
+            onPress: () => {
+              if (item.action) void item.action()
+              else onNavigate(item.id)
+            },
+          }),
+        })
+      }),
+    ),
+    // 2. 已配置音源
     h(
       SettingsSection,
       {
@@ -709,36 +818,12 @@ export function SourcesSection({
               onDelete: handleDelete,
               confirmingDeleteId,
               onSetConfirmingDeleteId: setConfirmingDeleteId,
+              onOpenLocalFolders: () => setIsLocalFoldersSheetOpen(true),
+              onAddLocalFolder: () => void handleAddFolder(),
+              onScanLocal: handleScanNow,
+              isScanning: scan.running,
             })
           }),
-    ),
-    h(
-      SettingsSection,
-      {
-        title: t('settings:sources.musicSourcesFiles'),
-        description: t('settings:sources.manageMusicSourceProvidersOnline'),
-      },
-      items.map((item, idx) => {
-        const isLast = idx === items.length - 1
-        if (item.display === 'card' && ctx) {
-          const CardView = ctx.ui?.viewFor?.(item.id) as React.ComponentType<{ ctx: Context }> | undefined
-          if (CardView) return h(CardView, { key: item.id, ctx })
-        }
-        return h(SettingsRow, {
-          ctx,
-          key: item.id,
-          title: getLocalizedTitle(t, item),
-          description: getLocalizedDescription(t, item),
-          borderBottom: !isLast,
-          action: h(Button, {
-            children: getLocalizedActionText(t, item),
-            onPress: () => {
-              if (item.action) void item.action()
-              else onNavigate(item.id)
-            },
-          }),
-        })
-      }),
     ),
 
     // Multi-instance popout sheet ("点击那个卡片 跳出实例列表")
@@ -777,7 +862,307 @@ export function SourcesSection({
                 confirmingDeleteId,
                 onSetConfirmingDeleteId: setConfirmingDeleteId,
                 isNestedInstance: true,
+                onOpenLocalFolders: () => setIsLocalFoldersSheetOpen(true),
+                onAddLocalFolder: () => void handleAddFolder(),
+                onScanLocal: handleScanNow,
+                isScanning: scan.running,
               }),
+            ),
+          ),
+        )
+      : null,
+
+    // Local Folders Drawer (Sheet)
+    isLocalFoldersSheetOpen
+      ? h(
+          Sheet,
+          {
+            open: true,
+            onClose: () => setIsLocalFoldersSheetOpen(false),
+            title: t('localScanner:index.musicFolders'),
+            testID: 'source-local-folders-sheet',
+          },
+          h(
+            'div',
+            {
+              'data-testid': 'source-local-folders-content',
+              style: {
+                display: 'flex',
+                flexDirection: 'column',
+                gap: tokens.space[3],
+                maxHeight: '75vh',
+                overflowY: 'auto',
+                minWidth: 420,
+              },
+            },
+            h(
+              'div',
+              {
+                style: {
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                },
+              },
+              h(
+                Text,
+                { variant: 'sm', tone: 'muted' },
+                `${specifiedDirs.length} ${t('localScanner:index.musicFolders')}`,
+              ),
+              h(Button, {
+                variant: 'secondary',
+                testID: 'sheet-add-folder-btn',
+                onPress: () => void handleAddFolder(),
+                children: t('localScanner:index.addFolder'),
+              }),
+            ),
+            specifiedDirs.length === 0
+              ? h(
+                  'div',
+                  {
+                    'data-testid': 'sheet-folders-empty',
+                    style: {
+                      padding: '24px 8px',
+                      textAlign: 'center',
+                      fontSize: 13,
+                      color: 'var(--text-secondary, #8E8E93)',
+                    },
+                  },
+                  t('localScanner:index.noFoldersYet'),
+                )
+              : specifiedDirs.map((dir) => {
+                  const isConfirming = confirmingDeleteFolderId === dir.id
+                  return h(
+                    'div',
+                    {
+                      key: dir.id,
+                      'data-testid': `local-folder-row-${dir.id}`,
+                      style: {
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '10px 12px',
+                        borderRadius: 8,
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid rgba(255, 255, 255, 0.06)',
+                        gap: 12,
+                        opacity: dir.enabled ? 1 : 0.5,
+                      },
+                    },
+                    h(
+                      'div',
+                      {
+                        style: {
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          minWidth: 0,
+                          flex: 1,
+                        },
+                      },
+                      tablerIcon('folder', { size: 18, color: 'var(--color-primary, #5F87FF)' }),
+                      h(
+                        'div',
+                        {
+                          style: {
+                            display: 'flex',
+                            flexDirection: 'column',
+                            minWidth: 0,
+                            overflow: 'hidden',
+                          },
+                        },
+                        h(
+                          'span',
+                          {
+                            style: {
+                              fontSize: 13,
+                              color: 'var(--bb-text-primary, #FFFFFF)',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            },
+                            title: dir.uri,
+                          },
+                          dir.uri,
+                        ),
+                        dir.lastError
+                          ? h(
+                              'span',
+                              {
+                                style: {
+                                  fontSize: 11,
+                                  color: '#F87171',
+                                  marginTop: 2,
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                },
+                              },
+                              dir.lastError,
+                            )
+                          : null,
+                      ),
+                    ),
+                    h(
+                      'div',
+                      {
+                        style: {
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          flexShrink: 0,
+                        },
+                      },
+                      h(Button, {
+                        variant: 'ghost',
+                        disabled: scan.running || !dir.enabled,
+                        testID: `local-folder-scan-${dir.id}`,
+                        onPress: () => handleScanFolder(dir.id),
+                        children: t('localScanner:index.scan'),
+                      }),
+                      h(IconButton, {
+                        icon: dir.enabled ? 'ban' : 'check',
+                        accessibilityLabel: dir.enabled
+                          ? t('localScanner:index.disable')
+                          : t('localScanner:index.enable'),
+                        testID: `local-folder-toggle-${dir.id}`,
+                        onPress: () => handleToggleFolder(dir.id, !dir.enabled),
+                      }),
+                      isConfirming
+                        ? h(
+                            'div',
+                            { style: { display: 'flex', gap: tokens.space[2], alignItems: 'center' } },
+                            h(Text, { variant: 'sm', tone: 'warn' }, t('sources:sourcesList.deleteSourceConfirm') || t('app:common.confirmDelete')),
+                            h(Button, {
+                              testID: `local-folder-delete-confirm-${dir.id}`,
+                              onPress: () => handleDeleteFolder(dir.id),
+                              children: t('app:common.delete'),
+                            }),
+                            h(Button, {
+                              variant: 'ghost',
+                              onPress: () => setConfirmingDeleteFolderId(undefined),
+                              children: t('app:common.cancel'),
+                            }),
+                          )
+                        : h(IconButton, {
+                            icon: 'trash',
+                            accessibilityLabel: t('localScanner:index.removeUri', { uri: dir.uri }),
+                            testID: `local-folder-delete-${dir.id}`,
+                            onPress: () => setConfirmingDeleteFolderId(dir.id),
+                          }),
+                    ),
+                  )
+                }),
+            h(
+              Text,
+              {
+                variant: 'sm',
+                tone: 'muted',
+                style: { marginTop: tokens.space[2] },
+              },
+              t('localScanner:index.removeKeepsTracks'),
+            ),
+          ),
+        )
+      : null,
+
+    // Scan Progress Modal
+    isScanModalOpen
+      ? h(
+          Sheet,
+          {
+            open: true,
+            onClose: () => setIsScanModalOpen(false),
+            title: scan.running ? t('localScanner:index.scanning') : t('localScanner:index.musicFolders'),
+            testID: 'source-scan-progress-modal',
+          },
+          h(
+            'div',
+            {
+              style: {
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: '16px 8px',
+                gap: 16,
+                textAlign: 'center',
+                minWidth: 320,
+              },
+            },
+            h(
+              'div',
+              {
+                style: {
+                  width: 48,
+                  height: 48,
+                  borderRadius: '50%',
+                  background: scan.running ? 'rgba(95, 135, 255, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                },
+              },
+              tablerIcon(scan.running ? 'refresh' : 'check', {
+                size: 24,
+                color: scan.running ? '#5F87FF' : '#22C55E',
+              }),
+            ),
+            h(
+              Text,
+              {
+                variant: 'md',
+                testID: 'scan-modal-status-text',
+              },
+              scan.running
+                ? scan.progress?.total
+                  ? t('localScanner:index.scannedOf', { done: scan.progress.done, total: scan.progress.total })
+                  : t('localScanner:index.scannedFiles', { done: scan.progress?.done ?? 0 })
+                : scan.lastSummary
+                  ? t('localScanner:index.lastScan', { summary: summarise(scan.lastSummary) })
+                  : t('localScanner:index.scanNow'),
+            ),
+            scan.running && scan.progress?.total
+              ? h(
+                  'div',
+                  {
+                    style: {
+                      width: '100%',
+                      height: 6,
+                      borderRadius: 3,
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      overflow: 'hidden',
+                    },
+                  },
+                  h('div', {
+                    style: {
+                      width: `${Math.min(100, Math.round((scan.progress.done / scan.progress.total) * 100))}%`,
+                      height: '100%',
+                      background: 'var(--color-primary, #5F87FF)',
+                      borderRadius: 3,
+                      transition: 'width 0.2s ease',
+                    },
+                  }),
+                )
+              : null,
+            h(
+              'div',
+              { style: { display: 'flex', gap: 12, marginTop: 8 } },
+              scan.running
+                ? h(Button, {
+                    variant: 'secondary',
+                    testID: 'scan-modal-cancel-btn',
+                    onPress: () => {
+                      const scanner = serviceOf<ScannerService>(ctx, 'scanner')
+                      scanner?.cancel?.()
+                    },
+                    children: t('app:common.cancel'),
+                  })
+                : h(Button, {
+                    variant: 'secondary',
+                    testID: 'scan-modal-close-btn',
+                    onPress: () => setIsScanModalOpen(false),
+                    children: t('app:common.close'),
+                  }),
             ),
           ),
         )

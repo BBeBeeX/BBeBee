@@ -9,16 +9,15 @@
 
 import { useEffect, useState } from 'react'
 import type { Context } from 'cordis'
-import type {} from '@BBeBee/protocol'
-import type { ScanProgress, ScanSpecifiedDir, ScanSummary } from '@BBeBee/protocol'
-import { shallowArrayEqual, useServiceState } from '@BBeBee/toolkit/hooks'
+import type { ScanProgress, ScanSpecifiedDir, ScanSummary, ScannerService } from '@BBeBee/protocol'
+import { serviceOf, shallowArrayEqual, useServiceState } from '@BBeBee/toolkit/hooks'
 
 /** The configured folders. */
 export function useScanSpecifiedDirs(ctx: Context): readonly ScanSpecifiedDir[] {
   return useServiceState(
     ctx,
     ['scan/specified-dirs-changed', 'scan/finished', 'scan/started', 'library/changed'],
-    () => ctx.scanner.specifiedDirs,
+    () => serviceOf<ScannerService>(ctx, 'scanner')?.specifiedDirs ?? [],
     { isEqual: shallowArrayEqual },
   )
 }

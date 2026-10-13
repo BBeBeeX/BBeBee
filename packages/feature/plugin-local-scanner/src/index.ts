@@ -31,7 +31,6 @@ import type {
 } from '@BBeBee/protocol'
 import { artworkId, stableId } from '@BBeBee/toolkit'
 import { forgetFile, importTrack } from './import.js'
-import { SCANNER_VIEWS } from './views.js'
 
 export interface ScannerConfig {
   /** Files per transaction. A checkpoint costs one batch on interruption. */
@@ -157,21 +156,6 @@ export class Scanner extends Service implements ScannerService {
   }
 
   async [Service.init]() {
-    // A descriptor, not a component: the settings page is listed even on a
-    // target whose view package was not loaded, which is what lets a shell
-    // show "not available on this platform" rather than a hole (docs/08 §3).
-    this.ownCtx.inject(['ui'], (scoped) =>
-      scoped.ui.contribute({
-        kind: 'settings',
-        id: SCANNER_VIEWS.settings,
-        section: 'sources',
-        title: 'Music folders',
-        description: 'Add folders that contain local audio files; scanning and indexing start immediately',
-        actionText: 'Manage folders',
-        order: 30,
-      }),
-    )
-
     await this.ensureSourceRow()
     await this.cleanUnlovedLibraryItems()
     this.specifiedDirList = await this.loadSpecifiedDirs()

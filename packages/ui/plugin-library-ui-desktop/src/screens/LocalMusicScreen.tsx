@@ -801,7 +801,7 @@ export function LocalMusicScreen({
           'button',
           {
             type: 'button',
-            onClick: () => ctx.ui.navigate('scanner.settings'),
+            onClick: () => ctx.ui.navigate('settings.view', { tab: 'sources' }),
             title: t('library:localMusic.scanSettings'),
             style: {
               background: 'none',

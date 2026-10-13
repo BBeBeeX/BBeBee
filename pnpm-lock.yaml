@@ -2789,6 +2789,9 @@ importers:
       '@BBeBee/plugin-cache':
         specifier: workspace:*
         version: link:../../feature/plugin-cache
+      '@BBeBee/plugin-local-scanner':
+        specifier: workspace:*
+        version: link:../../feature/plugin-local-scanner
       '@BBeBee/plugin-settings':
         specifier: workspace:*
         version: link:../../feature/plugin-settings

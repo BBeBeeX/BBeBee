@@ -269,6 +269,32 @@ export class SourceStore {
     )
   }
 
+  async readVars(sourceId: string): Promise<Record<string, string>> {
+    const rows = await this.db.query<{ key: string; value: string }>(
+      'SELECT key, value FROM source_vars WHERE source_id = ?',
+      [sourceId],
+    )
+    return Object.fromEntries(rows.map((row) => [row.key, row.value]))
+  }
+
+  async writeVar(sourceId: string, key: string, value: string): Promise<void> {
+    await this.db.exec(
+      `INSERT INTO source_vars (source_id, key, value, updated_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT(source_id, key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+      [sourceId, key, value, Date.now()],
+    )
+  }
+
+  async clearVars(sourceId: string, key?: string): Promise<void> {
+    if (key === undefined) {
+      await this.db.exec('DELETE FROM source_vars WHERE source_id = ?', [sourceId])
+      return
+    }
+    await this.db.exec('DELETE FROM source_vars WHERE source_id = ? AND key = ?', [
+      sourceId,
+      key,
+    ])
+  }
 }
 
 function toRecord(row: SourceRow): SourceRecord | undefined {

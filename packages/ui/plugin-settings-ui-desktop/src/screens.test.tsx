@@ -572,6 +572,61 @@ class SettingsStub extends Service implements Partial<SettingsService> {
     }
   }
 
+  class ScannerStub extends Service {
+    static override readonly name = 'scanner'
+    public specifiedDirs = [
+      { id: 'dir-1', uri: '/music/pop', enabled: true, recursive: true },
+      { id: 'dir-2', uri: '/music/rock', enabled: false, recursive: true, lastError: 'Permission denied' },
+    ]
+
+    constructor(ctx: Context) {
+      super(ctx, 'scanner')
+    }
+
+    addSpecifiedDir = async (uri: string) => {
+      calls.push(`scanner:addSpecifiedDir:${uri}`)
+      const dir = { id: `dir-${Date.now()}`, uri, enabled: true, recursive: true }
+      this.specifiedDirs.push(dir)
+      this.ctx.emit('scan/specified-dirs-changed', this.specifiedDirs)
+      return dir
+    }
+
+    removeSpecifiedDir = async (id: string) => {
+      calls.push(`scanner:removeSpecifiedDir:${id}`)
+      this.specifiedDirs = this.specifiedDirs.filter((d) => d.id !== id)
+      this.ctx.emit('scan/specified-dirs-changed', this.specifiedDirs)
+    }
+
+    setEnabled = async (id: string, enabled: boolean) => {
+      calls.push(`scanner:setEnabled:${id}:${enabled}`)
+      const d = this.specifiedDirs.find((dir) => dir.id === id)
+      if (d) d.enabled = enabled
+      this.ctx.emit('scan/specified-dirs-changed', this.specifiedDirs)
+    }
+
+    scan = async (opts?: { specifiedDirId?: string }) => {
+      calls.push(`scanner:scan:${opts?.specifiedDirId ?? 'all'}`)
+      this.ctx.emit('scan/started', opts?.specifiedDirId ?? 'all')
+      this.ctx.emit('scan/progress', opts?.specifiedDirId ?? 'dir-1', 42, 100)
+    }
+
+    cancel = () => {
+      calls.push('scanner:cancel')
+      this.ctx.emit('scan/finished', 'all', { added: 0, updated: 0, removed: 0, errors: 0, incomplete: true, cancelled: true })
+    }
+  }
+
+  class FsStub extends Service {
+    static override readonly name = 'fs'
+    constructor(ctx: Context) {
+      super(ctx, 'fs')
+    }
+    pickDirectory = async () => {
+      calls.push('fs:pickDirectory')
+      return '/music/jazz'
+    }
+  }
+
   const root = new Context()
   await root.plugin(SettingsStub)
   await root.plugin(DeviceStub)
@@ -588,9 +643,11 @@ class SettingsStub extends Service implements Partial<SettingsService> {
   await root.plugin(SourcesStub)
   await root.plugin(LyricSourcesStub)
   await root.plugin(PluginManagerStub)
+  await root.plugin(ScannerStub)
+  await root.plugin(FsStub)
 
   let scoped: Context | undefined
-  root.inject(['ui', 'settings', 'dsp', 'plugin-manager', 'i18n'], (s) => void (scoped = s))
+  root.inject(['ui', 'settings', 'dsp', 'plugin-manager', 'i18n', 'scanner', 'fs', 'sources'], (s) => void (scoped = s))
   await new Promise((r) => setTimeout(r, 0))
   if (!scoped) throw new Error('Failed to create scoped context in harness')
 
@@ -1550,7 +1607,7 @@ describe('SettingsScreen', () => {
   it('renders SourcesSection with configured sources, handles local, single and multi-instance sources', async () => {
     const { ctx, calls } = await harness()
     const navigatedRoutes: string[] = []
-    const { getByTestId, queryByTestId, findByText } = render(
+    const { container, getByTestId, queryByTestId, findByText } = render(
       h(SourcesSection, {
         ctx,
         onNavigate: (route) => navigatedRoutes.push(route),
@@ -1571,6 +1628,72 @@ describe('SettingsScreen', () => {
     expect(queryByTestId('settings-source-configure-local')).toBeNull()
     expect(queryByTestId('settings-source-toggle-local')).toBeNull()
     expect(queryByTestId('settings-source-delete-local')).toBeNull()
+
+    // Has Add Folder and Scan buttons on local card
+    expect(getByTestId('settings-source-add-folder-local')).toBeTruthy()
+    expect(getByTestId('settings-source-scan-local')).toBeTruthy()
+
+    // Clicking Add Folder calls fs.pickDirectory and starts scan
+    await act(async () => {
+      fireEvent.click(getByTestId('settings-source-add-folder-local'))
+    })
+    expect(calls.includes('fs:pickDirectory')).toBe(true)
+    expect(calls.includes('scanner:addSpecifiedDir:/music/jazz')).toBe(true)
+    expect(getByTestId('source-scan-progress-modal')).toBeTruthy()
+
+    // Cancel scan from modal
+    await act(async () => {
+      fireEvent.click(getByTestId('scan-modal-cancel-btn'))
+    })
+    expect(calls.includes('scanner:cancel')).toBe(true)
+
+    // Clicking Scan Now on local card starts scan
+    await act(async () => {
+      fireEvent.click(getByTestId('settings-source-scan-local'))
+    })
+    expect(calls.includes('scanner:scan:all')).toBe(true)
+
+    // Cancel scan so it finishes
+    await act(async () => {
+      fireEvent.click(getByTestId('scan-modal-cancel-btn'))
+    })
+
+    // Close progress modal
+    await act(async () => {
+      fireEvent.click(getByTestId('scan-modal-close-btn'))
+    })
+    expect(queryByTestId('source-scan-progress-modal')).toBeNull()
+
+    // Clicking local source item opens local folders sheet
+    expect(queryByTestId('source-local-folders-sheet')).toBeNull()
+    await act(async () => {
+      fireEvent.click(getByTestId('settings-source-item-local'))
+    })
+    expect(getByTestId('source-local-folders-sheet')).toBeTruthy()
+    expect(getByTestId('local-folder-row-dir-1')).toBeTruthy()
+    expect(getByTestId('local-folder-row-dir-2')).toBeTruthy()
+
+    // In local folders sheet: toggle folder dir-1
+    await act(async () => {
+      fireEvent.click(getByTestId('local-folder-toggle-dir-1'))
+    })
+    expect(calls.includes('scanner:setEnabled:dir-1:false')).toBe(true)
+
+    // In local folders sheet: scan specific folder dir-1
+    await act(async () => {
+      fireEvent.click(getByTestId('local-folder-scan-dir-1'))
+    })
+    expect(calls.includes('scanner:scan:dir-1')).toBe(true)
+
+    // In local folders sheet: delete folder dir-1
+    await act(async () => {
+      fireEvent.click(getByTestId('local-folder-delete-dir-1'))
+    })
+    expect(getByTestId('local-folder-delete-confirm-dir-1')).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(getByTestId('local-folder-delete-confirm-dir-1'))
+    })
+    expect(calls.includes('scanner:removeSpecifiedDir:dir-1')).toBe(true)
 
     // 2. Test connection for mock-bili
     await act(async () => {
@@ -1634,9 +1757,17 @@ describe('SettingsScreen', () => {
     expect(getByTestId('settings-source-item-mock-subsonic-1')).toBeTruthy()
     expect(getByTestId('settings-source-item-mock-subsonic-2')).toBeTruthy()
 
-    // 9. Music sources and files cards: sources.settings / sources.list is not rendered
+    // 9. Music sources and files cards: sources.settings / sources.list / scanner.settings are not rendered
     expect(queryByTestId('settings-contribution-sources.settings')).toBeNull()
     expect(queryByTestId('settings-contribution-sources.list')).toBeNull()
+    expect(queryByTestId('settings-contribution-scanner.settings')).toBeNull()
+
+    // 10. Section order: section-sources-files is rendered before section-sources-configured
+    const filesSection = container.querySelector('#section-sources-files')
+    const configuredSection = container.querySelector('#section-sources-configured')
+    expect(filesSection).toBeTruthy()
+    expect(configuredSection).toBeTruthy()
+    expect((filesSection!.compareDocumentPosition(configuredSection!) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0).toBe(true)
   })
 })
 

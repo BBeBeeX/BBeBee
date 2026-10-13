@@ -1067,30 +1067,15 @@ export class Sources extends Service implements SourcesService {
   /* ── a source's own variables (docs/06 §3.4) ────────────────────────── */
 
   async readVars(sourceId: string): Promise<Record<string, string>> {
-    const rows = await this.ownDb.query<{ key: string; value: string }>(
-      'SELECT key, value FROM source_vars WHERE source_id = ?',
-      [sourceId],
-    )
-    return Object.fromEntries(rows.map((row) => [row.key, row.value]))
+    return this.store.readVars(sourceId)
   }
 
   async writeVar(sourceId: string, key: string, value: string): Promise<void> {
-    await this.ownDb.exec(
-      `INSERT INTO source_vars (source_id, key, value, updated_at) VALUES (?, ?, ?, ?)
-       ON CONFLICT(source_id, key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
-      [sourceId, key, value, Date.now()],
-    )
+    return this.store.writeVar(sourceId, key, value)
   }
 
   async clearVars(sourceId: string, key?: string): Promise<void> {
-    if (key === undefined) {
-      await this.ownDb.exec('DELETE FROM source_vars WHERE source_id = ?', [sourceId])
-      return
-    }
-    await this.ownDb.exec('DELETE FROM source_vars WHERE source_id = ? AND key = ?', [
-      sourceId,
-      key,
-    ])
+    return this.store.clearVars(sourceId, key)
   }
 
   async updateSourceUrl(id: string, newUrl: string): Promise<void> {

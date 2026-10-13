@@ -11,7 +11,6 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import type { ScanSpecifiedDir } from '@BBeBee/protocol'
-import { SCANNER_VIEWS } from '@BBeBee/plugin-local-scanner/views'
 import { summarise, useScanSpecifiedDirs, useScanState } from '@BBeBee/plugin-local-scanner/hooks'
 import { Button, EmptyState, IconButton, List, Text, useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
@@ -138,43 +137,10 @@ export function ScanSpecifiedDirsScreen({ ctx }: { ctx: Context }): ReactElement
 
 export const name = 'plugin-local-scanner-ui-desktop'
 
-/**
- * Bind a screen to *this* plugin's context, not the shell's.
- *
- * ⚠️ The shell renders a view as `h(Component, { ctx })` with **its own**
- * context — the one it got from `app.ready(['ui'])`, which has `ui` injected
- * and nothing else. A cordis context throws for any property that was not
- * injected, so a screen reading `ctx.scanner` through its hooks threw
- * `cannot get property "scanner" without inject` on a device while every
- * test passed, because tests built a root context where that read answers
- * `undefined` instead.
- *
- * Registering a closure over the context this plugin was applied with is the
- * fix, and it is what every view package here does: the screen runs on a
- * context with exactly what this package's `inject` declares. The shell's
- * props are still forwarded, so a view that takes more than `ctx` keeps
- * working.
- */
-function bound<P extends { ctx: Context }>(
-  ctx: Context,
-  Screen: (props: P) => ReactElement | null,
-): (props: Omit<P, 'ctx'>) => ReactElement | null {
-  // `h(Screen, …)`, not `Screen(…)`: calling a component as a function splices
-  // its hooks into this one's list, which works right up until someone renders
-  // it conditionally. An element keeps them separate.
-  return function Bound(props) {
-    return h(Screen, { ...props, ctx } as P)
-  }
-}
-
-
 export const inject = ['ui', 'scanner', 'fs']
 
 export async function apply(ctx: Context) {
   ctx.logger.info('plugin-local-scanner-ui-desktop: loaded')
-  return ctx.effect(function* () {
-    yield ctx.ui.registerView(SCANNER_VIEWS.settings, bound(ctx, ScanSpecifiedDirsScreen))
-  }, 'scanner-ui-desktop')
 }
 
 export default { name, inject, apply }
