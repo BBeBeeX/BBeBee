@@ -10,7 +10,7 @@
  */
 
 import type { DbService, SourceDocument, SourceRecord, SourceType, SqlValue } from '@BBeBee/protocol'
-import { allowedHostsFor, docHashOf } from './identity.js'
+import { allowedHostsFor, docHashOf, extractHost, hasSourceUrlParam } from './identity.js'
 
 interface SourceRow {
   id: string
@@ -153,8 +153,8 @@ export class SourceStore {
   }
 
   async updateSourceUrl(id: string, newUrl: string, now: number): Promise<void> {
-    const row = await this.db.get<{ doc_json: string }>(
-      `SELECT doc_json FROM sources WHERE id = ?`,
+    const row = await this.db.get<{ doc_json: string; allowed_hosts_json: string | null }>(
+      `SELECT doc_json, allowed_hosts_json FROM sources WHERE id = ?`,
       [id],
     )
     if (!row) return
@@ -165,14 +165,50 @@ export class SourceStore {
       // ignore
     }
     doc.sourceUrl = newUrl
+
+    // Collect all existing hosts: from row.allowed_hosts_json, doc.allowedHosts, and allowedHostsFor(doc)
+    const hasSourceUrl = hasSourceUrlParam(doc.params as readonly string[] | undefined)
+    const hostsSet = new Set<string>()
+    const newHost = extractHost(newUrl)
+    if (newHost) hostsSet.add(newHost)
+
+    if (hasSourceUrl && row.allowed_hosts_json) {
+      try {
+        const parsed = JSON.parse(row.allowed_hosts_json)
+        if (Array.isArray(parsed)) {
+          for (const h of parsed) {
+            const eh = extractHost(String(h))
+            if (eh) hostsSet.add(eh)
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    if (Array.isArray(doc.allowedHosts)) {
+      for (const h of doc.allowedHosts) {
+        const eh = extractHost(String(h))
+        if (eh) hostsSet.add(eh)
+      }
+    }
+
+    for (const h of allowedHostsFor(doc as unknown as SourceDocument)) {
+      hostsSet.add(h)
+    }
+
+    const mergedAllowedHosts = [...hostsSet].sort()
+    if (hasSourceUrl) {
+      doc.allowedHosts = mergedAllowedHosts
+    }
+
     const updatedDocJson = JSON.stringify(doc)
-    const allowedHosts = allowedHostsFor(doc as unknown as SourceDocument)
     const docHash = docHashOf(updatedDocJson)
     await this.db.exec(
       `UPDATE sources
          SET source_url = ?, doc_json = ?, doc_hash = ?, allowed_hosts_json = ?, locally_modified = 1, updated_at = ?
        WHERE id = ?`,
-      [newUrl, updatedDocJson, docHash, JSON.stringify(allowedHosts), now, id],
+      [newUrl, updatedDocJson, docHash, JSON.stringify(mergedAllowedHosts), now, id],
     )
   }
 

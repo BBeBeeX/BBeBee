@@ -124,6 +124,62 @@ describe('Source parameters storage & security boundary', () => {
     expect(updated.doc.sourceUrl).toBe('https://home-nas.internal:4533')
     expect(updated.allowedHosts).toEqual(['home-nas.internal'])
   })
+
+  it('appends modified sourceurl to allowedHosts when params contains sourceurl', async () => {
+    const { ctx, sources } = await harness()
+    const docWithParams = JSON.stringify({
+      sourceUrl: 'https://music.example.org',
+      sourceName: 'Subsonic With Params',
+      params: ['sourceurl', 'username', 'password'],
+      allowedHosts: ['cdn.example.org'],
+      ruleStream: { url: '=https://music.example.org/stream' },
+    })
+    const report = await sources.import(docWithParams)
+    const sourceId = report.added[0]!.id
+
+    expect(sources.source(sourceId)!.allowedHosts).toEqual(['cdn.example.org', 'music.example.org'])
+
+    let emittedChangedFields: string[] | undefined
+    ctx.on('source/changed', (id, fields) => {
+      if (id === sourceId) emittedChangedFields = fields
+    })
+
+    // User manually modifies sourceUrl
+    await sources.updateSourceParams(sourceId, {
+      sourceUrl: 'https://my-nas.lan:4533',
+    })
+
+    const updated = sources.source(sourceId)!
+    expect(updated.sourceUrl).toBe('https://my-nas.lan:4533')
+    expect(updated.doc.sourceUrl).toBe('https://my-nas.lan:4533')
+    // Both previous hosts and new host are in allowedHosts
+    expect(updated.allowedHosts).toContain('my-nas.lan')
+    expect(updated.allowedHosts).toContain('cdn.example.org')
+    expect(updated.allowedHosts).toContain('music.example.org')
+    expect(emittedChangedFields).toContain('sourceUrl')
+    expect(emittedChangedFields).toContain('allowedHosts')
+  })
+
+  it('handles sourceurl without protocol or with port', async () => {
+    const { sources } = await harness()
+    const docWithParams = JSON.stringify({
+      sourceUrl: 'https://music.example.org',
+      sourceName: 'Subsonic IP',
+      params: ['sourceurl'],
+      ruleStream: { url: '=https://music.example.org/stream' },
+    })
+    const report = await sources.import(docWithParams)
+    const sourceId = report.added[0]!.id
+
+    // User inputs raw host and port like "192.168.1.100:4533" via vars
+    await sources.updateSourceParams(sourceId, {
+      vars: { sourceurl: '192.168.1.100:4533' },
+    })
+
+    const updated = sources.source(sourceId)!
+    expect(updated.allowedHosts).toContain('192.168.1.100')
+    expect(updated.sourceUrl).toBe('192.168.1.100:4533')
+  })
 })
 
 describe('Subsonic connectivity test (3-state verification)', () => {

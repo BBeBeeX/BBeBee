@@ -71,6 +71,35 @@ function hostSlug(sourceUrl: string): string {
  * at import so the import screen can show the user a plain list of hostnames —
  * a sentence they can actually judge (docs/06 §8).
  */
+/**
+ * Extract the hostname from a URL or raw host string, tolerating missing scheme,
+ * ports, and IPv6 brackets.
+ */
+export function extractHost(value: string): string | undefined {
+  if (!value || typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  if (!trimmed) return undefined
+  try {
+    const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`
+    const parsed = new URL(withScheme)
+    return parsed.hostname.toLowerCase() || undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Checks whether the source declares 'sourceurl' / 'source_url' in its parameter list.
+ */
+export function hasSourceUrlParam(params?: readonly string[]): boolean {
+  return Boolean(
+    params?.some((p) => {
+      const lower = p.toLowerCase()
+      return lower === 'sourceurl' || lower === 'source_url'
+    }),
+  )
+}
+
 export function allowedHostsFor(doc: SourceDocument): string[] {
   const hosts = new Set<string>()
   const own = hostOf(doc.sourceUrl)
@@ -142,11 +171,7 @@ function validateAllowedHosts(
 }
 
 function hostOf(value: string): string | undefined {
-  try {
-    return new URL(value).hostname.toLowerCase() || undefined
-  } catch {
-    return undefined
-  }
+  return extractHost(value)
 }
 
 /* ── Validation ─────────────────────────────────────────────────────────── */
@@ -237,6 +262,9 @@ export function validateDocument(value: unknown, index = 0): SourceDocument {
     at('allowedHosts', 'must be an array of hostnames')
   } else if (doc.allowedHosts) {
     validateAllowedHosts(doc.allowedHosts, at)
+  }
+  if (doc.params !== undefined && !isStringArray(doc.params)) {
+    at('params', 'must be an array of parameter names')
   }
 
   if (doc.qualities !== undefined) {

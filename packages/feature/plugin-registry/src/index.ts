@@ -1130,6 +1130,10 @@ export class RegistryPlugin extends Service implements RegistryService {
     } catch {
       // ignore, ctx.sources.import will report format errors
     }
+    if (isRecord(doc) && entry.params && !doc.params) {
+      doc.params = [...entry.params]
+      text = JSON.stringify(doc)
+    }
     const hosts: string[] = []
     if (entry.sourceUrl) {
       try {

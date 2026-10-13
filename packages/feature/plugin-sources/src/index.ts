@@ -77,6 +77,7 @@ import {
   changedFields,
   docHashOf,
   exportTextFor,
+  hasSourceUrlParam,
   isShareable,
   parseSourceInput,
   recordFor,
@@ -1123,9 +1124,16 @@ export class Sources extends Service implements SourcesService {
     }
 
     let urlChanged = false
-    const targetUrl = params.sourceUrl ?? params.host
-    if (targetUrl && targetUrl.trim() !== record.sourceUrl) {
-      await this.store.updateSourceUrl(id, targetUrl.trim(), Date.now())
+    const rawTargetUrl =
+      params.sourceUrl ??
+      params.host ??
+      params.vars?.['sourceurl'] ??
+      params.vars?.['sourceUrl'] ??
+      params.vars?.['source_url']
+    const targetUrl = typeof rawTargetUrl === 'string' ? rawTargetUrl.trim() : undefined
+
+    if (targetUrl && (targetUrl !== record.sourceUrl || hasSourceUrlParam(record.doc.params))) {
+      await this.store.updateSourceUrl(id, targetUrl, Date.now())
       urlChanged = true
     }
 
@@ -1164,7 +1172,10 @@ export class Sources extends Service implements SourcesService {
 
     await this.refresh()
     const changedFields: string[] = ['params']
-    if (urlChanged) changedFields.push('sourceUrl')
+    if (urlChanged) {
+      changedFields.push('sourceUrl')
+      changedFields.push('allowedHosts')
+    }
     this.safeEmit(() => this.ctx.emit('source/changed', id, changedFields))
   }
 
@@ -1532,6 +1543,8 @@ export {
   allowedHostsFor,
   changedFields,
   exportableDocument,
+  extractHost,
+  hasSourceUrlParam,
   parseSourceInput,
   secretKeysFor,
   sourceIdFor,

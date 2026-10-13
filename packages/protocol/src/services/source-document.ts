@@ -178,6 +178,11 @@ export interface SourceDocument {
   variableComment?: string
   /** Functions shared by every `@js:` block in this document. */
   jsLib?: string
+  /**
+   * User-configurable parameter keys (e.g. ['sourceurl', 'username', 'password']).
+   * When 'sourceurl' is present, manual edits dynamically whitelist the new host.
+   */
+  params?: readonly string[]
 
   loginType?: 'form' | 'variable' | 'webview' | 'qrcode'
   loginUrl?: string
