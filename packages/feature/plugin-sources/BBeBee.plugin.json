@@ -21,7 +21,8 @@
   },
   "capabilities": [
     "db:read:core",
-    "db:write:core"
+    "db:write:core",
+    "net:host/*"
   ],
   "contributes": {
     "services": [

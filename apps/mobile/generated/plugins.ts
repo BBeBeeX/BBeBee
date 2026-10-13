@@ -191,7 +191,7 @@ export const bundled: PluginRegistry = {
   },
   "@BBeBee/plugin-sources": {
     load: () => import('@BBeBee/plugin-sources'),
-    manifest: {"id":"@BBeBee/plugin-sources","name":"@BBeBee/plugin-sources","displayName":"Sources","description":"ctx.sources — imported source documents, the registry, and the catalogue cache.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-4","moduleId":"sources","entry":{"main":"./dist/index.js","ui":{"desktop":"./dist/index.js","mobile":"./dist/index.js"}},"capabilities":["db:read:core","db:write:core"],"contributes":{"services":["sources"]},"effect":"sources"},
+    manifest: {"id":"@BBeBee/plugin-sources","name":"@BBeBee/plugin-sources","displayName":"Sources","description":"ctx.sources — imported source documents, the registry, and the catalogue cache.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-4","moduleId":"sources","entry":{"main":"./dist/index.js","ui":{"desktop":"./dist/index.js","mobile":"./dist/index.js"}},"capabilities":["db:read:core","db:write:core","net:host/*"],"contributes":{"services":["sources"]},"effect":"sources"},
     builtin: true,
   },
   "@BBeBee/plugin-theme": {

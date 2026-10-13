@@ -2751,7 +2751,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "capabilities": [
       "db:read:core",
-      "db:write:core"
+      "db:write:core",
+      "net:host/*"
     ],
     "contributes": {
       "services": [
@@ -2783,7 +2784,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "capabilities": [
       "db:read:core",
-      "db:write:core"
+      "db:write:core",
+      "net:host/*"
     ],
     "contributes": {
       "services": [

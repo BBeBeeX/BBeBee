@@ -46,6 +46,7 @@ import type {
   CheckReport,
   DebugStep,
   Disposable,
+  HttpRequest,
   HttpService,
   ImportOptions,
   ImportReport,
@@ -284,6 +285,7 @@ export class Sources extends Service implements SourcesService {
    * (`readVars`, `writeVar`, `linksFor`) survive only because their callers
    * hold the grants themselves.
    */
+  private readonly ownCtx: Context
   private ownDb!: DbService
   private catalog!: Catalog
   private store!: SourceStore
@@ -305,6 +307,7 @@ export class Sources extends Service implements SourcesService {
     private readonly config: SourcesConfig = {},
   ) {
     super(ctx, 'sources')
+    this.ownCtx = ctx
   }
 
   async [Service.init]() {
@@ -314,15 +317,19 @@ export class Sources extends Service implements SourcesService {
     this.cacheWriter = new CacheWriter(this.ownDb)
     this.records = await this.store.all()
 
-    this.ctx.inject(['secrets'], (scoped) => {
+    this.ownCtx.inject(['secrets'], (scoped) => {
       this.secrets = scoped.secrets
       return () => {
         this.secrets = undefined
       }
     })
 
-    this.ctx.inject(['http'], (scoped) => {
-      this.http = scoped.http
+    // Wrap http in a plain function so Cordis proxy does not re-bind to the caller's context
+    this.ownCtx.inject(['http'], (scoped: Context) => {
+      const boundHttp = scoped.http
+      this.http = boundHttp
+        ? (((req: HttpRequest) => boundHttp(req)) as unknown as HttpService)
+        : undefined
       return () => {
         this.http = undefined
       }
@@ -1185,7 +1192,8 @@ export class Sources extends Service implements SourcesService {
       return { status: 'network_error', message: `Source "${id}" not found` }
     }
 
-    const host = (params?.host ?? record.sourceUrl).trim().replace(/\/+$/, '')
+    const rawHost = (params?.host ?? record.sourceUrl).trim().replace(/\/+$/, '')
+    const host = /^https?:\/\//i.test(rawHost) ? rawHost : `http://${rawHost}`
     let user = params?.user
     let password = params?.password
 

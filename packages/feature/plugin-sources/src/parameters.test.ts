@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Context } from 'cordis'
+import { Context, Service } from 'cordis'
 import { PathsNode } from '@BBeBee/core-paths-node'
 import { FsNode } from '@BBeBee/core-fs-node'
 import { DbNode } from '@BBeBee/core-db-node'
@@ -294,5 +294,74 @@ describe('Subsonic connectivity test (3-state verification)', () => {
 
     expect(result.status).toBe('network_error')
     expect(result.message).toContain('ECONNREFUSED')
+  })
+})
+
+describe('caller context isolation for testConnection', () => {
+  it('executes under plugin-sources grants when invoked by settings UI with no network grants', async () => {
+    let seenConfig: unknown
+    let requestedUrl = ''
+    class DummyHttpService extends Service {
+      static override readonly name = 'http'
+      constructor(c: Context) {
+        super(c, 'http')
+      }
+      async [Service.invoke](req: HttpRequest): Promise<HttpResponse> {
+        seenConfig = this[Service.resolveConfig]()
+        requestedUrl = req.url
+        return Promise.resolve({
+          status: 200,
+          headers: {},
+          text: async () => JSON.stringify({
+            'subsonic-response': { status: 'ok', version: '1.16.1' },
+          }),
+          json: async () => ({ 'subsonic-response': { status: 'ok', version: '1.16.1' } }),
+          blob: async () => new Blob([]),
+          arrayBuffer: async () => new ArrayBuffer(0),
+        } as unknown as HttpResponse)
+      }
+    }
+
+    const root = new Context()
+    await root.plugin(PathsNode, { root: await tempDir('bbebee-sources-caller') })
+    await root.plugin(FsNode)
+    await root.plugin(DbNode, { fileName: ':memory:' })
+    root.provide('secrets', inMemorySecrets())
+    await root.plugin(DummyHttpService)
+
+    // plugin-sources has net:host/*
+    const scopedSources = root.intercept('http', {
+      pluginId: '@BBeBee/plugin-sources',
+      granted: ['net:host/*'],
+    })
+    await scopedSources.plugin(plugin, {})
+    await tick()
+
+    // settings UI context has no network grants
+    const scopedSettings = root.intercept('http', {
+      pluginId: '@BBeBee/plugin-settings-ui-desktop',
+      granted: [],
+    })
+
+    const svcFromSettings = scopedSettings.reflect.get('sources', false) as Sources
+    const report = await svcFromSettings.import(SUBSONIC_DOC)
+    const sourceId = report.added[0]!.id
+
+    // Test with 127.0.0.1 without protocol prefix
+    const result = await svcFromSettings.testConnection(sourceId, {
+      host: '127.0.0.1:4533',
+      user: 'alice',
+      password: 'secret',
+    })
+
+    expect(result.status).toBe('ok')
+    expect(result.message).toContain('Connected')
+    // Protocol was prefixed automatically
+    expect(requestedUrl).toContain('http://127.0.0.1:4533/rest/ping.view')
+    // Context was bound to plugin-sources, NOT caller settings-ui-desktop
+    expect(seenConfig).toMatchObject({
+      pluginId: '@BBeBee/plugin-sources',
+      granted: ['net:host/*'],
+    })
   })
 })
