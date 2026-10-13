@@ -8,7 +8,7 @@ A distilled guide for AI programming assistants. It is an index and authority su
 
 BBeBee is a cross-platform music player — Electron on desktop, Expo/React Native on mobile — built as a **plugin platform**, not an app with an extension API bolted on. The kernel is [Cordis](https://github.com/cordiverse/cordis) (DI + plugin lifecycle), and *everything above the kernel is a plugin*, including file I/O, networking, and persistence. Platform differences are absorbed by **swapping which implementation of a core service is loaded**, never by branching inside feature code.
 
-**Music sources are not plugins.** A source is a JSON document the user imports as text (the legado book-source model applied to audio), interpreted by one built-in runtime (`plugin-source-runtime`) and sandboxed in its own QuickJS realm.
+**Music sources are not plugins.** A source is a JSON document the user imports as text (a declarative rule-based document model applied to audio), interpreted by one built-in runtime (`plugin-source-runtime`) and sandboxed in its own QuickJS realm.
 
 ### The Two Invariants
 

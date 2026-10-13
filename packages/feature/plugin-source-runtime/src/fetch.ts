@@ -2,7 +2,7 @@
  * Fetching the document a rule is evaluated against.
  *
  * A rule that produces a URL may instead produce a **URL object**: the URL, a
- * comma, and a JSON options blob. That is legado's syntax, kept because it is
+ * comma, and a JSON options blob. Kept because it is
  * compact enough to live in a form field on a phone (docs/06 §3.5):
  *
  *     https://api.example.org/search,{"method":"POST","body":"q={{key}}"}
@@ -160,9 +160,9 @@ export interface FetchSite {
 /**
  * Decode the body, honouring `charset`.
  *
- * The reason this exists is the reason the whole rule language does: legado's
- * sources are largely Chinese-language sites, and a good number still serve
- * GBK or Big5. `response.text()` decodes as UTF-8 unconditionally, so those
+ * The reason this exists is that audio
+ * sources may scrape web pages that still routinely ship
+ * in GBK or Big5. `response.text()` decodes as UTF-8 unconditionally, so those
  * came back as replacement characters — a source that fetched, parsed, and
  * imported a page of mojibake without one error along the way.
  */

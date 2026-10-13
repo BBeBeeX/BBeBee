@@ -7,8 +7,8 @@ plugin-lifecycle framework — and *everything above the kernel is a plugin*, in
 networking, and persistence. Platform differences are absorbed by swapping which implementation
 of a core service is loaded, not by branching inside feature code.
 
-**Music sources are not plugins.** A source is a JSON document the user imports as text — the
-[legado](https://github.com/gedoor/legado) book-source model applied to audio — interpreted by one
+**Music sources are not plugins.** A source is a JSON document the user imports as text — a
+declarative rule-based document model applied to audio — interpreted by one
 built-in runtime and sandboxed in its own JS realm. Adding a backend is a paste, not a release
 ([ADR-5](./architecture/overview.md#adr-5--music-sources-are-imported-strings-interpreted-by-one-runtime),
 [sources/spec.md](./sources/spec.md)).
@@ -63,7 +63,7 @@ The architecture documentation is organized into 9 topic directories:
 | **Audio** | [audio/engine.md](./audio/engine.md) | `ctx.audio` Web Audio engine, graph topology, and platform bridges |
 | | [audio/playback.md](./audio/playback.md) | `ctx.player` transport state machine, resolution pipeline, queue, and OS integration |
 | | [audio/dsp.md](./audio/dsp.md) | `ctx.dsp` effect chain assembly and built-in processors (EQ, compressor, reverb) |
-| **Sources** | [sources/spec.md](./sources/spec.md) | Legado audio model, source JSON document schema, and derived capabilities |
+| **Sources** | [sources/spec.md](./sources/spec.md) | audio model, source JSON document schema, and derived capabilities |
 | | [sources/rule-engines.md](./sources/rule-engines.md) | Six rule engines (`@json`, `@css`, `@xpath`, `@js`, regex, template) & combinators |
 | | [sources/runtime.md](./sources/runtime.md) | Resolution lifecycle, cookie/session persistence, streams, and QuickJS sandbox |
 | | [sources/authoring.md](./sources/authoring.md) | Dual-file authoring workflow, source compiler, diagnostics, and local media |

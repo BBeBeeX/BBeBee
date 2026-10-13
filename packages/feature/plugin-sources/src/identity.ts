@@ -1,7 +1,7 @@
 /**
  * Source identity, document validation, and the document → row transform.
  *
- * A source is keyed by its `sourceUrl`, exactly as a legado book source is,
+ * A source is keyed by its `sourceUrl`,
  * and addressed by a **derived** id: slugified host plus a SHA-256 prefix.
  * Derived rather than random so that re-importing the same document produces
  * the same id — which is what makes re-import an *update* that keeps every URN,

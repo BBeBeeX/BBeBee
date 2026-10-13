@@ -49,9 +49,13 @@ flowchart TD
 1. **Zero Secret Persistence in Database:** Under no circumstances are credentials, passwords, session tokens, or API secrets persisted in SQLite database tables (`sources`, `source_vars`, or logs).
 2. **Hardware-Backed Secret Storage:** All sensitive values are routed to `ctx.secrets` under the isolated namespace formed from the source's id (`ctx.secrets.namespace(sourceId)`). On desktop, this maps to OS Keychain (via Electron `safeStorage` or native keychain APIs); on mobile, this maps to iOS Keychain / Android Keystore.
 3. **UI Write-Only Exposure:** The UI never displays decrypted secrets in plaintext. Password fields render masked placeholder dots (`••••••••`). Users can enter a new password to overwrite existing credentials, but cannot exfiltrate stored credentials via UI inspection.
-4. **Automated Sandbox Egress Allowlist:** When a user updates `sourceUrl` or `host`, `updateSourceParams` automatically recomputes `allowedHostsFor(sourceId)`:
-   - The new hostname is appended to the source's network egress allowlist.
-   - Any HTTP request initiated within the QuickJS isolated sandbox to hosts outside this egress list is refused with a `CapabilityError` before it leaves the app ([runtime.md §8](./runtime.md#8-trust-what-an-imported-source-can-and-cannot-do); see the gating spec at [rules/sources.md §3](../../rules/sources.md#3-sandboxing--security) (L2)).
+4. **Automated Sandbox Egress Allowlist & Dynamic `sourceurl` Whitelisting:**
+   - **Declarative `params`:** When a source declares `params: ['sourceurl', ...]` (in its document or registry metadata), BBeBee treats its backend address as a user-configurable endpoint.
+   - **Robust Host Extraction:** When the user modifies the server URL (via `sourceUrl`, `host`, or `vars['sourceurl']`), the extraction logic (`extractHost`) robustly normalizes URLs, protocol-less addresses (e.g., `192.168.1.100:4533` or `my-nas.lan:4533`), and bracketed IPv6 addresses, extracting the bare hostname or IP address.
+   - **Union-Preserving Egress Update:** `store.updateSourceUrl` unions the extracted host with the existing allowlist (`row.allowed_hosts_json` and `doc.allowedHosts`), ensuring that built-in CDN nodes or secondary endpoints defined in the original source are preserved rather than overwritten.
+   - **Hot Sandbox Reconfiguration:** The updated allowlist is persisted to SQLite (`allowed_hosts_json` and `doc_json`), `docHash` is recomputed, and `source/changed` is broadcast with `['params', 'sourceUrl', 'allowedHosts']`. `plugin-source-runtime` immediately updates its `scoped.intercept('http', { allowedHosts })` policy without requiring an application restart.
+   - **Relaxed Registry Matching:** `install-state.ts` detects that `sourceurl` is present in `params` and skips strict equality on `entry.sourceUrl`, preventing user-configured instances from being incorrectly flagged as uninstalled or out-of-sync.
+   - Any outbound HTTP request inside the QuickJS sandbox to a destination outside this allowlist is rejected with `CapabilityError` before leaving the process ([runtime.md §8](./runtime.md#8-trust-what-an-imported-source-can-and-cannot-do); see [rules/sources.md §3](../../rules/sources.md#3-sandboxing--security) (L2)).
 
 ---
 

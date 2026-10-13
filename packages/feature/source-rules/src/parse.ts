@@ -14,7 +14,7 @@
  *     atom       := ( '@put:{…}' | '@get:{…}' )* engine-selector replacement*
  *     replacement:= '##' pattern ( '##' replacement )? '###'?
  *
- * ⚠️ Precedence is `||` loosest, then `%%`, then `&&`. That is legado's, and
+ * ⚠️ Precedence is `||` loosest, then `%%`, then `&&`. And
  * it is the useful one: `a && b || c` means "a-then-b, or else c", which is
  * how a fallback for a two-part field is written.
  *

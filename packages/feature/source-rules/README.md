@@ -1,6 +1,6 @@
 # @BBeBee/source-rules
 
-Layer 4 (feature) — the **pure-logic implementation** of BBeBee's "music source rule language" (the audio version of the legado book-source model): parsing, evaluation, template expansion, JSONPath, regex guarding.
+Layer 4 (feature) — the **pure-logic implementation** of BBeBee's "music source rule language": parsing, evaluation, template expansion, JSONPath, regex guarding.
 
 ## Overview
 
@@ -20,7 +20,7 @@ One thread running through every file: **an author debugging rules on a phone, a
 
 ### `src/parse.ts` — rule parsing
 
-Parses one line of rule into an evaluation pipeline. Grammar precedence: **`||` loosest, then `%%`, tightest `&&`** (legado's precedence; `a && b || c` means "a then b, otherwise c"):
+Parses one line of rule into an evaluation pipeline. Grammar precedence: **`||` loosest, then `%%`, tightest `&&`** (`a && b || c` means "a then b, otherwise c"):
 
 ```
 rule        := alternative ( '||' alternative )*      // the first non-empty one wins
@@ -58,7 +58,7 @@ Two overarching laws: **"absent" and "empty string" are different things** (a se
 - **`engineAvailable(engine, { js? })`** — `template/json/regex/empty` always available; `js` only with a sandbox; `css`/`xpath` currently unavailable.
 - **`evaluate(rule, ctx): Promise<string[]>`** / **`evaluateNodes`** (keeps raw values; used by list rules to select elements) / **`evaluateParsed`** (reuses an already-parsed rule, skipping N re-parses).
 - **The evaluation pipeline**: `runParsed` tries each `alternative` in order and **the first to produce a non-empty result wins** (the mechanism that keeps working when "the backend renamed a field and the document carries both the old and new rules"); `runInterleave` **executes sequentially, not `Promise.all`** (an earlier atom may `@put` a variable a later one `@get`s), then interleaves by index rotation; in `runAtom`, `@put` runs first and `@get` **must pass through the replacement pipeline** (there was once a bug returning the untransformed value — "the worst failure of this language": it looks like it works and produces wrong text).
-- **Engine dispatch**: `json` → the document must be an object, otherwise the `RuleError` message uses `describe()` to say what the document actually is (`an HTML page`/`text`/…) — when a backend answers a 200 with an HTML login page, if JSONPath "returns empty when nothing matches" against text, search would render as an empty backend; `js` → the document is bound as **`result`** (in legado, `@js:` is a post-processor running on whatever the previous atom selected); `regex` → global matching, preferring capture group 1 and falling back to the whole match, breaking immediately on zero-length matches, capped at `MAX_REGEX_MATCHES`; `css`/`xpath` → `RuleEngineUnavailableError`.
+- **Engine dispatch**: `json` → the document must be an object, otherwise the `RuleError` message uses `describe()` to say what the document actually is (`an HTML page`/`text`/…) — when a backend answers a 200 with an HTML login page, if JSONPath "returns empty when nothing matches" against text, search would render as an empty backend; `js` → the document is bound as **`result`** (`@js:` is a post-processor running on whatever the previous atom selected); `regex` → global matching, preferring capture group 1 and falling back to the whole match, breaking immediately on zero-length matches, capped at `MAX_REGEX_MATCHES`; `css`/`xpath` → `RuleEngineUnavailableError`.
 - **`toText(value)`** — objects → `JSON.stringify`: seeing JSON makes a wrongly selected subtree obvious far sooner than `[object Object]`.
 - **`asRuleError`** — carries block/field, sourceId, and a **document excerpt** (truncated to 4096 before serialization), and is **redacted by provenance**: as long as `scope.source.var` exists it is added to secrets.
 
@@ -115,7 +115,7 @@ Full re-export per module (the authoritative list of the package's API): `engine
 | `##pat##repl##` | regex replace; the replacement text is a **literal** (`$1` is not interpreted); the `###` suffix replaces only the first match |
 | `@put:{key:rule}` / `@get:{key}` | in-evaluation variables (`@get` passes through the replacement pipeline) |
 
-`{{dotted.path}}` (own-property paths) and `{{@js:expr}}` (the only non-path placeholder) are the template placeholders. **legado-style attribute-extraction functions like `@text`/`@attr:` do not exist yet** (they arrive with the markup engines).
+`{{dotted.path}}` (own-property paths) and `{{@js:expr}}` (the only non-path placeholder) are the template placeholders. **Attribute-extraction functions like `@text`/`@attr:` do not exist yet** (they arrive with the markup engines).
 
 ## Related docs
 

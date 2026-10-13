@@ -203,8 +203,7 @@ the insurance policy. Tracked as the highest-priority item in the risk register
 from a URL, opened from a file, or scanned from a QR code — stored as a row and interpreted by a
 single built-in runtime, `plugin-source-runtime`. The document declares its endpoints and a set of
 **rules** in a small selector/template language; the runtime does every fetch, selection and
-coercion. This is the [legado](https://github.com/gedoor/legado) book-source model applied to
-audio, and it is specified in [06](../sources/spec.md).
+coercion. It is specified in [06](../sources/spec.md).
 
 **Rejected — one plugin package per backend** (the previous design). Every source was a
 `plugin-source-*` package implementing a provider SPI. It is the more powerful option: arbitrary

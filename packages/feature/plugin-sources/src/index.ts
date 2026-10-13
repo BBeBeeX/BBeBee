@@ -349,7 +349,7 @@ export class Sources extends Service implements SourcesService {
           id: SOURCES_ROUTES.sourceImport,
           section: 'sources',
           title: 'Import Sources',
-          description: 'Import third-party source scripts (Legado format) from clipboard text, a local JSON rule file, or a network URL',
+          description: 'Import third-party source scripts (JSON rule format) from clipboard text, a local JSON rule file, or a network URL',
           actionText: 'Import sources',
           order: 20,
         })

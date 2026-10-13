@@ -1,6 +1,6 @@
 # @BBeBee/plugin-source-runtime
 
-Layer 4 (feature) — **the only source-document interpreter in the entire repository**: it turns the "music source string" the user imports as text (a JSON document in the legado book-source model) into a playable `MediaProvider`.
+Layer 4 (feature) — **the only source-document interpreter in the entire repository**: it turns the "music source string" the user imports as text (a declarative JSON rule document) into a playable `MediaProvider`.
 
 ## Overview
 
@@ -51,11 +51,11 @@ It **owns no service key** (it is not a `Service` subclass): it reads `ctx.sourc
 
 ### `src/fetch.ts` — fetching the documents the rules need
 
-- **`parseUrlObject(rendered)`** — legado's "URL object" syntax `URL,{"method":"POST","body":"q={{key}}"}`; it splits at **the first comma followed by a parseable JSON object** (both the URL and the body may contain commas); a broken options blob leaves the whole string as the URL.
+- **`parseUrlObject(rendered)`** — the "URL object" syntax `URL,{"method":"POST","body":"q={{key}}"}`; it splits at **the first comma followed by a parseable JSON object** (both the URL and the body may contain commas); a broken options blob leaves the whole string as the URL.
 - **`fetchDocument(...)`** — assembles the request → `withRetries` → parses by content type: a payload claiming to be JSON but failing to parse falls back to text ("an HTML error page claiming to be JSON" is common). Returns `{ value, text, baseUrl (after redirects), status }`.
 - **`withRetries`** — retries only `isRetryable` failures; backoff `100·2^(i-1)` capped at 2000ms; **the server's own `Retry-After` enjoys a higher ceiling (60s)** — clamping a 4-second wait to 2 seconds guarantees another rejection.
 - **`statusError(status, …)`** — status code → error class, sharing one mapping with the probe: **a status code is not a diagnosis** (reading 401 as not-found skips the re-login path; reading 500 as non-retryable turns a blip into a stalled queue).
-- **`decode(response, charset)`** — when a charset is present, uses `TextDecoder(charset)`: many legado sources are Chinese sites serving GBK/Big5; unconditionally decoding as UTF-8 produces silently mojibake pages.
+- **`decode(response, charset)`** — when a charset is present, uses `TextDecoder(charset)`: many audio source sites serve GBK/Big5; unconditionally decoding as UTF-8 produces silently mojibake pages.
 - Cookies are not handled in this file — the jar belongs to `ctx.http` (a per-plugin persistent jar); sign-out clears it via the runtime's `forget`.
 
 ### `src/capabilities.ts` — deriving capabilities from the document
@@ -87,7 +87,7 @@ The docs/06 §8 list is the contract: **no `fetch`, no `require`, no timer that 
 
 ### `src/trace.ts` — the rule tracer
 
-Why a broken source is "fixable" rather than "just broken" (equivalent to legado's source debug screen, docs/06 §10). Three load-bearing properties:
+Why a broken source is "fixable" rather than "just broken" (source debug and diagnostic screen, docs/06 §10). Three load-bearing properties:
 
 1. **Streaming, not collecting** — the step that most needs explaining is the one **still running** (a request to a server that stopped answering shows as an `http` line with no status; that is the entire diagnosis);
 2. **All steps appear, including successful ones** — failures usually happen two steps before the empty result;

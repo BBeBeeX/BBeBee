@@ -407,7 +407,7 @@ export interface SourceHost {
 
 `allowedHosts` 的条目是**主机名**，任何会在静默中被放宽成一个主机名的东西都会在导入时被拒绝。`nas:4533` 读起来像"这台主机的这个端口"，但匹配器里根本不存在端口 —— 端口会被丢弃，条目于是覆盖所有端口 —— 因此它会以一条点名该条目的消息被拒绝。路径出于同样的原因被拒绝。裸 scheme 什么都不会丢，所以 `https://cdn.example.org` 会被接受并规范化为它的主机。一个条目覆盖它的子域（`example.org` 接纳 `cdn.example.org`，绝不容纳 `notexample.org`）；单标签条目只匹配它自己，因此 `["org"]` 不可能意味着".org 中的任何地方"。
 
-允许列表是最重要的一条，它也是与 legado 的刻意分歧 —— legado 允许书源请求任何东西。导入时它以一份平实的主机名清单展示 —— "这个源将与这些主机通信：music.example.org、cdn.example.org" —— 因为这样一句话是用户真正能够判断的。registry 安装遵循同一展示红线（[rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)）。
+允许列表是最重要的一条安全保障 —— 严格限制源的网络请求范围。导入时它以一份平实的主机名清单展示 —— "这个源将与这些主机通信：music.example.org、cdn.example.org" —— 因为这样一句话是用户真正能够判断的。registry 安装遵循同一展示红线（[rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)）。
 
 ### 一个敌意源仍然能做的事
 

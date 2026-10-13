@@ -102,7 +102,7 @@ export async function evaluateRule(
  * select out of a document — there is no document yet — they *build the
  * request that fetches one*. So `{{ }}` interpolation applies directly and a
  * leading `=` is optional, which is what docs/06 §2.3's worked example writes
- * and what every legado source does.
+ * and what rule-based sources do.
  *
  * That distinction was missing, and the cost was concrete: every source
  * written to the published example threw "needs a selector engine" on its

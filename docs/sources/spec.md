@@ -12,7 +12,7 @@ gist, a QR code — and the app can play from a backend nobody in this repositor
 no build, no release, and no plugin install. When that backend changes its API, the fix is an
 edited string, not a version bump.
 
-This is the [legado](https://github.com/gedoor/legado) model for book sources, applied to audio.
+This is a declarative rule-based document model, applied to audio.
 It is a deliberate reversal of the earlier design, in which every backend was a plugin package;
 [ADR-5](../architecture/overview.md#adr-5--music-sources-are-imported-strings-interpreted-by-one-runtime)
 records what that cost and what it bought.
@@ -77,7 +77,7 @@ data. `ctx.sources` caches the answers into the catalogue tables
 
 ### 1.2 Identity: the source id
 
-A source document is keyed by **`sourceUrl`**, exactly as a legado book source is. It is the
+A source document is keyed by **`sourceUrl`**. It is the
 backend's base URL, and it is what makes two Navidrome servers two sources rather than one
 misconfigured one.
 
@@ -203,6 +203,9 @@ export interface SourceDocument {
   /** Functions shared by every `@js:` block in this document. */
   jsLib?: string
 
+  /** User-configurable parameter keys (e.g. ['sourceurl', 'username', 'password']). When 'sourceurl' is present, user custom edits to server address dynamically whitelist the target host in sandbox allowedHosts. */
+  params?: readonly string[]
+
   /* ── auth (runtime.md §5) ───────────────────────────────────── */
   loginType?: 'form' | 'variable' | 'webview' | 'qrcode'
   loginUrl?: string
@@ -247,6 +250,8 @@ export interface SourceDocument {
 > Fields the app maintains are written back on `check` ([authoring.md §10](./authoring.md#10-diagnosing-a-broken-source)) and
 > are stripped on export, so sharing a source never leaks how fast *your* network is or when *you*
 > last used it.
+
+> **Configurable parameters (`params`):** When a source declares `params: ['sourceurl', ...]`, the source supports user-customized instance endpoints (e.g. self-hosted Subsonic/Navidrome servers). Modifying `sourceurl` in the client updates the target URL, extracts the hostname/IP, and dynamically merges it into the source sandbox's `allowedHosts` without discarding existing static endpoints (see [parameters.md](./parameters.md)).
 
 ### 2.2 The rule blocks
 

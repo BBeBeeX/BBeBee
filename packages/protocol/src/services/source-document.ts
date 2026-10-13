@@ -6,8 +6,8 @@ import type { StreamQuality } from '../entities/media.js'
  *
  * A source is data, not a package. The user pastes JSON (one object, or an
  * array of them); the runtime interprets it. Nobody outside this repository
- * implements `MediaProvider`; they write one of these instead. This is the
- * legado book-source model applied to audio.
+ * implements `MediaProvider`; they write one of these instead. This is a
+ * declarative rule-based source model applied to audio.
  *
  * Two properties of the shape are load-bearing and easy to lose:
  *

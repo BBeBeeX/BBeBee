@@ -516,8 +516,7 @@ the entry. A path is rejected for the same reason. A bare scheme drops nothing, 
 (`example.org` admits `cdn.example.org`, never `notexample.org`); a single-label entry matches only
 itself, so `["org"]` cannot mean "anywhere in .org".
 
-The allowlist is the important one, and it is a deliberate divergence from legado, which lets a
-book source request anything. It is shown at import as a plain list of hostnames — "this source
+The allowlist is the critical security boundary, strictly limiting outbound network access. It is shown at import as a plain list of hostnames — "this source
 will talk to: music.example.org, cdn.example.org" — because that sentence is one a user can
 actually judge. Registry installs follow the same disclosure red line ([rules/sources.md §6](../../rules/sources.md#6-registry-third-party-registry)).
 

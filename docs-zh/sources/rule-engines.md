@@ -71,7 +71,7 @@
 
 ### 3.5 URL 对象
 
-任何产生 URL 的规则都可以改为产生一个 **URL 对象**：URL 本身、一个逗号、再跟一个 JSON 选项块。这是 legado 的语法，之所以保留，是因为它紧凑到能放进一个表单字段。
+任何产生 URL 的规则都可以改为产生一个 **URL 对象**：URL 本身、一个逗号、再跟一个 JSON 选项块。之所以保留该语法，是因为它紧凑到能放进一个表单字段。
 
 ```
 https://api.example.org/search,{"method":"POST","body":"q={{key}}","headers":{"X-Api":"…"},"charset":"gbk"}

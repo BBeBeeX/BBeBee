@@ -298,8 +298,7 @@ async function select(atom: Atom, context: RuleContext): Promise<unknown[]> {
        * The document is bound as `result`, and the scope's members as globals.
        *
        * `result` rather than `document`: a `@js:` rule is a *post-processor*
-       * in legado's grammar — it runs on what the previous atom selected —
-       * and a document that names it otherwise would not port.
+       * in the grammar — it runs on what the previous atom selected.
        */
       const value = await context.js!(atom.selector, {
         ...context.scope,

@@ -98,7 +98,7 @@ not exported with the source, not logged, and cleared by sign-out.
 ### 3.5 URL objects
 
 Any rule that produces a URL may instead produce a **URL object**: the URL, a comma, and a JSON
-options blob. This is legado's syntax and it is kept because it is compact enough to live in a
+options blob. This URL object syntax is kept because it is compact enough to live in a
 form field.
 
 ```

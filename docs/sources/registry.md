@@ -79,6 +79,7 @@ Each entry in `music-sources/`, `lyric-sources/`, and `plugins/` is an individua
 | `sha256` | plugin | Integrity digest of the plugin bundle (§5). |
 | `capabilities` | plugin | The manifest capabilities the bundle declares. |
 | `category` | plugin | Free-form category slug (e.g. `ui-enhancement`) the Discover page's category filter groups by. Unknown slugs pass through verbatim. |
+| `params` | `music-source` | Optional string array of configurable keys (e.g. `["sourceurl", "username", "password"]`). When containing `"sourceurl"`, users may customize the backend address/path in client settings, and BBeBee dynamically whitelists the configured host in the QuickJS sandbox. Also relaxes strict `entry.sourceUrl` match in `install-state.ts` when customized. |
 
 ---
 
@@ -95,6 +96,8 @@ The identity differs per kind, because it reuses each kind's own identity:
 | `lyric-source` | `id` | Lyric sources are registered and keyed by document `id`. |
 | `theme` | `id` | Themes are keyed by document `id`. |
 | `plugin` | `id` | Plugins are keyed by manifest id (`ctx['plugin-manager']`). |
+
+> **Relaxation for custom `sourceurl`:** When a `music-source` declares `params` containing `sourceurl` and the user has customized the backend address away from `entry.sourceUrl`, `install-state.ts` matches based on the source's configured parameters and record identity rather than strictly requiring `record.sourceUrl === entry.sourceUrl`. This ensures user-configured private instances (e.g. Subsonic/Navidrome servers) remain recognized as installed and maintainable.
 
 An installed copy whose version is older than the entry's `version` produces a
 `RegistryUpdate` (`kind`, `id`, `name`, `installedVersion`, `availableVersion`,
