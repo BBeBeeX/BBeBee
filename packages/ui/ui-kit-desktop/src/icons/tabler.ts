@@ -600,4 +600,15 @@ export const TABLER_DEFINITIONS: Record<string, IconSvgDefinition> = {
       { tag: 'path', attrs: { d: 'M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0' } },
     ],
   },
+  bookmark: {
+    elements: [
+      { tag: 'path', attrs: { d: 'M18 7v14l-6 -4l-6 4v-14a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4z' } },
+    ],
+  },
+  'bookmark-filled': {
+    filled: true,
+    elements: [
+      { tag: 'path', attrs: { d: 'M18 7v14l-6 -4l-6 4v-14a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4z' } },
+    ],
+  },
 }

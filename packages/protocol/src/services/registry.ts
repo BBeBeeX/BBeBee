@@ -153,6 +153,8 @@ export interface RegistryService {
   getLockFile?(): Promise<RegistryLockFile>
   /** Retrieve a single lock record by ID. */
   getLockRecord?(id: string): Promise<RegistryLockRecord | undefined>
+  /** Remove a single lock record by ID. */
+  removeLockRecord?(id: string): Promise<void>
   /**
    * Builds a diagnostics report from real service state — lock/integrity
    * conflicts, persisted security-audit findings, index anomalies and install

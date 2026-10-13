@@ -164,4 +164,23 @@ describe('PluginManagerPlugin', () => {
     const playerAfter = listAfter.find((p) => p.id === '@BBeBee/plugin-player')
     expect(playerAfter?.error).toBeUndefined()
   })
+
+  it('uninstalls plugin via lifecycle bridge and removes manifest', async () => {
+    const { ctx } = createTestContext()
+    const plugin = new PluginManagerPlugin(ctx, { manifests: sampleManifests })
+    await plugin[PluginManagerPlugin.init]()
+
+    const bridge = {
+      loadPlugin: vi.fn(async () => {}),
+      unloadPlugin: vi.fn(async () => {}),
+      uninstallPlugin: vi.fn(async () => {}),
+    }
+    plugin.setLifecycleBridge(bridge)
+
+    await plugin.uninstall('@BBeBee/plugin-queue')
+    expect(bridge.uninstallPlugin).toHaveBeenCalledWith('@BBeBee/plugin-queue')
+
+    const list = plugin.list()
+    expect(list.find((p) => p.id === '@BBeBee/plugin-queue')).toBeUndefined()
+  })
 })

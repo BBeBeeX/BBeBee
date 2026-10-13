@@ -159,6 +159,29 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     return this.list()
   }
 
+  async uninstall(id: string): Promise<void> {
+    if (this.bridge?.uninstallPlugin) {
+      await this.bridge.uninstallPlugin(id)
+    } else if (this.bridge?.unloadPlugin) {
+      await this.bridge.unloadPlugin(id)
+    }
+
+    const m = this.manifests.get(id)
+    this.manifests.delete(id)
+    if (m?.name) {
+      this.manifests.delete(m.name)
+      delete this.overrides[m.name]
+    }
+    delete this.overrides[id]
+    this.failedErrors.delete(id)
+    if (m?.name) {
+      this.failedErrors.delete(m.name)
+    }
+
+    await this.saveOverrides(this.overrides)
+    this.ctx.emit('plugin-manager/changed')
+  }
+
   list(): readonly PluginInfo[] {
     let snapshot: InspectorSnapshotData | null = null
     try {

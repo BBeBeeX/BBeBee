@@ -356,6 +356,9 @@ async function harness(options: RegistryStubOptions & { appVersion?: string } = 
     // exercises the absent case, same as getLockFile above.
     getTasks = registry.getTasks
     clearFinishedTasks = registry.clearFinishedTasks
+    removeLockRecord = async (id: string) => {
+      registry.calls.push(`remove-lock:${id}`)
+    }
   }
 
   class RegistryMetadataStub extends Service {
@@ -411,10 +414,23 @@ async function harness(options: RegistryStubOptions & { appVersion?: string } = 
     }
   }
   class PluginManagerStub extends Service {
+    private appCtx: Context
     constructor(ctx: Context) {
       super(ctx, 'plugin-manager')
+      this.appCtx = ctx
     }
     list = () => installed.plugins
+    setEnabled = async (id: string, enabled: boolean) => {
+      registry.calls.push(`set-plugin-enabled:${id}:${enabled}`)
+      const p = installed.plugins.find((item) => item.id === id)
+      if (p) p.enabled = enabled
+      this.appCtx.emit('plugin-manager/changed')
+    }
+    uninstall = async (id: string) => {
+      registry.calls.push(`uninstall-plugin:${id}`)
+      installed.plugins = installed.plugins.filter((p) => p.id !== id)
+      this.appCtx.emit('plugin-manager/changed')
+    }
   }
 
   let currentSettings: AppSettings = {
@@ -1087,7 +1103,7 @@ describe('RegistryScreen installed tab', () => {
     await waitFor(() => expect(queryByTestId('registry-entry-ext-lyric')).toBeNull())
   })
 
-  it('shows the settings note instead of an uninstall button for plugin entries', async () => {
+  it('shows status badge, toggle button, and uninstalls for installed plugin entries', async () => {
     const { ctx, calls } = await harness({
       installedPlugins: [
         {
@@ -1109,11 +1125,28 @@ describe('RegistryScreen installed tab', () => {
 
     fireEvent.click(getByTestId('registry-tab-installed'))
     await findByTestId('registry-entry-plugin-ok')
-    // No remove API exists for plugins: no button, just the pointer to
-    // plugin management.
-    expect(queryByTestId('registry-uninstall-plugin-ok')).toBeNull()
-    expect(getByTestId('registry-uninstall-note-plugin-ok').textContent).toContain('plugin management')
-    expect(calls.some((call) => call.startsWith('remove-'))).toBe(false)
+
+    // Status badge shows "In use"
+    const statusBadge = getByTestId('registry-plugin-status-plugin-ok')
+    expect(statusBadge.textContent).toBe('In use')
+
+    // Bookmark button is present at bottom left
+    const bookmarkBtn = getByTestId('registry-favorite-plugin-ok')
+    expect(bookmarkBtn).toBeDefined()
+
+    // Action button shows disable
+    const toggleBtn = getByTestId('registry-action-plugin-ok')
+    expect(toggleBtn.textContent).toContain('Disable')
+
+    // Toggle disable
+    fireEvent.click(toggleBtn)
+    await waitFor(() => expect(calls).toContain('set-plugin-enabled:plugin-ok:false'))
+
+    // Uninstall button is present
+    fireEvent.click(getByTestId('registry-uninstall-plugin-ok'))
+    fireEvent.click(getByTestId('registry-uninstall-confirm-plugin-ok'))
+    await waitFor(() => expect(calls).toContain('uninstall-plugin:plugin-ok'))
+    await waitFor(() => expect(queryByTestId('registry-entry-plugin-ok')).toBeNull())
   })
 })
 

@@ -67,6 +67,9 @@ export const ICON_ALIASES: Record<string, string> = {
   '♥': 'heart-filled',
   '🖤': 'heart-filled',
   '💚': 'heart-filled',
+  bookmark: 'bookmark',
+  'bookmark-filled': 'bookmark-filled',
+  '🔖': 'bookmark-filled',
 
   // Plus / Add
   plus: 'plus',

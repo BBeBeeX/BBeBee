@@ -123,7 +123,17 @@ export function InstallConfirmDialog({
     },
     h(
       'div',
-      { 'data-testid': 'registry-confirm-dialog', style: { display: 'flex', flexDirection: 'column', gap: 14 } },
+      {
+        'data-testid': 'registry-confirm-dialog',
+        style: {
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 14,
+          maxHeight: 'min(70vh, 560px)',
+          overflowY: 'auto',
+          paddingRight: 6,
+        },
+      },
       // Identity line
       h(
         'div',
@@ -484,11 +494,18 @@ export function InstallConfirmDialog({
                             'pre',
                             {
                               style: {
-                                margin: '4px 0 0 0',
+                                margin: '6px 0 0 0',
                                 fontFamily: 'var(--font-mono, ui-monospace, monospace)',
                                 fontSize: 11,
                                 whiteSpace: 'pre-wrap',
-                                opacity: 0.85,
+                                wordBreak: 'break-all',
+                                maxHeight: 180,
+                                overflowY: 'auto',
+                                opacity: 0.9,
+                                background: 'rgba(0, 0, 0, 0.25)',
+                                padding: '6px 8px',
+                                borderRadius: 4,
+                                border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
                               },
                             },
                             finding.snippet,

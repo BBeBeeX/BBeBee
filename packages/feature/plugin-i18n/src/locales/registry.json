@@ -125,7 +125,11 @@
       "uninstallThis": "Uninstall this?",
       "uninstalling": "Uninstalling…",
       "update": "Update",
-      "updating": "Updating…"
+      "updating": "Updating…",
+      "inUse": "In use",
+      "disabled": "Disabled",
+      "use": "Enable",
+      "disable": "Disable"
     },
     "registrySettings": {
       "builtIn": "[Built-in]",
@@ -283,7 +287,11 @@
       "uninstallThis": "卸载此项？",
       "uninstalling": "卸载中…",
       "update": "更新",
-      "updating": "更新中…"
+      "updating": "更新中…",
+      "inUse": "使用中",
+      "disabled": "已停用",
+      "use": "使用",
+      "disable": "停用"
     },
     "registrySettings": {
       "builtIn": "[内置]",

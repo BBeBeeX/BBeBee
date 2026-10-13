@@ -383,6 +383,10 @@ export class RegistryPlugin extends Service implements RegistryService {
     return this.lockManager.getRecord(id)
   }
 
+  async removeLockRecord(id: string): Promise<void> {
+    await this.lockManager.removeRecord(id)
+  }
+
   /* ── the index ─────────────────────────────────────────────────────────── */
 
   async getIndex(_force = false): Promise<RegistryIndex> {

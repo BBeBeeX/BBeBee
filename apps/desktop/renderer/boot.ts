@@ -71,6 +71,7 @@ import {
   getBuiltinPluginRegistry,
   installAndActivatePlugin,
   loadExternalPluginRegistry,
+  uninstallExternalPlugin,
 } from './dynamic-loader.js'
 // The ui-kit's inline-styled components (Artwork placeholder, ContextMenu,
 // JsonTree) read their palette from `c()` — wiring that module-level scheme to
@@ -902,6 +903,7 @@ export async function boot(): Promise<App> {
       pm.setLifecycleBridge({
         loadPlugin: (id: string) => app.loadPlugin(id),
         unloadPlugin: (id: string) => app.unloadPlugin(id),
+        uninstallPlugin: (id: string) => uninstallExternalPlugin(app, id),
       })
     }
   })
@@ -913,6 +915,10 @@ export async function boot(): Promise<App> {
   app.ctx.inject(['contentRegistry'], (scoped) => {
     scoped.contentRegistry.setPluginInstaller(async (bundle) => {
       await installAndActivatePlugin(app, bundle.manifest.id, bundle.files, bundle.manifest)
+      const pm = (app.ctx as unknown as { 'plugin-manager'?: PluginManagerService })['plugin-manager']
+      if (pm) {
+        pm.registerManifests({ [bundle.manifest.id]: bundle.manifest })
+      }
     })
   })
 

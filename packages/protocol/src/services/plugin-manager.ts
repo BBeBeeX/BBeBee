@@ -40,6 +40,7 @@ export interface PluginInfo {
 export interface PluginLifecycleBridge {
   loadPlugin: (id: string) => Promise<unknown>
   unloadPlugin: (id: string) => Promise<void>
+  uninstallPlugin?: (id: string) => Promise<void>
 }
 
 export interface PluginManagerService {
@@ -57,6 +58,9 @@ export interface PluginManagerService {
 
   /** Re-evaluates runtime state from inspector snapshot and returns updated list. */
   refresh(): readonly PluginInfo[]
+
+  /** Uninstalls an external plugin: unloads it, deletes files via bridge, removes manifest and overrides. */
+  uninstall?(id: string): Promise<void>
 }
 
 declare module 'cordis' {

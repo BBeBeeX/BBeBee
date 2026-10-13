@@ -35,6 +35,10 @@ export function Sheet(props: SheetProps) {
         style: {
           minWidth: 320,
           maxWidth: 560,
+          maxHeight: 'min(90vh, 800px)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
           padding: tokens.space[5],
           borderRadius: tokens.radius.lg,
           background: 'var(--surface-1, #0D101A)',
@@ -43,7 +47,7 @@ export function Sheet(props: SheetProps) {
           color: 'var(--text-primary, #F5F7FF)',
         },
       },
-      props.title ? h('h2', { style: { margin: `0 0 ${tokens.space[3]}px` } }, props.title) : null,
+      props.title ? h('h2', { style: { margin: `0 0 ${tokens.space[3]}px`, flexShrink: 0 } }, props.title) : null,
       props.children as ReactNode,
     ),
   )

@@ -34,6 +34,7 @@ import { createElement as h, useCallback, useEffect, useMemo, useRef, useState }
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {
+  PluginInfo,
   RegistryEntry,
   RegistryEntryDetails,
   RegistryEntryKind,
@@ -70,6 +71,7 @@ interface RegistryServiceLike {
   getIndex(force?: boolean): Promise<RegistryIndex>
   fetchEntryDetails(entry: RegistryEntry): Promise<RegistryEntryDetails>
   install(entry: RegistryEntry, opts?: { confirmed?: boolean; overwrite?: boolean }): Promise<void>
+  removeLockRecord?(id: string): Promise<void>
 }
 
 /** Structural slices of the services that can remove installed content. */
@@ -82,6 +84,11 @@ interface LyricSourcesRemoveLike {
 }
 interface ThemeRemoveLike {
   removeTheme(themeId: string): boolean
+}
+interface PluginManagerLike {
+  list(): readonly PluginInfo[]
+  setEnabled(id: string, enabled: boolean): Promise<void>
+  uninstall?(id: string): Promise<void>
 }
 
 const KIND_TABS: readonly RegistryEntryKind[] = ['music-source', 'lyric-source', 'theme', 'plugin']
@@ -239,13 +246,58 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
   // identity. The bump forces one re-derivation against the live services.
   const [contentNonce, setContentNonce] = useState(0)
 
+  useEffect(() => {
+    const onPluginChanged = () => setContentNonce((n) => n + 1)
+    const off = ctx.on('plugin-manager/changed', onPluginChanged)
+    return () => {
+      off()
+    }
+  }, [ctx])
+
   const indexRef = useRef<RegistryIndex | undefined>(undefined)
   indexRef.current = index
 
-  const entries = useMemo(() => index?.entries ?? [], [index])
+  const pluginMap = useMemo(() => {
+    const pm = serviceOf<PluginManagerLike>(ctx, 'plugin-manager')
+    const list = pm?.list?.() ?? []
+    const map = new Map<string, PluginInfo>()
+    for (const p of list) {
+      map.set(p.id, p)
+      if (p.name) map.set(p.name, p)
+      const unscopedId = p.id.replace(/^@[^/]+\//, '')
+      map.set(unscopedId, p)
+      if (p.name) {
+        map.set(p.name.replace(/^@[^/]+\//, ''), p)
+      }
+    }
+    return map
+  }, [ctx, contentNonce])
+
+  const lockRecords = useRegistryLockRecords(ctx, true)
+
+  const entries = useMemo(() => {
+    const list = [...(index?.entries ?? [])]
+    const existingIds = new Set(list.map((e) => e.id))
+    for (const [id, record] of lockRecords) {
+      if (record.kind === 'plugin' && !existingIds.has(id)) {
+        const info = pluginMap.get(id)
+        list.push({
+          id,
+          name: info?.displayName || info?.name || id,
+          version: info?.version || '1.0.0',
+          description: info?.description,
+          author: info?.author,
+          kind: 'plugin',
+          downloadUrl: '',
+        })
+        existingIds.add(id)
+      }
+    }
+    return list
+  }, [index, lockRecords, pluginMap])
+
   const actionStates = useRegistryActionStates(ctx, entries, contentNonce)
   const { favorites, toggle: toggleFavorite, isFavorite } = useFavorites()
-  const lockRecords = useRegistryLockRecords(ctx, view === 'installed')
   const appVersion = useAppVersion()
 
   const readIndex = useCallback(
@@ -346,6 +398,15 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
         } else if (entry.kind === 'theme') {
           const removed = serviceOf<ThemeRemoveLike>(ctx, 'theme')?.removeTheme(entry.id)
           if (!removed) throw new Error(t('registry:registry.themeUninstallProtected'))
+        } else if (entry.kind === 'plugin') {
+          const pm = serviceOf<PluginManagerLike>(ctx, 'plugin-manager')
+          if (pm?.uninstall) {
+            await pm.uninstall(entry.id)
+          }
+          const registry = getRegistry()
+          if (registry?.removeLockRecord) {
+            await registry.removeLockRecord(entry.id)
+          }
         }
         // Same backstop as the install path: the owning service has already
         // changed, force the action-state memo to re-derive against it.
@@ -356,27 +417,35 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
         setUninstallingId(undefined)
       }
     },
-    [ctx, t],
+    [ctx, getRegistry, t],
   )
 
   /**
    * The uninstall affordance of the installed tab, per entry.
-   *
-   * Kinds whose owning service exposes a remove API (music sources, lyric
-   * sources, themes) get the two-step button; plugins have none (the manager
-   * only enables or disables), so they get the "manage it in settings" note;
-   * built-in content (today: the lrclib lyric source, re-added at boot) gets
-   * no uninstall affordance at all.
    */
   const uninstallFor = useCallback(
     (entry: RegistryEntry): { available: boolean; onConfirm: () => void } | undefined => {
       if (isBuiltinEntry(entry)) return undefined
       return {
-        available: entry.kind !== 'plugin',
+        available: true,
         onConfirm: () => void handleUninstall(entry),
       }
     },
     [handleUninstall],
+  )
+
+  const handleTogglePluginEnabled = useCallback(
+    async (pluginId: string, currentEnabled: boolean) => {
+      const pm = serviceOf<PluginManagerLike>(ctx, 'plugin-manager')
+      if (!pm) return
+      try {
+        await pm.setEnabled(pluginId, !currentEnabled)
+        setContentNonce((n) => n + 1)
+      } catch (err) {
+        setUninstallError(errorMessage(err))
+      }
+    },
+    [ctx],
   )
 
   // Filtered first (the pre-sort set is what the stats hook walks), then
@@ -713,8 +782,13 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
                   const actionState = actionStates.get(entry.id) ?? { state: 'install' as const }
                   const blocked = minAppVersionBlock(entry, appVersion)
                   const lock = lockRecords.get(entry.id)
-                  const onInstalledTab = view === 'installed' && actionState.state !== 'install'
+                  const isInstalled = actionState.state === 'installed' || actionState.state === 'update'
+                  const onInstalledTab = view === 'installed' && isInstalled
                   const uninstallBase = uninstallFor(entry)
+                  const pluginInfo =
+                    entry.kind === 'plugin'
+                      ? pluginMap.get(entry.id) ?? pluginMap.get(entry.id.replace(/^@[^/]+\//, ''))
+                      : undefined
                   return h(RegistryEntryCard, {
                     key: entry.id,
                     ctx,
@@ -725,6 +799,9 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
                     stats: statsFor(entry),
                     favorite: isFavorite(entry.id),
                     onToggleFavorite: () => toggleFavorite(entry.id),
+                    pluginEnabled: pluginInfo?.enabled ?? true,
+                    onTogglePluginEnabled: () =>
+                      void handleTogglePluginEnabled(pluginInfo?.id ?? entry.id, pluginInfo?.enabled ?? true),
                     installedMeta: onInstalledTab
                       ? {
                           installedVersion: actionState.installedVersion,
@@ -733,7 +810,7 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
                         }
                       : undefined,
                     uninstall:
-                      onInstalledTab && uninstallBase
+                      (onInstalledTab || (entry.kind === 'plugin' && isInstalled)) && uninstallBase
                         ? {
                             ...uninstallBase,
                             busy: uninstallingId === entry.id,

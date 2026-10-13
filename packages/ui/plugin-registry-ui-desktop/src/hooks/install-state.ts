@@ -138,7 +138,13 @@ export function deriveRegistryActionState(
       )
     }
     case 'plugin': {
-      const info = installed.plugins.find((p) => p.id === entry.id)
+      const info = installed.plugins.find(
+        (p) =>
+          p.id === entry.id ||
+          p.name === entry.id ||
+          p.id.replace(/^@[^/]+\//, '') === entry.id.replace(/^@[^/]+\//, '') ||
+          (p.name && p.name.replace(/^@[^/]+\//, '') === entry.id.replace(/^@[^/]+\//, '')),
+      )
       return compareWithInstalled(
         entry,
         info && typeof info.version === 'string' ? info.version : undefined,
