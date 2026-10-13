@@ -22,11 +22,15 @@ export const inject = ['settings', 'device']
 export async function apply(ctx: Context): Promise<() => void> {
   ctx.logger.info('plugin-i18n: applied')
   const fiber = await ctx.plugin(I18nPlugin)
-  // `ctx.i18n` is typed as the protocol interface; the concrete class owns
-  // the teardown the disposer needs.
-  const service = ctx.i18n as I18nPlugin
+  // `reflect.get` rather than bare `ctx.i18n`: on the outer plugin fiber,
+  // `'i18n'` is provided by the child `I18nPlugin` fiber and is not in
+  // `plugin-i18n`'s own `inject` list, so `ctx.i18n` throws `cannot get
+  // property "i18n" without inject` and causes Cordis to unload the service.
+  const service = (
+    ctx as unknown as { reflect?: { get(key: string, required: boolean): I18nPlugin | undefined } }
+  ).reflect?.get('i18n', false)
   return () => {
-    service.stop()
+    service?.stop()
     void fiber.dispose()
   }
 }

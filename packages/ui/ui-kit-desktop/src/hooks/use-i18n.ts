@@ -29,17 +29,26 @@ export function useI18n(ctx: Context): UseI18nResult {
   // property access for a service it does not provide, and the hook's whole
   // point is to degrade quietly when the i18n plugin is absent.
   const [locale, setLocale] = useState(() => serviceOf<I18nService>(ctx, 'i18n')?.locale ?? 'en')
+  const [ready, setReady] = useState(() => serviceOf<I18nService>(ctx, 'i18n') !== undefined)
 
   useEffect(() => {
-    const i18n = serviceOf<I18nService>(ctx, 'i18n')
-    if (!i18n) return
-    setLocale(i18n.locale)
-    return i18n.onLocaleChange((next) => setLocale(next))
+    const attach = (i18n: I18nService) => {
+      setReady(true)
+      setLocale(i18n.locale)
+      return i18n.onLocaleChange((next) => setLocale(next))
+    }
+    const existing = serviceOf<I18nService>(ctx, 'i18n')
+    if (existing) return attach(existing)
+    if (typeof (ctx as { inject?: unknown }).inject === 'function') {
+      const fiber = ctx.inject(['i18n'], (scoped) => attach(scoped.i18n))
+      return () => void fiber.dispose()
+    }
+    return undefined
   }, [ctx])
 
   const t = useCallback<I18nService['t']>(
     (key, params) => serviceOf<I18nService>(ctx, 'i18n')?.t(key, params) ?? key,
-    [ctx, locale],
+    [ctx, locale, ready],
   )
 
   return { locale, t }

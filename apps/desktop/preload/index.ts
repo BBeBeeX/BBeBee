@@ -238,8 +238,14 @@ contextBridge.exposeInMainWorld('BBeBeeBridge', {
    * context: CORS applies, and `Cookie`/`User-Agent`/`Range` cannot be set.
    * Neither is true of a music server's expectations (docs/02 §2).
    */
-  httpOpen: (request: unknown) => ipcRenderer.invoke(CH.httpOpen, request),
-  httpPull: (handle: number) => ipcRenderer.invoke(CH.httpPull, handle),
+  httpOpen: async (request: unknown) => {
+    const res = await ipcRenderer.invoke(CH.httpOpen, request)
+    return unwrapBridgeResult(res)
+  },
+  httpPull: async (handle: number) => {
+    const res = await ipcRenderer.invoke(CH.httpPull, handle)
+    return unwrapBridgeResult(res)
+  },
   httpClose: (handle: number) => ipcRenderer.invoke(CH.httpClose, handle),
   txBegin: () => ipcRenderer.invoke(CH.txBegin),
   txEnd: (token: string, commit: boolean) => ipcRenderer.invoke(CH.txEnd, token, commit),

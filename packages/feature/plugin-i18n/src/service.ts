@@ -163,6 +163,7 @@ export class I18nPlugin extends Service implements I18nService {
       this.applyLanguage(settings.language)
     })
     this.applyLanguage(this.ctx.settings.getSync().language)
+    this.ctx.effect(() => () => this.stop(), 'i18n-stop')
   }
 
   /**

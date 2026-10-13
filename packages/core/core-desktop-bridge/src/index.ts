@@ -36,7 +36,13 @@ import type {
   WellKnownDir,
   WriteOptions,
 } from '@BBeBee/protocol'
-import { requireBridge, unwrapBridgeResult, type BridgeApi, type BridgeHttpRequest } from './protocol.js'
+import {
+  requireBridge,
+  unwrapBridgeResult,
+  type BridgeApi,
+  type BridgeHttpHead,
+  type BridgeHttpRequest,
+} from './protocol.js'
 
 export * from './protocol.js'
 
@@ -473,7 +479,7 @@ export function bridgeFetch(bridge: BridgeApi = requireBridge()): typeof fetch |
       ...(redirect ? { redirect } : {}),
     }
 
-    const head = await open(wire)
+    const head = unwrapBridgeResult<BridgeHttpHead>(await open(wire))
 
     /*
      * Abort has to reach `main`, not just this side.
@@ -494,7 +500,7 @@ export function bridgeFetch(bridge: BridgeApi = requireBridge()): typeof fetch |
       ? new ReadableStream<Uint8Array>({
           async pull(controller) {
             try {
-              const chunk = await pull(head.handle)
+              const chunk = unwrapBridgeResult<Uint8Array | null>(await pull(head.handle))
               if (chunk === null) {
                 controller.close()
                 return

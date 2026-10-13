@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest'
 import { Context, Service } from 'cordis'
 import { DEFAULT_APP_SETTINGS, type AppSettings } from '@BBeBee/protocol'
 
-import { apply } from './index.js'
+import pluginI18n from './index.js'
 import { flattenCatalogue, negotiateLocale } from './service.js'
 
 /* ── Stubs ──────────────────────────────────────────────────────────────── */
@@ -78,9 +78,9 @@ async function harness(language: AppSettings['language'], deviceLocale = 'en'): 
 
   await root.plugin(SettingsStub)
   await root.plugin(DeviceStub)
-  // The stubs carry their state already — `apply` starts the i18n service,
-  // whose init reads both.
-  const disposer = await apply(root)
+  // Load through `root.plugin(pluginI18n)` (matching `loadPlugins`) so the
+  // outer plugin runs in a real fiber context with its declared `inject`.
+  const fiber = await root.plugin(pluginI18n)
   const scoped = await new Promise<Context>((resolve) => {
     root.inject(['i18n'], (s) => resolve(s))
   })
@@ -101,7 +101,7 @@ async function harness(language: AppSettings['language'], deviceLocale = 'en'): 
     settings: settingsService,
     warns,
     unload: async () => {
-      disposer()
+      await fiber.dispose()
       await new Promise((resolve) => setTimeout(resolve, 0))
     },
   }

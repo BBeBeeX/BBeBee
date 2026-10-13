@@ -662,6 +662,12 @@ export async function createHost(ipc: IpcHost, options: HostOptions = {}): Promi
         // precisely the isolation docs/06 §5.1 promises.
         credentials: 'omit',
       })
+    } catch (error) {
+      return {
+        __bbebee_bridge__: true,
+        ok: false,
+        error: serializeBridgeError(error),
+      } as unknown as BridgeHttpHead
     } finally {
       if (timer) clearTimeout(timer)
     }
@@ -709,12 +715,21 @@ export async function createHost(ipc: IpcHost, options: HostOptions = {}): Promi
       requests.delete(handle)
       return null
     }
-    const { done, value } = await open.reader.read()
-    if (done) {
+    try {
+      const { done, value } = await open.reader.read()
+      if (done) {
+        requests.delete(handle)
+        return null
+      }
+      return value
+    } catch (error) {
       requests.delete(handle)
-      return null
+      return {
+        __bbebee_bridge__: true,
+        ok: false,
+        error: serializeBridgeError(error),
+      }
     }
-    return value
   })
 
   ipc.handle(CH.httpClose, async (_event, ...rest) => {
