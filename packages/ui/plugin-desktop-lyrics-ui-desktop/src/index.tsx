@@ -13,7 +13,7 @@ import { DESKTOP_LYRICS_VIEWS } from '@BBeBee/plugin-desktop-lyrics/views'
 export { DesktopLyrics, type DesktopLyricsProps, DesktopLyricsSettingsCard, DesktopLyricsToggle }
 
 export const name = 'plugin-desktop-lyrics-ui-desktop'
-export const inject = ['ui', 'desktopLyrics', 'lyrics', 'player']
+export const inject = ['ui', 'desktopLyrics']
 
 function bound<P extends { ctx: Context }>(
   ctx: Context,

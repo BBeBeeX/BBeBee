@@ -80,6 +80,6 @@ export function DesktopLyricsToggle({ ctx }: { ctx: Context }): ReactElement {
         e.currentTarget.style.transform = 'scale(1)'
       },
     },
-    'Ly',
+    t('nowPlaying:desktopLyricsToggle.lyrics') || 'Ly',
   )
 }

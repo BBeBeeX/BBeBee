@@ -19,9 +19,15 @@ interface RouteSpec {
   fail?: Record<string, Error>
 }
 
-function makeRecordingHttp(spec: RouteSpec = {}): { service: HttpService; calls: string[] } {
+function makeRecordingHttp(spec: RouteSpec = {}): {
+  service: HttpService
+  calls: string[]
+  requests: { url: string; timeoutMs?: number }[]
+} {
   const calls: string[] = []
-  const service = (async (req: { url: string }) => {
+  const requests: { url: string; timeoutMs?: number }[] = []
+  const service = (async (req: { url: string; timeoutMs?: number }) => {
+    requests.push({ url: req.url, timeoutMs: req.timeoutMs })
     const url = req.url
     calls.push(url)
     const failure = spec.fail?.[url]
@@ -39,7 +45,7 @@ function makeRecordingHttp(spec: RouteSpec = {}): { service: HttpService; calls:
       stream: () => new ReadableStream<Uint8Array>(),
     } satisfies HttpResponse
   }) as unknown as HttpService
-  return { service, calls }
+  return { service, calls, requests }
 }
 
 function makeFetch(
@@ -47,14 +53,14 @@ function makeFetch(
   prefixes: readonly string[] = [],
   region: 'global' | 'mainland-china' = 'global',
 ) {
-  const { service, calls } = makeRecordingHttp(spec)
+  const { service, calls, requests } = makeRecordingHttp(spec)
   const logger = { info: vi.fn(), warn: vi.fn() }
   const layer = createGitHubFetch({
     http: service,
     logger,
     getSettings: () => ({ downloadRegion: region, githubAccelerationPrefixes: prefixes }),
   })
-  return { layer, calls, logger }
+  return { layer, calls, requests, logger }
 }
 
 const RAW_PINNED = 'https://raw.githubusercontent.com/alice/my-source/abc123/index.json'
@@ -243,5 +249,47 @@ describe('github-fetch failover', () => {
     expect(response.status).toBe(200)
     await expect(response.text()).resolves.toBe(JSON.stringify({ hello: 'world' }))
     await expect(response.bytes()).resolves.toBeInstanceOf(Uint8Array)
+  })
+
+  it('applies a 3s fast timeout to the official candidate when alternatives exist', async () => {
+    const { layer, requests } = makeFetch({ json: { [RAW_PINNED]: { ok: true } } })
+    await layer.getJson(RAW_PINNED)
+    expect(requests[0]?.timeoutMs).toBe(3000)
+  })
+
+  it('skips the official candidate immediately on subsequent requests after a connection failure', async () => {
+    const RAW_PINNED_2 = 'https://raw.githubusercontent.com/alice/my-source/abc123/second.json'
+    const RAW_JSDELIVR_2 = 'https://cdn.jsdelivr.net/gh/alice/my-source@abc123/second.json'
+    const { layer, calls } = makeFetch({
+      fail: { [RAW_PINNED]: new Error('net::ERR_CONNECTION_RESET') },
+      json: {
+        [RAW_JSDELIVR]: { file: 1 },
+        [RAW_JSDELIVR_2]: { file: 2 },
+      },
+    })
+
+    // First request: official fails on connection reset, falls back to jsdelivr
+    await expect(layer.getJson(RAW_PINNED)).resolves.toEqual({ file: 1 })
+    expect(calls).toEqual([RAW_PINNED, RAW_JSDELIVR])
+    expect(layer.isOfficialReachable?.()).toBe(false)
+
+    // Second request: skips official directly and fetches jsdelivr with zero delay
+    calls.length = 0
+    await expect(layer.getJson(RAW_PINNED_2)).resolves.toEqual({ file: 2 })
+    expect(calls).toEqual([RAW_JSDELIVR_2])
+  })
+
+  it('checkOfficialReachability probes connectivity and updates cache', async () => {
+    const PROBE = 'https://raw.githubusercontent.com/test/probe'
+    const { layer } = makeFetch({
+      fail: { [PROBE]: new Error('net::ERR_CONNECTION_RESET') },
+    })
+
+    const reachable = await layer.checkOfficialReachability?.(PROBE)
+    expect(reachable).toBe(false)
+    expect(layer.isOfficialReachable?.()).toBe(false)
+
+    layer.resetReachability?.()
+    expect(layer.isOfficialReachable?.()).toBeUndefined()
   })
 })

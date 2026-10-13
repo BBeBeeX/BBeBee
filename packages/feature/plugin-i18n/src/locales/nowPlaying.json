@@ -2,6 +2,7 @@
   "en": {
     "desktopLyricsToggle": {
       "hideDesktopLyrics": "Hide desktop lyrics",
+      "lyrics": "Ly",
       "showDesktopLyrics": "Show desktop lyrics"
     },
     "index": {
@@ -44,6 +45,7 @@
     },
     "nowPlayingStyles": {
       "addToFavorites": "Add to Favorites",
+      "builtinBadge": "Built-in",
       "byAuthor": "by {author}",
       "byAuthorVersion": "by {author} · v{version}",
       "chooseJsonFile": "Choose a JSON file",
@@ -73,6 +75,16 @@
       "sandboxedBadge": "Sandbox 🛡️",
       "sectionSubtitle": "Choose the full-screen now-playing layout — built-in styles plus dynamically imported third-party sandbox template plugins",
       "sectionTitle": "Now Playing Layout Styles",
+      "styleCinematicDesc": "16:9 cinematic aesthetic with dynamic waveform",
+      "styleCinematicName": "Cinematic Lyrics",
+      "styleClassicDesc": "Centred artwork, classic layout",
+      "styleClassicName": "Classic",
+      "styleCompactDesc": "Artwork and info side by side",
+      "styleCompactName": "Side-by-side",
+      "styleFullCoverDesc": "Full-screen blurred artwork background",
+      "styleFullCoverName": "Immersive Cover",
+      "styleVinylDesc": "Spinning vinyl record style",
+      "styleVinylName": "Vinyl",
       "stylesLoadedInUse": "{count} style templates loaded · In use: {name}",
       "userImportedTemplateDescription": "User-imported sandboxed now-playing template"
     },
@@ -126,6 +138,7 @@
   "zh": {
     "desktopLyricsToggle": {
       "hideDesktopLyrics": "隐藏桌面歌词",
+      "lyrics": "词",
       "showDesktopLyrics": "显示桌面歌词"
     },
     "index": {
@@ -168,6 +181,7 @@
     },
     "nowPlayingStyles": {
       "addToFavorites": "添加到收藏",
+      "builtinBadge": "内置",
       "byAuthor": "作者 {author}",
       "byAuthorVersion": "作者 {author} · v{version}",
       "chooseJsonFile": "选择 JSON 文件",
@@ -197,6 +211,16 @@
       "sandboxedBadge": "沙盒 🛡️",
       "sectionSubtitle": "选择全屏正在播放布局——内置样式加上动态导入的第三方沙盒模板插件",
       "sectionTitle": "正在播放布局样式",
+      "styleCinematicDesc": "16:9 电影美学与动态声波",
+      "styleCinematicName": "电影感歌词",
+      "styleClassicDesc": "居中封面，经典布局",
+      "styleClassicName": "经典",
+      "styleCompactDesc": "封面与歌曲信息左右排列",
+      "styleCompactName": "左右并排",
+      "styleFullCoverDesc": "全屏模糊背景封面",
+      "styleFullCoverName": "沉浸封面",
+      "styleVinylDesc": "黑胶唱机旋转效果",
+      "styleVinylName": "黑胶唱片",
       "stylesLoadedInUse": "已加载 {count} 个样式模板 · 使用中：{name}",
       "userImportedTemplateDescription": "用户导入的沙盒正在播放模板"
     },

@@ -14,6 +14,7 @@ import { NOW_PLAYING_STYLES } from '@BBeBee/protocol'
 import { serviceOf, shallowArrayEqual, useServiceState } from '@BBeBee/ui-core'
 import { Text, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
+import { getLocalizedStyleName, getLocalizedStyleDescription } from './NowPlayingStylesSection.js'
 
 export interface StyleSwitcherProps {
   ctx: Context
@@ -168,8 +169,8 @@ export function StyleSwitcher({ ctx, styleId, onStyleChange }: StyleSwitcherProp
               h(
                 'div',
                 { style: { display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 } },
-                h(Text, { variant: 'sm', children: s.name }),
-                h(Text, { variant: 'xs', tone: 'muted', children: s.description }),
+                h(Text, { variant: 'sm', children: getLocalizedStyleName(t, s) }),
+                h(Text, { variant: 'xs', tone: 'muted', children: getLocalizedStyleDescription(t, s) }),
               ),
             )
           }),

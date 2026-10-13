@@ -10,6 +10,28 @@ interface SettingsWriter {
   update(patch: Partial<AppSettings>): Promise<unknown>
 }
 
+export function getLocalizedStyleName(t: (key: string) => string, s: { id: string; name: string }): string {
+  switch (s.id) {
+    case 'classic': return t('nowPlaying:nowPlayingStyles.styleClassicName')
+    case 'full-cover': return t('nowPlaying:nowPlayingStyles.styleFullCoverName')
+    case 'vinyl': return t('nowPlaying:nowPlayingStyles.styleVinylName')
+    case 'compact': return t('nowPlaying:nowPlayingStyles.styleCompactName')
+    case 'cinematic': return t('nowPlaying:nowPlayingStyles.styleCinematicName')
+    default: return s.name
+  }
+}
+
+export function getLocalizedStyleDescription(t: (key: string) => string, s: { id: string; description: string }): string {
+  switch (s.id) {
+    case 'classic': return t('nowPlaying:nowPlayingStyles.styleClassicDesc')
+    case 'full-cover': return t('nowPlaying:nowPlayingStyles.styleFullCoverDesc')
+    case 'vinyl': return t('nowPlaying:nowPlayingStyles.styleVinylDesc')
+    case 'compact': return t('nowPlaying:nowPlayingStyles.styleCompactDesc')
+    case 'cinematic': return t('nowPlaying:nowPlayingStyles.styleCinematicDesc')
+    default: return s.description
+  }
+}
+
 const buildSamplePluginManifest = (t: I18nService['t']): string =>
   JSON.stringify(
     {
@@ -486,7 +508,11 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
           h(
             'div',
             { style: { fontSize: 12, color: 'var(--text-secondary, #8E8E93)', lineHeight: 1.45 } },
-            t('nowPlaying:nowPlayingStyles.stylesLoadedInUse', { count: styles.length, name: styles.find((s) => s.id === currentStyleId)?.name ?? currentStyleId }),
+            (() => {
+              const activeStyle = styles.find((s) => s.id === currentStyleId)
+              const activeName = activeStyle ? getLocalizedStyleName(t, activeStyle) : currentStyleId
+              return t('nowPlaying:nowPlayingStyles.stylesLoadedInUse', { count: styles.length, name: activeName })
+            })(),
           ),
         ),
         h(
@@ -636,7 +662,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                           color: 'var(--text-secondary, #8E8E93)',
                         },
                       },
-                      'Built-in',
+                      t('nowPlaying:nowPlayingStyles.builtinBadge'),
                     ),
                 isSelected
                   ? h(
@@ -705,7 +731,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                     marginBottom: 4,
                   },
                 },
-                s.name,
+                getLocalizedStyleName(t, s),
               ),
               h(
                 'div',
@@ -716,7 +742,7 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
                     lineHeight: 1.45,
                   },
                 },
-                s.description,
+                getLocalizedStyleDescription(t, s),
               ),
             ),
             // Card Footer: Author/Version metadata

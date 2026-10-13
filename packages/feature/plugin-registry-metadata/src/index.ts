@@ -177,7 +177,7 @@ export class RegistryMetadataPlugin extends Service implements RegistryMetadataS
   }
 
   private async fetchJson<T>(url: string): Promise<T> {
-    const response = await this.http({ url, method: 'GET', headers: { Accept: GITHUB_ACCEPT } })
+    const response = await this.http({ url, method: 'GET', headers: { Accept: GITHUB_ACCEPT }, timeoutMs: 3_000 })
     if (response.status === 403 || response.status === 429) {
       // GitHub answers 403 (primary) or 429 when rate limited; back off
       // locally either way, so a blocked caller stops hammering the API.

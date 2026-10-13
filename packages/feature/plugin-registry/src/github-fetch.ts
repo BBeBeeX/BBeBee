@@ -66,6 +66,8 @@ export interface GitHubChainFailure {
   error: string
 }
 
+export const DEFAULT_PROBE_URL = 'https://raw.githubusercontent.com/BBeBeeX/B_Be_Bee-registry/main/README.md'
+
 export interface GitHubFetchLayer {
   /** Fetch JSON, walking the candidate chain on failure. */
   getJson<T = unknown>(url: string, opts?: GitHubFetchOptions): Promise<T>
@@ -77,6 +79,12 @@ export interface GitHubFetchLayer {
    * A lightweight status record — diagnostics read it, nothing else.
    */
   lastChainFailure?(): GitHubChainFailure | undefined
+  /** Test direct connectivity to official GitHub with short timeout. */
+  checkOfficialReachability?(probeUrl?: string): Promise<boolean>
+  /** Synchronous check of cached official reachability status. */
+  isOfficialReachable?(): boolean | undefined
+  /** Reset reachability cache. */
+  resetReachability?(): void
 }
 
 export interface GitHubCandidate {
@@ -174,11 +182,62 @@ function statusFailure(status: number, url: string): Error {
   return new Error(`registry: download failed with status ${status} for ${url}`)
 }
 
+function isConnectionFailure(err: unknown): boolean {
+  if (!err) return false
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase()
+  return (
+    msg.includes('err_connection_') ||
+    msg.includes('net::') ||
+    msg.includes('etimedout') ||
+    msg.includes('econnreset') ||
+    msg.includes('econnrefused') ||
+    msg.includes('enotfound') ||
+    msg.includes('timeout') ||
+    msg.includes('timed out') ||
+    msg.includes('abort') ||
+    msg.includes('network') ||
+    msg.includes('failed to fetch')
+  )
+}
+
 export function createGitHubFetch(deps: GitHubFetchDeps): GitHubFetchLayer {
   const { http, logger } = deps
 
   /** The last request whose whole candidate chain failed. Never cleared by the layer itself. */
   let lastChainFailure: GitHubChainFailure | undefined
+
+  let officialReachable: boolean | undefined
+  let officialCheckedAt = 0
+  const REACHABILITY_TTL_MS = 5 * 60 * 1000 // 5 minutes
+
+  async function checkOfficialReachability(probeUrl = DEFAULT_PROBE_URL): Promise<boolean> {
+    if (officialReachable !== undefined && Date.now() - officialCheckedAt < REACHABILITY_TTL_MS) {
+      return officialReachable
+    }
+    try {
+      const res = await http({ url: probeUrl, method: 'GET', timeoutMs: 3_000 })
+      if (res.status < 400) {
+        officialReachable = true
+        officialCheckedAt = Date.now()
+        logger.info(`[github-fetch] probe succeeded for ${probeUrl}, direct GitHub connectivity available`)
+        return true
+      }
+      // An HTTP response means network is reachable, even if 404
+      officialReachable = true
+      officialCheckedAt = Date.now()
+      return true
+    } catch (err) {
+      if (isConnectionFailure(err)) {
+        officialReachable = false
+        officialCheckedAt = Date.now()
+        logger.warn(
+          `[github-fetch] probe failed (${describeFailure(err)}), direct GitHub connectivity unavailable, falling back to GitHub acceleration`,
+        )
+        return false
+      }
+      return false
+    }
+  }
 
   async function request(url: string, opts: GitHubFetchOptions = {}): Promise<HttpResponse> {
     const settings = deps.getSettings() ?? {}
@@ -188,14 +247,25 @@ export function createGitHubFetch(deps: GitHubFetchDeps): GitHubFetchLayer {
       ? [{ url, kind: 'official' as const }]
       : githubCandidates(url, prefixes)
 
+    let activeCandidates = candidates
+    const isCachedUnreachable =
+      officialReachable === false && Date.now() - officialCheckedAt < REACHABILITY_TTL_MS
+    if (isCachedUnreachable && candidates.length > 1) {
+      const accelerated = candidates.filter((c) => c.kind !== 'official')
+      if (accelerated.length > 0) {
+        activeCandidates = accelerated
+      }
+    }
+
     let lastError: unknown
-    for (let i = 0; i < candidates.length; i++) {
-      const candidate = candidates[i] as GitHubCandidate
-      const next = candidates[i + 1]
+    for (let i = 0; i < activeCandidates.length; i++) {
+      const candidate = activeCandidates[i] as GitHubCandidate
+      const next = activeCandidates[i + 1]
       let response: HttpResponse | undefined
       let failure: unknown
       try {
-        response = await http({ url: candidate.url, method: 'GET' })
+        const timeoutMs = candidate.kind === 'official' && activeCandidates.length > 1 ? 3_000 : undefined
+        response = await http({ url: candidate.url, method: 'GET', ...(timeoutMs ? { timeoutMs } : {}) })
         if (response.status >= 400) {
           failure = statusFailure(response.status, candidate.url)
           response = undefined
@@ -205,12 +275,21 @@ export function createGitHubFetch(deps: GitHubFetchDeps): GitHubFetchLayer {
       }
 
       if (response) {
-        if (i > 0) {
+        if (candidate.kind === 'official') {
+          officialReachable = true
+          officialCheckedAt = Date.now()
+        }
+        if (i > 0 || (isCachedUnreachable && candidate.kind !== 'official')) {
           logger.info(
             `[github-fetch] ${candidate.kind} succeeded for ${candidate.url} (region=${region})`,
           )
         }
         return response
+      }
+
+      if (candidate.kind === 'official' && isConnectionFailure(failure)) {
+        officialReachable = false
+        officialCheckedAt = Date.now()
       }
 
       lastError = failure
@@ -237,6 +316,16 @@ export function createGitHubFetch(deps: GitHubFetchDeps): GitHubFetchLayer {
     },
     lastChainFailure(): GitHubChainFailure | undefined {
       return lastChainFailure
+    },
+    checkOfficialReachability,
+    isOfficialReachable(): boolean | undefined {
+      return officialReachable !== undefined && Date.now() - officialCheckedAt < REACHABILITY_TTL_MS
+        ? officialReachable
+        : undefined
+    },
+    resetReachability(): void {
+      officialReachable = undefined
+      officialCheckedAt = 0
     },
   }
 }

@@ -47,7 +47,7 @@
       "textOpacity": "Text opacity"
     },
     "desktopLyricsToggle": {
-      "lyrics": "Lyrics",
+      "lyrics": "Ly",
       "showDesktopLyrics": "Show desktop lyrics"
     },
     "lyrics": {
@@ -115,7 +115,7 @@
       "textOpacity": "文本不透明度"
     },
     "desktopLyricsToggle": {
-      "lyrics": "歌词",
+      "lyrics": "词",
       "showDesktopLyrics": "显示桌面歌词"
     },
     "lyrics": {

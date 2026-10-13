@@ -3,6 +3,7 @@ import { createElement as h, useCallback, useEffect, useRef, useState } from 're
 import type { CSSProperties, ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {
+  I18nService,
   SettingsContribution,
   SettingsFieldDescriptor,
   SettingsFieldOption,
@@ -23,6 +24,62 @@ const noteStyle: CSSProperties = {
   lineHeight: 1.5,
   color: '#8E8E93',
   padding: '0 4px 8px',
+}
+
+function getLocalizedContributionTitle(
+  t: I18nService['t'],
+  contribution: SettingsContribution,
+): string {
+  if (contribution.title?.includes(':')) return t(contribution.title)
+  if (contribution.id === 'player.transition') {
+    if (contribution.title && contribution.title !== 'Transitions') return contribution.title
+    return t('settings:playback.transitionsTitle')
+  }
+  return contribution.title
+}
+
+function getLocalizedContributionDescription(
+  t: I18nService['t'],
+  contribution: SettingsContribution,
+): string | undefined {
+  if (contribution.description?.includes(':')) return t(contribution.description)
+  if (contribution.id === 'player.transition') return t('settings:playback.transitionsDescription')
+  return contribution.description
+}
+
+function getLocalizedFieldLabel(
+  t: I18nService['t'],
+  contributionId: string,
+  field: SettingsFieldDescriptor,
+): string {
+  if (field.label?.includes(':')) return t(field.label)
+  if (contributionId === 'player.transition') {
+    switch (field.key) {
+      case 'gaplessPlayback': return t('settings:playback.gaplessPlaybackLabel')
+      case 'crossfadeEnabled': return t('settings:playback.crossfadeEnabledLabel')
+      case 'crossfadeDurationSeconds':
+        if (field.label && field.label !== 'Crossfade duration') return field.label
+        return t('settings:playback.crossfadeDurationSecondsLabel')
+      case 'pauseOnUnplug': return t('settings:playback.pauseOnUnplugLabel')
+    }
+  }
+  return field.label
+}
+
+function getLocalizedFieldDescription(
+  t: I18nService['t'],
+  contributionId: string,
+  field: SettingsFieldDescriptor,
+): string | undefined {
+  if (field.description?.includes(':')) return t(field.description)
+  if (contributionId === 'player.transition') {
+    switch (field.key) {
+      case 'gaplessPlayback': return t('settings:playback.gaplessPlaybackDesc')
+      case 'crossfadeEnabled': return t('settings:playback.crossfadeEnabledDesc')
+      case 'pauseOnUnplug': return t('settings:playback.pauseOnUnplugDesc')
+    }
+  }
+  return field.description
 }
 
 /**
@@ -138,6 +195,9 @@ function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | n
 
   if (field.when && !field.when()) return null
 
+  const fieldLabel = getLocalizedFieldLabel(t, contribution.id, field)
+  const fieldDescription = getLocalizedFieldDescription(t, contribution.id, field)
+
   const value = values[field.key]
   const noteEls: ReactElement[] = []
   if (note) noteEls.push(h('div', { key: 'note', style: noteStyle }, note))
@@ -161,12 +221,12 @@ function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | n
     case 'switch':
       row = h(SettingsRow, {
         ctx,
-        title: field.label,
-        description: field.description,
+        title: fieldLabel,
+        description: fieldDescription,
         borderBottom: false,
         action: h(Switch, {
           checked: Boolean(value),
-          accessibilityLabel: field.label,
+          accessibilityLabel: fieldLabel,
           onChange: (checked: boolean) => void change(field.key, checked),
         }),
       })
@@ -175,13 +235,13 @@ function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | n
       const opts = options ?? []
       row = h(SettingsRow, {
         ctx,
-        title: field.label,
-        description: field.description,
+        title: fieldLabel,
+        description: fieldDescription,
         borderBottom: false,
         action: h(Select<string>, {
           value: String(value ?? ''),
           options: opts.map((o) => ({ value: String(o.value), label: o.label })),
-          accessibilityLabel: field.label,
+          accessibilityLabel: fieldLabel,
           onChange: (v: string) => {
             const match = opts.find((o) => String(o.value) === v)
             void change(field.key, match ? match.value : v)
@@ -194,8 +254,8 @@ function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | n
       const numeric = Number(value ?? field.min ?? 0)
       row = h(SettingsRow, {
         ctx,
-        title: field.label,
-        description: [field.description, `${numeric}${field.unit ?? ''}`].filter(Boolean).join(' · '),
+        title: fieldLabel,
+        description: [fieldDescription, `${numeric}${field.unit ?? ''}`].filter(Boolean).join(' · '),
         borderBottom: false,
         action: h(
           'div',
@@ -206,7 +266,7 @@ function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | n
             h(Slider, {
               value: numeric,
               max: field.max ?? 100,
-              accessibilityLabel: field.label,
+              accessibilityLabel: fieldLabel,
               onChange: (v: number) => void change(field.key, Math.round(v)),
             }),
           ),
@@ -218,27 +278,27 @@ function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | n
     case 'number':
       row = h(SettingsRow, {
         ctx,
-        title: field.label,
-        description: field.description,
+        title: fieldLabel,
+        description: fieldDescription,
         borderBottom: false,
         action: h(TextField, {
           value: value == null ? '' : String(value),
           onChange: (v: string) =>
             void change(field.key, field.type === 'number' ? Number(v) || 0 : v),
           placeholder: field.placeholder,
-          accessibilityLabel: field.label,
+          accessibilityLabel: fieldLabel,
         }),
       })
       break
     case 'color':
       row = h(SettingsRow, {
         ctx,
-        title: field.label,
-        description: field.description,
+        title: fieldLabel,
+        description: fieldDescription,
         borderBottom: false,
         action: h(ColorPicker, {
           value: String(value ?? '#FFFFFF'),
-          accessibilityLabel: field.label,
+          accessibilityLabel: fieldLabel,
           onChange: (v: string) => void change(field.key, v),
         }),
       })
@@ -247,8 +307,8 @@ function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | n
       const bridge = desktopBridge()
       row = h(SettingsRow, {
         ctx,
-        title: field.label,
-        description: value ? cleanDisplayPath(String(value)) : field.description,
+        title: fieldLabel,
+        description: value ? cleanDisplayPath(String(value)) : fieldDescription,
         borderBottom: false,
         action: bridge
           ? h(
@@ -280,8 +340,8 @@ function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | n
     case 'action':
       row = h(SettingsRow, {
         ctx,
-        title: field.label,
-        description: field.description,
+        title: fieldLabel,
+        description: fieldDescription,
         borderBottom: false,
         action: h(Button, {
           variant: 'secondary',
@@ -299,8 +359,8 @@ function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | n
         null,
         h(SettingsRow, {
           ctx,
-          title: field.label,
-          description: field.description,
+          title: fieldLabel,
+          description: fieldDescription,
           borderBottom: entries.length === 0,
         }),
         entries.map((entry, index) =>
@@ -324,8 +384,8 @@ function FieldRow({ ctx, contribution, field }: FieldRowProps): ReactElement | n
     default:
       row = h(SettingsRow, {
         ctx,
-        title: field.label,
-        description: field.description,
+        title: fieldLabel,
+        description: fieldDescription,
         borderBottom: false,
         action: h('span', { style: { fontSize: 12, color: '#8E8E93' } }, String(value ?? '')),
       })
@@ -346,13 +406,12 @@ export interface SchemaFormProps {
  */
 export function SchemaForm({ ctx, contribution }: SchemaFormProps): ReactElement {
   const { t } = useI18n(ctx)
-  const translateText = (text?: string): string | undefined => (text && text.includes(':') ? t(text) : text)
   const fields = contribution.fields ?? []
   return h(
     SettingsSection,
     {
-      title: translateText(contribution.title) ?? contribution.title,
-      description: translateText(contribution.description),
+      title: getLocalizedContributionTitle(t, contribution),
+      description: getLocalizedContributionDescription(t, contribution),
     },
     fields.map((field) => h(FieldRow, { key: field.key, ctx, contribution, field })),
   )
