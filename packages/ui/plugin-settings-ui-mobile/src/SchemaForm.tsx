@@ -21,7 +21,7 @@ interface SwitchListEntry {
 }
 
 /** Mobile toggle switch, presentation-only. */
-function SwitchRow({
+export function SwitchRow({
   checked,
   onChange,
   accessibilityLabel,

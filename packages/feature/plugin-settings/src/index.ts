@@ -26,6 +26,11 @@ function mergeSettings(base: AppSettings, patch?: Partial<AppSettings>): AppSett
         : patch.downloadRegion === 'global' || patch.downloadRegion === 'mainland-china'
           ? patch.downloadRegion
           : DEFAULT_APP_SETTINGS.downloadRegion,
+    downloadFormat: patch.downloadFormat ?? base.downloadFormat ?? DEFAULT_APP_SETTINGS.downloadFormat,
+    downloadWifiOnly:
+      patch.downloadWifiOnly !== undefined
+        ? Boolean(patch.downloadWifiOnly)
+        : (base.downloadWifiOnly ?? DEFAULT_APP_SETTINGS.downloadWifiOnly),
     // Acceleration lines are an ordered list: a patch replaces the whole
     // array (never merges element-wise), with non-string junk dropped.
     githubAccelerationPrefixes: Array.isArray(patch.githubAccelerationPrefixes)

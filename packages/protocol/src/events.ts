@@ -134,6 +134,7 @@ declare module 'cordis' {
 
     /* ── downloads ──────────────────────────────────── emit ── */
     'download/queued'(taskId: string): void
+    'download/started'(taskId: string, title: string): void
     'download/progress'(taskId: string, done: number, total?: number): void
     'download/completed'(taskId: string, bindingId: string): void
     'download/failed'(taskId: string, error: Error): void
@@ -191,6 +192,11 @@ declare module 'cordis' {
     /* ── ui ─────────────────────────────────────────── emit ── */
     'ui/changed'(): void
     'ui/navigate'(routeId: string, params?: Record<string, unknown>): void
+    'ui/toast'(toast: {
+      message: string
+      tone?: 'info' | 'ok' | 'warn' | 'error'
+      durationMs?: number
+    }): void
 
     /* ── plugins ────────────────────────────────────── emit ── */
     'plugin/loaded'(id: string): void
@@ -258,6 +264,7 @@ export const DISPATCH_MODES = {
   'source/signed-out': 'parallel',
   'http/request': 'waterfall',
   'download/queued': 'emit',
+  'download/started': 'emit',
   'download/progress': 'emit',
   'download/completed': 'emit',
   'download/failed': 'emit',
@@ -274,6 +281,7 @@ export const DISPATCH_MODES = {
   'dsp/af-changed': 'emit',
   'ui/changed': 'emit',
   'ui/navigate': 'emit',
+  'ui/toast': 'emit',
   'plugin/loaded': 'emit',
   'plugin/failed': 'emit',
   'plugin/unloaded': 'emit',

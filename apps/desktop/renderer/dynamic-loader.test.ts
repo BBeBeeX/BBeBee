@@ -4,7 +4,6 @@ import type { App, LoadedPlugin } from '@BBeBee/kernel'
 import type { PluginManifest } from '@BBeBee/protocol'
 import {
   getBuiltinPluginRegistry,
-  bundled,
   loadExternalPluginRegistry,
   installAndActivatePlugin,
   uninstallExternalPlugin,
@@ -23,7 +22,7 @@ describe('desktop dynamic-loader', () => {
 
   it('discovers workspace plugins dynamically without codegen', async () => {
     const registry = getBuiltinPluginRegistry()
-    const keys = Object.keys(registry)
+    expect(Object.keys(registry).length).toBeGreaterThan(0)
 
     // Check a representative plugin
     const playerEntry = registry['@BBeBee/plugin-player']

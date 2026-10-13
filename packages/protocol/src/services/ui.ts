@@ -228,6 +228,7 @@ export interface UiService {
   registerView(id: string, component: unknown): Disposable
 
   navigate(id: string, params?: Record<string, unknown>): void
+  toast(message: string, options?: { tone?: 'info' | 'ok' | 'warn' | 'error'; durationMs?: number }): void
 
   readonly routes: readonly RouteContribution[]
   slotsFor(slot: SlotId): readonly SlotContribution[]

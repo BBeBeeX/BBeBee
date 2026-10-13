@@ -83,12 +83,6 @@ export function DownloadsScreen({ ctx }: { ctx: Context }): ReactElement {
         onPress: () => void ctx.downloads.setPolicy({ wifiOnly: !policy.wifiOnly }),
         testID: 'downloads-wifi-only',
       }),
-      h(PolicyToggle, {
-        label: t('download:index.chargingOnly'),
-        active: policy.chargingOnly,
-        onPress: () => void ctx.downloads.setPolicy({ chargingOnly: !policy.chargingOnly }),
-        testID: 'downloads-charging-only',
-      }),
     ),
     tasks.length === 0
       ? h(EmptyState, {

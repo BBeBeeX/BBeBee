@@ -1,9 +1,10 @@
-import { Button, useI18n } from '@BBeBee/ui-kit-desktop'
+import { Button, Switch, useI18n } from '@BBeBee/ui-kit-desktop'
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { SettingsContribution } from '@BBeBee/protocol'
+import type { AppSettings, SettingsContribution } from '@BBeBee/protocol'
 import { formatBytes } from '@BBeBee/toolkit'
+import { SegmentedControl } from '../SegmentedControl.js'
 import { SettingsRow } from '../SettingsRow.js'
 import { SettingsSection } from '../SettingsSection.js'
 
@@ -15,6 +16,8 @@ export interface StorageUsage {
 
 export interface StorageSectionProps {
   ctx: Context
+  settings: AppSettings
+  update: (patch: Partial<AppSettings>) => Promise<unknown>
   currentDownloadsDir: string
   currentCacheDir: string
   usage: StorageUsage
@@ -42,6 +45,8 @@ function cleanDisplayPath(rawPath?: string): string {
 
 export function StorageSection({
   ctx,
+  settings,
+  update,
   currentDownloadsDir,
   currentCacheDir,
   usage,
@@ -85,6 +90,34 @@ export function StorageSection({
             onPress: onOpenDownloadDir,
           }),
         ),
+      }),
+      h(SettingsRow, {
+        ctx,
+        title: t('settings:storage.downloadFormat'),
+        description: t('settings:storage.downloadFormatDesc'),
+        action: h(SegmentedControl<'auto' | 'flac' | 'mp3' | 'mp4'>, {
+          value: (settings.downloadFormat as 'auto' | 'flac' | 'mp3' | 'mp4') ?? 'auto',
+          options: [
+            { value: 'auto', label: t('settings:storage.formatAuto') },
+            { value: 'flac', label: t('settings:storage.formatFlac') },
+            { value: 'mp3', label: t('settings:storage.formatMp3') },
+            { value: 'mp4', label: t('settings:storage.formatMp4') },
+          ],
+          onChange: (format) => void update({ downloadFormat: format }),
+        }),
+      }),
+      h(SettingsRow, {
+        ctx,
+        title: t('settings:storage.downloadWifiOnly'),
+        description: t('settings:storage.downloadWifiOnlyDesc'),
+        action: h(Switch, {
+          checked: settings.downloadWifiOnly ?? false,
+          accessibilityLabel: t('settings:storage.downloadWifiOnly'),
+          onChange: (checked) => {
+            void update({ downloadWifiOnly: checked })
+            void (ctx as { downloads?: { setPolicy(p: { wifiOnly?: boolean }): Promise<void> } }).downloads?.setPolicy?.({ wifiOnly: checked })
+          },
+        }),
       }),
       items.map((item) => {
         if (item.display === 'card' && ctx) {

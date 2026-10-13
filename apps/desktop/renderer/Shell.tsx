@@ -21,7 +21,7 @@ import {
 import type { Context } from 'cordis'
 import type { RouteContribution, SettingsContribution } from '@BBeBee/protocol'
 import { REGISTRY_VIEWS } from '@BBeBee/plugin-registry/views'
-import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
+import { tablerIcon, useI18n, Toast } from '@BBeBee/ui-kit-desktop'
 import { SleepTimerIndicator, TopBar, WindowControls, type ElectronCSSProperties, type TopBarProps } from './TopBar.js'
 import { importDroppedFiles } from './drop-import.js'
 
@@ -432,6 +432,28 @@ export function Shell({ ctx }: { ctx: Context }) {
     },
     [defaultEntry],
   )
+
+  const [activeToast, setActiveToast] = useState<{
+    id: number
+    message: string
+    tone?: 'info' | 'ok' | 'warn' | 'error'
+  } | null>(null)
+  useEffect(() => {
+    let nextId = 0
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const off = ctx.on('ui/toast', (toast) => {
+      const id = ++nextId
+      setActiveToast({ id, message: toast.message, tone: toast.tone })
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(() => {
+        setActiveToast((cur) => (cur?.id === id ? null : cur))
+      }, toast.durationMs ?? 3000)
+    })
+    return () => {
+      off()
+      if (timer) clearTimeout(timer)
+    }
+  }, [ctx])
 
   const canGoBack = navState.index > 0
   const canGoForward = navState.index < navState.history.length - 1
@@ -1395,6 +1417,26 @@ export function Shell({ ctx }: { ctx: Context }) {
             },
             dropMessage ?? t('app:common.shell.dropToImport'),
           ),
+        )
+      : null,
+    activeToast
+      ? h(
+          'div',
+          {
+            style: {
+              position: 'fixed',
+              top: 40,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 13000,
+              pointerEvents: 'auto',
+            },
+          },
+          h(Toast, {
+            message: activeToast.message,
+            tone: activeToast.tone,
+            onDismiss: () => setActiveToast(null),
+          }),
         )
       : null,
   )

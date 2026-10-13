@@ -39,3 +39,12 @@ export {
   type SearchablePlugin,
 } from './plugins.js'
 export { scanCode } from './security.js'
+export {
+  sanitizeFileName,
+  embedAudioTags,
+  embedMp3Tags,
+  embedFlacTags,
+  embedMp4Tags,
+  buildId3v2Tag,
+  type AudioTagMetadata,
+} from './audio-tags.js'

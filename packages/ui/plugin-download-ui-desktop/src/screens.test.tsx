@@ -252,11 +252,9 @@ describe('DownloadsScreen', () => {
     await act(async () => {
       screen.getByTestId('downloads-wifi-only').click()
       await tick()
-      screen.getByTestId('downloads-charging-only').click()
-      await tick()
     })
 
-    expect(downloads.policyCalls).toEqual([{ wifiOnly: true }, { chargingOnly: true }])
+    expect(downloads.policyCalls).toEqual([{ wifiOnly: true }])
     expect(screen.getByTestId('downloads-wifi-only').getAttribute('aria-pressed')).toBe('true')
   })
 

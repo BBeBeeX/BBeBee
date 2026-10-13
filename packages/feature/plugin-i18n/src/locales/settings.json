@@ -387,7 +387,15 @@
       "tempCacheStorageDirectories": "Temp cache & storage directories",
       "viewDetails": "View details",
       "cacheUsageDetail": "Total: {total} (artwork: {artwork} · streams: {streams})",
-      "clearAllCache": "Clear all cache"
+      "clearAllCache": "Clear all cache",
+      "downloadFormat": "Download format",
+      "downloadFormatDesc": "Preferred audio format when saving downloaded tracks",
+      "downloadWifiOnly": "Download on Wi-Fi only",
+      "downloadWifiOnlyDesc": "Pause and prevent download tasks when connected to cellular or metered data",
+      "formatAuto": "Original (Auto)",
+      "formatFlac": "FLAC (Lossless)",
+      "formatMp3": "MP3",
+      "formatMp4": "M4A / MP4"
     },
     "themePalette": {
       "background": "Background",
@@ -818,7 +826,15 @@
       "tempCacheStorageDirectories": "临时缓存与存储目录",
       "viewDetails": "查看详情",
       "cacheUsageDetail": "总计：{total}（封面：{artwork} · 流：{streams}）",
-      "clearAllCache": "清空全部缓存"
+      "clearAllCache": "清空全部缓存",
+      "downloadFormat": "下载格式",
+      "downloadFormatDesc": "保存下载音乐时首选的音频格式",
+      "downloadWifiOnly": "仅在 Wi-Fi 下下载",
+      "downloadWifiOnlyDesc": "使用移动网络或计费网络时暂停并禁止下载任务",
+      "formatAuto": "原始格式 (自动)",
+      "formatFlac": "FLAC (无损)",
+      "formatMp3": "MP3",
+      "formatMp4": "M4A / MP4"
     },
     "themePalette": {
       "background": "背景",

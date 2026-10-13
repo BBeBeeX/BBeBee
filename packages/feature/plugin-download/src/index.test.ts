@@ -635,6 +635,60 @@ describe('plugin-download', () => {
     ).toBe('m4a')
     expect(formatFor({ kind: 'remote', target: 'https://x/s', seekable: true })).toBeUndefined()
   })
+
+  it('emits download/started and ui/toast and names file as song title', async () => {
+    const h = await harness()
+    await h.ctx.db.exec(
+      `UPDATE tracks SET title = '晴天' WHERE urn = ?`,
+      [URN],
+    )
+    ;(h.ctx.sources as unknown as SourcesStub).provider = provider(async () => ({
+      kind: 'remote',
+      target: 'https://cdn.example.test/audio.mp3',
+      seekable: true,
+    }))
+
+    const toasts: { message: string; tone?: string }[] = []
+    const started: { id: string; title: string }[] = []
+    h.ctx.on('ui/toast', (t) => void toasts.push(t))
+    h.ctx.on('download/started', (id, title) => void started.push({ id, title }))
+
+    const task = (await h.ctx.downloads.enqueue([URN]))[0]!
+    await until(() => h.downloads.task(task.id)?.state === 'done')
+
+    expect(started.length).toBeGreaterThan(0)
+    expect(toasts.length).toBeGreaterThan(0)
+    expect(toasts[0]?.message).toContain('晴天')
+
+    const binding = (await h.bindings())[0]!
+    // File name is song title + format extension
+    expect(decodeURIComponent(binding.uri).endsWith('晴天.mp3')).toBe(true)
+  })
+
+  it('synchronizes wifiOnly policy with settings service', async () => {
+    const h = await harness()
+    let settingsWifiOnly = false
+    class SettingsStub extends Service {
+      constructor(c: Context) {
+        super(c, 'settings')
+      }
+      getSync() {
+        return { downloadWifiOnly: settingsWifiOnly } as never
+      }
+      async update(patch: { downloadWifiOnly?: boolean }) {
+        if (patch.downloadWifiOnly !== undefined) settingsWifiOnly = patch.downloadWifiOnly
+        return {} as never
+      }
+      onSettingsChange() {
+        return () => {}
+      }
+    }
+    await h.ctx.plugin(SettingsStub)
+    await tick()
+
+    await h.ctx.downloads.setPolicy({ wifiOnly: true })
+    expect(settingsWifiOnly).toBe(true)
+  })
 })
 
 describe('plugin-download lifecycle', () => {

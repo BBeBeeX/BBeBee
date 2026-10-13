@@ -2,7 +2,8 @@
   "en": {
     "download": {
       "downloaded": "Downloaded · {quality}",
-      "progressFor": "Progress for {title}"
+      "progressFor": "Progress for {title}",
+      "downloadStarted": "Started downloading: {title}"
     },
     "index": {
       "cached": "Cached",
@@ -36,7 +37,8 @@
   "zh": {
     "download": {
       "downloaded": "已下载 · {quality}",
-      "progressFor": "{title} 的下载进度"
+      "progressFor": "{title} 的下载进度",
+      "downloadStarted": "开始下载: {title}"
     },
     "index": {
       "cached": "已缓存",

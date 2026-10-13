@@ -45,7 +45,7 @@ import type {
   StreamQuality,
   Uri,
 } from '@BBeBee/protocol'
-import { stableId } from '@BBeBee/toolkit'
+import { embedAudioTags, sanitizeFileName, stableId } from '@BBeBee/toolkit'
 import { DOWNLOADS_VIEWS } from './views.js'
 
 export interface DownloadsConfig {
@@ -242,6 +242,19 @@ export class Downloads extends Service implements DownloadsService {
       }
     })
 
+    this.ownCtx.inject(['settings'], (scoped) => {
+      const initial = scoped.settings.getSync()
+      if (initial.downloadWifiOnly !== undefined && initial.downloadWifiOnly !== this.policyValue.wifiOnly) {
+        void this.setPolicy({ wifiOnly: initial.downloadWifiOnly })
+      }
+      const off = scoped.settings.onSettingsChange((s) => {
+        if (s.downloadWifiOnly !== undefined && s.downloadWifiOnly !== this.policyValue.wifiOnly) {
+          void this.setPolicy({ wifiOnly: s.downloadWifiOnly })
+        }
+      })
+      return () => off()
+    })
+
     // Prepended: a download hit is a local file read, and there is no reason
     // to run a network-oriented listener (failover, a future re-auth) before it.
     const offResolve = this.ownCtx.on(
@@ -295,6 +308,12 @@ export class Downloads extends Service implements DownloadsService {
         POLICY_ID,
       ],
     )
+    if (patch.wifiOnly !== undefined) {
+      const settings = this.ownCtx.get('settings')
+      if (settings) {
+        void settings.update({ downloadWifiOnly: patch.wifiOnly })
+      }
+    }
     this.ownCtx.logger.info(
       `download: policy enabled=${this.policyValue.enabled} wifiOnly=${this.policyValue.wifiOnly} chargingOnly=${this.policyValue.chargingOnly}`,
     )
@@ -320,11 +339,16 @@ export class Downloads extends Service implements DownloadsService {
       `SELECT name, enabled, quality, wifi_only, charging_only FROM download_policies WHERE id = ?`,
       [POLICY_ID],
     )
+    const settings = this.ownCtx.get('settings')
+    const settingsWifiOnly = settings?.getSync?.()?.downloadWifiOnly
+    const wifiOnly =
+      settingsWifiOnly !== undefined ? settingsWifiOnly : row ? row.wifi_only === 1 : false
+
     this.policyValue = {
       id: POLICY_ID,
       name: row?.name ?? 'Default',
       enabled: row ? row.enabled === 1 : true,
-      wifiOnly: row ? row.wifi_only === 1 : false,
+      wifiOnly,
       chargingOnly: row ? row.charging_only === 1 : false,
       quality: (row?.quality as StreamQuality | undefined) ?? this.config.quality,
     }
@@ -715,6 +739,11 @@ export class Downloads extends Service implements DownloadsService {
     this.controllers.set(id, record)
     await this.setState(id, 'running')
 
+    this.safeEmit(() => this.ownCtx.emit('download/started', id, task.title))
+    const i18n = this.ownCtx.get('i18n') as { t?(k: string, p?: Record<string, unknown>): string } | undefined
+    const toastMsg = i18n?.t?.('download:download.downloadStarted', { title: task.title }) ?? `开始下载: ${task.title}`
+    this.safeEmit(() => this.ownCtx.emit('ui/toast', { message: toastMsg, tone: 'info' }))
+
     try {
       const handle = await this.resolveFor(task)
 
@@ -724,8 +753,27 @@ export class Downloads extends Service implements DownloadsService {
         return
       }
 
-      const target = this.targetFor(id)
       await this.ownCtx.fs.mkdir(this.keptDir, { recursive: true })
+
+      const format = formatFor(handle) ?? 'mp3'
+      const safeTitle = sanitizeFileName(task.title || task.trackUrn)
+      let target = this.ownCtx.fs.join(this.keptDir, `${safeTitle}.${format}`)
+
+      // Check if target name belongs to a different track in media_bindings
+      const existing = await this.ownCtx.db
+        .get<{ track_urn: string }>('SELECT track_urn FROM media_bindings WHERE uri = ?', [target])
+        .catch(() => undefined)
+      if (existing && existing.track_urn !== task.trackUrn) {
+        const disambiguator = task.artist ? ` - ${sanitizeFileName(task.artist)}` : `_${task.id}`
+        target = this.ownCtx.fs.join(this.keptDir, `${safeTitle}${disambiguator}.${format}`)
+      }
+
+      const prevTarget = this.targetFor(id)
+      if (prevTarget !== target) {
+        this.targets.set(id, target)
+        await this.updateRow(id, { target_uri: target })
+        this.patch(id, {})
+      }
 
       /*
        * A resume is conditional on the remote file not having changed.
@@ -769,6 +817,28 @@ export class Downloads extends Service implements DownloadsService {
       if (this.byId(id)?.state !== 'running') return
 
       if (freshEtag) this.etags.set(id, freshEtag)
+
+      // Embed audio metadata tags
+      try {
+        const rawBytes = await this.ownCtx.fs.readBytes(target).catch(() => undefined)
+        if (rawBytes) {
+          const trackMeta = await this.lookupTrackMetadata(task.trackUrn)
+          const tagged = embedAudioTags(rawBytes, format, {
+            title: task.title,
+            artist: trackMeta?.artist ?? task.artist,
+            album: trackMeta?.album,
+            year: trackMeta?.year,
+            trackNo: trackMeta?.trackNo,
+            comment: 'BBeBee',
+          })
+          if (tagged !== rawBytes) {
+            await this.ownCtx.fs.writeFile(target, tagged).catch(() => undefined)
+          }
+        }
+      } catch (err) {
+        this.ownCtx.logger.warn(`download: failed to embed audio tags: ${String(err)}`)
+      }
+
       await this.finish(id, target, bytes, handle)
     } catch (error) {
       if (this.disposed || record.controller.signal.aborted) {
@@ -787,10 +857,20 @@ export class Downloads extends Service implements DownloadsService {
     const provider = this.ownCtx.sources.forUrn(task.trackUrn)
     if (!provider) throw new Error(`no source owns ${task.trackUrn}`)
     const { id } = parseUrn(task.trackUrn)
+    const settings = this.ownCtx.get('settings')
+    const preferred = settings?.getSync?.()?.downloadFormat
+    let acceptFormats: string[] = []
+    if (preferred && preferred !== 'auto') {
+      if (preferred === 'mp4') {
+        acceptFormats = ['mp4', 'm4a']
+      } else {
+        acceptFormats = [preferred]
+      }
+    }
     return provider.resolveStream(id, {
       quality: task.quality ?? this.policyValue.quality,
       saveData: false,
-      acceptFormats: [],
+      acceptFormats,
     })
   }
 
@@ -979,11 +1059,49 @@ export class Downloads extends Service implements DownloadsService {
   }
 
   private fileFor(urn: string): Uri {
-    // Extensionless deliberately: the container is recorded in the binding's
-    // `format`, and the decoder sniffs content on the buffer path. A name that
-    // changes when a re-resolve picks a different container would otherwise
-    // leave a stale file behind on every format change.
-    return this.ownCtx.fs.join(this.keptDir, bindingIdOf(urn))
+    const existing = this.list.find((t) => t.trackUrn === urn)
+    const title = existing?.title
+    const safe = title ? sanitizeFileName(title) : bindingIdOf(urn)
+    return this.ownCtx.fs.join(this.keptDir, safe)
+  }
+
+  private async lookupTrackMetadata(urn: string): Promise<{
+    title?: string
+    artist?: string
+    album?: string
+    year?: number
+    trackNo?: number
+  } | undefined> {
+    try {
+      const row = await this.ownCtx.db.get<{
+        title: string
+        year: number | null
+        track_no: number | null
+        album_title: string | null
+        artist_name: string | null
+      }>(
+        `SELECT tr.title, tr.year, tr.track_no,
+                al.title AS album_title,
+                (SELECT a.name FROM track_artists ta JOIN artists a ON a.urn = ta.artist_urn
+                  WHERE ta.track_urn = tr.urn ORDER BY ta.ordinal LIMIT 1) AS artist_name
+           FROM tracks tr
+           LEFT JOIN albums al ON al.urn = tr.album_urn
+          WHERE tr.urn = ?`,
+        [urn],
+      )
+      if (row) {
+        return {
+          title: row.title,
+          artist: row.artist_name ?? undefined,
+          album: row.album_title ?? undefined,
+          year: row.year ?? undefined,
+          trackNo: row.track_no ?? undefined,
+        }
+      }
+    } catch {
+      // Ignore query errors
+    }
+    return undefined
   }
 
   /** The partial file's actual size, which is what a resume must start from. */
@@ -1027,7 +1145,15 @@ export class Downloads extends Service implements DownloadsService {
     id: string,
     fields: Partial<
       Record<
-        'state' | 'bytes_done' | 'bytes_total' | 'etag' | 'last_error' | 'binding_id' | 'finished_at' | 'attempts',
+        | 'state'
+        | 'bytes_done'
+        | 'bytes_total'
+        | 'etag'
+        | 'last_error'
+        | 'binding_id'
+        | 'finished_at'
+        | 'attempts'
+        | 'target_uri',
         SqlValue
       >
     >,

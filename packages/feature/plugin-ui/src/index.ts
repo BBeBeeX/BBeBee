@@ -87,6 +87,11 @@ export class Ui extends Service implements UiService {
     this.ctx.emit('ui/navigate', id, params)
   }
 
+  toast(message: string, options?: { tone?: 'info' | 'ok' | 'warn' | 'error'; durationMs?: number }): void {
+    this.ctx.logger.debug(`ui: toast "${message}"`)
+    this.ctx.emit('ui/toast', { message, ...options })
+  }
+
   private of<K extends Contribution['kind'], T extends Contribution>(kind: K): T[] {
     const matches: [number, T][] = []
     for (const [key, c] of this.contributions) {

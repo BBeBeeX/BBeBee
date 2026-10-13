@@ -521,6 +521,8 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
       activeTab === 'storage'
         ? h(StorageSection, {
             ctx,
+            settings,
+            update,
             currentDownloadsDir,
             currentCacheDir,
             usage,

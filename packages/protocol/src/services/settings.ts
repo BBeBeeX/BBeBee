@@ -128,6 +128,10 @@ export interface AppSettings {
   closeToTray: boolean
   /** Custom download directory path. */
   downloadDir?: string
+  /** Preferred download audio format ('auto', 'flac', 'mp3', 'mp4'). */
+  downloadFormat?: 'auto' | 'flac' | 'mp3' | 'mp4' | (string & {})
+  /** Whether to download only when connected to Wi-Fi. */
+  downloadWifiOnly?: boolean
   /** Custom media cache directory path. */
   cacheDir?: string
   /** Audio output engine: 'wasapi' (WASAPI desktop audio with FFmpeg decoding) or 'webaudio' (WebAudio). */
@@ -259,6 +263,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   pauseOnUnplug: true,
   closeToTray: true,
   downloadDir: '',
+  downloadFormat: 'auto',
+  downloadWifiOnly: false,
   cacheDir: '',
   audioOutputEngine: 'wasapi',
   audioExclusive: false,

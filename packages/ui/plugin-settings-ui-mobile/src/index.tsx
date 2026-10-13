@@ -11,6 +11,7 @@ import { useAppSettings, useAvailableSettings, useCacheStats } from '@BBeBee/plu
 import { Button, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
 import { ContributionBlock, groupBySection } from './ContributionBlock.js'
+import { SwitchRow } from './SchemaForm.js'
 
 const p = () => palettes.dark
 
@@ -207,6 +208,46 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
     // 4. Storage Section
     renderSectionHeader(t('settings:settings.storageCache'), t('settings:mobile.localTempFiles')),
     renderCard([
+      renderRow(
+        t('settings:storage.downloadFormat'),
+        t('settings:storage.downloadFormatDesc'),
+        h(
+          native.View as never,
+          { style: { flexDirection: 'row', gap: tokens.space[1] } },
+          h(Button, {
+            variant: (settings.downloadFormat ?? 'auto') === 'auto' ? 'primary' : 'secondary',
+            onPress: () => void update({ downloadFormat: 'auto' }),
+            children: t('settings:storage.formatAuto'),
+          }),
+          h(Button, {
+            variant: settings.downloadFormat === 'flac' ? 'primary' : 'secondary',
+            onPress: () => void update({ downloadFormat: 'flac' }),
+            children: 'FLAC',
+          }),
+          h(Button, {
+            variant: settings.downloadFormat === 'mp3' ? 'primary' : 'secondary',
+            onPress: () => void update({ downloadFormat: 'mp3' }),
+            children: 'MP3',
+          }),
+          h(Button, {
+            variant: settings.downloadFormat === 'mp4' ? 'primary' : 'secondary',
+            onPress: () => void update({ downloadFormat: 'mp4' }),
+            children: 'MP4',
+          }),
+        ),
+      ),
+      renderRow(
+        t('settings:storage.downloadWifiOnly'),
+        t('settings:storage.downloadWifiOnlyDesc'),
+        h(SwitchRow, {
+          checked: settings.downloadWifiOnly ?? false,
+          accessibilityLabel: t('settings:storage.downloadWifiOnly'),
+          onChange: (checked) => {
+            void update({ downloadWifiOnly: checked })
+            void (ctx as { downloads?: { setPolicy(p: { wifiOnly?: boolean }): Promise<void> } }).downloads?.setPolicy?.({ wifiOnly: checked })
+          },
+        }),
+      ),
       renderRow(
         t('settings:storage.cacheUsage'),
         t('settings:mobile.totalArtwork', { total: formatBytes(usage.totalBytes), artwork: formatBytes(usage.artworkBytes) }),
