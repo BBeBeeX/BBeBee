@@ -19,6 +19,7 @@ import { LogsScreen } from './LogsScreen.js'
 import { HttpLogsScreen } from './HttpLogsScreen.js'
 import { ThemePaletteScreen } from './ThemePaletteScreen.js'
 import { LyricSourcesSection } from './components/sections/LyricSourcesSection.js'
+import { SourcesSection } from './components/sections/SourcesSection.js'
 
 afterEach(() => {
   cleanup()
@@ -314,6 +315,11 @@ class SettingsStub extends Service implements Partial<SettingsService> {
         ;(s as any).needsLyricSource = needed
         this.ctx.emit('source/changed', id, ['needsLyricSource'])
       }
+    }
+
+    testConnection = async (id: string) => {
+      calls.push(`sources:testConnection:${id}`)
+      return { status: 'ok' as const, latencyMs: 35 }
     }
   }
 
@@ -1443,6 +1449,46 @@ describe('SettingsScreen', () => {
     })
 
     expect(queryByTestId('lyric-source-configure-modal')).toBeNull()
+  })
+
+  it('renders SourcesSection with configured sources, tests connection, and navigates', async () => {
+    const { ctx, calls } = await harness()
+    const navigatedRoutes: string[] = []
+    const { getByTestId, findByText } = render(
+      h(SourcesSection, {
+        ctx,
+        onNavigate: (route) => navigatedRoutes.push(route),
+      }),
+    )
+
+    // Configured sources list shows mock-bili
+    expect(await findByText('Bilibili Music')).toBeTruthy()
+    expect(getByTestId('settings-source-item-mock-bili')).toBeTruthy()
+    expect(getByTestId('settings-source-auth-mock-bili')).toBeTruthy()
+    expect(getByTestId('settings-source-probe-mock-bili')).toBeTruthy()
+
+    // Test connection for mock-bili
+    await act(async () => {
+      fireEvent.click(getByTestId('settings-source-test-mock-bili'))
+    })
+    expect(calls.includes('sources:testConnection:mock-bili')).toBe(true)
+
+    // Test all button
+    await act(async () => {
+      fireEvent.click(getByTestId('settings-sources-test-all'))
+    })
+    expect(calls.filter((c) => c === 'sources:testConnection:mock-bili').length).toBe(2)
+
+    // Manage buttons trigger onNavigate
+    await act(async () => {
+      fireEvent.click(getByTestId('settings-source-manage-mock-bili'))
+    })
+    expect(navigatedRoutes).toContain('sources.settings')
+
+    await act(async () => {
+      fireEvent.click(getByTestId('settings-sources-manage-all'))
+    })
+    expect(navigatedRoutes.filter((r) => r === 'sources.settings').length).toBe(2)
   })
 })
 

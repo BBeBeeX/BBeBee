@@ -52,6 +52,8 @@ export interface RegistryEntry {
   readonly capabilities?: readonly string[]
   /** plugin entries only: free-form category slug from the registry repo (e.g. `ui-enhancement`). */
   readonly category?: string
+  /** music-source/source: user-configurable parameter keys (e.g. ['sourceurl', 'username', 'password']). */
+  readonly params?: readonly string[]
 }
 
 export interface RegistryIndex {

@@ -104,6 +104,13 @@ function compareWithInstalled(entry: RegistryEntry, installedVersion: string | u
   return { state: 'installed', installedVersion: normalizeVersion(installedVersion) }
 }
 
+/** Whether an entry allows custom-configured sourceUrl. */
+export function isCustomizableSourceUrl(entry: RegistryEntry): boolean {
+  return Boolean(
+    entry.params?.some((p) => p.toLowerCase() === 'sourceurl' || p.toLowerCase() === 'source_url'),
+  )
+}
+
 /**
  * Derive the action state of one entry against a snapshot.
  *
@@ -118,9 +125,29 @@ export function deriveRegistryActionState(
   if (!installed) return { state: 'install' }
   switch (entry.kind) {
     case 'music-source': {
-      const record = entry.sourceUrl
+      const isCustomUrl = isCustomizableSourceUrl(entry)
+      let record = entry.sourceUrl
         ? installed.musicSources.find((r) => r.sourceUrl === entry.sourceUrl)
         : undefined
+
+      if (!record && isCustomUrl) {
+        const repoStr = (entry.repoUrl ?? entry.repo)?.trim().replace(/\.git$/, '').replace(/\/+$/, '')
+        const repoMatch = repoStr?.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/([^/]+)\/([^/]+)$/)
+        const repoOwnerRepo = repoMatch ? `${repoMatch[1]}/${repoMatch[2]}`.toLowerCase() : undefined
+
+        record = installed.musicSources.find((r) => {
+          if (r.originUri) {
+            const lowerOrigin = r.originUri.toLowerCase()
+            if (repoOwnerRepo && lowerOrigin.includes(repoOwnerRepo)) return true
+            if (lowerOrigin.includes(entry.id.toLowerCase())) return true
+          }
+          if (r.name && r.name.toLowerCase() === entry.name.toLowerCase()) return true
+          if (r.doc?.sourceName && r.doc.sourceName.toLowerCase() === entry.name.toLowerCase()) return true
+          if (r.id === entry.id) return true
+          return false
+        })
+      }
+
       return compareWithInstalled(entry, record ? documentVersion(record.docJson) : undefined)
     }
     case 'lyric-source': {

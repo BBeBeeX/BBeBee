@@ -2792,6 +2792,9 @@ importers:
       '@BBeBee/plugin-settings':
         specifier: workspace:*
         version: link:../../feature/plugin-settings
+      '@BBeBee/plugin-sources':
+        specifier: workspace:*
+        version: link:../../feature/plugin-sources
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol

@@ -16,7 +16,7 @@ import { createElement as h, useEffect, useRef, useState, type CSSProperties, ty
 import type { Context } from 'cordis'
 import type { SleepTimerMode, SleepTimerService, TrayContribution } from '@BBeBee/protocol'
 import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
-import { useSearchSourceSelection, type SearchInterfaceKind } from '@BBeBee/plugin-sources/hooks'
+import { useSearchSourceSelection, useAudioSourcesStatus, type SearchInterfaceKind } from '@BBeBee/plugin-sources/hooks'
 import { useSleepTimer } from '@BBeBee/plugin-sleep-timer/hooks'
 import logoWhiteUrl from './assets/logo-white.png'
 
@@ -565,6 +565,429 @@ export function TrayIndicator({ ctx }: { ctx: Context }): ReactElement {
                   )
                 }),
               ),
+        )
+      : null,
+  )
+}
+
+export function ProfileSourcesIndicator({
+  ctx,
+  onOpenSettings,
+}: {
+  ctx: Context
+  onOpenSettings?: () => void
+}): ReactElement {
+  const { t } = useI18n(ctx)
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const { items, testConnection, testAll } = useAudioSourcesStatus(ctx)
+
+  useEffect(() => {
+    if (!open) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [open])
+
+  const connectedCount = items.filter(
+    (item) => item.enabled && (item.authStatus.state === 'authenticated' || item.ping?.status === 'ok'),
+  ).length
+
+  const hasError = items.some(
+    (i) =>
+      i.enabled &&
+      (i.ping?.status === 'network_error' ||
+        i.authStatus.state === 'expired' ||
+        i.authStatus.state === 'error'),
+  )
+  const allGood = connectedCount > 0 && !hasError
+
+  return h(
+    'div',
+    {
+      ref: containerRef,
+      style: {
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'center',
+      },
+    },
+    h(
+      'button',
+      {
+        type: 'button',
+        'aria-label': t('app:common.top.userProfile'),
+        title: open ? t('app:common.top.closeProfileMenu') : t('app:common.top.userProfile'),
+        'data-testid': 'topbar-profile-button',
+        onClick: () => setOpen((prev) => !prev),
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'relative',
+          width: 32,
+          height: 32,
+          borderRadius: '50%',
+          border: open
+            ? '1px solid var(--accent, #6366F1)'
+            : '1px solid var(--border-subtle, rgba(148, 163, 184, 0.15))',
+          background: open
+            ? 'var(--surface-selected, rgba(99, 102, 241, 0.18))'
+            : 'var(--surface-selected, rgba(99, 102, 241, 0.12))',
+          color: open ? 'var(--accent, #818CF8)' : 'var(--text-primary, #F5F7FF)',
+          cursor: 'pointer',
+          padding: 0,
+          transition: 'transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease',
+        },
+        onMouseEnter: (e: { currentTarget: HTMLElement }) => {
+          e.currentTarget.style.transform = 'scale(1.06)'
+          e.currentTarget.style.boxShadow = 'var(--glow-xs, 0 0 8px rgba(99, 102, 241, 0.3))'
+        },
+        onMouseLeave: (e: { currentTarget: HTMLElement }) => {
+          e.currentTarget.style.transform = 'scale(1)'
+          e.currentTarget.style.boxShadow = 'none'
+        },
+      },
+      tablerIcon('user', { size: 19 }),
+      h('span', {
+        'data-testid': 'topbar-profile-status-dot',
+        style: {
+          position: 'absolute',
+          bottom: 1,
+          right: 1,
+          width: 8,
+          height: 8,
+          borderRadius: '50%',
+          backgroundColor: hasError ? '#EF4444' : allGood ? '#22C55E' : '#F59E0B',
+          boxShadow: '0 0 0 2px var(--bg-app, #0D0E15)',
+        },
+      }),
+    ),
+    open
+      ? h(
+          'div',
+          {
+            'data-testid': 'topbar-profile-popover',
+            style: {
+              position: 'absolute',
+              top: 'calc(100% + 10px)',
+              right: 0,
+              minWidth: 280,
+              maxWidth: 360,
+              background: 'var(--bb-bg-overlay, var(--surface-2, rgba(18, 22, 34, 0.98)))',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: '1px solid var(--border-subtle, rgba(148, 163, 184, 0.2))',
+              borderRadius: 12,
+              boxShadow:
+                'var(--shadow-dropdown, 0 12px 32px rgba(0, 0, 0, 0.4)), 0 0 0 1px var(--border-subtle, rgba(255, 255, 255, 0.05))',
+              padding: '12px',
+              zIndex: 1000,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+            },
+          },
+          h(
+            'div',
+            {
+              style: {
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingBottom: 8,
+                borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+              },
+            },
+            h(
+              'div',
+              { style: { display: 'flex', alignItems: 'center', gap: 6 } },
+              tablerIcon('server', { size: 16, color: 'var(--color-primary, #5F87FF)' }),
+              h(
+                'span',
+                { style: { fontSize: 13, fontWeight: 700, color: 'var(--text-primary, #FFFFFF)' } },
+                t('app:common.top.audioSourcesStatus'),
+              ),
+              h(
+                'span',
+                {
+                  style: {
+                    fontSize: 10,
+                    fontWeight: 600,
+                    color: 'var(--text-secondary, #C5CAD8)',
+                    background: 'var(--surface-hover, rgba(255, 255, 255, 0.08))',
+                    padding: '1px 6px',
+                    borderRadius: 8,
+                  },
+                },
+                `${connectedCount}/${items.length}`,
+              ),
+            ),
+            h(
+              'button',
+              {
+                type: 'button',
+                'data-testid': 'topbar-profile-test-all',
+                title: t('app:common.top.testAllSources'),
+                onClick: () => void testAll(),
+                style: {
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-secondary, #C5CAD8)',
+                  cursor: 'pointer',
+                  padding: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                },
+              },
+              tablerIcon('refresh', { size: 14 }),
+            ),
+          ),
+          items.length === 0
+            ? h(
+                'div',
+                {
+                  style: {
+                    padding: '20px 8px',
+                    textAlign: 'center',
+                    fontSize: 12,
+                    color: 'var(--text-muted, rgba(255, 255, 255, 0.4))',
+                  },
+                },
+                t('app:common.top.noConfiguredSources'),
+              )
+            : h(
+                'div',
+                {
+                  style: {
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
+                    maxHeight: 280,
+                    overflowY: 'auto',
+                  },
+                },
+                ...items.map((item) => {
+                  const isAuth = item.authStatus.state === 'authenticated'
+                  const isExpired = item.authStatus.state === 'expired'
+                  const isAuthError = item.authStatus.state === 'error'
+                  const pingStatus = item.ping?.status
+
+                  let badgeBg = 'rgba(255, 255, 255, 0.05)'
+                  let badgeColor = 'var(--text-secondary, #C5CAD8)'
+                  let badgeText = t('app:common.top.sourceOffline')
+                  let dotColor = '#94A3B8'
+
+                  if (!item.enabled) {
+                    badgeText = t('app:common.top.sourceDisabled')
+                    dotColor = '#64748B'
+                  } else if (pingStatus === 'ok' || (isAuth && !pingStatus)) {
+                    badgeBg = 'rgba(34, 197, 94, 0.15)'
+                    badgeColor = '#4ADE80'
+                    dotColor = '#22C55E'
+                    badgeText = item.ping?.latencyMs
+                      ? `${item.ping.latencyMs}ms`
+                      : item.ping?.serverVersion
+                        ? `v${item.ping.serverVersion}`
+                        : t('app:common.top.sourceConnected')
+                  } else if (pingStatus === 'auth_failed' || isExpired || isAuthError) {
+                    badgeBg = 'rgba(245, 158, 11, 0.15)'
+                    badgeColor = '#FBBF24'
+                    dotColor = '#F59E0B'
+                    badgeText = t('app:common.top.sourceAuthFailed')
+                  } else if (pingStatus === 'network_error') {
+                    badgeBg = 'rgba(239, 68, 68, 0.15)'
+                    badgeColor = '#F87171'
+                    dotColor = '#EF4444'
+                    badgeText = t('app:common.top.sourceNetError')
+                  } else if (item.authFlow.kind !== 'none' && !isAuth) {
+                    badgeBg = 'rgba(245, 158, 11, 0.1)'
+                    badgeColor = '#FCD34D'
+                    dotColor = '#F59E0B'
+                    badgeText = t('app:common.top.sourceAnonymous')
+                  }
+
+                  return h(
+                    'div',
+                    {
+                      key: item.id,
+                      'data-testid': `audio-source-status-item-${item.id}`,
+                      style: {
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 10px',
+                        borderRadius: 8,
+                        background: 'var(--surface-1, rgba(255, 255, 255, 0.03))',
+                        border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.05))',
+                        gap: 8,
+                      },
+                    },
+                    h(
+                      'div',
+                      {
+                        style: {
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          minWidth: 0,
+                          flex: 1,
+                        },
+                      },
+                      h('span', {
+                        style: {
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          backgroundColor: dotColor,
+                          flexShrink: 0,
+                        },
+                      }),
+                      h(
+                        'div',
+                        {
+                          style: {
+                            display: 'flex',
+                            flexDirection: 'column',
+                            minWidth: 0,
+                            overflow: 'hidden',
+                          },
+                        },
+                        h(
+                          'span',
+                          {
+                            style: {
+                              fontSize: 12,
+                              fontWeight: 600,
+                              color: 'var(--text-primary, #FFFFFF)',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            },
+                          },
+                          item.name,
+                        ),
+                        h(
+                          'span',
+                          {
+                            style: {
+                              fontSize: 10,
+                              color: 'var(--text-tertiary, #8B92A6)',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            },
+                          },
+                          item.sourceUrl,
+                        ),
+                      ),
+                    ),
+                    h(
+                      'div',
+                      {
+                        style: {
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          flexShrink: 0,
+                        },
+                      },
+                      h(
+                        'span',
+                        {
+                          style: {
+                            fontSize: 10,
+                            fontWeight: 600,
+                            color: badgeColor,
+                            background: badgeBg,
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            whiteSpace: 'nowrap',
+                          },
+                        },
+                        badgeText,
+                      ),
+                      h(
+                        'button',
+                        {
+                          type: 'button',
+                          'data-testid': `test-source-btn-${item.id}`,
+                          title: t('app:common.top.testConnection'),
+                          disabled: item.isPinging || !item.enabled,
+                          onClick: (e: { stopPropagation: () => void }) => {
+                            e.stopPropagation()
+                            void testConnection(item.id)
+                          },
+                          style: {
+                            background: 'none',
+                            border: 'none',
+                            color: item.isPinging
+                              ? 'var(--text-tertiary, #8B92A6)'
+                              : 'var(--text-secondary, #C5CAD8)',
+                            cursor: item.isPinging ? 'wait' : 'pointer',
+                            padding: 4,
+                            display: 'flex',
+                            alignItems: 'center',
+                            borderRadius: 4,
+                            transition: 'color 0.15s ease',
+                          },
+                        },
+                        tablerIcon('refresh', { size: 13 }),
+                      ),
+                    ),
+                  )
+                }),
+              ),
+          h(
+            'div',
+            {
+              style: {
+                paddingTop: 8,
+                borderTop: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              },
+            },
+            h(
+              'button',
+              {
+                type: 'button',
+                'data-testid': 'topbar-manage-sources-btn',
+                onClick: () => {
+                  setOpen(false)
+                  onOpenSettings?.()
+                },
+                style: {
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--color-primary, #5F87FF)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: '2px 4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                },
+              },
+              tablerIcon('settings', { size: 14 }),
+              t('app:common.top.manageMusicSources'),
+            ),
+          ),
         )
       : null,
   )
@@ -1508,41 +1931,8 @@ export function TopBar({
       h(SleepTimerIndicator, { ctx }),
       // Tray Indicator (hidden while the expanded search takes the bar)
       searchExpanded ? null : h(TrayIndicator, { ctx }),
-      // Avatar (hidden while the expanded search takes the bar)
-      searchExpanded
-        ? null
-        : h(
-            'button',
-            {
-              type: 'button',
-              'aria-label': t('app:common.top.userProfile'),
-              title: t('app:common.top.profile'),
-              onClick: onOpenSettings,
-              style: {
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                border: '1px solid var(--border-subtle, rgba(148, 163, 184, 0.15))',
-                background: 'var(--surface-selected, rgba(99, 102, 241, 0.12))',
-                color: 'var(--text-primary, #F5F7FF)',
-                cursor: 'pointer',
-                padding: 0,
-                transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-              },
-              onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-                e.currentTarget.style.transform = 'scale(1.06)'
-                e.currentTarget.style.boxShadow = 'var(--glow-xs, 0 0 8px rgba(99, 102, 241, 0.3))'
-              },
-              onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-                e.currentTarget.style.transform = 'scale(1)'
-                e.currentTarget.style.boxShadow = 'none'
-              },
-            },
-            tablerIcon('user', { size: 20 }),
-          ),
+      // Profile / Audio Sources Popover (hidden while the expanded search takes the bar)
+      searchExpanded ? null : h(ProfileSourcesIndicator, { ctx, onOpenSettings }),
       // Contiguous Window Controls Group — never hidden.
       h(WindowControls, { ctx }),
     ),

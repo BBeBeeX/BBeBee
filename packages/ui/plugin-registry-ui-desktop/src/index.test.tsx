@@ -1353,6 +1353,37 @@ describe('deriveRegistryActionState / minAppVersionBlock', () => {
     expect(minAppVersionBlock(gated, undefined)).toBeUndefined()
     expect(minAppVersionBlock(INDEX.entries[0]!, '0.1.0')).toBeUndefined()
   })
+
+  it('skips strict entry.sourceUrl comparison when params declares customizable sourceurl', () => {
+    const subsonicEntry: RegistryEntry = {
+      id: 'bbebeex-subsonic',
+      kind: 'music-source',
+      name: 'Subsonic',
+      version: '1.0.0',
+      author: 'BBeBee',
+      description: 'Subsonic server',
+      repo: 'https://github.com/BBeBeeX/B_Be_Bee-subsonic',
+      params: ['sourceurl', 'username', 'password'],
+    }
+    const customRecord: SourceRecord = {
+      ...makeSourceRecord('https://my-nas.internal:4533', '1.0.0'),
+      name: 'Subsonic',
+      originUri: 'https://raw.githubusercontent.com/BBeBeeX/B_Be_Bee-subsonic/main/index.json',
+    }
+    const snapshot: InstalledContentSnapshot = {
+      ...INSTALLED,
+      musicSources: [customRecord],
+    }
+    expect(deriveRegistryActionState(subsonicEntry, snapshot)).toEqual({
+      state: 'installed',
+      installedVersion: '1.0.0',
+    })
+
+    expect(deriveRegistryActionState({ ...subsonicEntry, version: '1.1.0' }, snapshot)).toEqual({
+      state: 'update',
+      installedVersion: '1.0.0',
+    })
+  })
 })
 
 /* ── formatDateMs ────────────────────────────────────────────────────────── */

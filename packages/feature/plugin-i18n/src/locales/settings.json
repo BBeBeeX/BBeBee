@@ -362,7 +362,20 @@
       "manageMusicSources": "Manage music sources",
       "importSources": "Import sources",
       "manageFolders": "Manage folders",
-      "manage": "Manage"
+      "manage": "Manage",
+      "configuredSources": "Configured sources",
+      "testAll": "Test all",
+      "authStatus": "Auth",
+      "connectionStatus": "Connection",
+      "authenticated": "Authenticated",
+      "anonymous": "Not logged in",
+      "expired": "Session expired",
+      "connected": "Connected",
+      "authFailed": "Auth failed",
+      "networkError": "Network error",
+      "offline": "Offline",
+      "test": "Test",
+      "configure": "Configure"
     },
     "storage": {
       "cacheUsage": "Cache usage",
@@ -780,7 +793,20 @@
       "manageMusicSources": "管理音乐源",
       "importSources": "导入源",
       "manageFolders": "管理文件夹",
-      "manage": "管理"
+      "manage": "管理",
+      "configuredSources": "已配置音源",
+      "testAll": "全部测试",
+      "authStatus": "登录状态",
+      "connectionStatus": "连通状态",
+      "authenticated": "已登录",
+      "anonymous": "未登录",
+      "expired": "登录过期",
+      "connected": "连通正常",
+      "authFailed": "认证失败",
+      "networkError": "网络错误",
+      "offline": "未连接",
+      "test": "测试",
+      "configure": "配置"
     },
     "storage": {
       "cacheUsage": "缓存占用",

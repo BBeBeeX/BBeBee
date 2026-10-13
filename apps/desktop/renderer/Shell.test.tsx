@@ -752,7 +752,7 @@ describe('the desktop shell', () => {
     expect(aside.style.width).toBe('340px')
   })
 
-  it('navigates to settings.view when profile avatar is clicked', async () => {
+  it('opens profile sources popover and navigates to settings.view when manage sources is clicked', async () => {
     const { container } = await mount((ui) => {
       ui.routes = [route('home', 'Home'), route('settings.view', 'Settings Center')]
       ui.views.set('home', () => h('p', null, 'Home Screen'))
@@ -763,6 +763,13 @@ describe('the desktop shell', () => {
     expect(profileBtn).not.toBeNull()
     await act(async () => {
       profileBtn.click()
+    })
+    expect(container.querySelector('[data-testid="topbar-profile-popover"]')).not.toBeNull()
+
+    const manageBtn = container.querySelector('[data-testid="topbar-manage-sources-btn"]') as HTMLButtonElement
+    expect(manageBtn).not.toBeNull()
+    await act(async () => {
+      manageBtn.click()
     })
     expect(container.querySelector('[data-testid="settings-screen"]')).not.toBeNull()
     expect(container.textContent).toContain('Settings Center Content')

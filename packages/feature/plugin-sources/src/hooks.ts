@@ -15,8 +15,9 @@ import type {
   AggregatedSearch,
   AggregatedSearchEntry,
   Album,
-
   Artist,
+  AuthFlow,
+  AuthStatus,
   BrowseEntry,
   CatalogQuery,
   DebugStep,
@@ -1287,6 +1288,156 @@ export function useLyricSourceConfig(ctx: Context, sourceId: string | undefined)
     config,
     loading,
     saveConfig,
+    reload: () => setGeneration((g) => g + 1),
+  }
+}
+
+export interface AudioSourceStatusItem {
+  readonly record: SourceRecord
+  readonly id: string
+  readonly name: string
+  readonly sourceUrl: string
+  readonly enabled: boolean
+  readonly isLive: boolean
+  readonly authFlow: AuthFlow
+  readonly authStatus: AuthStatus
+  readonly ping?: SourcePingResult
+  readonly isPinging?: boolean
+}
+
+export interface AudioSourcesStatusState {
+  readonly items: readonly AudioSourceStatusItem[]
+  readonly testConnection: (sourceId: string) => Promise<SourcePingResult>
+  readonly testAll: () => Promise<void>
+  readonly reload: () => void
+}
+
+/**
+ * Live account login status & connectivity state for all audio sources.
+ */
+export function useAudioSourcesStatus(ctx: Context): AudioSourcesStatusState {
+  const [generation, setGeneration] = useState(0)
+  const [pingMap, setPingMap] = useState<Record<string, { result?: SourcePingResult; loading?: boolean }>>({})
+
+  const sources = useSources(ctx)
+  const liveIds = useLiveSourceIds(ctx)
+
+  useEffect(() => {
+    const offAuthChange: Array<() => void> = []
+    const sourcesSvc = serviceOf<SourcesService>(ctx, 'sources')
+    if (sourcesSvc && Array.isArray(sourcesSvc.providers)) {
+      for (const provider of sourcesSvc.providers) {
+        if (provider.auth?.onStatusChange) {
+          const unsub = provider.auth.onStatusChange(() => {
+            setGeneration((g) => g + 1)
+          })
+          offAuthChange.push(() => {
+            if (typeof unsub === 'function') (unsub as () => void)()
+            else if (unsub && typeof (unsub as { dispose?: () => void }).dispose === 'function') {
+              (unsub as { dispose: () => void }).dispose()
+            }
+          })
+        }
+      }
+    }
+    const offSourceChecked = ctx.on('source/checked', (id, report) => {
+      setPingMap((prev) => ({
+        ...prev,
+        [id]: {
+          loading: false,
+          result: {
+            status: report.ok ? 'ok' : 'network_error',
+            latencyMs: report.respondTimeMs,
+            message: report.message,
+          },
+        },
+      }))
+    })
+    return () => {
+      for (const off of offAuthChange) off()
+      offSourceChecked()
+    }
+  }, [ctx, liveIds, generation])
+
+  const testConnection = useCallback(
+    async (sourceId: string): Promise<SourcePingResult> => {
+      setPingMap((prev) => ({ ...prev, [sourceId]: { ...prev[sourceId], loading: true } }))
+      const sourcesSvc = serviceOf<SourcesService>(ctx, 'sources')
+      if (!sourcesSvc || typeof sourcesSvc.testConnection !== 'function') {
+        const res: SourcePingResult = { status: 'network_error', message: 'Sources service unavailable' }
+        setPingMap((prev) => ({ ...prev, [sourceId]: { loading: false, result: res } }))
+        return res
+      }
+      try {
+        const res = await sourcesSvc.testConnection(sourceId)
+        setPingMap((prev) => ({ ...prev, [sourceId]: { loading: false, result: res } }))
+        return res
+      } catch (err: unknown) {
+        const res: SourcePingResult = {
+          status: 'network_error',
+          message: err instanceof Error ? err.message : String(err),
+        }
+        setPingMap((prev) => ({ ...prev, [sourceId]: { loading: false, result: res } }))
+        return res
+      }
+    },
+    [ctx],
+  )
+
+  const testAll = useCallback(async (): Promise<void> => {
+    const enabledIds = sources.filter((s) => s.enabled).map((s) => s.id)
+    await Promise.all(enabledIds.map((id) => testConnection(id)))
+  }, [sources, testConnection])
+
+  const items = useMemo<readonly AudioSourceStatusItem[]>(() => {
+    const sourcesSvc = serviceOf<SourcesService>(ctx, 'sources')
+    return sources.map((record) => {
+      const provider = typeof sourcesSvc?.get === 'function' ? sourcesSvc.get(record.id) : undefined
+      const isLive = liveIds.includes(record.id)
+      const doc = record.doc ?? ({} as unknown as SourceRecord['doc'])
+      const authFlow: AuthFlow =
+        provider?.auth?.flow ??
+        (doc.loginType === 'qrcode' || doc.loginQrJs
+          ? { kind: 'qrcode' }
+          : doc.loginUi?.length
+            ? { kind: 'form', fields: doc.loginUi, submitTo: doc.loginUrl ?? '' }
+            : doc.variableComment
+              ? { kind: 'variable', comment: doc.variableComment }
+              : { kind: 'none' })
+
+      const authStatus: AuthStatus =
+        provider?.auth?.status ??
+        (authFlow.kind === 'none' ? { state: 'authenticated' } : { state: 'anonymous' })
+
+      const pingInfo = pingMap[record.id]
+      let pingResult = pingInfo?.result
+      if (!pingResult && record.lastCheckAt) {
+        pingResult = {
+          status: record.failCount > 0 ? 'network_error' : 'ok',
+          latencyMs: record.respondTimeMs,
+          message: record.lastError,
+        }
+      }
+
+      return {
+        record,
+        id: record.id,
+        name: record.name,
+        sourceUrl: record.sourceUrl,
+        enabled: record.enabled,
+        isLive,
+        authFlow,
+        authStatus,
+        ping: pingResult,
+        isPinging: pingInfo?.loading ?? false,
+      }
+    })
+  }, [sources, liveIds, pingMap, ctx, generation])
+
+  return {
+    items,
+    testConnection,
+    testAll,
     reload: () => setGeneration((g) => g + 1),
   }
 }

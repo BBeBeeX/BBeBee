@@ -185,6 +185,7 @@ function sanitizeEntry(raw: unknown, defaultKind?: RegistryEntryKind): RegistryE
     sha256: optionalString(raw.sha256),
     capabilities: optionalStringArray(raw.capabilities),
     category: optionalString(raw.category),
+    params: optionalStringArray(raw.params),
   }
 }
 
@@ -731,8 +732,19 @@ export class RegistryPlugin extends Service implements RegistryService {
     if (this.sourcesService) {
       const bySourceUrl = new Map(this.sourcesService.sources.map((record) => [record.sourceUrl, record]))
       for (const entry of index.entries) {
-        if (entry.kind !== 'music-source' || !entry.version || !entry.sourceUrl) continue
-        const record = bySourceUrl.get(entry.sourceUrl)
+        if (entry.kind !== 'music-source' || !entry.version) continue
+        const isCustomSourceUrl = Boolean(
+          entry.params?.some((p) => p.toLowerCase() === 'sourceurl' || p.toLowerCase() === 'source_url'),
+        )
+        let record = entry.sourceUrl ? bySourceUrl.get(entry.sourceUrl) : undefined
+        if (!record && isCustomSourceUrl) {
+          const repoInfo = parseGitHubRepo(entry.repoUrl ?? entry.repo)
+          record = this.sourcesService.sources.find((r) => {
+            if (repoInfo && r.originUri && r.originUri.includes(`${repoInfo.owner}/${repoInfo.repo}`)) return true
+            if (r.name === entry.name || r.doc?.sourceName === entry.name) return true
+            return false
+          })
+        }
         if (!record) continue
         const installed = documentVersion(record.docJson)
         if (compareVersions(entry.version, installed) > 0) {
