@@ -35,6 +35,7 @@ const GITHUB_ACCEPT = 'application/vnd.github+json'
 interface CachedStats {
   stars?: number
   contributors?: number
+  downloads?: number
   fetchedAt: number
 }
 
@@ -60,10 +61,12 @@ function readCachedEntry(raw: unknown): CachedStats | undefined {
   if (typeof fetchedAt !== 'number' || !Number.isFinite(fetchedAt)) return undefined
   const stars = optionalCount(raw['stars'])
   const contributors = optionalCount(raw['contributors'])
+  const downloads = optionalCount(raw['downloads'])
   return {
     fetchedAt,
     ...(stars !== undefined ? { stars } : {}),
     ...(contributors !== undefined ? { contributors } : {}),
+    ...(downloads !== undefined ? { downloads } : {}),
   }
 }
 
@@ -160,15 +163,17 @@ export class RegistryMetadataPlugin extends Service implements RegistryMetadataS
       const [urlOwner, urlRepo] = key.split('/')
       const stars = await this.fetchStarCount(urlOwner!, urlRepo!)
       const contributors = await this.fetchContributorCount(urlOwner!, urlRepo!)
+      const downloads = await this.fetchDownloadCount(urlOwner!, urlRepo!)
       const entry: CachedStats = {
         fetchedAt: Date.now(),
         ...(stars !== undefined ? { stars } : {}),
         ...(contributors !== undefined ? { contributors } : {}),
+        ...(downloads !== undefined ? { downloads } : {}),
       }
       this.cache[key] = entry
       await this.persist()
       this.ownCtx.logger.info(
-        `[registry-metadata] ${key}: ${stars ?? '?'} stars, ${contributors ?? '?'} contributors`,
+        `[registry-metadata] ${key}: ${stars ?? '?'} stars, ${downloads ?? '?'} downloads, ${contributors ?? '?'} contributors`,
       )
       return toStats(owner, repo, entry)
     } catch (err) {
@@ -205,6 +210,27 @@ export class RegistryMetadataPlugin extends Service implements RegistryMetadataS
       `${GITHUB_API}/repos/${owner}/${repo}/contributors?per_page=100`,
     )
     return Array.isArray(body) ? body.length : undefined
+  }
+
+  private async fetchDownloadCount(owner: string, repo: string): Promise<number | undefined> {
+    try {
+      const releases = await this.fetchJson<Array<{ assets?: Array<{ download_count?: unknown }> }>>(
+        `${GITHUB_API}/repos/${owner}/${repo}/releases?per_page=100`,
+      )
+      if (!Array.isArray(releases)) return undefined
+      let total = 0
+      for (const rel of releases) {
+        if (Array.isArray(rel.assets)) {
+          for (const asset of rel.assets) {
+            const count = optionalCount(asset.download_count)
+            if (count !== undefined) total += count
+          }
+        }
+      }
+      return total
+    } catch {
+      return undefined
+    }
   }
 
   /**

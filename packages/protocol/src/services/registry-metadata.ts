@@ -13,6 +13,8 @@ export interface RegistryRepoStats {
   readonly stars?: number
   /** Approximate contributor count (one page of up to 100 from `/contributors?per_page=100`). */
   readonly contributors?: number
+  /** Sum of `download_count` from all release assets (`GET /repos/{owner}/{repo}/releases`). */
+  readonly downloads?: number
   /** Epoch ms when the stats were fetched. */
   readonly fetchedAt: number
   /** True when the value came from cache past its TTL because a fresh fetch failed. */

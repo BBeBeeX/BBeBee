@@ -34,12 +34,14 @@ import { createElement as h, useCallback, useEffect, useMemo, useRef, useState }
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {
+  LyricSourceDefinition,
   PluginInfo,
   RegistryEntry,
   RegistryEntryDetails,
   RegistryEntryKind,
   RegistryIndex,
   SourceRecord,
+  ThemeDefinition,
 } from '@BBeBee/protocol'
 import { serviceOf } from '@BBeBee/toolkit/hooks'
 import { tablerIcon } from '@BBeBee/ui-kit-desktop'
@@ -74,16 +76,21 @@ interface RegistryServiceLike {
   removeLockRecord?(id: string): Promise<void>
 }
 
-/** Structural slices of the services that can remove installed content. */
+/** Structural slices of the services that manage installed content. */
 interface SourcesRemoveLike {
   readonly sources: readonly SourceRecord[]
   remove(id: string, opts?: { forgetCatalogue?: boolean }): Promise<void>
 }
-interface LyricSourcesRemoveLike {
+interface LyricSourcesLike {
+  getSources(): readonly LyricSourceDefinition[]
   removeSource(id: string): Promise<boolean>
+  setEnabled(id: string, enabled: boolean): Promise<void>
 }
-interface ThemeRemoveLike {
+interface ThemeServiceLike {
+  getThemes(): readonly ThemeDefinition[]
+  getCurrentTheme(): ThemeDefinition
   removeTheme(themeId: string): boolean
+  setTheme(themeId: string): Promise<void>
 }
 interface PluginManagerLike {
   list(): readonly PluginInfo[]
@@ -247,10 +254,18 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
   const [contentNonce, setContentNonce] = useState(0)
 
   useEffect(() => {
-    const onPluginChanged = () => setContentNonce((n) => n + 1)
-    const off = ctx.on('plugin-manager/changed', onPluginChanged)
+    const bump = () => setContentNonce((n) => n + 1)
+    const offs = [
+      ctx.on('plugin-manager/changed', bump),
+      ctx.on('lyric-sources/changed', bump),
+      ctx.on('theme/changed', bump),
+      ctx.on('theme/registry-changed', bump),
+      ctx.on('source/changed', bump),
+      ctx.on('source/imported', bump),
+      ctx.on('source/removed', bump),
+    ]
     return () => {
-      off()
+      offs.forEach((off) => off())
     }
   }, [ctx])
 
@@ -273,6 +288,30 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
     return map
   }, [ctx, contentNonce])
 
+  const lyricSourceMap = useMemo(() => {
+    const ls = serviceOf<LyricSourcesLike>(ctx, 'lyricSources')
+    const list = ls?.getSources?.() ?? []
+    const map = new Map<string, LyricSourceDefinition>()
+    for (const s of list) {
+      map.set(s.id, s)
+      if (s.id === 'builtin-lrclib') {
+        map.set('bbebeex-lrclib', s)
+      }
+    }
+    return map
+  }, [ctx, contentNonce])
+
+  const themeState = useMemo(() => {
+    const ts = serviceOf<ThemeServiceLike>(ctx, 'theme')
+    const list = ts?.getThemes?.() ?? []
+    const current = ts?.getCurrentTheme?.()
+    const map = new Map<string, ThemeDefinition>()
+    for (const t of list) {
+      map.set(t.id, t)
+    }
+    return { currentId: current?.id, map }
+  }, [ctx, contentNonce])
+
   const lockRecords = useRegistryLockRecords(ctx, true)
 
   const entries = useMemo(() => {
@@ -288,6 +327,7 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
           description: info?.description,
           author: info?.author,
           kind: 'plugin',
+          repo: record.repo,
           downloadUrl: '',
         })
         existingIds.add(id)
@@ -393,10 +433,10 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
           if (!sources || !record) throw new Error(t('registry:registry.musicSourceUninstallMatchNotFound'))
           await sources.remove(record.id)
         } else if (entry.kind === 'lyric-source') {
-          const removed = await serviceOf<LyricSourcesRemoveLike>(ctx, 'lyricSources')?.removeSource(entry.id)
+          const removed = await serviceOf<LyricSourcesLike>(ctx, 'lyricSources')?.removeSource(entry.id)
           if (!removed) throw new Error(t('registry:registry.lyricSourceUninstallGone'))
         } else if (entry.kind === 'theme') {
-          const removed = serviceOf<ThemeRemoveLike>(ctx, 'theme')?.removeTheme(entry.id)
+          const removed = serviceOf<ThemeServiceLike>(ctx, 'theme')?.removeTheme(entry.id)
           if (!removed) throw new Error(t('registry:registry.themeUninstallProtected'))
         } else if (entry.kind === 'plugin') {
           const pm = serviceOf<PluginManagerLike>(ctx, 'plugin-manager')
@@ -421,7 +461,7 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
   )
 
   /**
-   * The uninstall affordance of the installed tab, per entry.
+   * The uninstall affordance, per entry.
    */
   const uninstallFor = useCallback(
     (entry: RegistryEntry): { available: boolean; onConfirm: () => void } | undefined => {
@@ -448,10 +488,36 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
     [ctx],
   )
 
+  const handleToggleLyricSourceEnabled = useCallback(
+    async (sourceId: string, currentEnabled: boolean) => {
+      const ls = serviceOf<LyricSourcesLike>(ctx, 'lyricSources')
+      if (!ls) return
+      try {
+        await ls.setEnabled(sourceId, !currentEnabled)
+        setContentNonce((n) => n + 1)
+      } catch (err) {
+        setUninstallError(errorMessage(err))
+      }
+    },
+    [ctx],
+  )
+
+  const handleApplyTheme = useCallback(
+    async (themeId: string) => {
+      const ts = serviceOf<ThemeServiceLike>(ctx, 'theme')
+      if (!ts) return
+      try {
+        await ts.setTheme(themeId)
+        setContentNonce((n) => n + 1)
+      } catch (err) {
+        setUninstallError(errorMessage(err))
+      }
+    },
+    [ctx],
+  )
+
   // Filtered first (the pre-sort set is what the stats hook walks), then
-  // sorted. Stats are only requested when a numeric sort is active on a kind
-  // tab — a plain name-sorted view never touches the network, and the curated
-  // tabs (which hide the sort control) never do either.
+  // sorted.
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase()
     return entries.filter((entry) => {
@@ -474,13 +540,11 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
     })
   }, [entries, view, favorites, actionStates, query, officialOnly, category])
 
-  const statsEnabled = isKindView && sortBy !== 'name'
+  const statsEnabled = isKindView && (view === 'plugin' || sortBy !== 'name')
   const repoStats = useRepoMetadata(ctx, filtered, statsEnabled)
 
   const visible = useMemo(() => {
-    // The curated tabs keep the index order — there is no sort control to
-    // honor there.
-    if (!isKindView) return filtered
+    if (view === 'diagnostics') return filtered
     // Stable sort: entries with equal keys (and the no-data group) keep the
     // filtered order.
     const direction = sortDir === 'asc' ? 1 : -1
@@ -491,7 +555,9 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
       const ref = entryRepo(entry)
       if (!ref) return undefined
       const stats = repoStats.get(repoKey(ref))
-      return sortBy === 'stars' ? stats?.stars : stats?.contributors
+      if (sortBy === 'stars') return stats?.stars
+      if (sortBy === 'downloads') return stats?.downloads
+      return stats?.contributors
     }
     return [...filtered].sort((a, b) => {
       const va = valueOf(a)
@@ -503,7 +569,7 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
       if (vb === undefined) return -1
       return (va - vb) * direction
     })
-  }, [filtered, isKindView, sortBy, sortDir, repoStats])
+  }, [filtered, view, sortBy, sortDir, repoStats])
 
   // Category options come from the plugin entries themselves; unknown slugs
   // pass through `categoryLabel` verbatim, so a new slug can never crash.
@@ -535,7 +601,7 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
   }, [entries, actionStates])
 
   const statsFor = useCallback(
-    (entry: RegistryEntry): { stars?: number; contributors?: number } | undefined => {
+    (entry: RegistryEntry): { stars?: number; contributors?: number; downloads?: number } | undefined => {
       const ref = entryRepo(entry)
       if (!ref) return undefined
       return repoStats.get(repoKey(ref))
@@ -681,7 +747,8 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
       onCategoryChange: setCategory,
       categories,
       showCategoryFilter: view === 'plugin',
-      showBrowseControls: isKindView,
+      showBrowseControls: true,
+      showThirdPartyFilter: isKindView,
     }),
     // Tabs: the four kinds, then a hairline divider, then the curated views
     // and the diagnostics report.
@@ -789,6 +856,14 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
                     entry.kind === 'plugin'
                       ? pluginMap.get(entry.id) ?? pluginMap.get(entry.id.replace(/^@[^/]+\//, ''))
                       : undefined
+                  const lyricInfo = entry.kind === 'lyric-source' ? lyricSourceMap.get(entry.id) : undefined
+                  const isTheme = entry.kind === 'theme'
+                  const isPlugin = entry.kind === 'plugin'
+                  const isLyric = entry.kind === 'lyric-source'
+                  const isExtension = isPlugin || isLyric || isTheme
+
+                  const canUninstall = uninstallBase && (onInstalledTab || (isInstalled && isExtension))
+
                   return h(RegistryEntryCard, {
                     key: entry.id,
                     ctx,
@@ -799,6 +874,18 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
                     stats: statsFor(entry),
                     favorite: isFavorite(entry.id),
                     onToggleFavorite: () => toggleFavorite(entry.id),
+                    itemEnabled: isPlugin
+                      ? (pluginInfo?.enabled ?? true)
+                      : isLyric
+                        ? (lyricInfo?.enabled ?? true)
+                        : undefined,
+                    onToggleEnabled: isPlugin
+                      ? () => void handleTogglePluginEnabled(pluginInfo?.id ?? entry.id, pluginInfo?.enabled ?? true)
+                      : isLyric
+                        ? () => void handleToggleLyricSourceEnabled(lyricInfo?.id ?? entry.id, lyricInfo?.enabled ?? true)
+                        : undefined,
+                    themeActive: isTheme ? themeState.currentId === entry.id : undefined,
+                    onApplyTheme: isTheme ? () => void handleApplyTheme(entry.id) : undefined,
                     pluginEnabled: pluginInfo?.enabled ?? true,
                     onTogglePluginEnabled: () =>
                       void handleTogglePluginEnabled(pluginInfo?.id ?? entry.id, pluginInfo?.enabled ?? true),
@@ -809,13 +896,12 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
                           installedAt: lock?.installedAt,
                         }
                       : undefined,
-                    uninstall:
-                      (onInstalledTab || (entry.kind === 'plugin' && isInstalled)) && uninstallBase
-                        ? {
-                            ...uninstallBase,
-                            busy: uninstallingId === entry.id,
-                          }
-                        : undefined,
+                    uninstall: canUninstall
+                      ? {
+                          ...uninstallBase,
+                          busy: uninstallingId === entry.id,
+                        }
+                      : undefined,
                     onAction: () =>
                       void beginInstall(
                         entry,

@@ -29,9 +29,12 @@ export type RegistryActionState =
   | { readonly state: 'update'; readonly installedVersion: string }
   | { readonly state: 'installed'; readonly installedVersion: string }
 
-/** True when the installed copy is a built-in (today: the builtin- lrclib lyric source). */
+/** True when the installed copy is a built-in (today: the builtin- lrclib lyric source and default themes). */
 export function isBuiltinEntry(entry: RegistryEntry): boolean {
-  return entry.kind === 'lyric-source' && entry.id.startsWith('builtin-')
+  return (
+    (entry.kind === 'lyric-source' && (entry.id.startsWith('builtin-') || entry.id === 'bbebeex-lrclib')) ||
+    (entry.kind === 'theme' && (entry.id.startsWith('builtin-') || entry.id === 'default-dark' || entry.id === 'default-light'))
+  )
 }
 
 /**
@@ -151,18 +154,18 @@ export function deriveRegistryActionState(
       return compareWithInstalled(entry, record ? documentVersion(record.docJson) : undefined)
     }
     case 'lyric-source': {
-      const source = installed.lyricSources.find((s) => s.id === entry.id)
-      return compareWithInstalled(
-        entry,
-        source && typeof source.version === 'string' ? source.version : undefined,
+      const source = installed.lyricSources.find(
+        (s) => s.id === entry.id || (entry.id === 'bbebeex-lrclib' && s.id === 'builtin-lrclib'),
       )
+      if (!source) return { state: 'install' }
+      const installedVer = typeof source.version === 'string' ? source.version : (entry.version ?? '0.0.0')
+      return compareWithInstalled(entry, installedVer)
     }
     case 'theme': {
       const theme = installed.themes.find((t) => t.id === entry.id)
-      return compareWithInstalled(
-        entry,
-        theme && typeof theme.version === 'string' ? theme.version : undefined,
-      )
+      if (!theme) return { state: 'install' }
+      const installedVer = typeof theme.version === 'string' ? theme.version : (entry.version ?? '0.0.0')
+      return compareWithInstalled(entry, installedVer)
     }
     case 'plugin': {
       const info = installed.plugins.find(
@@ -172,10 +175,9 @@ export function deriveRegistryActionState(
           p.id.replace(/^@[^/]+\//, '') === entry.id.replace(/^@[^/]+\//, '') ||
           (p.name && p.name.replace(/^@[^/]+\//, '') === entry.id.replace(/^@[^/]+\//, '')),
       )
-      return compareWithInstalled(
-        entry,
-        info && typeof info.version === 'string' ? info.version : undefined,
-      )
+      if (!info) return { state: 'install' }
+      const installedVer = typeof info.version === 'string' ? info.version : (entry.version ?? '0.0.0')
+      return compareWithInstalled(entry, installedVer)
     }
   }
 }

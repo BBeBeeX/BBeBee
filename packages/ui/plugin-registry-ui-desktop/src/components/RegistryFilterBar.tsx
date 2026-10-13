@@ -21,7 +21,7 @@ import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { PILL_BASE, tabPill } from '../styles.js'
 
 /** What the list can be ordered by. */
-export type RegistrySortKey = 'name' | 'stars' | 'contributors'
+export type RegistrySortKey = 'name' | 'stars' | 'downloads' | 'contributors'
 /** `asc` reads top-down; numeric keys default to biggest-first. */
 export type RegistrySortDir = 'asc' | 'desc'
 
@@ -29,6 +29,7 @@ export type RegistrySortDir = 'asc' | 'desc'
 export const DEFAULT_SORT_DIR: Record<RegistrySortKey, RegistrySortDir> = {
   name: 'asc',
   stars: 'desc',
+  downloads: 'desc',
   contributors: 'desc',
 }
 
@@ -178,6 +179,8 @@ export interface RegistryFilterBarProps {
   /** Distinct category slugs of the current plugin entries, display-ready order. */
   categories: readonly string[]
   showCategoryFilter: boolean
+  /** Whether the third-party toggle renders. Defaults to true when showBrowseControls is true. */
+  showThirdPartyFilter?: boolean
   /**
    * Whether the browsing controls (third-party toggle, sort key, sort
    * direction) render at all. The favorites and installed tabs pass `false`:
@@ -201,9 +204,11 @@ export function RegistryFilterBar({
   onCategoryChange,
   categories,
   showCategoryFilter,
+  showThirdPartyFilter,
   showBrowseControls = true,
 }: RegistryFilterBarProps): ReactElement {
   const { t } = useI18n(ctx)
+  const renderThirdParty = (showThirdPartyFilter ?? true) && showBrowseControls
   return h(
     'div',
     { style: barStyle, 'data-testid': 'registry-filter-bar' },
@@ -227,7 +232,7 @@ export function RegistryFilterBar({
           'div',
           { style: controlGroupStyle },
           // The toggle reads as its checked state: ON means third-party content shows.
-          showBrowseControls
+          renderThirdParty
             ? h(
                 'button',
                 {
@@ -252,6 +257,7 @@ export function RegistryFilterBar({
                   options: [
                     { value: 'name', label: t('registry:filter.sortByName') },
                     { value: 'stars', label: t('registry:filter.sortByStars') },
+                    { value: 'downloads', label: t('registry:filter.sortByDownloads') },
                     { value: 'contributors', label: t('registry:filter.sortByContributors') },
                   ],
                   onChange: onSortByChange,

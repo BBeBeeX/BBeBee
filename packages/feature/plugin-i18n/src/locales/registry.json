@@ -10,6 +10,7 @@
       "showThirdPartyHint": "When off, only official entries published by the BBeBeeX organization are shown",
       "sortBy": "Sort by",
       "sortByContributors": "By contributors",
+      "sortByDownloads": "By downloads",
       "sortByName": "By name",
       "sortByStars": "By stars",
       "toggleSortDirection": "Toggle ascending / descending"
@@ -119,6 +120,7 @@
       "removeFromFavorites": "Remove from favorites",
       "requiresAppVersion": "Requires app version ≥ {version}",
       "stars": "Stars",
+      "downloads": "Downloads",
       "uninstall": "Uninstall",
       "uninstallFromPluginManagement": "Uninstall it from plugin management / settings",
       "uninstallTheInstalledContent": "Uninstall the installed content",
@@ -172,6 +174,7 @@
       "showThirdPartyHint": "关闭后仅显示 BBeBeeX 组织发布的官方条目",
       "sortBy": "排序方式",
       "sortByContributors": "按贡献者",
+      "sortByDownloads": "按下载量",
       "sortByName": "按名称",
       "sortByStars": "按星标",
       "toggleSortDirection": "切换升序 / 降序"
@@ -281,6 +284,7 @@
       "removeFromFavorites": "从收藏中移除",
       "requiresAppVersion": "需要应用版本 ≥ {version}",
       "stars": "星标",
+      "downloads": "下载量",
       "uninstall": "卸载",
       "uninstallFromPluginManagement": "请在插件管理 / 设置中卸载",
       "uninstallTheInstalledContent": "卸载已安装的内容",

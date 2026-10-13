@@ -226,7 +226,7 @@ interface RegistryStubOptions {
   commit?: string
   commitDiff?: { previousCommit?: string; currentCommit: string }
   /** `'owner/repo'` (as parsed from the entry) → the stats the stub answers. */
-  repoStats?: Record<string, { stars?: number; contributors?: number }>
+  repoStats?: Record<string, { stars?: number; contributors?: number; downloads?: number }>
   /** False removes the registryMetadata service entirely (mobile-like). */
   metadataService?: boolean
   /** Entry id → lock record served by `getLockFile`; `false` removes the optional method. */
@@ -400,12 +400,24 @@ async function harness(options: RegistryStubOptions & { appVersion?: string } = 
       installed.lyricSources = installed.lyricSources.filter((s) => s.id !== id)
       return installed.lyricSources.length < before
     }
+    setEnabled = async (id: string, enabled: boolean): Promise<void> => {
+      registry.calls.push(`set-lyric-enabled:${id}:${enabled}`)
+      const s = installed.lyricSources.find((item) => item.id === id)
+      if (s) s.enabled = enabled
+    }
   }
   class ThemeStub extends Service {
+    private currentTheme = ({ id: 'default-dark', name: 'Default Dark', isDark: true, tokens: {} as any } as ThemeDefinition)
     constructor(ctx: Context) {
       super(ctx, 'theme')
     }
     getThemes = () => installed.themes
+    getCurrentTheme = () => this.currentTheme
+    setTheme = async (id: string): Promise<void> => {
+      registry.calls.push(`set-theme:${id}`)
+      const t = installed.themes.find((item) => item.id === id)
+      if (t) this.currentTheme = t
+    }
     removeTheme = (id: string): boolean => {
       registry.calls.push(`remove-theme:${id}`)
       const before = installed.themes.length
@@ -463,12 +475,14 @@ async function harness(options: RegistryStubOptions & { appVersion?: string } = 
       'registry:filter.sortBy': 'Sort by',
       'registry:filter.sortByName': 'By name',
       'registry:filter.sortByStars': 'By stars',
+      'registry:filter.sortByDownloads': 'By downloads',
       'registry:filter.sortByContributors': 'By contributors',
       'registry:filter.toggleSortDirection': 'Toggle ascending / descending',
       'registry:filter.ascending': 'Ascending',
       'registry:filter.descending': 'Descending',
       'registry:filter.allCategories': 'All categories',
       'registry:filter.categoryFilter': 'Filter by category',
+      'registry:registryEntry.downloads': 'Downloads',
       // Round-2 sweep keys for the settings card (verbatim catalogue copy —
       // the stub does not interpolate, so templates keep their placeholders).
       'registry:registrySettings.updatesAvailableCount': 'Updates available ({count})',
@@ -482,12 +496,14 @@ async function harness(options: RegistryStubOptions & { appVersion?: string } = 
       'registry:filter.sortBy': '排序方式',
       'registry:filter.sortByName': '按名称',
       'registry:filter.sortByStars': '按星标',
+      'registry:filter.sortByDownloads': '按下载量',
       'registry:filter.sortByContributors': '按贡献者',
       'registry:filter.toggleSortDirection': '切换升序 / 降序',
       'registry:filter.ascending': '升序',
       'registry:filter.descending': '降序',
       'registry:filter.allCategories': '全部分类',
       'registry:filter.categoryFilter': '按分类筛选',
+      'registry:registryEntry.downloads': '下载量',
       'registry:registrySettings.updatesAvailableCount': '有可用更新（{count}）',
       'registry:registrySettings.everythingIsUpToDate':
         '一切已是最新。你也可以在发现页浏览社区音乐源、歌词源、主题和插件。',
@@ -878,6 +894,78 @@ describe('RegistryScreen filters and sorting', () => {
     )
   })
 
+  it('sorts by downloads descending and displays download count without contributor icon', async () => {
+    const { ctx } = await harness({
+      repoStats: {
+        'BBeBeeX/alpha-source': { stars: 500, downloads: 1200 },
+        'community/beta-source': { stars: 900, downloads: 3500 },
+      },
+    })
+    const { getByTestId, findByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-entry-music-new')
+
+    fireEvent.change(getByTestId('registry-sort').querySelector('select') as HTMLSelectElement, {
+      target: { value: 'downloads' },
+    })
+
+    await waitFor(() =>
+      expect(cardIds(getByTestId('registry-screen'))).toEqual([
+        'registry-entry-music-current', // 3500
+        'registry-entry-music-new', // 1200
+      ]),
+    )
+    const betaStats = getByTestId('registry-stats-music-current')
+    expect(betaStats.textContent).toContain('900')
+    expect(betaStats.textContent).toContain('3.5k')
+    // Contributor user icon is removed per request
+    expect(betaStats.querySelector('[data-icon="user"]')).toBeNull()
+    expect(betaStats.querySelector('[data-icon="download"]')).toBeTruthy()
+    expect(betaStats.querySelector('[data-icon="star-filled"]')).toBeTruthy()
+  })
+
+  it('shows status badge, toggle/use button, and uninstall on kind tabs for lyric source and theme', async () => {
+    const extraLyric: RegistryEntry = {
+      id: 'ext-lyric',
+      kind: 'lyric-source',
+      name: 'Ext Lyric',
+      version: '1.0.0',
+      downloadUrl: 'https://cdn.example/ext.json',
+    }
+    const { ctx, calls } = await harness({
+      index: { entries: [...INDEX.entries, extraLyric] },
+      installedLyricSources: [
+        { id: 'ext-lyric', name: 'Ext Lyric', enabled: true, sortOrder: 1, script: '// noop', version: '1.0.0' },
+      ],
+      installedThemes: [
+        { id: 'theme-neon', name: 'Neon', version: '2.0.0', isDark: true, tokens: {} as ThemeDefinition['tokens'] },
+      ],
+    })
+    const { getByTestId, findByTestId } = render(h(RegistryScreen, { ctx }))
+
+    // 1. Lyric source tab: shows In use badge, Disable button, and Uninstall button
+    fireEvent.click(getByTestId('registry-tab-lyric-source'))
+    await findByTestId('registry-entry-ext-lyric')
+    expect(getByTestId('registry-lyric-status-ext-lyric').textContent).toBe('In use')
+    const lyricActionBtn = getByTestId('registry-action-ext-lyric')
+    expect(lyricActionBtn.textContent).toContain('Disable')
+    expect(getByTestId('registry-uninstall-ext-lyric')).toBeTruthy()
+
+    // Toggle lyric source disable
+    fireEvent.click(lyricActionBtn)
+    await waitFor(() => expect(calls).toContain('set-lyric-enabled:ext-lyric:false'))
+
+    // 2. Theme tab: theme is installed but not active -> shows "Enable", plus Uninstall button
+    fireEvent.click(getByTestId('registry-tab-theme'))
+    await findByTestId('registry-entry-theme-neon')
+    const themeActionBtn = getByTestId('registry-action-theme-neon')
+    expect(themeActionBtn.textContent).toContain('Enable')
+    expect(getByTestId('registry-uninstall-theme-neon')).toBeTruthy()
+
+    // Click enable theme -> calls setTheme
+    fireEvent.click(themeActionBtn)
+    await waitFor(() => expect(calls).toContain('set-theme:theme-neon'))
+  })
+
   it('filters plugins by category and copes with unknown slugs', async () => {
     const { ctx } = await harness()
     const { getByTestId, findByTestId, queryByTestId } = render(h(RegistryScreen, { ctx }))
@@ -948,9 +1036,9 @@ describe('RegistryScreen favorites', () => {
     fireEvent.click(getByTestId('registry-tab-favorites'))
     expect(await findByTestId('registry-favorites-empty')).toBeTruthy()
     expect(getByTestId('registry-tab-favorites').textContent).not.toContain('0')
-    // The curated tabs keep the search box but drop the browsing controls.
+    // The curated tabs keep the search box and sort controls, but drop the third-party toggle.
     expect(getByTestId('registry-search')).toBeTruthy()
-    expect(queryByTestId('registry-sort')).toBeNull()
+    expect(getByTestId('registry-sort')).toBeTruthy()
     expect(queryByTestId('registry-official-toggle')).toBeNull()
 
     // Favorite one entry per kind, from their own kind tabs.

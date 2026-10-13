@@ -36,6 +36,7 @@ import { CHIP, GHOST_BUTTON, STAT_CHIP, TONE } from '../styles.js'
 export interface RegistryEntryCardStats {
   stars?: number
   contributors?: number
+  downloads?: number
 }
 
 /** Installed-tab metadata: what the lock file (and the action state) know. */
@@ -49,7 +50,7 @@ export interface RegistryEntryCardInstalledMeta {
 
 /**
  * The uninstall affordance. `available: false` renders the "manage it in
- * settings" note for kinds whose service has no remove API (plugins); the
+ * settings" note for kinds whose service has no remove API; the
  * heavy confirm dialog is deliberately not reused here.
  */
 export interface RegistryEntryCardUninstall {
@@ -77,11 +78,19 @@ export interface RegistryEntryCardProps {
   /** Favorite mark; the button renders only when `onToggleFavorite` is provided. */
   favorite?: boolean
   onToggleFavorite?: () => void
-  /** Uninstall affordance (installed tab); absent renders nothing extra. */
+  /** Uninstall affordance; absent renders nothing extra. */
   uninstall?: RegistryEntryCardUninstall
-  /** Plugin enablement state (only relevant for installed plugin entries). */
+  /** Enablement state for installed plugin / lyric source. */
+  itemEnabled?: boolean
+  /** Toggle enablement callback for plugin / lyric source. */
+  onToggleEnabled?: () => void
+  /** Whether theme is active (in use). */
+  themeActive?: boolean
+  /** Apply theme callback. */
+  onApplyTheme?: () => void
+  /** Backwards compatibility alias for pluginEnabled. */
   pluginEnabled?: boolean
-  /** Toggle plugin enablement (enable / disable). */
+  /** Backwards compatibility alias for onTogglePluginEnabled. */
   onTogglePluginEnabled?: () => void
   onAction: () => void
 }
@@ -209,6 +218,10 @@ export function RegistryEntryCard({
   favorite = false,
   onToggleFavorite,
   uninstall,
+  itemEnabled,
+  onToggleEnabled,
+  themeActive,
+  onApplyTheme,
   pluginEnabled,
   onTogglePluginEnabled,
   onAction,
@@ -216,8 +229,24 @@ export function RegistryEntryCard({
   const { t } = useOptionalI18n(ctx)
   const installed = actionState.state === 'installed'
   const isUpdate = actionState.state === 'update'
-  const isInstalledPlugin = entry.kind === 'plugin' && (installed || isUpdate)
-  const disabled = installed || Boolean(blockedReason) || busy
+  const isInstalled = installed || isUpdate
+  const isExtension = entry.kind === 'plugin' || entry.kind === 'lyric-source' || entry.kind === 'theme'
+  const isInstalledExtension = isExtension && isInstalled
+  const isPlugin = entry.kind === 'plugin'
+  const isLyric = entry.kind === 'lyric-source'
+  const isTheme = entry.kind === 'theme'
+
+  const effectiveEnabled = isPlugin
+    ? (itemEnabled ?? pluginEnabled)
+    : isLyric
+      ? itemEnabled
+      : undefined
+
+  const effectiveToggle = isPlugin
+    ? (onToggleEnabled ?? onTogglePluginEnabled)
+    : onToggleEnabled
+
+  const disabled = (installed && !isExtension) || Boolean(blockedReason) || busy
   const showPreview = Boolean(entry.previewUrl) && (entry.kind === 'theme' || entry.kind === 'plugin')
   // The lightweight uninstall confirmation: one armed flag, reset on any
   // transition. It is pure view state — the service call it eventually makes
@@ -244,12 +273,16 @@ export function RegistryEntryCard({
         ? h('span', { style: { ...CHIP, flexShrink: 0 } }, `v${normalizeVersion(entry.version)}`)
         : null,
       isBuiltinEntry(entry) ? h('span', { style: builtinChipStyle }, t('registry:registryEntry.builtIn')) : null,
-      // Status badge for installed plugins: in-use (使用中) vs disabled (已停用)
-      isInstalledPlugin && pluginEnabled !== undefined
+      // Status badge for installed extensions: in-use (使用中) vs disabled (已停用)
+      isInstalledExtension && (isTheme ? themeActive !== undefined : effectiveEnabled !== undefined)
         ? h(
             'span',
             {
-              'data-testid': `registry-plugin-status-${entry.id}`,
+              'data-testid': isPlugin
+                ? `registry-plugin-status-${entry.id}`
+                : isTheme
+                  ? `registry-theme-status-${entry.id}`
+                  : `registry-lyric-status-${entry.id}`,
               style: {
                 marginLeft: 'auto',
                 display: 'inline-flex',
@@ -259,14 +292,14 @@ export function RegistryEntryCard({
                 borderRadius: 999,
                 fontSize: 11,
                 fontWeight: 600,
-                background: pluginEnabled
+                background: (isTheme ? themeActive : effectiveEnabled)
                   ? 'rgba(16, 185, 129, 0.15)'
                   : 'rgba(255, 255, 255, 0.08)',
-                color: pluginEnabled
+                color: (isTheme ? themeActive : effectiveEnabled)
                   ? 'var(--color-success, #10B981)'
                   : 'var(--text-tertiary, #8B95B0)',
                 border: `1px solid ${
-                  pluginEnabled
+                  (isTheme ? themeActive : effectiveEnabled)
                     ? 'color-mix(in srgb, var(--color-success, #10B981) 40%, transparent)'
                     : 'var(--border-subtle, rgba(255, 255, 255, 0.12))'
                 }`,
@@ -277,10 +310,14 @@ export function RegistryEntryCard({
                 width: 6,
                 height: 6,
                 borderRadius: '50%',
-                background: pluginEnabled ? 'var(--color-success, #10B981)' : 'var(--text-tertiary, #8B95B0)',
+                background: (isTheme ? themeActive : effectiveEnabled)
+                  ? 'var(--color-success, #10B981)'
+                  : 'var(--text-tertiary, #8B95B0)',
               },
             }),
-            pluginEnabled ? t('registry:registryEntry.inUse') : t('registry:registryEntry.disabled'),
+            (isTheme ? themeActive : effectiveEnabled)
+              ? t('registry:registryEntry.inUse')
+              : t('registry:registryEntry.disabled'),
           )
         : null,
     ),
@@ -292,20 +329,22 @@ export function RegistryEntryCard({
         ? h('span', { key: 'sep', style: metaSeparatorStyle }, '·')
         : null,
       entry.updatedAt ? h('span', { key: 'date' }, formatShortDate(entry.updatedAt)) : null,
-      // GitHub stats badges — only once a lookup answered. There is no star
-      // glyph in the shared tabler set and this package may not extend the
-      // kit, so the stars badge is a labelled chip; contributors use the
-      // kit's user icon. A field the lookup could not answer renders "—".
+      // GitHub stats badges: stars + downloads (contributor/user icon removed per request).
       stats
         ? h(
             'span',
-            { key: 'stats', 'data-testid': `registry-stats-${entry.id}`, style: { display: 'inline-flex', alignItems: 'center', gap: 4 } },
-            h('span', { style: STAT_CHIP }, t('registry:registryEntry.stars'), h('span', null, stats.stars !== undefined ? formatCompactCount(stats.stars) : '—')),
+            { key: 'stats', 'data-testid': `registry-stats-${entry.id}`, style: { display: 'inline-flex', alignItems: 'center', gap: 6 } },
             h(
               'span',
-              { style: STAT_CHIP },
-              tablerIcon('user', { size: 12 }),
-              h('span', null, stats.contributors !== undefined ? formatCompactCount(stats.contributors) : '—'),
+              { style: STAT_CHIP, title: t('registry:registryEntry.stars') },
+              tablerIcon('star-filled', { size: 12, color: '#E5A50A' }),
+              h('span', null, stats.stars !== undefined ? formatCompactCount(stats.stars) : '—'),
+            ),
+            h(
+              'span',
+              { style: STAT_CHIP, title: t('registry:registryEntry.downloads') },
+              tablerIcon('download', { size: 12 }),
+              h('span', null, stats.downloads !== undefined ? formatCompactCount(stats.downloads) : '—'),
             ),
           )
         : null,
@@ -402,9 +441,13 @@ export function RegistryEntryCard({
             tablerIcon(favorite ? 'bookmark-filled' : 'bookmark', { size: 15 }),
           )
         : h('div', { style: { marginRight: 'auto' } }),
-      // 2. Non-plugin uninstall affordance
-      entry.kind !== 'plugin' && uninstall
-        ? uninstall.available
+      // 2. Actions cluster
+      h(
+        'div',
+        { style: { display: 'inline-flex', alignItems: 'center', gap: 8 } },
+
+        // Uninstall affordance (for any kind if uninstall is provided and available)
+        uninstall && uninstall.available
           ? uninstallArmed
             ? h(
                 'span',
@@ -462,178 +505,147 @@ export function RegistryEntryCard({
                 tablerIcon('trash', { size: 13 }),
                 uninstallBusy ? t('registry:registryEntry.uninstalling') : t('registry:registryEntry.uninstall'),
               )
-          : h(
-              'span',
-              {
-                key: 'uninstall-note',
-                'data-testid': `registry-uninstall-note-${entry.id}`,
-                style: {
-                  fontSize: 12,
-                  color: 'var(--text-tertiary, #8B95B0)',
+          : uninstall && !uninstall.available
+            ? h(
+                'span',
+                {
+                  key: 'uninstall-note',
+                  'data-testid': `registry-uninstall-note-${entry.id}`,
+                  style: {
+                    fontSize: 12,
+                    color: 'var(--text-tertiary, #8B95B0)',
+                  },
                 },
-              },
-              t('registry:registryEntry.uninstallFromPluginManagement'),
-            )
-        : null,
-      // 3. For installed plugin: dual buttons (卸载 and 使用/停用)
-      isInstalledPlugin
-        ? h(
-            'div',
-            { style: { display: 'inline-flex', alignItems: 'center', gap: 8 } },
-            uninstall && uninstall.available
-              ? uninstallArmed
-                ? h(
-                    'span',
-                    { key: 'plugin-uninstall-armed', style: { display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' } },
-                    h('span', { style: { fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } }, t('registry:registryEntry.uninstallThis')),
-                    h(
-                      'button',
-                      {
-                        type: 'button',
-                        'data-testid': `registry-uninstall-confirm-${entry.id}`,
-                        disabled: uninstallBusy,
-                        onClick: uninstallBusy
-                          ? undefined
-                          : () => {
-                              setUninstallArmed(false)
-                              uninstall.onConfirm()
-                            },
-                        className: 'bbreg-btn',
-                        style: {
-                          ...GHOST_BUTTON,
-                          borderColor: TONE.error,
-                          color: TONE.error,
-                          fontWeight: 600,
-                          opacity: uninstallBusy ? 0.6 : 1,
-                          cursor: uninstallBusy ? 'default' : 'pointer',
-                        },
-                      },
-                      uninstallBusy ? t('registry:registryEntry.uninstalling') : t('registry:registryEntry.confirmUninstall'),
-                    ),
-                    h(
-                      'button',
-                      {
-                        type: 'button',
-                        'data-testid': `registry-uninstall-cancel-${entry.id}`,
-                        disabled: uninstallBusy,
-                        onClick: uninstallBusy ? undefined : () => setUninstallArmed(false),
-                        className: 'bbreg-btn bbreg-btn-ghost',
-                        style: { ...GHOST_BUTTON, opacity: uninstallBusy ? 0.6 : 1, cursor: uninstallBusy ? 'default' : 'pointer' },
-                      },
-                      t('app:common.cancel'),
-                    ),
-                  )
-                : h(
-                    'button',
-                    {
-                      key: 'plugin-uninstall',
-                      type: 'button',
-                      'data-testid': `registry-uninstall-${entry.id}`,
-                      disabled: uninstallBusy,
-                      onClick: uninstallBusy ? undefined : () => setUninstallArmed(true),
-                      title: t('registry:registryEntry.uninstallTheInstalledContent'),
-                      className: 'bbreg-btn bbreg-btn-ghost',
-                      style: { ...GHOST_BUTTON, opacity: uninstallBusy ? 0.6 : 1, cursor: uninstallBusy ? 'default' : 'pointer' },
-                    },
-                    tablerIcon('trash', { size: 13 }),
-                    uninstallBusy ? t('registry:registryEntry.uninstalling') : t('registry:registryEntry.uninstall'),
-                  )
-              : null,
-            isUpdate
+                t('registry:registryEntry.uninstallFromPluginManagement'),
+              )
+            : null,
+
+        // Primary action / toggle button
+        isInstalledExtension
+          ? isUpdate
+            ? h(
+                'button',
+                {
+                  type: 'button',
+                  'data-testid': `registry-action-${entry.id}`,
+                  'data-state': actionState.state,
+                  onClick: busy ? undefined : onAction,
+                  className: 'bbreg-btn bbreg-btn-primary',
+                  style: {
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '6px 16px',
+                    borderRadius: 999,
+                    border: 'none',
+                    background: 'var(--gradient-brand, linear-gradient(135deg, #5F87FF 0%, #A99CFF 100%))',
+                    boxShadow: 'var(--glow-brand-sm, 0 0 12px rgba(95, 135, 255, 0.35))',
+                    color: 'var(--bb-accent-on, #FFFFFF)',
+                    fontWeight: 600,
+                    fontSize: 13,
+                    cursor: busy ? 'default' : 'pointer',
+                  },
+                },
+                tablerIcon('download', { size: 14 }),
+                busy ? t('registry:registryEntry.updating') : t('registry:registryEntry.update'),
+              )
+            : isTheme
               ? h(
                   'button',
                   {
                     type: 'button',
                     'data-testid': `registry-action-${entry.id}`,
-                    'data-state': actionState.state,
-                    onClick: busy ? undefined : onAction,
-                    className: 'bbreg-btn bbreg-btn-primary',
+                    'data-state': themeActive ? 'in-use' : 'installed',
+                    disabled: themeActive,
+                    onClick: themeActive ? undefined : onApplyTheme,
+                    className: themeActive ? 'bbreg-btn bbreg-btn-ghost' : 'bbreg-btn bbreg-btn-primary',
                     style: {
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 6,
                       padding: '6px 16px',
                       borderRadius: 999,
-                      border: 'none',
-                      background: 'var(--gradient-brand, linear-gradient(135deg, #5F87FF 0%, #A99CFF 100%))',
-                      boxShadow: 'var(--glow-brand-sm, 0 0 12px rgba(95, 135, 255, 0.35))',
-                      color: 'var(--bb-accent-on, #FFFFFF)',
+                      border: themeActive ? '1px solid var(--border-subtle, rgba(255, 255, 255, 0.16))' : 'none',
+                      background: themeActive
+                        ? 'var(--surface-2, rgba(255, 255, 255, 0.06))'
+                        : 'var(--gradient-brand, linear-gradient(135deg, #5F87FF 0%, #A99CFF 100%))',
+                      boxShadow: themeActive ? 'none' : 'var(--glow-brand-sm, 0 0 12px rgba(95, 135, 255, 0.35))',
+                      color: themeActive ? 'var(--text-tertiary, #8B95B0)' : 'var(--bb-accent-on, #FFFFFF)',
                       fontWeight: 600,
                       fontSize: 13,
-                      cursor: busy ? 'default' : 'pointer',
+                      cursor: themeActive ? 'default' : 'pointer',
                     },
                   },
-                  tablerIcon('download', { size: 14 }),
-                  busy ? t('registry:registryEntry.updating') : t('registry:registryEntry.update'),
+                  themeActive ? t('registry:registryEntry.inUse') : t('registry:registryEntry.use'),
                 )
               : h(
                   'button',
                   {
                     type: 'button',
                     'data-testid': `registry-action-${entry.id}`,
-                    'data-state': pluginEnabled === false ? 'disabled' : 'in-use',
-                    onClick: onTogglePluginEnabled,
-                    className: pluginEnabled === false ? 'bbreg-btn bbreg-btn-primary' : 'bbreg-btn bbreg-btn-ghost',
+                    'data-state': effectiveEnabled === false ? 'disabled' : 'in-use',
+                    onClick: effectiveToggle,
+                    className: effectiveEnabled === false ? 'bbreg-btn bbreg-btn-primary' : 'bbreg-btn bbreg-btn-ghost',
                     style: {
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 6,
                       padding: '6px 16px',
                       borderRadius: 999,
-                      border: pluginEnabled === false ? 'none' : '1px solid var(--border-subtle, rgba(255, 255, 255, 0.16))',
-                      background: pluginEnabled === false
+                      border: effectiveEnabled === false ? 'none' : '1px solid var(--border-subtle, rgba(255, 255, 255, 0.16))',
+                      background: effectiveEnabled === false
                         ? 'var(--gradient-brand, linear-gradient(135deg, #5F87FF 0%, #A99CFF 100%))'
                         : 'var(--surface-2, rgba(255, 255, 255, 0.06))',
-                      boxShadow: pluginEnabled === false ? 'var(--glow-brand-sm, 0 0 12px rgba(95, 135, 255, 0.35))' : 'none',
-                      color: pluginEnabled === false ? 'var(--bb-accent-on, #FFFFFF)' : 'var(--text-primary, #F5F7FF)',
+                      boxShadow: effectiveEnabled === false ? 'var(--glow-brand-sm, 0 0 12px rgba(95, 135, 255, 0.35))' : 'none',
+                      color: effectiveEnabled === false ? 'var(--bb-accent-on, #FFFFFF)' : 'var(--text-primary, #F5F7FF)',
                       fontWeight: 600,
                       fontSize: 13,
                       cursor: 'pointer',
                     },
                   },
-                  pluginEnabled === false ? t('registry:registryEntry.use') : t('registry:registryEntry.disable'),
-                ),
-          )
-        : // 4. For non-installed plugins or other non-plugin items: standard single action button
-          h(
-            'button',
-            {
-              type: 'button',
-              disabled,
-              'data-testid': `registry-action-${entry.id}`,
-              'data-state': actionState.state,
-              onClick: disabled ? undefined : onAction,
-              className: disabled ? 'bbreg-btn' : 'bbreg-btn bbreg-btn-primary',
-              style: {
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '6px 16px',
-                borderRadius: 999,
-                border: installed
-                  ? '1px solid var(--border-subtle, rgba(255, 255, 255, 0.12))'
-                  : 'none',
-                background:
-                  installed || blockedReason
-                    ? 'var(--surface-2, rgba(255, 255, 255, 0.06))'
-                    : 'var(--gradient-brand, linear-gradient(135deg, #5F87FF 0%, #A99CFF 100%))',
-                boxShadow: installed || blockedReason ? 'none' : 'var(--glow-brand-sm, 0 0 12px rgba(95, 135, 255, 0.35))',
-                color: installed || blockedReason
-                  ? 'var(--text-tertiary, #8B95B0)'
-                  : 'var(--bb-accent-on, #FFFFFF)',
-                fontWeight: 600,
-                fontSize: 13,
-                cursor: disabled ? 'default' : 'pointer',
-                opacity: disabled ? 0.75 : 1,
+                  effectiveEnabled === false ? t('registry:registryEntry.use') : t('registry:registryEntry.disable'),
+                )
+          : // For non-installed items or other items (music sources): standard single action button
+            h(
+              'button',
+              {
+                type: 'button',
+                disabled,
+                'data-testid': `registry-action-${entry.id}`,
+                'data-state': actionState.state,
+                onClick: disabled ? undefined : onAction,
+                className: disabled ? 'bbreg-btn' : 'bbreg-btn bbreg-btn-primary',
+                style: {
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 16px',
+                  borderRadius: 999,
+                  border: installed
+                    ? '1px solid var(--border-subtle, rgba(255, 255, 255, 0.12))'
+                    : 'none',
+                  background:
+                    installed || blockedReason
+                      ? 'var(--surface-2, rgba(255, 255, 255, 0.06))'
+                      : 'var(--gradient-brand, linear-gradient(135deg, #5F87FF 0%, #A99CFF 100%))',
+                  boxShadow: installed || blockedReason ? 'none' : 'var(--glow-brand-sm, 0 0 12px rgba(95, 135, 255, 0.35))',
+                  color: installed || blockedReason
+                    ? 'var(--text-tertiary, #8B95B0)'
+                    : 'var(--bb-accent-on, #FFFFFF)',
+                  fontWeight: 600,
+                  fontSize: 13,
+                  cursor: disabled ? 'default' : 'pointer',
+                  opacity: disabled ? 0.75 : 1,
+                },
               },
-            },
-            isUpdate ? tablerIcon('download', { size: 14 }) : null,
-            busy
-              ? isUpdate
-                ? t('registry:registryEntry.updating')
-                : t('registry:registryEntry.installing')
-              : actionLabel(t, actionState),
-          ),
+              isUpdate ? tablerIcon('download', { size: 14 }) : null,
+              busy
+                ? isUpdate
+                  ? t('registry:registryEntry.updating')
+                  : t('registry:registryEntry.installing')
+                : actionLabel(t, actionState),
+            ),
+      ),
     ),
   )
 }

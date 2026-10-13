@@ -611,4 +611,25 @@ export const TABLER_DEFINITIONS: Record<string, IconSvgDefinition> = {
       { tag: 'path', attrs: { d: 'M18 7v14l-6 -4l-6 4v-14a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4z' } },
     ],
   },
+  star: {
+    elements: [
+      {
+        tag: 'path',
+        attrs: {
+          d: 'M12 17.75l-6.172 3.245l1.179 -6.873l-5 -4.867l6.9 -1l3.086 -6.253l3.086 6.253l6.9 1l-5 4.867l1.179 6.873z',
+        },
+      },
+    ],
+  },
+  'star-filled': {
+    filled: true,
+    elements: [
+      {
+        tag: 'path',
+        attrs: {
+          d: 'M12 17.75l-6.172 3.245l1.179 -6.873l-5 -4.867l6.9 -1l3.086 -6.253l3.086 6.253l6.9 1l-5 4.867l1.179 6.873z',
+        },
+      },
+    ],
+  },
 }

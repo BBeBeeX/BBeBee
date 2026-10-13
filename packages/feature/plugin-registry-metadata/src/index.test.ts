@@ -11,6 +11,8 @@ const TTL_MS = 24 * 60 * 60 * 1000
 const repoUrl = (owner: string, repo: string): string => `https://api.github.com/repos/${owner}/${repo}`
 const contributorsUrl = (owner: string, repo: string): string =>
   `${repoUrl(owner, repo)}/contributors?per_page=100`
+const releasesUrl = (owner: string, repo: string): string =>
+  `${repoUrl(owner, repo)}/releases?per_page=100`
 
 interface HttpRoute {
   /** Response status override (4xx/5xx). */
@@ -105,18 +107,19 @@ describe('getRepoStats', () => {
       routes: {
         [repoUrl('alice', 'widget')]: { body: { stargazers_count: 1200 } },
         [contributorsUrl('alice', 'widget')]: { body: [{}, {}, {}] },
+        [releasesUrl('alice', 'widget')]: { body: [{ assets: [{ download_count: 50 }] }] },
       },
     })
 
     const stats = await harness.plugin.getRepoStats('alice', 'widget')
-    expect(stats).toMatchObject({ owner: 'alice', repo: 'widget', stars: 1200, contributors: 3 })
+    expect(stats).toMatchObject({ owner: 'alice', repo: 'widget', stars: 1200, contributors: 3, downloads: 50 })
     expect(stats.stale).toBeUndefined()
     expect(stats.error).toBeUndefined()
-    expect(harness.http.calls.length).toBe(2)
+    expect(harness.http.calls.length).toBe(3)
     expect(harness.http.calls.every((call) => call.headers?.['Accept'] === 'application/vnd.github+json')).toBe(true)
 
-    const cached = harness.data.get(CACHE_KEY) as Record<string, { stars?: number; contributors?: number; fetchedAt: number }>
-    expect(cached['alice/widget']).toMatchObject({ stars: 1200, contributors: 3 })
+    const cached = harness.data.get(CACHE_KEY) as Record<string, { stars?: number; contributors?: number; downloads?: number; fetchedAt: number }>
+    expect(cached['alice/widget']).toMatchObject({ stars: 1200, contributors: 3, downloads: 50 })
     expect(cached['alice/widget']!.fetchedAt).toBeGreaterThan(0)
   })
 
@@ -129,11 +132,11 @@ describe('getRepoStats', () => {
     })
 
     await harness.plugin.getRepoStats('alice', 'widget')
-    expect(harness.http.calls.length).toBe(2)
+    expect(harness.http.calls.length).toBe(3)
 
     const second = await harness.plugin.getRepoStats('alice', 'widget')
     expect(second.stars).toBe(10)
-    expect(harness.http.calls.length).toBe(2)
+    expect(harness.http.calls.length).toBe(3)
   })
 
   it('keys the cache case-insensitively', async () => {
@@ -145,12 +148,12 @@ describe('getRepoStats', () => {
     })
 
     await harness.plugin.getRepoStats('Alice', 'Widget')
-    expect(harness.http.calls.length).toBe(2)
+    expect(harness.http.calls.length).toBe(3)
 
     // Same repo, different casing: served from the shared cache entry.
     const again = await harness.plugin.getRepoStats('ALICE', 'WIDGET')
     expect(again.stars).toBe(10)
-    expect(harness.http.calls.length).toBe(2)
+    expect(harness.http.calls.length).toBe(3)
   })
 
   it('refetches once the cached copy is past its TTL', async () => {
@@ -211,7 +214,7 @@ describe('concurrency', () => {
       harness.plugin.getRepoStats('alice', 'widget'),
     ])
     expect(a).toEqual(b)
-    expect(harness.http.calls.length).toBe(2)
+    expect(harness.http.calls.length).toBe(3)
   })
 
   it('caps concurrent fetches at three, queueing the rest', async () => {
@@ -225,6 +228,7 @@ describe('concurrency', () => {
     for (const [owner, repo] of repos) {
       routes[repoUrl(owner, repo)] = { body: { stargazers_count: 1 } }
       routes[contributorsUrl(owner, repo)] = { body: [] }
+      routes[releasesUrl(owner, repo)] = { body: [] }
     }
     const harness = await setupInitialized({ routes })
 
@@ -242,7 +246,7 @@ describe('concurrency', () => {
 
     release()
     await Promise.all(pending)
-    expect(harness.http.calls.length).toBe(8)
+    expect(harness.http.calls.length).toBe(12)
   })
 })
 
@@ -341,6 +345,7 @@ describe('peekRepoStats', () => {
       routes: {
         [repoUrl('alice', 'widget')]: { body: { stargazers_count: 10 } },
         [contributorsUrl('alice', 'widget')]: { body: [{}] },
+        [releasesUrl('alice', 'widget')]: { body: [] },
       },
     })
 
@@ -355,7 +360,7 @@ describe('peekRepoStats', () => {
     internals.cache['alice/widget']!.fetchedAt = Date.now() - TTL_MS - 1
     const stale = harness.plugin.peekRepoStats('alice', 'widget')
     expect(stale).toMatchObject({ stars: 10, stale: true })
-    expect(harness.http.calls.length).toBe(2)
+    expect(harness.http.calls.length).toBe(3)
   })
 })
 
