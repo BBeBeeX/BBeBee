@@ -989,7 +989,7 @@ function nameOf(value: unknown): string {
 export function useRecommendSources(ctx: Context): readonly MediaProvider[] {
   return useServiceState(
     ctx,
-    ['source/registered', 'source/unregistered', 'source/changed'],
+    ['source/registered', 'source/unregistered', 'source/changed', 'source/removed'],
     () =>
       serviceOf<SourcesService>(ctx, 'sources')?.providers?.filter((p) => p.capabilities.recommend) ?? [],
     { isEqual: shallowArrayEqual },

@@ -774,6 +774,9 @@ function registerHandlers(): void {
 
   ipcMain.handle('secrets:encrypt', (_event, plain: string) => {
     if (typeof plain !== 'string') throw new Error('secrets: expected a string')
+    if (!safeStorage.isEncryptionAvailable()) {
+      throw new Error('secrets: safeStorage encryption is not available on this system')
+    }
     return safeStorage.encryptString(plain).toString('base64')
   })
 

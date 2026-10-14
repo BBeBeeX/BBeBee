@@ -148,11 +148,11 @@ export interface SecretsBridge {
  * keychain — a Linux box with no libsecret, a test — should still start, with
  * `isHardwareBacked` false so the UI can say what it is running on.
  */
-export function safeStorageCodec(): {
+export async function safeStorageCodec(): Promise<{
   encrypt(plain: string): Promise<string>
   decrypt(cipher: string): Promise<string>
   readonly isHardwareBacked: true
-} | undefined {
+} | undefined> {
   /*
    * Read structurally rather than through a `declare global`.
    *
@@ -163,6 +163,12 @@ export function safeStorageCodec(): {
   const exposed = (globalThis as { window?: { BBeBee?: { secrets?: SecretsBridge } } }).window
   const bridge = exposed?.BBeBee?.secrets
   if (!bridge) return undefined
+  try {
+    const isAvailable = await bridge.available()
+    if (!isAvailable) return undefined
+  } catch {
+    return undefined
+  }
   return {
     isHardwareBacked: true,
     encrypt: (plain) => bridge.encrypt(plain),

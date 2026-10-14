@@ -646,7 +646,7 @@ function createAudioFetchBytes(
 
 export async function boot(): Promise<App> {
   // Resolved once: the bridge is either there or it is not.
-  const keychain = safeStorageCodec()
+  const keychain = await safeStorageCodec()
 
   // Paths are fetched once, up front: `PathsService` promises synchronous
   // access and IPC cannot provide it.

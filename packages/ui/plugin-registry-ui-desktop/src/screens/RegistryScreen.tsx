@@ -51,7 +51,7 @@ import { useFavorites } from '../hooks/use-favorites.js'
 import { useRegistryLockRecords } from '../hooks/use-lock-records.js'
 import { useRegistryTasks } from '../hooks/use-registry-tasks.js'
 import { useRepoMetadata } from '../hooks/use-repo-metadata.js'
-import { isBuiltinEntry, minAppVersionBlock } from '../hooks/install-state.js'
+import { findInstalledMusicSource, isBuiltinEntry, minAppVersionBlock } from '../hooks/install-state.js'
 import { InstallConfirmDialog } from '../components/InstallConfirmDialog.js'
 import { RegistryEntryCard } from '../components/RegistryEntryCard.js'
 import { RegistryTaskDrawer } from '../components/RegistryTaskDrawer.js'
@@ -421,17 +421,18 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
       setUninstallError(null)
       try {
         if (entry.kind === 'music-source') {
-          // Match the same way the action state does — by the document's
-          // `sourceUrl` — then remove by the record's own id. The default
-          // remove keeps the catalogue rows; this is uninstall, not a purge.
+          // Match the same way the action state does, then remove by record id.
+          // Purge catalogue and lock record on uninstall so nothing is left behind.
           const sources = serviceOf<SourcesRemoveLike>(ctx, 'sources')
-          const record = entry.sourceUrl
-            ? sources?.sources.find((r) => r.sourceUrl === entry.sourceUrl)
-            : undefined
+          const record = sources ? findInstalledMusicSource(entry, sources.sources) : undefined
           // The error lands in the error banner below the grid — user-facing
           // copy, so it carries catalogue keys, not dev-English.
           if (!sources || !record) throw new Error(t('registry:registry.musicSourceUninstallMatchNotFound'))
-          await sources.remove(record.id)
+          await sources.remove(record.id, { forgetCatalogue: true })
+          const registry = getRegistry()
+          if (registry?.removeLockRecord) {
+            await registry.removeLockRecord(entry.id)
+          }
         } else if (entry.kind === 'lyric-source') {
           const removed = await serviceOf<LyricSourcesLike>(ctx, 'lyricSources')?.removeSource(entry.id)
           if (!removed) throw new Error(t('registry:registry.lyricSourceUninstallGone'))
