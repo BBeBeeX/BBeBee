@@ -11,16 +11,13 @@
 import { createElement as h, useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import type {
   LibraryService,
-  LyricsService,
-  LyricsState,
   NowPlayingStyleMeta,
   SandboxPlayerAction,
   SandboxPlayerLyricLine,
   SandboxPlayerSnapshot,
 } from '@BBeBee/protocol'
-import { parseLrc, findActiveLyricIndex } from '@BBeBee/toolkit'
-import { serviceOf, useServiceState } from '@BBeBee/ui-core'
-import { useResolvedArtwork } from '@BBeBee/toolkit/hooks'
+import { serviceOf } from '@BBeBee/ui-core'
+import { useActiveLyricIndex, useLyrics, useResolvedArtwork } from '@BBeBee/toolkit/hooks'
 import { useImageColor, useI18n } from '@BBeBee/ui-kit-desktop'
 import { useCurrentTrack } from '../hooks.js'
 import { buildSandboxedHtml } from './sandboxed-html.js'
@@ -29,8 +26,6 @@ import type { NowPlayingLayoutProps } from './index.js'
 export interface SandboxedLayoutProps extends NowPlayingLayoutProps {
   meta: NowPlayingStyleMeta
 }
-
-const IDLE_LYRICS_STATE: LyricsState = { status: 'idle', offsetMs: 0 }
 
 export function SandboxedLayout({
   ctx,
@@ -62,25 +57,8 @@ export function SandboxedLayout({
   const album = state.nowPlaying?.album ?? currentTrack?.albumTitle
 
   // 2. Resolve lyrics
-  const lyricsService = serviceOf<LyricsService>(ctx, 'lyrics')
-  const lyricsState = useServiceState<LyricsState>(
-    ctx,
-    ['lyrics/changed'],
-    () => lyricsService?.state ?? IDLE_LYRICS_STATE,
-  )
-
-  const parsedLyrics = useMemo(() => {
-    if (!lyricsState?.lyrics?.content) return { lines: [] }
-    if (lyricsState.trackUrn && state.trackUrn && lyricsState.trackUrn !== state.trackUrn) {
-      return { lines: [] }
-    }
-    return parseLrc(lyricsState.lyrics.content, { offsetMs: lyricsState.offsetMs })
-  }, [lyricsState?.lyrics?.content, lyricsState?.offsetMs, lyricsState?.trackUrn, state.trackUrn])
-
-  const activeIndex = useMemo(() => {
-    if (parsedLyrics.lines.length === 0) return -1
-    return findActiveLyricIndex(parsedLyrics.lines, displayPosition, lyricsState?.offsetMs ?? 0)
-  }, [parsedLyrics.lines, displayPosition, lyricsState?.offsetMs])
+  const { parsed: parsedLyrics, offsetMs: lyricsOffsetMs } = useLyrics(ctx)
+  const activeIndex = useActiveLyricIndex(ctx, parsedLyrics.lines, lyricsOffsetMs)
 
   const lyricLines: SandboxPlayerLyricLine[] = useMemo(() => {
     return parsedLyrics.lines.map((l) => ({

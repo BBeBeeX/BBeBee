@@ -550,6 +550,17 @@ export class LyricsPlugin extends Service implements LyricsService {
           if (!title) title = tracks[0].title
           if (!artist) artist = tracks[0].artists?.map((a) => a.name).join(', ') ?? ''
           if (!duration && tracks[0].durationMs) duration = tracks[0].durationMs
+        } else {
+          const provider = this.ownCtx.sources.forUrn?.(trackUrn)
+          const parsed = tryParseUrn(trackUrn)
+          if (provider?.getTrack && parsed) {
+            const track = await provider.getTrack(parsed.id)
+            if (track?.title) {
+              if (!title) title = track.title
+              if (!artist) artist = track.artists?.map((a) => a.name).join(', ') ?? ''
+              if (!duration && track.durationMs) duration = track.durationMs
+            }
+          }
         }
       } catch {
         // ignore

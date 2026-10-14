@@ -101,15 +101,32 @@ async function harness(state: Partial<TransportState> = {}) {
     getTracks = async (_urns: readonly string[]): Promise<Track[]> => []
   }
 
+  class LyricsStub extends Service {
+    state = {
+      status: 'ready' as const,
+      trackUrn: IDLE.trackUrn,
+      lyrics: {
+        format: 'lrc' as const,
+        content: '[00:10.00]First line\n[00:30.00]Second line\n[01:00.00]Third line',
+        synced: true,
+      },
+      offsetMs: 0,
+    }
+    constructor(ctx: Context) {
+      super(ctx, 'lyrics')
+    }
+  }
+
   const root = new Context()
   await root.plugin(PlayerStub)
   await root.plugin(LibraryStub)
   await root.plugin(SourcesStub)
+  await root.plugin(LyricsStub)
   await root.plugin(DefaultI18nStub)
   await root.plugin(NowPlayingPlugin)
 
   let scoped: Context | undefined
-  root.inject(['player', 'nowPlaying', 'library', 'sources', 'i18n'], (s) => void (scoped = s))
+  root.inject(['player', 'nowPlaying', 'library', 'sources', 'lyrics', 'i18n'], (s) => void (scoped = s))
   await new Promise((r) => setTimeout(r, 0))
   if (!scoped) throw new Error('failed to scope')
 
@@ -204,6 +221,10 @@ describe('SandboxedLayout', () => {
     expect(payload.isPlaying).toBe(true)
     // Cover should be converted from file:/// to bbebee-file:///
     expect(payload.cover).toBe('bbebee-file:///home/user/Music/cover.jpg')
+    // Lyrics should be parsed and active index computed for 30s
+    expect(payload.lyrics.lines.length).toBe(3)
+    expect(payload.lyrics.lines[0]?.text).toBe('First line')
+    expect(payload.lyrics.activeIndex).toBe(1)
   })
 
   it('handles whitelisted actions sent from the sandboxed iframe', async () => {

@@ -16,7 +16,7 @@
 import { Service } from 'cordis'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
-import { NetworkError, NotFoundError, ProviderError, SourceError } from '@BBeBee/protocol'
+import { NetworkError, NotFoundError, ProviderError, SourceError, tryParseUrn } from '@BBeBee/protocol'
 import type {
   AppSettings,
   AudioSourceHandle,
@@ -33,6 +33,7 @@ import type {
   StreamHandle,
   StreamPrefs,
   StreamQuality,
+  Track,
   TransportState,
 } from '@BBeBee/protocol'
 import { QueueModel, type QueueEntry } from './queue.js'
@@ -1129,7 +1130,14 @@ export class Player extends Service implements PlayerService {
   private async knownDurationMs(urn: string): Promise<number> {
     try {
       const [track] = await this.ownCtx.sources.getTracks([urn])
-      return track?.durationMs ?? 0
+      if (track?.durationMs) return track.durationMs
+      const provider = this.ownCtx.sources?.forUrn?.(urn)
+      const parsed = tryParseUrn(urn)
+      if (provider?.getTrack && parsed) {
+        const t = await provider.getTrack(parsed.id)
+        if (t?.durationMs) return t.durationMs
+      }
+      return 0
     } catch (error) {
       this.ownCtx.logger.warn(`player: could not read duration for ${urn}: ${String(error)}`)
       return 0
@@ -1631,19 +1639,50 @@ export class Player extends Service implements PlayerService {
 
     void this.store
       .nowPlaying(urn)
-      .then((meta) => {
-        if (this.transport.trackUrn === urn && meta) {
-          this.set({ nowPlaying: meta })
+      .then(async (meta) => {
+        let finalMeta = meta
+        if (!finalMeta && this.ownCtx.sources) {
+          try {
+            const [track] = await this.ownCtx.sources.getTracks([urn])
+            const isUsable = (t?: Track) => Boolean(t?.title && !t.title.startsWith('BBeBee:'))
+            if (isUsable(track)) {
+              finalMeta = {
+                title: track!.title,
+                artist: track!.artists?.map((a) => a.name).join(', '),
+                album: track!.albumTitle,
+                artwork: track!.artwork,
+              }
+            } else {
+              const provider = this.ownCtx.sources.forUrn?.(urn)
+              const parsed = tryParseUrn(urn)
+              if (provider?.getTrack && parsed) {
+                const t = await provider.getTrack(parsed.id)
+                if (isUsable(t)) {
+                  finalMeta = {
+                    title: t.title,
+                    artist: t.artists?.map((a) => a.name).join(', '),
+                    album: t.albumTitle,
+                    artwork: t.artwork,
+                  }
+                }
+              }
+            }
+          } catch {
+            // ignore
+          }
+        }
+        if (this.transport.trackUrn === urn && finalMeta) {
+          this.set({ nowPlaying: finalMeta })
         }
         if (session) {
-          const artworkUrl = this.sessionArtworkUrl(meta)
+          const artworkUrl = this.sessionArtworkUrl(finalMeta)
           session.update({
             // Never the URN: a lock screen showing a track's key is a bug
             // report, not metadata. An unresolved row says it is loading.
-            title: meta?.title ?? 'Loading…',
-            ...(meta?.artist ? { artist: meta.artist } : {}),
-            ...(meta?.album ? { album: meta.album } : {}),
-            ...(meta?.artworkUri ? { artworkUri: meta.artworkUri } : {}),
+            title: finalMeta?.title ?? 'Loading…',
+            ...(finalMeta?.artist ? { artist: finalMeta.artist } : {}),
+            ...(finalMeta?.album ? { album: finalMeta.album } : {}),
+            ...(finalMeta?.artworkUri ? { artworkUri: finalMeta.artworkUri } : {}),
             ...(artworkUrl ? { artworkUrl } : {}),
             durationMs: this.transport.durationMs,
             positionMs: this.transport.positionMs,

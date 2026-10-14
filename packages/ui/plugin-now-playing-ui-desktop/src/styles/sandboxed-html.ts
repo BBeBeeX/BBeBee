@@ -64,15 +64,16 @@ export function buildSandboxedHtml(htmlBody: string): string {
     }
   </style>`
 
+  const metaReferrer = '  <meta name="referrer" content="no-referrer">'
   const trimmed = htmlBody.trim()
   const isFullDocument = /<html[\s>]/i.test(trimmed) || /<!DOCTYPE/i.test(trimmed)
 
   if (isFullDocument) {
     if (/<head[\s>]/i.test(trimmed)) {
-      return trimmed.replace(/<head(\s[^>]*)?>/i, `$&\n${defaultStyles}\n${sdkScript}`)
+      return trimmed.replace(/<head(\s[^>]*)?>/i, `$&\n${metaReferrer}\n${defaultStyles}\n${sdkScript}`)
     }
     if (/<html[\s>]/i.test(trimmed)) {
-      return trimmed.replace(/<html(\s[^>]*)?>/i, `$&\n<head>\n${defaultStyles}\n${sdkScript}\n</head>`)
+      return trimmed.replace(/<html(\s[^>]*)?>/i, `$&\n<head>\n${metaReferrer}\n${defaultStyles}\n${sdkScript}\n</head>`)
     }
   }
 
@@ -81,6 +82,7 @@ export function buildSandboxedHtml(htmlBody: string): string {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+${metaReferrer}
 ${defaultStyles}
 ${sdkScript}
 </head>

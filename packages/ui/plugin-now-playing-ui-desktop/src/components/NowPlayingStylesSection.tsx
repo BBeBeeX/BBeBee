@@ -39,11 +39,12 @@ const buildSamplePluginManifest = (t: I18nService['t']): string =>
       name: 'Neon Sandbox Player',
       description: t('nowPlaying:nowPlayingStyles.externalHTMLDynamicSandboxTemplate'),
     author: 'BBeBee Community',
-    version: '1.0.0',
+    version: '1.1.0',
     htmlContent: `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
+  <meta name="referrer" content="no-referrer" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
     body {
@@ -205,7 +206,7 @@ const buildSamplePluginManifest = (t: I18nService['t']): string =>
   <div id="ambient" class="ambient-bg"></div>
   <div class="container">
     <div class="cover-wrap">
-      <img id="cover" class="cover-img" src="" alt="" style="display:none;" />
+      <img id="cover" class="cover-img" src="" alt="" referrerpolicy="no-referrer" style="display:none;" />
       <span id="cover-ph" style="color:rgba(255,255,255,0.2);font-size:40px;">🎵</span>
     </div>
     <div class="info-pane">
@@ -252,6 +253,7 @@ const buildSamplePluginManifest = (t: I18nService['t']): string =>
         document.getElementById('title').textContent = data.title || '${t('nowPlaying:nowPlaying.nothingPlaying')}';
         document.getElementById('artist').textContent = data.artist || '-';
         if (data.cover) {
+          coverEl.referrerPolicy = 'no-referrer';
           coverEl.src = data.cover;
           coverEl.style.display = 'block';
           if (phEl) phEl.style.display = 'none';
@@ -280,6 +282,8 @@ const buildSamplePluginManifest = (t: I18nService['t']): string =>
             currentLine = data.lyrics.lines[data.lyrics.activeIndex].text;
           } else if (data.lyrics.lines.every((l) => l.timeMs === undefined)) {
             currentLine = data.lyrics.lines.find((l) => l.text && l.text.trim())?.text || '';
+          } else {
+            currentLine = data.lyrics.lines[0]?.text || '♪ ♫ ♪';
           }
         }
         document.getElementById('lyric').textContent = currentLine || '...';
@@ -293,7 +297,7 @@ const buildSamplePluginManifest = (t: I18nService['t']): string =>
         if (!snap || !snap.durationMs) return;
         const rect = e.currentTarget.getBoundingClientRect();
         const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-        window.BBeBeePlayer.seek(ratio * snap.durationMs);
+        window.BBeBeePlayer.seek(Math.round(ratio * snap.durationMs));
       };
     }
   </script>
@@ -333,6 +337,21 @@ export function NowPlayingStylesSection({ ctx }: { ctx: Context }): ReactElement
     }
 
     updateList()
+
+    // Keep sample template in custom registry up-to-date with latest v1.1.0 fixes
+    const svc = serviceOf<NowPlayingService>(ctx, 'nowPlaying')
+    const sampleManifest = buildSamplePluginManifest(t)
+    try {
+      const parsedSample = JSON.parse(sampleManifest) as NowPlayingStyleMeta
+      const list = svc?.getStyles?.() ?? []
+      const existing = list.find((s) => s.id === 'sample-neon-player')
+      if (existing && existing.version !== parsedSample.version && svc?.registerStyle) {
+        svc.registerStyle(parsedSample)
+      }
+    } catch {
+      // ignore
+    }
+
     const off1 = ctx.on('now-playing/registry-changed', (s) => updateList(s))
     const off2 = ctx.on('now-playing/style-changed', () => updateList())
     return () => {

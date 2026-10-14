@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Context } from 'cordis'
+import { tryParseUrn } from '@BBeBee/protocol'
 import type {
   NowPlayingMeta,
   PlayHistoryHeatmapDay,
@@ -122,11 +123,31 @@ export function useTracksByUrn(ctx: Context, urns: readonly string[]): ReadonlyM
     let cancelled = false
     sources
       .getTracks(missing)
-      .then((tracks) => {
-        if (cancelled || tracks.length === 0) return
+      .then(async (tracks) => {
+        if (cancelled) return
+        const nextMap = new Map<string, Track>()
+        for (const track of tracks) nextMap.set(track.urn, track)
+        const stillMissing = missing.filter((urn) => !nextMap.has(urn))
+        if (stillMissing.length > 0 && typeof sources.forUrn === 'function') {
+          await Promise.all(
+            stillMissing.map(async (urn) => {
+              try {
+                const prov = sources.forUrn(urn)
+                const parsed = tryParseUrn(urn)
+                if (prov?.getTrack && parsed) {
+                  const t = await prov.getTrack(parsed.id)
+                  if (t) nextMap.set(t.urn || urn, t)
+                }
+              } catch {
+                // ignore
+              }
+            }),
+          )
+        }
+        if (cancelled || nextMap.size === 0) return
         setCache((prev) => {
           const next = new Map(prev)
-          for (const track of tracks) next.set(track.urn, track)
+          for (const [k, v] of nextMap) next.set(k, v)
           return next
         })
       })
