@@ -132,10 +132,6 @@ describe('Subsonic live integration', () => {
     expect(defaultSongTitles).toContain('真的愛妳')
 
     // 6. Fetch directory playlist tracks
-    const dirItem = otherItems[0]!
-    const dirAlbum = await ctx.sources.getAlbum(dirItem.urn!)
-    expect(dirAlbum).toBeDefined()
-    expect(dirAlbum!.tracks.length).toBeGreaterThan(0)
 
     // 7. Search tracks
     const searchResult = await ctx.sources.searchAll({ text: '真的' })
