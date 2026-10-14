@@ -186,9 +186,13 @@ Layout templates, settings integration and the track-info modal: see [docs/ui/de
 External developers can create custom HTML/CSS/JS player skins and users can dynamically import them. The security boundary is a hard constraint:
 
 - **Strict Iframe Sandbox Isolation**: rendered with `<iframe sandbox="allow-scripts" />` — `allow-same-origin` is strictly omitted, resulting in `origin: null`. This completely blocks access to the host DOM, `parent.window`, cookies, local storage, the Electron/Node runtime, and arbitrary network/filesystem access.
-- **Strict Data Whitelist (`SandboxPlayerSnapshot`)**: the host only pushes a sanitized, read-only playback snapshot via `postMessage`, with exactly these fields: `cover`, `coverThemeColor`, `title`, `artist`, `album`, `lyrics` (synchronized `{ timeMs, text, translation }[]` plus `activeIndex`), `positionMs`, `durationMs`, `isPlaying`, `isLoved`.
+- **Strict Data Whitelist (`SandboxPlayerSnapshot`)**: the host only pushes a sanitized, read-only playback snapshot via `postMessage` (`{ type: 'NOW_PLAYING_SNAPSHOT', payload }`), with exactly these fields: `cover` (local file URIs are automatically projected to `bbebee-file://` to prevent Chromium local origin blocks), `coverThemeColor`, `title`, `artist`, `album`, `lyrics` (synchronized `{ timeMs, text, translation }[]` plus `activeIndex`), `positionMs`, `durationMs`, `isPlaying`, `isLoved`.
 - **Strict Action Whitelist (`SandboxPlayerAction`)**: sandboxed scripts may only emit whitelisted actions back to the host — `action:play`, `action:pause`, `action:togglePlay`, `action:previous`, `action:next`, `action:seek` (with `positionMs`), `action:toggleFavorite`. The host validates all incoming messages before calling transport services.
-- **Injected Client SDK (`window.BBeBeePlayer`)**: the iframe host automatically injects a lightweight SDK bridge — `onSnapshot(callback)`, `play()` / `pause()` / `togglePlay()`, `previous()` / `next()`, `seek(positionMs)`, `toggleFavorite()` — and nothing beyond this surface.
+- **Injected Client SDK (`window.BBeBeePlayer`)**: the iframe host automatically injects a lightweight SDK bridge via `buildSandboxedHtml` (injecting into `<head>` for full HTML documents or wrapping HTML fragments):
+  - `onSnapshot(callback)` (aliased as `onStateChange(callback)`): registers state listener, immediately triggers with current snapshot if already available, and returns an unsubscribe disposer `() => void`.
+  - `getState()`: synchronously returns the latest `SandboxPlayerSnapshot | null`.
+  - Controls: `play()`, `pause()`, `togglePlay()`, `previous()`, `next()`, `seek(positionMs)`, `toggleFavorite()`.
+  - Lifecycle: dispatches `{ type: 'BBEBEE_SANDBOX_READY' }` on mount to request initial snapshot.
 
 ### 9.3 Settings UI Integration (`NowPlayingStylesSection`)
 > See [docs/ui/design-system.md §11.2](../docs/ui/design-system.md#112-settings-ui-integration-nowplayingstylessection) (L3).

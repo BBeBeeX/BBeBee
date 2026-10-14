@@ -2,37 +2,27 @@
  * Builds the sandboxed HTML document string with injected window.BBeBeePlayer SDK.
  */
 export function buildSandboxedHtml(htmlBody: string): string {
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    *, *::before, *::after { box-sizing: border-box; }
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background: transparent;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    }
-  </style>
-  <script>
+  const sdkScript = `  <script>
     (function() {
       var stateListeners = [];
       var currentState = null;
 
       window.BBeBeePlayer = {
         getState: function() { return currentState; },
-        onStateChange: function(fn) {
+        onSnapshot: function(fn) {
           if (typeof fn === 'function') {
             stateListeners.push(fn);
             if (currentState) {
               try { fn(currentState); } catch(e) { console.error('[BBeBeePlayer] Listener error:', e); }
             }
+            return function() {
+              var idx = stateListeners.indexOf(fn);
+              if (idx !== -1) stateListeners.splice(idx, 1);
+            };
           }
+        },
+        onStateChange: function(fn) {
+          return window.BBeBeePlayer.onSnapshot(fn);
         },
         play: function() { window.parent.postMessage({ type: 'action:play' }, '*'); },
         pause: function() { window.parent.postMessage({ type: 'action:pause' }, '*'); },
@@ -59,7 +49,40 @@ export function buildSandboxedHtml(htmlBody: string): string {
       // Announce readiness to host window
       window.parent.postMessage({ type: 'BBEBEE_SANDBOX_READY' }, '*');
     })();
-  </script>
+  </script>`
+
+  const defaultStyles = `  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: transparent;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+  </style>`
+
+  const trimmed = htmlBody.trim()
+  const isFullDocument = /<html[\s>]/i.test(trimmed) || /<!DOCTYPE/i.test(trimmed)
+
+  if (isFullDocument) {
+    if (/<head[\s>]/i.test(trimmed)) {
+      return trimmed.replace(/<head(\s[^>]*)?>/i, `$&\n${defaultStyles}\n${sdkScript}`)
+    }
+    if (/<html[\s>]/i.test(trimmed)) {
+      return trimmed.replace(/<html(\s[^>]*)?>/i, `$&\n<head>\n${defaultStyles}\n${sdkScript}\n</head>`)
+    }
+  }
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+${defaultStyles}
+${sdkScript}
 </head>
 <body>
 ${htmlBody}

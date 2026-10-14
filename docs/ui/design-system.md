@@ -619,9 +619,10 @@ The app provides 5 built-in layout styles managed by `ctx.nowPlaying`:
 - Sandboxed plugins provide a delete button; deleting an active plugin automatically falls back to `'classic'`.
 - **Import Plugin Modal (`Sheet`)**:
   - Displays sandbox security guarantees and data boundaries.
-  - "Load sample template" button provides an instant, fully functioning neon glassmorphic sample template.
+  - "Load sample template" button provides an instant, fully functioning neon glassmorphic sample template (`sample-neon-player`), demonstrating how external skins bind cover art (with automatic local `bbebee-file://` projection), synced/unsynced lyrics, dynamic progress bar with seek, and playback control actions via `window.BBeBeePlayer.onSnapshot`.
   - Supports direct JSON manifest paste or local `.json` file upload.
   - Validates required fields (`id`, `name`, `htmlContent`) and prevents collisions with built-in style IDs.
+  - `buildSandboxedHtml` dynamically injects the `window.BBeBeePlayer` client SDK and base styles into `<head>` for full HTML documents, or wraps bare HTML snippets with the standard document shell.
 
 ### 11.3 Track Playback Info Modal & Metadata Inspection (`TrackInfoModal`)
 - **Right-Click Context Menu ("See what's playing")**:

@@ -833,7 +833,8 @@ export interface NowPlayingService {
 | 持久化 | `ctx.store` 的 key `now_playing_style` | `ctx.store` 的 key `now_playing_style` |
 | 沙箱隔离 | 隔离的 iframe，具有限制性 `sandbox="allow-scripts"`，仅通过 `postMessage` 交换数据 | 隔离的 WebView，仅通过 `postMessage` 交换数据 |
 
-- **安全沙箱协议**：沙箱化全屏样式在隔离 iframe/WebView 中运行。宿主通过 `bbebee:player-state` 广播 `SandboxPlayerSnapshot`；沙箱仅被允许派发白名单内的控制动作（`SandboxPlayerAction`）。
+- **安全沙箱协议**：沙箱化全屏样式在隔离 iframe/WebView 中运行。宿主通过 postMessage（`{ type: 'NOW_PLAYING_SNAPSHOT', payload: SandboxPlayerSnapshot }`）广播播放快照；沙箱仅被允许派发白名单内的控制动作（`SandboxPlayerAction`）。本地封面路径（`file://`）会自动重写为 `bbebee-file://` 协议，规避 Chromium 本地资源跨源阻断。
+- **客户端 SDK 注入（`window.BBeBeePlayer`）**：沙箱环境自动注入轻量 SDK，提供 `onSnapshot(callback)`（兼容别名 `onStateChange`，返回注销函数）、`getState()` 以及白名单动作派发器（`play`, `pause`, `togglePlay`, `previous`, `next`, `seek`, `toggleFavorite`），沙箱就绪时派发 `{ type: 'BBEBEE_SANDBOX_READY' }`。
 - **零特权执行**：第三方播放器外观绝无 DOM 遍历权限、无直接音频硬件访问权，也无法接触底层凭据。
 
 ---

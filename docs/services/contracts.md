@@ -921,8 +921,11 @@ export interface NowPlayingService {
 | Sandboxed Plugins | Third-party HTML/CSS/JS executed inside isolated iframe; communicates exclusively via postMessage with strict whitelist validation | Fallback to built-in styles |
 
 - **Security Sandbox Guarantee**: Sandboxed external plugins have zero access to the host DOM, parent window, cookies, storage, Cordis context, or platform SDKs.
-- **Strict Data Whitelist (`SandboxPlayerSnapshot`)**: Only 8 core playback fields are projected (`cover`, `coverThemeColor`, `title`, `artist`, `lyrics`, `positionMs`/`durationMs`, `isPlaying`, `isLoved`).
+- **Strict Data Whitelist (`SandboxPlayerSnapshot`)**: Only 8 core playback fields are projected (`cover`, `coverThemeColor`, `title`, `artist`, `lyrics`, `positionMs`/`durationMs`, `isPlaying`, `isLoved`). Local artwork paths (`file://`) are automatically rewritten to `bbebee-file://` to allow image loading without Chromium local origin violations.
 - **Strict Action Whitelist (`SandboxPlayerAction`)**: Only whitelisted transport/playback commands are honored (`play`, `pause`, `togglePlay`, `previous`, `next`, `seek`, `toggleFavorite`).
+- **Bridge Protocol & SDK (`window.BBeBeePlayer`)**:
+  - The host pushes `{ type: 'NOW_PLAYING_SNAPSHOT', payload: SandboxPlayerSnapshot }` and responds to sandbox handshake `{ type: 'BBEBEE_SANDBOX_READY' }`.
+  - The iframe host injects `window.BBeBeePlayer` exposing `onSnapshot(fn)` (also aliased as `onStateChange(fn)`), `getState()`, and transport action dispatchers (`play`, `pause`, `togglePlay`, `previous`, `next`, `seek`, `toggleFavorite`).
 - **Active Fallback Protection**: Removing a custom plugin currently in use automatically resets active layout to `'classic'`.
 
 ---

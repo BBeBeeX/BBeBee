@@ -8,7 +8,7 @@
  *  - Host-extracted cover theme color (coverThemeColor) to prevent canvas tainting in sandbox
  */
 
-import { createElement as h, useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
+import { createElement as h, useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import type {
   LibraryService,
   LyricsService,
@@ -22,6 +22,7 @@ import { parseLrc, findActiveLyricIndex } from '@BBeBee/toolkit'
 import { serviceOf, useServiceState } from '@BBeBee/ui-core'
 import { useResolvedArtwork } from '@BBeBee/toolkit/hooks'
 import { useImageColor, useI18n } from '@BBeBee/ui-kit-desktop'
+import { useCurrentTrack } from '../hooks.js'
 import { buildSandboxedHtml } from './sandboxed-html.js'
 import type { NowPlayingLayoutProps } from './index.js'
 
@@ -42,12 +43,23 @@ export function SandboxedLayout({
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
   const isPlaying = state.status === 'playing'
 
-  // 1. Resolve artwork & cover theme color
-  const resolvedArtwork = useResolvedArtwork(ctx, state.nowPlaying?.artwork)
-  const sourceUrl = resolvedArtwork?.sourceUrl
-  const dominant = resolvedArtwork?.dominantColor
-  const extractedImageColor = useImageColor(sourceUrl, dominant)
+  // 1. Resolve artwork & cover theme color with bbebee-file:// rewrite for local assets
+  const currentTrack = useCurrentTrack(ctx)
+  const effectiveArtwork = state.nowPlaying?.artwork ?? currentTrack?.artwork
+  const resolvedArtwork = useResolvedArtwork(ctx, effectiveArtwork)
+  const rawCover = resolvedArtwork?.sourceUrl ?? effectiveArtwork?.sourceUrl
+  const coverUrl = useMemo(() => {
+    if (!rawCover) return null
+    return rawCover.startsWith('file://') ? rawCover.replace(/^file:\/\//, 'bbebee-file://') : rawCover
+  }, [rawCover])
+
+  const dominant = resolvedArtwork?.dominantColor ?? effectiveArtwork?.dominantColor
+  const extractedImageColor = useImageColor(coverUrl ?? undefined, dominant)
   const coverThemeColor = dominant ?? extractedImageColor ?? null
+
+  const title = state.nowPlaying?.title ?? currentTrack?.title ?? ''
+  const artist = state.nowPlaying?.artist ?? currentTrack?.artists?.map((a) => a.name).join(', ') ?? ''
+  const album = state.nowPlaying?.album ?? currentTrack?.albumTitle
 
   // 2. Resolve lyrics
   const lyricsService = serviceOf<LyricsService>(ctx, 'lyrics')
@@ -110,53 +122,59 @@ export function SandboxedLayout({
   }, [ctx, trackUrn])
 
   // 4. Construct current snapshot
+  const durationMs = Math.round(duration ?? state.durationMs ?? 0)
+  const positionMs = Math.round(displayPosition ?? state.positionMs ?? 0)
+
   const snapshot: SandboxPlayerSnapshot = useMemo(() => {
     return {
-      cover: sourceUrl ?? null,
+      cover: coverUrl,
       coverThemeColor,
-      title: state.nowPlaying?.title ?? '',
-      artist: state.nowPlaying?.artist ?? '',
-      album: state.nowPlaying?.album,
+      title,
+      artist,
+      album,
       lyrics: {
         lines: lyricLines,
         activeIndex,
       },
-      positionMs: Math.round(displayPosition),
-      durationMs: Math.round(duration ?? 0),
+      positionMs,
+      durationMs,
       isPlaying,
       isLoved,
     }
   }, [
-    sourceUrl,
+    coverUrl,
     coverThemeColor,
-    state.nowPlaying?.title,
-    state.nowPlaying?.artist,
-    state.nowPlaying?.album,
+    title,
+    artist,
+    album,
     lyricLines,
     activeIndex,
-    displayPosition,
-    duration,
+    positionMs,
+    durationMs,
     isPlaying,
     isLoved,
   ])
 
   // 5. Unidirectional snapshot broadcast to iframe
-  const sendSnapshot = () => {
+  const snapshotRef = useRef(snapshot)
+  snapshotRef.current = snapshot
+
+  const sendSnapshot = useCallback(() => {
     const iframe = iframeRef.current
-    if (iframe?.contentWindow) {
+    if (typeof iframe?.contentWindow?.postMessage === 'function') {
       iframe.contentWindow.postMessage(
         {
           type: 'NOW_PLAYING_SNAPSHOT',
-          payload: snapshot,
+          payload: snapshotRef.current,
         },
         '*',
       )
     }
-  }
+  }, [])
 
   useEffect(() => {
     sendSnapshot()
-  }, [snapshot])
+  }, [snapshot, sendSnapshot])
 
   // 6. Security guard: validate and dispatch incoming actions
   useEffect(() => {
@@ -180,10 +198,10 @@ export function SandboxedLayout({
           ctx.player.togglePlay()
           break
         case 'action:play':
-          if (state.status === 'paused') ctx.player.togglePlay()
+          void ctx.player.play()
           break
         case 'action:pause':
-          if (state.status === 'playing') ctx.player.togglePlay()
+          ctx.player.pause()
           break
         case 'action:previous':
           void ctx.player.previous()
@@ -197,11 +215,12 @@ export function SandboxedLayout({
           }
           break
         case 'action:toggleFavorite': {
-          if (trackUrn) {
+          const urn = trackUrn ?? state.trackUrn
+          if (urn) {
             const library = serviceOf<LibraryService>(ctx, 'library')
             if (library) {
-              void library.isSaved(trackUrn).then((saved) => {
-                void library.setSaved(trackUrn, !saved)
+              void library.isSaved(urn).then((saved) => {
+                void library.setSaved(urn, !saved)
               })
             }
           }
@@ -214,7 +233,7 @@ export function SandboxedLayout({
 
     window.addEventListener('message', handleIncomingMessage)
     return () => window.removeEventListener('message', handleIncomingMessage)
-  }, [ctx, state.status, trackUrn, snapshot])
+  }, [ctx, trackUrn, state.trackUrn, sendSnapshot])
 
   const fullHtml = useMemo(() => {
     return buildSandboxedHtml(
@@ -242,6 +261,9 @@ export function SandboxedLayout({
     },
     h('iframe', {
       ref: iframeRef,
+      onLoad: () => {
+        sendSnapshot()
+      },
       'data-testid': 'sandbox-iframe',
       // Strict sandbox isolation: only allow-scripts, NO allow-same-origin!
       sandbox: 'allow-scripts',
