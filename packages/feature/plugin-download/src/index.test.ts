@@ -1199,6 +1199,52 @@ describe('plugin-download', () => {
     const coverReq = h.http.requests.find((r) => r.url === 'https://cdn.raw.test/raw-cover.jpg')
     expect(coverReq).toBeDefined()
   })
+
+  it('accepts object URN, wrapped tracks, and tracks without URN in enqueue', async () => {
+    const h = await harness()
+    h.http.body = new Uint8Array([0xff, 0xfb, 0x90, 0x64, 0, 0])
+
+    // Case 1: urn is an object
+    const objUrnItem = {
+      urn: { sourceId: 'demo', kind: 'track', id: 'obj-urn-track' },
+      title: 'Object Urn Track',
+      artist: 'Demo Singer',
+    }
+    const task1 = (await h.ctx.downloads.enqueue([objUrnItem as any]))[0]!
+    expect(task1).toBeDefined()
+    expect(task1.trackUrn).toBe('BBeBee:demo:track:obj-urn-track')
+    expect(task1.title).toBe('Object Urn Track')
+
+    // Case 2: wrapped track { track: Track }
+    const wrappedItem = {
+      track: {
+        urn: 'BBeBee:demo:track:wrapped-track',
+        title: 'Wrapped Song',
+        artist: 'Wrapped Singer',
+      },
+    }
+    const task2 = (await h.ctx.downloads.enqueue([wrappedItem as any]))[0]!
+    expect(task2).toBeDefined()
+    expect(task2.trackUrn).toBe('BBeBee:demo:track:wrapped-track')
+    expect(task2.title).toBe('Wrapped Song')
+
+    // Case 3: no urn, has id and sourceId
+    const noUrnItem = {
+      sourceId: 'demo',
+      id: 'constructed-id',
+      name: 'Constructed Song',
+      singer: 'Constructed Singer',
+    }
+    const task3 = (await h.ctx.downloads.enqueue([noUrnItem as any]))[0]!
+    expect(task3).toBeDefined()
+    expect(task3.trackUrn).toBe('BBeBee:demo:track:constructed-id')
+    expect(task3.title).toBe('Constructed Song')
+    expect(task3.artist).toBe('Constructed Singer')
+
+    // Case 4: skips undefined/null safely
+    const tasks = await h.ctx.downloads.enqueue([null as any, undefined as any])
+    expect(tasks).toEqual([])
+  })
 })
 
 describe('plugin-download lifecycle', () => {

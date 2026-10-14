@@ -31,8 +31,7 @@
 
 import { Service } from 'cordis'
 import type { Context } from 'cordis'
-import type {} from '@BBeBee/protocol'
-import { parseUrn, uriContains } from '@BBeBee/protocol'
+import { formatUrn, parseUrn, tryParseUrn, uriContains } from '@BBeBee/protocol'
 import type {
   ArtistCredit,
   ArtworkRef,
@@ -48,6 +47,7 @@ import type {
   StreamPrefs,
   StreamQuality,
   Uri,
+  UrnKind,
 } from '@BBeBee/protocol'
 import { embedAudioTags, sanitizeFileName, stableId } from '@BBeBee/toolkit'
 import { DOWNLOADS_VIEWS } from './views.js'
@@ -298,53 +298,115 @@ export function isUrl(s: string | null | undefined): s is string {
   )
 }
 
-export function normalizeEnqueueItem(item: EnqueueItem): { urn: string; meta?: DownloadTrackMeta } {
-  if (typeof item === 'string') {
-    return { urn: item }
+export function normalizeEnqueueItem(rawInput: EnqueueItem): { urn: string; meta?: DownloadTrackMeta } {
+  if (typeof rawInput === 'string') {
+    const s = rawInput.trim()
+    return { urn: s }
   }
-  if (!item || typeof item !== 'object') {
-    return { urn: String(item) }
+  if (!rawInput || typeof rawInput !== 'object') {
+    return { urn: String(rawInput ?? '') }
   }
-  const urn = item.urn
-  let artist = (item as DownloadTrackMeta).artist
+
+  // 1. Unwrap wrapped track or item (e.g. { track: Track }, { item: Track }, { row: { track: Track } })
+  let item = rawInput as unknown as Record<string, unknown>
+  if (item.track && typeof item.track === 'object') {
+    item = item.track as Record<string, unknown>
+  } else if (item.item && typeof item.item === 'object') {
+    item = item.item as Record<string, unknown>
+  } else if (item.row && typeof item.row === 'object' && (item.row as Record<string, unknown>).track) {
+    item = (item.row as Record<string, unknown>).track as Record<string, unknown>
+  }
+
+  // 2. Extract and format URN as a valid string
+  let resolvedUrn: string | undefined
+  const rawUrn = item.urn ?? item.trackUrn ?? item.track_urn
+
+  if (typeof rawUrn === 'string' && rawUrn.trim() && rawUrn.trim() !== '[object Object]') {
+    resolvedUrn = rawUrn.trim()
+  } else if (rawUrn && typeof rawUrn === 'object') {
+    const uObj = rawUrn as Record<string, unknown>
+    if (typeof uObj.urn === 'string' && uObj.urn.trim() && uObj.urn.trim() !== '[object Object]') {
+      resolvedUrn = uObj.urn.trim()
+    } else if (uObj.sourceId && (uObj.id || uObj.trackId || uObj.songId)) {
+      const sId = String(uObj.sourceId).trim()
+      const idVal = String(uObj.id ?? uObj.trackId ?? uObj.songId).trim()
+      const kindVal = (uObj.kind as UrnKind) || 'track'
+      try {
+        resolvedUrn = formatUrn({ sourceId: sId, kind: kindVal, id: idVal })
+      } catch {
+        resolvedUrn = `BBeBee:${sId}:track:${idVal}`
+      }
+    }
+  }
+
+  // Fallback: construct from item.sourceId and item.id / item.trackId / item.songId / item.mid / item.remoteId
+  if (!resolvedUrn) {
+    const sId =
+      typeof item.sourceId === 'string' && item.sourceId.trim()
+        ? item.sourceId.trim()
+        : typeof item.source === 'string' && item.source.trim()
+          ? item.source.trim()
+          : 'unknown'
+    const idVal = item.id ?? item.trackId ?? item.songId ?? item.mid ?? item.remoteId ?? item.key
+    if (idVal !== undefined && idVal !== null && String(idVal).trim() && String(idVal) !== '[object Object]') {
+      try {
+        resolvedUrn = formatUrn({ sourceId: sId, kind: 'track', id: String(idVal).trim() })
+      } catch {
+        resolvedUrn = `BBeBee:${sId}:track:${String(idVal).trim()}`
+      }
+    }
+  }
+
+  // Final fallback if no URN could be resolved
+  if (!resolvedUrn || resolvedUrn === '[object Object]') {
+    const fallbackId = stableId(JSON.stringify(item))
+    resolvedUrn = `BBeBee:unknown:track:${fallbackId}`
+  }
+
+  // 3. Extract metadata fields
+  const title =
+    (typeof item.title === 'string' && item.title.trim() ? item.title.trim() : undefined) ??
+    (typeof item.name === 'string' && item.name.trim() ? item.name.trim() : undefined) ??
+    (typeof item.songName === 'string' && item.songName.trim() ? item.songName.trim() : undefined) ??
+    (typeof item.trackName === 'string' && item.trackName.trim() ? item.trackName.trim() : undefined)
+
+  let artist = typeof item.artist === 'string' && item.artist.trim() ? item.artist.trim() : undefined
   if (!artist && 'artists' in item && Array.isArray(item.artists) && item.artists.length > 0) {
     artist = item.artists
       .map((a: unknown) => {
-        if (typeof a === 'string') return a
+        if (typeof a === 'string') return a.trim()
         if (a && typeof a === 'object' && 'name' in a && typeof (a as { name?: unknown }).name === 'string') {
-          return (a as { name: string }).name
+          return (a as { name: string }).name.trim()
         }
         return ''
       })
       .filter(Boolean)
       .join(', ')
   }
-  const raw = (item as DownloadTrackMeta).raw ?? (item as unknown as { raw?: unknown }).raw
+  const raw = item.raw
   if (!artist && raw) {
     artist = extractArtistFromRaw(raw)
   }
+  if (!artist) {
+    artist = extractArtistFromRaw(item)
+  }
 
-  const artRef = item.artwork
+  const artRef = item.artwork as ArtworkRef | undefined
   let artworkUrl =
-    (item as DownloadTrackMeta).artworkUrl ??
+    (typeof item.artworkUrl === 'string' && item.artworkUrl.trim() ? item.artworkUrl.trim() : undefined) ??
     artRef?.sourceUrl ??
     (isUrl(artRef?.id) ? artRef.id : undefined)
   if (!artworkUrl && raw) {
     artworkUrl = extractArtworkUrlFromRaw(raw)
   }
-  const itemRec = item as unknown as Record<string, unknown>
   if (!artworkUrl) {
-    const rawPic =
-      (typeof itemRec.picUrl === 'string' && itemRec.picUrl) ||
-      (typeof itemRec.cover === 'string' && itemRec.cover) ||
-      (typeof itemRec.coverUrl === 'string' && itemRec.coverUrl)
-    if (rawPic && isUrl(rawPic)) artworkUrl = rawPic
+    artworkUrl = extractArtworkUrlFromRaw(item)
   }
 
-  const rawAlbum = itemRec.album
-  let albumTitle = item.albumTitle
-  if (!albumTitle && typeof rawAlbum === 'string') {
-    albumTitle = rawAlbum
+  const rawAlbum = item.album
+  let albumTitle = typeof item.albumTitle === 'string' && item.albumTitle.trim() ? item.albumTitle.trim() : undefined
+  if (!albumTitle && typeof rawAlbum === 'string' && rawAlbum.trim()) {
+    albumTitle = rawAlbum.trim()
   } else if (
     !albumTitle &&
     rawAlbum &&
@@ -352,11 +414,11 @@ export function normalizeEnqueueItem(item: EnqueueItem): { urn: string; meta?: D
     'title' in rawAlbum &&
     typeof (rawAlbum as { title?: unknown }).title === 'string'
   ) {
-    albumTitle = (rawAlbum as { title: string }).title
+    albumTitle = (rawAlbum as { title: string }).title.trim()
   }
 
   const albumUrn =
-    item.albumUrn ??
+    (typeof item.albumUrn === 'string' && item.albumUrn.trim() ? item.albumUrn.trim() : undefined) ??
     (rawAlbum &&
     typeof rawAlbum === 'object' &&
     'urn' in rawAlbum &&
@@ -365,20 +427,20 @@ export function normalizeEnqueueItem(item: EnqueueItem): { urn: string; meta?: D
       : undefined)
 
   const meta: DownloadTrackMeta = {
-    urn,
-    title: item.title,
+    urn: resolvedUrn,
+    title,
     artist: artist || undefined,
-    artists: item.artists,
+    artists: item.artists as readonly ArtistCredit[] | undefined,
     albumTitle,
     albumUrn,
-    year: item.year,
-    trackNo: item.trackNo,
-    artwork: item.artwork,
+    year: typeof item.year === 'number' ? item.year : undefined,
+    trackNo: typeof item.trackNo === 'number' ? item.trackNo : undefined,
+    artwork: artRef,
     artworkUrl: artworkUrl || undefined,
-    artworkLocalUri: (item as DownloadTrackMeta).artworkLocalUri,
+    artworkLocalUri: typeof item.artworkLocalUri === 'string' ? item.artworkLocalUri : undefined,
     raw,
   }
-  return { urn, meta }
+  return { urn: resolvedUrn, meta }
 }
 
 export class Downloads extends Service implements DownloadsService {
@@ -691,12 +753,20 @@ export class Downloads extends Service implements DownloadsService {
   ): Promise<readonly DownloadTask[]> {
     const queued: DownloadTask[] = []
     for (const item of items) {
+      if (!item) continue
       const { urn, meta } = normalizeEnqueueItem(item)
-      if (meta) {
-        this.trackMetaOverrides.set(urn, meta)
-        await this.ensureTrackRow(urn, meta).catch(() => undefined)
+      if (typeof urn !== 'string' || !urn.trim() || urn === '[object Object]') {
+        this.ownCtx.logger.warn(`download: skipping enqueue with invalid urn: ${String(urn)}`)
+        continue
       }
-      const task = await this.enqueueOne(urn, opts.quality, meta)
+      const safeUrn = urn.trim()
+      if (meta) {
+        this.trackMetaOverrides.set(safeUrn, meta)
+        await this.ensureTrackRow(safeUrn, meta).catch((e: unknown) => {
+          this.ownCtx.logger.warn(`download: ensureTrackRow failed for ${safeUrn}: ${String(e)}`)
+        })
+      }
+      const task = await this.enqueueOne(safeUrn, opts.quality, meta)
       if (task) queued.push(task)
     }
     void this.refreshGate()
@@ -715,6 +785,10 @@ export class Downloads extends Service implements DownloadsService {
     quality: StreamQuality | undefined,
     meta?: DownloadTrackMeta,
   ): Promise<DownloadTask | undefined> {
+    if (typeof urn !== 'string' || !urn.trim() || urn === '[object Object]') {
+      this.ownCtx.logger.warn(`download: enqueueOne called with invalid urn: ${String(urn)}`)
+      return undefined
+    }
     const existing = this.list.find((task) => task.trackUrn === urn && task.state !== 'done')
     if (existing) {
       if (meta?.title && (!existing.title || existing.title === existing.trackUrn)) {
@@ -1753,7 +1827,12 @@ export class Downloads extends Service implements DownloadsService {
       raw?: unknown
     },
   ): Promise<void> {
-    const parsed = parseUrn(urn)
+    if (typeof urn !== 'string' || !urn.trim() || urn === '[object Object]') return
+    const parsed = tryParseUrn(urn) ?? {
+      sourceId: 'unknown',
+      kind: 'track' as const,
+      id: urn,
+    }
     const now = Date.now()
     try {
       const artworkUrl =

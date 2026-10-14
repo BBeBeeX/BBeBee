@@ -76,7 +76,8 @@ export function trackMenuItems(
   const player = serviceOf<PlayerService>(ctx, 'player')
   const downloads = serviceOf<DownloadsService>(ctx, 'downloads')
   const ui = serviceOf<UiService>(ctx, 'ui')
-  const track = target.track
+  const track = target.track ?? (target as unknown as Track)
+  if (!track) return []
   const items: MenuItemSpec[] = []
 
   const submenu = addToPlaylistSubmenu(library, [track.urn], opts.playlists ?? [], { ctx })
@@ -251,7 +252,14 @@ export function useTrackMenu(ctx: Context, opts: TrackMenuOptions = {}): TrackMe
             collections: state.collections,
           })
         : [],
-      ...(state.open ? { title: state.open.target.track.title } : {}),
+      ...(state.open
+        ? {
+            title:
+              state.open.target.track?.title ??
+              (state.open.target as unknown as Track)?.title ??
+              '',
+          }
+        : {}),
     },
   }
 }
