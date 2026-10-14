@@ -22,7 +22,7 @@ import httpPlugin from '@BBeBee/core-http-node'
 import jsPlugin from '@BBeBee/core-js-quickjs-node'
 import { SecretsNode } from '@BBeBee/core-secrets-node'
 import sourcesPlugin from '@BBeBee/plugin-sources'
-import { CORE_MIGRATIONS, MigrationRunner } from '@BBeBee/kernel'
+import { CORE_MIGRATIONS, MigrationRunner, scopeContext } from '@BBeBee/kernel'
 import { tempDir, tick } from '@BBeBee/kernel/testing'
 import runtimePlugin from './index.js'
 
@@ -90,8 +90,9 @@ describe('Subsonic live integration', () => {
     // 2b. Before configuring credentials, calling recommend fails with session invalid
     await expect(ctx.sources.recommend(sourceId)).rejects.toThrow(/no longer valid|404|fetch failed/i)
 
-    // 3. Update source params and verify hot-reload + auth recovery
-    await ctx.sources.updateSourceParams(sourceId, {
+    // 3. Update source params from a scoped UI context (simulates real desktop settings UI)
+    const settingsUi = scopeContext(ctx, { pluginId: '@BBeBee/plugin-settings-ui-desktop', requested: [] })
+    await settingsUi.sources.updateSourceParams(sourceId, {
       sourceUrl: TEST_HOST,
       secrets: {
         user: 'admin',

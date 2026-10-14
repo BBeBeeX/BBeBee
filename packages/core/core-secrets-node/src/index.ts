@@ -177,37 +177,15 @@ export class SecretsNode extends Service implements SecretsService {
   }
 
   async get(key: string): Promise<string | undefined> {
-    const stored = this.entries.get(this.scope() + key)
-    if (stored === undefined) return undefined
-    try {
-      return await this.codec.decrypt(stored)
-    } catch {
-      /*
-       * A value that will not decrypt is one the *platform* can no longer
-       * read — a restored backup on another machine, a rotated keychain
-       * entry. Treating it as absent asks the user to sign in again, which is
-       * recoverable; throwing would make every read of that namespace fail
-       * for ever with no way back.
-       */
-      return undefined
-    }
+    return this.rawGet(this.scope() + key)
   }
 
   async set(key: string, value: string): Promise<void> {
-    const bytes = new TextEncoder().encode(value).length
-    if (bytes > this.maxValueBytes) {
-      throw new Error(
-        `secrets: ${bytes} bytes exceeds the ${this.maxValueBytes}-byte limit — ` +
-          'envelope-encrypt large values with a key kept here (docs/04 §2.1)',
-      )
-    }
-    this.entries.set(this.scope() + key, await this.codec.encrypt(value))
-    await this.flush()
+    return this.rawSet(this.scope() + key, value)
   }
 
   async delete(key: string): Promise<void> {
-    if (!this.entries.delete(this.scope() + key)) return
-    await this.flush()
+    return this.rawDelete(this.scope() + key)
   }
 
   async clear(): Promise<void> {
@@ -217,12 +195,10 @@ export class SecretsNode extends Service implements SecretsService {
     const prefix = this.scope()
     if (!prefix) {
       this.entries.clear()
+      await this.flush()
     } else {
-      for (const key of [...this.entries.keys()]) {
-        if (key.startsWith(prefix)) this.entries.delete(key)
-      }
+      await this.rawDeleteMany(prefix)
     }
-    await this.flush()
   }
 
   namespace(ns: string): SecretsService {
@@ -236,12 +212,81 @@ export class SecretsNode extends Service implements SecretsService {
     return [...this.entries.keys()]
   }
 
-  /** @internal */
-  async deleteMany(prefix: string): Promise<void> {
+  /**
+   * Read a raw key without caller scope prefix.
+   *
+   * If not found directly, falls back to migrating any legacy entry that was
+   * saved with a caller plugin scope prefix (e.g. `@BBeBee/plugin-settings-ui-desktop/source-id:key`).
+   * @internal
+   */
+  async rawGet(key: string): Promise<string | undefined> {
+    let stored = this.entries.get(key)
+    if (stored === undefined) {
+      for (const [k, v] of this.entries.entries()) {
+        if (k.endsWith('/' + key)) {
+          stored = v
+          this.entries.set(key, v)
+          this.entries.delete(k)
+          void this.flush()
+          break
+        }
+      }
+    }
+    if (stored === undefined) return undefined
+    try {
+      return await this.codec.decrypt(stored)
+    } catch {
+      return undefined
+    }
+  }
+
+  /**
+   * Store a raw key without caller scope prefix.
+   * Also cleans up any legacy caller-scoped key variant.
+   * @internal
+   */
+  async rawSet(key: string, value: string): Promise<void> {
+    const bytes = new TextEncoder().encode(value).length
+    if (bytes > this.maxValueBytes) {
+      throw new Error(
+        `secrets: ${bytes} bytes exceeds the ${this.maxValueBytes}-byte limit — ` +
+          'envelope-encrypt large values with a key kept here (docs/04 §2.1)',
+      )
+    }
+    this.entries.set(key, await this.codec.encrypt(value))
+    for (const k of [...this.entries.keys()]) {
+      if (k.endsWith('/' + key)) {
+        this.entries.delete(k)
+      }
+    }
+    await this.flush()
+  }
+
+  /**
+   * Delete a raw key without caller scope prefix.
+   * Also cleans up any legacy caller-scoped key variant.
+   * @internal
+   */
+  async rawDelete(key: string): Promise<void> {
     let changed = false
-    const full = this.scope() + prefix
+    if (this.entries.delete(key)) changed = true
+    for (const k of [...this.entries.keys()]) {
+      if (k.endsWith('/' + key)) {
+        this.entries.delete(k)
+        changed = true
+      }
+    }
+    if (changed) await this.flush()
+  }
+
+  /**
+   * Delete all keys matching prefix without caller scope prefix.
+   * @internal
+   */
+  async rawDeleteMany(prefix: string): Promise<void> {
+    let changed = false
     for (const key of [...this.entries.keys()]) {
-      if (key.startsWith(full)) {
+      if (key.startsWith(prefix) || key.includes('/' + prefix)) {
         this.entries.delete(key)
         changed = true
       }
@@ -320,19 +365,19 @@ class NamespacedSecrets implements SecretsService {
   }
 
   get(key: string): Promise<string | undefined> {
-    return this.root.get(this.prefix + key)
+    return this.root.rawGet(this.prefix + key)
   }
 
   set(key: string, value: string): Promise<void> {
-    return this.root.set(this.prefix + key, value)
+    return this.root.rawSet(this.prefix + key, value)
   }
 
   delete(key: string): Promise<void> {
-    return this.root.delete(this.prefix + key)
+    return this.root.rawDelete(this.prefix + key)
   }
 
   clear(): Promise<void> {
-    return this.root.deleteMany(this.prefix)
+    return this.root.rawDeleteMany(this.prefix)
   }
 
   namespace(ns: string): SecretsService {

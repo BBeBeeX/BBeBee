@@ -221,4 +221,24 @@ describe('scoping', () => {
     await ctx.secrets.clear()
     expect(await a.secrets.get('token')).toBeUndefined()
   })
+
+  it('shares explicit namespaces across different scoped callers and migrates legacy scoped keys', async () => {
+    const root = await tempDir('bbebee-secrets-cross-scope')
+    const ctx = await harness(root)
+    const settingsUi = scopeContext(ctx, { pluginId: '@BBeBee/plugin-settings-ui-desktop', requested: ['secrets:own'] as never })
+    const sourceRuntime = scopeContext(ctx, { pluginId: '@BBeBee/plugin-source-runtime', requested: ['secrets:own'] as never })
+
+    // When settings UI writes to a source namespace
+    await settingsUi.secrets.namespace('source-123').set('user', 'admin')
+
+    // Source runtime can read the exact same source credentials
+    expect(await sourceRuntime.secrets.namespace('source-123').get('user')).toBe('admin')
+
+    // Also verify legacy fallback migration: if a legacy key was saved with a caller prefix
+    // e.g. "@BBeBee/old-ui/source-abc:pass"
+    await settingsUi.secrets.set('source-abc:pass', 'secret-pass')
+    // Source runtime reading via namespace("source-abc") finds and migrates it
+    expect(await sourceRuntime.secrets.namespace('source-abc').get('pass')).toBe('secret-pass')
+  })
 })
+

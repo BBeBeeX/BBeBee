@@ -293,7 +293,7 @@ export class Sources extends Service implements SourcesService {
   private cacheWriter!: CacheWriter
   /** Mirrors the `sources` table, so reads are synchronous for the UI. */
   private records: SourceRecord[] = []
-  private secrets?: SecretsService
+  private secretsService?: SecretsService
   private http?: HttpService
   /** Deduplication for concurrent in-flight album requests: key -> Promise */
   private readonly inFlightAlbums = new Map<string, Promise<AlbumDetail | undefined>>()
@@ -318,9 +318,9 @@ export class Sources extends Service implements SourcesService {
     this.records = await this.store.all()
 
     this.ownCtx.inject(['secrets'], (scoped) => {
-      this.secrets = scoped.secrets
+      this.secretsService = scoped.secrets
       return () => {
-        this.secrets = undefined
+        this.secretsService = undefined
       }
     })
 
@@ -1102,7 +1102,7 @@ export class Sources extends Service implements SourcesService {
     const secretKeys = [...secretKeysFor(record.doc)]
     const hasSecrets: Record<string, boolean> = {}
 
-    const secrets = this.secrets?.namespace(id)
+    const secrets = this.secretsService?.namespace(id)
     if (secrets) {
       for (const key of secretKeys) {
         const val = await secrets.get(key)
@@ -1148,7 +1148,7 @@ export class Sources extends Service implements SourcesService {
     }
 
     const secretKeys = secretKeysFor(record.doc)
-    const secrets = this.secrets?.namespace(id)
+    const secrets = this.secretsService?.namespace(id)
 
     // Handle secrets
     if (params.secrets) {
@@ -1211,7 +1211,7 @@ export class Sources extends Service implements SourcesService {
     }
 
     // Fallback to stored secrets / vars if still missing
-    const secrets = this.secrets?.namespace(id)
+    const secrets = this.secretsService?.namespace(id)
     if (!user && secrets) {
       user = await secrets.get('user')
     }
