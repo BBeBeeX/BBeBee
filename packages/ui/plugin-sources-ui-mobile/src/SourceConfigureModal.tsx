@@ -12,6 +12,13 @@ export interface SourceConfigureModalProps {
   onClose: () => void
 }
 
+interface ConfigField {
+  id: string
+  label: string
+  placeholder?: string
+  isPassword: boolean
+}
+
 function isPasswordKey(key: string): boolean {
   const lower = key.toLowerCase()
   return lower.includes('pass') || lower.includes('token') || lower.includes('secret')
@@ -33,8 +40,6 @@ export function SourceConfigureModal({
   const [host, setHost] = useState('')
   const [secrets, setSecrets] = useState<Record<string, string>>({})
   const [vars, setVars] = useState<Record<string, string>>({})
-  const [newVarKey, setNewVarKey] = useState('')
-  const [newVarValue, setNewVarValue] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [initializedSourceId, setInitializedSourceId] = useState<string | undefined>(undefined)
@@ -54,21 +59,127 @@ export function SourceConfigureModal({
 
   if (!open || !sourceId) return null
 
-  const declaredSecretKeys = (params?.secretKeys ?? []).filter(
-    (key) =>
-      key !== 'var' ||
-      record?.doc?.loginType === 'variable' ||
-      record?.doc?.variableComment ||
-      record?.doc?.loginUi?.some((f) => f.id === 'var'),
+  // 1. Host parameter: only shown if mentioned in params or self-hosted/subsonic
+  const hasHostParam = Boolean(
+    record?.doc?.params?.some((p) => {
+      const l = p.toLowerCase()
+      return l === 'sourceurl' || l === 'source_url' || l === 'host' || l === 'server' || l === 'server_url'
+    }) ||
+    record?.doc?.sourceGroup?.includes('subsonic') ||
+    record?.doc?.sourceGroup?.includes('self-hosted'),
   )
+
+  // 2. Credential fields mentioned by the source
+  const credentialFields: ConfigField[] = []
+  const seenFieldIds = new Set<string>()
+
+  if (record?.doc?.loginUi && record.doc.loginUi.length > 0) {
+    for (const f of record.doc.loginUi) {
+      if (!f.id || seenFieldIds.has(f.id)) continue
+      seenFieldIds.add(f.id)
+      credentialFields.push({
+        id: f.id,
+        label: f.label || f.id,
+        placeholder: f.placeholder,
+        isPassword: f.type === 'password' || isPasswordKey(f.id),
+      })
+    }
+  } else {
+    if (record?.doc?.loginType === 'variable') {
+      seenFieldIds.add('var')
+      credentialFields.push({
+        id: 'var',
+        label: record.doc.variableComment || 'var',
+        placeholder: t('sources:sourceConfigure.enterKeyPlaceholder', { key: 'var' }),
+        isPassword: true,
+      })
+    } else if (record?.doc?.sourceGroup?.includes('subsonic')) {
+      seenFieldIds.add('user')
+      seenFieldIds.add('password')
+      credentialFields.push(
+        {
+          id: 'user',
+          label: 'Username',
+          placeholder: 'Username',
+          isPassword: false,
+        },
+        {
+          id: 'password',
+          label: 'Password',
+          placeholder: 'Password',
+          isPassword: true,
+        },
+      )
+    }
+
+    if (record?.doc?.params) {
+      for (const p of record.doc.params) {
+        const lower = p.toLowerCase()
+        if (
+          lower === 'sourceurl' ||
+          lower === 'source_url' ||
+          lower === 'host' ||
+          lower === 'server' ||
+          lower === 'server_url'
+        ) {
+          continue
+        }
+        if ((lower === 'username' && seenFieldIds.has('user')) || (lower === 'user' && seenFieldIds.has('username'))) {
+          continue
+        }
+        if (seenFieldIds.has(p)) continue
+
+        const isSecret = isPasswordKey(p) || params?.secretKeys?.includes(p) || lower === 'user' || lower === 'username'
+        if (isSecret) {
+          seenFieldIds.add(p)
+          credentialFields.push({
+            id: p,
+            label: p,
+            placeholder: t('sources:sourceConfigure.enterKeyPlaceholder', { key: p }),
+            isPassword: isPasswordKey(p),
+          })
+        }
+      }
+    }
+  }
+
+  // 3. Variable keys explicitly mentioned by the source
+  const variableKeys: string[] = []
+  if (record?.doc?.params) {
+    for (const p of record.doc.params) {
+      const lower = p.toLowerCase()
+      if (
+        lower === 'sourceurl' ||
+        lower === 'source_url' ||
+        lower === 'host' ||
+        lower === 'server' ||
+        lower === 'server_url'
+      ) {
+        continue
+      }
+      if (seenFieldIds.has(p)) continue
+      seenFieldIds.add(p)
+      variableKeys.push(p)
+    }
+  }
+
+  // 4. Connectivity test capability
+  const hasConnectivityTest = Boolean(
+    record?.doc?.sourceGroup?.includes('subsonic') ||
+    hasHostParam ||
+    record?.doc?.loginUrl,
+  )
+
+  const hasAnyParams = hasHostParam || credentialFields.length > 0 || variableKeys.length > 0
 
   const handleSave = async () => {
     setSaving(true)
     setSaveError(null)
     try {
+      const targetHost = (hasHostParam ? host : (record?.sourceUrl ?? '')).trim()
       await saveParams({
-        sourceUrl: host.trim(),
-        host: host.trim(),
+        sourceUrl: targetHost,
+        host: targetHost,
         secrets,
         vars,
       })
@@ -82,7 +193,7 @@ export function SourceConfigureModal({
 
   const handleTest = () => {
     void testConnection({
-      host: host.trim(),
+      host: (hasHostParam ? host : (record?.sourceUrl ?? '')).trim(),
       user: secrets['user'] ?? secrets['username'],
       password: secrets['password'],
       vars,
@@ -156,27 +267,120 @@ export function SourceConfigureModal({
         : h(
             native.View as never,
             { style: { gap: tokens.space[3] } },
-            // Host Section
-            h(
-              native.View as never,
-              { style: { gap: tokens.space[1] } },
-              h(Text, { variant: 'sm' }, t('sources:sourceConfigure.serverHostLabel')),
-              h(TextField, {
-                value: host,
-                onChange: setHost,
-                placeholder: 'https://music.example.org',
-                accessibilityLabel: t('sources:sourceConfigure.serverHostLabel'),
-                testID: 'source-configure-host',
-              }),
-              h(
-                Text,
-                { variant: 'xs', tone: 'muted' },
-                t('sources:sourceConfigure.hostHint'),
-              ),
-            ),
+            // Host Section (only if mentioned)
+            ...(hasHostParam
+              ? [
+                  h(
+                    native.View as never,
+                    { style: { gap: tokens.space[1] } },
+                    h(Text, { variant: 'sm' }, t('sources:sourceConfigure.serverHostLabel')),
+                    h(TextField, {
+                      value: host,
+                      onChange: setHost,
+                      placeholder: 'https://music.example.org',
+                      accessibilityLabel: t('sources:sourceConfigure.serverHostLabel'),
+                      testID: 'source-configure-host',
+                    }),
+                    h(
+                      Text,
+                      { variant: 'xs', tone: 'muted' },
+                      t('sources:sourceConfigure.hostHint'),
+                    ),
+                  ),
+                ]
+              : []),
 
-            // Credentials Section
-            ...(declaredSecretKeys.length > 0
+            // Credentials Section (only if mentioned)
+            ...(credentialFields.length > 0
+              ? [
+                  h(
+                    native.View as never,
+                    {
+                      style: {
+                        gap: tokens.space[2],
+                        borderTopWidth: hasHostParam ? 1 : 0,
+                        borderTopColor: 'rgba(148, 163, 184, 0.14)',
+                        paddingTop: hasHostParam ? tokens.space[2] : 0,
+                      },
+                    },
+                    h(
+                      native.View as never,
+                      { style: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' } },
+                      h(Text, { variant: 'sm' }, t('sources:sourceConfigure.credentials')),
+                      h(
+                        Text,
+                        { variant: 'xs', tone: 'accent' },
+                        t('sources:sourceConfigure.keychainNote'),
+                      ),
+                    ),
+                    ...credentialFields.map((field) => {
+                      const placeholder =
+                        field.placeholder ||
+                        (secrets[field.id] && field.isPassword
+                          ? '••••••••'
+                          : t('sources:sourceConfigure.enterKeyPlaceholder', { key: field.label }))
+                      return h(
+                        native.View as never,
+                        { key: field.id, style: { gap: tokens.space[1] } },
+                        h(Text, { variant: 'xs', tone: 'muted' }, field.label),
+                        h(TextField, {
+                          value: secrets[field.id] ?? '',
+                          onChange: (val) => setSecrets((prev) => ({ ...prev, [field.id]: val })),
+                          placeholder,
+                          secure: field.isPassword,
+                          accessibilityLabel: field.label,
+                          testID: `source-configure-${field.id}`,
+                        }),
+                      )
+                    }),
+                  ),
+                ]
+              : []),
+
+            // Variables Section (only if explicitly declared in doc.params)
+            ...(variableKeys.length > 0
+              ? [
+                  h(
+                    native.View as never,
+                    {
+                      style: {
+                        gap: tokens.space[2],
+                        borderTopWidth: 1,
+                        borderTopColor: 'rgba(148, 163, 184, 0.14)',
+                        paddingTop: tokens.space[2],
+                      },
+                    },
+                    h(Text, { variant: 'sm' }, t('sources:sourceConfigure.variables')),
+                    ...variableKeys.map((k) =>
+                      h(
+                        native.View as never,
+                        { key: k, style: { gap: tokens.space[1] } },
+                        h(Text, { variant: 'xs', tone: 'muted' }, k),
+                        h(TextField, {
+                          value: vars[k] ?? '',
+                          onChange: (val) => setVars((prev) => ({ ...prev, [k]: val })),
+                          accessibilityLabel: t('sources:sourceConfigure.variableLabel', { k }),
+                          testID: `source-configure-var-${k}`,
+                        }),
+                      ),
+                    ),
+                  ),
+                ]
+              : []),
+
+            // No parameters notice
+            ...(!hasAnyParams
+              ? [
+                  h(
+                    native.View as never,
+                    { style: { padding: tokens.space[2], alignItems: 'center' } },
+                    h(Text, { variant: 'sm', tone: 'muted' }, t('sources:sourceConfigure.noConfigurableParams')),
+                  ),
+                ]
+              : []),
+
+            // Connectivity Probe Section
+            ...(hasConnectivityTest
               ? [
                   h(
                     native.View as never,
@@ -191,148 +395,19 @@ export function SourceConfigureModal({
                     h(
                       native.View as never,
                       { style: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' } },
-                      h(Text, { variant: 'sm' }, t('sources:sourceConfigure.credentials')),
-                      h(
-                        Text,
-                        { variant: 'xs', tone: 'accent' },
-                        t('sources:sourceConfigure.keychainNote'),
-                      ),
+                      h(Text, { variant: 'sm' }, t('sources:sourceConfigure.connectivityTest')),
+                      h(Button, {
+                        variant: 'secondary',
+                        loading: pingState.loading,
+                        onPress: handleTest,
+                        testID: 'source-configure-test-btn',
+                        children: pingState.loading ? t('sources:sourceConfigure.testing') : t('sources:sourceConfigure.testConnection'),
+                      }),
                     ),
-                    ...declaredSecretKeys.map((key) => {
-                      const isPass = isPasswordKey(key)
-                      return h(
-                        native.View as never,
-                        { key, style: { gap: tokens.space[1] } },
-                        h(Text, { variant: 'xs', tone: 'muted' }, key),
-                        h(TextField, {
-                          value: secrets[key] ?? '',
-                          onChange: (val) => setSecrets((prev) => ({ ...prev, [key]: val })),
-                          placeholder: secrets[key] ? '••••••••' : t('sources:sourceConfigure.enterKeyPlaceholder', { key }),
-                          secure: isPass,
-                          accessibilityLabel: key,
-                          testID: `source-configure-${key}`,
-                        }),
-                      )
-                    }),
+                    pingState.result ? renderPingBadge(pingState.result) : null,
                   ),
                 ]
               : []),
-
-            // Custom Variables Section
-            h(
-              native.View as never,
-              {
-                style: {
-                  gap: tokens.space[2],
-                  borderTopWidth: 1,
-                  borderTopColor: 'rgba(148, 163, 184, 0.14)',
-                  paddingTop: tokens.space[2],
-                },
-              },
-              h(Text, { variant: 'sm' }, t('sources:sourceConfigure.variables')),
-              ...Object.entries(vars).map(([k, v]) =>
-                h(
-                  native.View as never,
-                  {
-                    key: k,
-                    style: { flexDirection: 'row', gap: tokens.space[2], alignItems: 'center' },
-                  },
-                  h(
-                    native.View as never,
-                    { style: { width: 80 } },
-                    h(Text, { variant: 'xs' }, k),
-                  ),
-                  h(
-                    native.View as never,
-                    { style: { flex: 1 } },
-                    h(TextField, {
-                      value: v,
-                      onChange: (val) => setVars((prev) => ({ ...prev, [k]: val })),
-                      accessibilityLabel: t('sources:sourceConfigure.variableLabel', { k }),
-                      testID: `source-configure-var-${k}`,
-                    }),
-                  ),
-                  h(Button, {
-                    variant: 'ghost',
-                    onPress: () => {
-                      setVars((prev) => {
-                        const next = { ...prev }
-                        delete next[k]
-                        return next
-                      })
-                    },
-                    accessibilityLabel: t('sources:sourceConfigure.deleteVariable', { k }),
-                    testID: `source-configure-var-del-${k}`,
-                    children: '✕',
-                  }),
-                ),
-              ),
-              // Add variable row
-              h(
-                native.View as never,
-                { style: { flexDirection: 'row', gap: tokens.space[2], alignItems: 'center' } },
-                h(
-                  native.View as never,
-                  { style: { flex: 1 } },
-                  h(TextField, {
-                    value: newVarKey,
-                    onChange: setNewVarKey,
-                    placeholder: t('sources:sourceConfigure.newKey'),
-                    accessibilityLabel: t('sources:sourceConfigure.newVariableKeyLabel'),
-                    testID: 'source-configure-new-var-key',
-                  }),
-                ),
-                h(
-                  native.View as never,
-                  { style: { flex: 1 } },
-                  h(TextField, {
-                    value: newVarValue,
-                    onChange: setNewVarValue,
-                    placeholder: t('sources:sourceConfigure.value'),
-                    accessibilityLabel: t('sources:sourceConfigure.newVariableValueLabel'),
-                    testID: 'source-configure-new-var-val',
-                  }),
-                ),
-                h(Button, {
-                  variant: 'secondary',
-                  disabled: !newVarKey.trim(),
-                  onPress: () => {
-                    if (!newVarKey.trim()) return
-                    setVars((prev) => ({ ...prev, [newVarKey.trim()]: newVarValue }))
-                    setNewVarKey('')
-                    setNewVarValue('')
-                  },
-                  testID: 'source-configure-add-var-btn',
-                  children: t('sources:sourceConfigure.add'),
-                }),
-              ),
-            ),
-
-            // Connectivity Probe Section
-            h(
-              native.View as never,
-              {
-                style: {
-                  gap: tokens.space[2],
-                  borderTopWidth: 1,
-                  borderTopColor: 'rgba(148, 163, 184, 0.14)',
-                  paddingTop: tokens.space[2],
-                },
-              },
-              h(
-                native.View as never,
-                { style: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' } },
-                h(Text, { variant: 'sm' }, t('sources:sourceConfigure.connectivityTest')),
-                h(Button, {
-                  variant: 'secondary',
-                  loading: pingState.loading,
-                  onPress: handleTest,
-                  testID: 'source-configure-test-btn',
-                  children: pingState.loading ? t('sources:sourceConfigure.testing') : t('sources:sourceConfigure.testConnection'),
-                }),
-              ),
-              pingState.result ? renderPingBadge(pingState.result) : null,
-            ),
 
             saveError ? h(Text, { variant: 'sm', tone: 'error' }, saveError) : null,
 

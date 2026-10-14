@@ -275,6 +275,7 @@ describe('SourceConfigureModal on mobile', () => {
       sourceUrl: 'https://subsonic.example.com',
       sourceName: 'My Subsonic',
       sourceGroup: 'self-hosted,subsonic',
+      params: ['sourceurl', 'user', 'password', 'clientApp'],
       loginUi: [
         { id: 'user', label: 'Username', type: 'text' },
         { id: 'password', label: 'Password', type: 'password' },
@@ -312,14 +313,9 @@ describe('SourceConfigureModal on mobile', () => {
       await tick()
     })
 
-    // 2. Add custom var
+    // 2. Set declared custom var
     await act(async () => {
-      type('source-configure-new-var-key', 'clientApp')
-      type('source-configure-new-var-val', 'BBeBeeTest')
-      await tick()
-    })
-    await act(async () => {
-      ;(container.querySelector('[data-testid="source-configure-add-var-btn"]') as HTMLElement).click()
+      type('source-configure-var-clientApp', 'BBeBeeTest')
       await tick()
     })
 
