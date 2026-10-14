@@ -234,7 +234,7 @@ sequenceDiagram
 
 - **iOS** —— `UIBackgroundModes: ['audio']`，audio session 类别为 `playback`。播放可以无限持续；*非音频*的工作则不行。
 - **Android** —— 一个带媒体通知的前台服务，播放开始时启动，播放结束时停止。没有它，进程会在几分钟内被杀掉。
-- **桌面** —— 渲染进程必须保持存活，因此在音频播放时关闭窗口会隐藏到托盘。`powerSaveBlocker` 用于防止在某些 Windows 配置上屏幕休眠连带挂起音频线程。
+- **桌面** —— 渲染进程必须保持存活，因此在音频播放时关闭窗口会隐藏到托盘。`powerSaveBlocker` 用于防止在某些 Windows 配置上屏幕休眠连带挂起音频线程。此外，当音频委托给外部独立进程输出（例如 `core-audio-mpv` 与本地 `audio-engine` 进程通信）时，Chromium 无法检测到渲染进程内部的 Web Audio 输出，当窗口最小化或隐藏时会默认激进节流或挂起定时器（`setInterval` 被强制降频至 ≥ 1000 ms 甚至完全冻结）。所有驱动音频轮询或媒体同步的窗口（`mainWindow`、`miniPlayer`、`desktopLyrics`）必须显式配置 `webPreferences.backgroundThrottling: false`，以确保引擎状态轮询、IPC 进度广播和播放结束（`ended`）切歌检测在窗口最小化时持续运转。同时，网络音频流初始加载时往往 `durationMs = 0`，直到 libmpv 在流式解码中探测到容器和编码头；`MpvSourceHandle` 在探测到真实时长后动态更新 getter，防止错误触发假死看门狗或导致进度条停滞。
 
 ---
 

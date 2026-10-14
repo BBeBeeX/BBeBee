@@ -510,6 +510,7 @@ export const usePosition = (ctx: Context) =>
    - 无边框透明窗口（`frame: false`, `transparent: true`, `backgroundColor: '#00000000'`, `alwaysOnTop: true`, `skipTaskbar: true`）。
    - 自由拖拽：CSS `-webkit-app-region: drag`，按钮控制项配置 `-webkit-app-region: no-drag`。
    - 鼠标穿透：锁定状态下动态切换 `setIgnoreMouseEvents(locked, { forward: true })`。
+   - 禁用后台节流：主窗口及所有次级窗口（`miniPlayer`、`desktopLyrics`）均配置 `webPreferences.backgroundThrottling: false`，避免窗口最小化或置于后台时 Chromium 挂起定时器导致 IPC 状态同步冻结。
 
 5. **桌面歌词的交互不使用拖拽区**：
    - 歌词窗口根节点**绝不能**携带 `-webkit-app-region: drag` —— 拖拽区会吞掉悬停工具栏依赖的鼠标事件（工具栏曾因此永远不出现）。拖拽改为手动实现：指针捕获 + `desktop-lyrics:set-position` IPC（基于 `screenX/screenY` 增量），拖动结束时通过 `desktop-lyrics:commit-position` 上报最终位置（主进程对程序化移动抑制回声）。
@@ -543,7 +544,11 @@ export const usePosition = (ctx: Context) =>
    - 半透明深色玻璃质感样式（`rgba(18, 18, 18, 0.85)` 配合 `backdrop-filter: blur(24px)`）。
    - 高对比度边框线条（`1px solid rgba(255, 255, 255, 0.08)`）。
 
-6. **Cordis 插件拓扑检视器（`plugin-inspector-ui-desktop`）**：
+6. **高帧率平滑进度条插值**：
+   - 虽然主播放器通过 IPC 每秒广播一次播放进度（`player.sync`），但迷你播放器的 `ProgressBar` 在 `isPlaying` 为真时启用本地 `requestAnimationFrame` 驱动高分辨率时间插值。
+   - 这在离散 IPC 推送之间提供了 60 FPS 的流畅视觉进度，避免了秒级跳动或卡顿，并在收到权威 IPC 时间戳或发生拖拽 seek 时自动重新校准对齐。
+
+7. **Cordis 插件拓扑检视器（`plugin-inspector-ui-desktop`）**：
    - 渲染实时 Cordis 运行时的交互式 PCB 硬件主板拓扑可视化，追踪分层、核心服务、业务功能和 UI 插件之间的依赖联系。
    - **上下文聚焦展示策略**：
      为消除大型运行时（70+ 插件、30+ 服务、40+ 事件）中的认知过载，检视器默认显示以左侧可折叠层级树中所选插件为中心的局部拓扑子图。用户可以调整聚焦深度（`depth=1, 2, 3`）、向上游展开前置依赖项、向下游展开依赖消费方、按层级或节点类型搜索/过滤，或一键切换至全系统视图。

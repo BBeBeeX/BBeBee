@@ -375,7 +375,16 @@ Cross-reference [architecture/layers.md §4](../architecture/layers.md#4-what-ba
   stopped when it ends. Without it, the process is killed within minutes.
 - **Desktop** — the renderer must stay alive, so closing the window hides to tray while audio
   plays. `powerSaveBlocker` prevents display-sleep from suspending the audio thread on some
-  Windows configurations.
+  Windows configurations. Furthermore, when audio is handled out-of-process (e.g. `core-audio-mpv`
+  communicating with the native `audio-engine` process), Chromium cannot detect active Web Audio
+  output and aggressively throttles or suspends background timers (`setInterval` clamped to ≥ 1000 ms
+  or frozen entirely) whenever a window is minimized or hidden. All windows driving audio polling,
+  playback progression, or secondary UI synchronization (`mainWindow`, `miniPlayer`, `desktopLyrics`)
+  must configure `webPreferences.backgroundThrottling: false` to ensure uninterrupted polling of engine
+  state, IPC position updates, and stream-completion (`ended`) transitions. Additionally, network audio
+  streams often load with `durationMs = 0` until libmpv probes container and codec headers mid-stream;
+  `MpvSourceHandle` dynamically updates its duration getter upon probe to prevent premature stall
+  watchdogs or frozen progress scrubbers.
 
 ---
 

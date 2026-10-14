@@ -619,6 +619,7 @@ When desktop features require OS-level window detachment — such as **Desktop L
    - Frameless transparent window (`frame: false`, `transparent: true`, `backgroundColor: '#00000000'`, `alwaysOnTop: true`, `skipTaskbar: true`).
    - Free dragging via CSS `-webkit-app-region: drag` and interactive buttons via `-webkit-app-region: no-drag`.
    - Mouse click-through: `setIgnoreMouseEvents(locked, { forward: true })` toggled dynamically upon lock state where applicable.
+   - Background throttling disabled: `webPreferences.backgroundThrottling: false` is configured across `mainWindow`, `miniPlayer`, and `desktopLyrics` so Chromium does not throttle timers or IPC synchronization when windows are minimized or hidden behind other applications.
 
 5. **Desktop Lyrics Interaction Without Drag Regions**:
    - The lyrics window root must never carry `-webkit-app-region: drag`: a drag region swallows the mouse events the hover toolbar depends on (the reason the toolbar once never appeared). Dragging is manual instead — pointer capture plus `desktop-lyrics:set-position` IPC using `screenX/screenY` deltas, and the final position is reported through `desktop-lyrics:commit-position` when the drag ends (programmatic moves are echo-suppressed in main).
@@ -651,7 +652,12 @@ The **Mini Player / Dynamic Island** (`plugin-mini-player` and `plugin-mini-play
 5. **Crisp Dark Glass Design Standards**:
    - Translucent dark glass styling (`rgba(18, 18, 18, 0.85)` with `backdrop-filter: blur(24px)`).
    - High-contrast border line (`1px solid rgba(255, 255, 255, 0.08)`).
-6. **Cordis Plugin Topology Explorer (`plugin-inspector-ui-desktop`)**:
+
+6. **Smooth Progress Bar Interpolation**:
+   - While playback position is broadcast from the main player over IPC on a 1-second interval (`player.sync`), the mini-player's `ProgressBar` drives a local `requestAnimationFrame` interpolation loop while `isPlaying` is true.
+   - This ensures 60 FPS smooth progress tracking without waiting for or jittering between discrete IPC ticks, and automatically resynchronizes whenever an authoritative IPC tick arrives or seeking occurs.
+
+7. **Cordis Plugin Topology Explorer (`plugin-inspector-ui-desktop`)**:
    - Renders an interactive, technical PCB motherboard topology visualization of the live Cordis runtime, tracing dependencies between layers, core services, features, and UI plugins.
    - **Contextual / Focused Display Strategy**:
      To eliminate cognitive overload in large runtimes (70+ plugins, 30+ services, 40+ events), the explorer defaults to a contextual subgraph focused around a selected plugin from the collapsible hierarchy tree on the left. Users can adjust focus depth (`depth=1, 2, 3`), expand upstream prerequisites or downstream dependents, search/filter by layer or node type, or toggle full system view.
