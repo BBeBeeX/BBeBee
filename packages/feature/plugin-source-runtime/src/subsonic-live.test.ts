@@ -66,7 +66,8 @@ describe('Subsonic live integration', () => {
     const docContent = readFileSync(SUBSONIC_INDEX_JSON_PATH, 'utf-8')
     const report = await ctx.sources.import(docContent)
     expect(report.added.length + report.updated.length + report.unchanged.length).toBeGreaterThan(0)
-    const record = report.added[0] ?? report.updated[0] ?? report.unchanged[0]!
+    const entry = report.added[0] ?? report.updated[0] ?? report.unchanged[0]!
+    const record = 'record' in entry ? entry.record : entry
     const sourceId = record.id
     expect(sourceId).toBeDefined()
 
@@ -148,7 +149,11 @@ describe('Subsonic live integration', () => {
     // 8. Resolve stream
     const trackToStream = defaultAlbum!.tracks[0]!
     const trackId = trackToStream.urn.split(':').pop()!
-    const stream = await provider!.resolveStream(trackId)
+    const stream = await provider!.resolveStream(trackId, {
+      quality: 'high',
+      saveData: false,
+      acceptFormats: ['audio/mpeg', 'audio/flac'],
+    })
     expect(stream.kind).toBe('remote')
     expect(stream.target).toContain('/rest/stream.view?')
     expect(stream.target).toContain('u=admin')

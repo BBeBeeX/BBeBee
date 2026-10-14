@@ -2811,9 +2811,11 @@ function parseSections(rendered: string): { title: string; url: string }[] | und
  */
 function bodyOf(expression: string): string {
   let trimmed = expression.trim()
-  if (trimmed.startsWith('@js:')) {
-    trimmed = trimmed.slice(4).trim()
+  if (trimmed.startsWith('<js>')) {
+    const block = /^<js>([\s\S]*)<\/js>$/.exec(trimmed)
+    if (block) trimmed = block[1]!.trim()
   }
+  trimmed = trimmed.replace(/^@js:\s*/, '')
   if (/\breturn\b/.test(trimmed) || /[;\n]/.test(trimmed)) return trimmed
   return `return (${trimmed})`
 }
