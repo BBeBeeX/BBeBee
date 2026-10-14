@@ -15,6 +15,10 @@ export interface AudioTagMetadata {
   year?: number
   trackNo?: number
   comment?: string
+  picture?: {
+    data: Uint8Array
+    mimeType?: string
+  }
 }
 
 /**
@@ -93,6 +97,48 @@ function makeId3Frame(id: string, text: string): Uint8Array {
   return frame
 }
 
+function detectImageMime(data: Uint8Array, mime?: string): string {
+  if (mime && mime.startsWith('image/')) return mime
+  if (
+    data.length >= 8 &&
+    data[0] === 0x89 &&
+    data[1] === 0x50 &&
+    data[2] === 0x4e &&
+    data[3] === 0x47
+  ) {
+    return 'image/png'
+  }
+  return 'image/jpeg'
+}
+
+/** Build an ID3v2.3 APIC frame: [4-byte 'APIC'][4-byte size][2-byte flags][data]. */
+function makeId3ApicFrame(picture: { data: Uint8Array; mimeType?: string }): Uint8Array {
+  const mime = detectImageMime(picture.data, picture.mimeType)
+  const mimeBytes = encodeUtf8(mime)
+  const bodyLen = 1 + mimeBytes.length + 1 + 1 + 1 + picture.data.length
+  const body = new Uint8Array(bodyLen)
+  body[0] = 0x00 // ISO-8859-1 encoding
+  body.set(mimeBytes, 1)
+  let offset = 1 + mimeBytes.length
+  body[offset++] = 0x00 // null terminator
+  body[offset++] = 0x03 // Picture type: Cover (front)
+  body[offset++] = 0x00 // Description: empty null terminator
+  body.set(picture.data, offset)
+
+  const frame = new Uint8Array(10 + body.length)
+  const id = 'APIC'
+  for (let i = 0; i < 4; i++) frame[i] = id.charCodeAt(i)
+  const len = body.length
+  frame[4] = (len >> 24) & 0xff
+  frame[5] = (len >> 16) & 0xff
+  frame[6] = (len >> 8) & 0xff
+  frame[7] = len & 0xff
+  frame[8] = 0x00
+  frame[9] = 0x00
+  frame.set(body, 10)
+  return frame
+}
+
 /** Build full ID3v2.3 tag buffer. */
 export function buildId3v2Tag(metadata: AudioTagMetadata): Uint8Array {
   const frames: Uint8Array[] = []
@@ -102,6 +148,9 @@ export function buildId3v2Tag(metadata: AudioTagMetadata): Uint8Array {
   if (metadata.album) frames.push(makeId3Frame('TALB', metadata.album))
   if (metadata.year) frames.push(makeId3Frame('TYER', String(metadata.year)))
   if (metadata.trackNo !== undefined) frames.push(makeId3Frame('TRCK', String(metadata.trackNo)))
+  if (metadata.picture?.data && metadata.picture.data.length > 0) {
+    frames.push(makeId3ApicFrame(metadata.picture))
+  }
   if (metadata.comment) {
     // COMM frame: 1-byte encoding + 3-byte lang ('eng') + short desc BOM + null + text BOM
     const utf16Desc = encodeUtf16LeWithBom('')
@@ -219,6 +268,44 @@ function buildVorbisCommentBlock(metadata: AudioTagMetadata): Uint8Array {
   return buf
 }
 
+/** Build FLAC METADATA_BLOCK_PICTURE block. */
+function buildFlacPictureBlock(picture: { data: Uint8Array; mimeType?: string }): { header: Uint8Array; data: Uint8Array } {
+  const mime = detectImageMime(picture.data, picture.mimeType)
+  const mimeBytes = encodeUtf8(mime)
+  const bodyLen = 4 + 4 + mimeBytes.length + 4 + 4 + 4 + 4 + 4 + 4 + picture.data.length
+  const data = new Uint8Array(bodyLen)
+  const view = new DataView(data.buffer)
+
+  let pos = 0
+  view.setUint32(pos, 3) // Picture type: 3 (Cover front)
+  pos += 4
+  view.setUint32(pos, mimeBytes.length)
+  pos += 4
+  data.set(mimeBytes, pos)
+  pos += mimeBytes.length
+  view.setUint32(pos, 0) // description length: 0
+  pos += 4
+  view.setUint32(pos, 0) // width: 0
+  pos += 4
+  view.setUint32(pos, 0) // height: 0
+  pos += 4
+  view.setUint32(pos, 24) // color depth: 24
+  pos += 4
+  view.setUint32(pos, 0) // indexed colors: 0
+  pos += 4
+  view.setUint32(pos, picture.data.length)
+  pos += 4
+  data.set(picture.data, pos)
+
+  const header = new Uint8Array(4)
+  header[0] = 0x06 // Block type 6 = PICTURE, isLast = 0
+  header[1] = (bodyLen >> 16) & 0xff
+  header[2] = (bodyLen >> 8) & 0xff
+  header[3] = bodyLen & 0xff
+
+  return { header, data }
+}
+
 /** Embed or replace Vorbis Comment metadata block on a FLAC byte stream. */
 export function embedFlacTags(bytes: Uint8Array, metadata: AudioTagMetadata): Uint8Array {
   // Check FLAC magic 'fLaC' (0x66, 0x4C, 0x61, 0x43)
@@ -267,7 +354,8 @@ export function embedFlacTags(bytes: Uint8Array, metadata: AudioTagMetadata): Ui
   const audioFrames = bytes.subarray(offset)
 
   // Filter out existing VORBIS_COMMENT blocks
-  const retained = blocks.filter((b) => b.type !== 4)
+  // If picture is provided, also filter out existing PICTURE blocks
+  const retained = blocks.filter((b) => b.type !== 4 && (!metadata.picture?.data || b.type !== 6))
 
   // Insert our new VORBIS_COMMENT block after STREAMINFO (type 0)
   const streamInfoIndex = retained.findIndex((b) => b.type === 0)
@@ -279,6 +367,16 @@ export function embedFlacTags(bytes: Uint8Array, metadata: AudioTagMetadata): Ui
     header: newVorbisHeader,
     data: vorbisData,
   })
+
+  if (metadata.picture?.data && metadata.picture.data.length > 0) {
+    const picBlock = buildFlacPictureBlock(metadata.picture)
+    retained.splice(insertIndex + 1, 0, {
+      isLast: false,
+      type: 6,
+      header: picBlock.header,
+      data: picBlock.data,
+    })
+  }
 
   // Ensure isLast bit is accurately set on the final block
   for (let i = 0; i < retained.length; i++) {
@@ -367,6 +465,35 @@ function makeIlstTrackAtom(trackNo: number): Uint8Array {
   return buf
 }
 
+/** Helper to build an MP4 ilst covr box atom. */
+function makeIlstCoverAtom(picture: { data: Uint8Array; mimeType?: string }): Uint8Array {
+  const mime = detectImageMime(picture.data, picture.mimeType)
+  const isPng = mime === 'image/png'
+  const typeFlag = isPng ? 14 : 13 // 13 = JPEG, 14 = PNG
+  const dataAtomLen = 8 + 8 + picture.data.length
+  const atomLen = 8 + dataAtomLen
+
+  const buf = new Uint8Array(atomLen)
+  const view = new DataView(buf.buffer)
+
+  view.setUint32(0, atomLen)
+  buf[4] = 0x63 // 'c'
+  buf[5] = 0x6f // 'o'
+  buf[6] = 0x76 // 'v'
+  buf[7] = 0x72 // 'r'
+
+  view.setUint32(8, dataAtomLen)
+  buf[12] = 0x64 // 'd'
+  buf[13] = 0x61 // 'a'
+  buf[14] = 0x74 // 't'
+  buf[15] = 0x61 // 'a'
+  view.setUint32(16, typeFlag)
+  view.setUint32(20, 0) // locale
+  buf.set(picture.data, 24)
+
+  return buf
+}
+
 /**
  * Build ilst box buffer.
  */
@@ -378,6 +505,9 @@ function buildIlstBox(metadata: AudioTagMetadata): Uint8Array {
   if (metadata.year) items.push(makeIlstTextAtom('\xA9day', String(metadata.year)))
   if (metadata.trackNo !== undefined) items.push(makeIlstTrackAtom(metadata.trackNo))
   if (metadata.comment) items.push(makeIlstTextAtom('\xA9cmt', metadata.comment))
+  if (metadata.picture?.data && metadata.picture.data.length > 0) {
+    items.push(makeIlstCoverAtom(metadata.picture))
+  }
 
   const totalLen = 8 + items.reduce((acc, it) => acc + it.length, 0)
   const buf = new Uint8Array(totalLen)

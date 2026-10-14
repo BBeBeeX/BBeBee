@@ -54,6 +54,7 @@ export function useShareModalState<
   const [copied, setCopied] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [disabledReason, setDisabledReason] = useState<string | null>(null)
+  const [successToast, setSuccessToast] = useState<string | null>(null)
 
   const isLocal = useMemo(() => isLocalSource(item), [item])
 
@@ -74,8 +75,15 @@ export function useShareModalState<
   const themeColor = extractedColor ?? defaultThemeColor
 
   const showDisabledReason = useCallback((reason: string) => {
+    setSuccessToast(null)
     setDisabledReason(reason)
     setTimeout(() => setDisabledReason(null), 3500)
+  }, [])
+
+  const showSuccessToast = useCallback((msg: string) => {
+    setDisabledReason(null)
+    setSuccessToast(msg)
+    setTimeout(() => setSuccessToast(null), 3000)
   }, [])
 
   const canCopy = !isLocal && isValid
@@ -111,7 +119,13 @@ export function useShareModalState<
         if (ok) {
           setCopied(true)
           setDisabledReason(null)
-          setTimeout(() => setCopied(false), 2000)
+          const toastMsg = t('share:shareActionButtons.copySuccessToast')
+          setSuccessToast(toastMsg)
+          ctx.emit('ui/toast', { message: toastMsg, tone: 'ok' })
+          setTimeout(() => {
+            setCopied(false)
+            setSuccessToast(null)
+          }, 3000)
         } else {
           ctx.logger?.error('Failed to copy base64 via clipboard')
           showDisabledReason(t('share:shareLyrics.canTCopyWritingTo'))
@@ -145,6 +159,8 @@ export function useShareModalState<
     setDownloading,
     disabledReason,
     showDisabledReason,
+    successToast,
+    showSuccessToast,
     isLocal,
     httpArtwork,
     resolvedArtwork,

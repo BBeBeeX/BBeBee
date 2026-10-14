@@ -85,6 +85,7 @@ function AudioSourceRow({
   onAddLocalFolder,
   onScanLocal,
   isScanning = false,
+  isExpanded = false,
 }: {
   item: AudioSourceStatusItem
   t: I18nService['t']
@@ -100,6 +101,7 @@ function AudioSourceRow({
   onAddLocalFolder?: () => void
   onScanLocal?: () => void
   isScanning?: boolean
+  isExpanded?: boolean
 }): ReactElement {
   const local = isLocalSource(item.record)
   const isAuth = item.authStatus.state === 'authenticated'
@@ -320,7 +322,7 @@ function AudioSourceRow({
             onPress: () => onScanLocal?.(),
             children: isScanning ? t('localScanner:index.scanning') : t('localScanner:index.scanNow'),
           }),
-          tablerIcon('chevron-right', { size: 16, color: 'var(--text-tertiary, #8E8E93)' }),
+          tablerIcon(isExpanded ? 'chevron-down' : 'chevron-right', { size: 16, color: 'var(--text-tertiary, #8E8E93)' }),
         )
       : h(
           'div',
@@ -695,6 +697,203 @@ export function SourcesSection({
     return sourceGroups.find((g) => g.name === activeGroupModal.name) ?? null
   }, [activeGroupModal, sourceGroups])
 
+  const renderLocalFoldersExpanded = () =>
+    h(
+      'div',
+      {
+        'data-testid': 'source-local-folders-sheet',
+        style: {
+          margin: '4px 0 10px',
+          padding: '16px 18px',
+          borderRadius: 8,
+          background: 'rgba(255, 255, 255, 0.02)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: tokens.space[3],
+        },
+      },
+      h(
+        'div',
+        {
+          'data-testid': 'source-local-folders-content',
+          style: {
+            display: 'flex',
+            flexDirection: 'column',
+            gap: tokens.space[3],
+          },
+        },
+        h(
+          'div',
+          {
+            style: {
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            },
+          },
+          h(
+            Text,
+            { variant: 'sm', tone: 'muted' },
+            `${specifiedDirs.length} ${t('localScanner:index.musicFolders')}`,
+          ),
+          h(Button, {
+            variant: 'secondary',
+            testID: 'sheet-add-folder-btn',
+            onPress: () => void handleAddFolder(),
+            children: t('localScanner:index.addFolder'),
+          }),
+        ),
+        specifiedDirs.length === 0
+          ? h(
+              'div',
+              {
+                'data-testid': 'sheet-folders-empty',
+                style: {
+                  padding: '24px 8px',
+                  textAlign: 'center',
+                  fontSize: 13,
+                  color: 'var(--text-secondary, #8E8E93)',
+                },
+              },
+              t('localScanner:index.noFoldersYet'),
+            )
+          : specifiedDirs.map((dir) => {
+              const isConfirming = confirmingDeleteFolderId === dir.id
+              return h(
+                'div',
+                {
+                  key: dir.id,
+                  'data-testid': `local-folder-row-${dir.id}`,
+                  style: {
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '10px 12px',
+                    borderRadius: 8,
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                    gap: 12,
+                    opacity: dir.enabled ? 1 : 0.5,
+                  },
+                },
+                h(
+                  'div',
+                  {
+                    style: {
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      minWidth: 0,
+                      flex: 1,
+                    },
+                  },
+                  tablerIcon('folder', { size: 18, color: 'var(--color-primary, #5F87FF)' }),
+                  h(
+                    'div',
+                    {
+                      style: {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        minWidth: 0,
+                        overflow: 'hidden',
+                      },
+                    },
+                    h(
+                      'span',
+                      {
+                        style: {
+                          fontSize: 13,
+                          color: 'var(--bb-text-primary, #FFFFFF)',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        },
+                        title: dir.uri,
+                      },
+                      dir.uri,
+                    ),
+                    dir.lastError
+                      ? h(
+                          'span',
+                          {
+                            style: {
+                              fontSize: 11,
+                              color: '#F87171',
+                              marginTop: 2,
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            },
+                          },
+                          dir.lastError,
+                        )
+                      : null,
+                  ),
+                ),
+                h(
+                  'div',
+                  {
+                    style: {
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      flexShrink: 0,
+                    },
+                  },
+                  h(Button, {
+                    variant: 'ghost',
+                    disabled: scan.running || !dir.enabled,
+                    testID: `local-folder-scan-${dir.id}`,
+                    onPress: () => handleScanFolder(dir.id),
+                    children: t('localScanner:index.scan'),
+                  }),
+                  h(IconButton, {
+                    icon: dir.enabled ? 'ban' : 'check',
+                    accessibilityLabel: dir.enabled
+                      ? t('localScanner:index.disable')
+                      : t('localScanner:index.enable'),
+                    testID: `local-folder-toggle-${dir.id}`,
+                    onPress: () => handleToggleFolder(dir.id, !dir.enabled),
+                  }),
+                  isConfirming
+                    ? h(
+                        'div',
+                        { style: { display: 'flex', gap: tokens.space[2], alignItems: 'center' } },
+                        h(Text, { variant: 'sm', tone: 'warn' }, t('sources:sourcesList.deleteSourceConfirm') || t('app:common.confirmDelete')),
+                        h(Button, {
+                          testID: `local-folder-delete-confirm-${dir.id}`,
+                          onPress: () => handleDeleteFolder(dir.id),
+                          children: t('app:common.delete'),
+                        }),
+                        h(Button, {
+                          variant: 'ghost',
+                          onPress: () => setConfirmingDeleteFolderId(undefined),
+                          children: t('app:common.cancel'),
+                        }),
+                      )
+                    : h(IconButton, {
+                        icon: 'trash',
+                        accessibilityLabel: t('localScanner:index.removeUri', { uri: dir.uri }),
+                        testID: `local-folder-delete-${dir.id}`,
+                        onPress: () => setConfirmingDeleteFolderId(dir.id),
+                      }),
+                ),
+              )
+            }),
+        h(
+          Text,
+          {
+            variant: 'sm',
+            tone: 'muted',
+            style: { marginTop: tokens.space[2] },
+          },
+          t('localScanner:index.removeKeepsTracks'),
+        ),
+      ),
+    )
+
   return h(
     'div',
     { id: 'section-sources' },
@@ -807,7 +1006,8 @@ export function SourcesSection({
               })
             }
             const singleItem = group.items[0]!
-            return h(AudioSourceRow, {
+            const isLocal = isLocalSource(singleItem.record)
+            const row = h(AudioSourceRow, {
               key: singleItem.id,
               item: singleItem,
               t,
@@ -818,11 +1018,19 @@ export function SourcesSection({
               onDelete: handleDelete,
               confirmingDeleteId,
               onSetConfirmingDeleteId: setConfirmingDeleteId,
-              onOpenLocalFolders: () => setIsLocalFoldersSheetOpen(true),
+              onOpenLocalFolders: () => setIsLocalFoldersSheetOpen((prev) => !prev),
               onAddLocalFolder: () => void handleAddFolder(),
               onScanLocal: handleScanNow,
               isScanning: scan.running,
+              isExpanded: isLocal && isLocalFoldersSheetOpen,
             })
+            if (!isLocal) return row
+            return h(
+              'div',
+              { key: singleItem.id },
+              row,
+              isLocalFoldersSheetOpen ? renderLocalFoldersExpanded() : null,
+            )
           }),
     ),
 
@@ -849,8 +1057,9 @@ export function SourcesSection({
                 paddingRight: tokens.space[1],
               },
             },
-            currentActiveGroup.items.map((item) =>
-              h(AudioSourceRow, {
+            currentActiveGroup.items.map((item) => {
+              const isLocal = isLocalSource(item.record)
+              const row = h(AudioSourceRow, {
                 key: item.id,
                 item,
                 t,
@@ -862,209 +1071,25 @@ export function SourcesSection({
                 confirmingDeleteId,
                 onSetConfirmingDeleteId: setConfirmingDeleteId,
                 isNestedInstance: true,
-                onOpenLocalFolders: () => setIsLocalFoldersSheetOpen(true),
+                onOpenLocalFolders: () => setIsLocalFoldersSheetOpen((prev) => !prev),
                 onAddLocalFolder: () => void handleAddFolder(),
                 onScanLocal: handleScanNow,
                 isScanning: scan.running,
-              }),
-            ),
+                isExpanded: isLocal && isLocalFoldersSheetOpen,
+              })
+              if (!isLocal) return row
+              return h(
+                'div',
+                { key: item.id },
+                row,
+                isLocalFoldersSheetOpen ? renderLocalFoldersExpanded() : null,
+              )
+            }),
           ),
         )
       : null,
 
-    // Local Folders Drawer (Sheet)
-    isLocalFoldersSheetOpen
-      ? h(
-          Sheet,
-          {
-            open: true,
-            onClose: () => setIsLocalFoldersSheetOpen(false),
-            title: t('localScanner:index.musicFolders'),
-            testID: 'source-local-folders-sheet',
-          },
-          h(
-            'div',
-            {
-              'data-testid': 'source-local-folders-content',
-              style: {
-                display: 'flex',
-                flexDirection: 'column',
-                gap: tokens.space[3],
-                maxHeight: '75vh',
-                overflowY: 'auto',
-                minWidth: 420,
-              },
-            },
-            h(
-              'div',
-              {
-                style: {
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                },
-              },
-              h(
-                Text,
-                { variant: 'sm', tone: 'muted' },
-                `${specifiedDirs.length} ${t('localScanner:index.musicFolders')}`,
-              ),
-              h(Button, {
-                variant: 'secondary',
-                testID: 'sheet-add-folder-btn',
-                onPress: () => void handleAddFolder(),
-                children: t('localScanner:index.addFolder'),
-              }),
-            ),
-            specifiedDirs.length === 0
-              ? h(
-                  'div',
-                  {
-                    'data-testid': 'sheet-folders-empty',
-                    style: {
-                      padding: '24px 8px',
-                      textAlign: 'center',
-                      fontSize: 13,
-                      color: 'var(--text-secondary, #8E8E93)',
-                    },
-                  },
-                  t('localScanner:index.noFoldersYet'),
-                )
-              : specifiedDirs.map((dir) => {
-                  const isConfirming = confirmingDeleteFolderId === dir.id
-                  return h(
-                    'div',
-                    {
-                      key: dir.id,
-                      'data-testid': `local-folder-row-${dir.id}`,
-                      style: {
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '10px 12px',
-                        borderRadius: 8,
-                        background: 'rgba(255, 255, 255, 0.03)',
-                        border: '1px solid rgba(255, 255, 255, 0.06)',
-                        gap: 12,
-                        opacity: dir.enabled ? 1 : 0.5,
-                      },
-                    },
-                    h(
-                      'div',
-                      {
-                        style: {
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 10,
-                          minWidth: 0,
-                          flex: 1,
-                        },
-                      },
-                      tablerIcon('folder', { size: 18, color: 'var(--color-primary, #5F87FF)' }),
-                      h(
-                        'div',
-                        {
-                          style: {
-                            display: 'flex',
-                            flexDirection: 'column',
-                            minWidth: 0,
-                            overflow: 'hidden',
-                          },
-                        },
-                        h(
-                          'span',
-                          {
-                            style: {
-                              fontSize: 13,
-                              color: 'var(--bb-text-primary, #FFFFFF)',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            },
-                            title: dir.uri,
-                          },
-                          dir.uri,
-                        ),
-                        dir.lastError
-                          ? h(
-                              'span',
-                              {
-                                style: {
-                                  fontSize: 11,
-                                  color: '#F87171',
-                                  marginTop: 2,
-                                  whiteSpace: 'nowrap',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                },
-                              },
-                              dir.lastError,
-                            )
-                          : null,
-                      ),
-                    ),
-                    h(
-                      'div',
-                      {
-                        style: {
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 6,
-                          flexShrink: 0,
-                        },
-                      },
-                      h(Button, {
-                        variant: 'ghost',
-                        disabled: scan.running || !dir.enabled,
-                        testID: `local-folder-scan-${dir.id}`,
-                        onPress: () => handleScanFolder(dir.id),
-                        children: t('localScanner:index.scan'),
-                      }),
-                      h(IconButton, {
-                        icon: dir.enabled ? 'ban' : 'check',
-                        accessibilityLabel: dir.enabled
-                          ? t('localScanner:index.disable')
-                          : t('localScanner:index.enable'),
-                        testID: `local-folder-toggle-${dir.id}`,
-                        onPress: () => handleToggleFolder(dir.id, !dir.enabled),
-                      }),
-                      isConfirming
-                        ? h(
-                            'div',
-                            { style: { display: 'flex', gap: tokens.space[2], alignItems: 'center' } },
-                            h(Text, { variant: 'sm', tone: 'warn' }, t('sources:sourcesList.deleteSourceConfirm') || t('app:common.confirmDelete')),
-                            h(Button, {
-                              testID: `local-folder-delete-confirm-${dir.id}`,
-                              onPress: () => handleDeleteFolder(dir.id),
-                              children: t('app:common.delete'),
-                            }),
-                            h(Button, {
-                              variant: 'ghost',
-                              onPress: () => setConfirmingDeleteFolderId(undefined),
-                              children: t('app:common.cancel'),
-                            }),
-                          )
-                        : h(IconButton, {
-                            icon: 'trash',
-                            accessibilityLabel: t('localScanner:index.removeUri', { uri: dir.uri }),
-                            testID: `local-folder-delete-${dir.id}`,
-                            onPress: () => setConfirmingDeleteFolderId(dir.id),
-                          }),
-                    ),
-                  )
-                }),
-            h(
-              Text,
-              {
-                variant: 'sm',
-                tone: 'muted',
-                style: { marginTop: tokens.space[2] },
-              },
-              t('localScanner:index.removeKeepsTracks'),
-            ),
-          ),
-        )
-      : null,
+
 
     // Scan Progress Modal
     isScanModalOpen

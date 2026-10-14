@@ -483,6 +483,141 @@ describe('plugin-share-ui-desktop', () => {
     expect(img).toBeDefined()
     expect(img.src).toBe('https://cdn.example.com/online_cover.jpg')
   })
+
+  it('shows success toast and emits ui/toast when copying base64 in ShareTrackModal and ShareAlbumModal', async () => {
+    const ctx = await testCtx()
+    const toasts: { message: string; tone?: string }[] = []
+    ctx.on('ui/toast', (t) => void toasts.push(t))
+
+    const writeTextMock = vi.fn().mockResolvedValue(undefined)
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: writeTextMock,
+      },
+    })
+
+    const { getByRole, getByTestId, queryByTestId } = render(
+      h(ShareTrackModal, {
+        ctx,
+        open: true,
+        onClose: () => {},
+        track: {
+          urn: 'source:test:track:1',
+          title: '晴天',
+          artist: '周杰伦',
+        },
+      }),
+    )
+
+    expect(queryByTestId('share-success-toast')).toBeNull()
+
+    const copyBtn = getByRole('button', { name: 'Copy Base64' })
+    fireEvent.click(copyBtn)
+    await vi.waitFor(() => {
+      expect(writeTextMock).toHaveBeenCalled()
+      expect(toasts.length).toBe(1)
+    })
+
+    expect(toasts[0]?.message).toContain('Copied successfully, you can import string in Import Share')
+    expect(toasts[0]?.tone).toBe('ok')
+
+    const successToast = getByTestId('share-success-toast')
+    expect(successToast).toBeDefined()
+    expect(successToast.textContent).toContain('Copied successfully, you can import string in Import Share')
+
+    cleanup()
+
+    // Test ShareAlbumModal as well
+    const { getByRole: getAlbumRole, getByTestId: getAlbumTestId } = render(
+      h(ShareAlbumModal, {
+        ctx,
+        open: true,
+        onClose: () => {},
+        album: {
+          urn: 'source:test:album:1',
+          title: '范特西',
+          artist: '周杰伦',
+          trackCount: 10,
+        },
+      }),
+    )
+
+    const albumCopyBtn = getAlbumRole('button', { name: 'Copy Base64' })
+    fireEvent.click(albumCopyBtn)
+    await vi.waitFor(() => {
+      expect(toasts.length).toBe(2)
+    })
+
+    expect(toasts[1]?.message).toContain('Copied successfully, you can import string in Import Share')
+    const albumSuccessToast = getAlbumTestId('share-success-toast')
+    expect(albumSuccessToast.textContent).toContain('Copied successfully, you can import string in Import Share')
+  })
+
+  it('shows success toast and emits ui/toast when downloading image in ShareTrackModal and ShareAlbumModal', async () => {
+    const ctx = await testCtx()
+    const toasts: { message: string; tone?: string }[] = []
+    ctx.on('ui/toast', (t) => void toasts.push(t))
+
+    const canvasRenderer = await import('./utils/canvasRenderer.js')
+    vi.spyOn(canvasRenderer, 'generateTrackCardCanvas').mockResolvedValue(document.createElement('canvas'))
+    vi.spyOn(canvasRenderer, 'generateAlbumCardCanvas').mockResolvedValue(document.createElement('canvas'))
+    vi.spyOn(canvasRenderer, 'downloadCanvasAsPng').mockImplementation(() => {})
+
+    const { getByRole, getByTestId } = render(
+      h(ShareTrackModal, {
+        ctx,
+        open: true,
+        onClose: () => {},
+        track: {
+          urn: 'source:test:track:1',
+          title: '晴天',
+          artist: '周杰伦',
+        },
+      }),
+    )
+
+    const downloadBtn = getByRole('button', { name: 'Download image' })
+    fireEvent.click(downloadBtn)
+    await vi.waitFor(() => {
+      expect(toasts.length).toBe(1)
+    })
+
+    expect(toasts[0]?.message).toContain('Downloaded successfully, you can import image in Import Share')
+    expect(toasts[0]?.tone).toBe('ok')
+    expect(getByTestId('share-success-toast').textContent).toContain('Downloaded successfully, you can import image in Import Share')
+
+    cleanup()
+
+    // Test ShareAlbumModal as well
+    const { getByRole: getAlbumRole, getByTestId: getAlbumTestId } = render(
+      h(ShareAlbumModal, {
+        ctx,
+        open: true,
+        onClose: () => {},
+        album: {
+          urn: 'source:test:album:1',
+          title: '范特西',
+          artist: '周杰伦',
+          trackCount: 10,
+        },
+      }),
+    )
+
+    const albumDownloadBtn = getAlbumRole('button', { name: 'Download image' })
+    fireEvent.click(albumDownloadBtn)
+    await vi.waitFor(() => {
+      expect(toasts.length).toBe(2)
+    })
+
+    expect(toasts[1]?.message).toContain('Downloaded successfully, you can import image in Import Share')
+    expect(getAlbumTestId('share-success-toast').textContent).toContain('Downloaded successfully, you can import image in Import Share')
+  })
+
+  it('verifies exact Chinese locale strings for copy and download success toast', () => {
+    const zh = (shareCatalogue as { zh: { shareActionButtons: Record<string, string> } }).zh
+    expect(zh.shareActionButtons.copySuccessToast).toBe('复制成功，可在导入分享中导入 字符串')
+    expect(zh.shareActionButtons.downloadSuccessToast).toBe('下载成功，可在导入分享中导入 图片')
+  })
 })
 
 

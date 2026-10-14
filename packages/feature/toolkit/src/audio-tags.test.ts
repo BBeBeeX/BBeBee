@@ -147,6 +147,57 @@ describe('embedAudioTags', () => {
       const moovSize = view.getUint32(ftyp.length)
       expect(moovSize).toBeGreaterThan(16)
     })
+
+    it('embeds picture into mock moov atom when provided', () => {
+      const ftyp = new Uint8Array(16)
+      new DataView(ftyp.buffer).setUint32(0, 16)
+      ftyp.set([0x66, 0x74, 0x79, 0x70], 4)
+      const moov = new Uint8Array(16)
+      new DataView(moov.buffer).setUint32(0, 16)
+      moov.set([0x6d, 0x6f, 0x6f, 0x76], 4)
+      const mockMp4 = new Uint8Array(ftyp.length + moov.length)
+      mockMp4.set(ftyp, 0)
+      mockMp4.set(moov, ftyp.length)
+
+      const fakeImage = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4])
+      const tagged = embedAudioTags(mockMp4, 'm4a', {
+        ...meta,
+        picture: { data: fakeImage, mimeType: 'image/jpeg' },
+      })
+      const asString = new TextDecoder().decode(tagged)
+      expect(asString).toContain('covr')
+    })
+  })
+
+  describe('Picture embedding across formats', () => {
+    it('embeds APIC frame in MP3', () => {
+      const mockMp3 = new Uint8Array(200)
+      const fakeImage = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4])
+      const tagged = embedAudioTags(mockMp3, 'mp3', {
+        ...meta,
+        picture: { data: fakeImage, mimeType: 'image/jpeg' },
+      })
+      const asString = new TextDecoder().decode(tagged)
+      expect(asString).toContain('APIC')
+    })
+
+    it('embeds PICTURE block (type 6) in FLAC', () => {
+      const mockFlac = new Uint8Array(100)
+      mockFlac[0] = 0x66
+      mockFlac[1] = 0x4c
+      mockFlac[2] = 0x61
+      mockFlac[3] = 0x43
+      mockFlac[4] = 0x80 // STREAMINFO isLast = 1
+      mockFlac[7] = 34
+      const fakeImage = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4])
+      const tagged = embedAudioTags(mockFlac, 'flac', {
+        ...meta,
+        picture: { data: fakeImage, mimeType: 'image/png' },
+      })
+      // Should have STREAMINFO, VORBIS_COMMENT, and PICTURE
+      const asString = new TextDecoder().decode(tagged)
+      expect(asString).toContain('image/png')
+    })
   })
 
   it('returns original bytes when format is unrecognized', () => {

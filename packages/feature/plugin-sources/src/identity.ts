@@ -650,7 +650,10 @@ export function recordFor(
  * Subsonic-compatible sources.
  */
 export function secretKeysFor(doc?: SourceDocument): Set<string> {
-  const keys = new Set<string>(['var'])
+  const keys = new Set<string>()
+  if (doc?.loginType === 'variable' || doc?.variableComment) {
+    keys.add('var')
+  }
   if (doc?.loginUi) {
     for (const field of doc.loginUi) {
       if (field.id) keys.add(field.id)

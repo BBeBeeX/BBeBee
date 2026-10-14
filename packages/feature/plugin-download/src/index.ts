@@ -823,6 +823,7 @@ export class Downloads extends Service implements DownloadsService {
         const rawBytes = await this.ownCtx.fs.readBytes(target).catch(() => undefined)
         if (rawBytes) {
           const trackMeta = await this.lookupTrackMetadata(task.trackUrn)
+          const picture = await this.fetchCoverBytes(trackMeta)
           const tagged = embedAudioTags(rawBytes, format, {
             title: task.title,
             artist: trackMeta?.artist ?? task.artist,
@@ -830,6 +831,7 @@ export class Downloads extends Service implements DownloadsService {
             year: trackMeta?.year,
             trackNo: trackMeta?.trackNo,
             comment: 'BBeBee',
+            picture,
           })
           if (tagged !== rawBytes) {
             await this.ownCtx.fs.writeFile(target, tagged).catch(() => undefined)
@@ -1071,6 +1073,9 @@ export class Downloads extends Service implements DownloadsService {
     album?: string
     year?: number
     trackNo?: number
+    artworkLocalUri?: string
+    artworkSourceUrl?: string
+    rawJson?: string
   } | undefined> {
     try {
       const row = await this.ownCtx.db.get<{
@@ -1079,13 +1084,19 @@ export class Downloads extends Service implements DownloadsService {
         track_no: number | null
         album_title: string | null
         artist_name: string | null
+        artwork_local_uri: string | null
+        artwork_source_url: string | null
+        raw_json: string | null
       }>(
-        `SELECT tr.title, tr.year, tr.track_no,
+        `SELECT tr.title, tr.year, tr.track_no, tr.raw_json,
                 al.title AS album_title,
+                aw.local_uri AS artwork_local_uri,
+                aw.source_url AS artwork_source_url,
                 (SELECT a.name FROM track_artists ta JOIN artists a ON a.urn = ta.artist_urn
                   WHERE ta.track_urn = tr.urn ORDER BY ta.ordinal LIMIT 1) AS artist_name
            FROM tracks tr
            LEFT JOIN albums al ON al.urn = tr.album_urn
+           LEFT JOIN artworks aw ON aw.id = COALESCE(tr.artwork_id, al.artwork_id)
           WHERE tr.urn = ?`,
         [urn],
       )
@@ -1096,11 +1107,92 @@ export class Downloads extends Service implements DownloadsService {
           album: row.album_title ?? undefined,
           year: row.year ?? undefined,
           trackNo: row.track_no ?? undefined,
+          artworkLocalUri: row.artwork_local_uri ?? undefined,
+          artworkSourceUrl: row.artwork_source_url ?? undefined,
+          rawJson: row.raw_json ?? undefined,
         }
       }
     } catch {
       // Ignore query errors
     }
+    return undefined
+  }
+
+  private async fetchCoverBytes(trackMeta: {
+    artworkLocalUri?: string
+    artworkSourceUrl?: string
+    rawJson?: string
+  } | undefined): Promise<{ data: Uint8Array; mimeType?: string } | undefined> {
+    if (!trackMeta) return undefined
+
+    // 1. Check local artwork URI
+    if (trackMeta.artworkLocalUri) {
+      try {
+        const bytes = await this.ownCtx.fs.readBytes(trackMeta.artworkLocalUri)
+        if (bytes && bytes.length > 0) {
+          return { data: bytes }
+        }
+      } catch {
+        // continue
+      }
+    }
+
+    // 2. Helper to extract from URL or data URL
+    const loadFromUrl = async (url: string | undefined): Promise<{ data: Uint8Array; mimeType?: string } | undefined> => {
+      if (!url) return undefined
+      if (url.startsWith('data:')) {
+        const match = url.match(/^data:([^;]+);base64,(.+)$/)
+        if (match && match[2]) {
+          try {
+            const binary = atob(match[2])
+            const bytes = new Uint8Array(binary.length)
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+            return { data: bytes, mimeType: match[1] }
+          } catch {
+            return undefined
+          }
+        }
+      }
+      if (/^https?:\/\//i.test(url)) {
+        try {
+          const res = await this.ownCtx.http({ url })
+          if (res.status === 200) {
+            const bytes = await res.bytes()
+            if (bytes && bytes.length > 0) {
+              return { data: bytes, mimeType: res.headers['content-type'] }
+            }
+          }
+        } catch {
+          return undefined
+        }
+      }
+      return undefined
+    }
+
+    // Try artworkSourceUrl
+    const fromSourceUrl = await loadFromUrl(trackMeta.artworkSourceUrl)
+    if (fromSourceUrl) return fromSourceUrl
+
+    // 3. Try parsing raw_json if any
+    if (trackMeta.rawJson) {
+      try {
+        const raw = JSON.parse(trackMeta.rawJson) as Record<string, unknown>
+        const rawUrl =
+          (typeof raw.picUrl === 'string' && raw.picUrl) ||
+          (typeof raw.artwork === 'string' && raw.artwork) ||
+          (typeof raw.cover === 'string' && raw.cover) ||
+          (typeof raw.img === 'string' && raw.img) ||
+          (typeof raw.artworkUrl === 'string' && raw.artworkUrl) ||
+          (typeof (raw.album as Record<string, unknown> | undefined)?.picUrl === 'string' &&
+            (raw.album as Record<string, unknown>).picUrl as string) ||
+          undefined
+        const fromRaw = await loadFromUrl(rawUrl)
+        if (fromRaw) return fromRaw
+      } catch {
+        // continue
+      }
+    }
+
     return undefined
   }
 

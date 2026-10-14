@@ -48,7 +48,9 @@
       "copiedBase64": "Copied Base64",
       "downloadImage": "Download image",
       "copyLyrics": "Copy lyrics",
-      "copiedLyrics": "Copied lyrics"
+      "copiedLyrics": "Copied lyrics",
+      "copySuccessToast": "Copied successfully, you can import string in Import Share",
+      "downloadSuccessToast": "Downloaded successfully, you can import image in Import Share"
     },
     "shareAlbum": {
       "canTCopyTheAlbum": "Can't copy: the album is missing a valid title or other metadata",
@@ -158,7 +160,9 @@
       "copiedBase64": "Base64 已复制",
       "downloadImage": "下载图片",
       "copyLyrics": "复制歌词",
-      "copiedLyrics": "歌词已复制"
+      "copiedLyrics": "歌词已复制",
+      "copySuccessToast": "复制成功，可在导入分享中导入 字符串",
+      "downloadSuccessToast": "下载成功，可在导入分享中导入 图片"
     },
     "shareAlbum": {
       "canTCopyTheAlbum": "无法复制：专辑缺少有效标题或其他元数据",

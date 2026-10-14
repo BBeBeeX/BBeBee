@@ -53,10 +53,13 @@ export function SourceConfigureModal({
 
   if (!open || !sourceId) return null
 
-  const declaredSecretKeys =
-    params?.secretKeys && params.secretKeys.length > 0
-      ? params.secretKeys
-      : ['user', 'password']
+  const declaredSecretKeys = (params?.secretKeys ?? []).filter(
+    (key) =>
+      key !== 'var' ||
+      record?.doc?.loginType === 'variable' ||
+      record?.doc?.variableComment ||
+      record?.doc?.loginUi?.some((f) => f.id === 'var'),
+  )
 
   const handleSave = async () => {
     setSaving(true)
@@ -184,44 +187,48 @@ export function SourceConfigureModal({
             ),
 
             // Credentials Section
-            h(
-              'div',
-              {
-                style: {
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: tokens.space[2],
-                  borderTop: '1px solid rgba(148, 163, 184, 0.14)',
-                  paddingTop: tokens.space[3],
-                },
-              },
-              h(
-                'div',
-                { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
-                h(Text, { variant: 'sm' }, t('sources:sourceConfigure.credentials')),
-                h(
-                  Text,
-                  { variant: 'xs', tone: 'accent' },
-                  t('sources:sourceConfigure.keychainNote'),
-                ),
-              ),
-              ...declaredSecretKeys.map((key) => {
-                const isPass = isPasswordKey(key)
-                return h(
-                  'div',
-                  { key, style: { display: 'flex', flexDirection: 'column', gap: tokens.space[1] } },
-                  h(Text, { variant: 'xs', tone: 'muted' }, key),
-                  h(TextField, {
-                    value: secrets[key] ?? '',
-                    onChange: (val) => setSecrets((prev) => ({ ...prev, [key]: val })),
-                    placeholder: secrets[key] ? '••••••••' : t('sources:sourceConfigure.enterKeyPlaceholder', { key }),
-                    secure: isPass,
-                    accessibilityLabel: key,
-                    testID: `source-configure-${key}`,
-                  }),
-                )
-              }),
-            ),
+            ...(declaredSecretKeys.length > 0
+              ? [
+                  h(
+                    'div',
+                    {
+                      style: {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: tokens.space[2],
+                        borderTop: '1px solid rgba(148, 163, 184, 0.14)',
+                        paddingTop: tokens.space[3],
+                      },
+                    },
+                    h(
+                      'div',
+                      { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+                      h(Text, { variant: 'sm' }, t('sources:sourceConfigure.credentials')),
+                      h(
+                        Text,
+                        { variant: 'xs', tone: 'accent' },
+                        t('sources:sourceConfigure.keychainNote'),
+                      ),
+                    ),
+                    ...declaredSecretKeys.map((key) => {
+                      const isPass = isPasswordKey(key)
+                      return h(
+                        'div',
+                        { key, style: { display: 'flex', flexDirection: 'column', gap: tokens.space[1] } },
+                        h(Text, { variant: 'xs', tone: 'muted' }, key),
+                        h(TextField, {
+                          value: secrets[key] ?? '',
+                          onChange: (val) => setSecrets((prev) => ({ ...prev, [key]: val })),
+                          placeholder: secrets[key] ? '••••••••' : t('sources:sourceConfigure.enterKeyPlaceholder', { key }),
+                          secure: isPass,
+                          accessibilityLabel: key,
+                          testID: `source-configure-${key}`,
+                        }),
+                      )
+                    }),
+                  ),
+                ]
+              : []),
 
             // Custom Variables Section
             h(

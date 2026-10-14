@@ -12,6 +12,7 @@ import { ShareModalHeader } from './ShareModalHeader.js'
 import { BackgroundModeSelector } from './BackgroundModeSelector.js'
 import { LocalSourceWarning } from './LocalSourceWarning.js'
 import { DisabledReasonToast } from './DisabledReasonToast.js'
+import { ShareSuccessToast } from './ShareSuccessToast.js'
 import { ShareActionButtons } from './ShareActionButtons.js'
 import { useShareModalState } from '../hooks/useShareModalState.js'
 
@@ -37,6 +38,8 @@ export function ShareTrackModal({
     downloading,
     setDownloading,
     disabledReason,
+    successToast,
+    showSuccessToast,
     isLocal,
     httpArtwork,
     resolvedArtwork,
@@ -76,12 +79,15 @@ export function ShareTrackModal({
       })
       const filename = `${track.artist} - ${track.title} (BBeBee Share).png`
       downloadCanvasAsPng(canvas, filename)
+      const successMsg = t('share:shareActionButtons.downloadSuccessToast')
+      showSuccessToast(successMsg)
+      ctx.emit('ui/toast', { message: successMsg, tone: 'ok' })
     } catch (err) {
       ctx.logger?.error(`Failed to download share image: ${String(err)}`)
     } finally {
       setDownloading(false)
     }
-  }, [ctx, track, httpArtwork, resolvedArtwork, themeColor, backgroundMode, isLocal, handleDisabledDownloadClick, setDownloading])
+  }, [ctx, t, track, httpArtwork, resolvedArtwork, themeColor, backgroundMode, isLocal, handleDisabledDownloadClick, setDownloading, showSuccessToast])
 
   if (!open) return null
 
@@ -112,6 +118,7 @@ export function ShareTrackModal({
       }),
       h(BackgroundModeSelector, { ctx, mode: backgroundMode, onChange: setBackgroundMode }),
       h(DisabledReasonToast, { message: disabledReason }),
+      h(ShareSuccessToast, { message: successToast }),
       h(ShareActionButtons, {
         ctx,
         canCopy,

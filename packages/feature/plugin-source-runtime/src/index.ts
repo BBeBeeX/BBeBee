@@ -481,11 +481,20 @@ export class SourceRuntime {
    */
   private secretKeysFor(sourceId: string): Set<string> {
     const doc = this.ctx.sources.source(sourceId)?.doc
-    return new Set([
-      'var',
-      ...(doc?.loginUi ?? []).map((field) => field.id),
-      ...(doc?.sourceGroup?.includes('subsonic') ? ['user', 'password'] : []),
-    ])
+    const keys = new Set<string>()
+    if (doc?.loginType === 'variable' || doc?.variableComment) {
+      keys.add('var')
+    }
+    if (doc?.loginUi) {
+      for (const field of doc.loginUi) {
+        if (field.id) keys.add(field.id)
+      }
+    }
+    if (doc?.sourceGroup?.includes('subsonic')) {
+      keys.add('user')
+      keys.add('password')
+    }
+    return keys
   }
 
   /**

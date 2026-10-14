@@ -665,6 +665,35 @@ describe('plugin-download', () => {
     expect(decodeURIComponent(binding.uri).endsWith('晴天.mp3')).toBe(true)
   })
 
+  it('embeds cover art into downloaded mp3 file', async () => {
+    const h = await harness()
+    const coverBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0])
+    const coverUri = `${h.keptDir}/cover.png` as Uri
+    await h.ctx.fs.writeFile(coverUri, coverBytes)
+    await h.ctx.db.exec(
+      `INSERT INTO artworks (id, local_uri, bytes) VALUES ('art-1', ?, ?)`,
+      [coverUri, coverBytes.byteLength],
+    )
+    await h.ctx.db.exec(
+      `UPDATE tracks SET title = '晴天', artwork_id = 'art-1' WHERE urn = ?`,
+      [URN],
+    )
+    ;(h.ctx.sources as unknown as SourcesStub).provider = provider(async () => ({
+      kind: 'remote',
+      target: 'https://cdn.example.test/audio.mp3',
+      seekable: true,
+    }))
+
+    const task = (await h.ctx.downloads.enqueue([URN]))[0]!
+    await until(() => h.downloads.task(task.id)?.state === 'done')
+
+    const binding = (await h.bindings())[0]!
+    const fileBytes = await h.ctx.fs.readBytes(binding.uri)
+    const text = new TextDecoder('latin1').decode(fileBytes)
+    expect(text.startsWith('ID3')).toBe(true)
+    expect(text.includes('APIC')).toBe(true)
+  })
+
   it('synchronizes wifiOnly policy with settings service', async () => {
     const h = await harness()
     let settingsWifiOnly = false
