@@ -114,8 +114,8 @@ class DownloadsStub extends Service {
   constructor(ctx: Context) {
     super(ctx, 'downloads')
   }
-  async enqueue(urns: string[]) {
-    this.calls.push(`download:${urns.join(',')}`)
+  async enqueue(items: (string | { urn: string })[]) {
+    this.calls.push(`download:${items.map((i) => (typeof i === 'string' ? i : i.urn)).join(',')}`)
     return []
   }
 }

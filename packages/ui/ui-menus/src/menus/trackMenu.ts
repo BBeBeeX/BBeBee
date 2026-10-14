@@ -153,7 +153,7 @@ export function trackMenuItems(
       id: 'download',
       label: menuTranslate(ctx, 'app:common.menu.download', 'Download'),
       icon: 'download',
-      onSelect: () => void downloads.enqueue([track.urn]),
+      onSelect: () => void downloads.enqueue([track]),
     })
   }
 

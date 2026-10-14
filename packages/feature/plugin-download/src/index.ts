@@ -34,12 +34,15 @@ import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import { parseUrn, uriContains } from '@BBeBee/protocol'
 import type {
+  ArtistCredit,
   ArtworkRef,
   DownloadHold,
   DownloadPolicy,
   DownloadState,
   DownloadTask,
+  DownloadTrackMeta,
   DownloadsService,
+  EnqueueItem,
   SqlValue,
   StreamHandle,
   StreamPrefs,
@@ -112,13 +115,20 @@ interface TaskRow {
   artist: string | null
 }
 
-function toTask(row: TaskRow, kept: boolean, hold: DownloadHold | undefined): DownloadTask {
+function toTask(
+  row: TaskRow,
+  kept: boolean,
+  hold: DownloadHold | undefined,
+  metaOverride?: DownloadTrackMeta,
+): DownloadTask {
   const state = row.state as DownloadState
+  const title = metaOverride?.title || row.title || row.track_urn
+  const artist = metaOverride?.artist || row.artist || undefined
   return {
     id: row.id,
     trackUrn: row.track_urn,
-    title: row.title ?? row.track_urn,
-    ...(row.artist ? { artist: row.artist } : {}),
+    title,
+    ...(artist ? { artist } : {}),
     state,
     ...(row.quality ? { quality: row.quality as StreamQuality } : {}),
     bytesDone: row.bytes_done,
@@ -141,6 +151,236 @@ const TASK_COLUMNS = `
   (SELECT a.name FROM track_artists ta JOIN artists a ON a.urn = ta.artist_urn
     WHERE ta.track_urn = d.track_urn ORDER BY ta.ordinal LIMIT 1) AS artist`
 
+export function extractArtistFromRaw(raw: unknown): string | undefined {
+  if (!raw) return undefined
+  let obj: unknown = raw
+  if (typeof obj === 'string') {
+    try {
+      obj = JSON.parse(obj)
+    } catch {
+      return undefined
+    }
+  }
+  if (!obj || typeof obj !== 'object') return undefined
+  const rec = obj as Record<string, unknown>
+
+  if (typeof rec.artist === 'string' && rec.artist.trim()) return rec.artist.trim()
+  if (typeof rec.singer === 'string' && rec.singer.trim()) return rec.singer.trim()
+  if (typeof rec.singer_name === 'string' && rec.singer_name.trim()) return rec.singer_name.trim()
+  if (typeof rec.author === 'string' && rec.author.trim()) return rec.author.trim()
+  if (typeof rec.uploader === 'string' && rec.uploader.trim()) return rec.uploader.trim()
+  if (typeof rec.up === 'string' && rec.up.trim()) return rec.up.trim()
+  if (rec.owner && typeof rec.owner === 'object') {
+    const owner = rec.owner as Record<string, unknown>
+    if (typeof owner.name === 'string' && owner.name.trim()) return owner.name.trim()
+  }
+
+  const arr = rec.ar || rec.artists || rec.singers || (Array.isArray(rec.artist) ? rec.artist : undefined)
+  if (Array.isArray(arr) && arr.length > 0) {
+    const names = arr
+      .map((item: unknown) => {
+        if (typeof item === 'string') return item.trim()
+        if (item && typeof item === 'object') {
+          const itemRec = item as Record<string, unknown>
+          const n = itemRec.name || itemRec.title || itemRec.artist || itemRec.singer
+          if (typeof n === 'string') return n.trim()
+        }
+        return ''
+      })
+      .filter(Boolean)
+    if (names.length > 0) return names.join(', ')
+  }
+
+  if (rec.song && typeof rec.song === 'object') {
+    const fromSong = extractArtistFromRaw(rec.song)
+    if (fromSong) return fromSong
+  }
+  if (rec.track && typeof rec.track === 'object') {
+    const fromTrack = extractArtistFromRaw(rec.track)
+    if (fromTrack) return fromTrack
+  }
+
+  return undefined
+}
+
+export function extractArtworkUrlFromRaw(raw: unknown): string | undefined {
+  if (!raw) return undefined
+  let obj: unknown = raw
+  if (typeof obj === 'string') {
+    try {
+      obj = JSON.parse(obj)
+    } catch {
+      return undefined
+    }
+  }
+  if (!obj || typeof obj !== 'object') return undefined
+  const rec = obj as Record<string, unknown>
+  const album = rec.album && typeof rec.album === 'object' ? (rec.album as Record<string, unknown>) : undefined
+
+  const rawUrl =
+    (typeof rec.picUrl === 'string' && rec.picUrl) ||
+    (typeof rec.pic_url === 'string' && rec.pic_url) ||
+    (typeof rec.artwork === 'string' && rec.artwork) ||
+    (typeof rec.artworkUrl === 'string' && rec.artworkUrl) ||
+    (typeof rec.artwork_url === 'string' && rec.artwork_url) ||
+    (typeof rec.cover === 'string' && rec.cover) ||
+    (typeof rec.coverUrl === 'string' && rec.coverUrl) ||
+    (typeof rec.cover_url === 'string' && rec.cover_url) ||
+    (typeof rec.coverWebUrl === 'string' && rec.coverWebUrl) ||
+    (typeof rec.img === 'string' && rec.img) ||
+    (typeof rec.imgUrl === 'string' && rec.imgUrl) ||
+    (typeof rec.img_url === 'string' && rec.img_url) ||
+    (typeof rec.pic === 'string' && rec.pic) ||
+    (typeof rec.pic_str === 'string' && rec.pic_str) ||
+    (typeof rec.thumbnail === 'string' && rec.thumbnail) ||
+    (typeof album?.picUrl === 'string' && album.picUrl) ||
+    (typeof album?.pic_url === 'string' && album.pic_url) ||
+    (typeof album?.cover === 'string' && album.cover) ||
+    (typeof album?.coverUrl === 'string' && album.coverUrl) ||
+    (typeof album?.cover_url === 'string' && album.cover_url) ||
+    (typeof album?.artwork === 'string' && album.artwork) ||
+    undefined
+
+  return rawUrl?.trim() || undefined
+}
+
+export function buildCoverHeaders(
+  coverUrl: string,
+  streamHeaders?: Record<string, string>,
+): Record<string, string> {
+  const headers: Record<string, string> = {
+    'User-Agent':
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+  }
+  const referer = streamHeaders?.['referer'] || streamHeaders?.['Referer']
+  if (referer) {
+    headers['Referer'] = referer
+  } else {
+    try {
+      const parsed = new URL(coverUrl.startsWith('//') ? 'https:' + coverUrl : coverUrl)
+      if (parsed.hostname.includes('126.net') || parsed.hostname.includes('163.com')) {
+        headers['Referer'] = 'https://music.163.com/'
+      } else if (
+        parsed.hostname.includes('qq.com') ||
+        parsed.hostname.includes('gtimg.cn') ||
+        parsed.hostname.includes('qpic.cn')
+      ) {
+        headers['Referer'] = 'https://y.qq.com/'
+      } else if (parsed.hostname.includes('kugou.com')) {
+        headers['Referer'] = 'https://www.kugou.com/'
+      } else if (parsed.hostname.includes('kuwo.cn')) {
+        headers['Referer'] = 'https://www.kuwo.cn/'
+      } else if (
+        parsed.hostname.includes('bilibili.com') ||
+        parsed.hostname.includes('hdslb.com')
+      ) {
+        headers['Referer'] = 'https://www.bilibili.com/'
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return headers
+}
+
+export function isUrl(s: string | null | undefined): s is string {
+  if (!s) return false
+  const str = s.trim()
+  return (
+    str.startsWith('http://') ||
+    str.startsWith('https://') ||
+    str.startsWith('//') ||
+    str.startsWith('data:') ||
+    str.startsWith('file:') ||
+    str.startsWith('/') ||
+    /^[a-zA-Z]:[\\/]/.test(str)
+  )
+}
+
+export function normalizeEnqueueItem(item: EnqueueItem): { urn: string; meta?: DownloadTrackMeta } {
+  if (typeof item === 'string') {
+    return { urn: item }
+  }
+  if (!item || typeof item !== 'object') {
+    return { urn: String(item) }
+  }
+  const urn = item.urn
+  let artist = (item as DownloadTrackMeta).artist
+  if (!artist && 'artists' in item && Array.isArray(item.artists) && item.artists.length > 0) {
+    artist = item.artists
+      .map((a: unknown) => {
+        if (typeof a === 'string') return a
+        if (a && typeof a === 'object' && 'name' in a && typeof (a as { name?: unknown }).name === 'string') {
+          return (a as { name: string }).name
+        }
+        return ''
+      })
+      .filter(Boolean)
+      .join(', ')
+  }
+  const raw = (item as DownloadTrackMeta).raw ?? (item as unknown as { raw?: unknown }).raw
+  if (!artist && raw) {
+    artist = extractArtistFromRaw(raw)
+  }
+
+  const artRef = item.artwork
+  let artworkUrl =
+    (item as DownloadTrackMeta).artworkUrl ??
+    artRef?.sourceUrl ??
+    (isUrl(artRef?.id) ? artRef.id : undefined)
+  if (!artworkUrl && raw) {
+    artworkUrl = extractArtworkUrlFromRaw(raw)
+  }
+  const itemRec = item as unknown as Record<string, unknown>
+  if (!artworkUrl) {
+    const rawPic =
+      (typeof itemRec.picUrl === 'string' && itemRec.picUrl) ||
+      (typeof itemRec.cover === 'string' && itemRec.cover) ||
+      (typeof itemRec.coverUrl === 'string' && itemRec.coverUrl)
+    if (rawPic && isUrl(rawPic)) artworkUrl = rawPic
+  }
+
+  const rawAlbum = itemRec.album
+  let albumTitle = item.albumTitle
+  if (!albumTitle && typeof rawAlbum === 'string') {
+    albumTitle = rawAlbum
+  } else if (
+    !albumTitle &&
+    rawAlbum &&
+    typeof rawAlbum === 'object' &&
+    'title' in rawAlbum &&
+    typeof (rawAlbum as { title?: unknown }).title === 'string'
+  ) {
+    albumTitle = (rawAlbum as { title: string }).title
+  }
+
+  const albumUrn =
+    item.albumUrn ??
+    (rawAlbum &&
+    typeof rawAlbum === 'object' &&
+    'urn' in rawAlbum &&
+    typeof (rawAlbum as { urn?: unknown }).urn === 'string'
+      ? (rawAlbum as { urn: string }).urn
+      : undefined)
+
+  const meta: DownloadTrackMeta = {
+    urn,
+    title: item.title,
+    artist: artist || undefined,
+    artists: item.artists,
+    albumTitle,
+    albumUrn,
+    year: item.year,
+    trackNo: item.trackNo,
+    artwork: item.artwork,
+    artworkUrl: artworkUrl || undefined,
+    artworkLocalUri: (item as DownloadTrackMeta).artworkLocalUri,
+    raw,
+  }
+  return { urn, meta }
+}
+
 export class Downloads extends Service implements DownloadsService {
   static inject = ['fs', 'db', 'paths', 'http', 'sources']
 
@@ -155,6 +395,7 @@ export class Downloads extends Service implements DownloadsService {
    */
   private readonly ownCtx: Context
   private list: DownloadTask[] = []
+  private readonly trackMetaOverrides = new Map<string, DownloadTrackMeta>()
   /** Every open task's target file, keyed by task id. */
   private readonly targets = new Map<string, Uri>()
   /** The etag each partial file was written against, keyed by task id. */
@@ -445,12 +686,17 @@ export class Downloads extends Service implements DownloadsService {
   /* ── queue operations ──────────────────────────────────────────────── */
 
   async enqueue(
-    urns: readonly string[],
+    items: readonly EnqueueItem[],
     opts: { quality?: StreamQuality } = {},
   ): Promise<readonly DownloadTask[]> {
     const queued: DownloadTask[] = []
-    for (const urn of urns) {
-      const task = await this.enqueueOne(urn, opts.quality)
+    for (const item of items) {
+      const { urn, meta } = normalizeEnqueueItem(item)
+      if (meta) {
+        this.trackMetaOverrides.set(urn, meta)
+        await this.ensureTrackRow(urn, meta).catch(() => undefined)
+      }
+      const task = await this.enqueueOne(urn, opts.quality, meta)
       if (task) queued.push(task)
     }
     void this.refreshGate()
@@ -467,12 +713,23 @@ export class Downloads extends Service implements DownloadsService {
   private async enqueueOne(
     urn: string,
     quality: StreamQuality | undefined,
+    meta?: DownloadTrackMeta,
   ): Promise<DownloadTask | undefined> {
     const existing = this.list.find((task) => task.trackUrn === urn && task.state !== 'done')
-    if (existing) return existing
+    if (existing) {
+      if (meta?.title && (!existing.title || existing.title === existing.trackUrn)) {
+        existing.title = meta.title
+        this.patch(existing.id, { title: meta.title })
+      }
+      if (meta?.artist && !existing.artist) {
+        existing.artist = meta.artist
+        this.patch(existing.id, { artist: meta.artist })
+      }
+      return existing
+    }
 
     const id = `dl_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`
-    const target = this.fileFor(urn)
+    const target = this.fileFor(urn, meta)
     const now = Date.now()
     try {
       await this.ownCtx.db.exec(
@@ -492,6 +749,17 @@ export class Downloads extends Service implements DownloadsService {
     }
 
     await this.refresh()
+    const created = this.byId(id)
+    if (created) {
+      if (meta?.title && (!created.title || created.title === created.trackUrn)) {
+        created.title = meta.title
+        this.patch(id, { title: meta.title })
+      }
+      if (meta?.artist && !created.artist) {
+        created.artist = meta.artist
+        this.patch(id, { artist: meta.artist })
+      }
+    }
     this.targets.set(id, target)
     this.ownCtx.logger.info(`download: queued ${urn}`)
     this.safeEmit(() => this.ownCtx.emit('download/queued', id))
@@ -740,6 +1008,40 @@ export class Downloads extends Service implements DownloadsService {
     this.controllers.set(id, record)
     await this.setState(id, 'running')
 
+    // Pre-resolve track metadata if title is placeholder URN or artist is absent
+    const override = this.trackMetaOverrides.get(task.trackUrn)
+    const lookedUpMeta = await this.lookupTrackMetadata(task.trackUrn)
+    const trackMeta = {
+      ...lookedUpMeta,
+      ...(override?.title ? { title: override.title } : {}),
+      ...(override?.artist ? { artist: override.artist } : {}),
+      ...(override?.albumTitle ? { album: override.albumTitle } : {}),
+      ...(override?.year ? { year: override.year } : {}),
+      ...(override?.trackNo ? { trackNo: override.trackNo } : {}),
+      ...(override?.artworkUrl ? { artworkSourceUrl: override.artworkUrl } : {}),
+      ...(override?.artworkLocalUri ? { artworkLocalUri: override.artworkLocalUri } : {}),
+      ...(override?.raw ? { raw: override.raw } : {}),
+    }
+    if (override?.artists && !trackMeta.artist && override.artists.length > 0) {
+      trackMeta.artist = override.artists
+        .map((a) => (typeof a === 'string' ? a : a.name))
+        .filter(Boolean)
+        .join(', ')
+    }
+
+    if (override?.title) {
+      task.title = override.title
+    } else if (trackMeta.title && (!task.title || task.title === task.trackUrn)) {
+      task.title = trackMeta.title
+    }
+    if (override?.artist) {
+      task.artist = override.artist
+    } else if (trackMeta.artist && !task.artist) {
+      task.artist = trackMeta.artist
+    }
+    await this.ensureTrackRow(task.trackUrn, trackMeta)
+    this.patch(id, { title: task.title, ...(task.artist ? { artist: task.artist } : {}) })
+
     this.safeEmit(() => this.ownCtx.emit('download/started', id, task.title))
     const i18n = this.ownCtx.get('i18n') as { t?(k: string, p?: Record<string, unknown>): string } | undefined
     const toastMsg = i18n?.t?.('download:download.downloadStarted', { title: task.title }) ?? `开始下载: ${task.title}`
@@ -756,17 +1058,20 @@ export class Downloads extends Service implements DownloadsService {
 
       await this.ownCtx.fs.mkdir(this.keptDir, { recursive: true })
 
-      // Pre-resolve track metadata if title is placeholder URN or artist is absent
-      const trackMeta = await this.lookupTrackMetadata(task.trackUrn)
-      if (trackMeta?.title && (!task.title || task.title === task.trackUrn)) {
-        task.title = trackMeta.title
+      const preferred = this.ownCtx.get('settings')?.getSync?.()?.downloadFormat
+      const handleFormat = formatFor(handle)
+      let format = handleFormat ?? 'mp3'
+      if (preferred && preferred !== 'auto') {
+        if (preferred === 'mp4') {
+          format = 'mp4'
+        } else if (preferred === 'flac') {
+          format = 'flac'
+        } else if (preferred === 'mp3') {
+          format = 'mp3'
+        } else {
+          format = preferred
+        }
       }
-      if (trackMeta?.artist && !task.artist) {
-        task.artist = trackMeta.artist
-      }
-      await this.ensureTrackRow(task.trackUrn, trackMeta)
-
-      const format = formatFor(handle) ?? 'mp3'
       const safeTitle = sanitizeFileName(task.title || task.trackUrn)
       let target = this.ownCtx.fs.join(this.keptDir, `${safeTitle}.${format}`)
 
@@ -835,7 +1140,7 @@ export class Downloads extends Service implements DownloadsService {
       try {
         const rawBytes = await this.ownCtx.fs.readBytes(target).catch(() => undefined)
         if (rawBytes) {
-          const picture = await this.fetchCoverBytes(trackMeta)
+          const picture = await this.fetchCoverBytes(trackMeta, handle.headers)
           if (picture?.data?.length) {
             this.ownCtx.logger.info(
               `download: embedding cover (${picture.data.length} bytes) for ${task.trackUrn} into ${target}`,
@@ -846,7 +1151,7 @@ export class Downloads extends Service implements DownloadsService {
           const tagged = embedAudioTags(rawBytes, format, {
             title: trackMeta?.title ?? task.title,
             artist: trackMeta?.artist ?? task.artist,
-            album: trackMeta?.album,
+            album: trackMeta?.album ?? override?.albumTitle,
             year: trackMeta?.year,
             trackNo: trackMeta?.trackNo,
             comment: 'BBeBee',
@@ -862,7 +1167,7 @@ export class Downloads extends Service implements DownloadsService {
         this.ownCtx.logger.warn(`download: failed to embed audio tags: ${String(err)}`)
       }
 
-      await this.finish(id, target, bytes, handle)
+      await this.finish(id, target, bytes, handle, format)
     } catch (error) {
       if (this.disposed || record.controller.signal.aborted) {
         if (record.intent === 'cancel') {
@@ -883,15 +1188,26 @@ export class Downloads extends Service implements DownloadsService {
     const settings = this.ownCtx.get('settings')
     const preferred = settings?.getSync?.()?.downloadFormat
     let acceptFormats: string[] = []
+    let quality = task.quality ?? this.policyValue.quality
     if (preferred && preferred !== 'auto') {
       if (preferred === 'mp4') {
         acceptFormats = ['mp4', 'm4a']
+      } else if (preferred === 'mp3') {
+        acceptFormats = ['mp3']
+        if (quality === 'lossless') {
+          quality = 'high'
+        }
+      } else if (preferred === 'flac') {
+        acceptFormats = ['flac']
+        if (!task.quality) {
+          quality = 'lossless'
+        }
       } else {
         acceptFormats = [preferred]
       }
     }
     return provider.resolveStream(id, {
-      quality: task.quality ?? this.policyValue.quality,
+      quality,
       saveData: false,
       acceptFormats,
     })
@@ -903,6 +1219,7 @@ export class Downloads extends Service implements DownloadsService {
     target: Uri | undefined,
     bytes: number,
     handle: StreamHandle,
+    chosenFormat?: string,
   ): Promise<void> {
     const task = this.byId(id)
     if (!task) return
@@ -911,7 +1228,7 @@ export class Downloads extends Service implements DownloadsService {
     if (target && handle.kind === 'remote') {
       const binding = bindingIdOf(task.trackUrn)
       bindingId = binding
-      const format = formatFor(handle)
+      const format = chosenFormat ?? formatFor(handle)
       const stale = await this.ownCtx.db.query<{ uri: Uri }>(
         `SELECT uri FROM media_bindings WHERE track_urn = ? AND origin = 'download'`,
         [task.trackUrn],
@@ -957,6 +1274,9 @@ export class Downloads extends Service implements DownloadsService {
       ...(bindingId ? { bindingId } : {}),
     })
     if (bindingId) this.safeEmit(() => this.ownCtx.emit('download/completed', id, bindingId))
+    const i18n = this.ownCtx.get('i18n') as { t?(k: string, p?: Record<string, unknown>): string } | undefined
+    const toastCompleted = i18n?.t?.('download:download.downloadCompleted', { title: task.title }) ?? `下载完成: ${task.title}`
+    this.safeEmit(() => this.ownCtx.emit('ui/toast', { message: toastCompleted, tone: 'ok' }))
   }
 
   private async fail(id: string, error: unknown): Promise<void> {
@@ -1060,7 +1380,9 @@ export class Downloads extends Service implements DownloadsService {
                  d.priority DESC,
                  d.created_at ASC`,
     )
-    this.list = rows.map((row) => toTask(row, this.isKept(row.target_uri), this.hold))
+    this.list = rows.map((row) =>
+      toTask(row, this.isKept(row.target_uri), this.hold, this.trackMetaOverrides.get(row.track_urn)),
+    )
     this.targets.clear()
     this.etags.clear()
     for (const row of rows) {
@@ -1081,9 +1403,9 @@ export class Downloads extends Service implements DownloadsService {
     return uriContains(this.keptDir, uri)
   }
 
-  private fileFor(urn: string): Uri {
+  private fileFor(urn: string, meta?: DownloadTrackMeta): Uri {
     const existing = this.list.find((t) => t.trackUrn === urn)
-    const title = existing?.title
+    const title = meta?.title || existing?.title
     const safe = title ? sanitizeFileName(title) : bindingIdOf(urn)
     return this.ownCtx.fs.join(this.keptDir, safe)
   }
@@ -1109,20 +1431,6 @@ export class Downloads extends Service implements DownloadsService {
     let artworkId: string | undefined
     let albumUrn: string | undefined
     let rawJson: string | undefined
-
-    const isUrl = (s: string | null | undefined): s is string => {
-      if (!s) return false
-      const str = s.trim()
-      return (
-        str.startsWith('http://') ||
-        str.startsWith('https://') ||
-        str.startsWith('//') ||
-        str.startsWith('data:') ||
-        str.startsWith('file:') ||
-        str.startsWith('/') ||
-        /^[a-zA-Z]:[\\/]/.test(str)
-      )
-    }
 
     // 1. Try SQLite query
     try {
@@ -1166,6 +1474,10 @@ export class Downloads extends Service implements DownloadsService {
         albumUrn = row.album_urn || undefined
         rawJson = row.raw_json || undefined
 
+        if (!artist && rawJson) {
+          artist = extractArtistFromRaw(rawJson)
+        }
+
         if (isUrl(row.artwork_source_url)) {
           artworkSourceUrl = row.artwork_source_url
         } else if (isUrl(row.artwork_id)) {
@@ -1176,13 +1488,18 @@ export class Downloads extends Service implements DownloadsService {
           artworkSourceUrl = row.album_artwork_id
         }
         artworkId = row.artwork_id || row.track_artwork_id || row.album_artwork_id || undefined
+
+        if (!artworkSourceUrl && rawJson) {
+          const fromRaw = extractArtworkUrlFromRaw(rawJson)
+          if (fromRaw && isUrl(fromRaw)) artworkSourceUrl = fromRaw
+        }
       }
     } catch {
       // Ignore query errors
     }
 
-    // 2. Fallback to active source provider if artwork or metadata is missing
-    if (!artworkSourceUrl && !artworkLocalUri) {
+    // 2. Fallback to active source provider if artwork, title or artist is missing
+    if (!artist || !title || (!artworkSourceUrl && !artworkLocalUri)) {
       try {
         const provider = this.ownCtx.sources?.forUrn(urn)
         if (provider) {
@@ -1191,18 +1508,24 @@ export class Downloads extends Service implements DownloadsService {
           if (track) {
             title = title ?? (track.title || undefined)
             if (!artist && track.artists?.length) {
-              artist = track.artists.map((a) => a.name).join(', ')
+              artist = track.artists.map((a) => a.name).filter(Boolean).join(', ')
+            }
+            if (!artist) {
+              const rawFromTrack = (track as unknown as Record<string, unknown>)?.raw
+              if (rawFromTrack) artist = extractArtistFromRaw(rawFromTrack)
             }
             album = album ?? (track.albumTitle || undefined)
             year = year ?? track.year
             trackNo = trackNo ?? track.trackNo
             albumUrn = albumUrn ?? track.albumUrn
 
-            const art = track.artwork
-            const artUrl = art?.sourceUrl || art?.id
-            if (isUrl(artUrl)) {
-              artworkSourceUrl = artUrl
-              artworkId = art?.id
+            if (!artworkSourceUrl && !artworkLocalUri) {
+              const art = track.artwork
+              const artUrl = art?.sourceUrl || art?.id
+              if (isUrl(artUrl)) {
+                artworkSourceUrl = artUrl
+                artworkId = art?.id
+              }
             }
           }
         }
@@ -1212,6 +1535,27 @@ export class Downloads extends Service implements DownloadsService {
     }
 
     // 3. Fallback to album lookup if artwork is still missing
+    if (!artworkSourceUrl && !artworkLocalUri && albumUrn) {
+      try {
+        const alRow = await this.ownCtx.db
+          .get<{ source_url: string | null; local_uri: string | null; id: string | null }>(
+            `SELECT aw.source_url, aw.local_uri, aw.id
+               FROM albums al
+               JOIN artworks aw ON aw.id = al.artwork_id
+              WHERE al.urn = ?`,
+            [albumUrn],
+          )
+          .catch(() => undefined)
+        if (alRow) {
+          if (alRow.local_uri) artworkLocalUri = alRow.local_uri
+          if (isUrl(alRow.source_url)) artworkSourceUrl = alRow.source_url
+          if (alRow.id) artworkId = alRow.id
+        }
+      } catch {
+        // continue
+      }
+    }
+
     if (!artworkSourceUrl && !artworkLocalUri && albumUrn) {
       try {
         const sources = this.ownCtx.sources as unknown as {
@@ -1224,6 +1568,28 @@ export class Downloads extends Service implements DownloadsService {
             artworkSourceUrl = albumArt
             artworkId = albumDetail?.artwork?.id
           }
+        }
+      } catch {
+        // continue
+      }
+    }
+
+    // 4. Fallback to track's artwork_id directly if artwork is still missing
+    if (!artworkSourceUrl && !artworkLocalUri) {
+      try {
+        const trArtRow = await this.ownCtx.db
+          .get<{ source_url: string | null; local_uri: string | null; id: string | null }>(
+            `SELECT aw.source_url, aw.local_uri, aw.id
+               FROM tracks tr
+               JOIN artworks aw ON aw.id = tr.artwork_id
+              WHERE tr.urn = ?`,
+            [urn],
+          )
+          .catch(() => undefined)
+        if (trArtRow) {
+          if (trArtRow.local_uri) artworkLocalUri = trArtRow.local_uri
+          if (isUrl(trArtRow.source_url)) artworkSourceUrl = trArtRow.source_url
+          if (trArtRow.id) artworkId = trArtRow.id
         }
       } catch {
         // continue
@@ -1247,12 +1613,16 @@ export class Downloads extends Service implements DownloadsService {
     }
   }
 
-  private async fetchCoverBytes(trackMeta: {
-    artworkLocalUri?: string
-    artworkSourceUrl?: string
-    artworkId?: string
-    rawJson?: string
-  } | undefined): Promise<{ data: Uint8Array; mimeType?: string } | undefined> {
+  private async fetchCoverBytes(
+    trackMeta: {
+      artworkLocalUri?: string
+      artworkSourceUrl?: string
+      artworkId?: string
+      rawJson?: string
+      raw?: unknown
+    } | undefined,
+    streamHeaders?: Record<string, string>,
+  ): Promise<{ data: Uint8Array; mimeType?: string } | undefined> {
     if (!trackMeta) return undefined
 
     // 1. Check local artwork URI
@@ -1267,34 +1637,11 @@ export class Downloads extends Service implements DownloadsService {
       }
     }
 
-    // 2. Extract URL from artworkSourceUrl or rawJson
-    let url = trackMeta.artworkSourceUrl?.trim()
-    if (!url && trackMeta.rawJson) {
-      try {
-        const raw = JSON.parse(trackMeta.rawJson) as Record<string, unknown>
-        const rawUrl =
-          (typeof raw.picUrl === 'string' && raw.picUrl) ||
-          (typeof raw.artwork === 'string' && raw.artwork) ||
-          (typeof raw.cover === 'string' && raw.cover) ||
-          (typeof raw.coverUrl === 'string' && raw.coverUrl) ||
-          (typeof raw.coverWebUrl === 'string' && raw.coverWebUrl) ||
-          (typeof raw.img === 'string' && raw.img) ||
-          (typeof raw.imgUrl === 'string' && raw.imgUrl) ||
-          (typeof raw.pic === 'string' && raw.pic) ||
-          (typeof raw.artworkUrl === 'string' && raw.artworkUrl) ||
-          (typeof (raw.album as Record<string, unknown> | undefined)?.picUrl === 'string' &&
-            (raw.album as Record<string, unknown>).picUrl as string) ||
-          (typeof (raw.album as Record<string, unknown> | undefined)?.cover === 'string' &&
-            (raw.album as Record<string, unknown>).cover as string) ||
-          (typeof (raw.album as Record<string, unknown> | undefined)?.artwork === 'string' &&
-            (raw.album as Record<string, unknown>).artwork as string) ||
-          undefined
-        if (rawUrl) url = rawUrl.trim()
-      } catch {
-        // continue
-      }
-    }
-
+    // 2. Extract URL from artworkSourceUrl or rawJson or raw
+    let url =
+      trackMeta.artworkSourceUrl?.trim() ||
+      extractArtworkUrlFromRaw(trackMeta.rawJson) ||
+      extractArtworkUrlFromRaw(trackMeta.raw)
     if (!url) return undefined
 
     // Normalize protocol-relative URLs
@@ -1349,12 +1696,13 @@ export class Downloads extends Service implements DownloadsService {
       }
     }
 
-    // 6. Direct HTTP fetch
+    // 6. Direct HTTP fetch with headers
     if (/^https?:\/\//i.test(url)) {
+      const headers = buildCoverHeaders(url, streamHeaders)
       // Try ctx.http
       try {
         if (typeof this.ownCtx.http === 'function') {
-          const res = await this.ownCtx.http({ url })
+          const res = await this.ownCtx.http({ url, headers })
           if (res.status === 200) {
             const bytes = await res.bytes()
             if (bytes && bytes.length > 0) {
@@ -1369,7 +1717,7 @@ export class Downloads extends Service implements DownloadsService {
       // Fallback to global fetch
       try {
         if (typeof globalThis.fetch === 'function') {
-          const res = await globalThis.fetch(url)
+          const res = await globalThis.fetch(url, { headers })
           if (res.ok) {
             const arrBuf = await res.arrayBuffer()
             const bytes = new Uint8Array(arrBuf)
@@ -1388,21 +1736,68 @@ export class Downloads extends Service implements DownloadsService {
 
   private async ensureTrackRow(
     urn: string,
-    meta?: { title?: string; artist?: string; album?: string; year?: number; trackNo?: number },
+    meta?: {
+      title?: string
+      artist?: string
+      artists?: readonly ArtistCredit[] | readonly { name: string; role?: string; urn?: string }[]
+      album?: string
+      albumTitle?: string
+      albumUrn?: string
+      year?: number
+      trackNo?: number
+      artwork?: ArtworkRef | { id?: string; sourceUrl?: string }
+      artworkUrl?: string
+      artworkSourceUrl?: string
+      artworkLocalUri?: string
+      artworkId?: string
+      raw?: unknown
+    },
   ): Promise<void> {
-    const existing = await this.ownCtx.db
-      .get<{ urn: string }>('SELECT urn FROM tracks WHERE urn = ?', [urn])
-      .catch(() => undefined)
-    if (existing) return
-
     const parsed = parseUrn(urn)
     const now = Date.now()
     try {
+      const artworkUrl =
+        meta?.artworkUrl ||
+        meta?.artworkSourceUrl ||
+        meta?.artwork?.sourceUrl ||
+        (isUrl(meta?.artwork?.id) ? meta.artwork.id : undefined)
+      let artworkId =
+        meta?.artworkId ||
+        (meta?.artwork?.id && !isUrl(meta?.artwork?.id) ? meta.artwork.id : undefined)
+
+      if (artworkUrl) {
+        artworkId = artworkId || `aw_${stableId(artworkUrl).slice(0, 16)}`
+        await this.ownCtx.db
+          .exec(
+            `INSERT INTO artworks (id, source_url, local_uri, fetched_at)
+             VALUES (?, ?, ?, ?)
+             ON CONFLICT(id) DO UPDATE SET
+               source_url = COALESCE(artworks.source_url, excluded.source_url),
+               local_uri = COALESCE(artworks.local_uri, excluded.local_uri)`,
+            [artworkId, artworkUrl, meta?.artworkLocalUri ?? null, now],
+          )
+          .catch((e: unknown) => this.ownCtx.logger.warn(`download: could not insert artwork: ${String(e)}`))
+      }
+
+      const rawJson = meta?.raw
+        ? typeof meta.raw === 'string'
+          ? meta.raw
+          : JSON.stringify(meta.raw)
+        : null
+
       await this.ownCtx.db.exec(
-        `INSERT INTO tracks (urn, source_id, remote_id, title, year, track_no, fetched_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO tracks (urn, source_id, remote_id, title, year, track_no, artwork_id, raw_json, fetched_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(urn) DO UPDATE SET
-           title = COALESCE(NULLIF(tracks.title, ''), excluded.title)`,
+           title = CASE
+             WHEN excluded.title IS NOT NULL AND excluded.title != '' AND excluded.title != tracks.urn AND excluded.title != tracks.remote_id THEN excluded.title
+             WHEN tracks.title IS NULL OR tracks.title = '' OR tracks.title = tracks.urn OR tracks.title = tracks.remote_id THEN excluded.title
+             ELSE tracks.title
+           END,
+           year = COALESCE(excluded.year, tracks.year),
+           track_no = COALESCE(excluded.track_no, tracks.track_no),
+           artwork_id = COALESCE(excluded.artwork_id, tracks.artwork_id),
+           raw_json = COALESCE(excluded.raw_json, tracks.raw_json)`,
         [
           urn,
           parsed.sourceId,
@@ -1410,9 +1805,80 @@ export class Downloads extends Service implements DownloadsService {
           meta?.title || parsed.id,
           meta?.year ?? null,
           meta?.trackNo ?? null,
+          artworkId ?? null,
+          rawJson,
           now,
         ],
       )
+
+      const albumTitle = meta?.album || meta?.albumTitle
+      if (albumTitle) {
+        const albumUrn =
+          meta?.albumUrn || `urn:bbebee:album:${parsed.sourceId}:${encodeURIComponent(albumTitle)}`
+        await this.ownCtx.db
+          .exec(
+            `INSERT INTO albums (urn, source_id, remote_id, title, artwork_id, fetched_at)
+             VALUES (?, ?, ?, ?, ?, ?)
+             ON CONFLICT(urn) DO UPDATE SET
+               title = excluded.title,
+               artwork_id = COALESCE(albums.artwork_id, excluded.artwork_id)`,
+            [albumUrn, parsed.sourceId, albumTitle, albumTitle, artworkId ?? null, now],
+          )
+          .catch((e: unknown) => this.ownCtx.logger.warn(`download: could not insert album: ${String(e)}`))
+        await this.ownCtx.db
+          .exec(`UPDATE tracks SET album_urn = COALESCE(album_urn, ?) WHERE urn = ?`, [albumUrn, urn])
+          .catch(() => undefined)
+      }
+
+      if (meta?.artists && Array.isArray(meta.artists) && meta.artists.length > 0) {
+        for (let i = 0; i < meta.artists.length; i++) {
+          const a = meta.artists[i]
+          if (!a || typeof a !== 'object') continue
+          const aObj = a as { name?: string; role?: string; urn?: string }
+          if (!aObj.name) continue
+          const artistUrn =
+            aObj.urn || `urn:bbebee:artist:${parsed.sourceId}:${encodeURIComponent(aObj.name)}`
+          await this.ownCtx.db
+            .exec(
+              `INSERT INTO artists (urn, source_id, remote_id, name, fetched_at)
+               VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT(urn) DO UPDATE SET name = excluded.name`,
+              [artistUrn, parsed.sourceId, aObj.name, aObj.name, now],
+            )
+            .catch(() => undefined)
+          await this.ownCtx.db
+            .exec(
+              `INSERT INTO track_artists (track_urn, artist_urn, role, ordinal)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(track_urn, artist_urn, role) DO UPDATE SET ordinal = excluded.ordinal`,
+              [urn, artistUrn, aObj.role || 'main', i],
+            )
+            .catch(() => undefined)
+        }
+      } else if (meta?.artist) {
+        const hasArtist = await this.ownCtx.db
+          .get<{ count: number }>('SELECT count(1) AS count FROM track_artists WHERE track_urn = ?', [urn])
+          .catch(() => ({ count: 0 }))
+        if (!hasArtist || hasArtist.count === 0) {
+          const artistUrn = `urn:bbebee:artist:${parsed.sourceId}:${encodeURIComponent(meta.artist)}`
+          await this.ownCtx.db
+            .exec(
+              `INSERT INTO artists (urn, source_id, remote_id, name, fetched_at)
+               VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT(urn) DO UPDATE SET name = excluded.name`,
+              [artistUrn, parsed.sourceId, meta.artist, meta.artist, now],
+            )
+            .catch((e: unknown) => this.ownCtx.logger.warn(`download: could not insert artist: ${String(e)}`))
+          await this.ownCtx.db
+            .exec(
+              `INSERT INTO track_artists (track_urn, artist_urn, role, ordinal)
+               VALUES (?, ?, 'main', 0)
+               ON CONFLICT(track_urn, artist_urn, role) DO UPDATE SET ordinal = excluded.ordinal`,
+              [urn, artistUrn],
+            )
+            .catch((e: unknown) => this.ownCtx.logger.warn(`download: could not insert track_artist: ${String(e)}`))
+        }
+      }
     } catch (err) {
       this.ownCtx.logger.warn(`download: could not ensure track row for ${urn}: ${String(err)}`)
     }

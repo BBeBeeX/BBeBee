@@ -790,7 +790,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
       id: 'download',
       label: t('album:index.download'),
       icon: tablerIcon('download', { size: 20 }),
-      onSelect: () => void downloads.enqueue(sortedUrns),
+      onSelect: () => void downloads.enqueue(detail?.tracks ?? sortedUrns),
     })
   }
 
@@ -1046,7 +1046,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
                 'data-testid': 'album-download-all',
                 title: t('album:index.downloadAll'),
                 style: { background: 'none', border: 'none', color: 'var(--bb-text-secondary, #b3b3b3)', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
-                onClick: () => void downloads.enqueue(sortedUrns),
+                onClick: () => void downloads.enqueue(detail?.tracks ?? sortedUrns),
               },
               tablerIcon('download', { size: 24 }),
             )
@@ -1255,7 +1255,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
                 context: { kind: 'album', urn: detail.urn, label: detail.title },
               })
             },
-            onDownload: !isLocalAlbum && downloads ? () => void downloads.enqueue([track.urn]) : undefined,
+            onDownload: !isLocalAlbum && downloads ? () => void downloads.enqueue([track]) : undefined,
             onMore: (anchor) => menu.open({ track }, anchor),
             labels: {
               download: t('album:index.download'),

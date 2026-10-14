@@ -14,7 +14,7 @@ import { act, cleanup, render } from '@testing-library/react'
 import { createElement as h, type ReactNode } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Context, Service } from 'cordis'
-import type { AlbumDetail, DownloadTask } from '@BBeBee/protocol'
+import type { AlbumDetail, DownloadTask, Track } from '@BBeBee/protocol'
 import { tick } from '@BBeBee/kernel/testing'
 import { configureNative } from '@BBeBee/ui-kit-mobile'
 import { LIBRARY_VIEWS } from '@BBeBee/plugin-library/views'
@@ -132,11 +132,11 @@ class PlayerStub extends Service {
 }
 
 class DownloadsStub extends Service {
-  readonly queued: string[][] = []
+  readonly queued: (string | Track)[][] = []
   constructor(ctx: Context) {
     super(ctx, 'downloads')
   }
-  async enqueue(urns: string[]): Promise<DownloadTask[]> {
+  async enqueue(urns: (string | Track)[]): Promise<DownloadTask[]> {
     this.queued.push(urns)
     return []
   }
@@ -224,7 +224,7 @@ describe('AlbumScreen on mobile', () => {
     // into the row's `Pressable`, which React Native's responder system does
     // not — so the empty `player.calls` is pinned on the desktop twin, where
     // the kit stops the propagation explicitly.
-    expect(downloads.queued).toEqual([[TRACK_A]])
+    expect(downloads.queued).toEqual([[detail.tracks[0]]])
   })
 
   it('offers a way back when the album cannot be shown', async () => {

@@ -249,7 +249,7 @@ export function SearchScreen({
                               urns: [row.track.urn],
                               context: { kind: 'search', label: search.text },
                             }),
-                          onDownload: downloads ? () => void downloads.enqueue([row.track.urn]) : undefined,
+                          onDownload: downloads ? () => void downloads.enqueue([row.track]) : undefined,
                           onMore: (anchor) => menu.open({ track: row.track }, anchor),
                         })
                       : row.kind === 'album'

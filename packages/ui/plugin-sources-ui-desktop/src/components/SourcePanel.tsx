@@ -377,7 +377,7 @@ export function SourcePanel({
                   urns: [track.urn],
                   context: { kind: 'search', label: searchQuery },
                 }),
-              onDownload: downloads ? () => void downloads.enqueue([track.urn]) : undefined,
+              onDownload: downloads ? () => void downloads.enqueue([track]) : undefined,
               onMore: onTrackMenu
                 ? (anchor) => (anchor ? onTrackMenu(track, anchor) : undefined)
                 : undefined,

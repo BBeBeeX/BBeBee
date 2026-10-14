@@ -12,7 +12,7 @@ import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { createElement as h } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Context, Service } from 'cordis'
-import type { AlbumDetail, DownloadTask } from '@BBeBee/protocol'
+import type { AlbumDetail, DownloadTask, Track } from '@BBeBee/protocol'
 import { tick } from '@BBeBee/kernel/testing'
 import { withListLayout } from '@BBeBee/ui-kit-desktop/testing'
 import albumCatalogue from '../../../feature/plugin-i18n/src/locales/album.json'
@@ -96,11 +96,11 @@ class PlayerStub extends Service {
 }
 
 class DownloadsStub extends Service {
-  readonly queued: string[][] = []
+  readonly queued: (string | Track)[][] = []
   constructor(ctx: Context) {
     super(ctx, 'downloads')
   }
-  async enqueue(urns: string[]): Promise<DownloadTask[]> {
+  async enqueue(urns: (string | Track)[]): Promise<DownloadTask[]> {
     this.queued.push(urns)
     return []
   }
@@ -226,7 +226,7 @@ describe('AlbumScreen', () => {
       })
     })
 
-    expect(downloads.queued).toEqual([[TRACK_A]])
+    expect(downloads.queued).toEqual([[detail.tracks[0]]])
     expect(player.calls).toEqual([])
   })
 

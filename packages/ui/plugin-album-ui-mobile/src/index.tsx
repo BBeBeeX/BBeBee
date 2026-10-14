@@ -154,7 +154,7 @@ export function AlbumScreen({
               context: { kind: 'album', urn: detail.urn, label: detail.title },
             })
           },
-          onDownload: downloads ? () => void downloads.enqueue([track.urn]) : undefined,
+          onDownload: downloads ? () => void downloads.enqueue([track]) : undefined,
           onMore: (anchor) => menu.open({ track }, anchor),
         }),
     }),

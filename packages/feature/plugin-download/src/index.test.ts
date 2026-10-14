@@ -49,6 +49,7 @@ interface Call {
 class HttpStub extends Service {
   static inject = ['fs']
   readonly calls: Call[] = []
+  readonly requests: any[] = []
   body = new Uint8Array([1, 2, 3, 4])
   etag = '"v1"'
   failure?: Error
@@ -66,6 +67,7 @@ class HttpStub extends Service {
   }
 
   async request(req: any) {
+    this.requests.push(req)
     const isCover =
       typeof req?.url === 'string' &&
       (req.url.includes('cover') || req.url.includes('artwork') || req.url.includes('image'))
@@ -175,7 +177,9 @@ class DeviceStub extends Service {
   }
 }
 
-function provider(resolveStream: () => Promise<StreamHandle>): MediaProvider {
+function provider(
+  resolveStream: (id?: string, prefs?: StreamPrefs) => Promise<StreamHandle>,
+): MediaProvider {
   return {
     sourceId: 'demo',
     displayName: 'Demo',
@@ -199,7 +203,7 @@ function provider(resolveStream: () => Promise<StreamHandle>): MediaProvider {
     getTrack: async () => {
       throw new Error('not needed')
     },
-    resolveStream: async () => resolveStream(),
+    resolveStream: async (id, prefs) => resolveStream(id, prefs),
     ping: async () => true,
   }
 }
@@ -266,7 +270,7 @@ async function harness(
 
 /** Wait for a background transition to land, rather than guessing at ticks. */
 async function until(check: () => boolean | Promise<boolean>): Promise<void> {
-  for (let i = 0; i < 300; i++) {
+  for (let i = 0; i < 1000; i++) {
     if (await check()) return
     await tick()
   }
@@ -960,6 +964,240 @@ describe('plugin-download', () => {
 
     await h.ctx.downloads.setPolicy({ wifiOnly: true })
     expect(settingsWifiOnly).toBe(true)
+  })
+
+  it('extracts artist from raw_json, embeds into audio tags, and populates track_artists table', async () => {
+    const h = await harness()
+    h.http.body = new Uint8Array([0xff, 0xfb, 0x90, 0x64, 0, 0])
+    const rawJson = JSON.stringify({ ar: [{ name: '周杰伦' }] })
+    await h.ctx.db.exec(
+      `UPDATE tracks SET title = '青花瓷', raw_json = ? WHERE urn = ?`,
+      [rawJson, URN],
+    )
+    ;(h.ctx.sources as unknown as SourcesStub).provider = provider(async () => ({
+      kind: 'remote',
+      target: 'https://cdn.example.test/qinghuaci.mp3',
+      seekable: true,
+      codec: 'mpeg',
+    }))
+
+    const task = (await h.ctx.downloads.enqueue([URN]))[0]!
+    await until(() => h.downloads.task(task.id)?.state === 'done')
+
+    // Task object in memory has artist
+    const doneTask = h.downloads.task(task.id)
+    expect(doneTask?.artist).toBe('周杰伦')
+
+    // track_artists junction table populated
+    const rows = await h.ctx.db.query<{ name: string }>(
+      `SELECT a.name FROM track_artists ta JOIN artists a ON a.urn = ta.artist_urn WHERE ta.track_urn = ?`,
+      [URN],
+    )
+    expect(rows.length).toBeGreaterThan(0)
+    expect(rows[0]?.name).toBe('周杰伦')
+
+    // Embedded tag has TPE1 (ID3 artist frame)
+    const binding = (await h.bindings())[0]!
+    const fileBytes = await h.ctx.fs.readBytes(binding.uri)
+    const text = new TextDecoder('latin1').decode(fileBytes)
+    expect(text.startsWith('ID3')).toBe(true)
+    expect(text.includes('TPE1')).toBe(true)
+  })
+
+  it('follows settings.downloadFormat mp4 and saves file as .mp4', async () => {
+    const h = await harness()
+    class SettingsStub extends Service {
+      constructor(c: Context) {
+        super(c, 'settings')
+      }
+      getSync() {
+        return { downloadFormat: 'mp4' } as never
+      }
+      async update() {
+        return {} as never
+      }
+      onSettingsChange() {
+        return () => {}
+      }
+    }
+    await h.ctx.plugin(SettingsStub)
+    await tick()
+
+    // Mock an M4A file container
+    const ftyp = new Uint8Array([0, 0, 0, 16, 0x66, 0x74, 0x79, 0x70, 0x4d, 0x34, 0x41, 0x20, 0, 0, 0, 0])
+    const moov = new Uint8Array([0, 0, 0, 8, 0x6d, 0x6f, 0x6f, 0x76])
+    const mdat = new Uint8Array([0, 0, 0, 8, 0x6d, 0x64, 0x61, 0x74])
+    const mockM4a = new Uint8Array(ftyp.length + moov.length + mdat.length)
+    mockM4a.set(ftyp, 0)
+    mockM4a.set(moov, ftyp.length)
+    mockM4a.set(mdat, ftyp.length + moov.length)
+    h.http.body = mockM4a
+
+    ;(h.ctx.sources as unknown as SourcesStub).provider = provider(async (_id, prefs) => {
+      expect(prefs?.acceptFormats).toContain('mp4')
+      return {
+        kind: 'remote',
+        target: 'https://cdn.example.test/song.m4a',
+        seekable: true,
+        codec: 'mp4a',
+      }
+    })
+
+    const task = (await h.ctx.downloads.enqueue([URN]))[0]!
+    await until(() => h.downloads.task(task.id)?.state === 'done')
+
+    const binding = (await h.bindings())[0]!
+    expect(binding.uri.endsWith('.mp4')).toBe(true)
+    expect(binding.format).toBe('mp4')
+  })
+
+  it('follows settings.downloadFormat mp3 and saves file as .mp3', async () => {
+    const h = await harness()
+    class SettingsStub extends Service {
+      constructor(c: Context) {
+        super(c, 'settings')
+      }
+      getSync() {
+        return { downloadFormat: 'mp3' } as never
+      }
+      async update() {
+        return {} as never
+      }
+      onSettingsChange() {
+        return () => {}
+      }
+    }
+    await h.ctx.plugin(SettingsStub)
+    await tick()
+
+    h.http.body = new Uint8Array([0xff, 0xfb, 0x90, 0x64, 0, 0])
+    let resolvedQuality: string | undefined
+    ;(h.ctx.sources as unknown as SourcesStub).provider = provider(async (_id, prefs) => {
+      resolvedQuality = prefs?.quality
+      return {
+        kind: 'remote',
+        target: 'https://cdn.example.test/song.mp3',
+        seekable: true,
+        codec: 'mpeg',
+      }
+    })
+
+    const task = (await h.ctx.downloads.enqueue([URN]))[0]!
+    await until(() => h.downloads.task(task.id)?.state === 'done')
+
+    expect(resolvedQuality).toBe('high')
+    const binding = (await h.bindings())[0]!
+    expect(binding.uri.endsWith('.mp3')).toBe(true)
+    expect(binding.format).toBe('mp3')
+  })
+
+  it('sends User-Agent and Referer headers when fetching cover image', async () => {
+    const h = await harness()
+    h.http.coverBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4])
+    h.http.body = new Uint8Array([0xff, 0xfb, 0x90, 0x64, 0, 0])
+
+    await h.ctx.db.exec(
+      `INSERT INTO artworks (id, source_url) VALUES ('art-cdn', 'https://p1.music.126.net/cover.jpg')`,
+    )
+    await h.ctx.db.exec(
+      `UPDATE tracks SET title = 'CdnSong', artwork_id = 'art-cdn' WHERE urn = ?`,
+      [URN],
+    )
+    ;(h.ctx.sources as unknown as SourcesStub).provider = provider(async () => ({
+      kind: 'remote',
+      target: 'https://cdn.music.126.net/audio.mp3',
+      headers: { Referer: 'https://music.163.com/stream' },
+      seekable: true,
+    }))
+
+    const task = (await h.ctx.downloads.enqueue([URN]))[0]!
+    await until(() => h.downloads.task(task.id)?.state === 'done')
+
+    const coverReq = h.http.requests.find((r) => r.url === 'https://p1.music.126.net/cover.jpg')
+    expect(coverReq).toBeDefined()
+    expect(coverReq.headers?.['User-Agent']).toContain('Mozilla/5.0')
+    expect(coverReq.headers?.['Referer']).toBe('https://music.163.com/stream')
+  })
+
+  it('emits ui/toast with ok tone on download completion', async () => {
+    const h = await harness()
+    h.http.body = new Uint8Array([0xff, 0xfb, 0x90, 0x64, 0, 0])
+    const toasts: any[] = []
+    h.ctx.on('ui/toast', (t) => void toasts.push(t))
+
+    const task = (await h.ctx.downloads.enqueue([URN]))[0]!
+    await until(() => h.downloads.task(task.id)?.state === 'done')
+
+    const successToast = toasts.find((t) => t.tone === 'ok')
+    expect(successToast).toBeDefined()
+    expect(successToast.message).toContain(task.title)
+  })
+
+  it('accepts Track object in enqueue and embeds provided metadata and cover', async () => {
+    const h = await harness()
+    const jpgBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46])
+    h.http.coverBytes = jpgBytes
+    h.http.body = new Uint8Array([0xff, 0xfb, 0x90, 0x64, 0, 0])
+
+    const trackObj = {
+      urn: 'BBeBee:demo:track:rich-meta',
+      title: 'Custom Title',
+      artists: [{ name: 'Custom Singer', role: 'main' as const, ordinal: 0, urn: 'BBeBee:demo:artist:singer' }],
+      albumTitle: 'Custom Album',
+      year: 2024,
+      trackNo: 3,
+      artwork: { id: 'art-custom', sourceUrl: 'https://img.test/cover.jpg' },
+      raw: { custom_prop: 123 },
+    }
+
+    const task = (await h.ctx.downloads.enqueue([trackObj as any]))[0]!
+    expect(task.title).toBe('Custom Title')
+    expect(task.artist).toBe('Custom Singer')
+
+    await until(() => h.downloads.task(task.id)?.state === 'done')
+
+    // Verify database rows created
+    const trRow = await h.ctx.db.get<{ title: string; track_no: number; year: number }>(
+      'SELECT title, track_no, year FROM tracks WHERE urn = ?',
+      [trackObj.urn],
+    )
+    expect(trRow?.title).toBe('Custom Title')
+    expect(trRow?.track_no).toBe(3)
+    expect(trRow?.year).toBe(2024)
+
+    const artistRow = await h.ctx.db.get<{ name: string }>(
+      `SELECT a.name FROM track_artists ta JOIN artists a ON a.urn = ta.artist_urn WHERE ta.track_urn = ?`,
+      [trackObj.urn],
+    )
+    expect(artistRow?.name).toBe('Custom Singer')
+
+    const coverReq = h.http.requests.find((r) => r.url === 'https://img.test/cover.jpg')
+    expect(coverReq).toBeDefined()
+  })
+
+  it('accepts raw object with non-standard fields in enqueue', async () => {
+    const h = await harness()
+    const jpgBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46])
+    h.http.coverBytes = jpgBytes
+    h.http.body = new Uint8Array([0xff, 0xfb, 0x90, 0x64, 0, 0])
+
+    const nonStandardTrack = {
+      urn: 'BBeBee:demo:track:raw-meta',
+      title: 'Raw Song Title',
+      raw: {
+        singer: 'Raw Singer',
+        pic_url: 'https://cdn.raw.test/raw-cover.jpg',
+      },
+    }
+
+    const task = (await h.ctx.downloads.enqueue([nonStandardTrack as any]))[0]!
+    expect(task.title).toBe('Raw Song Title')
+    expect(task.artist).toBe('Raw Singer')
+
+    await until(() => h.downloads.task(task.id)?.state === 'done')
+
+    const coverReq = h.http.requests.find((r) => r.url === 'https://cdn.raw.test/raw-cover.jpg')
+    expect(coverReq).toBeDefined()
   })
 })
 

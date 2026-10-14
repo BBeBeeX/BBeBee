@@ -19,12 +19,34 @@
 // Pulls `cordis` into the program so the `declare module` augmentation below
 // resolves. Erased at build time; this adds no runtime import.
 import type {} from 'cordis'
+import type { ArtistCredit, ArtworkRef, Track } from '../entities/catalog.js'
 import type { StreamQuality } from '../entities/media.js'
 
 export type DownloadState = 'queued' | 'running' | 'paused' | 'done' | 'failed' | 'canceled'
 
 /** Why a queued task is not running yet. `undefined` means "nothing holding it". */
 export type DownloadHold = 'wifi' | 'charging'
+
+/**
+ * Rich metadata for an enqueued track.
+ * Passing this avoids lossy secondary lookups when music sources have varying schemas.
+ */
+export interface DownloadTrackMeta {
+  urn: string
+  title?: string
+  artist?: string
+  artists?: readonly ArtistCredit[] | readonly { name: string; role?: string; urn?: string }[]
+  albumTitle?: string
+  albumUrn?: string
+  year?: number
+  trackNo?: number
+  artwork?: ArtworkRef | { id?: string; sourceUrl?: string }
+  artworkUrl?: string
+  artworkLocalUri?: string
+  raw?: unknown
+}
+
+export type EnqueueItem = string | Track | DownloadTrackMeta
 
 /**
  * The download policy, as the queue reads it.
@@ -100,12 +122,15 @@ export interface DownloadsService {
   /**
    * Queue explicit downloads.
    *
+   * Accepts either track URN strings, complete `Track` entities, or `DownloadTrackMeta` objects.
+   * Passing track metadata preserves artist, title, album and artwork information directly from the UI.
+   *
    * A track already queued, running or paused is returned as-is rather than
    * duplicated — `download_tasks` enforces one active task per track, and
    * "download" pressed twice means the same thing twice (docs/07 §4.8).
    */
   enqueue(
-    urns: readonly string[],
+    items: readonly EnqueueItem[],
     opts?: { quality?: StreamQuality },
   ): Promise<readonly DownloadTask[]>
 
