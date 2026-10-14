@@ -1265,7 +1265,7 @@ export class DocumentSource {
     if (id) {
       entry.urn = formatUrn({
         sourceId: this.record.id,
-        kind: kind === 'album' ? 'album' : kind === 'artist' ? 'artist' : 'track',
+        kind: kind === 'album' ? 'album' : kind === 'artist' ? 'artist' : kind === 'playlist' ? 'playlist' : 'track',
         id,
       })
     }
@@ -1559,10 +1559,17 @@ export class DocumentSource {
     this.assertAllowed(target.url)
 
     try {
-      await fetchDocument(this.http, target, await this.headers(scope), {
+      const fetched = await fetchDocument(this.http, target, await this.headers(scope), {
         sourceId: this.record.id,
         block: 'loginUrl',
       })
+      const check = this.record.doc.loginCheckJs
+      if (check && this.js) {
+        const ok = await this.js(check, { ...scope, result: fetched.value } as TemplateScope)
+        if (ok === false) {
+          throw new AuthError(`login failed for ${this.record.id}: credentials rejected`, this.record.id)
+        }
+      }
     } catch (error) {
       /*
        * A refused login is an `AuthError` whatever the backend called it. A
@@ -2803,7 +2810,10 @@ function parseSections(rendered: string): { title: string; url: string }[] | und
  * adding it unconditionally would turn `return x` into `return return x`.
  */
 function bodyOf(expression: string): string {
-  const trimmed = expression.trim()
+  let trimmed = expression.trim()
+  if (trimmed.startsWith('@js:')) {
+    trimmed = trimmed.slice(4).trim()
+  }
   if (/\breturn\b/.test(trimmed) || /[;\n]/.test(trimmed)) return trimmed
   return `return (${trimmed})`
 }

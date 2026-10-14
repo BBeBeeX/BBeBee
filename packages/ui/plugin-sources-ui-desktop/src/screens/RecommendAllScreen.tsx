@@ -29,9 +29,15 @@ export function RecommendAllScreen({
   const feed = useRecommendFeed(ctx, sourceId)
 
   const openCard = (entry: BrowseEntry) => {
-    if (!entry.urn || entry.kind !== 'album') return
-    onOpenAlbum?.(entry.urn)
-    serviceOf<UiService>(ctx, 'ui')?.navigate('album.view', { urn: entry.urn })
+    if (!entry.urn) return
+    if (entry.kind === 'playlist') {
+      serviceOf<UiService>(ctx, 'ui')?.navigate('library.playlist', { urn: entry.urn })
+      return
+    }
+    if (entry.kind === 'album') {
+      onOpenAlbum?.(entry.urn)
+      serviceOf<UiService>(ctx, 'ui')?.navigate('album.view', { urn: entry.urn })
+    }
   }
 
   return h(

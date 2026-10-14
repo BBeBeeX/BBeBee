@@ -1137,7 +1137,10 @@ export class Sources extends Service implements SourcesService {
       params.vars?.['sourceurl'] ??
       params.vars?.['sourceUrl'] ??
       params.vars?.['source_url']
-    const targetUrl = typeof rawTargetUrl === 'string' ? rawTargetUrl.trim() : undefined
+    let targetUrl = typeof rawTargetUrl === 'string' ? rawTargetUrl.trim() : undefined
+    if (targetUrl) {
+      targetUrl = targetUrl.replace(/\/(index|login)\.view(\?.*)?$/i, '').replace(/\/+$/, '')
+    }
 
     if (targetUrl && (targetUrl !== record.sourceUrl || hasSourceUrlParam(record.doc.params))) {
       await this.store.updateSourceUrl(id, targetUrl, Date.now())
@@ -1192,7 +1195,8 @@ export class Sources extends Service implements SourcesService {
       return { status: 'network_error', message: `Source "${id}" not found` }
     }
 
-    const rawHost = (params?.host ?? record.sourceUrl).trim().replace(/\/+$/, '')
+    let rawHost = (params?.host ?? record.sourceUrl).trim()
+    rawHost = rawHost.replace(/\/(index|login)\.view(\?.*)?$/i, '').replace(/\/+$/, '')
     const host = /^https?:\/\//i.test(rawHost) ? rawHost : `http://${rawHost}`
     let user = params?.user
     let password = params?.password

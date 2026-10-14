@@ -33,9 +33,15 @@ export function RecommendScreen({
   const { albums: favoriteAlbums } = useFavoriteAlbums(ctx)
 
   const openCard = (entry: BrowseEntry) => {
-    if (!entry.urn || entry.kind !== 'album') return
-    onOpenAlbum?.(entry.urn)
-    serviceOf<UiService>(ctx, 'ui')?.navigate('album.view', { urn: entry.urn })
+    if (!entry.urn) return
+    if (entry.kind === 'playlist') {
+      serviceOf<UiService>(ctx, 'ui')?.navigate('library.playlist', { urn: entry.urn })
+      return
+    }
+    if (entry.kind === 'album') {
+      onOpenAlbum?.(entry.urn)
+      serviceOf<UiService>(ctx, 'ui')?.navigate('album.view', { urn: entry.urn })
+    }
   }
 
   const hasAnyContent = recentAlbums.length > 0 || favoriteAlbums.length > 0 || sources.length > 0
