@@ -229,6 +229,45 @@ describe('core-codec-node', () => {
     expect(formats.every((f) => f === f.toLowerCase())).toBe(true)
   })
 
+  it('transcodes audio into requested format', async () => {
+    const h = await harness()
+    const numSamples = 200
+    const buffer = new ArrayBuffer(44 + numSamples * 2)
+    const view = new DataView(buffer)
+    view.setUint32(0, 0x52494646, false) // RIFF
+    view.setUint32(4, 36 + numSamples * 2, true)
+    view.setUint32(8, 0x57415645, false) // WAVE
+    view.setUint32(12, 0x666d7420, false) // fmt 
+    view.setUint32(16, 16, true)
+    view.setUint16(20, 1, true) // PCM
+    view.setUint16(22, 1, true) // 1 channel
+    view.setUint32(24, 44100, true) // 44100 Hz
+    view.setUint32(28, 88200, true)
+    view.setUint16(32, 2, true)
+    view.setUint16(34, 16, true)
+    view.setUint32(36, 0x64617461, false) // data
+    view.setUint32(40, numSamples * 2, true)
+
+    await writeFile(new URL(h.uri('sample.wav')), new Uint8Array(buffer))
+    const res = await h.codec.transcode?.({
+      inputUri: h.uri('sample.wav'),
+      outputUri: h.uri('sample.flac'),
+      targetFormat: 'flac',
+    })
+    expect(res?.ok).toBe(true)
+  })
+
+  it('reports error when transcoding invalid input', async () => {
+    const h = await harness()
+    const res = await h.codec.transcode?.({
+      inputUri: h.uri('garbage.mp3'),
+      outputUri: h.uri('invalid.flac'),
+      targetFormat: 'flac',
+    })
+    expect(res?.ok).toBe(false)
+    expect(res?.error).toBeDefined()
+  })
+
   it('leaves nothing behind when unloaded', async () => {
     const ctx = new Context()
     await ctx.plugin(PathsNode, { root: await tempDir('bbebee-codec-leak') })

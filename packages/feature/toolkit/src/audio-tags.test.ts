@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  detectAudioFormat,
+  detectImageDimensions,
   embedAudioTags,
   embedMp3Tags,
   sanitizeFileName,
@@ -116,6 +118,45 @@ describe('embedAudioTags', () => {
       const block2Header = tagged.subarray(42, 46)
       expect((block2Header[0] ?? 0) & 0x7f).toBe(4) // VORBIS_COMMENT
       expect((block2Header[0] ?? 0) & 0x80).toBe(0x80) // isLast = 1
+
+      // Vorbis comments should contain ARTIST, PERFORMER, and ALBUMARTIST
+      const asString = new TextDecoder().decode(tagged)
+      expect(asString).toContain('TITLE=晴天')
+      expect(asString).toContain('ARTIST=周杰伦')
+      expect(asString).toContain('PERFORMER=周杰伦')
+      expect(asString).toContain('ALBUMARTIST=周杰伦')
+      expect(asString).toContain('DATE=2003')
+      expect(asString).toContain('YEAR=2003')
+      expect(asString).toContain('TRACKNUMBER=3')
+    })
+
+    it('strips prepended ID3v2 tag on FLAC and outputs clean FLAC', () => {
+      // Construct ID3v2 header of 10 bytes + 10 bytes payload
+      const id3Header = new Uint8Array([0x49, 0x44, 0x33, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 10])
+      const id3Payload = new Uint8Array(10)
+      // Followed by valid FLAC
+      const mockFlac = new Uint8Array(4 + 4 + 34 + 10)
+      mockFlac.set([0x66, 0x4c, 0x61, 0x43], 0)
+      mockFlac[4] = 0x80
+      mockFlac[7] = 34
+
+      const combined = new Uint8Array(id3Header.length + id3Payload.length + mockFlac.length)
+      combined.set(id3Header, 0)
+      combined.set(id3Payload, id3Header.length)
+      combined.set(mockFlac, id3Header.length + id3Payload.length)
+
+      // detectAudioFormat should identify as flac
+      expect(detectAudioFormat(combined)).toBe('flac')
+
+      const tagged = embedAudioTags(combined, 'flac', meta)
+      // Must start with 'fLaC', NOT 'ID3'
+      expect(tagged[0]).toBe(0x66)
+      expect(tagged[1]).toBe(0x4c)
+      expect(tagged[2]).toBe(0x61)
+      expect(tagged[3]).toBe(0x43)
+
+      const asString = new TextDecoder().decode(tagged)
+      expect(asString).toContain('PERFORMER=周杰伦')
     })
   })
 
@@ -181,7 +222,7 @@ describe('embedAudioTags', () => {
       expect(asString).toContain('APIC')
     })
 
-    it('embeds PICTURE block (type 6) in FLAC', () => {
+    it('embeds PICTURE block (type 6) in FLAC with genuine non-zero dimensions', () => {
       const mockFlac = new Uint8Array(100)
       mockFlac[0] = 0x66
       mockFlac[1] = 0x4c
@@ -189,19 +230,104 @@ describe('embedAudioTags', () => {
       mockFlac[3] = 0x43
       mockFlac[4] = 0x80 // STREAMINFO isLast = 1
       mockFlac[7] = 34
-      const fakeImage = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4])
+
+      // Mock a valid 100x200 PNG
+      const pngHeader = new Uint8Array(33)
+      pngHeader.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 0) // PNG signature
+      // IHDR length 13
+      new DataView(pngHeader.buffer).setUint32(8, 13)
+      pngHeader.set([0x49, 0x48, 0x44, 0x52], 12) // 'IHDR'
+      new DataView(pngHeader.buffer).setUint32(16, 100) // width = 100
+      new DataView(pngHeader.buffer).setUint32(20, 200) // height = 200
+      pngHeader[24] = 8 // bit depth
+      pngHeader[25] = 2 // RGB color type
+
       const tagged = embedAudioTags(mockFlac, 'flac', {
         ...meta,
-        picture: { data: fakeImage, mimeType: 'image/png' },
+        picture: { data: pngHeader, mimeType: 'image/png' },
       })
-      // Should have STREAMINFO, VORBIS_COMMENT, and PICTURE
       const asString = new TextDecoder().decode(tagged)
       expect(asString).toContain('image/png')
+
+      // Locate PICTURE block (type 6) in tagged bytes
+      let offset = 4
+      let picBlockOffset = -1
+      while (offset < tagged.length) {
+        const b0 = tagged[offset]!
+        const isLast = (b0 & 0x80) !== 0
+        const type = b0 & 0x7f
+        const length = (tagged[offset + 1]! << 16) | (tagged[offset + 2]! << 8) | tagged[offset + 3]!
+        if (type === 6) {
+          picBlockOffset = offset + 4
+          break
+        }
+        offset += 4 + length
+        if (isLast) break
+      }
+
+      expect(picBlockOffset).toBeGreaterThan(0)
+      const picView = new DataView(tagged.buffer, picBlockOffset)
+      const picType = picView.getUint32(0) // type 3 (Cover front)
+      expect(picType).toBe(3)
+      const mimeLen = picView.getUint32(4)
+      const width = picView.getUint32(4 + 4 + mimeLen + 4)
+      const height = picView.getUint32(4 + 4 + mimeLen + 4 + 4)
+      expect(width).toBe(100)
+      expect(height).toBe(200)
+    })
+  })
+
+  describe('detectAudioFormat', () => {
+    it('detects native FLAC and ID3-prefixed FLAC', () => {
+      expect(detectAudioFormat(new Uint8Array([0x66, 0x4c, 0x61, 0x43, 1, 2]))).toBe('flac')
+
+      const id3Header = new Uint8Array([0x49, 0x44, 0x33, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 4])
+      const id3Payload = new Uint8Array([0, 0, 0, 0])
+      const flacBytes = new Uint8Array([0x66, 0x4c, 0x61, 0x43])
+      const combined = new Uint8Array(id3Header.length + id3Payload.length + flacBytes.length)
+      combined.set(id3Header, 0)
+      combined.set(id3Payload, id3Header.length)
+      combined.set(flacBytes, id3Header.length + id3Payload.length)
+
+      expect(detectAudioFormat(combined)).toBe('flac')
+    })
+
+    it('detects MP3, M4A, OGG, and WAV', () => {
+      expect(detectAudioFormat(new Uint8Array([0xff, 0xfb, 0x90, 0x64]))).toBe('mp3')
+      expect(detectAudioFormat(new Uint8Array([0x49, 0x44, 0x33, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10]))).toBe('mp3')
+      expect(detectAudioFormat(new Uint8Array([0, 0, 0, 20, 0x66, 0x74, 0x79, 0x70]))).toBe('m4a')
+      expect(detectAudioFormat(new Uint8Array([0x4f, 0x67, 0x67, 0x53]))).toBe('ogg')
+      expect(
+        detectAudioFormat(
+          new Uint8Array([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x41, 0x56, 0x45]),
+        ),
+      ).toBe('wav')
+    })
+  })
+
+  describe('detectImageDimensions', () => {
+    it('detects PNG dimensions', () => {
+      const png = new Uint8Array(26)
+      png.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 0)
+      new DataView(png.buffer).setUint32(8, 13)
+      png.set([0x49, 0x48, 0x44, 0x52], 12)
+      new DataView(png.buffer).setUint32(16, 500)
+      new DataView(png.buffer).setUint32(20, 400)
+      const dims = detectImageDimensions(png)
+      expect(dims.width).toBe(500)
+      expect(dims.height).toBe(400)
+    })
+
+    it('falls back to safe dimensions when image is invalid', () => {
+      const dims = detectImageDimensions(new Uint8Array([1, 2, 3]))
+      expect(dims.width).toBe(600)
+      expect(dims.height).toBe(600)
+      expect(dims.depth).toBe(24)
     })
   })
 
   it('returns original bytes when format is unrecognized', () => {
     const raw = new Uint8Array([1, 2, 3, 4])
-    expect(embedAudioTags(raw, 'wav', meta)).toBe(raw)
+    expect(embedAudioTags(raw, 'unknown', meta)).toBe(raw)
   })
 })

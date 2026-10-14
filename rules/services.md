@@ -108,4 +108,13 @@ Declared in `packages/protocol/src/services/` and augmented onto `Context`:
 - **Dynamic hot-switching:** `AudioService.setAudioExclusive` / bridge IPC `mpvSetAudioExclusive` applies `audio-exclusive` directly to libmpv at runtime without interrupting playback or unmounting the engine.
 - **Settings UI reactivity:** In `plugin-settings-ui-desktop`, the Exclusive Mode switch conditionally renders under the audio engine selector only when MPV is selected (`isMpv === true`), defaulting to `false`.
 
+---
+
+## 8. Audio Transcoding & Download Container Integrity
+
+- **`ctx.codec.transcode(options)`:** Core audio codec service provides optional transcoding between containers (FLAC, MP3, M4A/AAC, Opus, WAV). On desktop, this routes through the host bridge (`audio:transcode`) backed by FFmpeg.
+- **Container sniffing and format reconciliation in `ctx.downloads`:** When remote streams deliver audio whose real magic-bytes container does not match the user's preferred format in `settings.downloadFormat` (e.g. source serves MP3 stream when FLAC was selected), `plugin-download` invokes `ctx.codec.transcode` to convert the downloaded file to the configured format before embedding metadata tags (Vorbis comment / ID3) and artwork. If transcoding is unavailable or fails, it gracefully falls back to the native detected container format.
+- **Embedded tag integrity:** Vorbis comments written to FLAC files must include `PERFORMER`, `ARTIST`, `ALBUMARTIST`, `DATE`, `YEAR`, `TRACKNUMBER` and valid picture dimensions detected from cover artwork headers.
+
+
 

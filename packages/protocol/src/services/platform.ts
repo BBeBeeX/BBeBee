@@ -127,6 +127,18 @@ export interface DecodedAudio {
   pcm: Float32Array[]
 }
 
+export interface TranscodeOptions {
+  inputUri: Uri
+  outputUri: Uri
+  targetFormat: string
+  bitrate?: string
+}
+
+export interface TranscodeResult {
+  ok: boolean
+  error?: string
+}
+
 export interface CodecService {
   /** Read tags without decoding audio. Must not read the whole file. */
   readMetadata(uri: Uri): Promise<AudioMetadata>
@@ -135,6 +147,8 @@ export interface CodecService {
   probeDuration(uri: Uri): Promise<number>
   /** Varies by platform and OS version — FLAC/ALAC/Opus/DSD coverage is not uniform. */
   supportedFormats(): string[]
+  /** Transcode an audio file into another format. */
+  transcode?(options: TranscodeOptions): Promise<TranscodeResult>
 }
 
 /* ── ctx.shell ──────────────────────────────────────────────────────────── */

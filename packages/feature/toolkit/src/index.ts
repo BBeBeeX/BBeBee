@@ -46,5 +46,9 @@ export {
   embedFlacTags,
   embedMp4Tags,
   buildId3v2Tag,
+  detectAudioFormat,
+  detectImageDimensions,
+  detectImageMime,
   type AudioTagMetadata,
+  type ImageDimensions,
 } from './audio-tags.js'

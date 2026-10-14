@@ -50,9 +50,28 @@ import { Readable } from 'node:stream'
 import { pluginDirName } from '@BBeBee/protocol'
 import { MiniPlayerWindowManager } from './mini-player-manager.js'
 import { createAudioHost } from './audio/index.js'
+import { spawn } from 'node:child_process'
 import { toNativePath } from './fs-path.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
+
+function findFfmpegPath(): string {
+  if (process.env['FFMPEG_PATH'] && existsSync(process.env['FFMPEG_PATH'])) {
+    return process.env['FFMPEG_PATH']
+  }
+  const isWin = process.platform === 'win32'
+  const binaryName = isWin ? 'ffmpeg.exe' : 'ffmpeg'
+  const candidates = [
+    join(process.resourcesPath ?? '', 'bin', binaryName),
+    join(process.resourcesPath ?? '', binaryName),
+    join(here, '..', 'bin', binaryName),
+    join(here, '..', 'resources', 'bin', binaryName),
+  ]
+  for (const c of candidates) {
+    if (existsSync(c)) return c
+  }
+  return binaryName
+}
 
 const APP_NAME = 'BBeBee'
 app.setName(APP_NAME)
@@ -1465,6 +1484,55 @@ void app.whenReady().then(async () => {
         if (labels.length > 2) streamHeaders.set(domain, entry.headers)
       } catch {
         // ignore invalid url
+      }
+    },
+  )
+
+  ipcMain.handle(
+    'audio:transcode',
+    async (
+      _event,
+      opts: { inputUri: string; outputUri: string; targetFormat: string; bitrate?: string },
+    ) => {
+      try {
+        const inPath = toNativePath(opts.inputUri)
+        const outPath = toNativePath(opts.outputUri)
+        const fmt = opts.targetFormat.toLowerCase()
+        const ffmpegBin = findFfmpegPath()
+
+        const args = ['-y', '-i', inPath]
+        if (fmt === 'flac') {
+          args.push('-c:a', 'flac')
+        } else if (fmt === 'mp3') {
+          args.push('-c:a', 'libmp3lame', '-b:a', opts.bitrate || '320k')
+        } else if (fmt === 'm4a' || fmt === 'aac' || fmt === 'mp4') {
+          args.push('-c:a', 'aac', '-b:a', opts.bitrate || '320k')
+        } else if (fmt === 'ogg' || fmt === 'opus') {
+          args.push('-c:a', 'libopus', '-b:a', opts.bitrate || '256k')
+        } else if (fmt === 'wav') {
+          args.push('-c:a', 'pcm_s16le')
+        }
+        args.push(outPath)
+
+        return await new Promise<{ ok: boolean; error?: string }>((resolve) => {
+          const proc = spawn(ffmpegBin, args)
+          let stderr = ''
+          proc.stderr?.on('data', (d) => {
+            stderr += d.toString()
+          })
+          proc.on('close', (code) => {
+            if (code === 0 && existsSync(outPath)) {
+              resolve({ ok: true })
+            } else {
+              resolve({ ok: false, error: stderr.slice(-500) || `ffmpeg exited with code ${code}` })
+            }
+          })
+          proc.on('error', (err) => {
+            resolve({ ok: false, error: String(err) })
+          })
+        })
+      } catch (err) {
+        return { ok: false, error: String(err) }
       }
     },
   )

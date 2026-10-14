@@ -20,7 +20,7 @@
 import { Service } from 'cordis'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
-import type { AudioMetadata, CodecService, DecodedAudio, Uri } from '@BBeBee/protocol'
+import type { AudioMetadata, CodecService, DecodedAudio, TranscodeOptions, TranscodeResult, Uri } from '@BBeBee/protocol'
 import { parseBuffer, selectCover, type IAudioMetadata, type IOptions } from 'music-metadata'
 
 export interface CodecNodeConfig {
@@ -105,6 +105,76 @@ export class CodecNode extends Service implements CodecService {
 
   supportedFormats(): string[] {
     return [...this.formats]
+  }
+
+  async transcode(options: TranscodeOptions): Promise<TranscodeResult> {
+    const exposed = (globalThis as unknown as {
+      window?: {
+        BBeBee?: {
+          audio?: {
+            transcode?: (opts: TranscodeOptions) => Promise<TranscodeResult>
+          }
+        }
+      }
+    }).window
+    const bridgeTranscode = exposed?.BBeBee?.audio?.transcode
+    if (bridgeTranscode) {
+      return bridgeTranscode(options)
+    }
+
+    try {
+      const { spawn } = await import('node:child_process')
+      const { existsSync } = await import('node:fs')
+      const { fileURLToPath } = await import('node:url')
+      const toPath = (u: string) => {
+        const fileUrl = u.replace(/^bbebee-file:\/*/, 'file:///')
+        if (fileUrl.startsWith('file://')) {
+          const p = fileURLToPath(fileUrl)
+          if (/^\/[a-zA-Z]:[\\/]/.test(p)) {
+            return decodeURIComponent(p.slice(1))
+          }
+          return p
+        }
+        return u
+      }
+      const inPath = toPath(options.inputUri)
+      const outPath = toPath(options.outputUri)
+      const fmt = options.targetFormat.toLowerCase()
+
+      const args = ['-y', '-i', inPath]
+      if (fmt === 'flac') {
+        args.push('-c:a', 'flac')
+      } else if (fmt === 'mp3') {
+        args.push('-c:a', 'libmp3lame', '-b:a', options.bitrate || '320k')
+      } else if (fmt === 'm4a' || fmt === 'aac' || fmt === 'mp4') {
+        args.push('-c:a', 'aac', '-b:a', options.bitrate || '320k')
+      } else if (fmt === 'ogg' || fmt === 'opus') {
+        args.push('-c:a', 'libopus', '-b:a', options.bitrate || '256k')
+      } else if (fmt === 'wav') {
+        args.push('-c:a', 'pcm_s16le')
+      }
+      args.push(outPath)
+
+      return await new Promise<TranscodeResult>((resolve) => {
+        const proc = spawn('ffmpeg', args)
+        let stderr = ''
+        proc.stderr?.on('data', (d) => {
+          stderr += d.toString()
+        })
+        proc.on('close', (code) => {
+          if (code === 0 && existsSync(outPath)) {
+            resolve({ ok: true })
+          } else {
+            resolve({ ok: false, error: stderr.slice(-500) || `ffmpeg exited with code ${code}` })
+          }
+        })
+        proc.on('error', (err) => {
+          resolve({ ok: false, error: String(err) })
+        })
+      })
+    } catch (err) {
+      return { ok: false, error: String(err) }
+    }
   }
 
   /**

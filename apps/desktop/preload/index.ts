@@ -91,6 +91,15 @@ const api = {
     setHeaders: (entry: { url: string; headers: Record<string, string> }): Promise<void> =>
       ipcRenderer.invoke('stream:set-headers', entry),
   },
+  audio: {
+    transcode: (options: {
+      inputUri: string
+      outputUri: string
+      targetFormat: string
+      bitrate?: string
+    }): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('audio:transcode', options),
+  },
   desktopLyrics: {
     setVisible: (visible: boolean, pos?: { x: number; y: number }): Promise<void> =>
       ipcRenderer.invoke('desktop-lyrics:set-visible', visible, pos),

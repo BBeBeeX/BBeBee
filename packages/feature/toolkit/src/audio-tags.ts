@@ -11,6 +11,8 @@
 export interface AudioTagMetadata {
   title?: string
   artist?: string
+  performer?: string
+  albumArtist?: string
   album?: string
   year?: number
   trackNo?: number
@@ -137,6 +139,163 @@ export function detectImageMime(data: Uint8Array, mime?: string): string {
   return 'image/jpeg'
 }
 
+export interface ImageDimensions {
+  width: number
+  height: number
+  depth: number
+}
+
+/**
+ * Sniff image dimensions (width, height, bit depth) from raw image bytes.
+ * Supports JPEG, PNG, GIF, WebP.
+ * Always returns width >= 1 and height >= 1 (defaults to 600x600 if unrecognized)
+ * to prevent Windows Explorer / media players from rejecting FLAC picture blocks.
+ */
+export function detectImageDimensions(data: Uint8Array): ImageDimensions {
+  const fallback: ImageDimensions = { width: 600, height: 600, depth: 24 }
+  if (!data || data.length < 10) return fallback
+
+  try {
+    // 1. PNG: 8-byte signature + IHDR chunk (starts at offset 8)
+    // IHDR: 4 bytes length, 4 bytes type ('IHDR'), 4 bytes width, 4 bytes height, 1 byte bit depth
+    if (
+      data.length >= 26 &&
+      data[0] === 0x89 &&
+      data[1] === 0x50 &&
+      data[2] === 0x4e &&
+      data[3] === 0x47 &&
+      data[4] === 0x0d &&
+      data[5] === 0x0a &&
+      data[6] === 0x1a &&
+      data[7] === 0x0a
+    ) {
+      const view = new DataView(data.buffer, data.byteOffset, data.byteLength)
+      const w = view.getUint32(16)
+      const h = view.getUint32(20)
+      const bitDepth = data[24] ?? 8
+      const colorType = data[25] ?? 2
+      let depth = 24
+      if (colorType === 6) depth = bitDepth * 4 // RGBA
+      else if (colorType === 2) depth = bitDepth * 3 // RGB
+      else if (colorType === 0) depth = bitDepth // Grayscale
+      else if (colorType === 3) depth = bitDepth // Indexed
+      return {
+        width: w > 0 ? w : 600,
+        height: h > 0 ? h : 600,
+        depth: depth > 0 ? depth : 24,
+      }
+    }
+
+    // 2. GIF: 'GIF87a' or 'GIF89a'
+    if (
+      data.length >= 10 &&
+      data[0] === 0x47 &&
+      data[1] === 0x49 &&
+      data[2] === 0x46 &&
+      data[3] === 0x38 &&
+      (data[4] === 0x37 || data[4] === 0x39) &&
+      data[5] === 0x61
+    ) {
+      const view = new DataView(data.buffer, data.byteOffset, data.byteLength)
+      const w = view.getUint16(6, true)
+      const h = view.getUint16(8, true)
+      return {
+        width: w > 0 ? w : 600,
+        height: h > 0 ? h : 600,
+        depth: 24,
+      }
+    }
+
+    // 3. JPEG: 0xFF, 0xD8
+    if (data.length >= 4 && data[0] === 0xff && data[1] === 0xd8) {
+      let offset = 2
+      while (offset + 4 <= data.length) {
+        if (data[offset] !== 0xff) {
+          offset++
+          continue
+        }
+        while (offset < data.length && data[offset] === 0xff) {
+          offset++
+        }
+        if (offset >= data.length) break
+        const marker = data[offset]!
+        offset++
+
+        // Standalone markers
+        if (marker === 0xd8 || marker === 0xd9 || (marker >= 0xd0 && marker <= 0xd7) || marker === 0x01) {
+          continue
+        }
+        if (offset + 2 > data.length) break
+        const segLength = ((data[offset]! << 8) | data[offset + 1]!)
+        if (segLength < 2) break
+
+        const isSof =
+          (marker >= 0xc0 && marker <= 0xc3) ||
+          (marker >= 0xc5 && marker <= 0xc7) ||
+          (marker >= 0xc9 && marker <= 0xcb) ||
+          (marker >= 0xcd && marker <= 0xcf)
+
+        if (isSof && offset + segLength <= data.length && segLength >= 8) {
+          const precision = data[offset + 2] ?? 8
+          const h = ((data[offset + 3]! << 8) | data[offset + 4]!)
+          const w = ((data[offset + 5]! << 8) | data[offset + 6]!)
+          const components = data[offset + 7] ?? 3
+          return {
+            width: w > 0 ? w : 600,
+            height: h > 0 ? h : 600,
+            depth: precision * (components || 3) || 24,
+          }
+        }
+
+        if (marker === 0xda) break
+        offset += segLength
+      }
+    }
+
+    // 4. WebP: 'RIFF'....'WEBP'
+    if (
+      data.length >= 30 &&
+      data[0] === 0x52 &&
+      data[1] === 0x49 &&
+      data[2] === 0x46 &&
+      data[3] === 0x46 &&
+      data[8] === 0x57 &&
+      data[9] === 0x45 &&
+      data[10] === 0x42 &&
+      data[11] === 0x50
+    ) {
+      const type = String.fromCharCode(data[12]!, data[13]!, data[14]!, data[15]!)
+      if (type === 'VP8 ') {
+        if (data.length >= 30 && data[23] === 0x9d && data[24] === 0x01 && data[25] === 0x2a) {
+          const w = ((data[26]! | (data[27]! << 8)) & 0x3fff)
+          const h = ((data[28]! | (data[29]! << 8)) & 0x3fff)
+          return { width: w > 0 ? w : 600, height: h > 0 ? h : 600, depth: 24 }
+        }
+      } else if (type === 'VP8L') {
+        if (data.length >= 25 && data[20] === 0x2f) {
+          const b0 = data[21]!
+          const b1 = data[22]!
+          const b2 = data[23]!
+          const b3 = data[24]!
+          const w = (b0 | ((b1 & 0x3f) << 8)) + 1
+          const h = (((b1 >> 6) | (b2 << 2) | ((b3 & 0x0f) << 10))) + 1
+          return { width: w > 0 ? w : 600, height: h > 0 ? h : 600, depth: 24 }
+        }
+      } else if (type === 'VP8X') {
+        if (data.length >= 30) {
+          const w = (data[24]! | (data[25]! << 8) | (data[26]! << 16)) + 1
+          const h = (data[27]! | (data[28]! << 8) | (data[29]! << 16)) + 1
+          return { width: w > 0 ? w : 600, height: h > 0 ? h : 600, depth: 24 }
+        }
+      }
+    }
+  } catch {
+    return fallback
+  }
+
+  return fallback
+}
+
 /** Build an ID3v2.3 APIC frame: [4-byte 'APIC'][4-byte size][2-byte flags][data]. */
 function makeId3ApicFrame(picture: { data: Uint8Array; mimeType?: string }): Uint8Array {
   const mime = detectImageMime(picture.data, picture.mimeType)
@@ -171,6 +330,8 @@ export function buildId3v2Tag(metadata: AudioTagMetadata): Uint8Array {
 
   if (metadata.title) frames.push(makeId3Frame('TIT2', metadata.title))
   if (metadata.artist) frames.push(makeId3Frame('TPE1', metadata.artist))
+  const albumArtist = metadata.albumArtist || metadata.artist
+  if (albumArtist) frames.push(makeId3Frame('TPE2', albumArtist))
   if (metadata.album) frames.push(makeId3Frame('TALB', metadata.album))
   if (metadata.year) frames.push(makeId3Frame('TYER', String(metadata.year)))
   if (metadata.trackNo !== undefined) frames.push(makeId3Frame('TRCK', String(metadata.trackNo)))
@@ -260,9 +421,22 @@ function buildVorbisCommentBlock(metadata: AudioTagMetadata): Uint8Array {
   const comments: string[] = []
   if (metadata.title) comments.push(`TITLE=${metadata.title}`)
   if (metadata.artist) comments.push(`ARTIST=${metadata.artist}`)
+  const performer = metadata.performer || metadata.artist
+  if (performer) comments.push(`PERFORMER=${performer}`)
+  const albumArtist = metadata.albumArtist || metadata.artist
+  if (albumArtist) {
+    comments.push(`ALBUMARTIST=${albumArtist}`)
+    comments.push(`ALBUM ARTIST=${albumArtist}`)
+  }
   if (metadata.album) comments.push(`ALBUM=${metadata.album}`)
-  if (metadata.year) comments.push(`DATE=${metadata.year}`)
-  if (metadata.trackNo !== undefined) comments.push(`TRACKNUMBER=${metadata.trackNo}`)
+  if (metadata.year) {
+    comments.push(`DATE=${metadata.year}`)
+    comments.push(`YEAR=${String(metadata.year)}`)
+  }
+  if (metadata.trackNo !== undefined) {
+    comments.push(`TRACKNUMBER=${metadata.trackNo}`)
+    comments.push(`TRACK=${metadata.trackNo}`)
+  }
   if (metadata.comment) comments.push(`COMMENT=${metadata.comment}`)
 
   const encodedComments = comments.map(encodeUtf8)
@@ -298,6 +472,7 @@ function buildVorbisCommentBlock(metadata: AudioTagMetadata): Uint8Array {
 function buildFlacPictureBlock(picture: { data: Uint8Array; mimeType?: string }): { header: Uint8Array; data: Uint8Array } {
   const mime = detectImageMime(picture.data, picture.mimeType)
   const mimeBytes = encodeUtf8(mime)
+  const { width, height, depth } = detectImageDimensions(picture.data)
   const bodyLen = 4 + 4 + mimeBytes.length + 4 + 4 + 4 + 4 + 4 + 4 + picture.data.length
   const data = new Uint8Array(bodyLen)
   const view = new DataView(data.buffer)
@@ -311,11 +486,11 @@ function buildFlacPictureBlock(picture: { data: Uint8Array; mimeType?: string })
   pos += mimeBytes.length
   view.setUint32(pos, 0) // description length: 0
   pos += 4
-  view.setUint32(pos, 0) // width: 0
+  view.setUint32(pos, width) // genuine width > 0
   pos += 4
-  view.setUint32(pos, 0) // height: 0
+  view.setUint32(pos, height) // genuine height > 0
   pos += 4
-  view.setUint32(pos, 24) // color depth: 24
+  view.setUint32(pos, depth) // color depth (e.g. 24)
   pos += 4
   view.setUint32(pos, 0) // indexed colors: 0
   pos += 4
@@ -334,13 +509,51 @@ function buildFlacPictureBlock(picture: { data: Uint8Array; mimeType?: string })
 
 /** Embed or replace Vorbis Comment metadata block on a FLAC byte stream. */
 export function embedFlacTags(bytes: Uint8Array, metadata: AudioTagMetadata): Uint8Array {
-  // Check FLAC magic 'fLaC' (0x66, 0x4C, 0x61, 0x43)
+  // Check FLAC magic 'fLaC' (0x66, 0x4C, 0x61, 0x43), skipping any prepended ID3 tag
+  let flacOffset = 0
   if (
-    bytes.length < 4 ||
-    bytes[0] !== 0x66 ||
-    bytes[1] !== 0x4c ||
-    bytes[2] !== 0x61 ||
-    bytes[3] !== 0x43
+    bytes.length >= 4 &&
+    bytes[0] === 0x66 &&
+    bytes[1] === 0x4c &&
+    bytes[2] === 0x61 &&
+    bytes[3] === 0x43
+  ) {
+    flacOffset = 0
+  } else if (
+    bytes.length >= 14 &&
+    bytes[0] === 0x49 &&
+    bytes[1] === 0x44 &&
+    bytes[2] === 0x33
+  ) {
+    const hasFooter = (bytes[5]! & 0x10) !== 0
+    const b6 = bytes[6] ?? 0
+    const b7 = bytes[7] ?? 0
+    const b8 = bytes[8] ?? 0
+    const b9 = bytes[9] ?? 0
+    const id3Payload =
+      ((b6 & 0x7f) << 21) |
+      ((b7 & 0x7f) << 14) |
+      ((b8 & 0x7f) << 7) |
+      (b9 & 0x7f)
+    const id3Size = 10 + id3Payload + (hasFooter ? 10 : 0)
+    if (
+      bytes.length >= id3Size + 4 &&
+      bytes[id3Size] === 0x66 &&
+      bytes[id3Size + 1] === 0x4c &&
+      bytes[id3Size + 2] === 0x61 &&
+      bytes[id3Size + 3] === 0x43
+    ) {
+      flacOffset = id3Size
+    }
+  }
+
+  const flacBytes = flacOffset > 0 ? bytes.subarray(flacOffset) : bytes
+  if (
+    flacBytes.length < 4 ||
+    flacBytes[0] !== 0x66 ||
+    flacBytes[1] !== 0x4c ||
+    flacBytes[2] !== 0x61 ||
+    flacBytes[3] !== 0x43
   ) {
     return bytes
   }
@@ -362,22 +575,22 @@ export function embedFlacTags(bytes: Uint8Array, metadata: AudioTagMetadata): Ui
   const blocks: Block[] = []
   let offset = 4
 
-  while (offset < bytes.length) {
-    const b0 = bytes[offset] ?? 0
+  while (offset < flacBytes.length) {
+    const b0 = flacBytes[offset] ?? 0
     const isLast = (b0 & 0x80) !== 0
     const type = b0 & 0x7f
-    const b1 = bytes[offset + 1] ?? 0
-    const b2 = bytes[offset + 2] ?? 0
-    const b3 = bytes[offset + 3] ?? 0
+    const b1 = flacBytes[offset + 1] ?? 0
+    const b2 = flacBytes[offset + 2] ?? 0
+    const b3 = flacBytes[offset + 3] ?? 0
     const length = (b1 << 16) | (b2 << 8) | b3
-    const header = bytes.subarray(offset, offset + 4)
-    const data = bytes.subarray(offset + 4, offset + 4 + length)
+    const header = flacBytes.subarray(offset, offset + 4)
+    const data = flacBytes.subarray(offset + 4, offset + 4 + length)
     offset += 4 + length
     blocks.push({ isLast, type, header, data })
     if (isLast) break
   }
 
-  const audioFrames = bytes.subarray(offset)
+  const audioFrames = flacBytes.subarray(offset)
 
   // Filter out existing VORBIS_COMMENT blocks
   // If picture is provided, also filter out existing PICTURE blocks
@@ -422,7 +635,7 @@ export function embedFlacTags(bytes: Uint8Array, metadata: AudioTagMetadata): Ui
   totalSize += audioFrames.length
 
   const out = new Uint8Array(totalSize)
-  out.set(bytes.subarray(0, 4), 0) // 'fLaC'
+  out.set(flacBytes.subarray(0, 4), 0) // 'fLaC'
   let outPos = 4
   for (const b of retained) {
     out.set(b.header, outPos)
@@ -697,6 +910,82 @@ function adjustMp4ChunkOffsets(moovBytes: Uint8Array, delta: number): void {
 }
 
 /**
+ * Detect audio container format from magic bytes.
+ * Handles pure FLAC, ID3v2-prefixed FLAC, MP3, M4A/MP4, OGG, and WAV.
+ */
+export function detectAudioFormat(
+  bytes: Uint8Array,
+): 'flac' | 'mp3' | 'm4a' | 'ogg' | 'wav' | undefined {
+  if (!bytes || bytes.length < 4) return undefined
+
+  // 1. Native FLAC magic: 'fLaC' (0x66, 0x4C, 0x61, 0x43)
+  if (bytes[0] === 0x66 && bytes[1] === 0x4c && bytes[2] === 0x61 && bytes[3] === 0x43) {
+    return 'flac'
+  }
+
+  // 2. ID3v2 header: check if it wraps a FLAC stream or is standard MP3
+  if (bytes.length >= 10 && bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33) {
+    const hasFooter = (bytes[5]! & 0x10) !== 0
+    const b6 = bytes[6] ?? 0
+    const b7 = bytes[7] ?? 0
+    const b8 = bytes[8] ?? 0
+    const b9 = bytes[9] ?? 0
+    const id3Payload =
+      ((b6 & 0x7f) << 21) |
+      ((b7 & 0x7f) << 14) |
+      ((b8 & 0x7f) << 7) |
+      (b9 & 0x7f)
+    const id3Size = 10 + id3Payload + (hasFooter ? 10 : 0)
+    if (
+      bytes.length >= id3Size + 4 &&
+      bytes[id3Size] === 0x66 &&
+      bytes[id3Size + 1] === 0x4c &&
+      bytes[id3Size + 2] === 0x61 &&
+      bytes[id3Size + 3] === 0x43
+    ) {
+      return 'flac'
+    }
+    return 'mp3'
+  }
+
+  // 3. MP4 / M4A / AAC in MP4: 'ftyp' or 'moov' atom at offset 4
+  if (
+    bytes.length >= 8 &&
+    ((bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) ||
+      (bytes[4] === 0x6d && bytes[5] === 0x6f && bytes[6] === 0x6f && bytes[7] === 0x76))
+  ) {
+    return 'm4a'
+  }
+
+  // 4. Ogg container: 'OggS'
+  if (bytes[0] === 0x4f && bytes[1] === 0x67 && bytes[2] === 0x67 && bytes[3] === 0x53) {
+    return 'ogg'
+  }
+
+  // 5. WAV: 'RIFF'....'WAVE'
+  if (
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x41 &&
+    bytes[10] === 0x56 &&
+    bytes[11] === 0x45
+  ) {
+    return 'wav'
+  }
+
+  // 6. MP3 sync word: MPEG frame sync (11 bits set: 0xFF, 0xEx)
+  if (bytes[0] === 0xff && (bytes[1]! & 0xe0) === 0xe0) {
+    return 'mp3'
+  }
+
+  return undefined
+}
+
+/**
  * Embed audio metadata into an audio file based on container format.
  * Supports 'mp3', 'flac', 'm4a', 'mp4', 'aac'.
  * Automatically sniffs magic bytes if format is missing or mismatched.
@@ -709,31 +998,8 @@ export function embedAudioTags(
 ): Uint8Array {
   if (!bytes || bytes.length === 0) return bytes
 
-  let fmt = format?.toLowerCase().trim()
-  if (
-    bytes.length >= 4 &&
-    bytes[0] === 0x66 &&
-    bytes[1] === 0x4c &&
-    bytes[2] === 0x61 &&
-    bytes[3] === 0x43
-  ) {
-    fmt = 'flac'
-  } else if (
-    bytes.length >= 8 &&
-    ((bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) ||
-      (bytes[4] === 0x6d && bytes[5] === 0x6f && bytes[6] === 0x6f && bytes[7] === 0x76))
-  ) {
-    fmt = 'm4a'
-  } else if (
-    bytes.length >= 3 &&
-    bytes[0] === 0x49 &&
-    bytes[1] === 0x44 &&
-    bytes[2] === 0x33
-  ) {
-    if (!fmt || fmt === 'flac' || fmt === 'm4a') {
-      fmt = 'mp3'
-    }
-  }
+  const detected = detectAudioFormat(bytes)
+  const fmt = (detected ?? format?.toLowerCase().trim()) || ''
 
   if (!fmt) return bytes
 

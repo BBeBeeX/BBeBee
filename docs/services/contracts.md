@@ -577,6 +577,18 @@ export interface AudioMetadata {
   tagTypes?: string[]
 }
 
+export interface TranscodeOptions {
+  inputUri: Uri
+  outputUri: Uri
+  targetFormat: string
+  bitrate?: string
+}
+
+export interface TranscodeResult {
+  ok: boolean
+  error?: string
+}
+
 export interface CodecService {
   /** Read tags without decoding audio. Must not read the whole file. */
   readMetadata(uri: Uri): Promise<AudioMetadata>
@@ -585,10 +597,13 @@ export interface CodecService {
   decode(data: Uint8Array | Uri): Promise<{ sampleRate: number; channels: number; pcm: Float32Array[] }>
   probeDuration(uri: Uri): Promise<number>
   supportedFormats(): string[]
+  /** Transcode an audio file into another format. */
+  transcode?(options: TranscodeOptions): Promise<TranscodeResult>
 }
 ```
 
 Electron: `music-metadata` in `main` for tags; Web Audio `decodeAudioData` for PCM, with an FFmpeg decode bridge (`audio.decodePcm`) for ALAC, 24/32-bit Hi-Res, and audiophile formats (APE, WavPack, DSF, DFF). Remote `http(s)` inputs carry the source's request headers (e.g. `Referer`) through `probe`/`decodePcm`; ffmpeg receives them as `-user_agent`/`-headers`.
+Desktop also provides `transcode` via `core-codec-node` and the host IPC bridge (`audio:transcode`), executing system/embedded FFmpeg for lossless and lossy conversion (FLAC, MP3, AAC/M4A, Opus, WAV).
 Expo: `react-native-audio-api`'s `AudioDecoder` for PCM plus a native tag reader.
 
 > ⚠️ `supportedFormats()` differs by platform and OS version. On desktop, FFmpeg integration covers ALAC, APE, WavPack, DSF, DFF, WMA alongside standard formats. The scanner records what it could not decode instead of silently skipping, so the user can see why a file did not import.

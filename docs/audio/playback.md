@@ -233,6 +233,13 @@ than spliced. With the plugin's `enabled` set to false the same track simply str
 control arm of the regression test at
 [workflow/testing.md §6](../workflow/testing.md#6-testing-strategy).
 
+**Container sniffing, transcoding, and audio tags.**
+Third-party music sources do not always deliver streams in the container format requested by the user's `settings.downloadFormat` preference (e.g., an MP3 stream is served when the user configured `flac` downloads). Upon transfer completion:
+1. `plugin-download` sniffs the actual stream container from the file's leading magic bytes via `detectAudioFormat`.
+2. If the actual container format is incompatible with the requested format, it invokes `ctx.codec.transcode` to convert the downloaded stream into the requested format (e.g. converting MP3 to FLAC via FFmpeg on desktop). If transcoding is not supported on the host or fails, it gracefully falls back to saving the file with its native detected extension (e.g. `.mp3`), preventing file corruption and ensuring playable audio.
+3. Metadata tags (Vorbis Comment for FLAC, ID3v2 for MP3, MP4 user data for M4A/MP4) are embedded into the final audio file, writing track title, artist, performer, album, year, track number, and fetched album artwork with inspected image dimensions.
+4. The final on-disk path and format are recorded in `media_bindings`.
+
 ### Gapless and crossfade
 
 - **Gapless** uses `AudioBufferQueueSourceNode`: the next track is decoded during the current

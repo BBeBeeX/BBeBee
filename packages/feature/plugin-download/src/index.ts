@@ -35,6 +35,7 @@ import { formatUrn, parseUrn, tryParseUrn, uriContains } from '@BBeBee/protocol'
 import type {
   ArtistCredit,
   ArtworkRef,
+  CodecService,
   DownloadHold,
   DownloadPolicy,
   DownloadState,
@@ -49,7 +50,7 @@ import type {
   Uri,
   UrnKind,
 } from '@BBeBee/protocol'
-import { embedAudioTags, sanitizeFileName, stableId } from '@BBeBee/toolkit'
+import { detectAudioFormat, embedAudioTags, sanitizeFileName, stableId } from '@BBeBee/toolkit'
 import { DOWNLOADS_VIEWS } from './views.js'
 
 export interface DownloadsConfig {
@@ -251,7 +252,7 @@ export function buildCoverHeaders(
   const headers: Record<string, string> = {
     'User-Agent':
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+    Accept: 'image/jpeg,image/png,image/*;q=0.8,*/*;q=0.5',
   }
   const referer = streamHeaders?.['referer'] || streamHeaders?.['Referer']
   if (referer) {
@@ -282,6 +283,15 @@ export function buildCoverHeaders(
     }
   }
   return headers
+}
+
+export function areFormatsCompatible(f1: string, f2: string): boolean {
+  if (f1 === f2) return true
+  const mp4Family = new Set(['mp4', 'm4a', 'aac', 'm4s'])
+  if (mp4Family.has(f1) && mp4Family.has(f2)) return true
+  const oggFamily = new Set(['ogg', 'oga', 'opus'])
+  if (oggFamily.has(f1) && oggFamily.has(f2)) return true
+  return false
 }
 
 export function isUrl(s: string | null | undefined): s is string {
@@ -1212,8 +1222,97 @@ export class Downloads extends Service implements DownloadsService {
 
       // Embed audio metadata tags
       try {
-        const rawBytes = await this.ownCtx.fs.readBytes(target).catch(() => undefined)
+        let rawBytes = await this.ownCtx.fs.readBytes(target).catch(() => undefined)
         if (rawBytes) {
+          const detectedFmt = detectAudioFormat(rawBytes)
+
+          // If the actual container format differs from the target file extension:
+          // For instance, preferred was 'flac', but remote stream is MP3 (or vice-versa).
+          // Transcode the file to the desired format, or fallback to renaming to detected format.
+          if (detectedFmt && !areFormatsCompatible(format, detectedFmt)) {
+            const lastDot = target.lastIndexOf('.')
+            const basePath = lastDot > 0 ? target.slice(0, lastDot) : target
+            const desiredTarget = `${basePath}.${format}`
+            const fallbackTarget = `${basePath}.${detectedFmt}`
+            const tempInput = `${target}.src.${detectedFmt}`
+
+            const codec = (this.ownCtx as Context).get?.('codec') as CodecService | undefined
+            let transcodeOk = false
+
+            if (codec?.transcode) {
+              const moved = await this.ownCtx.fs
+                .move(target, tempInput)
+                .then(() => true)
+                .catch(() => false)
+              if (!moved) {
+                await this.ownCtx.fs.writeFile(tempInput, rawBytes).catch(() => undefined)
+                await this.ownCtx.fs.remove(target).catch(() => undefined)
+              }
+
+              this.ownCtx.logger.info(
+                `download: transcoding stream from ${detectedFmt} to requested format ${format}: ${target}`,
+              )
+              const res = await codec
+                .transcode({
+                  inputUri: tempInput,
+                  outputUri: desiredTarget,
+                  targetFormat: format,
+                })
+                .catch((err) => ({ ok: false, error: String(err) }))
+
+              if (res.ok) {
+                const transcodedBytes = await this.ownCtx.fs.readBytes(desiredTarget).catch(() => undefined)
+                if (transcodedBytes && transcodedBytes.byteLength > 0) {
+                  transcodeOk = true
+                  await this.ownCtx.fs.remove(tempInput).catch(() => undefined)
+                  target = desiredTarget
+                  rawBytes = transcodedBytes
+                  bytes = rawBytes.byteLength
+                  this.targets.set(id, target)
+                  await this.updateRow(id, { target_uri: target })
+                  this.patch(id, {})
+                  this.ownCtx.logger.info(`download: successfully transcoded ${detectedFmt} to ${format}`)
+                }
+              } else {
+                this.ownCtx.logger.warn(`download: transcoding to ${format} failed (${res.error})`)
+              }
+
+              if (!transcodeOk) {
+                if (tempInput !== fallbackTarget) {
+                  const movedBack = await this.ownCtx.fs
+                    .move(tempInput, fallbackTarget)
+                    .then(() => true)
+                    .catch(() => false)
+                  if (!movedBack) {
+                    await this.ownCtx.fs.writeFile(fallbackTarget, rawBytes).catch(() => undefined)
+                    await this.ownCtx.fs.remove(tempInput).catch(() => undefined)
+                  }
+                }
+                target = fallbackTarget
+                format = detectedFmt
+                this.targets.set(id, target)
+                await this.updateRow(id, { target_uri: target })
+                this.patch(id, {})
+              }
+            } else {
+              if (target !== fallbackTarget) {
+                const moved = await this.ownCtx.fs
+                  .move(target, fallbackTarget)
+                  .then(() => true)
+                  .catch(() => false)
+                if (!moved) {
+                  await this.ownCtx.fs.writeFile(fallbackTarget, rawBytes).catch(() => undefined)
+                  await this.ownCtx.fs.remove(target).catch(() => undefined)
+                }
+                target = fallbackTarget
+                format = detectedFmt
+                this.targets.set(id, target)
+                await this.updateRow(id, { target_uri: target })
+                this.patch(id, {})
+              }
+            }
+          }
+
           const picture = await this.fetchCoverBytes(trackMeta, handle.headers)
           if (picture?.data?.length) {
             this.ownCtx.logger.info(
@@ -1222,9 +1321,12 @@ export class Downloads extends Service implements DownloadsService {
           } else {
             this.ownCtx.logger.warn(`download: no cover artwork found for ${task.trackUrn}`)
           }
+          const artistName = trackMeta?.artist ?? task.artist
           const tagged = embedAudioTags(rawBytes, format, {
             title: trackMeta?.title ?? task.title,
-            artist: trackMeta?.artist ?? task.artist,
+            artist: artistName,
+            performer: artistName,
+            albumArtist: artistName,
             album: trackMeta?.album ?? override?.albumTitle,
             year: trackMeta?.year,
             trackNo: trackMeta?.trackNo,

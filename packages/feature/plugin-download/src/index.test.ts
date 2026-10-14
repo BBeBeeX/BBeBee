@@ -1091,6 +1091,119 @@ describe('plugin-download', () => {
     expect(binding.format).toBe('mp3')
   })
 
+  it('transcodes downloaded stream when actual format differs from settings.downloadFormat', async () => {
+    const h = await harness()
+    class SettingsStub extends Service {
+      constructor(c: Context) {
+        super(c, 'settings')
+      }
+      getSync() {
+        return { downloadFormat: 'flac' } as never
+      }
+      async update() {
+        return {} as never
+      }
+      onSettingsChange() {
+        return () => {}
+      }
+    }
+    await h.ctx.plugin(SettingsStub)
+
+    function minimalFlac(): Uint8Array {
+      const bytes = new Uint8Array(42)
+      bytes[0] = 0x66
+      bytes[1] = 0x4c
+      bytes[2] = 0x61
+      bytes[3] = 0x43
+      bytes[4] = 0x80
+      bytes[5] = 0x00
+      bytes[6] = 0x00
+      bytes[7] = 0x22
+      return bytes
+    }
+
+    class CodecStub extends Service {
+      static inject = ['fs']
+      readonly transcodeCalls: Array<{ inputUri: string; outputUri: string; targetFormat: string }> = []
+      constructor(c: Context) {
+        super(c, 'codec')
+      }
+      async transcode(options: { inputUri: string; outputUri: string; targetFormat: string }) {
+        this.transcodeCalls.push(options)
+        await this.ctx.fs.writeFile(options.outputUri, minimalFlac())
+        return { ok: true }
+      }
+    }
+    await h.ctx.plugin(CodecStub)
+    await tick()
+
+    // Remote server provides MP3 stream instead of FLAC
+    h.http.body = new Uint8Array([0xff, 0xfb, 0x90, 0x64, 0, 0])
+    ;(h.ctx.sources as unknown as SourcesStub).provider = provider(async () => {
+      return {
+        kind: 'remote',
+        target: 'https://cdn.example.test/stream.mp3',
+        seekable: true,
+      }
+    })
+
+    const task = (await h.ctx.downloads.enqueue([URN]))[0]!
+    await until(() => h.downloads.task(task.id)?.state === 'done')
+
+    const codec = h.ctx.get('codec') as unknown as CodecStub
+    expect(codec.transcodeCalls).toHaveLength(1)
+    expect(codec.transcodeCalls[0]!.targetFormat).toBe('flac')
+    expect(codec.transcodeCalls[0]!.outputUri.endsWith('.flac')).toBe(true)
+
+    const binding = (await h.bindings())[0]!
+    expect(binding.uri.endsWith('.flac')).toBe(true)
+    expect(binding.format).toBe('flac')
+
+    const fileBytes = await h.ctx.fs.readBytes(binding.uri)
+    // Starts with fLaC
+    expect(fileBytes[0]).toBe(0x66)
+    expect(fileBytes[1]).toBe(0x4c)
+    expect(fileBytes[2]).toBe(0x61)
+    expect(fileBytes[3]).toBe(0x43)
+  })
+
+  it('falls back to detected stream container if codec is not available', async () => {
+    const h = await harness()
+    class SettingsStub extends Service {
+      constructor(c: Context) {
+        super(c, 'settings')
+      }
+      getSync() {
+        return { downloadFormat: 'flac' } as never
+      }
+      async update() {
+        return {} as never
+      }
+      onSettingsChange() {
+        return () => {}
+      }
+    }
+    await h.ctx.plugin(SettingsStub)
+    await tick()
+
+    // Remote server provides MP3 stream instead of FLAC
+    h.http.body = new Uint8Array([0xff, 0xfb, 0x90, 0x64, 0, 0])
+    ;(h.ctx.sources as unknown as SourcesStub).provider = provider(async () => {
+      return {
+        kind: 'remote',
+        target: 'https://cdn.example.test/stream.mp3',
+        seekable: true,
+      }
+    })
+
+    const task = (await h.ctx.downloads.enqueue([URN]))[0]!
+    await until(() => h.downloads.task(task.id)?.state === 'done')
+
+    const binding = (await h.bindings())[0]!
+    expect(binding.uri.endsWith('.mp3')).toBe(true)
+    expect(binding.format).toBe('mp3')
+  })
+
   it('sends User-Agent and Referer headers when fetching cover image', async () => {
     const h = await harness()
     h.http.coverBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4])
