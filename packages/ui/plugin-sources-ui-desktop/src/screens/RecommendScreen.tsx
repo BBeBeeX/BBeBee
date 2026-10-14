@@ -1,4 +1,4 @@
-import { createElement as h, Fragment, type ReactElement } from 'react'
+import { createElement as h, Fragment, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { BrowseEntry, UiService } from '@BBeBee/protocol'
 import { SOURCES_VIEWS } from '@BBeBee/plugin-sources/views'
@@ -7,6 +7,7 @@ import { EmptyState, useI18n } from '@BBeBee/ui-kit-desktop'
 import { serviceOf } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
 import { RecommendShelfRow } from '../components/RecommendShelfRow.js'
+import { SourceConfigureModal } from '../components/SourceConfigureModal.js'
 import { useRecentPlayedAlbums } from '../hooks/useRecentPlayedAlbums.js'
 import { useFavoriteAlbums } from '../hooks/useFavoriteAlbums.js'
 
@@ -104,6 +105,7 @@ function RecommendShelf({
 }): ReactElement {
   const { t } = useI18n(ctx)
   const shelf = useRecommendShelf(ctx, sourceId)
+  const [configureOpen, setConfigureOpen] = useState(false)
 
   const showAll = () => {
     serviceOf<UiService>(ctx, 'ui')?.navigate(SOURCES_VIEWS.recommendAll, {
@@ -112,19 +114,33 @@ function RecommendShelf({
     })
   }
 
-  return h(RecommendShelfRow, {
-    ctx,
-    title: t('sources:recommend.recommendedPlaylists', { sourceName }),
-    testID: `recommend-shelf-${sourceId}`,
-    action: {
-      label: t('sources:recommend.showAll'),
-      onPress: showAll,
-      testID: 'recommend-show-all',
-    },
-    status: shelf.status,
-    errorMessage: shelf.error?.message,
-    onRetry: shelf.reload,
-    entries: shelf.data ?? [],
-    onOpenCard,
-  })
+  return h(
+    Fragment,
+    null,
+    h(RecommendShelfRow, {
+      ctx,
+      title: t('sources:recommend.recommendedPlaylists', { sourceName }),
+      testID: `recommend-shelf-${sourceId}`,
+      action: {
+        label: t('sources:recommend.showAll'),
+        onPress: showAll,
+        testID: 'recommend-show-all',
+      },
+      status: shelf.status,
+      errorMessage: shelf.error?.message,
+      onRetry: shelf.reload,
+      onConfigure: () => setConfigureOpen(true),
+      entries: shelf.data ?? [],
+      onOpenCard,
+    }),
+    h(SourceConfigureModal, {
+      ctx,
+      sourceId,
+      open: configureOpen,
+      onClose: () => {
+        setConfigureOpen(false)
+        shelf.reload()
+      },
+    }),
+  )
 }

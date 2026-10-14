@@ -26,6 +26,7 @@ export interface RecommendShelfRowProps {
   status?: 'idle' | 'loading' | 'ready' | 'error'
   errorMessage?: string
   onRetry?: () => void
+  onConfigure?: () => void
 }
 
 /**
@@ -50,6 +51,7 @@ export function RecommendShelfRow({
   status = 'idle',
   errorMessage,
   onRetry,
+  onConfigure,
 }: RecommendShelfRowProps): ReactElement {
   const { t } = useI18n(ctx)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -171,25 +173,46 @@ export function RecommendShelfRow({
             'div',
             { style: { display: 'flex', flexDirection: 'column', gap: tokens.space[2] } },
             h(Text, { variant: 'sm', tone: 'error' }, t('sources:source.failedToLoad', { message: errorMessage ?? '' })),
-            onRetry
-              ? h(
-                  'button',
-                  {
-                    type: 'button',
-                    onClick: onRetry,
-                    style: {
-                      alignSelf: 'flex-start',
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--color-primary, #5F87FF)',
-                      cursor: 'pointer',
-                      padding: 0,
-                      fontSize: 13,
+            h(
+              'div',
+              { style: { display: 'flex', gap: tokens.space[3], alignItems: 'center' } },
+              onRetry
+                ? h(
+                    'button',
+                    {
+                      type: 'button',
+                      onClick: onRetry,
+                      style: {
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--color-primary, #5F87FF)',
+                        cursor: 'pointer',
+                        padding: 0,
+                        fontSize: 13,
+                      },
                     },
-                  },
-                  t('app:common.retry'),
-                )
-              : null,
+                    t('app:common.retry'),
+                  )
+                : null,
+              onConfigure
+                ? h(
+                    'button',
+                    {
+                      type: 'button',
+                      onClick: onConfigure,
+                      style: {
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--color-primary, #5F87FF)',
+                        cursor: 'pointer',
+                        padding: 0,
+                        fontSize: 13,
+                      },
+                    },
+                    t('sources:sourcesList.configure'),
+                  )
+                : null,
+            ),
           )
         : h(
             'div',

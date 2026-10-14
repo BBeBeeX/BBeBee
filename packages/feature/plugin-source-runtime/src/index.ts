@@ -192,7 +192,13 @@ export class SourceRuntime {
       // A document that did not change keeps its fiber: rebuilding it would
       // drop a warm cookie jar for nothing.
       if (!next) this.stop(id)
-      else if (next.docHash !== current.record.docHash) this.replace(next)
+      else if (
+        next.docHash !== current.record.docHash ||
+        next.sourceUrl !== current.record.sourceUrl ||
+        JSON.stringify(next.allowedHosts) !== JSON.stringify(current.record.allowedHosts)
+      ) {
+        await this.replace(next)
+      }
     }
     for (const [id, record] of wanted) {
       if (this.live.has(id)) continue
@@ -257,7 +263,7 @@ export class SourceRuntime {
     }
   }
 
-  private reload(id: string): void {
+  private async reload(id: string): Promise<void> {
     this.ctx.logger.info(`source-runtime: reloading source "${id}"`)
     const record = this.ctx.sources.source(id)
     if (!record || !record.enabled) {
@@ -268,16 +274,24 @@ export class SourceRuntime {
     // that did not touch the document. Rebuilding then would drop a warm
     // cookie jar to arrive at exactly the same source.
     const current = this.live.get(id)
-    if (current && current.record.docHash === record.docHash) {
+    if (
+      current &&
+      current.record.docHash === record.docHash &&
+      current.record.sourceUrl === record.sourceUrl &&
+      JSON.stringify(current.record.allowedHosts) === JSON.stringify(record.allowedHosts)
+    ) {
       this.vars.delete(id)
-      void this.loadVars(id)
+      await this.loadVars(id)
+      current.source.resetAuth()
       return
     }
-    this.replace(record)
+    await this.replace(record)
   }
 
-  private replace(record: SourceRecord): void {
+  private async replace(record: SourceRecord): Promise<void> {
     this.stop(record.id)
+    this.vars.delete(record.id)
+    await this.loadVars(record.id)
     try {
       this.startOne(record)
     } catch (error) {

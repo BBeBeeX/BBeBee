@@ -87,7 +87,10 @@ describe('Subsonic live integration', () => {
     })
     expect(connCheckInvalid.status).toBe('auth_failed')
 
-    // 3. Update source params and sign in
+    // 2b. Before configuring credentials, calling recommend fails with session invalid
+    await expect(ctx.sources.recommend(sourceId)).rejects.toThrow(/no longer valid|404|fetch failed/i)
+
+    // 3. Update source params and verify hot-reload + auth recovery
     await ctx.sources.updateSourceParams(sourceId, {
       sourceUrl: TEST_HOST,
       secrets: {
@@ -101,11 +104,9 @@ describe('Subsonic live integration', () => {
     expect(provider).toBeDefined()
     expect(provider!.capabilities.recommend).toBe(true)
     expect(provider!.capabilities.search.tracks).toBe(true)
-
-    await provider!.auth.signIn({ user: 'admin', password: 'admin' })
     expect(provider!.auth.status.state).toBe('authenticated')
 
-    // 4. Recommend playlists
+    // 4. Recommend playlists succeeds after hot reload without manual signIn call
     const recommendResult = await ctx.sources.recommend(sourceId)
     expect(recommendResult.items.length).toBeGreaterThan(1)
 

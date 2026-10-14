@@ -408,6 +408,14 @@ export class DocumentSource {
   }
 
   /**
+   * Reset authentication state so stale expiration errors do not block subsequent calls
+   * after credentials have been updated.
+   */
+  resetAuth(): void {
+    this.auth.markAuthenticated()
+  }
+
+  /**
    * The evaluator handed to the rule engine, or `undefined` with no sandbox.
    *
    * Its presence is what makes `@js:` an available engine, so a build without

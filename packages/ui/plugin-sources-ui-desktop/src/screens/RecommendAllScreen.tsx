@@ -1,4 +1,4 @@
-import { createElement as h, Fragment, type ReactElement } from 'react'
+import { createElement as h, Fragment, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { BrowseEntry, UiService } from '@BBeBee/protocol'
 import { useRecommendFeed } from '@BBeBee/plugin-sources/hooks'
@@ -6,6 +6,7 @@ import { Button, EmptyState, Text, useI18n } from '@BBeBee/ui-kit-desktop'
 import { serviceOf } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
 import { RecommendCard } from '../components/RecommendCard.js'
+import { SourceConfigureModal } from '../components/SourceConfigureModal.js'
 
 /**
  * One source's whole recommendation feed, as a grid.
@@ -27,6 +28,7 @@ export function RecommendAllScreen({
 }): ReactElement {
   const { t } = useI18n(ctx)
   const feed = useRecommendFeed(ctx, sourceId)
+  const [configureOpen, setConfigureOpen] = useState(false)
 
   const openCard = (entry: BrowseEntry) => {
     if (!entry.urn) return
@@ -63,7 +65,14 @@ export function RecommendAllScreen({
               'div',
               { style: { display: 'flex', flexDirection: 'column', gap: tokens.space[2] } },
               h(Text, { variant: 'sm', tone: 'error' }, t('sources:recommendAll.failedToLoadRecommendations', { message: feed.error.message })),
-              h(Button, { onPress: feed.loadMore, testID: 'recommend-retry', children: t('app:common.retry') }),
+              h(
+                'div',
+                { style: { display: 'flex', gap: tokens.space[3], alignItems: 'center' } },
+                h(Button, { onPress: feed.loadMore, testID: 'recommend-retry', children: t('app:common.retry') }),
+                sourceId
+                  ? h(Button, { onPress: () => setConfigureOpen(true), testID: 'recommend-configure', children: t('sources:sourcesList.configure') })
+                  : null,
+              ),
             )
           : feed.items.length === 0
             ? h(EmptyState, { title: t('sources:recommendAll.thisSourceHasNoRecommendations'), description: t('sources:recommendAll.itImplementsTheRecommendationInterface') })
@@ -109,5 +118,14 @@ export function RecommendAllScreen({
                     )
                   : null,
               ),
+    h(SourceConfigureModal, {
+      ctx,
+      sourceId,
+      open: configureOpen,
+      onClose: () => {
+        setConfigureOpen(false)
+        feed.reload()
+      },
+    }),
   )
 }
