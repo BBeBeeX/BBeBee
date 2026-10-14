@@ -1234,7 +1234,14 @@ export class Player extends Service implements PlayerService {
   async refresh(): Promise<void> {
     if (this.disposed || !this.source) return
     const positionMs = this.source.positionMs
-    const durationMs = this.source.durationMs || this.transport.durationMs
+    let durationMs = this.source.durationMs || this.transport.durationMs
+    if (!durationMs && this.transport.trackUrn) {
+      const known = await this.knownDurationMs(this.transport.trackUrn)
+      if (known) {
+        durationMs = known
+        this.fallbackDurationMs = known
+      }
+    }
 
     if (this.transport.status === 'playing') {
       if (this.activePlay) {
@@ -1641,30 +1648,29 @@ export class Player extends Service implements PlayerService {
       .nowPlaying(urn)
       .then(async (meta) => {
         let finalMeta = meta
-        if (!finalMeta && this.ownCtx.sources) {
+        const hasMissingFields = !finalMeta || !finalMeta.title || finalMeta.title.startsWith('BBeBee:') || !finalMeta.artwork || !finalMeta.artist
+        if (hasMissingFields && this.ownCtx.sources) {
           try {
             const [track] = await this.ownCtx.sources.getTracks([urn])
             const isUsable = (t?: Track) => Boolean(t?.title && !t.title.startsWith('BBeBee:'))
-            if (isUsable(track)) {
-              finalMeta = {
-                title: track!.title,
-                artist: track!.artists?.map((a) => a.name).join(', '),
-                album: track!.albumTitle,
-                artwork: track!.artwork,
-              }
-            } else {
+            let resolvedTrack: Track | undefined = isUsable(track) ? track : undefined
+            if (!resolvedTrack) {
               const provider = this.ownCtx.sources.forUrn?.(urn)
               const parsed = tryParseUrn(urn)
               if (provider?.getTrack && parsed) {
                 const t = await provider.getTrack(parsed.id)
                 if (isUsable(t)) {
-                  finalMeta = {
-                    title: t.title,
-                    artist: t.artists?.map((a) => a.name).join(', '),
-                    album: t.albumTitle,
-                    artwork: t.artwork,
-                  }
+                  resolvedTrack = t
                 }
+              }
+            }
+            if (resolvedTrack) {
+              finalMeta = {
+                ...finalMeta,
+                title: finalMeta?.title && !finalMeta.title.startsWith('BBeBee:') ? finalMeta.title : resolvedTrack.title,
+                artist: finalMeta?.artist ?? resolvedTrack.artists?.map((a) => a.name).join(', '),
+                album: finalMeta?.album ?? resolvedTrack.albumTitle,
+                artwork: finalMeta?.artwork ?? resolvedTrack.artwork,
               }
             }
           } catch {

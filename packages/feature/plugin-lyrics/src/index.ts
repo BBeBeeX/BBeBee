@@ -532,7 +532,7 @@ export class LyricsPlugin extends Service implements LyricsService {
                 [trackUrn],
               )
         const row = rows[0] as { title?: string; artist?: string; duration_ms?: number } | undefined
-        if (row?.title) {
+        if (row?.title && !row.title.startsWith('BBeBee:')) {
           if (!title) title = row.title
           if (!artist) artist = row.artist ?? ''
           if (!duration && row.duration_ms) duration = row.duration_ms

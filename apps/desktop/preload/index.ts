@@ -210,6 +210,10 @@ const api = {
       }
     },
   },
+  sandbox: {
+    setHtml: (id: string, html: string): Promise<void> =>
+      ipcRenderer.invoke('sandbox:set-html', { id, html }),
+  },
   versions: { electron: process.versions.electron, node: process.versions.node },
   isDebug: (() => {
     const val = process.env['DEBUG'] ?? process.env['BBEBEE_DEBUG']

@@ -102,6 +102,9 @@ declare global {
         test(config: unknown): Promise<{ ok: boolean; latencyMs?: number; error?: string }>
         set(config: unknown): Promise<void>
       }
+      sandbox?: {
+        setHtml(id: string, html: string): Promise<void>
+      }
       desktopLyrics?: {
         setVisible(visible: boolean, pos?: { x: number; y: number }): Promise<void>
         setPosition?(pos: { x: number; y: number }): Promise<void>

@@ -1410,6 +1410,14 @@ protocol.registerSchemesAsPrivileged([
       corsEnabled: false,
     },
   },
+  {
+    scheme: 'bbebee-sandbox',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+    },
+  },
 ])
 
 // `toNativePath` lives in ./fs-path.js (shared with the ffmpeg decoder, which
@@ -1685,6 +1693,41 @@ void app.whenReady().then(async () => {
     }
 
     return new Response('Plugin File Not Found', {
+      status: 404,
+      statusText: 'Not Found',
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+      },
+    })
+  })
+
+  const sandboxHtmlMap = new Map<string, string>()
+  ipcMain.handle('sandbox:set-html', (_event, entry: { id: string; html: string }) => {
+    if (entry?.id && typeof entry.html === 'string') {
+      sandboxHtmlMap.set(entry.id, entry.html)
+    }
+    return true
+  })
+
+  protocol.handle('bbebee-sandbox', (request) => {
+    try {
+      const u = new URL(request.url)
+      const id = decodeURIComponent(u.pathname.replace(/^\/+/, '')) || u.hostname
+      const html = sandboxHtmlMap.get(id)
+      if (html) {
+        return new Response(html, {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Access-Control-Allow-Origin': '*',
+          },
+        })
+      }
+    } catch {
+      // ignore
+    }
+
+    return new Response('Sandbox Template Not Found', {
       status: 404,
       statusText: 'Not Found',
       headers: {

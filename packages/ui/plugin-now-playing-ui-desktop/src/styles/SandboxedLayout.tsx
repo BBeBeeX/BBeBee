@@ -11,6 +11,7 @@
 import { createElement as h, useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import type {
   LibraryService,
+  NowPlayingService,
   NowPlayingStyleMeta,
   SandboxPlayerAction,
   SandboxPlayerLyricLine,
@@ -20,6 +21,7 @@ import { serviceOf } from '@BBeBee/ui-core'
 import { useActiveLyricIndex, useLyrics, useResolvedArtwork } from '@BBeBee/toolkit/hooks'
 import { useImageColor, useI18n } from '@BBeBee/ui-kit-desktop'
 import { useCurrentTrack } from '../hooks.js'
+import { SAMPLE_NEON_PLAYER_ID, SAMPLE_NEON_PLAYER_VERSION, buildSamplePluginManifest } from '../sample-template.js'
 import { buildSandboxedHtml } from './sandboxed-html.js'
 import type { NowPlayingLayoutProps } from './index.js'
 
@@ -37,6 +39,23 @@ export function SandboxedLayout({
   const { t } = useI18n(ctx)
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
   const isPlaying = state.status === 'playing'
+
+  // If this is the sample neon player and a newer version exists, upgrade it automatically
+  const effectiveMeta = useMemo(() => {
+    if (meta.id === SAMPLE_NEON_PLAYER_ID && meta.version !== SAMPLE_NEON_PLAYER_VERSION) {
+      try {
+        const manifest = JSON.parse(buildSamplePluginManifest(t)) as NowPlayingStyleMeta
+        const nowPlayingService = serviceOf<NowPlayingService>(ctx, 'nowPlaying')
+        if (nowPlayingService?.registerStyle) {
+          nowPlayingService.registerStyle(manifest)
+        }
+        return manifest
+      } catch {
+        return meta
+      }
+    }
+    return meta
+  }, [meta, t, ctx])
 
   // 1. Resolve artwork & cover theme color with bbebee-file:// rewrite for local assets
   const currentTrack = useCurrentTrack(ctx)
@@ -215,16 +234,36 @@ export function SandboxedLayout({
 
   const fullHtml = useMemo(() => {
     return buildSandboxedHtml(
-      meta.htmlContent ??
+      effectiveMeta.htmlContent ??
         `<div style="color:white;padding:24px;">${t('nowPlaying:sandboxedLayout.noPluginContentProvided')}</div>`,
     )
-  }, [meta.htmlContent, t])
+  }, [effectiveMeta.htmlContent, t])
+
+  // Desktop bridge integration for CSP-compliant bbebee-sandbox:// isolation
+  const [sandboxUrl, setSandboxUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    const sandboxBridge = (window as unknown as { BBeBee?: { sandbox?: { setHtml(id: string, html: string): Promise<void> } } })?.BBeBee?.sandbox
+    if (sandboxBridge?.setHtml) {
+      let cancelled = false
+      void sandboxBridge.setHtml(effectiveMeta.id, fullHtml).then(() => {
+        if (!cancelled) {
+          setSandboxUrl(`bbebee-sandbox://now-playing/${encodeURIComponent(effectiveMeta.id)}`)
+        }
+      })
+      return () => {
+        cancelled = true
+      }
+    } else {
+      setSandboxUrl(null)
+    }
+  }, [effectiveMeta.id, fullHtml])
 
   return h(
     'div',
     {
       'data-testid': 'layout-sandboxed',
-      'data-style-id': meta.id,
+      'data-style-id': effectiveMeta.id,
       style: {
         position: 'relative',
         width: '100%',
@@ -239,13 +278,15 @@ export function SandboxedLayout({
     },
     h('iframe', {
       ref: iframeRef,
+      key: sandboxUrl ?? effectiveMeta.id,
       onLoad: () => {
         sendSnapshot()
       },
       'data-testid': 'sandbox-iframe',
       // Strict sandbox isolation: only allow-scripts, NO allow-same-origin!
       sandbox: 'allow-scripts',
-      srcDoc: fullHtml,
+      src: sandboxUrl ?? undefined,
+      srcDoc: sandboxUrl ? undefined : fullHtml,
       style: {
         width: '100%',
         height: '100%',

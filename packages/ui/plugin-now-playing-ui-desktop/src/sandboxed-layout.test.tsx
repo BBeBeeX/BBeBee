@@ -337,4 +337,89 @@ describe('SandboxedLayout', () => {
     // next should not have been called a second time
     expect(calls.filter((c) => c === 'next').length).toBe(1)
   })
+
+  it('uses window.BBeBee.sandbox.setHtml bridge when available to serve bbebee-sandbox://', async () => {
+    const { ctx } = await harness()
+    const setHtmlCalls: Array<{ id: string; html: string }> = []
+    ;(window as unknown as { BBeBee: unknown }).BBeBee = {
+      sandbox: {
+        setHtml: async (id: string, html: string) => {
+          setHtmlCalls.push({ id, html })
+        },
+      },
+    }
+
+    const meta: NowPlayingStyleMeta = {
+      id: 'custom-skin',
+      name: 'Custom Skin',
+      description: 'Custom skin',
+      icon: 'palette',
+      type: 'sandboxed',
+      htmlContent: '<div>Custom Skin HTML</div>',
+    }
+
+    const { container } = render(
+      h(SandboxedLayout, {
+        ctx,
+        state: ctx.player.state,
+        position: 0,
+        displayPosition: 0,
+        duration: 10000,
+        can: DEFAULT_CAN,
+        seekingPosition: undefined,
+        onSeekChange: () => {},
+        onSeekCommit: () => {},
+        PanelComponent: null,
+        VisualizerComponent: null,
+        meta,
+      }),
+    )
+
+    await new Promise((r) => setTimeout(r, 20))
+    expect(setHtmlCalls.length).toBeGreaterThan(0)
+    expect(setHtmlCalls[0]?.id).toBe('custom-skin')
+    expect(setHtmlCalls[0]?.html).toContain('Custom Skin HTML')
+
+    const iframe = container.querySelector('[data-testid="sandbox-iframe"]') as HTMLIFrameElement
+    expect(iframe.src).toBe('bbebee-sandbox://now-playing/custom-skin')
+
+    delete (window as unknown as { BBeBee?: unknown }).BBeBee
+  })
+
+  it('automatically upgrades sample-neon-player to v1.2.0 if older version is passed', async () => {
+    const { ctx } = await harness()
+    const meta: NowPlayingStyleMeta = {
+      id: 'sample-neon-player',
+      name: 'Neon Sandbox Player',
+      description: 'Sample template',
+      icon: 'sparkles',
+      type: 'sandboxed',
+      version: '1.0.0', // Older version
+      htmlContent: '<div>Old Template</div>',
+    }
+
+    const { container } = render(
+      h(SandboxedLayout, {
+        ctx,
+        state: ctx.player.state,
+        position: 0,
+        displayPosition: 0,
+        duration: 10000,
+        can: DEFAULT_CAN,
+        seekingPosition: undefined,
+        onSeekChange: () => {},
+        onSeekCommit: () => {},
+        PanelComponent: null,
+        VisualizerComponent: null,
+        meta,
+      }),
+    )
+
+    const iframe = container.querySelector('[data-testid="sandbox-iframe"]') as HTMLIFrameElement
+    expect(iframe).toBeTruthy()
+    // The rendered html should be the updated v1.2.0 template, not the old htmlContent
+    expect(iframe.getAttribute('srcdoc')).toContain('SANDBOX PLUGIN')
+    expect(iframe.getAttribute('srcdoc')).not.toContain('<div>Old Template</div>')
+  })
 })
+
