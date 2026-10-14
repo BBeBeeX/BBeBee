@@ -162,5 +162,15 @@ describe('Subsonic live integration', () => {
     const streamHead = await fetch(stream.target, { method: 'HEAD' })
     expect(streamHead.ok).toBe(true)
     expect(streamHead.headers.get('content-type')).toContain('audio')
+
+    // 9. Test getLyrics
+    const lyricsResult = await provider!.getLyrics!(trackId)
+    // For this track without lyrics on Subsonic, provider must return undefined (NOT a raw JSON string!)
+    if (lyricsResult) {
+      expect(lyricsResult.content).not.toContain('subsonic-response')
+      expect(lyricsResult.content.trim().length).toBeGreaterThan(0)
+    } else {
+      expect(lyricsResult).toBeUndefined()
+    }
   })
 })

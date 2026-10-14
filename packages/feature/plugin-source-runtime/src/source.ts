@@ -1908,6 +1908,43 @@ export class DocumentSource {
       this.assertAllowed(target.url)
       const fetched = await fetchDocument(this.http, target, await this.headers(scope), this.traceSite('ruleLyric'))
       content = fetched.text
+      if (fetched.value && typeof fetched.value === 'object') {
+        const obj = fetched.value as Record<string, unknown>
+        const subLyrics = (obj['subsonic-response'] as Record<string, unknown> | undefined)?.lyrics as
+          | Record<string, unknown>
+          | undefined
+        if (subLyrics) {
+          content = String(subLyrics.content ?? subLyrics.value ?? subLyrics['#'] ?? '')
+        } else if (typeof obj.lyric === 'string') {
+          content = obj.lyric
+        } else if (typeof obj.lyrics === 'string') {
+          content = obj.lyrics
+        } else if (typeof obj.lrc === 'string') {
+          content = obj.lrc
+        } else {
+          content = ''
+        }
+      } else if (content.trim().startsWith('{') && content.trim().endsWith('}')) {
+        try {
+          const parsed = JSON.parse(content.trim()) as Record<string, unknown>
+          const subLyrics = (parsed['subsonic-response'] as Record<string, unknown> | undefined)?.lyrics as
+            | Record<string, unknown>
+            | undefined
+          if (subLyrics) {
+            content = String(subLyrics.content ?? subLyrics.value ?? subLyrics['#'] ?? '')
+          } else if (typeof parsed.lyric === 'string') {
+            content = parsed.lyric
+          } else if (typeof parsed.lyrics === 'string') {
+            content = parsed.lyrics
+          } else if (typeof parsed.lrc === 'string') {
+            content = parsed.lrc
+          } else {
+            content = ''
+          }
+        } catch {
+          // not JSON, keep as is
+        }
+      }
     }
     if (!content.trim()) return undefined
 

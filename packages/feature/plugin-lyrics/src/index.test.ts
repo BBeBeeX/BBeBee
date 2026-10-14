@@ -423,7 +423,72 @@ describe('plugin-lyrics', () => {
     expect(ctx.lyrics.state.status).toBe('ready')
     expect(ctx.lyrics.state.lyrics?.content).toBe('[00:03.00]Source Provider Builtin Lyric')
     expect(ctx.lyrics.state.supportsLyricSource).toBe(false)
+    expect(ctx.lyrics.state.sourceType).toBe('audio-provider')
     expect(lyricSources.searchCount).toBe(0) // LyricSources was NOT called!
+  })
+
+  it('prefers audio provider lyrics first, and falls back to lyricSources if audio provider has no lyrics', async () => {
+    class LyricSourcesStub extends Service {
+      searchCount = 0
+      constructor(c: Context) {
+        super(c, 'lyricSources')
+      }
+      async searchLyrics() {
+        this.searchCount++
+        return {
+          format: 'lrc' as const,
+          content: '[00:05.00]Fallback External Lyric',
+          synced: true,
+        }
+      }
+    }
+
+    const ctx = new Context()
+    await ctx.plugin(PlayerStub)
+    await ctx.plugin(SourcesStub)
+    await ctx.plugin(DbStub)
+    await ctx.plugin(LyricSourcesStub)
+    await ctx.plugin(LyricsPlugin)
+
+    const player = (ctx as any).player as PlayerStub
+    const sources = (ctx as any).sources as SourcesStub
+    const lyricSources = (ctx as any).lyricSources as LyricSourcesStub
+
+    sources.sourceRecords.set('hybrid-src', {
+      id: 'hybrid-src',
+      name: 'Hybrid Source',
+      needsLyricSource: true,
+      doc: { ruleLyric: { lyric: '=builtin' } },
+    })
+
+    // Track 1: Has built-in lyrics on the provider
+    sources.lyricsMap.set('has-provider-lyric', {
+      format: 'lrc',
+      content: '[00:01.00]Provider Lyric',
+      synced: true,
+      offsetMs: 0,
+    })
+
+    player.transport.trackUrn = 'BBeBee:hybrid-src:track:has-provider-lyric'
+    player.transport.nowPlaying = { title: 'Song 1', artist: 'Artist 1' }
+    player.setTrack('BBeBee:hybrid-src:track:has-provider-lyric')
+    await new Promise((resolve) => setTimeout(resolve, 60))
+
+    expect(ctx.lyrics.state.status).toBe('ready')
+    expect(ctx.lyrics.state.lyrics?.content).toBe('[00:01.00]Provider Lyric')
+    expect(ctx.lyrics.state.sourceType).toBe('audio-provider')
+    expect(lyricSources.searchCount).toBe(0) // Provider had lyrics, so lyricSources was NOT called!
+
+    // Track 2: Provider has no lyrics (returns undefined), should fall back to lyricSources
+    player.transport.trackUrn = 'BBeBee:hybrid-src:track:no-provider-lyric'
+    player.transport.nowPlaying = { title: 'Song 2', artist: 'Artist 2' }
+    player.setTrack('BBeBee:hybrid-src:track:no-provider-lyric')
+    await new Promise((resolve) => setTimeout(resolve, 60))
+
+    expect(ctx.lyrics.state.status).toBe('ready')
+    expect(ctx.lyrics.state.lyrics?.content).toBe('[00:05.00]Fallback External Lyric')
+    expect(ctx.lyrics.state.sourceType).toBe('lyric-source')
+    expect(lyricSources.searchCount).toBe(1) // Fallback was invoked!
   })
 
   it('supports lyricSources for local files by default', async () => {

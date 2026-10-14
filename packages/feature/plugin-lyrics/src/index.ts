@@ -56,6 +56,7 @@ export class LyricsPlugin extends Service implements LyricsService {
   private readonly negativeCache = new Map<string, number>()
   private readonly inFlightFetches = new Map<string, Promise<Lyrics | undefined>>()
   private readonly lastSearchedMeta = new Map<string, { title?: string; artist?: string }>()
+  private readonly lastResolvedSourceType = new Map<string, LyricsState['sourceType']>()
   private readonly cacheSize: number
   private readonly negativeCacheTtlMs: number
   private currentGeneration = 0
@@ -304,12 +305,16 @@ export class LyricsPlugin extends Service implements LyricsService {
         return
       }
 
+      const resolvedSourceType =
+        this.lastResolvedSourceType.get(trackUrn) ??
+        (supportsLyricSource && this.getLyricSourcesService() ? 'lyric-source' : 'audio-provider')
+
       this.updateState({
         status: 'ready',
         trackUrn,
         lyrics,
         supportsLyricSource,
-        sourceType: supportsLyricSource && this.getLyricSourcesService() ? 'lyric-source' : 'audio-provider',
+        sourceType: resolvedSourceType,
         error: undefined,
         offsetMs: lyrics.offsetMs ?? 0,
       })
@@ -367,6 +372,7 @@ export class LyricsPlugin extends Service implements LyricsService {
 
     // 1. In-memory positive cache
     if (this.memoryCache.has(trackUrn)) {
+      this.lastResolvedSourceType.set(trackUrn, 'cache')
       return this.memoryCache.get(trackUrn)
     }
 
@@ -415,6 +421,7 @@ export class LyricsPlugin extends Service implements LyricsService {
               offsetMs: row.offset_ms,
               language: row.language || undefined,
             }
+            this.lastResolvedSourceType.set(trackUrn, 'cache')
             this.remember(trackUrn, lyrics)
             return lyrics
           }
@@ -431,7 +438,29 @@ export class LyricsPlugin extends Service implements LyricsService {
 
     let genuineSearchPerformed = false
 
-    // Priority 1: If audio source supports external lyric sources, query lyricSources first
+    let providerError: unknown
+
+    // Priority 1: Online media provider from audio source (e.g. Subsonic server / embedded lyrics)
+    if (this.ownCtx.sources && parsedUrn) {
+      const provider = this.ownCtx.sources.forUrn(trackUrn)
+      if (provider?.getLyrics) {
+        genuineSearchPerformed = true
+        try {
+          const fetched = await provider.getLyrics(parsedUrn.id)
+          if (fetched && fetched.content && fetched.content.trim()) {
+            this.lastResolvedSourceType.set(trackUrn, 'audio-provider')
+            this.remember(trackUrn, fetched)
+            await this.persistLyrics(trackUrn, fetched)
+            return fetched
+          }
+        } catch (err) {
+          providerError = err
+          this.ownCtx.logger.warn(`lyrics: provider.getLyrics failed for ${trackUrn}: ${String(err)}`)
+        }
+      }
+    }
+
+    // Priority 2: Fallback to third-party lyric sources if audio source allows it and had no lyrics
     if (supportsLyricSource && lyricSourcesSvc) {
       const query = await this.resolveTrackQuery(trackUrn, presetMetadata)
       const isGenuineTitle = Boolean(query.title && query.title !== trackUrn && query.title !== parsedUrn?.id)
@@ -440,7 +469,8 @@ export class LyricsPlugin extends Service implements LyricsService {
       }
       try {
         const fetched = await lyricSourcesSvc.searchLyrics(query)
-        if (fetched && fetched.content) {
+        if (fetched && fetched.content && fetched.content.trim()) {
+          this.lastResolvedSourceType.set(trackUrn, 'lyric-source')
           this.remember(trackUrn, fetched)
           await this.persistLyrics(trackUrn, fetched)
           return fetched
@@ -450,18 +480,8 @@ export class LyricsPlugin extends Service implements LyricsService {
       }
     }
 
-    // Priority 2: Online media provider from audio source
-    if (this.ownCtx.sources && parsedUrn) {
-      const provider = this.ownCtx.sources.forUrn(trackUrn)
-      if (provider?.getLyrics) {
-        genuineSearchPerformed = true
-        const fetched = await provider.getLyrics(parsedUrn.id)
-        if (fetched && fetched.content) {
-          this.remember(trackUrn, fetched)
-          await this.persistLyrics(trackUrn, fetched)
-          return fetched
-        }
-      }
+    if (providerError) {
+      throw providerError
     }
 
     // Only persist negative cache if we actually had genuine track metadata to search with.
@@ -662,6 +682,7 @@ export class LyricsPlugin extends Service implements LyricsService {
       this.memoryCache.delete(trackUrn)
       this.parsedCache.delete(trackUrn)
       this.negativeCache.delete(trackUrn)
+      this.lastResolvedSourceType.delete(trackUrn)
       if (this.ownCtx.db) {
         try {
           await this.ownCtx.db.exec('DELETE FROM lyrics WHERE track_urn = ?', [trackUrn])
@@ -673,6 +694,7 @@ export class LyricsPlugin extends Service implements LyricsService {
       this.memoryCache.clear()
       this.parsedCache.clear()
       this.negativeCache.clear()
+      this.lastResolvedSourceType.clear()
       if (this.ownCtx.db) {
         try {
           await this.ownCtx.db.exec('DELETE FROM lyrics')
@@ -689,6 +711,7 @@ export class LyricsPlugin extends Service implements LyricsService {
       this.memoryCache.delete(urn)
       this.parsedCache.delete(urn)
       this.negativeCache.delete(urn)
+      this.lastResolvedSourceType.delete(urn)
       if (this.ownCtx.db) {
         await this.ownCtx.db
           .exec('DELETE FROM lyrics WHERE track_urn = ? AND format = ?', [urn, 'none'])
