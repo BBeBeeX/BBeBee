@@ -34,6 +34,7 @@ import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import { parseUrn, uriContains } from '@BBeBee/protocol'
 import type {
+  ArtworkRef,
   DownloadHold,
   DownloadPolicy,
   DownloadState,
@@ -755,6 +756,16 @@ export class Downloads extends Service implements DownloadsService {
 
       await this.ownCtx.fs.mkdir(this.keptDir, { recursive: true })
 
+      // Pre-resolve track metadata if title is placeholder URN or artist is absent
+      const trackMeta = await this.lookupTrackMetadata(task.trackUrn)
+      if (trackMeta?.title && (!task.title || task.title === task.trackUrn)) {
+        task.title = trackMeta.title
+      }
+      if (trackMeta?.artist && !task.artist) {
+        task.artist = trackMeta.artist
+      }
+      await this.ensureTrackRow(task.trackUrn, trackMeta)
+
       const format = formatFor(handle) ?? 'mp3'
       const safeTitle = sanitizeFileName(task.title || task.trackUrn)
       let target = this.ownCtx.fs.join(this.keptDir, `${safeTitle}.${format}`)
@@ -788,7 +799,7 @@ export class Downloads extends Service implements DownloadsService {
       if (task.bytesDone > 0 && etag) headers['if-range'] = etag
 
       let lastCheckpoint = 0
-      const { bytes, etag: freshEtag } = await this.ownCtx.http.download({
+      const { bytes: downloadedBytes, etag: freshEtag } = await this.ownCtx.http.download({
         url: handle.target,
         headers,
         to: target,
@@ -811,6 +822,8 @@ export class Downloads extends Service implements DownloadsService {
         },
       })
 
+      let bytes = downloadedBytes
+
       // A pause or a cancel landed while the transfer was finishing; the
       // state was already set by whoever asked, and the partial file is left
       // for a resume (pause) or removed by `cancel`.
@@ -822,10 +835,16 @@ export class Downloads extends Service implements DownloadsService {
       try {
         const rawBytes = await this.ownCtx.fs.readBytes(target).catch(() => undefined)
         if (rawBytes) {
-          const trackMeta = await this.lookupTrackMetadata(task.trackUrn)
           const picture = await this.fetchCoverBytes(trackMeta)
+          if (picture?.data?.length) {
+            this.ownCtx.logger.info(
+              `download: embedding cover (${picture.data.length} bytes) for ${task.trackUrn} into ${target}`,
+            )
+          } else {
+            this.ownCtx.logger.warn(`download: no cover artwork found for ${task.trackUrn}`)
+          }
           const tagged = embedAudioTags(rawBytes, format, {
-            title: task.title,
+            title: trackMeta?.title ?? task.title,
             artist: trackMeta?.artist ?? task.artist,
             album: trackMeta?.album,
             year: trackMeta?.year,
@@ -834,7 +853,9 @@ export class Downloads extends Service implements DownloadsService {
             picture,
           })
           if (tagged !== rawBytes) {
-            await this.ownCtx.fs.writeFile(target, tagged).catch(() => undefined)
+            await this.ownCtx.fs.writeFile(target, tagged)
+            bytes = tagged.byteLength
+            this.ownCtx.logger.info(`download: audio tags embedded successfully into ${target} (${bytes} bytes)`)
           }
         }
       } catch (err) {
@@ -1075,23 +1096,57 @@ export class Downloads extends Service implements DownloadsService {
     trackNo?: number
     artworkLocalUri?: string
     artworkSourceUrl?: string
+    artworkId?: string
     rawJson?: string
   } | undefined> {
+    let title: string | undefined
+    let artist: string | undefined
+    let album: string | undefined
+    let year: number | undefined
+    let trackNo: number | undefined
+    let artworkLocalUri: string | undefined
+    let artworkSourceUrl: string | undefined
+    let artworkId: string | undefined
+    let albumUrn: string | undefined
+    let rawJson: string | undefined
+
+    const isUrl = (s: string | null | undefined): s is string => {
+      if (!s) return false
+      const str = s.trim()
+      return (
+        str.startsWith('http://') ||
+        str.startsWith('https://') ||
+        str.startsWith('//') ||
+        str.startsWith('data:') ||
+        str.startsWith('file:') ||
+        str.startsWith('/') ||
+        /^[a-zA-Z]:[\\/]/.test(str)
+      )
+    }
+
+    // 1. Try SQLite query
     try {
       const row = await this.ownCtx.db.get<{
         title: string
         year: number | null
         track_no: number | null
         album_title: string | null
+        album_urn: string | null
         artist_name: string | null
         artwork_local_uri: string | null
         artwork_source_url: string | null
+        artwork_id: string | null
+        track_artwork_id: string | null
+        album_artwork_id: string | null
         raw_json: string | null
       }>(
-        `SELECT tr.title, tr.year, tr.track_no, tr.raw_json,
+        `SELECT tr.title, tr.year, tr.track_no, tr.album_urn, tr.raw_json,
                 al.title AS album_title,
                 aw.local_uri AS artwork_local_uri,
                 aw.source_url AS artwork_source_url,
+                aw.id AS artwork_id,
+                tr.artwork_id AS track_artwork_id,
+                al.artwork_id AS album_artwork_id,
                 (SELECT a.name FROM track_artists ta JOIN artists a ON a.urn = ta.artist_urn
                   WHERE ta.track_urn = tr.urn ORDER BY ta.ordinal LIMIT 1) AS artist_name
            FROM tracks tr
@@ -1100,27 +1155,102 @@ export class Downloads extends Service implements DownloadsService {
           WHERE tr.urn = ?`,
         [urn],
       )
+
       if (row) {
-        return {
-          title: row.title,
-          artist: row.artist_name ?? undefined,
-          album: row.album_title ?? undefined,
-          year: row.year ?? undefined,
-          trackNo: row.track_no ?? undefined,
-          artworkLocalUri: row.artwork_local_uri ?? undefined,
-          artworkSourceUrl: row.artwork_source_url ?? undefined,
-          rawJson: row.raw_json ?? undefined,
+        title = row.title || undefined
+        artist = row.artist_name || undefined
+        album = row.album_title || undefined
+        year = row.year ?? undefined
+        trackNo = row.track_no ?? undefined
+        artworkLocalUri = row.artwork_local_uri || undefined
+        albumUrn = row.album_urn || undefined
+        rawJson = row.raw_json || undefined
+
+        if (isUrl(row.artwork_source_url)) {
+          artworkSourceUrl = row.artwork_source_url
+        } else if (isUrl(row.artwork_id)) {
+          artworkSourceUrl = row.artwork_id
+        } else if (isUrl(row.track_artwork_id)) {
+          artworkSourceUrl = row.track_artwork_id
+        } else if (isUrl(row.album_artwork_id)) {
+          artworkSourceUrl = row.album_artwork_id
         }
+        artworkId = row.artwork_id || row.track_artwork_id || row.album_artwork_id || undefined
       }
     } catch {
       // Ignore query errors
     }
-    return undefined
+
+    // 2. Fallback to active source provider if artwork or metadata is missing
+    if (!artworkSourceUrl && !artworkLocalUri) {
+      try {
+        const provider = this.ownCtx.sources?.forUrn(urn)
+        if (provider) {
+          const { id } = parseUrn(urn)
+          const track = await provider.getTrack(id).catch(() => undefined)
+          if (track) {
+            title = title ?? (track.title || undefined)
+            if (!artist && track.artists?.length) {
+              artist = track.artists.map((a) => a.name).join(', ')
+            }
+            album = album ?? (track.albumTitle || undefined)
+            year = year ?? track.year
+            trackNo = trackNo ?? track.trackNo
+            albumUrn = albumUrn ?? track.albumUrn
+
+            const art = track.artwork
+            const artUrl = art?.sourceUrl || art?.id
+            if (isUrl(artUrl)) {
+              artworkSourceUrl = artUrl
+              artworkId = art?.id
+            }
+          }
+        }
+      } catch (err) {
+        this.ownCtx.logger.warn(`download: provider.getTrack failed for ${urn}: ${String(err)}`)
+      }
+    }
+
+    // 3. Fallback to album lookup if artwork is still missing
+    if (!artworkSourceUrl && !artworkLocalUri && albumUrn) {
+      try {
+        const sources = this.ownCtx.sources as unknown as {
+          getAlbum?(albumUrn: string): Promise<{ artwork?: { id?: string; sourceUrl?: string } }>
+        }
+        if (sources && typeof sources.getAlbum === 'function') {
+          const albumDetail = await sources.getAlbum(albumUrn).catch(() => undefined)
+          const albumArt = albumDetail?.artwork?.sourceUrl || albumDetail?.artwork?.id
+          if (isUrl(albumArt)) {
+            artworkSourceUrl = albumArt
+            artworkId = albumDetail?.artwork?.id
+          }
+        }
+      } catch {
+        // continue
+      }
+    }
+
+    if (!title && !artist && !artworkSourceUrl && !artworkLocalUri && !rawJson) {
+      return undefined
+    }
+
+    return {
+      title,
+      artist,
+      album,
+      year,
+      trackNo,
+      artworkLocalUri,
+      artworkSourceUrl,
+      artworkId,
+      rawJson,
+    }
   }
 
   private async fetchCoverBytes(trackMeta: {
     artworkLocalUri?: string
     artworkSourceUrl?: string
+    artworkId?: string
     rawJson?: string
   } | undefined): Promise<{ data: Uint8Array; mimeType?: string } | undefined> {
     if (!trackMeta) return undefined
@@ -1132,29 +1262,98 @@ export class Downloads extends Service implements DownloadsService {
         if (bytes && bytes.length > 0) {
           return { data: bytes }
         }
+      } catch (err) {
+        this.ownCtx.logger.warn(`download: failed to read local artwork URI ${trackMeta.artworkLocalUri}: ${String(err)}`)
+      }
+    }
+
+    // 2. Extract URL from artworkSourceUrl or rawJson
+    let url = trackMeta.artworkSourceUrl?.trim()
+    if (!url && trackMeta.rawJson) {
+      try {
+        const raw = JSON.parse(trackMeta.rawJson) as Record<string, unknown>
+        const rawUrl =
+          (typeof raw.picUrl === 'string' && raw.picUrl) ||
+          (typeof raw.artwork === 'string' && raw.artwork) ||
+          (typeof raw.cover === 'string' && raw.cover) ||
+          (typeof raw.coverUrl === 'string' && raw.coverUrl) ||
+          (typeof raw.coverWebUrl === 'string' && raw.coverWebUrl) ||
+          (typeof raw.img === 'string' && raw.img) ||
+          (typeof raw.imgUrl === 'string' && raw.imgUrl) ||
+          (typeof raw.pic === 'string' && raw.pic) ||
+          (typeof raw.artworkUrl === 'string' && raw.artworkUrl) ||
+          (typeof (raw.album as Record<string, unknown> | undefined)?.picUrl === 'string' &&
+            (raw.album as Record<string, unknown>).picUrl as string) ||
+          (typeof (raw.album as Record<string, unknown> | undefined)?.cover === 'string' &&
+            (raw.album as Record<string, unknown>).cover as string) ||
+          (typeof (raw.album as Record<string, unknown> | undefined)?.artwork === 'string' &&
+            (raw.album as Record<string, unknown>).artwork as string) ||
+          undefined
+        if (rawUrl) url = rawUrl.trim()
       } catch {
         // continue
       }
     }
 
-    // 2. Helper to extract from URL or data URL
-    const loadFromUrl = async (url: string | undefined): Promise<{ data: Uint8Array; mimeType?: string } | undefined> => {
-      if (!url) return undefined
-      if (url.startsWith('data:')) {
-        const match = url.match(/^data:([^;]+);base64,(.+)$/)
-        if (match && match[2]) {
-          try {
-            const binary = atob(match[2])
-            const bytes = new Uint8Array(binary.length)
-            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-            return { data: bytes, mimeType: match[1] }
-          } catch {
-            return undefined
-          }
+    if (!url) return undefined
+
+    // Normalize protocol-relative URLs
+    if (url.startsWith('//')) {
+      url = 'https:' + url
+    }
+
+    // 3. Local file or file URI
+    if (url.startsWith('file:') || url.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(url)) {
+      try {
+        const bytes = await this.ownCtx.fs.readBytes(url)
+        if (bytes && bytes.length > 0) return { data: bytes }
+      } catch (err) {
+        this.ownCtx.logger.warn(`download: failed to read local artwork file ${url}: ${String(err)}`)
+      }
+    }
+
+    // 4. Data URI
+    if (url.startsWith('data:')) {
+      const match = url.match(/^data:([^;]+);base64,(.+)$/)
+      if (match && match[2]) {
+        try {
+          const binary = atob(match[2])
+          const bytes = new Uint8Array(binary.length)
+          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+          return { data: bytes, mimeType: match[1] }
+        } catch {
+          return undefined
         }
       }
-      if (/^https?:\/\//i.test(url)) {
-        try {
+    }
+
+    // 5. Try plugin-cache if available
+    const cache = this.ownCtx.get('cache') as unknown as {
+      artwork?(ref: ArtworkRef): Promise<Uri | undefined>
+    } | undefined
+    if (cache && typeof cache.artwork === 'function') {
+      try {
+        const ref: ArtworkRef = {
+          id: trackMeta.artworkId || url,
+          sourceUrl: url,
+        }
+        const cachedUri = await cache.artwork(ref)
+        if (cachedUri) {
+          const bytes = await this.ownCtx.fs.readBytes(cachedUri)
+          if (bytes && bytes.length > 0) {
+            return { data: bytes }
+          }
+        }
+      } catch (err) {
+        this.ownCtx.logger.warn(`download: cache.artwork error for ${url}: ${String(err)}`)
+      }
+    }
+
+    // 6. Direct HTTP fetch
+    if (/^https?:\/\//i.test(url)) {
+      // Try ctx.http
+      try {
+        if (typeof this.ownCtx.http === 'function') {
           const res = await this.ownCtx.http({ url })
           if (res.status === 200) {
             const bytes = await res.bytes()
@@ -1162,38 +1361,61 @@ export class Downloads extends Service implements DownloadsService {
               return { data: bytes, mimeType: res.headers['content-type'] }
             }
           }
-        } catch {
-          return undefined
         }
+      } catch (err) {
+        this.ownCtx.logger.warn(`download: ctx.http failed for cover ${url}: ${String(err)}`)
       }
-      return undefined
-    }
 
-    // Try artworkSourceUrl
-    const fromSourceUrl = await loadFromUrl(trackMeta.artworkSourceUrl)
-    if (fromSourceUrl) return fromSourceUrl
-
-    // 3. Try parsing raw_json if any
-    if (trackMeta.rawJson) {
+      // Fallback to global fetch
       try {
-        const raw = JSON.parse(trackMeta.rawJson) as Record<string, unknown>
-        const rawUrl =
-          (typeof raw.picUrl === 'string' && raw.picUrl) ||
-          (typeof raw.artwork === 'string' && raw.artwork) ||
-          (typeof raw.cover === 'string' && raw.cover) ||
-          (typeof raw.img === 'string' && raw.img) ||
-          (typeof raw.artworkUrl === 'string' && raw.artworkUrl) ||
-          (typeof (raw.album as Record<string, unknown> | undefined)?.picUrl === 'string' &&
-            (raw.album as Record<string, unknown>).picUrl as string) ||
-          undefined
-        const fromRaw = await loadFromUrl(rawUrl)
-        if (fromRaw) return fromRaw
-      } catch {
-        // continue
+        if (typeof globalThis.fetch === 'function') {
+          const res = await globalThis.fetch(url)
+          if (res.ok) {
+            const arrBuf = await res.arrayBuffer()
+            const bytes = new Uint8Array(arrBuf)
+            if (bytes.length > 0) {
+              return { data: bytes, mimeType: res.headers.get('content-type') ?? undefined }
+            }
+          }
+        }
+      } catch (err) {
+        this.ownCtx.logger.warn(`download: global fetch failed for cover ${url}: ${String(err)}`)
       }
     }
 
     return undefined
+  }
+
+  private async ensureTrackRow(
+    urn: string,
+    meta?: { title?: string; artist?: string; album?: string; year?: number; trackNo?: number },
+  ): Promise<void> {
+    const existing = await this.ownCtx.db
+      .get<{ urn: string }>('SELECT urn FROM tracks WHERE urn = ?', [urn])
+      .catch(() => undefined)
+    if (existing) return
+
+    const parsed = parseUrn(urn)
+    const now = Date.now()
+    try {
+      await this.ownCtx.db.exec(
+        `INSERT INTO tracks (urn, source_id, remote_id, title, year, track_no, fetched_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(urn) DO UPDATE SET
+           title = COALESCE(NULLIF(tracks.title, ''), excluded.title)`,
+        [
+          urn,
+          parsed.sourceId,
+          parsed.id,
+          meta?.title || parsed.id,
+          meta?.year ?? null,
+          meta?.trackNo ?? null,
+          now,
+        ],
+      )
+    } catch (err) {
+      this.ownCtx.logger.warn(`download: could not ensure track row for ${urn}: ${String(err)}`)
+    }
   }
 
   /** The partial file's actual size, which is what a resume must start from. */

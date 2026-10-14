@@ -55,8 +55,44 @@ class HttpStub extends Service {
   /** Runs after the first half has landed — pause, cancel or hang here. */
   onHalf?: (req: DownloadRequest) => Promise<void> | void
 
+  coverBytes?: Uint8Array
+
   constructor(ctx: Context) {
     super(ctx, 'http')
+  }
+
+  protected [Service.invoke](req: any): Promise<any> {
+    return this.request(req)
+  }
+
+  async request(req: any) {
+    const isCover =
+      typeof req?.url === 'string' &&
+      (req.url.includes('cover') || req.url.includes('artwork') || req.url.includes('image'))
+    const bytes = isCover && this.coverBytes ? this.coverBytes : this.body
+    const mime = isCover ? 'image/jpeg' : 'application/octet-stream'
+    return {
+      status: 200,
+      headers: { 'content-type': mime },
+      url: req?.url ?? '',
+      async text() {
+        return new TextDecoder().decode(bytes)
+      },
+      async json() {
+        return JSON.parse(new TextDecoder().decode(bytes))
+      },
+      async bytes() {
+        return bytes
+      },
+      stream() {
+        return new ReadableStream({
+          start(controller) {
+            controller.enqueue(bytes)
+            controller.close()
+          },
+        })
+      },
+    }
   }
 
   async download(req: DownloadRequest) {
@@ -692,6 +728,213 @@ describe('plugin-download', () => {
     const text = new TextDecoder('latin1').decode(fileBytes)
     expect(text.startsWith('ID3')).toBe(true)
     expect(text.includes('APIC')).toBe(true)
+  })
+
+  it('embeds cover art from remote HTTP url into MP3 file', async () => {
+    const h = await harness()
+    const coverBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4])
+    h.http.coverBytes = coverBytes
+    h.http.body = new Uint8Array([0xff, 0xfb, 0x90, 0x64, 0, 0]) // mock mp3 audio
+
+    await h.ctx.db.exec(
+      `INSERT INTO artworks (id, source_url) VALUES ('art-remote', 'https://img.example.test/cover.jpg')`,
+    )
+    await h.ctx.db.exec(
+      `UPDATE tracks SET title = 'RemoteSong', artwork_id = 'art-remote' WHERE urn = ?`,
+      [URN],
+    )
+    ;(h.ctx.sources as unknown as SourcesStub).provider = provider(async () => ({
+      kind: 'remote',
+      target: 'https://cdn.example.test/audio.mp3',
+      seekable: true,
+    }))
+
+    const task = (await h.ctx.downloads.enqueue([URN]))[0]!
+    await until(() => h.downloads.task(task.id)?.state === 'done')
+
+    const binding = (await h.bindings())[0]!
+    const fileBytes = await h.ctx.fs.readBytes(binding.uri)
+    const text = new TextDecoder('latin1').decode(fileBytes)
+    expect(text.startsWith('ID3')).toBe(true)
+    expect(text.includes('APIC')).toBe(true)
+  })
+
+  it('embeds cover art from protocol-relative URL into MP3 file', async () => {
+    const h = await harness()
+    const coverBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4])
+    h.http.coverBytes = coverBytes
+    h.http.body = new Uint8Array([0xff, 0xfb, 0x90, 0x64, 0, 0])
+
+    await h.ctx.db.exec(
+      `INSERT INTO artworks (id, source_url) VALUES ('art-proto', '//img.example.test/cover.jpg')`,
+    )
+    await h.ctx.db.exec(
+      `UPDATE tracks SET title = 'ProtoSong', artwork_id = 'art-proto' WHERE urn = ?`,
+      [URN],
+    )
+    ;(h.ctx.sources as unknown as SourcesStub).provider = provider(async () => ({
+      kind: 'remote',
+      target: 'https://cdn.example.test/audio.mp3',
+      seekable: true,
+    }))
+
+    const task = (await h.ctx.downloads.enqueue([URN]))[0]!
+    await until(() => h.downloads.task(task.id)?.state === 'done')
+
+    const binding = (await h.bindings())[0]!
+    const fileBytes = await h.ctx.fs.readBytes(binding.uri)
+    const text = new TextDecoder('latin1').decode(fileBytes)
+    expect(text.startsWith('ID3')).toBe(true)
+    expect(text.includes('APIC')).toBe(true)
+  })
+
+  it('fetches track metadata and cover from provider.getTrack when track not in DB', async () => {
+    const h = await harness()
+    const coverBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4])
+    h.http.coverBytes = coverBytes
+    h.http.body = new Uint8Array([0xff, 0xfb, 0x90, 0x64, 0, 0])
+
+    const NEW_URN = 'BBeBee:demo:track:online_only'
+    const prov = provider(async () => ({
+      kind: 'remote',
+      target: 'https://cdn.example.test/audio.mp3',
+      seekable: true,
+    }))
+    prov.getTrack = async (id: string) => ({
+      urn: `BBeBee:demo:track:${id}`,
+      title: 'Online Song',
+      artists: [{ urn: 'BBeBee:demo:artist:1', name: 'Online Artist', role: 'main', ordinal: 0 }],
+      albumTitle: 'Online Album',
+      artwork: { id: 'https://cdn.example.test/cover.png', sourceUrl: 'https://cdn.example.test/cover.png' },
+    })
+    ;(h.ctx.sources as unknown as SourcesStub).provider = prov
+
+    const task = (await h.ctx.downloads.enqueue([NEW_URN]))[0]!
+    await until(() => h.downloads.task(task.id)?.state === 'done')
+
+    const binding = (await h.bindings())[0]!
+    expect(decodeURIComponent(binding.uri).endsWith('Online Song.mp3')).toBe(true)
+    const fileBytes = await h.ctx.fs.readBytes(binding.uri)
+    const text = new TextDecoder('latin1').decode(fileBytes)
+    expect(text.startsWith('ID3')).toBe(true)
+    expect(text.includes('APIC')).toBe(true)
+  })
+
+  it('embeds cover art into downloaded FLAC file', async () => {
+    const h = await harness()
+    const coverBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4])
+    h.http.coverBytes = coverBytes
+
+    // Mock FLAC: 'fLaC' + STREAMINFO (34 bytes) + mock frames
+    const mockFlac = new Uint8Array(4 + 4 + 34 + 10)
+    mockFlac.set([0x66, 0x4c, 0x61, 0x43], 0) // 'fLaC'
+    mockFlac[4] = 0x80 // isLast = 1, type = 0
+    mockFlac[7] = 34
+    h.http.body = mockFlac
+
+    await h.ctx.db.exec(
+      `INSERT INTO artworks (id, source_url) VALUES ('art-flac', 'https://img.example.test/cover.png')`,
+    )
+    await h.ctx.db.exec(
+      `UPDATE tracks SET title = 'FlacSong', artwork_id = 'art-flac' WHERE urn = ?`,
+      [URN],
+    )
+    ;(h.ctx.sources as unknown as SourcesStub).provider = provider(async () => ({
+      kind: 'remote',
+      target: 'https://cdn.example.test/audio.flac',
+      seekable: true,
+      codec: 'flac',
+    }))
+
+    const task = (await h.ctx.downloads.enqueue([URN]))[0]!
+    await until(() => h.downloads.task(task.id)?.state === 'done')
+
+    const binding = (await h.bindings())[0]!
+    const fileBytes = await h.ctx.fs.readBytes(binding.uri)
+    expect(fileBytes[0]).toBe(0x66)
+    expect(fileBytes[1]).toBe(0x4c)
+    expect(fileBytes[2]).toBe(0x61)
+    expect(fileBytes[3]).toBe(0x43)
+    const text = new TextDecoder('latin1').decode(fileBytes)
+    expect(text.includes('image/png')).toBe(true)
+  })
+
+  it('embeds cover art into downloaded M4A file', async () => {
+    const h = await harness()
+    const coverBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4])
+    h.http.coverBytes = coverBytes
+
+    // Mock MP4: ftyp (16 bytes) + moov (16 bytes) + mdat (16 bytes)
+    const ftyp = new Uint8Array(16)
+    new DataView(ftyp.buffer).setUint32(0, 16)
+    ftyp.set([0x66, 0x74, 0x79, 0x70], 4) // 'ftyp'
+    const moov = new Uint8Array(16)
+    new DataView(moov.buffer).setUint32(0, 16)
+    moov.set([0x6d, 0x6f, 0x6f, 0x76], 4) // 'moov'
+    const mdat = new Uint8Array(16)
+    new DataView(mdat.buffer).setUint32(0, 16)
+    mdat.set([0x6d, 0x64, 0x61, 0x74], 4) // 'mdat'
+
+    const mockM4a = new Uint8Array(ftyp.length + moov.length + mdat.length)
+    mockM4a.set(ftyp, 0)
+    mockM4a.set(moov, ftyp.length)
+    mockM4a.set(mdat, ftyp.length + moov.length)
+    h.http.body = mockM4a
+
+    await h.ctx.db.exec(
+      `INSERT INTO artworks (id, source_url) VALUES ('art-m4a', 'https://img.example.test/cover.jpg')`,
+    )
+    await h.ctx.db.exec(
+      `UPDATE tracks SET title = 'M4aSong', artwork_id = 'art-m4a' WHERE urn = ?`,
+      [URN],
+    )
+    ;(h.ctx.sources as unknown as SourcesStub).provider = provider(async () => ({
+      kind: 'remote',
+      target: 'https://cdn.example.test/audio.m4a',
+      seekable: true,
+      codec: 'mp4a',
+    }))
+
+    const task = (await h.ctx.downloads.enqueue([URN]))[0]!
+    await until(() => h.downloads.task(task.id)?.state === 'done')
+
+    const binding = (await h.bindings())[0]!
+    const fileBytes = await h.ctx.fs.readBytes(binding.uri)
+    const text = new TextDecoder('latin1').decode(fileBytes)
+    expect(text.includes('covr')).toBe(true)
+  })
+
+  it('leverages plugin-cache to fetch and cache cover artwork', async () => {
+    const h = await harness({}, { cache: true })
+    const coverBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4])
+    h.http.coverBytes = coverBytes
+    h.http.body = new Uint8Array([0xff, 0xfb, 0x90, 0x64, 0, 0])
+
+    await h.ctx.db.exec(
+      `INSERT INTO artworks (id, source_url) VALUES ('art-cached', 'https://img.example.test/cached_cover.jpg')`,
+    )
+    await h.ctx.db.exec(
+      `UPDATE tracks SET title = 'CachedSong', artwork_id = 'art-cached' WHERE urn = ?`,
+      [URN],
+    )
+    ;(h.ctx.sources as unknown as SourcesStub).provider = provider(async () => ({
+      kind: 'remote',
+      target: 'https://cdn.example.test/audio.mp3',
+      seekable: true,
+    }))
+
+    const task = (await h.ctx.downloads.enqueue([URN]))[0]!
+    await until(() => h.downloads.task(task.id)?.state === 'done')
+
+    const binding = (await h.bindings())[0]!
+    const fileBytes = await h.ctx.fs.readBytes(binding.uri)
+    const text = new TextDecoder('latin1').decode(fileBytes)
+    expect(text.startsWith('ID3')).toBe(true)
+    expect(text.includes('APIC')).toBe(true)
+
+    // Verify artwork was saved in cache
+    const cacheEntries = await h.cacheEntries()
+    expect(cacheEntries.length).toBeGreaterThan(0)
   })
 
   it('synchronizes wifiOnly policy with settings service', async () => {

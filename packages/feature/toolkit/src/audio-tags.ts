@@ -97,8 +97,10 @@ function makeId3Frame(id: string, text: string): Uint8Array {
   return frame
 }
 
-function detectImageMime(data: Uint8Array, mime?: string): string {
-  if (mime && mime.startsWith('image/')) return mime
+export function detectImageMime(data: Uint8Array, mime?: string): string {
+  if (data.length >= 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) {
+    return 'image/jpeg'
+  }
   if (
     data.length >= 8 &&
     data[0] === 0x89 &&
@@ -108,6 +110,30 @@ function detectImageMime(data: Uint8Array, mime?: string): string {
   ) {
     return 'image/png'
   }
+  if (
+    data.length >= 6 &&
+    data[0] === 0x47 &&
+    data[1] === 0x49 &&
+    data[2] === 0x46 &&
+    data[3] === 0x38
+  ) {
+    return 'image/gif'
+  }
+  if (
+    data.length >= 12 &&
+    data[0] === 0x52 &&
+    data[1] === 0x49 &&
+    data[2] === 0x46 &&
+    data[3] === 0x46 &&
+    data[8] === 0x57 &&
+    data[9] === 0x45 &&
+    data[10] === 0x42 &&
+    data[11] === 0x50
+  ) {
+    return 'image/webp'
+  }
+  const cleanMime = mime ? mime.split(';')[0]?.trim().toLowerCase() : undefined
+  if (cleanMime && cleanMime.startsWith('image/')) return cleanMime
   return 'image/jpeg'
 }
 
@@ -628,6 +654,11 @@ export function embedMp4Tags(bytes: Uint8Array, metadata: AudioTagMetadata): Uin
     new DataView(newMoov.buffer).setUint32(0, newMoovSize)
   }
 
+  const delta = newMoov.length - moovSize
+  if (delta !== 0) {
+    adjustMp4ChunkOffsets(newMoov, delta)
+  }
+
   const beforeMoov = bytes.subarray(0, moovOffset)
   const afterMoov = bytes.subarray(moovEnd)
   const out = new Uint8Array(beforeMoov.length + newMoov.length + afterMoov.length)
@@ -637,9 +668,38 @@ export function embedMp4Tags(bytes: Uint8Array, metadata: AudioTagMetadata): Uin
   return out
 }
 
+function adjustMp4ChunkOffsets(moovBytes: Uint8Array, delta: number): void {
+  if (delta === 0) return
+  const view = new DataView(moovBytes.buffer, moovBytes.byteOffset, moovBytes.byteLength)
+  for (let i = 0; i <= moovBytes.length - 8; i++) {
+    // Check for 'stco'
+    if (
+      moovBytes[i] === 0x73 &&
+      moovBytes[i + 1] === 0x74 &&
+      moovBytes[i + 2] === 0x63 &&
+      moovBytes[i + 3] === 0x6f
+    ) {
+      const atomStart = i - 4
+      if (atomStart >= 0) {
+        const atomSize = view.getUint32(atomStart)
+        if (atomSize >= 16 && atomStart + atomSize <= moovBytes.length) {
+          const count = view.getUint32(atomStart + 12)
+          let offsetPos = atomStart + 16
+          for (let c = 0; c < count && offsetPos + 4 <= atomStart + atomSize; c++) {
+            const currentOffset = view.getUint32(offsetPos)
+            view.setUint32(offsetPos, currentOffset + delta)
+            offsetPos += 4
+          }
+        }
+      }
+    }
+  }
+}
+
 /**
  * Embed audio metadata into an audio file based on container format.
- * Supports 'mp3', 'flac', 'm4a', 'mp4'.
+ * Supports 'mp3', 'flac', 'm4a', 'mp4', 'aac'.
+ * Automatically sniffs magic bytes if format is missing or mismatched.
  * Returns modified bytes or original bytes if format is unsupported or modification fails.
  */
 export function embedAudioTags(
@@ -647,11 +707,38 @@ export function embedAudioTags(
   format: string | undefined,
   metadata: AudioTagMetadata,
 ): Uint8Array {
-  if (!format || !bytes || bytes.length === 0) return bytes
+  if (!bytes || bytes.length === 0) return bytes
 
-  const fmt = format.toLowerCase().trim()
+  let fmt = format?.toLowerCase().trim()
+  if (
+    bytes.length >= 4 &&
+    bytes[0] === 0x66 &&
+    bytes[1] === 0x4c &&
+    bytes[2] === 0x61 &&
+    bytes[3] === 0x43
+  ) {
+    fmt = 'flac'
+  } else if (
+    bytes.length >= 8 &&
+    ((bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) ||
+      (bytes[4] === 0x6d && bytes[5] === 0x6f && bytes[6] === 0x6f && bytes[7] === 0x76))
+  ) {
+    fmt = 'm4a'
+  } else if (
+    bytes.length >= 3 &&
+    bytes[0] === 0x49 &&
+    bytes[1] === 0x44 &&
+    bytes[2] === 0x33
+  ) {
+    if (!fmt || fmt === 'flac' || fmt === 'm4a') {
+      fmt = 'mp3'
+    }
+  }
+
+  if (!fmt) return bytes
+
   try {
-    if (fmt === 'mp3') {
+    if (fmt === 'mp3' || fmt === 'aac') {
       return embedMp3Tags(bytes, metadata)
     }
     if (fmt === 'flac') {
