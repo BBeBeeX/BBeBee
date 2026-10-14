@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { encodeMetadata, decodeMetadata, toBase64, fromBase64 } from "./metadata.js"
-import type { ShareLyricsData, SharePlaylistData, ShareTrackData } from "@BBeBee/protocol"
+import type { ShareLyricsData, ShareTrackData } from "@BBeBee/protocol"
 
 describe("metadata codec", () => {
   it("encodes and decodes utf-8 base64 strings with unicode and special symbols", () => {
