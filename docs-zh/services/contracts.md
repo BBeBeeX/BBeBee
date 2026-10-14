@@ -357,6 +357,11 @@ Electron：`safeStorage.encryptString`（Keychain / DPAPI / libsecret），密�
 `ctx.secrets.namespace(sourceId)`，且能力语法中不存在 `secrets:all`
 （[plugins/capabilities.md §7](../plugins/capabilities.md#7-能力模型)）。
 
+### 作用域隔离 Root 凭据 vs 跨插件显式命名空间
+- **调用方作用域隔离的根密钥 (`ctx.secrets.get/set/delete`):** 未指定命名空间的调用会自动附加调用方插件的 Cordis ID (`this.scope()`)，以保持各插件私有凭据之间的安全隔离。
+- **跨插件共享的显式命名空间 (`ctx.secrets.namespace(ns)`):** 显式命名空间代表领域实体（如特定音源凭据或账户会话），在所有具备访问权限的插件之间全局统一共享，不附加写入方插件作用域前缀。这确保了由 UI 插件（如 `@BBeBee/plugin-settings-ui-desktop`）配置写入的凭据，可以被沙箱运行时插件（如 `@BBeBee/plugin-source-runtime`）无缝读取。
+- **平滑自动迁移机制:** 当查询显式命名空间的键时，如果发现带有调用方前缀的历史旧键（`@BBeBee/plugin-*/<namespace>:<key>`），`core-secrets-node` 会自动识别并将其透明迁移为未加前缀的全局命名空间键，同时清除历史残留项。
+
 ---
 
 ## 7. `ctx.mediaSession` —— 正在播放与播放控制

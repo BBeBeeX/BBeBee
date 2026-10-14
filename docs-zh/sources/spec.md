@@ -312,7 +312,7 @@ export interface LyricRule { lyric: string; format?: string; offsetMs?: string }
 
 `browse` 就是 `exploreUrl` + `ruleExplore`：每个探索条目是一个带标题的 URL，而 `childUrl` 非空的条目是要深入下去的节点，而不是拿来播放的叶子。文件夹树、流派列表、排行榜、播客 feed 的单集列表，用的都是同样三个字段 —— 这正是同一个 UI 组件能渲染它们全部的原因。
 
-`recommend` 是 `ruleRecommend` 作用于可选 `recommendUrl` 文档（规范见 [rules/sources.md §2](../../rules/sources.md#2-rule-language)（L2）：每次调用一页精选清单、行按 browse 行映射、`recommendUrl` 可省且 `result` 为 `null`），`ctx.sources.recommend` 缓存该页的方式与 `browse` 完全一致。在这一机制之外，有一件事是源自己的策略：被推荐资源已经消失时后端如何应答。音源可以把答案一分为二：*gone*（API 明确 -404）渲染"当前资源无效"占位卡；*暂时被拒*（限流、风控、超时）渲染"加载失败"卡并写明原因，且不落任何缓存，下次读取该页时自动重试。卡片的创作者一行属于歌单页而非推荐页：为一行字每卡片多打一个请求不值得，UP 主名等点开歌单页时再取。
+`recommend` 是 `ruleRecommend` 作用于可选 `recommendUrl` 文档（规范见 [rules/sources.md §2](../../rules/sources.md#2-rule-language)（L2）：每次调用一页精选清单、行按 browse 行映射、`recommendUrl` 可省且 `result` 为 `null`），`ctx.sources.recommend` 缓存该页的方式与 `browse` 完全一致。在这一机制之外，有一件事是源自己的策略：被推荐资源已经消失时后端如何应答。音源可以把答案一分为二：*gone*（API 明确 -404）渲染"当前资源无效"占位卡；*暂时被拒*（限流、风控、超时）渲染"加载失败"卡并写明原因，且不落任何缓存，下次读取该页时自动重试。卡片的创作者一行属于歌单页而非推荐页：为一行字每卡片多打一个请求不值得，UP 主名等点开歌单页时再取。对于基于目录分级组织的后端（如 Subsonic / OpenSubsonic），推荐歌单列表的首项固定为默认歌单（或根音乐目录），之后的卡片为随机抽取的其他目录歌单集合。
 
 **规则块内的未知字段会在导入时被拒绝。** 不是忽略 —— 是拒绝，并指明路径，因此 `{ "ruleSearch": { "titel": "$.title" } }` 会在导入界面上失败，而不是导入一个标题永远缺席的源。与顶层的非对称（[schema.md §4.1](../data-model/schema.md#41-音源账号与会话)，在那里未知字段被原样保留、只是根本无人去读）是刻意的：`sourceName` 旁边多出来的一个键是向前兼容，而 `title` 旁边多出来的一个键是笔误 —— 恰好是笔误只产出静默、不产出错误的唯一一处。
 

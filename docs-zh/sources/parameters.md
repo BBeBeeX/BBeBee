@@ -47,7 +47,9 @@ flowchart TD
 ### 2.1 铁律：SQLite 中严禁存放敏感密钥
 
 1. **零密钥入库：** 任何口令、认证 Token、会话凭据或私钥绝对不得持久化在 SQLite 数据表（`sources`、`source_vars` 或日志表）中。
-2. **硬件密钥库背书：** 所有敏感值均路由至 `ctx.secrets`，存放在由源 id 构成的隔离命名空间下（`ctx.secrets.namespace(sourceId)`）。桌面端映射到操作系统 Keychain（经 Electron `safeStorage` 或原生 Keychain API）；移动端映射到 iOS Keychain / Android Keystore。
+2. **硬件密钥库背书与显式命名空间跨插件共享：** 所有敏感值均路由至 `ctx.secrets`，存放在由源 id 构成的隔离命名空间下（`ctx.secrets.namespace(sourceId)`）。桌面端映射到操作系统 Keychain（经 Electron `safeStorage` 或原生 Keychain API）；移动端映射到 iOS Keychain / Android Keystore。
+   - **显式命名空间跨插件共享：** 根密钥（`ctx.secrets.get/set`）为插件私有，以调用方 Cordis 插件 ID（`this.scope()`）为前缀隔离；而显式命名空间（`ctx.secrets.namespace(ns)`）代表跨插件的领域实体凭据，在所有具备访问权限的插件间全局统一共享（如由 `@BBeBee/plugin-settings-ui-desktop` 写入，由 `@BBeBee/plugin-source-runtime` 读取），不附加写入方插件前缀。
+   - **历史遗留键平滑自动迁移：** `core-secrets-node` 的 `rawGet` 自动识别带有插件前缀的历史旧键（例如 `@BBeBee/plugin-*/...`），在读取时自动平滑迁移为纯净命名空间键并持久化。
 3. **UI 纯只写掩码策略：** 界面绝不回显已存储的明文密码。密码字段在存在值时显示掩码点位符（`••••••••`）。用户输入新值即可覆盖写入，但无法通过前端组件检查或反射导出密钥。
 4. **沙箱出口白名单动态同步：** 当用户修改 `sourceUrl` 或 `host` 时，`updateSourceParams` 自动重新计算 `allowedHostsFor(sourceId)`：
    - 新主机名实时合并入该源的网络访问白名单。
@@ -122,7 +124,26 @@ export interface LyricSourcesService {
 ## 5. UI 组件架构与复用原则
 
 遵循三包原则与 `@BBeBee/ui` 设计规范：
-- **桌面端组件：** `packages/ui/plugin-sources-ui-desktop/src/components/SourceConfigureModal.tsx`
-- **移动端组件：** `packages/ui/plugin-sources-ui-mobile/src/SourceConfigureModal.tsx`
-- **歌词源配置组件：** `packages/ui/plugin-settings-ui-desktop/src/components/sections/LyricSourcesSection.tsx`（内置完整 JSON 编辑器）
+- **桌面端组件：** `SourceConfigureModal.tsx`（位于 `plugin-sources-ui-desktop` 与 `plugin-settings-ui-desktop`）
+- **移动端组件：** `SourceConfigureModal.tsx`（位于 `plugin-sources-ui-mobile`）
+- **歌词源配置组件：** `LyricSourcesSection.tsx`（位于 `plugin-settings-ui-desktop`，内置完整 JSON 编辑器）
 - **通用 Hooks：** 统一导出自 `@BBeBee/plugin-sources/views` 与 `@BBeBee/plugin-lyric-sources`，实现界面与核心业务逻辑的完全解耦。
+
+### 5.1 声明式音源配置弹窗交互准则 (Declarative Source Configuration Contract)
+
+音源配置弹窗（`SourceConfigureModal`）严格遵循**“仅渲染音源文档显式提及与声明的参数”**原则：
+
+1. **服务器地址 (Host / `serverHostLabel`)：**
+   - 仅在音源文档的 `doc.params` 中声明了服务器相关字段（如 `sourceurl`、`source_url`、`host`、`server`、`server_url`），或属于自建云音源类别（`sourceGroup` 包含 `subsonic` 或 `self-hosted`）时才渲染；
+   - 对于 Bilibili、本地音频等固定后端音源，彻底隐藏服务器地址输入框。
+2. **认证凭据 (Credentials / `loginUi`)：**
+   - 仅渲染音源在 `doc.loginUi` 或 `doc.params` 中声明的字段（或 Subsonic 约定的 `user` 与 `password`）；
+   - 当 `loginType !== 'variable'` 且 `loginUi`/`params` 中未声明 `var` 时，严格排除历史遗留的 `var` 变量输入框。
+3. **音源变量 (Variables / `source_vars`)：**
+   - 严格仅为 `doc.params` 中声明的非凭据、非 Host 字段（如 `clientApp`）渲染输入框；
+   - **彻底移除任意自定义变量增添机制**（“新建键 / 新建变量值 / 添加”按钮）：音源 QuickJS 沙箱不会且无法读取未声明的运行时任意变量，因此不再提供自由增添入口。
+4. **连通性探测 (Connectivity Probe)：**
+   - 仅在音源拥有 Host 参数、属于 Subsonic 或定义了 `loginUrl` 时展示“测试连接”按钮。
+5. **无配置项友好提示：**
+   - 当音源无需任何用户配置（如纯扫码登录音源）时，展示本地化提示：“该音源无需配置额外参数。”（`sources:sourceConfigure.noConfigurableParams`）。
+

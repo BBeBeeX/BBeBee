@@ -73,6 +73,9 @@ Each shell resolves the contribution ID against its target view registry via `ct
 > - Settings rows and cards are contributed via `ctx.ui.contribute({ kind: 'settings', ... })` or `ctx.settings.contribute(...)`, never hardcoded into Settings screens. The settings screen does exactly three things: group contributions by `section`, sort by `order` and render them; subscribe to `settings/contributions-changed` (and `ui/changed`) to refresh; render empty/disabled states. Its source must contain no business field names owned by other plugins (no `desktopLyrics`, `keybindings`, `proxy`, …) and must not import any `plugin-*` business package — unloading a plugin makes its section disappear with no hole and no error.
 > - Desktop TopBar features a Windows-like system tray toggle button beside the "Import & Share" button (chevron-down when collapsed, chevron-up when expanded). Plugins determine whether to show in the main interface/tray via `placement: ['tray']` on their route or via `TrayContribution`. Clicking an icon navigates to that plugin's view in the main window (`ctx.ui.navigate`) and closes the tray popover.
 
+> 🔒 **Declarative Source Configuration Modals**:
+> Source configuration forms (`SourceConfigureModal` in desktop and mobile) must only render input fields explicitly declared by the source (`doc.params`, `doc.loginUi`, `doc.loginType`, `doc.sourceGroup`). They must never include freeform key-value dictionary editors (e.g. "Add variable" rows) for undeclared variables, nor show host fields for fixed-endpoint sources. When no configurable parameters are declared, render a localized empty-state notice (`sources:sourceConfigure.noConfigurableParams`).
+
 ---
 
 ## 3. Hooks & State Binding

@@ -30,7 +30,7 @@ Declared in `packages/protocol/src/services/` and augmented onto `Context`:
 | `ctx.paths` | Well-known directories (`data`, `cache`, `temp`, `music`, `downloads`, `logs`) | `core-paths-node`, `core-paths-expo` |
 | `ctx.store` | Key-value config persistence | `core-store-fs` (shared) |
 | `ctx.db` | SQLite database with WAL and transactions | `core-db-node` (desktop), `core-db-expo` (mobile) |
-| `ctx.secrets` | Keychain and hardware-backed credential storage | `core-secrets-node`, `core-secrets-expo` |
+| `ctx.secrets` | Keychain and hardware-backed credential storage (root is caller-scoped; explicit namespaces `ctx.secrets.namespace(ns)` are cross-plugin shared) | `core-secrets-node`, `core-secrets-expo` |
 | `ctx.http` | Outbound HTTP with cookie jar and isolation | `core-http-node`, `core-http-rn` |
 | `ctx.ws` | WebSocket client with capability host checks | `core-http-node` / native |
 | `ctx.audio` | Web Audio API graph (`AudioContext`, DSP nodes) | `core-audio-webaudio` (shared), `core-audio-mpv` (desktop: libmpv native engine in a crash-isolated subprocess, direct OS audio output with optional WASAPI exclusive mode, append-based gapless, real-PCM SPSC RingBuffer FFT spectrum & time-domain waveform, astats RMS/Peak levels; mobile also registers it — Route B in-process libmpv JNI/JSI bridge, see `apps/mobile/src/boot.ts`) |

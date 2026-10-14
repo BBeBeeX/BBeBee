@@ -392,6 +392,11 @@ under `userData`. Expo: `expo-secure-store` (Keychain / EncryptedSharedPreferenc
 line. Each source gets `ctx.secrets.namespace(sourceId)`, and the capability grammar
 has no `secrets:all` ([plugins/capabilities.md §7](../plugins/capabilities.md#7-capability-model)).
 
+### Scoped Root Secrets vs Cross-Plugin Namespaces
+- **Caller-Scoped Root Secrets (`ctx.secrets.get/set/delete`):** Unnamespaced calls prepend the caller plugin's Cordis ID (`this.scope()`) to isolate private secrets between plugins.
+- **Cross-Plugin Explicit Namespaces (`ctx.secrets.namespace(ns)`):** Explicit namespaces represent domain entities (e.g. music source credentials or account sessions) and are shared across plugins without attaching caller scope prefixes. This ensures credentials configured by UI packages (e.g. `@BBeBee/plugin-settings-ui-desktop`) can be read by sandboxed runtimes (e.g. `@BBeBee/plugin-source-runtime`).
+- **Automatic Migration:** When reading an explicit namespace key, if a legacy key with a caller-scoped prefix (`@BBeBee/plugin-*/<namespace>:<key>`) is found, `core-secrets-node` transparently migrates it to the un-scoped namespace key and removes the legacy entry.
+
 ---
 
 ## 7. `ctx.mediaSession` — now playing & transport controls

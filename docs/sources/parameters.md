@@ -47,7 +47,9 @@ flowchart TD
 ### 2.1 The Invariant: No Secrets in SQLite
 
 1. **Zero Secret Persistence in Database:** Under no circumstances are credentials, passwords, session tokens, or API secrets persisted in SQLite database tables (`sources`, `source_vars`, or logs).
-2. **Hardware-Backed Secret Storage:** All sensitive values are routed to `ctx.secrets` under the isolated namespace formed from the source's id (`ctx.secrets.namespace(sourceId)`). On desktop, this maps to OS Keychain (via Electron `safeStorage` or native keychain APIs); on mobile, this maps to iOS Keychain / Android Keystore.
+2. **Hardware-Backed Secret Storage & Cross-Plugin Explicit Namespaces:** All sensitive values are routed to `ctx.secrets` under the isolated namespace formed from the source's id (`ctx.secrets.namespace(sourceId)`). On desktop, this maps to OS Keychain (via Electron `safeStorage` or native keychain APIs); on mobile, this maps to iOS Keychain / Android Keystore.
+   - **Cross-Plugin Namespace Sharing:** Root secrets (`ctx.secrets.get/set`) are private and scoped to the calling Cordis plugin ID (`this.scope()`). In contrast, explicit namespaces (`ctx.secrets.namespace(ns)`) represent domain-level entities (e.g. source credentials) and are shared across plugins (e.g. written by `@BBeBee/plugin-settings-ui-desktop` and read by `@BBeBee/plugin-source-runtime`).
+   - **Automatic Legacy Key Migration:** `rawGet` in `core-secrets-node` transparently detects legacy keys prefixed with caller plugin IDs (e.g., `@BBeBee/plugin-*/...`) and migrates them to the un-scoped namespace key on read.
 3. **UI Write-Only Exposure:** The UI never displays decrypted secrets in plaintext. Password fields render masked placeholder dots (`••••••••`). Users can enter a new password to overwrite existing credentials, but cannot exfiltrate stored credentials via UI inspection.
 4. **Automated Sandbox Egress Allowlist & Dynamic `sourceurl` Whitelisting:**
    - **Declarative `params`:** When a source declares `params: ['sourceurl', ...]` (in its document or registry metadata), BBeBee treats its backend address as a user-configurable endpoint.
@@ -126,7 +128,26 @@ When a lyric query is executed:
 ## 5. UI Architecture & Reusable Bindings
 
 In accordance with the Three-Package UI Rule and `@BBeBee/ui` guidelines:
-- **Desktop Component:** `SourceConfigureModal.tsx` in `plugin-sources-ui-desktop`.
+- **Desktop Component:** `SourceConfigureModal.tsx` in `plugin-sources-ui-desktop` and `plugin-settings-ui-desktop`.
 - **Mobile Component:** `SourceConfigureModal.tsx` in `plugin-sources-ui-mobile`.
 - **Lyric Source Config:** `LyricSourcesSection.tsx` in `plugin-settings-ui-desktop` with full JSON schema editor.
 - **Headless Hooks:** `useSourceParams` and `useLyricSourceConfig` in `@BBeBee/plugin-sources/views` and `@BBeBee/plugin-lyric-sources`.
+
+### 5.1 Declarative Source Configuration Contract
+
+The source configure modal (`SourceConfigureModal`) follows a strict declarative display contract: **only parameters explicitly mentioned by the source document are rendered**.
+
+1. **Host Section (`host` / `serverHostLabel`):**
+   - Rendered only if the source mentions host/URL in `doc.params` (`sourceurl`, `source_url`, `host`, `server`, `server_url`) or belongs to self-hosted source groups (`sourceGroup` contains `subsonic` or `self-hosted`).
+   - For sources with fixed backend endpoints (e.g. Bilibili, Local scanner), the Host input is completely hidden.
+2. **Credentials Section (`secrets` / `loginUi`):**
+   - Renders only fields declared in `doc.loginUi` or `doc.params` (or `user` and `password` for Subsonic).
+   - The generic `var` field is excluded when `loginType !== 'variable'`, unless explicitly declared in `loginUi` or `params`.
+3. **Variables Section (`vars` / `source_vars`):**
+   - Renders inputs strictly for non-credential, non-host keys declared in `doc.params` (e.g. `clientApp`).
+   - Arbitrary dynamic variable additions ("New Key / Value / Add") are strictly prohibited and omitted: the QuickJS sandbox cannot consume undeclared runtime variables, so freeform key-value forms are removed.
+4. **Connectivity Probe:**
+   - The "Test Connection" button is only displayed if the source declares a host parameter, is Subsonic, or defines a `loginUrl`.
+5. **Zero-Configuration Empty State:**
+   - If a source requires no parameters (e.g. QR-code login sources without custom parameters), the modal renders a localized empty-state notice (`sources:sourceConfigure.noConfigurableParams`).
+

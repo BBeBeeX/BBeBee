@@ -375,7 +375,7 @@ source can, for one, split the answer in two: *gone* (the API says -404)
 renders a placeholder card, "This resource is no longer available"; *transiently refused* (rate limiting, risk control, a
 timeout) renders a "Failed to load" card naming the reason, with nothing cached so the next read of the
 page retries. A card's creator line is the playlist page's business, not the shelf's: one lookup
-per card for a name was two requests per card for one line of text.
+per card for a name was two requests per card for one line of text. For directory-based backends (such as Subsonic / OpenSubsonic), recommendations yield the library's default playlist or root directory as the very first card, followed by randomized collections sampled across other folders.
 
 **An unknown field inside a rule block is refused at import.** Not ignored — refused, with the
 path named, so `{ "ruleSearch": { "titel": "$.title" } }` fails on the import screen rather than
