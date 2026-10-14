@@ -70,7 +70,7 @@ export interface FftSpectrumFrame {
 
 export class MpvSourceHandle implements AudioSourceHandle {
   readonly node: AudioNode
-  readonly durationMs: number
+  private _durationMs: number
   private position = 0
   private isPlaying = false
   private startTime = 0
@@ -93,10 +93,14 @@ export class MpvSourceHandle implements AudioSourceHandle {
     pausedStallMs?: number,
     initialEndedCount?: number,
   ) {
-    this.durationMs = durationMs
+    this._durationMs = durationMs
     this.pausedStallMs = pausedStallMs ?? 2_000
     this.initialEndedCount = initialEndedCount
     this.node = this.context.createGain()
+  }
+
+  get durationMs(): number {
+    return this._durationMs
   }
 
   play(atMs?: number): void {
@@ -132,6 +136,9 @@ export class MpvSourceHandle implements AudioSourceHandle {
               | { positionMs?: number; durationMs?: number; status?: string; endedCount?: number }
               | undefined
             if (state && typeof state.positionMs === 'number') {
+              if (typeof state.durationMs === 'number' && state.durationMs > 0) {
+                this._durationMs = state.durationMs
+              }
               if (this.initialEndedCount === undefined && typeof state.endedCount === 'number') {
                 this.initialEndedCount = state.endedCount
               }
@@ -143,8 +150,8 @@ export class MpvSourceHandle implements AudioSourceHandle {
               // Detect track rollover when gapless playback advances in mpv:
               // position was near the track end and suddenly dropped back to near zero.
               const positionRollover =
-                this.durationMs > 2000 &&
-                this.position >= this.durationMs - 2000 &&
+                this._durationMs > 2000 &&
+                this.position >= this._durationMs - 2000 &&
                 state.positionMs < 1500
 
               if (state.status === 'ended' || countEnded || positionRollover) {
@@ -221,8 +228,8 @@ export class MpvSourceHandle implements AudioSourceHandle {
           }
         } else {
           this.position = Date.now() - this.startTime
-          if (this.durationMs > 0 && this.position >= this.durationMs) {
-            this.position = this.durationMs
+          if (this._durationMs > 0 && this.position >= this._durationMs) {
+            this.position = this._durationMs
             this.isPlaying = false
             if (this.timer) {
               clearInterval(this.timer)
@@ -257,7 +264,7 @@ export class MpvSourceHandle implements AudioSourceHandle {
   }
 
   seek(atMs: number): void {
-    this.position = Math.max(0, Math.min(this.durationMs, atMs))
+    this.position = Math.max(0, this._durationMs > 0 ? Math.min(this._durationMs, atMs) : atMs)
     this.startTime = Date.now() - this.position
     this.bridge?.('audio', 'mpvSeek', [this.position]).catch(() => undefined)
   }
@@ -304,14 +311,16 @@ export class MpvSourceHandle implements AudioSourceHandle {
  */
 class DegradedStreamHandle implements AudioSourceHandle {
   readonly node: AudioNode
-  readonly durationMs: number
 
   constructor(
     private readonly inner: StreamedHandle,
     private readonly bridge?: BridgeCall,
   ) {
     this.node = inner.node
-    this.durationMs = inner.durationMs
+  }
+
+  get durationMs(): number {
+    return this.inner.durationMs
   }
 
   private notify(playing: boolean): void {

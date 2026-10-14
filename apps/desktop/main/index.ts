@@ -366,6 +366,7 @@ function createWindow(): BrowserWindow {
       nodeIntegration: false,
       sandbox: true,
       preload: join(here, '../preload/index.cjs'),
+      backgroundThrottling: false,
     },
   })
 
@@ -565,6 +566,7 @@ function createLyricWindow(pos?: { x?: number; y?: number }): BrowserWindow {
       nodeIntegration: false,
       sandbox: true,
       preload: join(here, '../preload/index.cjs'),
+      backgroundThrottling: false,
     },
   })
 

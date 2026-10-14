@@ -303,6 +303,23 @@ class SettingsStub extends Service implements Partial<SettingsService> {
         needsLyricSource: false,
       },
       {
+        id: 'mock-bili',
+        name: 'Bilibili Music',
+        sourceUrl: 'https://bilibili.com',
+        type: 'music',
+        doc: { sourceName: 'Bilibili Music' } as any,
+        docJson: '{}',
+        docHash: 'hash',
+        enabled: true,
+        sortOrder: 0,
+        allowedHosts: [],
+        locallyModified: false,
+        importedAt: 0,
+        updatedAt: 0,
+        failCount: 0,
+        needsLyricSource: false,
+      },
+      {
         id: 'mock-subsonic-1',
         name: 'Navidrome',
         sourceUrl: 'https://navi1.example.com',
@@ -1598,6 +1615,7 @@ describe('SettingsScreen', () => {
     )
 
     // Configured sources list shows mock-bili
+    expect(await findByText('Bilibili Music')).toBeTruthy()
     expect(getByTestId('settings-source-item-mock-bili')).toBeTruthy()
     expect(getByTestId('settings-source-auth-mock-bili')).toBeTruthy()
     expect(getByTestId('settings-source-probe-mock-bili')).toBeTruthy()

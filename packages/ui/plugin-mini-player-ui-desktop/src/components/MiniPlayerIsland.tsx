@@ -232,6 +232,7 @@ export function MiniPlayerIsland({
         h(ProgressBar, {
           positionMs: data.positionMs,
           durationMs: data.durationMs,
+          isPlaying,
           showTimestamps: true,
           onSeek: (pos) => onAction({ type: 'seek', positionMs: pos }),
         }),

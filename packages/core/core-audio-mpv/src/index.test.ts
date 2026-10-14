@@ -1043,4 +1043,38 @@ describe('core-audio-mpv native engine features', () => {
 
     expect(endedFired).toBe(1)
   })
+
+  it('updates duration dynamically when discovered during playback (e.g. network stream probe)', async () => {
+    let streamDuration = 0
+
+    const bridgeCall = async (_service: string, method: string) => {
+      if (method === 'mpvLoad') {
+        // Stream duration initially unknown at load
+        return { durationMs: 0 }
+      }
+      if (method === 'mpvGetState') {
+        return {
+          status: 'playing',
+          positionMs: 5000,
+          durationMs: streamDuration,
+        }
+      }
+      return undefined
+    }
+
+    const { audio } = await harness({ bridgeCall })
+    const handle = await audio.load('https://example.org/stream.mp3')
+    expect(handle.durationMs).toBe(0)
+
+    handle.play(0)
+    // Initially duration is 0
+    await new Promise((r) => setTimeout(r, 100))
+    expect(handle.durationMs).toBe(0)
+
+    // Stream probes duration from network headers / metadata
+    streamDuration = 240_000
+    await new Promise((r) => setTimeout(r, 250))
+    expect(handle.durationMs).toBe(240_000)
+    handle.dispose()
+  })
 })

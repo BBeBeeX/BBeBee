@@ -143,6 +143,7 @@ export function MiniPlayerFloating({
         h(ProgressBar, {
           positionMs: data.positionMs,
           durationMs: data.durationMs,
+          isPlaying,
           onSeek: (pos) => onAction({ type: 'seek', positionMs: pos }),
         }),
       ),

@@ -211,6 +211,7 @@ export class MiniPlayerWindowManager {
         nodeIntegration: false,
         sandbox: true,
         preload: join(this.here, '../preload/index.cjs'),
+        backgroundThrottling: false,
       },
     })
 

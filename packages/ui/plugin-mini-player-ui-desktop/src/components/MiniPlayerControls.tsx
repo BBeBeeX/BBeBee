@@ -1,4 +1,4 @@
-import { createElement as h, useRef } from 'react'
+import { createElement as h, useEffect, useRef, useState } from 'react'
 import type { ReactElement, MouseEvent } from 'react'
 import type { MiniPlayerData, MiniPlayerAction } from '@BBeBee/protocol'
 import { useBridgeLocale } from '@BBeBee/ui-kit-desktop'
@@ -176,6 +176,7 @@ export function TransportButtons({
 export interface ProgressBarProps {
   positionMs: number
   durationMs: number
+  isPlaying?: boolean
   onSeek?: (positionMs: number) => void
   showTimestamps?: boolean
 }
@@ -183,11 +184,42 @@ export interface ProgressBarProps {
 export function ProgressBar({
   positionMs,
   durationMs,
+  isPlaying = false,
   onSeek,
   showTimestamps = false,
 }: ProgressBarProps): ReactElement {
   const barRef = useRef<HTMLDivElement>(null)
-  const progressPercent = durationMs > 0 ? Math.min(100, Math.max(0, (positionMs / durationMs) * 100)) : 0
+  const [displayPosition, setDisplayPosition] = useState(positionMs)
+  const anchorRef = useRef({
+    positionMs,
+    at: typeof performance !== 'undefined' ? performance.now() : Date.now(),
+  })
+
+  // Whenever positionMs, isPlaying, or durationMs update from upstream data (authoritative update), re-anchor
+  useEffect(() => {
+    anchorRef.current = {
+      positionMs,
+      at: typeof performance !== 'undefined' ? performance.now() : Date.now(),
+    }
+    setDisplayPosition(positionMs)
+  }, [positionMs, isPlaying])
+
+  // Interpolate smoothly during playback
+  useEffect(() => {
+    if (!isPlaying) return
+    let frame = 0
+    const tick = () => {
+      const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
+      const elapsed = Math.max(0, now - anchorRef.current.at)
+      const bound = durationMs > 0 ? durationMs : Number.POSITIVE_INFINITY
+      setDisplayPosition(Math.min(anchorRef.current.positionMs + elapsed, bound))
+      frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [isPlaying, durationMs])
+
+  const progressPercent = durationMs > 0 ? Math.min(100, Math.max(0, (displayPosition / durationMs) * 100)) : 0
 
   const handleClick = (e: MouseEvent<HTMLDivElement>) => {
     if (!onSeek || durationMs <= 0 || !barRef.current) return
@@ -237,7 +269,7 @@ export function ProgressBar({
           height: '100%',
           borderRadius: 2,
           backgroundColor: '#FFFFFF',
-          transition: 'width 0.1s linear',
+          transition: isPlaying ? 'none' : 'width 0.1s linear',
         },
       }),
     ),
@@ -254,7 +286,7 @@ export function ProgressBar({
             userSelect: 'none',
           },
         },
-        h('span', null, formatTime(positionMs)),
+        h('span', null, formatTime(displayPosition)),
         // A live stream has no duration; `formatTime` renders 0 as `0:00`,
         // which would claim it is zero seconds long — the same honesty the
         // toolkit's `formatDuration` already applies to unknown durations.
