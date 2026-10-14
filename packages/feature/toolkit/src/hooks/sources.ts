@@ -19,7 +19,7 @@ import { tryParseUrn } from '@BBeBee/protocol'
 import { serviceOf } from './react.js'
 
 /**
- * Resolves the display name of a track's source (e.g. 'Bilibili', 'Local', etc.).
+ * Resolves the display name of a track's source (e.g. 'Local', etc.).
  */
 export function resolveTrackSourceName(ctx: Context, urn?: string): string {
   if (!urn) return '-'

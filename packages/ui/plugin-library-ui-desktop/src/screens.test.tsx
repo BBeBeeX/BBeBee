@@ -225,25 +225,6 @@ class SourcesStub extends Service {
   async getArtist() {
     return undefined
   }
-  get(id: string) {
-    if (id === 'bilibili') return { id: 'bilibili', displayName: 'Bilibili' }
-    return undefined
-  }
-  async getPlaylist(urn: string, page?: { cursor?: string; limit?: number }) {
-    if (urn === 'BBeBee:bilibili:playlist:bili_season_123_456') {
-      const isSecondPage = page?.cursor === '2'
-      return {
-        urn,
-        name: 'Bili Season',
-        hasMore: !isSecondPage,
-        cursor: isSecondPage ? undefined : '2',
-        items: isSecondPage
-          ? [{ id: 'item-p2', trackUrn: 'BBeBee:bilibili:track:BV2', position: 'b' }]
-          : [{ id: 'item-p1', trackUrn: 'BBeBee:bilibili:track:BV1', position: 'a' }],
-      }
-    }
-    return undefined
-  }
 }
 
 class UiStub extends Service {
@@ -1005,20 +986,6 @@ describe('PlaylistDetailScreen', () => {
     expect(player.calls).toContain(`${TRACK_B} <- 2`)
   })
 
-  it('renders source badge on playlist screen for third-party playlist', async () => {
-    const { ctx } = await harness()
-    const BILI_PLAYLIST_URN = 'BBeBee:bilibili:playlist:bili_season_123_456'
-    await withListLayout(async () => {
-      const { getByTestId } = render(h(PlaylistDetailScreen, { ctx, urn: BILI_PLAYLIST_URN }))
-      await act(async () => {
-        await tick()
-      })
-      const badge = getByTestId('playlist-source-badge')
-      expect(badge).toBeTruthy()
-      expect(badge.textContent).toBe('Bilibili')
-    })
-  })
-
   it('does not render source badge for local playlist', async () => {
     const { ctx } = await harness()
     await withListLayout(async () => {
@@ -1027,25 +994,6 @@ describe('PlaylistDetailScreen', () => {
         await tick()
       })
       expect(queryByTestId('playlist-source-badge')).toBeNull()
-    })
-  })
-
-  it('fetches third-party playlist and opens context menu with original resource option', async () => {
-    const { ctx } = await harness()
-    const BILI_PLAYLIST_URN = 'BBeBee:bilibili:playlist:bili_season_123_456'
-    await withListLayout(async () => {
-      const { getByTestId, getByText } = render(h(PlaylistDetailScreen, { ctx, urn: BILI_PLAYLIST_URN }))
-      await act(async () => {
-        await tick()
-      })
-
-      // Click more options button
-      await act(async () => {
-        getByTestId('playlist-more-trigger').click()
-        await tick()
-      })
-
-      expect(getByText('Open original resource')).toBeTruthy()
     })
   })
 

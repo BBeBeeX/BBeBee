@@ -638,7 +638,7 @@ export async function createHost(ipc: IpcHost, options: HostOptions = {}): Promi
          * policy from, so it defaults to `strict-origin-when-cross-origin`,
          * which for a cross-origin destination computes the origin alone — and
          * when that differs from the header the request is cancelled outright
-         * (`ERR_BLOCKED_BY_CLIENT`, "with invalid referrer"). Bilibili's CDN
+         * (`ERR_BLOCKED_BY_CLIENT`, "with invalid referrer").  CDN
          * checks the video-page referrer, so the download of a stream URL died
          * there while playback, whose referrer comes from the renderer's own
          * policy, worked.

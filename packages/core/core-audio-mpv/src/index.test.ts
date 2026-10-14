@@ -197,13 +197,13 @@ describe('core-audio-mpv', () => {
     const { audio } = await harness({ bridgeCall })
     await audio.load('https://cdn.example.com/song.m4s', {
       strategy: 'buffer',
-      headers: { Referer: 'https://www.bilibili.com' },
+      headers: { Referer: 'https://stream.example.test' },
     })
 
     expect(seenArgs?.[0]).toBe('https://cdn.example.com/song.m4s')
     expect(seenArgs?.[1]).toEqual({
       strategy: 'buffer',
-      headers: { Referer: 'https://www.bilibili.com' },
+      headers: { Referer: 'https://stream.example.test' },
     })
   })
 

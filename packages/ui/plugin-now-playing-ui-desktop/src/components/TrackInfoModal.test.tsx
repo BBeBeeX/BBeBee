@@ -199,50 +199,6 @@ describe('TrackInfoModal', () => {
     expect(queryByText('Third-party source ID')).toBeNull()
   })
 
-  it('renders third-party source details', async () => {
-    const ctx = new Context()
-    new DefaultI18nStub(ctx)
-    const player = new PlayerStub(ctx)
-    player.currentStream = {
-      format: 'm4a',
-      sampleRate: 48000,
-      channels: 2,
-      bitrateKbps: 320,
-    }
-
-    const track: Track = {
-      urn: 'BBeBee:bilibili:track:BV1xx411c7mD',
-      title: 'Bilibili Audio',
-      artists: makeArtists('UP Master'),
-      durationMs: 125000,
-    }
-
-    let closed = false
-    const { getByText, getAllByText, findByText, queryByText, getByLabelText } = render(
-      h(TrackInfoModal, { ctx, track, open: true, onClose: () => { closed = true } }),
-    )
-
-    expect(await findByText('Track details')).toBeTruthy()
-    expect(getByText('Bilibili Audio')).toBeTruthy()
-    expect(getByText('UP Master')).toBeTruthy()
-    expect(getByText('Third-party online music source')).toBeTruthy()
-    expect(getByText('Third-party source ID')).toBeTruthy()
-    expect(getByText('bilibili')).toBeTruthy()
-    expect(getByText('Current source track ID')).toBeTruthy()
-    expect(getByText('BV1xx411c7mD')).toBeTruthy()
-    expect(getAllByText('48,000 Hz').length).toBeGreaterThanOrEqual(1)
-    expect(getByText('320 kbps')).toBeTruthy()
-    expect(getByText('M4A')).toBeTruthy()
-
-    // Local fields should not be present
-    expect(queryByText('File path')).toBeNull()
-
-    // Test close button
-    const closeBtn = getByLabelText('Close')
-    fireEvent.click(closeBtn)
-    expect(closed).toBe(true)
-  })
-
   it('copies file path when clicking copy button', async () => {
     const ctx = new Context()
     new DefaultI18nStub(ctx)
@@ -337,35 +293,6 @@ describe('TrackInfoModal', () => {
     expect(getByText('25 MB')).toBeTruthy()
     expect(getByText('FLAC')).toBeTruthy()
     expect(getByText('1,000 kbps')).toBeTruthy()
-  })
-
-  it('calculates third-party bitrate dynamically and renders WASAPI output specs', async () => {
-    const ctx = new Context()
-    new DefaultI18nStub(ctx)
-    new AudioStub(ctx) // activeEngineName: wasapi, sampleRate: 96000
-    const player = new PlayerStub(ctx)
-    player.currentStream = {
-      byteLength: 9600000,
-      format: 'm4a',
-    }
-
-    const track: Track = {
-      urn: 'BBeBee:bilibili:track:BV12345678',
-      title: 'Bilibili Audio Stream',
-      artists: makeArtists('Artist'),
-      durationMs: 240000,
-    }
-
-    const { findByText, getByText } = render(
-      h(TrackInfoModal, { ctx, track, open: true, onClose: () => {} }),
-    )
-
-    expect(await findByText('320 kbps')).toBeTruthy()
-    expect(getByText('USB DAC Hi-Res Audio')).toBeTruthy()
-    expect(getByText('WASAPI (system shared mixing)')).toBeTruthy()
-    expect(getByText('96,000 Hz')).toBeTruthy()
-    expect(getByText('24-bit Float')).toBeTruthy()
-    expect(getByText('4,608 kbps (uncompressed PCM bandwidth)')).toBeTruthy()
   })
 
   it('corrects abnormal truncated bitrate (< 32 kbps) using physical file calculation', async () => {

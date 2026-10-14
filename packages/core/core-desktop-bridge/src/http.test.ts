@@ -147,11 +147,11 @@ describe('a request crossing to main', () => {
     disposeAll.push(() => h.mainHost.dispose())
 
     await h.fetch('https://cdn.example.test/audio.m4s', {
-      headers: { Referer: 'https://www.bilibili.com/video/BV1Hc411G7bA' },
+      headers: { Referer: 'https://video.example.test/watch/12345' },
     })
 
     expect(h.seen[0]!.init.headers['referer']).toBe(
-      'https://www.bilibili.com/video/BV1Hc411G7bA',
+      'https://video.example.test/watch/12345',
     )
     expect(h.seen[0]!.init.referrerPolicy).toBe('unsafe-url')
   })

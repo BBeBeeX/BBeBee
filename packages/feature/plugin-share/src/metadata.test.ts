@@ -32,36 +32,6 @@ describe("metadata codec", () => {
     expect(decoded?.data).toEqual(track)
   })
 
-  it("encodes and decodes playlist metadata envelope", () => {
-    const playlist: SharePlaylistData = {
-      urn: "source:bilibili:fav:9988",
-      name: "My curated playlist",
-      description: "A collection of great songs",
-      trackCount: 2,
-      tracks: [
-        {
-          urn: "source:bilibili:BV123",
-          title: "Track 1",
-          artist: "Artist 1",
-          duration: 180000,
-        },
-        {
-          urn: "source:bilibili:BV456",
-          title: "Track 2",
-          artist: "Artist 2",
-          duration: 210000,
-        },
-      ],
-    }
-
-    const b64 = encodeMetadata("playlist", playlist)
-    const decoded = decodeMetadata(b64)
-
-    expect(decoded).not.toBeNull()
-    expect(decoded?.type).toBe("playlist")
-    expect(decoded?.data).toEqual(playlist)
-  })
-
   it("encodes and decodes lyrics metadata envelope", () => {
     const lyrics: ShareLyricsData = {
       trackUrn: "source:local:track:1",

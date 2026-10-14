@@ -403,7 +403,7 @@ describe('Artwork', () => {
   })
 
   it('fetches a remote cover with no Referer', () => {
-    // Several CDNs — Bilibili's hdslb.com among them — answer a hotlink 403
+    // Several CDNs — answer a hotlink 403
     // when the referrer is a foreign origin, which in dev is localhost.
     const out = html(h(Artwork, { size: 48, artwork: { id: 'a', sourceUrl: 'https://x/a.jpg' } }))
     // React's server renderer spells it back in camelCase; the DOM attribute

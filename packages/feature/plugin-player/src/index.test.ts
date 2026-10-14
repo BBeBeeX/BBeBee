@@ -310,7 +310,7 @@ describe('transport', () => {
 
   it('falls back to the catalogue duration when the stream reports none', async () => {
     /*
-     * Bilibili's DASH audio is an fMP4 segment whose `moov` can carry no
+     * DASH audio is an fMP4 segment whose `moov` can carry no
      * duration: the element reports `Infinity`, which the audio contract maps
      * to 0 — and a progress bar with no maximum never leaves zero. The search
      * rule stored the duration, so the transport uses it.

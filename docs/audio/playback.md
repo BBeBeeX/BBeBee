@@ -125,7 +125,7 @@ Behaviours worth pinning down, because they are where players feel wrong:
   to retry). A failure *before* the track ever produced sound (a dead link) still reports `ended`,
   so the queue keeps skipping past links that never played.
 - **Duration is a floor, not a promise.** The transport reports `source.durationMs` whenever the
-  element has one, and falls back to the duration stored in the catalogue row otherwise — Bilibili's
+  element has one, and falls back to the duration stored in the catalogue row otherwise — 
   fMP4 streams are the motivating case, since the element reports `Infinity` while the search rule
   already knew how long the track is. Only seekable handles get the fallback, so a live stream still
   shows no scrubber.

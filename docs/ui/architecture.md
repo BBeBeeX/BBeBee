@@ -376,8 +376,7 @@ which events invalidate which state — are written once. Only the JSX is writte
 - **Artwork renders `blurhash` first**, then the image
   ([data-model/schema.md §4.2](../data-model/schema.md#42-artwork)). No layout shift, no grey flash on scroll. A remote
   cover is requested with **no `Referer`**: several CDNs answer a hotlink 403 when the referrer is
-  a foreign origin (Bilibili's `hdslb.com` does, and in dev the renderer's referrer is
-  `localhost`), which shows every result as a broken image while the same URL opens fine in a tab.
+  a foreign origin , which shows every result as a broken image while the same URL opens fine in a tab.
 - **A cover is resolved through `ctx.cache` before it renders.** The view packages render the kits'
   `Artwork` through a local `CachedArtwork` that calls `useResolvedArtwork(ctx, ref)`
   (`@BBeBee/toolkit/hooks`) — and `TrackRow`, which draws its own `Artwork` internally,
@@ -427,9 +426,9 @@ Two model details worth pinning: `TrackMenuOptions.lyrics` (the lyric lines a sc
   - `download`: Queue track for offline download.
   - `sleep-timer`: Configure playback sleep timer countdown.
   - `go-to-album`: Navigate to album detail view when `track.albumUrn` is present.
-  - `open-original-resource`: "Open original resource" (with icon `external-link`). Resolves canonical external web URL (Bilibili video/BV/av, NetEase, QQ Music, YouTube, or direct link) via `resolveOriginalResourceUrl` and launches the system browser/host via `openExternalUrl` without importing platform SDKs.
+  - `open-original-resource`: "Open original resource" (with icon `external-link`). Resolves canonical external web URL ( video/BV/av, NetEase, QQ Music, YouTube, or direct link) via `resolveOriginalResourceUrl` and launches the system browser/host via `openExternalUrl` without importing platform SDKs.
 - **Playlist Context Menu**:
-  - `open-original-resource`: "Open original resource", opens external playlist, Bilibili series/season/collection, or favorites web page.
+  - `open-original-resource`: "Open original resource", opens external playlist, series/season/collection, or favorites web page.
   - `edit-details`: Opens `EditPlaylistModal` to modify cover art (via local file chooser or remote URL), title, and description via `ctx.library.updatePlaylist`.
   - `delete-playlist`: Danger tone with top divider, triggers `ConfirmDeleteModal` for explicit secondary confirmation before invoking `ctx.library.deletePlaylist`.
   - `toggle-pin`: Pin/unpin from top of library list.

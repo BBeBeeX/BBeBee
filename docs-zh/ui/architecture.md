@@ -315,7 +315,7 @@ export const usePosition = (ctx: Context) =>
 - **列表必须虚拟化**（[rules/ui.md §3](../../rules/ui.md#3-hooks--state-binding)）。移动端用 `FlashList`，桌面端用 `@tanstack/react-virtual`。曲库可能容纳 10 万首曲目；在哪个平台上直接渲染这么多都撑不住。
 - **详情页头部随列表一起向上滚动。** 桌面端 `List` 拥有 `header` 槽位（Banner 巨幅头图、操作栏 —— 一同滚出视口的部分）、`sticky` 槽位（随着头部播放按钮接近而从视口顶部平滑滑入的 `StickyDetailBar`，留下标题 + 播放按钮 + 表头 —— 即 Spotify 经典布局）、`stickyHeader` 槽位（紧贴在该栏正下方的固定表头）以及 `onScroll`。联动动画是经过精确测量的，而非随意假设（`useDetailBarCollapse` 在每次滚动事件中读取播放按钮到滚动视口顶部的实际距离）：当粘性栏边缘遮盖住半个按钮时，栏完成停靠 —— 其紧凑播放按钮平滑缩放进入。虚拟化列表的偏移量由行以上的所有内容计算，基于占位符的真实位置测量（`scrollMargin`，由 `ResizeObserver` 和滚动监听器共同监听 —— 换行的标题使其无法从 props 推导）。粘性栏与固定表头必须是滚动容器的**直接子节点**（规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2））：`position: sticky` 只能在其父容器的边界盒内吸顶，若将其嵌套在 header 内部，就会在它们刚刚完全滑入时随 header 一同被滚出视口。
 - **`player/position` 用插值，绝不轮询。** 该事件以 1 Hz 触发（[events.md §5](../data-model/events.md#5-事件表)）；进度条在两次事件之间用 `requestAnimationFrame` 做动画，并在每个事件到来时重新对齐。
-- **封面图先渲染 `blurhash`**，再加载图片（[schema.md §4.2](../data-model/schema.md#42-封面图)）。没有布局跳动，滚动时也没有灰色闪烁。远程封面请求**不携带 `Referer`**：多个 CDN 会在 Referer 为外部来源时返回防盗链 403 拒绝（Bilibili 的 `hdslb.com` 即如此，而在开发环境下渲染进程的 Referer 为 `localhost`），导致所有结果显示为破损图片，而同一 URL 在浏览器标签页中却能正常打开。
+- **封面图先渲染 `blurhash`**，再加载图片（[schema.md §4.2](../data-model/schema.md#42-封面图)）。没有布局跳动，滚动时也没有灰色闪烁。远程封面请求**不携带 `Referer`**：多个 CDN 会在 Referer 为外部来源时返回防盗链 403 拒绝，导致所有结果显示为破损图片，而同一 URL 在浏览器标签页中却能正常打开。
 - **封面在渲染前先经由 `ctx.cache` 解析。** 视图包渲染 UI 套件的 `Artwork` 时通过本地 `CachedArtwork` 调用 `useResolvedArtwork(ctx, ref)`（`@BBeBee/toolkit/hooks`）—— 内部自带绘制 `Artwork` 的 `TrackRow` 也通过 `CachedTrackRow` 渲染 —— 因此只要缓存中存在，交给 `<img>`/`Image` 的就是本地文件，且 `dominantColor`/identicon 回退覆盖了在途网络请求：远程 URL 绝不会直接被渲染。缓存副本还会回填 `artworks.local_uri`，这使得锁屏界面能够接收到本地 `Uri`（[contracts.md §7](../services/contracts.md)）。
 - **无图片的封面回退至自动生成的 identicon。** 当没有封面可加载时 —— 例如没有内嵌封面的本地文件根本不会生成 `artworks` 记录 —— `Artwork` 渲染一个类似 GitHub identicon 风格的正方形，其内容由实体的 URN 推导而来：种子 URN 的 FNV-1a 哈希驱动一个垂直对称的 5×5 单元格网格与色相，在鲜艳图案后衬以暗色调底色。图案在 `ui-core` 中一次性计算（`identicon()`），因此两个套件将同一 URN 哈希到同一个正方形；只有渲染元素不同（桌面端用 SVG，移动端用 `View` —— 不使用 `react-native-svg` 原生模块）。派生数据绝不能凌驾于真实数据之上：真实图片优于 identicon，而从真实封面提取的 `dominant_color` 优于二者。缺少身份标识（无 `seed`，无 `artwork.id`）则不生成图案 —— 保持纯色方块。
 - **详情页从其封面中提取主题色。** 拥有独立封面的屏幕（专辑、歌单 —— 当歌单没有封面时取第一首单曲的封面）组合使用 `useResolvedArtwork` 与套件的 `useImageColor`：缓存时预先提取的 `dominantColor` 优先；若未提取，则通过 Canvas 进行一次性提取（`extractVibrantColor`，基于鲜艳度评分的分桶算法，在 `<img>` 显示的同一 URL 上运行）；无法读取的封面（无 CORS 导致 Canvas 受污染的远程 URL）返回 `undefined`。`headerGradient(tint)` **仅绘制滚动的头部区域** —— 百分比渐变停靠点恰好在头部下边缘平滑过渡至 `--bg-primary`，使下方所有内容（曲目行与固定表头）都坐落在无缝的同一纯色背景上 —— 粘性栏的底色也随之微调着色。`undefined` 回退至中性品牌渐变 —— 封面缺失时优雅降级为页面原貌，绝不引发错误。
@@ -341,9 +341,9 @@ export const usePosition = (ctx: Context) =>
   - `download`：将曲目加入离线下载队列。
   - `sleep-timer`：配置播放睡眠定时器倒计时。
   - `go-to-album`：当 `track.albumUrn` 存在时导航至专辑详情页。
-  - `open-original-resource`：“跳转原始资源”（带图标 `external-link`）。通过 `resolveOriginalResourceUrl` 解析规范化的外部网页 URL（Bilibili 视频/BV/av、网易云、QQ 音乐、YouTube 或直链），并通过 `openExternalUrl` 唤起系统浏览器/宿主环境，无需导入任何平台 SDK。
+  - `open-original-resource`：“跳转原始资源”（带图标 `external-link`）。通过 `resolveOriginalResourceUrl` 解析规范化的外部网页 URL（视频/BV/av、网易云、QQ 音乐、YouTube 或直链），并通过 `openExternalUrl` 唤起系统浏览器/宿主环境，无需导入任何平台 SDK。
 - **歌单上下文菜单**：
-  - `open-original-resource`：“跳转原始资源”，在浏览器中打开外部歌单、Bilibili 列表/合集或收藏夹网页。
+  - `open-original-resource`：“跳转原始资源”，在浏览器中打开外部歌单、列表/合集或收藏夹网页。
   - `edit-details`：打开 `EditPlaylistModal`，通过 `ctx.library.updatePlaylist` 修改封面（通过本地文件选择器或远程 URL）、标题和描述。
   - `delete-playlist`：高危红色，带顶部分割线，触发 `ConfirmDeleteModal` 进行二次确认，然后调用 `ctx.library.deletePlaylist`。
   - `toggle-pin`：在曲库列表中置顶/取消置顶。

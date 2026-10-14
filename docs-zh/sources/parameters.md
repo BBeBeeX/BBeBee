@@ -135,7 +135,7 @@ export interface LyricSourcesService {
 
 1. **服务器地址 (Host / `serverHostLabel`)：**
    - 仅在音源文档的 `doc.params` 中声明了服务器相关字段（如 `sourceurl`、`source_url`、`host`、`server`、`server_url`），或属于自建云音源类别（`sourceGroup` 包含 `subsonic` 或 `self-hosted`）时才渲染；
-   - 对于 Bilibili、本地音频等固定后端音源，彻底隐藏服务器地址输入框。
+   - 对于 本地音频等固定后端音源，彻底隐藏服务器地址输入框。
 2. **认证凭据 (Credentials / `loginUi`)：**
    - 仅渲染音源在 `doc.loginUi` 或 `doc.params` 中声明的字段（或 Subsonic 约定的 `user` 与 `password`）；
    - 当 `loginType !== 'variable'` 且 `loginUi`/`params` 中未声明 `var` 时，严格排除历史遗留的 `var` 变量输入框。

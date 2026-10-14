@@ -194,7 +194,7 @@ export interface SourceDocument {
 
   searchUrl?: Rule
   /**
-   * Where to search *artists* (bilibili users, Subsonic a sidebar), when the
+   * Where to search *artists* (users, Subsonic a sidebar), when the
    * backend searches them at a different endpoint from tracks. Absent with a
    * present `ruleSearchArtist` means the artist rules run over the same
    * document `searchUrl` fetched.

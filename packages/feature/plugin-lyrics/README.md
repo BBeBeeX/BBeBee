@@ -39,7 +39,7 @@ Calling `getLyricsForTrack(trackUrn)` follows a three-level cache fallback strat
 
 1. **Memory cache**: quickly handles switching back and forth within a list, with a default capacity limit, avoiding repeated deserialization.
 2. **SQLite storage**: persists fields `(track_urn, format, content, synced, offset_ms, language)` in the `lyrics` table; available offline and saves user bandwidth.
-3. **Source resolution**: finds the matching source provider via `ctx.sources.forUrn(trackUrn)`. If the provider supports `getLyrics(trackId)`, a request is made and parsed (e.g. Bilibili subtitles converted to LRC, or the Subsonic lyrics API); the result is automatically written back to the database.
+3. **Source resolution**: finds the matching source provider via `ctx.sources.forUrn(trackUrn)`. If the provider supports `getLyrics(trackId)`, a request is made and parsed (e.g. subtitles converted to LRC, or the Subsonic lyrics API); the result is automatically written back to the database.
 4. **Negative caching**: if the source provider has no lyrics or returns empty content, the system writes an empty marker (`format: 'none'`) into both the in-memory `negativeCache` and the SQLite database, with a default TTL of 1 day (24 hours). While valid, replaying that track short-circuits network requests entirely, preventing wasted network overhead from single-track loops or replays. Calling `retry()` automatically clears the corresponding empty marker.
 
 ### 2. Playback progress and sync alignment

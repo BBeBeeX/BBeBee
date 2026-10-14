@@ -551,7 +551,7 @@ describe('SearchScreen', () => {
 
   it('gives songs and artists their own toggle, and passes the halves through', async () => {
     /*
-     * A backend whose user search is a separate endpoint — Bilibili, for one —
+     * A backend whose user search is a separate endpoint, for one —
      * has two searchable interfaces. Turning the artist half off must reach
      * the provider as `types: ['track']`, so it does not fetch the second
      * document; that per-source filter is what the interface toggles *mean*.

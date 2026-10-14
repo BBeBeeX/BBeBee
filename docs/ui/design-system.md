@@ -499,7 +499,7 @@ Cover-tinted header theming is specified in [§6.3](#63-surface-hierarchy--reced
   - Clicking column headers (`#`, `Title`, `Artist`, `Album`, `Source`, `Date added`, `Duration` with Tabler `clock` icon, `Play count`) toggles between ascending (`asc`) and descending (`desc`) order.
   - Active sorted column displays a subtle directional arrow indicator (`chevron-up` for ascending, `chevron-down` for descending).
   - `AlbumScreen`, `FavoritesScreen`, and `PlaylistDetailScreen` provide an interactive "Source" column (omitted in `LocalMusicScreen` where all tracks are local).
-  - Source names are resolved via `resolveTrackSourceName(ctx, trackUrn)` (in `@BBeBee/toolkit/hooks`; returning `'Local'` for local/file paths, or provider display name e.g. `'Bilibili'`). Sorting uses `localeCompare(..., { numeric: true, sensitivity: 'base' })`.
+  - Source names are resolved via `resolveTrackSourceName(ctx, trackUrn)` (in `@BBeBee/toolkit/hooks`; returning `'Local'` for local/file paths, or provider display name e.g.). Sorting uses `localeCompare(..., { numeric: true, sensitivity: 'base' })`.
   - Column headers omit the legacy checkmark, presenting clean column names and the Tabler `clock` icon.
 - **Batch Operations Mode & Toolbar (`BatchActionBar`)**:
   - The three-dot action menu in all four detail screens offers a direct "Batch operations" entry (`id: 'batch-operations'`, icon `list-check`) with no nested submenus.
@@ -628,7 +628,7 @@ The app provides 5 built-in layout styles managed by `ctx.nowPlaying`:
   - The now-playing surface hooks `useTrackMenu(ctx, { onShowTrackInfo })` providing a `track-info` item with icon `info-circle`.
   - Opens `TrackInfoModal` (`Sheet`) aggregating technical specifications and storage origin:
     - **Local Tracks**: Title, artist, album, storage category (`Local music file`), filename, absolute filesystem path (with 1-click clipboard copy + feedback), formatted file size, and last modified timestamp.
-    - **Third-Party Tracks**: `sourceId` (e.g. `bilibili`), `sourceTrackId` (parsed from track URN).
+    - **Third-Party Tracks**: `sourceId`, `sourceTrackId` (parsed from track URN).
     - **Audio Technical Specs**: Track duration, sample rate (e.g. `44,100 Hz`), channels (e.g. `2 (Stereo)`), bitrate (e.g. `920 kbps`), codec (e.g. `FLAC`, `M4A`), tag types (e.g. `Vorbis, ID3v2.3`, `ID3v2` or `Online streaming`).
   - Read sources: the aggregation is headless — `resolveTrackDetails` / `useTrackDetails` in `@BBeBee/plugin-now-playing/hooks` reads `ctx.db` (`media_bindings`, `scan_entries`), `ctx.codec.readMetadata`, `ctx.fs.stat`, and live `ctx.player.currentStream`, falling back stepwise; the modal only renders the returned rows.
 

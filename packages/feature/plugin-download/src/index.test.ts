@@ -1210,7 +1210,7 @@ describe('plugin-download', () => {
     h.http.body = new Uint8Array([0xff, 0xfb, 0x90, 0x64, 0, 0])
 
     await h.ctx.db.exec(
-      `INSERT INTO artworks (id, source_url) VALUES ('art-cdn', 'https://p1.music.126.net/cover.jpg')`,
+      `INSERT INTO artworks (id, source_url) VALUES ('art-cdn', 'https://cdn.example.test/cover.jpg')`,
     )
     await h.ctx.db.exec(
       `UPDATE tracks SET title = 'CdnSong', artwork_id = 'art-cdn' WHERE urn = ?`,
@@ -1218,18 +1218,18 @@ describe('plugin-download', () => {
     )
     ;(h.ctx.sources as unknown as SourcesStub).provider = provider(async () => ({
       kind: 'remote',
-      target: 'https://cdn.music.126.net/audio.mp3',
-      headers: { Referer: 'https://music.163.com/stream' },
+      target: 'https://cdn.example.test/audio.mp3',
+      headers: { Referer: 'https://example.test/stream' },
       seekable: true,
     }))
 
     const task = (await h.ctx.downloads.enqueue([URN]))[0]!
     await until(() => h.downloads.task(task.id)?.state === 'done')
 
-    const coverReq = h.http.requests.find((r) => r.url === 'https://p1.music.126.net/cover.jpg')
+    const coverReq = h.http.requests.find((r) => r.url === 'https://cdn.example.test/cover.jpg')
     expect(coverReq).toBeDefined()
     expect(coverReq.headers?.['User-Agent']).toContain('Mozilla/5.0')
-    expect(coverReq.headers?.['Referer']).toBe('https://music.163.com/stream')
+    expect(coverReq.headers?.['Referer']).toBe('https://example.test/stream')
   })
 
   it('emits ui/toast with ok tone on download completion', async () => {

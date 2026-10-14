@@ -156,7 +156,7 @@ describe('Sandbox & Security Boundaries', () => {
 
   it('enforces allowedHosts whitelist', () => {
     expect(() => {
-      checkAllowedHost('https://api.evil.com/leak', ['lrclib.net', 'music.163.com'])
+      checkAllowedHost('https://api.evil.com/leak', ['lrclib.net', 'api.example.com'])
     }).toThrow(/blocked: not in allowedHosts/)
 
     expect(() => {

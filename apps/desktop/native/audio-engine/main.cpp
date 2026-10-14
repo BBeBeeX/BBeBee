@@ -384,7 +384,7 @@ public:
         sendJson(ready);
     }
 
-    // Some CDNs (Bilibili's among them) refuse the request without the
+    // Some CDNs refuse the request without the
     // source's Referer/User-Agent. The renderer forwards the source's headers
     // with every load/append command; mpv re-opens the URL with them. The
     // options persist on the instance until the next load/append overwrites

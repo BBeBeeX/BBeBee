@@ -139,7 +139,7 @@ The source configure modal (`SourceConfigureModal`) follows a strict declarative
 
 1. **Host Section (`host` / `serverHostLabel`):**
    - Rendered only if the source mentions host/URL in `doc.params` (`sourceurl`, `source_url`, `host`, `server`, `server_url`) or belongs to self-hosted source groups (`sourceGroup` contains `subsonic` or `self-hosted`).
-   - For sources with fixed backend endpoints (e.g. Bilibili, Local scanner), the Host input is completely hidden.
+   - For sources with fixed backend endpoints (e.g. Local scanner), the Host input is completely hidden.
 2. **Credentials Section (`secrets` / `loginUi`):**
    - Renders only fields declared in `doc.loginUi` or `doc.params` (or `user` and `password` for Subsonic).
    - The generic `var` field is excluded when `loginType !== 'variable'`, unless explicitly declared in `loginUi` or `params`.
