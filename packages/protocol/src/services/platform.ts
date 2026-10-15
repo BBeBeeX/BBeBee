@@ -132,11 +132,25 @@ export interface TranscodeOptions {
   outputUri: Uri
   targetFormat: string
   bitrate?: string
+  sampleRate?: number
+  channels?: number
+  bitDepth?: number
+  vbr?: boolean
+  vbrQuality?: number
+  volumeGainDb?: number
+  fadeInSeconds?: number
+  fadeOutSeconds?: number
+  startTimeSeconds?: number
+  endTimeSeconds?: number
+  signal?: AbortSignal
+  onProgress?: (progress: number, currentTimeSeconds: number) => void
 }
 
 export interface TranscodeResult {
   ok: boolean
   error?: string
+  outputSize?: number
+  durationMs?: number
 }
 
 export interface CodecService {
@@ -149,6 +163,12 @@ export interface CodecService {
   supportedFormats(): string[]
   /** Transcode an audio file into another format. */
   transcode?(options: TranscodeOptions): Promise<TranscodeResult>
+  /** Query available audio encoders and format support on this system. */
+  getEncoderCapabilities?(): Promise<{
+    supportedInputFormats: string[]
+    supportedOutputFormats: string[]
+    encoders: Record<string, { name: string; description: string; available: boolean }>
+  }>
 }
 
 /* ── ctx.shell ──────────────────────────────────────────────────────────── */

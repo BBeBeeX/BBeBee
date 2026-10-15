@@ -127,4 +127,6 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
   // inert on mobile — nothing reads it here — but the feature-parity gate
   // (shells.test.ts) counts headless features, so both shells run it.
   '@BBeBee/plugin-registry-metadata': {},
+  // Headless audio format converter & compressor
+  '@BBeBee/plugin-audio-converter': {},
 }

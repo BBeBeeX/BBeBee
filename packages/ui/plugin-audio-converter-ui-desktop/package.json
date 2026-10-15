@@ -1,0 +1,41 @@
+{
+  "name": "@BBeBee/plugin-audio-converter-ui-desktop",
+  "version": "0.0.0",
+  "description": "Desktop workbench views for @BBeBee/plugin-audio-converter.",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.tsx",
+    "./package.json": "./package.json"
+  },
+  "main": "./src/index.tsx",
+  "types": "./src/index.tsx",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@BBeBee/plugin-audio-converter": "workspace:*",
+    "@BBeBee/protocol": "workspace:*",
+    "@BBeBee/toolkit": "workspace:*",
+    "@BBeBee/ui-core": "workspace:*",
+    "@BBeBee/ui-kit-desktop": "workspace:*",
+    "@BBeBee/ui-tokens": "workspace:*",
+    "cordis": "4.0.0-rc.9",
+    "react": "19.2.3"
+  },
+  "devDependencies": {
+    "@BBeBee/core-codec-node": "workspace:*",
+    "@BBeBee/core-fs-node": "workspace:*",
+    "@BBeBee/core-paths-node": "workspace:*",
+    "@BBeBee/kernel": "workspace:*",
+    "@testing-library/react": "^16.3.3",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "react-dom": "19.2.3",
+    "vitest": "^4.1.11"
+  }
+}

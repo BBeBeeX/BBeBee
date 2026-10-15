@@ -64,6 +64,11 @@ export const bundled: PluginRegistry = {
     manifest: {"id":"@BBeBee/plugin-album","name":"@BBeBee/plugin-album","displayName":"Album","description":"The album page — detail, tracks, and album-level actions.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@BBeBee/plugin-sources"],"systemId":"layer-4","moduleId":"storage","entry":{"main":"./dist/index.js","ui":{"desktop":"./dist/index.js","mobile":"./dist/index.js"}},"capabilities":[],"contributes":{},"effect":null},
     builtin: true,
   },
+  "@BBeBee/plugin-audio-converter": {
+    load: () => import('@BBeBee/plugin-audio-converter'),
+    manifest: {"id":"@BBeBee/plugin-audio-converter","name":"@BBeBee/plugin-audio-converter","displayName":"Audio Converter","description":"Audio format conversion, audio compression, batch processing, and task management.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-4","moduleId":"dsp","entry":{"main":"./dist/index.js","ui":{"desktop":"./dist/index.js"}},"capabilities":["fs:read:all","fs:write:all"],"contributes":{"services":["audioConverter"]},"effect":"audioConverter"},
+    builtin: true,
+  },
   "@BBeBee/plugin-cache": {
     load: () => import('@BBeBee/plugin-cache'),
     manifest: {"id":"@BBeBee/plugin-cache","name":"@BBeBee/plugin-cache","displayName":"Cache","description":"ctx.cache — covers and remote audio streams are served from disk, and fetched only on a miss.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-4","moduleId":"storage","entry":{"main":"./dist/index.js"},"capabilities":["net:host/*","fs:read:cache","fs:write:cache","db:read:core","db:write:core"],"contributes":{"services":["cache"]},"effect":"cache"},

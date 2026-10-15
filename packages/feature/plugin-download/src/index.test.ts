@@ -1167,6 +1167,75 @@ describe('plugin-download', () => {
     expect(fileBytes[3]).toBe(0x43)
   })
 
+  it('calls ctx.audioConverter.convertDirect when audioConverter service is available', async () => {
+    const h = await harness()
+    class SettingsStub extends Service {
+      constructor(c: Context) {
+        super(c, 'settings')
+      }
+      getSync() {
+        return { downloadFormat: 'flac' } as never
+      }
+      async update() {
+        return {} as never
+      }
+      onSettingsChange() {
+        return () => {}
+      }
+    }
+    await h.ctx.plugin(SettingsStub)
+
+    function minimalFlac(): Uint8Array {
+      const bytes = new Uint8Array(42)
+      bytes[0] = 0x66
+      bytes[1] = 0x4c
+      bytes[2] = 0x61
+      bytes[3] = 0x43
+      bytes[4] = 0x80
+      bytes[5] = 0x00
+      bytes[6] = 0x00
+      bytes[7] = 0x22
+      return bytes
+    }
+
+    class AudioConverterStub extends Service {
+      static inject = ['fs']
+      readonly convertDirectCalls: Array<{ inputUri: string; outputUri: string; targetFormat: string }> = []
+      constructor(c: Context) {
+        super(c, 'audioConverter')
+      }
+      async convertDirect(params: { inputUri: string; outputUri: string; targetFormat: string }) {
+        this.convertDirectCalls.push(params)
+        await this.ctx.fs.writeFile(params.outputUri, minimalFlac())
+        return { ok: true }
+      }
+    }
+    await h.ctx.plugin(AudioConverterStub)
+    await tick()
+
+    // Remote server provides MP3 stream instead of FLAC
+    h.http.body = new Uint8Array([0xff, 0xfb, 0x90, 0x64, 0, 0])
+    ;(h.ctx.sources as unknown as SourcesStub).provider = provider(async () => {
+      return {
+        kind: 'remote',
+        target: 'https://cdn.example.test/stream.mp3',
+        seekable: true,
+      }
+    })
+
+    const task = (await h.ctx.downloads.enqueue([URN]))[0]!
+    await until(() => h.downloads.task(task.id)?.state === 'done')
+
+    const converter = h.ctx.get('audioConverter') as unknown as AudioConverterStub
+    expect(converter.convertDirectCalls).toHaveLength(1)
+    expect(converter.convertDirectCalls[0]!.targetFormat).toBe('flac')
+    expect(converter.convertDirectCalls[0]!.outputUri.endsWith('.flac')).toBe(true)
+
+    const binding = (await h.bindings())[0]!
+    expect(binding.uri.endsWith('.flac')).toBe(true)
+    expect(binding.format).toBe('flac')
+  })
+
   it('falls back to detected stream container if codec is not available', async () => {
     const h = await harness()
     class SettingsStub extends Service {

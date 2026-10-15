@@ -23,6 +23,7 @@
     "@BBeBee/core-secrets-expo": "workspace:*",
     "@BBeBee/core-store-fs": "workspace:*",
     "@BBeBee/kernel": "workspace:*",
+    "@BBeBee/plugin-audio-converter": "workspace:*",
     "@BBeBee/plugin-desktop-lyrics": "workspace:*",
     "@BBeBee/plugin-desktop-taskbar": "workspace:*",
     "@BBeBee/plugin-download": "workspace:*",

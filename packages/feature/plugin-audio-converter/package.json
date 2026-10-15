@@ -1,0 +1,43 @@
+{
+  "name": "@BBeBee/plugin-audio-converter",
+  "version": "0.0.0",
+  "description": "Audio format conversion, audio compression, batch processing, and task management.",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json",
+    "./views": "./src/views.ts",
+    "./hooks": "./src/hooks.ts"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@BBeBee/protocol": "workspace:*",
+    "@BBeBee/toolkit": "workspace:*",
+    "cordis": "4.0.0-rc.9"
+  },
+  "devDependencies": {
+    "@BBeBee/kernel": "workspace:*",
+    "@BBeBee/core-codec-node": "workspace:*",
+    "@BBeBee/core-fs-node": "workspace:*",
+    "@BBeBee/core-paths-node": "workspace:*"
+  }
+}

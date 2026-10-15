@@ -46,6 +46,7 @@ import shareLocales from './locales/share.json'
 import sourcesLocales from './locales/sources.json'
 import themeLocales from './locales/theme.json'
 import visualizerLocales from './locales/visualizer.json'
+import converterLocales from './locales/converter.json'
 
 /** A single `register()` call's payload, removable as a unit by its disposer. */
 interface Registration {
@@ -156,6 +157,7 @@ export class I18nPlugin extends Service implements I18nService {
     this.register('sources', flattenPerLocale(sourcesLocales))
     this.register('theme', flattenPerLocale(themeLocales))
     this.register('visualizer', flattenPerLocale(visualizerLocales))
+    this.register('converter', flattenPerLocale(converterLocales))
 
     // Subscribe before reading: a change landing between read and subscribe
     // would otherwise be lost, leaving the locale stale until the next edit.

@@ -1244,6 +1244,68 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
+  "@BBeBee/plugin-audio-converter": {
+    "id": "@BBeBee/plugin-audio-converter",
+    "name": "@BBeBee/plugin-audio-converter",
+    "displayName": "Audio Converter",
+    "description": "Audio format conversion, audio compression, batch processing, and task management.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-4",
+    "moduleId": "dsp",
+    "entry": {
+      "main": "./dist/index.js",
+      "ui": {
+        "desktop": "./dist/index.js"
+      }
+    },
+    "capabilities": [
+      "fs:read:all",
+      "fs:write:all"
+    ],
+    "contributes": {
+      "services": [
+        "audioConverter"
+      ]
+    },
+    "effect": "audioConverter"
+  },
+  "plugin-audio-converter": {
+    "id": "@BBeBee/plugin-audio-converter",
+    "name": "@BBeBee/plugin-audio-converter",
+    "displayName": "Audio Converter",
+    "description": "Audio format conversion, audio compression, batch processing, and task management.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-4",
+    "moduleId": "dsp",
+    "entry": {
+      "main": "./dist/index.js",
+      "ui": {
+        "desktop": "./dist/index.js"
+      }
+    },
+    "capabilities": [
+      "fs:read:all",
+      "fs:write:all"
+    ],
+    "contributes": {
+      "services": [
+        "audioConverter"
+      ]
+    },
+    "effect": "audioConverter"
+  },
   "@BBeBee/plugin-cache": {
     "id": "@BBeBee/plugin-cache",
     "name": "@BBeBee/plugin-cache",
@@ -3206,6 +3268,60 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "moduleId": "storage",
     "platforms": [
       "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {},
+    "effect": null
+  },
+  "@BBeBee/plugin-audio-converter-ui-desktop": {
+    "id": "@BBeBee/plugin-audio-converter-ui-desktop",
+    "name": "@BBeBee/plugin-audio-converter-ui-desktop",
+    "displayName": "Audio Converter UI (Desktop)",
+    "description": "Desktop workbench views for @BBeBee/plugin-audio-converter.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [
+      "@BBeBee/plugin-ui",
+      "@BBeBee/plugin-audio-converter"
+    ],
+    "systemId": "layer-5",
+    "moduleId": "dsp",
+    "platforms": [
+      "desktop"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {},
+    "effect": null
+  },
+  "plugin-audio-converter-ui-desktop": {
+    "id": "@BBeBee/plugin-audio-converter-ui-desktop",
+    "name": "@BBeBee/plugin-audio-converter-ui-desktop",
+    "displayName": "Audio Converter UI (Desktop)",
+    "description": "Desktop workbench views for @BBeBee/plugin-audio-converter.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [
+      "@BBeBee/plugin-ui",
+      "@BBeBee/plugin-audio-converter"
+    ],
+    "systemId": "layer-5",
+    "moduleId": "dsp",
+    "platforms": [
+      "desktop"
     ],
     "entry": {
       "main": "./dist/index.js"

@@ -130,6 +130,9 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
   // settings card. Deferred together with the service — neither is needed
   // for first paint, and the route lands in the sidebar when the pair loads.
   '@BBeBee/plugin-registry-ui-desktop': {},
+  // Audio format converter & compressor
+  '@BBeBee/plugin-audio-converter': {},
+  '@BBeBee/plugin-audio-converter-ui-desktop': {},
 }
 
 /**
@@ -142,6 +145,8 @@ export const DEFERRED_PLUGIN_IDS = [
   '@BBeBee/plugin-local-scanner-ui-desktop',
   '@BBeBee/plugin-download',
   '@BBeBee/plugin-download-ui-desktop',
+  '@BBeBee/plugin-audio-converter',
+  '@BBeBee/plugin-audio-converter-ui-desktop',
   '@BBeBee/plugin-share',
   '@BBeBee/plugin-share-ui-desktop',
   '@BBeBee/plugin-visualizer',

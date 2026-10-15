@@ -36,6 +36,7 @@ import shareLocales from './locales/share.json'
 import sourcesLocales from './locales/sources.json'
 import themeLocales from './locales/theme.json'
 import visualizerLocales from './locales/visualizer.json'
+import converterLocales from './locales/converter.json'
 
 /** Namespace → locale tag → dotted-key → translated string. */
 export type BuiltInCatalogues = Record<string, Record<string, Record<string, string>>>
@@ -84,4 +85,5 @@ export const BUILT_IN_CATALOGUES: BuiltInCatalogues = {
   sources: perLocale(sourcesLocales),
   theme: perLocale(themeLocales),
   visualizer: perLocale(visualizerLocales),
+  converter: perLocale(converterLocales),
 }

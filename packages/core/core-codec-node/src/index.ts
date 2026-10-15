@@ -107,6 +107,70 @@ export class CodecNode extends Service implements CodecService {
     return [...this.formats]
   }
 
+  async getEncoderCapabilities(): Promise<{
+    supportedInputFormats: string[]
+    supportedOutputFormats: string[]
+    encoders: Record<string, { name: string; description: string; available: boolean }>
+  }> {
+    const knownEncoders = [
+      { key: 'libmp3lame', name: 'MP3 (LAME)', format: 'mp3', description: 'MP3 audio encoder' },
+      { key: 'flac', name: 'FLAC', format: 'flac', description: 'Free Lossless Audio Codec' },
+      { key: 'aac', name: 'AAC', format: 'aac', description: 'Advanced Audio Coding' },
+      { key: 'libopus', name: 'Opus', format: 'opus', description: 'Opus audio codec' },
+      { key: 'libvorbis', name: 'Vorbis', format: 'ogg', description: 'Ogg Vorbis audio codec' },
+      { key: 'wmav2', name: 'Windows Media Audio', format: 'wma', description: 'WMA version 2' },
+      { key: 'alac', name: 'Apple Lossless', format: 'alac', description: 'ALAC audio codec' },
+      { key: 'pcm_s16le', name: 'PCM 16-bit LE', format: 'wav', description: 'Uncompressed PCM 16-bit' },
+      { key: 'pcm_s24le', name: 'PCM 24-bit LE', format: 'wav', description: 'Uncompressed PCM 24-bit' },
+      { key: 'pcm_s16be', name: 'PCM 16-bit BE', format: 'aiff', description: 'AIFF uncompressed PCM' },
+    ]
+
+    const encoderMap: Record<string, { name: string; description: string; available: boolean }> = {}
+    let stdout = ''
+
+    try {
+      const { spawn } = await import('node:child_process')
+      await new Promise<void>((resolve) => {
+        const proc = spawn('ffmpeg', ['-encoders'])
+        proc.stdout?.on('data', (d) => {
+          stdout += d.toString()
+        })
+        proc.on('close', () => resolve())
+        proc.on('error', () => resolve())
+      })
+    } catch {
+      // fallback if spawn fails
+    }
+
+    const supportedOutputFormats = new Set<string>()
+    for (const item of knownEncoders) {
+      const regex = new RegExp(`\\b${item.key}\\b`, 'i')
+      const available = stdout.length > 0 ? regex.test(stdout) : true
+      encoderMap[item.key] = {
+        name: item.name,
+        description: item.description,
+        available,
+      }
+      if (available) {
+        supportedOutputFormats.add(item.format)
+        if (item.format === 'aac') supportedOutputFormats.add('m4a')
+        if (item.format === 'opus') supportedOutputFormats.add('webm')
+        if (item.format === 'pcm_s16le') supportedOutputFormats.add('pcm')
+      }
+    }
+
+    const supportedInputFormats = [
+      'mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg', 'opus',
+      'wma', 'aiff', 'alac', 'webm', 'pcm', 'ape', 'wv',
+    ]
+
+    return {
+      supportedInputFormats,
+      supportedOutputFormats: Array.from(supportedOutputFormats),
+      encoders: encoderMap,
+    }
+  }
+
   async transcode(options: TranscodeOptions): Promise<TranscodeResult> {
     const exposed = (globalThis as unknown as {
       window?: {
@@ -124,7 +188,7 @@ export class CodecNode extends Service implements CodecService {
 
     try {
       const { spawn } = await import('node:child_process')
-      const { existsSync } = await import('node:fs')
+      const { existsSync, statSync, unlinkSync } = await import('node:fs')
       const { fileURLToPath } = await import('node:url')
       const toPath = (u: string) => {
         const fileUrl = u.replace(/^bbebee-file:\/*/, 'file:///')
@@ -141,34 +205,189 @@ export class CodecNode extends Service implements CodecService {
       const outPath = toPath(options.outputUri)
       const fmt = options.targetFormat.toLowerCase()
 
-      const args = ['-y', '-i', inPath]
+      if (options.signal?.aborted) {
+        return { ok: false, error: 'Cancelled' }
+      }
+
+      const args = ['-y']
+
+      if (typeof options.startTimeSeconds === 'number' && options.startTimeSeconds > 0) {
+        args.push('-ss', options.startTimeSeconds.toFixed(3))
+      }
+      if (typeof options.endTimeSeconds === 'number' && options.endTimeSeconds > 0) {
+        args.push('-to', options.endTimeSeconds.toFixed(3))
+      }
+
+      args.push('-i', inPath)
+
       if (fmt === 'flac') {
         args.push('-c:a', 'flac')
+        if (options.bitDepth === 24) {
+          args.push('-sample_fmt', 's32')
+        } else if (options.bitDepth === 16) {
+          args.push('-sample_fmt', 's16')
+        }
       } else if (fmt === 'mp3') {
-        args.push('-c:a', 'libmp3lame', '-b:a', options.bitrate || '320k')
+        args.push('-c:a', 'libmp3lame')
+        if (options.vbr && typeof options.vbrQuality === 'number') {
+          args.push('-q:a', String(Math.max(0, Math.min(9, Math.round(options.vbrQuality)))))
+        } else {
+          const b = options.bitrate ? (options.bitrate.endsWith('k') ? options.bitrate : `${options.bitrate}k`) : '320k'
+          args.push('-b:a', b)
+        }
       } else if (fmt === 'm4a' || fmt === 'aac' || fmt === 'mp4') {
-        args.push('-c:a', 'aac', '-b:a', options.bitrate || '320k')
-      } else if (fmt === 'ogg' || fmt === 'opus') {
-        args.push('-c:a', 'libopus', '-b:a', options.bitrate || '256k')
+        args.push('-c:a', 'aac')
+        const b = options.bitrate ? (options.bitrate.endsWith('k') ? options.bitrate : `${options.bitrate}k`) : '320k'
+        args.push('-b:a', b)
+      } else if (fmt === 'opus') {
+        args.push('-c:a', 'libopus')
+        const b = options.bitrate ? (options.bitrate.endsWith('k') ? options.bitrate : `${options.bitrate}k`) : '256k'
+        args.push('-b:a', b)
+      } else if (fmt === 'ogg') {
+        args.push('-c:a', 'libvorbis')
+        if (options.vbr && typeof options.vbrQuality === 'number') {
+          args.push('-q:a', String(Math.max(0, Math.min(10, Math.round(options.vbrQuality)))))
+        } else {
+          const b = options.bitrate ? (options.bitrate.endsWith('k') ? options.bitrate : `${options.bitrate}k`) : '256k'
+          args.push('-b:a', b)
+        }
+      } else if (fmt === 'alac') {
+        args.push('-c:a', 'alac')
+      } else if (fmt === 'wma') {
+        args.push('-c:a', 'wmav2')
+        const b = options.bitrate ? (options.bitrate.endsWith('k') ? options.bitrate : `${options.bitrate}k`) : '192k'
+        args.push('-b:a', b)
+      } else if (fmt === 'aiff') {
+        if (options.bitDepth === 24) {
+          args.push('-c:a', 'pcm_s24be')
+        } else {
+          args.push('-c:a', 'pcm_s16be')
+        }
+      } else if (fmt === 'webm') {
+        args.push('-c:a', 'libopus')
+        const b = options.bitrate ? (options.bitrate.endsWith('k') ? options.bitrate : `${options.bitrate}k`) : '192k'
+        args.push('-b:a', b)
+      } else if (fmt === 'pcm' || fmt === 'raw') {
+        args.push('-f', 's16le', '-c:a', 'pcm_s16le')
       } else if (fmt === 'wav') {
-        args.push('-c:a', 'pcm_s16le')
+        if (options.bitDepth === 24) {
+          args.push('-c:a', 'pcm_s24le')
+        } else if (options.bitDepth === 32) {
+          args.push('-c:a', 'pcm_s32le')
+        } else {
+          args.push('-c:a', 'pcm_s16le')
+        }
       }
+
+      if (options.sampleRate && options.sampleRate > 0) {
+        args.push('-ar', String(Math.round(options.sampleRate)))
+      }
+
+      if (options.channels && (options.channels === 1 || options.channels === 2)) {
+        args.push('-ac', String(options.channels))
+      }
+
+      const filters: string[] = []
+      if (typeof options.volumeGainDb === 'number' && options.volumeGainDb !== 0) {
+        filters.push(`volume=${options.volumeGainDb}dB`)
+      }
+      if (typeof options.fadeInSeconds === 'number' && options.fadeInSeconds > 0) {
+        filters.push(`afade=t=in:ss=0:d=${options.fadeInSeconds.toFixed(2)}`)
+      }
+      if (typeof options.fadeOutSeconds === 'number' && options.fadeOutSeconds > 0) {
+        const startFade = Math.max(0, (options.endTimeSeconds ?? 0) - options.fadeOutSeconds)
+        if (startFade > 0) {
+          filters.push(`afade=t=out:st=${startFade.toFixed(2)}:d=${options.fadeOutSeconds.toFixed(2)}`)
+        }
+      }
+      if (filters.length > 0) {
+        args.push('-af', filters.join(','))
+      }
+
       args.push(outPath)
 
       return await new Promise<TranscodeResult>((resolve) => {
+        let killed = false
         const proc = spawn('ffmpeg', args)
+
+        const onAbort = () => {
+          killed = true
+          try {
+            proc.kill('SIGTERM')
+          } catch {
+            // ignore kill failure
+          }
+          if (existsSync(outPath)) {
+            try {
+              unlinkSync(outPath)
+            } catch {
+              // ignore unlink failure
+            }
+          }
+          resolve({ ok: false, error: 'Cancelled' })
+        }
+
+        if (options.signal) {
+          options.signal.addEventListener('abort', onAbort, { once: true })
+        }
+
         let stderr = ''
+        let totalDurationSec = 0
+
         proc.stderr?.on('data', (d) => {
-          stderr += d.toString()
+          const chunk = d.toString()
+          stderr += chunk
+
+          if (!totalDurationSec) {
+            const matchDuration = /Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/i.exec(chunk)
+            if (matchDuration) {
+              const hours = parseFloat(matchDuration[1]!)
+              const mins = parseFloat(matchDuration[2]!)
+              const secs = parseFloat(matchDuration[3]!)
+              totalDurationSec = hours * 3600 + mins * 60 + secs
+            }
+          }
+
+          const matchTime = /time=\s*(\d+):(\d+):(\d+(?:\.\d+)?)/i.exec(chunk)
+          if (matchTime) {
+            const h = parseFloat(matchTime[1]!)
+            const m = parseFloat(matchTime[2]!)
+            const s = parseFloat(matchTime[3]!)
+            const curSec = h * 3600 + m * 60 + s
+            if (totalDurationSec > 0 && options.onProgress) {
+              const pct = Math.min(99, Math.max(0, Math.round((curSec / totalDurationSec) * 100)))
+              options.onProgress(pct, curSec)
+            }
+          }
         })
+
         proc.on('close', (code) => {
+          if (options.signal) {
+            options.signal.removeEventListener('abort', onAbort)
+          }
+          if (killed) return
+
           if (code === 0 && existsSync(outPath)) {
-            resolve({ ok: true })
+            try {
+              const st = statSync(outPath)
+              options.onProgress?.(100, totalDurationSec)
+              resolve({
+                ok: true,
+                outputSize: st.size,
+                durationMs: totalDurationSec ? Math.round(totalDurationSec * 1000) : undefined,
+              })
+            } catch {
+              resolve({ ok: true })
+            }
           } else {
             resolve({ ok: false, error: stderr.slice(-500) || `ffmpeg exited with code ${code}` })
           }
         })
+
         proc.on('error', (err) => {
+          if (options.signal) {
+            options.signal.removeEventListener('abort', onAbort)
+          }
           resolve({ ok: false, error: String(err) })
         })
       })

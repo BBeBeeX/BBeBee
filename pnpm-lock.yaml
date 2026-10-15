@@ -81,6 +81,12 @@ importers:
       '@BBeBee/plugin-album-ui-desktop':
         specifier: workspace:*
         version: link:../../packages/ui/plugin-album-ui-desktop
+      '@BBeBee/plugin-audio-converter':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-audio-converter
+      '@BBeBee/plugin-audio-converter-ui-desktop':
+        specifier: workspace:*
+        version: link:../../packages/ui/plugin-audio-converter-ui-desktop
       '@BBeBee/plugin-cache':
         specifier: workspace:*
         version: link:../../packages/feature/plugin-cache
@@ -307,6 +313,9 @@ importers:
       '@BBeBee/plugin-album-ui-mobile':
         specifier: workspace:*
         version: link:../../packages/ui/plugin-album-ui-mobile
+      '@BBeBee/plugin-audio-converter':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-audio-converter
       '@BBeBee/plugin-cache':
         specifier: workspace:*
         version: link:../../packages/feature/plugin-cache
@@ -937,6 +946,31 @@ importers:
       '@types/react':
         specifier: ^19.2.0
         version: 19.2.18
+
+  packages/feature/plugin-audio-converter:
+    dependencies:
+      '@BBeBee/protocol':
+        specifier: workspace:*
+        version: link:../../protocol
+      '@BBeBee/toolkit':
+        specifier: workspace:*
+        version: link:../toolkit
+      cordis:
+        specifier: 4.0.0-rc.9
+        version: 4.0.0-rc.9
+    devDependencies:
+      '@BBeBee/core-codec-node':
+        specifier: workspace:*
+        version: link:../../core/core-codec-node
+      '@BBeBee/core-fs-node':
+        specifier: workspace:*
+        version: link:../../core/core-fs-node
+      '@BBeBee/core-paths-node':
+        specifier: workspace:*
+        version: link:../../core/core-paths-node
+      '@BBeBee/kernel':
+        specifier: workspace:*
+        version: link:../../kernel
 
   packages/feature/plugin-cache:
     dependencies:
@@ -1834,6 +1868,61 @@ importers:
         specifier: 19.2.3
         version: 19.2.3
     devDependencies:
+      '@BBeBee/kernel':
+        specifier: workspace:*
+        version: link:../../kernel
+      '@testing-library/react':
+        specifier: ^16.3.3
+        version: 16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@types/react':
+        specifier: ^19.2.0
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.0
+        version: 19.2.7(@types/react@19.2.18)
+      react-dom:
+        specifier: 19.2.3
+        version: 19.2.3(react@19.2.3)
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@22.20.1)(jsdom@30.0.1)(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(terser@5.51.2)(yaml@2.9.0))
+
+  packages/ui/plugin-audio-converter-ui-desktop:
+    dependencies:
+      '@BBeBee/plugin-audio-converter':
+        specifier: workspace:*
+        version: link:../../feature/plugin-audio-converter
+      '@BBeBee/protocol':
+        specifier: workspace:*
+        version: link:../../protocol
+      '@BBeBee/toolkit':
+        specifier: workspace:*
+        version: link:../../feature/toolkit
+      '@BBeBee/ui-core':
+        specifier: workspace:*
+        version: link:../ui-core
+      '@BBeBee/ui-kit-desktop':
+        specifier: workspace:*
+        version: link:../ui-kit-desktop
+      '@BBeBee/ui-tokens':
+        specifier: workspace:*
+        version: link:../ui-tokens
+      cordis:
+        specifier: 4.0.0-rc.9
+        version: 4.0.0-rc.9
+      react:
+        specifier: 19.2.3
+        version: 19.2.3
+    devDependencies:
+      '@BBeBee/core-codec-node':
+        specifier: workspace:*
+        version: link:../../core/core-codec-node
+      '@BBeBee/core-fs-node':
+        specifier: workspace:*
+        version: link:../../core/core-fs-node
+      '@BBeBee/core-paths-node':
+        specifier: workspace:*
+        version: link:../../core/core-paths-node
       '@BBeBee/kernel':
         specifier: workspace:*
         version: link:../../kernel

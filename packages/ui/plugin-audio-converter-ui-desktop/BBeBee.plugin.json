@@ -1,0 +1,27 @@
+{
+  "id": "@BBeBee/plugin-audio-converter-ui-desktop",
+  "name": "@BBeBee/plugin-audio-converter-ui-desktop",
+  "displayName": "Audio Converter UI (Desktop)",
+  "description": "Desktop workbench views for @BBeBee/plugin-audio-converter.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": {
+    "BBeBee": "^0.1.0"
+  },
+  "enabled": true,
+  "dependencies": [
+    "@BBeBee/plugin-ui",
+    "@BBeBee/plugin-audio-converter"
+  ],
+  "systemId": "layer-5",
+  "moduleId": "dsp",
+  "platforms": [
+    "desktop"
+  ],
+  "entry": {
+    "main": "./dist/index.js"
+  },
+  "capabilities": [],
+  "contributes": {},
+  "effect": null
+}

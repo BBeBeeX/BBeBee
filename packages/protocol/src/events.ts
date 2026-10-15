@@ -51,6 +51,7 @@ import type { NowPlayingStyleId, NowPlayingStyleMeta } from './services/now-play
 import type { LyricSourceDefinition } from './services/lyric-sources.js'
 import type { ShareTarget } from './services/share.js'
 import type { RegistryTask, RegistryUpdate } from './services/registry.js'
+import type { ConvertTask } from './services/audio-converter.js'
 import type { UrnKind } from './urn.js'
 
 declare module 'cordis' {
@@ -235,6 +236,13 @@ declare module 'cordis' {
      * payload rather than accumulating deltas. See `RegistryService.getTasks`.
      */
     'registry/tasks-changed'(tasks: readonly RegistryTask[]): void
+
+    /* ── audio-converter ─────────────────────────────── emit ── */
+    'audio-converter/tasks-changed'(tasks: readonly ConvertTask[]): void
+    'audio-converter/task-progress'(taskId: string, progress: number, stage: string): void
+    'audio-converter/task-completed'(task: ConvertTask): void
+    'audio-converter/task-failed'(taskId: string, error: string): void
+    'audio-converter/task-cancelled'(taskId: string): void
   }
 }
 
@@ -301,6 +309,11 @@ export const DISPATCH_MODES = {
   'plugin-manager/changed': 'emit',
   'registry/updates-available': 'emit',
   'registry/tasks-changed': 'emit',
+  'audio-converter/tasks-changed': 'emit',
+  'audio-converter/task-progress': 'emit',
+  'audio-converter/task-completed': 'emit',
+  'audio-converter/task-failed': 'emit',
+  'audio-converter/task-cancelled': 'emit',
 } as const satisfies Record<string, DispatchMode>
 
 export type BBeBeeEventName = keyof typeof DISPATCH_MODES

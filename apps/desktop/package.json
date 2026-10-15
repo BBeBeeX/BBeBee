@@ -27,6 +27,8 @@
     "@BBeBee/core-secrets-node": "workspace:*",
     "@BBeBee/core-store-fs": "workspace:*",
     "@BBeBee/kernel": "workspace:*",
+    "@BBeBee/plugin-audio-converter": "workspace:*",
+    "@BBeBee/plugin-audio-converter-ui-desktop": "workspace:*",
     "@BBeBee/plugin-desktop-lyrics": "workspace:*",
     "@BBeBee/plugin-desktop-lyrics-ui-desktop": "workspace:*",
     "@BBeBee/plugin-desktop-taskbar": "workspace:*",

@@ -35,6 +35,8 @@ import { formatUrn, parseUrn, tryParseUrn, uriContains } from '@BBeBee/protocol'
 import type {
   ArtistCredit,
   ArtworkRef,
+  AudioConverterService,
+  AudioFormat,
   CodecService,
   DownloadHold,
   DownloadPolicy,
@@ -1236,10 +1238,11 @@ export class Downloads extends Service implements DownloadsService {
             const fallbackTarget = `${basePath}.${detectedFmt}`
             const tempInput = `${target}.src.${detectedFmt}`
 
+            const audioConverter = (this.ownCtx as Context).get?.('audioConverter') as AudioConverterService | undefined
             const codec = (this.ownCtx as Context).get?.('codec') as CodecService | undefined
             let transcodeOk = false
 
-            if (codec?.transcode) {
+            if (audioConverter?.convertDirect || codec?.transcode) {
               const moved = await this.ownCtx.fs
                 .move(target, tempInput)
                 .then(() => true)
@@ -1252,13 +1255,21 @@ export class Downloads extends Service implements DownloadsService {
               this.ownCtx.logger.info(
                 `download: transcoding stream from ${detectedFmt} to requested format ${format}: ${target}`,
               )
-              const res = await codec
-                .transcode({
-                  inputUri: tempInput,
-                  outputUri: desiredTarget,
-                  targetFormat: format,
-                })
-                .catch((err) => ({ ok: false, error: String(err) }))
+              const res = audioConverter?.convertDirect
+                ? await audioConverter
+                    .convertDirect({
+                      inputUri: tempInput,
+                      outputUri: desiredTarget,
+                      targetFormat: format as AudioFormat,
+                    })
+                    .catch((err) => ({ ok: false, error: String(err) }))
+                : await codec!
+                    .transcode!({
+                      inputUri: tempInput,
+                      outputUri: desiredTarget,
+                      targetFormat: format,
+                    })
+                    .catch((err) => ({ ok: false, error: String(err) }))
 
               if (res.ok) {
                 const transcodedBytes = await this.ownCtx.fs.readBytes(desiredTarget).catch(() => undefined)

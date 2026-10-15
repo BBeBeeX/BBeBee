@@ -268,6 +268,29 @@ describe('core-codec-node', () => {
     expect(res?.error).toBeDefined()
   })
 
+  it('detects encoder capabilities dynamically', async () => {
+    const h = await harness()
+    const caps = await h.codec.getEncoderCapabilities?.()
+    expect(caps).toBeDefined()
+    expect(caps?.supportedInputFormats).toContain('mp3')
+    expect(caps?.supportedOutputFormats.length).toBeGreaterThan(0)
+    expect(caps?.encoders).toBeDefined()
+  })
+
+  it('respects abort signal when transcoding', async () => {
+    const h = await harness()
+    const controller = new AbortController()
+    controller.abort()
+    const res = await h.codec.transcode?.({
+      inputUri: h.uri('sample.wav'),
+      outputUri: h.uri('aborted.flac'),
+      targetFormat: 'flac',
+      signal: controller.signal,
+    })
+    expect(res?.ok).toBe(false)
+    expect(res?.error).toBe('Cancelled')
+  })
+
   it('leaves nothing behind when unloaded', async () => {
     const ctx = new Context()
     await ctx.plugin(PathsNode, { root: await tempDir('bbebee-codec-leak') })
