@@ -155,13 +155,18 @@ contributions — a plugin's section disappears when the plugin does.
 
 ### 7.1 Synchronized Page Marquee & Truncation Tooltip Standards
 - **Responsive Hover Delay**: `HoverLabel` display delay is standardized to 200～300ms (default 250ms), dismissed immediately on pointer leave. Tooltips only trigger when text is genuinely truncated (`isElementTruncated`: `scrollWidth > clientWidth` or line clamped); fully visible text remains quiet without duplicate popovers.
-- **Unified Page Marquee Timeline**:
-  - Across detail screens (`AlbumScreen`, `PlaylistDetailScreen`, `LocalMusicScreen`) and Now Playing views (`NowPlayingScreen`), the screen root must provide `PageMarqueeProvider`.
-  - All visible truncated titles using `MarqueeText` participate in the same synchronized timeline (shared cycle, phase, and ping-pong rhythm). Independent hover triggers, uncoordinated delays, or random phase offsets between titles are strictly forbidden.
-  - Non-truncated titles must remain completely static with zero animation overhead. Truncation must be measured against real DOM rendering (`ResizeObserver`), never by naive string length.
-  - Virtualization & performance: off-screen items pause animations via `IntersectionObserver`. Newly mounted or scrolled-in items lock onto the active running timeline phase without resetting other items.
-  - Tooltip interaction must not interrupt, restart, or desynchronize the running marquee timeline.
-  - Accessibility: `prefers-reduced-motion` must be respected by disabling marquee animation and falling back to static ellipsis.
+- **Unified 15-Second Page Marquee Timeline & Uniform Pixel Speed**:
+  - Across detail screens (`AlbumScreen`, `PlaylistDetailScreen`, `LocalMusicScreen`), Now Playing full-screen views (`NowPlayingScreen`), sticky headers, and the bottom transport bar (`NowPlayingBar`), all visible truncated titles participate in a unified **15-second cycle timeline** (`PageMarqueeProvider`).
+  - **Uniform Pixel Speed (40px/s)**: All titles scroll forward and return at strictly the same actual pixel speed (`sharedSpeed = 40px/s`). Titles must NEVER vary their velocity to stretch or compress into arbitrary percentages.
+  - **15-Second Time Window Allocation**:
+    - `0 ~ 2.25s (0% ~ 15%)`: Initial static pause at origin for reading.
+    - `2.25s ~ 7.5s (15% ~ 50%)`: Forward scroll at uniform 40px/s. Short/medium titles reach their end early, stop moving, and hold still.
+    - `7.5s ~ 9.75s (50% ~ 65%)`: Standardized end-pause phase.
+    - `9.75s ~ 15.0s (65% ~ 100%)`: Return scroll at uniform 40px/s. Titles reaching origin early hold still at origin until the 15s cycle completes.
+  - **Oversized Title Overflow Strategy**: Titles with overflow exceeding standard single-cycle capacity (>210px) smoothly continue scrolling at 40px/s, execute a 2.25s end pause, return at 40px/s, and harmonic-align to an exact multiple of 15s ($N \times 15\text{s}$, e.g. 30s) without jumping or secretly changing speed.
+  - **Bottom Bar Inclusion**: The desktop shell (`Shell.tsx`) provides `PageMarqueeProvider` at the root, ensuring `NowPlayingBar` shares the identical time base, phase, and speed as page content.
+  - Non-truncated titles remain completely static. Virtualization via `IntersectionObserver` suspends off-screen animations.
+  - Tooltip interaction must not interrupt or reset the running marquee timeline. System `prefers-reduced-motion` degrades to static ellipsis.
 
 ---
 

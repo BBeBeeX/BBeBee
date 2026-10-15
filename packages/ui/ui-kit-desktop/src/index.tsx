@@ -52,7 +52,13 @@ export {
   PageMarqueeProvider,
   usePageMarqueeSync,
   PageMarqueeSyncContext,
+  buildMarqueeKeyframes,
   DEFAULT_PAGE_MARQUEE_CYCLE_DURATION_MS,
+  DEFAULT_PAGE_MARQUEE_SPEED_PX_PER_SEC,
+  MARQUEE_FORWARD_START_MS,
+  MARQUEE_FORWARD_WINDOW_END_MS,
+  MARQUEE_RETURN_START_MS,
+  MARQUEE_BREATHING_ROOM_PX,
   type PageMarqueeSyncContextValue,
   type PageMarqueeProviderProps,
 } from './components/PageMarqueeSync.js'

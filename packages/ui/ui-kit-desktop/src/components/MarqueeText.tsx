@@ -4,7 +4,7 @@ import { tokens } from '@BBeBee/ui-tokens'
 import type { TextProps } from '@BBeBee/ui-core'
 import { common, toneColor } from '../theme.js'
 import { weightFor } from './Text.js'
-import { usePageMarqueeSync } from './PageMarqueeSync.js'
+import { buildMarqueeKeyframes, MARQUEE_BREATHING_ROOM_PX, usePageMarqueeSync } from './PageMarqueeSync.js'
 import { HoverLabel, HoverLabelContext } from './HoverLabel.js'
 
 export interface MarqueeTextProps {
@@ -19,6 +19,10 @@ export interface MarqueeTextProps {
    * Tooltip label shown on hover. Defaults to string content of children if available.
    */
   label?: string
+  /**
+   * Custom uniform speed in px/s (defaults to page marquee speed: 40px/s).
+   */
+  speedPxPerSec?: number
   /**
    * Whether to enable hover tooltip when truncated.
    * Defaults to true (automatically suppressed if already inside an outer HoverLabel).
@@ -58,7 +62,7 @@ export function MarqueeText(props: MarqueeTextProps): ReactElement {
   const [reducedMotion, setReducedMotion] = useState(false)
 
   const isParentInHoverLabel = useContext(HoverLabelContext)
-  const { startTime, cycleDurationMs } = usePageMarqueeSync()
+  const { startTime, cycleDurationMs, speedPxPerSec } = usePageMarqueeSync()
 
   // Track prefers-reduced-motion
   useEffect(() => {
@@ -122,30 +126,24 @@ export function MarqueeText(props: MarqueeTextProps): ReactElement {
     if (typeof inner.animate !== 'function') return
 
     // Visual margin of 6px so end characters do not press tightly against container boundary
-    const travel = overflow + 6
+    const travel = overflow + MARQUEE_BREATHING_ROOM_PX
+    const effectiveSpeed = props.speedPxPerSec ?? speedPxPerSec
 
-    // Synchronized ping-pong cycle:
-    // 0% -> 15%: Initial hold at start for readability
-    // 15% -> 50%: Smooth scroll to the end
-    // 50% -> 65%: Pause at the end for reading the tail
-    // 65% -> 100%: Smooth return to start
-    const keyframes: Keyframe[] = [
-      { transform: 'translateX(0)', offset: 0, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' },
-      { transform: 'translateX(0)', offset: 0.15, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' },
-      { transform: `translateX(-${travel}px)`, offset: 0.5, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' },
-      { transform: `translateX(-${travel}px)`, offset: 0.65, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' },
-      { transform: 'translateX(0)', offset: 1.0, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' },
-    ]
+    const { keyframes, totalDurationMs } = buildMarqueeKeyframes(
+      travel,
+      effectiveSpeed,
+      cycleDurationMs,
+    )
 
     const animation = inner.animate(keyframes, {
-      duration: cycleDurationMs,
+      duration: totalDurationMs,
       iterations: Infinity,
       fill: 'both',
     })
 
     // Align animation's currentTime to the current page's synchronized timeline
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
-    const elapsed = (now - startTime) % cycleDurationMs
+    const elapsed = (now - startTime) % totalDurationMs
     try {
       animation.currentTime = elapsed >= 0 ? elapsed : 0
     } catch {
@@ -160,7 +158,7 @@ export function MarqueeText(props: MarqueeTextProps): ReactElement {
         // Ignore
       }
     }
-  }, [overflow, isVisible, reducedMotion, startTime, cycleDurationMs])
+  }, [overflow, isVisible, reducedMotion, startTime, cycleDurationMs, speedPxPerSec, props.speedPxPerSec])
 
   const resolvedLabel =
     props.label ?? (typeof props.children === 'string' ? props.children : undefined)

@@ -268,12 +268,13 @@ The scale relies on **"weight follows size"**:
     title, artist, and album cells across library, album, and now-playing views.
 - **Synchronized marquee text for truncated titles (`MarqueeText` & `PageMarqueeProvider`)**:
   - A responsive one-line clip box that automatically detects text truncation via `ResizeObserver` (`overflow = scrollWidth - clientWidth`). If text fits completely, it remains completely static with zero animation overhead.
-  - **Unified page-wide synchronized timeline**: Wrapped by `PageMarqueeProvider`, all visible truncated titles across the current page (Now Playing layouts, Local Music screen, Playlist detail, Album detail, and sticky headers) synchronize to an identical cycle (default `10000ms` / 10s):
-    - `0% ~ 15%`: Initial rest and reading pause at start position.
-    - `15% ~ 50%`: Smooth forward scroll revealing full text to the end with a `+6px` breathing room margin.
-    - `50% ~ 65%`: End pause for inspection.
-    - `65% ~ 100%`: Smooth reverse return to origin, ready for the next synchronized loop.
-  - **Web Animations API integration**: Directly synchronizes `animation.currentTime = (performance.now() - startTime) % cycleDurationMs`, guaranteeing that newly mounted or scrolled-in items lock onto the page's exact frame instantly with 0ms JavaScript frame overhead.
+  - **Unified 15-second page-wide synchronized timeline**: Wrapped by `PageMarqueeProvider` (including shell root for bottom bar parity), all visible truncated titles across the application (Now Playing layouts, Local Music screen, Playlist detail, Album detail, sticky headers, and bottom `NowPlayingBar`) synchronize to an identical 15-second base cycle (`15000ms`) with **uniform pixel speed** (`40px/s`):
+    - `0 ~ 2.25s (0% ~ 15%)`: Initial origin rest for comfortable reading.
+    - `2.25s ~ 7.5s (15% ~ 50%)`: Forward scroll at uniform `40px/s` revealing text with `+6px` breathing room. Shorter titles reach their end early and hold still at the end.
+    - `7.5s ~ 9.75s (50% ~ 65%)`: Standardized end-pause phase.
+    - `9.75s ~ 15.0s (65% ~ 100%)`: Return scroll at uniform `40px/s`. Titles arriving back at origin early hold still at origin until the 15s cycle completes.
+  - **Harmonic Multi-Cycle Strategy for Ultra-Long Titles**: Oversized titles (>210px overflow) maintain the strict 40px/s speed without sudden deceleration, pausing 2.25s at the end and returning at 40px/s, locking onto an exact harmonic multiple of 15s ($N \times 15\text{s}$, e.g. 30s) to re-align phase with the global clock at the cycle boundary.
+  - **Web Animations API integration**: Directly synchronizes `animation.currentTime = (performance.now() - startTime) % totalDurationMs`, guaranteeing that newly mounted or scrolled-in items lock onto the page's exact frame instantly with 0ms JavaScript frame overhead.
   - **Viewport virtualization**: Connects to `IntersectionObserver` so off-screen elements in long virtual lists pause animations completely; only on-screen truncated items participate in rendering.
   - **Accessibility & Motion safety**: Automatically respects `prefers-reduced-motion: reduce`, disabling marquee animations and degrading gracefully to static text with ellipsis.
   - **Tooltip integration**: Pairs seamlessly with `HoverLabel` without interrupting, pausing, or desynchronizing the running marquee timeline.

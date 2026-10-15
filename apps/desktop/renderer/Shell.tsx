@@ -21,7 +21,7 @@ import {
 import type { Context } from 'cordis'
 import type { RouteContribution, SettingsContribution } from '@BBeBee/protocol'
 import { REGISTRY_VIEWS } from '@BBeBee/plugin-registry/views'
-import { tablerIcon, useI18n, Toast } from '@BBeBee/ui-kit-desktop'
+import { PageMarqueeProvider, tablerIcon, useI18n, Toast } from '@BBeBee/ui-kit-desktop'
 import { SleepTimerIndicator, TopBar, WindowControls, type ElectronCSSProperties, type TopBarProps } from './TopBar.js'
 import { importDroppedFiles } from './drop-import.js'
 
@@ -968,8 +968,11 @@ export function Shell({ ctx }: { ctx: Context }) {
   )
 
   return h(
-    'div',
-    {
+    PageMarqueeProvider,
+    null,
+    h(
+      'div',
+      {
       onDragEnter: handleDragEnter,
       onDragOver: handleDragOver,
       onDragLeave: handleDragLeave,
@@ -1439,5 +1442,6 @@ export function Shell({ ctx }: { ctx: Context }) {
           }),
         )
       : null,
+    ),
   )
 }
