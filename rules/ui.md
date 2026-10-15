@@ -153,6 +153,16 @@ contributions — a plugin's section disappears when the plugin does.
 - **Playlist Item ID Decoupling**:
   - `PlaylistDetailScreen` wraps row data as `{ item, track, trackUrn, originalIndex }` so that row actions (removal, context menus) remain bound to `PlaylistItem.id`, immune to active sort orders.
 
+### 7.1 Synchronized Page Marquee & Truncation Tooltip Standards
+- **Responsive Hover Delay**: `HoverLabel` display delay is standardized to 200～300ms (default 250ms), dismissed immediately on pointer leave. Tooltips only trigger when text is genuinely truncated (`isElementTruncated`: `scrollWidth > clientWidth` or line clamped); fully visible text remains quiet without duplicate popovers.
+- **Unified Page Marquee Timeline**:
+  - Across detail screens (`AlbumScreen`, `PlaylistDetailScreen`, `LocalMusicScreen`) and Now Playing views (`NowPlayingScreen`), the screen root must provide `PageMarqueeProvider`.
+  - All visible truncated titles using `MarqueeText` participate in the same synchronized timeline (shared cycle, phase, and ping-pong rhythm). Independent hover triggers, uncoordinated delays, or random phase offsets between titles are strictly forbidden.
+  - Non-truncated titles must remain completely static with zero animation overhead. Truncation must be measured against real DOM rendering (`ResizeObserver`), never by naive string length.
+  - Virtualization & performance: off-screen items pause animations via `IntersectionObserver`. Newly mounted or scrolled-in items lock onto the active running timeline phase without resetting other items.
+  - Tooltip interaction must not interrupt, restart, or desynchronize the running marquee timeline.
+  - Accessibility: `prefers-reduced-motion` must be respected by disabling marquee animation and falling back to static ellipsis.
+
 ---
 
 ## 8. Mini Player & Dynamic Island Desktop Specifications

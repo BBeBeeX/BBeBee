@@ -1,6 +1,7 @@
 import { createElement as h } from 'react'
 import type { ReactElement, ReactNode } from 'react'
 import { tintRgba } from './coverTheme.js'
+import { MarqueeText } from './MarqueeText.js'
 
 export interface StickyDetailBarProps {
   /** The page title, shown once the bar has taken over for the hero. */
@@ -78,7 +79,7 @@ export function StickyDetailBar(props: StickyDetailBarProps): ReactElement {
         )
       : null,
     h(
-      'span',
+      MarqueeText,
       {
         style: {
           flex: 1,
@@ -86,13 +87,10 @@ export function StickyDetailBar(props: StickyDetailBarProps): ReactElement {
           fontSize: 20,
           fontWeight: 700,
           color: 'var(--bb-text-primary, #FFFFFF)',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
           opacity: titleOpacity,
         },
+        children: props.title,
       },
-      props.title,
     ),
     props.trailing ?? null,
   )

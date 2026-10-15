@@ -7,7 +7,7 @@ import { usePlaylist } from '@BBeBee/plugin-library/hooks'
 import { resolveTrackSourceName, useResolvedArtwork, useTracksByUrn } from '@BBeBee/toolkit/hooks'
 import { serviceOf, type MenuAnchor } from '@BBeBee/ui-core'
 import { sortMenuItems, usePlaylistMenu, useTrackMenu } from '@BBeBee/ui-menus'
-import { ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, List, SaveToPlaylistPopover, StickyDetailBar, Text, tablerIcon, useDetailBarCollapse, useImageColor, headerGradient, viewModeMenuItems, useViewMode, useI18n } from '@BBeBee/ui-kit-desktop'
+import { ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, List, PageMarqueeProvider, SaveToPlaylistPopover, StickyDetailBar, Text, tablerIcon, useDetailBarCollapse, useImageColor, headerGradient, viewModeMenuItems, useViewMode, useI18n } from '@BBeBee/ui-kit-desktop'
 import { formatTotalDuration } from '@BBeBee/toolkit'
 import { tokens } from '@BBeBee/ui-tokens'
 import { QuadArtworkCollage } from '../components/QuadArtworkCollage.js'
@@ -699,9 +699,12 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
   })
 
   return h(
-    'section',
-    {
-      'aria-label': detail.name,
+    PageMarqueeProvider,
+    null,
+    h(
+      'section',
+      {
+        'aria-label': detail.name,
       style: {
         display: 'flex',
         flexDirection: 'column',
@@ -788,5 +791,6 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
           },
         })
       : null,
+    ),
   )
 }

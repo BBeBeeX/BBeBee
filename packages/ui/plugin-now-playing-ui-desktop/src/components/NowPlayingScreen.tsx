@@ -19,8 +19,7 @@ import {
   useTransport,
   useTransportAvailability,
 } from '@BBeBee/toolkit/hooks'
-import { tablerIcon } from '@BBeBee/ui-kit-desktop'
-import { ContextMenu, useI18n } from '@BBeBee/ui-kit-desktop'
+import { ContextMenu, PageMarqueeProvider, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { useServiceState, serviceOf, shallowArrayEqual } from '@BBeBee/ui-core'
 import { useTrackMenu } from '@BBeBee/ui-menus'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
@@ -128,7 +127,10 @@ export function NowPlayingScreen({
   const BuiltinLayout = NOW_PLAYING_LAYOUT_MAP[styleId as keyof typeof NOW_PLAYING_LAYOUT_MAP] ?? NOW_PLAYING_LAYOUT_MAP.cinematic
 
   return h(
-    'div',
+    PageMarqueeProvider,
+    null,
+    h(
+      'div',
     {
       role: 'region',
       'aria-label': t('nowPlaying:nowPlaying.nowPlaying'),
@@ -238,5 +240,6 @@ export function NowPlayingScreen({
       open: infoTrack !== null,
       onClose: () => setInfoTrack(null),
     }),
+    ),
   )
 }

@@ -3,7 +3,7 @@ import type { KeyboardEvent, MouseEvent as ReactMouseEvent, ReactElement } from 
 import type { Context } from 'cordis'
 import type { Track } from '@BBeBee/protocol'
 import type { MenuAnchor } from '@BBeBee/ui-core'
-import { HoverLabel, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
+import { HoverLabel, MarqueeText, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { formatAddedDate, formatDuration } from '@BBeBee/toolkit'
 import { CachedArtwork } from './CachedArtwork.js'
 import { TrackLibraryActionButton } from './TrackLibraryActionButton.js'
@@ -201,45 +201,32 @@ export function LibraryTrackRow({
             justifyContent: 'center',
           },
         },
-        // When the song/artist name is truncated, hovering for 2s reveals a label with the full name.
+        // When the song/artist name is truncated, hovering reveals a label with the full name,
+        // and visible truncated titles smoothly marquee in sync across the page.
         h(
           HoverLabel,
           { label: track.title, style: { display: 'block' } },
-          h(
-            'span',
-            {
-              style: {
-                display: 'block',
-                color: 'var(--bb-text-primary, #FFFFFF)',
-                fontSize: 15,
-                fontWeight: 500,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              },
+          h(MarqueeText, {
+            style: {
+              color: 'var(--bb-text-primary, #FFFFFF)',
+              fontSize: 15,
+              fontWeight: 500,
             },
-            track.title,
-          ),
+            children: track.title,
+          }),
         ),
         !compact && artists
           ? h(
               HoverLabel,
               { label: artists, style: { display: 'block' } },
-              h(
-                'span',
-                {
-                  style: {
-                    display: 'block',
-                    color: 'var(--bb-text-secondary, #b3b3b3)',
-                    fontSize: 13,
-                    marginTop: 2,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  },
+              h(MarqueeText, {
+                style: {
+                  color: 'var(--bb-text-secondary, #b3b3b3)',
+                  fontSize: 13,
+                  marginTop: 2,
                 },
-                artists,
-              ),
+                children: artists,
+              }),
             )
           : null,
       ),
@@ -261,14 +248,15 @@ export function LibraryTrackRow({
             HoverLabel,
             {
               label: artists || '-',
-              style: {
-                display: 'block',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              },
+              style: { display: 'block' },
             },
-            artists || '-',
+            h(MarqueeText, {
+              style: {
+                color: 'var(--bb-text-secondary, #b3b3b3)',
+                fontSize: 13,
+              },
+              children: artists || '-',
+            }),
           ),
         )
       : null,
@@ -282,46 +270,67 @@ export function LibraryTrackRow({
           paddingRight: 16,
           fontSize: 14,
           color: 'var(--bb-text-secondary, #b3b3b3)',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
         },
       },
       onOpenAlbum && track.albumTitle
         ? h(
-            'span',
-            {
-              role: 'button',
-              tabIndex: 0,
-              'data-testid': `track-album-link-${track.urn}`,
-              'aria-label': t('library:libraryTrack.viewAlbum', { albumTitle: track.albumTitle }),
-              title: t('library:libraryTrack.viewAlbum', { albumTitle: track.albumTitle }),
-              onClick: (e: ReactMouseEvent) => {
-                e.stopPropagation()
-                onOpenAlbum(track)
+            HoverLabel,
+            { label: track.albumTitle, style: { display: 'block' } },
+            h(
+              MarqueeText,
+              {
+                style: {
+                  fontSize: 14,
+                  color: 'var(--bb-text-secondary, #b3b3b3)',
+                },
+                children: h(
+                  'span',
+                  {
+                    role: 'button',
+                    tabIndex: 0,
+                    'data-testid': `track-album-link-${track.urn}`,
+                    'aria-label': t('library:libraryTrack.viewAlbum', { albumTitle: track.albumTitle }),
+                    onClick: (e: ReactMouseEvent) => {
+                      e.stopPropagation()
+                      onOpenAlbum(track)
+                    },
+                    onKeyDown: (e: KeyboardEvent) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.stopPropagation()
+                        onOpenAlbum(track)
+                      }
+                    },
+                    style: {
+                      cursor: 'pointer',
+                      transition: 'color 0.15s ease',
+                    },
+                    onMouseEnter: (e: ReactMouseEvent<HTMLSpanElement>) => {
+                      e.currentTarget.style.color = 'var(--bb-text-primary, #FFFFFF)'
+                      e.currentTarget.style.textDecoration = 'underline'
+                    },
+                    onMouseLeave: (e: ReactMouseEvent<HTMLSpanElement>) => {
+                      e.currentTarget.style.color = 'var(--bb-text-secondary, #b3b3b3)'
+                      e.currentTarget.style.textDecoration = 'none'
+                    },
+                  },
+                  track.albumTitle,
+                ),
               },
-              onKeyDown: (e: KeyboardEvent) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.stopPropagation()
-                  onOpenAlbum(track)
-                }
-              },
-              style: {
-                cursor: 'pointer',
-                transition: 'color 0.15s ease',
-              },
-              onMouseEnter: (e: ReactMouseEvent<HTMLSpanElement>) => {
-                e.currentTarget.style.color = 'var(--bb-text-primary, #FFFFFF)'
-                e.currentTarget.style.textDecoration = 'underline'
-              },
-              onMouseLeave: (e: ReactMouseEvent<HTMLSpanElement>) => {
-                e.currentTarget.style.color = 'var(--bb-text-secondary, #b3b3b3)'
-                e.currentTarget.style.textDecoration = 'none'
-              },
-            },
-            track.albumTitle,
+            ),
           )
-        : track.albumTitle || '-',
+        : track.albumTitle
+          ? h(
+              HoverLabel,
+              { label: track.albumTitle, style: { display: 'block' } },
+              h(MarqueeText, {
+                style: {
+                  fontSize: 14,
+                  color: 'var(--bb-text-secondary, #b3b3b3)',
+                },
+                children: track.albumTitle,
+              }),
+            )
+          : '-',
     ),
     // Col: Source name (album/favorites/playlist pages)
     showSource

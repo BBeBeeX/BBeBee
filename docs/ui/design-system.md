@@ -259,16 +259,25 @@ The scale relies on **"weight follows size"**:
   - Hidden track background (`background: transparent`), ultra-narrow width (`4px` on desktop), and a high-transparency thumb (`rgba(255, 255, 255, 0.2)` default, `0.4` on hover) keep dark canvas continuity.
   - Scrollbar visibility dual-class mechanism (`is-scrollbar-hover` / `is-scrolling`) and the Chromium trap: see the spec and rationale at [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas) (L2).
 - **Hover labels for clamped names (`HoverLabel`)**:
-  - Wraps a clamped title/name; resting the pointer on it for **2 seconds** floats a portal tooltip
+  - Wraps a clamped title/name; resting the pointer on it for **250ms** (standardized responsive window: 200～300ms) floats a portal tooltip
     (fixed-positioned on `document.body`, so list-row `overflow: hidden` cannot clip it) with the
-    full text. Dismissed on leave, scroll, resize, or `Escape`.
+    full text. Dismissed promptly on leave, scroll, resize, or `Escape`.
+  - **Truncation-aware activation**: Evaluates actual rendered overflow (`isElementTruncated`: `scrollWidth > clientWidth` or line clamping); completely non-truncated titles remain quiet without showing duplicate tooltips unless `alwaysShow: true`.
+  - **Viewport bounds & nest prevention**: Clamps positions to window edges, flips to bottom when top clearance is tight, and provides `HoverLabelContext` to prevent double-tooltips when wrapping components that provide their own tooltip capability.
   - Applied to the detail pages' hero title (`DetailHero` — Albums/Favorites/Playlists/Local) and to the track
-    title/artist cells of the library and album table rows.
-- **Marquee text for clamped playback text (`MarqueeText`)**:
-  - A one-line clip box that ping-pongs its content (scroll to the end, hold, scroll back) via the
-    Web Animations API when the text overflows; a static line when it fits or when
-    `element.animate` is unavailable (tests).
-  - Used for the bottom bar's track title and artist name.
+    title, artist, and album cells across library, album, and now-playing views.
+- **Synchronized marquee text for truncated titles (`MarqueeText` & `PageMarqueeProvider`)**:
+  - A responsive one-line clip box that automatically detects text truncation via `ResizeObserver` (`overflow = scrollWidth - clientWidth`). If text fits completely, it remains completely static with zero animation overhead.
+  - **Unified page-wide synchronized timeline**: Wrapped by `PageMarqueeProvider`, all visible truncated titles across the current page (Now Playing layouts, Local Music screen, Playlist detail, Album detail, and sticky headers) synchronize to an identical cycle (default `10000ms` / 10s):
+    - `0% ~ 15%`: Initial rest and reading pause at start position.
+    - `15% ~ 50%`: Smooth forward scroll revealing full text to the end with a `+6px` breathing room margin.
+    - `50% ~ 65%`: End pause for inspection.
+    - `65% ~ 100%`: Smooth reverse return to origin, ready for the next synchronized loop.
+  - **Web Animations API integration**: Directly synchronizes `animation.currentTime = (performance.now() - startTime) % cycleDurationMs`, guaranteeing that newly mounted or scrolled-in items lock onto the page's exact frame instantly with 0ms JavaScript frame overhead.
+  - **Viewport virtualization**: Connects to `IntersectionObserver` so off-screen elements in long virtual lists pause animations completely; only on-screen truncated items participate in rendering.
+  - **Accessibility & Motion safety**: Automatically respects `prefers-reduced-motion: reduce`, disabling marquee animations and degrading gracefully to static text with ellipsis.
+  - **Tooltip integration**: Pairs seamlessly with `HoverLabel` without interrupting, pausing, or desynchronizing the running marquee timeline.
+  - Used for track title, artist name, and album name across bottom bar, full-screen player layouts, table rows, and sticky detail headers.
 - **TopBar search bar & dynamic icon shift**:
   - Centered search input (`360px` default width, `max-width: 480px`, `height: 36px`, pill radius `radius.pill: 999`, background `#282828`).
   - **Collapse to a magnifier**: when the window squeezes the center group below `180px`

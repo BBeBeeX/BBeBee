@@ -27,7 +27,7 @@ import { useAlbum } from '@BBeBee/plugin-album/hooks'
 import { resolveTrackSourceName, useResolvedArtwork } from '@BBeBee/toolkit/hooks'
 import { formatDuration, formatTotalDuration } from '@BBeBee/toolkit'
 import { addToCollectionSubmenu, openExternalUrl, resolveOriginalResourceUrl, sleepTimerSubmenu, sortMenuItems, useSaveToPlaylistMenu, useTrackMenu } from '@BBeBee/ui-menus'
-import { Artwork, ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, HoverLabel, List, SaveToPlaylistPopover, StickyDetailBar, tablerIcon, useDetailBarCollapse, useI18n, useImageColor, headerGradient, viewModeMenuItems, useViewMode } from '@BBeBee/ui-kit-desktop'
+import { Artwork, ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, HoverLabel, List, MarqueeText, PageMarqueeProvider, SaveToPlaylistPopover, StickyDetailBar, tablerIcon, useDetailBarCollapse, useI18n, useImageColor, headerGradient, viewModeMenuItems, useViewMode } from '@BBeBee/ui-kit-desktop'
 import { serviceOf } from '@BBeBee/ui-core'
 import type { ArtworkProps, MenuAnchor, MenuItemSpec } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
@@ -245,41 +245,27 @@ function AlbumTrackTableRow({
       h(
         HoverLabel,
         { label: track.title, style: { display: 'block' } },
-        h(
-          'span',
-          {
-            style: {
-              display: 'block',
-              color: 'var(--bb-text-primary, #FFFFFF)',
-              fontSize: 15,
-              fontWeight: 500,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            },
+        h(MarqueeText, {
+          style: {
+            color: 'var(--bb-text-primary, #FFFFFF)',
+            fontSize: 15,
+            fontWeight: 500,
           },
-          track.title,
-        ),
+          children: track.title,
+        }),
       ),
       !compact && artists
         ? h(
             HoverLabel,
             { label: artists, style: { display: 'block' } },
-            h(
-              'span',
-              {
-                style: {
-                  display: 'block',
-                  color: 'var(--bb-text-secondary, #b3b3b3)',
-                  fontSize: 13,
-                  marginTop: 2,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                },
+            h(MarqueeText, {
+              style: {
+                color: 'var(--bb-text-secondary, #b3b3b3)',
+                fontSize: 13,
+                marginTop: 2,
               },
-              artists,
-            ),
+              children: artists,
+            }),
           )
         : null,
     ),
@@ -300,14 +286,15 @@ function AlbumTrackTableRow({
             HoverLabel,
             {
               label: artists || '-',
-              style: {
-                display: 'block',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              },
+              style: { display: 'block' },
             },
-            artists || '-',
+            h(MarqueeText, {
+              style: {
+                color: 'var(--bb-text-secondary, #b3b3b3)',
+                fontSize: 13,
+              },
+              children: artists || '-',
+            }),
           ),
         )
       : null,
@@ -321,12 +308,21 @@ function AlbumTrackTableRow({
           paddingRight: 16,
           fontSize: 14,
           color: 'var(--bb-text-secondary, #b3b3b3)',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
         },
       },
-      track.albumTitle || albumTitle || '-',
+      (track.albumTitle || albumTitle)
+        ? h(
+            HoverLabel,
+            { label: track.albumTitle || albumTitle || '', style: { display: 'block' } },
+            h(MarqueeText, {
+              style: {
+                fontSize: 14,
+                color: 'var(--bb-text-secondary, #b3b3b3)',
+              },
+              children: track.albumTitle || albumTitle,
+            }),
+          )
+        : '-',
     ),
     // Col: Source
     showSource
@@ -1204,7 +1200,10 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   })
 
   return h(
-    'div',
+    PageMarqueeProvider,
+    null,
+    h(
+      'div',
     {
       style: {
         display: 'flex',
@@ -1287,6 +1286,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
       title: t('album:index.sortBy'),
     }),
     h(SaveToPlaylistPopover, saveToPlaylistMenu.menuProps),
+    ),
   )
 }
 

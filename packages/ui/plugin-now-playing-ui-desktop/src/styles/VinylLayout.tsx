@@ -9,7 +9,7 @@
 import { createElement as h, useState } from 'react'
 import type { ReactElement } from 'react'
 import { formatDuration } from '@BBeBee/toolkit'
-import { IconButton, Slider, Text, useI18n } from '@BBeBee/ui-kit-desktop'
+import { IconButton, MarqueeText, Slider, Text, useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
 import { CachedArtwork, PlayModeButton, VolumeControl } from '../components/NowPlayingBar.js'
 import type { NowPlayingLayoutProps } from './index.js'
@@ -145,16 +145,26 @@ export function VinylLayout(props: NowPlayingLayoutProps): ReactElement {
       h(
         'div',
         { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: tokens.space[1], textAlign: 'center' } },
-        h(Text, {
+        h(MarqueeText, {
           variant: 'xl',
-          numberOfLines: 2,
+          style: { width: '100%', textAlign: 'center' },
           children: state.nowPlaying?.title ?? (state.trackUrn ? t('nowPlaying:nowPlaying.loading') : t('nowPlaying:nowPlaying.nothingPlaying')),
         }),
         state.nowPlaying?.artist
-          ? h(Text, { variant: 'md', tone: 'muted', numberOfLines: 1, children: state.nowPlaying.artist })
+          ? h(MarqueeText, {
+              variant: 'md',
+              tone: 'muted',
+              style: { width: '100%', textAlign: 'center' },
+              children: state.nowPlaying.artist,
+            })
           : null,
         state.nowPlaying?.album
-          ? h(Text, { variant: 'sm', tone: 'muted', numberOfLines: 1, children: state.nowPlaying.album })
+          ? h(MarqueeText, {
+              variant: 'sm',
+              tone: 'muted',
+              style: { width: '100%', textAlign: 'center' },
+              children: state.nowPlaying.album,
+            })
           : null,
       ),
       VisualizerComponent ? h(VisualizerComponent, { ctx }) : null,

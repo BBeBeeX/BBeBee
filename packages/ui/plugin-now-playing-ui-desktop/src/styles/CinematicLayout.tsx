@@ -15,7 +15,7 @@
  */
 import { createElement as h, type ReactElement } from 'react'
 import { formatDuration } from '@BBeBee/toolkit'
-import { CinematicLyricsTemplate, CURSIVE_FONT, Slider, useI18n } from '@BBeBee/ui-kit-desktop'
+import { CinematicLyricsTemplate, CURSIVE_FONT, HoverLabel, MarqueeText, Slider, useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
 import { CachedArtwork } from '../components/NowPlayingBar.js'
 import type { NowPlayingLayoutProps } from './index.js'
@@ -200,41 +200,41 @@ export function CinematicLayout(props: NowPlayingLayoutProps): ReactElement {
               },
             },
             h(
-              'h1',
-              {
-                style: {
-                  margin: 0,
-                  fontSize: 46,
-                  fontWeight: 400,
-                  letterSpacing: '0.5px',
-                  color: '#FFFFFF',
-                  fontFamily: CURSIVE_FONT,
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden',
-                  wordBreak: 'break-word',
-                  lineHeight: '1.2',
-                  maxWidth: '100%',
+              HoverLabel,
+              { label: trackTitle, style: { display: 'block', maxWidth: '100%' } },
+              h(
+                'h1',
+                {
+                  style: {
+                    margin: 0,
+                    fontSize: 46,
+                    fontWeight: 400,
+                    letterSpacing: '0.5px',
+                    color: '#FFFFFF',
+                    fontFamily: CURSIVE_FONT,
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    wordBreak: 'break-word',
+                    lineHeight: '1.2',
+                    maxWidth: '100%',
+                  },
                 },
-              },
-              trackTitle,
+                trackTitle,
+              ),
             ),
-            h(
-              'p',
-              {
-                style: {
-                  margin: 0,
-                  fontSize: 15,
-                  color: 'rgba(255, 255, 255, 0.6)',
-                  letterSpacing: '0.5px',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                },
+            h(MarqueeText, {
+              style: {
+                margin: 0,
+                fontSize: 15,
+                color: 'rgba(255, 255, 255, 0.6)',
+                letterSpacing: '0.5px',
+                textAlign: 'center',
+                maxWidth: '100%',
               },
-              trackArtist,
-            ),
+              children: trackArtist,
+            }),
           ),
 
           /* Synced Lyrics — scrollable cinematic template (click-to-seek),

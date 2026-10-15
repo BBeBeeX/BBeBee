@@ -3,7 +3,7 @@ import type { ChangeEvent, MouseEvent as ReactMouseEvent, ReactElement } from 'r
 import type { Context } from 'cordis'
 import type { Album, PlayerService, SourcesService, Track } from '@BBeBee/protocol'
 import { serviceOf, type MenuAnchor, type MenuItemSpec } from '@BBeBee/ui-core'
-import { ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, List, SaveToPlaylistPopover, StickyDetailBar, Text, tablerIcon, useDetailBarCollapse, viewModeMenuItems, useViewMode, headerGradient, useI18n } from '@BBeBee/ui-kit-desktop'
+import { ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, HoverLabel, List, MarqueeText, PageMarqueeProvider, SaveToPlaylistPopover, StickyDetailBar, Text, tablerIcon, useDetailBarCollapse, viewModeMenuItems, useViewMode, headerGradient, useI18n } from '@BBeBee/ui-kit-desktop'
 import { sortMenuItems, useTrackMenu } from '@BBeBee/ui-menus'
 import { tokens } from '@BBeBee/ui-tokens'
 import { CachedArtwork } from '../components/CachedArtwork.js'
@@ -146,33 +146,29 @@ function LocalAlbumRow({
           },
         },
         h(
-          'span',
-          {
+          HoverLabel,
+          { label: album.title, style: { display: 'block' } },
+          h(MarqueeText, {
             style: {
               color: 'var(--bb-text-primary, #FFFFFF)',
               fontSize: 15,
               fontWeight: 500,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
             },
-          },
-          album.title,
+            children: album.title,
+          }),
         ),
         !compact
           ? h(
-              'span',
-              {
+              HoverLabel,
+              { label: artists, style: { display: 'block' } },
+              h(MarqueeText, {
                 style: {
                   color: 'var(--bb-text-secondary, #b3b3b3)',
                   fontSize: 13,
                   marginTop: 2,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
                 },
-              },
-              artists,
+                children: artists,
+              }),
             )
           : null,
       ),
@@ -188,12 +184,19 @@ function LocalAlbumRow({
               paddingRight: 16,
               fontSize: 13,
               color: 'var(--bb-text-secondary, #b3b3b3)',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
             },
           },
-          artists,
+          h(
+            HoverLabel,
+            { label: artists, style: { display: 'block' } },
+            h(MarqueeText, {
+              style: {
+                fontSize: 13,
+                color: 'var(--bb-text-secondary, #b3b3b3)',
+              },
+              children: artists,
+            }),
+          ),
         )
       : null,
     // Col 4: Year
@@ -987,97 +990,101 @@ export function LocalMusicScreen({
       )
 
   return h(
-    'section',
-    {
-      'aria-label': t('library:localMusic.localMusic'),
-      style: {
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        background: 'var(--bg-primary, #080A10)',
-        color: 'var(--bb-text-primary, #FFFFFF)',
-        overflow: 'hidden',
+    PageMarqueeProvider,
+    null,
+    h(
+      'section',
+      {
+        'aria-label': t('library:localMusic.localMusic'),
+        style: {
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          background: 'var(--bg-primary, #080A10)',
+          color: 'var(--bb-text-primary, #FFFFFF)',
+          overflow: 'hidden',
+        },
       },
-    },
-    viewMode === 'tracks'
-      ? // Tracks mode: the header scrolls with the virtual list and the sticky bar floats above it.
-        h(
-          'div',
-          { key: 'track-list-container', ref: collapse.scrollerRef, style: { flex: 1, minHeight: 0 } },
-          loading
-            ? h('div', { style: { overflowY: 'auto', height: '100%' } }, stickyBar, headerNode, h(EmptyState, { title: t('library:collection.loading') }))
-            : h(List<Track>, {
-                testID: 'local-tracks-list',
-                header: headerNode,
-                sticky: stickyBar,
-                stickyHeader: tableHeaderNode ?? undefined,
-                onScroll: collapse.handleScroll,
-                items: sortedTracks,
-                estimatedItemSize: tokens.size.row,
-                keyExtractor: (t) => t.urn,
-                empty: h(EmptyState, {
-                  icon: 'folder',
-                  title: t('library:localMusic.noLocalMusicYet'),
-                  description: t('library:localMusic.afterAddingAMusicFolder'),
-                }),
-                renderItem: (track, index) =>
-                  h(LibraryTrackRow, {
-                    ctx,
-                    track,
-                    index,
-                    batchMode: isBatchMode,
-                    selected: selectedUrns.has(track.urn),
-                    onToggleSelect: () => handleToggleSelect(track.urn),
-                    inLibrary: isTrackInLibrary(track),
-                    highlighted: activeHighlights.has(track.urn),
-                    compact: trackViewMode === 'compact',
-                    onPress: () =>
-                      player?.playFromContext(track.urn, sortedTrackUrns, {
-                        context: { kind: 'local', label: t('library:localMusic.localMusic') },
-                      }),
-                    onMore: (anchor) => menu.open({ track }, anchor),
-                    onAddToFavorites: handleAddToFavorites,
-                    onOpenPlaylistMenu: openAddToPlaylistMenu,
-                    onOpenAlbum: handleOpenAlbum,
+      viewMode === 'tracks'
+        ? // Tracks mode: the header scrolls with the virtual list and the sticky bar floats above it.
+          h(
+            'div',
+            { key: 'track-list-container', ref: collapse.scrollerRef, style: { flex: 1, minHeight: 0 } },
+            loading
+              ? h('div', { style: { overflowY: 'auto', height: '100%' } }, stickyBar, headerNode, h(EmptyState, { title: t('library:collection.loading') }))
+              : h(List<Track>, {
+                  testID: 'local-tracks-list',
+                  header: headerNode,
+                  sticky: stickyBar,
+                  stickyHeader: tableHeaderNode ?? undefined,
+                  onScroll: collapse.handleScroll,
+                  items: sortedTracks,
+                  estimatedItemSize: tokens.size.row,
+                  keyExtractor: (t) => t.urn,
+                  empty: h(EmptyState, {
+                    icon: 'folder',
+                    title: t('library:localMusic.noLocalMusicYet'),
+                    description: t('library:localMusic.afterAddingAMusicFolder'),
                   }),
+                  renderItem: (track, index) =>
+                    h(LibraryTrackRow, {
+                      ctx,
+                      track,
+                      index,
+                      batchMode: isBatchMode,
+                      selected: selectedUrns.has(track.urn),
+                      onToggleSelect: () => handleToggleSelect(track.urn),
+                      inLibrary: isTrackInLibrary(track),
+                      highlighted: activeHighlights.has(track.urn),
+                      compact: trackViewMode === 'compact',
+                      onPress: () =>
+                        player?.playFromContext(track.urn, sortedTrackUrns, {
+                          context: { kind: 'local', label: t('library:localMusic.localMusic') },
+                        }),
+                      onMore: (anchor) => menu.open({ track }, anchor),
+                      onAddToFavorites: handleAddToFavorites,
+                      onOpenPlaylistMenu: openAddToPlaylistMenu,
+                      onOpenAlbum: handleOpenAlbum,
+                    }),
+                }),
+          )
+        : // Albums mode: no virtual list; this page provides its own scroller, and the header likewise scrolls away with the content.
+          h(
+            'div',
+            {
+              key: 'album-scroll-container',
+              ref: collapse.scrollerRef,
+              style: { flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' },
+              onScroll: collapse.handleScroll,
+            },
+            stickyBar,
+            headerNode,
+            albumTableHeaderNode,
+            albumsContent,
+          ),
+      h(ContextMenu, menu.menuProps),
+      h(SaveToPlaylistPopover, saveToPlaylistMenuProps),
+      h(ContextMenu, {
+        open: moreMenuAnchor !== null,
+        onClose: () => setMoreMenuAnchor(null),
+        x: moreMenuAnchor?.x ?? 0,
+        y: moreMenuAnchor?.y ?? 0,
+        items: moreMenuItems,
+        title: t('library:expandedLibrary.moreOptions'),
+      }),
+      h(ContextMenu, {
+        open: sortMenuAnchor !== null,
+        onClose: () => setSortMenuAnchor(null),
+        x: sortMenuAnchor?.x ?? 0,
+        y: sortMenuAnchor?.y ?? 0,
+        items:
+          viewMode === 'tracks'
+            ? viewModeMenuItems(trackSortItems, trackViewMode, setTrackViewMode)
+            : viewModeMenuItems(albumSortItems, albumViewMode, setAlbumViewMode, {
+                allowTiled: true,
               }),
-        )
-      : // Albums mode: no virtual list; this page provides its own scroller, and the header likewise scrolls away with the content.
-        h(
-          'div',
-          {
-            key: 'album-scroll-container',
-            ref: collapse.scrollerRef,
-            style: { flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' },
-            onScroll: collapse.handleScroll,
-          },
-          stickyBar,
-          headerNode,
-          albumTableHeaderNode,
-          albumsContent,
-        ),
-    h(ContextMenu, menu.menuProps),
-    h(SaveToPlaylistPopover, saveToPlaylistMenuProps),
-    h(ContextMenu, {
-      open: moreMenuAnchor !== null,
-      onClose: () => setMoreMenuAnchor(null),
-      x: moreMenuAnchor?.x ?? 0,
-      y: moreMenuAnchor?.y ?? 0,
-      items: moreMenuItems,
-      title: t('library:expandedLibrary.moreOptions'),
-    }),
-    h(ContextMenu, {
-      open: sortMenuAnchor !== null,
-      onClose: () => setSortMenuAnchor(null),
-      x: sortMenuAnchor?.x ?? 0,
-      y: sortMenuAnchor?.y ?? 0,
-      items:
-        viewMode === 'tracks'
-          ? viewModeMenuItems(trackSortItems, trackViewMode, setTrackViewMode)
-          : viewModeMenuItems(albumSortItems, albumViewMode, setAlbumViewMode, {
-              allowTiled: true,
-            }),
-      title: t('library:favorites.sortBy'),
-    }),
+        title: t('library:favorites.sortBy'),
+      }),
+    ),
   )
 }
