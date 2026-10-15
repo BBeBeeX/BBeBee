@@ -927,7 +927,7 @@ describe('NowPlayingScreen', () => {
     fireEvent.click(hideBtn)
     expect(container.querySelector('[aria-label="Show lyrics"]')).toBeTruthy()
     expect(panelWrapper.style.opacity).toBe('0')
-    expect(panelWrapper.style.maxHeight).toBe('0px')
+    expect(panelWrapper.style.maxWidth).toBe('0px')
 
     fireEvent.click(container.querySelector('[aria-label="Show lyrics"]') as HTMLButtonElement)
     expect(container.querySelector('[aria-label="Hide lyrics"]')).toBeTruthy()

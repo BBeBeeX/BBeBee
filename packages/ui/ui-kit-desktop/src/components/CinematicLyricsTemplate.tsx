@@ -129,12 +129,29 @@ export function CinematicLyricsTemplate(props: CinematicLyricsTemplateProps): Re
     const container = containerRef.current
     const line = lineRefs.current[index]
     if (!container || !line) return
-    const targetY = container.clientHeight * ACTIVE_LINE_ANCHOR_RATIO
-    const top = line.offsetTop - targetY + line.clientHeight / 2
-    if (typeof container.scrollTo === 'function') {
-      container.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
+
+    let targetScrollTop: number
+    if (typeof container.getBoundingClientRect === 'function' && typeof line.getBoundingClientRect === 'function') {
+      const containerRect = container.getBoundingClientRect()
+      const lineRect = line.getBoundingClientRect()
+      if (containerRect.height > 0) {
+        const targetY = containerRect.height * ACTIVE_LINE_ANCHOR_RATIO
+        const currentY = lineRect.top - containerRect.top + lineRect.height / 2
+        const delta = currentY - targetY
+        targetScrollTop = container.scrollTop + delta
+      } else {
+        const targetY = container.clientHeight * ACTIVE_LINE_ANCHOR_RATIO
+        targetScrollTop = line.offsetTop - targetY + line.clientHeight / 2
+      }
     } else {
-      container.scrollTop = Math.max(0, top)
+      const targetY = container.clientHeight * ACTIVE_LINE_ANCHOR_RATIO
+      targetScrollTop = line.offsetTop - targetY + line.clientHeight / 2
+    }
+
+    if (typeof container.scrollTo === 'function') {
+      container.scrollTo({ top: Math.max(0, targetScrollTop), behavior: 'smooth' })
+    } else {
+      container.scrollTop = Math.max(0, targetScrollTop)
     }
   }, [])
 
@@ -160,12 +177,12 @@ export function CinematicLyricsTemplate(props: CinematicLyricsTemplateProps): Re
     [canSeek, onSeek, ctx],
   )
 
-  const topPadding = containerHeight > 0
+  const topSpacerHeight = containerHeight > 0
     ? Math.max(0, Math.round(containerHeight * ACTIVE_LINE_ANCHOR_RATIO - 18))
-    : '38vh'
-  const bottomPadding = containerHeight > 0
-    ? Math.round(containerHeight * (1 - ACTIVE_LINE_ANCHOR_RATIO))
-    : '62vh'
+    : 80
+  const bottomSpacerHeight = containerHeight > 0
+    ? Math.max(120, Math.round(containerHeight * (1 - ACTIVE_LINE_ANCHOR_RATIO) + 40))
+    : 160
 
   /* ── render ───────────────────────────────────────────────────────────── */
   return h(
@@ -211,16 +228,13 @@ export function CinematicLyricsTemplate(props: CinematicLyricsTemplateProps): Re
           alignItems: 'center',
           justifyContent: lines.length > 0 ? 'flex-start' : 'center',
           gap: 10,
-          paddingTop: lines.length > 0 && isSynced ? topPadding : lines.length > 0 ? '24px' : 0,
-          paddingBottom: lines.length > 0 && isSynced ? bottomPadding : lines.length > 0 ? '40px' : 0,
-          paddingLeft: 0,
-          paddingRight: 0,
+          padding: lines.length > 0 && isSynced ? 0 : lines.length > 0 ? '24px 0 40px' : 0,
           scrollbarWidth: 'none',
           scrollbarColor: 'transparent',
           maskImage:
-            'linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%)',
+            'linear-gradient(to bottom, transparent 0%, black 10%, black 90%, transparent 100%)',
           WebkitMaskImage:
-            'linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%)',
+            'linear-gradient(to bottom, transparent 0%, black 10%, black 90%, transparent 100%)',
         },
       },
 
@@ -239,27 +253,37 @@ export function CinematicLyricsTemplate(props: CinematicLyricsTemplateProps): Re
             isPlaying ? t('lyrics:lyrics.healingMusicPlaceholder') : t('lyrics:lyrics.noLyrics'),
           )
         : isSynced
-          ? lines.map((line, idx) => {
-              const isCurrent = idx === activeIndex
-              const isAbove = activeIndex >= 0 && idx < activeIndex
-              const linesAbove = isAbove ? activeIndex - idx : 0
-              const isHiddenAbove = !userScrolling && isAbove && linesAbove > MAX_LINES_ABOVE
-              const clickable = line.timeMs !== undefined && canSeek && !isHiddenAbove
+          ? [
+              h('div', {
+                key: 'cinematic-top-spacer',
+                'data-testid': 'cinematic-top-spacer',
+                style: { height: topSpacerHeight, width: '100%', flexShrink: 0, pointerEvents: 'none' },
+                'aria-hidden': 'true',
+              }),
+              ...lines.map((line, idx) => {
+                const isCurrent = idx === activeIndex
+                const isAbove = activeIndex >= 0 && idx < activeIndex
+                const linesAbove = isAbove ? activeIndex - idx : 0
+                const isHiddenAbove = !userScrolling && isAbove && linesAbove > MAX_LINES_ABOVE
+                const clickable = line.timeMs !== undefined && canSeek && !isHiddenAbove
 
-              let opacity: number
-              if (isHiddenAbove) {
-                opacity = 0
-              } else if (isCurrent) {
-                opacity = 1
-              } else if (isAbove) {
-                if (linesAbove === 1) opacity = 0.42
-                else if (linesAbove === 2) opacity = 0.28
-                else if (linesAbove === 3) opacity = 0.16
-                else opacity = 0.22
-              } else {
-                const distanceBelow = activeIndex >= 0 ? idx - activeIndex : idx + 1
-                opacity = distanceBelow === 1 ? 0.42 : distanceBelow === 2 ? 0.28 : 0.16
-              }
+                let opacity: number
+                if (isHiddenAbove) {
+                  opacity = 0
+                } else if (isCurrent) {
+                  opacity = 1
+                } else if (isAbove) {
+                  if (linesAbove === 1) opacity = 0.5
+                  else if (linesAbove === 2) opacity = 0.35
+                  else if (linesAbove === 3) opacity = 0.2
+                  else opacity = 0.15
+                } else {
+                  const distanceBelow = activeIndex >= 0 ? idx - activeIndex : idx + 1
+                  if (distanceBelow === 1) opacity = 0.5
+                  else if (distanceBelow === 2) opacity = 0.35
+                  else if (distanceBelow === 3) opacity = 0.2
+                  else opacity = 0.15
+                }
 
               return h(
                 'div',
@@ -320,8 +344,15 @@ export function CinematicLyricsTemplate(props: CinematicLyricsTemplateProps): Re
                     )
                   : null,
               )
-            })
-          : lines.map((line, idx) =>
+            }),
+            h('div', {
+              key: 'cinematic-bottom-spacer',
+              'data-testid': 'cinematic-bottom-spacer',
+              style: { height: bottomSpacerHeight, width: '100%', flexShrink: 0, pointerEvents: 'none' },
+              'aria-hidden': 'true',
+            }),
+          ]
+        : lines.map((line, idx) =>
               h(
                 'div',
                 {
