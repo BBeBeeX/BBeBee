@@ -62,6 +62,7 @@ Declared in `packages/protocol/src/services/` and augmented onto `Context`:
 | `ctx.theme` | Theme registry, token injection, dynamic theme management | `plugin-theme` |
 | `ctx.share` | Metadata serialization, image steganography, track/playlist/album/lyrics sharing | `plugin-share` |
 | `ctx['plugin-manager']` | Plugin registry, runtime fiber states, dependency graph, and persistent lifecycle management | `plugin-manager` |
+| `ctx.audioConverter` | Audio format transcoding, audio compression, batch queue concurrency, pre-conversion size estimation, and task management | `plugin-audio-converter` |
 
 ---
 
@@ -113,7 +114,7 @@ Declared in `packages/protocol/src/services/` and augmented onto `Context`:
 ## 8. Audio Transcoding & Download Container Integrity
 
 - **`ctx.codec.transcode(options)`:** Core audio codec service provides optional transcoding between containers (FLAC, MP3, M4A/AAC, Opus, WAV). On desktop, this routes through the host bridge (`audio:transcode`) backed by FFmpeg.
-- **Container sniffing and format reconciliation in `ctx.downloads`:** When remote streams deliver audio whose real magic-bytes container does not match the user's preferred format in `settings.downloadFormat` (e.g. source serves MP3 stream when FLAC was selected), `plugin-download` invokes `ctx.codec.transcode` to convert the downloaded file to the configured format before embedding metadata tags (Vorbis comment / ID3) and artwork. If transcoding is unavailable or fails, it gracefully falls back to the native detected container format.
+- **Container sniffing and format reconciliation in `ctx.downloads`:** When remote streams deliver audio whose real magic-bytes container does not match the user's preferred format in `settings.downloadFormat` (e.g. source serves MP3 stream when FLAC was selected), `plugin-download` invokes `ctx.audioConverter.convertDirect` (falling back to `ctx.codec.transcode` if the audio converter plugin is not loaded) to convert the downloaded file to the configured format before embedding metadata tags (Vorbis comment / ID3) and artwork. If transcoding is unavailable or fails, it gracefully falls back to the native detected container format.
 - **Embedded tag integrity:** Vorbis comments written to FLAC files must include `PERFORMER`, `ARTIST`, `ALBUMARTIST`, `DATE`, `YEAR`, `TRACKNUMBER` and valid picture dimensions detected from cover artwork headers.
 
 

@@ -205,6 +205,7 @@ B_Be_Bee/
 │   │   ├── plugin-cache/           ✅        ctx.cache — covers and remote streams served from
 │   │   │                                       ctx.paths.cache, fetched only on a miss, LRU per
 │   │   │                                       class ([audio/playback.md](../audio/playback.md), [data-model/schema.md](../data-model/schema.md))
+│   │   ├── plugin-audio-converter/ ✅        ctx.audioConverter — audio transcoding, compression presets, task queue, and size estimation
 │   │   └── plugin-…
 │   │
 │   ├── ui/                          🔹 LAYER 5 — views and UI infrastructure
@@ -250,7 +251,8 @@ B_Be_Bee/
 │   │   ├── plugin-dsp-ui-desktop/  ✅        ┐ 10-band EQ sliders, chain ordering, effect bypass,
 │   │   ├── plugin-dsp-ui-mobile/   ✅        ┘ and settings integration ([ui/architecture.md §4](../ui/architecture.md#4-binding-services-to-react))
 │   │   ├── plugin-settings-ui-desktop/ ✅    ┐ settings center: modular sections & diagnostics,
-│   │   └── plugin-settings-ui-mobile/  ✅    ┘ and category tabs ([ui/architecture.md §5](../ui/architecture.md))
+│   │   ├── plugin-settings-ui-mobile/  ✅    ┘ and category tabs ([ui/architecture.md §5](../ui/architecture.md))
+│   │   └── plugin-audio-converter-ui-desktop/ ✅ desktop tray workbench view, batch conversion, progress, and preset controls
 │   │
 │   ├── sdk/                         🔧 OUTSIDE THE LAYER MODEL
 │   │                                         @BBeBee/sdk — public development kit for external plugins

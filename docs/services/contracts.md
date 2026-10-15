@@ -27,7 +27,8 @@
 - [23. `ctx.settings` — application settings & contribution registry](#23-ctxsettings--application-settings--contribution-registry)
 - [24. `ctx['plugin-manager']` — plugin inspection, dependencies & lifecycle manager](#24-ctxplugin-manager--plugin-inspection-dependencies--lifecycle-manager)
 - [25. `ctx.contentRegistry` — third-party content registry](#25-ctxcontentregistry--third-party-content-registry)
-- [26. Where to go next](#26-where-to-go-next)
+- [26. `ctx.audioConverter` — audio format conversion & compression service](#26-ctxaudioconverter--audio-format-conversion--compression-service)
+- [27. Where to go next](#27-where-to-go-next)
 
 > **Scope boundary.** The normative registry of service keys — which keys exist and which package implements each on which platform — lives in [rules/services.md §2](../../rules/services.md#2-standard-service-keys) (L2). This catalog holds the full contracts, platform behavior and rationale.
 
@@ -582,11 +583,25 @@ export interface TranscodeOptions {
   outputUri: Uri
   targetFormat: string
   bitrate?: string
+  sampleRate?: number
+  channels?: number
+  bitDepth?: number
+  vbr?: boolean
+  vbrQuality?: number
+  volumeGainDb?: number
+  fadeInSeconds?: number
+  fadeOutSeconds?: number
+  startTimeSeconds?: number
+  endTimeSeconds?: number
+  signal?: AbortSignal
+  onProgress?: (progressPercent: number) => void
 }
 
 export interface TranscodeResult {
   ok: boolean
   error?: string
+  durationMs?: number
+  outputSize?: number
 }
 
 export interface CodecService {
@@ -599,6 +614,12 @@ export interface CodecService {
   supportedFormats(): string[]
   /** Transcode an audio file into another format. */
   transcode?(options: TranscodeOptions): Promise<TranscodeResult>
+  /** Probe available audio encoders and format capability on this system. */
+  getEncoderCapabilities?(): Promise<{
+    supportedInputFormats: string[]
+    supportedOutputFormats: string[]
+    encoders: Record<string, { name: string; description: string; available: boolean }>
+  }>
 }
 ```
 
@@ -1273,7 +1294,195 @@ Requests are caller-driven (the UI only asks while a numeric sort key is active)
 
 ---
 
-## 26. Where to go next
+## 26. `ctx.audioConverter` — audio format conversion & compression service
+
+**Purpose.** Unified audio format conversion, audio compression, batch queue concurrency, pre-conversion size estimation, and task lifecycle management.
+
+```ts
+export type AudioFormat =
+  | 'mp3'
+  | 'wav'
+  | 'flac'
+  | 'aac'
+  | 'm4a'
+  | 'ogg'
+  | 'opus'
+  | 'wma'
+  | 'aiff'
+  | 'alac'
+  | 'webm'
+  | 'pcm'
+
+export type CompressionPreset =
+  | 'high_quality'
+  | 'balanced'
+  | 'small_size'
+  | 'speech'
+  | 'custom'
+
+export interface AudioConvertOptions {
+  targetFormat: AudioFormat
+  preset?: CompressionPreset
+  bitrateKbps?: number
+  sampleRate?: number
+  channels?: number
+  bitDepth?: number
+  vbr?: boolean
+  vbrQuality?: number
+  volumeGainDb?: number
+  fadeInSeconds?: number
+  fadeOutSeconds?: number
+  startTimeSeconds?: number
+  endTimeSeconds?: number
+  outputDir?: string
+  outputFileName?: string
+  overwrite?: boolean
+}
+
+export type TaskStatus =
+  | 'pending'
+  | 'processing'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+
+export type TaskStage =
+  | 'analyzing'
+  | 'encoding'
+  | 'verifying'
+  | 'completed'
+  | 'cancelled'
+  | 'failed'
+
+export interface ConvertTask {
+  id: string
+  inputUri: string
+  outputUri: string
+  fileName: string
+  sourceFormat: string
+  targetFormat: AudioFormat
+  status: TaskStatus
+  progress: number
+  stage: TaskStage
+  sourceSize: number
+  outputSize?: number
+  durationMs?: number
+  compressionRatio?: number
+  error?: string
+  logs?: string[]
+  options: AudioConvertOptions
+  createdAt: number
+  startedAt?: number
+  completedAt?: number
+}
+
+export interface EncoderCapabilities {
+  supportedInputFormats: string[]
+  supportedOutputFormats: string[]
+  encoders: Record<string, { name: string; description: string; available: boolean }>
+}
+
+export interface CompressionEstimate {
+  estimatedSize: number
+  estimatedRatio: number
+  isLossless: boolean
+  warning?: string
+  note: string
+}
+
+export interface AudioConverterConfig {
+  defaultFormat: AudioFormat
+  defaultOutputDir?: string
+  defaultPreset?: CompressionPreset
+  maxConcurrency: number
+  taskTimeoutMs: number
+  autoCleanTemp: boolean
+}
+
+export interface DirectConvertParams {
+  inputUri: string
+  outputUri: string
+  targetFormat: AudioFormat
+  options?: Partial<AudioConvertOptions>
+  signal?: AbortSignal
+  onProgress?: (progress: number, stage: TaskStage) => void
+}
+
+export interface DirectConvertResult {
+  ok: boolean
+  error?: string
+  outputSize?: number
+  durationMs?: number
+}
+
+export interface AudioConverterService {
+  /** Check available audio encoders and format support on this system. */
+  getCapabilities(): Promise<EncoderCapabilities>
+
+  /** Estimate output size and compression ratio without encoding. */
+  estimateCompression(params: {
+    durationMs: number
+    sourceSize: number
+    targetFormat: AudioFormat
+    bitrateKbps?: number
+    channels?: number
+    sampleRate?: number
+    sourceFormat?: string
+  }): CompressionEstimate
+
+  /** Directly transcode an audio file (called by plugin-download or headless scripts). */
+  convertDirect(params: DirectConvertParams): Promise<DirectConvertResult>
+
+  /** Submit one or more files to the conversion queue. */
+  enqueue(
+    items: Array<{ uri: string; options?: Partial<AudioConvertOptions> }>,
+  ): Promise<ConvertTask[]>
+
+  /** Cancel an active or pending task. */
+  cancelTask(taskId: string): Promise<boolean>
+
+  /** Retry a failed task. */
+  retryTask(taskId: string): Promise<boolean>
+
+  /** Remove a task from the list/history. */
+  removeTask(taskId: string): Promise<boolean>
+
+  /** Clear all finished (completed, failed, cancelled) tasks. */
+  clearFinished(): Promise<void>
+
+  /** Get snapshot of all tasks. */
+  getTasks(): readonly ConvertTask[]
+
+  /** Get current configuration. */
+  getConfig(): AudioConverterConfig
+
+  /** Update configuration. */
+  updateConfig(patch: Partial<AudioConverterConfig>): Promise<void>
+
+  /** Subscribe to task list changes. */
+  onTasksChanged(callback: (tasks: readonly ConvertTask[]) => void): Disposable
+}
+```
+
+| | Electron (Desktop) | Expo (Mobile) |
+|---|---|---|
+| Headless service | `@BBeBee/plugin-audio-converter` | `@BBeBee/plugin-audio-converter` |
+| Transcode Engine | `core-codec-node` via system/bundled FFmpeg | `core-codec-rn` |
+| Workbench UI | `@BBeBee/plugin-audio-converter-ui-desktop` | Headless (UI degraded gracefully via missingViews) |
+| Entry Point | TopBar Tray popover shortcut & command palette | API only |
+
+### Architectural Invariants & Guarantees
+
+1. **Zero Shell Injection**: FFmpeg is invoked exclusively through array-based argument vectors in Layer 2 (`core-codec-node`). User input paths and audio parameters are strictly sanitized and never concatenated into raw shell strings.
+2. **Dynamic Capability Discovery**: The plugin executes `ffmpeg -encoders` at startup to detect actual installed encoder support, preventing decode-only formats (such as raw read formats) from being misidentified as writable.
+3. **Lossy vs. Lossless Audio Discipline**: Distinguishes lossy and lossless algorithms mathematically. Re-encoding MP3/AAC to FLAC explicitly flags warnings that file size will inflate without restoring high-frequency acoustic loss.
+4. **Temporary File & Destination Safety**: Conversions output to isolated hidden temporary files (`.tmp_*`). Completed files undergo validation (non-zero size and audio header inspection) prior to atomic rename. Destination files are protected against silent overwrites unless explicitly permitted.
+5. **Pre-Conversion Compression Estimation**: Estimates output bytes and compression ratios prior to execution based on duration, target bitrate, bit depth, channel configuration, and container framing overheads.
+6. **Task Scheduling & Concurrency**: Queue concurrency is bounded by default to 2 concurrent workers (configurable up to 8), with per-task `AbortSignal` cancellation and automatic temp cleanup.
+
+---
+
+## 27. Where to go next
 
 [05 — Audio & Playback](../audio/playback.md) builds the playback engine and DSP chain on top of
 these services.

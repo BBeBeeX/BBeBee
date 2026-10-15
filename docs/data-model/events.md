@@ -142,6 +142,13 @@ declare module 'cordis' {
     /* ── plugin-manager ──────────────────────────────── emit ── */
     'plugin-manager/enabled-changed'(payload: { id: string; enabled: boolean }): void
     'plugin-manager/changed'(): void
+
+    /* ── audio-converter ─────────────────────────────── emit ── */
+    'audio-converter/tasks-changed'(tasks: readonly ConvertTask[]): void
+    'audio-converter/task-progress'(taskId: string, progress: number, stage: string): void
+    'audio-converter/task-completed'(task: ConvertTask): void
+    'audio-converter/task-failed'(taskId: string, error: string): void
+    'audio-converter/task-cancelled'(taskId: string): void
   }
 }
 ```
@@ -153,7 +160,7 @@ declare module 'cordis' {
 | Event group | Mode | Why |
 |---|---|---|
 | `player/before-resolve`, `player/before-enqueue`, `http/request`, `dsp/build-chain` | **waterfall** | Listeners transform the value and control whether the chain continues. The composition mechanism of [layers.md §5](../architecture/layers.md#5-composition-how-features-reach-each-other) |
-| `*/changed`, `*/progress`, `player/*`, `plugin/*`, `now-playing/*`, `theme/*`, `lyrics/*`, `settings/*`, `ui/*`, `sleep-timer/*`, `mini-player/*`, `share/*`, `plugin-manager/*` | **emit** | Fire-and-forget notification. Listener errors do not affect the emitter |
+| `*/changed`, `*/progress`, `player/*`, `plugin/*`, `now-playing/*`, `theme/*`, `lyrics/*`, `settings/*`, `ui/*`, `sleep-timer/*`, `mini-player/*`, `share/*`, `plugin-manager/*`, `audio-converter/*` | **emit** | Fire-and-forget notification. Listener errors do not affect the emitter |
 | `player/track-completed` | **parallel** | Scrobblers, stats, and history all run; all are awaited; one failing does not block the others |
 | `source/auth-expired` | **serial** | Ordered handling — the session refresher gets first refusal before the UI prompts |
 | `source/signed-out` | **parallel** | Every listener purging session-derived state is awaited, so sign-out completes only once the cleanup has actually finished |
