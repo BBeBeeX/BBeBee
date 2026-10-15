@@ -28,7 +28,7 @@ const DEFAULT_CONFIG: AudioConverterConfig = {
 }
 
 export class AudioConverter extends Service implements AudioConverterService {
-  static inject = ['codec', 'fs']
+  static inject = ['codec', 'fs', 'paths']
 
   private config: AudioConverterConfig
   private queue: TaskQueue
@@ -82,7 +82,10 @@ export class AudioConverter extends Service implements AudioConverterService {
 
     ensureSafeTarget(normInput, normOutput, params.options?.overwrite ?? false)
 
-    const tempPath = computeTempPath(normOutput)
+    const targetParent = normOutput.lastIndexOf('/') >= 0 ? normOutput.slice(0, normOutput.lastIndexOf('/')) : ''
+    const tempDir = (targetParent && targetParent !== '.') ? targetParent : (this.ctx.paths?.temp || '/tmp')
+    await this.ctx.fs.mkdir(tempDir, { recursive: true }).catch(() => undefined)
+    const tempPath = computeTempPath(normOutput, tempDir)
     params.onProgress?.(5, 'analyzing')
 
     let timeoutTimer: ReturnType<typeof setTimeout> | undefined

@@ -37,15 +37,53 @@ export function AudioFileList({
   const { t } = useI18n(ctx)
   const [isDragOver, setIsDragOver] = useState(false)
 
+  const handleBrowseFiles = async () => {
+    const bridge = (window as unknown as {
+      BBeBee?: { dialog?: { pickFiles?: (opts?: { extensions?: string[] }) => Promise<string[]> } }
+    }).BBeBee
+    if (typeof bridge?.dialog?.pickFiles === 'function') {
+      try {
+        const filePaths = await bridge.dialog.pickFiles({
+          extensions: ['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg', 'opus', 'wma', 'aiff', 'alac', 'webm'],
+        })
+        if (!filePaths || filePaths.length === 0) return
+
+        const newFiles: SelectedAudioFile[] = []
+        for (let i = 0; i < filePaths.length; i++) {
+          const filePath = filePaths[i]!
+          const lastSlash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'))
+          const fileName = lastSlash >= 0 ? filePath.slice(lastSlash + 1) : filePath
+          const ext = extractExtension(filePath) || 'unknown'
+          newFiles.push({
+            id: `file_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 6)}`,
+            uri: filePath,
+            name: fileName,
+            format: ext.toUpperCase(),
+            size: 0,
+          })
+        }
+        onAddFiles(newFiles)
+        return
+      } catch {
+        // Fallback to browser file input
+      }
+    }
+    const input = document.getElementById('converter-file-input') as HTMLInputElement | null
+    input?.click()
+  }
+
   const handleFileInput = async (e: ChangeEvent<HTMLInputElement>) => {
     const fileList = e.target.files
     if (!fileList || fileList.length === 0) return
 
+    const getPath = (window as unknown as {
+      BBeBee?: { files?: { getPath?: (f: File) => string } }
+    }).BBeBee?.files?.getPath
+
     const newFiles: SelectedAudioFile[] = []
     for (let i = 0; i < fileList.length; i++) {
       const f = fileList[i]!
-      // In Electron / web, file.path is available if file is from local disk
-      const filePath = (f as { path?: string }).path || f.name
+      const filePath = getPath?.(f) || (f as { path?: string }).path || f.name
       const ext = extractExtension(filePath) || extractExtension(f.name) || 'unknown'
       newFiles.push({
         id: `file_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 6)}`,
@@ -62,14 +100,19 @@ export function AudioFileList({
 
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault()
+    e.stopPropagation()
     setIsDragOver(false)
     const droppedFiles = e.dataTransfer.files
     if (!droppedFiles || droppedFiles.length === 0) return
 
+    const getPath = (window as unknown as {
+      BBeBee?: { files?: { getPath?: (f: File) => string } }
+    }).BBeBee?.files?.getPath
+
     const newFiles: SelectedAudioFile[] = []
     for (let i = 0; i < droppedFiles.length; i++) {
       const f = droppedFiles[i]!
-      const filePath = (f as { path?: string }).path || f.name
+      const filePath = getPath?.(f) || (f as { path?: string }).path || f.name
       const ext = extractExtension(filePath) || extractExtension(f.name) || 'unknown'
       newFiles.push({
         id: `file_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 6)}`,
@@ -125,11 +168,21 @@ export function AudioFileList({
     h(
       'div',
       {
-        onDragOver: (e: DragEvent<HTMLDivElement>) => {
+        onDragEnter: (e: DragEvent<HTMLDivElement>) => {
           e.preventDefault()
+          e.stopPropagation()
           setIsDragOver(true)
         },
-        onDragLeave: () => setIsDragOver(false),
+        onDragOver: (e: DragEvent<HTMLDivElement>) => {
+          e.preventDefault()
+          e.stopPropagation()
+          setIsDragOver(true)
+        },
+        onDragLeave: (e: DragEvent<HTMLDivElement>) => {
+          e.preventDefault()
+          e.stopPropagation()
+          setIsDragOver(false)
+        },
         onDrop: handleDrop,
         style: {
           display: 'flex',
@@ -148,10 +201,7 @@ export function AudioFileList({
           cursor: 'pointer',
           transition: 'all 0.15s ease',
         },
-        onClick: () => {
-          const input = document.getElementById('converter-file-input') as HTMLInputElement | null
-          input?.click()
-        },
+        onClick: handleBrowseFiles,
       },
       h(
         'input',

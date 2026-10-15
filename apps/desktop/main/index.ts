@@ -115,6 +115,7 @@ let closeToTray = true
 let tray: Tray | undefined
 let audioHost: ReturnType<typeof createAudioHost> | undefined
 let mainWindow: BrowserWindow | undefined
+const bridge: { host?: Host } = {}
 const miniPlayerManager = new MiniPlayerWindowManager(() => mainWindow, here)
 
 interface TaskbarState {
@@ -820,7 +821,39 @@ function registerHandlers(): void {
     const result = window
       ? await dialog.showOpenDialog(window, { properties: ['openDirectory'] })
       : await dialog.showOpenDialog({ properties: ['openDirectory'] })
-    return result.canceled ? undefined : result.filePaths[0]
+    if (!result.canceled && result.filePaths[0]) {
+      bridge.host?.addExtraRoot?.(result.filePaths[0])
+      return result.filePaths[0]
+    }
+    return undefined
+  })
+
+  ipcMain.handle('dialog:pickFiles', async (event, options?: { extensions?: string[] }) => {
+    const target = BrowserWindow.fromWebContents(event.sender)
+    const window = target && !target.isDestroyed() ? target : undefined
+    const extensions = options?.extensions?.length
+      ? options.extensions
+      : ['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg', 'opus', 'wma', 'aiff', 'alac', 'webm']
+    const result = window
+      ? await dialog.showOpenDialog(window, {
+          properties: ['openFile', 'multiSelections'],
+          filters: [{ name: 'Audio Files', extensions }],
+        })
+      : await dialog.showOpenDialog({
+          properties: ['openFile', 'multiSelections'],
+          filters: [{ name: 'Audio Files', extensions }],
+        })
+    if (!result.canceled && result.filePaths.length > 0) {
+      for (const p of result.filePaths) {
+        bridge.host?.addExtraRoot?.(p)
+        const lastSlash = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'))
+        if (lastSlash > 0) {
+          bridge.host?.addExtraRoot?.(p.slice(0, lastSlash))
+        }
+      }
+      return result.filePaths
+    }
+    return []
   })
 
   /*
@@ -1744,10 +1777,6 @@ void app.whenReady().then(async () => {
   // automatically once the window becomes visible ('show' event) to ensure HWND mapping.
   updateTaskbar(currentTaskbarState)
 
-  // A holder rather than a bare binding: `systemHost` needs to reach the host
-  // to emit events, and it is constructed as an argument *to* the call that
-  // creates it. The indirection is the knot being tied, not an accident.
-  const bridge: { host?: Host } = {}
   // The real fs/db live here, in main. ADR-3 puts the kernel in the renderer,
   // which is sandboxed and cannot reach Node — so the renderer's core services
   // are thin IPC clients over this host (docs/02 §2).

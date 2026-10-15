@@ -139,6 +139,7 @@ describe('plugin-audio-converter service & lifecycle', () => {
       },
     })
 
+    expect(res.error).toBeUndefined()
     expect(res.ok).toBe(true)
     expect(res.outputSize).toBeGreaterThan(0)
     expect(stages).toContain('encoding')
@@ -241,10 +242,11 @@ describe('plugin-audio-converter service & lifecycle', () => {
     await tick()
 
     const route = contributions.find((c) => c.kind === 'route' && c.id === AUDIO_CONVERTER_VIEWS.page)
-    const tray = contributions.find((c) => c.kind === 'tray' && c.id === 'audio-converter.tray')
+    const tray = contributions.find((c) => c.kind === 'tray')
 
     expect(route).toBeDefined()
+    expect(route.title).toBe('converter:index.title')
     expect(route.placement).toContain('tray')
-    expect(tray).toBeDefined()
+    expect(tray).toBeUndefined()
   })
 })

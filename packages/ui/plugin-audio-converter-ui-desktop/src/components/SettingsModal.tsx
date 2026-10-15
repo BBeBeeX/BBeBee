@@ -3,7 +3,7 @@
  * Configures default format, output directory, concurrency, timeout, and auto-clean.
  */
 
-import { createElement as h, useEffect, useState } from 'react'
+import { createElement as h, useEffect, useMemo, useState } from 'react'
 import type { ChangeEvent, ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { AudioConverterConfig, AudioFormat, CompressionPreset } from '@BBeBee/protocol'
@@ -32,14 +32,6 @@ const SUPPORTED_FORMATS: readonly AudioFormat[] = [
   'webm',
 ]
 
-const TIMEOUT_OPTIONS = [
-  { label: '1 minute', value: 60_000 },
-  { label: '3 minutes', value: 180_000 },
-  { label: '5 minutes (Default)', value: 300_000 },
-  { label: '10 minutes', value: 600_000 },
-  { label: '30 minutes', value: 1_800_000 },
-]
-
 export function SettingsModal({
   ctx,
   open,
@@ -50,6 +42,17 @@ export function SettingsModal({
   const { t } = useI18n(ctx)
 
   const [draft, setDraft] = useState<AudioConverterConfig>(config)
+
+  const timeoutOptions = useMemo(
+    () => [
+      { label: t('converter:index.timeout1Min'), value: 60_000 },
+      { label: t('converter:index.timeout3Min'), value: 180_000 },
+      { label: t('converter:index.timeout5Min'), value: 300_000 },
+      { label: t('converter:index.timeout10Min'), value: 600_000 },
+      { label: t('converter:index.timeout30Min'), value: 1_800_000 },
+    ],
+    [t],
+  )
 
   useEffect(() => {
     if (open) {
@@ -192,7 +195,7 @@ export function SettingsModal({
               })),
             style: selectStyle,
           },
-          TIMEOUT_OPTIONS.map((opt) =>
+          timeoutOptions.map((opt) =>
             h('option', { key: opt.value, value: opt.value }, opt.label),
           ),
         ),

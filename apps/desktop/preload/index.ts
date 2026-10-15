@@ -36,6 +36,8 @@ const api = {
   },
   dialog: {
     pickDirectory: (): Promise<string | undefined> => ipcRenderer.invoke('dialog:pickDirectory'),
+    pickFiles: (options?: { extensions?: string[] }): Promise<string[]> =>
+      ipcRenderer.invoke('dialog:pickFiles', options),
   },
   /**
    * Dropped files, by path.

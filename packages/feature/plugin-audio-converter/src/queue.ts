@@ -43,8 +43,11 @@ export class TaskQueue {
       const lastDot = fullFileName.lastIndexOf('.')
       const stem = lastDot > 0 ? fullFileName.slice(0, lastDot) : fullFileName
 
-      // Output directory: item option -> config default -> same directory as input
-      const parentDir = lastSlash >= 0 ? normInput.slice(0, lastSlash) : '.'
+      // Output directory: item option -> config default -> same directory as input (fallback to music/downloads/temp)
+      const defaultPaths = (this.ctx as unknown as { paths?: { music?: string; downloads?: string; temp?: string } }).paths
+      const fallbackDir = defaultPaths?.music || defaultPaths?.downloads || defaultPaths?.temp || '/tmp'
+      const rawParent = lastSlash >= 0 ? normInput.slice(0, lastSlash) : ''
+      const parentDir = rawParent && rawParent !== '.' ? rawParent : fallbackDir
       const outDir = item.options?.outputDir || config.defaultOutputDir || parentDir
       const customName = item.options?.outputFileName || `${stem}.${targetFmt}`
       const outUri = `${outDir}/${customName}`
@@ -180,7 +183,10 @@ export class TaskQueue {
     const controller = new AbortController()
     this.abortControllers.set(taskId, controller)
 
-    const tempPath = computeTempPath(task.outputUri)
+    const targetParent = task.outputUri.lastIndexOf('/') >= 0 ? task.outputUri.slice(0, task.outputUri.lastIndexOf('/')) : ''
+    const tempDir = (targetParent && targetParent !== '.') ? targetParent : (this.ctx.paths?.temp || '/tmp')
+    await this.ctx.fs.mkdir(tempDir, { recursive: true }).catch(() => undefined)
+    const tempPath = computeTempPath(task.outputUri, tempDir)
 
     this.updateTask(taskId, {
       status: 'processing',
@@ -231,6 +237,9 @@ export class TaskQueue {
         endTimeSeconds: task.options.endTimeSeconds,
         signal: controller.signal,
         onProgress: (pct: number) => {
+          if (controller.signal.aborted) return
+          const current = this.tasks.get(taskId)
+          if (!current || current.status !== 'processing' || current.stage === 'verifying' || current.stage === 'completed') return
           // Map encoding progress from 10% to 90%
           const overall = Math.min(90, Math.round(10 + (pct * 0.8)))
           this.updateTask(taskId, {

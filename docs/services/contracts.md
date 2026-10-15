@@ -1474,11 +1474,14 @@ export interface AudioConverterService {
 ### Architectural Invariants & Guarantees
 
 1. **Zero Shell Injection**: FFmpeg is invoked exclusively through array-based argument vectors in Layer 2 (`core-codec-node`). User input paths and audio parameters are strictly sanitized and never concatenated into raw shell strings.
-2. **Dynamic Capability Discovery**: The plugin executes `ffmpeg -encoders` at startup to detect actual installed encoder support, preventing decode-only formats (such as raw read formats) from being misidentified as writable.
-3. **Lossy vs. Lossless Audio Discipline**: Distinguishes lossy and lossless algorithms mathematically. Re-encoding MP3/AAC to FLAC explicitly flags warnings that file size will inflate without restoring high-frequency acoustic loss.
-4. **Temporary File & Destination Safety**: Conversions output to isolated hidden temporary files (`.tmp_*`). Completed files undergo validation (non-zero size and audio header inspection) prior to atomic rename. Destination files are protected against silent overwrites unless explicitly permitted.
-5. **Pre-Conversion Compression Estimation**: Estimates output bytes and compression ratios prior to execution based on duration, target bitrate, bit depth, channel configuration, and container framing overheads.
-6. **Task Scheduling & Concurrency**: Queue concurrency is bounded by default to 2 concurrent workers (configurable up to 8), with per-task `AbortSignal` cancellation and automatic temp cleanup.
+2. **Service Injections**: Requires `codec`, `fs`, and `paths` (`static inject = ['codec', 'fs', 'paths']`). Well-known directories from `ctx.paths` (`music`, `downloads`, `temp`) provide secure output directory fallbacks and isolated temporary staging directories.
+3. **Bridge Containment & File Picking Authorization**: All local file access across Desktop Bridge adheres to `assertContained`. When picking files via `dialog:pickFiles`, the host automatically registers picked files and their parent directories to `bridge.host.addExtraRoot()`. In the renderer, `window.BBeBee.files.getPath()` ensures absolute paths are preserved.
+4. **Dynamic Capability Discovery**: The plugin executes `ffmpeg -encoders` at startup to detect actual installed encoder support, preventing decode-only formats (such as raw read formats) from being misidentified as writable.
+5. **Lossy vs. Lossless Audio Discipline**: Distinguishes lossy and lossless algorithms mathematically. Re-encoding MP3/AAC to FLAC explicitly flags warnings that file size will inflate without restoring high-frequency acoustic loss.
+6. **Temporary File & Destination Safety**: Conversions output to isolated hidden temporary files (`.tmp_*`) either inside the target directory or `ctx.paths.temp`. Completed files undergo validation (non-zero size and audio header inspection) prior to atomic rename. Destination files are protected against silent overwrites unless explicitly permitted.
+7. **Pre-Conversion Compression Estimation**: Estimates output bytes and compression ratios prior to execution based on duration, target bitrate, bit depth, channel configuration, and container framing overheads.
+8. **Task Scheduling & Concurrency**: Queue concurrency is bounded by default to 2 concurrent workers (configurable up to 8), with per-task `AbortSignal` cancellation and automatic temp cleanup.
+9. **Tray Entry Integration**: Contributes a single route with `placement: ['tray']` using localized title `converter:index.title`, avoiding duplicate tray entries in the top-bar popover.
 
 ---
 

@@ -143,6 +143,50 @@ export function ConverterWorkbench({ ctx }: ConverterWorkbenchProps): ReactEleme
     'section',
     {
       'data-testid': 'audio-converter-workbench',
+      onDragEnter: (e: React.DragEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+      },
+      onDragOver: (e: React.DragEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+      },
+      onDragLeave: (e: React.DragEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+      },
+      onDrop: (e: React.DragEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        const droppedFiles = e.dataTransfer.files
+        if (!droppedFiles || droppedFiles.length === 0) return
+
+        const getPath = (window as unknown as {
+          BBeBee?: { files?: { getPath?: (f: File) => string } }
+        }).BBeBee?.files?.getPath
+
+        const getExtension = (nameOrPath: string) => {
+          const clean = nameOrPath.split('?')[0]!.split('#')[0]!
+          const lastDot = clean.lastIndexOf('.')
+          return lastDot > 0 ? clean.slice(lastDot + 1).toLowerCase() : ''
+        }
+
+        const newFiles: SelectedAudioFile[] = []
+        for (let i = 0; i < droppedFiles.length; i++) {
+          const f = droppedFiles[i]!
+          const filePath = getPath?.(f) || (f as { path?: string }).path || f.name
+          const ext = getExtension(filePath) || getExtension(f.name) || 'unknown'
+          newFiles.push({
+            id: `file_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 6)}`,
+            uri: filePath,
+            name: f.name,
+            format: ext.toUpperCase(),
+            size: f.size,
+          })
+        }
+        setFiles((prev) => [...prev, ...newFiles])
+        setActiveTab('convert')
+      },
       style: {
         display: 'flex',
         flexDirection: 'column',

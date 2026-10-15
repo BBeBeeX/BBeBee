@@ -84,12 +84,15 @@ export function ensureSafeTarget(sourceUri: string, targetUri: string, allowOver
 }
 
 /**
- * Computes a secure temporary output path in the same parent directory.
+ * Computes a secure temporary output path in an application directory or target parent directory.
  */
-export function computeTempPath(targetUri: string): string {
+export function computeTempPath(targetUri: string, tempBaseDir?: string): string {
   const clean = validateAndNormalizePath(targetUri)
   const lastSlash = clean.lastIndexOf('/')
-  const dir = lastSlash >= 0 ? clean.slice(0, lastSlash) : '.'
+  const targetParent = lastSlash >= 0 ? clean.slice(0, lastSlash) : ''
+  const dir = (targetParent && targetParent !== '.')
+    ? targetParent
+    : (tempBaseDir ? validateAndNormalizePath(tempBaseDir) : '/tmp')
   const baseName = lastSlash >= 0 ? clean.slice(lastSlash + 1) : clean
   const lastDot = baseName.lastIndexOf('.')
   const stem = lastDot > 0 ? baseName.slice(0, lastDot) : baseName

@@ -140,7 +140,7 @@ export function FormatSection({
       h(
         'div',
         { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
-        h(Text, { variant: 'xs', tone: 'muted' }, 'Audio Type'),
+        h(Text, { variant: 'xs', tone: 'muted' }, t('converter:index.audioType')),
         h(
           'span',
           {
@@ -158,7 +158,7 @@ export function FormatSection({
               fontWeight: 600,
             },
           },
-          isLossless ? 'Lossless Audio' : 'Lossy Compressed',
+          isLossless ? t('converter:index.losslessAudio') : t('converter:index.lossyCompressed'),
         ),
       ),
     ),

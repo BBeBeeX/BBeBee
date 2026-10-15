@@ -2,7 +2,7 @@
  * Audio compression presets, detailed encoding parameters, and real-time size estimation.
  */
 
-import { createElement as h } from 'react'
+import { createElement as h, useMemo } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {
@@ -24,14 +24,6 @@ export interface CompressionSectionProps {
   estimate?: CompressionEstimate
   sourceSize?: number
 }
-
-const PRESET_OPTIONS: readonly SelectOption<CompressionPreset>[] = [
-  { value: 'high_quality', label: 'High Quality (320 kbps / 24-bit)' },
-  { value: 'balanced', label: 'Balanced (192 kbps / 16-bit)' },
-  { value: 'small_size', label: 'Small Size (128 kbps)' },
-  { value: 'speech', label: 'Speech / Podcast (64 kbps mono)' },
-  { value: 'custom', label: 'Custom Parameters' },
-]
 
 const BITRATE_OPTIONS: readonly SelectOption<string>[] = [
   { value: '64', label: '64 kbps' },
@@ -69,6 +61,17 @@ export function CompressionSection({
 }: CompressionSectionProps): ReactElement {
   const { t } = useI18n(ctx)
   const isLossless = isLosslessFormat(targetFormat)
+
+  const presetOptions = useMemo<readonly SelectOption<CompressionPreset>[]>(
+    () => [
+      { value: 'high_quality', label: t('converter:index.presetHighQuality') },
+      { value: 'balanced', label: t('converter:index.presetBalanced') },
+      { value: 'small_size', label: t('converter:index.presetSmallSize') },
+      { value: 'speech', label: t('converter:index.presetSpeech') },
+      { value: 'custom', label: t('converter:index.presetCustom') },
+    ],
+    [t],
+  )
 
   const handlePresetChange = (preset: CompressionPreset) => {
     if (preset === 'custom') {
@@ -143,7 +146,7 @@ export function CompressionSection({
         { style: { display: 'flex', alignItems: 'center', gap: tokens.space[2] } },
         h(Select<CompressionPreset>, {
           value: options.preset ?? 'balanced',
-          options: PRESET_OPTIONS,
+          options: presetOptions,
           onChange: handlePresetChange,
           accessibilityLabel: t('converter:index.preset'),
         }),

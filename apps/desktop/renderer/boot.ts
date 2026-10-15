@@ -84,7 +84,10 @@ declare global {
       paths: { get(kind: string): Promise<string | undefined> }
       getAppVersion: () => Promise<string>
       shell: { openExternal(url: string): Promise<void> }
-      dialog: { pickDirectory(): Promise<string | undefined> }
+      dialog: {
+        pickDirectory(): Promise<string | undefined>
+        pickFiles?(options?: { extensions?: string[] }): Promise<string[]>
+      }
       files?: { getPath(file: File): string }
       devtools?: { open(): Promise<void> }
       platform: string

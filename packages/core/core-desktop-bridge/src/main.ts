@@ -214,6 +214,8 @@ export interface Host {
    * be polled.
    */
   emit(event: BridgeEvent): void
+  /** Whitelist an extra file or directory root that the renderer is permitted to access. */
+  addExtraRoot?(uri: string): void
   dispose(): Promise<void>
 }
 
@@ -834,6 +836,9 @@ export async function createHost(ipc: IpcHost, options: HostOptions = {}): Promi
       // No-op where the host gave us no way to broadcast, which is what a
       // headless test harness looks like.
       ipc.broadcast?.(CH.event, event)
+    },
+    addExtraRoot(uri: string) {
+      extraRoots.add(toFileUri(uri))
     },
     async dispose() {
       for (const channel of Object.values(CH)) ipc.removeHandler(channel)
