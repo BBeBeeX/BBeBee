@@ -44,11 +44,15 @@ export interface NowPlayingLayoutProps {
   /* optional slot components */
   PanelComponent: ComponentType<{ ctx: Context }> | null
   VisualizerComponent: ComponentType<{ ctx: Context }> | null
+
+  /* lyrics visibility toggle */
+  showLyrics?: boolean
+  onToggleLyrics?: () => void
 }
 
 export const NOW_PLAYING_LAYOUT_MAP: Record<NowPlayingStyleId, ComponentType<NowPlayingLayoutProps>> = {
-  classic: ClassicLayout,
   cinematic: CinematicLayout,
+  classic: ClassicLayout,
   'full-cover': FullCoverLayout,
   vinyl: VinylLayout,
   compact: CompactLayout,

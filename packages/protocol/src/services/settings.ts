@@ -240,7 +240,7 @@ export const DEFAULT_PROXY_SETTINGS: ProxySettings = {
 export const DEFAULT_APP_SETTINGS: AppSettings = {
   theme: 'dark',
   themeId: 'midnight-purple',
-  nowPlayingStyle: 'classic',
+  nowPlayingStyle: 'cinematic',
   /**
    * New installs follow the OS language. `plugin-settings` merges stored
    * values over these defaults (`mergeSettings`), so this change never

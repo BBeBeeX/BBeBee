@@ -6,7 +6,7 @@
  * vinyl record.  Controls sit below the disc.
  */
 
-import { createElement as h } from 'react'
+import { createElement as h, useState } from 'react'
 import type { ReactElement } from 'react'
 import { formatDuration } from '@BBeBee/toolkit'
 import { IconButton, Slider, Text, useI18n } from '@BBeBee/ui-kit-desktop'
@@ -26,7 +26,13 @@ export function VinylLayout(props: NowPlayingLayoutProps): ReactElement {
   const { ctx, state, displayPosition, duration, can, PanelComponent, VisualizerComponent } = props
   const { t } = useI18n(ctx)
   const isSpinning = state.status === 'playing' || state.status === 'stalled'
-  const discSize = PanelComponent ? 240 : 300
+
+  const [internalShowLyrics, setInternalShowLyrics] = useState(true)
+  const isLyricsVisible = props.showLyrics ?? internalShowLyrics
+  const handleToggleLyrics = props.onToggleLyrics ?? (() => setInternalShowLyrics((v) => !v))
+  const isExpandedLayout = Boolean(PanelComponent && isLyricsVisible)
+  const hasLyrics = Boolean(PanelComponent)
+  const discSize = 250
 
   return h(
     'div',
@@ -34,15 +40,16 @@ export function VinylLayout(props: NowPlayingLayoutProps): ReactElement {
       'data-testid': 'layout-vinyl',
       style: {
         display: 'flex',
-        flexDirection: PanelComponent ? 'row' : 'column',
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: tokens.space[6],
+        gap: isExpandedLayout ? tokens.space[6] : 0,
         width: '100%',
-        maxWidth: PanelComponent ? 1100 : 520,
+        maxWidth: isExpandedLayout ? 1100 : 520,
         flex: 1,
         minHeight: 0,
         boxSizing: 'border-box',
+        transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
       },
     },
     /* inject keyframes */
@@ -72,6 +79,9 @@ export function VinylLayout(props: NowPlayingLayoutProps): ReactElement {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            transform: isExpandedLayout ? 'scale(1)' : 'scale(1.15)',
+            transformOrigin: 'center center',
+            transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
           },
         },
         /* outer ring — simulates grooves */
@@ -196,24 +206,40 @@ export function VinylLayout(props: NowPlayingLayoutProps): ReactElement {
           onPress: () => void ctx.player.next(),
         }),
         h(VolumeControl, { ctx, volume: state.volume, muted: state.muted }),
+        hasLyrics
+          ? h(IconButton, {
+              icon: 'lyrics',
+              variant: isLyricsVisible ? 'primary' : 'ghost',
+              accessibilityLabel: isLyricsVisible
+                ? t('nowPlaying:nowPlaying.hideLyrics')
+                : t('nowPlaying:nowPlaying.showLyrics'),
+              onPress: handleToggleLyrics,
+            })
+          : null,
       ),
     ),
-    /* optional panel (lyrics) */
+    /* optional panel (lyrics) with smooth animation */
     PanelComponent
       ? h(
           'div',
           {
             style: {
-              flex: 1.2,
+              flex: isLyricsVisible ? 1.2 : 0,
               display: 'flex',
               height: '80vh',
               maxHeight: '80vh',
-              minWidth: 340,
-              maxWidth: 600,
+              minWidth: isLyricsVisible ? 340 : 0,
+              maxWidth: isLyricsVisible ? 600 : 0,
+              opacity: isLyricsVisible ? 1 : 0,
+              transform: isLyricsVisible ? 'translateX(0)' : 'translateX(60px)',
+              pointerEvents: isLyricsVisible ? 'auto' : 'none',
+              overflow: 'hidden',
               minHeight: 0,
               borderRadius: tokens.radius.lg,
               background: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
+              border: isLyricsVisible ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid transparent',
+              transition:
+                'all 0.5s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease, border-color 0.4s ease',
             },
           },
           h(PanelComponent, { ctx }),

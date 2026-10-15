@@ -352,6 +352,13 @@ export const TABLER_DEFINITIONS: Record<string, IconSvgDefinition> = {
       { tag: 'path', attrs: { d: 'M9 13h-6' } },
     ],
   },
+  lyrics: {
+    elements: [
+      { tag: 'path', attrs: { d: 'M4 7h10M4 12h10M4 17h6' } },
+      { tag: 'path', attrs: { d: 'M17 17a2 2 0 1 0 4 0a2 2 0 0 0 -4 0' } },
+      { tag: 'path', attrs: { d: 'M21 17v-10h2' } },
+    ],
+  },
   'playlist-add': {
     elements: [
       { tag: 'path', attrs: { d: 'M19 8h-14' } },

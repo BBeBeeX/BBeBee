@@ -6,7 +6,7 @@
  * bar at the bottom of the viewport.
  */
 
-import { createElement as h } from 'react'
+import { createElement as h, useState } from 'react'
 import type { ReactElement } from 'react'
 import { formatDuration } from '@BBeBee/toolkit'
 import { IconButton, Slider, Text, useI18n } from '@BBeBee/ui-kit-desktop'
@@ -15,8 +15,23 @@ import { CachedArtwork, PlayModeButton, VolumeControl } from '../components/NowP
 import type { NowPlayingLayoutProps } from './index.js'
 
 export function FullCoverLayout(props: NowPlayingLayoutProps): ReactElement {
-  const { ctx, state, displayPosition, duration, can, PanelComponent, VisualizerComponent } = props
+  const {
+    ctx,
+    state,
+    displayPosition,
+    duration,
+    can,
+    PanelComponent,
+    VisualizerComponent,
+    showLyrics: propShowLyrics,
+    onToggleLyrics,
+  } = props
   const { t } = useI18n(ctx)
+  const [localShowLyrics, setLocalShowLyrics] = useState(true)
+  const isLyricsVisible = propShowLyrics !== undefined ? propShowLyrics : localShowLyrics
+  const toggleLyrics = onToggleLyrics ?? (() => setLocalShowLyrics((prev) => !prev))
+
+  const isExpandedLayout = Boolean(PanelComponent && isLyricsVisible)
 
   return h(
     'div',
@@ -78,16 +93,17 @@ export function FullCoverLayout(props: NowPlayingLayoutProps): ReactElement {
           position: 'relative',
           zIndex: 2,
           display: 'flex',
-          flexDirection: PanelComponent ? 'row' : 'column',
+          flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: tokens.space[6],
+          gap: isExpandedLayout ? tokens.space[6] : 0,
           width: '100%',
-          maxWidth: PanelComponent ? 1100 : 480,
+          maxWidth: isExpandedLayout ? 1100 : 480,
           flex: 1,
           minHeight: 0,
           padding: `0 ${tokens.space[5]}px`,
           boxSizing: 'border-box',
+          transition: 'max-width 0.5s cubic-bezier(0.16, 1, 0.3, 1), gap 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
         },
       },
       /* main player column */
@@ -99,8 +115,9 @@ export function FullCoverLayout(props: NowPlayingLayoutProps): ReactElement {
             flexDirection: 'column',
             alignItems: 'center',
             gap: tokens.space[5],
-            maxWidth: 420,
+            maxWidth: 440,
             width: '100%',
+            transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
           },
         },
         h(
@@ -108,15 +125,17 @@ export function FullCoverLayout(props: NowPlayingLayoutProps): ReactElement {
           {
             style: {
               borderRadius: tokens.radius.lg,
-              boxShadow: '0 16px 48px rgba(0, 0, 0, 0.6)',
+              boxShadow: isExpandedLayout ? '0 16px 48px rgba(0, 0, 0, 0.6)' : '0 24px 64px rgba(0, 0, 0, 0.75)',
               overflow: 'hidden',
+              transform: isExpandedLayout ? 'scale(1)' : 'scale(1.18)',
+              transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.5s ease',
             },
           },
           h(CachedArtwork, {
             ctx,
             artwork: state.nowPlaying?.artwork,
             seed: state.trackUrn,
-            size: PanelComponent ? 200 : 260,
+            size: 220,
             radius: tokens.radius.lg,
           }),
         ),
@@ -184,6 +203,15 @@ export function FullCoverLayout(props: NowPlayingLayoutProps): ReactElement {
             onPress: () => void ctx.player.next(),
           }),
           h(VolumeControl, { ctx, volume: state.volume, muted: state.muted }),
+          PanelComponent
+            ? h(IconButton, {
+                icon: 'lyrics',
+                testID: 'fullcover-lyrics-toggle',
+                accessibilityLabel: isLyricsVisible ? t('nowPlaying:nowPlaying.hideLyrics') : t('nowPlaying:nowPlaying.showLyrics'),
+                variant: isLyricsVisible ? 'primary' : 'ghost',
+                onPress: toggleLyrics,
+              })
+            : null,
         ),
       ),
       /* optional panel (lyrics) */
@@ -191,19 +219,26 @@ export function FullCoverLayout(props: NowPlayingLayoutProps): ReactElement {
         ? h(
             'div',
             {
+              'data-testid': 'fullcover-lyrics-column',
               style: {
-                flex: 1.2,
+                flex: isLyricsVisible ? 1.2 : 0,
                 display: 'flex',
                 height: '80vh',
                 maxHeight: '80vh',
-                minWidth: 340,
-                maxWidth: 600,
+                minWidth: isLyricsVisible ? 340 : 0,
+                maxWidth: isLyricsVisible ? 600 : 0,
                 minHeight: 0,
                 borderRadius: tokens.radius.lg,
                 background: 'rgba(0, 0, 0, 0.35)',
                 backdropFilter: 'blur(24px)',
                 WebkitBackdropFilter: 'blur(24px)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                border: isLyricsVisible ? '1px solid rgba(255, 255, 255, 0.08)' : '0px solid transparent',
+                overflow: 'hidden',
+                opacity: isLyricsVisible ? 1 : 0,
+                transform: isLyricsVisible ? 'translateX(0) scale(1)' : 'translateX(60px) scale(0.95)',
+                pointerEvents: isLyricsVisible ? 'auto' : 'none',
+                transition:
+                  'max-width 0.5s cubic-bezier(0.16, 1, 0.3, 1), min-width 0.5s cubic-bezier(0.16, 1, 0.3, 1), flex 0.5s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
               },
             },
             h(PanelComponent, { ctx }),

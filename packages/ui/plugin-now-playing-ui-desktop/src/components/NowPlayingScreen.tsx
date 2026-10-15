@@ -48,6 +48,7 @@ export function NowPlayingScreen({
   const [seekingPosition, setSeekingPosition] = useState<number | undefined>(undefined)
   const [isTopHovered, setIsTopHovered] = useState(false)
   const [infoTrack, setInfoTrack] = useState<Track | null>(null)
+  const [showLyrics, setShowLyrics] = useState(true)
   const state = useTransport(ctx)
   const position = usePosition(ctx)
   const duration = useDuration(ctx)
@@ -124,7 +125,7 @@ export function NowPlayingScreen({
     return (ui?.viewFor?.('visualizer.canvas') as React.ComponentType<{ ctx: Context }> | undefined) ?? null
   })
 
-  const BuiltinLayout = NOW_PLAYING_LAYOUT_MAP[styleId as keyof typeof NOW_PLAYING_LAYOUT_MAP] ?? NOW_PLAYING_LAYOUT_MAP.classic
+  const BuiltinLayout = NOW_PLAYING_LAYOUT_MAP[styleId as keyof typeof NOW_PLAYING_LAYOUT_MAP] ?? NOW_PLAYING_LAYOUT_MAP.cinematic
 
   return h(
     'div',
@@ -227,6 +228,8 @@ export function NowPlayingScreen({
           },
           PanelComponent,
           VisualizerComponent,
+          showLyrics,
+          onToggleLyrics: () => setShowLyrics((prev) => !prev),
         }),
     h(ContextMenu, menu.menuProps),
     h(TrackInfoModal, {

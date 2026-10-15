@@ -50,7 +50,7 @@ describe('plugin-now-playing', () => {
 })
 
 describe('plugin-now-playing style preference', () => {
-  it('defaults to classic style and allows changing style with event emission', async () => {
+  it('defaults to cinematic style and allows changing style with event emission', async () => {
     const ctx = new Context()
     const emitted: string[] = []
     ctx.on('now-playing/style-changed', (id) => {
@@ -61,7 +61,7 @@ describe('plugin-now-playing style preference', () => {
     await tick()
 
     expect(ctx.nowPlaying).toBeDefined()
-    expect(ctx.nowPlaying.getStyle()).toBe('classic')
+    expect(ctx.nowPlaying.getStyle()).toBe('cinematic')
 
     ctx.nowPlaying.setStyle('vinyl')
     expect(ctx.nowPlaying.getStyle()).toBe('vinyl')
@@ -151,12 +151,12 @@ describe('plugin-now-playing style preference', () => {
     ctx.nowPlaying.setStyle('neon-cyberpunk')
     expect(ctx.nowPlaying.getStyle()).toBe('neon-cyberpunk')
 
-    // Remove active custom style -> resets to classic default
+    // Remove active custom style -> resets to cinematic default
     unregister()
     await tick()
 
     expect(ctx.nowPlaying.getStyles().some((s) => s.id === 'neon-cyberpunk')).toBe(false)
-    expect(ctx.nowPlaying.getStyle()).toBe('classic')
+    expect(ctx.nowPlaying.getStyle()).toBe('cinematic')
   })
 })
 

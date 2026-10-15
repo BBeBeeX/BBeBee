@@ -837,5 +837,101 @@ describe('NowPlayingScreen', () => {
     expect(dialog.textContent).toContain('Hotel California')
     expect(dialog.textContent).toContain('Eagles')
   })
+
+  it('toggles lyrics visibility in classic layout', async () => {
+    const { ctx } = await harness({ status: 'playing' })
+    ctx.nowPlaying.setStyle('classic')
+    ctx.ui.registerView('lyrics.panel', () =>
+      h('div', { 'data-testid': 'mock-lyrics' }, 'Lyrics'),
+    )
+    const { container } = render(h(NowPlayingScreen, { ctx }))
+
+    const hideBtn = container.querySelector('[aria-label="Hide lyrics"]') as HTMLButtonElement
+    expect(hideBtn).toBeTruthy()
+    const lyricsEl = container.querySelector('[data-testid="mock-lyrics"]') as HTMLElement
+    const panelWrapper = lyricsEl.parentElement as HTMLElement
+    expect(panelWrapper.style.opacity).toBe('1')
+
+    fireEvent.click(hideBtn)
+    expect(container.querySelector('[aria-label="Show lyrics"]')).toBeTruthy()
+    expect(panelWrapper.style.opacity).toBe('0')
+    expect(panelWrapper.style.maxWidth).toBe('0px')
+
+    fireEvent.click(container.querySelector('[aria-label="Show lyrics"]') as HTMLButtonElement)
+    expect(container.querySelector('[aria-label="Hide lyrics"]')).toBeTruthy()
+    expect(panelWrapper.style.opacity).toBe('1')
+  })
+
+  it('toggles lyrics visibility in full-cover layout', async () => {
+    const { ctx } = await harness({ status: 'playing' })
+    ctx.nowPlaying.setStyle('full-cover')
+    ctx.ui.registerView('lyrics.panel', () =>
+      h('div', { 'data-testid': 'mock-lyrics' }, 'Lyrics'),
+    )
+    const { container } = render(h(NowPlayingScreen, { ctx }))
+
+    const hideBtn = container.querySelector('[aria-label="Hide lyrics"]') as HTMLButtonElement
+    expect(hideBtn).toBeTruthy()
+    const lyricsEl = container.querySelector('[data-testid="mock-lyrics"]') as HTMLElement
+    const panelWrapper = lyricsEl.parentElement as HTMLElement
+    expect(panelWrapper.style.opacity).toBe('1')
+
+    fireEvent.click(hideBtn)
+    expect(container.querySelector('[aria-label="Show lyrics"]')).toBeTruthy()
+    expect(panelWrapper.style.opacity).toBe('0')
+    expect(panelWrapper.style.maxWidth).toBe('0px')
+
+    fireEvent.click(container.querySelector('[aria-label="Show lyrics"]') as HTMLButtonElement)
+    expect(container.querySelector('[aria-label="Hide lyrics"]')).toBeTruthy()
+    expect(panelWrapper.style.opacity).toBe('1')
+  })
+
+  it('toggles lyrics visibility in vinyl layout', async () => {
+    const { ctx } = await harness({ status: 'playing' })
+    ctx.nowPlaying.setStyle('vinyl')
+    ctx.ui.registerView('lyrics.panel', () =>
+      h('div', { 'data-testid': 'mock-lyrics' }, 'Lyrics'),
+    )
+    const { container } = render(h(NowPlayingScreen, { ctx }))
+
+    const hideBtn = container.querySelector('[aria-label="Hide lyrics"]') as HTMLButtonElement
+    expect(hideBtn).toBeTruthy()
+    const lyricsEl = container.querySelector('[data-testid="mock-lyrics"]') as HTMLElement
+    const panelWrapper = lyricsEl.parentElement as HTMLElement
+    expect(panelWrapper.style.opacity).toBe('1')
+
+    fireEvent.click(hideBtn)
+    expect(container.querySelector('[aria-label="Show lyrics"]')).toBeTruthy()
+    expect(panelWrapper.style.opacity).toBe('0')
+    expect(panelWrapper.style.maxWidth).toBe('0px')
+
+    fireEvent.click(container.querySelector('[aria-label="Show lyrics"]') as HTMLButtonElement)
+    expect(container.querySelector('[aria-label="Hide lyrics"]')).toBeTruthy()
+    expect(panelWrapper.style.opacity).toBe('1')
+  })
+
+  it('toggles lyrics visibility in compact layout', async () => {
+    const { ctx } = await harness({ status: 'playing' })
+    ctx.nowPlaying.setStyle('compact')
+    ctx.ui.registerView('lyrics.panel', () =>
+      h('div', { 'data-testid': 'mock-lyrics' }, 'Lyrics'),
+    )
+    const { container } = render(h(NowPlayingScreen, { ctx }))
+
+    const hideBtn = container.querySelector('[aria-label="Hide lyrics"]') as HTMLButtonElement
+    expect(hideBtn).toBeTruthy()
+    const lyricsEl = container.querySelector('[data-testid="mock-lyrics"]') as HTMLElement
+    const panelWrapper = lyricsEl.parentElement as HTMLElement
+    expect(panelWrapper.style.opacity).toBe('1')
+
+    fireEvent.click(hideBtn)
+    expect(container.querySelector('[aria-label="Show lyrics"]')).toBeTruthy()
+    expect(panelWrapper.style.opacity).toBe('0')
+    expect(panelWrapper.style.maxHeight).toBe('0px')
+
+    fireEvent.click(container.querySelector('[aria-label="Show lyrics"]') as HTMLButtonElement)
+    expect(container.querySelector('[aria-label="Hide lyrics"]')).toBeTruthy()
+    expect(panelWrapper.style.opacity).toBe('1')
+  })
 })
 

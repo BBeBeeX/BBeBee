@@ -33,6 +33,12 @@ const IDLE_LYRICS_STATE: LyricsState = { status: 'idle', offsetMs: 0 }
 /** How long user scrolling suspends auto-follow before it resumes. */
 const USER_SCROLL_RESUME_MS = 5000
 
+/** Maximum lines shown above the active lyric during playback. */
+const MAX_LINES_ABOVE = 3
+
+/** Target vertical anchor ratio in the container (middle slightly towards top). */
+const ACTIVE_LINE_ANCHOR_RATIO = 0.38
+
 /** Hides the scrollbar on the lyric list; inline styles cannot reach the pseudo-element. */
 const HIDE_SCROLLBAR_RULE = '.cinematic-lyrics-scroll::-webkit-scrollbar { display: none; }'
 
@@ -84,12 +90,33 @@ export function CinematicLyricsTemplate(props: CinematicLyricsTemplateProps): Re
   const containerRef = useRef<HTMLDivElement | null>(null)
   const lineRefs = useRef<(HTMLElement | null)[]>([])
   const [userScrolling, setUserScrolling] = useState(false)
+  const [containerHeight, setContainerHeight] = useState<number>(0)
   const scrollResumeRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     return () => {
       if (scrollResumeRef.current) clearTimeout(scrollResumeRef.current)
     }
+  }, [])
+
+  // Track container height so padding and scroll alignment accurately place
+  // the initial and active line slightly above the visual center.
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const updateHeight = () => {
+      if (el.clientHeight > 0) {
+        setContainerHeight(el.clientHeight)
+      }
+    }
+    updateHeight()
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(updateHeight)
+      ro.observe(el)
+      return () => ro.disconnect()
+    }
+    window.addEventListener('resize', updateHeight)
+    return () => window.removeEventListener('resize', updateHeight)
   }, [])
 
   // A new track (or its lyrics arriving) restarts from the top, following.
@@ -102,7 +129,8 @@ export function CinematicLyricsTemplate(props: CinematicLyricsTemplateProps): Re
     const container = containerRef.current
     const line = lineRefs.current[index]
     if (!container || !line) return
-    const top = line.offsetTop - container.clientHeight / 2 + line.clientHeight / 2
+    const targetY = container.clientHeight * ACTIVE_LINE_ANCHOR_RATIO
+    const top = line.offsetTop - targetY + line.clientHeight / 2
     if (typeof container.scrollTo === 'function') {
       container.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
     } else {
@@ -113,7 +141,7 @@ export function CinematicLyricsTemplate(props: CinematicLyricsTemplateProps): Re
   useEffect(() => {
     // Plain lyrics have no timeline: highlight and playback follow are synced-only.
     if (isSynced && !userScrolling && activeIndex >= 0) scrollToLine(activeIndex)
-  }, [isSynced, activeIndex, userScrolling, scrollToLine])
+  }, [isSynced, activeIndex, userScrolling, scrollToLine, containerHeight])
 
   const markUserScrolling = useCallback(() => {
     setUserScrolling(true)
@@ -131,6 +159,13 @@ export function CinematicLyricsTemplate(props: CinematicLyricsTemplateProps): Re
     },
     [canSeek, onSeek, ctx],
   )
+
+  const topPadding = containerHeight > 0
+    ? Math.max(0, Math.round(containerHeight * ACTIVE_LINE_ANCHOR_RATIO - 18))
+    : '38vh'
+  const bottomPadding = containerHeight > 0
+    ? Math.round(containerHeight * (1 - ACTIVE_LINE_ANCHOR_RATIO))
+    : '62vh'
 
   /* ── render ───────────────────────────────────────────────────────────── */
   return h(
@@ -166,6 +201,7 @@ export function CinematicLyricsTemplate(props: CinematicLyricsTemplateProps): Re
         onWheel: () => markUserScrolling(),
         onTouchMove: () => markUserScrolling(),
         style: {
+          position: 'relative',
           flex: 1,
           minHeight: 0,
           width: '100%',
@@ -175,7 +211,10 @@ export function CinematicLyricsTemplate(props: CinematicLyricsTemplateProps): Re
           alignItems: 'center',
           justifyContent: lines.length > 0 ? 'flex-start' : 'center',
           gap: 10,
-          padding: '28% 0 34%',
+          paddingTop: lines.length > 0 && isSynced ? topPadding : lines.length > 0 ? '24px' : 0,
+          paddingBottom: lines.length > 0 && isSynced ? bottomPadding : lines.length > 0 ? '40px' : 0,
+          paddingLeft: 0,
+          paddingRight: 0,
           scrollbarWidth: 'none',
           scrollbarColor: 'transparent',
           maskImage:
@@ -202,9 +241,25 @@ export function CinematicLyricsTemplate(props: CinematicLyricsTemplateProps): Re
         : isSynced
           ? lines.map((line, idx) => {
               const isCurrent = idx === activeIndex
-              const distance = isCurrent ? 0 : Math.abs(idx - activeIndex)
-              const opacity = isCurrent ? 1 : distance === 1 ? 0.42 : distance === 2 ? 0.3 : 0.18
-              const clickable = line.timeMs !== undefined && canSeek
+              const isAbove = activeIndex >= 0 && idx < activeIndex
+              const linesAbove = isAbove ? activeIndex - idx : 0
+              const isHiddenAbove = !userScrolling && isAbove && linesAbove > MAX_LINES_ABOVE
+              const clickable = line.timeMs !== undefined && canSeek && !isHiddenAbove
+
+              let opacity: number
+              if (isHiddenAbove) {
+                opacity = 0
+              } else if (isCurrent) {
+                opacity = 1
+              } else if (isAbove) {
+                if (linesAbove === 1) opacity = 0.42
+                else if (linesAbove === 2) opacity = 0.28
+                else if (linesAbove === 3) opacity = 0.16
+                else opacity = 0.22
+              } else {
+                const distanceBelow = activeIndex >= 0 ? idx - activeIndex : idx + 1
+                opacity = distanceBelow === 1 ? 0.42 : distanceBelow === 2 ? 0.28 : 0.16
+              }
 
               return h(
                 'div',
@@ -217,6 +272,7 @@ export function CinematicLyricsTemplate(props: CinematicLyricsTemplateProps): Re
                   tabIndex: clickable ? 0 : undefined,
                   'data-active': isCurrent ? 'true' : undefined,
                   'data-testid': clickable ? `cinematic-lyric-line-${idx}` : undefined,
+                  'aria-hidden': isHiddenAbove ? 'true' : undefined,
                   'aria-label': clickable
                     ? `${line.text} (${Math.floor((line.timeMs ?? 0) / 60000)}:${String(
                         Math.floor(((line.timeMs ?? 0) % 60000) / 1000),
@@ -233,6 +289,8 @@ export function CinematicLyricsTemplate(props: CinematicLyricsTemplateProps): Re
                     : undefined,
                   style: {
                     opacity,
+                    visibility: isHiddenAbove ? 'hidden' : undefined,
+                    pointerEvents: isHiddenAbove ? 'none' : undefined,
                     fontSize: isCurrent ? 24 : 16,
                     fontWeight: isCurrent ? 500 : 400,
                     letterSpacing: isCurrent ? '1.5px' : '0.5px',

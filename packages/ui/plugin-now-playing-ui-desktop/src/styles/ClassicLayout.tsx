@@ -6,7 +6,7 @@
  * layout becomes a two-column split (artwork+controls left, panel right).
  */
 
-import { createElement as h } from 'react'
+import { createElement as h, useState } from 'react'
 import type { ReactElement } from 'react'
 import { formatDuration } from '@BBeBee/toolkit'
 import { IconButton, Slider, Text, useI18n } from '@BBeBee/ui-kit-desktop'
@@ -15,8 +15,23 @@ import { CachedArtwork, PlayModeButton, VolumeControl } from '../components/NowP
 import type { NowPlayingLayoutProps } from './index.js'
 
 export function ClassicLayout(props: NowPlayingLayoutProps): ReactElement {
-  const { ctx, state, displayPosition, duration, can, PanelComponent, VisualizerComponent } = props
+  const {
+    ctx,
+    state,
+    displayPosition,
+    duration,
+    can,
+    PanelComponent,
+    VisualizerComponent,
+    showLyrics: propShowLyrics,
+    onToggleLyrics,
+  } = props
   const { t } = useI18n(ctx)
+  const [localShowLyrics, setLocalShowLyrics] = useState(true)
+  const isLyricsVisible = propShowLyrics !== undefined ? propShowLyrics : localShowLyrics
+  const toggleLyrics = onToggleLyrics ?? (() => setLocalShowLyrics((prev) => !prev))
+
+  const isExpandedLayout = Boolean(PanelComponent && isLyricsVisible)
 
   const playerMain = h(
     'div',
@@ -29,15 +44,28 @@ export function ClassicLayout(props: NowPlayingLayoutProps): ReactElement {
         gap: tokens.space[5],
         maxWidth: 480,
         width: '100%',
+        transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
       },
     },
-    h(CachedArtwork, {
-      ctx,
-      artwork: state.nowPlaying?.artwork,
-      seed: state.trackUrn,
-      size: PanelComponent ? 240 : 280,
-      radius: tokens.radius.lg,
-    }),
+    h(
+      'div',
+      {
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
+          transform: isExpandedLayout ? 'scale(1)' : 'scale(1.15)',
+        },
+      },
+      h(CachedArtwork, {
+        ctx,
+        artwork: state.nowPlaying?.artwork,
+        seed: state.trackUrn,
+        size: 240,
+        radius: tokens.radius.lg,
+      }),
+    ),
     h(
       'div',
       {
@@ -48,6 +76,7 @@ export function ClassicLayout(props: NowPlayingLayoutProps): ReactElement {
           gap: tokens.space[1],
           maxWidth: 480,
           textAlign: 'center',
+          transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
         },
       },
       h(Text, {
@@ -117,6 +146,15 @@ export function ClassicLayout(props: NowPlayingLayoutProps): ReactElement {
         onPress: () => void ctx.player.next(),
       }),
       h(VolumeControl, { ctx, volume: state.volume, muted: state.muted }),
+      PanelComponent
+        ? h(IconButton, {
+            icon: 'lyrics',
+            testID: 'classic-lyrics-toggle',
+            accessibilityLabel: isLyricsVisible ? t('nowPlaying:nowPlaying.hideLyrics') : t('nowPlaying:nowPlaying.showLyrics'),
+            variant: isLyricsVisible ? 'primary' : 'ghost',
+            onPress: toggleLyrics,
+          })
+        : null,
     ),
   )
 
@@ -127,30 +165,34 @@ export function ClassicLayout(props: NowPlayingLayoutProps): ReactElement {
   return h(
     'div',
     {
+      'data-testid': 'layout-classic',
       style: {
         display: 'flex',
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         width: '100%',
-        maxWidth: 1100,
-        gap: tokens.space[6],
+        maxWidth: isExpandedLayout ? 1100 : 520,
+        gap: isExpandedLayout ? tokens.space[6] : 0,
         flex: 1,
         minHeight: 0,
         height: '100%',
         boxSizing: 'border-box',
+        transition: 'max-width 0.5s cubic-bezier(0.16, 1, 0.3, 1), gap 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
       },
     },
     h(
       'div',
       {
         style: {
-          flex: 1,
+          flex: isExpandedLayout ? 1 : '0 1 480px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          minWidth: 320,
-          maxWidth: 460,
+          minWidth: isExpandedLayout ? 320 : undefined,
+          maxWidth: 480,
+          width: '100%',
+          transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
         },
       },
       playerMain,
@@ -158,17 +200,24 @@ export function ClassicLayout(props: NowPlayingLayoutProps): ReactElement {
     h(
       'div',
       {
+        'data-testid': 'classic-lyrics-column',
         style: {
-          flex: 1.2,
+          flex: isLyricsVisible ? 1.2 : 0,
           display: 'flex',
           height: '80vh',
           maxHeight: '80vh',
-          minWidth: 340,
-          maxWidth: 600,
+          minWidth: isLyricsVisible ? 340 : 0,
+          maxWidth: isLyricsVisible ? 600 : 0,
           minHeight: 0,
           borderRadius: tokens.radius.lg,
           background: 'rgba(255, 255, 255, 0.03)',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
+          border: isLyricsVisible ? '1px solid rgba(255, 255, 255, 0.06)' : '0px solid transparent',
+          overflow: 'hidden',
+          opacity: isLyricsVisible ? 1 : 0,
+          transform: isLyricsVisible ? 'translateX(0) scale(1)' : 'translateX(60px) scale(0.95)',
+          pointerEvents: isLyricsVisible ? 'auto' : 'none',
+          transition:
+            'max-width 0.5s cubic-bezier(0.16, 1, 0.3, 1), min-width 0.5s cubic-bezier(0.16, 1, 0.3, 1), flex 0.5s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), border 0.3s ease',
         },
       },
       h(PanelComponent, { ctx }),

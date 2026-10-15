@@ -61,14 +61,14 @@ export interface NowPlayingStyleMeta {
 // (`ui-kit-desktop/src/icons`): an unknown name falls through `tablerIcon`
 // and renders as clipped raw text instead of an icon.
 export const NOW_PLAYING_STYLES: readonly NowPlayingStyleMeta[] = [
+  { id: 'cinematic', name: 'Cinematic Lyrics', description: '16:9 cinematic aesthetic with dynamic waveform', icon: 'wave-sine', type: 'builtin' },
   { id: 'classic', name: 'Classic', description: 'Centred artwork, classic layout', icon: 'music', type: 'builtin' },
   { id: 'full-cover', name: 'Immersive Cover', description: 'Full-screen blurred artwork background', icon: 'photo', type: 'builtin' },
   { id: 'vinyl', name: 'Vinyl', description: 'Spinning vinyl record style', icon: 'disc', type: 'builtin' },
   { id: 'compact', name: 'Side-by-side', description: 'Artwork and info side by side', icon: 'layout-sidebar', type: 'builtin' },
-  { id: 'cinematic', name: 'Cinematic Lyrics', description: '16:9 cinematic aesthetic with dynamic waveform', icon: 'wave-sine', type: 'builtin' },
 ] as const
 
-export const DEFAULT_NOW_PLAYING_STYLE: NowPlayingStyleId = 'classic'
+export const DEFAULT_NOW_PLAYING_STYLE: NowPlayingStyleId = 'cinematic'
 
 /** Synchronized lyric line snapshot for sandboxed player bridge. */
 export interface SandboxPlayerLyricLine {

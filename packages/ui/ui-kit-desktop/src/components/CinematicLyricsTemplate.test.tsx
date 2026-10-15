@@ -229,4 +229,59 @@ describe('CinematicLyricsTemplate', () => {
     fireEvent.wheel(scroller)
     expect(queryByTestId('cinematic-lyrics-return')).toBeNull()
   })
+
+  it('displays at most 3 lines above the active lyric during playback and hides older lines', async () => {
+    const LONG_LRC = [
+      '[00:10.00]Line 0',
+      '[00:20.00]Line 1',
+      '[00:25.00]Line 2',
+      '[00:30.00]Line 3',
+      '[00:40.00]Line 4',
+      '[00:50.00]Line 5',
+    ].join('\n')
+
+    const { ctx } = await harness({
+      lyrics: {
+        status: 'ready',
+        trackUrn: TRACK_URN,
+        offsetMs: 0,
+        lyrics: { format: 'lrc', content: LONG_LRC, synced: true },
+      },
+    })
+
+    // Active line is Line 4 (at 40_000 ms)
+    const { container, queryByTestId, getByTestId } = render(
+      h(CinematicLyricsTemplate, { ctx, displayPosition: 40_000 }),
+    )
+
+    const active = container.querySelector('[data-active="true"]') as HTMLElement
+    expect(active?.textContent).toBe('Line 4')
+
+    // 3 lines directly above (Line 3, Line 2, Line 1) are visible and clickable
+    const line3 = getByTestId('cinematic-lyric-line-3')
+    const line2 = getByTestId('cinematic-lyric-line-2')
+    const line1 = getByTestId('cinematic-lyric-line-1')
+
+    expect(line3.style.visibility).not.toBe('hidden')
+    expect(Number(line3.style.opacity)).toBeGreaterThan(0)
+    expect(line2.style.visibility).not.toBe('hidden')
+    expect(Number(line2.style.opacity)).toBeGreaterThan(0)
+    expect(line1.style.visibility).not.toBe('hidden')
+    expect(Number(line1.style.opacity)).toBeGreaterThan(0)
+
+    // Line 0 is 4 lines above the active lyric, so it is hidden and not clickable
+    expect(queryByTestId('cinematic-lyric-line-0')).toBeNull()
+    const allDivs = Array.from(container.querySelectorAll('div'))
+    const line0Div = allDivs.find((el) => el.textContent === 'Line 0' && el.style.opacity !== '')
+    expect(line0Div).toBeTruthy()
+    expect(line0Div?.style.opacity).toBe('0')
+    expect(line0Div?.style.visibility).toBe('hidden')
+
+    // When the user scrolls, older lines become visible again for browsing
+    fireEvent.wheel(getByTestId('cinematic-lyrics-scroll'))
+    expect(getByTestId('cinematic-lyric-line-0')).toBeTruthy()
+    expect(line0Div?.style.visibility).not.toBe('hidden')
+    expect(Number(line0Div?.style.opacity)).toBeGreaterThan(0)
+  })
 })
+

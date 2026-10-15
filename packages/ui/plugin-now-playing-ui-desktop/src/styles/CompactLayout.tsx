@@ -6,7 +6,7 @@
  * lyrics panel is present it replaces the right column's lower half.
  */
 
-import { createElement as h } from 'react'
+import { createElement as h, useState } from 'react'
 import type { ReactElement } from 'react'
 import { formatDuration } from '@BBeBee/toolkit'
 import { IconButton, Slider, Text, useI18n } from '@BBeBee/ui-kit-desktop'
@@ -18,6 +18,12 @@ export function CompactLayout(props: NowPlayingLayoutProps): ReactElement {
   const { ctx, state, displayPosition, duration, can, PanelComponent, VisualizerComponent } = props
   const { t } = useI18n(ctx)
 
+  const [internalShowLyrics, setInternalShowLyrics] = useState(true)
+  const isLyricsVisible = props.showLyrics ?? internalShowLyrics
+  const handleToggleLyrics = props.onToggleLyrics ?? (() => setInternalShowLyrics((v) => !v))
+  const isExpandedLayout = Boolean(PanelComponent && isLyricsVisible)
+  const hasLyrics = Boolean(PanelComponent)
+
   return h(
     'div',
     {
@@ -27,13 +33,14 @@ export function CompactLayout(props: NowPlayingLayoutProps): ReactElement {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: tokens.space[7],
+        gap: isExpandedLayout ? tokens.space[7] : tokens.space[8],
         width: '100%',
-        maxWidth: 1100,
+        maxWidth: isExpandedLayout ? 1100 : 960,
         flex: 1,
         minHeight: 0,
         boxSizing: 'border-box',
         padding: `0 ${tokens.space[5]}px`,
+        transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
       },
     },
     /* ── left: artwork ──────────────────────────────────────────── */
@@ -45,7 +52,10 @@ export function CompactLayout(props: NowPlayingLayoutProps): ReactElement {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          maxWidth: 400,
+          maxWidth: isExpandedLayout ? 400 : 440,
+          transform: isExpandedLayout ? 'scale(1)' : 'scale(1.08)',
+          transformOrigin: 'center center',
+          transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
         },
       },
       h(CachedArtwork, {
@@ -64,10 +74,11 @@ export function CompactLayout(props: NowPlayingLayoutProps): ReactElement {
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
-          gap: tokens.space[5],
+          gap: isExpandedLayout ? tokens.space[4] : tokens.space[5],
           minWidth: 280,
           maxWidth: 480,
           justifyContent: 'center',
+          transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
         },
       },
       /* track info */
@@ -135,6 +146,16 @@ export function CompactLayout(props: NowPlayingLayoutProps): ReactElement {
           onPress: () => void ctx.player.next(),
         }),
         h(VolumeControl, { ctx, volume: state.volume, muted: state.muted }),
+        hasLyrics
+          ? h(IconButton, {
+              icon: 'lyrics',
+              variant: isLyricsVisible ? 'primary' : 'ghost',
+              accessibilityLabel: isLyricsVisible
+                ? t('nowPlaying:nowPlaying.hideLyrics')
+                : t('nowPlaying:nowPlaying.showLyrics'),
+              onPress: handleToggleLyrics,
+            })
+          : null,
       ),
       /* lyrics panel below controls if present */
       PanelComponent
@@ -142,14 +163,19 @@ export function CompactLayout(props: NowPlayingLayoutProps): ReactElement {
             'div',
             {
               style: {
-                flex: 1,
+                flex: isLyricsVisible ? 1 : 0,
                 display: 'flex',
-                maxHeight: '40vh',
-                minHeight: 200,
+                maxHeight: isLyricsVisible ? '40vh' : 0,
+                minHeight: isLyricsVisible ? 180 : 0,
+                opacity: isLyricsVisible ? 1 : 0,
+                transform: isLyricsVisible ? 'translateY(0)' : 'translateY(24px)',
+                pointerEvents: isLyricsVisible ? 'auto' : 'none',
                 borderRadius: tokens.radius.lg,
                 background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid rgba(255, 255, 255, 0.06)',
+                border: isLyricsVisible ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid transparent',
                 overflow: 'hidden',
+                transition:
+                  'all 0.5s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease, border-color 0.4s ease',
               },
             },
             h(PanelComponent, { ctx }),
