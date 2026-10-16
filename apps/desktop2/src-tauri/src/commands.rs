@@ -692,12 +692,12 @@ pub fn desktop_app_version(app: tauri::AppHandle) -> Result<String, String> {
 }
 
 // =============================================================================
-// Secrets (Keyring / Obfuscated Storage)
+// Secrets (OS Keychain & AES-256-GCM Storage)
 // =============================================================================
 
 #[tauri::command]
 pub fn secrets_available() -> Result<bool, String> {
-    Ok(true)
+    Ok(crate::secrets::is_available())
 }
 
 #[tauri::command]
@@ -706,44 +706,25 @@ pub fn desktop_secrets_available() -> Result<bool, String> {
 }
 
 #[tauri::command]
-pub async fn secrets_encrypt(
-    state: tauri::State<'_, AppState>,
-    plain: String,
-) -> Result<String, String> {
-    let sidecar = state.get_sidecar()?;
-    match sidecar.call("secrets:encrypt", serde_json::json!([plain])).await {
-        Ok(v) => v.as_str().map(|s| s.to_string()).ok_or_else(|| "Invalid response".into()),
-        Err(e) => Err(e),
-    }
+pub fn secrets_encrypt(plain: String) -> Result<String, String> {
+    crate::secrets::encrypt(&plain)
 }
 
 #[tauri::command]
-pub async fn desktop_secrets_encrypt(
-    state: tauri::State<'_, AppState>,
-    plain: String,
-) -> Result<String, String> {
-    secrets_encrypt(state, plain).await
+pub fn desktop_secrets_encrypt(plain: String) -> Result<String, String> {
+    secrets_encrypt(plain)
 }
 
 #[tauri::command]
-pub async fn secrets_decrypt(
-    state: tauri::State<'_, AppState>,
-    cipher: String,
-) -> Result<String, String> {
-    let sidecar = state.get_sidecar()?;
-    match sidecar.call("secrets:decrypt", serde_json::json!([cipher])).await {
-        Ok(v) => v.as_str().map(|s| s.to_string()).ok_or_else(|| "Invalid response".into()),
-        Err(e) => Err(e),
-    }
+pub fn secrets_decrypt(cipher: String) -> Result<String, String> {
+    crate::secrets::decrypt(&cipher)
 }
 
 #[tauri::command]
-pub async fn desktop_secrets_decrypt(
-    state: tauri::State<'_, AppState>,
-    cipher: String,
-) -> Result<String, String> {
-    secrets_decrypt(state, cipher).await
+pub fn desktop_secrets_decrypt(cipher: String) -> Result<String, String> {
+    secrets_decrypt(cipher)
 }
+
 
 // =============================================================================
 // Shell & OS Operations

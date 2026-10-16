@@ -276,35 +276,15 @@ export async function createSidecar(): Promise<SidecarContext> {
     return resolveSystemPath(kind)
   })
 
-  // Secrets management (1:1 with desktop NoKeychainCodec contract)
-  ipc.handle('secrets:available', async () => true)
-  ipc.handle('secrets:encrypt', async (_event, plain: string) => {
-    if (typeof plain !== 'string') throw new Error('secrets: expected a string')
-    const key = 'BBeBee-desktop-secret-key'
-    const hash = createHash('sha256').update(plain).digest('hex').slice(0, 8)
-    const payload = `${hash}:${plain}`
-    let out = ''
-    for (let i = 0; i < payload.length; i++) {
-      out += String.fromCharCode(payload.charCodeAt(i) ^ key.charCodeAt(i % key.length))
-    }
-    return Buffer.from(out, 'binary').toString('base64')
+  // Secrets management (Handled natively by Tauri Rust Shell via keyring + AES-256-GCM)
+  ipc.handle('secrets:available', async () => false)
+  ipc.handle('secrets:encrypt', async () => {
+    throw new Error('secrets: sidecar does not handle secrets (delegated natively to Tauri shell)')
   })
-  ipc.handle('secrets:decrypt', async (_event, cipher: string) => {
-    if (typeof cipher !== 'string') throw new Error('secrets: expected a string')
-    const key = 'BBeBee-desktop-secret-key'
-    const binary = Buffer.from(cipher, 'base64').toString('binary')
-    let out = ''
-    for (let i = 0; i < binary.length; i++) {
-      out += String.fromCharCode(binary.charCodeAt(i) ^ key.charCodeAt(i % key.length))
-    }
-    const sep = out.indexOf(':')
-    if (sep !== 8) throw new Error('secrets: invalid cipher format')
-    const hash = out.slice(0, 8)
-    const plain = out.slice(9)
-    const expected = createHash('sha256').update(plain).digest('hex').slice(0, 8)
-    if (hash !== expected) throw new Error('secrets: integrity check failed')
-    return plain
+  ipc.handle('secrets:decrypt', async () => {
+    throw new Error('secrets: sidecar does not handle secrets (delegated natively to Tauri shell)')
   })
+
 
   // Dropped file path authorization (adds to extraRoots)
   ipc.handle('files:authorize', async (_event, filePath: string) => {

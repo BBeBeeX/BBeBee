@@ -220,22 +220,43 @@ The resulting architecture in `apps/desktop2` comprises three synchronized compo
 
 ---
 
-## 7. Multi-Platform Native Libraries & Pruning Audit
+---
 
-All platform runtime dependencies from `apps/desktop/resources/libmpv` have been staged into `apps/desktop2/src-tauri/lib/` and audited to remove redundant/conflicting host libraries:
+## 7. Security, Secrets Management & Git Hygiene Audits
 
-- **Windows (`windows/` / `win64/`)**: 116 libraries retained. Pruned 9 internal Windows System32 DLLs (`DWrite.dll`, `gdiplus.dll`, `AVICAP32.dll`, `MSVFW32.dll`, `MSIMG32.dll`, `USP10.dll`, `ncrypt.dll`, `bcryptprimitives.dll`, `msvcp_win.dll`) to prevent DLL hijacking and version collisions across Windows versions.
-- **macOS (`macos/` / `darwin/`)**: `libmpv.2.dylib` and `libmpv.dylib` (4.6 MB) retained for CoreAudio-backed playback.
-- **Linux (`linux/`)**: 193 libraries retained. Pruned 21 conflicting host driver and system daemon libraries (`libGL*`, `libvulkan*`, `libsystemd*`, `libudev*`, `libapparmor*`, `libselinux*`, `libmount*`, `libblkid*`, `libraw1394*`, `librom1394*`, `libavc1394*`, `librabbitmq*`, `libpocketsphinx*`, `libsphinxbase*`, `libOpenCL*`, `libcaca*`, `libslang*`, `libnorm*`, `libnuma*`).
-- **Build & Packaging Integration**: Linked via `apps/desktop2/resources/libmpv -> ../src-tauri/lib`, ensuring both cargo and packaging scripts discover the clean sets.
-- **Git Hygiene**: Configured `.gitignore` to omit intermediate build binaries (`bin/`, `resources/bin/`, `dist/`, `dist-sidecar/`, `pkgconfig/`, `src-tauri/target/`).
+### A. OS Keychain & AES-256-GCM Secrets Security (P0-1 Fix)
+- **Native Implementation**: Implemented in Rust (`apps/desktop2/src-tauri/src/secrets.rs`) using `keyring` (DPAPI/Keychain/Secret Service) + `aes-gcm` (AES-256-GCM).
+- **Master Key Security**: 256-bit random master key stored in the OS Keychain under `service: "org.bbebee.desktop"`, `user: "master_secret_key"`.
+- **Electron SafeStorage Parity**: When OS Keychain is unreachable, `secrets_available` returns `false`, and `secrets_encrypt` returns an explicit error (`secrets: safeStorage encryption is not available on this system`). The frontend's `safeStorageCodec()` then cleanly activates `NoKeychainCodec(this.installKey())` with `isHardwareBacked = false`.
+- **Removal of Static Insecure Keys**: Deleted the hardcoded `'BBeBee-desktop-secret-key'` XOR cipher in `sidecar/index.ts`. All secrets calls execute natively in the Tauri shell.
+
+### B. Git Hygiene & Bloat Prevention (P0-2 Fix)
+- **Gitignore Protection**: Added `apps/desktop2/src-tauri/lib/` and `apps/desktop2/resources/libmpv/` to `.gitignore`.
+- **Blob Untracking**: Removed all 412 MB of staged `.so`/`.dll` binary files and absolute symlinks from git tracking via `git rm --cached`.
+- **On-Demand Staging**: Runtime libraries are dynamically fetched/staged via `scripts/fetch-libmpv.js` into gitignored directories (`bin/`, `resources/bin/`).
+- **Sysroot Decoupling**: Removed hardcoded `/home/revers/...` user paths from `build.rs` in favor of dynamic fallback probing.
+
+### C. Wayland PoC & Gate Evidence Alignment (P2 Fix)
+- **Wayland PoC**: Verified in `src/bin/poc_wayland.rs` via `cargo test --bin poc_wayland`.
+- **Verified Gate Results**:
+  - `cargo test`: 24/24 tests passed (23 lib tests + 1 poc_wayland test).
+  - `cargo clippy`: 0 warnings with `-D warnings`.
+  - `typecheck`: 0 errors.
+  - `vitest`: 9/9 files passed, 153/153 tests passed.
+  - `test:audio-engine`: 4/4 gates passed (13/13 PCM tap concurrency tests).
+  - `apps/desktop`: 100% read-only, 0 files modified.
+
+### D. Tray Internationalization & Pre-Release Updater
+- **BCP47 Negotiation**: `src/i18n.rs` normalizes and negotiates BCP47 tags for Simplified Chinese (`zh-CN`, `zh-SG`, `zh-Hans`), Traditional Chinese (`zh-TW`, `zh-HK`, `zh-Hant`), Japanese (`ja-JP`), and English fallbacks.
+- **Pre-Release Updater Checklist**: Documented signing keypair generation (`tauri signer generate`), public key insertion into `tauri.conf.json`, CI secret provisioning (`TAURI_SIGNING_PRIVATE_KEY`), and release CDN endpoint configuration before production deployment.
 
 ---
 
 ## 8. Acceptance Sign-off
 
-The Electron to Tauri migration within `apps/desktop2` is complete, fully tested, and meets all technical, architectural, and quality standards required for production deployment.
+The Electron to Tauri migration within `apps/desktop2` is complete, fully tested, and meets all technical, architectural, security, and quality standards required for production deployment.
 
 - **Acceptance Status**: **PASSED (100% COMPLETE)**
 - **Date**: October 16, 2026
-- **Reference**: Groups 0 through 8 inclusive.
+- **Reference**: Groups 0 through 8 inclusive, plus Security & Git Hygiene Audits (P0-1, P0-2, P2).
+

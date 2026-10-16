@@ -1048,59 +1048,100 @@ The complete Electron-to-Tauri migration for BBeBee Desktop (`apps/desktop2`) is
 
 ## Recorded Architectural Decisions (D1 - D6)
 
-- **D1: OS keychain via keyring crate + AES-256-GCM fallback**
-  - Uses the Rust `keyring` crate for hardware-backed OS keychain access (Windows Credential Manager, macOS Keychain, Linux Secret Service).
-  - Falls back to local AES-256-GCM encryption with machine-derived keys when OS keychain services are unavailable or running headless.
+- **D1: OS keychain via keyring crate + AES-256-GCM authenticated encryption**
+  - Uses the Rust `keyring` crate for native OS keychain access (Windows Credential Manager, macOS Keychain, Linux Secret Service).
+  - Securely stores a 256-bit cryptographically random master key (`service: "org.bbebee.desktop"`, `user: "master_secret_key"`).
+  - Encrypts payloads using AES-256-GCM with a fresh 12-byte random nonce per call (`base64(nonce || ciphertext || tag)`).
+  - When the OS Keychain is unavailable (e.g. headless Linux or test runner without Secret Service daemon), `secrets:available` returns `false` and `secrets:encrypt` returns an explicit error matching Electron 1:1 (`secrets: safeStorage encryption is not available on this system`). The renderer's `safeStorageCodec()` then cleanly returns `undefined` and falls back to `NoKeychainCodec(this.installKey())` with `isHardwareBacked = false`, eliminating all hardcoded static XOR keys.
 - **D2: Retain `bbebee://` deep link support via `tauri-plugin-deep-link`**
   - Deep link URI scheme registration handled natively via `tauri-plugin-deep-link` in the Rust shell.
 - **D3: Windows WebView2 downloadBootstrapper**
   - Configures `"webviewInstallMode": { "type": "downloadBootstrapper" }` in `tauri.conf.json` to ensure automated runtime provisioning on Windows machines without Evergreen WebView2.
 - **D4: Updater skeleton prepared, deferred pending signing cert**
-  - Dependency configuration and update checking logic prepared using `tauri-plugin-updater`.
-  - Live deployment validation deferred until production signing certificates and signing keys are provisioned.
+  - Dependency configuration and update checking logic prepared using `tauri-plugin-updater` with `"active": false`.
+  - Production pre-release requirements documented below.
 - **D5: Linux Wayland PoC scheduled before Group 2**
-  - A dedicated Proof of Concept will be executed before implementing Group 2 (floating lyrics and mini player) to evaluate layer-shell / transparent click-through window behaviors on Wayland compositors.
+  - A dedicated Proof of Concept is implemented in `apps/desktop2/src-tauri/src/bin/poc_wayland.rs` evaluating layer-shell and transparent click-through window behaviors on Wayland compositors.
 - **D6: Platform Equivalents via In-App Rust Commands & Node Sidecar Bridge**
   - Rather than creating new packages under `packages/core/*`, platform equivalents for `DeviceElectron`, `BackgroundElectron`, and `MediaSessionElectron` are served directly within `apps/desktop2` via Tauri Rust host commands and Node sidecar bridging.
   - This strictly adheres to Rule 0 ("只动 apps/desktop2"), ensures zero business logic changes in the renderer shell, and guarantees 100% drop-in API compatibility for bridged `system` calls and events.
 
 ---
 
-## Multi-Platform Native Libraries & Dependency Pruning Audit
+## Security & Secrets Management Audit (P0-1 Fix)
 
-### 1. Vendored Libraries Staging (`apps/desktop2/src-tauri/lib/`)
-To enable full multi-platform builds and self-contained packaging without relying on external system packages, the full runtime dependency trees from `apps/desktop/resources/libmpv` have been staged into `apps/desktop2/src-tauri/lib/`:
-- `windows/` (alias `win64/`): 116 libraries.
-- `macos/` (alias `darwin/`): `libmpv.2.dylib` and `libmpv.dylib`.
-- `linux/`: 193 libraries.
-- Root symlinks for Linux build `-L` cargo rustflags preserved.
-- `apps/desktop2/resources/libmpv` symlinked to `../src-tauri/lib`.
+1. **Native OS Keychain & AES-256-GCM Implementation (`src/secrets.rs`)**:
+   - Integrated the native `keyring` crate with `aes-gcm` (AES-256-GCM) in Rust.
+   - Master key is generated with 32 bytes of cryptographic entropy and saved in the OS Keychain under service `"org.bbebee.desktop"`, user `"master_secret_key"`.
+   - Payloads are encrypted with unique 96-bit (12-byte) random nonces, producing base64-encoded authenticated ciphertext.
+   - Decryption validates the 16-byte Polyval authentication tag; any tampered byte triggers instant rejection.
+2. **Matching Electron SafeStorage Semantics**:
+   - When OS Keychain is unreachable (e.g. in headless Linux CI or without Secret Service dbus daemon):
+     - `secrets_available` returns `false`.
+     - `secrets_encrypt` rejects with `secrets: safeStorage encryption is not available on this system`.
+   - The frontend's `safeStorageCodec()` checks `isAvailable = await bridge.available()`. Because it returns `false`, `safeStorageCodec()` returns `undefined`, allowing Cordis `SecretsNode` to activate `NoKeychainCodec(this.installKey())` with `isHardwareBacked = false`.
+3. **Hardcoded Static XOR Key Removed**:
+   - Completely removed lines 280-307 in `sidecar/index.ts` where `'BBeBee-desktop-secret-key'` XOR was used.
+   - Sidecar delegates secrets entirely to the native Tauri shell.
 
-### 2. Dependency Pruning Summary
-To avoid shipping bloat, redundant video encoding stacks, and conflicting host operating system drivers, the libraries were audited and pruned:
+---
 
-#### A. Windows Pruning (9 System DLLs Removed)
-- **Pruned**: `DWrite.dll`, `gdiplus.dll`, `AVICAP32.dll`, `MSVFW32.dll`, `MSIMG32.dll`, `USP10.dll`, `ncrypt.dll`, `bcryptprimitives.dll`, `msvcp_win.dll`.
-- **Reason**: These are core Windows OS libraries pre-installed in `C:\Windows\System32`. Bundling them in application directories risks version mismatches, security policy violations, and loader crashes across Windows versions.
-- **Retained**: `libmpv-2.dll`, FFmpeg audio decoding pipeline (`avcodec-63`, `avformat-63`, `avutil-61`, `swresample-7`, `avfilter-12`, `swscale-10`), audio codecs (`libmp3lame`, `libopus`, `libvorbis`, `libsoxr`, `libspeex`, `libmodplug`, `libgme`), SSL/TLS (`libcrypto`, `libgnutls`), font/ass rendering (`libass`, `libfreetype`, `libharfbuzz`, `libfontconfig`), and MinGW C/C++ runtimes (`libwinpthread`, `libstdc++`, `libgcc_s_seh`).
+## Multi-Platform Native Libraries & Git Hygiene (P0-2 Fix)
 
-#### B. Linux Pruning (21 Conflicting Host Libraries Removed)
-- **Pruned**:
-  - Display & GPU Drivers: `libGL.so.1`, `libGLX.so.0`, `libGLdispatch.so.0`, `libvulkan.so.1`, `libOpenCL.so.1`.
-  - System Daemons & LSM: `libsystemd.so.0`, `libudev.so.1`, `libapparmor.so.1`, `libselinux.so.1`, `libmount.so.1`, `libblkid.so.1`.
-  - Irrelevant Codecs & Hardware: `libraw1394.so.11`, `librom1394.so.0`, `libavc1394.so.0` (FireWire camcorder), `librabbitmq.so.4` (RabbitMQ broker), `libpocketsphinx.so.3`, `libsphinxbase.so.3` (CMU Sphinx speech recognition), `libcaca.so.0`, `libslang.so.2` (Color ASCII art), `libnorm.so.1` (NORM multicast), `libnuma.so.1` (NUMA memory).
-- **Reason**: Bundling host graphics drivers (`libGL`) or init daemons (`libsystemd`) causes symbol collisions and fails when run on diverse Linux distros (Ubuntu, Arch, Fedora) or proprietary GPU drivers (NVIDIA).
-- **Retained**: `libmpv.so.2`, FFmpeg audio decoding (`libavcodec.so.60`, `libavformat.so.60`, `libavutil.so.58`, `libswresample.so.4`), sound server clients (`libasound`, `libpulse`, `libpipewire-0.3`, `libsndio`), audio codecs (`libmp3lame`, `libmpg123`, `libopus`, `libvorbis`, `libFLAC`, `libsoxr`), and data compression (`libz`, `libzstd`, `liblzma`).
+### 1. Gitignore Protection & Repository Bloat Prevention
+- Added `apps/desktop2/src-tauri/lib/` and `apps/desktop2/resources/libmpv/` to `.gitignore`.
+- Removed all 412 MB of staged `.so`/`.dll` binary files and absolute symlinks from git tracking via `git rm --cached`.
+- `apps/desktop2/src-tauri/lib/README.md` is whitelisted (`!apps/desktop2/src-tauri/lib/README.md`) to preserve documentation on directory layout and pruning rationale.
+- Dynamic staging: `apps/desktop2/scripts/fetch-libmpv.js` serves as the primary on-demand fetch and staging script, copying runtime binaries into `bin/` and `resources/bin/` (both gitignored).
 
-#### C. macOS
-- **Retained**: `libmpv.2.dylib` and `libmpv.dylib` (4.6 MB).
-- **Reason**: Self-contained dynamic library utilizing macOS CoreAudio frameworks without third-party host conflicts.
+### 2. Elimination of Hardcoded Host Paths in Build Scripts
+- `apps/desktop2/src-tauri/build.rs` no longer hardcodes `/home/revers/...` user directories.
+- Dynamic sysroot probing conditionally checks `$HOME/.local/sysroot/usr/lib/x86_64-linux-gnu` only if present, while cleanly falling back to standard Linux library directories on other developer machines and CI runners.
 
-### 3. Git Hygiene (`.gitignore`)
-Added entries to `.gitignore` to prevent tracking non-source build artifacts:
-- `apps/desktop2/bin/`
-- `apps/desktop2/resources/bin/`
-- `apps/desktop2/dist/`
-- `apps/desktop2/dist-sidecar/`
-- `apps/desktop2/pkgconfig/`
-- `apps/desktop2/src-tauri/target/`
+---
+
+## Wayland PoC & Verification Alignment (P2 Fix)
+
+1. **PoC Binary Present & Verifiable**:
+   - File location: `apps/desktop2/src-tauri/src/bin/poc_wayland.rs`.
+   - Registered under `[[bin]]` in `Cargo.toml`.
+   - Verified via: `cargo test --manifest-path apps/desktop2/src-tauri/Cargo.toml --bin poc_wayland`.
+   - Evaluates transparency, `set_ignore_cursor_events`, always-on-top, and programmatic coordinates under Wayland vs X11.
+2. **Independently Reproducible Test Gates**:
+   - `cargo test --manifest-path apps/desktop2/src-tauri/Cargo.toml`: 24/24 tests pass (23 in `desktop_tauri_lib`, 1 in `poc_wayland`).
+   - `cargo clippy --manifest-path apps/desktop2/src-tauri/Cargo.toml --all-targets -- -D warnings`: 0 warnings, 0 errors.
+   - `pnpm --filter @BBeBee/desktop-tauri typecheck`: 0 errors.
+   - `pnpm --filter @BBeBee/desktop-tauri test`: 9 test files passed, 153/153 tests passed.
+   - `pnpm --filter @BBeBee/desktop-tauri test:audio-engine`: 4/4 gates pass (13/13 PCM tap concurrency tests).
+   - `git status -s apps/desktop`: 0 files modified (100% read-only).
+
+---
+
+## Tray Internationalization & Pre-Release Updater Checklist
+
+### 1. BCP47 Tray Menu Negotiation (`src/i18n.rs`)
+- Implemented full BCP47 tag normalization and negotiation:
+  - Simplified Chinese (`zh-CN`, `zh-SG`, `zh-Hans`) -> `TRAY_ZH_CN`
+  - Traditional Chinese (`zh-TW`, `zh-HK`, `zh-MO`, `zh-Hant`) -> `TRAY_ZH_TW`
+  - Japanese (`ja-JP`, `ja`) -> `TRAY_JA`
+  - English & fallbacks (`en-US`, `en-GB`, etc.) -> `TRAY_EN`
+- When `desktop_locale_notify` receives any BCP47 locale tag from `plugin-i18n`, the tray menu context labels are rebuilt and refreshed immediately.
+
+### 2. Pre-Release Updater Checklist
+The updater plugin in `apps/desktop2/src-tauri/tauri.conf.json` is configured with placeholder values and deferred (`"active": false`):
+```json
+"updater": {
+  "active": false,
+  "dialog": false,
+  "endpoints": ["https://releases.bbebee.org/desktop/{{target}}/{{arch}}/{{current_version}}"],
+  "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IFBMQUNFSE9MREVSCg==",
+  "status": "deferred"
+}
+```
+**Before official production release, the release engineer must:**
+1. Generate the official Minisign signing keypair: `tauri signer generate -w ~/.tauri/bbebee.key`.
+2. Replace `pubkey` in `tauri.conf.json` with the generated public key string.
+3. Store the private key and password as CI/CD secrets: `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
+4. Update `endpoints` with the production CDN / S3 endpoint hosting `latest.json` manifests.
+5. Flip `"active": true` in `tauri.conf.json` for production builds.
+
