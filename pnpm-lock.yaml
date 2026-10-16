@@ -266,6 +266,256 @@ importers:
         specifier: ^7.3.6
         version: 7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(terser@5.51.2)(yaml@2.9.0)
 
+  apps/desktop2:
+    dependencies:
+      '@BBeBee/core-audio-mpv':
+        specifier: workspace:*
+        version: link:../../packages/core/core-audio-mpv
+      '@BBeBee/core-audio-webaudio':
+        specifier: workspace:*
+        version: link:../../packages/core/core-audio-webaudio
+      '@BBeBee/core-background-electron':
+        specifier: workspace:*
+        version: link:../../packages/core/core-background-electron
+      '@BBeBee/core-codec-node':
+        specifier: workspace:*
+        version: link:../../packages/core/core-codec-node
+      '@BBeBee/core-desktop-bridge':
+        specifier: workspace:*
+        version: link:../../packages/core/core-desktop-bridge
+      '@BBeBee/core-device-electron':
+        specifier: workspace:*
+        version: link:../../packages/core/core-device-electron
+      '@BBeBee/core-http-node':
+        specifier: workspace:*
+        version: link:../../packages/core/core-http-node
+      '@BBeBee/core-js-quickjs-node':
+        specifier: workspace:*
+        version: link:../../packages/core/core-js-quickjs-node
+      '@BBeBee/core-media-session-electron':
+        specifier: workspace:*
+        version: link:../../packages/core/core-media-session-electron
+      '@BBeBee/core-secrets-node':
+        specifier: workspace:*
+        version: link:../../packages/core/core-secrets-node
+      '@BBeBee/core-store-fs':
+        specifier: workspace:*
+        version: link:../../packages/core/core-store-fs
+      '@BBeBee/kernel':
+        specifier: workspace:*
+        version: link:../../packages/kernel
+      '@BBeBee/plugin-album':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-album
+      '@BBeBee/plugin-album-ui-desktop':
+        specifier: workspace:*
+        version: link:../../packages/ui/plugin-album-ui-desktop
+      '@BBeBee/plugin-audio-converter':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-audio-converter
+      '@BBeBee/plugin-audio-converter-ui-desktop':
+        specifier: workspace:*
+        version: link:../../packages/ui/plugin-audio-converter-ui-desktop
+      '@BBeBee/plugin-cache':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-cache
+      '@BBeBee/plugin-desktop-lyrics':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-desktop-lyrics
+      '@BBeBee/plugin-desktop-lyrics-ui-desktop':
+        specifier: workspace:*
+        version: link:../../packages/ui/plugin-desktop-lyrics-ui-desktop
+      '@BBeBee/plugin-desktop-taskbar':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-desktop-taskbar
+      '@BBeBee/plugin-download':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-download
+      '@BBeBee/plugin-download-ui-desktop':
+        specifier: workspace:*
+        version: link:../../packages/ui/plugin-download-ui-desktop
+      '@BBeBee/plugin-dsp':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-dsp
+      '@BBeBee/plugin-dsp-ui-desktop':
+        specifier: workspace:*
+        version: link:../../packages/ui/plugin-dsp-ui-desktop
+      '@BBeBee/plugin-history':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-history
+      '@BBeBee/plugin-history-ui-desktop':
+        specifier: workspace:*
+        version: link:../../packages/ui/plugin-history-ui-desktop
+      '@BBeBee/plugin-i18n':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-i18n
+      '@BBeBee/plugin-inspector':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-inspector
+      '@BBeBee/plugin-inspector-ui-desktop':
+        specifier: workspace:*
+        version: link:../../packages/ui/plugin-inspector-ui-desktop
+      '@BBeBee/plugin-library':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-library
+      '@BBeBee/plugin-library-ui-desktop':
+        specifier: workspace:*
+        version: link:../../packages/ui/plugin-library-ui-desktop
+      '@BBeBee/plugin-local-scanner':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-local-scanner
+      '@BBeBee/plugin-local-scanner-ui-desktop':
+        specifier: workspace:*
+        version: link:../../packages/ui/plugin-local-scanner-ui-desktop
+      '@BBeBee/plugin-log-buffer':
+        specifier: workspace:*
+        version: link:../../packages/logs/plugin-log-buffer
+      '@BBeBee/plugin-log-console':
+        specifier: workspace:*
+        version: link:../../packages/logs/plugin-log-console
+      '@BBeBee/plugin-log-file':
+        specifier: workspace:*
+        version: link:../../packages/logs/plugin-log-file
+      '@BBeBee/plugin-lyric-sources':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-lyric-sources
+      '@BBeBee/plugin-lyrics':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-lyrics
+      '@BBeBee/plugin-lyrics-ui-desktop':
+        specifier: workspace:*
+        version: link:../../packages/ui/plugin-lyrics-ui-desktop
+      '@BBeBee/plugin-manager':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-manager
+      '@BBeBee/plugin-mini-player':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-mini-player
+      '@BBeBee/plugin-mini-player-ui-desktop':
+        specifier: workspace:*
+        version: link:../../packages/ui/plugin-mini-player-ui-desktop
+      '@BBeBee/plugin-now-playing':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-now-playing
+      '@BBeBee/plugin-now-playing-ui-desktop':
+        specifier: workspace:*
+        version: link:../../packages/ui/plugin-now-playing-ui-desktop
+      '@BBeBee/plugin-player':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-player
+      '@BBeBee/plugin-queue':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-queue
+      '@BBeBee/plugin-queue-ui-desktop':
+        specifier: workspace:*
+        version: link:../../packages/ui/plugin-queue-ui-desktop
+      '@BBeBee/plugin-registry':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-registry
+      '@BBeBee/plugin-registry-metadata':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-registry-metadata
+      '@BBeBee/plugin-security-audit':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-security-audit
+      '@BBeBee/plugin-settings':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-settings
+      '@BBeBee/plugin-settings-ui-desktop':
+        specifier: workspace:*
+        version: link:../../packages/ui/plugin-settings-ui-desktop
+      '@BBeBee/plugin-share':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-share
+      '@BBeBee/plugin-share-ui-desktop':
+        specifier: workspace:*
+        version: link:../../packages/ui/plugin-share-ui-desktop
+      '@BBeBee/plugin-sleep-timer':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-sleep-timer
+      '@BBeBee/plugin-source-local':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-source-local
+      '@BBeBee/plugin-source-runtime':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-source-runtime
+      '@BBeBee/plugin-sources':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-sources
+      '@BBeBee/plugin-sources-ui-desktop':
+        specifier: workspace:*
+        version: link:../../packages/ui/plugin-sources-ui-desktop
+      '@BBeBee/plugin-theme':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-theme
+      '@BBeBee/plugin-ui':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-ui
+      '@BBeBee/plugin-visualizer':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-visualizer
+      '@BBeBee/plugin-visualizer-ui-desktop':
+        specifier: workspace:*
+        version: link:../../packages/ui/plugin-visualizer-ui-desktop
+      '@BBeBee/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      '@BBeBee/toolkit':
+        specifier: workspace:*
+        version: link:../../packages/feature/toolkit
+      '@BBeBee/ui-kit-desktop':
+        specifier: workspace:*
+        version: link:../../packages/ui/ui-kit-desktop
+      '@tauri-apps/api':
+        specifier: ^2.12.4
+        version: 2.12.4
+      '@tauri-apps/plugin-deep-link':
+        specifier: ^2.0.0
+        version: 2.6.2
+      '@tauri-apps/plugin-dialog':
+        specifier: ^2.0.0
+        version: 2.8.3
+      '@tauri-apps/plugin-global-shortcut':
+        specifier: ^2.0.0
+        version: 2.4.1
+      '@tauri-apps/plugin-opener':
+        specifier: ^2.0.0
+        version: 2.7.2
+      cordis:
+        specifier: 4.0.0-rc.9
+        version: 4.0.0-rc.9
+      react:
+        specifier: 19.2.3
+        version: 19.2.3
+      react-dom:
+        specifier: 19.2.3
+        version: 19.2.3(react@19.2.3)
+    devDependencies:
+      '@tauri-apps/cli':
+        specifier: ^2.12.3
+        version: 2.12.3
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.1
+      '@types/react':
+        specifier: ^19.2.0
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.0
+        version: 19.2.7(@types/react@19.2.18)
+      '@vitejs/plugin-react':
+        specifier: ^5.0.0
+        version: 5.2.0(supports-color@8.1.1)(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(terser@5.51.2)(yaml@2.9.0))
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^7.3.6
+        version: 7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(terser@5.51.2)(yaml@2.9.0)
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@22.20.1)(jsdom@30.0.1)(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(terser@5.51.2)(yaml@2.9.0))
+
   apps/mobile:
     dependencies:
       '@BBeBee/core-audio-mpv':
@@ -4728,6 +4978,97 @@ packages:
   '@tanstack/virtual-core@3.17.8':
     resolution: {integrity: sha512-BfEvehNpOT75r5Ksc5xW6NZuXujTfb7nlSEyVu4XHG3gdxNg1KqXruWbDewXOUaUYIo4oRbSfkjIajz4MAT8tA==}
 
+  '@tauri-apps/api@2.12.4':
+    resolution: {integrity: sha512-pVmfis+4zT8H0Qhp3xPZx9Ju7kpzvA6rr/PSJPyuwfvucTQ8sVt61NYU9KMkK703UFlYadFmjKA4HhybOtN0gg==}
+
+  '@tauri-apps/cli-darwin-arm64@2.12.3':
+    resolution: {integrity: sha512-xmVNoJOOKzKLj7GLHXmXLimRby9M42aBIJa0sB80N7o24eKV5JiVmToKTRLVH9yhL05GZ/B6rSSOmbzNFJwBAA==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@tauri-apps/cli-darwin-x64@2.12.3':
+    resolution: {integrity: sha512-URd+0usfmUQQyb5kNPiKt2OT8gp7oGU7QR+qOppB6e35mpVBFFVNhWc9oWb3p0u71fDJ09DpF4T6m9xYxoIB8g==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@tauri-apps/cli-linux-arm-gnueabihf@2.12.3':
+    resolution: {integrity: sha512-0kwUVx2LbmOoTRlwF1oDww7th4/NSluv4ZBQ6KRZsFKg4g0TlTcIiJ0VehqkQYUeC9xIT1Mk6XtF52mI155VSQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm]
+    os: [linux]
+
+  '@tauri-apps/cli-linux-arm64-gnu@2.12.3':
+    resolution: {integrity: sha512-gKSGDx6fx+HBLQmG6guChFdisbrCSdx9Yli+j5teOa64gm1CeM+C6NLru5Pj3ZkkEep05BmCFjxvX+cjqAycZQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@tauri-apps/cli-linux-arm64-musl@2.12.3':
+    resolution: {integrity: sha512-Yr59qMy/gcvAfBuFdCGlAmGiLsYWMFDbsP4bAI6iNBzcJTGrYWZGeiQhGDo29MQwfF/NUBqyM2qljXu5tZ6wjQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+    libc: [musl]
+
+  '@tauri-apps/cli-linux-riscv64-gnu@2.12.3':
+    resolution: {integrity: sha512-jKr0/REBMnLKC0OwPQZkyge0mKDaNZ0b/AbfGwVyCgFfwS730EVLfVDo3nt7MUu6jJaytRq08+xSj5qfy+U1+Q==}
+    engines: {node: '>= 10'}
+    cpu: [riscv64]
+    os: [linux]
+    libc: [glibc]
+
+  '@tauri-apps/cli-linux-x64-gnu@2.12.3':
+    resolution: {integrity: sha512-gTkEqJAGCMROGanxHnzaJzQ+/rXl39HWVg0/hDODS1wDWBGqoceqGC6Qm1+mQbyT11xnsB8mKu/gyVID/YpFIw==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@tauri-apps/cli-linux-x64-musl@2.12.3':
+    resolution: {integrity: sha512-T2dTxL1svRym71fZtaW4pZYXbthbfFsEJr1NeOUg/p7laWXZbUt/8DMSZf8recu9f7+1F/Lv00HtzsEu6vDO9w==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  '@tauri-apps/cli-win32-arm64-msvc@2.12.3':
+    resolution: {integrity: sha512-eoiQwpEZWbpsVHcM9BAzqqe4TCHszvr3rsM7pUQ4ofLK0lF1i1d/jX0Qo5DYMqcrUtwQuDdDuOCbcT0Izf1VwQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [win32]
+
+  '@tauri-apps/cli-win32-ia32-msvc@2.12.3':
+    resolution: {integrity: sha512-kE+KUg6Dbbkgvcw0m99wJVIToFQzJqpMBAXah74WqxaLzssNwSTUccrHp6+QVzMhjQP330tvekFmnQF+0NbE6Q==}
+    engines: {node: '>= 10'}
+    cpu: [ia32]
+    os: [win32]
+
+  '@tauri-apps/cli-win32-x64-msvc@2.12.3':
+    resolution: {integrity: sha512-L7wndWAgX2mLW7alswpL3d1R0P9FN2WYBgHaQkAYEBxHHGkY4vFX9CjcRQ1LAxDAMIJxrY7/aDziFJeChS84NQ==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [win32]
+
+  '@tauri-apps/cli@2.12.3':
+    resolution: {integrity: sha512-f7/LsY74SVb1ChmOPw1ajOpxii0GSzDAgmWHRci8JUYuuai04rXsSbFobpmB0sP2DdlvMD/B5ZotEn8GOGMRUg==}
+    engines: {node: '>= 10'}
+    hasBin: true
+
+  '@tauri-apps/plugin-deep-link@2.6.2':
+    resolution: {integrity: sha512-uMsF1VQt1OdYq3jDGsSBlBdtbTp6o7WYFYFnjiNuLfFpBvZsdH0XnolJoSzBOlTzhroROBUys/j1y1PQqdiMZA==}
+
+  '@tauri-apps/plugin-dialog@2.8.3':
+    resolution: {integrity: sha512-Hd/yBfk2R5v2MFrz/0VArSXeh8xKLLXGunqSiTtcHKn1zNZwaKujuA0VSwUvNfwC4hDoF1PveS+gBDNe3nHspw==}
+
+  '@tauri-apps/plugin-global-shortcut@2.4.1':
+    resolution: {integrity: sha512-NVCoQ0ShDFncsj9f8iAzhRBTnsJj5sf60vOjcV6emeQHzmEFd6+RXH+fUHHuJAbEYP4mdT2vGlvVOG7tMr/e8g==}
+
+  '@tauri-apps/plugin-opener@2.7.2':
+    resolution: {integrity: sha512-LyybP1VSzTMQiaFYcsbAse47KpivlyXdLZMQzGLEnkgQacGESnpjAfFoQ6h5sqWgAdZDH9szYjPzHMpv0Sz+TQ==}
+
   '@testing-library/dom@10.4.1':
     resolution: {integrity: sha512-o4PXJQidqJl82ckFaXUeoAW+XysPLauYI43Abki5hABd853iMhitooc6znOnczgbTYmEP6U6/y1ZyKAIsvMKGg==}
     engines: {node: '>=18'}
@@ -5097,6 +5438,9 @@ packages:
 
   bser@2.1.1:
     resolution: {integrity: sha512-gQxTNE/GAfIIrmHLUE3oJyp5FO6HRBfhjnw4/wMmA63ZGDJnWBmgY/lyQBpnDUkGmAhbSe39tx2d/iTOAfglwQ==}
+
+  bser@2.1.2:
+    resolution: {integrity: sha512-V2o8YS2EhrKMO9AumnkK0ynynfFlsajpYupwq7S46H5mhcanwxDkNTw3K67wPIcKTH1ffkA4vhMOtAc7gRmPZw==}
 
   buffer-from@1.1.2:
     resolution: {integrity: sha512-E+XQCRwSbaaiChtv6k6Dwgc+bx+Bs6vuKJHHl5kox/BaKbhiXzqQOwK4cO22yElGp2OCmjwVhT3HmxgyPGnJfQ==}
@@ -5613,6 +5957,9 @@ packages:
 
   fb-watchman@2.0.2:
     resolution: {integrity: sha512-p5161BqbuCaSnB8jIbzQHOlpgsPmK5rJVDfDKO91Axs5NC1uu3HRQm6wt9cd9/+GtQQIO53JdGXXoyDpTAsgYA==}
+
+  fb-watchman@2.0.4:
+    resolution: {integrity: sha512-tGQtaoYisPDriJBN0mT5yZSyNETnJGA1gTYxaVRAE5KUO3LI9kPUc9WIu8JXcxaIci+faIKlzXqXyPgrmubtBQ==}
 
   fdir@6.5.0:
     resolution: {integrity: sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==}
@@ -8473,6 +8820,71 @@ snapshots:
 
   '@tanstack/virtual-core@3.17.8': {}
 
+  '@tauri-apps/api@2.12.4': {}
+
+  '@tauri-apps/cli-darwin-arm64@2.12.3':
+    optional: true
+
+  '@tauri-apps/cli-darwin-x64@2.12.3':
+    optional: true
+
+  '@tauri-apps/cli-linux-arm-gnueabihf@2.12.3':
+    optional: true
+
+  '@tauri-apps/cli-linux-arm64-gnu@2.12.3':
+    optional: true
+
+  '@tauri-apps/cli-linux-arm64-musl@2.12.3':
+    optional: true
+
+  '@tauri-apps/cli-linux-riscv64-gnu@2.12.3':
+    optional: true
+
+  '@tauri-apps/cli-linux-x64-gnu@2.12.3':
+    optional: true
+
+  '@tauri-apps/cli-linux-x64-musl@2.12.3':
+    optional: true
+
+  '@tauri-apps/cli-win32-arm64-msvc@2.12.3':
+    optional: true
+
+  '@tauri-apps/cli-win32-ia32-msvc@2.12.3':
+    optional: true
+
+  '@tauri-apps/cli-win32-x64-msvc@2.12.3':
+    optional: true
+
+  '@tauri-apps/cli@2.12.3':
+    optionalDependencies:
+      '@tauri-apps/cli-darwin-arm64': 2.12.3
+      '@tauri-apps/cli-darwin-x64': 2.12.3
+      '@tauri-apps/cli-linux-arm-gnueabihf': 2.12.3
+      '@tauri-apps/cli-linux-arm64-gnu': 2.12.3
+      '@tauri-apps/cli-linux-arm64-musl': 2.12.3
+      '@tauri-apps/cli-linux-riscv64-gnu': 2.12.3
+      '@tauri-apps/cli-linux-x64-gnu': 2.12.3
+      '@tauri-apps/cli-linux-x64-musl': 2.12.3
+      '@tauri-apps/cli-win32-arm64-msvc': 2.12.3
+      '@tauri-apps/cli-win32-ia32-msvc': 2.12.3
+      '@tauri-apps/cli-win32-x64-msvc': 2.12.3
+
+  '@tauri-apps/plugin-deep-link@2.6.2':
+    dependencies:
+      '@tauri-apps/api': 2.12.4
+
+  '@tauri-apps/plugin-dialog@2.8.3':
+    dependencies:
+      '@tauri-apps/api': 2.12.4
+
+  '@tauri-apps/plugin-global-shortcut@2.4.1':
+    dependencies:
+      '@tauri-apps/api': 2.12.4
+
+  '@tauri-apps/plugin-opener@2.7.2':
+    dependencies:
+      '@tauri-apps/api': 2.12.4
+
   '@testing-library/dom@10.4.1':
     dependencies:
       '@babel/code-frame': 7.29.7
@@ -8986,6 +9398,10 @@ snapshots:
       update-browserslist-db: 1.3.2(browserslist@4.28.9)
 
   bser@2.1.1:
+    dependencies:
+      node-int64: 0.4.0
+
+  bser@2.1.2:
     dependencies:
       node-int64: 0.4.0
 
@@ -9551,6 +9967,10 @@ snapshots:
     dependencies:
       bser: 2.1.1
 
+  fb-watchman@2.0.4:
+    dependencies:
+      bser: 2.1.2
+
   fdir@6.5.0(picomatch@4.0.7):
     optionalDependencies:
       picomatch: 4.0.7
@@ -10024,7 +10444,7 @@ snapshots:
   metro-file-map@0.84.6(supports-color@8.1.1):
     dependencies:
       debug: 4.4.3(supports-color@8.1.1)
-      fb-watchman: 2.0.2
+      fb-watchman: 2.0.4
       flow-enums-runtime: 0.0.6
       graceful-fs: 4.2.11
       invariant: 2.2.4

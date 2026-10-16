@@ -24,3 +24,13 @@ target/
 apps/desktop/bin/
 apps/desktop/resources/bin/
 apps/desktop/native/audio-engine/build/
+
+# desktop2 native binaries and build artifacts
+apps/desktop2/bin/
+apps/desktop2/resources/bin/
+apps/desktop2/dist/
+apps/desktop2/dist-sidecar/
+apps/desktop2/pkgconfig/
+apps/desktop2/src-tauri/target/
+
+apps/desktop2/src-tauri/.cargo/

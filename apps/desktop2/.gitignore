@@ -1,0 +1,7 @@
+bin/
+resources/bin/
+dist/
+dist-sidecar/
+pkgconfig/
+target/
+src-tauri/target/

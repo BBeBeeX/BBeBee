@@ -1,0 +1,80 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "BBeBee",
+  "version": "0.0.0",
+  "identifier": "org.bbebee.desktop",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "BBeBee",
+        "label": "main",
+        "width": 1360,
+        "height": 860,
+        "minWidth": 720,
+        "minHeight": 480,
+        "decorations": false,
+        "transparent": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "appimage",
+      "deb",
+      "nsis",
+      "dmg"
+    ],
+    "createUpdaterArtifacts": false,
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico",
+      "icons/icon.png"
+    ],
+    "resources": {
+      "../bin/*": "bin/",
+      "../resources/bin/*": "bin/",
+      "../dist-sidecar/*": "dist-sidecar/"
+    },
+    "linux": {
+      "deb": {
+        "depends": []
+      },
+      "appimage": {
+        "bundleMediaFramework": false
+      }
+    },
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "nsis": {}
+    },
+    "macOS": {
+      "dmg": {}
+    }
+  },
+  "plugins": {
+    "updater": {
+      "active": false,
+      "dialog": false,
+      "endpoints": [
+        "https://releases.bbebee.org/desktop/{{target}}/{{arch}}/{{current_version}}"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IFBMQUNFSE9MREVSCg==",
+      "status": "deferred"
+    }
+  }
+}
