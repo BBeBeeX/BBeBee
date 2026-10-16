@@ -294,14 +294,22 @@ describe('core-codec-node', () => {
   it('forwards to window.BBeBee.audio.transcode if exposed', async () => {
     const h = await harness()
     let calledOpts: any
-    const mockTranscode = async (opts: any) => {
+    let calledProgress: any
+    let cancelledJobId: string | undefined
+    const mockTranscode = async (opts: any, onProg?: any) => {
       calledOpts = opts
+      calledProgress = onProg
       return { ok: true }
+    }
+    const mockCancel = async (jobId: string) => {
+      cancelledJobId = jobId
+      return true
     }
     ;(globalThis as any).window = {
       BBeBee: {
         audio: {
           transcode: mockTranscode,
+          cancelTranscode: mockCancel,
         },
       },
     }
@@ -318,6 +326,7 @@ describe('core-codec-node', () => {
       expect(res?.ok).toBe(true)
       expect(calledOpts).toBeDefined()
       expect(calledOpts.targetFormat).toBe('mp3')
+      expect(calledProgress).toBe(onProg)
     } finally {
       delete (globalThis as any).window
     }

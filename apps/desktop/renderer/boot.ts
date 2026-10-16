@@ -185,6 +185,7 @@ declare global {
           signal?: AbortSignal
           onProgress?: (progress: number, currentTimeSeconds: number) => void
         }): Promise<{ ok: boolean; error?: string }>
+        cancelTranscode?(jobId: string): Promise<boolean>
       }
     }
   }

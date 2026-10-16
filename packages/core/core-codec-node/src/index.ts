@@ -176,14 +176,61 @@ export class CodecNode extends Service implements CodecService {
       window?: {
         BBeBee?: {
           audio?: {
-            transcode?: (opts: TranscodeOptions) => Promise<TranscodeResult>
+            transcode?: (
+              opts: any,
+              onProgress?: (progress: number, currentTimeSeconds: number) => void,
+            ) => Promise<TranscodeResult>
+            cancelTranscode?: (jobId: string) => Promise<boolean>
           }
         }
       }
     }).window
     const bridgeTranscode = exposed?.BBeBee?.audio?.transcode
     if (bridgeTranscode) {
-      return bridgeTranscode(options)
+      if (options.signal?.aborted) {
+        return { ok: false, error: 'Cancelled' }
+      }
+
+      const jobId = `tc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+
+      let cleanupSignal: (() => void) | undefined
+      if (options.signal && typeof options.signal.addEventListener === 'function') {
+        const onAbort = () => {
+          exposed?.BBeBee?.audio?.cancelTranscode?.(jobId)?.catch(() => {})
+        }
+        options.signal.addEventListener('abort', onAbort, { once: true })
+        cleanupSignal = () => {
+          try {
+            options.signal?.removeEventListener?.('abort', onAbort)
+          } catch {
+            // ignore
+          }
+        }
+      }
+
+      const cleanOptions = {
+        jobId,
+        inputUri: options.inputUri,
+        outputUri: options.outputUri,
+        targetFormat: options.targetFormat,
+        bitrate: options.bitrate,
+        sampleRate: options.sampleRate,
+        channels: options.channels,
+        bitDepth: options.bitDepth,
+        vbr: options.vbr,
+        vbrQuality: options.vbrQuality,
+        volumeGainDb: options.volumeGainDb,
+        fadeInSeconds: options.fadeInSeconds,
+        fadeOutSeconds: options.fadeOutSeconds,
+        startTimeSeconds: options.startTimeSeconds,
+        endTimeSeconds: options.endTimeSeconds,
+      }
+
+      try {
+        return await bridgeTranscode(cleanOptions, options.onProgress)
+      } finally {
+        cleanupSignal?.()
+      }
     }
 
     try {

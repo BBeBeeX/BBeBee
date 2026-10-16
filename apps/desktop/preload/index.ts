@@ -99,30 +99,36 @@ const api = {
       ipcRenderer.invoke('stream:set-headers', entry),
   },
   audio: {
-    transcode: (options: {
-      inputUri: string
-      outputUri: string
-      targetFormat: string
-      bitrate?: string
-      sampleRate?: number
-      channels?: number
-      bitDepth?: number
-      vbr?: boolean
-      quality?: number
-      vbrQuality?: number
-      volumeGainDb?: number
-      fadeInSeconds?: number
-      fadeOutSeconds?: number
-      startTimeSeconds?: number
-      endTimeSeconds?: number
-      signal?: AbortSignal
-      onProgress?: (progress: number, currentTimeSeconds: number) => void
-    }): Promise<{ ok: boolean; error?: string }> => {
+    cancelTranscode: (jobId: string): Promise<boolean> =>
+      ipcRenderer.invoke('audio:transcode-cancel', jobId),
+    transcode: (
+      options: {
+        jobId?: string
+        inputUri: string
+        outputUri: string
+        targetFormat: string
+        bitrate?: string
+        sampleRate?: number
+        channels?: number
+        bitDepth?: number
+        vbr?: boolean
+        quality?: number
+        vbrQuality?: number
+        volumeGainDb?: number
+        fadeInSeconds?: number
+        fadeOutSeconds?: number
+        startTimeSeconds?: number
+        endTimeSeconds?: number
+        signal?: AbortSignal
+        onProgress?: (progress: number, currentTimeSeconds: number) => void
+      },
+      onProgressCallback?: (progress: number, currentTimeSeconds: number) => void,
+    ): Promise<{ ok: boolean; error?: string }> => {
       if (options.signal?.aborted) {
         return Promise.resolve({ ok: false, error: 'Cancelled' })
       }
 
-      const jobId = `tc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+      const jobId = options.jobId || `tc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 
       // Extract strictly primitive fields so non-cloneable objects (functions, AbortSignal) never hit IPC
       const payload = {
@@ -144,16 +150,22 @@ const api = {
         endTimeSeconds: typeof options.endTimeSeconds === 'number' ? options.endTimeSeconds : undefined,
       }
 
+      const progressCb =
+        typeof onProgressCallback === 'function'
+          ? onProgressCallback
+          : typeof options.onProgress === 'function'
+            ? options.onProgress
+            : undefined
+
       let cleanupProgress: (() => void) | undefined
-      if (typeof options.onProgress === 'function') {
-        const onProgressCb = options.onProgress
+      if (typeof progressCb === 'function') {
         const progressListener = (
           _event: unknown,
           data: { jobId: string; progress: number; currentTimeSeconds: number },
         ) => {
           if (data && data.jobId === jobId) {
             try {
-              onProgressCb(data.progress, data.currentTimeSeconds)
+              progressCb(data.progress, data.currentTimeSeconds)
             } catch {
               // ignore callback error
             }
@@ -166,13 +178,17 @@ const api = {
       }
 
       let cleanupAbort: (() => void) | undefined
-      if (options.signal) {
+      if (options.signal && typeof (options.signal as any).addEventListener === 'function') {
         const abortHandler = () => {
           ipcRenderer.invoke('audio:transcode-cancel', jobId).catch(() => {})
         }
-        options.signal.addEventListener('abort', abortHandler, { once: true })
+        ;(options.signal as any).addEventListener('abort', abortHandler, { once: true })
         cleanupAbort = () => {
-          options.signal?.removeEventListener('abort', abortHandler)
+          try {
+            (options.signal as any)?.removeEventListener?.('abort', abortHandler)
+          } catch {
+            // ignore
+          }
         }
       }
 
