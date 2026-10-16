@@ -257,6 +257,90 @@ describe('core-codec-node', () => {
     expect(res?.ok).toBe(true)
   })
 
+  it('preserves artwork and metadata when transcoding to supported formats', async () => {
+    const h = await harness()
+    const wavPath = new URL(h.uri('source.wav')).pathname
+    const flacWithArtPath = new URL(h.uri('source_art.flac')).pathname
+    const imgPath = new URL(h.uri('cover.jpg')).pathname
+
+    const sampleRate = 44100
+    const durationSec = 1
+    const numSamples = sampleRate * durationSec
+    const buffer = new ArrayBuffer(44 + numSamples * 2)
+    const view = new DataView(buffer)
+    view.setUint32(0, 0x52494646, false)
+    view.setUint32(4, 36 + numSamples * 2, true)
+    view.setUint32(8, 0x57415645, false)
+    view.setUint32(12, 0x666d7420, false)
+    view.setUint32(16, 16, true)
+    view.setUint16(20, 1, true)
+    view.setUint16(22, 1, true)
+    view.setUint32(24, 44100, true)
+    view.setUint32(28, 88200, true)
+    view.setUint16(32, 2, true)
+    view.setUint16(34, 16, true)
+    view.setUint32(36, 0x64617461, false)
+    view.setUint32(40, numSamples * 2, true)
+    await writeFile(wavPath, new Uint8Array(buffer))
+
+    const jpegBytes = Buffer.from(
+      'ffd8ffe000104a46494600010200000100010000fffe00104c61766336312e31392e31303100ffdb0043000804040404040505050505050606060606060606060606060607070708080807070706060707080808080909090808080809090a0a0a0c0c0b0b0e0e0e111114ffc4004c0001010000000000000000000000000000000601010100000000000000000000000000000607100100000000000000000000000000000000110100000000000000000000000000000000ffc0001108000a000a03012200021100031100ffda000c03010002110311003f008b00517f7fffd9',
+      'hex',
+    )
+    await writeFile(imgPath, jpegBytes)
+
+    const { execFileSync } = await import('node:child_process')
+    execFileSync('ffmpeg', [
+      '-y',
+      '-i',
+      wavPath,
+      '-i',
+      imgPath,
+      '-map',
+      '0:a',
+      '-map',
+      '1:v',
+      '-c:a',
+      'flac',
+      '-c:v',
+      'copy',
+      '-disposition:v',
+      'attached_pic',
+      '-metadata',
+      'title=TestTitle',
+      '-metadata',
+      'artist=TestArtist',
+      flacWithArtPath,
+    ])
+
+    // Transcode flac -> mp3
+    const resMp3 = await h.codec.transcode?.({
+      inputUri: h.uri('source_art.flac'),
+      outputUri: h.uri('target.mp3'),
+      targetFormat: 'mp3',
+    })
+    expect(resMp3?.ok).toBe(true)
+
+    const metaMp3 = await h.codec.readMetadata(h.uri('target.mp3'))
+    expect(metaMp3.title).toBe('TestTitle')
+    expect(metaMp3.artist).toBe('TestArtist')
+    expect(metaMp3.hasArtwork).toBe(true)
+
+    const art = await h.codec.readArtwork(h.uri('target.mp3'))
+    expect(art).toBeInstanceOf(Uint8Array)
+    expect(art!.length).toBeGreaterThan(0)
+
+    // Transcode flac -> wav (which does not support artwork, should succeed cleanly with -vn)
+    const resWav = await h.codec.transcode?.({
+      inputUri: h.uri('source_art.flac'),
+      outputUri: h.uri('target.wav'),
+      targetFormat: 'wav',
+    })
+    expect(resWav?.ok).toBe(true)
+    const metaWav = await h.codec.readMetadata(h.uri('target.wav'))
+    expect(metaWav.title).toBe('TestTitle')
+  })
+
   it('reports error when transcoding invalid input', async () => {
     const h = await harness()
     const res = await h.codec.transcode?.({
@@ -316,17 +400,20 @@ describe('core-codec-node', () => {
     try {
       const controller = new AbortController()
       const onProg = () => {}
-      const res = await h.codec.transcode?.({
+      const resPromise = h.codec.transcode?.({
         inputUri: h.uri('sample.wav'),
         outputUri: h.uri('bridge.mp3'),
         targetFormat: 'mp3',
         signal: controller.signal,
         onProgress: onProg,
       })
+      controller.abort()
+      const res = await resPromise
       expect(res?.ok).toBe(true)
       expect(calledOpts).toBeDefined()
       expect(calledOpts.targetFormat).toBe('mp3')
       expect(calledProgress).toBe(onProg)
+      expect(cancelledJobId).toBeDefined()
     } finally {
       delete (globalThis as any).window
     }

@@ -1620,6 +1620,19 @@ void app.whenReady().then(async () => {
 
         args.push('-i', inPath)
 
+        const formatsWithCover = new Set(['mp3', 'flac', 'm4a', 'aac', 'mp4', 'alac', 'aiff', 'wma'])
+        if (formatsWithCover.has(fmt)) {
+          args.push('-map', '0:a', '-map', '0:v?', '-c:v', 'copy')
+          if (fmt === 'mp3' || fmt === 'aiff') {
+            args.push('-id3v2_version', '3')
+          } else if (fmt === 'm4a' || fmt === 'aac' || fmt === 'mp4' || fmt === 'alac') {
+            args.push('-disposition:v', 'attached_pic')
+          }
+        } else {
+          args.push('-map', '0:a', '-vn')
+        }
+        args.push('-map_metadata', '0')
+
         const filters: string[] = []
         if (typeof opts.volumeGainDb === 'number' && opts.volumeGainDb !== 0) {
           filters.push(`volume=${opts.volumeGainDb}dB`)

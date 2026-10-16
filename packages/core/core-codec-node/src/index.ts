@@ -177,7 +177,7 @@ export class CodecNode extends Service implements CodecService {
         BBeBee?: {
           audio?: {
             transcode?: (
-              opts: any,
+              opts: TranscodeOptions,
               onProgress?: (progress: number, currentTimeSeconds: number) => void,
             ) => Promise<TranscodeResult>
             cancelTranscode?: (jobId: string) => Promise<boolean>
@@ -266,6 +266,19 @@ export class CodecNode extends Service implements CodecService {
       }
 
       args.push('-i', inPath)
+
+      const formatsWithCover = new Set(['mp3', 'flac', 'm4a', 'aac', 'mp4', 'alac', 'aiff', 'wma'])
+      if (formatsWithCover.has(fmt)) {
+        args.push('-map', '0:a', '-map', '0:v?', '-c:v', 'copy')
+        if (fmt === 'mp3' || fmt === 'aiff') {
+          args.push('-id3v2_version', '3')
+        } else if (fmt === 'm4a' || fmt === 'aac' || fmt === 'mp4' || fmt === 'alac') {
+          args.push('-disposition:v', 'attached_pic')
+        }
+      } else {
+        args.push('-map', '0:a', '-vn')
+      }
+      args.push('-map_metadata', '0')
 
       if (fmt === 'flac') {
         args.push('-c:a', 'flac')
