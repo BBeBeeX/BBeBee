@@ -31,7 +31,7 @@ export async function apply(ctx: Context, config: Partial<AudioConverterConfig> 
         id: AUDIO_CONVERTER_VIEWS.page,
         path: '/audio-converter',
         title: 'converter:index.title',
-        icon: 'adjustments',
+        icon: 'transform',
         placement: ['tray'],
         order: 35,
       })

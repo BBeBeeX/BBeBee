@@ -651,4 +651,18 @@ export const TABLER_DEFINITIONS: Record<string, IconSvgDefinition> = {
       },
     ],
   },
+  transform: {
+    elements: [
+      { tag: 'path', attrs: { d: 'M3 6a3 3 0 1 0 6 0a3 3 0 0 0 -6 0' } },
+      { tag: 'path', attrs: { d: 'M21 11v-3a2 2 0 0 0 -2 -2h-6l3 3m0 -6l-3 3' } },
+      { tag: 'path', attrs: { d: 'M3 13v3a2 2 0 0 0 2 2h6l-3 -3m0 6l3 -3' } },
+      { tag: 'path', attrs: { d: 'M15 18a3 3 0 1 0 6 0a3 3 0 0 0 -6 0' } },
+    ],
+  },
+  'arrows-exchange': {
+    elements: [
+      { tag: 'path', attrs: { d: 'M7 10h14l-4 -4' } },
+      { tag: 'path', attrs: { d: 'M17 14h-14l4 4' } },
+    ],
+  },
 }

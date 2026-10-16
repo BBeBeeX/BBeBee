@@ -51,13 +51,18 @@ const api = {
   files: {
     getPath: (file: File): string => {
       try {
-        return webUtils.getPathForFile(file)
+        const p = webUtils.getPathForFile(file)
+        if (p) {
+          ipcRenderer.invoke('files:authorize', p).catch(() => {})
+        }
+        return p
       } catch {
         // Not backed by a path (e.g. a drag from inside the page): the
         // importer treats '' the same as absent.
         return ''
       }
     },
+    authorizePath: (path: string): Promise<boolean> => ipcRenderer.invoke('files:authorize', path),
   },
   devtools: {
     open: (): Promise<void> => ipcRenderer.invoke('devtools:open'),
@@ -99,6 +104,17 @@ const api = {
       outputUri: string
       targetFormat: string
       bitrate?: string
+      sampleRate?: number
+      channels?: number
+      bitDepth?: number
+      vbr?: boolean
+      quality?: number
+      vbrQuality?: number
+      volumeGainDb?: number
+      fadeInSeconds?: number
+      fadeOutSeconds?: number
+      startTimeSeconds?: number
+      endTimeSeconds?: number
     }): Promise<{ ok: boolean; error?: string }> =>
       ipcRenderer.invoke('audio:transcode', options),
   },

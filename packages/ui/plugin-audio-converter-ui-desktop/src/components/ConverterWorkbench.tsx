@@ -161,9 +161,16 @@ export function ConverterWorkbench({ ctx }: ConverterWorkbenchProps): ReactEleme
         const droppedFiles = e.dataTransfer.files
         if (!droppedFiles || droppedFiles.length === 0) return
 
-        const getPath = (window as unknown as {
-          BBeBee?: { files?: { getPath?: (f: File) => string } }
-        }).BBeBee?.files?.getPath
+        const bbebee = (window as unknown as {
+          BBeBee?: {
+            files?: {
+              getPath?: (f: File) => string
+              authorizePath?: (p: string) => Promise<boolean>
+            }
+          }
+        }).BBeBee
+        const getPath = bbebee?.files?.getPath
+        const authorizePath = bbebee?.files?.authorizePath
 
         const getExtension = (nameOrPath: string) => {
           const clean = nameOrPath.split('?')[0]!.split('#')[0]!
@@ -174,12 +181,16 @@ export function ConverterWorkbench({ ctx }: ConverterWorkbenchProps): ReactEleme
         const newFiles: SelectedAudioFile[] = []
         for (let i = 0; i < droppedFiles.length; i++) {
           const f = droppedFiles[i]!
-          const filePath = getPath?.(f) || (f as { path?: string }).path || f.name
+          const rawPath = getPath?.(f) || (f as { path?: string }).path || f.name
+          const filePath = rawPath.replace(/\\/g, '/')
+          if (authorizePath) void authorizePath(filePath)
+          const lastSlash = filePath.lastIndexOf('/')
+          const fileName = lastSlash >= 0 ? filePath.slice(lastSlash + 1) : f.name
           const ext = getExtension(filePath) || getExtension(f.name) || 'unknown'
           newFiles.push({
             id: `file_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 6)}`,
             uri: filePath,
-            name: f.name,
+            name: fileName,
             format: ext.toUpperCase(),
             size: f.size,
           })

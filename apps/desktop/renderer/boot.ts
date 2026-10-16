@@ -88,7 +88,10 @@ declare global {
         pickDirectory(): Promise<string | undefined>
         pickFiles?(options?: { extensions?: string[] }): Promise<string[]>
       }
-      files?: { getPath(file: File): string }
+      files?: {
+        getPath(file: File): string
+        authorizePath?(path: string): Promise<boolean>
+      }
       devtools?: { open(): Promise<void> }
       platform: string
       versions: { electron: string; node: string }
@@ -161,6 +164,25 @@ declare global {
           files: Record<string, string>,
         ): Promise<{ ok: boolean; pluginId: string; path?: string }>
         uninstall(pluginId: string): Promise<{ ok: boolean; message?: string }>
+      }
+      audio?: {
+        transcode(options: {
+          inputUri: string
+          outputUri: string
+          targetFormat: string
+          bitrate?: string
+          sampleRate?: number
+          channels?: number
+          bitDepth?: number
+          vbr?: boolean
+          quality?: number
+          vbrQuality?: number
+          volumeGainDb?: number
+          fadeInSeconds?: number
+          fadeOutSeconds?: number
+          startTimeSeconds?: number
+          endTimeSeconds?: number
+        }): Promise<{ ok: boolean; error?: string }>
       }
     }
   }

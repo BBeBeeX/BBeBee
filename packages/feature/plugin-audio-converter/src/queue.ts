@@ -48,7 +48,11 @@ export class TaskQueue {
       const fallbackDir = defaultPaths?.music || defaultPaths?.downloads || defaultPaths?.temp || '/tmp'
       const rawParent = lastSlash >= 0 ? normInput.slice(0, lastSlash) : ''
       const parentDir = rawParent && rawParent !== '.' ? rawParent : fallbackDir
-      const outDir = item.options?.outputDir || config.defaultOutputDir || parentDir
+      const outDir = item.options?.outputDir
+        ? validateAndNormalizePath(item.options.outputDir)
+        : config.defaultOutputDir
+          ? validateAndNormalizePath(config.defaultOutputDir)
+          : parentDir
       const customName = item.options?.outputFileName || `${stem}.${targetFmt}`
       const outUri = `${outDir}/${customName}`
 
@@ -251,7 +255,9 @@ export class TaskQueue {
       })
 
       if (controller.signal.aborted) {
-        await this.ctx.fs.remove(tempPath).catch(() => undefined)
+        if (await this.ctx.fs.exists(tempPath).catch(() => false)) {
+          await this.ctx.fs.remove(tempPath).catch(() => undefined)
+        }
         return
       }
 
@@ -288,7 +294,9 @@ export class TaskQueue {
     } catch (err: unknown) {
       if (controller.signal.aborted) return
 
-      await this.ctx.fs.remove(tempPath).catch(() => undefined)
+      if (await this.ctx.fs.exists(tempPath).catch(() => false)) {
+        await this.ctx.fs.remove(tempPath).catch(() => undefined)
+      }
       const errorMsg = err instanceof Error ? err.message : String(err)
 
       this.updateTask(taskId, {

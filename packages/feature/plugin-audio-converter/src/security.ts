@@ -47,7 +47,7 @@ export function validateAndNormalizePath(uriOrPath: string): string {
     }
   }
 
-  return uriOrPath
+  return normalized
 }
 
 /**

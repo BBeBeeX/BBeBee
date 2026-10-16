@@ -215,6 +215,12 @@ export const ICON_ALIASES: Record<string, string> = {
   adjustments: 'adjustments',
   tune: 'adjustments',
   dsp: 'adjustments',
+  transform: 'transform',
+  convert: 'transform',
+  converter: 'transform',
+  'audio-converter': 'transform',
+  'arrows-exchange': 'arrows-exchange',
+  exchange: 'arrows-exchange',
   bug: 'bug',
   inspector: 'bug',
 

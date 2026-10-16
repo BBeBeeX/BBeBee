@@ -90,6 +90,12 @@ export class AudioConverter extends Service implements AudioConverterService {
 
     let timeoutTimer: ReturnType<typeof setTimeout> | undefined
 
+    const safeRemove = async (p: string) => {
+      if (await this.ctx.fs.exists(p).catch(() => false)) {
+        await this.ctx.fs.remove(p).catch(() => undefined)
+      }
+    }
+
     try {
       const controller = new AbortController()
 
@@ -126,12 +132,12 @@ export class AudioConverter extends Service implements AudioConverterService {
       })
 
       if (controller.signal.aborted) {
-        await this.ctx.fs.remove(tempPath).catch(() => undefined)
+        await safeRemove(tempPath)
         return { ok: false, error: 'Conversion cancelled or timed out' }
       }
 
       if (!res?.ok) {
-        await this.ctx.fs.remove(tempPath).catch(() => undefined)
+        await safeRemove(tempPath)
         return { ok: false, error: res?.error || 'Codec engine failure' }
       }
 
@@ -139,7 +145,7 @@ export class AudioConverter extends Service implements AudioConverterService {
 
       const st = await this.ctx.fs.stat(tempPath)
       if (st.size === 0) {
-        await this.ctx.fs.remove(tempPath).catch(() => undefined)
+        await safeRemove(tempPath)
         return { ok: false, error: 'Transcoded file is empty' }
       }
 
@@ -152,7 +158,7 @@ export class AudioConverter extends Service implements AudioConverterService {
         durationMs: res.durationMs,
       }
     } catch (err: unknown) {
-      await this.ctx.fs.remove(tempPath).catch(() => undefined)
+      await safeRemove(tempPath)
       return { ok: false, error: err instanceof Error ? err.message : String(err) }
     } finally {
       if (timeoutTimer) clearTimeout(timeoutTimer)

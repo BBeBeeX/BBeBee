@@ -24,6 +24,9 @@ describe('plugin-audio-converter security & heuristics', () => {
     expect(() => validateAndNormalizePath('audio/../../etc/passwd')).toThrow(/traversal/)
     expect(() => validateAndNormalizePath('track\0.mp3')).toThrow(/forbidden/)
     expect(validateAndNormalizePath('/home/music/song.wav')).toBe('/home/music/song.wav')
+    expect(validateAndNormalizePath('H:\\dockerResource\\Jellyfin\\media\\01 - You Raise Me Up.flac')).toBe(
+      'H:/dockerResource/Jellyfin/media/01 - You Raise Me Up.flac',
+    )
   })
 
   it('validates audio formats and detects invalid ones', () => {
@@ -41,6 +44,10 @@ describe('plugin-audio-converter security & heuristics', () => {
     const temp = computeTempPath('/music/output.mp3')
     expect(temp).toContain('/music/.output.tmp_')
     expect(temp.endsWith('.mp3')).toBe(true)
+
+    const winTemp = computeTempPath('H:\\dockerResource\\Jellyfin\\media\\01 - You Raise Me Up.flac')
+    expect(winTemp).toContain('H:/dockerResource/Jellyfin/media/.01 - You Raise Me Up.tmp_')
+    expect(winTemp.endsWith('.flac')).toBe(true)
   })
 
   it('calculates compression estimates and warns on lossy re-encoding', () => {
@@ -246,6 +253,7 @@ describe('plugin-audio-converter service & lifecycle', () => {
 
     expect(route).toBeDefined()
     expect(route.title).toBe('converter:index.title')
+    expect(route.icon).toBe('transform')
     expect(route.placement).toContain('tray')
     expect(tray).toBeUndefined()
   })
