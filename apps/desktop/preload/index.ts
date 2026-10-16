@@ -115,8 +115,74 @@ const api = {
       fadeOutSeconds?: number
       startTimeSeconds?: number
       endTimeSeconds?: number
-    }): Promise<{ ok: boolean; error?: string }> =>
-      ipcRenderer.invoke('audio:transcode', options),
+      signal?: AbortSignal
+      onProgress?: (progress: number, currentTimeSeconds: number) => void
+    }): Promise<{ ok: boolean; error?: string }> => {
+      if (options.signal?.aborted) {
+        return Promise.resolve({ ok: false, error: 'Cancelled' })
+      }
+
+      const jobId = `tc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+
+      // Extract strictly primitive fields so non-cloneable objects (functions, AbortSignal) never hit IPC
+      const payload = {
+        jobId,
+        inputUri: String(options.inputUri),
+        outputUri: String(options.outputUri),
+        targetFormat: String(options.targetFormat),
+        bitrate: options.bitrate ? String(options.bitrate) : undefined,
+        sampleRate: typeof options.sampleRate === 'number' ? options.sampleRate : undefined,
+        channels: typeof options.channels === 'number' ? options.channels : undefined,
+        bitDepth: typeof options.bitDepth === 'number' ? options.bitDepth : undefined,
+        vbr: typeof options.vbr === 'boolean' ? options.vbr : undefined,
+        quality: typeof options.quality === 'number' ? options.quality : undefined,
+        vbrQuality: typeof options.vbrQuality === 'number' ? options.vbrQuality : undefined,
+        volumeGainDb: typeof options.volumeGainDb === 'number' ? options.volumeGainDb : undefined,
+        fadeInSeconds: typeof options.fadeInSeconds === 'number' ? options.fadeInSeconds : undefined,
+        fadeOutSeconds: typeof options.fadeOutSeconds === 'number' ? options.fadeOutSeconds : undefined,
+        startTimeSeconds: typeof options.startTimeSeconds === 'number' ? options.startTimeSeconds : undefined,
+        endTimeSeconds: typeof options.endTimeSeconds === 'number' ? options.endTimeSeconds : undefined,
+      }
+
+      let cleanupProgress: (() => void) | undefined
+      if (typeof options.onProgress === 'function') {
+        const onProgressCb = options.onProgress
+        const progressListener = (
+          _event: unknown,
+          data: { jobId: string; progress: number; currentTimeSeconds: number },
+        ) => {
+          if (data && data.jobId === jobId) {
+            try {
+              onProgressCb(data.progress, data.currentTimeSeconds)
+            } catch {
+              // ignore callback error
+            }
+          }
+        }
+        ipcRenderer.on('audio:transcode-progress', progressListener)
+        cleanupProgress = () => {
+          ipcRenderer.removeListener('audio:transcode-progress', progressListener)
+        }
+      }
+
+      let cleanupAbort: (() => void) | undefined
+      if (options.signal) {
+        const abortHandler = () => {
+          ipcRenderer.invoke('audio:transcode-cancel', jobId).catch(() => {})
+        }
+        options.signal.addEventListener('abort', abortHandler, { once: true })
+        cleanupAbort = () => {
+          options.signal?.removeEventListener('abort', abortHandler)
+        }
+      }
+
+      return ipcRenderer
+        .invoke('audio:transcode', payload)
+        .finally(() => {
+          cleanupProgress?.()
+          cleanupAbort?.()
+        })
+    },
   },
   desktopLyrics: {
     setVisible: (visible: boolean, pos?: { x: number; y: number }): Promise<void> =>

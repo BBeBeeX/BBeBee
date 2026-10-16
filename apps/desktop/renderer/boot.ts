@@ -182,6 +182,8 @@ declare global {
           fadeOutSeconds?: number
           startTimeSeconds?: number
           endTimeSeconds?: number
+          signal?: AbortSignal
+          onProgress?: (progress: number, currentTimeSeconds: number) => void
         }): Promise<{ ok: boolean; error?: string }>
       }
     }

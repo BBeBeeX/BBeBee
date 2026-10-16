@@ -291,6 +291,38 @@ describe('core-codec-node', () => {
     expect(res?.error).toBe('Cancelled')
   })
 
+  it('forwards to window.BBeBee.audio.transcode if exposed', async () => {
+    const h = await harness()
+    let calledOpts: any
+    const mockTranscode = async (opts: any) => {
+      calledOpts = opts
+      return { ok: true }
+    }
+    ;(globalThis as any).window = {
+      BBeBee: {
+        audio: {
+          transcode: mockTranscode,
+        },
+      },
+    }
+    try {
+      const controller = new AbortController()
+      const onProg = () => {}
+      const res = await h.codec.transcode?.({
+        inputUri: h.uri('sample.wav'),
+        outputUri: h.uri('bridge.mp3'),
+        targetFormat: 'mp3',
+        signal: controller.signal,
+        onProgress: onProg,
+      })
+      expect(res?.ok).toBe(true)
+      expect(calledOpts).toBeDefined()
+      expect(calledOpts.targetFormat).toBe('mp3')
+    } finally {
+      delete (globalThis as any).window
+    }
+  })
+
   it('leaves nothing behind when unloaded', async () => {
     const ctx = new Context()
     await ctx.plugin(PathsNode, { root: await tempDir('bbebee-codec-leak') })

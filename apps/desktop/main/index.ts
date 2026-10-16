@@ -1546,11 +1546,28 @@ void app.whenReady().then(async () => {
     },
   )
 
+  const activeTranscodes = new Map<string, ReturnType<typeof spawn>>()
+
+  ipcMain.handle('audio:transcode-cancel', (_event, jobId: string) => {
+    if (typeof jobId === 'string' && activeTranscodes.has(jobId)) {
+      const proc = activeTranscodes.get(jobId)
+      activeTranscodes.delete(jobId)
+      try {
+        proc?.kill('SIGKILL')
+      } catch {
+        // ignore kill error
+      }
+      return true
+    }
+    return false
+  })
+
   ipcMain.handle(
     'audio:transcode',
     async (
-      _event,
+      event,
       opts: {
+        jobId?: string
         inputUri: string
         outputUri: string
         targetFormat: string
@@ -1671,18 +1688,61 @@ void app.whenReady().then(async () => {
 
         return await new Promise<{ ok: boolean; error?: string }>((resolve) => {
           const proc = spawn(ffmpegBin, args)
+          if (opts.jobId) {
+            activeTranscodes.set(opts.jobId, proc)
+          }
+
           let stderr = ''
+          let totalDurationSec = 0
+
           proc.stderr?.on('data', (d) => {
-            stderr += d.toString()
+            const chunk = d.toString()
+            stderr += chunk
+
+            if (opts.jobId && event.sender && !event.sender.isDestroyed()) {
+              if (!totalDurationSec) {
+                const matchDuration = /Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/i.exec(chunk)
+                if (matchDuration) {
+                  const hours = parseFloat(matchDuration[1]!)
+                  const mins = parseFloat(matchDuration[2]!)
+                  const secs = parseFloat(matchDuration[3]!)
+                  totalDurationSec = hours * 3600 + mins * 60 + secs
+                }
+              }
+
+              const matchTime = /time=\s*(\d+):(\d+):(\d+(?:\.\d+)?)/i.exec(chunk)
+              if (matchTime) {
+                const h = parseFloat(matchTime[1]!)
+                const m = parseFloat(matchTime[2]!)
+                const s = parseFloat(matchTime[3]!)
+                const curSec = h * 3600 + m * 60 + s
+                const pct = totalDurationSec > 0
+                  ? Math.min(99, Math.max(0, Math.round((curSec / totalDurationSec) * 100)))
+                  : 0
+                event.sender.send('audio:transcode-progress', {
+                  jobId: opts.jobId,
+                  progress: pct,
+                  currentTimeSeconds: curSec,
+                })
+              }
+            }
           })
+
           proc.on('close', (code) => {
+            if (opts.jobId) {
+              activeTranscodes.delete(opts.jobId)
+            }
             if (code === 0 && existsSync(outPath)) {
               resolve({ ok: true })
             } else {
               resolve({ ok: false, error: stderr.slice(-500) || `ffmpeg exited with code ${code}` })
             }
           })
+
           proc.on('error', (err) => {
+            if (opts.jobId) {
+              activeTranscodes.delete(opts.jobId)
+            }
             resolve({ ok: false, error: String(err) })
           })
         })
