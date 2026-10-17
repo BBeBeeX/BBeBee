@@ -1,6 +1,6 @@
 /**
  * Reliable clipboard copy utility with automatic fallback to document.execCommand('copy').
- * Works in Electron, web contexts, and environments where document focus or clipboard permissions
+ * Works in desktop webview, web contexts, and environments where document focus or clipboard permissions
  * cause navigator.clipboard.writeText to reject.
  */
 export async function copyToClipboard(text: string): Promise<boolean> {

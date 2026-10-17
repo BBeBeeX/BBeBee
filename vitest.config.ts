@@ -42,7 +42,7 @@ export default defineConfig({
      *
      * `apps/` as well, for the policies that only a shell can hold — the
      * close-to-tray decision is an M1 exit criterion and lived in a file
-     * nothing could load, because `main/index.ts` imports Electron at module
+     * nothing could load, because desktop shell files may import native bindings at module
      * scope. The testable part is a policy with no imports; the pattern is
      * narrow enough that a shell cannot smuggle logic in behind it.
      */
@@ -77,7 +77,7 @@ export default defineConfig({
       ...configDefaults.exclude,
       ...(process.env['TEST_AUDIO_ENGINE']
         ? []
-        : ['apps/desktop/main/audio/audio-engine-supervisor.test.ts']),
+        : ['apps/desktop/sidecar/audio/audio-engine-supervisor.test.ts']),
     ],
     environment: 'node',
     /*

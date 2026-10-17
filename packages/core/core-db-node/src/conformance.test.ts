@@ -1,7 +1,7 @@
 /**
  * `core-db-node` against the shared conformance suite, plus the core schema.
  *
- * These run against real `node:sqlite` — the same engine Electron 44 bundles —
+ * These run against real `node:sqlite` (Node 22+) —
  * so they validate the SQL rather than a mock's idea of it.
  */
 

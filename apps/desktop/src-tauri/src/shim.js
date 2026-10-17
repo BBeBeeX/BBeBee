@@ -96,7 +96,7 @@
       if (val === '0' || val === 'false') return false;
       if (val) return true;
       if (process.argv && process.argv.indexOf('--debug') !== -1) return true;
-      if (process.env['ELECTRON_RENDERER_URL']) return true;
+      if (process.env['TAURI_ENV_DEBUG'] || process.env['VITE_DEV_SERVER_URL']) return true;
     }
     if (window.__BBEBEE_DEBUG__) return true;
     return false;
@@ -417,7 +417,6 @@
       tauri: '2.12.4',
       webview: '2.12.4',
       node: typeof process !== 'undefined' && process.versions && process.versions.node ? process.versions.node : '22.12.0',
-      electron: typeof process !== 'undefined' && process.versions && process.versions.electron ? process.versions.electron : undefined,
     },
     isDebug: isDebugMode,
   };

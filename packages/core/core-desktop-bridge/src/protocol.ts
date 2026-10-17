@@ -1,5 +1,5 @@
 /**
- * The wire format between the Electron renderer and main.
+ * The wire format between the desktop renderer webview and the host sidecar.
  *
  * Deliberately mechanical: a service name, a method name, and JSON-ish
  * arguments. No domain concept crosses this boundary — `main` does not learn
@@ -188,7 +188,7 @@ export interface SerializedBridgeError {
 }
 
 /**
- * Result envelope over CH.call to prevent Electron's ipcMain.handle from
+ * Result envelope over CH.call to prevent IPC transports from
  * logging unhandled rejections to the terminal for expected operational errors.
  */
 export interface BridgeEnvelope<T = unknown> {

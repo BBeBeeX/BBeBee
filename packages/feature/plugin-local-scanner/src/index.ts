@@ -958,7 +958,7 @@ export class Scanner extends Service implements ScannerService {
     // `ctx.background` is preferred where it exists, because on mobile only
     // the OS scheduler can run work while the app is away. But it is an
     // *optional* service: when it is absent — which is every desktop build
-    // until `core-background-electron` lands — the scanner falls back to its
+    // until `core-background-tauri` lands — the scanner falls back to its
     // own timer. Without that fallback there was no automatic rescan on
     // desktop at all: files changed and the library silently stayed stale.
     let scheduled = false

@@ -704,7 +704,7 @@ describe('keeping up with the filesystem', () => {
 
   it('polls on its own where there is neither a watcher nor a background service', async () => {
     // Desktop has both problems: the bridge's `canWatch` is false and
-    // `core-background-electron` does not exist yet — so without this fallback
+    // `core-background-tauri` does not exist yet — so without this fallback
     // there is no automatic rescan at all, and the library silently goes stale.
     const h = await harness({ pollIntervalMinutes: 1 / 600, canWatch: false }) // 100 ms
     await h.write('a.mp3')

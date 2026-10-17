@@ -1,9 +1,9 @@
 /**
- * The IPC bridge, end to end, without Electron.
+ * The IPC bridge, end to end, in pure tests.
  *
- * A fake `ipcMain`/`ipcRenderer` pair connects the renderer-side services to a
+ * A fake IPC host connects the renderer-side services to a
  * real main-side host, and the shared conformance suites run *through* it. If
- * these pass, the claim "the same plugin graph runs on Electron" rests on the
+ * these pass, the claim "the same plugin graph runs on desktop" rests on the
  * bridge actually satisfying the same contracts — not on it having compiled.
  */
 
@@ -43,7 +43,7 @@ function fakeIpc() {
   const invoke = async (channel: string, ...args: unknown[]) => {
     const handler = handlers.get(channel)
     if (!handler) throw new Error(`no handler for ${channel}`)
-    // Structured-clone semantics are what Electron gives; JSON round-tripping
+    // Structured-clone semantics are what the desktop host gives; JSON round-tripping
     // would be stricter than reality and would break Uint8Array.
     return handler({}, ...args)
   }

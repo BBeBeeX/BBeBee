@@ -4,7 +4,7 @@
  *
  * The `ctx.audio` contract *is* the Web Audio API — `react-native-audio-api`
  * satisfies it on iOS and Android, and its web build (or the browser's own
- * implementation) satisfies it in the Electron renderer. That is what makes a
+ * implementation) satisfies it in the desktop webview renderer. That is what makes a
  * single DSP chain run on all three targets.
  */
 

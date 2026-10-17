@@ -55,7 +55,7 @@ To provide an utterly clean, visually undisturbed native desktop experience, thi
 
 ## Artwork & image-rendering safety
 
-- **Privileged protocol for local resources**: the Chromium renderer blocks cross-origin `file://` requests by default. `IslandArtwork` cooperates with the underlying bridge to convert local music file artwork to Electron's privileged `bbebee-file://` protocol;
+- **Privileged protocol for local resources**: the Chromium renderer blocks cross-origin `file://` requests by default. `IslandArtwork` cooperates with the underlying bridge to convert local music file artwork to the desktop privileged `bbebee-file://` protocol;
 - **Cross-origin safety attributes**: `crossOrigin="anonymous"` and `referrerPolicy="no-referrer"` are configured to prevent cross-origin image tainting;
 - **Graceful degradation**: when artwork fails to load or none is specified, it seamlessly falls back to a polished default monochrome vector music icon, so the UI never shows a broken image.
 

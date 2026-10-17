@@ -10,7 +10,7 @@
  * Tag reading in `core-codec-node` is `music-metadata` over `ctx.fs` — no
  * `node:fs`, no Node API, nothing platform-shaped anywhere in it. Its own
  * header says so: "pure JavaScript … the same implementation works in the
- * Electron renderer and in `main`". A *native* tag reader here would add a
+ * desktop webview and in the sidecar host". A *native* tag reader here would add a
  * native module to every mobile build in order to produce a second answer to a
  * question that already has one, and the risk register's second-loudest entry
  * is two implementations of one service drifting apart. So the tag half is

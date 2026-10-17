@@ -4,7 +4,7 @@
  * Runs the `store` suite against a straightforward in-memory implementation.
  * This proves two things: the suite is actually runnable, and its checks pass
  * against a correct implementation rather than being unsatisfiable. When
- * `core-store-electron` and `core-store-expo` exist, they run the same suite.
+ * `core-store-fs` and `core-store-expo` exist, they run the same suite.
  */
 
 import { describe, expect, it } from 'vitest'

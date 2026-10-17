@@ -4,7 +4,7 @@
  * Not `node:crypto` and not WebCrypto. Two reasons, and the second is the one
  * that decides it:
  *
- *  - This runs on Node, in Electron's renderer, and in React Native's JSC, and
+ *  - This runs on Node, in the desktop webview, and in React Native's JSC, and
  *    only one of those has `node:crypto`. WebCrypto is closer to universal but
  *    is *asynchronous* and has no MD5 — and MD5 is exactly what Subsonic's
  *    auth scheme requires, so the one algorithm a shipped document depends on

@@ -108,7 +108,7 @@ describe('a request crossing to main', () => {
      * A `Request`'s header list carries the "request" guard, which in a
      * browser silently drops every forbidden request header — `Cookie` among
      * them. `bridgeFetch` used to normalise through `new Request(input, init)`,
-     * so in the Electron renderer it deleted the one header the bridge was
+     * so in the desktop webview it deleted the one header the bridge was
      * built to carry, and signing in appeared to work and never stuck.
      *
      * Node's `fetch` does not implement the guard, so the check above passes

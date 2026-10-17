@@ -4,8 +4,8 @@
  *
  * Tags come from `music-metadata`, which is pure JavaScript: it reads through
  * `ctx.fs` like everything else rather than reaching for `node:fs`, so the
- * same implementation works in the Electron renderer (where `ctx.fs` crosses
- * the bridge) and in `main`.
+ * same implementation works in the desktop webview (where `ctx.fs` crosses
+ * the bridge) and in the sidecar host.
  *
  * The load-bearing property is that **`readMetadata` does not read the whole
  * file**. A 40 MB FLAC costs a bounded head window, not 40 MB across an IPC

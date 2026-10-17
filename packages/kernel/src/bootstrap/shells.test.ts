@@ -7,8 +7,8 @@
  * running the M0 set. A milestone can be complete package by package and
  * deliver nothing, because the exit criteria are about the *app*.
  *
- * Neither `boot.ts` can be imported here: one reaches for Electron and the
- * preload bridge, the other for `react-native` and every Expo module. So the
+ * Neither `boot.ts` can be imported here: one reaches for Tauri and the
+ * desktop bridge, the other for `react-native` and every Expo module. So the
  * part that can go wrong without anything noticing — the allowlist, the
  * registry and the dependency graph agreeing — is read as data, from the
  * `plugins.ts` each shell keeps beside its boot file, from the generated

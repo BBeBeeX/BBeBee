@@ -1,7 +1,6 @@
 //! Native OS Keychain & AES-256-GCM Secrets Manager
 //!
-//! Replaces Electron's `safeStorage` (OS keychain: Windows DPAPI/Credential Manager,
-//! macOS Keychain, Linux Secret Service via `keyring`).
+//! Native OS keychain: Windows DPAPI/Credential Manager, macOS Keychain, Linux Secret Service via `keyring`.
 //!
 //! Guarantees:
 //! 1. When OS Keychain is available, a 256-bit AES master key is stored in the native
@@ -9,7 +8,7 @@
 //! 2. Payloads are encrypted with AES-256-GCM using unique 96-bit (12-byte) random nonces.
 //! 3. Authenticated encryption protects ciphertext integrity; tampering causes instant rejection.
 //! 4. If the OS Keychain is unavailable (e.g. headless Linux without Secret Service daemon),
-//!    `is_available()` returns `false`, and `encrypt()` fails with the exact Electron error:
+//!    `is_available()` returns `false`, and `encrypt()` fails with the standard error:
 //!    `secrets: safeStorage encryption is not available on this system`.
 //!    This lets the renderer's `safeStorageCodec()` gracefully return `undefined` and activate
 //!    `NoKeychainCodec(this.installKey())` rather than masking with insecure ciphers.

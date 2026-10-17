@@ -27,8 +27,6 @@ export interface BackgroundTauriConfig {
   clearInterval?: (handle: unknown) => void
 }
 
-export type BackgroundElectronConfig = BackgroundTauriConfig
-
 export class BackgroundTauri extends Service implements BackgroundService {
   private readonly bridge?: BridgeApi
   private readonly setTimer: (fn: () => void, ms: number) => unknown
@@ -169,7 +167,6 @@ function tryBridge(): BridgeApi | undefined {
   }
 }
 
-export const BackgroundElectron = BackgroundTauri
 export const name = 'core-background-tauri'
 
 export async function apply(ctx: Context, config: BackgroundTauriConfig = {}) {

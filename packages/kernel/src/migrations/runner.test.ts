@@ -13,7 +13,7 @@ import { CORE_MIGRATIONS } from './core.js'
 /**
  * A real SQLite database, not a fake.
  *
- * `node:sqlite` ships with Node 22+, which is also what Electron 44 bundles —
+ * `node:sqlite` ships with Node 22+ (used by the desktop sidecar) —
  * so this is the same engine `core-db-node` will use in production, and these
  * tests genuinely validate the SQL rather than a mock's idea of it.
  */
@@ -625,7 +625,7 @@ describe('CORE_MIGRATIONS', () => {
 
 describe('the SQLite version gate', () => {
   it('accepts the version this host actually has', async () => {
-    // Node 22 and Electron 44 both ship newer than the floor; if this fails,
+    // Node 22 (desktop sidecar) ships newer than the floor; if this fails,
     // the floor moved or the host did.
     const harness = memoryDb()
     await expect(new MigrationRunner(harness).assertSqliteVersion()).resolves.toBeUndefined()

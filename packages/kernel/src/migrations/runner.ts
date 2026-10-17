@@ -113,7 +113,7 @@ export class NamespaceCollisionError extends Error {
  *         track leaves its row in the FTS index forever and search returns
  *         stale hits without bound
  *
- * Node 22 and Electron 44 both ship newer. `expo-sqlite` is the one to watch:
+ * Node 22 (desktop sidecar) and op-sqlite both ship newer. `expo-sqlite` is the one to watch:
  * an older SDK would fail deep inside migration v2 with a syntax error that
  * names none of this (docs/11 §8).
  */

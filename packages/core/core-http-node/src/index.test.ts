@@ -646,7 +646,7 @@ describe('cookie jars that survive a restart', () => {
 
   it('does not read a jar file that has never been written', async () => {
     // Same reason as the secrets store: on desktop `fs` is an IPC bridge, and
-    // a rejected call is logged by Electron in main before this side's `catch`
+    // a rejected call is logged by the host before this side's `catch`
     // runs — so a source nobody has signed in to printed an ENOENT stack.
     const root = await tempDir('bbebee-jar-fresh')
     const ctx = await jarHarness(root)

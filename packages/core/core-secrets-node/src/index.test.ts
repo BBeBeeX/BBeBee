@@ -45,7 +45,7 @@ describe('whose filesystem budget the store spends', () => {
      * `secrets:own` and nothing else could not save a credential.
      *
      * This used to be guaranteed by opening the file with `node:fs`, which
-     * also made the package unloadable in the sandboxed Electron renderer.
+     * also made the package unloadable in the sandboxed webview renderer.
      * It is now guaranteed by the service holding the context it was
      * *constructed* with. A refactor back to `this.ctx.fs` compiles, passes
      * every other test here, and fails this one.
@@ -87,8 +87,8 @@ describe('whose filesystem budget the store spends', () => {
 describe('a first run', () => {
   it('never reads the file it already knows is not there', async () => {
     /*
-     * Not an optimisation. On desktop `ctx.fs` is an IPC bridge, and Electron's
-     * `ipcMain.handle` logs a rejected call in **main** before the renderer's
+     * Not an optimisation. On desktop `ctx.fs` is an IPC bridge, and an IPC
+     * handler could log a rejected call in the host before the renderer's
      * `catch` runs — so reading the file that a fresh install does not have
      * printed an ENOENT stack trace at every first boot, for a case that was
      * already handled.
@@ -161,7 +161,7 @@ describe('honesty about what it is', () => {
   })
 
   it('takes a platform codec when one is supplied', async () => {
-    // The seam Electron's safeStorage plugs into.
+    // The seam the desktop safeStorage/keyring codec plugs into.
     const ctx = new Context()
     await ctx.plugin(PathsNode, { root: await tempDir('bbebee-secrets-codec') })
     await ctx.plugin(FsNode)

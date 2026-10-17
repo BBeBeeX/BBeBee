@@ -189,7 +189,7 @@ describe('stream handles are bounded', () => {
 
 describe('transaction lifecycle', () => {
   it('rolls back when the renderer session is destroyed', async () => {
-    // THE reload case: an Electron renderer reload destroys its WebContents
+    // THE reload case: a desktop webview reload destroys its context
     // without ever sending txEnd. Without this, main's db queue would be
     // blocked behind the open transaction forever and the app is bricked
     // until restart.

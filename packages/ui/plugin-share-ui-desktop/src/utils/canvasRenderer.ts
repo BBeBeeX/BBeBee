@@ -56,7 +56,7 @@ export async function loadImage(src: string): Promise<HTMLImageElement | null> {
   }
 
   // For bbebee-file: URLs, fetch as Blob to get a same-origin Blob URL
-  // This completely eliminates CORS issues and canvas tainting in Electron
+  // This completely eliminates CORS issues and canvas tainting on desktop
   if (normalized.startsWith("bbebee-file://")) {
     try {
       if (typeof fetch === "function") {

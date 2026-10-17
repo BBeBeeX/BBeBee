@@ -418,7 +418,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "id": "@BBeBee/core-desktop-bridge",
     "name": "@BBeBee/core-desktop-bridge",
     "displayName": "Desktop Bridge",
-    "description": "Renderer-side fs, db, and paths services over Electron IPC bridge.",
+    "description": "Renderer-side fs, db, and paths services over desktop IPC bridge.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -451,7 +451,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "id": "@BBeBee/core-desktop-bridge",
     "name": "@BBeBee/core-desktop-bridge",
     "displayName": "Desktop Bridge",
-    "description": "Renderer-side fs, db, and paths services over Electron IPC bridge.",
+    "description": "Renderer-side fs, db, and paths services over desktop IPC bridge.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {

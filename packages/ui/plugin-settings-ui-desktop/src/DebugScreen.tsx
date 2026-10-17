@@ -14,7 +14,7 @@ import { SETTINGS_VIEWS } from '@BBeBee/plugin-settings/views'
 interface WindowWithBBeBee {
   BBeBee?: {
     platform?: string
-    versions?: { tauri?: string; electron?: string; node?: string }
+    versions?: { tauri?: string; node?: string }
     isDebug?: boolean
     devtools?: { open(): Promise<void> }
   }

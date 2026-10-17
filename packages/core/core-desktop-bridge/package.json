@@ -1,7 +1,7 @@
 {
   "name": "@BBeBee/core-desktop-bridge",
   "version": "0.0.0",
-  "description": "Renderer-side fs/db services over the Electron IPC bridge, and the main-side host.",
+  "description": "Renderer-side fs/db services over the desktop IPC bridge, and the sidecar host.",
   "type": "module",
   "license": "MIT",
   "exports": {

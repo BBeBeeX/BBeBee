@@ -1,10 +1,10 @@
 /**
- * Automated Core Platform Parity Test Suite (Electron to Tauri Migration Group 6)
+ * Automated Core Platform Parity Test Suite (Tauri Core Services)
  *
  * Verifies 100% parity for:
- * 1. packages/core/core-background-electron (wake locks, schedule, onWillSuspend)
- * 2. packages/core/core-device-electron (identity, network, battery, media keys, hotkeys, lifecycle)
- * 3. packages/core/core-media-session-electron (conformance, Chromium surface, main-process MPRIS/SMTC, robustness)
+ * 1. packages/core/core-background-tauri (wake locks, schedule, onWillSuspend)
+ * 2. packages/core/core-device-tauri (identity, network, battery, media keys, hotkeys, lifecycle)
+ * 3. packages/core/core-media-session-tauri (conformance, Chromium surface, main-process MPRIS/SMTC, robustness)
  * 4. Bridged 'system' service calls and events via Tauri Bridge implementation
  * 5. Comprehensive OS services support (dialog, shell, screen, powerMonitor, powerSaveBlocker, nativeImage, net, session)
  */
@@ -156,7 +156,7 @@ async function mediaSessionHarness() {
 // 1. Background Service Parity Tests
 // =============================================================================
 
-describe('Background Service Parity (core-background-electron)', () => {
+describe('Background Service Parity (core-background-tauri)', () => {
   describe('canRunInBackground', () => {
     it('is true on desktop, where a hidden window still runs', async () => {
       const { background } = await backgroundHarness()
@@ -322,7 +322,7 @@ describe('Background Service Parity (core-background-electron)', () => {
 // 2. Device Service Parity Tests
 // =============================================================================
 
-describe('Device Service Parity (core-device-electron)', () => {
+describe('Device Service Parity (core-device-tauri)', () => {
   describe('identity', () => {
     it('reports a desktop form factor and its version', async () => {
       const { device } = await deviceHarness()
@@ -556,7 +556,7 @@ describe('Device Service Parity (core-device-electron)', () => {
 // 3. Media Session Service Parity Tests
 // =============================================================================
 
-describe('Media Session Service Parity (core-media-session-electron)', () => {
+describe('Media Session Service Parity (core-media-session-tauri)', () => {
   describe(mediaSessionConformance.service, () => {
     for (const check of mediaSessionConformance.checks) {
       it(`${check.name} — ${check.because}`, async () => {

@@ -4,7 +4,7 @@ Layer 5 (UI) — the desktop lyrics controller, the native secondary-window IPC 
 
 ## Overview
 
-`plugin-desktop-lyrics-ui-desktop` handles rendering and interaction wiring for desktop lyrics in the Electron desktop environment.
+`plugin-desktop-lyrics-ui-desktop` handles rendering and interaction wiring for desktop lyrics in the desktop environment.
 
 To deliver the ultimate desktop experience — **desktop lyrics draggable outside the main window, still on screen while the main window is minimized, and click-through once locked** — this plugin uses a dual-mode adapter architecture that both preserves BBeBee's single-Cordis-kernel invariant (ADR-3) and carries the full system-level capability of a native secondary window.
 
@@ -15,16 +15,16 @@ To deliver the ultimate desktop experience — **desktop lyrics draggable outsid
 
 ## The dual-mode adapter architecture
 
-### 1. Electron native standalone-window mode (Native Mode)
+### 1. Native standalone-window mode (Native Mode)
 
 When the `window.BBeBee.desktopLyrics` IPC bridge is detected:
 - **No duplicate DOM rendering**: the main window's render function returns `null` and occupies no main-window DOM.
-- **Data push**: when the playing track, timeline, lyric line, font size, or lock state changes, the render payload is pushed in real time through `window.BBeBee.desktopLyrics.updateData(...)` to the secondary window (a secondary `BrowserWindow`) managed by the main process.
+- **Data push**: when the playing track, timeline, lyric line, font size, or lock state changes, the render payload is pushed in real time through `window.BBeBee.desktopLyrics.updateData(...)` to the secondary window managed by the Tauri host.
 - **Reverse dispatch of actions**: the floating toolbar of the standalone lyrics window (previous track, next track, play/pause, font size up/down, lock toggle, close) is listened to and mapped onto the corresponding service methods of `ctx.player` and `ctx.desktopLyrics`.
 
 ### 2. Web/test-environment fallback mode (DOM Fallback Mode)
 
-In a pure-browser test (e.g. the Vitest suite) or an environment without the Electron native bridge:
+In a pure-browser test (e.g. the Vitest suite) or an environment without the native desktop bridge:
 - Automatically degrades to a floating DOM container rendered inside the main window.
 - Supports DOM-event-based mouse dragging, floating-button actions, and font-size adjustment, keeping 100% of the unit-test automation passing.
 

@@ -1,11 +1,11 @@
 /**
- * `ctx.paths` for Node and Electron.
+ * `ctx.paths` for Node and Desktop.
  *
  * Trivial as a service, but having it separate is what lets `ctx.fs` stay
  * path-agnostic: plugins ask for a well-known directory and join onto it,
  * and never learn what a path looks like on the host.
  *
- * In Electron this is fed by `app.getPath()` through the `resolve` option, so
+ * On desktop this is fed by the native host through the `resolve` option, so
  * the renderer gets the OS's real answers rather than these fallbacks.
  * See docs/04-core-services.md §10.
  */
@@ -22,7 +22,7 @@ export interface PathsNodeConfig {
   /** Used to build per-app directories. */
   appName?: string
   /**
-   * Electron's `app.getPath`. When present its answers win, so the renderer
+   * The host OS path resolver. When present its answers win, so the renderer
    * agrees with the OS rather than with our XDG guesswork.
    */
   resolve?: (kind: 'userData' | 'cache' | 'temp' | 'logs' | 'music' | 'downloads') => string | undefined
@@ -89,7 +89,7 @@ export class PathsNode extends Service implements PathsService {
         : (resolve('downloads') ?? join(homedir(), 'Downloads')),
     )
 
-    // Unlike iOS, desktop always has a music folder — but respect Electron's
+    // Unlike iOS, desktop always has a music folder — but respect the host OS
     // answer when it has one, since the user may have relocated it.
     const musicPath = config.root
       ? join(config.root, 'music')

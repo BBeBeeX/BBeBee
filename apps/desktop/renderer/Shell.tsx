@@ -22,7 +22,7 @@ import type { Context } from 'cordis'
 import type { RouteContribution, SettingsContribution } from '@BBeBee/protocol'
 import { REGISTRY_VIEWS } from '@BBeBee/plugin-registry/views'
 import { PageMarqueeProvider, tablerIcon, useI18n, Toast } from '@BBeBee/ui-kit-desktop'
-import { SleepTimerIndicator, TopBar, WindowControls, type ElectronCSSProperties, type TopBarProps } from './TopBar.js'
+import { SleepTimerIndicator, TopBar, WindowControls, type DraggableCSSProperties, type TopBarProps } from './TopBar.js'
 import { importDroppedFiles } from './drop-import.js'
 
 /** What the sidebar can navigate to: a route, or a settings page. */
@@ -791,7 +791,7 @@ export function Shell({ ctx }: { ctx: Context }) {
             visibility: isTopBarHovered ? 'visible' : 'hidden',
             transition: 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease, visibility 0.35s ease',
             pointerEvents: isTopBarHovered ? 'auto' : 'none',
-          } as ElectronCSSProperties,
+          } as DraggableCSSProperties,
         },
         // Left: Close / Return button
         h(
@@ -831,7 +831,7 @@ export function Shell({ ctx }: { ctx: Context }) {
             flex: 1,
             height: '100%',
             WebkitAppRegion: isTopBarHovered ? 'drag' : undefined,
-          } as ElectronCSSProperties,
+          } as DraggableCSSProperties,
         }),
         // Right: SleepTimer + WindowControls
         h(

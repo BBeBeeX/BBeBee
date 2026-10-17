@@ -47,7 +47,7 @@ class MemoryStore extends Service implements StoreService {
   }
 }
 
-/** Records every accelerator→handler pair, like the electron device service. */
+/** Records every accelerator→handler pair, like the desktop device service. */
 class DeviceStub extends Service {
   readonly handlers = new Map<string, Set<() => void>>()
 

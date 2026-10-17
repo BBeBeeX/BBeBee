@@ -46,8 +46,6 @@ export interface MediaSessionTauriConfig {
   metadataFactory?: (init: Record<string, unknown>) => unknown
 }
 
-export type MediaSessionElectronConfig = MediaSessionTauriConfig
-
 /** Commands the OS can raise, mapped from Chromium's action names. */
 const ACTION_TO_COMMAND: Record<string, TransportCommand['type']> = {
   play: 'play',
@@ -92,7 +90,7 @@ export class MediaSessionTauri extends Service implements MediaSessionService {
   /** The metadata currently published, so a position tick does not rebuild it. */
   private metadataKey?: string
 
-  constructor(ctx: Context, config: MediaSessionElectronConfig = {}) {
+  constructor(ctx: Context, config: MediaSessionTauriConfig = {}) {
     super(ctx, 'mediaSession')
     this.session = config.session ?? nativeSession()
     this.bridge = config.bridge ?? tryBridge()
@@ -323,7 +321,6 @@ function tryBridge(): BridgeApi | undefined {
   }
 }
 
-export const MediaSessionElectron = MediaSessionTauri
 export const name = 'core-media-session-tauri'
 
 export async function apply(ctx: Context, config: MediaSessionTauriConfig = {}) {

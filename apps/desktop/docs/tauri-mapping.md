@@ -1,8 +1,8 @@
 # BBeBee Desktop: Electron to Tauri Architecture & Interface Mapping
 
 > **Group 0 Specification Document**  
-> Target Project: `apps/desktop2`  
-> Reference Baseline: `apps/desktop` (Read-Only)  
+> Target Project: `apps/desktop`  
+> Reference Baseline: Electron Legacy Baseline  
 > Gate Status: PASS  
 > Zero TBDs (All items resolved; decisions D1–D5 recorded)
 

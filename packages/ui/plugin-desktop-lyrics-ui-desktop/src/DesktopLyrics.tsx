@@ -137,7 +137,7 @@ function DesktopLyricsInner({ ctx }: DesktopLyricsProps): ReactElement | null {
   } = useCurrentLyric(ctx)
   const [hovered, setHovered] = useState(false)
 
-  // Check if running in Electron environment with native desktopLyrics window support
+  // Check if running in desktop environment with native desktopLyrics window support
   const bridge =
     typeof window !== 'undefined'
       ? (window as unknown as WindowWithBridge).BBeBee?.desktopLyrics

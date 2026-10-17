@@ -135,8 +135,8 @@ export interface PluginManifest {
    * ⚠️ A **core service implementation is platform-specific by nature** — the
    * whole `core-*-node` / `core-*-expo` split exists for that — and the static
    * registries were emitting every discovered package to both shells. The
-   * mobile bundle was importing Electron. Nothing failed at build time,
-   * because a bundler resolving `electron` in a React Native app is a runtime
+   * mobile bundle was importing desktop modules. Nothing failed at build time,
+   * because a bundler resolving desktop modules in a React Native app is a runtime
    * problem, not a compile one.
    *
    * Feature plugins omit this and run everywhere, which is the point of the

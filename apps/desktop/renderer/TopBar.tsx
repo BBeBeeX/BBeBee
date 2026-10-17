@@ -1,5 +1,5 @@
 /**
- * Spotify-style in-app TopBar for the Desktop Electron Shell.
+ * Spotify-style in-app TopBar for the Desktop Shell.
  *
  * Replaces the native OS window frame and menu bar:
  * - Left: Brand logo, History Back (←), History Forward (→)
@@ -30,7 +30,7 @@ function serviceOf<T = unknown>(ctx: Context, key: string): T | undefined {
 /** Center-group width below which the search box collapses to a magnifier button. */
 const SEARCH_COLLAPSE_WIDTH = 180
 
-export interface ElectronCSSProperties extends CSSProperties {
+export interface DraggableCSSProperties extends CSSProperties {
   WebkitAppRegion?: 'drag' | 'no-drag'
 }
 
@@ -1032,7 +1032,7 @@ export function WindowControls({ style, ctx }: WindowControlsProps): ReactElemen
         flexShrink: 0,
         WebkitAppRegion: 'no-drag',
         ...style,
-      } as ElectronCSSProperties,
+      } as DraggableCSSProperties,
     },
     // Minimize Button (−)
     h(
@@ -1301,7 +1301,7 @@ export function TopBar({
     }
   }
 
-  const noDragStyle: ElectronCSSProperties = {
+  const noDragStyle: DraggableCSSProperties = {
     WebkitAppRegion: 'no-drag',
   }
 
@@ -1326,7 +1326,7 @@ export function TopBar({
         WebkitAppRegion: 'drag',
         position: 'relative',
         zIndex: 50,
-      } as ElectronCSSProperties,
+      } as DraggableCSSProperties,
     },
     // Left Group: Logo, Back (←), Forward (→) — never compressed; the
     // center search absorbs all squeezing.

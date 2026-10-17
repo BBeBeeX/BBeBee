@@ -1,7 +1,7 @@
 /**
- * `ctx.fs` for Node and Electron, over `node:fs/promises`.
+ * `ctx.fs` for Node and desktop host, over `node:fs/promises`.
  *
- * Runs in the Electron **main** process (or directly, in a Node host or test).
+ * Runs in the desktop **sidecar** process (or directly, in a Node host or test).
  * Per ADR-3 the renderer reaches it through a preload IPC bridge; that proxy
  * is a separate thin package implementing the same `FsService`, so this file
  * stays the single home of the actual behaviour.
@@ -354,8 +354,8 @@ export class FsNode extends Service implements FsService {
   }
 
   async pickDirectory(): Promise<Uri | undefined> {
-    // Belongs to the shell, not to `fs`: the Electron implementation overrides
-    // this with `dialog.showOpenDialog`. In a bare Node host there is nobody
+    // Belongs to the shell, not to `fs`: the desktop host implementation overrides
+    // this via native file dialogs. In a bare Node host there is nobody
     // to ask.
     return undefined
   }

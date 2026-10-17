@@ -1,7 +1,7 @@
 {
   "name": "@BBeBee/core-db-node",
   "version": "0.0.0",
-  "description": "SQLite for Node/Electron, over node:sqlite.",
+  "description": "SQLite for Node and desktop host, over node:sqlite.",
   "type": "module",
   "license": "MIT",
   "exports": {

@@ -301,7 +301,7 @@ export default tseslint.config(
     // The desktop half of the same rule, which was missing entirely: the block
     // above exempts every `plugin-*-ui-*` package from the invariant and only
     // puts `-ui-mobile` back under one, so a desktop view package could
-    // `import { ipcRenderer } from 'electron'` and nothing would say a word.
+    // `import from 'some-platform-sdk'` and nothing would say a word.
     // Its render target is `react-dom`, which is not a platform SDK, so this
     // one bans the whole list.
     files: [

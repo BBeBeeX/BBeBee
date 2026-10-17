@@ -164,12 +164,12 @@ export class CordisGraphAdapter {
           return 'Codec (Node)'
         case 'StoreFs':
           return 'Store (FS)'
-        case 'DeviceElectron':
-          return 'Device (Electron)'
-        case 'BackgroundElectron':
-          return 'Background (Electron)'
-        case 'MediaSessionElectron':
-          return 'Media Session (Electron)'
+        case 'DeviceTauri':
+          return 'Device (Tauri)'
+        case 'BackgroundTauri':
+          return 'Background (Tauri)'
+        case 'MediaSessionTauri':
+          return 'Media Session (Tauri)'
         case 'SecretsNode':
           return 'Secrets (Node)'
         case 'JsQuickJsNode':

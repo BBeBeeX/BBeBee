@@ -95,8 +95,8 @@ export async function discover(
  * A manifest with no `platforms` runs everywhere — that is the default and the
  * point of the architecture. The exceptions are the `core-*` implementations,
  * which are platform-specific by nature: without this the mobile registry
- * imported Electron, and nothing said so, because a bundler resolving
- * `electron` in React Native fails at run time rather than at build time.
+ * imported desktop-specific modules, and nothing said so, because a bundler resolving
+ * desktop modules in React Native fails at run time rather than at build time.
  */
 export function forTarget(
   plugins: DiscoveredPlugin[],

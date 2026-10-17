@@ -442,7 +442,7 @@ export const CORE_MIGRATIONS: Migration[] = [
       // be DELETEd from or UPDATEd at all ("cannot DELETE from contentless
       // fts5 table"), so a renamed or removed track would leave its row in the
       // index forever and searches would return stale hits without bound.
-      // Needs SQLite >= 3.43; Node 22.12+ and Electron 44 both ship newer.
+      // Needs SQLite >= 3.43; Node 22.12+ (desktop sidecar) and op-sqlite both ship newer.
       //
       // ⚠️ Even with the flag, a partial UPDATE is rejected — the whole row
       // must be rewritten. Re-index as DELETE + INSERT on the same rowid.

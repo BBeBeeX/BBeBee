@@ -1,7 +1,7 @@
 /**
  * What the desktop shell runs — as data, importing nothing.
  *
- * Separate from `boot.ts` because `boot.ts` reaches for Electron and the
+ * Separate from `boot.ts` because `boot.ts` reaches for desktop host bindings and the
  * preload bridge, and this has to be readable by a test that does neither.
  * The registry is generated from the manifests; *this* is the allowlist, and
  * configuration is the allowlist: a package being bundled is not on its own

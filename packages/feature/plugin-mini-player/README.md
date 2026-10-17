@@ -4,7 +4,7 @@ Layer 4 (feature) — `ctx.miniPlayer`: the headless state machine and control c
 
 ## Overview
 
-`plugin-mini-player` manages the display state, window modes, and interaction communication of the desktop floating mini window (Mini Player) and the top Dynamic Island. It runs as a headless service in the main renderer process and, through the single-Cordis-kernel architecture (ADR-3), stays strictly in sync on data and actions with the Electron main process and the secondary standalone window.
+`plugin-mini-player` manages the display state, window modes, and interaction communication of the desktop floating mini window (Mini Player) and the top Dynamic Island. It runs as a headless service in the main renderer process and, through the single-Cordis-kernel architecture (ADR-3), stays strictly in sync on data and actions with the native desktop host and the secondary standalone window.
 
 It also contributes global commands (such as `mini-player.toggle` and `mini-player.restore-main`) for the main player screen, the top-bar button, the system tray, or a shortcut to call.
 
@@ -28,7 +28,7 @@ The mini window supports three visual and layout modes:
 
 Chromium's renderer strictly forbids loading local resources cross-origin via `<img src="file://...">`.
 This plugin ships a `resolveArtworkUri()` converter:
-- Detects the local `file://` scheme and converts it to Electron's privileged custom protocol `bbebee-file://`;
+- Detects the local `file://` scheme and converts it to the desktop privileged custom protocol `bbebee-file://`;
 - Supports falling back from `transport.nowPlaying.artworkUri` to `transport.nowPlaying.artwork.sourceUrl`;
 - Works with the UI layer's `IslandArtwork` for cross-origin loading and error fallback (a vector note icon).
 

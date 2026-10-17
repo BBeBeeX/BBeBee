@@ -4,7 +4,7 @@ Layer 4 (feature) — `ctx.desktopLyrics`: the headless state machine and contro
 
 ## Overview
 
-`plugin-desktop-lyrics` manages the desktop lyrics' display state, typography settings, and locked mode. It runs as a headless service and broadcasts its state to the UI layer (for example the Electron standalone native lyrics window adapter, or a floating overlay during development).
+`plugin-desktop-lyrics` manages the desktop lyrics' display state, typography settings, and locked mode. It runs as a headless service and broadcasts its state to the UI layer (for example the standalone native desktop lyrics window adapter, or a floating overlay during development).
 
 It also contributes the global command `desktop-lyrics.toggle`, for the main player toolbar, the tray menu, or a keyboard shortcut to call.
 
@@ -41,7 +41,7 @@ interface DesktopLyricsState {
 | `setFontSize(size: number)` | Set the lyric font size (automatically clamped to 14-40) |
 | `setOpacity(opacity: number)` | Set opacity (automatically clamped to 0.2-1.0) |
 | `setPosition(pos: DesktopLyricsPosition)` | Set/remember the window position coordinates |
-| `setLocked(locked: boolean)` | Set the locked state (with Electron, enables mouse-event pass-through) |
+| `setLocked(locked: boolean)` | Set the locked state (enables mouse-event pass-through) |
 
 ### Command contribution
 

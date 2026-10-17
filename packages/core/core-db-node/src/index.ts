@@ -1,9 +1,8 @@
 /**
- * `ctx.db` for Node and Electron, over `node:sqlite`.
+ * `ctx.db` for Node and desktop sidecar, over `node:sqlite`.
  *
- * `node:sqlite` ships with Node 22.12+, which Electron 44 bundles — so there
- * is no native module to rebuild against Electron headers on every upgrade,
- * which is the single most annoying recurring cost in Electron projects.
+ * `node:sqlite` ships with Node 22.12+, so there is no external native module
+ * to rebuild on every upgrade.
  *
  * See docs/04-core-services.md §5.
  */

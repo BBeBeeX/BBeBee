@@ -256,7 +256,7 @@ async function main() {
     targetApps.push({ type: 'custom', dir: resolve(process.cwd(), targetDirArg) })
   } else if (isMobile || appArg === 'mobile') {
     targetApps.push({ type: 'mobile' })
-  } else if (appArg === 'desktop' || appArg === 'desktop2') {
+  } else if (appArg === 'desktop') {
     targetApps.push({ type: 'desktop', name: 'desktop' })
   } else if (appArg === 'all') {
     targetApps.push({ type: 'desktop', name: 'desktop' })

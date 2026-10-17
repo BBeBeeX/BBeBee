@@ -4,7 +4,7 @@
  * One surface where desktop has two: `react-native-audio-api`'s playback
  * notification *is* the lock screen on iOS and the media notification on
  * Android, including the Android 14+ foreground service behind it. So this
- * package is thinner than `core-media-session-electron` and has the harder
+ * package is thinner than `core-media-session-tauri` and has the harder
  * job, because on mobile the OS surface is the primary way people control
  * playback rather than a convenience.
  *
@@ -155,7 +155,7 @@ export class MediaSessionRn extends Service implements MediaSessionService {
      * ⚠️ `stopped` is a transport state, not `clear()`.
      *
      * This used to hide the notification and drop the metadata, which is a
-     * different thing from what `core-media-session-electron` does with the
+     * different thing from what `core-media-session-tauri` does with the
      * same call — it sets the session to `none` and keeps the track. Two
      * implementations of one contract disagreeing is the drift docs/10's
      * second-loudest risk names, and the divergence had a user-visible shape:

@@ -38,9 +38,9 @@ import {
 /**
  * The slice of `ipcMain` this host uses.
  *
- * Structural rather than an `electron` import, so the package stays testable
- * without Electron — and so the surface main exposes is visible in one place.
- * `any` matches Electron's own signature; narrowing it would make `ipcMain`
+ * Structural rather than a platform SDK import, so the package stays testable
+ * in pure headless environments — and so the surface main exposes is visible in one place.
+ * `any` matches the host's own signature; narrowing it would make `IpcHost`
  * fail to satisfy this interface.
  */
 export interface IpcHost {
@@ -48,14 +48,14 @@ export interface IpcHost {
   handle(channel: string, listener: (event: any, ...args: any[]) => unknown): void
   removeHandler(channel: string): void
   /**
-   * Push to every renderer. Electron's `webContents.getAllWebContents()` loop,
+   * Push to every renderer. Host's broadcast loop,
    * or a single window's `send` — the host decides which, because only it
    * knows how many windows there are.
    */
   broadcast?(channel: string, payload: unknown): void
 }
 
-/** What the host can learn about a caller, when Electron provides it. */
+/** What the host can learn about a caller, when the host provides it. */
 interface CallerLike {
   sender?: {
     id?: number
@@ -67,7 +67,7 @@ interface CallerLike {
  * The OS integrations `main` owns and the renderer cannot reach.
  *
  * Supplied by the app rather than imported, for the same reason `IpcHost` is:
- * this package stays testable without Electron, and the surface main exposes
+ * this package stays testable in headless environments, and the surface main exposes
  * stays visible in one place. Every member is optional — a Linux box with no
  * MPRIS daemon, or a build without `globalShortcut`, must cost a feature and
  * not a boot.
@@ -89,7 +89,7 @@ export interface SystemHost {
 
 export interface HostOptions {
   appName?: string
-  /** Electron's `app.getPath`, so the OS answers win over XDG guesswork. */
+  /** Host OS path resolver, so the OS answers win over XDG guesswork. */
   resolvePath?: (kind: string) => string | undefined
   databaseFileName?: string
   /** Concurrent chunked reads allowed. Bounds file-descriptor use. */
@@ -101,9 +101,9 @@ export interface HostOptions {
   /**
    * The transport for renderer-issued HTTP.
    *
-   * Supplied by the app — Electron's `net.fetch` — rather than imported, for
+   * Supplied by the app rather than imported, for
    * the same reason `IpcHost` is structural: this package stays testable
-   * without Electron. Absent means the renderer's own `fetch` keeps being
+   * in pure headless environments. Absent means the renderer's own `fetch` keeps being
    * used, which works for same-origin and CORS-friendly hosts and fails for
    * every music server that has never heard of this app.
    */
@@ -112,7 +112,7 @@ export interface HostOptions {
   maxOpenRequests?: number
   /**
    * Ask the user to choose a directory from the OS file dialog.
-   * In Electron, this uses `dialog.showOpenDialog`.
+   * On desktop, this uses native file dialog integration.
    */
   pickDirectory?: (sender?: unknown) => Promise<string | undefined>
   /** Native audio decoding (e.g. FFmpeg) and system device enumeration. */
@@ -158,7 +158,7 @@ export interface AudioHost {
   mpvSetStreamPlayback?(playing: boolean): Promise<unknown>
 }
 
-/** The referrer policies Electron's `ClientRequest` accepts. */
+/** The referrer policies accepted by the HTTP client. */
 export type HttpReferrerPolicy =
   | 'no-referrer'
   | 'no-referrer-when-downgrade'
@@ -178,7 +178,7 @@ export interface HttpFetchInit {
   signal?: AbortSignal
   /** Always `'omit'`: cookies are `ctx.http`'s job, not the session's. */
   credentials?: 'omit'
-  /** Electron's non-standard opt-out from the app's own protocol handlers. */
+  /** Non-standard opt-out from the app's own custom protocol handlers. */
   bypassCustomProtocolHandlers?: boolean
   /**
    * How Chromium treats a `Referer` header on this request.
@@ -634,7 +634,7 @@ export async function createHost(ipc: IpcHost, options: HostOptions = {}): Promi
          * A source that writes `Referer` means it — and Chromium otherwise
          * refuses to send it.
          *
-         * Electron's `net.fetch` turns that header into the URLRequest's
+         * The HTTP client turns that header into the URLRequest's
          * *referrer*, then validates it against the request's referrer policy
          * before sending. A main-process request has no document to take a
          * policy from, so it defaults to `strict-origin-when-cross-origin`,
@@ -652,7 +652,7 @@ export async function createHost(ipc: IpcHost, options: HostOptions = {}): Promi
         /*
          * Defence in depth for an un-gated egress point.
          *
-         * Electron's `net.fetch` reaches `file:` and any registered custom
+         * The HTTP fetch client reaches `file:` and any registered custom
          * protocol by default. The scheme check above stops a *direct* attempt;
          * this stops one arriving through a protocol handler the app registered
          * for its own purposes — which the check cannot see, because by then the
@@ -696,7 +696,7 @@ export async function createHost(ipc: IpcHost, options: HostOptions = {}): Promi
       /*
        * The requested URL, not the transport's idea of it.
        *
-       * Electron documents `net.fetch`'s returned `Response.url` as *incorrect*
+       * Some HTTP fetch implementations document returned `Response.url` as *incorrect*
        * — in as many words — so trusting it would put a wrong base under every
        * relative link a source document resolves. `ctx.http` follows redirects
        * itself, one hop at a time under `redirect: 'manual'`, so the URL that

@@ -43,7 +43,7 @@ Three design goals, each backed by a test:
 
 **Reconciliation (the most important invariant)**: **only a complete view may delete**. `complete = !aborted && !truncated`; "gone files" are deleted only when complete. A truncated walk is indistinguishable from "vanished from disk", and reconciling on a partial view would silently delete files that are still on disk — worse than the hang it replaced (a hang is at least visible). `summary.incomplete` is sticky across roots. When incomplete: **stale over wrong, always**.
 
-**watch/poll three-tier fallback**: `ctx.fs.watch` (the desktop ideal path, debounced by `watchDebounceMs`) → `ctx.background.schedule('scanner:poll', …)` (mobile, the OS scheduler) → its own chained `setTimeout` polling (chained rather than an interval — a scan that overruns must not have the next one queued behind it; the required fallback on desktop until `core-background-electron` lands).
+**watch/poll three-tier fallback**: `ctx.fs.watch` (the desktop ideal path, debounced by `watchDebounceMs`) → `ctx.background.schedule('scanner:poll', …)` (mobile, the OS scheduler) → its own chained `setTimeout` polling (chained rather than an interval — a scan that overruns must not have the next one queued behind it; the required fallback on desktop until `core-background-tauri` lands).
 
 **Relationship with `ctx.sources`**: the catalogue's foreign keys point at `sources` rows, so the scanner, as the writer, must first ensure the source row exists — `ensureSourceRow()` writes the minimal row (id defaults to `'local'`, `source_url = 'bbebee://local'`, and `doc_json` is a real document: `{ sourceName: 'This device', sourceComment: 'Files on this device. Managed by the scanner, not imported.' }`).
 

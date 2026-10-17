@@ -4,7 +4,7 @@
  * Three unrelated things the OS knows and a plugin must not ask it directly:
  * what the network is doing, what the battery is doing, and which keys the
  * user pressed. They live together because they share one property — a plugin
- * that needs them must not import `electron`.
+ * that needs them must not import platform SDKs.
  *
  * The split is by *where the answer lives*, not by taste. Network and battery
  * are renderer-side (Chromium exposes both); media keys and global hotkeys are
@@ -66,8 +66,6 @@ export interface DeviceTauriConfig {
   window?: EventTargetLike
   bridge?: BridgeApi
 }
-
-export type DeviceElectronConfig = DeviceTauriConfig
 
 export class DeviceTauri extends Service implements DeviceService {
   readonly platform: Platform
@@ -252,7 +250,6 @@ function tryBridge(): BridgeApi | undefined {
   }
 }
 
-export const DeviceElectron = DeviceTauri
 export const name = 'core-device-tauri'
 
 export async function apply(ctx: Context, config: DeviceTauriConfig = {}) {

@@ -1,7 +1,7 @@
 /**
  * `ctx.device` on iOS and Android.
  *
- * The counterpart of `core-device-electron`, and deliberately the same shape:
+ * The counterpart of `core-device-tauri`, and deliberately the same shape:
  * what the network is doing, what the battery is doing, and which keys the
  * user pressed. The last of those is a desktop concept, so it is a no-op
  * disposer here rather than a thrown error — a plugin asking for a media key

@@ -2,9 +2,9 @@
  * `ctx.http` for desktop — the M1 slice.
  *
  * A `fetch`-shaped client that is *not* subject to browser rules. In the
- * shipped desktop app the transport is Electron's `net` module in `main`, for
+ * shipped desktop app the transport is the desktop host net engine, for
  * the CORS and header reasons in docs/02 §2; here it is a seam
- * (`config.fetch`) so the same service runs under test and in `main` itself.
+ * (`config.fetch`) so the same service runs under test and in the host itself.
  *
  * Every request goes through the `http/request` waterfall, which is where auth
  * injection, retry, rate limiting and caching hook in M2 — the hook is live in

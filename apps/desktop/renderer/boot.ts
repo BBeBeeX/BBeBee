@@ -94,7 +94,7 @@ declare global {
       }
       devtools?: { open(): Promise<void> }
       platform: string
-      versions: { electron: string; node: string }
+      versions: { tauri?: string; node?: string; [key: string]: string | undefined }
       isDebug?: boolean
       window?: {
         minimize(): Promise<void>
@@ -214,7 +214,7 @@ function isDebug(): boolean {
   )
 }
 
-/** Electron's `process.platform`, as the protocol names it. */
+/** Desktop host `process.platform`, as the protocol names it. */
 function hostPlatform(): 'macos' | 'windows' | 'linux' {
   const raw = window.BBeBee?.platform ?? 'linux'
   return raw === 'darwin' ? 'macos' : raw === 'win32' ? 'windows' : 'linux'

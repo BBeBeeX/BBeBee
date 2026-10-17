@@ -2,9 +2,9 @@
  * `ctx.secrets` for desktop and Node.
  *
  * Tokens live here and nowhere else (docs/04 §2). On the shipped desktop app
- * the backing store is Electron's `safeStorage`, which encrypts against the OS
- * keychain; that is injected as `config.crypto` so the same service runs under
- * test, in `main`, and in a headless build without any of them.
+ * the backing store is the OS keychain (via safeStorageCodec / native keyring), which encrypts
+ * against the OS keychain; that is injected as `config.crypto` so the same service runs under
+ * test, in sidecar/host, and in a headless build without any of them.
  *
  * ⚠️ **`isHardwareBacked` is false by default and that is not a detail.** With
  * no keychain the values are still encrypted, but with a key sitting on the
@@ -20,12 +20,11 @@ import { storageNamespace } from '@BBeBee/kernel'
 import { base64Decode, base64Encode, sha256Hex } from '@BBeBee/protocol'
 import type { SecretsService, Uri } from '@BBeBee/protocol'
 
-/** Encrypt/decrypt for one platform. Electron supplies `safeStorage`. */
 /**
  * Encrypt/decrypt for one platform.
  *
  * Async-tolerant because the real desktop codec is the OS keychain, which is
- * reachable only from Electron's main process — so every call is IPC. A
+ * reachable via IPC — so every call is IPC. A
  * synchronous-only interface would have forced the keychain to be wrapped in
  * something that pretended to be synchronous, which is how it ends up not
  * being used at all.
@@ -124,7 +123,7 @@ export class SecretsNode extends Service implements SecretsService {
    *
    * The previous answer to that was to open the file with `node:fs` directly.
    * It kept the budget right and made this service **unloadable in the
-   * Electron renderer**, which is sandboxed and has no Node — so the desktop
+   * webview renderer**, which is sandboxed and has no Node — so the desktop
    * build could not even bundle, let alone run. The context handed to the
    * constructor is the service's own, ungated one (the constructor and
    * `Service.init` see the same object; a called method does not), so reading
@@ -300,7 +299,7 @@ export class SecretsNode extends Service implements SecretsService {
      * The first run has no file, and asking is cheaper than being told.
      *
      * ⚠️ Not just tidiness. On desktop `ctx.fs` is an IPC bridge, and a
-     * rejected call is logged by Electron's `ipcMain.handle` in **main**
+     * rejected call could be logged by the IPC handler in the host
      * before the renderer's `catch` below ever runs — so the expected
      * fresh-install case printed an ENOENT stack trace at every boot. The
      * `catch` stays for the file that exists and will not parse.

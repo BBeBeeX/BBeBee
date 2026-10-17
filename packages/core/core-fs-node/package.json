@@ -1,7 +1,7 @@
 {
   "name": "@BBeBee/core-fs-node",
   "version": "0.0.0",
-  "description": "Filesystem for Node/Electron, over node:fs.",
+  "description": "Filesystem for Node and desktop host, over node:fs.",
   "type": "module",
   "license": "MIT",
   "exports": {

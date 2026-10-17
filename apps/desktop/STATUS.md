@@ -1,8 +1,8 @@
-# BBeBee Desktop2 Migration Status
+# BBeBee Desktop Modernization Status
 
 ## Migration Overview
 
-`apps/desktop2` is the modernization track migrating BBeBee Desktop from Electron to **Tauri v2** + **Node.js Sidecar**.
+`apps/desktop` is the modernized desktop application running on **Tauri v2** + **Node.js Sidecar** (migrated from Electron).
 
 - **Host Core**: Rust (Tauri v2) providing native windowing, system tray, global media keys, dialogs, OS keychain integration, and custom protocol handlers.
 - **Core Services**: Node.js Sidecar hosting `@BBeBee/core-desktop-bridge/main`, `core-fs-node`, `core-db-node`, `core-paths-node`, and native audio engine supervision.
@@ -37,13 +37,13 @@
 3. **CH Channel Wire Protocol**:
    - Specified the stdio JSON-RPC 2.0 framing and wire transport between the Tauri Rust Shell and the Node.js Sidecar for all 10 CH channels (`BBeBee:call`, `streamOpen`, `streamPull`, `streamClose`, `httpOpen`, `httpPull`, `httpClose`, `txBegin`, `txEnd`, `event`).
 4. **Documentation**:
-   - Produced `apps/desktop2/docs/tauri-mapping.md` with zero "待定" (TBD) items.
+   - Produced `apps/desktop/docs/tauri-mapping.md` with zero "待定" (TBD) items.
 
 ### Verification Results
 - **window.BBeBee Surface Coverage**: 100% (20/20 namespaces and properties documented with exact signatures and forwarding routes).
 - **CH Channels Coverage**: 100% (10/10 channels mapped to stdio JSON-RPC methods and envelopes).
 - **Electron API Coverage**: 100% (16/16 APIs mapped with concrete crates and modules).
-- **Strict Invariant Verification**: `apps/desktop` remained completely untouched (read-only reference). Only files under `apps/desktop2` were modified/created. No commits or pushes made.
+- **Strict Invariant Verification**: `apps/desktop` remained completely untouched (read-only reference). Only files under `apps/desktop` were modified/created. No commits or pushes made.
 
 **Gate Status: PASS**
 
@@ -52,21 +52,21 @@
 ## Group 1 Execution Summary
 
 ### What Was Done
-1. **apps/desktop2/package.json**:
+1. **apps/desktop/package.json**:
    - Package name: `"@BBeBee/desktop-tauri"`, `private: true`, `type: "module"`.
    - Complete parity with `apps/desktop/package.json` for all 66 workspace dependencies, Cordis, React 19.2.3, React-DOM 19.2.3.
    - Added Tauri dependencies: `@tauri-apps/api`, `@tauri-apps/plugin-dialog`, `@tauri-apps/plugin-global-shortcut`, `@tauri-apps/plugin-opener`, `@tauri-apps/plugin-deep-link`.
    - DevDependencies configured with Vite, `@vitejs/plugin-react`, TypeScript, Vitest, `@tauri-apps/cli` (Electron, electron-vite, and electron-builder removed).
    - Standard scripts aligned: `dev`, `build:audio-engine`, `build`, `package`, `dist`, `typecheck`, `test`.
-   - Created stub `apps/desktop2/scripts/build-audio-engine.js`.
-2. **apps/desktop2/tsconfig.json**:
+   - Created stub `apps/desktop/scripts/build-audio-engine.js`.
+2. **apps/desktop/tsconfig.json**:
    - Extends `../../tsconfig.base.json` with React JSX, DOM/ES2022 libraries, node types, and includes `renderer/**/*`.
-3. **apps/desktop2/vite.config.ts**:
+3. **apps/desktop/vite.config.ts**:
    - Configured Vite with `root: 'renderer'`, `@vitejs/plugin-react`, `optimizeDeps: { exclude: ['react-native'] }`.
    - Set build output to `../dist` with rollupOptions input `renderer/index.html`.
    - Set server `port: 1420` and `strictPort: true` for Tauri v2 frontend server.
 4. **1:1 Renderer Copy**:
-   - Copied all files, components, tests, and assets 1:1 from `apps/desktop/renderer` into `apps/desktop2/renderer`.
+   - Copied all files, components, tests, and assets 1:1 from `apps/desktop/renderer` into `apps/desktop/renderer`.
    - ZERO business logic changes made in renderer code.
    - `apps/desktop` was kept strictly read-only and untouched.
 5. **src-tauri Scaffolding**:
@@ -93,11 +93,11 @@
 
 2. **Cargo Host Check**:
    ```bash
-   cargo check --manifest-path apps/desktop2/src-tauri/Cargo.toml
+   cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
    ```
    **Output:**
    ```
-      Compiling desktop-tauri v0.0.0 (/home/revers/project/B_Be_Bee/apps/desktop2/src-tauri)
+      Compiling desktop-tauri v0.0.0 (/home/revers/project/B_Be_Bee/apps/desktop/src-tauri)
        Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.10s
    (Exit code: 0)
    ```
@@ -133,7 +133,7 @@
 ### What Was Done
 
 1. **D5 PoC (Linux Wayland Transparency & Click-Through Evaluation)**:
-   - Created standalone evaluation binary and test suite in `apps/desktop2/src-tauri/src/bin/poc_wayland.rs`.
+   - Created standalone evaluation binary and test suite in `apps/desktop/src-tauri/src/bin/poc_wayland.rs`.
    - Analyzed Linux windowing mechanics across X11 and Wayland:
      * **Transparency**: RGBA visual WebKitGTK buffers render transparent backgrounds smoothly without color keying on both X11 (compositing manager) and Wayland (mandatory compositor).
      * **Click-Through (`set_ignore_cursor_events`)**: Tauri/GTK maps `set_ignore_cursor_events(true)` to `gdk_window_input_shape_combine_region()`. On X11, this uses the XShape/XFixes extension; on Wayland, it uses `wl_surface.set_input_region(surface, empty)`. Pointer events pass through to surfaces underneath on compliant Wayland compositors (GNOME/Mutter, Sway, KWin).
@@ -142,7 +142,7 @@
    - Evaluated live on the target host (`Session Type: wayland`, `WAYLAND_DISPLAY: Some("wayland-1")`, `GDK_BACKEND: Some("wayland")`) confirming transparency and click-through compatibility.
 
 2. **Window Policy Port (`window_policy.rs`)**:
-   - Ported 1:1 from `apps/desktop/main/window-policy.ts` to `apps/desktop2/src-tauri/src/window_policy.rs`.
+   - Ported 1:1 from `apps/desktop/main/window-policy.ts` to `apps/desktop/src-tauri/src/window_policy.rs`.
    - Implemented `CloseContext`, `can_survive_without_window`, `should_hide_on_close`, and `should_quit_when_windows_gone`.
    - Comprehensive unit test suite in Rust covering all 6 test cases from `window-policy.test.ts` (MD-6 close-to-tray lifecycle preservation, macOS dock survival, Linux session with/without tray, quit override, and closeToTray disabled).
 
@@ -179,31 +179,31 @@
 
 5. **Strict Invariants Preserved**:
    - `apps/desktop` remained completely untouched (strictly read-only reference).
-   - Only files inside `apps/desktop2` were modified/created.
+   - Only files inside `apps/desktop` were modified/created.
    - No git commits or pushes performed.
 
 ### Exact Gate Check Command Outputs
 
 1. **Cargo Host Check**:
    ```bash
-   cargo check --manifest-path apps/desktop2/src-tauri/Cargo.toml
+   cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
    ```
    **Output:**
    ```
-      Compiling desktop-tauri v0.0.0 (/home/revers/project/B_Be_Bee/apps/desktop2/src-tauri)
+      Compiling desktop-tauri v0.0.0 (/home/revers/project/B_Be_Bee/apps/desktop/src-tauri)
        Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.51s
    (Exit code: 0)
    ```
 
 2. **Cargo Unit & Integration Test Suite**:
    ```bash
-   cargo test --manifest-path apps/desktop2/src-tauri/Cargo.toml
+   cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
    ```
    **Output:**
    ```
-      Compiling desktop-tauri v0.0.0 (/home/revers/project/B_Be_Bee/apps/desktop2/src-tauri)
+      Compiling desktop-tauri v0.0.0 (/home/revers/project/B_Be_Bee/apps/desktop/src-tauri)
        Finished `test` profile [unoptimized + debuginfo] target(s) in 5.10s
-        Running unittests src/lib.rs (apps/desktop2/src-tauri/target/debug/deps/desktop_tauri_lib-702991d6947756c9)
+        Running unittests src/lib.rs (apps/desktop/src-tauri/target/debug/deps/desktop_tauri_lib-702991d6947756c9)
 
    running 11 tests
    test i18n::tests::test_i18n_fallback ... ok
@@ -220,7 +220,7 @@
 
    test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
 
-        Running unittests src/bin/poc_wayland.rs (apps/desktop2/src-tauri/target/debug/deps/poc_wayland-9660765eacf44560)
+        Running unittests src/bin/poc_wayland.rs (apps/desktop/src-tauri/target/debug/deps/poc_wayland-9660765eacf44560)
 
    running 1 test
    test tests::test_detection_and_evaluation ... ok
@@ -251,14 +251,14 @@
    - Established line-delimited JSON-RPC 2.0 (NDJSON) over standard I/O (`stdin`/`stdout`) as the definitive transport between the Tauri Rust host and the Node.js sidecar process.
    - Dedicated `process.stderr` exclusively for all logging, diagnostics, and debug outputs, guaranteeing zero contamination of the `stdout` JSON-RPC stream.
 
-2. **Node.js Sidecar Implementation (`apps/desktop2/sidecar/`)**:
+2. **Node.js Sidecar Implementation (`apps/desktop/sidecar/`)**:
    - `types.ts`: Wire schemas for JSON-RPC 2.0 requests, responses, notifications, audio probe/request formats, and decoded PCM payload envelopes.
    - `fs-path.ts`: Clean path sanitization and native path converters (`toNativePath`, UNC and drive letter normalization).
    - `helpers.ts`: Pure helper routines ported from desktop core (`findFfmpegPath`, `buildProxyRules`, `getFileMimeType`, `parseByteRange`).
    - `audio/`:
      * `types.ts`: Strict typings for native audio engine communication.
      * `audio-devices.ts`: Multi-platform audio output device enumeration with robust fallback logic and stderr logging.
-     * `audio-engine-supervisor.ts`: Full lifecycle supervision of native `audio-engine` (MPV core), handling crash detection, backoff restarts, heartbeats, and IPC pipe messaging. Configured to resolve binaries across `apps/desktop2/bin` and `apps/desktop2/resources/bin`.
+     * `audio-engine-supervisor.ts`: Full lifecycle supervision of native `audio-engine` (MPV core), handling crash detection, backoff restarts, heartbeats, and IPC pipe messaging. Configured to resolve binaries across `apps/desktop/bin` and `apps/desktop/resources/bin`.
      * `index.ts`: `createAudioHost()` returning a unified `AudioHostApi`.
    - `transcode.ts`: `TranscodeManager` providing FFmpeg child process spawning, command argument construction, stderr progress parsing, and active process cancellation.
    - `protocols.ts`: `ProtocolManager` implementing custom stream handlers for `bbebee-file://`, `bbebee-plugin://` (with directory traversal security guards), and `bbebee-sandbox://`.
@@ -269,12 +269,12 @@
      * Directs responses and notifications (`window.BBeBeeBridge` event broadcasts) via JSON-RPC to `process.stdout`.
 
 3. **Scripts & Build Pipeline**:
-   - `apps/desktop2/scripts/build-audio-engine.js`: Copies and prepares native `audio-engine` and `libmpv` binaries into `bin/` and `resources/bin/`.
-   - `apps/desktop2/scripts/build-sidecar.js`: Fast Vite SSR bundler packaging `sidecar/index.ts` and all workspace packages into pure ESM `dist-sidecar/index.mjs` in ~700ms.
+   - `apps/desktop/scripts/build-audio-engine.js`: Copies and prepares native `audio-engine` and `libmpv` binaries into `bin/` and `resources/bin/`.
+   - `apps/desktop/scripts/build-sidecar.js`: Fast Vite SSR bundler packaging `sidecar/index.ts` and all workspace packages into pure ESM `dist-sidecar/index.mjs` in ~700ms.
    - `package.json`: Registered `build:sidecar` and integrated into `pnpm run build`.
    - `tsconfig.json` & `vitest.config.ts`: Added sidecar sources and unit tests to TypeScript and Vitest configs.
 
-4. **Rust Sidecar Supervisor (`apps/desktop2/src-tauri/`)**:
+4. **Rust Sidecar Supervisor (`apps/desktop/src-tauri/`)**:
    - `sidecar.rs`: Tokio-based async child process supervisor (`SidecarManager`):
      * Locates bundled `dist-sidecar/index.mjs` with graceful fallback to `sidecar/index.ts`.
      * Manages stdin line writer and stdout async reader.
@@ -288,7 +288,7 @@
 
 5. **Strict Invariants Preserved**:
    - `apps/desktop` remained completely untouched (strictly read-only reference).
-   - Only files inside `apps/desktop2` were modified/created.
+   - Only files inside `apps/desktop` were modified/created.
    - No git commits or pushes performed.
 
 ### Exact Gate Check Command Outputs
@@ -305,24 +305,24 @@
 
 2. **Cargo Host Check**:
    ```bash
-   cargo check --manifest-path apps/desktop2/src-tauri/Cargo.toml
+   cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
    ```
    **Output:**
    ```
-      Compiling desktop-tauri v0.0.0 (/home/revers/project/B_Be_Bee/apps/desktop2/src-tauri)
+      Compiling desktop-tauri v0.0.0 (/home/revers/project/B_Be_Bee/apps/desktop/src-tauri)
        Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.46s
    (Exit code: 0)
    ```
 
 3. **Cargo Unit & Integration Test Suite**:
    ```bash
-   cargo test --manifest-path apps/desktop2/src-tauri/Cargo.toml
+   cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
    ```
    **Output:**
    ```
-      Compiling desktop-tauri v0.0.0 (/home/revers/project/B_Be_Bee/apps/desktop2/src-tauri)
+      Compiling desktop-tauri v0.0.0 (/home/revers/project/B_Be_Bee/apps/desktop/src-tauri)
        Finished `test` profile [unoptimized + debuginfo] target(s) in 4.74s
-        Running unittests src/lib.rs (apps/desktop2/src-tauri/target/debug/deps/desktop_tauri_lib-1727e00277653fe5)
+        Running unittests src/lib.rs (apps/desktop/src-tauri/target/debug/deps/desktop_tauri_lib-1727e00277653fe5)
 
    running 14 tests
    test i18n::tests::test_i18n_fallback ... ok
@@ -344,7 +344,7 @@
 
    test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
 
-        Running unittests src/bin/poc_wayland.rs (apps/desktop2/src-tauri/target/debug/deps/poc_wayland-3314ab177d3c52b7)
+        Running unittests src/bin/poc_wayland.rs (apps/desktop/src-tauri/target/debug/deps/poc_wayland-3314ab177d3c52b7)
 
    running 1 test
    test tests::test_detection_and_evaluation ... ok
@@ -376,7 +376,7 @@
    ✓ 67 modules transformed.
    dist-sidecar/index.mjs  149.66 kB
    ✓ built in 716ms
-   [build-sidecar] Successfully bundled Node sidecar at: /home/revers/project/B_Be_Bee/apps/desktop2/dist-sidecar/index.mjs
+   [build-sidecar] Successfully bundled Node sidecar at: /home/revers/project/B_Be_Bee/apps/desktop/dist-sidecar/index.mjs
    (Exit code: 0)
    ```
 
@@ -388,7 +388,7 @@
 
 ### What Was Done
 
-1. **Tauri Preload Shim (`apps/desktop2/src-tauri/src/shim.js`)**:
+1. **Tauri Preload Shim (`apps/desktop/src-tauri/src/shim.js`)**:
    - Created standalone, zero-dependency JavaScript preload script injected into all Webview windows prior to DOM execution via Tauri's `initialization_script`.
    - Exposed frozen objects `window.BBeBee` and `window.BBeBeeBridge` in 100% 1:1 API compatibility with `apps/desktop/preload/index.ts`.
    - Exposed all 20 namespaces and properties on `BBeBee`:
@@ -418,18 +418,18 @@
    - Implemented synchronous listener disposer return semantics (`() => void`) for all event subscriptions (`on*`).
    - Implemented deep-freeze (`Object.freeze`) on API objects while configuring top-level properties on `window` as mutable/configurable to allow test suites and mocking harnesses to override them without runtime `TypeError` exceptions.
 
-2. **TypeScript Preload Module (`apps/desktop2/renderer/preload-shim.ts`)**:
+2. **TypeScript Preload Module (`apps/desktop/renderer/preload-shim.ts`)**:
    - Implemented `createPreloadApi()`, `createBridgeApi()`, and `installPreloadShim()`.
    - Strict TypeScript types mirroring Electron preload contracts without conflicting with existing global `Window` declarations in `@BBeBee/core-desktop-bridge` or `renderer/boot.ts`.
 
 3. **Tauri Host Commands & Initialization Wiring**:
-   - Registered `bbebee-preload` Tauri plugin in `apps/desktop2/src-tauri/src/main.rs` via `tauri::plugin::Builder::<tauri::Wry>::new("bbebee-preload").js_init_script(include_str!("shim.js")).build()`.
+   - Registered `bbebee-preload` Tauri plugin in `apps/desktop/src-tauri/src/main.rs` via `tauri::plugin::Builder::<tauri::Wry>::new("bbebee-preload").js_init_script(include_str!("shim.js")).build()`.
    - Injected `shim.js` into secondary floating windows in `lyrics_manager.rs` and `mini_player_manager.rs`.
    - Enabled `"withGlobalTauri": true` under `"app"` in `tauri.conf.json`.
-   - Added Rust command handlers and bridge aliases in `apps/desktop2/src-tauri/src/commands.rs` and `main.rs`: `desktop_paths_get`, `paths_get`, `desktop_app_version`, `app_version`, `desktop_secrets_available`, `secrets_available`, `desktop_secrets_encrypt`, `secrets_encrypt`, `desktop_secrets_decrypt`, `secrets_decrypt`, `desktop_shell_open_external`, `shell_open_external`, `desktop_shell_open_path`, `shell_open_path`, `desktop_dialog_pick_directory`, `dialog_pick_directory`, `desktop_dialog_pick_files`, `dialog_pick_files`, `desktop_files_authorize`, `files_authorize`, `desktop_devtools_open`, `devtools_open`, `desktop_plugins_list_installed`, `plugins_list_installed`, `desktop_plugins_get_lock`, `plugins_get_lock`, `desktop_plugins_install`, `plugins_install`, `desktop_plugins_uninstall`, `plugins_uninstall`, `desktop_proxy_test`, `proxy_test`, `desktop_proxy_set`, `proxy_set`, `desktop_stream_set_headers`, `stream_set_headers`, `desktop_sandbox_set_html`, `sandbox_set_html`.
-   - Expanded Node.js sidecar service handlers in `apps/desktop2/sidecar/index.ts` for secrets encryption/decryption, dynamic authorization roots, plugin management, and proxy testing. Rebundled to `apps/desktop2/dist-sidecar/index.mjs`.
+   - Added Rust command handlers and bridge aliases in `apps/desktop/src-tauri/src/commands.rs` and `main.rs`: `desktop_paths_get`, `paths_get`, `desktop_app_version`, `app_version`, `desktop_secrets_available`, `secrets_available`, `desktop_secrets_encrypt`, `secrets_encrypt`, `desktop_secrets_decrypt`, `secrets_decrypt`, `desktop_shell_open_external`, `shell_open_external`, `desktop_shell_open_path`, `shell_open_path`, `desktop_dialog_pick_directory`, `dialog_pick_directory`, `desktop_dialog_pick_files`, `dialog_pick_files`, `desktop_files_authorize`, `files_authorize`, `desktop_devtools_open`, `devtools_open`, `desktop_plugins_list_installed`, `plugins_list_installed`, `desktop_plugins_get_lock`, `plugins_get_lock`, `desktop_plugins_install`, `plugins_install`, `desktop_plugins_uninstall`, `plugins_uninstall`, `desktop_proxy_test`, `proxy_test`, `desktop_proxy_set`, `proxy_set`, `desktop_stream_set_headers`, `stream_set_headers`, `desktop_sandbox_set_html`, `sandbox_set_html`.
+   - Expanded Node.js sidecar service handlers in `apps/desktop/sidecar/index.ts` for secrets encryption/decryption, dynamic authorization roots, plugin management, and proxy testing. Rebundled to `apps/desktop/dist-sidecar/index.mjs`.
 
-4. **Automated Preload Parity Diff Test Suite (`apps/desktop2/tests/preload-parity.test.ts`)**:
+4. **Automated Preload Parity Diff Test Suite (`apps/desktop/tests/preload-parity.test.ts`)**:
    - Implemented automated structural diff asserting 100% parity against `apps/desktop/preload/index.ts`.
    - Validated:
      - 0 missing properties across all 20 namespaces/properties of `window.BBeBee`.
@@ -453,24 +453,24 @@
 
 2. **Cargo Host Check**:
    ```bash
-   cargo check --manifest-path apps/desktop2/src-tauri/Cargo.toml
+   cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
    ```
    **Output:**
    ```
-      Compiling desktop-tauri v0.0.0 (/home/revers/project/B_Be_Bee/apps/desktop2/src-tauri)
+      Compiling desktop-tauri v0.0.0 (/home/revers/project/B_Be_Bee/apps/desktop/src-tauri)
        Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.81s
    (Exit code: 0)
    ```
 
 3. **Cargo Unit & Integration Tests**:
    ```bash
-   cargo test --manifest-path apps/desktop2/src-tauri/Cargo.toml
+   cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
    ```
    **Output:**
    ```
-      Compiling desktop-tauri v0.0.0 (/home/revers/project/B_Be_Bee/apps/desktop2/src-tauri)
+      Compiling desktop-tauri v0.0.0 (/home/revers/project/B_Be_Bee/apps/desktop/src-tauri)
        Finished `test` profile [unoptimized + debuginfo] target(s) in 5.19s
-        Running unittests src/lib.rs (apps/desktop2/src-tauri/target/debug/deps/desktop_tauri_lib-1727e00277653fe5)
+        Running unittests src/lib.rs (apps/desktop/src-tauri/target/debug/deps/desktop_tauri_lib-1727e00277653fe5)
 
    running 14 tests
    test i18n::tests::test_i18n_fallback ... ok
@@ -490,7 +490,7 @@
 
    test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s
 
-        Running unittests src/bin/poc_wayland.rs (apps/desktop2/src-tauri/target/debug/deps/poc_wayland-3314ab177d3c52b7)
+        Running unittests src/bin/poc_wayland.rs (apps/desktop/src-tauri/target/debug/deps/poc_wayland-3314ab177d3c52b7)
 
    running 1 test
    test tests::test_detection_and_evaluation ... ok
@@ -519,16 +519,16 @@
 
 ### What Was Done
 
-1. **Audio Engine Build & Bundling Scripts (`apps/desktop2/scripts/`)**:
+1. **Audio Engine Build & Bundling Scripts (`apps/desktop/scripts/`)**:
    - `build-audio-engine.js`:
-     * Parameterized native build pipeline compiling standalone C++ sources (`main.cpp`, `pcm_ring_buffer.cpp`) from `apps/desktop/native/audio-engine/` into `apps/desktop2/bin/audio-engine` and syncing to `apps/desktop2/resources/bin/audio-engine`.
+     * Parameterized native build pipeline compiling standalone C++ sources (`main.cpp`, `pcm_ring_buffer.cpp`) from `apps/desktop/native/audio-engine/` into `apps/desktop/bin/audio-engine` and syncing to `apps/desktop/resources/bin/audio-engine`.
      * Strict adherence to invariants: `apps/desktop/native/audio-engine/` C++ source code was left completely untouched; compiler include flag `-I` parameterizes header resolution.
      * Compiler detection supporting `g++`, `clang++`, and MSVC `cl` with C++17 flags (`-O2`, `-std=c++17`, `-pthread`, `-ldl`, `-Wl,-rpath,$ORIGIN` on Linux; `-Wl,-rpath,@executable_path`, `-Wl,-rpath,@loader_path` on Darwin).
      * Stages vendored `libmpv` libraries and invokes `bundleMpvDeps` on both `bin/` and `resources/bin/`.
      * Validates compiled binary with `--version` post-compilation check.
    - `bundle-mpv-deps.js`:
      * Parameterized iterative dynamic-library closure bundler resolving `libmpv`'s transitive runtime dependencies with `ldd` up to 5 passes.
-     * Enforces glibc denylist (`linux-vdso`, `ld-linux`, `libc.so`, `libm.so`, `libpthread`, `libdl.so`, `librt.so`, `libresolv`, `libgcc_s`, `libstdc++`), copying media stacks (`libavcodec`, `libass`, `libpulse`, etc.) directly into `apps/desktop2/bin/` and `apps/desktop2/resources/bin/`.
+     * Enforces glibc denylist (`linux-vdso`, `ld-linux`, `libc.so`, `libm.so`, `libpthread`, `libdl.so`, `librt.so`, `libresolv`, `libgcc_s`, `libstdc++`), copying media stacks (`libavcodec`, `libass`, `libpulse`, etc.) directly into `apps/desktop/bin/` and `apps/desktop/resources/bin/`.
    - `fetch-libmpv.js`:
      * Multi-stage libmpv binary resolver checking existing `resources/bin` and `bin`, vendored packages, custom `LIBMPV_PATH`, host system libraries (`/usr/lib/...`, `/usr/local/lib`, Homebrew, Chocolatey), and automated Windows release downloads with SHA256 integrity verification.
      * Automatically stages dependencies for Linux targets and synchronizes libraries between `bin/` and `resources/bin/`.
@@ -541,7 +541,7 @@
    - `package.json`:
      * Registered `"test:audio-engine": "node scripts/test-audio-engine.js"`.
 
-2. **Tauri Resource Bundling Configuration (`apps/desktop2/src-tauri/tauri.conf.json`)**:
+2. **Tauri Resource Bundling Configuration (`apps/desktop/src-tauri/tauri.conf.json`)**:
    - Configured `bundle.resources` mapping in 1:1 parity with `apps/desktop/electron-builder.yml` `extraResources`:
      * Maps `"../bin/*": "bin/"` (packages audio-engine, libmpv, and transitive shared libraries `*.so*`, `*.dll`, `*.dylib`).
      * Maps `"../resources/bin/*": "bin/"`.
@@ -551,27 +551,27 @@
 3. **Strict Invariants Preserved**:
    - `apps/desktop` remained completely untouched (strictly read-only reference).
    - `native/audio-engine` C++ source code was NOT modified.
-   - Only files inside `apps/desktop2` were modified/created.
+   - Only files inside `apps/desktop` were modified/created.
    - No git commits or pushes performed.
 
 ### Exact Gate Check Command Outputs
 
 1. **Audio Engine Build**:
    ```bash
-   node apps/desktop2/scripts/build-audio-engine.js
+   node apps/desktop/scripts/build-audio-engine.js
    ```
    **Output:**
    ```
    [build-audio-engine] Compiling standalone native audio-engine executable...
      Sources: /home/revers/project/B_Be_Bee/apps/desktop/native/audio-engine/main.cpp, /home/revers/project/B_Be_Bee/apps/desktop/native/audio-engine/pcm_ring_buffer.cpp
-     Target: /home/revers/project/B_Be_Bee/apps/desktop2/bin/audio-engine
-   [build-audio-engine] Running: g++ -O2 -std=c++17 -I/home/revers/project/B_Be_Bee/apps/desktop/native/audio-engine /home/revers/project/B_Be_Bee/apps/desktop/native/audio-engine/main.cpp /home/revers/project/B_Be_Bee/apps/desktop/native/audio-engine/pcm_ring_buffer.cpp -o /home/revers/project/B_Be_Bee/apps/desktop2/bin/audio-engine -pthread -ldl -Wl,-rpath,$ORIGIN
-   [build-audio-engine] Packaged resource synced at: /home/revers/project/B_Be_Bee/apps/desktop2/resources/bin/audio-engine
+     Target: /home/revers/project/B_Be_Bee/apps/desktop/bin/audio-engine
+   [build-audio-engine] Running: g++ -O2 -std=c++17 -I/home/revers/project/B_Be_Bee/apps/desktop/native/audio-engine /home/revers/project/B_Be_Bee/apps/desktop/native/audio-engine/main.cpp /home/revers/project/B_Be_Bee/apps/desktop/native/audio-engine/pcm_ring_buffer.cpp -o /home/revers/project/B_Be_Bee/apps/desktop/bin/audio-engine -pthread -ldl -Wl,-rpath,$ORIGIN
+   [build-audio-engine] Packaged resource synced at: /home/revers/project/B_Be_Bee/apps/desktop/resources/bin/audio-engine
    [build-audio-engine] Vendored libmpv staged: 214 libraries → bin/ + resources/bin/
-   [bundle-mpv-deps] staged 0 dependencies -> /home/revers/project/B_Be_Bee/apps/desktop2/bin
-   [bundle-mpv-deps] staged 0 dependencies -> /home/revers/project/B_Be_Bee/apps/desktop2/resources/bin
-   [build-audio-engine] Standalone audio-engine built successfully at: /home/revers/project/B_Be_Bee/apps/desktop2/bin/audio-engine
-   [build-audio-engine] Verifying executable (/home/revers/project/B_Be_Bee/apps/desktop2/bin/audio-engine --version)...
+   [bundle-mpv-deps] staged 0 dependencies -> /home/revers/project/B_Be_Bee/apps/desktop/bin
+   [bundle-mpv-deps] staged 0 dependencies -> /home/revers/project/B_Be_Bee/apps/desktop/resources/bin
+   [build-audio-engine] Standalone audio-engine built successfully at: /home/revers/project/B_Be_Bee/apps/desktop/bin/audio-engine
+   [build-audio-engine] Verifying executable (/home/revers/project/B_Be_Bee/apps/desktop/bin/audio-engine --version)...
    audio-engine 1.0.0 (libmpv WASAPI/Pulse Native Engine)
    (Exit code: 0)
    ```
@@ -585,7 +585,7 @@
    $ node scripts/test-audio-engine.js
    [test-audio-engine] ========================================================
    [test-audio-engine] Starting BBeBee Audio Engine & IPC Test Suite
-   [test-audio-engine] Binary: /home/revers/project/B_Be_Bee/apps/desktop2/bin/audio-engine
+   [test-audio-engine] Binary: /home/revers/project/B_Be_Bee/apps/desktop/bin/audio-engine
    [test-audio-engine] ========================================================
 
    [test-audio-engine] [1/4] Verifying native binary CLI (--version)...
@@ -656,24 +656,24 @@
 
 3. **Cargo Host Check**:
    ```bash
-   cargo check --manifest-path apps/desktop2/src-tauri/Cargo.toml
+   cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
    ```
    **Output:**
    ```
-      Compiling desktop-tauri v0.0.0 (/home/revers/project/B_Be_Bee/apps/desktop2/src-tauri)
+      Compiling desktop-tauri v0.0.0 (/home/revers/project/B_Be_Bee/apps/desktop/src-tauri)
        Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.80s
    (Exit code: 0)
    ```
 
 4. **Cargo Unit & Integration Test Suite**:
    ```bash
-   cargo test --manifest-path apps/desktop2/src-tauri/Cargo.toml
+   cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
    ```
    **Output:**
    ```
-      Compiling desktop-tauri v0.0.0 (/home/revers/project/B_Be_Bee/apps/desktop2/src-tauri)
+      Compiling desktop-tauri v0.0.0 (/home/revers/project/B_Be_Bee/apps/desktop/src-tauri)
        Finished `test` profile [unoptimized + debuginfo] target(s) in 8.26s
-        Running unittests src/lib.rs (apps/desktop2/src-tauri/target/debug/deps/desktop_tauri_lib-1727e00277653fe5)
+        Running unittests src/lib.rs (apps/desktop/src-tauri/target/debug/deps/desktop_tauri_lib-1727e00277653fe5)
 
    running 14 tests
    test i18n::tests::test_i18n_fallback ... ok
@@ -695,7 +695,7 @@
 
    test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
 
-        Running unittests src/bin/poc_wayland.rs (apps/desktop2/src-tauri/target/debug/deps/poc_wayland-3314ab177d3c52b7)
+        Running unittests src/bin/poc_wayland.rs (apps/desktop/src-tauri/target/debug/deps/poc_wayland-3314ab177d3c52b7)
 
    running 1 test
    test tests::test_detection_and_evaluation ... ok
@@ -735,9 +735,9 @@
 ### What Was Done
 
 1. **Platform Equivalents Architecture Decision (D6)**:
-   - Evaluated whether to create new packages under `packages/core/*` or implement platform equivalents via Rust commands and the Node sidecar within `apps/desktop2`.
-   - **Decision**: Implemented platform equivalents directly via Tauri Rust commands (`commands.rs`, `state.rs`) and Node sidecar request normalization (`sidecar/index.ts`) within `apps/desktop2`.
-   - **Rationale**: Strictly preserves **Rule 0 ("只动 apps/desktop2")** and maintains the invariant of **zero business logic changes in `apps/desktop2/renderer`**. The renderer boot script (`apps/desktop2/renderer/boot.ts`) loads `DeviceElectron`, `BackgroundElectron`, and `MediaSessionElectron` without modifications, and all platform calls (`window.BBeBeeBridge.call('system', ...)` and event notifications) are handled cleanly by the Tauri runtime.
+   - Evaluated whether to create new packages under `packages/core/*` or implement platform equivalents via Rust commands and the Node sidecar within `apps/desktop`.
+   - **Decision**: Implemented platform equivalents directly via Tauri Rust commands (`commands.rs`, `state.rs`) and Node sidecar request normalization (`sidecar/index.ts`) within `apps/desktop`.
+   - **Rationale**: Strictly preserves **Rule 0 ("只动 apps/desktop")** and maintains the invariant of **zero business logic changes in `apps/desktop/renderer`**. The renderer boot script (`apps/desktop/renderer/boot.ts`) loads `DeviceElectron`, `BackgroundElectron`, and `MediaSessionElectron` without modifications, and all platform calls (`window.BBeBeeBridge.call('system', ...)` and event notifications) are handled cleanly by the Tauri runtime.
 
 2. **Full Bridged `system` Service Backend Support**:
    - Implemented 100% backend support for both canonical and alias bridged system method calls:
@@ -809,24 +809,24 @@
 
 3. **Cargo Host Check**:
    ```bash
-   cargo check --manifest-path apps/desktop2/src-tauri/Cargo.toml
+   cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
    ```
    **Output:**
    ```
-      Compiling desktop-tauri v0.0.0 (/home/revers/project/B_Be_Bee/apps/desktop2/src-tauri)
+      Compiling desktop-tauri v0.0.0 (/home/revers/project/B_Be_Bee/apps/desktop/src-tauri)
        Finished `dev` profile [unoptimized + debuginfo] target(s) in 6.08s
    (Exit code: 0)
    ```
 
 4. **Cargo Unit Tests**:
    ```bash
-   cargo test --manifest-path apps/desktop2/src-tauri/Cargo.toml
+   cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
    ```
    **Output:**
    ```
-      Compiling desktop-tauri v0.0.0 (/home/revers/project/B_Be_Bee/apps/desktop2/src-tauri)
+      Compiling desktop-tauri v0.0.0 (/home/revers/project/B_Be_Bee/apps/desktop/src-tauri)
        Finished `test` profile [unoptimized + debuginfo] target(s) in 8.82s
-        Running unittests src/lib.rs (apps/desktop2/src-tauri/target/debug/deps/desktop_tauri_lib-1727e00277653fe5)
+        Running unittests src/lib.rs (apps/desktop/src-tauri/target/debug/deps/desktop_tauri_lib-1727e00277653fe5)
 
    running 19 tests
    test i18n::tests::test_i18n_fallback ... ok
@@ -851,7 +851,7 @@
 
    test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
 
-        Running unittests src/bin/poc_wayland.rs (apps/desktop2/src-tauri/target/debug/deps/poc_wayland-3314ab177d3c52b7)
+        Running unittests src/bin/poc_wayland.rs (apps/desktop/src-tauri/target/debug/deps/poc_wayland-3314ab177d3c52b7)
 
    running 1 test
    test tests::test_detection_and_evaluation ... ok
@@ -867,7 +867,7 @@
 ## Group 7 Execution Summary
 
 ### What Was Done
-1. **Multi-Platform Distribution Configuration (`apps/desktop2/src-tauri/tauri.conf.json`)**:
+1. **Multi-Platform Distribution Configuration (`apps/desktop/src-tauri/tauri.conf.json`)**:
    - Configured `bundle` section for multi-platform distribution aligned with `apps/desktop/electron-builder.yml`:
      * Targets: Linux (`appimage`, `deb`), Windows (`nsis`), macOS (`dmg`).
      * `active: true` for bundle packaging.
@@ -878,7 +878,7 @@
        - `"../resources/bin/*": "bin/"`
        - `"../dist-sidecar/*": "dist-sidecar/"`
      * Platform-specific bundle configurations for Linux deb/appimage, Windows nsis, and macOS dmg.
-2. **Packaging Pipeline Orchestration (`apps/desktop2/scripts/package-desktop.js`)**:
+2. **Packaging Pipeline Orchestration (`apps/desktop/scripts/package-desktop.js`)**:
    - Implemented and parameterized `package-desktop.js` mirroring `apps/desktop/scripts/package-desktop.js`:
      * CLI flags: `--skip-build`, `--skip-audio-engine`, `--rebuild-audio-engine`, `--skip-tests`, `--no-strict` / `--optional`, `--dry-run`, `-b` / `--bundles`, `-t` / `--target`, `-d` / `--debug`.
      * Step 1: Ensure native standalone audio engine binary compiled (`bin/audio-engine` and `resources/bin/audio-engine`) with executable permissions.
@@ -886,14 +886,14 @@
      * Step 2: Stage platform libmpv and dependencies (`fetch-libmpv.js`).
      * Step 3: Verify bundled resources in `bin/` and `resources/bin/` (214 libraries staged).
      * Step 4: Build desktop bundles (Vite frontend build into `dist/` and Vite SSR sidecar bundle into `dist-sidecar/index.mjs`).
-     * Step 5: Packaging with Tauri (`tauri build`). Configured automatic resolution of `PKG_CONFIG_PATH` across local `apps/desktop2/pkgconfig` and sysroots for Debian bundling without host environment errors.
-3. **Package Scripts Integration (`apps/desktop2/package.json`)**:
+     * Step 5: Packaging with Tauri (`tauri build`). Configured automatic resolution of `PKG_CONFIG_PATH` across local `apps/desktop/pkgconfig` and sysroots for Debian bundling without host environment errors.
+3. **Package Scripts Integration (`apps/desktop/package.json`)**:
    - Aligned `"package"` and `"dist"` scripts to run `node scripts/package-desktop.js`.
 4. **Build & Package Verification on Linux**:
    - Ran `pnpm --filter @BBeBee/desktop-tauri build` verifying frontend and sidecar builds.
    - Ran `pnpm --filter @BBeBee/desktop-tauri package` verifying full end-to-end build, testing, and packaging:
-     * Built application release binary: `apps/desktop2/src-tauri/target/release/desktop-tauri` (19 MiB).
-     * Built Debian package: `apps/desktop2/src-tauri/target/release/bundle/deb/BBeBee_0.0.0_amd64.deb` (138.34 MiB).
+     * Built application release binary: `apps/desktop/src-tauri/target/release/desktop-tauri` (19 MiB).
+     * Built Debian package: `apps/desktop/src-tauri/target/release/bundle/deb/BBeBee_0.0.0_amd64.deb` (138.34 MiB).
      * Verified deb bundle contains desktop entry, icons, sidecar bundle (`usr/lib/BBeBee/dist-sidecar/index.mjs`), native audio engine (`usr/lib/BBeBee/bin/audio-engine`), and libmpv dependency closure.
      * Verified release binary execution: GTK window created, Ayatana AppIndicator tray initialized, and Node sidecar process spawned over stdio NDJSON (`[sidecar] BBeBee Node.js sidecar initialized and listening on stdin`).
 
@@ -910,7 +910,7 @@
    ✓ 67 modules transformed.
    dist-sidecar/index.mjs  158.28 kB
    ✓ built in 778ms
-   [build-sidecar] Successfully bundled Node sidecar at: apps/desktop2/dist-sidecar/index.mjs
+   [build-sidecar] Successfully bundled Node sidecar at: apps/desktop/dist-sidecar/index.mjs
    (Exit code: 0)
    ```
 
@@ -921,7 +921,7 @@
    **Output:**
    ```
    [package-desktop] [1/5] Checking native audio engine...
-   [package-desktop] Existing audio engine found at: apps/desktop2/bin/audio-engine
+   [package-desktop] Existing audio engine found at: apps/desktop/bin/audio-engine
    [package-desktop] [1.5/5] Testing audio engine prior to packaging...
      ALL 13 TESTS PASSED CLEANLY!
    [package-desktop] [2/5] Staging platform libmpv...
@@ -932,20 +932,20 @@
      dist-sidecar/index.mjs  158.28 kB
      ✓ built in 952ms
    [package-desktop] [5/5] Packaging with Tauri (tauri build)...
-      Built application at: apps/desktop2/src-tauri/target/release/desktop-tauri
+      Built application at: apps/desktop/src-tauri/target/release/desktop-tauri
       Info Patching desktop-tauri with bundle type information: deb
-      Bundling BBeBee_0.0.0_amd64.deb (apps/desktop2/src-tauri/target/release/bundle/deb/BBeBee_0.0.0_amd64.deb)
+      Bundling BBeBee_0.0.0_amd64.deb (apps/desktop/src-tauri/target/release/bundle/deb/BBeBee_0.0.0_amd64.deb)
       Finished 1 bundle at:
-          apps/desktop2/src-tauri/target/release/bundle/deb/BBeBee_0.0.0_amd64.deb (138.34 MiB)
+          apps/desktop/src-tauri/target/release/bundle/deb/BBeBee_0.0.0_amd64.deb (138.34 MiB)
    ====================================================
-          Desktop2 Packaging Finished Successfully!    
+          Desktop Packaging Finished Successfully!    
    ====================================================
    (Exit code: 0)
    ```
 
 3. **Release Executable Launch Verification**:
    ```bash
-   ./apps/desktop2/src-tauri/target/release/desktop-tauri
+   ./apps/desktop/src-tauri/target/release/desktop-tauri
    ```
    **Runtime Log Output:**
    ```
@@ -961,7 +961,7 @@
 
 ### What Was Done
 1. **Lint & Clippy Gate**:
-   - Executed `cargo clippy --manifest-path apps/desktop2/src-tauri/Cargo.toml --all-targets -- -D warnings`.
+   - Executed `cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets -- -D warnings`.
    - Refactored complex generic types into type aliases (`PendingResponse`, `PendingMap`) in `src/sidecar.rs`.
    - Replaced verbose match pattern with idiomatic `matches!` macro in `src/sidecar.rs`.
    - Achieved **ZERO warnings across all targets**.
@@ -981,17 +981,17 @@
    - i18n language switching: Verified fallback and live updating of UI and tray menus.
    - Reference directory preservation: Verified `git diff apps/desktop` is completely empty.
 5. **Acceptance Documentation**:
-   - Produced comprehensive acceptance report in `apps/desktop2/docs/acceptance.md`.
+   - Produced comprehensive acceptance report in `apps/desktop/docs/acceptance.md`.
 
 ### Exact Gate Check Command Outputs
 
 1. **Cargo Clippy Gate**:
    ```bash
-   cargo clippy --manifest-path apps/desktop2/src-tauri/Cargo.toml --all-targets -- -D warnings
+   cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets -- -D warnings
    ```
    **Output:**
    ```
-      Compiling desktop-tauri v0.0.0 (/home/revers/project/B_Be_Bee/apps/desktop2/src-tauri)
+      Compiling desktop-tauri v0.0.0 (/home/revers/project/B_Be_Bee/apps/desktop/src-tauri)
        Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.39s
    (Exit code: 0)
    ```
@@ -1034,7 +1034,7 @@
 
 ## Migration Final Summary (Groups 0 - 8 Complete)
 
-The complete Electron-to-Tauri migration for BBeBee Desktop (`apps/desktop2`) is officially completed with all 9 groups in PASS status.
+The complete Electron-to-Tauri migration for BBeBee Desktop (`apps/desktop`) is officially completed with all 9 groups in PASS status.
 
 ### Summary of Achievements
 - **Strict Invariant Maintained**: Zero files modified or added in `apps/desktop`.
@@ -1061,10 +1061,10 @@ The complete Electron-to-Tauri migration for BBeBee Desktop (`apps/desktop2`) is
   - Dependency configuration and update checking logic prepared using `tauri-plugin-updater` with `"active": false`.
   - Production pre-release requirements documented below.
 - **D5: Linux Wayland PoC scheduled before Group 2**
-  - A dedicated Proof of Concept is implemented in `apps/desktop2/src-tauri/src/bin/poc_wayland.rs` evaluating layer-shell and transparent click-through window behaviors on Wayland compositors.
+  - A dedicated Proof of Concept is implemented in `apps/desktop/src-tauri/src/bin/poc_wayland.rs` evaluating layer-shell and transparent click-through window behaviors on Wayland compositors.
 - **D6: Platform Equivalents via In-App Rust Commands & Node Sidecar Bridge**
-  - Rather than creating new packages under `packages/core/*`, platform equivalents for `DeviceElectron`, `BackgroundElectron`, and `MediaSessionElectron` are served directly within `apps/desktop2` via Tauri Rust host commands and Node sidecar bridging.
-  - This strictly adheres to Rule 0 ("只动 apps/desktop2"), ensures zero business logic changes in the renderer shell, and guarantees 100% drop-in API compatibility for bridged `system` calls and events.
+  - Rather than creating new packages under `packages/core/*`, platform equivalents for `DeviceElectron`, `BackgroundElectron`, and `MediaSessionElectron` are served directly within `apps/desktop` via Tauri Rust host commands and Node sidecar bridging.
+  - This strictly adheres to Rule 0 ("只动 apps/desktop"), ensures zero business logic changes in the renderer shell, and guarantees 100% drop-in API compatibility for bridged `system` calls and events.
 
 ---
 
@@ -1089,13 +1089,13 @@ The complete Electron-to-Tauri migration for BBeBee Desktop (`apps/desktop2`) is
 ## Multi-Platform Native Libraries & Git Hygiene (P0-2 Fix)
 
 ### 1. Gitignore Protection & Repository Bloat Prevention
-- Added `apps/desktop2/src-tauri/lib/` and `apps/desktop2/resources/libmpv/` to `.gitignore`.
+- Added `apps/desktop/src-tauri/lib/` and `apps/desktop/resources/libmpv/` to `.gitignore`.
 - Removed all 412 MB of staged `.so`/`.dll` binary files and absolute symlinks from git tracking via `git rm --cached`.
-- `apps/desktop2/src-tauri/lib/README.md` is whitelisted (`!apps/desktop2/src-tauri/lib/README.md`) to preserve documentation on directory layout and pruning rationale.
-- Dynamic staging: `apps/desktop2/scripts/fetch-libmpv.js` serves as the primary on-demand fetch and staging script, copying runtime binaries into `bin/` and `resources/bin/` (both gitignored).
+- `apps/desktop/src-tauri/lib/README.md` is whitelisted (`!apps/desktop/src-tauri/lib/README.md`) to preserve documentation on directory layout and pruning rationale.
+- Dynamic staging: `apps/desktop/scripts/fetch-libmpv.js` serves as the primary on-demand fetch and staging script, copying runtime binaries into `bin/` and `resources/bin/` (both gitignored).
 
 ### 2. Elimination of Hardcoded Host Paths in Build Scripts
-- `apps/desktop2/src-tauri/build.rs` no longer hardcodes `/home/revers/...` user directories.
+- `apps/desktop/src-tauri/build.rs` no longer hardcodes `/home/revers/...` user directories.
 - Dynamic sysroot probing conditionally checks `$HOME/.local/sysroot/usr/lib/x86_64-linux-gnu` only if present, while cleanly falling back to standard Linux library directories on other developer machines and CI runners.
 
 ---
@@ -1103,13 +1103,13 @@ The complete Electron-to-Tauri migration for BBeBee Desktop (`apps/desktop2`) is
 ## Wayland PoC & Verification Alignment (P2 Fix)
 
 1. **PoC Binary Present & Verifiable**:
-   - File location: `apps/desktop2/src-tauri/src/bin/poc_wayland.rs`.
+   - File location: `apps/desktop/src-tauri/src/bin/poc_wayland.rs`.
    - Registered under `[[bin]]` in `Cargo.toml`.
-   - Verified via: `cargo test --manifest-path apps/desktop2/src-tauri/Cargo.toml --bin poc_wayland`.
+   - Verified via: `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --bin poc_wayland`.
    - Evaluates transparency, `set_ignore_cursor_events`, always-on-top, and programmatic coordinates under Wayland vs X11.
 2. **Independently Reproducible Test Gates**:
-   - `cargo test --manifest-path apps/desktop2/src-tauri/Cargo.toml`: 24/24 tests pass (23 in `desktop_tauri_lib`, 1 in `poc_wayland`).
-   - `cargo clippy --manifest-path apps/desktop2/src-tauri/Cargo.toml --all-targets -- -D warnings`: 0 warnings, 0 errors.
+   - `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml`: 24/24 tests pass (23 in `desktop_tauri_lib`, 1 in `poc_wayland`).
+   - `cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets -- -D warnings`: 0 warnings, 0 errors.
    - `pnpm --filter @BBeBee/desktop-tauri typecheck`: 0 errors.
    - `pnpm --filter @BBeBee/desktop-tauri test`: 9 test files passed, 153/153 tests passed.
    - `pnpm --filter @BBeBee/desktop-tauri test:audio-engine`: 4/4 gates pass (13/13 PCM tap concurrency tests).
@@ -1128,7 +1128,7 @@ The complete Electron-to-Tauri migration for BBeBee Desktop (`apps/desktop2`) is
 - When `desktop_locale_notify` receives any BCP47 locale tag from `plugin-i18n`, the tray menu context labels are rebuilt and refreshed immediately.
 
 ### 2. Pre-Release Updater Checklist
-The updater plugin in `apps/desktop2/src-tauri/tauri.conf.json` is configured with placeholder values and deferred (`"active": false`):
+The updater plugin in `apps/desktop/src-tauri/tauri.conf.json` is configured with placeholder values and deferred (`"active": false`):
 ```json
 "updater": {
   "active": false,
@@ -1156,12 +1156,12 @@ To permanently decouple native C++ audio engine sources and 400MB+ precompiled m
 - **Inventory Artifact**: `docs/audio-engine-inventory.md` created with exhaustive listings across all 4 categories:
   1. **audio-engine Native Sources**: `apps/desktop/native/audio-engine/` (CMakeLists.txt, fft.hpp, json.hpp, main.cpp, mpv_client.h, pcm_ring_buffer.cpp, pcm_ring_buffer.hpp, tests/test_pcm_tap.cpp).
   2. **mpv Patches & Build Scripts**: `patches/mpv-pcm-tap.patch`, `scripts/build-patched-mpv.sh`, `.github/workflows/build-patched-mpv.yml`, `scripts/mpv-build/` (build-linux.sh, build-macos.sh, build-windows.sh), `scripts/build-audio-engine.sh`.
-  3. **Multi-Platform Native Libraries**: `apps/desktop/resources/libmpv/` (343 items: darwin 3, win64 125, linux 214, README.md) and `apps/desktop2/src-tauri/lib/` (356 items, commit 3422224 baseline with System32 and Mesa/driver pruning).
-  4. **Assembly, Packaging & Test Scripts**: `apps/desktop/scripts/{build-audio-engine.js, fetch-libmpv.js, bundle-mpv-deps.js, test-audio-engine.js, package-desktop.js}`, `apps/desktop2/scripts/{build-audio-engine.js, fetch-libmpv.js, bundle-mpv-deps.js, test-audio-engine.js, package-desktop.js}`, `.github/workflows/test-audio-engine.yml`.
-- **Reference Tracking**: Documented all connection points across `apps/desktop/package.json`, `apps/desktop2/package.json`, `apps/desktop/electron-builder.yml`, `apps/desktop2/src-tauri/tauri.conf.json`, `apps/desktop2/src-tauri/build.rs`, `audio-engine-supervisor.ts`, `plugin-visualizer`, and the core `docs/` suite.
+  3. **Multi-Platform Native Libraries**: `apps/desktop/resources/libmpv/` (343 items: darwin 3, win64 125, linux 214, README.md) and `apps/desktop/src-tauri/lib/` (356 items, commit 3422224 baseline with System32 and Mesa/driver pruning).
+  4. **Assembly, Packaging & Test Scripts**: `apps/desktop/scripts/{build-audio-engine.js, fetch-libmpv.js, bundle-mpv-deps.js, test-audio-engine.js, package-desktop.js}`, `apps/desktop/scripts/{build-audio-engine.js, fetch-libmpv.js, bundle-mpv-deps.js, test-audio-engine.js, package-desktop.js}`, `.github/workflows/test-audio-engine.yml`.
+- **Reference Tracking**: Documented all connection points across `apps/desktop/package.json`, `apps/desktop/package.json`, `apps/desktop/electron-builder.yml`, `apps/desktop/src-tauri/tauri.conf.json`, `apps/desktop/src-tauri/build.rs`, `audio-engine-supervisor.ts`, `plugin-visualizer`, and the core `docs/` suite.
 
 ### 3. Binary MD5 Checksum Consistency Audit
-A 5-library cross-platform MD5 audit was conducted between `apps/desktop/resources/libmpv/` and `apps/desktop2/src-tauri/lib/`:
+A 5-library cross-platform MD5 audit was conducted between `apps/desktop/resources/libmpv/` and `apps/desktop/src-tauri/lib/`:
 - `darwin/libmpv.2.dylib`: `89e1859c95a988fdf47bb29da75ec660` (100% Match)
 - `linux/libmpv.so.2`: `dc746ce206c812a5bd84ac96531e7707` (100% Match)
 - `win64/libmpv-2.dll`: `6e18221ba07c050aeaa757c39708369a` (100% Match)
@@ -1426,17 +1426,17 @@ Local release package verification PASSED!
      }
      ```
 2. **Unified Fetch Script (`scripts/fetch-audio-engine.mjs`)**:
-   - Supports `--app <desktop|desktop2|mobile|all>`, `--target <dir>`, `--bin-dir <dir>`.
+   - Supports `--app <desktop|desktop|mobile|all>`, `--target <dir>`, `--bin-dir <dir>`.
    - Supports `--full-only`, `--slim-only`, and `AUDIO_ENGINE_VARIANT` env var.
    - Deploys dual executables side-by-side (`audio-engine` and `audio-engine-slim`).
    - SHA256 integrity verification against published `SHA256SUMS`.
    - Local fallback caching via `AUDIO_ENGINE_LOCAL_DIST` and `/home/revers/project/B_Be_Bee-audio-engine/dist`.
    - `--from-source <path>` escape hatch for local C++ source compilation.
 3. **Desktop Build Scripts**:
-   - `apps/desktop/scripts/build-audio-engine.js` and `apps/desktop2/scripts/build-audio-engine.js`:
+   - `apps/desktop/scripts/build-audio-engine.js` and `apps/desktop/scripts/build-audio-engine.js`:
      * Default behavior delegates to `fetch-audio-engine.mjs` for the corresponding app.
      * Retained `--from-source <path>` to compile from `<path>/engine` or `<path>/native/audio-engine`.
-   - `apps/desktop/scripts/fetch-libmpv.js` and `apps/desktop2/scripts/fetch-libmpv.js`:
+   - `apps/desktop/scripts/fetch-libmpv.js` and `apps/desktop/scripts/fetch-libmpv.js`:
      * Removed hardcoded dependencies on `resources/libmpv` and `src-tauri/lib`.
      * Prioritizes precompiled assets via `fetch-audio-engine.mjs` with graceful fallback to host system detection.
 4. **Mobile Native Pipeline**:
@@ -1445,7 +1445,7 @@ Local release package verification PASSED!
      * iOS: Links `BBeBeeAudioBridge.xcframework` into Xcode project.
    - Registered plugin in `apps/mobile/app.json`.
 5. **Git & ESLint Configuration**:
-   - Root `.gitignore`: Removed whitelist `!apps/desktop2/src-tauri/lib/README.md`; added `apps/desktop2/src-tauri/lib/`, `apps/desktop2/resources/libmpv/`, and `apps/mobile/third-party/audio-engine/`.
+   - Root `.gitignore`: Removed whitelist `!apps/desktop/src-tauri/lib/README.md`; added `apps/desktop/src-tauri/lib/`, `apps/desktop/resources/libmpv/`, and `apps/mobile/third-party/audio-engine/`.
    - `eslint.config.js`: Added `apps/mobile/plugins/**` to global `ignores` and `scripts/*.mjs` to `allowDefaultProject`.
 6. **Documentation Updates**:
    - Synchronized references across:
@@ -1459,7 +1459,7 @@ Following strict checklist review, all 365 tracked legacy files were removed usi
 - `scripts/build-patched-mpv.sh`: 1 file
 - `scripts/mpv-build/`: 3 files (`build-linux.sh`, `build-macos.sh`, `build-windows.sh`)
 - `apps/desktop/resources/libmpv/`: 343 files
-- `apps/desktop2/src-tauri/lib/`: 8 files
+- `apps/desktop/src-tauri/lib/`: 8 files
 - `.github/workflows/build-patched-mpv.yml`: 1 file
 - Total tracked files removed: **365 files** (~412 MB binary blobs eliminated from git tracking).
 
@@ -1468,16 +1468,16 @@ Following strict checklist review, all 365 tracked legacy files were removed usi
    - Command: `git ls-files | grep -E "resources/libmpv|src-tauri/lib|native/audio-engine|mpv-pcm-tap"`
    - Output: **0 matches** (Exit code 1).
 2. **Clean Artifact Fetch Gate**:
-   - Command: `node scripts/fetch-audio-engine.mjs --app desktop2`
-   - Result: Staged full and slim executables (`audio-engine` and `audio-engine-slim`) and dependency libraries into `apps/desktop2/bin/` and `apps/desktop2/resources/bin/`.
+   - Command: `node scripts/fetch-audio-engine.mjs --app desktop`
+   - Result: Staged full and slim executables (`audio-engine` and `audio-engine-slim`) and dependency libraries into `apps/desktop/bin/` and `apps/desktop/resources/bin/`.
 3. **Audio Engine Lifecycle & Supervision Gate**:
-   - Command: `node apps/desktop2/scripts/test-audio-engine.js`
+   - Command: `node apps/desktop/scripts/test-audio-engine.js`
    - Gate 1/4 CLI version: **PASSED** (`audio-engine 1.0.0 (libmpv WASAPI/Pulse Native Engine)`)
    - Gate 2/4 Stdio IPC lifecycle & ring buffer stats: **PASSED** (`mpvAvailable: true, pcmTapAvailable: true`)
    - Gate 3/4 Sidecar JSON-RPC supervision & audio devices: **PASSED** (2 output devices discovered)
    - Overall: **ALL AUDIO ENGINE GATES PASSED CLEANLY!**
 4. **PCM Tap & RingBuffer Concurrency Test Suite**:
-   - Command: `apps/desktop2/bin/audio-engine-tests`
+   - Command: `apps/desktop/bin/audio-engine-tests`
    - Result: **ALL 13 TESTS PASSED CLEANLY!**
 5. **Full Affected Workspace Quality Gate**:
    - Command: `pnpm check:changed`
@@ -1570,9 +1570,9 @@ Following strict checklist review, all 365 tracked legacy files were removed usi
 ### 3. 主仓库端到端联合验收
 1. **全平台资产分发测试**：
    - 命令：`node scripts/fetch-audio-engine.mjs --app all`
-   - 结果：desktop (`apps/desktop/bin`)、desktop2 (`apps/desktop2/bin`) 以及 mobile (`apps/mobile/third-party/audio-engine/{android,ios}`) 全部自动拉取并装配就绪。
+   - 结果：desktop (`apps/desktop/bin`)、desktop (`apps/desktop/bin`) 以及 mobile (`apps/mobile/third-party/audio-engine/{android,ios}`) 全部自动拉取并装配就绪。
 2. **桌面端 4-Gate 音频引擎测试**：
-   - 命令：`node apps/desktop2/scripts/test-audio-engine.js`
+   - 命令：`node apps/desktop/scripts/test-audio-engine.js`
    - 结果：**ALL AUDIO ENGINE GATES PASSED CLEANLY!**
 3. **移动端配置插件与测试**：
    - 命令：`pnpm check:changed`
@@ -1590,18 +1590,18 @@ Following strict checklist review, all 365 tracked legacy files were removed usi
 ## Group 8: Legacy Electron App Removal & Tauri Desktop Promotion
 
 ### 1. 架构目标与决策执行
-1. **Promote `apps/desktop2` -> `apps/desktop`**:
+1. **Promote `apps/desktop` -> `apps/desktop`**:
    - 彻底删除旧版 Electron 桌面应用容器 `apps/desktop`（通过 `git rm -r apps/desktop` 执行可恢复删除）；
-   - 将验证完善的现代化 Tauri v2 + Node.js Sidecar 桌面应用 `apps/desktop2` 重命名为 `apps/desktop`（通过 `git mv apps/desktop2 apps/desktop` 执行）；
+   - 将验证完善的现代化 Tauri v2 + Node.js Sidecar 桌面应用 `apps/desktop` 重命名为 `apps/desktop`（通过 `git mv apps/desktop apps/desktop` 执行）；
    - 包名统一：`apps/desktop/package.json` 中的包名从 `@BBeBee/desktop-tauri` 更新为标准 `@BBeBee/desktop`，保留根目录所有的 `pnpm dev:desktop`、`pnpm build:desktop`、`pnpm package:desktop` 契约不变。
 
 2. **路径与配置全面同步**:
-   - `apps/desktop/src-tauri/src/sidecar.rs`: 侧载服务脚本路径由 `apps/desktop2` 统一调整为 `apps/desktop`；
-   - `apps/desktop/src-tauri/.cargo/config.toml`: 动态库链接与 Rpath 路径由 `apps/desktop2/src-tauri/lib` 更新为 `apps/desktop/src-tauri/lib`；
-   - `apps/desktop/sidecar/audio/audio-engine-supervisor.ts` & `helpers.ts`: 移除所有过渡期的 `desktop2` 候选路径，统一指向 `apps/desktop/bin` 与 `apps/desktop/resources/bin`；
-   - `apps/desktop/scripts/`: `build-audio-engine.js`, `fetch-libmpv.js`, `package-desktop.js`, `test-audio-engine.js`, `bundle-mpv-deps.js` 全面移除 `desktop2` 历史路径；
-   - `scripts/fetch-audio-engine.mjs`: 统一默认目标为 `apps/desktop`，保留 `--app desktop2` 为兼容别名；
-   - `.gitignore`: 将所有 `apps/desktop2/` 忽略项迁移为 `apps/desktop/` 规范项。
+   - `apps/desktop/src-tauri/src/sidecar.rs`: 侧载服务脚本路径由 `apps/desktop` 统一调整为 `apps/desktop`；
+   - `apps/desktop/src-tauri/.cargo/config.toml`: 动态库链接与 Rpath 路径由 `apps/desktop/src-tauri/lib` 更新为 `apps/desktop/src-tauri/lib`；
+   - `apps/desktop/sidecar/audio/audio-engine-supervisor.ts` & `helpers.ts`: 移除所有过渡期的 `desktop` 候选路径，统一指向 `apps/desktop/bin` 与 `apps/desktop/resources/bin`；
+   - `apps/desktop/scripts/`: `build-audio-engine.js`, `fetch-libmpv.js`, `package-desktop.js`, `test-audio-engine.js`, `bundle-mpv-deps.js` 全面移除 `desktop` 历史路径；
+   - `scripts/fetch-audio-engine.mjs`: 统一默认目标为 `apps/desktop`，保留 `--app desktop` 为兼容别名；
+   - `.gitignore`: 将所有 `apps/desktop/` 忽略项迁移为 `apps/desktop/` 规范项。
 
 ---
 
