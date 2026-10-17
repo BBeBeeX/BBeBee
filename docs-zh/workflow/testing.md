@@ -93,13 +93,13 @@ pnpm check                   # typecheck + lint + test — should be green on a 
 
 | 命令 | 作用 | 需要什么 |
 |---|---|---|
-| `pnpm dev:desktop` | `electron-vite dev` —— main、preload 与 renderer 三处 HMR | Electron 二进制（由 `pnpm install` 抓取；首次安装需要网络） |
+| `pnpm dev:desktop` | `tauri dev` —— 基于 Vite 的渲染进程 HMR 与 Node.js sidecar 联合运行 | Tauri CLI (`cargo tauri dev`) 与 Node 22+ |
 | `pnpm build:desktop` | 产出生产包到 `apps/desktop/out/` | — |
 | `pnpm dev:mobile` | `expo start --dev-client` | 设备或模拟器上的**自定义 dev 构建** —— 见下 |
 
 > ⚠️ **移动端需要自定义 dev 构建，不能用 Expo Go。** `react-native-audio-api`、`expo-sqlite` 与 `expo-file-system` 都含原生代码，Expo Go 无法承载本应用。每变更一次原生依赖就构建一次 dev client（`pnpm --filter @BBeBee/mobile exec expo run:android`），之后 `pnpm dev:mobile` 会附着到它。
 
-> 💡 **桌面端应用打包：** `pnpm package:desktop` 打包出免安装应用程序文件夹，而 `pnpm dist:desktop` 则使用 `electron-builder`（`apps/desktop/electron-builder.yml`）生成平台安装包（dmg / nsis / AppImage）。移动端独立打包采用 EAS build。
+> 💡 **桌面端应用打包：** `pnpm package:desktop` 与 `pnpm dist:desktop` 运行 `apps/desktop/scripts/package-desktop.js` 装配 audio-engine 与 sidecar，并调用 Tauri (`tauri build`) 生成平台安装包（dmg / nsis / deb / AppImage）。移动端独立打包采用 EAS build。
 
 ### 新增插件
 
@@ -166,8 +166,8 @@ pnpm check                   # already green — the template ships passing test
 | 来自音源的 `CapabilityError: host … not allowed` | 规范见 [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas)（L2）；把该主机加入 `allowedHosts` 并重新导入，让用户看得见 ([sources/runtime.md §8](../sources/runtime.md#8-信任导入的源能做什么不能做什么)) |
 | 音源不返回任何结果，也没有报错 | 某条规则在字段本可为空的地方什么都没匹配到。测试界面会展示后端实际返回了什么 ([sources/authoring.md §10](../sources/authoring.md#10-诊断一个坏掉的源))；`check` 会赶在用户之前找到它 |
 | 音源中出现 `JsTimeoutError` | 某个 `@js:` 块在死循环，或在等待一个永不 resolve 的请求。限制按每次求值计，不能按音源配置 ([services/contracts.md §19](../services/contracts.md)) |
-| 渲染进程：*preload bridge 缺失* | 渲染进程加载时没有拿到 `preload/index.cjs` —— 重新构建，preload 必须是 CJS |
-| Electron 在无头机器上无法启动 | 预期行为。它需要 `libgtk-3`、`libnss3` 与显示器；产物本身仍可构建 |
+| 渲染进程：*desktop bridge IPC 连接失败* | 渲染进程无法连接到 Node.js sidecar 的 RPC 端口 —— 检查 sidecar 进程输出日志 |
+| Tauri 在无头机器上无法启动 | 预期行为。它需要图形库（如 WebKitGTK、libsoup）与显示器；无头 CI 环境构建仍可通过 |
 
 ### 提 PR 前的本地检查清单
 

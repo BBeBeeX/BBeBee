@@ -305,8 +305,8 @@ Diacritic folding is on deliberately: a user typing `bjork` must find `Björk`.
 > ⚠️ **`contentless_delete=1` is not optional.** A plain `content=''` table
 > rejects `DELETE` and `UPDATE` outright ("cannot DELETE from contentless fts5 table"), so a
 > renamed or removed track would keep its index row forever and searches would return stale hits
-> with no remedy short of a full rebuild. Requires SQLite ≥ 3.43, which both Node 22.12+ and
-> Electron 44 ship.
+> with no remedy short of a full rebuild. Requires SQLite ≥ 3.43, which both Node 22.12+ (in desktop sidecar)
+> and op-sqlite (on mobile) ship.
 >
 > Even with the flag, a **partial** `UPDATE` is refused — the whole row must be rewritten. Re-index
 > as `DELETE` + `INSERT` on the same rowid.

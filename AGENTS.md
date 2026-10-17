@@ -6,7 +6,7 @@ A distilled guide for AI programming assistants. It is an index and authority su
 
 ## 1. What this project is
 
-BBeBee is a cross-platform music player — Electron on desktop, Expo/React Native on mobile — built as a **plugin platform**, not an app with an extension API bolted on. The kernel is [Cordis](https://github.com/cordiverse/cordis) (DI + plugin lifecycle), and *everything above the kernel is a plugin*, including file I/O, networking, and persistence. Platform differences are absorbed by **swapping which implementation of a core service is loaded**, never by branching inside feature code.
+BBeBee is a cross-platform music player — Tauri v2 on desktop, Expo/React Native on mobile — built as a **plugin platform**, not an app with an extension API bolted on. The kernel is [Cordis](https://github.com/cordiverse/cordis) (DI + plugin lifecycle), and *everything above the kernel is a plugin*, including file I/O, networking, and persistence. Platform differences are absorbed by **swapping which implementation of a core service is loaded**, never by branching inside feature code.
 
 **Music sources are not plugins.** A source is a JSON document the user imports as text (a declarative rule-based document model applied to audio), interpreted by one built-in runtime (`plugin-source-runtime`) and sandboxed in its own QuickJS realm.
 
@@ -15,7 +15,7 @@ BBeBee is a cross-platform music player — Electron on desktop, Expo/React Nati
 Two invariants carry the whole design:
 
 > **1. No package outside `packages/core/*` may import a platform SDK.**
-> Not `expo-*`, not `react-native` native modules, not `electron`, not `node:*`.
+> Not `expo-*`, not `react-native` native modules, not `@tauri-apps/*`, not `node:*`.
 >
 > **2. No package above Layer 2 may drive the kernel.**
 > Feature and UI packages may be *typed* by `@BBeBee/kernel` (the pinned Cordis re-exports);
@@ -44,7 +44,7 @@ pnpm check:changed           # typecheck + lint + test on diff only
 | `pnpm lint` / `pnpm lint:fix`| ESLint, including the architectural layer rules |
 | `pnpm gen:plugins` | Regenerate `apps/mobile/generated/plugins.ts` and inspector manifests |
 | `pnpm new:plugin` | Scaffold a new plugin |
-| `pnpm dev:desktop` | Electron dev with HMR |
+| `pnpm dev:desktop` | Tauri dev with HMR |
 | `pnpm dev:mobile` | Expo dev client (**custom dev build**, not Expo Go) |
 
 ---

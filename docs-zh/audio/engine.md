@@ -21,7 +21,7 @@ flowchart LR
 
 ## 1. `ctx.audio` —— 引擎
 
-依据 [ADR-4](../architecture/overview.md#adr-4--react-native-audio-api-是所有目标平台上首要的播放与-dsp-引擎)，契约**就是** Web Audio API 本身。`react-native-audio-api` 在 iOS 与 Android 上实现了它，并为 Electron 渲染进程提供 web 构建，因此同一份音频图描述可以处处运行。
+依据 [ADR-4](../architecture/overview.md#adr-4--react-native-audio-api-是所有目标平台上首要的播放与-dsp-引擎)，契约**就是** Web Audio API 本身。`react-native-audio-api` 在 iOS 与 Android 上实现了它，桌面端 Webview 则使用标准 Web Audio API 实现，因此同一份音频图描述可以处处运行。
 
 ```ts
 import type { Uri, Disposable } from '@BBeBee/protocol'
@@ -120,12 +120,12 @@ flowchart LR
 - **`strategy: 'stream'`**：通过 `context.createMediaElementSource()` 挂载至媒体元素，保持内存占用恒定。
 - **解码回退 (Decode Fallback)**：当 `decodeAudioData()` 遇到无法解码的格式（`.m4a` 中的 ALAC、Hi-Res FLAC、带 ID3v2 头的 FLAC——报 `Unable to decode audio data`）时，`core-audio-webaudio` 降级到媒体元素——其解码覆盖面与 `decodeAudioData` 不同，ALAC 与 24-bit FLAC 均可播放。请求头通过播放器的 `stream.setHeaders` 按主机注册送达元素。
 - **桌面端原生高保真引擎 (`@BBeBee/core-audio-mpv`)**：
-  - **崩溃隔离原生独立可执行文件 (Crash Isolation & Standalone Executable)**：基于官方 libmpv 与编译生成的独立 native `audio-engine` 二进制可执行文件（`apps/desktop/bin/audio-engine` 或 `.exe`），采用标准 stdio JSON-IPC 与 Electron 主进程通信。任何底层驱动崩溃、音频设备热插拔异常或 native 信号错误均由独立进程隔离，由 `AudioEngineSupervisor` 自动监控并执行优雅自愈重连，保证主进程与渲染界面丝滑稳定。
+  - **崩溃隔离原生独立可执行文件 (Crash Isolation & Standalone Executable)**：基于官方 libmpv 与编译生成的独立 native `audio-engine` 二进制可执行文件（`audio-engine` 或 `.exe`），采用标准 stdio JSON-IPC 与桌面端 Node.js Sidecar 进程通信。任何底层驱动崩溃、音频设备热插拔异常或 native 信号错误均由独立进程隔离，由 `AudioEngineSupervisor`（位于 `apps/desktop/sidecar/audio`）自动监控并执行优雅自愈重连，保证界面丝滑稳定。
   - **PCM 不走 IPC 与系统音频直通 (Zero-IPC for PCM)**：音频解码后的高采样率 PCM 流在原生子进程内直接送入 mpv 自身的音频输出端点（Windows `ao=wasapi`、macOS `coreaudio`、Linux `pulse,alsa,pipewire`），严禁跨进程高带宽低效传输 PCM 原始数据。
   - **经 libavfilter 适配器的完整效果链**：每个内置效果（10 段 EQ、前级、压限器、限制器、响度归一、crossfeed、加宽、混响、变速变调）都在其 `EffectDefinition` 上声明可选的 `buildLavfi(params)` 适配器——每个效果一段 libavfilter 片段（`equalizer`/`lowshelf`/`highshelf`、`volume`、`acompressor`、`alimiter`、`crossfeed`、`extrastereo`、`aecho`、`rubberband`）。引擎按 ordinal 顺序遍历**已启用**的链，把片段串成一条 `af` 字符串（并追加 `astats` 抽头），在挂载时、`dsp/chain-changed` 时（200 ms 去抖——每次写 `af` mpv 都会重建滤镜链）推送；未声明适配器的效果记日志跳过。`FILE_LOADED` 读取 mpv 真实的 pause 标志而非假设，使抢先于加载器的 play（gapless 重绑定）保持状态簿记诚实。已用合成单音做端到端实证：+6 dB 频段增益在引擎自身 `astats` 抽头上实测 +6.00 dB，−40 dB 链路实测同幅衰减。
   - **无缝交接（append + 重绑定）**：`ctx.audio.preloadNext`（协议可选成员）在当前曲目播放期间把下一首追加进引擎内部播放列表（`loadfile append`）；播放列表边界处 mpv 在自身内部无缝前进，不重启解码器。播放器端 ended→load 往返随后**重绑定**到已在发声的文件：引擎将请求 uri 与当前 `path` 比较（不区分方案——mpv 会剥离 `file://`），且仅当文件不在 EOF（单曲循环重播必须从头开始）时，回复 `loaded` 并带 `resumed: true` 而非任何替换。不带位置参数的 `play()` 永不 seek，重绑定的曲目保持连续发声。播放器把该成员的**存在**视为接管声明：`preloadNext` 存在时只移交 src、**不再**加载第二个源——单解码核引擎上对下一首的第二次 `load` 等于 `loadfile replace`，会停掉仍在发声的当前曲目，并把引擎留在无人启动的暂停文件上。桌面壳层把该成员（及 `lastPreloadStatus`）从活动引擎转发出来，存在性检查因此能穿透包装器。
   - **原生设备查询**：输出设备枚举优先走 mpv 自身的 `audio-device-list`（原生设备名作为 id，`auto` 为系统默认），引擎无法应答时回退 Chromium 枚举 + 原生标签解析。mpv 命名空间的 id 直接转发给引擎；另一引擎命名空间的陈旧 id 仍可通过共享标签匹配路径工作。
-  - **构建与分发**：音频引擎与打好补丁的 libmpv 依赖库已独立剥离至单独公开仓库 [`BBeBeeX/B_Be_Bee-audio-engine`](https://github.com/BBeBeeX/B_Be_Bee-audio-engine)，由根目录 `audio-engine.version.json` 声明版本，并通过 `scripts/fetch-audio-engine.mjs` 自动下载与校验 SHA256 完整性（支持全量 Full 与轻量 Slim 双包方案，以及 `--from-source <path>` 本地编译逃生舱）。桌面端构建脚本（`apps/desktop/scripts/build-audio-engine.js` 与 `apps/desktop2/scripts/build-audio-engine.js`）统一将二进制与动态库 staged 到 `bin/` 与 `resources/bin/`。在 Linux 上，Release 产物已包含 libmpv 的完整传递依赖闭包 —— 引擎使用 `RTLD_NOW` 动态加载 libmpv，因此缺少任意一个 soname 都会导致所有原生功能静默失效。无 libmpv 的机器上引擎报告加载失败，渲染端降级到媒体元素（Chromium 解码）。完整查找顺序与降级矩阵见 [workflow/build-pipelines.md §4.1](../workflow/build-pipelines.md#41-原生音频引擎二进制)。
+  - **构建与分发**：音频引擎与打好补丁的 libmpv 依赖库已独立剥离至单独公开仓库 [`BBeBeeX/B_Be_Bee-audio-engine`](https://github.com/BBeBeeX/B_Be_Bee-audio-engine)，由根目录 `audio-engine.version.json` 声明版本，并通过 `scripts/fetch-audio-engine.mjs` 自动下载与校验 SHA256 完整性（支持全量 Full 与轻量 Slim 双包方案，以及 `--from-source <path>` 本地编译逃生舱）。开发者将对应平台的 `audio-engine` 二进制与动态库放置于根目录 `resources/<platform>/`（例如 `resources/linux/`、`resources/windows/`、`resources/macos/`），或通过 `scripts/fetch-audio-engine.mjs` 自动拉取。桌面端打包流水线（`apps/desktop/scripts/package-desktop.js`）在打包时自动将平台资源装配入 Tauri 交付安装包。在 Linux 上，Release 产物已包含 libmpv 的完整传递依赖闭包 —— 引擎使用 `RTLD_NOW` 动态加载 libmpv，因此缺少任意一个 soname 都会导致所有原生功能静默失效。无 libmpv 的机器上引擎报告加载失败，渲染端降级到媒体元素（Chromium 解码）。完整查找顺序与降级矩阵见 [workflow/build-pipelines.md §4.1](../workflow/build-pipelines.md#41-原生音频引擎二进制)。
   - **降级可见性与实时 PCM 解耦 (Degradation Visibility & Real-Time PCM Decoupling)**：引擎的 `ready` 消息携带 `mpvAvailable`，通过 `ctx.audio.getEngineStatus()`（桥接方法 `mpvEngineStatus`）暴露 —— 设置页面会显示明确的降级提示行，而不是静默假装原生引擎在运行。当加载了带有 `mpv_set_pcm_callback` 的自定义 mpv 构建时，真实 PCM 无缝流入 `PcmRingBuffer`。如果使用标准未补丁的 libmpv 或曲目降级到媒体元素，`MpvDynLib` 优雅回退到静音/零填充帧，不生成伪正弦/余弦波，确保零音频断流或驱动阻塞。
   - **统一 AudioAnalyser 与真实 PCM 可视化管线 (Unified AudioAnalyser & Real-PCM Visualizer Pipeline)**：频谱与波形由独立 native `audio-engine` 就地基于**真实 PCM** 计算（不是 `astats` 元数据）：
     - **双路独立 (Dual Independent Paths)**：libavfilter `astats` 元数据抽头（`@bbebee_astats:lavfi=[astats=metadata=1:reset=1]`）仅保留用于 RMS / Peak 电平遥测；频谱与波形生成完全解耦进真实 PCM 管线。
@@ -145,13 +145,13 @@ flowchart LR
 
   - **WebAudio**：标准 Web Audio 共享混音图。
   - **可选择的音频输出设备**：
-    - **系统硬件设备全量探测**：Electron 主进程通过授予 `'speaker-selection'` 与 `'media'` 权限解除 Chromium 设备标签屏蔽，并配合底层 OS 查询通道（Windows 注册表与 CIM MMDevices、macOS System Profiler、Linux pactl/aplay），精准获取当前系统中所有物理扬声器、耳机和外接 USB DAC 的真实友好名称（Friendly Name）。
+    - **系统硬件设备全量探测**：桌面端 Node.js Sidecar 配合底层 OS 查询通道（Windows 注册表与 CIM MMDevices、macOS System Profiler、Linux pactl/aplay），精准获取当前系统中所有物理扬声器、耳机和外接 USB DAC 的真实友好名称（Friendly Name）。
     - **驱动目的地实时锁定**：用户下拉选中目标设备后，系统将设备 ID 持久化至 `settings.audioOutputDeviceId`，并在应用启动及切换时驱动当前引擎重新路由——mpv 引擎优先走自身的 `audio-device-list`（见上），WebAudio 引擎经 `AudioContext.setSinkId` 与桥接原生设备解析双路路由（共享代码，两引擎不漂移）。
 - **发烧级无损音频格式与本地扫描器支持**：
   本地扫描器通过纯 JavaScript 的 `music-metadata` 栈读取标签与时长——整个产品不依赖任何外部解码器进程：
   - **ALAC 与 `.m4a`**：此前扫描器在遇到包含 ALAC 编码的 `.m4a` 文件时，因 Chromium 原生不支持而判定为非法编码并报错丢弃。现已通过在 `supportedFormats()` 注册 ALAC 并配合头解析，实现完整导入。
   - **更多无损格式**：`.ape` (Monkey's Audio)、`.wv` (WavPack)、`.dsf` / `.dff` (DSD 音频)、`.m4b`（有声书）现均已加入本地扫描器默认识别扩展名（`DEFAULT_EXTENSIONS`）与元数据解析（`core-codec-node`）。特殊容器的播放覆盖由 MPV 引擎（libmpv）承担；WebAudio 引擎播放 Chromium 能解码的格式。
-- **桌面端协议重写 (Desktop Scheme Rewriting)**：在 Electron Web 安全策略下，渲染进程对 `file://` URI 发起 `fetch()` 会被拦截。桌面端核心服务在请求或绑定到媒体元素前，会自动将 `file://` URL 重写为已注册的特权协议 `bbebee-file://`。
+- **桌面端协议重写 (Desktop Scheme Rewriting)**：在 Webview Web 安全策略下，渲染进程对原生 `file://` URI 发起 `fetch()` 会被限制。桌面端核心服务在请求或绑定到媒体元素前，会自动将 `file://` URL 重写为已注册的自定义协议 `bbebee-file://`（或 `asset://`）。
 
 ### 逃生通道
 

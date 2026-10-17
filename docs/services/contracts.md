@@ -87,12 +87,12 @@ export interface DownloadRequest extends HttpRequest {
 }
 ```
 
-| | Electron (`core-http-node`) | Expo (`core-http-rn`) |
+| | Desktop (`core-http-node`) | Expo (`core-http-rn`) |
 |---|---|---|
-| Backing | Electron `net` module in `main`, streamed to the renderer | React Native `fetch` / `XMLHttpRequest` |
-| CORS | Bypassed entirely — this is the reason it routes through `main` | Not applicable on native |
+| Backing | Node.js `fetch` / `undici` in sidecar, streamed via bridge | React Native `fetch` / `XMLHttpRequest` |
+| CORS | Bypassed entirely — this is the reason it routes through sidecar | Not applicable on native |
 | Arbitrary headers | ✅ `Origin`, `Referer`, `User-Agent`, `Cookie` all settable | ✅ |
-| Cookie jar | Chromium `Session` per `persist:` partition | RFC 6265 jar in JS, encrypted at rest |
+| Cookie jar | `MemoryJars` via `jarStore(ctx.secrets, ctx.fs)` | RFC 6265 jar in JS, encrypted at rest |
 | Proxy | ✅ System or configured | ⚠️ System proxy only |
 | Request journal (§2.2) | ✅ In-memory, capped, detail capture switchable | ❌ not yet implemented |
 
@@ -100,15 +100,9 @@ export interface DownloadRequest extends HttpRequest {
 and response caching are all plugins hooking `http/request` rather than features baked into the
 client ([architecture/layers.md §5](../architecture/layers.md#5-composition-how-features-reach-each-other)).
 
-**A `Referer` header is Chromium's referrer, not an ordinary header.** Electron's `net.fetch` maps
-it onto the URLRequest's referrer and validates it against the request's referrer policy before
-sending. A main-process request has no document to take that policy from, so the default
-`strict-origin-when-cross-origin` computes the origin alone for a cross-origin destination — and
-cancels the request outright (`ERR_BLOCKED_BY_CLIENT`, *"with invalid referrer"*) when the header
-says more, which is exactly the video-page URL a streaming CDN's hotlink check wants. The desktop
-bridge therefore sets `referrerPolicy: 'unsafe-url'` on every bridged request that carries an
-explicit `Referer`, so a source sends what it wrote
-(`core-desktop-bridge/src/main.ts`).
+**A `Referer` header is handled transparently in the sidecar.** Node's fetch stack in the sidecar
+allows arbitrary header override without browser sandbox constraints. The desktop bridge therefore
+passes all headers directly so a source sends what it wrote.
 
 ### 2.1 Cookie jars
 
@@ -177,11 +171,11 @@ Semantics both implementations must satisfy — the shared conformance suite (§
 - `clear()` removes the persisted copy, not just the in-memory one.
 - Jars are isolated: writes in one are invisible to another.
 
-| | Electron (`core-http-node`) | Expo (`core-http-rn`) |
+| | Desktop (`core-http-node`) | Expo (`core-http-rn`) |
 |---|---|---|
-| Storage | `session.fromPartition('persist:BBeBee-<name>')` — Chromium's own cookie store, on disk, with correct expiry/`Secure`/`SameSite` handling for free | RFC 6265 jar in JS, serialised to JSON |
-| At rest | Chromium encrypts the store with the OS keychain where one exists | **Envelope encryption**: a random AES key in `ctx.secrets`, ciphertext in the `cookie_jars` table ([data-model/schema.md §4.1](../data-model/schema.md#41-sources-accounts-and-sessions)) |
-| Clearing | `session.clearStorageData({ storages: ['cookies'] })` + partition removal | Row deleted, key deleted from `ctx.secrets` |
+| Storage | `MemoryJars` persisted via `jarStore(ctx.secrets, ctx.fs)` | RFC 6265 jar in JS, serialised to JSON |
+| At rest | Encrypted via `ctx.secrets` (`safeStorageCodec`) | **Envelope encryption**: a random AES key in `ctx.secrets`, ciphertext in the `cookie_jars` table ([data-model/schema.md §4.1](../data-model/schema.md#41-sources-accounts-and-sessions)) |
+| Clearing | `jar.clear()` + persisted key removal | Row deleted, key deleted from `ctx.secrets` |
 
 > ⚠️ **Why mobile does not simply put the jar in `ctx.secrets`.** `expo-secure-store` caps a value
 > at **2048 bytes**, and a real session jar — several cookies with long signed values — exceeds
@@ -264,7 +258,7 @@ export interface WsService {
 }
 ```
 
-Electron uses `ws` in `main` (which, unlike the renderer's `WebSocket`, can set headers — required
+Desktop uses `ws` in the Node.js sidecar (which, unlike the webview's `WebSocket`, can set headers — required
 by several music backends). React Native uses its built-in `WebSocket`, which also supports
 headers. Reconnection with backoff is a *consumer* concern, not built in.
 
@@ -338,11 +332,11 @@ export interface Migration {
 }
 ```
 
-| | Electron (`core-db-node`) | Expo (`core-db-expo`) |
+| | Desktop (`core-db-node`) | Expo (`core-db-expo`) |
 |---|---|---|
-| Backing | **`node:sqlite`** — ships with Node 22+, which Electron 44 bundles. No native rebuild, no `@electron/rebuild` on every upgrade | `expo-sqlite` |
+| Backing | **`node:sqlite`** — ships with Node 22+ in the sidecar. No native rebuild, no native rebuild tool needed on upgrade | `expo-sqlite` |
 | WAL | ✅ Enabled | ✅ Enabled |
-| Concurrency | Serialized through the `main` host | Serialized in the native module |
+| Concurrency | Serialized through the `sidecar` host | Serialized in the native module |
 | FTS5 | ✅ Available | ✅ Available |
 | Capability gate | ✅ | ✅ |
 
@@ -359,8 +353,8 @@ export interface Migration {
 > suites in §18 exist to catch, and why the `db-scope` suite must run on device and not only in
 > Node.
 
-Choosing `node:sqlite` removes the single most annoying maintenance burden in Electron projects —
-recompiling `better-sqlite3` against Electron headers on every version bump. Both platforms expose
+Choosing `node:sqlite` in the Node.js sidecar removes the single most annoying maintenance burden in desktop projects —
+recompiling native SQLite bindings against platform headers on every version bump. Both platforms expose
 FTS5, so local library search is one implementation
 ([data-model/schema.md §4.3](../data-model/schema.md#43-catalogue)).
 
@@ -383,10 +377,10 @@ export interface SecretsService {
 }
 ```
 
-Electron: `safeStorage.encryptString` (Keychain / DPAPI / libsecret) with ciphertext in a file
-under `userData`. Expo: `expo-secure-store` (Keychain / EncryptedSharedPreferences).
+Desktop: `safeStorageCodec` / AES-GCM (system keychain or DPAPI / secret service) with ciphertext in a file
+under `appData`. Expo: `expo-secure-store` (Keychain / EncryptedSharedPreferences).
 
-> ⚠️ On Linux without a running secret service, `safeStorage` falls back to plaintext.
+> ⚠️ On Linux without a running secret service, safe storage falls back to plaintext.
 > `isHardwareBacked` reports `false` and the UI says so rather than implying safety it lacks.
 
 **Tokens live here and nowhere else.** Never in `ctx.db`, never in the config file, never in a log
@@ -433,9 +427,9 @@ export interface MediaSessionService {
 }
 ```
 
-| | Electron (`core-media-session-electron`) | Expo (`core-media-session-rn`) |
+| | Desktop (`core-media-session-tauri`) | Expo (`core-media-session-rn`) |
 |---|---|---|
-| Backing | Chromium's `navigator.mediaSession`, plus MPRIS (Linux), SMTC (Windows), and the macOS Now Playing centre via `main` | `react-native-audio-api`'s notification/lock-screen controls |
+| Backing | Webview's `navigator.mediaSession`, plus MPRIS (Linux), SMTC (Windows), and macOS Now Playing centre via sidecar/bridge | `react-native-audio-api`'s notification/lock-screen controls |
 | Lock screen artwork | `artworkUrl` only | `artworkUri` only — remote artwork is cached first |
 
 **Artwork is two fields because the two surfaces can render different things.** Chromium's
@@ -464,7 +458,7 @@ export interface NotifyService {
 }
 ```
 
-Electron `Notification` (no permission prompt) versus `expo-notifications` (permission required on
+Desktop `Notification` (`@tauri-apps/plugin-notification` / HTML5 `Notification`) versus `expo-notifications` (permission required on
 both platforms; callers must handle `denied` without breaking).
 
 ---
@@ -489,7 +483,7 @@ export interface BackgroundService {
 }
 ```
 
-Electron: `powerSaveBlocker` plus plain intervals; `canRunInBackground()` is `true`.
+Desktop: Tauri window / power event listeners or sidecar intervals; `canRunInBackground()` is `true`.
 Expo: `expo-background-task` plus the audio session; `canRunInBackground()` is `true` only while
 audio holds the process.
 
@@ -623,7 +617,7 @@ export interface CodecService {
 }
 ```
 
-Electron: `music-metadata` in `main` for tags; Web Audio `decodeAudioData` for PCM, with an FFmpeg decode bridge (`audio.decodePcm`) for ALAC, 24/32-bit Hi-Res, and audiophile formats (APE, WavPack, DSF, DFF). Remote `http(s)` inputs carry the source's request headers (e.g. `Referer`) through `probe`/`decodePcm`; ffmpeg receives them as `-user_agent`/`-headers`.
+Desktop: `music-metadata` in the Node.js sidecar for tags; Web Audio `decodeAudioData` for PCM, with an FFmpeg decode bridge (`audio.decodePcm`) for ALAC, 24/32-bit Hi-Res, and audiophile formats (APE, WavPack, DSF, DFF). Remote `http(s)` inputs carry the source's request headers (e.g. `Referer`) through `probe`/`decodePcm`; ffmpeg receives them as `-user_agent`/`-headers`.
 Desktop also provides `transcode` via `core-codec-node` and the host IPC bridge (`audio:transcode`), executing system/embedded FFmpeg for lossless and lossy conversion (FLAC, MP3, AAC/M4A, Opus, WAV).
 Expo: `react-native-audio-api`'s `AudioDecoder` for PCM plus a native tag reader.
 
@@ -683,7 +677,7 @@ sandboxed renderer. Each has bitten real projects.
 | **`Symbol.asyncIterator`** | Used by async effect cleanup. Ensure the Babel preset does not downlevel it away |
 | **Node builtins** | `cordis` imports none. If a dependency of a *core* plugin does, it belongs in `main`, not the renderer, and never in the mobile bundle |
 | **`ReadableStream` / `WritableStream`** | Used by `ctx.fs` and `ctx.http`. Available in the renderer; on RN 0.86 verify presence and polyfill with `web-streams-polyfill` in the mobile entry if absent |
-| **`structuredClone`** | Used by the desktop IPC bridge. Available in Electron; not needed on mobile |
+| **`structuredClone`** | Used by the desktop IPC bridge. Available in Node 22+ & modern webview; not needed on mobile |
 | **A second JS engine** | `ctx.js` (§19) embeds QuickJS: a WASM build in the renderer, a native module on mobile. It is a native dependency, so mobile needs a dev-client rebuild when it lands, and the WASM asset must be bundled rather than fetched — the CSP forbids fetching it |
 
 ---
@@ -773,9 +767,9 @@ export class JsTimeoutError extends Error {}
 export class JsMemoryError extends Error {}
 ```
 
-| | Electron (`core-js-quickjs-node`) | Expo (QuickJS JSI via shell) |
+| | Desktop (`core-js-quickjs-node`) | Expo (QuickJS JSI via shell) |
 |---|---|---|
-| Backing | `quickjs-emscripten-core` with a single-file WASM variant, embedded in the renderer bundle | A QuickJS JSI module (`react-native-quick-js`) |
+| Backing | `quickjs-emscripten-core` with a single-file WASM variant, embedded in the webview bundle | A QuickJS JSI module (`react-native-quick-js`) |
 | Isolation | A separate WASM instance per realm | A separate `JSRuntime` per realm |
 | Interrupts | QuickJS interrupt handler, checked on backward jumps | Same |
 | Async | Host functions may return promises; the realm's job queue is driven by the host | Same |
@@ -859,7 +853,7 @@ export interface ThemeService {
 }
 ```
 
-| | Electron (Desktop DOM) | Expo (Mobile / Native) |
+| | Desktop (DOM) | Expo (Mobile / Native) |
 |---|---|---|
 | Backing | `@BBeBee/plugin-theme` with `applyThemeToDom` injecting CSS custom properties on `document.documentElement` | `@BBeBee/plugin-theme` emitting reactive theme snapshot for `StyleSheet` consumption |
 | Persistence | `ctx.store` key `theme_active_id` + custom themes under `theme_custom_themes` | `ctx.store` |
@@ -934,7 +928,7 @@ export interface NowPlayingService {
 }
 ```
 
-| | Electron (Desktop DOM) | Expo (Mobile / Native) |
+| | Desktop (DOM) | Expo (Mobile / Native) |
 |---|---|---|
 | Backing | `@BBeBee/plugin-now-playing` + `SandboxedLayout` (iframe `sandbox="allow-scripts"`, `origin: null`) | `@BBeBee/plugin-now-playing` (native layout switching) |
 | Persistence | `ctx.store` keys `now-playing.style` & `now-playing.custom-styles`, bi-directionally synced with `settings.nowPlayingStyle` | Same |
@@ -1052,7 +1046,7 @@ export interface ShareService {
 }
 ```
 
-| | Electron (Desktop) | Expo (Mobile) |
+| | Desktop | Expo (Mobile) |
 |---|---|---|
 | Headless service | `@BBeBee/plugin-share` | `@BBeBee/plugin-share` |
 | UI implementation | `@BBeBee/plugin-share-ui-desktop` | Planned (`plugin-share-ui-mobile`) |
@@ -1097,7 +1091,7 @@ export interface SettingsService {
 }
 ```
 
-| | Electron (Desktop) | Expo (Mobile) |
+| | Desktop | Expo (Mobile) |
 |---|---|---|
 | Headless service | `@BBeBee/plugin-settings` | `@BBeBee/plugin-settings` |
 | UI implementation | `@BBeBee/plugin-settings-ui-desktop` | `@BBeBee/plugin-settings-ui-mobile` |
@@ -1158,7 +1152,7 @@ export interface PluginManagerService {
 }
 ```
 
-| | Electron (Desktop) | Expo (Mobile) |
+| | Desktop | Expo (Mobile) |
 |---|---|---|
 | Headless service | `@BBeBee/plugin-manager` | `@BBeBee/plugin-manager` |
 | UI implementation | `@BBeBee/plugin-settings-ui-desktop` | Planned (`plugin-settings-ui-mobile`) |
@@ -1243,7 +1237,7 @@ export interface RegistryService {
 }
 ```
 
-| | Electron (Desktop) | Expo (Mobile) |
+| | Desktop | Expo (Mobile) |
 |---|---|---|
 | Headless service | `@BBeBee/plugin-registry` | `@BBeBee/plugin-registry` |
 | Persistence | `ctx.store` keys `registry.index-cache` (last good index, offline use), `registry.prefs` (endpoint override, `lastCheckAt`), `registry.audit-findings` / `registry.capability-mismatches` (diagnostics inputs) | Same |
@@ -1284,7 +1278,7 @@ export interface RegistryMetadataService {
 }
 ```
 
-| | Electron (Desktop) | Expo (Mobile) |
+| | Desktop | Expo (Mobile) |
 |---|---|---|
 | Headless service | `@BBeBee/plugin-registry-metadata` | Same |
 | Persistence | `ctx.store` key `registry-metadata.cache` (24 h TTL per `owner/repo`) | Same |
@@ -1464,7 +1458,7 @@ export interface AudioConverterService {
 }
 ```
 
-| | Electron (Desktop) | Expo (Mobile) |
+| | Desktop | Expo (Mobile) |
 |---|---|---|
 | Headless service | `@BBeBee/plugin-audio-converter` | `@BBeBee/plugin-audio-converter` |
 | Transcode Engine | `core-codec-node` via system/bundled FFmpeg | `core-codec-rn` |

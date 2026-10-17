@@ -151,12 +151,12 @@ Every plugin package across all layers (Core, Logs, Feature, UI) must carry a `B
   - 100% static bundling.
   - Metro requires statically analysable module paths.
   - `apps/mobile/src/boot.ts` loads exclusively from `bundled` emitted into `apps/mobile/generated/plugins.ts`.
-- **Desktop (Electron)**:
+- **Desktop (Tauri)**:
   - Fully dynamic loading architecture:
     - Built-in workspace plugins are discovered dynamically at startup via Vite glob imports (`getBuiltinPluginRegistry()`), eliminating static codegen.
     - External third-party plugins are loaded via the privileged `bbebee-plugin://` custom scheme (`loadExternalPluginRegistry()`).
-  - Main process (`apps/desktop/main/index.ts`) registers privileged custom scheme `bbebee-plugin://` serving from `userData/installed-plugins/` with path-containment protection.
-  - Preload bridge (`apps/desktop/preload/index.ts`) exposes typed `window.BBeBee.plugins`.
+  - Desktop host registers custom scheme `bbebee-plugin://` serving from `installed-plugins/` with path-containment protection.
+  - Desktop bridge exposes typed `window.BBeBee.plugins`.
   - Renderer dynamic loader (`apps/desktop/renderer/dynamic-loader.ts`) discovers installed plugins at startup and merges them into `compositeRegistry` in `boot.ts`.
   - Runtime management: `installAndActivatePlugin()` and `uninstallExternalPlugin()` (fiber disposed first, then files removed).
 - **Kernel (`@BBeBee/kernel`)**:

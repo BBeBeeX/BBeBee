@@ -406,7 +406,7 @@ export const usePosition = (ctx: Context) =>
 | **搜索** | 一个查询通过 `searchAll` 扇出到所有已选音源，每个源独立成展示块（[runtime.md §4.1](../sources/runtime.md#41-一个源的生命周期)） | 首次搜索前搜索条与接口开关居中为 Hero 态，提交后收缩至顶部，高度留给结果区。桌面端搜索亦可直接从顶部栏（TopBar）常驻交互输入框及其 2×2 矩阵面板触发。搜索界面（`sources.search`）接收传入的 `query` 参数并自动触发 `searchAll`。**按接口提供开关，而非按源** —— 拥有独立艺人搜索的后端会独立展示 `音源 · 单曲` 与 `音源 · 艺人`，选择以 `typesBySource` 传递给 `searchAll`。开关选择作为*排除项*存储，因此新导入的源会自动参与下一次搜索 —— 且失败、超时或无匹配的源保留其标题栏，而不是消失在合并列表中。桌面端结果按音源分组为独立卡片面板（`SourcePanel`），支持折叠展开与粘性吸顶头部（`position: sticky; top: 0`），面板内部支持垂直滚动（`maxHeight: min(520px, 60vh); overflowY: auto`），底部提供独立的“加载更多”分页加载；点击搜索单曲遵循单曲播放模式（`urns: [track.urn]`），队列仅包含并显示该单曲，不污染正在播放的队列；全面适配设计系统色彩管理。 |
 | **DSP 与均衡器** | 10 段图示均衡器，支持预设切换（平直、低音增强、人声、高音）、效果链重排、单个效果旁路开关与参数编辑（归一化、压限器、混响等）。作为 `dsp.view` 贡献。可直接从播放器或通过播放设置卡片中的操作按钮打开。 | 描述符在 `plugin-dsp-ui-*` 中。桌面端渲染带垂直滑块的专属视图；移动端提供触控友好的垂直滑块、胶囊选择器与完整链路导航 |
 | **设置中心** | 单页设置中心（`settings.view`）：纯文字标签栏（常规与语言、播放与音频、桌面歌词、全局快捷键、网络与代理、音源、存储与缓存、插件、关于），当前激活的标签在单一自然滚动的窗格中独占地渲染其分区组（互斥分区渲染；各分区携带 `section-<id>` 锚点）。常规与语言覆盖语言与外观；桌面歌词有行模式、对齐、字体、字号、颜色选择器、不透明度、实时预览；全局快捷键是主开关 + 10 组键位绑定；网络与代理有 HTTP/HTTPS/SOCKS5、Google 延迟测速、分源路由开关；存储与缓存展示目录徽标，带更改/打开文件夹按钮；插件有实时清单与 fiber 状态检视、搜索过滤、4 层折叠分组、依赖/被依赖图、带依赖确认的启用/禁用开关；关于有守护危险区的高级设置开关。 | 描述符在 `plugin-settings` 中，由 `plugin-settings-ui-*` 渲染。 |
-| **调试与诊断** | 专属诊断中心，包含三个视图：`debug.view`（调试状态、Node/Electron/OS/Chromium 环境规格）、`debug.logs`（实时环形缓冲区日志发现，带搜索、级别过滤、NDJSON 复制、清除）与 `debug.http-logs`（三方音源网络请求实时检查，包含请求方法、状态码徽标、延迟与 URL）。 | 描述符在 `plugin-settings` 中，视图在 `plugin-settings-ui-desktop` 中。 |
+| **调试与诊断** | 专属诊断中心，包含三个视图：`debug.view`（调试状态、Node/Tauri/OS/Webview 环境规格）、`debug.logs`（实时环形缓冲区日志发现，带搜索、级别过滤、NDJSON 复制、清除）与 `debug.http-logs`（三方音源网络请求实时检查，包含请求方法、状态码徽标、延迟与 URL）。 | 描述符在 `plugin-settings` 中，视图在 `plugin-settings-ui-desktop` 中。 |
 
 下载操作从**曲目行上的 ⬇ 控件**开始（`TrackRow.onDownload`，仅在加载了 `ctx.downloads` 时出现），位于曲库、专辑与搜索结果中。
 
@@ -537,7 +537,7 @@ export const usePosition = (ctx: Context) =>
 
 4. **安全性与封面路径解析**：
    - Chromium 会拦截渲染文档内的 `file://` 资源，产生 `ERR_UNKNOWN_URL_SCHEME` 安全违规。
-   - `plugin-mini-player` 中的 `resolveArtworkUri()` 自动将本地路径从 `file://` 转换为 Electron 的特权自定义协议 `bbebee-file://`。
+   - `plugin-mini-player` 中的 `resolveArtworkUri()` 自动将本地路径从 `file://` 转换为桌面端特权自定义协议 `bbebee-file://`。
    - `IslandArtwork` 采用匿名跨域加载（`crossOrigin="anonymous"`、`referrerPolicy="no-referrer"`），并在图像损坏或缺失时提供错误边界回退，显示清晰的矢量音符图标。
 
 5. **晶透暗色玻璃设计标准**：

@@ -118,7 +118,7 @@ are made independent, parallel, and cached rather than run as one serial chain:
 
 | Command | What it does | What it needs |
 |---|---|---|
-| `pnpm dev:desktop` | `electron-vite dev` — HMR across main, preload and renderer | The Electron binary (fetched by `pnpm install`; needs network on first install) |
+| `pnpm dev:desktop` | `tauri dev` — Vite dev server with HMR for renderer and Node.js sidecar | Tauri CLI (`cargo tauri dev`) and Node 22+ |
 | `pnpm build:desktop` | Production bundles into `apps/desktop/out/` | — |
 | `pnpm dev:mobile` | `expo start --dev-client` | A **custom dev build** on a device or emulator — see below |
 
@@ -127,9 +127,9 @@ are made independent, parallel, and cached rather than run as one serial chain:
 > once per native-dependency change (`pnpm --filter @BBeBee/mobile exec expo run:android`), then
 > `pnpm dev:mobile` attaches to it.
 
-> 💡 **Packaging Desktop App:** `pnpm package:desktop` packages an unpackaged application folder, while
-> `pnpm dist:desktop` uses `electron-builder` (`apps/desktop/electron-builder.yml`) to generate platform installers
-> (dmg / nsis / AppImage). Mobile standalone packaging uses EAS build.
+> 💡 **Packaging Desktop App:** `pnpm package:desktop` and `pnpm dist:desktop` run `apps/desktop/scripts/package-desktop.js`
+> to assemble the audio-engine and sidecar, then call Tauri (`tauri build`) to generate platform installers
+> (dmg / nsis / deb / AppImage). Mobile standalone packaging uses EAS build.
 
 ### Adding a plugin
 
@@ -205,8 +205,8 @@ than a typo:
 | `CapabilityError: host … not allowed` from a source | see the spec at [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas) (L2); add the host and re-import so the user sees it ([sources/runtime.md §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)) |
 | A source returns nothing, with no error | A rule matched nothing where the field was optional. The test screen shows what the backend actually answered ([sources/authoring.md §10](../sources/authoring.md#10-diagnosing-a-broken-source)); `check` finds it before a user does |
 | `JsTimeoutError` in a source | An `@js:` block looped, or awaited a request that never resolved. Limits are per evaluation and not configurable per source ([services/contracts.md §19](../services/contracts.md)) |
-| Renderer: *preload bridge is missing* | The renderer loaded without `preload/index.cjs` — rebuild, since preload must be CJS |
-| Electron will not launch on a headless machine | Expected. It needs `libgtk-3`, `libnss3` and a display; the bundles still build |
+| Renderer: *desktop bridge IPC connection failed* | The renderer failed to connect to the Node.js sidecar RPC port — check sidecar process logs |
+| Tauri will not launch on a headless machine | Expected. It needs display libraries (e.g. WebKitGTK / libsoup) and a display; headless CI builds pass without running GUI |
 
 ### Local checklist before opening a PR
 

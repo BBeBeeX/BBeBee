@@ -265,7 +265,7 @@ CREATE INDEX idx_tracks_fts_map_urn ON tracks_fts_map(urn);
 > ⚠️ **`contentless_delete=1` 不是可选项。** 纯 `content=''` 的表会直接拒绝 `DELETE` 和
 > `UPDATE`（"cannot DELETE from contentless fts5 table"），于是一条被改名或删除的曲目会永远
 > 留在索引里，搜索将返回过期结果，除了整表重建之外无药可救。要求 SQLite ≥ 3.43，
-> Node 22.12+ 与 Electron 44 自带的版本都满足。
+> 桌面端 Node 22.12+（Sidecar 内置）与移动端 op-sqlite 自带的版本均满足。
 >
 > 即便加了这个开关，**部分列的** `UPDATE` 依然被拒 —— 必须整行重写。请以同一 rowid 上的
 > `DELETE` + `INSERT` 来重新索引。

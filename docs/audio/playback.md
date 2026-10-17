@@ -274,9 +274,9 @@ Third-party music sources do not always deliver streams in the container format 
   via Chromium's internal FFmpeg media element decoder, keeping the `chainInput` DSP graph fully
   intact without aborting playback.
 - **Desktop local audio scheme (`bbebee-file://`)**:
-  Standard Electron renderers disallow renderer `fetch()` and media loading from raw `file://` URLs
-  under Chromium web security rules (`bridge: refusing to fetch bbebee-file://`). The desktop main
-  process registers the custom privileged scheme `bbebee-file://` to securely stream and buffer
+  Standard desktop webviews disallow renderer `fetch()` and media loading from raw `file://` URLs
+  under modern web security rules (`bridge: refusing to fetch file://`). The desktop host
+  registers the custom privileged scheme `bbebee-file://` to securely stream and buffer
   local music files directly from disk.
 
 ### Stream preferences

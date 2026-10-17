@@ -200,7 +200,7 @@ Layout templates, settings integration and the track-info modal: see [docs/ui/de
 ### 9.2 Sandboxed External Plugin Dynamic Import (Option B)
 External developers can create custom HTML/CSS/JS player skins and users can dynamically import them. The security boundary is a hard constraint:
 
-- **Strict Iframe Sandbox Isolation**: rendered with `<iframe sandbox="allow-scripts" />` — `allow-same-origin` is strictly omitted, resulting in `origin: null`. This completely blocks access to the host DOM, `parent.window`, cookies, local storage, the Electron/Node runtime, and arbitrary network/filesystem access.
+- **Strict Iframe Sandbox Isolation**: rendered with `<iframe sandbox="allow-scripts" />` — `allow-same-origin` is strictly omitted, resulting in `origin: null`. This completely blocks access to the host DOM, `parent.window`, cookies, local storage, the desktop host/Node runtime, and arbitrary network/filesystem access.
 - **Strict Data Whitelist (`SandboxPlayerSnapshot`)**: the host only pushes a sanitized, read-only playback snapshot via `postMessage` (`{ type: 'NOW_PLAYING_SNAPSHOT', payload }`), with exactly these fields: `cover` (local file URIs are automatically projected to `bbebee-file://` to prevent Chromium local origin blocks), `coverThemeColor`, `title`, `artist`, `album`, `lyrics` (synchronized `{ timeMs, text, translation }[]` plus `activeIndex`), `positionMs`, `durationMs`, `isPlaying`, `isLoved`.
 - **Strict Action Whitelist (`SandboxPlayerAction`)**: sandboxed scripts may only emit whitelisted actions back to the host — `action:play`, `action:pause`, `action:togglePlay`, `action:previous`, `action:next`, `action:seek` (with `positionMs`), `action:toggleFavorite`. The host validates all incoming messages before calling transport services.
 - **Injected Client SDK (`window.BBeBeePlayer`)**: the iframe host automatically injects a lightweight SDK bridge via `buildSandboxedHtml` (injecting into `<head>` for full HTML documents or wrapping HTML fragments):
@@ -256,5 +256,5 @@ Badge visuals, the pagination formula and original-resource resolution details: 
 > Menu registration and URL resolution details: see [docs/ui/design-system.md §13.3](../docs/ui/design-system.md#133-context-menu-open-original-resource--safe-external-navigation) (L3). Platform Invariant 1 is preserved here:
 
 - **Platform Invariant 1 Preservation (`openExternalUrl`)**:
-  - UI packages must NEVER import Electron or platform SDKs.
+  - UI packages must NEVER import platform SDKs (such as `@tauri-apps/*`, `expo-*`, `react-native` native modules).
   - `openExternalUrl(url)` calls `window.BBeBee?.shell?.openExternal(url)` if present, gracefully falling back to `window.open(url, '_blank')`.

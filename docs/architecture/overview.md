@@ -84,7 +84,7 @@ Stated explicitly, because each of these would change the architecture if reintr
 |---|---|---|---|---|
 | iOS | Expo / React Native | Hermes | The app's single JS context | React Native |
 | Android | Expo / React Native | Hermes | The app's single JS context | React Native |
-| Desktop (macOS / Windows / Linux) | Electron | V8, renderer process | The **renderer** | React DOM |
+| Desktop (macOS / Windows / Linux) | Tauri v2 | Webview (WebKit / WebView2), Node.js Sidecar | The **Webview renderer** | React DOM |
 
 Mobile requires a **custom development build** (`expo-dev-client`), not Expo Go, because
 `react-native-audio-api` and several core-service modules contain native code. This is stated up
@@ -143,7 +143,7 @@ own reasons.
 renderer-agnostic **descriptors** (a route, a slot filling, a command, a settings page) and ship
 view implementations per target in separate packages.
 
-**Rejected — universal React Native Web.** One UI codebase, and Electron would render the same
+**Rejected — universal React Native Web.** One UI codebase, and desktop would render the same
 bundle. Cheaper by roughly half. Rejected because a desktop music player's expected interactions —
 a resizable multi-column library, right-click context menus, drag-to-reorder queues, keyboard
 navigation, native window chrome, a tray mini-player — are exactly the things react-native-web
@@ -154,31 +154,32 @@ must be kept in sync. Two navigation systems. A discipline problem: it is now *p
 logic in a view, and the architecture must actively prevent it
 ([ui/architecture.md §4](../ui/architecture.md#4-binding-services-to-react)).
 
-### ADR-3 — The Electron kernel lives in the renderer; `main` is a thin native host
+### ADR-3 — The desktop kernel lives in the webview renderer; the native host and Node.js sidecar are thin capability hosts
 
-**Decision.** The Cordis context is created in the renderer process. The `main` process owns Node
-and the OS, exposes a narrow capability-scoped surface through a `contextBridge` preload, and
-contains **no business logic**. Core service plugins on desktop are thin clients over that IPC
-surface.
+**Decision.** The Cordis context is created in the webview renderer process. The Tauri host (Rust) owns
+native OS windowing, tray, and dialogs, while the Node.js Sidecar owns Node runtime capabilities
+(such as direct filesystem, SQLite, and managing the native `audio-engine` child process). Both expose
+narrow, capability-scoped IPC surfaces (Tauri commands and Sidecar JSON-RPC IPC), and contain
+**no business logic**. Core service plugins on desktop are thin clients over those IPC surfaces.
 
-**Rejected — split kernel (services in main, UI kernel in renderer).** Would let downloads and
+**Rejected — split kernel (services in host/sidecar, UI kernel in renderer).** Would let downloads and
 playback survive the window closing. Rejected because it introduces a serialization boundary and
 a remote-service proxy layer that has no counterpart on mobile, meaning the plugin graph would
 differ per platform — the exact thing this architecture exists to avoid.
 
-**Rejected — kernel in main only.** Maximum divergence from mobile; UI plugins could not share
+**Rejected — kernel in host only.** Maximum divergence from mobile; UI plugins could not share
 the kernel at all.
 
-**Consequence.** Desktop and mobile both have exactly one JS runtime hosting exactly one context.
+**Consequence.** Desktop and mobile both have exactly one JS runtime hosting the primary Cordis context.
 A feature plugin cannot tell which platform it is on. The price is that desktop background work
-is tied to the renderer's lifetime — mitigated by close-to-tray rather than by architecture.
+is tied to the webview's lifetime — mitigated by close-to-tray rather than by architecture.
 See [layers.md §4](./layers.md#4-what-background-means).
 
 ### ADR-4 — `react-native-audio-api` is the primary playback and DSP engine on every target
 
 **Decision.** The `ctx.audio` service contract is the **Web Audio API**. On iOS and Android it is
-satisfied by `react-native-audio-api`; in the Electron renderer, by the same package's web
-implementation (or the browser's native Web Audio — they are the same interface).
+satisfied by `react-native-audio-api`; in the desktop webview, by the browser's native Web Audio API
+(or the same package's web implementation — they are the same interface).
 
 This is the decision that makes the DSP requirement tractable. Without it, "audio effects on
 mobile" means writing native DSP twice. With it, a ten-band equalizer is one `BiquadFilterNode`

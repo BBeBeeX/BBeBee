@@ -106,17 +106,17 @@ export interface FsService {
 }
 ```
 
-| | Electron (`core-fs-node`) | Expo (`core-fs-expo`) |
+| | 桌面端 (`core-fs-tauri`) | Expo (`core-fs-expo`) |
 |---|---|---|
-| 底层实现 | `node:fs/promises` 运行在 `main`，经 IPC 流式传输 | `expo-file-system` 的 `File` / `Directory` 类 |
-| `dir('music')` | `app.getPath('music')` | ⚠️ 无对应物 —— 返回 `undefined`，调用方必须回退到 `pickDirectory()` |
-| `watch` | `fs.watch`，可靠 | ⚠️ 不支持。解析为一个空操作 disposer；扫描器回退为轮询 `mtime` |
-| `pickDirectory` | `dialog.showOpenDialog` | Storage Access Framework（Android）/ document picker（iOS） |
+| 底层实现 | Node.js Sidecar `node:fs/promises`，经 JSON-RPC IPC 传输 | `expo-file-system` 的 `File` / `Directory` 类 |
+| `dir('music')` | Tauri OS 路径 API / Sidecar `os.homedir()` | ⚠️ 无对应物 —— 返回 `undefined`，调用方必须回退到 `pickDirectory()` |
+| `watch` | Node.js Sidecar `fs.watch`，可靠 | ⚠️ 不支持。解析为一个空操作 disposer；扫描器回退为轮询 `mtime` |
+| `pickDirectory` | `@tauri-apps/plugin-dialog` `open()` | Storage Access Framework（Android）/ document picker（iOS） |
 
 > ⚠️ **整个抽象中最大的泄漏点。** 在 Android 上，用户选择的文件夹是一个
 > `content://` SAF 树 URI，而不是路径：它无法交给原生音频解码器，且其权限必须在重启之后仍然保留。
 > `core-fs-expo` 会持久化该授权，并暴露 `fs.toPlayableUri(uri)` 供 `ctx.audio` 使用；在 iOS 与桌面端，它就是恒等函数。
-> 扫描器（[06](../sources/spec.md)）正是针对 `list`/`stat` 编写的，因此对此毫不在意。
+> 扫描器（[06](../sources/spec.md）正是针对 `list`/`stat` 编写的，因此对此毫不在意。
 
 ### 1.1 目录枚举与 Windows 连接点 (Junction Points)
 
@@ -124,7 +124,7 @@ export interface FsService {
 
 为防止递归扫描器（如 `plugin-local-scanner`）遍历受限系统连接点或陷入循环软链接：
 - `FsNode.list()` 使用 `fsp.opendir()` 预先探测目录软链接（`entry.isSymbolicLink() && s.isDirectory()`）。如果打开失败，则跳过该条目，避免将其作为可遍历目录返回。
-- `core-desktop-bridge` 在 `CH.call` 上对所有 IPC 调用进行信封封装（`BridgeEnvelope`）。若操作失败，错误将在跨 Bridge 传输并在渲染进程中反序列化，而不是直接 reject `ipcMain.handle`，从而避免 Electron 内部处理程序将未捕获的堆栈错误直接倾倒至主进程控制台。
+- 桌面端 JSON-RPC IPC 对所有 Sidecar 调用进行信封封装（`BridgeEnvelope`）。若操作失败，错误将在跨进程传输并在 Webview 渲染进程中反序列化，而不是直接抛出崩溃，从而保证 Sidecar 与 UI 渲染进程的健壮性。
 
 ---
 

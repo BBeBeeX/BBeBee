@@ -42,13 +42,19 @@ B_Be_Bee/
 │   │   ├── metro.config.js                    package exports + watchFolders ([build-pipelines.md §4](./build-pipelines.md#4-构建流水线))
 │   │   ├── babel.config.js
 │   │   └── android/ · ios/                    dev-client 原生工程
-│   └── desktop/                    ✅        Electron app
-│       ├── main/                              仅 IPC 宿主，不含领域逻辑 ([architecture/layers.md §2](../architecture/layers.md#2-各平台的运行时模型))
-│       ├── preload/                           contextBridge 暴露面
+│   └── desktop/                    ✅        Tauri v2 app
+│       ├── src-tauri/                         Tauri Rust 宿主（原生窗口、系统集成、托盘）
+│       ├── sidecar/                           Node.js 无头 sidecar（文件系统、子进程隔离、音频引擎守护）
 │       ├── renderer/                          React DOM 外壳 + 内核 (ADR-3)
 │       │   ├── boot.ts · plugins.ts             组合根 + 允许清单
 │       │   └── main.tsx · Shell.tsx             挂载 + 窗口装饰
-│       └── electron.vite.config.ts
+│       ├── scripts/                           构建、打包编排与音频引擎测试脚本
+│       └── vite.config.ts
+├── resources/                                🔹 开发者平台原生音频引擎资源目录
+│   ├── linux/                                 Linux audio-engine 与 libmpv.so.2 依赖闭包
+│   ├── macos/                                 macOS audio-engine 与 libmpv.2.dylib
+│   ├── windows/                               Windows audio-engine.exe 与 libmpv-2.dll
+│   └── README.md
 │
 ├── packages/
 │   │
@@ -76,7 +82,7 @@ B_Be_Bee/
 │   │           ├── config/                   解析、启用/禁用、默认值
 │   │           ├── loader/                   注册表 → ctx.plugin()，fiber 状态上报
 │   │           ├── capability-gate/          作用域划分与 SQL 守卫 ([plugins/capabilities.md §7](../plugins/capabilities.md#7-能力模型))。sql.ts 与
-│   │           │                             apps/desktop/main 共享，因此一份允许清单
+│   │           │                             apps/desktop/sidecar 共享，因此一份允许清单
 │   │           │                             同时覆盖被闸的路径与 IPC 宿主
 │   │           ├── migrations/               核心 schema 迁移 ([data-model/migrations.md](../data-model/migrations.md))
 │   │           │                             ── 以及不属于任何单一关注点的：
@@ -96,17 +102,17 @@ B_Be_Bee/
 │   │   ├── core-db-node/           ✅        ctx.db —— node:sqlite / expo-sqlite ([services/contracts.md §3](../services/contracts.md))
 │   │   ├── core-db-expo/           ✅
 │   │   ├── core-store-fs/          ✅        ctx.store —— 单一实现，经 ctx.fs ([services/contracts.md §4](../services/contracts.md))
-│   │   ├── core-http-node/         ✅        ctx.http —— 传输层是一条接缝：桌面端用
-│   │   ├── core-http-rn/           ✅          Electron 的 net 填上，移动端用 expo/fetch
+│   │   ├── core-http-node/         ✅        ctx.http —— 传输层是一条接缝：桌面端经由
+│   │   ├── core-http-rn/           ✅          bridge/fetch，移动端用 expo/fetch
 │   │   ├── core-secrets-node/      ✅        ctx.secrets。⚠️ 名字带 -node 却不分平台：它
-│   │   │                                       经由 ctx.fs 持久化，因此在 Electron
+│   │   │                                       经由 ctx.fs 持久化，因此在桌面端
 │   │   │                                       被沙箱化的渲染进程里也能加载
 │   │   ├── core-secrets-expo/      ✅
-│   │   ├── core-device-electron/   ✅        ctx.device —— 网络、电量、媒体键
+│   │   ├── core-device-tauri/      ✅        ctx.device —— 网络、电量、媒体键
 │   │   ├── core-device-expo/       ✅
-│   │   ├── core-background-electron/ ✅      ctx.background —— wake lock、挂起
+│   │   ├── core-background-tauri/  ✅        ctx.background —— wake lock、挂起
 │   │   ├── core-background-expo/   ✅
-│   │   ├── core-media-session-electron/ ✅   ctx.mediaSession —— OS 的"正在播放"表面
+│   │   ├── core-media-session-tauri/ ✅      ctx.mediaSession —— OS 的"正在播放"表面
 │   │   ├── core-media-session-rn/  ✅
 │   │   ├── core-codec-node/        ✅        ctx.codec —— 标签：经 ctx.fs 用
 │   │   ├── core-codec-rn/          ✅          music-metadata 读取；-rn 再加上设备的解码器
@@ -114,7 +120,7 @@ B_Be_Bee/
 │   │   ├── core-audio-mpv/         ✅        ctx.audio —— 桌面端原生 libmpv 后端
 │   │   ├── core-js-quickjs-node/   ✅        ctx.js —— 音源沙箱 ([services/contracts.md §19](../services/contracts.md))
 │   │   ├── core-js-quickjs-expo/             ⚠️ 唯一的 M2 缺口：Hermes 没有 WASM
-│   │   ├── core-desktop-bridge/    ✅        renderer↔main IPC 客户端 + main 侧宿主。
+│   │   ├── core-desktop-bridge/    ✅        renderer↔sidecar JSON-RPC IPC 客户端 + sidecar 宿主。
 │   │   │                                       进程边界两侧都是 Layer 2
 │   │   └── core-…                            ctx.ws · ctx.notify · ctx.crypto · ctx.shell
 │   │
@@ -200,7 +206,7 @@ B_Be_Bee/
 │   │   ├── plugin-local-scanner-ui-mobile/  ✅ ┘
 │   │   ├── plugin-inspector-ui-desktop/ ✅   渲染出来的 fiber 树
 │   │   ├── plugin-lyrics-ui-desktop/ ✅      播放详情页右侧歌词面板，平滑滚动高亮与点击跳转
-│   │   ├── plugin-desktop-lyrics-ui-desktop/ ✅ 底部栏桌面歌词按钮与原生 Electron 独立窗口 IPC 适配器
+│   │   ├── plugin-desktop-lyrics-ui-desktop/ ✅ 底部栏桌面歌词按钮与原生 Tauri 独立窗口 IPC 适配器
 │   │   ├── plugin-visualizer-ui-desktop/ ✅  音频可视化画布与设置配置面板
 │   │   ├── plugin-mini-player-ui-desktop/ ✅ 桌面端浮动迷你播放器与灵动岛次级窗口
 │   │   ├── plugin-share-ui-desktop/   ✅     ┐ 分享卡片导出与图片隐写弹窗
@@ -477,9 +483,9 @@ export default tseslint.config(
     },
   },
   {
-    // architecture/layers.md §2 — main is an IPC host. Domain logic there breaks platform symmetry,
+    // architecture/layers.md §2 — sidecar is an IPC host. Domain logic there breaks platform symmetry,
     // and it would put Layer 4 concerns below Layer 2.
-    files: ['apps/desktop/main/**/*.ts'],
+    files: ['apps/desktop/sidecar/**/*.ts'],
     rules: { 'no-restricted-imports': ['error', { patterns: ['@BBeBee/plugin-*'] }] },
   },
   {

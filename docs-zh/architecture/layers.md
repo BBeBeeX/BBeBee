@@ -113,7 +113,7 @@ flowchart TD
     subgraph L0["Layer 0 — @BBeBee/protocol (zero runtime)"]
         P["service interfaces · entity types · event map · constants"]
     end
-    SYS["Platform SDKs · OS<br/>expo-* · node:* · electron"]
+    SYS["Platform SDKs · OS<br/>expo-* · node:* · @tauri-apps/*"]
 
     L5 -.->|"service keys, at runtime"| L4
     L5 -.->|"ctx.logger, at runtime"| L3
@@ -166,7 +166,7 @@ flowchart TD
 
 **依赖倒置原则（DIP）。** 高层模块不依赖低层模块；二者都依赖抽象。在这里，抽象就是 Layer 0，而倒置在构建图里清晰可见：`plugin-player` 依赖 `@BBeBee/protocol`，`core-db-expo` 也依赖 `@BBeBee/protocol`，谁也不依赖谁。更换 SQLite 实现，只是改 `boot.ts` 里的一行。
 
-**单一职责原则（SRP）。** 每一层回答一类问题 —— *契约是什么*（0）、*任何东西如何加载与卸载*（1）、*这个平台怎么做*（2）、*产品做什么*（3）、*用户看见并触摸什么*（4）—— 且层内的每个包恰好拥有一个服务键或一项功能。当一个改动需要同时修改两层时，接缝通常画在了错误的高度上；常设的反例就是爬进 Electron `main` 的领域逻辑，[§2](#桌面端) 正是为此而拒绝它。
+**单一职责原则（SRP）。** 每一层回答一类问题 —— *契约是什么*（0）、*任何东西如何加载与卸载*（1）、*这个平台怎么做*（2）、*产品做什么*（3）、*用户看见并触摸什么*（4）—— 且层内的每个包恰好拥有一个服务键或一项功能。当一个改动需要同时修改两层时，接缝通常画在了错误的高度上；常设的反例就是爬进桌面宿主 / sidecar 的领域逻辑，[§2](#桌面端) 正是为此而拒绝它。
 
 **接口隔离原则（ISP）。** Layer 0 定义许多小的服务接口，而不是一整块平台门面，因此 `inject: ['fs']` 带来的就只有文件系统访问，别无其他。于是插件的 `inject` 列表就成了对其波及范围的一句诚实、可评审的陈述，而能力门（[plugins/capabilities.md §7](../plugins/capabilities.md#7-能力模型)）在此之上进一步收窄。
 
@@ -220,44 +220,44 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    subgraph Renderer["Renderer process — single JS context"]
+    subgraph Renderer["Webview 渲染进程 —— 单一 JS context"]
         KD["@BBeBee/kernel<br/>Cordis Context"]
-        CD["core-*-node plugins<br/>(thin IPC clients)"]
-        FD["feature plugins"]
+        CD["core-*-tauri 与 bridge 插件<br/>(IPC 客户端)"]
+        FD["feature 插件"]
         UD["React DOM shell"]
         KD --- CD
         KD --- FD
         KD --- UD
     end
-    PRE["preload<br/>contextBridge · capability-scoped surface"]
-    subgraph Main["Main process — thin native host, no business logic"]
+    subgraph TauriApp["Tauri 原生宿主 (Rust)"]
+        T1["window · tray · autoupdate"]
+        T2["plugin-notification · plugin-os"]
+    end
+    subgraph Sidecar["Node.js Sidecar —— 极薄原生宿主，无业务逻辑"]
         H1["fs host"]
         H2["http host"]
         H3["sqlite host — node:sqlite"]
-        H4["secrets host — safeStorage"]
-        H5["window · tray · autoupdate"]
+        H4["secrets host — safeStorageCodec"]
+        H5["audio-engine supervisor"]
     end
-    CD -->|window.BBeBee.*| PRE
-    PRE -->|ipcRenderer.invoke| Main
+    CD -->|Tauri IPC / invoke| TauriApp
+    CD -->|JSON-RPC IPC / HTTP| Sidecar
+    Sidecar -->|IPC stdio| AE["audio-engine (C++ / libmpv)"]
     FD -->|Web Audio| WA["renderer audio graph"]
 ```
 
-最关键的属性：**`main` 进程不含任何业务逻辑。** 它不知道"曲目"是什么。它的处理器都是机械操作——"读这些字节"、"跑这条 SQL"、"发这个 HTTP 请求"——而且每一个都恰好对应移动端的一个 Expo 模块。如果某个功能需要在 `main` 里写逻辑，那就是服务契约画在了错误高度上的信号。
+最关键的属性：**Tauri 原生宿主与 Node.js sidecar 均不含任何业务逻辑。** 它们不知道"曲目"是什么。它们的处理器都是机械操作——"读这些字节"、"跑这条 SQL"、"发这个 HTTP 请求"、"管理 audio-engine 进程"——而且每一个都恰好对应移动端的一个 Expo 模块。如果某个功能需要在宿主里写业务逻辑，那就是服务契约画在了错误高度上的信号。
 
-有两件事经由 `main` 中转，理由值得说明：
+有两件事经由 sidecar / 宿主中转，理由值得说明：
 
-- **HTTP。** 并不是因为渲染进程无法发起请求，而是渲染进程里的 `fetch` 受 CORS 约束，无法设置 `Origin`、`Referer`、`Cookie` 或自定义 `User-Agent`，而音乐后端几乎总是要求这四者。经由 `main` 还能获得真正的 cookie jar 与代理支持。
-- **本地媒体与外部动态插件。** 主进程注册了两个特权 scheme：
-  `bbebee-file://`（跨沙箱边界提供受路径约束与流式传输支持的本地音频及封面文件）与
-  `bbebee-plugin://`（从 `userData/installed-plugins/` 提供外部第三方桌面端插件）。
-  工作区内置插件则通过 Vite glob 导入（`getBuiltinPluginRegistry()`）动态发现，在桌面端彻底免除了静态代码生成，同时维持严格的 CSP（[loading.md §6.2](../plugins/loading.md#62-桌面端动态加载--plugin-loader-dynamic)）。
-  不受信任的源规则以**源字符串**形式到达，严格在 `ctx.js` 沙箱内运行，绝不在渲染进程 realm 执行（[runtime.md §8](../sources/runtime.md#8-信任导入的源能做什么不能做什么)）。
+- **HTTP。** 并不是因为渲染进程无法发起请求，而是渲染进程里的 `fetch` 受 CORS 约束，无法设置 `Origin`、`Referer`、`Cookie` 或自定义 `User-Agent`，而音乐后端几乎总是要求这四者。经由 sidecar 还能获得真正的 cookie jar 与代理支持。
+- **本地媒体与外部动态插件。** 宿主注册了特权协议以在路径约束沙箱下跨边界流式提供本地音频与封面。工作区内置插件则通过 Vite glob 导入（`getBuiltinPluginRegistry()`）动态发现，在桌面端彻底免除了静态代码生成，同时维持严格的 CSP（[loading.md §6.2](../plugins/loading.md#62-桌面端动态加载--plugin-loader-dynamic)）。不受信任的源规则以**源字符串**形式到达，严格在 `ctx.js` 沙箱内运行，绝不在渲染进程 realm 执行（[runtime.md §8](../sources/runtime.md#8-信任导入的源能做什么不能做什么)）。
 
 ### 桌面端的进程与安全姿态
 
-渲染进程采用 `contextIsolation: true`、`nodeIntegration: false`、`sandbox: true`。preload 暴露 `window.BBeBee` 与 `window.BBeBeeBridge` 对象，其方法都带有能力（capability）标记；内核按插件逐一包装它们（[capabilities.md §7](../plugins/capabilities.md#7-能力模型)）。应用源（origin）使用严格的 CSP。
+采用 Tauri v2 webview 隔离，原生能力通过 Tauri 配置精准限定。Webview 与 Node.js sidecar 之间通过带有 IPC Token 鉴权保护的本地回环端口进行能力限定的 JSON-RPC 通信。内核按插件逐一包装它们（[capabilities.md §7](../plugins/capabilities.md#7-能力模型)）。应用源（origin）使用严格的 CSP。
 
-在这条底线之上，唯一的例外令牌是 `'wasm-unsafe-eval'`，它是为 `ctx.js` 而存在的。Chromium 把 `WebAssembly.instantiate` 卡在 `script-src` 上，因此没有它 QuickJS 就无法编译，渲染进程会在核心服务清单处中止。它只授予 WebAssembly 的编译权，**此外什么都不给**：`eval` 与 `new Function` 依旧被拒绝——这正是选用这个狭窄令牌、而不选同样能让 WASM 跑起来的 `'unsafe-eval'` 的原因。这笔交易是：为一个内部没有任何宿主对象图的 realm 换来一个编译器（[services/contracts.md §19](../services/contracts.md)），而这正是整个音源模型所依赖的方向。
+在这条底线之上，唯一的例外令牌是 `'wasm-unsafe-eval'`，它是为 `ctx.js` 而存在的。Chromium/Webview 把 `WebAssembly.instantiate` 卡在 `script-src` 上，因此没有它 QuickJS 就无法编译，渲染进程会在核心服务清单处中止。它只授予 WebAssembly 的编译权，**此外什么都不给**：`eval` 与 `new Function` 依旧被拒绝——这正是选用这个狭窄令牌、而不选同样能让 WASM 跑起来的 `'unsafe-eval'` 的原因。这笔交易是：为一个内部没有任何宿主对象图的 realm 换来一个编译器（[services/contracts.md §19](../services/contracts.md)），而这正是整个音源模型所依赖的方向。
 
 ---
 
@@ -297,7 +297,7 @@ sequenceDiagram
 - **没有人给插件列表排顺序。** `loadPlugins()` 通过 `Promise.all` 并发实例化所有启用的插件。Cordis 把每条 fiber 保持为 `PENDING`，直到其 `inject` 里点名的服务全部就绪，再转为 `ACTIVE`。依赖成环的结果只是两个插件都永远不会激活——这是一个可诊断的状态，而不是崩溃。
 - **外壳等待的是一个服务，而不是计时器。** `apps/*` 在 `ctx.inject(['ui'], …)` 内部挂载 React 树，因此 UI 不可能先于它所读取的注册表渲染出来。
 - **非关键插件延后启动。** 首屏非必须的插件（扫描器、下载、分享、可视化、睡眠定时器、历史记录等）移至首帧渲染后，在空闲回调（`requestIdleCallback`）中通过 `app.loadPlugin()` 异步补充加载，避免启动竞争。
-- **桌面端建窗建桥并行与感知优化。** Electron 主进程的 `createWindow()` 提前至 `createHost()` 前并发执行，并在 `index.html` 内置纯 CSS 启动画面配合 `show: false` + `ready-to-show`，彻底杜绝纯黑闪屏。
+- **桌面端建窗建桥并行与感知优化。** Tauri 窗口创建提前至 `createHost()` 前并发执行，并在 `index.html` 内置纯 CSS 启动画面配合 webview 优雅显示，彻底杜绝闪屏，实现 sidecar 与渲染进程并发引导。
 - **启动是可重入的。** 由于卸载插件会销毁它的 fiber 及其注册的一切，配置变更就可以在运行时拆掉并重建任意子树。这与开发期热重载用的是同一套机制。
 
 ### 引导插件集
@@ -312,9 +312,9 @@ sequenceDiagram
 | `ctx.db` | `core-db-expo` | `DbBridge`（`@BBeBee/core-desktop-bridge`）/ `core-db-node` |
 | `ctx.http` | `core-http-rn`（含 WebSocket） | `core-http-node`（配合 `bridgeFetch` 与 WebSocket） |
 | `ctx.secrets` | `core-secrets-expo` | `core-secrets-node`（配合 `safeStorageCodec`） |
-| `ctx.mediaSession` | `core-media-session-rn` | `core-media-session-electron` |
-| `ctx.background` | `core-background-expo` | `core-background-electron` |
-| `ctx.device` | `core-device-expo` | `core-device-electron` |
+| `ctx.mediaSession` | `core-media-session-rn` | `core-media-session-tauri` |
+| `ctx.background` | `core-background-expo` | `core-background-tauri` |
+| `ctx.device` | `core-device-expo` | `core-device-tauri` |
 | `ctx.codec` | `core-codec-rn` | `core-codec-node` |
 | `ctx.js` | 内置 / 开发中 | `core-js-quickjs-node` |
 | `ctx.audio` | `MobileAudioService`（`core-audio-webaudio`, `core-audio-mpv`） | `DesktopAudioService`（`core-audio-mpv`, `core-audio-webaudio`） |

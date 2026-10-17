@@ -446,7 +446,7 @@ Domain behaviours that stay with their owners even after the move:
 - **About & Advanced Settings (Diagnostics Guard)**: the one domain the settings screen keeps hardcoding (it is the settings service's own page): app metadata, the "Advanced settings" diagnostics guard housing Developer Diagnostics (`debug.view`, `debug.logs`, `debug.http-logs`), and the Danger Zone (settings reset).
 
 ### 7.3 Diagnostics System
-- `debug.view`: Debug mode indicator, environment specs (Node, Electron, OS, Chromium, paths), and quick links to log screens.
+- `debug.view`: Debug mode indicator, environment specs (Node, Tauri, OS, Webview, paths), and quick links to log screens.
 - `debug.logs`: Live ring-buffer logs (`ctx.logBuffer`) with level filters and search; the full buffer copies to the clipboard as NDJSON (Copy all logs), and Clear logs clears it — there is no file-export action (`LogsScreen.tsx`).
 - `debug.http-logs`: Outgoing HTTP requests from third-party music sources, detailing method, status code, latency, and URL.
 

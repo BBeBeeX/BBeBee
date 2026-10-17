@@ -114,12 +114,12 @@ export interface FsService {
 }
 ```
 
-| | Electron (`core-fs-node`) | Expo (`core-fs-expo`) |
+| | Desktop (`core-fs-tauri`) | Expo (`core-fs-expo`) |
 |---|---|---|
-| Backing | `node:fs/promises` in `main`, streamed over IPC | `expo-file-system` `File` / `Directory` classes |
-| `dir('music')` | `app.getPath('music')` | ⚠️ No equivalent — returns `null` and callers must fall back to `pickDirectory()` |
-| `watch` | `fs.watch`, reliable | ⚠️ Not supported. Resolves to a no-op disposer; the scanner falls back to polling `mtime` |
-| `pickDirectory` | `dialog.showOpenDialog` | Storage Access Framework (Android) / document picker (iOS) |
+| Backing | Node.js sidecar `node:fs/promises`, streamed over JSON-RPC IPC | `expo-file-system` `File` / `Directory` classes |
+| `dir('music')` | Tauri OS paths / sidecar `os.homedir()` | ⚠️ No equivalent — returns `null` and callers must fall back to `pickDirectory()` |
+| `watch` | Node.js sidecar `fs.watch`, reliable | ⚠️ Not supported. Resolves to a no-op disposer; the scanner falls back to polling `mtime` |
+| `pickDirectory` | `@tauri-apps/plugin-dialog` `open()` | Storage Access Framework (Android) / document picker (iOS) |
 
 > ⚠️ **The biggest leak in the whole abstraction.** On Android, a user-picked folder is a
 > `content://` SAF tree URI, not a path: it cannot be handed to a native audio decoder, and its
@@ -134,7 +134,7 @@ On Windows, backwards-compatibility NTFS junction points (such as `Documents\My 
 
 To prevent recursive walkers (e.g. `plugin-local-scanner`) from attempting to traverse restricted system junctions or cyclic directory links:
 - `FsNode.list()` probes directory symlinks (`entry.isSymbolicLink() && s.isDirectory()`) using `fsp.opendir()`. If opening fails, the entry is skipped rather than reported as a traversable directory.
-- `core-desktop-bridge` envelopes all IPC calls on `CH.call` (`BridgeEnvelope`). If an operation fails, the error is serialized across the bridge and deserialized in the renderer rather than rejecting `ipcMain.handle`, preventing Electron's internal handler from dumping unhandled stack traces to the main-process console.
+- Desktop JSON-RPC IPC envelopes all sidecar calls (`BridgeEnvelope`). If an operation fails, the error is serialized across the bridge and deserialized in the renderer rather than crashing the sidecar or dumping unhandled stack traces.
 
 ---
 

@@ -6,7 +6,7 @@
 > honest accounting of what could go wrong.
 
 The sequencing principle: **prove the riskiest architectural claim as early as possible.** The
-claim that one plugin graph runs unmodified on Hermes and in an Electron renderer is either true
+claim that one plugin graph runs unmodified on Hermes and in the desktop webview renderer is either true
 or the project needs redesigning, and it is cheap to test in week one and ruinous to discover in
 month six. So M0 is deliberately unglamorous — no music plays until M1.
 
@@ -23,7 +23,7 @@ and render its contributed view. The conformance harness and the leak test from
 
 **Exit criteria**
 - The same plugin package loads and activates on an iOS simulator, an Android emulator, and
-  Electron, with no conditional code in the plugin.
+  desktop, with no conditional code in the plugin.
 - `pnpm test` runs the `fs`, `db`, and `store` conformance suites green against all
   implementations, on device for the Expo ones.
 - Disabling a plugin restores the context snapshot exactly.
@@ -75,7 +75,7 @@ mobile, `@tanstack/react-virtual` on desktop, the latter publishing `aria-setsiz
 stays invisible to a screen reader rather than catastrophic for one.
 
 Still open, and every one of them needs hardware: **the Stage 0 spike has not been run** on an iOS
-device, an Android device, or in Electron, so ADR-4's verdict below is still a hypothesis; the
+device, an Android device, or on desktop, so ADR-4's verdict below is still a hypothesis; the
 device smoke matrix has not been run; and **`load({ strategy: 'stream' })` has no mobile
 implementation** — React Native has no `HTMLMediaElement`, so a long remote track is buffered or
 not played, which is the gap `StreamerNode` closes and the one piece of M1 that is architecture
@@ -394,7 +394,7 @@ subsystem. If demand appears, it is a milestone; if it does not, nothing was spe
 
 ### 🟡 Version drift across two large frameworks
 
-Expo SDK bumps move React Native and React together; Electron bumps move Node and V8. They will
+Expo SDK bumps move React Native and React together; Tauri / desktop runtime bumps move the webview and Node runtime. They will
 not stay aligned on React versions on their own.
 
 *Mitigation* — React and React Native are pinned to what Expo SDK 57 dictates, and the desktop

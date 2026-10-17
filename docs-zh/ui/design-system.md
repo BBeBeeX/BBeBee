@@ -357,7 +357,7 @@ export const tokens = {
 - **关于与高级设置（诊断防护门）**：这是设置页唯一保留硬编码的域（它是设置服务自己的页面）：应用元数据、收容开发者诊断（`debug.view`、`debug.logs`、`debug.http-logs`）的"高级设置"防护门，以及危险区（设置重置）。
 
 ### 7.3 诊断系统
-- `debug.view`：调试模式指示器、环境规格（Node、Electron、OS、Chromium、路径），以及指向各日志页面的快捷入口。
+- `debug.view`：调试模式指示器、环境规格（Node、Tauri、OS、Webview、路径），以及指向各日志页面的快捷入口。
 - `debug.logs`：实时环形缓冲区日志（`ctx.logBuffer`），带级别过滤与搜索；完整缓冲区以 NDJSON 复制到剪贴板（复制全量日志），清空日志则清空缓冲 —— 没有文件导出动作（`LogsScreen.tsx`）。
 - `debug.http-logs`：三方音源发出的 HTTP 请求，详列方法、状态码、延迟与 URL。
 

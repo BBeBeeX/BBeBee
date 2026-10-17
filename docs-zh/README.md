@@ -1,6 +1,6 @@
 # BBeBee —— 架构文档
 
-BBeBee 是一款跨平台音乐播放器，面向桌面端（Electron）与移动端（Expo / React Native），它被构建为一个**插件平台**，而不是一个"外挂了扩展 API 的应用"。其内核是 [Cordis](https://github.com/cordiverse/cordis) —— 一个依赖注入与插件生命周期框架 —— 而*内核之上的一切都是插件*，包括文件 I/O、网络与持久化。平台差异通过"换装哪一份核心服务实现"来吸收，而不是在功能代码内部写条件分支。
+BBeBee 是一款跨平台音乐播放器，面向桌面端（Tauri v2）与移动端（Expo / React Native），它被构建为一个**插件平台**，而不是一个"外挂了扩展 API 的应用"。其内核是 [Cordis](https://github.com/cordiverse/cordis) —— 一个依赖注入与插件生命周期框架 —— 而*内核之上的一切都是插件*，包括文件 I/O、网络与持久化。平台差异通过"换装哪一份核心服务实现"来吸收，而不是在功能代码内部写条件分支。
 
 **音源不是插件。** 源（source）是一份由用户以文本形式导入的 JSON 文档 —— 声明式规则驱动的音频源模型 —— 由唯一一个内置运行时解释，并被沙箱化在它自己的 JS realm 之中。添加一个后端是一次粘贴，而不是一次发版（[ADR-5](./architecture/overview.md#adr-5--音源是导入的字符串由一个运行时解释)、[sources/spec.md](./sources/spec.md)）。
 
@@ -13,7 +13,7 @@ BBeBee 是一款跨平台音乐播放器，面向桌面端（Electron）与移�
 ```bash
 pnpm install     # pnpm 11+, Node 22.12+
 pnpm check       # typecheck + lint + test — green on a clean checkout
-pnpm dev:desktop # Electron, with HMR across main, preload and renderer
+pnpm dev:desktop # 桌面端开发（Tauri v2 + Vite HMR + Node.js sidecar）
 ```
 
 > **构建规则。** 桌面端携带一个 native 音频引擎二进制（libmpv 后端），`dev` 不会自动构建它；
@@ -33,7 +33,7 @@ pnpm dev:desktop # Electron, with HMR across main, preload and renderer
 | 主题分类 | 文档路径 | 核心内容 |
 |---|---|---|
 | **核心架构** | [architecture/overview.md](./architecture/overview.md) | 项目愿景、边界界定与五大 ADR 关键技术决策 |
-| | [architecture/layers.md](./architecture/layers.md) | 六层架构模型、跨端运行时模型（Electron/Hermes）与启动时序 |
+| | [architecture/layers.md](./architecture/layers.md) | 六层架构模型、跨端运行时模型（Tauri/Hermes）与启动时序 |
 | **插件系统** | [plugins/concepts.md](./plugins/concepts.md) | 插件定义形态、元数据字段、Fiber 生命周期与依赖注入 |
 | | [plugins/isolation.md](./plugins/isolation.md) | 核心服务访问、析构清理捕获、`ctx.isolate` 隔离与 `ctx.intercept` 拦截 |
 | | [plugins/loading.md](./plugins/loading.md) | 动态按需加载机制 (`load: () => import(...)`)、清单格式与注册表 |
@@ -57,7 +57,7 @@ pnpm dev:desktop # Electron, with HMR across main, preload and renderer
 | **UI 架构** | [ui/architecture.md](./ui/architecture.md) | 三包代码结构规范、Descriptor 描述符系统、React 服务绑定与多端外壳 |
 | | [ui/design-system.md](./ui/design-system.md) | 深色流媒体视觉语言、无边框高度层级、设计 Token 字典与 WCAG AA 对比度 |
 | **工程规范** | [workflow/structure.md](./workflow/structure.md) | Monorepo 目录布局、分层治理规则、Import 导入矩阵与 ESLint 架构守卫 |
-| | [workflow/build-pipelines.md](./workflow/build-pipelines.md) | 构建流水线（`tsc`, `vite`, `electron-builder`, `expo`）与依赖版本矩阵 |
+| | [workflow/build-pipelines.md](./workflow/build-pipelines.md) | 构建流水线（`tsc`, `vite`, `tauri`, `expo`）与依赖版本矩阵 |
 | | [workflow/testing.md](./workflow/testing.md) | 测试策略（单元、契约、Fiber 泄漏测试）与日常开发工作流命令 |
 | **路线图** | [roadmap/roadmap.md](./roadmap/roadmap.md) | 里程碑阶段规划（M0 至 M5）验收准则、风险登记册与架构假设检验 |
 | | [roadmap/archive-m1.md](./roadmap/archive-m1.md) | M1 阶段执行计划历史档案与验收验证记录 |
@@ -102,7 +102,7 @@ pnpm dev:desktop # Electron, with HMR across main, preload and renderer
 
 ## 一段话版本
 
-一个 Cordis `Context` 被创建在应用的唯一 JavaScript 运行时之中 —— 移动端是 Hermes，桌面端是 Electron 渲染进程。这个上下文就是 **Layer 1**，即内核。**Layer 2** 是一小撮认领服务键（`ctx.fs`、`ctx.http`、`ctx.db`、`ctx.js`……）的**核心插件**，每个键在每个目标平台上各有一份实现 —— 它们是仅有的可以触碰平台 SDK 或驱动内核的代码（规范见 [rules/services.md §1](../rules/services.md#1-core-services-philosophy)（L2），本节只讲原理与用法）。在它们之上是 **Layer 3**，三个订阅 `ctx.logger` 并决定一行日志最终落在哪里的日志传输（log transport）；再往上，**Layer 4** 的功能插件提供播放、DSP、下载、媒体库与音源，而 **Layer 5** —— 各外壳与视图包 —— 把这些变成页面。它们之中没有任何一方可以越过 Layer 2 直接触达平台，也没有任何一方可以越过 Layer 3 直写控制台。所有契约 —— 服务接口、实体类型与类型化事件表 —— 都位于 **Layer 0**，即那个不含运行时的单一包 `@BBeBee/protocol`，其余每一层都依赖它，它也正是让实现可以互换的那道接缝。功能之间通过 Cordis 的**瀑布（waterfall）钩子**组合，例如下载插件可以透明地把流 URL 替换成本地文件，而播放器根本不知道下载的存在。**音源位于这一切之外**：它们是被导入的文档，以行的形式存放，由 `plugin-source-runtime` 解释，并通过本地文件插件所实现的同一个提供方接口呈现给应用的其余部分 —— 因此 `ctx.sources` 之上的任何东西都分辨不出一首曲目来自哪里。
+一个 Cordis `Context` 被创建在应用的唯一 JavaScript 运行时之中 —— 移动端是 Hermes，桌面端是 Tauri Webview 渲染进程。这个上下文就是 **Layer 1**，即内核。**Layer 2** 是一小撮认领服务键（`ctx.fs`、`ctx.http`、`ctx.db`、`ctx.js`……）的**核心插件**，每个键在每个目标平台上各有一份实现 —— 它们是仅有的可以触碰平台 SDK 或驱动内核的代码（规范见 [rules/services.md §1](../rules/services.md#1-core-services-philosophy)（L2），本节只讲原理与用法）。在它们之上是 **Layer 3**，三个订阅 `ctx.logger` 并决定一行日志最终落在哪里的日志传输（log transport）；再往上，**Layer 4** 的功能插件提供播放、DSP、下载、媒体库与音源，而 **Layer 5** —— 各外壳与视图包 —— 把这些变成页面。它们之中没有任何一方可以越过 Layer 2 直接触达平台，也没有任何一方可以越过 Layer 3 直写控制台。所有契约 —— 服务接口、实体类型与类型化事件表 —— 都位于 **Layer 0**，即那个不含运行时的单一包 `@BBeBee/protocol`，其余每一层都依赖它，它也正是让实现可以互换的那道接缝。功能之间通过 Cordis 的**瀑布（waterfall）钩子**组合，例如下载插件可以透明地把流 URL 替换成本地文件，而播放器根本不知道下载的存在。**音源位于这一切之外**：它们是被导入的文档，以行的形式存放，由 `plugin-source-runtime` 解释，并通过本地文件插件所实现的同一个提供方接口呈现给应用的其余部分 —— 因此 `ctx.sources` 之上的任何东西都分辨不出一首曲目来自哪里。
 
 ---
 

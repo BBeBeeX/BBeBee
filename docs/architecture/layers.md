@@ -132,7 +132,7 @@ flowchart TD
     subgraph L0["Layer 0 — @BBeBee/protocol (zero runtime)"]
         P["service interfaces · entity types · event map · constants"]
     end
-    SYS["Platform SDKs · OS<br/>expo-* · node:* · electron"]
+    SYS["Platform SDKs · OS<br/>expo-* · node:* · @tauri-apps/*"]
 
     L5 -.->|"service keys, at runtime"| L4
     L5 -.->|"ctx.logger, at runtime"| L3
@@ -221,7 +221,7 @@ contract* (0), *how does anything load and unload* (1), *how does this platform 
 does the product do* (3), *what does the user see and touch* (4) — and each package within a layer
 owns exactly one service key or one feature. When a change needs edits in two layers at once, the
 seam is usually drawn at the wrong altitude; the standing example is domain logic creeping into
-Electron's `main`, which [§2](#desktop) rejects for this reason.
+the desktop host / sidecar, which [§2](#desktop) rejects for this reason.
 
 **Interface Segregation Principle (ISP).** Layer 0 defines many small service interfaces rather
 than one platform façade, so `inject: ['fs']` pulls in filesystem access and nothing else. A
@@ -287,54 +287,51 @@ boundary and no RPC.
 
 ```mermaid
 flowchart LR
-    subgraph Renderer["Renderer process — single JS context"]
+    subgraph Renderer["Webview renderer — single JS context"]
         KD["@BBeBee/kernel<br/>Cordis Context"]
-        CD["core-*-node plugins<br/>(thin IPC clients)"]
+        CD["core-*-tauri & bridge plugins<br/>(IPC clients)"]
         FD["feature plugins"]
         UD["React DOM shell"]
         KD --- CD
         KD --- FD
         KD --- UD
     end
-    PRE["preload<br/>contextBridge · capability-scoped surface"]
-    subgraph Main["Main process — thin native host, no business logic"]
+    subgraph TauriApp["Tauri Native Host (Rust)"]
+        T1["window · tray · autoupdate"]
+        T2["plugin-notification · plugin-os"]
+    end
+    subgraph Sidecar["Node.js Sidecar — thin native host, no business logic"]
         H1["fs host"]
         H2["http host"]
         H3["sqlite host — node:sqlite"]
-        H4["secrets host — safeStorage"]
-        H5["window · tray · autoupdate"]
+        H4["secrets host — safeStorageCodec"]
+        H5["audio-engine supervisor"]
     end
-    CD -->|window.BBeBee.*| PRE
-    PRE -->|ipcRenderer.invoke| Main
+    CD -->|Tauri IPC / invoke| TauriApp
+    CD -->|JSON-RPC IPC / HTTP| Sidecar
+    Sidecar -->|IPC stdio| AE["audio-engine (C++ / libmpv)"]
     FD -->|Web Audio| WA["renderer audio graph"]
 ```
 
-The critical property: **`main` contains no domain logic.** It does not know what a track is. Its
-handlers are mechanical — "read these bytes", "run this SQL", "make this HTTP request" — and each
-is a direct counterpart of an Expo module on the mobile side. If a feature ever needs logic in
-`main`, that is a signal the service contract is drawn at the wrong altitude.
+The critical property: **Neither Tauri's native host nor the Node.js sidecar contains domain logic.** They do not know what a track is. Handlers are mechanical — "read these bytes", "run this SQL", "make this HTTP request", "supervise audio-engine" — and each is a direct counterpart of an Expo module on the mobile side. If a feature ever needs logic in the host, that is a signal the service contract is drawn at the wrong altitude.
 
-Two things route through `main` for reasons worth stating:
+Two things route through the sidecar / host for reasons worth stating:
 
-- **HTTP.** Not because the renderer cannot fetch, but because a renderer `fetch` is subject to
+- **HTTP.** Not because the webview cannot fetch, but because a webview `fetch` is subject to
   CORS and cannot set `Origin`, `Referer`, `Cookie`, or a custom `User-Agent`. Music backends
-  routinely require all four. Going through `main` also gives a real cookie jar and proxy support.
-- **Local media and external dynamic plugins.** Main registers two privileged schemes:
-  `bbebee-file://` (serving local audio files and artwork across the sandbox boundary with path containment and stream support)
-  and `bbebee-plugin://` (serving external third-party desktop plugins from `userData/installed-plugins/`).
-  Built-in workspace plugins are discovered dynamically via Vite glob imports (`getBuiltinPluginRegistry()`),
-  eliminating static codegen on desktop while maintaining a strict CSP ([loading.md §6.2](../plugins/loading.md#62-desktop-dynamic-loading--plugin-loader-dynamic)).
-  Untrusted source rules arrive as **source strings** and execute strictly inside `ctx.js` rather than in the renderer's realm
+  routinely require all four. Going through the sidecar also gives a real cookie jar and proxy support.
+- **Local media and external dynamic plugins.** The host registers privileged protocols for local
+  media streaming across the sandbox boundary with path containment. Built-in workspace plugins
+  are discovered dynamically via Vite glob imports (`getBuiltinPluginRegistry()`), eliminating static
+  codegen on desktop while maintaining a strict CSP ([loading.md §6.2](../plugins/loading.md#62-desktop-dynamic-loading--plugin-loader-dynamic)).
+  Untrusted source rules arrive as **source strings** and execute strictly inside `ctx.js` rather than in the webview's realm
   ([runtime.md §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)).
 
 ### Process/security posture on desktop
 
-`contextIsolation: true`, `nodeIntegration: false`, `sandbox: true` for the renderer. The preload
-exposes `window.BBeBee` and `window.BBeBeeBridge` whose methods are capability-tagged; the kernel
-wraps them per plugin ([capabilities.md §7](../plugins/capabilities.md#7-capability-model)). A strict CSP is served
-for the app origin.
+Tauri v2 webview isolation is enforced, with native capabilities scoped via Tauri configuration. Communication between the webview and the Node.js sidecar uses capability-scoped JSON-RPC over a local loopback port, guarded by an IPC token. The kernel wraps services per plugin ([capabilities.md §7](../plugins/capabilities.md#7-capability-model)). A strict CSP is served for the app origin.
 
-The one token beyond that floor is `'wasm-unsafe-eval'`, and it is there for `ctx.js`. Chromium
+The one token beyond that floor is `'wasm-unsafe-eval'`, and it is there for `ctx.js`. Chromium/Webview
 gates `WebAssembly.instantiate` on `script-src`, so QuickJS cannot compile without it and the
 renderer aborts on the core service list. It grants WebAssembly compilation and **nothing else**:
 `eval` and `new Function` stay refused, which is exactly why the narrow token is used and
@@ -389,9 +386,9 @@ Points worth internalising:
 - **Non-critical plugins are deferred.** Plugins not required for the initial screen (e.g. scanner,
   download, share, visualizer, sleep-timer, history) are loaded after the first frame via `app.loadPlugin()`
   during idle intervals (`requestIdleCallback`), preventing startup contention.
-- **Desktop startup parallelization & perception.** Electron's `createWindow()` runs before `createHost()`,
-  presenting a lightweight pure CSS splash screen immediately inside the window (`show: false` + `ready-to-show`),
-  completely eliminating blank black window flashes while main and renderer boot concurrently.
+- **Desktop startup parallelization & perception.** Tauri's main window creation runs before `createHost()`,
+  presenting a lightweight pure CSS splash screen immediately inside the webview window,
+  completely eliminating blank flashes while sidecar and renderer boot concurrently.
 - **The boot is re-entrant.** Because unloading a plugin disposes its fiber and everything it
   registered, a config change can tear down and rebuild an arbitrary subtree at runtime. This is
   the same mechanism dev-time hot reload uses.
@@ -411,9 +408,9 @@ registration view.
 | `ctx.db` | `core-db-expo` | `DbBridge` (`@BBeBee/core-desktop-bridge`) / `core-db-node` |
 | `ctx.http` | `core-http-rn` (includes WebSocket) | `core-http-node` (with `bridgeFetch` & WebSocket) |
 | `ctx.secrets` | `core-secrets-expo` | `core-secrets-node` (with `safeStorageCodec`) |
-| `ctx.mediaSession` | `core-media-session-rn` | `core-media-session-electron` |
-| `ctx.background` | `core-background-expo` | `core-background-electron` |
-| `ctx.device` | `core-device-expo` | `core-device-electron` |
+| `ctx.mediaSession` | `core-media-session-rn` | `core-media-session-tauri` |
+| `ctx.background` | `core-background-expo` | `core-background-tauri` |
+| `ctx.device` | `core-device-expo` | `core-device-tauri` |
 | `ctx.codec` | `core-codec-rn` | `core-codec-node` |
 | `ctx.js` | Built-in / In development | `core-js-quickjs-node` |
 | `ctx.audio` | `MobileAudioService` (`core-audio-webaudio`, `core-audio-mpv`) | `DesktopAudioService` (`core-audio-mpv`, `core-audio-webaudio`) |

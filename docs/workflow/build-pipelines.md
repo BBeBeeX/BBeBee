@@ -8,7 +8,7 @@
 |---|---|---|---|
 | Mobile | **Metro** | `apps/mobile/index.js` | Needs `unstable_enablePackageExports` for Cordis's ESM `exports` map, and `@babel/plugin-proposal-decorators` at `version: '2023-11'` |
 | Desktop renderer | **Vite** | `apps/desktop/renderer/index.html` | Native ESM in dev; strict CSP whose single concession is `'wasm-unsafe-eval'`, without which QuickJS cannot compile and the boot fails — it is not `'unsafe-eval'`, so no foreign *JavaScript* loads ([architecture/layers.md §2](../architecture/layers.md#processsecurity-posture-on-desktop)). `img-src`/`media-src` carry plain `http:` for sources that serve artwork and streams from such hosts. Pinned by `renderer/csp.test.ts` |
-| Desktop main + preload | **electron-vite** | `apps/desktop/main/index.ts` | CJS output; externalises native deps |
+| Desktop app host & sidecar | **Tauri v2 + Vite** | `apps/desktop/src-tauri/` & `apps/desktop/sidecar/` | Tauri Rust host for windowing & OS APIs; Node.js sidecar for filesystem & child-process isolation |
 | Packages | **tsup** (or `tsc` for `protocol`) | per-package `src/index.ts` | ESM only; `protocol` emits types only |
 | QuickJS WASM | embedded in the bundle | `core-js-quickjs-node` | One **single-file** variant (`@jitl/quickjs-singlefile-browser-release-sync`) through `quickjs-emscripten-core`, so the engine is bytes in a JS chunk and is never fetched — a sandbox that downloads its own engine is not one ([services/contracts.md §19](../services/contracts.md)). `getQuickJS()` is what this is instead of: it picks a separate-`.wasm` variant that fetches at startup — served `index.html` by Vite in dev, refused outright by a `file://` renderer once packaged — and drags all four variants (~4 MB) into the build |
 
@@ -33,14 +33,15 @@ a plugin manifest changes. (Desktop discovers and loads workspace plugins dynami
 
 The MPV Hi-Fi engine (`core-audio-mpv`) runs in a standalone C++ executable, decoupled into
 the dedicated repository [`BBeBeeX/B_Be_Bee-audio-engine`](https://github.com/BBeBeeX/B_Be_Bee-audio-engine).
-It is staged by `apps/desktop/scripts/build-audio-engine.js` and `apps/desktop2/scripts/build-audio-engine.js`,
-which delegate by default to `scripts/fetch-audio-engine.mjs` (governed by root `audio-engine.version.json`,
-verifying SHA256 integrity and deploying dual Full and Slim executables and libraries) into `bin/` and `resources/bin/`.
-Local compilation is retained as an escape hatch via `--from-source <path>`.
+Developers place platform-specific binaries into root `resources/<platform>/` (`resources/linux/`,
+`resources/windows/`, `resources/macos/`), or fetch them via `scripts/fetch-audio-engine.mjs`
+(governed by root `audio-engine.version.json`, verifying SHA256 integrity and deploying dual Full and
+Slim executables and libraries). The desktop packaging script (`apps/desktop/scripts/package-desktop.js`)
+automatically stages them into Tauri distribution bundles. Local compilation is retained as an escape hatch via `--from-source <path>`.
 
 **Engine-binary lookup** (`AudioEngineSupervisor.resolveExecutablePath`): the
-`AUDIO_ENGINE_PATH` env var → the packaged `resources/bin/` → dev candidate paths. An
-explicitly injected path that is missing fails strictly (no fallthrough).
+`AUDIO_ENGINE_PATH` env var → packaged application resources → root `resources/<platform>/` → dev candidate paths.
+An explicitly injected path that is missing fails strictly (no fallthrough).
 
 **libmpv lookup** (the engine `dlopen`s it at startup): first the engine's own directory —
 `fetch-audio-engine.mjs` stages precompiled, patched libmpv release artifacts beside the binary
@@ -72,12 +73,10 @@ or during degraded stream playback, the visualizer loop safely delivers zero-pad
 without CPU spin or ungrounded synthetic sine/cosine waveforms. Real PCM samples feed the
 spectrum directly via `PcmRingBuffer` whenever the PCM tap extension is available.
 
-**Packaging**: CI builds the binary per platform (a three-OS matrix with a `--version` smoke)
-and uploads it as an artifact; the packaging job downloads it, stages libmpv
-(the vendored set from the build script is primary; `scripts/fetch-libmpv.js` is the fallback —
-system search, `LIBMPV_PATH` override, dynamic latest-release resolution with `LIBMPV_DOWNLOAD_URL`),
-and runs electron-builder, whose per-platform `extraResources` carry the
-engine and libmpv in the installers. Locally: `pnpm build:desktop && pnpm dist:desktop`. The
+**Packaging**: Packaging is handled by `apps/desktop/scripts/package-desktop.js` calling Tauri v2 CLI (`tauri build`).
+It stages native engine assets from `resources/<platform>/`, compiles the frontend and sidecar bundles, tests the audio-engine
+gates, and packages native installers (`deb`, `appimage`, `nsis`, `dmg`).
+Locally: `pnpm build:desktop && pnpm package:desktop` (or `pnpm dist:desktop`). The
 condensed developer version of these rules lives in the root [README.md](../../README.md).
 
 There is no Turborepo and no `turbo.json`: the root scripts orchestrate with `pnpm -r` — `build`
@@ -113,9 +112,9 @@ authority; this matrix is a map. Several of these move weekly.
 | `react-native-gesture-handler` | ~2.32.0 | ⚠️ Not used by us. `react-native-audio-api`'s barrel pulls in its `AudioControls` widget, which imports this and Reanimated **without declaring either** — so Metro cannot resolve the package root without them. See §5.2 |
 | `react-native-reanimated` | ~4.5.1 | ⚠️ Same reason. `babel-preset-expo` adds the worklets plugin on its own once these resolve, so `babel.config.js` needs no change |
 | `react-native-worklets` | ~0.10.1 | Reanimated 4's runtime, and `react-native-audio-api`'s optional peer |
-| `electron` | **44.0.0** | Requires Node ≥ 22.12, so `node:sqlite` is available |
-| `electron-vite` | 5.0.0 | |
-| `vite` | ^7.3.6 | Pinned by `electron-vite` 5 — the matrix previously said 8.2.2; read `pnpm-lock.yaml` as the authority |
+| `@tauri-apps/cli` | ^2.0.0 | Tauri v2 desktop application CLI and packager |
+| `@tauri-apps/api` | ^2.0.0 | Tauri v2 webview IPC bridge |
+| `vite` | ^7.3.6 | Frontend bundler and sidecar SSR bundler |
 | `typescript` | **5.9.3** | ⚠️ If any tool in this matrix lags TS 7, stay on the latest 5.x — which is where we are |
 | `vitest` | ^4.1.11 | |
 | `zod` | — | Planned for plugin `Config` validation (Standard Schema compliant); **not yet a dependency** |

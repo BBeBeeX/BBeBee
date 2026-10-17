@@ -8,7 +8,7 @@
 |---|---|---|---|
 | 移动端 | **Metro** | `apps/mobile/index.js` | 需要 `unstable_enablePackageExports` 以解析 Cordis 的 ESM `exports` 映射，并需要 `version: '2023-11'` 档位的 `@babel/plugin-proposal-decorators` |
 | 桌面渲染进程 | **Vite** | `apps/desktop/renderer/index.html` | 开发时使用原生 ESM；严格 CSP，唯一的让步是 `'wasm-unsafe-eval'`，没有它 QuickJS 无法编译、启动直接失败 —— 它**不是** `'unsafe-eval'`，因此没有任何外来的*JavaScript* 被加载 ([architecture/layers.md §2](../architecture/layers.md#2-各平台的运行时模型))。由 `renderer/csp.test.ts` 钉死 |
-| 桌面主进程 + preload | **electron-vite** | `apps/desktop/main/index.ts` | CJS 输出；原生依赖外部化 |
+| 桌面应用宿主与 Sidecar | **Tauri v2 + Vite** | `apps/desktop/src-tauri/` 与 `apps/desktop/sidecar/` | Tauri Rust 宿主提供原生窗口与系统 API；Node.js sidecar 提供文件系统与子进程隔离 |
 | 各包 | **tsup**（`protocol` 用 `tsc`） | 各包的 `src/index.ts` | 仅 ESM；`protocol` 只产出类型 |
 | QuickJS WASM | 内嵌进 bundle | `core-js-quickjs-node` | 经 `quickjs-emscripten-core` 使用**单文件**变体（`@jitl/quickjs-singlefile-browser-release-sync`），于是引擎就是某个 JS chunk 里的字节，绝不被获取 —— 一个要自己下载引擎的沙箱算不上沙箱 ([services/contracts.md §19](../services/contracts.md))。`getQuickJS()` 的存在就是为了否定这个东西：它选的是启动时才去获取的独立 `.wasm` 变体 —— 开发时由 Vite 提供 `index.html`，打包后则被 `file://` 渲染进程直接拒绝 —— 还会把全部四个变体（约 4 MB）拖进构建 |
 
@@ -29,13 +29,14 @@
 
 MPV Hi-Fi 引擎（`core-audio-mpv`）运行在一个独立的 C++ 可执行文件中，现已独立剥离至单独公开仓库
 [`BBeBeeX/B_Be_Bee-audio-engine`](https://github.com/BBeBeeX/B_Be_Bee-audio-engine)。
-它由 `apps/desktop/scripts/build-audio-engine.js` 与 `apps/desktop2/scripts/build-audio-engine.js` 装配，
-默认委托给 `scripts/fetch-audio-engine.mjs`（由根目录 `audio-engine.version.json` 统一声明版本，
-校验 SHA256 完整性并部署全量 Full 与轻量 Slim 可执行文件及动态库）至 `bin/` 与 `resources/bin/`。
+开发者将对应平台的二进制与依赖库放置于根目录 `resources/<platform>/`（`resources/linux/`、
+`resources/windows/`、`resources/macos/`），或委托给 `scripts/fetch-audio-engine.mjs`
+（由根目录 `audio-engine.version.json` 统一声明版本，校验 SHA256 完整性并部署全量与轻量包）。
+桌面端打包流水线（`apps/desktop/scripts/package-desktop.js`）在打包时自动将平台资源装配入 Tauri 交付安装包。
 同时保留 `--from-source <path>` 本地编译逃生舱。
 
 **引擎二进制查找**（`AudioEngineSupervisor.resolveExecutablePath`）：`AUDIO_ENGINE_PATH` 环境变量
-→ 打包态 `resources/bin/` → 开发候选路径。显式注入的路径缺失时严格失败（不回退）。
+→ 打包态应用 resources → 根目录 `resources/<platform>/` → 开发候选路径。显式注入的路径缺失时严格失败（不回退）。
 
 **libmpv 查找**（引擎启动时 `dlopen`）：先引擎自身所在目录——`fetch-audio-engine.mjs` 会把
 打好补丁的预编译 libmpv 产物（全量包自带完整依赖闭包，轻量包自带核心库）staged 到这里，且 supervisor 会把
@@ -54,10 +55,9 @@ MPV Hi-Fi 引擎（`core-audio-mpv`）运行在一个独立的 C++ 可执行文�
 
 在每种降级状态下，引擎都会上报其健康状态（`ready.mpvAvailable`，暴露为 `ctx.audio.getEngineStatus()`），设置页面会显式展示“MPV 原生引擎不可用”行，而不是假装原生引擎正在运行。当在标准未打补丁的 libmpv 上运行或在降级流播放期间，可视化器循环安全地交付零填充静音帧，无 CPU 空转且不产生缺乏根据的合成正弦/余弦波形。一旦 PCM tap 扩展可用，真 PCM 采样将经由 `PcmRingBuffer` 直接喂给频谱。
 
-**打包**：CI 按平台编译引擎（三平台矩阵 + `--version` 冒烟）并上传产物；打包 job 下载产物、staged libmpv
-（构建脚本写入的 vendored 集合优先；`scripts/fetch-libmpv.js` 为回退——系统搜索、`LIBMPV_PATH`
-覆盖、动态解析最新预编译下载）、运行 electron-builder，其分平台 `extraResources` 把引擎与 libmpv 装进安装包。本地等价：
-`pnpm build:desktop && pnpm dist:desktop`。面向开发者的精简版规则见根目录 [README.md](../../README.md)。
+**打包**：桌面端打包由 `apps/desktop/scripts/package-desktop.js` 统一编排，调用 Tauri v2 CLI（`tauri build`）。
+它自动从 `resources/<platform>/` 装配引擎资产、完成前端与 sidecar 编译、运行音频引擎门禁测试，并产出跨平台安装包（`deb`、`appimage`、`nsis`、`dmg`）。本地等价命令：
+`pnpm build:desktop && pnpm package:desktop`（或 `pnpm dist:desktop`）。面向开发者的精简版规则见根目录 [README.md](../../README.md)。
 
 编排不使用 Turborepo —— 没有 `turbo.json`；根脚本以 `pnpm -r` 运行 `build`、`typecheck`、`lint` 与 `test`。
 
@@ -89,9 +89,9 @@ MPV Hi-Fi 引擎（`core-audio-mpv`）运行在一个独立的 C++ 可执行文�
 | `react-native-gesture-handler` | ~2.32.0 | ⚠️ 我们自己并未使用。`react-native-audio-api` 的桶文件拖进了它的 `AudioControls` 小部件，而该小部件**在未声明二者**的情况下导入了本包与 Reanimated —— 因此不安装它们，Metro 就无法解析包根。见 §5.2 |
 | `react-native-reanimated` | ~4.5.1 | ⚠️ 同样的原因。一旦这两个包可被解析，`babel-preset-expo` 会自行添加 worklets 插件，因此 `babel.config.js` 无需改动 |
 | `react-native-worklets` | ~0.10.1 | Reanimated 4 的运行时，也是 `react-native-audio-api` 的可选 peer |
-| `electron` | **44.0.0** | 要求 Node ≥ 22.12，因此 `node:sqlite` 可用 |
-| `electron-vite` | 5.0.0 | |
-| `vite` | ^7.3.6 | 由 `electron-vite` 5 锁定 —— 矩阵过去写的是 8.2.2；请以 `pnpm-lock.yaml` 为权威 |
+| `@tauri-apps/cli` | ^2.0.0 | Tauri v2 桌面宿主 CLI 与打包器 |
+| `@tauri-apps/api` | ^2.0.0 | Tauri v2 webview IPC 通信桥 |
+| `vite` | ^7.3.6 | 前端及 Sidecar SSR 构建器 |
 | `typescript` | **5.9.3** | ⚠️ 若矩阵中有工具还跟不上 TS 7，就改锁最新的 5.x —— 我们现在正是这么做的 |
 | `vitest` | ^4.1.11 | |
 | `zod` | — | 计划用于插件 `Config` 校验（符合 Standard Schema）；**尚未成为依赖** |

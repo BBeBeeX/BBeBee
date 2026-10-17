@@ -4,7 +4,7 @@
 
 > **本篇回答什么。** 构建的先后顺序、每个阶段"完成"意味着什么，以及对可能出问题之处的如实盘点。
 
-排序原则：**尽早证明风险最高的那条架构论断。**"同一张插件图无需修改即可同时运行在 Hermes 与 Electron 渲染进程中"——这个论断要么成立，要么项目需要重新设计；在第一周验证它代价很小，到第六个月才发现则是灾难。所以 M0 刻意朴实无华——在 M1 之前不会有任何音乐响起。
+排序原则：**尽早证明风险最高的那条架构论断。**"同一张插件图无需修改即可同时运行在 Hermes 与桌面端 Webview 渲染进程中"——这个论断要么成立，要么项目需要重新设计；在第一周验证它代价很小，到第六个月才发现则是灾难。所以 M0 刻意朴实无华——在 M1 之前不会有任何音乐响起。
 
 ---
 
@@ -15,7 +15,7 @@
 构建 `@BBeBee/protocol`、`@BBeBee/kernel`，以及最小核心服务（`paths`、`fs`、`store`、`db`、`logger` 传输层）的双份实现。两个外壳都能启动、加载一个极简插件并渲染它贡献的视图。还有来自 [workflow/testing.md §6](../workflow/testing.md#6-测试策略) 的一致性测试 harness 与泄漏测试。
 
 **完成标准**
-- 同一个插件包在 iOS 模拟器、Android 模拟器与 Electron 上加载并激活，插件内不含任何条件分支代码。
+- 同一个插件包在 iOS 模拟器、Android 模拟器与桌面端上加载并激活，插件内不含任何条件分支代码。
 - `pnpm test` 对所有实现跑绿 `fs`、`db` 与 `store` 的一致性测试套件，其中 Expo 侧的实现要在设备上运行。
 - 禁用插件后，Context 快照被精确还原。
 - 插件检查器展示 fiber 树，且各 effect 均带标注。
@@ -42,7 +42,7 @@
 
 传输状态机能到达其类型声明的每一个状态，`stalled` 包括在内：一个流式源会经 `ctx.audio` 的 `onStalled` 报告缓冲欠载（underrun），播放器显示的是转圈而不是播放按钮，锁屏则继续显示*正在播放*，而一次永不恢复的停滞会变成一个可重试的错误，而不是一个永远转下去的转圈。两套 kit 都对列表做了虚拟化 —— 移动端是 FlashList，桌面端是 `@tanstack/react-virtual`，后者会发布 `aria-setsize`，让窗口化对屏幕阅读器保持不可见，而不是成为它的灾难。
 
-仍未完成，且每一项都需要硬件：**阶段 0 试石尚未在 iOS 真机、Android 真机或 Electron 中跑过**，所以下文 ADR-4 的结论仍然是一个假设；真机冒烟矩阵尚未运行；而且 **`load({ strategy: 'stream' })` 还没有移动端实现** —— React Native 没有 `HTMLMediaElement`，因此一首较长的远程曲目只能被缓冲，或者干脆播不出来，这正是 `StreamerNode` 要填补的缺口，也是 M1 中唯一属于架构而非接线的一块。
+仍未完成，且每一项都需要硬件：**阶段 0 试石尚未在 iOS 真机、Android 真机或桌面端中跑过**，所以下文 ADR-4 的结论仍然是一个假设；真机冒烟矩阵尚未运行；而且 **`load({ strategy: 'stream' })` 还没有移动端实现** —— React Native 没有 `HTMLMediaElement`，因此一首较长的远程曲目只能被缓冲，或者干脆播不出来，这正是 `StreamerNode` 要填补的缺口，也是 M1 中唯一属于架构而非接线的一块。
 
 ---
 
@@ -212,7 +212,7 @@ ADR-1 修订之后，第三方效果器或 scrobbler 在 M5 之前完全无法�
 
 ### 🟡 两个大型框架之间的版本漂移
 
-Expo SDK 升级会一并带动 React Native 与 React；Electron 升级会一并带动 Node 与 V8。二者不会自发地在 React 版本上保持对齐。
+Expo SDK 升级会一并带动 React Native 与 React；Tauri / 桌面端升级会一并带动 Webview 与 Node 运行时。二者不会自发地在 React 版本上保持对齐。
 
 *缓解措施* —— React 与 React Native 锁定在 Expo SDK 57 所规定的版本上，桌面端渲染进程跟随 Expo 使用的 React，而非最新发布版（[workflow/build-pipelines.md §5](../workflow/build-pipelines.md#5-版本矩阵)）。升级是一项排期任务，以一致性测试套件作为闸门。选择 `node:sqlite` 而放弃 `better-sqlite3`，已经消除了最沉重的一项经常性成本。
 

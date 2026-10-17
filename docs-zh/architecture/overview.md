@@ -46,7 +46,7 @@
 |---|---|---|---|---|
 | iOS | Expo / React Native | Hermes | 应用的唯一 JS 上下文 | React Native |
 | Android | Expo / React Native | Hermes | 应用的唯一 JS 上下文 | React Native |
-| 桌面端（macOS / Windows / Linux） | Electron | V8，渲染进程 | **渲染进程** | React DOM |
+| 桌面端（macOS / Windows / Linux） | Tauri v2 | Webview (WebKit / WebView2)，Node.js Sidecar | **Webview 渲染进程** | React DOM |
 
 移动端需要**自定义开发构建**（`expo-dev-client`），而非 Expo Go，因为 `react-native-audio-api` 和若干核心服务模块包含原生代码。开篇即说明这一点，是因为它影响每一位贡献者的上手指引。
 
@@ -73,23 +73,23 @@
 
 **决策。** 两个外壳、两套组件库、一个无头核心。插件贡献与渲染器无关的**描述符**（descriptor：一条路由、一个槽位填充、一条命令、一个设置页），并在独立的包中为各目标平台随附视图实现。
 
-**已否决——通用 React Native Web。** 只有一份 UI 代码库，Electron 渲染同一个 bundle，成本大约省一半。否决的原因是：桌面音乐播放器理应具备的交互——可调整大小的多栏曲库、右键上下文菜单、拖拽重排队列、键盘导航、原生窗口边框、托盘迷你播放器——恰恰是 react-native-web 会做得别扭的那些东西。在视图层花两倍的钱，换来的是一个用起来像桌面应用的桌面应用。
+**已否决——通用 React Native Web。** 只有一份 UI 代码库，桌面端渲染同一个 bundle，成本大约省一半。否决的原因是：桌面音乐播放器理应具备的交互——可调整大小的多栏曲库、右键上下文菜单、拖拽重排队列、键盘导航、原生窗口边框、托盘迷你播放器——恰恰是 react-native-web 会做得别扭的那些东西。在视图层花两倍的钱，换来的是一个用起来像桌面应用的桌面应用。
 
 **代价。** 每个带 UI 的插件最多变成三个包。两套必须保持同步的 design-token 流水线。两套导航系统。一个纪律问题：把逻辑写进视图现在*成为可能*，架构必须主动阻止它（[ui/architecture.md §4](../ui/architecture.md#4-把服务绑定到-react)）。
 
-### ADR-3 —— Electron 内核位于渲染进程；`main` 是一个薄的原生宿主
+### ADR-3 —— 桌面端内核位于 Webview 渲染进程；原生宿主与 Node.js Sidecar 为薄能力宿主
 
-**决策。** Cordis `Context` 创建在渲染进程中。`main` 进程持有 Node 与操作系统，通过 `contextBridge` preload 暴露一个狭窄的、以能力划定范围的表面，并且**不含任何业务逻辑**。桌面端的核心服务插件只是这层 IPC 表面之上的薄客户端。
+**决策。** Cordis `Context` 创建在 Webview 渲染进程中。Tauri 宿主（Rust）持有原生窗口、托盘与对话框，而 Node.js Sidecar 持有 Node 运行时能力（如直接文件系统、SQLite 与原生 `audio-engine` 子进程监管）。二者通过狭窄的、以能力划定范围的 IPC 表面（Tauri 命令与 Sidecar JSON-RPC IPC）暴露服务，并且**不含任何业务逻辑**。桌面端的核心服务插件只是这层 IPC 表面之上的薄客户端。
 
-**已否决——拆分内核（服务在 main，UI 内核在渲染进程）。** 这能让下载与播放在窗口关闭后继续存活。否决的原因是它引入了一个序列化边界和一层远程服务代理，而移动端没有对应物，这意味着插件图会随平台而异——正是本架构要避免的东西。
+**已否决——拆分内核（服务在宿主/Sidecar，UI 内核在渲染进程）。** 这能让下载与播放在窗口关闭后继续存活。否决的原因是它引入了一个序列化边界和一层远程服务代理，而移动端没有对应物，这意味着插件图会随平台而异——正是本架构要避免的东西。
 
-**已否决——内核只在 main。** 与移动端的分歧最大；UI 插件将完全无法共享内核。
+**已否决——内核只在宿主。** 与移动端的分歧最大；UI 插件将完全无法共享内核。
 
-**后果。** 桌面端与移动端都恰好有一个 JS 运行时，承载恰好一个 context。功能插件无法分辨自己身处哪个平台。代价是桌面端的后台工作与渲染进程的生命周期绑定——用"关闭窗口到托盘"来缓解，而不是靠架构。见 [layers.md §4](./layers.md#4-后台意味着什么)。
+**后果。** 桌面端与移动端都恰好有一个主 JS 运行时，承载主 Cordis 上下文。功能插件无法分辨自己身处哪个平台。代价是桌面端的后台工作与 Webview 渲染进程的生命周期绑定——用"关闭窗口到托盘"来缓解，而不是靠架构。见 [layers.md §4](./layers.md#4-后台意味着什么)。
 
 ### ADR-4 —— `react-native-audio-api` 是所有目标平台上首要的播放与 DSP 引擎
 
-**决策。** `ctx.audio` 服务契约就是 **Web Audio API**。在 iOS 与 Android 上由 `react-native-audio-api` 满足；在 Electron 渲染进程中，由同一个包的 web 实现（或浏览器原生 Web Audio——两者是同一接口）满足。
+**决策。** `ctx.audio` 服务契约就是 **Web Audio API**。在 iOS 与 Android 上由 `react-native-audio-api` 满足；在桌面端 Webview 中，由浏览器原生 Web Audio API（或同一个包的 web 实现——两者是同一接口）满足。
 
 正是这一决策使 DSP 需求变得可控。没有它，"移动端音频效果"意味着把原生 DSP 写两遍。有了它，十段均衡器就是一条 `BiquadFilterNode` 级联，在三个平台上行为完全一致。
 

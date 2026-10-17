@@ -35,9 +35,9 @@ Declared in `packages/protocol/src/services/` and augmented onto `Context`:
 | `ctx.ws` | WebSocket client with capability host checks | `core-http-node` / native |
 | `ctx.audio` | Web Audio API graph (`AudioContext`, DSP nodes) | `core-audio-webaudio` (shared), `core-audio-mpv` (desktop: libmpv native engine in a crash-isolated subprocess, direct OS audio output with optional WASAPI exclusive mode, append-based gapless, real-PCM SPSC RingBuffer FFT spectrum & time-domain waveform, astats RMS/Peak levels; mobile also registers it — Route B in-process libmpv JNI/JSI bridge, see `apps/mobile/src/boot.ts`) |
 | `ctx.codec` | Audio metadata, tag reading, PCM decoding | `core-codec-node` (desktop FFmpeg bridge + music-metadata), `core-codec-rn` |
-| `ctx.device` | Network status, battery, media keys, platform info | `core-device-electron`, `core-device-expo` |
-| `ctx.mediaSession`| OS lock-screen now playing surface and controls | `core-media-session-electron`, `core-media-session-rn` |
-| `ctx.background` | Background audio tasks, wake locks, suspend hooks | `core-background-electron`, `core-background-expo` |
+| `ctx.device` | Network status, battery, media keys, platform info | `core-device-tauri`, `core-device-expo` |
+| `ctx.mediaSession`| OS lock-screen now playing surface and controls | `core-media-session-tauri`, `core-media-session-rn` |
+| `ctx.background` | Background audio tasks, wake locks, suspend hooks | `core-background-tauri`, `core-background-expo` |
 | `ctx.js` | Sandboxed QuickJS evaluator for untrusted scripts | `core-js-quickjs-node` (desktop) |
 | `ctx.shell` | Open external URL, directory pickers | Desktop bridge, mobile intent |
 

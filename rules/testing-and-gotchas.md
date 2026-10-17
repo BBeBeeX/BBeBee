@@ -36,7 +36,7 @@ Test conventions, common gotchas, and milestone status for BBeBee.
 | A plugin sits in `PENDING` forever | An injected service never arrived. Check `ctx.inspector` or missing service key |
 | `app.start()` resolves but service not ready | Un-awaited `ctx.plugin()` in an apply function |
 | `TypeError: app.inject is not a function` | `createApp()` returns `App` (`{ ctx, start, ... }`). Use `app.ctx.inject(...)` |
-| `ReferenceError: process is not defined` | Vite/Electron renderer sandbox lacks Node globals. Guard with `typeof process !== 'undefined'` or use `window.BBeBee` / `ctx.device` |
+| `ReferenceError: process is not defined` | Webview renderer sandbox lacks Node globals. Guard with `typeof process !== 'undefined'` or use `window.BBeBee` / `ctx.device` |
 | `Type '() => boolean' not assignable to Destructor` | React 19 `useEffect` cleanup requires `void`. Wrap Cordis disposers: `return () => { off() }` |
 | `cannot get property "x" without inject` | Direct access to undeclared service on scoped context throws. Use `serviceOf<T>(ctx, key)` in UI components |
 | Window close leaves app running in background | Secondary windows (e.g. `lyricWindow`) keep loop active when `closeToTray: false`. Call `app.quit()` explicitly on main close |
@@ -44,9 +44,9 @@ Test conventions, common gotchas, and milestone status for BBeBee.
 | `CapabilityError: … may not …` | Capability missing in manifest or unauthorized namespace. Widen manifest, never the gate |
 | `CapabilityError: host … not allowed` | Source rule accessed undeclared host. Add host to `allowedHosts` |
 | Test fails with `Element is not defined` | Missing `// @vitest-environment jsdom` comment at the top of test file |
-| `Error occurred in handler for 'BBeBee:call': EPERM ...` | Windows legacy junction points (`Documents\My Music`) have Deny Read ACLs. `FsNode.list` probes directory symlinks with `opendir` to skip unreadable ones; IPC bridge wraps calls in `BridgeEnvelope` to prevent Electron from logging unhandled rejections. |
+| `Error occurred in handler for 'BBeBee:call': EPERM ...` | Windows legacy junction points (`Documents\My Music`) have Deny Read ACLs. `FsNode.list` probes directory symlinks with `opendir` to skip unreadable ones; IPC bridge wraps calls in `BridgeEnvelope` to prevent unhandled rejections. |
 | UI test fails asserting icon text (e.g. `textContent === '♥'`) | Desktop icons render Tabler SVG elements with `data-icon="{name}"`. Query with `container.querySelector('[data-icon="heart"]')` or `data-testid` instead of asserting against text node content. |
-| `refusing to fetch bbebee-file://` or `Fetch API cannot load file://` | Electron Chromium web security restricts renderer `fetch()` on `file://` URLs. Desktop main registers privileged `bbebee-file://` scheme to stream and buffer local files. |
+| `refusing to fetch bbebee-file://` or `Fetch API cannot load file://` | Webview web security restricts renderer `fetch()` on `file://` URLs. Desktop host registers privileged `bbebee-file://` scheme to stream and buffer local files. |
 | `Unable to decode audio data` (24-bit FLAC / ID3v2 tags) | Chromium's Web Audio `decodeAudioData` rejects 24-bit Hi-Res FLAC or ID3v2 chunks. `core-audio-webaudio` intercepts this and falls back to `loadStreamed` via Chromium's internal FFmpeg `<audio>` element. |
 | Clicking a track in Shuffle mode plays the wrong song | Shuffled order is a seeded permutation (`permute(ids, seed)`). Tapping a specific track must call `model.rotateShuffle(firstId)` to circularly rotate the permutation with the clicked track at index 0, rather than indexing into `order()[index]`. |
 | Play button or surface has transparent background with CSS variable | `backgroundColor: 'var(--button-primary-bg)'` is invalid in CSS engines when the variable resolves to a `linear-gradient(...)`. CSS silently discards gradients on `backgroundColor`. Always use `background: var(...)` shorthand whenever tokens can be gradients. |
@@ -81,7 +81,7 @@ Test conventions, common gotchas, and milestone status for BBeBee.
 ## 3. Current Project Status & Known Reality
 
 - **M0, M1, M2, M3, M4 built**:
-  - Core services across desktop (Electron/Node) and mobile (Expo/RN)
+  - Core services across desktop (Tauri/Node) and mobile (Expo/RN)
   - Audio playback with Web Audio DSP chain (EQ, normalize, compressor, reverb)
   - Music sources runtime, QuickJS sandbox, rules, sources UI
   - Curation: library, playlists, downloads, cache, lyrics, desktop lyrics

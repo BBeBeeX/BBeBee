@@ -78,12 +78,12 @@ export interface HttpService {
 }
 ```
 
-| | Electron (`core-http-node`) | Expo (`core-http-rn`) |
+| | 桌面端 (`core-http-node`) | Expo (`core-http-rn`) |
 |---|---|---|
-| 底层实现 | Electron `net` 模块运行在 `main`，流式传给渲染进程 | React Native `fetch` / `XMLHttpRequest` |
-| CORS | 完全绕过 —— 这正是它要经过 `main` 的原因 | 原生端不适用 |
+| 底层实现 | Node.js `fetch` / `undici` 运行在 sidecar，流式经由 bridge 传给渲染进程 | React Native `fetch` / `XMLHttpRequest` |
+| CORS | 完全绕过 —— 这正是它要经过 sidecar 的原因 | 原生端不适用 |
 | 任意请求头 | ✅ `Origin`、`Referer`、`User-Agent`、`Cookie` 均可设置 | ✅ |
-| Cookie jar | 每个 `persist:` 分区对应一个 Chromium `Session` | JS 实现的 RFC 6265 jar，静态加密 |
+| Cookie jar | `MemoryJars` 经由 `jarStore(ctx.secrets, ctx.fs)` | JS 实现的 RFC 6265 jar，静态加密 |
 | 代理 | ✅ 系统代理或配置的代理 | ⚠️ 仅系统代理 |
 | 请求日志（§2.2） | ✅ 内存环形记录，详情捕获可开关 | ❌ 尚未实现 |
 
@@ -154,11 +154,11 @@ export interface CookieJarService {
 - `clear()` 删除的是持久化副本，而不仅仅是内存中的那份。
 - 各罐相互隔离：一个罐中的写入对另一个罐不可见。
 
-| | Electron (`core-http-node`) | Expo (`core-http-rn`) |
+| | 桌面端 (`core-http-node`) | Expo (`core-http-rn`) |
 |---|---|---|
-| 存储 | `session.fromPartition('persist:BBeBee-<name>')` —— Chromium 自带的 cookie 存储，直接落盘，过期/`Secure`/`SameSite` 处理白拿 | JS 实现的 RFC 6265 jar，序列化为 JSON |
-| 静态保护 | 存在系统钥匙串时，Chromium 用它加密存储 | **信封加密（envelope encryption）**：随机 AES 密钥放 `ctx.secrets`，密文放 `cookie_jars` 表（[data-model/schema.md §4.1](../data-model/schema.md#41-音源账号与会话)） |
-| 清除 | `session.clearStorageData({ storages: ['cookies'] })` + 移除分区 | 删除该行，并从 `ctx.secrets` 删除密钥 |
+| 存储 | `MemoryJars` 经由 `jarStore(ctx.secrets, ctx.fs)` 持久化 | JS 实现的 RFC 6265 jar，序列化为 JSON |
+| 静态保护 | 经由 `ctx.secrets` (`safeStorageCodec`) 加密存储 | **信封加密（envelope encryption）**：随机 AES 密钥放 `ctx.secrets`，密文放 `cookie_jars` 表（[data-model/schema.md §4.1](../data-model/schema.md#41-音源账号与会话)） |
+| 清除 | `jar.clear()` + 移除持久化密钥 | 删除该行，并从 `ctx.secrets` 删除密钥 |
 
 > ⚠️ **为什么移动端不直接把 jar 放进 `ctx.secrets`。** `expo-secure-store` 对单个值的上限是
 > **2048 字节**，而一个真实的会话 jar —— 若干条带长签名值的 cookie —— 动辄超出。跨 key 分块
@@ -234,7 +234,7 @@ export interface WsService {
 }
 ```
 
-Electron 在 `main` 中使用 `ws`（与渲染进程的 `WebSocket` 不同，它可以设置请求头 —— 若干音源后端有此要求）。React
+桌面端在 Node.js sidecar 中使用 `ws`（与 Webview 渲染进程的 `WebSocket` 不同，它可以设置请求头 —— 若干音源后端有此要求）。React
 Native 使用内建的 `WebSocket`，它同样支持请求头。带退避的重连是*使用方*的职责，并未内建。
 
 ---
@@ -306,11 +306,11 @@ export interface Migration {
 }
 ```
 
-| | Electron (`core-db-node`) | Expo (`core-db-expo`) |
+| | 桌面端 (`core-db-node`) | Expo (`core-db-expo`) |
 |---|---|---|
-| 底层实现 | **`node:sqlite`** —— 随 Node 22+ 一起提供，Electron 44 内置该版本。无需原生重编译，每次升级也不必跑 `@electron/rebuild` | `expo-sqlite` |
+| 底层实现 | **`node:sqlite`** —— 随 Node 22+ 一起在 sidecar 中提供。无需原生重编译，每次升级也不必处理原生模块构建 | `expo-sqlite` |
 | WAL | ✅ 已启用 | ✅ 已启用 |
-| 并发 | 经由 `main` 宿主串行化 | 在原生模块中串行化 |
+| 并发 | 经由 `sidecar` 宿主串行化 | 在原生模块中串行化 |
 | FTS5 | ✅ 可用 | ✅ 可用 |
 | 能力门 | ✅ | ✅ |
 
@@ -324,8 +324,8 @@ export interface Migration {
 > 强制、在移动端不设防 —— 这恰恰是 §18 的一致性测试套件要抓的漂移，也是 `db-scope` 套件必须
 > 在真机、而不仅是在 Node 里跑的原因。
 
-选择 `node:sqlite` 消除了 Electron 项目中最恼人的一项维护负担 ——
-每次版本升级都要针对 Electron 头文件重编译 `better-sqlite3`。两个平台都支持 FTS5，因此本地曲库搜索只需一份实现
+在 Node.js sidecar 中使用 `node:sqlite` 消除了桌面端项目中最恼人的一项维护负担 ——
+每次版本升级都要针对不同平台头文件重编译原生 SQLite 库。两个平台都支持 FTS5，因此本地曲库搜索只需一份实现
 （[data-model/schema.md §4.3](../data-model/schema.md#43-目录catalogue)）。
 
 ---
@@ -347,10 +347,10 @@ export interface SecretsService {
 }
 ```
 
-Electron：`safeStorage.encryptString`（Keychain / DPAPI / libsecret），密文存放在 `userData`
+桌面端：`safeStorageCodec` / AES-GCM（系统 Keychain / DPAPI / 密钥服务），密文存放在 `appData`
 下的文件中。Expo：`expo-secure-store`（Keychain / EncryptedSharedPreferences）。
 
-> ⚠️ 在没有运行密钥服务的 Linux 上，`safeStorage` 会退化为明文。
+> ⚠️ 在没有运行密钥服务的 Linux 上，安全存储会退化为明文。
 > `isHardwareBacked` 会报告 `false`，UI 也会如实说明，而不是虚张声势。
 
 **令牌只存放在这里，别无他处。** 绝不进 `ctx.db`，绝不进配置文件，也绝不进任何一行日志。每个音源拿到的是
@@ -395,9 +395,9 @@ export interface MediaSessionService {
 }
 ```
 
-| | Electron (`core-media-session-electron`) | Expo (`core-media-session-rn`) |
+| | 桌面端 (`core-media-session-tauri`) | Expo (`core-media-session-rn`) |
 |---|---|---|
-| 底层实现 | Chromium 的 `navigator.mediaSession`，外加 MPRIS（Linux）、SMTC（Windows）以及 macOS "正在播放"中心，均经 `main` | `react-native-audio-api` 的通知/锁屏控制 |
+| 底层实现 | Webview 的 `navigator.mediaSession`，外加 MPRIS（Linux）、SMTC（Windows）以及 macOS "正在播放"中心，均经 sidecar/bridge | `react-native-audio-api` 的通知/锁屏控制 |
 | 锁屏封面 | `artworkUrl` 优先 | `artworkUri` 优先 —— 必须是本地 `Uri`；远程封面需先缓存 |
 
 ---
@@ -413,7 +413,7 @@ export interface NotifyService {
 }
 ```
 
-Electron 的 `Notification`（无需权限请求）对上 `expo-notifications`（两个平台都需要权限；调用方必须能优雅处理
+桌面端的 `Notification`（`@tauri-apps/plugin-notification` / HTML5 `Notification`）对上 `expo-notifications`（两个平台都需要权限；调用方必须能优雅处理
 `denied`，不能因此崩溃）。
 
 ---
@@ -438,7 +438,7 @@ export interface BackgroundService {
 }
 ```
 
-Electron：`powerSaveBlocker` 加上普通的定时器；`canRunInBackground()` 恒为 `true`。
+桌面端：Tauri 窗口 / 电源事件监听器或 sidecar 定时器；`canRunInBackground()` 恒为 `true`。
 Expo：`expo-background-task` 加上音频会话；只有在音频持有进程时 `canRunInBackground()` 才为 `true`。
 
 ---
@@ -537,7 +537,7 @@ export interface CodecService {
 }
 ```
 
-Electron：`main` 中用 `music-metadata` 读标签；用 Web Audio 的 `decodeAudioData` 解码 PCM，并通过主进程 FFmpeg 解码桥（`audio.decodePcm`）完整支持 ALAC、24/32-bit Hi-Res 以及发烧级无损格式（APE、WavPack、DSF、DFF）。
+桌面端：在 Node.js sidecar 中用 `music-metadata` 读标签；用 Web Audio 的 `decodeAudioData` 解码 PCM，并通过 sidecar FFmpeg 解码桥（`audio.decodePcm`）完整支持 ALAC、24/32-bit Hi-Res 以及发烧级无损格式（APE、WavPack、DSF、DFF）。
 Expo：用 `react-native-audio-api` 的 `AudioDecoder` 解码 PCM，外加一个原生标签读取器。
 
 > ⚠️ `supportedFormats()` 随平台与操作系统版本而异。桌面端现已通过集成 FFmpeg 覆盖了 ALAC、APE、WavPack、DSF、DFF、WMA 等无损格式及常规格式。扫描器会记录下它无法解码的内容，而不是悄悄跳过，让用户能看明白某个文件为何没有导入。
@@ -594,7 +594,7 @@ export interface I18nService {
 | **`Symbol.asyncIterator`** | 异步 effect 清理会用到。确保 Babel preset 不会把它降级掉 |
 | **Node 内建模块** | `cordis` 一个都不导入。如果某个*核心*插件的依赖导入了，那它应属于 `main` 而非渲染进程，且绝不进移动端 bundle |
 | **`ReadableStream` / `WritableStream`** | `ctx.fs` 与 `ctx.http` 会用到。渲染进程中可用；RN 0.86 上请验证是否存在，缺失时在移动端入口用 `web-streams-polyfill` 补齐 |
-| **`structuredClone`** | 桌面端 IPC 桥接会用到。Electron 中可用；移动端不需要 |
+| **`structuredClone`** | 桌面端 IPC 桥接会用到。Node 22+ 与现代 Webview 中原生可用；移动端不需要 |
 | **第二个 JS 引擎** | `ctx.js`（§19）内嵌 QuickJS：渲染进程中是 WASM 构建，移动端是原生模块。它是原生依赖，因此它落地时移动端需要一次 dev-client 重建；且 WASM 资产必须打进包内而不是在线拉取 —— CSP 禁止拉取它 |
 
 ---
@@ -672,9 +672,9 @@ export class JsTimeoutError extends Error {}
 export class JsMemoryError extends Error {}
 ```
 
-| | Electron (`core-js-quickjs-node`) | Expo (宿主内置 QuickJS JSI) |
+| | 桌面端 (`core-js-quickjs-node`) | Expo (宿主内置 QuickJS JSI) |
 |---|---|---|
-| 底层实现 | 渲染进程中的 `quickjs-emscripten`（WASM） | 一个 QuickJS JSI 模块（`react-native-quick-js`） |
+| 底层实现 | Webview 渲染进程中的 `quickjs-emscripten`（WASM） | 一个 QuickJS JSI 模块（`react-native-quick-js`） |
 | 隔离 | 每个 realm 一个独立的 WASM 实例 | 每个 realm 一个独立的 `JSRuntime` |
 | 中断 | QuickJS 中断处理器，在向后跳转时检查 | 相同 |
 | 异步 | 宿主函数可以返回 promise；realm 的作业队列由宿主驱动 | 相同 |
@@ -755,7 +755,7 @@ export interface ThemeService {
 }
 ```
 
-| | Electron (Desktop DOM) | Expo (Mobile / Native) |
+| | 桌面端 (DOM) | Expo (Mobile / Native) |
 |---|---|---|
 | 底层实现 | `@BBeBee/plugin-theme` 通过 `applyThemeToDom` 向 `document.documentElement` 注入 CSS 自定义属性 | `@BBeBee/plugin-theme` 发出响应式主题快照供 `StyleSheet` 使用 |
 | 持久化 | `ctx.store` 的 key `theme_active_id`，自定义主题存储于 `theme_custom_themes` | `ctx.store` |
@@ -826,7 +826,7 @@ export interface NowPlayingService {
 }
 ```
 
-| | Electron (Desktop) | Expo (Mobile) |
+| | 桌面端 | Expo (Mobile) |
 |---|---|---|
 | 无头服务 | `@BBeBee/plugin-now-playing` | `@BBeBee/plugin-now-playing` |
 | UI 渲染层 | `@BBeBee/plugin-now-playing-ui-desktop` | `@BBeBee/plugin-now-playing-ui-mobile` |
@@ -882,7 +882,7 @@ export interface ShareService {
 }
 ```
 
-| | Electron (Desktop) | Expo (Mobile) |
+| | 桌面端 | Expo (Mobile) |
 |---|---|---|
 | 无头服务 | `@BBeBee/plugin-share` | `@BBeBee/plugin-share` |
 | UI 模态框 | `@BBeBee/plugin-share-ui-desktop` (`share.modal`) | 规划中 (`@BBeBee/plugin-share-ui-mobile`) |
@@ -924,7 +924,7 @@ export interface SettingsService {
 }
 ```
 
-| | Electron (Desktop) | Expo (Mobile) |
+| | 桌面端 | Expo (Mobile) |
 |---|---|---|
 | 无头服务 | `@BBeBee/plugin-settings` | `@BBeBee/plugin-settings` |
 | UI 实现 | `@BBeBee/plugin-settings-ui-desktop` | `@BBeBee/plugin-settings-ui-mobile` |
@@ -985,7 +985,7 @@ export interface PluginManagerService {
 }
 ```
 
-| | Electron (Desktop) | Expo (Mobile) |
+| | 桌面端 | Expo (Mobile) |
 |---|---|---|
 | 无头服务 | `@BBeBee/plugin-manager` | `@BBeBee/plugin-manager` |
 | UI 实现 | `@BBeBee/plugin-settings-ui-desktop` | 规划中 (`plugin-settings-ui-mobile`) |
@@ -1070,7 +1070,7 @@ export interface RegistryService {
 }
 ```
 
-| | Electron（桌面） | Expo（移动） |
+| | 桌面端 | Expo（移动） |
 |---|---|---|
 | 无头服务 | `@BBeBee/plugin-registry` | `@BBeBee/plugin-registry` |
 | 持久化 | `ctx.store` 键 `registry.index-cache`（最近一次成功索引，离线用）、`registry.prefs`（endpoint 覆盖、`lastCheckAt`）、`registry.audit-findings` / `registry.capability-mismatches`（诊断数据源） | 同左 |
@@ -1111,7 +1111,7 @@ export interface RegistryMetadataService {
 }
 ```
 
-| | Electron（桌面） | Expo（移动） |
+| | 桌面端 | Expo（移动） |
 |---|---|---|
 | 无头服务 | `@BBeBee/plugin-registry-metadata` | 同左 |
 | 持久化 | `ctx.store` 键 `registry-metadata.cache`（每 `owner/repo` 24h TTL） | 同左 |

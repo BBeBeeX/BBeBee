@@ -1,6 +1,6 @@
 # BBeBee — Architecture Documentation
 
-BBeBee is a cross-platform music player for desktop (Electron) and mobile (Expo / React Native),
+BBeBee is a cross-platform music player for desktop (Tauri v2) and mobile (Expo / React Native),
 built as a **plugin platform** rather than an application with an extension API bolted on. The
 kernel is [Cordis](https://github.com/cordiverse/cordis) — a dependency-injection and
 plugin-lifecycle framework — and *everything above the kernel is a plugin*, including file I/O,
@@ -28,7 +28,7 @@ built-in runtime and sandboxed in its own JS realm. Adding a backend is a paste,
 ```bash
 pnpm install     # pnpm 11+, Node 22.12+
 pnpm check       # typecheck + lint + test — green on a clean checkout
-pnpm dev:desktop # Electron, with HMR across main, preload and renderer
+pnpm dev:desktop # Desktop dev (Tauri v2 + Vite HMR + Node.js sidecar)
 ```
 
 > **Build rules.** The desktop app carries a native audio-engine binary (libmpv-backed) that
@@ -51,7 +51,7 @@ The architecture documentation is organized into 9 topic directories:
 | Topic | Document | Contents |
 |---|---|---|
 | **Architecture** | [architecture/overview.md](./architecture/overview.md) | Vision, scope, and the five Architecture Decision Records (ADRs) |
-| | [architecture/layers.md](./architecture/layers.md) | The 6-layer model, runtime models (Electron/Hermes), and boot sequence |
+| | [architecture/layers.md](./architecture/layers.md) | The 6-layer model, runtime models (Tauri/Hermes), and boot sequence |
 | **Plugins** | [plugins/concepts.md](./plugins/concepts.md) | Plugin shape, metadata, Fiber lifecycle, and dependency injection (`inject`) |
 | | [plugins/isolation.md](./plugins/isolation.md) | Service access, capturing for teardown, `ctx.isolate` and `ctx.intercept` |
 | | [plugins/loading.md](./plugins/loading.md) | Dynamic loading (`load: () => import(...)`), registries, and manifests |
@@ -76,7 +76,7 @@ The architecture documentation is organized into 9 topic directories:
 | **UI** | [ui/architecture.md](./ui/architecture.md) | Three-package structure, descriptor contributions, React service hooks, and shells |
 | | [ui/design-system.md](./ui/design-system.md) | Dark streaming aesthetic, borderless elevation, design tokens, and WCAG AA contrast |
 | **Workflow** | [workflow/structure.md](./workflow/structure.md) | Monorepo layout, layer boundaries, dependency rules, and ESLint architecture guards |
-| | [workflow/build-pipelines.md](./workflow/build-pipelines.md) | Build pipelines (`tsc`, `vite`, `electron-builder`, `expo`) and version matrix |
+| | [workflow/build-pipelines.md](./workflow/build-pipelines.md) | Build pipelines (`tsc`, `vite`, `tauri`, `expo`) and version matrix |
 | | [workflow/testing.md](./workflow/testing.md) | Testing strategy (unit, conformance, fiber leak tests) and developer commands |
 | **Roadmap** | [roadmap/roadmap.md](./roadmap/roadmap.md) | Milestones (M0 – M5) with exit criteria, risk register, and architectural validity |
 | | [roadmap/archive-m1.md](./roadmap/archive-m1.md) | Historical M1 execution plan and completion verification records |
@@ -122,7 +122,7 @@ For code comments and historical commits referencing `docs/01` through `docs/11`
 ## The one-paragraph version
 
 A Cordis `Context` is created inside the app's single JavaScript runtime — Hermes on mobile, the
-Electron renderer on desktop. That context is **Layer 1**, the kernel. **Layer 2** is a small set
+Tauri webview renderer on desktop. That context is **Layer 1**, the kernel. **Layer 2** is a small set
 of **core plugins** that claim service keys (`ctx.fs`, `ctx.http`, `ctx.db`, `ctx.js`, …), with one
 implementation per target behind each key — they alone may touch a platform SDK or drive the kernel
 (see the spec at [rules/services.md §1](../rules/services.md#1-core-services-philosophy) (L2); this section covers only principles and usage). Above them sits **Layer 3**, three log

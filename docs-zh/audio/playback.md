@@ -173,7 +173,7 @@ sequenceDiagram
 - **引擎 paused 是停滞而非静音**：mpv 源句柄轮询引擎状态，若引擎在传输层自称 `playing` 期间报告 `paused`，即被旁路暂停。宽限期（默认 2 秒，`pausedStallMs`）之后按冻结位置上报 stall（从未发声则上报 ended 以便跳过），而不是对静音的引擎无限轮询下去；引擎恢复发声则上报恢复。
 - **预取**在距结尾 `max(15s, crossfadeMs + 5s)` 时开始，若队列发生变化则通过 `AbortSignal` 取消。
 - **高保真音频解码回退 (`decodeAudioData` 回退)**：本地文件采用 `strategy: 'buffer'` 时调用 Web Audio 的 `decodeAudioData`。若遇到 Chromium 无法解码的格式（如 24 位 Hi-Res FLAC 或带 ID3v2 头的 FLAC，抛出 `Unable to decode audio data`），`core-audio-webaudio` 拦截失败并平滑回退至基于 Chromium 内置 FFmpeg 媒体元素的流式加载，完整保留 `chainInput` 上的 DSP 效果链，避免播放崩溃。
-- **桌面端本地音频协议 (`bbebee-file://`)**：标准 Electron 渲染进程在 Chromium Web 安全策略下严禁直接读取 `file://` URL。桌面端主进程注册了特权 scheme `bbebee-file://`，支持安全地从磁盘直接读取并流式缓冲本地音频文件。
+- **桌面端本地音频协议 (`bbebee-file://`)**：标准桌面端 Webview 在现代 Web 安全策略下严禁直接读取 `file://` URL。桌面端注册了特权自定义 scheme `bbebee-file://`，支持安全地从磁盘直接读取并流式缓冲本地音频文件。
 
 ### 流偏好配置 (Stream Preferences)
 

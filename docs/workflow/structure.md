@@ -60,13 +60,19 @@ B_Be_Bee/
 │   │   ├── metro.config.js                    package exports + watchFolders ([build-pipelines.md §4](./build-pipelines.md#4-build-pipelines))
 │   │   ├── babel.config.js
 │   │   └── android/ · ios/                    dev-client native projects
-│   └── desktop/                    ✅        Electron app
-│       ├── main/                              IPC hosts only, no domain logic ([architecture/layers.md §2](../architecture/layers.md#desktop))
-│       ├── preload/                           contextBridge surface
+│   └── desktop/                    ✅        Tauri v2 app
+│       ├── src-tauri/                         Tauri Rust host (windowing, OS integration, tray)
+│       ├── sidecar/                           Node.js headless sidecar (FS, child-process isolation, audio engine supervisor)
 │       ├── renderer/                          React DOM shell + the kernel (ADR-3)
 │       │   ├── boot.ts · plugins.ts             composition root + allowlist
 │       │   └── main.tsx · Shell.tsx             mount + chrome
-│       └── electron.vite.config.ts
+│       ├── scripts/                           build, packaging, and audio-engine testing scripts
+│       └── vite.config.ts
+├── resources/                                🔹 Canonical developer audio-engine drop zone
+│   ├── linux/                                 Linux audio-engine & libmpv.so.2 closure
+│   ├── macos/                                 macOS audio-engine & libmpv.2.dylib
+│   ├── windows/                               Windows audio-engine.exe & libmpv-2.dll
+│   └── README.md
 │
 ├── packages/
 │   │
@@ -96,7 +102,7 @@ B_Be_Bee/
 │   │           ├── config/                   resolve, enable/disable, defaults
 │   │           ├── loader/                   registry → ctx.plugin(), fiber-state reporting
 │   │           ├── capability-gate/          scoping and the SQL guards ([plugins/capabilities.md §7](../plugins/capabilities.md#7-capability-model)). sql.ts is
-│   │           │                             shared with apps/desktop/main, so one allowlist
+│   │           │                             shared with apps/desktop/sidecar, so one allowlist
 │   │           │                             covers the gated path and the IPC host both
 │   │           ├── migrations/               core schema migrations ([data-model/migrations.md](../data-model/migrations.md))
 │   │           │                             ── and what belongs to no single concern:
@@ -119,16 +125,16 @@ B_Be_Bee/
 │   │   ├── core-db-expo/           ✅
 │   │   ├── core-store-fs/          ✅        ctx.store — one impl, via ctx.fs ([services/contracts.md §4](../services/contracts.md#4-ctxstore--namespaced-keyvalue))
 │   │   ├── core-http-node/         ✅        ctx.http — the transport is a seam: desktop fills
-│   │   ├── core-http-rn/           ✅          it with Electron's net, mobile with expo/fetch
+│   │   ├── core-http-rn/           ✅          it with bridge/fetch, mobile with expo/fetch
 │   │   ├── core-secrets-node/      ✅        ctx.secrets. ⚠️ named -node but platform-free: it
 │   │   │                                       persists through ctx.fs, so it loads in
-│   │   │                                       Electron's sandboxed renderer too
+│   │   │                                       desktop's sandboxed renderer too
 │   │   ├── core-secrets-expo/      ✅
-│   │   ├── core-device-electron/   ✅        ctx.device — network, battery, media keys
+│   │   ├── core-device-tauri/      ✅        ctx.device — network, battery, media keys
 │   │   ├── core-device-expo/       ✅
-│   │   ├── core-background-electron/ ✅      ctx.background — wake locks, suspend
+│   │   ├── core-background-tauri/  ✅        ctx.background — wake locks, suspend
 │   │   ├── core-background-expo/   ✅
-│   │   ├── core-media-session-electron/ ✅   ctx.mediaSession — the OS now-playing surface
+│   │   ├── core-media-session-tauri/ ✅      ctx.mediaSession — the OS now-playing surface
 │   │   ├── core-media-session-rn/  ✅
 │   │   ├── core-codec-node/        ✅        ctx.codec — tags via music-metadata over ctx.fs;
 │   │   ├── core-codec-rn/          ✅          -rn adds the device's decoder
@@ -136,7 +142,7 @@ B_Be_Bee/
 │   │   ├── core-audio-webaudio/    ✅        ctx.audio — Web Audio API graph (shared) ([audio/engine.md §1](../audio/engine.md#1-ctxaudio--the-engine))
 │   │   ├── core-js-quickjs-node/   ✅        ctx.js — source sandbox ([services/contracts.md §19](../services/contracts.md#19-ctxjs--the-sandboxed-evaluator))
 │   │   ├── core-js-quickjs-expo/             ⚠️ the one M2 gap: Hermes has no WASM
-│   │   ├── core-desktop-bridge/    ✅        renderer↔main IPC clients + the main-side host.
+│   │   ├── core-desktop-bridge/    ✅        renderer↔sidecar JSON-RPC IPC clients + sidecar host.
 │   │   │                                       Layer 2 on both sides of the process boundary
 │   │   └── core-…                            ctx.ws · ctx.notify · ctx.crypto · ctx.shell
 │   │
@@ -572,9 +578,9 @@ export default tseslint.config(
     },
   },
   {
-    // architecture/layers.md §2 — main is an IPC host. Domain logic there breaks platform symmetry,
+    // architecture/layers.md §2 — sidecar is an IPC host. Domain logic there breaks platform symmetry,
     // and it would put Layer 4 concerns below Layer 2.
-    files: ['apps/desktop/main/**/*.ts'],
+    files: ['apps/desktop/sidecar/**/*.ts'],
     rules: { 'no-restricted-imports': ['error', { patterns: ['@BBeBee/plugin-*'] }] },
   },
   {
