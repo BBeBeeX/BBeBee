@@ -78,7 +78,7 @@ export function StorageSection({
         description: cleanDisplayPath(currentDownloadsDir),
         action: h(
           'div',
-          { style: { display: 'flex', gap: 8 } },
+          { style: { display: 'flex', flexWrap: 'wrap', gap: 8 } },
           h(Button, {
             variant: 'secondary',
             children: t('settings:schemaForm.changeDirectory'),
@@ -152,7 +152,7 @@ export function StorageSection({
         description: cleanDisplayPath(currentCacheDir),
         action: h(
           'div',
-          { style: { display: 'flex', gap: 8 } },
+          { style: { display: 'flex', flexWrap: 'wrap', gap: 8 } },
           h(Button, {
             variant: 'secondary',
             children: t('settings:schemaForm.changeDirectory'),

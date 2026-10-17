@@ -1,7 +1,7 @@
 {
   "name": "@BBeBee/plugin-share-ui-desktop",
   "version": "0.0.0",
-  "description": "Desktop views for @BBeBee/plugin-share (Spotify-style share modals & steganography reader).",
+  "description": "Desktop views for @BBeBee/plugin-share (rich share modals & steganography reader).",
   "type": "module",
   "license": "MIT",
   "exports": {

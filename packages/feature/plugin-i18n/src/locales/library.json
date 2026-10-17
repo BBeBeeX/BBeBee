@@ -475,7 +475,7 @@
     },
     "userProfile": {
       "description": "本地用户个人资料；播放列表和其他内容将以此名称作为创建者。",
-      "mine": "我的",
+      "mine": "Mine",
       "save": "保存",
       "saved": "已保存",
       "shownAsTheCreatorWhen": "创建播放列表时将显示为创建者",

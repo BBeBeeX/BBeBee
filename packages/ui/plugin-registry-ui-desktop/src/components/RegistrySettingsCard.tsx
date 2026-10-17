@@ -135,10 +135,10 @@ export function RegistrySettingsCard({ ctx }: { ctx: Context }): ReactElement {
     // Auto-check toggle
     h(
       'div',
-      { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 } },
+      { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' } },
       h(
         'div',
-        { style: { display: 'flex', flexDirection: 'column', gap: 3 } },
+        { style: { display: 'flex', flexDirection: 'column', gap: 3, flex: 1, minWidth: 0 } },
         h('div', { style: rowLabelStyle }, t('registry:registrySettings.dailyAutoCheck')),
         h('div', { style: rowDescStyle }, t('registry:registrySettings.checksForCommunityContentUpdates')),
       ),

@@ -136,7 +136,15 @@ export class ThemePlugin extends Service implements ThemeService {
   }
 
   getThemes(): readonly ThemeDefinition[] {
-    return Array.from(this.registry.values())
+    const seen = new Set<string>()
+    const list: ThemeDefinition[] = []
+    for (const t of this.registry.values()) {
+      if (!seen.has(t.id)) {
+        seen.add(t.id)
+        list.push(t)
+      }
+    }
+    return list
   }
 
   getEffectiveScheme(): 'dark' | 'light' {
@@ -163,7 +171,7 @@ export class ThemePlugin extends Service implements ThemeService {
   }
 
   async setTheme(themeId: string): Promise<void> {
-    const target = this.registry.get(themeId)
+    const target = this.registry.get(themeId) ?? (themeId === 'spotify' ? this.registry.get('emerald-green') : undefined)
     if (!target) {
       this.ownCtx.logger.warn(`theme: unknown theme id "${themeId}"`)
       return
@@ -171,7 +179,7 @@ export class ThemePlugin extends Service implements ThemeService {
 
     if (this.activeThemeId === themeId) return
 
-    this.activeThemeId = themeId
+    this.activeThemeId = target.id
     this.applyActiveTheme()
 
     // Persist to store
@@ -179,7 +187,7 @@ export class ThemePlugin extends Service implements ThemeService {
       const store = (this.ownCtx as unknown as { reflect?: { get(k: string, req: boolean): unknown } })
         .reflect?.get('store', false) as { set(k: string, v: unknown): Promise<void> } | undefined
       if (store) {
-        await store.set(STORE_KEY, themeId)
+        await store.set(STORE_KEY, target.id)
       }
     } catch (err) {
       this.ownCtx.logger?.warn?.(`theme: failed to persist theme: ${err}`)
@@ -189,7 +197,7 @@ export class ThemePlugin extends Service implements ThemeService {
     const settings = (this.ownCtx as unknown as { reflect?: { get(k: string, req: boolean): unknown } })
       .reflect?.get('settings', false) as { update(p: unknown): Promise<unknown> } | undefined
     if (settings) {
-      void settings.update({ themeId }).catch(() => {})
+      void settings.update({ themeId: target.id }).catch(() => {})
     }
 
     this.ownCtx.emit('theme/changed', this.getCurrentTheme(), this.getEffectiveScheme())
@@ -209,7 +217,7 @@ export class ThemePlugin extends Service implements ThemeService {
   }
 
   removeTheme(themeId: string): boolean {
-    if (themeId in builtInThemes) {
+    if (themeId in builtInThemes || themeId === 'spotify' || themeId === 'emerald-green') {
       this.ownCtx.logger.warn(`theme: cannot remove built-in theme "${themeId}"`)
       return false
     }

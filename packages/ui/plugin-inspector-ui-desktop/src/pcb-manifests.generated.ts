@@ -4468,7 +4468,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "id": "@BBeBee/plugin-share-ui-desktop",
     "name": "@BBeBee/plugin-share-ui-desktop",
     "displayName": "Share UI (Desktop)",
-    "description": "Desktop views for @BBeBee/plugin-share (Spotify-style share modals & steganography reader).",
+    "description": "Desktop views for @BBeBee/plugin-share (rich share modals & steganography reader).",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -4495,7 +4495,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "id": "@BBeBee/plugin-share-ui-desktop",
     "name": "@BBeBee/plugin-share-ui-desktop",
     "displayName": "Share UI (Desktop)",
-    "description": "Desktop views for @BBeBee/plugin-share (Spotify-style share modals & steganography reader).",
+    "description": "Desktop views for @BBeBee/plugin-share (rich share modals & steganography reader).",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {

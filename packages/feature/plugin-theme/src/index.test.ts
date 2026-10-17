@@ -22,10 +22,14 @@ describe('ThemePlugin', () => {
       changedTo = t
     })
 
-    await ctx.theme.setTheme('spotify')
-    expect(ctx.theme.getCurrentTheme().id).toBe('spotify')
-    expect(changedTo?.id).toBe('spotify')
+    await ctx.theme.setTheme('emerald-green')
+    expect(ctx.theme.getCurrentTheme().id).toBe('emerald-green')
+    expect(changedTo?.id).toBe('emerald-green')
     expect(ctx.theme.getCurrentTheme().tokens.brand.primary).toBe('#1DB954')
+
+    // Also verify backward compatibility for 'spotify' alias
+    await ctx.theme.setTheme('spotify')
+    expect(ctx.theme.getCurrentTheme().id).toBe('emerald-green')
   })
 
   it('supports runtime dynamic theme registration and deregistration', async () => {
@@ -63,6 +67,7 @@ describe('ThemePlugin', () => {
     await ctx.plugin(ThemePlugin)
 
     expect(ctx.theme.removeTheme('midnight-purple')).toBe(false)
+    expect(ctx.theme.removeTheme('emerald-green')).toBe(false)
     expect(ctx.theme.removeTheme('spotify')).toBe(false)
 
     const customTheme: ThemeDefinition = {

@@ -11,7 +11,7 @@ import { serviceOf } from '@BBeBee/toolkit/hooks'
 import type { AppSettings, SettingsService, SettingsContribution, CacheClass, CacheStats, ThemeDefinition, NowPlayingStyleMeta, LyricSourceDefinition, SourceRecord, PluginInfo, PluginManagerService } from '@BBeBee/protocol'
 import { DEFAULT_APP_SETTINGS, NOW_PLAYING_STYLES } from '@BBeBee/protocol'
 import { apply as applyI18n } from '@BBeBee/plugin-i18n'
-import { midnightPurpleTheme, spotifyTheme } from '@BBeBee/ui-tokens'
+import { midnightPurpleTheme, emeraldGreenTheme } from '@BBeBee/ui-tokens'
 import { SettingsScreen } from './SettingsScreen.js'
 import { ShortcutsCard } from './components/ShortcutsCard.js'
 import { DebugScreen } from './DebugScreen.js'
@@ -214,7 +214,7 @@ class SettingsStub extends Service implements Partial<SettingsService> {
   }
 
   class ThemeStub extends Service {
-    public themes: ThemeDefinition[] = [midnightPurpleTheme, spotifyTheme]
+    public themes: ThemeDefinition[] = [midnightPurpleTheme, emeraldGreenTheme]
     public currentTheme: ThemeDefinition = this.themes[0]!
     private appCtx: Context
 
@@ -241,7 +241,7 @@ class SettingsStub extends Service implements Partial<SettingsService> {
     }
     removeTheme = (id: string) => {
       calls.push(`theme:remove:${id}`)
-      if (id === 'midnight-purple' || id === 'spotify') return false
+      if (id === 'midnight-purple' || id === 'emerald-green' || id === 'spotify') return false
       this.themes = this.themes.filter((t) => t.id !== id)
       if (this.currentTheme.id === id) {
         this.currentTheme = this.themes[0]!
@@ -1701,11 +1701,8 @@ describe('SettingsScreen', () => {
     })
     expect(calls.includes('sources:testConnection:mock-bili')).toBe(true)
 
-    // 3. Debug button for mock-bili navigates to sources.test with sourceId
-    await act(async () => {
-      fireEvent.click(getByTestId('settings-source-debug-mock-bili'))
-    })
-    expect(calls.some((c) => c.includes('navigate:sources.test') && c.includes('mock-bili'))).toBe(true)
+    // 3. Debug button removed from source row per requirements
+    expect(queryByTestId('settings-source-debug-mock-bili')).toBeNull()
 
     // 4. Configure button for mock-bili opens SourceConfigureModal
     expect(queryByTestId('source-configure-modal')).toBeNull()

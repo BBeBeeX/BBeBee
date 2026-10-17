@@ -220,18 +220,21 @@ export function cssVariables(scheme: Scheme): Record<string, string> {
 /* ── Color Token System & Themes ────────────────────────────────────────── */
 
 export * from './themes/midnight-purple.js'
+export * from './themes/emerald-green.js'
 export * from './themes/spotify.js'
 export * from './themes/crimson-night.js'
 export * from './themes/ocean-abyss.js'
 
 import type { ThemeDefinition } from '@BBeBee/protocol'
 import { midnightPurpleTheme } from './themes/midnight-purple.js'
+import { emeraldGreenTheme } from './themes/emerald-green.js'
 import { spotifyTheme } from './themes/spotify.js'
 import { crimsonNightTheme } from './themes/crimson-night.js'
 import { oceanAbyssTheme } from './themes/ocean-abyss.js'
 
 export const builtInThemes: Record<string, ThemeDefinition> = {
   'midnight-purple': midnightPurpleTheme,
+  'emerald-green': emeraldGreenTheme,
   spotify: spotifyTheme,
   'crimson-night': crimsonNightTheme,
   'ocean-abyss': oceanAbyssTheme,

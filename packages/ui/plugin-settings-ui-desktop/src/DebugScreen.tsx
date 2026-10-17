@@ -347,6 +347,7 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
             ),
           ),
           h(Button, {
+            testID: 'debug-screen-sources-test-btn',
             variant: 'primary',
             children: t('settings:debug.openSourceTests'),
             onPress: () => ui?.navigate?.('sources.test'),

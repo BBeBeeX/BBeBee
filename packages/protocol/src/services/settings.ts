@@ -100,7 +100,7 @@ export type LoudnessNormalizationMode = 'track' | 'album' | 'dynamic'
 export interface AppSettings {
   /** Visual appearance theme mode. */
   theme: 'dark' | 'light' | 'system'
-  /** Color theme identifier (e.g. 'midnight-purple', 'spotify'). */
+  /** Color theme identifier (e.g. 'midnight-purple', 'emerald-green'). */
   themeId?: string
   /** Full-screen player style layout identifier (e.g. 'classic', 'cinematic'). */
   nowPlayingStyle: string
@@ -237,6 +237,9 @@ export const DEFAULT_PROXY_SETTINGS: ProxySettings = {
   sourceRules: {},
 }
 
+export const DEFAULT_USER_AGENT =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36'
+
 export const DEFAULT_APP_SETTINGS: AppSettings = {
   theme: 'dark',
   themeId: 'midnight-purple',
@@ -269,7 +272,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   audioOutputEngine: 'wasapi',
   audioExclusive: false,
   audioOutputDeviceId: 'default',
-  userAgent: '',
+  userAgent: DEFAULT_USER_AGENT,
   thirdPartySourcesEnabled: true,
   thirdPartyLyricSourcesEnabled: true,
   registryAutoCheck: true,

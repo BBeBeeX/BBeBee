@@ -12,6 +12,8 @@ const rowStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  rowGap: 10,
   gap: 16,
   padding: '14px 4px',
   borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.06))',
@@ -26,7 +28,7 @@ export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
   const { t } = useI18n(ctx)
   const library = serviceOf<LibraryProfileApi>(ctx, 'library')
 
-  const [name, setName] = useState('')
+  const [name, setName] = useState('Mine')
   const [userId, setUserId] = useState('')
   const [justSaved, setJustSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -39,7 +41,7 @@ export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
       .then((p) => {
         if (cancelled) return
         setUserId(p.id)
-        setName(p.name)
+        setName(p.name || 'Mine')
       })
       .catch(() => undefined)
     const off = ctx.on('library/profile-changed', () => {
@@ -48,7 +50,7 @@ export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
         .then((p) => {
           if (cancelled) return
           setUserId(p.id)
-          setName(p.name)
+          setName(p.name || 'Mine')
         })
         .catch(() => undefined)
     })
@@ -132,7 +134,7 @@ export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
         { style: { ...rowStyle, paddingTop: 4 } },
         h(
           'div',
-          { style: { flex: 1, minWidth: 0 } },
+          { style: { flex: '1 1 200px', minWidth: 0 } },
           h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary, #F5F5F7)' } }, t('library:userProfile.username')),
           h(
             'div',
@@ -142,13 +144,27 @@ export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
         ),
         h(
           'div',
-          { style: { display: 'flex', alignItems: 'center', gap: 8 } },
-          h(TextField, {
-            value: name,
-            onChange: setName,
-            placeholder: t('library:userProfile.mine'),
-            testID: 'profile-name-input',
-          }),
+          {
+            style: {
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              flex: '1 1 260px',
+              minWidth: 0,
+              maxWidth: '100%',
+              marginLeft: 'auto',
+            },
+          },
+          h(
+            'div',
+            { style: { flex: 1, minWidth: 120 } },
+            h(TextField, {
+              value: name,
+              onChange: setName,
+              placeholder: t('library:userProfile.mine'),
+              testID: 'profile-name-input',
+            }),
+          ),
           h(
             'button',
             {

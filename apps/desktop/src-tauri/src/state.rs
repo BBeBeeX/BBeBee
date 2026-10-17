@@ -66,6 +66,7 @@ pub struct AppState {
     // Media Session State
     pub current_now_playing: Mutex<Option<serde_json::Value>>,
     pub current_playback_state: Mutex<String>,
+    pub current_position_ms: Mutex<f64>,
 
     // Sidecar manager
     pub sidecar: Mutex<Option<Arc<crate::sidecar::SidecarManager>>>,
@@ -95,6 +96,7 @@ impl Default for AppState {
             media_keys_active: AtomicBool::new(false),
             current_now_playing: Mutex::new(None),
             current_playback_state: Mutex::new("stopped".to_string()),
+            current_position_ms: Mutex::new(0.0),
             sidecar: Mutex::new(None),
         }
     }
@@ -185,6 +187,14 @@ impl AppState {
 
     pub fn get_playback_state(&self) -> String {
         self.current_playback_state.lock().unwrap().clone()
+    }
+
+    pub fn set_position_ms(&self, pos: f64) {
+        *self.current_position_ms.lock().unwrap() = pos;
+    }
+
+    pub fn get_position_ms(&self) -> f64 {
+        *self.current_position_ms.lock().unwrap()
     }
 }
 

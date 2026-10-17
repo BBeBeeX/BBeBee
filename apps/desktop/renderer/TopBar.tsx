@@ -1,5 +1,5 @@
 /**
- * Spotify-style in-app TopBar for the Desktop Shell.
+ * Frameless in-app TopBar for the Desktop Shell.
  *
  * Replaces the native OS window frame and menu bar:
  * - Left: Brand logo, History Back (←), History Forward (→)

@@ -14,6 +14,8 @@ import type {
   SourcesService,
   PathsService,
   UiService,
+  FsService,
+  Uri,
 } from '@BBeBee/protocol'
 import { DEFAULT_PROXY_SETTINGS } from '@BBeBee/protocol'
 import { useAppSettings, useAvailableSettings, useCacheStats } from '@BBeBee/plugin-settings/hooks'
@@ -205,12 +207,20 @@ export function SettingsScreen({
     ? t('settings:settings.bBeBee', { downloads: paths.downloads })
     : t('settings:settings.defaultDownloadsDir')
   const defaultCacheDir = paths?.cache
-    ? t('settings:settings.bBeBee2', { cache: paths.cache })
+    ? paths.cache
     : t('settings:settings.defaultCacheDir')
   const currentDownloadsDir = settings.downloadDir || defaultDownloadsDir
   const currentCacheDir = settings.cacheDir || defaultCacheDir
 
   const handlePickDownloadDir = async () => {
+    const fs = serviceOf<FsService>(ctx, 'fs')
+    if (fs?.pickDirectory) {
+      const picked = await fs.pickDirectory()
+      if (picked) {
+        void update({ downloadDir: picked })
+        return
+      }
+    }
     const bridge = (
       window as unknown as {
         BBeBee?: { dialog?: { pickDirectory: () => Promise<string | undefined> } }
@@ -223,15 +233,36 @@ export function SettingsScreen({
   }
 
   const handleOpenDownloadDir = async () => {
+    const p = cleanDisplayPath(currentDownloadsDir)
+    if (!p) return
+    const fs = serviceOf<FsService>(ctx, 'fs')
+    if (fs?.mkdir) {
+      try {
+        await fs.mkdir(
+          (currentDownloadsDir.startsWith('file://') ? currentDownloadsDir : `file://${p}`) as Uri,
+          { recursive: true },
+        )
+      } catch {
+        // Directory may already exist or cannot be created; shell.openPath will handle it.
+      }
+    }
     const bridge = (
       window as unknown as { BBeBee?: { shell?: { openPath: (p: string) => Promise<string> } } }
     ).BBeBee
     if (bridge?.shell?.openPath) {
-      await bridge.shell.openPath(cleanDisplayPath(currentDownloadsDir))
+      await bridge.shell.openPath(p)
     }
   }
 
   const handlePickCacheDir = async () => {
+    const fs = serviceOf<FsService>(ctx, 'fs')
+    if (fs?.pickDirectory) {
+      const picked = await fs.pickDirectory()
+      if (picked) {
+        void update({ cacheDir: picked })
+        return
+      }
+    }
     const bridge = (
       window as unknown as {
         BBeBee?: { dialog?: { pickDirectory: () => Promise<string | undefined> } }
@@ -244,11 +275,24 @@ export function SettingsScreen({
   }
 
   const handleOpenCacheDir = async () => {
+    const p = cleanDisplayPath(currentCacheDir)
+    if (!p) return
+    const fs = serviceOf<FsService>(ctx, 'fs')
+    if (fs?.mkdir) {
+      try {
+        await fs.mkdir(
+          (currentCacheDir.startsWith('file://') ? currentCacheDir : `file://${p}`) as Uri,
+          { recursive: true },
+        )
+      } catch {
+        // Directory may already exist or cannot be created; shell.openPath will handle it.
+      }
+    }
     const bridge = (
       window as unknown as { BBeBee?: { shell?: { openPath: (p: string) => Promise<string> } } }
     ).BBeBee
     if (bridge?.shell?.openPath) {
-      await bridge.shell.openPath(cleanDisplayPath(currentCacheDir))
+      await bridge.shell.openPath(p)
     }
   }
 

@@ -10,7 +10,7 @@ import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
-import type { ScanSpecifiedDir } from '@BBeBee/protocol'
+import type { ScanSpecifiedDir, Uri } from '@BBeBee/protocol'
 import { summarise, useScanSpecifiedDirs, useScanState } from '@BBeBee/plugin-local-scanner/hooks'
 import { Button, EmptyState, IconButton, List, Text, useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
@@ -23,9 +23,33 @@ export function ScanSpecifiedDirsScreen({ ctx }: { ctx: Context }): ReactElement
   const addFolder = async () => {
     // The picker is what carries a durable permission grant on Android; a
     // typed path would not, so there is deliberately no text field here.
-    const uri = await ctx.fs.pickDirectory()
-    if (uri) {
-      const dir = await ctx.scanner.addSpecifiedDir(uri)
+    let uri: string | undefined = undefined
+    if (ctx.fs?.pickDirectory) {
+      try {
+        uri = await ctx.fs.pickDirectory()
+      } catch (err) {
+        ctx.logger.warn(`fs.pickDirectory failed: ${String(err)}`)
+      }
+    }
+    if (!uri) {
+      const bridge =
+        typeof window !== 'undefined'
+          ? (window as unknown as { BBeBee?: { dialog?: { pickDirectory?: () => Promise<string | undefined> } } }).BBeBee
+          : undefined
+      if (bridge?.dialog?.pickDirectory) {
+        const picked = await bridge.dialog.pickDirectory()
+        if (picked) {
+          const normalized = picked.replace(/\\/g, '/')
+          uri = normalized.startsWith('file://')
+            ? normalized
+            : normalized.startsWith('/')
+              ? `file://${normalized}`
+              : `file:///${normalized}`
+        }
+      }
+    }
+    if (uri && ctx.scanner) {
+      const dir = await ctx.scanner.addSpecifiedDir(uri as Uri)
       void ctx.scanner.scan({ specifiedDirId: dir.id })
     }
   }

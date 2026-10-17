@@ -1,8 +1,7 @@
 import { Button, IconButton, Sheet, Text, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { createElement as h, useEffect, useMemo, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { FsService, I18nService, ScannerService, SettingsContribution, SourcesService, UiService } from '@BBeBee/protocol'
-import { SOURCES_VIEWS } from '@BBeBee/plugin-sources/views'
+import type { FsService, I18nService, ScannerService, SettingsContribution, SourcesService, Uri } from '@BBeBee/protocol'
 import {
   isLocalSource,
   useAudioSourcesStatus,
@@ -74,7 +73,6 @@ function AudioSourceRow({
   item,
   t,
   onTest,
-  onDebug,
   onConfigure,
   onToggle,
   onDelete,
@@ -90,7 +88,6 @@ function AudioSourceRow({
   item: AudioSourceStatusItem
   t: I18nService['t']
   onTest: (id: string) => void
-  onDebug: (id: string) => void
   onConfigure: (id: string) => void
   onToggle: (id: string, enabled: boolean) => void
   onDelete: (id: string) => void
@@ -180,6 +177,8 @@ function AudioSourceRow({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        rowGap: 8,
         padding: isNestedInstance ? '10px 12px' : '12px 14px',
         margin: '6px 0',
         borderRadius: 8,
@@ -199,7 +198,7 @@ function AudioSourceRow({
           alignItems: 'center',
           gap: 10,
           minWidth: 0,
-          flex: 1,
+          flex: '1 1 200px',
         },
       },
       h('span', {
@@ -260,6 +259,7 @@ function AudioSourceRow({
           alignItems: 'center',
           gap: 8,
           flexShrink: 0,
+          flexWrap: 'wrap',
         },
       },
       h(
@@ -304,6 +304,9 @@ function AudioSourceRow({
               alignItems: 'center',
               gap: 6,
               flexShrink: 0,
+              flexWrap: 'wrap',
+              justifyContent: 'flex-end',
+              marginLeft: 'auto',
             },
             onClick: (e: { stopPropagation: () => void }) => e.stopPropagation(),
           },
@@ -332,6 +335,9 @@ function AudioSourceRow({
               alignItems: 'center',
               gap: 6,
               flexShrink: 0,
+              flexWrap: 'wrap',
+              justifyContent: 'flex-end',
+              marginLeft: 'auto',
             },
           },
           // 1. 测试按钮 (本地不需要测试)
@@ -342,21 +348,14 @@ function AudioSourceRow({
             onPress: () => onTest(item.id),
             children: item.isPinging ? '…' : t('settings:sources.test'),
           }),
-          // 2. 调试按钮 (内容为音乐源页的测试按钮)
-          h(Button, {
-            variant: 'secondary',
-            testID: `settings-source-debug-${item.id}`,
-            onPress: () => onDebug(item.id),
-            children: t('settings:sources.debug'),
-          }),
-          // 3. 配置按钮 (将已配置音源的管理 变成 音乐源页的配置)
+          // 2. 配置按钮 (将已配置音源的管理 变成 音乐源页的配置)
           h(Button, {
             variant: 'secondary',
             testID: `settings-source-configure-${item.id}`,
             onPress: () => onConfigure(item.id),
             children: t('sources:sourcesList.configure'),
           }),
-          // 4. 最右边：禁用/启用 icon
+          // 3. 最右边：禁用/启用 icon
           h(IconButton, {
             icon: item.enabled ? 'ban' : 'check',
             accessibilityLabel: item.enabled
@@ -617,15 +616,6 @@ export function SourcesSection({
       item.title !== 'Music folders',
   )
 
-  const handleDebug = (id: string) => {
-    const ui = serviceOf<UiService>(ctx, 'ui')
-    if (ui?.navigate) {
-      ui.navigate(SOURCES_VIEWS.sourceTest, { sourceId: id })
-    } else {
-      onNavigate(SOURCES_VIEWS.sourceTest)
-    }
-  }
-
   const handleToggle = (id: string, enabled: boolean) => {
     const sourcesSvc = serviceOf<SourcesService>(ctx, 'sources')
     void sourcesSvc?.setEnabled?.(id, enabled)
@@ -655,14 +645,50 @@ export function SourcesSection({
   }
 
   const handleAddFolder = async () => {
-    const fs = serviceOf<FsService>(ctx, 'fs')
-    const scanner = serviceOf<ScannerService>(ctx, 'scanner')
-    if (!fs || !scanner) return
-    const uri = await fs.pickDirectory()
-    if (uri) {
-      const dir = await scanner.addSpecifiedDir(uri)
+    try {
+      const fs = serviceOf<FsService>(ctx, 'fs') ?? (ctx as unknown as { fs?: FsService }).fs
+      const scanner = serviceOf<ScannerService>(ctx, 'scanner') ?? (ctx as unknown as { scanner?: ScannerService }).scanner
+
+      let uri: string | undefined = undefined
+      if (fs?.pickDirectory) {
+        try {
+          uri = await fs.pickDirectory()
+        } catch (e) {
+          ctx.logger?.warn?.(`fs.pickDirectory failed: ${String(e)}`)
+        }
+      }
+      if (!uri) {
+        const bridge =
+          typeof window !== 'undefined'
+            ? (window as unknown as { BBeBee?: { dialog?: { pickDirectory?: () => Promise<string | undefined> } } }).BBeBee
+            : undefined
+        if (bridge?.dialog?.pickDirectory) {
+          const picked = await bridge.dialog.pickDirectory()
+          if (picked) {
+            const normalized = picked.replace(/\\/g, '/')
+            uri = normalized.startsWith('file://')
+              ? normalized
+              : normalized.startsWith('/')
+                ? `file://${normalized}`
+                : `file:///${normalized}`
+          }
+        }
+      }
+
+      if (!uri) {
+        return
+      }
+
+      if (!scanner) {
+        ctx.logger?.warn?.('scanner service is not available')
+        return
+      }
+
+      const dir = await scanner.addSpecifiedDir(uri as Uri)
       setIsScanModalOpen(true)
       void scanner.scan({ specifiedDirId: dir.id })
+    } catch (err) {
+      ctx.logger?.error?.(`handleAddFolder failed: ${String(err)}`)
     }
   }
 
@@ -1012,7 +1038,6 @@ export function SourcesSection({
               item: singleItem,
               t,
               onTest: (id) => void testConnection(id),
-              onDebug: handleDebug,
               onConfigure: (id) => setConfiguringSourceId(id),
               onToggle: handleToggle,
               onDelete: handleDelete,
@@ -1064,7 +1089,6 @@ export function SourcesSection({
                 item,
                 t,
                 onTest: (id) => void testConnection(id),
-                onDebug: handleDebug,
                 onConfigure: (id) => setConfiguringSourceId(id),
                 onToggle: handleToggle,
                 onDelete: handleDelete,

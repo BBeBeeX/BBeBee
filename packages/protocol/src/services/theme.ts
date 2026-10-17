@@ -80,7 +80,7 @@ export interface ColorTokens {
 }
 
 export interface ThemeDefinition {
-  /** Unique theme identifier (e.g., 'midnight-purple', 'spotify'). */
+  /** Unique theme identifier (e.g., 'midnight-purple', 'emerald-green'). */
   id: string
   /** Human-readable theme display name. */
   name: string

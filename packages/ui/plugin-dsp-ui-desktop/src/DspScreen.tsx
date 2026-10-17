@@ -1,7 +1,7 @@
 /**
  * Desktop DSP Screen for `@BBeBee/plugin-dsp`.
  *
- * Provides a Spotify-style 6-band interactive equalizer with smooth bezier curves,
+ * Provides a modern 6-band interactive equalizer with smooth bezier curves,
  * gradient fill, draggable knobs, preset selection, custom preset persistence,
  * and a full effect chain management view.
  */
@@ -384,7 +384,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
       ),
     ),
 
-    // Tab 1: Equalizer Screen (Spotify Aesthetic)
+    // Tab 1: Equalizer Screen (Interactive Curve)
     activeTab === 'eq' &&
       h(
         'div',

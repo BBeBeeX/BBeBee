@@ -757,6 +757,12 @@ pub fn desktop_shell_open_external(url: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn shell_open_path(path: String) -> Result<String, String> {
+    if !path.is_empty() {
+        let p = std::path::Path::new(&path);
+        if !p.exists() {
+            let _ = std::fs::create_dir_all(p);
+        }
+    }
     #[cfg(target_os = "windows")]
     {
         let _ = std::process::Command::new("explorer").arg(&path).spawn();
@@ -783,7 +789,7 @@ pub fn desktop_shell_open_path(path: String) -> Result<String, String> {
 
 #[tauri::command]
 pub async fn dialog_pick_directory(
-    _app: tauri::AppHandle,
+    app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<Option<String>, String> {
     if let Ok(mock) = std::env::var("BBEBEE_MOCK_PICKED_DIR") {
@@ -792,7 +798,22 @@ pub async fn dialog_pick_directory(
             return Ok(Some(mock));
         }
     }
-    Ok(None)
+    use tauri_plugin_dialog::DialogExt;
+    let app_clone = app.clone();
+    let result = tokio::task::spawn_blocking(move || {
+        let mut builder = app_clone.dialog().file();
+        if let Some(window) = app_clone.get_webview_window("main") {
+            builder = builder.set_parent(&window);
+        }
+        builder.blocking_pick_folder().map(|f| f.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+
+    if let Some(ref path) = result {
+        let _ = files_authorize(state, path.clone()).await;
+    }
+    Ok(result)
 }
 
 #[tauri::command]
@@ -805,7 +826,7 @@ pub async fn desktop_dialog_pick_directory(
 
 #[tauri::command]
 pub async fn dialog_pick_files(
-    _app: tauri::AppHandle,
+    app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
     _options: Option<serde_json::Value>,
 ) -> Result<Vec<String>, String> {
@@ -818,7 +839,27 @@ pub async fn dialog_pick_files(
             return Ok(files);
         }
     }
-    Ok(vec![])
+    use tauri_plugin_dialog::DialogExt;
+    let app_clone = app.clone();
+    let files = tokio::task::spawn_blocking(move || {
+        let mut builder = app_clone.dialog().file();
+        if let Some(window) = app_clone.get_webview_window("main") {
+            builder = builder.set_parent(&window);
+        }
+        builder
+            .blocking_pick_files()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|f| f.to_string())
+            .collect::<Vec<_>>()
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+
+    for f in &files {
+        let _ = files_authorize(state.clone(), f.clone()).await;
+    }
+    Ok(files)
 }
 
 #[tauri::command]
@@ -1101,12 +1142,18 @@ pub fn desktop_screen_get_all_monitors(app: tauri::AppHandle) -> Result<Vec<Moni
 
 #[tauri::command]
 pub fn screen_get_cursor_position(app: tauri::AppHandle) -> Result<Position, String> {
+    if let Ok(pos) = app.cursor_position() {
+        return Ok(Position {
+            x: pos.x.round() as i32,
+            y: pos.y.round() as i32,
+        });
+    }
     if let Ok(monitors) = app.available_monitors() {
         if let Some(first) = monitors.first() {
             let pos = first.position();
             return Ok(Position {
-                x: pos.x + 100,
-                y: pos.y + 100,
+                x: pos.x,
+                y: pos.y,
             });
         }
     }
@@ -1282,18 +1329,24 @@ pub fn desktop_system_media_session_set_playback_state(
 
 #[tauri::command]
 pub fn system_media_session_set_position(
-    _state: tauri::State<'_, AppState>,
-    _position_ms: Option<f64>,
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+    position_ms: Option<f64>,
 ) -> Result<(), String> {
+    if let Some(pos) = position_ms {
+        state.set_position_ms(pos);
+        let _ = app.emit("media-session:position", pos);
+    }
     Ok(())
 }
 
 #[tauri::command]
 pub fn desktop_system_media_session_set_position(
+    app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
     position_ms: Option<f64>,
 ) -> Result<(), String> {
-    system_media_session_set_position(state, position_ms)
+    system_media_session_set_position(app, state, position_ms)
 }
 
 #[tauri::command]

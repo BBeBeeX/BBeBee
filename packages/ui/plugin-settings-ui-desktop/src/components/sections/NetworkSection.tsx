@@ -2,6 +2,7 @@ import { Button, Select, Switch, useI18n } from '@BBeBee/ui-kit-desktop'
 import type { Context } from 'cordis'
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
+import { DEFAULT_USER_AGENT } from '@BBeBee/protocol'
 import type { DownloadRegion, ProxySettings, SourceRecord } from '@BBeBee/protocol'
 import { GitHubAccelerationEditor } from '../GitHubAccelerationEditor.js'
 import { SettingsRow } from '../SettingsRow.js'
@@ -88,12 +89,13 @@ export function NetworkSection({
         description: t('settings:network.userAgentDescription'),
         action: h('input', {
           type: 'text',
-          value: userAgent,
+          value: userAgent || DEFAULT_USER_AGENT,
           placeholder: t('settings:network.userAgentPlaceholder'),
           'aria-label': t('settings:network.userAgent'),
           onChange: (e: { target: { value: string } }) => onUpdateUserAgent(e.target.value),
           style: {
             width: 280,
+            maxWidth: '100%',
             height: 32,
             borderRadius: 6,
             background: 'var(--bb-bg-overlay, rgba(255, 255, 255, 0.08))',

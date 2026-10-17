@@ -177,7 +177,7 @@ export const tokens = {
 
 应用程序支持多个内置主题和动态用户自定义主题：
 - **`midnight-purple`（Bee Music · 赛博霓虹）**：默认主主题。
-- **`spotify`（Spotify 经典）**：高对比度经典流媒体播放器主题，带有标志性的 `#1DB954` 绿色强调色。
+- **`emerald-green`（翡翠绿 / 经典绿）**：高对比度经典流媒体播放器主题，带有标志性的 `#1DB954` 绿色强调色。
 - **动态用户主题**：用户可通过"设置"导入任意自定义主题（`.json` 文件上传或粘贴原始 JSON）。主题引擎动态验证并将缺失的令牌与 `midnightPurpleTheme.tokens` 进行深度合并，在运行时注册该主题，并持久化至 `ctx.store`。
 - **内置主题受保护与安全删除**：内置主题不可删除（`removeTheme()` 返回 `false`）。自定义主题可通过“设置”删除；若当前激活的自定义主题被删除，引擎会立即自动回退至 `midnight-purple` 并发出 `theme/registry-changed` 事件。
 

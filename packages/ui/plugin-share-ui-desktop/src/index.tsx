@@ -1,7 +1,7 @@
 /**
  * Desktop UI views for @BBeBee/plugin-share.
  *
- * Implements Spotify-style track, playlist, and lyric sharing with
+ * Implements track, playlist, and lyric sharing with
  * LSB steganography in PNG images and an import reader.
  */
 

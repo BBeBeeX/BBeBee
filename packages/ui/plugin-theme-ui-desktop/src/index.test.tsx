@@ -10,7 +10,7 @@ import { fireEvent, render, cleanup, waitFor } from '@testing-library/react'
 import { Context, Service } from 'cordis'
 import type { AppSettings, SettingsService, ThemeDefinition } from '@BBeBee/protocol'
 import { DEFAULT_APP_SETTINGS } from '@BBeBee/protocol'
-import { midnightPurpleTheme, spotifyTheme } from '@BBeBee/ui-tokens'
+import { midnightPurpleTheme, emeraldGreenTheme } from '@BBeBee/ui-tokens'
 import { ThemeManagementCard } from './components/ThemeManagementCard.js'
 import { THEME_VIEWS } from '@BBeBee/plugin-theme/views'
 import plugin from './index.js'
@@ -86,7 +86,7 @@ async function harness() {
   }
 
   class ThemeStub extends Service {
-    public themes: ThemeDefinition[] = [midnightPurpleTheme, spotifyTheme]
+    public themes: ThemeDefinition[] = [midnightPurpleTheme, emeraldGreenTheme]
     public currentTheme: ThemeDefinition = this.themes[0]!
     private appCtx: Context
     constructor(ctx: Context) {
@@ -111,7 +111,7 @@ async function harness() {
     }
     removeTheme = (id: string) => {
       calls.push(`theme:remove:${id}`)
-      if (id === 'midnight-purple' || id === 'spotify') return false
+      if (id === 'midnight-purple' || id === 'emerald-green' || id === 'spotify') return false
       this.themes = this.themes.filter((t) => t.id !== id)
       if (this.currentTheme.id === id) {
         this.currentTheme = this.themes[0]!
@@ -140,12 +140,12 @@ describe('ThemeManagementCard', () => {
     const { getByTestId, getByText } = render(h(ThemeManagementCard, { ctx }))
 
     expect(getByText('Bee Music · Cyber Neon')).toBeTruthy()
-    expect(getByText('Spotify Classic')).toBeTruthy()
+    expect(getByText('Emerald Green')).toBeTruthy()
 
-    fireEvent.click(getByTestId('theme-option-spotify'))
+    fireEvent.click(getByTestId('theme-option-emerald-green'))
     await waitFor(() => {
-      expect(calls.some((c) => c.includes('"themeId":"spotify"'))).toBe(true)
-      expect(calls.some((c) => c.includes('theme:setTheme:spotify'))).toBe(true)
+      expect(calls.some((c) => c.includes('"themeId":"emerald-green"'))).toBe(true)
+      expect(calls.some((c) => c.includes('theme:setTheme:emerald-green'))).toBe(true)
     })
   })
 

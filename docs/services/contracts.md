@@ -857,7 +857,7 @@ export interface ThemeService {
 |---|---|---|
 | Backing | `@BBeBee/plugin-theme` with `applyThemeToDom` injecting CSS custom properties on `document.documentElement` | `@BBeBee/plugin-theme` emitting reactive theme snapshot for `StyleSheet` consumption |
 | Persistence | `ctx.store` key `theme_active_id` + custom themes under `theme_custom_themes` | `ctx.store` |
-| Built-in Themes | `midnight-purple` (`Bee Music · Cyber Neon`), `spotify` (`Spotify Classic`) | Same |
+| Built-in Themes | `midnight-purple` (`Bee Music · Cyber Neon`), `emerald-green` (`Emerald Green`) | Same |
 | Custom Themes | Dynamic JSON import (file / text) with fallback token hydration; deletable with fallback protection | Same |
 
 - **DOM Synchronization**: `plugin-theme` evaluates `themeToCssVariables(theme)` and injects them onto the root document element, alongside `data-theme="{id}"`.

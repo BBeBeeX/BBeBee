@@ -390,7 +390,7 @@ describe('the desktop shell', () => {
     expect(btn().textContent).toBe('clicked 2')
   })
 
-  it('renders in-app Spotify-style top bar with controls', async () => {
+  it('renders in-app frameless top bar with controls', async () => {
     const minimizeMock = vi.fn()
     const maximizeMock = vi.fn().mockResolvedValue(true)
     const closeMock = vi.fn()

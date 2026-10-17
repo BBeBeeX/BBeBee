@@ -253,7 +253,24 @@ export class FsBridge extends Service implements FsService {
     }
     return raw
   }
-  async pickDirectory() {
+  async pickDirectory(): Promise<Uri | undefined> {
+    const bridge =
+      typeof window !== 'undefined'
+        ? (window as unknown as { BBeBee?: { dialog?: { pickDirectory?: () => Promise<string | undefined> } } })
+            .BBeBee
+        : undefined
+    if (bridge?.dialog?.pickDirectory) {
+      const picked = await bridge.dialog.pickDirectory()
+      if (picked) {
+        let uri = picked
+        if (!uri.startsWith('file://')) {
+          const normalized = uri.replace(/\\/g, '/')
+          uri = normalized.startsWith('/') ? `file://${normalized}` : `file:///${normalized}`
+        }
+        return uri as Uri
+      }
+      return undefined
+    }
     return this.call<Uri | undefined>('pickDirectory', [])
   }
 

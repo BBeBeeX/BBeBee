@@ -105,7 +105,7 @@ export interface ThemeDefinition {
 
 ### 6.0.2 Dual-Scheme Mode & Light Mode Architecture (WCAG AA Gate)
 
-All four built-in themes (`midnight-purple`, `spotify`, `crimson-night`, and `ocean-abyss`) and the core design system palettes support **light mode** alongside their default dark mode aesthetics:
+All four built-in themes (`midnight-purple`, `emerald-green`, `crimson-night`, and `ocean-abyss`) and the core design system palettes support **light mode** alongside their default dark mode aesthetics:
 
 #### Surface Luminance Hierarchy
 The design system establishes a strict four-layer surface hierarchy for both `dark` and `light` schemes via `@BBeBee/ui-tokens`:
@@ -128,7 +128,7 @@ The active theme maps its own `ColorTokens` on top of this core palette: the pla
 - **Component Tokenization & Contrast Preservation Rule**: see the spec at [rules/ui.md §4](../../rules/ui.md#4-visual-design-language--color-system) (L2) — no hardcoded `#FFFFFF`/`#000000` foregrounds (semantic CSS variables only); fixed black containers keep light foregrounds / on-color tokens (Fixed Dark Container Exception).
 - **Effective Scheme Resolution:** `settings.theme` supports `'dark' | 'light' | 'system'`. When `'system'` is chosen, `plugin-theme` resolves the scheme in real-time via `window.matchMedia('(prefers-color-scheme: dark)')` and listens to OS theme preference changes.
 - **DOM Single-Writer Principle:** DOM theme attributes are strictly converged into a single writer (`applyThemeToDom()` in `ui-tokens` invoked by `plugin-theme`):
-  - `data-theme="{theme.id}"` (e.g., `midnight-purple`, `spotify`)
+  - `data-theme="{theme.id}"` (e.g., `midnight-purple`, `emerald-green`)
   - `data-color-scheme="{effectiveScheme}"` (`dark` or `light`)
   - `target.style.colorScheme = effectiveScheme`
   - CSS custom properties (`--bg-app`, `--primary`, `--text-primary`, `--color-*`, etc.)
@@ -177,7 +177,7 @@ The primary visual identity is derived directly from the **Bee anime character v
 
 The application supports multiple built-in and dynamic user themes:
 - **`midnight-purple` (`Bee Music · Cyber Neon`)**: Default primary theme.
-- **`spotify` (`Spotify Classic`)**: High-contrast classic streaming player theme featuring the signature `#1DB954` green accent.
+- **`emerald-green` (`Emerald Green`)**: High-contrast minimal green-on-black theme featuring the signature `#1DB954` green accent.
 - **Dynamic User Themes**: Users can import any custom theme via Settings (`.json` file upload or raw JSON paste). The theme engine dynamically validates and deep-merges missing tokens with `midnightPurpleTheme.tokens`, registers the theme at runtime, and persists it to `ctx.store`.
 - **Protected Built-Ins & Safe Deletion**: Built-in themes cannot be removed (`removeTheme()` returns `false`). Custom themes can be deleted via Settings; if an active custom theme is removed, the engine immediately falls back to `midnight-purple` and emits `theme/registry-changed`.
 

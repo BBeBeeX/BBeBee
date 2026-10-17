@@ -27,7 +27,9 @@ export function Switch({
       },
       style: {
         width: 44,
+        minWidth: 44,
         height: 24,
+        flexShrink: 0,
         borderRadius: 12,
         background: checked
           ? 'var(--color-primary, #5F87FF)'
@@ -47,6 +49,7 @@ export function Switch({
       style: {
         width: 20,
         height: 20,
+        flexShrink: 0,
         borderRadius: 10,
         background: '#ffffff',
         transform: checked ? 'translateX(20px)' : 'translateX(0px)',
