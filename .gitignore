@@ -20,22 +20,16 @@ apps/mobile/.expo/devices.json
 target/
 *.node
 
-# Native binary executables
+# Desktop Tauri native binaries and build artifacts
 apps/desktop/bin/
 apps/desktop/resources/bin/
-apps/desktop/native/audio-engine/build/
-
-# desktop2 native binaries and build artifacts
-apps/desktop2/bin/
-apps/desktop2/resources/bin/
-apps/desktop2/dist/
-apps/desktop2/dist-sidecar/
-apps/desktop2/pkgconfig/
-apps/desktop2/src-tauri/target/
-
-apps/desktop2/src-tauri/.cargo/
-apps/desktop2/src-tauri/lib/
-apps/desktop2/resources/libmpv/
+apps/desktop/dist/
+apps/desktop/dist-sidecar/
+apps/desktop/pkgconfig/
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/.cargo/
+apps/desktop/src-tauri/lib/
+apps/desktop/resources/libmpv/
 
 # Mobile third-party audio engine artifacts
 apps/mobile/third-party/audio-engine/

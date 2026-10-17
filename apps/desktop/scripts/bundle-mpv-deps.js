@@ -6,14 +6,7 @@
  * Denylist, not allowlist, on purpose: the engine dlopens libmpv with
  * RTLD_NOW, which resolves EVERY dependency up front — video stacks included,
  * even though the engine runs `video=no`. One missing soname fails the whole
- * dlopen and the engine drops to its no-mpv fallback, where playback still
- * works (Chromium media element) but the visualizer and native device
- * switching are dead — the "visualizer and output-device switching do not
- * work in mpv mode" report. An
- * allowlist of media libraries cannot express that closure; a denylist of
- * the glibc core can. Shipping a private libc would be actively dangerous,
- * and libstdc++/libgcc_s exist on any distro that can start Electron, so
- * those are the only exclusions.
+ * dlopen and the engine drops to its no-mpv fallback.
  */
 import { existsSync, copyFileSync, lstatSync, readlinkSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
@@ -21,6 +14,9 @@ import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import process from 'node:process'
 import console from 'node:console'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const desktopRoot = join(__dirname, '..')
 
 const EXCLUDED_SONAMES = [
   'linux-vdso',
@@ -51,6 +47,8 @@ function resolveSymlinks(path) {
  * Runs iteratively over libmpv and any newly staged libraries so the
  * entire transitive closure is captured.
  *
+ * @param {string} libmpvPath - Path to staged libmpv.so binary
+ * @param {string} targetDir - Directory to stage dependencies into
  * @returns {number} how many libraries were newly copied
  */
 export function bundleMpvDeps(libmpvPath, targetDir) {
@@ -116,7 +114,12 @@ export function bundleMpvDeps(libmpvPath, targetDir) {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
-  const [libmpvPath, targetDir] = process.argv.slice(2)
+  const [argLibmpv, argTarget] = process.argv.slice(2)
+  const defaultBin = join(desktopRoot, 'bin')
+  const defaultLib = ['libmpv.so.2', 'libmpv.so'].map((f) => join(defaultBin, f)).find(existsSync)
+  const libmpvPath = argLibmpv ? resolve(argLibmpv) : defaultLib
+  const targetDir = argTarget ? resolve(argTarget) : defaultBin
+
   if (!libmpvPath || !targetDir) {
     console.error('Usage: node bundle-mpv-deps.js <libmpvPath> <targetDir>')
     process.exit(1)

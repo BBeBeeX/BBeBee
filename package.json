@@ -19,7 +19,6 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "build": "pnpm -r --filter \"./packages/**\" build",
-    "dev:electron":"pnpm --filter @BBeBee/desktop exec electron --version",
     "dev:desktop": "pnpm --filter @BBeBee/desktop dev",
     "build:audio-engine": "pnpm --filter @BBeBee/desktop build:audio-engine",
     "test:audio-engine": "pnpm --filter @BBeBee/desktop test:audio-engine",

@@ -160,6 +160,9 @@ export default tseslint.config(
       'apps/*/babel.config.js',
       'apps/mobile/index.js',
       'apps/mobile/plugins/**',
+      '**/dist-sidecar/**',
+      '**/target/**',
+      'apps/desktop/src-tauri/**',
     ],
   },
 
@@ -460,9 +463,9 @@ export default tseslint.config(
   },
 
   {
-    // docs/02 §2 — `main` is an IPC host. Business logic there would break the
+    // docs/02 §2 — `sidecar` is an IPC host. Business logic there would break the
     // platform symmetry that ADR-3 exists to preserve.
-    files: ['apps/desktop/main/**/*.ts'],
+    files: ['apps/desktop/sidecar/**/*.ts'],
     rules: {
       'no-restricted-imports': ['error', { patterns: ['@BBeBee/plugin-*'] }],
     },

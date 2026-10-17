@@ -10,6 +10,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const desktopRoot = join(__dirname, '..')
 const binDir = join(desktopRoot, 'bin')
 const resourcesBinDir = join(desktopRoot, 'resources', 'bin')
+const distSidecarDir = join(desktopRoot, 'dist-sidecar')
+const distDir = join(desktopRoot, 'dist')
 
 if (!existsSync(binDir)) mkdirSync(binDir, { recursive: true })
 if (!existsSync(resourcesBinDir)) mkdirSync(resourcesBinDir, { recursive: true })
@@ -24,18 +26,18 @@ const rawArgs = process.argv.slice(2)
 
 if (rawArgs.includes('--help') || rawArgs.includes('-h')) {
   console.log(`
-Usage: node apps/desktop/scripts/package-desktop.js [options] [electron-builder options]
+Usage: node apps/desktop/scripts/package-desktop.js [options] [tauri build options]
 
 Options:
-  --skip-build             Skip electron-vite build step
+  --skip-build             Skip frontend and sidecar build step
   --skip-audio-engine      Skip audio-engine compilation if binary exists
   --rebuild-audio-engine   Force recompiling audio-engine binary
   --skip-tests             Skip running audio-engine tests before packaging
   --no-strict, --optional  Stage libmpv without strict failure
-  --dry-run                Run prep steps and electron-vite build, skipping electron-builder
+  --dry-run                Run prep steps and frontend/sidecar build, skipping tauri packaging
   --help, -h               Show this help message
 
-All other flags are forwarded directly to electron-builder (e.g., --publish never, --dir, -l, -w, -m).
+All other flags are forwarded directly to tauri build (e.g., -b, --bundles, -t, --target, -d, --debug, --no-bundle).
 `)
   process.exit(0)
 }
@@ -67,13 +69,8 @@ for (let i = 0; i < rawArgs.length; i++) {
   }
 }
 
-// Default to --publish never if --publish is not specified
-if (!builderArgs.some((a) => a.startsWith('--publish'))) {
-  builderArgs.push('--publish', 'never')
-}
-
 console.log('====================================================')
-console.log('       BBeBee Desktop Application Packager         ')
+console.log('     BBeBee Desktop (Tauri) Application Packager   ')
 console.log('====================================================')
 console.log(`Platform: ${process.platform} (${process.arch})`)
 console.log(`Desktop root: ${desktopRoot}`)
@@ -100,7 +97,7 @@ if (!engineExists || rebuildAudioEngine) {
     }
   }
 } else {
-  console.log(`[package-desktop] Existing audio engine found.`)
+  console.log(`[package-desktop] Existing audio engine found at: ${engineBinPath}`)
 }
 
 // Ensure binaries exist in both bin and resources/bin, and set permissions
@@ -156,75 +153,137 @@ if (fetchProc.status !== 0) {
 }
 
 // ----------------------------------------------------
-// Step 3: Verify bundled resources in resources/bin
+// Step 3: Verify bundled resources in bin, resources/bin, dist-sidecar
 // ----------------------------------------------------
-console.log('\n[package-desktop] [3/5] Verifying bundled artifacts in resources/bin...')
+console.log('\n[package-desktop] [3/5] Verifying bundled artifacts in bin/ and resources/bin/...')
 if (existsSync(resourcesBinDir)) {
   const stagedFiles = readdirSync(resourcesBinDir)
-  console.log(`  Staged artifacts count: ${stagedFiles.length}`)
-  for (const f of stagedFiles) {
+  console.log(`  Staged artifacts count (resources/bin): ${stagedFiles.length}`)
+  const displayFiles = stagedFiles.slice(0, 10)
+  for (const f of displayFiles) {
     console.log(`    - ${f}`)
+  }
+  if (stagedFiles.length > 10) {
+    console.log(`    ... and ${stagedFiles.length - 10} more`)
   }
 } else {
   console.warn('  Warning: resources/bin directory is empty or missing!')
 }
 
 // ----------------------------------------------------
-// Step 4: Build Desktop Application (electron-vite)
+// Step 4: Build Desktop Bundles (Frontend + Sidecar)
 // ----------------------------------------------------
 if (!skipBuild) {
-  console.log('\n[package-desktop] [4/5] Building desktop bundles (electron-vite)...')
-  const viteProc = spawnSync('pnpm', ['exec', 'electron-vite', 'build'], {
+  console.log('\n[package-desktop] [4/5] Building frontend (Vite) and sidecar (Vite SSR)...')
+  const viteProc = spawnSync('pnpm', ['exec', 'vite', 'build'], {
     cwd: desktopRoot,
     stdio: 'inherit',
-    shell: true,
+    shell: isWin,
   })
 
   if (viteProc.status !== 0) {
-    console.error(`[package-desktop] electron-vite build failed with code ${viteProc.status}`)
+    console.error(`[package-desktop] vite build failed with code ${viteProc.status}`)
     process.exit(viteProc.status || 1)
   }
+
+  const sidecarProc = spawnSync('node', [join(__dirname, 'build-sidecar.js')], {
+    cwd: desktopRoot,
+    stdio: 'inherit',
+  })
+
+  if (sidecarProc.status !== 0) {
+    console.error(`[package-desktop] sidecar build failed with code ${sidecarProc.status}`)
+    process.exit(sidecarProc.status || 1)
+  }
 } else {
-  console.log('\n[package-desktop] [4/5] Skipping electron-vite build (--skip-build).')
+  console.log('\n[package-desktop] [4/5] Skipping frontend & sidecar build (--skip-build).')
+}
+
+// Verify dist and dist-sidecar exist
+const sidecarEntry = join(distSidecarDir, 'index.mjs')
+if (!existsSync(sidecarEntry)) {
+  console.error(`[package-desktop] Error: sidecar entry not found at: ${sidecarEntry}`)
+  process.exit(1)
+}
+console.log(`[package-desktop] Verified sidecar bundle at: ${sidecarEntry}`)
+
+// Setup PKG_CONFIG_PATH on Linux to resolve local and sysroot pc files for deb bundling
+const pkgConfigDirs = [
+  join(desktopRoot, 'pkgconfig'),
+  '/home/revers/.local/sysroot/usr/lib/x86_64-linux-gnu/pkgconfig',
+  '/usr/lib/x86_64-linux-gnu/pkgconfig',
+  '/usr/share/pkgconfig',
+].filter(existsSync)
+const currentPkgPath = process.env.PKG_CONFIG_PATH || ''
+const newPkgConfigPath = [...pkgConfigDirs, currentPkgPath].filter(Boolean).join(':')
+const buildEnv = {
+  ...process.env,
+  PKG_CONFIG_PATH: newPkgConfigPath,
+}
+
+// On Linux, default to deb bundle if not explicitly specified
+if (process.platform === 'linux' && !builderArgs.some((a) => a === '-b' || a === '--bundles' || a === '--no-bundle')) {
+  builderArgs.push('-b', 'deb')
 }
 
 // ----------------------------------------------------
-// Step 5: Package with electron-builder
+// Step 5: Package with Tauri
 // ----------------------------------------------------
 if (isDryRun) {
-  console.log('\n[package-desktop] [5/5] Dry run enabled: skipping electron-builder execution.')
-  console.log(`  Would run: electron-builder --config electron-builder.yml ${builderArgs.join(' ')}`)
+  console.log('\n[package-desktop] [5/5] Dry run enabled: skipping tauri build execution.')
+  console.log(`  Would run: tauri build ${builderArgs.join(' ')}`)
   console.log('\n====================================================')
   console.log('       Desktop Packaging Dry Run Complete!          ')
   console.log('====================================================')
   process.exit(0)
 }
 
-console.log('\n[package-desktop] [5/5] Packaging with electron-builder...')
-const builderCmdArgs = ['--config', 'electron-builder.yml', ...builderArgs]
+console.log('\n[package-desktop] [5/5] Packaging with Tauri (tauri build)...')
+// Tell tauri not to re-run beforeBuildCommand since Step 4 already built everything cleanly
+const tauriCmdArgs = ['build', '--config', '{"build":{"beforeBuildCommand":""}}', ...builderArgs]
 
-// First attempt using pnpm exec electron-builder, fallback to npx
-let packProc = spawnSync('pnpm', ['exec', 'electron-builder', ...builderCmdArgs], {
+let packProc = spawnSync('pnpm', ['exec', 'tauri', ...tauriCmdArgs], {
   cwd: desktopRoot,
   stdio: 'inherit',
-  shell: true,
+  shell: isWin,
+  env: buildEnv,
 })
 
 if (packProc.status !== 0) {
-  console.log('[package-desktop] Retrying packaging with npx electron-builder...')
-  packProc = spawnSync('npx', ['--yes', 'electron-builder', ...builderCmdArgs], {
+  console.log('[package-desktop] Retrying packaging with npx @tauri-apps/cli...')
+  packProc = spawnSync('npx', ['--yes', '@tauri-apps/cli', ...tauriCmdArgs], {
     cwd: desktopRoot,
     stdio: 'inherit',
-    shell: true,
+    shell: isWin,
+    env: buildEnv,
   })
 }
 
 if (packProc.status !== 0) {
-  console.error(`[package-desktop] electron-builder failed with code ${packProc.status}`)
+  console.error(`[package-desktop] tauri build failed with code ${packProc.status}`)
   process.exit(packProc.status || 1)
+}
+
+const bundleDir = join(desktopRoot, 'src-tauri', 'target', 'release', 'bundle')
+if (existsSync(bundleDir)) {
+  if (!existsSync(distDir)) mkdirSync(distDir, { recursive: true })
+  function copyBundles(dir) {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const fullPath = join(dir, entry.name)
+      if (entry.isDirectory()) {
+        copyBundles(fullPath)
+      } else if (entry.isFile()) {
+        const dest = join(distDir, entry.name)
+        copyFileSync(fullPath, dest)
+        console.log(`[package-desktop] Staged bundle artifact: ${entry.name} -> dist/`)
+      }
+    }
+  }
+  copyBundles(bundleDir)
 }
 
 console.log('\n====================================================')
 console.log('       Desktop Packaging Finished Successfully!     ')
 console.log('====================================================')
-console.log(`Artifacts located in: ${join(desktopRoot, 'dist')}`)
+console.log(`Target binaries and bundles located in: ${join(desktopRoot, 'src-tauri', 'target', 'release')}`)
+

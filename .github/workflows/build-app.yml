@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: 'Publish target for electron-builder (never, onTag, always)'
+        description: 'Publish target for desktop packager (never, onTag, always)'
         required: false
         default: 'never'
   push:

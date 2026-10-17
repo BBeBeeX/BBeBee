@@ -85,11 +85,11 @@ describe('analyzeChanges', () => {
   })
 
   it('identifies lintable files filtering out non-lintable and missing files', () => {
-    // apps/desktop/main/index.ts exists on disk; nonexistent/foo.ts does not
-    const files = ['apps/desktop/main/index.ts', 'nonexistent/foo.ts', 'README.md']
+    // apps/desktop/renderer/main.tsx exists on disk; nonexistent/foo.ts does not
+    const files = ['apps/desktop/renderer/main.tsx', 'nonexistent/foo.ts', 'README.md']
     const result = analyzeChanges(root, files, mockPackages)
 
-    expect(result.lintFiles).toContain('apps/desktop/main/index.ts')
+    expect(result.lintFiles).toContain('apps/desktop/renderer/main.tsx')
     expect(result.lintFiles).not.toContain('nonexistent/foo.ts')
     expect(result.lintFiles).not.toContain('README.md')
   })

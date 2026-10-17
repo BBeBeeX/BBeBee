@@ -10,7 +10,16 @@
 import { stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
+
+const hasFfmpeg = (() => {
+  try {
+    return spawnSync('ffmpeg', ['-version']).status === 0
+  } catch {
+    return false
+  }
+})()
 import { Context, Service } from 'cordis'
 import { PathsNode } from '@BBeBee/core-paths-node'
 import { FsNode } from '@BBeBee/core-fs-node'
@@ -229,7 +238,7 @@ describe('core-codec-node', () => {
     expect(formats.every((f) => f === f.toLowerCase())).toBe(true)
   })
 
-  it('transcodes audio into requested format', async () => {
+  it.skipIf(!hasFfmpeg)('transcodes audio into requested format', async () => {
     const h = await harness()
     const numSamples = 200
     const buffer = new ArrayBuffer(44 + numSamples * 2)
@@ -257,7 +266,7 @@ describe('core-codec-node', () => {
     expect(res?.ok).toBe(true)
   })
 
-  it('preserves artwork and metadata when transcoding to supported formats', async () => {
+  it.skipIf(!hasFfmpeg)('preserves artwork and metadata when transcoding to supported formats', async () => {
     const h = await harness()
     const wavPath = new URL(h.uri('source.wav')).pathname
     const flacWithArtPath = new URL(h.uri('source_art.flac')).pathname

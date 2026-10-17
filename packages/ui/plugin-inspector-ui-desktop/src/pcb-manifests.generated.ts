@@ -118,66 +118,6 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "audio"
   },
-  "@BBeBee/core-background-electron": {
-    "id": "@BBeBee/core-background-electron",
-    "name": "@BBeBee/core-background-electron",
-    "displayName": "Background",
-    "description": "ctx.background — wake locks, scheduling and suspend hooks on desktop.",
-    "version": "0.0.0",
-    "author": "BBeBee Team",
-    "engines": {
-      "BBeBee": "^0.1.0"
-    },
-    "enabled": true,
-    "dependencies": [],
-    "systemId": "layer-2",
-    "moduleId": "core",
-    "platforms": [
-      "desktop"
-    ],
-    "entry": {
-      "main": "./dist/index.js"
-    },
-    "capabilities": [
-      "background"
-    ],
-    "contributes": {
-      "services": [
-        "background"
-      ]
-    },
-    "effect": "background"
-  },
-  "core-background-electron": {
-    "id": "@BBeBee/core-background-electron",
-    "name": "@BBeBee/core-background-electron",
-    "displayName": "Background",
-    "description": "ctx.background — wake locks, scheduling and suspend hooks on desktop.",
-    "version": "0.0.0",
-    "author": "BBeBee Team",
-    "engines": {
-      "BBeBee": "^0.1.0"
-    },
-    "enabled": true,
-    "dependencies": [],
-    "systemId": "layer-2",
-    "moduleId": "core",
-    "platforms": [
-      "desktop"
-    ],
-    "entry": {
-      "main": "./dist/index.js"
-    },
-    "capabilities": [
-      "background"
-    ],
-    "contributes": {
-      "services": [
-        "background"
-      ]
-    },
-    "effect": "background"
-  },
   "@BBeBee/core-background-expo": {
     "id": "@BBeBee/core-background-expo",
     "name": "@BBeBee/core-background-expo",
@@ -224,6 +164,66 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "moduleId": "core",
     "platforms": [
       "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [
+      "background"
+    ],
+    "contributes": {
+      "services": [
+        "background"
+      ]
+    },
+    "effect": "background"
+  },
+  "@BBeBee/core-background-tauri": {
+    "id": "@BBeBee/core-background-tauri",
+    "name": "@BBeBee/core-background-tauri",
+    "displayName": "Background",
+    "description": "ctx.background — wake locks, scheduling and suspend hooks on desktop (Tauri).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "desktop"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [
+      "background"
+    ],
+    "contributes": {
+      "services": [
+        "background"
+      ]
+    },
+    "effect": "background"
+  },
+  "core-background-tauri": {
+    "id": "@BBeBee/core-background-tauri",
+    "name": "@BBeBee/core-background-tauri",
+    "displayName": "Background",
+    "description": "ctx.background — wake locks, scheduling and suspend hooks on desktop (Tauri).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "desktop"
     ],
     "entry": {
       "main": "./dist/index.js"
@@ -480,62 +480,6 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "bridge"
   },
-  "@BBeBee/core-device-electron": {
-    "id": "@BBeBee/core-device-electron",
-    "name": "@BBeBee/core-device-electron",
-    "displayName": "Device",
-    "description": "ctx.device — network, battery, media keys and hotkeys on desktop.",
-    "version": "0.0.0",
-    "author": "BBeBee Team",
-    "engines": {
-      "BBeBee": "^0.1.0"
-    },
-    "enabled": true,
-    "dependencies": [],
-    "systemId": "layer-2",
-    "moduleId": "core",
-    "platforms": [
-      "desktop"
-    ],
-    "entry": {
-      "main": "./dist/index.js"
-    },
-    "capabilities": [],
-    "contributes": {
-      "services": [
-        "device"
-      ]
-    },
-    "effect": "device"
-  },
-  "core-device-electron": {
-    "id": "@BBeBee/core-device-electron",
-    "name": "@BBeBee/core-device-electron",
-    "displayName": "Device",
-    "description": "ctx.device — network, battery, media keys and hotkeys on desktop.",
-    "version": "0.0.0",
-    "author": "BBeBee Team",
-    "engines": {
-      "BBeBee": "^0.1.0"
-    },
-    "enabled": true,
-    "dependencies": [],
-    "systemId": "layer-2",
-    "moduleId": "core",
-    "platforms": [
-      "desktop"
-    ],
-    "entry": {
-      "main": "./dist/index.js"
-    },
-    "capabilities": [],
-    "contributes": {
-      "services": [
-        "device"
-      ]
-    },
-    "effect": "device"
-  },
   "@BBeBee/core-device-expo": {
     "id": "@BBeBee/core-device-expo",
     "name": "@BBeBee/core-device-expo",
@@ -580,6 +524,62 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "moduleId": "core",
     "platforms": [
       "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "device"
+      ]
+    },
+    "effect": "device"
+  },
+  "@BBeBee/core-device-tauri": {
+    "id": "@BBeBee/core-device-tauri",
+    "name": "@BBeBee/core-device-tauri",
+    "displayName": "Device",
+    "description": "ctx.device — network, battery, media keys and hotkeys on desktop (Tauri).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "desktop"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "device"
+      ]
+    },
+    "effect": "device"
+  },
+  "core-device-tauri": {
+    "id": "@BBeBee/core-device-tauri",
+    "name": "@BBeBee/core-device-tauri",
+    "displayName": "Device",
+    "description": "ctx.device — network, battery, media keys and hotkeys on desktop (Tauri).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "desktop"
     ],
     "entry": {
       "main": "./dist/index.js"
@@ -832,66 +832,6 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "js"
   },
-  "@BBeBee/core-media-session-electron": {
-    "id": "@BBeBee/core-media-session-electron",
-    "name": "@BBeBee/core-media-session-electron",
-    "displayName": "Media session",
-    "description": "ctx.mediaSession — the OS now-playing surface on desktop.",
-    "version": "0.0.0",
-    "author": "BBeBee Team",
-    "engines": {
-      "BBeBee": "^0.1.0"
-    },
-    "enabled": true,
-    "dependencies": [],
-    "systemId": "layer-2",
-    "moduleId": "core",
-    "platforms": [
-      "desktop"
-    ],
-    "entry": {
-      "main": "./dist/index.js"
-    },
-    "capabilities": [
-      "mediaSession"
-    ],
-    "contributes": {
-      "services": [
-        "mediaSession"
-      ]
-    },
-    "effect": "mediaSession"
-  },
-  "core-media-session-electron": {
-    "id": "@BBeBee/core-media-session-electron",
-    "name": "@BBeBee/core-media-session-electron",
-    "displayName": "Media session",
-    "description": "ctx.mediaSession — the OS now-playing surface on desktop.",
-    "version": "0.0.0",
-    "author": "BBeBee Team",
-    "engines": {
-      "BBeBee": "^0.1.0"
-    },
-    "enabled": true,
-    "dependencies": [],
-    "systemId": "layer-2",
-    "moduleId": "core",
-    "platforms": [
-      "desktop"
-    ],
-    "entry": {
-      "main": "./dist/index.js"
-    },
-    "capabilities": [
-      "mediaSession"
-    ],
-    "contributes": {
-      "services": [
-        "mediaSession"
-      ]
-    },
-    "effect": "mediaSession"
-  },
   "@BBeBee/core-media-session-rn": {
     "id": "@BBeBee/core-media-session-rn",
     "name": "@BBeBee/core-media-session-rn",
@@ -938,6 +878,66 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "moduleId": "core",
     "platforms": [
       "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [
+      "mediaSession"
+    ],
+    "contributes": {
+      "services": [
+        "mediaSession"
+      ]
+    },
+    "effect": "mediaSession"
+  },
+  "@BBeBee/core-media-session-tauri": {
+    "id": "@BBeBee/core-media-session-tauri",
+    "name": "@BBeBee/core-media-session-tauri",
+    "displayName": "Media session",
+    "description": "ctx.mediaSession — the OS now-playing surface on desktop (Tauri).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "desktop"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [
+      "mediaSession"
+    ],
+    "contributes": {
+      "services": [
+        "mediaSession"
+      ]
+    },
+    "effect": "mediaSession"
+  },
+  "core-media-session-tauri": {
+    "id": "@BBeBee/core-media-session-tauri",
+    "name": "@BBeBee/core-media-session-tauri",
+    "displayName": "Media session",
+    "description": "ctx.mediaSession — the OS now-playing surface on desktop (Tauri).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "desktop"
     ],
     "entry": {
       "main": "./dist/index.js"

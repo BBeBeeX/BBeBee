@@ -45,9 +45,9 @@ import {
   safeStorageCodec,
 } from '@BBeBee/core-desktop-bridge'
 import { StoreFs } from '@BBeBee/core-store-fs'
-import { DeviceElectron } from '@BBeBee/core-device-electron'
-import { BackgroundElectron } from '@BBeBee/core-background-electron'
-import { MediaSessionElectron } from '@BBeBee/core-media-session-electron'
+import { DeviceTauri } from '@BBeBee/core-device-tauri'
+import { BackgroundTauri } from '@BBeBee/core-background-tauri'
+import { MediaSessionTauri } from '@BBeBee/core-media-session-tauri'
 import { SecretsNode } from '@BBeBee/core-secrets-node'
 import { JsQuickJsNode } from '@BBeBee/core-js-quickjs-node'
 import { CodecNode } from '@BBeBee/core-codec-node'
@@ -771,9 +771,9 @@ export async function boot(): Promise<App> {
       // The OS-facing trio. Each degrades to "no OS surface" rather than
       // throwing when the platform does not provide one, so a Linux box with
       // no MPRIS daemon still boots (docs/11 §4.3, §4.4).
-      [DeviceElectron, { appVersion: APP_VERSION, platform: hostPlatform() }],
-      BackgroundElectron,
-      MediaSessionElectron,
+      [DeviceTauri, { appVersion: APP_VERSION, platform: hostPlatform() }],
+      BackgroundTauri,
+      MediaSessionTauri,
       /*
        * The keychain where there is one.
        *

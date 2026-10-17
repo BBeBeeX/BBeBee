@@ -6,5 +6,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["main/**/*", "preload/**/*", "renderer/**/*"]
+  "include": ["renderer/**/*", "sidecar/**/*", "tests/**/*"]
 }

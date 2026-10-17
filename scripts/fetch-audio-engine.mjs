@@ -226,16 +226,10 @@ async function main() {
     const destDirs = []
     if (targetDirArg) {
       destDirs.push(resolve(process.cwd(), targetDirArg))
-    } else if (appArg === 'desktop') {
-      destDirs.push(join(rootDir, 'apps', 'desktop', 'bin'), join(rootDir, 'apps', 'desktop', 'resources', 'bin'))
-    } else if (appArg === 'desktop2') {
-      destDirs.push(join(rootDir, 'apps', 'desktop2', 'bin'), join(rootDir, 'apps', 'desktop2', 'resources', 'bin'))
     } else {
       destDirs.push(
         join(rootDir, 'apps', 'desktop', 'bin'),
         join(rootDir, 'apps', 'desktop', 'resources', 'bin'),
-        join(rootDir, 'apps', 'desktop2', 'bin'),
-        join(rootDir, 'apps', 'desktop2', 'resources', 'bin'),
       )
     }
 
@@ -259,18 +253,14 @@ async function main() {
     targetApps.push({ type: 'custom', dir: resolve(process.cwd(), targetDirArg) })
   } else if (isMobile || appArg === 'mobile') {
     targetApps.push({ type: 'mobile' })
-  } else if (appArg === 'desktop') {
+  } else if (appArg === 'desktop' || appArg === 'desktop2') {
     targetApps.push({ type: 'desktop', name: 'desktop' })
-  } else if (appArg === 'desktop2') {
-    targetApps.push({ type: 'desktop', name: 'desktop2' })
   } else if (appArg === 'all') {
     targetApps.push({ type: 'desktop', name: 'desktop' })
-    targetApps.push({ type: 'desktop', name: 'desktop2' })
     targetApps.push({ type: 'mobile' })
   } else {
-    // Default: both desktop apps
+    // Default: desktop app
     targetApps.push({ type: 'desktop', name: 'desktop' })
-    targetApps.push({ type: 'desktop', name: 'desktop2' })
   }
 
   const isWin = process.platform === 'win32'

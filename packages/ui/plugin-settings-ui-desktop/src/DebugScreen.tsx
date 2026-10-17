@@ -14,7 +14,7 @@ import { SETTINGS_VIEWS } from '@BBeBee/plugin-settings/views'
 interface WindowWithBBeBee {
   BBeBee?: {
     platform?: string
-    versions?: { electron?: string; node?: string }
+    versions?: { tauri?: string; electron?: string; node?: string }
     isDebug?: boolean
     devtools?: { open(): Promise<void> }
   }
@@ -39,10 +39,10 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
     platform: bbebee?.platform ?? device?.platform ?? nodeProc?.platform ?? 'desktop',
     arch: nodeProc?.arch ?? 'x64',
     node: bbebee?.versions?.node ?? nodeProc?.versions?.node ?? 'embedded',
-    electron:
-      bbebee?.versions?.electron ??
-      (nodeProc?.versions as Record<string, string> | undefined)?.electron ??
-      'N/A',
+    tauri:
+      bbebee?.versions?.tauri ??
+      (nodeProc?.versions as Record<string, string> | undefined)?.tauri ??
+      '2.x',
     chrome:
       (typeof navigator !== 'undefined' && /Chrome\/([0-9.]+)/.exec(navigator.userAgent)?.[1]) ||
       'N/A',
@@ -56,10 +56,10 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
         platform: bbebee?.platform ?? device?.platform ?? nodeProc.platform ?? 'desktop',
         arch: nodeProc.arch ?? 'x64',
         node: bbebee?.versions?.node ?? nodeProc.versions?.node ?? 'embedded',
-        electron:
-          bbebee?.versions?.electron ??
-          (nodeProc.versions as Record<string, string> | undefined)?.electron ??
-          'N/A',
+        tauri:
+          bbebee?.versions?.tauri ??
+          (nodeProc.versions as Record<string, string> | undefined)?.tauri ??
+          '2.x',
         chrome:
           (typeof navigator !== 'undefined' &&
             /Chrome\/([0-9.]+)/.exec(navigator.userAgent)?.[1]) ||
@@ -218,7 +218,7 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
         renderInfoItem(t('settings:debug.osPlatform'), platformInfo.platform),
         renderInfoItem(t('settings:debug.cpuArch'), platformInfo.arch),
         renderInfoItem(t('settings:debug.nodeVersion'), platformInfo.node),
-        renderInfoItem(t('settings:debug.electronVersion'), platformInfo.electron),
+        renderInfoItem(t('settings:debug.tauriVersion'), platformInfo.tauri),
         renderInfoItem(t('settings:debug.chromiumVersion'), platformInfo.chrome),
         renderInfoItem(t('settings:debug.appBuildVersion'), platformInfo.appVersion),
       ),

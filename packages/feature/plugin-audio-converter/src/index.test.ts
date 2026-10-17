@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
+import { spawnSync } from 'node:child_process'
 import { Context } from 'cordis'
+
+const hasFfmpeg = (() => {
+  try {
+    return spawnSync('ffmpeg', ['-version']).status === 0
+  } catch {
+    return false
+  }
+})()
 import { tempDir, tick } from '@BBeBee/kernel/testing'
 import { PathsNode } from '@BBeBee/core-paths-node'
 import { FsNode } from '@BBeBee/core-fs-node'
@@ -107,7 +116,7 @@ describe('plugin-audio-converter service & lifecycle', () => {
     expect(caps.encoders).toBeDefined()
   })
 
-  it('handles direct conversion and validates output', async () => {
+  it.skipIf(!hasFfmpeg)('handles direct conversion and validates output', async () => {
     const { ctx, root } = await setupHarness()
     await ctx.plugin(plugin)
     await tick()
@@ -155,7 +164,7 @@ describe('plugin-audio-converter service & lifecycle', () => {
     expect(outStat.size).toBe(res.outputSize)
   })
 
-  it('enqueues tasks and processes queue with progress and status updates', async () => {
+  it.skipIf(!hasFfmpeg)('enqueues tasks and processes queue with progress and status updates', async () => {
     const { ctx, root } = await setupHarness()
     await ctx.plugin(plugin)
     await tick()
