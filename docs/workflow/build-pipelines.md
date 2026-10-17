@@ -33,11 +33,13 @@ a plugin manifest changes. (Desktop discovers and loads workspace plugins dynami
 
 The MPV Hi-Fi engine (`core-audio-mpv`) runs in a standalone C++ executable, decoupled into
 the dedicated repository [`BBeBeeX/B_Be_Bee-audio-engine`](https://github.com/BBeBeeX/B_Be_Bee-audio-engine).
-Developers place platform-specific binaries into root `resources/<platform>/` (`resources/linux/`,
-`resources/windows/`, `resources/macos/`), or fetch them via `scripts/fetch-audio-engine.mjs`
-(governed by root `audio-engine.version.json`, verifying SHA256 integrity and deploying dual Full and
-Slim executables and libraries). The desktop packaging script (`apps/desktop/scripts/package-desktop.js`)
-automatically stages them into Tauri distribution bundles. Local compilation is retained as an escape hatch via `--from-source <path>`.
+Developers place the platform-specific **full package** (executable + complete dynamic library closure:
+all DLLs, dylibs, or transitive `.so` closures, extracted from the release archive) into root `resources/<platform>/`
+(`resources/windows/`, `resources/macos/`, `resources/linux/`), or fetch them automatically via `pnpm build:audio-engine --full-only`
+(`scripts/fetch-audio-engine.mjs`, governed by root `audio-engine.version.json`, verifying SHA256 integrity).
+The desktop packaging script (`apps/desktop/scripts/package-desktop.js`) automatically stages the full closure into Tauri
+distribution bundles, ensuring fully self-contained installers that run reliably without system-installed multimedia libraries.
+Local compilation is retained as an escape hatch via `--from-source <path>`.
 
 **Engine-binary lookup** (`AudioEngineSupervisor.resolveExecutablePath`): the
 `AUDIO_ENGINE_PATH` env var → packaged application resources → root `resources/<platform>/` → dev candidate paths.

@@ -25,10 +25,8 @@
     "dev:mobile": "pnpm --filter @BBeBee/mobile start",
     "dev:android": "pnpm --filter @BBeBee/mobile android",
     "build:desktop": "pnpm --filter @BBeBee/desktop build",
-    "build:app": "pnpm --filter @BBeBee/desktop package",
     "package:desktop": "pnpm --filter @BBeBee/desktop package",
     "dist:desktop": "pnpm --filter @BBeBee/desktop dist",
-    "build:patched-mpv": "bash scripts/build-patched-mpv.sh",
     "gen:plugins": "node --experimental-strip-types packages/tooling/tooling-gen-plugins/src/cli.ts",
     "build:sources": "node --experimental-strip-types scripts/sources/cli.ts",
     "watch:sources": "node --experimental-strip-types scripts/sources/cli.ts --watch",
@@ -45,8 +43,5 @@
     "typescript": "5.9.3",
     "typescript-eslint": "^8.19.0",
     "vitest": "^4.1.11"
-  },
-  "dependencies": {
-    "quickjs-emscripten": "0.32.0"
   }
 }

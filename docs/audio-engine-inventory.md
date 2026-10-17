@@ -11,7 +11,7 @@
 > 1. 现代化 Tauri v2 架构已正式成为唯一的桌面端应用 `apps/desktop`。
 > 2. 原生音频引擎与补丁版 libmpv 源码已全部迁移至独立开源仓库 [`BBeBeeX/B_Be_Bee-audio-engine`](https://github.com/BBeBeeX/B_Be_Bee-audio-engine)。
 > 3. 主仓库中所有三平台预编译大二进制（`*.dylib`, `*.so*`, `*.dll`, `*.exe` 等）已从工作区及 Git 历史记录中彻底清除。
-> 4. 主仓库根目录下设立 `resources/{windows,macos,linux}/` 目录作为开发者放置对应平台音频引擎的本地调试与打包放置区（已加入 `.gitignore`）。
+> 4. 主仓库根目录下设立 `resources/{windows,macos,linux}/` 目录作为开发者放置对应平台全量音频引擎（Full Package，包含可执行程序及完整动态依赖库闭包，解压后平铺）的本地调试与打包放置区（已加入 `.gitignore`）。
 > 5. 消费端统一通过根目录 `audio-engine.version.json` 与 `scripts/fetch-audio-engine.mjs` 从独立仓库发布资产下载预编译构件。
 
 ---

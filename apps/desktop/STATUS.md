@@ -1664,11 +1664,11 @@ Following strict checklist review, all 365 tracked legacy files were removed usi
 
 ### 2. 根目录 `resources/` 平台 drop zone 架构建立
 1. **目录结构创建**:
-   - 在根目录下建立平台原生资源专属目录：
-     * `resources/linux/`: 放置 Linux `audio-engine` (x64) 及 `libmpv.so.2` 等完整依赖闭包；
-     * `resources/macos/`: 放置 macOS `audio-engine` (arm64) 及 `libmpv.2.dylib`；
-     * `resources/windows/`: 放置 Windows `audio-engine.exe` (x64) 及 `mpv-2.dll` / `libmpv-2.dll`；
-   - 编写 `resources/README.md`，向开发者明确三平台音频引擎及动态库的落位规范。
+   - 在根目录下建立平台原生资源专属目录（统一要求放置全量 Full Package 产物）：
+     * `resources/linux/`: 放置 Linux `audio-engine` (x64) 及 `libmpv.so.2` 与 260 余项传递依赖共享库全量闭包；
+     * `resources/macos/`: 放置 macOS `audio-engine` (arm64) 及 `libmpv.2.dylib` 全量依赖；
+     * `resources/windows/`: 放置 Windows `audio-engine.exe` (x64) 及 `mpv-2.dll` / `libmpv-2.dll` 与全套依赖 DLL；
+   - 编写 `resources/README.md`，向开发者明确三平台全量音频引擎及动态库的落位规范。
 2. **`.gitignore` 严格忽略**:
    - 将 `resources/windows/`、`resources/macos/`、`resources/linux/` 写入 `.gitignore`；
    - 使用 `git check-ignore` 验证所有平台目录下的二进制均已被 Git 严格忽略，杜绝大二进制重新污染版本控制。
