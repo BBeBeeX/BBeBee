@@ -1,6 +1,6 @@
 //! Window Policy: When a window close hides, and when it destroys.
 //!
-//! Ported 1:1 from `apps/desktop/main/window-policy.ts`.
+//! Native window lifecycle policy for close, hide, and quit handling.
 //!
 //! MD-6: Keeping the renderer alive keeps the kernel, the queue and the
 //! audio graph alive, so "close the window" and "stop the music" stop being

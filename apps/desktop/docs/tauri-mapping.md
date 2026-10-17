@@ -1,8 +1,8 @@
-# BBeBee Desktop: Electron to Tauri Architecture & Interface Mapping
+# BBeBee Desktop: Architecture & Host Interface Mapping
 
 > **Group 0 Specification Document**  
 > Target Project: `apps/desktop`  
-> Reference Baseline: Electron Legacy Baseline  
+> Reference Baseline: Desktop Host Specification  
 > Gate Status: PASS  
 > Zero TBDs (All items resolved; decisions D1–D5 recorded)
 
@@ -10,7 +10,7 @@
 
 ## 1. Executive Architecture Overview
 
-BBeBee Desktop is transitioning from Electron to Tauri v2. In accordance with the Cordis kernel architecture and ADR-3, the desktop architecture employs a **Hybrid Tripartite Model**:
+BBeBee Desktop runs on Tauri v2. In accordance with the Cordis kernel architecture and ADR-3, the desktop architecture employs a **Hybrid Tripartite Model**:
 
 ```
 +--------------------------------------------------------------------------+
@@ -93,9 +93,9 @@ Every reference across `apps/desktop/renderer` and related Layer 2 / Layer 4 / L
 | `@BBeBee/core-desktop-bridge` | `src/protocol.ts` | `window.BBeBeeBridge`, `window.BBeBee.secrets` | Defines `BridgeApi`, `requireBridge()`, and `safeStorageCodec()` |
 | `@BBeBee/core-desktop-bridge` | `src/index.ts` | `window.BBeBeeBridge` | `FsBridge`, `DbBridge`, `PathsBridge`, `bridgeFetch()` |
 | `@BBeBee/core-codec-node` | `src/index.ts` | `window.BBeBee.audio.transcode`, `cancelTranscode` | Delegated transcode execution via FFmpeg |
-| `@BBeBee/core-device-electron` | `src/index.ts` | `window.BBeBeeBridge` (`call('system', ...)` + `on()`) | Media keys, global accelerators, battery, network |
-| `@BBeBee/core-background-electron` | `src/index.ts` | `window.BBeBeeBridge` (`call('system', ...)` + `on()`) | Wake locks (`acquireWakeLock`), system suspend notifications |
-| `@BBeBee/core-media-session-electron` | `src/index.ts` | `window.BBeBeeBridge` (`call('system', ...)` + `on()`) | MPRIS / SMTC / Now Playing broadcast & commands |
+| `@BBeBee/core-device-tauri` | `src/index.ts` | `window.BBeBeeBridge` (`call('system', ...)` + `on()`) | Media keys, global accelerators, battery, network |
+| `@BBeBee/core-background-tauri` | `src/index.ts` | `window.BBeBeeBridge` (`call('system', ...)` + `on()`) | Wake locks (`acquireWakeLock`), system suspend notifications |
+| `@BBeBee/core-media-session-tauri` | `src/index.ts` | `window.BBeBeeBridge` (`call('system', ...)` + `on()`) | MPRIS / SMTC / Now Playing broadcast & commands |
 | `@BBeBee/core-audio-mpv` | `src/index.ts` | `bridgeCall` (`window.BBeBeeBridge.call('audio', ...)`) | MPV audio engine load, play, pause, seek, volume, DSP, FFT |
 | `@BBeBee/plugin-desktop-taskbar` | `src/index.ts` | `window.BBeBee.taskbar.update`, `onAction` | Windows thumbnail toolbar & tray menu state synchronization |
 | `@BBeBee/plugin-desktop-lyrics-ui-desktop` | `src/DesktopLyrics.tsx` | `window.BBeBee.desktopLyrics` | Secondary window sync: `setVisible`, `setPosition`, `setLocked`, `updateData`, `onMoved`, `onAction` |
@@ -106,11 +106,11 @@ Every reference across `apps/desktop/renderer` and related Layer 2 / Layer 4 / L
 
 ---
 
-## 3. Electron API to Target Implementation Mapping
+## 3. Desktop Host API & Capability Mapping
 
-All 16 Electron APIs identified in `apps/desktop/main/index.ts`, `mini-player-manager.ts`, and `preload/index.ts` are mapped below with concrete target implementations.
+All 16 desktop host APIs are mapped below with concrete target implementations across Rust shell, Node sidecar, or Tauri plugins.
 
-| Electron API | Used Methods / Properties | Purpose in BBeBee | Target Implementation | Concrete Technology / Module |
+| Host Capability / API | Used Methods / Properties | Purpose in BBeBee | Target Implementation | Concrete Technology / Module |
 |---|---|---|---|---|
 | **app** | `setName`, `commandLine.appendSwitch`, `getPath`, `getVersion`, `quit`, `whenReady`, `activate`, `before-quit`, `window-all-closed`, `will-quit`, `login` | App metadata, Chromium switches, paths, version, quit policy, proxy auth | **Rust Shell** | `tauri::AppHandle`, `tauri::path::PathResolver`, `tauri::RunEvent` loop. Proxy auth handled in reqwest client / sidecar session. |
 | **BrowserWindow** | `new BrowserWindow`, `show`, `hide`, `focus`, `minimize`, `maximize`, `unmaximize`, `isMaximized`, `isMinimized`, `restore`, `close`, `destroy`, `isDestroyed`, `isVisible`, `getPosition`, `setPosition`, `getSize`, `setBounds`, `setAlwaysOnTop`, `setVisibleOnAllWorkspaces`, `setIgnoreMouseEvents`, `setThumbarButtons`, `webContents` | Window creation, lifecycle, frameless controls, floating lyrics & island | **Rust Shell** | `tauri::WebviewWindow`, `tauri::WebviewWindowBuilder`, Win32 `ITaskbarList3` for thumbar, `set_ignore_cursor_events`. |
@@ -198,7 +198,7 @@ The `window.BBeBee` object exposes 20 namespaces and properties. Every method fo
 | **locale.notify** | `(locale: string): Promise<void>` | `invoke('desktop_locale_notify', { locale })` | Rust stores locale & emits `locale:changed` to all windows |
 | **locale.onLocaleChange**| `(callback: (locale) => void): (() => void)`| `listen('locale:changed', event => callback(event.payload))` | Tauri Event subscription |
 | **sandbox.setHtml** | `(id: string, html: string): Promise<void>` | `invoke('desktop_sandbox_set_html', { id, html })` | Rust stores HTML string for `bbebee-sandbox://<id>` |
-| **versions** | `{ electron: string, node: string, tauri: string }`| Constant object | Injected by bridge init script (compat shim) |
+| **versions** | `{ tauri: string, node: string, webview: string }`| Constant object | Injected by bridge init script (compat shim) |
 | **isDebug** | `boolean` | Constant boolean | Injected by bridge init script from env / dev mode |
 
 ---
@@ -263,7 +263,7 @@ The sidecar enforces strict method allowlists to prevent arbitrary object dispat
 The following architectural choices have been established for the Tauri desktop target:
 
 ### D1: OS Keychain via keyring crate + AES-256-GCM fallback
-- **Context**: In Electron, `safeStorage` delegates to OS secret storage (DPAPI on Windows, Keychain on macOS, Secret Service / libsecret on Linux).
+- **Context**: In desktop host security, secret storage delegates to OS secret storage (DPAPI on Windows, Keychain on macOS, Secret Service / libsecret on Linux).
 - **Target**: Use the Rust `keyring` crate to access native platform keychains.
 - **Fallback**: On headless environments, Linux systems without Secret Service daemon, or test runners where `keyring` returns an error, gracefully fallback to AES-256-GCM encryption using a machine-bound derived key. This ensures the application never crashes on boot while preserving hardware-backed security where supported.
 
@@ -287,7 +287,7 @@ The following architectural choices have been established for the Tauri desktop 
 
 ## 7. Security Boundaries & Custom Protocol Registration
 
-Tauri v2 eliminates Electron's webPreferences sandbox escape risks by design. Custom URI protocols are registered natively in the Rust shell:
+Tauri v2 eliminates webPreferences sandbox escape risks by design. Custom URI protocols are registered natively in the Rust shell:
 
 1. **`bbebee-file://`**:
    - Registered via `app.register_uri_scheme_protocol("bbebee-file", ...)`.

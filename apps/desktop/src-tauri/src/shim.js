@@ -2,7 +2,7 @@
  * Tauri Preload Shim for BBeBee Desktop.
  *
  * Exposes frozen objects `window.BBeBee` and `window.BBeBeeBridge` in 100% 1:1
- * API compatibility with apps/desktop/preload/index.ts.
+ * API compatibility with the desktop host surface specification.
  * Injected into all Webview windows via Tauri initialization_script.
  */
 

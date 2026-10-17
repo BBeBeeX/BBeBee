@@ -1,6 +1,6 @@
 //! Mini Player Window Manager
 //!
-//! Controls the Mini Player / Dynamic Island BrowserWindow.
+//! Controls the Mini Player / Dynamic Island WebviewWindow.
 //! Implements 3 display modes (normal: 380x96, attached: 280x50, expanded: 420x184),
 //! snapping logic (TOP_SNAP_THRESHOLD = 80), and state synchronization.
 

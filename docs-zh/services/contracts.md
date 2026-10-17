@@ -557,7 +557,7 @@ export interface ShellService {
 ```
 
 `openAuthSession` 让 [sources/runtime.md §5](../sources/runtime.md#5-认证与会话) 的
-`webview` 登录流程行为完全一致：移动端用 `expo-web-browser` 的 auth session，桌面端用一个带导航监听器的 `BrowserWindow`。
+`webview` 登录流程行为完全一致：移动端用 `expo-web-browser` 的 auth session，桌面端用一个带导航监听器的 `WebviewWindow`。
 它收集的 cookie 落进该音源的 jar（§2.1），这正是全部意义所在。
 
 ---

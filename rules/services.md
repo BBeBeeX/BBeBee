@@ -11,7 +11,7 @@ Rules governing Layer 2 core services and platform integration in BBeBee.
 ## 1. Core Services Philosophy
 
 - **No package outside `packages/core/*` may import a platform SDK.**
-  Not `expo-*`, not `react-native` native modules, not `electron`, not `node:*`.
+  Not `expo-*`, not `react-native` native modules, not `@tauri-apps/*`, not `node:*`.
 - **A core plugin holds no domain knowledge.**
   `ctx.fs` moves bytes, `ctx.db` runs SQL, neither knows what a track is.
 - If a feature needs a platform capability not covered, the answer is to add a core service, never to import a platform SDK into feature code.

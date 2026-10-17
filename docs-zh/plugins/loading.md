@@ -48,17 +48,10 @@ codegen 即可构建。
 
 桌面端为外部第三方插件实现了运行时动态加载，同时保持沙箱完整性、`contextIsolation` 与严格的 CSP：
 
-1. **主进程中的特权协议（`apps/desktop/main/index.ts`）**：
-   在应用就绪前注册特权协议：
-   ```ts
-   protocol.registerSchemesAsPrivileged([{
-     scheme: 'bbebee-plugin',
-     privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: false },
-   }])
-   ```
-   主进程协议处理器 `protocol.handle('bbebee-plugin', ...)` 严格限定在 `userData/installed-plugins/<pluginDirName(id)>/` 下提供服务，并执行严格的路径包含检查（拒绝 `..` 路径穿越并返回 403 Forbidden），正确响应 `text/javascript`、`application/json` 等 MIME 类型。
+1. **桌面端宿主中的特权协议（`apps/desktop/src-tauri/src/main.rs` 与 `sidecar/protocols.ts`）**：
+   桌面宿主注册特权自定义协议 `bbebee-plugin://`。协议处理器严格限定在 `userData/installed-plugins/<pluginDirName(id)>/` 下提供服务，并执行严格的路径包含检查（拒绝 `..` 路径穿越并返回 403 Forbidden），正确响应 `text/javascript`、`application/json` 等 MIME 类型。
 
-2. **渲染层 Preload 桥接（`apps/desktop/preload/index.ts`）**：
+2. **Webview Shim 与桥接（`apps/desktop/src-tauri/src/shim.js` 与 `renderer/preload-shim.ts`）**：
    暴露安全且类型完备的 `window.BBeBee.plugins` API：
    - `listInstalled(): Promise<Array<{ id: string, version: string, manifest: unknown, dirName: string }>>`
    - `install(pluginId: string, files: Record<string, string>): Promise<void>`

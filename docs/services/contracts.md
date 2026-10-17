@@ -639,7 +639,7 @@ export interface ShellService {
 
 `openAuthSession` is what makes the `webview` login flow of
 [sources/runtime.md §5](../sources/runtime.md#5-authentication-and-session) work identically: `expo-web-browser`'s
-auth session on mobile, a `BrowserWindow` with a navigation listener on desktop. The cookies it
+auth session on mobile, a `WebviewWindow` with a navigation listener on desktop. The cookies it
 collects land in that source's jar (§2.1), which is the whole point.
 
 ---

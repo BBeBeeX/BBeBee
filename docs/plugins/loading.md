@@ -58,17 +58,10 @@ To maximize startup performance without breaking Cordis DI lifecycle:
 
 Desktop implements runtime dynamic loading for external third-party plugins while maintaining sandbox integrity, `contextIsolation`, and a strict CSP:
 
-1. **Privileged Scheme in Main (`apps/desktop/main/index.ts`)**:
-   `main` registers a privileged custom scheme before app ready:
-   ```ts
-   protocol.registerSchemesAsPrivileged([{
-     scheme: 'bbebee-plugin',
-     privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: false },
-   }])
-   ```
-   The `protocol.handle('bbebee-plugin', ...)` handler serves files strictly out of `userData/installed-plugins/<pluginDirName(id)>/`. Path containment is enforced so directory traversal attempts (`..`) are rejected with 403 Forbidden. Correct MIME types (`text/javascript`, `application/json`, etc.) are returned.
+1. **Privileged Scheme in Desktop Host (`apps/desktop/src-tauri/src/main.rs` & `sidecar/protocols.ts`)**:
+   The desktop host registers the privileged custom scheme `bbebee-plugin://`. The protocol handler serves files strictly out of `userData/installed-plugins/<pluginDirName(id)>/`. Path containment is enforced so directory traversal attempts (`..`) are rejected with 403 Forbidden. Correct MIME types (`text/javascript`, `application/json`, etc.) are returned.
 
-2. **Renderer Bridge (`apps/desktop/preload/index.ts`)**:
+2. **Webview Shim & Bridge (`apps/desktop/src-tauri/src/shim.js` & `renderer/preload-shim.ts`)**:
    Exposes `window.BBeBee.plugins` with:
    - `listInstalled(): Promise<Array<{ id: string, version: string, manifest: unknown, dirName: string }>>`
    - `install(pluginId: string, files: Record<string, string>): Promise<void>`

@@ -49,7 +49,7 @@ describe('analyzeChanges', () => {
   ]
 
   it('maps changed files to the correct package', () => {
-    const files = ['apps/desktop/main/index.ts', 'packages/protocol/src/index.ts']
+    const files = ['apps/desktop/sidecar/index.ts', 'packages/protocol/src/index.ts']
     const result = analyzeChanges(root, files, mockPackages)
 
     expect(result.changedPackages.map((p) => p.name).sort()).toEqual([

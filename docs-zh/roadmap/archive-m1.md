@@ -16,7 +16,7 @@ M1 是四项主张停止停留在设计、变成要么能跑要么不能跑的�
 
 | 主张 | 陈述于 | M1 对它做了什么 |
 |---|---|---|
-| 一张 Web Audio 图能在 iOS、Android 与 Electron 上播放并处理音频 | [ADR-4](../architecture/overview.md#adr-4--react-native-audio-api-是所有目标平台上首要的播放与-dsp-引擎) | 三个目标上的缓冲播放与流式播放，带锁屏控制与后台存活 |
+| 一张 Web Audio 图能在 iOS、Android 与 Desktop (Tauri) 上播放并处理音频 | [ADR-4](../architecture/overview.md#adr-4--react-native-audio-api-是所有目标平台上首要的播放与-dsp-引擎) | 三个目标上的缓冲播放与流式播放，带锁屏控制与后台存活 |
 | 音源是运行时所解释的数据，不是我们随包发布的东西 | [sources/spec.md §1](../sources/spec.md#1-模型) | 表面两端的两个提供方：`plugin-source-local`，以及一份**单规则音源文档**经运行时的 M1 切片播放（MD-7） |
 | 播放器不知道字节从哪里来 | [architecture/layers.md §5](../architecture/layers.md#5-组合功能之间如何触达彼此) | `player/before-resolve` 成为一条真实运行的瀑布，有两种可能的答案，一个本地一个远程 |
 | 一个插件向两个不共享任何组件代码的外壳贡献 UI | [ADR-2](../architecture/overview.md#adr-2--ui-拆分移动端-react-native桌面端-react-dom) | 每个外壳五块屏幕，来自无 UI 包加按目标的视图包 |
@@ -33,7 +33,7 @@ M1 是四项主张停止停留在设计、变成要么能跑要么不能跑的�
 |---|---|---|
 | 音频引擎 | `core-audio-webaudio` | `ctx.audio` —— 一份实现，覆盖两个目标 |
 | 解码与标签 | `core-codec-node`、`core-codec-rn` | `ctx.codec` —— 元数据、内嵌封面、PCM、格式支持 |
-| 操作系统表面 | `core-media-session-electron`、`core-media-session-rn`、`core-device-electron`、`core-device-expo`、`core-background-electron`、`core-background-expo` | 锁屏、通知、MPRIS/SMTC/Now Playing、媒体键、网络状态、wake lock、挂起钩子 |
+| 操作系统表面 | `core-media-session-tauri`、`core-media-session-rn`、`core-device-tauri`、`core-device-expo`、`core-background-tauri`、`core-background-expo` | 锁屏、通知、MPRIS/SMTC/Now Playing、媒体键、网络状态、wake lock、挂起钩子 |
 | 网络（切片） | `core-http-node`、`core-http-rn` | `ctx.http` 限定为 GET/HEAD、请求头、`Range`、流式、进度 —— MD-1 |
 | 音源与目录 | `plugin-sources`、`plugin-source-local`、`plugin-source-runtime` *（仅流式切片，MD-7）* | `ctx.sources` —— 注册、发现，承接这些答案的目录缓存，以及第一份音源文档 |
 | 扫描 | `plugin-local-scanner` | `ctx.scanner` —— 根目录、增量遍历、标签与封面导入 |
@@ -59,7 +59,7 @@ M1 是四项主张停止停留在设计、变成要么能跑要么不能跑的�
 | 能力提示、隔离区、任何运行时加载的代码 | M5（如果会建的话） | 每个插件都是 `builtin` 且静态打包（[修订后的 ADR-1](../architecture/overview.md#adr-1--插件在所有目标平台上都静态打包)） |
 | 命令面板、右键菜单、拖拽排序、托盘迷你播放器、独立窗口 | M2+ | MD-2 |
 | 播放列表、智能播放列表、评分、歌词、scrobble | M2+ | 浏览曲库并按下播放并不需要它们 |
-| 打包（`electron-builder`、`eas build`） | 首个发布版本 | 已在 [workflow/testing.md §7](../workflow/testing.md#运行应用) 注明 |
+| 打包（`package-desktop`、`eas build`） | 首个发布版本 | 已在 [workflow/testing.md §7](../workflow/testing.md#运行应用) 注明 |
 
 ### 1.3 里程碑决策
 
@@ -109,7 +109,7 @@ GET 与 HEAD、任意请求头、`Range`、`stream()`、`onProgress`、超时与
 **MD-6 —— 桌面端"关闭到托盘"入选；托盘迷你播放器不入。**
 关闭窗口是隐藏它，保住渲染进程 —— 也就是内核与音频图 —— 存活，播放期间持有 `powerSaveBlocker`。托盘上只有显示与退出，没有别的 UI。
 ⚠️ 阻挡器这一半当初是作为服务建成的，此后却从未被任何东西请求：`ctx.background.acquireWakeLock` 存在、有测试、经桥触达 `powerSaveBlocker` —— 却**没有调用者**，于是隐藏的窗口一直播放到机器休眠为止。`plugin-player` 现在在传输处于播放类状态时持锁，并在暂停、队列清空与卸载时释放。`stalled` 算作播放中：每逢缓冲欠载就释放再重取的锁，在 OS 眼里是一把不停翻飞的锁；而就用户的感受而言，曲目仍然在播。
-*理由。* [roadmap.md §M1](./roadmap.md#m1--能播放音乐) 要求播放能在窗口隐藏后存活，而 [ADR-3](../architecture/overview.md#adr-3--electron-内核位于渲染进程main-是一个薄的原生宿主) 使这成为进程生命周期问题而不是 UI 问题。迷你播放器是 UI，而 MD-2 推迟了 UI。
+*理由。* [roadmap.md §M1](./roadmap.md#m1--能播放音乐) 要求播放能在窗口隐藏后存活，而 [ADR-3](../architecture/overview.md#adr-3--the-desktop-kernel-lives-in-the-webview-renderer-the-native-host-and-nodejs-sidecar-are-thin-capability-hosts) 使这成为进程生命周期问题而不是 UI 问题。迷你播放器是 UI，而 MD-2 推迟了 UI。
 
 ---
 
@@ -126,11 +126,11 @@ core-codec-rn               ✅  ctx.codec — inherits the tag reader (it is pu
 core-http-node              ✅  ctx.http (M1 slice) — fetch-shaped, transport is a seam
 core-http-rn                ✅  ctx.http (M1 slice) — the same engine over expo/fetch, which is
                                 the only RN fetch with a real ReadableStream
-core-media-session-electron ✅  ctx.mediaSession — navigator.mediaSession + MPRIS/SMTC/Now Playing
+core-media-session-tauri    ✅  ctx.mediaSession — navigator.mediaSession + MPRIS/SMTC/Now Playing
 core-media-session-rn       ✅  ctx.mediaSession — lock screen and media notification
-core-device-electron        ✅  ctx.device — network, battery, media keys, hotkeys
+core-device-tauri           ✅  ctx.device — network, battery, media keys, hotkeys
 core-device-expo            ✅  ctx.device — expo-network, expo-battery
-core-background-electron    ✅  ctx.background — powerSaveBlocker, intervals, suspend hooks
+core-background-tauri       ✅  ctx.background — powerSaveBlocker, intervals, suspend hooks
 core-background-expo        ✅  ctx.background — audio session, keep-awake, expo-background-task
 core-desktop-bridge         ✅  hosts for fs, db, paths, system and http; preload surface;
                                 the main→renderer event channel the OS services need
@@ -205,7 +205,7 @@ flowchart LR
 
 ### 3.1 阶段 0 —— 音频试石
 
-在 §2 中任何包落笔之前，先由一个用完即弃的分支回答 ADR-4 是否成立。它不是插件、没有测试、事后删除。它必须在**一台 iOS 真机、一台 Android 真机和 Electron 中**展示：
+在 §2 中任何包落笔之前，先由一个用完即弃的分支回答 ADR-4 是否成立。它不是插件、没有测试、事后删除。它必须在**一台 iOS 真机、一台 Android 真机和 Desktop (Tauri) 中**展示：
 
 - 一个本地文件被解码并完整播放，`positionMs` 单调前进。
 - 一个远程 URL 以流的方式播放，一次能落点的 seek，以及一次刻意制造的、能恢复而不是让源终止的停顿。
@@ -220,7 +220,7 @@ flowchart LR
 
 `core-codec-*`、`core-audio-webaudio`、`core-device-*`、`core-background-*`，以及它们需要的桥宿主。没有功能插件。
 
-**演示。** 一项测试经 `ctx.codec` 与 `ctx.audio` 加载一个随包附带的文件并播放，在 Node（用假件）、iOS 模拟器、Android 模拟器与 Electron 上全绿。
+**演示。** 一项测试经 `ctx.codec` 与 `ctx.audio` 加载一个随包附带的文件并播放，在 Node（用假件）、iOS 模拟器、Android 模拟器与 Desktop (Tauri) 上全绿。
 
 ### 3.3 阶段 2 —— 目录
 
@@ -300,7 +300,7 @@ flowchart LR
 - [x] `acquireWakeLock` 在桌面端映射为 `powerSaveBlocker` 并及时释放；泄漏的锁会被泄漏测试抓住。⚠️ 而它如今有了*调用者* —— 见 MD-6。没有消费者的能力能通过它拥有的每一个测试，却什么也交付不了。
 - [ ] `onWillSuspend` 在两个平台上都于真实挂起之前触发，并在真机上验证 —— 一个从不触发的钩子比没有钩子更糟，因为下游的一切都信任它。
 
-### 4.4 `core-media-session-electron` · `core-media-session-rn`
+### 4.4 `core-media-session-tauri` · `core-media-session-rn`
 
 桌面端经渲染进程的 Chromium `navigator.mediaSession` 发布，并经 `main` 支持 MPRIS（Linux）、SMTC（Windows）与 macOS 的"正在播放"中心。移动端用 `react-native-audio-api` 的锁屏与通知控件，在 Android 上这意味着前台服务及其媒体通知。
 
@@ -314,7 +314,7 @@ flowchart LR
 
 ### 4.5 `core-http-node` · `core-http-rn` —— M1 切片
 
-按 MD-1：GET 与 HEAD、任意请求头、`Range`、`stream()`、`onProgress`、`timeoutMs`、`AbortSignal`、重定向处理。桌面端在 `main` 里走 Electron 的 `net` 并把流送回渲染进程，理由见 [architecture/layers.md §2](../architecture/layers.md#桌面端) 的 CORS 与请求头。
+按 MD-1：GET 与 HEAD、任意请求头、`Range`、`stream()`、`onProgress`、`timeoutMs`、`AbortSignal`、重定向处理。桌面端在 sidecar 里走 Node 的 http 桥并把流送回渲染进程，理由见 [architecture/layers.md §2](../architecture/layers.md#桌面端) 的 CORS 与请求头。
 
 `cookies` 与 `download()` 是**缺席，不是打桩** —— 一个会抛错的成员是对契约的撒谎，这与让音源的能力是派生而非声明的是同一条原则（[sources/rule-engines.md §1.3](../sources/rule-engines.md#13-能力是推导出来的不是声明出来的)）。
 
@@ -365,7 +365,7 @@ flowchart LR
 - **对失败诚实。** 无法解码的文件记为 `scan_entries.status = 'error'` 并附原因，以"无法导入"列表的形式浮出 —— 绝不无声缺席。
 - **封面。** 只提取一次，哈希为 `artworks.id`，`blurhash` 与 `dominant_color` 在导入时用纯 JS 计算（[data-model/schema.md §4.2](../data-model/schema.md#42-封面图)）。在任何一项放到列表滚动期间做都会掉帧。
 - **删除。** 消失的文件带走自己的 `media_bindings` 行，而一条失去绑定的本地曲目被移除 —— 对实例 `local` 而言，文件*就是*曲目。
-- **监视。** `ctx.fs.canWatch` 为真时用 `ctx.fs.watch`；否则经 `ctx.background.schedule` 轮询，并把由此产生的延迟如实写进 UI，而不是假装不存在。⚠️ 若*两者*都不存在 —— 在 `core-background-electron` 落地之前的每个桌面构建上都是如此，因为桥的 `canWatch` 为 false —— 扫描器回退到自己的定时器。没有它，桌面端曾完全没有自动重扫：文件变了，曲库却无声地保持陈旧。
+- **监视。** `ctx.fs.canWatch` 为真时用 `ctx.fs.watch`；否则经 `ctx.background.schedule` 轮询，并把由此产生的延迟如实写进 UI，而不是假装不存在。⚠️ 若*两者*都不存在 —— 在 `core-background-tauri` 落地之前的每个桌面构建上都是如此，因为桥的 `canWatch` 为 false —— 扫描器回退到自己的定时器。没有它，桌面端曾完全没有自动重扫：文件变了，曲库却无声地保持陈旧。
 
 - [x] `addSpecifiedDir` 用 `ctx.fs.pickDirectory`，且 Android 的 SAF 授权在重启后仍然有效。
       ⚠️ 选择器调用放在*视图*包里，`addSpecifiedDir` 接收它返回的 `Uri`：挑选文件夹是一次 UI 动作，而一个会弹出对话框的服务没法从测试或恢复流程驱动。SAF 那一半是真机工作。
@@ -463,14 +463,14 @@ M1 里最大的包，也是用户最能感知其行为的包。
 
 | | `apps/mobile` | `apps/desktop` |
 |---|---|---|
-| 引导 | 加入 `core-codec-rn`、`core-http-rn`、`core-media-session-rn`、`core-device-expo`、`core-background-expo`、`core-audio-webaudio` | 对应的 `-node` / `-electron` 版本，外加同一个共享音频包 |
+| 引导 | 加入 `core-codec-rn`、`core-http-rn`、`core-media-session-rn`、`core-device-expo`、`core-background-expo`、`core-audio-webaudio` | 对应的 `-node` / `-tauri` 版本，外加同一个共享音频包 |
 | 后台音频 | `UIBackgroundModes: ['audio']`，audio session 类别 `playback`；Android 前台服务带媒体通知 | 关闭到托盘以保住渲染进程（MD-6）；播放期间 `powerSaveBlocker` |
 | 原生 | 重建自定义 dev client —— M1 的每个核心服务都加了原生代码 | 在 `main` 为 codec、http、media session 与 device 新建桥宿主 |
 | 路由 | 贡献的路由以动态 `expo-router` 路由接入；`placement` 决定进 tab 栏还是更多菜单 | 来自 `ctx.ui.routes` 的侧栏项，按 `order` 排序 |
 
 - [x] 重跑 `pnpm gen:plugins` 并提交其产物（[workflow/build-pipelines.md §4](../workflow/build-pipelines.md#4-构建流水线)）。
 - [x] 桌面 CSP 在其底线之上恰好多一个令牌：`'wasm-unsafe-eval'`，因为 `ctx.js` 在桌面引导清单里，而 Chromium 以 `script-src` 闸住 `WebAssembly.instantiate` —— 没有它 QuickJS 永远无法编译，`createApp` 随之中止。它**不是** `'unsafe-eval'`，因此 `eval` 与 `new Function` 仍被拒绝，"渲染进程里没有外来代码"这一点没有任何改变。`renderer/csp.test.ts` 对任何方向的漂移都会失败。
-- [x] **每个目标都能打包。** Android 与 iOS 用 `expo export`，桌面用 `electron-vite build`。便宜，而且是唯一能抓住"类型检查通过却*载入不了*"的包的检查 —— 那是另一种失败，而事实证明，真正在场的正是这一种：`core-secrets-node` 用 `node:fs` 打开自己的文件，这在 `main` 里正确、在沙箱化的渲染进程里不可能，于是桌面渲染进程根本无法打包它。它现在经 `ctx.fs` 持久化，用的是它被**构造**时的那个上下文，这让存储自己的文件不占*调用方*的能力预算 —— 当初伸手去够平台 API 的理由正在于此（`core-secrets-node` 自己的测试钉死了这一点：一个持有 `secrets:own` 而没有 `fs` 授权的调用方，必须仍然能够保存）。
+- [x] **每个目标都能打包。** Android 与 iOS 用 `expo export`，桌面用 `vite build`。便宜，而且是唯一能抓住"类型检查通过却*载入不了*"的包的检查 —— 那是另一种失败，而事实证明，真正在场的正是这一种：`core-secrets-node` 用 `node:fs` 打开自己的文件，这在 `main` 里正确、在沙箱化的渲染进程里不可能，于是桌面渲染进程根本无法打包它。它现在经 `ctx.fs` 持久化，用的是它被**构造**时的那个上下文，这让存储自己的文件不占*调用方*的能力预算 —— 当初伸手去够平台 API 的理由正在于此（`core-secrets-node` 自己的测试钉死了这一点：一个持有 `secrets:own` 而没有 `fs` 授权的调用方，必须仍然能够保存）。
 - [x] `main` 仍不含领域逻辑；每个新宿主都是机械转发（[architecture/layers.md §2](../architecture/layers.md#桌面端)）。
 
 ---
@@ -614,7 +614,7 @@ M1 期间保持休眠：`download/*`、`dsp/*`、`source/auth-expired`、`source
 | 1 | 扫描 ≥ 5,000 个文件；对未变化曲库的增量重扫只消耗 stat 调用 | 语料生成器（§7）造出 5,000 个带标签的文件；带插桩的 `ctx.fs` 统计调用数；第二遍必须发出 `n` 次 stat、零次 `readBytes`、零次 `readMetadata`。对着**真实的** `core-codec-node` 运行，位于 `plugin-local-scanner/src/corpus.test.ts`。在真机上对真实曲库重复 | ✅ Node · 每次发布跑一次真机 |
 | 2 | 播放、暂停、seek、下一曲、上一曲、队列重排 —— 三个平台全部支持 | 对着 mock `AudioService` 的传输单元测试（[audio/playback.md §2](../audio/playback.md#播放控制状态机) 的每个转移）；真实 Context 加假核心服务的集成测试；两个拖动条都被驱动 —— 桌面端的 `input[type=range]`、移动端在 `ui-kit-mobile/src/slider.test.tsx` 里的响应者拖拽 —— 因为 UI 表达不出的 seek 就不是 seek；真机冒烟矩阵验证实物 | ✅ + 真机 |
 | 3 | iOS 与 Android 的锁屏与通知控件；桌面的 MPRIS/SMTC/Now Playing | `mediaSessionConformance` 对每份实现往返 `update` / `setPlaybackState` / `onCommand`；OS 表面本身靠人工 | 部分 —— 表面靠人工 |
-| 4 | 移动端切后台、桌面端隐藏窗口后播放不中断 | 桌面端：`apps/desktop/main/window-policy.test.ts` 对关闭决策的核查 —— 有托盘或在 macOS 上隐藏、没有退路之处销毁、绝不拦截退出 —— 外加 `plugin-player` 的 wake lock 套件，它钉死：播放中取锁、停顿期间持锁、暂停时释放、队列为空与卸载时释放，且播放于获取中途停止时不让锁滞留。移动端：真机冒烟，因为没有任何测试架能忠实地把应用切到后台 | 部分 |
+| 4 | 移动端切后台、桌面端隐藏窗口后播放不中断 | 桌面端：`apps/desktop/src-tauri/src/window_policy.rs`（tests）对关闭决策的核查 —— 有托盘或在 macOS 上隐藏、没有退路之处销毁、绝不拦截退出 —— 外加 `plugin-player` 的 wake lock 套件，它钉死：播放中取锁、停顿期间持锁、暂停时释放、队列为空与卸载时释放，且播放于获取中途停止时不让锁滞留。移动端：真机冒烟，因为没有任何测试架能忠实地把应用切到后台 | 部分 |
 | 5 | 拔出耳机即暂停 | 一项策略单元测试向播放器注入合成的 `onRouteChange` / `onInterruption` 事件，并断言 [audio/playback.md §5](../audio/playback.md#5-打断焦点与路由) 的整张表，包括"绝不继续用扬声器"。真实事件靠真机冒烟 | ✅ + 真机 |
 | 6 | 队列与进度跨重启恢复，且不自动播放 | 集成测试对着一份已填充的 `playback_state` 启动 Context，然后断言队列已恢复、`positionMs` 相符、`status !== 'playing'` | ✅ |
 | 7 | *（MD-5）* 无缝衔接的边界听不出；队列变化取消预取 | 单元：下一源在当前源结束前排入队列，且没有第二次 `AudioContext` 调度；队列变化时预取的 `AbortSignal` 触发。可听性是真机矩阵里的听感测试 | 部分 |
@@ -682,13 +682,13 @@ M1 期间保持休眠：`download/*`、`dsp/*`、`source/auth-expired`、`source
       留在真机上的，是真正属于设备的那些东西：SDK 的 SQLite *构建*（因此也有 `contentless_delete=1`）、SAF 的 `content://` 树、目录选择器、解码器，以及锁屏画不画得出来。
 - [x] 每个新插件通过泄漏测试，且在播放中途禁用再启用 `plugin-player` 后，`ctx.inspector` 显示一棵干净的树。⚠️ 写*重新启用*那一半时，抓到了它本要抓的 bug：`ctx.mediaSession.clear()` 只从 `stop()` 里运行，而禁用并不经过 `stop()` —— 于是被禁用的播放器留下一块锁屏，显示着一首并未在播的曲目，按钮也再不管用了。teardown 现在把 OS 表面一并撤下。
 - [x] `pnpm check` 全绿；`pnpm gen:plugins` 不产生任何差异。
-- [x] `db-scope` 套件在两份 `ctx.db` 实现上都覆盖了 MD-4，且没有任何插件持有自己用不到的能力。⚠️ 后一半如今是一道检查而非一种习惯（`conventions.test.ts`）：每条声明的能力都经闸门自己的 `servicesForCapability` 映射，且该包必须真的够得着那个服务。它首次运行就抓到三个超额授权 —— `core-device-electron` 请求 `shell`、`core-http-rn` 请求一个它没有 `download()` 可用的 `fs:write:downloads`（MD-1）、M0 演示插件请求 `secrets:own` —— 三个现均已移除。这在 M5 里最要紧，那时安装时提示会逐字读出清单：一个请求自己从不触碰之物的插件，是在教用户无脑点同意。
+- [x] `db-scope` 套件在两份 `ctx.db` 实现上都覆盖了 MD-4，且没有任何插件持有自己用不到的能力。⚠️ 后一半如今是一道检查而非一种习惯（`conventions.test.ts`）：每条声明的能力都经闸门自己的 `servicesForCapability` 映射，且该包必须真的够得着那个服务。它首次运行就抓到三个超额授权 —— `core-device-tauri` 请求 `shell`、`core-http-rn` 请求一个它没有 `download()` 可用的 `fs:write:downloads`（MD-1）、M0 演示插件请求 `secrets:own` —— 三个现均已移除。这在 M5 里最要紧，那时安装时提示会逐字读出清单：一个请求自己从不触碰之物的插件，是在教用户无脑点同意。
 - [x] `@BBeBee/protocol` 仍然零运行时依赖，且 `core-*` 之外没有任何包导入平台 SDK —— 两者都有机械检查（[workflow/structure.md §3](../workflow/structure.md#3-依赖规则)）。同一份配置如今还钉住另外两条层界：Layer 2 之上的任何东西不导入内核的引导表面、也不导入任何 `core-*` 包；内核则两者都不导入（[architecture/layers.md §1](../architecture/layers.md#不变量)）。
 - [ ] 真机冒烟矩阵已运行并记录在案，包括无缝衔接的听感测试。
       **唯一真正未完成的条目。** 它诚实地靠人工（§7），它覆盖的一切要么是 OS 画出的一个表面、要么是一个人必须亲耳听到的声音。
 - [x] 文档与代码同一个 PR 更新：[plugins/capabilities.md §7](../plugins/capabilities.md#能力语法) 的语法行，以及 [09](../workflow/structure.md) 的 ✅ 标记与版本矩阵。
 - [ ] 阶段 0 对 ADR-4 的裁决 —— 无论结果如何 —— 写回 [10](./roadmap.md#-react-native-audio-api-尚未到-10)。
-      **还不能写，而把这一点说出来正是要义**：试石需要一台 iOS 真机、一台 Android 真机与一台 Electron 机器，哪一台都还没跑过它，所以裁决仍是一个假设，[roadmap.md](./roadmap.md) 也把它记录为假设。照 Node 套件写出的裁决，等于在放决策的位置上记下一笔猜测。
+      **还不能写，而把这一点说出来正是要义**：试石需要一台 iOS 真机、一台 Android 真机与一台桌面机器，哪一台都还没跑过它，所以裁决仍是一个假设，[roadmap.md](./roadmap.md) 也把它记录为假设。照 Node 套件写出的裁决，等于在放决策的位置上记下一笔猜测。
 
 ### M1 明知而留破的地方
 

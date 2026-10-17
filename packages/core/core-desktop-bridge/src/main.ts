@@ -15,7 +15,7 @@
  * directories, and a refusal to let SQL reach other files. See
  * docs/02-architecture.md §2 and docs/03-plugin-system.md §7.
  *
- * Imported only by `apps/desktop/main`, never by the renderer.
+ * Imported only by `apps/desktop/sidecar`, never by the renderer.
  */
 
 import { Context } from 'cordis'

@@ -8,7 +8,7 @@
 > [!NOTE]
 > **迁移完成状态说明（Post-Migration Status Notice）**：
 > 本清单生成于 Group 0 初始阶段作为权威盘点审计基准。随着迁移演进与用户决策推进：
-> 1. 旧版 Electron 架构已彻底移除；现代化 Tauri v2 架构已正式成为唯一的桌面端应用 `apps/desktop`。
+> 1. 现代化 Tauri v2 架构已正式成为唯一的桌面端应用 `apps/desktop`。
 > 2. 原生音频引擎与补丁版 libmpv 源码已全部迁移至独立开源仓库 [`BBeBeeX/B_Be_Bee-audio-engine`](https://github.com/BBeBeeX/B_Be_Bee-audio-engine)。
 > 3. 主仓库中所有三平台预编译大二进制（`*.dylib`, `*.so*`, `*.dll`, `*.exe` 等）已从工作区及 Git 历史记录中彻底清除。
 > 4. 主仓库根目录下设立 `resources/{windows,macos,linux}/` 目录作为开发者放置对应平台音频引擎的本地调试与打包放置区（已加入 `.gitignore`）。
@@ -438,21 +438,16 @@ BBeBee 桌面端（基于 Tauri v2 现代化的 `apps/desktop`）采用基于独
 
 ---
 
-### 2.4 第四类：装配与测试脚本 (共 11 个文件)
+### 2.4 第四类：装配与测试脚本 (共 6 个文件)
 
 | 序号 | 相对路径 | 宿主平台 | 职责与功能说明 |
 |:---:|---|:---:|---|
-| 1 | `apps/desktop/scripts/build-audio-engine.js` | Electron | Electron 编译/装配脚本：检查 CMake 环境，构建 `audio-engine` 二进制并复制当前平台 `resources/libmpv` 动态库 |
-| 2 | `apps/desktop/scripts/fetch-libmpv.js` | Electron | Electron 动态拉取脚本：从远程 GitHub Release 或指定路径拉取并解压三平台预编译 libmpv 产物 |
-| 3 | `apps/desktop/scripts/bundle-mpv-deps.js` | Electron | Electron 依赖装配脚本：运行 ldd/dumpbin/otool 递归分析 libmpv 的依赖闭包并打包至 staging 目录 |
-| 4 | `apps/desktop/scripts/test-audio-engine.js` | Electron | Electron 端测试脚本：拉起 `audio-engine` 子进程执行 IPC 通信与 4/4 门禁回归测试 |
-| 5 | `apps/desktop/scripts/package-desktop.js` | Electron | Electron 打包编排脚本：调用 electron-builder 打包前前置装配 audio-engine 与动态库资源 |
-| 6 | `apps/desktop/scripts/build-audio-engine.js` | Tauri v2 | Tauri v2 参数化编译/装配脚本：支持 `--target`，将 `audio-engine` 二进制与依赖装配至 `bin/` 与 `resources/bin/` |
-| 7 | `apps/desktop/scripts/fetch-libmpv.js` | Tauri v2 | Tauri v2 依赖拉取脚本：带动态哈希校验与瘦身裁剪过滤，按需拉取对应目标平台库 |
-| 8 | `apps/desktop/scripts/bundle-mpv-deps.js` | Tauri v2 | Tauri v2 依赖闭包分析与资源对齐验证脚本 |
-| 9 | `apps/desktop/scripts/test-audio-engine.js` | Tauri v2 | Tauri v2 门禁自动化测试：覆盖 4/4 门禁及 13/13 项 PCM Tap 高并发无锁读写测试 |
-| 10 | `apps/desktop/scripts/package-desktop.js` | Tauri v2 | Tauri v2 跨平台打包管道：集成 deb, appimage, nsis, dmg 打包资源映射与校验 |
-| 11 | `.github/workflows/test-audio-engine.yml` | CI/CD | GitHub Actions 测试工作流：在 CI 虚拟环境中验证 audio-engine 编译产物、通信协议与 PCM 回调 |
+| 1 | `apps/desktop/scripts/build-audio-engine.js` | Tauri v2 | Tauri v2 参数化编译/装配脚本：支持 `--target`，将 `audio-engine` 二进制与依赖装配至 `bin/` 与 `resources/bin/` |
+| 2 | `apps/desktop/scripts/fetch-libmpv.js` | Tauri v2 | Tauri v2 依赖拉取脚本：带动态哈希校验与瘦身裁剪过滤，按需拉取对应目标平台库 |
+| 3 | `apps/desktop/scripts/bundle-mpv-deps.js` | Tauri v2 | Tauri v2 依赖闭包分析与资源对齐验证脚本 |
+| 4 | `apps/desktop/scripts/test-audio-engine.js` | Tauri v2 | Tauri v2 门禁自动化测试：覆盖 4/4 门禁及 13/13 项 PCM Tap 高并发无锁读写测试 |
+| 5 | `apps/desktop/scripts/package-desktop.js` | Tauri v2 | Tauri v2 跨平台打包管道：集成 deb, appimage, nsis, dmg 打包资源映射与校验 |
+| 6 | `.github/workflows/test-audio-engine.yml` | CI/CD | GitHub Actions 测试工作流：在 CI 虚拟环境中验证 audio-engine 编译产物、通信协议与 PCM 回调 |
 
 ---
 
@@ -461,21 +456,11 @@ BBeBee 桌面端（基于 Tauri v2 现代化的 `apps/desktop`）采用基于独
 ### 3.1 工程配置与构建描述
 
 1. **`apps/desktop/package.json`**:
-   - 行 9: `"build:audio-engine": "node scripts/build-audio-engine.js"`
-   - 行 10: `"test:audio-engine": "node scripts/test-audio-engine.js"`
-   - 行 11: `"build": "node scripts/build-audio-engine.js && electron-vite build"`
-   - 行 18: `"@BBeBee/core-audio-mpv": "workspace:*"`
-2. **`apps/desktop/package.json`**:
-   - 行 8: `"build:audio-engine": "node scripts/build-audio-engine.js"`
-   - 行 9: `"test:audio-engine": "node scripts/test-audio-engine.js"`
-   - 行 18: `"@BBeBee/core-audio-mpv": "workspace:*"`
-3. **`apps/desktop/electron-builder.yml`**:
-   - extraResources 字段声明打包规则：
-     - `audio-engine*`, `mpv*`, `libmpv*` 全平台通配匹配；
-     - Windows: 打包 `audio-engine.exe`, `mpv-2.dll`, `libmpv-2.dll` 以及整个 `win64/` 依赖闭包；
-     - Linux: 打包 `audio-engine`, `libmpv.so*` 及 190+ Linux 共享库；
-     - macOS: 打包 `audio-engine`, `libmpv*.dylib`。
-4. **`apps/desktop/src-tauri/tauri.conf.json`**:
+   - `"build:audio-engine": "node scripts/build-audio-engine.js"`
+   - `"test:audio-engine": "node scripts/test-audio-engine.js"`
+   - `"build": "vite build && node scripts/build-sidecar.js"`
+   - `"@BBeBee/core-audio-mpv": "workspace:*"`
+2. **`apps/desktop/src-tauri/tauri.conf.json`**:
    - 行 46–50 `bundle.resources`:
      ```json
      "resources": {
@@ -485,7 +470,7 @@ BBeBee 桌面端（基于 Tauri v2 现代化的 `apps/desktop`）采用基于独
      }
      ```
      将构建好的 `audio-engine` 与动态依赖库映射至打包产物的 `bin/` 运行时目录。
-5. **`apps/desktop/src-tauri/build.rs`**:
+3. **`apps/desktop/src-tauri/build.rs`**:
    - 行 3–8:
      ```rust
      println!("cargo:rustc-link-search=native={}/lib", manifest_dir);
@@ -495,14 +480,12 @@ BBeBee 桌面端（基于 Tauri v2 现代化的 `apps/desktop`）采用基于独
 
 ### 3.2 业务核心与功能组件代码
 
-1. **`apps/desktop/main/audio/audio-engine-supervisor.ts`**:
+1. **`apps/desktop/sidecar/audio/audio-engine-supervisor.ts` & `apps/desktop/sidecar/audio/index.ts`**:
    - 监管原生 `audio-engine` 独立进程的生命周期，负责子进程拉起、异常崩溃自动重启（指数退避）、健康检查；
    - 通过 stdio NDJSON RPC 向引擎下发 `play`, `pause`, `stop`, `seek`, `dsp_chain`, `set_volume` 命令；
    - 监听引擎 stdout 的 `ready` 事件，提取 `mpvAvailable` 和 `pcmTapAvailable` 状态标识；
    - 接收并广播 PCM 实时频谱 FFT 帧至渲染进程。
-2. **`apps/desktop/sidecar/audio/audio-engine-supervisor.ts` & `apps/desktop/sidecar/audio/index.ts`**:
-   - Tauri v2 架构下由 Node.js Sidecar 继承的进程监管器，完全兼容 Electron 版本的协议与事件语义。
-3. **`packages/feature/plugin-visualizer/src/index.ts`**:
+2. **`packages/feature/plugin-visualizer/src/index.ts`**:
    - 行 5: 统一的 `AudioAnalyser` 抽象层；
    - 行 149–174: 运行时探测引擎状态 `getEngineStatus()`。当激活 `mpv` 引擎且检测到 `pcmTapAvailable === true` 时，无缝绑定底层 C++ 原生 PCM Tap 频域帧；当未打补丁时，平滑降级（Graceful Degradation）至 Web Audio 分析器。
 
@@ -527,7 +510,7 @@ BBeBee 桌面端（基于 Tauri v2 现代化的 `apps/desktop`）采用基于独
 
 为了确保底层预编译二进制同源、无第三方篡改且无构建漂移，对核心动态链接库进行了 MD5 严格抽样对比：
 
-| 平台 | 文件相对路径 | MD5 校验和 (Electron) | MD5 校验和 (Tauri) | 验证结论 |
+| 平台 | 文件相对路径 | MD5 校验和 (基线) | MD5 校验和 (Tauri) | 验证结论 |
 |---|---|---|---|:---:|
 | **macOS** | `darwin/libmpv.2.dylib` | `89e1859c95a988fdf47bb29da75ec660` | `89e1859c95a988fdf47bb29da75ec660` | **100% 同源一致** |
 | **Linux** | `linux/libmpv.so.2` | `dc746ce206c812a5bd84ac96531e7707` | `dc746ce206c812a5bd84ac96531e7707` | **100% 同源一致** |

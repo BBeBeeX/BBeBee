@@ -503,14 +503,14 @@ export const usePosition = (ctx: Context) =>
 
 当桌面端特性需要脱离主应用窗口时 —— 例如**桌面歌词**与**迷你播放器 / 灵动岛**需要跨窗口悬浮在其他桌面应用上层、主窗口最小化时保持显示、支持多屏自由拖拽并在锁定时开启鼠标穿透：
 
-1. **单 Cordis 内核不变量 (ADR-3)**：次级 `BrowserWindow` 绝对**不能**调用 `boot()` 或创建第二个 Cordis Context。启动第二个内核会导致状态裂脑、事件监听重复触发并破坏插件单例。
+1. **单 Cordis 内核不变量 (ADR-3)**：次级 `WebviewWindow` 绝对**不能**调用 `boot()` 或创建第二个 Cordis Context。启动第二个内核会导致状态裂脑、事件监听重复触发并破坏插件单例。
 2. **被动视图架构（Passive View）**：次级窗口作为纯轻量 React 界面运行，通过 URL 查询参数或哈希（`?window=desktop-lyrics`、`?window=mini-player` 或 `#mini-player`）定向路由，直接挂载视图组件，不加载 Cordis 插件体系。
 3. **IPC 数据中枢**：主窗口渲染进程的 UI 适配插件（`plugin-desktop-lyrics-ui-desktop`、`plugin-mini-player-ui-desktop`）通过 IPC 将状态推送到次级窗口（`window.BBeBee.desktopLyrics.updateData(...)`、`window.BBeBee.miniPlayer.updateData(...)`），并通过次级窗口的 `sendAction(...)` 接收用户动作，反向分发给 `ctx.player` 及相应功能服务执行。
 4. **系统级原生集成**：
-   - 无边框透明窗口（`frame: false`, `transparent: true`, `backgroundColor: '#00000000'`, `alwaysOnTop: true`, `skipTaskbar: true`）。
+   - 无边框透明窗口（`transparent: true`, `alwaysOnTop: true`, `skipTaskbar: true`）。
    - 自由拖拽：CSS `-webkit-app-region: drag`，按钮控制项配置 `-webkit-app-region: no-drag`。
-   - 鼠标穿透：锁定状态下动态切换 `setIgnoreMouseEvents(locked, { forward: true })`。
-   - 禁用后台节流：主窗口及所有次级窗口（`miniPlayer`、`desktopLyrics`）均配置 `webPreferences.backgroundThrottling: false`，避免窗口最小化或置于后台时 Chromium 挂起定时器导致 IPC 状态同步冻结。
+   - 鼠标穿透：锁定状态下动态切换 `setIgnoreMouseEvents` / `set_ignore_cursor_events(locked)`。
+   - 禁用后台节流：主窗口及所有次级窗口（`miniPlayer`、`desktopLyrics`）均配置禁用后台节流，避免窗口最小化或置于后台时挂起定时器导致 IPC 状态同步冻结。
 
 5. **桌面歌词的交互不使用拖拽区**：
    - 歌词窗口根节点**绝不能**携带 `-webkit-app-region: drag` —— 拖拽区会吞掉悬停工具栏依赖的鼠标事件（工具栏曾因此永远不出现）。拖拽改为手动实现：指针捕获 + `desktop-lyrics:set-position` IPC（基于 `screenX/screenY` 增量），拖动结束时通过 `desktop-lyrics:commit-position` 上报最终位置（主进程对程序化移动抑制回声）。
@@ -526,7 +526,7 @@ export const usePosition = (ctx: Context) =>
    - **展开灵动岛（`expanded`）**：展开至 420×184px 卡片并停靠在屏幕顶部。配备大封面、带跑马灯滚动文字的曲目信息、动画动态波形条、时间轴滑块与传输控制。双击折叠回胶囊；向下拖动超过脱离阈值（>60px）会自动脱离恢复为悬浮迷你播放器。
 
 2. **多显示器边缘吸附与脱离**：
-   - 在 `MiniPlayerWindowManager`（`apps/desktop/main/mini-player-manager.ts`）中原生处理。
+   - 在 `MiniPlayerWindowManager`（`apps/desktop/src-tauri/src/mini_player_manager.rs`）中原生处理。
    - 当用户拖动悬浮窗口至*任意*相连显示器（`screen.getDisplayMatching(bounds)`）顶部边缘 `TOP_SNAP_THRESHOLD`（≤40px）范围内时，窗口自动水平居中吸附（`(bounds.width - attachedWidth) / 2`）并切换为 `attached` 灵动岛模式。
    - 向下拉动灵动岛超过 60px 时自动触发脱离，调整窗口尺寸并恢复至先前的悬浮坐标（`lastFloatingPos`）。
 

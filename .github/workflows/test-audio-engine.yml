@@ -5,14 +5,14 @@ on:
   push:
     paths:
       - 'apps/desktop/native/audio-engine/**'
-      - 'apps/desktop/main/audio/**'
+      - 'apps/desktop/sidecar/audio/**'
       - 'apps/desktop/scripts/*audio-engine*'
       - '.github/workflows/test-audio-engine.yml'
     branches: [main]
   pull_request:
     paths:
       - 'apps/desktop/native/audio-engine/**'
-      - 'apps/desktop/main/audio/**'
+      - 'apps/desktop/sidecar/audio/**'
       - 'apps/desktop/scripts/*audio-engine*'
       - '.github/workflows/test-audio-engine.yml'
 

@@ -414,7 +414,7 @@ protects. This is an abridged reading of `eslint.config.js` — the file itself 
 // eslint.config.js — the rules that matter
 const PLATFORM_SDKS = [
   'expo', 'expo-*', 'expo/*', 'react-native', 'react-native/*', 'react-native-*',
-  'electron', 'electron/*', 'node:*', 'fs', 'fs/promises', 'path', 'os', 'crypto',
+  '@tauri-apps', '@tauri-apps/*', 'node:*', 'fs', 'fs/promises', 'path', 'os', 'crypto',
   'child_process', 'better-sqlite3', 'music-metadata', 'ws',
 ]
 

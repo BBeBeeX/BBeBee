@@ -20,7 +20,7 @@ M1 is where four claims stop being design and become code that either works or d
 
 | Claim | Stated in | What M1 does to it |
 |---|---|---|
-| One Web Audio graph plays and processes audio on iOS, Android and Electron | [ADR-4](../architecture/overview.md#adr-4--react-native-audio-api-is-the-primary-playback-and-dsp-engine-on-every-target) | Buffered and streamed playback on all three targets, with lock-screen control and background survival |
+| One Web Audio graph plays and processes audio on iOS, Android and Desktop (Tauri) | [ADR-4](../architecture/overview.md#adr-4--react-native-audio-api-is-the-primary-playback-and-dsp-engine-on-every-target) | Buffered and streamed playback on all three targets, with lock-screen control and background survival |
 | A music source is data the runtime interprets, not a package we ship | [sources/spec.md §1](../sources/spec.md#1-the-model) | Two providers at opposite ends of the surface: `plugin-source-local`, and a **one-rule source document** played through the runtime's M1 slice (MD-7) |
 | The player does not know where bytes come from | [architecture/layers.md §5](../architecture/layers.md#5-composition-how-features-reach-each-other) | `player/before-resolve` becomes a live waterfall with two possible answers, one local and one remote |
 | One plugin contributes UI to two shells that share no component code | [ADR-2](../architecture/overview.md#adr-2--the-ui-is-split-react-native-on-mobile-react-dom-on-desktop) | Five screens per shell, from headless packages plus per-target view packages |
@@ -39,7 +39,7 @@ work; ADR-4 is not.
 |---|---|---|
 | Audio engine | `core-audio-webaudio` | `ctx.audio` — one implementation, both targets |
 | Decoding & tags | `core-codec-node`, `core-codec-rn` | `ctx.codec` — metadata, artwork, PCM, format support |
-| OS surfaces | `core-media-session-electron`, `core-media-session-rn`, `core-device-electron`, `core-device-expo`, `core-background-electron`, `core-background-expo` | Lock screen, notification, MPRIS/SMTC/Now Playing, media keys, network state, wake locks, suspend hooks |
+| OS surfaces | `core-media-session-tauri`, `core-media-session-rn`, `core-device-tauri`, `core-device-expo`, `core-background-tauri`, `core-background-expo` | Lock screen, notification, MPRIS/SMTC/Now Playing, media keys, network state, wake locks, suspend hooks |
 | Network (slice) | `core-http-node`, `core-http-rn` | `ctx.http` restricted to GET/HEAD, headers, `Range`, streaming, progress — MD-1 |
 | Sources & catalogue | `plugin-sources`, `plugin-source-local`, `plugin-source-runtime` *(stream-only slice, MD-7)* | `ctx.sources` — registration, discovery, the catalogue cache those answers land in, and the first source document |
 | Scanning | `plugin-local-scanner` | `ctx.scanner` — roots, incremental walk, tag and artwork import |
@@ -65,7 +65,7 @@ Deferred deliberately, with where each lands. Nothing here is blocked by an M1 d
 | Capability prompts, quarantine, any runtime-loaded code | M5, if ever | Every plugin is `builtin` and statically bundled ([ADR-1 as amended](../architecture/overview.md#adr-1--plugins-are-statically-bundled-on-every-target)) |
 | Command palette, context menus, drag-to-reorder, tray mini-player, detached window | M2+ | MD-2 |
 | Playlists, smart playlists, ratings, lyrics, scrobbling | M2+ | Not required to browse a library and press play |
-| Packaging (`electron-builder`, `eas build`) | First release | Already noted in [workflow/structure.md §7](../workflow/structure.md#running-the-apps) |
+| Packaging (`package-desktop`, `eas build`) | First release | Already noted in [workflow/structure.md §7](../workflow/structure.md#running-the-apps) |
 
 ### 1.3 Milestone decisions
 
@@ -181,7 +181,7 @@ while the transport is playing-like and releases it on pause, on an empty queue,
 `stalled` counts as playing: a lock dropped and re-taken on every buffer underrun is one the OS
 sees flapping, and the track is still playing as far as the user is concerned.
 *Why.* [roadmap.md §M1](./roadmap.md#m1--it-plays-music) requires playback to survive window-hide, and
-[ADR-3](../architecture/overview.md#adr-3--the-electron-kernel-lives-in-the-renderer-main-is-a-thin-native-host)
+[ADR-3](../architecture/overview.md#adr-3--the-desktop-kernel-lives-in-the-webview-renderer-the-native-host-and-nodejs-sidecar-are-thin-capability-hosts)
 makes that a process-lifetime question rather than a UI one. The mini-player is UI, and MD-2
 defers UI.
 
@@ -200,11 +200,11 @@ core-codec-rn               ✅  ctx.codec — inherits the tag reader (it is pu
 core-http-node              ✅  ctx.http (M1 slice) — fetch-shaped, transport is a seam
 core-http-rn                ✅  ctx.http (M1 slice) — the same engine over expo/fetch, which is
                                 the only RN fetch with a real ReadableStream
-core-media-session-electron ✅  ctx.mediaSession — navigator.mediaSession + MPRIS/SMTC/Now Playing
+core-media-session-tauri    ✅  ctx.mediaSession — navigator.mediaSession + MPRIS/SMTC/Now Playing
 core-media-session-rn       ✅  ctx.mediaSession — lock screen and media notification
-core-device-electron        ✅  ctx.device — network, battery, media keys, hotkeys
+core-device-tauri           ✅  ctx.device — network, battery, media keys, hotkeys
 core-device-expo            ✅  ctx.device — expo-network, expo-battery
-core-background-electron    ✅  ctx.background — powerSaveBlocker, intervals, suspend hooks
+core-background-tauri       ✅  ctx.background — powerSaveBlocker, intervals, suspend hooks
 core-background-expo        ✅  ctx.background — audio session, keep-awake, expo-background-task
 core-desktop-bridge         ✅  hosts for fs, db, paths, system and http; preload surface;
                                 the main→renderer event channel the OS services need
@@ -283,7 +283,7 @@ flowchart LR
 
 Before any package in §2 is written, one throwaway branch answers whether ADR-4 holds. It is not a
 plugin, has no tests, and is deleted afterwards. It must show, **on an iOS device, an Android
-device, and in Electron**:
+device, and in Desktop (Tauri)**:
 
 - A local file decoded and played to completion, with `positionMs` advancing monotonically.
 - A remote URL played as a stream, with a seek that lands and a deliberately induced stall that
@@ -308,7 +308,7 @@ scope changes, and that is a decision to take deliberately.
 they need. No feature plugins.
 
 **Demo.** A test that loads a bundled file through `ctx.codec` and `ctx.audio` and plays it, green
-in Node with fakes, on an iOS simulator, on an Android emulator, and in Electron.
+in Node with fakes, on an iOS simulator, on an Android emulator, and in Desktop (Tauri).
 
 ### 3.3 Stage 2 — the catalogue
 
@@ -440,7 +440,7 @@ where the player checkpoints.
 - [ ] `onWillSuspend` fires before a real suspension on both platforms, verified on device — a
       hook that never fires is worse than no hook, because everything downstream trusts it.
 
-### 4.4 `core-media-session-electron` · `core-media-session-rn`
+### 4.4 `core-media-session-tauri` · `core-media-session-rn`
 
 Desktop publishes through Chromium's `navigator.mediaSession` in the renderer, and through `main`
 for MPRIS (Linux), SMTC (Windows) and the macOS Now Playing centre. Mobile uses
@@ -464,7 +464,7 @@ and the conformance suite now holds both to it.
 ### 4.5 `core-http-node` · `core-http-rn` — the M1 slice
 
 Per MD-1: GET and HEAD, arbitrary headers, `Range`, `stream()`, `onProgress`, `timeoutMs`,
-`AbortSignal`, redirect handling. Desktop routes through Electron's `net` in `main` and streams to
+`AbortSignal`, redirect handling. Desktop routes through Node sidecar HTTP bridge and streams to
 the renderer, for the CORS and header reasons in [architecture/layers.md §2](../architecture/layers.md#desktop).
 
 `cookies` and `download()` are **absent, not stubbed** — a member that throws is a lie about the
@@ -581,7 +581,7 @@ Separate from `plugin-source-local`, because scanning is a different concern fro
 - **Watching.** `ctx.fs.watch` where `ctx.fs.canWatch`; otherwise a poll through
   `ctx.background.schedule`, with the resulting latency stated in the UI rather than pretended
   away. ⚠️ And where *neither* exists — which is every desktop build until
-  `core-background-electron` lands, since the bridge's `canWatch` is false — the scanner falls back
+  `core-background-tauri` lands, since the bridge's `canWatch` is false — the scanner falls back
   to its own timer. Without that there was no automatic rescan on desktop at all: files changed and
   the library silently stayed stale.
 
@@ -779,7 +779,7 @@ nothing else.
 
 | | `apps/mobile` | `apps/desktop` |
 |---|---|---|
-| Bootstrap | Add `core-codec-rn`, `core-http-rn`, `core-media-session-rn`, `core-device-expo`, `core-background-expo`, `core-audio-webaudio` | The `-node` / `-electron` counterparts, plus the same shared audio package |
+| Bootstrap | Add `core-codec-rn`, `core-http-rn`, `core-media-session-rn`, `core-device-expo`, `core-background-expo`, `core-audio-webaudio` | The `-node` / `-tauri` counterparts, plus the same shared audio package |
 | Background audio | `UIBackgroundModes: ['audio']`, audio session category `playback`; Android foreground service with a media notification | Close-to-tray so the renderer survives (MD-6); `powerSaveBlocker` while playing |
 | Native | Rebuild the custom dev client — every M1 core service adds native code | New bridge hosts in `main` for codec, http, media session and device |
 | Routing | Contributed routes as dynamic `expo-router` routes; `placement` decides tab bar vs. more-menu | Sidebar entries from `ctx.ui.routes`, ordered by `order` |
@@ -792,7 +792,7 @@ nothing else.
       `'unsafe-eval'`, so `eval` and `new Function` stay refused and nothing about "no foreign
       code in the renderer" changes. `renderer/csp.test.ts` fails on either direction of drift.
 - [x] **Every target bundles.** `expo export` for android and ios, and
-      `electron-vite build` for desktop. Cheap, and the only thing that catches a package that
+      `vite build` for desktop. Cheap, and the only thing that catches a package that
       typechecks and cannot be *loaded* — which is a different failure and, as it turned out, the
       one actually present: `core-secrets-node` opened its own file with `node:fs`, which is
       correct in `main` and impossible in a sandboxed renderer, so the desktop renderer could not
@@ -961,7 +961,7 @@ criterion with no named check is an intention, not a criterion.
 | 1 | Scan ≥ 5,000 files; incremental rescan of an unchanged library costs stat calls only | The corpus generator (§7) builds 5,000 tagged files; an instrumented `ctx.fs` counts calls; the second pass must issue `n` stats, zero `readBytes`, and zero `readMetadata`. Runs against the **real** `core-codec-node`, in `plugin-local-scanner/src/corpus.test.ts`. Repeated on device against a real library | ✅ Node · device run per release |
 | 2 | Play, pause, seek, next, previous, queue reorder — on all three platforms | Transport unit tests against a mock `AudioService` (every transition in [audio/playback.md §2](../audio/playback.md#transport-state-machine)); an integration test in a real context with fake core services; both scrubbers driven — desktop's `input[type=range]`, mobile's responder drag in `ui-kit-mobile/src/slider.test.tsx` — since a seek the UI cannot express is not a seek; the device smoke matrix for the real thing | ✅ + device |
 | 3 | Lock-screen and notification controls on iOS and Android; MPRIS/SMTC/Now Playing on desktop | `mediaSessionConformance` round-trips `update` / `setPlaybackState` / `onCommand` per implementation; the OS surfaces themselves are manual | Partly — surfaces are manual |
-| 4 | Playback survives backgrounding on mobile and window-hide on desktop | Desktop: `apps/desktop/main/window-policy.test.ts` on the close decision — hide with a tray or on macOS, destroy where there would be no way back, never intercept a quit — plus `plugin-player`'s wake-lock suite, which pins that the lock is taken while playing, held through a stall, released on pause, on an empty queue and on unload, and not stranded when playback stops mid-acquire. Mobile: device smoke, since no harness can background an app faithfully | Partly |
+| 4 | Playback survives backgrounding on mobile and window-hide on desktop | Desktop: `apps/desktop/src-tauri/src/window_policy.rs` (tests) on the close decision — hide with a tray or on macOS, destroy where there would be no way back, never intercept a quit — plus `plugin-player`'s wake-lock suite, which pins that the lock is taken while playing, held through a stall, released on pause, on an empty queue and on unload, and not stranded when playback stops mid-acquire. Mobile: device smoke, since no harness can background an app faithfully | Partly |
 | 5 | Headphone unplug pauses | A policy unit test drives synthetic `onRouteChange` / `onInterruption` events through the player and asserts the whole [audio/playback.md §5](../audio/playback.md#5-interruptions-focus-and-routes) table, including "never continue to speakers". The real event is device smoke | ✅ + device |
 | 6 | Queue and position restore across a restart, without auto-playing | An integration test boots a context against a populated `playback_state`, then asserts the queue is restored, `positionMs` matches, and `status !== 'playing'` | ✅ |
 | 7 | *(MD-5)* Gapless boundary is inaudible; a queue change cancels the prefetch | Unit: the next source is queued before the current one ends and no second `AudioContext` schedule happens; the prefetch `AbortSignal` fires on a queue change. Audibility is a listening test in the device matrix | Partly |
@@ -1116,7 +1116,7 @@ earlier and is not the same thing.
       capability it does not use. ⚠️ The second half is now a check rather than a habit
       (`conventions.test.ts`): every declared capability is mapped through the gate's own
       `servicesForCapability` and the package must actually reach the service. It found three
-      over-grants on its first run — `core-device-electron` asking for `shell`, `core-http-rn`
+      over-grants on its first run — `core-device-tauri` asking for `shell`, `core-http-rn`
       for `fs:write:downloads` it has no `download()` to use (MD-1), and the M0 demo plugin for
       `secrets:own` — all three now removed. This matters most in M5, when an install-time
       prompt reads the manifest out loud: a plugin asking for what it never touches teaches
@@ -1135,7 +1135,7 @@ earlier and is not the same thing.
 - [ ] The ADR-4 verdict from Stage 0 written into
       [10](./roadmap.md#-react-native-audio-api-is-pre-10) whichever way it went.
       **Cannot be written yet, and saying so is the point**: the spike needs an iOS device, an
-      Android device and an Electron machine, none of which has run it, so the verdict is still
+      Android device and a Desktop machine, none of which has run it, so the verdict is still
       a hypothesis and [roadmap.md](./roadmap.md) records it as one. Writing a verdict from the Node
       suites would be writing down a guess in the place a decision goes.
 

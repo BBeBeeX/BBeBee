@@ -612,14 +612,14 @@ The desktop shell organizes primary navigation between the left sidebar and the 
 
 When desktop features require OS-level window detachment — such as **Desktop Lyrics** and the **Mini Player / Dynamic Island** which must float on top of other desktop applications, remain visible when the main window is minimized, support arbitrary multi-monitor dragging, and provide click-through mouse event forwarding when locked:
 
-1. **Single Cordis Kernel Invariant (ADR-3)**: The secondary `BrowserWindow` must **never** call `boot()` or initialize a secondary Cordis Context. Starting a second kernel would split plugin states, duplicate playback hooks, and violate singletons.
+1. **Single Cordis Kernel Invariant (ADR-3)**: The secondary `WebviewWindow` must **never** call `boot()` or initialize a secondary Cordis Context. Starting a second kernel would split plugin states, duplicate playback hooks, and violate singletons.
 2. **Passive View Architecture**: The secondary window runs as a passive React view loaded via query/hash routing (`?window=desktop-lyrics`, `?window=mini-player` or `#mini-player`). It mounts a standalone, lightweight view component directly without activating Cordis plugins.
 3. **IPC Forwarding Hub**: The main renderer's UI adapter (`plugin-desktop-lyrics-ui-desktop`, `plugin-mini-player-ui-desktop`) syncs state down to the secondary window through IPC (`window.BBeBee.desktopLyrics.updateData(...)`, `window.BBeBee.miniPlayer.updateData(...)`), and receives user actions back from the secondary window through `sendAction(...)` dispatched to `ctx.player` and the respective feature service.
 4. **OS Integration**:
-   - Frameless transparent window (`frame: false`, `transparent: true`, `backgroundColor: '#00000000'`, `alwaysOnTop: true`, `skipTaskbar: true`).
+   - Frameless transparent window (`transparent: true`, `alwaysOnTop: true`, `skipTaskbar: true`).
    - Free dragging via CSS `-webkit-app-region: drag` and interactive buttons via `-webkit-app-region: no-drag`.
-   - Mouse click-through: `setIgnoreMouseEvents(locked, { forward: true })` toggled dynamically upon lock state where applicable.
-   - Background throttling disabled: `webPreferences.backgroundThrottling: false` is configured across `mainWindow`, `miniPlayer`, and `desktopLyrics` so Chromium does not throttle timers or IPC synchronization when windows are minimized or hidden behind other applications.
+   - Mouse click-through: `setIgnoreMouseEvents` / `set_ignore_cursor_events(locked)` toggled dynamically upon lock state where applicable.
+   - Background throttling disabled: configured across `mainWindow`, `miniPlayer`, and `desktopLyrics` so timers or IPC synchronization are not throttled when windows are minimized or hidden behind other applications.
 
 5. **Desktop Lyrics Interaction Without Drag Regions**:
    - The lyrics window root must never carry `-webkit-app-region: drag`: a drag region swallows the mouse events the hover toolbar depends on (the reason the toolbar once never appeared). Dragging is manual instead — pointer capture plus `desktop-lyrics:set-position` IPC using `screenX/screenY` deltas, and the final position is reported through `desktop-lyrics:commit-position` when the drag ends (programmatic moves are echo-suppressed in main).
@@ -635,7 +635,7 @@ The **Mini Player / Dynamic Island** (`plugin-mini-player` and `plugin-mini-play
    - **Expanded Dynamic Island (`expanded`)**: Expanded 420×184px card docked at the screen top. Features large cover art, track info with marquee scrolling, animated frequency wave bars, timeline scrubber, and transport controls. Double-clicking collapses back to capsule; dragging downward past the detach threshold (>60px) detaches it back into a floating mini player.
 
 2. **Multi-Display Edge Snapping & Detachment**:
-   - Handled natively in `MiniPlayerWindowManager` (`apps/desktop/main/mini-player-manager.ts`).
+   - Handled natively in `MiniPlayerWindowManager` (`apps/desktop/src-tauri/src/mini_player_manager.rs`).
    - When the user drags the floating window within `TOP_SNAP_THRESHOLD` (≤40px) of the top edge of *any* connected display (`screen.getDisplayMatching(bounds)`), the window automatically snaps to horizontal center (`(bounds.width - attachedWidth) / 2`) and transitions to `attached` Dynamic Island mode.
    - Dragging the Dynamic Island downwards past `60px` automatically triggers detachment, resizing and restoring the window back to its previous floating coordinates (`lastFloatingPos`).
 
