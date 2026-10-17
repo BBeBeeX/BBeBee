@@ -44,9 +44,9 @@
       "icons/icon.png"
     ],
     "resources": {
-      "../bin/*": "bin/",
-      "../resources/bin/*": "bin/",
-      "../dist-sidecar/*": "dist-sidecar/"
+      "../bin": "bin/",
+      "../resources/bin": "bin/",
+      "../dist-sidecar": "dist-sidecar/"
     },
     "linux": {
       "deb": {

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { build } from 'vite'
-import { resolve, dirname } from 'node:path'
+import { isAbsolute, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { existsSync, chmodSync } from 'node:fs'
 import process from 'node:process'
@@ -27,8 +27,11 @@ await build({
       external: (id) =>
         !id.startsWith('@BBeBee/') &&
         !id.startsWith('.') &&
-        !id.startsWith('/') &&
-        !id.startsWith('\0'),
+        !id.startsWith('\0') &&
+        // `isAbsolute` also recognises Windows drive-letter and UNC paths —
+        // a bare `startsWith('/')` marks the entry module itself as external
+        // on Windows, which Rollup rejects with UNRESOLVED_ENTRY.
+        !isAbsolute(id),
     },
   },
 })

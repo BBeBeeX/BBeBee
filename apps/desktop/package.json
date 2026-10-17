@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tauri dev",
+    "dev": "pnpm build:sidecar && tauri dev",
     "dev:frontend": "vite",
     "fetch:audio-engine": "node ../../scripts/fetch-audio-engine.mjs --app desktop",
     "test:audio-engine": "node scripts/test-audio-engine.js",
