@@ -53,7 +53,7 @@ const DEFAULT_FORMATS = [
   'dff',
 ]
 
-/** How much of the head to read before falling back to the whole file. */
+/** How much of the head to read before falling back to larger windows or whole file. */
 const TAG_WINDOW_BYTES = 256 * 1024
 
 export class CodecNode extends Service implements CodecService {
@@ -79,8 +79,9 @@ export class CodecNode extends Service implements CodecService {
       const { size } = await this.ctx.fs.stat(uri)
       if (size > TAG_WINDOW_BYTES) {
         try {
-          const whole = await this.ctx.fs.readBytes(uri)
-          const fullParsed = await this.parseBytes(whole, uri, size, { duration: false, skipCovers: false })
+          const artWindow = Math.min(size, 4 * 1024 * 1024)
+          const head = await this.readWindow(uri, artWindow)
+          const fullParsed = await this.parseBytes(head, uri, size, { duration: false, skipCovers: false })
           cover = selectCover(fullParsed.common.picture)
         } catch {
           // ignore
@@ -484,18 +485,32 @@ export class CodecNode extends Service implements CodecService {
   private async parse(uri: Uri, options: IOptions): Promise<IAudioMetadata> {
     const { size } = await this.ctx.fs.stat(uri)
 
-    if (size > TAG_WINDOW_BYTES) {
-      const head = await this.readWindow(uri, TAG_WINDOW_BYTES)
-      try {
-        const parsed = await this.parseBytes(head, uri, undefined, options)
-        if (hasUsableTags(parsed)) return parsed
-      } catch {
-        // The window cut through something the parser needed.
+    const windows = [TAG_WINDOW_BYTES, 512 * 1024, 2 * 1024 * 1024, 4 * 1024 * 1024]
+    for (const winBytes of windows) {
+      if (size > winBytes) {
+        try {
+          const head = await this.readWindow(uri, winBytes)
+          const parsed = await this.parseBytes(head, uri, undefined, options)
+          if (hasUsableTags(parsed)) return parsed
+        } catch {
+          // The window cut through something the parser needed; try larger window.
+        }
       }
     }
 
-    const whole = await this.ctx.fs.readBytes(uri)
-    const parsed = await this.parseBytes(whole, uri, size, options)
+    const maxWholeRead = 8 * 1024 * 1024
+    let parsed: IAudioMetadata | undefined
+    if (size <= maxWholeRead) {
+      const whole = await this.ctx.fs.readBytes(uri)
+      parsed = await this.parseBytes(whole, uri, size, options)
+    } else {
+      try {
+        const head = await this.readWindow(uri, Math.min(size, maxWholeRead))
+        parsed = await this.parseBytes(head, uri, size, options)
+      } catch {
+        // ignore
+      }
+    }
 
     /*
      * A parse that found nothing at all is a failure, not a tagless track.
@@ -509,7 +524,7 @@ export class CodecNode extends Service implements CodecService {
      * decode gets `scan_entries.status = 'error'` with a reason, and is never
      * silently absent. It was silently *present* instead.
      */
-    if (!hasUsableTags(parsed)) {
+    if (!parsed || !hasUsableTags(parsed)) {
       throw new Error(`codec: nothing readable in ${this.ctx.fs.basename(uri)}`)
     }
     return parsed
@@ -548,9 +563,10 @@ export class CodecNode extends Service implements CodecService {
     try {
       for (;;) {
         const { done, value } = await reader.read()
-        if (done) break
-        chunks.push(value)
-        total += value.byteLength
+        if (done || !value) break
+        const normalized = value instanceof Uint8Array ? value : new Uint8Array(value)
+        chunks.push(normalized)
+        total += normalized.byteLength
         if (total >= bytes) break
       }
     } finally {

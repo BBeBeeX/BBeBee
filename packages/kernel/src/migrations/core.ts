@@ -11,6 +11,7 @@
  */
 
 import type { Migration } from '@BBeBee/protocol'
+import type { MigrationTx } from './runner.js'
 
 export const CORE_MIGRATIONS: Migration[] = [
   {
@@ -751,5 +752,67 @@ export const CORE_MIGRATIONS: Migration[] = [
         added_at INTEGER NOT NULL
       )`,
     ],
+  },
+  {
+    version: 8,
+    // Upgrade legacy databases where scan_roots was used prior to the rename
+    // to scan_specified_dirs. If scan_roots exists, copy data and rename column.
+    up: async (tx: MigrationTx) => {
+      const tables = await tx.query<{ name: string }>(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('scan_roots', 'scan_specified_dirs')",
+      )
+      const tableNames = new Set(tables.map((t) => t.name))
+
+      if (!tableNames.has('scan_specified_dirs')) {
+        await tx.exec(`CREATE TABLE scan_specified_dirs (
+          id            TEXT PRIMARY KEY,
+          uri           TEXT NOT NULL UNIQUE,
+          recursive     INTEGER NOT NULL DEFAULT 1,
+          enabled       INTEGER NOT NULL DEFAULT 1,
+          include_globs TEXT,
+          exclude_globs TEXT,
+          last_scan_at  INTEGER,
+          last_error    TEXT
+        )`)
+      }
+
+      if (tableNames.has('scan_roots')) {
+        await tx.exec(
+          `INSERT OR IGNORE INTO scan_specified_dirs (id, uri, recursive, enabled, include_globs, exclude_globs, last_scan_at, last_error)
+           SELECT id, uri, recursive, enabled, include_globs, exclude_globs, last_scan_at, last_error FROM scan_roots`,
+        )
+      }
+
+      const columns = await tx.query<{ name: string }>('PRAGMA table_info(scan_entries)')
+      const colNames = new Set(columns.map((c) => c.name))
+      if (colNames.has('root_id') && !colNames.has('specified_dir_id')) {
+        await tx.exec(`CREATE TABLE IF NOT EXISTS scan_entries_new (
+          uri              TEXT PRIMARY KEY,
+          specified_dir_id TEXT NOT NULL REFERENCES scan_specified_dirs(id) ON DELETE CASCADE,
+          size             INTEGER NOT NULL,
+          mtime            INTEGER NOT NULL,
+          track_urn        TEXT REFERENCES tracks(urn) ON DELETE SET NULL,
+          status           TEXT NOT NULL,
+          error            TEXT,
+          scanned_at       INTEGER NOT NULL
+        )`)
+        await tx.exec(
+          `INSERT OR IGNORE INTO scan_entries_new (uri, specified_dir_id, size, mtime, track_urn, status, error, scanned_at)
+           SELECT uri, root_id, size, mtime, track_urn, status, error, scanned_at FROM scan_entries`,
+        )
+        await tx.exec('DROP TABLE scan_entries')
+        await tx.exec('ALTER TABLE scan_entries_new RENAME TO scan_entries')
+      }
+      await tx.exec('DROP INDEX IF EXISTS idx_scan_entries_root')
+      await tx.exec(
+        'CREATE INDEX IF NOT EXISTS idx_scan_entries_specified_dir ON scan_entries(specified_dir_id, status)',
+      )
+      await tx.exec(
+        'CREATE INDEX IF NOT EXISTS idx_scan_entries_track ON scan_entries(track_urn)',
+      )
+      if (tableNames.has('scan_roots')) {
+        await tx.exec('DROP TABLE IF EXISTS scan_roots')
+      }
+    },
   },
 ]

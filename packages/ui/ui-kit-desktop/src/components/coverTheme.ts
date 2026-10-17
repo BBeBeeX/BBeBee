@@ -4,7 +4,7 @@ import { toBbebeeFileUri } from './Artwork.js'
 
 /**
  * A detail page's background takes its colour from the cover, the way
- * Spotify's do. A ref's `dominantColor` — computed once at cache time — is
+ * modern streaming players do. A ref's `dominantColor` — computed once at cache time — is
  * the primary source; a cover without one gets a one-shot canvas extraction
  * of its image, and a cover that cannot be read (remote URLs without CORS, a
  * failed decode, no cover at all) gets `undefined`, i.e. the caller's neutral

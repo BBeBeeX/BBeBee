@@ -194,8 +194,8 @@ export interface ListProps<T> extends CommonProps {
   empty?: unknown
   /**
    * Desktop only. Content scrolled inside the scroller above the rows — a
-   * detail page's hero and toolbar scroll away with the list (the Spotify
-   * layout). The virtualiser is offset by the header's measured height
+   * detail page's hero and toolbar scroll away with the list (the collapsing
+   * hero layout). The virtualiser is offset by the header's measured height
    * automatically.
    */
   header?: ReactNode

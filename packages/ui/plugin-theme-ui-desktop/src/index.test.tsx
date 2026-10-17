@@ -111,7 +111,7 @@ async function harness() {
     }
     removeTheme = (id: string) => {
       calls.push(`theme:remove:${id}`)
-      if (id === 'midnight-purple' || id === 'emerald-green' || id === 'spotify') return false
+      if (id === 'midnight-purple' || id === 'emerald-green') return false
       this.themes = this.themes.filter((t) => t.id !== id)
       if (this.currentTheme.id === id) {
         this.currentTheme = this.themes[0]!

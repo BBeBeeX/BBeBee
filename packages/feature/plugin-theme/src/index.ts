@@ -171,7 +171,7 @@ export class ThemePlugin extends Service implements ThemeService {
   }
 
   async setTheme(themeId: string): Promise<void> {
-    const target = this.registry.get(themeId) ?? (themeId === 'spotify' ? this.registry.get('emerald-green') : undefined)
+    const target = this.registry.get(themeId)
     if (!target) {
       this.ownCtx.logger.warn(`theme: unknown theme id "${themeId}"`)
       return
@@ -217,7 +217,7 @@ export class ThemePlugin extends Service implements ThemeService {
   }
 
   removeTheme(themeId: string): boolean {
-    if (themeId in builtInThemes || themeId === 'spotify' || themeId === 'emerald-green') {
+    if (themeId in builtInThemes || themeId === 'emerald-green') {
       this.ownCtx.logger.warn(`theme: cannot remove built-in theme "${themeId}"`)
       return false
     }

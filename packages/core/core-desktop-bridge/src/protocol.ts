@@ -239,3 +239,50 @@ export function unwrapBridgeResult<T>(response: unknown): T {
   return response as T
 }
 
+/**
+ * Normalizes incoming binary data across IPC (JSON-RPC, structured clone, base64) into a Uint8Array.
+ * Returns null if the value is null or undefined.
+ */
+export function normalizeBridgeBytes(val: unknown): Uint8Array | null {
+  if (val === null || val === undefined) return null
+  if (val instanceof Uint8Array) return val
+  if (ArrayBuffer.isView(val)) {
+    return new Uint8Array(val.buffer, val.byteOffset, val.byteLength)
+  }
+  if (val instanceof ArrayBuffer) {
+    return new Uint8Array(val)
+  }
+  if (typeof val === 'string') {
+    try {
+      const bin = atob(val)
+      const arr = new Uint8Array(bin.length)
+      for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i)
+      return arr
+    } catch {
+      return new TextEncoder().encode(val)
+    }
+  }
+  if (typeof val === 'object') {
+    const obj = val as Record<string, unknown>
+    if (obj['type'] === 'Buffer' && Array.isArray(obj['data'])) {
+      return new Uint8Array(obj['data'] as number[])
+    }
+    if (Array.isArray(val)) {
+      return new Uint8Array(val)
+    }
+    const len = typeof obj['length'] === 'number' ? obj['length'] : Object.keys(obj).length
+    if (len === 0) {
+      return new Uint8Array(0)
+    }
+    if (typeof obj[0] === 'number' || typeof obj['0'] === 'number') {
+      const arr = new Uint8Array(len)
+      for (let i = 0; i < len; i++) {
+        arr[i] = Number(obj[i])
+      }
+      return arr
+    }
+  }
+  return null
+}
+
+

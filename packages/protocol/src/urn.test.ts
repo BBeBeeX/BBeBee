@@ -28,7 +28,7 @@ describe('parseUrn', () => {
 
   it.each([
     ['BBeBee:inst:track', 'too few segments'],
-    ['spotify:inst:track:1', 'wrong scheme'],
+    ['other:inst:track:1', 'wrong scheme'],
     ['BBeBee::track:1', 'empty instance'],
     ['BBeBee:inst:song:1', 'unknown kind'],
     ['BBeBee:inst:track:', 'empty id'],

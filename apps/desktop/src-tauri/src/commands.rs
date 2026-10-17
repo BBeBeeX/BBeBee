@@ -799,16 +799,16 @@ pub async fn dialog_pick_directory(
         }
     }
     use tauri_plugin_dialog::DialogExt;
-    let app_clone = app.clone();
-    let result = tokio::task::spawn_blocking(move || {
-        let mut builder = app_clone.dialog().file();
-        if let Some(window) = app_clone.get_webview_window("main") {
-            builder = builder.set_parent(&window);
-        }
-        builder.blocking_pick_folder().map(|f| f.to_string())
-    })
-    .await
-    .map_err(|e| e.to_string())?;
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    let mut builder = app.dialog().file();
+    if let Some(window) = app.get_webview_window("main") {
+        builder = builder.set_parent(&window);
+    }
+    builder.pick_folder(move |path| {
+        let _ = tx.send(path.map(|f| f.to_string()));
+    });
+
+    let result = rx.await.map_err(|e| e.to_string())?;
 
     if let Some(ref path) = result {
         let _ = files_authorize(state, path.clone()).await;
@@ -840,21 +840,21 @@ pub async fn dialog_pick_files(
         }
     }
     use tauri_plugin_dialog::DialogExt;
-    let app_clone = app.clone();
-    let files = tokio::task::spawn_blocking(move || {
-        let mut builder = app_clone.dialog().file();
-        if let Some(window) = app_clone.get_webview_window("main") {
-            builder = builder.set_parent(&window);
-        }
-        builder
-            .blocking_pick_files()
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    let mut builder = app.dialog().file();
+    if let Some(window) = app.get_webview_window("main") {
+        builder = builder.set_parent(&window);
+    }
+    builder.pick_files(move |paths| {
+        let files = paths
             .unwrap_or_default()
             .into_iter()
             .map(|f| f.to_string())
-            .collect::<Vec<_>>()
-    })
-    .await
-    .map_err(|e| e.to_string())?;
+            .collect::<Vec<_>>();
+        let _ = tx.send(files);
+    });
+
+    let files = rx.await.map_err(|e| e.to_string())?;
 
     for f in &files {
         let _ = files_authorize(state.clone(), f.clone()).await;

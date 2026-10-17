@@ -14,7 +14,7 @@ import { useTrackLibraryInfo } from '../hooks/useTrackLibraryInfo.js'
 
 type FavoriteSortKey = 'default' | 'title' | 'artist' | 'album' | 'source' | 'duration'
 
-/** Favorites have no cover: Spotify's fixed purple for "Liked songs" is its theme colour. */
+/** Favorites have no cover: fixed gradient purple for "Liked songs" is its theme colour. */
 const FAVORITES_TINT = '#450af5'
 
 export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {

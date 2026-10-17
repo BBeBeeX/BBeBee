@@ -224,6 +224,46 @@ export function unwrapBridgeResult<T = unknown>(response: unknown): T {
   return response as T
 }
 
+export function normalizeBridgeBytes(val: unknown): Uint8Array | null {
+  if (val === null || val === undefined) return null
+  if (val instanceof Uint8Array) return val
+  if (ArrayBuffer.isView(val)) {
+    return new Uint8Array(val.buffer, val.byteOffset, val.byteLength)
+  }
+  if (val instanceof ArrayBuffer) {
+    return new Uint8Array(val)
+  }
+  if (typeof val === 'string') {
+    try {
+      const bin = atob(val)
+      const arr = new Uint8Array(bin.length)
+      for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i)
+      return arr
+    } catch {
+      return new TextEncoder().encode(val)
+    }
+  }
+  if (typeof val === 'object') {
+    const obj = val as Record<string, unknown>
+    if (obj['type'] === 'Buffer' && Array.isArray(obj['data'])) {
+      return new Uint8Array(obj['data'] as number[])
+    }
+    if (Array.isArray(val)) {
+      return new Uint8Array(val)
+    }
+    const len = typeof obj['length'] === 'number' ? obj['length'] : Object.keys(obj).length
+    if (len === 0) return new Uint8Array(0)
+    if (typeof obj[0] === 'number' || typeof obj['0'] === 'number') {
+      const arr = new Uint8Array(len)
+      for (let i = 0; i < len; i++) {
+        arr[i] = Number(obj[i])
+      }
+      return arr
+    }
+  }
+  return null
+}
+
 export function deepFreeze<T>(obj: T): T {
   if (obj === null || typeof obj !== 'object') return obj
   Object.freeze(obj)
@@ -564,7 +604,11 @@ export function createBridgeApi(
     },
     streamOpen: (uri: string, range?: { start: number; end?: number }) =>
       invoke('bridge_stream_open', { uri, range }),
-    streamPull: (handle: number) => invoke('bridge_stream_pull', { handle }),
+    streamPull: (handle: number) =>
+      invoke('bridge_stream_pull', { handle }).then((res) => {
+        const unwrap = unwrapBridgeResult(res)
+        return normalizeBridgeBytes(unwrap)
+      }),
     streamClose: (handle: number) => invoke('bridge_stream_close', { handle }),
     httpOpen: async (request: unknown) => {
       const res = await invoke('bridge_http_open', { request })
@@ -572,7 +616,8 @@ export function createBridgeApi(
     },
     httpPull: async (handle: number) => {
       const res = await invoke('bridge_http_pull', { handle })
-      return unwrapBridgeResult(res)
+      const unwrap = unwrapBridgeResult(res)
+      return normalizeBridgeBytes(unwrap)
     },
     httpClose: (handle: number) => invoke('bridge_http_close', { handle }),
     txBegin: () => invoke('bridge_tx_begin'),

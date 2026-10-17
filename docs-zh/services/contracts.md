@@ -759,7 +759,7 @@ export interface ThemeService {
 |---|---|---|
 | 底层实现 | `@BBeBee/plugin-theme` 通过 `applyThemeToDom` 向 `document.documentElement` 注入 CSS 自定义属性 | `@BBeBee/plugin-theme` 发出响应式主题快照供 `StyleSheet` 使用 |
 | 持久化 | `ctx.store` 的 key `theme_active_id`，自定义主题存储于 `theme_custom_themes` | `ctx.store` |
-| 内置主题 | `midnight-purple` (`Bee Music · Cyber Neon`)、`spotify` (`Spotify Classic`) | 相同 |
+| 内置主题 | `midnight-purple` (`Bee Music · Cyber Neon`)、`emerald-green` (`Emerald Green`)、`crimson-night` (`Crimson Night`)、`ocean-abyss` (`Ocean Abyss`) | 相同 |
 | 自定义主题 | 动态 JSON 导入（文件或文本），带有缺省令牌回退保护；可删除，且受回退机制保护 | 相同 |
 
 - **DOM 同步**：`plugin-theme` 计算 `themeToCssVariables(theme)` 并注入至根 HTML 元素，同时附加 `data-theme="{id}"`。

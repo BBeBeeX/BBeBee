@@ -37,6 +37,7 @@ import type {
   WriteOptions,
 } from '@BBeBee/protocol'
 import {
+  normalizeBridgeBytes,
   requireBridge,
   unwrapBridgeResult,
   type BridgeApi,
@@ -230,9 +231,10 @@ export class FsBridge extends Service implements FsService {
     // `signal` is a live object and cannot cross IPC; the rest is data.
     return this.call<string>('readFile', [uri, opts ? { encoding: opts.encoding } : undefined])
   }
-  async readBytes(uri: Uri) {
+  async readBytes(uri: Uri): Promise<Uint8Array> {
     this.check(uri, 'read')
-    return this.call<Uint8Array>('readBytes', [uri])
+    const raw = await this.call<unknown>('readBytes', [uri])
+    return normalizeBridgeBytes(raw) ?? new Uint8Array(0)
   }
   async writeFile(uri: Uri, data: string | Uint8Array, opts?: WriteOptions) {
     this.check(uri, 'write')
@@ -284,7 +286,12 @@ export class FsBridge extends Service implements FsService {
         handle = await bridge.streamOpen(uri, range)
       },
       async pull(controller) {
-        const chunk = await bridge.streamPull(handle!)
+        const rawChunk = await bridge.streamPull(handle!)
+        if (rawChunk === null || rawChunk === undefined) {
+          controller.close()
+          return
+        }
+        const chunk = normalizeBridgeBytes(rawChunk)
         if (chunk === null) {
           controller.close()
           return
@@ -534,14 +541,17 @@ export function bridgeFetch(bridge: BridgeApi = requireBridge()): typeof fetch |
       ? new ReadableStream<Uint8Array>({
           async pull(controller) {
             try {
-              const chunk = unwrapBridgeResult<Uint8Array | null>(await pull(head.handle))
+              const raw = unwrapBridgeResult<unknown>(await pull(head.handle))
+              if (raw === null || raw === undefined) {
+                controller.close()
+                return
+              }
+              const chunk = normalizeBridgeBytes(raw)
               if (chunk === null) {
                 controller.close()
                 return
               }
-              // IPC hands back a structured-cloned view; copying detaches it
-              // from a buffer the channel may reuse.
-              controller.enqueue(new Uint8Array(chunk))
+              controller.enqueue(chunk)
             } catch (error) {
               controller.error(error)
             }

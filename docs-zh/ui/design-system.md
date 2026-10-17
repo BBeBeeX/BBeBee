@@ -105,7 +105,7 @@ export interface ThemeDefinition {
 
 ### 6.0.2 双配色模式与浅色模式架构（WCAG AA 门禁）
 
-所有四个内置主题（`midnight-purple`、`spotify`、`crimson-night` 和 `ocean-abyss`）以及核心设计系统调色板除了默认的深色美学外，均完整支持**浅色模式**：
+所有四个内置主题（`midnight-purple`、`emerald-green`、`crimson-night` 和 `ocean-abyss`）以及核心设计系统调色板除了默认的深色美学外，均完整支持**浅色模式**：
 
 #### 表面层级与亮度阶梯（Surface Luminance Hierarchy）
 设计系统通过 `@BBeBee/ui-tokens` 为 `dark` 和 `light` 两种配色方案确立了严格的四层表面高度与亮度阶梯：
@@ -120,7 +120,7 @@ export interface ThemeDefinition {
 当前主题在这套核心调色板之上映射自己的 `ColorTokens`：播放器底盘变量 `--player-bg` 是 `--bg-app`（主题 `bg.app`）的别名，在 `midnight-purple` 深色下为 `#05060A` —— 见 §6.3。
 
 - **亮度反转逻辑与抗眩光设计**：在深色模式下，`sunken` 为最深暗底，`overlay` 相对最亮；在浅色模式下，`sunken` 依然是明度最低（0.830）的锚定层（`#EAEBED`），为主界面提供稳重的骨架感；主画布 `base` 专门调优为柔和暖灰（`#F7F7F8`，0.931）而非纯白，消除长时间聆听与浏览时的刺眼眩光与视疲劳；最顶层的浮层 `overlay` 采用纯白（`#FFFFFF`，1.000），确保弹出层能清晰浮动于主画布之上。
-- **禁止直接色彩反转**：严禁粗暴的反色处理。背景转换为柔和的米白/灰白调色板，而品牌强调色采用同一品牌光谱内的更深色相，以维持 WCAG AA 对比度（如 Spotify 绿 `#12833C`、电光蓝 `#3B66F5`、绯红 `#C9184A`、深海湛蓝 `#087E96`）。
+- **禁止直接色彩反转**：严禁粗暴的反色处理。背景转换为柔和的米白/灰白调色板，而品牌强调色采用同一品牌光谱内的更深色相，以维持 WCAG AA 对比度（如 翡翠绿 `#12833C`、电光蓝 `#3B66F5`、绯红 `#C9184A`、深海湛蓝 `#087E96`）。
 - **WCAG AA 合规门禁**：自动化测试 `paletteContrastIssues()` 与 `themeContrastIssues(theme, scheme)` 严格强制执行：
   - 正文 / 常规文本对比度 $\ge 4.5:1$（浅色模式下 `text.primary` 在 `sunken` 上达 **14.93:1**，在 `base` 上达 **16.74:1**；`text.secondary` 在 `sunken` 上达 **5.44:1**，在 `base` 上达 **6.06:1**）
   - 大号文本与关键 UI 边框对比度 $\ge 3.0:1$
@@ -128,7 +128,7 @@ export interface ThemeDefinition {
 - **组件 Token 规范与对比度保护原则（Component Tokenization & Contrast Preservation Rule）**：规范见 [rules/ui.md §4](../../rules/ui.md#4-visual-design-language--color-system)（L2）—— 禁止硬编码 `#FFFFFF`/`#000000` 前景色（一律使用语义 CSS 变量）；固定深色容器保持明亮前景色 / on-color 令牌（固定深色容器保护例外）。
 - **实际方案决策（Effective Scheme Resolution）**：`settings.theme` 支持 `'dark' | 'light' | 'system'`。当选择 `'system'` 时，`plugin-theme` 借助 `window.matchMedia('(prefers-color-scheme: dark)')` 实时解析生效的方案，并监听操作系统主题偏好的变化。
 - **DOM 单一写入者原则**：DOM 主题属性严格收敛至单一写入者（由 `plugin-theme` 调用的 `ui-tokens` 中的 `applyThemeToDom()`）：
-  - `data-theme="{theme.id}"`（例如 `midnight-purple`、`spotify`）
+  - `data-theme="{theme.id}"`（例如 `midnight-purple`、`emerald-green`）
   - `data-color-scheme="{effectiveScheme}"`（`dark` 或 `light`）
   - `target.style.colorScheme = effectiveScheme`
   - CSS 自定义属性（`--bg-app`、`--primary`、`--text-primary`、`--color-*` 等）
@@ -399,7 +399,7 @@ export const tokens = {
 封面着色的详情页主题规格见上文 [§6.3](#63-表面层级与后退式纯黑底盘)。
 
 ### 9.1 收缩头部与粘性栏（`AlbumScreen`、`PlaylistDetailScreen`、`FavoritesScreen`、`LocalMusicScreen`）
-- **Spotify 式收缩头部**：详情页的巨幅头部与操作栏位于列表的 `header` 槽位（`ui-kit-desktop` 的 `List`），随内容一同滚出视口。当头部的大播放按钮逼近时，`StickyDetailBar` 从视口顶部滑入，留下标题 + 播放按钮 + 表头。滚过之后**表头固定在粘性栏正下方** —— 通过 `List` 的 `stickyHeader` 槽位实现，因为作为滚动容器的直接子节点，它是 `position: sticky` 真正生效的唯一位置（嵌套在 header 内时它只是父元素的最后一个子节点，永远无法吸顶）。本地音乐的专辑（albums）标签页不经虚拟化，用页面自己的滚动容器复刻了完全相同的结构。
+- **流线收缩头部**：详情页的巨幅头部与操作栏位于列表的 `header` 槽位（`ui-kit-desktop` 的 `List`），随内容一同滚出视口。当头部的大播放按钮逼近时，`StickyDetailBar` 从视口顶部滑入，留下标题 + 播放按钮 + 表头。滚过之后**表头固定在粘性栏正下方** —— 通过 `List` 的 `stickyHeader` 槽位实现，因为作为滚动容器的直接子节点，它是 `position: sticky` 真正生效的唯一位置（嵌套在 header 内时它只是父元素的最后一个子节点，永远无法吸顶）。本地音乐的专辑（albums）标签页不经虚拟化，用页面自己的滚动容器复刻了完全相同的结构。
 - **粘性栏契约**：该栏作为 `List` 的 `sticky` 槽位传入 —— 必须是**滚动容器的直接子节点**（`position: sticky` 只在其父容器边界盒内生效；嵌套进 header 的话，它会在刚刚滑到位时随 header 一起被滚走）。联动编排**靠测量，而非假设**（`useDetailBarCollapse`）：每次滚动事件都读取锚点（大播放按钮）到滚动视口顶部的距离；粘性栏在按钮接近的最后一程滑入，并在**其边缘盖住按钮高度一半的瞬间停靠** —— 此刻栏上自己的紧凑播放按钮缩放进入（吸收动作），标题完成淡入，表头以实底背景固定在栏正下方，曲目行从其下滑过。`pointer-events` 跟随滑动过程，因此粘性栏的"幽灵态"绝不会吃掉本该落在巨幅头部上的点击。
 - **表头悬停**：默认状态下表头**完全不显示排序箭头**。悬停时显现发丝级列分隔线（`boxShadow` 内阴影，因此无布局位移）、点亮排序列的方向箭头，并在其余每个非当前排序列上显示暗淡的排序提示。
 - **共享的详情页原语**：四个页面是组装，而非复制。`ui-kit-desktop` 拥有 `DetailTableHeader`（吸顶排序表头，列即配置 —— 宽度/flex/对齐/图标/纯文本/可见性）、`DetailPlayButton`（圆形主播放按钮）与 `DetailHero`（眉题 / 两行截断标题 / 副标题 / 元数据槽 / 封面槽）；`ui-menus` 拥有 `sortMenuItems`（排序下拉的条目，带勾选标记、分割线、升序/降序）；`plugin-library-ui-desktop` 拥有 `LibraryTrackRow`（本地/收藏/歌单共用的曲目行，各页差异以 props 传入：专辑链接、添加日期列、移除按钮）。新的详情页应当组装这些原语，而不是重新推导。
@@ -433,7 +433,7 @@ export const tokens = {
   - 替换 `LocalMusicScreen`、`PlaylistDetailScreen`、`FavoritesScreen` 与 `CollectionScreen` 曲目行中以往的静态勾选或红心图标。
   - 默认隐藏；行悬停时平滑淡入（`opacity: 1`）。
   - **未入库**：显示 `plus` 图标（`tablerIcon('plus')`），点击直接把曲目加入最喜欢 —— **双写两个存储**：先 `sources.setLoved(track.urn, true)`，后 `library.setSaved(track.urn, true)`（双写不变量见 [rules/ui.md §7](../../rules/ui.md#7-detail-screens-sorting--playback-history-specifications)（L2））。
-  - **已入库 / 最喜欢 / 歌单 / 合集**：显示 `heart-filled`（经 `tablerIcon('heart-filled')` 的绿心），点击打开专属的 Spotify 式 `SaveToPlaylistPopover`，而非原始右键菜单：
+  - **已入库 / 最喜欢 / 歌单 / 合集**：显示 `heart-filled`（经 `tablerIcon('heart-filled')` 的绿心），点击打开专属的曲库归档弹层 `SaveToPlaylistPopover`，而非原始右键菜单：
     - 对既有歌单的实时搜索过滤；
     - 点击"新建歌单"无缝地把顶部"查找歌单"搜索框切换为带自动聚焦的内联创建输入框、"确定"确认按钮与取消按钮，同时列表中的"新建歌单"行自动隐藏，避免重复操作；
     - "确定"按钮强制 `flexShrink: 0`、`whiteSpace: 'nowrap'`、`minWidth: 44`，输入框强制 `minWidth: 0`，确保按钮文字在 Flexbox 容器中绝不被挤压或截断；

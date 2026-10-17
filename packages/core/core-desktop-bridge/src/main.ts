@@ -469,6 +469,15 @@ export async function createHost(ipc: IpcHost, options: HostOptions = {}): Promi
 
       if (service === 'fs') {
         for (const index of URI_ARGS[method] ?? []) assertContained(callArgs[index])
+        if (method === 'readBytes' && typeof callArgs[0] === 'string') {
+          const stat = await ctx.fs.stat(callArgs[0])
+          const maxUnchunked = 10 * 1024 * 1024
+          if (stat.size > maxUnchunked) {
+            throw new Error(
+              `bridge: ${callArgs[0]} (${Math.round(stat.size / 1024 / 1024)}MB) exceeds maximum unchunked read size (10MB). Use createReadStream instead.`,
+            )
+          }
+        }
       }
       if (service === 'db' && typeof callArgs[0] === 'string') {
         assertSqlAllowed(callArgs[0], 'the bridge')

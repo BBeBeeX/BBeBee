@@ -23,7 +23,7 @@ export interface DetailBarCollapse {
  * distance to the scrollport top is read, and the bar's slide and dock state
  * derive from it — the bar slides in over the anchor's last stretch of
  * approach and docks when its edge has covered half the button, which is the
- * moment Spotify absorbs the button into the bar. Reads are bounded to one
+ * moment the bar absorbs the button. Reads are bounded to one
  * pair of `getBoundingClientRect` per scroll event, and the state write is
  * guarded so steady-state scrolling re-renders only on real change.
  */

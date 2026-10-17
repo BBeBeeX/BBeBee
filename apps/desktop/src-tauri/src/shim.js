@@ -77,6 +77,43 @@
     return response;
   }
 
+  function normalizeBridgeBytes(val) {
+    if (val === null || val === undefined) return null;
+    if (val instanceof Uint8Array) return val;
+    if (ArrayBuffer.isView(val)) {
+      return new Uint8Array(val.buffer, val.byteOffset, val.byteLength);
+    }
+    if (val instanceof ArrayBuffer) {
+      return new Uint8Array(val);
+    }
+    if (typeof val === 'string') {
+      try {
+        var bin = atob(val);
+        var arr = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+        return arr;
+      } catch (_) {
+        return new TextEncoder().encode(val);
+      }
+    }
+    if (typeof val === 'object') {
+      if (val.type === 'Buffer' && Array.isArray(val.data)) {
+        return new Uint8Array(val.data);
+      }
+      if (Array.isArray(val)) {
+        return new Uint8Array(val);
+      }
+      var len = typeof val.length === 'number' ? val.length : Object.keys(val).length;
+      if (len === 0) return new Uint8Array(0);
+      if (typeof val[0] === 'number' || typeof val['0'] === 'number') {
+        var a = new Uint8Array(len);
+        for (var j = 0; j < len; j++) a[j] = Number(val[j]);
+        return a;
+      }
+    }
+    return null;
+  }
+
   function deepFreeze(obj) {
     if (obj === null || typeof obj !== 'object') return obj;
     Object.freeze(obj);
@@ -435,7 +472,9 @@
       return invoke('bridge_stream_open', { uri: uri, range: range });
     },
     streamPull: function (handle) {
-      return invoke('bridge_stream_pull', { handle: handle });
+      return invoke('bridge_stream_pull', { handle: handle }).then(function (res) {
+        return normalizeBridgeBytes(unwrapBridgeResult(res));
+      });
     },
     streamClose: function (handle) {
       return invoke('bridge_stream_close', { handle: handle });
@@ -446,7 +485,7 @@
     },
     httpPull: async function (handle) {
       var res = await invoke('bridge_http_pull', { handle: handle });
-      return unwrapBridgeResult(res);
+      return normalizeBridgeBytes(unwrapBridgeResult(res));
     },
     httpClose: function (handle) {
       return invoke('bridge_http_close', { handle: handle });

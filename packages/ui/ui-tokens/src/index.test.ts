@@ -154,7 +154,6 @@ describe('Color Token System & Theme Management', () => {
   it('provides built-in themes', () => {
     expect(builtInThemes['midnight-purple']).toBeDefined()
     expect(builtInThemes['emerald-green']).toBeDefined()
-    expect(builtInThemes['spotify']).toBeDefined()
     expect(builtInThemes['crimson-night']).toBeDefined()
     expect(builtInThemes['ocean-abyss']).toBeDefined()
     expect(defaultTheme.id).toBe('midnight-purple')

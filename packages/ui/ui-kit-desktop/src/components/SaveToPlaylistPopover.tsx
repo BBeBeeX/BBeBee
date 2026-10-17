@@ -13,7 +13,7 @@ const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffec
 
 const POPOVER_WIDTH = 280
 const SUBMENU_WIDTH = 260
-// Spotify's add-to-playlist menu stays tall even with two playlists in it —
+// The add-to-playlist menu stays tall even with two playlists in it —
 // a popover that collapses to three rows reads as broken, and the extra room
 // is where the search and the folder flyout live comfortably.
 const POPOVER_MIN_HEIGHT = 480

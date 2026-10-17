@@ -344,7 +344,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
         themes.map((theme) => {
           const isSelected = currentThemeId === theme.id
           const isMidnight = theme.id === 'midnight-purple'
-          const isEmerald = theme.id === 'emerald-green' || theme.id === 'spotify'
+          const isEmerald = theme.id === 'emerald-green'
           const isCrimson = theme.id === 'crimson-night'
           const isOcean = theme.id === 'ocean-abyss'
           const isCustom = !isMidnight && !isEmerald && !isCrimson && !isOcean

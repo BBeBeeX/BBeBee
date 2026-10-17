@@ -228,6 +228,21 @@ export class MigrationRunner {
       .filter((m) => !applied.has(m.version))
 
     for (const migration of pending) {
+      if (typeof migration.up === 'function') {
+        try {
+          await this.db.transaction(async (tx) => {
+            await (migration.up as (tx: MigrationTx) => Promise<void>)(tx)
+            await tx.exec(
+              'INSERT INTO schema_migrations (namespace, version, applied_at) VALUES (?, ?, ?)',
+              [namespace, migration.version, Date.now()],
+            )
+          })
+        } catch (cause) {
+          throw new MigrationError(namespace, migration.version, cause)
+        }
+        continue
+      }
+
       const statements = (Array.isArray(migration.up) ? migration.up : [migration.up]).map((s) =>
         expandNs(s, namespace),
       )

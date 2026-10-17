@@ -24,11 +24,16 @@ export interface StoreService {
 
 export type SqlValue = string | number | null | Uint8Array
 
+export type MigrationFn = (tx: {
+  exec(sql: string, params?: SqlValue[]): Promise<{ changes: number; lastInsertRowid: number }>
+  query<T = Record<string, SqlValue>>(sql: string, params?: SqlValue[]): Promise<T[]>
+}) => Promise<void>
+
 export interface Migration {
   version: number
-  up: string | string[]
+  up: string | string[] | MigrationFn
   /** Development only. Production refuses to downgrade — see docs/07 §6. */
-  down?: string | string[]
+  down?: string | string[] | MigrationFn
 }
 
 export interface DbService {
