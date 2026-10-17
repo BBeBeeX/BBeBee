@@ -92,15 +92,106 @@ impl SidecarManager {
         None
     }
 
+    /// Resolve the executable path for Node.js.
+    pub fn resolve_node_binary() -> String {
+        // 1. Explicit environment variable override
+        for var in &["NODE_BINARY", "NODE_BIN", "NODE_EXE"] {
+            if let Ok(val) = std::env::var(var) {
+                let trimmed = val.trim();
+                if !trimmed.is_empty() {
+                    let path = PathBuf::from(trimmed);
+                    if path.is_file() {
+                        return path.to_string_lossy().to_string();
+                    }
+                    if trimmed == "node" || trimmed == "node.exe" {
+                        return trimmed.to_string();
+                    }
+                }
+            }
+        }
+
+        let exe_name = if cfg!(windows) { "node.exe" } else { "node" };
+
+        // 2. Bundled binary near current executable or working directory
+        let mut candidates = Vec::new();
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(parent) = exe.parent() {
+                candidates.push(parent.join(exe_name));
+                candidates.push(parent.join("bin").join(exe_name));
+                candidates.push(parent.join("resources").join("bin").join(exe_name));
+                if let Some(grandparent) = parent.parent() {
+                    candidates.push(grandparent.join("bin").join(exe_name));
+                    candidates.push(grandparent.join("resources").join("bin").join(exe_name));
+                }
+            }
+        }
+
+        if let Ok(cwd) = std::env::current_dir() {
+            candidates.push(cwd.join(exe_name));
+            candidates.push(cwd.join("bin").join(exe_name));
+            candidates.push(cwd.join("resources").join("bin").join(exe_name));
+            candidates.push(cwd.join("apps").join("desktop").join("bin").join(exe_name));
+        }
+
+        for candidate in candidates {
+            if candidate.is_file() {
+                return candidate.to_string_lossy().to_string();
+            }
+        }
+
+        // 3. System PATH directories lookup
+        if let Some(paths) = std::env::var_os("PATH") {
+            for dir in std::env::split_paths(&paths) {
+                let candidate = dir.join(exe_name);
+                if candidate.is_file() {
+                    return candidate.to_string_lossy().to_string();
+                }
+            }
+        }
+
+        // 4. Well-known fallback install locations
+        if cfg!(windows) {
+            let win_defaults = [
+                r"C:\Program Files\nodejs\node.exe",
+                r"C:\Program Files (x86)\nodejs\node.exe",
+            ];
+            for path_str in &win_defaults {
+                let p = PathBuf::from(path_str);
+                if p.is_file() {
+                    return p.to_string_lossy().to_string();
+                }
+            }
+            if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
+                let p = PathBuf::from(local_app_data).join("Programs").join("node").join("node.exe");
+                if p.is_file() {
+                    return p.to_string_lossy().to_string();
+                }
+            }
+        } else {
+            let unix_defaults = [
+                "/usr/local/bin/node",
+                "/usr/bin/node",
+                "/opt/homebrew/bin/node",
+            ];
+            for path_str in &unix_defaults {
+                let p = PathBuf::from(path_str);
+                if p.is_file() {
+                    return p.to_string_lossy().to_string();
+                }
+            }
+        }
+
+        // 5. Default fallback to let OS resolve via PATH
+        exe_name.to_string()
+    }
+
     /// Spawn the Node.js sidecar process and establish stdio line reading.
     pub async fn start(&self) -> Result<(), String> {
         if self.is_running().await {
             return Ok(());
         }
 
-        let node_bin = std::env::var("NODE_BINARY")
-            .or_else(|_| std::env::var("NODE_PATH"))
-            .unwrap_or_else(|_| "node".to_string());
+        let node_bin = Self::resolve_node_binary();
 
         let script_path = Self::resolve_sidecar_script().ok_or_else(|| {
             "Failed to resolve BBeBee Node.js sidecar script (looked for dist-sidecar/index.mjs and sidecar/index.ts)".to_string()
@@ -359,6 +450,15 @@ mod tests {
         assert!(script.is_some(), "Should find sidecar script");
         let path = script.unwrap();
         assert!(path.exists(), "Resolved sidecar script must exist");
+    }
+
+    #[test]
+    fn test_resolve_node_binary() {
+        // Even if NODE_PATH is set to search dirs, resolve_node_binary must never use it as binary path
+        std::env::set_var("NODE_PATH", "fake/path/one:fake/path/two");
+        let node_bin = SidecarManager::resolve_node_binary();
+        assert!(!node_bin.contains("fake/path"), "Must not use NODE_PATH as binary path");
+        assert!(node_bin.ends_with("node") || node_bin.ends_with("node.exe"));
     }
 
     #[test]
