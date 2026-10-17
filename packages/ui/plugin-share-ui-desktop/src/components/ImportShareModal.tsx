@@ -11,7 +11,7 @@ import type {
   ShareLyricsData,
 } from '@BBeBee/protocol'
 import { serviceOf } from '@BBeBee/ui-core'
-import { Button, Sheet, tablerIcon, TextField, useI18n } from '@BBeBee/ui-kit-desktop'
+import { Button, Sheet, tablerIcon, TextField, toBbebeeFileUri, useI18n } from '@BBeBee/ui-kit-desktop'
 import { decodeSteganography } from '@BBeBee/plugin-share/steganography'
 import { decodeMetadata } from '@BBeBee/plugin-share/metadata'
 
@@ -441,11 +441,7 @@ export function ImportShareModal({ ctx, open, onClose }: ImportShareModalProps):
                 (() => {
                   const rawArtwork = (decoded.data as { artwork?: string }).artwork
                   const isHttp = Boolean(rawArtwork && /^https?:\/\//i.test(rawArtwork))
-                  const normalizedArtwork = rawArtwork
-                    ? rawArtwork.startsWith('file://')
-                      ? rawArtwork.replace(/^file:\/\//, 'bbebee-file://')
-                      : rawArtwork
-                    : undefined
+                  const normalizedArtwork = rawArtwork ? toBbebeeFileUri(rawArtwork) : undefined
                   // Prioritize the embedded HTTP address as requested
                   const displayArtwork = (isHttp ? rawArtwork : undefined) || extractedCoverUrl || normalizedArtwork
 

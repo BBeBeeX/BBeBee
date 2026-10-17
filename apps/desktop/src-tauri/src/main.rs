@@ -39,6 +39,9 @@ fn main() {
                 .js_init_script(include_str!("shim.js"))
                 .build(),
         )
+        .register_asynchronous_uri_scheme_protocol("bbebee-file", |_ctx, request, responder| {
+            desktop_tauri_lib::protocols::handle_bbebee_file_request(request, responder);
+        })
         .setup(|app| {
             tray::setup_tray(app.handle())?;
 

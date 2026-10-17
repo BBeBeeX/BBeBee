@@ -42,8 +42,18 @@ export interface RenderLyricsCardOptions {
 /** Helper to safely load an image URL with CORS and fallback */
 /** Helper to safely load an image URL with CORS and fallback */
 export async function loadImage(src: string): Promise<HTMLImageElement | null> {
-  if (!src) return null
-  const normalized = src.startsWith("file://") ? src.replace(/^file:\/\//, "bbebee-file://") : src
+  let normalized = src
+  if (src.startsWith('bbebee-file:')) {
+    normalized = src
+  } else if (src.startsWith('file://')) {
+    normalized = src.replace(/^file:\/\//, 'bbebee-file://')
+  } else if (src.startsWith('file:')) {
+    normalized = src.replace(/^file:\/*/, 'bbebee-file:///')
+  } else if (/^[a-zA-Z]:[\\/]/.test(src)) {
+    normalized = `bbebee-file:///${src.replace(/\\/g, '/')}`
+  } else if (src.startsWith('/') && !src.startsWith('//')) {
+    normalized = `bbebee-file://${src}`
+  }
 
   // For data: and blob: URLs, load directly without CORS
   if (normalized.startsWith("data:") || normalized.startsWith("blob:")) {

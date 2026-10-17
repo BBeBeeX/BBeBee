@@ -113,6 +113,20 @@ describe('paths over the bridge', () => {
       await check.run({ paths: ctx.paths })
     })
   }
+
+  it('normalizes raw OS paths to file:// URIs', () => {
+    const c = new Context()
+    const paths = new PathsBridge(c, {
+      appData: 'C:\\Users\\User\\AppData\\Roaming\\BBeBee',
+      cache: 'D:/Music/Cache',
+      temp: '/tmp/bbebee',
+      logs: 'file:///var/log/bbebee/',
+    })
+    expect(paths.appData).toBe('file:///C:/Users/User/AppData/Roaming/BBeBee')
+    expect(paths.cache).toBe('file:///D:/Music/Cache')
+    expect(paths.temp).toBe('file:///tmp/bbebee')
+    expect(paths.logs).toBe('file:///var/log/bbebee')
+  })
 })
 
 describe('fs over the bridge', () => {

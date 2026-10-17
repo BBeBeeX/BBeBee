@@ -22,7 +22,7 @@ export { useBridgeLocale, type UseBridgeLocaleResult } from './hooks/use-bridge-
 export { Button, IconButton } from './components/Button.js'
 export { TextField } from './components/TextField.js'
 export { Text } from './components/Text.js'
-export { Artwork } from './components/Artwork.js'
+export { Artwork, toBbebeeFileUri } from './components/Artwork.js'
 export { TrackRow } from './components/TrackRow.js'
 export { Slider } from './components/Slider.js'
 export { Sheet } from './components/Sheet.js'

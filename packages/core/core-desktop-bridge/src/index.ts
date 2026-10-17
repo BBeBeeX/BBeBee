@@ -50,6 +50,22 @@ type Scope = 'own' | 'media' | 'cache' | 'downloads' | 'logs' | 'all'
 
 /* ── ctx.paths ─────────────────────────────────────────────────────────── */
 
+function normalizeToUri(raw?: string): Uri | undefined {
+  if (!raw) return undefined
+  if (raw.startsWith('file://')) return raw.replace(/\/$/, '')
+  if (raw.startsWith('file:/')) return raw.replace(/^file:\/+/, 'file:///').replace(/\/$/, '')
+  // Windows drive letter like C:\ or C:/
+  if (/^[a-zA-Z]:[/\\]/.test(raw)) {
+    const forward = raw.replace(/\\/g, '/')
+    return `file:///${forward}`.replace(/\/$/, '')
+  }
+  // Unix absolute path
+  if (raw.startsWith('/')) {
+    return `file://${raw}`.replace(/\/$/, '')
+  }
+  return raw
+}
+
 /**
  * Paths are fetched once at startup, because `PathsService` promises
  * synchronous access and IPC cannot provide it.
@@ -64,13 +80,13 @@ export class PathsBridge extends Service implements PathsService {
 
   constructor(ctx: Context, snapshot: Record<string, string | undefined>) {
     super(ctx, 'paths')
-    this.appData = snapshot['appData'] ?? ''
-    this.cache = snapshot['cache'] ?? ''
-    this.temp = snapshot['temp'] ?? ''
-    this.logs = snapshot['logs'] ?? ''
-    this.downloads = snapshot['downloads'] ?? ''
-    if (snapshot['music']) this.music = snapshot['music']
-    this.pluginRoot = snapshot['pluginRoot'] ?? `${this.appData}/plugins`
+    this.appData = normalizeToUri(snapshot['appData']) ?? ''
+    this.cache = normalizeToUri(snapshot['cache']) ?? ''
+    this.temp = normalizeToUri(snapshot['temp']) ?? ''
+    this.logs = normalizeToUri(snapshot['logs']) ?? ''
+    this.downloads = normalizeToUri(snapshot['downloads']) ?? ''
+    if (snapshot['music']) this.music = normalizeToUri(snapshot['music'])
+    this.pluginRoot = normalizeToUri(snapshot['pluginRoot']) ?? `${this.appData}/plugins`
   }
 
   private readonly pluginRoot: string
@@ -109,7 +125,8 @@ export async function fetchPaths(bridge: BridgeApi = requireBridge()): Promise<
   const keys = ['appData', 'cache', 'temp', 'logs', 'downloads', 'music'] as const
   const out: Record<string, string | undefined> = {}
   for (const key of keys) {
-    out[key] = unwrapBridgeResult<string | undefined>(await bridge.call('paths', key, []))
+    const raw = unwrapBridgeResult<string | undefined>(await bridge.call('paths', key, []))
+    out[key] = normalizeToUri(raw)
   }
   out['pluginRoot'] = `${out['appData']}/plugins`
   return out

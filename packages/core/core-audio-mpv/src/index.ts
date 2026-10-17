@@ -577,6 +577,17 @@ export class AudioMpv extends Service implements AudioService {
           'mpv: native mpvLoad resolved with no engine result (no engine behind the bridge) — degrading to the media element',
         )
       } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err)
+        if (
+          errMsg.includes('Audio engine executable not found') ||
+          errMsg.includes('process not running')
+        ) {
+          this.ctx.logger?.error(
+            'mpv: native mpvLoad failed with fatal engine error: %s — aborting without degrading',
+            errMsg,
+          )
+          throw err
+        }
         this.ctx.logger?.warn('mpv: native mpvLoad failed: %s — degrading to the media element', String(err))
       }
     } else {
@@ -712,6 +723,17 @@ export class AudioMpv extends Service implements AudioService {
       this.ctx.logger?.info('mpv: preloaded next track for gapless handoff: %s', String(src))
     } catch (err) {
       this.lastPreload = { uri: String(src), ok: false, at: Date.now() }
+      const errMsg = err instanceof Error ? err.message : String(err)
+      if (
+        errMsg.includes('Audio engine executable not found') ||
+        errMsg.includes('process not running')
+      ) {
+        this.ctx.logger?.error(
+          'mpv: native mpvAppend failed with fatal engine error: %s',
+          errMsg,
+        )
+        throw err
+      }
       this.ctx.logger?.debug?.('mpv: failed to preload next track: %s', String(err))
     }
   }

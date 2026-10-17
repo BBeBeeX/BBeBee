@@ -1523,6 +1523,17 @@ export class Player extends Service implements PlayerService {
     )
     this.ownCtx.emit('player/error', sourceError, entry.item.trackUrn)
 
+    const msg = sourceError.message || ''
+    if (
+      msg.includes('Audio engine executable not found') ||
+      msg.includes('process not running')
+    ) {
+      this.playIntent = false
+      this.clearStall()
+      this.fail(sourceError, false)
+      return
+    }
+
     switch (sourceError.code) {
       case 'auth':
         // Stop and let the source plugin re-authenticate. The queue survives.

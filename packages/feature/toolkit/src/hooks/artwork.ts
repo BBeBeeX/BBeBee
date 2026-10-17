@@ -28,7 +28,12 @@ import { serviceOf } from './react.js'
 
 /** An already-local location needs no caching; the platform can render it as-is. */
 function isLocalUri(uri: string | undefined): boolean {
-  return uri === undefined || /^(file|content|data|bbebee-file):/i.test(uri)
+  return (
+    uri === undefined ||
+    /^(file|content|data|bbebee-file):/i.test(uri) ||
+    /^[a-zA-Z]:[\\/]/.test(uri) ||
+    uri.startsWith('/')
+  )
 }
 
 interface Resolution {

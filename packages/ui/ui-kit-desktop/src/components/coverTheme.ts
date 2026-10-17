@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { parseHex } from '@BBeBee/ui-tokens'
+import { toBbebeeFileUri } from './Artwork.js'
 
 /**
  * A detail page's background takes its colour from the cover, the way
@@ -30,11 +31,7 @@ export function useImageColor(sourceUrl: string | undefined, declared?: string):
     image.onerror = () => {
       if (!cancelled) setExtracted(undefined)
     }
-    // The same rewrite <Artwork> applies: the platform serves covers over the
-    // app protocol, and a canvas reading a file:// image taints and throws.
-    image.src = sourceUrl.startsWith('file://')
-      ? sourceUrl.replace(/^file:\/\//, 'bbebee-file://')
-      : sourceUrl
+    image.src = toBbebeeFileUri(sourceUrl) ?? sourceUrl
     return () => {
       cancelled = true
     }

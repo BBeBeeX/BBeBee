@@ -64,7 +64,12 @@ export function SandboxedLayout({
   const rawCover = resolvedArtwork?.sourceUrl ?? effectiveArtwork?.sourceUrl
   const coverUrl = useMemo(() => {
     if (!rawCover) return null
-    return rawCover.startsWith('file://') ? rawCover.replace(/^file:\/\//, 'bbebee-file://') : rawCover
+    if (rawCover.startsWith('bbebee-file:')) return rawCover
+    if (rawCover.startsWith('file://')) return rawCover.replace(/^file:\/\//, 'bbebee-file://')
+    if (rawCover.startsWith('file:')) return rawCover.replace(/^file:\/*/, 'bbebee-file:///')
+    if (/^[a-zA-Z]:[\\/]/.test(rawCover)) return `bbebee-file:///${rawCover.replace(/\\/g, '/')}`
+    if (rawCover.startsWith('/') && !rawCover.startsWith('//')) return `bbebee-file://${rawCover}`
+    return rawCover
   }, [rawCover])
 
   const dominant = resolvedArtwork?.dominantColor ?? effectiveArtwork?.dominantColor

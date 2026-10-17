@@ -27,9 +27,19 @@ export function IslandArtwork({
     setLoadError(false)
   }, [artworkUri])
 
-  const resolvedUri = artworkUri?.startsWith('file://')
-    ? artworkUri.replace(/^file:\/\//, 'bbebee-file://')
-    : artworkUri
+  const resolvedUri = artworkUri
+    ? (artworkUri.startsWith('bbebee-file:')
+        ? artworkUri
+        : artworkUri.startsWith('file://')
+          ? artworkUri.replace(/^file:\/\//, 'bbebee-file://')
+          : artworkUri.startsWith('file:')
+            ? artworkUri.replace(/^file:\/*/, 'bbebee-file:///')
+            : /^[a-zA-Z]:[\\/]/.test(artworkUri)
+              ? `bbebee-file:///${artworkUri.replace(/\\/g, '/')}`
+              : artworkUri.startsWith('/') && !artworkUri.startsWith('//')
+                ? `bbebee-file://${artworkUri}`
+                : artworkUri)
+    : undefined
 
   const showImage = Boolean(resolvedUri && !loadError)
 

@@ -21,9 +21,11 @@ export interface ShareCardPreviewProps {
 
 export function normalizeArtworkUrl(src?: string): string | undefined {
   if (!src) return undefined
-  if (src.startsWith('file://')) {
-    return src.replace(/^file:\/\//, 'bbebee-file://')
-  }
+  if (src.startsWith('bbebee-file:')) return src
+  if (src.startsWith('file://')) return src.replace(/^file:\/\//, 'bbebee-file://')
+  if (src.startsWith('file:')) return src.replace(/^file:\/*/, 'bbebee-file:///')
+  if (/^[a-zA-Z]:[\\/]/.test(src)) return `bbebee-file:///${src.replace(/\\/g, '/')}`
+  if (src.startsWith('/') && !src.startsWith('//')) return `bbebee-file://${src}`
   return src
 }
 

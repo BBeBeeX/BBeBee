@@ -1060,7 +1060,33 @@ describe('errors', () => {
     expect(expired, 'the provider gets first refusal').toEqual([SOURCE])
     expect(player.queue).toHaveLength(1)
   })
+
+  it('halts playback and does not skip when audio engine is not found or process not running', async () => {
+    const provider = localProvider({
+      resolveStream: async (id: string) => {
+        return { kind: 'local', target: `file:///music/${id}.flac`, seekable: true } as StreamHandle
+      },
+    })
+    const { player } = await harness({
+      provider,
+      audio: (a) => {
+        a.service.load = async () => {
+          throw new Error(
+            'Audio engine executable not found or process not running. Cannot load: file:///music/a.flac',
+          )
+        }
+      },
+    })
+
+    await player.playNow([urn('a'), urn('b')])
+    await tick()
+
+    expect(player.state.status).toBe('error')
+    expect(player.state.error?.message).toContain('Audio engine executable not found')
+    expect(player.state.trackUrn, 'does not skip to next track').toBe(urn('a'))
+  })
 })
+
 
 describe('failure loops and races', () => {
   it('gives up after a run of failures instead of skipping forever', async () => {

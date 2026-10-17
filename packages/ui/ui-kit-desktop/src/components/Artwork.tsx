@@ -4,10 +4,20 @@ import { identicon } from '@BBeBee/ui-core'
 import type { ArtworkProps } from '@BBeBee/ui-core'
 import { c, common } from '../theme.js'
 
+export function toBbebeeFileUri(rawUri?: string): string | undefined {
+  if (!rawUri) return undefined
+  if (rawUri.startsWith('bbebee-file:')) return rawUri
+  if (rawUri.startsWith('file://')) return rawUri.replace(/^file:\/\//, 'bbebee-file://')
+  if (rawUri.startsWith('file:')) return rawUri.replace(/^file:\/*/, 'bbebee-file:///')
+  if (/^[a-zA-Z]:[\\/]/.test(rawUri)) return `bbebee-file:///${rawUri.replace(/\\/g, '/')}`
+  if (rawUri.startsWith('/') && !rawUri.startsWith('//')) return `bbebee-file://${rawUri}`
+  return rawUri
+}
+
 export function Artwork(props: ArtworkProps) {
   const { size, radius = tokens.radius.sm } = props
   const rawUri = props.artwork?.sourceUrl
-  const uri = rawUri?.startsWith('file://') ? rawUri.replace(/^file:\/\//, 'bbebee-file://') : rawUri
+  const uri = toBbebeeFileUri(rawUri)
   const dominant = props.artwork?.dominantColor
   const pattern = uri || dominant ? undefined : identicon(props.seed || props.artwork?.id)
 

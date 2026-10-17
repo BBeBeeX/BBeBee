@@ -1077,4 +1077,21 @@ describe('core-audio-mpv native engine features', () => {
     expect(handle.durationMs).toBe(240_000)
     handle.dispose()
   })
+
+  it('throws fatal engine error immediately without degrading to media element', async () => {
+    const bridgeCall = async (_service: string, method: string) => {
+      if (method === 'mpvLoad') {
+        throw new Error(
+          'Audio engine executable not found or process not running. Cannot load: file:///test.flac',
+        )
+      }
+      return undefined
+    }
+
+    const { audio } = await harness({ bridgeCall })
+    await expect(audio.load('file:///test.flac')).rejects.toThrow(
+      'Audio engine executable not found or process not running',
+    )
+  })
 })
+

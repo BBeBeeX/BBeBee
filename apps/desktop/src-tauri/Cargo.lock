@@ -782,6 +782,7 @@ dependencies = [
  "base64 0.22.1",
  "hex",
  "keyring",
+ "percent-encoding",
  "rand",
  "serde",
  "serde_json",

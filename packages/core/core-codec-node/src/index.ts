@@ -74,7 +74,19 @@ export class CodecNode extends Service implements CodecService {
 
   async readArtwork(uri: Uri): Promise<Uint8Array | undefined> {
     const parsed = await this.parse(uri, { duration: false, skipCovers: false })
-    const cover = selectCover(parsed.common.picture)
+    let cover = selectCover(parsed.common.picture)
+    if (!cover) {
+      const { size } = await this.ctx.fs.stat(uri)
+      if (size > TAG_WINDOW_BYTES) {
+        try {
+          const whole = await this.ctx.fs.readBytes(uri)
+          const fullParsed = await this.parseBytes(whole, uri, size, { duration: false, skipCovers: false })
+          cover = selectCover(fullParsed.common.picture)
+        } catch {
+          // ignore
+        }
+      }
+    }
     return cover ? new Uint8Array(cover.data) : undefined
   }
 
