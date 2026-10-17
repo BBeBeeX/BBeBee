@@ -53,17 +53,15 @@ function ensureLinuxDepsStaged() {
   if (staged) bundleMpvDeps(staged, resourcesBinDir)
 }
 
-// 0. Check vendored libmpv in resources/libmpv/<platform>
-const vendorPlatform = targetPlatform === 'win32' ? 'win64' : targetPlatform === 'darwin' ? 'darwin' : 'linux'
-const vendorDir = join(desktopRoot, 'resources', 'libmpv', vendorPlatform)
-if (existsSync(vendorDir)) {
-  const vendorFiles = readdirSync(vendorDir).filter((f) => f.endsWith('.dll') || f.includes('.so') || f.endsWith('.dylib'))
-  if (vendorFiles.length > 0) {
-    for (const f of vendorFiles) {
-      copyFileSync(join(vendorDir, f), join(resourcesBinDir, f))
-    }
-    console.log(`[fetch-libmpv] Staged ${vendorFiles.length} vendored libraries from ${vendorDir}`)
+// 0. Fetch via fetch-audio-engine.mjs
+try {
+  const fetchScript = join(desktopRoot, '..', '..', 'scripts', 'fetch-audio-engine.mjs')
+  if (existsSync(fetchScript)) {
+    console.log(`[fetch-libmpv] Fetching prebuilt audio-engine / libmpv via fetch-audio-engine.mjs...`)
+    spawnSync('node', [fetchScript, '--app', 'desktop'], { stdio: 'inherit' })
   }
+} catch (err) {
+  console.warn(`[fetch-libmpv] fetch-audio-engine.mjs invocation failed:`, err)
 }
 
 if (hasLibmpvInResources()) {

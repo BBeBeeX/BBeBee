@@ -47,7 +47,8 @@
             "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
           ]
         }
-      ]
+      ],
+      ["./plugins/with-audio-engine.js"]
     ]
   }
 }

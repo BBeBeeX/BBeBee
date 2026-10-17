@@ -159,6 +159,7 @@ export default tseslint.config(
       'apps/*/metro.config.js',
       'apps/*/babel.config.js',
       'apps/mobile/index.js',
+      'apps/mobile/plugins/**',
     ],
   },
 
@@ -177,6 +178,7 @@ export default tseslint.config(
             'apps/*/*.config.ts',
             'test/stubs/*.ts',
             'apps/*/scripts/*.js',
+            'scripts/*.mjs',
             'packages/*/*/scripts/*.mjs',
           ],
           maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 20,

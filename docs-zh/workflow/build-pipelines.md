@@ -27,23 +27,20 @@
 
 ### 4.1 原生音频引擎二进制
 
-MPV Hi-Fi 引擎（`core-audio-mpv`）运行在一个独立的 C++ 可执行文件中，而非 Electron bundle 内。它由
-`apps/desktop/scripts/build-audio-engine.js` 编译（自动探测 `g++` / `clang++` / MSVC `cl`，C++17，编译 `main.cpp` 与 `pcm_ring_buffer.cpp`），
-产物写入 `apps/desktop/bin/audio-engine[.exe]`，并同步到 `apps/desktop/resources/bin/` 供打包；
-两者均已 gitignore——它们是构建产物。独立 CMake 构建也受支持（通过 `apps/desktop/native/audio-engine/CMakeLists.txt`）。`pnpm dev:desktop` **不会**构建它；没有预先执行
-`pnpm build:audio-engine`，引擎就只是不存在。
+MPV Hi-Fi 引擎（`core-audio-mpv`）运行在一个独立的 C++ 可执行文件中，现已独立剥离至单独公开仓库
+[`BBeBeeX/B_Be_Bee-audio-engine`](https://github.com/BBeBeeX/B_Be_Bee-audio-engine)。
+它由 `apps/desktop/scripts/build-audio-engine.js` 与 `apps/desktop2/scripts/build-audio-engine.js` 装配，
+默认委托给 `scripts/fetch-audio-engine.mjs`（由根目录 `audio-engine.version.json` 统一声明版本，
+校验 SHA256 完整性并部署全量 Full 与轻量 Slim 可执行文件及动态库）至 `bin/` 与 `resources/bin/`。
+同时保留 `--from-source <path>` 本地编译逃生舱。
 
 **引擎二进制查找**（`AudioEngineSupervisor.resolveExecutablePath`）：`AUDIO_ENGINE_PATH` 环境变量
 → 打包态 `resources/bin/` → 开发候选路径。显式注入的路径缺失时严格失败（不回退）。
 
-**libmpv 查找**（引擎启动时 `dlopen`）：先引擎自身所在目录——`build-audio-engine.js` 会把
-**vendored 平台 libmpv**（`apps/desktop/resources/libmpv/<平台>/`，提交入库的源码受控集合：
-`win64/` 为 mpv-winbuild 的 LGPL 全静态构建，`linux/` 为 Debian trixie `libmpv2` 的增量集，
-`darwin/` 由 CI 从 brew staged；来源与许可见该目录 README）staged 到这里，且 supervisor 会把
+**libmpv 查找**（引擎启动时 `dlopen`）：先引擎自身所在目录——`fetch-audio-engine.mjs` 会把
+打好补丁的预编译 libmpv 产物（全量包自带完整依赖闭包，轻量包自带核心库）staged 到这里，且 supervisor 会把
 子进程的 `LD_LIBRARY_PATH`/`DYLD_LIBRARY_PATH`/`PATH` 指向该目录。再系统库路径——Windows
-`mpv-2.dll`、Linux `libmpv.so.2`、macOS `libmpv.dylib`。vendored 的 Linux 集合覆盖发行版
-libmpv2 依赖栈之外的增量；ffmpeg 族版本必须与宿主匹配（sid 的 0.41 需要 `libavcodec.so.63`，
-trixie 的 0.40 匹配系统的 `.61`）。
+`mpv-2.dll`、Linux `libmpv.so.2`、macOS `libmpv.dylib`。
 
 在 Linux 上，构建脚本随后将**完整传递依赖闭包**（`scripts/bundle-mpv-deps.js`：对 staged 的 libmpv 执行 `ldd`，黑名单排除仅限 glibc 核心与编译器运行时）打包到 `bin/` 与 `resources/bin/` 中。libmpv 以 `RTLD_NOW` dlopen，因此只要缺失一个 soname 就会导致整个加载失败并静默降级引擎；该闭包使分发的 libmpv 自给自足 —— 它也解决了上述 ffmpeg 版本匹配问题，因为 staged 的 `.61` 集合优先于宿主具备的任何版本。代价是 Linux 上约 200 MB 的打包库体积；该步骤幂等，并在构建机器上无法解析某些 soname 时发出警告。
 

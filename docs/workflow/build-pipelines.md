@@ -31,29 +31,22 @@ a plugin manifest changes. (Desktop discovers and loads workspace plugins dynami
 
 ### 4.1 The native audio-engine binary
 
-The MPV Hi-Fi engine (`core-audio-mpv`) runs in a standalone C++ executable, not in the
-Electron bundle. It is built by `apps/desktop/scripts/build-audio-engine.js` (compiler
-detected: `g++` / `clang++` / MSVC `cl`, C++17, compiling `main.cpp` and `pcm_ring_buffer.cpp`)
-into `apps/desktop/bin/audio-engine[.exe]`, synced to `apps/desktop/resources/bin/` for packaging,
-and **gitignored** — both are build artifacts. Standalone CMake build is also supported via
-`apps/desktop/native/audio-engine/CMakeLists.txt`. `pnpm dev:desktop` does *not* build it;
-without a prior `pnpm build:audio-engine` the engine is simply absent.
+The MPV Hi-Fi engine (`core-audio-mpv`) runs in a standalone C++ executable, decoupled into
+the dedicated repository [`BBeBeeX/B_Be_Bee-audio-engine`](https://github.com/BBeBeeX/B_Be_Bee-audio-engine).
+It is staged by `apps/desktop/scripts/build-audio-engine.js` and `apps/desktop2/scripts/build-audio-engine.js`,
+which delegate by default to `scripts/fetch-audio-engine.mjs` (governed by root `audio-engine.version.json`,
+verifying SHA256 integrity and deploying dual Full and Slim executables and libraries) into `bin/` and `resources/bin/`.
+Local compilation is retained as an escape hatch via `--from-source <path>`.
 
 **Engine-binary lookup** (`AudioEngineSupervisor.resolveExecutablePath`): the
 `AUDIO_ENGINE_PATH` env var → the packaged `resources/bin/` → dev candidate paths. An
 explicitly injected path that is missing fails strictly (no fallthrough).
 
 **libmpv lookup** (the engine `dlopen`s it at startup): first the engine's own directory —
-`build-audio-engine.js` stages the **vendored platform libmpv** from
-`apps/desktop/resources/libmpv/<platform>/` there (a committed, source-controlled set:
-`win64/` is the mpv-winbuild LGPL static build, `linux/` is the Debian trixie `libmpv2` delta
-set, `darwin/` is staged from brew by CI; provenance and licensing in that directory's
-README) — and the supervisor points the child's
-`LD_LIBRARY_PATH`/`DYLD_LIBRARY_PATH`/`PATH` at it. Then the system library paths: `mpv-2.dll`
-on Windows, `libmpv.so.2` on Linux, `libmpv.dylib` on macOS. The vendored Linux set covers the
-delta over the distro's own libmpv2 dependency stack; the ffmpeg-family versions must match
-the host (a sid-built 0.41 needs `libavcodec.so.63`, while trixie's 0.40 matches the system's
-`.61`).
+`fetch-audio-engine.mjs` stages precompiled, patched libmpv release artifacts beside the binary
+(Full package containing all dependencies; Slim package containing core mpv), and the supervisor
+points the child's `LD_LIBRARY_PATH`/`DYLD_LIBRARY_PATH`/`PATH` at it. Then the system library paths:
+`mpv-2.dll` on Windows, `libmpv.so.2` on Linux, `libmpv.dylib` on macOS.
 
 On Linux the build script then stages the **full transitive dependency closure**
 (`scripts/bundle-mpv-deps.js`: `ldd` on the staged libmpv, denylist-excluding only the glibc

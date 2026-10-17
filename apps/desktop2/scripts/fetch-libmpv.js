@@ -10,7 +10,6 @@ import { bundleMpvDeps } from './bundle-mpv-deps.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const desktop2Root = join(__dirname, '..')
-const desktopRoot = join(desktop2Root, '..', 'desktop')
 const resourcesBinDir = join(desktop2Root, 'resources', 'bin')
 const binDir = join(desktop2Root, 'bin')
 
@@ -78,25 +77,15 @@ function ensureLinuxDepsStaged() {
   syncToBin()
 }
 
-// 0. Check vendored libmpv in desktop2/resources/libmpv/<platform> or desktop/resources/libmpv/<platform>
-const vendorPlatform = targetPlatform === 'win32' ? 'win64' : targetPlatform === 'darwin' ? 'darwin' : 'linux'
-const vendorDirs = [
-  join(desktop2Root, 'resources', 'libmpv', vendorPlatform),
-  join(desktopRoot, 'resources', 'libmpv', vendorPlatform),
-]
-
-for (const vendorDir of vendorDirs) {
-  if (existsSync(vendorDir)) {
-    const vendorFiles = readdirSync(vendorDir).filter((f) => f.endsWith('.dll') || f.includes('.so') || f.endsWith('.dylib'))
-    if (vendorFiles.length > 0) {
-      for (const f of vendorFiles) {
-        copyFileSync(join(vendorDir, f), join(resourcesBinDir, f))
-        copyFileSync(join(vendorDir, f), join(binDir, f))
-      }
-      console.log(`[fetch-libmpv] Staged ${vendorFiles.length} vendored libraries from ${vendorDir}`)
-      break
-    }
+// 0. Fetch via fetch-audio-engine.mjs
+try {
+  const fetchScript = join(desktop2Root, '..', '..', 'scripts', 'fetch-audio-engine.mjs')
+  if (existsSync(fetchScript)) {
+    console.log(`[fetch-libmpv] Fetching prebuilt audio-engine / libmpv via fetch-audio-engine.mjs...`)
+    spawnSync('node', [fetchScript, '--app', 'desktop2'], { stdio: 'inherit' })
   }
+} catch (err) {
+  console.warn(`[fetch-libmpv] fetch-audio-engine.mjs invocation failed:`, err)
 }
 
 if (hasLibmpv(resourcesBinDir) || hasLibmpv(binDir)) {
@@ -343,7 +332,7 @@ if (targetPlatform === 'linux') {
       console.error(`[fetch-libmpv] ERROR: SHA256 checksum mismatch!`)
       console.error(`  Expected: ${expectedSha256}`)
       console.error(`  Actual:   ${actualSha256}`)
-      try { unlinkSync(tmpArchive) } catch {}
+      try { unlinkSync(tmpArchive) } catch { /* ignore */ }
       process.exit(1)
     }
 
@@ -358,7 +347,7 @@ if (targetPlatform === 'linux') {
       if (existsSync(join(resourcesBinDir, 'mpv-2.dll')) && !existsSync(join(resourcesBinDir, 'libmpv-2.dll'))) {
         copyFileSync(join(resourcesBinDir, 'mpv-2.dll'), join(resourcesBinDir, 'libmpv-2.dll'))
       }
-      try { unlinkSync(tmpArchive) } catch {}
+      try { unlinkSync(tmpArchive) } catch { /* ignore */ }
       syncToBin()
       console.log(`[fetch-libmpv] Extracted Windows libmpv successfully.`)
       process.exit(0)

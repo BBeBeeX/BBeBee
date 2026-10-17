@@ -35,5 +35,7 @@ apps/desktop2/src-tauri/target/
 
 apps/desktop2/src-tauri/.cargo/
 apps/desktop2/src-tauri/lib/
-!apps/desktop2/src-tauri/lib/README.md
 apps/desktop2/resources/libmpv/
+
+# Mobile third-party audio engine artifacts
+apps/mobile/third-party/audio-engine/
