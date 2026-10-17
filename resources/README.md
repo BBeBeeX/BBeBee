@@ -58,7 +58,7 @@ Run the fetch script from the repository root:
 
 ```bash
 # Automatically downloads full packages, verifies SHA256, and extracts into resources/<platform>/ and apps/desktop/bin
-pnpm build:audio-engine --full-only
+pnpm fetch:audio-engine --app desktop --full-only
 ```
 
 Or via Node directly:

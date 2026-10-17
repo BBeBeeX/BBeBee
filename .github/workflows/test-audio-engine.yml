@@ -4,14 +4,12 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'apps/desktop/native/audio-engine/**'
       - 'apps/desktop/sidecar/audio/**'
       - 'apps/desktop/scripts/*audio-engine*'
       - '.github/workflows/test-audio-engine.yml'
     branches: [main]
   pull_request:
     paths:
-      - 'apps/desktop/native/audio-engine/**'
       - 'apps/desktop/sidecar/audio/**'
       - 'apps/desktop/scripts/*audio-engine*'
       - '.github/workflows/test-audio-engine.yml'
@@ -57,8 +55,8 @@ jobs:
         run: |
           brew install mpv
 
-      - name: Build Audio Engine
-        run: pnpm build:audio-engine
+      - name: Fetch Audio Engine
+        run: node scripts/fetch-audio-engine.mjs --app desktop
 
       - name: Run Audio Engine Tests
         run: pnpm test:audio-engine

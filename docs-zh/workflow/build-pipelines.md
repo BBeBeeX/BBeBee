@@ -29,8 +29,8 @@
 
 MPV Hi-Fi 引擎（`core-audio-mpv`）运行在一个独立的 C++ 可执行文件中，现已独立剥离至单独公开仓库
 [`BBeBeeX/B_Be_Bee-audio-engine`](https://github.com/BBeBeeX/B_Be_Bee-audio-engine)。
-规范要求开发者将对应平台的**全量版（Full Package）音频引擎**（可执行程序 + 完整动态依赖库闭包：Windows 放置 `audio-engine.exe` 及全套 DLL，Linux 放置 `audio-engine` 及全套传递依赖 `.so` 闭包，macOS 放置全量动态库与二进制）放置于根目录 `resources/<platform>/`（`resources/windows/`、`resources/macos/`、`resources/linux/`），或通过 `pnpm build:audio-engine --full-only`（由 `scripts/fetch-audio-engine.mjs` 自动下载与校验 SHA256 完整性并解压部署）。
-桌面端打包流水线（`apps/desktop/scripts/package-desktop.js`）在打包时自动将该全量自包含闭包装配入 Tauri 交付安装包，保证最终用户电脑即使未安装任何系统多媒体库也能开箱即用。同时保留 `--from-source <path>` 本地编译逃生舱。
+规范要求开发者将对应平台的**全量版（Full Package）音频引擎**（可执行程序 + 完整动态依赖库闭包：Windows 放置 `audio-engine.exe` 及全套 DLL，Linux 放置 `audio-engine` 及全套传递依赖 `.so` 闭包，macOS 放置全量动态库与二进制）放置于根目录 `resources/<platform>/`（`resources/windows/`、`resources/macos/`、`resources/linux/`），或通过 `node scripts/fetch-audio-engine.mjs --app desktop --full-only`（由 `scripts/fetch-audio-engine.mjs` 自动下载与校验 SHA256 完整性并解压部署）。
+桌面端打包流水线（`apps/desktop/scripts/package-desktop.js`）在打包时自动将该全量自包含闭包装配入 Tauri 交付安装包，保证最终用户电脑即使未安装任何系统多媒体库也能开箱即用。
 
 **引擎二进制查找**（`AudioEngineSupervisor.resolveExecutablePath`）：`AUDIO_ENGINE_PATH` 环境变量
 → 打包态应用 resources → 根目录 `resources/<platform>/` → 开发候选路径。显式注入的路径缺失时严格失败（不回退）。

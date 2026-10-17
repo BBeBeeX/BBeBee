@@ -58,7 +58,7 @@ BBeBee 桌面端（基于 Tauri v2 现代化的 `apps/desktop`）采用基于独
 | 4 | `scripts/mpv-build/build-linux.sh` | Shell 脚本 | Linux x86_64 平台专属编译脚本：构建包含 alsa、pulse、pipewire 后端的 libmpv 动态库并配置 rpath |
 | 5 | `scripts/mpv-build/build-macos.sh` | Shell 脚本 | macOS arm64 专属构建脚本：通过 Homebrew/Meson 构建 Apple Silicon 架构 libmpv 并运行 `install_name_tool` 修复 dylib 依赖路径 |
 | 6 | `scripts/mpv-build/build-windows.sh` | Shell 脚本 | Windows x86_64 专属构建脚本：在 MSYS2/MinGW64 环境下编译 `mpv-2.dll` / `libmpv-2.dll` 及其所有 transitive DLL 依赖 |
-| 7 | `scripts/build-audio-engine.sh` | Shell 脚本 | 根目录快捷构建脚本：调用 CMake 构建本地 `audio-engine` 二进制可执行文件 |
+| 7 | `scripts/build-audio-engine.sh` | Shell 脚本 | （已删除）曾作为根目录快捷构建脚本，现已彻底移除构建内容 |
 
 ---
 
@@ -442,12 +442,12 @@ BBeBee 桌面端（基于 Tauri v2 现代化的 `apps/desktop`）采用基于独
 
 | 序号 | 相对路径 | 宿主平台 | 职责与功能说明 |
 |:---:|---|:---:|---|
-| 1 | `apps/desktop/scripts/build-audio-engine.js` | Tauri v2 | Tauri v2 参数化编译/装配脚本：支持 `--target`，将 `audio-engine` 二进制与依赖装配至 `bin/` 与 `resources/bin/` |
+| 1 | `apps/desktop/scripts/build-audio-engine.js` | Tauri v2 | （已删除）曾作为 audio-engine 编译/装配脚本，现已彻底移除构建内容 |
 | 2 | `apps/desktop/scripts/fetch-libmpv.js` | Tauri v2 | Tauri v2 依赖拉取脚本：带动态哈希校验与瘦身裁剪过滤，按需拉取对应目标平台库 |
 | 3 | `apps/desktop/scripts/bundle-mpv-deps.js` | Tauri v2 | Tauri v2 依赖闭包分析与资源对齐验证脚本 |
-| 4 | `apps/desktop/scripts/test-audio-engine.js` | Tauri v2 | Tauri v2 门禁自动化测试：覆盖 4/4 门禁及 13/13 项 PCM Tap 高并发无锁读写测试 |
+| 4 | `apps/desktop/scripts/test-audio-engine.js` | Tauri v2 | Tauri v2 门禁自动化测试：覆盖 audio-engine 运行期通信与 Sidecar 监督测试 |
 | 5 | `apps/desktop/scripts/package-desktop.js` | Tauri v2 | Tauri v2 跨平台打包管道：集成 deb, appimage, nsis, dmg 打包资源映射与校验 |
-| 6 | `.github/workflows/test-audio-engine.yml` | CI/CD | GitHub Actions 测试工作流：在 CI 虚拟环境中验证 audio-engine 编译产物、通信协议与 PCM 回调 |
+| 6 | `.github/workflows/test-audio-engine.yml` | CI/CD | GitHub Actions 测试工作流：在 CI 虚拟环境中验证 audio-engine 通信协议与 Sidecar 监督 |
 
 ---
 
@@ -456,7 +456,7 @@ BBeBee 桌面端（基于 Tauri v2 现代化的 `apps/desktop`）采用基于独
 ### 3.1 工程配置与构建描述
 
 1. **`apps/desktop/package.json`**:
-   - `"build:audio-engine": "node scripts/build-audio-engine.js"`
+   - `"fetch:audio-engine": "node ../../scripts/fetch-audio-engine.mjs --app desktop"`
    - `"test:audio-engine": "node scripts/test-audio-engine.js"`
    - `"build": "vite build && node scripts/build-sidecar.js"`
    - `"@BBeBee/core-audio-mpv": "workspace:*"`
@@ -541,9 +541,9 @@ BBeBee 桌面端（基于 Tauri v2 现代化的 `apps/desktop`）采用基于独
   - **Full 全量包** (`audio-engine-<platform>-<arch>-full.tar.gz`): 包含 `audio-engine` 二进制以及 libmpv 全量音频/视频解码依赖库闭包（开箱即用，面向打包发布或离线机器）；
   - **Slim 精简包** (`audio-engine-<platform>-<arch>-slim.tar.gz`): 仅包含 `audio-engine` 可执行文件与打过补丁的 `libmpv` 核心动态库，依赖宿主系统的共享库（面向 Linux 发行版打包及极简分发场景）。
 
-### D3: 本地编译逃生舱 (Escape Hatch)
-- **决策结论**: 客户端与工程脚本**完整保留 `--from-source` 本地编译机制**。
-- **技术依据**: 在网络受限环境、新硬件架构或开发者需要单步调试 C++ 代码时，传入 `--from-source` 可绕过 GitHub Release 预编译二进制下载，直接在本地基于 CMake 与本机的 GCC/Clang/MSVC 工具链完成编译。
+### D3: 移除主仓库本地构建逻辑 (Remove Local Build & Generation)
+- **决策结论**: 主仓库**全面移除 `audio-engine` 的本地构建和生成脚本**（已删除 `scripts/build-audio-engine.sh`、`apps/desktop/scripts/build-audio-engine.js`、`--from-source` 编译逻辑及 package.json 中 `build:audio-engine` 脚本）。
+- **技术依据**: 主仓库定位为纯消费端，不包含 C++ 源码及构建工具链；音频引擎的构建与生成全权收敛至独立仓库 `BBeBeeX/B_Be_Bee-audio-engine` 的 CI/CD 自动化流水线。主仓库统一通过 `scripts/fetch-audio-engine.mjs` 拉取预编译产物。
 
 ### D4: 运行时版本与指纹规范 (Root Version Anchor)
 - **决策结论**: 在工程根目录设立单点真实版本文件 **`audio-engine.version.json`**。
@@ -569,7 +569,7 @@ BBeBee 桌面端（基于 Tauri v2 现代化的 `apps/desktop`）采用基于独
     }
   }
   ```
-  `fetch-libmpv.js` 与 `build-audio-engine.js` 统一根据该清单进行哈希完整性校验与拉取，禁止在脚本内部散落硬编码版本号。
+  `fetch-libmpv.js` 与 `fetch-audio-engine.mjs` 统一根据该清单进行哈希完整性校验与拉取，禁止在脚本内部散落硬编码版本号。
 
 ### D5: 移动端架构扩展与 JNI 桥接归属
 - **决策结论**: 

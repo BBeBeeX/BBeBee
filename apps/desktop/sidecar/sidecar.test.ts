@@ -151,7 +151,7 @@ describe('AudioEngineSupervisor Native Executable Tests', () => {
     supervisor = null
   })
 
-  it('resolves the standalone audio-engine executable in candidate resource paths', () => {
+  it.runIf(Boolean(process.env['TEST_AUDIO_ENGINE']))('resolves the standalone audio-engine executable in candidate resource paths', () => {
     supervisor = new AudioEngineSupervisor()
     const exePath = supervisor.resolveExecutablePath()
     expect(exePath).not.toBeNull()
@@ -159,7 +159,7 @@ describe('AudioEngineSupervisor Native Executable Tests', () => {
     expect(exePath!.includes('audio-engine')).toBe(true)
   })
 
-  it('spawns and receives ready event from standalone audio-engine', async () => {
+  it.runIf(Boolean(process.env['TEST_AUDIO_ENGINE']))('spawns and receives ready event from standalone audio-engine', async () => {
     supervisor = new AudioEngineSupervisor()
     const readyPromise = new Promise<void>((resolve) => {
       supervisor!.onReady(() => resolve())

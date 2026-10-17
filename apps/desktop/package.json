@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "tauri dev",
-    "build:audio-engine": "node scripts/build-audio-engine.js",
+    "dev:frontend": "vite",
+    "fetch:audio-engine": "node ../../scripts/fetch-audio-engine.mjs --app desktop",
     "test:audio-engine": "node scripts/test-audio-engine.js",
     "build:sidecar": "node scripts/build-sidecar.js",
     "build": "vite build && node scripts/build-sidecar.js",

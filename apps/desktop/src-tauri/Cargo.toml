@@ -13,10 +13,6 @@ path = "src/lib.rs"
 name = "desktop-tauri"
 path = "src/main.rs"
 
-[[bin]]
-name = "poc_wayland"
-path = "src/bin/poc_wayland.rs"
-
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 

@@ -47,8 +47,6 @@ Usage: node apps/desktop/scripts/package-desktop.js [options] [tauri build optio
 
 Options:
   --skip-build             Skip frontend and sidecar build step
-  --skip-audio-engine      Skip audio-engine compilation if binary exists
-  --rebuild-audio-engine   Force recompiling audio-engine binary
   --skip-tests             Skip running audio-engine tests before packaging
   --no-strict, --optional  Stage libmpv without strict failure
   --dry-run                Run prep steps and frontend/sidecar build, skipping tauri packaging
@@ -60,8 +58,6 @@ All other flags are forwarded directly to tauri build (e.g., -b, --bundles, -t, 
 }
 
 let skipBuild = false
-let skipAudioEngine = false
-let rebuildAudioEngine = false
 let skipTests = false
 let isStrictLibmpv = true
 let isDryRun = false
@@ -71,10 +67,6 @@ for (let i = 0; i < rawArgs.length; i++) {
   const arg = rawArgs[i]
   if (arg === '--skip-build') {
     skipBuild = true
-  } else if (arg === '--skip-audio-engine') {
-    skipAudioEngine = true
-  } else if (arg === '--rebuild-audio-engine') {
-    rebuildAudioEngine = true
   } else if (arg === '--skip-tests' || arg === '--skip-test') {
     skipTests = true
   } else if (arg === '--no-strict' || arg === '--optional') {
@@ -104,23 +96,9 @@ if (existsSync(enginePlatformPath)) {
 
 const engineExists = existsSync(engineBinPath) || existsSync(engineResourcesPath) || existsSync(enginePlatformPath)
 
-if (!engineExists || rebuildAudioEngine) {
-  if (skipAudioEngine && engineExists) {
-    console.log('[package-desktop] Skipping audio-engine build as requested.')
-  } else {
-    console.log('[package-desktop] Compiling audio-engine binary...')
-    const buildEngineProc = spawnSync('node', [join(__dirname, 'build-audio-engine.js')], {
-      cwd: desktopRoot,
-      stdio: 'inherit',
-    })
-    if (buildEngineProc.status !== 0) {
-      console.error(`[package-desktop] Audio engine build failed with code ${buildEngineProc.status}`)
-      process.exit(buildEngineProc.status || 1)
-    }
-    if (existsSync(enginePlatformPath)) {
-      stageFromPlatformResources()
-    }
-  }
+if (!engineExists) {
+  console.warn(`[package-desktop] Notice: Native audio engine not found in resources/${platformDir}/ or bin/.`)
+  console.warn(`  To stage prebuilt audio engine, run: node scripts/fetch-audio-engine.mjs --app desktop`)
 } else {
   console.log(`[package-desktop] Existing audio engine ready.`)
 }

@@ -35,7 +35,6 @@ let targetDirArg = null
 let appArg = null
 let variantArg = null // 'full', 'slim', or null (both)
 let isMobile = false
-let fromSourcePath = null
 let isForce = false
 
 for (let i = 0; i < args.length; i++) {
@@ -56,10 +55,6 @@ for (let i = 0; i < args.length; i++) {
     variantArg = 'slim'
   } else if (arg === '--mobile') {
     isMobile = true
-  } else if (arg === '--from-source') {
-    fromSourcePath = args[++i]
-  } else if (arg.startsWith('--from-source=')) {
-    fromSourcePath = arg.split('=')[1]
   } else if (arg === '--force') {
     isForce = true
   }
@@ -198,55 +193,6 @@ function copyExtractedFiles(srcDir, destDir) {
 async function main() {
   console.log(`=== BBeBee Audio Engine Fetcher ===`)
   console.log(`Repo: ${repo}, Version: ${version}`)
-
-  // Escape hatch: --from-source <path>
-  if (fromSourcePath) {
-    const sourceDir = resolve(process.cwd(), fromSourcePath)
-    console.log(`[fetch-audio-engine] Building from source: ${sourceDir}`)
-    if (!existsSync(sourceDir)) {
-      throw new Error(`[fetch-audio-engine] Source directory not found: ${sourceDir}`)
-    }
-    const buildScript = join(sourceDir, 'scripts', 'build-audio-engine.sh')
-    if (existsSync(buildScript)) {
-      const res = spawnSync('bash', [buildScript], { stdio: 'inherit', cwd: sourceDir })
-      if (res.status !== 0) throw new Error(`[fetch-audio-engine] Source build failed with status ${res.status}`)
-    }
-    const isWin = process.platform === 'win32'
-    const exeName = isWin ? 'audio-engine.exe' : 'audio-engine'
-    const candidates = [
-      join(sourceDir, 'build', exeName),
-      join(sourceDir, 'build', 'bin', exeName),
-      join(sourceDir, 'build', 'Release', exeName),
-    ]
-    const builtExe = candidates.find(existsSync)
-    if (!builtExe) {
-      throw new Error(`[fetch-audio-engine] Built executable not found in ${sourceDir}/build`)
-    }
-
-    const destDirs = []
-    if (targetDirArg) {
-      destDirs.push(resolve(process.cwd(), targetDirArg))
-    } else {
-      const isMac = process.platform === 'darwin'
-      const platName = isWin ? 'windows' : isMac ? 'macos' : 'linux'
-      destDirs.push(
-        join(rootDir, 'resources', platName),
-        join(rootDir, 'apps', 'desktop', 'bin'),
-        join(rootDir, 'apps', 'desktop', 'resources', 'bin'),
-      )
-    }
-
-    for (const d of destDirs) {
-      if (!existsSync(d)) mkdirSync(d, { recursive: true })
-      const destFile = join(d, exeName)
-      copyFileSync(builtExe, destFile)
-      if (!isWin) {
-        try { chmodSync(destFile, 0o755) } catch { /* ignore */ }
-      }
-      console.log(`[fetch-audio-engine] Installed ${destFile}`)
-    }
-    return
-  }
 
   const checksums = loadChecksums()
 

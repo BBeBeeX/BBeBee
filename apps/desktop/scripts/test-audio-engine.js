@@ -19,8 +19,6 @@ const exeName = isWin ? 'audio-engine.exe' : 'audio-engine'
 const platformResourceDir = join(rootDir, 'resources', platformDir)
 const binDir = join(desktopRoot, 'bin')
 const resourcesBinDir = join(desktopRoot, 'resources', 'bin')
-const standaloneEngineDir = resolve(desktopRoot, '../../..', 'B_Be_Bee-audio-engine', 'engine')
-const srcDir = existsSync(standaloneEngineDir) ? standaloneEngineDir : null
 
 const candidateExes = [
   join(platformResourceDir, exeName),
@@ -45,7 +43,7 @@ if (!existsSync(outExe)) {
 // -----------------------------------------------------------------------------
 // Step 1: Direct Version Check
 // -----------------------------------------------------------------------------
-console.log(`[test-audio-engine] [1/4] Verifying native binary CLI (--version)...`)
+console.log(`[test-audio-engine] [1/3] Verifying native binary CLI (--version)...`)
 const verCheck = spawnSync(outExe, ['--version'], { encoding: 'utf-8' })
 if (verCheck.status !== 0 || !verCheck.stdout.includes('audio-engine')) {
   console.error(`[test-audio-engine] Version check failed! Code: ${verCheck.status}, Output: ${verCheck.stdout}`)
@@ -56,7 +54,7 @@ console.log(`  PASSED: ${verCheck.stdout.trim()}`)
 // -----------------------------------------------------------------------------
 // Step 2: Native Stdio IPC (init, getRingBufferStats, load, dispose)
 // -----------------------------------------------------------------------------
-console.log(`\n[test-audio-engine] [2/4] Testing native audio-engine stdio lifecycle...`)
+console.log(`\n[test-audio-engine] [2/3] Testing native audio-engine stdio lifecycle...`)
 
 async function testNativeStdioLifecycle() {
   return new Promise((resolve, reject) => {
@@ -142,7 +140,7 @@ console.log(`  PASSED: Native audio-engine stdio lifecycle verified.`)
 // -----------------------------------------------------------------------------
 // Step 3: Sidecar JSON-RPC Transport Test (ping, mpvEngineStatus, getOutputDevices)
 // -----------------------------------------------------------------------------
-console.log(`\n[test-audio-engine] [3/4] Testing Sidecar JSON-RPC interface with audio-engine supervision...`)
+console.log(`\n[test-audio-engine] [3/3] Testing Sidecar JSON-RPC interface with audio-engine supervision...`)
 
 function unwrapBridge(raw) {
   if (raw && typeof raw === 'object') {
@@ -242,45 +240,6 @@ async function testSidecarJsonRpc() {
 
 await testSidecarJsonRpc()
 console.log(`  PASSED: Sidecar JSON-RPC audio-engine supervision verified.`)
-
-// -----------------------------------------------------------------------------
-// Step 4: Native Concurrency / PCM Tap Test Suite
-// -----------------------------------------------------------------------------
-const skipNativeSuite = process.argv.includes('--quick') || process.argv.includes('--no-native-suite')
-if (!skipNativeSuite && existsSync(join(srcDir, 'tests', 'test_pcm_tap.cpp'))) {
-  console.log(`\n[test-audio-engine] [4/4] Running native PCM Tap concurrency suite...`)
-  const testExe = join(binDir, isWin ? 'audio-engine-tests.exe' : 'audio-engine-tests')
-  const testSrcFiles = [
-    join(srcDir, 'tests', 'test_pcm_tap.cpp'),
-    join(srcDir, 'pcm_ring_buffer.cpp'),
-  ]
-
-  const compilers = isWin ? ['g++', 'clang++', 'cl'] : ['g++', 'clang++']
-  let chosenCompiler = null
-  for (const c of compilers) {
-    const check = spawnSync(c, ['--version'], { stdio: 'ignore' })
-    if (check.status === 0 || check.error === undefined) {
-      chosenCompiler = c
-      break
-    }
-  }
-
-  if (chosenCompiler) {
-    const testArgs = chosenCompiler === 'cl'
-      ? ['/std:c++17', '/O2', '/EHsc', `/I${srcDir}`, ...testSrcFiles, `/Fe:${testExe}`]
-      : ['-O2', '-std=c++17', `-I${srcDir}`, ...testSrcFiles, '-o', testExe, '-pthread', '-ldl']
-
-    const testBuild = spawnSync(chosenCompiler, testArgs, { stdio: 'inherit' })
-    if (testBuild.status === 0) {
-      const testRun = spawnSync(testExe, [], { stdio: 'inherit' })
-      if (testRun.status !== 0) {
-        console.error(`[test-audio-engine] PCM tap unit tests failed with code ${testRun.status}`)
-        process.exit(testRun.status || 1)
-      }
-      console.log(`  PASSED: All 13 PCM tap concurrency tests passed.`)
-    }
-  }
-}
 
 console.log(`\n========================================================`)
 console.log(`[test-audio-engine] ALL AUDIO ENGINE GATES PASSED CLEANLY!`)

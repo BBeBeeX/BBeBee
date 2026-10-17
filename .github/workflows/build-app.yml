@@ -48,9 +48,9 @@ jobs:
         run: |
           brew install mpv
 
-      - name: Build and Test Audio Engine
+      - name: Fetch and Test Audio Engine
         run: |
-          pnpm build:audio-engine
+          node scripts/fetch-audio-engine.mjs --app desktop
           pnpm test:audio-engine
 
       - name: Build and Package Desktop Application
