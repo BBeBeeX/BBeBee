@@ -12,7 +12,11 @@ const rootDir = resolve(desktopRoot, '..', '..')
 const binDir = join(desktopRoot, 'bin')
 const resourcesBinDir = join(desktopRoot, 'resources', 'bin')
 const isWin = process.platform === 'win32'
+const isMac = process.platform === 'darwin'
+const platformDir = isWin ? 'windows' : isMac ? 'macos' : 'linux'
 const exeName = isWin ? 'audio-engine.exe' : 'audio-engine'
+const platformResourceDir = join(rootDir, 'resources', platformDir)
+const platformExe = join(platformResourceDir, exeName)
 const outExe = join(binDir, exeName)
 const resourcesExe = join(resourcesBinDir, exeName)
 
@@ -111,6 +115,15 @@ if (!fromSourcePath) {
     if (!isWin) chmodSync(resourcesExe, 0o755)
   } catch (err) {
     console.warn(`[build-audio-engine] Failed to sync to resources/bin:`, err)
+  }
+
+  try {
+    if (!existsSync(platformResourceDir)) mkdirSync(platformResourceDir, { recursive: true })
+    copyFileSync(outExe, platformExe)
+    if (!isWin) chmodSync(platformExe, 0o755)
+    console.log(`[build-audio-engine] Staged executable to resources/${platformDir}/${exeName}`)
+  } catch (err) {
+    console.warn(`[build-audio-engine] Failed to sync to resources/${platformDir}:`, err)
   }
 }
 

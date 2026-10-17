@@ -10,13 +10,26 @@ import { setTimeout, clearTimeout } from 'node:timers'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const desktopRoot = join(__dirname, '..')
+const rootDir = resolve(desktopRoot, '..', '..')
+const isWin = process.platform === 'win32'
+const isMac = process.platform === 'darwin'
+const platformDir = isWin ? 'windows' : isMac ? 'macos' : 'linux'
+const exeName = isWin ? 'audio-engine.exe' : 'audio-engine'
+
+const platformResourceDir = join(rootDir, 'resources', platformDir)
 const binDir = join(desktopRoot, 'bin')
+const resourcesBinDir = join(desktopRoot, 'resources', 'bin')
 const standaloneEngineDir = resolve(desktopRoot, '../../..', 'B_Be_Bee-audio-engine', 'engine')
 const srcDir = existsSync(standaloneEngineDir) ? standaloneEngineDir : null
 
-const isWin = process.platform === 'win32'
-const exeName = isWin ? 'audio-engine.exe' : 'audio-engine'
-const outExe = join(binDir, exeName)
+const candidateExes = [
+  join(platformResourceDir, exeName),
+  join(binDir, exeName),
+  join(resourcesBinDir, exeName),
+]
+const outExe = candidateExes.find(existsSync) || candidateExes[0]
+const engineDir = dirname(outExe)
+const ldLibPath = [engineDir, platformResourceDir, binDir, resourcesBinDir, process.env.LD_LIBRARY_PATH].filter(Boolean).join(':')
 
 console.log(`[test-audio-engine] ========================================================`)
 console.log(`[test-audio-engine] Starting BBeBee Audio Engine & IPC Test Suite`)
@@ -25,7 +38,7 @@ console.log(`[test-audio-engine] ===============================================
 
 if (!existsSync(outExe)) {
   console.error(`[test-audio-engine] ERROR: Audio engine executable not found at: ${outExe}`)
-  console.error(`  Please run: node apps/desktop/scripts/build-audio-engine.js first.`)
+  console.error(`  Please place ${exeName} in resources/${platformDir}/ or run fetch-audio-engine.mjs.`)
   process.exit(1)
 }
 
@@ -51,7 +64,7 @@ async function testNativeStdioLifecycle() {
       stdio: ['pipe', 'pipe', 'inherit'],
       env: {
         ...process.env,
-        LD_LIBRARY_PATH: binDir,
+        LD_LIBRARY_PATH: ldLibPath,
       },
     })
 
@@ -154,7 +167,7 @@ async function testSidecarJsonRpc() {
       stdio: ['pipe', 'pipe', 'inherit'],
       env: {
         ...process.env,
-        LD_LIBRARY_PATH: binDir,
+        LD_LIBRARY_PATH: ldLibPath,
       },
     })
 

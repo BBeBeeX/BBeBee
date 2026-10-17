@@ -33,3 +33,8 @@ apps/desktop/resources/libmpv/
 
 # Mobile third-party audio engine artifacts
 apps/mobile/third-party/audio-engine/
+
+# Developer local platform audio-engine resources
+resources/windows/
+resources/macos/
+resources/linux/

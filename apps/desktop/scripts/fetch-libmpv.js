@@ -10,6 +10,7 @@ import { bundleMpvDeps } from './bundle-mpv-deps.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const desktopRoot = join(__dirname, '..')
+const rootDir = resolve(desktopRoot, '..', '..')
 const resourcesBinDir = join(desktopRoot, 'resources', 'bin')
 const binDir = join(desktopRoot, 'bin')
 
@@ -31,8 +32,12 @@ for (const arg of args) {
   }
 }
 
+const platformDir = targetPlatform === 'win32' ? 'windows' : targetPlatform === 'darwin' ? 'macos' : 'linux'
+const platformResourceDir = join(rootDir, 'resources', platformDir)
+
 console.log(`[fetch-libmpv] Staging libmpv for platform: ${targetPlatform} (strict=${isStrict})`)
 console.log(`  Target directory: ${resourcesBinDir}`)
+console.log(`  Platform resource directory: ${platformResourceDir}`)
 
 function hasLibmpv(dir) {
   if (targetPlatform === 'win32') {
@@ -63,6 +68,8 @@ function syncToBin() {
       }
     }
   }
+  syncDir(platformResourceDir, resourcesBinDir)
+  syncDir(platformResourceDir, binDir)
   syncDir(resourcesBinDir, binDir)
   syncDir(binDir, resourcesBinDir)
 }
@@ -88,8 +95,8 @@ try {
   console.warn(`[fetch-libmpv] fetch-audio-engine.mjs invocation failed:`, err)
 }
 
-if (hasLibmpv(resourcesBinDir) || hasLibmpv(binDir)) {
-  console.log(`[fetch-libmpv] libmpv already present in desktop.`)
+if (hasLibmpv(platformResourceDir) || hasLibmpv(resourcesBinDir) || hasLibmpv(binDir)) {
+  console.log(`[fetch-libmpv] libmpv already present in resources/${platformDir} or desktop.`)
   ensureLinuxDepsStaged()
   process.exit(0)
 }

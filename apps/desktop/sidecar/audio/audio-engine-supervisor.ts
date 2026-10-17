@@ -139,6 +139,8 @@ export class AudioEngineSupervisor {
     }
 
     const isWin = process.platform === 'win32'
+    const isMac = process.platform === 'darwin'
+    const platformDir = isWin ? 'windows' : isMac ? 'macos' : 'linux'
     const exeName = isWin ? 'audio-engine.exe' : 'audio-engine'
 
     // Packaged application resources path
@@ -154,6 +156,11 @@ export class AudioEngineSupervisor {
     try {
       const currentDir = dirname(fileURLToPath(import.meta.url))
       const candidatePaths = [
+        // Primary: developer platform drop zone in resources/<platform>/
+        join(currentDir, '..', '..', '..', 'resources', platformDir, exeName),
+        join(process.cwd(), 'resources', platformDir, exeName),
+        join(process.cwd(), '..', '..', 'resources', platformDir, exeName),
+        // Fallbacks
         join(currentDir, '..', '..', 'bin', exeName),
         join(currentDir, '..', '..', 'resources', 'bin', exeName),
         join(currentDir, '..', '..', '..', 'bin', exeName),

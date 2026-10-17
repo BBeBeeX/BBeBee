@@ -227,7 +227,10 @@ async function main() {
     if (targetDirArg) {
       destDirs.push(resolve(process.cwd(), targetDirArg))
     } else {
+      const isMac = process.platform === 'darwin'
+      const platName = isWin ? 'windows' : isMac ? 'macos' : 'linux'
       destDirs.push(
+        join(rootDir, 'resources', platName),
         join(rootDir, 'apps', 'desktop', 'bin'),
         join(rootDir, 'apps', 'desktop', 'resources', 'bin'),
       )
@@ -275,11 +278,13 @@ async function main() {
     if (target.type === 'desktop' || target.type === 'custom') {
       const binDir = target.type === 'custom' ? target.dir : join(rootDir, 'apps', target.name, 'bin')
       const resourcesBinDir = target.type === 'custom' ? null : join(rootDir, 'apps', target.name, 'resources', 'bin')
+      const platformResourceDir = target.type === 'desktop' ? join(rootDir, 'resources', platformName) : null
 
       if (!existsSync(binDir)) mkdirSync(binDir, { recursive: true })
       if (resourcesBinDir && !existsSync(resourcesBinDir)) mkdirSync(resourcesBinDir, { recursive: true })
+      if (platformResourceDir && !existsSync(platformResourceDir)) mkdirSync(platformResourceDir, { recursive: true })
 
-      console.log(`[fetch-audio-engine] Staging desktop audio-engine -> ${binDir}`)
+      console.log(`[fetch-audio-engine] Staging desktop audio-engine -> ${binDir} & resources/${platformName}`)
 
       // 1. Full Package
       if (variantArg !== 'slim') {
@@ -291,6 +296,7 @@ async function main() {
           extractArchive(fullArchive, tmpFull)
           copyExtractedFiles(tmpFull, binDir)
           if (resourcesBinDir) copyExtractedFiles(tmpFull, resourcesBinDir)
+          if (platformResourceDir) copyExtractedFiles(tmpFull, platformResourceDir)
         } finally {
           try { rmSync(tmpFull, { recursive: true, force: true }) } catch { /* ignore */ }
         }
@@ -305,8 +311,10 @@ async function main() {
           if (existsSync(mainExe)) {
             copyFileSync(mainExe, join(binDir, slimExeName))
             if (resourcesBinDir) copyFileSync(mainExe, join(resourcesBinDir, slimExeName))
+            if (platformResourceDir) copyFileSync(mainExe, join(platformResourceDir, slimExeName))
             try { chmodSync(join(binDir, slimExeName), 0o755) } catch { /* ignore */ }
             if (resourcesBinDir) { try { chmodSync(join(resourcesBinDir, slimExeName), 0o755) } catch { /* ignore */ } }
+            if (platformResourceDir) { try { chmodSync(join(platformResourceDir, slimExeName), 0o755) } catch { /* ignore */ } }
             console.log(`[fetch-audio-engine] Staged macOS audio-engine-slim from main executable.`)
           }
         } else {
@@ -320,9 +328,11 @@ async function main() {
             if (existsSync(slimExeSrc)) {
               copyFileSync(slimExeSrc, join(binDir, slimExeName))
               if (resourcesBinDir) copyFileSync(slimExeSrc, join(resourcesBinDir, slimExeName))
+              if (platformResourceDir) copyFileSync(slimExeSrc, join(platformResourceDir, slimExeName))
               if (!isWin) {
                 try { chmodSync(join(binDir, slimExeName), 0o755) } catch { /* ignore */ }
                 if (resourcesBinDir) { try { chmodSync(join(resourcesBinDir, slimExeName), 0o755) } catch { /* ignore */ } }
+                if (platformResourceDir) { try { chmodSync(join(platformResourceDir, slimExeName), 0o755) } catch { /* ignore */ } }
               }
             }
             if (variantArg === 'slim') {
@@ -330,9 +340,11 @@ async function main() {
               if (existsSync(slimExeSrc) && !existsSync(join(binDir, exeName))) {
                 copyFileSync(slimExeSrc, join(binDir, exeName))
                 if (resourcesBinDir) copyFileSync(slimExeSrc, join(resourcesBinDir, exeName))
+                if (platformResourceDir) copyFileSync(slimExeSrc, join(platformResourceDir, exeName))
               }
               copyExtractedFiles(tmpSlim, binDir)
               if (resourcesBinDir) copyExtractedFiles(tmpSlim, resourcesBinDir)
+              if (platformResourceDir) copyExtractedFiles(tmpSlim, platformResourceDir)
             }
           } finally {
             try { rmSync(tmpSlim, { recursive: true, force: true }) } catch { /* ignore */ }
@@ -347,6 +359,10 @@ async function main() {
         if (resourcesBinDir) {
           if (existsSync(join(resourcesBinDir, exeName))) chmodSync(join(resourcesBinDir, exeName), 0o755)
           if (existsSync(join(resourcesBinDir, slimExeName))) chmodSync(join(resourcesBinDir, slimExeName), 0o755)
+        }
+        if (platformResourceDir) {
+          if (existsSync(join(platformResourceDir, exeName))) chmodSync(join(platformResourceDir, exeName), 0o755)
+          if (existsSync(join(platformResourceDir, slimExeName))) chmodSync(join(platformResourceDir, slimExeName), 0o755)
         }
       }
       console.log(`[fetch-audio-engine] Desktop assets staged successfully.`)

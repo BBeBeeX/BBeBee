@@ -10,6 +10,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const desktopRoot = join(__dirname, '..')
 const binDir = join(desktopRoot, 'bin')
 const resourcesBinDir = join(desktopRoot, 'resources', 'bin')
+const rootDir = join(desktopRoot, '..', '..')
 const distSidecarDir = join(desktopRoot, 'dist-sidecar')
 const distDir = join(desktopRoot, 'dist')
 
@@ -17,9 +18,25 @@ if (!existsSync(binDir)) mkdirSync(binDir, { recursive: true })
 if (!existsSync(resourcesBinDir)) mkdirSync(resourcesBinDir, { recursive: true })
 
 const isWin = process.platform === 'win32'
+const isMac = process.platform === 'darwin'
+const platformDir = isWin ? 'windows' : isMac ? 'macos' : 'linux'
 const engineExeName = isWin ? 'audio-engine.exe' : 'audio-engine'
+const platformResourceDir = join(rootDir, 'resources', platformDir)
+const enginePlatformPath = join(platformResourceDir, engineExeName)
 const engineBinPath = join(binDir, engineExeName)
 const engineResourcesPath = join(resourcesBinDir, engineExeName)
+
+function stageFromPlatformResources() {
+  if (existsSync(platformResourceDir)) {
+    for (const f of readdirSync(platformResourceDir)) {
+      const srcFile = join(platformResourceDir, f)
+      if (f.startsWith('audio-engine') || f.endsWith('.so') || f.includes('.so.') || f.endsWith('.dylib') || f.endsWith('.dll')) {
+        copyFileSync(srcFile, join(binDir, f))
+        copyFileSync(srcFile, join(resourcesBinDir, f))
+      }
+    }
+  }
+}
 
 // Parse arguments
 const rawArgs = process.argv.slice(2)
@@ -80,7 +97,12 @@ console.log(`Builder arguments: ${builderArgs.join(' ')}\n`)
 // Step 1: Ensure Native Audio Engine
 // ----------------------------------------------------
 console.log('[package-desktop] [1/5] Checking native audio engine...')
-const engineExists = existsSync(engineBinPath) || existsSync(engineResourcesPath)
+if (existsSync(enginePlatformPath)) {
+  console.log(`[package-desktop] Found native audio engine in resources/${platformDir}/: ${enginePlatformPath}`)
+  stageFromPlatformResources()
+}
+
+const engineExists = existsSync(engineBinPath) || existsSync(engineResourcesPath) || existsSync(enginePlatformPath)
 
 if (!engineExists || rebuildAudioEngine) {
   if (skipAudioEngine && engineExists) {
@@ -95,9 +117,12 @@ if (!engineExists || rebuildAudioEngine) {
       console.error(`[package-desktop] Audio engine build failed with code ${buildEngineProc.status}`)
       process.exit(buildEngineProc.status || 1)
     }
+    if (existsSync(enginePlatformPath)) {
+      stageFromPlatformResources()
+    }
   }
 } else {
-  console.log(`[package-desktop] Existing audio engine found at: ${engineBinPath}`)
+  console.log(`[package-desktop] Existing audio engine ready.`)
 }
 
 // Ensure binaries exist in both bin and resources/bin, and set permissions

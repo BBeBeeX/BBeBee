@@ -1647,5 +1647,57 @@ Following strict checklist review, all 365 tracked legacy files were removed usi
 
 **Gate Status: ALL GATES PASS (Desktop Track Fully Modernized on Tauri v2)**
 
+---
+
+## Task Execution Report: Desktop Bin Purge & Root `resources/<platform>` Integration
+
+### 1. 二进制与 Git 历史深度清理 (Binary & Git History Purge)
+1. **工作区二进制彻底清理**:
+   - 清空 `apps/desktop/bin/*` 与 `apps/desktop/resources/bin/*` 下的所有可执行文件与动态链接库；
+   - 验证两处目录在初始状态均为空目录（0 个文件残留）。
+2. **Git 历史提交记录剔除 (Git History Rewrite)**:
+   - 检索 Git 历史中所有涉及 `apps/desktop/bin` 及 `apps/desktop/resources/bin` 的二进制记录，确认曾有 `apps/desktop/resources/bin/audio-engine`；
+   - 执行 `git filter-branch --force --index-filter` 剔除所有分支及 tags 中涉及 `apps/desktop/resources/bin/audio-engine` 及相关 bin 路径的文件；
+   - 清除备份引用 `rm -rf .git/refs/original/` 并执行 `git reflog expire --expire=now --all && git gc --prune=now`；
+   - 校验：`git log --all --name-only --format="" | grep -E "apps/desktop(2)?/(resources/)?bin"` 结果为 0；
+   - 校验：`git log --all --name-only --format="" | grep -E "(audio-engine|\.(so|dylib|dll))"` 仅包含纯源码和构建脚本，没有任何二进制文件残留。
+
+### 2. 根目录 `resources/` 平台 drop zone 架构建立
+1. **目录结构创建**:
+   - 在根目录下建立平台原生资源专属目录：
+     * `resources/linux/`: 放置 Linux `audio-engine` (x64) 及 `libmpv.so.2` 等完整依赖闭包；
+     * `resources/macos/`: 放置 macOS `audio-engine` (arm64) 及 `libmpv.2.dylib`；
+     * `resources/windows/`: 放置 Windows `audio-engine.exe` (x64) 及 `mpv-2.dll` / `libmpv-2.dll`；
+   - 编写 `resources/README.md`，向开发者明确三平台音频引擎及动态库的落位规范。
+2. **`.gitignore` 严格忽略**:
+   - 将 `resources/windows/`、`resources/macos/`、`resources/linux/` 写入 `.gitignore`；
+   - 使用 `git check-ignore` 验证所有平台目录下的二进制均已被 Git 严格忽略，杜绝大二进制重新污染版本控制。
+
+### 3. 打包与调试流程无缝升级 (Packaging & Debugging Workflows)
+1. **调试态进程守护 (`apps/desktop/sidecar/audio/audio-engine-supervisor.ts`)**:
+   - `resolveExecutablePath()` 优先检索 `resources/<platform>/audio-engine`；
+   - 启动 worker 进程时自动将可执行文件所在目录（`resources/<platform>`）注入到 `LD_LIBRARY_PATH`、`DYLD_LIBRARY_PATH` 及 `PATH` 中，保证就近直接加载同级动态链接库。
+2. **自动化测试套件 (`apps/desktop/scripts/test-audio-engine.js`)**:
+   - 优先加载并测试 `resources/<platform>/` 中的可执行文件；
+   - `testNativeStdioLifecycle` 与 `testSidecarJsonRpc` 均注入平台资源目录作为动态库查找路径。
+3. **打包分发流水线 (`apps/desktop/scripts/package-desktop.js`)**:
+   - 第一步（Step 1）优先检测 `resources/<platform>/` 中的 `audio-engine`，并自动将其与动态库闭包同步至 Tauri 打包阶段所需的 `bin/` 与 `resources/bin/`；
+   - 保证 Tauri `bundle.resources` 规范直接拾取，无需开发者额外手动配置。
+4. **编译与拉取脚本适配**:
+   - `apps/desktop/scripts/build-audio-engine.js`: 本地 `--from-source` 编译产物自动同步至 `resources/<platform>/`；
+   - `apps/desktop/scripts/fetch-libmpv.js`: 优先检测 `resources/<platform>/` 中已放置的 `libmpv`；
+   - `scripts/build-audio-engine.sh`: 支持直接从 `resources/<platform>/` 定位并验证可执行文件；
+   - `scripts/fetch-audio-engine.mjs`: 支持将预编译资产直接装配至 `resources/<platform>/`；
+   - `apps/desktop/sidecar/sidecar.test.ts`: 更新测试断言用例。
+
+### 4. 门禁验证结果
+- **Git 历史验证**: `git log --all --name-only | grep ...` 返回 0 条，历史彻底干净；
+- **音频引擎四重门禁**: `node apps/desktop/scripts/test-audio-engine.js` 4/4 门禁全绿，13 项 PCM Tap 并发与环形缓冲区压力测试全通；
+- **Sidecar 单元测试**: `pnpm --filter @BBeBee/desktop test sidecar` 12/12 测试全通；
+- **打包流程 Dry Run**: `node apps/desktop/scripts/package-desktop.js --dry-run --skip-build` 成功自动从 `resources/linux/` 识别并装配 262 项依赖文件；
+- **Diff 门禁**: `pnpm check:changed` 全量测试、类型检查、代码规范全部通过；
+- **铁律保持**: 主仓库保持零提交（0 commit）、零推送（0 push）。
+
+
 
 

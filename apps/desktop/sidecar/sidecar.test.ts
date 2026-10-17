@@ -151,7 +151,7 @@ describe('AudioEngineSupervisor Native Executable Tests', () => {
     supervisor = null
   })
 
-  it('resolves the standalone audio-engine executable in apps/desktop/bin', () => {
+  it('resolves the standalone audio-engine executable in candidate resource paths', () => {
     supervisor = new AudioEngineSupervisor()
     const exePath = supervisor.resolveExecutablePath()
     expect(exePath).not.toBeNull()
