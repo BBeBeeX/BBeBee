@@ -51,20 +51,22 @@ function withAndroidAudioEngine(config) {
 function withIosAudioEngine(config) {
   return withXcodeProject(config, async (modConfig) => {
     const projectRoot = modConfig.modRequest.projectRoot
-    const xcframeworkPath = path.join(projectRoot, 'third-party', 'audio-engine', 'ios', 'BBeBeeAudioBridge.xcframework')
+    const iosBase = path.join(projectRoot, 'third-party', 'audio-engine', 'ios')
+    const frameworks = ['BBeBeeAudioBridge.xcframework', 'mpv.xcframework', 'mpv.framework']
 
-    if (!fs.existsSync(xcframeworkPath)) {
-      return modConfig
-    }
-
-    try {
-      IOSConfig.XcodeUtils.addFramework({
-        project: modConfig.modResults,
-        projectName: modConfig.modRequest.projectName,
-        framework: xcframeworkPath,
-      })
-    } catch (err) {
-      console.warn('[with-audio-engine] Warning: failed to link BBeBeeAudioBridge.xcframework:', err)
+    for (const fw of frameworks) {
+      const fwPath = path.join(iosBase, fw)
+      if (fs.existsSync(fwPath)) {
+        try {
+          IOSConfig.XcodeUtils.addFramework({
+            project: modConfig.modResults,
+            projectName: modConfig.modRequest.projectName,
+            framework: fwPath,
+          })
+        } catch (err) {
+          console.warn(`[with-audio-engine] Warning: failed to link ${fw}:`, err)
+        }
+      }
     }
 
     return modConfig

@@ -1494,3 +1494,95 @@ Following strict checklist review, all 365 tracked legacy files were removed usi
 
 **Gate Status: ALL GATES PASS (Group 4 & Group 5 Fully Completed)**
 
+---
+
+## Group 6: Git 历史瘦身与二进制深度清洗报告 (2026-10-17)
+
+### 1. 任务背景与执行规范
+按照用户指令与《铁律》，对主仓库 `/home/revers/project/B_Be_Bee` 历史提交中的 `.dylib`、`.so*`、`.dll` 二进制文件（共 389 个 blob 对象，~520MB 未压缩体积）进行彻底清除与重写。
+- 遵循零 `git push` 原则，所有操作仅在本地仓库执行；
+- 执行前建立完整冷备副本：`.git.backup/`（242MB，3,285 个文件）；
+- 使用原生 `git filter-branch --index-filter` 配合激进垃圾回收 (`git gc --prune=now --aggressive`)。
+
+### 2. 清洗前后关键指标对比
+
+| 指标 | 清洗前 | 清洗后 | 优化成效 |
+| :--- | :--- | :--- | :--- |
+| **`.git` 目录体积** | **242 MB** | **7.4 MB** | **-96.9% (-234.6 MB)** |
+| **Pack 体积** | 217.58 MiB | 6.91 MiB | **-96.8%** |
+| **Git 对象总数** | 16,298 | 14,925 | -1,373 对象 |
+| **目标二进制 Blob 数量** (`*.dylib`, `*.dll`, `*.so*`) | **389 个** | **0 个** | **彻底清零** |
+
+### 3. 门禁验证结果
+1. **历史二进制验证**：
+   - 命令：`git rev-list --objects --all | git cat-file --batch-check='%(objectname) %(objecttype) %(rest)' | awk '$2 == "blob"' | grep -E '\.(dylib|so(\.[0-9]+)*|dll)$'`
+   - 结果：**0 命中**。
+2. **工作区健康检查**：
+   - 适配 `scripts/fetch-audio-engine.mjs` 支持 macOS 平台 slim 冗余移除；
+   - 适配 `apps/mobile/plugins/with-audio-engine.js` 支持 iOS `mpv.framework` 与 bridge 同时自动链接；
+   - 全局 `pnpm typecheck`：**PASS**（全部 package 零错误）；
+   - 门禁 `pnpm check:changed`：**PASS**（Typecheck、Lint、Test 全绿）。
+
+**Gate Status: PASS (Git 历史重写与瘦身圆满完成)**
+
+---
+
+## Group 7: 音频引擎独立仓库缺陷修复与端到端联合验收 (2026-10-17)
+
+### 1. 缺陷修复清单与解决规范
+
+在 `/home/revers/project/B_Be_Bee-audio-engine` 仓库中严格完成了以下 3 项缺陷修复：
+
+1. **修复 2.1 (移动端包缺 libmpv，P1 功能性缺口)**：
+   - 编写 `scripts/fetch-mobile-mpv.sh`：
+     * 提供 Android（`arm64-v8a`、`x86_64`）的 `libmpv.so` 与 iOS 的 `mpv.framework`；
+     * 具备本地缓存与 SHA256SUMS.mobile 校验机制。
+   - 更新 CI/CD 工作流 `.github/workflows/release.yml`：
+     * `build-android` job 在打包前执行 `fetch-mobile-mpv.sh android`，并与 `libbbebee_audio_jni.so` 共同打包至 `audio-engine-android-${ABI}.zip`；
+     * `build-macos` job 的 iOS 构建环节引入 `mpv.framework`，与 `BBeBeeAudioBridge.xcframework` 一同归档至 `audio-engine-ios.xcframework.zip`。
+   - 更新本地打包脚本 `scripts/package-release.sh` 与 `scripts/build-ios-framework.sh`，确保本地打包产物 100% 具备 `libmpv`。
+   - `third-party/manifest.json` 声明 `libbbebee_audio_jni.so` 与 `libmpv.so` 为核心 keyLibraries。
+
+2. **修复 2.2 (manifest 与实际资产名对齐，P2 缺陷)**：
+   - 在 `third-party/manifest.json` 中修正所有不一致字段：
+     * `darwin-arm64`: 改为 `audio-engine-macos-arm64.tar.gz`（删除 slim）；
+     * `linux-x64`: 改为 `audio-engine-linux-x64.tar.gz`；
+     * `win32-x64`: 改为 `audio-engine-windows-x64.zip` 与 `audio-engine-windows-x64-slim.zip`；
+     * `android`: 改为 `audio-engine-android-arm64-v8a.zip` 与 `audio-engine-android-x86_64.zip`；
+     * `ios`: 改为 `audio-engine-ios.xcframework.zip`。
+
+3. **修复 2.3 (macOS slim 与 full 冗余移除)**：
+   - 彻底移除了 `audio-engine-macos-arm64-slim.tar.gz` 的生成逻辑（CI `release.yml`、`scripts/package-release.sh` 及 `third-party/manifest.json`）。
+   - 主仓库 `scripts/fetch-audio-engine.mjs` 适配：在 macOS 下通过拷贝主可执行文件生成 `audio-engine-slim`，无缝兼容 `bin/` 双文件运行契约而无需下载冗余归档包。
+
+### 2. 独立仓库提交记录与本地产物
+- 提交哈希：`ca51af2`
+- Commit Message：`fix(packaging): align manifest naming, bundle mobile libmpv, and eliminate macos slim`
+- 产出资产 (`dist/`)：
+  * `audio-engine-android-arm64-v8a.zip` (含 `libbbebee_audio_jni.so` + `libmpv.so`)
+  * `audio-engine-android-x86_64.zip` (含 `libbbebee_audio_jni.so` + `libmpv.so`)
+  * `audio-engine-ios.xcframework.zip` (含 `BBeBeeAudioBridge.xcframework` + `mpv.framework`)
+  * `audio-engine-linux-x64.tar.gz` (101M) & `audio-engine-linux-x64-slim.tar.gz` (3.4M)
+  * `audio-engine-macos-arm64.tar.gz` (5.0M)
+  * `audio-engine-windows-x64.zip` (68M) & `audio-engine-windows-x64-slim.zip` (1.5M)
+  * `SHA256SUMS`：8 平台压缩包全部 `sha256sum -c` 校验通过。
+
+### 3. 主仓库端到端联合验收
+1. **全平台资产分发测试**：
+   - 命令：`node scripts/fetch-audio-engine.mjs --app all`
+   - 结果：desktop (`apps/desktop/bin`)、desktop2 (`apps/desktop2/bin`) 以及 mobile (`apps/mobile/third-party/audio-engine/{android,ios}`) 全部自动拉取并装配就绪。
+2. **桌面端 4-Gate 音频引擎测试**：
+   - 命令：`node apps/desktop2/scripts/test-audio-engine.js`
+   - 结果：**ALL AUDIO ENGINE GATES PASSED CLEANLY!**
+3. **移动端配置插件与测试**：
+   - 命令：`pnpm check:changed`
+   - 结果：Typecheck 0 错误、Lint 0 错误、`mobile-audio.test.ts` (5/5 测试) 全绿。
+4. **Git 历史零二进制契约**：
+   - 目标二进制文件数量：**0**；
+   - `.git` 目录体积保持 **7.4 MB**；
+   - 主仓库保持 **0 commit、0 push** 状态；
+   - 冷备份安全存放于 `/home/revers/project/.B_Be_Bee.git.backup`。
+
+**Gate Status: ALL GATES PASS**
+
+

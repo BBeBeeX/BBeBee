@@ -308,32 +308,45 @@ async function main() {
 
       // 2. Slim Package
       if (variantArg !== 'full') {
-        const slimArchiveName = `audio-engine-${platformName}-${archName}-slim${archiveExt}`
-        console.log(`[fetch-audio-engine] Fetching slim package: ${slimArchiveName}`)
-        const slimArchive = fetchAsset(slimArchiveName, checksums)
-        const tmpSlim = join(cacheDir, `tmp_slim_${Date.now()}`)
-        try {
-          extractArchive(slimArchive, tmpSlim)
-          const slimExeSrc = join(tmpSlim, exeName)
-          if (existsSync(slimExeSrc)) {
-            copyFileSync(slimExeSrc, join(binDir, slimExeName))
-            if (resourcesBinDir) copyFileSync(slimExeSrc, join(resourcesBinDir, slimExeName))
-            if (!isWin) {
-              try { chmodSync(join(binDir, slimExeName), 0o755) } catch { /* ignore */ }
-              if (resourcesBinDir) { try { chmodSync(join(resourcesBinDir, slimExeName), 0o755) } catch { /* ignore */ } }
-            }
+        if (isMac) {
+          // On macOS, slim package was removed because full and slim are byte-for-byte identical.
+          // Copy audio-engine to audio-engine-slim to satisfy the bin/ contract.
+          const mainExe = join(binDir, exeName)
+          if (existsSync(mainExe)) {
+            copyFileSync(mainExe, join(binDir, slimExeName))
+            if (resourcesBinDir) copyFileSync(mainExe, join(resourcesBinDir, slimExeName))
+            try { chmodSync(join(binDir, slimExeName), 0o755) } catch { /* ignore */ }
+            if (resourcesBinDir) { try { chmodSync(join(resourcesBinDir, slimExeName), 0o755) } catch { /* ignore */ } }
+            console.log(`[fetch-audio-engine] Staged macOS audio-engine-slim from main executable.`)
           }
-          if (variantArg === 'slim') {
-            // If slim only, ensure main audio-engine executable exists and copy libraries
-            if (existsSync(slimExeSrc) && !existsSync(join(binDir, exeName))) {
-              copyFileSync(slimExeSrc, join(binDir, exeName))
-              if (resourcesBinDir) copyFileSync(slimExeSrc, join(resourcesBinDir, exeName))
+        } else {
+          const slimArchiveName = `audio-engine-${platformName}-${archName}-slim${archiveExt}`
+          console.log(`[fetch-audio-engine] Fetching slim package: ${slimArchiveName}`)
+          const slimArchive = fetchAsset(slimArchiveName, checksums)
+          const tmpSlim = join(cacheDir, `tmp_slim_${Date.now()}`)
+          try {
+            extractArchive(slimArchive, tmpSlim)
+            const slimExeSrc = join(tmpSlim, exeName)
+            if (existsSync(slimExeSrc)) {
+              copyFileSync(slimExeSrc, join(binDir, slimExeName))
+              if (resourcesBinDir) copyFileSync(slimExeSrc, join(resourcesBinDir, slimExeName))
+              if (!isWin) {
+                try { chmodSync(join(binDir, slimExeName), 0o755) } catch { /* ignore */ }
+                if (resourcesBinDir) { try { chmodSync(join(resourcesBinDir, slimExeName), 0o755) } catch { /* ignore */ } }
+              }
             }
-            copyExtractedFiles(tmpSlim, binDir)
-            if (resourcesBinDir) copyExtractedFiles(tmpSlim, resourcesBinDir)
+            if (variantArg === 'slim') {
+              // If slim only, ensure main audio-engine executable exists and copy libraries
+              if (existsSync(slimExeSrc) && !existsSync(join(binDir, exeName))) {
+                copyFileSync(slimExeSrc, join(binDir, exeName))
+                if (resourcesBinDir) copyFileSync(slimExeSrc, join(resourcesBinDir, exeName))
+              }
+              copyExtractedFiles(tmpSlim, binDir)
+              if (resourcesBinDir) copyExtractedFiles(tmpSlim, resourcesBinDir)
+            }
+          } finally {
+            try { rmSync(tmpSlim, { recursive: true, force: true }) } catch { /* ignore */ }
           }
-        } finally {
-          try { rmSync(tmpSlim, { recursive: true, force: true }) } catch { /* ignore */ }
         }
       }
 
