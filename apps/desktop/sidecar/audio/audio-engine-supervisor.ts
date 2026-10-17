@@ -156,21 +156,65 @@ export class AudioEngineSupervisor {
     try {
       const currentDir = dirname(fileURLToPath(import.meta.url))
       const candidatePaths = [
+        // Sibling bin (dist-sidecar/ -> bin/ in Tauri dev target/debug, release, or packaged resources)
+        join(currentDir, '..', 'bin', exeName),
+        join(currentDir, '..', 'resources', 'bin', exeName),
+
         // Primary: developer platform drop zone in resources/<platform>/
         join(currentDir, '..', '..', '..', 'resources', platformDir, exeName),
+        join(currentDir, '..', '..', '..', '..', 'resources', platformDir, exeName),
+        join(currentDir, '..', '..', '..', '..', '..', 'resources', platformDir, exeName),
         join(process.cwd(), 'resources', platformDir, exeName),
+        join(process.cwd(), '..', 'resources', platformDir, exeName),
         join(process.cwd(), '..', '..', 'resources', platformDir, exeName),
-        // Fallbacks
+        join(process.cwd(), '..', '..', '..', 'resources', platformDir, exeName),
+
+        // Fallbacks relative to currentDir
         join(currentDir, '..', '..', 'bin', exeName),
         join(currentDir, '..', '..', 'resources', 'bin', exeName),
         join(currentDir, '..', '..', '..', 'bin', exeName),
+        join(currentDir, '..', '..', '..', '..', 'bin', exeName),
+
+        // Relative to process.cwd() (handles cwd at repo root, apps/desktop, or apps/desktop/src-tauri)
+        join(process.cwd(), 'target', 'debug', 'bin', exeName),
+        join(process.cwd(), 'target', 'release', 'bin', exeName),
+        join(process.cwd(), 'src-tauri', 'target', 'debug', 'bin', exeName),
+        join(process.cwd(), 'src-tauri', 'target', 'release', 'bin', exeName),
+        join(process.cwd(), 'apps', 'desktop', 'src-tauri', 'target', 'debug', 'bin', exeName),
         join(process.cwd(), 'apps', 'desktop', 'bin', exeName),
         join(process.cwd(), 'apps', 'desktop', 'resources', 'bin', exeName),
+        join(process.cwd(), '..', 'bin', exeName),
+        join(process.cwd(), '..', 'resources', 'bin', exeName),
         join(process.cwd(), 'bin', exeName),
       ]
 
       for (const p of candidatePaths) {
         if (existsSync(p)) return p
+      }
+
+      // Ancestor directory search fallback
+      const searchDirs = [currentDir, process.cwd()]
+      for (const start of searchDirs) {
+        let dir = start
+        for (let i = 0; i < 6; i++) {
+          const checks = [
+            join(dir, 'bin', exeName),
+            join(dir, 'resources', platformDir, exeName),
+            join(dir, 'resources', 'bin', exeName),
+            join(dir, 'apps', 'desktop', 'bin', exeName),
+            join(dir, 'apps', 'desktop', 'resources', 'bin', exeName),
+            join(dir, 'target', 'debug', 'bin', exeName),
+            join(dir, 'target', 'release', 'bin', exeName),
+            join(dir, 'src-tauri', 'target', 'debug', 'bin', exeName),
+            join(dir, 'src-tauri', 'target', 'release', 'bin', exeName),
+          ]
+          for (const c of checks) {
+            if (existsSync(c)) return c
+          }
+          const parent = dirname(dir)
+          if (parent === dir) break
+          dir = parent
+        }
       }
     } catch {
       // In bundled environments without fileURLToPath resolution
@@ -184,6 +228,7 @@ export class AudioEngineSupervisor {
       const exePath = this.resolveExecutablePath()
 
       if (!exePath) {
+        this.mpvAvailable = false
         this.logger?.error?.('audio-engine-supervisor: standalone native audio-engine executable not found')
         const err = new Error('audio-engine executable not found')
         while (this.pendingLoads.length > 0) {
@@ -500,9 +545,10 @@ export class AudioEngineSupervisor {
   }
 
   getEngineStatus(): { running: boolean; mpvAvailable: boolean; pcmTapAvailable: boolean } {
+    const hasExecutable = this.resolveExecutablePath() !== null
     return {
       running: Boolean(this.child && !this.child.killed),
-      mpvAvailable: this.mpvAvailable,
+      mpvAvailable: hasExecutable && this.mpvAvailable,
       pcmTapAvailable: this.pcmTapAvailable,
     }
   }

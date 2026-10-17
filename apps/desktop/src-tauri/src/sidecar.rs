@@ -67,9 +67,6 @@ impl SidecarManager {
             "dist-sidecar/index.mjs",
             "../dist-sidecar/index.mjs",
             "../../dist-sidecar/index.mjs",
-            "apps/desktop/sidecar/index.ts",
-            "../sidecar/index.ts",
-            "sidecar/index.ts",
         ];
 
         let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
@@ -194,21 +191,13 @@ impl SidecarManager {
         let node_bin = Self::resolve_node_binary();
 
         let script_path = Self::resolve_sidecar_script().ok_or_else(|| {
-            "Failed to resolve BBeBee Node.js sidecar script (looked for dist-sidecar/index.mjs and sidecar/index.ts)".to_string()
+            "Failed to resolve BBeBee Node.js sidecar script (looked for dist-sidecar/index.mjs)".to_string()
         })?;
-
-        let is_ts = script_path
-            .extension()
-            .map(|ext| ext == "ts")
-            .unwrap_or(false);
 
         let mut cmd = Command::new(&node_bin);
         if let Some(ref data_dir) = self.custom_data_dir {
             cmd.env("BBEBEE_DATA_DIR", data_dir);
             cmd.env("BBEBEE_DB_NAME", "test-BBeBee.db");
-        }
-        if is_ts {
-            cmd.arg("--experimental-strip-types");
         }
         cmd.arg(&script_path);
 

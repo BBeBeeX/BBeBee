@@ -16,7 +16,12 @@ export function findFfmpegPath(): string {
     resourcesPath ? join(resourcesPath, 'bin', binaryName) : '',
     resourcesPath ? join(resourcesPath, binaryName) : '',
     join(here, '..', 'bin', binaryName),
+    join(here, '..', '..', 'bin', binaryName),
+    join(process.cwd(), 'target', 'debug', 'bin', binaryName),
+    join(process.cwd(), 'target', 'release', 'bin', binaryName),
+    join(process.cwd(), 'src-tauri', 'target', 'debug', 'bin', binaryName),
     join(process.cwd(), 'apps', 'desktop', 'bin', binaryName),
+    join(process.cwd(), '..', 'bin', binaryName),
     join(process.cwd(), 'bin', binaryName),
   ]
   for (const c of candidates) {

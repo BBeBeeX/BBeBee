@@ -300,13 +300,11 @@ export function PlaybackSection({
        */
       isMpv &&
         engineStatus &&
-        (!engineStatus.running || !engineStatus.mpvAvailable)
+        !engineStatus.mpvAvailable
         ? h(SettingsRow, {
           ctx,
             title: t('settings:playback.mPVNativeEngineUnavailableFell'),
-            description: !engineStatus.running
-              ? t('settings:playback.engineNotRunning')
-              : t('settings:playback.libmpvMissing'),
+            description: t('settings:playback.libmpvMissing'),
             borderBottom: false,
           })
         : null,

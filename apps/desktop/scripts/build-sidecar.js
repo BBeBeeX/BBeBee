@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 import { build } from 'vite'
-import { isAbsolute, resolve, dirname } from 'node:path'
+import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { existsSync, chmodSync } from 'node:fs'
+import { existsSync, chmodSync, copyFileSync } from 'node:fs'
+import { isBuiltin } from 'node:module'
 import process from 'node:process'
 import console from 'node:console'
 
@@ -13,6 +14,9 @@ console.log('[build-sidecar] Bundling Node.js sidecar with Vite SSR...')
 
 await build({
   configFile: false,
+  ssr: {
+    noExternal: true,
+  },
   build: {
     ssr: true,
     target: 'node22',
@@ -24,14 +28,7 @@ await build({
         entryFileNames: 'index.mjs',
         format: 'es',
       },
-      external: (id) =>
-        !id.startsWith('@BBeBee/') &&
-        !id.startsWith('.') &&
-        !id.startsWith('\0') &&
-        // `isAbsolute` also recognises Windows drive-letter and UNC paths —
-        // a bare `startsWith('/')` marks the entry module itself as external
-        // on Windows, which Rollup rejects with UNRESOLVED_ENTRY.
-        !isAbsolute(id),
+      external: (id) => isBuiltin(id) || id.startsWith('node:'),
     },
   },
 })
@@ -43,6 +40,21 @@ if (existsSync(outPath)) {
   } catch {
     // ignore
   }
+
+  // Sync to tauri target directories if they exist so dev/hot builds take effect immediately
+  for (const profile of ['debug', 'release']) {
+    const targetDir = resolve(root, 'src-tauri/target', profile, 'dist-sidecar')
+    if (existsSync(targetDir)) {
+      try {
+        const targetFile = resolve(targetDir, 'index.mjs')
+        copyFileSync(outPath, targetFile)
+        chmodSync(targetFile, 0o755)
+      } catch {
+        // ignore
+      }
+    }
+  }
+
   console.log(`[build-sidecar] Successfully bundled Node sidecar at: ${outPath}`)
 } else {
   console.error('[build-sidecar] Build failed: output file not found')
