@@ -1435,6 +1435,116 @@ pub fn desktop_console_forward(level: String, message: String) -> Result<(), Str
     console_forward(level, message)
 }
 
+// =============================================================================
+// Native Audio Engine Commands (Rust supervisor, P0)
+// =============================================================================
+
+/// Start the native audio engine process.
+#[tauri::command]
+pub async fn audio_engine_start(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let engine = state.get_audio_engine()?;
+    engine
+        .start()
+        .await
+        .map_err(|e| {
+            eprintln!("[cmd:audio_engine_start] {e}");
+            e.to_string()
+        })
+}
+
+/// Stop the native audio engine process.
+#[tauri::command]
+pub async fn audio_engine_stop(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let engine = state.get_audio_engine()?;
+    engine.stop().await;
+    Ok(())
+}
+
+/// Load a URI for playback.
+#[tauri::command]
+pub async fn audio_engine_load(
+    state: tauri::State<'_, AppState>,
+    uri: String,
+) -> Result<crate::audio::LoadResult, String> {
+    let engine = state.get_audio_engine()?;
+    engine.load(&uri).await.map_err(|e| {
+        eprintln!("[cmd:audio_engine_load] {e}");
+        e.to_string()
+    })
+}
+
+/// Start/resume playback.
+#[tauri::command]
+pub async fn audio_engine_play(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let engine = state.get_audio_engine()?;
+    engine.play().await.map_err(|e| e.to_string())
+}
+
+/// Pause playback.
+#[tauri::command]
+pub async fn audio_engine_pause(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let engine = state.get_audio_engine()?;
+    engine.pause().await.map_err(|e| e.to_string())
+}
+
+/// Stop playback.
+#[tauri::command]
+pub async fn audio_engine_stop_playback(
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let engine = state.get_audio_engine()?;
+    engine.stop_playback().await.map_err(|e| e.to_string())
+}
+
+/// Seek to a position in milliseconds.
+#[tauri::command]
+pub async fn audio_engine_seek(
+    state: tauri::State<'_, AppState>,
+    position_ms: f64,
+) -> Result<(), String> {
+    let engine = state.get_audio_engine()?;
+    engine.seek(position_ms).await.map_err(|e| e.to_string())
+}
+
+/// Set volume (0.0 - 1.0).
+#[tauri::command]
+pub async fn audio_engine_set_volume(
+    state: tauri::State<'_, AppState>,
+    volume: f32,
+) -> Result<(), String> {
+    let engine = state.get_audio_engine()?;
+    engine.set_volume(volume).await.map_err(|e| e.to_string())
+}
+
+/// Set muted state.
+#[tauri::command]
+pub async fn audio_engine_set_muted(
+    state: tauri::State<'_, AppState>,
+    muted: bool,
+) -> Result<(), String> {
+    let engine = state.get_audio_engine()?;
+    engine.set_muted(muted).await.map_err(|e| e.to_string())
+}
+
+/// Push DSP configuration to the engine.
+#[tauri::command]
+pub async fn audio_engine_set_dsp(
+    state: tauri::State<'_, AppState>,
+    config: crate::audio::DspConfig,
+) -> Result<(), String> {
+    let engine = state.get_audio_engine()?;
+    engine.set_dsp_config(config).await.map_err(|e| e.to_string())
+}
+
+/// Get engine health status.
+#[tauri::command]
+pub fn audio_engine_status(
+    state: tauri::State<'_, AppState>,
+) -> Result<crate::audio::EngineStatus, String> {
+    let engine = state.get_audio_engine()?;
+    Ok(engine.get_engine_status())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

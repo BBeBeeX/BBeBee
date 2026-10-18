@@ -92,6 +92,9 @@ pub struct AppState {
 
     // Sidecar
     pub sidecar: Mutex<Option<Arc<crate::sidecar::SidecarManager>>>,
+
+    // Native audio engine (Rust supervisor, P0 migration from Node sidecar)
+    pub audio_engine: Mutex<Option<Arc<crate::audio::AudioEngineSupervisor>>>,
 }
 
 impl Default for AppState {
@@ -120,6 +123,7 @@ impl Default for AppState {
             current_playback_state: Mutex::new("stopped".to_string()),
             current_position_ms: Mutex::new(0.0),
             sidecar: Mutex::new(None),
+            audio_engine: Mutex::new(None),
         }
     }
 }
@@ -161,6 +165,18 @@ impl AppState {
 
     pub fn set_sidecar(&self, manager: Arc<crate::sidecar::SidecarManager>) {
         *lock_recover(&self.sidecar) = Some(manager);
+    }
+
+    pub fn get_audio_engine(
+        &self,
+    ) -> Result<Arc<crate::audio::AudioEngineSupervisor>, String> {
+        lock_recover(&self.audio_engine)
+            .clone()
+            .ok_or_else(|| "audio engine is not initialized".to_string())
+    }
+
+    pub fn set_audio_engine(&self, supervisor: Arc<crate::audio::AudioEngineSupervisor>) {
+        *lock_recover(&self.audio_engine) = Some(supervisor);
     }
 
     // --- Sleep inhibition ---

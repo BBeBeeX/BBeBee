@@ -132,6 +132,12 @@ fn main() {
             system_emit_event, desktop_system_emit_event,
             // Console forwarding
             console_forward, desktop_console_forward,
+            // Native audio engine (Rust supervisor, P0)
+            audio_engine_start, audio_engine_stop,
+            audio_engine_load, audio_engine_play, audio_engine_pause,
+            audio_engine_stop_playback, audio_engine_seek,
+            audio_engine_set_volume, audio_engine_set_muted,
+            audio_engine_set_dsp, audio_engine_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -154,6 +160,7 @@ fn focus_main_window(app: &AppHandle) {
 fn setup_app(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     tray::setup_tray(app.handle())?;
 
+    // Node sidecar (Core Services host)
     let sidecar = std::sync::Arc::new(desktop_tauri_lib::sidecar::SidecarManager::new(
         Some(app.handle().clone()),
     ));
@@ -162,6 +169,29 @@ fn setup_app(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     tauri::async_runtime::spawn(async move {
         if let Err(e) = sidecar.start().await {
             eprintln!("[main] sidecar failed to start: {e}");
+        }
+    });
+
+    // Native audio engine (Rust supervisor, P0)
+    // Starts lazily on first use; the binary may not be bundled in dev.
+    let audio_engine = std::sync::Arc::new(desktop_tauri_lib::audio::AudioEngineSupervisor::new(
+        None,
+    ));
+    app.state::<AppState>().set_audio_engine(audio_engine.clone());
+
+    // Forward engine events to the frontend as Tauri events
+    let app_handle = app.handle().clone();
+    tauri::async_runtime::spawn(async move {
+        let mut state_rx = audio_engine.subscribe_state();
+        while let Ok(event) = state_rx.recv().await {
+            let _ = app_handle.emit("audio:state", &event);
+        }
+    });
+    let app_handle = app.handle().clone();
+    tauri::async_runtime::spawn(async move {
+        let mut crash_rx = audio_engine.subscribe_crash();
+        while let Ok(event) = crash_rx.recv().await {
+            let _ = app_handle.emit("audio:crash", &event);
         }
     });
 
