@@ -32,26 +32,61 @@ export interface PathsNodeConfig {
 
 /** Where an app's private data goes, per platform convention. */
 function defaultDataRoot(appName: string): string {
-  const home = homedir()
-  switch (process.platform) {
-    case 'darwin':
-      return join(home, 'Library', 'Application Support', appName)
-    case 'win32':
-      return join(process.env['APPDATA'] ?? join(home, 'AppData', 'Roaming'), appName)
-    default:
-      return join(process.env['XDG_DATA_HOME'] ?? join(home, '.local', 'share'), appName)
-  }
+  return resolveSystemPath('userData', appName)
 }
 
 function defaultCacheRoot(appName: string): string {
+  return resolveSystemPath('cache', appName)
+}
+
+/**
+ * Resolve a well-known directory to a native path, per platform convention.
+ *
+ * The Node-side authority for "where does the OS put X". The desktop sidecar
+ * and any other Node host use this at bootstrap instead of reimplementing
+ * the platform switch.
+ */
+export function resolveSystemPath(kind: string, appName = 'BBeBee'): string {
   const home = homedir()
-  switch (process.platform) {
-    case 'darwin':
-      return join(home, 'Library', 'Caches', appName)
-    case 'win32':
-      return join(process.env['LOCALAPPDATA'] ?? join(home, 'AppData', 'Local'), appName, 'Cache')
-    default:
+  const isWin = process.platform === 'win32'
+  const isMac = process.platform === 'darwin'
+
+  switch (kind) {
+    case 'userData':
+    case 'appData':
+      if (process.env['BBEBEE_DATA_DIR']) return process.env['BBEBEE_DATA_DIR']
+      if (isMac) return join(home, 'Library', 'Application Support', appName)
+      if (isWin) return join(process.env['APPDATA'] ?? join(home, 'AppData', 'Roaming'), appName)
+      return join(process.env['XDG_DATA_HOME'] ?? join(home, '.local', 'share'), appName)
+
+    case 'cache':
+      if (isMac) return join(home, 'Library', 'Caches', appName)
+      if (isWin) return join(process.env['LOCALAPPDATA'] ?? join(home, 'AppData', 'Local'), appName, 'Cache')
       return join(process.env['XDG_CACHE_HOME'] ?? join(home, '.cache'), appName)
+
+    case 'temp':
+      return tmpdir()
+
+    case 'logs':
+      return join(resolveSystemPath('userData', appName), 'logs')
+
+    case 'downloads':
+      return join(home, 'Downloads')
+
+    case 'music':
+      return join(home, 'Music')
+
+    case 'desktop':
+      return join(home, 'Desktop')
+
+    case 'documents':
+      return join(home, 'Documents')
+
+    case 'home':
+      return home
+
+    default:
+      return join(home, appName)
   }
 }
 

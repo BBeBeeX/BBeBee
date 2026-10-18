@@ -8,7 +8,6 @@
  * All diagnostics and application logs are isolated strictly to stderr.
  */
 
-import { homedir, tmpdir } from 'node:os'
 import { join, resolve, relative, dirname, isAbsolute } from 'node:path'
 import { existsSync, readFileSync, readdirSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { createHash } from 'node:crypto'
@@ -36,51 +35,7 @@ console.info = (...args: unknown[]) => {
   process.stderr.write(`[sidecar:info] ${args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ')}\n`)
 }
 
-export function resolveSystemPath(kind: string, appName = 'BBeBee'): string {
-  const home = homedir()
-  const isWin = process.platform === 'win32'
-  const isMac = process.platform === 'darwin'
-
-  switch (kind) {
-    case 'userData':
-    case 'appData':
-      if (process.env['BBEBEE_DATA_DIR']) return process.env['BBEBEE_DATA_DIR']
-      if (isMac) return join(home, 'Library', 'Application Support', appName)
-      if (isWin) return join(process.env['APPDATA'] ?? join(home, 'AppData', 'Roaming'), appName)
-      return join(process.env['XDG_DATA_HOME'] ?? join(home, '.local', 'share'), appName)
-
-    case 'cache':
-      if (isMac) return join(home, 'Library', 'Caches', appName)
-      if (isWin) return join(process.env['LOCALAPPDATA'] ?? join(home, 'AppData', 'Local'), appName, 'Cache')
-      return join(process.env['XDG_CACHE_HOME'] ?? join(home, '.cache'), appName)
-
-    case 'temp':
-      return tmpdir()
-
-    case 'logs': {
-      const dataDir = resolveSystemPath('userData', appName)
-      return join(dataDir, 'logs')
-    }
-
-    case 'downloads':
-      return join(home, 'Downloads')
-
-    case 'music':
-      return join(home, 'Music')
-
-    case 'desktop':
-      return join(home, 'Desktop')
-
-    case 'documents':
-      return join(home, 'Documents')
-
-    case 'home':
-      return home
-
-    default:
-      return join(home, appName)
-  }
-}
+import { resolveSystemPath } from '@BBeBee/core-paths-node'
 
 export interface SidecarContext {
   host: Host

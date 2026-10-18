@@ -25,6 +25,7 @@
     "@BBeBee/core-http-node": "workspace:*",
     "@BBeBee/core-js-quickjs-node": "workspace:*",
     "@BBeBee/core-media-session-tauri": "workspace:*",
+    "@BBeBee/core-paths-node": "workspace:*",
     "@BBeBee/core-secrets-node": "workspace:*",
     "@BBeBee/core-store-fs": "workspace:*",
     "@BBeBee/kernel": "workspace:*",
