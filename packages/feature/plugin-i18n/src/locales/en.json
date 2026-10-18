@@ -153,6 +153,8 @@
       "importFailed": "Import failed, please try again",
       "importedTracks": "Imported {imported} tracks",
       "itemsFailedToImport": "{failed} items failed to import",
+      "scanComplete": "Scan complete: {added} added, {updated} updated",
+      "scanCompleteWithErrors": "Scan complete with {errors} errors",
       "library": "Library",
       "noImportableContent": "No importable content found",
       "noPluginRoute": "No plugin has contributed a route.",

@@ -557,8 +557,16 @@ export function Shell({ ctx }: { ctx: Context }) {
     if (dragDepth.current === 0) setDropActive(false)
   }, [])
 
+  // Deduplicate import results: both the Tauri event and the HTML5 drop can
+  // fire for the same gesture. Ignore a second result within 1s.
+  const lastImportAt = useRef(0)
   const handleImportResult = useCallback(
     ({ imported, folders, failed, importedUrns }: DropImportResult) => {
+      const now = Date.now()
+      if (now - lastImportAt.current < 1000) {
+        return
+      }
+      lastImportAt.current = now
       const parts: string[] = []
       if (folders > 0) parts.push(t('app:common.shell.addedFoldersScanning', { folders }))
       if (imported > 0) parts.push(t('app:common.shell.importedTracks', { imported }))
@@ -661,6 +669,27 @@ export function Shell({ ctx }: { ctx: Context }) {
       for (const unlisten of unlistens) unlisten()
     }
   }, [ctx, handleImportResult, t])
+
+  // When a folder scan finishes (e.g. after drag-drop), update the drop
+  // message to show the result instead of leaving "scanning..." hanging.
+  useEffect(() => {
+    const off = ctx.on?.('scan/finished', (_dirId: string, summary: { added?: number; updated?: number; errors?: number }) => {
+      const added = summary?.added ?? 0
+      const updated = summary?.updated ?? 0
+      const errors = summary?.errors ?? 0
+      if (added > 0 || updated > 0) {
+        setDropMessage(t('app:common.shell.scanComplete', { added, updated }))
+      } else if (errors > 0) {
+        setDropMessage(t('app:common.shell.scanCompleteWithErrors', { errors }))
+      }
+      // Clear the message after 5s so it doesn't linger.
+      const timer = setTimeout(() => setDropMessage(null), 5000)
+      return () => clearTimeout(timer)
+    })
+    return () => {
+      off?.()
+    }
+  }, [ctx, t])
 
   const currentItem: HistoryItem | undefined =
     navState.history[navState.index] ?? (defaultEntry ? { id: defaultEntry.id } : undefined)

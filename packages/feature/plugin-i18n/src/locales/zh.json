@@ -153,6 +153,8 @@
       "importFailed": "导入失败，请重试",
       "importedTracks": "已导入 {imported} 首曲目",
       "itemsFailedToImport": "{failed} 个项目导入失败",
+      "scanComplete": "扫描完成：新增 {added} 首，更新 {updated} 首",
+      "scanCompleteWithErrors": "扫描完成，有 {errors} 个错误",
       "library": "音乐库",
       "noImportableContent": "没有可导入的内容",
       "noPluginRoute": "没有插件贡献路由。",
