@@ -111,3 +111,8 @@ declare global {
     }
   }
 }
+
+// Makes this an external module so `declare global` above is a valid
+// augmentation under `moduleDetection: "force"` (tsconfig.base.json).
+// Without it, tsc reports TS2669 and `window.BBeBee` is untyped.
+export {}

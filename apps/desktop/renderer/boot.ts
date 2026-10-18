@@ -11,7 +11,7 @@
  * - No domain logic here — only wiring.
  */
 
-import { createApp, type App } from '@BBeBee/kernel'
+import { createApp, type App, type PluginRegistry, type RegistryEntry } from '@BBeBee/kernel'
 import { Service, type Context, type Fiber } from 'cordis'
 import type {
   AppSettings,
@@ -440,7 +440,11 @@ function createAudioFetchBytes(
           opts?.signal?.throwIfAborted()
           if (raw instanceof ArrayBuffer) return raw
           const bytes = raw as Uint8Array
-          return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+          const sliced = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+          // `slice` on a non-shared buffer never yields SharedArrayBuffer, but
+          // the type does not know that — narrow instead of casting.
+          if (sliced instanceof SharedArrayBuffer) throw new Error('[audio] unexpected shared buffer')
+          return sliced
         } catch { /* fall through to fetch */ }
       }
       const response = await window.fetch(toServableFileUrl(src) ?? src, {
@@ -465,10 +469,12 @@ interface PreloadedPrefs {
 }
 
 /** Read persisted prefs from store.json before the app starts. */
-async function preloadPreferences(pathSnapshot: { appData: string }): Promise<PreloadedPrefs> {
+async function preloadPreferences(pathSnapshot: Record<string, string | undefined>): Promise<PreloadedPrefs> {
   const result: PreloadedPrefs = {}
+  const appData = pathSnapshot['appData']
+  if (!appData) return result
   try {
-    const storeUri = `${pathSnapshot.appData}/store.json`
+    const storeUri = `${appData}/store.json`
     const raw = await window.BBeBeeBridge?.call('fs', 'readFile', [storeUri])
     if (typeof raw !== 'string' || !raw) return result
 
@@ -494,14 +500,22 @@ async function preloadPreferences(pathSnapshot: { appData: string }): Promise<Pr
 
 /** Build the plugin registry (builtin + external). */
 async function buildRegistry(): Promise<{
-  registry: Record<string, { manifest?: PluginManifest }>
+  registry: PluginRegistry
   manifests: Record<string, PluginManifest>
 }> {
   const external = await loadExternalPluginRegistry().catch(() => ({}))
-  const registry = { ...getBuiltinPluginRegistry(), ...external }
+  const merged: Record<string, { manifest?: PluginManifest }> = {
+    ...getBuiltinPluginRegistry(),
+    ...external,
+  }
+  // An entry without a manifest cannot be loaded; drop it here rather than
+  // handing `createApp` a registry it cannot honour.
+  const registry: PluginRegistry = {}
   const manifests: Record<string, PluginManifest> = {}
-  for (const [id, entry] of Object.entries(registry)) {
-    if (entry.manifest) manifests[id] = entry.manifest
+  for (const [id, entry] of Object.entries(merged)) {
+    if (!entry.manifest) continue
+    registry[id] = entry as RegistryEntry
+    manifests[id] = entry.manifest
   }
   return { registry, manifests }
 }

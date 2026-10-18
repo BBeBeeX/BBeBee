@@ -14,7 +14,7 @@
  * the same gesture on some platforms.
  */
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useReducer, useRef } from 'react'
 import type { Context } from 'cordis'
 import {
   importDroppedFiles,
@@ -56,12 +56,12 @@ export function useDragDrop({ ctx, onImportResult, onImportError }: UseDragDropO
   const dragDepth = useRef(0)
   const lastImportAt = useRef(0)
   const dropActiveState = useRef(false)
-  const [, forceUpdate] = useRef(0)
+  const [, forceUpdate] = useReducer((n: number) => n + 1, 0)
 
   const setDropActive = useCallback((active: boolean) => {
     if (dropActiveState.current !== active) {
       dropActiveState.current = active
-      forceUpdate((n) => n + 1)
+      forceUpdate()
     }
   }, [])
 
