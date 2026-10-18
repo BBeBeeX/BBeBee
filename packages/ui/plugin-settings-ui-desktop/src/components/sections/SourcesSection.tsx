@@ -714,9 +714,10 @@ export function SourcesSection({
   const handleDeleteFolder = (dirId: string) => {
     setConfirmingDeleteFolderId(undefined)
     const scanner = serviceOf<ScannerService>(ctx, 'scanner')
-    // Removing a folder from Settings must also forget its tracks, so the
-    // local music page no longer shows music from the deleted folder.
-    void scanner?.removeSpecifiedDir?.(dirId, { forgetTracks: true })
+    // Async fire-and-forget: the scanner marks the dir's tracks unavailable
+    // (hidden from local music) without deleting them, so playlists and
+    // favorites that reference them by URN keep working.
+    void scanner?.removeSpecifiedDir?.(dirId)
   }
 
   // Find updated active group if sources state changes

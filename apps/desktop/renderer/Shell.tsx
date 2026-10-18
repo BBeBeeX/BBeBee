@@ -532,20 +532,25 @@ export function Shell({ ctx }: { ctx: Context }) {
   }, [dropMessage])
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
-    if (!hasDroppedFiles(e)) return
+    // Under Tauri on Windows, WebView2's drop handling is replaced and
+    // dataTransfer.types may not include 'Files' even for file drags.
+    // When running inside Tauri (window.BBeBee exists), show the overlay
+    // for any dragenter — the tauri://drag-drop event will carry the real
+    // paths, and non-file drops are harmless (import yields "no content").
+    if (!window.BBeBee && !hasDroppedFiles(e)) return
     e.preventDefault()
     dragDepth.current += 1
     setDropActive(true)
   }, [])
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
-    if (!hasDroppedFiles(e)) return
+    if (!window.BBeBee && !hasDroppedFiles(e)) return
     e.preventDefault()
     e.dataTransfer.dropEffect = 'copy'
   }, [])
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
-    if (!hasDroppedFiles(e)) return
+    if (!window.BBeBee && !hasDroppedFiles(e)) return
     // Enter/leave fire per element crossed; the depth counts them back out,
     // so brushing a child does not flicker the overlay off.
     dragDepth.current = Math.max(0, dragDepth.current - 1)

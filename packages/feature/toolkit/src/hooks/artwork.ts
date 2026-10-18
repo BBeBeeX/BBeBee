@@ -71,7 +71,11 @@ export function useResolvedArtwork(ctx: Context, artwork?: ArtworkRef): ArtworkR
         const fs = serviceOf<FsService>(ctx, 'fs')
         if (fs) {
           try {
-            if (await fs.exists(sourceUrl)) {
+            // fs.exists speaks file://, not bbebee-file:// — convert back.
+            const fsUri = sourceUrl.startsWith('bbebee-file:')
+              ? sourceUrl.replace(/^bbebee-file:\/\//, 'file://')
+              : sourceUrl
+            if (await fs.exists(fsUri)) {
               if (active) setResolution({ id, uri: sourceUrl, settled: true })
               return
             }

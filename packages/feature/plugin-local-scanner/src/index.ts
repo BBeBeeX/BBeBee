@@ -228,8 +228,25 @@ export class Scanner extends Service implements ScannerService {
       })
       if (removed.length > 0) this.ownCtx.emit('library/changed', 'track', removed)
     }
+    // Collect affected track URNs before the cascade deletes scan_entries.
+    const affected = await this.ownCtx.db.query<{ urn: string }>(
+      'SELECT DISTINCT track_urn AS urn FROM scan_entries WHERE specified_dir_id = ? AND track_urn IS NOT NULL',
+      [id],
+    )
     // `scan_entries` cascades from the specified dir row.
     await this.ownCtx.db.exec('DELETE FROM scan_specified_dirs WHERE id = ?', [id])
+    // Mark tracks unavailable (hidden from local music) without deleting them:
+    // playlists, favorites, and queue restore read by URN and keep working.
+    // AVAILABILITY_CASE re-evaluates against remaining dirs.
+    if (!opts.forgetTracks && affected.length > 0) {
+      const urns = affected.map((r) => r.urn)
+      const placeholders = urns.map(() => '?').join(',')
+      await this.ownCtx.db.exec(
+        `UPDATE tracks SET available = ${AVAILABILITY_CASE} WHERE urn IN (${placeholders})`,
+        urns,
+      )
+      this.ownCtx.emit('library/changed', 'track', urns)
+    }
     this.specifiedDirList = await this.loadSpecifiedDirs()
     this.ownCtx.logger.info('scanner: removed specified dir %s (forgetTracks=%s)', id, opts.forgetTracks ?? false)
     await this.startWatching()
