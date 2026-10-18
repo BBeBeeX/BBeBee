@@ -1,4 +1,5 @@
 pub mod commands;
+pub mod error;
 pub mod i18n;
 pub mod lyrics_manager;
 pub mod mini_player_manager;
