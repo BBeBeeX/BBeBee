@@ -11,7 +11,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::sync::atomic::Ordering;
-use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
+use tauri::{AppHandle, Emitter, Manager};
 
 use desktop_tauri_lib::commands::*;
 use desktop_tauri_lib::error::lock_recover;
@@ -183,15 +183,17 @@ fn setup_app(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
     // Forward engine events to the frontend as Tauri events
     let app_handle = app.handle().clone();
+    let engine = audio_engine.clone();
     tauri::async_runtime::spawn(async move {
-        let mut state_rx = audio_engine.subscribe_state();
+        let mut state_rx = engine.subscribe_state();
         while let Ok(event) = state_rx.recv().await {
             let _ = app_handle.emit("audio:state", &event);
         }
     });
     let app_handle = app.handle().clone();
+    let engine = audio_engine.clone();
     tauri::async_runtime::spawn(async move {
-        let mut crash_rx = audio_engine.subscribe_crash();
+        let mut crash_rx = engine.subscribe_crash();
         while let Ok(event) = crash_rx.recv().await {
             let _ = app_handle.emit("audio:crash", &event);
         }
@@ -204,7 +206,7 @@ fn setup_app(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 // Window events
 // =============================================================================
 
-fn on_window_event(window: &WebviewWindow, event: &tauri::WindowEvent) {
+fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
     match event {
         tauri::WindowEvent::CloseRequested { api, .. } => {
             on_close_requested(window, api);
@@ -217,7 +219,7 @@ fn on_window_event(window: &WebviewWindow, event: &tauri::WindowEvent) {
 }
 
 /// Close-button policy per window.
-fn on_close_requested(window: &WebviewWindow, api: &tauri::window::CloseRequestApi) {
+fn on_close_requested(window: &tauri::Window, api: &tauri::CloseRequestApi) {
     let app = window.app_handle();
     let state = app.state::<AppState>();
 
@@ -255,7 +257,7 @@ fn on_close_requested(window: &WebviewWindow, api: &tauri::window::CloseRequestA
 }
 
 /// Window-moved policy: mini-player and lyrics report positions.
-fn on_window_moved(window: &WebviewWindow) {
+fn on_window_moved(window: &tauri::Window) {
     let app = window.app_handle();
     let state = app.state::<AppState>();
 

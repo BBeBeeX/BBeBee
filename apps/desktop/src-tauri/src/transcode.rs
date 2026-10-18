@@ -11,12 +11,12 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, Mutex};
 
-use crate::error::{lock_recover, HostError, HostResult};
+use crate::error::{HostError, HostResult};
 use crate::protocols::to_native_path;
 
 // =============================================================================
@@ -87,7 +87,8 @@ impl TranscodeManager {
 
     /// Cancel a running transcode by job ID.
     pub fn cancel(&self, job_id: &str) -> bool {
-        let mut active = lock_recover(&self.active);
+        // Sync context (Tauri sync command): blocking_lock is safe here.
+        let mut active = self.active.blocking_lock();
         if let Some(mut child) = active.remove(job_id) {
             // Kill is sync; the child will be reaped by the monitor task
             let _ = child.start_kill();
@@ -186,11 +187,11 @@ impl TranscodeManager {
         }
 
         // Register for cancellation
-        lock_recover(&self.active).insert(job_id.clone(), child);
+        self.active.lock().await.insert(job_id.clone(), child);
 
         // Wait for completion
         let status = {
-            let mut active = lock_recover(&self.active);
+            let mut active = self.active.lock().await;
             if let Some(child) = active.get_mut(&job_id) {
                 child.wait().await.map_err(|e| {
                     HostError::internal(format!("ffmpeg wait failed: {e}"))
@@ -204,7 +205,7 @@ impl TranscodeManager {
             }
         };
 
-        lock_recover(&self.active).remove(&job_id);
+        self.active.lock().await.remove(&job_id);
 
         if status.success() {
             eprintln!("[transcode:{job_id}] completed");

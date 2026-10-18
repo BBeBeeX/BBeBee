@@ -254,6 +254,10 @@ impl AudioEngineSupervisor {
     // --- Process lifecycle ---
 
     /// Check if a restart is allowed (backoff policy).
+    ///
+    /// Note: the live restart path uses `RestartHandle::check_restart_budget`;
+    /// this copy is only exercised by unit tests.
+    #[allow(dead_code)]
     fn check_restart_budget(&self) -> bool {
         let mut count = lock_recover(&self.restart_count);
         let mut last = lock_recover(&self.last_restart);
