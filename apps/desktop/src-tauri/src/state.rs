@@ -95,6 +95,9 @@ pub struct AppState {
 
     // Native audio engine (Rust supervisor, P0 migration from Node sidecar)
     pub audio_engine: Mutex<Option<Arc<crate::audio::AudioEngineSupervisor>>>,
+
+    // FFmpeg transcoding (Rust manager, P1 migration from Node sidecar)
+    pub transcode_manager: Arc<crate::transcode::TranscodeManager>,
 }
 
 impl Default for AppState {
@@ -124,6 +127,7 @@ impl Default for AppState {
             current_position_ms: Mutex::new(0.0),
             sidecar: Mutex::new(None),
             audio_engine: Mutex::new(None),
+            transcode_manager: Arc::new(crate::transcode::TranscodeManager::new()),
         }
     }
 }

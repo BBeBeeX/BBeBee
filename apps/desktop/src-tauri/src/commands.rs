@@ -1545,6 +1545,32 @@ pub fn audio_engine_status(
     Ok(engine.get_engine_status())
 }
 
+// =============================================================================
+// FFmpeg Transcoding Commands (Rust manager, P1)
+// =============================================================================
+
+/// Run an FFmpeg transcode job. Returns when complete.
+#[tauri::command]
+pub async fn transcode_run(
+    state: tauri::State<'_, AppState>,
+    options: crate::transcode::TranscodeOptions,
+) -> Result<crate::transcode::TranscodeResult, String> {
+    state
+        .transcode_manager
+        .transcode(options)
+        .await
+        .map_err(|e| {
+            eprintln!("[cmd:transcode_run] {e}");
+            e.to_string()
+        })
+}
+
+/// Cancel a running transcode by job ID.
+#[tauri::command]
+pub fn transcode_cancel(state: tauri::State<'_, AppState>, job_id: String) -> bool {
+    state.transcode_manager.cancel(&job_id)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

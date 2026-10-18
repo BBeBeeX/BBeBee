@@ -138,6 +138,8 @@ fn main() {
             audio_engine_stop_playback, audio_engine_seek,
             audio_engine_set_volume, audio_engine_set_muted,
             audio_engine_set_dsp, audio_engine_status,
+            // FFmpeg transcoding (Rust manager, P1)
+            transcode_run, transcode_cancel,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
