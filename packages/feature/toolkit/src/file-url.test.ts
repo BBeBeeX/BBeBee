@@ -74,4 +74,25 @@ describe('toServableFileUrl', () => {
     const uri = 'bbebee-file:///C:/a.jpg'
     expect(toServableFileUrl(uri)).toBe(uri)
   })
+
+  it('routes through the vite dev proxy when on http://localhost', () => {
+    // Simulate vite dev server origin
+    vi.stubGlobal('window', {
+      location: {
+        origin: 'http://localhost:1420',
+        protocol: 'http:',
+        host: 'localhost:1420',
+      },
+      navigator: { userAgent: 'Mozilla/5.0 (X11; Linux x86_64)' },
+    })
+    expect(toServableFileUrl('bbebee-file://localhost/home/user/a.jpg')).toBe(
+      'http://localhost:1420/__bbebee-file/home/user/a.jpg',
+    )
+    expect(toServableFileUrl('bbebee-file:///home/user/a.jpg')).toBe(
+      'http://localhost:1420/__bbebee-file/home/user/a.jpg',
+    )
+    // Non bbebee-file: URIs pass through
+    expect(toServableFileUrl('https://example.com/a.jpg')).toBe('https://example.com/a.jpg')
+    vi.unstubAllGlobals()
+  })
 })

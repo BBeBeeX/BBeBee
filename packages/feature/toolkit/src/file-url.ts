@@ -18,10 +18,34 @@ export function toServableFileUrl(uri: string | undefined): string | undefined {
   if (!uri) return uri
   try {
     const exposed = globalThis as unknown as {
-      window?: { BBeBee?: { files?: { toServableUrl?: unknown } }; navigator?: { userAgent?: string } }
+      window?: {
+        BBeBee?: { files?: { toServableUrl?: unknown } }
+        navigator?: { userAgent?: string }
+        location?: { origin?: string; protocol?: string; host?: string }
+      }
       BBeBee?: { files?: { toServableUrl?: unknown } }
       navigator?: { userAgent?: string }
+      location?: { origin?: string; protocol?: string; host?: string }
     }
+    // Dev-mode proxy: when the page runs on the vite dev server
+    // (http://localhost:1420), WebKitGTK blocks the custom bbebee-file://
+    // scheme via its same-origin policy. Route through the dev server's
+    // /__bbebee-file/ middleware instead, which serves the file over HTTP.
+    // Production (tauri://) uses the native custom protocol path below.
+    const loc = exposed.window?.location ?? exposed.location
+    const isViteDev =
+      loc?.protocol === 'http:' && /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(loc?.host ?? '')
+    if (isViteDev && typeof uri === 'string' && uri.startsWith('bbebee-file:')) {
+      // bbebee-file://localhost/path -> /__bbebee-file/path
+      // bbebee-file:///path -> /__bbebee-file/path
+      const path = uri
+        .replace(/^bbebee-file:\/\/(localhost\/)?/, '')
+        .replace(/^bbebee-file:/, '')
+      // path is now like /home/user/x.jpg or C:/music/x.jpg
+      const normalized = path.startsWith('/') || /^[a-zA-Z]:\//.test(path) ? path : '/' + path
+      return `${loc.origin}/__bbebee-file${normalized}`
+    }
+
     const fn = exposed.window?.BBeBee?.files?.toServableUrl ?? exposed.BBeBee?.files?.toServableUrl
     if (typeof fn === 'function') {
       return (fn as (u: string) => string)(uri)

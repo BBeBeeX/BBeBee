@@ -361,10 +361,10 @@ describe('Artwork', () => {
     const out = html(
       h(Artwork, { size: 48, artwork: { id: 'a', sourceUrl: 'file:///cache/artworks/1.jpg' } }),
     )
-    // On Linux the empty-host form does not dispatch in wry, so the toolkit
-    // rewrites to the localhost-host form. (On macOS/Windows the output
-    // differs; see file-url.test.ts for the platform matrix.)
-    expect(out).toContain('src="bbebee-file://localhost/cache/artworks/1.jpg"')
+    // In jsdom the origin is http://localhost:3000 (vite-like dev), so the
+    // dev proxy kicks in. In production (tauri://) this would be
+    // bbebee-file://localhost/cache/artworks/1.jpg on Linux.
+    expect(out).toContain('src="http://localhost:3000/__bbebee-file/cache/artworks/1.jpg"')
   })
 
   it('generates an identicon from the seed when there is no artwork at all', () => {

@@ -1,13 +1,87 @@
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { defineConfig } from 'vite'
+import { createReadStream, promises as fs } from 'node:fs'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
+/**
+ * Dev-mode file proxy for `bbebee-file://` URLs.
+ *
+ * WebKitGTK blocks custom schemes (`bbebee-file://`) from `http://` origins
+ * (vite dev server) via its same-origin policy — the request never reaches
+ * the Rust protocol handler. In production the page runs on `tauri://` and
+ * the custom protocol works natively.
+ *
+ * This middleware serves local files over HTTP at `/__bbebee-file/<path>`,
+ * so dev-mode `toServableFileUrl` can return a same-origin URL instead.
+ * Only enabled in `vite dev` (not in build).
+ */
+function bbebeeFileProxy(): Plugin {
+  return {
+    name: 'bbebee-file-proxy',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (!req.url?.startsWith('/__bbebee-file/')) {
+          next()
+          return
+        }
+        try {
+          // /__bbebee-file/home/user/x.jpg -> /home/user/x.jpg
+          // /__bbebee-file/C:/music/x.jpg -> C:/music/x.jpg
+          let filePath = decodeURIComponent(req.url.slice('/__bbebee-file/'.length))
+          // Prevent path traversal: normalize and reject `..`
+          const segments = filePath.split('/')
+          if (segments.includes('..')) {
+            res.statusCode = 400
+            res.end('Bad request')
+            return
+          }
+          // Windows drive letter: C:/...
+          if (!filePath.startsWith('/') && /^[a-zA-Z]:\//.test(filePath)) {
+            // keep as-is, e.g. C:/music/x.jpg
+          } else if (!filePath.startsWith('/')) {
+            filePath = '/' + filePath
+          }
+          const stat = await fs.stat(filePath)
+          if (!stat.isFile()) {
+            res.statusCode = 404
+            res.end('Not a file')
+            return
+          }
+          const ext = filePath.split('.').pop()?.toLowerCase() ?? ''
+          const mime: Record<string, string> = {
+            jpg: 'image/jpeg',
+            jpeg: 'image/jpeg',
+            png: 'image/png',
+            gif: 'image/gif',
+            webp: 'image/webp',
+            bmp: 'image/bmp',
+            mp3: 'audio/mpeg',
+            flac: 'audio/flac',
+            m4a: 'audio/mp4',
+            ogg: 'audio/ogg',
+            wav: 'audio/wav',
+          }
+          res.setHeader('Content-Type', mime[ext] ?? 'application/octet-stream')
+          res.setHeader('Content-Length', stat.size)
+          // Same-origin in dev, but allow it explicitly anyway.
+          res.setHeader('Access-Control-Allow-Origin', '*')
+          createReadStream(filePath).pipe(res)
+        } catch {
+          res.statusCode = 404
+          res.end('Not found')
+        }
+      })
+    },
+  }
+}
+
 export default defineConfig({
   root: 'renderer',
-  plugins: [react()],
+  plugins: [react(), bbebeeFileProxy()],
   optimizeDeps: {
     exclude: ['react-native'],
   },
