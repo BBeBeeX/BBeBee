@@ -1,7 +1,7 @@
-//! System Tray icon and contextual menu management
+//! System tray icon and menu.
 //!
-//! Provides cross-platform system tray icon, localized contextual controls
-//! (Play/Pause, Next, Previous, Show/Hide, Quit), and click interaction.
+//! Cross-platform tray with localized controls (play/pause, prev/next,
+//! show/hide, quit). Click behavior: left-click toggles the main window.
 
 use tauri::{
     menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem},
@@ -9,54 +9,61 @@ use tauri::{
     Emitter, Manager,
 };
 
+use crate::error::lock_recover;
 use crate::i18n::get_tray_i18n;
 use crate::state::{AppState, TaskbarState};
 
+/// Toggle the main window visibility.
 pub fn toggle_main_window(app: &tauri::AppHandle) {
-    if let Some(win) = app.get_webview_window("main") {
-        if win.is_visible().unwrap_or(false) && !win.is_minimized().unwrap_or(false) {
-            let _ = win.hide();
-        } else {
-            let _ = win.show();
-            let _ = win.unminimize();
-            let _ = win.set_focus();
-        }
+    let Some(win) = app.get_webview_window("main") else { return };
+    let visible = win.is_visible().unwrap_or(false);
+    let minimized = win.is_minimized().unwrap_or(false);
+    if visible && !minimized {
+        let _ = win.hide();
+    } else {
+        let _ = win.show();
+        let _ = win.unminimize();
+        let _ = win.set_focus();
     }
 }
 
+/// Build the tray context menu for the current playback state.
 pub fn create_tray_menu(
     app: &tauri::AppHandle,
     locale: &str,
     taskbar: &TaskbarState,
 ) -> Result<tauri::menu::Menu<tauri::Wry>, tauri::Error> {
     let i18n = get_tray_i18n(locale);
-    let play_label = if taskbar.is_playing {
-        i18n.pause
-    } else {
-        i18n.play
-    };
-
-    let can_play = taskbar.can_play_or_pause.unwrap_or(true);
-    let can_prev = taskbar.can_previous.unwrap_or(true);
-    let can_next = taskbar.can_next.unwrap_or(true);
+    let play_label = if taskbar.is_playing { &i18n.pause } else { &i18n.play };
 
     MenuBuilder::new(app)
-        .item(&MenuItemBuilder::with_id("play_pause", play_label).enabled(can_play).build(app)?)
-        .item(&MenuItemBuilder::with_id("prev", i18n.prev).enabled(can_prev).build(app)?)
-        .item(&MenuItemBuilder::with_id("next", i18n.next).enabled(can_next).build(app)?)
+        .item(
+            &MenuItemBuilder::with_id("play_pause", play_label)
+                .enabled(taskbar.can_play_or_pause.unwrap_or(true))
+                .build(app)?,
+        )
+        .item(
+            &MenuItemBuilder::with_id("prev", &i18n.prev)
+                .enabled(taskbar.can_previous.unwrap_or(true))
+                .build(app)?,
+        )
+        .item(
+            &MenuItemBuilder::with_id("next", &i18n.next)
+                .enabled(taskbar.can_next.unwrap_or(true))
+                .build(app)?,
+        )
         .item(&PredefinedMenuItem::separator(app)?)
-        .item(&MenuItemBuilder::with_id("toggle_show", i18n.show).build(app)?)
+        .item(&MenuItemBuilder::with_id("toggle_show", &i18n.show).build(app)?)
         .item(&PredefinedMenuItem::separator(app)?)
-        .item(&MenuItemBuilder::with_id("quit", i18n.quit).build(app)?)
+        .item(&MenuItemBuilder::with_id("quit", &i18n.quit).build(app)?)
         .build()
 }
 
+/// Create the tray icon during app setup.
 pub fn setup_tray(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let state = app.state::<AppState>();
-    let locale = state.get_locale();
-    let taskbar = state.taskbar_state.lock().unwrap().clone();
-
-    let menu = create_tray_menu(app, &locale, &taskbar)?;
+    let taskbar = lock_recover(&state.taskbar_state).clone();
+    let menu = create_tray_menu(app, &state.get_locale(), &taskbar)?;
 
     let mut builder = TrayIconBuilder::with_id("main-tray")
         .tooltip("BBeBee")
@@ -68,43 +75,17 @@ pub fn setup_tray(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Erro
     }
 
     builder
-        .on_menu_event(|app, event| {
-            match event.id().as_ref() {
-                "play_pause" => {
-                    if let Some(main) = app.get_webview_window("main") {
-                        let _ = main.emit("taskbar:action", "togglePlay");
-                    }
-                }
-                "prev" => {
-                    if let Some(main) = app.get_webview_window("main") {
-                        let _ = main.emit("taskbar:action", "previous");
-                    }
-                }
-                "next" => {
-                    if let Some(main) = app.get_webview_window("main") {
-                        let _ = main.emit("taskbar:action", "next");
-                    }
-                }
-                "toggle_show" => {
-                    toggle_main_window(app);
-                }
-                "quit" => {
-                    let s = app.state::<AppState>();
-                    s.set_quitting(true);
-                    app.exit(0);
-                }
-                _ => {}
-            }
-        })
+        .on_menu_event(|app, event| on_menu_event(app, event.id().as_ref()))
         .on_tray_icon_event(|tray, event| {
-            if let TrayIconEvent::Click {
-                button: MouseButton::Left,
-                button_state: MouseButtonState::Up,
-                ..
-            } = event
-            {
-                let app = tray.app_handle();
-                toggle_main_window(app);
+            if matches!(
+                event,
+                TrayIconEvent::Click {
+                    button: MouseButton::Left,
+                    button_state: MouseButtonState::Up,
+                    ..
+                }
+            ) {
+                toggle_main_window(tray.app_handle());
             }
         })
         .build(app)?;
@@ -112,23 +93,46 @@ pub fn setup_tray(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Erro
     Ok(())
 }
 
+/// Handle a tray menu item click.
+fn on_menu_event(app: &tauri::AppHandle, id: &str) {
+    match id {
+        "play_pause" => emit_to_main(app, "taskbar:action", "togglePlay"),
+        "prev" => emit_to_main(app, "taskbar:action", "previous"),
+        "next" => emit_to_main(app, "taskbar:action", "next"),
+        "toggle_show" => toggle_main_window(app),
+        "quit" => {
+            app.state::<AppState>().set_quitting(true);
+            app.exit(0);
+        }
+        _ => {}
+    }
+}
+
+/// Emit an event to the main window, if it exists.
+fn emit_to_main(app: &tauri::AppHandle, event: &str, payload: &str) {
+    if let Some(main) = app.get_webview_window("main") {
+        let _ = main.emit(event, payload);
+    }
+}
+
+/// Refresh the tray menu and tooltip after playback state changes.
 pub fn update_tray_menu(app: &tauri::AppHandle, state: &AppState) -> Result<(), String> {
-    let locale = state.get_locale();
-    let taskbar = state.taskbar_state.lock().unwrap().clone();
-    let menu = create_tray_menu(app, &locale, &taskbar).map_err(|e| e.to_string())?;
+    let taskbar = lock_recover(&state.taskbar_state).clone();
+    let menu = create_tray_menu(app, &state.get_locale(), &taskbar)
+        .map_err(|e| e.to_string())?;
 
     if let Some(tray) = app.tray_by_id("main-tray") {
         let _ = tray.set_menu(Some(menu));
-        let tooltip = if let Some(title) = &taskbar.title {
-            if let Some(artist) = &taskbar.artist {
-                format!("BBeBee — {} - {}", title, artist)
-            } else {
-                format!("BBeBee — {}", title)
-            }
-        } else {
-            "BBeBee".to_string()
-        };
-        let _ = tray.set_tooltip(Some(tooltip));
+        let _ = tray.set_tooltip(Some(tray_tooltip(&taskbar)));
     }
     Ok(())
+}
+
+/// Tooltip text: "BBeBee — Title - Artist" or just "BBeBee".
+fn tray_tooltip(taskbar: &TaskbarState) -> String {
+    match (&taskbar.title, &taskbar.artist) {
+        (Some(title), Some(artist)) => format!("BBeBee — {title} - {artist}"),
+        (Some(title), None) => format!("BBeBee — {title}"),
+        _ => "BBeBee".to_string(),
+    }
 }
