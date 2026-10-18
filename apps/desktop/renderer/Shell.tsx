@@ -599,15 +599,35 @@ export function Shell({ ctx }: { ctx: Context }) {
     // The supported Tauri v2 drop channel: the payload carries real OS paths,
     // which the webview `File` objects never expose. The HTML5 handlers above
     // stay for the drag-over overlay feedback and for non-Tauri hosts.
-    let unlisten: (() => void) | undefined
+    //
+    // On Windows, WebView2's drop handling is replaced by Tauri/wry, so the
+    // HTML5 dragenter/dragover events may not fire with file data. Listen to
+    // Tauri's drag-enter/drag-leave events as well to drive the overlay.
+    const unlistens: Array<() => void> = []
     let disposed = false
     const subscribe = async () => {
       try {
         const { getCurrentWindow } = await import('@tauri-apps/api/window')
         if (disposed) return
-        unlisten = await getCurrentWindow().listen<{ paths?: string[] }>(
-          'tauri://drag-drop',
-          (event) => {
+        const win = getCurrentWindow()
+        unlistens.push(
+          await win.listen('tauri://drag-enter', () => {
+            if (!disposed) {
+              dragDepth.current += 1
+              setDropActive(true)
+            }
+          }),
+        )
+        unlistens.push(
+          await win.listen('tauri://drag-leave', () => {
+            if (!disposed) {
+              dragDepth.current = Math.max(0, dragDepth.current - 1)
+              if (dragDepth.current === 0) setDropActive(false)
+            }
+          }),
+        )
+        unlistens.push(
+          await win.listen<{ paths?: string[] }>('tauri://drag-drop', (event) => {
             const paths = event.payload?.paths ?? []
             if (paths.length === 0) return
             dragDepth.current = 0
@@ -615,7 +635,7 @@ export function Shell({ ctx }: { ctx: Context }) {
             void importDroppedPaths(ctx, paths)
               .then(handleImportResult)
               .catch(() => setDropMessage(t('app:common.shell.importFailed')))
-          },
+          }),
         )
       } catch {
         // Not running inside Tauri (plain browser, tests): HTML5 DnD remains.
@@ -624,7 +644,7 @@ export function Shell({ ctx }: { ctx: Context }) {
     void subscribe()
     return () => {
       disposed = true
-      unlisten?.()
+      for (const unlisten of unlistens) unlisten()
     }
   }, [ctx, handleImportResult, t])
 

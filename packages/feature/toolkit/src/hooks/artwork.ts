@@ -23,7 +23,7 @@
 import { useEffect, useState } from 'react'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
-import type { ArtworkRef, CacheService, Uri } from '@BBeBee/protocol'
+import type { ArtworkRef, CacheService, FsService, Uri } from '@BBeBee/protocol'
 import { serviceOf } from './react.js'
 
 /** An already-local location needs no caching; the platform can render it as-is. */
@@ -60,26 +60,48 @@ export function useResolvedArtwork(ctx: Context, artwork?: ArtworkRef): ArtworkR
       setResolution(undefined)
       return
     }
-    if (sourceUrl && isLocalUri(sourceUrl)) {
-      setResolution({ id, uri: sourceUrl, settled: true })
-      return
-    }
-    const cache = serviceOf<CacheService>(ctx, 'cache')
-    if (!cache) {
-      setResolution(undefined)
-      return
+    let active = true
+
+    // A local URI is usually usable as-is (scanner-extracted cover), but the
+    // file may have been deleted (e.g. cache cleared) while the ref still
+    // points at it. Verify existence before trusting it; if gone, fall through
+    // to the cache lookup which will re-fetch from the original source.
+    const checkLocalThenResolve = async (): Promise<void> => {
+      if (sourceUrl && isLocalUri(sourceUrl)) {
+        const fs = serviceOf<FsService>(ctx, 'fs')
+        if (fs) {
+          try {
+            if (await fs.exists(sourceUrl)) {
+              if (active) setResolution({ id, uri: sourceUrl, settled: true })
+              return
+            }
+            // File is gone — fall through to cache re-fetch below.
+          } catch {
+            // Existence check failed; fall through to cache lookup.
+          }
+        } else {
+          // No fs service (e.g. tests): trust the local URI as before.
+          if (active) setResolution({ id, uri: sourceUrl, settled: true })
+          return
+        }
+      }
+
+      const cache = serviceOf<CacheService>(ctx, 'cache')
+      if (!cache) {
+        if (active) setResolution(undefined)
+        return
+      }
+
+      if (active) setResolution({ id, settled: false })
+      try {
+        const uri = await cache.artwork(sourceUrl ? { id, sourceUrl } : { id })
+        if (active) setResolution({ id, ...(uri ? { uri } : {}), settled: true })
+      } catch {
+        if (active) setResolution({ id, settled: true })
+      }
     }
 
-    let active = true
-    setResolution({ id, settled: false })
-    void cache.artwork(sourceUrl ? { id, sourceUrl } : { id }).then(
-      (uri) => {
-        if (active) setResolution({ id, ...(uri ? { uri } : {}), settled: true })
-      },
-      () => {
-        if (active) setResolution({ id, settled: true })
-      },
-    )
+    void checkLocalThenResolve()
     return () => {
       active = false
     }
