@@ -12,7 +12,7 @@
 use std::sync::atomic::Ordering;
 use tauri::{Emitter, Manager};
 
-use crate::error::{lock_recover, HostError, HostResult};
+use crate::error::{lock_recover, HostError};
 use crate::lyrics_manager::{
     clamp_to_visible_screen, get_or_create_lyric_window, set_lyric_window_position,
     start_lyric_cursor_tracking, DEFAULT_LYRIC_HEIGHT, DEFAULT_LYRIC_WIDTH,

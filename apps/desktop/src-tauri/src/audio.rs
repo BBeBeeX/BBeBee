@@ -440,7 +440,7 @@ impl AudioEngineSupervisor {
             EngineMessage::Error { message, action } => {
                 eprintln!(
                     "[audio] engine error{}: {message}",
-                    action.map(|a| format!(" ({a})")).unwrap_or_default()
+                    action.as_ref().map(|a| format!(" ({a})")).unwrap_or_default()
                 );
                 // Reject pending loads on error (unless it's a benign action)
                 if action.as_deref() != Some("setDspConfig") {
