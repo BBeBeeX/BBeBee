@@ -53,6 +53,14 @@ async function mapPool<T, R>(items: T[], limit: number, fn: (item: T) => Promise
 export interface ScannerConfig {
   /** Files per transaction. A checkpoint costs one batch on interruption. */
   batchSize?: number
+  /**
+   * Concurrent tag reads within a batch. Measured 2026-10-18: 6 → ~550
+   * files/sec, 16 → ~900 files/sec, 32 → no further gain on this machine.
+   * The bottleneck is fs-operation latency, not music-metadata CPU (a single
+   * thread already scales to 32-way), so worker threads would buy complexity
+   * without throughput. Defaults to 16.
+   */
+  tagReadConcurrency?: number
   /** Extensions considered audio, lower-case and without the dot. */
   extensions?: string[]
   /** The source these tracks belong to. */
@@ -152,8 +160,8 @@ export class Scanner extends Service implements ScannerService {
   private specifiedDirList: ScanSpecifiedDir[] = []
   private current?: ScanProgress
   private abort?: AbortController
-  /** Throttle for the per-file progress reports (see `reportFileStart`). */
-  private lastFileProgressAt = 0
+  /** Throttle for the per-file progress reports (see `reportScanProgress`). */
+  private lastProgressAt = 0
   private watchers: Disposable[] = []
   private watchTimer?: ReturnType<typeof setTimeout>
   private pollTimer?: ReturnType<typeof setTimeout>
@@ -168,6 +176,7 @@ export class Scanner extends Service implements ScannerService {
     this.ownCtx = ctx
     this.config = {
       batchSize: config.batchSize ?? 200,
+      tagReadConcurrency: config.tagReadConcurrency ?? 16,
       extensions: (config.extensions ?? DEFAULT_EXTENSIONS).map((e) => e.toLowerCase()),
       sourceId: config.sourceId ?? 'local',
       pollIntervalMinutes: config.pollIntervalMinutes ?? 24 * 60, // 1 day (1440 minutes)
@@ -201,24 +210,31 @@ export class Scanner extends Service implements ScannerService {
   }
 
   /**
-   * Report the file a tag read just started on, throttled.
+   * Throttled in-batch progress: the file a tag read just started on, and
+   * how many of the batch's files are done.
    *
-   * Tag reads run 6-way concurrent, so the "current" file changes dozens of
-   * times a second; emitting per file would spam the event bus and re-render
-   * the progress UI just as often. One report per 400 ms is plenty for a
-   * dialog whose job is to show that work is moving — and, when a file hangs
-   * in its 30 s metadata timeout, to show *which* file is stuck.
+   * Tag reads run multi-way concurrent, so both change dozens of times a second;
+   * emitting per file would spam the event bus and re-render the progress UI
+   * just as often. One report per 400 ms is plenty for a dialog whose job is
+   * to show that work is moving — and, when a file hangs in its 30 s
+   * metadata timeout, to show *which* file is stuck.
    *
    * The reporter is threaded through `importBatch` → `prepareFile` as a
    * callback rather than kept as instance state, so a drop-import running
-   * alongside a scan never reports against the scan's progress.
+   * alongside a scan never reports against the scan's progress. The per-batch
+   * checkpoint emit after `importBatch` still sets the exact `done`; these
+   * reports are the smooth motion in between.
    */
-  private reportFileStart(dirId: string, done: number, total: number, uri: Uri): void {
+  private reportScanProgress(dirId: string, done: number, total: number, currentFile?: string): void {
     const now = Date.now()
-    if (now - this.lastFileProgressAt < 400) return
-    this.lastFileProgressAt = now
-    const currentFile = this.ownCtx.fs.basename(uri)
-    if (this.current) this.current.currentFile = currentFile
+    if (now - this.lastProgressAt < 400) return
+    this.lastProgressAt = now
+    this.current = {
+      specifiedDirId: dirId,
+      done,
+      total,
+      ...(currentFile === undefined ? {} : { currentFile }),
+    }
     this.ownCtx.emit('scan/progress', dirId, done, total, undefined, currentFile)
   }
 
@@ -635,8 +651,10 @@ export class Scanner extends Service implements ScannerService {
     for (let i = 0; i < files.length; i += this.config.batchSize) {
       if (opts.signal.aborted) break
       const batch = files.slice(i, i + this.config.batchSize)
-      // Progress reporting for the batch's tag reads (see `reportFileStart`).
-      const onFileStart = (uri: Uri) => this.reportFileStart(dir.id, i, files.length, uri)
+      // In-batch progress, throttled (see `reportScanProgress`): the count
+      // moves file by file instead of jumping 200 at a time.
+      const onProgress = (doneInBatch: number, currentFile?: string) =>
+        this.reportScanProgress(dir.id, i + doneInBatch, files.length, currentFile)
       const changed = await this.importBatch(
         dir,
         batch,
@@ -646,7 +664,7 @@ export class Scanner extends Service implements ScannerService {
         summary,
         opts.full,
         folderCovers,
-        onFileStart,
+        onProgress,
       )
 
       this.current = { specifiedDirId: dir.id, done: Math.min(i + batch.length, files.length), total: files.length }
@@ -779,7 +797,7 @@ export class Scanner extends Service implements ScannerService {
     summary: ScanSummary,
     full: boolean,
     folderCovers?: Map<string, FileStat>,
-    onFileStart?: (uri: Uri) => void,
+    onProgress?: (doneInBatch: number, currentFile?: string) => void,
   ): Promise<string[]> {
     const changed: string[] = []
     const now = Date.now()
@@ -803,7 +821,22 @@ export class Scanner extends Service implements ScannerService {
       }
     }
     const toPrepare = batch.filter((file) => !unchangedUris.has(file.uri))
-    const preparedFresh = await mapPool(toPrepare, 6, (file) => this.prepareFile(file, folderCovers, onFileStart))
+    // Files already known-unchanged cost nothing; they count as done up front
+    // so the progress count moves from the batch's first file, not its first
+    // tag read.
+    const baseDone = batch.length - toPrepare.length
+    let doneFresh = 0
+    const preparedFresh = await mapPool(toPrepare, this.config.tagReadConcurrency, async (file) => {
+      const onFileStart = onProgress
+        ? (uri: Uri) => onProgress(baseDone + doneFresh, this.ownCtx.fs.basename(uri))
+        : undefined
+      try {
+        return await this.prepareFile(file, folderCovers, onFileStart)
+      } finally {
+        doneFresh++
+        onProgress?.(baseDone + doneFresh)
+      }
+    })
     prepared.push(...preparedFresh)
 
     await this.ownCtx.db.transaction(async (tx) => {

@@ -538,10 +538,16 @@ describe('scanning', () => {
     await h.scanner.scan()
 
     // batchSize is 2, so 5 files are three batches — each one a checkpoint.
-    // The throttled per-file reports interleave (done=0 here); they repeat
-    // the batch's starting `done`, so collapsing repeats leaves the
-    // checkpoints intact.
-    expect(progress.filter((done, i) => i === 0 || done !== progress[i - 1])).toEqual([0, 2, 4, 5])
+    // The count now also moves file by file (throttled), not just per batch:
+    // collapse repeats and the checkpoints must still be hit exactly, in order.
+    const deduped = progress.filter((done, i) => i === 0 || done !== progress[i - 1])
+    expect(deduped.at(-1)).toBe(5)
+    let prev = -1
+    for (const done of deduped) {
+      expect(done, 'progress never moves backwards').toBeGreaterThanOrEqual(prev)
+      prev = done
+    }
+    for (const checkpoint of [2, 4, 5]) expect(deduped).toContain(checkpoint)
     expect(
       currentFiles.some((f) => f !== undefined && /^t\d\.mp3$/.test(f)),
       'a progress report names the file being read',
