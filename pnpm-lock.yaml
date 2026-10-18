@@ -599,6 +599,9 @@ importers:
       music-metadata:
         specifier: 11.15.0
         version: 11.15.0(supports-color@8.1.1)
+      strtok3:
+        specifier: 10.3.5
+        version: 10.3.5
     devDependencies:
       '@BBeBee/core-fs-node':
         specifier: workspace:*

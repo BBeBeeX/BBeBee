@@ -31,7 +31,8 @@
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/kernel": "workspace:*",
     "cordis": "4.0.0-rc.9",
-    "music-metadata": "11.15.0"
+    "music-metadata": "11.15.0",
+    "strtok3": "10.3.5"
   },
   "devDependencies": {
     "@BBeBee/core-fs-node": "workspace:*",

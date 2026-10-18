@@ -8,11 +8,15 @@
  * the bridge) and in the sidecar host.
  *
  * The load-bearing property is that **`readMetadata` does not read the whole
- * file**. A 40 MB FLAC costs a bounded head window, not 40 MB across an IPC
- * channel — the difference between a 5,000-file scan taking minutes and taking
- * an afternoon. Streaming and letting the parser stop early does *not* achieve
- * that (the tokenizer drains what it is given, which the conformance suite
- * caught), so the window is read explicitly and the whole file is a fallback.
+ * file**. A 40 MB FLAC costs the bytes its tag blocks actually occupy, not
+ * 40 MB across an IPC channel — the difference between a 5,000-file scan
+ * taking minutes and taking an afternoon. That is achieved with a real
+ * seekable tokenizer (`./tokenizer.ts`): `parseFromTokenizer` lets the
+ * parser ask for exactly the bytes it needs — an ID3v2 header declares its
+ * own length, a tail `moov` is seeked to, appending headers are found by
+ * reading backwards from EOF — instead of the old guess-a-head-window and
+ * re-parse-on-miss loop, which re-read overlapping bytes and re-parsed the
+ * tag block on every escalation.
  *
  * See docs/04-core-services.md §13.
  */
@@ -21,7 +25,8 @@ import { Service } from 'cordis'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import type { AudioMetadata, CodecService, DecodedAudio, TranscodeOptions, TranscodeResult, Uri } from '@BBeBee/protocol'
-import { parseBuffer, selectCover, type IAudioMetadata, type IOptions } from 'music-metadata'
+import { parseFromTokenizer, selectCover, type IAudioMetadata, type IOptions } from 'music-metadata'
+import { FsRangeTokenizer } from './tokenizer.js'
 
 export interface CodecNodeConfig {
   /**
@@ -53,9 +58,6 @@ const DEFAULT_FORMATS = [
   'dff',
 ]
 
-/** How much of the head to read before falling back to larger windows or whole file. */
-const TAG_WINDOW_BYTES = 256 * 1024
-
 export class CodecNode extends Service implements CodecService {
   static inject = ['fs']
 
@@ -78,22 +80,20 @@ export class CodecNode extends Service implements CodecService {
    * Single parse for tags + artwork. Previously `readMetadata` and
    * `readArtwork` each parsed the file; the scanner calls both per file,
    * so this halves the parse work for files with embedded art.
+   *
+   * No second-pass artwork re-read: the tokenizer lets the parser seek to
+   * the whole tag block, so a parse that found no cover cannot find one by
+   * reading more — the old 4 MB fallback only existed because the head
+   * window could cut the tag block short.
    */
-  async readMetadataWithArtwork(uri: Uri): Promise<{ metadata: AudioMetadata; artwork?: Uint8Array }> {
+  async readMetadataWithArtwork(
+    uri: Uri,
+    signal?: AbortSignal,
+  ): Promise<{ metadata: AudioMetadata; artwork?: Uint8Array }> {
     const { size } = await this.ctx.fs.stat(uri)
-    const parsed = await this.parse(uri, { duration: false, skipCovers: false })
+    const parsed = await this.parse(uri, { duration: false, skipCovers: false }, signal, size)
     const metadata = toAudioMetadata(parsed, uri, size)
-    let cover = selectCover(parsed.common.picture)
-    if (!cover && size > TAG_WINDOW_BYTES) {
-      try {
-        const artWindow = Math.min(size, 4 * 1024 * 1024)
-        const head = await this.readWindow(uri, artWindow)
-        const fullParsed = await this.parseBytes(head, uri, size, { duration: false, skipCovers: false })
-        cover = selectCover(fullParsed.common.picture)
-      } catch {
-        // ignore
-      }
-    }
+    const cover = selectCover(parsed.common.picture)
     return { metadata, artwork: cover ? new Uint8Array(cover.data) : undefined }
   }
 
@@ -476,116 +476,76 @@ export class CodecNode extends Service implements CodecService {
   }
 
   /**
-   * Parse the head of the file, and only fall back to the whole of it.
+   * Parse through a seekable tokenizer over `ctx.fs` range reads.
    *
-   * Streaming the file and letting the parser stop early *sounds* like the
-   * bounded read, but it is not one: the tokenizer drains what it is given, so
-   * a 40 MB FLAC costs 40 MB — measured, not assumed. Reading an explicit
-   * window instead makes the bound real.
+   * There is no window to guess anymore: the parser seeks to what it needs —
+   * the ID3v2 header declares its length, a tail `moov` is seeked to,
+   * appending headers are found backwards from EOF — and each byte is read
+   * at most once per parse (plus cache hits, which are free).
    *
-   * Every container of interest puts its tags at the head: ID3v2, FLAC's
-   * metadata blocks, MP4's `moov` when it is faststart-ed. The exceptions —
-   * a trailing ID3v1, a tail `moov` — fall through to the full read, which is
-   * correct and merely slower, and rare enough to be worth it.
+   * The *content* decides the container. The extension is a hint of last
+   * resort, not the answer: a `.mp3` holding FLAC is a thing real libraries
+   * contain, and dispatching on the name reads it with the wrong parser and
+   * reports it as untagged. Content sniffing gets it right; the hint is
+   * retried only when sniffing fails outright, which is the case of a
+   * container music-metadata cannot recognise from its magic bytes but can
+   * parse once told.
    */
-  private async parse(uri: Uri, options: IOptions): Promise<IAudioMetadata> {
-    const { size } = await this.ctx.fs.stat(uri)
-
-    const windows = [TAG_WINDOW_BYTES, 512 * 1024, 2 * 1024 * 1024, 4 * 1024 * 1024]
-    for (const winBytes of windows) {
-      if (size > winBytes) {
+  private async parse(uri: Uri, options: IOptions, signal?: AbortSignal, size?: number): Promise<IAudioMetadata> {
+    // The caller often already knows the size (readMetadataWithArtwork stats
+    // up front); pass it through instead of stat-ing twice per file.
+    const fileSize = size ?? (await this.ctx.fs.stat(uri)).size
+    const hint = mimeFor(uri)
+    const attempts: Array<string | undefined> = hint ? [undefined, hint] : [undefined]
+    // Bounded first, escalate on failure — the old window escalation's shape,
+    // without the re-reads: a normal file parses inside the first budget
+    // (256 KB, the old first window; the conformance byte ceiling is
+    // measured against it), and only a file whose tag block genuinely
+    // exceeds it pays for a second parse.
+    const firstBudget = 256 * 1024
+    const secondBudget = Math.min(fileSize, 8 * 1024 * 1024)
+    const budgets = secondBudget > firstBudget ? [firstBudget, secondBudget] : [firstBudget]
+    let lastError: unknown
+    for (const mimeType of attempts) {
+      for (const budget of budgets) {
+        const tokenizer = new FsRangeTokenizer(this.ctx.fs, uri, fileSize, signal, mimeType, budget)
         try {
-          const head = await this.readWindow(uri, winBytes)
-          const parsed = await this.parseBytes(head, uri, undefined, options)
+          signal?.throwIfAborted()
+          const parsed = await parseFromTokenizer(tokenizer, options)
           if (hasUsableTags(parsed)) return parsed
-        } catch {
-          // The window cut through something the parser needed; try larger window.
+          /*
+           * A parse that found nothing at all is a failure, not a tagless track.
+           *
+           * ⚠️ This used to return whatever came back. Passing the extension's
+           * mime type made the parser trust it, so a zero-byte file, a
+           * truncated header and a JPEG renamed `.mp3` all "parsed" — into
+           * `{ codec: 'mp3' }`, from the *hint*, with no bytes behind it. The
+           * scanner then imported three phantom tracks named after their
+           * filenames, which is worse than either of the two honest outcomes:
+           * docs/11 §4.7 says a file that will not decode gets
+           * `scan_entries.status = 'error'` with a reason, and is never
+           * silently absent. It was silently *present* instead.
+           *
+           * A bigger budget cannot fix a parse that already saw everything —
+           * but when the budget ran out mid-parse, the emptiness may be the
+           * budget's fault (a tag block cut short reads as "no tags"), so
+           * that case escalates instead of breaking to the hint attempt.
+           */
+          lastError = new Error(`codec: nothing readable in ${this.ctx.fs.basename(uri)}`)
+          if (!tokenizer.budgetExhausted) break
+        } catch (error) {
+          // An abort is not a parse failure: let it propagate instead of
+          // falling through to the escalation or the hint retry.
+          signal?.throwIfAborted()
+          lastError = error
+        } finally {
+          await tokenizer.close().catch(() => undefined)
         }
       }
     }
-
-    const maxWholeRead = 8 * 1024 * 1024
-    let parsed: IAudioMetadata | undefined
-    if (size <= maxWholeRead) {
-      const whole = await this.ctx.fs.readBytes(uri)
-      parsed = await this.parseBytes(whole, uri, size, options)
-    } else {
-      try {
-        const head = await this.readWindow(uri, Math.min(size, maxWholeRead))
-        parsed = await this.parseBytes(head, uri, size, options)
-      } catch {
-        // ignore
-      }
-    }
-
-    /*
-     * A parse that found nothing at all is a failure, not a tagless track.
-     *
-     * ⚠️ This used to return whatever came back. Passing the extension's mime
-     * type made the parser trust it, so a zero-byte file, a truncated header
-     * and a JPEG renamed `.mp3` all "parsed" — into `{ codec: 'mp3' }`, from
-     * the *hint*, with no bytes behind it. The scanner then imported three
-     * phantom tracks named after their filenames, which is worse than either
-     * of the two honest outcomes: docs/11 §4.7 says a file that will not
-     * decode gets `scan_entries.status = 'error'` with a reason, and is never
-     * silently absent. It was silently *present* instead.
-     */
-    if (!parsed || !hasUsableTags(parsed)) {
-      throw new Error(`codec: nothing readable in ${this.ctx.fs.basename(uri)}`)
-    }
-    return parsed
-  }
-
-  /**
-   * Parse bytes, letting the *content* decide the container.
-   *
-   * The extension is a hint of last resort, not the answer: a `.mp3` holding
-   * FLAC is a thing real libraries contain, and dispatching on the name reads
-   * it with the wrong parser and reports it as untagged. Content sniffing gets
-   * it right; the hint is retried only when sniffing fails outright, which is
-   * the case of a container music-metadata cannot recognise from its magic
-   * bytes but can parse once told.
-   */
-  private async parseBytes(
-    bytes: Uint8Array,
-    uri: Uri,
-    size: number | undefined,
-    options: IOptions,
-  ): Promise<IAudioMetadata> {
-    const base = size === undefined ? {} : { size }
-    try {
-      return await parseBuffer(bytes, base, options)
-    } catch (error) {
-      const hint = mimeFor(uri)
-      if (!hint) throw error
-      return parseBuffer(bytes, { ...base, mimeType: hint }, options)
-    }
-  }
-
-  private async readWindow(uri: Uri, bytes: number): Promise<Uint8Array> {
-    const reader = this.ctx.fs.createReadStream(uri, { start: 0, end: bytes - 1 }).getReader()
-    const chunks: Uint8Array[] = []
-    let total = 0
-    try {
-      for (;;) {
-        const { done, value } = await reader.read()
-        if (done || !value) break
-        const normalized = value instanceof Uint8Array ? value : new Uint8Array(value)
-        chunks.push(normalized)
-        total += normalized.byteLength
-        if (total >= bytes) break
-      }
-    } finally {
-      await reader.cancel().catch(() => undefined)
-    }
-
-    const out = new Uint8Array(total)
-    let at = 0
-    for (const chunk of chunks) {
-      out.set(chunk, at)
-      at += chunk.byteLength
-    }
-    return out
+    throw lastError instanceof Error
+      ? lastError
+      : new Error(`codec: could not parse ${this.ctx.fs.basename(uri)}`)
   }
 }
 
@@ -704,7 +664,12 @@ export function toAudioMetadata(
   }
 }
 
-export const TAG_WINDOW = TAG_WINDOW_BYTES
+/**
+ * @deprecated The windowed tag reader is gone: parsing now seeks through
+ * `FsRangeTokenizer`, so there is no head window to size. Kept so existing
+ * imports do not break; do not use for new code.
+ */
+export const TAG_WINDOW = 256 * 1024
 
 export const name = 'core-codec-node'
 

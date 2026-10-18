@@ -526,15 +526,26 @@ describe('scanning', () => {
     const h = await harness()
     for (let i = 0; i < 5; i++) await h.write(`t${i}.mp3`)
     const progress: number[] = []
+    const currentFiles: Array<string | undefined> = []
     const changed: number[] = []
-    h.ctx.on('scan/progress', (_specifiedDirId, done) => void progress.push(done))
+    h.ctx.on('scan/progress', (_specifiedDirId, done, _total, _dirs, currentFile) => {
+      progress.push(done)
+      currentFiles.push(currentFile)
+    })
     h.ctx.on('library/changed', (_kind, urns) => void changed.push(urns.length))
 
     await h.scanner.addSpecifiedDir(h.uri)
     await h.scanner.scan()
 
     // batchSize is 2, so 5 files are three batches — each one a checkpoint.
-    expect(progress).toEqual([2, 4, 5])
+    // The throttled per-file reports interleave (done=0 here); they repeat
+    // the batch's starting `done`, so collapsing repeats leaves the
+    // checkpoints intact.
+    expect(progress.filter((done, i) => i === 0 || done !== progress[i - 1])).toEqual([0, 2, 4, 5])
+    expect(
+      currentFiles.some((f) => f !== undefined && /^t\d\.mp3$/.test(f)),
+      'a progress report names the file being read',
+    ).toBe(true)
     expect(changed, 'the library fills progressively, not at the end').toEqual([2, 2, 1])
   })
 

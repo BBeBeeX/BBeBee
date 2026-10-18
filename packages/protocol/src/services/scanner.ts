@@ -54,6 +54,14 @@ export interface ScanProgress {
   total?: number
   /** Dirs enumerated so far during the walk phase (for large trees). */
   dirsListed?: number
+  /**
+   * Basename of the file currently being read, for the progress UI.
+   *
+   * Updated throttled (not per file): with 6-way concurrent tag reads the
+   * "current" file changes dozens of times a second, and the dialog only
+   * needs to show that work is moving, not every name.
+   */
+  currentFile?: string
 }
 
 export interface ScannerService {

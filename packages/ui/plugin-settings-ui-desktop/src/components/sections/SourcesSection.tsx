@@ -1173,6 +1173,20 @@ export function SourcesSection({
                   ? t('localScanner:index.lastScan', { summary: summarise(scan.lastSummary) })
                   : t('localScanner:index.scanNow'),
             ),
+            // The file currently being read: when a scan looks stuck, this
+            // is what says whether work is moving and where it is stuck.
+            scan.running && scan.progress?.currentFile
+              ? h(
+                  Text,
+                  {
+                    variant: 'sm',
+                    tone: 'muted',
+                    numberOfLines: 1,
+                    testID: 'scan-modal-current-file',
+                  },
+                  scan.progress.currentFile,
+                )
+              : null,
             scan.running && scan.progress?.total
               ? h(
                   'div',

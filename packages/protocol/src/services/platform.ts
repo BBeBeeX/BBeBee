@@ -160,8 +160,9 @@ export interface CodecService {
   /**
    * Read tags and embedded artwork in a single parse. Optional: platforms
    * without it fall back to `readMetadata` + `readArtwork` (two parses).
+   * The signal aborts in-flight reads (true cancellation, not just a race).
    */
-  readMetadataWithArtwork?(uri: Uri): Promise<{ metadata: AudioMetadata; artwork?: Uint8Array }>
+  readMetadataWithArtwork?(uri: Uri, signal?: AbortSignal): Promise<{ metadata: AudioMetadata; artwork?: Uint8Array }>
   decode(data: Uint8Array | Uri): Promise<DecodedAudio>
   probeDuration(uri: Uri): Promise<number>
   /** Varies by platform and OS version — FLAC/ALAC/Opus/DSD coverage is not uniform. */

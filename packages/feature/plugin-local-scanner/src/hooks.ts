@@ -43,7 +43,7 @@ export function useScanState(ctx: Context): ScanState {
   useEffect(() => {
     const offs = [
       ctx.on('scan/started', () => setState((prev) => ({ ...prev, running: true }))),
-      ctx.on('scan/progress', (specifiedDirId: string, done: number, total?: number, dirsListed?: number) =>
+      ctx.on('scan/progress', (specifiedDirId: string, done: number, total?: number, dirsListed?: number, currentFile?: string) =>
         setState((prev) => ({
           ...prev,
           running: true,
@@ -52,6 +52,7 @@ export function useScanState(ctx: Context): ScanState {
             done,
             ...(total === undefined ? {} : { total }),
             ...(dirsListed === undefined ? {} : { dirsListed }),
+            ...(currentFile === undefined ? {} : { currentFile }),
           },
         })),
       ),

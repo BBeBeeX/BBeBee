@@ -81,6 +81,16 @@ export function ScanSpecifiedDirsScreen({ ctx }: { ctx: Context }): ReactElement
             children: t('localScanner:index.lastScan', { summary: summarise(scan.lastSummary) }),
           })
         : null,
+    // The file currently being read — the thing that answers "is it stuck,
+    // and on what" when the counts stop moving.
+    scan.running && scan.progress?.currentFile
+      ? h(Text, {
+          variant: 'sm',
+          tone: 'muted',
+          numberOfLines: 1,
+          children: scan.progress.currentFile,
+        })
+      : null,
     h(List<ScanSpecifiedDir>, {
       items: dirs,
       accessibilityLabel: t('localScanner:index.musicFolders'),

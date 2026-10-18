@@ -226,6 +226,40 @@ describe('core-codec-node', () => {
     expect(h.counter.bytes, `read ${h.counter.bytes} of ${h.size} bytes`).toBeLessThan(h.size / 2)
   })
 
+  it('aborts an in-flight metadata read instead of racing it', async () => {
+    const h = await harness()
+    const controller = new AbortController()
+    controller.abort()
+    await expect(
+      h.codec.readMetadataWithArtwork?.(h.uri('tagged.mp3'), controller.signal),
+    ).rejects.toThrow()
+  })
+
+  it('escalates the read budget for tag blocks larger than 256KB', async () => {
+    const h = await harness()
+    // A 300 KB embedded cover: the first 256 KB budget cannot hold the tag
+    // block, so the parse must fail over to the escalated budget — and still
+    // stay bounded instead of re-reading the file several times over.
+    const bigArt = new Uint8Array(300 * 1024)
+    bigArt.set([0xff, 0xd8, 0xff, 0xdb], 0)
+    const file = taggedMp3([textFrame('TIT2', 'Big Art'), pictureFrame(bigArt)], 64 * 1024)
+    await writeFile(new URL(h.uri('bigart.mp3')), file)
+
+    h.counter.bytes = 0
+    const meta = await h.codec.readMetadata(h.uri('bigart.mp3'))
+    const bytes = h.counter.bytes
+    expect(meta.title).toBe('Big Art')
+    expect(meta.hasArtwork).toBe(true)
+    // Proves the escalation ran: more than the first budget…
+    expect(bytes).toBeGreaterThan(256 * 1024)
+    // …but bounded: at most one failed budget plus one full parse, never
+    // the old re-read ladder.
+    expect(bytes).toBeLessThan(file.length * 2)
+
+    const art = await h.codec.readArtwork(h.uri('bigart.mp3'))
+    expect(art?.length).toBeGreaterThan(300 * 1024 - 1024)
+  })
+
   it('sends PCM decoding to the audio engine instead of duplicating it', async () => {
     const h = await harness()
     await expect(h.codec.decode()).rejects.toThrow(/audio engine/)

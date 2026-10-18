@@ -152,6 +152,8 @@ export class Scanner extends Service implements ScannerService {
   private specifiedDirList: ScanSpecifiedDir[] = []
   private current?: ScanProgress
   private abort?: AbortController
+  /** Throttle for the per-file progress reports (see `reportFileStart`). */
+  private lastFileProgressAt = 0
   private watchers: Disposable[] = []
   private watchTimer?: ReturnType<typeof setTimeout>
   private pollTimer?: ReturnType<typeof setTimeout>
@@ -196,6 +198,28 @@ export class Scanner extends Service implements ScannerService {
 
   get progress(): ScanProgress | undefined {
     return this.current
+  }
+
+  /**
+   * Report the file a tag read just started on, throttled.
+   *
+   * Tag reads run 6-way concurrent, so the "current" file changes dozens of
+   * times a second; emitting per file would spam the event bus and re-render
+   * the progress UI just as often. One report per 400 ms is plenty for a
+   * dialog whose job is to show that work is moving — and, when a file hangs
+   * in its 30 s metadata timeout, to show *which* file is stuck.
+   *
+   * The reporter is threaded through `importBatch` → `prepareFile` as a
+   * callback rather than kept as instance state, so a drop-import running
+   * alongside a scan never reports against the scan's progress.
+   */
+  private reportFileStart(dirId: string, done: number, total: number, uri: Uri): void {
+    const now = Date.now()
+    if (now - this.lastFileProgressAt < 400) return
+    this.lastFileProgressAt = now
+    const currentFile = this.ownCtx.fs.basename(uri)
+    if (this.current) this.current.currentFile = currentFile
+    this.ownCtx.emit('scan/progress', dirId, done, total, undefined, currentFile)
   }
 
   /* ── specified dirs ────────────────────────────────────────────────── */
@@ -611,6 +635,8 @@ export class Scanner extends Service implements ScannerService {
     for (let i = 0; i < files.length; i += this.config.batchSize) {
       if (opts.signal.aborted) break
       const batch = files.slice(i, i + this.config.batchSize)
+      // Progress reporting for the batch's tag reads (see `reportFileStart`).
+      const onFileStart = (uri: Uri) => this.reportFileStart(dir.id, i, files.length, uri)
       const changed = await this.importBatch(
         dir,
         batch,
@@ -620,6 +646,7 @@ export class Scanner extends Service implements ScannerService {
         summary,
         opts.full,
         folderCovers,
+        onFileStart,
       )
 
       this.current = { specifiedDirId: dir.id, done: Math.min(i + batch.length, files.length), total: files.length }
@@ -673,33 +700,35 @@ export class Scanner extends Service implements ScannerService {
   /**
    * Read one file's tags + artwork and stage its cache write. Runs inside the
    * `mapPool` workers in `importBatch`, so it must not touch shared mutable
-   * state (it returns its `PreparedFile`; the caller assembles the batch).
+   * state (it returns its `PreparedFile`; the caller assembles the batch) —
+   * the one exception is the `onFileStart` progress callback, a throttled
+   * side-channel that never affects the batch's outcome.
    */
   private async prepareFile(
     file: FileStat,
     folderCovers?: Map<string, FileStat>,
+    onFileStart?: (uri: Uri) => void,
   ): Promise<PreparedFile> {
+    onFileStart?.(file.uri)
+    // Timeout per file so a single corrupted/hanging file cannot stall the
+    // entire scan. 30s is generous for tag reading; a file that takes longer
+    // is treated as an error and skipped.
+    //
+    // True cancellation via AbortController: the old Promise.race only stopped
+    // *waiting*, leaving the hung read/parse running in the background and
+    // leaking file handles until the process ground to a halt.
+    const controller = new AbortController()
+    const timeout = setTimeout(
+      () => controller.abort(new Error(`metadata read timeout: ${file.uri}`)),
+      30000,
+    )
     try {
-      // Timeout per file so a single corrupted/hanging file cannot stall
-      // the entire scan. 30s is generous for tag reading; a file that
-      // takes longer is treated as an error and skipped.
-      //
       // Prefer the single-parse path when the codec service offers it;
       // otherwise fall back to metadata + artwork (two parses).
       const combined = this.ownCtx.codec.readMetadataWithArtwork
-        ? await Promise.race([
-            this.ownCtx.codec.readMetadataWithArtwork(file.uri),
-            new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error(`metadata read timeout: ${file.uri}`)), 30000),
-            ),
-          ])
+        ? await this.ownCtx.codec.readMetadataWithArtwork(file.uri, controller.signal)
         : {
-            metadata: await Promise.race([
-              this.ownCtx.codec.readMetadata(file.uri),
-              new Promise<never>((_, reject) =>
-                setTimeout(() => reject(new Error(`metadata read timeout: ${file.uri}`)), 30000),
-              ),
-            ]),
+            metadata: await this.ownCtx.codec.readMetadata(file.uri),
             artwork: undefined as Uint8Array | undefined,
           }
       const metadata = combined.metadata
@@ -713,12 +742,7 @@ export class Scanner extends Service implements ScannerService {
       }
       let artwork = combined.artwork
       if (!artwork && metadata.hasArtwork && !this.ownCtx.codec.readMetadataWithArtwork) {
-        artwork = await Promise.race([
-          this.ownCtx.codec.readArtwork(file.uri),
-          new Promise<undefined>((resolve) =>
-            setTimeout(() => resolve(undefined), 15000),
-          ),
-        ]).catch(() => undefined)
+        artwork = await this.ownCtx.codec.readArtwork(file.uri).catch(() => undefined)
       }
       if (!artwork && folderCovers) {
         const parentDir = parentDirectoryOf(file.uri)
@@ -740,6 +764,8 @@ export class Scanner extends Service implements ScannerService {
     } catch (error) {
       this.ownCtx.logger.warn('scanner: could not read metadata for %s: %s', file.uri, String(error))
       return { file, error: error instanceof Error ? error.message : String(error) }
+    } finally {
+      clearTimeout(timeout)
     }
   }
 
@@ -753,6 +779,7 @@ export class Scanner extends Service implements ScannerService {
     summary: ScanSummary,
     full: boolean,
     folderCovers?: Map<string, FileStat>,
+    onFileStart?: (uri: Uri) => void,
   ): Promise<string[]> {
     const changed: string[] = []
     const now = Date.now()
@@ -776,7 +803,7 @@ export class Scanner extends Service implements ScannerService {
       }
     }
     const toPrepare = batch.filter((file) => !unchangedUris.has(file.uri))
-    const preparedFresh = await mapPool(toPrepare, 6, (file) => this.prepareFile(file, folderCovers))
+    const preparedFresh = await mapPool(toPrepare, 6, (file) => this.prepareFile(file, folderCovers, onFileStart))
     prepared.push(...preparedFresh)
 
     await this.ownCtx.db.transaction(async (tx) => {
