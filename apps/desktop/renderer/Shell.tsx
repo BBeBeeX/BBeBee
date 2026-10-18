@@ -615,9 +615,11 @@ export function Shell({ ctx }: { ctx: Context }) {
         const { getCurrentWindow } = await import('@tauri-apps/api/window')
         if (disposed) return
         const win = getCurrentWindow()
+        console.log('[drop] subscribing to Tauri drag-drop events')
         unlistens.push(
           await win.listen('tauri://drag-enter', () => {
             if (!disposed) {
+              console.log('[drop] tauri://drag-enter')
               dragDepth.current += 1
               setDropActive(true)
             }
@@ -626,6 +628,7 @@ export function Shell({ ctx }: { ctx: Context }) {
         unlistens.push(
           await win.listen('tauri://drag-leave', () => {
             if (!disposed) {
+              console.log('[drop] tauri://drag-leave')
               dragDepth.current = Math.max(0, dragDepth.current - 1)
               if (dragDepth.current === 0) setDropActive(false)
             }
@@ -633,17 +636,23 @@ export function Shell({ ctx }: { ctx: Context }) {
         )
         unlistens.push(
           await win.listen<{ paths?: string[] }>('tauri://drag-drop', (event) => {
+            console.log('[drop] tauri://drag-drop', event.payload?.paths?.length ?? 0, 'paths')
             const paths = event.payload?.paths ?? []
             if (paths.length === 0) return
             dragDepth.current = 0
             setDropActive(false)
             void importDroppedPaths(ctx, paths)
               .then(handleImportResult)
-              .catch(() => setDropMessage(t('app:common.shell.importFailed')))
+              .catch((e) => {
+                console.error('[drop] importDroppedPaths failed:', e)
+                setDropMessage(t('app:common.shell.importFailed'))
+              })
           }),
         )
-      } catch {
+        console.log('[drop] Tauri drag-drop events subscribed')
+      } catch (e) {
         // Not running inside Tauri (plain browser, tests): HTML5 DnD remains.
+        console.log('[drop] not in Tauri, using HTML5 DnD:', e)
       }
     }
     void subscribe()

@@ -52,6 +52,8 @@ export interface ScanProgress {
   done: number
   /** Absent until the walk has enumerated the tree. */
   total?: number
+  /** Dirs enumerated so far during the walk phase (for large trees). */
+  dirsListed?: number
 }
 
 export interface ScannerService {

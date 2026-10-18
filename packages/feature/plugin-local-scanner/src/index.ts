@@ -532,7 +532,13 @@ export class Scanner extends Service implements ScannerService {
     let folderCovers: Map<string, FileStat>
     let truncated: boolean
     try {
-      const walked = await this.walk(dir.uri, dir.recursive, opts.signal)
+      const walked = await this.walk(dir.uri, dir.recursive, opts.signal, (dirsListed, filesFound) => {
+        // During the walk phase, report dirs enumerated and audio files found
+        // so far. The UI shows "Scanning... (N dirs, M files found)" instead
+        // of a stuck "0 files".
+        this.current = { specifiedDirId: dir.id, done: filesFound, total: undefined }
+        this.ownCtx.emit('scan/progress', dir.id, filesFound, undefined, dirsListed)
+      })
       files = walked.files
       folderCovers = walked.folderCovers
       truncated = walked.truncated
@@ -858,6 +864,7 @@ export class Scanner extends Service implements ScannerService {
     uri: Uri,
     recursive: boolean,
     signal: AbortSignal,
+    onProgress?: (dirsListed: number, filesFound: number) => void,
   ): Promise<{ files: FileStat[]; folderCovers: Map<string, FileStat>; truncated: boolean }> {
     const found = new Map<Uri, FileStat>()
     const folderCovers = new Map<string, { stat: FileStat; score: number }>()
@@ -876,6 +883,12 @@ export class Scanner extends Service implements ScannerService {
           return { files: [...found.values()], folderCovers: covers, truncated: true }
         }
         if (++listed > MAX_SCAN_DIRS) break
+        // Report walk progress so the UI doesn't sit at "0 files" while
+        // enumerating a large tree. Throttle to every 10 dirs to avoid
+        // flooding the event bus.
+        if (onProgress && listed % 10 === 0) {
+          onProgress(listed, found.size)
+        }
         let listing: FileStat[]
         try {
           listing = await this.ownCtx.fs.list(dir)

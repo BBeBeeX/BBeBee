@@ -167,7 +167,7 @@ declare module 'cordis' {
     'library/profile-changed'(): void
     'scan/specified-dirs-changed'(dirs: readonly ScanSpecifiedDir[]): void
     'scan/started'(specifiedDirId: string): void
-    'scan/progress'(specifiedDirId: string, done: number, total?: number): void
+    'scan/progress'(specifiedDirId: string, done: number, total?: number, dirsListed?: number): void
     /**
      * A walk finished, or stopped early.
      *
