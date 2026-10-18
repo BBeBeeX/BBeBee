@@ -443,49 +443,95 @@ ${TRACK_JOINS}
   }
 
   private async indexWithin(tx: DbService, urns: string[]): Promise<void> {
-    for (const urn of urns) {
-      const track = await tx.get<{
-        urn: string
-        title: string
-        album_title: string | null
-        artist_names: string | null
-      }>(
-        `SELECT t.urn, t.title, al.title AS album_title,
-                (SELECT GROUP_CONCAT(a.name, ' ')
-                   FROM track_artists ta JOIN artists a ON a.urn = ta.artist_urn
-                  WHERE ta.track_urn = t.urn) AS artist_names
-           FROM tracks t
-           LEFT JOIN albums al ON al.urn = t.album_urn
-          WHERE t.urn = ?`,
-        [urn],
-      )
+    // Dedupe: the per-urn version tolerated repeats (second pass found the
+    // map row); the batched INSERTs below would hit UNIQUE(urn) instead.
+    const unique = [...new Set(urns)]
+    // Chunk to stay under SQLite's bound-variable limit for large batches.
+    const CHUNK = 500
+    for (let i = 0; i < unique.length; i += CHUNK) {
+      await this.indexChunk(tx, unique.slice(i, i + CHUNK))
+    }
+  }
 
-      const mapped = await tx.get<{ rowid: number }>(
-        'SELECT rowid FROM tracks_fts_map WHERE urn = ?',
-        [urn],
-      )
+  /**
+   * Batched FTS re-index: a constant ~7 statements per chunk instead of four
+   * per track. Semantics match the old per-urn loop — rowids stay stable
+   * across re-indexing, gone tracks drop their map rows.
+   */
+  private async indexChunk(tx: DbService, urns: string[]): Promise<void> {
+    if (urns.length === 0) return
+    const holes = urns.map(() => '?').join(',')
 
-      if (!track) {
-        // The row is gone: drop its index entry rather than leaving a hit that
-        // resolves to nothing.
-        if (mapped) {
-          await tx.exec('DELETE FROM tracks_fts WHERE rowid = ?', [mapped.rowid])
-          await tx.exec('DELETE FROM tracks_fts_map WHERE rowid = ?', [mapped.rowid])
-        }
-        continue
-      }
+    // 1. All tracks in one query (was: one per urn, each with its own
+    // GROUP_CONCAT subquery).
+    const tracks = await tx.query<{
+      urn: string
+      title: string
+      album_title: string | null
+      artist_names: string | null
+    }>(
+      `SELECT t.urn, t.title, al.title AS album_title,
+              (SELECT GROUP_CONCAT(a.name, ' ')
+                 FROM track_artists ta JOIN artists a ON a.urn = ta.artist_urn
+                WHERE ta.track_urn = t.urn) AS artist_names
+         FROM tracks t
+         LEFT JOIN albums al ON al.urn = t.album_urn
+        WHERE t.urn IN (${holes})`,
+      urns,
+    )
+    const byUrn = new Map(tracks.map((t) => [t.urn, t]))
 
-      let rowid = mapped?.rowid
-      if (rowid === undefined) {
-        const inserted = await tx.exec('INSERT INTO tracks_fts_map (urn) VALUES (?)', [urn])
-        rowid = inserted.lastInsertRowid
-      } else {
-        await tx.exec('DELETE FROM tracks_fts WHERE rowid = ?', [rowid])
-      }
+    // 2. Existing index mappings in one query (was: one per urn).
+    const mapped = await tx.query<{ urn: string; rowid: number }>(
+      `SELECT urn, rowid FROM tracks_fts_map WHERE urn IN (${holes})`,
+      urns,
+    )
+    const rowidByUrn = new Map(mapped.map((m) => [m.urn, m.rowid]))
 
+    // 3. Drop stale FTS rows for re-indexed urns (was: one DELETE per urn).
+    // A contentless FTS5 table refuses partial UPDATE, so re-index is
+    // DELETE + INSERT on the same rowid.
+    const reindexed = [...rowidByUrn.values()]
+    if (reindexed.length > 0) {
+      const rh = reindexed.map(() => '?').join(',')
+      await tx.exec(`DELETE FROM tracks_fts WHERE rowid IN (${rh})`, reindexed)
+    }
+
+    // 4. Hand out rowids for new urns: one bulk INSERT + one re-read
+    // (was: one INSERT per urn, each returning lastInsertRowid).
+    const fresh = urns.filter((u) => byUrn.has(u) && !rowidByUrn.has(u))
+    if (fresh.length > 0) {
+      const fh = fresh.map(() => '?').join(',')
       await tx.exec(
-        'INSERT INTO tracks_fts (rowid, title, artist_names, album_title) VALUES (?, ?, ?, ?)',
-        [rowid, track.title, track.artist_names ?? '', track.album_title ?? ''],
+        `INSERT INTO tracks_fts_map (urn) VALUES ${fresh.map(() => '(?)').join(',')}`,
+        fresh,
+      )
+      const got = await tx.query<{ urn: string; rowid: number }>(
+        `SELECT urn, rowid FROM tracks_fts_map WHERE urn IN (${fh})`,
+        fresh,
+      )
+      for (const g of got) rowidByUrn.set(g.urn, g.rowid)
+    }
+
+    // 5. Drop map rows for urns whose track row is gone (was: per urn).
+    const gone = urns.filter((u) => !byUrn.has(u) && rowidByUrn.has(u))
+    if (gone.length > 0) {
+      const gh = gone.map(() => '?').join(',')
+      await tx.exec(`DELETE FROM tracks_fts_map WHERE urn IN (${gh})`, gone)
+    }
+
+    // 6. Insert the new FTS rows in one statement (was: one per urn).
+    const present = urns.filter((u) => byUrn.has(u))
+    if (present.length > 0) {
+      const values: SqlValue[] = []
+      const placeholders = present.map((u) => {
+        const t = byUrn.get(u)!
+        values.push(rowidByUrn.get(u)!, t.title, t.artist_names ?? '', t.album_title ?? '')
+        return '(?, ?, ?, ?)'
+      })
+      await tx.exec(
+        `INSERT INTO tracks_fts (rowid, title, artist_names, album_title) VALUES ${placeholders.join(',')}`,
+        values,
       )
     }
   }

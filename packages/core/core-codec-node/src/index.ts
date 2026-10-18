@@ -67,28 +67,34 @@ export class CodecNode extends Service implements CodecService {
   }
 
   async readMetadata(uri: Uri): Promise<AudioMetadata> {
-    const { size } = await this.ctx.fs.stat(uri)
-    const parsed = await this.parse(uri, { duration: false, skipCovers: false })
-    return toAudioMetadata(parsed, uri, size)
+    return (await this.readMetadataWithArtwork(uri)).metadata
   }
 
   async readArtwork(uri: Uri): Promise<Uint8Array | undefined> {
+    return (await this.readMetadataWithArtwork(uri)).artwork
+  }
+
+  /**
+   * Single parse for tags + artwork. Previously `readMetadata` and
+   * `readArtwork` each parsed the file; the scanner calls both per file,
+   * so this halves the parse work for files with embedded art.
+   */
+  async readMetadataWithArtwork(uri: Uri): Promise<{ metadata: AudioMetadata; artwork?: Uint8Array }> {
+    const { size } = await this.ctx.fs.stat(uri)
     const parsed = await this.parse(uri, { duration: false, skipCovers: false })
+    const metadata = toAudioMetadata(parsed, uri, size)
     let cover = selectCover(parsed.common.picture)
-    if (!cover) {
-      const { size } = await this.ctx.fs.stat(uri)
-      if (size > TAG_WINDOW_BYTES) {
-        try {
-          const artWindow = Math.min(size, 4 * 1024 * 1024)
-          const head = await this.readWindow(uri, artWindow)
-          const fullParsed = await this.parseBytes(head, uri, size, { duration: false, skipCovers: false })
-          cover = selectCover(fullParsed.common.picture)
-        } catch {
-          // ignore
-        }
+    if (!cover && size > TAG_WINDOW_BYTES) {
+      try {
+        const artWindow = Math.min(size, 4 * 1024 * 1024)
+        const head = await this.readWindow(uri, artWindow)
+        const fullParsed = await this.parseBytes(head, uri, size, { duration: false, skipCovers: false })
+        cover = selectCover(fullParsed.common.picture)
+      } catch {
+        // ignore
       }
     }
-    return cover ? new Uint8Array(cover.data) : undefined
+    return { metadata, artwork: cover ? new Uint8Array(cover.data) : undefined }
   }
 
   /**

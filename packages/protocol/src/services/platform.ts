@@ -157,6 +157,11 @@ export interface CodecService {
   /** Read tags without decoding audio. Must not read the whole file. */
   readMetadata(uri: Uri): Promise<AudioMetadata>
   readArtwork(uri: Uri): Promise<Uint8Array | undefined>
+  /**
+   * Read tags and embedded artwork in a single parse. Optional: platforms
+   * without it fall back to `readMetadata` + `readArtwork` (two parses).
+   */
+  readMetadataWithArtwork?(uri: Uri): Promise<{ metadata: AudioMetadata; artwork?: Uint8Array }>
   decode(data: Uint8Array | Uri): Promise<DecodedAudio>
   probeDuration(uri: Uri): Promise<number>
   /** Varies by platform and OS version — FLAC/ALAC/Opus/DSD coverage is not uniform. */

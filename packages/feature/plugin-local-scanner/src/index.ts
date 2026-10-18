@@ -32,6 +32,24 @@ import type {
 import { artworkId, stableId } from '@BBeBee/toolkit'
 import { forgetFile, importTrack } from './import.js'
 
+/**
+ * Map `items` through `fn` with at most `limit` in flight; results keep input
+ * order. Used for the I/O-bound per-file tag reads during a scan batch.
+ */
+async function mapPool<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length)
+  let next = 0
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    for (;;) {
+      const i = next++
+      if (i >= items.length) return
+      out[i] = await fn(items[i] as T)
+    }
+  })
+  await Promise.all(workers)
+  return out
+}
+
 export interface ScannerConfig {
   /** Files per transaction. A checkpoint costs one batch on interruption. */
   batchSize?: number
@@ -303,25 +321,26 @@ export class Scanner extends Service implements ScannerService {
    * waiting for the next toggle to reveal it.
    */
   private async reconcileAvailability(): Promise<void> {
-    const before = await this.allVisibility()
-    await this.ownCtx.db.exec(
-      `UPDATE tracks SET available = ${AVAILABILITY_CASE}
-       WHERE urn IN (SELECT track_urn FROM scan_entries WHERE track_urn IS NOT NULL)`,
-    )
-    const after = await this.allVisibility()
-    const flips = [...before]
-      .filter(([urn, available]) => after.get(urn) !== available)
-      .map(([urn]) => urn)
+    // Single pass: find the tracks whose availability will flip, flip them,
+    // and report exactly those — instead of snapshotting the whole visibility
+    // map twice around the UPDATE.
+    const flips = await this.ownCtx.db.transaction(async (tx) => {
+      const rows = await tx.query<{ urn: string }>(
+        `SELECT tracks.urn AS urn
+           FROM tracks
+          WHERE tracks.urn IN (SELECT track_urn FROM scan_entries WHERE track_urn IS NOT NULL)
+            AND tracks.available != ${AVAILABILITY_CASE}`,
+      )
+      const urns = rows.map((r) => r.urn)
+      if (urns.length > 0) {
+        await tx.exec(
+          `UPDATE tracks SET available = ${AVAILABILITY_CASE}
+            WHERE urn IN (SELECT track_urn FROM scan_entries WHERE track_urn IS NOT NULL)`,
+        )
+      }
+      return urns
+    })
     if (flips.length > 0) this.ownCtx.emit('library/changed', 'track', flips)
-  }
-
-  private async allVisibility(): Promise<Map<string, number>> {
-    const rows = await this.ownCtx.db.query<{ urn: string; available: number }>(
-      `SELECT se.track_urn AS urn, t.available AS available
-         FROM scan_entries se JOIN tracks t ON t.urn = se.track_urn
-        WHERE se.track_urn IS NOT NULL`,
-    )
-    return new Map(rows.map((r) => [r.urn, r.available]))
   }
 
   /* ── the walk ──────────────────────────────────────────────────────── */
@@ -651,6 +670,79 @@ export class Scanner extends Service implements ScannerService {
     })
   }
 
+  /**
+   * Read one file's tags + artwork and stage its cache write. Runs inside the
+   * `mapPool` workers in `importBatch`, so it must not touch shared mutable
+   * state (it returns its `PreparedFile`; the caller assembles the batch).
+   */
+  private async prepareFile(
+    file: FileStat,
+    folderCovers?: Map<string, FileStat>,
+  ): Promise<PreparedFile> {
+    try {
+      // Timeout per file so a single corrupted/hanging file cannot stall
+      // the entire scan. 30s is generous for tag reading; a file that
+      // takes longer is treated as an error and skipped.
+      //
+      // Prefer the single-parse path when the codec service offers it;
+      // otherwise fall back to metadata + artwork (two parses).
+      const combined = this.ownCtx.codec.readMetadataWithArtwork
+        ? await Promise.race([
+            this.ownCtx.codec.readMetadataWithArtwork(file.uri),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error(`metadata read timeout: ${file.uri}`)), 30000),
+            ),
+          ])
+        : {
+            metadata: await Promise.race([
+              this.ownCtx.codec.readMetadata(file.uri),
+              new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error(`metadata read timeout: ${file.uri}`)), 30000),
+              ),
+            ]),
+            artwork: undefined as Uint8Array | undefined,
+          }
+      const metadata = combined.metadata
+      const supported = new Set(this.ownCtx.codec.supportedFormats().map((f) => f.toLowerCase()))
+      const codec = metadata.codec?.toLowerCase()
+      if (codec === 'alac' && !supported.has('alac')) {
+        throw new Error('unsupported codec: ALAC is not supported on this platform')
+      }
+      if (codec === 'wma' && !supported.has('wma')) {
+        throw new Error('unsupported codec: WMA is not supported on this platform')
+      }
+      let artwork = combined.artwork
+      if (!artwork && metadata.hasArtwork && !this.ownCtx.codec.readMetadataWithArtwork) {
+        artwork = await Promise.race([
+          this.ownCtx.codec.readArtwork(file.uri),
+          new Promise<undefined>((resolve) =>
+            setTimeout(() => resolve(undefined), 15000),
+          ),
+        ]).catch(() => undefined)
+      }
+      if (!artwork && folderCovers) {
+        const parentDir = parentDirectoryOf(file.uri)
+        const folderCover = folderCovers.get(parentDir)
+        if (folderCover) {
+          artwork = await this.ownCtx.fs.readBytes(folderCover.uri).catch(() => undefined)
+        }
+      }
+      let artworkUri: Uri | undefined
+      if (artwork && artwork.length > 0) {
+        artworkUri = await this.saveArtwork(artwork)
+      }
+      return {
+        file,
+        metadata,
+        ...(artwork ? { artwork } : {}),
+        ...(artworkUri ? { artworkUri } : {}),
+      }
+    } catch (error) {
+      this.ownCtx.logger.warn('scanner: could not read metadata for %s: %s', file.uri, String(error))
+      return { file, error: error instanceof Error ? error.message : String(error) }
+    }
+  }
+
   /** One transaction per batch: a checkpoint, not an all-or-nothing scan. */
   private async importBatch(
     dir: ScanSpecifiedDir,
@@ -667,8 +759,12 @@ export class Scanner extends Service implements ScannerService {
 
     // Reading tags is I/O and must not hold the write lock, so it happens
     // before the transaction opens rather than inside it.
+    //
+    // Tag reads are I/O-bound: run them with bounded concurrency instead of
+    // strictly sequential. `seen` is still marked synchronously so the
+    // walk's reconciliation view never depends on worker timing.
     const prepared: PreparedFile[] = []
-
+    const unchangedUris = new Set<string>()
     for (const file of batch) {
       seen.add(file.uri)
       const previous = knownAnywhere.get(file.uri)
@@ -676,56 +772,12 @@ export class Scanner extends Service implements ScannerService {
       // walk already did — and nothing else.
       if (!full && previous && previous.size === file.size && previous.mtime === file.mtime) {
         prepared.push({ file, unchanged: true, previous })
-        continue
-      }
-      try {
-        // Timeout per file so a single corrupted/hanging file cannot stall
-        // the entire scan. 30s is generous for tag reading; a file that
-        // takes longer is treated as an error and skipped.
-        const metadata = await Promise.race([
-          this.ownCtx.codec.readMetadata(file.uri),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error(`metadata read timeout: ${file.uri}`)), 30000),
-          ),
-        ])
-        const supported = new Set(this.ownCtx.codec.supportedFormats().map((f) => f.toLowerCase()))
-        const codec = metadata.codec?.toLowerCase()
-        if (codec === 'alac' && !supported.has('alac')) {
-          throw new Error('unsupported codec: ALAC is not supported on this platform')
-        }
-        if (codec === 'wma' && !supported.has('wma')) {
-          throw new Error('unsupported codec: WMA is not supported on this platform')
-        }
-        let artwork = metadata.hasArtwork
-          ? await Promise.race([
-              this.ownCtx.codec.readArtwork(file.uri),
-              new Promise<undefined>((resolve) =>
-                setTimeout(() => resolve(undefined), 15000),
-              ),
-            ]).catch(() => undefined)
-          : undefined
-        if (!artwork && folderCovers) {
-          const parentDir = parentDirectoryOf(file.uri)
-          const folderCover = folderCovers.get(parentDir)
-          if (folderCover) {
-            artwork = await this.ownCtx.fs.readBytes(folderCover.uri).catch(() => undefined)
-          }
-        }
-        let artworkUri: Uri | undefined
-        if (artwork && artwork.length > 0) {
-          artworkUri = await this.saveArtwork(artwork)
-        }
-        prepared.push({
-          file,
-          metadata,
-          ...(artwork ? { artwork } : {}),
-          ...(artworkUri ? { artworkUri } : {}),
-        })
-      } catch (error) {
-        this.ownCtx.logger.warn('scanner: could not read metadata for %s: %s', file.uri, String(error))
-        prepared.push({ file, error: error instanceof Error ? error.message : String(error) })
+        unchangedUris.add(file.uri)
       }
     }
+    const toPrepare = batch.filter((file) => !unchangedUris.has(file.uri))
+    const preparedFresh = await mapPool(toPrepare, 6, (file) => this.prepareFile(file, folderCovers))
+    prepared.push(...preparedFresh)
 
     await this.ownCtx.db.transaction(async (tx) => {
       for (const item of prepared) {

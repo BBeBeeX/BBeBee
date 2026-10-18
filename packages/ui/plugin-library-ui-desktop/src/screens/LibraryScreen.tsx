@@ -151,9 +151,20 @@ export function LibraryScreen({
   )
 
   useEffect(() => {
-    const offChanged = ctx.on('library/changed', () => setGeneration((n) => n + 1))
-    const offCollections = ctx.on('library/collections-changed', () => setGeneration((n) => n + 1))
+    // Coalesce rapid bursts (a scan emits `library/changed` per batch):
+    // without this, every batch triggers a full library hydration.
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const bump = () => {
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(() => {
+        timer = undefined
+        setGeneration((n) => n + 1)
+      }, 750)
+    }
+    const offChanged = ctx.on('library/changed', () => bump())
+    const offCollections = ctx.on('library/collections-changed', () => bump())
     return () => {
+      if (timer) clearTimeout(timer)
       offChanged()
       offCollections()
     }
