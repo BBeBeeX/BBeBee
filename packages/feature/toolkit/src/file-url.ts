@@ -26,16 +26,21 @@ export function toServableFileUrl(uri: string | undefined): string | undefined {
     if (typeof fn === 'function') {
       return (fn as (u: string) => string)(uri)
     }
-    // Fallback: host surface unavailable. Detect Windows via user agent.
+    // Fallback: host surface unavailable. Detect platform via user agent.
     if (typeof uri === 'string' && uri.startsWith('bbebee-file:')) {
       const ua =
         exposed.window?.navigator?.userAgent ?? exposed.navigator?.userAgent ?? ''
+      // Windows: WebView2 needs the http://bbebee-file.localhost form.
       if (/windows/i.test(ua) || /win32|win64/i.test(ua)) {
         const rest = uri
           .replace(/^bbebee-file:/, '')
           .replace(/^\/+/, '')
           .replace(/^localhost\//, '')
         return `http://bbebee-file.localhost/${rest}`
+      }
+      // Linux: wry does not dispatch empty-host URLs; use localhost host form.
+      if (/linux/i.test(ua) && uri.startsWith('bbebee-file:///')) {
+        return 'bbebee-file://localhost/' + uri.slice('bbebee-file:///'.length)
       }
     }
   } catch {

@@ -184,12 +184,13 @@ export async function importDroppedPaths(ctx: Context, paths: string[]): Promise
 
   for (const uri of folderUris) {
     try {
-      await scanner.addSpecifiedDir(uri)
+      const dir = await scanner.addSpecifiedDir(uri)
       result.folders++
       // Race scan with a short timeout (~2.5s) so small/medium folders finish
       // scanning before we return, enabling highlighting in local music view.
       // Larger folders continue scanning in background without hanging the UI.
-      const scanPromise = scanner.scan().catch((error: unknown) => {
+      // Scan only the newly added dir, not the entire library.
+      const scanPromise = scanner.scan({ specifiedDirId: dir.id }).catch((error: unknown) => {
         ctx.logger?.warn(`drop-import: scan after folder drop failed: ${String(error)}`)
       })
       await Promise.race([

@@ -297,14 +297,24 @@
           if (typeof uri !== 'string' || uri.indexOf('bbebee-file:') !== 0) return uri;
           // WebView2 (Windows) cannot resolve custom schemes natively: wry serves
           // them over http://{scheme}.localhost and intercepts those requests,
-          // so the webview must use the workaround form. WKWebView (macOS) and
-          // WebKitGTK (Linux) handle the scheme natively — leave it untouched.
-          if (detectedPlatform !== 'win32') return uri;
-          var rest = uri
-            .replace(/^bbebee-file:/, '')
-            .replace(/^\/+/, '')
-            .replace(/^localhost\//, '');
-          return 'http://bbebee-file.localhost/' + rest;
+          // so the webview must use the workaround form.
+          if (detectedPlatform === 'win32') {
+            var rest = uri
+              .replace(/^bbebee-file:/, '')
+              .replace(/^\/+/, '')
+              .replace(/^localhost\//, '');
+            return 'http://bbebee-file.localhost/' + rest;
+          }
+          // WebKitGTK (Linux): wry does not dispatch empty-host custom-scheme
+          // URLs (bbebee-file:///path) to the registered handler. Rewrite to
+          // the localhost-host form which dispatches correctly.
+          // WKWebView (macOS) handles the empty-host form natively — leave it.
+          if (detectedPlatform === 'linux') {
+            if (uri.indexOf('bbebee-file:///') === 0) {
+              return 'bbebee-file://localhost/' + uri.slice('bbebee-file:///'.length);
+            }
+          }
+          return uri;
         } catch (_) {
           return uri;
         }

@@ -12,7 +12,7 @@
          than the (passive, non-script) load it enables. -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' BBeBee-plugin:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: bbebee-file: http: https:; media-src 'self' blob: data: http: https: bbebee-file:; connect-src 'self' ws: wss: http: https:; frame-src 'self' bbebee-sandbox: bbebee-plugin:;"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' BBeBee-plugin:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: bbebee-file: http: https:; media-src 'self' blob: data: http: https: bbebee-file:; connect-src 'self' ws: wss: http: https: ipc:; frame-src 'self' bbebee-sandbox: bbebee-plugin:;"
     />
     <script type="module" src="./window-init.ts"></script>
     <title>BBeBee</title>

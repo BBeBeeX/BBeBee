@@ -14,9 +14,9 @@ describe('toServableFileUrl', () => {
     expect(toServableFileUrl('')).toBe('')
   })
 
-  it('passes the URI through when the host surface is absent (non-Windows)', () => {
+  it('passes non-bbebee-file URIs through when the host surface is absent', () => {
     vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (X11; Linux x86_64)' })
-    const uri = 'bbebee-file:///C:/music/cover.jpg'
+    const uri = 'https://example.com/cover.jpg'
     expect(toServableFileUrl(uri)).toBe(uri)
   })
 
@@ -32,6 +32,20 @@ describe('toServableFileUrl', () => {
     )
     // Non bbebee-file: URIs pass through untouched even on Windows.
     expect(toServableFileUrl('https://example.com/a.jpg')).toBe('https://example.com/a.jpg')
+  })
+
+  it('applies the Linux localhost-host mapping as fallback when host surface is absent', () => {
+    vi.stubGlobal('navigator', {
+      userAgent: 'Mozilla/5.0 (X11; Linux x86_64)',
+    })
+    // Empty-host form gets the localhost host so wry dispatches it.
+    expect(toServableFileUrl('bbebee-file:///home/user/.cache/a.jpg')).toBe(
+      'bbebee-file://localhost/home/user/.cache/a.jpg',
+    )
+    // Already has a host — leave untouched.
+    expect(toServableFileUrl('bbebee-file://localhost/home/user/.cache/a.jpg')).toBe(
+      'bbebee-file://localhost/home/user/.cache/a.jpg',
+    )
   })
 
   it('delegates to window.BBeBee.files.toServableUrl when present', () => {

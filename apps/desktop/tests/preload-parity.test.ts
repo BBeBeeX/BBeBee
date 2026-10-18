@@ -230,8 +230,14 @@ describe('Preload Surface Conformance Test: Tauri Shim API Contract', () => {
       expect(toServableUrl('bbebee-file://localhost/C:/a.jpg')).toBe(
         'http://bbebee-file.localhost/C:/a.jpg',
       )
+    } else if (api.platform === 'linux') {
+      // WebKitGTK: wry does not dispatch empty-host URLs, rewrite to localhost host.
+      expect(toServableUrl(input)).toBe('bbebee-file://localhost/C:/Users/test/music/cover.jpg')
+      expect(toServableUrl('bbebee-file://localhost/C:/a.jpg')).toBe(
+        'bbebee-file://localhost/C:/a.jpg',
+      )
     } else {
-      // WKWebView / WebKitGTK resolve the custom scheme natively.
+      // WKWebView (macOS) resolves the custom scheme natively.
       expect(toServableUrl(input)).toBe(input)
     }
   })
