@@ -679,7 +679,15 @@ export class Scanner extends Service implements ScannerService {
         continue
       }
       try {
-        const metadata = await this.ownCtx.codec.readMetadata(file.uri)
+        // Timeout per file so a single corrupted/hanging file cannot stall
+        // the entire scan. 30s is generous for tag reading; a file that
+        // takes longer is treated as an error and skipped.
+        const metadata = await Promise.race([
+          this.ownCtx.codec.readMetadata(file.uri),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(`metadata read timeout: ${file.uri}`)), 30000),
+          ),
+        ])
         const supported = new Set(this.ownCtx.codec.supportedFormats().map((f) => f.toLowerCase()))
         const codec = metadata.codec?.toLowerCase()
         if (codec === 'alac' && !supported.has('alac')) {
@@ -689,7 +697,12 @@ export class Scanner extends Service implements ScannerService {
           throw new Error('unsupported codec: WMA is not supported on this platform')
         }
         let artwork = metadata.hasArtwork
-          ? await this.ownCtx.codec.readArtwork(file.uri).catch(() => undefined)
+          ? await Promise.race([
+              this.ownCtx.codec.readArtwork(file.uri),
+              new Promise<undefined>((resolve) =>
+                setTimeout(() => resolve(undefined), 15000),
+              ),
+            ]).catch(() => undefined)
           : undefined
         if (!artwork && folderCovers) {
           const parentDir = parentDirectoryOf(file.uri)
