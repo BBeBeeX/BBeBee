@@ -215,6 +215,23 @@
           return typeof res === 'boolean' ? res : true;
         });
       },
+      toServableUrl: function (uri) {
+        try {
+          if (typeof uri !== 'string' || uri.indexOf('bbebee-file:') !== 0) return uri;
+          // WebView2 (Windows) cannot resolve custom schemes natively: wry serves
+          // them over http://{scheme}.localhost and intercepts those requests,
+          // so the webview must use the workaround form. WKWebView (macOS) and
+          // WebKitGTK (Linux) handle the scheme natively — leave it untouched.
+          if (detectedPlatform !== 'win32') return uri;
+          var rest = uri
+            .replace(/^bbebee-file:/, '')
+            .replace(/^\/+/, '')
+            .replace(/^localhost\//, '');
+          return 'http://bbebee-file.localhost/' + rest;
+        } catch (_) {
+          return uri;
+        }
+      },
     },
     devtools: {
       open: function () {

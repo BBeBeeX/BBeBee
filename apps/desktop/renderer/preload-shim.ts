@@ -31,6 +31,13 @@ export interface BBeBeeDialogApi {
 export interface BBeBeeFilesApi {
   getPath(file: File): string
   authorizePath(path: string): Promise<boolean>
+  /**
+   * Map a `bbebee-file://` URI to the URL form the current webview can load.
+   * On Windows the custom scheme is served over `http://bbebee-file.localhost`
+   * (WebView2 cannot resolve custom schemes natively); elsewhere the URI is
+   * returned unchanged. Non-`bbebee-file:` inputs pass through untouched.
+   */
+  toServableUrl(uri: string): string
 }
 
 export interface BBeBeeDevtoolsApi {
@@ -399,6 +406,23 @@ export function createPreloadApi(
       },
       authorizePath: (path: string): Promise<boolean> =>
         invoke('desktop_files_authorize', { path }).then((res) => (typeof res === 'boolean' ? res : true)),
+      toServableUrl: (uri: string): string => {
+        try {
+          if (typeof uri !== 'string' || !uri.startsWith('bbebee-file:')) return uri
+          // WebView2 (Windows) cannot resolve custom schemes natively: wry serves
+          // them over http://{scheme}.localhost and intercepts those requests,
+          // so the webview must use the workaround form. WKWebView (macOS) and
+          // WebKitGTK (Linux) handle the scheme natively — leave it untouched.
+          if (detectedPlatform !== 'win32') return uri
+          const rest = uri
+            .replace(/^bbebee-file:/, '')
+            .replace(/^\/+/, '')
+            .replace(/^localhost\//, '')
+          return `http://bbebee-file.localhost/${rest}`
+        } catch {
+          return uri
+        }
+      },
     },
     devtools: {
       open: (): Promise<void> => invoke('desktop_devtools_open'),

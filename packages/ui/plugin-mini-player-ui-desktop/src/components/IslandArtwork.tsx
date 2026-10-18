@@ -1,6 +1,6 @@
 import { createElement as h, useEffect, useState } from 'react'
 import type { ReactElement } from 'react'
-import { useBridgeLocale } from '@BBeBee/ui-kit-desktop'
+import { useBridgeLocale, toBbebeeFileUri } from '@BBeBee/ui-kit-desktop'
 
 export interface IslandArtworkProps {
   artworkUri?: string
@@ -27,19 +27,10 @@ export function IslandArtwork({
     setLoadError(false)
   }, [artworkUri])
 
-  const resolvedUri = artworkUri
-    ? (artworkUri.startsWith('bbebee-file:')
-        ? artworkUri
-        : artworkUri.startsWith('file://')
-          ? artworkUri.replace(/^file:\/\//, 'bbebee-file://')
-          : artworkUri.startsWith('file:')
-            ? artworkUri.replace(/^file:\/*/, 'bbebee-file:///')
-            : /^[a-zA-Z]:[\\/]/.test(artworkUri)
-              ? `bbebee-file:///${artworkUri.replace(/\\/g, '/')}`
-              : artworkUri.startsWith('/') && !artworkUri.startsWith('//')
-                ? `bbebee-file://${artworkUri}`
-                : artworkUri)
-    : undefined
+  // `toBbebeeFileUri` normalizes to the bbebee-file: scheme and maps it to the
+  // webview-loadable serving URL for the current platform (Windows needs the
+  // http://bbebee-file.localhost workaround).
+  const resolvedUri = toBbebeeFileUri(artworkUri)
 
   const showImage = Boolean(resolvedUri && !loadError)
 

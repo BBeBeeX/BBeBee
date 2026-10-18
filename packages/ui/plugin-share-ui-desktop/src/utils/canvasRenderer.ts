@@ -6,6 +6,7 @@ import type {
 } from "@BBeBee/protocol"
 import { encodeSteganography } from "@BBeBee/plugin-share/steganography"
 import { encodeMetadata } from "@BBeBee/plugin-share/metadata"
+import { toBbebeeFileUri } from "@BBeBee/ui-kit-desktop"
 import { BBEBEE_LOGO_DATA_URL } from "../assets/logo.js"
 
 export type BackgroundMode = "cover" | "gradient" | "black"
@@ -42,18 +43,15 @@ export interface RenderLyricsCardOptions {
 /** Helper to safely load an image URL with CORS and fallback */
 /** Helper to safely load an image URL with CORS and fallback */
 export async function loadImage(src: string): Promise<HTMLImageElement | null> {
-  let normalized = src
-  if (src.startsWith('bbebee-file:')) {
-    normalized = src
-  } else if (src.startsWith('file://')) {
-    normalized = src.replace(/^file:\/\//, 'bbebee-file://')
-  } else if (src.startsWith('file:')) {
-    normalized = src.replace(/^file:\/*/, 'bbebee-file:///')
-  } else if (/^[a-zA-Z]:[\\/]/.test(src)) {
-    normalized = `bbebee-file:///${src.replace(/\\/g, '/')}`
-  } else if (src.startsWith('/') && !src.startsWith('//')) {
-    normalized = `bbebee-file://${src}`
-  }
+  // Normalizes to the bbebee-file: scheme and maps it to the webview-loadable
+  // serving URL for the current platform. On Windows the raw custom scheme is
+  // not fetchable (WebView2 rejects it at the renderer CORS layer), so the
+  // host rewrites it to http://bbebee-file.localhost.
+  const normalized = toBbebeeFileUri(src) ?? src
+  // Local artwork, whichever serving form the platform uses.
+  const isLocalArtwork =
+    normalized.startsWith('bbebee-file:') ||
+    normalized.startsWith('http://bbebee-file.localhost/')
 
   // For data: and blob: URLs, load directly without CORS
   if (normalized.startsWith("data:") || normalized.startsWith("blob:")) {
@@ -65,9 +63,9 @@ export async function loadImage(src: string): Promise<HTMLImageElement | null> {
     })
   }
 
-  // For bbebee-file: URLs, fetch as Blob to get a same-origin Blob URL
+  // For local artwork URLs, fetch as Blob to get a same-origin Blob URL
   // This completely eliminates CORS issues and canvas tainting on desktop
-  if (normalized.startsWith("bbebee-file://")) {
+  if (isLocalArtwork) {
     try {
       if (typeof fetch === "function") {
         const res = await fetch(normalized)

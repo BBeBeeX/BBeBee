@@ -18,6 +18,7 @@ import type {
   SandboxPlayerSnapshot,
 } from '@BBeBee/protocol'
 import { serviceOf } from '@BBeBee/ui-core'
+import { toServableFileUrl } from '@BBeBee/toolkit'
 import { useActiveLyricIndex, useLyrics, useResolvedArtwork } from '@BBeBee/toolkit/hooks'
 import { useImageColor, useI18n } from '@BBeBee/ui-kit-desktop'
 import { useCurrentTrack } from '../hooks.js'
@@ -64,12 +65,16 @@ export function SandboxedLayout({
   const rawCover = resolvedArtwork?.sourceUrl ?? effectiveArtwork?.sourceUrl
   const coverUrl = useMemo(() => {
     if (!rawCover) return null
-    if (rawCover.startsWith('bbebee-file:')) return rawCover
-    if (rawCover.startsWith('file://')) return rawCover.replace(/^file:\/\//, 'bbebee-file://')
-    if (rawCover.startsWith('file:')) return rawCover.replace(/^file:\/*/, 'bbebee-file:///')
-    if (/^[a-zA-Z]:[\\/]/.test(rawCover)) return `bbebee-file:///${rawCover.replace(/\\/g, '/')}`
-    if (rawCover.startsWith('/') && !rawCover.startsWith('//')) return `bbebee-file://${rawCover}`
-    return rawCover
+    let uri: string
+    if (rawCover.startsWith('bbebee-file:')) uri = rawCover
+    else if (rawCover.startsWith('file://')) uri = rawCover.replace(/^file:\/\//, 'bbebee-file://')
+    else if (rawCover.startsWith('file:')) uri = rawCover.replace(/^file:\/*/, 'bbebee-file:///')
+    else if (/^[a-zA-Z]:[\\/]/.test(rawCover)) uri = `bbebee-file:///${rawCover.replace(/\\/g, '/')}`
+    else if (rawCover.startsWith('/') && !rawCover.startsWith('//')) uri = `bbebee-file://${rawCover}`
+    else return rawCover
+    // The webview cannot load the raw custom scheme on every platform (Windows
+    // serves it over http://bbebee-file.localhost); the host owns the mapping.
+    return toServableFileUrl(uri) ?? uri
   }, [rawCover])
 
   const dominant = resolvedArtwork?.dominantColor ?? effectiveArtwork?.dominantColor

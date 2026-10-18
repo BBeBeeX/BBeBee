@@ -45,6 +45,7 @@ import {
   resolveBridgeCall,
   resolveNativeOutputDevice,
   sanitizeSinkId,
+  servableFileUrl,
   ContextInterruptionObserver,
   type AudioLogger,
   type BridgeCall,
@@ -62,6 +63,7 @@ export {
   resolveBridgeCall,
   resolveNativeOutputDevice,
   sanitizeSinkId,
+  servableFileUrl,
   ContextInterruptionObserver,
 } from './shared.js'
 export type {
@@ -749,7 +751,10 @@ export class AudioWebAudio extends Service implements AudioService {
       typeof src === 'string' && src.startsWith('file://') && typeof window !== 'undefined'
         ? src.replace(/^file:\/\//, 'bbebee-file://')
         : src
-    element.src = targetSrc
+    // The raw bbebee-file: scheme is not element-loadable on every platform
+    // (Windows serves it over http://bbebee-file.localhost); the desktop host
+    // owns the mapping and this read degrades to the identity when absent.
+    element.src = servableFileUrl(targetSrc)
 
     const context = this.context as BaseAudioContext & {
       createMediaElementSource?: (el: unknown) => AudioNode

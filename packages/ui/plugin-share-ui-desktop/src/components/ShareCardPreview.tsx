@@ -1,5 +1,6 @@
 import { createElement as h, useEffect, useRef } from 'react'
 import type { ReactElement } from 'react'
+import { toBbebeeFileUri } from '@BBeBee/ui-kit-desktop'
 import {
   type BackgroundMode,
   drawTrackCard,
@@ -20,13 +21,10 @@ export interface ShareCardPreviewProps {
 }
 
 export function normalizeArtworkUrl(src?: string): string | undefined {
-  if (!src) return undefined
-  if (src.startsWith('bbebee-file:')) return src
-  if (src.startsWith('file://')) return src.replace(/^file:\/\//, 'bbebee-file://')
-  if (src.startsWith('file:')) return src.replace(/^file:\/*/, 'bbebee-file:///')
-  if (/^[a-zA-Z]:[\\/]/.test(src)) return `bbebee-file:///${src.replace(/\\/g, '/')}`
-  if (src.startsWith('/') && !src.startsWith('//')) return `bbebee-file://${src}`
-  return src
+  // Normalizes to the bbebee-file: scheme and maps it to the webview-loadable
+  // serving URL for the current platform (Windows needs the
+  // http://bbebee-file.localhost workaround).
+  return toBbebeeFileUri(src)
 }
 
 export function ShareCardPreview({

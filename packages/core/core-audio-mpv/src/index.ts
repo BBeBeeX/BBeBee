@@ -43,6 +43,7 @@ import {
   resolveBridgeCall,
   resolveNativeOutputDevice,
   sanitizeSinkId,
+  servableFileUrl,
   ContextInterruptionObserver,
   type BridgeCall,
 } from '@BBeBee/core-audio-webaudio'
@@ -612,9 +613,12 @@ export class AudioMpv extends Service implements AudioService {
     const element = createElement()
     try {
       element.crossOrigin = 'anonymous'
-      element.src = src.startsWith('file://') && typeof window !== 'undefined'
-        ? src.replace(/^file:\/\//, 'bbebee-file://')
-        : src
+      // The raw bbebee-file: scheme is not element-loadable on every platform
+      // (Windows serves it over http://bbebee-file.localhost).
+      element.src =
+        src.startsWith('file://') && typeof window !== 'undefined'
+          ? servableFileUrl(src.replace(/^file:\/\//, 'bbebee-file://'))
+          : src
 
       const context = this.context as BaseAudioContext & {
         createMediaElementSource?: (el: unknown) => AudioNode

@@ -77,6 +77,7 @@ import {
 // JsonTree) read their palette from `c()` — wiring that module-level scheme to
 // `ctx.theme` is composition-root work, same as the service registrations above.
 import { setScheme } from '@BBeBee/ui-kit-desktop'
+import { toServableFileUrl } from '@BBeBee/toolkit'
 
 declare global {
   interface Window {
@@ -91,6 +92,7 @@ declare global {
       files?: {
         getPath(file: File): string
         authorizePath?(path: string): Promise<boolean>
+        toServableUrl?(uri: string): string
       }
       devtools?: { open(): Promise<void> }
       platform: string
@@ -663,7 +665,12 @@ function createAudioFetchBytes(
         }
       }
       if (typeof window !== 'undefined' && typeof window.fetch === 'function') {
-        const response = await window.fetch(src, { signal: opts?.signal })
+        // The raw bbebee-file: scheme is not fetchable on every platform
+        // (Windows rejects it at the renderer CORS layer); the host maps it to
+        // the webview-loadable serving URL.
+        const response = await window.fetch(toServableFileUrl(src) ?? src, {
+          signal: opts?.signal,
+        })
         if (!response.ok) throw new Error(`audio: ${response.status} loading ${src}`)
         return response.arrayBuffer()
       }

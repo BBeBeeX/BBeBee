@@ -92,6 +92,28 @@ export function sanitizeSinkId(id: string): string {
   return targetId
 }
 
+/**
+ * Map a `bbebee-file://` URI to the URL form the current webview can load.
+ *
+ * The desktop host owns the platform-specific mapping
+ * (`window.BBeBee.files.toServableUrl`): on Windows the custom scheme is served
+ * over `http://bbebee-file.localhost` because WebView2 cannot resolve custom
+ * schemes natively. This read is structural (same pattern as
+ * `resolveBridgeCall`) and degrades to the identity mapping when the host
+ * surface is absent, so it is safe in tests and non-desktop renderers.
+ */
+export function servableFileUrl(uri: string): string {
+  try {
+    const fn = (
+      globalThis as unknown as { window?: { BBeBee?: { files?: { toServableUrl?: unknown } } } }
+    ).window?.BBeBee?.files?.toServableUrl
+    if (typeof fn === 'function') return (fn as (u: string) => string)(uri)
+  } catch {
+    // Host surface unavailable — fall through to the identity mapping.
+  }
+  return uri
+}
+
 export interface RebuiltAudioGraph {
   context: BaseAudioContext
   chainInput: GainNode

@@ -2,16 +2,21 @@ import { createElement as h } from 'react'
 import { tokens } from '@BBeBee/ui-tokens'
 import { identicon } from '@BBeBee/ui-core'
 import type { ArtworkProps } from '@BBeBee/ui-core'
+import { toServableFileUrl } from '@BBeBee/toolkit'
 import { c, common } from '../theme.js'
 
 export function toBbebeeFileUri(rawUri?: string): string | undefined {
   if (!rawUri) return undefined
-  if (rawUri.startsWith('bbebee-file:')) return rawUri
-  if (rawUri.startsWith('file://')) return rawUri.replace(/^file:\/\//, 'bbebee-file://')
-  if (rawUri.startsWith('file:')) return rawUri.replace(/^file:\/*/, 'bbebee-file:///')
-  if (/^[a-zA-Z]:[\\/]/.test(rawUri)) return `bbebee-file:///${rawUri.replace(/\\/g, '/')}`
-  if (rawUri.startsWith('/') && !rawUri.startsWith('//')) return `bbebee-file://${rawUri}`
-  return rawUri
+  let uri: string
+  if (rawUri.startsWith('bbebee-file:')) uri = rawUri
+  else if (rawUri.startsWith('file://')) uri = rawUri.replace(/^file:\/\//, 'bbebee-file://')
+  else if (rawUri.startsWith('file:')) uri = rawUri.replace(/^file:\/*/, 'bbebee-file:///')
+  else if (/^[a-zA-Z]:[\\/]/.test(rawUri)) uri = `bbebee-file:///${rawUri.replace(/\\/g, '/')}`
+  else if (rawUri.startsWith('/') && !rawUri.startsWith('//')) uri = `bbebee-file://${rawUri}`
+  else return rawUri
+  // The webview cannot load the raw custom scheme on every platform (Windows
+  // serves it over http://bbebee-file.localhost); the host owns the mapping.
+  return toServableFileUrl(uri)
 }
 
 export function Artwork(props: ArtworkProps) {

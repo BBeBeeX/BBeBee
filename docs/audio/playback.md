@@ -277,7 +277,11 @@ Third-party music sources do not always deliver streams in the container format 
   Standard desktop webviews disallow renderer `fetch()` and media loading from raw `file://` URLs
   under modern web security rules (`bridge: refusing to fetch file://`). The desktop host
   registers the custom privileged scheme `bbebee-file://` to securely stream and buffer
-  local music files directly from disk.
+  local music files directly from disk. WebView2 (Windows) cannot resolve custom schemes
+  natively, so the webview must use the serving form `http://bbebee-file.localhost/<path>`
+  there (WKWebView/macOS and WebKitGTK/Linux handle `bbebee-file://` directly); the
+  mapping lives in one place — `window.BBeBee.files.toServableUrl()`, exposed to views
+  via `toServableFileUrl()` in `@BBeBee/toolkit`.
 
 ### Stream preferences
 

@@ -22,7 +22,7 @@ describe('Preload Surface Conformance Test: Tauri Shim API Contract', () => {
       secrets: ['available', 'encrypt', 'decrypt'],
       shell: ['openExternal', 'openPath'],
       dialog: ['pickDirectory', 'pickFiles'],
-      files: ['getPath', 'authorizePath'],
+      files: ['getPath', 'authorizePath', 'toServableUrl'],
       devtools: ['open'],
       plugins: ['listInstalled', 'getLock', 'install', 'uninstall'],
       window: ['minimize', 'maximize', 'close', 'isMaximized', 'setCloseToTray', 'toggle'],
@@ -212,6 +212,54 @@ describe('Preload Surface Conformance Test: Tauri Shim API Contract', () => {
         expect(Object.isFrozen(val), `BBeBee.${ns} is frozen`).toBe(true)
       }
     }
+  })
+
+  it('maps bbebee-file: URIs to a webview-loadable form via files.toServableUrl', () => {
+    const api = createPreloadApi()
+    const toServableUrl = api.files.toServableUrl as (uri: string) => string
+
+    // Non-bbebee-file inputs pass through untouched.
+    expect(toServableUrl('https://example.com/a.jpg')).toBe('https://example.com/a.jpg')
+    expect(toServableUrl('file:///C:/a.jpg')).toBe('file:///C:/a.jpg')
+    expect(toServableUrl('')).toBe('')
+
+    // The mapping depends on the host platform (baked in at shim creation).
+    const input = 'bbebee-file:///C:/Users/test/music/cover.jpg'
+    if (api.platform === 'win32') {
+      expect(toServableUrl(input)).toBe('http://bbebee-file.localhost/C:/Users/test/music/cover.jpg')
+      expect(toServableUrl('bbebee-file://localhost/C:/a.jpg')).toBe(
+        'http://bbebee-file.localhost/C:/a.jpg',
+      )
+    } else {
+      // WKWebView / WebKitGTK resolve the custom scheme natively.
+      expect(toServableUrl(input)).toBe(input)
+    }
+  })
+
+  it('rewrites bbebee-file: URIs to http://bbebee-file.localhost on Windows (shim.js)', () => {
+    const mockWindow: Record<string, any> = {
+      __TAURI_INTERNALS__: { invoke: async () => undefined },
+    }
+    const context = vm.createContext({
+      window: mockWindow,
+      process: { platform: 'win32', versions: {}, env: {}, argv: [] },
+      navigator: { userAgent: 'windows' },
+      document: {},
+      console: console,
+      setTimeout: setTimeout,
+      clearTimeout: clearTimeout,
+    })
+    vm.runInContext(shimScriptContent, context)
+    const toServableUrl = mockWindow.BBeBee.files.toServableUrl as (uri: string) => string
+
+    expect(toServableUrl('bbebee-file:///C:/Users/test/music/cover.jpg')).toBe(
+      'http://bbebee-file.localhost/C:/Users/test/music/cover.jpg',
+    )
+    expect(toServableUrl('bbebee-file://localhost/D:/a/b.jpg')).toBe(
+      'http://bbebee-file.localhost/D:/a/b.jpg',
+    )
+    // Non-bbebee-file inputs pass through untouched, even on Windows.
+    expect(toServableUrl('https://example.com/a.jpg')).toBe('https://example.com/a.jpg')
   })
 
   it('verifies platform and version contract formats', () => {

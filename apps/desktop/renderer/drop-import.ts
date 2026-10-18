@@ -114,11 +114,28 @@ export function resolveService<T = unknown>(
  */
 export async function importDroppedFiles(ctx: Context, fileList: FileList): Promise<DropImportResult> {
   const files = Array.from(fileList)
-  const result: DropImportResult = { imported: 0, folders: 0, failed: 0 }
 
   // A `File` without a path is not on disk (an in-page drag, a browser
-  // extension artefact) — nothing this app can do with it.
+  // extension artefact) — nothing this app can do with it. Under Tauri the
+  // webview `File` objects carry no path at all (no Electron `file.path`,
+  // no `webUtils.getPathForFile`); the real paths arrive via the
+  // `tauri://drag-drop` window event and enter through `importDroppedPaths`.
   const paths = files.map((file) => window.BBeBee?.files?.getPath(file) ?? '')
+  return importDroppedPaths(ctx, paths)
+}
+
+/**
+ * Import whatever the user dropped onto the window, from OS paths.
+ *
+ * This is the path-based core of `importDroppedFiles`, used directly by the
+ * `tauri://drag-drop` listener (the supported Tauri v2 drop channel, whose
+ * payload carries real filesystem paths).
+ *
+ * Never throws: every failure mode lands in `failed` so the shell can say
+ * one honest sentence about the drop instead of the gesture silently dying.
+ */
+export async function importDroppedPaths(ctx: Context, paths: string[]): Promise<DropImportResult> {
+  const result: DropImportResult = { imported: 0, folders: 0, failed: 0 }
   result.failed += paths.filter((p) => p.length === 0).length
 
   const validPaths = paths.filter((p) => p.length > 0)

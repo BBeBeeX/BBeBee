@@ -23,7 +23,7 @@ import type { RouteContribution, SettingsContribution } from '@BBeBee/protocol'
 import { REGISTRY_VIEWS } from '@BBeBee/plugin-registry/views'
 import { PageMarqueeProvider, tablerIcon, useI18n, Toast } from '@BBeBee/ui-kit-desktop'
 import { SleepTimerIndicator, TopBar, WindowControls, type DraggableCSSProperties, type TopBarProps } from './TopBar.js'
-import { importDroppedFiles } from './drop-import.js'
+import { importDroppedFiles, importDroppedPaths, type DropImportResult } from './drop-import.js'
 
 /** What the sidebar can navigate to: a route, or a settings page. */
 interface Entry {
@@ -552,6 +552,26 @@ export function Shell({ ctx }: { ctx: Context }) {
     if (dragDepth.current === 0) setDropActive(false)
   }, [])
 
+  const handleImportResult = useCallback(
+    ({ imported, folders, failed, importedUrns }: DropImportResult) => {
+      const parts: string[] = []
+      if (folders > 0) parts.push(t('app:common.shell.addedFoldersScanning', { folders }))
+      if (imported > 0) parts.push(t('app:common.shell.importedTracks', { imported }))
+      if (failed > 0) parts.push(t('app:common.shell.itemsFailedToImport', { failed }))
+      setDropMessage(parts.length > 0 ? parts.join(', ') : t('app:common.shell.noImportableContent'))
+
+      if (imported > 0 || folders > 0 || (importedUrns && importedUrns.length > 0)) {
+        navigateTo(
+          'library.local',
+          importedUrns && importedUrns.length > 0
+            ? { highlightUrns: importedUrns, highlightUrn: importedUrns[0] }
+            : undefined,
+        )
+      }
+    },
+    [navigateTo, t],
+  )
+
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault()
@@ -559,27 +579,54 @@ export function Shell({ ctx }: { ctx: Context }) {
       setDropActive(false)
       const files = e.dataTransfer?.files
       if (!files || files.length === 0) return
+      // Under Tauri the OS drop is delivered via the `tauri://drag-drop` window
+      // event with real filesystem paths — the webview `File` objects carry no
+      // path (Tauri also replaces WebView2's drop handler on Windows, so the
+      // HTML5 gesture is only the visual overlay). Skip silently and let the
+      // Tauri listener import; reporting "failed" here would be a lie.
+      if (window.BBeBee) {
+        const hasPaths = Array.from(files).some((f) => window.BBeBee?.files?.getPath(f))
+        if (!hasPaths) return
+      }
       void importDroppedFiles(ctx, files)
-        .then(({ imported, folders, failed, importedUrns }) => {
-          const parts: string[] = []
-          if (folders > 0) parts.push(t('app:common.shell.addedFoldersScanning', { folders }))
-          if (imported > 0) parts.push(t('app:common.shell.importedTracks', { imported }))
-          if (failed > 0) parts.push(t('app:common.shell.itemsFailedToImport', { failed }))
-          setDropMessage(parts.length > 0 ? parts.join(', ') : t('app:common.shell.noImportableContent'))
-
-          if (imported > 0 || folders > 0 || (importedUrns && importedUrns.length > 0)) {
-            navigateTo(
-              'library.local',
-              importedUrns && importedUrns.length > 0
-                ? { highlightUrns: importedUrns, highlightUrn: importedUrns[0] }
-                : undefined,
-            )
-          }
-        })
+        .then(handleImportResult)
         .catch(() => setDropMessage(t('app:common.shell.importFailed')))
     },
-    [ctx, navigateTo, t],
+    [ctx, handleImportResult, t],
   )
+
+  useEffect(() => {
+    // The supported Tauri v2 drop channel: the payload carries real OS paths,
+    // which the webview `File` objects never expose. The HTML5 handlers above
+    // stay for the drag-over overlay feedback and for non-Tauri hosts.
+    let unlisten: (() => void) | undefined
+    let disposed = false
+    const subscribe = async () => {
+      try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window')
+        if (disposed) return
+        unlisten = await getCurrentWindow().listen<{ paths?: string[] }>(
+          'tauri://drag-drop',
+          (event) => {
+            const paths = event.payload?.paths ?? []
+            if (paths.length === 0) return
+            dragDepth.current = 0
+            setDropActive(false)
+            void importDroppedPaths(ctx, paths)
+              .then(handleImportResult)
+              .catch(() => setDropMessage(t('app:common.shell.importFailed')))
+          },
+        )
+      } catch {
+        // Not running inside Tauri (plain browser, tests): HTML5 DnD remains.
+      }
+    }
+    void subscribe()
+    return () => {
+      disposed = true
+      unlisten?.()
+    }
+  }, [ctx, handleImportResult, t])
 
   const currentItem: HistoryItem | undefined =
     navState.history[navState.index] ?? (defaultEntry ? { id: defaultEntry.id } : undefined)
