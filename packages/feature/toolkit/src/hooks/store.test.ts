@@ -61,11 +61,13 @@ describe('snapshot stability', () => {
     const store = createServiceStore(h.ctx, ['thing/changed'], () => ({ ...h.read() }), {
       isEqual: shallowEqual,
     })
+    const off = store.subscribe(() => {})
     const before = store.getSnapshot()
     h.set({ a: 2 })
     const after = store.getSnapshot()
     expect(after).not.toBe(before)
     expect(after).toEqual({ a: 2 })
+    off()
   })
 
   it('keeps the old snapshot when an event fires but nothing changed', () => {
@@ -83,9 +85,11 @@ describe('snapshot stability', () => {
   it('defaults to Object.is, which suits a primitive selection', () => {
     const h = harness(1)
     const store = createServiceStore(h.ctx, ['thing/changed'], () => h.read())
+    const off = store.subscribe(() => {})
     expect(store.getSnapshot()).toBe(1)
     h.set(2)
     expect(store.getSnapshot()).toBe(2)
+    off()
   })
 })
 

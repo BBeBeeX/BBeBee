@@ -76,7 +76,12 @@ export function createServiceStore<T>(
       }
     },
     getSnapshot() {
-      if (isSubscribed && cached) {
+      // Return the cached value if available. React calls getSnapshot
+      // multiple times during render to verify stability; if select() builds
+      // a fresh object/array each time, returning a new reference would cause
+      // an infinite render loop. The cache is populated on first call and
+      // refreshed when subscribed events fire (via read() in the handler).
+      if (cached) {
         return cached.value
       }
       return read()
