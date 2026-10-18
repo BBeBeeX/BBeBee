@@ -72,9 +72,16 @@ export function useResolvedArtwork(ctx: Context, artwork?: ArtworkRef): ArtworkR
         if (fs) {
           try {
             // fs.exists speaks file://, not bbebee-file:// — convert back.
-            const fsUri = sourceUrl.startsWith('bbebee-file:')
-              ? sourceUrl.replace(/^bbebee-file:\/\//, 'file://')
-              : sourceUrl
+            // bbebee-file://localhost/path -> file:///path
+            // bbebee-file:///path -> file:///path
+            let fsUri = sourceUrl
+            if (fsUri.startsWith('bbebee-file://localhost/')) {
+              fsUri = 'file:///' + fsUri.slice('bbebee-file://localhost/'.length)
+            } else if (fsUri.startsWith('bbebee-file:///')) {
+              fsUri = 'file:///' + fsUri.slice('bbebee-file:///'.length)
+            } else if (fsUri.startsWith('bbebee-file:')) {
+              fsUri = 'file:' + fsUri.slice('bbebee-file:'.length)
+            }
             if (await fs.exists(fsUri)) {
               if (active) setResolution({ id, uri: sourceUrl, settled: true })
               return

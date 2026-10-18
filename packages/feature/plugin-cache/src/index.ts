@@ -200,16 +200,30 @@ export class Cache extends Service implements CacheService {
       return local
     }
 
-    // If sourceUrl is an already-local location, it needs no HTTP fetch
+    // If sourceUrl is an already-local location, it needs no HTTP fetch.
+    // But verify it exists first — a stale ref to a cleared cache file must
+    // not be returned, or the <img> will fail to load.
     if (ref.sourceUrl && /^(file|content|data|bbebee-file):/i.test(ref.sourceUrl)) {
       try {
-        if (ref.sourceUrl.startsWith('file:') && (await this.exists(ref.sourceUrl))) {
-          await this.rememberLocal(ref.id, ref.sourceUrl)
+        // Convert bbebee-file:// to file:// for the existence check.
+        let checkUri = ref.sourceUrl
+        if (checkUri.startsWith('bbebee-file://localhost/')) {
+          checkUri = 'file:///' + checkUri.slice('bbebee-file://localhost/'.length)
+        } else if (checkUri.startsWith('bbebee-file:///')) {
+          checkUri = 'file:///' + checkUri.slice('bbebee-file:///'.length)
+        } else if (checkUri.startsWith('bbebee-file:')) {
+          checkUri = 'file:' + checkUri.slice('bbebee-file:'.length)
         }
+        if (await this.exists(checkUri)) {
+          await this.rememberLocal(ref.id, ref.sourceUrl)
+          return ref.sourceUrl
+        }
+        // File is gone — do NOT return the stale URL. Fall through to
+        // re-fetch from the original source below.
+        this.ownCtx.logger.info(`cache: stale local artwork ${ref.id}, re-fetching`)
       } catch {
-        // ignore
+        // Existence check failed; do not return a potentially stale URL.
       }
-      return ref.sourceUrl
     }
 
     if (!this.config.enabled || !ref.sourceUrl) return undefined
