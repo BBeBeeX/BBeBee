@@ -158,6 +158,12 @@ export class Scanner extends Service implements ScannerService {
 
   private readonly ownCtx: Context
   private specifiedDirList: ScanSpecifiedDir[] = []
+  /**
+   * Per-batch timing breakdown. Populated only when `BBEBEE_SCAN_TIMING=1`
+   * (debug aid for "why is the scan slow" — zero cost otherwise). Logged
+   * once per batch: tag-read vs artwork-save vs DB-transaction milliseconds.
+   */
+  private timing: { readMs: number; artMs: number; dbMs: number; files: number } | null = null
   private current?: ScanProgress
   private abort?: AbortController
   /** Throttle for the per-file progress reports (see `reportScanProgress`). */
@@ -740,6 +746,10 @@ export class Scanner extends Service implements ScannerService {
       () => controller.abort(new Error(`metadata read timeout: ${file.uri}`)),
       30000,
     )
+    // Debug timing (BBEBEE_SCAN_TIMING=1): split the per-file cost into the
+    // codec read vs the artwork cache write, so a slow scan can be blamed
+    // on the right stage instead of guessed at.
+    const time = process.env.BBEBEE_SCAN_TIMING === '1' ? performance.now() : 0
     try {
       // Prefer the single-parse path when the codec service offers it;
       // otherwise fall back to metadata + artwork (two parses).
@@ -749,6 +759,7 @@ export class Scanner extends Service implements ScannerService {
             metadata: await this.ownCtx.codec.readMetadata(file.uri),
             artwork: undefined as Uint8Array | undefined,
           }
+      const tRead = time ? performance.now() : 0
       const metadata = combined.metadata
       const supported = new Set(this.ownCtx.codec.supportedFormats().map((f) => f.toLowerCase()))
       const codec = metadata.codec?.toLowerCase()
@@ -772,6 +783,13 @@ export class Scanner extends Service implements ScannerService {
       let artworkUri: Uri | undefined
       if (artwork && artwork.length > 0) {
         artworkUri = await this.saveArtwork(artwork)
+      }
+      if (time) {
+        const tEnd = performance.now()
+        if (!this.timing) this.timing = { readMs: 0, artMs: 0, dbMs: 0, files: 0 }
+        this.timing.readMs += tRead - time
+        this.timing.artMs += tEnd - tRead
+        this.timing.files++
       }
       return {
         file,
@@ -801,6 +819,12 @@ export class Scanner extends Service implements ScannerService {
   ): Promise<string[]> {
     const changed: string[] = []
     const now = Date.now()
+
+    // Debug timing (BBEBEE_SCAN_TIMING=1): per-batch breakdown, logged once
+    // per batch so a slow scan points at tag reads vs artwork writes vs the
+    // DB transaction instead of all three being suspects.
+    const timeBatch = process.env.BBEBEE_SCAN_TIMING === '1'
+    if (timeBatch) this.timing = { readMs: 0, artMs: 0, dbMs: 0, files: 0 }
 
     // Reading tags is I/O and must not hold the write lock, so it happens
     // before the transaction opens rather than inside it.
@@ -839,6 +863,7 @@ export class Scanner extends Service implements ScannerService {
     })
     prepared.push(...preparedFresh)
 
+    const tDb0 = timeBatch ? performance.now() : 0
     await this.ownCtx.db.transaction(async (tx) => {
       for (const item of prepared) {
         if (item.unchanged) {
@@ -889,6 +914,21 @@ export class Scanner extends Service implements ScannerService {
         await this.writeEntry(tx, dir.id, item.file, 'ok', trackUrn, null)
       }
     })
+
+    if (timeBatch && this.timing) {
+      const t = this.timing
+      t.dbMs += performance.now() - tDb0
+      // readMs/artMs are wall-clock sums across concurrent workers, so they
+      // can exceed the batch's elapsed time — the ratio is what matters.
+      this.ownCtx.logger.info(
+        'scanner: batch timing files=%d tagRead=%dms artworkSave=%dms dbTxn=%dms',
+        t.files,
+        Math.round(t.readMs),
+        Math.round(t.artMs),
+        Math.round(t.dbMs),
+      )
+      this.timing = null
+    }
 
     return changed
   }
