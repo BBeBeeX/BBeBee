@@ -111,29 +111,3 @@ declare global {
     }
   }
 }
-
-const APP_VERSION = '0.0.0'
-
-/**
- * Development build or shipped build.
- *
- * Read from how the renderer was loaded: Vite serves it over http in dev
- * (`loadURL`), a packaged app is opened from disk (`loadFile`). No build-time
- * define is involved, which matters because a sandboxed renderer has no
- * `process` to read one from — and because the answer stays right if the
- * bundler changes.
- */
-function isDevelopment(): boolean {
-  return location.protocol === 'http:' || location.protocol === 'https:'
-}
-
-function isDebug(): boolean {
-  if (typeof window.BBeBee?.isDebug === 'boolean') return window.BBeBee.isDebug
-  return (
-    isDevelopment() ||
-    (typeof location !== 'undefined' && new URLSearchParams(location.search).has('debug'))
-  )
-}
-
-/** Desktop host `process.platform`, as the protocol names it. */
-function hostPlatform(): 'macos' | 'windows' | 'linux' {
