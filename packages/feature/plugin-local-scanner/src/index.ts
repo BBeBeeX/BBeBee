@@ -151,6 +151,14 @@ const MAX_SCAN_DIRS = 20_000
 /** The summary of an import that did nothing. */
 const EMPTY_SUMMARY: ScanSummary = { added: 0, updated: 0, removed: 0, errors: 0 }
 
+/**
+ * Debug timing for slow scans (`BBEBEE_SCAN_TIMING=1`, see `Scanner.timing`).
+ * Read once at module load — and guarded, because this plugin also loads in
+ * renderers where `process` does not exist.
+ */
+const SCAN_TIMING =
+  typeof process !== 'undefined' && process.env.BBEBEE_SCAN_TIMING === '1'
+
 export class Scanner extends Service implements ScannerService {
   static inject = ['fs', 'db', 'codec', 'paths']
 
@@ -749,7 +757,7 @@ export class Scanner extends Service implements ScannerService {
     // Debug timing (BBEBEE_SCAN_TIMING=1): split the per-file cost into the
     // codec read vs the artwork cache write, so a slow scan can be blamed
     // on the right stage instead of guessed at.
-    const time = process.env.BBEBEE_SCAN_TIMING === '1' ? performance.now() : 0
+    const time = SCAN_TIMING ? performance.now() : 0
     try {
       // Prefer the single-parse path when the codec service offers it;
       // otherwise fall back to metadata + artwork (two parses).
@@ -823,7 +831,7 @@ export class Scanner extends Service implements ScannerService {
     // Debug timing (BBEBEE_SCAN_TIMING=1): per-batch breakdown, logged once
     // per batch so a slow scan points at tag reads vs artwork writes vs the
     // DB transaction instead of all three being suspects.
-    const timeBatch = process.env.BBEBEE_SCAN_TIMING === '1'
+    const timeBatch = SCAN_TIMING
     if (timeBatch) this.timing = { readMs: 0, artMs: 0, dbMs: 0, files: 0 }
 
     // Reading tags is I/O and must not hold the write lock, so it happens
