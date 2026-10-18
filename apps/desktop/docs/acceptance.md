@@ -16,7 +16,7 @@ All nine migration groups (Group 0 through Group 8) have executed cleanly, verif
 | **Group 0** | Inventory, Desktop Host API & CH Channel Mapping, Architecture Decisions D1–D5 | **PASS** | Complete inventory with 20 `window.BBeBee` properties, 10 CH channels, and zero TBD items (`apps/desktop/docs/tauri-mapping.md`). |
 | **Group 1** | Tauri Host Scaffolding & Stdio JSON-RPC Wire Transport | **PASS** | `apps/desktop` package scaffolding, Vite configuration, 1:1 renderer copy without business logic changes, Cargo host scaffolding. |
 | **Group 2** | Multi-Window Management (Desktop Lyrics & Mini-Player Island) | **PASS** | Wayland PoC D5, Window Policy, Tray, Shortcuts, Single Instance, Custom Commands. |
-| **Group 3** | Audio Engine Supervisor & Native Decoders | **PASS** | Stdio NDJSON JSON-RPC transport, sidecar host, audio supervisor, transcode & protocols. |
+| **Group 3** | Audio Engine Supervisor & Native Decoders | **PASS** | Stdio NDJSON JSON-RPC transport, sidecar host, audio supervisor & protocols. FFmpeg transcode migrated to Rust (`transcode.rs`, P1); Rust audio supervisor staged (`audio.rs`, 11 `audio_engine_*` commands, renderer cutover pending, P0). |
 | **Group 4** | Tauri Preload Shim, Initialization Injection, Parity Diff Verification | **PASS** | 100% 1:1 API compatibility with frozen `window.BBeBee` & `window.BBeBeeBridge`, automated parity diff test passed. |
 | **Group 5** | Audio Engine Build Scripts, Dependency Bundling & Tauri Resource Packaging | **PASS** | Parameterized build/bundle/fetch scripts, `test:audio-engine` passed all 4 gates (13 concurrency tests), resource packaging verified. |
 | **Group 6** | Platform Equivalents (Bridged System Service, Background, Device, MediaSession & OS Services Parity) | **PASS** | 100% platform equivalents without touching `packages/core/*`, 153 Vitest tests + 20 Cargo tests passed. |
@@ -63,11 +63,11 @@ The resulting architecture in `apps/desktop` comprises three synchronized compon
 │ • System Tray & Localized Menu    │ • Native Audio Engine Supervisor:  │
 │ • Global Media Keys & Hotkeys     │   - Spawns C++17 audio-engine (MPV)│
 │ • Preload Injection (shim.js)     │   - Stdio JSON IPC + RingBuffer    │
-│ • Single Instance Enforcer        │ • FFmpeg Audio Transcoding Pipeline│
-│ • Custom Scheme Protocols         │ • Dynamic Sandbox Skin Registry    │
-│   - bbebee-file://                │ • Standard Output NDJSON JSON-RPC  │
-│   - bbebee-plugin://              │ • Standard Error Diagnostic Stream │
-│   - bbebee-sandbox://             │                                    │
+│ • Single Instance Enforcer        │ • FFmpeg Transcode → Rust (P1)     │
+│ • Custom Scheme Protocols         │ • Audio Supervisor → Rust (staged) │
+│   - bbebee-file://                │ • Dynamic Sandbox Skin Registry    │
+│   - bbebee-plugin://              │ • Standard Output NDJSON JSON-RPC  │
+│   - bbebee-sandbox://             │ • Standard Error Diagnostic Stream │
 └───────────────────────────────────┴────────────────────────────────────┘
                                ▲  │
                   Stdio NDJSON │  │ Standard JSON-RPC 2.0
@@ -84,8 +84,8 @@ The resulting architecture in `apps/desktop` comprises three synchronized compon
 
 ### 3.1 Preload Shim & Parity Diff
 - The preload injection script `apps/desktop/src-tauri/src/shim.js` is automatically injected into all webview windows before DOM execution using Tauri's `initialization_script`.
-- Implements 100% of the 20 namespaces and methods on `window.BBeBee`:
-  - `paths`, `getAppVersion()`, `secrets`, `shell`, `dialog`, `files`, `devtools`, `plugins`, `proxy`, `stream`, `sandbox`, `window`, `tray`, `shortcuts`, `power`, `theme`, `lyricsWindow`, `miniPlayer`, `audioEngine`, `deepLink`.
+- Implements 100% of the 20 namespaces and properties on `window.BBeBee`:
+  - `paths`, `getAppVersion()`, `secrets`, `shell`, `dialog`, `files`, `devtools`, `plugins`, `window`, `proxy`, `stream`, `audio`, `desktopLyrics`, `taskbar`, `miniPlayer`, `locale`, `sandbox`, `versions`, `platform`, `isDebug`.
 - Implements 100% of the 10 CH channel methods on `window.BBeBeeBridge`:
   - `call`, `streamOpen`, `streamPull`, `streamClose`, `httpOpen`, `httpPull`, `httpClose`, `txBegin`, `txEnd`, `event`.
 - Implements deep freeze (`Object.freeze`) and error unwrap deserialization restoring native JavaScript `Error` objects from serialized payloads.
@@ -214,7 +214,7 @@ The resulting architecture in `apps/desktop` comprises three synchronized compon
 | **Global Shortcuts** | Hotkey registration (`register`, `unregister`, `unregisterAll`), media keys forwarding, IPC broadcast to main window. | **VERIFIED** |
 | **Desktop Lyrics Overlay** | Frameless, transparent, always-on-top, skip-taskbar window, screen clamping, 120ms cursor polling tracking (`{x, y}` or `{-1, -1}`), `set_ignore_cursor_events` toggle for unlock pill. | **VERIFIED** |
 | **Mini-Player Island** | Normal (380x96), Attached (280x50), Expanded (420x184), top snapping threshold (80px), drag detach (>40px), state emission (`mini-player:state`). | **VERIFIED** |
-| **Audio Transcoding** | TranscodeManager child process spawning, command parameterization, progress parsing, and active process cancellation. | **VERIFIED** |
+| **Audio Transcoding** | Rust `transcode.rs`: FFmpeg child process spawning, command parameterization, progress parsing via the `audio:transcode-progress` Tauri event, and active process cancellation (`desktop_audio_transcode_cancel`). | **VERIFIED** |
 | **i18n Language Switching** | `i18n.rs` fallback, tray menu update, dynamic route title resolution in sidebar and TopBar tray upon locale change. | **VERIFIED** |
 | **Reference Preservation** | `apps/desktop` has zero modified, added, or deleted files (`git diff apps/desktop` is empty). | **VERIFIED** |
 

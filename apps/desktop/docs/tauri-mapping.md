@@ -34,6 +34,8 @@ BBeBee Desktop runs on Tauri v2. In accordance with the Cordis kernel architectu
 |  - Power & Suspend Monitoring (Win32 / Cocoa / D-Bus zbus)               |
 |  - Screen Geometry & Cursor Tracking (clamping, hover pills)             |
 |  - Sidecar Process Supervisor (Stdio JSON-RPC Manager)                  |
+|  - FFmpeg Transcoding (transcode.rs, desktop_audio_transcode[_cancel])   |
+|  - Audio Engine Supervisor (audio.rs, staged: 11 audio_engine_* cmds)   |
 +------------------------------------+-------------------------------------+
                                      |
                        Stdio JSON-RPC (Framed NDJSON)
@@ -45,8 +47,7 @@ BBeBee Desktop runs on Tauri v2. In accordance with the Cordis kernel architectu
 |  - SQLite Database Operations & Schema Migrations                        |
 |  - File System Operations with Path Containment & Whitelisting           |
 |  - HTTP Outbound Engine (CORS-free, custom Cookie/Referer handling)      |
-|  - Native Audio Engine Subprocess Supervisor (MPV & WASAPI / ALSA / CA)  |
-|  - FFmpeg Audio Transcoding & Conversion (child_process spawn)           |
+|  - Audio Engine Supervisor (live playback path; Rust port staged)        |
 +--------------------------------------------------------------------------+
 ```
 
@@ -60,31 +61,31 @@ Every reference across `apps/desktop/renderer` and related Layer 2 / Layer 4 / L
 
 | File Path | Line(s) | Symbol Referenced | Purpose / Context |
 |---|---|---|---|
-| `apps/desktop/renderer/boot.ts` | 210 | `window.BBeBee?.isDebug` | Check debug flag during boot initialization |
-| `apps/desktop/renderer/boot.ts` | 219 | `window.BBeBee?.platform` | Fallback platform detection (`process.platform`) |
-| `apps/desktop/renderer/boot.ts` | 650 | `window.BBeBeeBridge` | Verify bridge presence before mounting core services |
-| `apps/desktop/renderer/boot.ts` | 708 | `window.BBeBeeBridge?.call('fs', 'readFile', [storeUri])` | Bootstrap read of persistent app config store file |
-| `apps/desktop/renderer/boot.ts` | 825 | `window.BBeBeeBridge?.call` | Injected as `bridgeCall` into `core-audio-mpv` |
-| `apps/desktop/renderer/boot.ts` | 878 | `window.BBeBee?.window?.setCloseToTray` | Synchronize close-to-tray preference to window host |
-| `apps/desktop/renderer/boot.ts` | 881 | `window.BBeBee?.proxy?.set` | Apply network proxy configuration to host session |
+| `apps/desktop/renderer/boot.ts` | 74 | `window.BBeBee?.isDebug` | Debug flag read inside `isDebug()` during boot initialization |
+| `apps/desktop/renderer/boot.ts` | 80 | `window.BBeBee?.platform` | Desktop host platform, normalized to `macos` / `windows` / `linux` |
+| `apps/desktop/renderer/boot.ts` | 433 | `window.BBeBeeBridge` | Grab bridge handle before mounting core services |
+| `apps/desktop/renderer/boot.ts` | 472 | `window.BBeBeeBridge?.call('fs', 'readFile', [storeUri])` | Bootstrap read of persistent app config store file |
+| `apps/desktop/renderer/boot.ts` | 562 | `window.BBeBeeBridge?.call` | Injected as `bridgeCall` into `core-audio-mpv` |
+| `apps/desktop/renderer/boot.ts` | 593 | `window.BBeBee?.window?.setCloseToTray` | Synchronize close-to-tray preference to window host |
+| `apps/desktop/renderer/boot.ts` | 596 | `window.BBeBee?.proxy?.set` | Apply network proxy configuration to host session |
 | `apps/desktop/renderer/main.tsx` | 120 | `window.BBeBee?.locale?.notify` | Push resolved interface locale to host for ctx-less windows |
 | `apps/desktop/renderer/TopBar.tsx` | 1004 | `window.BBeBee?.window?.isMaximized` | Query initial window maximize state |
 | `apps/desktop/renderer/TopBar.tsx` | 1010 | `window.BBeBee?.window?.minimize` | Minimize window button action |
 | `apps/desktop/renderer/TopBar.tsx` | 1014 | `window.BBeBee?.window?.maximize` | Toggle maximize / unmaximize window button action |
 | `apps/desktop/renderer/TopBar.tsx` | 1020 | `window.BBeBee?.window?.close` | Window close button action |
-| `apps/desktop/renderer/DesktopLyricsWindow.tsx` | 48, 54 | `window.BBeBee?.desktopLyrics?.getPosition` | Read initial window coordinates on pointer down drag |
+| `apps/desktop/renderer/DesktopLyricsWindow.tsx` | 49, 54 | `window.BBeBee?.desktopLyrics?.getPosition` | Read initial window coordinates on pointer down drag |
 | `apps/desktop/renderer/DesktopLyricsWindow.tsx` | 69, 71, 88 | `window.BBeBee?.desktopLyrics?.setPosition` | Move floating window during drag gesture |
 | `apps/desktop/renderer/DesktopLyricsWindow.tsx` | 92 | `window.BBeBee?.desktopLyrics?.commitPosition` | Report final dragged position for persistence |
-| `apps/desktop/renderer/DesktopLyricsWindow.tsx` | 99, 103 | `window.BBeBee?.desktopLyrics?.getData` | Fetch initial lyrics payload on mount |
+| `apps/desktop/renderer/DesktopLyricsWindow.tsx` | 103 | `window.BBeBee?.desktopLyrics?.getData` | Fetch initial lyrics payload on mount |
 | `apps/desktop/renderer/DesktopLyricsWindow.tsx` | 110 | `window.BBeBee?.desktopLyrics?.onData` | Subscribe to realtime lyrics push from player |
 | `apps/desktop/renderer/DesktopLyricsWindow.tsx` | 121 | `window.BBeBee?.desktopLyrics?.sendAction` | Dispatch controls (play, prev, next, lock, font) to main window |
-| `apps/desktop/renderer/DesktopLyricsWindow.tsx` | 154, 164 | `window.BBeBee?.desktopLyrics?.onCursor` | Subscribe to polled OS cursor position while click-through |
-| `apps/desktop/renderer/DesktopLyricsWindow.tsx` | 180 | `window.BBeBee?.desktopLyrics?.setIgnoreMouse` | Toggle mouse passthrough over unlock pill hotspot |
-| `apps/desktop/renderer/drop-import.ts` | 121 | `window.BBeBee?.files?.getPath(file)` | Extract native filesystem path from dropped `File` objects |
-| `apps/desktop/renderer/dynamic-loader.ts` | 120, 124 | `window.BBeBee?.plugins?.listInstalled` | Enumerate external plugins installed on disk |
-| `apps/desktop/renderer/dynamic-loader.ts` | 125 | `window.BBeBee?.plugins?.getLock` | Read `registry.lock.json` for integrity validation |
-| `apps/desktop/renderer/dynamic-loader.ts` | 199, 219 | `window.BBeBee?.plugins?.install` | Write plugin files into user's installed-plugins directory |
-| `apps/desktop/renderer/dynamic-loader.ts` | 250, 252 | `window.BBeBee?.plugins?.uninstall` | Remove plugin directory from disk after fiber disposal |
+| `apps/desktop/renderer/DesktopLyricsWindow.tsx` | 155, 164 | `window.BBeBee?.desktopLyrics?.onCursor` | Subscribe to polled OS cursor position while click-through |
+| `apps/desktop/renderer/DesktopLyricsWindow.tsx` | 179 | `window.BBeBee?.desktopLyrics?.setIgnoreMouse` | Toggle mouse passthrough over unlock pill hotspot |
+| `apps/desktop/renderer/drop-import.ts` | 161 | `window.BBeBee?.files?.getPath(file)` | Extract native filesystem path from dropped `File` objects (backed by `tauri://drag-drop` payload map) |
+| `apps/desktop/renderer/dynamic-loader.ts` | 120, 124 | `pluginsApi.listInstalled` (`pluginsApi = window.BBeBee?.plugins`) | Enumerate external plugins installed on disk |
+| `apps/desktop/renderer/dynamic-loader.ts` | 125 | `pluginsApi.getLock` | Read `registry.lock.json` for integrity validation |
+| `apps/desktop/renderer/dynamic-loader.ts` | 199, 219 | `pluginsApi.install` | Write plugin files into user's installed-plugins directory |
+| `apps/desktop/renderer/dynamic-loader.ts` | 250, 252 | `pluginsApi.uninstall` | Remove plugin directory from disk after fiber disposal |
 
 ### 2.2 References in Core and Feature Packages
 
@@ -256,6 +257,23 @@ The sidecar enforces strict method allowlists to prevent arbitrary object dispat
 - **system**: `acquireWakeLock`, `releaseWakeLock`, `watchMediaKeys`, `registerHotkey`, `unregisterHotkey`, `publishNowPlaying`, `publishPlaybackState`, `setSupportedCommands`, `clearNowPlaying`.
 - **audio**: `getOutputDevices`, `setOutputDevice`, `mpvLoad`, `mpvAppend`, `mpvPlay`, `mpvPause`, `mpvStop`, `mpvSeek`, `mpvSetVolume`, `mpvSetMuted`, `mpvSetAudioExclusive`, `mpvSetDspConfig`, `mpvSetVisualizer`, `mpvGetFftFrame`, `mpvGetState`, `mpvGetAudioDevices`, `mpvEngineStatus`, `mpvSetStreamPlayback`.
 
+> **Note — Rust audio migration (staged, not yet on the live path):** a parallel Rust-native audio
+> surface exists in `src-tauri/src/audio.rs` (`AudioEngineSupervisor`, NDJSON JSON-RPC over the
+> engine subprocess stdio). It is instantiated at startup (`main.rs`), held in `AppState`
+> (`get_audio_engine` / `set_audio_engine`), exposes 11 registered Tauri commands
+> (`audio_engine_start`, `audio_engine_stop`, `audio_engine_load`, `audio_engine_play`,
+> `audio_engine_pause`, `audio_engine_stop_playback`, `audio_engine_seek`, `audio_engine_set_volume`,
+> `audio_engine_set_muted`, `audio_engine_set_dsp`, `audio_engine_status`), and forwards engine
+> events (`audio:state`, crash) to the frontend. It currently has **no renderer callers** — live
+> playback still travels `BBeBeeBridge.call('audio', …)` → Rust `bridge_call` → Node sidecar
+> `audioHost` (`sidecar/audio/audio-engine-supervisor.ts`).
+>
+> FFmpeg transcoding, by contrast, has **fully migrated to Rust** (`src-tauri/src/transcode.rs`):
+> both shims route `window.BBeBee.audio.transcode` / `cancelTranscode` to the
+> `desktop_audio_transcode` / `desktop_audio_transcode_cancel` commands, with progress streamed on
+> the `audio:transcode-progress` Tauri event. The sidecar's legacy `audio:transcode` handler is no
+> longer reachable from the renderer.
+
 ---
 
 ## 6. Architectural Decisions Record (D1 - D5)
@@ -293,6 +311,13 @@ Tauri v2 eliminates webPreferences sandbox escape risks by design. Custom URI pr
    - Registered via `app.register_uri_scheme_protocol("bbebee-file", ...)`.
    - Handles streaming of local audio files and artwork with HTTP 206 Partial Content byte-range support.
    - Enforces file containment against allowed application directories and `extraRoots`.
+   - **Serving-URL forms are platform-specific** (the frontend must emit the right form; Rust
+     `to_native_path` in `protocols.rs` strips the `//localhost/` prefix):
+     - Linux (WebKitGTK, wry 0.57): `bbebee-file://localhost/<path>` — wry does not dispatch the
+       empty-host form to the registered protocol handler.
+     - Windows (WebView2): `http://bbebee-file.localhost/<path>` — wry's custom-protocol
+       workaround, served over HTTP.
+     - macOS (WKWebView): `bbebee-file:///<path>` (identity) — custom schemes are served natively.
 
 2. **`bbebee-plugin://`**:
    - Resolves external plugins from `{appData}/installed-plugins/{pluginId}/{subPath}`.
