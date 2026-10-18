@@ -25,7 +25,6 @@ import {
 } from '@BBeBee/core-desktop-bridge/main'
 import { CH } from '@BBeBee/core-desktop-bridge/protocol'
 import { createAudioHost, type AudioHostApi } from './audio/index.js'
-import { TranscodeManager, type TranscodeOptions } from './transcode.js'
 import { ProtocolManager } from './protocols.js'
 import type { JsonRpcNotification, JsonRpcRequest, JsonRpcResponse } from './types.js'
 
@@ -87,7 +86,6 @@ export interface SidecarContext {
   host: Host
   ipc: IpcHost
   audioHost: AudioHostApi
-  transcodeManager: TranscodeManager
   protocolManager: ProtocolManager
   handlers: Map<string, (event: unknown, ...args: unknown[]) => unknown>
   shutdown: () => Promise<void>
@@ -154,7 +152,6 @@ export async function createSidecar(): Promise<SidecarContext> {
   }
 
   const audioHost = createAudioHost(audioLogger)
-  const transcodeManager = new TranscodeManager()
   const userDataDir = resolveSystemPath('userData')
   const protocolManager = new ProtocolManager(() => join(userDataDir, 'installed-plugins'))
 
@@ -258,20 +255,6 @@ export async function createSidecar(): Promise<SidecarContext> {
   })
 
   // Wire extra sidecar channels
-  ipc.handle('audio:transcode', async (_event, opts: TranscodeOptions) => {
-    return transcodeManager.transcode(
-      opts,
-      (progress) => {
-        ipc.broadcast?.('audio:transcode-progress', progress)
-      },
-      (path) => host.addExtraRoot?.(path),
-    )
-  })
-
-  ipc.handle('audio:transcode-cancel', async (_event, jobId: string) => {
-    return transcodeManager.cancelTranscode(jobId)
-  })
-
   ipc.handle('paths:get', async (_event, kind: string) => {
     return resolveSystemPath(kind)
   })
@@ -482,7 +465,6 @@ export async function createSidecar(): Promise<SidecarContext> {
     host,
     ipc,
     audioHost,
-    transcodeManager,
     protocolManager,
     handlers,
     shutdown,

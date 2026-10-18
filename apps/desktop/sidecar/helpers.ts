@@ -1,34 +1,4 @@
-import { existsSync } from 'node:fs'
-import { join, dirname, extname } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import process from 'node:process'
-
-const here = dirname(fileURLToPath(import.meta.url))
-
-export function findFfmpegPath(): string {
-  if (process.env['FFMPEG_PATH'] && existsSync(process.env['FFMPEG_PATH'])) {
-    return process.env['FFMPEG_PATH']
-  }
-  const isWin = process.platform === 'win32'
-  const binaryName = isWin ? 'ffmpeg.exe' : 'ffmpeg'
-  const resourcesPath = (process as unknown as { resourcesPath?: string }).resourcesPath
-  const candidates = [
-    resourcesPath ? join(resourcesPath, 'bin', binaryName) : '',
-    resourcesPath ? join(resourcesPath, binaryName) : '',
-    join(here, '..', 'bin', binaryName),
-    join(here, '..', '..', 'bin', binaryName),
-    join(process.cwd(), 'target', 'debug', 'bin', binaryName),
-    join(process.cwd(), 'target', 'release', 'bin', binaryName),
-    join(process.cwd(), 'src-tauri', 'target', 'debug', 'bin', binaryName),
-    join(process.cwd(), 'apps', 'desktop', 'bin', binaryName),
-    join(process.cwd(), '..', 'bin', binaryName),
-    join(process.cwd(), 'bin', binaryName),
-  ]
-  for (const c of candidates) {
-    if (c && existsSync(c)) return c
-  }
-  return binaryName
-}
+import { extname } from 'node:path'
 
 export function buildProxyRules(config: { protocol?: string; host?: string; port?: number }): string {
   if (!config?.host || !config?.port) return ''

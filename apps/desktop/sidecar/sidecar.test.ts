@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { unwrapBridgeResult } from '@BBeBee/core-desktop-bridge/protocol'
 import { AudioEngineSupervisor, loadTimeoutMs } from './audio/audio-engine-supervisor.js'
-import { findFfmpegPath, getFileMimeType, parseByteRange } from './helpers.js'
+import { getFileMimeType, parseByteRange } from './helpers.js'
 import { toNativePath } from './fs-path.js'
 
 const testDir = join(tmpdir(), `bbebee-sidecar-test-${Date.now()}`)
@@ -195,9 +195,4 @@ describe('Sidecar Pure Helpers Tests', () => {
     expect(parseByteRange('invalid', 1000)).toBeUndefined()
   })
 
-  it('resolves findFfmpegPath to a valid executable string', () => {
-    const ffmpeg = findFfmpegPath()
-    expect(typeof ffmpeg).toBe('string')
-    expect(ffmpeg.length).toBeGreaterThan(0)
-  })
 })
