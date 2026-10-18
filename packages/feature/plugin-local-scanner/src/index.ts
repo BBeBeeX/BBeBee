@@ -153,11 +153,21 @@ const EMPTY_SUMMARY: ScanSummary = { added: 0, updated: 0, removed: 0, errors: 0
 
 /**
  * Debug timing for slow scans (`BBEBEE_SCAN_TIMING=1`, see `Scanner.timing`).
- * Read once at module load — and guarded, because this plugin also loads in
- * renderers where `process` does not exist.
+ * Checked lazily at scan time, not at module load: this plugin also runs in
+ * renderers (e.g. the desktop webview) where `process` does not exist, so a
+ * module-load `process.env` read is permanently false there. In a renderer
+ * the flag can be flipped at runtime instead:
+ * `localStorage.setItem('BBEBEE_SCAN_TIMING', '1')`.
  */
-const SCAN_TIMING =
-  typeof process !== 'undefined' && process.env.BBEBEE_SCAN_TIMING === '1'
+function scanTimingEnabled(): boolean {
+  if (typeof process !== 'undefined' && process.env.BBEBEE_SCAN_TIMING === '1') return true
+  try {
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('BBEBEE_SCAN_TIMING') === '1') return true
+  } catch {
+    // Storage unavailable (private mode, non-DOM runtime) — flag stays off.
+  }
+  return false
+}
 
 export class Scanner extends Service implements ScannerService {
   static inject = ['fs', 'db', 'codec', 'paths']
@@ -757,7 +767,7 @@ export class Scanner extends Service implements ScannerService {
     // Debug timing (BBEBEE_SCAN_TIMING=1): split the per-file cost into the
     // codec read vs the artwork cache write, so a slow scan can be blamed
     // on the right stage instead of guessed at.
-    const time = SCAN_TIMING ? performance.now() : 0
+    const time = scanTimingEnabled() ? performance.now() : 0
     try {
       // Prefer the single-parse path when the codec service offers it;
       // otherwise fall back to metadata + artwork (two parses).
@@ -831,7 +841,7 @@ export class Scanner extends Service implements ScannerService {
     // Debug timing (BBEBEE_SCAN_TIMING=1): per-batch breakdown, logged once
     // per batch so a slow scan points at tag reads vs artwork writes vs the
     // DB transaction instead of all three being suspects.
-    const timeBatch = SCAN_TIMING
+    const timeBatch = scanTimingEnabled()
     if (timeBatch) this.timing = { readMs: 0, artMs: 0, dbMs: 0, files: 0 }
 
     // Reading tags is I/O and must not hold the write lock, so it happens
