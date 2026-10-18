@@ -1,8 +1,18 @@
-//! Tauri command handlers for Window management, Desktop Lyrics, Mini Player, and Locale.
+//! Tauri command handlers.
+//!
+//! This module exposes the host API to the renderer via Tauri's IPC.
+//! All commands follow these conventions:
+//!
+//! - Public signature returns `Result<T, String>` (Tauri requirement).
+//! - Internal logic uses `crate::error::HostResult` for unified errors.
+//! - Convert at the boundary with `.map_err(|e| e.to_string())`.
+//! - Log with `eprintln!("[cmd:<name>] ...")` prefix for grepability.
+//! - Never panic: all fallible ops return `Result`.
 
 use std::sync::atomic::Ordering;
 use tauri::{Emitter, Manager};
 
+use crate::error::{HostError, HostResult};
 use crate::lyrics_manager::{
     clamp_to_visible_screen, get_or_create_lyric_window, set_lyric_window_position,
     start_lyric_cursor_tracking, DEFAULT_LYRIC_HEIGHT, DEFAULT_LYRIC_WIDTH,
@@ -15,13 +25,24 @@ use crate::state::{AppState, MiniPlayerOpenOptions, MiniPlayerServiceState, Posi
 use crate::tray::{toggle_main_window, update_tray_menu};
 use crate::window_policy::{should_hide_on_close, CloseContext};
 
+/// Convert a `HostError` to the `String` that Tauri commands return.
+///
+/// Keeps the `[code] message` format so the renderer can parse it if needed.
+fn host_err(e: HostError) -> String {
+    e.to_string()
+}
+
 // =============================================================================
 // Window Commands
 // =============================================================================
 
 #[tauri::command]
 pub fn window_minimize(window: tauri::WebviewWindow) -> Result<(), String> {
-    window.minimize().map_err(|e| e.to_string())
+    window.minimize().map_err(|e| {
+        let err = HostError::internal(format!("minimize failed: {e}"));
+        eprintln!("[cmd:window_minimize] {err}");
+        host_err(err)
+    })
 }
 
 #[tauri::command]
@@ -31,11 +52,17 @@ pub fn desktop_window_minimize(window: tauri::WebviewWindow) -> Result<(), Strin
 
 #[tauri::command]
 pub fn window_maximize(window: tauri::WebviewWindow) -> Result<(), String> {
-    if window.is_maximized().unwrap_or(false) {
-        window.unmaximize().map_err(|e| e.to_string())
+    let is_max = window.is_maximized().unwrap_or(false);
+    let result = if is_max {
+        window.unmaximize()
     } else {
-        window.maximize().map_err(|e| e.to_string())
-    }
+        window.maximize()
+    };
+    result.map_err(|e| {
+        let err = HostError::internal(format!("maximize toggle failed: {e}"));
+        eprintln!("[cmd:window_maximize] {err}");
+        host_err(err)
+    })
 }
 
 #[tauri::command]
