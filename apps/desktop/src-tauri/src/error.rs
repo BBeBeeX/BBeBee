@@ -84,3 +84,12 @@ impl From<serde_json::Error> for HostError {
 
 /// Shorthand for host Results.
 pub type HostResult<T> = Result<T, HostError>;
+
+/// Lock a `Mutex`, recovering from poisoning.
+///
+/// A poisoned mutex means another thread panicked while holding it.
+/// For the desktop host, we prefer to recover with the last-known value
+/// rather than propagate the panic.
+pub fn lock_recover<T>(m: &std::sync::Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    m.lock().unwrap_or_else(|e| e.into_inner())
+}

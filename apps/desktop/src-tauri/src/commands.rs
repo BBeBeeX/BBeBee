@@ -12,7 +12,7 @@
 use std::sync::atomic::Ordering;
 use tauri::{Emitter, Manager};
 
-use crate::error::{HostError, HostResult};
+use crate::error::{lock_recover, HostError, HostResult};
 use crate::lyrics_manager::{
     clamp_to_visible_screen, get_or_create_lyric_window, set_lyric_window_position,
     start_lyric_cursor_tracking, DEFAULT_LYRIC_HEIGHT, DEFAULT_LYRIC_WIDTH,
@@ -172,7 +172,7 @@ pub fn desktop_lyrics_set_visible(
             let _ = set_lyric_window_position(&app, &win, &state, clamped.x, clamped.y);
         }
         let _ = win.show();
-        if let Some(data) = state.latest_lyric_data.lock().unwrap().as_ref() {
+        if let Some(data) = lock_recover(&state.latest_lyric_data).as_ref() {
             let _ = win.emit("desktop-lyrics:data", data);
         }
     } else if let Some(win) = app.get_webview_window("desktop-lyrics") {
@@ -231,7 +231,7 @@ pub fn desktop_lyrics_commit_position(
 pub fn desktop_lyrics_get_data(
     state: tauri::State<AppState>,
 ) -> Result<Option<serde_json::Value>, String> {
-    Ok(state.latest_lyric_data.lock().unwrap().clone())
+    Ok(lock_recover(&state.latest_lyric_data).clone())
 }
 
 #[tauri::command]
@@ -267,7 +267,7 @@ pub fn desktop_lyrics_update_data(
     state: tauri::State<AppState>,
     data: serde_json::Value,
 ) -> Result<(), String> {
-    *state.latest_lyric_data.lock().unwrap() = Some(data.clone());
+    *lock_recover(&state.latest_lyric_data) = Some(data.clone());
     if let Some(win) = app.get_webview_window("desktop-lyrics") {
         let _ = win.emit("desktop-lyrics:data", data);
     }
@@ -297,17 +297,17 @@ pub fn mini_player_open(
 ) -> Result<(), String> {
     if let Some(opts) = options {
         if let Some(m) = opts.mode {
-            *state.mini_player_mode.lock().unwrap() = m;
+            *lock_recover(&state.mini_player_mode) = m;
         }
     }
 
-    let mode = state.mini_player_mode.lock().unwrap().clone();
+    let mode = lock_recover(&state.mini_player_mode).clone();
     let win = get_or_create_mini_player_window(&app, &state)?;
     apply_mode_bounds(&app, &state, &mode)?;
     let _ = win.show();
     let _ = win.set_focus();
 
-    if let Some(data) = state.latest_mini_player_data.lock().unwrap().as_ref() {
+    if let Some(data) = lock_recover(&state.latest_mini_player_data).as_ref() {
         let _ = win.emit("mini-player:data", data);
     }
     notify_mini_player_state(&app, &state);
@@ -336,7 +336,7 @@ pub fn mini_player_close(
     if let Some(win) = app.get_webview_window("mini-player") {
         let _ = win.hide();
     }
-    *state.mini_player_window_state.lock().unwrap() = "hidden".to_string();
+    *lock_recover(&state.mini_player_window_state) = "hidden".to_string();
     notify_mini_player_state(&app, &state);
 
     if let Some(main) = app.get_webview_window("main") {
@@ -376,7 +376,7 @@ pub fn mini_player_set_mode(
     state: tauri::State<AppState>,
     mode: String,
 ) -> Result<(), String> {
-    *state.mini_player_mode.lock().unwrap() = mode.clone();
+    *lock_recover(&state.mini_player_mode) = mode.clone();
     apply_mode_bounds(&app, &state, &mode)?;
     notify_mini_player_state(&app, &state);
     Ok(())
@@ -411,7 +411,7 @@ pub fn desktop_mini_player_get_state(
 pub fn mini_player_get_data(
     state: tauri::State<AppState>,
 ) -> Result<Option<serde_json::Value>, String> {
-    Ok(state.latest_mini_player_data.lock().unwrap().clone())
+    Ok(lock_recover(&state.latest_mini_player_data).clone())
 }
 
 #[tauri::command]
@@ -427,7 +427,7 @@ pub fn mini_player_update_data(
     state: tauri::State<AppState>,
     data: serde_json::Value,
 ) -> Result<(), String> {
-    *state.latest_mini_player_data.lock().unwrap() = Some(data.clone());
+    *lock_recover(&state.latest_mini_player_data) = Some(data.clone());
     if let Some(win) = app.get_webview_window("mini-player") {
         let _ = win.emit("mini-player:data", data);
     }
@@ -525,7 +525,7 @@ pub fn taskbar_update(
     state: tauri::State<AppState>,
     taskbar: TaskbarState,
 ) -> Result<(), String> {
-    *state.taskbar_state.lock().unwrap() = taskbar;
+    *lock_recover(&state.taskbar_state) = taskbar;
     let _ = update_tray_menu(&app, &state);
     Ok(())
 }
