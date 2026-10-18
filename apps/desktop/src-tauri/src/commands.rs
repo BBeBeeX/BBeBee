@@ -1384,6 +1384,30 @@ pub fn desktop_system_emit_event(
     system_emit_event(app, event)
 }
 
+// =============================================================================
+// Console Forwarding
+// =============================================================================
+
+/// Forward a browser console message to the Rust log output.
+///
+/// The webview's `console` is otherwise invisible in the terminal running
+/// `tauri dev` — resource errors like `ERR_UNKNOWN_URL_SCHEME` never reach
+/// the Rust logs. The preload shim patches `console.error`/`console.warn`
+/// and `window.onerror` to call this, so frontend failures show up alongside
+/// backend logs with a `[console]` prefix.
+#[tauri::command]
+pub fn console_forward(level: String, message: String) -> Result<(), String> {
+    // Route through eprintln so it lands in the same stream as the other
+    // Rust diagnostics when running `tauri dev`.
+    eprintln!("[console][{}] {}", level, message);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn desktop_console_forward(level: String, message: String) -> Result<(), String> {
+    console_forward(level, message)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

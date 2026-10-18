@@ -273,6 +273,9 @@ fn main() {
             desktop_system_power_save_blocker,
             system_emit_event,
             desktop_system_emit_event,
+            // Console forwarding (browser console -> Rust logs)
+            console_forward,
+            desktop_console_forward,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -18,7 +18,7 @@ export function toServableFileUrl(uri: string | undefined): string | undefined {
   if (!uri) return uri
   try {
     const exposed = globalThis as unknown as {
-      window?: { BBeBee?: { files?: { toServableUrl?: unknown } } }
+      window?: { BBeBee?: { files?: { toServableUrl?: unknown } }; navigator?: { userAgent?: string } }
       BBeBee?: { files?: { toServableUrl?: unknown } }
       navigator?: { userAgent?: string }
     }

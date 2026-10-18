@@ -666,10 +666,82 @@ export function createBridgeApi(
   return deepFreeze(bridge)
 }
 
+/**
+ * Forward browser console output to the Rust logs.
+ *
+ * Mirrors the IIFE at the top of `src-tauri/src/shim.js`: patches
+ * `console.error`/`console.warn` and listens for resource `error` events,
+ * forwarding them via the `desktop_console_forward` Tauri command so they
+ * appear in the terminal running `tauri dev` with a `[console]` prefix.
+ *
+ * Best-effort: never throws, never breaks the app if the Tauri IPC layer
+ * is unavailable (plain browser, tests).
+ */
+export function forwardConsoleToRust(): void {
+  try {
+    if (typeof window === 'undefined') return
+    const w = window as unknown as {
+      __TAURI_INTERNALS__?: { invoke?: (cmd: string, args: unknown) => Promise<unknown> }
+      __TAURI__?: { core?: { invoke?: (cmd: string, args: unknown) => Promise<unknown> } }
+    }
+    const send = (level: string, args: unknown[]): void => {
+      try {
+        const message = args
+          .map((a) => {
+            try {
+              return typeof a === 'string' ? a : JSON.stringify(a)
+            } catch {
+              return String(a)
+            }
+          })
+          .join(' ')
+          .slice(0, 2000)
+        const invoke =
+          w.__TAURI_INTERNALS__?.invoke ?? w.__TAURI__?.core?.invoke
+        if (typeof invoke === 'function') {
+          void invoke('desktop_console_forward', { level, message })
+        }
+      } catch {
+        // Never break the app because logging failed.
+      }
+    }
+
+    const origError = console.error.bind(console)
+    const origWarn = console.warn.bind(console)
+    console.error = (...args: unknown[]) => {
+      send('error', args)
+      origError(...args)
+    }
+    console.warn = (...args: unknown[]) => {
+      send('warn', args)
+      origWarn(...args)
+    }
+    window.addEventListener(
+      'error',
+      (e) => {
+        const target = e.target as HTMLElement | null
+        if (target && target !== (window as unknown as HTMLElement)) {
+          const el = target as HTMLImageElement
+          send('error', [
+            `Resource failed to load: ${target.tagName} src="${el.src || (target as HTMLLinkElement).href || ''}"`,
+          ])
+        } else if (e.message) {
+          send('error', [e.message])
+        }
+      },
+      true,
+    )
+  } catch {
+    // Console patching is best-effort.
+  }
+}
+
 export function installPreloadShim(
   target: any = typeof window !== 'undefined' ? window : undefined,
 ): { api: BBeBeeApi; bridge: BBeBeeBridgeApi } | undefined {
   if (!target) return undefined
+  // Forward console output to Rust logs before anything else runs.
+  forwardConsoleToRust()
   if (!target.BBeBee) {
     target.BBeBee = createPreloadApi()
   }

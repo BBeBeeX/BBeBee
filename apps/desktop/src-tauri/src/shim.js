@@ -12,6 +12,83 @@
   if (typeof window === 'undefined') return;
   if (window.BBeBee && window.BBeBeeBridge) return;
 
+  // Forward browser console output to the Rust logs so frontend failures
+  // (e.g. resource errors like ERR_UNKNOWN_URL_SCHEME) show up in the
+  // terminal running `tauri dev`, not just in the webview devtools.
+  // This runs before anything else so even early boot errors are captured.
+  (function forwardConsole() {
+    function send(level, args) {
+      try {
+        var message = Array.prototype.map
+          .call(args, function (a) {
+            try {
+              return typeof a === 'string' ? a : JSON.stringify(a);
+            } catch (_) {
+              return String(a);
+            }
+          })
+          .join(' ');
+        // Truncate very long messages (e.g. huge objects).
+        if (message.length > 2000) message = message.slice(0, 2000) + '…';
+        if (
+          window.__TAURI_INTERNALS__ &&
+          typeof window.__TAURI_INTERNALS__.invoke === 'function'
+        ) {
+          window.__TAURI_INTERNALS__.invoke('desktop_console_forward', {
+            level: level,
+            message: message,
+          });
+        } else if (
+          window.__TAURI__ &&
+          window.__TAURI__.core &&
+          typeof window.__TAURI__.core.invoke === 'function'
+        ) {
+          window.__TAURI__.core.invoke('desktop_console_forward', {
+            level: level,
+            message: message,
+          });
+        }
+      } catch (_) {
+        // Never break the app because logging failed.
+      }
+    }
+
+    try {
+      var origError = console.error.bind(console);
+      var origWarn = console.warn.bind(console);
+      console.error = function () {
+        send('error', arguments);
+        return origError.apply(null, arguments);
+      };
+      console.warn = function () {
+        send('warn', arguments);
+        return origWarn.apply(null, arguments);
+      };
+      // Resource loading errors (e.g. <img> failing with
+      // ERR_UNKNOWN_URL_SCHEME) don't go through console.error — they fire
+      // a window 'error' event with the target element.
+      window.addEventListener(
+        'error',
+        function (e) {
+          var target = e.target;
+          if (target && target !== window) {
+            var desc =
+              target.tagName +
+              ' src="' +
+              (target.src || target.href || '') +
+              '"';
+            send('error', ['Resource failed to load: ' + desc]);
+          } else if (e.message) {
+            send('error', [e.message]);
+          }
+        },
+        true,
+      );
+    } catch (_) {
+      // Console patching is best-effort.
+    }
+  })();
+
   function invoke(cmd, args) {
     if (window.__TAURI_INTERNALS__ && typeof window.__TAURI_INTERNALS__.invoke === 'function') {
       return window.__TAURI_INTERNALS__.invoke(cmd, args);
