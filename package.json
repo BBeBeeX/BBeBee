@@ -25,6 +25,7 @@
     "dev:mobile": "pnpm --filter @BBeBee/mobile start",
     "dev:android": "pnpm --filter @BBeBee/mobile android",
     "build:desktop": "pnpm --filter @BBeBee/desktop build",
+    "build:desktop:rust": "cargo build --manifest-path apps/desktop/src-tauri/Cargo.toml",
     "package:desktop": "pnpm --filter @BBeBee/desktop package",
     "dist:desktop": "pnpm --filter @BBeBee/desktop dist",
     "gen:plugins": "node --experimental-strip-types packages/tooling/tooling-gen-plugins/src/cli.ts",
