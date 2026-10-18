@@ -1,34 +1,34 @@
 /**
  * Turning an OS drag into catalogue rows.
  *
- * The gesture lives here, at the app surface, rather than inside a plugin
- * view: a drop has to work over every screen, and plugins see neither the
- * `dataTransfer` nor `window.BBeBee`. It is wiring, not business logic — the
- * importer only routes: a dropped *directory* takes the existing folder path
- * (`addSpecifiedDir` + scan, so it is watched and reconciled like any other),
- * files take `ctx.scanner.importFiles`, which imports them once without
- * turning their folder into a scan dir.
+ * The gesture lives at the app surface (not in a plugin view): a drop must
+ * work over every screen, and plugins see neither `dataTransfer` nor
+ * `window.BBeBee`.
+ *
+ * Routing:
+ * - Dropped **directories** → `scanner.addSpecifiedDir` + background scan
+ *   (watched and reconciled like any other folder).
+ * - Dropped **files** → `scanner.importFiles` (one-shot, no scan dir).
+ *
+ * Never throws: every failure lands in `result.failed` so the shell can
+ * report one honest sentence about the drop.
  */
 
 import type { Context } from 'cordis'
 import type { DbService, FsService, ScannerService } from '@BBeBee/protocol'
 
 export interface DropImportResult {
-  /** Dropped files that became (or updated) tracks. */
+  /** Files that became (or updated) tracks. */
   imported: number
-  /** Dropped folders added to the scan set. */
+  /** Folders added to the scan set. */
   folders: number
-  /** Dropped items that produced nothing — unreadable, or not audio. */
+  /** Items that produced nothing — unreadable, or not audio. */
   failed: number
   /** Track URNs of imported tracks, if known. */
   importedUrns?: string[]
 }
 
-/**
- * The pre-filter for a drop, mirroring the scanner's own list. Keeping it
- * here means the toast can say "not audio" about a PDF instead of reporting
- * a decode failure; the scanner still re-checks everything it is handed.
- */
+/** Pre-filter mirroring the scanner's list (the scanner re-checks anyway). */
 const AUDIO_EXTENSIONS = new Set([
   'mp3', 'flac', 'm4a', 'aac', 'ogg', 'oga', 'opus', 'wav',
   'aiff', 'aif', 'wma', 'alac', 'ape', 'wv', 'dsf', 'dff', 'm4b',
@@ -41,37 +41,36 @@ function extensionOf(path: string): string {
 }
 
 /**
- * A filesystem path → a `file://` uri, encoded per segment.
+ * OS path → `file://` URI, encoded per segment.
  *
- * `webUtils.getPathForFile` returns a real OS path — unicode, spaces, all of
- * it — and everything downstream (`fs.stat`, the scanner, the bridge's
- * containment check) speaks uris. The drive letter is the one segment that
- * must not be percent-encoded, which is why it is handled before the rest.
+ * The drive letter is the one segment that must not be percent-encoded.
  */
 export function pathToFileUri(path: string): string {
   const normalized = path.replace(/\\/g, '/')
   const drive = /^([a-zA-Z]):(?:\/(.*))?$/.exec(normalized)
   if (drive) {
-    const rest = (drive[2] ?? '').split('/').map((s) => (s ? encodeURIComponent(s) : '')).join('/')
+    const rest = (drive[2] ?? '')
+      .split('/')
+      .map((s) => (s ? encodeURIComponent(s) : ''))
+      .join('/')
     return `file:///${drive[1]!.toUpperCase()}:/${rest}`
   }
-  const body = normalized.split('/').map((s) => (s ? encodeURIComponent(s) : '')).join('/')
+  const body = normalized
+    .split('/')
+    .map((s) => (s ? encodeURIComponent(s) : ''))
+    .join('/')
   return 'file://' + (body.startsWith('/') ? '' : '/') + body
 }
 
-/**
- * Read a service off the context safely without throwing proxy violations on scoped contexts.
- */
+/** Read a service off the context without throwing on scoped contexts. */
 export function serviceOf<T = unknown>(ctx: Context, key: string): T | undefined {
-  return (ctx as unknown as { reflect?: { get(key: string, required: boolean): unknown } }).reflect?.get?.(
-    key,
-    false,
-  ) as T | undefined
+  const reflect = (ctx as unknown as {
+    reflect?: { get(key: string, required: boolean): unknown }
+  }).reflect
+  return reflect?.get?.(key, false) as T | undefined
 }
 
-/**
- * Resolve a service immediately if available, or wait for its arrival via inject.
- */
+/** Resolve a service now, or wait for its arrival (with timeout). */
 export function resolveService<T = unknown>(
   ctx: Context,
   key: string,
@@ -81,64 +80,100 @@ export function resolveService<T = unknown>(
   if (existing) return Promise.resolve(existing)
 
   return new Promise<T | undefined>((resolve) => {
-    let timer: ReturnType<typeof setTimeout> | undefined
     let done = false
-
     const finish = (svc: T | undefined) => {
       if (done) return
       done = true
-      if (timer) clearTimeout(timer)
+      clearTimeout(timer)
       resolve(svc)
     }
 
-    if (timeoutMs > 0) {
-      timer = setTimeout(() => finish(undefined), timeoutMs)
-    }
+    const timer = setTimeout(() => finish(undefined), timeoutMs)
 
     if (typeof ctx.inject !== 'function') {
       finish(undefined)
       return
     }
-
     ctx.inject([key], (scoped) => {
-      finish(serviceOf<T>(scoped, key) ?? ((scoped as unknown as Record<string, unknown>)[key] as T))
+      const svc = serviceOf<T>(scoped, key) ??
+        (scoped as unknown as Record<string, unknown>)[key] as T
+      finish(svc)
     })
   })
 }
 
 /**
- * Import whatever the user dropped onto the window.
+ * Look up track URNs for a set of media URIs.
  *
- * Never throws: every failure mode lands in `failed` so the shell can say
- * one honest sentence about the drop instead of the gesture silently dying.
+ * Used to navigate to the imported tracks after a drop. Failures are
+ * logged and return an empty list — URNs are a convenience, not a
+ * requirement.
  */
-export async function importDroppedFiles(ctx: Context, fileList: FileList): Promise<DropImportResult> {
-  const files = Array.from(fileList)
+async function lookupTrackUrns(
+  ctx: Context,
+  uris: string[],
+  byPrefix: boolean,
+): Promise<string[]> {
+  if (uris.length === 0) return []
+  const db = await resolveService<DbService>(ctx, 'db', 300)
+  if (!db) return []
 
-  // A `File` without a path is not on disk (an in-page drag, a browser
-  // extension artefact) — nothing this app can do with it. Under Tauri the
-  // webview `File` objects carry no path at all (no Electron `file.path`,
-  // no `webUtils.getPathForFile`); the real paths arrive via the
-  // `tauri://drag-drop` window event and enter through `importDroppedPaths`.
-  const paths = files.map((file) => window.BBeBee?.files?.getPath(file) ?? '')
+  try {
+    let rows: { track_urn: string }[]
+    if (byPrefix) {
+      const conditions = uris.map(() => 'uri LIKE ?').join(' OR ')
+      const params = uris.map((u) => (u.endsWith('/') ? `${u}%` : `${u}/%`))
+      rows = await db.query<{ track_urn: string }>(
+        `SELECT track_urn FROM media_bindings WHERE ${conditions}`,
+        params,
+      )
+    } else {
+      const placeholders = uris.map(() => '?').join(', ')
+      rows = await db.query<{ track_urn: string }>(
+        `SELECT track_urn FROM media_bindings WHERE uri IN (${placeholders})`,
+        uris,
+      )
+    }
+    return [...new Set(rows.map((r) => r.track_urn).filter(Boolean))]
+  } catch (err) {
+    ctx.logger?.warn('[drop-import] track URN lookup failed: %s', String(err))
+    return []
+  }
+}
+
+/** Merge URNs into the result, deduplicating. */
+function mergeUrns(result: DropImportResult, urns: string[]): void {
+  if (urns.length === 0) return
+  result.importedUrns = [...new Set([...(result.importedUrns ?? []), ...urns])]
+}
+
+/**
+ * Import files from a `FileList` (HTML5 drop).
+ *
+ * Under Tauri, webview `File` objects carry no path; the real paths arrive
+ * via the `tauri://drag-drop` event and go through `importDroppedPaths`.
+ */
+export async function importDroppedFiles(
+  ctx: Context,
+  fileList: FileList,
+): Promise<DropImportResult> {
+  const paths = Array.from(fileList).map(
+    (file) => window.BBeBee?.files?.getPath(file) ?? '',
+  )
   return importDroppedPaths(ctx, paths)
 }
 
 /**
- * Import whatever the user dropped onto the window, from OS paths.
- *
- * This is the path-based core of `importDroppedFiles`, used directly by the
- * `tauri://drag-drop` listener (the supported Tauri v2 drop channel, whose
- * payload carries real filesystem paths).
- *
- * Never throws: every failure mode lands in `failed` so the shell can say
- * one honest sentence about the drop instead of the gesture silently dying.
+ * Import from OS paths (the `tauri://drag-drop` payload).
  */
-export async function importDroppedPaths(ctx: Context, paths: string[]): Promise<DropImportResult> {
+export async function importDroppedPaths(
+  ctx: Context,
+  paths: string[],
+): Promise<DropImportResult> {
   const result: DropImportResult = { imported: 0, folders: 0, failed: 0 }
-  result.failed += paths.filter((p) => p.length === 0).length
 
   const validPaths = paths.filter((p) => p.length > 0)
+  result.failed += paths.length - validPaths.length
   if (validPaths.length === 0) return result
 
   const [fs, scanner] = await Promise.all([
@@ -147,104 +182,90 @@ export async function importDroppedPaths(ctx: Context, paths: string[]): Promise
   ])
 
   if (!scanner) {
-    ctx.logger?.warn('drop-import: scanner service is not available')
+    ctx.logger?.warn('[drop-import] scanner unavailable, failing %d paths', validPaths.length)
     result.failed += validPaths.length
     return result
   }
 
-  const folderUris: string[] = []
-  const audioUris: string[] = []
-  for (const path of validPaths) {
-    const ext = extensionOf(path)
-    const uri = pathToFileUri(path)
-    if (AUDIO_EXTENSIONS.has(ext)) {
-      audioUris.push(uri)
-      continue
-    }
-    if (fs) {
-      try {
-        const stat = await fs.stat(uri)
-        if (stat.isDirectory) {
-          folderUris.push(uri)
-          continue
-        }
-      } catch {
-        // If outside containment and has no extension, treat as potential folder drop
-        if (!ext) {
-          folderUris.push(uri)
-          continue
-        }
-      }
-    } else if (!ext) {
-      folderUris.push(uri)
-      continue
-    }
-    result.failed++
-  }
+  // Classify into folders vs audio files
+  const { folderUris, audioUris } = await classifyPaths(ctx, fs, validPaths, result)
 
+  // Folders: add + background scan
   for (const uri of folderUris) {
     try {
       const dir = await scanner.addSpecifiedDir(uri)
       result.folders++
-      // Start the scan in background (fire-and-forget). Do NOT wait — the
-      // UI navigates immediately, and LocalMusicScreen reloads on
-      // scan/finished and library/changed events as tracks appear.
-      void scanner.scan({ specifiedDirId: dir.id }).catch((error: unknown) => {
-        ctx.logger?.warn(`drop-import: scan after folder drop failed: ${String(error)}`)
+      // Fire-and-forget: the UI navigates immediately; LocalMusicScreen
+      // reloads on scan/finished and library/changed as tracks appear.
+      void scanner.scan({ specifiedDirId: dir.id }).catch((err: unknown) => {
+        ctx.logger?.warn('[drop-import] background scan failed: %s', String(err))
       })
-    } catch (error) {
-      ctx.logger?.warn(`drop-import: could not add dropped folder ${uri}: ${String(error)}`)
+    } catch (err) {
+      ctx.logger?.warn('[drop-import] addSpecifiedDir failed for %s: %s', uri, String(err))
       result.failed++
     }
   }
+  mergeUrns(result, await lookupTrackUrns(ctx, folderUris, true))
 
-  if (folderUris.length > 0) {
-    const db = await resolveService<DbService>(ctx, 'db', 300)
-    if (db) {
-      try {
-        const folderConditions = folderUris.map(() => 'uri LIKE ?').join(' OR ')
-        const params = folderUris.map((u) => (u.endsWith('/') ? `${u}%` : `${u}/%`))
-        const rows = await db.query<{ track_urn: string }>(
-          `SELECT track_urn FROM media_bindings WHERE ${folderConditions}`,
-          params,
-        )
-        const urns = rows.map((r) => r.track_urn).filter(Boolean)
-        if (urns.length > 0) {
-          result.importedUrns = Array.from(new Set([...(result.importedUrns ?? []), ...urns]))
-        }
-      } catch (dbErr) {
-        ctx.logger?.warn(`drop-import: querying folder track urns failed: ${String(dbErr)}`)
-      }
-    }
-  }
-
+  // Files: one-shot import
   if (audioUris.length > 0) {
     try {
       const summary = await scanner.importFiles(audioUris)
       result.imported = summary.added + summary.updated
       result.failed += summary.errors
-
-      const db = await resolveService<DbService>(ctx, 'db', 300)
-      if (db) {
-        try {
-          const placeholders = audioUris.map(() => '?').join(', ')
-          const rows = await db.query<{ track_urn: string }>(
-            `SELECT track_urn FROM media_bindings WHERE uri IN (${placeholders})`,
-            audioUris,
-          )
-          const urns = rows.map((r) => r.track_urn).filter(Boolean)
-          if (urns.length > 0) {
-            result.importedUrns = Array.from(new Set([...(result.importedUrns ?? []), ...urns]))
-          }
-        } catch (dbErr) {
-          ctx.logger?.warn(`drop-import: querying imported track urns failed: ${String(dbErr)}`)
-        }
-      }
-    } catch (error) {
-      ctx.logger?.warn(`drop-import: importing dropped files failed: ${String(error)}`)
+    } catch (err) {
+      ctx.logger?.warn('[drop-import] importFiles failed: %s', String(err))
       result.failed += audioUris.length
+    }
+    mergeUrns(result, await lookupTrackUrns(ctx, audioUris, false))
+  }
+
+  ctx.logger?.info(
+    '[drop-import] done: %d imported, %d folders, %d failed',
+    result.imported, result.folders, result.failed,
+  )
+  return result
+}
+
+/** Split paths into folder URIs and audio-file URIs. */
+async function classifyPaths(
+  ctx: Context,
+  fs: FsService | undefined,
+  paths: string[],
+  result: DropImportResult,
+): Promise<{ folderUris: string[]; audioUris: string[] }> {
+  const folderUris: string[] = []
+  const audioUris: string[] = []
+
+  for (const path of paths) {
+    const ext = extensionOf(path)
+    const uri = pathToFileUri(path)
+
+    if (AUDIO_EXTENSIONS.has(ext)) {
+      audioUris.push(uri)
+      continue
+    }
+
+    // Not audio by extension — check if it's a directory
+    let isDir = false
+    if (fs) {
+      try {
+        isDir = (await fs.stat(uri)).isDirectory
+      } catch {
+        // Outside containment or unreadable; an extensionless path is
+        // likely a folder drop — let addSpecifiedDir decide.
+        isDir = !ext
+      }
+    } else {
+      isDir = !ext
+    }
+
+    if (isDir) {
+      folderUris.push(uri)
+    } else {
+      result.failed++
     }
   }
 
-  return result
+  return { folderUris, audioUris }
 }

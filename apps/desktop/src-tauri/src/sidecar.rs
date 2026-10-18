@@ -11,6 +11,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
+use crate::error::lock_recover;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, Command};
 use tokio::sync::oneshot;
@@ -244,7 +245,7 @@ impl SidecarManager {
                         if let Some(id_val) = val.get("id") {
                             if !id_val.is_null() {
                                 if let Some(req_id) = id_val.as_u64() {
-                                    let mut map = pending.lock().unwrap();
+                                    let mut map = lock_recover(&pending);
                                     if let Some(tx) = map.remove(&req_id) {
                                         if let Some(err) = val.get("error") {
                                             let msg = err
@@ -333,7 +334,7 @@ impl SidecarManager {
         let (tx, rx) = oneshot::channel();
 
         {
-            let mut map = self.pending.lock().unwrap();
+            let mut map = lock_recover(&self.pending);
             map.insert(req_id, tx);
         }
 
@@ -344,7 +345,7 @@ impl SidecarManager {
             "params": params,
         });
 
-        let line = format!("{}\n", serde_json::to_string(&payload).unwrap());
+        let line = format!("{}\n", payload.to_string());
 
         {
             let mut stdin_guard = self.stdin.lock().await;
@@ -366,7 +367,7 @@ impl SidecarManager {
             Ok(Ok(res)) => res,
             Ok(Err(_)) => Err("Sidecar response channel dropped before reply".to_string()),
             Err(_) => {
-                let mut map = self.pending.lock().unwrap();
+                let mut map = lock_recover(&self.pending);
                 map.remove(&req_id);
                 Err(format!("Sidecar call '{}' timed out after 30 seconds", method))
             }
@@ -385,7 +386,7 @@ impl SidecarManager {
             "params": params,
         });
 
-        let line = format!("{}\n", serde_json::to_string(&payload).unwrap());
+        let line = format!("{}\n", payload.to_string());
 
         let mut stdin_guard = self.stdin.lock().await;
         if let Some(ref mut stdin) = *stdin_guard {
@@ -420,7 +421,7 @@ impl SidecarManager {
         *self.stdin.lock().await = None;
 
         // Drain any pending requests with shutdown error
-        let mut map = self.pending.lock().unwrap();
+        let mut map = lock_recover(&self.pending);
         for (_, tx) in map.drain() {
             let _ = tx.send(Err("Sidecar process terminated".to_string()));
         }

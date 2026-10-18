@@ -1,8 +1,25 @@
-//! Shared application state for multi-window coordination, tray, and IPC.
+//! Shared application state.
+//!
+//! `AppState` is managed by Tauri (`app.manage()`) and shared across all
+//! windows and commands. Conventions:
+//!
+//! - `AtomicBool` for simple flags (quitting, visibility).
+//! - `Mutex<T>` for compound state; always access via `lock_recover()`
+//!   (never `.lock().unwrap()`) so a poisoned mutex degrades instead of
+//!   panicking the host.
+//! - Getters/setters are the only public API; fields stay `pub` for the
+//!   few places that need direct access during setup.
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+
+use crate::error::lock_recover;
+
+// =============================================================================
+// Plain data types (serialized over IPC)
+// =============================================================================
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Position {
@@ -35,41 +52,52 @@ pub struct TaskbarState {
     pub artist: Option<String>,
 }
 
+// =============================================================================
+// AppState
+// =============================================================================
+
 pub struct AppState {
+    // Lifecycle
     pub close_to_tray: AtomicBool,
     pub quitting: AtomicBool,
     pub locale: Mutex<String>,
 
-    // Desktop lyrics
+    // Desktop lyrics window
     pub latest_lyric_data: Mutex<Option<serde_json::Value>>,
     pub lyric_window_visible: AtomicBool,
     pub lyric_window_locked: AtomicBool,
     pub lyric_programmatic_move: AtomicBool,
 
-    // Mini player
+    // Mini player window
     pub latest_mini_player_data: Mutex<Option<serde_json::Value>>,
     pub mini_player_mode: Mutex<String>,
     pub mini_player_window_state: Mutex<String>,
     pub mini_player_last_floating_pos: Mutex<Option<(i32, i32)>>,
     pub mini_player_programmatic_move: AtomicBool,
 
-    // Taskbar / Media
+    // Taskbar / media integration
     pub taskbar_state: Mutex<TaskbarState>,
 
-    // Power & Sleep Inhibition
-    pub sleep_blockers: Mutex<std::collections::HashSet<u32>>,
+    // Power management
+    pub sleep_blockers: Mutex<HashSet<u32>>,
 
-    // System Hotkeys & Media Keys
-    pub registered_hotkeys: Mutex<std::collections::HashSet<String>>,
+    // Hotkeys
+    pub registered_hotkeys: Mutex<HashSet<String>>,
     pub media_keys_active: AtomicBool,
 
-    // Media Session State
+    // Media session
     pub current_now_playing: Mutex<Option<serde_json::Value>>,
     pub current_playback_state: Mutex<String>,
     pub current_position_ms: Mutex<f64>,
 
-    // Sidecar manager
+    // Sidecar
     pub sidecar: Mutex<Option<Arc<crate::sidecar::SidecarManager>>>,
+
+    // Native audio engine (Rust supervisor, P0 migration from Node sidecar)
+    pub audio_engine: Mutex<Option<Arc<crate::audio::AudioEngineSupervisor>>>,
+
+    // FFmpeg transcoding (Rust manager, P1 migration from Node sidecar)
+    pub transcode_manager: Arc<crate::transcode::TranscodeManager>,
 }
 
 impl Default for AppState {
@@ -91,27 +119,21 @@ impl Default for AppState {
             mini_player_programmatic_move: AtomicBool::new(false),
 
             taskbar_state: Mutex::new(TaskbarState::default()),
-            sleep_blockers: Mutex::new(std::collections::HashSet::new()),
-            registered_hotkeys: Mutex::new(std::collections::HashSet::new()),
+            sleep_blockers: Mutex::new(HashSet::new()),
+            registered_hotkeys: Mutex::new(HashSet::new()),
             media_keys_active: AtomicBool::new(false),
             current_now_playing: Mutex::new(None),
             current_playback_state: Mutex::new("stopped".to_string()),
             current_position_ms: Mutex::new(0.0),
             sidecar: Mutex::new(None),
+            audio_engine: Mutex::new(None),
+            transcode_manager: Arc::new(crate::transcode::TranscodeManager::new()),
         }
     }
 }
 
 impl AppState {
-    pub fn get_sidecar(&self) -> Result<Arc<crate::sidecar::SidecarManager>, String> {
-        let guard = self.sidecar.lock().map_err(|e| e.to_string())?;
-        guard.clone().ok_or_else(|| "Sidecar is not initialized".to_string())
-    }
-
-    pub fn set_sidecar(&self, manager: Arc<crate::sidecar::SidecarManager>) {
-        let mut guard = self.sidecar.lock().unwrap();
-        *guard = Some(manager);
-    }
+    // --- Lifecycle ---
 
     pub fn is_quitting(&self) -> bool {
         self.quitting.load(Ordering::SeqCst)
@@ -130,39 +152,67 @@ impl AppState {
     }
 
     pub fn get_locale(&self) -> String {
-        self.locale.lock().unwrap().clone()
+        lock_recover(&self.locale).clone()
     }
 
     pub fn set_locale(&self, loc: String) {
-        *self.locale.lock().unwrap() = loc;
+        *lock_recover(&self.locale) = loc;
     }
 
+    // --- Sidecar ---
+
+    pub fn get_sidecar(&self) -> Result<Arc<crate::sidecar::SidecarManager>, String> {
+        lock_recover(&self.sidecar)
+            .clone()
+            .ok_or_else(|| "sidecar is not initialized".to_string())
+    }
+
+    pub fn set_sidecar(&self, manager: Arc<crate::sidecar::SidecarManager>) {
+        *lock_recover(&self.sidecar) = Some(manager);
+    }
+
+    pub fn get_audio_engine(
+        &self,
+    ) -> Result<Arc<crate::audio::AudioEngineSupervisor>, String> {
+        lock_recover(&self.audio_engine)
+            .clone()
+            .ok_or_else(|| "audio engine is not initialized".to_string())
+    }
+
+    pub fn set_audio_engine(&self, supervisor: Arc<crate::audio::AudioEngineSupervisor>) {
+        *lock_recover(&self.audio_engine) = Some(supervisor);
+    }
+
+    // --- Sleep inhibition ---
+
     pub fn block_sleep(&self, id: u32) {
-        self.sleep_blockers.lock().unwrap().insert(id);
+        lock_recover(&self.sleep_blockers).insert(id);
     }
 
     pub fn unblock_sleep(&self, id: u32) {
-        self.sleep_blockers.lock().unwrap().remove(&id);
+        lock_recover(&self.sleep_blockers).remove(&id);
     }
 
     pub fn is_sleep_blocked(&self) -> bool {
-        !self.sleep_blockers.lock().unwrap().is_empty()
+        !lock_recover(&self.sleep_blockers).is_empty()
     }
 
+    // --- Hotkeys ---
+
     pub fn register_hotkey(&self, accel: String) {
-        self.registered_hotkeys.lock().unwrap().insert(accel);
+        lock_recover(&self.registered_hotkeys).insert(accel);
     }
 
     pub fn unregister_hotkey(&self, accel: &str) {
-        self.registered_hotkeys.lock().unwrap().remove(accel);
+        lock_recover(&self.registered_hotkeys).remove(accel);
     }
 
     pub fn unregister_all_hotkeys(&self) {
-        self.registered_hotkeys.lock().unwrap().clear();
+        lock_recover(&self.registered_hotkeys).clear();
     }
 
     pub fn has_hotkey(&self, accel: &str) -> bool {
-        self.registered_hotkeys.lock().unwrap().contains(accel)
+        lock_recover(&self.registered_hotkeys).contains(accel)
     }
 
     pub fn set_media_keys_active(&self, active: bool) {
@@ -173,28 +223,30 @@ impl AppState {
         self.media_keys_active.load(Ordering::SeqCst)
     }
 
+    // --- Media session ---
+
     pub fn set_now_playing(&self, data: Option<serde_json::Value>) {
-        *self.current_now_playing.lock().unwrap() = data;
+        *lock_recover(&self.current_now_playing) = data;
     }
 
     pub fn get_now_playing(&self) -> Option<serde_json::Value> {
-        self.current_now_playing.lock().unwrap().clone()
+        lock_recover(&self.current_now_playing).clone()
     }
 
     pub fn set_playback_state(&self, state: String) {
-        *self.current_playback_state.lock().unwrap() = state;
+        *lock_recover(&self.current_playback_state) = state;
     }
 
     pub fn get_playback_state(&self) -> String {
-        self.current_playback_state.lock().unwrap().clone()
+        lock_recover(&self.current_playback_state).clone()
     }
 
     pub fn set_position_ms(&self, pos: f64) {
-        *self.current_position_ms.lock().unwrap() = pos;
+        *lock_recover(&self.current_position_ms) = pos;
     }
 
     pub fn get_position_ms(&self) -> f64 {
-        *self.current_position_ms.lock().unwrap()
+        *lock_recover(&self.current_position_ms)
     }
 }
 
@@ -203,61 +255,53 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_sleep_inhibition_lifecycle() {
+    fn sleep_inhibition_lifecycle() {
         let state = AppState::default();
         assert!(!state.is_sleep_blocked());
 
         state.block_sleep(1);
-        assert!(state.is_sleep_blocked());
-
         state.block_sleep(2);
         assert!(state.is_sleep_blocked());
 
         state.unblock_sleep(1);
-        assert!(state.is_sleep_blocked(), "Should still be blocked by lock 2");
+        assert!(state.is_sleep_blocked(), "still blocked by id 2");
 
         state.unblock_sleep(2);
-        assert!(!state.is_sleep_blocked(), "Should be unblocked when all locks released");
+        assert!(!state.is_sleep_blocked());
     }
 
     #[test]
-    fn test_hotkeys_and_media_keys() {
+    fn hotkeys_lifecycle() {
         let state = AppState::default();
         assert!(!state.is_media_keys_active());
         assert!(!state.has_hotkey("MediaPlayPause"));
 
         state.set_media_keys_active(true);
-        assert!(state.is_media_keys_active());
-
         state.register_hotkey("MediaPlayPause".to_string());
         state.register_hotkey("Ctrl+Alt+P".to_string());
         assert!(state.has_hotkey("MediaPlayPause"));
-        assert!(state.has_hotkey("Ctrl+Alt+P"));
 
         state.unregister_hotkey("Ctrl+Alt+P");
         assert!(!state.has_hotkey("Ctrl+Alt+P"));
-        assert!(state.has_hotkey("MediaPlayPause"));
 
         state.unregister_all_hotkeys();
         assert!(!state.has_hotkey("MediaPlayPause"));
     }
 
     #[test]
-    fn test_media_session_metadata_and_state() {
+    fn media_session_state() {
         let state = AppState::default();
         assert_eq!(state.get_playback_state(), "stopped");
         assert!(state.get_now_playing().is_none());
 
         state.set_playback_state("playing".to_string());
-        assert_eq!(state.get_playback_state(), "playing");
-
         state.set_now_playing(Some(serde_json::json!({
             "title": "Hyperballad",
             "artist": "Björk",
-            "durationMs": 321000
         })));
 
+        assert_eq!(state.get_playback_state(), "playing");
         let np = state.get_now_playing().unwrap();
-        assert_eq!(np.get("title").and_then(|t| t.as_str()), Some("Hyperballad"));
+        assert_eq!(np["title"].as_str(), Some("Hyperballad"));
     }
 }

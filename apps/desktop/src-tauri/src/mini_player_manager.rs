@@ -6,6 +6,7 @@
 
 use std::sync::atomic::Ordering;
 use std::time::Duration;
+use crate::error::lock_recover;
 use tauri::{Emitter, Manager};
 
 use crate::state::{AppState, MiniPlayerServiceState};
@@ -43,7 +44,7 @@ pub fn get_or_create_mini_player_window(
         return Ok(win);
     }
 
-    let mode = state.mini_player_mode.lock().unwrap().clone();
+    let mode = lock_recover(\&state.mini_player_mode).clone();
     let dims = get_mode_dimensions(&mode);
 
     let mut initial_x = 100;
@@ -61,7 +62,7 @@ pub fn get_or_create_mini_player_window(
         if mode == "attached" || mode == "expanded" {
             initial_x = mx + (mw - dims.width) / 2;
             initial_y = my;
-        } else if let Some((lx, ly)) = *state.mini_player_last_floating_pos.lock().unwrap() {
+        } else if let Some((lx, ly)) = *lock_recover(\&state.mini_player_last_floating_pos) {
             initial_x = lx;
             initial_y = ly;
         } else {
@@ -98,9 +99,9 @@ pub fn get_service_state(app: &tauri::AppHandle, state: &AppState) -> MiniPlayer
         .and_then(|w| w.is_visible().ok())
         .unwrap_or(false);
 
-    let mode = state.mini_player_mode.lock().unwrap().clone();
+    let mode = lock_recover(\&state.mini_player_mode).clone();
     let win_state = if visible {
-        state.mini_player_window_state.lock().unwrap().clone()
+        lock_recover(\&state.mini_player_window_state).clone()
     } else {
         "hidden".to_string()
     };
@@ -157,10 +158,10 @@ pub fn apply_mode_bounds(
         if mode == "attached" || mode == "expanded" {
             target_x = mx + (mw - dims.width) / 2;
             target_y = my;
-            *state.mini_player_window_state.lock().unwrap() = mode.to_string();
+            *lock_recover(\&state.mini_player_window_state) = mode.to_string();
         } else {
-            *state.mini_player_window_state.lock().unwrap() = "normal".to_string();
-            if let Some((lx, ly)) = *state.mini_player_last_floating_pos.lock().unwrap() {
+            *lock_recover(\&state.mini_player_window_state) = "normal".to_string();
+            if let Some((lx, ly)) = *lock_recover(\&state.mini_player_last_floating_pos) {
                 target_x = lx.max(mx).min(mx + mw - dims.width);
                 target_y = ly.max(my + 40).min(my + mh - dims.height);
             } else {
@@ -234,17 +235,17 @@ pub fn handle_mini_player_moved(app: &tauri::AppHandle, state: &AppState) {
     let my = (m_pos.y as f64 / m_scale).round() as i32;
 
     let distance_to_top = y - my;
-    let current_mode = state.mini_player_mode.lock().unwrap().clone();
+    let current_mode = lock_recover(\&state.mini_player_mode).clone();
 
     if let Some(target_mode) = calculate_snap_transition(&current_mode, distance_to_top) {
         if target_mode == "normal" {
-            *state.mini_player_last_floating_pos.lock().unwrap() = Some((x, y));
+            *lock_recover(\&state.mini_player_last_floating_pos) = Some((x, y));
         }
-        *state.mini_player_mode.lock().unwrap() = target_mode.to_string();
+        *lock_recover(\&state.mini_player_mode) = target_mode.to_string();
         let _ = apply_mode_bounds(app, state, target_mode);
         notify_mini_player_state(app, state);
     } else if current_mode == "normal" {
-        *state.mini_player_last_floating_pos.lock().unwrap() = Some((x, y));
+        *lock_recover(\&state.mini_player_last_floating_pos) = Some((x, y));
     }
 }
 

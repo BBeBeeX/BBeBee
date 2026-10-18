@@ -1,8 +1,18 @@
-//! Tauri command handlers for Window management, Desktop Lyrics, Mini Player, and Locale.
+//! Tauri command handlers.
+//!
+//! This module exposes the host API to the renderer via Tauri's IPC.
+//! All commands follow these conventions:
+//!
+//! - Public signature returns `Result<T, String>` (Tauri requirement).
+//! - Internal logic uses `crate::error::HostResult` for unified errors.
+//! - Convert at the boundary with `.map_err(|e| e.to_string())`.
+//! - Log with `eprintln!("[cmd:<name>] ...")` prefix for grepability.
+//! - Never panic: all fallible ops return `Result`.
 
 use std::sync::atomic::Ordering;
 use tauri::{Emitter, Manager};
 
+use crate::error::{lock_recover, HostError, HostResult};
 use crate::lyrics_manager::{
     clamp_to_visible_screen, get_or_create_lyric_window, set_lyric_window_position,
     start_lyric_cursor_tracking, DEFAULT_LYRIC_HEIGHT, DEFAULT_LYRIC_WIDTH,
@@ -15,13 +25,24 @@ use crate::state::{AppState, MiniPlayerOpenOptions, MiniPlayerServiceState, Posi
 use crate::tray::{toggle_main_window, update_tray_menu};
 use crate::window_policy::{should_hide_on_close, CloseContext};
 
+/// Convert a `HostError` to the `String` that Tauri commands return.
+///
+/// Keeps the `[code] message` format so the renderer can parse it if needed.
+fn host_err(e: HostError) -> String {
+    e.to_string()
+}
+
 // =============================================================================
 // Window Commands
 // =============================================================================
 
 #[tauri::command]
 pub fn window_minimize(window: tauri::WebviewWindow) -> Result<(), String> {
-    window.minimize().map_err(|e| e.to_string())
+    window.minimize().map_err(|e| {
+        let err = HostError::internal(format!("minimize failed: {e}"));
+        eprintln!("[cmd:window_minimize] {err}");
+        host_err(err)
+    })
 }
 
 #[tauri::command]
@@ -31,11 +52,17 @@ pub fn desktop_window_minimize(window: tauri::WebviewWindow) -> Result<(), Strin
 
 #[tauri::command]
 pub fn window_maximize(window: tauri::WebviewWindow) -> Result<(), String> {
-    if window.is_maximized().unwrap_or(false) {
-        window.unmaximize().map_err(|e| e.to_string())
+    let is_max = window.is_maximized().unwrap_or(false);
+    let result = if is_max {
+        window.unmaximize()
     } else {
-        window.maximize().map_err(|e| e.to_string())
-    }
+        window.maximize()
+    };
+    result.map_err(|e| {
+        let err = HostError::internal(format!("maximize toggle failed: {e}"));
+        eprintln!("[cmd:window_maximize] {err}");
+        host_err(err)
+    })
 }
 
 #[tauri::command]
@@ -145,7 +172,7 @@ pub fn desktop_lyrics_set_visible(
             let _ = set_lyric_window_position(&app, &win, &state, clamped.x, clamped.y);
         }
         let _ = win.show();
-        if let Some(data) = state.latest_lyric_data.lock().unwrap().as_ref() {
+        if let Some(data) = lock_recover(&state.latest_lyric_data).as_ref() {
             let _ = win.emit("desktop-lyrics:data", data);
         }
     } else if let Some(win) = app.get_webview_window("desktop-lyrics") {
@@ -204,7 +231,7 @@ pub fn desktop_lyrics_commit_position(
 pub fn desktop_lyrics_get_data(
     state: tauri::State<AppState>,
 ) -> Result<Option<serde_json::Value>, String> {
-    Ok(state.latest_lyric_data.lock().unwrap().clone())
+    Ok(lock_recover(&state.latest_lyric_data).clone())
 }
 
 #[tauri::command]
@@ -240,7 +267,7 @@ pub fn desktop_lyrics_update_data(
     state: tauri::State<AppState>,
     data: serde_json::Value,
 ) -> Result<(), String> {
-    *state.latest_lyric_data.lock().unwrap() = Some(data.clone());
+    *lock_recover(&state.latest_lyric_data) = Some(data.clone());
     if let Some(win) = app.get_webview_window("desktop-lyrics") {
         let _ = win.emit("desktop-lyrics:data", data);
     }
@@ -270,17 +297,17 @@ pub fn mini_player_open(
 ) -> Result<(), String> {
     if let Some(opts) = options {
         if let Some(m) = opts.mode {
-            *state.mini_player_mode.lock().unwrap() = m;
+            *lock_recover(&state.mini_player_mode) = m;
         }
     }
 
-    let mode = state.mini_player_mode.lock().unwrap().clone();
+    let mode = lock_recover(&state.mini_player_mode).clone();
     let win = get_or_create_mini_player_window(&app, &state)?;
     apply_mode_bounds(&app, &state, &mode)?;
     let _ = win.show();
     let _ = win.set_focus();
 
-    if let Some(data) = state.latest_mini_player_data.lock().unwrap().as_ref() {
+    if let Some(data) = lock_recover(&state.latest_mini_player_data).as_ref() {
         let _ = win.emit("mini-player:data", data);
     }
     notify_mini_player_state(&app, &state);
@@ -309,7 +336,7 @@ pub fn mini_player_close(
     if let Some(win) = app.get_webview_window("mini-player") {
         let _ = win.hide();
     }
-    *state.mini_player_window_state.lock().unwrap() = "hidden".to_string();
+    *lock_recover(&state.mini_player_window_state) = "hidden".to_string();
     notify_mini_player_state(&app, &state);
 
     if let Some(main) = app.get_webview_window("main") {
@@ -349,7 +376,7 @@ pub fn mini_player_set_mode(
     state: tauri::State<AppState>,
     mode: String,
 ) -> Result<(), String> {
-    *state.mini_player_mode.lock().unwrap() = mode.clone();
+    *lock_recover(&state.mini_player_mode) = mode.clone();
     apply_mode_bounds(&app, &state, &mode)?;
     notify_mini_player_state(&app, &state);
     Ok(())
@@ -384,7 +411,7 @@ pub fn desktop_mini_player_get_state(
 pub fn mini_player_get_data(
     state: tauri::State<AppState>,
 ) -> Result<Option<serde_json::Value>, String> {
-    Ok(state.latest_mini_player_data.lock().unwrap().clone())
+    Ok(lock_recover(&state.latest_mini_player_data).clone())
 }
 
 #[tauri::command]
@@ -400,7 +427,7 @@ pub fn mini_player_update_data(
     state: tauri::State<AppState>,
     data: serde_json::Value,
 ) -> Result<(), String> {
-    *state.latest_mini_player_data.lock().unwrap() = Some(data.clone());
+    *lock_recover(&state.latest_mini_player_data) = Some(data.clone());
     if let Some(win) = app.get_webview_window("mini-player") {
         let _ = win.emit("mini-player:data", data);
     }
@@ -498,7 +525,7 @@ pub fn taskbar_update(
     state: tauri::State<AppState>,
     taskbar: TaskbarState,
 ) -> Result<(), String> {
-    *state.taskbar_state.lock().unwrap() = taskbar;
+    *lock_recover(&state.taskbar_state) = taskbar;
     let _ = update_tray_menu(&app, &state);
     Ok(())
 }
@@ -1406,6 +1433,142 @@ pub fn console_forward(level: String, message: String) -> Result<(), String> {
 #[tauri::command]
 pub fn desktop_console_forward(level: String, message: String) -> Result<(), String> {
     console_forward(level, message)
+}
+
+// =============================================================================
+// Native Audio Engine Commands (Rust supervisor, P0)
+// =============================================================================
+
+/// Start the native audio engine process.
+#[tauri::command]
+pub async fn audio_engine_start(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let engine = state.get_audio_engine()?;
+    engine
+        .start()
+        .await
+        .map_err(|e| {
+            eprintln!("[cmd:audio_engine_start] {e}");
+            e.to_string()
+        })
+}
+
+/// Stop the native audio engine process.
+#[tauri::command]
+pub async fn audio_engine_stop(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let engine = state.get_audio_engine()?;
+    engine.stop().await;
+    Ok(())
+}
+
+/// Load a URI for playback.
+#[tauri::command]
+pub async fn audio_engine_load(
+    state: tauri::State<'_, AppState>,
+    uri: String,
+) -> Result<crate::audio::LoadResult, String> {
+    let engine = state.get_audio_engine()?;
+    engine.load(&uri).await.map_err(|e| {
+        eprintln!("[cmd:audio_engine_load] {e}");
+        e.to_string()
+    })
+}
+
+/// Start/resume playback.
+#[tauri::command]
+pub async fn audio_engine_play(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let engine = state.get_audio_engine()?;
+    engine.play().await.map_err(|e| e.to_string())
+}
+
+/// Pause playback.
+#[tauri::command]
+pub async fn audio_engine_pause(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let engine = state.get_audio_engine()?;
+    engine.pause().await.map_err(|e| e.to_string())
+}
+
+/// Stop playback.
+#[tauri::command]
+pub async fn audio_engine_stop_playback(
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let engine = state.get_audio_engine()?;
+    engine.stop_playback().await.map_err(|e| e.to_string())
+}
+
+/// Seek to a position in milliseconds.
+#[tauri::command]
+pub async fn audio_engine_seek(
+    state: tauri::State<'_, AppState>,
+    position_ms: f64,
+) -> Result<(), String> {
+    let engine = state.get_audio_engine()?;
+    engine.seek(position_ms).await.map_err(|e| e.to_string())
+}
+
+/// Set volume (0.0 - 1.0).
+#[tauri::command]
+pub async fn audio_engine_set_volume(
+    state: tauri::State<'_, AppState>,
+    volume: f32,
+) -> Result<(), String> {
+    let engine = state.get_audio_engine()?;
+    engine.set_volume(volume).await.map_err(|e| e.to_string())
+}
+
+/// Set muted state.
+#[tauri::command]
+pub async fn audio_engine_set_muted(
+    state: tauri::State<'_, AppState>,
+    muted: bool,
+) -> Result<(), String> {
+    let engine = state.get_audio_engine()?;
+    engine.set_muted(muted).await.map_err(|e| e.to_string())
+}
+
+/// Push DSP configuration to the engine.
+#[tauri::command]
+pub async fn audio_engine_set_dsp(
+    state: tauri::State<'_, AppState>,
+    config: crate::audio::DspConfig,
+) -> Result<(), String> {
+    let engine = state.get_audio_engine()?;
+    engine.set_dsp_config(config).await.map_err(|e| e.to_string())
+}
+
+/// Get engine health status.
+#[tauri::command]
+pub fn audio_engine_status(
+    state: tauri::State<'_, AppState>,
+) -> Result<crate::audio::EngineStatus, String> {
+    let engine = state.get_audio_engine()?;
+    Ok(engine.get_engine_status())
+}
+
+// =============================================================================
+// FFmpeg Transcoding Commands (Rust manager, P1)
+// =============================================================================
+
+/// Run an FFmpeg transcode job. Returns when complete.
+#[tauri::command]
+pub async fn transcode_run(
+    state: tauri::State<'_, AppState>,
+    options: crate::transcode::TranscodeOptions,
+) -> Result<crate::transcode::TranscodeResult, String> {
+    state
+        .transcode_manager
+        .transcode(options)
+        .await
+        .map_err(|e| {
+            eprintln!("[cmd:transcode_run] {e}");
+            e.to_string()
+        })
+}
+
+/// Cancel a running transcode by job ID.
+#[tauri::command]
+pub fn transcode_cancel(state: tauri::State<'_, AppState>, job_id: String) -> bool {
+    state.transcode_manager.cancel(&job_id)
 }
 
 #[cfg(test)]
