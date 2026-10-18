@@ -24,7 +24,7 @@ Three design goals, each backed by a test:
 
 ### `src/index.ts` — ScannerService and the scan flow
 
-**Config (`ScannerConfig`)**: `batchSize=200` (files per transaction), `extensions` (default 16: mp3/flac/m4a/aac/ogg/oga/opus/wav/aiff/aif/wma/alac/ape/wv/dsf/dff/m4b), `sourceId='local'`, `pollIntervalMinutes=1440` (1 day), `watchDebounceMs=2000`.
+**Config (`ScannerConfig`)**: `batchSize=200` (files per transaction), `tagReadConcurrency=16` (concurrent tag reads; the bottleneck is fs latency, not CPU — worker threads were measured and rejected), `extensions` (default 16: mp3/flac/m4a/aac/ogg/oga/opus/wav/aiff/aif/wma/alac/ape/wv/dsf/dff/m4b), `sourceId='local'`, `pollIntervalMinutes=1440` (1 day), `watchDebounceMs=2000`.
 
 **Public API**:
 
@@ -85,6 +85,25 @@ Ids only; actual components are bound by each platform's UI package via `ctx.ui.
 ## Tables written
 
 `sources` (ensured row), `scan_roots`, `scan_entries` (`status ∈ { ok, error }`, error carries a reason), `tracks`, `albums`, `artists`, `track_artists`, `album_artists`, `genres`, `track_genres`, `artworks`, `external_ids`, `media_bindings` — all upsert semantics, naturally idempotent.
+
+## Debugging slow scans
+
+Set `BBEBEE_SCAN_TIMING=1` to get one `scanner: batch timing …` log line per
+batch, splitting the per-file cost into tag reads vs artwork cache writes vs
+the DB transaction. The read/write sums are wall-clock across concurrent
+workers, so the ratio is what matters, not the absolute totals.
+
+How to enable depends on where the scanner runs:
+
+- **Node contexts** (sidecar, tests): `BBEBEE_SCAN_TIMING=1` in the environment.
+- **Renderers** (e.g. the desktop webview): `process.env` does not exist there,
+  so the flag is checked lazily at scan time against `localStorage` instead —
+  run `localStorage.setItem('BBEBEE_SCAN_TIMING','1')` in devtools and rescan,
+  no rebuild needed.
+
+Where the line appears: dev builds forward `logger.info` to the console
+(`plugin-log-console`); production builds write it to the log file
+(`plugin-log-file`).
 
 ## Exports
 
