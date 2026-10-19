@@ -1,4 +1,4 @@
-import { createElement as h, useEffect, useRef, useState } from 'react'
+import { createElement as h, useEffect, useRef } from 'react'
 import type { ReactElement, MouseEvent } from 'react'
 import type { MiniPlayerData, MiniPlayerAction } from '@BBeBee/protocol'
 import { useBridgeLocale } from '@BBeBee/ui-kit-desktop'
@@ -189,22 +189,26 @@ export function ProgressBar({
   showTimestamps = false,
 }: ProgressBarProps): ReactElement {
   const barRef = useRef<HTMLDivElement>(null)
-  const [displayPosition, setDisplayPosition] = useState(positionMs)
+  const fillRef = useRef<HTMLDivElement>(null)
+  const timeRef = useRef<HTMLSpanElement>(null)
   const anchorRef = useRef({
     positionMs,
     at: typeof performance !== 'undefined' ? performance.now() : Date.now(),
   })
 
   // Whenever positionMs, isPlaying, or durationMs update from upstream data (authoritative update), re-anchor
+  // and imperatively sync the DOM (no React re-render).
   useEffect(() => {
     anchorRef.current = {
       positionMs,
       at: typeof performance !== 'undefined' ? performance.now() : Date.now(),
     }
-    setDisplayPosition(positionMs)
-  }, [positionMs, isPlaying])
+    const pct = durationMs > 0 ? Math.min(100, Math.max(0, (positionMs / durationMs) * 100)) : 0
+    if (fillRef.current) fillRef.current.style.width = `${pct}%`
+    if (timeRef.current) timeRef.current.textContent = formatTime(positionMs)
+  }, [positionMs, isPlaying, durationMs])
 
-  // Interpolate smoothly during playback
+  // Interpolate smoothly during playback via direct DOM updates (no React state).
   useEffect(() => {
     if (!isPlaying) return
     let frame = 0
@@ -212,14 +216,15 @@ export function ProgressBar({
       const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
       const elapsed = Math.max(0, now - anchorRef.current.at)
       const bound = durationMs > 0 ? durationMs : Number.POSITIVE_INFINITY
-      setDisplayPosition(Math.min(anchorRef.current.positionMs + elapsed, bound))
+      const pos = Math.min(anchorRef.current.positionMs + elapsed, bound)
+      const pct = durationMs > 0 ? Math.min(100, Math.max(0, (pos / durationMs) * 100)) : 0
+      if (fillRef.current) fillRef.current.style.width = `${pct}%`
+      if (timeRef.current) timeRef.current.textContent = formatTime(pos)
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
   }, [isPlaying, durationMs])
-
-  const progressPercent = durationMs > 0 ? Math.min(100, Math.max(0, (displayPosition / durationMs) * 100)) : 0
 
   const handleClick = (e: MouseEvent<HTMLDivElement>) => {
     if (!onSeek || durationMs <= 0 || !barRef.current) return
@@ -264,8 +269,9 @@ export function ProgressBar({
       },
       // Filled track
       h('div', {
+        ref: fillRef,
         style: {
-          width: `${progressPercent}%`,
+          width: '0%',
           height: '100%',
           borderRadius: 2,
           backgroundColor: '#FFFFFF',
@@ -286,7 +292,7 @@ export function ProgressBar({
             userSelect: 'none',
           },
         },
-        h('span', null, formatTime(displayPosition)),
+        h('span', { ref: timeRef }, formatTime(positionMs)),
         // A live stream has no duration; `formatTime` renders 0 as `0:00`,
         // which would claim it is zero seconds long — the same honesty the
         // toolkit's `formatDuration` already applies to unknown durations.
