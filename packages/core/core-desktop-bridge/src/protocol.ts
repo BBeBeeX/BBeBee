@@ -42,7 +42,7 @@ export const CH = {
 } as const
 
 /** Services reachable over the bridge. */
-export type BridgedService = 'fs' | 'db' | 'paths' | 'system' | 'audio'
+export type BridgedService = 'fs' | 'db' | 'paths' | 'system' | 'audio' | 'codec'
 
 /**
  * Topics `main` may push to the renderer.

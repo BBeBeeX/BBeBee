@@ -12,8 +12,7 @@
  * leaves the renderer.
  */
 
-import { Service } from 'cordis'
-import type { Context } from 'cordis'
+import { Context, Service } from 'cordis'
 import {
   assertDbForCaller,
   assertFs,
@@ -23,7 +22,10 @@ import {
 import type { CapabilityConfig } from '@BBeBee/kernel'
 import { pluginDirName as pluginDirNameLocal, uriContains } from '@BBeBee/protocol'
 import type {
+  AudioMetadata,
+  CodecService,
   DbService,
+  DecodedAudio,
   Disposable,
   FileStat,
   FsService,
@@ -31,11 +33,14 @@ import type {
   PathsService,
   ReadOptions,
   SqlValue,
+  TranscodeOptions,
+  TranscodeResult,
   Uri,
   WatchEvent,
   WellKnownDir,
   WriteOptions,
 } from '@BBeBee/protocol'
+import { CodecNode, type CodecNodeConfig } from '@BBeBee/core-codec-node'
 import {
   normalizeBridgeBytes,
   requireBridge,
@@ -608,4 +613,87 @@ function bytesToBase64(bytes: Uint8Array): string {
   let binary = ''
   for (const byte of bytes) binary += String.fromCharCode(byte)
   return btoa(binary)
+}
+
+/**
+ * Renderer-side `ctx.codec` over the IPC bridge.
+ *
+ * The I/O-bound reads (`readMetadata`, `readArtwork`, `readMetadataWithArtwork`,
+ * `probeDuration`) are forwarded to the sidecar, where `CodecNode` runs over
+ * direct fs. The parse itself never crosses IPC — only the result does. This
+ * is what makes tag scanning fast: a file that cost 2+N bridge round-trips
+ * (stream open + per-page pulls + close) now costs exactly one.
+ *
+ * Everything else delegates to a local `CodecNode`: `decode` (not implemented
+ * there anyway), `transcode` (which already prefers the audio bridge), and the
+ * capability queries (local system facts, no file I/O).
+ *
+ * ⚠️ `signal` cannot cross IPC. `readMetadataWithArtwork(uri, signal)` forwards
+ * the call without the signal; the sidecar's 30s Rust call timeout is the
+ * backstop. Callers that need true cancellation must run against a local
+ * codec, not this proxy.
+ */
+export class CodecBridge extends Service implements CodecService {
+  private readonly bridge: BridgeApi
+  private readonly local: CodecNode
+
+  constructor(ctx: Context, config: CodecNodeConfig = {}) {
+    super(ctx, 'codec')
+    this.bridge = requireBridge()
+    // Not plugged — a delegate for the non-I/O methods only. It gets an
+    // isolated context so its `super(ctx, 'codec')` doesn't collide with this
+    // bridge's own registration. Safe because the delegated methods
+    // (`supportedFormats`, `getEncoderCapabilities`, `transcode`, `decode`)
+    // never touch `ctx.fs` — they read local config, probe the local ffmpeg,
+    // or go through `window.BBeBee.audio`.
+    this.local = new CodecNode(new Context(), config)
+  }
+
+  private async call<T>(method: string, args: unknown[]): Promise<T> {
+    const res = await this.bridge.call('codec', method, args)
+    return unwrapBridgeResult<T>(res)
+  }
+
+  async readMetadata(uri: Uri): Promise<AudioMetadata> {
+    return this.call<AudioMetadata>('readMetadata', [uri])
+  }
+
+  async readArtwork(uri: Uri): Promise<Uint8Array | undefined> {
+    const res = await this.call<unknown>('readArtwork', [uri])
+    return normalizeBridgeBytes(res) ?? undefined
+  }
+
+  async readMetadataWithArtwork(
+    uri: Uri,
+    _signal?: AbortSignal,
+  ): Promise<{ metadata: AudioMetadata; artwork?: Uint8Array }> {
+    const res = await this.call<{ metadata: AudioMetadata; artwork?: unknown }>(
+      'readMetadataWithArtwork',
+      [uri],
+    )
+    const artwork = normalizeBridgeBytes(res.artwork)
+    return artwork ? { metadata: res.metadata, artwork } : { metadata: res.metadata }
+  }
+
+  async probeDuration(uri: Uri): Promise<number> {
+    return this.call<number>('probeDuration', [uri])
+  }
+
+  // ── non-I/O: local ──────────────────────────────────────────────
+
+  supportedFormats(): string[] {
+    return this.local.supportedFormats()
+  }
+
+  getEncoderCapabilities(): ReturnType<CodecNode['getEncoderCapabilities']> {
+    return this.local.getEncoderCapabilities()
+  }
+
+  transcode(options: TranscodeOptions): Promise<TranscodeResult> {
+    return this.local.transcode(options)
+  }
+
+  decode(data: Uint8Array | Uri): Promise<DecodedAudio> {
+    return this.local.decode(data)
+  }
 }

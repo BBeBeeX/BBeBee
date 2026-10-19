@@ -21,10 +21,17 @@
 import { Context } from 'cordis'
 import { pathToFileURL } from 'node:url'
 import { assertSqlAllowed } from '@BBeBee/kernel'
-import { uriContains, type DbService, type FsService, type PathsService } from '@BBeBee/protocol'
+import {
+  uriContains,
+  type CodecService,
+  type DbService,
+  type FsService,
+  type PathsService,
+} from '@BBeBee/protocol'
 import { PathsNode } from '@BBeBee/core-paths-node'
 import { FsNode } from '@BBeBee/core-fs-node'
 import { DbNode } from '@BBeBee/core-db-node'
+import { CodecNode } from '@BBeBee/core-codec-node'
 import {
   CH,
   serializeBridgeError,
@@ -247,13 +254,21 @@ const ALLOWED: Record<BridgedService, ReadonlySet<string>> = {
     'mpvGetFftFrame', 'mpvGetState', 'mpvGetAudioDevices',
     'mpvEngineStatus', 'mpvSetStreamPlayback',
   ]),
+  // I/O-bound tag reads. The parse runs in the sidecar over direct fs; only
+  // the result crosses the bridge. `decode`/`transcode` stay renderer-local
+  // (they have their own transports), as do the capability queries.
+  codec: new Set([
+    'readMetadata', 'readArtwork', 'readMetadataWithArtwork', 'probeDuration',
+  ]),
 }
 
-/** fs methods whose leading arguments are Uris that must stay inside the app. */
+/** Methods whose leading arguments are Uris that must stay inside the app. */
 const URI_ARGS: Record<string, number[]> = {
   exists: [0], stat: [0], list: [0], mkdir: [0], remove: [0],
   move: [0, 1], copy: [0, 1], readFile: [0], readBytes: [0], readRange: [0], writeFile: [0],
   freeSpace: [0], toPlayableUri: [0],
+  // codec reads take audio-file Uris — same containment as fs reads.
+  readMetadata: [0], readArtwork: [0], readMetadataWithArtwork: [0], probeDuration: [0],
 }
 
 /*
@@ -304,6 +319,10 @@ export async function createHost(ipc: IpcHost, options: HostOptions = {}): Promi
   })
   await ctx.plugin(FsNode)
   await ctx.plugin(DbNode, { fileName: options.databaseFileName ?? 'BBeBee.db' })
+  // The codec runs here — tag parsing over direct fs, not over the bridge.
+  // The renderer gets a thin proxy (CodecBridge) that forwards the I/O-bound
+  // reads; the parse itself never crosses IPC.
+  await ctx.plugin(CodecNode)
 
   /**
    * The OS surface, with every absent member a no-op.
@@ -347,11 +366,12 @@ export async function createHost(ipc: IpcHost, options: HostOptions = {}): Promi
 
   const services: Record<
     BridgedService,
-    () => FsService | DbService | PathsService | Required<SystemHost> | Required<AudioHost>
+    () => FsService | DbService | PathsService | CodecService | Required<SystemHost> | Required<AudioHost>
   > = {
     fs: () => ctx.fs,
     db: () => ctx.db,
     paths: () => ctx.paths,
+    codec: () => ctx.codec,
     system: () => system,
     audio: () => audio,
   }
@@ -467,9 +487,9 @@ export async function createHost(ipc: IpcHost, options: HostOptions = {}): Promi
         }
       }
 
-      if (service === 'fs') {
+      if (service === 'fs' || service === 'codec') {
         for (const index of URI_ARGS[method] ?? []) assertContained(callArgs[index])
-        if (method === 'readBytes' && typeof callArgs[0] === 'string') {
+        if (service === 'fs' && method === 'readBytes' && typeof callArgs[0] === 'string') {
           const stat = await ctx.fs.stat(callArgs[0])
           const maxUnchunked = 10 * 1024 * 1024
           if (stat.size > maxUnchunked) {

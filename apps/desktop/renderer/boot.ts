@@ -33,6 +33,7 @@ import {
   bridgeFetch,
   fetchPaths,
   safeStorageCodec,
+  CodecBridge,
 } from '@BBeBee/core-desktop-bridge'
 import { StoreFs } from '@BBeBee/core-store-fs'
 import { DeviceTauri } from '@BBeBee/core-device-tauri'
@@ -40,7 +41,6 @@ import { BackgroundTauri } from '@BBeBee/core-background-tauri'
 import { MediaSessionTauri } from '@BBeBee/core-media-session-tauri'
 import { SecretsNode } from '@BBeBee/core-secrets-node'
 import { JsQuickJsNode } from '@BBeBee/core-js-quickjs-node'
-import { CodecNode } from '@BBeBee/core-codec-node'
 import { HttpNode } from '@BBeBee/core-http-node'
 import { AudioWebAudio, type AudioWebAudioConfig } from '@BBeBee/core-audio-webaudio'
 import { AudioMpv, type AudioMpvConfig } from '@BBeBee/core-audio-mpv'
@@ -569,7 +569,7 @@ export async function boot(): Promise<App> {
       MediaSessionTauri,
       [SecretsNode, keychain ? { crypto: keychain } : {}],
       JsQuickJsNode,
-      [CodecNode, { supportedFormats: decodableFormats() }],
+      [CodecBridge, { supportedFormats: decodableFormats() }],
       [HttpNode, {
         ...(transport ? { fetch: transport } : {}),
         ...(prefs.userAgent ? { userAgent: prefs.userAgent } : {}),
