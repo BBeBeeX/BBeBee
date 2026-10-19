@@ -26,7 +26,80 @@ import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import type { AudioMetadata, CodecService, DecodedAudio, TranscodeOptions, TranscodeResult, Uri } from '@BBeBee/protocol'
 import { parseFromTokenizer, selectCover, type IAudioMetadata, type IOptions } from 'music-metadata'
+import iconv from 'iconv-lite'
 import { FsRangeTokenizer } from './tokenizer.js'
+
+/**
+ * Recover GBK-encoded text that was misdecoded.
+ *
+ * Chinese files with GBK tags (mislabeled in the tag header) come out of
+ * music-metadata as mojibake. Two cases:
+ *
+ * 1. Mislabeled as Latin1: each GBK byte becomes U+0080-U+00FF. Fully
+ *    recoverable via `Buffer.from(str, 'latin1')` → `iconv.decode(bytes,
+ *    'gbk')`.
+ * 2. Mislabeled as UTF-8: valid sequences become wrong-but-valid chars,
+ *    invalid ones become U+FFFD (�). The � parts have lost their bytes and
+ *    cannot be recovered; the valid parts can via UTF-8 re-encoding.
+ *
+ * Heuristic: only attempt when the string has no CJK yet but the GBK
+ * decoding produces CJK. Correctly-decoded text (including proper Chinese)
+ * is left untouched.
+ */
+function recoverGbkText(input: string | undefined): string | undefined {
+  if (!input || typeof input !== 'string') return input
+  if (/[\u4e00-\u9fff]/.test(input)) return input
+
+  // Case 1: Latin1 misdecode — no �, but high-byte chars present.
+  if (!input.includes('�') && /[\u0080-\u00ff]/.test(input)) {
+    try {
+      const bytes = Buffer.from(input, 'latin1')
+      const decoded = iconv.decode(bytes, 'gbk')
+      // Require at least 2 CJK characters: a single accented Latin char
+      // (e.g. ó in "Jóga") can coincidentally form one valid GBK sequence
+      // with its neighbor, but real Chinese text has runs of CJK.
+      if (
+        decoded !== input &&
+        /[\u4e00-\u9fff][\u4e00-\u9fff]/.test(decoded) &&
+        !decoded.includes('�')
+      ) {
+        return decoded
+      }
+    } catch {
+      // Fall through to return original.
+    }
+    return input
+  }
+
+  // Case 2: UTF-8 misdecode — has �. Recover segment by segment, keeping �
+  // for the unrecoverable parts.
+  if (input.includes('�')) {
+    const segments = input.split('�')
+    let recoveredAny = false
+    const out = segments.map((seg) => {
+      if (!seg || /[\u4e00-\u9fff]/.test(seg)) return seg
+      try {
+        const bytes = Buffer.from(seg, 'utf8')
+        const decoded = iconv.decode(bytes, 'gbk')
+        if (
+          decoded !== seg &&
+          /[\u4e00-\u9fff][\u4e00-\u9fff]/.test(decoded) &&
+          !decoded.includes('�') &&
+          !decoded.includes('锟')
+        ) {
+          recoveredAny = true
+          return decoded
+        }
+      } catch {
+        // Keep original segment.
+      }
+      return seg
+    })
+    if (recoveredAny) return out.join('�')
+  }
+
+  return input
+}
 
 export interface CodecNodeConfig {
   /**
@@ -690,14 +763,14 @@ export function toAudioMetadata(
   }
 
   return {
-    ...(common.title ? { title: common.title } : {}),
-    ...(common.artist ? { artist: common.artist } : {}),
-    ...(common.albumartist ? { albumArtist: common.albumartist } : {}),
-    ...(common.album ? { album: common.album } : {}),
+    ...(common.title ? { title: recoverGbkText(common.title) } : {}),
+    ...(common.artist ? { artist: recoverGbkText(common.artist) } : {}),
+    ...(common.albumartist ? { albumArtist: recoverGbkText(common.albumartist) } : {}),
+    ...(common.album ? { album: recoverGbkText(common.album) } : {}),
     ...(common.track?.no ? { trackNo: common.track.no } : {}),
     ...(common.disk?.no ? { discNo: common.disk.no } : {}),
     ...(common.year ? { year: common.year } : {}),
-    ...(common.genre?.length ? { genre: common.genre } : {}),
+    ...(common.genre?.length ? { genre: common.genre.map((g) => recoverGbkText(g) ?? g) } : {}),
     ...(durationSec ? { durationMs: Math.round(durationSec * 1000) } : {}),
     ...(bitrateKbps ? { bitrateKbps } : {}),
     ...(format.sampleRate ? { sampleRate: format.sampleRate } : {}),
@@ -712,7 +785,7 @@ export function toAudioMetadata(
     ...(common.musicbrainz_recordingid
       ? { musicbrainzTrackId: common.musicbrainz_recordingid }
       : {}),
-    ...(common.lyrics?.[0]?.text ? { lyrics: common.lyrics[0].text } : {}),
+    ...(common.lyrics?.[0]?.text ? { lyrics: recoverGbkText(common.lyrics[0].text) } : {}),
     ...(format.tagTypes?.length ? { tagTypes: format.tagTypes } : {}),
     hasArtwork: (common.picture?.length ?? 0) > 0,
   }
