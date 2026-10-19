@@ -501,9 +501,12 @@ export class CodecNode extends Service implements CodecService {
     // without the re-reads: a normal file parses inside the first budget
     // (256 KB, the old first window; the conformance byte ceiling is
     // measured against it), and only a file whose tag block genuinely
-    // exceeds it pays for a second parse.
+    // exceeds it pays for a second parse. The second budget is 64 MB:
+    // large enough for legitimate files with tag chunks far into the file
+    // (e.g. a WAV with LIST after a big data chunk), still bounded against
+    // pathological drains.
     const firstBudget = 256 * 1024
-    const secondBudget = Math.min(fileSize, 8 * 1024 * 1024)
+    const secondBudget = Math.min(fileSize, 64 * 1024 * 1024)
     const budgets = secondBudget > firstBudget ? [firstBudget, secondBudget] : [firstBudget]
     let lastError: unknown
     for (const mimeType of attempts) {

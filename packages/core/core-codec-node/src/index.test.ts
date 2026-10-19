@@ -92,6 +92,81 @@ const SAMPLE = {
 }
 
 /**
+ * A WAV file whose LIST/INFO tag chunk sits AFTER a large data chunk.
+ * The data chunk is 9 MB — past the 8 MB second budget — so a capped
+ * budget cuts the parse short with EndOfStreamError before reaching
+ * the tags. Regression for the WAV budget exemption.
+ */
+function taggedWav(title: string): Uint8Array {
+  const enc = new TextEncoder()
+  const u32le = (n: number) => {
+    const b = new Uint8Array(4)
+    new DataView(b.buffer).setUint32(0, n, true)
+    return b
+  }
+  const u16le = (n: number) => {
+    const b = new Uint8Array(2)
+    new DataView(b.buffer).setUint16(0, n, true)
+    return b
+  }
+  // fmt chunk: PCM, stereo, 44100 Hz, 16-bit
+  const fmt = (() => {
+    const b = new Uint8Array(16)
+    const v = new DataView(b.buffer)
+    v.setUint16(0, 1, true) // PCM
+    v.setUint16(2, 2, true) // channels
+    v.setUint32(4, 44100, true) // sample rate
+    v.setUint32(8, 44100 * 2 * 2, true) // byte rate
+    v.setUint16(12, 4, true) // block align
+    v.setUint16(14, 16, true) // bits per sample
+    return b
+  })()
+  // LIST/INFO chunk with INAM (title)
+  const titleBytes = enc.encode(title)
+  const inamSize = titleBytes.length + 1 // NUL-terminated
+  const inam = (() => {
+    const pad = inamSize % 2 === 1 ? 1 : 0
+    const b = new Uint8Array(8 + inamSize + pad)
+    b.set(enc.encode('INAM'), 0)
+    new DataView(b.buffer).setUint32(4, inamSize, true)
+    b.set(titleBytes, 8)
+    b[8 + titleBytes.length] = 0
+    return b
+  })()
+  const listBodySize = 4 + inam.length // 'INFO' + INAM
+  const listPad = listBodySize % 2 === 1 ? 1 : 0
+  const list = (() => {
+    const b = new Uint8Array(8 + listBodySize + listPad)
+    b.set(enc.encode('LIST'), 0)
+    new DataView(b.buffer).setUint32(4, listBodySize, true)
+    b.set(enc.encode('INFO'), 8)
+    b.set(inam, 12)
+    return b
+  })()
+  const dataSize = 9 * 1024 * 1024
+  const dataPad = dataSize % 2
+  const total = 12 + 8 + 16 + 8 + dataSize + dataPad + list.length
+  const out = new Uint8Array(total)
+  let o = 0
+  const put = (b: Uint8Array) => {
+    out.set(b, o)
+    o += b.length
+  }
+  put(enc.encode('RIFF'))
+  put(u32le(total - 8))
+  put(enc.encode('WAVE'))
+  put(enc.encode('fmt '))
+  put(u32le(16))
+  put(fmt)
+  put(enc.encode('data'))
+  put(u32le(dataSize))
+  o += dataSize // zeros
+  if (dataPad) o += 1
+  put(list)
+  return out
+}
+
+/**
  * A minimal DSDIFF (.dff) file: FRM8 header, version, properties (stereo
  * DSD64), an ID3 chunk carrying the title, and a few bytes of audio.
  */
@@ -254,6 +329,7 @@ async function harness() {
   )
   await writeFile(join(dir, 'garbage.mp3'), 'this is not audio at all')
   await writeFile(join(dir, 'tagged.dff'), taggedDff('DSD Title'))
+  await writeFile(join(dir, 'tagged.wav'), taggedWav('WAV Title'))
 
   const ctx = new Context()
   await ctx.plugin(PathsNode, { root: await tempDir('bbebee-codec-app') })
@@ -300,6 +376,18 @@ describe('core-codec-node', () => {
     const meta = await h.codec.readMetadata(h.uri('tagged.dff'))
     expect(meta.title).toBe('DSD Title')
     expect(meta.sampleRate).toBe(2822400)
+    expect(meta.channels).toBe(2)
+    expect(meta.codec).toBeTruthy()
+  })
+
+  it('reads WAV tags past the 8 MB budget cap', async () => {
+    // Regression: the LIST chunk sits after a 9 MB data chunk. The old
+    // 8 MB second budget cut the parse short with EndOfStreamError.
+    // The second budget is now 64 MB (still bounded against drains).
+    const h = await harness()
+    const meta = await h.codec.readMetadata(h.uri('tagged.wav'))
+    expect(meta.title).toBe('WAV Title')
+    expect(meta.sampleRate).toBe(44100)
     expect(meta.channels).toBe(2)
     expect(meta.codec).toBeTruthy()
   })
