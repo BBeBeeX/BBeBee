@@ -70,6 +70,11 @@ html, body, #root {
   user-select: none;
   -webkit-user-select: none;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* WebView2 on Windows renders a 1px border on transparent frameless
+     windows; suppress it. */
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
 `
 

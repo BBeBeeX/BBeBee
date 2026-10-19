@@ -76,8 +76,9 @@ export function IslandWaveBars({
           height: '100%',
           background: color,
           borderRadius: 2,
-          animation: isPlaying ? `${variant.keyframes} ${variant.duration} ease-in-out infinite alternate` : 'none',
-          animationDelay: variant.delay,
+          animation: isPlaying
+            ? `${variant.keyframes} ${variant.duration} ease-in-out ${variant.delay} infinite alternate`
+            : 'none',
           transform: isPlaying ? undefined : `scaleY(${variant.idleScale})`,
           transformOrigin: 'bottom',
           transition: 'transform 0.25s ease',
