@@ -160,18 +160,25 @@ pub fn desktop_lyrics_set_visible(
     visible: bool,
     position: Option<Position>,
 ) -> Result<(), String> {
+    eprintln!("[desktop-lyrics] set_visible(visible={}) invoked", visible);
     state
         .lyric_window_visible
         .store(visible, Ordering::SeqCst);
 
     if visible {
-        let win = get_or_create_lyric_window(&app, position)?;
+        eprintln!("[desktop-lyrics] creating/getting window");
+        let win = get_or_create_lyric_window(&app, position).map_err(|e| {
+            eprintln!("[desktop-lyrics] get_or_create_lyric_window failed: {}", e);
+            e
+        })?;
+        eprintln!("[desktop-lyrics] window obtained, showing");
         if let Some(pos) = position {
             let clamped =
                 clamp_to_visible_screen(&app, pos, DEFAULT_LYRIC_WIDTH, DEFAULT_LYRIC_HEIGHT);
             let _ = set_lyric_window_position(&app, &win, &state, clamped.x, clamped.y);
         }
         let _ = win.show();
+        eprintln!("[desktop-lyrics] win.show() called");
         if let Some(data) = lock_recover(&state.latest_lyric_data).as_ref() {
             let _ = win.emit("desktop-lyrics:data", data);
         }
@@ -302,10 +309,19 @@ pub fn mini_player_open(
     }
 
     let mode = lock_recover(&state.mini_player_mode).clone();
-    let win = get_or_create_mini_player_window(&app, &state)?;
-    apply_mode_bounds(&app, &state, &mode)?;
+    eprintln!("[mini-player] open invoked, mode={}", mode);
+    let win = get_or_create_mini_player_window(&app, &state).map_err(|e| {
+        eprintln!("[mini-player] get_or_create window failed: {}", e);
+        e
+    })?;
+    eprintln!("[mini-player] window obtained, applying bounds");
+    apply_mode_bounds(&app, &state, &mode).map_err(|e| {
+        eprintln!("[mini-player] apply_mode_bounds failed: {}", e);
+        e
+    })?;
     let _ = win.show();
     let _ = win.set_focus();
+    eprintln!("[mini-player] win.show() + set_focus() called");
 
     if let Some(data) = lock_recover(&state.latest_mini_player_data).as_ref() {
         let _ = win.emit("mini-player:data", data);

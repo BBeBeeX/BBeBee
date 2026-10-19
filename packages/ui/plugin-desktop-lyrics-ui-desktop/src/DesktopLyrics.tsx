@@ -146,9 +146,16 @@ function DesktopLyricsInner({ ctx }: DesktopLyricsProps): ReactElement | null {
 
   // 1. Sync the desktop lyrics visibility state
   useEffect(() => {
+    ctx.logger.info(
+      `desktop-lyrics: sync effect, hasNativeBridge=${hasNativeBridge}, isEnabled=${isEnabled}`,
+    )
     if (!hasNativeBridge || !bridge) return
     const targetPos = posX >= 0 && posY >= 0 ? { x: posX, y: posY } : undefined
-    void bridge.setVisible(isEnabled, targetPos)
+    ctx.logger.info(`desktop-lyrics: calling bridge.setVisible(${isEnabled})`)
+    void bridge
+      .setVisible(isEnabled, targetPos)
+      .then(() => ctx.logger.info('desktop-lyrics: bridge.setVisible resolved'))
+      .catch((e) => ctx.logger.error(`desktop-lyrics: bridge.setVisible rejected: ${String(e)}`))
   }, [hasNativeBridge, bridge, isEnabled])
 
   // 2. Sync desktop lyrics position (fires only while enabled, and only when the coordinates numerically change)

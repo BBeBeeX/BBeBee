@@ -241,8 +241,15 @@ export class MiniPlayerService extends Service implements IMiniPlayerService {
 
   async open(options?: { mode?: MiniPlayerDisplayMode }): Promise<void> {
     const bridge = getBridge()
+    this.ctx.logger.info(`mini-player: open() called, hasBridge=${Boolean(bridge)}`)
     if (bridge) {
-      await bridge.open?.(options)
+      try {
+        await bridge.open?.(options)
+        this.ctx.logger.info('mini-player: bridge.open resolved')
+      } catch (e) {
+        this.ctx.logger.error(`mini-player: bridge.open rejected: ${String(e)}`)
+        throw e
+      }
     } else {
       this.update({
         visible: true,
@@ -254,14 +261,24 @@ export class MiniPlayerService extends Service implements IMiniPlayerService {
 
   async close(): Promise<void> {
     const bridge = getBridge()
+    this.ctx.logger.info(`mini-player: close() called, hasBridge=${Boolean(bridge)}`)
     if (bridge) {
-      await bridge.close?.()
+      try {
+        await bridge.close?.()
+        this.ctx.logger.info('mini-player: bridge.close resolved')
+      } catch (e) {
+        this.ctx.logger.error(`mini-player: bridge.close rejected: ${String(e)}`)
+        throw e
+      }
     } else {
       this.update({ visible: false, windowState: 'hidden' })
     }
   }
 
   async toggle(): Promise<void> {
+    this.ctx.logger.info(
+      `mini-player: toggle() called, current visible=${this.currentState.visible}`,
+    )
     if (this.currentState.visible) {
       await this.close()
     } else {

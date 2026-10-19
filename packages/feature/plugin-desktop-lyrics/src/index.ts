@@ -158,10 +158,12 @@ export class DesktopLyricsService extends Service implements IDesktopLyricsServi
   }
 
   toggleVisible(): void {
+    this.ctx.logger.info(`desktop-lyrics: toggleVisible() called, current=${this.currentState.visible}`)
     this.setVisible(!this.currentState.visible)
   }
 
   setVisible(visible: boolean): void {
+    this.ctx.logger.info(`desktop-lyrics: setVisible(${visible})`)
     this.update({ visible })
     this.persistToSettings({ enabled: visible })
   }

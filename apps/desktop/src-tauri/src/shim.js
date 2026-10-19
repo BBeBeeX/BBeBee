@@ -451,7 +451,17 @@
     },
     desktopLyrics: {
       setVisible: function (visible, pos) {
-        return invoke('desktop_lyrics_set_visible', { visible: Boolean(visible), position: pos });
+        console.log('[BBeBee] desktopLyrics.setVisible(' + visible + ') -> invoke desktop_lyrics_set_visible');
+        return invoke('desktop_lyrics_set_visible', { visible: Boolean(visible), position: pos }).then(
+          function (res) {
+            console.log('[BBeBee] desktop_lyrics_set_visible resolved');
+            return res;
+          },
+          function (err) {
+            console.error('[BBeBee] desktop_lyrics_set_visible rejected: ' + err);
+            throw err;
+          }
+        );
       },
       setPosition: function (pos) {
         return invoke('desktop_lyrics_set_position', { position: pos });
@@ -502,7 +512,17 @@
     },
     miniPlayer: {
       open: function (options) {
-        return invoke('desktop_mini_player_open', { options: options });
+        console.log('[BBeBee] miniPlayer.open() -> invoke desktop_mini_player_open');
+        return invoke('desktop_mini_player_open', { options: options }).then(
+          function (res) {
+            console.log('[BBeBee] desktop_mini_player_open resolved');
+            return res;
+          },
+          function (err) {
+            console.error('[BBeBee] desktop_mini_player_open rejected: ' + err);
+            throw err;
+          }
+        );
       },
       close: function () {
         return invoke('desktop_mini_player_close');
