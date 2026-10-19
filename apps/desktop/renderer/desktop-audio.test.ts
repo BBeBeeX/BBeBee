@@ -10,10 +10,11 @@
  * prefetch did — a `loadfile replace` that killed the playing track.
  */
 
-import { describe, expect, it, vi } from 'vitest'
-import { Context } from 'cordis'
+import { describe, expect, it, vi, afterEach } from 'vitest'
+import { Context, Service } from 'cordis'
 import type { AudioService } from '@BBeBee/protocol'
-import { DesktopAudioService } from './boot.js'
+import { createFakeAudioContext } from '@BBeBee/core-audio-mpv/testing'
+import { DesktopAudioService, preloadPreferences } from './boot.js'
 
 function service(): DesktopAudioService {
   return new DesktopAudioService(new Context(), {})
@@ -99,5 +100,105 @@ describe('DesktopAudioService engine forwarding', () => {
     ;(untyped['pushNativeDsp'] as () => void)()
 
     expect(bridgeCall, 'no payload means no bridge call').not.toHaveBeenCalled()
+  })
+})
+
+describe('DesktopAudioService real mount (mpv-only)', () => {
+  function mountableService(overrides: Record<string, unknown> = {}): DesktopAudioService {
+    return new DesktopAudioService(new Context(), {
+      bridgeCall: async () => undefined,
+      createContext: () => createFakeAudioContext(48000) as never,
+      ...overrides,
+    })
+  }
+
+  async function init(svc: DesktopAudioService): Promise<void> {
+    await (svc as unknown as Record<symbol, () => Promise<unknown>>)[Service.init]?.()
+  }
+
+  function fiberOf(svc: DesktopAudioService): unknown {
+    return (svc as unknown as Record<string, unknown>)['activeFiber']
+  }
+
+  it('mounts the mpv engine and reports it as active', async () => {
+    const svc = mountableService()
+    await init(svc)
+
+    expect(svc.engine).toBe('mpv')
+    expect(svc.activeEngineName).toBe('mpv')
+    expect(svc.sampleRate).toBe(48000)
+    expect(fiberOf(svc)).toBeDefined()
+  })
+
+  it("normalizes the legacy 'wasapi' initial engine to mpv", async () => {
+    const svc = mountableService({ initialEngine: 'wasapi' })
+    await init(svc)
+
+    expect(svc.engine).toBe('mpv')
+    expect(svc.activeEngineName).toBe('mpv')
+  })
+
+  it('a mount failure rejects instead of falling back to a removed engine', async () => {
+    const svc = mountableService({
+      createContext: () => {
+        throw new Error('no AudioContext in this environment')
+      },
+    })
+
+    await expect(init(svc)).rejects.toThrow('no AudioContext')
+    expect(fiberOf(svc)).toBeUndefined()
+  })
+
+  it("switchEngine('wasapi') is a no-op once mpv is mounted", async () => {
+    const ctx = new Context()
+    const svc = new DesktopAudioService(ctx, {
+      bridgeCall: async () => undefined,
+      createContext: () => createFakeAudioContext(48000) as never,
+    })
+    await init(svc)
+    const fiber = fiberOf(svc)
+
+    const changed: unknown[] = []
+    ctx.on('audio/engine-changed', (e) => changed.push(e))
+    await svc.switchEngine('wasapi')
+
+    expect(fiberOf(svc)).toBe(fiber)
+    expect(changed).toEqual([])
+    expect(svc.engine).toBe('mpv')
+  })
+})
+
+describe('preloadPreferences engine migration', () => {
+  const w = window as unknown as { BBeBeeBridge?: { call: (...args: unknown[]) => Promise<unknown> } }
+
+  function mockStore(data: unknown): void {
+    w.BBeBeeBridge = { call: async () => JSON.stringify(data) }
+  }
+
+  afterEach(() => {
+    delete w.BBeBeeBridge
+  })
+
+  it("maps a legacy 'webaudio' preference to mpv", async () => {
+    mockStore({ preferences: { audioOutputEngine: 'webaudio' } })
+    const prefs = await preloadPreferences({ appData: '/data' })
+    expect(prefs.audioOutputEngine).toBe('mpv')
+  })
+
+  it("maps the namespaced 'wasapi' preference to mpv", async () => {
+    mockStore({ '@BBeBee/plugin-settings:preferences': { audioOutputEngine: 'wasapi' } })
+    const prefs = await preloadPreferences({ appData: '/data' })
+    expect(prefs.audioOutputEngine).toBe('mpv')
+  })
+
+  it('leaves the engine unset when the store has none', async () => {
+    mockStore({ preferences: {} })
+    const prefs = await preloadPreferences({ appData: '/data' })
+    expect(prefs.audioOutputEngine).toBeUndefined()
+  })
+
+  it('returns empty prefs when the bridge is unavailable', async () => {
+    const prefs = await preloadPreferences({ appData: '/data' })
+    expect(prefs).toEqual({})
   })
 })

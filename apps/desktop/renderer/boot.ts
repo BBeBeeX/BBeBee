@@ -113,6 +113,8 @@ export interface DesktopAudioConfig {
   initialEngine?: 'mpv' | 'wasapi'
   initialAudioExclusive?: boolean
   bridgeCall?: (service: string, method: string, args: unknown[]) => Promise<unknown>
+  /** Test seam (and embedder override): the AudioContext the engine builds its graph on. */
+  createContext?: (options?: AudioContextOptions) => BaseAudioContext
 }
 
 type EngineKey = 'mpv' | 'wasapi'
@@ -319,6 +321,7 @@ export class DesktopAudioService extends Service implements AudioService {
       const cfg: AudioMpvConfig = {
         bridgeCall: this.config.bridgeCall,
         emitContextInterruptions: true,
+        ...(this.config.createContext ? { createContext: this.config.createContext } : {}),
       }
       fiber = await scoped.plugin(AudioMpv, cfg)
     } catch (err) {
@@ -408,8 +411,8 @@ interface PreloadedPrefs {
   storeData?: Record<string, unknown>
 }
 
-/** Read persisted prefs from store.json before the app starts. */
-async function preloadPreferences(pathSnapshot: Record<string, string | undefined>): Promise<PreloadedPrefs> {
+/** Read persisted prefs from store.json before the app starts. Exported for tests. */
+export async function preloadPreferences(pathSnapshot: Record<string, string | undefined>): Promise<PreloadedPrefs> {
   const result: PreloadedPrefs = {}
   const appData = pathSnapshot['appData']
   if (!appData) return result
