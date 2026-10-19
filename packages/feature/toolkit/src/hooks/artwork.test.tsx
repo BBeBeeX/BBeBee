@@ -9,14 +9,14 @@
  * CDN would be a second request for bytes the cache is already fetching.
  */
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, beforeEach } from 'vitest'
 import { Context, Service } from 'cordis'
 import { render, waitFor } from '@testing-library/react'
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { ArtworkRef, Uri } from '@BBeBee/protocol'
 import { tick } from '@BBeBee/kernel/testing'
-import { useResolvedArtwork } from './artwork.js'
+import { useResolvedArtwork, clearResolvedArtworkCache } from './artwork.js'
 
 const REF: ArtworkRef = { id: 'https://img.test/cover.jpg', sourceUrl: 'https://img.test/cover.jpg' }
 
@@ -49,6 +49,10 @@ async function harness(): Promise<{ ctx: Context; cache: CacheStub }> {
 }
 
 describe('useResolvedArtwork', () => {
+  // The hook keeps a module-level LRU of resolutions; clear it so tests that
+  // reuse artwork IDs don't see each other's cached URIs.
+  beforeEach(() => clearResolvedArtworkCache())
+
   it('renders the fallback until the cache answers, then the local file', async () => {
     const { ctx, cache } = await harness()
     let release: (uri: Uri | undefined) => void = () => {}

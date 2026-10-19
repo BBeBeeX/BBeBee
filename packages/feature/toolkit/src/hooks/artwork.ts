@@ -82,6 +82,14 @@ function cacheSet(id: string, uri: string | null): void {
   }
 }
 
+/**
+ * Clears the in-memory resolved-URI cache. Test-only: the module-level cache
+ * otherwise leaks resolutions between tests that reuse artwork IDs.
+ */
+export function clearResolvedArtworkCache(): void {
+  resolvedUriCache.clear()
+}
+
 export function useResolvedArtwork(
   ctx: Context,
   artwork?: ArtworkRef,
