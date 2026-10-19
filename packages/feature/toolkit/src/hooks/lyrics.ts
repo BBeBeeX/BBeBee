@@ -262,7 +262,9 @@ export function useCurrentLyric(ctx: Context): CurrentLyricInfo {
 
   if (!isTrackUrnMatch || status === 'loading-song' || status === 'loading-lyrics') {
     stage = 'loading'
-    displayCurrentLine = 'Loading lyrics…'
+    // While fetching, show the song title — it tells the user what's playing.
+    // A "Loading…" placeholder is noise; the title arrives with the lyrics.
+    displayCurrentLine = fallbackTitle
     displayNextLine = undefined
   } else if (parsed.synced && hasLines) {
     if (activeIndex === -1) {
