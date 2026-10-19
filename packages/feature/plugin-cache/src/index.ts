@@ -363,12 +363,31 @@ export class Cache extends Service implements CacheService {
       return
     }
 
+    // Chunk large batches: the sidecar bridge times out after 30s, and the
+    // worker processes files sequentially. Keep each chunk small enough to
+    // complete well within the timeout.
+    const CHUNK_SIZE = 20
+    for (let start = 0; start < batch.length; start += CHUNK_SIZE) {
+      const chunk = batch.slice(start, start + CHUNK_SIZE)
+      await this.processArtworkChunk(codec, chunk)
+    }
+  }
+
+  private async processArtworkChunk(
+    codec: CodecService,
+    chunk: Array<{
+      key: string
+      id: string
+      audioUri: Uri
+      resolve: (uri: Uri | undefined) => void
+    }>,
+  ): Promise<void> {
     // Prefer the batch API; fall back to individual calls.
     if (codec.readArtworkBatch) {
       try {
-        const results = await codec.readArtworkBatch(batch.map((i) => i.audioUri))
-        for (let i = 0; i < batch.length; i++) {
-          const item = batch[i]!
+        const results = await codec.readArtworkBatch(chunk.map((i) => i.audioUri))
+        for (let i = 0; i < chunk.length; i++) {
+          const item = chunk[i]!
           const bytes = results[i]
           try {
             item.resolve(await this.storeArtworkBytes(item.key, item.id, item.audioUri, bytes))
@@ -381,10 +400,10 @@ export class Cache extends Service implements CacheService {
         }
       } catch (error) {
         this.ownCtx.logger.warn(`cache: batch artwork extraction failed: ${String(error)}`)
-        for (const item of batch) item.resolve(undefined)
+        for (const item of chunk) item.resolve(undefined)
       }
     } else {
-      for (const item of batch) {
+      for (const item of chunk) {
         try {
           item.resolve(await this.doExtractEmbeddedArtwork(item.key, item.id, item.audioUri))
         } catch (error) {
