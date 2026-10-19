@@ -264,11 +264,97 @@ export class Cache extends Service implements CacheService {
   ): Promise<Uri | undefined> {
     const inflight = this.inflightArtwork.get(key)
     if (inflight) return inflight
-    const run = this.doExtractEmbeddedArtwork(key, id, audioUri).finally(() =>
-      this.inflightArtwork.delete(key),
+
+    // Micro-batch: collect concurrent extraction requests over a 10ms window
+    // into one codec.readArtworkBatch call, amortizing IPC overhead when a
+    // list view resolves dozens of covers at once.
+    let resolve!: (uri: Uri | undefined) => void
+    const promise = new Promise<Uri | undefined>((res) => {
+      resolve = res
+    })
+    this.inflightArtwork.set(key, promise)
+    promise.finally(() => {
+      if (this.inflightArtwork.get(key) === promise) this.inflightArtwork.delete(key)
+    })
+
+    if (!this.artworkBatch) {
+      this.artworkBatch = []
+      setTimeout(() => void this.flushArtworkBatch(), 10)
+    }
+    this.artworkBatch.push({ key, id, audioUri, resolve })
+    return promise
+  }
+
+  private artworkBatch:
+    | Array<{
+        key: string
+        id: string
+        audioUri: Uri
+        resolve: (uri: Uri | undefined) => void
+      }>
+    | null = null
+
+  private async flushArtworkBatch(): Promise<void> {
+    const batch = this.artworkBatch
+    this.artworkBatch = null
+    if (!batch || batch.length === 0) return
+
+    const codec = (
+      this.ownCtx as unknown as {
+        reflect: { get(key: string, required: boolean): unknown }
+      }
+    ).reflect.get('codec', false) as CodecService | undefined
+    if (!codec) {
+      for (const item of batch) item.resolve(undefined)
+      return
+    }
+
+    // Prefer the batch API; fall back to individual calls.
+    if (codec.readArtworkBatch) {
+      try {
+        const results = await codec.readArtworkBatch(batch.map((i) => i.audioUri))
+        for (let i = 0; i < batch.length; i++) {
+          const item = batch[i]!
+          const bytes = results[i]
+          item.resolve(await this.storeArtworkBytes(item.key, item.id, item.audioUri, bytes))
+        }
+      } catch (error) {
+        this.ownCtx.logger.warn(`cache: batch artwork extraction failed: ${String(error)}`)
+        for (const item of batch) item.resolve(undefined)
+      }
+    } else {
+      for (const item of batch) {
+        item.resolve(await this.doExtractEmbeddedArtwork(item.key, item.id, item.audioUri))
+      }
+    }
+  }
+
+  /**
+   * Write extracted cover bytes to the cache dir. Shared by the batch and
+   * single paths.
+   */
+  private async storeArtworkBytes(
+    key: string,
+    id: string,
+    audioUri: Uri,
+    bytes: Uint8Array | undefined,
+  ): Promise<Uri | undefined> {
+    if (!bytes || bytes.byteLength === 0) return undefined
+    if (bytes.byteLength > this.config.maxArtworkBytes) {
+      this.ownCtx.logger.warn(
+        `cache: embedded artwork from ${audioUri} exceeds budget (${bytes.byteLength} bytes)`,
+      )
+      return undefined
+    }
+    const uri = this.ownCtx.fs.join(
+      this.artworkDir,
+      `aw_${stableId('artwork', key)}.${imageExtensionForBytes(bytes)}`,
     )
-    this.inflightArtwork.set(key, run)
-    return run
+    await this.ownCtx.fs.writeFile(uri, bytes)
+    await this.record(ARTWORK, key, uri, bytes.byteLength)
+    await this.rememberLocal(id, uri)
+    await this.enforce(ARTWORK)
+    return uri
   }
 
   private async doExtractEmbeddedArtwork(
@@ -299,22 +385,7 @@ export class Cache extends Service implements CacheService {
       )
       return undefined
     }
-    if (!bytes || bytes.byteLength === 0) return undefined
-    if (bytes.byteLength > this.config.maxArtworkBytes) {
-      this.ownCtx.logger.warn(
-        `cache: embedded artwork from ${audioUri} exceeds budget (${bytes.byteLength} bytes)`,
-      )
-      return undefined
-    }
-    const uri = this.ownCtx.fs.join(
-      this.artworkDir,
-      `aw_${stableId('artwork', key)}.${imageExtensionForBytes(bytes)}`,
-    )
-    await this.ownCtx.fs.writeFile(uri, bytes)
-    await this.record(ARTWORK, key, uri, bytes.byteLength)
-    await this.rememberLocal(id, uri)
-    await this.enforce(ARTWORK)
-    return uri
+    return this.storeArtworkBytes(key, id, audioUri, bytes)
   }
 
   private async fetchArtwork(key: string, id: string, sourceUrl: string): Promise<Uri | undefined> {

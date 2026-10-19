@@ -671,6 +671,11 @@ export class CodecBridge extends Service implements CodecService {
     return normalizeBridgeBytes(res) ?? undefined
   }
 
+  async readArtworkBatch(uris: Uri[]): Promise<Array<Uint8Array | undefined>> {
+    const res = await this.call<unknown[]>('readArtworkBatch', [uris])
+    return res.map((r) => normalizeBridgeBytes(r) ?? undefined)
+  }
+
   async readMetadataWithArtwork(
     uri: Uri,
     _signal?: AbortSignal,

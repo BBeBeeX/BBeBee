@@ -101,6 +101,30 @@ export class CodecNode extends Service implements CodecService {
   }
 
   /**
+   * Batch artwork extraction with bounded concurrency.
+   * Files without embedded art yield `undefined` (not an error).
+   */
+  async readArtworkBatch(uris: Uri[]): Promise<Array<Uint8Array | undefined>> {
+    const CONCURRENCY = 16
+    const results: Array<Uint8Array | undefined> = new Array(uris.length)
+    let next = 0
+    const workers = Array.from({ length: Math.min(CONCURRENCY, uris.length) }, async () => {
+      while (true) {
+        const i = next++
+        if (i >= uris.length) break
+        const uri = uris[i]!
+        try {
+          results[i] = await this.readArtwork(uri)
+        } catch {
+          results[i] = undefined
+        }
+      }
+    })
+    await Promise.all(workers)
+    return results
+  }
+
+  /**
    * Single parse for tags + artwork. Previously `readMetadata` and
    * `readArtwork` each parsed the file; the scanner calls both per file,
    * so this halves the parse work for files with embedded art.

@@ -165,6 +165,12 @@ export interface CodecService {
   readMetadataBatch?(uris: Uri[]): Promise<Array<{ metadata?: AudioMetadata; error?: string }>>
   readArtwork(uri: Uri): Promise<Uint8Array | undefined>
   /**
+   * Batch artwork extraction: one call for many files, amortizing IPC
+   * overhead when bridged. Returns the cover bytes per URI (undefined for
+   * files with no embedded cover), in input order.
+   */
+  readArtworkBatch?(uris: Uri[]): Promise<Array<Uint8Array | undefined>>
+  /**
    * Read tags and embedded artwork in a single parse. Optional: platforms
    * without it fall back to `readMetadata` + `readArtwork` (two parses).
    * The signal aborts in-flight reads (true cancellation, not just a race).

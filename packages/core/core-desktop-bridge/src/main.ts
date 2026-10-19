@@ -258,7 +258,8 @@ const ALLOWED: Record<BridgedService, ReadonlySet<string>> = {
   // the result crosses the bridge. `decode`/`transcode` stay renderer-local
   // (they have their own transports), as do the capability queries.
   codec: new Set([
-    'readMetadata', 'readMetadataBatch', 'readArtwork', 'readMetadataWithArtwork', 'probeDuration',
+    'readMetadata', 'readMetadataBatch', 'readArtwork', 'readArtworkBatch',
+    'readMetadataWithArtwork', 'probeDuration',
   ]),
 }
 
