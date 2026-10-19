@@ -105,7 +105,7 @@ const DEFAULTS = {
   previousThresholdMs: 3000,
   transition: 'gapless' as Transition,
   crossfadeMs: 0,
-  tickMs: 1000,
+  tickMs: 333,
   saveThrottleMs: 5000,
   retryBackoffMs: 500,
   // ~150 MB of source bytes; comfortably a long album, not an audiobook.
@@ -1226,7 +1226,7 @@ export class Player extends Service implements PlayerService {
   /**
    * Recompute position and everything driven by it.
    *
-   * The ticker calls this at 1 Hz — `player/position` at 60 Hz would dominate
+   * The ticker calls this at ~3 Hz — `player/position` at 60 Hz would dominate
    * the event bus for no benefit, and the UI interpolates between ticks
    * (docs/07 §5). Public because a shell wants it on regaining focus, and
    * because tests drive it directly rather than waiting on wall-clock time.
