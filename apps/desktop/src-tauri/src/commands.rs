@@ -74,7 +74,7 @@ pub fn desktop_window_maximize(window: tauri::WebviewWindow) -> Result<(), Strin
 pub fn window_close(
     app: tauri::AppHandle,
     window: tauri::WebviewWindow,
-    state: tauri::State<AppState>,
+    state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let platform = if cfg!(target_os = "windows") {
         "win32"
@@ -106,7 +106,7 @@ pub fn window_close(
 pub fn desktop_window_close(
     app: tauri::AppHandle,
     window: tauri::WebviewWindow,
-    state: tauri::State<AppState>,
+    state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     window_close(app, window, state)
 }
@@ -123,7 +123,7 @@ pub fn desktop_window_is_maximized(window: tauri::WebviewWindow) -> Result<bool,
 
 #[tauri::command]
 pub fn window_set_close_to_tray(
-    state: tauri::State<AppState>,
+    state: tauri::State<'_, AppState>,
     enabled: bool,
 ) -> Result<(), String> {
     state.set_close_to_tray(enabled);
@@ -132,7 +132,7 @@ pub fn window_set_close_to_tray(
 
 #[tauri::command]
 pub fn desktop_window_set_close_to_tray(
-    state: tauri::State<AppState>,
+    state: tauri::State<'_, AppState>,
     enabled: bool,
 ) -> Result<(), String> {
     window_set_close_to_tray(state, enabled)
@@ -154,9 +154,9 @@ pub fn desktop_window_toggle(app: tauri::AppHandle) -> Result<(), String> {
 // =============================================================================
 
 #[tauri::command]
-pub fn desktop_lyrics_set_visible(
+pub async fn desktop_lyrics_set_visible(
     app: tauri::AppHandle,
-    state: tauri::State<AppState>,
+    state: tauri::State<'_, AppState>,
     visible: bool,
     position: Option<Position>,
 ) -> Result<(), String> {
@@ -194,9 +194,9 @@ pub fn desktop_lyrics_set_visible(
 }
 
 #[tauri::command]
-pub fn desktop_lyrics_set_position(
+pub async fn desktop_lyrics_set_position(
     app: tauri::AppHandle,
-    state: tauri::State<AppState>,
+    state: tauri::State<'_, AppState>,
     position: Position,
 ) -> Result<(), String> {
     let clamped =
@@ -206,7 +206,7 @@ pub fn desktop_lyrics_set_position(
 }
 
 #[tauri::command]
-pub fn desktop_lyrics_get_position(
+pub async fn desktop_lyrics_get_position(
     app: tauri::AppHandle,
 ) -> Result<Option<Position>, String> {
     if let Some(win) = app.get_webview_window("desktop-lyrics") {
@@ -222,7 +222,7 @@ pub fn desktop_lyrics_get_position(
 }
 
 #[tauri::command]
-pub fn desktop_lyrics_commit_position(
+pub async fn desktop_lyrics_commit_position(
     app: tauri::AppHandle,
     position: Position,
 ) -> Result<(), String> {
@@ -235,16 +235,16 @@ pub fn desktop_lyrics_commit_position(
 }
 
 #[tauri::command]
-pub fn desktop_lyrics_get_data(
-    state: tauri::State<AppState>,
+pub async fn desktop_lyrics_get_data(
+    state: tauri::State<'_, AppState>,
 ) -> Result<Option<serde_json::Value>, String> {
     Ok(lock_recover(&state.latest_lyric_data).clone())
 }
 
 #[tauri::command]
-pub fn desktop_lyrics_set_locked(
+pub async fn desktop_lyrics_set_locked(
     app: tauri::AppHandle,
-    state: tauri::State<AppState>,
+    state: tauri::State<'_, AppState>,
     locked: bool,
 ) -> Result<(), String> {
     state.lyric_window_locked.store(locked, Ordering::SeqCst);
@@ -258,7 +258,7 @@ pub fn desktop_lyrics_set_locked(
 }
 
 #[tauri::command]
-pub fn desktop_lyrics_set_ignore_mouse(
+pub async fn desktop_lyrics_set_ignore_mouse(
     app: tauri::AppHandle,
     ignore: bool,
 ) -> Result<(), String> {
@@ -269,9 +269,9 @@ pub fn desktop_lyrics_set_ignore_mouse(
 }
 
 #[tauri::command]
-pub fn desktop_lyrics_update_data(
+pub async fn desktop_lyrics_update_data(
     app: tauri::AppHandle,
-    state: tauri::State<AppState>,
+    state: tauri::State<'_, AppState>,
     data: serde_json::Value,
 ) -> Result<(), String> {
     *lock_recover(&state.latest_lyric_data) = Some(data.clone());
@@ -282,7 +282,7 @@ pub fn desktop_lyrics_update_data(
 }
 
 #[tauri::command]
-pub fn desktop_lyrics_send_action(
+pub async fn desktop_lyrics_send_action(
     app: tauri::AppHandle,
     action: serde_json::Value,
 ) -> Result<(), String> {
@@ -297,9 +297,9 @@ pub fn desktop_lyrics_send_action(
 // =============================================================================
 
 #[tauri::command]
-pub fn mini_player_open(
+pub async fn mini_player_open(
     app: tauri::AppHandle,
-    state: tauri::State<AppState>,
+    state: tauri::State<'_, AppState>,
     options: Option<MiniPlayerOpenOptions>,
 ) -> Result<(), String> {
     if let Some(opts) = options {
@@ -336,18 +336,18 @@ pub fn mini_player_open(
 }
 
 #[tauri::command]
-pub fn desktop_mini_player_open(
+pub async fn desktop_mini_player_open(
     app: tauri::AppHandle,
-    state: tauri::State<AppState>,
+    state: tauri::State<'_, AppState>,
     options: Option<MiniPlayerOpenOptions>,
 ) -> Result<(), String> {
-    mini_player_open(app, state, options)
+    mini_player_open(app, state, options).await
 }
 
 #[tauri::command]
-pub fn mini_player_close(
+pub async fn mini_player_close(
     app: tauri::AppHandle,
-    state: tauri::State<AppState>,
+    state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     if let Some(win) = app.get_webview_window("mini-player") {
         let _ = win.hide();
@@ -364,15 +364,15 @@ pub fn mini_player_close(
 }
 
 #[tauri::command]
-pub fn desktop_mini_player_close(
+pub async fn desktop_mini_player_close(
     app: tauri::AppHandle,
-    state: tauri::State<AppState>,
+    state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
-    mini_player_close(app, state)
+    mini_player_close(app, state).await
 }
 
 #[tauri::command]
-pub fn mini_player_restore_main(app: tauri::AppHandle) -> Result<(), String> {
+pub async fn mini_player_restore_main(app: tauri::AppHandle) -> Result<(), String> {
     if let Some(main) = app.get_webview_window("main") {
         let _ = main.unminimize();
         let _ = main.show();
@@ -382,14 +382,14 @@ pub fn mini_player_restore_main(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn desktop_mini_player_restore_main(app: tauri::AppHandle) -> Result<(), String> {
-    mini_player_restore_main(app)
+pub async fn desktop_mini_player_restore_main(app: tauri::AppHandle) -> Result<(), String> {
+    mini_player_restore_main(app).await
 }
 
 #[tauri::command]
-pub fn mini_player_set_mode(
+pub async fn mini_player_set_mode(
     app: tauri::AppHandle,
-    state: tauri::State<AppState>,
+    state: tauri::State<'_, AppState>,
     mode: String,
 ) -> Result<(), String> {
     *lock_recover(&state.mini_player_mode) = mode.clone();
@@ -399,48 +399,48 @@ pub fn mini_player_set_mode(
 }
 
 #[tauri::command]
-pub fn desktop_mini_player_set_mode(
+pub async fn desktop_mini_player_set_mode(
     app: tauri::AppHandle,
-    state: tauri::State<AppState>,
+    state: tauri::State<'_, AppState>,
     mode: String,
 ) -> Result<(), String> {
-    mini_player_set_mode(app, state, mode)
+    mini_player_set_mode(app, state, mode).await
 }
 
 #[tauri::command]
-pub fn mini_player_get_state(
+pub async fn mini_player_get_state(
     app: tauri::AppHandle,
-    state: tauri::State<AppState>,
+    state: tauri::State<'_, AppState>,
 ) -> Result<MiniPlayerServiceState, String> {
     Ok(get_service_state(&app, &state))
 }
 
 #[tauri::command]
-pub fn desktop_mini_player_get_state(
+pub async fn desktop_mini_player_get_state(
     app: tauri::AppHandle,
-    state: tauri::State<AppState>,
+    state: tauri::State<'_, AppState>,
 ) -> Result<MiniPlayerServiceState, String> {
-    mini_player_get_state(app, state)
+    mini_player_get_state(app, state).await
 }
 
 #[tauri::command]
-pub fn mini_player_get_data(
-    state: tauri::State<AppState>,
+pub async fn mini_player_get_data(
+    state: tauri::State<'_, AppState>,
 ) -> Result<Option<serde_json::Value>, String> {
     Ok(lock_recover(&state.latest_mini_player_data).clone())
 }
 
 #[tauri::command]
-pub fn desktop_mini_player_get_data(
-    state: tauri::State<AppState>,
+pub async fn desktop_mini_player_get_data(
+    state: tauri::State<'_, AppState>,
 ) -> Result<Option<serde_json::Value>, String> {
-    mini_player_get_data(state)
+    mini_player_get_data(state).await
 }
 
 #[tauri::command]
-pub fn mini_player_update_data(
+pub async fn mini_player_update_data(
     app: tauri::AppHandle,
-    state: tauri::State<AppState>,
+    state: tauri::State<'_, AppState>,
     data: serde_json::Value,
 ) -> Result<(), String> {
     *lock_recover(&state.latest_mini_player_data) = Some(data.clone());
@@ -451,27 +451,27 @@ pub fn mini_player_update_data(
 }
 
 #[tauri::command]
-pub fn desktop_mini_player_update_data(
+pub async fn desktop_mini_player_update_data(
     app: tauri::AppHandle,
-    state: tauri::State<AppState>,
+    state: tauri::State<'_, AppState>,
     data: serde_json::Value,
 ) -> Result<(), String> {
-    mini_player_update_data(app, state, data)
+    mini_player_update_data(app, state, data).await
 }
 
 #[tauri::command]
-pub fn mini_player_send_action(
+pub async fn mini_player_send_action(
     app: tauri::AppHandle,
-    state: tauri::State<AppState>,
+    state: tauri::State<'_, AppState>,
     action: serde_json::Value,
 ) -> Result<(), String> {
     if let Some(action_type) = action.get("type").and_then(|v| v.as_str()) {
         match action_type {
-            "restoreMain" => return mini_player_restore_main(app),
-            "close" => return mini_player_close(app, state),
+            "restoreMain" => return mini_player_restore_main(app).await,
+            "close" => return mini_player_close(app, state).await,
             "setMode" => {
                 if let Some(mode) = action.get("mode").and_then(|v| v.as_str()) {
-                    return mini_player_set_mode(app, state, mode.to_string());
+                    return mini_player_set_mode(app, state, mode.to_string()).await;
                 }
             }
             _ => {}
@@ -485,12 +485,12 @@ pub fn mini_player_send_action(
 }
 
 #[tauri::command]
-pub fn desktop_mini_player_send_action(
+pub async fn desktop_mini_player_send_action(
     app: tauri::AppHandle,
-    state: tauri::State<AppState>,
+    state: tauri::State<'_, AppState>,
     action: serde_json::Value,
 ) -> Result<(), String> {
-    mini_player_send_action(app, state, action)
+    mini_player_send_action(app, state, action).await
 }
 
 // =============================================================================
@@ -498,19 +498,19 @@ pub fn desktop_mini_player_send_action(
 // =============================================================================
 
 #[tauri::command]
-pub fn locale_get(state: tauri::State<AppState>) -> Result<String, String> {
+pub fn locale_get(state: tauri::State<'_, AppState>) -> Result<String, String> {
     Ok(state.get_locale())
 }
 
 #[tauri::command]
-pub fn desktop_locale_get(state: tauri::State<AppState>) -> Result<String, String> {
+pub fn desktop_locale_get(state: tauri::State<'_, AppState>) -> Result<String, String> {
     locale_get(state)
 }
 
 #[tauri::command]
 pub fn locale_notify(
     app: tauri::AppHandle,
-    state: tauri::State<AppState>,
+    state: tauri::State<'_, AppState>,
     locale: String,
 ) -> Result<(), String> {
     if locale.is_empty() || locale == state.get_locale() {
@@ -525,7 +525,7 @@ pub fn locale_notify(
 #[tauri::command]
 pub fn desktop_locale_notify(
     app: tauri::AppHandle,
-    state: tauri::State<AppState>,
+    state: tauri::State<'_, AppState>,
     locale: String,
 ) -> Result<(), String> {
     locale_notify(app, state, locale)
@@ -538,7 +538,7 @@ pub fn desktop_locale_notify(
 #[tauri::command]
 pub fn taskbar_update(
     app: tauri::AppHandle,
-    state: tauri::State<AppState>,
+    state: tauri::State<'_, AppState>,
     taskbar: TaskbarState,
 ) -> Result<(), String> {
     *lock_recover(&state.taskbar_state) = taskbar;
@@ -549,7 +549,7 @@ pub fn taskbar_update(
 #[tauri::command]
 pub fn desktop_taskbar_update(
     app: tauri::AppHandle,
-    state: tauri::State<AppState>,
+    state: tauri::State<'_, AppState>,
     taskbar: TaskbarState,
 ) -> Result<(), String> {
     taskbar_update(app, state, taskbar)
