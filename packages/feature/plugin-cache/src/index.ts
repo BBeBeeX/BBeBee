@@ -376,18 +376,18 @@ export class Cache extends Service implements CacheService {
       return
     }
 
-    // Chunk large batches: the sidecar bridge times out after 30s, and the
-    // worker processes files sequentially. Keep each chunk small enough to
-    // complete well within the timeout (assume ~2s per file worst case).
-    // Concurrency: process up to 2 chunks in parallel (worker pool has 4).
-    const CHUNK_SIZE = 10
-    const MAX_CONCURRENT_CHUNKS = 2
+    // Chunk large batches: the sidecar bridge times out after 30s.
+    // SEQUENTIAL, not concurrent: send one chunk, wait for it to complete,
+    // yield to the event loop, then send the next. This keeps the bridge
+    // free for player calls (readMetadata, audio.load) to interleave.
+    // Covers can be slow; playback cannot wait.
+    const CHUNK_SIZE = 5
     const chunks: (typeof batch)[] = []
     for (let start = 0; start < batch.length; start += CHUNK_SIZE) {
       chunks.push(batch.slice(start, start + CHUNK_SIZE))
     }
-    // Process chunks with limited concurrency, P0 chunks first
-    for (let i = 0; i < chunks.length; i += MAX_CONCURRENT_CHUNKS) {
+    // Strictly sequential: one chunk at a time, yield between chunks.
+    for (let i = 0; i < chunks.length; i++) {
       // Playback priority: if the player is loading, abort the remaining
       // chunks — covers will be re-requested via LazyArtwork when visible.
       // Don't delay playback for background cover work.
@@ -399,8 +399,10 @@ export class Cache extends Service implements CacheService {
         }
         return
       }
-      const concurrent = chunks.slice(i, i + MAX_CONCURRENT_CHUNKS)
-      await Promise.all(concurrent.map((chunk) => this.processArtworkChunk(codec, chunk)))
+      await this.processArtworkChunk(codec, chunks[i]!)
+      // Yield to the event loop so player bridge calls can interleave.
+      // Without this, back-to-back chunks starve the bridge.
+      await new Promise((resolve) => setTimeout(resolve, 50))
     }
   }
 
