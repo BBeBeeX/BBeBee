@@ -141,9 +141,17 @@ export function useResolvedArtwork(ctx: Context, artwork?: ArtworkRef): ArtworkR
     return current.uri === artwork.sourceUrl ? artwork : { ...artwork, sourceUrl: current.uri }
   }
   // Settled with no URI: the cache could not help — a disabled plugin, a
-  // refused fetch — so the remote URL is the honest fallback.
-  if (current?.settled) return artwork
+  // refused fetch — so the remote URL is the honest fallback, BUT only if
+  // it's actually an image. A lazy: ref's sourceUrl is the audio file itself;
+  // returning it would put FLAC/MP3 in an <img> tag.
+  const sourceIsImage = (u?: string) =>
+    !!u && /\.(jpe?g|png|gif|webp|bmp|svg|ico|avif|heic|heif|tiff?)(\?|$)/i.test(u)
+  if (current?.settled) {
+    return sourceIsImage(artwork.sourceUrl) ? artwork : { ...artwork, sourceUrl: undefined }
+  }
   // In flight (or not started yet): render the fallback rather than the CDN.
-  if (isLocalUri(artwork.sourceUrl)) return artwork
+  if (isLocalUri(artwork.sourceUrl)) {
+    return sourceIsImage(artwork.sourceUrl) ? artwork : { ...artwork, sourceUrl: undefined }
+  }
   return { ...artwork, sourceUrl: undefined }
 }
