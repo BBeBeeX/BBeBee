@@ -850,6 +850,11 @@ export class Cache extends Service implements CacheService {
     if (!row) return false
     await this.ownCtx.db.exec('DELETE FROM cache_entries WHERE key = ?', [key]).catch(() => undefined)
     await this.ownCtx.fs.remove(row.uri).catch(() => undefined)
+    // Clear the catalogue's local_uri if it pointed at the deleted file —
+    // otherwise readers get a stale URI for a file that no longer exists.
+    await this.ownCtx.db
+      .exec('UPDATE artworks SET local_uri = NULL WHERE local_uri = ?', [row.uri])
+      .catch(() => undefined)
     return true
   }
 
@@ -868,7 +873,19 @@ export class Cache extends Service implements CacheService {
         'SELECT local_uri FROM artworks WHERE id = ?',
         [id],
       )
-      return row?.local_uri ?? undefined
+      const uri = row?.local_uri
+      if (!uri) return undefined
+      // Verify the file still exists — the cache may have evicted it
+      // (drop/prune now clear local_uri, but stale rows from before the fix
+      // may remain until the next sweep).
+      if (!(await this.exists(uri))) {
+        // Clear the stale reference so we re-extract instead of serving a 404
+        await this.ownCtx.db
+          .exec('UPDATE artworks SET local_uri = NULL WHERE id = ?', [id])
+          .catch(() => undefined)
+        return undefined
+      }
+      return uri
     } catch (error) {
       this.ownCtx.logger.warn(`cache: could not read artwork ${id}: ${String(error)}`)
       return undefined
@@ -970,6 +987,12 @@ export class Cache extends Service implements CacheService {
       if (this.pending.has(row.uri)) continue
       if (await this.exists(row.uri)) continue
       await this.ownCtx.db.exec('DELETE FROM cache_entries WHERE key = ?', [row.key]).catch(() => undefined)
+      // Clear stale catalogue references to the missing file
+      if (className === ARTWORK) {
+        await this.ownCtx.db
+          .exec('UPDATE artworks SET local_uri = NULL WHERE local_uri = ?', [row.uri])
+          .catch(() => undefined)
+      }
     }
   }
 }
