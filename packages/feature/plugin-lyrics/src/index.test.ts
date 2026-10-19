@@ -427,6 +427,68 @@ describe('plugin-lyrics', () => {
     expect(lyricSources.searchCount).toBe(0) // LyricSources was NOT called!
   })
 
+  it('retries local files with the metadata tag title when the DB title finds no lyrics', async () => {
+    class CodecStub extends Service {
+      constructor(c: Context) {
+        super(c, 'codec')
+      }
+      async readMetadata(_uri: string) {
+        // Live tags have the real title; the DB only has a filename-derived one.
+        return { title: 'Tag Title', artist: 'Tag Artist' }
+      }
+    }
+
+    class LyricSourcesStub extends Service {
+      queries: any[] = []
+      constructor(c: Context) {
+        super(c, 'lyricSources')
+      }
+      async searchLyrics(query: any) {
+        this.queries.push(query)
+        if (query.title === 'Tag Title') {
+          return { format: 'lrc' as const, content: '[00:02.00]Tag Lyric', synced: true }
+        }
+        return undefined
+      }
+    }
+
+    class LocalDbStub extends DbStub {
+      override async query<T>(sql: string, params: any[]): Promise<T[]> {
+        if (sql.includes('FROM media_bindings')) {
+          return [{ uri: 'file:///music/song.mp3' } as T]
+        }
+        if (sql.includes('FROM tracks')) {
+          return [{ title: 'WrongTitle', artist: '', duration_ms: 180000 } as T]
+        }
+        return super.query(sql, params)
+      }
+    }
+
+    const ctx = new Context()
+    await ctx.plugin(PlayerStub)
+    await ctx.plugin(SourcesStub)
+    await ctx.plugin(LocalDbStub)
+    await ctx.plugin(CodecStub)
+    await ctx.plugin(LyricSourcesStub)
+    await ctx.plugin(LyricsPlugin)
+
+    const player = (ctx as any).player as PlayerStub
+    const lyricSources = (ctx as any).lyricSources as LyricSourcesStub
+
+    player.transport.trackUrn = 'BBeBee:local:track:song123'
+    player.transport.durationMs = 180000
+
+    player.setTrack('BBeBee:local:track:song123')
+    await new Promise((resolve) => setTimeout(resolve, 100))
+
+    expect(ctx.lyrics.state.status).toBe('ready')
+    expect(ctx.lyrics.state.lyrics?.content).toBe('[00:02.00]Tag Lyric')
+    expect(lyricSources.queries.length).toBe(2)
+    expect(lyricSources.queries[0].title).toBe('WrongTitle')
+    expect(lyricSources.queries[1].title).toBe('Tag Title')
+    expect(lyricSources.queries[1].artist).toBe('Tag Artist')
+  })
+
   it('prefers audio provider lyrics first, and falls back to lyricSources if audio provider has no lyrics', async () => {
     class LyricSourcesStub extends Service {
       searchCount = 0

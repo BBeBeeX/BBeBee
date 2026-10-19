@@ -9,6 +9,7 @@ import { Service } from 'cordis'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import type {
+  CodecService,
   LyricSearchQuery,
   LyricSourcesService,
   Lyrics,
@@ -461,8 +462,10 @@ export class LyricsPlugin extends Service implements LyricsService {
     }
 
     // Priority 2: Fallback to third-party lyric sources if audio source allows it and had no lyrics
+    let triedQuery: LyricSearchQuery | undefined
     if (supportsLyricSource && lyricSourcesSvc) {
       const query = await this.resolveTrackQuery(trackUrn, presetMetadata)
+      triedQuery = query
       const isGenuineTitle = Boolean(query.title && query.title !== trackUrn && query.title !== parsedUrn?.id)
       if (isGenuineTitle) {
         genuineSearchPerformed = true
@@ -477,6 +480,28 @@ export class LyricsPlugin extends Service implements LyricsService {
         }
       } catch (err) {
         this.ownCtx.logger.warn(`lyrics: lyricSources.searchLyrics failed for ${trackUrn}: ${String(err)}`)
+      }
+    }
+
+    // Priority 2.5: Local files — retry with live metadata tags.
+    // The DB title may be filename-derived (tags missing/unreadable at scan time)
+    // or stale (tags edited after scan). Re-reading the file's tags directly can
+    // yield a better title for a second search attempt.
+    if (parsedUrn?.sourceId === 'local' && supportsLyricSource && lyricSourcesSvc && triedQuery) {
+      const retryQuery = await this.resolveMetadataRetryQuery(trackUrn, triedQuery)
+      if (retryQuery) {
+        genuineSearchPerformed = true
+        try {
+          const fetched = await lyricSourcesSvc.searchLyrics(retryQuery)
+          if (fetched && fetched.content && fetched.content.trim()) {
+            this.lastResolvedSourceType.set(trackUrn, 'lyric-source')
+            this.remember(trackUrn, fetched)
+            await this.persistLyrics(trackUrn, fetched)
+            return fetched
+          }
+        } catch (err) {
+          this.ownCtx.logger.warn(`lyrics: metadata-retry searchLyrics failed for ${trackUrn}: ${String(err)}`)
+        }
       }
     }
 
@@ -597,6 +622,61 @@ export class LyricsPlugin extends Service implements LyricsService {
       title: title.trim(),
       artist: (artist ?? '').trim(),
       duration,
+    }
+  }
+
+  /**
+   * Builds a retry query from the file's live metadata tags.
+   * Returns undefined when there's nothing new to try: no codec service, no
+   * file URI, tag read failed, or the tag title matches what was already tried.
+   */
+  private async resolveMetadataRetryQuery(
+    trackUrn: string,
+    triedQuery: LyricSearchQuery,
+  ): Promise<LyricSearchQuery | undefined> {
+    // Optional service: the retry is skipped when no codec is available.
+    // (Direct ctx.codec access throws when the service isn't injected.)
+    const codec = (
+      this.ownCtx as unknown as { reflect?: { get(key: string, required?: boolean): unknown } }
+    ).reflect?.get?.('codec', false) as CodecService | undefined
+    if (!codec) return undefined
+
+    // Resolve the local file URI for this track.
+    let uri: string | undefined
+    if (this.ownCtx.db) {
+      try {
+        const rows = await this.ownCtx.db.query<{ uri: string }>(
+          'SELECT uri FROM media_bindings WHERE track_urn = ? LIMIT 1',
+          [trackUrn],
+        )
+        uri = rows[0]?.uri
+      } catch {
+        // ignore — fall through to undefined
+      }
+    }
+    if (!uri) return undefined
+
+    let tagTitle: string | undefined
+    let tagArtist: string | undefined
+    try {
+      const metadata = await codec.readMetadata(uri)
+      tagTitle = metadata.title?.trim() || undefined
+      tagArtist = metadata.artist?.trim() || undefined
+    } catch {
+      return undefined
+    }
+
+    // Only retry when the tag title is non-empty and different from the title
+    // we already searched with — otherwise we'd repeat the same failing query.
+    if (!tagTitle || tagTitle === triedQuery.title) return undefined
+
+    this.ownCtx.logger.info(
+      `lyrics: retrying search with metadata title "${tagTitle}" for ${trackUrn}`,
+    )
+    return {
+      title: tagTitle,
+      artist: tagArtist ?? triedQuery.artist,
+      duration: triedQuery.duration,
     }
   }
 
