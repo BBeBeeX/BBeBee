@@ -6,7 +6,7 @@ import { serviceOf, type MenuAnchor, type MenuItemSpec } from '@BBeBee/ui-core'
 import { ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, HoverLabel, List, MarqueeText, PageMarqueeProvider, SaveToPlaylistPopover, StickyDetailBar, Text, tablerIcon, useDetailBarCollapse, viewModeMenuItems, useViewMode, headerGradient, useI18n } from '@BBeBee/ui-kit-desktop'
 import { sortMenuItems, useTrackMenu } from '@BBeBee/ui-menus'
 import { tokens } from '@BBeBee/ui-tokens'
-import { CachedArtwork } from '../components/CachedArtwork.js'
+import { LazyArtwork } from '../components/LazyArtwork.js'
 import { LocalAlbumCard } from '../components/LocalAlbumCard.js'
 import { LibraryTrackRow } from '../components/LibraryTrackRow.js'
 import { BatchActionBar } from '../components/BatchActionBar.js'
@@ -131,7 +131,7 @@ function LocalAlbumRow({
               },
             },
             album.artwork
-              ? h(CachedArtwork, { ctx, artwork: album.artwork, seed: album.urn, size: 40, radius: 4 })
+              ? h(LazyArtwork, { ctx, artwork: album.artwork, seed: album.urn, size: 40, radius: 4 })
               : tablerIcon('disc', { size: 22, color: '#7f7f7f' }),
           ),
       h(

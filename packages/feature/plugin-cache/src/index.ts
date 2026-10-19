@@ -368,8 +368,30 @@ export class Cache extends Service implements CacheService {
     // complete well within the timeout (assume ~2s per file worst case).
     const CHUNK_SIZE = 10
     for (let start = 0; start < batch.length; start += CHUNK_SIZE) {
+      // Playback priority: if the player is loading a track, pause the batch
+      // and let readMetadata go first. Poll up to 10s.
+      await this.waitForPlaybackIdle()
       const chunk = batch.slice(start, start + CHUNK_SIZE)
       await this.processArtworkChunk(codec, chunk)
+    }
+  }
+
+  /**
+   * Wait until the player is not in a loading state, so artwork batch work
+   * does not starve playback metadata reads. Returns immediately if no
+   * player service or not loading.
+   */
+  private async waitForPlaybackIdle(): Promise<void> {
+    const player = (
+      this.ownCtx as unknown as {
+        reflect: { get(key: string, required: boolean): unknown }
+      }
+    ).reflect.get('player', false) as { state?: { status?: string } } | undefined
+    if (!player) return
+    for (let i = 0; i < 20; i++) {
+      const status = player.state?.status
+      if (status !== 'loading') return
+      await new Promise((resolve) => setTimeout(resolve, 500))
     }
   }
 
