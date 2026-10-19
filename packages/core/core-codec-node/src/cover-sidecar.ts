@@ -62,16 +62,15 @@ async function readArtworkBatchViaWorker(filePaths: string[]): Promise<Array<str
   }
 
   const results: Array<string | null> = new Array(filePaths.length)
-  const chunks: string[][] = Array.from({ length: POOL_SIZE }, () => [])
+  // Distribute round-robin, but track the global index for each file.
+  // Worker w gets files at global indices w, w+POOL_SIZE, w+2*POOL_SIZE, ...
+  const chunks: Array<Array<{ filePath: string; globalIndex: number }>> = Array.from(
+    { length: POOL_SIZE },
+    () => [],
+  )
   filePaths.forEach((fp, i) => {
-    chunks[i % POOL_SIZE]!.push(fp)
+    chunks[i % POOL_SIZE]!.push({ filePath: fp, globalIndex: i })
   })
-  const workerOffsets: number[] = []
-  let offset = 0
-  for (let w = 0; w < POOL_SIZE; w++) {
-    workerOffsets.push(offset)
-    offset += chunks[w]!.length
-  }
 
   const workerPromises = chunks.map((chunkFiles, w) => {
     if (chunkFiles.length === 0) return Promise.resolve()
@@ -79,8 +78,7 @@ async function readArtworkBatchViaWorker(filePaths: string[]): Promise<Array<str
       const child: ChildProcess = fork(workerPath)
       let pending = chunkFiles.length
       let nextId = 0
-      const idToLocal = new Map<number, number>()
-      const baseOffset = workerOffsets[w]!
+      const idToGlobal = new Map<number, number>()
 
       const cleanup = () => {
         try {
@@ -99,10 +97,10 @@ async function readArtworkBatchViaWorker(filePaths: string[]): Promise<Array<str
 
       child.on('message', (msg: unknown) => {
         const m = msg as { id: number; artwork: string | null }
-        const localIdx = idToLocal.get(m.id)
-        if (localIdx !== undefined) {
-          results[baseOffset + localIdx] = m.artwork
-          idToLocal.delete(m.id)
+        const globalIdx = idToGlobal.get(m.id)
+        if (globalIdx !== undefined) {
+          results[globalIdx] = m.artwork
+          idToGlobal.delete(m.id)
           if (--pending === 0) {
             cleanup()
             resolve()
@@ -123,8 +121,8 @@ async function readArtworkBatchViaWorker(filePaths: string[]): Promise<Array<str
 
       for (let l = 0; l < chunkFiles.length; l++) {
         const id = nextId++
-        idToLocal.set(id, l)
-        child.send({ id, filePath: chunkFiles[l] })
+        idToGlobal.set(id, chunkFiles[l]!.globalIndex)
+        child.send({ id, filePath: chunkFiles[l]!.filePath })
       }
 
       setTimeout(() => {

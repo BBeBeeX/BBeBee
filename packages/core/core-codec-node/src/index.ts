@@ -260,17 +260,15 @@ export class CodecNode extends Service implements CodecService {
     const POOL_SIZE = Math.min(Math.max(cpus().length, 2), 4)
     const results: Array<Uint8Array | undefined> = new Array(filePaths.length)
     // Distribute files round-robin across workers for load balancing.
-    const chunks: string[][] = Array.from({ length: POOL_SIZE }, () => [])
+    // Track global index per file — worker w gets global indices
+    // w, w+POOL_SIZE, w+2*POOL_SIZE, ... (NOT contiguous blocks).
+    const chunks: Array<Array<{ filePath: string; globalIndex: number }>> = Array.from(
+      { length: POOL_SIZE },
+      () => [],
+    )
     filePaths.forEach((fp, i) => {
-      chunks[i % POOL_SIZE]!.push(fp)
+      chunks[i % POOL_SIZE]!.push({ filePath: fp, globalIndex: i })
     })
-    // Worker w handles global indices [offset, offset+chunk.length)
-    const workerOffsets: number[] = []
-    let offset = 0
-    for (let w = 0; w < POOL_SIZE; w++) {
-      workerOffsets.push(offset)
-      offset += chunks[w]!.length
-    }
 
     const workerPromises = chunks.map((chunkFiles, w) => {
       if (chunkFiles.length === 0) return Promise.resolve()
@@ -278,8 +276,7 @@ export class CodecNode extends Service implements CodecService {
         const child = fork(workerPath)
         let pending = chunkFiles.length
         let nextId = 0
-        const idToLocal = new Map<number, number>()
-        const baseOffset = workerOffsets[w]!
+        const idToGlobal = new Map<number, number>()
 
         const cleanup = () => {
           try {
@@ -298,11 +295,10 @@ export class CodecNode extends Service implements CodecService {
 
         child.on('message', (msg: unknown) => {
           const m = msg as { id: number; artwork: string | null }
-          const localIdx = idToLocal.get(m.id)
-          if (localIdx !== undefined) {
-            const globalI = baseOffset + localIdx
-            results[globalI] = m.artwork ? new Uint8Array(Buffer.from(m.artwork, 'base64')) : undefined
-            idToLocal.delete(m.id)
+          const globalIdx = idToGlobal.get(m.id)
+          if (globalIdx !== undefined) {
+            results[globalIdx] = m.artwork ? new Uint8Array(Buffer.from(m.artwork, 'base64')) : undefined
+            idToGlobal.delete(m.id)
             if (--pending === 0) {
               cleanup()
               resolve()
@@ -323,8 +319,8 @@ export class CodecNode extends Service implements CodecService {
 
         for (let l = 0; l < chunkFiles.length; l++) {
           const id = nextId++
-          idToLocal.set(id, l)
-          child.send({ id, filePath: chunkFiles[l] })
+          idToGlobal.set(id, chunkFiles[l]!.globalIndex)
+          child.send({ id, filePath: chunkFiles[l]!.filePath })
         }
 
         setTimeout(() => {
