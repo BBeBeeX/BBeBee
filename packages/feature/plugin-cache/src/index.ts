@@ -499,21 +499,35 @@ export class Cache extends Service implements CacheService {
     key: string,
     id: string,
     audioUri: Uri,
-    bytes: Uint8Array | undefined,
+    bytes: Uint8Array | string | undefined,
   ): Promise<Uri | undefined> {
-    if (!bytes || bytes.byteLength === 0) return undefined
-    if (bytes.byteLength > this.config.maxArtworkBytes) {
+    // The cover sidecar returns base64 strings (JSON-safe); the main sidecar
+    // returns Uint8Array. Normalize to Uint8Array.
+    let data: Uint8Array | undefined
+    if (typeof bytes === 'string') {
+      try {
+        const binary = atob(bytes)
+        data = new Uint8Array(binary.length)
+        for (let i = 0; i < binary.length; i++) data[i] = binary.charCodeAt(i)
+      } catch {
+        return undefined
+      }
+    } else {
+      data = bytes
+    }
+    if (!data || data.byteLength === 0) return undefined
+    if (data.byteLength > this.config.maxArtworkBytes) {
       this.ownCtx.logger.warn(
-        `cache: embedded artwork from ${audioUri} exceeds budget (${bytes.byteLength} bytes)`,
+        `cache: embedded artwork from ${audioUri} exceeds budget (${data.byteLength} bytes)`,
       )
       return undefined
     }
     const uri = this.ownCtx.fs.join(
       this.artworkDir,
-      `aw_${stableId('artwork', key)}.${imageExtensionForBytes(bytes)}`,
+      `aw_${stableId('artwork', key)}.${imageExtensionForBytes(data)}`,
     )
-    await this.ownCtx.fs.writeFile(uri, bytes)
-    await this.record(ARTWORK, key, uri, bytes.byteLength)
+    await this.ownCtx.fs.writeFile(uri, data)
+    await this.record(ARTWORK, key, uri, data.byteLength)
     await this.rememberLocal(id, uri)
     await this.enforce(ARTWORK)
     return uri
