@@ -32,8 +32,6 @@ interface WindowWithBridge {
   BBeBee?: {
     desktopLyrics?: {
       setVisible(visible: boolean, pos?: { x: number; y: number }): Promise<void>
-      setPosition(pos: { x: number; y: number }): Promise<void>
-      getPosition(): Promise<{ x: number; y: number } | undefined>
       getData?(): Promise<unknown>
       onMoved(callback: (pos: { x: number; y: number }) => void): () => void
       setLocked(locked: boolean): Promise<void>
@@ -158,21 +156,16 @@ function DesktopLyricsInner({ ctx }: DesktopLyricsProps): ReactElement | null {
       .catch((e) => ctx.logger.error(`desktop-lyrics: bridge.setVisible rejected: ${String(e)}`))
   }, [hasNativeBridge, bridge, isEnabled])
 
-  // 2. Sync desktop lyrics position (fires only while enabled, and only when the coordinates numerically change)
-  useEffect(() => {
-    if (!hasNativeBridge || !bridge || !isEnabled) return
-    if (posX >= 0 && posY >= 0) {
-      void bridge.setPosition({ x: posX, y: posY })
-    }
-  }, [hasNativeBridge, bridge, isEnabled, posX, posY])
-
-  // 3. Sync the lock/click-through state
+  // 2. Sync the lock/click-through state
+  // NOTE: window position is no longer pushed from here. Dragging is
+  // OS-native now; the position flows back through `onMoved` below, and the
+  // saved position is applied on open via setVisible's targetPos above.
   useEffect(() => {
     if (!hasNativeBridge || !bridge || !isEnabled) return
     void bridge.setLocked(isLocked)
   }, [hasNativeBridge, bridge, isEnabled, isLocked])
 
-  // 4. Sync lyrics content, font size, color, and playback state
+  // 3. Sync lyrics content, font size, color, and playback state
   useEffect(() => {
     if (!hasNativeBridge || !bridge || !isEnabled) return
 
