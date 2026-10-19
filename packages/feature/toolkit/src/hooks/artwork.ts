@@ -82,7 +82,11 @@ function cacheSet(id: string, uri: string | null): void {
   }
 }
 
-export function useResolvedArtwork(ctx: Context, artwork?: ArtworkRef): ArtworkRef | undefined {
+export function useResolvedArtwork(
+  ctx: Context,
+  artwork?: ArtworkRef,
+  priority: 0 | 1 | 2 = 1,
+): ArtworkRef | undefined {
   const [resolution, setResolution] = useState<Resolution | undefined>(undefined)
   const id = artwork?.id
   const sourceUrl = artwork?.sourceUrl
@@ -163,7 +167,7 @@ export function useResolvedArtwork(ctx: Context, artwork?: ArtworkRef): ArtworkR
 
       if (active) setResolution({ id, settled: false })
       try {
-        const uri = await cache.artwork(sourceUrl ? { id, sourceUrl } : { id })
+        const uri = await cache.artwork(sourceUrl ? { id, sourceUrl } : { id }, undefined, priority)
         settle(uri ?? undefined)
       } catch {
         settle(undefined)
@@ -174,7 +178,7 @@ export function useResolvedArtwork(ctx: Context, artwork?: ArtworkRef): ArtworkR
     return () => {
       active = false
     }
-  }, [ctx, id, sourceUrl])
+  }, [ctx, id, sourceUrl, priority])
 
   if (!artwork) return undefined
   const cache = serviceOf<CacheService>(ctx, 'cache')

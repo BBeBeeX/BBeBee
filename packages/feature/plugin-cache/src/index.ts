@@ -190,7 +190,7 @@ export class Cache extends Service implements CacheService {
 
   /* ── covers ────────────────────────────────────────────────────────── */
 
-  async artwork(ref: ArtworkRef): Promise<Uri | undefined> {
+  async artwork(ref: ArtworkRef, size?: number, priority: 0 | 1 | 2 = 1): Promise<Uri | undefined> {
     if (!ref?.id) return undefined
     const key = artworkKeyOf(ref.id)
 
@@ -230,7 +230,7 @@ export class Cache extends Service implements CacheService {
         }
       }
       if (audioUri) {
-        return await this.extractEmbeddedArtwork(key, ref.id, audioUri)
+        return await this.extractEmbeddedArtwork(key, ref.id, audioUri, priority)
       }
       // No audio source known — cannot extract. Do NOT fall through to the
       // local-file branch below, which would be wrong for a lazy ref.
@@ -311,6 +311,7 @@ export class Cache extends Service implements CacheService {
     key: string,
     id: string,
     audioUri: Uri,
+    priority: 0 | 1 | 2,
   ): Promise<Uri | undefined> {
     const inflight = this.inflightArtwork.get(key)
     if (inflight) return inflight
@@ -334,7 +335,7 @@ export class Cache extends Service implements CacheService {
         void this.flushArtworkBatch()
       }, 10)
     }
-    this.artworkBatch.push({ key, id, audioUri, resolve })
+    this.artworkBatch.push({ key, id, audioUri, priority, resolve })
     return promise
   }
 
@@ -343,6 +344,7 @@ export class Cache extends Service implements CacheService {
         key: string
         id: string
         audioUri: Uri
+        priority: 0 | 1 | 2
         resolve: (uri: Uri | undefined) => void
       }>
     | null = null
@@ -352,6 +354,9 @@ export class Cache extends Service implements CacheService {
     const batch = this.artworkBatch
     this.artworkBatch = null
     if (!batch || batch.length === 0) return
+
+    // Sort by priority: P0 (visible) first, then P1 (nearby), then P2 (background)
+    batch.sort((a, b) => a.priority - b.priority)
 
     const codec = (
       this.ownCtx as unknown as {
@@ -366,13 +371,20 @@ export class Cache extends Service implements CacheService {
     // Chunk large batches: the sidecar bridge times out after 30s, and the
     // worker processes files sequentially. Keep each chunk small enough to
     // complete well within the timeout (assume ~2s per file worst case).
+    // Concurrency: process up to 2 chunks in parallel (worker pool has 4).
     const CHUNK_SIZE = 10
+    const MAX_CONCURRENT_CHUNKS = 2
+    const chunks: (typeof batch)[] = []
     for (let start = 0; start < batch.length; start += CHUNK_SIZE) {
+      chunks.push(batch.slice(start, start + CHUNK_SIZE))
+    }
+    // Process chunks with limited concurrency, P0 chunks first
+    for (let i = 0; i < chunks.length; i += MAX_CONCURRENT_CHUNKS) {
       // Playback priority: if the player is loading a track, pause the batch
       // and let readMetadata go first. Poll up to 10s.
       await this.waitForPlaybackIdle()
-      const chunk = batch.slice(start, start + CHUNK_SIZE)
-      await this.processArtworkChunk(codec, chunk)
+      const concurrent = chunks.slice(i, i + MAX_CONCURRENT_CHUNKS)
+      await Promise.all(concurrent.map((chunk) => this.processArtworkChunk(codec, chunk)))
     }
   }
 
@@ -401,6 +413,7 @@ export class Cache extends Service implements CacheService {
       key: string
       id: string
       audioUri: Uri
+      priority: 0 | 1 | 2
       resolve: (uri: Uri | undefined) => void
     }>,
   ): Promise<void> {

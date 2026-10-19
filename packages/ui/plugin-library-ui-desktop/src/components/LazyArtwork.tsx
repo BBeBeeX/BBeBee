@@ -8,6 +8,7 @@ import { CachedArtwork } from './CachedArtwork.js'
  * `CachedArtwork` that only resolves the cover when scrolled into view.
  * Uses IntersectionObserver; renders a placeholder div until visible.
  * Prevents batch-fetching hundreds of covers on page open.
+ * Priority P0 (visible) — the observer's 200px margin preloads just before visible.
  */
 export function LazyArtwork({
   ctx,
@@ -44,5 +45,6 @@ export function LazyArtwork({
       style: { width: size, height: size, flexShrink: 0 },
     })
   }
-  return h(CachedArtwork, { ctx, ...props })
+  // P0: visible — highest priority.
+  return h(CachedArtwork, { ctx, priority: 0, ...props })
 }

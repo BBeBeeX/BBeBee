@@ -63,7 +63,7 @@ export interface CacheService {
    * When the catalogue already knows a `local_uri` (the scanner's embedded
    * covers), that file is returned without touching the network.
    */
-  artwork(ref: ArtworkRef, size?: number): Promise<Uri | undefined>
+  artwork(ref: ArtworkRef, size?: number, priority?: 0 | 1 | 2): Promise<Uri | undefined>
 
   /** Entries and bytes currently held, for one class or all of them. */
   stats(className?: CacheClass): Promise<CacheStats>
