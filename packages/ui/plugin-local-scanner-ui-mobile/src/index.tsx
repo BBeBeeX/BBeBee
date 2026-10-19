@@ -12,7 +12,7 @@ import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import type { ScanSpecifiedDir } from '@BBeBee/protocol'
 import { SCANNER_VIEWS } from '@BBeBee/plugin-local-scanner/views'
-import { summarise, useScanSpecifiedDirs, useScanState } from '@BBeBee/plugin-local-scanner/hooks'
+import { summarise, useScanErrors, useScanSpecifiedDirs, useScanState } from '@BBeBee/plugin-local-scanner/hooks'
 import {
   Button,
   EmptyState,
@@ -29,6 +29,7 @@ export function ScanSpecifiedDirsScreen({ ctx }: { ctx: Context }): ReactElement
   const native = nativePrimitives()
   const dirs = useScanSpecifiedDirs(ctx)
   const scan = useScanState(ctx)
+  const scanErrors = useScanErrors(ctx)
 
   const addFolder = async () => {
     // The picker is what carries a durable permission grant on Android; a
@@ -90,6 +91,28 @@ export function ScanSpecifiedDirsScreen({ ctx }: { ctx: Context }): ReactElement
           numberOfLines: 1,
           children: scan.progress.currentFile,
         })
+      : null,
+    // Files that failed, with reasons.
+    !scan.running && scanErrors.length > 0
+      ? h(
+          native.View as never,
+          {
+            style: { padding: 12, gap: 8 },
+          },
+          h(Text, {
+            variant: 'md',
+            tone: 'warn',
+            children: t('localScanner:index.scanErrorsCount', { count: scanErrors.length }),
+          }),
+          ...scanErrors.map((item) =>
+            h(
+              native.View as never,
+              { key: item.uri, style: { gap: 2, paddingVertical: 4 } },
+              h(Text, { variant: 'sm', numberOfLines: 1, children: item.uri }),
+              h(Text, { variant: 'sm', tone: 'error', numberOfLines: 2, children: item.error }),
+            ),
+          ),
+        )
       : null,
     h(List<ScanSpecifiedDir>, {
       items: dirs,

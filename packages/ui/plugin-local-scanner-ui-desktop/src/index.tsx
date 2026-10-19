@@ -11,7 +11,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import type { ScanSpecifiedDir, Uri } from '@BBeBee/protocol'
-import { summarise, useScanSpecifiedDirs, useScanState } from '@BBeBee/plugin-local-scanner/hooks'
+import { summarise, useScanErrors, useScanSpecifiedDirs, useScanState } from '@BBeBee/plugin-local-scanner/hooks'
 import { Button, EmptyState, IconButton, List, Text, useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
 
@@ -19,6 +19,7 @@ export function ScanSpecifiedDirsScreen({ ctx }: { ctx: Context }): ReactElement
   const { t } = useI18n(ctx)
   const dirs = useScanSpecifiedDirs(ctx)
   const scan = useScanState(ctx)
+  const scanErrors = useScanErrors(ctx)
 
   const addFolder = async () => {
     // The picker is what carries a durable permission grant on Android; a
@@ -104,6 +105,52 @@ export function ScanSpecifiedDirsScreen({ ctx }: { ctx: Context }): ReactElement
           numberOfLines: 1,
           children: scan.progress.currentFile,
         })
+      : null,
+    // Files that failed, with reasons — a count without the list is
+    // unactionable. Only shown when not running; during a scan the list is
+    // still being written.
+    !scan.running && scanErrors.length > 0
+      ? h(
+          'section',
+          {
+            style: {
+              display: 'flex',
+              flexDirection: 'column',
+              gap: tokens.space[2],
+              padding: tokens.space[3],
+              borderRadius: tokens.radius.md,
+              background: 'var(--bg-secondary, #f5f5f5)',
+            },
+          },
+          h(Text, {
+            variant: 'md',
+            tone: 'warn',
+            children: t('localScanner:index.scanErrorsCount', { count: scanErrors.length }),
+          }),
+          h(
+            List<{ uri: string; error: string }>,
+            {
+              items: [...scanErrors],
+              accessibilityLabel: t('localScanner:index.scanErrors'),
+              estimatedItemSize: tokens.size.row,
+              keyExtractor: (item) => item.uri,
+              renderItem: (item) =>
+                h(
+                  'div',
+                  {
+                    style: {
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: tokens.space[1],
+                      padding: `${tokens.space[2]} 0`,
+                    },
+                  },
+                  h(Text, { variant: 'sm', numberOfLines: 1, children: item.uri }),
+                  h(Text, { variant: 'sm', tone: 'error', numberOfLines: 2, children: item.error }),
+                ),
+            },
+          ),
+        )
       : null,
     h(List<ScanSpecifiedDir>, {
       items: dirs,

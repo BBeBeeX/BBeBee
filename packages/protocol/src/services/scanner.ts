@@ -105,6 +105,14 @@ export interface ScannerService {
   cancel(): void
 
   readonly progress: ScanProgress | undefined
+
+  /**
+   * Files that failed during scanning, with their reasons.
+   *
+   * Reads from `scan_entries` (status='error'). Used by the UI to show the
+   * user what went wrong — a count without the list is unactionable.
+   */
+  getScanErrors(specifiedDirId?: string): Promise<Array<{ uri: Uri; error: string }>>
 }
 
 declare module 'cordis' {

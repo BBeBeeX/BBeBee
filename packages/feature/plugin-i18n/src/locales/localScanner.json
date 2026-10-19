@@ -18,7 +18,9 @@
       "enableUri": "Enable {uri}",
       "removeUri": "Remove {uri}",
       "lastScan": "Last scan: {summary}",
-      "removeKeepsTracks": "Removing a folder keeps the tracks it found. Nothing is deleted from disk."
+      "removeKeepsTracks": "Removing a folder keeps the tracks it found. Nothing is deleted from disk.",
+      "scanErrors": "Files that could not be read",
+      "scanErrorsCount": "{count} files could not be read"
     }
   },
   "zh": {
@@ -40,7 +42,9 @@
       "enableUri": "启用 {uri}",
       "removeUri": "移除 {uri}",
       "lastScan": "上次扫描：{summary}",
-      "removeKeepsTracks": "移除文件夹后，它找到的曲目会保留，磁盘上的文件不会被删除。"
+      "removeKeepsTracks": "移除文件夹后，它找到的曲目会保留，磁盘上的文件不会被删除。",
+      "scanErrors": "无法读取的文件",
+      "scanErrorsCount": "{count} 个文件无法读取"
     }
   }
 }

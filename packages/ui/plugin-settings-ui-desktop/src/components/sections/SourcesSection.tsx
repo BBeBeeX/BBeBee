@@ -84,6 +84,7 @@ function AudioSourceRow({
   onScanLocal,
   isScanning = false,
   isExpanded = false,
+  onNavigate,
 }: {
   item: AudioSourceStatusItem
   t: I18nService['t']
@@ -99,6 +100,7 @@ function AudioSourceRow({
   onScanLocal?: () => void
   isScanning?: boolean
   isExpanded?: boolean
+  onNavigate?: (route: string) => void
 }): ReactElement {
   const local = isLocalSource(item.record)
   const isAuth = item.authStatus.state === 'authenticated'
@@ -317,12 +319,16 @@ function AudioSourceRow({
             onPress: () => onAddLocalFolder?.(),
             children: t('localScanner:index.addFolder'),
           }),
-          // 2. 立即扫描
+          // 2. 立即扫描 / 扫描中
+          // While running, the button is not disabled — it becomes a shortcut
+          // to the scan page, so the user can watch progress and cancel.
           h(Button, {
             variant: 'secondary',
             testID: 'settings-source-scan-local',
-            disabled: isScanning,
-            onPress: () => onScanLocal?.(),
+            onPress: () => {
+              if (isScanning) onNavigate?.('scanner.settings')
+              else onScanLocal?.()
+            },
             children: isScanning ? t('localScanner:index.scanning') : t('localScanner:index.scanNow'),
           }),
           tablerIcon(isExpanded ? 'chevron-down' : 'chevron-right', { size: 16, color: 'var(--text-tertiary, #8E8E93)' }),
@@ -1051,6 +1057,7 @@ export function SourcesSection({
               onScanLocal: handleScanNow,
               isScanning: scan.running,
               isExpanded: isLocal && isLocalFoldersSheetOpen,
+              onNavigate,
             })
             if (!isLocal) return row
             return h(
@@ -1103,6 +1110,7 @@ export function SourcesSection({
                 onScanLocal: handleScanNow,
                 isScanning: scan.running,
                 isExpanded: isLocal && isLocalFoldersSheetOpen,
+                onNavigate,
               })
               if (!isLocal) return row
               return h(

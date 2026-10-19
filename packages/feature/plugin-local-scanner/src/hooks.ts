@@ -77,8 +77,7 @@ export function useScanState(ctx: Context): ScanState {
  * into silence: a file that would not decode is surfaced as a count the user
  * can act on (docs/06 12).
  */
-export function summarise(summary: ScanSummary | undefined): string {
-  if (!summary) return ''
+export function summarise(summary: ScanSummary | undefined): string {  if (!summary) return ''
   const parts: string[] = []
   if (summary.added) parts.push(`${summary.added} added`)
   if (summary.updated) parts.push(`${summary.updated} updated`)
@@ -100,4 +99,46 @@ export function summarise(summary: ScanSummary | undefined): string {
   }
 
   return parts.length > 0 ? parts.join(', ') : 'nothing changed'
+}
+
+/** A file that failed to import, with the reason. */
+export interface ScanError {
+  uri: string
+  error: string
+}
+
+/**
+ * Files that failed during the last scan.
+ *
+ * Fetches on `scan/finished` (and on mount, for a screen opened after the
+ * scan). A count without the list is unactionable — the user needs to know
+ * *which* files and *why*.
+ */
+export function useScanErrors(ctx: Context): readonly ScanError[] {
+  const [errors, setErrors] = useState<readonly ScanError[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    const fetch = async () => {
+      const scanner = serviceOf<ScannerService>(ctx, 'scanner')
+      if (!scanner?.getScanErrors) {
+        if (!cancelled) setErrors([])
+        return
+      }
+      try {
+        const rows = await scanner.getScanErrors()
+        if (!cancelled) setErrors(rows)
+      } catch {
+        if (!cancelled) setErrors([])
+      }
+    }
+    void fetch()
+    const off = ctx.on('scan/finished', () => void fetch())
+    return () => {
+      cancelled = true
+      off()
+    }
+  }, [ctx])
+
+  return errors
 }

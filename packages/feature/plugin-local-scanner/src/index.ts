@@ -416,6 +416,22 @@ export class Scanner extends Service implements ScannerService {
     this.abort?.abort()
   }
 
+  async getScanErrors(specifiedDirId?: string): Promise<Array<{ uri: Uri; error: string }>> {
+    const rows = specifiedDirId
+      ? await this.ownCtx.db.query<{ uri: string; error: string }>(
+          `SELECT uri, error FROM scan_entries
+           WHERE specified_dir_id = ? AND status = 'error'
+           ORDER BY uri`,
+          [specifiedDirId],
+        )
+      : await this.ownCtx.db.query<{ uri: string; error: string }>(
+          `SELECT uri, error FROM scan_entries
+           WHERE status = 'error'
+           ORDER BY uri`,
+        )
+    return rows.map((r) => ({ uri: r.uri as Uri, error: r.error }))
+  }
+
   /**
    * Walk the specified dirs.
    *
