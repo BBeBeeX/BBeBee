@@ -11,6 +11,38 @@ use tauri::{Emitter, Manager};
 
 use crate::state::{AppState, Position};
 
+/// Remove the DWM-drawn 1px border on Windows 11 transparent windows.
+/// Uses DWMWA_BORDER_COLOR with DWMWA_COLOR_NONE (0xFFFFFFFE).
+/// Best-effort: failures are logged, never fatal.
+#[cfg(target_os = "windows")]
+fn remove_dwm_border(win: &tauri::WebviewWindow) {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::Graphics::Dwm::DwmSetWindowAttribute;
+
+    const DWMWA_BORDER_COLOR: u32 = 34;
+    const DWMWA_COLOR_NONE: u32 = 0xFFFF_FFFE;
+
+    match win.hwnd() {
+        Ok(hwnd) => {
+            let hwnd = HWND(hwnd.0 as *mut _);
+            unsafe {
+                let hr = DwmSetWindowAttribute(
+                    hwnd,
+                    DWMWA_BORDER_COLOR,
+                    &DWMWA_COLOR_NONE as *const u32 as *const _,
+                    std::mem::size_of::<u32>() as u32,
+                );
+                if hr.is_err() {
+                    eprintln!("[desktop-lyrics] remove_dwm_border failed: {:?}", hr);
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("[desktop-lyrics] remove_dwm_border: no hwnd: {}", e);
+        }
+    }
+}
+
 pub const DEFAULT_LYRIC_WIDTH: i32 = 860;
 pub const DEFAULT_LYRIC_HEIGHT: i32 = 140;
 
@@ -107,6 +139,8 @@ pub fn get_or_create_lyric_window(
 
     let win = builder.build().map_err(|e| e.to_string())?;
     let _ = win.set_always_on_top(true);
+    #[cfg(target_os = "windows")]
+    remove_dwm_border(&win);
 
     Ok(win)
 }
