@@ -26,8 +26,31 @@ import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import type { AudioMetadata, CodecService, DecodedAudio, TranscodeOptions, TranscodeResult, Uri } from '@BBeBee/protocol'
 import { parseFromTokenizer, selectCover, type IAudioMetadata, type IOptions } from 'music-metadata'
-import iconv from 'iconv-lite'
 import { FsRangeTokenizer } from './tokenizer.js'
+
+// iconv-lite is Node-only (it needs Buffer). The codec runs in the sidecar
+// (Node), never in the browser — but Vite will try to bundle a top-level
+// import into the renderer. Load it lazily so the browser bundle never
+// includes it; if the load fails, recovery is skipped.
+type IconvLite = {
+  decode(buffer: Buffer, encoding: string): string
+  encode(str: string, encoding: string): Buffer
+}
+let iconvLite: IconvLite | undefined
+async function getIconv(): Promise<IconvLite | undefined> {
+  if (iconvLite) return iconvLite
+  // Skip entirely in the browser — the codec doesn't run there.
+  if (typeof window !== 'undefined') return undefined
+  try {
+    const mod = (await import('iconv-lite')) as unknown as {
+      default?: IconvLite
+    } & IconvLite
+    iconvLite = mod.default ?? mod
+    return iconvLite
+  } catch {
+    return undefined
+  }
+}
 
 /**
  * Recover GBK-encoded text that was misdecoded.
@@ -46,9 +69,12 @@ import { FsRangeTokenizer } from './tokenizer.js'
  * decoding produces CJK. Correctly-decoded text (including proper Chinese)
  * is left untouched.
  */
-function recoverGbkText(input: string | undefined): string | undefined {
+async function recoverGbkText(input: string | undefined): Promise<string | undefined> {
   if (!input || typeof input !== 'string') return input
   if (/[\u4e00-\u9fff]/.test(input)) return input
+
+  const iconv = await getIconv()
+  if (!iconv) return input
 
   // Case 1: Latin1 misdecode — no �, but high-byte chars present.
   if (!input.includes('�') && /[\u0080-\u00ff]/.test(input)) {
@@ -213,7 +239,7 @@ export class CodecNode extends Service implements CodecService {
   ): Promise<{ metadata: AudioMetadata; artwork?: Uint8Array }> {
     const { size } = await this.ctx.fs.stat(uri)
     const parsed = await this.parse(uri, { duration: false, skipCovers: false }, signal, size)
-    const metadata = toAudioMetadata(parsed, uri, size)
+    const metadata = await toAudioMetadata(parsed, uri, size)
     const cover = selectCover(parsed.common.picture)
     return { metadata, artwork: cover ? new Uint8Array(cover.data) : undefined }
   }
@@ -737,11 +763,11 @@ function mimeFor(uri: string): string | undefined {
 }
 
 /** `music-metadata`'s shape → the contract's. */
-export function toAudioMetadata(
+export async function toAudioMetadata(
   parsed: IAudioMetadata,
   uri: string,
   fileSize?: number,
-): AudioMetadata {
+): Promise<AudioMetadata> {
   const { common, format } = parsed
   const gain = common.replaygain_track_gain
   const albumGain = common.replaygain_album_gain
@@ -762,15 +788,26 @@ export function toAudioMetadata(
     bitrateKbps = Math.round(format.bitrate / 1000)
   }
 
+  const [title, artist, albumArtist, album, genre, lyrics] = await Promise.all([
+    common.title ? recoverGbkText(common.title) : undefined,
+    common.artist ? recoverGbkText(common.artist) : undefined,
+    common.albumartist ? recoverGbkText(common.albumartist) : undefined,
+    common.album ? recoverGbkText(common.album) : undefined,
+    common.genre?.length
+      ? Promise.all(common.genre.map((g) => recoverGbkText(g).then((r) => r ?? g)))
+      : undefined,
+    common.lyrics?.[0]?.text ? recoverGbkText(common.lyrics[0].text) : undefined,
+  ])
+
   return {
-    ...(common.title ? { title: recoverGbkText(common.title) } : {}),
-    ...(common.artist ? { artist: recoverGbkText(common.artist) } : {}),
-    ...(common.albumartist ? { albumArtist: recoverGbkText(common.albumartist) } : {}),
-    ...(common.album ? { album: recoverGbkText(common.album) } : {}),
+    ...(title ? { title } : {}),
+    ...(artist ? { artist } : {}),
+    ...(albumArtist ? { albumArtist } : {}),
+    ...(album ? { album } : {}),
     ...(common.track?.no ? { trackNo: common.track.no } : {}),
     ...(common.disk?.no ? { discNo: common.disk.no } : {}),
     ...(common.year ? { year: common.year } : {}),
-    ...(common.genre?.length ? { genre: common.genre.map((g) => recoverGbkText(g) ?? g) } : {}),
+    ...(genre?.length ? { genre } : {}),
     ...(durationSec ? { durationMs: Math.round(durationSec * 1000) } : {}),
     ...(bitrateKbps ? { bitrateKbps } : {}),
     ...(format.sampleRate ? { sampleRate: format.sampleRate } : {}),
@@ -785,7 +822,7 @@ export function toAudioMetadata(
     ...(common.musicbrainz_recordingid
       ? { musicbrainzTrackId: common.musicbrainz_recordingid }
       : {}),
-    ...(common.lyrics?.[0]?.text ? { lyrics: recoverGbkText(common.lyrics[0].text) } : {}),
+    ...(lyrics ? { lyrics } : {}),
     ...(format.tagTypes?.length ? { tagTypes: format.tagTypes } : {}),
     hasArtwork: (common.picture?.length ?? 0) > 0,
   }
