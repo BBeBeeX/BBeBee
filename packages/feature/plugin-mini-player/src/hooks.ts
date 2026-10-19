@@ -2,7 +2,7 @@
  * View hooks for `ctx.miniPlayer`.
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Context } from 'cordis'
 import { serviceOf, useServiceState } from '@BBeBee/toolkit/hooks'
 import type {
@@ -96,6 +96,27 @@ export function useMiniPlayerData(): {
   setData: (data: MiniPlayerData) => void
 } {
   const [data, setData] = useState<MiniPlayerData>(DEFAULT_DATA)
+  // Track OS-native drag (data-tauri-drag-region): pause setData while the
+  // user is dragging the window, so 3Hz updates don't fight the drag.
+  const draggingRef = useRef(false)
+
+  useEffect(() => {
+    const onPointerDown = (e: PointerEvent) => {
+      const t = e.target as HTMLElement | null
+      if (t?.closest?.('[data-tauri-drag-region]')) {
+        draggingRef.current = true
+      }
+    }
+    const onPointerUp = () => {
+      draggingRef.current = false
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('pointerup', onPointerUp)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('pointerup', onPointerUp)
+    }
+  }, [])
 
   useEffect(() => {
     const bridge = getBridge()
@@ -108,6 +129,9 @@ export function useMiniPlayerData(): {
     })
 
     const off = bridge.onData?.((incoming: unknown) => {
+      // Don't update state while dragging — the OS is moving the window,
+      // React re-renders would fight it and cause lag.
+      if (draggingRef.current) return
       if (incoming && typeof incoming === 'object') {
         const next = incoming as Partial<MiniPlayerData>
         setData((prev) => {
