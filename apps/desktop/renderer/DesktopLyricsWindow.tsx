@@ -188,6 +188,10 @@ export function DesktopLyricsWindow(): ReactElement {
   return h(
     'div',
     {
+      // Native OS drag: zero lag vs JS pointer-event + bridge round-trip.
+      // When locked, the window is click-through (setIgnoreMouse), so the
+      // drag region is inert.
+      'data-tauri-drag-region': true,
       style: {
         position: 'relative',
         width: '100vw',
