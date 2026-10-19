@@ -36,6 +36,7 @@ Three design goals, each backed by a test:
 | `setEnabled(id, on)` | Enable/disable a root and rebuild the watcher |
 | `scan(opts?)` | The main entry. Returns `ScanSummary` |
 | `cancel()` | Aborts the internal controller |
+| `getScanErrors(specifiedDirId?)` | Failed files (`{ uri, error }`) from `scan_entries` where `status = 'error'` — backs the scan screen's failure list |
 
 **Scan flow**: `scan` is serialized with an `inFlight` promise (a watch event, a poll, and a manual scan can all arrive at once, and two concurrent walks would overwrite each other's abort controller) → the signal is bridged to an internal `AbortController` → per root: `scan/started` → BFS `walk` → read that root's `scan_entries` in one go → batched `importBatch` (one transaction per batch, progress updates, emit `scan/progress` and `library/changed`) → finish with `scan/finished`.
 
@@ -51,7 +52,7 @@ Three design goals, each backed by a test:
 
 The walk decides which files to look at; this decides what they mean. All writes go through the caller's single transaction — "a suspension loses at most one batch, never half a track".
 
-- **`importTrack(ctx, input)`**: title falls back to the file name → `artworks` (content-addressed id dedupes covers; ⚠️ `blurhash`/`dominant_color` stay NULL — `ctx.codec` decodes audio, not images, a declared degradation) → `albums` (`COALESCE(excluded.x, albums.x)`: missing new data does not clobber old values) → `tracks` upsert → `track_artists` delete-then-insert (role `'main'`, a junction table rather than free text — "Artist feat. Other" as free text would make featuring unbrowsable) → `genres`/`track_genres` (normalized lower-case) → `external_ids` (isrc/mbid: "M2 records cheaply now what identity linking will need to join on") → **`media_bindings`** (`origin: 'scan'` — this binding is the entire meaning of "this track is a file on disk"; the M3 download plugin writes same-shaped `origin: 'download'` rows, which is why the player never needs the concept of "downloaded").
+- **`importTrack(ctx, input)`**: title falls back to the file name → `artworks` (three shapes: **eager bytes** — content-addressed `artworkId` dedupes covers; **lazy** — id `lazy:${stableId(audioUri)}`, `source_url` = the audio file, `local_uri` NULL, extracted on demand by `plugin-cache` the first time UI renders it; **folder cover** — id `folder:${stableId(imageUri)}`, `source_url` and `local_uri` both pointing at the sibling image file; ⚠️ `blurhash`/`dominant_color` stay NULL — `ctx.codec` decodes audio, not images, a declared degradation) → `albums` (`COALESCE(excluded.x, albums.x)`: missing new data does not clobber old values) → `tracks` upsert → `track_artists` delete-then-insert (role `'main'`, a junction table rather than free text — "Artist feat. Other" as free text would make featuring unbrowsable) → `genres`/`track_genres` (normalized lower-case) → `external_ids` (isrc/mbid: "M2 records cheaply now what identity linking will need to join on") → **`media_bindings`** (`origin: 'scan'` — this binding is the entire meaning of "this track is a file on disk"; the M3 download plugin writes same-shaped `origin: 'download'` rows, which is why the player never needs the concept of "downloaded").
 - **`forgetFile(ctx, uri)`**: deletes the binding; if the track has no remaining bindings, deletes the track row too (for the local source, the file is the track).
 - **`splitArtists(value)`**: splits multiple artists inlined in a tag. `/` only counts as a separator when it has whitespace on both sides (AC/DC is one band); `feat./ft./with` require surrounding whitespace.
 - **`sortKey` is a re-export, not a local copy**: catalogue sort rules belong to `@BBeBee/protocol`, not to whichever writer got there first — the source cache once grew its own copy, which made "The Beatles" appear twice in a list.
@@ -62,7 +63,7 @@ Derived, not random: the same file must produce the same URN on every scan, othe
 
 - **`stableId(...parts)`**: parts joined with NUL (`\x00`), 64 bits = **two FNV-1a rounds over different salts** (zero dependencies, stable across platforms; explicitly not a security hash and never treated as one).
 - **`trackId(uri)`** / **`albumId(title, artist)`** / **`artistId(name)`**: derived after `normalise` (trim + lower-case + whitespace collapse).
-- **`artworkId(bytes)`**: content-addressed (two rounds over different salts + the byte count) — two files sharing a cover share one artwork row; a single 32-bit round collides at library scale, and a collision here silently gives one album another's cover.
+- **`artworkId(bytes)`**: content-addressed (two rounds over different salts + the byte count) — two files sharing a cover share one artwork row; a single 32-bit round collides at library scale, and a collision here silently gives one album another's cover. Eager path only — lazy covers use `lazy:`/`folder:` refs, see `import.ts`.
 
 > Note: this file contains literal control characters (`\x00`/`\x01` as join separators); some tools will classify it as binary.
 
@@ -72,6 +73,7 @@ The core is progress: a scan emits events per batch, and a settings screen that 
 
 - **`useScanRoots(ctx)`** — subscribes to `scan/started|finished` and `library/changed`, returns `ctx.scanner.roots`.
 - **`useScanState(ctx): ScanState`** — `{ progress?, running, lastSummary? }`; on `scan/finished` it **clears progress** — a progress bar frozen at 90% after the scan ended is worse than no progress bar.
+- **`useScanErrors(ctx): readonly ScanError[]`** — failed files (`{ uri, error }`) for the scan screen's failure list; fetches on mount and refreshes on `scan/finished`. Reads `scan_entries` via `ScannerService.getScanErrors()`, so the service must implement it.
 - **`summarise(summary?)`** — summarizes into one sentence. ⚠️ **`incomplete` overrides every count; it is not their footnote**: rendering a truncated scan as "nothing changed" would tell the user the library is reconciled when the opposite is true.
 
 ### `src/views.ts` — view id constants
@@ -92,6 +94,14 @@ Set `BBEBEE_SCAN_TIMING=1` to get one `scanner: batch timing …` log line per
 batch, splitting the per-file cost into tag reads vs artwork cache writes vs
 the DB transaction. The read/write sums are wall-clock across concurrent
 workers, so the ratio is what matters, not the absolute totals.
+
+On desktop, tag parsing runs in the Node sidecar over direct fs: the renderer
+loads `CodecBridge`, which forwards tag reads as one bridge call per file
+rather than one per range — so `tagRead` measures the whole round trip, not
+tokenizer I/O. The scanner never reads artwork bytes at scan time: covers are
+written as `lazy:` refs in `artworks` (`local_uri` NULL) and extracted on
+demand by `plugin-cache`, so `artworkSave` in the timing line is vestigial
+(near zero).
 
 How to enable depends on where the scanner runs:
 

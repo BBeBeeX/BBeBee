@@ -188,6 +188,13 @@ CREATE INDEX idx_artworks_local ON artworks(local_uri) WHERE local_uri IS NOT NU
 `blurhash` and `dominant_color` are computed once at cache time rather than per render, because
 doing it in the UI costs a frame on every list scroll.
 
+An artwork row can exist before its bytes are ever read. Ids with the `lazy:`
+prefix (`lazy:${stableId(audioUri)}`) record `source_url` as the audio file and
+leave `local_uri` NULL — `plugin-cache` extracts the embedded picture the first
+time UI renders it and backfills `local_uri` then. `folder:` rows (`folder:${stableId(imageUri)}`)
+point `source_url` and `local_uri` straight at a sibling image file. Only rows with
+a non-NULL `local_uri` are immediately renderable.
+
 ### 4.3 Catalogue
 
 ```sql

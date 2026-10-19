@@ -606,6 +606,8 @@ export interface CodecService {
    * Read tags and embedded artwork in a single parse. Optional: platforms
    * without it fall back to `readMetadata` + `readArtwork` (two parses).
    * The signal aborts in-flight reads (true cancellation, not just a race).
+   * Desktop caveat: `CodecBridge` cannot pass a live signal across IPC — it
+   * forwards without it, and the bridge's 30s call timeout is the hang backstop.
    */
   readMetadataWithArtwork?(uri: Uri, signal?: AbortSignal): Promise<{ metadata: AudioMetadata; artwork?: Uint8Array }>
   /** Decode to PCM for waveform rendering, gain analysis, or short samples. */
@@ -627,7 +629,7 @@ Desktop: `music-metadata` in the Node.js sidecar for tags; Web Audio `decodeAudi
 Desktop also provides `transcode` via `core-codec-node` and the host IPC bridge (`audio:transcode`), executing system/embedded FFmpeg for lossless and lossy conversion (FLAC, MP3, AAC/M4A, Opus, WAV).
 Expo: `react-native-audio-api`'s `AudioDecoder` for PCM plus a native tag reader.
 
-> Tag reads are I/O-bounded, not file-sized. The desktop implementation parses through a seekable tokenizer over `ctx.fs` range reads (64 KB pages fetched on demand, 1 MB read-ahead on sequential access, each via the single-round-trip `fs.readRange` rather than a stream handshake), so the parser seeks to what it needs — an ID3v2 header declares its length, a tail `moov` is seeked to — instead of guessing a head window. Each parse gets a cumulative I/O budget (256 KB first; a parse that comes back empty with the budget exhausted retries once up to 8 MB), which doubles as the backstop against parsers that drain a file looking for data that is not there.
+> Tag reads are I/O-bounded, not file-sized. The parse runs as close to the disk as the platform allows: on desktop, the renderer loads `CodecBridge`, which forwards tag reads to a `CodecNode` in the Node sidecar over direct fs — one bridge round trip per file, not one per range. The sidecar-side parse still goes through a seekable tokenizer over `ctx.fs` range reads (64 KB pages fetched on demand, 1 MB read-ahead on sequential access, each via the single-round-trip `fs.readRange` rather than a stream handshake), so the parser seeks to what it needs — an ID3v2 header declares its length, a tail `moov` is seeked to — instead of guessing a head window. Each parse gets a cumulative I/O budget (256 KB first; a parse that comes back empty with the budget exhausted retries once up to 8 MB), which doubles as the backstop against parsers that drain a file looking for data that is not there. `AbortSignal` cannot cross IPC: the desktop bridge drops the signal, and the bridge's 30s call timeout is the hang backstop.
 
 > ⚠️ `supportedFormats()` differs by platform and OS version. On desktop, FFmpeg integration covers ALAC, APE, WavPack, DSF, DFF, WMA alongside standard formats. The scanner records what it could not decode instead of silently skipping, so the user can see why a file did not import.
 
