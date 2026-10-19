@@ -5,11 +5,15 @@
 //! relative {x, y} or {-1, -1} when locked (ported from main/index.ts:456-639),
 //! and programmatic move suppression with moved event throttling.
 
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tauri::{Emitter, Manager};
 
 use crate::state::{AppState, Position};
+
+/// Guard against concurrent window creation (two simultaneous
+/// get_or_create calls both seeing no window and both creating).
+static CREATING_LYRICS_WINDOW: AtomicBool = AtomicBool::new(false);
 
 /// Remove the DWM-drawn 1px border on Windows 11 transparent windows.
 /// Uses DWMWA_BORDER_COLOR with DWMWA_COLOR_NONE (0xFFFFFFFE).
@@ -115,6 +119,19 @@ pub fn get_or_create_lyric_window(
     if let Some(win) = app.get_webview_window("desktop-lyrics") {
         return Ok(win);
     }
+    // Serialize creation: if another thread is already creating, wait briefly
+    // then re-check (instead of creating a duplicate).
+    if CREATING_LYRICS_WINDOW.swap(true, Ordering::SeqCst) {
+        for _ in 0..20 {
+            std::thread::sleep(Duration::from_millis(50));
+            if let Some(win) = app.get_webview_window("desktop-lyrics") {
+                CREATING_LYRICS_WINDOW.store(false, Ordering::SeqCst);
+                return Ok(win);
+            }
+        }
+        CREATING_LYRICS_WINDOW.store(false, Ordering::SeqCst);
+        return Err("lyrics window creation in progress".to_string());
+    }
 
     let initial_pos = match pos {
         Some(p) => clamp_to_visible_screen(app, p, DEFAULT_LYRIC_WIDTH, DEFAULT_LYRIC_HEIGHT),
@@ -139,12 +156,16 @@ pub fn get_or_create_lyric_window(
     .initialization_script(include_str!("../gen/shim.js"))
     .visible(false);
 
-    let win = builder.build().map_err(|e| e.to_string())?;
+    let win = builder.build().map_err(|e| {
+        CREATING_LYRICS_WINDOW.store(false, Ordering::SeqCst);
+        e.to_string()
+    })?;
     let _ = win.set_always_on_top(true);
     // DIAGNOSTIC: DWM border removal disabled to isolate mini-player freeze.
     // #[cfg(target_os = "windows")]
     // remove_dwm_border(&win);
 
+    CREATING_LYRICS_WINDOW.store(false, Ordering::SeqCst);
     Ok(win)
 }
 
