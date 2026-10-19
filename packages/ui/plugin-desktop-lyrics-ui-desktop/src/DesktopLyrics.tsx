@@ -176,8 +176,18 @@ function DesktopLyricsInner({ ctx }: DesktopLyricsProps): ReactElement | null {
   useEffect(() => {
     if (!hasNativeBridge || !bridge || !isEnabled) return
 
-    void bridge.updateData({
-      currentLine: displayCurrentLine,
+    // Diagnostic: log when updateData fires and what it sends. If this
+    // never logs on track change, the effect dependencies aren't updating.
+    // If it logs but the lyrics window doesn't update, the Rust emit or
+    // the window's onData listener is broken.
+    ctx.logger.debug(
+      `desktop-lyrics: updateData firing, title=${title ?? '(none)'}, ` +
+        `artist=${artist ?? '(none)'}, line=${displayCurrentLine?.slice(0, 30) ?? '(none)'}, ` +
+        `playing=${isPlaying}`,
+    )
+    void bridge
+      .updateData({
+        currentLine: displayCurrentLine,
       nextLine: !isSingleLine && showNextLine ? displayNextLine : undefined,
       fontSize: effectiveFontSize,
       opacity: effectiveOpacity,
@@ -190,6 +200,12 @@ function DesktopLyricsInner({ ctx }: DesktopLyricsProps): ReactElement | null {
       textColor: effectiveTextColor,
       lineMode: lyricsConfig?.lineMode ?? (showNextLine ? 'double' : 'single'),
     })
+      .then(() => {
+        ctx.logger.debug('desktop-lyrics: updateData resolved')
+      })
+      .catch((e: unknown) => {
+        ctx.logger.warn(`desktop-lyrics: updateData failed: ${String(e)}`)
+      })
   }, [
     hasNativeBridge,
     bridge,

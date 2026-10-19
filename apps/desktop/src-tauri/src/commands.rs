@@ -274,9 +274,13 @@ pub async fn desktop_lyrics_update_data(
     state: tauri::State<'_, AppState>,
     data: serde_json::Value,
 ) -> Result<(), String> {
+    eprintln!("[desktop-lyrics] update_data invoked");
     *lock_recover(&state.latest_lyric_data) = Some(data.clone());
     if let Some(win) = app.get_webview_window("desktop-lyrics") {
+        eprintln!("[desktop-lyrics] emitting desktop-lyrics:data to window");
         let _ = win.emit("desktop-lyrics:data", data);
+    } else {
+        eprintln!("[desktop-lyrics] update_data: no desktop-lyrics window found");
     }
     Ok(())
 }
