@@ -36,6 +36,7 @@ import type {
   CacheClass,
   CacheService,
   CacheStats,
+  CodecService,
   StreamHandle,
   StreamPrefs,
   Uri,
@@ -204,10 +205,11 @@ export class Cache extends Service implements CacheService {
     // Extract the cover via the codec (sidecar on desktop), cache it, and
     // return the local file. This is what keeps scan-time free of artwork
     // I/O — the bytes are only read when something actually displays them.
+    // The sourceUrl is never valid artwork itself, so an extraction failure
+    // ends here instead of falling through to the fetch path below (which
+    // would try to download the audio file as an image).
     if (ref.id.startsWith('lazy:') && ref.sourceUrl) {
-      const extracted = await this.extractEmbeddedArtwork(key, ref.id, ref.sourceUrl)
-      if (extracted) return extracted
-      // No cover, or extraction failed — fall through to the miss path.
+      return await this.extractEmbeddedArtwork(key, ref.id, ref.sourceUrl)
     }
 
     // If sourceUrl is an already-local location, it needs no HTTP fetch.
@@ -268,9 +270,23 @@ export class Cache extends Service implements CacheService {
     id: string,
     audioUri: Uri,
   ): Promise<Uri | undefined> {
+    // `codec` is an optional peer: on a context where it is not loaded the
+    // extraction is skipped (no artwork) rather than breaking the plugin.
+    // `reflect.get(key, false)` is the read that answers `undefined` instead
+    // of throwing on a scoped context — the same mechanism `serviceOf` in
+    // toolkit/hooks uses, minus the react import that module carries.
+    const codec = (
+      this.ownCtx as unknown as {
+        reflect: { get(key: string, required: boolean): unknown }
+      }
+    ).reflect.get('codec', false) as CodecService | undefined
+    if (!codec) {
+      this.ownCtx.logger.debug(`cache: codec unavailable, skipping embedded artwork for ${audioUri}`)
+      return undefined
+    }
     let bytes: Uint8Array | undefined
     try {
-      bytes = await this.ownCtx.codec.readArtwork(audioUri)
+      bytes = await codec.readArtwork(audioUri)
     } catch (error) {
       this.ownCtx.logger.warn(
         `cache: could not extract embedded artwork from ${audioUri}: ${String(error)}`,

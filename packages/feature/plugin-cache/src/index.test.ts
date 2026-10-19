@@ -209,6 +209,78 @@ describe('plugin-cache artwork', () => {
   })
 })
 
+/** `ctx.codec`, returning a canned cover (or none) for lazy-extraction tests. */
+class CodecStub extends Service {
+  art?: Uint8Array
+  constructor(ctx: Context) {
+    super(ctx, 'codec')
+  }
+  async readArtwork(_uri: Uri): Promise<Uint8Array | undefined> {
+    return this.art
+  }
+}
+
+describe('plugin-cache lazy artwork', () => {
+  const AUDIO = 'file:///music/album/track.flac' as Uri
+  const LAZY_ID = 'lazy:deadbeef'
+
+  async function lazyHarness(cover: Uint8Array | undefined | 'absent') {
+    const ctx = new Context()
+    await ctx.plugin(PathsNode, { root: await tempDir('bbebee-cache-lazy') })
+    await ctx.plugin(FsNode)
+    await ctx.plugin(DbNode, { fileName: ':memory:' })
+    await ctx.plugin(HttpStub)
+    if (cover !== 'absent') {
+      await ctx.plugin(CodecStub)
+      ;(ctx.codec as unknown as CodecStub).art = cover
+    }
+    const fiber = await ctx.plugin(plugin, {})
+    await tick()
+    // A scanner-written lazy row: the cover has never been read.
+    await ctx.db.exec(
+      `INSERT INTO artworks (id, source_url, local_uri, fetched_at) VALUES (?, ?, NULL, 0)`,
+      [LAZY_ID, AUDIO],
+    )
+    return { ctx, fiber, http: ctx.http as unknown as HttpStub }
+  }
+
+  it('extracts the embedded cover on first render, then serves the local file', async () => {
+    const cover = new Uint8Array([0xff, 0xd8, 0xff, 1, 2, 3])
+    const h = await lazyHarness(cover)
+
+    const first = await h.ctx.cache.artwork({ id: LAZY_ID, sourceUrl: AUDIO })
+    expect(first).toBeTruthy()
+    expect(String(first)).toMatch(/\.jpg$/)
+    expect(await h.ctx.fs.readBytes(first!)).toEqual(cover)
+    // Never fetched: the sourceUrl is the audio file, not an image.
+    expect(h.http.requests).toHaveLength(0)
+
+    // The catalogue now knows the local file.
+    const row = await h.ctx.db.get<{ local_uri: Uri }>(
+      'SELECT local_uri FROM artworks WHERE id = ?',
+      [LAZY_ID],
+    )
+    expect(row?.local_uri).toBe(first)
+
+    // Second render is a cache hit — no second extraction.
+    const second = await h.ctx.cache.artwork({ id: LAZY_ID, sourceUrl: AUDIO })
+    expect(second).toBe(first)
+    expect(h.http.requests).toHaveLength(0)
+  })
+
+  it('returns undefined without fetching when the audio has no embedded cover', async () => {
+    const h = await lazyHarness(undefined)
+    expect(await h.ctx.cache.artwork({ id: LAZY_ID, sourceUrl: AUDIO })).toBeUndefined()
+    expect(h.http.requests).toHaveLength(0)
+  })
+
+  it('returns undefined without codec, and never tries to fetch the audio file', async () => {
+    const h = await lazyHarness('absent')
+    expect(await h.ctx.cache.artwork({ id: LAZY_ID, sourceUrl: AUDIO })).toBeUndefined()
+    expect(h.http.requests).toHaveLength(0)
+  })
+})
+
 describe('plugin-cache streams', () => {
   it('caches a stream while it plays, and serves the file next time', async () => {
     const h = await harness()
