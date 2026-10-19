@@ -239,10 +239,18 @@ export class Cache extends Service implements CacheService {
 
     // The catalogue may already know a local copy — the scanner writes the
     // embedded cover at scan time, and a previous build's cache may too.
+    // Guard: the DB may hold polluted rows from a previous buggy build
+    // (audio file recorded as local_uri). Only serve image extensions.
     const local = await this.localArtwork(ref.id)
     if (local && (await this.exists(local))) {
-      await this.rememberLocal(ref.id, local)
-      return local
+      const lowerLocal = local.toLowerCase().split('?')[0]!
+      if (/\.(jpe?g|png|gif|webp|bmp|svg|ico|avif|heic|heif|tiff?)$/i.test(lowerLocal)) {
+        await this.rememberLocal(ref.id, local)
+        return local
+      }
+      this.ownCtx.logger.warn(
+        `cache: ignoring non-image local_uri for ${ref.id}: ${local}`,
+      )
     }
 
     // If sourceUrl is an already-local location, it needs no HTTP fetch.
