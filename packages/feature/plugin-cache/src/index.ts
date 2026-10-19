@@ -175,6 +175,14 @@ export class Cache extends Service implements CacheService {
       this.disposed = true
       clearTimeout(initialSweepTimer)
       if (this.sweepTimer) clearInterval(this.sweepTimer)
+      if (this.artworkBatchTimer) {
+        clearTimeout(this.artworkBatchTimer)
+        this.artworkBatchTimer = null
+        // Resolve pending batch items so their promises don't hang.
+        const batch = this.artworkBatch
+        this.artworkBatch = null
+        if (batch) for (const item of batch) item.resolve(undefined)
+      }
       for (const controller of this.controllers.values()) controller.abort()
       this.controllers.clear()
     }
@@ -279,7 +287,10 @@ export class Cache extends Service implements CacheService {
 
     if (!this.artworkBatch) {
       this.artworkBatch = []
-      setTimeout(() => void this.flushArtworkBatch(), 10)
+      this.artworkBatchTimer = setTimeout(() => {
+        this.artworkBatchTimer = null
+        void this.flushArtworkBatch()
+      }, 10)
     }
     this.artworkBatch.push({ key, id, audioUri, resolve })
     return promise
@@ -293,6 +304,7 @@ export class Cache extends Service implements CacheService {
         resolve: (uri: Uri | undefined) => void
       }>
     | null = null
+  private artworkBatchTimer: ReturnType<typeof setTimeout> | null = null
 
   private async flushArtworkBatch(): Promise<void> {
     const batch = this.artworkBatch
@@ -316,7 +328,14 @@ export class Cache extends Service implements CacheService {
         for (let i = 0; i < batch.length; i++) {
           const item = batch[i]!
           const bytes = results[i]
-          item.resolve(await this.storeArtworkBytes(item.key, item.id, item.audioUri, bytes))
+          try {
+            item.resolve(await this.storeArtworkBytes(item.key, item.id, item.audioUri, bytes))
+          } catch (error) {
+            this.ownCtx.logger.warn(
+              `cache: could not store artwork for ${item.audioUri}: ${String(error)}`,
+            )
+            item.resolve(undefined)
+          }
         }
       } catch (error) {
         this.ownCtx.logger.warn(`cache: batch artwork extraction failed: ${String(error)}`)
@@ -324,7 +343,14 @@ export class Cache extends Service implements CacheService {
       }
     } else {
       for (const item of batch) {
-        item.resolve(await this.doExtractEmbeddedArtwork(item.key, item.id, item.audioUri))
+        try {
+          item.resolve(await this.doExtractEmbeddedArtwork(item.key, item.id, item.audioUri))
+        } catch (error) {
+          this.ownCtx.logger.warn(
+            `cache: could not extract artwork for ${item.audioUri}: ${String(error)}`,
+          )
+          item.resolve(undefined)
+        }
       }
     }
   }
