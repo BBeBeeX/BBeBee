@@ -214,8 +214,27 @@ export class Cache extends Service implements CacheService {
     // refs (the old fall-through path), and the DB check would serve the
     // audio file as the cover. The cachedFile check above already covers
     // a successfully extracted cover, so lazy: refs never need the DB.
-    if (ref.id.startsWith('lazy:') && ref.sourceUrl) {
-      return await this.extractEmbeddedArtwork(key, ref.id, ref.sourceUrl)
+    if (ref.id.startsWith('lazy:')) {
+      let audioUri = ref.sourceUrl
+      if (!audioUri) {
+        // The ref came without sourceUrl (UI passed { id } only); look up
+        // the audio file from the artworks row.
+        try {
+          const row = await this.ownCtx.db.get<{ source_url: string | null }>(
+            'SELECT source_url FROM artworks WHERE id = ?',
+            [ref.id],
+          )
+          audioUri = row?.source_url ?? undefined
+        } catch {
+          // DB read failed; extraction will be skipped below.
+        }
+      }
+      if (audioUri) {
+        return await this.extractEmbeddedArtwork(key, ref.id, audioUri)
+      }
+      // No audio source known — cannot extract. Do NOT fall through to the
+      // local-file branch below, which would be wrong for a lazy ref.
+      return undefined
     }
 
     // The catalogue may already know a local copy — the scanner writes the
@@ -229,26 +248,41 @@ export class Cache extends Service implements CacheService {
     // If sourceUrl is an already-local location, it needs no HTTP fetch.
     // But verify it exists first — a stale ref to a cleared cache file must
     // not be returned, or the <img> will fail to load.
+    //
+    // Guard: only serve files with image extensions as artwork. An audio
+    // file must never be returned as a cover (a `lazy:` ref's sourceUrl is
+    // the audio file itself; if the lazy branch above was skipped, falling
+    // through here would return the audio file and poison local_uri via
+    // rememberLocal). Allowlist image extensions rather than blocklisting
+    // audio ones — new audio formats appear, image formats don't.
     if (ref.sourceUrl && /^(file|content|data|bbebee-file):/i.test(ref.sourceUrl)) {
-      try {
-        // Convert bbebee-file:// to file:// for the existence check.
-        let checkUri = ref.sourceUrl
-        if (checkUri.startsWith('bbebee-file://localhost/')) {
-          checkUri = 'file:///' + checkUri.slice('bbebee-file://localhost/'.length)
-        } else if (checkUri.startsWith('bbebee-file:///')) {
-          checkUri = 'file:///' + checkUri.slice('bbebee-file:///'.length)
-        } else if (checkUri.startsWith('bbebee-file:')) {
-          checkUri = 'file:' + checkUri.slice('bbebee-file:'.length)
+      const lower = ref.sourceUrl.toLowerCase().split('?')[0]!
+      const isImage = /\.(jpe?g|png|gif|webp|bmp|svg|ico|avif|heic|heif|tiff?)$/i.test(lower)
+      if (!isImage) {
+        this.ownCtx.logger.warn(
+          `cache: refusing to serve non-image as artwork for ${ref.id}: ${ref.sourceUrl}`,
+        )
+      } else {
+        try {
+          // Convert bbebee-file:// to file:// for the existence check.
+          let checkUri = ref.sourceUrl
+          if (checkUri.startsWith('bbebee-file://localhost/')) {
+            checkUri = 'file:///' + checkUri.slice('bbebee-file://localhost/'.length)
+          } else if (checkUri.startsWith('bbebee-file:///')) {
+            checkUri = 'file:///' + checkUri.slice('bbebee-file:///'.length)
+          } else if (checkUri.startsWith('bbebee-file:')) {
+            checkUri = 'file:' + checkUri.slice('bbebee-file:'.length)
+          }
+          if (await this.exists(checkUri)) {
+            await this.rememberLocal(ref.id, ref.sourceUrl)
+            return ref.sourceUrl
+          }
+          // File is gone — do NOT return the stale URL. Fall through to
+          // re-fetch from the original source below.
+          this.ownCtx.logger.info(`cache: stale local artwork ${ref.id}, re-fetching`)
+        } catch {
+          // Existence check failed; do not return a potentially stale URL.
         }
-        if (await this.exists(checkUri)) {
-          await this.rememberLocal(ref.id, ref.sourceUrl)
-          return ref.sourceUrl
-        }
-        // File is gone — do NOT return the stale URL. Fall through to
-        // re-fetch from the original source below.
-        this.ownCtx.logger.info(`cache: stale local artwork ${ref.id}, re-fetching`)
-      } catch {
-        // Existence check failed; do not return a potentially stale URL.
       }
     }
 
