@@ -84,7 +84,7 @@ function AudioSourceRow({
   onScanLocal,
   isScanning = false,
   isExpanded = false,
-  onNavigate,
+  onOpenScanModal,
 }: {
   item: AudioSourceStatusItem
   t: I18nService['t']
@@ -100,7 +100,7 @@ function AudioSourceRow({
   onScanLocal?: () => void
   isScanning?: boolean
   isExpanded?: boolean
-  onNavigate?: (route: string) => void
+  onOpenScanModal?: () => void
 }): ReactElement {
   const local = isLocalSource(item.record)
   const isAuth = item.authStatus.state === 'authenticated'
@@ -320,13 +320,13 @@ function AudioSourceRow({
             children: t('localScanner:index.addFolder'),
           }),
           // 2. 立即扫描 / 扫描中
-          // While running, the button is not disabled — it becomes a shortcut
-          // to the scan page, so the user can watch progress and cancel.
+          // While running, the button is not disabled — it reopens the scan
+          // progress sheet, so the user can watch progress and cancel.
           h(Button, {
             variant: 'secondary',
             testID: 'settings-source-scan-local',
             onPress: () => {
-              if (isScanning) onNavigate?.('scanner.settings')
+              if (isScanning) onOpenScanModal?.()
               else onScanLocal?.()
             },
             children: isScanning ? t('localScanner:index.scanning') : t('localScanner:index.scanNow'),
@@ -1057,7 +1057,7 @@ export function SourcesSection({
               onScanLocal: handleScanNow,
               isScanning: scan.running,
               isExpanded: isLocal && isLocalFoldersSheetOpen,
-              onNavigate,
+              onOpenScanModal: () => setIsScanModalOpen(true),
             })
             if (!isLocal) return row
             return h(
@@ -1110,7 +1110,7 @@ export function SourcesSection({
                 onScanLocal: handleScanNow,
                 isScanning: scan.running,
                 isExpanded: isLocal && isLocalFoldersSheetOpen,
-                onNavigate,
+                onOpenScanModal: () => setIsScanModalOpen(true),
               })
               if (!isLocal) return row
               return h(
