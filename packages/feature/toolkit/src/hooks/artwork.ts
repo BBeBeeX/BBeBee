@@ -50,6 +50,16 @@ interface Resolution {
  * quo: a local file, a remote URL with no cache loaded, or a cache that tried
  * and failed.
  */
+
+/**
+ * In-memory cache of resolved artwork URIs, keyed by artwork ID.
+ * Avoids re-running the async DB lookup when remounting (e.g., switching
+ * pages back and forth) — the cover appears instantly instead of flashing
+ * the fallback. Entries are never evicted; the set of artwork IDs is bounded
+ * by the library size, and each entry is a small string.
+ */
+const resolvedUriCache = new Map<string, string | null>()
+
 export function useResolvedArtwork(ctx: Context, artwork?: ArtworkRef): ArtworkRef | undefined {
   const [resolution, setResolution] = useState<Resolution | undefined>(undefined)
   const id = artwork?.id
@@ -61,6 +71,20 @@ export function useResolvedArtwork(ctx: Context, artwork?: ArtworkRef): ArtworkR
       return
     }
     let active = true
+
+    // Memory cache hit: return synchronously, no flicker on remount.
+    if (resolvedUriCache.has(id)) {
+      const cached = resolvedUriCache.get(id)
+      setResolution({ id, ...(cached ? { uri: cached } : {}), settled: true })
+      return
+    }
+
+    // Helper: set resolution and populate memory cache.
+    const settle = (uri?: string) => {
+      if (!active) return
+      resolvedUriCache.set(id, uri ?? null)
+      setResolution({ id, ...(uri ? { uri } : {}), settled: true })
+    }
 
     // A local URI is usually usable as-is (scanner-extracted cover), but the
     // file may have been deleted (e.g. cache cleared) while the ref still
@@ -88,7 +112,7 @@ export function useResolvedArtwork(ctx: Context, artwork?: ArtworkRef): ArtworkR
               // would put an audio file in an <img> tag.
               const lower = sourceUrl.toLowerCase().split('?')[0]!
               if (/\.(jpe?g|png|gif|webp|bmp|svg|ico|avif|heic|heif|tiff?)$/i.test(lower)) {
-                if (active) setResolution({ id, uri: sourceUrl, settled: true })
+                if (active) settle(sourceUrl)
                 return
               }
               // Not an image — fall through to cache lookup below.
@@ -102,7 +126,7 @@ export function useResolvedArtwork(ctx: Context, artwork?: ArtworkRef): ArtworkR
           // only if it looks like an image.
           const lower = (sourceUrl ?? '').toLowerCase().split('?')[0]!
           if (/\.(jpe?g|png|gif|webp|bmp|svg|ico|avif|heic|heif|tiff?)$/i.test(lower)) {
-            if (active) setResolution({ id, uri: sourceUrl, settled: true })
+            if (active) settle(sourceUrl)
             return
           }
           // Not an image — fall through to cache lookup.
@@ -118,9 +142,9 @@ export function useResolvedArtwork(ctx: Context, artwork?: ArtworkRef): ArtworkR
       if (active) setResolution({ id, settled: false })
       try {
         const uri = await cache.artwork(sourceUrl ? { id, sourceUrl } : { id })
-        if (active) setResolution({ id, ...(uri ? { uri } : {}), settled: true })
+        settle(uri ?? undefined)
       } catch {
-        if (active) setResolution({ id, settled: true })
+        settle(undefined)
       }
     }
 
