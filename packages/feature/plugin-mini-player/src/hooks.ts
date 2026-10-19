@@ -109,22 +109,7 @@ export function useMiniPlayerData(): {
 
     const off = bridge.onData?.((incoming: unknown) => {
       if (incoming && typeof incoming === 'object') {
-        const next = incoming as Partial<MiniPlayerData>
-        setData((prev) => {
-          // Skip re-render if nothing meaningful changed (e.g., position
-          // ticks with same track). Prevents 1Hz full-tree re-renders from
-          // freezing the window during playback.
-          const merged = { ...prev, ...next }
-          let changed = false
-          for (const k of Object.keys(next) as (keyof MiniPlayerData)[]) {
-            if (k === 'positionMs') continue // position updates don't need re-render
-            if (prev[k] !== merged[k]) {
-              changed = true
-              break
-            }
-          }
-          return changed ? merged : prev
-        })
+        setData((prev) => ({ ...prev, ...(incoming as Partial<MiniPlayerData>) }))
       }
     })
 
