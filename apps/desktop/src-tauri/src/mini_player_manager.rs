@@ -15,6 +15,7 @@ use crate::state::{AppState, MiniPlayerServiceState};
 /// Uses DWMWA_BORDER_COLOR with DWMWA_COLOR_NONE (0xFFFFFFFE).
 /// Best-effort: failures are logged, never fatal.
 #[cfg(target_os = "windows")]
+#[allow(dead_code)]
 fn remove_dwm_border(win: &tauri::WebviewWindow) {
     use windows::Win32::Foundation::HWND;
     use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWINDOWATTRIBUTE};
