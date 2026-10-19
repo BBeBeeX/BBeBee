@@ -1,4 +1,4 @@
-import { createElement as h, useCallback, useState } from 'react'
+import { createElement as h, useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { Track } from '@BBeBee/protocol'
@@ -24,6 +24,14 @@ export function TrackInfoModal({
   const { details, loading } = useTrackDetails(ctx, track, open)
   const [copiedPath, setCopiedPath] = useState(false)
   const { t } = useI18n(ctx)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   const handleCopyPath = useCallback(async () => {
     if (!details?.filePath) return
@@ -31,7 +39,9 @@ export function TrackInfoModal({
       if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(details.filePath)
         setCopiedPath(true)
-        setTimeout(() => setCopiedPath(false), 2000)
+        setTimeout(() => {
+          if (mountedRef.current) setCopiedPath(false)
+        }, 2000)
       }
     } catch {
       // Ignore clipboard write errors (e.g. unfocused window or permissions)

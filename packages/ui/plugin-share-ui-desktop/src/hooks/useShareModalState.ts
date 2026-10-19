@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import type { Context } from 'cordis'
 import type {
   ShareType,
@@ -55,6 +55,14 @@ export function useShareModalState<
   const [downloading, setDownloading] = useState(false)
   const [disabledReason, setDisabledReason] = useState<string | null>(null)
   const [successToast, setSuccessToast] = useState<string | null>(null)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   const isLocal = useMemo(() => isLocalSource(item), [item])
 
@@ -77,13 +85,17 @@ export function useShareModalState<
   const showDisabledReason = useCallback((reason: string) => {
     setSuccessToast(null)
     setDisabledReason(reason)
-    setTimeout(() => setDisabledReason(null), 3500)
+    setTimeout(() => {
+      if (mountedRef.current) setDisabledReason(null)
+    }, 3500)
   }, [])
 
   const showSuccessToast = useCallback((msg: string) => {
     setDisabledReason(null)
     setSuccessToast(msg)
-    setTimeout(() => setSuccessToast(null), 3000)
+    setTimeout(() => {
+      if (mountedRef.current) setSuccessToast(null)
+    }, 3000)
   }, [])
 
   const canCopy = !isLocal && isValid

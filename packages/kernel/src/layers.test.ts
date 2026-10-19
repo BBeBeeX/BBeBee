@@ -147,6 +147,96 @@ describe('the bootstrap detector', () => {
   })
 })
 
+/**
+ * `@BBeBee/plugin-*` specifiers this source reaches for as *values*.
+ *
+ * `import type` / `export type` and all-inline-typed specifier lists are not
+ * values — the import matrix permits L4→L4 types. Everything else that names
+ * a plugin package is: static imports, re-exports, side-effect imports, and
+ * dynamic `import()` / `require()`. Kept deliberately syntactic, like the
+ * other detectors in this file: it only has to agree with the lint rule on
+ * the shapes the rule itself can see.
+ */
+export function valueImportsOfPlugin(source: string): string[] {
+  const out: string[] = []
+  const isPlugin = (spec: string): boolean => /^@BBeBee\/plugin-[^/]+(\/|$)/.test(spec)
+
+  /** True when a static import/export clause carries no runtime binding. */
+  const clauseIsTypeOnly = (typeKeyword: string | undefined, clause: string): boolean => {
+    if (typeKeyword) return true
+    const trimmed = clause.trim()
+    if (!trimmed) return false
+    if (trimmed === '*') return false
+    const inner = trimmed.startsWith('{') && trimmed.endsWith('}')
+      ? trimmed.slice(1, -1)
+      : trimmed
+    const specifiers = inner.split(',').map((s) => s.trim()).filter(Boolean)
+    if (specifiers.length === 0) return false
+    return specifiers.every((s) => /^type\s/.test(s))
+  }
+
+  const fromRe =
+    /(?:^|[;\n])\s*(import|export)\s+(type\s+)?([\s\S]*?)\s+from\s*['"]([^'"]+)['"]/g
+  for (const match of source.matchAll(fromRe)) {
+    const spec = match[4]
+    if (!spec || !isPlugin(spec)) continue
+    if (clauseIsTypeOnly(match[2], match[3] ?? '')) continue
+    out.push(spec)
+  }
+
+  const sideEffectRe = /(?:^|[;\n])\s*import\s*['"]([^'"]+)['"]/g
+  for (const match of source.matchAll(sideEffectRe)) {
+    const spec = match[1]
+    if (spec && isPlugin(spec)) out.push(spec)
+  }
+
+  const dynamicRe = /(?:import|require)\s*\(\s*['"]([^'"]+)['"]\s*\)/g
+  for (const match of source.matchAll(dynamicRe)) {
+    const spec = match[1]
+    if (spec && isPlugin(spec)) out.push(spec)
+  }
+
+  return out
+}
+
+describe('the value-import detector', () => {
+  it('sees value imports of plugin packages', () => {
+    expect(valueImportsOfPlugin("import { x } from '@BBeBee/plugin-a/hooks'")).toEqual([
+      '@BBeBee/plugin-a/hooks',
+    ])
+    expect(valueImportsOfPlugin("export * from '@BBeBee/plugin-a'")).toEqual(['@BBeBee/plugin-a'])
+    expect(valueImportsOfPlugin("import '@BBeBee/plugin-a'")).toEqual(['@BBeBee/plugin-a'])
+    expect(valueImportsOfPlugin("const m = await import('@BBeBee/plugin-a/hooks')")).toEqual([
+      '@BBeBee/plugin-a/hooks',
+    ])
+    expect(valueImportsOfPlugin("const m = require('@BBeBee/plugin-a')")).toEqual([
+      '@BBeBee/plugin-a',
+    ])
+    expect(valueImportsOfPlugin("import d, { x } from '@BBeBee/plugin-a'")).toEqual([
+      '@BBeBee/plugin-a',
+    ])
+  })
+
+  it('lets type-only imports through', () => {
+    expect(valueImportsOfPlugin("import type { X } from '@BBeBee/plugin-a'")).toEqual([])
+    expect(valueImportsOfPlugin("import { type X } from '@BBeBee/plugin-a'")).toEqual([])
+    expect(valueImportsOfPlugin("export type { X } from '@BBeBee/plugin-a'")).toEqual([])
+    expect(valueImportsOfPlugin("export type * from '@BBeBee/plugin-a'")).toEqual([])
+  })
+
+  it('still sees a mixed import that carries a value', () => {
+    expect(valueImportsOfPlugin("import { type X, y } from '@BBeBee/plugin-a'")).toEqual([
+      '@BBeBee/plugin-a',
+    ])
+  })
+
+  it('ignores shared libraries and relative imports', () => {
+    expect(valueImportsOfPlugin("import { x } from '@BBeBee/toolkit/hooks'")).toEqual([])
+    expect(valueImportsOfPlugin("import { x } from './hooks.js'")).toEqual([])
+    expect(valueImportsOfPlugin("import type { Ctx } from 'cordis'")).toEqual([])
+  })
+})
+
 describe('the kernel has two surfaces', () => {
   it('the lint allow-list is exactly the pinned Cordis surface', async () => {
     const parsed = reExportsBySource(await readFile(kernelIndex, 'utf8'))
@@ -236,6 +326,59 @@ describe('the logs layer', () => {
     }
 
     expect(offenders, offenders.join('\n  ')).toEqual([])
+  })
+})
+
+/**
+ * Layer 4 — the feature plugins, reaching each other.
+ *
+ * A feature plugin reaches another feature through a `ctx.*` service, an
+ * event, or a shared binding in `@BBeBee/toolkit` — never by importing the
+ * other plugin's module (docs/02 §1, the import matrix's "types only").
+ * `eslint.config.js` bans the value import; this checks the ban against the
+ * real workspace, because a lint pattern that matches nothing bans nothing
+ * and reads exactly the same.
+ */
+describe('the feature layer', () => {
+  /** `@BBeBee/*` package name of `packages/feature/<dir>`, cached. */
+  const packageNames = new Map<string, string>()
+  async function packageNameOf(featureDir: string): Promise<string | undefined> {
+    const cached = packageNames.get(featureDir)
+    if (cached !== undefined) return cached
+    try {
+      const manifest = join(workspaceRoot, 'packages/feature', featureDir, 'package.json')
+      const parsed = JSON.parse(await readFile(manifest, 'utf8')) as { name?: string }
+      if (parsed.name) packageNames.set(featureDir, parsed.name)
+      return parsed.name
+    } catch {
+      return undefined
+    }
+  }
+
+  it('reaches other features through ctx services, never by import', async () => {
+    const offenders: string[] = []
+
+    for (const file of await sourceFiles()) {
+      if (!file.startsWith('packages/feature/')) continue
+      const featureDir = file.split('/')[2]
+      if (!featureDir) continue
+      const ownName = await packageNameOf(featureDir)
+
+      const source = await readFile(join(workspaceRoot, file), 'utf8')
+      for (const spec of valueImportsOfPlugin(source)) {
+        // A package may address its own subpaths; that is not another plugin.
+        const targetPkg = spec.split('/').slice(0, 2).join('/')
+        if (targetPkg === ownName) continue
+        offenders.push(`${file} imports ${spec}`)
+      }
+    }
+
+    expect(
+      offenders,
+      'a feature plugin imported another plugin as a value, instead of reaching it ' +
+        'through a ctx service, an event, or @BBeBee/toolkit (docs/02 §1):\n  ' +
+        offenders.join('\n  '),
+    ).toEqual([])
   })
 })
 

@@ -42,7 +42,7 @@ fn main() {
         )
         .plugin(
             tauri::plugin::Builder::<tauri::Wry>::new("bbebee-preload")
-                .js_init_script(include_str!("shim.js"))
+                .js_init_script(include_str!("../gen/shim.js"))
                 .build(),
         )
         .plugin(tauri_plugin_dialog::init())

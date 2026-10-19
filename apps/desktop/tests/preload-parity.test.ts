@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import vm from 'node:vm'
@@ -10,10 +11,21 @@ import {
 } from '../renderer/preload-shim.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const shimScriptPath = resolve(__dirname, '../src-tauri/src/shim.js')
+// The checked-in bundle generated from renderer/preload-shim.ts by
+// `pnpm --filter @BBeBee/desktop build:shim` — the artifact Tauri injects.
+const shimScriptPath = resolve(__dirname, '../src-tauri/gen/shim.js')
 
 describe('Preload Surface Conformance Test: Tauri Shim API Contract', () => {
   const shimScriptContent = readFileSync(shimScriptPath, 'utf8')
+
+  it('keeps the checked-in bundle fresh: it must match a rebuild from the TS source', () => {
+    // The bundle is generated, not hand-written. If someone edits
+    // renderer/preload-shim.ts without rebuilding, this fails with the
+    // regeneration command. `dev`/`build` rebuild automatically.
+    const script = resolve(__dirname, '../scripts/build-shim.js')
+    const out = execFileSync(process.execPath, [script, '--check'], { encoding: 'utf8' })
+    expect(out).toContain('up to date')
+  })
 
   // Expected baseline surface strictly defining the desktop preload contract
   const baselineSurface = {
@@ -126,7 +138,7 @@ describe('Preload Surface Conformance Test: Tauri Shim API Contract', () => {
     expect(missingInShim, `Missing members detected: \n${missingInShim.join('\n')}`).toEqual([])
   })
 
-  it('validates 100% parity in standalone bundled shim.js evaluated in sandbox environment', () => {
+  it('validates the generated bundle installs the full surface in a sandbox environment', () => {
     const mockWindow: Record<string, any> = {
       __TAURI_INTERNALS__: {
         invoke: async () => undefined,
@@ -152,14 +164,14 @@ describe('Preload Surface Conformance Test: Tauri Shim API Contract', () => {
       clearTimeout: clearTimeout,
     })
 
-    // Execute shim.js in isolated sandbox
+    // Execute the generated bundle in an isolated sandbox
     vm.runInContext(shimScriptContent, context)
 
     const api = mockWindow.BBeBee
     const bridge = mockWindow.BBeBeeBridge
 
-    expect(api, 'window.BBeBee must be defined by shim.js').toBeDefined()
-    expect(bridge, 'window.BBeBeeBridge must be defined by shim.js').toBeDefined()
+    expect(api, 'window.BBeBee must be defined by the bundle').toBeDefined()
+    expect(bridge, 'window.BBeBeeBridge must be defined by the bundle').toBeDefined()
 
     const missingInBundle: string[] = []
 
@@ -195,7 +207,7 @@ describe('Preload Surface Conformance Test: Tauri Shim API Contract', () => {
 
     expect(
       missingInBundle,
-      `Missing members in shim.js: \n${missingInBundle.join('\n')}`,
+      `Missing members in the bundle: \n${missingInBundle.join('\n')}`,
     ).toEqual([])
   })
 
@@ -242,7 +254,7 @@ describe('Preload Surface Conformance Test: Tauri Shim API Contract', () => {
     }
   })
 
-  it('rewrites bbebee-file: URIs to http://bbebee-file.localhost on Windows (shim.js)', () => {
+  it('rewrites bbebee-file: URIs to http://bbebee-file.localhost on Windows (bundle)', () => {
     const mockWindow: Record<string, any> = {
       __TAURI_INTERNALS__: { invoke: async () => undefined },
     }

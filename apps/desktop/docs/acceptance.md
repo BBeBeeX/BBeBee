@@ -62,7 +62,7 @@ The resulting architecture in `apps/desktop` comprises three synchronized compon
 │     Attached Top-Snap, Expanded)  │   - @BBeBee/core-http-node         │
 │ • System Tray & Localized Menu    │ • Native Audio Engine Supervisor:  │
 │ • Global Media Keys & Hotkeys     │   - Spawns C++17 audio-engine (MPV)│
-│ • Preload Injection (shim.js)     │   - Stdio JSON IPC + RingBuffer    │
+│ • Preload Injection (gen/shim.js)   │   - Stdio JSON IPC + RingBuffer    │
 │ • Single Instance Enforcer        │ • FFmpeg Transcode → Rust (P1)     │
 │ • Custom Scheme Protocols         │ • Audio Supervisor → Rust (staged) │
 │   - bbebee-file://                │ • Dynamic Sandbox Skin Registry    │
@@ -83,7 +83,7 @@ The resulting architecture in `apps/desktop` comprises three synchronized compon
 ```
 
 ### 3.1 Preload Shim & Parity Diff
-- The preload injection script `apps/desktop/src-tauri/src/shim.js` is automatically injected into all webview windows before DOM execution using Tauri's `initialization_script`.
+- The preload injection script `apps/desktop/src-tauri/gen/shim.js` (generated from `apps/desktop/renderer/preload-shim.ts` via `pnpm build:shim`) is automatically injected into all webview windows before DOM execution using Tauri's `initialization_script`.
 - Implements 100% of the 20 namespaces and properties on `window.BBeBee`:
   - `paths`, `getAppVersion()`, `secrets`, `shell`, `dialog`, `files`, `devtools`, `plugins`, `window`, `proxy`, `stream`, `audio`, `desktopLyrics`, `taskbar`, `miniPlayer`, `locale`, `sandbox`, `versions`, `platform`, `isDebug`.
 - Implements 100% of the 10 CH channel methods on `window.BBeBeeBridge`:

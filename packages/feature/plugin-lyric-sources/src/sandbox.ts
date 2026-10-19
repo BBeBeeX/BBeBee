@@ -350,9 +350,19 @@ export async function executeLyricSource(
     ),
   )
 
-  const timeoutPromise = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error('Lyric source execution timed out after 10000ms')), 10000),
-  )
+  // The timeout handle is cleared once the race settles: without this, a fast
+  // source would still leave a live 10s timer behind on every call.
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeout = setTimeout(
+      () => reject(new Error('Lyric source execution timed out after 10000ms')),
+      10000,
+    )
+  })
 
-  return await Promise.race([executionPromise, timeoutPromise])
+  try {
+    return await Promise.race([executionPromise, timeoutPromise])
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout)
+  }
 }

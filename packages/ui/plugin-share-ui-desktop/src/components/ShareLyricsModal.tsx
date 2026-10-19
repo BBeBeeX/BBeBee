@@ -1,4 +1,4 @@
-import { createElement as h, useState, useCallback, useMemo } from 'react'
+import { createElement as h, useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { ShareLyricsData } from '@BBeBee/protocol'
@@ -39,6 +39,14 @@ export function ShareLyricsModal({
   const [copiedText, setCopiedText] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [disabledReason, setDisabledReason] = useState<string | null>(null)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   const httpArtwork = useMemo(() => extractHttpArtworkUrl(lyrics.artwork), [lyrics.artwork])
 
@@ -72,7 +80,9 @@ export function ShareLyricsModal({
 
   const showDisabledReason = useCallback((msg: string) => {
     setDisabledReason(msg)
-    setTimeout(() => setDisabledReason(null), 3500)
+    setTimeout(() => {
+      if (mountedRef.current) setDisabledReason(null)
+    }, 3500)
   }, [])
 
   const handleCopyText = useCallback(async () => {
@@ -86,7 +96,9 @@ export function ShareLyricsModal({
       if (ok) {
         setCopiedText(true)
         setDisabledReason(null)
-        setTimeout(() => setCopiedText(false), 2000)
+        setTimeout(() => {
+          if (mountedRef.current) setCopiedText(false)
+        }, 2000)
       } else {
         ctx.logger?.error('Failed to copy lyrics via clipboard')
         showDisabledReason(t('share:shareLyrics.canTCopyWritingTo'))

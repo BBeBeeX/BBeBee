@@ -51,7 +51,7 @@ codegen 即可构建。
 1. **桌面端宿主中的特权协议（`apps/desktop/src-tauri/src/main.rs` 与 `sidecar/protocols.ts`）**：
    桌面宿主注册特权自定义协议 `bbebee-plugin://`。协议处理器严格限定在 `userData/installed-plugins/<pluginDirName(id)>/` 下提供服务，并执行严格的路径包含检查（拒绝 `..` 路径穿越并返回 403 Forbidden），正确响应 `text/javascript`、`application/json` 等 MIME 类型。
 
-2. **Webview Shim 与桥接（`apps/desktop/src-tauri/src/shim.js` 与 `renderer/preload-shim.ts`）**：
+2. **Webview Shim 与桥接（`apps/desktop/src-tauri/gen/shim.js`，由 `renderer/preload-shim.ts` 经 `pnpm build:shim` 打包生成）**：
    暴露安全且类型完备的 `window.BBeBee.plugins` API：
    - `listInstalled(): Promise<Array<{ id: string, version: string, manifest: unknown, dirName: string }>>`
    - `install(pluginId: string, files: Record<string, string>): Promise<void>`

@@ -679,10 +679,14 @@ export function createBridgeApi(
 /**
  * Forward browser console output to the Rust logs.
  *
- * Mirrors the IIFE at the top of `src-tauri/src/shim.js`: patches
- * `console.error`/`console.warn` and listens for resource `error` events,
- * forwarding them via the `desktop_console_forward` Tauri command so they
- * appear in the terminal running `tauri dev` with a `[console]` prefix.
+ * This module is the single source of truth for the preload shim: it is
+ * bundled to `src-tauri/gen/shim.js` (via `pnpm build:shim`) and injected
+ * into every Tauri webview before page scripts run. `forwardConsoleToRust`
+ * runs first inside the bundle so even early boot errors are captured:
+ * it patches `console.error`/`console.warn` and listens for resource
+ * `error` events, forwarding them via the `desktop_console_forward` Tauri
+ * command so they appear in the terminal running `tauri dev` with a
+ * `[console]` prefix.
  *
  * Best-effort: never throws, never breaks the app if the Tauri IPC layer
  * is unavailable (plain browser, tests).
@@ -736,7 +740,11 @@ export function forwardConsoleToRust(): void {
             `Resource failed to load: ${target.tagName} src="${el.src || (target as HTMLLinkElement).href || ''}"`,
           ])
         } else if (e.message) {
-          send('error', [e.message])
+          // Uncaught exception in page script. Forward the stack when
+          // available — the one-line message alone is not diagnosable.
+          const err = (e as ErrorEvent).error as { stack?: unknown } | undefined
+          const stack = typeof err?.stack === 'string' ? err.stack : ''
+          send('error', [stack ? `${e.message}\n${stack}` : e.message])
         }
       },
       true,

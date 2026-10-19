@@ -257,17 +257,84 @@ export default tseslint.config(
         'error',
         {
           patterns: [
-            ...PLATFORM_SDKS,
-            ...CORE_PACKAGES,
-            ...LOG_PACKAGES,
-            'cordis',
-            '@BBeBee/kernel',
+            {
+              group: [
+                ...PLATFORM_SDKS,
+                ...CORE_PACKAGES,
+                ...LOG_PACKAGES,
+                'cordis',
+                '@BBeBee/kernel',
+              ],
+            },
+            // A rule engine that imported a plugin would stop being pure
+            // logic — same lifecycle-coupling argument as the Layer 4 block
+            // below. Stated here rather than there because this block's
+            // options win for these files (later block replaces, not merges),
+            // and the Layer 4 block below ignores this package to keep it so.
+            {
+              group: ['@BBeBee/plugin-*', '@BBeBee/plugin-*/**'],
+              allowTypeImports: true,
+              message:
+                'Layer 4 reaches other features through ctx services, events, or @BBeBee/toolkit — not imports. ' +
+                'See the Layer 4 block below and docs/02 §1.',
+            },
           ],
         },
       ],
       // It has no `ctx` to log through, and a rule engine that printed would
       // print once per rule per track. It returns values; the runtime logs.
       'no-console': 'error',
+    },
+  },
+
+  {
+    /*
+     * docs/02 §1 — Layer 4, the feature plugins, reaching each other.
+     *
+     * A feature plugin reaches another feature through a `ctx.*` service, an
+     * event, or a shared binding in `@BBeBee/toolkit` — never by importing
+     * the other plugin's module. A value import would couple the two
+     * lifecycles: the importer keeps the importee's module — and whatever it
+     * registered — alive for as long as it lives, so unloading the importee
+     * stops working; and it bypasses the capability gate, which is the only
+     * thing standing between a plugin and a service it was not granted.
+     * That is the same pair of reasons a transport may not import a feature.
+     *
+     * `@BBeBee/toolkit` and `@BBeBee/source-rules` are shared libraries, not
+     * plugins, so they stay reachable. `import type` stays allowed because
+     * the import matrix permits L4→L4 types: a plugin may name another
+     * plugin's config or event payload types without depending on it.
+     *
+     * `source-rules` is ignored here only so its own block above keeps its
+     * stricter options (a later block replaces this rule's options, it does
+     * not merge them); the plugin-import ban is stated there instead.
+     */
+    files: ['packages/feature/**/*.ts', 'packages/feature/**/*.tsx'],
+    ignores: [
+      '**/*.test.ts',
+      '**/*.test.tsx',
+      'packages/feature/source-rules/**',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        // Restates the Layer 4 ban from the block above: a later block
+        // replaces this rule's options rather than merging them.
+        {
+          paths: [KERNEL_GUARD],
+          patterns: [
+            { group: [...PLATFORM_SDKS, ...CORE_PACKAGES, ...LOG_PACKAGES] },
+            {
+              group: ['@BBeBee/plugin-*', '@BBeBee/plugin-*/**'],
+              allowTypeImports: true,
+              message:
+                'Layer 4 plugins reach each other through ctx services, events, or @BBeBee/toolkit — not imports. ' +
+                'A value import couples the two plugin lifecycles and bypasses the capability gate. ' +
+                'See docs/02 §1.',
+            },
+          ],
+        },
+      ],
     },
   },
 

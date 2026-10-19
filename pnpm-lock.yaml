@@ -17,6 +17,9 @@ importers:
       '@types/node':
         specifier: ^22.10.2
         version: 22.20.1
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
       eslint:
         specifier: ^9.17.0
         version: 9.39.5(supports-color@8.1.1)
@@ -596,6 +599,9 @@ importers:
       cordis:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
+      iconv-lite:
+        specifier: 0.6.3
+        version: 0.6.3(safer-buffer@2.1.2)
       music-metadata:
         specifier: 11.15.0
         version: 11.15.0(supports-color@8.1.1)
@@ -661,6 +667,9 @@ importers:
 
   packages/core/core-desktop-bridge:
     dependencies:
+      '@BBeBee/core-codec-node':
+        specifier: workspace:*
+        version: link:../core-codec-node
       '@BBeBee/kernel':
         specifier: workspace:*
         version: link:../../kernel
@@ -5659,6 +5668,12 @@ packages:
     resolution: {integrity: sha512-vK9P5/iUfdl95AI+JVyUuIcVtd4ofvtrOr3HNtM2yxC9bnMbEdp3x01OhQNnjb8IJYi38VlTE3mBXwcfvywuSw==}
     engines: {node: '>= 14'}
 
+  iconv-lite@0.6.3:
+    resolution: {integrity: sha512-4fCk79wshMdzMp2rH06qWrJE4iolqLhCUH+OiuIgU++RB0+94NlDL81atO7GX55uUKueo0txHNtvEyI6D7WdMw==}
+    engines: {node: '>=0.10.0'}
+    dependencies:
+      safer-buffer: 2.1.2
+
   ieee754@1.2.1:
     resolution: {integrity: sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==}
 
@@ -6426,6 +6441,9 @@ packages:
 
   safe-buffer@5.2.1:
     resolution: {integrity: sha512-rp3So07KcdmmKbGvgaNxQSJr7bGVSVk5S9Eq1F+ppbRo70+YeaDxkw5Dd8NPN+GD6bjnYm2VuPuCXmpuYvmCXQ==}
+
+  safer-buffer@2.1.2:
+    resolution: {integrity: sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==}
 
   sandbox-cli-detector@0.2.0:
     resolution: {integrity: sha512-4lyHX0ZU0AZKwjgZ1InxZAa3PNpyEb8rOQ+Zss1ReYmhNzW0Q+h1zE5nvniXN0HaAWZaZE1zgVNEirb0R7LmNg==}
@@ -9487,6 +9505,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  iconv-lite@0.6.3(safer-buffer@2.1.2):
+    dependencies:
+      safer-buffer: 2.1.2
+
   ieee754@1.2.1: {}
 
   ignore@5.3.2: {}
@@ -10484,6 +10506,8 @@ snapshots:
       fsevents: 2.3.3
 
   safe-buffer@5.2.1: {}
+
+  safer-buffer@2.1.2: {}
 
   sandbox-cli-detector@0.2.0: {}
 

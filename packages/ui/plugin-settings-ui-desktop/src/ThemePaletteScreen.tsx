@@ -4,7 +4,7 @@
  * for the active theme, with scheme toggling and search filtering.
  */
 
-import { createElement as h, useState, useEffect, useMemo } from 'react'
+import { createElement as h, useState, useEffect, useMemo, useRef } from 'react'
 import type { ReactElement, CSSProperties } from 'react'
 import type { Context } from 'cordis'
 import { serviceOf } from '@BBeBee/ui-core'
@@ -91,6 +91,14 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   useEffect(() => {
     if (!themeService || typeof themeService.onThemeChange !== 'function') return
@@ -161,7 +169,7 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
       void navigator.clipboard.writeText(`var(${key}) /* ${val} */`)
       setCopiedKey(key)
       setTimeout(() => {
-        setCopiedKey((curr) => (curr === key ? null : curr))
+        if (mountedRef.current) setCopiedKey((curr) => (curr === key ? null : curr))
       }, 1500)
     }
   }

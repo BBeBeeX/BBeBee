@@ -1,1 +1,1 @@
-{}
+{"main-capability":{"identifier":"main-capability","description":"Capabilities for all windows (main, desktop-lyrics, mini-player)","local":true,"windows":["main","desktop-lyrics","mini-player"],"permissions":["core:default","core:event:default","core:event:allow-listen","core:event:allow-emit","core:window:default","core:window:allow-start-dragging"]}}

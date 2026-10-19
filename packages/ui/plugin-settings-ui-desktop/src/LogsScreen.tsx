@@ -4,7 +4,7 @@
  */
 
 import { Button, useI18n } from '@BBeBee/ui-kit-desktop'
-import { createElement as h, useEffect, useMemo, useState } from 'react'
+import { createElement as h, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { serviceOf } from '@BBeBee/ui-core'
@@ -23,6 +23,14 @@ export function LogsScreen({ ctx }: { ctx: Context }): ReactElement {
   const [levelFilter, setLevelFilter] = useState<'all' | LogLevel>('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [copied, setCopied] = useState(false)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   // Poll log buffer every 1000ms
   useEffect(() => {
@@ -65,7 +73,9 @@ export function LogsScreen({ ctx }: { ctx: Context }): ReactElement {
     const text = buffer?.toNdjson?.() ?? JSON.stringify(records, null, 2)
     void navigator.clipboard?.writeText(text)
     setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    setTimeout(() => {
+      if (mountedRef.current) setCopied(false)
+    }, 2000)
   }
 
   return h(
