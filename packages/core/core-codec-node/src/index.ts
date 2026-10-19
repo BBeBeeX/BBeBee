@@ -200,14 +200,27 @@ export class CodecNode extends Service implements CodecService {
   }
 
   /**
-   * Batch artwork extraction with bounded concurrency.
+   * Batch artwork extraction via a dedicated worker process.
    * Files without embedded art yield `undefined` (not an error).
+   *
+   * The worker process (`artwork-worker.mjs`) runs music-metadata parsing off
+   * the sidecar's main event loop, so batch cover fetches don't starve other
+   * bridge calls (e.g., 3Hz position updates). Falls back to in-process
+   * extraction if the worker cannot be spawned.
    */
   async readArtworkBatch(uris: Uri[]): Promise<Array<Uint8Array | undefined>> {
-    // Reduced from 16 to 4: artwork extraction is CPU-intensive (music-metadata
-    // parsing). High concurrency blocks the sidecar event loop, freezing all
-    // bridge calls (including 3Hz position updates). Yield between items so
-    // other messages can be processed.
+    const paths = uris.map((u) => uriToFilePath(u as string))
+    if (paths.some((p) => p === null)) {
+      return this.readArtworkBatchInProcess(uris)
+    }
+    try {
+      return await this.readArtworkBatchViaWorker(paths as string[])
+    } catch {
+      return this.readArtworkBatchInProcess(uris)
+    }
+  }
+
+  private async readArtworkBatchInProcess(uris: Uri[]): Promise<Array<Uint8Array | undefined>> {
     const CONCURRENCY = 4
     const results: Array<Uint8Array | undefined> = new Array(uris.length)
     let next = 0
@@ -221,12 +234,86 @@ export class CodecNode extends Service implements CodecService {
         } catch {
           results[i] = undefined
         }
-        // Yield to event loop between items to avoid starving other bridge calls
         await new Promise((resolve) => setImmediate(resolve))
       }
     })
     await Promise.all(workers)
     return results
+  }
+
+  private async readArtworkBatchViaWorker(filePaths: string[]): Promise<Array<Uint8Array | undefined>> {
+    // Dynamic imports for Node-only APIs (worker only runs in sidecar)
+    const { fork } = (await import('node:child_process')) as typeof import('node:child_process')
+    const { fileURLToPath } = (await import('node:url')) as typeof import('node:url')
+    const { dirname, join } = (await import('node:path')) as typeof import('node:path')
+    const { existsSync } = (await import('node:fs')) as typeof import('node:fs')
+
+    // Resolve worker script: bundled sidecar has it as sibling of index.mjs
+    const here = dirname(fileURLToPath(import.meta.url))
+    const workerPath = join(here, 'artwork-worker.mjs')
+    if (!existsSync(workerPath)) {
+      throw new Error('artwork worker not found')
+    }
+
+    return new Promise((resolve, reject) => {
+      const child = fork(workerPath)
+      const results: Array<Uint8Array | undefined> = new Array(filePaths.length)
+      let pending = filePaths.length
+      let nextId = 0
+      const idToIndex = new Map<number, number>()
+
+      const cleanup = () => {
+        try {
+          child.send({ cmd: 'shutdown' })
+        } catch {
+          /* ignore */
+        }
+        setTimeout(() => {
+          try {
+            child.kill()
+          } catch {
+            /* ignore */
+          }
+        }, 1000).unref()
+      }
+
+      child.on('message', (msg: unknown) => {
+        const m = msg as { id: number; artwork: string | null }
+        const idx = idToIndex.get(m.id)
+        if (idx !== undefined) {
+          results[idx] = m.artwork ? new Uint8Array(Buffer.from(m.artwork, 'base64')) : undefined
+          idToIndex.delete(m.id)
+          if (--pending === 0) {
+            cleanup()
+            resolve(results)
+          }
+        }
+      })
+
+      child.on('error', (err: Error) => {
+        cleanup()
+        reject(err)
+      })
+
+      child.on('exit', (code: number | null) => {
+        if (pending > 0) {
+          reject(new Error(`artwork worker exited early (code ${code}), ${pending} pending`))
+        }
+      })
+
+      for (let i = 0; i < filePaths.length; i++) {
+        const id = nextId++
+        idToIndex.set(id, i)
+        child.send({ id, filePath: filePaths[i] })
+      }
+
+      setTimeout(() => {
+        if (pending > 0) {
+          cleanup()
+          reject(new Error('artwork worker timeout'))
+        }
+      }, 60000).unref()
+    })
   }
 
   /**
@@ -867,3 +954,27 @@ export async function apply(ctx: Context, config: CodecNodeConfig = {}) {
 }
 
 export default { name, apply }
+
+/**
+ * Convert a file URI to a local filesystem path for the artwork worker.
+ * Returns null if the URI is not a local file.
+ */
+function uriToFilePath(uri: string): string | null {
+  try {
+    const fileUrl = uri.replace(/^bbebee-file:\/*/, 'file:///')
+    if (!fileUrl.startsWith('file://')) return null
+    // fileURLToPath is Node-only; guard for non-Node environments
+    if (typeof process === 'undefined' || !process.versions?.node) return null
+    // Dynamic require to avoid bundling issues in non-Node targets
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { fileURLToPath } = require('node:url') as typeof import('node:url')
+    const p = fileURLToPath(fileUrl)
+    // Windows: /C:/path -> C:/path
+    if (/^\/[a-zA-Z]:[\\/]/.test(p)) {
+      return decodeURIComponent(p.slice(1))
+    }
+    return p
+  } catch {
+    return null
+  }
+}

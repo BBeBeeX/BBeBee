@@ -23,9 +23,12 @@ await build({
     outDir: resolve(root, 'dist-sidecar'),
     emptyOutDir: true,
     rollupOptions: {
-      input: resolve(root, 'sidecar/index.ts'),
+      input: {
+        index: resolve(root, 'sidecar/index.ts'),
+        'artwork-worker': resolve(root, 'sidecar/artwork-worker.ts'),
+      },
       output: {
-        entryFileNames: 'index.mjs',
+        entryFileNames: '[name].mjs',
         format: 'es',
       },
       external: (id) => isBuiltin(id) || id.startsWith('node:'),
