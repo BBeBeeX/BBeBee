@@ -91,6 +91,83 @@ const SAMPLE = {
   year: 1997,
 }
 
+/**
+ * A minimal DSDIFF (.dff) file: FRM8 header, version, properties (stereo
+ * DSD64), an ID3 chunk carrying the title, and a few bytes of audio.
+ */
+function taggedDff(title: string): Uint8Array {
+  const enc = new TextEncoder()
+  const u64be = (n: number) => {
+    const b = new Uint8Array(8)
+    new DataView(b.buffer).setBigUint64(0, BigInt(n))
+    return b
+  }
+  const u32be = (n: number) => {
+    const b = new Uint8Array(4)
+    new DataView(b.buffer).setUint32(0, n)
+    return b
+  }
+  const u32le = (n: number) => {
+    const b = new Uint8Array(4)
+    new DataView(b.buffer).setUint32(0, n, true)
+    return b
+  }
+  const u16be = (n: number) => {
+    const b = new Uint8Array(2)
+    new DataView(b.buffer).setUint16(0, n)
+    return b
+  }
+  const concat = (...parts: Uint8Array[]) => {
+    const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0))
+    let o = 0
+    for (const p of parts) {
+      out.set(p, o)
+      o += p.length
+    }
+    return out
+  }
+  const chunk = (id: string, data: Uint8Array) => concat(enc.encode(id), u64be(data.length), data)
+
+  const titleBytes = enc.encode(title)
+  const id3Frame = concat(
+    enc.encode('TIT2'),
+    u32be(titleBytes.length + 1),
+    new Uint8Array([0x00, 0x00]), // flags
+    new Uint8Array([0x00]), // latin-1
+    titleBytes,
+  )
+  const id3Size = id3Frame.length
+  const id3 = concat(
+    enc.encode('ID3'),
+    new Uint8Array([
+      0x03,
+      0x00,
+      0x00,
+      (id3Size >> 21) & 0x7f,
+      (id3Size >> 14) & 0x7f,
+      (id3Size >> 7) & 0x7f,
+      id3Size & 0x7f,
+    ]),
+    id3Frame,
+  )
+  const prop = chunk(
+    'PROP',
+    concat(
+      enc.encode('SND '),
+      chunk('FS  ', u32be(2822400)),
+      chunk('CHNL', concat(u16be(2), enc.encode('SLFT'), enc.encode('SRGT'))),
+    ),
+  )
+  const body = concat(
+    enc.encode('DSD '),
+    chunk('FVER', u32le(1)),
+    prop,
+    chunk('ID3 ', id3),
+    chunk('DSD ', new Uint8Array(16).fill(0x69)),
+  )
+  return concat(enc.encode('FRM8'), u64be(body.length), body)
+}
+
 /* ── harness ────────────────────────────────────────────────────────────── */
 
 /**
@@ -176,6 +253,7 @@ async function harness() {
     taggedMp3([textFrame('TIT2', 'Untitled')], 1024),
   )
   await writeFile(join(dir, 'garbage.mp3'), 'this is not audio at all')
+  await writeFile(join(dir, 'tagged.dff'), taggedDff('DSD Title'))
 
   const ctx = new Context()
   await ctx.plugin(PathsNode, { root: await tempDir('bbebee-codec-app') })
@@ -212,6 +290,18 @@ describe('core-codec-node', () => {
     expect(meta.year).toBe(SAMPLE.year)
     expect(meta.hasArtwork).toBe(true)
     expect(meta.codec, 'the container is reported').toBeTruthy()
+  })
+
+  it('reads DFF tags (the dsdiff loader is selected by mime hint)', async () => {
+    // Regression: mimeFor('.dff') returned 'audio/dff', which matches no
+    // music-metadata loader (the dsdiff loader declares 'audio/dsd'), so DFF
+    // fell through to content sniffing — and file-type cannot see FRM8.
+    const h = await harness()
+    const meta = await h.codec.readMetadata(h.uri('tagged.dff'))
+    expect(meta.title).toBe('DSD Title')
+    expect(meta.sampleRate).toBe(2822400)
+    expect(meta.channels).toBe(2)
+    expect(meta.codec).toBeTruthy()
   })
 
   it('reads embedded artwork', async () => {

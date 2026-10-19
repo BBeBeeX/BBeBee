@@ -603,7 +603,10 @@ function mimeFor(uri: string): string | undefined {
     case 'dsf':
       return 'audio/dsf'
     case 'dff':
-      return 'audio/dff'
+      // The dsdiff loader's mimeTypes are ['audio/dsf', 'audio/dsd'] —
+      // 'audio/dff' matches nothing, so the loader was never selected and
+      // DFF fell through to content sniffing (which cannot see FRM8).
+      return 'audio/dsd'
     default:
       return undefined
   }
