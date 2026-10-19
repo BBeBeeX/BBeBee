@@ -41,9 +41,6 @@ importers:
       '@BBeBee/core-audio-mpv':
         specifier: workspace:*
         version: link:../../packages/core/core-audio-mpv
-      '@BBeBee/core-audio-webaudio':
-        specifier: workspace:*
-        version: link:../../packages/core/core-audio-webaudio
       '@BBeBee/core-background-tauri':
         specifier: workspace:*
         version: link:../../packages/core/core-background-tauri
@@ -294,9 +291,6 @@ importers:
       '@BBeBee/core-audio-mpv':
         specifier: workspace:*
         version: link:../../packages/core/core-audio-mpv
-      '@BBeBee/core-audio-webaudio':
-        specifier: workspace:*
-        version: link:../../packages/core/core-audio-webaudio
       '@BBeBee/core-background-expo':
         specifier: workspace:*
         version: link:../../packages/core/core-background-expo
@@ -519,21 +513,6 @@ importers:
         version: 57.0.10(@babel/core@7.29.7(supports-color@8.1.1))(@babel/runtime@7.29.7)(expo@57.0.20)(react-refresh@0.18.0)(supports-color@8.1.1)
 
   packages/core/core-audio-mpv:
-    dependencies:
-      '@BBeBee/core-audio-webaudio':
-        specifier: workspace:*
-        version: link:../core-audio-webaudio
-      '@BBeBee/kernel':
-        specifier: workspace:*
-        version: link:../../kernel
-      '@BBeBee/protocol':
-        specifier: workspace:*
-        version: link:../../protocol
-      cordis:
-        specifier: 4.0.0-rc.9
-        version: 4.0.0-rc.9
-
-  packages/core/core-audio-webaudio:
     dependencies:
       '@BBeBee/kernel':
         specifier: workspace:*
@@ -1367,9 +1346,6 @@ importers:
         specifier: 19.2.3
         version: 19.2.3
     devDependencies:
-      '@BBeBee/core-audio-webaudio':
-        specifier: workspace:*
-        version: link:../../core/core-audio-webaudio
       '@BBeBee/core-db-node':
         specifier: workspace:*
         version: link:../../core/core-db-node
@@ -5671,8 +5647,6 @@ packages:
   iconv-lite@0.6.3:
     resolution: {integrity: sha512-4fCk79wshMdzMp2rH06qWrJE4iolqLhCUH+OiuIgU++RB0+94NlDL81atO7GX55uUKueo0txHNtvEyI6D7WdMw==}
     engines: {node: '>=0.10.0'}
-    dependencies:
-      safer-buffer: 2.1.2
 
   ieee754@1.2.1:
     resolution: {integrity: sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==}
