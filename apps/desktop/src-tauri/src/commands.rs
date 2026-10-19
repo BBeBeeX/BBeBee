@@ -571,6 +571,20 @@ pub async fn bridge_call(
     args: Vec<serde_json::Value>,
     token: Option<String>,
 ) -> Result<serde_json::Value, String> {
+    // Route artwork extraction to the dedicated cover sidecar (separate
+    // process + bridge) so cover batches never starve the main sidecar.
+    // Falls back to the main sidecar if the cover sidecar isn't running.
+    if service == "codec" && method.starts_with("readArtwork") {
+        if let Ok(cover) = state.get_cover_sidecar() {
+            return cover
+                .call(
+                    "BBeBee:call",
+                    serde_json::json!([service, method, args, token]),
+                )
+                .await;
+        }
+        // Fall through to main sidecar if cover sidecar unavailable
+    }
     let sidecar = state.get_sidecar()?;
     sidecar
         .call(

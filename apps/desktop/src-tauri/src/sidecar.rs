@@ -27,6 +27,8 @@ pub struct SidecarManager {
     is_shutting_down: Arc<AtomicBool>,
     app_handle: Option<AppHandle>,
     custom_data_dir: Option<PathBuf>,
+    /// Entry script filename in dist-sidecar/ (default "index.mjs", cover uses "cover.mjs")
+    script_name: String,
 }
 
 impl SidecarManager {
@@ -39,7 +41,15 @@ impl SidecarManager {
             is_shutting_down: Arc::new(AtomicBool::new(false)),
             app_handle,
             custom_data_dir: None,
+            script_name: "index.mjs".to_string(),
         }
+    }
+
+    /// Create a manager for the cover sidecar (dist-sidecar/cover.mjs).
+    pub fn new_cover(app_handle: Option<AppHandle>) -> Self {
+        let mut s = Self::new(app_handle);
+        s.script_name = "cover.mjs".to_string();
+        s
     }
 
     pub fn with_custom_data_dir(app_handle: Option<AppHandle>, data_dir: PathBuf) -> Self {
@@ -51,11 +61,13 @@ impl SidecarManager {
             is_shutting_down: Arc::new(AtomicBool::new(false)),
             app_handle,
             custom_data_dir: Some(data_dir),
+            script_name: "index.mjs".to_string(),
         }
     }
 
     /// Resolve the path to the Node.js sidecar entry script.
-    pub fn resolve_sidecar_script() -> Option<PathBuf> {
+    /// Uses `self.script_name` (e.g. "index.mjs" or "cover.mjs").
+    pub fn resolve_sidecar_script(&self) -> Option<PathBuf> {
         if let Ok(env_path) = std::env::var("BBEBEE_SIDECAR_SCRIPT") {
             let p = PathBuf::from(env_path);
             if p.exists() {
@@ -64,10 +76,10 @@ impl SidecarManager {
         }
 
         let candidates = [
-            "apps/desktop/dist-sidecar/index.mjs",
-            "dist-sidecar/index.mjs",
-            "../dist-sidecar/index.mjs",
-            "../../dist-sidecar/index.mjs",
+            format!("apps/desktop/dist-sidecar/{}", self.script_name),
+            format!("dist-sidecar/{}", self.script_name),
+            format!("../dist-sidecar/{}", self.script_name),
+            format!("../../dist-sidecar/{}", self.script_name),
         ];
 
         let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
@@ -191,8 +203,11 @@ impl SidecarManager {
 
         let node_bin = Self::resolve_node_binary();
 
-        let script_path = Self::resolve_sidecar_script().ok_or_else(|| {
-            "Failed to resolve BBeBee Node.js sidecar script (looked for dist-sidecar/index.mjs)".to_string()
+        let script_path = self.resolve_sidecar_script().ok_or_else(|| {
+            format!(
+                "Failed to resolve BBeBee Node.js sidecar script (looked for dist-sidecar/{})",
+                self.script_name
+            )
         })?;
 
         let mut cmd = Command::new(&node_bin);
@@ -436,7 +451,8 @@ mod tests {
 
     #[test]
     fn test_resolve_sidecar_script() {
-        let script = SidecarManager::resolve_sidecar_script();
+        let mgr = SidecarManager::new(None);
+        let script = mgr.resolve_sidecar_script();
         assert!(script.is_some(), "Should find sidecar script");
         let path = script.unwrap();
         assert!(path.exists(), "Resolved sidecar script must exist");

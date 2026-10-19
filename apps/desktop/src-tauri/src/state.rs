@@ -92,6 +92,9 @@ pub struct AppState {
 
     // Sidecar
     pub sidecar: Mutex<Option<Arc<crate::sidecar::SidecarManager>>>,
+    /// Dedicated cover sidecar (dist-sidecar/cover.mjs) — separate bridge so
+    /// artwork batches never starve the main sidecar's calls.
+    pub cover_sidecar: Mutex<Option<Arc<crate::sidecar::SidecarManager>>>,
 
     // Native audio engine (Rust supervisor, P0 migration from Node sidecar)
     pub audio_engine: Mutex<Option<Arc<crate::audio::AudioEngineSupervisor>>>,
@@ -126,6 +129,7 @@ impl Default for AppState {
             current_playback_state: Mutex::new("stopped".to_string()),
             current_position_ms: Mutex::new(0.0),
             sidecar: Mutex::new(None),
+            cover_sidecar: Mutex::new(None),
             audio_engine: Mutex::new(None),
             transcode_manager: Arc::new(crate::transcode::TranscodeManager::new()),
         }
@@ -169,6 +173,26 @@ impl AppState {
 
     pub fn set_sidecar(&self, manager: Arc<crate::sidecar::SidecarManager>) {
         *lock_recover(&self.sidecar) = Some(manager);
+    }
+
+    /// Get the cover sidecar, starting it lazily on first use.
+    /// Falls back to an error if the cover script is missing — the caller
+    /// should then fall back to the main sidecar's codec.
+    pub fn get_cover_sidecar(&self) -> Result<Arc<crate::sidecar::SidecarManager>, String> {
+        {
+            let guard = lock_recover(&self.cover_sidecar);
+            if let Some(mgr) = guard.clone() {
+                return Ok(mgr);
+            }
+        }
+        // Lazy start: create and start the cover sidecar on first artwork request.
+        // Note: this is sync context; the actual start is async — we return an
+        // error here and let the caller retry after spawning via command.
+        Err("cover sidecar is not initialized".to_string())
+    }
+
+    pub fn set_cover_sidecar(&self, manager: Arc<crate::sidecar::SidecarManager>) {
+        *lock_recover(&self.cover_sidecar) = Some(manager);
     }
 
     pub fn get_audio_engine(

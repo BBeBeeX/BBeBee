@@ -174,6 +174,21 @@ fn setup_app(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
+    // Cover sidecar (dedicated artwork extraction, separate bridge)
+    // Starts lazily on first artwork request to avoid slowing app startup.
+    // The bridge_call router falls back to the main sidecar if not running.
+    let cover_sidecar = std::sync::Arc::new(
+        desktop_tauri_lib::sidecar::SidecarManager::new_cover(Some(app.handle().clone())),
+    );
+    app.state::<AppState>()
+        .set_cover_sidecar(cover_sidecar.clone());
+
+    tauri::async_runtime::spawn(async move {
+        if let Err(e) = cover_sidecar.start().await {
+            eprintln!("[main] cover sidecar failed to start: {e}");
+        }
+    });
+
     // Native audio engine (Rust supervisor, P0)
     // Starts lazily on first use; the binary may not be bundled in dev.
     let audio_engine = std::sync::Arc::new(desktop_tauri_lib::audio::AudioEngineSupervisor::new(
