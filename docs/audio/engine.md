@@ -1,4 +1,4 @@
-# Audio Engine & Web Audio Core
+# Audio Engine
 
 > **Legacy Reference:** Formerly `docs/05-audio-playback.md §1`.
 
@@ -11,22 +11,26 @@ Three services, layered:
 ```mermaid
 flowchart LR
     P["ctx.player<br/>queue · transport · history"] --> D["ctx.dsp<br/>effect chain"]
-    D --> A["ctx.audio<br/>Web Audio graph"]
+    D --> A["ctx.audio<br/>mpv engine"]
     A --> O(("output"))
     P -.->|resolves via| S["ctx.sources"]
     P -.->|publishes to| M["ctx.mediaSession"]
 ```
 
-`ctx.player` decides *what* plays. `ctx.dsp` decides *how it sounds*. `ctx.audio` owns the graph
+`ctx.player` decides *what* plays. `ctx.dsp` decides *how it sounds*. `ctx.audio` owns playback
 and is the only thing that touches the platform.
 
 ---
 
 ## 1. `ctx.audio` — the engine
 
-Per [ADR-4](../architecture/overview.md#adr-4--react-native-audio-api-is-the-primary-playback-and-dsp-engine-on-every-target),
-the contract **is** the Web Audio API. `react-native-audio-api` implements it on iOS and Android
-while the desktop webview uses the standard Web Audio implementation, so one graph description runs everywhere.
+Per [ADR-6](../architecture/overview.md#adr-6--libmpv-is-the-ctxaudio-engine-on-every-target),
+`ctx.audio` is a single libmpv engine (`@BBeBee/core-audio-mpv`) on desktop and mobile — no engine
+picker, no fallback engine. libmpv does the decoding, the platform audio output and the native DSP
+(libavfilter). A Web Audio graph remains underneath as the *substrate* the media-element path
+(`StreamedHandle`) and the analyser tap are built on — provided by `react-native-audio-api` on
+mobile and by the webview on desktop. `ctx.player`, `ctx.dsp` and `ctx.visualizer` only ever see
+the `AudioService` contract, never which binary is behind it.
 
 ```ts
 import type { Uri, Disposable } from '@BBeBee/protocol'

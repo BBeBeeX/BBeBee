@@ -75,7 +75,7 @@ mobile, `@tanstack/react-virtual` on desktop, the latter publishing `aria-setsiz
 stays invisible to a screen reader rather than catastrophic for one.
 
 Still open, and every one of them needs hardware: **the Stage 0 spike has not been run** on an iOS
-device, an Android device, or on desktop, so ADR-4's verdict below is still a hypothesis; the
+device, an Android device, or on desktop, so ADR-6's verdict below is still a hypothesis; the
 device smoke matrix has not been run; and **`load({ strategy: 'stream' })` has no mobile
 implementation** — React Native has no `HTMLMediaElement`, so a long remote track is buffered or
 not played, which is the gap `StreamerNode` closes and the one piece of M1 that is architecture
@@ -305,13 +305,16 @@ tests that fail loudly on an upgrade
 depends on, the fallback is vendoring the pinned version. Cordis's core is a few thousand lines
 with two dependencies, which makes that a real option rather than a theoretical one.
 
-### 🔴 `react-native-audio-api` is pre-1.0
+### 🟡 `react-native-audio-api` is pre-1.0
 
-ADR-4 buys the entire cross-platform DSP story from a `0.13.x` package.
+ADR-6 retired ADR-4's bet: the library no longer *is* the engine — it only provides the
+`AudioContext` substrate the mpv engine's element path is built on (mobile `createContext`).
+The remaining exposure is narrower (graph plumbing, not decode/playout), but the package is
+still `0.13.x` with a moving API.
 
-*Mitigation* — the contract is the **standard Web Audio API**, not the library's own shape, so the
-switching cost is bounded. `core-audio-rntp` over `react-native-track-player` is the documented
-fallback, at the price of mobile DSP.
+*Mitigation* — the engine behind `ctx.audio` is swappable by ADR-6's structure, and the
+`AudioContext` seam is config-injected, so a replacement context provider slots in without
+touching the engine.
 
 *Early warning* — M1 exercises streaming, gapless, and lock-screen controls. If it disappoints
 there, the decision can be revisited before M4 depends on it.

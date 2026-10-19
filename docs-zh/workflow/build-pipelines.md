@@ -111,7 +111,7 @@ MPV Hi-Fi 引擎（`core-audio-mpv`）运行在一个独立的 C++ 可执行文�
 
 ### 5.2 音频引擎风险
 
-`react-native-audio-api` 处于 `0.13.x`，是另一个未锁定的赌注。ADR-4 的结构已缓解此风险：`ctx.audio` 是一个服务，其契约是*标准的* Web Audio API 而非该库自身的形状，且 `core-audio-rntp` 是有据可查的备选方案（[audio/engine.md](../audio/engine.md)）。锁定纪律与 Cordis 相同。
+`react-native-audio-api` 处于 `0.13.x`，是另一个未锁定的赌注。ADR-6 的结构已缓解此风险：它只提供 `AudioContext` 基座（移动端 `createContext`），而非引擎，且该缝隙是配置注入的。锁定纪律与 Cordis 相同。
 
 ⚠️ **它的桶文件拖进来一个 UI 小部件。** `react-native-audio-api/src/api.ts` 导入了 `Audio/controls/AudioControls`，后者又导入 `react-native-gesture-handler` 与 `react-native-reanimated` —— 而该包对二者都未声明。因此，在两者都安装之前，导入该包的根入口就无法完成打包，而且即便没有任何东西渲染这个小部件，它的四枚图标 PNG 也会混进 bundle。出路有三条，按当时考虑的顺序：
 

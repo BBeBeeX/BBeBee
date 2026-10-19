@@ -177,6 +177,12 @@ See [layers.md §4](./layers.md#4-what-background-means).
 
 ### ADR-4 — `react-native-audio-api` is the primary playback and DSP engine on every target
 
+> **Superseded by [ADR-6](#adr-6--libmpv-is-the-ctxaudio-engine-on-every-target)** (2026-10-19):
+> `ctx.audio` is now the libmpv engine (`@BBeBee/core-audio-mpv`) on desktop and mobile;
+> the `core-audio-webaudio` package was removed. `react-native-audio-api` still provides the
+> `AudioContext` the engine's element path and DSP plumbing are built on (mobile `createContext`).
+> The record below is kept as history.
+
 **Decision.** The `ctx.audio` service contract is the **Web Audio API**. On iOS and Android it is
 satisfied by `react-native-audio-api`; in the desktop webview, by the browser's native Web Audio API
 (or the same package's web implementation — they are the same interface).
@@ -245,6 +251,31 @@ backends change, so `RuleError`, the stale badge, and the health check
 did not write, which is a security posture to maintain rather than a box to tick.
 
 ---
+
+### ADR-6 — libmpv is the `ctx.audio` engine on every target
+
+**Decision.** `ctx.audio` is served by a single engine, `@BBeBee/core-audio-mpv`, on desktop and
+mobile — no engine picker, no fallback engine. On desktop libmpv runs in the crash-isolated
+`audio-engine` subprocess with direct OS audio output (WASAPI/CoreAudio/PulseAudio); on mobile it
+runs in-process over the JNI/JSI bridge (`libmpv.so` / `mpv.framework`), with an in-process
+simulation bridge where the native module is absent (Expo Go, test runners). The Web Audio graph
+the engine's element path (`StreamedHandle`) and DSP plumbing are built on is still provided per
+platform (`react-native-audio-api` on mobile, the webview on desktop) — the graph is a *substrate*,
+not the engine.
+
+**Why now.** ADR-4's mitigation clause predicted exactly this swap: the engine sits behind the
+`ctx.audio` service contract, so `ctx.player`, `ctx.dsp` and `ctx.visualizer` never knew which
+implementation was mounted. The dual-engine period proved the swap was safe (mpv was already the
+default on desktop and the `StreamedHandle` semantics were shared, not forked), and keeping a
+second engine meant maintaining two decode paths, two device-routing paths and a settings UI for
+a choice with no user-visible benefit.
+
+**Consequences.** `core-audio-webaudio` is deleted; its reusable plumbing (`shared.ts`,
+`StreamedHandle`, the fake audio context for tests) moved into `core-audio-mpv`. Legacy settings
+values (`webaudio`, `wasapi`) resolve to mpv. `plugin-visualizer` keeps its `WebAudioImpl` only as
+the fallback when the native PCM tap is unavailable.
+
+**Supersedes [ADR-4](#adr-4--react-native-audio-api-is-the-primary-playback-and-dsp-engine-on-every-target).**
 
 ## 4. Glossary
 

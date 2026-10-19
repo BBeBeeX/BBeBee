@@ -1,4 +1,4 @@
-# 音频引擎与 Web Audio 核心契约
+# 音频引擎
 
 > **历史章节映射：** 原 `docs-zh/05-audio-playback.md §1`。
 
@@ -9,19 +9,19 @@
 ```mermaid
 flowchart LR
     P["ctx.player<br/>queue · transport · history"] --> D["ctx.dsp<br/>effect chain"]
-    D --> A["ctx.audio<br/>Web Audio graph"]
+    D --> A["ctx.audio<br/>mpv 引擎"]
     A --> O(("output"))
     P -.->|resolves via| S["ctx.sources"]
     P -.->|publishes to| M["ctx.mediaSession"]
 ```
 
-`ctx.player` 决定*播放什么*。`ctx.dsp` 决定*听起来怎样*。`ctx.audio` 拥有音频图，并且是唯一触碰平台的组件。
+`ctx.player` 决定*播放什么*。`ctx.dsp` 决定*听起来怎样*。`ctx.audio` 拥有播放链路，并且是唯一触碰平台的组件。
 
 ---
 
 ## 1. `ctx.audio` —— 引擎
 
-依据 [ADR-4](../architecture/overview.md#adr-4--react-native-audio-api-是所有目标平台上首要的播放与-dsp-引擎)，契约**就是** Web Audio API 本身。`react-native-audio-api` 在 iOS 与 Android 上实现了它，桌面端 Webview 则使用标准 Web Audio API 实现，因此同一份音频图描述可以处处运行。
+依据 [ADR-6](../architecture/overview.md#adr-6--libmpv-是所有目标平台上-ctxaudio-引擎)，`ctx.audio` 在桌面端与移动端由单一 libmpv 引擎（`@BBeBee/core-audio-mpv`）提供——没有引擎选择器，没有兜底引擎。解码、系统音频输出与原生 DSP（libavfilter）都由 libmpv 承担；Web Audio 图作为*基座*保留在底层，供媒体元素路径（`StreamedHandle`）与分析器抽头使用——移动端由 `react-native-audio-api` 提供，桌面端由 Webview 提供。`ctx.player`、`ctx.dsp`、`ctx.visualizer` 永远只看到 `AudioService` 契约，看不到背后是哪个二进制。
 
 ```ts
 import type { Uri, Disposable } from '@BBeBee/protocol'

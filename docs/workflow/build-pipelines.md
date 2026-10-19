@@ -150,10 +150,9 @@ stable and may change without notice."* The entire architecture rests on it. Mit
 
 ### 5.2 The audio engine risk
 
-`react-native-audio-api` at `0.13.x` is the other unpinned bet. Mitigated by ADR-4's structure:
-`ctx.audio` is a service, its contract is the *standard* Web Audio API rather than the library's
-own shape, and `core-audio-rntp` is a documented fallback
-([audio/engine.md](../audio/engine.md)). Same pinning discipline as Cordis.
+`react-native-audio-api` at `0.13.x` is the other unpinned bet. Mitigated by ADR-6's structure:
+it only provides the `AudioContext` substrate (mobile `createContext`), not the engine, and the
+seam is config-injected. Same pinning discipline as Cordis.
 
 ⚠️ **Its barrel drags in a UI widget.** `react-native-audio-api/src/api.ts` imports
 `Audio/controls/AudioControls`, which imports `react-native-gesture-handler` and
