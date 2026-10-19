@@ -107,6 +107,11 @@ function countingFs(real: FsService, counter: { bytes: number }) {
     constructor(ctx: Context) {
       super(ctx, 'fs')
     }
+    async readRange(uri: Uri, start: number, end: number) {
+      const bytes = await real.readRange(uri, start, end)
+      counter.bytes += bytes.byteLength
+      return bytes
+    }
     createReadStream(uri: Uri, range?: { start: number; end?: number }) {
       const source = real.createReadStream(uri, range)
       return source.pipeThrough(

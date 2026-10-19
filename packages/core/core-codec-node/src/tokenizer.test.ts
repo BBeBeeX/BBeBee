@@ -6,11 +6,9 @@
  * reports end-of-stream instead of reading on; abort actually aborts.
  */
 
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile, open } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createReadStream } from 'node:fs'
-import { Readable } from 'node:stream'
 import { describe, expect, it } from 'vitest'
 import { EndOfStreamError } from 'strtok3'
 import type { FsService, Uri } from '@BBeBee/protocol'
@@ -18,16 +16,23 @@ import { FsRangeTokenizer } from './tokenizer.js'
 
 interface RangeCall {
   start: number
-  end?: number
+  /** Exclusive, matching `FsService.readRange`. */
+  end: number
 }
 
-/** Minimal `ctx.fs`: only `createReadStream` is exercised, logging ranges. */
+/** Minimal `ctx.fs`: only `readRange` is exercised, logging ranges. */
 function fakeFs(path: string, log: RangeCall[]): FsService {
   return {
-    createReadStream: (_uri: Uri, range?: { start: number; end?: number }) => {
-      log.push({ start: range?.start ?? 0, end: range?.end })
-      const node = createReadStream(path, range ? { start: range.start, end: range.end } : {})
-      return Readable.toWeb(node) as ReadableStream<Uint8Array>
+    readRange: async (_uri: Uri, start: number, end: number) => {
+      log.push({ start, end })
+      const fh = await open(path, 'r')
+      try {
+        const buf = Buffer.alloc(Math.max(0, end - start))
+        const { bytesRead } = await fh.read(buf, 0, buf.length, start)
+        return new Uint8Array(buf.buffer, buf.byteOffset, bytesRead)
+      } finally {
+        await fh.close()
+      }
     },
   } as unknown as FsService
 }
@@ -42,7 +47,7 @@ async function makeFile(size: number): Promise<{ path: string; dir: string }> {
 }
 
 function totalFetched(log: RangeCall[]): number {
-  return log.reduce((sum, c) => sum + (c.end === undefined ? 0 : c.end - c.start + 1), 0)
+  return log.reduce((sum, c) => sum + (c.end - c.start), 0)
 }
 
 describe('FsRangeTokenizer', () => {
@@ -107,7 +112,7 @@ describe('FsRangeTokenizer', () => {
       // call covering the next 1 MB, not sixteen 64 KB drips.
       await t.readBuffer(buf, { position: 16 * 64 * 1024 })
       expect(log.length).toBe(2)
-      expect(log[1]!.end! - log[1]!.start + 1).toBe(16 * 64 * 1024)
+      expect(log[1]!.end - log[1]!.start).toBe(16 * 64 * 1024)
       await t.close()
     } finally {
       await rm(dir, { recursive: true, force: true })

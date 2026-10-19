@@ -40,6 +40,26 @@ export const fsConformance: ConformanceSuite<FsSubject> = {
       },
     },
     {
+      name: 'readRange returns the exact byte window',
+      because: 'the tag-read tokenizer pages through files with single round-trips',
+      async run({ fs, scratch }) {
+        const uri = fs.join(scratch, 'range.bin')
+        const data = new Uint8Array(256)
+        for (let i = 0; i < data.length; i++) data[i] = i
+        await fs.writeFile(uri, data)
+        // End is exclusive.
+        const mid = await fs.readRange(uri, 10, 20)
+        assertEqual(Array.from(mid), [10, 11, 12, 13, 14, 15, 16, 17, 18, 19], 'window')
+        const head = await fs.readRange(uri, 0, 4)
+        assertEqual(Array.from(head), [0, 1, 2, 3], 'head')
+        // Reading past EOF returns what exists; empty ranges return empty.
+        const tail = await fs.readRange(uri, 250, 1000)
+        assertEqual(Array.from(tail), [250, 251, 252, 253, 254, 255], 'tail clamps at EOF')
+        assertEqual((await fs.readRange(uri, 5, 5)).length, 0, 'empty range')
+        assertEqual((await fs.readRange(uri, 300, 400)).length, 0, 'past EOF')
+      },
+    },
+    {
       name: 'exists() is false before and true after',
       because: 'binding verification deletes rows whose file is gone',
       async run({ fs, scratch }) {

@@ -236,6 +236,16 @@ export class FsBridge extends Service implements FsService {
     const raw = await this.call<unknown>('readBytes', [uri])
     return normalizeBridgeBytes(raw) ?? new Uint8Array(0)
   }
+  /**
+   * Single round-trip range read. Unlike `createReadStream` (open + pull×N
+   * + close) this is one `call`, which is what makes the tag-read
+   * tokenizer viable over a high-latency bridge.
+   */
+  async readRange(uri: Uri, start: number, end: number): Promise<Uint8Array> {
+    this.check(uri, 'read')
+    const raw = await this.call<unknown>('readRange', [uri, start, end])
+    return normalizeBridgeBytes(raw) ?? new Uint8Array(0)
+  }
   async writeFile(uri: Uri, data: string | Uint8Array, opts?: WriteOptions) {
     this.check(uri, 'write')
     await this.call('writeFile', [

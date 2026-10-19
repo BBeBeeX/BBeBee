@@ -60,6 +60,17 @@ export interface FsService {
   readBytes(uri: Uri, opts?: { signal?: AbortSignal }): Promise<Uint8Array>
   writeFile(uri: Uri, data: string | Uint8Array, opts?: WriteOptions): Promise<void>
 
+  /**
+   * Read a byte range in a single round-trip. `end` is exclusive; reading
+   * past EOF returns the bytes up to EOF (never throws for a short read).
+   *
+   * Prefer this over `createReadStream` for bounded random access: over a
+   * bridge each stream costs open+pull×N+close round-trips, while this is
+   * one. The tag-read tokenizer pages through files this way — on a
+   * high-latency bridge the stream handshake dominates.
+   */
+  readRange(uri: Uri, start: number, end: number): Promise<Uint8Array>
+
   /** For files too large to hold in memory. */
   createReadStream(uri: Uri, range?: { start: number; end?: number }): ReadableStream<Uint8Array>
   createWriteStream(uri: Uri, opts?: { append?: boolean }): WritableStream<Uint8Array>

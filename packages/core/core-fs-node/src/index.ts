@@ -292,6 +292,20 @@ export class FsNode extends Service implements FsService {
     return new Uint8Array(buf)
   }
 
+  async readRange(uri: Uri, start: number, end: number): Promise<Uint8Array> {
+    this.check(uri, 'read')
+    const length = Math.max(0, Math.floor(end) - Math.floor(start))
+    if (length === 0) return new Uint8Array(0)
+    const fh = await fsp.open(this.toPath(uri), 'r')
+    try {
+      const buf = Buffer.allocUnsafe(length)
+      const { bytesRead } = await fh.read(buf, 0, length, Math.floor(start))
+      return new Uint8Array(buf.buffer, buf.byteOffset, bytesRead)
+    } finally {
+      await fh.close()
+    }
+  }
+
   async writeFile(uri: Uri, data: string | Uint8Array, opts?: WriteOptions): Promise<void> {
     this.check(uri, 'write')
     const path = this.toPath(uri)

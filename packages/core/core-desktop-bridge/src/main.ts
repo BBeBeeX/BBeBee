@@ -229,7 +229,7 @@ export interface Host {
 const ALLOWED: Record<BridgedService, ReadonlySet<string>> = {
   fs: new Set([
     'dir', 'exists', 'stat', 'list', 'mkdir', 'remove', 'move', 'copy',
-    'readFile', 'readBytes', 'writeFile', 'freeSpace', 'toPlayableUri', 'pickDirectory',
+    'readFile', 'readBytes', 'readRange', 'writeFile', 'freeSpace', 'toPlayableUri', 'pickDirectory',
   ]),
   db: new Set(['query', 'get', 'exec', 'defineSchema']),
   paths: new Set([
@@ -252,7 +252,7 @@ const ALLOWED: Record<BridgedService, ReadonlySet<string>> = {
 /** fs methods whose leading arguments are Uris that must stay inside the app. */
 const URI_ARGS: Record<string, number[]> = {
   exists: [0], stat: [0], list: [0], mkdir: [0], remove: [0],
-  move: [0, 1], copy: [0, 1], readFile: [0], readBytes: [0], writeFile: [0],
+  move: [0, 1], copy: [0, 1], readFile: [0], readBytes: [0], readRange: [0], writeFile: [0],
   freeSpace: [0], toPlayableUri: [0],
 }
 
@@ -475,6 +475,17 @@ export async function createHost(ipc: IpcHost, options: HostOptions = {}): Promi
           if (stat.size > maxUnchunked) {
             throw new Error(
               `bridge: ${callArgs[0]} (${Math.round(stat.size / 1024 / 1024)}MB) exceeds maximum unchunked read size (10MB). Use createReadStream instead.`,
+            )
+          }
+        }
+        if (method === 'readRange') {
+          // The range (not the file) is what materialises in one message.
+          const start = Number(callArgs[1])
+          const end = Number(callArgs[2])
+          const maxUnchunked = 10 * 1024 * 1024
+          if (!Number.isFinite(start) || !Number.isFinite(end) || end - start > maxUnchunked) {
+            throw new Error(
+              `bridge: readRange [${String(callArgs[1])}, ${String(callArgs[2])}) exceeds maximum unchunked read size (10MB).`,
             )
           }
         }

@@ -246,6 +246,20 @@ export class FsExpo extends Service implements FsService {
     return new File(uri).bytes()
   }
 
+  async readRange(uri: Uri, start: number, end: number): Promise<Uint8Array> {
+    this.check(uri, 'read')
+    const length = Math.max(0, Math.floor(end) - Math.floor(start))
+    if (length === 0) return new Uint8Array(0)
+    const file = new File(uri)
+    const handle = file.open()
+    try {
+      handle.offset = Math.floor(start)
+      return handle.readBytes(length)
+    } finally {
+      handle.close()
+    }
+  }
+
   async writeFile(uri: Uri, data: string | Uint8Array, opts?: WriteOptions): Promise<void> {
     this.check(uri, 'write')
     const file = new File(uri)

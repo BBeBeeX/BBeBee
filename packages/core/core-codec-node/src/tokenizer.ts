@@ -9,7 +9,8 @@
  * tokenizer lets the parser ask for exactly the bytes it needs, once:
  *
  * - pages of 64 KB are fetched on demand through
- *   `fs.createReadStream(uri, { start, end })` and cached, so a seek back
+ *   `fs.readRange(uri, start, end)` — a single round-trip, not the
+ *   open+pull×N+close a stream costs — and cached, so a seek back
  *   into an already-read region costs nothing;
  * - sequential access (a duration scan draining the file) gets 1 MB
  *   read-ahead runs, so a full-file pass costs one range read per megabyte
@@ -185,41 +186,19 @@ export class FsRangeTokenizer extends AbstractTokenizer {
   }
 
   /**
-   * One bounded range read through `ctx.fs`, with true cancellation: aborting
-   * closes the stream so a hung read does not linger after the caller gave
-   * up.
+   * One bounded range read through `ctx.fs`, in a single round-trip.
+   * (The stream version cost open+pull×N+close per range — fatal on a
+   * high-latency bridge.) Abort is cooperative: the signal is checked
+   * before and after, so a hung read surfaces at the next checkpoint
+   * rather than lingering.
    */
   private async readRange(start: number, end: number): Promise<Uint8Array> {
     this.signal?.throwIfAborted()
-    const reader = this.fs.createReadStream(this.uri, { start, end: end - 1 }).getReader()
-    const chunks: Uint8Array[] = []
-    let total = 0
+    const bytes = await this.fs.readRange(this.uri, start, end)
+    this.signal?.throwIfAborted()
+    // A short read is fine (EOF); never serve (or bill the budget for)
+    // bytes past what was asked.
     const want = end - start
-    const onAbort = () => reader.cancel().catch(() => undefined)
-    this.signal?.addEventListener('abort', onAbort, { once: true })
-    try {
-      for (;;) {
-        this.signal?.throwIfAborted()
-        const { done, value } = await reader.read()
-        if (done || !value) break
-        const normalized = value instanceof Uint8Array ? value : new Uint8Array(value)
-        chunks.push(normalized)
-        total += normalized.byteLength
-        if (total >= want) break
-      }
-    } finally {
-      this.signal?.removeEventListener('abort', onAbort)
-      await reader.cancel().catch(() => undefined)
-    }
-
-    const out = new Uint8Array(total)
-    let at = 0
-    for (const chunk of chunks) {
-      out.set(chunk, at)
-      at += chunk.byteLength
-    }
-    // A chunk may overshoot the range end; never serve (or bill the budget
-    // for) bytes past what was asked.
-    return total > want ? out.subarray(0, want) : out
+    return bytes.length > want ? bytes.subarray(0, want) : bytes
   }
 }
