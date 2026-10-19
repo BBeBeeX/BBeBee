@@ -123,7 +123,10 @@ export async function executeLyricSource(
   })
 
   // 1. If QuickJS realm service (ctx.js) is available, use real engine realm
-  if (services.js) {
+  // Env override to disable QuickJS (crash workaround): BBEBEE_DISABLE_QUICKJS=1
+  const quickJsDisabled =
+    typeof process !== 'undefined' && process.env?.BBEBEE_DISABLE_QUICKJS === '1'
+  if (services.js && !quickJsDisabled) {
     const realm = await services.js.createRealm({
       timeoutMs: 4000,
       budgetMs: 12000,
