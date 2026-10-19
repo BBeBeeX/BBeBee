@@ -71,7 +71,11 @@ function isDevelopment(): boolean {
 }
 
 function isDebug(): boolean {
-  if (typeof window.BBeBee?.isDebug === 'boolean') return window.BBeBee.isDebug
+  // The shim always reports a boolean, but it cannot detect `tauri dev`
+  // from inside the webview (no `process`), so its `false` must not veto
+  // the dev-server / `?debug` fallbacks below — otherwise the console log
+  // transport stays disabled and every ctx.logger call goes nowhere.
+  if (window.BBeBee?.isDebug === true) return true
   return isDevelopment() || new URLSearchParams(location.search).has('debug')
 }
 
