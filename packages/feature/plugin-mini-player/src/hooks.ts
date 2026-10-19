@@ -109,7 +109,22 @@ export function useMiniPlayerData(): {
 
     const off = bridge.onData?.((incoming: unknown) => {
       if (incoming && typeof incoming === 'object') {
-        setData((prev) => ({ ...prev, ...(incoming as Partial<MiniPlayerData>) }))
+        const next = incoming as Partial<MiniPlayerData>
+        setData((prev) => {
+          // Skip re-render if only position/duration changed — the ProgressBar
+          // subscribes directly via bridge.onData and updates via refs, so the
+          // React tree doesn't need to re-render at 3Hz (which blocks OS drag).
+          const merged = { ...prev, ...next }
+          let changed = false
+          for (const k of Object.keys(next) as (keyof MiniPlayerData)[]) {
+            if (k === 'positionMs' || k === 'durationMs') continue
+            if (prev[k] !== merged[k]) {
+              changed = true
+              break
+            }
+          }
+          return changed ? merged : prev
+        })
       }
     })
 

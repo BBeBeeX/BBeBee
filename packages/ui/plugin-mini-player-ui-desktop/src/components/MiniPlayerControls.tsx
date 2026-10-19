@@ -195,6 +195,27 @@ export function ProgressBar({
     positionMs,
     at: typeof performance !== 'undefined' ? performance.now() : Date.now(),
   })
+  const durationRef = useRef(durationMs)
+  durationRef.current = durationMs
+
+  // Subscribe directly to position updates via bridge, bypassing React props.
+  // This allows the parent to skip re-renders on position-only changes (for
+  // smooth drag during playback), while the progress bar still gets live updates.
+  useEffect(() => {
+    const bridge = (window as unknown as { BBeBee?: { miniPlayer?: { onData?: (cb: (d: unknown) => void) => () => void } } }).BBeBee?.miniPlayer
+    if (!bridge?.onData) return
+    const off = bridge.onData((incoming: unknown) => {
+      const d = incoming as { positionMs?: number; durationMs?: number } | null
+      if (d && typeof d.positionMs === 'number') {
+        anchorRef.current = {
+          positionMs: d.positionMs,
+          at: typeof performance !== 'undefined' ? performance.now() : Date.now(),
+        }
+        if (typeof d.durationMs === 'number') durationRef.current = d.durationMs
+      }
+    })
+    return () => off?.()
+  }, [])
 
   // Whenever positionMs, isPlaying, or durationMs update from upstream data (authoritative update), re-anchor
   // and imperatively sync the DOM (no React re-render).
@@ -215,9 +236,10 @@ export function ProgressBar({
     const tick = () => {
       const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
       const elapsed = Math.max(0, now - anchorRef.current.at)
-      const bound = durationMs > 0 ? durationMs : Number.POSITIVE_INFINITY
+      const dur = durationRef.current
+      const bound = dur > 0 ? dur : Number.POSITIVE_INFINITY
       const pos = Math.min(anchorRef.current.positionMs + elapsed, bound)
-      const pct = durationMs > 0 ? Math.min(100, Math.max(0, (pos / durationMs) * 100)) : 0
+      const pct = dur > 0 ? Math.min(100, Math.max(0, (pos / dur) * 100)) : 0
       if (fillRef.current) fillRef.current.style.width = `${pct}%`
       if (timeRef.current) timeRef.current.textContent = formatTime(pos)
       frame = requestAnimationFrame(tick)
