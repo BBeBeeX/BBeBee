@@ -646,13 +646,14 @@ export class CodecNode extends Service implements CodecService {
     const attempts: Array<string | undefined> = hint ? [undefined, hint] : [undefined]
     // Bounded first, escalate on failure — the old window escalation's shape,
     // without the re-reads: a normal file parses inside the first budget
-    // (256 KB, the old first window; the conformance byte ceiling is
-    // measured against it), and only a file whose tag block genuinely
-    // exceeds it pays for a second parse. The second budget is 64 MB:
-    // large enough for legitimate files with tag chunks far into the file
-    // (e.g. a WAV with LIST after a big data chunk), still bounded against
-    // pathological drains.
-    const firstBudget = 256 * 1024
+    // (2 MB: large embedded covers (1MB+) are common; the old 256KB cut
+    // off pictures mid-read, causing hasArtwork=false for files that DO
+    // have covers. The conformance byte ceiling is measured against this),
+    // and only a file whose tag block genuinely exceeds it pays for a
+    // second parse. The second budget is 64 MB: large enough for legitimate
+    // files with tag chunks far into the file (e.g. a WAV with LIST after
+    // a big data chunk), still bounded against pathological drains.
+    const firstBudget = 2 * 1024 * 1024
     const secondBudget = Math.min(fileSize, 64 * 1024 * 1024)
     const budgets = secondBudget > firstBudget ? [firstBudget, secondBudget] : [firstBudget]
     let lastError: unknown
@@ -844,7 +845,7 @@ export async function toAudioMetadata(
  * `FsRangeTokenizer`, so there is no head window to size. Kept so existing
  * imports do not break; do not use for new code.
  */
-export const TAG_WINDOW = 256 * 1024
+export const TAG_WINDOW = 2 * 1024 * 1024
 
 export const name = 'core-codec-node'
 

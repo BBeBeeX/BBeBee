@@ -310,7 +310,8 @@ async function harness() {
   const dir = await tempDir('bbebee-codec')
   const uri = (name: string) => pathToFileURL(join(dir, name)).href
 
-  // 512 KB of padding, so "did it read the whole file" is a real question.
+  // 5 MB of padding, so "did it read the whole file" is a real question
+  // (the 2 MB tag window must still be a fraction of the file).
   const withArt = taggedMp3(
     [
       textFrame('TIT2', SAMPLE.title),
@@ -320,7 +321,7 @@ async function harness() {
       textFrame('TYER', String(SAMPLE.year)),
       pictureFrame(new Uint8Array([0xff, 0xd8, 0xff, 0xdb, 1, 2, 3, 4])),
     ],
-    512 * 1024,
+    5 * 1024 * 1024,
   )
   await writeFile(join(dir, 'tagged.mp3'), withArt)
   await writeFile(
