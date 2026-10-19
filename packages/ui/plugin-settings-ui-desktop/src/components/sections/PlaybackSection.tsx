@@ -1,4 +1,4 @@
-import { Button, Select, Switch, useI18n } from '@BBeBee/ui-kit-desktop'
+import { Select, Switch, useI18n } from '@BBeBee/ui-kit-desktop'
 import { createElement as h, useCallback, useEffect, useRef, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { AppSettings, AudioService, OutputDevice, SettingsContribution } from '@BBeBee/protocol'
@@ -121,8 +121,6 @@ export function PlaybackSection({
   const playbackContribs = (contributions ?? []).filter(
     (c) => c.section === 'playback' || c.section === 'audio',
   )
-  const currentEngine = settings.audioOutputEngine ?? 'mpv'
-  const isMpv = currentEngine === 'mpv' || currentEngine === 'wasapi'
   const currentDeviceId = settings.audioOutputDeviceId ?? 'default'
 
   // Localised display name for the "no real device found" placeholder. The
@@ -131,30 +129,9 @@ export function PlaybackSection({
   const audioOutputDeviceLabel = t('settings:playback.audioOutputDevice')
 
   useEffect(() => {
-    void fetchDevices(`engine-${currentEngine}`)
+    void fetchDevices('engine-mpv')
     void fetchEngineStatus()
-  }, [currentEngine, fetchDevices, fetchEngineStatus])
-
-  useEffect(() => {
-    if (
-      !isMpv &&
-      currentDeviceId &&
-      currentDeviceId !== 'default' &&
-      (currentDeviceId.includes('MMDEVAPI') ||
-        currentDeviceId.includes('{0.0.') ||
-        currentDeviceId.startsWith('SWD\\') ||
-        currentDeviceId.startsWith('hw:'))
-    ) {
-      ctx.logger?.warn(
-        'playback-settings: invalid/native OS deviceId "%s" found in settings, resetting to "default"',
-        currentDeviceId,
-      )
-      void update({ audioOutputDeviceId: 'default' })
-      void serviceOf<AudioService>(ctx, 'audio')?.setOutputDevice?.('default').catch((err) => {
-        ctx.logger?.error('playback-settings: failed to set output device to default: %s', String(err))
-      })
-    }
-  }, [currentDeviceId, isMpv, update, ctx])
+  }, [fetchDevices, fetchEngineStatus])
 
   const isGenericPlaceholder = (text: string): boolean => {
     if (!text) return true
@@ -248,32 +225,9 @@ export function PlaybackSection({
       h(SettingsRow, {
         ctx,
         title: t('settings:playback.audioOutputDriverAudioBackend'),
-        description: isMpv ? t('settings:playback.currentMpv') : t('settings:playback.currentWebAudio'),
-        action: h(
-          'div',
-          { style: { display: 'flex', gap: 6 } },
-          h(Button, {
-            variant: isMpv ? 'primary' : 'secondary',
-            onPress: () => {
-              ctx.logger?.info('playback-settings: user clicked backend switch -> mpv')
-              void update({ audioOutputEngine: 'mpv' })
-              void fetchDevices('engine-switch')
-            },
-            children: t('settings:playback.mpvHiFi'),
-          }),
-          h(Button, {
-            variant: currentEngine === 'webaudio' ? 'primary' : 'secondary',
-            onPress: () => {
-              ctx.logger?.info('playback-settings: user clicked backend switch -> webaudio')
-              void update({ audioOutputEngine: 'webaudio' })
-              void fetchDevices('engine-switch')
-            },
-            children: t('settings:playback.webAudio'),
-          }),
-        ),
+        description: t('settings:playback.currentMpv'),
       }),
-      isMpv &&
-        h(SettingsRow, {
+      h(SettingsRow, {
           ctx,
           title: t('settings:playback.exclusiveMode'),
           description: settings.audioExclusive
@@ -293,13 +247,11 @@ export function PlaybackSection({
         }),
       /*
        * The degradation notice: an engine process that never spawned or a
-       * libmpv that failed to load silently falls back to Chromium decode —
-       * audible, but with no FFT frames and no native device switching.
-       * Without this row the MPV Hi-Fi button above reads as if it were in
-       * charge while it is not.
+       * libmpv that failed to load leaves the element path on Chromium
+       * decode — audible, but with no FFT frames and no native device
+       * switching.
        */
-      isMpv &&
-        engineStatus &&
+      engineStatus &&
         !engineStatus.mpvAvailable
         ? h(SettingsRow, {
           ctx,

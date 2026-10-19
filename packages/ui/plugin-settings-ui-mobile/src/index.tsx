@@ -171,22 +171,8 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
     renderCard([
       renderRow(
         t('settings:mobile.audioOutputEngine'),
-        t('settings:mobile.webAudioEngine'),
-        h(
-          native.View as never,
-          { style: { flexDirection: 'row', gap: tokens.space[1] } },
-          h(Button, {
-            variant: 'primary',
-            onPress: () => void update({ audioOutputEngine: 'webaudio' }),
-            children: t('settings:mobile.webAudio'),
-          }),
-          h(Button, {
-            variant: 'secondary',
-            disabled: true,
-            onPress: () => {},
-            children: t('settings:mobile.mpvPlanned'),
-          }),
-        ),
+        t('settings:mobile.mpvEngine'),
+        null,
       ),
     ]),
 

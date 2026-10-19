@@ -86,7 +86,7 @@ function scopeContext(ctx: Context, opts: GrantOptions) {
 | `fs:read:<scope>` / `fs:write:<scope>` | `core-fs-node`、`core-fs-expo`、桥宿主 | ✅ |
 | `db:own`、`db:read:<ns>`、`db:write:<ns>`、`db:*:<ns>` | `core-db-node`、`core-db-expo`、桥宿主 | ✅ |
 | `net:host/<glob>` | `core-http-node`、`core-http-rn`，在 `http/request` 瀑布之前*和*之后各检查一次 | ✅ |
-| `audio` | `core-audio-webaudio`、`core-audio-mpv` 在 `load` 与各变更器上 | ✅ |
+| `audio` | `core-audio-mpv` 在 `load` 与各变更器上 | ✅ |
 | `mediaSession`、`background` | `core-media-session-*`、`core-background-*` | ✅ |
 | `secrets:own` | `core-secrets-node`、`core-secrets-expo`、内核 `assertOwnNamespace` | ✅ |
 | `js`，以及 `net:host/…` 的按音源收窄 | `core-js-quickjs-node`、`core-http-*`、`plugin-source-runtime` | ✅ |

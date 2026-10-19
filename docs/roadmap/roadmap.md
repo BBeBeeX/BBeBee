@@ -37,7 +37,7 @@ that surfaces, while backing out is still cheap.
 
 ### M1 — It plays music
 
-`core-audio-webaudio`, `plugin-player`, `plugin-source-local`, `plugin-local-scanner`, a
+`core-audio-mpv` (the `ctx.audio` engine; M1 built it as `core-audio-webaudio`), `plugin-player`, `plugin-source-local`, `plugin-local-scanner`, a
 stream-only slice of `plugin-source-runtime`, plus enough UI in both shells to browse a library
 and control playback. Media session integration.
 
@@ -52,7 +52,7 @@ and control playback. Media session integration.
 - Headphone unplug pauses ([audio/playback.md §5](../audio/playback.md#5-interruptions-focus-and-routes)).
 - Queue and position restore across a restart, without auto-playing.
 
-**Where it stands.** Built and under test: `core-audio-webaudio` with its conformance suite,
+**Where it stands.** Built and under test: the `ctx.audio` engine with its conformance suite,
 `core-codec-node` and `core-codec-rn`, `core-http-node` and `core-http-rn` with the M1-slice
 conformance suite running against a real byte-serving socket, `ctx.device`, `ctx.background` and
 `ctx.mediaSession` on both targets, the scanner, the catalogue, the player with gapless, crossfade,

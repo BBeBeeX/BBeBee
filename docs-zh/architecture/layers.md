@@ -317,7 +317,7 @@ sequenceDiagram
 | `ctx.device` | `core-device-expo` | `core-device-tauri` |
 | `ctx.codec` | `core-codec-rn` | `core-codec-node` |
 | `ctx.js` | 内置 / 开发中 | `core-js-quickjs-node` |
-| `ctx.audio` | `MobileAudioService`（`core-audio-webaudio`, `core-audio-mpv`） | `DesktopAudioService`（`core-audio-mpv`, `core-audio-webaudio`） |
+| `ctx.audio` | `MobileAudioService`（`core-audio-mpv`） | `DesktopAudioService`（`core-audio-mpv`） |
 | 插件加载 | 静态打包生成（`apps/mobile/generated/plugins.ts`） | Vite glob 动态发现（`getBuiltinPluginRegistry`）+ `bbebee-plugin://` 桥接 |
 
 移动端使用 `apps/mobile/generated/plugins.ts` 静态生成插件集。桌面端通过 Vite glob 导入动态发现内置插件，并借助特权 `bbebee-plugin://` 协议加载外部第三方插件（[loading.md §6.2](../plugins/loading.md#62-桌面端动态加载--plugin-loader-dynamic)）。

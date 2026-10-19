@@ -188,7 +188,6 @@
       "clearCache": "Clear cache",
       "confirmReset": "Confirm reset",
       "localTempFiles": "Local temporary file management",
-      "mpvPlanned": "MPV Hi-Fi (planned)",
       "musicSourceManagement": "Music source management and import",
       "restoreDefaults": "Restore defaults",
       "settings": "Settings",
@@ -196,8 +195,7 @@
       "totalArtwork": "Total: {total} (artwork: {artwork})",
       "version": "Version",
       "versionReset": "Version and system reset",
-      "webAudio": "WebAudio",
-      "webAudioEngine": "WebAudio system-native engine (iOS CoreAudio / Android Oboe)"
+      "mpvEngine": "MPV Hi-Fi native engine"
     },
     "network": {
       "chooseTheTransportProtocolSupported": "Choose the transport protocol supported by the proxy server",
@@ -252,13 +250,10 @@
       "exclusiveMode": "Exclusive mode",
       "mPVNativeEngineUnavailableFell": "⚠️ MPV native engine unavailable, fell back to Chromium decoding",
       "currentMpv": "Current: MPV (standalone native engine with WASAPI passthrough output and native DSP/EQ)",
-      "currentWebAudio": "Current: WebAudio (standard Web Audio shared mixing)",
       "gaplessPlaybackDesc": "Removes decoding pauses between songs for a continuous listening flow",
       "gaplessPlaybackLabel": "Gapless playback",
-      "mpvHiFi": "MPV Hi-Fi",
       "pauseOnUnplugDesc": "Pauses music immediately when headphones or Bluetooth disconnect, preventing accidental loud playback",
       "pauseOnUnplugLabel": "Pause when audio device is unplugged",
-      "webAudio": "WebAudio",
       "exclusiveOn": "On: MPV takes exclusive control of the audio output device (WASAPI exclusive) for bit-perfect output; other applications cannot play sound meanwhile",
       "exclusiveOff": "Off: shares the audio output device with other applications (WASAPI shared mode)",
       "engineNotRunning": "The native audio engine process is not running (audio-engine executable missing or failed to start). Playback still works, but audio visualization and output device switching are unavailable.",
@@ -633,7 +628,6 @@
       "clearCache": "清除缓存",
       "confirmReset": "确认重置",
       "localTempFiles": "本地临时文件管理",
-      "mpvPlanned": "MPV Hi-Fi（计划中）",
       "musicSourceManagement": "音乐源管理与导入",
       "restoreDefaults": "恢复默认设置",
       "settings": "设置",
@@ -641,8 +635,7 @@
       "totalArtwork": "总计：{total}（封面：{artwork}）",
       "version": "版本",
       "versionReset": "版本与系统重置",
-      "webAudio": "WebAudio",
-      "webAudioEngine": "WebAudio 系统原生引擎（iOS CoreAudio / Android Oboe）"
+      "mpvEngine": "MPV Hi-Fi 原生引擎"
     },
     "network": {
       "chooseTheTransportProtocolSupported": "选择代理服务器支持的传输协议",
@@ -697,13 +690,10 @@
       "exclusiveMode": "独占模式",
       "mPVNativeEngineUnavailableFell": "⚠️ MPV 原生引擎不可用，已回退到 Chromium 解码",
       "currentMpv": "当前：MPV（独立的原生引擎，WASAPI 直通输出与原生 DSP/EQ）",
-      "currentWebAudio": "当前：WebAudio（标准 Web Audio 共享混音）",
       "gaplessPlaybackDesc": "消除歌曲之间的解码停顿，实现连贯流畅的听歌体验",
       "gaplessPlaybackLabel": "无缝播放",
-      "mpvHiFi": "MPV Hi-Fi",
       "pauseOnUnplugDesc": "耳机或蓝牙断开时立即暂停播放，防止意外外放",
       "pauseOnUnplugLabel": "音频设备拔出时暂停",
-      "webAudio": "WebAudio",
       "exclusiveOn": "开：MPV 独占音频输出设备（WASAPI 独占）以实现比特完美输出；其他应用同时无法发声",
       "exclusiveOff": "关：与其他应用共享音频输出设备（WASAPI 共享模式）",
       "engineNotRunning": "原生音频引擎进程未运行（audio-engine 可执行文件缺失或启动失败）。播放仍可用，但音频可视化与输出设备切换不可用。",

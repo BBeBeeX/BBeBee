@@ -260,13 +260,13 @@ class SettingsStub extends Service implements Partial<SettingsService> {
       expect(container.textContent).toContain('Advanced effect tuning and routing')
     })
 
-    it('renders audio output engine options and allows switching between WebAudio and MPV Hi-Fi', async () => {
+    it('renders the single MPV audio engine (no engine picker)', async () => {
       const { ctx } = await createHarness()
       const { container } = render(h(SettingsScreen, { ctx }))
 
       expect(container.textContent).toContain('Audio output engine')
-      expect(container.textContent).toContain('WebAudio')
       expect(container.textContent).toContain('MPV Hi-Fi')
+      expect(container.textContent).not.toContain('WebAudio')
     })
 
     it('dynamically renders contributions registered via settings service', async () => {

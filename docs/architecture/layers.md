@@ -413,7 +413,7 @@ registration view.
 | `ctx.device` | `core-device-expo` | `core-device-tauri` |
 | `ctx.codec` | `core-codec-rn` | `core-codec-node` |
 | `ctx.js` | Built-in / In development | `core-js-quickjs-node` |
-| `ctx.audio` | `MobileAudioService` (`core-audio-webaudio`, `core-audio-mpv`) | `DesktopAudioService` (`core-audio-mpv`, `core-audio-webaudio`) |
+| `ctx.audio` | `MobileAudioService` (`core-audio-mpv`) | `DesktopAudioService` (`core-audio-mpv`) |
 | plugin loading | Static bundling via codegen (`apps/mobile/generated/plugins.ts`) | Dynamic discovery via Vite globs (`getBuiltinPluginRegistry`) + `bbebee-plugin://` bridge |
 
 Mobile uses static plugin generation via `apps/mobile/generated/plugins.ts`. Desktop

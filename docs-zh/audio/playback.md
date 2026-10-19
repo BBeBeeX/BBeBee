@@ -99,7 +99,7 @@ stateDiagram-v2
   - **随机播放永不枯竭**：当排列序列播放完毕时，`next()` 会循环回到头部（`previous()` 循环回到尾部），无论 `repeat` 标记为何 —— 随机队列从定义上就是环形的。只有未开启列表循环的普通顺序播放到达末尾才会停止并进入空闲状态。
 - **单曲循环**不重新解析流，而是复用已加载的缓冲。
 - **`stalled`** 与 `paused` 是两回事。UI 显示的是转圈，而不是播放按钮，并且 `ctx.mediaSession` 继续上报 `playing`，以免锁屏界面闪烁。
-- **开始播放之后才发生的致命错误按 underrun 上报，而不是按自然结束。** 两个引擎均遵循这一原则：WebAudio 的 `StreamedHandle` 在其媒体元素中途死亡（CDN 断流、URL 过期）时上报 `onStalled(true)`；mpv 的 `MpvSourceHandle` 在原生引擎报告致命错误（`MPV_END_FILE_REASON_ERROR`，状态置为 `'error'`）时亦同。当中途失败被当作自然结束时，播放器会误将其记为完整播放并直接切下一首，而在断网下下一首只能无声卡在 0:00。作为 stall 上报，则会经由看门狗触发 `stalled → error`，并在冻结位置变成可重试的网络错误（点击播放即可重试）。曲目从未出声就报错的死链仍会上报 `ended`，以便队列跳过坏链。
+- **开始播放之后才发生的致命错误按 underrun 上报，而不是按自然结束。** 引擎遵循这一原则：`StreamedHandle` 在其媒体元素中途死亡（CDN 断流、URL 过期）时上报 `onStalled(true)`；mpv 的 `MpvSourceHandle` 在原生引擎报告致命错误（`MPV_END_FILE_REASON_ERROR`，状态置为 `'error'`）时亦同。当中途失败被当作自然结束时，播放器会误将其记为完整播放并直接切下一首，而在断网下下一首只能无声卡在 0:00。作为 stall 上报，则会经由看门狗触发 `stalled → error`，并在冻结位置变成可重试的网络错误（点击播放即可重试）。曲目从未出声就报错的死链仍会上报 `ended`，以便队列跳过坏链。
 - **时长是下限而非承诺**：只要媒体元素提供了有效时长，播放器就上报 `source.durationMs`；否则回退到目录行中存储的时长 —— fMP4 流正是典型场景，媒体元素上报 `Infinity`，但搜索规则早已获取了曲目时长。只有支持 seek 的句柄才享受此回退，因此直播流依然不显示进度滑块。
 - **进度位置始终来自媒体元素时钟**：流式句柄仅在媒体元素实际发生跳转时将 seek 目标标记为 *挂起 (pending)*：对全新元素调用 `play(0)` 不会移动位置也不会触发 `seeked`，若记为挂起会导致整首歌的进度条一直卡在零。
 
@@ -172,7 +172,7 @@ sequenceDiagram
 - **mpv 引擎基于追加的无缝播放**：`ctx.audio.preloadNext` 在当前曲目播放时将下一首 src 移交给引擎内部（`loadfile append`）；边界处 mpv 在自身播放列表内前进，播放器端仅需在 ended 后重绑定已在发声的文件（`resumed: true`）——消除了可听见的中断，样本级调度在 mpv 内部完成。实现 `preloadNext` 的引擎绝不执行第二次 `audio.load`（第二次 `load` 等于 `loadfile replace`，会掐断当前曲目）。
 - **引擎 paused 是停滞而非静音**：mpv 源句柄轮询引擎状态，若引擎在传输层自称 `playing` 期间报告 `paused`，即被旁路暂停。宽限期（默认 2 秒，`pausedStallMs`）之后按冻结位置上报 stall（从未发声则上报 ended 以便跳过），而不是对静音的引擎无限轮询下去；引擎恢复发声则上报恢复。
 - **预取**在距结尾 `max(15s, crossfadeMs + 5s)` 时开始，若队列发生变化则通过 `AbortSignal` 取消。
-- **高保真音频解码回退 (`decodeAudioData` 回退)**：本地文件采用 `strategy: 'buffer'` 时调用 Web Audio 的 `decodeAudioData`。若遇到 Chromium 无法解码的格式（如 24 位 Hi-Res FLAC 或带 ID3v2 头的 FLAC，抛出 `Unable to decode audio data`），`core-audio-webaudio` 拦截失败并平滑回退至基于 Chromium 内置 FFmpeg 媒体元素的流式加载，完整保留 `chainInput` 上的 DSP 效果链，避免播放崩溃。
+- **高保真音频解码回退 (`decodeAudioData` 回退)**：本地文件采用 `strategy: 'buffer'` 时调用 Web Audio 的 `decodeAudioData`。若遇到 Chromium 无法解码的格式（如 24 位 Hi-Res FLAC 或带 ID3v2 头的 FLAC，抛出 `Unable to decode audio data`），引擎拦截失败并平滑回退至基于 Chromium 内置 FFmpeg 媒体元素的流式加载，完整保留 `chainInput` 上的 DSP 效果链，避免播放崩溃。
 - **桌面端本地音频协议 (`bbebee-file://`)**：标准桌面端 Webview 在现代 Web 安全策略下严禁直接读取 `file://` URL。桌面端注册了特权自定义 scheme `bbebee-file://`，支持安全地从磁盘直接读取并流式缓冲本地音频文件。
 
 ### 流偏好配置 (Stream Preferences)
@@ -224,7 +224,7 @@ sequenceDiagram
 
 事件的产生源头是外壳的职责 —— `ctx.audio` 仅发布外壳转交的事件（`emitInterruption` / `emitRouteChange`）：
 - **移动端**：`apps/mobile/src/boot.ts` 监听 `AudioManager` 的 `interruption` 与 `routeChange` 系统事件并直接转发，携带 OS 的 `shouldResume`。
-- **桌面端**：桌面外壳在两个引擎上均启用 `emitContextInterruptions`，将 `AudioContext` 的状态变迁（`running → suspended/interrupted → running`）翻译为 `began`/`ended` 事件并记录日志。这些事件携带 `shouldResume: false`，但用户点击播放本身会恢复挂起的上下文。
+- **桌面端**：桌面外壳在引擎上启用 `emitContextInterruptions`，将 `AudioContext` 的状态变迁（`running → suspended/interrupted → running`）翻译为 `began`/`ended` 事件并记录日志。这些事件携带 `shouldResume: false`，但用户点击播放本身会恢复挂起的上下文。
 
 ---
 

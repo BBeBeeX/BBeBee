@@ -18,7 +18,6 @@
   },
   "dependencies": {
     "@BBeBee/core-audio-mpv": "workspace:*",
-    "@BBeBee/core-audio-webaudio": "workspace:*",
     "@BBeBee/core-background-tauri": "workspace:*",
     "@BBeBee/core-codec-node": "workspace:*",
     "@BBeBee/core-desktop-bridge": "workspace:*",

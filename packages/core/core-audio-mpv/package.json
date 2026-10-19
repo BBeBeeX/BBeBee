@@ -6,6 +6,7 @@
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts",
+    "./testing": "./src/fake-context.ts",
     "./package.json": "./package.json"
   },
   "main": "./src/index.ts",
@@ -15,6 +16,10 @@
       ".": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
+      },
+      "./testing": {
+        "types": "./dist/fake-context.d.ts",
+        "default": "./dist/fake-context.js"
       }
     },
     "main": "./dist/index.js",
@@ -30,7 +35,6 @@
   "dependencies": {
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/kernel": "workspace:*",
-    "@BBeBee/core-audio-webaudio": "workspace:*",
     "cordis": "4.0.0-rc.9"
   }
 }

@@ -92,7 +92,7 @@ core services:
 | `fs:read:<scope>` / `fs:write:<scope>` | `core-fs-node`, `core-fs-expo`, the bridge host | ✅ |
 | `db:own`, `db:read:<ns>`, `db:write:<ns>`, `db:*:<ns>` | `core-db-node`, `core-db-expo`, the bridge host | ✅ |
 | `net:host/<glob>` | `core-http-node`, `core-http-rn`, before *and* after the `http/request` waterfall | ✅ |
-| `audio` | `core-audio-webaudio`, `core-audio-mpv` on `load` and mutators | ✅ |
+| `audio` | `core-audio-mpv` on `load` and mutators | ✅ |
 | `mediaSession`, `background` | `core-media-session-*`, `core-background-*` | ✅ |
 | `secrets:own` | `core-secrets-node`, `core-secrets-expo`, kernel `assertOwnNamespace` | ✅ |
 | `js`, and the per-source narrowing of `net:host/…` | `core-js-quickjs-node`, `core-http-*`, `plugin-source-runtime` | ✅ |

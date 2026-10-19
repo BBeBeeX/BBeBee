@@ -93,7 +93,7 @@ export interface VisualizerSettings {
  */
 export type DownloadRegion = 'global' | 'mainland-china'
 
-export type AudioOutputEngine = 'webaudio' | 'mpv' | 'wasapi'
+export type AudioOutputEngine = 'mpv' | 'wasapi'
 
 export type LoudnessNormalizationMode = 'track' | 'album' | 'dynamic'
 
@@ -134,7 +134,7 @@ export interface AppSettings {
   downloadWifiOnly?: boolean
   /** Custom media cache directory path. */
   cacheDir?: string
-  /** Audio output engine: 'wasapi' (WASAPI desktop audio with FFmpeg decoding) or 'webaudio' (WebAudio). */
+  /** Audio output engine: 'mpv' (native libmpv engine); 'wasapi' is the legacy settings value for the same engine. */
   audioOutputEngine?: AudioOutputEngine
   /** Whether to use exclusive mode when MPV audio backend is active. Defaults to false. */
   audioExclusive?: boolean

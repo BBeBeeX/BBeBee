@@ -4,9 +4,9 @@
 import type { PluginRegistry } from '@BBeBee/kernel'
 
 export const bundled: PluginRegistry = {
-  "@BBeBee/core-audio-webaudio": {
-    load: () => import('@BBeBee/core-audio-webaudio'),
-    manifest: {"id":"@BBeBee/core-audio-webaudio","name":"@BBeBee/core-audio-webaudio","displayName":"Audio","description":"ctx.audio — the Web Audio graph, shared by every target.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"playback","entry":{"main":"./dist/index.js"},"capabilities":["audio"],"contributes":{"services":["audio"]},"effect":"audio"},
+  "@BBeBee/core-audio-mpv": {
+    load: () => import('@BBeBee/core-audio-mpv'),
+    manifest: {"id":"@BBeBee/core-audio-mpv","name":"@BBeBee/core-audio-mpv","displayName":"Audio (MPV)","description":"ctx.audio — the audio engine: libmpv with native audio-engine crash isolation, native DSP/EQ, and FFT visualizer.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"playback","platforms":["desktop","mobile"],"entry":{"main":"./dist/index.js"},"capabilities":["audio"],"contributes":{"services":["audio"]},"effect":"audio"},
     builtin: true,
   },
   "@BBeBee/core-background-expo": {

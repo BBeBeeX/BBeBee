@@ -102,7 +102,7 @@ class FsStub extends Service {
 }
 
 class AudioStub extends Service {
-  public activeEngineName: 'wasapi' | 'webaudio' | 'mpv' = 'wasapi'
+  public activeEngineName: 'wasapi' | 'mpv' = 'wasapi'
   public sampleRate = 96000
   public hardwareBitDepth = 24
   public hardwareChannels = 2

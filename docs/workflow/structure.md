@@ -139,7 +139,7 @@ B_Be_Bee/
 │   │   ├── core-codec-node/        ✅        ctx.codec — tags via music-metadata over ctx.fs;
 │   │   ├── core-codec-rn/          ✅          -rn adds the device's decoder
 │   │   ├── core-audio-mpv/         ✅        ctx.audio — libmpv native engine (desktop subprocess)
-│   │   ├── core-audio-webaudio/    ✅        ctx.audio — Web Audio API graph (shared) ([audio/engine.md §1](../audio/engine.md#1-ctxaudio--the-engine))
+│   │   ├── core-audio-mpv/         ✅        ctx.audio — the audio engine ([audio/engine.md §1](../audio/engine.md#1-ctxaudio--the-engine))
 │   │   ├── core-js-quickjs-node/   ✅        ctx.js — source sandbox ([services/contracts.md §19](../services/contracts.md#19-ctxjs--the-sandboxed-evaluator))
 │   │   ├── core-js-quickjs-expo/             ⚠️ the one M2 gap: Hermes has no WASM
 │   │   ├── core-desktop-bridge/    ✅        renderer↔sidecar JSON-RPC IPC clients + sidecar host.

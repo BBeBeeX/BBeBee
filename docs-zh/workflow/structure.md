@@ -116,7 +116,7 @@ B_Be_Bee/
 │   │   ├── core-media-session-rn/  ✅
 │   │   ├── core-codec-node/        ✅        ctx.codec —— 标签：经 ctx.fs 用
 │   │   ├── core-codec-rn/          ✅          music-metadata 读取；-rn 再加上设备的解码器
-│   │   ├── core-audio-webaudio/    ✅        ctx.audio —— WebAudio / react-native-audio-api 实现 ([audio/engine.md](../audio/engine.md))
+│   │   ├── core-audio-mpv/         ✅        ctx.audio —— 音频引擎 ([audio/engine.md](../audio/engine.md))
 │   │   ├── core-audio-mpv/         ✅        ctx.audio —— 桌面端原生 libmpv 后端
 │   │   ├── core-js-quickjs-node/   ✅        ctx.js —— 音源沙箱 ([services/contracts.md §19](../services/contracts.md))
 │   │   ├── core-js-quickjs-expo/             ⚠️ 唯一的 M2 缺口：Hermes 没有 WASM

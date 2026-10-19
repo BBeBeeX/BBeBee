@@ -1,7 +1,6 @@
 /**
- * `ctx.audio` — Desktop MPV Audio Engine (@BBeBee/core-audio-mpv).
+ * `ctx.audio` — the audio engine (@BBeBee/core-audio-mpv), on desktop and mobile.
  *
- * One of the interchangeable desktop engines (settings-switchable with `core-audio-webaudio`).
  * Powered by official libmpv running in an independent native audio-engine process for
  * crash isolation.
  *
@@ -34,7 +33,7 @@ import {
   StreamedHandle,
   defaultMediaElementFactory,
   type MediaElementLike,
-} from '@BBeBee/core-audio-webaudio'
+} from './streamed-handle.js'
 import {
   closeContextQuietly,
   ensureAudioContextRunning,
@@ -46,9 +45,9 @@ import {
   servableFileUrl,
   ContextInterruptionObserver,
   type BridgeCall,
-} from '@BBeBee/core-audio-webaudio'
+} from './shared.js'
 
-export type { AudioLogger, BridgeCall } from '@BBeBee/core-audio-webaudio'
+export type { AudioLogger, BridgeCall } from './shared.js'
 
 export interface AudioMpvConfig {
   createContext?: (options?: AudioContextOptions) => BaseAudioContext

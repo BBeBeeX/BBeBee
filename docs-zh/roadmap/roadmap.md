@@ -26,7 +26,7 @@
 
 ### M1 —— 能播放音乐
 
-`core-audio-webaudio`、`plugin-player`、`plugin-source-local`、`plugin-local-scanner`、`plugin-source-runtime` 的仅流式切片，外加两个外壳中足以浏览曲库、控制播放的 UI。媒体会话（media session）集成。
+`core-audio-mpv`（`ctx.audio` 引擎；M1 时期建为 `core-audio-webaudio`）、`plugin-player`、`plugin-source-local`、`plugin-local-scanner`、`plugin-source-runtime` 的仅流式切片，外加两个外壳中足以浏览曲库、控制播放的 UI。媒体会话（media session）集成。
 
 > **详细计划** —— [M1 执行计划（历史档案）](./archive-m1.md)：包集合、构建顺序、里程碑级的决策，以及下文每一条完成标准背后的验证方式。
 
@@ -38,7 +38,7 @@
 - 拔出耳机即暂停（[audio/playback.md §5](../audio/playback.md#5-打断焦点与路由)）。
 - 队列与播放位置在重启后恢复，且不自动开始播放。
 
-**现状。** 已建成并处于测试之中：`core-audio-webaudio` 及其一致性测试套件、`core-codec-node` 与 `core-codec-rn`、`core-http-node` 与 `core-http-rn`（其 M1 切片一致性测试套件对着一个真实的按字节服务的 socket 运行）、两个目标平台上的 `ctx.device`、`ctx.background` 与 `ctx.mediaSession`、扫描器、目录、带无缝播放、交叉淡入淡出、预取与打断表的播放器、带对等（parity）检查的两套 UI kit，以及两个外壳上的那五块屏幕。两个外壳加载的都是**生成出来的**注册表，因此一个包被打进 bundle 靠的是声明一份 manifest，而不是被加进两份可能互相不一致的手写清单。完成标准 1 按它点名的规模被检验：一个生成的 5,000 文件语料库，由真正的解码器读取，经过一个插桩的 `ctx.fs`，由它断言第二遍不打开任何文件。
+**现状。** 已建成并处于测试之中：`ctx.audio` 引擎及其一致性测试套件、`core-codec-node` 与 `core-codec-rn`、`core-http-node` 与 `core-http-rn`（其 M1 切片一致性测试套件对着一个真实的按字节服务的 socket 运行）、两个目标平台上的 `ctx.device`、`ctx.background` 与 `ctx.mediaSession`、扫描器、目录、带无缝播放、交叉淡入淡出、预取与打断表的播放器、带对等（parity）检查的两套 UI kit，以及两个外壳上的那五块屏幕。两个外壳加载的都是**生成出来的**注册表，因此一个包被打进 bundle 靠的是声明一份 manifest，而不是被加进两份可能互相不一致的手写清单。完成标准 1 按它点名的规模被检验：一个生成的 5,000 文件语料库，由真正的解码器读取，经过一个插桩的 `ctx.fs`，由它断言第二遍不打开任何文件。
 
 传输状态机能到达其类型声明的每一个状态，`stalled` 包括在内：一个流式源会经 `ctx.audio` 的 `onStalled` 报告缓冲欠载（underrun），播放器显示的是转圈而不是播放按钮，锁屏则继续显示*正在播放*，而一次永不恢复的停滞会变成一个可重试的错误，而不是一个永远转下去的转圈。两套 kit 都对列表做了虚拟化 —— 移动端是 FlashList，桌面端是 `@tanstack/react-virtual`，后者会发布 `aria-setsize`，让窗口化对屏幕阅读器保持不可见，而不是成为它的灾难。
 

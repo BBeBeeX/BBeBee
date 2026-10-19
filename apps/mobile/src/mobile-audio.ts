@@ -1,7 +1,6 @@
 import { Service, type Fiber, type Plugin } from '@BBeBee/kernel'
 import type { Context } from 'cordis'
 import type {
-  AppSettings,
   AudioService,
   AudioSourceHandle,
   Disposable,
@@ -113,28 +112,23 @@ export function createMobileMpvBridge(): (service: string, method: string, args:
 }
 
 export interface MobileAudioConfig {
-  initialEngine?: 'webaudio' | 'mpv'
   mpvPlugin: Plugin
-  webAudioPlugin: Plugin
   createContext?: () => BaseAudioContext
-  fallbackLatencyMs?: number
-  fetchBytes: (
-    src: string,
-    opts: { headers?: Record<string, string>; signal?: AbortSignal },
-  ) => Promise<ArrayBuffer>
   bridgeCall?: (service: string, method: string, args: unknown[]) => Promise<unknown>
 }
 
 /**
  * Mobile Audio Service Orchestrator.
  *
- * Sits as the singleton `ctx.audio` service on mobile, providing dynamic switching
- * between Route A (WebAudio via react-native-audio-api) and Route B (MPV Hi-Fi via in-process libmpv JNI/JSI).
+ * Sits as the singleton `ctx.audio` service on mobile, mounting the single
+ * MPV engine (`@BBeBee/core-audio-mpv`) over the in-process libmpv JNI/JSI
+ * bridge — or the high-fidelity simulation when no native module is present
+ * (Expo Go, test runners).
  */
 export class MobileAudioService extends Service implements AudioService {
   static inject = []
 
-  private activeEngineKey: 'webaudio' | 'mpv' = 'webaudio'
+  private readonly activeEngineKey = 'mpv' as const
   private activeEngine!: AudioService
   private activeFiber?: Fiber
   private currentVolume = 0.8
@@ -143,7 +137,6 @@ export class MobileAudioService extends Service implements AudioService {
 
   private readonly interruptionListeners = new Set<(e: InterruptionEvent) => void>()
   private readonly routeListeners = new Set<(e: RouteChangeEvent) => void>()
-  private isSwitching = false
 
   constructor(
     ctx: Context,
@@ -153,19 +146,9 @@ export class MobileAudioService extends Service implements AudioService {
   }
 
   async [Service.init]() {
-    const target = this.config.initialEngine ?? 'webaudio'
-    await this.mountEngine(target)
-
-    // Listen to settings changes to dynamically switch engine
-    const offSettings = this.ctx.on('settings/changed', (settings: AppSettings) => {
-      const target = settings.audioOutputEngine === 'mpv' ? 'mpv' : 'webaudio'
-      if (target !== this.activeEngineKey) {
-        void this.switchEngine(target)
-      }
-    })
+    await this.mountEngine('mpv')
 
     return async () => {
-      offSettings()
       this.interruptionListeners.clear()
       this.routeListeners.clear()
       if (this.activeFiber) {
@@ -175,11 +158,11 @@ export class MobileAudioService extends Service implements AudioService {
     }
   }
 
-  get activeEngineName(): 'webaudio' | 'mpv' {
+  get activeEngineName(): 'mpv' {
     return this.activeEngineKey
   }
 
-  get engine(): 'webaudio' | 'mpv' {
+  get engine(): 'mpv' {
     return this.activeEngineKey
   }
 
@@ -301,103 +284,40 @@ export class MobileAudioService extends Service implements AudioService {
     }
   }
 
-  private async mountEngine(engineKey: 'webaudio' | 'mpv'): Promise<void> {
-    // If mpv is requested on mobile without an available native module or bridge, fall back to webaudio
-    let actualEngine = engineKey
-    if (engineKey === 'mpv') {
-      const hasNativeBridge =
-        Boolean((globalThis as unknown as { bbebeeMobileMpv?: unknown }).bbebeeMobileMpv) ||
-        Boolean(this.config.bridgeCall)
-      if (!hasNativeBridge) {
-        this.ctx.logger?.warn(
-          'mobile-audio: native libmpv module is not available on mobile; falling back to WebAudio',
-        )
-        actualEngine = 'webaudio'
-      }
+  private async mountEngine(engineKey: 'mpv'): Promise<void> {
+    const hasNativeBridge = Boolean(
+      (globalThis as unknown as { bbebeeMobileMpv?: unknown }).bbebeeMobileMpv,
+    )
+    if (!hasNativeBridge && !this.config.bridgeCall) {
+      this.ctx.logger?.info(
+        'mobile-audio: no native libmpv module; using the in-process simulation bridge',
+      )
     }
 
-    this.ctx.logger?.info('mobile-audio: mounting backend engine [%s]', actualEngine)
+    this.ctx.logger?.info('mobile-audio: mounting backend engine [%s]', engineKey)
     const scoped = this.ctx.isolate('audio')
 
     let fiber: Fiber
     try {
-      if (actualEngine === 'mpv') {
-        const mpvConfig = {
-          createContext: this.config.createContext,
-          bridgeCall: this.config.bridgeCall ?? createMobileMpvBridge(),
-          emitContextInterruptions: false,
-        }
-        fiber = await scoped.plugin(this.config.mpvPlugin, mpvConfig)
-      } else {
-        const webAudioConfig = {
-          createContext: this.config.createContext,
-          fetchBytes: this.config.fetchBytes,
-          fallbackLatencyMs: this.config.fallbackLatencyMs ?? 100,
-          emitContextInterruptions: false,
-        }
-        fiber = await scoped.plugin(this.config.webAudioPlugin, webAudioConfig)
+      const mpvConfig = {
+        createContext: this.config.createContext,
+        bridgeCall: this.config.bridgeCall ?? createMobileMpvBridge(),
+        emitContextInterruptions: false,
       }
+      fiber = await scoped.plugin(this.config.mpvPlugin, mpvConfig)
     } catch (err) {
-      this.ctx.logger?.error('mobile-audio: failed to mount engine [%s]: %s', actualEngine, String(err))
+      this.ctx.logger?.error('mobile-audio: failed to mount engine [%s]: %s', engineKey, String(err))
       throw err
     }
 
     this.activeFiber = fiber
     this.activeEngine = (scoped as unknown as { audio: AudioService }).audio
-    this.activeEngineKey = actualEngine
   }
 
-  async switchEngine(targetEngine: 'webaudio' | 'mpv' | 'wasapi'): Promise<void> {
-    const effectiveTarget: 'webaudio' | 'mpv' = targetEngine === 'mpv' ? 'mpv' : 'webaudio'
-    if (this.activeEngineKey === effectiveTarget || this.isSwitching) return
-    this.isSwitching = true
-    try {
-      this.ctx.logger?.info('mobile-audio: switching audio engine from [%s] to [%s]', this.activeEngineKey, effectiveTarget)
-      
-      const prevHandle = this.currentHandle
-      const prevSrc = this.currentTrackSrc
-      const prevOpts = this.currentTrackOpts
-      const prevPosition = prevHandle?.positionMs ?? 0
-
-      if (prevHandle) {
-        try {
-          prevHandle.pause()
-          prevHandle.dispose()
-        } catch {
-          // ignore
-        }
-        this.currentHandle = undefined
-      }
-
-      if (this.activeFiber) {
-        await this.activeFiber.dispose()
-        this.activeFiber = undefined
-      }
-
-      await this.mountEngine(effectiveTarget)
-      this.activeEngine.setVolume(this.currentVolume)
-      this.activeEngine.setMuted(this.currentMuted)
-      if (this.currentDeviceId !== 'default') {
-        await this.activeEngine.setOutputDevice(this.currentDeviceId).catch(() => undefined)
-      }
-
-      // Seamless playback state migration: re-load track on new engine
-      if (prevSrc && prevOpts) {
-        try {
-          const newHandle = await this.activeEngine.load(prevSrc, prevOpts)
-          this.currentHandle = newHandle
-          if (prevPosition > 0) {
-            newHandle.play(prevPosition)
-          }
-        } catch (err) {
-          this.ctx.logger?.warn('mobile-audio: failed to restore track on new engine: %s', String(err))
-        }
-      }
-
-      this.ctx.emit('audio/engine-changed', { engine: effectiveTarget })
-    } finally {
-      this.isSwitching = false
-    }
+  async switchEngine(targetEngine: 'mpv' | 'wasapi'): Promise<void> {
+    // Single-engine build: every historical value resolves to mpv, which is
+    // already mounted. Kept for the settings-sync call shape.
+    this.ctx.logger?.debug?.('mobile-audio: switchEngine(%s) — single mpv engine, no-op', targetEngine)
   }
 
   async getFftSpectrum(): Promise<FftSpectrumFrame | null> {

@@ -349,7 +349,7 @@ export class DspPlugin extends Service implements DspService {
   /**
    * The enabled chain serialized for the native engine (mpv): each enabled
    * effect's lavfi adapter, in ordinal order. Effects without an adapter are
-   * skipped — the WebAudio graph is their engine.
+   * skipped — they only take effect on the element fallback path.
    */
   private composeAf(): string {
     const fragments: string[] = []

@@ -87,8 +87,8 @@ export interface AudioService {
   emitRouteChange(e: { reason: 'device-removed' | 'device-added' | 'override' }): void
 
   /** 桌面端动态音频引擎热切换。 */
-  switchEngine?(engine: 'mpv' | 'wasapi' | 'webaudio'): Promise<void>
-  readonly activeEngineName?: 'mpv' | 'wasapi' | 'webaudio'
+  switchEngine?(engine: 'mpv' | 'wasapi'): Promise<void>
+  readonly activeEngineName?: 'mpv' | 'wasapi'
 
   readonly hardwareBitDepth?: number
   readonly hardwareChannels?: number
@@ -118,7 +118,7 @@ flowchart LR
 `ctx.audio.load(src, { strategy })` 实现了双通道加载路径：
 - **`strategy: 'buffer'`**：拉取二进制流到 `ArrayBuffer` 并解码为 `AudioBuffer`，挂载至 `chainInput`。为本地音频与 Gapless 无缝换曲提供样本级精确调度。
 - **`strategy: 'stream'`**：通过 `context.createMediaElementSource()` 挂载至媒体元素，保持内存占用恒定。
-- **解码回退 (Decode Fallback)**：当 `decodeAudioData()` 遇到无法解码的格式（`.m4a` 中的 ALAC、Hi-Res FLAC、带 ID3v2 头的 FLAC——报 `Unable to decode audio data`）时，`core-audio-webaudio` 降级到媒体元素——其解码覆盖面与 `decodeAudioData` 不同，ALAC 与 24-bit FLAC 均可播放。请求头通过播放器的 `stream.setHeaders` 按主机注册送达元素。
+- **解码回退 (Decode Fallback)**：当 `decodeAudioData()` 遇到无法解码的格式（`.m4a` 中的 ALAC、Hi-Res FLAC、带 ID3v2 头的 FLAC——报 `Unable to decode audio data`）时，引擎降级到媒体元素（`StreamedHandle`）——其解码覆盖面与 `decodeAudioData` 不同，ALAC 与 24-bit FLAC 均可播放。请求头通过播放器的 `stream.setHeaders` 按主机注册送达元素。
 - **桌面端原生高保真引擎 (`@BBeBee/core-audio-mpv`)**：
   - **崩溃隔离原生独立可执行文件 (Crash Isolation & Standalone Executable)**：基于官方 libmpv 与编译生成的独立 native `audio-engine` 二进制可执行文件（`audio-engine` 或 `.exe`），采用标准 stdio JSON-IPC 与桌面端 Node.js Sidecar 进程通信。任何底层驱动崩溃、音频设备热插拔异常或 native 信号错误均由独立进程隔离，由 `AudioEngineSupervisor`（位于 `apps/desktop/sidecar/audio`）自动监控并执行优雅自愈重连，保证界面丝滑稳定。
   - **PCM 不走 IPC 与系统音频直通 (Zero-IPC for PCM)**：音频解码后的高采样率 PCM 流在原生子进程内直接送入 mpv 自身的音频输出端点（Windows `ao=wasapi`、macOS `coreaudio`、Linux `pulse,alsa,pipewire`），严禁跨进程高带宽低效传输 PCM 原始数据。
@@ -133,24 +133,23 @@ flowchart LR
     - **FftProcessor 缓冲复用**：多声道交错 float32 PCM 按帧平均下混为单声道；`fftBuffer`、`monoBuffer`、`window`、`previousSpectrum` 在稳态下复用、零动态分配；不足窗口的数据零填充且无帧残留，经 Radix-2 Cooley-Tukey FFT、dB 限幅、时间平滑后以 uint8 数组（`frequencyData` [0..255] 与真实 `timeDomainData` [0..255]）经 stdio JSON-IPC（`fft-frame`）分发。
     - `plugin-visualizer` 将其封装为统一的 `AudioAnalyser` 抽象（`NativeMpvImpl` / `WebAudioImpl`），无缝供给 Canvas 2D 渲染管线（渐变频谱柱状图 + 峰值帽、波形、环形与粒子样式——单一持久 2d 上下文，不使用 WebGL），且不向 UI 组件泄漏后端细节。
 - **移动端音频引擎架构 (`MobileAudioService` in `apps/mobile`)**：
-  - **实际交付的生产级引擎 (路线 A: `@BBeBee/core-audio-webaudio` via `react-native-audio-api`)**：当前移动端运行的生产级音频图引擎，直接基于移动端底层音频子系统（Apple CoreAudio / Android Oboe/AAudio）。提供低延迟音频缓冲、系统后台音频播放与音频焦点打断处理。
-  - **规划中架构目标 (路线 B: `@BBeBee/core-audio-mpv` 进程内 libmpv JNI/JSI)**：移动端发烧级音频架构路线图目标。由于 iOS 沙盒严格禁止派生子进程（禁止 `fork`/`posix_spawn`），且 Android 后台会冻结独立子进程，移动端设计为**进程内共享动态库（In-process Dynamic Library `libmpv.so` / `mpv.framework`）**结合 TurboModule JSI 桥接。在原生动态库未编译打包的环境中，`MobileAudioService` 自动兜底运行在路线 A (WebAudio)，移动端设置 UI 明确将 MPV Hi-Fi 标注为「规划中」并禁用，确保不会发生空跑静音。
-  - **状态连续性与系统打断管理**：引擎切换时自动保持当前曲目 URL、加载选项与播放进度位置并执行恢复。移动端系统音频焦点打断（电话呼入、闹钟、语音助手）与硬件路由变更（拔出耳机）由系统层统一监听并优雅响应。
+  - **移动端音频引擎架构（`apps/mobile` 中的 `MobileAudioService`）**：
+    - **引擎（`@BBeBee/core-audio-mpv` 进程内 libmpv JNI/JSI）**：移动端沙盒禁止派生子进程，因此引擎以进程内原生共享库形态运行（Android `libmpv.so`、iOS `mpv.framework`），经 TurboModule JSI 桥接提供硬件解码与流缓冲。引擎的元素路径与 DSP 管道所需的 Web Audio 图仍由 `react-native-audio-api` 提供（`createContext`）。原生库尚未打包的构建中，进程内仿真桥接保证音频输出可用。
+    - **状态连续性与系统打断管理**：移动端系统音频焦点打断（电话呼入、闹钟、语音助手）与硬件路由变更（拔出耳机）由系统层统一监听并优雅响应。
 - **设置中的音频输出引擎、独占模式与设备选择 (`audioOutputEngine`, `audioExclusive`, `audioOutputDeviceId`)**：
   用户可在桌面端设置界面的「音频输出引擎与设备」中自由配置驱动与物理设备：
-  - **MPV Hi-Fi（Windows 默认）**：独立 native 原生引擎，WASAPI 直通输出、原生 DSP/EQ 与 FFT 可视化。
-  - **独占模式（`audioExclusive`，默认关闭）**：当选择 MPV 模式时，界面在音频输出驱动下方展示「独占模式」开关。
+  - **MPV（全平台唯一引擎）**：独立 native 原生引擎，WASAPI 直通输出（Windows，可选独占模式）、原生 DSP/EQ 与 FFT 可视化。
+  - **独占模式（`audioExclusive`，默认关闭）**：界面在音频输出驱动下方展示「独占模式」开关。
 
     > 规范见 [rules/services.md §7](../../rules/services.md#7-native-audio-engine--exclusive-mode)（L2），本节只讲原理与用法。
 
-  - **WebAudio**：标准 Web Audio 共享混音图。
   - **可选择的音频输出设备**：
     - **系统硬件设备全量探测**：桌面端 Node.js Sidecar 配合底层 OS 查询通道（Windows 注册表与 CIM MMDevices、macOS System Profiler、Linux pactl/aplay），精准获取当前系统中所有物理扬声器、耳机和外接 USB DAC 的真实友好名称（Friendly Name）。
-    - **驱动目的地实时锁定**：用户下拉选中目标设备后，系统将设备 ID 持久化至 `settings.audioOutputDeviceId`，并在应用启动及切换时驱动当前引擎重新路由——mpv 引擎优先走自身的 `audio-device-list`（见上），WebAudio 引擎经 `AudioContext.setSinkId` 与桥接原生设备解析双路路由（共享代码，两引擎不漂移）。
+    - **驱动目的地实时锁定**：用户下拉选中目标设备后，系统将设备 ID 持久化至 `settings.audioOutputDeviceId`，并在应用启动及切换时驱动引擎重新路由——引擎优先走自身的 `audio-device-list`（见上），Chromium id 经 `AudioContext.setSinkId` 与桥接原生设备解析双路路由。
 - **发烧级无损音频格式与本地扫描器支持**：
   本地扫描器通过纯 JavaScript 的 `music-metadata` 栈读取标签与时长——整个产品不依赖任何外部解码器进程：
   - **ALAC 与 `.m4a`**：此前扫描器在遇到包含 ALAC 编码的 `.m4a` 文件时，因 Chromium 原生不支持而判定为非法编码并报错丢弃。现已通过在 `supportedFormats()` 注册 ALAC 并配合头解析，实现完整导入。
-  - **更多无损格式**：`.ape` (Monkey's Audio)、`.wv` (WavPack)、`.dsf` / `.dff` (DSD 音频)、`.m4b`（有声书）现均已加入本地扫描器默认识别扩展名（`DEFAULT_EXTENSIONS`）与元数据解析（`core-codec-node`）。特殊容器的播放覆盖由 MPV 引擎（libmpv）承担；WebAudio 引擎播放 Chromium 能解码的格式。
+  - **更多无损格式**：`.ape` (Monkey's Audio)、`.wv` (WavPack)、`.dsf` / `.dff` (DSD 音频)、`.m4b`（有声书）现均已加入本地扫描器默认识别扩展名（`DEFAULT_EXTENSIONS`）与元数据解析（`core-codec-node`）。特殊容器的播放覆盖由 MPV 引擎（libmpv）承担。
 - **桌面端协议重写 (Desktop Scheme Rewriting)**：在 Webview Web 安全策略下，渲染进程对原生 `file://` URI 发起 `fetch()` 会被限制。桌面端核心服务在请求或绑定到媒体元素前，会自动将 `file://` URL 重写为已注册的自定义协议 `bbebee-file://`（或 `asset://`）。
 
 ### 逃生通道

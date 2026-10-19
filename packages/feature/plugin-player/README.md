@@ -108,4 +108,4 @@ Init registers only three commands (`togglePlay` defaults to the `Space` key; co
 
 - `docs/05-audio-playback.md`: transport state machine, interruption table, DSP
 - `docs/07-data-model.md`: `queue_items`/`playback_state`/`play_history`/`track_stats`
-- `packages/core/core-audio-webaudio/`: the audio graph implementation
+- `packages/core/core-audio-mpv/`: the audio engine implementation

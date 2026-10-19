@@ -16,9 +16,7 @@ import type { AudioService } from '@BBeBee/protocol'
 import { DesktopAudioService } from './boot.js'
 
 function service(): DesktopAudioService {
-  return new DesktopAudioService(new Context(), {
-    fetchBytes: async () => new ArrayBuffer(0),
-  })
+  return new DesktopAudioService(new Context(), {})
 }
 
 function mount(svc: DesktopAudioService, engine: AudioService): void {
@@ -39,8 +37,8 @@ describe('DesktopAudioService engine forwarding', () => {
   })
 
   it('an engine without preloadNext leaves the member undefined on the wrapper', () => {
-    // The optionality is the contract: on the webaudio engine the player must
-    // still see "no preload member" and prefetch a handle the old way.
+    // The optionality is the contract: an engine without a preload member
+    // leaves the wrapper's member undefined.
     const svc = service()
     mount(svc, {} as AudioService)
 
@@ -70,7 +68,6 @@ describe('DesktopAudioService engine forwarding', () => {
     // must travel together.
     const bridgeCall = vi.fn(async () => undefined)
     const svc = new DesktopAudioService(new Context(), {
-      fetchBytes: async () => new ArrayBuffer(0),
       bridgeCall,
     })
     const untyped = svc as unknown as Record<string, unknown>
@@ -90,22 +87,17 @@ describe('DesktopAudioService engine forwarding', () => {
     expect(bridgeCall).toHaveBeenCalledWith('audio', 'mpvSetDspConfig', [dsp])
   })
 
-  it('does not push dsp config for the webaudio engine or before any dsp event', () => {
+  it('does not push dsp config before any dsp event', () => {
     const bridgeCall = vi.fn(async () => undefined)
     const svc = new DesktopAudioService(new Context(), {
-      fetchBytes: async () => new ArrayBuffer(0),
       bridgeCall,
     })
     const untyped = svc as unknown as Record<string, unknown>
 
-    // No dsp payload seen yet.
+    // No dsp payload seen yet — nothing to push.
     untyped['activeEngineKey'] = 'mpv'
     ;(untyped['pushNativeDsp'] as () => void)()
-    // A payload, but the webaudio engine has no native filter chain.
-    untyped['activeEngineKey'] = 'webaudio'
-    untyped['lastNativeDsp'] = { af: 'volume=volume=-3.00dB' }
-    ;(untyped['pushNativeDsp'] as () => void)()
 
-    expect(bridgeCall, 'neither case reaches the bridge').not.toHaveBeenCalled()
+    expect(bridgeCall, 'no payload means no bridge call').not.toHaveBeenCalled()
   })
 })

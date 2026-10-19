@@ -42,7 +42,6 @@ import { MediaSessionTauri } from '@BBeBee/core-media-session-tauri'
 import { SecretsNode } from '@BBeBee/core-secrets-node'
 import { JsQuickJsNode } from '@BBeBee/core-js-quickjs-node'
 import { HttpNode } from '@BBeBee/core-http-node'
-import { AudioWebAudio, type AudioWebAudioConfig } from '@BBeBee/core-audio-webaudio'
 import { AudioMpv, type AudioMpvConfig } from '@BBeBee/core-audio-mpv'
 import logBuffer from '@BBeBee/plugin-log-buffer'
 import logConsole from '@BBeBee/plugin-log-console'
@@ -56,7 +55,6 @@ import {
   uninstallExternalPlugin,
 } from './dynamic-loader.js'
 import { setScheme } from '@BBeBee/ui-kit-desktop'
-import { toServableFileUrl } from '@BBeBee/toolkit'
 
 const APP_VERSION = '0.0.0'
 const BOOT_TIMEOUT_MS = 15_000
@@ -112,21 +110,17 @@ function decodableFormats(): string[] {
 // =============================================================================
 
 export interface DesktopAudioConfig {
-  initialEngine?: 'mpv' | 'wasapi' | 'webaudio'
+  initialEngine?: 'mpv' | 'wasapi'
   initialAudioExclusive?: boolean
-  fetchBytes: (
-    src: string,
-    opts: { headers?: Record<string, string>; signal?: AbortSignal },
-  ) => Promise<ArrayBuffer>
   bridgeCall?: (service: string, method: string, args: unknown[]) => Promise<unknown>
 }
 
-type EngineKey = 'mpv' | 'wasapi' | 'webaudio'
+type EngineKey = 'mpv' | 'wasapi'
 
 export class DesktopAudioService extends Service implements AudioService {
   static inject = []
 
-  private activeEngineKey: EngineKey = 'webaudio'
+  private activeEngineKey: EngineKey = 'mpv'
   private activeEngine!: AudioService
   private activeFiber?: Fiber
   private lastNativeDsp?: {
@@ -311,7 +305,7 @@ export class DesktopAudioService extends Service implements AudioService {
   }
 
   private pushNativeDsp(): void {
-    if (this.activeEngineKey === 'mpv' && this.lastNativeDsp && this.config.bridgeCall) {
+    if (this.lastNativeDsp && this.config.bridgeCall) {
       void this.config.bridgeCall('audio', 'mpvSetDspConfig', [this.lastNativeDsp]).catch(() => {})
     }
   }
@@ -319,29 +313,16 @@ export class DesktopAudioService extends Service implements AudioService {
   private async mountEngine(engineKey: EngineKey): Promise<void> {
     this.ctx.logger?.info('[audio] mounting engine [%s]', engineKey)
     const scoped = this.ctx.isolate('audio')
-    const effectiveKey: 'mpv' | 'webaudio' = engineKey === 'wasapi' ? 'mpv' : engineKey
 
     let fiber: Fiber
     try {
-      if (effectiveKey === 'mpv') {
-        const cfg: AudioMpvConfig = {
-          bridgeCall: this.config.bridgeCall,
-          emitContextInterruptions: true,
-        }
-        fiber = await scoped.plugin(AudioMpv, cfg)
-      } else {
-        const cfg: AudioWebAudioConfig = {
-          fetchBytes: this.config.fetchBytes,
-          bridgeCall: this.config.bridgeCall,
-          emitContextInterruptions: true,
-        }
-        fiber = await scoped.plugin(AudioWebAudio, cfg)
+      const cfg: AudioMpvConfig = {
+        bridgeCall: this.config.bridgeCall,
+        emitContextInterruptions: true,
       }
+      fiber = await scoped.plugin(AudioMpv, cfg)
     } catch (err) {
-      if (effectiveKey === 'mpv') {
-        this.ctx.logger?.warn('[audio] mpv mount failed, falling back to webaudio: %s', String(err))
-        return this.mountEngine('webaudio')
-      }
+      this.ctx.logger?.error('[audio] mpv mount failed: %s', String(err))
       throw err
     }
 
@@ -355,14 +336,14 @@ export class DesktopAudioService extends Service implements AudioService {
         throw new Error('mounted fiber did not provide an audio service')
       }
     } catch (err) {
-      this.ctx.logger?.warn('[audio] engine [%s] unusable (%s), falling back', engineKey, String(err))
-      if (effectiveKey === 'mpv') return this.mountEngine('webaudio')
+      this.ctx.logger?.error('[audio] engine [%s] unusable (%s)', engineKey, String(err))
       throw err
     }
 
     this.activeEngine = mounted
     this.activeFiber = fiber
-    this.activeEngineKey = engineKey
+    // 'wasapi' is the legacy settings value for the same mpv engine.
+    this.activeEngineKey = engineKey === 'wasapi' ? 'mpv' : engineKey
 
     this.offActiveInterruption?.()
     this.offActiveRoute?.()
@@ -374,20 +355,21 @@ export class DesktopAudioService extends Service implements AudioService {
     if (this.currentDeviceId !== 'default') {
       await this.activeEngine.setOutputDevice(this.currentDeviceId).catch(() => {})
     }
-    if (effectiveKey === 'mpv') {
-      this.pushNativeDsp()
-      if (this.currentAudioExclusive && this.config.bridgeCall) {
-        void this.config.bridgeCall('audio', 'mpvSetAudioExclusive', [this.currentAudioExclusive]).catch(() => {})
-      }
+    this.pushNativeDsp()
+    if (this.currentAudioExclusive && this.config.bridgeCall) {
+      void this.config.bridgeCall('audio', 'mpvSetAudioExclusive', [this.currentAudioExclusive]).catch(() => {})
     }
   }
 
   async switchEngine(target: EngineKey): Promise<void> {
+    // 'wasapi' is the legacy settings value for the same mpv engine — there
+    // is nothing to switch to anymore.
+    const normalized: EngineKey = target === 'wasapi' ? 'mpv' : target
     if (this.isSwitching) {
       this.ctx.logger?.warn('[audio] switch already in progress, skipping')
       return
     }
-    if (this.activeEngineKey === target) return
+    if (this.activeEngineKey === normalized) return
 
     this.isSwitching = true
     this.ctx.logger?.info('[audio] switching from [%s] to [%s]', this.activeEngineKey, target)
@@ -406,9 +388,9 @@ export class DesktopAudioService extends Service implements AudioService {
         this.activeFiber = undefined
       }
 
-      await this.mountEngine(target)
-      this.ctx.logger?.info('[audio] switched to [%s]', target)
-      this.ctx.emit('audio/engine-changed', { engine: target })
+      await this.mountEngine(normalized)
+      this.ctx.logger?.info('[audio] switched to [%s]', normalized)
+      this.ctx.emit('audio/engine-changed', { engine: normalized })
     } finally {
       this.isSwitching = false
     }
@@ -418,52 +400,6 @@ export class DesktopAudioService extends Service implements AudioService {
 // =============================================================================
 // Boot phases
 // =============================================================================
-
-function createAudioFetchBytes(
-  transport?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
-) {
-  return async (
-    src: string,
-    opts: { headers?: Record<string, string>; signal?: AbortSignal },
-  ): Promise<ArrayBuffer> => {
-    const isLocal =
-      src.startsWith('file:') ||
-      src.startsWith('bbebee-file:') ||
-      src.startsWith('/') ||
-      /^[a-zA-Z]:[\\/]/.test(src)
-
-    if (isLocal) {
-      opts?.signal?.throwIfAborted()
-      const bridge = window.BBeBeeBridge
-      if (bridge) {
-        try {
-          const fsUri = src.startsWith('bbebee-file:')
-            ? src.replace(/^bbebee-file:\/*/, 'file:///')
-            : src
-          const raw = await bridge.call('fs', 'readBytes', [fsUri])
-          opts?.signal?.throwIfAborted()
-          if (raw instanceof ArrayBuffer) return raw
-          const bytes = raw as Uint8Array
-          const sliced = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
-          // `slice` on a non-shared buffer never yields SharedArrayBuffer, but
-          // the type does not know that — narrow instead of casting.
-          if (sliced instanceof SharedArrayBuffer) throw new Error('[audio] unexpected shared buffer')
-          return sliced
-        } catch { /* fall through to fetch */ }
-      }
-      const response = await window.fetch(toServableFileUrl(src) ?? src, {
-        signal: opts?.signal,
-      })
-      if (!response.ok) throw new Error(`[audio] ${response.status} loading ${src}`)
-      return response.arrayBuffer()
-    }
-
-    const fetchFn = transport ?? fetch
-    const response = await fetchFn(src, { headers: opts?.headers, signal: opts?.signal })
-    if (!response.ok) throw new Error(`[audio] ${response.status} loading ${src}`)
-    return response.arrayBuffer()
-  }
-}
 
 interface PreloadedPrefs {
   audioOutputEngine?: EngineKey
@@ -486,13 +422,15 @@ async function preloadPreferences(pathSnapshot: Record<string, string | undefine
     result.storeData = data
     const prefs = (data['preferences'] ??
       data['@BBeBee/plugin-settings:preferences']) as
-      | { audioOutputEngine?: EngineKey; audioExclusive?: boolean; userAgent?: string }
+      | { audioOutputEngine?: EngineKey | 'webaudio'; audioExclusive?: boolean; userAgent?: string }
       | undefined
 
+    // 'wasapi' is the legacy settings value for the mpv engine; 'webaudio'
+    // is the removed engine — both resolve to mpv.
     if (prefs?.audioOutputEngine === 'mpv' ||
         prefs?.audioOutputEngine === 'wasapi' ||
         prefs?.audioOutputEngine === 'webaudio') {
-      result.audioOutputEngine = prefs.audioOutputEngine === 'wasapi' ? 'mpv' : prefs.audioOutputEngine
+      result.audioOutputEngine = 'mpv'
     }
     if (typeof prefs?.audioExclusive === 'boolean') result.audioExclusive = prefs.audioExclusive
     if (typeof prefs?.userAgent === 'string') result.userAgent = prefs.userAgent
@@ -578,7 +516,6 @@ export async function boot(): Promise<App> {
         initialEngine: prefs.audioOutputEngine ?? 'mpv',
         initialAudioExclusive: prefs.audioExclusive,
         bridgeCall: window.BBeBeeBridge?.call,
-        fetchBytes: createAudioFetchBytes(transport),
       }],
       [logBuffer, {}],
       ...(isDevelopment()

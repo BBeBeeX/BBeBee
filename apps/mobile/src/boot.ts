@@ -31,7 +31,7 @@ import { AudioContext, AudioManager } from 'react-native-audio-api'
 import { createApp, type App } from '@BBeBee/kernel'
 import type { AppSettings } from '@BBeBee/protocol'
 import { PathsExpo } from '@BBeBee/core-paths-expo'
-import { File, FsExpo } from '@BBeBee/core-fs-expo'
+import { FsExpo } from '@BBeBee/core-fs-expo'
 import { StoreFs } from '@BBeBee/core-store-fs'
 import { DbExpo } from '@BBeBee/core-db-expo'
 import { SecretsExpo } from '@BBeBee/core-secrets-expo'
@@ -41,13 +41,11 @@ import { MediaSessionRn } from '@BBeBee/core-media-session-rn'
 import { CodecRn } from '@BBeBee/core-codec-rn'
 import { HttpRn } from '@BBeBee/core-http-rn'
 import { AudioMpv } from '@BBeBee/core-audio-mpv'
-import { AudioWebAudio } from '@BBeBee/core-audio-webaudio'
 import {
   MobileAudioService,
   createMobileMpvBridge,
   type MobileAudioConfig,
 } from './mobile-audio.js'
-import { fetch as expoFetch } from 'expo/fetch'
 import { configureNative } from '@BBeBee/ui-kit-mobile'
 
 export { MobileAudioService, createMobileMpvBridge, type MobileAudioConfig }
@@ -162,35 +160,14 @@ export async function boot(): Promise<App> {
       CodecRn,
       HttpRn,
       /*
-       * `ctx.audio` — dual mobile audio engines:
-       * Route A (@BBeBee/core-audio-webaudio via react-native-audio-api)
-       * Route B (@BBeBee/core-audio-mpv via in-process libmpv JNI/JSI bridge)
+       * `ctx.audio` — the mobile audio engine:
+       * @BBeBee/core-audio-mpv over the in-process libmpv JNI/JSI bridge.
        */
       [
         MobileAudioService,
         {
-          initialEngine: 'webaudio',
           mpvPlugin: AudioMpv,
-          webAudioPlugin: AudioWebAudio,
           createContext: () => new AudioContext(),
-          fallbackLatencyMs: 100,
-          fetchBytes: async (
-            src: string,
-            opts: { headers?: Record<string, string>; signal?: AbortSignal },
-          ) => {
-            const isLocal =
-              src.startsWith('file:') || src.startsWith('content:') || src.startsWith('/')
-            if (isLocal) {
-              opts?.signal?.throwIfAborted()
-              const file = new File(src)
-              const bytes = await file.bytes()
-              opts?.signal?.throwIfAborted()
-              return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
-            }
-            const response = await expoFetch(src, { headers: opts?.headers, signal: opts?.signal })
-            if (!response.ok) throw new Error(`audio: ${response.status} loading ${src}`)
-            return response.arrayBuffer()
-          },
         },
       ],
 

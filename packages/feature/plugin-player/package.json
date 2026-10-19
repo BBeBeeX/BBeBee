@@ -41,7 +41,6 @@
     "@BBeBee/core-db-node": "workspace:*",
     "@BBeBee/core-fs-node": "workspace:*",
     "@BBeBee/core-paths-node": "workspace:*",
-    "@BBeBee/core-audio-webaudio": "workspace:*",
     "@BBeBee/plugin-sources": "workspace:*",
     "@types/react": "^19.2.0"
   }

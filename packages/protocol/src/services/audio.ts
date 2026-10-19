@@ -148,9 +148,9 @@ export interface AudioService {
   /** Publish a route change. Same reasoning as `emitInterruption`. */
   emitRouteChange(e: RouteChangeEvent): void
 
-  /** Desktop-only: dynamic audio engine hot-switching. */
-  switchEngine?(engine: 'mpv' | 'wasapi' | 'webaudio'): Promise<void>
-  readonly activeEngineName?: 'mpv' | 'wasapi' | 'webaudio'
+  /** Desktop-only: dynamic audio engine hot-switching ('wasapi' resolves to mpv). */
+  switchEngine?(engine: 'mpv' | 'wasapi'): Promise<void>
+  readonly activeEngineName?: 'mpv' | 'wasapi'
 
   /** Active hardware output specifications negotiated with physical audio DAC. */
   readonly hardwareBitDepth?: number

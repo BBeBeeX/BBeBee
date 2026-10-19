@@ -114,8 +114,8 @@ Behaviours worth pinning down, because they are where players feel wrong:
 - **Repeat-one** does not re-resolve the stream; it reuses the loaded buffer.
 - **`stalled`** is distinct from `paused`. The UI shows a spinner, not a play button, and
   `ctx.mediaSession` keeps reporting `playing` so the lock screen does not flicker.
-- **A fatal error after playback began is an underrun, not an end.** Both engines honour this: the
-  webaudio `StreamedHandle` reports `onStalled(true)` when its media element dies mid-track (CDN
+- **A fatal error after playback began is an underrun, not an end.** The engine honours this: the
+  `StreamedHandle` reports `onStalled(true)` when its media element dies mid-track (CDN
   cut, expired URL), and the mpv `MpvSourceHandle` does the same when the engine reports a fatal
   error (the native engine classifies `MPV_END_FILE_REASON_ERROR` and pushes its playback state
   with `status: 'error'`, which the handle's poll reads). Treating a mid-track failure as a
@@ -270,7 +270,7 @@ Third-party music sources do not always deliver streams in the container format 
   When `strategy: 'buffer'` is selected for a local file, Web Audio's `decodeAudioData` is invoked.
   Certain audio encodings (such as 24-bit Hi-Res FLAC or FLAC files with ID3v2 header prefixes)
   are rejected by Chromium's native `decodeAudioData` with `Unable to decode audio data`.
-  `core-audio-webaudio` intercepts this decode failure and smoothly falls back to `loadStreamed`
+  The engine intercepts this decode failure and smoothly falls back to `loadStreamed`
   via Chromium's internal FFmpeg media element decoder, keeping the `chainInput` DSP graph fully
   intact without aborting playback.
 - **Desktop local audio scheme (`bbebee-file://`)**:
@@ -353,9 +353,8 @@ Where the events come from is the shell's job — `ctx.audio` only publishes wha
   they are the informed source, and the `AudioContext`'s own state transitions stay untranslated
   (`emitContextInterruptions` off) rather than publishing every interruption twice.
 - **Desktop** — there is no other interruption surface, so the desktop shell opts into
-  `emitContextInterruptions` on both engines (`core-audio-webaudio` and `core-audio-mpv`;
-  the shared observer lives in the former and the MPV engine follows its context across a
-  rate rebuild): the `AudioContext`'s state transitions
+  `emitContextInterruptions` on the engine (`core-audio-mpv`;
+  the shared observer lives in its `shared.ts`): the `AudioContext`'s state transitions
   (`running → suspended/interrupted → running`) are translated into `began`/`ended` events, and
   every transition is logged. A context *born* suspended (autoplay policy) is not an interruption.
   The events carry `shouldResume: false` — waking the machine does not mean the user wants sound —
