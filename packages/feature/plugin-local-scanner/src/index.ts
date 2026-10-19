@@ -820,6 +820,59 @@ export class Scanner extends Service implements ScannerService {
     }
   }
 
+  /**
+   * Process a single result from `readMetadataBatch` into a `PreparedFile`.
+   * Shared logic with {@link prepareFile}, minus the codec read itself.
+   */
+  private async prepareFileFromResult(
+    file: FileStat,
+    result: { metadata?: AudioMetadata; error?: string },
+    folderCovers?: Map<string, FileStat>,
+  ): Promise<PreparedFile> {
+    const time = scanTimingEnabled() ? performance.now() : 0
+    try {
+      if (result.error || !result.metadata) {
+        throw new Error(result.error ?? 'unreadable')
+      }
+      const metadata = result.metadata
+      const supported = new Set(this.ownCtx.codec.supportedFormats().map((f) => f.toLowerCase()))
+      const codec = metadata.codec?.toLowerCase()
+      if (codec === 'alac' && !supported.has('alac')) {
+        throw new Error('unsupported codec: ALAC is not supported on this platform')
+      }
+      if (codec === 'wma' && !supported.has('wma')) {
+        throw new Error('unsupported codec: WMA is not supported on this platform')
+      }
+      let lazyArtworkId: string | undefined
+      if (metadata.hasArtwork) {
+        lazyArtworkId = `lazy:${stableId(file.uri)}`
+      }
+      let folderCoverUri: Uri | undefined
+      if (folderCovers) {
+        const parentDir = parentDirectoryOf(file.uri)
+        const folderCover = folderCovers.get(parentDir)
+        if (folderCover) {
+          folderCoverUri = folderCover.uri
+        }
+      }
+      if (time) {
+        const tEnd = performance.now()
+        if (!this.timing) this.timing = { readMs: 0, artMs: 0, dbMs: 0, files: 0 }
+        this.timing.readMs += tEnd - time
+        this.timing.files++
+      }
+      return {
+        file,
+        metadata,
+        ...(lazyArtworkId ? { lazyArtworkId } : {}),
+        ...(folderCoverUri ? { folderCoverUri } : {}),
+      }
+    } catch (error) {
+      this.ownCtx.logger.warn('scanner: could not read metadata for %s: %s', file.uri, String(error))
+      return { file, error: error instanceof Error ? error.message : String(error) }
+    }
+  }
+
   /** One transaction per batch: a checkpoint, not an all-or-nothing scan. */
   private async importBatch(
     dir: ScanSpecifiedDir,
@@ -865,59 +918,88 @@ export class Scanner extends Service implements ScannerService {
     // tag read.
     const baseDone = batch.length - toPrepare.length
     let doneFresh = 0
-    const preparedFresh = await mapPool(toPrepare, this.config.tagReadConcurrency, async (file) => {
-      const onFileStart = onProgress
-        ? (uri: Uri) => onProgress(baseDone + doneFresh, this.ownCtx.fs.basename(uri))
-        : undefined
-      try {
-        return await this.prepareFile(file, folderCovers, onFileStart)
-      } finally {
-        doneFresh++
-        onProgress?.(baseDone + doneFresh)
+    // Batch tag reads when the codec supports it: one bridge round-trip per
+    // 16 files instead of one per file. Falls back to the concurrent
+    // per-file path on platforms without readMetadataBatch.
+    const preparedFresh: PreparedFile[] = []
+    if (this.ownCtx.codec.readMetadataBatch) {
+      const BATCH = 16
+      for (let i = 0; i < toPrepare.length; i += BATCH) {
+        const batch = toPrepare.slice(i, i + BATCH)
+        const uris = batch.map((f) => f.uri)
+        const results = await this.ownCtx.codec.readMetadataBatch(uris)
+        for (let j = 0; j < batch.length; j++) {
+          const file = batch[j]!
+          const result = results[j] ?? { error: 'missing result' }
+          onProgress?.(baseDone + doneFresh, this.ownCtx.fs.basename(file.uri))
+          try {
+            preparedFresh.push(await this.prepareFileFromResult(file, result, folderCovers))
+          } finally {
+            doneFresh++
+            onProgress?.(baseDone + doneFresh)
+          }
+        }
       }
-    })
+    } else {
+      const batchFresh = await mapPool(toPrepare, this.config.tagReadConcurrency, async (file) => {
+        const onFileStart = onProgress
+          ? (uri: Uri) => onProgress(baseDone + doneFresh, this.ownCtx.fs.basename(uri))
+          : undefined
+        try {
+          return await this.prepareFile(file, folderCovers, onFileStart)
+        } finally {
+          doneFresh++
+          onProgress?.(baseDone + doneFresh)
+        }
+      })
+      preparedFresh.push(...batchFresh)
+    }
     prepared.push(...preparedFresh)
 
     const tDb0 = timeBatch ? performance.now() : 0
-    await this.ownCtx.db.transaction(async (tx) => {
-      for (const item of prepared) {
-        if (item.unchanged) {
-          // An unchanged file costs a stat — and, when two specified dirs
-          // cover the same tree, an ownership move: the entry follows the dir
-          // that last saw the file, which is what visibility follows. Without
-          // this, a file owned by a disabled dir would stay hidden even while
-          // an enabled dir still covers it.
-          if (item.previous && item.previous.specified_dir_id !== dir.id) {
-            await this.writeEntry(
-              tx,
-              dir.id,
-              item.file,
-              item.previous.status,
-              item.previous.track_urn,
-              item.previous.error,
-            )
-          }
-          continue
-        }
 
-        if (item.error || !item.metadata) {
-          summary.errors++
-          const { removedTrackUrn } = await forgetFile(
-            { tx, sourceId: this.config.sourceId, now },
-            item.file.uri,
-          )
-          if (removedTrackUrn) changed.push(removedTrackUrn)
-          await this.writeEntry(tx, dir.id, item.file, 'error', null, item.error ?? 'unreadable')
-          continue
-        }
+    /**
+     * Collects SQL statements instead of executing them, so a batch of
+     * files can be written with one bridge round-trip via `execBatch`.
+     * Only `exec` is supported — `importTrack`'s happy path is pure INSERTs.
+     */
+    class StatementCollector {
+      statements: Array<{ sql: string; params?: (string | number | null)[] }> = []
+      async exec(sql: string, params: (string | number | null)[] = []): Promise<void> {
+        this.statements.push({ sql, params })
+      }
+    }
 
+    // Partition: the happy path (successful imports) can be batched;
+    // errors and ownership moves need control flow (tx.get), so they
+    // stay on the individual path. Errors are rare (<1%).
+    const toBatch: typeof prepared = []
+    const toHandleIndividually: typeof prepared = []
+    for (const item of prepared) {
+      if (item.unchanged) {
+        if (item.previous && item.previous.specified_dir_id !== dir.id) {
+          toHandleIndividually.push(item)
+        }
+        // Unchanged without move: nothing to write.
+      } else if (item.error || !item.metadata) {
+        toHandleIndividually.push(item)
+      } else {
+        toBatch.push(item)
+      }
+    }
+
+    // Batch path: generate all statements, send in one bridge call.
+    if (toBatch.length > 0) {
+      const collector = new StatementCollector()
+      const tx = collector as unknown as Parameters<typeof importTrack>[0]['tx']
+      for (const item of toBatch) {
         const { trackUrn } = await importTrack(
           { tx, sourceId: this.config.sourceId, now },
           {
             uri: item.file.uri,
             size: item.file.size,
             mtime: item.file.mtime,
-            metadata: item.metadata,
+            metadata: item.metadata!,
             ...(item.lazyArtworkId
               ? { lazyArtworkId: item.lazyArtworkId, lazyArtworkSource: item.file.uri }
               : {}),
@@ -928,9 +1010,50 @@ export class Scanner extends Service implements ScannerService {
         if (known.has(item.file.uri)) summary.updated++
         else summary.added++
         changed.push(trackUrn)
-        await this.writeEntry(tx, dir.id, item.file, 'ok', trackUrn, null)
+        await this.writeEntry(collector, dir.id, item.file, 'ok', trackUrn, null)
       }
-    })
+      if (this.ownCtx.db.execBatch) {
+        await this.ownCtx.db.execBatch(collector.statements)
+      } else {
+        // Fallback: individual execs (should not happen on desktop)
+        await this.ownCtx.db.transaction(async (tx) => {
+          for (const s of collector.statements) {
+            await tx.exec(s.sql, s.params)
+          }
+        })
+      }
+    }
+
+    // Individual path: errors and ownership moves (rare).
+    if (toHandleIndividually.length > 0) {
+      await this.ownCtx.db.transaction(async (tx) => {
+        for (const item of toHandleIndividually) {
+          if (item.unchanged) {
+            if (item.previous && item.previous.specified_dir_id !== dir.id) {
+              await this.writeEntry(
+                tx,
+                dir.id,
+                item.file,
+                item.previous.status,
+                item.previous.track_urn,
+                item.previous.error,
+              )
+            }
+            continue
+          }
+          if (item.error || !item.metadata) {
+            summary.errors++
+            const { removedTrackUrn } = await forgetFile(
+              { tx, sourceId: this.config.sourceId, now },
+              item.file.uri,
+            )
+            if (removedTrackUrn) changed.push(removedTrackUrn)
+            await this.writeEntry(tx, dir.id, item.file, 'error', null, item.error ?? 'unreadable')
+            continue
+          }
+        }
+      })
+    }
 
     if (timeBatch && this.timing) {
       const t = this.timing

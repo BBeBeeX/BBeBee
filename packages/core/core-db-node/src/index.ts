@@ -171,6 +171,23 @@ export class DbNode extends Service implements DbService {
   }
 
   /**
+   * Execute multiple statements in one transaction, in a single call.
+   * Used by bridged callers to amortize IPC overhead on bulk writes.
+   */
+  async execBatch(
+    statements: Array<{ sql: string; params?: SqlValue[] }>,
+  ): Promise<Array<{ changes: number; lastInsertRowid: number }>> {
+    for (const s of statements) this.guard(s.sql)
+    return this.transaction(async () => {
+      const results: Array<{ changes: number; lastInsertRowid: number }> = []
+      for (const s of statements) {
+        results.push(this.execNow(s.sql, s.params ?? []))
+      }
+      return results
+    })
+  }
+
+  /**
    * Run `fn` atomically.
    *
    * `BEGIN IMMEDIATE` takes the write lock up front rather than upgrading

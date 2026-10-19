@@ -46,6 +46,16 @@ export interface DbService {
   transaction<T>(fn: (tx: DbService) => Promise<T>): Promise<T>
 
   /**
+   * Execute multiple statements in a single round-trip, inside one
+   * transaction. Used to amortize IPC overhead when the service is bridged
+   * (e.g. bulk imports). Each entry is `{ sql, params }`; returns the
+   * per-statement `{ changes, lastInsertRowid }` in order.
+   */
+  execBatch?(
+    statements: Array<{ sql: string; params?: SqlValue[] }>,
+  ): Promise<Array<{ changes: number; lastInsertRowid: number }>>
+
+  /**
    * Register a plugin-owned schema.
    *
    * `{{ns}}` in each statement expands to a sanitised prefix derived from the
