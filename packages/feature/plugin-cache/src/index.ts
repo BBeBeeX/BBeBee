@@ -441,6 +441,12 @@ export class Cache extends Service implements CacheService {
       resolve: (uri: Uri | undefined) => void
     }>,
   ): Promise<void> {
+    // Abort before hitting the bridge if player started loading.
+    // The readArtworkBatch call cannot be cancelled once sent.
+    if (await this.isPlayerLoading()) {
+      for (const item of chunk) item.resolve(undefined)
+      return
+    }
     // Prefer the batch API; fall back to individual calls.
     if (codec.readArtworkBatch) {
       try {
@@ -463,6 +469,14 @@ export class Cache extends Service implements CacheService {
       }
     } else {
       for (const item of chunk) {
+        // Check before each file in fallback mode — more granular abort.
+        if (await this.isPlayerLoading()) {
+          item.resolve(undefined)
+          // Resolve remaining items in chunk
+          const idx = chunk.indexOf(item)
+          for (let j = idx + 1; j < chunk.length; j++) chunk[j]!.resolve(undefined)
+          return
+        }
         try {
           item.resolve(await this.doExtractEmbeddedArtwork(item.key, item.id, item.audioUri))
         } catch (error) {
