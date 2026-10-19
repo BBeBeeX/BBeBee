@@ -662,7 +662,18 @@ export class CodecNode extends Service implements CodecService {
         try {
           signal?.throwIfAborted()
           const parsed = await parseFromTokenizer(tokenizer, options)
-          if (hasUsableTags(parsed)) return parsed
+          // If the budget ran out mid-parse, format-level info (sampleRate,
+          // duration) may be present while tags/pictures are cut off. Only
+          // accept the result if we have real tags; otherwise escalate.
+          const usable = tokenizer.budgetExhausted
+            ? Boolean(
+                parsed.common.title ??
+                  parsed.common.artist ??
+                  parsed.common.album ??
+                  (parsed.common.picture?.length ? true : undefined),
+              )
+            : hasUsableTags(parsed)
+          if (usable) return parsed
           /*
            * A parse that found nothing at all is a failure, not a tagless track.
            *
