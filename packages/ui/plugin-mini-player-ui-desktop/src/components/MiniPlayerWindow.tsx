@@ -151,23 +151,31 @@ export function MiniPlayerWindow(): ReactElement {
   }
 
   if (mode === 'attached' || mode === 'expanded') {
-    return h(MiniPlayerIsland, {
-      data,
-      isExpanded: mode === 'expanded',
-      onAction: handleAction,
-      onExpand: () => handleSetMode('expanded'),
-      onCollapse: () => handleSetMode('attached'),
-      onDetach: () => handleSetMode('normal'),
-      onRestoreMain: handleRestoreMain,
-      onClose: handleClose,
-    })
+    return h(
+      'div',
+      { 'data-tauri-drag-region': true, style: { width: '100%', height: '100%' } },
+      h(MiniPlayerIsland, {
+        data,
+        isExpanded: mode === 'expanded',
+        onAction: handleAction,
+        onExpand: () => handleSetMode('expanded'),
+        onCollapse: () => handleSetMode('attached'),
+        onDetach: () => handleSetMode('normal'),
+        onRestoreMain: handleRestoreMain,
+        onClose: handleClose,
+      }),
+    )
   }
 
-  return h(MiniPlayerFloating, {
-    data,
-    onAction: handleAction,
-    onSnapToTop: () => handleSetMode('attached'),
-    onRestoreMain: handleRestoreMain,
-    onClose: handleClose,
-  })
+  return h(
+    'div',
+    { 'data-tauri-drag-region': true, style: { width: '100%', height: '100%' } },
+    h(MiniPlayerFloating, {
+      data,
+      onAction: handleAction,
+      onSnapToTop: () => handleSetMode('attached'),
+      onRestoreMain: handleRestoreMain,
+      onClose: handleClose,
+    }),
+  )
 }
