@@ -52,13 +52,35 @@ interface Resolution {
  */
 
 /**
- * In-memory cache of resolved artwork URIs, keyed by artwork ID.
+ * In-memory LRU cache of resolved artwork URIs, keyed by artwork ID.
  * Avoids re-running the async DB lookup when remounting (e.g., switching
  * pages back and forth) — the cover appears instantly instead of flashing
- * the fallback. Entries are never evicted; the set of artwork IDs is bounded
- * by the library size, and each entry is a small string.
+ * the fallback. Bounded to 1000 entries; evicts least-recently-used.
  */
+const RESOLVED_CACHE_MAX = 1000
 const resolvedUriCache = new Map<string, string | null>()
+
+function cacheGet(id: string): string | null | undefined {
+  const v = resolvedUriCache.get(id)
+  if (v !== undefined) {
+    // Move to end (most-recently-used)
+    resolvedUriCache.delete(id)
+    resolvedUriCache.set(id, v)
+  }
+  return v
+}
+
+function cacheSet(id: string, uri: string | null): void {
+  // Delete first to refresh recency if key exists
+  resolvedUriCache.delete(id)
+  resolvedUriCache.set(id, uri)
+  // Evict oldest if over capacity
+  while (resolvedUriCache.size > RESOLVED_CACHE_MAX) {
+    const oldest = resolvedUriCache.keys().next().value
+    if (oldest === undefined) break
+    resolvedUriCache.delete(oldest)
+  }
+}
 
 export function useResolvedArtwork(ctx: Context, artwork?: ArtworkRef): ArtworkRef | undefined {
   const [resolution, setResolution] = useState<Resolution | undefined>(undefined)
@@ -73,8 +95,8 @@ export function useResolvedArtwork(ctx: Context, artwork?: ArtworkRef): ArtworkR
     let active = true
 
     // Memory cache hit: return synchronously, no flicker on remount.
-    if (resolvedUriCache.has(id)) {
-      const cached = resolvedUriCache.get(id)
+    const cached = cacheGet(id)
+    if (cached !== undefined) {
       setResolution({ id, ...(cached ? { uri: cached } : {}), settled: true })
       return
     }
@@ -82,7 +104,7 @@ export function useResolvedArtwork(ctx: Context, artwork?: ArtworkRef): ArtworkR
     // Helper: set resolution and populate memory cache.
     const settle = (uri?: string) => {
       if (!active) return
-      resolvedUriCache.set(id, uri ?? null)
+      cacheSet(id, uri ?? null)
       setResolution({ id, ...(uri ? { uri } : {}), settled: true })
     }
 
