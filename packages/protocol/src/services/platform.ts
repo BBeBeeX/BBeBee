@@ -156,6 +156,13 @@ export interface TranscodeResult {
 export interface CodecService {
   /** Read tags without decoding audio. Must not read the whole file. */
   readMetadata(uri: Uri): Promise<AudioMetadata>
+  /**
+   * Batch version of {@link readMetadata}: parse multiple files in one call.
+   * Used to amortize IPC overhead when the service is bridged. Each entry is
+   * either `{ metadata }` or `{ error }` — one file failing does not fail
+   * the batch.
+   */
+  readMetadataBatch?(uris: Uri[]): Promise<Array<{ metadata?: AudioMetadata; error?: string }>>
   readArtwork(uri: Uri): Promise<Uint8Array | undefined>
   /**
    * Read tags and embedded artwork in a single parse. Optional: platforms

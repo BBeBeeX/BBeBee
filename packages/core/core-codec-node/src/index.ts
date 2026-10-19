@@ -72,6 +72,30 @@ export class CodecNode extends Service implements CodecService {
     return (await this.readMetadataWithArtwork(uri)).metadata
   }
 
+  /**
+   * Batch tag reads: parse multiple files with bounded concurrency.
+   * One file failing does not fail the batch — its entry carries `{ error }`.
+   */
+  async readMetadataBatch(uris: Uri[]): Promise<Array<{ metadata?: AudioMetadata; error?: string }>> {
+    const CONCURRENCY = 16
+    const results: Array<{ metadata?: AudioMetadata; error?: string }> = new Array(uris.length)
+    let next = 0
+    const workers = Array.from({ length: Math.min(CONCURRENCY, uris.length) }, async () => {
+      while (true) {
+        const i = next++
+        if (i >= uris.length) break
+        const uri = uris[i]!
+        try {
+          results[i] = { metadata: await this.readMetadata(uri) }
+        } catch (e) {
+          results[i] = { error: e instanceof Error ? e.message : String(e) }
+        }
+      }
+    })
+    await Promise.all(workers)
+    return results
+  }
+
   async readArtwork(uri: Uri): Promise<Uint8Array | undefined> {
     return (await this.readMetadataWithArtwork(uri)).artwork
   }

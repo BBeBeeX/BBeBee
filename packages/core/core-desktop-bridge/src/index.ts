@@ -401,6 +401,10 @@ export class DbBridge extends Service implements DbService {
     this.guard(sql)
     return this.call<{ changes: number; lastInsertRowid: number }>('exec', [sql, params])
   }
+  async execBatch(statements: Array<{ sql: string; params?: SqlValue[] }>) {
+    for (const s of statements) this.guard(s.sql)
+    return this.call<Array<{ changes: number; lastInsertRowid: number }>>('execBatch', [statements])
+  }
   async defineSchema(namespace: string, migrations: Migration[]) {
     assertOwnNamespace(this[Service.resolveConfig](), namespace)
     await this.call('defineSchema', [namespace, migrations])
@@ -656,6 +660,10 @@ export class CodecBridge extends Service implements CodecService {
 
   async readMetadata(uri: Uri): Promise<AudioMetadata> {
     return this.call<AudioMetadata>('readMetadata', [uri])
+  }
+
+  async readMetadataBatch(uris: Uri[]): Promise<Array<{ metadata?: AudioMetadata; error?: string }>> {
+    return this.call<Array<{ metadata?: AudioMetadata; error?: string }>>('readMetadataBatch', [uris])
   }
 
   async readArtwork(uri: Uri): Promise<Uint8Array | undefined> {

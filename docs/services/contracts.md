@@ -610,6 +610,12 @@ export interface CodecService {
    * forwards without it, and the bridge's 30s call timeout is the hang backstop.
    */
   readMetadataWithArtwork?(uri: Uri, signal?: AbortSignal): Promise<{ metadata: AudioMetadata; artwork?: Uint8Array }>
+  /**
+   * Batch tag reads: one call for many files, amortizing IPC overhead when
+   * bridged. Each entry is `{ metadata }` or `{ error }` — one file failing
+   * does not fail the batch.
+   */
+  readMetadataBatch?(uris: Uri[]): Promise<Array<{ metadata?: AudioMetadata; error?: string }>>
   /** Decode to PCM for waveform rendering, gain analysis, or short samples. */
   decode(data: Uint8Array | Uri): Promise<{ sampleRate: number; channels: number; pcm: Float32Array[] }>
   probeDuration(uri: Uri): Promise<number>

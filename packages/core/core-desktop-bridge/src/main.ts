@@ -238,7 +238,7 @@ const ALLOWED: Record<BridgedService, ReadonlySet<string>> = {
     'dir', 'exists', 'stat', 'list', 'mkdir', 'remove', 'move', 'copy',
     'readFile', 'readBytes', 'readRange', 'writeFile', 'freeSpace', 'toPlayableUri', 'pickDirectory',
   ]),
-  db: new Set(['query', 'get', 'exec', 'defineSchema']),
+  db: new Set(['query', 'get', 'exec', 'execBatch', 'defineSchema']),
   paths: new Set([
     'appData', 'cache', 'temp', 'logs', 'downloads', 'music', 'pluginData', 'get',
   ]),
@@ -258,7 +258,7 @@ const ALLOWED: Record<BridgedService, ReadonlySet<string>> = {
   // the result crosses the bridge. `decode`/`transcode` stay renderer-local
   // (they have their own transports), as do the capability queries.
   codec: new Set([
-    'readMetadata', 'readArtwork', 'readMetadataWithArtwork', 'probeDuration',
+    'readMetadata', 'readMetadataBatch', 'readArtwork', 'readMetadataWithArtwork', 'probeDuration',
   ]),
 }
 
