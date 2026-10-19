@@ -298,8 +298,10 @@ export function useCurrentLyric(ctx: Context): CurrentLyricInfo {
     }
   } else if (!parsed.synced && hasLines) {
     stage = 'unsynced'
-    displayCurrentLine = fallbackTitle
-    displayNextLine = lines[0]?.text?.trim() ? lines[0].text : 'Plain-text lyrics'
+    // Plain-text lyrics have words but no timestamps: show the words themselves.
+    // A bare song title here is indistinguishable from "still loading".
+    displayCurrentLine = lines[0]?.text?.trim() ? lines[0].text : fallbackTitle
+    displayNextLine = lines[1]?.text?.trim() ? lines[1].text : undefined
     currentLine = lines[0]
   } else if (status === 'no-lyrics' || (status === 'ready' && !hasLines)) {
     stage = 'no-lyrics'
