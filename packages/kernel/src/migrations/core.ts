@@ -815,4 +815,32 @@ export const CORE_MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    version: 9,
+    // Clean polluted artwork rows: a previous bug wrote audio file URIs
+    // into artworks.local_uri (via the local-file fast path without type
+    // verification). Those rows cause <img> tags with audio srcs. Clear
+    // local_uri where it does not point to an image file; the lazy
+    // extraction path will re-extract on next render.
+    up: async (tx: MigrationTx) => {
+      await tx.exec(`
+        UPDATE artworks
+        SET local_uri = NULL
+        WHERE local_uri IS NOT NULL
+          AND lower(local_uri) NOT GLOB '*.jpg'
+          AND lower(local_uri) NOT GLOB '*.jpeg'
+          AND lower(local_uri) NOT GLOB '*.png'
+          AND lower(local_uri) NOT GLOB '*.gif'
+          AND lower(local_uri) NOT GLOB '*.webp'
+          AND lower(local_uri) NOT GLOB '*.bmp'
+          AND lower(local_uri) NOT GLOB '*.svg'
+          AND lower(local_uri) NOT GLOB '*.ico'
+          AND lower(local_uri) NOT GLOB '*.avif'
+          AND lower(local_uri) NOT GLOB '*.heic'
+          AND lower(local_uri) NOT GLOB '*.heif'
+          AND lower(local_uri) NOT GLOB '*.tif'
+          AND lower(local_uri) NOT GLOB '*.tiff'
+      `)
+    },
+  },
 ]
