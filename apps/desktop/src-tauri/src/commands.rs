@@ -447,9 +447,15 @@ pub async fn mini_player_update_data(
     state: tauri::State<'_, AppState>,
     data: serde_json::Value,
 ) -> Result<(), String> {
+    let start = std::time::Instant::now();
     *lock_recover(&state.latest_mini_player_data) = Some(data.clone());
+    eprintln!("[mini-player] update_data: lock acquired in {:?}", start.elapsed());
     if let Some(win) = app.get_webview_window("mini-player") {
+        let emit_start = std::time::Instant::now();
         let _ = win.emit("mini-player:data", data);
+        eprintln!("[mini-player] update_data: emit took {:?}", emit_start.elapsed());
+    } else {
+        eprintln!("[mini-player] update_data: window not found");
     }
     Ok(())
 }

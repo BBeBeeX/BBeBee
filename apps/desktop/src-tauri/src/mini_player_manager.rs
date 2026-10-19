@@ -122,8 +122,9 @@ pub fn get_or_create_mini_player_window(
 
     let win = builder.build().map_err(|e| e.to_string())?;
     let _ = win.set_always_on_top(true);
-    #[cfg(target_os = "windows")]
-    remove_dwm_border(&win);
+    // DIAGNOSTIC: DWM border removal disabled to isolate mini-player freeze.
+    // #[cfg(target_os = "windows")]
+    // remove_dwm_border(&win);
 
     Ok(win)
 }
