@@ -31,6 +31,7 @@ export type CountedMethod =
   | 'copy'
   | 'readFile'
   | 'readBytes'
+  | 'readRange'
   | 'writeFile'
   | 'createReadStream'
   | 'createWriteStream'
@@ -56,12 +57,12 @@ export interface CountingFs {
 
 const COUNTED: CountedMethod[] = [
   'dir', 'exists', 'stat', 'list', 'mkdir', 'remove', 'move', 'copy',
-  'readFile', 'readBytes', 'writeFile', 'createReadStream', 'createWriteStream',
+  'readFile', 'readBytes', 'readRange', 'writeFile', 'createReadStream', 'createWriteStream',
   'freeSpace', 'watch', 'pickDirectory', 'toPlayableUri',
 ]
 
 /** Methods that open a file's contents, as opposed to its metadata. */
-const READS_CONTENT = new Set<CountedMethod>(['readFile', 'readBytes', 'createReadStream'])
+const READS_CONTENT = new Set<CountedMethod>(['readFile', 'readBytes', 'readRange', 'createReadStream'])
 
 export function countingFs(fs: FsService): CountingFs {
   const counts = Object.fromEntries(COUNTED.map((m) => [m, 0])) as FsCounts

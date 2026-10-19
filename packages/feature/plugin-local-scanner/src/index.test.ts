@@ -167,13 +167,14 @@ describe('scanning', () => {
     )
     expect(libraryItems).toHaveLength(0)
 
-    const artworkRow = await h.db.get<{ id: string; local_uri: string | null; bytes: number }>(
-      'SELECT id, local_uri, bytes FROM artworks',
+    const artworkRow = await h.db.get<{ id: string; local_uri: string | null; source_url: string | null }>(
+      'SELECT id, local_uri, source_url FROM artworks',
     )
     expect(artworkRow).toBeDefined()
-    expect(artworkRow?.local_uri).toBeDefined()
-    expect(await h.ctx.fs.exists(artworkRow!.local_uri!)).toBe(true)
-    expect(await h.ctx.fs.readBytes(artworkRow!.local_uri!)).toEqual(new Uint8Array([1, 2, 3, 4]))
+    // Lazy: the ref is recorded, but the bytes are not extracted during scan.
+    expect(artworkRow?.id.startsWith('lazy:')).toBe(true)
+    expect(artworkRow?.local_uri).toBeNull()
+    expect(artworkRow?.source_url).toBe(a)
   })
 
   it('imports folder cover when audio has no embedded artwork', async () => {

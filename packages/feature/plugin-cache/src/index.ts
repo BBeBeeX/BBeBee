@@ -200,6 +200,16 @@ export class Cache extends Service implements CacheService {
       return local
     }
 
+    // Lazy embedded artwork: the sourceUrl is an audio file, not an image.
+    // Extract the cover via the codec (sidecar on desktop), cache it, and
+    // return the local file. This is what keeps scan-time free of artwork
+    // I/O — the bytes are only read when something actually displays them.
+    if (ref.id.startsWith('lazy:') && ref.sourceUrl) {
+      const extracted = await this.extractEmbeddedArtwork(key, ref.id, ref.sourceUrl)
+      if (extracted) return extracted
+      // No cover, or extraction failed — fall through to the miss path.
+    }
+
     // If sourceUrl is an already-local location, it needs no HTTP fetch.
     // But verify it exists first — a stale ref to a cleared cache file must
     // not be returned, or the <img> will fail to load.
@@ -229,6 +239,60 @@ export class Cache extends Service implements CacheService {
     if (!this.config.enabled || !ref.sourceUrl) return undefined
     const fetched = await this.fetchArtwork(key, ref.id, ref.sourceUrl)
     return fetched
+  }
+
+  /**
+   * Extract an embedded cover from a local audio file, on demand.
+   *
+   * The scanner records `lazy:` refs instead of extracting at import time;
+   * the first `artwork()` call for such a ref lands here. The parse runs in
+   * the sidecar (via `ctx.codec`, which is `CodecBridge` on desktop), so the
+   * file is read over direct fs, not over the IPC bridge.
+   */
+  private async extractEmbeddedArtwork(
+    key: string,
+    id: string,
+    audioUri: Uri,
+  ): Promise<Uri | undefined> {
+    const inflight = this.inflightArtwork.get(key)
+    if (inflight) return inflight
+    const run = this.doExtractEmbeddedArtwork(key, id, audioUri).finally(() =>
+      this.inflightArtwork.delete(key),
+    )
+    this.inflightArtwork.set(key, run)
+    return run
+  }
+
+  private async doExtractEmbeddedArtwork(
+    key: string,
+    id: string,
+    audioUri: Uri,
+  ): Promise<Uri | undefined> {
+    let bytes: Uint8Array | undefined
+    try {
+      bytes = await this.ownCtx.codec.readArtwork(audioUri)
+    } catch (error) {
+      this.ownCtx.logger.warn(
+        `cache: could not extract embedded artwork from ${audioUri}: ${String(error)}`,
+      )
+      return undefined
+    }
+    if (!bytes || bytes.byteLength === 0) return undefined
+    if (bytes.byteLength > this.config.maxArtworkBytes) {
+      this.ownCtx.logger.warn(
+        `cache: embedded artwork from ${audioUri} exceeds budget (${bytes.byteLength} bytes)`,
+      )
+      return undefined
+    }
+    const uri = this.ownCtx.fs.join(
+      this.artworkDir,
+      `aw_${stableId('artwork', key)}.${imageExtensionForBytes(bytes)}`,
+    )
+    await this.ownCtx.fs.writeFile(uri, bytes)
+    await this.record(ARTWORK, key, uri, bytes.byteLength)
+    await this.rememberLocal(id, uri)
+    await this.enforce(ARTWORK)
+    return uri
   }
 
   private async fetchArtwork(key: string, id: string, sourceUrl: string): Promise<Uri | undefined> {
@@ -686,6 +750,35 @@ export function imageExtension(contentType: string | undefined, url: string): st
   const dot = path.lastIndexOf('.')
   const extension = dot >= 0 ? path.slice(dot + 1).toLowerCase() : ''
   return /^[a-z0-9]{2,4}$/.test(extension) ? extension : 'img'
+}
+
+/** Image extension from magic bytes (for extracted embedded artwork). */
+function imageExtensionForBytes(bytes: Uint8Array): string {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'jpg'
+  if (
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47
+  ) {
+    return 'png'
+  }
+  if (bytes.length >= 4 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) return 'gif'
+  if (
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x45 &&
+    bytes[10] === 0x42 &&
+    bytes[11] === 0x50
+  ) {
+    return 'webp'
+  }
+  return 'img'
 }
 
 export const name = 'plugin-cache'

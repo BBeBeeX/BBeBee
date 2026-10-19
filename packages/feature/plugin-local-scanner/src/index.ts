@@ -29,7 +29,7 @@ import type {
   ScannerService,
   Uri,
 } from '@BBeBee/protocol'
-import { artworkId, stableId } from '@BBeBee/toolkit'
+import { stableId } from '@BBeBee/toolkit'
 import { forgetFile, importTrack } from './import.js'
 
 /**
@@ -95,8 +95,10 @@ const DEFAULT_EXTENSIONS = [
 interface PreparedFile {
   file: FileStat
   metadata?: AudioMetadata
-  artwork?: Uint8Array
-  artworkUri?: Uri
+  /** Lazy artwork ref id (`lazy:` + uri hash), when the file has embedded art. */
+  lazyArtworkId?: string
+  /** Folder cover FileStat, when the directory has one (already an image). */
+  folderCoverUri?: Uri
   error?: string
   unchanged?: boolean
   /** The row this file already had, when it is unchanged. */
@@ -540,18 +542,11 @@ export class Scanner extends Service implements ScannerService {
         if (codec === 'wma' && !supported.has('wma')) {
           throw new Error('unsupported codec: WMA is not supported on this platform')
         }
-        const artwork = metadata.hasArtwork
-          ? await this.ownCtx.codec.readArtwork(uri).catch(() => undefined)
-          : undefined
-        let artworkUri: Uri | undefined
-        if (artwork && artwork.length > 0) {
-          artworkUri = await this.saveArtwork(artwork)
-        }
+        const artwork = metadata.hasArtwork ? `lazy:${stableId(uri)}` : undefined
         prepared.push({
           file,
           metadata,
-          ...(artwork ? { artwork } : {}),
-          ...(artworkUri ? { artworkUri } : {}),
+          ...(artwork ? { lazyArtworkId: artwork, lazyArtworkSource: uri } : {}),
         })
       } catch (error) {
         this.ownCtx.logger.warn('scanner: could not import dropped file %s: %s', uri, String(error))
@@ -581,8 +576,10 @@ export class Scanner extends Service implements ScannerService {
             size: item.file.size,
             mtime: item.file.mtime,
             metadata: item.metadata,
-            ...(item.artwork ? { artwork: item.artwork } : {}),
-            ...(item.artworkUri ? { artworkUri: item.artworkUri } : {}),
+            ...(item.lazyArtworkId
+              ? { lazyArtworkId: item.lazyArtworkId, lazyArtworkSource: item.file.uri }
+              : {}),
+            ...(item.folderCoverUri ? { folderCoverUri: item.folderCoverUri } : {}),
             format: extensionOf(item.file.uri),
           },
         )
@@ -752,33 +749,16 @@ export class Scanner extends Service implements ScannerService {
     onFileStart?: (uri: Uri) => void,
   ): Promise<PreparedFile> {
     onFileStart?.(file.uri)
-    // Timeout per file so a single corrupted/hanging file cannot stall the
-    // entire scan. 30s is generous for tag reading; a file that takes longer
-    // is treated as an error and skipped.
-    //
-    // True cancellation via AbortController: the old Promise.race only stopped
-    // *waiting*, leaving the hung read/parse running in the background and
-    // leaking file handles until the process ground to a halt.
-    const controller = new AbortController()
-    const timeout = setTimeout(
-      () => controller.abort(new Error(`metadata read timeout: ${file.uri}`)),
-      30000,
-    )
     // Debug timing (BBEBEE_SCAN_TIMING=1): split the per-file cost into the
-    // codec read vs the artwork cache write, so a slow scan can be blamed
-    // on the right stage instead of guessed at.
+    // codec read vs the DB write, so a slow scan can be blamed on the right
+    // stage instead of guessed at.
     const time = scanTimingEnabled() ? performance.now() : 0
     try {
-      // Prefer the single-parse path when the codec service offers it;
-      // otherwise fall back to metadata + artwork (two parses).
-      const combined = this.ownCtx.codec.readMetadataWithArtwork
-        ? await this.ownCtx.codec.readMetadataWithArtwork(file.uri, controller.signal)
-        : {
-            metadata: await this.ownCtx.codec.readMetadata(file.uri),
-            artwork: undefined as Uint8Array | undefined,
-          }
+      // Tags only — artwork is lazy (see below). The parse runs in the
+      // sidecar over direct fs (CodecBridge), so this is one bridge
+      // round-trip, not 2+N.
+      const metadata = await this.ownCtx.codec.readMetadata(file.uri)
       const tRead = time ? performance.now() : 0
-      const metadata = combined.metadata
       const supported = new Set(this.ownCtx.codec.supportedFormats().map((f) => f.toLowerCase()))
       const codec = metadata.codec?.toLowerCase()
       if (codec === 'alac' && !supported.has('alac')) {
@@ -787,20 +767,23 @@ export class Scanner extends Service implements ScannerService {
       if (codec === 'wma' && !supported.has('wma')) {
         throw new Error('unsupported codec: WMA is not supported on this platform')
       }
-      let artwork = combined.artwork
-      if (!artwork && metadata.hasArtwork && !this.ownCtx.codec.readMetadataWithArtwork) {
-        artwork = await this.ownCtx.codec.readArtwork(file.uri).catch(() => undefined)
+      /*
+       * Lazy artwork: don't extract during scan. If the file has embedded
+       * art, record a lazy ref id; `plugin-cache` extracts it on demand via
+       * `ctx.codec.readArtwork` (which runs in the sidecar). Folder covers
+       * are already images — the ref points at the file directly.
+       */
+      let lazyArtworkId: string | undefined
+      if (metadata.hasArtwork) {
+        lazyArtworkId = `lazy:${stableId(file.uri)}`
       }
-      if (!artwork && folderCovers) {
+      let folderCoverUri: Uri | undefined
+      if (folderCovers) {
         const parentDir = parentDirectoryOf(file.uri)
         const folderCover = folderCovers.get(parentDir)
         if (folderCover) {
-          artwork = await this.ownCtx.fs.readBytes(folderCover.uri).catch(() => undefined)
+          folderCoverUri = folderCover.uri
         }
-      }
-      let artworkUri: Uri | undefined
-      if (artwork && artwork.length > 0) {
-        artworkUri = await this.saveArtwork(artwork)
       }
       if (time) {
         const tEnd = performance.now()
@@ -812,14 +795,12 @@ export class Scanner extends Service implements ScannerService {
       return {
         file,
         metadata,
-        ...(artwork ? { artwork } : {}),
-        ...(artworkUri ? { artworkUri } : {}),
+        ...(lazyArtworkId ? { lazyArtworkId } : {}),
+        ...(folderCoverUri ? { folderCoverUri } : {}),
       }
     } catch (error) {
       this.ownCtx.logger.warn('scanner: could not read metadata for %s: %s', file.uri, String(error))
       return { file, error: error instanceof Error ? error.message : String(error) }
-    } finally {
-      clearTimeout(timeout)
     }
   }
 
@@ -921,8 +902,10 @@ export class Scanner extends Service implements ScannerService {
             size: item.file.size,
             mtime: item.file.mtime,
             metadata: item.metadata,
-            ...(item.artwork ? { artwork: item.artwork } : {}),
-            ...(item.artworkUri ? { artworkUri: item.artworkUri } : {}),
+            ...(item.lazyArtworkId
+              ? { lazyArtworkId: item.lazyArtworkId, lazyArtworkSource: item.file.uri }
+              : {}),
+            ...(item.folderCoverUri ? { folderCoverUri: item.folderCoverUri } : {}),
             format: extensionOf(item.file.uri),
           },
         )
@@ -949,18 +932,6 @@ export class Scanner extends Service implements ScannerService {
     }
 
     return changed
-  }
-
-  private async saveArtwork(bytes: Uint8Array): Promise<Uri> {
-    const id = artworkId(bytes)
-    const ext = extensionForImage(bytes)
-    const cacheDir = this.ownCtx.fs.join(this.ownCtx.paths.cache, 'artworks')
-    await this.ownCtx.fs.mkdir(cacheDir, { recursive: true }).catch(() => undefined)
-    const targetUri = this.ownCtx.fs.join(cacheDir, `${id}.${ext}`)
-    if (!(await this.ownCtx.fs.exists(targetUri).catch(() => false))) {
-      await this.ownCtx.fs.writeFile(targetUri, bytes).catch(() => undefined)
-    }
-    return targetUri
   }
 
   private async writeEntry(
@@ -1302,34 +1273,6 @@ function parentDirectoryOf(uri: string): string {
   const normalized = uri.replace(/\\/g, '/')
   const idx = normalized.lastIndexOf('/')
   return idx > 0 ? normalized.slice(0, idx) : normalized
-}
-
-function extensionForImage(bytes: Uint8Array): string {
-  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'jpg'
-  if (
-    bytes.length >= 8 &&
-    bytes[0] === 0x89 &&
-    bytes[1] === 0x50 &&
-    bytes[2] === 0x4e &&
-    bytes[3] === 0x47
-  ) {
-    return 'png'
-  }
-  if (bytes.length >= 4 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) return 'gif'
-  if (
-    bytes.length >= 12 &&
-    bytes[0] === 0x52 &&
-    bytes[1] === 0x49 &&
-    bytes[2] === 0x46 &&
-    bytes[3] === 0x46 &&
-    bytes[8] === 0x57 &&
-    bytes[9] === 0x45 &&
-    bytes[10] === 0x42 &&
-    bytes[11] === 0x50
-  ) {
-    return 'webp'
-  }
-  return 'jpg'
 }
 
 export const name = 'plugin-local-scanner'

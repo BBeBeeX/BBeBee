@@ -10,7 +10,7 @@
 
 import { sortKey } from '@BBeBee/protocol'
 import type { AudioMetadata, DbService, SqlValue, Uri } from '@BBeBee/protocol'
-import { albumId, artistId, artworkId, splitArtists, trackId } from '@BBeBee/toolkit'
+import { albumId, artistId, artworkId, splitArtists, stableId, trackId } from '@BBeBee/toolkit'
 
 export interface ImportContext {
   sourceId: string
@@ -27,6 +27,16 @@ export interface ImportInput {
   artwork?: Uint8Array
   /** Where a cached copy of the artwork was written, if it was. */
   artworkUri?: Uri
+  /**
+   * Lazy artwork ref id (`lazy:` + uri hash). When present, the artwork is
+   * NOT extracted during import — `plugin-cache` fetches it on demand from
+   * `lazyArtworkSource` via `ctx.codec.readArtwork`.
+   */
+  lazyArtworkId?: string
+  /** The audio file to extract lazy artwork from (usually `uri`). */
+  lazyArtworkSource?: Uri
+  /** Folder cover image URI (already an image, no extraction needed). */
+  folderCoverUri?: Uri
   format?: string
 }
 
@@ -74,6 +84,24 @@ export async function importTrack(
       // there is no placeholder), so this degrades rather than breaks. See
       // docs/11 §4.7.
       [artworkRef, input.artworkUri ?? null, null, null, input.artwork.length, now],
+    )
+  } else if (input.lazyArtworkId && input.lazyArtworkSource) {
+    // Lazy: record the ref; the bytes are fetched on demand by plugin-cache.
+    artworkRef = input.lazyArtworkId
+    await tx.exec(
+      `INSERT INTO artworks (id, source_url, local_uri, fetched_at)
+       VALUES (?, ?, NULL, ?)
+       ON CONFLICT(id) DO NOTHING`,
+      [artworkRef, input.lazyArtworkSource, now],
+    )
+  } else if (input.folderCoverUri) {
+    // Folder covers are already images — point the ref at the file directly.
+    artworkRef = `folder:${stableId(input.folderCoverUri)}`
+    await tx.exec(
+      `INSERT INTO artworks (id, source_url, local_uri, fetched_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET source_url = excluded.source_url`,
+      [artworkRef, input.folderCoverUri, input.folderCoverUri, now],
     )
   }
 
