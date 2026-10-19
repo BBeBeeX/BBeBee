@@ -204,7 +204,11 @@ export class CodecNode extends Service implements CodecService {
    * Files without embedded art yield `undefined` (not an error).
    */
   async readArtworkBatch(uris: Uri[]): Promise<Array<Uint8Array | undefined>> {
-    const CONCURRENCY = 16
+    // Reduced from 16 to 4: artwork extraction is CPU-intensive (music-metadata
+    // parsing). High concurrency blocks the sidecar event loop, freezing all
+    // bridge calls (including 3Hz position updates). Yield between items so
+    // other messages can be processed.
+    const CONCURRENCY = 4
     const results: Array<Uint8Array | undefined> = new Array(uris.length)
     let next = 0
     const workers = Array.from({ length: Math.min(CONCURRENCY, uris.length) }, async () => {
@@ -217,6 +221,8 @@ export class CodecNode extends Service implements CodecService {
         } catch {
           results[i] = undefined
         }
+        // Yield to event loop between items to avoid starving other bridge calls
+        await new Promise((resolve) => setImmediate(resolve))
       }
     })
     await Promise.all(workers)
