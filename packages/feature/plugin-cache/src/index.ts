@@ -921,6 +921,12 @@ export class Cache extends Service implements CacheService {
    * user's re-download.
    */
   private async enforce(className: CacheClass): Promise<void> {
+    // Artwork files on disk are permanent — never evict them. Re-extracting
+    // a cover requires parsing the audio file (slow, CPU-intensive), while
+    // disk space is cheap. Only the in-memory LRU (resolvedUriCache, 1000
+    // entries) is evicted. This prevents "cover disappears" bugs from
+    // stale local_uri references.
+    if (className === ARTWORK) return
     const budget = this.budgetFor(className)
     if (budget <= 0) return
     const rows = await this.ownCtx.db.query<{ key: string; uri: Uri; size_bytes: number }>(
@@ -967,8 +973,18 @@ export class Cache extends Service implements CacheService {
       if (files.length === 0) continue
       const rows = await this.ownCtx.db
         .query<{ uri: Uri }>('SELECT uri FROM cache_entries WHERE class = ?', [className])
-        .catch(() => [])
+        .catch(() => []) as Array<{ uri: Uri }>
       const named = new Set(rows.map((row) => this.ownCtx.fs.basename(row.uri)))
+      // For artwork: also keep files referenced by artworks.local_uri, even if
+      // no cache_entries row names them (disk cache is permanent).
+      if (className === ARTWORK) {
+        const artRows = await this.ownCtx.db
+          .query<{ local_uri: string | null }>('SELECT local_uri FROM artworks WHERE local_uri IS NOT NULL')
+          .catch(() => []) as Array<{ local_uri: string | null }>
+        for (const r of artRows) {
+          if (r.local_uri) named.add(this.ownCtx.fs.basename(r.local_uri))
+        }
+      }
       for (const file of files) {
         if (file.isDirectory || named.has(file.name) || this.pending.has(file.uri)) continue
         this.ownCtx.logger.info(`cache: removing an orphaned ${className} file (${file.name})`)
