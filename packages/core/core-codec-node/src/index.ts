@@ -251,8 +251,6 @@ export class CodecNode extends Service implements CodecService {
     // Resolve worker script: bundled sidecar has it as sibling of index.mjs
     const here = dirname(fileURLToPath(import.meta.url))
     const workerPath = join(here, 'artwork-worker.mjs')
-    // DIAGNOSTIC: log worker resolution
-    console.error(`[codec] artwork worker path: ${workerPath}, exists: ${existsSync(workerPath)}`)
     if (!existsSync(workerPath)) {
       throw new Error('artwork worker not found')
     }
@@ -283,8 +281,6 @@ export class CodecNode extends Service implements CodecService {
         const m = msg as { id: number; artwork: string | null }
         const idx = idToIndex.get(m.id)
         if (idx !== undefined) {
-          // DIAGNOSTIC: log result
-          console.error(`[codec] worker result id=${m.id} idx=${idx} hasArtwork=${!!m.artwork}`)
           results[idx] = m.artwork ? new Uint8Array(Buffer.from(m.artwork, 'base64')) : undefined
           idToIndex.delete(m.id)
           if (--pending === 0) {
