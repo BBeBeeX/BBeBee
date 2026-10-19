@@ -193,14 +193,6 @@ export class Cache extends Service implements CacheService {
       return cached.uri
     }
 
-    // The catalogue may already know a local copy — the scanner writes the
-    // embedded cover at scan time, and a previous build's cache may too.
-    const local = await this.localArtwork(ref.id)
-    if (local && (await this.exists(local))) {
-      await this.rememberLocal(ref.id, local)
-      return local
-    }
-
     // Lazy embedded artwork: the sourceUrl is an audio file, not an image.
     // Extract the cover via the codec (sidecar on desktop), cache it, and
     // return the local file. This is what keeps scan-time free of artwork
@@ -208,8 +200,22 @@ export class Cache extends Service implements CacheService {
     // The sourceUrl is never valid artwork itself, so an extraction failure
     // ends here instead of falling through to the fetch path below (which
     // would try to download the audio file as an image).
+    //
+    // This branch runs BEFORE the localArtwork DB check below: a previous
+    // buggy build recorded the audio file itself as local_uri for lazy:
+    // refs (the old fall-through path), and the DB check would serve the
+    // audio file as the cover. The cachedFile check above already covers
+    // a successfully extracted cover, so lazy: refs never need the DB.
     if (ref.id.startsWith('lazy:') && ref.sourceUrl) {
       return await this.extractEmbeddedArtwork(key, ref.id, ref.sourceUrl)
+    }
+
+    // The catalogue may already know a local copy — the scanner writes the
+    // embedded cover at scan time, and a previous build's cache may too.
+    const local = await this.localArtwork(ref.id)
+    if (local && (await this.exists(local))) {
+      await this.rememberLocal(ref.id, local)
+      return local
     }
 
     // If sourceUrl is an already-local location, it needs no HTTP fetch.
