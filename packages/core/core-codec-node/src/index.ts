@@ -247,6 +247,7 @@ export class CodecNode extends Service implements CodecService {
     const { fileURLToPath } = (await import('node:url')) as typeof import('node:url')
     const { dirname, join } = (await import('node:path')) as typeof import('node:path')
     const { existsSync } = (await import('node:fs')) as typeof import('node:fs')
+    const { cpus } = (await import('node:os')) as typeof import('node:os')
 
     // Resolve worker script: bundled sidecar has it as sibling of index.mjs
     const here = dirname(fileURLToPath(import.meta.url))
@@ -255,65 +256,88 @@ export class CodecNode extends Service implements CodecService {
       throw new Error('artwork worker not found')
     }
 
-    return new Promise((resolve, reject) => {
-      const child = fork(workerPath)
-      const results: Array<Uint8Array | undefined> = new Array(filePaths.length)
-      let pending = filePaths.length
-      let nextId = 0
-      const idToIndex = new Map<number, number>()
+    // Pool size: min(CPU cores, 4) — artwork parsing is CPU-bound.
+    const POOL_SIZE = Math.min(Math.max(cpus().length, 2), 4)
+    const results: Array<Uint8Array | undefined> = new Array(filePaths.length)
+    // Distribute files round-robin across workers for load balancing.
+    const chunks: string[][] = Array.from({ length: POOL_SIZE }, () => [])
+    filePaths.forEach((fp, i) => {
+      chunks[i % POOL_SIZE]!.push(fp)
+    })
+    // Worker w handles global indices [offset, offset+chunk.length)
+    const workerOffsets: number[] = []
+    let offset = 0
+    for (let w = 0; w < POOL_SIZE; w++) {
+      workerOffsets.push(offset)
+      offset += chunks[w]!.length
+    }
 
-      const cleanup = () => {
-        try {
-          child.send({ cmd: 'shutdown' })
-        } catch {
-          /* ignore */
-        }
-        setTimeout(() => {
+    const workerPromises = chunks.map((chunkFiles, w) => {
+      if (chunkFiles.length === 0) return Promise.resolve()
+      return new Promise<void>((resolve, reject) => {
+        const child = fork(workerPath)
+        let pending = chunkFiles.length
+        let nextId = 0
+        const idToLocal = new Map<number, number>()
+        const baseOffset = workerOffsets[w]!
+
+        const cleanup = () => {
           try {
-            child.kill()
+            child.send({ cmd: 'shutdown' })
           } catch {
             /* ignore */
           }
-        }, 1000).unref()
-      }
+          setTimeout(() => {
+            try {
+              child.kill()
+            } catch {
+              /* ignore */
+            }
+          }, 1000).unref()
+        }
 
-      child.on('message', (msg: unknown) => {
-        const m = msg as { id: number; artwork: string | null }
-        const idx = idToIndex.get(m.id)
-        if (idx !== undefined) {
-          results[idx] = m.artwork ? new Uint8Array(Buffer.from(m.artwork, 'base64')) : undefined
-          idToIndex.delete(m.id)
-          if (--pending === 0) {
-            cleanup()
-            resolve(results)
+        child.on('message', (msg: unknown) => {
+          const m = msg as { id: number; artwork: string | null }
+          const localIdx = idToLocal.get(m.id)
+          if (localIdx !== undefined) {
+            const globalI = baseOffset + localIdx
+            results[globalI] = m.artwork ? new Uint8Array(Buffer.from(m.artwork, 'base64')) : undefined
+            idToLocal.delete(m.id)
+            if (--pending === 0) {
+              cleanup()
+              resolve()
+            }
           }
-        }
-      })
+        })
 
-      child.on('error', (err: Error) => {
-        cleanup()
-        reject(err)
-      })
-
-      child.on('exit', (code: number | null) => {
-        if (pending > 0) {
-          reject(new Error(`artwork worker exited early (code ${code}), ${pending} pending`))
-        }
-      })
-
-      for (let i = 0; i < filePaths.length; i++) {
-        const id = nextId++
-        idToIndex.set(id, i)
-        child.send({ id, filePath: filePaths[i] })
-      }
-
-      setTimeout(() => {
-        if (pending > 0) {
+        child.on('error', (err: Error) => {
           cleanup()
-          reject(new Error('artwork worker timeout'))
+          reject(err)
+        })
+
+        child.on('exit', (code: number | null) => {
+          if (pending > 0) {
+            reject(new Error(`artwork worker ${w} exited early (code ${code}), ${pending} pending`))
+          }
+        })
+
+        for (let l = 0; l < chunkFiles.length; l++) {
+          const id = nextId++
+          idToLocal.set(id, l)
+          child.send({ id, filePath: chunkFiles[l] })
         }
-      }, 60000).unref()
+
+        setTimeout(() => {
+          if (pending > 0) {
+            cleanup()
+            reject(new Error(`artwork worker ${w} timeout`))
+          }
+        }, 60000).unref()
+      })
     })
+
+    await Promise.all(workerPromises)
+    return results
   }
 
   /**
