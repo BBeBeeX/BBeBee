@@ -83,17 +83,29 @@ export function useResolvedArtwork(ctx: Context, artwork?: ArtworkRef): ArtworkR
               fsUri = 'file:' + fsUri.slice('bbebee-file:'.length)
             }
             if (await fs.exists(fsUri)) {
-              if (active) setResolution({ id, uri: sourceUrl, settled: true })
-              return
+              // Guard: only trust local URIs with image extensions. A lazy:
+              // ref's sourceUrl is the audio file itself; returning it as-is
+              // would put an audio file in an <img> tag.
+              const lower = sourceUrl.toLowerCase().split('?')[0]!
+              if (/\.(jpe?g|png|gif|webp|bmp|svg|ico|avif|heic|heif|tiff?)$/i.test(lower)) {
+                if (active) setResolution({ id, uri: sourceUrl, settled: true })
+                return
+              }
+              // Not an image — fall through to cache lookup below.
             }
             // File is gone — fall through to cache re-fetch below.
           } catch {
             // Existence check failed; fall through to cache lookup.
           }
         } else {
-          // No fs service (e.g. tests): trust the local URI as before.
-          if (active) setResolution({ id, uri: sourceUrl, settled: true })
-          return
+          // No fs service (e.g. tests): trust the local URI as before, but
+          // only if it looks like an image.
+          const lower = (sourceUrl ?? '').toLowerCase().split('?')[0]!
+          if (/\.(jpe?g|png|gif|webp|bmp|svg|ico|avif|heic|heif|tiff?)$/i.test(lower)) {
+            if (active) setResolution({ id, uri: sourceUrl, settled: true })
+            return
+          }
+          // Not an image — fall through to cache lookup.
         }
       }
 
