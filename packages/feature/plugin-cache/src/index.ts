@@ -365,8 +365,8 @@ export class Cache extends Service implements CacheService {
 
     // Chunk large batches: the sidecar bridge times out after 30s, and the
     // worker processes files sequentially. Keep each chunk small enough to
-    // complete well within the timeout.
-    const CHUNK_SIZE = 20
+    // complete well within the timeout (assume ~2s per file worst case).
+    const CHUNK_SIZE = 10
     for (let start = 0; start < batch.length; start += CHUNK_SIZE) {
       const chunk = batch.slice(start, start + CHUNK_SIZE)
       await this.processArtworkChunk(codec, chunk)

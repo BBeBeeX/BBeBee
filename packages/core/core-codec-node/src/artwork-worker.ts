@@ -32,7 +32,15 @@ function selectCover(pictures: Array<{ data: Uint8Array }> | undefined): Uint8Ar
 
 async function processItem(item: WorkItem): Promise<ResultItem> {
   try {
-    const metadata = await parseFile(item.filePath, { duration: false })
+    // Per-file timeout: a corrupted file can hang the parser; don't let it
+    // block the whole batch.
+    const timeoutMs = 10000
+    const metadata = await Promise.race([
+      parseFile(item.filePath, { duration: false }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('parse timeout')), timeoutMs),
+      ),
+    ])
     const data = selectCover(metadata.common.picture as Array<{ data: Uint8Array }> | undefined)
     if (!data) return { id: item.id, artwork: null }
     return { id: item.id, artwork: Buffer.from(data).toString('base64') }
