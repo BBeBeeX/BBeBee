@@ -113,6 +113,7 @@ pub fn get_or_create_mini_player_window(
     .position(initial_x as f64, initial_y as f64)
     .decorations(false)
     .transparent(true)
+    .shadow(false)
     .always_on_top(true)
     .skip_taskbar(true)
     .resizable(false)

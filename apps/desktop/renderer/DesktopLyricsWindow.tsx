@@ -128,16 +128,19 @@ export function DesktopLyricsWindow(): ReactElement {
     opacity,
     locked,
     playing,
+    title,
+    artist,
     align = 'center',
     fontFamily = 'system-ui',
     textColor = '#FFFFFF',
     lineMode = 'double',
   } = data
 
+  // Show song title first when switching tracks; display lyrics once available.
   // Placeholder lines come from the catalogue until real data arrives, so a
   // Chinese UI never flashes the English defaults on window open.
   const displayCurrentLine = hasData
-    ? currentLine
+    ? (currentLine || (title ? `${title}${artist ? ` - ${artist}` : ''}` : t('app:common.desktopLyrics.defaultCurrentLine')))
     : t('app:common.desktopLyrics.defaultCurrentLine')
   const displayNextLine = hasData ? nextLine : t('app:common.desktopLyrics.defaultNextLine')
 
@@ -201,8 +204,8 @@ export function DesktopLyricsWindow(): ReactElement {
         cursor: dragging ? 'grabbing' : locked ? 'default' : 'move',
         background: hovered && !locked ? 'rgba(15, 15, 22, 0.6)' : 'transparent',
         borderRadius: 12,
-        border: hovered && !locked ? '1px solid rgba(255, 255, 255, 0.12)' : '1px solid transparent',
-        boxShadow: hovered && !locked ? '0 8px 32px rgba(0, 0, 0, 0.5)' : 'none',
+        border: hovered && !locked ? '1px solid rgba(255, 255, 255, 0.12)' : 'none',
+        boxShadow: 'none',
         backdropFilter: hovered && !locked ? 'blur(12px)' : 'none',
         transition: 'all 0.2s ease',
         overflow: 'hidden',

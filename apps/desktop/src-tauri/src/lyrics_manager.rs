@@ -131,6 +131,7 @@ pub fn get_or_create_lyric_window(
     .position(initial_pos.x as f64, initial_pos.y as f64)
     .decorations(false)
     .transparent(true)
+    .shadow(false)
     .always_on_top(true)
     .skip_taskbar(true)
     .resizable(true)
