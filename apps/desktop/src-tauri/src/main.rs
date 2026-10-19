@@ -60,8 +60,7 @@ fn main() {
             window_set_close_to_tray, desktop_window_set_close_to_tray,
             window_toggle, desktop_window_toggle,
             // Desktop lyrics
-            desktop_lyrics_set_visible, desktop_lyrics_set_position,
-            desktop_lyrics_get_position, desktop_lyrics_commit_position,
+            desktop_lyrics_set_visible,
             desktop_lyrics_get_data, desktop_lyrics_set_locked,
             desktop_lyrics_set_ignore_mouse, desktop_lyrics_update_data,
             desktop_lyrics_send_action,

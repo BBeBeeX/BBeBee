@@ -37,7 +37,6 @@ export function TransportButtons({
         display: 'flex',
         alignItems: 'center',
         gap: size === 'sm' ? 4 : 8,
-        WebkitAppRegion: 'no-drag',
       },
     },
     // Previous Button
@@ -258,12 +257,13 @@ export function ProgressBar({
   return h(
     'div',
     {
+      // Click-to-seek must not start a window drag.
+      'data-tauri-drag-region': 'false',
       style: {
         width: '100%',
         display: 'flex',
         flexDirection: 'column',
         gap: 3,
-        WebkitAppRegion: 'no-drag',
       },
     },
     // Rail

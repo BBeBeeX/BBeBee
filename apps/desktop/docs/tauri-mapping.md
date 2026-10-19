@@ -169,9 +169,9 @@ The `window.BBeBee` object exposes 20 namespaces and properties. Every method fo
 | **audio.cancelTranscode**| `(jobId: string): Promise<boolean>` | `invoke('desktop_audio_transcode_cancel', { jobId })` | Rust Shell kills active FFmpeg child process |
 | **audio.transcode** | `(options, onProgress): Promise<{ ok, error }>` | `invoke('desktop_audio_transcode', { options })` | Rust Shell spawns FFmpeg; progress streamed via `audio:transcode-progress` Tauri event |
 | **desktopLyrics.setVisible**| `(visible: boolean, pos?: { x, y }): Promise<void>` | `invoke('desktop_lyrics_set_visible', { visible, pos })` | Rust Shell manages `"desktop-lyrics"` WebviewWindow |
-| **desktopLyrics.setPosition**| `(pos: { x, y }): Promise<void>` | `invoke('desktop_lyrics_set_position', { pos })` | Rust Shell updates window coordinates |
-| **desktopLyrics.getPosition**| `(): Promise<{ x, y } \| undefined>` | `invoke('desktop_lyrics_get_position')` | Rust Shell reads window outer position |
-| **desktopLyrics.commitPosition**| `(pos: { x, y }): Promise<void>` | `invoke('desktop_lyrics_commit_position', { pos })` | Rust Shell emits `desktop-lyrics:moved` to main window |
+| ~~desktopLyrics.setPosition~~ | _removed_ | _lyrics drag is OS-native via `data-tauri-drag-region`; position persists through the `Moved` window event_ |
+| ~~desktopLyrics.getPosition~~ | _removed_ | _see above_ |
+| ~~desktopLyrics.commitPosition~~ | _removed_ | _see above_ |
 | **desktopLyrics.getData**| `(): Promise<unknown>` | `invoke('desktop_lyrics_get_data')` | Rust Shell returns cached `latest_lyric_data` |
 | **desktopLyrics.onMoved**| `(callback: (pos) => void): (() => void)` | `listen('desktop-lyrics:moved', event => callback(event.payload))` | Tauri Event subscription |
 | **desktopLyrics.setLocked**| `(locked: boolean): Promise<void>` | `invoke('desktop_lyrics_set_locked', { locked })` | Rust Shell `window.set_ignore_cursor_events(locked)` |

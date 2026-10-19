@@ -27,71 +27,6 @@ export function DesktopLyricsWindow(): ReactElement {
   // placeholder lines render from the catalogue, not the English defaults.
   const [hasData, setHasData] = useState(false)
 
-  /**
-   * Manual window drag: a `-webkit-app-region: drag` root would swallow the
-   * mouse events the hover toolbar depends on, so the window is moved through
-   * `setPosition` from pointer events instead.
-   */
-  const pointerDownRef = useRef(false)
-  const dragRef = useRef<{
-    pointerId: number
-    startMouseX: number
-    startMouseY: number
-    startPos: { x: number; y: number }
-  } | null>(null)
-  const [dragging, setDragging] = useState(false)
-
-  const handlePointerDown = (e: React.PointerEvent<HTMLElement>) => {
-    if (locked || e.button !== 0) return
-    const target = e.target as HTMLElement
-    if (target.closest('button') || target.closest('[data-lyrics-toolbar]')) return
-    const bridge = window.BBeBee?.desktopLyrics
-    const getPosition = bridge?.getPosition
-    if (!bridge || !getPosition) return
-    e.preventDefault()
-    e.currentTarget.setPointerCapture(e.pointerId)
-    pointerDownRef.current = true
-    void getPosition.call(bridge).then((startPos) => {
-      // The pointer may already be up again for a fast click.
-      if (!pointerDownRef.current || !startPos) return
-      dragRef.current = {
-        pointerId: e.pointerId,
-        startMouseX: e.screenX,
-        startMouseY: e.screenY,
-        startPos,
-      }
-      setDragging(true)
-    })
-  }
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLElement>) => {
-    const drag = dragRef.current
-    const setPosition = window.BBeBee?.desktopLyrics?.setPosition
-    if (!drag || !setPosition || e.pointerId !== drag.pointerId) return
-    void setPosition({
-      x: Math.round(drag.startPos.x + (e.screenX - drag.startMouseX)),
-      y: Math.round(drag.startPos.y + (e.screenY - drag.startMouseY)),
-    })
-  }
-
-  const endDrag = (e: React.PointerEvent<HTMLElement>, commit: boolean) => {
-    const drag = dragRef.current
-    pointerDownRef.current = false
-    dragRef.current = null
-    setDragging(false)
-    if (!drag || e.pointerId !== drag.pointerId) return
-    if (!commit) return
-    const pos = {
-      x: Math.round(drag.startPos.x + (e.screenX - drag.startMouseX)),
-      y: Math.round(drag.startPos.y + (e.screenY - drag.startMouseY)),
-    }
-    const setPosition = window.BBeBee?.desktopLyrics?.setPosition
-    if (setPosition) void setPosition(pos)
-    // Programmatic moves are echo-suppressed in main, so the final position
-    // must be reported explicitly to reach the settings writer.
-    void window.BBeBee?.desktopLyrics?.commitPosition?.(pos)
-  }
-
   useEffect(() => {
     document.body.style.background = 'transparent'
     document.documentElement.style.background = 'transparent'
@@ -188,10 +123,13 @@ export function DesktopLyricsWindow(): ReactElement {
   return h(
     'div',
     {
-      // Native OS drag: zero lag vs JS pointer-event + bridge round-trip.
+      // Native OS drag ("deep": any descendant starts the drag; the hover
+      // toolbar opts out below, buttons are excluded by Tauri itself).
+      // This replaced the old JS pointer-event drag (bridge round-trip per
+      // move fought the native drag and caused teleport/snap-back).
       // When locked, the window is click-through (setIgnoreMouse), so the
       // drag region is inert.
-      'data-tauri-drag-region': true,
+      'data-tauri-drag-region': 'deep',
       style: {
         position: 'relative',
         width: '100vw',
@@ -205,7 +143,7 @@ export function DesktopLyricsWindow(): ReactElement {
         userSelect: 'none',
         WebkitUserSelect: 'none',
         touchAction: 'none',
-        cursor: dragging ? 'grabbing' : locked ? 'default' : 'move',
+        cursor: locked ? 'default' : 'move',
         background: hovered && !locked ? 'rgba(15, 15, 22, 0.6)' : 'transparent',
         borderRadius: 12,
         border: hovered && !locked ? '1px solid rgba(255, 255, 255, 0.12)' : 'none',
@@ -219,10 +157,6 @@ export function DesktopLyricsWindow(): ReactElement {
         if (!locked) setHovered(true)
       },
       onMouseLeave: () => setHovered(false),
-      onPointerDown: handlePointerDown,
-      onPointerMove: handlePointerMove,
-      onPointerUp: (e) => endDrag(e, true),
-      onPointerCancel: (e) => endDrag(e, false),
     },
     // Toolbar (revealed on hover while unlocked)
     !locked &&
@@ -230,6 +164,8 @@ export function DesktopLyricsWindow(): ReactElement {
         'div',
         {
           'data-lyrics-toolbar': '',
+          // Never a drag source: the toolbar is hover chrome, not window chrome.
+          'data-tauri-drag-region': 'false',
           style: {
             position: 'absolute',
             top: 4,
@@ -245,7 +181,6 @@ export function DesktopLyricsWindow(): ReactElement {
             border: '1px solid rgba(255, 255, 255, 0.15)',
             boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
             zIndex: 100,
-            WebkitAppRegion: 'no-drag',
           },
         },
         // Prev button

@@ -107,14 +107,21 @@ export function useMiniPlayerData(): {
         draggingRef.current = true
       }
     }
-    const onPointerUp = () => {
+    // pointerup can be missed when the OS ends the drag itself (e.g. Esc
+    // cancels the native move loop) or the pointer is released off-window;
+    // never leave updates paused forever.
+    const onDragEnd = () => {
       draggingRef.current = false
     }
     document.addEventListener('pointerdown', onPointerDown)
-    document.addEventListener('pointerup', onPointerUp)
+    document.addEventListener('pointerup', onDragEnd)
+    document.addEventListener('pointercancel', onDragEnd)
+    window.addEventListener('blur', onDragEnd)
     return () => {
       document.removeEventListener('pointerdown', onPointerDown)
-      document.removeEventListener('pointerup', onPointerUp)
+      document.removeEventListener('pointerup', onDragEnd)
+      document.removeEventListener('pointercancel', onDragEnd)
+      window.removeEventListener('blur', onDragEnd)
     }
   }, [])
 

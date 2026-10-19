@@ -38,7 +38,6 @@ export function MiniPlayerFloating({
         justifyContent: 'center',
         boxSizing: 'border-box',
         background: 'transparent',
-        WebkitAppRegion: 'drag',
         userSelect: 'none',
       },
       onMouseEnter: () => setHovered(true),
@@ -73,8 +72,9 @@ export function MiniPlayerFloating({
       h(
         'div',
         {
+          // Click-to-restore must not start a window drag.
+          'data-tauri-drag-region': 'false',
           style: {
-            WebkitAppRegion: 'no-drag',
             cursor: 'pointer',
           },
           onClick: onRestoreMain,
@@ -177,7 +177,6 @@ export function MiniPlayerFloating({
             gap: 4,
             opacity: hovered ? 1 : 0,
             transition: 'opacity 0.15s ease',
-            WebkitAppRegion: 'no-drag',
           },
         },
         // Restore Main Window

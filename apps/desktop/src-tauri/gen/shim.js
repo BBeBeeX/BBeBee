@@ -315,9 +315,6 @@ var __BBeBeePreloadShim = (() => {
       },
       desktopLyrics: {
         setVisible: (visible, pos) => invoke("desktop_lyrics_set_visible", { visible: Boolean(visible), position: pos }),
-        setPosition: (pos) => invoke("desktop_lyrics_set_position", { position: pos }),
-        getPosition: () => invoke("desktop_lyrics_get_position").then((res) => res || void 0),
-        commitPosition: (pos) => invoke("desktop_lyrics_commit_position", { position: pos }),
         getData: () => invoke("desktop_lyrics_get_data"),
         onMoved: (callback) => addListener("desktop-lyrics:moved", callback),
         setLocked: (locked) => invoke("desktop_lyrics_set_locked", { locked: Boolean(locked) }),

@@ -105,9 +105,6 @@ export interface BBeBeeAudioApi {
 
 export interface BBeBeeDesktopLyricsApi {
   setVisible(visible: boolean, pos?: { x: number; y: number }): Promise<void>
-  setPosition(pos: { x: number; y: number }): Promise<void>
-  getPosition(): Promise<{ x: number; y: number } | undefined>
-  commitPosition(pos: { x: number; y: number }): Promise<void>
   getData(): Promise<unknown>
   onMoved(callback: (pos: { x: number; y: number }) => void): () => void
   setLocked(locked: boolean): Promise<void>
@@ -549,12 +546,6 @@ export function createPreloadApi(
     desktopLyrics: {
       setVisible: (visible: boolean, pos?: { x: number; y: number }): Promise<void> =>
         invoke('desktop_lyrics_set_visible', { visible: Boolean(visible), position: pos }),
-      setPosition: (pos: { x: number; y: number }): Promise<void> =>
-        invoke('desktop_lyrics_set_position', { position: pos }),
-      getPosition: (): Promise<{ x: number; y: number } | undefined> =>
-        invoke('desktop_lyrics_get_position').then((res) => res || undefined),
-      commitPosition: (pos: { x: number; y: number }): Promise<void> =>
-        invoke('desktop_lyrics_commit_position', { position: pos }),
       getData: (): Promise<unknown> => invoke('desktop_lyrics_get_data'),
       onMoved: (callback: (pos: { x: number; y: number }) => void): (() => void) =>
         addListener('desktop-lyrics:moved', callback),

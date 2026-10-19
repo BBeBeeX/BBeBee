@@ -245,6 +245,12 @@ pub fn calculate_snap_transition(
     }
 }
 
+/// How long the window must stop moving before a snap transition applies.
+/// Snapping mid-drag resizes + repositions the window under the cursor, which
+/// reads as teleporting; deferring until move events stop means the snap only
+/// ever fires once the drag is released (or paused).
+const SNAP_SETTLE_MS: u64 = 300;
+
 pub fn handle_mini_player_moved(app: &tauri::AppHandle, state: &AppState) {
     if state
         .mini_player_programmatic_move
@@ -264,6 +270,10 @@ pub fn handle_mini_player_moved(app: &tauri::AppHandle, state: &AppState) {
     let x = (pos.x as f64 / scale).round() as i32;
     let y = (pos.y as f64 / scale).round() as i32;
 
+    // Every move bumps the generation; the deferred snap below only fires if
+    // no newer move arrived during the settle window.
+    let seq = state.mini_player_move_seq.fetch_add(1, Ordering::SeqCst) + 1;
+
     let Some(m) = win.current_monitor().ok().flatten() else {
         return;
     };
@@ -273,17 +283,51 @@ pub fn handle_mini_player_moved(app: &tauri::AppHandle, state: &AppState) {
 
     let distance_to_top = y - my;
     let current_mode = lock_recover(&state.mini_player_mode).clone();
-
-    if let Some(target_mode) = calculate_snap_transition(&current_mode, distance_to_top) {
-        if target_mode == "normal" {
-            *lock_recover(&state.mini_player_last_floating_pos) = Some((x, y));
-        }
-        *lock_recover(&state.mini_player_mode) = target_mode.to_string();
-        let _ = apply_mode_bounds(app, state, target_mode);
-        notify_mini_player_state(app, state);
-    } else if current_mode == "normal" {
+    if current_mode == "normal" {
         *lock_recover(&state.mini_player_last_floating_pos) = Some((x, y));
     }
+    if calculate_snap_transition(&current_mode, distance_to_top).is_none() {
+        return;
+    }
+
+    // Defer the snap until the window settles. While the user is still
+    // dragging, move events keep bumping the generation and this task becomes
+    // a no-op; the position/mode are re-read live at fire time in case the
+    // drag ended somewhere the threshold no longer applies to.
+    let handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(Duration::from_millis(SNAP_SETTLE_MS)).await;
+        let s = handle.state::<AppState>();
+        if s.mini_player_move_seq.load(Ordering::SeqCst) != seq {
+            return;
+        }
+        let Some(win) = handle.get_webview_window("mini-player") else {
+            return;
+        };
+        let scale = win.scale_factor().unwrap_or(1.0);
+        let Ok(pos) = win.outer_position() else {
+            return;
+        };
+        let x = (pos.x as f64 / scale).round() as i32;
+        let y = (pos.y as f64 / scale).round() as i32;
+        let Some(m) = win.current_monitor().ok().flatten() else {
+            return;
+        };
+        let m_pos = m.position();
+        let m_scale = m.scale_factor();
+        let my = (m_pos.y as f64 / m_scale).round() as i32;
+        let distance_to_top = y - my;
+        let cur_mode = lock_recover(&s.mini_player_mode).clone();
+        let Some(target_mode) = calculate_snap_transition(&cur_mode, distance_to_top) else {
+            return;
+        };
+        if target_mode == "normal" {
+            *lock_recover(&s.mini_player_last_floating_pos) = Some((x, y));
+        }
+        *lock_recover(&s.mini_player_mode) = target_mode.to_string();
+        let _ = apply_mode_bounds(&handle, &s, target_mode);
+        notify_mini_player_state(&handle, &s);
+    });
 }
 
 #[cfg(test)]

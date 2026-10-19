@@ -150,10 +150,12 @@ export function MiniPlayerWindow(): ReactElement {
     void bridge?.close?.()
   }
 
+  // "deep": any descendant starts the OS-native drag. Interactive elements
+  // opt out individually (buttons are excluded by Tauri itself).
   if (mode === 'attached' || mode === 'expanded') {
     return h(
       'div',
-      { 'data-tauri-drag-region': true, style: { width: '100%', height: '100%' } },
+      { 'data-tauri-drag-region': 'deep', style: { width: '100%', height: '100%' } },
       h(MiniPlayerIsland, {
         data,
         isExpanded: mode === 'expanded',
@@ -169,7 +171,7 @@ export function MiniPlayerWindow(): ReactElement {
 
   return h(
     'div',
-    { 'data-tauri-drag-region': true, style: { width: '100%', height: '100%' } },
+    { 'data-tauri-drag-region': 'deep', style: { width: '100%', height: '100%' } },
     h(MiniPlayerFloating, {
       data,
       onAction: handleAction,

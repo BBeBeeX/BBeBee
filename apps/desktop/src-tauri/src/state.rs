@@ -12,7 +12,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use crate::error::lock_recover;
@@ -74,6 +74,10 @@ pub struct AppState {
     pub mini_player_window_state: Mutex<String>,
     pub mini_player_last_floating_pos: Mutex<Option<(i32, i32)>>,
     pub mini_player_programmatic_move: AtomicBool,
+    /// Generation counter bumped on every mini-player `Moved` event; the
+    /// deferred snap transition only fires when the counter stops changing
+    /// (i.e. the drag has ended).
+    pub mini_player_move_seq: AtomicU64,
 
     // Taskbar / media integration
     pub taskbar_state: Mutex<TaskbarState>,
@@ -120,6 +124,7 @@ impl Default for AppState {
             mini_player_window_state: Mutex::new("hidden".to_string()),
             mini_player_last_floating_pos: Mutex::new(None),
             mini_player_programmatic_move: AtomicBool::new(false),
+            mini_player_move_seq: AtomicU64::new(0),
 
             taskbar_state: Mutex::new(TaskbarState::default()),
             sleep_blockers: Mutex::new(HashSet::new()),

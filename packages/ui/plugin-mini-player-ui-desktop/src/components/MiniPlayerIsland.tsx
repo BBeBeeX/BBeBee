@@ -67,7 +67,6 @@ export function MiniPlayerIsland({
             border: '1px solid rgba(255, 255, 255, 0.08)',
             boxShadow: '0 4px 14px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.2)',
             animation: 'miniPlayerExpand 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-            WebkitAppRegion: 'drag',
           },
           onDoubleClick: onCollapse,
           title: t('miniPlayer:miniPlayerIsland.doubleClickToCollapseThe'),
@@ -86,7 +85,9 @@ export function MiniPlayerIsland({
           h(
             'div',
             {
-              style: { WebkitAppRegion: 'no-drag', cursor: 'pointer' },
+              // Click-to-restore must not start a window drag.
+              'data-tauri-drag-region': 'false',
+              style: { cursor: 'pointer' },
               onClick: onRestoreMain,
               title: t('miniPlayer:miniPlayerIsland.clickToRestoreTheMainWindow'),
             },
@@ -156,11 +157,12 @@ export function MiniPlayerIsland({
           h(
             'div',
             {
+              // Interactive cluster: never a drag source.
+              'data-tauri-drag-region': 'false',
               style: {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
-                WebkitAppRegion: 'no-drag',
               },
             },
             // The dancing notes toggle the island back to its capsule form.
@@ -296,7 +298,6 @@ export function MiniPlayerIsland({
             : '0 2px 6px rgba(0, 0, 0, 0.25)',
           cursor: 'pointer',
           transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-          WebkitAppRegion: 'drag',
         },
         title: t('miniPlayer:miniPlayerIsland.clickToExpandTheIsland'),
       },
@@ -366,11 +367,12 @@ export function MiniPlayerIsland({
       h(
         'div',
         {
+          // Interactive cluster: never a drag source.
+          'data-tauri-drag-region': 'false',
           style: {
             display: 'flex',
             alignItems: 'center',
             gap: 6,
-            WebkitAppRegion: 'no-drag',
           },
         },
         h(IslandWaveBars, { isPlaying, height: 14 }),

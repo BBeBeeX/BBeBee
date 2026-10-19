@@ -193,46 +193,10 @@ pub async fn desktop_lyrics_set_visible(
     Ok(())
 }
 
-#[tauri::command]
-pub async fn desktop_lyrics_set_position(
-    app: tauri::AppHandle,
-    state: tauri::State<'_, AppState>,
-    position: Position,
-) -> Result<(), String> {
-    let clamped =
-        clamp_to_visible_screen(&app, position, DEFAULT_LYRIC_WIDTH, DEFAULT_LYRIC_HEIGHT);
-    let win = get_or_create_lyric_window(&app, Some(clamped))?;
-    set_lyric_window_position(&app, &win, &state, clamped.x, clamped.y)
-}
-
-#[tauri::command]
-pub async fn desktop_lyrics_get_position(
-    app: tauri::AppHandle,
-) -> Result<Option<Position>, String> {
-    if let Some(win) = app.get_webview_window("desktop-lyrics") {
-        let scale = win.scale_factor().unwrap_or(1.0);
-        let pos = win.outer_position().map_err(|e| e.to_string())?;
-        Ok(Some(Position {
-            x: (pos.x as f64 / scale).round() as i32,
-            y: (pos.y as f64 / scale).round() as i32,
-        }))
-    } else {
-        Ok(None)
-    }
-}
-
-#[tauri::command]
-pub async fn desktop_lyrics_commit_position(
-    app: tauri::AppHandle,
-    position: Position,
-) -> Result<(), String> {
-    let clamped =
-        clamp_to_visible_screen(&app, position, DEFAULT_LYRIC_WIDTH, DEFAULT_LYRIC_HEIGHT);
-    if let Some(main) = app.get_webview_window("main") {
-        let _ = main.emit("desktop-lyrics:moved", clamped);
-    }
-    Ok(())
-}
+// NOTE: lyrics window dragging is OS-native via `data-tauri-drag-region`
+// (see DesktopLyricsWindow.tsx). The old JS-driven set/get/commit position
+// commands were removed with it; position persistence flows through the
+// `Moved` window event -> `desktop-lyrics:moved` emit in main.rs.
 
 #[tauri::command]
 pub async fn desktop_lyrics_get_data(

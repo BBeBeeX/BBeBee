@@ -172,7 +172,7 @@
    - **Webview Custom Commands (`commands.rs`)**:
      * Exposed commands across both namespaced and mapped schemes:
        - `window`: `window_minimize` / `desktop_window_minimize`, `window_maximize` / `desktop_window_maximize`, `window_close` / `desktop_window_close`, `window_is_maximized` / `desktop_window_is_maximized`, `window_set_close_to_tray` / `desktop_window_set_close_to_tray`, `window_toggle` / `desktop_window_toggle`
-       - `desktop_lyrics`: `desktop_lyrics_set_visible`, `desktop_lyrics_set_position`, `desktop_lyrics_get_position`, `desktop_lyrics_commit_position`, `desktop_lyrics_get_data`, `desktop_lyrics_set_locked`, `desktop_lyrics_set_ignore_mouse`, `desktop_lyrics_update_data`, `desktop_lyrics_send_action`
+       - `desktop_lyrics`: `desktop_lyrics_set_visible`, `desktop_lyrics_get_data`, `desktop_lyrics_set_locked`, `desktop_lyrics_set_ignore_mouse`, `desktop_lyrics_update_data`, `desktop_lyrics_send_action` (drag is OS-native via `data-tauri-drag-region`; the old `set_position`/`get_position`/`commit_position` JS-drag commands were removed)
        - `mini_player`: `mini_player_open` / `desktop_mini_player_open`, `mini_player_close` / `desktop_mini_player_close`, `mini_player_restore_main` / `desktop_mini_player_restore_main`, `mini_player_set_mode` / `desktop_mini_player_set_mode`, `mini_player_get_state` / `desktop_mini_player_get_state`, `mini_player_get_data` / `desktop_mini_player_get_data`, `mini_player_update_data` / `desktop_mini_player_update_data`, `mini_player_send_action` / `desktop_mini_player_send_action`
        - `locale`: `locale_get` / `desktop_locale_get`, `locale_notify` / `desktop_locale_notify`
        - `taskbar`: `taskbar_update` / `desktop_taskbar_update`
