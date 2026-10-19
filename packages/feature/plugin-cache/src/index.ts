@@ -355,6 +355,14 @@ export class Cache extends Service implements CacheService {
     this.artworkBatch = null
     if (!batch || batch.length === 0) return
 
+    // If player is loading, abort the batch entirely — covers can be
+    // re-requested later via LazyArtwork. Don't let background work
+    // delay playback.
+    if (await this.isPlayerLoading()) {
+      for (const item of batch) item.resolve(undefined)
+      return
+    }
+
     // Sort by priority: P0 (visible) first, then P1 (nearby), then P2 (background)
     batch.sort((a, b) => a.priority - b.priority)
 
@@ -380,12 +388,33 @@ export class Cache extends Service implements CacheService {
     }
     // Process chunks with limited concurrency, P0 chunks first
     for (let i = 0; i < chunks.length; i += MAX_CONCURRENT_CHUNKS) {
-      // Playback priority: if the player is loading a track, pause the batch
-      // and let readMetadata go first. Poll up to 10s.
-      await this.waitForPlaybackIdle()
+      // Playback priority: if the player is loading, abort the remaining
+      // chunks — covers will be re-requested via LazyArtwork when visible.
+      // Don't delay playback for background cover work.
+      const shouldContinue = await this.waitForPlaybackIdle()
+      if (!shouldContinue) {
+        // Resolve remaining items with undefined so their promises don't hang
+        for (let j = i; j < chunks.length; j++) {
+          for (const item of chunks[j]!) item.resolve(undefined)
+        }
+        return
+      }
       const concurrent = chunks.slice(i, i + MAX_CONCURRENT_CHUNKS)
       await Promise.all(concurrent.map((chunk) => this.processArtworkChunk(codec, chunk)))
     }
+  }
+
+  /**
+   * Check if the player is currently loading a track.
+   * Used to abort/pause artwork batches so playback isn't delayed.
+   */
+  private async isPlayerLoading(): Promise<boolean> {
+    const player = (
+      this.ownCtx as unknown as {
+        reflect: { get(key: string, required: boolean): unknown }
+      }
+    ).reflect.get('player', false) as { state?: { status?: string } } | undefined
+    return player?.state?.status === 'loading'
   }
 
   /**
@@ -393,18 +422,13 @@ export class Cache extends Service implements CacheService {
    * does not starve playback metadata reads. Returns immediately if no
    * player service or not loading.
    */
-  private async waitForPlaybackIdle(): Promise<void> {
-    const player = (
-      this.ownCtx as unknown as {
-        reflect: { get(key: string, required: boolean): unknown }
-      }
-    ).reflect.get('player', false) as { state?: { status?: string } } | undefined
-    if (!player) return
+  private async waitForPlaybackIdle(): Promise<boolean> {
+    // Returns false if we should abort (player started loading during wait)
     for (let i = 0; i < 20; i++) {
-      const status = player.state?.status
-      if (status !== 'loading') return
+      if (!(await this.isPlayerLoading())) return true
       await new Promise((resolve) => setTimeout(resolve, 500))
     }
+    return !(await this.isPlayerLoading())
   }
 
   private async processArtworkChunk(
