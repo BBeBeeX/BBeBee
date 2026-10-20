@@ -634,6 +634,94 @@ describe('plugin-manager npm service methods', () => {
     expect(w.bridge.installPlugin).not.toHaveBeenCalled()
   })
 
+  it('treats a service as unavailable while its only provider is disabled, and available again once re-enabled', async () => {
+    const entry = entryFor({ id: 'a-x', npm: '@t/a', services: ['player'] })
+    const tarballs = { '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0') }
+    const w = seedWorld(entry, ['1.0.0'], tarballs)
+    await w.plugin[PluginManagerPlugin.init]()
+
+    // The user disables the only provider of `player`: the service leaves
+    // the available set even though the provider's manifest is still known.
+    await w.plugin.setEnabled('@BBeBee/plugin-player', false)
+    const plan = await w.plugin.resolveInstallPlan('a-x')
+    expect(plan.missingServices).toEqual(['player'])
+    await expectNpmError(w.plugin.installPlugin('a-x'), 'SERVICE_UNAVAILABLE')
+    expect(w.bridge.installPlugin).not.toHaveBeenCalled()
+
+    // Re-enabling the provider restores availability; the install proceeds.
+    await w.plugin.setEnabled('@BBeBee/plugin-player', true)
+    expect((await w.plugin.resolveInstallPlan('a-x')).missingServices).toEqual([])
+    await w.plugin.installPlugin('a-x')
+    expect(w.bridge.installPlugin).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not count a provider whose manifest defaults to disabled (no override)', async () => {
+    const entry = entryFor({ id: 'a-x', npm: '@t/a', services: ['player'] })
+    const tarballs = { '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0') }
+    const w = createNpmWorld({
+      manifests: {
+        '@BBeBee/plugin-player': {
+          id: '@BBeBee/plugin-player',
+          name: '@BBeBee/plugin-player',
+          displayName: 'Player',
+          description: 'player',
+          version: '1.0.0',
+          author: 'BBeBee',
+          engines: { BBeBee: '^0.1.0' },
+          enabled: false,
+          entry: { main: './dist/index.js' },
+          capabilities: [],
+          contributes: { services: ['player'] },
+          effect: 'player',
+        } as PluginManifest,
+      },
+    })
+    w.routes.set(INDEX_URL, { status: 200, json: async () => [entry] })
+    w.routes.set(`https://registry.npmjs.org/${encodeURIComponent(entry.npm)}`, {
+      status: 200,
+      json: async () => packument(entry.npm, ['1.0.0'], tarballs),
+    })
+    w.routes.set(`https://cdn.example.com/${encodeURIComponent(entry.npm)}-/1.0.0.tgz`, {
+      status: 200,
+      bytes: async () => tarballs['@t/a@1.0.0']!,
+    })
+    await w.plugin[PluginManagerPlugin.init]()
+    expect((await w.plugin.resolveInstallPlan('a-x')).missingServices).toEqual(['player'])
+    await expectNpmError(w.plugin.installPlugin('a-x'), 'SERVICE_UNAVAILABLE')
+    expect(w.bridge.installPlugin).not.toHaveBeenCalled()
+  })
+
+  it('keeps a service available while any one of its providers stays enabled', async () => {
+    const entry = entryFor({ id: 'a-x', npm: '@t/a', services: ['player'] })
+    const tarballs = { '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0') }
+    const w = seedWorld(entry, ['1.0.0'], tarballs)
+    // A second, independent provider of the same service key.
+    w.plugin.registerManifests({
+      '@BBeBee/plugin-player-alt': {
+        id: '@BBeBee/plugin-player-alt',
+        name: '@BBeBee/plugin-player-alt',
+        displayName: 'Player (alt)',
+        description: 'alternate player provider',
+        version: '1.0.0',
+        author: 'BBeBee',
+        engines: { BBeBee: '^0.1.0' },
+        entry: { main: './dist/index.js' },
+        capabilities: [],
+        contributes: { services: ['player'] },
+        effect: 'player',
+      } as PluginManifest,
+    })
+    await w.plugin[PluginManagerPlugin.init]()
+
+    await w.plugin.setEnabled('@BBeBee/plugin-player', false)
+    expect((await w.plugin.resolveInstallPlan('a-x')).missingServices).toEqual([])
+
+    // Only when every provider is disabled does the service go missing.
+    await w.plugin.setEnabled('@BBeBee/plugin-player-alt', false)
+    expect((await w.plugin.resolveInstallPlan('a-x')).missingServices).toEqual(['player'])
+    await expectNpmError(w.plugin.installPlugin('a-x'), 'SERVICE_UNAVAILABLE')
+  })
+
   it('refuses on triple-version mismatch', async () => {
     const entry = entryFor({ id: 'a-x', npm: '@t/a' })
     // tarball claims 9.9.9 while the resolved version is 1.0.0

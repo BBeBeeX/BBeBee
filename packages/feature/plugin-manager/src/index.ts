@@ -363,10 +363,36 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     await this.ctx.store.set('npm:installed', records)
   }
 
-  /** Service keys provided by every known manifest (core + installed). */
+  /**
+   * Whether a manifest's plugin currently counts as enabled: the user's
+   * persisted override wins, then the manifest's own default. Mirrors the
+   * `enabled` computation in `list()` so the install gate and the plugin
+   * list never disagree about who is on.
+   */
+  private isEnabled(manifest: PluginManifest): boolean {
+    return (
+      this.overrides[manifest.id] ??
+      (manifest.name ? this.overrides[manifest.name] : undefined) ??
+      (manifest.enabled ?? true)
+    )
+  }
+
+  /**
+   * Service keys with at least one *enabled* provider among the known
+   * manifests (core + builtin + shell declaration + installed). A service
+   * whose providers are all disabled is NOT available: the provider will
+   * not be running when the new plugin activates, so counting it would
+   * wave an install through that then fails against a missing service.
+   * Multi-provider keys stay available while any one provider is enabled.
+   */
   private availableServiceKeys(): Set<string> {
     const keys = new Set<string>()
+    const seen = new Set<string>()
     for (const m of this.manifests.values()) {
+      // registerManifests also keys a manifest by name; count each once.
+      if (seen.has(m.id)) continue
+      seen.add(m.id)
+      if (!this.isEnabled(m)) continue
       for (const s of m.contributes?.services ?? []) keys.add(s)
     }
     return keys
