@@ -13,6 +13,17 @@ import { watchGlobalShortcuts } from './shortcuts.js'
 
 const STORE_KEY = 'preferences'
 
+/**
+ * Normalizes a manual mirror/registry URL override: trims whitespace, drops
+ * trailing slashes, and maps empty input to `undefined` (i.e. "derive from
+ * the region default" rather than persisting an empty string).
+ */
+function normalizeMirrorUrl(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim().replace(/\/+$/, '')
+  return trimmed.length > 0 ? trimmed : undefined
+}
+
 function mergeSettings(base: AppSettings, patch?: Partial<AppSettings>): AppSettings {
   if (!patch) return { ...base }
   return {
@@ -38,6 +49,10 @@ function mergeSettings(base: AppSettings, patch?: Partial<AppSettings>): AppSett
           (p): p is string => typeof p === 'string' && p.length > 0,
         )
       : base.githubAccelerationPrefixes,
+    // Manual npm / registry-raw overrides. An explicit empty string clears
+    // back to the region-derived default; junk non-strings are dropped.
+    npmRegistryUrl: normalizeMirrorUrl(patch.npmRegistryUrl ?? base.npmRegistryUrl),
+    githubRawBaseUrl: normalizeMirrorUrl(patch.githubRawBaseUrl ?? base.githubRawBaseUrl),
     desktopLyrics: {
       ...base.desktopLyrics,
       ...(patch.desktopLyrics ?? {}),

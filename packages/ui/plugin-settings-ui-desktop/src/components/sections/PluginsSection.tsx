@@ -6,6 +6,7 @@ import type { PluginInfo, PluginManagerService } from '@BBeBee/protocol'
 import { filterPlugins } from '@BBeBee/toolkit'
 import { PluginSearchBox } from '../PluginSearchBox.js'
 import { PluginGroupPanel } from '../PluginGroupPanel.js'
+import { PluginMarketSection } from '../PluginMarketSection.js'
 
 export interface PluginsSectionProps {
   ctx: Context
@@ -94,6 +95,9 @@ export function PluginsSection({ ctx, showAdvancedSettings = false }: PluginsSec
         width: '100%',
       },
     },
+    // Plugin Market (registry browse + npm install/update/uninstall)
+    h(PluginMarketSection, { ctx }),
+
     // Search box
     h(PluginSearchBox, {
       ctx,

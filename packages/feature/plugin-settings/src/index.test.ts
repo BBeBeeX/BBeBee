@@ -78,6 +78,23 @@ describe('plugin-settings', () => {
     expect(settings.language).toBe(DEFAULT_APP_SETTINGS.language)
   })
 
+  it('normalizes manual mirror URL overrides', async () => {
+    const ctx = await harness({
+      npmRegistryUrl: 'https://registry.example.com/ ',
+      githubRawBaseUrl: '',
+    })
+    await ctx.plugin(SettingsPlugin)
+    await tick()
+
+    const settings = await ctx.settings.get()
+    expect(settings.npmRegistryUrl).toBe('https://registry.example.com')
+    expect(settings.githubRawBaseUrl).toBeUndefined()
+
+    // Clearing via update falls back to the region-derived default.
+    const updated = await ctx.settings.update({ npmRegistryUrl: '   ' })
+    expect(updated.npmRegistryUrl).toBeUndefined()
+  })
+
   it('defaults new installs to follow-system without touching stored choices', async () => {
     // Fresh install: no stored language → the 'system' default, resolved
     // against the OS locale at runtime by ctx.i18n (BCP 47 → en fallback).

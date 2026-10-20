@@ -16,6 +16,7 @@ import type {
   UiService,
   FsService,
   Uri,
+  PluginManagerService,
 } from '@BBeBee/protocol'
 import { DEFAULT_PROXY_SETTINGS } from '@BBeBee/protocol'
 import { useAppSettings, useAvailableSettings, useCacheStats } from '@BBeBee/plugin-settings/hooks'
@@ -165,6 +166,37 @@ export function SettingsScreen({
     latencyMs?: number
     error?: string
   } | null>(null)
+
+  // npm auth token presence (the value itself lives in the secrets service and
+  // is never read here)
+  const [npmAuthTokenSet, setNpmAuthTokenSet] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    const pm = serviceOf<PluginManagerService>(ctx, 'plugin-manager')
+    if (pm?.hasNpmAuthToken) {
+      pm.hasNpmAuthToken()
+        .then((v) => {
+          if (!cancelled) setNpmAuthTokenSet(v)
+        })
+        .catch(() => {})
+    }
+    return () => {
+      cancelled = true
+    }
+  }, [ctx])
+
+  const handleSaveNpmAuthToken = async (token: string): Promise<void> => {
+    const pm = serviceOf<PluginManagerService>(ctx, 'plugin-manager')
+    await pm?.setNpmAuthToken(token)
+    setNpmAuthTokenSet(true)
+  }
+
+  const handleClearNpmAuthToken = async (): Promise<void> => {
+    const pm = serviceOf<PluginManagerService>(ctx, 'plugin-manager')
+    await pm?.clearNpmAuthToken()
+    setNpmAuthTokenSet(false)
+  }
 
   // Third-party sources list
   const [sourcesList, setSourcesList] = useState<readonly SourceRecord[]>(() => {
@@ -564,6 +596,13 @@ export function SettingsScreen({
             onUpdateDownloadRegion: (region) => void update({ downloadRegion: region }),
             onUpdateGithubAccelerationPrefixes: (prefixes) =>
               void update({ githubAccelerationPrefixes: [...prefixes] }),
+            npmRegistryUrl: settings.npmRegistryUrl ?? '',
+            githubRawBaseUrl: settings.githubRawBaseUrl ?? '',
+            onUpdateNpmRegistryUrl: (url) => void update({ npmRegistryUrl: url }),
+            onUpdateGithubRawBaseUrl: (url) => void update({ githubRawBaseUrl: url }),
+            npmAuthTokenSet,
+            onSaveNpmAuthToken: handleSaveNpmAuthToken,
+            onClearNpmAuthToken: handleClearNpmAuthToken,
           })
         : null,
 

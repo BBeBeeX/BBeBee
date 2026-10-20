@@ -5,6 +5,7 @@ import type { ReactElement } from 'react'
 import { DEFAULT_USER_AGENT } from '@BBeBee/protocol'
 import type { DownloadRegion, ProxySettings, SourceRecord } from '@BBeBee/protocol'
 import { GitHubAccelerationEditor } from '../GitHubAccelerationEditor.js'
+import { NpmAuthTokenRow } from '../NpmAuthTokenRow.js'
 import { SettingsRow } from '../SettingsRow.js'
 import { SettingsSection } from '../SettingsSection.js'
 
@@ -32,6 +33,16 @@ export interface NetworkSectionProps {
   githubAccelerationPrefixes: readonly string[]
   onUpdateDownloadRegion: (region: DownloadRegion) => void
   onUpdateGithubAccelerationPrefixes: (prefixes: readonly string[]) => void
+  /** Manual npm registry override; empty string means "derive from region". */
+  npmRegistryUrl: string
+  /** Manual community-registry raw base URL override; empty means "derive from region". */
+  githubRawBaseUrl: string
+  onUpdateNpmRegistryUrl: (url: string) => void
+  onUpdateGithubRawBaseUrl: (url: string) => void
+  /** Whether an npm auth token is stored in the secrets service. */
+  npmAuthTokenSet: boolean
+  onSaveNpmAuthToken: (token: string) => Promise<void>
+  onClearNpmAuthToken: () => Promise<void>
 }
 
 export function NetworkSection({
@@ -52,6 +63,13 @@ export function NetworkSection({
   githubAccelerationPrefixes,
   onUpdateDownloadRegion,
   onUpdateGithubAccelerationPrefixes,
+  npmRegistryUrl,
+  githubRawBaseUrl,
+  onUpdateNpmRegistryUrl,
+  onUpdateGithubRawBaseUrl,
+  npmAuthTokenSet,
+  onSaveNpmAuthToken,
+  onClearNpmAuthToken,
 }: NetworkSectionProps): ReactElement {
   const { t } = useI18n(ctx)
   return h(
@@ -303,6 +321,60 @@ export function NetworkSection({
             onChange: onUpdateDownloadRegion,
           }),
         ),
+      }),
+      h(SettingsRow, {
+        ctx,
+        title: t('settings:network.npmRegistryUrl'),
+        description: t('settings:network.npmRegistryUrlDesc'),
+        action: h('input', {
+          type: 'text',
+          value: npmRegistryUrl,
+          placeholder: t('settings:network.npmRegistryUrlPlaceholder'),
+          'aria-label': t('settings:network.npmRegistryUrl'),
+          onChange: (e: { target: { value: string } }) => onUpdateNpmRegistryUrl(e.target.value),
+          style: {
+            width: 280,
+            maxWidth: '100%',
+            height: 32,
+            borderRadius: 6,
+            background: 'var(--bb-bg-overlay, rgba(255, 255, 255, 0.08))',
+            border: '1px solid var(--bb-border-subtle, rgba(255, 255, 255, 0.15))',
+            color: 'var(--bb-text-primary, #FFFFFF)',
+            fontSize: 13,
+            padding: '0 10px',
+            outline: 'none',
+          },
+        }),
+      }),
+      h(SettingsRow, {
+        ctx,
+        title: t('settings:network.githubRawBaseUrl'),
+        description: t('settings:network.githubRawBaseUrlDesc'),
+        action: h('input', {
+          type: 'text',
+          value: githubRawBaseUrl,
+          placeholder: t('settings:network.githubRawBaseUrlPlaceholder'),
+          'aria-label': t('settings:network.githubRawBaseUrl'),
+          onChange: (e: { target: { value: string } }) => onUpdateGithubRawBaseUrl(e.target.value),
+          style: {
+            width: 280,
+            maxWidth: '100%',
+            height: 32,
+            borderRadius: 6,
+            background: 'var(--bb-bg-overlay, rgba(255, 255, 255, 0.08))',
+            border: '1px solid var(--bb-border-subtle, rgba(255, 255, 255, 0.15))',
+            color: 'var(--bb-text-primary, #FFFFFF)',
+            fontSize: 13,
+            padding: '0 10px',
+            outline: 'none',
+          },
+        }),
+      }),
+      h(NpmAuthTokenRow, {
+        ctx,
+        tokenSet: npmAuthTokenSet,
+        onSave: onSaveNpmAuthToken,
+        onClear: onClearNpmAuthToken,
       }),
       h(GitHubAccelerationEditor, {
         ctx,
