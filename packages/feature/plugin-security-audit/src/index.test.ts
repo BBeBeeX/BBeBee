@@ -137,6 +137,48 @@ describe('SecurityAuditPlugin & scanner', () => {
     expect(report.findings.some((f) => f.ruleId === 'high-entropy-string')).toBe(true)
   })
 
+  it('warns (not blocks) on URL string constants outside network-call positions', () => {
+    // Bundled artifacts carry URL *data* (namespaces, mirror defaults,
+    // doc examples) that is never requested. Only a URL literal handed
+    // straight to a network API is an egress attempt.
+    const code = `
+      const SVG_NS = 'http://www.w3.org/2000/svg';
+      const MIRROR = 'https://registry.npmmirror.com';
+      export const ns = SVG_NS + MIRROR;
+    `
+    const report = scanCode(code)
+    expect(report.level).toBe('warn')
+    expect(report.findings.every((f) => f.level === 'warn')).toBe(true)
+    expect(report.findings.some((f) => f.ruleId === 'undeclared-host-egress')).toBe(true)
+  })
+
+  it('does not block read-only prototype-chain walks, blocks pollution writes', () => {
+    const walkCode = `
+      function isInstanceOf(instance, cls) {
+        let ctor = instance.constructor;
+        while (ctor) {
+          ctor = ctor.prototype?.constructor;
+          if (ctor === cls) return true;
+        }
+        return false;
+      }
+    `
+    expect(scanCode(walkCode).level).toBe('pass')
+
+    const writeCode = `x.constructor.prototype.polluted = true;`
+    const reportWrite = scanCode(writeCode)
+    expect(reportWrite.level).toBe('block')
+    expect(reportWrite.findings.some((f) => f.ruleId === 'prototype-pollution')).toBe(true)
+  })
+
+  it('judges hex escapes by density, so large bundles warn instead of blocking', () => {
+    const sparse = `const sep = '\\xB7';\n` + `// ${'bundled library padding '.repeat(600)}\n` +
+      Array.from({ length: 10 }, (_, i) => `const s${i} = '\\xB7';`).join('\n')
+    const reportSparse = scanCode(sparse)
+    expect(reportSparse.level).toBe('warn')
+    expect(reportSparse.findings.some((f) => f.ruleId === 'obfuscation-dense-hex')).toBe(true)
+  })
+
   it('registers and provides ctx.securityAudit service via Cordis DI', async () => {
     const ctx = new Context()
     await apply(ctx)

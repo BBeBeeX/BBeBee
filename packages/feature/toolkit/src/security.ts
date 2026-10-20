@@ -77,12 +77,18 @@ const STATIC_RULES: readonly RegexRule[] = [
     pattern: /(?:api_key|apiKey|secret_key|private_key|auth_token)\s*[:=]\s*['"][a-zA-Z0-9_-]{24,}['"]/gi,
     message: () => 'Detected possibly hardcoded API key or sensitive credential',
   },
-  // 5. Prototype pollution
+  // 5. Prototype pollution. Calibrated to pollution *writes*: a bare
+  // `__proto__` reference, or an assignment through a
+  // `constructor.prototype` / `Object.prototype[...]` chain. Read-only
+  // prototype-chain walks (`x.constructor.prototype?.constructor`, a
+  // common library instanceof helper) are not pollution and must not
+  // block — bundled production code contains them routinely.
   {
     id: 'prototype-pollution',
     name: 'Prototype pollution risk',
     level: 'block',
-    pattern: /\b__proto__\b|\bconstructor\s*\.\s*prototype\b|Object\s*\.\s*prototype\s*\[/g,
+    pattern:
+      /\b__proto__\b|Object\s*\.\s*prototype\s*\[[^\]]*\]\s*=(?!=)|\bconstructor\s*\.\s*prototype\s*(?:\.\s*[A-Za-z_$][\w$]*\s*=(?!=)|\[[^\]]*\]\s*=(?!=))/g,
     message: (m) => `Detected dangerous prototype pollution syntax: "${m[0].trim()}"`,
   },
   // 6. Remote dynamic import
@@ -118,6 +124,23 @@ function isHostAllowed(host: string, allowedHosts: readonly string[]): boolean {
   return false
 }
 
+/**
+ * Whether a URL literal sits in a network-call position — as the direct
+ * argument of `fetch(`, `….open(`, `new WebSocket(`, `import(`, etc. A
+ * URL string anywhere else is a data constant (an SVG namespace, a
+ * mirror default, a documentation example): worth a warning, but it is
+ * not an outbound request, and treating it as one makes every bundled
+ * artifact uninstallable. Evasions (a constant fed to `fetch` through a
+ * variable) are a known limit of any static heuristic — the runtime
+ * capability gate is the enforcement layer for actual egress.
+ */
+function isNetworkCallPosition(code: string, urlIndex: number): boolean {
+  const before = code.slice(Math.max(0, urlIndex - 64), urlIndex)
+  return /(?:\bfetch|\.open|\bWebSocket\b|\bEventSource\b|sendBeacon|\bimport|\baxios\b|\bgot\b|\.request|\.ajax)\s*\(?\s*['"`][^'"`]*$/.test(
+    before,
+  )
+}
+
 function scanUndeclaredHosts(code: string, context?: SecurityAuditContext): Finding[] {
   const findings: Finding[] = []
   const urlPattern = /\b(?:https?|wss?):\/\/([a-zA-Z0-9._-]+(?::\d+)?)(?:[/?#\s'"`]|$)/g
@@ -140,13 +163,23 @@ function scanUndeclaredHosts(code: string, context?: SecurityAuditContext): Find
 
     if (!isHostAllowed(host, allowed)) {
       const { line, column, snippet } = getLineAndColumn(code, match.index)
-      findings.push({
-        ruleId: 'undeclared-host-egress',
-        message: `Detected an undeclared outbound network request host: "${host}" (allowlist: [${allowed.join(', ') || 'none'}])`,
-        level: 'block',
-        loc: { line, column },
-        snippet,
-      })
+      if (isNetworkCallPosition(code, match.index)) {
+        findings.push({
+          ruleId: 'undeclared-host-egress',
+          message: `Detected an undeclared outbound network request host: "${host}" (allowlist: [${allowed.join(', ') || 'none'}])`,
+          level: 'block',
+          loc: { line, column },
+          snippet,
+        })
+      } else {
+        findings.push({
+          ruleId: 'undeclared-host-egress',
+          message: `URL string constant with undeclared host: "${host}" (not in a network-call position; allowlist: [${allowed.join(', ') || 'none'}])`,
+          level: 'warn',
+          loc: { line, column },
+          snippet,
+        })
+      }
     }
   }
 
@@ -157,7 +190,13 @@ function scanObfuscationFeatures(code: string): Finding[] {
   const findings: Finding[] = []
 
   const hexMatches = code.match(/\\x[0-9a-fA-F]{2}/g)
-  if (hexMatches && hexMatches.length >= 6) {
+  // Density, not the absolute count, is the obfuscation signal: a small
+  // script whose strings are written as \xHH escapes is obfuscated; a
+  // large bundled artifact crosses any absolute threshold with
+  // incidental escapes from ordinary library code (a repeated `\xB7`
+  // separator literal, regex character classes, …). Block above one
+  // escape per KiB; warn on a merely noticeable count.
+  if (hexMatches && hexMatches.length >= 6 && hexMatches.length * 1024 > code.length) {
     const firstIndex = code.indexOf(hexMatches[0]!)
     const { line, column, snippet } = getLineAndColumn(code, firstIndex)
     findings.push({
