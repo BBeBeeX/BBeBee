@@ -1426,6 +1426,139 @@ describe('plugin-manager npm service methods', () => {
       expect(w.plugin.list().find((p) => p.id === 'a-x')?.delisted).toBeUndefined()
     })
   })
+
+  describe('reviewed pinning (audit W5)', () => {
+    const versions = ['1.0.0', '1.1.0', '1.2.0']
+    const tarballs = () =>
+      Object.fromEntries(versions.map((v) => [`@t/a@${v}`, tarballFor('@t/a', 'a-x', v)]))
+
+    function pinnedWorld(reviewed: Partial<RegistryPluginEntry> = {}) {
+      const entry = entryFor({ id: 'a-x', npm: '@t/a', reviewedVersion: '1.1.0', ...reviewed })
+      const w = seedWorld(entry, versions, tarballs())
+      return { w, entry }
+    }
+
+    const installedVersion = async (w: NpmTestWorld) => {
+      const store = (w.ctx as any).store
+      const setCalls = store.set.mock.calls.filter(([k]: [string]) => k === 'npm:installed')
+      return setCalls.at(-1)?.[1]?.['a-x']?.version as string | undefined
+    }
+
+    it('plans and installs the reviewed version by default, not npm latest', async () => {
+      const { w } = pinnedWorld()
+      await w.plugin[PluginManagerPlugin.init]()
+      const plan = await w.plugin.resolveInstallPlan('a-x')
+      expect(plan.target.version).toBe('1.1.0')
+      expect(plan.target.unreviewed).toBeUndefined()
+      await w.plugin.installPlugin('a-x')
+      expect(await installedVersion(w)).toBe('1.1.0')
+    })
+
+    it('an explicitly named newer version installs but is flagged unreviewed in the plan', async () => {
+      const { w } = pinnedWorld()
+      await w.plugin[PluginManagerPlugin.init]()
+      const plan = await w.plugin.resolveInstallPlan('a-x', '1.2.0')
+      expect(plan.target.version).toBe('1.2.0')
+      expect(plan.target.unreviewed).toBe(true)
+      expect(plan.warnings.some((x) => x.includes('未经注册表审核'))).toBe(true)
+      await w.plugin.installPlugin('a-x', '1.2.0', plan)
+      expect(await installedVersion(w)).toBe('1.2.0')
+    })
+
+    it('a range overshooting the pin is still capped to the reviewed version', async () => {
+      const { w } = pinnedWorld()
+      await w.plugin[PluginManagerPlugin.init]()
+      const plan = await w.plugin.resolveInstallPlan('a-x', '^1.0.0')
+      expect(plan.target.version).toBe('1.1.0')
+      expect(plan.target.unreviewed).toBeUndefined()
+    })
+
+    it('caps dependency closure nodes to their own reviewed pins', async () => {
+      const b = entryFor({ id: 'b-y', npm: '@t/b', reviewedVersion: '1.0.0' })
+      const a = entryFor({ id: 'a-x', npm: '@t/a', dependencies: ['b-y@^1.0.0'] })
+      const c = new (class extends NpmClient {
+        constructor(private packs: Record<string, any>) {
+          super({ http: {} as any, readSettings: async () => undefined, readSecret: async () => undefined, cache: { get: async () => undefined, set: async () => {} }, log: { info() {}, warn() {}, error() {} } })
+        }
+        override async fetchPackument(npm: string) {
+          return this.packs[npm]
+        }
+      })({
+        '@t/a': { 'dist-tags': { latest: '1.0.0' }, versions: { '1.0.0': { version: '1.0.0', dist: { tarball: 'https://x/a.tgz' } } } },
+        '@t/b': {
+          'dist-tags': { latest: '1.5.0' },
+          versions: {
+            '1.0.0': { version: '1.0.0', dist: { tarball: 'https://x/b1.tgz' } },
+            '1.5.0': { version: '1.5.0', dist: { tarball: 'https://x/b15.tgz' } },
+          },
+        },
+      })
+      const { target, closure } = await c.resolveTree(a, undefined, [a, b])
+      expect(target.pkg.version).toBe('1.0.0')
+      expect(closure.map((n) => [n.pkg.id, n.pkg.version])).toEqual([['b-y', '1.0.0']])
+    })
+
+    it('refuses bytes that do not match the reviewed integrity, even when packument integrity agrees', async () => {
+      const good = tarballs()
+      const falsePin = `sha512-${base64Encode(sha512(new TextEncoder().encode('not the tarball')))}`
+      const entry = entryFor({ id: 'a-x', npm: '@t/a', reviewedVersion: '1.1.0', reviewedIntegrity: falsePin })
+      const w = seedWorld(entry, versions, good)
+      await w.plugin[PluginManagerPlugin.init]()
+      try {
+        await w.plugin.installPlugin('a-x')
+        throw new Error('expected INTEGRITY_MISMATCH')
+      } catch (err) {
+        expect(err).toBeInstanceOf(NpmPluginError)
+        expect((err as NpmPluginError).code).toBe('INTEGRITY_MISMATCH')
+        expect((err as Error).message).toContain('已审哈希不符')
+      }
+      expect(await installedVersion(w)).toBeUndefined()
+    })
+
+    it('accepts the reviewed version when the reviewed integrity matches', async () => {
+      const tbs = tarballs()
+      const pin = `sha512-${base64Encode(sha512(tbs['@t/a@1.1.0']!))}`
+      const entry = entryFor({ id: 'a-x', npm: '@t/a', reviewedVersion: '1.1.0', reviewedIntegrity: pin })
+      const w = seedWorld(entry, versions, tbs)
+      await w.plugin[PluginManagerPlugin.init]()
+      await w.plugin.installPlugin('a-x')
+      expect(await installedVersion(w)).toBe('1.1.0')
+    })
+
+    it('checkUpdates separates the reviewed update from a newer unreviewed one', async () => {
+      const { w } = pinnedWorld()
+      await w.plugin[PluginManagerPlugin.init]()
+      await w.plugin.installPlugin('a-x', '1.0.0')
+      const updates = await w.plugin.checkUpdates()
+      expect(updates).toHaveLength(1)
+      expect(updates[0]).toMatchObject({
+        id: 'a-x',
+        installed: '1.0.0',
+        latest: '1.2.0',
+        reviewedVersion: '1.1.0',
+        reviewedUpdate: '1.1.0',
+        unreviewed: true,
+      })
+    })
+
+    it('a default update stops at the reviewed version, not at latest', async () => {
+      const { w } = pinnedWorld()
+      await w.plugin[PluginManagerPlugin.init]()
+      await w.plugin.installPlugin('a-x', '1.0.0')
+      await w.plugin.updatePlugin('a-x')
+      expect(await installedVersion(w)).toBe('1.1.0')
+    })
+
+    it('with the reviewed version already installed, the remaining update reads as unreviewed-only', async () => {
+      const { w } = pinnedWorld()
+      await w.plugin[PluginManagerPlugin.init]()
+      await w.plugin.installPlugin('a-x')
+      const updates = await w.plugin.checkUpdates()
+      expect(updates).toHaveLength(1)
+      expect(updates[0]!.reviewedUpdate).toBeUndefined()
+      expect(updates[0]!.unreviewed).toBe(true)
+    })
+  })
 })
 
 /**

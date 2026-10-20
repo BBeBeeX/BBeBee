@@ -139,6 +139,18 @@ export interface NpmResolvedPackage {
   version: string
   tarball: string
   integrity?: string
+  /**
+   * The registry entry's reviewed pin, when it has one (audit W5).
+   * Carried on the plan node so the confirm screen can show whether
+   * the user is getting the reviewed build or something newer.
+   */
+  reviewedVersion?: string
+  /**
+   * True when this node's resolved version is NEWER than the entry's
+   * reviewed pin — only reachable when the caller explicitly named the
+   * exact version (the UI gates that behind a second confirmation).
+   */
+  unreviewed?: boolean
 }
 
 /** The result of `resolveInstallPlan`: everything install needs, pre-download. */
@@ -161,6 +173,21 @@ export interface PluginUpdateInfo {
   latest: string
   /** npm package the update comes from. */
   npm: string
+  /** The registry entry's reviewed pin, when the entry carries one (audit W5). */
+  reviewedVersion?: string
+  /**
+   * The newest REVIEWED version newer than the installed one — what a
+   * default (unconfirmed) update installs. Absent when no reviewed
+   * update exists (either the entry has no pin, or the pin is not
+   * newer than the installed version).
+   */
+  reviewedUpdate?: string
+  /**
+   * True when npm's latest is newer than the reviewed pin: an
+   * unreviewed newer build exists. Installing it requires the user's
+   * explicit confirmation (it bypasses the registry's review).
+   */
+  unreviewed?: boolean
 }
 
 /** Local record of one npm-installed plugin (persisted in `ctx.store`). */

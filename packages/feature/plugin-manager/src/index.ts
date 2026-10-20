@@ -554,6 +554,21 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     for (const n of nodes) {
       if (!n.pkg.integrity) warnings.push(`包 ${n.pkg.npm}@${n.pkg.version} 缺少 integrity，将跳过完整性校验`)
     }
+    // Reviewed-pin transparency (audit W5): say plainly when the plan
+    // installs something the registry has not reviewed, and when a
+    // range landed BELOW the reviewed version (its bytes are then only
+    // vouched for by the packument, not by the registry pin).
+    for (const n of nodes) {
+      if (n.pkg.unreviewed) {
+        warnings.push(
+          `包 ${n.pkg.npm}@${n.pkg.version} 未经注册表审核（已审版本为 ${n.entry.reviewedVersion}）：这是显式指定的版本，安装前请再次确认`,
+        )
+      } else if (n.entry.reviewedVersion && n.pkg.version !== n.entry.reviewedVersion) {
+        warnings.push(
+          `包 ${n.pkg.npm} 的注册表已审版本为 ${n.entry.reviewedVersion}，本次按版本约束选中 ${n.pkg.version}，其完整性以 npm 元数据为准`,
+        )
+      }
+    }
     // P2 version contract: a package's declared `peerDependencies` that
     // intersect the host-shared modules (react / react-dom on desktop) are
     // checked against the versions the shell actually provides. A mismatch
@@ -619,7 +634,11 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     const pin = (p: InstallPlan): Map<string, string> =>
       new Map(
         [p.target, ...p.closure].map(
-          (n) => [n.id, `${n.npm}@${n.version}#${n.integrity ?? ''}`] as const,
+          (n) =>
+            [
+              n.id,
+              `${n.npm}@${n.version}#${n.integrity ?? ''}${n.unreviewed ? '#unreviewed' : ''}`,
+            ] as const,
         ),
       )
     const expectedPins = pin(expected)
@@ -657,6 +676,12 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     const label = `${pkg.npm}@${pkg.version}`
     const bytes = await client.downloadPackage(pkg)
     client.verifyIntegrity(bytes, pkg.integrity, label)
+    // Audit W5: when the resolved version is the registry's reviewed
+    // version, the bytes must ALSO match the registry-pinned hash —
+    // an anchor the npm mirror cannot rewrite along with its packument.
+    if (entry.reviewedIntegrity && entry.reviewedVersion && pkg.version === entry.reviewedVersion) {
+      client.verifyReviewedIntegrity(bytes, entry, label)
+    }
     const extracted = client.extractPackage(pkg, bytes)
 
     // D5: the selected version, package.json and BBeBee.plugin.json must agree.
@@ -1170,6 +1195,16 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     // checkUpdates and updatePlugin agree on delisted entries.
     await this.refreshDelistedFromIndex({ force })
     const client = this.getNpmClient()
+    // The reviewed pins live in the registry index; fetchIndex reuses
+    // the cache the liveness refresh just warmed. A failed fetch just
+    // means "no pin information" — updates are then reported unpinned,
+    // exactly as before.
+    const entryById = new Map<string, RegistryPluginEntry>()
+    try {
+      for (const e of await client.fetchIndex(force ? { force: true } : undefined)) entryById.set(e.id, e)
+    } catch {
+      // No pin information available; proceed without it.
+    }
     const records = await this.loadInstalledRecords()
     const updates: PluginUpdateInfo[] = []
     for (const rec of Object.values(records)) {
@@ -1178,7 +1213,20 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
         const pack = await client.fetchPackument(rec.npm, force ? { force: true } : undefined)
         const latest = pack['dist-tags']?.latest
         if (latest && compareVersions(latest, rec.version) > 0) {
-          updates.push({ id: rec.id, installed: rec.version, latest, npm: rec.npm })
+          const info: PluginUpdateInfo = { id: rec.id, installed: rec.version, latest, npm: rec.npm }
+          // Distinguish the reviewed update (installable by default)
+          // from a newer build the registry has not reviewed yet.
+          const reviewedVersion = entryById.get(rec.id)?.reviewedVersion
+          if (reviewedVersion) {
+            info.reviewedVersion = reviewedVersion
+            if (compareVersions(reviewedVersion, rec.version) > 0 && compareVersions(reviewedVersion, latest) <= 0) {
+              info.reviewedUpdate = reviewedVersion
+            }
+            if (compareVersions(latest, reviewedVersion) > 0) {
+              info.unreviewed = true
+            }
+          }
+          updates.push(info)
         }
       } catch (err) {
         this.ctx.logger.warn(
@@ -1214,6 +1262,10 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     }
     // A major bump is never applied silently: without an explicit range the
     // caller (UI) must confirm first and retry with a version/range.
+    // The comparison target is the version a default update would
+    // actually install — the reviewed pin when one applies (audit W5),
+    // not npm's latest: an unreviewed major sitting beyond the pin must
+    // not block the reviewed patch update underneath it.
     const majorOf = (v: string): number => {
       const m = /^v?(\d+)/.exec(v)
       return m ? Number(m[1]) : 0
@@ -1221,10 +1273,24 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     if (!range) {
       const client = this.getNpmClient()
       const latest = (await client.fetchPackument(rec.npm))['dist-tags']?.latest
-      if (latest && majorOf(latest) > majorOf(rec.version)) {
+      let defaultTarget = latest
+      try {
+        const reviewed = (await client.fetchIndex()).find((e) => e.id === id)?.reviewedVersion
+        if (
+          reviewed &&
+          latest &&
+          compareVersions(reviewed, rec.version) > 0 &&
+          compareVersions(reviewed, latest) <= 0
+        ) {
+          defaultTarget = reviewed
+        }
+      } catch {
+        // No pin information; judge by latest as before.
+      }
+      if (defaultTarget && majorOf(defaultTarget) > majorOf(rec.version)) {
         throw new NpmPluginError(
           'MAJOR_UPDATE_NEEDS_CONFIRM',
-          `插件 "${id}" 有大版本更新（${rec.version} → ${latest}），需要显式确认：请用版本号或 range 再试一次，例如 updatePlugin("${id}", "${latest}")`,
+          `插件 "${id}" 有大版本更新（${rec.version} → ${defaultTarget}），需要显式确认：请用版本号或 range 再试一次，例如 updatePlugin("${id}", "${defaultTarget}")`,
         )
       }
     }

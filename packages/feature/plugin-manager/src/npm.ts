@@ -22,7 +22,7 @@ import {
   type RegistryBlockedEntry,
   type RegistryPluginEntry,
 } from '@BBeBee/protocol'
-import { maxSatisfying, satisfiesRange } from '@BBeBee/toolkit'
+import { compareVersions, maxSatisfying, satisfiesRange } from '@BBeBee/toolkit'
 
 /** Machine-readable failure reasons for npm plugin operations. */
 export type NpmErrorCode =
@@ -89,6 +89,9 @@ export interface NpmClientDeps {
 
 /** npm `dist.integrity` is `sha512-<base64>`; anything else is refused. */
 const INTEGRITY_RE = /^sha512-([A-Za-z0-9+/]+=*)$/
+
+/** A range string that names exactly one version (`1.2.3`, `v1.2.3-beta`). */
+const EXACT_VERSION_RE = /^v?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/
 
 export const NPM_REGISTRY_OFFICIAL = 'https://registry.npmjs.org'
 export const NPM_REGISTRY_CHINA = 'https://registry.npmmirror.com'
@@ -650,6 +653,59 @@ export class NpmClient {
     }
   }
 
+  /**
+   * Applies an entry's reviewed pin (audit W5) to a plain resolution.
+   *
+   * The pin is a CEILING, not just a default: any resolution that
+   * would land above `reviewedVersion` is re-resolved to the highest
+   * version at or below the pin that still satisfies the range. Two
+   * exceptions, both deliberate:
+   *  - the ROOT node with an exact-version range: the caller named the
+   *    precise build (the market UI's confirmed unreviewed update) —
+   *    the overshoot is kept and flagged `unreviewed` so the plan
+   *    shows it instead of silently honouring it.
+   *  - no version at or below the pin satisfies the range: the entry
+   *    set is self-contradictory, so resolution fails loudly rather
+   *    than jumping the pin.
+   * Entries without a pin pass through unchanged.
+   */
+  private applyReviewedPin(
+    entry: RegistryPluginEntry,
+    pack: Packument,
+    sel: { version: string; tarball: string; integrity?: string; peerDependencies?: Record<string, string> },
+    range: string | undefined,
+    isRoot: boolean,
+  ): typeof sel & { unreviewed?: boolean } {
+    const reviewed = entry.reviewedVersion
+    if (!reviewed) return sel
+    if (compareVersions(sel.version, reviewed) <= 0) return sel
+    if (isRoot && range && EXACT_VERSION_RE.test(range.trim())) {
+      return { ...sel, unreviewed: true }
+    }
+    const candidates = Object.keys(pack.versions ?? {}).filter((v) => compareVersions(v, reviewed) <= 0)
+    const version = range
+      ? maxSatisfying(candidates, range)
+      : candidates.includes(reviewed)
+        ? reviewed
+        : maxSatisfying(candidates)
+    if (!version) {
+      throw new NpmPluginError(
+        isRoot ? 'VERSION_NOT_FOUND' : 'DEPENDENCY_CONFLICT',
+        `包 "${entry.npm}" 的注册表已审版本为 ${reviewed}，但没有不高于该版本且满足 ${range ? `"${range}"` : '默认解析'} 的可用版本（最新为 ${sel.version}），拒绝越过已审钉扎`,
+      )
+    }
+    const dist = pack.versions?.[version]?.dist
+    if (!dist?.tarball) {
+      throw new NpmPluginError('VERSION_NOT_FOUND', `包 "${entry.npm}@${version}" 缺少 dist.tarball`)
+    }
+    return {
+      version,
+      tarball: dist.tarball,
+      integrity: dist.integrity,
+      peerDependencies: pack.versions?.[version]?.peerDependencies,
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Dependency closure (D4)
   // ---------------------------------------------------------------------------
@@ -671,7 +727,7 @@ export class NpmClient {
         throw new NpmPluginError('DEPENDENCY_CYCLE', `插件依赖成环：${[...path, e.id].join(' → ')}`)
       }
       const pack = await this.fetchPackument(e.npm)
-      const sel = this.selectVersion(e.npm, pack, r)
+      const sel = this.applyReviewedPin(e, pack, this.selectVersion(e.npm, pack, r), r, path.length === 0)
       const existing = resolved.get(e.id)
       if (existing) {
         if (r && !satisfiesRange(existing.pkg.version, r)) {
@@ -684,7 +740,15 @@ export class NpmClient {
       }
       const node: ResolvedEntry = {
         entry: e,
-        pkg: { id: e.id, npm: e.npm, version: sel.version, tarball: sel.tarball, integrity: sel.integrity },
+        pkg: {
+          id: e.id,
+          npm: e.npm,
+          version: sel.version,
+          tarball: sel.tarball,
+          integrity: sel.integrity,
+          ...(e.reviewedVersion ? { reviewedVersion: e.reviewedVersion } : {}),
+          ...(sel.unreviewed ? { unreviewed: true } : {}),
+        },
         peerDependencies: sel.peerDependencies,
       }
       resolved.set(e.id, node)
@@ -797,6 +861,34 @@ export class NpmClient {
     const digest = base64Encode(sha512(bytes))
     if (digest !== m[1]) {
       throw new NpmPluginError('INTEGRITY_MISMATCH', `${label} 完整性校验失败（sha512 不匹配），拒绝安装`)
+    }
+  }
+
+  /**
+   * Verifies the downloaded bytes against the registry entry's
+   * reviewed pin hash (audit W5). This is a SECOND, independent anchor:
+   * the pin lives in the registry repo while `dist.integrity` travels
+   * with the (possibly mirrored) packument, so a mirror that swaps
+   * both the tarball and its packument hash still fails here. Callers
+   * invoke it only when the resolved version IS the reviewed version —
+   * the pin says nothing about any other version's bytes.
+   */
+  verifyReviewedIntegrity(bytes: Uint8Array, entry: RegistryPluginEntry, label: string): void {
+    const expected = entry.reviewedIntegrity
+    if (!expected) return
+    const m = INTEGRITY_RE.exec(expected.trim())
+    if (!m) {
+      throw new NpmPluginError(
+        'INTEGRITY_MISMATCH',
+        `${label} 的注册表已审哈希格式不支持（仅支持 sha512）：${expected}`,
+      )
+    }
+    const digest = base64Encode(sha512(bytes))
+    if (digest !== m[1]) {
+      throw new NpmPluginError(
+        'INTEGRITY_MISMATCH',
+        `${label} 与注册表已审哈希不符（reviewedIntegrity）：下载到的字节不是注册表审核过的 ${entry.reviewedVersion ?? ''} 版本，拒绝安装`,
+      )
     }
   }
 
