@@ -59,7 +59,7 @@ To maximize startup performance without breaking Cordis DI lifecycle:
 Desktop implements runtime dynamic loading for external third-party plugins while maintaining sandbox integrity, `contextIsolation`, and a strict CSP:
 
 1. **Privileged Scheme in Desktop Host (`apps/desktop/src-tauri/src/main.rs` & `sidecar/protocols.ts`)**:
-   The desktop host registers the privileged custom scheme `bbebee-plugin://`. The protocol handler serves files strictly out of `userData/installed-plugins/<pluginDirName(id)>/`. Path containment is enforced so directory traversal attempts (`..`) are rejected with 403 Forbidden. Correct MIME types (`text/javascript`, `application/json`, etc.) are returned.
+   The desktop host registers the privileged custom scheme `bbebee-plugin://`. The protocol handler serves files strictly out of `userData/installed-plugins/<pluginDirName(id)>/`. Path containment is enforced so directory traversal attempts (`..`) are rejected with 403 Forbidden. The plugin-id segment itself is validated as a plain id (`isSafePluginId`: dot segments, backslashes, and percent-encoded variants are refused before any directory lookup), directory candidates must resolve *inside* the installed-plugins root, and the final containment check compares on a separator boundary so a sibling directory sharing a name prefix is not inside. Correct MIME types (`text/javascript`, `application/json`, etc.) are returned.
 
 2. **Webview Shim & Bridge (`apps/desktop/src-tauri/src/shim.js` & `renderer/preload-shim.ts`)**:
    Exposes `window.BBeBee.plugins` with:
@@ -179,6 +179,15 @@ from npm. The two phases are deliberately separate:
    (service keys the plugin registers for others), `platforms`
    (`desktop`/`mobile`), `npm` (package name), and `dependencies` as
    `"<registry-id>[@<semver-range>]"`. The market UI filters by platform.
+   The index document itself is an object, `{ entries, blocked }`:
+   `blocked` is the registry's recall channel — `{ id, reason }` pairs from
+   the registry repo's `blocklist.json` that clients must quarantine on
+   sight (§6.7, "Liveness" below); the parser still accepts the legacy
+   bare-array form with an empty blocked channel. An entry may also carry
+   a **reviewed pin** — `reviewedVersion` + `reviewedIntegrity`, the
+   version registry review has actually vetted, with its sha512 — which
+   caps resolution (step 2) and anchors the download a second time
+   (step 3).
 2. **Resolve (npm metadata only).** For the chosen entry, the client reads the
    packument from the effective npm registry, picks `dist-tags.latest` (or the
    highest version satisfying a range), and resolves the transitive dependency
@@ -186,26 +195,64 @@ from npm. The two phases are deliberately separate:
    dependency cycles fail loudly with the conflicting requirements named.
    `resolveInstallPlan` returns the plan **without downloading anything**, so
    the UI can show the exact version, the dependency closure, and any missing
-   services for confirmation.
+   services for confirmation. Resolution never lands above an entry's
+   `reviewedVersion`: when the entry is pinned, the plan takes the highest
+   version at or below the pin that still satisfies the range (the closure's
+   entries are capped by their own pins the same way). Going past the pin is
+   possible only by naming that exact version, which flags the plan node
+   `unreviewed` and asks for a separate, explicit confirmation — an
+   unreviewed install is a deliberate act, never the default outcome.
+   When the user confirms a shown plan, the UI passes it back to
+   `installPlugin` as `expectedPlan`: execution re-resolves once and
+   compares every node's pinned identity (id + npm + version + integrity)
+   against the confirmed plan, refusing with `PLAN_CHANGED` if upstream
+   moved in between — the user only ever gets what they confirmed.
 3. **Install (download → verify → activate).** The tarball is downloaded via
    `ctx.http` as a stream (buffered `bytes()` fallback where a host has no
    stream), with the size cap enforced against the running total so an
    oversized download aborts mid-flight rather than after buffering; its
-   sha512 `dist.integrity` is verified, the bytes unpacked with
-   a pure-JS gunzip+untar (no `node:*` in L4), and checked three ways: the
+   sha512 `dist.integrity` is verified — and, when the resolved version is
+   the entry's reviewed version, the bytes must additionally match the
+   entry's `reviewedIntegrity`, a second anchor that lives in the registry
+   repo rather than in the (possibly mirrored) packument, so a mirror that
+   swaps both the tarball and its packument hash still fails. The bytes are
+   unpacked with a pure-JS gunzip+untar (no `node:*` in L4) under hard caps
+   on the *decompressed* size and the tar entry count, and checked three ways: the
    selected version must equal `package.json#version` and
    `BBeBee.plugin.json#version`; `package.json#name` must equal the entry's
    `npm`; the manifest `id` must equal the entry `id` and must not collide with
    a built-in plugin id (anti-spoofing). Text files are passed as UTF-8
    strings; non-UTF-8 entries are refused in v1. Then the existing security
-   scan runs (`block` level refuses), files are written through the desktop
-   bridge (`installAndActivatePlugin`), and the install record
-   `{ id, npm, version, sha256, entrySha256, installedAt }` is persisted per
-   node as each one lands, so the store never claims a plugin whose files are
+   scan runs (`block` level refuses — the scan covers every executable
+   text entry, `.mjs`/`.cjs` included, plus the manifest's entry files
+   whatever their extension, and literal `data:`/`blob:` dynamic imports
+   are a block rule), files are written through the desktop
+   bridge (`installAndActivatePlugin`) as one **atomic swap** — the whole
+   package lands in a staging sibling directory first and is renamed into
+   place, so a failed write never leaves a half-written plugin and files
+   the new version deleted do not linger — and the install record
+   `{ id, npm, version, sha256, entrySha256, fileHashes, installedAt }` is
+   persisted per node, so the store never claims a plugin whose files are
    not on disk (or vice versa). `sha256` is the whole-tarball digest;
-   `entrySha256` is the SHA-256 of the entry main file, which boot merges
-   into the dynamic loader's lock map — the tamper check hashes the on-disk
-   entry file, and the two digests cover different bytes.
+   `fileHashes` is a SHA-256 for **every** file in the package and
+   `entrySha256` is that map's view of the entry main file. Boot merges
+   the record into the dynamic loader's lock map and the tamper check
+   compares the entire on-disk file set against `fileHashes` — a changed,
+   missing, or extra file quarantines the plugin; a record carrying no
+   hashes at all is treated as *unverified* and quarantined too, never
+   silently trusted.
+   Before each node activates, the installer writes its capability grants
+   from the **real** downloaded manifest into `capability_grants` (the
+   ledger is plugin-manager's own; see
+   [capabilities.md](./capabilities.md#the-gate-fails-closed)) — confirming
+   the install *is* the authorisation, and the kernel re-reads the table
+   on every load, so the grant is visible to the activation that follows
+   in the same flow. Activation results are checked, not assumed: a node
+   that ends `ungranted`, `failed`, `quarantined`, or `missing` fails the
+   whole install with `ACTIVATION_FAILED` naming the node, and a
+   first-time install rolls back what already landed (files removed,
+   records dropped, grants revoked) instead of leaving a half-installed
+   closure behind.
 
 **Pre-install checklist** (any failure refuses the install with a readable
 reason): required `services` ⊆ (services contributed by *enabled* known
@@ -236,18 +283,42 @@ themselves, and that re-check is the ground truth (an entry whose
 `provides` overstates its manifest is caught there, not at plan time).
 
 **Version management.** `checkUpdates()` re-fetches packuments (short TTL; also
-runs automatically once ~24h after boot plus on user request). `updatePlugin`
-installs the newest version satisfying `^<installed>` and keeps the enabled
+runs automatically once ~24h after boot plus on user request) and reports a
+pending update as *reviewed* (at or below the entry's pin) or *unreviewed*
+(above it). `updatePlugin`
+installs the newest version satisfying `^<installed>` — still capped by the
+reviewed pin, so a default update stops at the reviewed version and going
+past it takes the explicit unreviewed confirmation — and keeps the enabled
 state; a major-version bump without an explicit range throws
 `MAJOR_UPDATE_NEEDS_CONFIRM` so the UI asks first. Before an update overwrites
 anything, rollback material is staged for **every** already-installed node in
-the closure by re-downloading its old tarball; if activation of the new
+the closure by re-downloading its old tarball **and putting it through the
+same prepare checklist as a first install** (integrity, anti-spoofing, scan,
+manifest re-checks): material that downloads but fails verification aborts
+the update before anything is written, because reinstalling unverified bytes
+as the "safe" fallback would defeat the checklist. If activation of the new
 version fails partway, the replaced nodes are rolled back in reverse order
 (files, manifests and their install records restored together). A node whose
 old tarball can no longer be staged stays at the new version, with a loud
 warning rather than a silent half-state. `uninstall` refuses
 when other installed plugins depend on the target and names them; user data
 (store namespaces, tables) is always kept.
+
+**Liveness (registry recall).** At boot, in `checkUpdates`, and before an
+update, the manager re-reads the registry index (through the same 24h
+cache) and reconciles it against the installed set. Two distinct flags,
+both persisted on the install record and surfaced as badges in settings:
+*delisted* — the index was fetched successfully and the plugin's id is no
+longer in it, so the installed copy is quarantined (and `updatePlugin`
+refuses with `DELISTED` instead of a confusing not-found deep in the
+flow); and *blocked* — the id appears in the index's `blocked` channel,
+a stronger security ban that also refuses fresh installs of the id
+outright (`BLOCKED`) and carries the registry's reason verbatim. Either
+flag lifts automatically when the entry (or the un-banning) restores the
+id. The asymmetry is deliberate: an index that cannot be fetched at all
+(offline, 404) sets **neither** flag — network failure is fail-open,
+confirmed absence is fail-closed, so going offline never quarantines a
+healthy install.
 
 **Mirrors & region.** Two settings control where bytes come from, both
 overridable in Settings → Network → *Download & GitHub acceleration*:
@@ -378,11 +449,12 @@ renders spectrogram / spectrum / VU-meter views from it. It is the pilot
 loop's second target (its install pulls the visualizer in as a registry
 dependency closure), it has its own publication repo
 (`BBeBeeX/B_Be_Bee-visualizer-meters`), and both it and the visualizer
-are registered in `B_Be_Bee-registry`. Until the two packages are
-actually published to npm, the registry's online validation reports the
-expected npm-existence 404s for them — entry shape, dependency and
-service checks already pass; publishing is what turns those two checks
-green.
+are registered in `B_Be_Bee-registry`. Both packages were published to
+npm on 2026-10-20 as 0.1.0 (`@bbebee/plugin-visualizer`,
+`@bbebee/plugin-visualizer-meters`) and their registry entries are
+reviewed-pinned at that version, so the registry's online validation —
+npm existence, content cross-checks, pin integrity — runs green against
+them; §6.10 covers how official packages gain provenance from here.
 
 Two authoring constraints:
 

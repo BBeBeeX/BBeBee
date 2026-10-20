@@ -123,6 +123,19 @@ a matching row in `capability_grants`, and without one it is refused and recorde
 rather than loaded. External desktop plugins loaded dynamically through `bbebee-plugin://` are strictly
 subject to this check.
 
+**Where grant rows come from.** The rows are written by exactly one component: plugin-manager's
+grant ledger (`CapabilityGrantLedger`), at exactly one moment — when a user-confirmed install or
+update activates a node, the ledger records the capabilities of the **real downloaded manifest**
+(a replace, so an update that drops a capability revokes it), and uninstall revokes the plugin's
+rows. There is no other writer, and a plugin with declared capabilities whose ledger is
+unavailable is refused (`GRANT_UNAVAILABLE`) rather than silently waved through. The kernel
+side is read-only and deliberately unstale: both shells pass `readCapabilityGrants` into
+`createApp` as `resolveGrants`, and the table is re-read before every load rather than snapshotted
+at boot — a grant written mid-session is honoured by the activation that follows it, a revoked
+one stops working at the next load, and a read failure resolves to *no grants* (fail-closed),
+never to the plugin's own declarations. Activation outcomes are reported back honestly: an
+install whose node ends `ungranted` fails as `ACTIVATION_FAILED`, it does not record success.
+
 This matters because the failure mode is silent: a host that simply forgot to pass its grants
 would otherwise hand a non-builtin plugin exactly what it declared for itself — including
 `net:host/*` — turning approval into a no-op.

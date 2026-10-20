@@ -1146,6 +1146,14 @@ export interface PluginInfo {
   dependencies: string[]
   dependents: string[]
   configStatus?: ConfigStatus
+  /** Capabilities the plugin's REAL manifest declares — the list the grant ledger judged. */
+  capabilities?: string[]
+  /** Registry entry gone (liveness confirmed against a fetched index); copy quarantined. */
+  delisted?: boolean
+  /** Registry security ban (index `blocked` channel); value is the registry's reason. */
+  blocked?: string
+  /** Installed version's npm provenance source repo matches the registry entry's `repo`. */
+  provenanceVerified?: boolean
 }
 
 export type PluginRuntimeState =
@@ -1163,14 +1171,31 @@ export type ConfigStatus = 'none' | 'customized' | 'default'
 export interface PluginLifecycleBridge {
   loadPlugin: (id: string) => Promise<unknown>
   unloadPlugin: (id: string) => Promise<void>
+  uninstallPlugin?: (id: string) => Promise<void>
+  /** Writes plugin files and activates the plugin (desktop dynamic loader; absent on mobile). */
+  installPlugin?: (id: string, files: Record<string, string>, manifest: PluginManifest) => Promise<unknown>
 }
 
 export interface PluginManagerService {
   list(): readonly PluginInfo[]
   setEnabled(id: string, enabled: boolean): Promise<void>
+  /** Provider arbitration for multi-provider service keys (optional; see bullets below). */
+  listServiceProviders?(): ServiceProviderInfo[]
+  setServiceProvider?(key: string, providerId: string): Promise<void>
   registerManifests(manifests: Record<string, PluginManifest>): void
   setLifecycleBridge(bridge: PluginLifecycleBridge): void
+  setHostVersions?(versions: Record<string, string>): void
   refresh(): readonly PluginInfo[]
+  uninstall?(id: string): Promise<void>
+  // npm marketplace surface (desktop; flow in plugins/loading.md §6.7)
+  browseRegistry(force?: boolean): Promise<RegistryPluginEntry[]>
+  resolveInstallPlan(id: string, range?: string): Promise<InstallPlan>
+  installPlugin(id: string, range?: string, expectedPlan?: InstallPlan): Promise<void>
+  checkUpdates(force?: boolean): Promise<PluginUpdateInfo[]>
+  updatePlugin(id: string, range?: string): Promise<void>
+  setNpmAuthToken(token: string): Promise<void>
+  clearNpmAuthToken(): Promise<void>
+  hasNpmAuthToken(): Promise<boolean>
 }
 ```
 
@@ -1184,6 +1209,7 @@ export interface PluginManagerService {
 - **Layer Invariants & Bridge**: Headless Layer 4 plugins are strictly forbidden from importing the bootstrap kernel surface (`createApp`, `app.loadPlugin`). Dynamic loading and unloading is bridged at the composition root (`apps/desktop/renderer/boot.ts`) via `registerBridge` and the `'plugin-manager/enabled-changed'` event.
 - **L4/L5 Manifest Decoupling**: Manifest records generated during build time are injected into `plugin-manager` at boot via config or `setManifests`, ensuring Layer 4 never imports UI or code-generation packages.
 - **Reverse Dependency Resolution**: Dependents are dynamically computed across all known manifests and live fiber inject edges in real time. Disabling plugins with active dependents triggers confirmation guards in the settings UI.
+- **Critical providers cannot be switched off**: `setEnabled` refuses (`CRITICAL_PROVIDER`) to disable a plugin whose real manifest provides any of the 17 critical service keys (the generated `CRITICAL_SERVICE_KEYS` list in `@BBeBee/protocol` — `audio`, `player`, `db`, `http`, `secrets`, …); the settings toggle is locked for the same providers, but the refusal is enforced here, server-side, not just in the UI. Non-critical keys are the opposite posture: several installed providers may coexist, `setServiceProvider` persists the user's choice of the active one, installing a new provider preempts the incumbent, and boot filters the enabled set to the chosen provider.
 
 ---
 
