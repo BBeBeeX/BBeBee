@@ -161,7 +161,7 @@ export const bundled: PluginRegistry = {
   },
   "@BBeBee/plugin-registry-metadata": {
     load: () => import('@BBeBee/plugin-registry-metadata'),
-    manifest: {"id":"@BBeBee/plugin-registry-metadata","name":"@BBeBee/plugin-registry-metadata","displayName":"Registry Metadata","description":"ctx.registryMetadata — lazy GitHub star and contributor counts for registry entries, cached for a day and degraded gracefully.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-4","moduleId":"registry","entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{},"effect":"registryMetadata"},
+    manifest: {"id":"@BBeBee/plugin-registry-metadata","name":"@BBeBee/plugin-registry-metadata","displayName":"Registry Metadata","description":"ctx.registryMetadata — lazy GitHub star and contributor counts for registry entries, cached for a day and degraded gracefully.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-4","moduleId":"registry","entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["registryMetadata"]},"effect":"registryMetadata"},
     builtin: true,
   },
   "@BBeBee/plugin-security-audit": {

@@ -2370,7 +2370,11 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {},
+    "contributes": {
+      "services": [
+        "registryMetadata"
+      ]
+    },
     "effect": "registryMetadata"
   },
   "plugin-registry-metadata": {
@@ -2391,7 +2395,11 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "main": "./dist/index.js"
     },
     "capabilities": [],
-    "contributes": {},
+    "contributes": {
+      "services": [
+        "registryMetadata"
+      ]
+    },
     "effect": "registryMetadata"
   },
   "@BBeBee/plugin-security-audit": {

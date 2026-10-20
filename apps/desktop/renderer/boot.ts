@@ -49,7 +49,7 @@ import logFile from '@BBeBee/plugin-log-file'
 
 import { version as reactVersion } from 'react'
 import { version as reactDomVersion } from 'react-dom'
-import { BOOTSTRAP_SERVICES, INITIAL_ENABLED } from './plugins.js'
+import { BOOTSTRAP_SERVICES, INITIAL_ENABLED, SHELL_MANIFEST } from './plugins.js'
 import {
   getBuiltinPluginRegistry,
   installAndActivatePlugin,
@@ -638,7 +638,11 @@ function wirePluginManager(
 ): void {
   app.ctx.inject(['plugin-manager'], (scoped) => {
     const pm = (scoped as unknown as { 'plugin-manager'?: PluginManagerService })['plugin-manager']
-    pm?.registerManifests(manifests)
+    // The shell's own declaration goes in alongside the plugin manifests:
+    // services the composition root provides directly (none today — see
+    // SHELL_MANIFEST) must be visible to the install-time availability
+    // check, which is judged against manifests.
+    pm?.registerManifests({ [SHELL_MANIFEST.id]: SHELL_MANIFEST, ...manifests })
     // Host-module version facts for plugin-manager's install-plan peer
     // check: the versions of the React copies this shell actually loaded
     // (resolved through the import map to the shared host chunks — the

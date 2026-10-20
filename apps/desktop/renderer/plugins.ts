@@ -9,6 +9,7 @@
  */
 
 import type { AppConfig } from '@BBeBee/kernel'
+import type { PluginManifest } from '@BBeBee/protocol'
 
 /**
  * The services the bootstrap array provides.
@@ -40,6 +41,52 @@ export const BOOTSTRAP_SERVICES = [
   // reached through the registry (docs/09 §1).
   'logBuffer',
 ] as const
+
+/**
+ * The shell's own service declaration — NOT a plugin.
+ *
+ * Some services reach `ctx` from the composition root itself (the
+ * `bootstrap:` array in `boot.ts`) rather than from a plugin the registry
+ * loads. Install-time service availability (plugin-manager) and the
+ * manifest-completeness gate are judged against *manifests*, so a service
+ * provided only by shell wiring would be invisible to both — refused at
+ * install time on every machine despite being right there on `ctx`. This
+ * declaration is where such a service is written down: `boot.ts` feeds it
+ * to plugin-manager through the ordinary `registerManifests` channel, and
+ * the gate in `manifest-standards.test.ts` counts it as coverage.
+ *
+ * Today `contributes.services` is **empty**, on purpose: every bootstrap
+ * service is provided by a core package whose own manifest already
+ * declares it (core-desktop-bridge declares `fs`/`db`/`paths`/`codec`,
+ * core-store-fs declares `store`, and so on), and `DesktopAudioService` —
+ * the one service class that lives in `boot.ts` itself — re-provides
+ * `audio`, which core-audio-mpv's manifest declares. If a future change
+ * wires a service directly in `boot.ts` (or another shell file) with no
+ * providing package manifest behind it, its key MUST be added here, or
+ * the completeness gate fails.
+ *
+ * `entry.main` is empty: that is the declaration-only marker. There is no
+ * code to load — this record is never added to the app registry, and
+ * plugin-manager does not list entry-less manifests as plugins.
+ */
+export const SHELL_MANIFEST: PluginManifest = {
+  id: '@BBeBee/app-shell',
+  name: '@BBeBee/app-shell',
+  displayName: 'Desktop Shell',
+  description:
+    'The desktop composition root itself. Declares services the shell provides directly, outside any plugin manifest; not a loadable plugin.',
+  version: '0.0.0',
+  author: 'BBeBee Team',
+  engines: { BBeBee: '^0.1.0' },
+  enabled: true,
+  dependencies: [],
+  systemId: 'layer-5',
+  moduleId: 'shell',
+  entry: { main: '' },
+  capabilities: [],
+  contributes: { services: [] },
+  effect: null,
+}
 
 export const ENABLED: NonNullable<AppConfig['plugins']> = {
   '@BBeBee/plugin-theme': {},

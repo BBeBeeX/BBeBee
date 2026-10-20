@@ -722,6 +722,51 @@ describe('plugin-manager npm service methods', () => {
     await expectNpmError(w.plugin.installPlugin('a-x'), 'SERVICE_UNAVAILABLE')
   })
 
+  it('counts services declared by a shell (entry-less) manifest for availability, but never lists it as a plugin', async () => {
+    const entry = entryFor({ id: 'a-x', npm: '@t/a', services: ['shell-svc'] })
+    const tarballs = { '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0') }
+    const w = createNpmWorld({
+      manifests: {
+        // A composition root's service-provision record: contributes a
+        // service, has no code to load (empty entry.main).
+        '@BBeBee/app-shell': {
+          id: '@BBeBee/app-shell',
+          name: '@BBeBee/app-shell',
+          displayName: 'Shell',
+          description: 'shell service declaration',
+          version: '0.0.0',
+          author: 'BBeBee',
+          engines: { BBeBee: '^0.1.0' },
+          enabled: true,
+          entry: { main: '' },
+          capabilities: [],
+          contributes: { services: ['shell-svc'] },
+          effect: null,
+        } as PluginManifest,
+      },
+    })
+    w.routes.set(INDEX_URL, { status: 200, json: async () => [entry] })
+    w.routes.set(`https://registry.npmjs.org/${encodeURIComponent(entry.npm)}`, {
+      status: 200,
+      json: async () => packument(entry.npm, ['1.0.0'], tarballs),
+    })
+    w.routes.set(`https://cdn.example.com/${encodeURIComponent(entry.npm)}-/1.0.0.tgz`, {
+      status: 200,
+      bytes: async () => tarballs['@t/a@1.0.0']!,
+    })
+    await w.plugin[PluginManagerPlugin.init]()
+
+    // The declared service is available to the install gate…
+    expect((await w.plugin.resolveInstallPlan('a-x')).missingServices).toEqual([])
+    await w.plugin.installPlugin('a-x')
+    expect(w.bridge.installPlugin).toHaveBeenCalledTimes(1)
+    // …but the declaration itself is not a plugin and is never listed,
+    // while the genuinely installed plugin is.
+    const ids = w.plugin.list().map((p) => p.id)
+    expect(ids).toContain('a-x')
+    expect(ids).not.toContain('@BBeBee/app-shell')
+  })
+
   it('refuses on triple-version mismatch', async () => {
     const entry = entryFor({ id: 'a-x', npm: '@t/a' })
     // tarball claims 9.9.9 while the resolved version is 1.0.0

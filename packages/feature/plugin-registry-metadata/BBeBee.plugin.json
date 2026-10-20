@@ -16,6 +16,8 @@
     "main": "./dist/index.js"
   },
   "capabilities": [],
-  "contributes": {},
+  "contributes": {
+    "services": ["registryMetadata"]
+  },
   "effect": "registryMetadata"
 }

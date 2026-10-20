@@ -890,9 +890,13 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       }
     })()
 
-    // Deduplicate manifests by id
+    // Deduplicate manifests by id. Declaration-only manifests — an empty
+    // `entry.main`, e.g. a shell's service-provision record — feed the
+    // availability composition above, but they are not plugins: there is
+    // nothing to load, toggle or list, so they never appear here.
     const uniqueManifests = new Map<string, PluginManifest>()
     for (const m of this.manifests.values()) {
+      if (!m.entry?.main) continue
       uniqueManifests.set(m.id, m)
     }
 
