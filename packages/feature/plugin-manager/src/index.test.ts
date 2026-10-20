@@ -1015,17 +1015,23 @@ describe('plugin-manager npm service methods', () => {
     expect(rec.entrySha256).not.toBe(rec.sha256)
   })
 
-  it('persists each node record as it installs: a later failure leaves earlier nodes recorded (Fix C)', async () => {
+  it('rolls back a failed first install: completed nodes are uninstalled and their records removed (audit W3; per-node records from Fix C are the mechanism, the end state changed)', async () => {
     const w = seedClosureWorld(['1.0.0'], ['1.0.0'])
     await w.plugin[PluginManagerPlugin.init]()
     w.bridge.installPlugin = vi.fn(async (id: string) => {
       if (id === 'a-x') throw new Error('bridge boom')
     }) as typeof w.bridge.installPlugin
+    const uninstallSpy = vi.fn(async () => {})
+    ;(w.bridge as any).uninstallPlugin = uninstallSpy
     await expect(w.plugin.installPlugin('a-x')).rejects.toThrow('bridge boom')
+    // b-y finished before a-x failed; the first-install rollback removes
+    // it again through the bridge (files + directory) and drops its
+    // record — nothing of the failed install stays behind.
+    expect(uninstallSpy).toHaveBeenCalledWith('b-y')
     const store = (w.ctx as any).store
     const setCalls = store.set.mock.calls.filter(([k]: [string]) => k === 'npm:installed')
     const last = setCalls.at(-1)![1] as Record<string, any>
-    expect(last['b-y']?.version).toBe('1.0.0')
+    expect(last['b-y']).toBeUndefined()
     expect(last['a-x']).toBeUndefined()
   })
 
@@ -1424,9 +1430,12 @@ describe('capability grants (W1)', () => {
     expect((err as NpmPluginError).code).toBe('ACTIVATION_FAILED')
     expect((err as Error).message).toContain('a-x')
     expect((err as Error).message).toContain('ungranted')
-    // The approval itself was real and stays on record; only the
-    // activation failed, and the error says exactly that.
-    expect(Object.fromEntries(fake.grants)).toEqual({ 'a-x': ['audio'] })
+    // The grant WAS recorded during the attempt — then the first-install
+    // rollback (audit W3) undid the whole install: files uninstalled,
+    // record dropped, and the grant revoked with it, exactly as an
+    // uninstall would. A later reinstall asks for approval again.
+    expect(Object.fromEntries(fake.grants)).toEqual({})
+    expect(w.plugin.list().some((p) => p.id === 'a-x')).toBe(false)
   })
 
   it('refuses a capability-bearing install when the grant ledger is unavailable', async () => {

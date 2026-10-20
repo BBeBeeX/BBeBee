@@ -74,6 +74,36 @@ interface InspectorSnapshotData {
   root?: InspectorFiberNode
 }
 
+/**
+ * Outcome of staging one node's rollback material: `ready` carries the
+ * verified old package; `unavailable` means no material exists (the old
+ * version vanished from npm or the fetch failed — best-effort, as
+ * before); `rejected` means bytes WERE downloaded but failed the
+ * install checklist — unverified material must never be reinstalled as
+ * a "safe" fallback, so callers abort on it.
+ */
+type RollbackStage =
+  | { kind: 'ready'; extracted: ExtractedPackage }
+  | { kind: 'unavailable' }
+  | { kind: 'rejected'; error: NpmPluginError }
+
+/**
+ * preparePackage failure codes that mean "the downloaded bytes failed
+ * verification" (as opposed to "the bytes could not be fetched"). As
+ * rollback material these abort the operation; as fetch failures they
+ * merely leave a node without material.
+ */
+const ROLLBACK_VERIFICATION_CODES: ReadonlySet<string> = new Set([
+  'INTEGRITY_MISMATCH',
+  'SPOOF_DETECTED',
+  'VERSION_MISMATCH',
+  'SECURITY_BLOCKED',
+  'TARBALL_INVALID',
+  'BINARY_ASSET',
+  'PLATFORM_MISMATCH',
+  'APP_VERSION_MISMATCH',
+])
+
 export interface PluginManagerConfig {
   manifests?: Record<string, PluginManifest>
   /**
@@ -788,8 +818,190 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     this.ctx.emit('plugin-manager/changed')
   }
 
+  /**
+   * Stages one installed node's rollback material: its current tarball,
+   * re-fetched from npm and put through the SAME checklist as a first
+   * install (preparePackage: integrity, anti-spoofing, security scan,
+   * manifest re-checks). The anti-spoof anchor is the install record
+   * itself (id + npm were verified when that version was installed);
+   * the registry entry, when still listed, carries the same values.
+   */
+  private async stageRollbackMaterial(
+    client: NpmClient,
+    old: InstalledNpmPluginRecord,
+    records: Record<string, InstalledNpmPluginRecord>,
+    index: RegistryPluginEntry[],
+  ): Promise<RollbackStage> {
+    let oldDist: { tarball?: string; integrity?: string } | undefined
+    try {
+      const pack = await client.fetchPackument(old.npm)
+      oldDist = pack.versions?.[old.version]?.dist
+    } catch (err) {
+      this.ctx.logger.warn(
+        `plugin-manager: could not stage rollback for "${old.id}": ${err instanceof Error ? err.message : String(err)}`,
+      )
+      return { kind: 'unavailable' }
+    }
+    if (!oldDist?.tarball) return { kind: 'unavailable' }
+    const entry = index.find((e) => e.id === old.id) ?? {
+      id: old.id,
+      name: old.id,
+      repo: '',
+      npm: old.npm,
+      author: '',
+      description: '',
+      services: [],
+      platforms: [],
+      category: '',
+      dependencies: [],
+      compositors: [],
+    }
+    const node: ResolvedEntry = {
+      entry,
+      pkg: { id: old.id, npm: old.npm, version: old.version, tarball: oldDist.tarball, integrity: oldDist.integrity },
+    }
+    try {
+      return { kind: 'ready', extracted: await this.preparePackage(client, node, records) }
+    } catch (err) {
+      if (err instanceof NpmPluginError && ROLLBACK_VERIFICATION_CODES.has(err.code)) {
+        return { kind: 'rejected', error: err }
+      }
+      this.ctx.logger.warn(
+        `plugin-manager: could not stage rollback for "${old.id}": ${err instanceof Error ? err.message : String(err)}`,
+      )
+      return { kind: 'unavailable' }
+    }
+  }
+
+  /**
+   * The rollback skeleton shared by installPlugin and updatePlugin:
+   * walk the nodes an activation attempt completed, in reverse install
+   * order (dependents before their dependencies), and put each back.
+   *
+   * - A node with a previous record is restored from its staged (and
+   *   verified) material — files, record and grants all return to the
+   *   previous version's. Without material it stays at the new version
+   *   (files and record agree; the skip is logged loudly).
+   * - A node with NO previous record was pulled in by this attempt.
+   *   `newNodePolicy` decides its fate: an update leaves it (it is
+   *   consistent, if unrequested), a failed FIRST install removes it
+   *   again — files uninstalled, directory deleted via the bridge,
+   *   record dropped, grants revoked — so a failed install leaves the
+   *   machine exactly as it found it.
+   */
+  private async rollbackReplacedNodes(args: {
+    replacedIds: string[]
+    previousRecords: Record<string, InstalledNpmPluginRecord>
+    records: Record<string, InstalledNpmPluginRecord>
+    materialById: ReadonlyMap<string, ExtractedPackage>
+    newVersionById: ReadonlyMap<string, string>
+    newNodePolicy: 'keep' | 'remove'
+    actionPhrase: string
+  }): Promise<void> {
+    const { replacedIds, previousRecords, records, materialById, newVersionById, newNodePolicy, actionPhrase } = args
+    const bridge = this.bridge
+    for (const replacedId of [...replacedIds].reverse()) {
+      const previous = previousRecords[replacedId]
+      if (!previous) {
+        if (newNodePolicy === 'keep') {
+          // Newly pulled in by this attempt: its files and record agree,
+          // so the state is consistent — but say so; the user did not ask
+          // for it.
+          this.ctx.logger.warn(
+            `plugin-manager: "${replacedId}" was newly installed by ${actionPhrase} and has no previous version to restore; leaving it installed`,
+          )
+          continue
+        }
+        try {
+          if (bridge?.uninstallPlugin) {
+            await bridge.uninstallPlugin(replacedId)
+          } else if (bridge?.unloadPlugin) {
+            await bridge.unloadPlugin(replacedId)
+          }
+        } catch (rbErr) {
+          this.ctx.logger.error(
+            `plugin-manager: rollback removal of "${replacedId}" failed: ${rbErr instanceof Error ? rbErr.message : String(rbErr)}`,
+          )
+        }
+        const m = this.manifests.get(replacedId)
+        this.manifests.delete(replacedId)
+        if (m?.name) {
+          this.manifests.delete(m.name)
+          delete this.overrides[m.name]
+        }
+        delete this.overrides[replacedId]
+        this.failedErrors.delete(replacedId)
+        if (m?.name) {
+          this.failedErrors.delete(m.name)
+        }
+        delete records[replacedId]
+        // The grant dies with the rolled-back install, exactly as on
+        // uninstall: a later reinstall must be approved again.
+        const ledger = this.grantLedger()
+        if (ledger) {
+          try {
+            await ledger.revoke(replacedId)
+          } catch {
+            // Best-effort; the files are gone, and a stale grant for a
+            // plugin that is not installed loads nothing.
+          }
+        }
+        this.ctx.logger.warn(
+          `plugin-manager: removed "${replacedId}" again after ${actionPhrase} (rolled back)`,
+        )
+        continue
+      }
+      if (previous.version === newVersionById.get(replacedId)) continue // rewritten with identical content
+      const staged = materialById.get(replacedId)
+      if (!staged) {
+        this.ctx.logger.warn(
+          `plugin-manager: cannot roll back "${replacedId}": no rollback material (old tarball unavailable); it stays at the new version`,
+        )
+        continue
+      }
+      if (!bridge?.installPlugin) {
+        this.ctx.logger.error(
+          `plugin-manager: cannot roll back "${replacedId}": lifecycle bridge unavailable`,
+        )
+        continue
+      }
+      try {
+        await bridge.installPlugin(replacedId, staged.files, staged.manifest)
+        this.registerManifests({ [replacedId]: staged.manifest })
+        records[replacedId] = previous
+        // The restored version runs under the grants its own manifest
+        // declares — the failed attempt replaced them with the new
+        // version's set, so put the old set back too.
+        const ledger = this.grantLedger()
+        if (ledger) {
+          try {
+            await ledger.record(replacedId, staged.manifest.capabilities ?? [], {
+              version: previous.version,
+              source: 'npm',
+            })
+          } catch (grantErr) {
+            this.ctx.logger.warn(
+              `plugin-manager: could not restore capability grants for "${replacedId}": ${grantErr instanceof Error ? grantErr.message : String(grantErr)}`,
+            )
+          }
+        }
+        this.ctx.logger.warn(
+          `plugin-manager: rolled back "${replacedId}" to ${previous.version} after ${actionPhrase}`,
+        )
+      } catch (rbErr) {
+        this.ctx.logger.error(
+          `plugin-manager: rollback of "${replacedId}" failed: ${rbErr instanceof Error ? rbErr.message : String(rbErr)}`,
+        )
+      }
+    }
+    if (replacedIds.length > 0) {
+      await this.saveInstalledRecords(records)
+    }
+    this.ctx.emit('plugin-manager/changed')
+  }
+
   async installPlugin(id: string, range?: string, expectedPlan?: InstallPlan): Promise<void> {
-    const { plan, nodes } = await this.planInstall(id, range)
+    const { plan, nodes, index } = await this.planInstall(id, range)
     if (expectedPlan) {
       this.assertPlanUnchanged(expectedPlan, plan)
     }
@@ -819,7 +1031,49 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
         `插件 "${id}" 需要以下服务，但当前安装不可用：${missing.join('、')}，拒绝安装`,
       )
     }
-    await this.activatePrepared(prepared, records)
+
+    // First-install rollback, sharing updatePlugin's skeleton: snapshot
+    // the pre-install records and stage verified rollback material for
+    // any node this install would overwrite. If activation then fails
+    // partway, completed nodes are put back — brand-new ones are
+    // uninstalled again (files, record, grants) — instead of leaving a
+    // half-activated closure behind an "install failed" message.
+    const previousRecords: Record<string, InstalledNpmPluginRecord> = { ...records }
+    const materialById = new Map<string, ExtractedPackage>()
+    const rejectedMaterial: Array<{ old: InstalledNpmPluginRecord; error: NpmPluginError }> = []
+    for (const p of prepared) {
+      const old = previousRecords[p.node.entry.id]
+      if (!old || old.version === p.node.pkg.version) continue
+      const staged = await this.stageRollbackMaterial(client, old, records, index)
+      if (staged.kind === 'ready') {
+        materialById.set(p.node.entry.id, staged.extracted)
+      } else if (staged.kind === 'rejected') {
+        rejectedMaterial.push({ old, error: staged.error })
+      }
+    }
+    if (rejectedMaterial.length > 0) {
+      const first = rejectedMaterial[0]!
+      throw new NpmPluginError(
+        first.error.code,
+        `插件 "${first.old.id}" 现有版本的回滚材料（${first.old.npm}@${first.old.version}）未通过安装校验，中止安装，未写入任何文件：${first.error.message}`,
+      )
+    }
+    const newVersionById = new Map(prepared.map((p) => [p.node.entry.id, p.node.pkg.version]))
+    const installedNow: string[] = []
+    try {
+      await this.activatePrepared(prepared, records, (installedId) => installedNow.push(installedId))
+    } catch (err) {
+      await this.rollbackReplacedNodes({
+        replacedIds: installedNow,
+        previousRecords,
+        records,
+        materialById,
+        newVersionById,
+        newNodePolicy: 'remove',
+        actionPhrase: `failed install of "${id}"`,
+      })
+      throw err
+    }
     this.ctx.logger.info(`plugin-manager: installed "${id}" via npm`)
   }
 
@@ -902,79 +1156,19 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     const newVersionById = new Map(prepared.map((p) => [p.node.entry.id, p.node.pkg.version]))
 
     // Rollback material for EVERY replaced node of the closure (target and
-    // dependencies alike): each installed node's current tarball, re-fetched
-    // from npm and put through the SAME checklist as a first install
-    // (preparePackage: integrity, anti-spoofing, scan, manifest re-checks).
+    // dependencies alike), staged and verified by stageRollbackMaterial.
     // Availability stays best-effort — an old version that vanished from
     // npm simply has no material, as before. But material that downloads
     // and then FAILS verification is a different animal: reinstalling
     // unverified bytes as the "safe" fallback would defeat the checklist,
     // so a single rejected node aborts the whole update before anything
     // is written, with the verification error named.
-    type RollbackStage =
-      | { kind: 'ready'; extracted: ExtractedPackage }
-      | { kind: 'unavailable' }
-      | { kind: 'rejected'; error: NpmPluginError }
-    const VERIFICATION_CODES: ReadonlySet<string> = new Set([
-      'INTEGRITY_MISMATCH',
-      'SPOOF_DETECTED',
-      'VERSION_MISMATCH',
-      'SECURITY_BLOCKED',
-      'TARBALL_INVALID',
-      'BINARY_ASSET',
-      'PLATFORM_MISMATCH',
-      'APP_VERSION_MISMATCH',
-    ])
-    const stageRollback = async (old: InstalledNpmPluginRecord): Promise<RollbackStage> => {
-      let oldDist: { tarball?: string; integrity?: string } | undefined
-      try {
-        const pack = await client.fetchPackument(old.npm)
-        oldDist = pack.versions?.[old.version]?.dist
-      } catch (err) {
-        this.ctx.logger.warn(
-          `plugin-manager: could not stage rollback for "${old.id}": ${err instanceof Error ? err.message : String(err)}`,
-        )
-        return { kind: 'unavailable' }
-      }
-      if (!oldDist?.tarball) return { kind: 'unavailable' }
-      // The anti-spoof anchor for a rollback is the install record itself
-      // (id + npm were verified when that version was installed); the
-      // registry entry, when still listed, carries the same values.
-      const entry = index.find((e) => e.id === old.id) ?? {
-        id: old.id,
-        name: old.id,
-        repo: '',
-        npm: old.npm,
-        author: '',
-        description: '',
-        services: [],
-        platforms: [],
-        category: '',
-        dependencies: [],
-        compositors: [],
-      }
-      const node: ResolvedEntry = {
-        entry,
-        pkg: { id: old.id, npm: old.npm, version: old.version, tarball: oldDist.tarball, integrity: oldDist.integrity },
-      }
-      try {
-        return { kind: 'ready', extracted: await this.preparePackage(client, node, records) }
-      } catch (err) {
-        if (err instanceof NpmPluginError && VERIFICATION_CODES.has(err.code)) {
-          return { kind: 'rejected', error: err }
-        }
-        this.ctx.logger.warn(
-          `plugin-manager: could not stage rollback for "${old.id}": ${err instanceof Error ? err.message : String(err)}`,
-        )
-        return { kind: 'unavailable' }
-      }
-    }
     const rollbackById = new Map<string, ExtractedPackage>()
     const rejectedRollback: Array<{ old: InstalledNpmPluginRecord; error: NpmPluginError }> = []
     for (const node of nodes) {
       const old = previousRecords[node.entry.id]
       if (!old || old.version === node.pkg.version) continue
-      const staged = await stageRollback(old)
+      const staged = await this.stageRollbackMaterial(client, old, records, index)
       if (staged.kind === 'ready') {
         rollbackById.set(node.entry.id, staged.extracted)
       } else if (staged.kind === 'rejected') {
@@ -995,57 +1189,18 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       this.ctx.logger.info(`plugin-manager: updated "${id}" ${rec.version} → ${newVersion}`)
     } catch (err) {
       // Roll back every node this attempt actually replaced, in reverse
-      // install order (dependents before their dependencies).
-      for (const replacedId of [...replaced].reverse()) {
-        const previous = previousRecords[replacedId]
-        if (!previous) {
-          // Newly pulled in by this update: its files and record agree, so
-          // the state is consistent — but say so; the user did not ask for it.
-          this.ctx.logger.warn(
-            `plugin-manager: "${replacedId}" was newly installed by the failed update of "${id}" and has no previous version to restore; leaving it installed`,
-          )
-          continue
-        }
-        if (previous.version === newVersionById.get(replacedId)) continue // rewritten with identical content
-        const staged = rollbackById.get(replacedId)
-        if (!staged) {
-          this.ctx.logger.warn(
-            `plugin-manager: cannot roll back "${replacedId}": no rollback material (old tarball unavailable); it stays at the new version`,
-          )
-          continue
-        }
-        try {
-          await bridge.installPlugin(replacedId, staged.files, staged.manifest)
-          this.registerManifests({ [replacedId]: staged.manifest })
-          records[replacedId] = previous
-          // The restored version runs under the grants its own manifest
-          // declares — the failed attempt replaced them with the new
-          // version's set, so put the old set back too.
-          const ledger = this.grantLedger()
-          if (ledger) {
-            try {
-              await ledger.record(replacedId, staged.manifest.capabilities ?? [], {
-                version: previous.version,
-                source: 'npm',
-              })
-            } catch (grantErr) {
-              this.ctx.logger.warn(
-                `plugin-manager: could not restore capability grants for "${replacedId}": ${grantErr instanceof Error ? grantErr.message : String(grantErr)}`,
-              )
-            }
-          }
-          this.ctx.logger.warn(
-            `plugin-manager: rolled back "${replacedId}" to ${previous.version} after failed update of "${id}"`,
-          )
-        } catch (rbErr) {
-          this.ctx.logger.error(
-            `plugin-manager: rollback of "${replacedId}" failed: ${rbErr instanceof Error ? rbErr.message : String(rbErr)}`,
-          )
-        }
-      }
-      if (replaced.length > 0) {
-        await this.saveInstalledRecords(records)
-      }
+      // install order (dependents before their dependencies). Nodes the
+      // update newly pulled in are kept ('keep'): their files and record
+      // agree, so the state stays consistent.
+      await this.rollbackReplacedNodes({
+        replacedIds: replaced,
+        previousRecords,
+        records,
+        materialById: rollbackById,
+        newVersionById,
+        newNodePolicy: 'keep',
+        actionPhrase: `failed update of "${id}"`,
+      })
       throw err
     }
   }
