@@ -1,9 +1,10 @@
-import { Button, Select, Switch, useI18n } from '@BBeBee/ui-kit-desktop'
+import { Button, Select, Switch, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import type { Context } from 'cordis'
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import { DEFAULT_USER_AGENT } from '@BBeBee/protocol'
 import type { DownloadRegion, ProxySettings, SourceRecord } from '@BBeBee/protocol'
+import { downloadEndpointsChangedSinceSessionStart } from '../../download-endpoint-baseline.js'
 import { GitHubAccelerationEditor } from '../GitHubAccelerationEditor.js'
 import { NpmAuthTokenRow } from '../NpmAuthTokenRow.js'
 import { SettingsRow } from '../SettingsRow.js'
@@ -72,6 +73,16 @@ export function NetworkSection({
   onClearNpmAuthToken,
 }: NetworkSectionProps): ReactElement {
   const { t } = useI18n(ctx)
+  // The gate side of the download allowlist is baked when plugin-manager
+  // loads, so a changed endpoint only reaches it after an app restart —
+  // flag the delta against the session's boot values (see
+  // download-endpoint-baseline.ts). The npm token below is NOT part of
+  // this: it is read live and takes effect immediately.
+  const mirrorRestartRequired = downloadEndpointsChangedSinceSessionStart({
+    downloadRegion,
+    npmRegistryUrl,
+    githubRawBaseUrl,
+  })
   return h(
     'div',
     { id: 'section-network' },
@@ -370,6 +381,32 @@ export function NetworkSection({
           },
         }),
       }),
+      mirrorRestartRequired
+        ? h(
+            'div',
+            {
+              'data-testid': 'settings-mirror-restart-notice',
+              role: 'status',
+              style: {
+                padding: '8px 12px',
+                margin: '10px 0 6px',
+                borderRadius: 6,
+                fontSize: 12,
+                background: 'rgba(245, 158, 11, 0.12)',
+                color: 'var(--bb-state-warn, #F59E0B)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              },
+            },
+            h(
+              'span',
+              { style: { display: 'inline-flex', flexShrink: 0 } },
+              tablerIcon('info-circle', { size: 14 }),
+            ),
+            h('span', null, t('settings:network.mirrorRestartRequired')),
+          )
+        : null,
       h(NpmAuthTokenRow, {
         ctx,
         tokenSet: npmAuthTokenSet,

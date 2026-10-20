@@ -3,7 +3,7 @@
  * Desktop Settings Screen component tests.
  */
 
-import { describe, expect, it, afterEach } from 'vitest'
+import { describe, expect, it, afterEach, beforeEach } from 'vitest'
 import { createElement as h } from 'react'
 import { fireEvent, render, cleanup, waitFor, act } from '@testing-library/react'
 import { Context, Service } from 'cordis'
@@ -13,6 +13,7 @@ import { DEFAULT_APP_SETTINGS, NOW_PLAYING_STYLES } from '@BBeBee/protocol'
 import { apply as applyI18n } from '@BBeBee/plugin-i18n'
 import { midnightPurpleTheme, emeraldGreenTheme } from '@BBeBee/ui-tokens'
 import { SettingsScreen } from './SettingsScreen.js'
+import { resetDownloadEndpointBaselineForTests } from './download-endpoint-baseline.js'
 import { ShortcutsCard } from './components/ShortcutsCard.js'
 import { DebugScreen } from './DebugScreen.js'
 import { LogsScreen } from './LogsScreen.js'
@@ -1796,5 +1797,98 @@ describe('SettingsScreen i18n pilot', () => {
     })
     expect(await findByText('Customize')).toBeTruthy()
     expect(queryByText('自定义')).toBeNull()
+  })
+})
+
+describe('SettingsScreen download-mirror restart notice', () => {
+  // The baseline is renderer-session module state; each harness boots a
+  // fresh "app", so every test here re-arms the first-read freeze.
+  beforeEach(() => {
+    resetDownloadEndpointBaselineForTests()
+  })
+
+  it('stays hidden while the endpoint fields match the session baseline', async () => {
+    const { ctx } = await harness({
+      downloadRegion: 'global',
+      npmRegistryUrl: 'https://registry.example.com',
+      githubRawBaseUrl: 'https://raw.example.com',
+    })
+    const { findByText, queryByTestId } = render(h(SettingsScreen, { ctx }))
+    fireEvent.click(await findByText('Network & proxy'))
+
+    expect(await findByText('Download & GitHub acceleration')).toBeTruthy()
+    expect(queryByTestId('settings-mirror-restart-notice')).toBeNull()
+  })
+
+  it('appears when the download region changes and clears when it is changed back', async () => {
+    const { ctx } = await harness({ downloadRegion: 'global' })
+    const { container, findByText, findByTestId, queryByTestId } = render(
+      h(SettingsScreen, { ctx }),
+    )
+    fireEvent.click(await findByText('Network & proxy'))
+
+    const regionSelect = container.querySelector(
+      'select[aria-label="Download region"]',
+    ) as HTMLSelectElement
+    expect(regionSelect.value).toBe('global')
+    fireEvent.change(regionSelect, { target: { value: 'mainland-china' } })
+
+    const notice = await findByTestId('settings-mirror-restart-notice')
+    expect(notice.textContent).toContain('restart the app')
+
+    fireEvent.change(regionSelect, { target: { value: 'global' } })
+    await waitFor(() => {
+      expect(queryByTestId('settings-mirror-restart-notice')).toBeNull()
+    })
+  })
+
+  it('appears when the npm registry URL changes and clears when it is restored', async () => {
+    const { ctx } = await harness({ npmRegistryUrl: 'https://registry.example.com' })
+    const { container, findByText, findByTestId, queryByTestId } = render(
+      h(SettingsScreen, { ctx }),
+    )
+    fireEvent.click(await findByText('Network & proxy'))
+
+    const input = container.querySelector(
+      'input[aria-label="npm registry URL"]',
+    ) as HTMLInputElement
+    expect(input.value).toBe('https://registry.example.com')
+    fireEvent.change(input, { target: { value: 'https://mirror.example.com' } })
+    expect(await findByTestId('settings-mirror-restart-notice')).toBeTruthy()
+
+    fireEvent.change(input, { target: { value: 'https://registry.example.com' } })
+    await waitFor(() => {
+      expect(queryByTestId('settings-mirror-restart-notice')).toBeNull()
+    })
+  })
+
+  it('appears when the GitHub raw base URL changes', async () => {
+    const { ctx } = await harness()
+    const { container, findByText, findByTestId } = render(h(SettingsScreen, { ctx }))
+    fireEvent.click(await findByText('Network & proxy'))
+
+    const input = container.querySelector(
+      'input[aria-label="Registry raw files base URL"]',
+    ) as HTMLInputElement
+    fireEvent.change(input, { target: { value: 'https://ghproxy.example.com' } })
+    expect(await findByTestId('settings-mirror-restart-notice')).toBeTruthy()
+  })
+
+  it('keeps the session baseline across unmount and remount', async () => {
+    const { ctx } = await harness({ downloadRegion: 'global' })
+    const first = render(h(SettingsScreen, { ctx }))
+    fireEvent.click(await first.findByText('Network & proxy'))
+    const regionSelect = first.container.querySelector(
+      'select[aria-label="Download region"]',
+    ) as HTMLSelectElement
+    fireEvent.change(regionSelect, { target: { value: 'mainland-china' } })
+    expect(await first.findByTestId('settings-mirror-restart-notice')).toBeTruthy()
+    first.unmount()
+
+    // The app still booted with 'global': remounting the screen must not
+    // re-freeze the baseline at the edited value and hide the notice.
+    const second = render(h(SettingsScreen, { ctx }))
+    fireEvent.click(await second.findByText('Network & proxy'))
+    expect(await second.findByTestId('settings-mirror-restart-notice')).toBeTruthy()
   })
 })
