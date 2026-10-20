@@ -20,6 +20,7 @@ import type {
   AppSettings,
   RegistryPluginEntry,
   SecretsService,
+  SecurityAuditContext,
   SettingsContribution,
 } from '@BBeBee/protocol'
 import {
@@ -517,12 +518,24 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       }
     }
     // D8-5: static security scan — a `block` finding refuses the install.
-    const auditor = this.ctxService<{ scan(content: string): { level: string; findings: Array<{ message: string }> } }>(
-      'securityAudit',
-    )
+    // The scan context carries the hosts the packaged manifest declares
+    // via `net:host/<glob>` capabilities, so declared egress is not
+    // flagged as undeclared (the registry flow passes the same kind of
+    // context from its documents' declarations).
+    const allowedHosts = (extracted.manifest.capabilities ?? [])
+      .filter((c) => c.startsWith('net:host/'))
+      .map((c) => c.slice('net:host/'.length).trim())
+      .filter(Boolean)
+    const scanContext = allowedHosts.length > 0 ? { allowedHosts } : undefined
+    const auditor = this.ctxService<{
+      scan(
+        content: string,
+        context?: SecurityAuditContext,
+      ): { level: string; findings: Array<{ message: string }> }
+    }>('securityAudit')
     for (const [path, content] of Object.entries(extracted.files)) {
       if (!path.endsWith('.js') && !path.endsWith('.ts')) continue
-      const report = auditor ? auditor.scan(content) : scanCode(content)
+      const report = auditor ? auditor.scan(content, scanContext) : scanCode(content, scanContext)
       if (report.level === 'block') {
         const issues = report.findings.map((f) => f.message).join('；')
         throw new NpmPluginError('SECURITY_BLOCKED', `插件 "${entry.id}" 的 ${path} 未通过安全扫描，拒绝安装：${issues}`)

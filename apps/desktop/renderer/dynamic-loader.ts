@@ -284,13 +284,20 @@ export async function installAndActivatePlugin(
     throw new Error('Desktop plugins bridge is unavailable')
   }
 
-  // Pre-install security scan: reject if audit level is 'block'
+  // Pre-install security scan: reject if audit level is 'block'. Hosts
+  // declared via the manifest's `net:host/<glob>` capabilities are
+  // passed as the scan allowlist, mirroring plugin-manager's npm path.
   const scanner =
     options?.securityAudit ??
     (app as unknown as { ctx?: { securityAudit?: SecurityAuditService } }).ctx?.securityAudit
+  const allowedHosts = (manifest.capabilities ?? [])
+    .filter((c) => c.startsWith('net:host/'))
+    .map((c) => c.slice('net:host/'.length).trim())
+    .filter(Boolean)
+  const scanContext = allowedHosts.length > 0 ? { allowedHosts } : undefined
   for (const [filename, content] of Object.entries(files)) {
     if (typeof content === 'string' && (filename.endsWith('.js') || filename.endsWith('.ts'))) {
-      const report = scanner ? scanner.scan(content) : scanCode(content)
+      const report = scanner ? scanner.scan(content, scanContext) : scanCode(content, scanContext)
       if (report.level === 'block') {
         const issues = report.findings.map((f) => f.message).join('; ')
         throw new Error(`Installation blocked by security audit for "${pluginId}" (${filename}): ${issues}`)
