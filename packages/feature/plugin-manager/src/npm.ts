@@ -351,6 +351,7 @@ export class NpmClient {
         author: (e.author as string) ?? '',
         description: (e.description as string) ?? '',
         services: Array.isArray(e.services) ? (e.services as string[]) : [],
+        provides: Array.isArray(e.provides) ? (e.provides as string[]) : undefined,
         platforms: Array.isArray(e.platforms) ? (e.platforms as string[]) : [],
         category: (e.category as string) ?? '',
         dependencies: Array.isArray(e.dependencies) ? (e.dependencies as string[]) : [],

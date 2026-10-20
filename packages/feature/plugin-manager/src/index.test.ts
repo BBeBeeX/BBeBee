@@ -555,6 +555,56 @@ describe('plugin-manager npm service methods', () => {
     return w
   }
 
+  function seedProvidesWorld(depDeclaresProvides: boolean) {
+    const b = entryFor({
+      id: 'b-y',
+      npm: '@t/b',
+      services: [],
+      provides: depDeclaresProvides ? ['viz'] : [],
+    })
+    const a = entryFor({ id: 'a-x', npm: '@t/a', services: ['viz'], dependencies: ['b-y'] })
+    const tarballs: Record<string, Uint8Array> = {
+      '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0'),
+      // The dependency's real package does contribute `viz`; whether the
+      // plan can know that depends on the entry's declared `provides`.
+      '@t/b@1.0.0': tarballFor('@t/b', 'b-y', '1.0.0', {
+        'BBeBee.plugin.json': JSON.stringify(manifestFor('b-y', '1.0.0', ['viz'])),
+      }),
+    }
+    const w = createNpmWorld()
+    w.routes.set(INDEX_URL, { status: 200, json: async () => [a, b] })
+    for (const e of [a, b]) {
+      w.routes.set(`https://registry.npmjs.org/${encodeURIComponent(e.npm)}`, {
+        status: 200,
+        json: async () => packument(e.npm, ['1.0.0'], tarballs),
+      })
+      w.routes.set(`https://cdn.example.com/${encodeURIComponent(e.npm)}-/1.0.0.tgz`, {
+        status: 200,
+        bytes: async () => tarballs[`${e.npm}@1.0.0`]!,
+      })
+    }
+    return w
+  }
+
+  it('counts a service the install closure declares in `provides` as available at plan time', async () => {
+    const w = seedProvidesWorld(true)
+    await w.plugin[PluginManagerPlugin.init]()
+    const plan = await w.plugin.resolveInstallPlan('a-x')
+    expect(plan.closure.map((p) => p.id)).toEqual(['b-y'])
+    expect(plan.missingServices).toEqual([])
+    await w.plugin.installPlugin('a-x')
+    // The dependency is installed before its dependent.
+    expect(w.bridge.installPlugin.mock.calls.map(([id]) => id)).toEqual(['b-y', 'a-x'])
+  })
+
+  it('reports a closure-provided service as missing at plan time when the entry omits `provides`', async () => {
+    const w = seedProvidesWorld(false)
+    await w.plugin[PluginManagerPlugin.init]()
+    expect((await w.plugin.resolveInstallPlan('a-x')).missingServices).toEqual(['viz'])
+    await expectNpmError(w.plugin.installPlugin('a-x'), 'SERVICE_UNAVAILABLE')
+    expect(w.bridge.installPlugin).not.toHaveBeenCalled()
+  })
+
   it('installs a plugin end to end: resolve → download → verify → bridge → lock', async () => {
     const entry = entryFor({ id: 'a-x', npm: '@t/a' })
     const tarballs = { '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0') }

@@ -464,6 +464,14 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
 
     // D8-1 (pre-download estimate): required services vs currently known manifests.
     const available = this.availableServiceKeys()
+    // The closure's own declared `provides` count toward the estimate:
+    // a service supplied by a package this install is about to bring in
+    // is available once the install completes. This stays an estimate
+    // from registry declarations — installPlugin re-verifies against
+    // the downloaded packages' real manifests before activating.
+    for (const n of nodes) {
+      for (const s of n.entry.provides ?? []) available.add(s)
+    }
     const needed = new Set<string>()
     for (const n of nodes) for (const s of n.entry.services) needed.add(s)
     const missingServices = [...needed].filter((s) => !available.has(s))

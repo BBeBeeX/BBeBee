@@ -69,6 +69,14 @@ export interface RegistryPluginEntry {
   description: string
   /** Required cordis service keys the plugin injects (non-empty). */
   services: string[]
+  /**
+   * Cordis service keys this plugin provides to other plugins, as
+   * declared in the registry entry (schema v2). The install plan counts
+   * a closure member's declared `provides` toward service availability;
+   * the downloaded package's own manifest (`contributes.services`) is
+   * the ground truth re-verified at install time.
+   */
+  provides?: string[]
   /** Supported platforms: `'desktop'` / `'mobile'`. */
   platforms: string[]
   category: string
