@@ -554,6 +554,45 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   }
 
   /**
+   * Plan/execute binding: an {@link InstallPlan} the user confirmed is a
+   * pinned closure list (per node: id + npm + version + integrity).
+   * Execution re-resolves exactly once and compares the fresh resolution
+   * against that list node by node; any drift (a new version published
+   * between the confirm screen and the click, a swapped integrity) aborts
+   * with PLAN_CHANGED instead of silently installing something else than
+   * what was confirmed. The tarball URL is deliberately NOT compared —
+   * it legitimately varies by mirror; the integrity pins the content.
+   */
+  private assertPlanUnchanged(expected: InstallPlan, actual: InstallPlan): void {
+    const pin = (p: InstallPlan): Map<string, string> =>
+      new Map(
+        [p.target, ...p.closure].map(
+          (n) => [n.id, `${n.npm}@${n.version}#${n.integrity ?? ''}`] as const,
+        ),
+      )
+    const expectedPins = pin(expected)
+    const actualPins = pin(actual)
+    const drift: string[] = []
+    for (const [id, pinStr] of expectedPins) {
+      const now = actualPins.get(id)
+      if (now === undefined) {
+        drift.push(`"${id}" 不再被解析到`)
+      } else if (now !== pinStr) {
+        drift.push(`"${id}" 由 ${pinStr} 变为 ${now}`)
+      }
+    }
+    for (const id of actualPins.keys()) {
+      if (!expectedPins.has(id)) drift.push(`新增了未确认的依赖 "${id}"`)
+    }
+    if (drift.length > 0) {
+      throw new NpmPluginError(
+        'PLAN_CHANGED',
+        `安装计划已变化，与确认时不一致，已中止安装：${drift.join('；')}。请重新打开确认页核对后再安装。`,
+      )
+    }
+  }
+
+  /**
    * Downloads, verifies (D5/D7/D8) and security-scans one resolved package.
    * Throws a named `NpmPluginError` on any checklist failure.
    */
@@ -749,8 +788,11 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     this.ctx.emit('plugin-manager/changed')
   }
 
-  async installPlugin(id: string, range?: string): Promise<void> {
+  async installPlugin(id: string, range?: string, expectedPlan?: InstallPlan): Promise<void> {
     const { plan, nodes } = await this.planInstall(id, range)
+    if (expectedPlan) {
+      this.assertPlanUnchanged(expectedPlan, plan)
+    }
     if (plan.missingServices.length > 0) {
       throw new NpmPluginError(
         'SERVICE_UNAVAILABLE',

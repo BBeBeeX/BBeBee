@@ -167,7 +167,11 @@ export function PluginMarketSection({ ctx }: PluginMarketSectionProps): ReactEle
     if (!manager) return
     setPlanConfirming(true)
     try {
-      await manager.installPlugin(planState.entry.id)
+      // Execute against the very plan the user is looking at: if the
+      // resolution moved since the confirm screen opened (a new version
+      // was published in between), the manager refuses with PLAN_CHANGED
+      // instead of installing an unconfirmed closure.
+      await manager.installPlugin(planState.entry.id, undefined, planState.plan)
       setPlanState(null)
     } catch (err) {
       setOpError(t('settings:pluginMarket.installFailed', { error: errMsg(err) }))

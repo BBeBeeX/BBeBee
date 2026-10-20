@@ -1149,6 +1149,78 @@ describe('plugin-manager npm service methods', () => {
       expect(w.bridge.installPlugin).toHaveBeenCalledTimes(1)
     })
   })
+
+  describe('plan/execute binding (audit W3)', () => {
+    it('executes exactly the plan the caller confirmed', async () => {
+      const entry = entryFor({ id: 'a-x', npm: '@t/a' })
+      const tarballs = { '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0') }
+      const w = seedWorld(entry, ['1.0.0'], tarballs)
+      await w.plugin[PluginManagerPlugin.init]()
+      const plan = await w.plugin.resolveInstallPlan('a-x')
+      await w.plugin.installPlugin('a-x', undefined, plan)
+      expect(w.bridge.installPlugin).toHaveBeenCalledTimes(1)
+      const store = (w.ctx as any).store
+      const setCalls = store.set.mock.calls.filter(([k]: [string]) => k === 'npm:installed')
+      expect(setCalls.at(-1)![1]['a-x'].version).toBe('1.0.0')
+    })
+
+    it('refuses with PLAN_CHANGED when a new version is published between plan and confirm', async () => {
+      const entry = entryFor({ id: 'a-x', npm: '@t/a' })
+      const tarballs: Record<string, Uint8Array> = { '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0') }
+      const w = seedWorld(entry, ['1.0.0'], tarballs)
+      await w.plugin[PluginManagerPlugin.init]()
+      const plan = await w.plugin.resolveInstallPlan('a-x')
+      // "Upstream" publishes 1.1.0 after the confirm screen was rendered.
+      tarballs['@t/a@1.1.0'] = tarballFor('@t/a', 'a-x', '1.1.0')
+      w.routes.set(`https://registry.npmjs.org/${encodeURIComponent(entry.npm)}`, {
+        status: 200,
+        json: async () => packument(entry.npm, ['1.0.0', '1.1.0'], tarballs),
+      })
+      w.routes.set(`https://cdn.jsdelivr.net/${encodeURIComponent(entry.npm)}-/1.1.0.tgz`, {
+        status: 200,
+        bytes: async () => tarballs['@t/a@1.1.0']!,
+      })
+      await (w.ctx as any).store.delete('npm:packument:@t/a')
+      await expectNpmError(w.plugin.installPlugin('a-x', undefined, plan), 'PLAN_CHANGED')
+      expect(w.bridge.installPlugin).not.toHaveBeenCalled()
+    })
+
+    it('refuses with PLAN_CHANGED when the confirmed plan itself was tampered with', async () => {
+      const entry = entryFor({ id: 'a-x', npm: '@t/a' })
+      const tarballs = { '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0') }
+      const w = seedWorld(entry, ['1.0.0'], tarballs)
+      await w.plugin[PluginManagerPlugin.init]()
+      const plan = await w.plugin.resolveInstallPlan('a-x')
+      const tampered = { ...plan, target: { ...plan.target, version: '9.9.9' } }
+      await expectNpmError(w.plugin.installPlugin('a-x', undefined, tampered), 'PLAN_CHANGED')
+      expect(w.bridge.installPlugin).not.toHaveBeenCalled()
+    })
+
+    it('refuses with PLAN_CHANGED when a closure dependency pin drifts', async () => {
+      const w = seedClosureWorld(['1.0.0'], ['1.0.0'])
+      await w.plugin[PluginManagerPlugin.init]()
+      const plan = await w.plugin.resolveInstallPlan('a-x')
+      expect(plan.closure.map((p) => `${p.id}@${p.version}`)).toEqual(['b-y@1.0.0'])
+      const newTarballs: Record<string, Uint8Array> = {
+        '@t/b@1.0.0': tarballFor('@t/b', 'b-y', '1.0.0'),
+        '@t/b@1.1.0': tarballFor('@t/b', 'b-y', '1.1.0'),
+      }
+      w.routes.set(`https://registry.npmjs.org/${encodeURIComponent('@t/b')}`, {
+        status: 200,
+        json: async () => packument('@t/b', ['1.0.0', '1.1.0'], newTarballs),
+      })
+      w.routes.set(`https://cdn.jsdelivr.net/${encodeURIComponent('@t/b')}-/1.1.0.tgz`, {
+        status: 200,
+        bytes: async () => newTarballs['@t/b@1.1.0']!,
+      })
+      await (w.ctx as any).store.delete('npm:packument:@t/b')
+      const err = await w.plugin.installPlugin('a-x', undefined, plan).catch((e: unknown) => e)
+      expect(err).toBeInstanceOf(NpmPluginError)
+      expect((err as NpmPluginError).code).toBe('PLAN_CHANGED')
+      expect((err as Error).message).toContain('b-y')
+      expect(w.bridge.installPlugin).not.toHaveBeenCalled()
+    })
+  })
 })
 
 /**

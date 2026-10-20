@@ -199,8 +199,16 @@ export interface PluginManagerService {
    * version/app/platform mismatch, security block, anti-spoofing mismatch,
    * size/timeout). Requires the composition root to wire
    * `PluginLifecycleBridge.installPlugin` (desktop only).
+   *
+   * When the caller already showed the user an {@link InstallPlan} (the
+   * market confirm flow), it passes that plan back as `expectedPlan`:
+   * execution re-resolves once and compares every pinned node
+   * (id + npm + version + integrity) against it, refusing with a
+   * `PLAN_CHANGED` error when upstream moved in between — the user only
+   * ever gets what they confirmed. Without a plan the single internal
+   * resolution is executed as-is, so no path resolves twice independently.
    */
-  installPlugin(id: string, range?: string): Promise<void>
+  installPlugin(id: string, range?: string, expectedPlan?: InstallPlan): Promise<void>
 
   /**
    * Checks every npm-installed plugin against its registry for a newer
