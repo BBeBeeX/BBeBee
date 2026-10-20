@@ -8,8 +8,8 @@
  * All diagnostics and application logs are isolated strictly to stderr.
  */
 
-import { join, resolve, relative, dirname, isAbsolute } from 'node:path'
-import { existsSync, readFileSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { join } from 'node:path'
+import { existsSync, readFileSync, rmSync } from 'node:fs'
 import readline from 'node:readline'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
@@ -23,7 +23,7 @@ import {
 } from '@BBeBee/core-desktop-bridge/main'
 import { CH } from '@BBeBee/core-desktop-bridge/protocol'
 import { createAudioHost, type AudioHostApi } from './audio/index.js'
-import { listInstalledPlugins } from './installed-plugins.js'
+import { listInstalledPlugins, writePluginFilesAtomic } from './installed-plugins.js'
 import { ProtocolManager } from './protocols.js'
 import type { JsonRpcNotification, JsonRpcRequest, JsonRpcResponse } from './types.js'
 
@@ -266,19 +266,10 @@ export async function createSidecar(): Promise<SidecarContext> {
       throw new Error('pluginId is required')
     }
     const root = join(userDataDir, 'installed-plugins')
-    const dirName = pluginId.replace(/^@/, '').replace(/\//g, '__')
-    const targetDir = join(root, dirName)
-    mkdirSync(targetDir, { recursive: true })
-    for (const [relPath, content] of Object.entries(files)) {
-      const filePath = resolve(targetDir, relPath)
-      const rel = relative(targetDir, filePath)
-      if (rel.startsWith('..') || isAbsolute(rel)) {
-        throw new Error(`Path traversal rejected: ${relPath}`)
-      }
-      mkdirSync(dirname(filePath), { recursive: true })
-      writeFileSync(filePath, content, 'utf8')
-    }
-    return { ok: true, pluginId, path: targetDir }
+    // Atomic staging + rename swap (audit W3): a failed write never
+    // leaves a half-written plugin directory, and files dropped by the
+    // new version never linger from the old one.
+    return writePluginFilesAtomic(root, pluginId, files)
   })
 
   ipc.handle('plugins:uninstall', async (_event, pluginId: string) => {

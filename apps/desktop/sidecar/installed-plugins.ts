@@ -23,8 +23,16 @@
  */
 
 import { createHash } from 'node:crypto'
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 
 export interface InstalledPluginInfo {
   id: string
@@ -92,6 +100,9 @@ export function listInstalledPlugins(root: string): InstalledPluginInfo[] {
   const plugins: InstalledPluginInfo[] = []
   for (const entry of readdirSync(root, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue
+    // Atomic-write scratch dirs (see writePluginFilesAtomic) are not
+    // plugins, even while a backup still carries a manifest.
+    if (entry.name.startsWith('.staging-') || entry.name.startsWith('.backup-')) continue
     const pluginDir = join(root, entry.name)
     const manifest = discoverPluginManifest(pluginDir)
     if (!manifest || !manifest['id']) continue
@@ -114,4 +125,68 @@ export function listInstalledPlugins(root: string): InstalledPluginInfo[] {
     })
   }
   return plugins
+}
+
+/**
+ * Atomically replaces a plugin's on-disk directory with a new file set
+ * (audit W3). The whole package is written into a staging sibling
+ * directory first; only when every file is down does a rename swap it
+ * into place, so:
+ *
+ * - a write error or crash mid-install leaves the previously installed
+ *   directory untouched (the staging dir is dropped; if the swap had
+ *   already moved the old directory aside, it is moved back), and
+ * - files that existed in the old version but not in the new one can
+ *   never linger — the swap replaces the directory wholesale.
+ *
+ * Per-file path traversal is rejected exactly as the previous in-place
+ * writer did.
+ */
+export function writePluginFilesAtomic(
+  root: string,
+  pluginId: string,
+  files: Record<string, string>,
+): { ok: true; pluginId: string; path: string } {
+  const dirName = pluginId.replace(/^@/, '').replace(/\//g, '__')
+  const targetDir = join(root, dirName)
+  const stamp = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const stagingDir = join(root, `.staging-${dirName}-${stamp}`)
+  const backupDir = join(root, `.backup-${dirName}-${stamp}`)
+  mkdirSync(root, { recursive: true })
+  try {
+    for (const [relPath, content] of Object.entries(files)) {
+      const filePath = resolve(stagingDir, relPath)
+      const rel = relative(stagingDir, filePath)
+      if (rel.startsWith('..') || isAbsolute(rel)) {
+        throw new Error(`Path traversal rejected: ${relPath}`)
+      }
+      mkdirSync(dirname(filePath), { recursive: true })
+      writeFileSync(filePath, content, 'utf8')
+    }
+  } catch (err) {
+    rmSync(stagingDir, { recursive: true, force: true })
+    throw err
+  }
+  let backedUp = false
+  try {
+    if (existsSync(targetDir)) {
+      renameSync(targetDir, backupDir)
+      backedUp = true
+    }
+    renameSync(stagingDir, targetDir)
+  } catch (err) {
+    if (backedUp && !existsSync(targetDir) && existsSync(backupDir)) {
+      try {
+        renameSync(backupDir, targetDir)
+      } catch {
+        // Best effort — the backup directory stays on disk for recovery.
+      }
+    }
+    rmSync(stagingDir, { recursive: true, force: true })
+    throw err
+  }
+  if (backedUp) {
+    rmSync(backupDir, { recursive: true, force: true })
+  }
+  return { ok: true, pluginId, path: targetDir }
 }

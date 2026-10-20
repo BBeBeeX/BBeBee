@@ -10,7 +10,13 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { discoverPluginManifest, entryMainOf, listInstalledPlugins } from './installed-plugins.js'
+import {
+  discoverPluginManifest,
+  entryMainOf,
+  listInstalledPlugins,
+  writePluginFilesAtomic,
+} from './installed-plugins.js'
+import { readdirSync, readFileSync } from 'node:fs'
 
 let root: string
 
@@ -119,5 +125,78 @@ describe('listInstalledPlugins', () => {
   it('returns [] for a missing root', () => {
     expect(listInstalledPlugins(join(root, 'nope'))).toEqual([])
     expect(existsSync(root)).toBe(true)
+  })
+
+  it('skips atomic-write staging/backup scratch directories', () => {
+    writePlugin('.backup-alice__plugin-1-2', { 'BBeBee.plugin.json': BBE_MANIFEST })
+    writePlugin('.staging-alice__plugin-1-2', { 'BBeBee.plugin.json': BBE_MANIFEST })
+    expect(listInstalledPlugins(root)).toEqual([])
+  })
+})
+
+describe('writePluginFilesAtomic (audit W3)', () => {
+  const MANIFEST = JSON.stringify({ id: 'alice-plugin', version: '1.0.0', entry: { main: './dist/index.js' } })
+
+  it('writes a fresh install into the plugin directory', () => {
+    const result = writePluginFilesAtomic(root, '@alice/plugin', {
+      'BBeBee.plugin.json': MANIFEST,
+      'dist/index.js': 'export const v = 1',
+    })
+    expect(result.path).toBe(join(root, 'alice__plugin'))
+    expect(readFileSync(join(root, 'alice__plugin', 'dist', 'index.js'), 'utf8')).toBe('export const v = 1')
+    expect(listInstalledPlugins(root).map((p) => p.id)).toEqual(['alice-plugin'])
+    // No scratch directories are left behind.
+    expect(readdirSync(root)).toEqual(['alice__plugin'])
+  })
+
+  it('replaces the whole directory: files dropped by the new version do not linger', () => {
+    writePluginFilesAtomic(root, 'alice-plugin', {
+      'BBeBee.plugin.json': MANIFEST,
+      'dist/index.js': 'v1',
+      'dist/old-helper.js': 'leftover from v1',
+    })
+    writePluginFilesAtomic(root, 'alice-plugin', {
+      'BBeBee.plugin.json': MANIFEST,
+      'dist/index.js': 'v2',
+    })
+    const dir = join(root, 'alice-plugin')
+    expect(readFileSync(join(dir, 'dist', 'index.js'), 'utf8')).toBe('v2')
+    expect(existsSync(join(dir, 'dist', 'old-helper.js'))).toBe(false)
+    expect(readdirSync(root)).toEqual(['alice-plugin'])
+  })
+
+  it('rejects path traversal and leaves the previous install untouched', () => {
+    writePluginFilesAtomic(root, 'alice-plugin', {
+      'BBeBee.plugin.json': MANIFEST,
+      'dist/index.js': 'v1',
+    })
+    expect(() =>
+      writePluginFilesAtomic(root, 'alice-plugin', {
+        'BBeBee.plugin.json': MANIFEST,
+        '../escape.js': 'pwned',
+      }),
+    ).toThrow('Path traversal rejected')
+    const dir = join(root, 'alice-plugin')
+    expect(readFileSync(join(dir, 'dist', 'index.js'), 'utf8')).toBe('v1')
+    expect(existsSync(join(root, 'escape.js'))).toBe(false)
+    expect(readdirSync(root)).toEqual(['alice-plugin'])
+  })
+
+  it('a write that fails midway (unwritable entry) leaves the previous install intact', () => {
+    writePluginFilesAtomic(root, 'alice-plugin', {
+      'BBeBee.plugin.json': MANIFEST,
+      'dist/index.js': 'v1',
+    })
+    // A "file" whose path collides with a directory write inside the
+    // staging area makes the second write throw mid-package.
+    expect(() =>
+      writePluginFilesAtomic(root, 'alice-plugin', {
+        'dist/index.js': 'v2',
+        'dist/index.js/child.js': 'cannot exist under a file',
+      }),
+    ).toThrow()
+    const dir = join(root, 'alice-plugin')
+    expect(readFileSync(join(dir, 'dist', 'index.js'), 'utf8')).toBe('v1')
+    expect(readdirSync(root)).toEqual(['alice-plugin'])
   })
 })
