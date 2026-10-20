@@ -52,6 +52,7 @@ export type NpmErrorCode =
   | 'HAS_DEPENDENTS'
   | 'MAJOR_UPDATE_NEEDS_CONFIRM'
   | 'PLAN_CHANGED'
+  | 'DELISTED'
   | 'DOWNLOAD_FAILED'
 
 export class NpmPluginError extends Error {

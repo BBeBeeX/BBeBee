@@ -503,7 +503,9 @@
       "blockedByDependents": "Cannot uninstall: these installed plugins depend on it: {dependents}",
       "confirmUninstall": "Uninstall",
       "installedVersion": "Installed: {version}",
-      "installedVersionLabel": "Installed version"
+      "installedVersionLabel": "Installed version",
+      "delisted": "Removed from the registry",
+      "delistedHint": "This plugin has been removed from the registry. The installed copy is quarantined; you can uninstall it."
     }
   },
   "zh": {
@@ -1010,7 +1012,9 @@
       "blockedByDependents": "无法卸载，以下已装插件依赖它：{dependents}",
       "confirmUninstall": "卸载",
       "installedVersion": "已装版本：{version}",
-      "installedVersionLabel": "已装版本"
+      "installedVersionLabel": "已装版本",
+      "delisted": "已从注册表下架",
+      "delistedHint": "该插件已从注册表下架，已安装的副本已被隔离；你可以卸载它。"
     }
   }
 }

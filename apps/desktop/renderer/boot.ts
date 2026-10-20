@@ -489,18 +489,24 @@ async function mergedPluginLock(
   // how the key appears in the raw store snapshot (same scheme as the
   // '@BBeBee/plugin-manager:enabled' overrides read in computeEnabledPlugins).
   const npmRecords = storeData?.['@BBeBee/plugin-manager:npm:installed'] as
-    | Record<string, { entrySha256?: string; fileHashes?: Record<string, string> }>
+    | Record<
+        string,
+        { entrySha256?: string; fileHashes?: Record<string, string>; delisted?: boolean }
+      >
     | undefined
   if (npmRecords && typeof npmRecords === 'object') {
     for (const [id, rec] of Object.entries(npmRecords)) {
       if (!rec || typeof rec !== 'object') continue
-      if (rec.fileHashes && Object.keys(rec.fileHashes).length > 0) {
-        merged[id] = { fileHashes: rec.fileHashes }
-      } else if (rec.entrySha256) {
-        merged[id] = { sha256: rec.entrySha256 }
-      } else {
-        merged[id] = { unverified: true }
-      }
+      const basis: PluginLockRecord =
+        rec.fileHashes && Object.keys(rec.fileHashes).length > 0
+          ? { fileHashes: rec.fileHashes }
+          : rec.entrySha256
+            ? { sha256: rec.entrySha256 }
+            : { unverified: true }
+      // A persisted liveness verdict (audit W3) rides along so the
+      // loader quarantines a delisted plugin before its code runs.
+      if (rec.delisted) basis.delisted = true
+      merged[id] = basis
     }
   }
   return Object.keys(merged).length > 0 ? merged : undefined

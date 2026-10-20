@@ -1319,6 +1319,71 @@ describe('plugin-manager npm service methods', () => {
       expect(record.entrySha256).toBe(sha256Hex(`export const name = 'a-x'`))
     })
   })
+
+  describe('liveness / delisting (audit W3)', () => {
+    async function installedWorld() {
+      const entry = entryFor({ id: 'a-x', npm: '@t/a' })
+      const tarballs: Record<string, Uint8Array> = {
+        '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0'),
+        '@t/a@1.1.0': tarballFor('@t/a', 'a-x', '1.1.0'),
+      }
+      const w = seedWorld(entry, ['1.0.0', '1.1.0'], tarballs)
+      await w.plugin[PluginManagerPlugin.init]()
+      await w.plugin.installPlugin('a-x', '1.0.0')
+      return { w, entry }
+    }
+
+    async function savedRecord(w: ReturnType<typeof createNpmWorld>) {
+      const store = (w.ctx as any).store
+      const setCalls = store.set.mock.calls.filter(([k]: [string]) => k === 'npm:installed')
+      return setCalls.at(-1)![1]['a-x'] as Record<string, any>
+    }
+
+    it('flags a plugin whose id vanished from the index, excludes it from updates, and refuses its update with DELISTED', async () => {
+      const { w, entry } = await installedWorld()
+      // Sanity: while listed, the 1.1.0 update is reported.
+      expect(await w.plugin.checkUpdates()).toEqual([
+        { id: 'a-x', installed: '1.0.0', latest: '1.1.0', npm: '@t/a' },
+      ])
+      // The entry is pulled from the registry; the next index fetch sees it.
+      w.routes.set(INDEX_URL, { status: 200, json: async () => [] })
+      await (w.ctx as any).store.delete('npm:index')
+      const updates = await w.plugin.checkUpdates()
+      expect(updates).toEqual([])
+      // Persisted flag + visible in list() + unloaded for this session.
+      expect((await savedRecord(w)).delisted).toBe(true)
+      expect(w.plugin.list().find((p) => p.id === 'a-x')?.delisted).toBe(true)
+      expect(w.bridge.unloadPlugin).toHaveBeenCalledWith('a-x')
+      // updatePlugin agrees with checkUpdates now: DELISTED, not ENTRY_NOT_FOUND.
+      await expectNpmError(w.plugin.updatePlugin('a-x'), 'DELISTED')
+      void entry
+    })
+
+    it('never delists when the index cannot be fetched (offline fails open)', async () => {
+      const { w } = await installedWorld()
+      w.routes.set(INDEX_URL, { status: 404 })
+      await (w.ctx as any).store.delete('npm:index')
+      const updates = await w.plugin.checkUpdates()
+      // The update is still reported and no flag was persisted.
+      expect(updates).toEqual([{ id: 'a-x', installed: '1.0.0', latest: '1.1.0', npm: '@t/a' }])
+      expect((await savedRecord(w)).delisted).toBeUndefined()
+      expect(w.plugin.list().find((p) => p.id === 'a-x')?.delisted).toBeUndefined()
+    })
+
+    it('clears the flag when the id reappears in the index', async () => {
+      const { w, entry } = await installedWorld()
+      w.routes.set(INDEX_URL, { status: 200, json: async () => [] })
+      await (w.ctx as any).store.delete('npm:index')
+      await w.plugin.checkUpdates()
+      expect((await savedRecord(w)).delisted).toBe(true)
+      w.routes.set(INDEX_URL, { status: 200, json: async () => [entry] })
+      await (w.ctx as any).store.delete('npm:index')
+      const updates = await w.plugin.checkUpdates()
+      expect(updates).toEqual([{ id: 'a-x', installed: '1.0.0', latest: '1.1.0', npm: '@t/a' }])
+      expect((await savedRecord(w)).delisted).toBeUndefined()
+      expect(w.plugin.list().find((p) => p.id === 'a-x')?.delisted).toBeUndefined()
+    })
+  })
 })
 
 /**

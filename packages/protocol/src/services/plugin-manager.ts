@@ -35,6 +35,14 @@ export interface PluginInfo {
   dependencies: string[]
   dependents: string[]
   configStatus?: ConfigStatus
+  /**
+   * The plugin's registry entry is gone: a liveness check fetched the
+   * registry index successfully and this id was not in it (audit W3).
+   * The installed copy is quarantined until the entry returns or the
+   * user uninstalls. Absent/false whenever liveness is unconfirmed —
+   * an unreachable index never sets this.
+   */
+  delisted?: boolean
 }
 
 export interface PluginLifecycleBridge {
@@ -147,6 +155,13 @@ export interface InstalledNpmPluginRecord {
    * as unverified (quarantined, visibly), never silently trusted.
    */
   fileHashes?: Record<string, string>
+  /**
+   * Liveness flag (audit W3): set when a successfully fetched registry
+   * index no longer contains this id. Persisted so boot can quarantine
+   * the plugin before any code runs; cleared when the id reappears in
+   * the index. Never set on index fetch failure (offline stays open).
+   */
+  delisted?: boolean
   installedAt: string
 }
 

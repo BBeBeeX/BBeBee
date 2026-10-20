@@ -62,6 +62,12 @@ export interface PluginLockRecord {
   sha256?: string
   fileHashes?: Record<string, string>
   unverified?: boolean
+  /**
+   * Confirmed absent from the registry index by the liveness check
+   * (audit W3): quarantine with a visible "removed from the registry"
+   * reason. Only ever set after a successfully fetched index.
+   */
+  delisted?: boolean
 }
 
 /**
@@ -291,18 +297,22 @@ export async function loadExternalPluginRegistry(options?: {
       const manifest = item.manifest as PluginManifest
 
       const lockRecord = records?.[item.id]
-      const tamperReason = pluginTamperReason(lockRecord, item)
+      // Delisting (recall) wins over the tamper verdict in messaging: it
+      // is the more actionable fact for the user. Both quarantine.
+      const refuseReason = lockRecord?.delisted
+        ? 'delisted: this plugin has been removed from the registry （该插件已从注册表下架）'
+        : pluginTamperReason(lockRecord, item)
 
-      if (tamperReason) {
+      if (refuseReason) {
         console.error(
-          `[dynamic-loader] Plugin "${item.id}" refused (${tamperReason}). Quarantined.`,
+          `[dynamic-loader] Plugin "${item.id}" refused (${refuseReason}). Quarantined.`,
         )
         registry[item.id] = {
           manifest,
           builtin: false,
           quarantined: true,
           load: async () => {
-            throw new Error(`Plugin "${item.id}" refused to load: ${tamperReason}`)
+            throw new Error(`Plugin "${item.id}" refused to load: ${refuseReason}`)
           },
         }
         continue

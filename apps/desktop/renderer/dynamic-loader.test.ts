@@ -423,6 +423,14 @@ describe('full-package tamper chain (audit W3)', () => {
     await expect(entry.load!()).rejects.toThrow(/unverified/)
   })
 
+  it('quarantines a delisted plugin with the removed-from-registry reason (audit W3 liveness)', async () => {
+    const registry = await loadWith(baseItem, { fileHashes: { ...PINNED }, delisted: true })
+    const entry = registry['full-chain-plugin']!
+    expect(entry.quarantined).toBe(true)
+    await expect(entry.load!()).rejects.toThrow(/delisted/)
+    await expect(entry.load!()).rejects.toThrow(/已从注册表下架/)
+  })
+
   it('still honours the legacy entry-only pin for older records', async () => {
     const ok = await loadWith(baseItem, { sha256: 'hash-entry' })
     expect(ok['full-chain-plugin']!.quarantined).toBeUndefined()

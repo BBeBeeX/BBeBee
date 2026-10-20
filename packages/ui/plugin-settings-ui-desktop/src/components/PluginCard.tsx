@@ -101,6 +101,27 @@ export function PluginCard({
           },
           plugin.id,
         ),
+        // Liveness verdict (audit W3): the registry entry is gone, the
+        // installed copy is quarantined — say so on the card itself.
+        plugin.delisted
+          ? h(
+              'span',
+              {
+                'data-testid': `plugin-delisted-${plugin.id}`,
+                title: t('settings:pluginMarket.delistedHint'),
+                style: {
+                  alignSelf: 'flex-start',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  padding: '1px 7px',
+                  borderRadius: 9,
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  color: 'var(--state-error, #EF4444)',
+                },
+              },
+              t('settings:pluginMarket.delisted'),
+            )
+          : null,
       ),
       // Right status traffic light and chevron
       h(

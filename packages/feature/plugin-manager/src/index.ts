@@ -140,6 +140,12 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   private readonly platform?: 'desktop' | 'mobile'
   private npmClientInstance?: NpmClient
   private grantLedgerInstance?: CapabilityGrantLedger
+  /**
+   * Ids confirmed delisted by the liveness check (audit W3): the
+   * registry index was fetched successfully and did not contain them.
+   * Mirrors the persisted `delisted` flag on the install records.
+   */
+  private delistedIds = new Set<string>()
 
   /**
    * The capability-grant ledger, bound to this service's OWN `db` handle.
@@ -182,6 +188,22 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     } catch (err) {
       this.ctx.logger.warn(`plugin-manager: failed to load persisted overrides: ${String(err)}`)
     }
+
+    // Seed the in-memory delisted set from the persisted flags so list()
+    // and the update paths honour a previous session's liveness verdict
+    // from the start. The boot-time refresh below revalidates it.
+    try {
+      const records = await this.loadInstalledRecords()
+      for (const rec of Object.values(records)) {
+        if (rec.delisted) this.delistedIds.add(rec.id)
+      }
+    } catch {
+      // Store unavailable — flags reload with the first liveness refresh.
+    }
+    // Revalidate liveness shortly after boot (the index fetch reuses the
+    // 24h index cache). Fire-and-forget and fully guarded inside: an
+    // unreachable index changes nothing.
+    void this.refreshDelistedFromIndex().catch(() => {})
 
     const off1 = this.ctx.on('plugin/loaded', (id: string) => {
       this.failedErrors.delete(id)
@@ -1082,11 +1104,76 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     this.ctx.logger.info(`plugin-manager: installed "${id}" via npm`)
   }
 
+  /**
+   * Liveness (recall) check, client side (audit W3): fetch the registry
+   * index through the usual cached path and compare it against the
+   * installed records. ONLY a successfully fetched index can change
+   * anything: an installed id confirmed absent from it is flagged
+   * `delisted` (persisted), unloaded best-effort, and surfaced via
+   * list()/the boot lock so the loader quarantines it with a visible
+   * "removed from the registry" reason. A failed fetch — offline, DNS,
+   * a dead mirror — leaves every flag untouched: network fails open,
+   * confirmed absence fails closed. An id that reappears in the index
+   * has its flag cleared again.
+   */
+  async refreshDelistedFromIndex(options?: { force?: boolean }): Promise<void> {
+    if (!this.ctxService<HttpService>('http')) return
+    let index: RegistryPluginEntry[]
+    try {
+      index = await this.getNpmClient().fetchIndex(options?.force ? { force: true } : undefined)
+    } catch {
+      return
+    }
+    await this.applyLivenessToRecords(index)
+  }
+
+  private async applyLivenessToRecords(index: RegistryPluginEntry[]): Promise<void> {
+    const listed = new Set(index.map((e) => e.id))
+    const records = await this.loadInstalledRecords()
+    let changed = false
+    const newlyDelisted: string[] = []
+    for (const rec of Object.values(records)) {
+      const absent = !listed.has(rec.id)
+      if (absent && !rec.delisted) {
+        rec.delisted = true
+        changed = true
+        newlyDelisted.push(rec.id)
+      } else if (!absent && rec.delisted) {
+        delete rec.delisted
+        changed = true
+      }
+    }
+    this.delistedIds = new Set(
+      Object.values(records)
+        .filter((r) => r.delisted)
+        .map((r) => r.id),
+    )
+    if (!changed) return
+    await this.saveInstalledRecords(records)
+    for (const id of newlyDelisted) {
+      this.ctx.logger.warn(
+        `plugin-manager: "${id}" is no longer in the registry index (delisted); quarantining the installed copy`,
+      )
+      try {
+        await this.bridge?.unloadPlugin(id)
+      } catch {
+        // Best-effort for this session; the persisted flag makes the
+        // next boot quarantine it before any of its code runs.
+      }
+    }
+    this.ctx.emit('plugin-manager/changed')
+  }
+
   async checkUpdates(force = false): Promise<PluginUpdateInfo[]> {
+    // Liveness first, so a delisted plugin stops being reported as
+    // "update available" (its update attempt would fail anyway) — and so
+    // checkUpdates and updatePlugin agree on delisted entries.
+    await this.refreshDelistedFromIndex({ force })
     const client = this.getNpmClient()
     const records = await this.loadInstalledRecords()
     const updates: PluginUpdateInfo[] = []
     for (const rec of Object.values(records)) {
+      if (rec.delisted) continue
       try {
         const pack = await client.fetchPackument(rec.npm, force ? { force: true } : undefined)
         const latest = pack['dist-tags']?.latest
@@ -1112,6 +1199,18 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     const rec = records[id]
     if (!rec) {
       throw new NpmPluginError('NOT_INSTALLED', `插件 "${id}" 不是经 npm 安装的，无法更新`)
+    }
+    // Same liveness verdict as checkUpdates: a plugin confirmed absent
+    // from the registry index is delisted — say so plainly instead of
+    // the old confusing ENTRY_NOT_FOUND from deep inside the planner.
+    // The refresh is best-effort (offline changes nothing); a flag set
+    // by any earlier successful check is honoured as-is.
+    await this.refreshDelistedFromIndex()
+    if (this.delistedIds.has(id)) {
+      throw new NpmPluginError(
+        'DELISTED',
+        `插件 "${id}" 已从注册表下架，无法更新；已安装的副本已被隔离。可以卸载它，或等待其重新上架后再试。`,
+      )
     }
     // A major bump is never applied silently: without an explicit range the
     // caller (UI) must confirm first and retry with a version/range.
@@ -1367,6 +1466,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
           dependencies: Array.from(depsSet),
           dependents: [], // populated in reverse scan
           configStatus,
+          ...(this.delistedIds.has(manifest.id) ? { delisted: true } : {}),
         },
         rawDependencies: depsSet,
       })

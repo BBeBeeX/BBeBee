@@ -596,6 +596,24 @@ function MarketRow({
               t('settings:pluginMarket.installedVersion', { version: installed.version }),
             )
           : null,
+        installed?.delisted
+          ? h(
+              'span',
+              {
+                'data-testid': `market-delisted-${entry.id}`,
+                title: t('settings:pluginMarket.delistedHint'),
+                style: {
+                  fontSize: 10,
+                  fontWeight: 600,
+                  padding: '1px 7px',
+                  borderRadius: 9,
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  color: 'var(--state-error, #EF4444)',
+                },
+              },
+              t('settings:pluginMarket.delisted'),
+            )
+          : null,
         update
           ? h(
               'span',
