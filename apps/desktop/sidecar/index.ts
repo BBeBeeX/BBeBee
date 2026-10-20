@@ -9,8 +9,7 @@
  */
 
 import { join, resolve, relative, dirname, isAbsolute } from 'node:path'
-import { existsSync, readFileSync, readdirSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
-import { createHash } from 'node:crypto'
+import { existsSync, readFileSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import readline from 'node:readline'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
@@ -24,6 +23,7 @@ import {
 } from '@BBeBee/core-desktop-bridge/main'
 import { CH } from '@BBeBee/core-desktop-bridge/protocol'
 import { createAudioHost, type AudioHostApi } from './audio/index.js'
+import { listInstalledPlugins } from './installed-plugins.js'
 import { ProtocolManager } from './protocols.js'
 import type { JsonRpcNotification, JsonRpcRequest, JsonRpcResponse } from './types.js'
 
@@ -255,66 +255,7 @@ export async function createSidecar(): Promise<SidecarContext> {
   ipc.handle('plugins:list-installed', async () => {
     try {
       const root = join(userDataDir, 'installed-plugins')
-      if (!existsSync(root)) return []
-      const entries = readdirSync(root, { withFileTypes: true })
-      const plugins: Array<{ id: string; version: string; manifest: unknown; dirName: string; sha256?: string }> = []
-      for (const entry of entries) {
-        if (!entry.isDirectory()) continue
-        const manifestPath = join(root, entry.name, 'manifest.json')
-        const pkgJsonPath = join(root, entry.name, 'package.json')
-        let manifest: Record<string, unknown> | undefined
-        if (existsSync(manifestPath)) {
-          try {
-            manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<string, unknown>
-          } catch {
-            // ignore error
-          }
-        } else if (existsSync(pkgJsonPath)) {
-          try {
-            const pkg = JSON.parse(readFileSync(pkgJsonPath, 'utf8')) as Record<string, unknown>
-            if (pkg['manifest'] && typeof pkg['manifest'] === 'object') {
-              manifest = pkg['manifest'] as Record<string, unknown>
-            } else {
-              manifest = {
-                id: pkg['name'],
-                version: pkg['version'] ?? '1.0.0',
-                displayName: pkg['displayName'] ?? pkg['name'],
-                entry: { main: pkg['main'] ?? './index.js' },
-                capabilities: pkg['capabilities'] ?? [],
-              }
-            }
-          } catch {
-            // ignore error
-          }
-        }
-        if (manifest && manifest['id']) {
-          const entryMain = (
-            typeof manifest['entry'] === 'object' &&
-            manifest['entry'] &&
-            typeof (manifest['entry'] as Record<string, unknown>)['main'] === 'string'
-              ? ((manifest['entry'] as Record<string, unknown>)['main'] as string)
-              : './index.js'
-          ).replace(/^\.?\//, '')
-          const mainFilePath = join(root, entry.name, entryMain)
-          let sha256: string | undefined
-          if (existsSync(mainFilePath)) {
-            try {
-              const buf = readFileSync(mainFilePath)
-              sha256 = createHash('sha256').update(buf).digest('hex')
-            } catch {
-              // ignore error
-            }
-          }
-          plugins.push({
-            id: String(manifest['id']),
-            version: String(manifest['version'] ?? '1.0.0'),
-            manifest,
-            dirName: entry.name,
-            ...(sha256 ? { sha256 } : {}),
-          })
-        }
-      }
-      return plugins
+      return listInstalledPlugins(root)
     } catch {
       return []
     }
