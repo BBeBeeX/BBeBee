@@ -71,6 +71,11 @@ beforeAll(async () => {
       res.end(req.headers.cookie ?? '')
       return
     }
+    if (url.pathname === '/echo-headers') {
+      res.writeHead(200, { 'content-type': 'application/json' })
+      res.end(JSON.stringify(req.headers))
+      return
+    }
     if (url.pathname === '/json') {
       res.writeHead(200, { 'content-type': 'application/json' })
       res.end(JSON.stringify({ hello: 'world', echoed: req.headers['x-echo'] ?? null }))
@@ -121,7 +126,13 @@ beforeAll(async () => {
   const address = server.address()
   origin = typeof address === 'object' && address ? `http://127.0.0.1:${address.port}` : ''
 
-  secretServer = createServer((_req, res) => {
+  secretServer = createServer((req, res) => {
+    const url = new URL(req.url ?? '/', 'http://localhost')
+    if (url.pathname === '/echo-headers') {
+      res.writeHead(200, { 'content-type': 'application/json' })
+      res.end(JSON.stringify(req.headers))
+      return
+    }
     res.writeHead(200, { 'content-type': 'text/plain' })
     res.end('INTERNAL-SECRET')
   })
@@ -465,6 +476,45 @@ describe('the net:host gate', () => {
     // The kernel, core services and tests are trusted; only plugins are gated.
     const { ctx } = await harness()
     await expect(ctx.http({ url: `${origin}/json` })).resolves.toMatchObject({ status: 200 })
+  })
+})
+
+describe('redirect credential stripping (audit W2)', () => {
+  const credentialHeaders = {
+    Authorization: 'Bearer top-secret-token',
+    Cookie: 'session=caller-secret',
+    'Proxy-Authorization': 'Basic cHJveHk6c2VjcmV0',
+    'X-Keep': 'still-here',
+  }
+
+  it('keeps caller credentials on a same-host redirect', async () => {
+    const { ctx } = await harness()
+    const response = await ctx.http({
+      url: `${origin}/redirect?to=${encodeURIComponent('/echo-headers')}`,
+      headers: credentialHeaders,
+    })
+    const echoed = await response.json<Record<string, string>>()
+    expect(echoed.authorization).toBe('Bearer top-secret-token')
+    expect(echoed.cookie).toBe('session=caller-secret')
+    expect(echoed['proxy-authorization']).toBe('Basic cHJveHk6c2VjcmV0')
+    expect(echoed['x-keep']).toBe('still-here')
+  })
+
+  it('strips caller credentials on a cross-host redirect, keeps the rest', async () => {
+    // Both hosts are in the granted scope (the capability gate is not
+    // what is under test here) — the point is that a server-chosen
+    // target must not receive credentials minted for the origin host.
+    const { ctx } = await harness({ capabilities: ['net:host/127.0.0.1', 'net:host/localhost'] })
+    const target = `${secretOrigin}/echo-headers`
+    const response = await ctx.http({
+      url: `${origin}/redirect?to=${encodeURIComponent(target)}`,
+      headers: credentialHeaders,
+    })
+    const echoed = await response.json<Record<string, string>>()
+    expect(echoed.authorization).toBeUndefined()
+    expect(echoed.cookie).toBeUndefined()
+    expect(echoed['proxy-authorization']).toBeUndefined()
+    expect(echoed['x-keep']).toBe('still-here')
   })
 })
 

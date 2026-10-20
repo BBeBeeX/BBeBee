@@ -461,10 +461,32 @@ export class HttpNode extends Service {
     const jar = this.jarForScope()
     await jar?.ready
 
+    /*
+     * Caller credentials belong to the host the caller named. The
+     * request may be redirected — method, body, and the headers that
+     * describe the payload travel — but Authorization/Cookie do not:
+     * the redirect target is chosen by the *server*, which is exactly
+     * the party those credentials must not leak to. The strip is sticky
+     * for the rest of the chain (a later hop back to the original host
+     * does not resurrect them), matching fetch. Cookies the jar
+     * computes per hop URL below are unaffected — they are already
+     * scoped to each hop's URL by construction.
+     */
+    const originalHost = hostOf(url)
+    const callerHeaders: Record<string, string> = { ...(req.headers ?? {}) }
+    let credentialsStripped = false
+
     for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
       // Every hop, not just the first. A listener may also have rewritten the
       // URL during the waterfall, and the rewritten host must be granted too.
       assertHost(this[Service.resolveConfig](), url)
+
+      if (!credentialsStripped && originalHost !== '' && hostOf(url) !== originalHost) {
+        for (const headerName of Object.keys(callerHeaders)) {
+          if (CREDENTIAL_HEADER_NAMES.has(headerName.toLowerCase())) delete callerHeaders[headerName]
+        }
+        credentialsStripped = true
+      }
 
       const cookieHeader = jar ? await cookieHeaderFor(jar, url) : undefined
       const startTime = Date.now()
@@ -473,7 +495,7 @@ export class HttpNode extends Service {
         // Under an explicit header, so a document that sets its own Cookie
         // wins — it knows something the jar does not.
         ...(cookieHeader ? { cookie: cookieHeader } : {}),
-        ...req.headers,
+        ...callerHeaders,
       }
       let response: Response
       try {
@@ -906,6 +928,17 @@ function hostOf(url: string): string {
     return ''
   }
 }
+
+/**
+ * Header names that carry *caller* credentials. On a cross-host
+ * redirect these are stripped (see `followRedirects`); cookie headers
+ * the jar computes per hop URL are a separate, already-scoped channel.
+ */
+const CREDENTIAL_HEADER_NAMES: ReadonlySet<string> = new Set([
+  'authorization',
+  'cookie',
+  'proxy-authorization',
+])
 
 export const name = 'core-http-node'
 
