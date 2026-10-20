@@ -260,6 +260,22 @@ overridable in Settings → Network → *Download & GitHub acceleration*:
 6. Depend on other registry plugins via `dependencies:
    ["<registry-id>@<semver-range>"]`, not via npm `dependencies` — the
    installer resolves the plugin closure itself.
+7. **Assemble combined (feature + UI) packages with the repo tool**, not by
+   hand: `node scripts/assemble-plugin.mjs --feature packages/feature/<pkg>
+   --ui packages/ui/<pkg>-ui-desktop [--ui-mobile <dir>]`. It builds both
+   packages, copies the feature build as `dist/index.js`, re-bundles the UI
+   as `dist/ui-desktop.js` with the host-shared modules (`react`,
+   `react-dom`, …) **external**, merges the manifests into one
+   `BBeBee.plugin.json`, and **generates `peerDependencies` from the host
+   manifest** (`apps/desktop/renderer/host-modules.manifest.ts`) — never
+   write a react version or range by hand in the published `package.json`.
+   The tool refuses to assemble when the UI bundle contains React
+   implementation code or no bare host-module import: the UI must render
+   against the shell's single React instance (§6.9). At install time the
+   client checks the declared peers against the host's actual versions
+   and **warns** in the install plan on a mismatch — it never blocks, but
+   a warning means the UI was built against a different React major and
+   may fail to render.
 
 ### 6.9 Bundled UI: views in the same npm package
 
