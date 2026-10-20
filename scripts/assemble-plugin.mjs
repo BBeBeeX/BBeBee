@@ -9,7 +9,7 @@
  *     --ui packages/ui/plugin-visualizer-ui-desktop \
  *     [--ui-mobile packages/ui/plugin-visualizer-ui-mobile] \
  *     [--out <dir>] [--name <npm-name>] [--version <x.y.z>] [--id <registry-id>] \
- *     [--no-build]
+ *     [--repository <git-url>] [--no-build]
  *
  * `--id` stamps the **publication identity** into the assembled
  * `BBeBee.plugin.json`: the installer's anti-spoofing check requires the
@@ -212,7 +212,7 @@ async function bundleUi(uiDir, uiPkg, outFile, label) {
 // ---------------------------------------------------------------------------
 
 function parseArgs(argv) {
-  const opts = { feature: null, ui: null, uiMobile: null, out: null, name: null, version: null, id: null, build: true }
+  const opts = { feature: null, ui: null, uiMobile: null, out: null, name: null, version: null, id: null, repository: null, build: true }
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
     const take = (flag) => {
@@ -234,9 +234,11 @@ function parseArgs(argv) {
     else if (arg.startsWith('--version=')) opts.version = arg.slice('--version='.length)
     else if (arg === '--id') opts.id = take(arg)
     else if (arg.startsWith('--id=')) opts.id = arg.slice('--id='.length)
+    else if (arg === '--repository') opts.repository = take(arg)
+    else if (arg.startsWith('--repository=')) opts.repository = arg.slice('--repository='.length)
     else if (arg === '--no-build') opts.build = false
     else if (arg === '--help' || arg === '-h') {
-      console.log('Usage: node scripts/assemble-plugin.mjs --feature <dir> --ui <dir> [--ui-mobile <dir>] [--out <dir>] [--name <npm-name>] [--version <x.y.z>] [--id <registry-id>] [--no-build]')
+      console.log('Usage: node scripts/assemble-plugin.mjs --feature <dir> --ui <dir> [--ui-mobile <dir>] [--out <dir>] [--name <npm-name>] [--version <x.y.z>] [--id <registry-id>] [--repository <git-url>] [--no-build]')
       process.exit(0)
     } else fail(`unknown argument: ${arg}`)
   }
@@ -335,11 +337,27 @@ async function main() {
   //    host manifest above — deliberately not copied from either source
   //    package (their peer fields describe monorepo development, not the
   //    host contract).
+  //    `repository` is the exception: npm verifies a provenance
+  //    attestation against `repository.url`, and refuses the publish
+  //    (E422) when it is empty or names a different repo than the one
+  //    that built the package. Source: --repository, else the feature
+  //    package's own `repository` field.
+  const repositoryUrl =
+    opts.repository ??
+    (typeof featurePkg.repository === 'string' ? featurePkg.repository : featurePkg.repository?.url) ??
+    null
+  if (!repositoryUrl && opts.id) {
+    console.warn(
+      `${TAG} warning: no repository URL stamped into the assembled package.json ` +
+        '(pass --repository <git-url>); an npm publish --provenance of this package will be refused (E422).',
+    )
+  }
   const pkg = {
     name,
     version,
     description: featurePkg.description,
     license: featurePkg.license,
+    ...(repositoryUrl ? { repository: { type: 'git', url: repositoryUrl } } : {}),
     type: 'module',
     main: './dist/index.js',
     files: ['BBeBee.plugin.json', 'dist'],

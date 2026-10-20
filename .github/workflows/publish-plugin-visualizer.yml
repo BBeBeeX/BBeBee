@@ -90,6 +90,7 @@ jobs:
           --id bbebeex-visualizer
           --name @bbebee/plugin-visualizer
           --version "${{ inputs.version }}"
+          --repository "https://github.com/${{ github.repository }}"
           --out .cache/plugin-packages/visualizer-publish
 
       # Publish gate: the assembled tree must carry the exact
@@ -107,8 +108,10 @@ jobs:
             if (p.version !== want) throw new Error(`package version drift: ${p.version} != ${want}`)
             if (m.id !== "bbebeex-visualizer") throw new Error(`manifest id drift: ${m.id}`)
             if (m.version !== p.version) throw new Error(`manifest version ${m.version} != package version ${p.version}`)
+            const repoUrl = p.repository && p.repository.url
+            if (repoUrl !== process.argv[2]) throw new Error(`package.json repository.url "${repoUrl}" != provenance source "${process.argv[2]}" — npm would refuse the publish (E422)`)
             console.log(`assembled package OK: ${p.name}@${p.version}, manifest id ${m.id}`)
-          ' "${{ inputs.version }}"
+          ' "${{ inputs.version }}" "https://github.com/${{ github.repository }}"
           npm pack --dry-run
 
       - name: Publish to npm with provenance
