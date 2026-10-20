@@ -41,10 +41,52 @@ import type { Disposable, JsLimits, JsRealm, JsService } from '@BBeBee/protocol'
 import variant from '@jitl/quickjs-singlefile-browser-release-sync'
 import {
   newQuickJSWASMModuleFromVariant,
+  type JSPromiseState,
   type QuickJSContext,
   type QuickJSHandle,
   type QuickJSWASMModule,
 } from 'quickjs-emscripten-core'
+
+/*
+ * Opt-in handle tracing, for hunting `JS_FreeRuntime` aborts.
+ *
+ * The assertion (`list_empty(&rt->gc_obj_list)`) means a JSValue still had a
+ * host reference when its runtime was freed — some handle, somewhere, was
+ * created and never disposed. The engine cannot say whose; the count is only
+ * visible at the moment of teardown, in a process that is about to die. So
+ * this ledger exists: with `BBEBEE_QUICKJS_TRACE_HANDLES=1`, every handle
+ * class that can outlive the synchronous section that created it is
+ * registered at creation and unregistered at its (single, real) dispose
+ * site, and `dispose()` reports whatever is left before it tears down.
+ *
+ * Registered kinds, and why only these: a handle created and disposed inside
+ * one synchronous stretch (an exposed function's own handle, an `eval`
+ * scope value, a bridge result on its way into a deferred) cannot straddle
+ * a teardown, so registering it would be noise, not signal. What can
+ * straddle is what is registered: the runtime and its context, an eval's
+ * result while its settle is parked, the state handles `getPromiseState`
+ * hands out (each one a fresh reference the caller owns), and a deferred
+ * promise whose resolvers the binding frees only when it settles.
+ *
+ * Off (the default), the ledger is a boolean check per call — no map, no
+ * stack capture, no behaviour change.
+ */
+const TRACE_HANDLES = ((): boolean => {
+  try {
+    const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
+      ?.env
+    return env?.['BBEBEE_QUICKJS_TRACE_HANDLES'] === '1'
+  } catch {
+    return false
+  }
+})()
+
+interface TrackedHandle {
+  id: number
+  kind: string
+  /** Creation stack, trimmed to the frames that identify the site. */
+  stack: string
+}
 
 export interface JsQuickJsConfig {
   /** Applied where a caller does not override. */
@@ -85,7 +127,12 @@ export class JsQuickJsNode extends Service implements JsService {
   async createRealm(limits: Partial<JsLimits> = {}): Promise<JsRealm> {
     const module = await this.getModule()
     const resolved: JsLimits = { ...DEFAULT_JS_LIMITS, ...this.config.limits, ...limits }
-    const realm = new QuickJsRealm(module, resolved, () => this.realms.delete(realm))
+    const realm = new QuickJsRealm(module, resolved, () => this.realms.delete(realm), TRACE_HANDLES)
+    if (TRACE_HANDLES) {
+      realm.onLeakReport = (text) => {
+        this.ctx.logger.warn(text)
+      }
+    }
     // An unhandled rejection inside a realm is the sandbox's business to
     // surface: nothing else can see it, and the caller has already moved on.
     realm.onJobError = (error) => {
@@ -127,13 +174,23 @@ class QuickJsRealm implements JsRealm {
   onJobError: ((error: Error) => void) | undefined
   /** Set by `pump` when a queued job was interrupted. */
   private interrupted = false
+  /** Where a handle-tracing leak report goes. Set by the service when tracing. */
+  onLeakReport: ((text: string) => void) | undefined
+  /**
+   * The handle ledger (see TRACE_HANDLES). Allocated on first registration,
+   * and only ever populated when tracing — off, these are empty calls.
+   */
+  private tracked?: Map<object, TrackedHandle>
+  private trackSeq = 0
 
   constructor(
     module: QuickJSWASMModule,
     private readonly limits: JsLimits,
     private readonly onDispose: () => void,
+    private readonly trace = false,
   ) {
     const runtime = module.newRuntime()
+    this.track('runtime', runtime)
     runtime.setMemoryLimit(limits.memoryBytes)
     /*
      * Two ceilings, not one. `setMemoryLimit` caps the heap; the stack cap
@@ -148,6 +205,74 @@ class QuickJsRealm implements JsRealm {
      */
     runtime.setInterruptHandler(() => this.deadline !== 0 && Date.now() > this.deadline)
     this.vm = runtime.newContext()
+    this.track('context', this.vm)
+  }
+
+  /* ── handle ledger (opt-in; see TRACE_HANDLES) ─────────────────────── */
+
+  private track(kind: string, handle: object): void {
+    if (!this.trace) return
+    this.tracked ??= new Map()
+    if (this.tracked.has(handle)) return
+    const frames = (new Error().stack ?? '').split('\n')
+    this.tracked.set(handle, {
+      id: ++this.trackSeq,
+      kind,
+      // Skip the `Error` header and this frame: what identifies a site is
+      // the wrapper method that asked for the handle, and its caller.
+      stack: frames.slice(2, 5).join('\n'),
+    })
+  }
+
+  private untrack(handle: object): void {
+    if (!this.trace) return
+    this.tracked?.delete(handle)
+  }
+
+  /** Register the handle a promise-state read carries, if it carries one. */
+  private trackState(state: JSPromiseState): void {
+    if (!this.trace) return
+    // `notAPromise` hands back the caller's own handle, not a fresh one —
+    // that reference belongs to whoever passed the promise in.
+    if (state.type === 'fulfilled' && !state.notAPromise) this.track('promise-state', state.value)
+    else if (state.type === 'rejected') this.track('promise-state', state.error)
+  }
+
+  /**
+   * What is still registered, grouped, at the moment teardown begins.
+   *
+   * The runtime and context are excluded by kind: they are alive because
+   * `dispose()` is the thing about to free them, not because anyone leaked
+   * them. Everything else in the ledger at this point is a handle whose
+   * dispose site never ran — which is the leak, named.
+   */
+  private reportLeaks(): void {
+    if (!this.trace || !this.tracked) return
+    const leaked = [...this.tracked.values()].filter(
+      (t) => t.kind !== 'runtime' && t.kind !== 'context',
+    )
+    if (!leaked.length) return
+    const byKind = new Map<string, TrackedHandle[]>()
+    for (const t of leaked) {
+      const group = byKind.get(t.kind) ?? []
+      group.push(t)
+      byKind.set(t.kind, group)
+    }
+    const lines = [
+      `js: realm disposed with ${leaked.length} unreleased handle(s) still registered — ` +
+        'each is a JSValue whose reference reaches JS_FreeRuntime (gc_obj_list assertion):',
+    ]
+    for (const [kind, items] of byKind) {
+      lines.push(`  ${kind} ×${items.length}`)
+      for (const item of items.slice(0, 3)) {
+        lines.push(`    #${item.id} created at:`)
+        for (const frame of item.stack.split('\n')) lines.push(`      ${frame.trim()}`)
+      }
+    }
+    // The service wires this to `ctx.logger` whenever tracing is on; a
+    // realm without a reporter has nowhere legitimate to write (Layer 2
+    // does not touch the console), so the report is simply dropped.
+    this.onLeakReport?.(lines.join('\n'))
   }
 
   async preload(code: string): Promise<void> {
@@ -191,6 +316,7 @@ class QuickJsRealm implements JsRealm {
          * contract calls it out.
          */
         const deferred = vm.newPromise()
+        this.track('deferred', deferred)
 
         /*
          * Registered so a poisoned teardown can reject it.
@@ -205,6 +331,10 @@ class QuickJsRealm implements JsRealm {
           const h = vm.newString('the realm was torn down before this call returned')
           deferred.reject(h)
           h.dispose()
+          // Rejecting frees the deferred's resolver handles (the binding
+          // disposes them on settle); the promise handle itself was
+          // transferred to the engine when this function returned it.
+          this.untrack(deferred)
         }
         this.pending.add(abandon)
 
@@ -217,6 +347,9 @@ class QuickJsRealm implements JsRealm {
           } finally {
             h.dispose()
           }
+          // As in abandon: settling freed the resolvers, and the promise
+          // handle belongs to the engine since it was returned.
+          this.untrack(deferred)
           // ⚠️ Pumped with the deadline armed. A continuation is as capable of
           // looping for ever as the script that queued it, and this pump runs
           // outside `run`'s own — an unarmed one here is a freeze.
@@ -277,6 +410,9 @@ class QuickJsRealm implements JsRealm {
       }
     }
     this.pending.clear()
+
+    // Tracing only: name what is about to reach JS_FreeRuntime still held.
+    this.reportLeaks()
 
     /*
      * ⚠️ Guarded, and the guard is load-bearing.
@@ -370,6 +506,9 @@ class QuickJsRealm implements JsRealm {
         throw scriptError(detail)
       }
 
+      // Registered for the ledger: this handle is alive across the whole
+      // settle, which is exactly the span a teardown can land inside.
+      this.track('eval-result', result.value)
       try {
         return await this.settle(vm, result.value, budget)
       } finally {
@@ -377,7 +516,10 @@ class QuickJsRealm implements JsRealm {
         // down from inside `settle`, and freeing a handle afterwards throws
         // `Lifetime not alive` — which would replace the `JsTimeoutError` the
         // caller needs with an internal one that means nothing to them.
-        if (this.vm === vm) result.value.dispose()
+        if (this.vm === vm) {
+          this.untrack(result.value)
+          result.value.dispose()
+        }
       }
     } finally {
       this.deadline = 0
@@ -405,6 +547,7 @@ class QuickJsRealm implements JsRealm {
     budget: number,
   ): Promise<unknown> {
     const initial = vm.getPromiseState(handle)
+    this.trackState(initial)
     if (initial.type === 'fulfilled' && initial.notAPromise) {
       return this.bounded(vm.dump(handle) as unknown)
     }
@@ -416,7 +559,9 @@ class QuickJsRealm implements JsRealm {
           await this.poisonWith('timeout')
           throw new JsTimeoutError(this.limits.timeoutMs)
         }
-        if (vm.getPromiseState(handle).type !== 'pending') break
+        const check = vm.getPromiseState(handle)
+        this.trackState(check)
+        if (check.type !== 'pending') break
         if (Date.now() > budget) {
           await this.poisonWith('timeout')
           throw new JsTimeoutError(this.limits.budgetMs)
@@ -427,8 +572,10 @@ class QuickJsRealm implements JsRealm {
     }
 
     const state = vm.getPromiseState(handle)
+    this.trackState(state)
     if (state.type === 'rejected') {
       const detail = vm.dump(state.error) as unknown
+      this.untrack(state.error)
       state.error.dispose()
       /*
        * ⚠️ An interrupted *continuation* rejects the promise rather than
@@ -449,7 +596,10 @@ class QuickJsRealm implements JsRealm {
     if (state.type === 'fulfilled') {
       const value = vm.dump(state.value) as unknown
       // Only if it is a handle of its own; `notAPromise` means it is ours.
-      if (!state.notAPromise) state.value.dispose()
+      if (!state.notAPromise) {
+        this.untrack(state.value)
+        state.value.dispose()
+      }
       return this.bounded(value)
     }
     return this.bounded(vm.dump(handle) as unknown)
