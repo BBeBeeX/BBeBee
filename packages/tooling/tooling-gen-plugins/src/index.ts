@@ -201,3 +201,92 @@ export async function generateManifests(options: {
   await writeFile(options.outFile, source, 'utf8')
   return relative(options.root, options.outFile)
 }
+
+/**
+ * The service-key universe: every Cordis service key the app composition
+ * can provide, as data.
+ *
+ * Single source of truth for "which service keys exist". Install-time
+ * availability inside the app is judged against manifests (the gate in
+ * `apps/desktop/renderer/manifest-standards.test.ts` keeps runtime
+ * registrations covered by them), and the community registry validates
+ * entry `services` against this same set — it vendors a copy of this
+ * artifact (`scripts/lib/service-keys.generated.json` in
+ * B_Be_Bee-registry, refreshed by its `scripts/sync-service-keys.mjs`)
+ * instead of maintaining a second, hand-written list.
+ *
+ * The set is the union of `contributes.services` over every discovered
+ * manifest, plus whatever the shell declares for itself
+ * (`SHELL_MANIFEST` — services wired by the composition root with no
+ * providing package manifest). There is deliberately no hand-written
+ * supplement: a key that is missing here is missing because no manifest
+ * declares it, and the fix belongs in that manifest, not in this file.
+ */
+export interface ServiceKeysArtifact {
+  description: string
+  generatedBy: string
+  sources: string[]
+  /** Every service key, sorted. */
+  serviceKeys: string[]
+  /** Key → manifest ids that declare it in `contributes.services`. */
+  providers: Record<string, string[]>
+}
+
+export function collectServiceKeys(
+  plugins: DiscoveredPlugin[],
+  shellServices: readonly string[] = [],
+  shellProviderId = '@BBeBee/app-shell',
+): ServiceKeysArtifact {
+  const providers = new Map<string, Set<string>>()
+  const add = (key: string, provider: string) => {
+    let set = providers.get(key)
+    if (!set) providers.set(key, (set = new Set()))
+    set.add(provider)
+  }
+  for (const p of plugins) {
+    for (const s of p.manifest.contributes?.services ?? []) add(s, p.manifest.id)
+  }
+  for (const s of shellServices) add(s, shellProviderId)
+
+  const serviceKeys = [...providers.keys()].sort()
+  const providersRecord: Record<string, string[]> = {}
+  for (const key of serviceKeys) providersRecord[key] = [...providers.get(key)!].sort()
+
+  return {
+    description:
+      'Every Cordis service key the BBeBee app can provide: the union of ' +
+      'contributes.services across all plugin manifests, plus the shell’s ' +
+      'own declaration. This file is the single source of truth for the ' +
+      'service-key allowlist — the community registry vendors a copy of ' +
+      'it rather than maintaining its own list.',
+    generatedBy:
+      '@BBeBee/tooling-gen-plugins — do not edit by hand; run `pnpm gen:plugins` to regenerate.',
+    sources: [
+      'contributes.services of every BBeBee.plugin.json under packages/',
+      'SHELL_MANIFEST.contributes.services in apps/desktop/renderer/plugins.ts',
+    ],
+    serviceKeys,
+    providers: providersRecord,
+  }
+}
+
+export function renderServiceKeys(artifact: ServiceKeysArtifact): string {
+  return JSON.stringify(artifact, null, 2) + '\n'
+}
+
+export async function generateServiceKeys(options: {
+  root: string
+  outFile: string
+  shellServices?: readonly string[]
+  shellProviderId?: string
+  packagesDirs?: string[]
+}): Promise<string> {
+  const plugins = await discover(options.root, options.packagesDirs)
+  const artifact = collectServiceKeys(
+    plugins,
+    options.shellServices ?? [],
+    options.shellProviderId,
+  )
+  await writeFile(options.outFile, renderServiceKeys(artifact), 'utf8')
+  return relative(options.root, options.outFile)
+}
