@@ -2,6 +2,17 @@
 
 > **Legacy Reference:** Formerly `docs/03-plugin-system.md §7 – §9`.
 
+> ⚠️ **`capabilities` (this document) vs `services` (registry entries)** — two
+> different concepts that used to share a name. `capabilities` here is the
+> **in-package security gate**: the `fs:`/`net:`/`db:`/`audio`/… grants a plugin
+> declares in its own `BBeBee.plugin.json`, enforced by the kernel at load
+> time. The community registry entry instead uses **`services`**: the string
+> array of **cordis service keys the plugin must `inject`** (e.g.
+> `["player", "store"]`), used by the installer to check service availability
+> *before* downloading anything from npm. The registry schema v2 renamed the
+> old `capabilities` field to `services` precisely to end this confusion; the
+> in-package gate keeps the name `capabilities` and its semantics are unchanged.
+
 ## 7. Capability model
 
 Plugins declare what they intend to touch and the kernel mediates. With

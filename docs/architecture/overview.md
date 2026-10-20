@@ -137,6 +137,17 @@ and the desktop gate refuses any non-builtin plugin without an explicit `capabil
 A contributed view missing on one target remains a state to handle — ADR-2 produces it for its
 own reasons.
 
+> **Update (2026-10-20) — npm-distributed third-party plugins on desktop.** The desktop
+> dynamic loader kept by the final ruling above is now fed by an npm-based distribution
+> flow: the community registry (`B_Be_Bee-registry`, schema v2) is the browse index
+> only — entries carry no `version` — and the client downloads the selected
+> version's tarball from npm, verifies it (`dist.integrity`, anti-spoofing checks),
+> and installs it through this loader
+> ([loading.md §6.7](../plugins/loading.md#67-npm-install-flow-desktop)). "Runtime
+> marketplace on both" remains rejected for mobile: mobile still bundles
+> statically. Desktop third-party plugins still pass the capability gate and the
+> pre-install security scan; extensibility-by-source-strings (ADR-5) is unchanged.
+
 ### ADR-2 — The UI is split: React Native on mobile, React DOM on desktop
 
 **Decision.** Two shells, two component libraries, one headless core. Plugins contribute

@@ -143,6 +143,17 @@ Every plugin package across all layers (Core, Logs, Feature, UI) must carry a `B
     `settings` (settings schema, `string`), `slots` (extension slots, `string[]`).
 15. `effect`: Context property/service registered on `ctx` (e.g. `"player"`, `"audio"`), or `null` if none.
 
+> **Registry-side fields differ.** The community registry entry (`B_Be_Bee-registry`
+> `plugins/*.json`, schema v2) is *not* this manifest: it has **no `version`**
+> (version truth lives on npm + in this manifest's field 5), and it adds
+> **`npm`** (the npm package name, required), **`services`** (required cordis
+> service keys the plugin injects — *not* the §5 capability grammar; the old
+> registry field name `capabilities` was renamed to end that confusion), and
+> **`platforms`** (`"desktop"`/`"mobile"`, required for plugins). Its
+> `dependencies` are `"<registry-id>[@<semver-range>]"`, resolved by the
+> installer against npm — distinct from this manifest's field 9, which lists
+> workspace package IDs for static composition.
+
 ---
 
 ## 7. Dual-Mode Plugin Loading
@@ -159,6 +170,7 @@ Every plugin package across all layers (Core, Logs, Feature, UI) must carry a `B
   - Desktop bridge exposes typed `window.BBeBee.plugins`.
   - Renderer dynamic loader (`apps/desktop/renderer/dynamic-loader.ts`) discovers installed plugins at startup and merges them into `compositeRegistry` in `boot.ts`.
   - Runtime management: `installAndActivatePlugin()` and `uninstallExternalPlugin()` (fiber disposed first, then files removed).
+  - Third-party distribution: the community registry index (`plugins/index.json`, schema v2 — no `version`, `services`/`platforms`/`npm` fields) is browsed in-app; packages are downloaded from npm and installed through this loader — see `docs/plugins/loading.md` §6.7. Mobile has no equivalent flow.
 - **Kernel (`@BBeBee/kernel`)**:
   - `app.registerPlugin(id, entry)`: Extends the running registry.
   - `app.loadPlugin(id)`: Verifies capability grants for non-builtin plugins (`ungranted` rejection if unauthorized).

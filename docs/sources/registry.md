@@ -293,7 +293,7 @@ Two settings back this, edited in the settings screen's network tab
 
 | Setting | Meaning |
 |---|---|
-| `AppSettings.downloadRegion` | `'global'` (default) or `'mainland-china'`, stored as a preference. Currently advisory only: the official-first rule never changes, and the region value surfaces in the download layer's log lines. |
+| `AppSettings.downloadRegion` | `'global'` (default) or `'mainland-china'`, stored as a preference. For this download layer the official-first rule never changes and the region value surfaces in log lines. The plugin manager additionally reads it as the domestic switch: `'mainland-china'` defaults the npm registry to npmmirror and the community registry index to jsDelivr, with `npmRegistryUrl` / `githubRawBaseUrl` as manual overrides (see [loading.md §6.7](../plugins/loading.md#67-npm-install-flow-desktop)). |
 | `AppSettings.githubAccelerationPrefixes` | Ordered HTTPS base URLs (e.g. `https://ghproxy.example.com/`) that are prepended to the original full URL. Array order is try order; the editor reports the complete array on every change, and the built-in jsDelivr line is not part of the array. |
 
 The `registry.prefs.endpoint` override (§4) keeps its semantics: a configured

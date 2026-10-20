@@ -166,3 +166,134 @@ it composes with Metro Fast Refresh for the view layer while the kernel reloads 
 
 ---
 
+### 6.7 npm install flow (desktop)
+
+Third-party plugins are discovered through the community registry and downloaded
+from npm. The two phases are deliberately separate:
+
+1. **Browse (registry only).** The client fetches the aggregated index
+   `plugins/index.json` from the `B_Be_Bee-registry` repository — one raw-file
+   request, no GitHub API (the anonymous Contents API quota is 60 req/hour).
+   The index carries **no `version`** (schema v2); the version truth lives on npm.
+   Entries declare `services` (required cordis service keys), `platforms`
+   (`desktop`/`mobile`), `npm` (package name), and `dependencies` as
+   `"<registry-id>[@<semver-range>]"`. The market UI filters by platform.
+2. **Resolve (npm metadata only).** For the chosen entry, the client reads the
+   packument from the effective npm registry, picks `dist-tags.latest` (or the
+   highest version satisfying a range), and resolves the transitive dependency
+   closure recursively. Version conflicts between two dependency paths and
+   dependency cycles fail loudly with the conflicting requirements named.
+   `resolveInstallPlan` returns the plan **without downloading anything**, so
+   the UI can show the exact version, the dependency closure, and any missing
+   services for confirmation.
+3. **Install (download → verify → activate).** The tarball is fetched via
+   `ctx.http` (`bytes()`), its sha512 `dist.integrity` verified, unpacked with
+   a pure-JS gunzip+untar (no `node:*` in L4), and checked three ways: the
+   selected version must equal `package.json#version` and
+   `BBeBee.plugin.json#version`; `package.json#name` must equal the entry's
+   `npm`; the manifest `id` must equal the entry `id` and must not collide with
+   a built-in plugin id (anti-spoofing). Text files are passed as UTF-8
+   strings; non-UTF-8 entries are refused in v1. Then the existing security
+   scan runs (`block` level refuses), files are written through the desktop
+   bridge (`installAndActivatePlugin`), and the lock record
+   `{ id, npm, version, sha256, installedAt }` is persisted.
+
+**Pre-install checklist** (any failure refuses the install with a readable
+reason): required `services` ⊆ (platform core services ∪ installed plugins'
+`contributes.services` ∪ the to-be-installed closure's services); resolvable
+dependency closure; `minAppVersion`/`engines.BBeBee` compatible with the app;
+`platforms` contains the current platform and agrees with the in-package
+manifest; security scan passes; anti-spoofing checks pass; tarball within the
+size limit and download timeout.
+
+**Version management.** `checkUpdates()` re-fetches packuments (short TTL; also
+runs automatically once ~24h after boot plus on user request). `updatePlugin`
+installs the newest version satisfying `^<installed>` and keeps the enabled
+state; a major-version bump without an explicit range throws
+`MAJOR_UPDATE_NEEDS_CONFIRM` so the UI asks first. Updates back up the old
+directory first — if activation of the new version fails, the old one is
+restored and the lock record is left untouched (rollback). `uninstall` refuses
+when other installed plugins depend on the target and names them; user data
+(store namespaces, tables) is always kept.
+
+**Mirrors & region.** Two settings control where bytes come from, both
+overridable in Settings → Network → *Download & GitHub acceleration*:
+- `downloadRegion: 'global' | 'mainland-china'` (existing preference, reused).
+  `mainland-china` defaults the npm registry to `https://registry.npmmirror.com`
+  and the registry index to jsDelivr
+  (`https://cdn.jsdelivr.net/gh/BBeBeeX/B_Be_Bee-registry@main`, whose path
+  shape `/gh/<owner>/<repo>@<branch>/<path>` the fetch layer adapts to).
+- `npmRegistryUrl` / `githubRawBaseUrl`: manual overrides; a manual URL always
+  wins over the region default, and empty means "derive from region".
+- Private registries authenticate with a token stored via `ctx.secrets`
+  (`plugin-manager.setNpmAuthToken`) — never in the settings store, never in
+  logs; only the boolean "token saved" state is surfaced to the UI.
+- Resilience: if the effective source fails, the client retries once against
+  the official endpoint, then reports both attempted URLs.
+
+### 6.8 Author checklist: publishing a plugin to npm
+
+1. The published package root **must contain `BBeBee.plugin.json`**, and the
+   `package.json` `files` array must include it (plus `dist/`).
+2. **`package.json#version` is the single version truth.** It must equal
+   `BBeBee.plugin.json#version`; the installer refuses on mismatch. The
+   registry entry carries no version at all.
+3. The registry entry's `services` array must honestly list every cordis
+   service key the plugin `inject`s — the installer blocks the install when a
+   listed service is unavailable, and a false declaration either blocks
+   legitimate users or misleads them.
+4. Declare `platforms` accurately (`["desktop"]`, `["mobile"]`, or both).
+5. v1 packages must be text-only (JS/JSON/CSS); binary assets are refused.
+   Keep tarballs small (the client enforces a size cap).
+6. Depend on other registry plugins via `dependencies:
+   ["<registry-id>@<semver-range>"]`, not via npm `dependencies` — the
+   installer resolves the plugin closure itself.
+
+### 6.9 Bundled UI: views in the same npm package
+
+A plugin that needs views does **not** publish a second package. One npm
+package carries the headless plugin and its UI side by side:
+
+```
+package root
+├── package.json
+├── BBeBee.plugin.json
+└── dist/
+    ├── index.js        headless plugin (entry.main)
+    ├── ui-desktop.js   desktop UI (entry.ui.desktop)
+    └── ui-mobile.js    mobile UI (entry.ui.mobile, declared, not yet loaded)
+```
+
+```json
+"entry": {
+  "main": "./dist/index.js",
+  "ui": { "desktop": "./dist/ui-desktop.js", "mobile": "./dist/ui-mobile.js" }
+}
+```
+
+The UI module is an ordinary Cordis plugin: it default-exports a plugin def,
+`inject`s the services it needs, and registers its views through the
+compositor/slots it contributes to. The desktop loader imports it from the
+same installed directory over `bbebee-plugin://` and composes it with the
+headless def into a **single registry entry** — one package, one version,
+one lock record; enabling, disabling, uninstalling, and the integrity check
+all follow the package. The UI def is registered as a child fiber of the
+entry, after the headless def.
+
+Failure isolation: if the UI module fails to import, or throws while it is
+being registered, the loader logs a warning and runs the headless plugin on
+its own. A broken view never takes the plugin's services down with it.
+
+Two authoring constraints:
+
+- **The UI bundle must be self-contained.** The renderer has no import map,
+  so bare imports (`react`, `react-dom`, …) inside the UI file cannot
+  resolve — bundle everything the UI needs into the UI file itself. The v1
+  text-only rule applies to UI files exactly as to the headless entry.
+- **Desktop first.** The desktop loader honours `entry.ui.desktop` only.
+  `entry.ui.mobile` may be declared today, but it stays inert until mobile
+  gains a dynamic loader — it is not a schema problem, and packages written
+  now will not need to change when that lands.
+
+---
+
