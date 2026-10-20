@@ -62,6 +62,7 @@ import {
   installAndActivatePlugin,
   loadExternalPluginRegistry,
   uninstallExternalPlugin,
+  type PluginLockRecord,
 } from './dynamic-loader.js'
 import { setScheme } from '@BBeBee/ui-kit-desktop'
 
@@ -456,15 +457,18 @@ export async function preloadPreferences(pathSnapshot: Record<string, string | u
  * Lock records for the dynamic loader's tamper check, merged from both
  * install paths: the bridge's registry.lock.json (content-registry
  * installs) and plugin-manager's npm records in the store snapshot.
- * The loader hashes each plugin's on-disk entry main file, so npm records
- * contribute their `entrySha256` (computed over that same file at install
- * time) — the tarball hash stored alongside it covers different bytes.
- * npm records win on id conflicts: they are the fresher write.
+ * npm records carry the full-package pin map (`fileHashes`, audit W3):
+ * the loader compares every on-disk file against it. Records written
+ * before the full chain existed contribute their `entrySha256` as the
+ * legacy single-file basis. A record with NO integrity basis at all is
+ * forwarded as `unverified` so the loader quarantines it visibly
+ * instead of the old fail-open (a missing entry hash silently skipped
+ * the check). npm records win on id conflicts: they are the fresher write.
  */
 async function mergedPluginLock(
   storeData: Record<string, unknown> | undefined,
-): Promise<Record<string, { sha256?: string }> | undefined> {
-  const merged: Record<string, { sha256?: string }> = {}
+): Promise<Record<string, PluginLockRecord> | undefined> {
+  const merged: Record<string, PluginLockRecord> = {}
   try {
     const lockData = (await window.BBeBee?.plugins?.getLock?.()) as
       | { records?: Record<string, { sha256?: string }> }
@@ -485,11 +489,18 @@ async function mergedPluginLock(
   // how the key appears in the raw store snapshot (same scheme as the
   // '@BBeBee/plugin-manager:enabled' overrides read in computeEnabledPlugins).
   const npmRecords = storeData?.['@BBeBee/plugin-manager:npm:installed'] as
-    | Record<string, { entrySha256?: string }>
+    | Record<string, { entrySha256?: string; fileHashes?: Record<string, string> }>
     | undefined
   if (npmRecords && typeof npmRecords === 'object') {
     for (const [id, rec] of Object.entries(npmRecords)) {
-      if (rec?.entrySha256) merged[id] = { sha256: rec.entrySha256 }
+      if (!rec || typeof rec !== 'object') continue
+      if (rec.fileHashes && Object.keys(rec.fileHashes).length > 0) {
+        merged[id] = { fileHashes: rec.fileHashes }
+      } else if (rec.entrySha256) {
+        merged[id] = { sha256: rec.entrySha256 }
+      } else {
+        merged[id] = { unverified: true }
+      }
     }
   }
   return Object.keys(merged).length > 0 ? merged : undefined

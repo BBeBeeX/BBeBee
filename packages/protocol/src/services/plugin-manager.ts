@@ -134,12 +134,19 @@ export interface InstalledNpmPluginRecord {
   sha256?: string
   /**
    * SHA-256 of the entry main file's content (`manifest.entry.main`),
-   * computed at install time. This is the tamper-check basis the boot-time
-   * dynamic loader compares against (it hashes the on-disk entry file), so
-   * boot merges this value into the loader's lock map — the tarball `sha256`
-   * above covers different bytes and cannot serve that check.
+   * computed at install time. Legacy single-file view of {@link fileHashes}
+   * (kept for records written before the full-package chain existed).
    */
   entrySha256?: string
+  /**
+   * Full-package tamper chain: sha256 of EVERY file in the installed
+   * package, keyed by package-relative path. The boot-time loader compares
+   * the whole on-disk directory against this map — a changed, missing, or
+   * extra file in any position quarantines the plugin. A record with
+   * neither this nor `entrySha256` has no integrity basis and is treated
+   * as unverified (quarantined, visibly), never silently trusted.
+   */
+  fileHashes?: Record<string, string>
   installedAt: string
 }
 

@@ -336,6 +336,101 @@ describe('desktop dynamic-loader', () => {
   })
 })
 
+describe('full-package tamper chain (audit W3)', () => {
+  const MANIFEST = {
+    id: 'full-chain-plugin',
+    version: '1.0.0',
+    displayName: 'Full Chain Plugin',
+    entry: { main: './dist/index.js' },
+    capabilities: [],
+  }
+  const PINNED = {
+    'BBeBee.plugin.json': 'hash-manifest',
+    'dist/index.js': 'hash-entry',
+    'dist/helper.js': 'hash-helper',
+  }
+
+  async function loadWith(item: Record<string, unknown>, lockRecord: unknown) {
+    const original = window.BBeBee
+    // @ts-expect-error test mock
+    window.BBeBee = {
+      ...original,
+      plugins: {
+        listInstalled: vi.fn().mockResolvedValue([item]),
+        install: vi.fn(),
+        uninstall: vi.fn(),
+      },
+    }
+    try {
+      return await loadExternalPluginRegistry({
+        lock: { 'full-chain-plugin': lockRecord } as never,
+      })
+    } finally {
+      window.BBeBee = original
+    }
+  }
+
+  const baseItem = {
+    id: 'full-chain-plugin',
+    version: '1.0.0',
+    manifest: MANIFEST,
+    dirName: 'full-chain-plugin',
+    sha256: 'hash-entry',
+    fileHashes: { ...PINNED },
+  }
+
+  it('loads when every on-disk file matches the pinned map', async () => {
+    const registry = await loadWith(baseItem, { fileHashes: { ...PINNED } })
+    const entry = registry['full-chain-plugin']!
+    expect(entry).toBeDefined()
+    expect(entry.quarantined).toBeUndefined()
+  })
+
+  it('quarantines when a NON-entry file was changed on disk', async () => {
+    const item = { ...baseItem, fileHashes: { ...PINNED, 'dist/helper.js': 'hash-attacker' } }
+    const registry = await loadWith(item, { fileHashes: { ...PINNED } })
+    const entry = registry['full-chain-plugin']!
+    expect(entry.quarantined).toBe(true)
+    await expect(entry.load!()).rejects.toThrow(/tampered/)
+    await expect(entry.load!()).rejects.toThrow(/dist\/helper\.js/)
+  })
+
+  it('quarantines when an extra file appeared on disk', async () => {
+    const item = { ...baseItem, fileHashes: { ...PINNED, 'dist/injected.js': 'hash-x' } }
+    const registry = await loadWith(item, { fileHashes: { ...PINNED } })
+    expect(registry['full-chain-plugin']!.quarantined).toBe(true)
+  })
+
+  it('quarantines when a pinned file is missing on disk', async () => {
+    const { 'dist/helper.js': _dropped, ...rest } = PINNED
+    const item = { ...baseItem, fileHashes: { ...rest } }
+    const registry = await loadWith(item, { fileHashes: { ...PINNED } })
+    const entry = registry['full-chain-plugin']!
+    expect(entry.quarantined).toBe(true)
+    await expect(entry.load!()).rejects.toThrow(/tampered/)
+  })
+
+  it('quarantines when the sidecar reports no file hashes for a fully pinned package', async () => {
+    const { fileHashes: _omit, ...item } = baseItem
+    const registry = await loadWith(item, { fileHashes: { ...PINNED } })
+    expect(registry['full-chain-plugin']!.quarantined).toBe(true)
+  })
+
+  it('quarantines a record with no integrity basis as unverified instead of failing open', async () => {
+    const registry = await loadWith(baseItem, { unverified: true })
+    const entry = registry['full-chain-plugin']!
+    expect(entry.quarantined).toBe(true)
+    await expect(entry.load!()).rejects.toThrow(/unverified/)
+  })
+
+  it('still honours the legacy entry-only pin for older records', async () => {
+    const ok = await loadWith(baseItem, { sha256: 'hash-entry' })
+    expect(ok['full-chain-plugin']!.quarantined).toBeUndefined()
+    const bad = await loadWith({ ...baseItem, sha256: 'hash-other' }, { sha256: 'hash-entry' })
+    expect(bad['full-chain-plugin']!.quarantined).toBe(true)
+  })
+})
+
 describe('external plugin UI composition (makeExternalEntry / composePluginWithUi)', () => {
   type AnyDef = {
     name?: string

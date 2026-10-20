@@ -770,17 +770,22 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       }
       const result = await bridge.installPlugin(node.entry.id, extracted.files, extracted.manifest)
       this.registerManifests({ [node.entry.id]: extracted.manifest })
-      // Tamper-check basis for the boot-time loader: it hashes the on-disk
-      // entry main file, so the record keeps that file's hash alongside the
-      // tarball hash.
+      // Tamper-check basis for the boot-time loader: the FULL package
+      // (audit W3) — every file's sha256 is pinned, so boot can compare
+      // the whole on-disk directory, not just the entry file. entrySha256
+      // remains as the legacy single-file view of the same map.
+      const fileHashes: Record<string, string> = {}
+      for (const [path, content] of Object.entries(extracted.files)) {
+        fileHashes[path] = sha256Hex(content)
+      }
       const entryMain = (extracted.manifest.entry?.main ?? './index.js').replace(/^\.?\//, '')
-      const entryContent = extracted.files[entryMain]
       records[node.entry.id] = {
         id: node.entry.id,
         npm: node.pkg.npm,
         version: node.pkg.version,
         sha256: extracted.tarballSha256,
-        entrySha256: entryContent !== undefined ? sha256Hex(entryContent) : undefined,
+        entrySha256: fileHashes[entryMain],
+        fileHashes,
         installedAt: new Date().toISOString(),
       }
       await this.saveInstalledRecords(records)

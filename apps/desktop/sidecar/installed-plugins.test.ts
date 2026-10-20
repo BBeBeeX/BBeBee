@@ -112,6 +112,26 @@ describe('listInstalledPlugins', () => {
     expect(info?.sha256).toBe(expected)
   })
 
+  it('reports a sha256 for every file in the directory (full-package tamper chain)', () => {
+    const pkgJson = JSON.stringify({ name: '@alice/pkg', version: '2.0.0' })
+    writePlugin('alice__plugin', {
+      'BBeBee.plugin.json': BBE_MANIFEST,
+      'package.json': pkgJson,
+      'dist/index.js': 'entry code',
+      'dist/helper.js': 'helper code',
+      'assets/note.txt': 'a note',
+    })
+    const sha = (s: string) => createHash('sha256').update(s).digest('hex')
+    const [info] = listInstalledPlugins(root)
+    expect(info?.fileHashes).toEqual({
+      'BBeBee.plugin.json': sha(BBE_MANIFEST),
+      'package.json': sha(pkgJson),
+      'dist/index.js': sha('entry code'),
+      'dist/helper.js': sha('helper code'),
+      'assets/note.txt': sha('a note'),
+    })
+  })
+
   it('omits sha256 when the entry main file is missing', () => {
     writePlugin('alice__plugin', {
       'BBeBee.plugin.json': BBE_MANIFEST,

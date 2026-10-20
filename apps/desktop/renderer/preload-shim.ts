@@ -46,7 +46,14 @@ export interface BBeBeeDevtoolsApi {
 
 export interface BBeBeePluginsApi {
   listInstalled(): Promise<
-    Array<{ id: string; version: string; manifest: unknown; dirName: string; sha256?: string }>
+    Array<{
+      id: string
+      version: string
+      manifest: unknown
+      dirName: string
+      sha256?: string
+      fileHashes?: Record<string, string>
+    }>
   >
   getLock(): Promise<unknown>
   install(

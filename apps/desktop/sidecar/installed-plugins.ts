@@ -18,8 +18,10 @@
  * falls through to the next one.
  *
  * The reported `sha256` is over the entry main file
- * (`manifest.entry.main`), which is the basis the renderer's dynamic loader
- * uses for its tamper check.
+ * (`manifest.entry.main`) — the legacy single-file tamper basis. The
+ * reported `fileHashes` covers EVERY file in the directory and is what
+ * the renderer's dynamic loader compares against current install
+ * records (audit W3).
  */
 
 import { createHash } from 'node:crypto'
@@ -40,6 +42,13 @@ export interface InstalledPluginInfo {
   manifest: unknown
   dirName: string
   sha256?: string
+  /**
+   * sha256 of every regular file in the plugin directory, keyed by
+   * POSIX-style relative path — the on-disk half of the full-package
+   * tamper chain (audit W3) the renderer loader compares against the
+   * install record's pinned map.
+   */
+  fileHashes?: Record<string, string>
 }
 
 const MANIFEST_CANDIDATES = ['BBeBee.plugin.json', 'manifest.json'] as const
@@ -94,6 +103,34 @@ export function entryMainOf(manifest: Record<string, unknown>): string {
   return main.replace(/^\.?\//, '')
 }
 
+/** Hashes every regular file under a plugin directory (recursive). */
+export function hashPluginFiles(pluginDir: string): Record<string, string> {
+  const hashes: Record<string, string> = {}
+  const walk = (dir: string, prefix: string): void => {
+    let entries
+    try {
+      entries = readdirSync(dir, { withFileTypes: true })
+    } catch {
+      return
+    }
+    for (const entry of entries) {
+      const rel = prefix ? `${prefix}/${entry.name}` : entry.name
+      if (entry.isDirectory()) {
+        walk(join(dir, entry.name), rel)
+      } else if (entry.isFile()) {
+        try {
+          hashes[rel] = createHash('sha256').update(readFileSync(join(dir, entry.name))).digest('hex')
+        } catch {
+          // Unreadable file: omit it — the loader treats a file missing
+          // from the report as tampering, which is the honest outcome.
+        }
+      }
+    }
+  }
+  walk(pluginDir, '')
+  return hashes
+}
+
 /** Lists every installed plugin under `root` (missing root → empty list). */
 export function listInstalledPlugins(root: string): InstalledPluginInfo[] {
   if (!existsSync(root)) return []
@@ -122,6 +159,7 @@ export function listInstalledPlugins(root: string): InstalledPluginInfo[] {
       manifest,
       dirName: entry.name,
       ...(sha256 ? { sha256 } : {}),
+      fileHashes: hashPluginFiles(pluginDir),
     })
   }
   return plugins

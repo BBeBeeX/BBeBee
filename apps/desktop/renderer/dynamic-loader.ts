@@ -49,6 +49,66 @@ export interface InstalledPluginRecord {
   manifest: unknown
   dirName: string
   sha256?: string
+  /** sha256 of every file in the plugin directory, as reported by the sidecar. */
+  fileHashes?: Record<string, string>
+}
+
+/**
+ * One plugin's integrity basis in the merged boot lock: either a legacy
+ * entry-file hash, a full-package pin map, or an explicit `unverified`
+ * marker for a record that carries no hashes at all.
+ */
+export interface PluginLockRecord {
+  sha256?: string
+  fileHashes?: Record<string, string>
+  unverified?: boolean
+}
+
+/**
+ * The tamper-chain verdict for one installed plugin, or undefined when
+ * it may load. Full-package pins compare the ENTIRE on-disk file set
+ * (changed, missing, or extra files all count); a record marked
+ * unverified is refused with its own reason instead of the old fail-open
+ * where a missing hash silently skipped the check. Lock records without
+ * any integrity fields at all (e.g. hand-written lock entries) keep the
+ * historical no-check behaviour.
+ */
+export function pluginTamperReason(
+  lockRecord: PluginLockRecord | undefined,
+  item: { sha256?: string; fileHashes?: Record<string, string> },
+): string | undefined {
+  if (!lockRecord) return undefined
+  if (lockRecord.unverified) {
+    return 'unverified: the install record carries no integrity hashes, so the on-disk code cannot be trusted'
+  }
+  if (lockRecord.fileHashes) {
+    const pinned = lockRecord.fileHashes
+    const onDisk = item.fileHashes
+    if (!onDisk) {
+      return 'tampered code detected: the on-disk file set could not be hashed for a fully pinned package'
+    }
+    if (Object.keys(onDisk).length !== Object.keys(pinned).length) {
+      return 'tampered code detected: the on-disk file set differs from the install record (files added or removed)'
+    }
+    for (const [path, hash] of Object.entries(pinned)) {
+      const actual = onDisk[path]
+      if (actual === undefined) {
+        return `tampered code detected: file "${path}" from the install record is missing on disk`
+      }
+      if (actual.trim().toLowerCase() !== hash.trim().toLowerCase()) {
+        return `tampered code detected: file "${path}" no longer matches the install record`
+      }
+    }
+    return undefined
+  }
+  if (
+    lockRecord.sha256 &&
+    item.sha256 &&
+    lockRecord.sha256.trim().toLowerCase() !== item.sha256.trim().toLowerCase()
+  ) {
+    return 'tampered code detected (sha256 mismatch against registry.lock.json)'
+  }
+  return undefined
 }
 
 /**
@@ -209,7 +269,7 @@ export function makeExternalEntry(
  * If tampered, refuses loading and marks quarantined.
  */
 export async function loadExternalPluginRegistry(options?: {
-  lock?: RegistryLockFile | Record<string, { sha256?: string }>
+  lock?: RegistryLockFile | Record<string, PluginLockRecord>
 }): Promise<DynamicPluginRegistry> {
   const pluginsApi = typeof window !== 'undefined' ? window.BBeBee?.plugins : undefined
   if (!pluginsApi) return {}
@@ -218,10 +278,10 @@ export async function loadExternalPluginRegistry(options?: {
     const list = await pluginsApi.listInstalled()
     const lockData = (options?.lock ?? (await pluginsApi.getLock?.())) as
       | RegistryLockFile
-      | Record<string, { sha256?: string }>
+      | Record<string, PluginLockRecord>
       | undefined
     const records = (lockData && 'records' in lockData ? lockData.records : lockData) as
-      | Record<string, { sha256?: string }>
+      | Record<string, PluginLockRecord>
       | undefined
 
     const registry: DynamicPluginRegistry = {}
@@ -231,24 +291,18 @@ export async function loadExternalPluginRegistry(options?: {
       const manifest = item.manifest as PluginManifest
 
       const lockRecord = records?.[item.id]
-      const isTampered = Boolean(
-        lockRecord?.sha256 &&
-          item.sha256 &&
-          lockRecord.sha256.trim().toLowerCase() !== item.sha256.trim().toLowerCase(),
-      )
+      const tamperReason = pluginTamperReason(lockRecord, item)
 
-      if (isTampered) {
+      if (tamperReason) {
         console.error(
-          `[dynamic-loader] Plugin "${item.id}" integrity mismatch against registry.lock.json (tampered). Quarantined.`,
+          `[dynamic-loader] Plugin "${item.id}" refused (${tamperReason}). Quarantined.`,
         )
         registry[item.id] = {
           manifest,
           builtin: false,
           quarantined: true,
           load: async () => {
-            throw new Error(
-              `Plugin "${item.id}" refused to load: tampered code detected (sha256 mismatch against registry.lock.json)`,
-            )
+            throw new Error(`Plugin "${item.id}" refused to load: ${tamperReason}`)
           },
         }
         continue
