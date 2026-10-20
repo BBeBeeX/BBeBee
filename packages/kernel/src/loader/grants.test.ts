@@ -1,7 +1,17 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { DbService, PluginManifest } from '@BBeBee/protocol'
+import {
+  PLUGIN_MANAGER_ID,
+  PLUGIN_SETTINGS_ID,
+  type DbService,
+  type PluginManifest,
+} from '@BBeBee/protocol'
 import { createApp } from '../bootstrap/app.js'
-import { readCapabilityGrants } from './grants.js'
+import {
+  createShellGrantResolver,
+  readCapabilityGrants,
+  readConfiguredAppSettings,
+  withManagerPipelineGrants,
+} from './grants.js'
 
 /**
  * In-memory stand-in for the two core tables the grants flow touches.
@@ -187,5 +197,142 @@ describe('grant wiring through createApp (resolveGrants)', () => {
     expect(app.plugins.find((p) => p.pluginId === 'ext-tool')?.state).toBe('ungranted')
     expect(applied).not.toHaveBeenCalled()
     await app.stop()
+  })
+})
+
+describe('withManagerPipelineGrants (settings-derived pipeline hosts)', () => {
+  const MANIFEST_CAPS = ['db:read:core', 'db:write:core', 'net:host/registry.npmjs.org']
+
+  it('unions ledger rows, manifest capabilities and the derived hosts — never replaces', () => {
+    const out = withManagerPipelineGrants(
+      { [PLUGIN_MANAGER_ID]: ['net:host/ledger.example.com'], 'ext-audio': ['audio'] },
+      MANIFEST_CAPS,
+      { npmRegistryUrl: 'https://npm.example.corp' },
+    )
+    const entry = out[PLUGIN_MANAGER_ID]!
+    // Ledger row survives (a present `granted` entry replaces the
+    // manifest in scopeContext, so dropping it here would strip it).
+    expect(entry).toContain('net:host/ledger.example.com')
+    // Manifest capabilities survive.
+    expect(entry).toContain('db:read:core')
+    expect(entry).toContain('db:write:core')
+    // Derived: built-ins (incl. the npmmirror redirect companion) and
+    // the user's custom registry host.
+    expect(entry).toContain('net:host/cdn.npmmirror.com')
+    expect(entry).toContain('net:host/raw.githubusercontent.com')
+    expect(entry).toContain('net:host/npm.example.corp')
+    // Deduped (registry.npmjs.org was both a manifest cap and derived).
+    expect(entry.filter((c) => c === 'net:host/registry.npmjs.org')).toHaveLength(1)
+    // No other plugin is touched, and no entry is invented for anyone else.
+    expect(out['ext-audio']).toEqual(['audio'])
+    expect(Object.keys(out).sort()).toEqual([PLUGIN_MANAGER_ID, 'ext-audio'].sort())
+  })
+
+  it('with no ledger and no settings, the entry is manifest ∪ built-in derived set', () => {
+    const out = withManagerPipelineGrants({}, MANIFEST_CAPS, undefined)
+    const entry = out[PLUGIN_MANAGER_ID]!
+    for (const cap of MANIFEST_CAPS) expect(entry).toContain(cap)
+    for (const host of [
+      'registry.npmjs.org',
+      'registry.npmmirror.com',
+      'cdn.npmmirror.com',
+      'raw.githubusercontent.com',
+      'cdn.jsdelivr.net',
+      'fastly.jsdelivr.net',
+    ]) {
+      expect(entry).toContain(`net:host/${host}`)
+    }
+    // Exactly the union — nothing else leaks in.
+    expect(new Set(entry).size).toBe(entry.length)
+    expect(entry).toHaveLength(MANIFEST_CAPS.length + 5)
+  })
+
+  it('introduces no wildcard grants', () => {
+    const out = withManagerPipelineGrants({}, MANIFEST_CAPS, {
+      npmRegistryUrl: 'https://npm.example.corp',
+      githubRawBaseUrl: 'https://ghproxy.example.com/https://raw.githubusercontent.com/x/y/main',
+    })
+    for (const cap of out[PLUGIN_MANAGER_ID]!) {
+      expect(cap).not.toContain('*')
+    }
+    expect(out[PLUGIN_MANAGER_ID]).toContain('net:host/ghproxy.example.com')
+  })
+})
+
+describe('readConfiguredAppSettings', () => {
+  it('prefers the live settings service when it exists', async () => {
+    const ctx = {
+      settings: { getSync: () => ({ downloadRegion: 'mainland-china' }) },
+      store: {
+        namespace: () => {
+          throw new Error('store must not be consulted when the live service answers')
+        },
+      },
+    }
+    await expect(readConfiguredAppSettings(ctx as never)).resolves.toEqual({
+      downloadRegion: 'mainland-china',
+    })
+  })
+
+  it('falls back to the persisted document in the settings namespace (the boot pass)', async () => {
+    const seen: Array<[string, string]> = []
+    const ctx = {
+      store: {
+        namespace: (ns: string) => ({
+          get: async (key: string) => {
+            seen.push([ns, key])
+            return { npmRegistryUrl: 'https://npm.example.corp' }
+          },
+        }),
+      },
+    }
+    await expect(readConfiguredAppSettings(ctx as never)).resolves.toEqual({
+      npmRegistryUrl: 'https://npm.example.corp',
+    })
+    expect(seen).toEqual([[PLUGIN_SETTINGS_ID, 'preferences']])
+  })
+
+  it('a throwing live service falls through to the persisted document; total failure is undefined', async () => {
+    const ctx = {
+      settings: {
+        getSync: () => {
+          throw new Error('half-initialised')
+        },
+      },
+      store: {
+        namespace: () => ({
+          get: async () => {
+            throw new Error('store down')
+          },
+        }),
+      },
+    }
+    await expect(readConfiguredAppSettings(ctx as never)).resolves.toBeUndefined()
+    await expect(readConfiguredAppSettings({} as never)).resolves.toBeUndefined()
+  })
+})
+
+describe('createShellGrantResolver (the boots’ composition)', () => {
+  it('layers the derived hosts over ledger + manifest; undefined without a db', async () => {
+    const fake = createFakeDb()
+    seedGrant(fake, 'ext-tool', ['audio'])
+    const resolver = createShellGrantResolver({
+      managerManifestCapabilities: ['db:read:core', 'db:write:core'],
+    })
+    const ctx = {
+      db: fake.db,
+      store: {
+        namespace: () => ({
+          get: async () => ({ npmRegistryUrl: 'https://npm.example.corp' }),
+        }),
+      },
+    }
+    const out = await resolver(ctx as never)
+    expect(out?.['ext-tool']).toEqual(['audio'])
+    expect(out?.[PLUGIN_MANAGER_ID]).toContain('db:read:core')
+    expect(out?.[PLUGIN_MANAGER_ID]).toContain('net:host/npm.example.corp')
+    expect(out?.[PLUGIN_MANAGER_ID]).toContain('net:host/cdn.npmmirror.com')
+
+    await expect(resolver({} as never)).resolves.toBeUndefined()
   })
 })
