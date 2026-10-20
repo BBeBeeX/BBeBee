@@ -171,6 +171,11 @@ export interface AppSettings {
    * Download region preference (`'global'` by default). The GitHub download
    * layer keeps the official endpoint first regardless of the region; the
    * value is read (and surfaced in its logs) as a stored preference.
+   *
+   * The plugin manager also reads this as the "domestic" switch: when
+   * `'mainland-china'`, the effective npm registry defaults to npmmirror and
+   * the community registry index defaults to jsDelivr, unless the two manual
+   * overrides below are set (a manual URL always wins over the region default).
    */
   downloadRegion?: DownloadRegion
   /**
@@ -181,6 +186,22 @@ export interface AppSettings {
    * acceleration lines.
    */
   githubAccelerationPrefixes?: readonly string[]
+  /**
+   * Manual npm registry base URL override for plugin downloads
+   * (e.g. a private Verdaccio). Empty/undefined means "derive from
+   * `downloadRegion`": npmmirror for `'mainland-china'`, the official
+   * `https://registry.npmjs.org` otherwise. A manual URL always wins.
+   */
+  npmRegistryUrl?: string
+  /**
+   * Manual base URL override for the community registry raw files
+   * (replaces `https://raw.githubusercontent.com/<owner>/<repo>/<branch>`).
+   * Empty/undefined means "derive from `downloadRegion`": jsDelivr for
+   * `'mainland-china'`, the official raw host otherwise. A manual URL always
+   * wins. The value must already contain owner/repo/branch, e.g.
+   * `https://ghproxy.example.com/https://raw.githubusercontent.com/BBeBeeX/B_Be_Bee-registry/main`.
+   */
+  githubRawBaseUrl?: string
   /** Desktop floating lyrics display settings. */
   desktopLyrics: DesktopLyricsSettings
   /** Global desktop keyboard shortcuts configuration. */

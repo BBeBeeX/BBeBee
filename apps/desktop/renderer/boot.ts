@@ -443,12 +443,56 @@ export async function preloadPreferences(pathSnapshot: Record<string, string | u
   return result
 }
 
+/**
+ * Lock records for the dynamic loader's tamper check, merged from both
+ * install paths: the bridge's registry.lock.json (content-registry
+ * installs) and plugin-manager's npm records in the store snapshot.
+ * The loader hashes each plugin's on-disk entry main file, so npm records
+ * contribute their `entrySha256` (computed over that same file at install
+ * time) — the tarball hash stored alongside it covers different bytes.
+ * npm records win on id conflicts: they are the fresher write.
+ */
+async function mergedPluginLock(
+  storeData: Record<string, unknown> | undefined,
+): Promise<Record<string, { sha256?: string }> | undefined> {
+  const merged: Record<string, { sha256?: string }> = {}
+  try {
+    const lockData = (await window.BBeBee?.plugins?.getLock?.()) as
+      | { records?: Record<string, { sha256?: string }> }
+      | Record<string, { sha256?: string }>
+      | undefined
+    const records = (lockData && 'records' in lockData ? lockData.records : lockData) as
+      | Record<string, { sha256?: string }>
+      | undefined
+    if (records) {
+      for (const [id, rec] of Object.entries(records)) {
+        if (rec?.sha256) merged[id] = { sha256: rec.sha256 }
+      }
+    }
+  } catch {
+    // Bridge unavailable — the npm records below may still apply.
+  }
+  // plugin-manager persists via ctx.store under its own namespace, which is
+  // how the key appears in the raw store snapshot (same scheme as the
+  // '@BBeBee/plugin-manager:enabled' overrides read in computeEnabledPlugins).
+  const npmRecords = storeData?.['@BBeBee/plugin-manager:npm:installed'] as
+    | Record<string, { entrySha256?: string }>
+    | undefined
+  if (npmRecords && typeof npmRecords === 'object') {
+    for (const [id, rec] of Object.entries(npmRecords)) {
+      if (rec?.entrySha256) merged[id] = { sha256: rec.entrySha256 }
+    }
+  }
+  return Object.keys(merged).length > 0 ? merged : undefined
+}
+
 /** Build the plugin registry (builtin + external). */
-async function buildRegistry(): Promise<{
+async function buildRegistry(storeData?: Record<string, unknown>): Promise<{
   registry: PluginRegistry
   manifests: Record<string, PluginManifest>
 }> {
-  const external = await loadExternalPluginRegistry().catch(() => ({}))
+  const lock = await mergedPluginLock(storeData).catch(() => undefined)
+  const external = await loadExternalPluginRegistry(lock ? { lock } : undefined).catch(() => ({}))
   const merged: Record<string, { manifest?: PluginManifest }> = {
     ...getBuiltinPluginRegistry(),
     ...external,
@@ -495,7 +539,7 @@ export async function boot(): Promise<App> {
   const pathSnapshot = await fetchPaths()
   const transport = bridgeFetch()
   const prefs = await preloadPreferences(pathSnapshot)
-  const { registry, manifests } = await buildRegistry()
+  const { registry, manifests } = await buildRegistry(prefs.storeData)
   const enabledPlugins = computeEnabledPlugins(prefs.storeData)
 
   const app = createApp({
@@ -597,6 +641,13 @@ function wirePluginManager(
       loadPlugin: (id: string) => app.loadPlugin(id),
       unloadPlugin: (id: string) => app.unloadPlugin(id),
       uninstallPlugin: (id: string) => uninstallExternalPlugin(app, id),
+      // npm installs (plugin-manager): files are already downloaded, verified
+      // and security-scanned by the service; the bridge only writes + activates.
+      installPlugin: async (id: string, files: Record<string, string>, manifest: PluginManifest) => {
+        const result = await installAndActivatePlugin(app, id, files, manifest)
+        pm?.registerManifests({ [id]: manifest })
+        return result
+      },
     })
   })
 

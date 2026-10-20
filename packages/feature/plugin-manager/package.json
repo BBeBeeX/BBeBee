@@ -32,7 +32,8 @@
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/kernel": "workspace:*",
     "@BBeBee/toolkit": "workspace:*",
-    "cordis": "4.0.0-rc.9"
+    "cordis": "4.0.0-rc.9",
+    "fflate": "0.8.3"
   },
   "devDependencies": {}
 }

@@ -8,21 +8,36 @@
 import { Service, type Context } from '@BBeBee/kernel'
 import type {
   ConfigStatus,
+  HttpService,
+  InstalledNpmPluginRecord,
+  InstallPlan,
   PluginInfo,
   PluginLifecycleBridge,
   PluginManagerService,
   PluginManifest,
   PluginRuntimeState,
+  PluginUpdateInfo,
   AppSettings,
+  RegistryPluginEntry,
+  SecretsService,
   SettingsContribution,
 } from '@BBeBee/protocol'
 import {
   DEFAULT_APP_SETTINGS,
   DEFAULT_DESKTOP_LYRICS_SETTINGS,
   DEFAULT_VISUALIZER_SETTINGS,
+  sha256Hex,
 } from '@BBeBee/protocol'
-import { computeReverseDependents, flattenFiberNodes } from '@BBeBee/toolkit'
+import { compareVersions, computeReverseDependents, flattenFiberNodes, satisfiesRange, scanCode } from '@BBeBee/toolkit'
 import { serviceOf } from '@BBeBee/toolkit/hooks'
+import {
+  NPM_AUTH_TOKEN_KEY,
+  NpmClient,
+  NpmPluginError,
+  type ExtractedPackage,
+  type NpmKvCache,
+  type ResolvedEntry,
+} from './npm.js'
 
 /**
  * Structural subset of the inspector's fiber node — only the fields
@@ -50,7 +65,18 @@ interface InspectorSnapshotData {
 
 export interface PluginManagerConfig {
   manifests?: Record<string, PluginManifest>
+  /**
+   * Which app target this instance runs on, for registry `platforms`
+   * filtering. Set by the composition root
+   * (`'@BBeBee/plugin-manager': { config: { platform: 'desktop' } }`).
+   * Absent means "unknown" — `browseRegistry()` then returns unfiltered.
+   */
+  platform?: 'desktop' | 'mobile'
 }
+
+/** First automatic update check after boot; the interval is daily. */
+const UPDATE_CHECK_DELAY_MS = 60_000
+const UPDATE_CHECK_INTERVAL_MS = 24 * 3600 * 1000
 
 const KNOWN_CONFIGURABLE_PLUGINS = new Set([
   '@BBeBee/plugin-settings',
@@ -70,9 +96,12 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   private overrides: Record<string, boolean> = {}
   private readonly failedErrors = new Map<string, string>()
   private bridge?: PluginLifecycleBridge
+  private readonly platform?: 'desktop' | 'mobile'
+  private npmClientInstance?: NpmClient
 
   constructor(ctx: Context, config?: PluginManagerConfig) {
     super(ctx, 'plugin-manager')
+    this.platform = config?.platform
     if (config?.manifests) {
       for (const [id, m] of Object.entries(config.manifests)) {
         this.manifests.set(id, m)
@@ -101,10 +130,46 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       this.ctx.emit('plugin-manager/changed')
     })
 
+    // Automatic npm update check (D9): once shortly after boot when the last
+    // check is older than 24h, then every 24h. Quiet by design — failures
+    // only log. Timers are unref'd (no-op in browsers) so tests and
+    // short-lived contexts are never held open, and cleared on dispose.
+    const timers: Array<ReturnType<typeof setTimeout>> = []
+    const detach = (t: ReturnType<typeof setTimeout>): void => {
+      ;(t as unknown as { unref?: () => void }).unref?.()
+      timers.push(t)
+    }
+    const runCheck = (): void => {
+      this.checkUpdates().catch((err) => {
+        this.ctx.logger.warn(
+          `plugin-manager: automatic update check failed: ${err instanceof Error ? err.message : String(err)}`,
+        )
+      })
+    }
+    try {
+      const lastCheck = (await this.ctx.store.get<number>('npm:last-update-check')) ?? 0
+      if (Date.now() - lastCheck > UPDATE_CHECK_INTERVAL_MS) {
+        detach(
+          setTimeout(() => {
+            runCheck()
+            detach(setInterval(runCheck, UPDATE_CHECK_INTERVAL_MS))
+          }, UPDATE_CHECK_DELAY_MS),
+        )
+      } else {
+        detach(setInterval(runCheck, UPDATE_CHECK_INTERVAL_MS))
+      }
+    } catch {
+      // Store unavailable — skip the automatic check; manual still works.
+    }
+
     return () => {
       off1()
       off2()
       off3()
+      for (const t of timers) {
+        clearTimeout(t)
+        clearInterval(t as unknown as ReturnType<typeof setInterval>)
+      }
     }
   }
 
@@ -160,6 +225,14 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   }
 
   async uninstall(id: string): Promise<void> {
+    const dependents = this.list().find((p) => p.id === id)?.dependents ?? []
+    if (dependents.length > 0) {
+      throw new NpmPluginError(
+        'HAS_DEPENDENTS',
+        `无法卸载 "${id}"：以下已安装插件依赖它：${dependents.join('、')}。请先卸载它们。`,
+      )
+    }
+
     if (this.bridge?.uninstallPlugin) {
       await this.bridge.uninstallPlugin(id)
     } else if (this.bridge?.unloadPlugin) {
@@ -179,7 +252,510 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     }
 
     await this.saveOverrides(this.overrides)
+
+    try {
+      const records = await this.loadInstalledRecords()
+      if (records[id]) {
+        delete records[id]
+        await this.saveInstalledRecords(records)
+      }
+    } catch {
+      // Lock record cleanup is best-effort; the files are already gone.
+    }
+
     this.ctx.emit('plugin-manager/changed')
+  }
+
+  // ---------------------------------------------------------------------------
+  // npm-based plugin management (registry browse → npm download → install)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Reads a service straight off the context. Cordis exposes provided
+   * services as context properties; this avoids `reflect` so the lookup
+   * also works with structurally-assigned test doubles (same pattern as the
+   * `inspector` read in `list()`).
+   */
+  private ctxService<T>(key: string): T | undefined {
+    return (this.ctx as unknown as Record<string, unknown>)[key] as T | undefined
+  }
+
+  private requireService<T>(key: string): T {
+    const svc = this.ctxService<T>(key)
+    if (!svc) {
+      throw new NpmPluginError('SERVICE_UNAVAILABLE', `plugin-manager 需要 "${key}" 服务，但它不可用`)
+    }
+    return svc
+  }
+
+  private async readAppSettings(): Promise<AppSettings | undefined> {
+    try {
+      const svc = this.ctxService<{ getSync?(): AppSettings; get?(): Promise<AppSettings> }>('settings')
+      return svc?.getSync?.() ?? (await svc?.get?.().catch(() => undefined))
+    } catch {
+      return undefined
+    }
+  }
+
+  private getAppVersion(): string | undefined {
+    try {
+      return this.ctxService<{ appVersion?: string }>('device')?.appVersion ?? undefined
+    } catch {
+      return undefined
+    }
+  }
+
+  private getNpmClient(): NpmClient {
+    if (!this.npmClientInstance) {
+      const http = this.requireService<HttpService>('http')
+      const cache: NpmKvCache = {
+        get: async <T>(key: string): Promise<{ value: T; fetchedAt: number } | undefined> =>
+          ((await this.ctx.store.get<{ value: unknown; fetchedAt: number }>(`npm:${key}`)) as
+            | { value: T; fetchedAt: number }
+            | undefined) ?? undefined,
+        set: async (key, value) => {
+          await this.ctx.store.set(`npm:${key}`, { value, fetchedAt: Date.now() })
+        },
+      }
+      this.npmClientInstance = new NpmClient({
+        http,
+        readSettings: () => this.readAppSettings(),
+        readSecret: async (key) => {
+          try {
+            return (await this.ctxService<SecretsService>('secrets')?.get(key)) ?? undefined
+          } catch {
+            return undefined
+          }
+        },
+        cache,
+        log: this.ctx.logger,
+      })
+    }
+    return this.npmClientInstance
+  }
+
+  private async loadInstalledRecords(): Promise<Record<string, InstalledNpmPluginRecord>> {
+    try {
+      return (await this.ctx.store.get<Record<string, InstalledNpmPluginRecord>>('npm:installed')) ?? {}
+    } catch {
+      return {}
+    }
+  }
+
+  private async saveInstalledRecords(records: Record<string, InstalledNpmPluginRecord>): Promise<void> {
+    await this.ctx.store.set('npm:installed', records)
+  }
+
+  /** Service keys provided by every known manifest (core + installed). */
+  private availableServiceKeys(): Set<string> {
+    const keys = new Set<string>()
+    for (const m of this.manifests.values()) {
+      for (const s of m.contributes?.services ?? []) keys.add(s)
+    }
+    return keys
+  }
+
+  async browseRegistry(force = false): Promise<RegistryPluginEntry[]> {
+    const entries = await this.getNpmClient().fetchIndex(force ? { force: true } : undefined)
+    return this.platform ? entries.filter((e) => e.platforms.includes(this.platform!)) : entries
+  }
+
+  /**
+   * Shared resolve used by `resolveInstallPlan` and `installPlugin`:
+   * version pinning + dependency closure (entries retained for checks).
+   */
+  private async planInstall(
+    id: string,
+    range?: string,
+  ): Promise<{ plan: InstallPlan; nodes: ResolvedEntry[]; index: RegistryPluginEntry[] }> {
+    const client = this.getNpmClient()
+    const index = await client.fetchIndex()
+    const entry = index.find((e) => e.id === id)
+    if (!entry) {
+      throw new NpmPluginError('ENTRY_NOT_FOUND', `registry 中没有 id 为 "${id}" 的插件条目`)
+    }
+    if (this.platform && !entry.platforms.includes(this.platform)) {
+      throw new NpmPluginError(
+        'PLATFORM_MISMATCH',
+        `插件 "${id}" 不支持当前平台（${this.platform}），其 platforms 为 [${entry.platforms.join(', ')}]`,
+      )
+    }
+    const { target, closure } = await client.resolveTree(entry, range, index)
+    const nodes = [...closure, target]
+
+    const warnings: string[] = []
+    const appVersion = this.getAppVersion()
+    if (appVersion) {
+      if (entry.minAppVersion && compareVersions(appVersion, entry.minAppVersion) < 0) {
+        throw new NpmPluginError(
+          'APP_VERSION_MISMATCH',
+          `插件 "${id}" 要求应用版本 >= ${entry.minAppVersion}，当前为 ${appVersion}`,
+        )
+      }
+    } else {
+      warnings.push('无法获取应用版本，已跳过 minAppVersion/engines 兼容性检查')
+    }
+    for (const n of nodes) {
+      if (!n.pkg.integrity) warnings.push(`包 ${n.pkg.npm}@${n.pkg.version} 缺少 integrity，将跳过完整性校验`)
+    }
+
+    // D8-1 (pre-download estimate): required services vs currently known manifests.
+    const available = this.availableServiceKeys()
+    const needed = new Set<string>()
+    for (const n of nodes) for (const s of n.entry.services) needed.add(s)
+    const missingServices = [...needed].filter((s) => !available.has(s))
+
+    return {
+      plan: {
+        target: target.pkg,
+        closure: closure.map((n) => n.pkg),
+        missingServices,
+        warnings,
+      },
+      nodes,
+      index,
+    }
+  }
+
+  async resolveInstallPlan(id: string, range?: string): Promise<InstallPlan> {
+    return (await this.planInstall(id, range)).plan
+  }
+
+  /**
+   * Downloads, verifies (D5/D7/D8) and security-scans one resolved package.
+   * Throws a named `NpmPluginError` on any checklist failure.
+   */
+  private async preparePackage(
+    client: NpmClient,
+    node: ResolvedEntry,
+    installedRecords: Record<string, InstalledNpmPluginRecord>,
+  ): Promise<ExtractedPackage> {
+    const { entry, pkg } = node
+    const label = `${pkg.npm}@${pkg.version}`
+    const bytes = await client.downloadPackage(pkg)
+    client.verifyIntegrity(bytes, pkg.integrity, label)
+    const extracted = client.extractPackage(pkg, bytes)
+
+    // D5: the selected version, package.json and BBeBee.plugin.json must agree.
+    const vPkg = extracted.packageJson.version
+    const vManifest = extracted.manifest.version
+    if (vPkg !== pkg.version || vManifest !== pkg.version) {
+      throw new NpmPluginError(
+        'VERSION_MISMATCH',
+        `包 ${label} 版本不一致：选定 ${pkg.version}，package.json 为 ${vPkg ?? '缺失'}，BBeBee.plugin.json 为 ${vManifest ?? '缺失'}，拒绝安装`,
+      )
+    }
+    // D8-6: anti-spoofing — the tarball must be what the registry entry claims.
+    if (extracted.packageJson.name !== entry.npm) {
+      throw new NpmPluginError(
+        'SPOOF_DETECTED',
+        `包名不符：tarball 的 package.json name 为 "${extracted.packageJson.name ?? '缺失'}"，registry 条目要求 "${entry.npm}"，拒绝安装`,
+      )
+    }
+    if (extracted.manifest.id !== entry.id) {
+      throw new NpmPluginError(
+        'SPOOF_DETECTED',
+        `插件 id 不符：BBeBee.plugin.json 的 id 为 "${extracted.manifest.id ?? '缺失'}"，registry 条目要求 "${entry.id}"，拒绝安装`,
+      )
+    }
+    if (this.manifests.has(entry.id) && !installedRecords[entry.id]) {
+      throw new NpmPluginError('SPOOF_DETECTED', `插件 id "${entry.id}" 与内置插件冲突，拒绝安装`)
+    }
+    // D8-4: the packaged manifest's own platforms must agree with the entry.
+    const manifestPlatforms = extracted.manifest.platforms
+    if (this.platform && manifestPlatforms && manifestPlatforms.length > 0 && !manifestPlatforms.includes(this.platform)) {
+      throw new NpmPluginError(
+        'PLATFORM_MISMATCH',
+        `插件 "${entry.id}" 的包内 manifest 声明 platforms 为 [${manifestPlatforms.join(', ')}]，与当前平台（${this.platform}）不符，拒绝安装`,
+      )
+    }
+    // D8-3: engine compatibility from the packaged manifest.
+    const appVersion = this.getAppVersion()
+    const engineRange = extracted.manifest.engines?.BBeBee
+    if (appVersion && engineRange) {
+      if (!satisfiesRange(appVersion, engineRange)) {
+        throw new NpmPluginError(
+          'APP_VERSION_MISMATCH',
+          `插件 "${entry.id}@${pkg.version}" 要求 BBeBee ${engineRange}，当前应用版本 ${appVersion}，拒绝安装`,
+        )
+      }
+    }
+    // D8-5: static security scan — a `block` finding refuses the install.
+    const auditor = this.ctxService<{ scan(content: string): { level: string; findings: Array<{ message: string }> } }>(
+      'securityAudit',
+    )
+    for (const [path, content] of Object.entries(extracted.files)) {
+      if (!path.endsWith('.js') && !path.endsWith('.ts')) continue
+      const report = auditor ? auditor.scan(content) : scanCode(content)
+      if (report.level === 'block') {
+        const issues = report.findings.map((f) => f.message).join('；')
+        throw new NpmPluginError('SECURITY_BLOCKED', `插件 "${entry.id}" 的 ${path} 未通过安全扫描，拒绝安装：${issues}`)
+      }
+    }
+    return extracted
+  }
+
+  /**
+   * Writes files + activates via the bridge, records the lock, keeps
+   * disabled state. The record is persisted after EVERY node: if a later
+   * node of the closure fails, the store already matches what is on disk
+   * instead of claiming nothing was installed. `onInstalled` fires after
+   * each node's record is durable (updatePlugin uses it to know exactly
+   * which nodes a rollback must cover).
+   */
+  private async activatePrepared(
+    prepared: Array<{ node: ResolvedEntry; extracted: ExtractedPackage }>,
+    records: Record<string, InstalledNpmPluginRecord>,
+    onInstalled?: (id: string) => void,
+  ): Promise<void> {
+    const bridge = this.bridge
+    if (!bridge?.installPlugin) {
+      throw new NpmPluginError(
+        'BRIDGE_UNAVAILABLE',
+        'npm 插件安装需要 composition root 接线 PluginLifecycleBridge.installPlugin（mobile 等平台不支持动态安装）',
+      )
+    }
+    for (const { node, extracted } of prepared) {
+      await bridge.installPlugin(node.entry.id, extracted.files, extracted.manifest)
+      this.registerManifests({ [node.entry.id]: extracted.manifest })
+      // Tamper-check basis for the boot-time loader: it hashes the on-disk
+      // entry main file, so the record keeps that file's hash alongside the
+      // tarball hash.
+      const entryMain = (extracted.manifest.entry?.main ?? './index.js').replace(/^\.?\//, '')
+      const entryContent = extracted.files[entryMain]
+      records[node.entry.id] = {
+        id: node.entry.id,
+        npm: node.pkg.npm,
+        version: node.pkg.version,
+        sha256: extracted.tarballSha256,
+        entrySha256: entryContent !== undefined ? sha256Hex(entryContent) : undefined,
+        installedAt: new Date().toISOString(),
+      }
+      await this.saveInstalledRecords(records)
+      onInstalled?.(node.entry.id)
+    }
+    // An explicitly disabled plugin stays unloaded after its files are replaced.
+    for (const { node } of prepared) {
+      if (this.overrides[node.entry.id] === false) {
+        await bridge.unloadPlugin(node.entry.id)
+      }
+    }
+    this.ctx.emit('plugin-manager/changed')
+  }
+
+  async installPlugin(id: string, range?: string): Promise<void> {
+    const { plan, nodes } = await this.planInstall(id, range)
+    if (plan.missingServices.length > 0) {
+      throw new NpmPluginError(
+        'SERVICE_UNAVAILABLE',
+        `插件 "${id}" 需要以下服务，但当前安装不可用：${plan.missingServices.join('、')}，拒绝安装`,
+      )
+    }
+    const client = this.getNpmClient()
+    const records = await this.loadInstalledRecords()
+    const prepared: Array<{ node: ResolvedEntry; extracted: ExtractedPackage }> = []
+    for (const node of nodes) {
+      prepared.push({ node, extracted: await this.preparePackage(client, node, records) })
+    }
+    // D8-1 (refined, with the real packaged manifests of the closure).
+    const available = this.availableServiceKeys()
+    for (const p of prepared) {
+      for (const s of p.extracted.manifest.contributes?.services ?? []) available.add(s)
+    }
+    const needed = new Set<string>()
+    for (const p of prepared) for (const s of p.node.entry.services) needed.add(s)
+    const missing = [...needed].filter((s) => !available.has(s))
+    if (missing.length > 0) {
+      throw new NpmPluginError(
+        'SERVICE_UNAVAILABLE',
+        `插件 "${id}" 需要以下服务，但当前安装不可用：${missing.join('、')}，拒绝安装`,
+      )
+    }
+    await this.activatePrepared(prepared, records)
+    this.ctx.logger.info(`plugin-manager: installed "${id}" via npm`)
+  }
+
+  async checkUpdates(force = false): Promise<PluginUpdateInfo[]> {
+    const client = this.getNpmClient()
+    const records = await this.loadInstalledRecords()
+    const updates: PluginUpdateInfo[] = []
+    for (const rec of Object.values(records)) {
+      try {
+        const pack = await client.fetchPackument(rec.npm, force ? { force: true } : undefined)
+        const latest = pack['dist-tags']?.latest
+        if (latest && compareVersions(latest, rec.version) > 0) {
+          updates.push({ id: rec.id, installed: rec.version, latest, npm: rec.npm })
+        }
+      } catch (err) {
+        this.ctx.logger.warn(
+          `plugin-manager: update check failed for "${rec.id}": ${err instanceof Error ? err.message : String(err)}`,
+        )
+      }
+    }
+    try {
+      await this.ctx.store.set('npm:last-update-check', Date.now())
+    } catch {
+      // Best-effort; the next boot simply checks again.
+    }
+    return updates
+  }
+
+  async updatePlugin(id: string, range?: string): Promise<void> {
+    const records = await this.loadInstalledRecords()
+    const rec = records[id]
+    if (!rec) {
+      throw new NpmPluginError('NOT_INSTALLED', `插件 "${id}" 不是经 npm 安装的，无法更新`)
+    }
+    // A major bump is never applied silently: without an explicit range the
+    // caller (UI) must confirm first and retry with a version/range.
+    const majorOf = (v: string): number => {
+      const m = /^v?(\d+)/.exec(v)
+      return m ? Number(m[1]) : 0
+    }
+    if (!range) {
+      const client = this.getNpmClient()
+      const latest = (await client.fetchPackument(rec.npm))['dist-tags']?.latest
+      if (latest && majorOf(latest) > majorOf(rec.version)) {
+        throw new NpmPluginError(
+          'MAJOR_UPDATE_NEEDS_CONFIRM',
+          `插件 "${id}" 有大版本更新（${rec.version} → ${latest}），需要显式确认：请用版本号或 range 再试一次，例如 updatePlugin("${id}", "${latest}")`,
+        )
+      }
+    }
+    const wanted = range ?? `^${rec.version}`
+    const { plan, nodes } = await this.planInstall(id, wanted)
+    if (plan.missingServices.length > 0) {
+      throw new NpmPluginError(
+        'SERVICE_UNAVAILABLE',
+        `插件 "${id}" 需要以下服务，但当前安装不可用：${plan.missingServices.join('、')}，拒绝更新`,
+      )
+    }
+    const newVersion = plan.target.version
+    if (compareVersions(newVersion, rec.version) <= 0) {
+      this.ctx.logger.info(`plugin-manager: "${id}" is already up to date (${rec.version})`)
+      return
+    }
+
+    const bridge = this.bridge
+    if (!bridge?.installPlugin) {
+      throw new NpmPluginError(
+        'BRIDGE_UNAVAILABLE',
+        'npm 插件更新需要 composition root 接线 PluginLifecycleBridge.installPlugin（mobile 等平台不支持动态安装）',
+      )
+    }
+    const client = this.getNpmClient()
+    const prepared: Array<{ node: ResolvedEntry; extracted: ExtractedPackage }> = []
+    for (const node of nodes) {
+      prepared.push({ node, extracted: await this.preparePackage(client, node, records) })
+    }
+
+    // Snapshot of the pre-update records — rollback restores exactly these.
+    const previousRecords: Record<string, InstalledNpmPluginRecord> = { ...records }
+    const newVersionById = new Map(prepared.map((p) => [p.node.entry.id, p.node.pkg.version]))
+
+    // Rollback material for EVERY replaced node of the closure (target and
+    // dependencies alike): each installed node's current tarball, re-fetched
+    // from npm. Staging is best-effort per node; a node whose old tarball
+    // cannot be staged is reported loudly if a rollback later skips it.
+    const stageRollback = async (old: InstalledNpmPluginRecord): Promise<ExtractedPackage | undefined> => {
+      try {
+        const pack = await client.fetchPackument(old.npm)
+        const oldDist = pack.versions?.[old.version]?.dist
+        if (!oldDist?.tarball) return undefined
+        const oldBytes = await client.downloadPackage({
+          id: old.id,
+          npm: old.npm,
+          version: old.version,
+          tarball: oldDist.tarball,
+          integrity: oldDist.integrity,
+        })
+        return client.extractPackage({ id: old.id, npm: old.npm, version: old.version, tarball: oldDist.tarball }, oldBytes)
+      } catch (err) {
+        this.ctx.logger.warn(
+          `plugin-manager: could not stage rollback for "${old.id}": ${err instanceof Error ? err.message : String(err)}`,
+        )
+        return undefined
+      }
+    }
+    const rollbackById = new Map<string, ExtractedPackage>()
+    for (const node of nodes) {
+      const old = previousRecords[node.entry.id]
+      if (!old || old.version === node.pkg.version) continue
+      const staged = await stageRollback(old)
+      if (staged) rollbackById.set(node.entry.id, staged)
+    }
+
+    const replaced: string[] = []
+    try {
+      await this.activatePrepared(prepared, records, (installedId) => replaced.push(installedId))
+      this.ctx.logger.info(`plugin-manager: updated "${id}" ${rec.version} → ${newVersion}`)
+    } catch (err) {
+      // Roll back every node this attempt actually replaced, in reverse
+      // install order (dependents before their dependencies).
+      for (const replacedId of [...replaced].reverse()) {
+        const previous = previousRecords[replacedId]
+        if (!previous) {
+          // Newly pulled in by this update: its files and record agree, so
+          // the state is consistent — but say so; the user did not ask for it.
+          this.ctx.logger.warn(
+            `plugin-manager: "${replacedId}" was newly installed by the failed update of "${id}" and has no previous version to restore; leaving it installed`,
+          )
+          continue
+        }
+        if (previous.version === newVersionById.get(replacedId)) continue // rewritten with identical content
+        const staged = rollbackById.get(replacedId)
+        if (!staged) {
+          this.ctx.logger.warn(
+            `plugin-manager: cannot roll back "${replacedId}": no rollback material (old tarball unavailable); it stays at the new version`,
+          )
+          continue
+        }
+        try {
+          await bridge.installPlugin(replacedId, staged.files, staged.manifest)
+          this.registerManifests({ [replacedId]: staged.manifest })
+          records[replacedId] = previous
+          this.ctx.logger.warn(
+            `plugin-manager: rolled back "${replacedId}" to ${previous.version} after failed update of "${id}"`,
+          )
+        } catch (rbErr) {
+          this.ctx.logger.error(
+            `plugin-manager: rollback of "${replacedId}" failed: ${rbErr instanceof Error ? rbErr.message : String(rbErr)}`,
+          )
+        }
+      }
+      if (replaced.length > 0) {
+        await this.saveInstalledRecords(records)
+      }
+      throw err
+    }
+  }
+
+  async setNpmAuthToken(token: string): Promise<void> {
+    const secrets = this.ctxService<SecretsService>('secrets')
+    if (!secrets) {
+      throw new NpmPluginError('SERVICE_UNAVAILABLE', 'secrets 服务不可用，无法保存 npm 认证 token')
+    }
+    // The token lives in the plugin's own secrets namespace — never in the
+    // store, never in logs.
+    await secrets.set(NPM_AUTH_TOKEN_KEY, token)
+  }
+
+  async clearNpmAuthToken(): Promise<void> {
+    const secrets = this.ctxService<SecretsService>('secrets')
+    if (!secrets) {
+      throw new NpmPluginError('SERVICE_UNAVAILABLE', 'secrets 服务不可用，无法清除 npm 认证 token')
+    }
+    await secrets.delete(NPM_AUTH_TOKEN_KEY)
+  }
+
+  async hasNpmAuthToken(): Promise<boolean> {
+    const secrets = this.ctxService<SecretsService>('secrets')
+    if (!secrets) return false
+    try {
+      return (await secrets.get(NPM_AUTH_TOKEN_KEY)) !== undefined
+    } catch {
+      return false
+    }
   }
 
   list(): readonly PluginInfo[] {

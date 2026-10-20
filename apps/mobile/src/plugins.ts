@@ -55,7 +55,7 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
    * alongside the features it is meant to be recording (docs/09 §1).
    */
   '@BBeBee/plugin-inspector': {},
-  '@BBeBee/plugin-manager': {},
+  '@BBeBee/plugin-manager': { config: { platform: 'mobile' } },
 
   // ctx.i18n — interface language from settings.language + ctx.device.locale
   // (see docs/services/i18n.md). Same allowlist position as desktop.

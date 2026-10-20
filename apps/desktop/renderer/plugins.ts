@@ -53,7 +53,7 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
    */
   '@BBeBee/plugin-inspector': {},
   '@BBeBee/plugin-inspector-ui-desktop': {},
-  '@BBeBee/plugin-manager': {},
+  '@BBeBee/plugin-manager': { config: { platform: 'desktop' } },
 
   // ctx.i18n — interface language, resolved from settings.language ('zh'/'en'/'system')
   // with BCP 47 negotiation through ctx.device.locale. Loaded early because
