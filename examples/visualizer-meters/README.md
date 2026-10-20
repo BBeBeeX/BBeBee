@@ -1,6 +1,6 @@
 # Visualizer Meters — a third-party-style example plugin
 
-`bbebee-plugin-visualizer-meters` is a complete, publishable BBeBee plugin
+`@bbebee/plugin-visualizer-meters` is a complete, publishable BBeBee plugin
 package written the way a third-party author writes one: **one npm package,
 one `BBeBee.plugin.json`, a headless entry and a desktop UI entry**, no
 monorepo wiring. It lives under `examples/` precisely so it is *not* part
@@ -176,11 +176,12 @@ with the registry's own `validate.mjs`; results, separated by check:
 - **Wrinkle 2 — npm existence.** The registry CI fetches the packument for
   every entry's `npm` field. This example is not published, so validation
   reports, verbatim:
-  `npm package "bbebee-plugin-visualizer-meters" does not exist on the public npm registry (HTTP 404) — publish it before submitting, or fix the "npm" field`.
+  `npm package "@bbebee/plugin-visualizer-meters" does not exist on the public npm registry (HTTP 404) — publish it before submitting, or fix the "npm" field`.
   That is the expected pre-publication state: publish the package first,
   then submit the entry (the CI also cross-checks the published package's
-  manifest id and package name against the entry — both are
-  `bbebee-plugin-visualizer-meters` here).
+  manifest id against the entry's `id` — `bbebee-plugin-visualizer-meters`,
+  the unscoped slug — and its package name against the entry's `npm` —
+  `@bbebee/plugin-visualizer-meters`).
 
 ## Notes for authors copying this example
 

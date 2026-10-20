@@ -169,7 +169,7 @@ export const TARGETS = {
   // at install time by the downloaded package's real manifest.
   'visualizer-meters': {
     pluginId: 'bbebee-plugin-visualizer-meters',
-    npmName: 'bbebee-plugin-visualizer-meters',
+    npmName: '@bbebee/plugin-visualizer-meters',
     versions: ['0.1.0', '0.1.1'],
     source: 'own',
     featureDir: 'examples/visualizer-meters',
