@@ -214,6 +214,14 @@ dependency closure; `minAppVersion`/`engines.BBeBee` compatible with the app;
 manifest; security scan passes; anti-spoofing checks pass; tarball within the
 size limit and download timeout.
 
+"Unavailable" is judged against **registered manifests** — the built-in
+`BBeBee.plugin.json` set plus installed plugins. A service the shell
+provides only at runtime, without any manifest contributing it, counts as
+unavailable: today `ui` is in that position (the desktop UI kit puts it on
+`ctx`, but no registered manifest contributes it), so an entry that lists
+`ui` in `services` is refused everywhere until some manifest contributes
+it. Authors: see §6.8 item 3.
+
 **Version management.** `checkUpdates()` re-fetches packuments (short TTL; also
 runs automatically once ~24h after boot plus on user request). `updatePlugin`
 installs the newest version satisfying `^<installed>` and keeps the enabled
@@ -247,13 +255,30 @@ overridable in Settings → Network → *Download & GitHub acceleration*:
 
 1. The published package root **must contain `BBeBee.plugin.json`**, and the
    `package.json` `files` array must include it (plus `dist/`).
+   **Publication identity:** the packaged manifest `id` must equal the
+   registry entry `id` — a kebab slug such as `bbebeex-visualizer`
+   (`{username}-{name}`), *not* the feature package's monorepo manifest id
+   (`@BBeBee/plugin-visualizer`). The installer's anti-spoofing check and
+   the registry's CI content check both enforce the equality; the assembly
+   tool stamps it with `--id` (§6.8 item 7). Likewise the npm package name
+   must be the lowercase name the registry entry's `npm` field names —
+   npm accepts lowercase names only, so the monorepo scope cannot be
+   published as-is; assemble under the publication name with `--name`
+   (the tool warns when the resulting name is not publishable).
 2. **`package.json#version` is the single version truth.** It must equal
    `BBeBee.plugin.json#version`; the installer refuses on mismatch. The
    registry entry carries no version at all.
 3. The registry entry's `services` array must honestly list every cordis
    service key the plugin `inject`s — the installer blocks the install when a
    listed service is unavailable, and a false declaration either blocks
-   legitimate users or misleads them.
+   legitimate users or misleads them. Only list services that some
+   **registered manifest contributes** (`contributes.services` of a built-in
+   or an installed plugin): availability is judged against manifests, not
+   against what a shell happens to place on `ctx` at runtime. `ui` is the
+   standing example — present on the desktop `ctx`, contributed by no
+   manifest — so do not list it (the visualizer's UI reaches `ctx.ui`
+   through its own `inject` at activation time; the entry's `services`
+   names the headless side's requirements).
 4. Declare `platforms` accurately (`["desktop"]`, `["mobile"]`, or both).
 5. v1 packages must be text-only (JS/JSON/CSS); binary assets are refused.
    Keep tarballs small (the client enforces a size cap).
@@ -262,7 +287,8 @@ overridable in Settings → Network → *Download & GitHub acceleration*:
    installer resolves the plugin closure itself.
 7. **Assemble combined (feature + UI) packages with the repo tool**, not by
    hand: `node scripts/assemble-plugin.mjs --feature packages/feature/<pkg>
-   --ui packages/ui/<pkg>-ui-desktop [--ui-mobile <dir>]`. It builds both
+   --ui packages/ui/<pkg>-ui-desktop [--ui-mobile <dir>]
+   --id <registry-entry-id> --name <lowercase-npm-name>`. It builds both
    packages, copies the feature build as `dist/index.js`, re-bundles the UI
    as `dist/ui-desktop.js` with the host-shared modules (`react`,
    `react-dom`, …) **external**, merges the manifests into one
@@ -276,6 +302,16 @@ overridable in Settings → Network → *Download & GitHub acceleration*:
    and **warns** in the install plan on a mismatch — it never blocks, but
    a warning means the UI was built against a different React major and
    may fail to render.
+8. **The install-time security scan reads your declared capabilities.**
+   Hosts declared via `net:host/<glob>` capabilities in the packaged
+   manifest are passed to the scanner as its allowlist, so declare real
+   egress there. The scanner blocks on unambiguous payloads (eval /
+   dynamic remote import / credential leaks / prototype-pollution writes /
+   a URL literal handed straight to `fetch` & friends on an undeclared
+   host / densely hex-escaped code). URL *string constants* that are never
+   requested (an SVG namespace, a mirror default in bundled library code)
+   and sparse escapes in a large bundle only warn — bundled production
+   artifacts are expected, and are not treated as obfuscation.
 
 ### 6.9 Bundled UI: views in the same npm package
 
@@ -311,6 +347,15 @@ entry, after the headless def.
 Failure isolation: if the UI module fails to import, or throws while it is
 being registered, the loader logs a warning and runs the headless plugin on
 its own. A broken view never takes the plugin's services down with it.
+
+The whole loop — assemble → `npm pack` → registry validation → install →
+composed load (the UI's `react` resolving to the host chunk, same object)
+→ update → uninstall — is exercised end to end against a localhost
+registry/npm stand-in by `node scripts/verify-plugin-pilot.mjs
+[target]` (the visualizer is the default pilot target; further targets
+are data in `scripts/verify-plugin-pilot.targets.mjs`. Module-resolution
+hooks stand in for the shell's import map; the rest is the real
+installer and loader).
 
 Two authoring constraints:
 
