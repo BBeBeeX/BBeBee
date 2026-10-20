@@ -131,7 +131,6 @@ export function ServiceProvidersPanel({ ctx }: ServiceProvidersPanelProps): Reac
             disabled: isActive || info.critical || switching !== null,
             loading: switching === info.key && !isActive,
             children: providerId,
-            'data-testid': `service-provider-${info.key}-${providerId}`,
             onPress: () => void handleSwitch(info.key, providerId),
           })
         }),

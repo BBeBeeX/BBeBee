@@ -406,8 +406,13 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
    * else the first enabled provider — the same rule the desktop boot
    * applies to its enablement map (resolveActiveProviders).
    */
+  private isEnabledId(id: string): boolean {
+    const m = this.manifests.get(id)
+    return m ? this.isEnabled(m) : false
+  }
+
   private activeProviderFor(key: string, providers: readonly string[]): string | undefined {
-    const enabled = providers.filter((id) => this.isEnabled(id))
+    const enabled = providers.filter((id) => this.isEnabledId(id))
     if (enabled.length === 0) return undefined
     const chosen = this.providerSelection.get(key)
     if (chosen && enabled.includes(chosen)) return chosen
@@ -455,7 +460,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     // a provider that refuses to unload here is still held off at the
     // next start, and the one that stays loaded keeps serving alone.
     for (const other of providers) {
-      if (other !== providerId && this.isEnabled(other)) {
+      if (other !== providerId && this.isEnabledId(other)) {
         try {
           await this.setEnabled(other, false)
         } catch (err) {
@@ -465,7 +470,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
         }
       }
     }
-    if (!this.isEnabled(providerId)) {
+    if (!this.isEnabledId(providerId)) {
       await this.setEnabled(providerId, true)
     }
     this.ctx.emit('plugin-manager/changed')
@@ -489,7 +494,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
         for (const other of this.manifests.values()) {
           if (other.id === m.id || !other.entry.main) continue
           if (!(other.contributes?.services ?? []).includes(key)) continue
-          if (!this.isEnabled(other.id)) continue
+          if (!this.isEnabled(other)) continue
           this.providerSelection.set(key, m.id)
           changed = true
           this.ctx.logger.warn(
