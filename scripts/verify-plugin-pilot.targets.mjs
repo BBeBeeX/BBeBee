@@ -18,11 +18,44 @@
  *                        update path's default range is `^<installed>`,
  *                        so pick a pair that range can cross (a patch
  *                        bump under 0.x `^` semantics).
+ *   source               'assembled' (default): the package is built
+ *                        from `featureDir` (+ `uiDir`) by
+ *                        assemble-plugin.mjs. 'own': a prebuilt package
+ *                        authored in combined layout (the third-party
+ *                        shape) — `featureDir` is the package root,
+ *                        its own build.mjs builds it, and the loop
+ *                        stages it verbatim, asserting the tarball
+ *                        equals the publishable set its `files` field
+ *                        declares.
  *   featureDir / uiDir   repo-relative package directories (`uiDir`
  *                        may be null for a headless-only package).
  *   entry                registry entry fields other than `id`/`npm`
  *                        (the loop injects those from the identity
  *                        above, so they cannot drift apart).
+ *   entryFile            repo-relative path to a ready-made registry
+ *                        entry JSON, used verbatim instead of `entry`
+ *                        (its `id`/`npm` are asserted against the
+ *                        target identity).
+ *   entryFileName        file name the entry is submitted under in
+ *                        the fixture registry (the registry's
+ *                        `{github-owner}-{name}.json` convention —
+ *                        independent of the entry id). Defaults to
+ *                        `<pluginId>.json`.
+ *   dependencyPackages   [{ target, version }]: other targets in this
+ *                        map, assembled and served as registry
+ *                        packages this target's entry depends on.
+ *                        The loop asserts the install closure pulls
+ *                        them in, in order, and (for such targets)
+ *                        runs a negative control with the dependency
+ *                        entry removed from the index.
+ *   expectClosure        registry ids the install plan must resolve
+ *                        as the dependency closure, in install order
+ *                        (default: []).
+ *   activationChain      registry ids to load and apply into the
+ *                        stage-4 context before the target itself
+ *                        (e.g. the closure member whose service the
+ *                        target consumes — activated for real from
+ *                        its installed directory).
  *   worldManifests       repo-relative `BBeBee.plugin.json` paths whose
  *                        `contributes.services` seed the install-time
  *                        service-availability composition.
@@ -40,10 +73,13 @@
  *                        `file`, and re-assembles as `versions[1]`.
  *   verifyActivation     optional hook for target-specific activation
  *                        assertions: ({ check, uiCalls, ctx,
- *                        headlessMod, uiMod }) => void.
+ *                        headlessMod, uiMod, mods }) => void. `mods`
+ *                        maps every activated registry id (chain +
+ *                        target) to its installed { headless, ui }
+ *                        module objects.
  *   verifyUpdate         optional hook asserting the update's marker
  *                        is observable after reload: ({ check,
- *                        uiCalls, tag }) => void.
+ *                        uiCalls, ctx, mods, tag }) => void.
  */
 
 export const TARGETS = {
@@ -118,6 +154,84 @@ export const TARGETS = {
         'reloaded plugin exposes the new marker through its settings contribution',
         uiCalls.contribute.some(
           (d) => d.kind === 'settings' && String(d.description ?? '').includes(tag),
+        ),
+        JSON.stringify(uiCalls.contribute),
+      )
+    },
+  },
+
+  // The third-party-style example: a combined package authored by hand
+  // in `examples/` (not assembled from monorepo pairs), whose registry
+  // entry depends on the visualizer package and whose UI consumes the
+  // `visualizer` service the closure installs. The world deliberately
+  // does NOT seed the visualizer manifest as a builtin: at plan time
+  // the service is covered by the closure entry's declared `provides`,
+  // at install time by the downloaded package's real manifest.
+  'visualizer-meters': {
+    pluginId: 'bbebee-plugin-visualizer-meters',
+    npmName: 'bbebee-plugin-visualizer-meters',
+    versions: ['0.1.0', '0.1.1'],
+    source: 'own',
+    featureDir: 'examples/visualizer-meters',
+    uiDir: null,
+    entryFile: 'examples/visualizer-meters/registry-entry.json',
+    entryFileName: 'bbebeex-visualizer-meters.json',
+    dependencyPackages: [{ target: 'visualizer', version: '0.1.0' }],
+    expectClosure: ['bbebeex-visualizer'],
+    activationChain: ['bbebeex-visualizer'],
+    worldManifests: [
+      'packages/core/core-audio-mpv/BBeBee.plugin.json',
+      'packages/feature/plugin-settings/BBeBee.plugin.json',
+      'packages/feature/plugin-player/BBeBee.plugin.json',
+      'packages/feature/plugin-ui/BBeBee.plugin.json',
+    ],
+    edgeServices: {
+      audio: { activeEngineName: 'webaudio' },
+      player: {},
+    },
+    activationSettled: ({ uiCalls, ctx }) =>
+      Boolean(ctx.get('visualizer')) &&
+      uiCalls.registerView.some(([id]) => id === 'visualizer-meters.canvas'),
+    updateMarker: {
+      file: 'dist/index.js',
+      find: 'Default mode and palette for the spectrogram / spectrum / VU meter views',
+      tag: 'pilot build 0.1.1',
+    },
+    verifyActivation({ check, uiCalls, ctx, mods }) {
+      check(
+        'meters UI registered its two views',
+        JSON.stringify(
+          uiCalls.registerView.filter(([id]) => id.startsWith('visualizer-meters.')).map(([id]) => id),
+        ) === JSON.stringify(['visualizer-meters.canvas', 'visualizer-meters.settings']),
+        JSON.stringify(uiCalls.registerView.map(([id]) => id)),
+      )
+      check(
+        'meters UI contributed the now-playing visualizer slot',
+        uiCalls.contribute.some(
+          (d) => d.kind === 'slot' && d.slot === 'now-playing.visualizer' && d.id === 'visualizer-meters.canvas',
+        ),
+        JSON.stringify(uiCalls.contribute),
+      )
+      check(
+        'meters headless contributed its settings card metadata',
+        uiCalls.contribute.some(
+          (d) => d.kind === 'settings' && d.id === 'visualizer-meters.settings' && d.section === 'playback',
+        ),
+        JSON.stringify(uiCalls.contribute),
+      )
+      check(
+        'ctx.visualizer is the closure-installed visualizer package’s own instance',
+        ctx.get('visualizer') instanceof mods['bbebeex-visualizer'].headless.VisualizerPlugin,
+      )
+    },
+    verifyUpdate({ check, uiCalls, tag }) {
+      check(
+        'reloaded meters exposes the new marker through its settings contribution',
+        uiCalls.contribute.some(
+          (d) =>
+            d.kind === 'settings' &&
+            d.id === 'visualizer-meters.settings' &&
+            String(d.description ?? '').includes(tag),
         ),
         JSON.stringify(uiCalls.contribute),
       )

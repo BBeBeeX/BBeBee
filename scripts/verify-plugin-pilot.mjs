@@ -11,20 +11,30 @@
  * registry entry, world composition, edge services, the update marker,
  * target-specific assertions) is data in
  * `verify-plugin-pilot.targets.mjs`. The default target is
- * `visualizer`, the first-party pilot package.
+ * `visualizer`, the first-party pilot package. A target may also name
+ * `dependencyPackages`: other targets served as its registry
+ * dependency closure (installed first, in order), and a target with
+ * `source: 'own'` is a prebuilt combined package staged verbatim
+ * instead of assembled — the third-party authoring shape.
  *
  * The loop, stage by stage (each stage header in the output states its
  * fidelity — what is real and what is substituted at the edges):
  *
- *   1. assemble (with `--id`, the registry publication id) + `npm pack`;
- *      the tarball contents are compared against the assembled layout.
- *   2. the pilot registry entry is validated with the registry repo's
- *      own `scripts/validate.mjs --strict --skip-network` against a
- *      temporary fixture registry root, and the served index is the one
- *      the registry's own `build-index.mjs` generates there.
- *   3. a localhost HTTP stand-in serves the registry index, an
- *      npm-shaped packument (real sha512 integrity) and the tarballs;
- *      the real plugin-manager installs from it over real HTTP. The
+ *   1. assemble (with `--id`, the registry publication id) — or, for
+ *      an 'own'-source target, stage the prebuilt package verbatim —
+ *      plus any dependency packages, then `npm pack`; the tarball
+ *      contents are compared against the package layout.
+ *   2. the pilot registry entries are validated with the registry
+ *      repo's own `scripts/validate.mjs --strict --skip-network`
+ *      against a temporary fixture registry root, and the served
+ *      index is the one the registry's own `build-index.mjs`
+ *      generates there.
+ *   3. a localhost HTTP stand-in serves the registry index,
+ *      npm-shaped packuments (real sha512 integrity) and the
+ *      tarballs; the real plugin-manager installs from it over real
+ *      HTTP — dependency closure first when the entry declares one,
+ *      and a negative-control world (dependency entry removed from
+ *      the index) must refuse with no half-installed state. The
  *      `HttpService` is a `fetch` implementation of the protocol shape;
  *      store/secrets/settings/device are in-memory stand-ins; the
  *      lifecycle bridge is a recording stand-in that writes files to a
@@ -74,6 +84,7 @@ import {
   readdirSync,
   realpathSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs'
 import { createServer } from 'node:http'
@@ -107,6 +118,15 @@ const HOST_VERSION = '19.2.3' // apps/desktop's react (host-modules.manifest.ts)
 const HOST_MAJOR = HOST_VERSION.split('.')[0]
 const HOST_PEER_RANGE = `^${HOST_MAJOR}.0.0`
 const OLDER_HOST_VERSION = `${Number(HOST_MAJOR) - 1}.3.1`
+const TARGET_SOURCE = target.source ?? 'assembled'
+// Registry packages this target's entry depends on, described by other
+// targets in the map and served alongside it (see the targets file).
+const depTargets = (target.dependencyPackages ?? []).map((d) => {
+  const def = TARGETS[d.target]
+  if (!def) throw new Error(`target "${targetName}" depends on unknown target "${d.target}"`)
+  return { ...d, def }
+})
+const EXPECTED_CLOSURE = target.expectClosure ?? []
 
 // ---------------------------------------------------------------------------
 // Tiny assertion kit
@@ -220,15 +240,26 @@ register('./verify-plugin-pilot.hooks.mjs', {
 
 // Build first (the hooks resolve workspace specifiers to these dists),
 // then import the code under test — only after the hooks are registered.
-for (const pkg of [
+// 'own'-source targets build with their own build.mjs instead of tsc.
+const tscDirs = new Set([
   'packages/protocol',
   'packages/kernel',
   'packages/feature/toolkit',
   'packages/feature/plugin-manager',
-  target.featureDir,
-  ...(target.uiDir ? [target.uiDir] : []),
-]) {
+])
+const ownBuildDirs = []
+for (const t of [target, ...depTargets.map((d) => d.def)]) {
+  if ((t.source ?? 'assembled') === 'own') ownBuildDirs.push(t.featureDir)
+  else {
+    tscDirs.add(t.featureDir)
+    if (t.uiDir) tscDirs.add(t.uiDir)
+  }
+}
+for (const pkg of tscDirs) {
   buildPackage(join(repoRoot, pkg))
+}
+for (const dir of ownBuildDirs) {
+  run(process.execPath, [join(repoRoot, dir, 'build.mjs')], { cwd: join(repoRoot, dir) })
 }
 console.log('  workspace packages rebuilt with the repo TypeScript')
 
@@ -245,26 +276,62 @@ const { makeExternalEntry } = await import(pathToFileURL(dynamicLoaderPath).href
 
 stage(`stage 1 — assemble ${NPM_NAME} (publication id ${PLUGIN_ID}, target ${targetName}) + npm pack`)
 
-function assemble({ featureDir, version, outDir }) {
+function assemble({ forTarget = target, featureDir, version, outDir }) {
   run(
     process.execPath,
     [
       join(repoRoot, 'scripts/assemble-plugin.mjs'),
       '--feature',
       featureDir,
-      ...(target.uiDir ? ['--ui', join(repoRoot, target.uiDir)] : []),
+      ...(forTarget.uiDir ? ['--ui', join(repoRoot, forTarget.uiDir)] : []),
       '--version',
       version,
       '--id',
-      PLUGIN_ID,
+      forTarget.pluginId,
       '--name',
-      NPM_NAME,
+      forTarget.npmName,
       '--no-build',
       '--out',
       outDir,
     ],
     { cwd: repoRoot },
   )
+}
+
+// Stages a prebuilt ('own'-source) package: copies the authored package
+// directory and pins both version fields to the round's version — the
+// installer's three-way version check reads package.json and the
+// in-package manifest against the packument's selected version.
+function stagePrebuilt({ sourceDir, version, outDir }) {
+  cpSync(sourceDir, outDir, {
+    recursive: true,
+    filter: (src) => !src.includes('node_modules') && !src.endsWith('.tgz'),
+  })
+  for (const f of ['package.json', 'BBeBee.plugin.json']) {
+    const p = join(outDir, f)
+    const json = JSON.parse(readFileSync(p, 'utf8'))
+    json.version = version
+    writeFileSync(p, `${JSON.stringify(json, null, 2)}\n`)
+  }
+}
+
+// The publishable file set of a prebuilt package: what `npm pack`
+// includes — package.json, the readme, and everything its `files`
+// field names (single files or whole directories).
+function publishableLayout(pkgDir) {
+  const pj = JSON.parse(readFileSync(join(pkgDir, 'package.json'), 'utf8'))
+  const out = new Set(['package.json'])
+  if (existsSync(join(pkgDir, 'README.md'))) out.add('README.md')
+  for (const f of pj.files ?? []) {
+    const p = join(pkgDir, f)
+    if (!existsSync(p)) continue
+    if (statSync(p).isDirectory()) {
+      for (const rel of listFiles(p, pkgDir)) out.add(rel)
+    } else {
+      out.add(f)
+    }
+  }
+  return [...out].sort()
 }
 
 function npmPack(pkgDir) {
@@ -284,20 +351,25 @@ function npmPack(pkgDir) {
 }
 
 const pkgDirV1 = join(tmp, `pkg-${V1}`)
-assemble({ featureDir: join(repoRoot, target.featureDir), version: V1, outDir: pkgDirV1 })
+if (TARGET_SOURCE === 'own') {
+  stagePrebuilt({ sourceDir: join(repoRoot, target.featureDir), version: V1, outDir: pkgDirV1 })
+} else {
+  assemble({ featureDir: join(repoRoot, target.featureDir), version: V1, outDir: pkgDirV1 })
+}
 
-const layoutV1 = listFiles(pkgDirV1)
+const manifestV1 = JSON.parse(readFileSync(join(pkgDirV1, 'BBeBee.plugin.json'), 'utf8'))
+const hasUi = Boolean(manifestV1.entry?.ui?.desktop)
+const layoutV1 = TARGET_SOURCE === 'own' ? publishableLayout(pkgDirV1) : listFiles(pkgDirV1)
 check(
   'assembled layout carries manifest, package.json and dist entries',
-  ['BBeBee.plugin.json', 'package.json', 'dist/index.js', ...(target.uiDir ? ['dist/ui-desktop.js'] : [])].every(
+  ['BBeBee.plugin.json', 'package.json', 'dist/index.js', ...(hasUi ? ['dist/ui-desktop.js'] : [])].every(
     (f) => layoutV1.includes(f),
   ),
   layoutV1.join(', '),
 )
-const manifestV1 = JSON.parse(readFileSync(join(pkgDirV1, 'BBeBee.plugin.json'), 'utf8'))
 check('assembled manifest id is the registry publication id', manifestV1.id === PLUGIN_ID, manifestV1.id)
 check('assembled manifest version matches', manifestV1.version === V1, manifestV1.version)
-if (target.uiDir) {
+if (hasUi) {
   check(
     'assembled manifest declares entry.ui.desktop',
     manifestV1.entry?.ui?.desktop === './dist/ui-desktop.js',
@@ -305,9 +377,9 @@ if (target.uiDir) {
   )
 }
 const packageJsonV1 = JSON.parse(readFileSync(join(pkgDirV1, 'package.json'), 'utf8'))
-if (target.uiDir) {
+if (hasUi) {
   check(
-    'peerDependencies generated from the host manifest',
+    'peerDependencies declare the host contract range',
     packageJsonV1.peerDependencies?.react === HOST_PEER_RANGE &&
       packageJsonV1.peerDependencies?.['react-dom'] === HOST_PEER_RANGE,
     JSON.stringify(packageJsonV1.peerDependencies),
@@ -329,6 +401,27 @@ check(
   `tarball: ${packV1.listing.join(', ')}`,
 )
 
+// Dependency packages are assembled and packed the same way; the
+// server registers them alongside the target in stage 3.
+const depPacks = []
+for (const dep of depTargets) {
+  const dir = join(tmp, `dep-${dep.def.pluginId}-${dep.version}`)
+  assemble({ forTarget: dep.def, featureDir: join(repoRoot, dep.def.featureDir), version: dep.version, outDir: dir })
+  const pack = npmPack(dir)
+  depPacks.push({
+    def: dep.def,
+    version: dep.version,
+    dir,
+    pack,
+    packageJson: JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')),
+  })
+  check(
+    `dependency package ${dep.def.npmName}@${dep.version} assembles and packs`,
+    pack.listing.includes('BBeBee.plugin.json') && pack.listing.includes('dist/index.js'),
+    pack.listing.join(', '),
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Stage 2 — registry entry fixture, validated by the registry repo's tools
 // ---------------------------------------------------------------------------
@@ -341,20 +434,48 @@ if (!existsSync(join(registryRepo, 'scripts/validate.mjs'))) {
 
 // id/npm are injected from the target identity so the entry can never
 // drift from the packaged manifest the installer checks it against.
-const registryEntry = { id: PLUGIN_ID, npm: NPM_NAME, ...target.entry }
+// An `entryFile` target instead ships its entry verbatim (asserted
+// against the identity); dependency packages contribute their own
+// entries from their target data.
+const fixtureEntries = []
+if (target.entryFile) {
+  const fromFile = JSON.parse(readFileSync(join(repoRoot, target.entryFile), 'utf8'))
+  check(
+    'entry file identity matches the target identity',
+    fromFile.id === PLUGIN_ID && fromFile.npm === NPM_NAME,
+    `${fromFile.id} / ${fromFile.npm}`,
+  )
+  fixtureEntries.push({ entry: fromFile, fileName: target.entryFileName ?? `${PLUGIN_ID}.json` })
+} else {
+  fixtureEntries.push({
+    entry: { id: PLUGIN_ID, npm: NPM_NAME, ...target.entry },
+    fileName: target.entryFileName ?? `${PLUGIN_ID}.json`,
+  })
+}
+for (const dep of depTargets) {
+  fixtureEntries.push({
+    entry: { id: dep.def.pluginId, npm: dep.def.npmName, ...dep.def.entry },
+    fileName: dep.def.entryFileName ?? `${dep.def.pluginId}.json`,
+  })
+}
 
 const fixtureRoot = join(tmp, 'registry-fixture')
 for (const d of ['plugins', 'music-sources', 'lyric-sources', 'themes']) {
   mkdirSync(join(fixtureRoot, d), { recursive: true })
 }
 cpSync(join(registryRepo, 'scripts'), join(fixtureRoot, 'scripts'), { recursive: true })
-writeFileSync(join(fixtureRoot, 'plugins', `${PLUGIN_ID}.json`), `${JSON.stringify(registryEntry, null, 2)}\n`)
+for (const { entry, fileName } of fixtureEntries) {
+  writeFileSync(join(fixtureRoot, 'plugins', fileName), `${JSON.stringify(entry, null, 2)}\n`)
+}
 
 run(process.execPath, [join(fixtureRoot, 'scripts/build-index.mjs')], { cwd: fixtureRoot })
 const fixtureIndex = JSON.parse(readFileSync(join(fixtureRoot, 'plugins/index.json'), 'utf8'))
 check(
-  'build-index aggregates the pilot entry',
-  Array.isArray(fixtureIndex) && fixtureIndex.length === 1 && fixtureIndex[0].id === PLUGIN_ID,
+  'build-index aggregates every fixture entry',
+  Array.isArray(fixtureIndex) &&
+    JSON.stringify(fixtureIndex.map((e) => e.id).sort()) ===
+      JSON.stringify(fixtureEntries.map(({ entry }) => entry.id).sort()),
+  JSON.stringify(Array.isArray(fixtureIndex) ? fixtureIndex.map((e) => e.id) : fixtureIndex),
 )
 run(process.execPath, [join(fixtureRoot, 'scripts/validate.mjs'), '--strict', '--skip-network'], {
   cwd: fixtureRoot,
@@ -367,41 +488,65 @@ check('validate.mjs --strict --skip-network passes on the fixture registry', tru
 
 stage('stage 3 — install from a localhost registry/npm stand-in (real HTTP, real plugin-manager)')
 
-const serverState = {
-  latest: V1,
-  versions: {
-    [V1]: { tarballPath: packV1.tarballPath, integrity: packV1.integrity, peers: packageJsonV1.peerDependencies },
-  },
+// Per-package npm state: every packed package (the target plus any
+// dependency packages) registers its versions here; registering a
+// newer version moves that package's `latest` tag.
+const packagesState = new Map()
+const tarballFiles = new Map()
+const tarballFileName = (npmName, version) =>
+  `${npmName.replace('@', '').replace('/', '-')}-${version}.tgz`
+function registerPackage(npmName, version, pack, packageJson) {
+  let st = packagesState.get(npmName)
+  if (!st) {
+    st = { latest: version, versions: {} }
+    packagesState.set(npmName, st)
+  }
+  st.versions[version] = {
+    tarballPath: pack.tarballPath,
+    integrity: pack.integrity,
+    peers: packageJson.peerDependencies,
+  }
+  st.latest = version
+  tarballFiles.set(tarballFileName(npmName, version), pack.tarballPath)
 }
+registerPackage(NPM_NAME, V1, packV1, packageJsonV1)
+for (const dep of depPacks) registerPackage(dep.def.npmName, dep.version, dep.pack, dep.packageJson)
+// When set, the index route serves this array instead of the fixture
+// index (the negative control removes a dependency entry).
+let indexOverride = null
 const requestLog = []
 const server = createServer((req, res) => {
   const url = new URL(req.url ?? '/', 'http://127.0.0.1')
   requestLog.push(`${req.method} ${url.pathname}`)
   if (url.pathname === '/raw/plugins/index.json') {
     res.writeHead(200, { 'content-type': 'application/json' })
-    res.end(JSON.stringify(fixtureIndex))
+    res.end(JSON.stringify(indexOverride ?? fixtureIndex))
     return
   }
-  if (url.pathname === `/npm/${encodeURIComponent(NPM_NAME)}`) {
-    const versions = {}
-    for (const [v, info] of Object.entries(serverState.versions)) {
-      versions[v] = {
-        version: v,
-        peerDependencies: info.peers,
-        dist: {
-          tarball: `http://127.0.0.1:${server.address().port}/tarballs/${NPM_NAME.replace('@', '').replace('/', '-')}-${v}.tgz`,
-          integrity: info.integrity,
-        },
+  if (url.pathname.startsWith('/npm/')) {
+    const npmName = decodeURIComponent(url.pathname.slice('/npm/'.length))
+    const st = packagesState.get(npmName)
+    if (st) {
+      const versions = {}
+      for (const [v, info] of Object.entries(st.versions)) {
+        versions[v] = {
+          version: v,
+          peerDependencies: info.peers,
+          dist: {
+            tarball: `http://127.0.0.1:${server.address().port}/tarballs/${tarballFileName(npmName, v)}`,
+            integrity: info.integrity,
+          },
+        }
       }
+      res.writeHead(200, { 'content-type': 'application/json' })
+      res.end(JSON.stringify({ name: npmName, 'dist-tags': { latest: st.latest }, versions }))
+      return
     }
-    res.writeHead(200, { 'content-type': 'application/json' })
-    res.end(JSON.stringify({ name: NPM_NAME, 'dist-tags': { latest: serverState.latest }, versions }))
-    return
   }
   if (url.pathname.startsWith('/tarballs/')) {
-    const file = Object.entries(serverState.versions).find(([v]) => url.pathname.endsWith(`-${v}.tgz`))
-    if (file) {
-      const bytes = readFileSync(file[1].tarballPath)
+    const path = tarballFiles.get(url.pathname.slice('/tarballs/'.length))
+    if (path) {
+      const bytes = readFileSync(path)
       res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-length': bytes.length })
       res.end(bytes)
       return
@@ -518,14 +663,20 @@ function makeWorld({ hostReactVersion, pluginsDir }) {
 const worldA = makeWorld({ hostReactVersion: HOST_VERSION, pluginsDir: join(tmp, 'plugins-a') })
 const planA = await worldA.plugin.resolveInstallPlan(PLUGIN_ID)
 check('plan targets the assembled version', planA.target.version === V1, JSON.stringify(planA.target))
-check('plan closure is empty (no registry dependencies)', planA.closure.length === 0)
+check(
+  'plan closure matches the target expectation (registry dependencies resolved)',
+  JSON.stringify(planA.closure.map((p) => p.id)) === JSON.stringify(EXPECTED_CLOSURE),
+  JSON.stringify(planA.closure.map((p) => p.id)),
+)
 check('plan reports no missing services', planA.missingServices.length === 0, planA.missingServices.join(','))
 check('plan has no warnings when the host React satisfies the peer range', planA.warnings.length === 0, planA.warnings.join(' | '))
 
 await worldA.plugin.installPlugin(PLUGIN_ID)
 check(
-  'bridge installPlugin called once with the registry id',
-  worldA.bridgeCalls.filter(([m]) => m === 'installPlugin').length === 1,
+  'bridge installed the closure in dependency order, target last',
+  JSON.stringify(worldA.bridgeCalls.filter(([m]) => m === 'installPlugin').map(([, id]) => id)) ===
+    JSON.stringify([...EXPECTED_CLOSURE, PLUGIN_ID]),
+  JSON.stringify(worldA.bridgeCalls),
 )
 const installedDirA = join(worldA.pluginsDir, PLUGIN_ID)
 check(
@@ -550,6 +701,21 @@ check(
   'plugin-manager list() now includes the installed plugin',
   worldA.plugin.list().some((p) => p.id === PLUGIN_ID),
 )
+if (depPacks.length > 0) {
+  check(
+    'lock records written for every closure package (npm, version, tarball sha256)',
+    depPacks.every((dep) => {
+      const rec = recordsA[dep.def.pluginId]
+      return (
+        rec?.npm === dep.def.npmName &&
+        rec?.version === dep.version &&
+        rec?.sha256 === sha256HexOf(dep.pack.bytes) &&
+        existsSync(join(worldA.pluginsDir, dep.def.pluginId, 'dist/index.js'))
+      )
+    }),
+    JSON.stringify(recordsA),
+  )
+}
 
 // --- world B: host misreports an older React → peer warning, install proceeds
 const worldB = makeWorld({ hostReactVersion: OLDER_HOST_VERSION, pluginsDir: join(tmp, 'plugins-b') })
@@ -567,6 +733,43 @@ check(
   worldB.bridgeCalls.some(([m]) => m === 'installPlugin') && existsSync(join(worldB.pluginsDir, PLUGIN_ID, 'dist/index.js')),
 )
 
+// --- world C (targets with dependencies): negative control ---------------
+// The dependency entry disappears from the index: resolution must fail
+// loudly and leave no half-installed state behind.
+if (depTargets.length > 0) {
+  stage('stage 3b — negative control: dependency entry missing from the index')
+  const depIds = depTargets.map((d) => d.def.pluginId)
+  indexOverride = fixtureIndex.filter((e) => !depIds.includes(e.id))
+  const worldC = makeWorld({ hostReactVersion: HOST_VERSION, pluginsDir: join(tmp, 'plugins-c') })
+  let negErr = null
+  try {
+    await worldC.plugin.installPlugin(PLUGIN_ID)
+  } catch (err) {
+    negErr = err
+  }
+  check(
+    'install is refused when a closure dependency is missing from the index',
+    negErr?.code === 'DEPENDENCY_NOT_FOUND',
+    negErr ? `${negErr.code}: ${negErr.message}` : 'no error thrown',
+  )
+  check(
+    'the refused install made no bridge install calls',
+    worldC.bridgeCalls.filter(([m]) => m === 'installPlugin').length === 0,
+    JSON.stringify(worldC.bridgeCalls),
+  )
+  check(
+    'the refused install wrote no lock records',
+    Object.keys(worldC.storeData.get('npm:installed') ?? {}).length === 0,
+    JSON.stringify(worldC.storeData.get('npm:installed')),
+  )
+  check(
+    'the refused install left no plugin files on disk',
+    !existsSync(join(worldC.pluginsDir, PLUGIN_ID)) &&
+      depIds.every((id) => !existsSync(join(worldC.pluginsDir, id))),
+  )
+  indexOverride = null
+}
+
 // ---------------------------------------------------------------------------
 // Stage 4 — real dynamic-loader against the installed directory
 // ---------------------------------------------------------------------------
@@ -577,16 +780,19 @@ function fileImporter(pluginsDir, cacheBust) {
   return (url) => {
     const m = /^bbebee-plugin:\/\/app\/([^/]+)\/(.+)$/.exec(url)
     if (!m) throw new Error(`unexpected plugin url: ${url}`)
-    const fileUrl = pathToFileURL(join(pluginsDir, PLUGIN_ID, decodeURIComponent(m[2])))
+    const fileUrl = pathToFileURL(join(pluginsDir, decodeURIComponent(m[1]), decodeURIComponent(m[2])))
     if (cacheBust) fileUrl.search = cacheBust
     return import(fileUrl.href)
   }
 }
 
+// Loads the target through the real loader path and applies it to a
+// fresh Cordis context. Targets with an `activationChain` first load
+// and apply those closure packages (from the same installed directory)
+// into the same context, so services the target consumes come from the
+// real installed packages, not from stubs.
 async function activateInstalled(pluginsDir, cacheBust) {
-  const manifest = JSON.parse(readFileSync(join(pluginsDir, PLUGIN_ID, 'BBeBee.plugin.json'), 'utf8'))
-  const entry = makeExternalEntry(PLUGIN_ID, manifest, fileImporter(pluginsDir, cacheBust))
-  const def = await entry.load()
+  const importer = fileImporter(pluginsDir, cacheBust)
   const ctx = new Context()
   const uiCalls = { registerView: [], contribute: [] }
   const uiStub = {
@@ -611,7 +817,23 @@ async function activateInstalled(pluginsDir, cacheBust) {
   for (const [name, value] of Object.entries(edgeServices)) {
     ctx.provide(name, value)
   }
-  ctx.plugin(def)
+  const mods = {}
+  const defs = {}
+  for (const id of [...(target.activationChain ?? []), PLUGIN_ID]) {
+    const manifest = JSON.parse(readFileSync(join(pluginsDir, id, 'BBeBee.plugin.json'), 'utf8'))
+    const entry = makeExternalEntry(id, manifest, importer)
+    defs[id] = await entry.load()
+    const modUrl = (rel) => {
+      const u = pathToFileURL(join(pluginsDir, id, rel))
+      if (cacheBust) u.search = cacheBust
+      return u.href
+    }
+    mods[id] = {
+      headless: await import(modUrl('dist/index.js')),
+      ui: manifest.entry?.ui?.desktop ? await import(modUrl('dist/ui-desktop.js')) : null,
+    }
+    ctx.plugin(defs[id])
+  }
   const started = Date.now()
   const deadline = started + 5000
   while (Date.now() < deadline) {
@@ -621,16 +843,14 @@ async function activateInstalled(pluginsDir, cacheBust) {
     if (settled) break
     await new Promise((r) => delay(r, 25))
   }
-  return { def, ctx, uiCalls }
+  return { def: defs[PLUGIN_ID], ctx, uiCalls, mods }
 }
 
 const headlessMod = await import(pathToFileURL(join(installedDirA, 'dist/index.js')).href)
-const uiMod = target.uiDir
-  ? await import(pathToFileURL(join(installedDirA, 'dist/ui-desktop.js')).href)
-  : null
+const uiMod = hasUi ? await import(pathToFileURL(join(installedDirA, 'dist/ui-desktop.js')).href) : null
 const act1 = await activateInstalled(worldA.pluginsDir)
 
-if (target.uiDir) {
+if (hasUi) {
   check('loader returns the composite def (not the headless def alone)', act1.def !== headlessMod.default)
   check('composite def is named by the plugin id', act1.def?.name === PLUGIN_ID, String(act1.def?.name))
   const registered = []
@@ -642,7 +862,7 @@ if (target.uiDir) {
 } else {
   check('loader returns the headless def itself (no UI declared)', act1.def === headlessMod.default)
 }
-if (target.uiDir) {
+if (hasUi) {
   const probes = globalThis.__bbebeePilotProbes
   const hostReact = await import(hostReactUrl)
   check(
@@ -672,6 +892,7 @@ target.verifyActivation?.({
   ctx: act1.ctx,
   headlessMod,
   uiMod,
+  mods: act1.mods,
 })
 
 // ---------------------------------------------------------------------------
@@ -691,7 +912,11 @@ check('marker base text present in the feature build', copyIndexOrig.includes(MA
 writeFileSync(copyIndexPath, copyIndexOrig.replace(MARKER_BASE, `${MARKER_BASE} — ${MARKER}`))
 
 const pkgDirV2 = join(tmp, `pkg-${V2}`)
-assemble({ featureDir: featureCopy, version: V2, outDir: pkgDirV2 })
+if (TARGET_SOURCE === 'own') {
+  stagePrebuilt({ sourceDir: featureCopy, version: V2, outDir: pkgDirV2 })
+} else {
+  assemble({ featureDir: featureCopy, version: V2, outDir: pkgDirV2 })
+}
 const packV2 = npmPack(pkgDirV2)
 const packageJsonV2 = JSON.parse(readFileSync(join(pkgDirV2, 'package.json'), 'utf8'))
 check(
@@ -700,12 +925,7 @@ check(
     JSON.parse(readFileSync(join(pkgDirV2, 'BBeBee.plugin.json'), 'utf8')).id === PLUGIN_ID,
 )
 
-serverState.versions[V2] = {
-  tarballPath: packV2.tarballPath,
-  integrity: packV2.integrity,
-  peers: packageJsonV2.peerDependencies,
-}
-serverState.latest = V2
+registerPackage(NPM_NAME, V2, packV2, packageJsonV2)
 
 const updates = await worldA.plugin.checkUpdates(true)
 check(
@@ -717,12 +937,12 @@ requestLog.length = 0
 await worldA.plugin.updatePlugin(PLUGIN_ID)
 check(
   'rollback staging re-fetched the old tarball during the update',
-  requestLog.some((l) => l.startsWith('GET /tarballs/') && l.endsWith(`-${V1}.tgz`)),
+  requestLog.some((l) => l === `GET /tarballs/${tarballFileName(NPM_NAME, V1)}`),
   requestLog.join(' | '),
 )
 check(
   'the new tarball was downloaded during the update',
-  requestLog.some((l) => l.startsWith('GET /tarballs/') && l.endsWith(`-${V2}.tgz`)),
+  requestLog.some((l) => l === `GET /tarballs/${tarballFileName(NPM_NAME, V2)}`),
   requestLog.join(' | '),
 )
 const recordA2 = (worldA.storeData.get('npm:installed') ?? {})[PLUGIN_ID]
@@ -733,7 +953,7 @@ check(
 )
 const act2 = await activateInstalled(worldA.pluginsDir, `pilot=${V2}`)
 // Target-specific observability of the update lives with the target.
-target.verifyUpdate?.({ check, uiCalls: act2.uiCalls, ctx: act2.ctx, tag: MARKER })
+target.verifyUpdate?.({ check, uiCalls: act2.uiCalls, ctx: act2.ctx, mods: act2.mods, tag: MARKER })
 
 // ---------------------------------------------------------------------------
 // Stage 6 — uninstall
@@ -757,6 +977,17 @@ check(
   'plugin-manager list() no longer includes the plugin',
   !worldA.plugin.list().some((p) => p.id === PLUGIN_ID),
 )
+if (EXPECTED_CLOSURE.length > 0) {
+  check(
+    'closure packages stay installed when the dependent is uninstalled (no cascade)',
+    EXPECTED_CLOSURE.every(
+      (id) =>
+        existsSync(join(worldA.pluginsDir, id, 'dist/index.js')) &&
+        Boolean((worldA.storeData.get('npm:installed') ?? {})[id]),
+    ),
+    JSON.stringify(worldA.storeData.get('npm:installed')),
+  )
+}
 check(
   'unrelated store data (user data) survives the uninstall',
   JSON.stringify(worldA.storeData.get('pilot-user-data')) === JSON.stringify({ likedTracks: 3 }),
