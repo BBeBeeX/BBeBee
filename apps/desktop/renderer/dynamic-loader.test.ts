@@ -402,8 +402,11 @@ describe('full-package tamper chain (audit W3)', () => {
   })
 
   it('quarantines when a pinned file is missing on disk', async () => {
-    const { 'dist/helper.js': _dropped, ...rest } = PINNED
-    const item = { ...baseItem, fileHashes: { ...rest } }
+    const rest: Record<string, string> = {}
+    for (const [k, v] of Object.entries(PINNED)) {
+      if (k !== 'dist/helper.js') rest[k] = v
+    }
+    const item = { ...baseItem, fileHashes: rest }
     const registry = await loadWith(item, { fileHashes: { ...PINNED } })
     const entry = registry['full-chain-plugin']!
     expect(entry.quarantined).toBe(true)
@@ -411,7 +414,8 @@ describe('full-package tamper chain (audit W3)', () => {
   })
 
   it('quarantines when the sidecar reports no file hashes for a fully pinned package', async () => {
-    const { fileHashes: _omit, ...item } = baseItem
+    const item: Record<string, unknown> = { ...baseItem }
+    delete item['fileHashes']
     const registry = await loadWith(item, { fileHashes: { ...PINNED } })
     expect(registry['full-chain-plugin']!.quarantined).toBe(true)
   })
