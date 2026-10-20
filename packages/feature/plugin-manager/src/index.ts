@@ -871,7 +871,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       }
     }
     const wanted = range ?? `^${rec.version}`
-    const { plan, nodes } = await this.planInstall(id, wanted)
+    const { plan, nodes, index } = await this.planInstall(id, wanted)
     if (plan.missingServices.length > 0) {
       throw new NpmPluginError(
         'SERVICE_UNAVAILABLE',
@@ -903,34 +903,90 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
 
     // Rollback material for EVERY replaced node of the closure (target and
     // dependencies alike): each installed node's current tarball, re-fetched
-    // from npm. Staging is best-effort per node; a node whose old tarball
-    // cannot be staged is reported loudly if a rollback later skips it.
-    const stageRollback = async (old: InstalledNpmPluginRecord): Promise<ExtractedPackage | undefined> => {
+    // from npm and put through the SAME checklist as a first install
+    // (preparePackage: integrity, anti-spoofing, scan, manifest re-checks).
+    // Availability stays best-effort — an old version that vanished from
+    // npm simply has no material, as before. But material that downloads
+    // and then FAILS verification is a different animal: reinstalling
+    // unverified bytes as the "safe" fallback would defeat the checklist,
+    // so a single rejected node aborts the whole update before anything
+    // is written, with the verification error named.
+    type RollbackStage =
+      | { kind: 'ready'; extracted: ExtractedPackage }
+      | { kind: 'unavailable' }
+      | { kind: 'rejected'; error: NpmPluginError }
+    const VERIFICATION_CODES: ReadonlySet<string> = new Set([
+      'INTEGRITY_MISMATCH',
+      'SPOOF_DETECTED',
+      'VERSION_MISMATCH',
+      'SECURITY_BLOCKED',
+      'TARBALL_INVALID',
+      'BINARY_ASSET',
+      'PLATFORM_MISMATCH',
+      'APP_VERSION_MISMATCH',
+    ])
+    const stageRollback = async (old: InstalledNpmPluginRecord): Promise<RollbackStage> => {
+      let oldDist: { tarball?: string; integrity?: string } | undefined
       try {
         const pack = await client.fetchPackument(old.npm)
-        const oldDist = pack.versions?.[old.version]?.dist
-        if (!oldDist?.tarball) return undefined
-        const oldBytes = await client.downloadPackage({
-          id: old.id,
-          npm: old.npm,
-          version: old.version,
-          tarball: oldDist.tarball,
-          integrity: oldDist.integrity,
-        })
-        return client.extractPackage({ id: old.id, npm: old.npm, version: old.version, tarball: oldDist.tarball }, oldBytes)
+        oldDist = pack.versions?.[old.version]?.dist
       } catch (err) {
         this.ctx.logger.warn(
           `plugin-manager: could not stage rollback for "${old.id}": ${err instanceof Error ? err.message : String(err)}`,
         )
-        return undefined
+        return { kind: 'unavailable' }
+      }
+      if (!oldDist?.tarball) return { kind: 'unavailable' }
+      // The anti-spoof anchor for a rollback is the install record itself
+      // (id + npm were verified when that version was installed); the
+      // registry entry, when still listed, carries the same values.
+      const entry = index.find((e) => e.id === old.id) ?? {
+        id: old.id,
+        name: old.id,
+        repo: '',
+        npm: old.npm,
+        author: '',
+        description: '',
+        services: [],
+        platforms: [],
+        category: '',
+        dependencies: [],
+        compositors: [],
+      }
+      const node: ResolvedEntry = {
+        entry,
+        pkg: { id: old.id, npm: old.npm, version: old.version, tarball: oldDist.tarball, integrity: oldDist.integrity },
+      }
+      try {
+        return { kind: 'ready', extracted: await this.preparePackage(client, node, records) }
+      } catch (err) {
+        if (err instanceof NpmPluginError && VERIFICATION_CODES.has(err.code)) {
+          return { kind: 'rejected', error: err }
+        }
+        this.ctx.logger.warn(
+          `plugin-manager: could not stage rollback for "${old.id}": ${err instanceof Error ? err.message : String(err)}`,
+        )
+        return { kind: 'unavailable' }
       }
     }
     const rollbackById = new Map<string, ExtractedPackage>()
+    const rejectedRollback: Array<{ old: InstalledNpmPluginRecord; error: NpmPluginError }> = []
     for (const node of nodes) {
       const old = previousRecords[node.entry.id]
       if (!old || old.version === node.pkg.version) continue
       const staged = await stageRollback(old)
-      if (staged) rollbackById.set(node.entry.id, staged)
+      if (staged.kind === 'ready') {
+        rollbackById.set(node.entry.id, staged.extracted)
+      } else if (staged.kind === 'rejected') {
+        rejectedRollback.push({ old, error: staged.error })
+      }
+    }
+    if (rejectedRollback.length > 0) {
+      const first = rejectedRollback[0]!
+      throw new NpmPluginError(
+        first.error.code,
+        `插件 "${first.old.id}" 的回滚材料（${first.old.npm}@${first.old.version}）未通过安装校验，中止更新，未写入任何文件：${first.error.message}`,
+      )
     }
 
     const replaced: string[] = []

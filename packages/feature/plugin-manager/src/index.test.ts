@@ -1221,6 +1221,74 @@ describe('plugin-manager npm service methods', () => {
       expect(w.bridge.installPlugin).not.toHaveBeenCalled()
     })
   })
+
+  describe('rollback material verification (audit W3)', () => {
+    it('aborts the update when the old version fails integrity verification as rollback material', async () => {
+      const entry = entryFor({ id: 'a-x', npm: '@t/a' })
+      const tarballs: Record<string, Uint8Array> = {
+        '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0'),
+        '@t/a@1.1.0': tarballFor('@t/a', 'a-x', '1.1.0'),
+      }
+      const w = seedWorld(entry, ['1.0.0'], tarballs)
+      await w.plugin[PluginManagerPlugin.init]()
+      await w.plugin.installPlugin('a-x', '1.0.0')
+      expect(w.bridge.installPlugin).toHaveBeenCalledTimes(1)
+
+      // 1.1.0 is published — but the bytes now served for 1.0.0 no longer
+      // match the integrity the packument declares for them (the
+      // packument is re-served with a bogus 1.0.0 integrity). Staging
+      // that tarball as rollback material must refuse, and the update
+      // must abort before writing anything.
+      const corrupted = packument(entry.npm, ['1.0.0', '1.1.0'], tarballs) as any
+      corrupted.versions['1.0.0'].dist.integrity = `sha512-${base64Encode(sha512(new TextEncoder().encode('not the tarball')))}`
+      w.routes.set(`https://registry.npmjs.org/${encodeURIComponent(entry.npm)}`, {
+        status: 200,
+        json: async () => corrupted,
+      })
+      w.routes.set(`https://cdn.jsdelivr.net/${encodeURIComponent(entry.npm)}-/1.1.0.tgz`, {
+        status: 200,
+        bytes: async () => tarballs['@t/a@1.1.0']!,
+      })
+      await (w.ctx as any).store.delete('npm:packument:@t/a')
+
+      const err = await w.plugin.updatePlugin('a-x').catch((e: unknown) => e)
+      expect(err).toBeInstanceOf(NpmPluginError)
+      expect((err as NpmPluginError).code).toBe('INTEGRITY_MISMATCH')
+      expect((err as Error).message).toContain('回滚材料')
+      // Nothing was written: the only bridge install remains the original.
+      expect(w.bridge.installPlugin).toHaveBeenCalledTimes(1)
+      const store = (w.ctx as any).store
+      const setCalls = store.set.mock.calls.filter(([k]: [string]) => k === 'npm:installed')
+      expect(setCalls.at(-1)![1]['a-x'].version).toBe('1.0.0')
+    })
+
+    it('still rolls back with verified material when activation of the new version fails', async () => {
+      const entry = entryFor({ id: 'a-x', npm: '@t/a' })
+      const tarballs: Record<string, Uint8Array> = {
+        '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0'),
+        '@t/a@1.1.0': tarballFor('@t/a', 'a-x', '1.1.0'),
+      }
+      const w = seedWorld(entry, ['1.0.0', '1.1.0'], tarballs)
+      await w.plugin[PluginManagerPlugin.init]()
+      await w.plugin.installPlugin('a-x', '1.0.0')
+      let installs = 0
+      w.bridge.installPlugin = vi.fn(async (id: string) => {
+        installs++
+        // The new version's files land but activation reports a terminal
+        // failure state — the node counts as replaced, so the rollback
+        // must restore the staged (and now verified) old package.
+        if (installs === 1) return { pluginId: id, state: 'failed', error: new Error('activation boom') }
+        return { pluginId: id, state: 'active' }
+      }) as typeof w.bridge.installPlugin
+      await expect(w.plugin.updatePlugin('a-x')).rejects.toThrow('activation boom')
+      // install(1.1.0, fails) + install(rollback 1.0.0) — the verified
+      // rollback material was actually used.
+      expect(installs).toBe(2)
+      const store = (w.ctx as any).store
+      const setCalls = store.set.mock.calls.filter(([k]: [string]) => k === 'npm:installed')
+      expect(setCalls.at(-1)![1]['a-x'].version).toBe('1.0.0')
+    })
+  })
 })
 
 /**
