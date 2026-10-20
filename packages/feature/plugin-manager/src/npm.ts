@@ -108,6 +108,14 @@ export const TARBALL_SIZE_LIMIT_BYTES = 50 * 1024 * 1024
 export const TARBALL_MAX_EXTRACTED_BYTES = 200 * 1024 * 1024
 /** Refuse packages with more regular-file tar entries than this. */
 export const TARBALL_MAX_ENTRIES = 4096
+/**
+ * Refuse a tarball download whose body stalls: the 120s request timeout
+ * only covers response *headers* on the HTTP layer, so a mirror (or a
+ * hijacked connection) dripping one byte a minute otherwise hangs the
+ * install — and the market UI with it — forever. 30s without a single
+ * chunk is a dead download, not a slow one.
+ */
+export const TARBALL_STALL_TIMEOUT_MS = 30_000
 export const INDEX_CACHE_TTL_MS = 24 * 3600 * 1000
 export const PACKUMENT_CACHE_TTL_MS = 15 * 60 * 1000
 
@@ -240,12 +248,45 @@ export async function concatStreamWithLimit(
   label: string,
   onProgress?: (loaded: number, total?: number) => void,
   total?: number,
+  stallTimeoutMs: number = TARBALL_STALL_TIMEOUT_MS,
 ): Promise<Uint8Array> {
   const reader = stream.getReader()
+  // Every read races a stall timer: headers arrived long ago (that
+  // timeout is the HTTP layer's), so silence on the body is judged on
+  // its own clock. On a stall the reader is cancelled — the download is
+  // refused, not left hanging.
+  const readNext = async (): Promise<ReadableStreamReadResult<Uint8Array>> => {
+    if (!(stallTimeoutMs > 0)) return reader.read()
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+      return await Promise.race([
+        reader.read(),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(
+            () =>
+              reject(
+                new NpmPluginError(
+                  'DOWNLOAD_FAILED',
+                  `${label} 下载停滞：${stallTimeoutMs}ms 内未收到数据，已中止`,
+                ),
+              ),
+            stallTimeoutMs,
+          )
+        }),
+      ])
+    } catch (err) {
+      if (err instanceof NpmPluginError) {
+        await reader.cancel().catch(() => undefined)
+      }
+      throw err
+    } finally {
+      if (timer) clearTimeout(timer)
+    }
+  }
   const chunks: Uint8Array[] = []
   let loaded = 0
   for (;;) {
-    const { done, value } = await reader.read()
+    const { done, value } = await readNext()
     if (done) break
     if (!value) continue
     loaded += value.byteLength

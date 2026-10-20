@@ -1354,6 +1354,36 @@ describe('concatStreamWithLimit (Fix E)', () => {
     const big = new Uint8Array(64)
     await expectNpmError(concatStreamWithLimit(streamOf([big, big, big]), 100, 'x'), 'SIZE_LIMIT')
   })
+
+  it('aborts a stalled stream instead of hanging forever (audit W2: slow-drip)', async () => {
+    // One chunk lands, then the source goes silent — the header timeout
+    // on the HTTP layer has long since fired and cleared, so without a
+    // stall clock this read never settles.
+    let pulls = 0
+    const drip = new ReadableStream<Uint8Array>({
+      pull(c) {
+        pulls++
+        if (pulls === 1) {
+          c.enqueue(new Uint8Array([1]))
+          return undefined
+        }
+        return new Promise(() => {})
+      },
+    })
+    await expectNpmError(concatStreamWithLimit(drip, 1024, 'x', undefined, undefined, 50), 'DOWNLOAD_FAILED')
+  })
+
+  it('does not mistake a merely slow stream for a stalled one', async () => {
+    const slow = new ReadableStream<Uint8Array>({
+      async pull(c) {
+        await new Promise((r) => setTimeout(r, 10))
+        c.enqueue(new Uint8Array([7]))
+        c.close()
+      },
+    })
+    const out = await concatStreamWithLimit(slow, 1024, 'x', undefined, undefined, 1000)
+    expect(Array.from(out)).toEqual([7])
+  })
 })
 
 describe('gunzipCapped (audit W2: decompressed-size cap)', () => {
