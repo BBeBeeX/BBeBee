@@ -412,5 +412,53 @@ manifest and both the map and its allowlist entry change together. The
 build fails instead of shipping a page where React imports silently
 resolve nowhere.
 
+### 6.10 Provenance: official packages are published from GitHub Actions
+
+npm **provenance** is a signed statement, minted by npm at publish time
+from the GitHub Actions OIDC environment, that records *which repository
+and workflow built this exact version*. It cannot be added to an
+already-published version — the 0.1.0 launch (local machine, staged
+publishing) therefore carries none, and official packages gain
+provenance only by being published again from CI.
+
+**Publishing path for official packages** (registry entries whose
+`repo` owner is `BBeBeeX`):
+
+1. **One-time setup on npmjs.com** — configure a *trusted publisher*
+   for the package (package → Settings → Trusted Publisher → GitHub
+   Actions): organization `BBeBeeX`, the source repository, and the
+   workflow filename. No long-lived npm token exists anywhere after
+   this; publishes exchange the workflow's OIDC token
+   (`id-token: write`) for a short-lived credential. npm CLI ≥ 11.5.1
+   is required.
+2. **Run the package's publish workflow** (`workflow_dispatch`, version
+   as input): it assembles the publishable package with
+   `scripts/assemble-plugin.mjs` (or the package repo's own build),
+   verifies the publication identity, and runs
+   `npm publish --provenance --access public`. In this repo:
+   `.github/workflows/publish-plugin-visualizer.yml`.
+3. **Update the registry pin afterwards**: bump the entry's
+   `reviewedVersion` to the new version and set `reviewedIntegrity` to
+   the new version's `dist.integrity` from its packument — registry CI
+   re-verifies the pair, and clients then treat the provenance-carrying
+   version as the reviewed default.
+
+**How the attestation is consumed** (pilot posture):
+
+- *Client* (`plugin-manager`, prepare step): when npm carries a
+  provenance attestation for the version being installed, its source
+  repository must equal the registry entry's `repo` — a mismatch is
+  refused as `SPOOF_DETECTED` (the bytes were built somewhere the
+  entry does not disclose). A matching attestation marks the install
+  record `provenanceVerified`, surfaced as an "出处已验证" badge in
+  settings. No attestation is **not** yet a refusal (official packages
+  are mid-migration); an official package without one logs a warning,
+  and an unreachable attestations endpoint degrades like any other
+  registry read.
+- *Registry CI*: for official entries, a present-but-foreign
+  attestation is a validation error; a missing one is a warning whose
+  text states it turns into an error once the official packages have
+  been re-published with provenance.
+
 ---
 

@@ -1,0 +1,117 @@
+# Publishes @bbebee/plugin-visualizer to npm WITH provenance (audit W6).
+#
+# Why this workflow exists: the 0.1.0 launch went out from a local
+# machine via staged publishing, so it carries no provenance
+# attestation. npm provenance is minted from the GitHub Actions OIDC
+# environment at publish time — it cannot be retrofitted onto an
+# already-published version — so official packages are (re)published
+# from a workflow like this one.
+#
+# TRUSTED PUBLISHING — one-time setup on npmjs.com; no long-lived
+# npm token is stored in this repo or anywhere else:
+#
+#   npmjs.com → package @bbebee/plugin-visualizer → Settings
+#   → Trusted Publisher → GitHub Actions:
+#       Organization or user:  BBeBeeX
+#       Repository:            BBeBee
+#       Workflow filename:     publish-plugin-visualizer.yml
+#       Environment name:      (leave empty)
+#
+# With that in place, `npm publish` below exchanges this job's OIDC
+# token (permissions: id-token: write) for a short-lived publish
+# credential, and npm attaches a SLSA provenance attestation naming
+# this repository and workflow as the package's source. The plugin
+# client and the registry CI both verify that the attestation's
+# source repository equals the registry entry's `repo` — a package
+# built anywhere else is refused as spoofing.
+#
+# npm CLI >= 11.5.1 is required for trusted publishing; the setup
+# step below fails loudly on an older CLI instead of silently
+# publishing without provenance.
+name: Publish plugin-visualizer
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g. 0.1.1) — must not already exist on npm'
+        required: true
+        type: string
+      dry_run:
+        description: 'Assemble and pack only; do not publish'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write # OIDC: npm trusted publishing + provenance attestation
+
+jobs:
+  publish:
+    name: Assemble and publish @bbebee/plugin-visualizer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Require an npm CLI new enough for trusted publishing
+        run: |
+          NPM_VERSION="$(npm --version)"
+          echo "npm $NPM_VERSION"
+          node -e '
+            const [maj, min, patch] = process.argv[1].split(".").map(Number)
+            const ok = maj > 11 || (maj === 11 && (min > 5 || (min === 5 && patch >= 1)))
+            if (!ok) {
+              console.error(`npm >= 11.5.1 is required for trusted publishing, got ${process.argv[1]}`)
+              process.exit(1)
+            }
+          ' "$NPM_VERSION"
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Same assembly the pilot loop and the 0.1.0 launch used
+      # (scripts/assemble-plugin.mjs): builds the feature + desktop UI
+      # packages, stamps the publication identity (--id / --name) and
+      # refuses output whose UI bundle carries a second React copy.
+      - name: Assemble the publishable package
+        run: >
+          node scripts/assemble-plugin.mjs
+          --feature packages/feature/plugin-visualizer
+          --ui packages/ui/plugin-visualizer-ui-desktop
+          --id bbebeex-visualizer
+          --name @bbebee/plugin-visualizer
+          --version "${{ inputs.version }}"
+          --out .cache/plugin-packages/visualizer-publish
+
+      # Publish gate: the assembled tree must carry the exact
+      # publication identity and version the registry entry and the
+      # installer's anti-spoofing checks expect, and `npm pack` must
+      # agree on the file set that would be uploaded.
+      - name: Verify the assembled package
+        working-directory: .cache/plugin-packages/visualizer-publish
+        run: |
+          node -e '
+            const p = require("./package.json")
+            const m = require("./BBeBee.plugin.json")
+            const want = process.argv[1]
+            if (p.name !== "@bbebee/plugin-visualizer") throw new Error(`package name drift: ${p.name}`)
+            if (p.version !== want) throw new Error(`package version drift: ${p.version} != ${want}`)
+            if (m.id !== "bbebeex-visualizer") throw new Error(`manifest id drift: ${m.id}`)
+            if (m.version !== p.version) throw new Error(`manifest version ${m.version} != package version ${p.version}`)
+            console.log(`assembled package OK: ${p.name}@${p.version}, manifest id ${m.id}`)
+          ' "${{ inputs.version }}"
+          npm pack --dry-run
+
+      - name: Publish to npm with provenance
+        if: ${{ !inputs.dry_run }}
+        working-directory: .cache/plugin-packages/visualizer-publish
+        run: npm publish --provenance --access public
