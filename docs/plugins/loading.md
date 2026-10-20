@@ -286,14 +286,28 @@ its own. A broken view never takes the plugin's services down with it.
 
 Two authoring constraints:
 
-- **The UI bundle must be self-contained.** The renderer has no import map,
-  so bare imports (`react`, `react-dom`, …) inside the UI file cannot
-  resolve — bundle everything the UI needs into the UI file itself. The v1
-  text-only rule applies to UI files exactly as to the headless entry.
+- **The UI bundle must be self-contained, apart from the host modules.**
+  The shell shares its React with plugins through an import map generated
+  from `apps/desktop/renderer/host-modules.manifest.ts`: bare `react`,
+  `react-dom`, `react-dom/client` and the JSX runtimes resolve to the
+  host's copies — the same instance the app runs, which is what makes
+  hooks and context work across the boundary. Everything else the UI
+  needs must be bundled into the UI file itself. The v1 text-only rule
+  applies to UI files exactly as to the headless entry.
 - **Desktop first.** The desktop loader honours `entry.ui.desktop` only.
   `entry.ui.mobile` may be declared today, but it stays inert until mobile
   gains a dynamic loader — it is not a schema problem, and packages written
   now will not need to change when that lands.
+
+CSP coupling: engines apply the app's `script-src` to inline import maps,
+so an unlisted map would be blocked. The desktop build generates the CSP
+and the import map together — the exact serialized map text is hashed
+(SHA-256) and that `'sha256-…'` source is appended to the CSP meta's
+`script-src` in the same `transformIndexHtml` step that injects the map.
+The hash is computed, never hand-written; change the shared-module
+manifest and both the map and its allowlist entry change together. The
+build fails instead of shipping a page where React imports silently
+resolve nowhere.
 
 ---
 

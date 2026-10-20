@@ -7,6 +7,8 @@ import {
   HOST_MODULE_SPECIFIERS,
   buildDevImportMap,
   buildImportMap,
+  importMapScriptText,
+  withImportMapCspHash,
 } from './renderer/host-modules.manifest.ts'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -102,22 +104,33 @@ function bbebeeFileProxy(): Plugin {
  * HTML spec requires; `index.html` deliberately does NOT hand-write one so
  * the map can never drift from the manifest. Generated here, in both modes,
  * by `transformIndexHtml`.
+ *
+ * CSP coupling: engines apply `script-src` to inline import maps, so the
+ * app CSP would block this one. The same transform therefore also adds the
+ * map's exact-text sha256 (`'sha256-…'`) to the CSP meta's `script-src` —
+ * map and allowlist come from the same serialized string in the same step
+ * and cannot drift. `withImportMapCspHash` throws when the meta/directive
+ * is missing: failing the build beats shipping a page whose React imports
+ * silently resolve nowhere.
  */
 function bbebeeImportMap(): Plugin {
   return {
     name: 'bbebee-import-map',
     transformIndexHtml: {
       order: 'pre',
-      handler(_html, ctx) {
+      handler(html, ctx) {
         const map = ctx.server ? buildDevImportMap() : buildImportMap()
-        return [
-          {
-            tag: 'script',
-            attrs: { type: 'importmap' },
-            children: JSON.stringify(map),
-            injectTo: 'head-prepend',
-          },
-        ]
+        return {
+          html: withImportMapCspHash(html, map),
+          tags: [
+            {
+              tag: 'script',
+              attrs: { type: 'importmap' },
+              children: importMapScriptText(map),
+              injectTo: 'head-prepend',
+            },
+          ],
+        }
       },
     },
   }

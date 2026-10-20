@@ -45,6 +45,15 @@ describe('the renderer CSP', () => {
     expect(scripts).not.toContain("'unsafe-inline'")
   })
 
+  it('hand-writes no sha256 source (the import map hash is generated, never pasted)', () => {
+    // vite.config.ts computes the inline import map's 'sha256-…' at
+    // build/serve time and appends it to this policy's served form. A hash
+    // sitting in the source would be a stale copy of a generated value —
+    // and a sign someone widened the source policy by hand.
+    const scripts = policy.get('script-src') ?? []
+    expect(scripts.some((s) => s.startsWith("'sha256-"))).toBe(false)
+  })
+
   it('allows dynamic plugins scheme in script-src for desktop extensions', () => {
     const scripts = policy.get('script-src') ?? []
     expect(scripts.some((s) => s.toLowerCase() === 'bbebee-plugin:')).toBe(true)

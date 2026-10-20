@@ -16,8 +16,11 @@
  *
  * Note: the build script imports this file through Node's type stripping, so
  * keep the syntax erasable (no enums, namespaces, or other runtime-emitting
- * constructs).
+ * constructs). Every importer of this file runs in Node (vite config, build
+ * scripts, tests) — nothing here ships in the renderer bundle, which is why
+ * the CSP helpers below may use `node:crypto`.
  */
+import { createHash } from 'node:crypto'
 
 export interface HostModuleEntry {
   /** Bare specifier as written in source code, e.g. `'react'`. */
@@ -90,7 +93,95 @@ export function buildDevImportMap(): ImportMap {
   return { imports }
 }
 
+/**
+ * The exact text content of the generated import map `<script>` element.
+ * This string — byte for byte — is what ends up between the tags in the
+ * served HTML, what the browser parses as the map, and what the CSP hash
+ * below is computed over. Never re-serialize the map anywhere else.
+ */
+export function importMapScriptText(map: ImportMap): string {
+  return JSON.stringify(map)
+}
+
 /** Renders an import map as a `<script type="importmap">` tag. */
 export function renderImportMapTag(map: ImportMap): string {
-  return `<script type="importmap">${JSON.stringify(map)}</script>`
+  return `<script type="importmap">${importMapScriptText(map)}</script>`
+}
+
+/**
+ * The CSP source token that allowlists this import map's inline script:
+ * `'sha256-<base64>'` over the exact script text.
+ *
+ * Engines apply `script-src` to inline import maps (verified on Chromium
+ * and WebKitGTK): without this token the map is blocked and every bare
+ * specifier in it — the app bundle's own `import 'react'` included —
+ * fails to resolve. The map is generated deterministically from this
+ * manifest, so the hash is stable; it is computed, never hand-written.
+ */
+export function importMapCspHashSource(map: ImportMap): string {
+  const digest = createHash('sha256').update(importMapScriptText(map), 'utf8').digest('base64')
+  return `'sha256-${digest}'`
+}
+
+/**
+ * Adds the import map's hash source to the `script-src` directive of the
+ * CSP `<meta>` in `html`, returning the rewritten document.
+ *
+ * This must fail loud: if the meta or the directive is not found, silently
+ * serving the page anyway would leave the import map CSP-blocked in the
+ * real app — plugins (and the app's own React imports) dead with no build
+ * error to point at. Throwing here fails the build/serve instead.
+ */
+export function withImportMapCspHash(html: string, map: ImportMap): string {
+  const token = importMapCspHashSource(map)
+
+  const metaTagPattern = /<meta\b[^>]*>/g
+  let metaTag: string | undefined
+  let metaIndex = -1
+  for (let m = metaTagPattern.exec(html); m !== null; m = metaTagPattern.exec(html)) {
+    if (/http-equiv\s*=\s*"Content-Security-Policy"/.test(m[0])) {
+      metaTag = m[0]
+      metaIndex = m.index
+      break
+    }
+  }
+  if (metaTag === undefined) {
+    throw new Error(
+      '[host-modules] index.html has no Content-Security-Policy meta; ' +
+        'cannot allowlist the generated import map in script-src',
+    )
+  }
+
+  const contentMatch = /content\s*=\s*"([^"]*)"/.exec(metaTag)
+  if (!contentMatch || contentMatch[1] === undefined) {
+    throw new Error(
+      '[host-modules] the Content-Security-Policy meta has no content attribute; ' +
+        'cannot allowlist the generated import map in script-src',
+    )
+  }
+  const content = contentMatch[1]
+
+  const directives = content.split(';')
+  const scriptSrcIndex = directives.findIndex((d) => /^\s*script-src(\s|$)/.test(d))
+  if (scriptSrcIndex === -1 || directives[scriptSrcIndex] === undefined) {
+    throw new Error(
+      '[host-modules] the Content-Security-Policy has no script-src directive; ' +
+        'cannot allowlist the generated import map',
+    )
+  }
+  if (directives[scriptSrcIndex].includes("'sha256-")) {
+    throw new Error(
+      '[host-modules] script-src already carries a sha256 source; ' +
+        'the import map hash is generated here and must not be duplicated or hand-written',
+    )
+  }
+  directives[scriptSrcIndex] = directives[scriptSrcIndex].replace(/\s+$/, '') + ' ' + token
+  const newContent = directives.join(';')
+
+  // Offset of the content attribute's value within the whole document: the
+  // regex match ends right after the value's closing quote, so the value
+  // starts (match length - value length - 1) into the match.
+  const valueOffset =
+    metaIndex + contentMatch.index + (contentMatch[0].length - content.length - 1)
+  return html.slice(0, valueOffset) + newContent + html.slice(valueOffset + content.length)
 }
