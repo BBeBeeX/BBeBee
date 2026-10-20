@@ -150,4 +150,6 @@ Tags: `L2` = load for the matching task; `L3` = read on demand (large, detailed 
 - [ ] No bootstrap surface imported from `@BBeBee/kernel` above Layer 2.
 - [ ] Every listener, timer, or socket registered via `ctx.effect()` or returned as disposer.
 - [ ] Logs through `ctx.logger`, never `console.log`.
+- [ ] Host-shared modules for plugin UIs change only in `apps/desktop/renderer/host-modules.manifest.ts` (single source of truth); the CSP `sha256-…` entries for the import map are build-generated — never hand-written (guarded by `csp.test.ts` / `host-modules.test.ts`).
+- [ ] External plugin UIs load through `entry.ui` composition in the desktop dynamic loader — never as separate registry entries or separate npm packages.
 - [ ] `docs/` and `rules/` updated when behaviour or contracts changed.

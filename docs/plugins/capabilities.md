@@ -15,11 +15,16 @@
 
 ## 7. Capability model
 
-Plugins declare what they intend to touch and the kernel mediates. With
-[ADR-1 amended](../architecture/overview.md#adr-1--plugins-are-statically-bundled-on-every-target) every
-plugin is first-party, so the gate is now a **discipline that keeps intent auditable** rather than
-a boundary against a stranger's package — and the stranger's code that does exist, a source
-string, is contained by a different and much stronger mechanism
+Plugins declare what they intend to touch and the kernel mediates. Most
+plugins are first-party; since the npm distribution flow
+([loading.md §6.7](./loading.md#67-npm-install-flow-desktop)) third-party
+plugins load on desktop too. The gate is therefore a **discipline that keeps
+intent auditable** — plus a fail-closed grant check at load time — rather than
+a boundary against a stranger's package; for third-party code the control
+points sit at install time (integrity verification, anti-spoofing, the
+pre-install security scan, an explicit user confirmation). The one class of
+stranger's code that is contained by a much stronger mechanism remains the
+source string
 ([sources/runtime.md §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)).
 
 ### Capability grammar
@@ -145,9 +150,11 @@ What `main` enforces regardless, because it does not require knowing who is call
 | Transaction lifecycle | An abandoned transaction is rolled back on renderer teardown and on an idle timeout, so a reload cannot wedge the database |
 
 Closing the per-plugin gap properly requires plugins to stop sharing the renderer's realm — the
-same prerequisite as real sandboxing, below. Nothing outside this repository is loaded as a plugin
-any more, so the gate's per-plugin half is a first-party discipline by design rather than by
-oversight. **It must be resolved before anything third-party is loaded as a plugin**
+same prerequisite as real sandboxing, below. Third-party plugins **are** now loaded as plugins on
+desktop (npm flow, [loading.md §6.7](./loading.md#67-npm-install-flow-desktop)), and they share
+that realm, so this gap applies to them exactly as written: the mitigations in force are the
+main-side limits above, the fail-closed grant gate, and the install-time checks — not containment.
+Real containment of plugin code remains the M5 work
 ([roadmap/roadmap.md §M5](../roadmap/roadmap.md#m5--third-party-extensions-on-the-sandbox)).
 
 ### What this is not
@@ -155,8 +162,10 @@ oversight. **It must be resolved before anything third-party is loaded as a plug
 > ⚠️ **This is defense in depth, not a sandbox.** Plugins execute in the same JS realm as the app.
 > A determined plugin can reach globals, patch prototypes, and generally do anything the renderer
 > can do. The capability model raises the cost of *accidental* overreach and makes intent auditable
-> and revocable — it does not contain a hostile plugin. It is not asked to: every plugin is
-> first-party and ships in the build.
+> and revocable — it does not contain a hostile plugin. It is not asked to, even now that
+> third-party plugins ship separately through npm: they run in this same realm, which is why the
+> install-time gates (integrity, anti-spoofing, security scan, explicit confirmation) carry the
+> weight for third-party code.
 
 Real containment needs an isolated realm. **One now exists** — `ctx.js`, a QuickJS realm with an
 enumerable host API, built because imported music sources are untrusted code and had to be

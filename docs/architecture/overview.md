@@ -147,6 +147,9 @@ own reasons.
 > marketplace on both" remains rejected for mobile: mobile still bundles
 > statically. Desktop third-party plugins still pass the capability gate and the
 > pre-install security scan; extensibility-by-source-strings (ADR-5) is unchanged.
+> A plugin may also bundle its views in the same npm package (`entry.ui`,
+> [loading.md §6.9](../plugins/loading.md#69-bundled-ui-views-in-the-same-npm-package));
+> how those views share the host's React is [ADR-7](#adr-7--desktop-plugin-uis-share-the-hosts-react-through-an-import-map).
 
 ### ADR-2 — The UI is split: React Native on mobile, React DOM on desktop
 
@@ -287,6 +290,77 @@ values (`webaudio`, `wasapi`) resolve to mpv. `plugin-visualizer` keeps its `Web
 the fallback when the native PCM tap is unavailable.
 
 **Supersedes [ADR-4](#adr-4--react-native-audio-api-is-the-primary-playback-and-dsp-engine-on-every-target).**
+
+### ADR-7 — Desktop plugin UIs share the host's React through an import map
+
+> **Date.** 2026-10-20.
+
+**Decision.** Plugin UIs render inside the host React tree, so they must use
+the host's React instance — a second copy of React in the page breaks
+hooks/context. The desktop shell therefore shares a small set of modules with
+dynamically loaded plugins:
+
+- **Shared list (v1):** `react`, `react-dom`, `react-dom/client`,
+  `react/jsx-runtime`, `react/jsx-dev-runtime`. Nothing else is shared:
+  authors bundle everything else (first-party UI bundles include the internal
+  `@BBeBee/ui-*` kits with only the React imports externalised; third parties
+  style against the host's CSS custom properties).
+- **Single source of truth:** `apps/desktop/renderer/host-modules.manifest.ts`.
+  The vite config, the import map generator, the esbuild host-chunk build
+  (`scripts/build-host-modules.js`, emitting `dist/host/*.js` after `vite build`)
+  and the consistency tests all derive from it; the list is never hand-written
+  anywhere else, and `HOST_REACT_VERSION` is locked to the app's react
+  dependency by test.
+- **One instance, enforced:** the app bundle itself externalises the same list,
+  so `import 'react'` in the app and in a plugin resolve through the same
+  import map to the same URL. The react-dom chunks are produced in one build
+  graph so they cannot carry a duplicate React internally; post-build
+  assertions check export completeness and chunk sharing.
+- **CSP coupling:** engines apply `script-src` to inline import maps, so an
+  unlisted map is blocked. The desktop build generates the CSP and the import
+  map together — the exact serialized map text is hashed (SHA-256) and the
+  `'sha256-…'` source is appended to the CSP meta's `script-src` in the same
+  `transformIndexHtml` step that injects the map (prod and dev maps each get
+  their own hash). The hash is computed, never hand-written; a missing CSP
+  meta or `script-src` fails the build instead of shipping a page where React
+  imports silently resolve nowhere.
+
+**Why now.** Bundled UIs ([loading.md §6.9](../plugins/loading.md#69-bundled-ui-views-in-the-same-npm-package))
+made this unavoidable: the first npm-shipped UI either shares the host's
+React or ships a broken second one. The desktop build already controlled the
+whole renderer surface (CSP, `index.html`), so host-module sharing was a
+build-time change with a runtime that already had failure isolation.
+
+**Engine evidence.** Verified in-VM against the real built `dist`:
+WebKitGTK 2.52.6 and Chromium 152 *both* block an inline import map under the
+app's strict CSP (`'react'` fails to resolve), and *both* pass the full chain
+with the hash allowlist — React loads, dynamic and static `import 'react'`
+return the same instance, and a `useState` counter renders and updates on
+click.
+
+**Rejected — author-side URL externals.** Rewriting `'react'` to a
+`bbebee-plugin://host/…` URL in each plugin's bundler would avoid the CSP
+question entirely, but it pushes the contract onto every author's build
+config (dynamic `import('react')` escapes it, hand-rolled bundles break, and
+the protocol handler needs a new host route). The import map keeps the author
+contract to "mark react external, bundle the rest" — one line in every
+bundler — and stays in the web standard lane. It remains the documented
+fallback if an engine ever rejects hash-allowlisted import maps.
+
+**Rejected — sharing `cordis`, `@BBeBee/protocol`, or the UI kits.**
+`cordis` is bundled by the author (the proven pattern of the old
+single-file bundles); protocol is types and pure functions with no
+singleton risk; the internal UI kits stay internal (bundled at publish time
+for first-party packages) so they can evolve without a compatibility
+promise.
+
+**Consequences.** A plugin UI that fails to import or to register only
+warns — the composite loader's failure isolation runs the headless plugin
+on its own, so degradation is "no UI", never "no plugin". Authors must
+declare `react`/`react-dom` as `peerDependencies` and keep them external;
+two copies of React in one page remain an install-time hazard the author
+guide calls out. Scope is desktop-only: mobile has no dynamic loader, so
+`entry.ui.mobile` stays inert there and this decision does not touch it.
 
 ## 4. Glossary
 

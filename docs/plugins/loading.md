@@ -63,7 +63,7 @@ Desktop implements runtime dynamic loading for external third-party plugins whil
 
 2. **Webview Shim & Bridge (`apps/desktop/src-tauri/src/shim.js` & `renderer/preload-shim.ts`)**:
    Exposes `window.BBeBee.plugins` with:
-   - `listInstalled(): Promise<Array<{ id: string, version: string, manifest: unknown, dirName: string }>>`
+   - `listInstalled(): Promise<Array<{ id: string, version: string, manifest: unknown, dirName: string, sha256?: string }>>`
    - `install(pluginId: string, files: Record<string, string>): Promise<void>`
    - `uninstall(pluginId: string): Promise<void>`
 
@@ -186,8 +186,11 @@ from npm. The two phases are deliberately separate:
    `resolveInstallPlan` returns the plan **without downloading anything**, so
    the UI can show the exact version, the dependency closure, and any missing
    services for confirmation.
-3. **Install (download → verify → activate).** The tarball is fetched via
-   `ctx.http` (`bytes()`), its sha512 `dist.integrity` verified, unpacked with
+3. **Install (download → verify → activate).** The tarball is downloaded via
+   `ctx.http` as a stream (buffered `bytes()` fallback where a host has no
+   stream), with the size cap enforced against the running total so an
+   oversized download aborts mid-flight rather than after buffering; its
+   sha512 `dist.integrity` is verified, the bytes unpacked with
    a pure-JS gunzip+untar (no `node:*` in L4), and checked three ways: the
    selected version must equal `package.json#version` and
    `BBeBee.plugin.json#version`; `package.json#name` must equal the entry's
@@ -195,8 +198,13 @@ from npm. The two phases are deliberately separate:
    a built-in plugin id (anti-spoofing). Text files are passed as UTF-8
    strings; non-UTF-8 entries are refused in v1. Then the existing security
    scan runs (`block` level refuses), files are written through the desktop
-   bridge (`installAndActivatePlugin`), and the lock record
-   `{ id, npm, version, sha256, installedAt }` is persisted.
+   bridge (`installAndActivatePlugin`), and the install record
+   `{ id, npm, version, sha256, entrySha256, installedAt }` is persisted per
+   node as each one lands, so the store never claims a plugin whose files are
+   not on disk (or vice versa). `sha256` is the whole-tarball digest;
+   `entrySha256` is the SHA-256 of the entry main file, which boot merges
+   into the dynamic loader's lock map — the tamper check hashes the on-disk
+   entry file, and the two digests cover different bytes.
 
 **Pre-install checklist** (any failure refuses the install with a readable
 reason): required `services` ⊆ (platform core services ∪ installed plugins'
@@ -210,9 +218,13 @@ size limit and download timeout.
 runs automatically once ~24h after boot plus on user request). `updatePlugin`
 installs the newest version satisfying `^<installed>` and keeps the enabled
 state; a major-version bump without an explicit range throws
-`MAJOR_UPDATE_NEEDS_CONFIRM` so the UI asks first. Updates back up the old
-directory first — if activation of the new version fails, the old one is
-restored and the lock record is left untouched (rollback). `uninstall` refuses
+`MAJOR_UPDATE_NEEDS_CONFIRM` so the UI asks first. Before an update overwrites
+anything, rollback material is staged for **every** already-installed node in
+the closure by re-downloading its old tarball; if activation of the new
+version fails partway, the replaced nodes are rolled back in reverse order
+(files, manifests and their install records restored together). A node whose
+old tarball can no longer be staged stays at the new version, with a loud
+warning rather than a silent half-state. `uninstall` refuses
 when other installed plugins depend on the target and names them; user data
 (store namespaces, tables) is always kept.
 
@@ -292,7 +304,10 @@ Two authoring constraints:
   `react-dom`, `react-dom/client` and the JSX runtimes resolve to the
   host's copies — the same instance the app runs, which is what makes
   hooks and context work across the boundary. Everything else the UI
-  needs must be bundled into the UI file itself. The v1 text-only rule
+  needs must be bundled into the UI file itself. Declare the shared
+  modules as `peerDependencies` in the package (e.g. `"react": "^19.0.0"`)
+  and keep them external in your bundler — a bundled second React is the
+  one failure mode the loader cannot detect for you. The v1 text-only rule
   applies to UI files exactly as to the headless entry.
 - **Desktop first.** The desktop loader honours `entry.ui.desktop` only.
   `entry.ui.mobile` may be declared today, but it stays inert until mobile
