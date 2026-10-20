@@ -174,6 +174,16 @@ class QuickJsRealm implements JsRealm {
   onJobError: ((error: Error) => void) | undefined
   /** Set by `pump` when a queued job was interrupted. */
   private interrupted = false
+  /** Set while `dispose()` runs, so a re-entrant call cannot interleave two teardowns. */
+  private tearingDown = false
+  /**
+   * Result handles of evals whose settle is still in flight. `run` owns
+   * them and releases them from its own `finally`, but a teardown that
+   * lands mid-settle makes that `finally` skip the release — so `dispose`
+   * sweeps whatever is still here. Always tracked, tracing or not: this
+   * set is part of the fix, not of the diagnostics.
+   */
+  private readonly inFlightResults = new Set<QuickJSHandle>()
   /** Where a handle-tracing leak report goes. Set by the service when tracing. */
   onLeakReport: ((text: string) => void) | undefined
   /**
@@ -227,6 +237,17 @@ class QuickJsRealm implements JsRealm {
   private untrack(handle: object): void {
     if (!this.trace) return
     this.tracked?.delete(handle)
+  }
+
+  /** Release the handle a promise-state read carries, if it carries one. */
+  private releaseState(state: JSPromiseState): void {
+    if (state.type === 'fulfilled' && !state.notAPromise) {
+      this.untrack(state.value)
+      state.value.dispose()
+    } else if (state.type === 'rejected') {
+      this.untrack(state.error)
+      state.error.dispose()
+    }
   }
 
   /** Register the handle a promise-state read carries, if it carries one. */
@@ -389,27 +410,87 @@ class QuickJsRealm implements JsRealm {
     // teardown *and* an explicit call, and the second must not throw.
     const vm = this.vm
     if (!vm) return
-    this.vm = undefined
+    // A re-entrant call — a host function disposing its own realm from
+    // inside a job the unwind below is pumping — must not interleave two
+    // teardowns. The outer call is already doing the whole job.
+    if (this.tearingDown) return
+    this.tearingDown = true
     this.poison ??= 'disposed'
     this.disposers.clear()
 
     /*
-     * ⚠️ Reject the in-flight bridges before tearing the context down.
+     * ⚠️ Unwind the in-flight bridges BEFORE the context is marked gone —
+     * the order is the fix, not a detail.
      *
-     * Clearing them silently left an `eval` parked on a host call to fail with
-     * whatever the engine happened to throw next — in practice a raw
-     * `QuickJSUseAfterFree`, which is an internal name for a situation the
-     * contract already has a word for. The caller asked for a realm and the
-     * realm went away; that is `JsRealmDisposedError`.
+     * Rejecting them matters for the reason the older comment here gave:
+     * an `eval` parked on a host call should fail as `JsRealmDisposedError`,
+     * not as whatever the engine throws next. But `abandon` refuses to run
+     * once `this.vm` is cleared — that guard is what stops a *late* host
+     * settle from touching a dead deferred — and this method used to clear
+     * `this.vm` first, which made every reject below a silent no-op. The
+     * deferreds were never settled, so the binding never freed their
+     * resolver handles, and the parked frames never unwound. Those handles
+     * are precisely what `JS_FreeRuntime` asserts about
+     * (`list_empty(&rt->gc_obj_list)`): disposing a realm that a script was
+     * still parked inside aborted the WASM instance and took the process
+     * hosting it down with it.
+     *
+     * So reject while the context is still this realm's live one, then
+     * pump — the same choreography `poisonWith` uses. The rejection lands,
+     * the frame unwinds, the resolvers are freed. Rounds, because a
+     * continuation woken by one rejection can park on a fresh bridge that
+     * the next round must reject in turn; bounded, with the unwind
+     * deadline armed, so a script `finally` that loops cannot hold
+     * teardown hostage.
      */
-    for (const reject of [...this.pending]) {
+    if (this.pending.size > 0) {
+      const armed = this.deadline
+      this.deadline = Date.now() + UNWIND_MS
       try {
-        reject()
-      } catch {
-        // Past saving; the teardown below is what matters.
+        for (let round = 0; round < 8 && this.pending.size > 0; round++) {
+          for (const reject of [...this.pending]) {
+            try {
+              reject()
+            } catch {
+              // Past saving; the teardown below is what matters.
+            }
+          }
+          this.pending.clear()
+          try {
+            const jobs = vm.runtime.executePendingJobs()
+            if (jobs.error) jobs.error.dispose()
+          } catch {
+            // As above.
+          }
+        }
+      } finally {
+        this.deadline = armed
       }
     }
-    this.pending.clear()
+
+    this.vm = undefined
+
+    /*
+     * Release the results of evals whose settle is still parked host-side.
+     *
+     * Their frames unwound above, but the result handle is a host
+     * reference `run` owns, released from its own `finally` — which skips
+     * the release once the realm is marked gone (correctly: freeing into
+     * a dead context is worse). Here the context is alive for one more
+     * moment and the reference is this realm's to drop. Left held, it
+     * alone trips the assertion.
+     */
+    for (const handle of this.inFlightResults) {
+      if (handle.alive) {
+        try {
+          handle.dispose()
+        } catch {
+          // Best effort; the teardown below proceeds either way.
+        }
+      }
+      this.untrack(handle)
+    }
+    this.inFlightResults.clear()
 
     // Tracing only: name what is about to reach JS_FreeRuntime still held.
     this.reportLeaks()
@@ -509,9 +590,13 @@ class QuickJsRealm implements JsRealm {
       // Registered for the ledger: this handle is alive across the whole
       // settle, which is exactly the span a teardown can land inside.
       this.track('eval-result', result.value)
+      // And held for the teardown sweep in `dispose`, which releases it
+      // if this settle is still parked when the realm goes away.
+      this.inFlightResults.add(result.value)
       try {
         return await this.settle(vm, result.value, budget)
       } finally {
+        this.inFlightResults.delete(result.value)
         // ⚠️ Only if the context still exists. A limit breach tears the realm
         // down from inside `settle`, and freeing a handle afterwards throws
         // `Lifetime not alive` — which would replace the `JsTimeoutError` the
@@ -551,9 +636,23 @@ class QuickJsRealm implements JsRealm {
     if (initial.type === 'fulfilled' && initial.notAPromise) {
       return this.bounded(vm.dump(handle) as unknown)
     }
+    /*
+     * ⚠️ This look may already hold the settled value — and the handle it
+     * carries is a fresh reference this call owns (`getPromiseState` dups
+     * the result). Dropping it leaked one handle per promise-valued eval:
+     * the result object of every async rule, held until the realm's
+     * dispose carried it into `JS_FreeRuntime`'s assertion. The
+     * authoritative read below takes its own handle; release this one.
+     * (`pending` carries no handle, so this is a no-op there.)
+     */
+    this.releaseState(initial)
 
     if (initial.type === 'pending') {
       for (;;) {
+        // The realm can be disposed while this loop is parked on its
+        // sleep. Fail as the contract's word for that, rather than
+        // letting the next engine call throw an internal name.
+        if (this.vm !== vm) throw new JsRealmDisposedError(this.poison ?? 'disposed')
         this.pump(vm)
         if (this.interrupted) {
           await this.poisonWith('timeout')
@@ -561,7 +660,14 @@ class QuickJsRealm implements JsRealm {
         }
         const check = vm.getPromiseState(handle)
         this.trackState(check)
-        if (check.type !== 'pending') break
+        if (check.type !== 'pending') {
+          // The transitioning look owns a fresh reference too — the same
+          // leak as the first look, on the ordinary parked-then-settled
+          // path every awaited host call takes. The read after the loop
+          // takes its own; release this one.
+          this.releaseState(check)
+          break
+        }
         if (Date.now() > budget) {
           await this.poisonWith('timeout')
           throw new JsTimeoutError(this.limits.budgetMs)
@@ -676,7 +782,10 @@ class QuickJsRealm implements JsRealm {
       // loops cannot hold the teardown open.
       this.deadline = Date.now() + UNWIND_MS
       try {
-        vm.runtime.executePendingJobs()
+        // The result's error branch is a handle like any other: an unwind
+        // pump that itself faults leaks it if the result is dropped here.
+        const jobs = vm.runtime.executePendingJobs()
+        if (jobs.error) jobs.error.dispose()
       } catch {
         // Expected where the frames are already unrecoverable.
       }
