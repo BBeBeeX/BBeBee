@@ -207,20 +207,26 @@ from npm. The two phases are deliberately separate:
    entry file, and the two digests cover different bytes.
 
 **Pre-install checklist** (any failure refuses the install with a readable
-reason): required `services` ⊆ (platform core services ∪ installed plugins'
-`contributes.services` ∪ the to-be-installed closure's services); resolvable
+reason): required `services` ⊆ (services contributed by *enabled* known
+plugins — the built-in set, the shell's own declaration and installed
+plugins — ∪ the to-be-installed closure's services); resolvable
 dependency closure; `minAppVersion`/`engines.BBeBee` compatible with the app;
 `platforms` contains the current platform and agrees with the in-package
 manifest; security scan passes; anti-spoofing checks pass; tarball within the
 size limit and download timeout.
 
 "Unavailable" is judged against **registered manifests** — the built-in
-`BBeBee.plugin.json` set plus installed plugins. A service the shell
-provides only at runtime, without any manifest contributing it, counts as
-unavailable: today `ui` is in that position (the desktop UI kit puts it on
-`ctx`, but no registered manifest contributes it), so an entry that lists
-`ui` in `services` is refused everywhere until some manifest contributes
-it. Authors: see §6.8 item 3.
+`BBeBee.plugin.json` set, the shell's declaration (`SHELL_MANIFEST`, for
+any service the composition root wires directly) and installed plugins —
+counting only **enabled** providers: when the only provider of a service
+has been disabled, the service is unavailable and the install is refused,
+naming it, until the provider is enabled again. `ui`, for example, is
+available on desktop because `@BBeBee/plugin-ui` contributes it
+(`contributes.services: ["ui"]`) and ships in the built-in set. A service
+registered at runtime but declared in no manifest would still be
+invisible to this check; the manifest-completeness gate
+(`manifest-standards.test.ts`) makes that drift fail in CI before an
+author can trip over it. Authors: see §6.8 item 3.
 
 **Version management.** `checkUpdates()` re-fetches packuments (short TTL; also
 runs automatically once ~24h after boot plus on user request). `updatePlugin`
@@ -269,16 +275,16 @@ overridable in Settings → Network → *Download & GitHub acceleration*:
    `BBeBee.plugin.json#version`; the installer refuses on mismatch. The
    registry entry carries no version at all.
 3. The registry entry's `services` array must honestly list every cordis
-   service key the plugin `inject`s — the installer blocks the install when a
-   listed service is unavailable, and a false declaration either blocks
-   legitimate users or misleads them. Only list services that some
-   **registered manifest contributes** (`contributes.services` of a built-in
-   or an installed plugin): availability is judged against manifests, not
-   against what a shell happens to place on `ctx` at runtime. `ui` is the
-   standing example — present on the desktop `ctx`, contributed by no
-   manifest — so do not list it (the visualizer's UI reaches `ctx.ui`
-   through its own `inject` at activation time; the entry's `services`
-   names the headless side's requirements).
+   service key the plugin `inject`s — headless and UI sides alike (the
+   visualizer's entry lists `ui` because its views register through
+   `ctx.ui`, which `@BBeBee/plugin-ui` contributes). The installer blocks
+   the install when a listed service is unavailable, and a false
+   declaration either blocks legitimate users or misleads them.
+   Availability is judged against registered manifests — the built-in
+   set, the shell's declaration and installed plugins — counting only
+   **enabled** providers, so a service whose only provider the user has
+   disabled refuses the install (naming the service) until that provider
+   is enabled again.
 4. Declare `platforms` accurately (`["desktop"]`, `["mobile"]`, or both).
 5. v1 packages must be text-only (JS/JSON/CSS); binary assets are refused.
    Keep tarballs small (the client enforces a size cap).

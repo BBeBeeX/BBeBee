@@ -73,28 +73,13 @@ export const TARGETS = {
       'packages/core/core-audio-mpv/BBeBee.plugin.json',
       'packages/feature/plugin-settings/BBeBee.plugin.json',
       'packages/feature/plugin-player/BBeBee.plugin.json',
-    ],
-    syntheticManifests: [
-      {
-        // The shell's `ui` service: ui-kit-desktop provides it at
-        // runtime but ships no standard manifest file, so the
-        // composition mirrors the runtime truth with a synthetic one.
-        id: '@BBeBee/ui-kit-desktop',
-        name: '@BBeBee/ui-kit-desktop',
-        displayName: 'UI Kit (Desktop)',
-        description: 'Shell UI service (synthetic manifest for the pilot composition).',
-        version: '0.0.0',
-        author: 'BBeBee Team',
-        engines: { BBeBee: '^0.1.0' },
-        enabled: true,
-        dependencies: [],
-        systemId: 'layer-5',
-        moduleId: 'ui',
-        entry: { main: './dist/index.js' },
-        capabilities: [],
-        contributes: { services: ['ui'] },
-        effect: 'ui',
-      },
+      // `ui` is contributed by the real @BBeBee/plugin-ui manifest
+      // (contributes.services: ['ui']) — no synthetic stand-in. An
+      // earlier round of this pilot synthesized a fake ui-kit manifest
+      // on the mistaken premise that the shell provides `ui` without
+      // one; the registry entry below lists `ui` in `services`, and it
+      // is this real manifest that makes it available.
+      'packages/feature/plugin-ui/BBeBee.plugin.json',
     ],
     edgeServices: {
       audio: { activeEngineName: 'webaudio' },
