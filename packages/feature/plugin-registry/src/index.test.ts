@@ -557,7 +557,7 @@ describe('updates', () => {
       index: { entries: [entryOf({ id: 'reg-theme', kind: 'theme', name: 'Registry Theme', version: '2.0.0' })] },
       themes: [makePassingTheme('reg-theme', '1.0.0')],
     })
-    const http = (plugin as unknown as { http: HttpService }).http
+    const http = (plugin as unknown as { own: { http: HttpService } }).own.http
     const getSpy = vi.fn(http.get.bind(http))
     http.get = getSpy as HttpService['get']
 

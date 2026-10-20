@@ -224,17 +224,39 @@ export class RegistryPlugin extends Service implements RegistryService {
   static readonly inject = ['http']
 
   private readonly ownCtx: Context
-  private readonly http: HttpService
   private readonly githubFetch: GitHubFetchLayer
   private readonly config: RegistryConfig
 
+  /**
+   * This service's OWN handles to the collaborators its internal
+   * network/store work runs on — held in a PLAIN object, deliberately
+   * (the same discipline as plugin-manager's `own` holder). A service
+   * handle is a Cordis traceable proxy bound to the context it was
+   * obtained through, and any tracker-carrying value that crosses a
+   * traceable boundary — read as a field through another service's
+   * proxy, or returned from a method invoked through one — is
+   * re-wrapped against the ACCESSING context. The capability gate
+   * resolves its config from exactly that context, so a direct field
+   * holding `http` was silently re-bound to whoever invoked the
+   * method: a market-UI-initiated task ran this service's fetches
+   * under the UI package's empty grants. A plain object has no
+   * tracker and passes through every proxy untouched, so the handles
+   * inside keep their capture-time binding. `store` is here for the
+   * same reason: the store implementations namespace by the caller's
+   * scope, so a re-bound handle would split this service's prefs /
+   * index cache / audit records across callers' namespaces.
+   */
+  private readonly own: {
+    http?: HttpService
+    store?: StoreService
+    manager?: PluginManagerService
+  } = {}
+
   /* ── optional collaborators, captured in init ── */
-  private storeService?: StoreService
   private settingsService?: SettingsService
   private sourcesService?: SourcesService
   private lyricSourcesService?: LyricSourcesService
   private themeService?: ThemeService
-  private pluginManagerService?: PluginManagerService
   private securityAuditService?: SecurityAuditService
   private fsService?: FsService
   private pathsService?: PathsService
@@ -276,7 +298,7 @@ export class RegistryPlugin extends Service implements RegistryService {
     super(ctx, 'contentRegistry')
     this.ownCtx = ctx
     this.config = config
-    this.http = ctx.http
+    this.own.http = ctx.http
     this.githubFetch = createGitHubFetch({
       http: ctx.http,
       logger: ctx.logger,
@@ -291,7 +313,7 @@ export class RegistryPlugin extends Service implements RegistryService {
     this.ownCtx.logger.info('plugin-registry: initialized')
 
     this.ownCtx.inject(['store'], (scoped) => {
-      this.storeService = scoped.store
+      this.own.store = scoped.store
       this.updateLockManager()
       void scoped.store
         .get<RegistryPrefs>(PREFS_KEY)
@@ -329,7 +351,7 @@ export class RegistryPlugin extends Service implements RegistryService {
     })
 
     this.ownCtx.inject(['plugin-manager'], (scoped) => {
-      this.pluginManagerService = scoped['plugin-manager']
+      this.own.manager = scoped['plugin-manager']
     })
 
     this.ownCtx.inject(['ui'], (scoped) => {
@@ -362,7 +384,7 @@ export class RegistryPlugin extends Service implements RegistryService {
     this.lockManager = new RegistryLockManager({
       fs: this.fsService,
       paths: this.pathsService,
-      store: this.storeService,
+      store: this.own.store,
     })
   }
 
@@ -390,7 +412,7 @@ export class RegistryPlugin extends Service implements RegistryService {
       // 1. Direct index check: if endpoint directly returns an index with entries (e.g. test mock or mirror)
       let directRaw: unknown
       try {
-        directRaw = await this.http.get<unknown>(endpoint)
+        directRaw = await this.own.http?.get<unknown>(endpoint)
       } catch {
         // endpoint may be a base contents directory url that only responds to subpaths
       }
@@ -561,7 +583,7 @@ export class RegistryPlugin extends Service implements RegistryService {
       id: theme.id,
       version: typeof theme.version === 'string' ? theme.version : undefined,
     }))
-    const installedPlugins = (this.pluginManagerService?.list() ?? []).map((info) => ({
+    const installedPlugins = (this.own.manager?.list() ?? []).map((info) => ({
       id: info.id,
       version: typeof info.version === 'string' ? info.version : undefined,
       dependencies: info.dependencies,
@@ -671,7 +693,7 @@ export class RegistryPlugin extends Service implements RegistryService {
   /** Read a persisted diagnostics map, tolerating a missing store or garbage. */
   private async readStoreMap<T extends Record<string, unknown>>(key: string): Promise<T> {
     try {
-      const value = await this.storeService?.get<T>(key)
+      const value = await this.own.store?.get<T>(key)
       if (value && typeof value === 'object' && !Array.isArray(value)) return value
     } catch (err) {
       this.ownCtx.logger.warn(`[registry-diagnostics] failed to read "${key}" from the store: ${String(err)}`)
@@ -685,7 +707,7 @@ export class RegistryPlugin extends Service implements RegistryService {
    * stops showing up as a risk after a rescan.
    */
   private async recordAuditFindings(entryId: string, audit: SecurityAuditReport | undefined): Promise<void> {
-    if (!this.storeService || !audit) return
+    if (!this.own.store || !audit) return
     try {
       const map = await this.readStoreMap<RegistryAuditFindingsMap>(AUDIT_FINDINGS_KEY)
       if (audit.level === 'pass' || audit.findings.length === 0) {
@@ -693,7 +715,7 @@ export class RegistryPlugin extends Service implements RegistryService {
       } else {
         map[entryId] = { level: audit.level === 'block' ? 'block' : 'warn', findings: [...audit.findings], checkedAt: Date.now() }
       }
-      await this.storeService.set<RegistryAuditFindingsMap>(AUDIT_FINDINGS_KEY, map)
+      await this.own.store.set<RegistryAuditFindingsMap>(AUDIT_FINDINGS_KEY, map)
     } catch (err) {
       this.ownCtx.logger.warn(`[registry-diagnostics] failed to persist audit findings for "${entryId}": ${String(err)}`)
     }
@@ -759,9 +781,9 @@ export class RegistryPlugin extends Service implements RegistryService {
     // no `version` on plugin entries) — delegate to the plugin-manager and
     // map its result onto the shared update shape. Names come from the index
     // when the entry is still published there.
-    if (this.pluginManagerService?.checkUpdates) {
+    if (this.own.manager?.checkUpdates) {
       const entryById = new Map(index.entries.map((entry) => [entry.id, entry]))
-      for (const info of await this.pluginManagerService.checkUpdates()) {
+      for (const info of await this.own.manager.checkUpdates()) {
         updates.push({
           kind: 'plugin',
           id: info.id,
@@ -1235,7 +1257,7 @@ export class RegistryPlugin extends Service implements RegistryService {
   }
 
   private requirePluginManager(): PluginManagerService {
-    const manager = this.pluginManagerService
+    const manager = this.own.manager
     if (!manager?.installPlugin) {
       throw new Error(
         'registry: plugin installation is handled by the plugin-manager service, which is not available here — install plugins from Settings → Plugin Market instead',
@@ -1297,7 +1319,7 @@ export class RegistryPlugin extends Service implements RegistryService {
 
   private async resolveEndpoint(): Promise<{ endpoint: string; overridden: boolean }> {
     try {
-      const prefs = await this.storeService?.get<RegistryPrefs>(PREFS_KEY)
+      const prefs = await this.own.store?.get<RegistryPrefs>(PREFS_KEY)
       const endpoint = prefs?.endpoint
       if (typeof endpoint === 'string' && endpoint.trim()) {
         return { endpoint, overridden: true }
@@ -1310,7 +1332,7 @@ export class RegistryPlugin extends Service implements RegistryService {
 
   private async readIndexCache(): Promise<RegistryIndex | undefined> {
     try {
-      const cached = await this.storeService?.get<IndexCache>(INDEX_CACHE_KEY)
+      const cached = await this.own.store?.get<IndexCache>(INDEX_CACHE_KEY)
       if (cached && typeof cached.fetchedAt === 'number' && hasIndexShape(cached.index)) {
         return cached.index
       }
@@ -1323,7 +1345,7 @@ export class RegistryPlugin extends Service implements RegistryService {
   /** The full cache record — fetchedAt and sanitizer anomalies included. */
   private async readIndexCacheRecord(): Promise<IndexCache | undefined> {
     try {
-      const cached = await this.storeService?.get<IndexCache>(INDEX_CACHE_KEY)
+      const cached = await this.own.store?.get<IndexCache>(INDEX_CACHE_KEY)
       if (cached && typeof cached.fetchedAt === 'number' && hasIndexShape(cached.index)) {
         return cached
       }
@@ -1335,7 +1357,7 @@ export class RegistryPlugin extends Service implements RegistryService {
 
   private async writeIndexCache(index: RegistryIndex, anomalies?: RegistryIndexAnomalies): Promise<void> {
     try {
-      await this.storeService?.set<IndexCache>(INDEX_CACHE_KEY, {
+      await this.own.store?.set<IndexCache>(INDEX_CACHE_KEY, {
         fetchedAt: Date.now(),
         index,
         ...(anomalies && (anomalies.dropped > 0 || anomalies.duplicateIds.length > 0) ? { anomalies } : {}),
@@ -1356,10 +1378,10 @@ export class RegistryPlugin extends Service implements RegistryService {
 
   private async touchLastCheckAt(): Promise<void> {
     this.lastCheckAt = Date.now()
-    if (!this.storeService) return
+    if (!this.own.store) return
     try {
-      const prefs = (await this.storeService.get<RegistryPrefs>(PREFS_KEY)) ?? {}
-      await this.storeService.set<RegistryPrefs>(PREFS_KEY, { ...prefs, lastCheckAt: this.lastCheckAt })
+      const prefs = (await this.own.store.get<RegistryPrefs>(PREFS_KEY)) ?? {}
+      await this.own.store.set<RegistryPrefs>(PREFS_KEY, { ...prefs, lastCheckAt: this.lastCheckAt })
     } catch (err) {
       this.ownCtx.logger.warn(`registry: failed to record the last check time: ${String(err)}`)
     }
