@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { Context } from 'cordis'
+import { Context, symbols } from 'cordis'
 import { gzipSync } from 'fflate'
 import { base64Encode, sha256Hex, sha512, type DbService, type RegistryPluginEntry } from '@BBeBee/protocol'
 import { PluginManagerPlugin } from './index.js'
@@ -2265,5 +2265,176 @@ describe('NpmClient.downloadPackage streaming (Fix E)', () => {
     // Here we assert the stream path is taken at all for downloads.
     const out = await clientWith(http).downloadPackage(pkg)
     expect(out.byteLength).toBe(64 * 1000)
+  })
+})
+
+/**
+ * Regression: service methods invoked from a FOREIGN Cordis scope.
+ *
+ * In the real shell, `http`/`settings`/`secrets`/`device` are provided
+ * by sibling core plugins — they live in those fibers' stores, not on
+ * the root and not in this plugin's ancestor chain. The settings page
+ * calls the manager's methods from its own fiber (which injects
+ * `plugin-manager`, never `http`), and the automatic update check calls
+ * them from a bare timer (no fiber at all). A call-time `this.ctx.http`
+ * read is judged against the *caller's* inject scope and throws
+ * `cannot get property "http" without inject` — which is exactly what
+ * the field logs showed (automatic update check failed; the market's
+ * Discover list rendered empty because browseRegistry threw).
+ *
+ * The older suites never saw it: they assign the collaborators
+ * directly onto the same root context the service was constructed
+ * with, where the read is an own-property hit. This world instead
+ * mirrors the shell: collaborators are provided by a sibling plugin
+ * fiber, and the manager is loaded as a real plugin, so the ONLY way
+ * its methods can reach `http` is the init-time own-scope capture.
+ */
+describe('foreign-scope callers (inject scope regression)', () => {
+  async function createScopedWorld() {
+    const ctx = new Context()
+    const storeData = new Map<string, unknown>()
+    const storeMock = {
+      get: vi.fn(async (key: string) => storeData.get(key)),
+      set: vi.fn(async (key: string, val: unknown) => {
+        storeData.set(key, val)
+      }),
+      delete: vi.fn(async (key: string) => {
+        storeData.delete(key)
+      }),
+      keys: vi.fn(async () => Array.from(storeData.keys())),
+      namespace: vi.fn(() => storeMock),
+    }
+    const inspectorMock = { snapshot: vi.fn(() => ({ root: undefined })) }
+    ctx.provide('store', storeMock as never)
+    ctx.provide('inspector', inspectorMock as never)
+
+    const entry = entryFor({ id: 'a-x', npm: '@t/a' })
+    const routes = new Map<string, { status: number; json?: () => Promise<unknown> }>()
+    routes.set(INDEX_URL, { status: 200, json: async () => ({ entries: [entry], blocked: [] }) })
+    const httpMock = vi.fn(async (req: { url: string }) => {
+      const route = routes.get(req.url)
+      if (!route) return { status: 404, json: async () => ({}), bytes: async () => new Uint8Array(0), headers: {} }
+      return {
+        status: route.status,
+        json: route.json ?? (async () => ({})),
+        bytes: async () => new Uint8Array(0),
+        headers: {},
+      }
+    })
+    const settingsData: Record<string, unknown> = { downloadRegion: 'global' }
+    const secretsData = new Map<string, string>()
+    const secretsMock = {
+      get: vi.fn(async (k: string) => secretsData.get(k)),
+      set: vi.fn(async (k: string, v: string) => void secretsData.set(k, v)),
+      delete: vi.fn(async (k: string) => void secretsData.delete(k)),
+    }
+
+    // The shell's shape: core collaborators provided by a sibling
+    // plugin fiber — present in the app, unreachable from unrelated
+    // scopes, and NOT own properties of any context the manager holds.
+    await ctx.plugin((c) => {
+      c.provide('http', httpMock as never)
+      c.provide('settings', { getSync: () => ({ ...settingsData }) } as never)
+      c.provide('secrets', secretsMock as never)
+      c.provide('device', { appVersion: '0.1.0', platform: 'linux' } as never)
+    })
+
+    // The manager loaded the way the shell loads it: as a plugin, with
+    // its own forked context and fiber.
+    ctx.plugin(PluginManagerPlugin, { platform: 'desktop' })
+    let plugin: PluginManagerPlugin | undefined
+    await vi.waitFor(() => {
+      plugin = (ctx as unknown as Record<string, PluginManagerPlugin>)['plugin-manager']
+      expect(plugin).toBeInstanceOf(PluginManagerPlugin)
+    })
+
+    // Wait until the init-time own-scope captures have landed; from
+    // here on, no caller scope may matter to the manager's reads.
+    // (Identity is not asserted: Cordis hands out traceable wrappers
+    // around provided services, so the captured handle is a proxy of
+    // the mock, not the mock itself. Calls through it still land on
+    // the mock, which is what the tests below assert.)
+    // The wait is deliberately tolerant: if the captures ever regress,
+    // the calls below fail on their own merits — with the production
+    // `cannot get property "http" without inject` error — instead of
+    // this setup timing out and masking the real failure.
+    const captured = (key: 'scopedHttp' | 'scopedSecrets') =>
+      vi
+        .waitFor(() => expect((plugin as unknown as Record<string, unknown>)[key]).toBeDefined(), { timeout: 2_000 })
+        .catch(() => {})
+    await captured('scopedHttp')
+    await captured('scopedSecrets')
+
+    // The instance behind the traceable proxy: the object the
+    // service's own init closures (the automatic-check timers) call
+    // through, whose `this.ctx` is the manager's own forked context
+    // with no caller shadow at all.
+    const rawPlugin = (plugin as unknown as Record<symbol, PluginManagerPlugin>)[symbols.original]!
+
+    return { ctx, plugin: plugin!, rawPlugin, httpMock, secretsMock, storeData }
+  }
+
+  it('browseRegistry answers a caller fiber that never injected http (the settings page)', async () => {
+    const { ctx, httpMock } = await createScopedWorld()
+
+    // A settings-page-like plugin: it injects the manager service
+    // only. The call's synchronous prefix runs inside its fiber scope.
+    let outcome: Promise<{ entries?: RegistryPluginEntry[]; error?: Error }> | undefined
+    ctx.plugin({
+      inject: ['plugin-manager'],
+      apply(c: Context) {
+        const mgr = (c as unknown as Record<string, PluginManagerPlugin>)['plugin-manager']!
+        outcome = mgr.browseRegistry().then(
+          (entries) => ({ entries }),
+          (error: unknown) => ({ error: error as Error }),
+        )
+      },
+    })
+    await vi.waitFor(() => expect(outcome).toBeDefined())
+    const result = await outcome!
+    expect(result.error).toBeUndefined()
+    expect(result.entries?.map((e) => e.id)).toEqual(['a-x'])
+    expect(httpMock).toHaveBeenCalledWith(expect.objectContaining({ url: INDEX_URL }))
+  })
+
+  it('checkUpdates answers from a bare timer scope (no fiber at all)', async () => {
+    const { rawPlugin, httpMock } = await createScopedWorld()
+
+    // The automatic check's setTimeout/setInterval callbacks invoke
+    // the RAW service instance (the init closure's `this`), outside
+    // any fiber and without a caller shadow: `this.ctx` is the
+    // manager's own fork, whose ancestor chain holds only its declared
+    // injects. (Calling through the traceable proxy obtained from the
+    // root context would silently lend the call the root scope — the
+    // exact blind spot that hid this bug from the older suites.)
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    const updates = await rawPlugin.checkUpdates()
+    expect(updates).toEqual([])
+    // The liveness/index path really ran over the captured http handle.
+    expect(httpMock).toHaveBeenCalledWith(expect.objectContaining({ url: INDEX_URL }))
+  })
+
+  it('npm token helpers answer a caller fiber that never injected secrets', async () => {
+    const { ctx, secretsMock } = await createScopedWorld()
+
+    let outcome: Promise<{ has?: boolean; error?: Error }> | undefined
+    ctx.plugin({
+      inject: ['plugin-manager'],
+      apply(c: Context) {
+        const mgr = (c as unknown as Record<string, PluginManagerPlugin>)['plugin-manager']!
+        outcome = (async () => {
+          await mgr.setNpmAuthToken('tok-123')
+          return { has: await mgr.hasNpmAuthToken() }
+        })().then(
+          (v) => v,
+          (error: unknown) => ({ error: error as Error }),
+        )
+      },
+    })
+    await vi.waitFor(() => expect(outcome).toBeDefined())
+    const result = await outcome!
+    expect(result.error).toBeUndefined()
+    expect(result.has).toBe(true)
+    expect(secretsMock.set).toHaveBeenCalled()
   })
 })

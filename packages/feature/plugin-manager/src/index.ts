@@ -109,6 +109,23 @@ const ROLLBACK_VERIFICATION_CODES: ReadonlySet<string> = new Set([
   'APP_VERSION_MISMATCH',
 ])
 
+/** Structural shape of the settings service this plugin reads (the real type is owned by plugin-settings). */
+type SettingsHandle = {
+  getSync?(): AppSettings
+  get?(): Promise<AppSettings>
+}
+
+/** Structural shape of the device service this plugin reads. */
+type DeviceHandle = { appVersion?: string }
+
+/** Structural shape of the security-audit service this plugin reads. */
+type SecurityAuditorHandle = {
+  scan(
+    content: string,
+    context?: SecurityAuditContext,
+  ): { level: string; findings: Array<{ message: string }> }
+}
+
 export interface PluginManagerConfig {
   manifests?: Record<string, PluginManifest>
   /**
@@ -145,6 +162,19 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   private readonly platform?: 'desktop' | 'mobile'
   private npmClientInstance?: NpmClient
   private grantLedgerInstance?: CapabilityGrantLedger
+
+  /**
+   * This service's OWN handles to the npm surface's collaborators,
+   * captured at init under this plugin's inject scope (see
+   * `captureOwnService`). Never read off `this.ctx` at call time: the
+   * caller of a service method runs under its own fiber scope, and the
+   * read would be judged against the *caller's* inject declarations.
+   */
+  private scopedHttp?: HttpService
+  private scopedSettings?: SettingsHandle
+  private scopedSecrets?: SecretsService
+  private scopedDevice?: DeviceHandle
+  private scopedAuditor?: SecurityAuditorHandle
   /**
    * Ids confirmed delisted by the liveness check (audit W3): the
    * registry index was fetched successfully and did not contain them.
@@ -271,6 +301,28 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       }
     })
 
+    // Capture the npm surface's collaborators under this service's own
+    // scope too, for the same reason as the ledger's db handle: every
+    // read of them happens at call time, under the *caller's* scope —
+    // the settings page's fiber, or no fiber at all for the bare
+    // update-check timer — where a raw `this.ctx.<key>` read throws
+    // `cannot get property "http" without inject`. See captureOwnService.
+    const offHttp = this.captureOwnService<HttpService>('http', (v) => {
+      this.scopedHttp = v
+    })
+    const offSettings = this.captureOwnService<SettingsHandle>('settings', (v) => {
+      this.scopedSettings = v
+    })
+    const offSecrets = this.captureOwnService<SecretsService>('secrets', (v) => {
+      this.scopedSecrets = v
+    })
+    const offDevice = this.captureOwnService<DeviceHandle>('device', (v) => {
+      this.scopedDevice = v
+    })
+    const offAuditor = this.captureOwnService<SecurityAuditorHandle>('securityAudit', (v) => {
+      this.scopedAuditor = v
+    })
+
     // Automatic npm update check (D9): once shortly after boot when the last
     // check is older than 24h, then every 24h. Quiet by design — failures
     // only log. Timers are unref'd (no-op in browsers) so tests and
@@ -308,6 +360,9 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       off2()
       off3()
       void (offDb as unknown as { dispose?: () => Promise<void> }).dispose?.()
+      for (const off of [offHttp, offSettings, offSecrets, offDevice, offAuditor]) {
+        void (off as unknown as { dispose?: () => Promise<void> }).dispose?.()
+      }
       for (const t of timers) {
         clearTimeout(t)
         clearInterval(t as unknown as ReturnType<typeof setInterval>)
@@ -596,22 +651,84 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
    * services as context properties; this avoids `reflect` so the lookup
    * also works with structurally-assigned test doubles (same pattern as the
    * `inspector` read in `list()`).
+   *
+   * ⚠️ On a scoped context this read is judged against the *executing
+   * fiber's* inject declarations and THROWS (`cannot get property "…"
+   * without inject`) when the service is not reachable from the
+   * caller's scope — it is only safe from this plugin's own scope, or
+   * from a root context. Call-time reads of collaborators therefore go
+   * through the captured handles below, never through this directly.
    */
   private ctxService<T>(key: string): T | undefined {
     return (this.ctx as unknown as Record<string, unknown>)[key] as T | undefined
   }
 
-  private requireService<T>(key: string): T {
-    const svc = this.ctxService<T>(key)
-    if (!svc) {
-      throw new NpmPluginError('SERVICE_UNAVAILABLE', `plugin-manager 需要 "${key}" 服务，但它不可用`)
+  /**
+   * Captures one collaborator under this service's OWN inject scope at
+   * init — the same move the capability-grant ledger makes for `db`.
+   *
+   * The npm surface's methods are invoked from foreign scopes: the
+   * settings page's fiber (which injects `plugin-manager`, not `http`)
+   * and the bare `setTimeout`/`setInterval` of the automatic update
+   * check (no fiber at all). A raw `this.ctx.<key>` read in those
+   * scopes is judged against the caller's inject declarations and
+   * throws `cannot get property "http" without inject`, even though
+   * the service is right there — unit tests never saw it because they
+   * drive the service from the root context, where the read always
+   * resolves. Registering `ctx.inject([key])` at init pins the handle
+   * under this plugin's own scope; afterwards every caller, from any
+   * scope, gets the same handle. Returns the inject fiber for disposal.
+   */
+  private captureOwnService<T>(key: string, set: (value: T | undefined) => void): unknown {
+    return this.ctx.inject([key], (scoped) => {
+      set((scoped as unknown as Record<string, T | undefined>)[key])
+      return () => set(undefined)
+    })
+  }
+
+  /**
+   * A collaborator captured at init under this plugin's own scope (see
+   * {@link captureOwnService}), with a direct context read as fallback.
+   * The fallback exists for hosts that drive the service without a
+   * Cordis lifecycle (unit tests, the pilot harness): there `this.ctx`
+   * IS the host's root context, which holds the handles those hosts
+   * intend. In a real shell the init capture lands first — these are
+   * bootstrap services — and if it somehow has not, the fallback's
+   * foreign-scope throw is contained here so the caller sees a clean
+   * "unavailable" instead of an inject error from someone else's scope.
+   */
+  private ownService<T>(captured: T | undefined, key: string): T | undefined {
+    if (captured) return captured
+    try {
+      return this.ctxService<T>(key)
+    } catch {
+      return undefined
     }
-    return svc
+  }
+
+  private httpService(): HttpService | undefined {
+    return this.ownService(this.scopedHttp, 'http')
+  }
+
+  private settingsHandle(): SettingsHandle | undefined {
+    return this.ownService(this.scopedSettings, 'settings')
+  }
+
+  private secretsService(): SecretsService | undefined {
+    return this.ownService(this.scopedSecrets, 'secrets')
+  }
+
+  private deviceHandle(): DeviceHandle | undefined {
+    return this.ownService(this.scopedDevice, 'device')
+  }
+
+  private auditorHandle(): SecurityAuditorHandle | undefined {
+    return this.ownService(this.scopedAuditor, 'securityAudit')
   }
 
   private async readAppSettings(): Promise<AppSettings | undefined> {
     try {
-      const svc = this.ctxService<{ getSync?(): AppSettings; get?(): Promise<AppSettings> }>('settings')
+      const svc = this.settingsHandle()
       return svc?.getSync?.() ?? (await svc?.get?.().catch(() => undefined))
     } catch {
       return undefined
@@ -620,7 +737,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
 
   private getAppVersion(): string | undefined {
     try {
-      return this.ctxService<{ appVersion?: string }>('device')?.appVersion ?? undefined
+      return this.deviceHandle()?.appVersion ?? undefined
     } catch {
       return undefined
     }
@@ -628,7 +745,10 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
 
   private getNpmClient(): NpmClient {
     if (!this.npmClientInstance) {
-      const http = this.requireService<HttpService>('http')
+      const http = this.httpService()
+      if (!http) {
+        throw new NpmPluginError('SERVICE_UNAVAILABLE', 'plugin-manager 需要 "http" 服务，但它不可用')
+      }
       const cache: NpmKvCache = {
         get: async <T>(key: string): Promise<{ value: T; fetchedAt: number } | undefined> =>
           ((await this.ctx.store.get<{ value: unknown; fetchedAt: number }>(`npm:${key}`)) as
@@ -643,7 +763,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
         readSettings: () => this.readAppSettings(),
         readSecret: async (key) => {
           try {
-            return (await this.ctxService<SecretsService>('secrets')?.get(key)) ?? undefined
+            return (await this.secretsService()?.get(key)) ?? undefined
           } catch {
             return undefined
           }
@@ -988,12 +1108,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       .map((c) => c.slice('net:host/'.length).trim())
       .filter(Boolean)
     const scanContext = allowedHosts.length > 0 ? { allowedHosts } : undefined
-    const auditor = this.ctxService<{
-      scan(
-        content: string,
-        context?: SecurityAuditContext,
-      ): { level: string; findings: Array<{ message: string }> }
-    }>('securityAudit')
+    const auditor = this.auditorHandle()
     // Selection is the toolkit's: every executable-text extension, plus
     // the manifest's entry files whatever their extension — the loader
     // executes those, so an entry named `.mjs` (or anything odder) must
@@ -1407,7 +1522,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
    * has its flag cleared again.
    */
   async refreshDelistedFromIndex(options?: { force?: boolean }): Promise<void> {
-    if (!this.ctxService<HttpService>('http')) return
+    if (!this.httpService()) return
     let doc: RegistryIndexDocument
     try {
       doc = await this.getNpmClient().fetchIndexDocument(options?.force ? { force: true } : undefined)
@@ -1706,7 +1821,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   }
 
   async setNpmAuthToken(token: string): Promise<void> {
-    const secrets = this.ctxService<SecretsService>('secrets')
+    const secrets = this.secretsService()
     if (!secrets) {
       throw new NpmPluginError('SERVICE_UNAVAILABLE', 'secrets 服务不可用，无法保存 npm 认证 token')
     }
@@ -1716,7 +1831,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   }
 
   async clearNpmAuthToken(): Promise<void> {
-    const secrets = this.ctxService<SecretsService>('secrets')
+    const secrets = this.secretsService()
     if (!secrets) {
       throw new NpmPluginError('SERVICE_UNAVAILABLE', 'secrets 服务不可用，无法清除 npm 认证 token')
     }
@@ -1724,7 +1839,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   }
 
   async hasNpmAuthToken(): Promise<boolean> {
-    const secrets = this.ctxService<SecretsService>('secrets')
+    const secrets = this.secretsService()
     if (!secrets) return false
     try {
       return (await secrets.get(NPM_AUTH_TOKEN_KEY)) !== undefined
