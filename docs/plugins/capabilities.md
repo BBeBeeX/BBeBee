@@ -136,6 +136,23 @@ one stops working at the next load, and a read failure resolves to *no grants* (
 never to the plugin's own declarations. Activation outcomes are reported back honestly: an
 install whose node ends `ungranted` fails as `ACTIVATION_FAILED`, it does not record success.
 
+**One derived addition, for plugin-manager only.** The manager's download pipeline must reach
+hosts no static manifest can enumerate: the npm mirror and GitHub acceleration bases the *user*
+configures in network settings, plus those mirrors' known CDN redirect targets (npmmirror
+302-redirects tarballs to `cdn.npmmirror.com`). So both shells resolve the manager's grant entry
+as a union — ledger rows, its manifest, and the `net:host/…` set derived from the user's current
+settings by the pure function `derivePluginManagerDownloadHosts` in `@BBeBee/protocol` (composed
+by `createShellGrantResolver` in the kernel). The derivation's inputs are only the built-in
+endpoints, a hardcoded companion-host table, and the user's own settings values; remote data (a
+packument's `dist.tarball`, a redirect target) can never widen it, and no wildcard is introduced.
+The manager's own tarball pre-download allowlist consumes the same derivation, so the gate and
+the client cannot drift apart. The merge happens at the composition root — a plugin never grants
+itself anything — and it applies to no other plugin. Freshness follows the loader's rule: the
+resolver re-derives at every resolution, but a running plugin-manager keeps the grants its fiber
+was created with, so a newly configured mirror's gate entry takes effect at the manager's next
+load (in practice the next launch); its endpoint selection and tarball pre-check read settings
+live and follow immediately.
+
 This matters because the failure mode is silent: a host that simply forgot to pass its grants
 would otherwise hand a non-builtin plugin exactly what it declared for itself — including
 `net:host/*` — turning approval into a no-op.
