@@ -175,7 +175,8 @@ from npm. The two phases are deliberately separate:
    `plugins/index.json` from the `B_Be_Bee-registry` repository — one raw-file
    request, no GitHub API (the anonymous Contents API quota is 60 req/hour).
    The index carries **no `version`** (schema v2); the version truth lives on npm.
-   Entries declare `services` (required cordis service keys), `platforms`
+   Entries declare `services` (required cordis service keys), `provides`
+   (service keys the plugin registers for others), `platforms`
    (`desktop`/`mobile`), `npm` (package name), and `dependencies` as
    `"<registry-id>[@<semver-range>]"`. The market UI filters by platform.
 2. **Resolve (npm metadata only).** For the chosen entry, the client reads the
@@ -209,7 +210,7 @@ from npm. The two phases are deliberately separate:
 **Pre-install checklist** (any failure refuses the install with a readable
 reason): required `services` ⊆ (services contributed by *enabled* known
 plugins — the built-in set, the shell's own declaration and installed
-plugins — ∪ the to-be-installed closure's services); resolvable
+plugins — ∪ the to-be-installed closure's declared `provides`); resolvable
 dependency closure; `minAppVersion`/`engines.BBeBee` compatible with the app;
 `platforms` contains the current platform and agrees with the in-package
 manifest; security scan passes; anti-spoofing checks pass; tarball within the
@@ -226,7 +227,13 @@ available on desktop because `@BBeBee/plugin-ui` contributes it
 registered at runtime but declared in no manifest would still be
 invisible to this check; the manifest-completeness gate
 (`manifest-standards.test.ts`) makes that drift fail in CI before an
-author can trip over it. Authors: see §6.8 item 3.
+author can trip over it. Authors: see §6.8 item 3. The plan stage runs
+this check **before anything is downloaded**, so for the closure itself
+it counts the entries' `provides` as declared in the registry index —
+that is what makes plugin→plugin service dependencies resolvable at plan
+time; after download, the check is re-run against the packaged manifests
+themselves, and that re-check is the ground truth (an entry whose
+`provides` overstates its manifest is caught there, not at plan time).
 
 **Version management.** `checkUpdates()` re-fetches packuments (short TTL; also
 runs automatically once ~24h after boot plus on user request). `updatePlugin`
@@ -362,6 +369,20 @@ registry/npm stand-in by `node scripts/verify-plugin-pilot.mjs
 are data in `scripts/verify-plugin-pilot.targets.mjs`. Module-resolution
 hooks stand in for the shell's import map; the rest is the real
 installer and loader).
+
+**Worked example.** `examples/visualizer-meters/` is a complete
+third-party-style package written from scratch in the shape this section
+describes — one npm package, headless entry plus desktop UI, no monorepo
+wiring: it `inject`s another plugin's service (the visualizer's) and
+renders spectrogram / spectrum / VU-meter views from it. It is the pilot
+loop's second target (its install pulls the visualizer in as a registry
+dependency closure), it has its own publication repo
+(`BBeBeeX/B_Be_Bee-visualizer-meters`), and both it and the visualizer
+are registered in `B_Be_Bee-registry`. Until the two packages are
+actually published to npm, the registry's online validation reports the
+expected npm-existence 404s for them — entry shape, dependency and
+service checks already pass; publishing is what turns those two checks
+green.
 
 Two authoring constraints:
 
