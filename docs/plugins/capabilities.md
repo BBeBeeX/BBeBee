@@ -151,7 +151,10 @@ itself anything — and it applies to no other plugin. Freshness follows the loa
 resolver re-derives at every resolution, but a running plugin-manager keeps the grants its fiber
 was created with, so a newly configured mirror's gate entry takes effect at the manager's next
 load (in practice the next launch); its endpoint selection and tarball pre-check read settings
-live and follow immediately.
+live and follow immediately. The desktop network settings surface that lag in place: once the
+download region or either mirror base differs from the values the session started with, the
+download section shows a persistent restart-required notice, which clears again if the values
+are changed back.
 
 This matters because the failure mode is silent: a host that simply forgot to pass its grants
 would otherwise hand a non-builtin plugin exactly what it declared for itself — including
