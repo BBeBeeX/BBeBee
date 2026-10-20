@@ -501,12 +501,16 @@ describe('redirect credential stripping (audit W2)', () => {
   })
 
   it('strips caller credentials on a cross-host redirect, keeps the rest', async () => {
-    // Both hosts are in the granted scope (the capability gate is not
-    // what is under test here) — the point is that a server-chosen
-    // target must not receive credentials minted for the origin host.
-    const { ctx } = await harness({ capabilities: ['net:host/127.0.0.1', 'net:host/localhost'] })
+    // Both hosts are granted (the capability gate is not what is under
+    // test here) — the point is that a server-chosen target must not
+    // receive credentials minted for the origin host.
+    const { ctx } = await harness()
+    const scoped = scopeContext(ctx, {
+      pluginId: '@BBeBee/plugin-demo',
+      requested: ['net:host/127.0.0.1', 'net:host/localhost'] as never,
+    })
     const target = `${secretOrigin}/echo-headers`
-    const response = await ctx.http({
+    const response = await scoped.http({
       url: `${origin}/redirect?to=${encodeURIComponent(target)}`,
       headers: credentialHeaders,
     })
