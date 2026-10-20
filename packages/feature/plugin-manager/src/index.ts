@@ -6,8 +6,10 @@
  */
 
 import { Service, type Context } from '@BBeBee/kernel'
+import { CapabilityGrantLedger } from './grants.js'
 import type {
   ConfigStatus,
+  DbService,
   HttpService,
   InstalledNpmPluginRecord,
   InstallPlan,
@@ -99,6 +101,30 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   private bridge?: PluginLifecycleBridge
   private readonly platform?: 'desktop' | 'mobile'
   private npmClientInstance?: NpmClient
+  private grantLedgerInstance?: CapabilityGrantLedger
+
+  /**
+   * The capability-grant ledger, bound to this service's OWN `db` handle.
+   *
+   * The handle is captured at init (see `[Service.init]`), under this
+   * service's own capability scope (`db:read:core`/`db:write:core` from
+   * its manifest) — never read off `this.ctx` at call time, where the
+   * context belongs to whoever invoked the method and the write would be
+   * judged against *their* grants (the plugin-sources lesson). The lazy
+   * fallback below only fires in hosts that drive the service without a
+   * Cordis lifecycle (unit tests, the pilot harness): there `this.ctx`
+   * is the host's own context, which is exactly the handle those hosts
+   * intend. In a real shell the init capture always lands first — `db`
+   * is a bootstrap service and installs happen after boot.
+   */
+  private grantLedger(): CapabilityGrantLedger | undefined {
+    if (this.grantLedgerInstance) return this.grantLedgerInstance
+    const db = this.ctxService<DbService>('db')
+    if (db) {
+      this.grantLedgerInstance = new CapabilityGrantLedger(db)
+    }
+    return this.grantLedgerInstance
+  }
 
   constructor(ctx: Context, config?: PluginManagerConfig) {
     super(ctx, 'plugin-manager')
@@ -129,6 +155,18 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     const off3 = this.ctx.on('plugin/failed', (id: string, error: Error) => {
       this.failedErrors.set(id, error?.message ?? String(error))
       this.ctx.emit('plugin-manager/changed')
+    })
+
+    // Capture this service's own db handle for the capability-grant
+    // ledger as soon as the db service is available. The inject callback
+    // runs under this service's own scope, so the ledger's statements are
+    // judged against plugin-manager's grants — see `grantLedger()`.
+    const offDb = this.ctx.inject(['db'], (scoped) => {
+      const db = (scoped as unknown as { db?: DbService }).db
+      this.grantLedgerInstance = db ? new CapabilityGrantLedger(db) : undefined
+      return () => {
+        this.grantLedgerInstance = undefined
+      }
     })
 
     // Automatic npm update check (D9): once shortly after boot when the last
@@ -167,6 +205,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       off1()
       off2()
       off3()
+      void (offDb as unknown as { dispose?: () => Promise<void> }).dispose?.()
       for (const t of timers) {
         clearTimeout(t)
         clearInterval(t as unknown as ReturnType<typeof setInterval>)
@@ -269,6 +308,20 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     }
 
     await this.saveOverrides(this.overrides)
+
+    // The grant dies with the install: a plugin that is installed again
+    // later must be approved again through that install, not silently
+    // resurrect the capabilities a previous install was granted.
+    const ledger = this.grantLedger()
+    if (ledger) {
+      try {
+        await ledger.revoke(id)
+      } catch {
+        // Best-effort like the lock cleanup below; the files are gone,
+        // and a stale grant for a plugin that is not installed loads
+        // nothing — the loader only consults it for configured plugins.
+      }
+    }
 
     try {
       const records = await this.loadInstalledRecords()
@@ -579,12 +632,32 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   }
 
   /**
-   * Writes files + activates via the bridge, records the lock, keeps
-   * disabled state. The record is persisted after EVERY node: if a later
-   * node of the closure fails, the store already matches what is on disk
+   * Records the user's capability grant, writes files + activates via
+   * the bridge, records the lock, keeps disabled state.
+   *
+   * The grant comes first: installing is the user's approval, so each
+   * node's packaged-manifest `capabilities` are persisted to
+   * `capability_grants` (via the ledger) before activation — the
+   * loader's gate consults exactly that table, and it re-reads it on
+   * every load, so the activation below already sees the grant. A
+   * capability-bearing node with no ledger available is refused
+   * outright rather than waved into an activation that must fail.
+   *
+   * The install record is persisted after EVERY node: if a later node
+   * of the closure fails, the store already matches what is on disk
    * instead of claiming nothing was installed. `onInstalled` fires after
    * each node's record is durable (updatePlugin uses it to know exactly
-   * which nodes a rollback must cover).
+   * which nodes a rollback must cover) — and before the activation
+   * state check, so a node whose files landed but whose activation
+   * failed is still inside the rollback set.
+   *
+   * The bridge's activation result is checked per node: a terminal
+   * state other than `active`/`pending` (`ungranted`, `failed`,
+   * `quarantined`, `missing`) aborts the install with the plugin id and
+   * state named — install never reports success for a plugin that did
+   * not load. `pending` is a loaded state (waiting on a service), not a
+   * failure; it is logged with what it waits for. Hosts whose bridge
+   * returns no state object keep the previous behaviour.
    */
   private async activatePrepared(
     prepared: Array<{ node: ResolvedEntry; extracted: ExtractedPackage }>,
@@ -598,8 +671,22 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
         'npm 插件安装需要 composition root 接线 PluginLifecycleBridge.installPlugin（mobile 等平台不支持动态安装）',
       )
     }
+    const completed: string[] = []
     for (const { node, extracted } of prepared) {
-      await bridge.installPlugin(node.entry.id, extracted.files, extracted.manifest)
+      const capabilities = extracted.manifest.capabilities ?? []
+      const ledger = this.grantLedger()
+      if (ledger) {
+        await ledger.record(node.entry.id, capabilities, {
+          version: node.pkg.version,
+          source: 'npm',
+        })
+      } else if (capabilities.length > 0) {
+        throw new NpmPluginError(
+          'GRANT_UNAVAILABLE',
+          `插件 "${node.entry.id}" 声明了 capabilities [${capabilities.join(', ')}]，但授权账本不可用（db 服务缺失），无法记录用户授权，拒绝安装`,
+        )
+      }
+      const result = await bridge.installPlugin(node.entry.id, extracted.files, extracted.manifest)
       this.registerManifests({ [node.entry.id]: extracted.manifest })
       // Tamper-check basis for the boot-time loader: it hashes the on-disk
       // entry main file, so the record keeps that file's hash alongside the
@@ -616,6 +703,29 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       }
       await this.saveInstalledRecords(records)
       onInstalled?.(node.entry.id)
+
+      const activation = result as
+        | { state?: unknown; error?: { message?: string }; waitingFor?: string[] }
+        | null
+        | undefined
+      const state = activation?.state
+      if (typeof state === 'string' && state !== 'active' && state !== 'pending') {
+        const detail = activation?.error?.message ? `：${activation.error.message}` : ''
+        throw new NpmPluginError(
+          'ACTIVATION_FAILED',
+          `插件 "${node.entry.id}" 的文件已安装、授权已记录，但激活状态为 "${state}"${detail}。` +
+            `本次共 ${prepared.length} 个节点，失败于第 ${completed.length + 1} 个（"${node.entry.id}"），` +
+            `此前已完成：${completed.length > 0 ? completed.join('、') : '无'}。`,
+        )
+      }
+      if (state === 'pending') {
+        const waitingFor = activation?.waitingFor ?? []
+        this.ctx.logger.warn(
+          `plugin-manager: "${node.entry.id}" 已安装但尚未激活（pending）` +
+            (waitingFor.length > 0 ? `，等待服务：${waitingFor.join(', ')}` : ''),
+        )
+      }
+      completed.push(node.entry.id)
     }
     // An explicitly disabled plugin stays unloaded after its files are replaced.
     for (const { node } of prepared) {
@@ -797,6 +907,22 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
           await bridge.installPlugin(replacedId, staged.files, staged.manifest)
           this.registerManifests({ [replacedId]: staged.manifest })
           records[replacedId] = previous
+          // The restored version runs under the grants its own manifest
+          // declares — the failed attempt replaced them with the new
+          // version's set, so put the old set back too.
+          const ledger = this.grantLedger()
+          if (ledger) {
+            try {
+              await ledger.record(replacedId, staged.manifest.capabilities ?? [], {
+                version: previous.version,
+                source: 'npm',
+              })
+            } catch (grantErr) {
+              this.ctx.logger.warn(
+                `plugin-manager: could not restore capability grants for "${replacedId}": ${grantErr instanceof Error ? grantErr.message : String(grantErr)}`,
+              )
+            }
+          }
           this.ctx.logger.warn(
             `plugin-manager: rolled back "${replacedId}" to ${previous.version} after failed update of "${id}"`,
           )

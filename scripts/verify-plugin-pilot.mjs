@@ -606,6 +606,59 @@ function compositionManifests() {
   return manifests
 }
 
+/**
+ * In-memory stand-in for the two core tables plugin-manager's
+ * capability-grant ledger touches (W1). Both real shells bootstrap a db
+ * service before the manager runs, so the world models one too;
+ * pattern-matches the ledger's fixed SQL and enforces its foreign key
+ * (a grants row without the `plugin_records` parent throws).
+ */
+function makeFakeDb() {
+  const records = new Map()
+  const grants = new Map()
+  const db = {
+    async exec(sql, params = []) {
+      const s = sql.replace(/\s+/g, ' ').trim()
+      if (s.startsWith('INSERT INTO plugin_records')) {
+        records.set(String(params[0]), { version: String(params[1]), source: String(params[2]) })
+        return { changes: 1, lastInsertRowid: 1 }
+      }
+      if (s.startsWith('DELETE FROM capability_grants')) {
+        return { changes: grants.delete(String(params[0])) ? 1 : 0, lastInsertRowid: 0 }
+      }
+      if (s.startsWith('INSERT INTO capability_grants')) {
+        const pluginId = String(params[0])
+        if (!records.has(pluginId)) throw new Error('FOREIGN KEY constraint failed')
+        const list = grants.get(pluginId) ?? []
+        list.push(String(params[1]))
+        grants.set(pluginId, list)
+        return { changes: 1, lastInsertRowid: 1 }
+      }
+      if (s.startsWith('DELETE FROM plugin_records')) {
+        grants.delete(String(params[0]))
+        records.delete(String(params[0]))
+        return { changes: 1, lastInsertRowid: 0 }
+      }
+      throw new Error(`pilot fake db: unexpected exec: ${s}`)
+    },
+    async query(sql) {
+      if (sql.includes('FROM capability_grants')) {
+        return [...grants.entries()].flatMap(([plugin_id, caps]) =>
+          caps.map((capability) => ({ plugin_id, capability })),
+        )
+      }
+      throw new Error(`pilot fake db: unexpected query: ${sql}`)
+    },
+    async get() {
+      return undefined
+    },
+    async transaction(fn) {
+      return fn(db)
+    },
+  }
+  return db
+}
+
 function makeWorld({ hostReactVersion, pluginsDir }) {
   const ctx = new Context()
   const storeData = new Map()
@@ -617,6 +670,7 @@ function makeWorld({ hostReactVersion, pluginsDir }) {
     namespace: () => store,
   }
   ctx.store = store
+  ctx.db = makeFakeDb()
   ctx.inspector = { snapshot: () => ({ root: undefined }) }
   ctx.http = httpService
   const settingsObj = {

@@ -61,6 +61,20 @@ export interface AppOptions {
   config?: AppConfig
   load?: LoadOptions
   /**
+   * Resolve capability grants (the `capability_grants` table, aggregated
+   * into the loader's shape) from the now-live context.
+   *
+   * Called after the bootstrap services are up — the `db` service they
+   * provide is what the grants live in, so they cannot be read any
+   * earlier — and again before every dynamic `loadPlugin`, so a grant
+   * recorded mid-session (a user-confirmed install) takes effect on the
+   * very next activation without a restart. The shells wire this to
+   * `readCapabilityGrants(ctx.db)`; a resolver that throws or returns
+   * `undefined` leaves the static `load.grants` in place and the loader
+   * gate stays closed — resolution failures fail closed, never open.
+   */
+  resolveGrants?: (ctx: Context) => Promise<Record<string, readonly string[]> | undefined>
+  /**
    * How long `start()` waits for in-flight plugin initialisation to finish.
    * 0 skips the wait. See `settleGraph`.
    */
@@ -175,6 +189,26 @@ export function createApp(options: AppOptions): App {
     bootstrapDisposers.length = 0
   }
 
+  /**
+   * The load options for one load pass: the shell's static `load` plus
+   * freshly resolved capability grants when a resolver is wired. Fresh
+   * on every call — boot sees the grants as of startup, and a dynamic
+   * load an hour later sees whatever installs recorded in between.
+   */
+  async function effectiveLoadOptions(): Promise<LoadOptions> {
+    const base = options.load ?? {}
+    if (!options.resolveGrants) return base
+    try {
+      const grants = await options.resolveGrants(ctx)
+      return grants ? { ...base, grants } : base
+    } catch (error) {
+      ctx.logger.warn(
+        `app: resolving capability grants failed (${String(error)}); loading without them`,
+      )
+      return base
+    }
+  }
+
   return {
     ctx,
     target: options.target,
@@ -220,7 +254,7 @@ export function createApp(options: AppOptions): App {
         ctx,
         registry,
         plugins,
-        options.load ?? {},
+        await effectiveLoadOptions(),
       )
       loaded.push(...results)
 
@@ -300,7 +334,7 @@ export function createApp(options: AppOptions): App {
         ctx,
         registry,
         [inst],
-        options.load ?? {},
+        await effectiveLoadOptions(),
       )
       if (result) {
         const idx = loaded.findIndex((p) => p.pluginId === pluginId)

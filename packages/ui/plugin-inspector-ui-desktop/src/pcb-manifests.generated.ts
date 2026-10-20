@@ -2021,7 +2021,10 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "entry": {
       "main": "./dist/index.js"
     },
-    "capabilities": [],
+    "capabilities": [
+      "db:read:core",
+      "db:write:core"
+    ],
     "contributes": {
       "services": [
         "plugin-manager"
@@ -2048,7 +2051,10 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "entry": {
       "main": "./dist/index.js"
     },
-    "capabilities": [],
+    "capabilities": [
+      "db:read:core",
+      "db:write:core"
+    ],
     "contributes": {
       "services": [
         "plugin-manager"

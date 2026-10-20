@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from 'cordis'
 import { gzipSync } from 'fflate'
-import { base64Encode, sha256Hex, sha512, type RegistryPluginEntry } from '@BBeBee/protocol'
+import { base64Encode, sha256Hex, sha512, type DbService, type RegistryPluginEntry } from '@BBeBee/protocol'
 import { PluginManagerPlugin } from './index.js'
 import type { PluginManifest } from '@BBeBee/protocol'
 import { concatStreamWithLimit, NpmClient, NpmPluginError, parseDepSpecifier } from './npm.js'
@@ -225,7 +225,7 @@ function buildTar(files: Record<string, string | Uint8Array>): Uint8Array {
   return out
 }
 
-function manifestFor(id: string, version: string, services: string[] = []) {
+function manifestFor(id: string, version: string, services: string[] = [], capabilities: string[] = []) {
   return {
     id,
     name: id,
@@ -236,7 +236,7 @@ function manifestFor(id: string, version: string, services: string[] = []) {
     engines: { BBeBee: '^0.1.0' },
     enabled: true,
     entry: { main: './dist/index.js' },
-    capabilities: [],
+    capabilities,
     contributes: { services },
     effect: id,
   }
@@ -1078,6 +1078,191 @@ describe('plugin-manager npm service methods', () => {
     expect(await w.plugin.checkUpdates()).toEqual([])
     const updates = await w.plugin.checkUpdates(true)
     expect(updates).toEqual([{ id: 'a-x', installed: '1.0.0', latest: '1.1.0', npm: '@t/a' }])
+  })
+})
+
+/**
+ * In-memory stand-in for the two core tables the capability-grant
+ * ledger touches, pattern-matching its fixed SQL and enforcing the
+ * foreign key the real databases run with (a grants row without its
+ * `plugin_records` parent throws). Mirrors the kernel's grants test
+ * fake; kept local so this suite stays self-contained.
+ */
+function createFakeDb() {
+  const records = new Map<string, { version: string; source: string }>()
+  const grants = new Map<string, string[]>()
+
+  const db = {
+    async exec(sql: string, params: unknown[] = []) {
+      const s = sql.replace(/\s+/g, ' ').trim()
+      if (s.startsWith('INSERT INTO plugin_records')) {
+        records.set(String(params[0]), { version: String(params[1]), source: String(params[2]) })
+        return { changes: 1, lastInsertRowid: 1 }
+      }
+      if (s.startsWith('DELETE FROM capability_grants')) {
+        return { changes: grants.delete(String(params[0])) ? 1 : 0, lastInsertRowid: 0 }
+      }
+      if (s.startsWith('INSERT INTO capability_grants')) {
+        const pluginId = String(params[0])
+        if (!records.has(pluginId)) throw new Error('FOREIGN KEY constraint failed')
+        const list = grants.get(pluginId) ?? []
+        list.push(String(params[1]))
+        grants.set(pluginId, list)
+        return { changes: 1, lastInsertRowid: 1 }
+      }
+      if (s.startsWith('DELETE FROM plugin_records')) {
+        grants.delete(String(params[0])) // ON DELETE CASCADE
+        records.delete(String(params[0]))
+        return { changes: 1, lastInsertRowid: 0 }
+      }
+      throw new Error(`fake db: unexpected exec: ${s}`)
+    },
+    async query<T>(sql: string): Promise<T[]> {
+      if (sql.includes('FROM capability_grants')) {
+        return [...grants.entries()].flatMap(([plugin_id, caps]) =>
+          caps.map((capability) => ({ plugin_id, capability })),
+        ) as T[]
+      }
+      throw new Error(`fake db: unexpected query: ${sql}`)
+    },
+    async get() {
+      return undefined
+    },
+    async transaction<T>(fn: (tx: DbService) => Promise<T>): Promise<T> {
+      return fn(db as unknown as DbService)
+    },
+  }
+  return { db: db as unknown as DbService, records, grants }
+}
+
+describe('capability grants (W1)', () => {
+  /** A world whose only registry entry is `a-x`, with a fake db attached. */
+  function seedCapsWorld(
+    versions: Array<{ version: string; capabilities: string[] }>,
+    opts: { withDb?: boolean } = {},
+  ) {
+    const entry = entryFor({ id: 'a-x', npm: '@t/a' })
+    const tarballs: Record<string, Uint8Array> = {}
+    for (const { version, capabilities } of versions) {
+      tarballs[`@t/a@${version}`] = tarballFor('@t/a', 'a-x', version, {
+        'BBeBee.plugin.json': JSON.stringify(manifestFor('a-x', version, [], capabilities)),
+      })
+    }
+    const w = createNpmWorld({
+      manifests: {
+        '@BBeBee/plugin-player': {
+          id: '@BBeBee/plugin-player',
+          name: '@BBeBee/plugin-player',
+          displayName: 'Player',
+          description: 'player',
+          version: '1.0.0',
+          author: 'BBeBee',
+          engines: { BBeBee: '^0.1.0' },
+          entry: { main: './dist/index.js' },
+          capabilities: [],
+          contributes: { services: ['player'] },
+          effect: 'player',
+        } as PluginManifest,
+      },
+    })
+    const fake = createFakeDb()
+    if (opts.withDb !== false) {
+      ;(w.ctx as any).db = fake.db
+    }
+    w.routes.set(INDEX_URL, { status: 200, json: async () => [entry] })
+    w.routes.set(`https://registry.npmjs.org/${encodeURIComponent(entry.npm)}`, {
+      status: 200,
+      json: async () => packument(entry.npm, versions.map((v) => v.version), tarballs),
+    })
+    for (const { version } of versions) {
+      w.routes.set(`https://cdn.example.com/${encodeURIComponent(entry.npm)}-/${version}.tgz`, {
+        status: 200,
+        bytes: async () => tarballs[`@t/a@${version}`]!,
+      })
+    }
+    return { w, fake }
+  }
+
+  function bridgeActivates(w: NpmTestWorld, state: string = 'active') {
+    w.bridge.installPlugin.mockImplementation(async (id: string) => ({ pluginId: id, state }))
+  }
+
+  it('records the packaged manifest capabilities as grants during a confirmed install', async () => {
+    const { w, fake } = seedCapsWorld([{ version: '1.0.0', capabilities: ['audio'] }])
+    bridgeActivates(w)
+    await w.plugin[PluginManagerPlugin.init]()
+
+    await w.plugin.installPlugin('a-x')
+
+    // The exact failure the audit found in production: visualizer
+    // declares capabilities:["audio"] and could never be granted.
+    expect(Object.fromEntries(fake.grants)).toEqual({ 'a-x': ['audio'] })
+    expect(w.bridge.installPlugin).toHaveBeenCalledTimes(1)
+  })
+
+  it('reports activation failure honestly instead of claiming install success', async () => {
+    const { w, fake } = seedCapsWorld([{ version: '1.0.0', capabilities: ['audio'] }])
+    w.bridge.installPlugin.mockImplementation(async (id: string) => ({
+      pluginId: id,
+      state: 'ungranted',
+      error: new Error('plugin a-x requests [audio] but has no capability grant'),
+    }))
+    await w.plugin[PluginManagerPlugin.init]()
+
+    const err = await w.plugin.installPlugin('a-x').catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(NpmPluginError)
+    expect((err as NpmPluginError).code).toBe('ACTIVATION_FAILED')
+    expect((err as Error).message).toContain('a-x')
+    expect((err as Error).message).toContain('ungranted')
+    // The approval itself was real and stays on record; only the
+    // activation failed, and the error says exactly that.
+    expect(Object.fromEntries(fake.grants)).toEqual({ 'a-x': ['audio'] })
+  })
+
+  it('refuses a capability-bearing install when the grant ledger is unavailable', async () => {
+    const { w } = seedCapsWorld([{ version: '1.0.0', capabilities: ['audio'] }], { withDb: false })
+    bridgeActivates(w)
+    await w.plugin[PluginManagerPlugin.init]()
+
+    await expectNpmError(w.plugin.installPlugin('a-x'), 'GRANT_UNAVAILABLE')
+    expect(w.bridge.installPlugin).not.toHaveBeenCalled()
+  })
+
+  it('a capability-free install needs no ledger and still succeeds without a db', async () => {
+    const { w } = seedCapsWorld([{ version: '1.0.0', capabilities: [] }], { withDb: false })
+    bridgeActivates(w)
+    await w.plugin[PluginManagerPlugin.init]()
+
+    await w.plugin.installPlugin('a-x')
+    expect(w.bridge.installPlugin).toHaveBeenCalledTimes(1)
+  })
+
+  it('uninstall revokes the grants', async () => {
+    const { w, fake } = seedCapsWorld([{ version: '1.0.0', capabilities: ['audio'] }])
+    bridgeActivates(w)
+    await w.plugin[PluginManagerPlugin.init]()
+    await w.plugin.installPlugin('a-x')
+    expect(Object.fromEntries(fake.grants)).toEqual({ 'a-x': ['audio'] })
+
+    await w.plugin.uninstall('a-x')
+
+    expect(fake.grants.size).toBe(0)
+  })
+
+  it('update replaces the grants with the new manifest set', async () => {
+    const { w, fake } = seedCapsWorld([
+      { version: '1.0.0', capabilities: ['audio'] },
+      { version: '1.1.0', capabilities: ['audio', 'net:host/example.com'] },
+    ])
+    bridgeActivates(w)
+    await w.plugin[PluginManagerPlugin.init]()
+    await w.plugin.installPlugin('a-x')
+
+    await w.plugin.updatePlugin('a-x')
+
+    expect(Object.fromEntries(fake.grants)).toEqual({
+      'a-x': ['audio', 'net:host/example.com'],
+    })
   })
 })
 

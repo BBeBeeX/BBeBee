@@ -131,7 +131,7 @@ export const bundled: PluginRegistry = {
   },
   "@BBeBee/plugin-manager": {
     load: () => import('@BBeBee/plugin-manager'),
-    manifest: {"id":"@BBeBee/plugin-manager","name":"@BBeBee/plugin-manager","displayName":"Plugin Manager","description":"ctx['plugin-manager'] — plugin discovery, runtime state tracking, lifecycle management, and dependencies graph.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@BBeBee/plugin-inspector"],"systemId":"layer-4","moduleId":"plugins","entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["plugin-manager"]},"effect":"pluginManager"},
+    manifest: {"id":"@BBeBee/plugin-manager","name":"@BBeBee/plugin-manager","displayName":"Plugin Manager","description":"ctx['plugin-manager'] — plugin discovery, runtime state tracking, lifecycle management, and dependencies graph.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@BBeBee/plugin-inspector"],"systemId":"layer-4","moduleId":"plugins","entry":{"main":"./dist/index.js"},"capabilities":["db:read:core","db:write:core"],"contributes":{"services":["plugin-manager"]},"effect":"pluginManager"},
     builtin: true,
   },
   "@BBeBee/plugin-mini-player": {

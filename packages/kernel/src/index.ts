@@ -71,6 +71,7 @@ export { resolveConfig, isEnabled } from './config/config.js'
 export type { AppConfig, PluginEntry, ResolvedPlugin } from './config/config.js'
 
 export { loadPlugins, loadPlugin } from './loader/loader.js'
+export { readCapabilityGrants } from './loader/grants.js'
 export type {
   LoadOptions,
   LoadState,

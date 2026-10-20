@@ -172,3 +172,82 @@ describe('loader dynamic loading', () => {
     await app.stop()
   })
 })
+
+describe('loader capability grant gate', () => {
+  function gatedRegistry(applied: () => void, over: Partial<PluginManifest> = {}) {
+    const registry: PluginRegistry = {
+      'ext-tool': {
+        plugin: { name: 'ext-tool', apply: applied } as never,
+        manifest: manifest('ext-tool', { capabilities: ['audio'], ...over }),
+        // no `builtin` — third-party, so the gate applies
+      },
+    }
+    return registry
+  }
+
+  it('refuses a capability-bearing third-party plugin with no grant on record', async () => {
+    const ctx = new Context()
+    const applied = vi.fn()
+    const results = await loadPlugins(ctx, gatedRegistry(applied), [
+      { pluginId: 'ext-tool', config: {} },
+    ])
+    expect(results[0]?.state).toBe('ungranted')
+    expect(results[0]?.error?.message).toContain('no capability grant')
+    expect(applied).not.toHaveBeenCalled()
+  })
+
+  it('loads the same plugin when a grant is supplied', async () => {
+    const ctx = new Context()
+    const applied = vi.fn()
+    const results = await loadPlugins(
+      ctx,
+      gatedRegistry(applied),
+      [{ pluginId: 'ext-tool', config: {} }],
+      { grants: { 'ext-tool': ['audio'] } },
+    )
+    expect(results[0]?.state).toBe('active')
+    expect(applied).toHaveBeenCalledTimes(1)
+  })
+
+  it('a grant recorded for a different plugin does not open the gate', async () => {
+    const ctx = new Context()
+    const applied = vi.fn()
+    const results = await loadPlugins(
+      ctx,
+      gatedRegistry(applied),
+      [{ pluginId: 'ext-tool', config: {} }],
+      { grants: { 'someone-else': ['audio'] } },
+    )
+    expect(results[0]?.state).toBe('ungranted')
+    expect(applied).not.toHaveBeenCalled()
+  })
+
+  it('builtin plugins are granted their manifest implicitly (no grant needed)', async () => {
+    const ctx = new Context()
+    const applied = vi.fn()
+    const registry: PluginRegistry = {
+      bundled: {
+        plugin: { name: 'bundled', apply: applied } as never,
+        manifest: manifest('bundled', { capabilities: ['audio'] }),
+        builtin: true,
+      },
+    }
+    const results = await loadPlugins(ctx, registry, [{ pluginId: 'bundled', config: {} }])
+    expect(results[0]?.state).toBe('active')
+    expect(applied).toHaveBeenCalledTimes(1)
+  })
+
+  it('a third-party plugin with an empty capabilities list needs no grant', async () => {
+    const ctx = new Context()
+    const applied = vi.fn()
+    const registry: PluginRegistry = {
+      plain: {
+        plugin: { name: 'plain', apply: applied } as never,
+        manifest: manifest('plain', { capabilities: [] }),
+      },
+    }
+    const results = await loadPlugins(ctx, registry, [{ pluginId: 'plain', config: {} }])
+    expect(results[0]?.state).toBe('active')
+    expect(applied).toHaveBeenCalledTimes(1)
+  })
+})

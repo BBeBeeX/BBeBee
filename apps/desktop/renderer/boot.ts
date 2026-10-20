@@ -11,12 +11,19 @@
  * - No domain logic here — only wiring.
  */
 
-import { createApp, type App, type PluginRegistry, type RegistryEntry } from '@BBeBee/kernel'
+import {
+  createApp,
+  readCapabilityGrants,
+  type App,
+  type PluginRegistry,
+  type RegistryEntry,
+} from '@BBeBee/kernel'
 import { Service, type Context, type Fiber } from 'cordis'
 import type {
   AppSettings,
   AudioService,
   AudioSourceHandle,
+  DbService,
   Disposable,
   InterruptionEvent,
   LoadOptions,
@@ -573,6 +580,15 @@ export async function boot(): Promise<App> {
     ],
     registry,
     config: { plugins: enabledPlugins },
+    // Capability grants live in the db DbBridge provides; the kernel
+    // resolves them after bootstrap and again before every dynamic
+    // load, so a plugin the user just installed (plugin-manager records
+    // the grant from the confirmed install) activates without a
+    // restart, and a fresh boot sees the grants of past installs (W1).
+    resolveGrants: async (ctx) => {
+      const db = (ctx as unknown as { db?: DbService }).db
+      return db ? readCapabilityGrants(db) : undefined
+    },
   })
 
   await app.start()

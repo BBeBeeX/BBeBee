@@ -28,8 +28,8 @@ import {
 } from 'react-native'
 import { FlashList } from '@shopify/flash-list'
 import { AudioContext, AudioManager } from 'react-native-audio-api'
-import { createApp, type App } from '@BBeBee/kernel'
-import type { AppSettings } from '@BBeBee/protocol'
+import { createApp, readCapabilityGrants, type App } from '@BBeBee/kernel'
+import type { AppSettings, DbService } from '@BBeBee/protocol'
 import { PathsExpo } from '@BBeBee/core-paths-expo'
 import { FsExpo } from '@BBeBee/core-fs-expo'
 import { StoreFs } from '@BBeBee/core-store-fs'
@@ -189,6 +189,15 @@ export async function boot(): Promise<App> {
     ],
     registry: bundled,
     config: { plugins: ENABLED },
+    // Capability grants live in the db DbExpo provides; the kernel
+    // resolves them after bootstrap and before every dynamic load, so
+    // the loader's gate sees the user's recorded approvals (W1). Mobile
+    // has no dynamic installs today — every bundled plugin is builtin
+    // and exempt — but the gate must not silently depend on that.
+    resolveGrants: async (ctx) => {
+      const db = (ctx as unknown as { db?: DbService }).db
+      return db ? readCapabilityGrants(db) : undefined
+    },
   })
   await app.start()
 
