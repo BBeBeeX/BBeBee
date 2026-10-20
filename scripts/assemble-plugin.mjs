@@ -8,7 +8,17 @@
  *     --feature packages/feature/plugin-visualizer \
  *     --ui packages/ui/plugin-visualizer-ui-desktop \
  *     [--ui-mobile packages/ui/plugin-visualizer-ui-mobile] \
- *     [--out <dir>] [--name <npm-name>] [--version <x.y.z>] [--no-build]
+ *     [--out <dir>] [--name <npm-name>] [--version <x.y.z>] [--id <registry-id>] \
+ *     [--no-build]
+ *
+ * `--id` stamps the **publication identity** into the assembled
+ * `BBeBee.plugin.json`: the installer's anti-spoofing check requires the
+ * packaged manifest `id` to equal the registry entry `id`, and the
+ * registry entry id is a kebab slug (`{username}-{name}`, e.g.
+ * `bbebeex-visualizer`) — not the feature package's monorepo manifest id
+ * (`@BBeBee/plugin-visualizer`). Registry CI enforces the same equality
+ * against the published package. Omit `--id` only for packages that will
+ * never be registry-distributed; the feature manifest id is then kept.
  *
  * Output layout (the npm plugin format, docs/plugins/loading.md §6.8–6.9):
  *
@@ -202,7 +212,7 @@ async function bundleUi(uiDir, uiPkg, outFile, label) {
 // ---------------------------------------------------------------------------
 
 function parseArgs(argv) {
-  const opts = { feature: null, ui: null, uiMobile: null, out: null, name: null, version: null, build: true }
+  const opts = { feature: null, ui: null, uiMobile: null, out: null, name: null, version: null, id: null, build: true }
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
     const take = (flag) => {
@@ -222,9 +232,11 @@ function parseArgs(argv) {
     else if (arg.startsWith('--name=')) opts.name = arg.slice('--name='.length)
     else if (arg === '--version') opts.version = take(arg)
     else if (arg.startsWith('--version=')) opts.version = arg.slice('--version='.length)
+    else if (arg === '--id') opts.id = take(arg)
+    else if (arg.startsWith('--id=')) opts.id = arg.slice('--id='.length)
     else if (arg === '--no-build') opts.build = false
     else if (arg === '--help' || arg === '-h') {
-      console.log('Usage: node scripts/assemble-plugin.mjs --feature <dir> --ui <dir> [--ui-mobile <dir>] [--out <dir>] [--name <npm-name>] [--version <x.y.z>] [--no-build]')
+      console.log('Usage: node scripts/assemble-plugin.mjs --feature <dir> --ui <dir> [--ui-mobile <dir>] [--out <dir>] [--name <npm-name>] [--version <x.y.z>] [--id <registry-id>] [--no-build]')
       process.exit(0)
     } else fail(`unknown argument: ${arg}`)
   }
@@ -248,6 +260,16 @@ async function main() {
   const name = opts.name ?? featurePkg.name
   const version = opts.version ?? featurePkg.version
   if (!name || !version) fail('could not determine package name/version (feature package.json or --name/--version)')
+  // npm only accepts lowercase package names for publication (the
+  // registry validator enforces the same grammar), which the monorepo
+  // scope `@BBeBee` violates — warn loudly instead of silently shipping
+  // an unpublishable artifact; `--name` is the way out.
+  if (!/^(?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/.test(name)) {
+    console.warn(
+      `${TAG} warning: package name "${name}" is not a valid npm publication name (lowercase only) — ` +
+        'pass --name with the lowercase name you will publish under, or the registry will reject the entry.',
+    )
+  }
 
   if (opts.build) {
     runPackageBuild(featurePkg, featureDir)
@@ -288,8 +310,12 @@ async function main() {
   // 3. BBeBee.plugin.json: the feature manifest, entry rewritten to the
   //    assembled layout; version aligned with package.json (the installer
   //    refuses on a version disagreement, so the two never drift here).
+  //    `--id` replaces the monorepo manifest id with the registry
+  //    publication id (see the header note); without it the feature
+  //    manifest id is kept.
   const manifest = {
     ...featureManifest,
+    ...(opts.id ? { id: opts.id } : {}),
     name,
     version,
     entry: {
@@ -299,6 +325,9 @@ async function main() {
         ...(uiMobileDir ? { mobile: './dist/ui-mobile.js' } : {}),
       },
     },
+  }
+  if (opts.id) {
+    console.log(`${TAG} manifest id stamped with registry publication id "${opts.id}" (feature manifest id was "${featureManifest.id}")`)
   }
   writeFileSync(join(outDir, 'BBeBee.plugin.json'), `${JSON.stringify(manifest, null, 2)}\n`)
 
