@@ -12,6 +12,7 @@ import type {
 import { PluginSearchBox } from './PluginSearchBox.js'
 import { PluginMarketDetail } from './PluginMarketDetail.js'
 import { PluginMarketInstallConfirm } from './PluginMarketInstallConfirm.js'
+import { isOfficialEntry } from '../official.js'
 
 type BusyKind = 'install' | 'update' | 'uninstall'
 
@@ -580,6 +581,27 @@ function MarketRow({
           { style: { fontSize: 11, color: 'var(--bb-text-tertiary, #6B7280)' } },
           entry.author,
         ),
+        // Official badge: derived ONLY from the repo owner being the
+        // BBeBeeX GitHub account (see ../official.ts) — never from the
+        // entry id prefix or the author string.
+        isOfficialEntry(entry)
+          ? h(
+              'span',
+              {
+                'data-testid': `market-official-${entry.id}`,
+                title: t('settings:pluginMarket.officialHint'),
+                style: {
+                  fontSize: 10,
+                  fontWeight: 600,
+                  padding: '1px 7px',
+                  borderRadius: 9,
+                  background: 'rgba(59, 130, 246, 0.15)',
+                  color: '#3B82F6',
+                },
+              },
+              t('settings:pluginMarket.official'),
+            )
+          : null,
         installed
           ? h(
               'span',

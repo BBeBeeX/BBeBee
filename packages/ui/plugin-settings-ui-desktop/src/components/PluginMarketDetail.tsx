@@ -2,6 +2,7 @@ import { Button, Sheet, useI18n } from '@BBeBee/ui-kit-desktop'
 import { createElement as h, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { PluginInfo, RegistryPluginEntry } from '@BBeBee/protocol'
+import { isOfficialEntry } from '../official.js'
 
 /** Opens a URL outside the app without touching platform SDKs (rules/ui.md §11.3). */
 function openExternalUrl(url: string): void {
@@ -73,6 +74,29 @@ export function PluginMarketDetail({
               })
             : null,
           h('p', { style: { margin: 0, lineHeight: 1.5 } }, entry.description),
+          // Official marker: repo owner === BBeBeeX only (../official.ts).
+          isOfficialEntry(entry)
+            ? h(
+                'div',
+                { style: { display: 'flex' } },
+                h(
+                  'span',
+                  {
+                    'data-testid': `market-detail-official-${entry.id}`,
+                    title: t('settings:pluginMarket.officialHint'),
+                    style: {
+                      fontSize: 10,
+                      fontWeight: 600,
+                      padding: '1px 7px',
+                      borderRadius: 9,
+                      background: 'rgba(59, 130, 246, 0.15)',
+                      color: '#3B82F6',
+                    },
+                  },
+                  t('settings:pluginMarket.official'),
+                ),
+              )
+            : null,
           h(DetailRow, {
             label: t('settings:pluginMarket.authorLabel'),
             value: entry.author,

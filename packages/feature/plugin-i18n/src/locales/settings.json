@@ -506,7 +506,9 @@
       "installedVersion": "Installed: {version}",
       "installedVersionLabel": "Installed version",
       "delisted": "Removed from the registry",
-      "delistedHint": "This plugin has been removed from the registry. The installed copy is quarantined; you can uninstall it."
+      "delistedHint": "This plugin has been removed from the registry. The installed copy is quarantined; you can uninstall it.",
+      "official": "Official",
+      "officialHint": "Maintained by the BBeBeeX GitHub account (the repository owner is BBeBeeX)."
     }
   },
   "zh": {
@@ -1016,7 +1018,9 @@
       "installedVersion": "已装版本：{version}",
       "installedVersionLabel": "已装版本",
       "delisted": "已从注册表下架",
-      "delistedHint": "该插件已从注册表下架，已安装的副本已被隔离；你可以卸载它。"
+      "delistedHint": "该插件已从注册表下架，已安装的副本已被隔离；你可以卸载它。",
+      "official": "官方",
+      "officialHint": "由 GitHub 账号 BBeBeeX 维护（仓库所有者为 BBeBeeX）。"
     }
   }
 }
