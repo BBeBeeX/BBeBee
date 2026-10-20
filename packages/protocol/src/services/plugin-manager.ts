@@ -99,6 +99,36 @@ export interface RegistryPluginEntry {
   screenshot?: string
   homepage?: string
   engines?: { BBeBee?: string; [key: string]: string | undefined }
+  /**
+   * The version the registry last reviewed for this entry (audit W4/W5).
+   * When present, install plans default to exactly this version: newer
+   * npm versions resolve only through an explicit, user-confirmed
+   * unreviewed path. Absent means the entry carries no pin and version
+   * resolution behaves as it always has.
+   */
+  reviewedVersion?: string
+  /**
+   * `sha512-<base64>` of the reviewed version's tarball, verified by
+   * registry CI against npm. When the resolved version IS
+   * {@link reviewedVersion}, the downloaded bytes must match this hash
+   * in addition to the packument's own `dist.integrity` — the pin is an
+   * independent anchor (registry repo) for the content, not a copy of
+   * the mirror-served packument value.
+   */
+  reviewedIntegrity?: string
+}
+
+/**
+ * One entry of the registry index's `blocked` channel (audit W4/W5):
+ * an id the registry has actively banned (malware, impersonation),
+ * as opposed to merely delisted (entry removed). Installed copies are
+ * quarantined with the ban reason surfaced; the block lifts only when
+ * the id leaves the blocked list.
+ */
+export interface RegistryBlockedEntry {
+  id: string
+  /** Human-readable reason from the registry (shown to the user). */
+  reason: string
 }
 
 /** One npm package pinned to an exact version, ready to download. */

@@ -19,6 +19,7 @@ import {
   type HttpService,
   type NpmResolvedPackage,
   type PluginManifest,
+  type RegistryBlockedEntry,
   type RegistryPluginEntry,
 } from '@BBeBee/protocol'
 import { maxSatisfying, satisfiesRange } from '@BBeBee/toolkit'
@@ -145,6 +146,17 @@ export interface ResolvedEntry {
   pkg: NpmResolvedPackage
   /** The pinned version's declared `peerDependencies` (from the packument). */
   peerDependencies?: Record<string, string>
+}
+
+/**
+ * The parsed registry index document. The index's wire format is an
+ * object `{ entries, blocked }` (audit W4); for the transition the
+ * parser also accepts the legacy bare-array form (entries only, no
+ * blocked channel).
+ */
+export interface RegistryIndexDocument {
+  entries: RegistryPluginEntry[]
+  blocked: RegistryBlockedEntry[]
 }
 
 export interface ExtractedPackage {
@@ -486,50 +498,95 @@ export class NpmClient {
   // Registry index
   // ---------------------------------------------------------------------------
 
-  private parseIndex(data: unknown): RegistryPluginEntry[] {
-    if (!Array.isArray(data)) {
-      throw new NpmPluginError('INDEX_INVALID', 'registry 索引不是数组')
-    }
-    return data.map((item, i) => {
-      const e = item as Record<string, unknown>
-      for (const f of ['id', 'name', 'npm'] as const) {
-        if (typeof e[f] !== 'string' || !(e[f] as string).trim()) {
-          throw new NpmPluginError('INDEX_INVALID', `registry 索引第 ${i} 项缺少字段 "${f}"`)
-        }
+  private parseIndexEntry(item: unknown, i: number): RegistryPluginEntry {
+    const e = item as Record<string, unknown>
+    for (const f of ['id', 'name', 'npm'] as const) {
+      if (typeof e[f] !== 'string' || !(e[f] as string).trim()) {
+        throw new NpmPluginError('INDEX_INVALID', `registry 索引第 ${i} 项缺少字段 "${f}"`)
       }
-      return {
-        id: e.id as string,
-        name: e.name as string,
-        repo: (e.repo as string) ?? '',
-        npm: e.npm as string,
-        author: (e.author as string) ?? '',
-        description: (e.description as string) ?? '',
-        services: Array.isArray(e.services) ? (e.services as string[]) : [],
-        provides: Array.isArray(e.provides) ? (e.provides as string[]) : undefined,
-        platforms: Array.isArray(e.platforms) ? (e.platforms as string[]) : [],
-        category: (e.category as string) ?? '',
-        dependencies: Array.isArray(e.dependencies) ? (e.dependencies as string[]) : [],
-        compositors: Array.isArray(e.compositors) ? (e.compositors as string[]) : [],
-        i18n: Array.isArray(e.i18n) ? (e.i18n as string[]) : undefined,
-        minAppVersion: typeof e.minAppVersion === 'string' ? e.minAppVersion : undefined,
-        screenshot: typeof e.screenshot === 'string' ? e.screenshot : undefined,
-        homepage: typeof e.homepage === 'string' ? e.homepage : undefined,
-        engines: (e.engines as RegistryPluginEntry['engines']) ?? undefined,
-      } satisfies RegistryPluginEntry
-    })
+    }
+    return {
+      id: e.id as string,
+      name: e.name as string,
+      repo: (e.repo as string) ?? '',
+      npm: e.npm as string,
+      author: (e.author as string) ?? '',
+      description: (e.description as string) ?? '',
+      services: Array.isArray(e.services) ? (e.services as string[]) : [],
+      provides: Array.isArray(e.provides) ? (e.provides as string[]) : undefined,
+      platforms: Array.isArray(e.platforms) ? (e.platforms as string[]) : [],
+      category: (e.category as string) ?? '',
+      dependencies: Array.isArray(e.dependencies) ? (e.dependencies as string[]) : [],
+      compositors: Array.isArray(e.compositors) ? (e.compositors as string[]) : [],
+      i18n: Array.isArray(e.i18n) ? (e.i18n as string[]) : undefined,
+      minAppVersion: typeof e.minAppVersion === 'string' ? e.minAppVersion : undefined,
+      screenshot: typeof e.screenshot === 'string' ? e.screenshot : undefined,
+      homepage: typeof e.homepage === 'string' ? e.homepage : undefined,
+      engines: (e.engines as RegistryPluginEntry['engines']) ?? undefined,
+      reviewedVersion: typeof e.reviewedVersion === 'string' ? e.reviewedVersion : undefined,
+      reviewedIntegrity: typeof e.reviewedIntegrity === 'string' ? e.reviewedIntegrity : undefined,
+    } satisfies RegistryPluginEntry
+  }
+
+  /**
+   * Parses the registry index document. Current wire format is the
+   * object form `{ entries: [...], blocked: [{id, reason}] }`; the
+   * legacy bare-array form (pre-W4 registries and old caches) is still
+   * accepted and yields an empty blocked channel.
+   */
+  private parseIndexDocument(data: unknown): RegistryIndexDocument {
+    if (Array.isArray(data)) {
+      return { entries: data.map((item, i) => this.parseIndexEntry(item, i)), blocked: [] }
+    }
+    if (!data || typeof data !== 'object') {
+      throw new NpmPluginError('INDEX_INVALID', 'registry 索引既不是条目数组也不是索引文档对象')
+    }
+    const doc = data as Record<string, unknown>
+    if (!Array.isArray(doc.entries)) {
+      throw new NpmPluginError('INDEX_INVALID', 'registry 索引文档缺少 entries 数组')
+    }
+    const entries = doc.entries.map((item, i) => this.parseIndexEntry(item, i))
+    const blocked: RegistryBlockedEntry[] = []
+    if (doc.blocked !== undefined) {
+      if (!Array.isArray(doc.blocked)) {
+        throw new NpmPluginError('INDEX_INVALID', 'registry 索引文档的 blocked 不是数组')
+      }
+      for (const [i, item] of doc.blocked.entries()) {
+        const b = item as Record<string, unknown>
+        if (typeof b?.id !== 'string' || !(b.id as string).trim()) {
+          throw new NpmPluginError('INDEX_INVALID', `registry 索引 blocked 第 ${i} 项缺少字段 "id"`)
+        }
+        blocked.push({
+          id: b.id as string,
+          reason: typeof b.reason === 'string' ? b.reason : '',
+        })
+      }
+    }
+    return { entries, blocked }
   }
 
   /** Plugin index via raw file fetch (24h cache). Never the GitHub Contents API. */
   async fetchIndex(opts?: { force?: boolean }): Promise<RegistryPluginEntry[]> {
+    return (await this.fetchIndexDocument(opts)).entries
+  }
+
+  /**
+   * The full index document (entries + the blocked channel). Shares
+   * fetchIndex's cache; documents cached by older clients (bare entry
+   * arrays) are read as documents with an empty blocked channel.
+   */
+  async fetchIndexDocument(opts?: { force?: boolean }): Promise<RegistryIndexDocument> {
     if (!opts?.force) {
-      const cached = await this.deps.cache.get<RegistryPluginEntry[]>('index')
-      if (cached && this.now() - cached.fetchedAt < INDEX_CACHE_TTL_MS) return cached.value
+      const cached = await this.deps.cache.get<RegistryIndexDocument | RegistryPluginEntry[]>('index')
+      if (cached && this.now() - cached.fetchedAt < INDEX_CACHE_TTL_MS) {
+        return Array.isArray(cached.value) ? { entries: cached.value, blocked: [] } : cached.value
+      }
     }
     const { url, official } = await this.registryRawBase()
     const data = await this.getJson<unknown>(`${url}/${REGISTRY_INDEX_PATH}`, `${official}/${REGISTRY_INDEX_PATH}`)
-    const entries = this.parseIndex(data)
-    await this.deps.cache.set('index', entries)
-    return entries
+    const doc = this.parseIndexDocument(data)
+    await this.deps.cache.set('index', doc)
+    return doc
   }
 
   // ---------------------------------------------------------------------------

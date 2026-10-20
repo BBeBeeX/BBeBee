@@ -888,6 +888,48 @@ describe('plugin-manager npm service methods', () => {
     expect(entries.map((e) => e.id)).toEqual(['d-x'])
   })
 
+  describe('index document forms (audit W5)', () => {
+    it('accepts the object form and surfaces entries, blocked and reviewed pins', async () => {
+      const e = entryFor({
+        id: 'a-x',
+        npm: '@t/a',
+        reviewedVersion: '1.0.0',
+        reviewedIntegrity: 'sha512-AAA=',
+      })
+      const w = createNpmWorld({ platform: 'desktop' })
+      w.routes.set(INDEX_URL, {
+        status: 200,
+        json: async () => ({ entries: [e], blocked: [{ id: 'evil-1', reason: 'malware' }] }),
+      })
+      await w.plugin[PluginManagerPlugin.init]()
+      const entries = await w.plugin.browseRegistry()
+      expect(entries).toHaveLength(1)
+      expect(entries[0]!.reviewedVersion).toBe('1.0.0')
+      expect(entries[0]!.reviewedIntegrity).toBe('sha512-AAA=')
+      const client = (w.plugin as any).getNpmClient() as NpmClient
+      const doc = await client.fetchIndexDocument()
+      expect(doc.blocked).toEqual([{ id: 'evil-1', reason: 'malware' }])
+    })
+
+    it('accepts the legacy bare-array form with an empty blocked channel', async () => {
+      const e = entryFor({ id: 'a-x', npm: '@t/a' })
+      const w = createNpmWorld({ platform: 'desktop' })
+      w.routes.set(INDEX_URL, { status: 200, json: async () => [e] })
+      await w.plugin[PluginManagerPlugin.init]()
+      const client = (w.plugin as any).getNpmClient() as NpmClient
+      const doc = await client.fetchIndexDocument()
+      expect(doc.entries.map((x) => x.id)).toEqual(['a-x'])
+      expect(doc.blocked).toEqual([])
+    })
+
+    it('rejects malformed index documents', async () => {
+      const w = createNpmWorld({ platform: 'desktop' })
+      w.routes.set(INDEX_URL, { status: 200, json: async () => ({ blocked: [] }) })
+      await w.plugin[PluginManagerPlugin.init]()
+      await expectNpmError(w.plugin.browseRegistry(), 'INDEX_INVALID')
+    })
+  })
+
   it('checkUpdates finds a newer version and stamps the check time', async () => {
     const entry = entryFor({ id: 'a-x', npm: '@t/a' })
     const tarballs = {
