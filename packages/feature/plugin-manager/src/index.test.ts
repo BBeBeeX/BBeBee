@@ -4,7 +4,16 @@ import { gzipSync } from 'fflate'
 import { base64Encode, sha256Hex, sha512, type DbService, type RegistryPluginEntry } from '@BBeBee/protocol'
 import { PluginManagerPlugin } from './index.js'
 import type { PluginManifest } from '@BBeBee/protocol'
-import { concatStreamWithLimit, gunzipCapped, NpmClient, NpmPluginError, parseDepSpecifier } from './npm.js'
+import {
+  concatStreamWithLimit,
+  gitHubRepoIdentity,
+  gunzipCapped,
+  NpmClient,
+  NpmPluginError,
+  parseDepSpecifier,
+  provenanceSourceRepo,
+  provenanceVerdict,
+} from './npm.js'
 
 describe('PluginManagerPlugin', () => {
   function createTestContext() {
@@ -565,6 +574,68 @@ describe('NpmClient tarball handling', () => {
   })
 })
 
+describe('npm provenance helpers (audit W6)', () => {
+  function attestationsBody(sourceRepo: string) {
+    const payload = {
+      _type: 'https://in-toto.io/Statement/v1',
+      predicateType: 'https://slsa.dev/provenance/v1',
+      predicate: {
+        buildDefinition: {
+          buildType: 'https://slsa-framework.github.io/github-actions-buildtypes/workflow/v1',
+          externalParameters: {
+            workflow: { ref: 'refs/heads/main', repository: sourceRepo, path: '.github/workflows/publish.yml' },
+          },
+        },
+      },
+    }
+    return {
+      attestations: [
+        {
+          predicateType: 'https://slsa.dev/provenance/v1',
+          bundle: { dsseEnvelope: { payload: base64Encode(JSON.stringify(payload)) } },
+        },
+      ],
+    }
+  }
+
+  it('extracts the source repository from the DSSE envelope', () => {
+    expect(provenanceSourceRepo(attestationsBody('https://github.com/BBeBeeX/BBeBee'))).toBe(
+      'https://github.com/BBeBeeX/BBeBee',
+    )
+  })
+
+  it('ignores non-provenance attestations and malformed bodies', () => {
+    expect(provenanceSourceRepo({ attestations: [{ predicateType: 'https://github.com/npm/attestation/tree/main/specs/publish/v0.1', bundle: {} }] })).toBeUndefined()
+    expect(provenanceSourceRepo({ attestations: [] })).toBeUndefined()
+    expect(provenanceSourceRepo({ error: 'Not found' })).toBeUndefined()
+    expect(provenanceSourceRepo(null)).toBeUndefined()
+    expect(provenanceSourceRepo('junk')).toBeUndefined()
+    expect(
+      provenanceSourceRepo({ attestations: [{ predicateType: 'https://slsa.dev/provenance/v1', bundle: { dsseEnvelope: { payload: '!!!not-base64-json' } } }] }),
+    ).toBeUndefined()
+  })
+
+  it('verdicts: match is case/slash tolerant, foreign source mismatches, absent is none', () => {
+    expect(provenanceVerdict(attestationsBody('https://github.com/bbebeex/bbebee/'), 'https://github.com/BBeBeeX/BBeBee')).toEqual({
+      status: 'verified',
+      sourceRepo: 'https://github.com/bbebeex/bbebee/',
+    })
+    expect(provenanceVerdict(attestationsBody('https://github.com/attacker/fake'), 'https://github.com/BBeBeeX/BBeBee')).toEqual({
+      status: 'mismatch',
+      sourceRepo: 'https://github.com/attacker/fake',
+    })
+    expect(provenanceVerdict({ attestations: [] }, 'https://github.com/BBeBeeX/BBeBee')).toEqual({ status: 'none' })
+  })
+
+  it('normalizes GitHub repo identities and rejects non-GitHub URLs', () => {
+    expect(gitHubRepoIdentity('https://github.com/BBeBeeX/BBeBee.git')).toBe('bbebeex/bbebee')
+    expect(gitHubRepoIdentity('https://github.com/BBeBeeX/BBeBee/')).toBe('bbebeex/bbebee')
+    expect(gitHubRepoIdentity('https://gitlab.com/a/b')).toBeUndefined()
+    expect(gitHubRepoIdentity('not a url')).toBeUndefined()
+    expect(gitHubRepoIdentity(undefined)).toBeUndefined()
+  })
+})
+
 describe('plugin-manager npm service methods', () => {
   function seedWorld(
     entry: RegistryPluginEntry,
@@ -909,6 +980,79 @@ describe('plugin-manager npm service methods', () => {
     const w = seedWorld(entry, ['1.0.0'], tarballs)
     await w.plugin[PluginManagerPlugin.init]()
     await expectNpmError(w.plugin.installPlugin('@BBeBee/plugin-player'), 'SPOOF_DETECTED')
+  })
+
+  describe('provenance (audit W6)', () => {
+    const ATTESTATIONS_URL = `https://registry.npmjs.org/-/npm/v1/attestations/${encodeURIComponent('@t/a')}@1.0.0`
+    function attestationsBody(sourceRepo: string) {
+      const payload = {
+        _type: 'https://in-toto.io/Statement/v1',
+        predicateType: 'https://slsa.dev/provenance/v1',
+        predicate: {
+          buildDefinition: {
+            buildType: 'https://slsa-framework.github.io/github-actions-buildtypes/workflow/v1',
+            externalParameters: {
+              workflow: { ref: 'refs/heads/main', repository: sourceRepo, path: '.github/workflows/publish.yml' },
+            },
+          },
+        },
+      }
+      return {
+        attestations: [
+          {
+            predicateType: 'https://slsa.dev/provenance/v1',
+            bundle: { dsseEnvelope: { payload: base64Encode(JSON.stringify(payload)) } },
+          },
+        ],
+      }
+    }
+    const officialEntry = () =>
+      entryFor({ id: 'a-x', npm: '@t/a', repo: 'https://github.com/BBeBeeX/BBeBee' })
+
+    it('refuses an install whose provenance names a different source repo', async () => {
+      const entry = officialEntry()
+      const tarballs = { '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0') }
+      const w = seedWorld(entry, ['1.0.0'], tarballs)
+      w.routes.set(ATTESTATIONS_URL, {
+        status: 200,
+        json: async () => attestationsBody('https://github.com/attacker/sneaky-builds'),
+      })
+      await w.plugin[PluginManagerPlugin.init]()
+      await expectNpmError(w.plugin.installPlugin('a-x'), 'SPOOF_DETECTED')
+      expect(w.bridge.installPlugin).not.toHaveBeenCalled()
+    })
+
+    it('installs and surfaces provenanceVerified when the attestation matches the entry repo', async () => {
+      const entry = officialEntry()
+      const tarballs = { '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0') }
+      const w = seedWorld(entry, ['1.0.0'], tarballs)
+      w.routes.set(ATTESTATIONS_URL, {
+        status: 200,
+        json: async () => attestationsBody('https://github.com/BBeBeeX/BBeBee'),
+      })
+      await w.plugin[PluginManagerPlugin.init]()
+      await w.plugin.installPlugin('a-x')
+      expect(w.bridge.installPlugin).toHaveBeenCalledTimes(1)
+      const info = w.plugin.list().find((p) => p.id === 'a-x')
+      expect(info?.provenanceVerified).toBe(true)
+      // Persisted on the install record, so the next session's list()
+      // (seeded from the records) keeps the badge.
+      const records = await (w.plugin as any).loadInstalledRecords()
+      expect(records['a-x']?.provenanceVerified).toBe(true)
+    })
+
+    it('installs without provenance (attestations 404) and leaves the flag unset', async () => {
+      const entry = officialEntry()
+      const tarballs = { '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0') }
+      const w = seedWorld(entry, ['1.0.0'], tarballs)
+      // No attestations route: the harness answers 404, npm's "no
+      // attestations for this version" — pilot policy is warn-only.
+      await w.plugin[PluginManagerPlugin.init]()
+      await w.plugin.installPlugin('a-x')
+      expect(w.bridge.installPlugin).toHaveBeenCalledTimes(1)
+      const info = w.plugin.list().find((p) => p.id === 'a-x')
+      expect(info?.provenanceVerified).toBeUndefined()
+    })
   })
 
   it('throws BRIDGE_UNAVAILABLE without an installPlugin bridge', async () => {

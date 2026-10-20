@@ -48,6 +48,7 @@ import {
   NPM_AUTH_TOKEN_KEY,
   NpmClient,
   NpmPluginError,
+  gitHubRepoIdentity,
   type ExtractedPackage,
   type NpmKvCache,
   type RegistryIndexDocument,
@@ -160,6 +161,15 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   private blockedIds = new Map<string, string>()
 
   /**
+   * Ids whose installed version's npm provenance attestation names
+   * the registry entry's repo as its source (audit W6). Mirrors the
+   * persisted `provenanceVerified` flag on the install records;
+   * seeded from the records at init and maintained by every install /
+   * update that flows through activatePrepared.
+   */
+  private provenanceVerifiedIds = new Set<string>()
+
+  /**
    * The user's provider choices for replaceable service keys
    * (audit W5): key → active provider manifest id. Persisted in this
    * service's store under `service-providers`; the desktop boot reads
@@ -227,6 +237,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       for (const rec of Object.values(records)) {
         if (rec.delisted) this.delistedIds.add(rec.id)
         if (rec.blocked !== undefined) this.blockedIds.set(rec.id, rec.blocked)
+        if (rec.provenanceVerified) this.provenanceVerifiedIds.add(rec.id)
       }
     } catch {
       // Store unavailable — flags reload with the first liveness refresh.
@@ -571,6 +582,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     } catch {
       // Lock record cleanup is best-effort; the files are already gone.
     }
+    this.provenanceVerifiedIds.delete(id)
 
     this.ctx.emit('plugin-manager/changed')
   }
@@ -874,7 +886,32 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     if (entry.reviewedIntegrity && entry.reviewedVersion && pkg.version === entry.reviewedVersion) {
       client.verifyReviewedIntegrity(bytes, entry, label)
     }
+    // Provenance (audit W6): when npm carries a provenance attestation
+    // for this exact version, the source repository it names must be
+    // the repo the registry entry points at — an attestation naming a
+    // different repo proves the bytes were built somewhere the entry
+    // does not disclose, which is spoofing with paperwork, and is
+    // refused like every other identity mismatch. NO attestation is
+    // not a refusal in the pilot: official packages are being
+    // re-published with provenance, so an official entry without one
+    // earns a warning, not a block; an unreachable attestations
+    // endpoint degrades like any other registry read (warn, proceed).
+    const provenance = await client.checkProvenance(pkg, entry.repo)
+    if (provenance.status === 'mismatch') {
+      throw new NpmPluginError(
+        'SPOOF_DETECTED',
+        `包 ${label} 的 npm 出处证明（provenance）来源仓库为 "${provenance.sourceRepo}"，与 registry 条目 repo "${entry.repo}" 不符，拒绝安装（防冒充）`,
+      )
+    }
+    if (provenance.status === 'none' && gitHubRepoIdentity(entry.repo)?.startsWith('bbebeex/')) {
+      this.ctx.logger.warn(
+        `plugin-manager: 官方包 ${label} 暂无 npm 出处证明（provenance），试点期仅警告不拦截；官方包带 provenance 重发后此项将收紧为拒绝`,
+      )
+    } else if (provenance.status === 'unknown') {
+      this.ctx.logger.warn(`plugin-manager: 无法获取 ${label} 的 npm 出处证明（网络不可达），按降级口径放行`)
+    }
     const extracted = client.extractPackage(pkg, bytes)
+    if (provenance.status === 'verified') extracted.provenanceVerified = true
 
     // D5: the selected version, package.json and BBeBee.plugin.json must agree.
     const vPkg = extracted.packageJson.version
@@ -1046,8 +1083,13 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
         sha256: extracted.tarballSha256,
         entrySha256: fileHashes[entryMain],
         fileHashes,
+        ...(extracted.provenanceVerified ? { provenanceVerified: true } : {}),
         installedAt: new Date().toISOString(),
       }
+      // Keep the in-memory mirror exact: a re-install/update landing
+      // without a verified attestation clears a previous version's flag.
+      if (extracted.provenanceVerified) this.provenanceVerifiedIds.add(node.entry.id)
+      else this.provenanceVerifiedIds.delete(node.entry.id)
       await this.saveInstalledRecords(records)
       onInstalled?.(node.entry.id)
 
@@ -1200,6 +1242,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
           this.failedErrors.delete(m.name)
         }
         delete records[replacedId]
+        this.provenanceVerifiedIds.delete(replacedId)
         // The grant dies with the rolled-back install, exactly as on
         // uninstall: a later reinstall must be approved again.
         const ledger = this.grantLedger()
@@ -1234,6 +1277,9 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
         await bridge.installPlugin(replacedId, staged.files, staged.manifest)
         this.registerManifests({ [replacedId]: staged.manifest })
         records[replacedId] = previous
+        // The restored record's provenance verdict rules again.
+        if (previous.provenanceVerified) this.provenanceVerifiedIds.add(replacedId)
+        else this.provenanceVerifiedIds.delete(replacedId)
         // The restored version runs under the grants its own manifest
         // declares — the failed attempt replaced them with the new
         // version's set, so put the old set back too.
@@ -1819,6 +1865,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
           ...(manifest.capabilities ? { capabilities: [...manifest.capabilities] } : {}),
           ...(this.delistedIds.has(manifest.id) ? { delisted: true } : {}),
           ...(this.blockedIds.has(manifest.id) ? { blocked: this.blockedIds.get(manifest.id) } : {}),
+          ...(this.provenanceVerifiedIds.has(manifest.id) ? { provenanceVerified: true } : {}),
         },
         rawDependencies: depsSet,
       })

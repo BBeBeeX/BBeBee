@@ -59,6 +59,16 @@ export interface PluginInfo {
    * reason string is registry-supplied and shown verbatim.
    */
   blocked?: string
+  /**
+   * The installed version carries an npm provenance attestation whose
+   * source repository matches the registry entry's `repo` (audit W6).
+   * Verified at install time against the registry's attestation record
+   * and persisted on the install record; absent whenever the version
+   * has no attestation (the pilot does not require one) or the check
+   * could not run. A MISMATCHED attestation never reaches this field —
+   * it refuses the install as spoofing.
+   */
+  provenanceVerified?: boolean
 }
 
 export interface PluginLifecycleBridge {
@@ -244,6 +254,14 @@ export interface InstalledNpmPluginRecord {
    * the id leaves the blocked list.
    */
   blocked?: string
+  /**
+   * npm provenance (audit W6): the installed version's provenance
+   * attestation named this entry's `repo` as its source repository.
+   * Set only on a positive match at install/update time; an install
+   * whose attestation names a DIFFERENT repository is refused, and a
+   * version without any attestation simply leaves this unset.
+   */
+  provenanceVerified?: boolean
   installedAt: string
 }
 

@@ -12,6 +12,7 @@
 import { Gunzip } from 'fflate'
 import {
   base64Encode,
+  base64ToBytes,
   sha256Hex,
   sha512,
   type AppSettings,
@@ -172,6 +173,13 @@ export interface ExtractedPackage {
   manifest: PluginManifest
   /** SHA-256 of the raw tarball, for the lock record. */
   tarballSha256: string
+  /**
+   * Set by the manager's prepare step when the version's npm
+   * provenance attestation names the registry entry's repo as its
+   * source (audit W6). Never set on a mismatch — that refuses the
+   * install before extraction results are used.
+   */
+  provenanceVerified?: boolean
 }
 
 /**
@@ -422,6 +430,86 @@ export function tarballAllowedHosts(effectiveRegistryUrl?: string): Set<string> 
     }
   }
   return hosts
+}
+
+/** predicateType of the SLSA provenance attestation npm attaches to a version. */
+export const PROVENANCE_PREDICATE_TYPE = 'https://slsa.dev/provenance/v1'
+
+/**
+ * Outcome of comparing a version's npm provenance attestation with the
+ * registry entry that pointed at it (audit W6):
+ *  - `verified`: an attestation exists and names the entry's repo.
+ *  - `mismatch`: an attestation exists and names a DIFFERENT repo —
+ *    the package was built somewhere else than the entry claims; the
+ *    caller refuses the install as spoofing.
+ *  - `none`: the version carries no provenance attestation at all
+ *    (npm answers the attestations endpoint with 404, or the body has
+ *    no provenance entry).
+ *  - `unknown`: the attestations could not be fetched (network) — the
+ *    caller degrades exactly like every other registry read.
+ */
+export type ProvenanceVerdict =
+  | { status: 'verified'; sourceRepo: string }
+  | { status: 'mismatch'; sourceRepo: string }
+  | { status: 'none' }
+  | { status: 'unknown' }
+
+/**
+ * Extracts the source repository a provenance attestation names, from
+ * the raw body of npm's `/-/npm/v1/attestations/<pkg>@<version>`
+ * endpoint. The statement lives inside the Sigstore bundle's DSSE
+ * envelope: base64 JSON → `predicate.buildDefinition.externalParameters
+ * .workflow.repository` (the GitHub Actions workflow that built the
+ * package). Pure and defensive — any shape surprise yields undefined,
+ * never a throw. Only the repository identity is read; cryptographic
+ * verification of the bundle is deliberately out of scope for the
+ * pilot (the endpoint itself is served over the registry's TLS, the
+ * same trust anchor as the packument).
+ */
+export function provenanceSourceRepo(body: unknown): string | undefined {
+  try {
+    if (!body || typeof body !== 'object') return undefined
+    const attestations = (body as { attestations?: unknown }).attestations
+    if (!Array.isArray(attestations)) return undefined
+    for (const att of attestations) {
+      if (!att || typeof att !== 'object') continue
+      if ((att as { predicateType?: unknown }).predicateType !== PROVENANCE_PREDICATE_TYPE) continue
+      const envelope = (att as { bundle?: { dsseEnvelope?: { payload?: unknown } } }).bundle?.dsseEnvelope
+      if (!envelope || typeof envelope.payload !== 'string') continue
+      const payload: unknown = JSON.parse(new TextDecoder().decode(base64ToBytes(envelope.payload)))
+      const repo = (
+        payload as {
+          predicate?: { buildDefinition?: { externalParameters?: { workflow?: { repository?: unknown } } } }
+        }
+      )?.predicate?.buildDefinition?.externalParameters?.workflow?.repository
+      if (typeof repo === 'string' && repo.trim()) return repo.trim()
+    }
+    return undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Normalizes a GitHub repository reference to a lowercase `owner/repo`
+ * identity, accepting the `https://github.com/owner/repo` URL form
+ * (with optional `.git`/trailing slash) used by registry entries and
+ * provenance statements alike. Anything else yields undefined.
+ */
+export function gitHubRepoIdentity(url: unknown): string | undefined {
+  if (typeof url !== 'string') return undefined
+  const m = /^https:\/\/github\.com\/([^/\s]+)\/([^/\s]+?)(?:\.git)?\/?$/i.exec(url.trim())
+  if (!m) return undefined
+  return `${m[1]!.toLowerCase()}/${m[2]!.toLowerCase()}`
+}
+
+/** Pure verdict for a fetched attestations body against an entry repo. */
+export function provenanceVerdict(body: unknown, entryRepo: string): ProvenanceVerdict {
+  const sourceRepo = provenanceSourceRepo(body)
+  if (!sourceRepo) return { status: 'none' }
+  const a = gitHubRepoIdentity(sourceRepo)
+  const b = gitHubRepoIdentity(entryRepo)
+  return a && b && a === b ? { status: 'verified', sourceRepo } : { status: 'mismatch', sourceRepo }
 }
 
 export class NpmClient {
@@ -893,6 +981,41 @@ export class NpmClient {
         `${label} 与注册表已审哈希不符（reviewedIntegrity）：下载到的字节不是注册表审核过的 ${entry.reviewedVersion ?? ''} 版本，拒绝安装`,
       )
     }
+  }
+
+  /**
+   * Fetches the version's npm attestations and judges them against the
+   * registry entry's repo (audit W6). Never throws: npm's 404 for a
+   * version without attestations IS the `none` verdict, and every
+   * transport failure collapses to `unknown` so the caller degrades
+   * (warn, proceed) instead of blocking installs on an attestations
+   * outage. The auth token rides along on the effective-registry
+   * attempt only, exactly like packument fetches.
+   */
+  async checkProvenance(pkg: NpmResolvedPackage, entryRepo: string): Promise<ProvenanceVerdict> {
+    let registry: { url: string; official: string; authToken?: string }
+    try {
+      registry = await this.effectiveNpmRegistry()
+    } catch {
+      registry = { url: NPM_REGISTRY_OFFICIAL, official: NPM_REGISTRY_OFFICIAL }
+    }
+    const path = `/-/npm/v1/attestations/${encodeURIComponent(pkg.npm)}@${encodeURIComponent(pkg.version)}`
+    const bases = registry.url === registry.official ? [registry.url] : [registry.url, registry.official]
+    for (const [i, base] of bases.entries()) {
+      try {
+        const res = await this.deps.http({
+          url: `${base}${path}`,
+          headers: i === 0 && registry.authToken ? { Authorization: `Bearer ${registry.authToken}` } : undefined,
+          timeoutMs: JSON_TIMEOUT_MS,
+        })
+        if (res.status === 404) return { status: 'none' }
+        if (res.status >= 400) continue
+        return provenanceVerdict(await res.json(), entryRepo)
+      } catch {
+        // Fall through to the official endpoint, then to `unknown`.
+      }
+    }
+    return { status: 'unknown' }
   }
 
   /**

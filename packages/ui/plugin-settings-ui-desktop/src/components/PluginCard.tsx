@@ -144,6 +144,28 @@ export function PluginCard({
               t('settings:pluginMarket.blocked'),
             )
           : null,
+        // npm provenance (audit W6): the installed version's
+        // attestation names the registry entry's repo as its source —
+        // the positive counterpart to the quarantine badges above.
+        plugin.provenanceVerified
+          ? h(
+              'span',
+              {
+                'data-testid': `plugin-provenance-${plugin.id}`,
+                title: t('settings:pluginMarket.provenanceVerifiedHint'),
+                style: {
+                  alignSelf: 'flex-start',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  padding: '1px 7px',
+                  borderRadius: 9,
+                  background: 'rgba(34, 197, 94, 0.15)',
+                  color: 'var(--state-success, #22C55E)',
+                },
+              },
+              t('settings:pluginMarket.provenanceVerified'),
+            )
+          : null,
       ),
       // Right status traffic light and chevron
       h(
