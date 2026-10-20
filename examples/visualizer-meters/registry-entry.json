@@ -5,7 +5,7 @@
     "now-playing.visualizer"
   ],
   "dependencies": [
-    "@BBeBee/plugin-visualizer@^0.0.0"
+    "bbebeex-visualizer@^0.1.0"
   ],
   "description": "Example third-party plugin: spectrogram, spectrum and VU meter views powered by the visualizer service.",
   "engines": {

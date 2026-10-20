@@ -141,33 +141,38 @@ upload.
 
 `registry-entry.json` is the schema-v2 entry this package would be
 submitted with (as `plugins/bbebeex-visualizer-meters.json` in
-`B_Be_Bee-registry`). It was validated with the registry's own
-`validate.mjs`; results, separated by check:
+`B_Be_Bee-registry` — entry filenames are `{github-owner}-{name}.json`,
+a convention separate from the entry `id` inside). It was validated
+with the registry's own `validate.mjs`; results, separated by check:
 
-- **Field/shape validation** — everything passes except `dependencies`
-  (below). Unknown fields are rejected by the schema, so the entry carries
-  exactly the allowed set; note schema v2 has no `type` field — an entry's
-  kind is its directory (`plugins/`).
+- **Field/shape validation** — everything passes. Unknown fields are
+  rejected by the schema, so the entry carries exactly the allowed
+  set; note schema v2 has no `type` field — an entry's kind is its
+  directory (`plugins/`).
 - **`services: ["visualizer"]` whitelist** — passes. `visualizer` is in the
   registry's core service-key list (`scripts/lib/service-keys.ts`), so it
   validates even without another entry's `provides`; the `provides`
   mechanism documented in the registry is what covers service keys that
   are *not* core keys.
 - **Wrinkle 1 — the dependency on the visualizer plugin.**
-  `dependencies: ["@BBeBee/plugin-visualizer@^0.0.0"]` names the
-  visualizer's manifest id, which is what the install-time anti-spoofing
-  rule would force its registry-entry id to be. But the registry's
-  dependency grammar (and the client's `parseDepSpecifier`) only accepts
-  **slug** ids, so the validator reports:
-  `invalid dependency "@BBeBee/plugin-visualizer@^0.0.0" — expected "<id>" or "<id>@<semver-range>"`.
-  First-party plugins have no registry entries today, so a registry-level
-  dependency *on one* is currently inexpressible; the working dependency
-  channel is the `services` list above (the installer checks the
-  visualizer service is available, counting installed plugins'
-  contributed services), plus the manifest's own `dependencies`, which do
-  use manifest ids. The entry keeps the explicit declaration — it is the
-  semantically right target once first-party entries exist — rather than
-  inventing a slug that refers to nothing.
+  `dependencies: ["bbebeex-visualizer@^0.1.0"]` names the visualizer's
+  **registry** id — a lowercase slug, a different namespace from the
+  manifest id (`@BBeBee/plugin-visualizer`) that this package's own
+  `BBeBee.plugin.json` `dependencies` uses. The two are easy to
+  confuse: the registry's dependency grammar (and the client's
+  `parseDepSpecifier`) accepts slugs only, so writing the manifest-id
+  form here is rejected outright
+  (`invalid dependency … — expected "<id>" or "<id>@<semver-range>"`).
+  The slug form works because a published package's in-package
+  manifest id is stamped to the registry id at packaging time (the
+  monorepo's `assemble-plugin.mjs --id` does this for first-party
+  packages), which is exactly what the install-time anti-spoofing
+  check compares the entry id against. The dependency is also what
+  makes the `services` requirement above satisfiable on a fresh
+  install: the installer resolves the closure, counts the visualizer
+  entry's declared `provides` in its plan-stage availability
+  estimate, and re-verifies the downloaded package's manifest
+  `contributes.services` before activating anything.
 - **Wrinkle 2 — npm existence.** The registry CI fetches the packument for
   every entry's `npm` field. This example is not published, so validation
   reports, verbatim:
