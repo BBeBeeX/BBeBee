@@ -281,6 +281,7 @@
     "pluginDetails": {
       "enablePlugin": "Enable plugin",
       "enabledTurningOffUnloadsIt": "Enabled; turning off unloads it immediately",
+      "criticalProviderLocked": "Provides critical services ({services}) — always on, cannot be turned off",
       "error": "Error: {error}",
       "notEnabledTurningOnLoads": "Not enabled; turning on loads it immediately",
       "togglePluginEnabledState": "Toggle plugin {displayName} enabled state",
@@ -790,6 +791,7 @@
     "pluginDetails": {
       "enablePlugin": "启用插件",
       "enabledTurningOffUnloadsIt": "已启用；关闭后立即卸载",
+      "criticalProviderLocked": "提供关键服务（{services}），始终开启、不可关闭",
       "error": "错误：{error}",
       "notEnabledTurningOnLoads": "未启用；开启后立即加载",
       "togglePluginEnabledState": "切换插件 {displayName} 的启用状态",

@@ -29,6 +29,7 @@ import {
   DEFAULT_APP_SETTINGS,
   DEFAULT_DESKTOP_LYRICS_SETTINGS,
   DEFAULT_VISUALIZER_SETTINGS,
+  isCriticalServiceKey,
   sha256Hex,
 } from '@BBeBee/protocol'
 import {
@@ -317,8 +318,23 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   }
 
   async setEnabled(id: string, enabled: boolean): Promise<void> {
-    this.overrides[id] = enabled
     const m = this.manifests.get(id)
+    // Critical-provider lock (audit W5): a plug-in whose manifest
+    // declares a critical service key can never be switched off — a
+    // substitute provider for those keys would compromise the system,
+    // and the settings UI mirrors this by disabling the toggle. The
+    // check runs on the manifest itself (the runtime ground truth),
+    // so no caller can route around the settings page to unlock it.
+    if (!enabled && m) {
+      const critical = (m.contributes?.services ?? []).filter((s) => isCriticalServiceKey(s))
+      if (critical.length > 0) {
+        throw new NpmPluginError(
+          'CRITICAL_PROVIDER',
+          `插件 "${id}" 提供关键服务（${critical.join('、')}），不可关闭`,
+        )
+      }
+    }
+    this.overrides[id] = enabled
     if (m?.name) {
       this.overrides[m.name] = enabled
     }

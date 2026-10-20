@@ -151,6 +151,27 @@ describe('PluginManagerPlugin', () => {
     expect(queue?.enabled).toBe(false)
   })
 
+  it('refuses to disable a critical service provider, but not a replaceable one (audit W5)', async () => {
+    const { ctx } = createTestContext()
+    const plugin = new PluginManagerPlugin(ctx, { manifests: sampleManifests })
+    await plugin[PluginManagerPlugin.init]()
+    const bridge = {
+      loadPlugin: vi.fn(async () => {}),
+      unloadPlugin: vi.fn(async () => {}),
+    }
+    plugin.setLifecycleBridge(bridge)
+
+    // '@BBeBee/plugin-player' provides the critical key `player`.
+    await expectNpmError(plugin.setEnabled('@BBeBee/plugin-player', false), 'CRITICAL_PROVIDER')
+    expect(bridge.unloadPlugin).not.toHaveBeenCalled()
+    expect(plugin.list().find((p) => p.id === '@BBeBee/plugin-player')?.enabled).toBe(true)
+
+    // Enabling is never locked, and non-critical providers toggle freely.
+    await plugin.setEnabled('@BBeBee/plugin-player', true)
+    await plugin.setEnabled('@BBeBee/plugin-queue', false)
+    expect(plugin.list().find((p) => p.id === '@BBeBee/plugin-queue')?.enabled).toBe(false)
+  })
+
   it('tracks plugin failure errors from kernel events', async () => {
     const { ctx } = createTestContext()
     const plugin = new PluginManagerPlugin(ctx, { manifests: sampleManifests })
@@ -712,21 +733,39 @@ describe('plugin-manager npm service methods', () => {
   })
 
   it('treats a service as unavailable while its only provider is disabled, and available again once re-enabled', async () => {
-    const entry = entryFor({ id: 'a-x', npm: '@t/a', services: ['player'] })
+    // Uses the non-critical key `visualizer`: critical providers (like
+    // `player`) can no longer be disabled at all (audit W5 lock).
+    const entry = entryFor({ id: 'a-x', npm: '@t/a', services: ['visualizer'] })
     const tarballs = { '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0') }
     const w = seedWorld(entry, ['1.0.0'], tarballs)
+    w.plugin.registerManifests({
+      '@BBeBee/plugin-visualizer': {
+        id: '@BBeBee/plugin-visualizer',
+        name: '@BBeBee/plugin-visualizer',
+        displayName: 'Visualizer',
+        description: 'visualizer provider',
+        version: '1.0.0',
+        author: 'BBeBee',
+        engines: { BBeBee: '^0.1.0' },
+        entry: { main: './dist/index.js' },
+        capabilities: [],
+        contributes: { services: ['visualizer'] },
+        effect: 'visualizer',
+      } as PluginManifest,
+    })
     await w.plugin[PluginManagerPlugin.init]()
 
-    // The user disables the only provider of `player`: the service leaves
-    // the available set even though the provider's manifest is still known.
-    await w.plugin.setEnabled('@BBeBee/plugin-player', false)
+    // The user disables the only provider of `visualizer`: the service
+    // leaves the available set even though the provider's manifest is
+    // still known.
+    await w.plugin.setEnabled('@BBeBee/plugin-visualizer', false)
     const plan = await w.plugin.resolveInstallPlan('a-x')
-    expect(plan.missingServices).toEqual(['player'])
+    expect(plan.missingServices).toEqual(['visualizer'])
     await expectNpmError(w.plugin.installPlugin('a-x'), 'SERVICE_UNAVAILABLE')
     expect(w.bridge.installPlugin).not.toHaveBeenCalled()
 
     // Re-enabling the provider restores availability; the install proceeds.
-    await w.plugin.setEnabled('@BBeBee/plugin-player', true)
+    await w.plugin.setEnabled('@BBeBee/plugin-visualizer', true)
     expect((await w.plugin.resolveInstallPlan('a-x')).missingServices).toEqual([])
     await w.plugin.installPlugin('a-x')
     expect(w.bridge.installPlugin).toHaveBeenCalledTimes(1)
@@ -769,33 +808,36 @@ describe('plugin-manager npm service methods', () => {
   })
 
   it('keeps a service available while any one of its providers stays enabled', async () => {
-    const entry = entryFor({ id: 'a-x', npm: '@t/a', services: ['player'] })
+    const entry = entryFor({ id: 'a-x', npm: '@t/a', services: ['visualizer'] })
     const tarballs = { '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0') }
     const w = seedWorld(entry, ['1.0.0'], tarballs)
-    // A second, independent provider of the same service key.
-    w.plugin.registerManifests({
-      '@BBeBee/plugin-player-alt': {
-        id: '@BBeBee/plugin-player-alt',
-        name: '@BBeBee/plugin-player-alt',
-        displayName: 'Player (alt)',
-        description: 'alternate player provider',
+    // Two independent providers of the same (non-critical) service key.
+    const provider = (id: string, name: string) =>
+      ({
+        id,
+        name,
+        displayName: name,
+        description: `${name} provider`,
         version: '1.0.0',
         author: 'BBeBee',
         engines: { BBeBee: '^0.1.0' },
         entry: { main: './dist/index.js' },
         capabilities: [],
-        contributes: { services: ['player'] },
-        effect: 'player',
-      } as PluginManifest,
+        contributes: { services: ['visualizer'] },
+        effect: 'visualizer',
+      }) as PluginManifest
+    w.plugin.registerManifests({
+      '@BBeBee/plugin-visualizer': provider('@BBeBee/plugin-visualizer', 'Visualizer'),
+      '@BBeBee/plugin-visualizer-alt': provider('@BBeBee/plugin-visualizer-alt', 'Visualizer (alt)'),
     })
     await w.plugin[PluginManagerPlugin.init]()
 
-    await w.plugin.setEnabled('@BBeBee/plugin-player', false)
+    await w.plugin.setEnabled('@BBeBee/plugin-visualizer', false)
     expect((await w.plugin.resolveInstallPlan('a-x')).missingServices).toEqual([])
 
     // Only when every provider is disabled does the service go missing.
-    await w.plugin.setEnabled('@BBeBee/plugin-player-alt', false)
-    expect((await w.plugin.resolveInstallPlan('a-x')).missingServices).toEqual(['player'])
+    await w.plugin.setEnabled('@BBeBee/plugin-visualizer-alt', false)
+    expect((await w.plugin.resolveInstallPlan('a-x')).missingServices).toEqual(['visualizer'])
     await expectNpmError(w.plugin.installPlugin('a-x'), 'SERVICE_UNAVAILABLE')
   })
 

@@ -54,6 +54,8 @@ export type NpmErrorCode =
   | 'MAJOR_UPDATE_NEEDS_CONFIRM'
   | 'PLAN_CHANGED'
   | 'DELISTED'
+  | 'BLOCKED'
+  | 'CRITICAL_PROVIDER'
   | 'DOWNLOAD_FAILED'
 
 export class NpmPluginError extends Error {

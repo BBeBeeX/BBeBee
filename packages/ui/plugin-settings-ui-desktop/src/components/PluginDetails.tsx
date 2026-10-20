@@ -1,7 +1,12 @@
 import { Switch, useI18n } from '@BBeBee/ui-kit-desktop'
 import { createElement as h, type ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { PluginInfo, ConfigStatus, PluginRuntimeState } from '@BBeBee/protocol'
+import {
+  criticalServiceKeysOfProvider,
+  type PluginInfo,
+  type ConfigStatus,
+  type PluginRuntimeState,
+} from '@BBeBee/protocol'
 
 export interface PluginDetailsProps {
   ctx: Context
@@ -51,6 +56,12 @@ export function PluginDetails({
 }: PluginDetailsProps): ReactElement {
   const { t } = useI18n(ctx)
   const isFeatureOrUi = plugin.systemId === 'layer-4' || plugin.systemId === 'layer-5'
+  // Critical-provider lock (audit W5): providers of critical service
+  // keys are always on — the toggle is disabled and the reason shown.
+  // The mapping is the generated one from @BBeBee/protocol; the
+  // plugin-manager service enforces the same rule for non-UI callers.
+  const criticalKeys = criticalServiceKeysOfProvider(plugin.id)
+  const criticalLocked = criticalKeys.length > 0
 
   const renderDetailRow = (label: string, value: string | ReactElement) =>
     h(
@@ -237,13 +248,18 @@ export function PluginDetails({
               h(
                 'span',
                 { style: { fontSize: 11, color: 'var(--text-tertiary, #8E8E93)' } },
-                plugin.enabled
-                  ? t('settings:pluginDetails.enabledTurningOffUnloadsIt')
-                  : t('settings:pluginDetails.notEnabledTurningOnLoads'),
+                criticalLocked
+                  ? t('settings:pluginDetails.criticalProviderLocked', {
+                      services: criticalKeys.join(', '),
+                    })
+                  : plugin.enabled
+                    ? t('settings:pluginDetails.enabledTurningOffUnloadsIt')
+                    : t('settings:pluginDetails.notEnabledTurningOnLoads'),
               ),
             ),
             h(Switch, {
               checked: plugin.enabled,
+              disabled: criticalLocked,
               onChange: (checked) => onToggleEnabled?.(plugin, checked),
               accessibilityLabel: t('settings:pluginDetails.togglePluginEnabledState', {
                 displayName: plugin.displayName,
