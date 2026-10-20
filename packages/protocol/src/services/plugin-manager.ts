@@ -148,6 +148,16 @@ export interface PluginManagerService {
   /** Sets the bridge callbacks for loading and unloading plugins (called by composition root). */
   setLifecycleBridge(bridge: PluginLifecycleBridge): void
 
+  /**
+   * Reports the host-shared module versions (npm package name → version
+   * actually loaded by the shell, e.g. `{ react: '19.2.3' }`), called by
+   * the composition root on platforms with host-module sharing (desktop).
+   * Install plans check plugin `peerDependencies` against these versions
+   * and warn — never block — on a mismatch. Absent/unwired means no peer
+   * checks (mobile has no host-module sharing).
+   */
+  setHostVersions?(versions: Record<string, string>): void
+
   /** Re-evaluates runtime state from inspector snapshot and returns updated list. */
   refresh(): readonly PluginInfo[]
 

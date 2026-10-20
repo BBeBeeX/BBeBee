@@ -270,7 +270,12 @@ function entryFor(over: Partial<RegistryPluginEntry> & { id: string; npm: string
 
 const INDEX_URL = 'https://raw.githubusercontent.com/BBeBeeX/B_Be_Bee-registry/main/plugins/index.json'
 
-function packument(pkg: string, versions: string[], tarballs: Record<string, Uint8Array>) {
+function packument(
+  pkg: string,
+  versions: string[],
+  tarballs: Record<string, Uint8Array>,
+  peers?: Record<string, string>,
+) {
   return {
     name: pkg,
     'dist-tags': { latest: versions[versions.length - 1] },
@@ -279,6 +284,7 @@ function packument(pkg: string, versions: string[], tarballs: Record<string, Uin
         v,
         {
           version: v,
+          ...(peers ? { peerDependencies: peers } : {}),
           dist: {
             tarball: `https://cdn.example.com/${encodeURIComponent(pkg)}-/${v}.tgz`,
             integrity: `sha512-${base64Encode(sha512(tarballs[`${pkg}@${v}`]!))}`,
@@ -512,7 +518,12 @@ describe('NpmClient tarball handling', () => {
 })
 
 describe('plugin-manager npm service methods', () => {
-  function seedWorld(entry: RegistryPluginEntry, versions: string[], tarballs: Record<string, Uint8Array>) {
+  function seedWorld(
+    entry: RegistryPluginEntry,
+    versions: string[],
+    tarballs: Record<string, Uint8Array>,
+    peers?: Record<string, string>,
+  ) {
     const w = createNpmWorld({
       manifests: {
         '@BBeBee/plugin-player': {
@@ -533,7 +544,7 @@ describe('plugin-manager npm service methods', () => {
     w.routes.set(INDEX_URL, { status: 200, json: async () => [entry] })
     w.routes.set(`https://registry.npmjs.org/${encodeURIComponent(entry.npm)}`, {
       status: 200,
-      json: async () => packument(entry.npm, versions, tarballs),
+      json: async () => packument(entry.npm, versions, tarballs, peers),
     })
     for (const v of versions) {
       w.routes.set(`https://cdn.example.com/${encodeURIComponent(entry.npm)}-/${v}.tgz`, {
@@ -565,6 +576,53 @@ describe('plugin-manager npm service methods', () => {
     const setCalls = storeMock.set.mock.calls.filter(([k]: [string]) => k === 'npm:installed')
     expect(setCalls.length).toBeGreaterThan(0)
     expect(setCalls.at(-1)![1]['a-x'].version).toBe('1.0.0')
+  })
+
+  it('warns on a peer range that excludes the host version — but still installs', async () => {
+    const entry = entryFor({ id: 'a-x', npm: '@t/a' })
+    const tarballs = { '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0') }
+    const w = seedWorld(entry, ['1.0.0'], tarballs, { react: '^18.0.0', 'react-dom': '^18.0.0' })
+    w.plugin.setHostVersions({ react: '19.2.3', 'react-dom': '19.2.3' })
+    await w.plugin[PluginManagerPlugin.init]()
+    const plan = await w.plugin.resolveInstallPlan('a-x')
+    const peerWarnings = plan.warnings.filter((x) => x.includes('peer'))
+    expect(peerWarnings.length).toBe(2)
+    expect(peerWarnings[0]).toContain('peer react "^18.0.0"')
+    expect(peerWarnings[0]).toContain('19.2.3')
+    // A peer mismatch is a warning, never a refusal.
+    await w.plugin.installPlugin('a-x')
+    expect(w.bridge.installPlugin).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not warn when peer ranges accept the host versions', async () => {
+    const entry = entryFor({ id: 'a-x', npm: '@t/a' })
+    const tarballs = { '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0') }
+    const w = seedWorld(entry, ['1.0.0'], tarballs, { react: '^19.0.0', 'react-dom': '>=18.0.0' })
+    w.plugin.setHostVersions({ react: '19.2.3', 'react-dom': '19.2.3' })
+    await w.plugin[PluginManagerPlugin.init]()
+    const plan = await w.plugin.resolveInstallPlan('a-x')
+    expect(plan.warnings.filter((x) => x.includes('peer'))).toEqual([])
+  })
+
+  it('ignores peers the host does not share, packages without peers, and unwired hosts', async () => {
+    const entry = entryFor({ id: 'a-x', npm: '@t/a' })
+    const tarballs = { '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0') }
+    // Peers outside the host-shared set are not the installer's business,
+    // however unsatisfiable they look.
+    const w1 = seedWorld(entry, ['1.0.0'], tarballs, { cordis: '^999.0.0', 'left-pad': '^1.0.0' })
+    w1.plugin.setHostVersions({ react: '19.2.3', 'react-dom': '19.2.3' })
+    await w1.plugin[PluginManagerPlugin.init]()
+    expect((await w1.plugin.resolveInstallPlan('a-x')).warnings.filter((x) => x.includes('peer'))).toEqual([])
+    // No peers declared at all.
+    const w2 = seedWorld(entry, ['1.0.0'], tarballs)
+    w2.plugin.setHostVersions({ react: '19.2.3', 'react-dom': '19.2.3' })
+    await w2.plugin[PluginManagerPlugin.init]()
+    expect((await w2.plugin.resolveInstallPlan('a-x')).warnings.filter((x) => x.includes('peer'))).toEqual([])
+    // Host facts never wired (e.g. mobile): even a mismatching shared peer
+    // produces no warning — there is no host contract to check against.
+    const w3 = seedWorld(entry, ['1.0.0'], tarballs, { react: '^18.0.0' })
+    await w3.plugin[PluginManagerPlugin.init]()
+    expect((await w3.plugin.resolveInstallPlan('a-x')).warnings.filter((x) => x.includes('peer'))).toEqual([])
   })
 
   it('refuses when a required service is unavailable, naming it', async () => {

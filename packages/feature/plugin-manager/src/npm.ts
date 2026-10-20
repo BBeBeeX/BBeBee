@@ -103,6 +103,13 @@ export const PACKUMENT_CACHE_TTL_MS = 15 * 60 * 1000
 interface PackumentVersion {
   version?: string
   dist?: { tarball?: string; integrity?: string }
+  /**
+   * The version's declared `peerDependencies`, as published in its
+   * `package.json` (the packument version object is npm's copy of exactly
+   * that metadata). Carried through resolution so the install plan can
+   * check the host-module version contract (P2) before anything downloads.
+   */
+  peerDependencies?: Record<string, string>
 }
 
 export interface Packument {
@@ -115,6 +122,8 @@ export interface Packument {
 export interface ResolvedEntry {
   entry: RegistryPluginEntry
   pkg: NpmResolvedPackage
+  /** The pinned version's declared `peerDependencies` (from the packument). */
+  peerDependencies?: Record<string, string>
 }
 
 export interface ExtractedPackage {
@@ -399,7 +408,7 @@ export class NpmClient {
     npmName: string,
     pack: Packument,
     range?: string,
-  ): { version: string; tarball: string; integrity?: string } {
+  ): { version: string; tarball: string; integrity?: string; peerDependencies?: Record<string, string> } {
     const versions = Object.keys(pack.versions ?? {})
     let version: string | undefined
     if (range) {
@@ -421,7 +430,12 @@ export class NpmClient {
     if (!dist?.tarball) {
       throw new NpmPluginError('VERSION_NOT_FOUND', `包 "${npmName}@${version}" 缺少 dist.tarball`)
     }
-    return { version, tarball: dist.tarball, integrity: dist.integrity }
+    return {
+      version,
+      tarball: dist.tarball,
+      integrity: dist.integrity,
+      peerDependencies: pack.versions?.[version]?.peerDependencies,
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -459,6 +473,7 @@ export class NpmClient {
       const node: ResolvedEntry = {
         entry: e,
         pkg: { id: e.id, npm: e.npm, version: sel.version, tarball: sel.tarball, integrity: sel.integrity },
+        peerDependencies: sel.peerDependencies,
       }
       resolved.set(e.id, node)
       for (const depSpec of e.dependencies ?? []) {

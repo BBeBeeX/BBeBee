@@ -187,6 +187,22 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     this.bridge = bridge
   }
 
+  /**
+   * Host-shared module versions, reported by the composition root
+   * (`setHostVersions` in `wirePluginManager`): npm package name → the
+   * version the shell actually loaded, e.g. `{ react: '19.2.3',
+   * 'react-dom': '19.2.3' }` read off the loaded React itself. The single
+   * source of truth stays with the host (`host-modules.manifest.ts` on
+   * desktop); this service only consumes the fact for the install-plan
+   * peer check below. Empty until wired — platforms without host-module
+   * sharing (mobile) simply never report, and the peer check stays off.
+   */
+  private hostVersions: Record<string, string> = {}
+
+  setHostVersions(versions: Record<string, string>): void {
+    this.hostVersions = { ...versions }
+  }
+
   private async loadOverrides(): Promise<Record<string, boolean>> {
     try {
       const result = await this.ctx.store.get<Record<string, boolean>>('enabled')
@@ -397,6 +413,26 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     }
     for (const n of nodes) {
       if (!n.pkg.integrity) warnings.push(`包 ${n.pkg.npm}@${n.pkg.version} 缺少 integrity，将跳过完整性校验`)
+    }
+    // P2 version contract: a package's declared `peerDependencies` that
+    // intersect the host-shared modules (react / react-dom on desktop) are
+    // checked against the versions the shell actually provides. A mismatch
+    // only warns — it never blocks the install: peer ranges are an
+    // authoring contract, not a security gate, and a UI that still fails
+    // against the shared React is isolated by the loader (headless keeps
+    // running). Peer entries the host does not share are the author's own
+    // business and are ignored, as are ranges too malformed to judge.
+    for (const n of nodes) {
+      for (const [peerName, peerRange] of Object.entries(n.peerDependencies ?? {})) {
+        const hostVersion = this.hostVersions[peerName]
+        if (!hostVersion) continue
+        if (!/[\d*xX]/.test(peerRange)) continue
+        if (!satisfiesRange(hostVersion, peerRange)) {
+          warnings.push(
+            `包 ${n.pkg.npm}@${n.pkg.version} 声明 peer ${peerName} "${peerRange}"，但宿主提供的是 ${hostVersion}：插件 UI 可能无法正常渲染（不影响安装）`,
+          )
+        }
+      }
     }
 
     // D8-1 (pre-download estimate): required services vs currently known manifests.

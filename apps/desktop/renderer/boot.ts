@@ -47,6 +47,8 @@ import logBuffer from '@BBeBee/plugin-log-buffer'
 import logConsole from '@BBeBee/plugin-log-console'
 import logFile from '@BBeBee/plugin-log-file'
 
+import { version as reactVersion } from 'react'
+import { version as reactDomVersion } from 'react-dom'
 import { BOOTSTRAP_SERVICES, INITIAL_ENABLED } from './plugins.js'
 import {
   getBuiltinPluginRegistry,
@@ -637,6 +639,13 @@ function wirePluginManager(
   app.ctx.inject(['plugin-manager'], (scoped) => {
     const pm = (scoped as unknown as { 'plugin-manager'?: PluginManagerService })['plugin-manager']
     pm?.registerManifests(manifests)
+    // Host-module version facts for plugin-manager's install-plan peer
+    // check: the versions of the React copies this shell actually loaded
+    // (resolved through the import map to the shared host chunks — the
+    // same instances plugin UIs will render against). The manifest in
+    // host-modules.manifest.ts stays the build-time source of truth; this
+    // is its runtime reflection, so the two can never drift apart.
+    pm?.setHostVersions?.({ react: reactVersion, 'react-dom': reactDomVersion })
     pm?.setLifecycleBridge({
       loadPlugin: (id: string) => app.loadPlugin(id),
       unloadPlugin: (id: string) => app.unloadPlugin(id),
