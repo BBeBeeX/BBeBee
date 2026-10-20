@@ -491,7 +491,12 @@ async function mergedPluginLock(
   const npmRecords = storeData?.['@BBeBee/plugin-manager:npm:installed'] as
     | Record<
         string,
-        { entrySha256?: string; fileHashes?: Record<string, string>; delisted?: boolean }
+        {
+          entrySha256?: string
+          fileHashes?: Record<string, string>
+          delisted?: boolean
+          blocked?: string
+        }
       >
     | undefined
   if (npmRecords && typeof npmRecords === 'object') {
@@ -506,6 +511,8 @@ async function mergedPluginLock(
       // A persisted liveness verdict (audit W3) rides along so the
       // loader quarantines a delisted plugin before its code runs.
       if (rec.delisted) basis.delisted = true
+      // A persisted registry ban (audit W5) rides the same channel.
+      if (rec.blocked !== undefined) basis.blocked = rec.blocked
       merged[id] = basis
     }
   }

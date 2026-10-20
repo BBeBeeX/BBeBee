@@ -68,6 +68,12 @@ export interface PluginLockRecord {
    * reason. Only ever set after a successfully fetched index.
    */
   delisted?: boolean
+  /**
+   * Banned by the registry's blocked channel (audit W5): quarantine
+   * with the registry's reason. Stronger than {@link delisted} and
+   * wins the refusal messaging when both apply.
+   */
+  blocked?: string
 }
 
 /**
@@ -297,11 +303,15 @@ export async function loadExternalPluginRegistry(options?: {
       const manifest = item.manifest as PluginManifest
 
       const lockRecord = records?.[item.id]
-      // Delisting (recall) wins over the tamper verdict in messaging: it
-      // is the more actionable fact for the user. Both quarantine.
-      const refuseReason = lockRecord?.delisted
-        ? 'delisted: this plugin has been removed from the registry （该插件已从注册表下架）'
-        : pluginTamperReason(lockRecord, item)
+      // A registry ban (audit W5) wins over both delisting and the
+      // tamper verdict in messaging: it is the most actionable fact
+      // for the user. All three quarantine.
+      const refuseReason =
+        lockRecord?.blocked !== undefined
+          ? `blocked: this plugin has been banned by the registry （该插件已被注册表安全封禁）${lockRecord.blocked ? `: ${lockRecord.blocked}` : ''}`
+          : lockRecord?.delisted
+            ? 'delisted: this plugin has been removed from the registry （该插件已从注册表下架）'
+            : pluginTamperReason(lockRecord, item)
 
       if (refuseReason) {
         console.error(

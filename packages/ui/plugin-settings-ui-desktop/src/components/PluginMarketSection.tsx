@@ -636,6 +636,24 @@ function MarketRow({
               t('settings:pluginMarket.delisted'),
             )
           : null,
+        installed?.blocked !== undefined
+          ? h(
+              'span',
+              {
+                'data-testid': `market-blocked-${entry.id}`,
+                title: t('settings:pluginMarket.blockedHint', { reason: installed.blocked }),
+                style: {
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: '1px 7px',
+                  borderRadius: 9,
+                  background: 'rgba(239, 68, 68, 0.3)',
+                  color: '#FCA5A5',
+                },
+              },
+              t('settings:pluginMarket.blocked'),
+            )
+          : null,
         update
           ? h(
               'span',

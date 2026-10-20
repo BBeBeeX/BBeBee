@@ -1601,6 +1601,78 @@ describe('plugin-manager npm service methods', () => {
       expect(updates[0]!.unreviewed).toBe(true)
     })
   })
+
+  describe('registry blocklist (audit W5)', () => {
+    const versions = ['1.0.0', '1.1.0']
+    const tarballs = () =>
+      Object.fromEntries(versions.map((v) => [`@t/a@${v}`, tarballFor('@t/a', 'a-x', v)]))
+
+    async function installedWorld() {
+      const entry = entryFor({ id: 'a-x', npm: '@t/a' })
+      const w = seedWorld(entry, versions, tarballs())
+      await w.plugin[PluginManagerPlugin.init]()
+      await w.plugin.installPlugin('a-x', '1.0.0')
+      return { w, entry }
+    }
+
+    const savedRecord = async (w: NpmTestWorld) => {
+      const store = (w.ctx as any).store
+      const setCalls = store.set.mock.calls.filter(([k]: [string]) => k === 'npm:installed')
+      return setCalls.at(-1)![1]['a-x'] as Record<string, any>
+    }
+
+    const setIndex = async (w: NpmTestWorld, json: unknown) => {
+      w.routes.set(INDEX_URL, { status: 200, json: async () => json })
+      await (w.ctx as any).store.delete('npm:index')
+    }
+
+    it('quarantines an installed plugin the index bans, distinctly from delisting', async () => {
+      const { w, entry } = await installedWorld()
+      await setIndex(w, {
+        entries: [entry],
+        blocked: [{ id: 'a-x', reason: 'malware: credential stealer' }],
+      })
+      const updates = await w.plugin.checkUpdates()
+      expect(updates).toEqual([])
+      const rec = await savedRecord(w)
+      expect(rec.blocked).toBe('malware: credential stealer')
+      expect(rec.delisted).toBeUndefined()
+      expect(w.plugin.list().find((p) => p.id === 'a-x')?.blocked).toBe('malware: credential stealer')
+      expect(w.plugin.list().find((p) => p.id === 'a-x')?.delisted).toBeUndefined()
+      expect(w.bridge.unloadPlugin).toHaveBeenCalledWith('a-x')
+      await expectNpmError(w.plugin.updatePlugin('a-x'), 'BLOCKED')
+    })
+
+    it('lifts the ban when the id leaves the blocked list', async () => {
+      const { w, entry } = await installedWorld()
+      await setIndex(w, { entries: [entry], blocked: [{ id: 'a-x', reason: 'malware' }] })
+      await w.plugin.checkUpdates()
+      expect((await savedRecord(w)).blocked).toBe('malware')
+      await setIndex(w, { entries: [entry], blocked: [] })
+      const updates = await w.plugin.checkUpdates()
+      expect(updates).toEqual([{ id: 'a-x', installed: '1.0.0', latest: '1.1.0', npm: '@t/a' }])
+      expect((await savedRecord(w)).blocked).toBeUndefined()
+      expect(w.plugin.list().find((p) => p.id === 'a-x')?.blocked).toBeUndefined()
+    })
+
+    it('refuses to install a banned id that was never installed', async () => {
+      const entry = entryFor({ id: 'a-x', npm: '@t/a' })
+      const w = seedWorld(entry, versions, tarballs())
+      await setIndex(w, { entries: [entry], blocked: [{ id: 'a-x', reason: 'impersonation' }] })
+      await w.plugin[PluginManagerPlugin.init]()
+      await expectNpmError(w.plugin.installPlugin('a-x'), 'BLOCKED')
+      expect(w.bridge.installPlugin).not.toHaveBeenCalled()
+    })
+
+    it('keeps ban and delisting as independent flags when both apply', async () => {
+      const { w } = await installedWorld()
+      await setIndex(w, { entries: [], blocked: [{ id: 'a-x', reason: 'malware' }] })
+      await w.plugin.checkUpdates()
+      const rec = await savedRecord(w)
+      expect(rec.delisted).toBe(true)
+      expect(rec.blocked).toBe('malware')
+    })
+  })
 })
 
 /**

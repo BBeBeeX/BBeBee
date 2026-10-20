@@ -435,6 +435,19 @@ describe('full-package tamper chain (audit W3)', () => {
     await expect(entry.load!()).rejects.toThrow(/已从注册表下架/)
   })
 
+  it('quarantines a registry-banned plugin with the ban reason, ahead of delisting (audit W5)', async () => {
+    const registry = await loadWith(baseItem, {
+      fileHashes: { ...PINNED },
+      delisted: true,
+      blocked: 'malware: credential stealer',
+    })
+    const entry = registry['full-chain-plugin']!
+    expect(entry.quarantined).toBe(true)
+    await expect(entry.load!()).rejects.toThrow(/blocked/)
+    await expect(entry.load!()).rejects.toThrow(/安全封禁/)
+    await expect(entry.load!()).rejects.toThrow(/credential stealer/)
+  })
+
   it('still honours the legacy entry-only pin for older records', async () => {
     const ok = await loadWith(baseItem, { sha256: 'hash-entry' })
     expect(ok['full-chain-plugin']!.quarantined).toBeUndefined()

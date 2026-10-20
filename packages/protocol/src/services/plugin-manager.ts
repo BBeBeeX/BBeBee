@@ -43,6 +43,15 @@ export interface PluginInfo {
    * an unreachable index never sets this.
    */
   delisted?: boolean
+  /**
+   * The registry has actively BANNED this id (audit W5): the index's
+   * blocked channel carried it, with the registry's reason in this
+   * field. Stronger than {@link delisted}: the copy is quarantined as
+   * a security measure, installs/updates are refused outright, and
+   * the flag lifts only when the id leaves the blocked list. The
+   * reason string is registry-supplied and shown verbatim.
+   */
+  blocked?: string
 }
 
 export interface PluginLifecycleBridge {
@@ -219,6 +228,15 @@ export interface InstalledNpmPluginRecord {
    * the index. Never set on index fetch failure (offline stays open).
    */
   delisted?: boolean
+  /**
+   * Security ban (audit W5): the registry index's blocked channel
+   * carried this id; the value is the registry's reason. Persisted so
+   * boot quarantines the plugin before any code runs, exactly like
+   * {@link delisted} but as a distinct, stronger state (installs and
+   * updates are refused with BLOCKED while it stands). Cleared when
+   * the id leaves the blocked list.
+   */
+  blocked?: string
   installedAt: string
 }
 

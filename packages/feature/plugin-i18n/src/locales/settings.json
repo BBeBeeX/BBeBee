@@ -508,7 +508,9 @@
       "delisted": "Removed from the registry",
       "delistedHint": "This plugin has been removed from the registry. The installed copy is quarantined; you can uninstall it.",
       "official": "Official",
-      "officialHint": "Maintained by the BBeBeeX GitHub account (the repository owner is BBeBeeX)."
+      "officialHint": "Maintained by the BBeBeeX GitHub account (the repository owner is BBeBeeX).",
+      "blocked": "Banned by the registry",
+      "blockedHint": "This plugin has been banned by the registry for security reasons ({reason}). The installed copy is quarantined; you can uninstall it."
     }
   },
   "zh": {
@@ -1020,7 +1022,9 @@
       "delisted": "已从注册表下架",
       "delistedHint": "该插件已从注册表下架，已安装的副本已被隔离；你可以卸载它。",
       "official": "官方",
-      "officialHint": "由 GitHub 账号 BBeBeeX 维护（仓库所有者为 BBeBeeX）。"
+      "officialHint": "由 GitHub 账号 BBeBeeX 维护（仓库所有者为 BBeBeeX）。",
+      "blocked": "已被注册表封禁",
+      "blockedHint": "该插件已被注册表以安全原因封禁（{reason}），已安装的副本已被隔离；你可以卸载它。"
     }
   }
 }

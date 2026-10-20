@@ -122,6 +122,28 @@ export function PluginCard({
               t('settings:pluginMarket.delisted'),
             )
           : null,
+        // Registry ban (audit W5): a stronger state than delisting —
+        // the registry actively banned this id; the reason rides in
+        // the tooltip.
+        plugin.blocked !== undefined
+          ? h(
+              'span',
+              {
+                'data-testid': `plugin-blocked-${plugin.id}`,
+                title: t('settings:pluginMarket.blockedHint', { reason: plugin.blocked }),
+                style: {
+                  alignSelf: 'flex-start',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: '1px 7px',
+                  borderRadius: 9,
+                  background: 'rgba(239, 68, 68, 0.3)',
+                  color: '#FCA5A5',
+                },
+              },
+              t('settings:pluginMarket.blocked'),
+            )
+          : null,
       ),
       // Right status traffic light and chevron
       h(

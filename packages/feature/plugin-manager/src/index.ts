@@ -20,6 +20,7 @@ import type {
   PluginRuntimeState,
   PluginUpdateInfo,
   AppSettings,
+  RegistryBlockedEntry,
   RegistryPluginEntry,
   SecretsService,
   SecurityAuditContext,
@@ -48,6 +49,7 @@ import {
   NpmPluginError,
   type ExtractedPackage,
   type NpmKvCache,
+  type RegistryIndexDocument,
   type ResolvedEntry,
 } from './npm.js'
 
@@ -149,6 +151,14 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   private delistedIds = new Set<string>()
 
   /**
+   * Ids the registry has actively banned (audit W5): id → the
+   * registry's reason. Mirrors the persisted `blocked` field on the
+   * install records; populated from the index's blocked channel by the
+   * liveness refresh and seeded from the records at init.
+   */
+  private blockedIds = new Map<string, string>()
+
+  /**
    * The capability-grant ledger, bound to this service's OWN `db` handle.
    *
    * The handle is captured at init (see `[Service.init]`), under this
@@ -197,6 +207,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       const records = await this.loadInstalledRecords()
       for (const rec of Object.values(records)) {
         if (rec.delisted) this.delistedIds.add(rec.id)
+        if (rec.blocked !== undefined) this.blockedIds.set(rec.id, rec.blocked)
       }
     } catch {
       // Store unavailable — flags reload with the first liveness refresh.
@@ -541,7 +552,8 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     range?: string,
   ): Promise<{ plan: InstallPlan; nodes: ResolvedEntry[]; index: RegistryPluginEntry[] }> {
     const client = this.getNpmClient()
-    const index = await client.fetchIndex()
+    const doc = await client.fetchIndexDocument()
+    const index = doc.entries
     const entry = index.find((e) => e.id === id)
     if (!entry) {
       throw new NpmPluginError('ENTRY_NOT_FOUND', `registry 中没有 id 为 "${id}" 的插件条目`)
@@ -616,6 +628,15 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     for (const n of nodes) {
       for (const s of n.entry.provides ?? []) available.add(s)
     }
+    // A banned id anywhere in the closure refuses the plan outright
+    // (audit W5) — before any service estimation or download. The ban
+    // check reads THIS fetch's blocked channel (a not-yet-installed id
+    // has no record to seed the in-memory map from), plus the map for
+    // bans learned earlier this session.
+    this.assertNotBlocked(
+      nodes.map((n) => n.pkg),
+      new Map(doc.blocked.map((b) => [b.id, b.reason] as const)),
+    )
     const needed = new Set<string>()
     for (const n of nodes) for (const s of n.entry.services) needed.add(s)
     const missingServices = [...needed].filter((s) => !available.has(s))
@@ -1159,20 +1180,25 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
    */
   async refreshDelistedFromIndex(options?: { force?: boolean }): Promise<void> {
     if (!this.ctxService<HttpService>('http')) return
-    let index: RegistryPluginEntry[]
+    let doc: RegistryIndexDocument
     try {
-      index = await this.getNpmClient().fetchIndex(options?.force ? { force: true } : undefined)
+      doc = await this.getNpmClient().fetchIndexDocument(options?.force ? { force: true } : undefined)
     } catch {
       return
     }
-    await this.applyLivenessToRecords(index)
+    await this.applyLivenessToRecords(doc.entries, doc.blocked)
   }
 
-  private async applyLivenessToRecords(index: RegistryPluginEntry[]): Promise<void> {
+  private async applyLivenessToRecords(
+    index: RegistryPluginEntry[],
+    blocked: RegistryBlockedEntry[] = [],
+  ): Promise<void> {
     const listed = new Set(index.map((e) => e.id))
+    const blockedById = new Map(blocked.map((b) => [b.id, b.reason] as const))
     const records = await this.loadInstalledRecords()
     let changed = false
     const newlyDelisted: string[] = []
+    const newlyBlocked: string[] = []
     for (const rec of Object.values(records)) {
       const absent = !listed.has(rec.id)
       if (absent && !rec.delisted) {
@@ -1183,11 +1209,31 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
         delete rec.delisted
         changed = true
       }
+      // The blocked channel (audit W5) is a separate, stronger state:
+      // the id is banned outright, with the registry's reason kept on
+      // the record. It flips independently of delisting — an entry can
+      // be blocked while still listed, and unblocking must not clear a
+      // delisting (or vice versa).
+      const ban = blockedById.get(rec.id)
+      if (ban !== undefined && rec.blocked !== ban) {
+        const wasQuarantined = Boolean(rec.blocked) || Boolean(rec.delisted)
+        rec.blocked = ban
+        changed = true
+        if (!wasQuarantined) newlyBlocked.push(rec.id)
+      } else if (ban === undefined && rec.blocked !== undefined) {
+        delete rec.blocked
+        changed = true
+      }
     }
     this.delistedIds = new Set(
       Object.values(records)
         .filter((r) => r.delisted)
         .map((r) => r.id),
+    )
+    this.blockedIds = new Map(
+      Object.values(records)
+        .filter((r) => r.blocked !== undefined)
+        .map((r) => [r.id, r.blocked as string] as const),
     )
     if (!changed) return
     await this.saveInstalledRecords(records)
@@ -1202,7 +1248,38 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
         // next boot quarantine it before any of its code runs.
       }
     }
+    for (const id of newlyBlocked) {
+      this.ctx.logger.warn(
+        `plugin-manager: "${id}" is BANNED by the registry (blocked: ${blockedById.get(id) ?? ''}); quarantining the installed copy`,
+      )
+      try {
+        await this.bridge?.unloadPlugin(id)
+      } catch {
+        // Best-effort, same as delisting above.
+      }
+    }
     this.ctx.emit('plugin-manager/changed')
+  }
+
+  /**
+   * Refuses installs whose target or closure contains a banned id
+   * (audit W5). Checked from the in-memory ban map (seeded from the
+   * persisted records at init and refreshed by every liveness pass),
+   * so a ban learned this session applies immediately.
+   */
+  private assertNotBlocked(
+    nodes: readonly { id: string }[],
+    freshBans?: ReadonlyMap<string, string>,
+  ): void {
+    for (const n of nodes) {
+      const reason = freshBans?.get(n.id) ?? this.blockedIds.get(n.id)
+      if (reason !== undefined) {
+        throw new NpmPluginError(
+          'BLOCKED',
+          `插件 "${n.id}" 已被注册表安全封禁${reason ? `（${reason}）` : ''}，拒绝安装`,
+        )
+      }
+    }
   }
 
   async checkUpdates(force = false): Promise<PluginUpdateInfo[]> {
@@ -1224,7 +1301,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     const records = await this.loadInstalledRecords()
     const updates: PluginUpdateInfo[] = []
     for (const rec of Object.values(records)) {
-      if (rec.delisted) continue
+      if (rec.delisted || rec.blocked !== undefined) continue
       try {
         const pack = await client.fetchPackument(rec.npm, force ? { force: true } : undefined)
         const latest = pack['dist-tags']?.latest
@@ -1274,6 +1351,15 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       throw new NpmPluginError(
         'DELISTED',
         `插件 "${id}" 已从注册表下架，无法更新；已安装的副本已被隔离。可以卸载它，或等待其重新上架后再试。`,
+      )
+    }
+    // A banned plugin is not updatable either (audit W5) — stronger
+    // than delisting: the ban reason is the registry's, surfaced as-is.
+    const banReason = this.blockedIds.get(id)
+    if (banReason !== undefined) {
+      throw new NpmPluginError(
+        'BLOCKED',
+        `插件 "${id}" 已被注册表安全封禁${banReason ? `（${banReason}）` : ''}，无法更新；已安装的副本已被隔离。可以卸载它。`,
       )
     }
     // A major bump is never applied silently: without an explicit range the
@@ -1549,6 +1635,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
           dependents: [], // populated in reverse scan
           configStatus,
           ...(this.delistedIds.has(manifest.id) ? { delisted: true } : {}),
+          ...(this.blockedIds.has(manifest.id) ? { blocked: this.blockedIds.get(manifest.id) } : {}),
         },
         rawDependencies: depsSet,
       })
