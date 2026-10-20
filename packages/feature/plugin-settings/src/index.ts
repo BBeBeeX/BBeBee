@@ -7,11 +7,18 @@
 import { Service } from 'cordis'
 import type { Context } from 'cordis'
 import type { AppSettings, Disposable, SettingsContribution, SettingsService } from '@BBeBee/protocol'
-import { DEFAULT_APP_SETTINGS } from '@BBeBee/protocol'
+import { APP_SETTINGS_STORE_KEY, DEFAULT_APP_SETTINGS } from '@BBeBee/protocol'
 import { SETTINGS_ROUTES, SETTINGS_VIEWS } from './views.js'
 import { watchGlobalShortcuts } from './shortcuts.js'
 
-const STORE_KEY = 'preferences'
+/**
+ * The persisted-preferences key. A protocol constant, not a local
+ * fact: the shells' grant resolution reads the same document through
+ * the same namespace+key to derive plugin-manager's download hosts
+ * before this plugin has even loaded (see `readConfiguredAppSettings`
+ * in the kernel).
+ */
+const STORE_KEY = APP_SETTINGS_STORE_KEY
 
 /**
  * Normalizes a manual mirror/registry URL override: trims whitespace, drops
