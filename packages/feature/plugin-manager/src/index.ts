@@ -26,6 +26,7 @@ import type {
   SecretsService,
   SecurityAuditContext,
   SettingsContribution,
+  StoreService,
 } from '@BBeBee/protocol'
 import {
   DEFAULT_APP_SETTINGS,
@@ -126,6 +127,53 @@ type SecurityAuditorHandle = {
   ): { level: string; findings: Array<{ message: string }> }
 }
 
+/**
+ * The collaborator handles the plugin-manager captured under its own
+ * scope at init. Kept in a plain object on the service (see the `own`
+ * field): a plain object carries no Cordis tracker and passes through
+ * every traceable proxy untouched, so the handles inside keep the
+ * context binding they were captured with.
+ */
+interface OwnHandles {
+  http?: HttpService
+  settings?: SettingsHandle
+  secrets?: SecretsService
+  device?: DeviceHandle
+  auditor?: SecurityAuditorHandle
+  store?: StoreService
+}
+
+/**
+ * Reads one of the plugin's own collaborator handles: the init-time
+ * capture if it has landed, otherwise a read off the plugin's OWN
+ * context (which, for hosts without a Cordis lifecycle, is simply the
+ * host context those hosts intend; a real shell's captures land
+ * first, and a miss here is contained as "unavailable").
+ *
+ * A module-level function — NOT a service method — on purpose: any
+ * tracker-carrying value RETURNED from a method invoked through
+ * Cordis's traceable proxy is re-wrapped against the caller's context
+ * (`getTraceable` on the way out), including internal `this.m()`
+ * calls, so a handle that travels out of a method arrives re-bound to
+ * whoever invoked it. A plain function's return crosses no proxy
+ * boundary, and its arguments are never re-traced either — the handle
+ * reaches the call site with its capture-time binding intact.
+ */
+function ownService<T>(
+  own: OwnHandles,
+  ownCtx: Context,
+  key: string,
+  holderKey: keyof OwnHandles = key as keyof OwnHandles,
+): T | undefined {
+  const captured = own[holderKey] as T | undefined
+  if (captured) return captured
+  try {
+    return (ownCtx as unknown as Record<string, unknown>)[key] as T | undefined
+  } catch {
+    return undefined
+  }
+}
+
 export interface PluginManagerConfig {
   manifests?: Record<string, PluginManifest>
   /**
@@ -164,17 +212,41 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   private grantLedgerInstance?: CapabilityGrantLedger
 
   /**
+   * This plugin's own context, stashed in the constructor. Service
+   * methods invoked through Cordis's traceable proxy see `this.ctx`
+   * as the CALLER's context (the proxy's `ctx` property is the
+   * accessing context by design), so the constructor's `ctx` — this
+   * plugin's own fiber context — is kept under a different name.
+   * A context value carries no service tracker, so reading this field
+   * through any proxy yields the context itself, never a re-bound
+   * wrapper.
+   */
+  private readonly ownCtx: Context
+
+  /**
    * This service's OWN handles to the npm surface's collaborators,
    * captured at init under this plugin's inject scope (see
-   * `captureOwnService`). Never read off `this.ctx` at call time: the
-   * caller of a service method runs under its own fiber scope, and the
-   * read would be judged against the *caller's* inject declarations.
+   * `captureOwnService`) — held in a PLAIN object, deliberately.
+   *
+   * A service handle is a traceable proxy bound to the context it was
+   * obtained through, and Cordis re-traces any tracker-carrying value
+   * that crosses a traceable boundary — read as a field through
+   * another service's proxy, or returned from a method invoked
+   * through one — against the ACCESSING context. The capability gate
+   * resolves its config from exactly that context
+   * (`Service.resolveConfig`), so a handle stored as a direct field
+   * of this service was silently re-bound to whoever invoked the
+   * method: the market UI's empty grants judged the manager's
+   * registry-index fetch (`… may not reach raw.githubusercontent.com`,
+   * field logs 2026-10-20), and a caller's store namespace received
+   * this service's records. A plain object has no tracker and passes
+   * through every proxy untouched, so handles inside it keep the
+   * binding they were captured with: the operation is judged as the
+   * plugin that owns it, whoever invoked the method. (The grant
+   * ledger and the NpmClient were never affected — plain objects
+   * too.)
    */
-  private scopedHttp?: HttpService
-  private scopedSettings?: SettingsHandle
-  private scopedSecrets?: SecretsService
-  private scopedDevice?: DeviceHandle
-  private scopedAuditor?: SecurityAuditorHandle
+  private readonly own: OwnHandles = {}
   /**
    * Ids confirmed delisted by the liveness check (audit W3): the
    * registry index was fetched successfully and did not contain them.
@@ -226,7 +298,12 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
    */
   private grantLedger(): CapabilityGrantLedger | undefined {
     if (this.grantLedgerInstance) return this.grantLedgerInstance
-    const db = this.ctxService<DbService>('db')
+    let db: DbService | undefined
+    try {
+      db = (this.ownCtx as unknown as Record<string, unknown>)['db'] as DbService | undefined
+    } catch {
+      db = undefined
+    }
     if (db) {
       this.grantLedgerInstance = new CapabilityGrantLedger(db)
     }
@@ -235,6 +312,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
 
   constructor(ctx: Context, config?: PluginManagerConfig) {
     super(ctx, 'plugin-manager')
+    this.ownCtx = ctx
     this.platform = config?.platform
     if (config?.manifests) {
       for (const [id, m] of Object.entries(config.manifests)) {
@@ -308,19 +386,29 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     // update-check timer — where a raw `this.ctx.<key>` read throws
     // `cannot get property "http" without inject`. See captureOwnService.
     const offHttp = this.captureOwnService<HttpService>('http', (v) => {
-      this.scopedHttp = v
+      this.own.http = v
     })
     const offSettings = this.captureOwnService<SettingsHandle>('settings', (v) => {
-      this.scopedSettings = v
+      this.own.settings = v
     })
     const offSecrets = this.captureOwnService<SecretsService>('secrets', (v) => {
-      this.scopedSecrets = v
+      this.own.secrets = v
     })
     const offDevice = this.captureOwnService<DeviceHandle>('device', (v) => {
-      this.scopedDevice = v
+      this.own.device = v
     })
     const offAuditor = this.captureOwnService<SecurityAuditorHandle>('securityAudit', (v) => {
-      this.scopedAuditor = v
+      this.own.auditor = v
+    })
+    // The store is mediated too — not gated, but namespaced by the
+    // caller's scope (`storageNamespace(resolveConfig())` in the store
+    // implementations). Call-time `this.ctx.store` reads from a foreign
+    // scope would land this service's npm cache / install records in
+    // the CALLER's namespace, so it is captured into the same holder
+    // and read through the module-level `ownService()` like every
+    // other collaborator.
+    const offStore = this.captureOwnService<StoreService>('store', (v) => {
+      this.own.store = v
     })
 
     // Automatic npm update check (D9): once shortly after boot when the last
@@ -360,7 +448,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       off2()
       off3()
       void (offDb as unknown as { dispose?: () => Promise<void> }).dispose?.()
-      for (const off of [offHttp, offSettings, offSecrets, offDevice, offAuditor]) {
+      for (const off of [offHttp, offSettings, offSecrets, offDevice, offAuditor, offStore]) {
         void (off as unknown as { dispose?: () => Promise<void> }).dispose?.()
       }
       for (const t of timers) {
@@ -402,7 +490,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
 
   private async loadOverrides(): Promise<Record<string, boolean>> {
     try {
-      const result = await this.ctx.store.get<Record<string, boolean>>('enabled')
+      const result = await ownService<StoreService>(this.own, this.ownCtx, 'store')?.get<Record<string, boolean>>('enabled')
       return result ?? {}
     } catch {
       return {}
@@ -410,7 +498,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   }
 
   private async saveOverrides(overrides: Record<string, boolean>): Promise<void> {
-    await this.ctx.store.set('enabled', overrides)
+    await ownService<StoreService>(this.own, this.ownCtx, 'store')?.set('enabled', overrides)
   }
 
   async setEnabled(id: string, enabled: boolean): Promise<void> {
@@ -501,7 +589,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   }
 
   private async saveProviderSelection(): Promise<void> {
-    await this.ctx.store.set('service-providers', Object.fromEntries(this.providerSelection))
+    await ownService<StoreService>(this.own, this.ownCtx, 'store')?.set('service-providers', Object.fromEntries(this.providerSelection))
   }
 
   async setServiceProvider(key: string, providerId: string): Promise<void> {
@@ -676,59 +764,24 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
    * the service is right there — unit tests never saw it because they
    * drive the service from the root context, where the read always
    * resolves. Registering `ctx.inject([key])` at init pins the handle
-   * under this plugin's own scope; afterwards every caller, from any
-   * scope, gets the same handle. Returns the inject fiber for disposal.
+   * under this plugin's own scope; the handle is stored in the plain
+   * `own` holder and read back through the module-level `ownService()`
+   * — never through a method return, which Cordis would re-bind to
+   * the invoking caller (see `ownService()`). Returns the inject
+   * fiber for disposal.
    */
   private captureOwnService<T>(key: string, set: (value: T | undefined) => void): unknown {
-    return this.ctx.inject([key], (scoped) => {
+    return this.ownCtx.inject([key], (scoped) => {
       set((scoped as unknown as Record<string, T | undefined>)[key])
       return () => set(undefined)
     })
   }
 
-  /**
-   * A collaborator captured at init under this plugin's own scope (see
-   * {@link captureOwnService}), with a direct context read as fallback.
-   * The fallback exists for hosts that drive the service without a
-   * Cordis lifecycle (unit tests, the pilot harness): there `this.ctx`
-   * IS the host's root context, which holds the handles those hosts
-   * intend. In a real shell the init capture lands first — these are
-   * bootstrap services — and if it somehow has not, the fallback's
-   * foreign-scope throw is contained here so the caller sees a clean
-   * "unavailable" instead of an inject error from someone else's scope.
-   */
-  private ownService<T>(captured: T | undefined, key: string): T | undefined {
-    if (captured) return captured
-    try {
-      return this.ctxService<T>(key)
-    } catch {
-      return undefined
-    }
-  }
 
-  private httpService(): HttpService | undefined {
-    return this.ownService(this.scopedHttp, 'http')
-  }
-
-  private settingsHandle(): SettingsHandle | undefined {
-    return this.ownService(this.scopedSettings, 'settings')
-  }
-
-  private secretsService(): SecretsService | undefined {
-    return this.ownService(this.scopedSecrets, 'secrets')
-  }
-
-  private deviceHandle(): DeviceHandle | undefined {
-    return this.ownService(this.scopedDevice, 'device')
-  }
-
-  private auditorHandle(): SecurityAuditorHandle | undefined {
-    return this.ownService(this.scopedAuditor, 'securityAudit')
-  }
 
   private async readAppSettings(): Promise<AppSettings | undefined> {
     try {
-      const svc = this.settingsHandle()
+      const svc = ownService<SettingsHandle>(this.own, this.ownCtx, 'settings')
       return svc?.getSync?.() ?? (await svc?.get?.().catch(() => undefined))
     } catch {
       return undefined
@@ -737,7 +790,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
 
   private getAppVersion(): string | undefined {
     try {
-      return this.deviceHandle()?.appVersion ?? undefined
+      return ownService<DeviceHandle>(this.own, this.ownCtx, 'device')?.appVersion ?? undefined
     } catch {
       return undefined
     }
@@ -745,17 +798,17 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
 
   private getNpmClient(): NpmClient {
     if (!this.npmClientInstance) {
-      const http = this.httpService()
+      const http = ownService<HttpService>(this.own, this.ownCtx, 'http')
       if (!http) {
         throw new NpmPluginError('SERVICE_UNAVAILABLE', 'plugin-manager 需要 "http" 服务，但它不可用')
       }
       const cache: NpmKvCache = {
         get: async <T>(key: string): Promise<{ value: T; fetchedAt: number } | undefined> =>
-          ((await this.ctx.store.get<{ value: unknown; fetchedAt: number }>(`npm:${key}`)) as
+          ((await ownService<StoreService>(this.own, this.ownCtx, 'store')?.get<{ value: unknown; fetchedAt: number }>(`npm:${key}`)) as
             | { value: T; fetchedAt: number }
             | undefined) ?? undefined,
         set: async (key, value) => {
-          await this.ctx.store.set(`npm:${key}`, { value, fetchedAt: Date.now() })
+          await ownService<StoreService>(this.own, this.ownCtx, 'store')?.set(`npm:${key}`, { value, fetchedAt: Date.now() })
         },
       }
       this.npmClientInstance = new NpmClient({
@@ -763,7 +816,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
         readSettings: () => this.readAppSettings(),
         readSecret: async (key) => {
           try {
-            return (await this.secretsService()?.get(key)) ?? undefined
+            return (await ownService<SecretsService>(this.own, this.ownCtx, 'secrets')?.get(key)) ?? undefined
           } catch {
             return undefined
           }
@@ -778,7 +831,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   private async loadInstalledRecords(): Promise<Record<string, InstalledNpmPluginRecord>> {
     try {
       const records =
-        (await this.ctx.store.get<Record<string, InstalledNpmPluginRecord>>('npm:installed')) ?? {}
+        (await ownService<StoreService>(this.own, this.ownCtx, 'store')?.get<Record<string, InstalledNpmPluginRecord>>('npm:installed')) ?? {}
       this.installedNpmIds = new Set(Object.keys(records))
       return records
     } catch {
@@ -787,7 +840,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   }
 
   private async saveInstalledRecords(records: Record<string, InstalledNpmPluginRecord>): Promise<void> {
-    await this.ctx.store.set('npm:installed', records)
+    await ownService<StoreService>(this.own, this.ownCtx, 'store')?.set('npm:installed', records)
   }
 
   /**
@@ -1108,7 +1161,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       .map((c) => c.slice('net:host/'.length).trim())
       .filter(Boolean)
     const scanContext = allowedHosts.length > 0 ? { allowedHosts } : undefined
-    const auditor = this.auditorHandle()
+    const auditor = ownService<SecurityAuditorHandle>(this.own, this.ownCtx, 'securityAudit', 'auditor')
     // Selection is the toolkit's: every executable-text extension, plus
     // the manifest's entry files whatever their extension — the loader
     // executes those, so an entry named `.mjs` (or anything odder) must
@@ -1522,7 +1575,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
    * has its flag cleared again.
    */
   async refreshDelistedFromIndex(options?: { force?: boolean }): Promise<void> {
-    if (!this.httpService()) return
+    if (!ownService<HttpService>(this.own, this.ownCtx, 'http')) return
     let doc: RegistryIndexDocument
     try {
       doc = await this.getNpmClient().fetchIndexDocument(options?.force ? { force: true } : undefined)
@@ -1671,7 +1724,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       }
     }
     try {
-      await this.ctx.store.set('npm:last-update-check', Date.now())
+      await ownService<StoreService>(this.own, this.ownCtx, 'store')?.set('npm:last-update-check', Date.now())
     } catch {
       // Best-effort; the next boot simply checks again.
     }
@@ -1821,7 +1874,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   }
 
   async setNpmAuthToken(token: string): Promise<void> {
-    const secrets = this.secretsService()
+    const secrets = ownService<SecretsService>(this.own, this.ownCtx, 'secrets')
     if (!secrets) {
       throw new NpmPluginError('SERVICE_UNAVAILABLE', 'secrets 服务不可用，无法保存 npm 认证 token')
     }
@@ -1831,7 +1884,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   }
 
   async clearNpmAuthToken(): Promise<void> {
-    const secrets = this.secretsService()
+    const secrets = ownService<SecretsService>(this.own, this.ownCtx, 'secrets')
     if (!secrets) {
       throw new NpmPluginError('SERVICE_UNAVAILABLE', 'secrets 服务不可用，无法清除 npm 认证 token')
     }
@@ -1839,7 +1892,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   }
 
   async hasNpmAuthToken(): Promise<boolean> {
-    const secrets = this.secretsService()
+    const secrets = ownService<SecretsService>(this.own, this.ownCtx, 'secrets')
     if (!secrets) return false
     try {
       return (await secrets.get(NPM_AUTH_TOKEN_KEY)) !== undefined

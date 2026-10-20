@@ -2023,7 +2023,12 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "capabilities": [
       "db:read:core",
-      "db:write:core"
+      "db:write:core",
+      "net:host/raw.githubusercontent.com",
+      "net:host/cdn.jsdelivr.net",
+      "net:host/fastly.jsdelivr.net",
+      "net:host/registry.npmjs.org",
+      "net:host/registry.npmmirror.com"
     ],
     "contributes": {
       "services": [
@@ -2053,7 +2058,12 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "capabilities": [
       "db:read:core",
-      "db:write:core"
+      "db:write:core",
+      "net:host/raw.githubusercontent.com",
+      "net:host/cdn.jsdelivr.net",
+      "net:host/fastly.jsdelivr.net",
+      "net:host/registry.npmjs.org",
+      "net:host/registry.npmmirror.com"
     ],
     "contributes": {
       "services": [

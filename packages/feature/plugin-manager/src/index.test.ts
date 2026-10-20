@@ -2358,12 +2358,18 @@ describe('foreign-scope callers (inject scope regression)', () => {
     // the calls below fail on their own merits — with the production
     // `cannot get property "http" without inject` error — instead of
     // this setup timing out and masking the real failure.
-    const captured = (key: 'scopedHttp' | 'scopedSecrets') =>
+    const captured = (key: 'http' | 'secrets') =>
       vi
-        .waitFor(() => expect((plugin as unknown as Record<string, unknown>)[key]).toBeDefined(), { timeout: 2_000 })
+        .waitFor(
+          () =>
+            expect(
+              (plugin as unknown as { own?: Record<string, unknown> }).own?.[key],
+            ).toBeDefined(),
+          { timeout: 2_000 },
+        )
         .catch(() => {})
-    await captured('scopedHttp')
-    await captured('scopedSecrets')
+    await captured('http')
+    await captured('secrets')
 
     // The instance behind the traceable proxy: the object the
     // service's own init closures (the automatic-check timers) call
