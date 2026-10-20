@@ -1195,3 +1195,49 @@ describe('apply', () => {
     await dispose()
   })
 })
+
+/* ── discovery: the generated index is not an entry ────────────────────── */
+
+describe('discovery and the generated plugins/index.json', () => {
+  it('does not count the generated index document as a malformed entry', async () => {
+    const base = 'https://api.github.com/repos/BBeBeeX/B_Be_Bee-registry/contents'
+    const harness = await setupInitialized({
+      http: {
+        json: {
+          [`${base}/music-sources`]: [],
+          [`${base}/lyric-sources`]: [],
+          [`${base}/plugins`]: [
+            { name: 'index.json', type: 'file', download_url: 'https://cdn.example/plugins-index.json' },
+            { name: 'bbebeex-good.json', type: 'file', download_url: 'https://cdn.example/good.json' },
+            { name: 'bbebeex-broken.json', type: 'file', download_url: 'https://cdn.example/broken.json' },
+          ],
+          [`${base}/themes`]: [],
+          // The generated index document itself: an object with
+          // `entries`/`blocked`, no id/name — not an entry.
+          'https://cdn.example/plugins-index.json': {
+            entries: [{ id: 'inside-the-index', kind: 'plugin', name: 'Not A Discovery Result' }],
+            blocked: [],
+          },
+          'https://cdn.example/good.json': {
+            id: 'good-plugin',
+            kind: 'plugin',
+            name: 'Good Plugin',
+            npm: '@bbebee/good-plugin',
+          },
+          // A genuinely malformed entry file: no id, no name.
+          'https://cdn.example/broken.json': { nope: true },
+        },
+      },
+    })
+
+    const index = await harness.plugin.getIndex(true)
+    expect(index.entries.map((e) => e.id)).toEqual(['good-plugin'])
+
+    // Only the genuinely malformed file may be counted as dropped —
+    // the generated index must not inflate the count (the field logs
+    // showed a phantom "dropped 1 malformed entries" on every boot
+    // precisely because discovery tried to eat the index as an entry).
+    const cached = harness.data.get(INDEX_CACHE_KEY) as { anomalies?: { dropped: number } } | undefined
+    expect(cached?.anomalies?.dropped).toBe(1)
+  })
+})

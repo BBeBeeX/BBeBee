@@ -434,6 +434,12 @@ export class RegistryPlugin extends Service implements RegistryService {
             const itemType = typeof item.type === 'string' ? item.type : ''
             const downloadUrl = typeof item.download_url === 'string' ? item.download_url : undefined
 
+            // `plugins/index.json` is the generated index document that
+            // lives beside the entries — it is not an entry. Fetching it
+            // as one makes the sanitizer drop it and logs a phantom
+            // "malformed entry" on every discovery.
+            if (dir === 'plugins' && itemName === 'index.json') continue
+
             let rawEntry: unknown = undefined
             if ((itemType === 'file' || !itemType) && itemName.endsWith('.json')) {
               const fileUrl = downloadUrl ?? `${DEFAULT_RAW_BASE}/${dir}/${itemName}`
