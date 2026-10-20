@@ -3,6 +3,11 @@ import { fileURLToPath } from 'node:url'
 import { createReadStream, promises as fs } from 'node:fs'
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
+import {
+  HOST_MODULE_SPECIFIERS,
+  buildDevImportMap,
+  buildImportMap,
+} from './renderer/host-modules.manifest.ts'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -79,9 +84,48 @@ function bbebeeFileProxy(): Plugin {
   }
 }
 
+/**
+ * Host-module import map for plugin module sharing.
+ *
+ * Dynamically loaded plugins (`bbebee-plugin://` imports) must use the SAME
+ * React instance as the app — two copies break hooks/context. The shared
+ * specifiers live in `renderer/host-modules.manifest.ts` (single source of
+ * truth); the renderer build externalizes them (see `build.rollupOptions`
+ * below) and the import map injected here resolves them:
+ *
+ *  - build: `./host/*.js`, the host chunks written by
+ *    `scripts/build-host-modules.js` after `vite build`.
+ *  - serve (dev): vite's pre-bundled deps (`/node_modules/.vite/deps/*.js`),
+ *    which is the copy the dev-served app itself runs.
+ *
+ * The map is injected ahead of every module script (`head-prepend`), as the
+ * HTML spec requires; `index.html` deliberately does NOT hand-write one so
+ * the map can never drift from the manifest. Generated here, in both modes,
+ * by `transformIndexHtml`.
+ */
+function bbebeeImportMap(): Plugin {
+  return {
+    name: 'bbebee-import-map',
+    transformIndexHtml: {
+      order: 'pre',
+      handler(_html, ctx) {
+        const map = ctx.server ? buildDevImportMap() : buildImportMap()
+        return [
+          {
+            tag: 'script',
+            attrs: { type: 'importmap' },
+            children: JSON.stringify(map),
+            injectTo: 'head-prepend',
+          },
+        ]
+      },
+    },
+  }
+}
+
 export default defineConfig({
   root: 'renderer',
-  plugins: [react(), bbebeeFileProxy()],
+  plugins: [react(), bbebeeFileProxy(), bbebeeImportMap()],
   optimizeDeps: {
     exclude: ['react-native'],
   },
@@ -94,6 +138,10 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: resolve(__dirname, 'renderer/index.html'),
+      // Host-shared modules: emitted as bare specifiers in the app chunks
+      // and resolved through the import map above, so the app bundle and
+      // dynamically loaded plugins share one instance.
+      external: [...HOST_MODULE_SPECIFIERS],
     },
   },
 })
