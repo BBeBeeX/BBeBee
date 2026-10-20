@@ -36,6 +36,10 @@ const shellModule = (await import(
 const serviceKeysWritten = await generateServiceKeys({
   root,
   outFile: join(root, 'packages/protocol/service-keys.json'),
+  // The same artifact as a TS module inside @BBeBee/protocol, so the
+  // settings UI / plugin-manager / desktop boot read critical keys and
+  // provider mappings through the normal import graph.
+  tsOutFile: join(root, 'packages/protocol/src/service-keys.generated.ts'),
   shellServices: shellModule.SHELL_MANIFEST?.contributes?.services ?? [],
   shellProviderId: shellModule.SHELL_MANIFEST?.id ?? '@BBeBee/app-shell',
 })
