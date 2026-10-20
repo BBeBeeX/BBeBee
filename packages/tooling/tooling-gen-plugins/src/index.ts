@@ -222,12 +222,47 @@ export async function generateManifests(options: {
  * supplement: a key that is missing here is missing because no manifest
  * declares it, and the fix belongs in that manifest, not in this file.
  */
+/**
+ * The critical service keys (policy, decided 2026-10-20): services whose
+ * substitution by a third-party plugin would compromise the system —
+ * credentials, code execution, the data layer, all plugin traffic, global
+ * config, the content/library pipeline, and the playback core. Registry
+ * entries may not claim `provides` for these keys, and the settings UI
+ * never offers an off switch for their built-in providers. Every other
+ * key is replaceable: third-party providers are allowed and the user may
+ * choose which provider is active. This list is the single declaration;
+ * it is emitted into the generated artifact and vendored by the registry.
+ * Generation fails if a critical key is no longer provided by anything,
+ * so renaming or removing a critical service cannot slip past the policy.
+ */
+export const CRITICAL_SERVICE_KEYS: readonly string[] = [
+  'audio',
+  'codec',
+  'contentRegistry',
+  'db',
+  'downloads',
+  'fs',
+  'http',
+  'js',
+  'library',
+  'paths',
+  'player',
+  'plugin-manager',
+  'scanner',
+  'secrets',
+  'securityAudit',
+  'settings',
+  'store',
+]
+
 export interface ServiceKeysArtifact {
   description: string
   generatedBy: string
   sources: string[]
   /** Every service key, sorted. */
   serviceKeys: string[]
+  /** The critical subset of `serviceKeys` (see CRITICAL_SERVICE_KEYS), sorted. */
+  criticalKeys: string[]
   /** Key → manifest ids that declare it in `contributes.services`. */
   providers: Record<string, string[]>
 }
@@ -252,13 +287,24 @@ export function collectServiceKeys(
   const providersRecord: Record<string, string[]> = {}
   for (const key of serviceKeys) providersRecord[key] = [...providers.get(key)!].sort()
 
+  const criticalKeys = [...CRITICAL_SERVICE_KEYS].sort()
+  const missing = criticalKeys.filter((k) => !providers.has(k))
+  if (missing.length > 0) {
+    throw new Error(
+      `CRITICAL_SERVICE_KEYS names services nothing provides anymore: ${missing.join(', ')}. ` +
+        'Update the policy list in tooling-gen-plugins together with the service change.',
+    )
+  }
+
   return {
     description:
       'Every Cordis service key the BBeBee app can provide: the union of ' +
       'contributes.services across all plugin manifests, plus the shell’s ' +
       'own declaration. This file is the single source of truth for the ' +
       'service-key allowlist — the community registry vendors a copy of ' +
-      'it rather than maintaining its own list.',
+      'it rather than maintaining its own list. `criticalKeys` is the ' +
+      'protected subset: registry entries may not claim to provide them, ' +
+      'and their built-in providers cannot be disabled in settings.',
     generatedBy:
       '@BBeBee/tooling-gen-plugins — do not edit by hand; run `pnpm gen:plugins` to regenerate.',
     sources: [
@@ -266,6 +312,7 @@ export function collectServiceKeys(
       'SHELL_MANIFEST.contributes.services in apps/desktop/renderer/plugins.ts',
     ],
     serviceKeys,
+    criticalKeys,
     providers: providersRecord,
   }
 }

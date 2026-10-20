@@ -1,5 +1,5 @@
 {
-  "description": "Every Cordis service key the BBeBee app can provide: the union of contributes.services across all plugin manifests, plus the shell’s own declaration. This file is the single source of truth for the service-key allowlist — the community registry vendors a copy of it rather than maintaining its own list.",
+  "description": "Every Cordis service key the BBeBee app can provide: the union of contributes.services across all plugin manifests, plus the shell’s own declaration. This file is the single source of truth for the service-key allowlist — the community registry vendors a copy of it rather than maintaining its own list. `criticalKeys` is the protected subset: registry entries may not claim to provide them, and their built-in providers cannot be disabled in settings.",
   "generatedBy": "@BBeBee/tooling-gen-plugins — do not edit by hand; run `pnpm gen:plugins` to regenerate.",
   "sources": [
     "contributes.services of every BBeBee.plugin.json under packages/",
@@ -45,6 +45,25 @@
     "theme",
     "ui",
     "visualizer"
+  ],
+  "criticalKeys": [
+    "audio",
+    "codec",
+    "contentRegistry",
+    "db",
+    "downloads",
+    "fs",
+    "http",
+    "js",
+    "library",
+    "paths",
+    "player",
+    "plugin-manager",
+    "scanner",
+    "secrets",
+    "securityAudit",
+    "settings",
+    "store"
   ],
   "providers": {
     "audio": [
