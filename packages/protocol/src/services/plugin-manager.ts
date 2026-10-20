@@ -240,12 +240,42 @@ export interface InstalledNpmPluginRecord {
   installedAt: string
 }
 
+/**
+ * One service key with more than one installed provider (audit W5).
+ * Non-critical keys are replaceable: the user picks which provider is
+ * active and every other provider of that key is skipped at load
+ * (Cordis refuses two registrations of one key in an isolate, so
+ * co-providers must be arbitrated, not raced). Critical keys are
+ * reported for visibility but their provider can never be switched.
+ */
+export interface ServiceProviderInfo {
+  key: string
+  critical: boolean
+  /** Manifest ids of every known provider that can actually serve the key. */
+  providers: string[]
+  /** The provider currently in effect (the user's choice, else the default rule). */
+  activeProvider?: string
+}
+
 export interface PluginManagerService {
   /** Returns the list of all known plugins with their merged runtime state and dependencies. */
   list(): readonly PluginInfo[]
 
   /** Updates user enablement preference, persists to store, and triggers lifecycle load/unload. */
   setEnabled(id: string, enabled: boolean): Promise<void>
+  /**
+   * Lists service keys that currently have more than one installed
+   * provider, with the provider in effect for each (audit W5).
+   * Optional: hosts without provider arbitration omit it.
+   */
+  listServiceProviders?(): ServiceProviderInfo[]
+  /**
+   * Chooses the active provider for a non-critical service key
+   * (audit W5). The choice is persisted and honoured at boot; the
+   * runtime switch is coordinated best-effort. Rejects for critical
+   * keys and for ids that do not provide the key.
+   */
+  setServiceProvider?(key: string, providerId: string): Promise<void>
 
   /** Registers plugin manifests into the service. */
   registerManifests(manifests: Record<string, PluginManifest>): void

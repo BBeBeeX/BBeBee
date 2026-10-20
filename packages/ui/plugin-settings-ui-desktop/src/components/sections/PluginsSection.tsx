@@ -7,6 +7,7 @@ import { filterPlugins } from '@BBeBee/toolkit'
 import { PluginSearchBox } from '../PluginSearchBox.js'
 import { PluginGroupPanel } from '../PluginGroupPanel.js'
 import { PluginMarketSection } from '../PluginMarketSection.js'
+import { ServiceProvidersPanel } from '../ServiceProvidersPanel.js'
 
 export interface PluginsSectionProps {
   ctx: Context
@@ -97,6 +98,10 @@ export function PluginsSection({ ctx, showAdvancedSettings = false }: PluginsSec
     },
     // Plugin Market (registry browse + npm install/update/uninstall)
     h(PluginMarketSection, { ctx }),
+
+    // Replaceable-service provider choice (audit W5; self-hides
+    // while no service key has multiple providers)
+    h(ServiceProvidersPanel, { ctx }),
 
     // Search box
     h(PluginSearchBox, {

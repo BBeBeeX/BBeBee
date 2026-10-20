@@ -511,6 +511,13 @@
       "officialHint": "Maintained by the BBeBeeX GitHub account (the repository owner is BBeBeeX).",
       "blocked": "Banned by the registry",
       "blockedHint": "This plugin has been banned by the registry for security reasons ({reason}). The installed copy is quarantined; you can uninstall it."
+    },
+    "serviceProviders": {
+      "title": "Service providers",
+      "description": "When several installed plug-ins provide the same replaceable service, only one can be active. The choice is saved and applied at startup.",
+      "activeLabel": "Active:",
+      "switchFailed": "Failed to switch provider: {error}",
+      "criticalNote": "Critical service — its provider cannot be replaced."
     }
   },
   "zh": {
@@ -1025,6 +1032,13 @@
       "officialHint": "由 GitHub 账号 BBeBeeX 维护（仓库所有者为 BBeBeeX）。",
       "blocked": "已被注册表封禁",
       "blockedHint": "该插件已被注册表以安全原因封禁（{reason}），已安装的副本已被隔离；你可以卸载它。"
+    },
+    "serviceProviders": {
+      "title": "服务提供者",
+      "description": "多个已装插件提供同一个可替换服务时，只能有一个生效。选择会被保存，并在启动时应用。",
+      "activeLabel": "当前生效：",
+      "switchFailed": "切换提供者失败：{error}",
+      "criticalNote": "关键服务——其提供者不可替换。"
     }
   }
 }

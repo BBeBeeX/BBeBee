@@ -33,6 +33,7 @@ import type {
   RouteChangeEvent,
   Uri,
 } from '@BBeBee/protocol'
+import { isCriticalServiceKey } from '@BBeBee/protocol'
 import {
   DbBridge,
   FsBridge,
@@ -61,6 +62,7 @@ import {
   getBuiltinPluginRegistry,
   installAndActivatePlugin,
   loadExternalPluginRegistry,
+  resolveActiveProviders,
   uninstallExternalPlugin,
   type PluginLockRecord,
 } from './dynamic-loader.js'
@@ -545,6 +547,7 @@ async function buildRegistry(storeData?: Record<string, unknown>): Promise<{
 /** Compute effective plugin enablement (initial + user overrides). */
 function computeEnabledPlugins(
   storeData: Record<string, unknown> | undefined,
+  manifests: Record<string, PluginManifest>,
 ): typeof INITIAL_ENABLED {
   const effective = { ...INITIAL_ENABLED }
   const overrides = (
@@ -552,12 +555,54 @@ function computeEnabledPlugins(
     storeData?.['plugin-manager:enabled']
   ) as Record<string, boolean> | undefined
 
-  if (!overrides) return effective
-  for (const [id, enabled] of Object.entries(overrides)) {
-    if (enabled === false && effective[id]) {
-      effective[id] = { ...effective[id], enabled: false }
-    } else if (enabled === true) {
-      effective[id] = { ...(effective[id] ?? {}), enabled: true }
+  if (overrides) {
+    for (const [id, enabled] of Object.entries(overrides)) {
+      if (enabled === false && effective[id]) {
+        effective[id] = { ...effective[id], enabled: false }
+      } else if (enabled === true) {
+        effective[id] = { ...(effective[id] ?? {}), enabled: true }
+      }
+    }
+  }
+
+  // Provider arbitration (audit W5): a non-critical key with several
+  // providers may only start ONE of them (Cordis refuses duplicate
+  // service registrations in an isolate). The winner comes from the
+  // user's persisted selection, else the built-in provider; the other
+  // providers present in the enablement map are held off here. This
+  // filter only governs the config-driven set — a losing npm provider
+  // that arrives through the external loader path is arbitrated at
+  // install/switch time by the plugin-manager instead.
+  const providersByKey = new Map<string, string[]>()
+  for (const m of Object.values(manifests)) {
+    if (!m.entry?.main) continue
+    for (const key of m.contributes?.services ?? []) {
+      const arr = providersByKey.get(key) ?? []
+      arr.push(m.id)
+      providersByKey.set(key, arr)
+    }
+  }
+  if ([...providersByKey.values()].some((ps) => ps.length > 1)) {
+    const selection = storeData?.['@BBeBee/plugin-manager:service-providers'] as
+      | Record<string, string>
+      | undefined
+    const npmRecords = storeData?.['@BBeBee/plugin-manager:npm:installed'] as
+      | Record<string, unknown>
+      | undefined
+    const active = resolveActiveProviders(
+      providersByKey,
+      selection,
+      new Set(Object.keys(npmRecords ?? {})),
+      isCriticalServiceKey,
+    )
+    for (const [key, providers] of providersByKey) {
+      const winner = active.get(key)
+      if (!winner) continue
+      for (const id of providers) {
+        if (id !== winner && effective[id] && effective[id].enabled !== false) {
+          effective[id] = { ...effective[id], enabled: false }
+        }
+      }
     }
   }
   return effective
@@ -573,7 +618,7 @@ export async function boot(): Promise<App> {
   const transport = bridgeFetch()
   const prefs = await preloadPreferences(pathSnapshot)
   const { registry, manifests } = await buildRegistry(prefs.storeData)
-  const enabledPlugins = computeEnabledPlugins(prefs.storeData)
+  const enabledPlugins = computeEnabledPlugins(prefs.storeData, manifests)
 
   const app = createApp({
     target: 'desktop',

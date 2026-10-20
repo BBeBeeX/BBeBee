@@ -19,6 +19,7 @@ import type {
   PluginManifest,
   PluginRuntimeState,
   PluginUpdateInfo,
+  ServiceProviderInfo,
   AppSettings,
   RegistryBlockedEntry,
   RegistryPluginEntry,
@@ -159,6 +160,17 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   private blockedIds = new Map<string, string>()
 
   /**
+   * The user's provider choices for replaceable service keys
+   * (audit W5): key → active provider manifest id. Persisted in this
+   * service's store under `service-providers`; the desktop boot reads
+   * the same snapshot key to filter its enablement map.
+   */
+  private providerSelection = new Map<string, string>()
+
+  /** Ids present in the npm install records (vs built-in manifests). */
+  private installedNpmIds = new Set<string>()
+
+  /**
    * The capability-grant ledger, bound to this service's OWN `db` handle.
    *
    * The handle is captured at init (see `[Service.init]`), under this
@@ -198,6 +210,13 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       this.overrides = await this.loadOverrides()
     } catch (err) {
       this.ctx.logger.warn(`plugin-manager: failed to load persisted overrides: ${String(err)}`)
+    }
+    try {
+      const saved = await this.ctx.store.get<Record<string, string>>('service-providers')
+      if (saved) this.providerSelection = new Map(Object.entries(saved))
+    } catch {
+      // Selection is an optimisation over the default rule; losing it
+      // only means the built-in providers win again.
     }
 
     // Seed the in-memory delisted set from the persisted flags so list()
@@ -363,6 +382,134 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Provider arbitration for replaceable service keys (audit W5)
+  // -------------------------------------------------------------------------
+
+  /** Service key → provider manifest ids, from the registered manifests. */
+  private providersByKey(): Map<string, string[]> {
+    const byKey = new Map<string, string[]>()
+    for (const m of this.manifests.values()) {
+      if (!m.entry.main) continue
+      for (const key of m.contributes?.services ?? []) {
+        const arr = byKey.get(key) ?? []
+        arr.push(m.id)
+        byKey.set(key, arr)
+      }
+    }
+    return byKey
+  }
+
+  /**
+   * The provider in effect for `key`: the persisted choice when it
+   * names an enabled provider, else an enabled built-in provider,
+   * else the first enabled provider — the same rule the desktop boot
+   * applies to its enablement map (resolveActiveProviders).
+   */
+  private activeProviderFor(key: string, providers: readonly string[]): string | undefined {
+    const enabled = providers.filter((id) => this.isEnabled(id))
+    if (enabled.length === 0) return undefined
+    const chosen = this.providerSelection.get(key)
+    if (chosen && enabled.includes(chosen)) return chosen
+    return enabled.find((id) => !this.installedNpmIds.has(id)) ?? enabled[0]
+  }
+
+  listServiceProviders(): ServiceProviderInfo[] {
+    const out: ServiceProviderInfo[] = []
+    for (const [key, providers] of this.providersByKey()) {
+      if (providers.length < 2) continue
+      const sorted = [...providers].sort()
+      out.push({
+        key,
+        critical: isCriticalServiceKey(key),
+        providers: sorted,
+        activeProvider: this.activeProviderFor(key, sorted),
+      })
+    }
+    return out.sort((a, b) => a.key.localeCompare(b.key))
+  }
+
+  private async saveProviderSelection(): Promise<void> {
+    await this.ctx.store.set('service-providers', Object.fromEntries(this.providerSelection))
+  }
+
+  async setServiceProvider(key: string, providerId: string): Promise<void> {
+    if (isCriticalServiceKey(key)) {
+      throw new NpmPluginError(
+        'CRITICAL_PROVIDER',
+        `服务 "${key}" 是关键服务，其提供者不可替换`,
+      )
+    }
+    const providers = this.providersByKey().get(key) ?? []
+    if (!providers.includes(providerId)) {
+      throw new NpmPluginError(
+        'NOT_A_PROVIDER',
+        `插件 "${providerId}" 不是服务 "${key}" 的提供者（候选：${providers.join('、') || '无'}）`,
+      )
+    }
+    this.providerSelection.set(key, providerId)
+    await this.saveProviderSelection()
+    // Runtime coordination is best-effort: disable the other enabled
+    // providers of this key and make sure the chosen one is on. The
+    // persisted selection + boot filter are the authoritative path —
+    // a provider that refuses to unload here is still held off at the
+    // next start, and the one that stays loaded keeps serving alone.
+    for (const other of providers) {
+      if (other !== providerId && this.isEnabled(other)) {
+        try {
+          await this.setEnabled(other, false)
+        } catch (err) {
+          this.ctx.logger.warn(
+            `plugin-manager: provider switch for "${key}": failed to disable "${other}": ${String(err)}`,
+          )
+        }
+      }
+    }
+    if (!this.isEnabled(providerId)) {
+      await this.setEnabled(providerId, true)
+    }
+    this.ctx.emit('plugin-manager/changed')
+  }
+
+  /**
+   * Install/update preemption (audit W5): a package about to activate
+   * takes over every replaceable key it provides. Providers currently
+   * holding such a key are unloaded (their records and enabled
+   * overrides stay untouched — the persisted selection, applied at
+   * boot, is what keeps them from colliding next start) and the
+   * selection is rewritten to the newcomer. Critical keys never reach
+   * here as takeovers: claiming one with an incumbent provider is
+   * refused in preparePackage.
+   */
+  private async preemptConflictingProviders(newManifests: readonly PluginManifest[]): Promise<void> {
+    let changed = false
+    for (const m of newManifests) {
+      for (const key of m.contributes?.services ?? []) {
+        if (isCriticalServiceKey(key)) continue
+        for (const other of this.manifests.values()) {
+          if (other.id === m.id || !other.entry.main) continue
+          if (!(other.contributes?.services ?? []).includes(key)) continue
+          if (!this.isEnabled(other.id)) continue
+          this.providerSelection.set(key, m.id)
+          changed = true
+          this.ctx.logger.warn(
+            `plugin-manager: "${m.id}" takes over service "${key}" from "${other.id}" (provider selection)`,
+          )
+          try {
+            await this.bridge?.unloadPlugin(other.id)
+          } catch {
+            // Best-effort for this session; the selection + boot
+            // filter keep the two from colliding at the next start.
+          }
+        }
+      }
+    }
+    if (changed) {
+      await this.saveProviderSelection()
+      this.ctx.emit('plugin-manager/changed')
+    }
+  }
+
   refresh(): readonly PluginInfo[] {
     return this.list()
   }
@@ -493,7 +640,10 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
 
   private async loadInstalledRecords(): Promise<Record<string, InstalledNpmPluginRecord>> {
     try {
-      return (await this.ctx.store.get<Record<string, InstalledNpmPluginRecord>>('npm:installed')) ?? {}
+      const records =
+        (await this.ctx.store.get<Record<string, InstalledNpmPluginRecord>>('npm:installed')) ?? {}
+      this.installedNpmIds = new Set(Object.keys(records))
+      return records
     } catch {
       return {}
     }
@@ -745,6 +895,27 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     }
     if (this.manifests.has(entry.id) && !installedRecords[entry.id]) {
       throw new NpmPluginError('SPOOF_DETECTED', `插件 id "${entry.id}" 与内置插件冲突，拒绝安装`)
+    }
+    // Critical-key impersonation (audit W5): the packaged manifest may
+    // not claim a critical service key that another registered
+    // (built-in or previously installed) plug-in already provides —
+    // the client-side mirror of the registry's provides gate, for
+    // content whose real manifest only becomes visible after download.
+    // Updating the incumbent itself is unaffected (its own id is
+    // excluded). A critical key with NO incumbent provider is not
+    // impersonation and stays installable.
+    for (const key of (extracted.manifest.contributes?.services ?? []).filter((s) =>
+      isCriticalServiceKey(s),
+    )) {
+      const incumbent = [...this.manifests.values()].find(
+        (o) => o.id !== extracted.manifest.id && (o.contributes?.services ?? []).includes(key),
+      )
+      if (incumbent) {
+        throw new NpmPluginError(
+          'SPOOF_DETECTED',
+          `插件 "${entry.id}" 的 manifest 声明提供关键服务 "${key}"，该服务已由 "${incumbent.id}" 提供，拒绝安装（防冒充）`,
+        )
+      }
     }
     // D8-4: the packaged manifest's own platforms must agree with the entry.
     const manifestPlatforms = extracted.manifest.platforms
@@ -1147,6 +1318,12 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
         `插件 "${first.old.id}" 现有版本的回滚材料（${first.old.npm}@${first.old.version}）未通过安装校验，中止安装，未写入任何文件：${first.error.message}`,
       )
     }
+    // Provider preemption (audit W5): the incoming real manifests take
+    // over the replaceable keys they provide BEFORE activation, so the
+    // incumbent is already out when the newcomer registers its keys
+    // (Cordis would refuse the duplicate registration otherwise).
+    await this.preemptConflictingProviders(prepared.map((p) => p.extracted.manifest))
+
     const newVersionById = new Map(prepared.map((p) => [p.node.entry.id, p.node.pkg.version]))
     const installedNow: string[] = []
     try {

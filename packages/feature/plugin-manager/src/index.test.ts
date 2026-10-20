@@ -1673,6 +1673,109 @@ describe('plugin-manager npm service methods', () => {
       expect(rec.blocked).toBe('malware')
     })
   })
+
+  describe('provider arbitration (audit W5)', () => {
+    const vizManifest = (id: string) => manifestFor(id, '1.0.0', ['visualizer']) as PluginManifest
+
+    function twoProviderWorld() {
+      const { ctx } = createTestContext()
+      const plugin = new PluginManagerPlugin(ctx, {
+        manifests: {
+          '@BBeBee/plugin-visualizer': vizManifest('@BBeBee/plugin-visualizer'),
+          'third-viz': vizManifest('third-viz'),
+          '@BBeBee/plugin-player': manifestFor('@BBeBee/plugin-player', '1.0.0', ['player']) as PluginManifest,
+        },
+      })
+      const bridge = {
+        loadPlugin: vi.fn(async () => {}),
+        unloadPlugin: vi.fn(async () => {}),
+        installPlugin: vi.fn(async () => ({ state: 'ACTIVE' as const })),
+        uninstallPlugin: vi.fn(async () => {}),
+      }
+      plugin.setLifecycleBridge(bridge)
+      return { ctx, plugin, bridge }
+    }
+
+    it('lists multi-provider keys with the default (built-in) active provider', async () => {
+      const { plugin } = twoProviderWorld()
+      await plugin[PluginManagerPlugin.init]()
+      const infos = plugin.listServiceProviders()
+      expect(infos).toEqual([
+        {
+          key: 'visualizer',
+          critical: false,
+          providers: ['@BBeBee/plugin-visualizer', 'third-viz'],
+          activeProvider: '@BBeBee/plugin-visualizer',
+        },
+      ])
+    })
+
+    it('switches the active provider, persists the choice and unloads the loser', async () => {
+      const { ctx, plugin, bridge } = twoProviderWorld()
+      await plugin[PluginManagerPlugin.init]()
+      await plugin.setServiceProvider('visualizer', 'third-viz')
+      const store = (ctx as any).store
+      const setCalls = store.set.mock.calls.filter(([k]: [string]) => k === 'service-providers')
+      expect(setCalls.at(-1)![1]).toEqual({ visualizer: 'third-viz' })
+      expect(bridge.unloadPlugin).toHaveBeenCalledWith('@BBeBee/plugin-visualizer')
+      expect(plugin.listServiceProviders()[0]!.activeProvider).toBe('third-viz')
+    })
+
+    it('refuses to switch a critical key or to a non-provider', async () => {
+      const { plugin } = twoProviderWorld()
+      await plugin[PluginManagerPlugin.init]()
+      await expectNpmError(plugin.setServiceProvider('player', 'third-viz'), 'CRITICAL_PROVIDER')
+      await expectNpmError(plugin.setServiceProvider('visualizer', '@BBeBee/plugin-player'), 'NOT_A_PROVIDER')
+    })
+
+    it('refuses a downloaded manifest claiming a critical key with an incumbent provider', async () => {
+      const entry = entryFor({ id: 'evil-x', npm: '@t/evil', provides: ['player'] })
+      const tarballs = {
+        '@t/evil@1.0.0': tarballFor('@t/evil', 'evil-x', '1.0.0', {
+          'BBeBee.plugin.json': JSON.stringify(manifestFor('evil-x', '1.0.0', ['player'])),
+        }),
+      }
+      const w = seedWorld(entry, ['1.0.0'], tarballs)
+      await w.plugin[PluginManagerPlugin.init]()
+      await expectNpmError(w.plugin.installPlugin('evil-x'), 'SPOOF_DETECTED')
+      expect(w.bridge.installPlugin).not.toHaveBeenCalled()
+    })
+
+    it('installing a same-key package preempts the incumbent and records the selection', async () => {
+      const entry = entryFor({ id: 'new-viz', npm: '@t/newviz', provides: ['visualizer'] })
+      const tarballs = {
+        '@t/newviz@1.0.0': tarballFor('@t/newviz', 'new-viz', '1.0.0', {
+          'BBeBee.plugin.json': JSON.stringify(manifestFor('new-viz', '1.0.0', ['visualizer'])),
+        }),
+      }
+      const w = seedWorld(entry, ['1.0.0'], tarballs)
+      w.plugin.registerManifests({ '@BBeBee/plugin-visualizer': vizManifest('@BBeBee/plugin-visualizer') })
+      await w.plugin[PluginManagerPlugin.init]()
+      await w.plugin.installPlugin('new-viz')
+      expect(w.bridge.unloadPlugin).toHaveBeenCalledWith('@BBeBee/plugin-visualizer')
+      const store = (w.ctx as any).store
+      const setCalls = store.set.mock.calls.filter(([k]: [string]) => k === 'service-providers')
+      expect(setCalls.at(-1)![1]).toEqual({ visualizer: 'new-viz' })
+      const info = w.plugin.listServiceProviders().find((i) => i.key === 'visualizer')
+      expect(info?.activeProvider).toBe('new-viz')
+    })
+
+    it('installing a provider of a non-critical key with no incumbent just installs', async () => {
+      const entry = entryFor({ id: 'new-viz', npm: '@t/newviz', provides: ['visualizer'] })
+      const tarballs = {
+        '@t/newviz@1.0.0': tarballFor('@t/newviz', 'new-viz', '1.0.0', {
+          'BBeBee.plugin.json': JSON.stringify(manifestFor('new-viz', '1.0.0', ['visualizer'])),
+        }),
+      }
+      const w = seedWorld(entry, ['1.0.0'], tarballs)
+      await w.plugin[PluginManagerPlugin.init]()
+      await w.plugin.installPlugin('new-viz')
+      expect(w.bridge.installPlugin).toHaveBeenCalledTimes(1)
+      const store = (w.ctx as any).store
+      const setCalls = store.set.mock.calls.filter(([k]: [string]) => k === 'service-providers')
+      expect(setCalls).toHaveLength(0)
+    })
+  })
 })
 
 /**

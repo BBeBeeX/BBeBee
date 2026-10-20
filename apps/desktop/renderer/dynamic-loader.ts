@@ -77,6 +77,40 @@ export interface PluginLockRecord {
 }
 
 /**
+ * Provider arbitration (audit W5): for every NON-critical service key
+ * with more than one provider, decide which single provider is in
+ * effect. Cordis refuses a second registration of the same key inside
+ * one isolate, so co-providers cannot simply all start — the losers
+ * must be held back by the caller (boot enablement filtering, the
+ * plugin-manager's runtime coordination).
+ *
+ * The winner is the user's persisted choice when it names a current
+ * provider; otherwise a built-in (not npm-installed) provider wins —
+ * the app must come up with its own services intact — falling back to
+ * the first provider listed. Critical keys are never arbitrated:
+ * their providers are locked on by policy and must not share the key
+ * in the first place.
+ */
+export function resolveActiveProviders(
+  providersByKey: ReadonlyMap<string, readonly string[]>,
+  selection: Readonly<Record<string, string>> | undefined,
+  npmInstalledIds: ReadonlySet<string>,
+  isCriticalKey: (key: string) => boolean,
+): Map<string, string> {
+  const active = new Map<string, string>()
+  for (const [key, providers] of providersByKey) {
+    if (providers.length < 2 || isCriticalKey(key)) continue
+    const chosen = selection?.[key]
+    const winner =
+      chosen && providers.includes(chosen)
+        ? chosen
+        : (providers.find((id) => !npmInstalledIds.has(id)) ?? providers[0]!)
+    active.set(key, winner)
+  }
+  return active
+}
+
+/**
  * The tamper-chain verdict for one installed plugin, or undefined when
  * it may load. Full-package pins compare the ENTIRE on-disk file set
  * (changed, missing, or extra files all count); a record marked

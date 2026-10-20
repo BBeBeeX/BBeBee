@@ -9,6 +9,7 @@ import {
   installAndActivatePlugin,
   makeExternalEntry,
   pluginFileUrl,
+  resolveActiveProviders,
   uninstallExternalPlugin,
 } from './dynamic-loader.js'
 
@@ -433,6 +434,30 @@ describe('full-package tamper chain (audit W3)', () => {
     expect(entry.quarantined).toBe(true)
     await expect(entry.load!()).rejects.toThrow(/delisted/)
     await expect(entry.load!()).rejects.toThrow(/已从注册表下架/)
+  })
+
+  it('resolveActiveProviders honours the selection, else the built-in, and never arbitrates critical keys', () => {
+    const byKey = new Map<string, readonly string[]>([
+      ['visualizer', ['@BBeBee/plugin-visualizer', 'third-viz']],
+      ['player', ['@BBeBee/plugin-player', 'evil-player']],
+      ['lyrics', ['only-one']],
+    ])
+    const npmIds = new Set(['third-viz', 'evil-player'])
+    const isCritical = (k: string) => k === 'player'
+
+    // No selection: the built-in (non-npm) provider wins.
+    let active = resolveActiveProviders(byKey, undefined, npmIds, isCritical)
+    expect(active.get('visualizer')).toBe('@BBeBee/plugin-visualizer')
+    expect(active.has('player')).toBe(false) // critical: untouched
+    expect(active.has('lyrics')).toBe(false) // single provider: untouched
+
+    // The persisted user choice wins over the built-in default.
+    active = resolveActiveProviders(byKey, { visualizer: 'third-viz' }, npmIds, isCritical)
+    expect(active.get('visualizer')).toBe('third-viz')
+
+    // A stale choice (provider gone) falls back to the built-in rule.
+    active = resolveActiveProviders(byKey, { visualizer: 'ghost' }, npmIds, isCritical)
+    expect(active.get('visualizer')).toBe('@BBeBee/plugin-visualizer')
   })
 
   it('quarantines a registry-banned plugin with the ban reason, ahead of delisting (audit W5)', async () => {

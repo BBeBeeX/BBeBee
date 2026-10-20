@@ -56,6 +56,7 @@ export type NpmErrorCode =
   | 'DELISTED'
   | 'BLOCKED'
   | 'CRITICAL_PROVIDER'
+  | 'NOT_A_PROVIDER'
   | 'DOWNLOAD_FAILED'
 
 export class NpmPluginError extends Error {
