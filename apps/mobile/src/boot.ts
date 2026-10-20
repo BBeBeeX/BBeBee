@@ -28,8 +28,8 @@ import {
 } from 'react-native'
 import { FlashList } from '@shopify/flash-list'
 import { AudioContext, AudioManager } from 'react-native-audio-api'
-import { createApp, readCapabilityGrants, type App } from '@BBeBee/kernel'
-import type { AppSettings, DbService } from '@BBeBee/protocol'
+import { createApp, createShellGrantResolver, type App } from '@BBeBee/kernel'
+import { PLUGIN_MANAGER_ID, type AppSettings } from '@BBeBee/protocol'
 import { PathsExpo } from '@BBeBee/core-paths-expo'
 import { FsExpo } from '@BBeBee/core-fs-expo'
 import { StoreFs } from '@BBeBee/core-store-fs'
@@ -194,10 +194,16 @@ export async function boot(): Promise<App> {
     // the loader's gate sees the user's recorded approvals (W1). Mobile
     // has no dynamic installs today — every bundled plugin is builtin
     // and exempt — but the gate must not silently depend on that.
-    resolveGrants: async (ctx) => {
-      const db = (ctx as unknown as { db?: DbService }).db
-      return db ? readCapabilityGrants(db) : undefined
-    },
+    //
+    // Same composed resolver as desktop (shared from the kernel, so
+    // the two shells cannot drift): the ledger plus plugin-manager's
+    // settings-derived download hosts, re-derived at every
+    // resolution. A running plugin-manager keeps the grants its
+    // fiber was created with, so a network-settings change takes
+    // gate effect at its next load (in practice the next launch).
+    resolveGrants: createShellGrantResolver({
+      managerManifestCapabilities: bundled[PLUGIN_MANAGER_ID]?.manifest.capabilities,
+    }),
   })
   await app.start()
 

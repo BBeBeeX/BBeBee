@@ -13,7 +13,7 @@
 
 import {
   createApp,
-  readCapabilityGrants,
+  createShellGrantResolver,
   type App,
   type PluginRegistry,
   type RegistryEntry,
@@ -23,7 +23,6 @@ import type {
   AppSettings,
   AudioService,
   AudioSourceHandle,
-  DbService,
   Disposable,
   InterruptionEvent,
   LoadOptions,
@@ -33,7 +32,7 @@ import type {
   RouteChangeEvent,
   Uri,
 } from '@BBeBee/protocol'
-import { isCriticalServiceKey } from '@BBeBee/protocol'
+import { isCriticalServiceKey, PLUGIN_MANAGER_ID } from '@BBeBee/protocol'
 import {
   DbBridge,
   FsBridge,
@@ -654,10 +653,22 @@ export async function boot(): Promise<App> {
     // load, so a plugin the user just installed (plugin-manager records
     // the grant from the confirmed install) activates without a
     // restart, and a fresh boot sees the grants of past installs (W1).
-    resolveGrants: async (ctx) => {
-      const db = (ctx as unknown as { db?: DbService }).db
-      return db ? readCapabilityGrants(db) : undefined
-    },
+    //
+    // The resolver also layers plugin-manager's settings-derived
+    // download hosts over the ledger (see `withManagerPipelineGrants`
+    // in the kernel): the manager's grant entry is the union of its
+    // manifest, any ledger rows, and the `net:host/…` set derived
+    // from the user's current network settings — so a mirror the
+    // user configures is one the manager may actually reach. The
+    // derivation is re-run at every resolution, but a RUNNING manager
+    // keeps the grants its fiber was created with: a settings change
+    // takes gate effect at the manager's next load (in practice the
+    // next launch). Its own endpoint selection and tarball pre-check
+    // read settings live, so only a NEW custom host's gate entry can
+    // lag — built-in endpoints are in every derived set already.
+    resolveGrants: createShellGrantResolver({
+      managerManifestCapabilities: manifests[PLUGIN_MANAGER_ID]?.capabilities,
+    }),
   })
 
   await app.start()
