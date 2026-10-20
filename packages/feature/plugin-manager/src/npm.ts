@@ -9,7 +9,7 @@
  * and SHA-512/base64 from `@BBeBee/protocol`.
  */
 
-import { gunzipSync } from 'fflate'
+import { Gunzip } from 'fflate'
 import {
   base64Encode,
   sha256Hex,
@@ -99,6 +99,15 @@ const JSON_TIMEOUT_MS = 30_000
 const TARBALL_TIMEOUT_MS = 120_000
 /** Refuse tarballs larger than this (D8-7); the value is documented, not negotiated. */
 export const TARBALL_SIZE_LIMIT_BYTES = 50 * 1024 * 1024
+/**
+ * Refuse packages whose *decompressed* size passes this. The 50MB cap
+ * above measures gzip bytes; a high-ratio archive (the audit's proof was
+ * 1025×) would otherwise expand to gigabytes entirely in memory before
+ * any check ran. Legitimate plugin bundles are single-digit megabytes.
+ */
+export const TARBALL_MAX_EXTRACTED_BYTES = 200 * 1024 * 1024
+/** Refuse packages with more regular-file tar entries than this. */
+export const TARBALL_MAX_ENTRIES = 4096
 export const INDEX_CACHE_TTL_MS = 24 * 3600 * 1000
 export const PACKUMENT_CACHE_TTL_MS = 15 * 60 * 1000
 
@@ -143,9 +152,10 @@ export interface ExtractedPackage {
  * (`x`/`g`, for long file names as produced by `npm pack`). Anything else
  * (symlinks, …) is skipped: a plugin package is a tree of regular files.
  */
-function readTar(data: Uint8Array): Record<string, Uint8Array> {
+function readTar(data: Uint8Array, maxEntries: number = TARBALL_MAX_ENTRIES): Record<string, Uint8Array> {
   const out: Record<string, Uint8Array> = {}
   const headerText = new TextDecoder('utf-8')
+  let fileEntries = 0
   const readField = (off: number, len: number): string => {
     let end = off
     while (end < off + len && data[end] !== 0) end++
@@ -188,6 +198,10 @@ function readTar(data: Uint8Array): Record<string, Uint8Array> {
       const effective = paxPath ?? (prefix ? `${prefix}/${name}` : name)
       if (!paxGlobal) paxPath = undefined
       if ((typeflag === '0' || typeflag === '\0' || typeflag === '') && effective && !effective.endsWith('/')) {
+        fileEntries++
+        if (fileEntries > maxEntries) {
+          throw new NpmPluginError('TARBALL_INVALID', `tar 条目数超过上限 ${maxEntries}`)
+        }
         out[effective] = fileData.slice()
       }
     }
@@ -252,6 +266,77 @@ export async function concatStreamWithLimit(
     offset += chunk.byteLength
   }
   return out
+}
+
+/**
+ * Streaming gunzip under a hard cap on the *decompressed* byte count.
+ *
+ * The compressed input is fed to fflate's `Gunzip` in slices; the moment
+ * the running output total passes `limitBytes`, retained chunks are
+ * dropped, no further input is pushed, and TARBALL_INVALID is thrown —
+ * so a high-compression-ratio archive costs at most the cap in memory
+ * instead of expanding without bound the way a one-shot `gunzipSync`
+ * did. Exported for tests (the production cap is far too large to
+ * exercise directly), mirroring `concatStreamWithLimit`.
+ */
+export function gunzipCapped(bytes: Uint8Array, limitBytes: number, label: string): Uint8Array {
+  if (bytes.length === 0) {
+    throw new NpmPluginError('TARBALL_INVALID', `包 ${label} 不是合法的 gzip`)
+  }
+  const chunks: Uint8Array[] = []
+  let total = 0
+  let exceeded = false
+  const gz = new Gunzip((chunk) => {
+    if (exceeded) return
+    total += chunk.byteLength
+    if (total > limitBytes) {
+      exceeded = true
+      chunks.length = 0
+      return
+    }
+    chunks.push(chunk)
+  })
+  try {
+    const SLICE = 256 * 1024
+    for (let off = 0; off < bytes.length && !exceeded; off += SLICE) {
+      const end = Math.min(off + SLICE, bytes.length)
+      gz.push(bytes.subarray(off, end), end === bytes.length)
+    }
+  } catch (err) {
+    throw new NpmPluginError('TARBALL_INVALID', `包 ${label} 不是合法的 gzip：${errMessage(err)}`)
+  }
+  if (exceeded) {
+    throw new NpmPluginError(
+      'TARBALL_INVALID',
+      `包 ${label} 解压后体积超过上限 ${(limitBytes / 1048576).toFixed(0)}MB，拒绝安装`,
+    )
+  }
+  const out = new Uint8Array(total)
+  let offset = 0
+  for (const chunk of chunks) {
+    out.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return out
+}
+
+/**
+ * POSIX-normalizes a tar entry's path relative to the package root:
+ * empty and `.` segments collapse, and any `..` segment refuses the
+ * package outright (undefined). Normalizing *before* the file map is
+ * built matters beyond traversal: `dist/index.js`, `dist/./index.js`
+ * and `dist//index.js` are three distinct raw keys but one file on
+ * disk, so without this the disk writer's last-write-wins silently
+ * picked a different file than the one the install record hashed.
+ */
+function normalizeTarRelPath(rel: string): string | undefined {
+  const parts: string[] = []
+  for (const seg of rel.split('/')) {
+    if (seg === '' || seg === '.') continue
+    if (seg === '..') return undefined
+    parts.push(seg)
+  }
+  return parts.length > 0 ? parts.join('/') : undefined
 }
 
 export class NpmClient {
@@ -572,12 +657,7 @@ export class NpmClient {
    */
   extractPackage(pkg: NpmResolvedPackage, bytes: Uint8Array): ExtractedPackage {
     const label = `${pkg.npm}@${pkg.version}`
-    let tar: Uint8Array
-    try {
-      tar = gunzipSync(bytes)
-    } catch {
-      throw new NpmPluginError('TARBALL_INVALID', `包 ${label} 不是合法的 gzip`)
-    }
+    const tar = gunzipCapped(bytes, TARBALL_MAX_EXTRACTED_BYTES, label)
     let raw: Record<string, Uint8Array>
     try {
       raw = readTar(tar)
@@ -593,9 +673,15 @@ export class NpmClient {
       if (!name.startsWith('package/')) {
         throw new NpmPluginError('TARBALL_INVALID', `包 ${label} 包含非法顶层路径 "${name}"`)
       }
-      const rel = name.slice('package/'.length)
-      if (!rel || rel.startsWith('/') || rel.split('/').includes('..')) {
+      const rel = normalizeTarRelPath(name.slice('package/'.length))
+      if (rel === undefined) {
         throw new NpmPluginError('TARBALL_INVALID', `包 ${label} 包含非法路径 "${name}"（拒绝路径穿越）`)
+      }
+      if (Object.hasOwn(files, rel)) {
+        throw new NpmPluginError(
+          'TARBALL_INVALID',
+          `包 ${label} 包含归一化后重名的路径 "${rel}"（"${name}"），拒绝安装`,
+        )
       }
       let text: string
       try {

@@ -4,7 +4,7 @@ import { gzipSync } from 'fflate'
 import { base64Encode, sha256Hex, sha512, type DbService, type RegistryPluginEntry } from '@BBeBee/protocol'
 import { PluginManagerPlugin } from './index.js'
 import type { PluginManifest } from '@BBeBee/protocol'
-import { concatStreamWithLimit, NpmClient, NpmPluginError, parseDepSpecifier } from './npm.js'
+import { concatStreamWithLimit, gunzipCapped, NpmClient, NpmPluginError, parseDepSpecifier } from './npm.js'
 
 describe('PluginManagerPlugin', () => {
   function createTestContext() {
@@ -493,6 +493,33 @@ describe('NpmClient tarball handling', () => {
 
   it('rejects path traversal', () => {
     const bytes = gzipSync(buildTar({ '../evil.js': 'x' }))
+    expectNpmErrorSync(() => client().extractPackage(pkg, bytes), 'TARBALL_INVALID')
+  })
+
+  it('rejects entries that collide after POSIX path normalization', () => {
+    // Three distinct raw keys, one file on disk: without normalization
+    // the disk writer's last-write-wins would install a different file
+    // than the one the install record hashed.
+    const bytes = gzipSync(
+      buildTar({
+        'package.json': JSON.stringify({ name: '@t/a', version: '1.0.0' }),
+        'BBeBee.plugin.json': JSON.stringify(manifestFor('a-x', '1.0.0')),
+        'dist/index.js': 'canonical',
+        'dist/./index.js': 'dot-variant',
+        'dist//index.js': 'slash-variant',
+      }),
+    )
+    expectNpmErrorSync(() => client().extractPackage(pkg, bytes), 'TARBALL_INVALID')
+  })
+
+  it('rejects a package with more file entries than the cap', () => {
+    const files: Record<string, string> = {
+      'package.json': JSON.stringify({ name: '@t/a', version: '1.0.0' }),
+      'BBeBee.plugin.json': JSON.stringify(manifestFor('a-x', '1.0.0')),
+    }
+    // 4096-entry cap, plus the two metadata files above.
+    for (let i = 0; i < 4095; i++) files[`f/${i}.txt`] = 'x'
+    const bytes = gzipSync(buildTar(files))
     expectNpmErrorSync(() => client().extractPackage(pkg, bytes), 'TARBALL_INVALID')
   })
 
@@ -1283,6 +1310,27 @@ describe('concatStreamWithLimit (Fix E)', () => {
   it('aborts with SIZE_LIMIT as soon as the running total passes the cap', async () => {
     const big = new Uint8Array(64)
     await expectNpmError(concatStreamWithLimit(streamOf([big, big, big]), 100, 'x'), 'SIZE_LIMIT')
+  })
+})
+
+describe('gunzipCapped (audit W2: decompressed-size cap)', () => {
+  it('round-trips a payload under the cap', () => {
+    const data = new TextEncoder().encode('hello plugin '.repeat(100))
+    const out = gunzipCapped(gzipSync(data), 1024 * 1024, 'x')
+    expect(out).toEqual(data)
+  })
+
+  it('refuses a high-compression-ratio archive once the expanded size passes the cap', () => {
+    // 1MiB of zeros gzips to ~1KiB (the audit's bomb shape, ~1000×);
+    // a one-shot gunzip would materialize all of it before any check.
+    const bomb = gzipSync(new Uint8Array(1024 * 1024))
+    expect(bomb.byteLength).toBeLessThan(8192)
+    expectNpmErrorSync(() => gunzipCapped(bomb, 64 * 1024, 'x'), 'TARBALL_INVALID')
+  })
+
+  it('refuses non-gzip input', () => {
+    expectNpmErrorSync(() => gunzipCapped(new Uint8Array([1, 2, 3, 4]), 1024, 'x'), 'TARBALL_INVALID')
+    expectNpmErrorSync(() => gunzipCapped(new Uint8Array(0), 1024, 'x'), 'TARBALL_INVALID')
   })
 })
 
