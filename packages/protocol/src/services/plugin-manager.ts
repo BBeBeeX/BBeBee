@@ -36,6 +36,13 @@ export interface PluginInfo {
   dependents: string[]
   configStatus?: ConfigStatus
   /**
+   * The capabilities the plugin's REAL manifest declares (audit W5) —
+   * the same list the capability-grant ledger judged at activation.
+   * Surfaced so the settings detail view can show what the installed
+   * code actually asked for, not what a registry entry claims.
+   */
+  capabilities?: string[]
+  /**
    * The plugin's registry entry is gone: a liveness check fetched the
    * registry index successfully and this id was not in it (audit W3).
    * The installed copy is quarantined until the entry returns or the

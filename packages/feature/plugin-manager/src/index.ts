@@ -1816,6 +1816,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
           dependencies: Array.from(depsSet),
           dependents: [], // populated in reverse scan
           configStatus,
+          ...(manifest.capabilities ? { capabilities: [...manifest.capabilities] } : {}),
           ...(this.delistedIds.has(manifest.id) ? { delisted: true } : {}),
           ...(this.blockedIds.has(manifest.id) ? { blocked: this.blockedIds.get(manifest.id) } : {}),
         },

@@ -145,6 +145,38 @@ export function PluginMarketDetail({
               ),
             ),
           ),
+          entry.provides && entry.provides.length > 0
+            ? h(
+                'div',
+                { style: { display: 'flex', flexDirection: 'column', gap: 6 } },
+                h(
+                  'div',
+                  { style: { fontSize: 12, fontWeight: 600, color: 'var(--bb-text-secondary, #8E8E93)' } },
+                  t('settings:pluginMarket.providesLabel'),
+                ),
+                h(
+                  'div',
+                  { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } },
+                  entry.provides.map((s) =>
+                    h(
+                      'code',
+                      {
+                        key: s,
+                        style: {
+                          fontSize: 11,
+                          padding: '2px 8px',
+                          borderRadius: 6,
+                          background: 'rgba(255, 255, 255, 0.06)',
+                          border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+                          fontFamily: 'ui-monospace, monospace',
+                        },
+                      },
+                      s,
+                    ),
+                  ),
+                ),
+              )
+            : null,
           h(
             'div',
             { style: { display: 'flex', flexDirection: 'column', gap: 6 } },

@@ -50,6 +50,8 @@ export function PluginMarketSection({ ctx }: PluginMarketSectionProps): ReactEle
   const [planState, setPlanState] = useState<{ entry: RegistryPluginEntry; plan: InstallPlan } | null>(null)
   const [planConfirming, setPlanConfirming] = useState(false)
   const [majorUpdate, setMajorUpdate] = useState<{ id: string; latest: string; installed: string } | null>(null)
+  const [unreviewedUpdate, setUnreviewedUpdate] = useState<{ id: string; latest: string; installed: string } | null>(null)
+  const [unreviewedAck, setUnreviewedAck] = useState(false)
   const [uninstallTarget, setUninstallTarget] = useState<RegistryPluginEntry | null>(null)
 
   const installedPlugins = useServiceState<readonly PluginInfo[]>(
@@ -197,6 +199,30 @@ export function PluginMarketSection({ ctx }: PluginMarketSectionProps): ReactEle
       }
     } finally {
       setBusyFor(id, null)
+    }
+  }
+
+  const handleUpdateUnreviewed = (id: string) => {
+    const info = updateById.get(id)
+    if (!info) return
+    setUnreviewedAck(false)
+    setUnreviewedUpdate({ id, latest: info.latest, installed: info.installed })
+  }
+
+  const handleConfirmUnreviewedUpdate = async () => {
+    if (!unreviewedUpdate || !unreviewedAck) return
+    const manager = pm()
+    if (!manager) return
+    setBusyFor(unreviewedUpdate.id, 'update')
+    try {
+      // The exact version IS the unreviewed build the user just
+      // acknowledged; naming it is what lets resolution past the pin.
+      await manager.updatePlugin(unreviewedUpdate.id, unreviewedUpdate.latest)
+      setUnreviewedUpdate(null)
+    } catch (err) {
+      setOpError(t('settings:pluginMarket.updateFailed', { error: errMsg(err) }))
+    } finally {
+      setBusyFor(unreviewedUpdate.id, null)
     }
   }
 
@@ -396,6 +422,7 @@ export function PluginMarketSection({ ctx }: PluginMarketSectionProps): ReactEle
                       onShowDetails: () => setDetailEntry(entry),
                       onInstall: () => void handleInstall(entry),
                       onUpdate: () => void handleUpdate(entry.id),
+                      onUpdateUnreviewed: () => handleUpdateUnreviewed(entry.id),
                       onUninstall: () => setUninstallTarget(entry),
                     }),
                   ),
@@ -425,6 +452,72 @@ export function PluginMarketSection({ ctx }: PluginMarketSectionProps): ReactEle
           onConfirm: () => void handleConfirmInstall(),
         })
       : null,
+
+    // Unreviewed update confirm sheet (audit W5): the newest npm build
+    // is beyond the registry's reviewed pin — installing it requires
+    // this separate, explicit acknowledgement.
+    h(
+      Sheet,
+      {
+        open: unreviewedUpdate !== null,
+        onClose: () => setUnreviewedUpdate(null),
+        title: t('settings:pluginMarket.unreviewedUpdateTitle'),
+        accessibilityLabel: t('settings:pluginMarket.unreviewedUpdateTitle'),
+      },
+      unreviewedUpdate
+        ? h(
+            'div',
+            { style: { display: 'flex', flexDirection: 'column', gap: 14 } },
+            h(
+              'p',
+              { style: { margin: 0, fontSize: 13, color: 'var(--bb-text-primary, #F8FAFC)', lineHeight: 1.5 } },
+              t('settings:pluginMarket.unreviewedUpdateDesc', {
+                id: unreviewedUpdate.id,
+                latest: unreviewedUpdate.latest,
+                installed: unreviewedUpdate.installed,
+              }),
+            ),
+            h(
+              'label',
+              {
+                style: {
+                  display: 'flex',
+                  gap: 8,
+                  alignItems: 'flex-start',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  color: 'var(--bb-text-primary, #F8FAFC)',
+                  lineHeight: 1.5,
+                },
+              },
+              h('input', {
+                type: 'checkbox',
+                'data-testid': 'market-unreviewed-ack',
+                checked: unreviewedAck,
+                onChange: (e: { target: { checked: boolean } }) => setUnreviewedAck(e.target.checked),
+                style: { marginTop: 2 },
+              }),
+              h('span', null, t('settings:pluginMarket.unreviewedAck')),
+            ),
+            h(
+              'div',
+              { style: { display: 'flex', justifyContent: 'flex-end', gap: 10 } },
+              h(Button, {
+                variant: 'secondary',
+                children: t('app:common.cancel'),
+                onPress: () => setUnreviewedUpdate(null),
+              }),
+              h(Button, {
+                variant: 'primary',
+                disabled: !unreviewedAck,
+                loading: busy[unreviewedUpdate.id] === 'update',
+                children: t('settings:pluginMarket.confirmUpdate'),
+                onPress: () => void handleConfirmUnreviewedUpdate(),
+              }),
+            ),
+          )
+        : null,
+    ),
 
     // Major update confirm sheet
     h(
@@ -534,6 +627,7 @@ interface MarketRowProps {
   onShowDetails: () => void
   onInstall: () => void
   onUpdate: () => void
+  onUpdateUnreviewed: () => void
   onUninstall: () => void
 }
 
@@ -547,6 +641,7 @@ function MarketRow({
   onShowDetails,
   onInstall,
   onUpdate,
+  onUpdateUnreviewed,
   onUninstall,
 }: MarketRowProps): ReactElement {
   const { t } = useI18n(ctx)
@@ -667,7 +762,28 @@ function MarketRow({
                   color: 'var(--bb-state-warn, #F59E0B)',
                 },
               },
-              `${update.installed} → ${update.latest}`,
+              // The default update lands on the REVIEWED version when
+              // one applies (audit W5) — the badge names that target,
+              // not npm's raw latest.
+              `${update.installed} → ${update.reviewedUpdate ?? update.latest}`,
+            )
+          : null,
+        update?.unreviewed
+          ? h(
+              'span',
+              {
+                'data-testid': `market-unreviewed-${entry.id}`,
+                title: t('settings:pluginMarket.unreviewedHint'),
+                style: {
+                  fontSize: 10,
+                  fontWeight: 600,
+                  padding: '1px 7px',
+                  borderRadius: 9,
+                  background: 'rgba(245, 158, 11, 0.3)',
+                  color: '#FCD34D',
+                },
+              },
+              t('settings:pluginMarket.unreviewedBadge'),
             )
           : null,
       ),
@@ -708,7 +824,18 @@ function MarketRow({
             disabled: busy,
             loading: busyKind === 'update',
             children: t('settings:pluginMarket.update'),
-            onPress: onUpdate,
+            // With a reviewed update available the button takes the
+            // default path; an unreviewed-only update must go through
+            // its own confirmation sheet instead.
+            onPress: update.reviewedUpdate || !update.unreviewed ? onUpdate : onUpdateUnreviewed,
+          })
+        : null,
+      installed && update?.unreviewed && update.reviewedUpdate
+        ? h(Button, {
+            variant: 'secondary',
+            disabled: busy,
+            children: t('settings:pluginMarket.updateUnreviewed', { version: update.latest }),
+            onPress: onUpdateUnreviewed,
           })
         : null,
       installed && canUninstall

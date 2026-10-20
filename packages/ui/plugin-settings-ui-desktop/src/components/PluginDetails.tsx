@@ -227,6 +227,55 @@ export function PluginDetails({
       ),
     ),
 
+    // b2. Declared capabilities from the REAL manifest (audit W5) —
+    // what the installed code asked the capability gate for, shown
+    // verbatim; an empty list is stated, not hidden.
+    h(
+      'div',
+      {
+        'data-testid': `plugin-capabilities-${plugin.id}`,
+        style: {
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 4,
+          background: 'rgba(255, 255, 255, 0.04)',
+          border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+          borderRadius: 6,
+          padding: '10px 12px',
+        },
+      },
+      h(
+        'div',
+        {
+          style: {
+            fontSize: 11,
+            fontWeight: 600,
+            color: 'var(--text-secondary, #C5CAD8)',
+          },
+        },
+        t('settings:pluginDetails.capabilitiesCount', {
+          count: plugin.capabilities?.length ?? 0,
+        }),
+      ),
+      h(
+        'div',
+        {
+          style: {
+            fontSize: 11,
+            color: plugin.capabilities?.length
+              ? 'var(--text-primary, #FFFFFF)'
+              : 'var(--text-tertiary, #8E8E93)',
+            lineHeight: 1.4,
+            wordBreak: 'break-all',
+            fontFamily: 'ui-monospace, monospace',
+          },
+        },
+        plugin.capabilities?.length
+          ? plugin.capabilities.join(', ')
+          : t('settings:pluginDetails.none'),
+      ),
+    ),
+
     // c. Enable switch (only for layer-4 feature and layer-5 ui, and ONLY when showAdvancedSettings is true)
     isFeatureOrUi
       ? showAdvancedSettings

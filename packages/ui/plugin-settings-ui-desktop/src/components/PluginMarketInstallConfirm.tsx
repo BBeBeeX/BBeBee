@@ -1,5 +1,5 @@
 import { Button, Sheet, useI18n } from '@BBeBee/ui-kit-desktop'
-import { createElement as h, type ReactElement } from 'react'
+import { createElement as h, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { InstallPlan, RegistryPluginEntry } from '@BBeBee/protocol'
 
@@ -26,7 +26,13 @@ export function PluginMarketInstallConfirm({
   onConfirm,
 }: PluginMarketInstallConfirmProps): ReactElement {
   const { t } = useI18n(ctx)
-  const blocked = plan.missingServices.length > 0
+  // Unreviewed nodes (audit W5): versions newer than the registry's
+  // reviewed pin, reachable only because the user named the exact
+  // version. They require a separate explicit acknowledgement here —
+  // the confirm button stays disabled until the box is ticked.
+  const unreviewedNodes = [plan.target, ...plan.closure].filter((n) => n.unreviewed)
+  const [unreviewedAck, setUnreviewedAck] = useState(false)
+  const blocked = plan.missingServices.length > 0 || (unreviewedNodes.length > 0 && !unreviewedAck)
   return h(
     Sheet,
     {
@@ -52,6 +58,93 @@ export function PluginMarketInstallConfirm({
         { style: { fontSize: 14, fontWeight: 600 } },
         `${entry.name} — ${plan.target.npm}@${plan.target.version}`,
       ),
+      // Services this entry declares it provides (audit W5 disclosure):
+      // shown before confirmation, from the registry entry itself.
+      entry.provides && entry.provides.length > 0
+        ? h(
+            'div',
+            {
+              'data-testid': 'install-plan-provides',
+              style: { display: 'flex', flexDirection: 'column', gap: 6 },
+            },
+            h(
+              'div',
+              { style: { fontSize: 12, fontWeight: 600, color: 'var(--bb-text-secondary, #8E8E93)' } },
+              t('settings:pluginMarket.providesLabel'),
+            ),
+            h(
+              'div',
+              { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } },
+              entry.provides.map((s) =>
+                h(
+                  'code',
+                  {
+                    key: s,
+                    style: {
+                      fontSize: 11,
+                      padding: '2px 8px',
+                      borderRadius: 6,
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+                      fontFamily: 'ui-monospace, monospace',
+                    },
+                  },
+                  s,
+                ),
+              ),
+            ),
+          )
+        : null,
+      unreviewedNodes.length > 0
+        ? h(
+            'div',
+            {
+              'data-testid': 'install-plan-unreviewed',
+              role: 'alert',
+              style: {
+                fontSize: 12,
+                padding: '8px 12px',
+                borderRadius: 6,
+                background: 'rgba(245, 158, 11, 0.12)',
+                color: 'var(--bb-state-warn, #F59E0B)',
+                lineHeight: 1.5,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+              },
+            },
+            h(
+              'div',
+              { style: { fontWeight: 600 } },
+              t('settings:pluginMarket.unreviewedTitle'),
+            ),
+            t('settings:pluginMarket.unreviewedDesc', {
+              packages: unreviewedNodes
+                .map((n) => `${n.npm}@${n.version}（已审 ${n.reviewedVersion ?? '?'}）`)
+                .join(', '),
+            }),
+            h(
+              'label',
+              {
+                style: {
+                  display: 'flex',
+                  gap: 8,
+                  alignItems: 'flex-start',
+                  cursor: 'pointer',
+                  color: 'var(--bb-text-primary, #F8FAFC)',
+                },
+              },
+              h('input', {
+                type: 'checkbox',
+                'data-testid': 'install-plan-unreviewed-ack',
+                checked: unreviewedAck,
+                onChange: (e: { target: { checked: boolean } }) => setUnreviewedAck(e.target.checked),
+                style: { marginTop: 2 },
+              }),
+              h('span', null, t('settings:pluginMarket.unreviewedAck')),
+            ),
+          )
+        : null,
       h(
         'div',
         { style: { display: 'flex', flexDirection: 'column', gap: 6 } },

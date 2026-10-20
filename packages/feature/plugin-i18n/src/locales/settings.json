@@ -304,7 +304,8 @@
       "dependenciesCount": "Dependencies ({count})",
       "dependentsCount": "Dependents ({count})",
       "none": "None",
-      "enableHidden": "(Plugin enable/disable is hidden; enable advanced settings on the \"About\" page)"
+      "enableHidden": "(Plugin enable/disable is hidden; enable advanced settings on the \"About\" page)",
+      "capabilitiesCount": "Capabilities ({count})"
     },
     "pluginSearchBox": {
       "clearSearch": "Clear search",
@@ -510,7 +511,16 @@
       "official": "Official",
       "officialHint": "Maintained by the BBeBeeX GitHub account (the repository owner is BBeBeeX).",
       "blocked": "Banned by the registry",
-      "blockedHint": "This plugin has been banned by the registry for security reasons ({reason}). The installed copy is quarantined; you can uninstall it."
+      "blockedHint": "This plugin has been banned by the registry for security reasons ({reason}). The installed copy is quarantined; you can uninstall it.",
+      "providesLabel": "Provides services",
+      "unreviewedBadge": "Newer version unreviewed",
+      "unreviewedHint": "A newer version exists on npm that the registry has not reviewed yet. The default update installs the reviewed version.",
+      "updateUnreviewed": "Unreviewed {version}",
+      "unreviewedUpdateTitle": "Install an unreviewed version?",
+      "unreviewedUpdateDesc": "\"{id}\" {latest} is newer than the version the registry reviewed (installed: {installed}). It has not passed registry review; its content is only vouched for by npm's metadata.",
+      "unreviewedTitle": "Unreviewed version in this plan",
+      "unreviewedDesc": "The following packages are newer than the registry's reviewed versions and have NOT been reviewed by the registry: {packages}.",
+      "unreviewedAck": "I understand these versions are unreviewed and want to install them anyway"
     },
     "serviceProviders": {
       "title": "Service providers",
@@ -825,7 +835,8 @@
       "dependenciesCount": "依赖（{count}）",
       "dependentsCount": "被依赖方（{count}）",
       "none": "无",
-      "enableHidden": "（插件启用/禁用已隐藏；请在“关于”页面开启高级设置）"
+      "enableHidden": "（插件启用/禁用已隐藏；请在“关于”页面开启高级设置）",
+      "capabilitiesCount": "能力声明（{count}）"
     },
     "pluginSearchBox": {
       "clearSearch": "清除搜索",
@@ -1031,7 +1042,16 @@
       "official": "官方",
       "officialHint": "由 GitHub 账号 BBeBeeX 维护（仓库所有者为 BBeBeeX）。",
       "blocked": "已被注册表封禁",
-      "blockedHint": "该插件已被注册表以安全原因封禁（{reason}），已安装的副本已被隔离；你可以卸载它。"
+      "blockedHint": "该插件已被注册表以安全原因封禁（{reason}），已安装的副本已被隔离；你可以卸载它。",
+      "providesLabel": "提供的服务",
+      "unreviewedBadge": "有未经审核的新版本",
+      "unreviewedHint": "npm 上有更新的版本，但尚未通过注册表审核。默认更新会安装已审核的版本。",
+      "updateUnreviewed": "未审版本 {version}",
+      "unreviewedUpdateTitle": "安装未经审核的版本？",
+      "unreviewedUpdateDesc": "「{id}」的 {latest} 比注册表已审核的版本更新（当前已装：{installed}）。它尚未通过注册表审核，内容仅由 npm 元数据担保。",
+      "unreviewedTitle": "本计划包含未经审核的版本",
+      "unreviewedDesc": "以下包比注册表已审核版本更新，尚未通过注册表审核：{packages}。",
+      "unreviewedAck": "我了解这些版本未经审核，仍要安装"
     },
     "serviceProviders": {
       "title": "服务提供者",
