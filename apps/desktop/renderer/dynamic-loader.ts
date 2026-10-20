@@ -7,7 +7,7 @@
  * See docs/03-plugin-system.md §6.2.
  */
 
-import type { Plugin } from '@BBeBee/kernel'
+import type { Context, Plugin } from '@BBeBee/kernel'
 import type { PluginManifest, RegistryLockFile, SecurityAuditService } from '@BBeBee/protocol'
 import { scanCode } from '@BBeBee/toolkit'
 
@@ -107,6 +107,100 @@ export function getBuiltinPluginRegistry(): DynamicPluginRegistry {
 
 export const bundled: DynamicPluginRegistry = getBuiltinPluginRegistry()
 
+/** Build the `bbebee-plugin://` URL for a file inside an installed plugin's directory. */
+export function pluginFileUrl(pluginId: string, relPath: string): string {
+  return `bbebee-plugin://app/${encodeURIComponent(pluginId)}/${relPath}`
+}
+
+/**
+ * Imports one plugin entry module over `bbebee-plugin://`. Injectable via
+ * `makeExternalEntry`'s third parameter so tests can substitute a fake
+ * importer instead of performing real protocol imports.
+ */
+export type PluginModuleImporter = (url: string) => Promise<unknown>
+
+function unwrapModuleDefault(mod: unknown): unknown {
+  return (
+    (mod && typeof mod === 'object' && 'default' in mod && (mod as { default?: unknown }).default) ||
+    mod
+  )
+}
+
+const importEntryModule: PluginModuleImporter = (url) => import(/* @vite-ignore */ url)
+
+/**
+ * Compose a headless plugin def with its optional UI def into a single def.
+ *
+ * The composite registers the headless def first, then the UI def, as child
+ * fibers of the one registry entry: enabling, disabling, unloading and the
+ * integrity check all follow the entry. A UI def that throws while
+ * registering only loses the UI — the headless plugin stays active. Without
+ * a UI def the headless def is returned unchanged.
+ */
+export function composePluginWithUi(
+  pluginId: string,
+  headlessDef: Plugin,
+  uiDef?: Plugin | null,
+): Plugin {
+  if (!uiDef) return headlessDef
+  const composite: Plugin.Object = {
+    name: pluginId,
+    apply(ctx: Context, config?: unknown) {
+      ctx.plugin(headlessDef, config)
+      try {
+        ctx.plugin(uiDef)
+      } catch (error) {
+        console.warn(
+          `[dynamic-loader] UI for plugin "${pluginId}" failed to activate; the headless plugin continues without it.`,
+          error,
+        )
+      }
+    },
+  }
+  return composite
+}
+
+/**
+ * Build the dynamic registry entry for one installed external plugin.
+ *
+ * The entry's `load()` imports `entry.main` over `bbebee-plugin://`. When
+ * the manifest also declares `entry.ui.desktop`, that module is imported
+ * from the same package and composed with the headless def (see
+ * `composePluginWithUi`) — one npm package, one version, one registry entry.
+ * A UI module that fails to import degrades to headless-only with a warning
+ * instead of failing the whole plugin. `entry.ui.mobile` is ignored here:
+ * mobile has no dynamic loader yet.
+ */
+export function makeExternalEntry(
+  pluginId: string,
+  manifest: PluginManifest,
+  importer: PluginModuleImporter = importEntryModule,
+): DynamicRegistryEntry {
+  const entryMain = (manifest.entry?.main ?? './index.js').replace(/^\.?\//, '')
+  const uiDesktop = manifest.entry?.ui?.desktop?.replace(/^\.?\//, '')
+  return {
+    manifest,
+    builtin: false,
+    load: async () => {
+      const headlessDef = unwrapModuleDefault(
+        await importer(pluginFileUrl(pluginId, entryMain)),
+      ) as Plugin
+      if (!uiDesktop) return headlessDef
+      let uiDef: Plugin
+      try {
+        uiDef = unwrapModuleDefault(await importer(pluginFileUrl(pluginId, uiDesktop))) as Plugin
+      } catch (error) {
+        console.warn(
+          `[dynamic-loader] Failed to load UI module for plugin "${pluginId}" (${uiDesktop}); loading the headless plugin only.`,
+          error,
+        )
+        return headlessDef
+      }
+      return composePluginWithUi(pluginId, headlessDef, uiDef)
+    },
+  }
+}
+
 /**
  * Scan for installed external plugins from the desktop host and build
  * dynamic registry entries with ESM imports over `bbebee-plugin://`.
@@ -135,7 +229,6 @@ export async function loadExternalPluginRegistry(options?: {
     for (const item of list) {
       if (!item.id || !item.manifest || typeof item.manifest !== 'object') continue
       const manifest = item.manifest as PluginManifest
-      const entryMain = (manifest.entry?.main ?? './index.js').replace(/^\.?\//, '')
 
       const lockRecord = records?.[item.id]
       const isTampered = Boolean(
@@ -161,17 +254,7 @@ export async function loadExternalPluginRegistry(options?: {
         continue
       }
 
-      const entry: DynamicRegistryEntry = {
-        manifest,
-        builtin: false,
-        load: async () => {
-          const url = `bbebee-plugin://app/${encodeURIComponent(item.id)}/${entryMain}`
-          const mod = await import(/* @vite-ignore */ url)
-          return (mod && typeof mod === 'object' && 'default' in mod && mod.default) || mod
-        },
-      }
-
-      registry[item.id] = entry
+      registry[item.id] = makeExternalEntry(item.id, manifest)
     }
 
     return registry
@@ -218,17 +301,8 @@ export async function installAndActivatePlugin(
   // 1. Write plugin files to user's installed-plugins directory via main process
   await pluginsApi.install(pluginId, files)
 
-  // 2. Build the dynamic RegistryEntry
-  const entryMain = (manifest.entry?.main ?? './index.js').replace(/^\.?\//, '')
-  const entry: DynamicRegistryEntry = {
-    manifest,
-    builtin: false,
-    load: async () => {
-      const url = `bbebee-plugin://app/${encodeURIComponent(pluginId)}/${entryMain}`
-      const mod = await import(/* @vite-ignore */ url)
-      return (mod && typeof mod === 'object' && 'default' in mod && mod.default) || mod
-    },
-  }
+  // 2. Build the dynamic RegistryEntry (headless def + optional bundled UI)
+  const entry: DynamicRegistryEntry = makeExternalEntry(pluginId, manifest)
 
   // 3. Register into running app registry
   app.registerPlugin(pluginId, entry)

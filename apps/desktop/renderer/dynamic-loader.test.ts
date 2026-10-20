@@ -3,9 +3,12 @@ import { describe, expect, it, vi } from 'vitest'
 import type { App, LoadedPlugin } from '@BBeBee/kernel'
 import type { PluginManifest } from '@BBeBee/protocol'
 import {
+  composePluginWithUi,
   getBuiltinPluginRegistry,
   loadExternalPluginRegistry,
   installAndActivatePlugin,
+  makeExternalEntry,
+  pluginFileUrl,
   uninstallExternalPlugin,
 } from './dynamic-loader.js'
 
@@ -247,5 +250,123 @@ describe('desktop dynamic-loader', () => {
     await expect(entry.load!()).rejects.toThrow(/tampered/)
 
     window.BBeBee = original
+  })
+})
+
+describe('external plugin UI composition (makeExternalEntry / composePluginWithUi)', () => {
+  type AnyDef = {
+    name?: string
+    apply: (ctx: { plugin: (def: unknown, config?: unknown) => void }) => void
+  }
+
+  const headlessDef = { name: 'headless', apply: vi.fn() }
+  const uiDef = { name: 'ui', apply: vi.fn() }
+
+  function manifestWith(entry: PluginManifest['entry']): PluginManifest {
+    return {
+      id: 'ui-plug',
+      version: '1.0.0',
+      displayName: 'UI Plug',
+      engines: { BBeBee: '^0.1.0' },
+      entry,
+      capabilities: [],
+    }
+  }
+
+  it('builds bbebee-plugin:// URLs with an encoded plugin id', () => {
+    expect(pluginFileUrl('@test/ui-plug', 'dist/index.js')).toBe(
+      'bbebee-plugin://app/%40test%2Fui-plug/dist/index.js',
+    )
+    expect(pluginFileUrl('ui-plug', 'dist/ui.js')).toBe('bbebee-plugin://app/ui-plug/dist/ui.js')
+  })
+
+  it('loads headless + UI modules and composes them in registration order', async () => {
+    const importer = vi.fn(async (url: string) =>
+      url.endsWith('/dist/ui.js') ? { default: uiDef } : { default: headlessDef },
+    )
+    const entry = makeExternalEntry(
+      'ui-plug',
+      manifestWith({ main: './dist/index.js', ui: { desktop: './dist/ui.js' } }),
+      importer,
+    )
+
+    const def = (await entry.load!()) as AnyDef
+    expect(importer.mock.calls.map(([url]) => url)).toEqual([
+      'bbebee-plugin://app/ui-plug/dist/index.js',
+      'bbebee-plugin://app/ui-plug/dist/ui.js',
+    ])
+    expect(def).not.toBe(headlessDef)
+    expect(def.name).toBe('ui-plug')
+
+    const registered: unknown[] = []
+    def.apply({
+      plugin: (d) => {
+        registered.push(d)
+      },
+    })
+    expect(registered).toEqual([headlessDef, uiDef])
+  })
+
+  it('degrades to headless-only when the UI module fails to import', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const importer = vi.fn(async (url: string) => {
+      if (url.endsWith('/dist/ui.js')) throw new Error('UI file missing')
+      return { default: headlessDef }
+    })
+    const entry = makeExternalEntry(
+      'ui-plug',
+      manifestWith({ main: './dist/index.js', ui: { desktop: './dist/ui.js' } }),
+      importer,
+    )
+
+    await expect(entry.load!()).resolves.toBe(headlessDef)
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to load UI module for plugin "ui-plug"'),
+      expect.any(Error),
+    )
+    warn.mockRestore()
+  })
+
+  it('returns the headless def itself when no UI is declared', async () => {
+    const importer = vi.fn(async () => ({ default: headlessDef }))
+    const entry = makeExternalEntry('ui-plug', manifestWith({ main: './dist/index.js' }), importer)
+
+    await expect(entry.load!()).resolves.toBe(headlessDef)
+    expect(importer).toHaveBeenCalledTimes(1)
+    expect(importer).toHaveBeenCalledWith('bbebee-plugin://app/ui-plug/dist/index.js')
+  })
+
+  it('ignores entry.ui.mobile on desktop (no second import)', async () => {
+    const importer = vi.fn(async () => ({ default: headlessDef }))
+    const entry = makeExternalEntry(
+      'ui-plug',
+      manifestWith({ main: './dist/index.js', ui: { mobile: './dist/ui-mobile.js' } }),
+      importer,
+    )
+
+    await expect(entry.load!()).resolves.toBe(headlessDef)
+    expect(importer).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the headless plugin when the UI def throws during apply', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const composite = composePluginWithUi('ui-plug', headlessDef, uiDef) as unknown as AnyDef
+    const plugin = vi.fn((d: unknown) => {
+      if (d === uiDef) throw new Error('ui boom')
+    })
+
+    expect(() => composite.apply({ plugin })).not.toThrow()
+    expect(plugin).toHaveBeenCalledTimes(2)
+    expect(plugin.mock.calls[0]?.[0]).toBe(headlessDef)
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('UI for plugin "ui-plug" failed to activate'),
+      expect.any(Error),
+    )
+    warn.mockRestore()
+  })
+
+  it('composePluginWithUi returns the headless def itself without a UI def', () => {
+    expect(composePluginWithUi('ui-plug', headlessDef)).toBe(headlessDef)
+    expect(composePluginWithUi('ui-plug', headlessDef, null)).toBe(headlessDef)
   })
 })
