@@ -1106,6 +1106,49 @@ describe('plugin-manager npm service methods', () => {
     const updates = await w.plugin.checkUpdates(true)
     expect(updates).toEqual([{ id: 'a-x', installed: '1.0.0', latest: '1.1.0', npm: '@t/a' }])
   })
+
+  describe('install-time scan coverage (audit W2)', () => {
+    it('blocks an .mjs entry carrying eval(atob(...)) — extension is not a scan bypass', async () => {
+      const entry = entryFor({ id: 'a-x', npm: '@t/a' })
+      const manifest = { ...manifestFor('a-x', '1.0.0'), entry: { main: './dist/payload.mjs' } }
+      const tarballs = {
+        '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0', {
+          'BBeBee.plugin.json': JSON.stringify(manifest),
+          'dist/payload.mjs': 'eval(atob("YWxlcnQoMSk="))',
+        }),
+      }
+      const w = seedWorld(entry, ['1.0.0'], tarballs)
+      await w.plugin[PluginManagerPlugin.init]()
+      await expectNpmError(w.plugin.installPlugin('a-x'), 'SECURITY_BLOCKED')
+      expect(w.bridge.installPlugin).not.toHaveBeenCalled()
+    })
+
+    it('blocks a data: dynamic import in an entry file', async () => {
+      const entry = entryFor({ id: 'a-x', npm: '@t/a' })
+      const tarballs = {
+        '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0', {
+          'dist/index.js': `import('data:text/javascript;base64,YWxlcnQoMSk=')`,
+        }),
+      }
+      const w = seedWorld(entry, ['1.0.0'], tarballs)
+      await w.plugin[PluginManagerPlugin.init]()
+      await expectNpmError(w.plugin.installPlugin('a-x'), 'SECURITY_BLOCKED')
+      expect(w.bridge.installPlugin).not.toHaveBeenCalled()
+    })
+
+    it('installs a package whose extra .mjs file is benign', async () => {
+      const entry = entryFor({ id: 'a-x', npm: '@t/a' })
+      const tarballs = {
+        '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0', {
+          'dist/helper.mjs': 'export const helper = 41 + 1',
+        }),
+      }
+      const w = seedWorld(entry, ['1.0.0'], tarballs)
+      await w.plugin[PluginManagerPlugin.init]()
+      await w.plugin.installPlugin('a-x')
+      expect(w.bridge.installPlugin).toHaveBeenCalledTimes(1)
+    })
+  })
 })
 
 /**

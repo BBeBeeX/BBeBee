@@ -99,6 +99,20 @@ const STATIC_RULES: readonly RegexRule[] = [
     pattern: /\bimport\s*\(\s*['"`]https?:\/\/|\bimport\s*\(\s*[a-zA-Z0-9_$]+(?:\.[a-zA-Z0-9_$]+|\([^)]*\))?\s*\)/g,
     message: (m) => `Detected remote or unresolved dynamic code import: "${m[0].trim()}"`,
   },
+  // 6b. Inline-payload dynamic import: a `data:` URL carries the whole
+  // payload inside the string (no host for the egress rules to judge),
+  // and a `blob:` URL names an object minted at runtime from who knows
+  // what bytes. Neither has a legitimate place in a plugin bundle —
+  // relative specifiers cover every honest case — so a literal
+  // data:/blob: import() blocks outright (audit sample S1 sailed past
+  // every other rule with exactly this shape).
+  {
+    id: 'data-blob-dynamic-import',
+    name: 'data:/blob: dynamic import',
+    level: 'block',
+    pattern: /\bimport\s*\(\s*['"`](?:data|blob):/gi,
+    message: (m) => `Detected dynamic import of an inline/opaque payload: "${m[0].trim()}"`,
+  },
   // 7. Obfuscation signatures
   {
     id: 'obfuscation-packer',
@@ -265,6 +279,48 @@ function scanObfuscationFeatures(code: string): Finding[] {
   }
 
   return findings
+}
+
+/**
+ * File extensions whose contents are executable plugin code and must
+ * go through `scanCode` before install. The set is deliberately wider
+ * than "what the loader happens to import today": the audit found an
+ * `entry.main` pointing at a `.mjs` file sailed through unscanned
+ * because selection stopped at `.js`/`.ts`, while the loader imported
+ * it happily.
+ */
+export const SCANNABLE_FILE_EXTENSIONS: readonly string[] = ['.js', '.ts', '.mjs', '.cjs', '.jsx', '.tsx']
+
+export function isScannableFile(path: string): boolean {
+  const lower = path.toLowerCase()
+  return SCANNABLE_FILE_EXTENSIONS.some((ext) => lower.endsWith(ext))
+}
+
+/** The entry shape both scan call sites work with (a manifest's `entry`). */
+export interface ManifestEntryShape {
+  main?: string
+  ui?: { mobile?: string; desktop?: string }
+}
+
+/**
+ * The manifest's entry files as package-relative paths (`./` and `/`
+ * prefixes stripped, empties and duplicates removed). An entry file is
+ * scanned *whatever* its extension: the loader will execute it, so the
+ * extension list alone must never be the whole selection.
+ */
+export function manifestEntryFiles(entry: ManifestEntryShape | undefined): string[] {
+  const out: string[] = []
+  for (const raw of [entry?.main, entry?.ui?.mobile, entry?.ui?.desktop]) {
+    if (typeof raw !== 'string') continue
+    const rel = raw.replace(/^\.?\//, '')
+    if (rel && !out.includes(rel)) out.push(rel)
+  }
+  return out
+}
+
+/** Whether a package file must be scanned: known code extension, or a manifest entry file. */
+export function shouldScanFile(path: string, entryFiles: readonly string[] = []): boolean {
+  return isScannableFile(path) || entryFiles.includes(path)
 }
 
 export function scanCode(code: string, context?: SecurityAuditContext): SecurityAuditReport {

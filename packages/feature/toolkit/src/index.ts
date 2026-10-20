@@ -39,7 +39,13 @@ export {
   type TreeFiberNode,
   type SearchablePlugin,
 } from './plugins.js'
-export { scanCode } from './security.js'
+export {
+  scanCode,
+  isScannableFile,
+  manifestEntryFiles,
+  shouldScanFile,
+  SCANNABLE_FILE_EXTENSIONS,
+} from './security.js'
 export {
   sanitizeFileName,
   embedAudioTags,

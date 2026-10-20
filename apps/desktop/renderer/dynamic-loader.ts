@@ -9,7 +9,7 @@
 
 import type { Context, Plugin } from '@BBeBee/kernel'
 import type { PluginManifest, RegistryLockFile, SecurityAuditService } from '@BBeBee/protocol'
-import { scanCode } from '@BBeBee/toolkit'
+import { manifestEntryFiles, scanCode, shouldScanFile } from '@BBeBee/toolkit'
 
 export type DynamicLoadState =
   | 'active'
@@ -295,8 +295,12 @@ export async function installAndActivatePlugin(
     .map((c) => c.slice('net:host/'.length).trim())
     .filter(Boolean)
   const scanContext = allowedHosts.length > 0 ? { allowedHosts } : undefined
+  // Same selection as plugin-manager's npm path (the toolkit helpers):
+  // all executable-text extensions, plus the manifest's entry files
+  // whatever their extension — an unscanned entry is an unguarded one.
+  const entryFiles = manifestEntryFiles(manifest.entry)
   for (const [filename, content] of Object.entries(files)) {
-    if (typeof content === 'string' && (filename.endsWith('.js') || filename.endsWith('.ts'))) {
+    if (typeof content === 'string' && shouldScanFile(filename, entryFiles)) {
       const report = scanner ? scanner.scan(content, scanContext) : scanCode(content, scanContext)
       if (report.level === 'block') {
         const issues = report.findings.map((f) => f.message).join('; ')

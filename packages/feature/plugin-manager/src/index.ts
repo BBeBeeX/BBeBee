@@ -31,7 +31,15 @@ import {
   DEFAULT_VISUALIZER_SETTINGS,
   sha256Hex,
 } from '@BBeBee/protocol'
-import { compareVersions, computeReverseDependents, flattenFiberNodes, satisfiesRange, scanCode } from '@BBeBee/toolkit'
+import {
+  compareVersions,
+  computeReverseDependents,
+  flattenFiberNodes,
+  manifestEntryFiles,
+  satisfiesRange,
+  scanCode,
+  shouldScanFile,
+} from '@BBeBee/toolkit'
 import { serviceOf } from '@BBeBee/toolkit/hooks'
 import {
   NPM_AUTH_TOKEN_KEY,
@@ -620,8 +628,13 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
         context?: SecurityAuditContext,
       ): { level: string; findings: Array<{ message: string }> }
     }>('securityAudit')
+    // Selection is the toolkit's: every executable-text extension, plus
+    // the manifest's entry files whatever their extension — the loader
+    // executes those, so an entry named `.mjs` (or anything odder) must
+    // not be the one file nobody scanned.
+    const entryFiles = manifestEntryFiles(extracted.manifest.entry)
     for (const [path, content] of Object.entries(extracted.files)) {
-      if (!path.endsWith('.js') && !path.endsWith('.ts')) continue
+      if (!shouldScanFile(path, entryFiles)) continue
       const report = auditor ? auditor.scan(content, scanContext) : scanCode(content, scanContext)
       if (report.level === 'block') {
         const issues = report.findings.map((f) => f.message).join('；')

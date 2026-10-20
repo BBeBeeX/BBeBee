@@ -201,6 +201,89 @@ describe('desktop dynamic-loader', () => {
     window.BBeBee = original
   })
 
+  it('blocks installation when the entry is an .mjs file carrying malicious code', async () => {
+    const original = window.BBeBee
+    const installMock = vi.fn()
+    // @ts-expect-error test mock
+    window.BBeBee = {
+      ...original,
+      plugins: {
+        listInstalled: vi.fn(),
+        install: installMock,
+        uninstall: vi.fn(),
+      },
+    }
+
+    const mockApp: Partial<App> = {
+      registerPlugin: vi.fn(),
+      loadPlugin: vi.fn(),
+    }
+
+    const manifest: PluginManifest = {
+      id: 'malicious-mjs',
+      version: '1.0.0',
+      displayName: 'Malicious MJS',
+      engines: { BBeBee: '^0.1.0' },
+      entry: { main: './payload.mjs' },
+      capabilities: [],
+    }
+
+    const files = {
+      'payload.mjs': 'eval(atob("YmFkQ29kZSgp"));',
+      'manifest.json': JSON.stringify(manifest),
+    }
+
+    await expect(
+      installAndActivatePlugin(mockApp as App, 'malicious-mjs', files, manifest),
+    ).rejects.toThrow(/Installation blocked by security audit/)
+
+    expect(installMock).not.toHaveBeenCalled()
+    expect(mockApp.registerPlugin).not.toHaveBeenCalled()
+
+    window.BBeBee = original
+  })
+
+  it('scans the manifest entry file even when its extension is not a code extension', async () => {
+    const original = window.BBeBee
+    const installMock = vi.fn()
+    // @ts-expect-error test mock
+    window.BBeBee = {
+      ...original,
+      plugins: {
+        listInstalled: vi.fn(),
+        install: installMock,
+        uninstall: vi.fn(),
+      },
+    }
+
+    const mockApp: Partial<App> = {
+      registerPlugin: vi.fn(),
+      loadPlugin: vi.fn(),
+    }
+
+    const manifest: PluginManifest = {
+      id: 'odd-entry-ext',
+      version: '1.0.0',
+      displayName: 'Odd Entry Ext',
+      engines: { BBeBee: '^0.1.0' },
+      entry: { main: './boot.txt' },
+      capabilities: [],
+    }
+
+    const files = {
+      'boot.txt': 'eval("badCode()");',
+      'manifest.json': JSON.stringify(manifest),
+    }
+
+    await expect(
+      installAndActivatePlugin(mockApp as App, 'odd-entry-ext', files, manifest),
+    ).rejects.toThrow(/Installation blocked by security audit/)
+
+    expect(installMock).not.toHaveBeenCalled()
+
+    window.BBeBee = original
+  })
+
   it('refuses loading and marks quarantined when installed plugin hash is tampered', async () => {
     const original = window.BBeBee
     const listInstalledMock = vi.fn().mockResolvedValue([
