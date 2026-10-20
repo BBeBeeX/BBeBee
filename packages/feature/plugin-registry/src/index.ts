@@ -19,7 +19,6 @@ import type {
   PathsService,
   PluginInstallBundle,
   PluginManagerService,
-  PluginManifest,
   RegistryDiagnosticsReport,
   RegistryEntry,
   RegistryEntryDetails,
@@ -62,13 +61,11 @@ import type { TaskRegistryState } from './tasks.js'
 import { REGISTRY_VIEWS } from './views.js'
 import {
   AUDIT_FINDINGS_KEY,
-  CAPABILITY_MISMATCHES_KEY,
   buildDiagnosticsReport,
   dedupeEntriesById,
 } from './diagnostics.js'
 import type {
   RegistryAuditFindingsMap,
-  RegistryCapabilityMismatchMap,
   RegistryIndexAnomalies,
 } from './diagnostics.js'
 
@@ -141,21 +138,6 @@ export function parseGitHubRepo(repoUrlOrShorthand?: string): { owner: string; r
   return undefined
 }
 
-export function checkCapabilitiesMatch(
-  manifestCaps: readonly string[] = [],
-  registryCaps: readonly string[] = [],
-): { matches: boolean; missingInManifest: string[]; unexpectedInManifest: string[] } {
-  const setM = new Set(manifestCaps)
-  const setR = new Set(registryCaps)
-  const missingInManifest = [...setR].filter((c) => !setM.has(c))
-  const unexpectedInManifest = [...setM].filter((c) => !setR.has(c))
-  return {
-    matches: missingInManifest.length === 0 && unexpectedInManifest.length === 0,
-    missingInManifest,
-    unexpectedInManifest,
-  }
-}
-
 /** Keep the entries a shape check can vouch for; drop the rest, with a count for the log. */
 function sanitizeEntry(raw: unknown, defaultKind?: RegistryEntryKind): RegistryEntry | undefined {
   if (!isRecord(raw)) return undefined
@@ -184,6 +166,10 @@ function sanitizeEntry(raw: unknown, defaultKind?: RegistryEntryKind): RegistryE
     repoUrl: optionalString(raw.repoUrl) ?? optionalString(raw.repo),
     sha256: optionalString(raw.sha256),
     capabilities: optionalStringArray(raw.capabilities),
+    npm: optionalString(raw.npm),
+    services: optionalStringArray(raw.services),
+    platforms: optionalStringArray(raw.platforms),
+    provides: optionalStringArray(raw.provides),
     category: optionalString(raw.category),
     params: optionalStringArray(raw.params),
   }
@@ -264,7 +250,11 @@ export class RegistryPlugin extends Service implements RegistryService {
    */
   private readonly tasks: TaskRegistryState = createTaskRegistry()
 
-  /** The desktop-only bridge that installs a `{ manifest, files }` bundle. */
+  /**
+   * Legacy bundle bridge, retained only because `setPluginInstaller` is part
+   * of the service contract and existing composition roots still call it.
+   * Plugin installs delegate to the plugin-manager now; nothing reads this.
+   */
   private pluginInstaller?: (bundle: PluginInstallBundle) => Promise<void>
 
   /** The previous checkUpdates() result, for badges without re-fetching. */
@@ -541,16 +531,14 @@ export class RegistryPlugin extends Service implements RegistryService {
 
   /**
    * Builds a diagnostics report from real service state only: the lock file,
-   * the persisted audit findings and capability mismatches, the index cache
-   * (entries, anomalies, age), the download layer's failure status and the
-   * installed-content services. Never invents a datum; a group with no source
-   * behind it stays empty.
+   * the persisted audit findings, the index cache (entries, anomalies, age),
+   * the download layer's failure status and the installed-content services.
+   * Never invents a datum; a group with no source behind it stays empty.
    */
   async getDiagnostics(): Promise<RegistryDiagnosticsReport> {
-    const [lock, auditFindings, capabilityMismatches, cacheRecord] = await Promise.all([
+    const [lock, auditFindings, cacheRecord] = await Promise.all([
       this.lockManager.read(),
       this.readStoreMap<RegistryAuditFindingsMap>(AUDIT_FINDINGS_KEY),
-      this.readStoreMap<RegistryCapabilityMismatchMap>(CAPABILITY_MISMATCHES_KEY),
       this.readIndexCacheRecord(),
     ])
 
@@ -576,7 +564,6 @@ export class RegistryPlugin extends Service implements RegistryService {
     return buildDiagnosticsReport({
       now: Date.now(),
       auditFindings,
-      capabilityMismatches,
       lockRecords: lock.records,
       indexEntries: cacheRecord?.index.entries ?? [],
       indexAnomalies: cacheRecord?.anomalies,
@@ -595,10 +582,10 @@ export class RegistryPlugin extends Service implements RegistryService {
 
   /**
    * Re-runs `fetchEntryDetails` (static security scan included) for one entry
-   * and refreshes its stored audit findings / capability-mismatch records.
-   * Detection only — nothing is installed, so the install-stage `confirmed`
-   * gate never applies here. The entry is looked up in the cached index; a
-   * rescan against the live index is the user's "Refresh" away.
+   * and refreshes its stored audit findings. Detection only — nothing is
+   * installed, so the install-stage `confirmed` gate never applies here. The
+   * entry is looked up in the cached index; a rescan against the live index
+   * is the user's "Refresh" away.
    */
   async rescanEntry(entryId: string): Promise<void> {
     const entry = (await this.readIndexCache())?.entries.find((candidate) => candidate.id === entryId)
@@ -607,9 +594,9 @@ export class RegistryPlugin extends Service implements RegistryService {
         `registry: cannot rescan "${entryId}" — the entry is not in the cached index; refresh the index first`,
       )
     }
-    // Both record writes happen inside fetchEntryDetails (findings on success,
-    // capability mismatch before its throw), so a rethrown network error still
-    // leaves whatever was actually observed persisted.
+    // The audit-findings write happens inside fetchEntryDetails, so a
+    // rethrown network error still leaves whatever was actually observed
+    // persisted.
     await this.fetchEntryDetails(entry, { trackTask: false })
   }
 
@@ -706,23 +693,6 @@ export class RegistryPlugin extends Service implements RegistryService {
     }
   }
 
-  /** Persist one manifest-vs-registry capabilities mismatch, keyed by entry id. */
-  private async recordCapabilityMismatch(entry: RegistryEntry, manifestCaps: readonly string[]): Promise<void> {
-    if (!this.storeService) return
-    try {
-      const map = await this.readStoreMap<RegistryCapabilityMismatchMap>(CAPABILITY_MISMATCHES_KEY)
-      map[entry.id] = {
-        entryId: entry.id,
-        expected: [...(entry.capabilities ?? [])],
-        actual: [...manifestCaps],
-        checkedAt: Date.now(),
-      }
-      await this.storeService.set<RegistryCapabilityMismatchMap>(CAPABILITY_MISMATCHES_KEY, map)
-    } catch (err) {
-      this.ownCtx.logger.warn(`[registry-diagnostics] failed to record capability mismatch for "${entry.id}": ${String(err)}`)
-    }
-  }
-
   /* ── update checks ─────────────────────────────────────────────────────── */
 
   async checkUpdates(): Promise<readonly RegistryUpdate[]> {
@@ -779,16 +749,20 @@ export class RegistryPlugin extends Service implements RegistryService {
       }
     }
 
-    if (this.pluginManagerService) {
-      const byId = new Map(this.pluginManagerService.list().map((info) => [info.id, info]))
-      for (const entry of index.entries) {
-        if (entry.kind !== 'plugin' || !entry.version) continue
-        const info = byId.get(entry.id)
-        if (!info) continue
-        const installed = typeof info.version === 'string' ? info.version : '0.0.0'
-        if (compareVersions(entry.version, installed) > 0) {
-          updates.push(this.updateFor(entry, installed))
-        }
+    // Plugin versions live on npm, not in the registry index (schema v2 has
+    // no `version` on plugin entries) — delegate to the plugin-manager and
+    // map its result onto the shared update shape. Names come from the index
+    // when the entry is still published there.
+    if (this.pluginManagerService?.checkUpdates) {
+      const entryById = new Map(index.entries.map((entry) => [entry.id, entry]))
+      for (const info of await this.pluginManagerService.checkUpdates()) {
+        updates.push({
+          kind: 'plugin',
+          id: info.id,
+          name: entryById.get(info.id)?.name ?? info.id,
+          installedVersion: normalizeVersion(info.installed),
+          availableVersion: normalizeVersion(info.latest),
+        })
       }
     }
 
@@ -971,85 +945,17 @@ export class RegistryPlugin extends Service implements RegistryService {
     }
 
     if (entry.kind === 'plugin') {
-      if (repoInfo) {
-        const repoUrl = `https://github.com/${repoInfo.owner}/${repoInfo.repo}`
-        const resolved = await this.resolveAuthorRepoCommit(repoInfo.owner, repoInfo.repo)
-        const commit = resolved.commit
-
-        const manifestUrl = `https://raw.githubusercontent.com/${repoInfo.owner}/${repoInfo.repo}/${commit}/manifest.json`
-        const indexUrl = `https://raw.githubusercontent.com/${repoInfo.owner}/${repoInfo.repo}/${commit}/index.js`
-
-        let manifest: PluginManifest
-        let indexJsCode: string
-        try {
-          manifest = await (await this.fetchDocument(manifestUrl, entry.id)).json<PluginManifest>()
-        } catch (err) {
-          throw new Error(`registry: author repository "${repoInfo.owner}/${repoInfo.repo}" is missing root manifest.json (${String(err)})`, { cause: err })
-        }
-
-        try {
-          indexJsCode = await (await this.fetchDocument(indexUrl, entry.id)).text()
-        } catch (err) {
-          throw new Error(`registry: author repository "${repoInfo.owner}/${repoInfo.repo}" is missing root index.js (${String(err)})`, { cause: err })
-        }
-
-        const capCheck = checkCapabilitiesMatch(manifest.capabilities ?? [], entry.capabilities ?? [])
-        if (!capCheck.matches) {
-          const diffs: string[] = []
-          if (capCheck.unexpectedInManifest.length) {
-            diffs.push(`declared in the manifest but missing from the registry: [${capCheck.unexpectedInManifest.join(', ')}]`)
-          }
-          if (capCheck.missingInManifest.length) {
-            diffs.push(`declared in the registry but missing from the manifest: [${capCheck.missingInManifest.join(', ')}]`)
-          }
-          // Recorded before the throw so the diagnostics page can name the
-          // mismatch even though no details were produced.
-          await this.recordCapabilityMismatch(entry, manifest.capabilities ?? [])
-          throw new Error(
-            `registry: plugin "${entry.id}" capabilities mismatch between manifest and registry metadata: ${diffs.join('; ')}`,
-          )
-        }
-
-        this.trackStage(entry.id, 'verify')
-        const securityAudit = this.scanCode(indexJsCode)
-
-        let commitDiff: { previousCommit?: string; currentCommit: string } | undefined
-        if (prevLock && commit && prevLock.commit !== commit) {
-          commitDiff = { previousCommit: prevLock.commit, currentCommit: commit }
-        }
-
-        const details: RegistryEntryDetails = {
-          entry,
-          securityAudit,
-          repoUrl,
-          commit,
-          ...(commitDiff ? { commitDiff } : {}),
-        }
-        await this.recordAuditFindings(entry.id, securityAudit)
-        return details
-      }
-
-      // Legacy bundle details
-      let securityAudit: SecurityAuditReport | undefined
-      if (entry.downloadUrl) {
-        try {
-          const url = this.requireDownloadUrl(entry)
-          const bytes = await (await this.fetchDocument(url, entry.id)).bytes()
-          const bundle: unknown = JSON.parse(new TextDecoder().decode(bytes))
-          if (isRecord(bundle) && isRecord(bundle.files) && typeof bundle.files['index.js'] === 'string') {
-            this.trackStage(entry.id, 'verify')
-            securityAudit = this.scanCode(bundle.files['index.js'] as string)
-          }
-        } catch {
-          // ignore details fetch failure for legacy bundle
-        }
-      }
-
+      // Plugin distribution is npm-based and owned by the plugin-manager
+      // (schema v2): the registry entry itself is everything the confirm
+      // dialog may show — required services, npm package, platforms. The
+      // retired GitHub-bundle flow fetched manifest.json/index.js from the
+      // author repo and compared capabilities here; the security scan and
+      // all packaging checks now happen inside the plugin-manager at
+      // install time, so there is nothing to fetch or scan at this stage.
       const details: RegistryEntryDetails = {
         entry,
-        ...(securityAudit ? { securityAudit } : {}),
+        ...(repoInfo ? { repoUrl: `https://github.com/${repoInfo.owner}/${repoInfo.repo}` } : {}),
       }
-      await this.recordAuditFindings(entry.id, securityAudit)
       return details
     }
 
@@ -1091,7 +997,7 @@ export class RegistryPlugin extends Service implements RegistryService {
       case 'theme':
         return this.installTheme(entry)
       case 'plugin':
-        return this.installPlugin(entry, opts)
+        return this.installPlugin(entry)
     }
   }
 
@@ -1308,140 +1214,28 @@ export class RegistryPlugin extends Service implements RegistryService {
     })
   }
 
-  private async installPlugin(
-    entry: RegistryEntry,
-    opts?: { confirmed?: boolean },
-  ): Promise<void> {
-    const repoInfo = parseGitHubRepo(entry.repoUrl ?? entry.repo)
-
-    if (repoInfo) {
-      const repoUrl = `https://github.com/${repoInfo.owner}/${repoInfo.repo}`
-      const resolved = await this.resolveAuthorRepoCommit(repoInfo.owner, repoInfo.repo)
-      const commit = resolved.commit
-
-      const manifestUrl = `https://raw.githubusercontent.com/${repoInfo.owner}/${repoInfo.repo}/${commit}/manifest.json`
-      const indexUrl = `https://raw.githubusercontent.com/${repoInfo.owner}/${repoInfo.repo}/${commit}/index.js`
-
-      let manifest: PluginManifest
-      let indexJsCode: string
-      try {
-        manifest = await (await this.fetchDocument(manifestUrl, entry.id)).json<PluginManifest>()
-      } catch (err) {
-        throw new Error(`registry: author repository "${repoInfo.owner}/${repoInfo.repo}" is missing root manifest.json (${String(err)})`, { cause: err })
-      }
-
-      try {
-        indexJsCode = await (await this.fetchDocument(indexUrl, entry.id)).text()
-      } catch (err) {
-        throw new Error(`registry: author repository "${repoInfo.owner}/${repoInfo.repo}" is missing root index.js (${String(err)})`, { cause: err })
-      }
-
-      const capCheck = checkCapabilitiesMatch(manifest.capabilities ?? [], entry.capabilities ?? [])
-      if (!capCheck.matches) {
-        const diffs: string[] = []
-        if (capCheck.unexpectedInManifest.length) {
-          diffs.push(`declared in the manifest but missing from the registry: [${capCheck.unexpectedInManifest.join(', ')}]`)
-        }
-        if (capCheck.missingInManifest.length) {
-          diffs.push(`declared in the registry but missing from the manifest: [${capCheck.missingInManifest.join(', ')}]`)
-        }
-        await this.recordCapabilityMismatch(entry, manifest.capabilities ?? [])
-        throw new Error(
-          `registry: plugin "${entry.id}" capabilities mismatch between manifest and registry metadata: ${diffs.join('; ')}`,
-        )
-      }
-
-      this.trackStage(entry.id, 'verify')
-      const audit = this.scanCode(indexJsCode)
-      if (audit.level === 'block' && !opts?.confirmed) {
-        throw new Error(
-          `registry: security audit blocked installation of plugin "${entry.id}": ${audit.findings.map((f) => f.message).join('; ')}`,
-        )
-      }
-
-      const installer = this.pluginInstaller
-      if (!installer) {
-        throw new Error('registry: plugin install is only supported on desktop')
-      }
-
-      const bundle: PluginInstallBundle = {
-        manifest,
-        files: { 'index.js': indexJsCode },
-      }
-      this.trackStage(entry.id, 'install')
-      await installer(bundle)
-
-      await this.lockManager.setRecord({
-        id: entry.id,
-        kind: 'plugin',
-        repo: repoUrl,
-        commit,
-        sha256: sha256Hex(indexJsCode),
-        installedAt: Date.now(),
-      })
-      return
-    }
-
-    // Legacy bundle downloadUrl
-    const url = this.requireDownloadUrl(entry)
-    const bytes = await (await this.fetchDocument(url, entry.id)).bytes()
-
-    if (!entry.sha256) {
-      throw new Error(`registry: the plugin entry "${entry.id}" publishes no sha256 digest; refusing to install unverified code`)
-    }
-    this.trackStage(entry.id, 'verify')
-    const digest = sha256Hex(bytes)
-    const expected = entry.sha256.trim().toLowerCase()
-    if (digest !== expected) {
-      throw new Error(`registry: the plugin bundle for "${entry.id}" failed the integrity check (expected ${expected}, got ${digest})`)
-    }
-
-    const bundle: unknown = JSON.parse(new TextDecoder().decode(bytes))
-    if (!isRecord(bundle) || !isRecord(bundle.manifest) || !isRecord(bundle.files)) {
-      throw new Error(`registry: the plugin bundle for "${entry.id}" must be a JSON object with manifest and files`)
-    }
-    const files: Record<string, string> = {}
-    for (const [name, value] of Object.entries(bundle.files)) {
-      if (typeof value !== 'string') {
-        throw new Error(`registry: the plugin bundle for "${entry.id}" has a non-string file entry "${name}"`)
-      }
-      files[name] = value
-    }
-    const manifest = bundle.manifest as unknown as PluginManifest
-    const main = manifest.entry?.main
-    if (
-      typeof manifest.id !== 'string' || !manifest.id ||
-      typeof manifest.version !== 'string' || !manifest.version ||
-      typeof main !== 'string' || !main
-    ) {
-      throw new Error(`registry: the manifest in the bundle for "${entry.id}" is missing id/version/entry.main`)
-    }
-
-    if (files['index.js']) {
-      const audit = this.scanCode(files['index.js'])
-      if (audit.level === 'block' && !opts?.confirmed) {
-        throw new Error(`registry: security audit blocked installation of plugin "${entry.id}": ${audit.findings.map((f) => f.message).join('; ')}`)
-      }
-    }
-
-    const installer = this.pluginInstaller
-    if (!installer) {
-      throw new Error('registry: plugin install is only supported on desktop')
-    }
-    // The one place the code naturally knows a count: the bundle's file
-    // inventory. No synthetic percentage is fabricated on top of it.
-    this.trackProgress(entry.id, { done: 0, total: Object.keys(files).length })
+  /**
+   * Plugin installs delegate to the plugin-manager (npm flow): it resolves
+   * the version on npm, downloads and verifies the tarball, runs the
+   * security scan and persists its own install record. The retired
+   * GitHub-bundle flow (author-repo manifest.json/index.js, registry.lock.json
+   * records) is gone — historical `kind: 'plugin'` lock records are still
+   * read by the lock manager but never written again.
+   */
+  private async installPlugin(entry: RegistryEntry): Promise<void> {
+    const manager = this.requirePluginManager()
     this.trackStage(entry.id, 'install')
-    await installer({ manifest, files })
+    await manager.installPlugin(entry.id)
+  }
 
-    await this.lockManager.setRecord({
-      id: entry.id,
-      kind: 'plugin',
-      repo: url,
-      commit: entry.version ?? '0.0.0',
-      sha256: digest,
-      installedAt: Date.now(),
-    })
+  private requirePluginManager(): PluginManagerService {
+    const manager = this.pluginManagerService
+    if (!manager?.installPlugin) {
+      throw new Error(
+        'registry: plugin installation is handled by the plugin-manager service, which is not available here — install plugins from Settings → Plugin Market instead',
+      )
+    }
+    return manager
   }
 
   setPluginInstaller(installer: (bundle: PluginInstallBundle) => Promise<void>): void {

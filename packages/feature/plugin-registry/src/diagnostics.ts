@@ -2,10 +2,10 @@
  * Diagnostics data assembly for `contentRegistry.getDiagnostics()` (§1.5).
  *
  * Every number and finding here is derived from state the registry already
- * owns — the lock file, the persisted audit findings, the capability-mismatch
- * records, the sanitized index cache, the installed-content services and the
- * download layer's failure status. Nothing is invented: a group with no data
- * source behind it is simply empty.
+ * owns — the lock file, the persisted audit findings, the sanitized index
+ * cache, the installed-content services and the download layer's failure
+ * status. Nothing is invented: a group with no data source behind it is
+ * simply empty.
  *
  * This module is pure: it turns a snapshot of that state into a
  * `RegistryDiagnosticsReport` so the whole report can be tested without a
@@ -25,8 +25,6 @@ import type {
 
 /** Store key: the last security-audit report per entry id (block/warn only). */
 export const AUDIT_FINDINGS_KEY = 'registry.audit-findings'
-/** Store key: the last capabilities mismatch per entry id. */
-export const CAPABILITY_MISMATCHES_KEY = 'registry.capability-mismatches'
 
 /**
  * One entry's last security-audit outcome. Only entries whose scan produced
@@ -39,19 +37,6 @@ export interface RegistryAuditFindingsRecord {
 }
 
 export type RegistryAuditFindingsMap = Record<string, RegistryAuditFindingsRecord>
-
-/**
- * One entry's last capabilities mismatch: what the registry metadata declared
- * (`expected`) versus what the author's manifest actually declared (`actual`).
- */
-export interface RegistryCapabilityMismatchRecord {
-  entryId: string
-  expected: readonly string[]
-  actual: readonly string[]
-  checkedAt: number
-}
-
-export type RegistryCapabilityMismatchMap = Record<string, RegistryCapabilityMismatchRecord>
 
 /** Sanitize anomalies recorded alongside the index cache. */
 export interface RegistryIndexAnomalies {
@@ -93,7 +78,6 @@ export interface DiagnosticsInstalledSnapshot {
 export interface DiagnosticsInput {
   readonly now: number
   readonly auditFindings: RegistryAuditFindingsMap
-  readonly capabilityMismatches: RegistryCapabilityMismatchMap
   readonly lockRecords: Record<string, RegistryLockRecord>
   /** The entries of the last good index (the offline cache), possibly empty. */
   readonly indexEntries: readonly RegistryEntry[]
@@ -131,19 +115,6 @@ function formatTime(ts: number): string {
 /** The builtin- prefix is the one built-in exemption (the lrclib lyric source). */
 function isBuiltinLyricEntry(entryId: string): boolean {
   return entryId.startsWith('builtin-')
-}
-
-/** Same comparison `checkCapabilitiesMatch` performs, kept local to avoid an import cycle. */
-function capabilityDiff(
-  manifestCaps: readonly string[],
-  registryCaps: readonly string[],
-): { unexpectedInManifest: string[]; missingInManifest: string[] } {
-  const setM = new Set(manifestCaps)
-  const setR = new Set(registryCaps)
-  return {
-    unexpectedInManifest: [...setM].filter((c) => !setR.has(c)),
-    missingInManifest: [...setR].filter((c) => !setM.has(c)),
-  }
 }
 
 /** `a, b, c` — long lists truncate with a trailing count. */
@@ -268,28 +239,7 @@ function buildConflicts(input: DiagnosticsInput, entriesById: ReadonlyMap<string
     })
   }
 
-  // 4. capabilities declared in the author manifest diverge from the registry metadata.
-  for (const mismatch of Object.values(input.capabilityMismatches)) {
-    const diff = capabilityDiff(mismatch.actual, mismatch.expected)
-    const parts: string[] = []
-    if (diff.unexpectedInManifest.length) {
-      parts.push(`declared in the manifest but missing from the registry: [${diff.unexpectedInManifest.join(', ')}]`)
-    }
-    if (diff.missingInManifest.length) {
-      parts.push(`declared in the registry but missing from the manifest: [${diff.missingInManifest.join(', ')}]`)
-    }
-    items.push({
-      id: `cap-mismatch:${mismatch.entryId}`,
-      group: 'conflict',
-      title: `Capability declaration mismatch: ${mismatch.entryId}`,
-      message: `Plugin "${mismatch.entryId}" has manifest capabilities that diverge from the registry metadata (checked at ${formatTime(mismatch.checkedAt)}): ${parts.join('; ') || 'they match exactly'}. Fetching details and installing this plugin will be rejected.`,
-      entryId: mismatch.entryId,
-      kind: entriesById.get(mismatch.entryId)?.kind ?? 'plugin',
-      detectedAt: now,
-    })
-  }
-
-  // 5. installed plugins whose declared dependencies are not installed.
+  // 4. installed plugins whose declared dependencies are not installed.
   for (const plugin of installed.plugins) {
     const unmet = (plugin.dependencies ?? []).filter((dep) => !pluginIdsInstalled.has(dep))
     if (unmet.length) {

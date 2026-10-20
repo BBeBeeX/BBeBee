@@ -268,6 +268,21 @@ export function InstallConfirmDialog({
                   ),
                 )
               : null,
+            entry.npm
+              ? h(
+                  'div',
+                  {
+                    'data-testid': 'registry-plugin-npm',
+                    style: { display: 'flex', flexDirection: 'column', gap: 4 },
+                  },
+                  h('div', { style: sectionTitleStyle }, t('registry:installConfirm.npmPackage')),
+                  h(
+                    'div',
+                    { style: { fontFamily: 'var(--font-mono, ui-monospace, monospace)', fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } },
+                    entry.npm,
+                  ),
+                )
+              : null,
             commitDiff
               ? h(
                   'div',
@@ -335,22 +350,22 @@ export function InstallConfirmDialog({
                   ),
                 )
               : null,
-            entry.capabilities?.length
+            entry.services?.length
               ? h(
                   'div',
                   { style: { display: 'flex', flexDirection: 'column', gap: 6 } },
-                  h('div', { style: sectionTitleStyle }, t('registry:installConfirm.requestedCapabilities')),
+                  h('div', { style: sectionTitleStyle }, t('registry:installConfirm.requiredServices')),
                   h(
                     'div',
                     {
-                      'data-testid': 'registry-plugin-capabilities',
+                      'data-testid': 'registry-plugin-services',
                       style: { display: 'flex', gap: 4, flexWrap: 'wrap' },
                     },
-                    entry.capabilities.map((capability) =>
+                    entry.services.map((service) =>
                       h(
                         'span',
                         {
-                          key: capability,
+                          key: service,
                           style: {
                             display: 'inline-flex',
                             padding: '2px 8px',
@@ -361,7 +376,39 @@ export function InstallConfirmDialog({
                             color: 'var(--text-secondary, #C5CAD8)',
                           },
                         },
-                        capability,
+                        service,
+                      ),
+                    ),
+                  ),
+                )
+              : null,
+            entry.platforms?.length
+              ? h(
+                  'div',
+                  { style: { display: 'flex', flexDirection: 'column', gap: 6 } },
+                  h('div', { style: sectionTitleStyle }, t('registry:installConfirm.platforms')),
+                  h(
+                    'div',
+                    {
+                      'data-testid': 'registry-plugin-platforms',
+                      style: { display: 'flex', gap: 4, flexWrap: 'wrap' },
+                    },
+                    entry.platforms.map((platform) =>
+                      h(
+                        'span',
+                        {
+                          key: platform,
+                          style: {
+                            display: 'inline-flex',
+                            padding: '2px 8px',
+                            borderRadius: 999,
+                            fontSize: 11,
+                            background: 'var(--surface-2, rgba(255, 255, 255, 0.06))',
+                            border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+                            color: 'var(--text-secondary, #C5CAD8)',
+                          },
+                        },
+                        platform,
                       ),
                     ),
                   ),

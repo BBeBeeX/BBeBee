@@ -49,7 +49,23 @@ export interface RegistryEntry {
   /** plugin/source: The author's code repository URL. */
   readonly repoUrl?: string
   readonly sha256?: string
+  /**
+   * @deprecated Registry schema v1 field, read only from plugin entries
+   * (sources and themes never carried it). Schema v2 renamed it to
+   * `services` — the cordis service keys a plugin must inject. The plugin's
+   * own `BBeBee.plugin.json` `capabilities` (security-gate grammar) is a
+   * different concept and is not mirrored here. Kept on the type only so
+   * historical index caches still parse; new code must not read it.
+   */
   readonly capabilities?: readonly string[]
+  /** plugin entries only (schema v2): the npm package name the client downloads. Version truth lives on npm, never here. */
+  readonly npm?: string
+  /** plugin entries only (schema v2): cordis service keys the plugin must inject — the install-time dependency check reads this. */
+  readonly services?: readonly string[]
+  /** plugin entries only (schema v2): supported platforms, `'desktop'` / `'mobile'`. */
+  readonly platforms?: readonly string[]
+  /** plugin entries only (schema v2): cordis service keys this plugin provides to others, when declared. */
+  readonly provides?: readonly string[]
   /** plugin entries only: free-form category slug from the registry repo (e.g. `ui-enhancement`). */
   readonly category?: string
   /** music-source/source: user-configurable parameter keys (e.g. ['sourceurl', 'username', 'password']). */
@@ -149,7 +165,12 @@ export interface RegistryService {
   fetchEntryDetails(entry: RegistryEntry): Promise<RegistryEntryDetails>
   /** Installs/updates one entry. The caller must already have shown the user the details (hosts / plugin risk). */
   install(entry: RegistryEntry, opts?: { confirmed?: boolean; overwrite?: boolean }): Promise<void>
-  /** Composition root sets this so plugin-kind installs can reach the desktop dynamic host. */
+  /**
+   * @deprecated Legacy bundle bridge: plugin installs no longer flow through
+   * this service — they delegate to `ctx['plugin-manager']` (npm-based).
+   * Kept on the interface for compatibility with existing wiring; the
+   * implementation ignores it.
+   */
   setPluginInstaller(installer: (bundle: PluginInstallBundle) => Promise<void>): void
   /** Read the registry lock file records. */
   getLockFile?(): Promise<RegistryLockFile>

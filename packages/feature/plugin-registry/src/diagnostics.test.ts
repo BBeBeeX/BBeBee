@@ -24,10 +24,7 @@ import { midnightPurpleTheme } from '@BBeBee/ui-tokens'
 import { RegistryPlugin } from './index.js'
 import { LOCK_STORE_KEY } from './lock.js'
 import type { RegistryLockFile } from '@BBeBee/protocol'
-import {
-  AUDIT_FINDINGS_KEY,
-  CAPABILITY_MISMATCHES_KEY,
-} from './diagnostics.js'
+import { AUDIT_FINDINGS_KEY } from './diagnostics.js'
 
 /* ── fixtures ────────────────────────────────────────────────────────────── */
 
@@ -408,48 +405,6 @@ describe('getDiagnostics — audit risks and rescanEntry', () => {
     seedIndexCache(harness.data, [entryOf({ id: 'known', kind: 'theme', name: 'Known' })])
 
     await expect(harness.plugin.rescanEntry('ghost')).rejects.toThrow(/not in the cached index/)
-  })
-})
-
-/* ── capability mismatches ───────────────────────────────────────────────── */
-
-describe('getDiagnostics — capability mismatches', () => {
-  it('records the mismatch when fetchEntryDetails rejects and reports it as a conflict', async () => {
-    const harness = await setupInitialized({
-      http: {
-        json: {
-          'https://api.github.com/repos/mismatch-author/ext-plugin/commits/HEAD': { sha: 'commit111' },
-          'https://raw.githubusercontent.com/mismatch-author/ext-plugin/commit111/manifest.json': {
-            id: 'ext-plugin',
-            version: '1.0.0',
-            entry: { main: './index.js' },
-            capabilities: ['net:host/*', 'device:bluetooth'],
-          },
-        },
-        bytes: {
-          'https://raw.githubusercontent.com/mismatch-author/ext-plugin/commit111/index.js': new TextEncoder().encode(
-            'export default function() {}',
-          ),
-        },
-      },
-    })
-    const entry = entryOf({
-      id: 'ext-plugin',
-      kind: 'plugin',
-      name: 'Ext Plugin',
-      repoUrl: 'https://github.com/mismatch-author/ext-plugin',
-      capabilities: ['net:host/*'],
-    })
-
-    await expect(harness.plugin.fetchEntryDetails(entry)).rejects.toThrow(/capabilities mismatch/)
-
-    const stored = harness.data.get(CAPABILITY_MISMATCHES_KEY) as Record<string, { expected: string[]; actual: string[] }>
-    expect(stored['ext-plugin']).toMatchObject({ expected: ['net:host/*'], actual: ['net:host/*', 'device:bluetooth'] })
-
-    const report = await harness.plugin.getDiagnostics()
-    const conflict = report.conflicts.find((item) => item.id === 'cap-mismatch:ext-plugin')
-    expect(conflict).toBeDefined()
-    expect(conflict?.message).toContain('device:bluetooth')
   })
 })
 

@@ -269,9 +269,13 @@ export function RegistryEntryCard({
       'div',
       { style: titleRowStyle },
       h('span', { style: nameStyle }, entry.name),
-      entry.version
-        ? h('span', { style: { ...CHIP, flexShrink: 0 } }, `v${normalizeVersion(entry.version)}`)
-        : null,
+      // Plugin entries carry no registry version in schema v2 (version truth
+      // lives on npm) — the chip shows the npm package name instead.
+      isPlugin && entry.npm
+        ? h('span', { style: { ...CHIP, flexShrink: 0 } }, entry.npm)
+        : entry.version
+          ? h('span', { style: { ...CHIP, flexShrink: 0 } }, `v${normalizeVersion(entry.version)}`)
+          : null,
       isBuiltinEntry(entry) ? h('span', { style: builtinChipStyle }, t('registry:registryEntry.builtIn')) : null,
       // Status badge for installed extensions: in-use (使用中) vs disabled (已停用)
       isInstalledExtension && (isTheme ? themeActive !== undefined : effectiveEnabled !== undefined)
@@ -366,12 +370,12 @@ export function RegistryEntryCard({
           entry.description,
         )
       : null,
-    entry.kind === 'plugin' && entry.capabilities?.length
+    entry.kind === 'plugin' && entry.services?.length
       ? h(
           'div',
           { style: { display: 'flex', gap: 4, flexWrap: 'wrap' } },
-          entry.capabilities.map((capability) =>
-            h('span', { key: capability, style: CHIP }, capability),
+          entry.services.map((service) =>
+            h('span', { key: service, style: CHIP }, service),
           ),
         )
       : null,

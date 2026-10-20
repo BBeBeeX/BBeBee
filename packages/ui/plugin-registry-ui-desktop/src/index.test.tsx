@@ -118,40 +118,40 @@ const INDEX: RegistryIndex = {
       id: 'plugin-gated',
       kind: 'plugin',
       name: 'Gated Plugin',
-      version: '1.0.0',
       minAppVersion: '99.0.0',
       repo: 'https://github.com/gated-author/gated-plugin',
       category: 'security-permissions',
-      capabilities: ['net:host/*'],
+      npm: '@bbebee/gated-plugin',
+      services: ['http'],
       sha256: 'ab'.repeat(32),
     },
     {
       id: 'plugin-ok',
       kind: 'plugin',
       name: 'OK Plugin',
-      version: '1.0.0',
       minAppVersion: '0.0.1',
       repoUrl: 'https://github.com/example/plugin-ok',
       category: 'ui-enhancement',
-      capabilities: ['audio:dsp'],
+      npm: '@bbebee/plugin-ok',
+      services: ['audio'],
       sha256: 'cd'.repeat(32),
     },
     {
       id: 'plugin-remote',
       kind: 'plugin',
       name: 'Remote Plugin',
-      version: '1.0.0',
       // Official, via the owner/repo shorthand.
       repo: 'BBeBeeX/remote-plugin',
       category: 'remote-mobile',
-      capabilities: ['net:host/*'],
+      npm: '@bbebee/remote-plugin',
+      services: ['http'],
+      platforms: ['desktop', 'mobile'],
       sha256: 'ee'.repeat(32),
     },
     {
       id: 'plugin-unknown',
       kind: 'plugin',
       name: 'Mystery Plugin',
-      version: '1.0.0',
       repo: 'https://github.com/mystery-author/unknown-plugin',
       // A slug the label map does not know — it must render verbatim.
       category: 'mystery-slug',
@@ -644,7 +644,7 @@ describe('RegistryScreen', () => {
     const gatedBtn = getByTestId('registry-action-plugin-gated')
     expect((gatedBtn as HTMLButtonElement).disabled).toBe(true)
     expect(gated.textContent).toContain('Requires BBeBee 99.0.0 or later')
-    expect(gated.textContent).toContain('net:host/*')
+    expect(gated.textContent).toContain('http')
 
     // Within range → actionable.
     await findByTestId('registry-entry-plugin-ok')
@@ -687,7 +687,7 @@ describe('RegistryScreen', () => {
     expect(hosts.textContent).toContain('music.example')
   })
 
-  it('shows repoUrl, capabilities, and sha256 for a plugin install', async () => {
+  it('shows repoUrl, npm, services, and sha256 for a plugin install', async () => {
     const { ctx } = await harness()
     const { getByTestId, findByTestId } = render(h(RegistryScreen, { ctx }))
     await findByTestId('registry-tab-plugin')
@@ -698,7 +698,8 @@ describe('RegistryScreen', () => {
     const dialog = await findByTestId('registry-confirm-dialog')
     expect(dialog).toBeTruthy()
     expect(getByTestId('registry-plugin-repo-url').textContent).toContain('https://github.com/example/plugin-ok')
-    expect(getByTestId('registry-plugin-capabilities').textContent).toContain('audio:dsp')
+    expect(getByTestId('registry-plugin-npm').textContent).toContain('@bbebee/plugin-ok')
+    expect(getByTestId('registry-plugin-services').textContent).toContain('audio')
     expect(getByTestId('registry-plugin-sha256').textContent).toContain('cd'.repeat(32))
   })
 
