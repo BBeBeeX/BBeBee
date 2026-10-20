@@ -1,5 +1,5 @@
 import { existsSync, statSync, readFileSync, readdirSync, mkdirSync } from 'node:fs'
-import { join, resolve, extname } from 'node:path'
+import { join, resolve, sep, extname } from 'node:path'
 import { pluginDirName } from '@BBeBee/protocol'
 import { toNativePath } from './fs-path.js'
 import { getFileMimeType, parseByteRange } from './helpers.js'
@@ -12,6 +12,21 @@ export interface ProtocolResponse {
   filePath?: string
 }
 
+/**
+ * A plugin id is a *name*, never a path. The traversal spellings are
+ * refused here, before the value can reach a filesystem join: a bare
+ * `.`/`..`, a backslash (a separator on Windows), an empty segment, or a
+ * dot segment anywhere inside a slashed id. Scoped ids such as
+ * `@BBeBee/plugin-x` keep their single separating slash — no segment of
+ * a legitimate id is ever `.` or `..`, so nothing real is refused. The
+ * decoded form is what gets checked, which is what makes the
+ * percent-encoded variants (`%2e%2e`) land here already decoded.
+ */
+export function isSafePluginId(pluginId: string): boolean {
+  if (!pluginId || pluginId.includes('\\')) return false
+  return pluginId.split('/').every((seg) => seg !== '' && seg !== '.' && seg !== '..')
+}
+
 export function parsePluginRequestUrl(rawUrl: string): { pluginId: string; subPath: string } | undefined {
   try {
     const url = new URL(rawUrl)
@@ -21,11 +36,13 @@ export function parsePluginRequestUrl(rawUrl: string): { pluginId: string; subPa
       const rawId = parts[0]
       if (!rawId) return undefined
       const pluginId = decodeURIComponent(rawId)
+      if (!isSafePluginId(pluginId)) return undefined
       const subPath = parts.slice(1).join('/') || 'index.js'
       return { pluginId, subPath }
     }
     // Handle bbebee-plugin://<pluginId>/<subPath>
     const pluginId = decodeURIComponent(url.host)
+    if (!isSafePluginId(pluginId)) return undefined
     const subPath = url.pathname.replace(/^\/+/, '') || 'index.js'
     return { pluginId, subPath }
   } catch {
@@ -34,18 +51,29 @@ export function parsePluginRequestUrl(rawUrl: string): { pluginId: string; subPa
 }
 
 export function resolvePluginDir(pluginId: string, installedPluginsDir: string): string | undefined {
+  if (!isSafePluginId(pluginId)) return undefined
   if (!existsSync(installedPluginsDir)) {
     mkdirSync(installedPluginsDir, { recursive: true })
+  }
+  const root = resolve(installedPluginsDir)
+  // A candidate only counts when it resolves strictly *inside* the
+  // installed-plugins root. The sanitized-name step below is the one
+  // that used to escape: the sanitizer preserves dots, so the id `..`
+  // joined straight onto the parent directory (the whole userData tree)
+  // and that directory then "contained" every file requested under it.
+  const insideRoot = (candidate: string): boolean => {
+    const resolved = resolve(candidate)
+    return resolved !== root && resolved.startsWith(root + sep)
   }
   // 1. Check pluginDirName(pluginId)
   const hashedName = pluginDirName(pluginId)
   const hashedPath = join(installedPluginsDir, hashedName)
-  if (existsSync(hashedPath)) return hashedPath
+  if (insideRoot(hashedPath) && existsSync(hashedPath)) return hashedPath
 
   // 2. Check exact sanitized name
   const sanitized = pluginId.replace(/[^a-zA-Z0-9._-]+/g, '_')
   const directPath = join(installedPluginsDir, sanitized)
-  if (existsSync(directPath)) return directPath
+  if (insideRoot(directPath) && existsSync(directPath)) return directPath
 
   // 3. Check versioned matches (e.g. pluginId@version)
   try {
@@ -119,8 +147,12 @@ export class ProtocolManager {
         return { status: 404, headers: {}, body: `Plugin not found: ${parsed.pluginId}` }
       }
 
-      const safePath = resolve(pluginDir, parsed.subPath)
-      if (!safePath.startsWith(resolve(pluginDir))) {
+      const pluginRoot = resolve(pluginDir)
+      const safePath = resolve(pluginRoot, parsed.subPath)
+      // Separator boundary, not a bare prefix: `/plugins/abc-secret`
+      // starts with the string `/plugins/abc` but is a *sibling*, and a
+      // prefix-only check waved `../abc-secret/…` straight through.
+      if (safePath !== pluginRoot && !safePath.startsWith(pluginRoot + sep)) {
         return { status: 403, headers: {}, body: 'Forbidden' }
       }
 
