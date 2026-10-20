@@ -286,7 +286,7 @@ function packument(
           version: v,
           ...(peers ? { peerDependencies: peers } : {}),
           dist: {
-            tarball: `https://cdn.example.com/${encodeURIComponent(pkg)}-/${v}.tgz`,
+            tarball: `https://cdn.jsdelivr.net/${encodeURIComponent(pkg)}-/${v}.tgz`,
             integrity: `sha512-${base64Encode(sha512(tarballs[`${pkg}@${v}`]!))}`,
           },
         },
@@ -574,7 +574,7 @@ describe('plugin-manager npm service methods', () => {
       json: async () => packument(entry.npm, versions, tarballs, peers),
     })
     for (const v of versions) {
-      w.routes.set(`https://cdn.example.com/${encodeURIComponent(entry.npm)}-/${v}.tgz`, {
+      w.routes.set(`https://cdn.jsdelivr.net/${encodeURIComponent(entry.npm)}-/${v}.tgz`, {
         status: 200,
         bytes: async () => tarballs[`${entry.npm}@${v}`]!,
       })
@@ -605,7 +605,7 @@ describe('plugin-manager npm service methods', () => {
         status: 200,
         json: async () => packument(e.npm, ['1.0.0'], tarballs),
       })
-      w.routes.set(`https://cdn.example.com/${encodeURIComponent(e.npm)}-/1.0.0.tgz`, {
+      w.routes.set(`https://cdn.jsdelivr.net/${encodeURIComponent(e.npm)}-/1.0.0.tgz`, {
         status: 200,
         bytes: async () => tarballs[`${e.npm}@1.0.0`]!,
       })
@@ -758,7 +758,7 @@ describe('plugin-manager npm service methods', () => {
       status: 200,
       json: async () => packument(entry.npm, ['1.0.0'], tarballs),
     })
-    w.routes.set(`https://cdn.example.com/${encodeURIComponent(entry.npm)}-/1.0.0.tgz`, {
+    w.routes.set(`https://cdn.jsdelivr.net/${encodeURIComponent(entry.npm)}-/1.0.0.tgz`, {
       status: 200,
       bytes: async () => tarballs['@t/a@1.0.0']!,
     })
@@ -827,7 +827,7 @@ describe('plugin-manager npm service methods', () => {
       status: 200,
       json: async () => packument(entry.npm, ['1.0.0'], tarballs),
     })
-    w.routes.set(`https://cdn.example.com/${encodeURIComponent(entry.npm)}-/1.0.0.tgz`, {
+    w.routes.set(`https://cdn.jsdelivr.net/${encodeURIComponent(entry.npm)}-/1.0.0.tgz`, {
       status: 200,
       bytes: async () => tarballs['@t/a@1.0.0']!,
     })
@@ -993,7 +993,7 @@ describe('plugin-manager npm service methods', () => {
       json: async () => packument('@t/b', versionsB, tarballs),
     })
     for (const v of versionsB) {
-      w.routes.set(`https://cdn.example.com/${encodeURIComponent('@t/b')}-/${v}.tgz`, {
+      w.routes.set(`https://cdn.jsdelivr.net/${encodeURIComponent('@t/b')}-/${v}.tgz`, {
         status: 200,
         bytes: async () => tarballs[`@t/b@${v}`]!,
       })
@@ -1050,7 +1050,7 @@ describe('plugin-manager npm service methods', () => {
         json: async () => packument(npm, versions, byNpm),
       })
       for (const v of versions) {
-        w.routes.set(`https://cdn.example.com/${encodeURIComponent(npm)}-/${v}.tgz`, {
+        w.routes.set(`https://cdn.jsdelivr.net/${encodeURIComponent(npm)}-/${v}.tgz`, {
           status: 200,
           bytes: async () => newTarballs[`${npm}@${v}`]!,
         })
@@ -1245,7 +1245,7 @@ describe('capability grants (W1)', () => {
       json: async () => packument(entry.npm, versions.map((v) => v.version), tarballs),
     })
     for (const { version } of versions) {
-      w.routes.set(`https://cdn.example.com/${encodeURIComponent(entry.npm)}-/${version}.tgz`, {
+      w.routes.set(`https://cdn.jsdelivr.net/${encodeURIComponent(entry.npm)}-/${version}.tgz`, {
         status: 200,
         bytes: async () => tarballs[`@t/a@${version}`]!,
       })
@@ -1408,7 +1408,7 @@ describe('gunzipCapped (audit W2: decompressed-size cap)', () => {
 })
 
 describe('NpmClient.downloadPackage streaming (Fix E)', () => {
-  const pkg = { id: 'a-x', npm: '@t/a', version: '1.0.0', tarball: 'https://x/1.tgz' }
+  const pkg = { id: 'a-x', npm: '@t/a', version: '1.0.0', tarball: 'https://registry.npmjs.org/1.tgz' }
   function clientWith(http: any) {
     return new NpmClient({
       http,
@@ -1446,6 +1446,29 @@ describe('NpmClient.downloadPackage streaming (Fix E)', () => {
     const http = vi.fn(async () => ({ status: 200, headers: {}, bytes: async () => new Uint8Array([9, 8]) }))
     const out = await clientWith(http).downloadPackage(pkg)
     expect(Array.from(out)).toEqual([9, 8])
+  })
+
+  it('refuses a tarball on a loopback host before any request goes out (audit W2: host allowlist)', async () => {
+    const http = vi.fn(async () => ({ status: 200, headers: {}, bytes: async () => new Uint8Array([1]) }))
+    const evil = { ...pkg, tarball: 'http://127.0.0.1:9999/evil.tgz' }
+    await expectNpmError(clientWith(http).downloadPackage(evil), 'DOWNLOAD_FAILED')
+    expect(http).not.toHaveBeenCalled()
+  })
+
+  it('refuses link-local and arbitrary third-party tarball hosts', async () => {
+    const http = vi.fn(async () => ({ status: 200, headers: {}, bytes: async () => new Uint8Array([1]) }))
+    for (const tarball of ['http://169.254.169.254/latest.tgz', 'https://evil.example.org/x.tgz', 'not a url']) {
+      await expectNpmError(clientWith(http).downloadPackage({ ...pkg, tarball }), 'DOWNLOAD_FAILED')
+    }
+    expect(http).not.toHaveBeenCalled()
+  })
+
+  it('downloads from the jsDelivr CDN host as usual', async () => {
+    const http = vi.fn(async () => ({ status: 200, headers: {}, bytes: async () => new Uint8Array([4, 2]) }))
+    const cdnPkg = { ...pkg, tarball: 'https://cdn.jsdelivr.net/npm/@t/a@1.0.0/x.tgz' }
+    const out = await clientWith(http).downloadPackage(cdnPkg)
+    expect(Array.from(out)).toEqual([4, 2])
+    expect(http).toHaveBeenCalledTimes(1)
   })
 
   it('cancels an over-limit stream mid-download instead of buffering it all', async () => {

@@ -380,6 +380,30 @@ function normalizeTarRelPath(rel: string): string | undefined {
   return parts.length > 0 ? parts.join('/') : undefined
 }
 
+/** jsDelivr hostnames (the CDN the client's registry/lyric flows already use, incl. its fastly mirror). */
+const TARBALL_CDN_HOSTS: readonly string[] = ['cdn.jsdelivr.net', 'fastly.jsdelivr.net']
+
+/**
+ * Hosts a tarball may be downloaded from: the effective registry (which
+ * covers a user-configured private registry), the two built-in
+ * registries, and the client's CDNs. `dist.tarball` is packument data —
+ * a mirror (or a poisoned packument) controls it — so without this set
+ * it could point the client at `127.0.0.1`, a link-local address, or an
+ * arbitrary third host and have the request actually go out.
+ */
+export function tarballAllowedHosts(effectiveRegistryUrl?: string): Set<string> {
+  const hosts = new Set<string>(TARBALL_CDN_HOSTS)
+  for (const u of [effectiveRegistryUrl, NPM_REGISTRY_OFFICIAL, NPM_REGISTRY_CHINA]) {
+    if (!u) continue
+    try {
+      hosts.add(new URL(u).host)
+    } catch {
+      // An unparseable configured URL contributes no host.
+    }
+  }
+  return hosts
+}
+
 export class NpmClient {
   constructor(private readonly deps: NpmClientDeps) {}
 
@@ -624,19 +648,46 @@ export class NpmClient {
   // Download, integrity, extraction (D7)
   // ---------------------------------------------------------------------------
 
-  /** Downloads a tarball; the auth token only goes to the registry's own host. */
+  /**
+   * Downloads a tarball. Two guards before any byte moves: the tarball
+   * URL's host must be in `tarballAllowedHosts` (the packument is
+   * mirror-controlled data, not a trusted pointer), and the auth token
+   * only goes to the effective registry's own host.
+   */
   async downloadPackage(
     pkg: NpmResolvedPackage,
     onProgress?: (loaded: number, total?: number) => void,
   ): Promise<Uint8Array> {
     const headers: Record<string, string> = {}
+    let registry: { url: string; authToken?: string } | undefined
     try {
-      const { url: regUrl, authToken } = await this.effectiveNpmRegistry()
-      if (authToken && new URL(pkg.tarball).host === new URL(regUrl).host) {
-        headers.Authorization = `Bearer ${authToken}`
-      }
+      registry = await this.effectiveNpmRegistry()
     } catch {
-      // Unparseable URL — proceed without auth; the fetch will fail loudly if needed.
+      // Settings unreadable: fall back to the static allowlist below and
+      // no auth — the built-in registries/CDNs remain reachable, a
+      // custom-registry tarball is refused rather than chased blindly.
+      registry = undefined
+    }
+    let tarballUrl: URL
+    try {
+      tarballUrl = new URL(pkg.tarball)
+    } catch {
+      throw new NpmPluginError('DOWNLOAD_FAILED', `包 ${pkg.npm}@${pkg.version} 的 tarball 地址非法："${pkg.tarball}"`)
+    }
+    if (!tarballAllowedHosts(registry?.url).has(tarballUrl.host)) {
+      throw new NpmPluginError(
+        'DOWNLOAD_FAILED',
+        `包 ${pkg.npm}@${pkg.version} 的 tarball 主机 "${tarballUrl.host}" 不在允许集合内，拒绝下载`,
+      )
+    }
+    if (registry?.authToken) {
+      try {
+        if (tarballUrl.host === new URL(registry.url).host) {
+          headers.Authorization = `Bearer ${registry.authToken}`
+        }
+      } catch {
+        // Unparseable registry URL — no auth header.
+      }
     }
     let res: HttpResponse
     try {
