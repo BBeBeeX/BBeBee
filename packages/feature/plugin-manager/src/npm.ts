@@ -13,11 +13,19 @@ import { Gunzip } from 'fflate'
 import {
   base64Encode,
   base64ToBytes,
+  derivePluginManagerDownloadHosts,
+  effectiveNpmRegistryBase,
+  effectiveRegistryRawBase,
+  NPM_REGISTRY_CHINA,
+  NPM_REGISTRY_OFFICIAL,
+  REGISTRY_RAW_CHINA,
+  REGISTRY_RAW_OFFICIAL,
   sha256Hex,
   sha512,
   type AppSettings,
   type HttpResponse,
   type HttpService,
+  type ManagerNetworkSettings,
   type NpmResolvedPackage,
   type PluginManifest,
   type RegistryBlockedEntry,
@@ -97,10 +105,13 @@ const INTEGRITY_RE = /^sha512-([A-Za-z0-9+/]+=*)$/
 /** A range string that names exactly one version (`1.2.3`, `v1.2.3-beta`). */
 const EXACT_VERSION_RE = /^v?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/
 
-export const NPM_REGISTRY_OFFICIAL = 'https://registry.npmjs.org'
-export const NPM_REGISTRY_CHINA = 'https://registry.npmmirror.com'
-export const REGISTRY_RAW_OFFICIAL = 'https://raw.githubusercontent.com/BBeBeeX/B_Be_Bee-registry/main'
-export const REGISTRY_RAW_CHINA = 'https://cdn.jsdelivr.net/gh/BBeBeeX/B_Be_Bee-registry@main'
+/**
+ * The endpoint constants live in `@BBeBee/protocol`
+ * (`services/plugin-manager-hosts.ts`) — they are inputs to the
+ * settings-derived host set the capability gate also consumes, so
+ * they may only exist once. Re-exported here for existing importers.
+ */
+export { NPM_REGISTRY_CHINA, NPM_REGISTRY_OFFICIAL, REGISTRY_RAW_CHINA, REGISTRY_RAW_OFFICIAL }
 export const REGISTRY_INDEX_PATH = 'plugins/index.json'
 /** Secret key (in the plugin's own `ctx.secrets` namespace) for the npm auth token. */
 export const NPM_AUTH_TOKEN_KEY = 'npm.auth-token'
@@ -408,28 +419,23 @@ function normalizeTarRelPath(rel: string): string | undefined {
   return parts.length > 0 ? parts.join('/') : undefined
 }
 
-/** jsDelivr hostnames (the CDN the client's registry/lyric flows already use, incl. its fastly mirror). */
-const TARBALL_CDN_HOSTS: readonly string[] = ['cdn.jsdelivr.net', 'fastly.jsdelivr.net']
-
 /**
- * Hosts a tarball may be downloaded from: the effective registry (which
- * covers a user-configured private registry), the two built-in
- * registries, and the client's CDNs. `dist.tarball` is packument data —
- * a mirror (or a poisoned packument) controls it — so without this set
- * it could point the client at `127.0.0.1`, a link-local address, or an
- * arbitrary third host and have the request actually go out.
+ * Hosts a tarball may be downloaded from: the protocol's
+ * settings-derived pipeline host set — the very set the capability
+ * gate grants this plugin (the shells merge it in `resolveGrants`),
+ * consumed here from the same pure function so the two lists cannot
+ * drift. `dist.tarball` is packument data — a mirror (or a poisoned
+ * packument) controls it — so without this set it could point the
+ * client at `127.0.0.1`, a link-local address, or an arbitrary third
+ * host and have the request actually go out.
+ *
+ * Absent settings (unreadable) derive the built-in set: the built-in
+ * registries/CDNs remain reachable, a custom-registry tarball is
+ * refused rather than chased blindly. Comparison is by hostname,
+ * matching the gate's own granularity.
  */
-export function tarballAllowedHosts(effectiveRegistryUrl?: string): Set<string> {
-  const hosts = new Set<string>(TARBALL_CDN_HOSTS)
-  for (const u of [effectiveRegistryUrl, NPM_REGISTRY_OFFICIAL, NPM_REGISTRY_CHINA]) {
-    if (!u) continue
-    try {
-      hosts.add(new URL(u).host)
-    } catch {
-      // An unparseable configured URL contributes no host.
-    }
-  }
-  return hosts
+export function tarballAllowedHosts(settings?: ManagerNetworkSettings): Set<string> {
+  return new Set(derivePluginManagerDownloadHosts(settings))
 }
 
 /** predicateType of the SLSA provenance attestation npm attaches to a version. */
@@ -531,11 +537,7 @@ export class NpmClient {
    */
   async effectiveNpmRegistry(): Promise<{ url: string; official: string; authToken?: string }> {
     const settings = await this.deps.readSettings()
-    const manual = settings?.npmRegistryUrl?.trim()
-    const url = (manual || (settings?.downloadRegion === 'mainland-china' ? NPM_REGISTRY_CHINA : NPM_REGISTRY_OFFICIAL)).replace(
-      /\/+$/,
-      '',
-    )
+    const url = effectiveNpmRegistryBase(settings)
     const authToken = (await this.deps.readSecret(NPM_AUTH_TOKEN_KEY)) || undefined
     return { url, official: NPM_REGISTRY_OFFICIAL, authToken }
   }
@@ -543,11 +545,7 @@ export class NpmClient {
   /** Effective raw base for registry files; manual `githubRawBaseUrl` wins. */
   async registryRawBase(): Promise<{ url: string; official: string }> {
     const settings = await this.deps.readSettings()
-    const manual = settings?.githubRawBaseUrl?.trim()
-    const url = (manual || (settings?.downloadRegion === 'mainland-china' ? REGISTRY_RAW_CHINA : REGISTRY_RAW_OFFICIAL)).replace(
-      /\/+$/,
-      '',
-    )
+    const url = effectiveRegistryRawBase(settings)
     return { url, official: REGISTRY_RAW_OFFICIAL }
   }
 
@@ -877,10 +875,20 @@ export class NpmClient {
     try {
       registry = await this.effectiveNpmRegistry()
     } catch {
-      // Settings unreadable: fall back to the static allowlist below and
-      // no auth — the built-in registries/CDNs remain reachable, a
+      // Settings unreadable: fall back to the built-in allowlist below
+      // and no auth — the built-in registries/CDNs remain reachable, a
       // custom-registry tarball is refused rather than chased blindly.
       registry = undefined
+    }
+    // The allowlist derives from the same settings the endpoints do —
+    // read them independently of the registry resolution above so a
+    // settings failure degrades to the built-in set, never to "allow
+    // everything" and never to a second, drifted list.
+    let settings: AppSettings | undefined
+    try {
+      settings = await this.deps.readSettings()
+    } catch {
+      settings = undefined
     }
     let tarballUrl: URL
     try {
@@ -888,10 +896,10 @@ export class NpmClient {
     } catch {
       throw new NpmPluginError('DOWNLOAD_FAILED', `包 ${pkg.npm}@${pkg.version} 的 tarball 地址非法："${pkg.tarball}"`)
     }
-    if (!tarballAllowedHosts(registry?.url).has(tarballUrl.host)) {
+    if (!tarballAllowedHosts(settings).has(tarballUrl.hostname)) {
       throw new NpmPluginError(
         'DOWNLOAD_FAILED',
-        `包 ${pkg.npm}@${pkg.version} 的 tarball 主机 "${tarballUrl.host}" 不在允许集合内，拒绝下载`,
+        `包 ${pkg.npm}@${pkg.version} 的 tarball 主机 "${tarballUrl.hostname}" 不在允许集合内，拒绝下载`,
       )
     }
     if (registry?.authToken) {

@@ -2028,7 +2028,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "net:host/cdn.jsdelivr.net",
       "net:host/fastly.jsdelivr.net",
       "net:host/registry.npmjs.org",
-      "net:host/registry.npmmirror.com"
+      "net:host/registry.npmmirror.com",
+      "net:host/cdn.npmmirror.com"
     ],
     "contributes": {
       "services": [
@@ -2063,7 +2064,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "net:host/cdn.jsdelivr.net",
       "net:host/fastly.jsdelivr.net",
       "net:host/registry.npmjs.org",
-      "net:host/registry.npmmirror.com"
+      "net:host/registry.npmmirror.com",
+      "net:host/cdn.npmmirror.com"
     ],
     "contributes": {
       "services": [
