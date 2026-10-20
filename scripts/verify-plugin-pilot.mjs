@@ -472,10 +472,14 @@ run(process.execPath, [join(fixtureRoot, 'scripts/build-index.mjs')], { cwd: fix
 const fixtureIndex = JSON.parse(readFileSync(join(fixtureRoot, 'plugins/index.json'), 'utf8'))
 check(
   'build-index aggregates every fixture entry',
-  Array.isArray(fixtureIndex) &&
-    JSON.stringify(fixtureIndex.map((e) => e.id).sort()) ===
+  // The index wire format is the document form { entries, blocked }
+  // since the registry's W4 upgrade; the ids live under `.entries`.
+  Array.isArray(fixtureIndex?.entries) &&
+    JSON.stringify(fixtureIndex.entries.map((e) => e.id).sort()) ===
       JSON.stringify(fixtureEntries.map(({ entry }) => entry.id).sort()),
-  JSON.stringify(Array.isArray(fixtureIndex) ? fixtureIndex.map((e) => e.id) : fixtureIndex),
+  JSON.stringify(
+    Array.isArray(fixtureIndex?.entries) ? fixtureIndex.entries.map((e) => e.id) : fixtureIndex,
+  ),
 )
 run(process.execPath, [join(fixtureRoot, 'scripts/validate.mjs'), '--strict', '--skip-network'], {
   cwd: fixtureRoot,
@@ -793,7 +797,10 @@ check(
 if (depTargets.length > 0) {
   stage('stage 3b — negative control: dependency entry missing from the index')
   const depIds = depTargets.map((d) => d.def.pluginId)
-  indexOverride = fixtureIndex.filter((e) => !depIds.includes(e.id))
+  indexOverride = {
+    ...fixtureIndex,
+    entries: fixtureIndex.entries.filter((e) => !depIds.includes(e.id)),
+  }
   const worldC = makeWorld({ hostReactVersion: HOST_VERSION, pluginsDir: join(tmp, 'plugins-c') })
   let negErr = null
   try {

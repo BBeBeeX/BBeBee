@@ -175,7 +175,7 @@ export const TARGETS = {
     featureDir: 'examples/visualizer-meters',
     uiDir: null,
     entryFile: 'examples/visualizer-meters/registry-entry.json',
-    entryFileName: 'bbebeex-visualizer-meters.json',
+    entryFileName: 'bbebee-plugin-visualizer-meters.json',
     dependencyPackages: [{ target: 'visualizer', version: '0.1.0' }],
     expectClosure: ['bbebeex-visualizer'],
     activationChain: ['bbebeex-visualizer'],
