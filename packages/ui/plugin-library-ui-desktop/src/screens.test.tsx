@@ -254,6 +254,7 @@ async function harness() {
     player: root.player as unknown as PlayerStub,
     sources: root.sources as unknown as SourcesStub,
     ui: root.ui as unknown as UiStub,
+    i18n: root.i18n as unknown as DefaultI18nStub,
   }
 }
 
@@ -830,6 +831,7 @@ describe('LibraryScreen', () => {
       // Move Road trip into folder col-1
       await act(async () => {
         await library.addToCollection('col-1', [PLAYLIST_URN])
+        await new Promise((r) => setTimeout(r, 800))
         await tick()
       })
 
@@ -839,6 +841,7 @@ describe('LibraryScreen', () => {
       // Move Road trip back to root (remove from folder)
       await act(async () => {
         await library.removeFromCollection('col-1', [PLAYLIST_URN])
+        await new Promise((r) => setTimeout(r, 800))
         await tick()
       })
 
@@ -1300,6 +1303,121 @@ describe('LocalMusicScreen', () => {
       // Back on tracks view
       expect(container.textContent).toContain('Local files')
       expect(container.textContent).toContain('Alpha')
+    })
+  })
+
+  it('switches to artists view and renders artist list and corresponding tracks', async () => {
+    const { ctx, player, sources } = await harness()
+    const TRACK_B = 'BBeBee:demo:track:two'
+    const trackB: Track = {
+      urn: TRACK_B,
+      title: 'Zeta',
+      artists: [{ urn: 'BBeBee:demo:artist:z', name: 'Zoe', role: 'main', ordinal: 0 }],
+      durationMs: 300000,
+    }
+    sources.tracks = [track, trackB]
+
+    await withListLayout(async () => {
+      const { getByTestId, container } = render(h(LocalMusicScreen, { ctx }))
+      await act(async () => {
+        await tick()
+      })
+
+      // Check artist tab button exists
+      expect(getByTestId('local-tab-artists')).toBeTruthy()
+
+      // Switch to artists view
+      await act(async () => {
+        getByTestId('local-tab-artists').click()
+        await tick()
+      })
+
+      expect(container.textContent).toContain('Local artists')
+      expect(getByTestId('local-artists-list')).toBeTruthy()
+      expect(getByTestId('local-artist-tracks-list')).toBeTruthy()
+
+      // Artist A should be selected by default, displaying Alpha
+      expect(container.textContent).toContain('Alpha')
+
+      // Click Zoe (Artist B)
+      const zoeItem = getByTestId('local-artist-item-Zoe')
+      expect(zoeItem).toBeTruthy()
+      await act(async () => {
+        zoeItem.click()
+        await tick()
+      })
+
+      // Right list should now show Zeta
+      expect(container.textContent).toContain('Zeta')
+
+      // Play button in action bar should play Zeta
+      await act(async () => {
+        ;(getByTestId('local-music-play') as HTMLElement).click()
+        await tick()
+      })
+    })
+
+    expect(player.calls).toContain(`now:${TRACK_B}`)
+  })
+
+  it('filters artists and tracks by search in artists view', async () => {
+    const { ctx, sources } = await harness()
+    const TRACK_B = 'BBeBee:demo:track:two'
+    const trackB: Track = {
+      urn: TRACK_B,
+      title: 'Zeta',
+      artists: [{ urn: 'BBeBee:demo:artist:z', name: 'Zoe', role: 'main', ordinal: 0 }],
+      durationMs: 300000,
+    }
+    sources.tracks = [track, trackB]
+
+    await withListLayout(async () => {
+      const { getByTestId, container } = render(h(LocalMusicScreen, { ctx }))
+      await act(async () => {
+        await tick()
+      })
+
+      // Switch to artists view
+      await act(async () => {
+        getByTestId('local-tab-artists').click()
+        await tick()
+      })
+
+      // Type search query
+      const searchInput = container.querySelector('input[type="text"]') as HTMLInputElement
+      expect(searchInput).toBeTruthy()
+
+      await act(async () => {
+        type(searchInput, 'Zoe')
+        await tick()
+      })
+
+      // Only Zoe should be in the artist list
+      expect(container.textContent).toContain('Zoe')
+      expect(container.textContent).toContain('Zeta')
+      expect(container.querySelector('[data-testid="local-artist-item-A"]')).toBeNull()
+    })
+  })
+
+  it('renders Chinese copy for artists tab and view when locale is zh', async () => {
+    const { ctx, i18n } = await harness()
+    i18n.setLocale('zh')
+
+    await withListLayout(async () => {
+      const { getByTestId, container } = render(h(LocalMusicScreen, { ctx }))
+      await act(async () => {
+        await tick()
+      })
+
+      const artistTab = getByTestId('local-tab-artists')
+      expect(artistTab.textContent).toBe('歌手')
+
+      await act(async () => {
+        artistTab.click()
+        await tick()
+      })
+
+      expect(container.textContent).toContain('本地歌手')
     })
   })
 
