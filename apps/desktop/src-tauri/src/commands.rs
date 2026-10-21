@@ -528,6 +528,26 @@ pub fn desktop_taskbar_update(
 // Core Desktop Bridge Commands (Rust <-> Node Sidecar Transport)
 // =============================================================================
 
+/// Fast-path bridge handler for low-latency in-memory services (such as audio visualization).
+/// Returns `Some(value)` wrapped in `BridgeEnvelope` if handled locally in host memory,
+/// or `None` if the call should fall through to the sidecar.
+pub fn try_fast_path_bridge(
+    state: &AppState,
+    service: &str,
+    method: &str,
+) -> Option<serde_json::Value> {
+    if (service == "audio" && method == "mpvGetFftFrame") || service == "visualizer" {
+        if let Some(frame) = state.get_fft_frame() {
+            return Some(serde_json::json!({
+                "__bbebee_bridge__": true,
+                "ok": true,
+                "result": frame,
+            }));
+        }
+    }
+    None
+}
+
 #[tauri::command]
 pub async fn bridge_call(
     state: tauri::State<'_, AppState>,
@@ -550,6 +570,14 @@ pub async fn bridge_call(
         }
         // Fall through to main sidecar if cover sidecar unavailable
     }
+
+    // Audio visualization fast-path bridge (Plan A + C):
+    // If the host has cached an FFT frame from the audio engine, return it directly
+    // from in-memory state wrapped in a standard BridgeEnvelope with 0 stdio/sidecar overhead.
+    if let Some(res) = try_fast_path_bridge(&state, &service, &method) {
+        return Ok(res);
+    }
+
     let sidecar = state.get_sidecar()?;
     sidecar
         .call(
@@ -1544,6 +1572,14 @@ pub fn audio_engine_status(
     Ok(engine.get_engine_status())
 }
 
+/// Retrieve the latest FFT frame directly from the in-memory cache.
+#[tauri::command]
+pub fn audio_engine_get_fft_frame(
+    state: tauri::State<'_, AppState>,
+) -> Option<crate::audio::FftFrame> {
+    state.get_fft_frame()
+}
+
 // =============================================================================
 // FFmpeg Transcoding Commands (Rust manager, P1)
 // =============================================================================
@@ -1596,6 +1632,36 @@ mod tests {
         let json = serde_json::to_string(&info).unwrap();
         assert!(json.contains("\"isPrimary\":true"));
         assert!(json.contains("\"width\":1920"));
+    }
+
+    #[test]
+    fn test_fast_path_bridge_visualizer() {
+        let state = AppState::default();
+
+        // 1. Initially no frame is cached: fast-path returns None (falls through)
+        assert_eq!(try_fast_path_bridge(&state, "audio", "mpvGetFftFrame"), None);
+        assert_eq!(try_fast_path_bridge(&state, "visualizer", "getFrame"), None);
+
+        // 2. Unrelated services never trigger fast-path
+        assert_eq!(try_fast_path_bridge(&state, "audio", "mpvPlay"), None);
+        assert_eq!(try_fast_path_bridge(&state, "paths", "get"), None);
+
+        // 3. Cache a frame and verify fast-path returns wrapped BridgeEnvelope
+        let frame = crate::audio::FftFrame {
+            frequency_data: vec![0.2, 0.4, 0.8],
+            time_domain_data: vec![127.0, 128.0, 129.0],
+        };
+        state.set_fft_frame(Some(frame));
+
+        let res = try_fast_path_bridge(&state, "audio", "mpvGetFftFrame");
+        assert!(res.is_some());
+        let val = res.unwrap();
+        assert_eq!(val.get("__bbebee_bridge__").and_then(|v| v.as_bool()), Some(true));
+        assert_eq!(val.get("ok").and_then(|v| v.as_bool()), Some(true));
+        assert!(val.get("result").is_some());
+
+        let res_viz = try_fast_path_bridge(&state, "visualizer", "getFrame");
+        assert!(res_viz.is_some());
     }
 }
 

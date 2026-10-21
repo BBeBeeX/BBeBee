@@ -107,6 +107,9 @@ pub struct AppState {
 
     // FFmpeg transcoding (Rust manager, P1 migration from Node sidecar)
     pub transcode_manager: Arc<crate::transcode::TranscodeManager>,
+
+    // Audio visualizer fast-path cache (latest FFT spectrum frame)
+    pub latest_fft_frame: Mutex<Option<crate::audio::FftFrame>>,
 }
 
 impl Default for AppState {
@@ -139,6 +142,7 @@ impl Default for AppState {
             cover_sidecar: Mutex::new(None),
             audio_engine: Mutex::new(None),
             transcode_manager: Arc::new(crate::transcode::TranscodeManager::new()),
+            latest_fft_frame: Mutex::new(None),
         }
     }
 }
@@ -279,11 +283,37 @@ impl AppState {
     pub fn get_position_ms(&self) -> f64 {
         *lock_recover(&self.current_position_ms)
     }
+
+    // --- Audio visualizer ---
+
+    pub fn set_fft_frame(&self, frame: Option<crate::audio::FftFrame>) {
+        *lock_recover(&self.latest_fft_frame) = frame;
+    }
+
+    pub fn get_fft_frame(&self) -> Option<crate::audio::FftFrame> {
+        lock_recover(&self.latest_fft_frame).clone()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_fft_frame_cache() {
+        let state = AppState::default();
+        assert_eq!(state.get_fft_frame(), None);
+
+        let frame = crate::audio::FftFrame {
+            frequency_data: vec![0.1, 0.5, 0.9],
+            time_domain_data: vec![128.0, 130.0],
+        };
+        state.set_fft_frame(Some(frame.clone()));
+        assert_eq!(state.get_fft_frame(), Some(frame));
+
+        state.set_fft_frame(None);
+        assert_eq!(state.get_fft_frame(), None);
+    }
 
     #[test]
     fn sleep_inhibition_lifecycle() {

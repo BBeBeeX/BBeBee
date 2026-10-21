@@ -137,6 +137,7 @@ fn main() {
             audio_engine_stop_playback, audio_engine_seek,
             audio_engine_set_volume, audio_engine_set_muted,
             audio_engine_set_dsp, audio_engine_status,
+            audio_engine_get_fft_frame,
             // FFmpeg transcoding (Rust manager, P1)
             transcode_run, transcode_cancel,
         ])
@@ -210,6 +211,18 @@ fn setup_app(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         let mut crash_rx = engine.subscribe_crash();
         while let Ok(event) = crash_rx.recv().await {
             let _ = app_handle.emit("audio:crash", &event);
+            // Clear cached FFT frame on crash
+            let state = app_handle.state::<AppState>();
+            state.set_fft_frame(None);
+        }
+    });
+    let app_handle = app.handle().clone();
+    let engine = audio_engine.clone();
+    tauri::async_runtime::spawn(async move {
+        let mut fft_rx = engine.subscribe_fft();
+        while let Ok(frame) = fft_rx.recv().await {
+            let state = app_handle.state::<AppState>();
+            state.set_fft_frame(Some(frame));
         }
     });
 

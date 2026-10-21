@@ -38,7 +38,7 @@ pub struct DspConfig {
 }
 
 /// FFT spectrum frame from the engine's PCM tap.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FftFrame {
     pub frequency_data: Vec<f32>,

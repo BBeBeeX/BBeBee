@@ -327,4 +327,31 @@ describe('Preload Surface Conformance Test: Tauri Shim API Contract', () => {
     expect(typeof unsubMoved).toBe('function')
     expect(() => unsubMoved()).not.toThrow()
   })
+
+  it('unwraps audio visualization fast-path bridge response correctly', async () => {
+    const mockFrame = {
+      frequencyData: [0.1, 0.5, 0.9],
+      timeDomainData: [128, 129, 130],
+    }
+    const mockInvoker = async (cmd: string, payload: any) => {
+      if (cmd === 'desktop_bridge_call') {
+        const { service, method } = payload || {}
+        if ((service === 'audio' && method === 'mpvGetFftFrame') || service === 'visualizer') {
+          return {
+            __bbebee_bridge__: true,
+            ok: true,
+            result: mockFrame,
+          }
+        }
+      }
+      return null
+    }
+
+    const bridge = createBridgeApi(mockInvoker)
+    const resAudio = await bridge.call('audio', 'mpvGetFftFrame', [])
+    expect(resAudio).toEqual(mockFrame)
+
+    const resViz = await bridge.call('visualizer', 'getFrame', [])
+    expect(resViz).toEqual(mockFrame)
+  })
 })
