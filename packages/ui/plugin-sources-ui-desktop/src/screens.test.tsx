@@ -812,6 +812,39 @@ describe('RecommendScreen', () => {
     expect(screen.getByText(/sid 2933823/)).toBeTruthy()
   })
 
+  it('renders onboarding hero when there are no sources at all', async () => {
+    const { ctx } = await harness()
+    render(h(RecommendScreen, { ctx }))
+    await act(async () => {
+      await tick()
+    })
+
+    expect(screen.getByTestId('onboarding-hero')).toBeTruthy()
+    expect(screen.getByTestId('onboarding-add-folder')).toBeTruthy()
+    expect(screen.getByTestId('onboarding-import-source')).toBeTruthy()
+    expect(screen.getByTestId('onboarding-explore-plugins')).toBeTruthy()
+  })
+
+  it('opens and interacts with onboarding modal', async () => {
+    const { ctx } = await harness()
+    render(h(RecommendScreen, { ctx, showGuide: true }))
+    await act(async () => {
+      await tick()
+    })
+
+    expect(screen.getByTestId('onboarding-modal-content')).toBeTruthy()
+    const pluginsTab = screen.getByTestId('onboarding-tab-plugins')
+    fireEvent.click(pluginsTab)
+    expect(screen.getByTestId('modal-explore-plugins-btn')).toBeTruthy()
+
+    const finishBtn = screen.getByTestId('onboarding-finish-btn')
+    fireEvent.click(finishBtn)
+    await act(async () => {
+      await tick()
+    })
+    expect(screen.queryByTestId('onboarding-modal-content')).toBeNull()
+  })
+
   it('says when nothing recommends', async () => {
     const { ctx } = await harness()
     await ctx.sources.import(JSON.stringify(DOC))

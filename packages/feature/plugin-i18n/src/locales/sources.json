@@ -37,7 +37,26 @@
       "recentlyPlayedAlbums": "Recently played · Albums",
       "recommendations": "Recommendations",
       "recommendedPlaylists": "{sourceName} · Recommended playlists",
-      "showAll": "Show all"
+      "showAll": "Show all",
+      "onboarding": {
+        "welcomeTitle": "Welcome to BBeBee 🎵",
+        "welcomeSubtitle": "A clean, modular music player. Get started by setting up your music sources and exploring plugins.",
+        "stepDataSources": "Step 1: Music Sources",
+        "localMusicTitle": "Local Music Scanner",
+        "localMusicDesc": "Scan your local folder for lossless tracks, or drag audio files directly into the window.",
+        "addFolder": "Add folder",
+        "manageLocal": "View library",
+        "thirdPartyTitle": "Third-Party Sources",
+        "thirdPartyDesc": "Import declarative JSON rule documents to aggregate streaming audio, securely isolated in QuickJS.",
+        "importSource": "Import source rule",
+        "stepPlugins": "Step 2: Plugins & Customization",
+        "pluginsTitle": "Plugin Registry & Extensions",
+        "pluginsDesc": "Enhance your player with desktop lyrics, DSP audio equalizer, visualizer, themes, and more.",
+        "explorePlugins": "Explore plugin market",
+        "getStarted": "Get Started",
+        "modalTitle": "Getting Started with BBeBee",
+        "quickStartGuide": "Quick Start Guide"
+      }
     },
     "recommendAll": {
       "allRecommendations": "All recommendations",
@@ -230,7 +249,26 @@
       "recentlyPlayedAlbums": "最近播放 · 专辑",
       "recommendations": "推荐",
       "recommendedPlaylists": "{sourceName} · 推荐播放列表",
-      "showAll": "查看全部"
+      "showAll": "查看全部",
+      "onboarding": {
+        "welcomeTitle": "欢迎使用 BBeBee 🎵",
+        "welcomeSubtitle": "纯净模块化音乐播放器。只需简单配置音乐数据源，即可开启完整的音乐与扩展生态。",
+        "stepDataSources": "第一步：配置音乐数据源",
+        "localMusicTitle": "本地音乐扫描",
+        "localMusicDesc": "添加本地音乐文件夹扫描无损音频，也可直接将音频文件或文件夹拖入播放器。",
+        "addFolder": "添加音乐文件夹",
+        "manageLocal": "查看本地曲库",
+        "thirdPartyTitle": "导入第三方音源",
+        "thirdPartyDesc": "导入声明式 JSON 规则文档或网络订阅链接，在 QuickJS 沙箱中安全解析全网音乐。",
+        "importSource": "导入音源规则",
+        "stepPlugins": "第二步：定制与插件扩展",
+        "pluginsTitle": "扩展中心与功能插件",
+        "pluginsDesc": "启用桌面歌词、DSP 均衡器调音、音频频谱可视化、个性化主题皮肤等强大扩展能力。",
+        "explorePlugins": "浏览插件市场",
+        "getStarted": "开始体验",
+        "modalTitle": "BBeBee 新手入门指南",
+        "quickStartGuide": "新手入门指南"
+      }
     },
     "recommendAll": {
       "allRecommendations": "全部推荐",

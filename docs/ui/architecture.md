@@ -609,6 +609,12 @@ The desktop shell organizes primary navigation between the left sidebar and the 
      - *Boundary-Aware Cancellation*: When the user scrolls to the first card (index 0) or last card (index n-1), the respective side automatically flattens and hides its arrow.
      - *Hover Navigation Arrows*: Large frosted-glass circular buttons (❮ / ❯, 40×40px, font 22px, `backdropFilter: blur(12px)`) float on top of the edges and smoothly fade in on mouse hover (`opacity: 1`, transition `0.18s ease`).
      - *Vertical Scroll Interception Prevention*: Shelf scroll containers enforce `overflowX: 'auto'` and `overflowY: 'hidden'`, ensuring mouse wheel or trackpad vertical gestures pass through cleanly to page vertical scrolling instead of getting trapped in the row.
+   - **Cold-Start Onboarding Hub & First-Run Wizard (`OnboardingHero` & `OnboardingModal`)**:
+     - *Cold-Start Detection*: When `allSources.length === 0` and no personal history exists, the recommend screen bypasses the inert empty placeholder and renders `OnboardingHero`.
+     - *Dual-Track Architecture Guidance*:
+       1. **Data Sources**: Bridges to local music scanning (`fs.pickDirectory` / `scanner.addSpecifiedDir`, audio drag-and-drop support) and third-party rule documents (`sources.import`), clarifying that sources are declarative rule documents executed inside QuickJS sandbox realms rather than executable binaries.
+       2. **Plugin Extensions**: Bridges to the plugin registry (`registry.screen`), introducing desktop lyrics, DSP equalizers, visualizers, and themes.
+     - *State Persistence & Re-entry*: The interactive wizard (`OnboardingModal` via `Sheet`) automatically guides first-time users, persisting `onboarding.completed: true` in `ctx.store`. Users can re-trigger the onboarding guide anytime via Settings -> About (`settings:about.onboardingGuide`).
 
 ### 7.2 Secondary Windows and Single-Kernel Preservation
 

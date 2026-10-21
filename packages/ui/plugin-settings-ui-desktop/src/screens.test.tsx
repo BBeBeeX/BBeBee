@@ -866,6 +866,8 @@ describe('SettingsScreen', () => {
 
     expect(await findByText('Cross-platform plugin-based music player · Version 0.1.0')).toBeTruthy()
     expect(getByText('Microkernel architecture')).toBeTruthy()
+    expect(getByText('Onboarding & Quick Start Guide')).toBeTruthy()
+    expect(getByText('View Guide →')).toBeTruthy()
   })
 
   it('displays and modifies EQ, normalize, compressor, reverb in playback tab and navigates to dsp.view', async () => {

@@ -1,13 +1,15 @@
-import { createElement as h, Fragment, useState, type ReactElement } from 'react'
+import { createElement as h, Fragment, useEffect, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { BrowseEntry, UiService } from '@BBeBee/protocol'
+import type { BrowseEntry, StoreService, UiService } from '@BBeBee/protocol'
 import { SOURCES_VIEWS } from '@BBeBee/plugin-sources/views'
-import { useRecommendShelf, useRecommendSources } from '@BBeBee/plugin-sources/hooks'
+import { useRecommendShelf, useRecommendSources, useSources } from '@BBeBee/plugin-sources/hooks'
 import { EmptyState, useI18n } from '@BBeBee/ui-kit-desktop'
 import { serviceOf } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
 import { RecommendShelfRow } from '../components/RecommendShelfRow.js'
 import { SourceConfigureModal } from '../components/SourceConfigureModal.js'
+import { OnboardingHero } from '../components/OnboardingHero.js'
+import { OnboardingModal } from '../components/OnboardingModal.js'
 import { useRecentPlayedAlbums } from '../hooks/useRecentPlayedAlbums.js'
 import { useFavoriteAlbums } from '../hooks/useFavoriteAlbums.js'
 
@@ -24,14 +26,44 @@ import { useFavoriteAlbums } from '../hooks/useFavoriteAlbums.js'
 export function RecommendScreen({
   ctx,
   onOpenAlbum,
+  showGuide,
+  forceOnboarding,
 }: {
   ctx: Context
   onOpenAlbum?: (urn: string) => void
+  showGuide?: boolean
+  forceOnboarding?: boolean
 }): ReactElement {
   const { t } = useI18n(ctx)
   const sources = useRecommendSources(ctx)
+  const allSources = useSources(ctx)
   const { albums: recentAlbums } = useRecentPlayedAlbums(ctx)
   const { albums: favoriteAlbums } = useFavoriteAlbums(ctx)
+  const [guideModalOpen, setGuideModalOpen] = useState(false)
+
+  useEffect(() => {
+    if (showGuide || forceOnboarding) {
+      setGuideModalOpen(true)
+    }
+  }, [showGuide, forceOnboarding])
+
+  useEffect(() => {
+    let cancelled = false
+    const store = serviceOf<StoreService>(ctx, 'store')
+    if (store && allSources.length === 0) {
+      store
+        .get<boolean>('onboarding.completed')
+        .then((completed) => {
+          if (!cancelled && !completed) {
+            setGuideModalOpen(true)
+          }
+        })
+        .catch(() => {})
+    }
+    return () => {
+      cancelled = true
+    }
+  }, [ctx, allSources.length])
 
   const openCard = (entry: BrowseEntry) => {
     if (!entry.urn || entry.kind !== 'album') return
@@ -40,55 +72,70 @@ export function RecommendScreen({
   }
 
   const hasAnyContent = recentAlbums.length > 0 || favoriteAlbums.length > 0 || sources.length > 0
+  const isColdStart = !hasAnyContent && allSources.length === 0
 
   return h(
-    'section',
-    {
-      'aria-label': t('sources:recommend.recommendations'),
-      'data-testid': 'recommend-screen',
-      style: { display: 'flex', flexDirection: 'column', gap: tokens.space[5], padding: tokens.space[4] },
-    },
-    !hasAnyContent
-      ? h(EmptyState, {
-          title: t('sources:recommend.noRecommendations'),
-          description: t('sources:recommend.onceAMusicSourceImplementing'),
-        })
-      : h(
-          Fragment,
-          null,
-          // 1. Recent played tracks' albums (if any)
-          recentAlbums.length > 0
-            ? h(RecommendShelfRow, {
-                key: 'recent-played-albums',
-                ctx,
-                title: t('sources:recommend.recentlyPlayedAlbums'),
-                testID: 'recommend-shelf-recent-albums',
-                entries: recentAlbums,
-                onOpenCard: openCard,
-              })
-            : null,
-          // 2. Favorite songs' albums (if any)
-          favoriteAlbums.length > 0
-            ? h(RecommendShelfRow, {
-                key: 'favorite-albums',
-                ctx,
-                title: t('sources:recommend.favoritesPicksAlbums'),
-                testID: 'recommend-shelf-favorite-albums',
-                entries: favoriteAlbums,
-                onOpenCard: openCard,
-              })
-            : null,
-          // 3. Third-party music sources
-          ...sources.map((source) =>
-            h(RecommendShelf, {
-              key: source.sourceId,
-              ctx,
-              sourceId: source.sourceId,
-              sourceName: source.displayName,
-              onOpenCard: openCard,
-            }),
-          ),
-        ),
+    Fragment,
+    null,
+    h(
+      'section',
+      {
+        'aria-label': t('sources:recommend.recommendations'),
+        'data-testid': 'recommend-screen',
+        style: { display: 'flex', flexDirection: 'column', gap: tokens.space[5], padding: tokens.space[4] },
+      },
+      isColdStart
+        ? h(OnboardingHero, {
+            ctx,
+            onOpenGuide: () => setGuideModalOpen(true),
+          })
+        : !hasAnyContent
+          ? h(EmptyState, {
+              title: t('sources:recommend.noRecommendations'),
+              description: t('sources:recommend.onceAMusicSourceImplementing'),
+            })
+          : h(
+              Fragment,
+              null,
+              // 1. Recent played tracks' albums (if any)
+              recentAlbums.length > 0
+                ? h(RecommendShelfRow, {
+                    key: 'recent-played-albums',
+                    ctx,
+                    title: t('sources:recommend.recentlyPlayedAlbums'),
+                    testID: 'recommend-shelf-recent-albums',
+                    entries: recentAlbums,
+                    onOpenCard: openCard,
+                  })
+                : null,
+              // 2. Favorite songs' albums (if any)
+              favoriteAlbums.length > 0
+                ? h(RecommendShelfRow, {
+                    key: 'favorite-albums',
+                    ctx,
+                    title: t('sources:recommend.favoritesPicksAlbums'),
+                    testID: 'recommend-shelf-favorite-albums',
+                    entries: favoriteAlbums,
+                    onOpenCard: openCard,
+                  })
+                : null,
+              // 3. Third-party music sources
+              ...sources.map((source) =>
+                h(RecommendShelf, {
+                  key: source.sourceId,
+                  ctx,
+                  sourceId: source.sourceId,
+                  sourceName: source.displayName,
+                  onOpenCard: openCard,
+                }),
+              ),
+            ),
+    ),
+    h(OnboardingModal, {
+      ctx,
+      open: guideModalOpen,
+      onClose: () => setGuideModalOpen(false),
+    }),
   )
 }
 

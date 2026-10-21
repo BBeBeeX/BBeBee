@@ -393,8 +393,8 @@ export function SettingsScreen({
     }
   }
 
-  const handleNavigate = (route: string) => {
-    serviceOf<UiService>(ctx, 'ui')?.navigate?.(route)
+  const handleNavigate = (route: string, params?: Record<string, unknown>) => {
+    serviceOf<UiService>(ctx, 'ui')?.navigate?.(route, params)
   }
 
   return h(

@@ -21,7 +21,10 @@
       "viewTheRuntimeEnvironmentLive": "View the runtime environment, live Discover logs, source testing and the microkernel architecture topology (Inspector)",
       "tagline": "Cross-platform plugin-based music player · Version 0.1.0",
       "diagnosticsDesc": "Environment info, Discover system logs, source HTTP capture, source testing and the Inspector architecture topology",
-      "openDebugCenter": "Open Debug center →"
+      "openDebugCenter": "Open Debug center →",
+      "onboardingGuide": "Onboarding & Quick Start Guide",
+      "onboardingGuideDesc": "Revisit setup guides for local/third-party music sources and plugin extensions",
+      "openGuide": "View Guide →"
     },
     "debug": {
       "checksTheDebugRunFlags": "Checks the debug run flags of the kernel and renderer process",
@@ -555,7 +558,10 @@
       "viewTheRuntimeEnvironmentLive": "查看运行时环境、实时发现页日志、源测试与微内核架构拓扑（检查器）",
       "tagline": "跨平台插件化音乐播放器 · 版本 0.1.0",
       "diagnosticsDesc": "环境信息、Discover 系统日志、源 HTTP 捕获、源测试与 Inspector 架构拓扑",
-      "openDebugCenter": "打开调试中心 →"
+      "openDebugCenter": "打开调试中心 →",
+      "onboardingGuide": "新手教程与入门指南",
+      "onboardingGuideDesc": "重新查看音乐数据源（本地与第三方源）和功能插件的使用说明与配置向导",
+      "openGuide": "查看入门指引 →"
     },
     "debug": {
       "checksTheDebugRunFlags": "检查内核与渲染进程的调试运行标志",

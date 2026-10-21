@@ -2,6 +2,7 @@ import { Button, useI18n } from '@BBeBee/ui-kit-desktop'
 import { createElement as h } from 'react'
 import type { ReactElement, ChangeEvent } from 'react'
 import type { Context } from 'cordis'
+import { serviceOf } from '@BBeBee/ui-core'
 import { SettingsRow } from '../SettingsRow.js'
 import { SettingsSection } from '../SettingsSection.js'
 
@@ -12,7 +13,7 @@ export interface AboutSectionProps {
   onToggleAdvancedSettings: (show: boolean) => void
   onSetResetting: (resetting: boolean) => void
   onReset: () => void
-  onNavigate: (route: string) => void
+  onNavigate: (route: string, params?: Record<string, unknown>) => void
 }
 
 const BBEBEE_LOGO_DATA_URL =
@@ -86,6 +87,20 @@ export function AboutSection({
           ),
         ),
       ),
+      h(SettingsRow, {
+        ctx,
+        title: t('settings:about.onboardingGuide'),
+        description: t('settings:about.onboardingGuideDesc'),
+        action: h(Button, {
+          variant: 'secondary',
+          children: t('settings:about.openGuide'),
+          onPress: () => {
+            const store = serviceOf<{ set(k: string, v: unknown): Promise<void> }>(ctx, 'store')
+            void store?.set?.('onboarding.completed', false)
+            onNavigate('sources.recommend', { showGuide: true })
+          },
+        }),
+      }),
       h(SettingsRow, {
         ctx,
         title: t('settings:about.microkernelArchitecture'),
