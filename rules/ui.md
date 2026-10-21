@@ -141,7 +141,7 @@ contributions — a plugin's section disappears when the plugin does.
 
 ## 7. Detail Screens, Sorting & Playback History Specifications
 
-> Layout spec, sorting interactions, batch operations, local-music dual views, play history and the recommendation shelves: see [docs/ui/design-system.md §9](../docs/ui/design-system.md#9-detail-screens-sorting--playback-history) (L3).
+> Layout spec, sorting interactions, batch operations, local-music triple views (tracks, albums, artists), play history and the recommendation shelves: see [docs/ui/design-system.md §9](../docs/ui/design-system.md#9-detail-screens-sorting--playback-history) (L3).
 
 ### Track Table Sorting & Row Interactions (`AlbumScreen`, `PlaylistDetailScreen`, `LocalMusicScreen`, `FavoritesScreen`, `CollectionScreen`)
 - **Strict Track Deduplication**:

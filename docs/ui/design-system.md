@@ -551,15 +551,22 @@ Cover-tinted header theming is specified in [§6.3](#63-surface-hierarchy--reced
 - Aligned with `LocalMusicScreen`: liked-songs purple gradient on the header area (`#450af5` via `headerGradient`, content below solid), no-cover text Hero Header ("Liked songs"), action bar with 56px play button (`play-filled`), shuffle (`shuffle`), search input, and sort dropdown (`arrows-sort`).
 - Rows render as `FavoriteTrackTableRow`: index/hover play, 40px cover art, title/artist, album, hover `TrackLibraryActionButton` (`heart-filled` / `heart` submenu), hover `dots` more button, and duration.
 
-### 9.5 Local Music Dual Views & Pagination (`LocalMusicScreen`)
+### 9.5 Local Music Triple Views & Pagination (`LocalMusicScreen`)
 - **Full Loading (No 100 Limit)**: Uses `fetchAllLocalTracks` and `fetchAllLocalAlbums` to recursively paginate in batches of 500 until all scanned files are retrieved, overcoming default 100-item page boundaries.
-- **View Toggle**: Segmented toggle in header to switch between "Songs" (Tracks table) and "Albums" (Albums grid).
+- **View Toggle**: Segmented toggle in header to switch between "Songs" (Tracks table, `tracks`), "Albums" (Albums grid, `albums`), and "Artists" (Artists split view, `artists`).
 - **Local Album Grid (`LocalAlbumCard`)**:
   - Groups local tracks by album name, deriving artwork from the first track with artwork.
   - Cards display album cover, title, artist, and track count.
   - Hovering reveals a green play button (`play-filled`) for instant playback of the album's tracks.
   - Clicking the card navigates directly to the album view (`album.view`).
 - **Album Grid Sorting**: Action bar sort menu dynamically adapts when album view is active, providing album-specific sort keys: default order, album title, artist, release year, track count.
+- **Local Artists Split View (`LocalArtistRow` & `local-artist-tracks-list`)**:
+  - Aggregates unique artists from all local tracks, deriving avatar from the artist's first track with artwork, artist name, and track count badge (`N tracks` / `N 首`).
+  - Split layout with a left sidebar (`local-artists-list`, 224px width, right-bordered, independently scrollable) and right track virtual list (`local-artist-tracks-list`).
+  - Left sidebar lists all artists with active highlight and keyboard navigation (`Enter` / `Space`); automatically defaults to selecting the first artist.
+  - Right panel displays the selected artist's tracks with standard table header (`tableHeaderNode` with `solid: true`), sorting, batch selection, and row actions.
+  - Action bar controls (Play All, Shuffle) adapt to play the currently selected artist's tracks.
+  - Real-time search query filters both the left artist list and the right track list simultaneously.
 
 ### 9.6 Playback History & Recent Plays (`HistoryScreen` & `QueueScreen`)
 - **Strict Deduplication by `trackUrn`**: Both desktop and mobile `HistoryScreen` and the desktop `QueueScreen` "Recently played" tab de-duplicate playback entries by `trackUrn`, retaining only the most recent playback record. Preserves latest playback timestamp, relative time display, and completion/skipped badges. Headless batch metadata loading (`useTracksByUrn`) only resolves the deduplicated URN list, avoiding redundant catalogue lookups.

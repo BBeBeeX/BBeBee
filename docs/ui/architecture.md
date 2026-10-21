@@ -468,9 +468,11 @@ Layout metrics and folder interactions are specified in [design-system.md §8](d
    - **Playlist Item ID Decoupling, Source Badge & Pagination**: in `PlaylistDetailScreen`, rows wrap data as `{ item, track, trackUrn, originalIndex }`, preserving item IDs across sort operations — invariant in rules/ui.md §7; third-party playlists show `playlist-source-badge` and paginate half-page (30 tracks per page); user-created local playlists omit the badge — spec in design-system.md §13.
    - **Favorites Parity (`FavoritesScreen`)**: purple gradient header, 56px play button, shuffle, real-time search filter, and `FavoriteTrackTableRow` with hover `TrackLibraryActionButton` — spec in [design-system.md §9.4](design-system.md#94-favorites-screen-parity-favoritesscreen).
 
-2. **Local Music Dual Views (Tracks & Albums)** (spec in [design-system.md §9.5](design-system.md#95-local-music-dual-views--pagination-localmusicscreen)):
+2. **Local Music Triple Views (Tracks, Albums & Artists)** (spec in [design-system.md §9.5](design-system.md#95-local-music-triple-views--pagination-localmusicscreen)):
    - **Full Pagination**: `fetchAllLocalTracks` and `fetchAllLocalAlbums` recursively paginate in batches of 500 until all local items are retrieved, removing the former 100-item truncation.
-   - Header segmented toggle between "Songs" (table list) and "Albums" (grid view); album grid aggregates local tracks into `LocalAlbumCard` components with hover play trigger; the sort dropdown adapts to album-specific criteria (name, artist, year, track count).
+   - Header segmented toggle between "Songs" (table list), "Albums" (grid view), and "Artists" (split list view).
+   - Album grid aggregates local tracks into `LocalAlbumCard` components with hover play trigger; the sort dropdown adapts to album-specific criteria (name, artist, year, track count).
+   - Artists view uses a split layout: left sidebar (`local-artists-list`, 224px width, border-right) aggregates unique local artists with avatars and track counts; right panel (`local-artist-tracks-list`) displays the selected artist's tracks with standard table header, batch operations, and play-all/shuffle integration.
 
 3. **Playback History & Recent Plays** (spec in [design-system.md §9.6](design-system.md#96-playback-history--recent-plays-historyscreen--queuescreen)):
    - **Deduplication**: `HistoryScreen` (desktop and mobile) and `QueueScreen` (recent plays tab) de-duplicate tracks by `trackUrn`, retaining only the most recent playback record (with its relative timestamp and completion badge).
