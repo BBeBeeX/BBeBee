@@ -8,7 +8,7 @@ import {
 } from 'react'
 import type { Context } from 'cordis'
 import type { BrowseEntry } from '@BBeBee/protocol'
-import { Text, useI18n } from '@BBeBee/ui-kit-desktop'
+import { Text, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
 import { RecommendCard } from './RecommendCard.js'
 
@@ -138,6 +138,17 @@ export function RecommendShelfRow({
         flexDirection: 'column',
         gap: tokens.space[3],
         position: 'relative',
+        borderRadius: tokens.radius.lg,
+        padding: '10px 12px',
+        margin: '-10px -12px',
+        backgroundColor: isHovered
+          ? 'var(--surface-subtle, rgba(255, 255, 255, 0.02))'
+          : 'transparent',
+        border: isHovered
+          ? '1px solid var(--border-subtle, rgba(255, 255, 255, 0.05))'
+          : '1px solid transparent',
+        transition:
+          'background-color 0.25s var(--bb-easing-smooth, cubic-bezier(0.4, 0, 0.2, 1)), border-color 0.25s var(--bb-easing-smooth, cubic-bezier(0.4, 0, 0.2, 1))',
       },
     },
     // ── Header ───────────────────────────────────────────────────────────────
@@ -146,23 +157,12 @@ export function RecommendShelfRow({
       { style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' } },
       h(Text, { variant: 'lg', testID: testID ? `${testID}-title` : undefined }, title),
       action
-        ? h(
-            'button',
-            {
-              type: 'button',
-              'data-testid': action.testID,
-              onClick: action.onPress,
-              style: {
-                background: 'none',
-                border: 'none',
-                color: 'var(--text-secondary, rgba(255,255,255,0.75))',
-                fontSize: 13,
-                cursor: 'pointer',
-                padding: '2px 4px',
-              },
-            },
-            action.label,
-          )
+        ? h(RowActionButton, {
+            label: action.label,
+            onPress: action.onPress,
+            testID: action.testID,
+            rowHovered: isHovered,
+          })
         : null,
     ),
     // ── Content body ─────────────────────────────────────────────────────────
@@ -218,7 +218,7 @@ export function RecommendShelfRow({
             'div',
             { style: { position: 'relative', width: '100%' } },
 
-            // ── Left arrow — absolute, fade-in on hover ───────────────────────
+            // ── Left arrow — absolute, fade-in on hover, aligned with cover artwork ──
             showLeft
               ? h(
                   'div',
@@ -228,28 +228,31 @@ export function RecommendShelfRow({
                       position: 'absolute',
                       left: 0,
                       top: 0,
-                      bottom: 0,
-                      width: 60,
+                      height: 160,
+                      width: 64,
                       zIndex: 20,
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
+                      justifyContent: 'flex-start',
+                      paddingLeft: 4,
                       opacity: isHovered ? 1 : 0,
-                      transition: 'opacity 0.18s ease',
-                      pointerEvents: isHovered ? 'auto' : 'none',
-                      // Subtle gradient so the button reads against the bent card behind it
+                      transition:
+                        'opacity 0.22s var(--bb-easing-smooth, cubic-bezier(0.4, 0, 0.2, 1))',
+                      pointerEvents: 'none',
                       background:
-                        'linear-gradient(to right, var(--bg-elevated, rgba(20,20,24,0.85)) 0%, transparent 100%)',
+                        'linear-gradient(to right, var(--bg-elevated, rgba(16, 16, 20, 0.82)) 0%, rgba(16, 16, 20, 0.25) 60%, transparent 100%)',
+                      borderTopLeftRadius: tokens.radius.md,
+                      borderBottomLeftRadius: tokens.radius.md,
                     },
                   },
-                  h('button', {
-                    type: 'button',
-                    'data-testid': 'recommend-scroll-left',
-                    'aria-label': t('sources:recommendShelf.scrollLeft'),
+                  h(ScrollArrowButton, {
+                    side: 'left',
+                    testID: 'recommend-scroll-left',
+                    label: t('sources:recommendShelf.scrollLeft'),
                     tabIndex: isHovered ? 0 : -1,
+                    isHovered,
                     onClick: handleScrollLeft,
-                    style: arrowButtonStyle,
-                  }, '❮'),
+                  }),
                 )
               : null,
 
@@ -288,38 +291,38 @@ export function RecommendShelfRow({
                     style: {
                       position: 'relative',
                       flexShrink: 0,
-                      // perspective + rotateY bends the outer edge of the card away from
-                      // the viewer.  transform-origin anchors the INNER edge in place so
-                      // the bent card stays flush with its neighbours.
+                      // perspective + rotateY bends outer edge away with pleasant subtle angle
                       transform: isBendLeft
-                        ? 'perspective(600px) rotateY(22deg)'
+                        ? 'perspective(700px) rotateY(14deg)'
                         : isBendRight
-                          ? 'perspective(600px) rotateY(-22deg)'
+                          ? 'perspective(700px) rotateY(-14deg)'
                           : undefined,
                       transformOrigin: isBendLeft
                         ? 'right center'
                         : isBendRight
                           ? 'left center'
                           : undefined,
-                      // Smooth transition when a card gains or loses the bent role
-                      transition: 'transform 0.28s ease',
+                      transition:
+                        'transform 0.28s var(--bb-easing-tactile, cubic-bezier(0.16, 1, 0.3, 1))',
                     },
                   },
                   h(RecommendCard, { ctx, entry, onPress: onOpenCard }),
-                  // Directional shading gradient: darkest at the outer bent edge,
-                  // fading to transparent at the inner flat edge — completes the
-                  // cylindrical lighting illusion.
+                  // Directional shading gradient: softly applied only over the 160px cover
+                  // so the card's title and subtitle remain 100% crisp and readable
                   isBent
                     ? h('div', {
                         'aria-hidden': true,
                         style: {
                           position: 'absolute',
-                          inset: 0,
+                          top: 0,
+                          left: 0,
+                          width: 160,
+                          height: 160,
                           borderRadius: tokens.radius.md,
                           pointerEvents: 'none',
                           background: isBendLeft
-                            ? 'linear-gradient(to right, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.24) 38%, rgba(0,0,0,0) 70%)'
-                            : 'linear-gradient(to left,  rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.24) 38%, rgba(0,0,0,0) 70%)',
+                            ? 'linear-gradient(to right, rgba(0,0,0,0.36) 0%, rgba(0,0,0,0.12) 40%, transparent 75%)'
+                            : 'linear-gradient(to left,  rgba(0,0,0,0.36) 0%, rgba(0,0,0,0.12) 40%, transparent 75%)',
                         },
                       })
                     : null,
@@ -327,7 +330,7 @@ export function RecommendShelfRow({
               }),
             ),
 
-            // ── Right arrow — absolute, fade-in on hover ──────────────────────
+            // ── Right arrow — absolute, fade-in on hover, aligned with cover artwork ─
             showRight
               ? h(
                   'div',
@@ -337,52 +340,171 @@ export function RecommendShelfRow({
                       position: 'absolute',
                       right: 0,
                       top: 0,
-                      bottom: 0,
-                      width: 60,
+                      height: 160,
+                      width: 64,
                       zIndex: 20,
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
+                      justifyContent: 'flex-end',
+                      paddingRight: 4,
                       opacity: isHovered ? 1 : 0,
-                      transition: 'opacity 0.18s ease',
-                      pointerEvents: isHovered ? 'auto' : 'none',
+                      transition:
+                        'opacity 0.22s var(--bb-easing-smooth, cubic-bezier(0.4, 0, 0.2, 1))',
+                      pointerEvents: 'none',
                       background:
-                        'linear-gradient(to left, var(--bg-elevated, rgba(20,20,24,0.85)) 0%, transparent 100%)',
+                        'linear-gradient(to left, var(--bg-elevated, rgba(16, 16, 20, 0.82)) 0%, rgba(16, 16, 20, 0.25) 60%, transparent 100%)',
+                      borderTopRightRadius: tokens.radius.md,
+                      borderBottomRightRadius: tokens.radius.md,
                     },
                   },
-                  h('button', {
-                    type: 'button',
-                    'data-testid': 'recommend-scroll-right',
-                    'aria-label': t('sources:recommendShelf.scrollRight'),
+                  h(ScrollArrowButton, {
+                    side: 'right',
+                    testID: 'recommend-scroll-right',
+                    label: t('sources:recommendShelf.scrollRight'),
                     tabIndex: isHovered ? 0 : -1,
+                    isHovered,
                     onClick: handleScrollRight,
-                    style: arrowButtonStyle,
-                  }, '❯'),
+                  }),
                 )
               : null,
           ),
   )
 }
 
-/** Shared frosted-glass style for the ❮ / ❯ scroll buttons. */
-const arrowButtonStyle: React.CSSProperties = {
-  width: 40,
-  height: 40,
-  borderRadius: '50%',
-  background: 'var(--surface-hover, rgba(12, 12, 16, 0.75))',
-  backdropFilter: 'blur(12px) saturate(1.5)',
-  WebkitBackdropFilter: 'blur(12px) saturate(1.5)',
-  border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.22))',
-  color: 'var(--text-primary, rgba(255, 255, 255, 0.95))',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontSize: 22,
-  lineHeight: '1',
-  fontWeight: '300',
-  cursor: 'pointer',
-  boxShadow: 'var(--shadow-dropdown, 0 2px 10px rgba(0,0,0,0.55))',
-  padding: '0 0 1px 0',
-  outline: 'none',
-  flexShrink: 0,
+/** Interactive action button in the shelf header (e.g. "Show all") */
+function RowActionButton({
+  label,
+  onPress,
+  testID,
+  rowHovered,
+}: {
+  label: string
+  onPress: () => void
+  testID?: string
+  rowHovered: boolean
+}): ReactElement {
+  const [btnHovered, setBtnHovered] = useState(false)
+  const [btnPressed, setBtnPressed] = useState(false)
+
+  return h(
+    'button',
+    {
+      type: 'button',
+      'data-testid': testID,
+      onClick: onPress,
+      onMouseEnter: () => setBtnHovered(true),
+      onMouseLeave: () => {
+        setBtnHovered(false)
+        setBtnPressed(false)
+      },
+      onMouseDown: () => setBtnPressed(true),
+      onMouseUp: () => setBtnPressed(false),
+      style: {
+        background: btnHovered ? 'var(--surface-hover, rgba(255, 255, 255, 0.06))' : 'none',
+        border: 'none',
+        borderRadius: tokens.radius.sm,
+        color: btnHovered
+          ? 'var(--color-primary, #5F87FF)'
+          : rowHovered
+            ? 'var(--text-primary, rgba(255, 255, 255, 0.9))'
+            : 'var(--text-secondary, rgba(255, 255, 255, 0.65))',
+        fontSize: 13,
+        fontWeight: btnHovered ? '600' : '400',
+        cursor: 'pointer',
+        padding: '3px 8px',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        transform: btnPressed
+          ? 'scale(0.97)'
+          : btnHovered
+            ? 'translateX(2px)'
+            : 'none',
+        transition:
+          'color 0.18s ease, background-color 0.18s ease, transform 0.18s var(--bb-easing-tactile, cubic-bezier(0.16, 1, 0.3, 1))',
+      },
+    },
+    label,
+    tablerIcon('chevron-right', {
+      size: 14,
+      color: btnHovered ? 'var(--color-primary, #5F87FF)' : 'currentColor',
+    }),
+  )
 }
+
+/** Frosted-glass scroll button with tactile hover & active physics */
+function ScrollArrowButton({
+  side,
+  testID,
+  label,
+  tabIndex,
+  isHovered,
+  onClick,
+}: {
+  side: 'left' | 'right'
+  testID?: string
+  label: string
+  tabIndex?: number
+  isHovered: boolean
+  onClick: (e: React.MouseEvent) => void
+}): ReactElement {
+  const [btnHovered, setBtnHovered] = useState(false)
+  const [btnPressed, setBtnPressed] = useState(false)
+
+  return h(
+    'button',
+    {
+      type: 'button',
+      'data-testid': testID,
+      'aria-label': label,
+      tabIndex,
+      onClick,
+      onMouseEnter: () => setBtnHovered(true),
+      onMouseLeave: () => {
+        setBtnHovered(false)
+        setBtnPressed(false)
+      },
+      onMouseDown: () => setBtnPressed(true),
+      onMouseUp: () => setBtnPressed(false),
+      style: {
+        width: 38,
+        height: 38,
+        borderRadius: '50%',
+        background: btnHovered
+          ? 'var(--surface-active, rgba(32, 32, 40, 0.95))'
+          : 'var(--surface-hover, rgba(16, 16, 22, 0.82))',
+        backdropFilter: 'blur(16px) saturate(160%)',
+        WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+        border: btnHovered
+          ? '1px solid var(--border-strong, rgba(255, 255, 255, 0.35))'
+          : '1px solid var(--border-subtle, rgba(255, 255, 255, 0.18))',
+        color: btnHovered
+          ? 'var(--color-primary, #5F87FF)'
+          : 'var(--text-primary, rgba(255, 255, 255, 0.95))',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        boxShadow: btnHovered
+          ? 'var(--shadow-dropdown-layered, 0 8px 24px rgba(0, 0, 0, 0.65))'
+          : 'var(--shadow-dropdown, 0 4px 16px rgba(0, 0, 0, 0.45)), var(--bevel-chamfer-top, inset 0 1px 0 rgba(255, 255, 255, 0.15))',
+        padding: 0,
+        outline: 'none',
+        flexShrink: 0,
+        pointerEvents: isHovered ? 'auto' : 'none',
+        transform: btnPressed
+          ? 'scale(0.94)'
+          : btnHovered
+            ? 'scale(1.08)'
+            : 'scale(1)',
+        transition:
+          'transform 0.2s var(--bb-easing-tactile, cubic-bezier(0.16, 1, 0.3, 1)), background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease',
+      },
+    },
+    tablerIcon(side === 'left' ? 'chevron-left' : 'chevron-right', {
+      size: 20,
+      color: 'currentColor',
+    }),
+  )
+}
+

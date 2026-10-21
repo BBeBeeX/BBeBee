@@ -2,7 +2,7 @@ import { createElement as h, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { BrowseEntry } from '@BBeBee/protocol'
-import { Artwork, Text } from '@BBeBee/ui-kit-desktop'
+import { Artwork, Text, tablerIcon } from '@BBeBee/ui-kit-desktop'
 import { useResolvedArtwork } from '@BBeBee/toolkit/hooks'
 import { tokens } from '@BBeBee/ui-tokens'
 
@@ -27,6 +27,7 @@ export function RecommendCard({
 }): ReactElement {
   const artwork = useResolvedArtwork(ctx, entry.artwork)
   const [hovered, setHovered] = useState(false)
+  const [playHovered, setPlayHovered] = useState(false)
 
   return h(
     'button',
@@ -35,7 +36,10 @@ export function RecommendCard({
       'data-testid': 'recommend-card',
       onClick: () => onPress?.(entry),
       onMouseEnter: () => setHovered(true),
-      onMouseLeave: () => setHovered(false),
+      onMouseLeave: () => {
+        setHovered(false)
+        setPlayHovered(false)
+      },
       style: {
         display: 'flex',
         flexDirection: 'column',
@@ -59,8 +63,12 @@ export function RecommendCard({
           height: size,
           borderRadius: tokens.radius.md,
           overflow: 'hidden',
-          transform: hovered ? 'translateY(-2px)' : 'none',
-          transition: 'transform 0.15s ease',
+          transform: hovered ? 'translateY(-4px)' : 'none',
+          boxShadow: hovered
+            ? 'var(--card-shadow-elevated, 0 10px 24px rgba(0, 0, 0, 0.45))'
+            : '0 2px 8px rgba(0, 0, 0, 0.2)',
+          transition:
+            'transform 0.24s var(--bb-easing-tactile, cubic-bezier(0.16, 1, 0.3, 1)), box-shadow 0.24s var(--bb-easing-tactile, cubic-bezier(0.16, 1, 0.3, 1))',
         },
       },
       h(Artwork, {
@@ -79,9 +87,10 @@ export function RecommendCard({
             alignItems: 'flex-end',
             justifyContent: 'flex-end',
             padding: 10,
-            background: 'linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,0.45) 100%)',
+            background:
+              'linear-gradient(180deg, rgba(0,0,0,0) 45%, rgba(0,0,0,0.5) 100%)',
             opacity: hovered ? 1 : 0,
-            transition: 'opacity 0.15s ease',
+            transition: 'opacity 0.2s var(--bb-easing-tactile, cubic-bezier(0.16, 1, 0.3, 1))',
             pointerEvents: 'none',
           },
         },
@@ -92,19 +101,35 @@ export function RecommendCard({
           ? h(
               'div',
               {
+                onMouseEnter: () => setPlayHovered(true),
+                onMouseLeave: () => setPlayHovered(false),
                 style: {
-                  width: 36,
-                  height: 36,
+                  width: 38,
+                  height: 38,
                   borderRadius: '50%',
                   background: 'var(--button-primary-bg, var(--color-primary, #5F87FF))',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   color: 'var(--bb-accent-on, #FFFFFF)',
-                  boxShadow: 'var(--glow-brand-sm, 0 0 12px rgba(95, 135, 255, 0.35))',
+                  boxShadow: playHovered
+                    ? '0 0 18px rgba(95, 135, 255, 0.65), var(--bevel-chamfer-top, inset 0 1px 0 rgba(255,255,255,0.3))'
+                    : 'var(--glow-brand-sm, 0 2px 10px rgba(95, 135, 255, 0.4)), var(--bevel-chamfer-top, inset 0 1px 0 rgba(255,255,255,0.2))',
+                  transform: hovered
+                    ? playHovered
+                      ? 'translateY(0) scale(1.08)'
+                      : 'translateY(0) scale(1)'
+                    : 'translateY(8px) scale(0.9)',
+                  opacity: hovered ? 1 : 0,
+                  transition:
+                    'transform 0.24s var(--bb-easing-spring, cubic-bezier(0.34, 1.56, 0.64, 1)), opacity 0.2s ease, box-shadow 0.2s ease',
+                  pointerEvents: 'auto',
                 },
               },
-              '▶',
+              tablerIcon('player-play-filled', {
+                size: 18,
+                color: 'currentColor',
+              }),
             )
           : null,
       ),
