@@ -287,6 +287,7 @@ pub async fn mini_player_open(
         eprintln!("[mini-player] apply_mode_bounds failed: {}", e);
         e
     })?;
+    let _ = win.unminimize();
     let _ = win.show();
     let _ = win.set_focus();
     eprintln!("[mini-player] win.show() + set_focus() called");

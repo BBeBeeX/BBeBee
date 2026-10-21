@@ -10,6 +10,7 @@ pub struct TrayI18n {
     pub show: &'static str,
     pub hide: &'static str,
     pub quit: &'static str,
+    pub open_mini_player: &'static str,
 }
 
 pub const TRAY_EN: TrayI18n = TrayI18n {
@@ -22,6 +23,7 @@ pub const TRAY_EN: TrayI18n = TrayI18n {
     show: "Show BBeBee",
     hide: "Hide BBeBee",
     quit: "Quit",
+    open_mini_player: "Open Mini Player",
 };
 
 pub const TRAY_ZH_CN: TrayI18n = TrayI18n {
@@ -34,6 +36,7 @@ pub const TRAY_ZH_CN: TrayI18n = TrayI18n {
     show: "显示 BBeBee",
     hide: "隐藏 BBeBee",
     quit: "退出",
+    open_mini_player: "打开迷你播放器",
 };
 
 pub const TRAY_ZH_TW: TrayI18n = TrayI18n {
@@ -46,6 +49,7 @@ pub const TRAY_ZH_TW: TrayI18n = TrayI18n {
     show: "顯示 BBeBee",
     hide: "隱藏 BBeBee",
     quit: "結束",
+    open_mini_player: "開啟迷你播放器",
 };
 
 pub const TRAY_JA: TrayI18n = TrayI18n {
@@ -58,6 +62,7 @@ pub const TRAY_JA: TrayI18n = TrayI18n {
     show: "BBeBeeを表示",
     hide: "BBeBeeを隠す",
     quit: "終了",
+    open_mini_player: "ミニプレーヤーを開く",
 };
 
 /// Resolves a BCP47 locale tag to the closest matching catalogue:
@@ -94,16 +99,19 @@ mod tests {
         assert_eq!(get_tray_i18n("zh-Hans-CN").pause, "暂停");
         assert_eq!(get_tray_i18n("zh_SG").show, "显示 BBeBee");
         assert_eq!(get_tray_i18n("zh").quit, "退出");
+        assert_eq!(get_tray_i18n("zh-CN").open_mini_player, "打开迷你播放器");
 
         // Traditional Chinese variants
         assert_eq!(get_tray_i18n("zh-TW").pause, "暫停");
         assert_eq!(get_tray_i18n("zh-HK").show, "顯示 BBeBee");
         assert_eq!(get_tray_i18n("zh-MO").quit, "結束");
         assert_eq!(get_tray_i18n("zh-Hant").quit, "結束");
+        assert_eq!(get_tray_i18n("zh-TW").open_mini_player, "開啟迷你播放器");
 
         // Japanese
         assert_eq!(get_tray_i18n("ja-JP").play, "再生");
         assert_eq!(get_tray_i18n("ja").show, "BBeBeeを表示");
+        assert_eq!(get_tray_i18n("ja").open_mini_player, "ミニプレーヤーを開く");
 
         // English & fallbacks
         assert_eq!(get_tray_i18n("en-US").play, "Play");
@@ -112,6 +120,7 @@ mod tests {
         assert_eq!(get_tray_i18n("fr-FR").prev, "Previous track");
         assert_eq!(get_tray_i18n("de-DE").show, "Show BBeBee");
         assert_eq!(get_tray_i18n("").quit, "Quit");
+        assert_eq!(get_tray_i18n("en").open_mini_player, "Open Mini Player");
     }
 }
 
