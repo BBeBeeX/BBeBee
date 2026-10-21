@@ -48,6 +48,8 @@ pub struct TaskbarState {
     pub can_play_or_pause: Option<bool>,
     pub can_previous: Option<bool>,
     pub can_next: Option<bool>,
+    pub is_favorite: Option<bool>,
+    pub can_favorite: Option<bool>,
     pub title: Option<String>,
     pub artist: Option<String>,
 }

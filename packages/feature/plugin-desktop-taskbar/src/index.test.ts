@@ -42,6 +42,8 @@ describe('plugin-desktop-taskbar', () => {
         canPlayOrPause: false,
         canPrevious: false,
         canNext: false,
+        isFavorite: false,
+        canFavorite: false,
         title: undefined,
         artist: undefined,
       })
@@ -63,12 +65,14 @@ describe('plugin-desktop-taskbar', () => {
         },
       } as unknown as Context
 
-      const result = computeTaskbarState(mockCtx)
+      const result = computeTaskbarState(mockCtx, true)
       expect(result).toEqual({
         isPlaying: true,
         canPlayOrPause: true,
         canPrevious: true,
         canNext: true,
+        isFavorite: true,
+        canFavorite: true,
         title: 'Test Track',
         artist: 'Test Artist',
       })
@@ -93,13 +97,15 @@ describe('plugin-desktop-taskbar', () => {
       const result = computeTaskbarState(mockCtx)
       expect(result.isPlaying).toBe(false)
       expect(result.canPlayOrPause).toBe(true)
+      expect(result.isFavorite).toBe(false)
+      expect(result.canFavorite).toBe(true)
       expect(result.title).toBe('Paused Track')
     })
   })
 
   describe('apply lifecycle and actions', () => {
     it('attaches to bridge, syncs state, handles actions, and cleans up on dispose', async () => {
-      let actionHandler: ((action: 'togglePlay' | 'previous' | 'next') => void) | undefined
+      let actionHandler: ((action: 'togglePlay' | 'previous' | 'next' | 'toggleFavorite') => void) | undefined
       const updatedStates: TaskbarState[] = []
 
       const offActionSpy = vi.fn()
@@ -134,6 +140,14 @@ describe('plugin-desktop-taskbar', () => {
         next: vi.fn(async () => {}),
       }
 
+      const mockLibrary = {
+        isSaved: vi.fn(async () => false),
+        setSaved: vi.fn(async () => {}),
+      }
+      const mockSources = {
+        setLoved: vi.fn(async () => {}),
+      }
+
       const eventListeners: Record<string, () => void> = {}
       const offSpies: Record<string, ReturnType<typeof vi.fn>> = {}
 
@@ -150,13 +164,22 @@ describe('plugin-desktop-taskbar', () => {
           offSpies[event] = off
           return off
         }),
+        inject: vi.fn((keys: string[], cb: (scoped: any) => () => void) => {
+          if (keys.includes('library')) {
+            cb({ library: mockLibrary })
+          }
+          if (keys.includes('sources')) {
+            cb({ sources: mockSources })
+          }
+          return { dispose: vi.fn() }
+        }),
       } as unknown as Context
 
       try {
         const dispose = await apply(mockCtx)
 
         // 1. Initial sync called
-        expect(mockBridge.update).toHaveBeenCalledTimes(1)
+        expect(mockBridge.update).toHaveBeenCalled()
         expect(updatedStates[0]?.isPlaying).toBe(true)
         expect(updatedStates[0]?.title).toBe('Song 1')
 
@@ -171,11 +194,15 @@ describe('plugin-desktop-taskbar', () => {
         actionHandler?.('next')
         expect(mockPlayer.next).toHaveBeenCalledTimes(1)
 
+        actionHandler?.('toggleFavorite')
+        expect(mockSources.setLoved).toHaveBeenCalledWith('urn:track:local:1', true)
+        expect(mockLibrary.setSaved).toHaveBeenCalledWith('urn:track:local:1', true)
+
         // 3. Reacting to player state change
         mockPlayer.state.status = 'paused'
         eventListeners['player/state-changed']?.()
-        expect(mockBridge.update).toHaveBeenCalledTimes(2)
-        expect(updatedStates[1]?.isPlaying).toBe(false)
+        expect(mockBridge.update).toHaveBeenCalled()
+        expect(updatedStates[updatedStates.length - 1]?.isPlaying).toBe(false)
 
         // 4. Dispose
         dispose()
@@ -183,6 +210,7 @@ describe('plugin-desktop-taskbar', () => {
         expect(offSpies['player/state-changed']).toHaveBeenCalledTimes(1)
         expect(offSpies['player/track-changed']).toHaveBeenCalledTimes(1)
         expect(offSpies['queue/changed']).toHaveBeenCalledTimes(1)
+        expect(offSpies['library/changed']).toHaveBeenCalledTimes(1)
       } finally {
         globalThis.window = originalWindow
       }

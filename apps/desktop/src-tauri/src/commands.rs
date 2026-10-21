@@ -510,7 +510,7 @@ pub fn taskbar_update(
     taskbar: TaskbarState,
 ) -> Result<(), String> {
     *lock_recover(&state.taskbar_state) = taskbar;
-    let _ = update_tray_menu(&app, &state);
+    let _ = crate::taskbar::update_taskbar(&app, &state);
     Ok(())
 }
 

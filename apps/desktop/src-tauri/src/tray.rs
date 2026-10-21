@@ -35,6 +35,11 @@ pub fn create_tray_menu(
 ) -> Result<tauri::menu::Menu<tauri::Wry>, tauri::Error> {
     let i18n = get_tray_i18n(locale);
     let play_label = if taskbar.is_playing { &i18n.pause } else { &i18n.play };
+    let fav_label = if taskbar.is_favorite.unwrap_or(false) {
+        &i18n.unfavorite
+    } else {
+        &i18n.favorite
+    };
 
     MenuBuilder::new(app)
         .item(
@@ -50,6 +55,11 @@ pub fn create_tray_menu(
         .item(
             &MenuItemBuilder::with_id("next", &i18n.next)
                 .enabled(taskbar.can_next.unwrap_or(true))
+                .build(app)?,
+        )
+        .item(
+            &MenuItemBuilder::with_id("favorite", fav_label)
+                .enabled(taskbar.can_favorite.unwrap_or(false))
                 .build(app)?,
         )
         .item(&PredefinedMenuItem::separator(app)?)
@@ -99,6 +109,7 @@ fn on_menu_event(app: &tauri::AppHandle, id: &str) {
         "play_pause" => emit_to_main(app, "taskbar:action", "togglePlay"),
         "prev" => emit_to_main(app, "taskbar:action", "previous"),
         "next" => emit_to_main(app, "taskbar:action", "next"),
+        "favorite" => emit_to_main(app, "taskbar:action", "toggleFavorite"),
         "toggle_show" => toggle_main_window(app),
         "quit" => {
             app.state::<AppState>().set_quitting(true);
@@ -109,7 +120,7 @@ fn on_menu_event(app: &tauri::AppHandle, id: &str) {
 }
 
 /// Emit an event to the main window, if it exists.
-fn emit_to_main(app: &tauri::AppHandle, event: &str, payload: &str) {
+pub fn emit_to_main(app: &tauri::AppHandle, event: &str, payload: &str) {
     if let Some(main) = app.get_webview_window("main") {
         let _ = main.emit(event, payload);
     }

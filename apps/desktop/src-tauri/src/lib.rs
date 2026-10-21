@@ -9,6 +9,7 @@ pub mod secrets;
 pub mod protocols;
 pub mod sidecar;
 pub mod state;
+pub mod taskbar;
 pub mod tray;
 pub mod window_policy;
 

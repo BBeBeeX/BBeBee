@@ -228,6 +228,11 @@ fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
         tauri::WindowEvent::Moved(_) => {
             on_window_moved(window);
         }
+        tauri::WindowEvent::Focused(true) if window.label() == "main" => {
+            let app = window.app_handle();
+            let state = app.state::<AppState>();
+            let _ = desktop_tauri_lib::taskbar::update_taskbar(&app, &state);
+        }
         _ => {}
     }
 }

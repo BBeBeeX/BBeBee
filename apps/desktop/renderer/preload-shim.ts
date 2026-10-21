@@ -125,7 +125,9 @@ export interface BBeBeeDesktopLyricsApi {
 
 export interface BBeBeeTaskbarApi {
   update(state: unknown): Promise<void>
-  onAction(callback: (action: 'togglePlay' | 'previous' | 'next') => void): () => void
+  onAction(
+    callback: (action: 'togglePlay' | 'previous' | 'next' | 'toggleFavorite') => void,
+  ): () => void
 }
 
 export interface BBeBeeMiniPlayerApi {
@@ -574,8 +576,9 @@ export function createPreloadApi(
     taskbar: {
       update: (state: unknown): Promise<void> =>
         invoke('desktop_taskbar_update', { taskbar: state }),
-      onAction: (callback: (action: 'togglePlay' | 'previous' | 'next') => void): (() => void) =>
-        addListener('taskbar:action', callback),
+      onAction: (
+        callback: (action: 'togglePlay' | 'previous' | 'next' | 'toggleFavorite') => void,
+      ): (() => void) => addListener('taskbar:action', callback),
     },
     miniPlayer: {
       open: (options?: unknown): Promise<void> =>
