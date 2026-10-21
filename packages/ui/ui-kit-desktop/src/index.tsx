@@ -68,5 +68,6 @@ export {
   CURSIVE_FONT,
   type CinematicLyricsTemplateProps,
 } from './components/CinematicLyricsTemplate.js'
+export { EqualizerBars, type EqualizerBarsProps } from './components/EqualizerBars.js'
 export { tablerIcon } from './icons/index.js'
 

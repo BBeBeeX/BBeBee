@@ -12,6 +12,7 @@ import { LibraryTrackRow } from '../components/LibraryTrackRow.js'
 import { BatchActionBar } from '../components/BatchActionBar.js'
 import { useTrackLibraryInfo } from '../hooks/useTrackLibraryInfo.js'
 import { fetchAllLocalAlbums, fetchAllLocalTracks } from '@BBeBee/plugin-library/hooks'
+import { useTransport } from '@BBeBee/toolkit/hooks'
 
 type LocalTrackSortKey = 'default' | 'title' | 'artist' | 'album' | 'duration'
 type LocalAlbumSortKey = 'default' | 'title' | 'artist' | 'year' | 'count'
@@ -363,6 +364,7 @@ export function LocalMusicScreen({
   highlightUrns,
 }: LocalMusicScreenProps): ReactElement {
   const { t } = useI18n(ctx)
+  const transport = useTransport(ctx)
   const [tracks, setTracks] = useState<readonly Track[]>([])
   const [albums, setAlbums] = useState<readonly Album[]>([])
   const [viewMode, setViewMode] = useState<'tracks' | 'albums' | 'artists'>('tracks')
@@ -1304,6 +1306,8 @@ export function LocalMusicScreen({
                       ctx,
                       track,
                       index,
+                      active: transport?.trackUrn === track.urn,
+                      isPlaying: transport?.trackUrn === track.urn && transport?.status === 'playing',
                       batchMode: isBatchMode,
                       selected: selectedUrns.has(track.urn),
                       onToggleSelect: () => handleToggleSelect(track.urn),
@@ -1432,6 +1436,8 @@ export function LocalMusicScreen({
                           ctx,
                           track,
                           index,
+                          active: transport?.trackUrn === track.urn,
+                          isPlaying: transport?.trackUrn === track.urn && transport?.status === 'playing',
                           batchMode: isBatchMode,
                           selected: selectedUrns.has(track.urn),
                           onToggleSelect: () => handleToggleSelect(track.urn),

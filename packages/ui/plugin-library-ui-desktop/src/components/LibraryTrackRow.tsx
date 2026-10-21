@@ -3,7 +3,7 @@ import type { KeyboardEvent, MouseEvent as ReactMouseEvent, ReactElement } from 
 import type { Context } from 'cordis'
 import type { Track } from '@BBeBee/protocol'
 import type { MenuAnchor } from '@BBeBee/ui-core'
-import { HoverLabel, MarqueeText, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
+import { EqualizerBars, HoverLabel, MarqueeText, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { formatAddedDate, formatDuration } from '@BBeBee/toolkit'
 import { CachedArtwork } from './CachedArtwork.js'
 import { TrackLibraryActionButton } from './TrackLibraryActionButton.js'
@@ -12,6 +12,10 @@ export interface LibraryTrackRowProps {
   ctx: Context
   track: Track
   index: number
+  /** Whether this track is the currently active/playing one. */
+  active?: boolean
+  /** Whether audio playback is currently running. */
+  isPlaying?: boolean
   /** Compact view: no artwork, artist as its own column. */
   compact?: boolean
   /** Live saved state: shows a plus when unsaved, a red heart when saved. */
@@ -53,6 +57,8 @@ export function LibraryTrackRow({
   ctx,
   track,
   index,
+  active = false,
+  isPlaying = false,
   compact,
   inLibrary,
   highlighted,
@@ -84,6 +90,7 @@ export function LibraryTrackRow({
       tabIndex: 0,
       'data-highlighted': highlighted ? 'true' : undefined,
       'data-selected': selected ? 'true' : undefined,
+      'data-active': active ? 'true' : undefined,
       onMouseEnter: () => setHovered(true),
       onMouseLeave: () => setHovered(false),
       onClick: handleRowClick,
@@ -109,17 +116,21 @@ export function LibraryTrackRow({
             : 'rgba(255, 255, 255, 0.1)'
           : highlighted
           ? 'rgba(95, 135, 255, 0.18)'
+          : active
+          ? 'rgba(95, 135, 255, 0.08)'
           : 'transparent',
         borderLeft: selected
           ? '3px solid var(--accent-primary, #5F87FF)'
           : highlighted
+          ? '3px solid var(--accent-primary, #5F87FF)'
+          : active
           ? '3px solid var(--accent-primary, #5F87FF)'
           : '3px solid transparent',
         transition: 'background-color 0.15s ease, border-color 0.15s ease',
         boxSizing: 'border-box',
       },
     },
-    // Col 1: # or Play icon or Checkbox in batch mode
+    // Col 1: # or Play icon or Equalizer bars or Checkbox in batch mode
     h(
       'div',
       {
@@ -153,6 +164,8 @@ export function LibraryTrackRow({
           })
         : hovered
         ? tablerIcon('play', { size: 18, color: 'currentColor' })
+        : active
+        ? h(EqualizerBars, { isPlaying, height: 14 })
         : String(index + 1),
     ),
     // Col 2: Artwork (list only) + Title + Artist
@@ -208,9 +221,9 @@ export function LibraryTrackRow({
           { label: track.title, style: { display: 'block' } },
           h(MarqueeText, {
             style: {
-              color: 'var(--bb-text-primary, #FFFFFF)',
+              color: active ? 'var(--color-primary, #5F87FF)' : 'var(--bb-text-primary, #FFFFFF)',
               fontSize: 15,
-              fontWeight: 500,
+              fontWeight: active ? 600 : 500,
             },
             children: track.title,
           }),

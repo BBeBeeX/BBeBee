@@ -80,6 +80,7 @@ class SourcesStub extends Service {
 
 class PlayerStub extends Service {
   readonly calls: { method: string; urn?: string; urns?: readonly string[]; context?: unknown }[] = []
+  state: any = { trackUrn: undefined, status: 'idle' }
   constructor(ctx: Context) {
     super(ctx, 'player')
   }
@@ -556,6 +557,30 @@ describe('AlbumScreen', () => {
         await tick()
       })
       expect(queryByTestId('batch-action-bar')).toBeNull()
+    })
+  })
+
+  it('renders equalizer bars in index column and primary color title for currently playing track', async () => {
+    const { ctx, player } = await harness()
+    player.state = { trackUrn: TRACK_A, status: 'playing' }
+    await withListLayout(async () => {
+      const { getByTestId, getByText } = render(h(AlbumScreen, { ctx, urn: ALBUM_URN }))
+      await act(async () => {
+        await tick()
+        await tick()
+      })
+
+      // Equalizer bars should be rendered for TRACK_A
+      const eq = getByTestId('equalizer-bars')
+      expect(eq).toBeTruthy()
+
+      // Track title Hunter should be colored with primary color
+      const titleEl = getByText('Hunter')
+      expect(titleEl.parentElement?.style.color).toBe('var(--color-primary, #5F87FF)')
+
+      // TRACK_B is not active, so Jóga title should be standard primary text color
+      const titleB = getByText('Jóga')
+      expect(titleB.parentElement?.style.color).toBe('var(--bb-text-primary, #FFFFFF)')
     })
   })
 })

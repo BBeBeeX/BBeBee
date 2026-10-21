@@ -2,7 +2,7 @@ import { createElement as h, memo, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { Track } from '@BBeBee/protocol'
 import { useResolvedArtwork } from '@BBeBee/toolkit/hooks'
-import { Artwork } from '@BBeBee/ui-kit-desktop'
+import { Artwork, tablerIcon } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
 
 export interface QueueTrackRowProps {
@@ -126,12 +126,46 @@ export const QueueTrackRow = memo(
             },
           })
         : null,
-      h(Artwork, {
-        artwork,
-        seed: track.urn,
-        size: 48,
-        radius: tokens.radius.sm,
-      }),
+      h(
+        'div',
+        {
+          style: {
+            position: 'relative',
+            width: 48,
+            height: 48,
+            borderRadius: tokens.radius.sm,
+            overflow: 'hidden',
+            flexShrink: 0,
+          },
+        },
+        h(Artwork, {
+          artwork,
+          seed: track.urn,
+          size: 48,
+          radius: tokens.radius.sm,
+        }),
+        hovered
+          ? h(
+              'div',
+              {
+                'aria-label': 'Play',
+                'data-testid': 'queue-track-play-overlay',
+                style: {
+                  position: 'absolute',
+                  inset: 0,
+                  backgroundColor: 'rgba(0, 0, 0, 0.45)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: tokens.radius.sm,
+                  transition: 'opacity 0.15s ease',
+                  pointerEvents: 'none',
+                },
+              },
+              tablerIcon('play', { size: 20, color: '#FFFFFF' }),
+            )
+          : null,
+      ),
       h(
         'div',
         {
@@ -174,20 +208,66 @@ export const QueueTrackRow = memo(
             )
           : null,
       ),
-      extraRight
-        ? h(
-            'span',
-            {
-              style: {
-                fontSize: 12,
-                color: 'var(--bb-text-secondary, #8E8E93)',
-                flexShrink: 0,
-                marginLeft: 8,
+      h(
+        'div',
+        {
+          style: {
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            minWidth: 44,
+            flexShrink: 0,
+            marginLeft: 8,
+          },
+        },
+        hovered && onMore
+          ? h(
+              'button',
+              {
+                type: 'button',
+                'data-testid': 'queue-track-more-btn',
+                'aria-label': 'More options',
+                title: 'More options',
+                onClick: (e: { stopPropagation: () => void; currentTarget: HTMLElement }) => {
+                  e.stopPropagation()
+                  const rect = e.currentTarget.getBoundingClientRect()
+                  onMore({ x: rect.left, y: rect.bottom + 4 })
+                },
+                style: {
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--bb-text-primary, #FFFFFF)',
+                  cursor: 'pointer',
+                  padding: '4px 6px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: tokens.radius.sm,
+                  outline: 'none',
+                  transition: 'background-color 0.15s ease',
+                },
+                onMouseEnter: (e: { currentTarget: HTMLElement }) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.12)'
+                },
+                onMouseLeave: (e: { currentTarget: HTMLElement }) => {
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                },
               },
-            },
-            extraRight,
-          )
-        : null,
+              tablerIcon('dots', { size: 18, color: 'currentColor' }),
+            )
+          : extraRight
+          ? h(
+              'span',
+              {
+                style: {
+                  fontSize: 12,
+                  color: 'var(--bb-text-secondary, #8E8E93)',
+                },
+              },
+              extraRight,
+            )
+          : null,
+      ),
     )
   },
   (prev, next) =>

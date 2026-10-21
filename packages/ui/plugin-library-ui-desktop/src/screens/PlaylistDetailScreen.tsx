@@ -4,7 +4,7 @@ import type { Context } from 'cordis'
 import type { ArtworkRef, LibraryService, PlaylistItem, PlaylistDetail, SourcesService, ShareService, Track } from '@BBeBee/protocol'
 import { tryParseUrn } from '@BBeBee/protocol'
 import { usePlaylist } from '@BBeBee/plugin-library/hooks'
-import { resolveTrackSourceName, useResolvedArtwork, useTracksByUrn } from '@BBeBee/toolkit/hooks'
+import { resolveTrackSourceName, useResolvedArtwork, useTracksByUrn, useTransport } from '@BBeBee/toolkit/hooks'
 import { serviceOf, type MenuAnchor } from '@BBeBee/ui-core'
 import { sortMenuItems, usePlaylistMenu, useTrackMenu } from '@BBeBee/ui-menus'
 import { ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, List, PageMarqueeProvider, SaveToPlaylistPopover, StickyDetailBar, Text, tablerIcon, useDetailBarCollapse, useImageColor, headerGradient, viewModeMenuItems, useViewMode, useI18n } from '@BBeBee/ui-kit-desktop'
@@ -20,6 +20,7 @@ type PlaylistSortKey = 'custom' | 'title' | 'artist' | 'album' | 'source' | 'dat
 
 export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string }): ReactElement {
   const { t } = useI18n(ctx)
+  const transport = useTransport(ctx)
   const sources = serviceOf<SourcesService>(ctx, 'sources')
   const parsedUrn = tryParseUrn(urn ?? '')
   const isThirdPartyUrn = Boolean(parsedUrn && parsedUrn.sourceId && parsedUrn.sourceId !== 'local')
@@ -745,6 +746,8 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
             ctx,
             track,
             index,
+            active: transport?.trackUrn === trackUrn,
+            isPlaying: transport?.trackUrn === trackUrn && transport?.status === 'playing',
             compact: viewMode === 'compact',
             batchMode: isBatchMode,
             selected: selectedUrns.has(trackUrn),

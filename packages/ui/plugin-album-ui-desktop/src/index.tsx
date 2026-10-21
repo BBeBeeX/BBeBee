@@ -24,10 +24,10 @@ import type { Collection, DownloadsService, LibraryService, PlayerService, Share
 import { tryParseUrn } from '@BBeBee/protocol'
 import { ALBUM_VIEWS } from '@BBeBee/plugin-album/views'
 import { useAlbum } from '@BBeBee/plugin-album/hooks'
-import { resolveTrackSourceName, useResolvedArtwork } from '@BBeBee/toolkit/hooks'
+import { resolveTrackSourceName, useResolvedArtwork, useTransport } from '@BBeBee/toolkit/hooks'
 import { formatDuration, formatTotalDuration } from '@BBeBee/toolkit'
 import { addToCollectionSubmenu, openExternalUrl, resolveOriginalResourceUrl, sleepTimerSubmenu, sortMenuItems, useSaveToPlaylistMenu, useTrackMenu } from '@BBeBee/ui-menus'
-import { Artwork, ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, HoverLabel, List, MarqueeText, PageMarqueeProvider, SaveToPlaylistPopover, StickyDetailBar, tablerIcon, useDetailBarCollapse, useI18n, useImageColor, headerGradient, viewModeMenuItems, useViewMode } from '@BBeBee/ui-kit-desktop'
+import { Artwork, ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, EqualizerBars, HoverLabel, List, MarqueeText, PageMarqueeProvider, SaveToPlaylistPopover, StickyDetailBar, tablerIcon, useDetailBarCollapse, useI18n, useImageColor, headerGradient, viewModeMenuItems, useViewMode } from '@BBeBee/ui-kit-desktop'
 import { serviceOf } from '@BBeBee/ui-core'
 import type { ArtworkProps, MenuAnchor, MenuItemSpec } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
@@ -128,6 +128,8 @@ interface AlbumTrackRowLabels {
 function AlbumTrackTableRow({
   track,
   index,
+  active,
+  isPlaying,
   albumTitle,
   inLibrary,
   compact,
@@ -145,6 +147,8 @@ function AlbumTrackTableRow({
 }: {
   track: Track
   index: number
+  active?: boolean
+  isPlaying?: boolean
   albumTitle?: string
   inLibrary: boolean
   /** Compact view: artist as its own column. */
@@ -186,7 +190,12 @@ function AlbumTrackTableRow({
         padding: '0 32px',
         borderRadius: 4,
         cursor: 'pointer',
-        background: hovered ? 'var(--surface-hover, rgba(255, 255, 255, 0.1))' : 'transparent',
+        background: hovered
+          ? 'var(--surface-hover, rgba(255, 255, 255, 0.1))'
+          : active
+            ? 'rgba(95, 135, 255, 0.08)'
+            : 'transparent',
+        borderLeft: active ? '3px solid var(--color-primary, #5F87FF)' : '3px solid transparent',
         transition: 'background-color 0.15s ease',
         boxSizing: 'border-box',
       },
@@ -225,7 +234,14 @@ function AlbumTrackTableRow({
           })
         : hovered
           ? tablerIcon('play', { size: 18 })
-          : String(index + 1),
+          : active
+            ? h(EqualizerBars, {
+                isPlaying: isPlaying ?? true,
+                barCount: 4,
+                height: 14,
+                color: 'var(--color-primary, #5F87FF)',
+              })
+            : String(index + 1),
     ),
     // Col 2: Title and Artist
     // When the song/artist name is truncated, hovering for 2s reveals a label with the full name.
@@ -247,7 +263,7 @@ function AlbumTrackTableRow({
         { label: track.title, style: { display: 'block' } },
         h(MarqueeText, {
           style: {
-            color: 'var(--bb-text-primary, #FFFFFF)',
+            color: active ? 'var(--color-primary, #5F87FF)' : 'var(--bb-text-primary, #FFFFFF)',
             fontSize: 15,
             fontWeight: 500,
           },
@@ -444,6 +460,7 @@ type AlbumSortKey = 'trackNo' | 'title' | 'album' | 'duration' | 'plays' | 'sour
 
 export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): ReactElement {
   const album = useAlbum(ctx, urn)
+  const transport = useTransport(ctx)
   const downloads = serviceOf<DownloadsService>(ctx, 'downloads')
   const library = serviceOf<LibraryService>(ctx, 'library')
   const sources = serviceOf<SourcesService>(ctx, 'sources')
@@ -1235,6 +1252,8 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
           h(AlbumTrackTableRow, {
             track,
             index,
+            active: transport?.trackUrn === track.urn,
+            isPlaying: transport?.trackUrn === track.urn && transport?.status === 'playing',
             albumTitle: detail.title,
             batchMode: isBatchMode,
             selected: selectedUrns.has(track.urn),

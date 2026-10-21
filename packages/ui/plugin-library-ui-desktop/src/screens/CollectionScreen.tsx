@@ -11,10 +11,13 @@ import { useTrackMenu } from '@BBeBee/ui-menus'
 import { tokens } from '@BBeBee/ui-tokens'
 import { TrackLibraryActionButton } from '../components/TrackLibraryActionButton.js'
 import { useTrackLibraryInfo } from '../hooks/useTrackLibraryInfo.js'
+import { useTransport } from '@BBeBee/toolkit/hooks'
 
 function CollectionTrackTableRow({
   ctx,
   track,
+  active,
+  isPlaying: _isPlaying,
   onPress,
   onMore,
   inLibrary,
@@ -23,6 +26,8 @@ function CollectionTrackTableRow({
 }: {
   ctx: Context
   track: Track
+  active?: boolean
+  isPlaying?: boolean
   onPress: () => void
   onMore: (anchor: MenuAnchor) => void
   inLibrary: boolean
@@ -55,7 +60,12 @@ function CollectionTrackTableRow({
         padding: `0 ${tokens.space[3]}px`,
         borderRadius: tokens.radius.sm,
         cursor: 'pointer',
-        background: hovered ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+        background: hovered
+          ? 'rgba(255, 255, 255, 0.08)'
+          : active
+            ? 'rgba(95, 135, 255, 0.08)'
+            : 'transparent',
+        borderLeft: active ? '3px solid var(--color-primary, #5F87FF)' : '3px solid transparent',
         transition: 'background-color 0.15s ease',
         boxSizing: 'border-box',
         width: '100%',
@@ -69,7 +79,21 @@ function CollectionTrackTableRow({
     h(
       'div',
       { style: { flex: 1, minWidth: 0, marginLeft: tokens.space[3], overflow: 'hidden' } },
-      h(Text, { numberOfLines: 1, children: track.title }),
+      h(
+        'span',
+        {
+          style: {
+            color: active ? 'var(--color-primary, #5F87FF)' : 'var(--bb-text-primary, #FFFFFF)',
+            fontSize: 14,
+            fontWeight: active ? 600 : 500,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            display: 'block',
+          },
+        },
+        track.title,
+      ),
       artists ? h(Text, { variant: 'sm', tone: 'muted', numberOfLines: 1, children: artists }) : null,
     ),
     h(
@@ -184,6 +208,7 @@ function MemberRow({ member, onOpen }: { member: CollectionMember; onOpen: () =>
  */
 export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): ReactElement {
   const { t } = useI18n(ctx)
+  const transport = useTransport(ctx)
   const state = useCollectionDetail(ctx, id)
   const detail = state.data
   const tracks = detail?.members ?? []
@@ -257,6 +282,8 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
             return h(CollectionTrackTableRow, {
               ctx,
               track: member.track,
+              active: transport?.trackUrn === member.track.urn,
+              isPlaying: transport?.trackUrn === member.track.urn && transport?.status === 'playing',
               inLibrary: isTrackInLibrary(member.track, true),
               onAddToFavorites: handleAddToFavorites,
               onOpenPlaylistMenu: openAddToPlaylistMenu,

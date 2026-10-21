@@ -505,4 +505,36 @@ describe('the queue row menu', () => {
       expect(container.querySelector('[role="menu"]')).toBeTruthy()
     })
   })
+
+  it('shows cover play overlay and ... button on hover, and clicking ... opens menu', async () => {
+    const { ctx } = await harness({ status: 'playing' }, [
+      { id: 'a', trackUrn: 'BBeBee:local:track:a', addedBy: 'user' },
+    ])
+    withListLayout(() => {
+      const { container } = render(h(QueueScreen, { ctx }))
+      const row = container.querySelector('[role="row"]') as HTMLElement
+      expect(row).toBeTruthy()
+
+      // Before hover: no play overlay, no dots button
+      expect(container.querySelector('[data-testid="queue-track-play-overlay"]')).toBeNull()
+      expect(container.querySelector('[data-testid="queue-track-more-btn"]')).toBeNull()
+
+      // Hover
+      act(() => {
+        fireEvent.mouseEnter(row)
+      })
+
+      // After hover: play overlay and dots button appear
+      expect(container.querySelector('[data-testid="queue-track-play-overlay"]')).toBeTruthy()
+      const moreBtn = container.querySelector('[data-testid="queue-track-more-btn"]') as HTMLElement
+      expect(moreBtn).toBeTruthy()
+
+      // Clicking ... button opens menu
+      act(() => {
+        fireEvent.click(moreBtn)
+      })
+      expect(container.textContent).toContain('Add to play queue')
+      expect(container.querySelector('[role="menu"]')).toBeTruthy()
+    })
+  })
 })

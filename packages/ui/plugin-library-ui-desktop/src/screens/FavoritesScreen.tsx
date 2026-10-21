@@ -3,7 +3,7 @@ import type { ChangeEvent, MouseEvent as ReactMouseEvent, ReactElement } from 'r
 import type { Context } from 'cordis'
 import type { LibraryService, PlayerService, SourcesService, Track } from '@BBeBee/protocol'
 import { useSaved } from '@BBeBee/plugin-library/hooks'
-import { resolveTrackSourceName, useTracksByUrn } from '@BBeBee/toolkit/hooks'
+import { resolveTrackSourceName, useTracksByUrn, useTransport } from '@BBeBee/toolkit/hooks'
 import { serviceOf, type MenuAnchor, type MenuItemSpec } from '@BBeBee/ui-core'
 import { sortMenuItems, useTrackMenu } from '@BBeBee/ui-menus'
 import { ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, List, SaveToPlaylistPopover, StickyDetailBar, Text, tablerIcon, useDetailBarCollapse, headerGradient, viewModeMenuItems, useViewMode, useI18n } from '@BBeBee/ui-kit-desktop'
@@ -19,6 +19,7 @@ const FAVORITES_TINT = '#450af5'
 
 export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
   const { t } = useI18n(ctx)
+  const transport = useTransport(ctx)
   const saved = useSaved(ctx, 'track')
   const entries = saved.data ?? []
   const rawUrns = useMemo(() => entries.map((entry) => entry.urn), [entries])
@@ -478,6 +479,8 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
             ctx,
             track,
             index,
+            active: transport?.trackUrn === track.urn,
+            isPlaying: transport?.trackUrn === track.urn && transport?.status === 'playing',
             compact: viewMode === 'compact',
             batchMode: isBatchMode,
             selected: selectedUrns.has(track.urn),

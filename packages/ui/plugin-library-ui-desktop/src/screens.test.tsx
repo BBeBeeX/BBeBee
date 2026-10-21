@@ -188,6 +188,7 @@ class LibraryStub extends Service {
 
 class PlayerStub extends Service {
   readonly calls: string[] = []
+  state: any = { trackUrn: undefined, status: 'idle' }
   constructor(ctx: Context) {
     super(ctx, 'player')
   }
@@ -1222,6 +1223,23 @@ describe('FavoritesScreen', () => {
         await tick()
       })
       expect(queryByTestId('batch-action-bar')).toBeNull()
+    })
+  })
+
+  it('renders equalizer bars and theme color title when track is playing in FavoritesScreen', async () => {
+    const { ctx, player } = await harness()
+    player.state = { trackUrn: TRACK, status: 'playing' }
+    await withListLayout(async () => {
+      const { getByTestId, getByText } = render(h(FavoritesScreen, { ctx }))
+      await act(async () => {
+        await tick()
+      })
+
+      const eq = getByTestId('equalizer-bars')
+      expect(eq).toBeTruthy()
+
+      const titleEl = getByText('Alpha')
+      expect(titleEl.parentElement?.style.color).toBe('var(--color-primary, #5F87FF)')
     })
   })
 })
