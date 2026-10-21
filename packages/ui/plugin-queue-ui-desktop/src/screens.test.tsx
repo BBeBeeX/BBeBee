@@ -427,6 +427,59 @@ describe('QueueScreen', () => {
     firstRow.click()
     expect(calls).toContain('jump:BBeBee:local:track:dup|BBeBee:local:track:dup,BBeBee:local:track:other')
   })
+
+  it('caps the deduplicated Recently played list at 50 tracks', async () => {
+    const sixtyRecords: PlayRecord[] = Array.from({ length: 60 }, (_, i) => ({
+      id: `hist-${i}`,
+      trackUrn: `BBeBee:local:track:hist-${i}`,
+      startedAt: Date.now() - i * 1000,
+      msPlayed: 120000,
+      completed: true,
+      skipped: false,
+    }))
+    const { ctx } = await harness(
+      {},
+      [{ id: 'a', trackUrn: 'BBeBee:local:track:a', addedBy: 'user' }],
+      {},
+      sixtyRecords,
+    )
+    const { container } = withListLayout(() => render(h(QueueScreen, { ctx })))
+    const histTab = container.querySelector('button[aria-label="Recently played"]') as HTMLElement
+    act(() => {
+      fireEvent.click(histTab)
+    })
+    await act(async () => {
+      await Promise.resolve()
+    })
+    const historyList = container.querySelector('div[role="list"][aria-label="Recently played"]')
+    const items = historyList?.querySelectorAll('[role="listitem"]')
+    // Out of 60 records provided, it must be capped at 50 in the virtual list
+    expect(items?.length).toBeLessThanOrEqual(50)
+    expect(items?.length).toBeGreaterThan(0)
+    expect(items?.[0]?.getAttribute('aria-setsize')).toBe('50')
+  })
+
+  it('shows no more songs queued message when no upcoming tracks remain', async () => {
+    const { ctx } = await harness({ currentItemId: 'a' }, [
+      { id: 'a', trackUrn: 'BBeBee:local:track:a', addedBy: 'user' },
+    ])
+    const { container } = withListLayout(() => render(h(QueueScreen, { ctx })))
+    expect(container.textContent).toContain('No more songs queued')
+  })
+
+  it('virtualises a large upcoming queue rendering only windowed rows', async () => {
+    const manyItems: QueueItem[] = Array.from({ length: 100 }, (_, i) => ({
+      id: `item-${i}`,
+      trackUrn: `BBeBee:local:track:${i}`,
+      addedBy: 'user',
+    }))
+    const { ctx } = await harness({ currentItemId: 'item-0' }, manyItems)
+    const { container } = withListLayout(() => render(h(QueueScreen, { ctx })))
+    const renderedRows = container.querySelectorAll('[role="row"]')
+    // Out of 100 items, virtualizer windows only the visible + overscan rows (well under 50)
+    expect(renderedRows.length).toBeGreaterThan(0)
+    expect(renderedRows.length).toBeLessThan(40)
+  })
 })
 
 
