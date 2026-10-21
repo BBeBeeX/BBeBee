@@ -35,7 +35,12 @@ export const toneColor = (tone: Tone | undefined): string => {
   }
 }
 
-export function buttonStyle(variant: ButtonVariant, disabled: boolean, hovered: boolean): CSSProperties {
+export function buttonStyle(
+  variant: ButtonVariant,
+  disabled: boolean,
+  hovered: boolean,
+  pressed = false,
+): CSSProperties {
   const base: CSSProperties = {
     minHeight: tokens.size.touchTarget,
     padding: `0 ${tokens.space[5]}px`,
@@ -47,8 +52,8 @@ export function buttonStyle(variant: ButtonVariant, disabled: boolean, hovered: 
     cursor: disabled ? 'not-allowed' : 'pointer',
     outlineColor: 'var(--border-focus, rgba(117,152,255,0.50))',
     opacity: disabled ? 0.5 : 1,
-    transition: `transform ${tokens.duration.fast}ms, background-color ${tokens.duration.fast}ms, color ${tokens.duration.fast}ms, border-color ${tokens.duration.fast}ms, box-shadow ${tokens.duration.fast}ms`,
-    transform: hovered && !disabled ? 'scale(1.04)' : 'scale(1)',
+    transition: `transform ${tokens.duration.fast}ms ${tokens.easing.tactile}, background-color ${tokens.duration.fast}ms, color ${tokens.duration.fast}ms, border-color ${tokens.duration.fast}ms, box-shadow ${tokens.duration.fast}ms ${tokens.easing.tactile}`,
+    transform: pressed && !disabled ? 'scale(0.97)' : hovered && !disabled ? 'scale(1.04)' : 'scale(1)',
     borderWidth: 1,
     borderStyle: 'solid',
     borderColor: 'transparent',
@@ -60,16 +65,22 @@ export function buttonStyle(variant: ButtonVariant, disabled: boolean, hovered: 
         background: hovered && !disabled ? 'var(--color-surface-hover, var(--surface-hover))' : 'transparent',
         color: 'var(--text-primary, var(--bb-text-primary, #000000))',
         borderColor: hovered && !disabled ? 'var(--border-hover, rgba(145,176,255,0.25))' : 'var(--border-default, rgba(145,176,255,0.14))',
+        boxShadow: pressed && !disabled ? 'var(--shadow-sunken, inset 0 1px 2px rgba(0, 0, 0, 0.2))' : undefined,
       }
     case 'ghost':
       return {
         ...base,
         background: hovered && !disabled ? 'var(--color-surface-hover, var(--surface-hover))' : 'transparent',
         color: hovered && !disabled ? 'var(--text-primary, var(--bb-text-primary, #000000))' : 'var(--text-secondary, var(--bb-text-secondary, #5E5E5E))',
-        transform: 'scale(1)',
+        transform: pressed && !disabled ? 'scale(0.95)' : 'scale(1)',
       }
     case 'danger':
-      return { ...base, background: 'var(--error, #EF4444)', color: '#FFFFFF' }
+      return {
+        ...base,
+        background: 'var(--error, #EF4444)',
+        color: '#FFFFFF',
+        boxShadow: pressed && !disabled ? 'inset 0 1px 2px rgba(0, 0, 0, 0.3)' : undefined,
+      }
     default:
       return {
         ...base,
@@ -77,7 +88,11 @@ export function buttonStyle(variant: ButtonVariant, disabled: boolean, hovered: 
           ? 'var(--button-primary-hover, var(--gradient-ice))'
           : 'var(--button-primary-bg, var(--gradient-brand))',
         color: 'var(--button-primary-text, #FFFFFF)',
-        boxShadow: hovered && !disabled ? 'var(--glow-brand-sm, 0 0 12px rgba(117,152,255,0.18))' : 'none',
+        boxShadow: pressed && !disabled
+          ? 'inset 0 2px 4px rgba(0, 0, 0, 0.3)'
+          : hovered && !disabled
+            ? 'var(--glow-brand-sm, 0 0 12px rgba(117,152,255,0.18)), var(--bevel-chamfer-top, inset 0 1px 0 rgba(255, 255, 255, 0.22))'
+            : 'var(--bevel-chamfer-top, inset 0 1px 0 rgba(255, 255, 255, 0.16))',
       }
   }
 }
@@ -86,4 +101,30 @@ export function buttonStyle(variant: ButtonVariant, disabled: boolean, hovered: 
 export function useHover(): [boolean, { onMouseEnter: () => void; onMouseLeave: () => void }] {
   const [hovered, setHovered] = useState(false)
   return [hovered, { onMouseEnter: () => setHovered(true), onMouseLeave: () => setHovered(false) }]
+}
+
+/** Pointer-hover and press state for tactile micro-interactions. */
+export function usePressable(): [
+  { hovered: boolean; pressed: boolean },
+  {
+    onMouseEnter: () => void
+    onMouseLeave: () => void
+    onMouseDown: () => void
+    onMouseUp: () => void
+  },
+] {
+  const [hovered, setHovered] = useState(false)
+  const [pressed, setPressed] = useState(false)
+  return [
+    { hovered, pressed },
+    {
+      onMouseEnter: () => setHovered(true),
+      onMouseLeave: () => {
+        setHovered(false)
+        setPressed(false)
+      },
+      onMouseDown: () => setPressed(true),
+      onMouseUp: () => setPressed(false),
+    },
+  ]
 }

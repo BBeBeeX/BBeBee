@@ -13,13 +13,14 @@ export function TextField(props: TextFieldProps): ReactElement {
     borderRadius: tokens.radius.sm,
     border: `1px solid ${invalid ? 'var(--error, #EF4444)' : 'var(--input-border, var(--border-default, rgba(145,176,255,0.14)))'}`,
     background: 'var(--input-bg, var(--surface-1, #080D1A))',
+    boxShadow: 'var(--shadow-sunken, inset 0 1px 2px rgba(0, 0, 0, 0.25))',
     color: 'var(--text-primary, #FFFFFF)',
     fontFamily: props.multiline ? tokens.font.family.mono : tokens.font.family.ui,
     fontSize: tokens.font.size.md,
     resize: 'vertical' as const,
     minHeight: props.multiline ? undefined : tokens.size.touchTarget,
     outline: 'none',
-    transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+    transition: `border-color ${tokens.duration.fast}ms ease, box-shadow ${tokens.duration.fast}ms ${tokens.easing.tactile}`,
   }
 
   const onChange = (e: { target: { value: string } }) => props.onChange(e.target.value)

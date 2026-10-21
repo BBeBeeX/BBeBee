@@ -1,9 +1,11 @@
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
+import { tokens } from '@BBeBee/ui-tokens'
 import { serviceOf } from '@BBeBee/ui-core'
 import type { I18nService } from '@BBeBee/protocol'
 import { tablerIcon } from '../icons/index.js'
+import { usePressable } from '../theme.js'
 
 export interface DetailPlayButtonProps {
   onPress: () => void
@@ -27,35 +29,46 @@ export interface DetailPlayButtonProps {
 
 /** The circular primary play button every detail page's action bar rides on. */
 export function DetailPlayButton(props: DetailPlayButtonProps): ReactElement {
-  // Deliberately hook-free: the kit's tree() tests invoke components as plain
-  // functions. Locale changes reach this component because its
-  // useI18n-subscribed ancestors re-render it.
+  // Locale changes reach this component because its useI18n-subscribed
+  // ancestors re-render it.
   const i18n = props.ctx ? serviceOf<I18nService>(props.ctx, 'i18n') : undefined
   // English copy stays verbatim until a caller threads `ctx` (i18n sweep).
   const t = (key: string, fallback: string): string => i18n?.t(key) ?? fallback
+  const [{ hovered, pressed }, pressProps] = usePressable()
+  const disabled = Boolean(props.disabled)
+
   return h(
     'button',
     {
+      ...pressProps,
       type: 'button',
       'data-testid': props.testID,
       'aria-label': props.ariaLabel ?? t('app:common.detailPlayButton.play', 'Play'),
-      onClick: props.onPress,
-      disabled: props.disabled,
+      onClick: disabled ? undefined : props.onPress,
+      disabled,
       style: {
         width: props.size ?? 56,
         height: props.size ?? 56,
         borderRadius: '50%',
-        background: 'var(--button-primary-bg, var(--color-primary, #5F87FF))',
+        background: hovered && !disabled
+          ? 'var(--button-primary-hover, var(--gradient-ice))'
+          : 'var(--button-primary-bg, var(--color-primary, #5F87FF))',
         border: 'none',
-        cursor: props.disabled ? 'not-allowed' : 'pointer',
-        opacity: props.disabled ? 0.5 : 1,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.5 : 1,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        boxShadow: 'var(--glow-brand-md, 0 8px 16px rgba(0, 0, 0, 0.3))',
+        transform: pressed && !disabled ? 'scale(0.95)' : hovered && !disabled ? 'scale(1.05)' : 'scale(1)',
+        boxShadow: pressed && !disabled
+          ? 'inset 0 2px 4px rgba(0, 0, 0, 0.35)'
+          : hovered && !disabled
+            ? 'var(--glow-brand-lg, 0 0 24px rgba(117,152,255,0.3)), var(--bevel-chamfer-top, inset 0 1px 0 rgba(255, 255, 255, 0.3))'
+            : 'var(--glow-brand-md, 0 8px 16px rgba(0, 0, 0, 0.3)), var(--bevel-chamfer-top, inset 0 1px 0 rgba(255, 255, 255, 0.2))',
         color: 'var(--bb-accent-on, #ffffff)',
         paddingLeft: 2,
         position: 'relative',
+        transition: `transform ${tokens.duration.fast}ms ${tokens.easing.tactile}, box-shadow ${tokens.duration.fast}ms ${tokens.easing.tactile}, background ${tokens.duration.fast}ms ease`,
       },
     },
     tablerIcon('play', { size: props.iconSize ?? 28, color: 'currentColor' }),

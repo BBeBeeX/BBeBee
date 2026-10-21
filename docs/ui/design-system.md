@@ -148,6 +148,11 @@ export const tokens = {
     lineHeight: { tight: 1.2, normal: 1.45, loose: 1.7 } as const,
   },
   duration: { fast: 120, normal: 200, slow: 320 } as const,
+  easing: {
+    tactile: 'cubic-bezier(0.16, 1, 0.3, 1)',
+    spring: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+    smooth: 'cubic-bezier(0.4, 0, 0.2, 1)',
+  } as const,
   size: { touchTarget: 44, icon: 24, iconLarge: 32, row: 56, artworkThumb: 48 } as const,
 } as const
 ```
@@ -195,6 +200,10 @@ Depth is communicated through **subtle luminance stepping and translucent layers
 | `surface.selected`| `var(--surface-selected)` | Selected rows, active navigation tabs, and focus chips. |
 | `border.subtle` | `var(--border-subtle)` | Hairline dividers between major structural panels. |
 | `border.focus` | `var(--border-focus)` | Accessible focus rings clearing WCAG 1.4.11 3:1 contrast. |
+| `shadow.elevated` | `var(--shadow-card-elevated)` | 3-tier composite shadow (contact, form, ambient) for elevated media cards. |
+| `shadow.dropdown` | `var(--shadow-dropdown-layered)` | Floating composite shadow with deep diffusion for menus, tooltips, and popovers. |
+| `bevel.chamfer` | `var(--bevel-chamfer-top)` | 1px top specular reflection highlight (`inset 0 1px 0 rgba(255, 255, 255, 0.14)`). |
+| `shadow.sunken` | `var(--shadow-sunken)` | Subtle inner shadow (`inset 0 1px 2px rgba(0, 0, 0, 0.35)`) for inputs and sunken tracks. |
 
 - **Dynamic Reactive Canvas Gradients**: Detail views (Album Detail, Favorites, Local Music, Playlist Detail, Settings) render smooth vertical ambient gradients responding to `--surface-hover` / `--surface-selected` / `--surface-1` / `--bg-primary`, adapting instantly to any theme switch.
 - **Cover-Tinted Detail Theming**: The four detail pages (Album Detail, Playlist Detail, Favorites, Local Music) source the header area's gradient and the scroll-collapsed sticky bar's wash from the cover's `dominantColor` via the kit's `headerGradient(tint)` / `tintRgba` — the tint is strongest at the top (~50% alpha) and, using percentage stops, lands exactly on `--bg-primary` at the header's bottom edge, so the gradient scrolls away with the header and everything below (rows, pinned table header) sits on the same solid colour with no seam. A ref without a declared colour gets a one-shot canvas extraction (`useImageColor` → `extractVibrantColor`); an unreadable cover or no cover at all falls back to the neutral brand wash above, never an error. Favorites pins the liked-songs purple (`#450af5`) as its identity tint; Local Music, with no single cover, keeps the neutral gradient.
@@ -224,14 +233,14 @@ The scale relies on **"weight follows size"**:
 
 ### 6.6 Component affordances & micro-interactions
 
-- **Pill buttons (`radius.pill: 999`)**: Interactive controls (primary action buttons, category
+- **Pill buttons (`radius.pill: 999`) & tactile press feedback**: Interactive controls (primary action buttons, category
   filter chips, tag toggles) are pill-shaped. In a borderless dark UI where panels are rectangles,
   the fully rounded shape immediately signals pressability.
-- **Hover micro-scaling**: Primary pill buttons scale up slightly under the pointer
-  (`transform: scale(1.04)` over `120ms`) rather than just shifting color, providing immediate,
-  tactile physical feedback against near-black backgrounds.
-- **Transport play button**: the primary play control is circular with a high-contrast icon over
-  the vibrant brand gradient fill (`background: var(--gradient-brand)`).
+  - **Hover micro-scaling**: Primary pill buttons scale up slightly under the pointer (`transform: scale(1.04)`) over `120ms` with `tokens.easing.tactile` damping.
+  - **Mechanical depression**: On pointer down (`:active` / `pressed`), buttons contract with subtle physical depression (`transform: scale(0.97)` for regular buttons, `scale(0.95)` for ghost/icons), smoothly rebounding upon release.
+  - **Specular bevel highlight**: Primary pill buttons pair gradient fills with 1px top specular highlights (`var(--bevel-chamfer-top, inset 0 1px 0 rgba(255, 255, 255, 0.16))`), deepening under active press.
+- **Transport play button (`DetailPlayButton`)**: the primary play control is circular with a high-contrast icon over
+  the vibrant brand gradient fill (`background: var(--gradient-brand)`). Supports hover expansion (`scale(1.05)`), active mechanical depression (`scale(0.95)`), multi-tier luminescence (`var(--glow-brand-lg)`), and top bevel chamfer.
 - **Media cards & floating play reveal**: Rectangular cards (`radius.md: 8px`, `bg.raised: #181818`)
   feature square artwork (`radius.sm: 4px`) at the top, followed by bold title and artist subtitle.
   On pointer hover:
@@ -240,9 +249,10 @@ The scale relies on **"weight follows size"**:
      rises into view at the bottom-right corner of the artwork with a gentle translateY and opacity
      transition (`120ms`) and subtle drop shadow.
   3. Clicking the play button immediately starts playback of that container without navigating.
-- **Track rows (`TrackRow`, height `56px`)**:
+- **Track rows (`TrackRow`, height `56px`) & tabular numerals**:
   - Displays index number, artwork thumbnail (`48px` square, `radius.sm: 4px`), track title in
     `#FFFFFF`, artists in `#B3B3B3`, album name, and duration.
+  - **Tabular figures (`fontVariantNumeric: 'tabular-nums'`)**: Timestamps and index numbers are pinned to tabular monospace widths, preventing horizontal jitter as seconds tick during playback.
   - On hover, the row illuminates (`#282828`), the track number is replaced by a play icon (`play-filled`),
     and quick actions (heart/saved toggle button `heart` / `heart-filled` via `onToggleLoved`, context menu `dots`) become visible.
   - When actively playing, the track title, track number, and equalizer icon illuminate in
@@ -251,10 +261,12 @@ The scale relies on **"weight follows size"**:
   - Horizontal & vertical bars with a slim `3px` track height/width and dark background track.
   - Played progress fill displays in `#FFFFFF` during passive display, but illuminates in signature
     green (`#1DB954`) on pointer hover or active drag.
-  - **Hover-only knob affordance**: The circular thumb handle (`12px` diameter) is hidden during
-    idle state (`opacity: 0`) to preserve clean lines across dense views; it smoothly reveals
-    (`opacity: 1` over `150ms`) exclusively when the pointer hovers over the slider or during active drag.
+  - **Hover-only knob affordance**: The circular thumb handle (`10px` diameter) is hidden during
+    idle state (`opacity: 0`) to preserve clean lines across dense views; it smoothly reveals and expands
+    (`opacity: 1`, `transform: scale(1.15)`) with a jewel-like top reflection (`inset 0 1px 0 rgba(255, 255, 255, 0.65)`) exclusively when the pointer hovers over the slider or during active drag.
   - Progress bar (`ProgressBar`): Slim `3px` track matching slider dimensions.
+- **Frosted acrylic glassmorphism & layered elevation (`ContextMenu`, `SaveToPlaylistPopover`, `Sheet`)**:
+  - Floating menus, popovers, and dialogs combine `backdrop-filter: blur(20px) saturate(160%)` with deep 3-tier composite shadows (`var(--shadow-dropdown-layered)`) and 1px top specular bevel highlights (`var(--bevel-chamfer-top)`), producing clean optical separation without stark or opaque boundary walls.
 - **Global scrollbars**:
   - Hidden track background (`background: transparent`), ultra-narrow width (`4px` on desktop), and a high-transparency thumb (`rgba(255, 255, 255, 0.2)` default, `0.4` on hover) keep dark canvas continuity.
   - Scrollbar visibility dual-class mechanism (`is-scrollbar-hover` / `is-scrolling`) and the Chromium trap: see the spec and rationale at [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas) (L2).

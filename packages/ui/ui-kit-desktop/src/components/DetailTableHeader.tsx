@@ -71,6 +71,7 @@ export function DetailTableHeader(props: DetailTableHeaderProps): ReactElement {
         color: 'var(--bb-text-secondary, #b3b3b3)',
         fontSize: 13,
         fontWeight: 500,
+        fontVariantNumeric: 'tabular-nums',
         flexShrink: 0,
         position: 'sticky',
         top: props.top ?? 64,

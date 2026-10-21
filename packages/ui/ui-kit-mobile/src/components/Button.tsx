@@ -29,7 +29,15 @@ function buttonStyle(variant: ButtonVariant, disabled: boolean): Record<string, 
     case 'danger':
       return { ...base, backgroundColor: p.state.error }
     default:
-      return { ...base, backgroundColor: p.accent.base }
+      return {
+        ...base,
+        backgroundColor: p.accent.base,
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+        elevation: 2,
+      }
   }
 }
 

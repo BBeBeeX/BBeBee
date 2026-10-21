@@ -114,6 +114,12 @@ Each shell resolves the contribution ID against its target view registry via `ct
 2. **Zero Handwritten SVG / Unicode Glyphs**: Never use raw unicode/emoji glyphs (e.g. `▶`, `⏸`, `🗑`, `✕`, `♡`, `⚙`, `🔍`) or ad-hoc `<svg>` elements in UI components. All icons must be rendered via `tablerIcon(name, props)`, `TablerIcon`, or components consuming `IconName` (e.g. `IconButton`, `EmptyState`). **Mobile exception**: there is no Tabler set on React Native, so `ui-kit-mobile`'s `ContextMenu` maps the shared menus' icon names to unicode glyphs (`MENU_ICON_GLYPHS`); a name without a mapping is hidden rather than rendered as raw text.
 3. **Accessible Rendering**: SVG icons render with `aria-hidden="true"` and `data-icon="{name}"`. Tests assert against `querySelector('[data-icon="..."]')` or `data-testid`, never `textContent`.
 
+### 4.2 Tactile Physics, Layered Shadows & Material Standards
+
+1. **Tactile Motion & Damping Transitions**: UI animations and transitions must never use raw linear timing. Motion damping must strictly follow `tokens.easing.tactile` (`cubic-bezier(0.16, 1, 0.3, 1)`) or `--bb-easing-tactile`. Primary and icon buttons (`Button`, `IconButton`, `DetailPlayButton`) respond to pointer press with mechanical depression (`scale(0.97)` / `scale(0.95)`), smoothly recovering upon release.
+2. **Layered Shadows & 1px Bevel Chamfer Highlights**: Floating and elevated surfaces (context menus, popovers, modals, and primary action buttons) must pair composite shadows (`--shadow-dropdown-layered`, `--shadow-card-elevated`) with 1px top specular bevel highlights (`--bevel-chamfer-top: inset 0 1px 0 rgba(255, 255, 255, 0.14)`). Frosted layers apply `backdrop-filter: blur(20px) saturate(160%)`. Recessed elements (inputs, sunken tracks) use subtle inner shadows (`--shadow-sunken`).
+3. **Tabular Numerics Invariant**: Data rows, duration displays, timers, and detail table headers displaying changing numbers must declare `fontVariantNumeric: 'tabular-nums'` to prevent horizontal layout jank during playback.
+
 ---
 
 ## 5. Desktop Settings Center & Diagnostics Specifications

@@ -65,7 +65,8 @@ export function TrackRow(
             : 'transparent',
         boxShadow: active ? 'var(--playing-item-glow, var(--glow-brand-sm))' : 'none',
         border: active ? '1px solid var(--playing-item-border, rgba(169,156,255,0.18))' : '1px solid transparent',
-        transition: `background-color ${tokens.duration.fast}ms, color ${tokens.duration.fast}ms, box-shadow ${tokens.duration.fast}ms`,
+        fontVariantNumeric: 'tabular-nums',
+        transition: `background-color ${tokens.duration.fast}ms ease, color ${tokens.duration.fast}ms ease, box-shadow ${tokens.duration.fast}ms ${tokens.easing.tactile}`,
       },
     },
     showArtwork

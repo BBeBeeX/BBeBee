@@ -114,6 +114,11 @@ export const tokens = {
     lineHeight: { tight: 1.2, normal: 1.45, loose: 1.7 } as const,
   },
   duration: { fast: 120, normal: 200, slow: 320 } as const,
+  easing: {
+    tactile: 'cubic-bezier(0.16, 1, 0.3, 1)',
+    spring: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+    smooth: 'cubic-bezier(0.4, 0, 0.2, 1)',
+  } as const,
   /** Hit targets. 44 is the smallest either OS considers reliably tappable. */
   size: { touchTarget: 44, icon: 24, iconLarge: 32, row: 56, artworkThumb: 48 } as const,
   z: { base: 0, sticky: 10, overlay: 100, toast: 1000 } as const,
@@ -194,16 +199,31 @@ export function cssVariables(scheme: Scheme): Record<string, string> {
   for (const [name, value] of Object.entries(tokens.duration)) {
     out[`--bb-duration-${name}`] = `${value}ms`
   }
+  for (const [name, value] of Object.entries(tokens.easing)) {
+    out[`--bb-easing-${name}`] = value
+  }
   tokens.space.forEach((value, i) => void (out[`--bb-space-${i}`] = `${value}px`))
   out['--input-bg'] = scheme === 'light' ? '#FFFFFF' : palette.bg.raised
   out['--input-border'] = palette.border.subtle
   out['--input-focus-border'] = palette.border.strong
   out['--logo-filter'] = scheme === 'light' ? 'brightness(0)' : 'none'
   out['--shadow-dropdown'] = scheme === 'light' ? '0 8px 24px rgba(0, 0, 0, 0.12)' : '0 12px 32px rgba(0, 0, 0, 0.65)'
+  out['--shadow-dropdown-layered'] = scheme === 'light'
+    ? '0 1px 2px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.12), 0 20px 40px -4px rgba(0, 0, 0, 0.16)'
+    : '0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 32px rgba(0, 0, 0, 0.65), 0 24px 48px -8px rgba(0, 0, 0, 0.75)'
   out['--shadow-modal'] = scheme === 'light' ? '0 16px 36px rgba(0, 0, 0, 0.15)' : '0 16px 36px rgba(0, 0, 0, 0.65)'
   out['--card-bg'] = scheme === 'light' ? '#EDEDED' : palette.bg.raised
   out['--card-border'] = scheme === 'light' ? 'rgba(0, 0, 0, 0.08)' : palette.border.subtle
   out['--card-shadow'] = scheme === 'light' ? '0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)' : 'none'
+  out['--card-shadow-elevated'] = scheme === 'light'
+    ? '0 1px 2px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.08), 0 16px 32px -4px rgba(0, 0, 0, 0.12)'
+    : '0 1px 2px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.40), 0 16px 32px -4px rgba(0, 0, 0, 0.55)'
+  out['--bevel-chamfer-top'] = scheme === 'light'
+    ? 'inset 0 1px 0 0 rgba(255, 255, 255, 0.65)'
+    : 'inset 0 1px 0 0 rgba(255, 255, 255, 0.14)'
+  out['--shadow-sunken'] = scheme === 'light'
+    ? 'inset 0 1px 2px rgba(0, 0, 0, 0.08)'
+    : 'inset 0 1px 2px rgba(0, 0, 0, 0.35)'
   out['--settings-card-bg'] = scheme === 'light' ? '#EDEDED' : palette.bg.raised
   out['--settings-card-border'] = scheme === 'light' ? 'rgba(0, 0, 0, 0.08)' : palette.border.subtle
   out['--settings-card-shadow'] = scheme === 'light' ? '0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)' : 'none'
@@ -375,12 +395,24 @@ export function themeToCssVariables(
     '--input-focus-border': t.border.focus,
     '--logo-filter': scheme === 'light' ? 'brightness(0)' : 'none',
     '--shadow-dropdown': scheme === 'light' ? '0 8px 24px rgba(0, 0, 0, 0.12)' : '0 12px 32px rgba(0, 0, 0, 0.65)',
+    '--shadow-dropdown-layered': scheme === 'light'
+      ? '0 1px 2px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.12), 0 20px 40px -4px rgba(0, 0, 0, 0.16)'
+      : '0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 32px rgba(0, 0, 0, 0.65), 0 24px 48px -8px rgba(0, 0, 0, 0.75)',
     '--shadow-modal': scheme === 'light' ? '0 16px 36px rgba(0, 0, 0, 0.15)' : '0 16px 36px rgba(0, 0, 0, 0.65)',
 
     // Card & Settings section tokens
     '--card-bg': scheme === 'light' ? t.surface.s2 : t.surface.s1,
     '--card-border': t.border.subtle,
     '--card-shadow': scheme === 'light' ? '0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)' : 'none',
+    '--card-shadow-elevated': scheme === 'light'
+      ? '0 1px 2px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.08), 0 16px 32px -4px rgba(0, 0, 0, 0.12)'
+      : '0 1px 2px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.40), 0 16px 32px -4px rgba(0, 0, 0, 0.55)',
+    '--bevel-chamfer-top': scheme === 'light'
+      ? 'inset 0 1px 0 0 rgba(255, 255, 255, 0.65)'
+      : 'inset 0 1px 0 0 rgba(255, 255, 255, 0.14)',
+    '--shadow-sunken': scheme === 'light'
+      ? 'inset 0 1px 2px rgba(0, 0, 0, 0.08)'
+      : 'inset 0 1px 2px rgba(0, 0, 0, 0.35)',
     '--settings-card-bg': scheme === 'light' ? t.surface.s2 : t.surface.s1,
     '--settings-card-border': t.border.subtle,
     '--settings-card-shadow': scheme === 'light' ? '0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)' : 'none',
@@ -403,6 +435,9 @@ export function themeToCssVariables(
   }
   for (const [name, value] of Object.entries(tokens.duration)) {
     out[`--bb-duration-${name}`] = `${value}ms`
+  }
+  for (const [name, value] of Object.entries(tokens.easing)) {
+    out[`--bb-easing-${name}`] = value
   }
   tokens.space.forEach((value, i) => void (out[`--bb-space-${i}`] = `${value}px`))
 
