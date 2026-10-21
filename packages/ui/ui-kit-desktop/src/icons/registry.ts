@@ -17,9 +17,15 @@ export const ICON_ALIASES: Record<string, string> = {
 
   // Playback transport
   play: 'play-filled',
+  'play-filled': 'play-filled',
+  'player-play': 'play',
+  'player-play-filled': 'play-filled',
   'play-outline': 'play',
   '▶': 'play-filled',
   pause: 'pause-filled',
+  'pause-filled': 'pause-filled',
+  'player-pause': 'pause',
+  'player-pause-filled': 'pause-filled',
   'pause-outline': 'pause',
   '⏸': 'pause-filled',
   previous: 'skip-back',

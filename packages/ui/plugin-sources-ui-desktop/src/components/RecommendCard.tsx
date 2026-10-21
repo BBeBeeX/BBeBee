@@ -126,7 +126,7 @@ export function RecommendCard({
                   pointerEvents: 'auto',
                 },
               },
-              tablerIcon('player-play-filled', {
+              tablerIcon('play', {
                 size: 18,
                 color: 'currentColor',
               }),
