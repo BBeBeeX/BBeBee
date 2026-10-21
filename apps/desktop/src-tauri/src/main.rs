@@ -155,12 +155,15 @@ fn focus_main_window(app: &AppHandle) {
         let _ = main.show();
         let _ = main.unminimize();
         let _ = main.set_focus();
+        let state = app.state::<AppState>();
+        let _ = desktop_tauri_lib::taskbar::update_taskbar(app, &state);
     }
 }
 
 /// App setup: tray icon, sidecar process, initial state.
 fn setup_app(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     tray::setup_tray(app.handle())?;
+    desktop_tauri_lib::taskbar::setup_taskbar(app.handle());
 
     // Node sidecar (Core Services host)
     let sidecar = std::sync::Arc::new(desktop_tauri_lib::sidecar::SidecarManager::new(
@@ -245,7 +248,7 @@ fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
         tauri::WindowEvent::Focused(true) if window.label() == "main" => {
             let app = window.app_handle();
             let state = app.state::<AppState>();
-            let _ = desktop_tauri_lib::taskbar::windows_taskbar::update_thumbbar_buttons(&app, &state);
+            let _ = desktop_tauri_lib::taskbar::update_taskbar(&app, &state);
         }
         _ => {}
     }

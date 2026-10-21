@@ -328,6 +328,7 @@ pub async fn mini_player_close(
         let _ = main.unminimize();
         let _ = main.show();
         let _ = main.set_focus();
+        let _ = crate::taskbar::update_taskbar(&app, &state);
     }
     Ok(())
 }
@@ -346,6 +347,8 @@ pub async fn mini_player_restore_main(app: tauri::AppHandle) -> Result<(), Strin
         let _ = main.unminimize();
         let _ = main.show();
         let _ = main.set_focus();
+        let state = app.state::<AppState>();
+        let _ = crate::taskbar::update_taskbar(&app, &state);
     }
     Ok(())
 }

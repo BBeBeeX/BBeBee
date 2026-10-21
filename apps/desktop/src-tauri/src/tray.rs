@@ -24,6 +24,8 @@ pub fn toggle_main_window(app: &tauri::AppHandle) {
         let _ = win.show();
         let _ = win.unminimize();
         let _ = win.set_focus();
+        let state = app.state::<AppState>();
+        let _ = crate::taskbar::update_taskbar(app, &state);
     }
 }
 
