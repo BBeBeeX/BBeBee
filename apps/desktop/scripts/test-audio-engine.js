@@ -161,7 +161,7 @@ async function testSidecarJsonRpc() {
   const nodeArgs = isTs ? ['--experimental-strip-types', sidecarScript] : [sidecarScript]
 
   return new Promise((resolve, reject) => {
-    const child = spawn('node', nodeArgs, {
+    const child = spawn(process.execPath, nodeArgs, {
       stdio: ['pipe', 'pipe', 'inherit'],
       env: {
         ...process.env,

@@ -1025,6 +1025,7 @@ export function WindowControls({ style, ctx }: WindowControlsProps): ReactElemen
     {
       role: 'group',
       'aria-label': t('app:common.top.windowControls'),
+      'data-tauri-drag-region': 'false',
       style: {
         display: 'flex',
         alignItems: 'center',
@@ -1310,6 +1311,7 @@ export function TopBar({
     {
       role: 'banner',
       'aria-label': t('app:common.top.applicationHeader'),
+      'data-tauri-drag-region': '',
       style: {
         display: 'flex',
         alignItems: 'center',
@@ -1333,6 +1335,7 @@ export function TopBar({
     h(
       'div',
       {
+        'data-tauri-drag-region': 'false',
         style: {
           display: 'flex',
           alignItems: 'center',
@@ -1473,7 +1476,6 @@ export function TopBar({
           justifyContent: 'center',
           maxWidth: searchExpanded ? 'none' : 360,
           minWidth: 0,
-          ...noDragStyle,
         },
       },
       // Collapsed: one magnifier button. Clicking expands the search (and
@@ -1483,6 +1485,7 @@ export function TopBar({
             'button',
             {
               type: 'button',
+              'data-tauri-drag-region': 'false',
               'aria-label': t('app:common.top.expandSearch'),
               title: t('app:common.top.search'),
               'data-testid': 'topbar-search-collapsed-button',
@@ -1521,6 +1524,7 @@ export function TopBar({
         'div',
         {
           ref: searchContainerRef,
+          'data-tauri-drag-region': 'false',
           style: {
             position: 'relative',
             display: 'flex',
@@ -1921,6 +1925,7 @@ export function TopBar({
     h(
       'div',
       {
+        'data-tauri-drag-region': 'false',
         style: {
           display: 'flex',
           alignItems: 'center',

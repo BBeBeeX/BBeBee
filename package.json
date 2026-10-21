@@ -1,6 +1,6 @@
 {
   "name": "bbebee",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "A plugin-based cross-platform music player. See docs/",

@@ -67,7 +67,7 @@ import {
 } from './dynamic-loader.js'
 import { setScheme } from '@BBeBee/ui-kit-desktop'
 
-const APP_VERSION = '0.0.0'
+const APP_VERSION = '0.1.0'
 const BOOT_TIMEOUT_MS = 15_000
 
 // =============================================================================

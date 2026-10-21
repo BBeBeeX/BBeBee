@@ -284,9 +284,12 @@ export class AudioEngineSupervisor {
         }
       })
 
+      let lastStderr = ''
       child.stderr?.on('data', (chunk: Buffer | string) => {
         const text = chunk.toString().trim()
         if (text) {
+          lastStderr = (lastStderr ? `${lastStderr}\n` : '') + text
+          if (lastStderr.length > 2000) lastStderr = lastStderr.slice(-2000)
           this.logger?.debug?.(`audio-engine [stderr]: ${text}`)
         }
       })
@@ -296,6 +299,9 @@ export class AudioEngineSupervisor {
       })
 
       child.on('exit', (code, signal) => {
+        if (code !== 0 && signal !== null && lastStderr) {
+          this.logger?.error?.('audio-engine-supervisor: worker terminated with stderr output:\n%s', lastStderr)
+        }
         this.handleWorkerExit(code, signal)
       })
 

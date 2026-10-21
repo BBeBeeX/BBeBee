@@ -879,6 +879,7 @@ export function Shell({ ctx }: { ctx: Context }) {
         'header',
         {
           'data-testid': 'fullscreen-top-bar',
+          'data-tauri-drag-region': '',
           onMouseEnter: handleTopBarMouseEnter,
           onMouseLeave: handleTopBarMouseLeave,
           style: {
@@ -908,6 +909,7 @@ export function Shell({ ctx }: { ctx: Context }) {
           'button',
           {
             type: 'button',
+            'data-tauri-drag-region': 'false',
             'aria-label': t('app:common.shell.closeNowPlaying'),
             onClick: () => setIsFullscreenNowPlaying(false),
             style: {
@@ -937,6 +939,7 @@ export function Shell({ ctx }: { ctx: Context }) {
         ),
         // Center: Drag spacer
         h('div', {
+          'data-tauri-drag-region': '',
           style: {
             flex: 1,
             height: '100%',

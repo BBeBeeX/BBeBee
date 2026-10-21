@@ -18,8 +18,8 @@ All platform directories under `resources/` must contain the **full self-contain
   - 存放全量 Windows 产物：`audio-engine.exe`、`mpv-2.dll` 及全部依赖 DLL。
 - **`resources/macos/`**: macOS arm64 Full Package
   - Extracted from `audio-engine-macos-arm64.tar.gz`
-  - Contains `audio-engine` executable + dynamic libraries (`libmpv.2.dylib`, etc.).
-  - 存放全量 macOS 产物：`audio-engine` 可执行程序及动态库。
+  - Contains `audio-engine` executable + complete `@rpath` dynamic library closure (`libmpv.2.dylib`, FFmpeg, libplacebo, libass, freetype, etc. - 38 dylibs).
+  - 存放全量 macOS 产物：`audio-engine` 可执行程序及完整的 `@rpath` 动态库闭包（libmpv、FFmpeg、libass 等 38 个动态库），完全脱离 Homebrew 独立自包含运行。
 - **`resources/linux/`**: Linux x64 Full Package
   - Extracted from `audio-engine-linux-x64.tar.gz`
   - Contains `audio-engine` executable + `libmpv.so.2` + the complete transitive `.so` dependency closure (~260+ shared libraries).
@@ -72,5 +72,5 @@ node scripts/fetch-audio-engine.mjs --app desktop --full-only
    [`BBeBeeX/B_Be_Bee-audio-engine`](https://github.com/BBeBeeX/B_Be_Bee-audio-engine/releases)
    - Linux: `audio-engine-linux-x64.tar.gz` (Full, ~98 MB)
    - Windows: `audio-engine-windows-x64.zip` (Full, ~68 MB)
-   - macOS: `audio-engine-macos-arm64.tar.gz` (Full, ~2.5 MB)
+   - macOS: `audio-engine-macos-arm64.tar.gz` (Full, ~23 MB)
 2. Extract all contents directly into `resources/<platform>/` (e.g. `resources/linux/`, `resources/windows/`, `resources/macos/`).
