@@ -184,7 +184,7 @@ export default tseslint.config(
             'scripts/*.mjs',
             'packages/*/*/scripts/*.mjs',
           ],
-          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 20,
+          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 60,
         },
         tsconfigRootDir: import.meta.dirname,
       },

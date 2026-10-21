@@ -1,0 +1,48 @@
+# i18n-allowlist.txt — reviewed exceptions to the no-hardcoded-UI-strings gate.
+#
+# Format: `file :: text` (one per line). Lines starting with `#` are comments.
+# Checked by: packages/feature/plugin-i18n/scripts/check-no-hardcoded.mjs
+# (wired into CI via `pnpm check:i18n-gate`).
+
+# --- audio converter technical specs (sample rates, bit depths, bitrates, channel modes) ---
+packages/ui/plugin-audio-converter-ui-desktop/src/components/CompressionSection.tsx :: 0 dB
+packages/ui/plugin-audio-converter-ui-desktop/src/components/CompressionSection.tsx :: 128 kbps
+packages/ui/plugin-audio-converter-ui-desktop/src/components/CompressionSection.tsx :: 16-bit
+packages/ui/plugin-audio-converter-ui-desktop/src/components/CompressionSection.tsx :: 192 kbps
+packages/ui/plugin-audio-converter-ui-desktop/src/components/CompressionSection.tsx :: 22,050 Hz
+packages/ui/plugin-audio-converter-ui-desktop/src/components/CompressionSection.tsx :: 24-bit (Hi-Res)
+packages/ui/plugin-audio-converter-ui-desktop/src/components/CompressionSection.tsx :: 256 kbps
+packages/ui/plugin-audio-converter-ui-desktop/src/components/CompressionSection.tsx :: 32-bit
+packages/ui/plugin-audio-converter-ui-desktop/src/components/CompressionSection.tsx :: 320 kbps
+packages/ui/plugin-audio-converter-ui-desktop/src/components/CompressionSection.tsx :: 44,100 Hz (CD)
+packages/ui/plugin-audio-converter-ui-desktop/src/components/CompressionSection.tsx :: 48,000 Hz (Pro/Video)
+packages/ui/plugin-audio-converter-ui-desktop/src/components/CompressionSection.tsx :: 64 kbps
+packages/ui/plugin-audio-converter-ui-desktop/src/components/CompressionSection.tsx :: 96 kbps
+packages/ui/plugin-audio-converter-ui-desktop/src/components/CompressionSection.tsx :: Mono (1 Channel)
+packages/ui/plugin-audio-converter-ui-desktop/src/components/CompressionSection.tsx :: Stereo (2 Channels)
+
+# --- audio formats: standard container and codec names ---
+packages/ui/plugin-audio-converter-ui-desktop/src/components/FormatSection.tsx :: AAC (.aac)
+packages/ui/plugin-audio-converter-ui-desktop/src/components/FormatSection.tsx :: AIFF (.aiff) - Uncompressed
+packages/ui/plugin-audio-converter-ui-desktop/src/components/FormatSection.tsx :: ALAC (.m4a) - Lossless
+packages/ui/plugin-audio-converter-ui-desktop/src/components/FormatSection.tsx :: FLAC (.flac) - Lossless
+packages/ui/plugin-audio-converter-ui-desktop/src/components/FormatSection.tsx :: M4A (.m4a)
+packages/ui/plugin-audio-converter-ui-desktop/src/components/FormatSection.tsx :: MP3 (.mp3)
+packages/ui/plugin-audio-converter-ui-desktop/src/components/FormatSection.tsx :: OGG Vorbis (.ogg)
+packages/ui/plugin-audio-converter-ui-desktop/src/components/FormatSection.tsx :: Opus (.opus)
+packages/ui/plugin-audio-converter-ui-desktop/src/components/FormatSection.tsx :: Raw PCM (.pcm)
+packages/ui/plugin-audio-converter-ui-desktop/src/components/FormatSection.tsx :: WAV (.wav) - Uncompressed
+packages/ui/plugin-audio-converter-ui-desktop/src/components/FormatSection.tsx :: WMA (.wma)
+packages/ui/plugin-audio-converter-ui-desktop/src/components/FormatSection.tsx :: WebM Audio (.webm)
+
+# --- debug logs & internal template strings ---
+packages/ui/plugin-desktop-lyrics-ui-desktop/src/DesktopLyrics.tsx :: desktop-lyrics: sync effect, hasNativeBridge=${hasNativeBridge}, isEnabled=${isEnabled}
+packages/ui/plugin-desktop-lyrics-ui-desktop/src/DesktopLyrics.tsx :: playing=${isPlaying}
+
+# --- technical file:// protocol URI templates ---
+packages/ui/plugin-local-scanner-ui-desktop/src/index.tsx :: file://${normalized}
+packages/ui/plugin-local-scanner-ui-desktop/src/index.tsx :: file:///${normalized}
+packages/ui/plugin-settings-ui-desktop/src/SettingsScreen.tsx :: file://${p}
+packages/ui/plugin-settings-ui-desktop/src/components/sections/SourcesSection.tsx :: file://${normalized}
+packages/ui/plugin-settings-ui-desktop/src/components/sections/SourcesSection.tsx :: file:///${normalized}
+

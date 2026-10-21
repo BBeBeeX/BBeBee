@@ -18,6 +18,8 @@
 import { spawnSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import console from 'node:console'
+import process from 'node:process'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..')
 const testFile = 'packages/core/core-js-quickjs-node/src/stress.test.ts'

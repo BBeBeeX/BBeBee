@@ -23,8 +23,9 @@ import { Context } from 'cordis'
 import { tick } from '@BBeBee/kernel/testing'
 import type { JsLimits } from '@BBeBee/protocol'
 
-type PluginModule = typeof import('./index.js')
-let plugin: PluginModule['default']
+import type JsQuickJsNode from './index.js'
+
+let plugin: typeof JsQuickJsNode
 
 beforeAll(async () => {
   plugin = (await import('./index.js')).default

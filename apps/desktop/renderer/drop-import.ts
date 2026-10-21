@@ -247,7 +247,7 @@ async function classifyPaths(
     }
 
     // Not audio by extension — check if it's a directory
-    let isDir = false
+    let isDir: boolean
     if (fs) {
       try {
         isDir = (await fs.stat(uri)).isDirectory

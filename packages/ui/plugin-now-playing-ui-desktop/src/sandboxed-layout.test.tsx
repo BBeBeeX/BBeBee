@@ -219,8 +219,8 @@ describe('SandboxedLayout', () => {
     expect(payload.positionMs).toBe(30000)
     expect(payload.durationMs).toBe(180000)
     expect(payload.isPlaying).toBe(true)
-    // Cover should be converted from file:/// to bbebee-file:///
-    expect(payload.cover).toBe('bbebee-file:///home/user/Music/cover.jpg')
+    // In jsdom the origin is http://localhost:3000 (vite-like dev), so the dev proxy kicks in.
+    expect(payload.cover).toBe('http://localhost:3000/__bbebee-file/home/user/Music/cover.jpg')
     // Lyrics should be parsed and active index computed for 30s
     expect(payload.lyrics.lines.length).toBe(3)
     expect(payload.lyrics.lines[0]?.text).toBe('First line')

@@ -98,14 +98,14 @@ export function SourceConfigureModal({
       credentialFields.push(
         {
           id: 'user',
-          label: 'Username',
-          placeholder: 'Username',
+          label: t('sources:sourceConfigure.username'),
+          placeholder: t('sources:sourceConfigure.username'),
           isPassword: false,
         },
         {
           id: 'password',
-          label: 'Password',
-          placeholder: 'Password',
+          label: t('sources:sourceConfigure.password'),
+          placeholder: t('sources:sourceConfigure.password'),
           isPassword: true,
         },
       )

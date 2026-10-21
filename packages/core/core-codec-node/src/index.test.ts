@@ -104,11 +104,6 @@ function taggedWav(title: string): Uint8Array {
     new DataView(b.buffer).setUint32(0, n, true)
     return b
   }
-  const u16le = (n: number) => {
-    const b = new Uint8Array(2)
-    new DataView(b.buffer).setUint16(0, n, true)
-    return b
-  }
   // fmt chunk: PCM, stereo, 44100 Hz, 16-bit
   const fmt = (() => {
     const b = new Uint8Array(16)

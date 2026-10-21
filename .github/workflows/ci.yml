@@ -68,7 +68,11 @@ jobs:
           cache: pnpm
       - uses: actions/cache@v4
         with:
-          path: '**/*.tsbuildinfo'
+          path: |
+            packages/*/*/*.tsbuildinfo
+            apps/*/*.tsbuildinfo
+            apps/*/*/*.tsbuildinfo
+            !**/node_modules/**
           key: tsbuildinfo-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
             tsbuildinfo-${{ runner.os }}-${{ github.ref_name }}-
@@ -117,4 +121,5 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @BBeBee/desktop build:sidecar
       - run: pnpm exec vitest run --shard=${{ matrix.shard }}/${{ strategy.job-total }} --exclude "**/audio-engine-supervisor.test.ts"

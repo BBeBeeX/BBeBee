@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest'
-import { spawn, type ChildProcess } from 'node:child_process'
+import { spawn, execFileSync, type ChildProcess } from 'node:child_process'
 import readline from 'node:readline'
 import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
@@ -21,6 +21,12 @@ describe('BBeBee Node.js Headless Sidecar Roundtrip Tests', () => {
   beforeAll(async () => {
     mkdirSync(testDir, { recursive: true })
 
+    if (!existsSync(sidecarScript)) {
+      execFileSync(process.execPath, [join(__dirname, '../scripts/build-sidecar.js')], {
+        stdio: 'inherit',
+      })
+    }
+
     child = spawn('node', [sidecarScript], {
       stdio: ['pipe', 'pipe', 'inherit'],
       env: {
@@ -28,6 +34,22 @@ describe('BBeBee Node.js Headless Sidecar Roundtrip Tests', () => {
         BBEBEE_DATA_DIR: testDir,
         BBEBEE_DB_NAME: 'test.db',
       },
+    })
+
+    child.on('error', (err) => {
+      for (const [, callback] of pending) {
+        callback(new Error(`Sidecar process error: ${err.message}`))
+      }
+      pending.clear()
+    })
+
+    child.on('exit', (code, signal) => {
+      if (code !== 0 && code !== null) {
+        for (const [, callback] of pending) {
+          callback(new Error(`Sidecar process exited unexpectedly with code ${code}, signal ${signal}`))
+        }
+        pending.clear()
+      }
     })
 
     rl = readline.createInterface({

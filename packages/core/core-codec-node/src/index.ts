@@ -23,9 +23,13 @@
 
 import { Service } from 'cordis'
 import type { Context } from 'cordis'
-import type {} from '@BBeBee/protocol'
 import type { AudioMetadata, CodecService, DecodedAudio, TranscodeOptions, TranscodeResult, Uri } from '@BBeBee/protocol'
 import { parseFromTokenizer, selectCover, type IAudioMetadata, type IOptions } from 'music-metadata'
+import type * as childProcess from 'node:child_process'
+import type * as nodeUrl from 'node:url'
+import type * as nodePath from 'node:path'
+import type * as nodeFs from 'node:fs'
+import type * as nodeOs from 'node:os'
 import { FsRangeTokenizer } from './tokenizer.js'
 
 // iconv-lite is Node-only (it needs Buffer). The codec runs in the sidecar
@@ -242,12 +246,11 @@ export class CodecNode extends Service implements CodecService {
   }
 
   private async readArtworkBatchViaWorker(filePaths: string[]): Promise<Array<Uint8Array | undefined>> {
-    // Dynamic imports for Node-only APIs (worker only runs in sidecar)
-    const { fork } = (await import('node:child_process')) as typeof import('node:child_process')
-    const { fileURLToPath } = (await import('node:url')) as typeof import('node:url')
-    const { dirname, join } = (await import('node:path')) as typeof import('node:path')
-    const { existsSync } = (await import('node:fs')) as typeof import('node:fs')
-    const { cpus } = (await import('node:os')) as typeof import('node:os')
+    const { fork } = (await import('node:child_process')) as typeof childProcess
+    const { fileURLToPath } = (await import('node:url')) as typeof nodeUrl
+    const { dirname, join } = (await import('node:path')) as typeof nodePath
+    const { existsSync } = (await import('node:fs')) as typeof nodeFs
+    const { cpus } = (await import('node:os')) as typeof nodeOs
 
     // Resolve worker script: bundled sidecar has it as sibling of index.mjs
     const here = dirname(fileURLToPath(import.meta.url))
@@ -987,7 +990,7 @@ function uriToFilePath(uri: string): string | null {
     if (typeof process === 'undefined' || !process.versions?.node) return null
     // Dynamic require to avoid bundling issues in non-Node targets
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { fileURLToPath } = require('node:url') as typeof import('node:url')
+    const { fileURLToPath } = require('node:url') as typeof nodeUrl
     const p = fileURLToPath(fileUrl)
     // Windows: /C:/path -> C:/path
     if (/^\/[a-zA-Z]:[\\/]/.test(p)) {

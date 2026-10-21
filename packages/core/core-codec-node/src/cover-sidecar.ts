@@ -25,7 +25,6 @@ import { existsSync } from 'node:fs'
 import { cpus } from 'node:os'
 import readline from 'node:readline'
 import process from 'node:process'
-import { Buffer } from 'node:buffer'
 
 // ---------------------------------------------------------------------------
 // URI → file path (mirrors core-codec-node/src/index.ts uriToFilePath)

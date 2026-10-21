@@ -110,6 +110,7 @@
       "newKey": "New key",
       "newVariableKeyLabel": "New variable key",
       "newVariableValueLabel": "New variable value",
+      "password": "Password",
       "pingAuthFailed": "Authentication Failed",
       "pingConnected": "Connected",
       "pingNetworkError": "Network Error",
@@ -119,6 +120,7 @@
       "testConnection": "Test Connection",
       "testing": "Testing...",
       "title": "Configure {name}",
+      "username": "Username",
       "value": "Value",
       "variableLabel": "Variable {k}",
       "variables": "Variables (source_vars)"
@@ -301,6 +303,7 @@
       "newKey": "新建键",
       "newVariableKeyLabel": "新建变量键",
       "newVariableValueLabel": "新建变量值",
+      "password": "密码",
       "pingAuthFailed": "认证失败",
       "pingConnected": "已连接",
       "pingNetworkError": "网络错误",
@@ -310,6 +313,7 @@
       "testConnection": "测试连接",
       "testing": "测试中…",
       "title": "配置 {name}",
+      "username": "用户名",
       "value": "值",
       "variableLabel": "变量 {k}",
       "variables": "变量（source_vars）"
