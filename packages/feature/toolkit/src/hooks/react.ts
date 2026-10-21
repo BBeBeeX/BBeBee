@@ -51,7 +51,8 @@ try {
  * `reflect.get(key, false)` is the ask that has an answer. The `false` is
  * "not required", and it works the same on a root context and a scoped one.
  */
-export function serviceOf<T = unknown>(ctx: Context, key: string): T | undefined {
+export function serviceOf<T = unknown>(ctx: Context | undefined, key: string): T | undefined {
+  if (!ctx || !(ctx as unknown as { reflect?: { get: unknown } }).reflect?.get) return undefined
   return (ctx as unknown as { reflect: { get(key: string, required: boolean): unknown } }).reflect.get(
     key,
     false,

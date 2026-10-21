@@ -29,12 +29,24 @@ import type {
 import { serviceOf, useServiceState } from './react.js'
 import { shallowArrayEqual } from './store.js'
 
+const DEFAULT_TRANSPORT_STATE: TransportState = {
+  status: 'idle',
+  positionMs: 0,
+  durationMs: 0,
+  bufferedMs: 0,
+  volume: 1,
+  muted: false,
+  repeat: 'off',
+  shuffle: false,
+  playMode: 'sequence',
+}
+
 /** The transport, re-read whenever it changes. */
 export function useTransport(ctx: Context): TransportState {
   return useServiceState(
     ctx,
     ['player/state-changed', 'player/track-changed'],
-    () => ctx.player.state,
+    () => serviceOf<PlayerService>(ctx, 'player')?.state ?? DEFAULT_TRANSPORT_STATE,
   )
 }
 
@@ -58,9 +70,12 @@ export function useNowPlaying(ctx: Context): NowPlayingMeta | undefined {
  * difference between a scroll and a stutter.
  */
 export function useQueue(ctx: Context): readonly QueueItem[] {
-  return useServiceState(ctx, ['queue/changed'], () => ctx.player.queue, {
-    isEqual: shallowArrayEqual,
-  })
+  return useServiceState(
+    ctx,
+    ['queue/changed'],
+    () => serviceOf<PlayerService>(ctx, 'player')?.queue ?? [],
+    { isEqual: shallowArrayEqual },
+  )
 }
 
 /**
@@ -76,7 +91,7 @@ export function useUpcoming(ctx: Context): readonly QueueItem[] {
   return useServiceState(
     ctx,
     ['queue/changed', 'player/state-changed'],
-    () => ctx.player.upcoming(),
+    () => serviceOf<PlayerService>(ctx, 'player')?.upcoming() ?? [],
     { isEqual: shallowArrayEqual },
   )
 }

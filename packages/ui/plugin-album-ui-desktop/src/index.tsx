@@ -1314,11 +1314,10 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
 export const name = 'plugin-album-ui-desktop'
 
 /**
- * `sources` is required (the album read goes through it); `player` and
- * `downloads` are read with `serviceOf`, so a build without either draws the
- * screen without the control that would call it.
+ * `sources` is required (the album read goes through it); `player` is required
+ * for playback transport and track actions; `downloads` is read with `serviceOf`.
  */
-export const inject = ['ui', 'sources']
+export const inject = ['ui', 'sources', 'player']
 
 /**
  * Register a component bound to **this** context, not the shell's.

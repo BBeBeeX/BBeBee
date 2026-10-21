@@ -6,8 +6,12 @@
  * and are tested without a renderer.
  */
 
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
-import { isPlayingLike } from './player.js'
+import { render } from '@testing-library/react'
+import { createElement as h } from 'react'
+import { Context } from 'cordis'
+import { isPlayingLike, useTransport } from './player.js'
 
 describe('isPlayingLike', () => {
   it('counts a buffer underrun as playing', () => {
@@ -25,3 +29,20 @@ describe('isPlayingLike', () => {
     expect(isPlayingLike('error')).toBe(false)
   })
 })
+
+describe('useTransport', () => {
+  it('returns default transport state and does not throw when player service is not injected', async () => {
+    const root = new Context()
+    let scoped: Context | undefined
+    root.inject([], (s) => void (scoped = s))
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    let result: unknown
+    function TestComp() {
+      result = useTransport(scoped ?? root)
+      return h('div', null, (result as { status: string }).status)
+    }
+    expect(() => render(h(TestComp))).not.toThrow()
+    expect((result as { status: string }).status).toBe('idle')
+  })
+})
+
