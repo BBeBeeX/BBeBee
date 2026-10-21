@@ -82,9 +82,11 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
   // functions. Locale changes reach this component because its
   // useI18n-subscribed ancestors re-render it.
   const i18n = props.ctx ? serviceOf<I18nService>(props.ctx, 'i18n') : undefined
-  // English copy stays verbatim until a caller threads `ctx` (i18n sweep).
-  const t = (key: string, fallback: string, params?: Record<string, string | number>): string =>
-    i18n?.t(key, params) ?? fallback
+  const t = (key: string, fallback: string, params?: Record<string, string | number>): string => {
+    if (!i18n) return fallback
+    const res = i18n.t(key, params)
+    return res === key ? fallback : res
+  }
 
   useEffect(() => {
     if (wasOpenRef.current && !props.open) {

@@ -33,14 +33,18 @@ export function LocalAlbumCard({
         if (e.key === 'Enter' || e.key === ' ') onOpen()
       },
       style: {
-        backgroundColor: hovered ? '#282828' : '#181818',
+        backgroundColor: hovered ? 'var(--card-hover, #282828)' : 'var(--card-bg, #181818)',
+        border: hovered
+          ? '1px solid var(--card-border-hover, var(--card-border, transparent))'
+          : '1px solid var(--card-border, transparent)',
+        boxShadow: 'var(--card-shadow, none)',
         padding: 16,
         borderRadius: 8,
         display: 'flex',
         flexDirection: 'column',
         gap: 12,
         cursor: 'pointer',
-        transition: 'background-color 0.2s ease',
+        transition: 'background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease',
         position: 'relative',
       },
     },
@@ -54,16 +58,16 @@ export function LocalAlbumCard({
           aspectRatio: '1 / 1',
           borderRadius: 6,
           overflow: 'hidden',
-          backgroundColor: '#242424',
+          backgroundColor: 'var(--surface-1, var(--color-surface, #242424))',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
         },
       },
       album.artwork
         ? h(CachedArtwork, { ctx, artwork: album.artwork, seed: album.urn, size: 200, radius: 6 })
-        : tablerIcon('disc', { size: 52, color: '#7f7f7f' }),
+        : tablerIcon('disc', { size: 52, color: 'var(--text-tertiary, #7f7f7f)' }),
       // Floating Green Play Button
       onPlay
         ? h(

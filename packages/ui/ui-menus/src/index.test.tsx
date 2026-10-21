@@ -378,6 +378,12 @@ describe('useSaveToPlaylistMenu', () => {
     const target = result.current.menuProps.playlists.find((p) => p.urn === playlists[0]!.urn)
     expect(target?.trackCount).toBe(3) // initial undefined (0) + 3 = 3
   })
+
+  it('threads ctx through menuProps for popover i18n support', async () => {
+    const h = await harness({ player: false, downloads: false, ui: false })
+    const { result } = renderHook(() => useSaveToPlaylistMenu(h.ctx))
+    expect(result.current.menuProps.ctx).toBe(h.ctx)
+  })
 })
 
 describe('the sleep-timer submenu', () => {

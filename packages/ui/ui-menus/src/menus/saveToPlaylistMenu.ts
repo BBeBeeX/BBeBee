@@ -42,6 +42,7 @@ export interface SaveToPlaylistMenuController {
   openBatch(tracks: readonly (SaveToPlaylistTrack | string)[], anchor?: MenuAnchor, title?: string): void
   close(): void
   menuProps: {
+    ctx?: Context
     open: boolean
     onClose: () => void
     x: number
@@ -354,6 +355,7 @@ export function useSaveToPlaylistMenu(ctx: Context): SaveToPlaylistMenuControlle
     openBatch,
     close,
     menuProps: {
+      ctx,
       open: active !== undefined,
       onClose: close,
       x: active?.anchor.x ?? 0,

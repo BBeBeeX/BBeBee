@@ -53,7 +53,7 @@ function LocalAlbumRow({
         padding: '0 32px',
         borderRadius: 4,
         cursor: 'pointer',
-        background: hovered ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+        background: hovered ? 'var(--surface-hover, rgba(255, 255, 255, 0.1))' : 'transparent',
         transition: 'background-color 0.15s ease',
         boxSizing: 'border-box',
       },
@@ -124,7 +124,7 @@ function LocalAlbumRow({
                 borderRadius: 4,
                 overflow: 'hidden',
                 flexShrink: 0,
-                backgroundColor: '#282828',
+                backgroundColor: 'var(--surface-1, var(--color-surface, #282828))',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -132,7 +132,7 @@ function LocalAlbumRow({
             },
             album.artwork
               ? h(LazyArtwork, { ctx, artwork: album.artwork, seed: album.urn, size: 40, radius: 4 })
-              : tablerIcon('disc', { size: 22, color: '#7f7f7f' }),
+              : tablerIcon('disc', { size: 22, color: 'var(--text-tertiary, #7f7f7f)' }),
           ),
       h(
         'div',

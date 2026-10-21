@@ -16,6 +16,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { act, fireEvent, render, within } from '@testing-library/react'
 import { TEST_ROW_HEIGHT as ROW, withListLayout as withLayout } from './testing.js'
 import { createElement as h } from 'react'
+import type { Context } from 'cordis'
 import type { Track } from '@BBeBee/protocol'
 import {
   Artwork,
@@ -788,6 +789,41 @@ describe('SaveToPlaylistPopover', () => {
     fireEvent.change(input, { target: { value: 'New Test Playlist' } })
     fireEvent.click(confirmBtn)
     expect(onCreate).toHaveBeenCalledWith('New Test Playlist', undefined)
+  })
+
+  it('renders translated text when ctx with i18n is provided', () => {
+    const mockCtx = {
+      reflect: {
+        get: (key: string) => {
+          if (key === 'i18n') {
+            return {
+              t: (k: string) => {
+                if (k === 'app:common.saveToPlaylist.newPlaylist') return '新建播放列表'
+                if (k === 'app:common.saveToPlaylist.findPlaylist') return '查找播放列表'
+                return k
+              },
+            }
+          }
+          return undefined
+        },
+      },
+    } as unknown as Context
+
+    const { getByTestId } = render(
+      h(SaveToPlaylistPopover, {
+        open: true,
+        testID: 'save-popover-i18n',
+        onClose: () => {},
+        x: 100,
+        y: 100,
+        playlists: [{ urn: 'BBeBee:local:playlist:1', name: 'My List', trackCount: 5 }],
+        ctx: mockCtx,
+      }),
+    )
+
+    const popover = within(getByTestId('save-popover-i18n'))
+    expect(popover.getByText('新建播放列表')).toBeTruthy()
+    expect(popover.getByPlaceholderText('查找播放列表')).toBeTruthy()
   })
 })
 
