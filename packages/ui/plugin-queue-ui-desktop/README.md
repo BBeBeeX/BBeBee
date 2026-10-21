@@ -21,7 +21,11 @@ Binds `queue.view` to the desktop kit, migrated wholesale from `plugin-player`'s
   - **Now playing**: highlights the currently playing track (green title, waveform indicator); when nothing is queued it says "No more songs queued".
   - **Next up**: shows the upcoming sequence; when it carries a source context it displays "Next up from: {label}".
   - An empty queue shows the `EmptyState` (🎵 "Nothing queued").
-  - Row content is resolved in batch by `useTracksByUrn`: artwork + title + artist; until ready, `queueTrackFallback` degrades gracefully and never shows a raw URN.
+  - Row content is resolved via windowed `useTracksByUrn`: artwork + title + artist; until ready, `queueTrackFallback` degrades gracefully and never shows a raw URN.
+  - **Large-Queue Scalability (3,000+ tracks)**:
+    - **Viewport sliding window hydration**: Tracks the virtual scroll position via `onScroll` on `List` and only queries metadata for current track plus a sliding slice (`[windowStart - 15, windowStart + 60]`). Opening a 3,000-song queue queries $< 150$ tracks instead of 3,000 all at once.
+    - **Tab isolation**: When the user switches to "Recently played", queue URN hydration is suspended, avoiding unnecessary catalogue queries and re-renders.
+    - **Synchronous artwork cache**: `useResolvedArtwork` yields cached artwork paths synchronously on initial mount, eliminating row layout shifts and re-renders in virtualized lists.
   - Clicking a row calls `playFromContext(urn)` to jump to that item.
 - **"Recently played" tab**:
   - reads the history through `usePlayHistory` and strictly **deduplicates** by `trackUrn` (keeping the track's most recent play record and time).
@@ -49,7 +53,8 @@ export default { name, inject, apply }
 - row clicks trigger `playFromContext` to jump rather than re-enqueue;
 - Recently played tab switching and list rendering;
 - Recently played tab dedup by `trackUrn`: the same song played many times shows only one row with the latest record, and row clicks carry the deduplicated context URN list;
-- queue row context-menu action items.
+- queue row context-menu action items;
+- 3,000-song queue windowing test: ensures mounting a 3,000-track queue issues $< 150$ URN requests instead of fetching all 3,000 tracks.
 
 ## Related docs
 

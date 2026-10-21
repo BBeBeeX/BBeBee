@@ -286,6 +286,11 @@ export const tokens = {
   - **全屏播放页**：叠加在外壳之上的蒙层 —— 不透明、fixed、z-index 100，作为外壳根节点的后续子节点 —— 绝不是早期返回的分支切换，因此每个缓存页面都保持挂载在其下（[ui/architecture.md §7.1](architecture.md#71-桌面端外壳导航与顶部栏交互)）。
   - **曲库侧栏快捷入口**（喜欢 / 本地和下载）：高亮状态来自外壳的真实当前路由（`activeViewId` prop），绝非来自 `ui/navigate` 事件 —— 外壳内部导航（专辑详情、前进/后退、主页）不会发出任何此类事件。
   - **队列行拖拽重排**：原生 HTML5 拖放（无依赖）外加 Alt+↑/↓；可见播放顺序中的落点间隙经 `upcomingDropToQueueIndex`（`plugin-queue-ui-desktop/src/reorder.ts`）换算为队列行索引；随机播放开启时禁用拖拽，因为此时的可见顺序只是排列，而非行本身。
+  - **队列抽屉超大队列虚拟化（3,000+ 首）**：
+    - **视口滑动窗口水合**：队列抽屉严禁将整个 3,000 首 URN 数组传给 `useTracksByUrn`。通过 `List` 的 `onScroll` 监听 `windowStart`，将元数据水合动态切片为 `[windowStart - 15, windowStart + 60]` 并合并当前播放曲目。首屏挂载 3,000 首队列时向底层数据库/源发起的请求 $< 150$ 条，而不是 3,000 条并发请求。
+    - **标签页隔离**：在"播放队列"与"最近播放"标签页之间切换时挂起后台队列 URN 查询，防止资源争用。
+    - **封面同步缓存命中**：`useResolvedArtwork` 在组件挂载时同步读取 `cacheGet(id)`，消除虚拟列表滚动过程中的行高度抖动和次轮跳闪。
+    - **Context 级 WeakMap 缓存与浅比对**：`useTracksByUrn` 使用 `WeakMap<Context, Map<string, Track>>` 在应用生命周期内持久化已解析的 `Track` 实体，并通过 $O(N)$ 引用浅层比对（`shallowArrayEqual`）替代高开销的 `.sort().join('\n')` 字符串拼接。
 - **移动端外壳**：
   - 干净的全出血深色视图，带有底部导航标签栏（音乐库、搜索）和作用域限定的曲库过滤（`全部` / `本地` / `最喜欢`）。
   - 停靠在标签栏正上方的常驻迷你播放器，展示封面缩略图、跑马灯标题、艺人名称、播放/暂停切换以及发丝级播放进度条。
@@ -464,6 +469,7 @@ export const tokens = {
 
 ### 9.6 播放历史与最近播放（`HistoryScreen` 与 `QueueScreen`）
 - **按 `trackUrn` 严格去重**：桌面与移动端的 `HistoryScreen` 以及桌面 `QueueScreen` 的"最近播放"标签页都按 `trackUrn` 对播放条目去重，仅保留最近一次播放记录。保留最新播放时间戳、相对时间展示与完成/跳过徽标。headless 批量元数据加载（`useTracksByUrn`）只解析去重后的 URN 列表，避免冗余的曲库查询。
+- **最近播放 50 首上限与抽屉隔离**：桌面端 `QueueScreen` 的"最近播放"标签页对去重后的记录取上限至多 50 首（`slice(0, 50)`），并与主队列标签页数据水合完全隔离。点击行触发 `playFromContext(record.trackUrn, uniqueHistoryUrns)`，不触发大规模 upcoming 排列计算。
 - **播放次数指示**：`HistoryScreen` 在整个历史数据集中计算每首曲目的累计播放频次，并在行元数据区展示胶囊徽标（`播放 N 次`）。
 - **头部计数与空状态一致**：头部记录计数（`最近播放记录 (${uniqueRecords.length} 首)`）与空状态守卫均针对去重后的记录求值。
 

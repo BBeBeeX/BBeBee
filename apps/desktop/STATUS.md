@@ -1698,6 +1698,40 @@ Following strict checklist review, all 365 tracked legacy files were removed usi
 - **Diff 门禁**: `pnpm check:changed` 全量测试、类型检查、代码规范全部通过；
 - **铁律保持**: 主仓库保持零提交（0 commit）、零推送（0 push）。
 
+---
+
+## Task Execution Report: Audio Visualization In-Memory Fast-Path Bridge (Plan A+C)
+
+### 1. 架构动机与解决痛点
+1. **现状与痛点**：
+   - 前端 `plugin-visualizer` 在播放时以 ~60 FPS（每 16ms）持续轮询 `audio.mpvGetFftFrame` / `visualizer.*` 获取频谱与声波。
+   - 原有链路经 `desktop_bridge_call` / `bridge_call` 将所有请求全量发往主 Node.js Sidecar 的 stdio NDJSON 管道。
+   - 60Hz 的高频轮询与数据库查询（SQLite）、本地扫描、文件读写等核心任务共享同一条管道，极易导致渲染掉帧或阻塞主业务，且跨进程双重序列化损耗过大。
+2. **方案实施 (Plan A + C)**：
+   - **方案 A（Rust 内存直通高速桥）**：在 Rust `AppState` 中开辟最新 FFT 帧缓存，`bridge_call` 命中时直接封装为标准 `BridgeEnvelope` 并微秒级返回，彻底消除 60FPS 轮询对 Sidecar 的挤占。
+   - **方案 C（混合回退降级）**：若本地缓存为空，透明回退至主 Sidecar 派发，保证向后兼容与平滑过渡。
+
+### 2. 关键代码改动
+1. `apps/desktop/src-tauri/src/state.rs`:
+   - `AppState` 增加 `latest_fft_frame: Mutex<Option<crate::audio::FftFrame>>`。
+   - 遵循 `lock_recover` 规范实现 `set_fft_frame` 与 `get_fft_frame`，新增 `test_fft_frame_cache` 单元测试。
+2. `apps/desktop/src-tauri/src/audio.rs`:
+   - `FftFrame` 增加 `PartialEq` 派生。
+3. `apps/desktop/src-tauri/src/commands.rs`:
+   - 实现 `try_fast_path_bridge` 函数，在 `bridge_call` 头部拦截 `(service == "audio" && method == "mpvGetFftFrame") || service == "visualizer"`。
+   - 新增 Tauri 命令 `audio_engine_get_fft_frame`，新增 `test_fast_path_bridge_visualizer` 单元测试。
+4. `apps/desktop/src-tauri/src/main.rs`:
+   - 在 `setup_app` 中通过 `audio_engine.subscribe_fft()` 启动后台异步任务，实时将音频引擎输出的最新 FFT 帧存入 `AppState`；在 crash 时清除缓存。
+   - 在 `tauri::generate_handler!` 中注册 `audio_engine_get_fft_frame`。
+5. `apps/desktop/tests/preload-parity.test.ts`:
+   - 补充前端单元测试，验证 `bridge.call('audio', 'mpvGetFftFrame', [])` 与 `bridge.call('visualizer', ...)` 正确解包高速桥返回的信封结构。
+
+### 3. 门禁验证结果
+- **Rust 编译与测试检查**: `cargo check --tests` 0 error / 0 warning。
+- **桌面端测试套件**: `pnpm test apps/desktop` 12 个测试文件全部通过（221 tests passed）。
+- **Diff 门禁**: `pnpm check:changed` Typecheck、Lint、Vitest 全绿通过。
+- **架构文档与规则同步**: 更新 `apps/desktop/docs/tauri-mapping.md`、`docs/audio/engine.md`、`rules/services.md` 及 `STATUS.md`。
+
 
 
 

@@ -174,6 +174,12 @@ contributions — a plugin's section disappears when the plugin does.
   - Non-truncated titles remain completely static. Virtualization via `IntersectionObserver` suspends off-screen animations.
   - Tooltip interaction must not interrupt or reset the running marquee timeline. System `prefers-reduced-motion` degrades to static ellipsis.
 
+### 7.2 Large-Queue Virtualization & Windowed Hydration (`QueueScreen`)
+- **Viewport Sliding Window Hydration**: A queue drawer or list with potentially thousands of items (e.g. 3,000+ songs) must never feed the full URN list to `useTracksByUrn`. Virtual scroll containers (`List`) emit `onScroll` to track `windowStart`, limiting resolution to `[windowStart - 15, windowStart + 60]` plus the currently playing item. Initial mounting of 3,000 tracks requests $< 150$ tracks from the catalog, preventing SQLite batch queries and Promise exhaustion.
+- **Synchronous Artwork Cache Direct Hit**: `useResolvedArtwork` synchronously checks `cacheGet(id)` during `useState` initialization. If cached, the image URI is yielded on the very first render, eliminating row layout shifts and secondary paint flashes during fast scrolling.
+- **Tab Isolation**: In drawer views offering dual tabs (e.g. "Queue" vs "Recently played"), background queue URN queries must be suspended while the other tab is active.
+- **Context-Scoped `WeakMap` Metadata Cache & Reference Equality**: `useTracksByUrn` caches resolved tracks in a `WeakMap<Context, Map<string, Track>>`, isolating state per Cordis Context (preventing cross-test pollution in Vitest while sharing cache across components in the same app instance), and compares URN arrays using `shallowArrayEqual` ($O(N)$ reference check) instead of `.sort().join('\n')` serialization.
+
 ---
 
 ## 8. Mini Player & Dynamic Island Desktop Specifications

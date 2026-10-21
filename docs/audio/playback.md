@@ -148,6 +148,14 @@ The player unifies queue traversal and repeating into four explicit playback mod
 - **Mode Cycling**: `cyclePlayMode()` advances modes in the standard order: `sequence` $\to$ `single-loop` $\to$ `list-loop` $\to$ `shuffle` $\to$ `sequence`.
 - **Backward Compatibility**: Calling `setRepeat()` or `setShuffle()` automatically synchronizes `state.playMode` through `derivePlayMode()`. Similarly, calling `setPlayMode()` automatically configures the underlying `repeat` and `shuffle` properties on the queue.
 
+### Queue Model & Large-Queue Scalability (3,000+ tracks)
+
+When queues scale to thousands of tracks (e.g. 3,000+ songs), naive array scans cause severe UI stalls. The player architecture enforces three algorithmic invariants:
+1. **$O(1)$ Entry Hash Index (`entryMap`)**: `QueueModel` maintains an internal `Map<string, QueueEntry>` alongside the ordered entries array. `entry(id)` performs an immediate $O(1)$ hash lookup rather than an $O(N)$ `.find()` scan.
+2. **$O(N)$ Upcoming Traversal**: `upcoming()` traverses `order()` and resolves items through `entry(id)`. With $O(1)$ item resolution, calculating upcoming items runs strictly in $O(N)$ time (3,000 comparisons instead of ~4,500,000 quadratic iterations), keeping state transitions and next/previous operations instant.
+3. **Lazy Snapshot Caching (`itemsCache`)**: The public `items` snapshot is lazily computed and cached, invalidated only on mutating operations (`add`, `remove`, `move`, `clear`, `restore`). Repeated reads without queue changes reuse the cached array reference.
+4. **Fractional Index Updates**: Moving items in the queue computes a fractional base-36 midpoint key (`between()`), requiring only a single-row SQLite `UPDATE` rather than rewriting the tail of thousands of rows.
+
 ### Resolution pipeline
 
 What happens between "the queue advanced" and "audio comes out". This is the sequence where the

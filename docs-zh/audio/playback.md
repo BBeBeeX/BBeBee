@@ -117,6 +117,14 @@ stateDiagram-v2
 - **模式循环**：`cyclePlayMode()` 按业界标准次序切换：`顺序播放 (sequence)` $\to$ `单曲循环 (single-loop)` $\to$ `列表循环 (list-loop)` $\to$ `随机播放 (shuffle)` $\to$ `顺序播放`。
 - **双向兼容**：调用旧版 `setRepeat()` 或 `setShuffle()` 会通过 `derivePlayMode()` 自动联动更新 `state.playMode`；反之调用 `setPlayMode()` 会同步配置底层队列的 `repeat` 与 `shuffle` 状态。
 
+### 队列模型与超长队列可扩展性（3,000+ 首）
+
+当播放队列膨胀至数千首（如 3,000+ 首曲目）时，朴素的数组扫描会导致严重的 UI 阻塞与主线程卡死。播放器架构确立了以下四项算法不变式：
+1. **$O(1)$ 条目哈希索引 (`entryMap`)**：`QueueModel` 在维护顺序数组的同时维护 `Map<string, QueueEntry>` 索引。`entry(id)` 从原先的 $O(N)$ 线性 `.find()` 扫描优化为立即命中的 $O(1)$ 哈希读取。
+2. **$O(N)$ Upcoming 遍历保障**：`upcoming()` 遍历 `order()` 并通过 `entry(id)` 取出条目。借助 $O(1)$ 的条目解析，计算 upcoming 严格收敛在 $O(N)$ 线性时间内（3,000 首由原先约 4,500,000 次二次循环比较降为 3,000 次），保证切歌、播放/暂停等状态流转即时响应。
+3. **快照惰性缓存 (`itemsCache`)**：对外暴露的 `items` 数组由内部惰性计算并缓存，仅在发生变更操作（`add`、`remove`、`move`、`clear`、`restore`）时才作废重新构造，消除无状态变化时的重复浅克隆。
+4. **分数索引单行更新**：队列重排计算分数中点 key（基于 36 进制的 `between()`），移动歌曲在 SQLite 中仅触发单行 `UPDATE`，无需批量重写后续数千行索引。
+
 ### 解析流水线
 
 从"队列前进了一格"到"声音出来了"之间发生的事。这是插件架构回报最直观的一段时序。

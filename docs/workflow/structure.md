@@ -200,7 +200,7 @@ B_Be_Bee/
 │   │   ├── plugin-lyrics/          ✅        ctx.lyrics — lyric cache, source resolution and sync
 │   │   ├── plugin-lyric-sources/   ✅        ctx.lyricSources — third-party external lyric sources
 │   │   ├── plugin-desktop-lyrics/  ✅        ctx.desktopLyrics — floating/secondary window lyrics
-│   │   ├── plugin-desktop-taskbar/ ✅        Windows taskbar thumbnail toolbar (play/pause/prev/next)
+│   │   ├── plugin-desktop-taskbar/ ✅        Windows taskbar thumbnail toolbar (play/pause/prev/next/favorite) and tray controls
 │   │   ├── plugin-visualizer/      ✅        ctx.visualizer — real-time audio FFT/waveform analysis service
 │   │   ├── plugin-mini-player/     ✅        ctx.miniPlayer — floating mini player and Dynamic Island
 │   │   ├── plugin-settings/        ✅        ctx.settings — user preferences and dynamic contribution registry

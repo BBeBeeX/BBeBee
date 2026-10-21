@@ -373,6 +373,11 @@ The scale relies on **"weight follows size"**:
     visible play order translates to a queue row index via `upcomingDropToQueueIndex`
     (`plugin-queue-ui-desktop/src/reorder.ts`); dragging is disabled while shuffle is on, because
     the visible order is then a permutation, not the rows.
+  - **Queue Drawer Large-Scale Virtualization (3,000+ tracks)**:
+    - **Viewport Windowed Hydration**: The queue drawer never passes an entire 3,000-song array to `useTracksByUrn`. `List` emits `onScroll` to track `windowStart`, dynamically slicing metadata hydration to `[windowStart - 15, windowStart + 60]` plus the current playing item. Initial mounting of 3,000 tracks requests $< 150$ records from the database instead of 3,000 concurrent queries.
+    - **Tab Isolation**: Switching between "Queue" and "Recently played" suspends background queue URN queries, preventing resource contention.
+    - **Synchronous Artwork Cache**: `useResolvedArtwork` resolves cached artwork paths synchronously during component mount (`cacheGet(id)`), eliminating layout shifts and secondary re-renders in virtualized lists.
+    - **Context-Scoped WeakMap Cache & Shallow Comparison**: `useTracksByUrn` caches resolved `Track` entities inside a `WeakMap<Context, Map<string, Track>>`, and uses $O(N)$ reference shallow comparison (`shallowArrayEqual`) instead of costly string serialization (`.sort().join('\n')`).
 - **Mobile Shell**:
   - Clean full-bleed dark views with bottom navigation tab bar (Library, Search) and scoped library
     filtering (`All` / `Local` / `Favorites`).
@@ -582,6 +587,7 @@ Cover-tinted header theming is specified in [§6.3](#63-surface-hierarchy--reced
 
 ### 9.6 Playback History & Recent Plays (`HistoryScreen` & `QueueScreen`)
 - **Strict Deduplication by `trackUrn`**: Both desktop and mobile `HistoryScreen` and the desktop `QueueScreen` "Recently played" tab de-duplicate playback entries by `trackUrn`, retaining only the most recent playback record. Preserves latest playback timestamp, relative time display, and completion/skipped badges. Headless batch metadata loading (`useTracksByUrn`) only resolves the deduplicated URN list, avoiding redundant catalogue lookups.
+- **Recent Plays 50-Item Cap & Drawer Isolation**: The desktop `QueueScreen` "Recently played" tab caps deduplicated entries to at most 50 tracks (`slice(0, 50)`), and isolates its data hydration from the main queue tab. Tapping a row initiates playback via `playFromContext(record.trackUrn, uniqueHistoryUrns)` without triggering heavy re-computations of upcoming queue permutations.
 - **Play Count Indicator**: `HistoryScreen` calculates cumulative play frequency per track across the history dataset and displays a pill badge (`Played N times`) in the row metadata area.
 - **Header Count & Empty State Alignment**: Header record counts (`Recently played records (${uniqueRecords.length} songs)`) and empty state guards evaluate against deduplicated records.
 

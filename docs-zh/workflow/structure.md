@@ -163,7 +163,7 @@ B_Be_Bee/
 │   │   ├── plugin-lyrics/          ✅        ctx.lyrics —— 歌词缓存、音源解析与播放进度同步
 │   │   ├── plugin-lyric-sources/   ✅        ctx.lyricSources —— 外部歌词音源注册与解析适配
 │   │   ├── plugin-desktop-lyrics/  ✅        ctx.desktopLyrics —— 桌面悬浮歌词与独立次级窗口控制器
-│   │   ├── plugin-desktop-taskbar/ ✅        Windows 任务栏缩略图工具栏按钮支持
+│   │   ├── plugin-desktop-taskbar/ ✅        Windows 任务栏缩略图工具栏（播控与收藏）与托盘联动支持
 │   │   ├── plugin-visualizer/      ✅        ctx.visualizer —— 音频可视化 FFT 分析与频谱数据提供
 │   │   ├── plugin-mini-player/     ✅        ctx.miniPlayer —— 迷你播放器与灵动岛浮窗控制器
 │   │   ├── plugin-download/        ✅        ctx.downloads —— 离线曲目下载队列与可断点续传管理

@@ -181,8 +181,8 @@ The `window.BBeBee` object exposes 20 namespaces and properties. Every method fo
 | **desktopLyrics.sendAction**| `(action: unknown): Promise<void>` | `invoke('desktop_lyrics_send_action', { action })` | Rust emits `desktop-lyrics:action` to main window |
 | **desktopLyrics.onData**| `(callback: (data) => void): (() => void)` | `listen('desktop-lyrics:data', event => callback(event.payload))` | Tauri Event subscription |
 | **desktopLyrics.onAction**| `(callback: (action) => void): (() => void)` | `listen('desktop-lyrics:action', event => callback(event.payload))` | Tauri Event subscription |
-| **taskbar.update** | `(state: unknown): Promise<void>` | `invoke('desktop_taskbar_update', { state })` | Rust Shell Win32 thumbnail toolbar buttons & Tray menu |
-| **taskbar.onAction** | `(callback: (action) => void): (() => void)` | `listen('taskbar:action', event => callback(event.payload))` | Tauri Event subscription |
+| **taskbar.update** | `(state: unknown): Promise<void>` | `invoke('desktop_taskbar_update', { state })` | Rust Shell Win32 thumbnail toolbar buttons (Prev, Play/Pause, Next, Favorite/Unfavorite) with theme adaptation & Tray menu |
+| **taskbar.onAction** | `(callback: (action) => void): (() => void)` | `listen('taskbar:action', event => callback(event.payload))` | Tauri Event subscription (`'togglePlay' \| 'previous' \| 'next' \| 'toggleFavorite'`) |
 | **miniPlayer.open** | `(options?: unknown): Promise<void>` | `invoke('desktop_mini_player_open', { options })` | Rust Shell creates/shows `"mini-player"` WebviewWindow |
 | **miniPlayer.close** | `(): Promise<void>` | `invoke('desktop_mini_player_close')` | Rust Shell hides mini player window & restores main |
 | **miniPlayer.restoreMain**| `(): Promise<void>` | `invoke('desktop_mini_player_restore_main')` | Rust Shell restores and focuses main window |
@@ -257,16 +257,30 @@ The sidecar enforces strict method allowlists to prevent arbitrary object dispat
 - **system**: `acquireWakeLock`, `releaseWakeLock`, `watchMediaKeys`, `registerHotkey`, `unregisterHotkey`, `publishNowPlaying`, `publishPlaybackState`, `setSupportedCommands`, `clearNowPlaying`.
 - **audio**: `getOutputDevices`, `setOutputDevice`, `mpvLoad`, `mpvAppend`, `mpvPlay`, `mpvPause`, `mpvStop`, `mpvSeek`, `mpvSetVolume`, `mpvSetMuted`, `mpvSetAudioExclusive`, `mpvSetDspConfig`, `mpvSetVisualizer`, `mpvGetFftFrame`, `mpvGetState`, `mpvGetAudioDevices`, `mpvEngineStatus`, `mpvSetStreamPlayback`.
 
-> **Note — Rust audio migration (staged, not yet on the live path):** a parallel Rust-native audio
+### 5.4 Fast-Path Bridge Routing (`bridge_call`)
+
+The `bridge_call` / `desktop_bridge_call` command in Rust (`src-tauri/src/commands.rs`) acts as an intelligent router rather than a naive proxy. To prevent head-of-line blocking and ensure high-throughput low-latency execution, it implements dedicated routing layers before delegating to the main Node sidecar:
+
+1. **Cover Sidecar Router (`codec.readArtwork*`)**:
+   - Routes artwork batch extractions to a dedicated, standalone Node worker pool (`dist-sidecar/cover.mjs`).
+   - Prevents bulk image extraction from starving core playback and database bridge calls. Falls back to the main sidecar if the cover sidecar is unavailable.
+
+2. **Audio Visualization In-Memory Fast-Path Bridge (`audio.mpvGetFftFrame` / `visualizer`)**:
+   - Intercepts high-frequency (~60 FPS, ~16ms interval) audio spectrum and waveform queries from `plugin-visualizer`.
+   - **Zero-stdio fast path**: If an FFT frame has been cached by the native audio engine in Rust host memory (`AppState.latest_fft_frame`), `bridge_call` immediately wraps it in a standard `BridgeEnvelope` (`{ "__bbebee_bridge__": true, "ok": true, "result": frame }`) and returns it directly to the webview in sub-millisecond time.
+   - **Zero queue pollution**: Eliminates 60 round-trips/second over the Node sidecar's stdio NDJSON channel, preventing UI visualizer stutter and sidecar worker saturation.
+   - **Hybrid Fallback (Plan C)**: If the host cache has not yet received a frame (e.g. during engine initialization or in environments where audio is managed by the legacy Node supervisor), the call gracefully falls through to the main sidecar.
+
+> **Note — Rust audio migration (staged, P0):** a parallel Rust-native audio
 > surface exists in `src-tauri/src/audio.rs` (`AudioEngineSupervisor`, NDJSON JSON-RPC over the
 > engine subprocess stdio). It is instantiated at startup (`main.rs`), held in `AppState`
-> (`get_audio_engine` / `set_audio_engine`), exposes 11 registered Tauri commands
+> (`get_audio_engine` / `set_audio_engine`), exposes 12 registered Tauri commands
 > (`audio_engine_start`, `audio_engine_stop`, `audio_engine_load`, `audio_engine_play`,
 > `audio_engine_pause`, `audio_engine_stop_playback`, `audio_engine_seek`, `audio_engine_set_volume`,
-> `audio_engine_set_muted`, `audio_engine_set_dsp`, `audio_engine_status`), and forwards engine
-> events (`audio:state`, crash) to the frontend. It currently has **no renderer callers** — live
-> playback still travels `BBeBeeBridge.call('audio', …)` → Rust `bridge_call` → Node sidecar
-> `audioHost` (`sidecar/audio/audio-engine-supervisor.ts`).
+> `audio_engine_set_muted`, `audio_engine_set_dsp`, `audio_engine_status`, `audio_engine_get_fft_frame`),
+> continuously updates `AppState.latest_fft_frame` via a background `subscribe_fft()` task, and forwards
+> engine events (`audio:state`, crash) to the frontend. Live playback bridge calls for general transport
+> continue to route through `bridge_call`, while FFT visualization calls benefit from the in-memory fast-path.
 >
 > FFmpeg transcoding, by contrast, has **fully migrated to Rust** (`src-tauri/src/transcode.rs`):
 > both shims route `window.BBeBee.audio.transcode` / `cancelTranscode` to the
