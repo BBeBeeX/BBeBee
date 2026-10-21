@@ -68,6 +68,9 @@ pub mod windows_taskbar {
         unfavorite: HICON,
     }
 
+    unsafe impl Send for TaskbarIcons {}
+    unsafe impl Sync for TaskbarIcons {}
+
     impl Drop for TaskbarIcons {
         fn drop(&mut self) {
             unsafe {
