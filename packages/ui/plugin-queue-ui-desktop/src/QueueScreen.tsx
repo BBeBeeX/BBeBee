@@ -7,7 +7,7 @@
  * handles layout, presentation, and event wiring only (docs/08 §1).
  */
 
-import { createElement as h, useMemo, useRef, useState, type ReactElement } from 'react'
+import { createElement as h, useCallback, useMemo, useRef, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { PlayRecord, QueueItem, QueueSourceContext, Track } from '@BBeBee/protocol'
 import { formatDuration } from '@BBeBee/toolkit'
@@ -133,8 +133,44 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
     ctx.player.moveItem(id, toIndex)
   }
 
-  // Queue tracks resolution
-  const queueTrackUrns = queue.map((item) => item.trackUrn)
+  // Track the scroll window to only fetch tracks within view and near buffer
+  const [windowStart, setWindowStart] = useState(0)
+  const onScroll = useCallback((scrollTop: number) => {
+    const itemIndex = Math.max(0, Math.floor(scrollTop / 64))
+    const block = Math.floor(itemIndex / 25) * 25
+    setWindowStart((prev) => (prev === block ? prev : block))
+  }, [])
+
+  const currentIdx = useMemo(() => {
+    let idx = queue.findIndex(
+      (item) =>
+        item.id === state.currentItemId ||
+        (state.trackUrn && item.trackUrn === state.trackUrn),
+    )
+    if (idx === -1 && queue.length > 0) idx = 0
+    return idx
+  }, [queue, state.currentItemId, state.trackUrn])
+
+  const currentItem = queue[currentIdx] ?? queue[0]
+
+  // Queue tracks resolution: when on history tab, don't query queue tracks;
+  // for small queues (<= 100) resolve all; for large queues (> 100), window by scroll position.
+  const queueTrackUrns = useMemo(() => {
+    if (tab !== 'queue') return []
+    if (queue.length <= 100) {
+      return queue.map((item) => item.trackUrn)
+    }
+    const urns = new Set<string>()
+    if (currentItem) urns.add(currentItem.trackUrn)
+    const start = Math.max(0, windowStart - 15)
+    const end = Math.min(upcoming.length, windowStart + 60)
+    for (let i = start; i < end; i++) {
+      const item = upcoming[i]
+      if (item) urns.add(item.trackUrn)
+    }
+    return Array.from(urns)
+  }, [tab, queue, upcoming, currentItem, windowStart])
+
   const queueTracks = useTracksByUrn(ctx, queueTrackUrns)
 
   // Play history resolution (de-duplicated by trackUrn, preserving most recent occurrence, capped at 50)
@@ -306,24 +342,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
     )
 
   const renderQueueContent = () => {
-    if (queue.length === 0) {
-      return h(EmptyState, {
-        icon: 'music',
-        title: t('queue:index.nothingQueued'),
-        description: t('queue:index.playSomethingFromYourLibrary'),
-      })
-    }
-
-    let currentIdx = queue.findIndex(
-      (item) =>
-        item.id === state.currentItemId ||
-        (state.trackUrn && item.trackUrn === state.trackUrn),
-    )
-    if (currentIdx === -1 && queue.length > 0) {
-      currentIdx = 0
-    }
-    const currentItem = queue[currentIdx] ?? queue[0]
-    if (!currentItem) {
+    if (queue.length === 0 || !currentItem) {
       return h(EmptyState, {
         icon: 'music',
         title: t('queue:index.nothingQueued'),
@@ -445,6 +464,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
         items: upcomingItems,
         header: queueHeader,
         estimatedItemSize: 64,
+        onScroll,
         keyExtractor: (item) => item.id,
         empty: h(
           'div',

@@ -27,6 +27,8 @@ export interface QueueEntry {
 export class QueueModel {
   /** Always sorted by `position`. */
   private entries: QueueEntry[] = []
+  private entryMap = new Map<string, QueueEntry>()
+  private itemsCache?: readonly QueueItem[]
   private shuffleOn = false
   private seed = 1
   /** Invalidated on every structural change; recomputed lazily. */
@@ -34,8 +36,23 @@ export class QueueModel {
 
   private shuffleFirstId?: string
 
+  private invalidateCache(): void {
+    this.orderCache = undefined
+    this.itemsCache = undefined
+  }
+
+  private rebuildMap(): void {
+    this.entryMap.clear()
+    for (const e of this.entries) {
+      this.entryMap.set(e.item.id, e)
+    }
+  }
+
   get items(): readonly QueueItem[] {
-    return this.entries.map((e) => e.item)
+    if (!this.itemsCache) {
+      this.itemsCache = this.entries.map((e) => e.item)
+    }
+    return this.itemsCache
   }
 
   get all(): readonly QueueEntry[] {
@@ -55,7 +72,7 @@ export class QueueModel {
   }
 
   entry(id: string): QueueEntry | undefined {
-    return this.entries.find((e) => e.item.id === id)
+    return this.entryMap.get(id)
   }
 
   /** Restore from persisted rows. They arrive sorted, but sort anyway. */
@@ -64,7 +81,8 @@ export class QueueModel {
     this.shuffleOn = opts.shuffle ?? false
     if (opts.seed !== undefined) this.seed = opts.seed
     this.shuffleFirstId = undefined
-    this.orderCache = undefined
+    this.rebuildMap()
+    this.invalidateCache()
   }
 
   setShuffle(on: boolean, seed?: number): void {
@@ -114,7 +132,8 @@ export class QueueModel {
     const positions = sequence(items.length)
     this.entries = items.map((item, i) => ({ item, position: positions[i]! }))
     this.shuffleFirstId = undefined
-    this.orderCache = undefined
+    this.rebuildMap()
+    this.invalidateCache()
     return this.entries
   }
 
@@ -127,7 +146,10 @@ export class QueueModel {
 
     const added = items.map((item, i) => ({ item, position: positions[i]! }))
     this.entries.splice(at + 1, 0, ...added)
-    this.orderCache = undefined
+    for (const e of added) {
+      this.entryMap.set(e.item.id, e)
+    }
+    this.invalidateCache()
     return added
   }
 
@@ -136,7 +158,10 @@ export class QueueModel {
     const positions = sequence(items.length, last, undefined)
     const added = items.map((item, i) => ({ item, position: positions[i]! }))
     this.entries.push(...added)
-    this.orderCache = undefined
+    for (const e of added) {
+      this.entryMap.set(e.item.id, e)
+    }
+    this.invalidateCache()
     return added
   }
 
@@ -144,17 +169,21 @@ export class QueueModel {
     const doomed = new Set(ids)
     const before = this.entries.length
     this.entries = this.entries.filter((e) => !doomed.has(e.item.id))
+    for (const id of doomed) {
+      this.entryMap.delete(id)
+    }
     if (this.shuffleFirstId && doomed.has(this.shuffleFirstId)) {
       this.shuffleFirstId = undefined
     }
-    this.orderCache = undefined
+    this.invalidateCache()
     return before === this.entries.length ? [] : [...doomed]
   }
 
   clear(): void {
     this.entries = []
+    this.entryMap.clear()
     this.shuffleFirstId = undefined
-    this.orderCache = undefined
+    this.invalidateCache()
   }
 
   /**
@@ -175,7 +204,8 @@ export class QueueModel {
     const moved: QueueEntry = { item: entry.item, position }
     without.splice(target, 0, moved)
     this.entries = without
-    this.orderCache = undefined
+    this.entryMap.set(id, moved)
+    this.invalidateCache()
     return moved
   }
 

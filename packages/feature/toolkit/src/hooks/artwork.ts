@@ -95,9 +95,13 @@ export function useResolvedArtwork(
   artwork?: ArtworkRef,
   priority: 0 | 1 | 2 = 1,
 ): ArtworkRef | undefined {
-  const [resolution, setResolution] = useState<Resolution | undefined>(undefined)
   const id = artwork?.id
   const sourceUrl = artwork?.sourceUrl
+  const [resolution, setResolution] = useState<Resolution | undefined>(() => {
+    if (!id) return undefined
+    const cached = cacheGet(id)
+    return cached !== undefined ? { id, ...(cached ? { uri: cached } : {}), settled: true } : undefined
+  })
 
   useEffect(() => {
     if (!id) {
@@ -109,7 +113,11 @@ export function useResolvedArtwork(
     // Memory cache hit: return synchronously, no flicker on remount.
     const cached = cacheGet(id)
     if (cached !== undefined) {
-      setResolution({ id, ...(cached ? { uri: cached } : {}), settled: true })
+      setResolution((prev) =>
+        prev?.id === id && prev.settled && prev.uri === (cached || undefined)
+          ? prev
+          : { id, ...(cached ? { uri: cached } : {}), settled: true },
+      )
       return
     }
 

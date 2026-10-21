@@ -112,65 +112,150 @@ export function useUpcoming(ctx: Context): readonly QueueItem[] {
  * being scanned) resolves to nothing, and the view falls back to
  * `queueTrackFallback` rather than throwing or rendering an empty row.
  */
+const CONTEXT_TRACK_CACHE_MAX = 5000
+const contextTrackCaches = new WeakMap<Context, Map<string, Track>>()
+
+function getTrackCache(ctx: Context): Map<string, Track> {
+  let cache = contextTrackCaches.get(ctx)
+  if (!cache) {
+    cache = new Map<string, Track>()
+    contextTrackCaches.set(ctx, cache)
+  }
+  return cache
+}
+
+export function clearTracksCache(ctx?: Context): void {
+  if (ctx) {
+    contextTrackCaches.get(ctx)?.clear()
+  }
+}
+
 export function useTracksByUrn(ctx: Context, urns: readonly string[]): ReadonlyMap<string, Track> {
-  const [cache, setCache] = useState<ReadonlyMap<string, Track>>(() => new Map())
+  const trackCache = getTrackCache(ctx)
+  const [cache, setCache] = useState<ReadonlyMap<string, Track>>(() => {
+    const initial = new Map<string, Track>()
+    for (const urn of urns) {
+      const hit = trackCache.get(urn)
+      if (hit) initial.set(urn, hit)
+    }
+    return initial
+  })
   const cacheRef = useRef(cache)
   cacheRef.current = cache
   const [generation, setGeneration] = useState(0)
 
   useEffect(() => {
     const off = ctx.on('library/changed', () => {
+      getTrackCache(ctx).clear()
       setCache(new Map())
       setGeneration((n) => n + 1)
     })
     return () => void off()
   }, [ctx])
 
-  // Contents, not identity: `queue.map(…)` hands the hook a fresh array every
-  // render, so the read is keyed on the URNs themselves.
-  const key = [...new Set(urns)].sort().join('\n')
+  // Track the stable list of URNs by shallow comparison to avoid expensive sort + join on large lists
+  const stableUrnsRef = useRef(urns)
+  if (
+    stableUrnsRef.current !== urns &&
+    !shallowArrayEqual(stableUrnsRef.current, urns)
+  ) {
+    stableUrnsRef.current = urns
+  }
+  const stableUrns = stableUrnsRef.current
 
   useEffect(() => {
     const sources = serviceOf<SourcesService>(ctx, 'sources')
-    if (!sources || key === '') return
-    const missing = key.split('\n').filter((urn) => !cacheRef.current.has(urn))
-    if (missing.length === 0) return
+    if (!sources || stableUrns.length === 0) return
+
+    const cache = getTrackCache(ctx)
+    // Quick sync: if cache already holds items that local state lacks, copy them in
+    const uniqueUrns = [...new Set(stableUrns)]
+    const missingFromGlobal: string[] = []
+    let needsLocalSync = false
+
+    for (const urn of uniqueUrns) {
+      const globalHit = cache.get(urn)
+      if (globalHit) {
+        if (!cacheRef.current.has(urn)) needsLocalSync = true
+      } else {
+        missingFromGlobal.push(urn)
+      }
+    }
+
+    if (needsLocalSync && missingFromGlobal.length === 0) {
+      setCache((prev) => {
+        const next = new Map(prev)
+        for (const urn of uniqueUrns) {
+          const hit = cache.get(urn)
+          if (hit) next.set(urn, hit)
+        }
+        return next
+      })
+      return
+    }
+
+    if (missingFromGlobal.length === 0) return
+
     let cancelled = false
     sources
-      .getTracks(missing)
+      .getTracks(missingFromGlobal)
       .then(async (tracks) => {
         if (cancelled) return
         const nextMap = new Map<string, Track>()
-        for (const track of tracks) nextMap.set(track.urn, track)
-        const stillMissing = missing.filter((urn) => !nextMap.has(urn))
-        if (stillMissing.length > 0 && typeof sources.forUrn === 'function') {
-          await Promise.all(
-            stillMissing.map(async (urn) => {
-              try {
-                const prov = sources.forUrn(urn)
-                const parsed = tryParseUrn(urn)
-                if (prov?.getTrack && parsed) {
-                  const t = await prov.getTrack(parsed.id)
-                  if (t) nextMap.set(t.urn || urn, t)
-                }
-              } catch {
-                // ignore
-              }
-            }),
-          )
+        for (const track of tracks) {
+          nextMap.set(track.urn, track)
+          if (cache.size >= CONTEXT_TRACK_CACHE_MAX) {
+            const oldest = cache.keys().next().value
+            if (oldest) cache.delete(oldest)
+          }
+          cache.set(track.urn, track)
         }
-        if (cancelled || nextMap.size === 0) return
+
+        const stillMissing = missingFromGlobal.filter((urn) => !nextMap.has(urn))
+        if (stillMissing.length > 0 && typeof sources.forUrn === 'function') {
+          // Chunk fallback requests to prevent launching thousands of promises simultaneously
+          const CHUNK = 10
+          for (let i = 0; i < stillMissing.length && !cancelled; i += CHUNK) {
+            const batch = stillMissing.slice(i, i + CHUNK)
+            await Promise.all(
+              batch.map(async (urn) => {
+                try {
+                  const prov = sources.forUrn(urn)
+                  const parsed = tryParseUrn(urn)
+                  if (prov?.getTrack && parsed) {
+                    const t = await prov.getTrack(parsed.id)
+                    if (t) {
+                      const finalUrn = t.urn || urn
+                      nextMap.set(finalUrn, t)
+                      cache.set(finalUrn, t)
+                    }
+                  }
+                } catch {
+                  // ignore
+                }
+              }),
+            )
+          }
+        }
+
+        if (cancelled) return
         setCache((prev) => {
           const next = new Map(prev)
+          // Include any cache hits that were populated
+          for (const urn of uniqueUrns) {
+            const hit = cache.get(urn)
+            if (hit) next.set(urn, hit)
+          }
           for (const [k, v] of nextMap) next.set(k, v)
           return next
         })
       })
       .catch(() => undefined)
+
     return () => {
       cancelled = true
     }
-  }, [ctx, key, generation])
+  }, [ctx, stableUrns, generation])
 
   return cache
 }

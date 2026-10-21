@@ -480,6 +480,35 @@ describe('QueueScreen', () => {
     expect(renderedRows.length).toBeGreaterThan(0)
     expect(renderedRows.length).toBeLessThan(40)
   })
+
+  it('efficiently windows metadata queries for a 3000-song queue', async () => {
+    const threeThousandItems: QueueItem[] = Array.from({ length: 3000 }, (_, i) => ({
+      id: `item-${i}`,
+      trackUrn: `BBeBee:local:track:${i}`,
+      addedBy: 'user',
+    }))
+    let requestedCount = 0
+    const { ctx } = await harness(
+      { currentItemId: 'item-0' },
+      threeThousandItems,
+      {
+        'BBeBee:local:track:0': { urn: 'BBeBee:local:track:0', title: 'Song 0', artists: [] },
+      },
+    )
+    const sources = ctx.sources as { getTracks: (urns: readonly string[]) => Promise<Track[]> }
+    const originalGetTracks = sources.getTracks
+    sources.getTracks = async (urns: readonly string[]) => {
+      requestedCount += urns.length
+      return originalGetTracks(urns)
+    }
+
+    const { container } = withListLayout(() => render(h(QueueScreen, { ctx })))
+    const renderedRows = container.querySelectorAll('[role="row"]')
+    expect(renderedRows.length).toBeGreaterThan(0)
+    expect(renderedRows.length).toBeLessThan(40)
+    // For 3000 items, only the windowed slice (well under 150 tracks) is requested from sources
+    expect(requestedCount).toBeLessThan(150)
+  })
 })
 
 
