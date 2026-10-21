@@ -126,6 +126,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
     sortKey,
     (id) => setSortKey(id as FavoriteSortKey),
     { value: sortOrder, onChange: setSortOrder },
+    ctx,
   )
 
   const handleHeaderClick = (key: FavoriteSortKey) => {
@@ -502,7 +503,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
       onClose: () => setSortMenuAnchor(null),
       x: sortMenuAnchor?.x ?? 0,
       y: sortMenuAnchor?.y ?? 0,
-      items: viewModeMenuItems(sortItems, viewMode, setViewMode),
+      items: viewModeMenuItems(sortItems, viewMode, setViewMode, {}, t),
       title: t('library:favorites.sortBy'),
     }),
     h(ContextMenu, {

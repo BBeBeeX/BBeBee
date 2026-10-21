@@ -327,6 +327,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
     sortKey,
     (id) => setSortKey(id as PlaylistSortKey),
     { value: sortOrder, onChange: setSortOrder },
+    ctx,
   )
   const totalDurationStr = formatTotalDuration(Array.from(tracks.values()))
 
@@ -777,7 +778,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
       onClose: () => setSortMenuAnchor(null),
       x: sortMenuAnchor?.x ?? 0,
       y: sortMenuAnchor?.y ?? 0,
-      items: viewModeMenuItems(sortItems, viewMode, setViewMode),
+      items: viewModeMenuItems(sortItems, viewMode, setViewMode, {}, t),
       title: t('library:favorites.sortBy'),
     }),
     showEditModal

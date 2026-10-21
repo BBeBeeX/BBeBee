@@ -1421,6 +1421,82 @@ describe('LocalMusicScreen', () => {
     })
   })
 
+  it('keeps table header at top: 0 and supports compact/list view modes without tiled in artists view', async () => {
+    const { ctx, sources } = await harness()
+    sources.tracks = [track]
+
+    await withListLayout(async () => {
+      const { getByTestId, getByText, queryByText } = render(h(LocalMusicScreen, { ctx }))
+      await act(async () => {
+        await tick()
+      })
+
+      // Switch to artists view
+      await act(async () => {
+        getByTestId('local-tab-artists').click()
+        await tick()
+      })
+
+      // Table header in artists view should have top: 0px (not default 64px)
+      const tableHeader = getByTestId('local-table-header')
+      expect(tableHeader.style.top).toBe('0px')
+
+      // Open sort/view mode menu
+      await act(async () => {
+        getByTestId('local-music-sort-trigger').click()
+        await tick()
+      })
+
+      // View mode heading and modes should be present
+      expect(getByText('View mode')).toBeTruthy()
+      expect(getByText('Compact')).toBeTruthy()
+      expect(getByText('List')).toBeTruthy()
+      // Tiled MUST NOT be present
+      expect(queryByText('Tiled')).toBeNull()
+
+      // Switch to Compact mode
+      await act(async () => {
+        getByText('Compact').click()
+        await tick()
+      })
+
+      // Artist column in table header should now be visible
+      expect(getByText('Artist')).toBeTruthy()
+    })
+  })
+
+  it('renders i18n translations for sort direction and view modes in sort menu when locale is zh', async () => {
+    const { ctx, i18n } = await harness()
+    i18n.setLocale('zh')
+
+    await withListLayout(async () => {
+      const { getByTestId, getByText, queryByText } = render(h(LocalMusicScreen, { ctx }))
+      await act(async () => {
+        await tick()
+      })
+
+      // Switch to artists view
+      await act(async () => {
+        getByTestId('local-tab-artists').click()
+        await tick()
+      })
+
+      // Open sort/view mode menu
+      await act(async () => {
+        getByTestId('local-music-sort-trigger').click()
+        await tick()
+      })
+
+      // Check Chinese translations for sort order and view mode
+      expect(getByText('升序')).toBeTruthy()
+      expect(getByText('降序')).toBeTruthy()
+      expect(getByText('视图模式')).toBeTruthy()
+      expect(getByText('紧凑')).toBeTruthy()
+      expect(getByText('列表')).toBeTruthy()
+      expect(queryByText('平铺')).toBeNull()
+    })
+  })
+
   it('supports sorting local tracks by headers and sort menu', async () => {
     const { ctx, player, sources } = await harness()
     const TRACK_B = 'BBeBee:demo:track:two'

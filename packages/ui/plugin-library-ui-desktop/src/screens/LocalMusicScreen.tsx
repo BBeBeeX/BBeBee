@@ -838,6 +838,7 @@ export function LocalMusicScreen({
     trackSortKey,
     (id) => setTrackSortKey(id as LocalTrackSortKey),
     { value: trackSortOrder, onChange: setTrackSortOrder },
+    ctx,
   )
 
   const albumSortItems = sortMenuItems(
@@ -851,6 +852,7 @@ export function LocalMusicScreen({
     albumSortKey,
     (id) => setAlbumSortKey(id as LocalAlbumSortKey),
     { value: albumSortOrder, onChange: setAlbumSortOrder },
+    ctx,
   )
 
   const renderPlayButton = (size: number, iconSize: number, testID: string | undefined) =>
@@ -1161,6 +1163,7 @@ export function LocalMusicScreen({
           sortDirection: trackSortOrder,
           onSort: (key) => handleTrackHeaderClick(key as LocalTrackSortKey),
           solid: viewMode === 'artists' ? true : collapse.docked,
+          top: viewMode === 'artists' ? 0 : undefined,
         })
       : undefined
 
@@ -1469,11 +1472,21 @@ export function LocalMusicScreen({
         x: sortMenuAnchor?.x ?? 0,
         y: sortMenuAnchor?.y ?? 0,
         items:
-          viewMode === 'tracks'
-            ? viewModeMenuItems(trackSortItems, trackViewMode, setTrackViewMode)
-            : viewModeMenuItems(albumSortItems, albumViewMode, setAlbumViewMode, {
-                allowTiled: true,
-              }),
+          viewMode === 'albums'
+            ? viewModeMenuItems(
+                albumSortItems,
+                albumViewMode,
+                setAlbumViewMode,
+                { allowTiled: true },
+                t,
+              )
+            : viewModeMenuItems(
+                trackSortItems,
+                trackViewMode,
+                setTrackViewMode,
+                { allowTiled: false },
+                t,
+              ),
         title: t('library:favorites.sortBy'),
       }),
     ),
