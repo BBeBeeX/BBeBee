@@ -546,10 +546,21 @@ The desktop shell organizes primary navigation between the left sidebar and the 
    height. When the library's expanded mode takes over the workspace, the TopBar moves into the
    expanded library pane instead (sticky, so the window controls stay reachable). There is no
    standalone Home button — Home lives on the brand logo — and the centered search input is
-   deliberately narrow (`max-width: 360px`). With the queue panel open, the window controls sit at
+   deliberately narrow (`max-width: 360px`). With the queue panel open, on non-macOS platforms the window controls sit at
    the top-right of the main pane, left of the queue. The left cluster is only the brand logo and
    history Back/Forward — the former ⋯ More menu was removed (its entries live in the sidebar and
    the tray).
+
+0a. **Cross-Platform Window Controls & macOS Traffic Lights Adaptation**:
+   - **macOS Native Overlay**: On macOS, Tauri v2 configures `titleBarStyle: "Overlay"` with `hiddenTitle: true`. The webview extends fully to the window's top edge, and native macOS traffic lights (Close, Minimize, Zoom) float natively on the top-left corner of the window.
+   - **Windows & Linux Frameless Parity**: On Windows and Linux, `decorations: false` remains active, preserving the completely custom frameless window without OS-native chrome or double title bars.
+   - **TopBar Control Insets**:
+     - On macOS (`isMacPlatform()`), the right-hand Windows-style `WindowControls` group is omitted from `TopBar`, and `paddingRight` is relaxed to `14px` for breathing room around the profile and tray icons. On Windows/Linux, `WindowControls` renders flush right (`paddingRight: 0px`).
+     - When the library expands into full-width mode (`libraryMode === 'expanded'`), TopBar becomes the top-left element of the window. It dynamically activates `insetLeftForTrafficLights: true` (`paddingLeft: 78px`) to prevent the brand logo and back/forward navigation buttons from overlapping macOS traffic lights.
+   - **Sidebar Safe-Area & Drag Handle**:
+     - Because the left sidebar (`nav`) occupies the top-left corner under two-column mode, macOS renders native traffic lights above the sidebar. Under macOS (and when not fullscreen), `nav` renders a sticky 36px top drag region (`WebkitAppRegion: 'drag'`, `data-tauri-drag-region`, background matching `nav`). This ensures sidebar content begins safely below the traffic lights, prevents scrolled items from colliding with the buttons, and preserves full-width window dragging affordance across the top of the sidebar.
+   - **Fullscreen Handling**:
+     - When macOS enters Spaces/Fullscreen mode, native traffic lights auto-hide. The shell detects fullscreen (via `useIsFullscreen` subscribing to resize, CSS media queries, and `window:fullscreen-changed` Tauri events) and automatically collapses the 36px sidebar safe area and the 78px TopBar left inset back to 0.
 
 1. **Left Sidebar Filtering**:
    - The left navigation rail is dedicated to browsing user content and collections (`library.view`, `history.view`, user playlists).
@@ -567,8 +578,8 @@ The desktop shell organizes primary navigation between the left sidebar and the 
      (`ResizeObserver`-measured), dynamic search icon shift, the 2×2 matrix grid (Search Scope
      sources with `useSearchSourceSelection(ctx)` + Search History tags in `localStorage`) — lives
      in [design-system.md §6.6](design-system.md#66-component-affordances--micro-interactions).
-     The window controls (Minimize/Maximize/Close) are **never** hidden:
-     their group is `flexShrink: 0` in both states.
+     On non-macOS platforms, the window controls (Minimize/Maximize/Close) are **never** hidden:
+     their group is `flexShrink: 0` in both states. (On macOS, native traffic lights handle window management).
     - **Search Submission & Screen Routing**:
       - Pressing `Enter`, clicking the shifted right search icon, or clicking a history tag commits the query into history, closes the matrix panel, and calls `navigate('sources.search', { query, sourceIds, typesBySource, searchTimestamp })`.
       - `SearchScreen` (`plugin-sources-ui-desktop`) watches incoming `query`, `sourceIds`, `typesBySource`, and `searchTimestamp` props via `useEffect` and automatically executes `search.searchAll(query, { sourceIds, typesBySource })`, ensuring search scope restrictions chosen in TopBar take immediate effect on the search screen.

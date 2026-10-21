@@ -229,6 +229,12 @@ fn setup_app(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
+    #[cfg(target_os = "macos")]
+    if let Some(main) = app.get_webview_window("main") {
+        let _ = main.set_decorations(true);
+        let _ = main.set_title_bar_style(tauri::TitleBarStyle::Overlay);
+    }
+
     Ok(())
 }
 
@@ -243,6 +249,10 @@ fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
         }
         tauri::WindowEvent::Moved(_) => {
             on_window_moved(window);
+        }
+        tauri::WindowEvent::Resized(_) if window.label() == "main" => {
+            let is_fullscreen = window.is_fullscreen().unwrap_or(false);
+            let _ = window.emit("window:fullscreen-changed", is_fullscreen);
         }
         #[cfg(target_os = "windows")]
         tauri::WindowEvent::Focused(true) if window.label() == "main" => {

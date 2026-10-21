@@ -71,7 +71,7 @@
    - `apps/desktop` was kept strictly read-only and untouched.
 5. **src-tauri Scaffolding**:
    - `Cargo.toml`: Package name `"desktop-tauri"`, version `"0.0.0"`, edition `"2021"`, dependencies: `tauri v2`, `serde`, `serde_json`, build-dependencies: `tauri-build v2`.
-   - `tauri.conf.json`: `productName: "BBeBee"`, `version: "0.0.0"`, `identifier: "org.bbebee.desktop"`, windows matching main window (1360x860, min 720x480, `decorations: false`, `transparent: false`), build `frontendDist: "../dist"` and `devUrl: "http://localhost:1420"`, D3 `webviewInstallMode: { "type": "downloadBootstrapper" }`.
+   - `tauri.conf.json`: `productName: "BBeBee"`, `version: "0.0.0"`, `identifier: "org.bbebee.desktop"`, windows matching main window (1360x860, min 720x480, `decorations: false`, `transparent: false`, `hiddenTitle: true`, `titleBarStyle: "Overlay"` with dynamic macOS decorations), build `frontendDist: "../dist"` and `devUrl: "http://localhost:1420"`, D3 `webviewInstallMode: { "type": "downloadBootstrapper" }`.
    - `build.rs`: Invokes `tauri_build::build()`.
    - `src/main.rs`: Standard Tauri v2 main entry with `tauri::Builder::default().run(tauri::generate_context!())`.
    - `icons/`: Standard icons (`icon.png`, `32x32.png`, `128x128.png`, `128x128@2x.png`, `icon.ico`, `tray-icon.png`) prepared from desktop resources.

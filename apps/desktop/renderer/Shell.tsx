@@ -23,6 +23,7 @@ import type { RouteContribution, SettingsContribution } from '@BBeBee/protocol'
 import { REGISTRY_VIEWS } from '@BBeBee/plugin-registry/views'
 import { PageMarqueeProvider, tablerIcon, useI18n, Toast } from '@BBeBee/ui-kit-desktop'
 import { SleepTimerIndicator, TopBar, WindowControls, type DraggableCSSProperties, type TopBarProps } from './TopBar.js'
+import { isMacPlatform, useIsFullscreen } from './platform.js'
 import { importDroppedFiles, importDroppedPaths, type DropImportResult } from './drop-import.js'
 
 /** What the sidebar can navigate to: a route, or a settings page. */
@@ -288,6 +289,8 @@ export function Shell({ ctx }: { ctx: Context }) {
     entries.find((e) => e.id === 'sources.recommend') ??
     entries.find((e) => e.id !== 'now-playing.view') ??
     entries[0]
+  const isMac = isMacPlatform()
+  const isFullscreen = useIsFullscreen()
   const [isFullscreenNowPlaying, setIsFullscreenNowPlaying] = useState(false)
   const [isTopBarHovered, setIsTopBarHovered] = useState(false)
   const isTopBarHoveredRef = useRef(false)
@@ -1058,27 +1061,29 @@ export function Shell({ ctx }: { ctx: Context }) {
   // so the library column runs the full window height, and the queue drawer
   // slides over the content without ever resizing this header. Sticky keeps
   // the window controls reachable when the expanded library scrolls.
-  const topBar = h(
-    'div',
-    { style: { flexShrink: 0, position: 'sticky', top: 0, zIndex: 60 } },
-    h(TopBar, {
-      ctx,
-      canGoBack,
-      canGoForward,
-      onBack: handleBack,
-      onForward: handleForward,
-      onHome: handleHome,
-      onSearch: (
-        query: string,
-        opts?: Parameters<NonNullable<TopBarProps['onSearch']>>[1],
-      ) => {
-        navigateTo('sources.search', { query, ...opts, searchTimestamp: Date.now() })
-      },
-      onOpenSettings: (tab = 'sources') => {
-        navigateTo('settings.view', { tab })
-      },
-    }),
-  )
+  const renderTopBar = (insetLeftForTrafficLights = false) =>
+    h(
+      'div',
+      { style: { flexShrink: 0, position: 'sticky', top: 0, zIndex: 60 } },
+      h(TopBar, {
+        ctx,
+        canGoBack,
+        canGoForward,
+        onBack: handleBack,
+        onForward: handleForward,
+        onHome: handleHome,
+        onSearch: (
+          query: string,
+          opts?: Parameters<NonNullable<TopBarProps['onSearch']>>[1],
+        ) => {
+          navigateTo('sources.search', { query, ...opts, searchTimestamp: Date.now() })
+        },
+        onOpenSettings: (tab = 'sources') => {
+          navigateTo('settings.view', { tab })
+        },
+        insetLeftForTrafficLights,
+      }),
+    )
 
   return h(
     PageMarqueeProvider,
@@ -1129,8 +1134,27 @@ export function Shell({ ctx }: { ctx: Context }) {
             overflowX: 'hidden',
             display: 'flex',
             flexDirection: 'column',
+            position: 'relative',
           },
         },
+        isMac && !isFullscreen && libraryMode !== 'expanded'
+          ? h('div', {
+              'data-tauri-drag-region': '',
+              'data-testid': 'sidebar-traffic-lights-drag-region',
+              style: {
+                height: 36,
+                minHeight: 36,
+                width: '100%',
+                flexShrink: 0,
+                position: 'sticky',
+                top: 0,
+                zIndex: 20,
+                background: 'var(--bg-primary, #080A12)',
+                WebkitAppRegion: 'drag',
+                userSelect: 'none',
+              } as DraggableCSSProperties,
+            })
+          : null,
         h(
           'div',
           {
@@ -1156,10 +1180,10 @@ export function Shell({ ctx }: { ctx: Context }) {
               {
                 style:
                   libraryMode === 'expanded'
-                    ? { flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column' }
-                    : { height: '100%', width: '100%', display: 'flex', flexDirection: 'column' },
+                     ? { flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column' }
+                     : { height: '100%', width: '100%', display: 'flex', flexDirection: 'column' },
               },
-              libraryMode === 'expanded' ? topBar : null,
+              libraryMode === 'expanded' ? renderTopBar(isMac && !isFullscreen) : null,
               h('span', { style: { display: 'none' } }, t('app:common.shell.library')),
               h(LibraryView, {
                 ctx,
@@ -1284,7 +1308,7 @@ export function Shell({ ctx }: { ctx: Context }) {
                 flexDirection: 'column',
               },
             },
-            topBar,
+            renderTopBar(false),
             h(
               'div',
               { style: { flex: 1, minHeight: 0, position: 'relative' } },

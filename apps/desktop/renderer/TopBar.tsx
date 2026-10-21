@@ -19,6 +19,7 @@ import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { useSearchSourceSelection, useAudioSourcesStatus, isLocalSource, type SearchInterfaceKind } from '@BBeBee/plugin-sources/hooks'
 import { useSleepTimer } from '@BBeBee/plugin-sleep-timer/hooks'
 import logoWhiteUrl from './assets/logo-white.png'
+import { isMacPlatform } from './platform.js'
 
 function serviceOf<T = unknown>(ctx: Context, key: string): T | undefined {
   return (ctx as unknown as { reflect?: { get(key: string, required: boolean): unknown } }).reflect?.get?.(
@@ -1148,6 +1149,7 @@ export interface TopBarProps {
   canGoForward?: boolean
   onBack?: () => void
   onForward?: () => void
+  insetLeftForTrafficLights?: boolean
 }
 
 export function TopBar({
@@ -1159,7 +1161,9 @@ export function TopBar({
   canGoForward = false,
   onBack,
   onForward,
+  insetLeftForTrafficLights = false,
 }: TopBarProps): ReactElement {
+  const isMac = isMacPlatform()
   const { t } = useI18n(ctx)
   const selection = useSearchSourceSelection(ctx)
   const [searchQuery, setSearchQuery] = useState('')
@@ -1320,8 +1324,8 @@ export function TopBar({
         minHeight: 48,
         maxHeight: 48,
         flexShrink: 0,
-        paddingLeft: 12,
-        paddingRight: 0,
+        paddingLeft: insetLeftForTrafficLights ? 78 : 12,
+        paddingRight: isMac ? 14 : 0,
         background: 'transparent',
         borderBottom: 'none',
         userSelect: 'none',
@@ -1940,8 +1944,8 @@ export function TopBar({
       searchExpanded ? null : h(TrayIndicator, { ctx }),
       // Profile / Audio Sources Popover (hidden while the expanded search takes the bar)
       searchExpanded ? null : h(ProfileSourcesIndicator, { ctx, onOpenSettings }),
-      // Contiguous Window Controls Group — never hidden.
-      h(WindowControls, { ctx }),
+      // Contiguous Window Controls Group — hidden on macOS where native traffic lights are on the left.
+      !isMac ? h(WindowControls, { ctx }) : null,
     ),
   )
 }

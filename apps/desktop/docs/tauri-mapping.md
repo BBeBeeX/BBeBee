@@ -315,6 +315,13 @@ The following architectural choices have been established for the Tauri desktop 
 - **Context**: Linux desktop environments using Wayland impose strict security restrictions on window placement, transparent click-through surfaces, and global cursor coordinate queries.
 - **Target**: Before implementing Group 2 (Desktop Lyrics & Mini Player multi-window management), a targeted Wayland PoC will evaluate `layer-shell` protocols (via `gtk4-layer-shell` or XWayland fallback) to ensure seamless floating lyrics and dynamic island behavior.
 
+### D6: macOS Native Overlay Titlebar & Cross-Platform Frameless Window Management
+- **Context**: macOS desktop music players (such as Apple Music and Spotify) place native traffic light buttons (Close, Minimize, Zoom) in the upper-left corner floating transparently over the application window, while Windows and Linux desktop applications require a frameless window with custom interactive titlebar controls on the upper-right.
+- **Target**:
+  - `tauri.conf.json` configures `"hiddenTitle": true`, `"titleBarStyle": "Overlay"`, and `"decorations": false`.
+  - In `src-tauri/src/main.rs`, macOS dynamically activates native decorations and `tauri::TitleBarStyle::Overlay` at boot, and emits `window:fullscreen-changed` on window resize. Windows and Linux retain `decorations: false`.
+  - The renderer (`platform.ts`, `TopBar.tsx`, `Shell.tsx`) omits Windows-style window controls on macOS, provides a sticky 36px drag-safe area in the sidebar to prevent content overlap with native traffic lights, applies a 78px left inset to TopBar in expanded library mode, and automatically collapses safe areas when in macOS Spaces/fullscreen.
+
 ---
 
 ## 7. Security Boundaries & Custom Protocol Registration
