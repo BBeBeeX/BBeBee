@@ -108,7 +108,7 @@ export async function createSidecar(): Promise<SidecarContext> {
 
   const audioHost = createAudioHost(audioLogger)
   const userDataDir = resolveSystemPath('userData')
-  const protocolManager = new ProtocolManager(() => join(userDataDir, 'installed-plugins'))
+  const protocolManager = new ProtocolManager()
 
   const wakeLocks = new Map<number, string>()
   const registeredHotkeys = new Set<string>()
@@ -305,10 +305,6 @@ export async function createSidecar(): Promise<SidecarContext> {
 
   ipc.handle('protocol:file', async (_event, req: { url: string; range?: string | null }) => {
     return protocolManager.handleBbebeeFile(req.url, req.range)
-  })
-
-  ipc.handle('protocol:plugin', async (_event, req: { url: string }) => {
-    return protocolManager.handleBbebeePlugin(req.url)
   })
 
   ipc.handle('protocol:sandbox', async (_event, req: { url: string }) => {

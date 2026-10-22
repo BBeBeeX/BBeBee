@@ -49,12 +49,8 @@ fn main() {
         .register_asynchronous_uri_scheme_protocol("bbebee-file", |_ctx, request, responder| {
             desktop_tauri_lib::protocols::handle_bbebee_file_request(request, responder);
         })
-        .register_asynchronous_uri_scheme_protocol("bbebee-plugin", |ctx, request, responder| {
-            desktop_tauri_lib::protocols::handle_bbebee_plugin_request(
-                ctx.app_handle().clone(),
-                request,
-                responder,
-            );
+        .register_asynchronous_uri_scheme_protocol("bbebee-plugin", |_ctx, request, responder| {
+            desktop_tauri_lib::protocols::handle_bbebee_plugin_request(request, responder);
         })
         .setup(setup_app)
         .on_window_event(on_window_event)

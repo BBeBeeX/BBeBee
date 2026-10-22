@@ -1,6 +1,5 @@
-import { existsSync, statSync, readFileSync, readdirSync, mkdirSync } from 'node:fs'
-import { join, resolve, sep, extname } from 'node:path'
-import { pluginDirName } from '@BBeBee/protocol'
+import { existsSync, statSync } from 'node:fs'
+
 import { toNativePath } from './fs-path.js'
 import { getFileMimeType, parseByteRange } from './helpers.js'
 
@@ -12,109 +11,8 @@ export interface ProtocolResponse {
   filePath?: string
 }
 
-/**
- * A plugin id is a *name*, never a path. The traversal spellings are
- * refused here, before the value can reach a filesystem join: a bare
- * `.`/`..`, a backslash (a separator on Windows), an empty segment, or a
- * dot segment anywhere inside a slashed id. Scoped ids such as
- * `@BBeBee/plugin-x` keep their single separating slash — no segment of
- * a legitimate id is ever `.` or `..`, so nothing real is refused. The
- * decoded form is what gets checked, which is what makes the
- * percent-encoded variants (`%2e%2e`) land here already decoded.
- */
-export function isSafePluginId(pluginId: string): boolean {
-  if (!pluginId || pluginId.includes('\\')) return false
-  return pluginId.split('/').every((seg) => seg !== '' && seg !== '.' && seg !== '..')
-}
-
-export function parsePluginRequestUrl(rawUrl: string): { pluginId: string; subPath: string } | undefined {
-  try {
-    const url = new URL(rawUrl)
-    // Windows (WebView2) form: wry serves a registered custom scheme as
-    // http://<scheme>.localhost, so the webview addresses plugin files as
-    // http://bbebee-plugin.localhost/app/<pluginId>/<subPath> — the same
-    // shape as the 'app' form below, one segment deeper. Tauri may hand
-    // the handler either this form or the normalized scheme form; accept
-    // both.
-    if (url.host === 'bbebee-plugin.localhost') {
-      const parts = url.pathname.replace(/^\/+/, '').split('/')
-      if (parts[0] !== 'app' && parts[0] !== 'plugin') return undefined
-      const rawId = parts[1]
-      if (!rawId) return undefined
-      const pluginId = decodeURIComponent(rawId)
-      if (!isSafePluginId(pluginId)) return undefined
-      const subPath = parts.slice(2).join('/') || 'index.js'
-      return { pluginId, subPath }
-    }
-    // Handle bbebee-plugin://app/<pluginId>/<subPath> or bbebee-plugin://plugin/<pluginId>/<subPath>
-    if (url.host === 'app' || url.host === 'plugin') {
-      const parts = url.pathname.replace(/^\/+/, '').split('/')
-      const rawId = parts[0]
-      if (!rawId) return undefined
-      const pluginId = decodeURIComponent(rawId)
-      if (!isSafePluginId(pluginId)) return undefined
-      const subPath = parts.slice(1).join('/') || 'index.js'
-      return { pluginId, subPath }
-    }
-    // Handle bbebee-plugin://<pluginId>/<subPath>
-    const pluginId = decodeURIComponent(url.host)
-    if (!isSafePluginId(pluginId)) return undefined
-    const subPath = url.pathname.replace(/^\/+/, '') || 'index.js'
-    return { pluginId, subPath }
-  } catch {
-    return undefined
-  }
-}
-
-export function resolvePluginDir(pluginId: string, installedPluginsDir: string): string | undefined {
-  if (!isSafePluginId(pluginId)) return undefined
-  if (!existsSync(installedPluginsDir)) {
-    mkdirSync(installedPluginsDir, { recursive: true })
-  }
-  const root = resolve(installedPluginsDir)
-  // A candidate only counts when it resolves strictly *inside* the
-  // installed-plugins root. The sanitized-name step below is the one
-  // that used to escape: the sanitizer preserves dots, so the id `..`
-  // joined straight onto the parent directory (the whole userData tree)
-  // and that directory then "contained" every file requested under it.
-  const insideRoot = (candidate: string): boolean => {
-    const resolved = resolve(candidate)
-    return resolved !== root && resolved.startsWith(root + sep)
-  }
-  // 1. Check pluginDirName(pluginId)
-  const hashedName = pluginDirName(pluginId)
-  const hashedPath = join(installedPluginsDir, hashedName)
-  if (insideRoot(hashedPath) && existsSync(hashedPath)) return hashedPath
-
-  // 2. Check exact sanitized name
-  const sanitized = pluginId.replace(/[^a-zA-Z0-9._-]+/g, '_')
-  const directPath = join(installedPluginsDir, sanitized)
-  if (insideRoot(directPath) && existsSync(directPath)) return directPath
-
-  // 3. Check versioned matches (e.g. pluginId@version)
-  try {
-    const entries = readdirSync(installedPluginsDir, { withFileTypes: true })
-    for (const entry of entries) {
-      if (
-        entry.isDirectory() &&
-        (entry.name === pluginId ||
-          entry.name.startsWith(`${pluginId}@`) ||
-          entry.name.startsWith(`${hashedName}@`))
-      ) {
-        return join(installedPluginsDir, entry.name)
-      }
-    }
-  } catch {
-    // ignore
-  }
-
-  return undefined
-}
-
 export class ProtocolManager {
   private sandboxHtmlMap = new Map<string, string>()
-
-  constructor(private getInstalledPluginsDir: () => string) {}
 
   setSandboxHtml(id: string, html: string): boolean {
     if (id && typeof html === 'string') {
@@ -148,61 +46,6 @@ export class ProtocolManager {
       statusText: 'Not Found',
       headers: { 'Access-Control-Allow-Origin': '*' },
       body: 'Sandbox Template Not Found',
-    }
-  }
-
-  handleBbebeePlugin(rawUrl: string): ProtocolResponse {
-    try {
-      const parsed = parsePluginRequestUrl(rawUrl)
-      if (!parsed) {
-        return { status: 400, headers: {}, body: 'Invalid plugin URL' }
-      }
-
-      const pluginDir = resolvePluginDir(parsed.pluginId, this.getInstalledPluginsDir())
-      if (!pluginDir) {
-        return { status: 404, headers: {}, body: `Plugin not found: ${parsed.pluginId}` }
-      }
-
-      const pluginRoot = resolve(pluginDir)
-      const safePath = resolve(pluginRoot, parsed.subPath)
-      // Separator boundary, not a bare prefix: `/plugins/abc-secret`
-      // starts with the string `/plugins/abc` but is a *sibling*, and a
-      // prefix-only check waved `../abc-secret/…` straight through.
-      if (safePath !== pluginRoot && !safePath.startsWith(pluginRoot + sep)) {
-        return { status: 403, headers: {}, body: 'Forbidden' }
-      }
-
-      if (existsSync(safePath) && statSync(safePath).isFile()) {
-        const stats = statSync(safePath)
-        const ext = extname(safePath).toLowerCase()
-        let contentType = 'application/octet-stream'
-        if (ext === '.js' || ext === '.mjs') contentType = 'text/javascript; charset=utf-8'
-        else if (ext === '.json') contentType = 'application/json; charset=utf-8'
-        else if (ext === '.css') contentType = 'text/css; charset=utf-8'
-        else if (ext === '.wasm') contentType = 'application/wasm'
-        else contentType = getFileMimeType(safePath)
-
-        const content = readFileSync(safePath)
-        return {
-          status: 200,
-          headers: {
-            'Content-Type': contentType,
-            'Content-Length': String(stats.size),
-            'Access-Control-Allow-Origin': '*',
-          },
-          body: content,
-          filePath: safePath,
-        }
-      }
-    } catch {
-      // ignore
-    }
-
-    return {
-      status: 404,
-      statusText: 'Not Found',
-      headers: { 'Access-Control-Allow-Origin': '*' },
-      body: 'Plugin File Not Found',
     }
   }
 
