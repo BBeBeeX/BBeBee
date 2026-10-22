@@ -994,12 +994,15 @@ export class NpmClient {
 
   /**
    * Fetches the version's npm attestations and judges them against the
-   * registry entry's repo (audit W6). Never throws: npm's 404 for a
-   * version without attestations IS the `none` verdict, and every
-   * transport failure collapses to `unknown` so the caller degrades
-   * (warn, proceed) instead of blocking installs on an attestations
-   * outage. The auth token rides along on the effective-registry
-   * attempt only, exactly like packument fetches.
+   * registry entry's repo (audit W6). Never throws: the OFFICIAL
+   * registry's 404 for a version without attestations IS the `none`
+   * verdict, and every transport failure collapses to `unknown` so the
+   * caller degrades (warn, proceed) instead of blocking installs on an
+   * attestations outage. A mirror's 404 proves nothing — mirrors do not
+   * carry the attestations endpoint and answer 404 for attested and
+   * unattested packages alike — so it falls through to the official
+   * base like any other mirror failure. The auth token rides along on
+   * the effective-registry attempt only, exactly like packument fetches.
    */
   async checkProvenance(pkg: NpmResolvedPackage, entryRepo: string): Promise<ProvenanceVerdict> {
     let registry: { url: string; official: string; authToken?: string }
@@ -1017,7 +1020,17 @@ export class NpmClient {
           headers: i === 0 && registry.authToken ? { Authorization: `Bearer ${registry.authToken}` } : undefined,
           timeoutMs: JSON_TIMEOUT_MS,
         })
-        if (res.status === 404) return { status: 'none' }
+        if (res.status === 404) {
+          // Terminal only from the official registry (see the doc
+          // comment): a mirror 404 falls through to the official base.
+          // Real-machine regression (2026-10-22): with the npmmirror
+          // endpoint effective, @bbebee/plugin-visualizer@0.1.1 — which
+          // HAS a provenance attestation on npmjs — was reported as
+          // having none, because the mirror's blanket 404 was taken as
+          // the verdict.
+          if (base === registry.official) return { status: 'none' }
+          continue
+        }
         if (res.status >= 400) continue
         return provenanceVerdict(await res.json(), entryRepo)
       } catch {

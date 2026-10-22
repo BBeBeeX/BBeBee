@@ -627,6 +627,55 @@ describe('npm provenance helpers (audit W6)', () => {
     expect(provenanceVerdict({ attestations: [] }, 'https://github.com/BBeBeeX/BBeBee')).toEqual({ status: 'none' })
   })
 
+  it('checkProvenance: a mirror 404 is not a verdict — the official registry decides', async () => {
+    // Mirrors (npmmirror) do not carry the attestations endpoint and 404
+    // every package; taking that as `none` falsely reported the attested
+    // @bbebee/plugin-visualizer@0.1.1 as provenance-less on mainland
+    // installs (2026-10-22). Only the official registry's 404 is terminal.
+    const pkg = { npm: '@bbebee/plugin-visualizer', version: '0.1.1' } as any
+    const repo = 'https://github.com/BBeBeeX/BBeBee'
+    const clientWith = (http: any, settings?: unknown) =>
+      new NpmClient({
+        http,
+        readSettings: async () => settings as any,
+        readSecret: async () => undefined,
+        cache: { get: async () => undefined, set: async () => {} },
+        log: { info() {}, warn() {}, error() {} },
+      })
+    const mirrorFirst = (official: { status: number; body?: unknown }) =>
+      vi.fn(async ({ url }: { url: string }) =>
+        url.startsWith('https://registry.npmmirror.com')
+          ? { status: 404, json: async () => ({}) }
+          : { status: official.status, json: async () => official.body ?? {} },
+      )
+
+    // Mirror 404 → official serves the attestation → verified.
+    const http1 = mirrorFirst({ status: 200, body: attestationsBody(repo) })
+    await expect(
+      clientWith(http1, { downloadRegion: 'mainland-china' }).checkProvenance(pkg, repo),
+    ).resolves.toEqual({ status: 'verified', sourceRepo: repo })
+    expect(http1).toHaveBeenCalledTimes(2)
+
+    // Mirror 404 → official 404 → genuinely none.
+    const http2 = mirrorFirst({ status: 404 })
+    await expect(
+      clientWith(http2, { downloadRegion: 'mainland-china' }).checkProvenance(pkg, repo),
+    ).resolves.toEqual({ status: 'none' })
+    expect(http2).toHaveBeenCalledTimes(2)
+
+    // Mirror 404 → official attestation from a FOREIGN repo → mismatch
+    // (the fall-through must not weaken the spoof check).
+    const http3 = mirrorFirst({ status: 200, body: attestationsBody('https://github.com/attacker/fake') })
+    await expect(
+      clientWith(http3, { downloadRegion: 'mainland-china' }).checkProvenance(pkg, repo),
+    ).resolves.toEqual({ status: 'mismatch', sourceRepo: 'https://github.com/attacker/fake' })
+
+    // Official endpoint effective directly: one call, 404 → none.
+    const http4 = vi.fn(async () => ({ status: 404, json: async () => ({}) }))
+    await expect(clientWith(http4).checkProvenance(pkg, repo)).resolves.toEqual({ status: 'none' })
+    expect(http4).toHaveBeenCalledTimes(1)
+  })
+
   it('normalizes GitHub repo identities and rejects non-GitHub URLs', () => {
     expect(gitHubRepoIdentity('https://github.com/BBeBeeX/BBeBee.git')).toBe('bbebeex/bbebee')
     expect(gitHubRepoIdentity('https://github.com/BBeBeeX/BBeBee/')).toBe('bbebeex/bbebee')
