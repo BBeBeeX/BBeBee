@@ -433,8 +433,14 @@ fn normalize_dot_segments(path: &str) -> Vec<String> {
 }
 
 /// Parse a plugin request URL into `(pluginId, subPath)`, across the
-/// three address forms the loader and wry produce:
-/// - `http://bbebee-plugin.localhost/app/<id>/<sub>` (WebView2 form)
+/// address forms the loader and wry produce:
+/// - `http://bbebee-plugin.localhost/app/<id>/<sub>` (the form the
+///   page requests on WebView2)
+/// - `bbebee-plugin://localhost/app/<id>/<sub>` (what wry's WebView2
+///   workaround actually delivers to the handler for the form above:
+///   it folds `http://<scheme>.localhost/<path>` back to
+///   `<scheme>://localhost/<path>` — the only form a Windows handler
+///   ever sees; the path may also arrive without the `app` prefix)
 /// - `bbebee-plugin://app/<id>/<sub>` (also `plugin` as the host)
 /// - `bbebee-plugin://<id>/<sub>` (bare form)
 fn parse_plugin_request_url(raw_url: &str) -> Option<(String, String)> {
@@ -466,6 +472,25 @@ fn parse_plugin_request_url(raw_url: &str) -> Option<(String, String)> {
             return None;
         }
         let sub = segments[2..].join("/");
+        return Some((plugin_id, if sub.is_empty() { "index.js".into() } else { sub }));
+    }
+    if host == "localhost" {
+        // The wry-folded form: the path keeps whatever the page's URL
+        // carried — `app/<id>/<sub>` for the loader's URLs, or a bare
+        // `<id>/<sub>` if the prefix was never there.
+        let prefixed = segments.first().map(String::as_str) == Some("app")
+            || segments.first().map(String::as_str) == Some("plugin");
+        let (raw_id, sub_start) = if prefixed {
+            (segments.get(1), 2)
+        } else {
+            (segments.first(), 1)
+        };
+        let raw_id = raw_id.map(String::as_str).filter(|s| !s.is_empty())?;
+        let plugin_id = percent_decode(raw_id)?;
+        if !is_safe_plugin_id(&plugin_id) {
+            return None;
+        }
+        let sub = segments[sub_start.min(segments.len())..].join("/");
         return Some((plugin_id, if sub.is_empty() { "index.js".into() } else { sub }));
     }
     if host == "app" || host == "plugin" {
@@ -709,6 +734,20 @@ mod tests {
             parse_plugin_request_url("bbebee-plugin://app/test-plugin-a"),
             Some(("test-plugin-a".to_string(), "index.js".to_string()))
         );
+        // The wry-folded form: on WebView2 the handler receives the
+        // page's http://bbebee-plugin.localhost URL folded back to
+        // bbebee-plugin://localhost with the path untouched — the id
+        // is the segment after `app`, never the host.
+        assert_eq!(
+            parse_plugin_request_url(
+                "bbebee-plugin://localhost/app/test-plugin-a/dist/index.js"
+            ),
+            expected
+        );
+        assert_eq!(
+            parse_plugin_request_url("bbebee-plugin://localhost/test-plugin-a/dist/index.js"),
+            expected
+        );
     }
 
     #[test]
@@ -720,6 +759,12 @@ mod tests {
             None
         );
         assert_eq!(parse_plugin_request_url("bbebee-plugin://app/a\\b/index.js"), None);
+        // The folded form judges the decoded id the same way.
+        assert_eq!(
+            parse_plugin_request_url("bbebee-plugin://localhost/app/a%5cb/index.js"),
+            None
+        );
+        assert_eq!(parse_plugin_request_url("bbebee-plugin://localhost"), None);
         assert_eq!(parse_plugin_request_url("bbebee-plugin://./secret.js"), None);
         // The localhost form without the app segment is not a plugin URL.
         assert_eq!(
@@ -795,6 +840,15 @@ mod tests {
         let res = serve_plugin_file(
             &root,
             "http://bbebee-plugin.localhost/app/test-plugin-a/dist/index.js",
+        );
+        assert_eq!(res.status(), tauri::http::StatusCode::OK);
+        assert_eq!(res.body().as_ref(), b"export default 'a'");
+
+        // And so does the form wry actually delivers on WebView2:
+        // bbebee-plugin://localhost with the path unchanged.
+        let res = serve_plugin_file(
+            &root,
+            "bbebee-plugin://localhost/app/test-plugin-a/dist/index.js",
         );
         assert_eq!(res.status(), tauri::http::StatusCode::OK);
         assert_eq!(res.body().as_ref(), b"export default 'a'");
