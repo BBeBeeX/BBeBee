@@ -282,6 +282,24 @@ const KERNEL_TABLES = new Set([
 ])
 
 /**
+ * Kernel bookkeeping that belongs to the CORE namespace despite its names.
+ *
+ * `plugin_records` and `capability_grants` are created by the kernel's own
+ * migrations (migrations/core.ts) and written by exactly one gated caller —
+ * plugin-manager's grants ledger — under that plugin's `db:read:core` /
+ * `db:write:core` grants. A plugin-owned table always carries its owner's
+ * prefix segment (`plugin_<scope>_…`), so these bare names can only ever be
+ * the kernel's; the `plugin_` prefix heuristic in {@link grantFor} would
+ * otherwise attribute `plugin_records` to a plugin namespace and refuse
+ * the ledger outright (the real-machine install failure of 2026-10-22).
+ *
+ * These tables are deliberately NOT in {@link KERNEL_TABLES}: that set
+ * skips the gate unconditionally, and no caller may reach the grants
+ * ledger without holding core grants.
+ */
+const KERNEL_BOOKKEEPING_TABLES = new Set(['plugin_records', 'capability_grants'])
+
+/**
  * How much a statement asks of a table.
  *
  *   read    SELECT and friends
@@ -407,7 +425,9 @@ const SCHEMA_QUALIFIERS = new Set(['main', 'temp', 'sqlite_temp_master'])
  *
  * `core` is the fallback rather than a prefix match: the catalogue's tables
  * carry no prefix, so anything that is not a `plugin_` table belongs to it.
- * The fallback therefore applies only to bare, unqualified names.
+ * The fallback therefore applies only to bare, unqualified names — plus
+ * the kernel's own bookkeeping tables ({@link KERNEL_BOOKKEEPING_TABLES}),
+ * whose `plugin_` names predate the prefix convention.
  */
 function grantFor(
   table: string,
@@ -422,7 +442,9 @@ function grantFor(
     if (lower === ns || lower.startsWith(`${ns}_`)) return { ns, allowed }
   }
   const core = grants.get('core')
-  if (core && !lower.startsWith('plugin_')) return { ns: 'core', allowed: core }
+  if (core && (!lower.startsWith('plugin_') || KERNEL_BOOKKEEPING_TABLES.has(lower))) {
+    return { ns: 'core', allowed: core }
+  }
   return undefined
 }
 

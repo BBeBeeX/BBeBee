@@ -193,6 +193,48 @@ describe('assertDb verbs', () => {
     }
   })
 
+  it('attributes the kernel bookkeeping tables to the core namespace', () => {
+    // plugin_records / capability_grants are created by the kernel's own
+    // migrations and written by plugin-manager's grants ledger under its
+    // db:read:core + db:write:core manifest grants. The plugin_ prefix
+    // heuristic must not exile them from the core fallback (regression:
+    // every gated install failed on the real machine, 2026-10-22).
+    const g = gate(['db:own', 'db:read:core', 'db:write:core'])
+    expect(() =>
+      assertDb(g, 'INSERT INTO plugin_records (id, version) VALUES (?, ?)', own),
+    ).not.toThrow()
+    expect(() => assertDb(g, 'SELECT fail_count FROM plugin_records', own)).not.toThrow()
+    expect(
+      () => assertDb(g, 'DELETE FROM capability_grants WHERE plugin_id = ?', own),
+    ).not.toThrow()
+    expect(
+      () =>
+        assertDb(
+          g,
+          'INSERT INTO capability_grants (plugin_id, capability) VALUES (?, ?)',
+          own,
+        ),
+    ).not.toThrow()
+  })
+
+  it('still refuses the bookkeeping tables without core grants', () => {
+    // The bookkeeping exception attributes the tables to core; it is not
+    // an unconditional skip — a caller with no core grant stays locked out
+    // of the grants ledger.
+    const g = gate(['db:own'])
+    expect(() => assertDb(g, 'INSERT INTO plugin_records (id) VALUES (?)', own)).toThrow(
+      /outside its own namespace/,
+    )
+    expect(() => assertDb(g, 'UPDATE capability_grants SET capability = ?', own)).toThrow(
+      /outside its own namespace/,
+    )
+    // And core access classes still apply: write does not imply read.
+    const writeOnly = gate(['db:own', 'db:write:core'])
+    expect(() => assertDb(writeOnly, 'SELECT * FROM plugin_records', own)).toThrow(
+      CapabilityError,
+    )
+  })
+
   it('still refuses a namespace with no grant at all', () => {
     const g = gate(['db:own', 'db:*:core'])
     expect(() => assertDb(g, 'SELECT * FROM plugin_other_notes', own)).toThrow(
