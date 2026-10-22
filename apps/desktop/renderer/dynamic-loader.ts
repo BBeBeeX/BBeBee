@@ -379,6 +379,12 @@ function unwrapModuleDefault(mod: unknown): unknown {
 
 const importEntryModule: PluginModuleImporter = (url) => import(/* @vite-ignore */ url)
 
+/** True for the pre-execution "the graph could not be fetched" failure class. */
+function isModuleFetchFailure(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error)
+  return /failed to fetch dynamically imported module/i.test(message)
+}
+
 /**
  * Compose a headless plugin def with its optional UI def into a single def.
  *
@@ -429,27 +435,42 @@ export function makeExternalEntry(
 ): DynamicRegistryEntry {
   const entryMain = (manifest.entry?.main ?? './index.js').replace(/^\.?\//, '')
   const uiDesktop = manifest.entry?.ui?.desktop?.replace(/^\.?\//, '')
+  // A module-FETCH failure is pre-execution (nothing in the graph
+  // ran) and, in dev, is the signature of the vite optimizer rotating
+  // its dep chunks mid-load: every probe against the settled state
+  // then reads 200 while the in-flight graph is already broken. One
+  // delayed retry rides over that churn instead of rolling back a
+  // sound install. Other failures (resolution, evaluation) are
+  // deterministic and are not retried. The diagnostic runs on the
+  // first failure either way, and again if the retry also fails.
+  const importResilient = async (target: string): Promise<unknown> => {
+    try {
+      return await importer(target)
+    } catch (error) {
+      await diagnoseImportFailure(pluginId, target).catch(() => undefined)
+      if (!isModuleFetchFailure(error)) throw error
+      await new Promise((resolve) => setTimeout(resolve, 600))
+      try {
+        return await importer(target)
+      } catch (retryError) {
+        await diagnoseImportFailure(pluginId, target).catch(() => undefined)
+        throw retryError
+      }
+    }
+  }
   return {
     manifest,
     builtin: false,
     load: async () => {
-      let headlessMod: unknown
-      try {
-        headlessMod = await importer(pluginFileUrl(pluginId, entryMain))
-      } catch (error) {
-        // The import error alone cannot tell a dead protocol handler
-        // from a module-layer rejection; probe before rethrowing so a
-        // single failure report separates the two.
-        await diagnoseImportFailure(pluginId, pluginFileUrl(pluginId, entryMain)).catch(
-          () => undefined,
-        )
-        throw error
-      }
-      const headlessDef = unwrapModuleDefault(headlessMod) as Plugin
+      const headlessDef = unwrapModuleDefault(
+        await importResilient(pluginFileUrl(pluginId, entryMain)),
+      ) as Plugin
       if (!uiDesktop) return headlessDef
       let uiDef: Plugin
       try {
-        uiDef = unwrapModuleDefault(await importer(pluginFileUrl(pluginId, uiDesktop))) as Plugin
+        uiDef = unwrapModuleDefault(
+          await importResilient(pluginFileUrl(pluginId, uiDesktop)),
+        ) as Plugin
       } catch (error) {
         console.warn(
           `[dynamic-loader] Failed to load UI module for plugin "${pluginId}" (${uiDesktop}); loading the headless plugin only.`,

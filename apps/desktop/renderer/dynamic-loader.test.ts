@@ -577,6 +577,49 @@ describe('external plugin UI composition (makeExternalEntry / composePluginWithU
     expect(importer).toHaveBeenCalledWith('bbebee-plugin://app/ui-plug/dist/index.js')
   })
 
+  it('retries a module fetch failure once and succeeds', async () => {
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {})
+    let attempts = 0
+    const importer = vi.fn(async () => {
+      attempts++
+      if (attempts === 1) {
+        throw new TypeError(
+          'Failed to fetch dynamically imported module: bbebee-plugin://app/ui-plug/dist/index.js',
+        )
+      }
+      return { default: headlessDef }
+    })
+    const entry = makeExternalEntry('ui-plug', manifestWith({ main: './dist/index.js' }), importer)
+
+    await expect(entry.load!()).resolves.toBe(headlessDef)
+    expect(importer).toHaveBeenCalledTimes(2)
+    errorLog.mockRestore()
+  })
+
+  it('does not retry a non-fetch import failure', async () => {
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const importer = vi.fn(async () => {
+      throw new Error('Failed to resolve module specifier "cordis"')
+    })
+    const entry = makeExternalEntry('ui-plug', manifestWith({ main: './dist/index.js' }), importer)
+
+    await expect(entry.load!()).rejects.toThrow('Failed to resolve module specifier')
+    expect(importer).toHaveBeenCalledTimes(1)
+    errorLog.mockRestore()
+  })
+
+  it('gives up after one retry when the fetch keeps failing', async () => {
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const importer = vi.fn(async () => {
+      throw new TypeError('Failed to fetch dynamically imported module: x')
+    })
+    const entry = makeExternalEntry('ui-plug', manifestWith({ main: './dist/index.js' }), importer)
+
+    await expect(entry.load!()).rejects.toThrow('Failed to fetch dynamically imported module')
+    expect(importer).toHaveBeenCalledTimes(2)
+    errorLog.mockRestore()
+  })
+
   it('ignores entry.ui.mobile on desktop (no second import)', async () => {
     const importer = vi.fn(async () => ({ default: headlessDef }))
     const entry = makeExternalEntry(
