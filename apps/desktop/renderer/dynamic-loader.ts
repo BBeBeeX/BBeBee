@@ -247,12 +247,19 @@ function isWindowsWebview(): boolean {
  *   wholesale in this webview.
  * - If `plugin-fetch` returns 200, serving is fine and the failure
  *   lives in module semantics (CORS/MIME/import rules).
+ * - `importmap` fetches every mapped target: a bare import in the
+ *   plugin's graph resolves there, so a non-200 names the exact hop
+ *   that broke (in dev, usually a stale or not-yet-built .vite/deps
+ *   file after an optimizer re-run).
  */
 async function diagnoseImportFailure(pluginId: string, url: string): Promise<void> {
   const w = globalThis as {
     window?: {
-      location?: { origin?: string }
+      location?: { origin?: string; href?: string }
       navigator?: { userAgent?: string }
+      document?: {
+        querySelector(selector: string): { textContent?: string | null } | null
+      }
       BBeBee?: {
         paths?: { get(kind: string): Promise<string | undefined> }
         files?: { toServableUrl?(uri: string): string }
@@ -277,6 +284,32 @@ async function diagnoseImportFailure(pluginId: string, url: string): Promise<voi
     }
   }
   await probe('plugin-fetch', url)
+  // The plugin's bare imports resolve through the page import map; if
+  // the graph still fails to fetch while the entry itself serves, the
+  // broken hop is one of the mapped targets (in dev: a .vite/deps file
+  // the optimizer has not produced or has already invalidated).
+  try {
+    const mapText = w.window?.document?.querySelector('script[type="importmap"]')?.textContent
+    const map = mapText ? (JSON.parse(mapText) as { imports?: Record<string, string> }) : null
+    const entries = Object.entries(map?.imports ?? {})
+    if (entries.length === 0) {
+      lines.push('importmap: NONE FOUND in the document')
+    } else {
+      const statuses: string[] = []
+      for (const [specifier, target] of entries) {
+        const absolute = new URL(target, w.window?.location?.href ?? url).href
+        try {
+          const res = await fetch(absolute)
+          statuses.push(`${specifier}->${res.status}`)
+        } catch {
+          statuses.push(`${specifier}->FETCH_ERROR`)
+        }
+      }
+      lines.push(`importmap: ${statuses.join(' ')}`)
+    }
+  } catch (e) {
+    lines.push(`importmap: PROBE_ERROR ${String(e)}`)
+  }
   try {
     const userData = await w.window?.BBeBee?.paths?.get?.('userData')
     if (userData) {
