@@ -508,6 +508,19 @@ describe('external plugin UI composition (makeExternalEntry / composePluginWithU
     expect(pluginFileUrl('ui-plug', 'dist/ui.js')).toBe('bbebee-plugin://app/ui-plug/dist/ui.js')
   })
 
+  it('uses the http://bbebee-plugin.localhost form on Windows (WebView2)', () => {
+    const g = globalThis as { window?: unknown }
+    const saved = g.window
+    g.window = { BBeBee: { platform: 'win32' }, navigator: { userAgent: 'Mozilla/5.0 (Windows NT 10.0)' } }
+    try {
+      expect(pluginFileUrl('ui-plug', 'dist/index.js')).toBe(
+        'http://bbebee-plugin.localhost/app/ui-plug/dist/index.js',
+      )
+    } finally {
+      g.window = saved
+    }
+  })
+
   it('loads headless + UI modules and composes them in registration order', async () => {
     const importer = vi.fn(async (url: string) =>
       url.endsWith('/dist/ui.js') ? { default: uiDef } : { default: headlessDef },

@@ -242,6 +242,127 @@ pub fn handle_bbebee_file_request(
     });
 }
 
+/// Map a sidecar `protocol:plugin` result (the TS `ProtocolResponse`
+/// shape) onto an HTTP response.
+///
+/// The sidecar serializes its response as JSON: `status` (number),
+/// `headers` (string map) and `body` — null, a string, or a Node Buffer
+/// in its JSON form `{ "type": "Buffer", "data": [..bytes..] }` (a bare
+/// byte array is also accepted, defensively). Anything unparseable
+/// degrades to a 502 rather than a panic: a plugin module that fails to
+/// load must fail as an ordinary fetch error in the webview.
+pub fn plugin_response_from_sidecar(
+    value: &serde_json::Value,
+) -> tauri::http::Response<Cow<'static, [u8]>> {
+    let status = value
+        .get("status")
+        .and_then(serde_json::Value::as_u64)
+        .and_then(|s| u16::try_from(s).ok())
+        .and_then(|s| tauri::http::StatusCode::from_u16(s).ok());
+    let Some(status) = status else {
+        return error_response(
+            tauri::http::StatusCode::BAD_GATEWAY,
+            "Bad sidecar protocol response",
+        );
+    };
+    let body: Vec<u8> = match value.get("body") {
+        None | Some(serde_json::Value::Null) => Vec::new(),
+        Some(serde_json::Value::String(s)) => s.clone().into_bytes(),
+        Some(serde_json::Value::Array(items)) => items
+            .iter()
+            .filter_map(serde_json::Value::as_u64)
+            .map(|b| b as u8)
+            .collect(),
+        Some(obj @ serde_json::Value::Object(_)) => obj
+            .get("data")
+            .and_then(serde_json::Value::as_array)
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(serde_json::Value::as_u64)
+                    .map(|b| b as u8)
+                    .collect::<Vec<u8>>()
+            })
+            .unwrap_or_default(),
+        Some(_) => Vec::new(),
+    };
+    let mut builder = tauri::http::Response::builder().status(status);
+    if let Some(headers) = value.get("headers").and_then(serde_json::Value::as_object) {
+        for (name, v) in headers {
+            if let Some(v) = v.as_str() {
+                builder = builder.header(name.as_str(), v);
+            }
+        }
+    }
+    builder.body(Cow::Owned(body)).unwrap_or_else(|_| {
+        error_response(
+            tauri::http::StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to build protocol response",
+        )
+    })
+}
+
+/// Handle a `bbebee-plugin://` protocol request.
+///
+/// The file-serving implementation lives in the Node sidecar
+/// (`protocol:plugin` → `ProtocolManager.handleBbebeePlugin`: installed-
+/// plugin directory resolution, traversal guards, MIME) — this handler
+/// is only the webview-facing registration the Tauri shell never had
+/// (an Electron→Tauri migration gap: under Electron the main process
+/// registered the scheme and forwarded to the same sidecar handler).
+/// Without it, `import('bbebee-plugin://…')` in the renderer has no
+/// handler at all and every external plugin fails activation with
+/// "Failed to fetch dynamically imported module".
+pub fn handle_bbebee_plugin_request(
+    app_handle: tauri::AppHandle,
+    request: tauri::http::Request<Vec<u8>>,
+    responder: tauri::UriSchemeResponder,
+) {
+    let uri_str = request.uri().to_string();
+    tauri::async_runtime::spawn(async move {
+        let response = plugin_response_via_sidecar(&app_handle, &uri_str).await;
+        responder.respond(response);
+    });
+}
+
+async fn plugin_response_via_sidecar(
+    app_handle: &tauri::AppHandle,
+    uri_str: &str,
+) -> tauri::http::Response<Cow<'static, [u8]>> {
+    use tauri::Manager as _;
+    let Some(state) = app_handle.try_state::<crate::state::AppState>() else {
+        return error_response(
+            tauri::http::StatusCode::SERVICE_UNAVAILABLE,
+            "App state unavailable",
+        );
+    };
+    let sidecar = match state.get_sidecar() {
+        Ok(s) => s,
+        Err(_) => {
+            return error_response(
+                tauri::http::StatusCode::SERVICE_UNAVAILABLE,
+                "Sidecar unavailable",
+            )
+        }
+    };
+    // The sidecar's stdio dispatch invokes the channel handler as
+    // handler(caller, ...params), so the request object rides as the
+    // single params element.
+    match sidecar
+        .call(
+            "protocol:plugin",
+            serde_json::json!([{ "url": uri_str }]),
+        )
+        .await
+    {
+        Ok(value) => plugin_response_from_sidecar(&value),
+        Err(e) => {
+            eprintln!("[bbebee-plugin] sidecar protocol:plugin failed for {uri_str}: {e}");
+            error_response(tauri::http::StatusCode::BAD_GATEWAY, "Sidecar protocol error")
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -298,5 +419,50 @@ mod tests {
         assert_eq!(parse_range("bytes=999-0", 1000), None);
         assert_eq!(parse_range("bytes=2000-3000", 1000), None);
         assert_eq!(parse_range("invalid", 1000), None);
+    }
+
+    #[test]
+    fn plugin_response_maps_buffer_bodies() {
+        // Node serializes a Buffer body as {"type":"Buffer","data":[…]}.
+        let value = serde_json::json!({
+            "status": 200,
+            "headers": {
+                "Content-Type": "text/javascript; charset=utf-8",
+                "Access-Control-Allow-Origin": "*"
+            },
+            "body": { "type": "Buffer", "data": [105, 109, 112, 111, 114, 116] }
+        });
+        let response = plugin_response_from_sidecar(&value);
+        assert_eq!(response.status(), tauri::http::StatusCode::OK);
+        assert_eq!(
+            response.headers().get("content-type").unwrap(),
+            "text/javascript; charset=utf-8"
+        );
+        assert_eq!(response.body().as_ref(), b"import");
+    }
+
+    #[test]
+    fn plugin_response_maps_string_and_null_bodies() {
+        let text = plugin_response_from_sidecar(&serde_json::json!({
+            "status": 404,
+            "headers": { "Access-Control-Allow-Origin": "*" },
+            "body": "Plugin File Not Found"
+        }));
+        assert_eq!(text.status(), tauri::http::StatusCode::NOT_FOUND);
+        assert_eq!(text.body().as_ref(), b"Plugin File Not Found");
+
+        let empty = plugin_response_from_sidecar(&serde_json::json!({
+            "status": 204,
+            "headers": {},
+            "body": null
+        }));
+        assert_eq!(empty.status(), tauri::http::StatusCode::NO_CONTENT);
+        assert!(empty.body().is_empty());
+    }
+
+    #[test]
+    fn plugin_response_degrades_on_garbage() {
+        let response = plugin_response_from_sidecar(&serde_json::json!({ "nope": true }));
+        assert_eq!(response.status(), tauri::http::StatusCode::BAD_GATEWAY);
     }
 }

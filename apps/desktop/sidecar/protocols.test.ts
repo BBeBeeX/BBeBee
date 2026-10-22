@@ -58,6 +58,23 @@ describe('bbebee-plugin:// confinement', () => {
     expect(String(b.body)).toContain('B-SECRET')
   })
 
+  it('serves the Windows http://bbebee-plugin.localhost form identically', () => {
+    // WebView2 cannot resolve custom schemes: on Windows the webview
+    // addresses the registered scheme as http://bbebee-plugin.localhost.
+    expect(parsePluginRequestUrl('http://bbebee-plugin.localhost/app/test-plugin-a/dist/index.js')).toEqual({
+      pluginId: 'test-plugin-a',
+      subPath: 'dist/index.js',
+    })
+    const res = pm.handleBbebeePlugin('http://bbebee-plugin.localhost/app/test-plugin-a/dist/index.js')
+    expect(res.status).toBe(200)
+    expect(String(res.body)).toContain('A-ENTRY')
+    // The confinement rules apply to the Windows form too.
+    expect(
+      parsePluginRequestUrl('http://bbebee-plugin.localhost/app/%2e%2e/secret.js'),
+    ).toBeUndefined()
+    expect(parsePluginRequestUrl('http://bbebee-plugin.localhost/etc/passwd')).toBeUndefined()
+  })
+
   it('refuses ".." as the plugin id instead of serving the parent directory', () => {
     expect(parsePluginRequestUrl('bbebee-plugin://../userdata-marker.txt')).toBeUndefined()
     const res = pm.handleBbebeePlugin('bbebee-plugin://../userdata-marker.txt')

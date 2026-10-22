@@ -213,9 +213,29 @@ export function getBuiltinPluginRegistry(): DynamicPluginRegistry {
 
 export const bundled: DynamicPluginRegistry = getBuiltinPluginRegistry()
 
+/**
+ * True when the webview is WebView2 (Windows): it cannot resolve custom
+ * schemes natively, so wry serves every registered scheme as
+ * `http://<scheme>.localhost` and the webview must address that form —
+ * the same contract the shim's `files.toServableUrl` applies to
+ * `bbebee-file://`. The platform comes from the shim's host report
+ * (`window.BBeBee.platform`, the source boot.ts uses), falling back to
+ * the UA under plain-browser test rigs.
+ */
+function isWindowsWebview(): boolean {
+  const w = globalThis as {
+    window?: { BBeBee?: { platform?: string }; navigator?: { userAgent?: string } }
+  }
+  const shimPlatform = w.window?.BBeBee?.platform
+  if (typeof shimPlatform === 'string' && shimPlatform) return shimPlatform === 'win32'
+  const ua = w.window?.navigator?.userAgent?.toLowerCase() ?? ''
+  return ua.includes('windows')
+}
+
 /** Build the `bbebee-plugin://` URL for a file inside an installed plugin's directory. */
 export function pluginFileUrl(pluginId: string, relPath: string): string {
-  return `bbebee-plugin://app/${encodeURIComponent(pluginId)}/${relPath}`
+  const path = `app/${encodeURIComponent(pluginId)}/${relPath}`
+  return isWindowsWebview() ? `http://bbebee-plugin.localhost/${path}` : `bbebee-plugin://${path}`
 }
 
 /**

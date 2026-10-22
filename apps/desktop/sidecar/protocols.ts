@@ -30,6 +30,22 @@ export function isSafePluginId(pluginId: string): boolean {
 export function parsePluginRequestUrl(rawUrl: string): { pluginId: string; subPath: string } | undefined {
   try {
     const url = new URL(rawUrl)
+    // Windows (WebView2) form: wry serves a registered custom scheme as
+    // http://<scheme>.localhost, so the webview addresses plugin files as
+    // http://bbebee-plugin.localhost/app/<pluginId>/<subPath> — the same
+    // shape as the 'app' form below, one segment deeper. Tauri may hand
+    // the handler either this form or the normalized scheme form; accept
+    // both.
+    if (url.host === 'bbebee-plugin.localhost') {
+      const parts = url.pathname.replace(/^\/+/, '').split('/')
+      if (parts[0] !== 'app' && parts[0] !== 'plugin') return undefined
+      const rawId = parts[1]
+      if (!rawId) return undefined
+      const pluginId = decodeURIComponent(rawId)
+      if (!isSafePluginId(pluginId)) return undefined
+      const subPath = parts.slice(2).join('/') || 'index.js'
+      return { pluginId, subPath }
+    }
     // Handle bbebee-plugin://app/<pluginId>/<subPath> or bbebee-plugin://plugin/<pluginId>/<subPath>
     if (url.host === 'app' || url.host === 'plugin') {
       const parts = url.pathname.replace(/^\/+/, '').split('/')
