@@ -16,6 +16,13 @@
  * `host/react.js` and fails the build if the plugin-facing surface is
  * incomplete.
  *
+ * The framework entries (cordis, @BBeBee/protocol, @BBeBee/toolkit/hooks)
+ * are ESM — the workspace ones are TypeScript sources — and take the
+ * other shim path: a verbatim `export *` re-export, exact by
+ * construction. Bare imports of any host specifier inside the graph are
+ * pinned to the shimmed files, so a module the graph shares with a shim
+ * cannot fork into a second copy through a node_modules walk.
+ *
  * `react-dom` and `react-dom/client` are entry points of the SAME build so
  * code splitting puts react-dom's internals in one shared chunk — building
  * them separately would duplicate react-dom state across the two files.
@@ -37,7 +44,7 @@ process.env.NODE_ENV = 'production'
 
 import { createRequire } from 'node:module'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import process from 'node:process'
 import console from 'node:console'
@@ -85,14 +92,67 @@ function shimSource(resolvedPath, names) {
   return lines.join('\n') + '\n'
 }
 
+/**
+ * Is the resolved entry an ES module? The react family is CJS and needs
+ * the enumerating shim above; the framework entries (cordis, the
+ * workspace packages) are ESM — some are TypeScript sources — and are
+ * re-exported verbatim instead (`export *`), which keeps their export
+ * surface exact by construction. None of them has a default export.
+ */
+function isEsmEntry(resolvedPath) {
+  if (/\.(?:ts|mts|mjs)$/.test(resolvedPath)) return true
+  if (!resolvedPath.endsWith('.js')) return false
+  let dir = dirname(resolvedPath)
+  for (;;) {
+    const pkgPath = join(dir, 'package.json')
+    if (existsSync(pkgPath)) {
+      try {
+        return JSON.parse(readFileSync(pkgPath, 'utf8')).type === 'module'
+      } catch {
+        return false
+      }
+    }
+    const parent = dirname(dir)
+    if (parent === dir) return false
+    dir = parent
+  }
+}
+
 // Virtual entry points: one per manifest entry, content from the shim generator.
 const shims = new Map()
 const entryPoints = {}
 for (const m of HOST_MODULES) {
   const virtualId = `bbebee-host:${m.specifier}`
-  shims.set(virtualId, shimSource(require.resolve(m.entry), cjsExportNames(m.entry)))
+  const resolved = require.resolve(m.entry)
+  shims.set(
+    virtualId,
+    isEsmEntry(resolved)
+      ? `export * from ${JSON.stringify(resolved)}\n`
+      : shimSource(resolved, cjsExportNames(m.entry)),
+  )
   // Output name mirrors the manifest file ('host/react.js' -> 'host/react').
   entryPoints[m.file.replace(/\.js$/, '')] = virtualId
+}
+
+/**
+ * Pin every bare import of a host specifier, wherever it appears in the
+ * host graph (a workspace package importing `react`, protocol importing
+ * `cordis`, …), to the exact file the corresponding shim wraps. Module
+ * identity in the output graph is what the single-instance guarantee is
+ * made of; leaving these to per-file node_modules walks would make it
+ * depend on the workspace layout.
+ */
+const hostSpecifierPaths = new Map(
+  HOST_MODULES.map((m) => [m.specifier, require.resolve(m.entry)]),
+)
+const hostSpecifierResolution = {
+  name: 'bbebee-host-specifier-resolution',
+  setup(b) {
+    b.onResolve({ filter: /^[^./]/ }, (args) => {
+      const target = hostSpecifierPaths.get(args.path)
+      return target ? { path: target } : undefined
+    })
+  },
 }
 
 const virtualEntries = {
@@ -109,17 +169,18 @@ const virtualEntries = {
   },
 }
 
-await build({
+const buildResult = await build({
   entryPoints,
   bundle: true,
   splitting: true,
   format: 'esm',
+  metafile: true,
   platform: 'browser',
   // Evergreen webviews, same floor as build-shim.js.
   target: 'es2020',
   // Pin production builds of the react family regardless of ambient env.
   define: { 'process.env.NODE_ENV': '"production"' },
-  plugins: [virtualEntries],
+  plugins: [virtualEntries, hostSpecifierResolution],
   outdir: distDir,
   chunkNames: 'host/chunk-[hash]',
   absWorkingDir: appDir,
@@ -192,7 +253,24 @@ if (missing.length > 0) {
 // must resolve inside the dist/host/ graph. A bare specifier here means a
 // leaked external (e.g. esbuild emitting __require("react")), which the
 // browser cannot resolve and which would break the single-instance guarantee.
-const hostFiles = HOST_MODULES.map((m) => m.file)
+// The check reads esbuild's metafile — the actual import records — rather
+// than regexing the emitted code: bundled libraries contain strings like
+// `import": "` that a regex cannot tell apart from a real import.
+for (const [outPath, out] of Object.entries(buildResult.metafile.outputs)) {
+  const bare = new Set()
+  for (const imp of out.imports) {
+    if (imp.external || !(imp.path.startsWith('.') || imp.path.startsWith('dist/host/'))) {
+      bare.add(imp.path)
+    }
+  }
+  if (bare.size > 0) {
+    console.error(
+      `[build:host-modules] ${outPath} contains bare imports: ${[...bare].join(', ')}. ` +
+        'Host chunks must be fully self-contained within dist/host/.',
+    )
+    process.exit(1)
+  }
+}
 // Entry files AND shared chunks: a leaked external in a chunk poisons every
 // entry that imports it.
 const emittedFiles = readdirSync(resolve(distDir, 'host'))
@@ -200,17 +278,6 @@ const emittedFiles = readdirSync(resolve(distDir, 'host'))
   .map((f) => `host/${f}`)
 for (const file of emittedFiles) {
   const code = readFileSync(resolve(distDir, file), 'utf8')
-  const bare = new Set()
-  for (const m of code.matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g)) {
-    if (!m[1].startsWith('.')) bare.add(m[1])
-  }
-  if (bare.size > 0) {
-    console.error(
-      `[build:host-modules] dist/${file} contains bare imports: ${[...bare].join(', ')}. ` +
-        'Host chunks must be fully self-contained within dist/host/.',
-    )
-    process.exit(1)
-  }
   // __require("x") with an argument is the signature of a dynamic require
   // esbuild could not statically convert (e.g. CJS require of an external
   // inside function scope); it throws "Dynamic require … is not supported"
@@ -228,7 +295,7 @@ for (const file of emittedFiles) {
 // Shared-chunk invariants: one copy of react internals across every file that
 // uses them, and one copy of react-dom internals between the two dom entries.
 const chunkGraph = new Map()
-for (const file of hostFiles) {
+for (const file of HOST_MODULES.map((m) => m.file)) {
   chunkGraph.set(
     file,
     emittedRelativeImports(readFileSync(resolve(distDir, file), 'utf8')),

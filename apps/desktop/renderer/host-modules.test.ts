@@ -49,7 +49,9 @@ describe('host-modules manifest', () => {
   it('gives every entry a host file under host/ and a dev pre-bundle file', () => {
     for (const m of HOST_MODULES) {
       expect(m.file).toMatch(/^host\/[\w-]+\.js$/)
-      expect(m.devFile).toMatch(/^[\w-]+\.js$/)
+      // Vite flattens scoped specifiers to `@scope_name.js`, so the dev
+      // pre-bundle file may carry a leading `@`.
+      expect(m.devFile).toMatch(/^[\w@-]+\.js$/)
       expect(m.entry.length).toBeGreaterThan(0)
     }
   })

@@ -141,6 +141,12 @@ export default defineConfig({
   plugins: [react(), bbebeeFileProxy(), bbebeeImportMap()],
   optimizeDeps: {
     exclude: ['react-native'],
+    // The dev import map (host-modules.manifest.ts) points the shared
+    // framework modules at .vite/deps files, so they must actually be
+    // pre-bundled. cordis would be discovered on its own; the two
+    // workspace packages are linked deps, which vite only pre-bundles
+    // when they are included explicitly.
+    include: ['cordis', '@BBeBee/protocol', '@BBeBee/toolkit/hooks'],
   },
   server: {
     port: 1420,

@@ -60,6 +60,26 @@ export const HOST_MODULES: readonly HostModuleEntry[] = [
     entry: 'react/jsx-dev-runtime',
     devFile: 'react_jsx-dev-runtime.js',
   },
+  // Framework modules. A headless plugin bundle keeps its bare imports
+  // of these (scripts/assemble-plugin.mjs: "its established form"), so
+  // the shell must resolve them — and must resolve them to the SAME
+  // instances the app runs: a plugin's `class X extends Service` only
+  // registers with the host's Cordis when `Service` is the host's
+  // class, and protocol constants (defaults, service keys) must not
+  // fork between the app bundle and plugin code.
+  { specifier: 'cordis', file: 'host/cordis.js', entry: 'cordis', devFile: 'cordis.js' },
+  {
+    specifier: '@BBeBee/protocol',
+    file: 'host/protocol.js',
+    entry: '@BBeBee/protocol',
+    devFile: '@BBeBee_protocol.js',
+  },
+  {
+    specifier: '@BBeBee/toolkit/hooks',
+    file: 'host/toolkit-hooks.js',
+    entry: '@BBeBee/toolkit/hooks',
+    devFile: '@BBeBee_toolkit_hooks.js',
+  },
 ]
 
 /** Bare specifiers to externalize in the renderer build. */

@@ -58,6 +58,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, copyFileSync, readd
 import { join, dirname, resolve, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
+import { createRequire } from 'node:module'
 import process from 'node:process'
 import console from 'node:console'
 import { build } from 'esbuild'
@@ -84,17 +85,34 @@ function packageNameOf(entry) {
 
 /**
  * `peerDependencies` for the assembled package.json: one entry per npm
- * package behind the host-shared specifiers, ranged at `^<major>.0.0` of
- * the host React version. v1 shares only the react family, whose packages
- * are versioned in lockstep with HOST_REACT_VERSION; if a future shared
- * module carries its own version, this derivation is where it must land —
- * not a literal in this script.
+ * package behind the host-shared specifiers. The react family is ranged
+ * at `^<major>.0.0` of HOST_REACT_VERSION (its packages version in
+ * lockstep). Every other shared package carries its own version, read
+ * from the copy the desktop shell installs: a normal release ranges at
+ * `^<major>.0.0`, a prerelease pins exactly (a caret range would not
+ * match its own prerelease under npm semver), and a workspace package
+ * (version 0.0.0, never published) takes `*` — the host provides
+ * whatever build it runs.
  */
 function hostPeerDependencies() {
-  const major = HOST_REACT_VERSION.split('.')[0]
+  const reactMajor = HOST_REACT_VERSION.split('.')[0]
+  const desktopRequire = createRequire(join(rootDir, 'apps/desktop/package.json'))
   const peers = {}
   for (const m of HOST_MODULES) {
-    peers[packageNameOf(m.entry)] = `^${major}.0.0`
+    const pkg = packageNameOf(m.entry)
+    if (pkg === 'react' || pkg === 'react-dom') {
+      peers[pkg] = `^${reactMajor}.0.0`
+      continue
+    }
+    let version = null
+    try {
+      version = desktopRequire(`${pkg}/package.json`).version ?? null
+    } catch {
+      version = null
+    }
+    if (!version || version.startsWith('0.0.')) peers[pkg] = '*'
+    else if (version.includes('-')) peers[pkg] = version
+    else peers[pkg] = `^${version.split('.')[0]}.0.0`
   }
   return peers
 }
