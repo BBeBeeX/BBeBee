@@ -16,6 +16,16 @@
  * service's `'registry/tasks-changed'` snapshots. No task state machine lives
  * in the view.
  *
+ * Beside it sit two page-level actions. Local import: the user picks a
+ * plugin package file (`.tgz`), the view reads its bytes and hands them
+ * to the plugin-manager's preview — which runs the whole install
+ * checklist before anything is shown — and the confirm dialog
+ * (`LocalImportConfirmDialog`) carries the trust decision, because a
+ * local package's identity is self-declared. And a Restart dropdown:
+ * "reload UI" is a plain WebView reload, "restart app" goes through the
+ * preload bridge's `app.restart()` (the native relaunch command); where
+ * the bridge has no app surface the item says so instead of pretending.
+ *
  * All state lives in services; this component holds view state only — the
  * filter/sort choices included. The repo-stats sort reads `registryMetadata`
  * through `useRepoMetadata`, which requests nothing until a numeric sort key
@@ -34,6 +44,7 @@ import { createElement as h, useCallback, useEffect, useMemo, useRef, useState }
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {
+  LocalPluginPreview,
   LyricSourceDefinition,
   PluginInfo,
   RegistryEntry,
@@ -53,6 +64,7 @@ import { useRegistryTasks } from '../hooks/use-registry-tasks.js'
 import { useRepoMetadata } from '../hooks/use-repo-metadata.js'
 import { findInstalledMusicSource, isBuiltinEntry, minAppVersionBlock } from '../hooks/install-state.js'
 import { InstallConfirmDialog } from '../components/InstallConfirmDialog.js'
+import { LocalImportConfirmDialog } from '../components/LocalImportConfirmDialog.js'
 import { RegistryEntryCard } from '../components/RegistryEntryCard.js'
 import { RegistryTaskDrawer } from '../components/RegistryTaskDrawer.js'
 import { RegistryEmptyState } from '../components/RegistryEmptyState.js'
@@ -96,6 +108,28 @@ interface PluginManagerLike {
   list(): readonly PluginInfo[]
   setEnabled(id: string, enabled: boolean): Promise<void>
   uninstall?(id: string): Promise<void>
+  previewLocalPlugin?(packageBase64: string): Promise<LocalPluginPreview>
+  installLocalPlugin?(
+    packageBase64: string,
+    opts?: { confirmed?: boolean },
+  ): Promise<LocalPluginPreview>
+}
+
+/** The preload bridge's app surface (desktop only; absent elsewhere). */
+interface AppBridgeLike {
+  BBeBee?: { app?: { restart?: () => Promise<void> } }
+}
+
+const LOCAL_PACKAGE_MAX_BYTES = 50 * 1024 * 1024
+
+/** Base64-encodes file bytes in chunks (`btoa` needs a binary string; a single spread would blow the stack on multi-MB packages). */
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = ''
+  const CHUNK = 32 * 1024
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK))
+  }
+  return btoa(binary)
 }
 
 const KIND_TABS: readonly RegistryEntryKind[] = ['music-source', 'lyric-source', 'theme', 'plugin']
@@ -243,6 +277,19 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
   // drawer is plain view state — open while the user reads, closed otherwise.
   const { tasks, runningCount, canClear, clearFinished } = useRegistryTasks(ctx)
   const [tasksOpen, setTasksOpen] = useState(false)
+
+  // Local import + restart: header-level actions. The picked package's
+  // bytes are held only as the base64 string the manager consumes; the
+  // preview is the manager's verdict, this view keeps no copy of the
+  // parsed package.
+  const [restartMenuOpen, setRestartMenuOpen] = useState(false)
+  const [localPreview, setLocalPreview] = useState<LocalPluginPreview | undefined>(undefined)
+  const [localPackageBase64, setLocalPackageBase64] = useState<string | undefined>(undefined)
+  const [localBusy, setLocalBusy] = useState(false)
+  const [localError, setLocalError] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [actionNotice, setActionNotice] = useState<string | null>(null)
+  const localFileInputRef = useRef<HTMLInputElement | null>(null)
 
   const [uninstallingId, setUninstallingId] = useState<string | undefined>(undefined)
   const [uninstallError, setUninstallError] = useState<string | null>(null)
@@ -517,6 +564,73 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
     [ctx],
   )
 
+  const handleLocalFile = useCallback(
+    async (file: File) => {
+      setActionError(null)
+      setActionNotice(null)
+      setLocalError(null)
+      if (file.size > LOCAL_PACKAGE_MAX_BYTES) {
+        setActionError(t('registry:localImport.fileTooLarge'))
+        return
+      }
+      const pm = serviceOf<PluginManagerLike>(ctx, 'plugin-manager')
+      if (!pm?.previewLocalPlugin) {
+        setActionError(t('registry:localImport.managerUnavailable'))
+        return
+      }
+      setLocalBusy(true)
+      try {
+        const base64 = bytesToBase64(new Uint8Array(await file.arrayBuffer()))
+        const preview = await pm.previewLocalPlugin(base64)
+        setLocalPackageBase64(base64)
+        setLocalPreview(preview)
+      } catch (err) {
+        setActionError(errorMessage(err))
+      } finally {
+        setLocalBusy(false)
+      }
+    },
+    [ctx, t],
+  )
+
+  const confirmLocalImport = useCallback(async () => {
+    const pm = serviceOf<PluginManagerLike>(ctx, 'plugin-manager')
+    if (!pm?.installLocalPlugin || !localPackageBase64 || !localPreview) return
+    setLocalBusy(true)
+    setLocalError(null)
+    try {
+      const done = await pm.installLocalPlugin(localPackageBase64, { confirmed: true })
+      setLocalPreview(undefined)
+      setLocalPackageBase64(undefined)
+      setActionNotice(
+        t('registry:localImport.success', {
+          name: done.displayName ?? done.id,
+          version: done.version,
+        }),
+      )
+      setContentNonce((n) => n + 1)
+    } catch (err) {
+      setLocalError(errorMessage(err))
+    } finally {
+      setLocalBusy(false)
+    }
+  }, [ctx, localPackageBase64, localPreview, t])
+
+  const handleReloadUi = useCallback(() => {
+    setRestartMenuOpen(false)
+    window.location.reload()
+  }, [])
+
+  const handleRestartApp = useCallback(() => {
+    setRestartMenuOpen(false)
+    const restart = (window as unknown as AppBridgeLike).BBeBee?.app?.restart
+    if (typeof restart !== 'function') {
+      setActionError(t('registry:registry.restartUnavailable'))
+      return
+    }
+    void restart().catch((err: unknown) => setActionError(errorMessage(err)))
+  }, [t])
+
   // Filtered first (the pre-sort set is what the stats hook walks), then
   // sorted.
   const filtered = useMemo(() => {
@@ -728,8 +842,135 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
           },
           refreshing ? t('registry:registry.refreshing') : t('registry:registry.refresh'),
         ),
+        h(
+          'button',
+          {
+            type: 'button',
+            'data-testid': 'registry-local-import',
+            onClick: () => localFileInputRef.current?.click(),
+            disabled: localBusy,
+            className: 'bbreg-btn bbreg-btn-ghost',
+            style: { ...headerButtonStyle, opacity: localBusy ? 0.6 : 1 },
+          },
+          tablerIcon('download', { size: 14 }),
+          t('registry:registry.localImport'),
+        ),
+        h('input', {
+          key: 'registry-local-import-input',
+          ref: localFileInputRef,
+          type: 'file',
+          accept: '.tgz,application/gzip,application/x-gzip',
+          'data-testid': 'registry-local-import-input',
+          style: { display: 'none' },
+          onChange: (e: { target: { files?: ArrayLike<File> | null; value: string } }) => {
+            const file = e.target.files?.[0]
+            e.target.value = ''
+            if (file) void handleLocalFile(file)
+          },
+        }),
+        // Restart dropdown: a button plus a small menu panel (with a
+        // click-catcher behind it). Reload is renderer-only; restart
+        // goes through the preload bridge.
+        h(
+          'div',
+          { key: 'registry-restart', style: { position: 'relative' } },
+          h(
+            'button',
+            {
+              type: 'button',
+              'data-testid': 'registry-restart-button',
+              onClick: () => setRestartMenuOpen((open) => !open),
+              'aria-haspopup': 'menu',
+              'aria-expanded': restartMenuOpen,
+              className: 'bbreg-btn bbreg-btn-ghost',
+              style: headerButtonStyle,
+            },
+            tablerIcon('power', { size: 14 }),
+            t('registry:registry.restart'),
+            tablerIcon('chevron-down', { size: 12 }),
+          ),
+          restartMenuOpen
+            ? h(
+                'div',
+                { key: 'registry-restart-menu-wrap' },
+                h('div', {
+                  key: 'registry-restart-catcher',
+                  'data-testid': 'registry-restart-catcher',
+                  onClick: () => setRestartMenuOpen(false),
+                  style: { position: 'fixed', inset: 0, zIndex: 40 },
+                }),
+                h(
+                  'div',
+                  {
+                    key: 'registry-restart-menu',
+                    role: 'menu',
+                    'data-testid': 'registry-restart-menu',
+                    style: {
+                      position: 'absolute',
+                      top: 'calc(100% + 6px)',
+                      right: 0,
+                      zIndex: 41,
+                      minWidth: 180,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      padding: 4,
+                      borderRadius: 10,
+                      background: 'var(--surface-1, #0D101A)',
+                      border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.12))',
+                      boxShadow: '0 12px 32px rgba(0, 0, 0, 0.45)',
+                    },
+                  },
+                  h(
+                    'button',
+                    {
+                      type: 'button',
+                      role: 'menuitem',
+                      'data-testid': 'registry-restart-reload',
+                      onClick: handleReloadUi,
+                      className: 'bbreg-btn bbreg-btn-ghost',
+                      style: { ...headerButtonStyle, justifyContent: 'flex-start', border: 'none' },
+                    },
+                    t('registry:registry.reloadUi'),
+                  ),
+                  h(
+                    'button',
+                    {
+                      type: 'button',
+                      role: 'menuitem',
+                      'data-testid': 'registry-restart-app',
+                      onClick: handleRestartApp,
+                      className: 'bbreg-btn bbreg-btn-ghost',
+                      style: { ...headerButtonStyle, justifyContent: 'flex-start', border: 'none' },
+                    },
+                    t('registry:registry.restartApp'),
+                  ),
+                ),
+              )
+            : null,
+        ),
       ),
     ),
+    actionError
+      ? h(
+          'div',
+          { 'data-testid': 'registry-action-banner-error', style: ERROR_BANNER },
+          actionError,
+        )
+      : null,
+    actionNotice
+      ? h(
+          'div',
+          {
+            'data-testid': 'registry-action-banner-notice',
+            style: {
+              ...ERROR_BANNER,
+              border: `1px solid ${TONE.success}`,
+              color: TONE.success,
+            },
+          },
+          actionNotice,
+        )
+      : null,
     // Search + filters (one wrapping row; testids live on the controls). The
     // diagnostics view is a report, not a catalog — it gets no filter bar.
     view === 'diagnostics'
@@ -938,6 +1179,20 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
           canClear,
           onClearFinished: clearFinished,
           onClose: () => setTasksOpen(false),
+        })
+      : null,
+    localPreview
+      ? h(LocalImportConfirmDialog, {
+          ctx,
+          preview: localPreview,
+          busy: localBusy,
+          error: localError,
+          onConfirm: () => void confirmLocalImport(),
+          onClose: () => {
+            setLocalPreview(undefined)
+            setLocalPackageBase64(undefined)
+            setLocalError(null)
+          },
         })
       : null,
   )

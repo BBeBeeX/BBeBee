@@ -4,7 +4,7 @@
  * rendered against stub services the way the shell would bind them.
  */
 
-import { describe, expect, it, beforeEach, afterEach } from 'vitest'
+import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest'
 import { createElement as h } from 'react'
 import { act, fireEvent, render, cleanup, waitFor } from '@testing-library/react'
 import { Context, Service } from 'cordis'
@@ -442,6 +442,41 @@ async function harness(options: RegistryStubOptions & { appVersion?: string } = 
       registry.calls.push(`uninstall-plugin:${id}`)
       installed.plugins = installed.plugins.filter((p) => p.id !== id)
       this.appCtx.emit('plugin-manager/changed')
+    }
+    previewLocalPlugin = async (packageBase64: string) => {
+      registry.calls.push(`preview-local:${packageBase64.length}`)
+      return {
+        id: 'local-x',
+        npm: '@t/local',
+        displayName: 'Local X',
+        description: 'a local test plugin',
+        version: '1.0.0',
+        author: 'test',
+        capabilities: ['fs:read/**'],
+        fileCount: 3,
+        sha256: 'a'.repeat(64),
+        warnings: ['本地导入：未经审核', 'manifest 依赖 "zzz" 不在已注册或已安装的插件中'],
+      }
+    }
+    installLocalPlugin = async (_packageBase64: string, opts?: { confirmed?: boolean }) => {
+      registry.calls.push(`install-local:${opts?.confirmed === true ? 'confirmed' : 'unconfirmed'}`)
+      const preview = await this.previewLocalPlugin(_packageBase64)
+      installed.plugins = [
+        ...installed.plugins,
+        {
+          id: 'local-x',
+          name: '@t/local',
+          displayName: 'Local X',
+          version: '1.0.0',
+          enabled: true,
+          state: 'ACTIVE',
+          waitingFor: [],
+          dependencies: [],
+          dependents: [],
+        } as unknown as PluginInfo,
+      ]
+      this.appCtx.emit('plugin-manager/changed')
+      return preview
     }
   }
 
@@ -1338,6 +1373,70 @@ describe('RegistryScreen task center', () => {
 })
 
 /* ── RegistryEntryCard regressions ───────────────────────────────────────── */
+
+describe('RegistryScreen local import + restart', () => {
+  it('renders the local import button and the restart dropdown items', async () => {
+    const { ctx } = await harness()
+    const { getByTestId, findByTestId, queryByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-entry-music-new')
+
+    expect(getByTestId('registry-local-import')).toBeTruthy()
+    expect(queryByTestId('registry-restart-menu')).toBeNull()
+    fireEvent.click(getByTestId('registry-restart-button'))
+    expect(getByTestId('registry-restart-menu')).toBeTruthy()
+    expect(getByTestId('registry-restart-reload')).toBeTruthy()
+    expect(getByTestId('registry-restart-app')).toBeTruthy()
+  })
+
+  it('restarts the app through the preload bridge', async () => {
+    const { ctx } = await harness()
+    const restart = vi.fn(async () => {})
+    ;(window as unknown as { BBeBee?: unknown }).BBeBee = { app: { restart } }
+    const { getByTestId, findByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-entry-music-new')
+
+    fireEvent.click(getByTestId('registry-restart-button'))
+    fireEvent.click(getByTestId('registry-restart-app'))
+    expect(restart).toHaveBeenCalledTimes(1)
+  })
+
+  it('says so when the bridge has no restart surface', async () => {
+    const { ctx } = await harness()
+    ;(window as unknown as { BBeBee?: unknown }).BBeBee = {}
+    const { getByTestId, findByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-entry-music-new')
+
+    fireEvent.click(getByTestId('registry-restart-button'))
+    fireEvent.click(getByTestId('registry-restart-app'))
+    const banner = await findByTestId('registry-action-banner-error')
+    expect(banner.textContent).toContain('Restarting the app is not available')
+  })
+
+  it('previews a picked package and installs it on confirm', async () => {
+    const { ctx, calls } = await harness()
+    const { getByTestId, findByTestId, queryByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-entry-music-new')
+
+    const input = getByTestId('registry-local-import-input') as HTMLInputElement
+    const file = new File([new Uint8Array([31, 139, 8, 0, 1, 2, 3])], 'local-x.tgz', {
+      type: 'application/gzip',
+    })
+    fireEvent.change(input, { target: { files: [file] } })
+
+    const dialog = await findByTestId('local-import-confirm-dialog')
+    expect(calls.some((c) => c.startsWith('preview-local:'))).toBe(true)
+    expect(dialog.textContent).toContain('@t/local')
+    expect(dialog.textContent).toContain('fs:read/**')
+    // The manager's unreviewed-origin warning leads the dialog; its
+    // duplicate inside the preview's warning list is not repeated.
+    expect(getByTestId('local-import-capabilities')).toBeTruthy()
+
+    fireEvent.click(getByTestId('local-import-confirm-accept'))
+    await waitFor(() => expect(queryByTestId('local-import-confirm-dialog')).toBeNull())
+    expect(calls).toContain('install-local:confirmed')
+    expect(await findByTestId('registry-action-banner-notice')).toBeTruthy()
+  })
+})
 
 describe('RegistryEntryCard regressions', () => {
   const entry: RegistryEntry = { id: 'card-x', kind: 'theme', name: 'X', version: '1.0.0' }
