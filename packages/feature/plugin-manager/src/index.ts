@@ -13,6 +13,7 @@ import type {
   HttpService,
   InstalledNpmPluginRecord,
   InstallPlan,
+  LocalPluginPreview,
   PluginInfo,
   PluginLifecycleBridge,
   PluginManagerService,
@@ -29,6 +30,7 @@ import type {
   StoreService,
 } from '@BBeBee/protocol'
 import {
+  base64ToBytes,
   DEFAULT_APP_SETTINGS,
   DEFAULT_DESKTOP_LYRICS_SETTINGS,
   DEFAULT_VISUALIZER_SETTINGS,
@@ -49,6 +51,7 @@ import {
   NPM_AUTH_TOKEN_KEY,
   NpmClient,
   NpmPluginError,
+  TARBALL_SIZE_LIMIT_BYTES,
   gitHubRepoIdentity,
   type ExtractedPackage,
   type NpmKvCache,
@@ -1085,6 +1088,27 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     }
     const extracted = client.extractPackage(pkg, bytes)
     if (provenance.status === 'verified') extracted.provenanceVerified = true
+    return this.verifyExtractedPackage(node, extracted, installedRecords)
+  }
+
+  /**
+   * The post-extraction checklist shared by every install channel:
+   * version agreement (D5), identity anti-spoofing (D8-6, built-in id
+   * conflict, critical-service impersonation), platform/engine
+   * compatibility (D8-4/D8-3) and the full security scan (D8-5). The npm
+   * channel anchors identity to its registry entry; the local channel
+   * builds the same-shaped entry from the package's own documents, so
+   * the identity comparisons become self-consistency checks and the
+   * remaining checks (conflicts, platform, engine, scan) bite exactly
+   * as they do for a downloaded package.
+   */
+  private verifyExtractedPackage(
+    node: ResolvedEntry,
+    extracted: ExtractedPackage,
+    installedRecords: Record<string, InstalledNpmPluginRecord>,
+  ): ExtractedPackage {
+    const { entry, pkg } = node
+    const label = `${pkg.npm}@${pkg.version}`
 
     // D5: the selected version, package.json and BBeBee.plugin.json must agree.
     const vPkg = extracted.packageJson.version
@@ -1210,6 +1234,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     prepared: Array<{ node: ResolvedEntry; extracted: ExtractedPackage }>,
     records: Record<string, InstalledNpmPluginRecord>,
     onInstalled?: (id: string) => void,
+    source: 'npm' | 'local' = 'npm',
   ): Promise<void> {
     const bridge = this.bridge
     if (!bridge?.installPlugin) {
@@ -1225,7 +1250,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       if (ledger) {
         await ledger.record(node.entry.id, capabilities, {
           version: node.pkg.version,
-          source: 'npm',
+          source,
         })
       } else if (capabilities.length > 0) {
         throw new NpmPluginError(
@@ -1248,6 +1273,9 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
         id: node.entry.id,
         npm: node.pkg.npm,
         version: node.pkg.version,
+        // npm records keep their historical shape (no `source` field —
+        // absence means 'npm'); only local installs stamp the channel.
+        ...(source === 'local' ? { source } : {}),
         sha256: extracted.tarballSha256,
         entrySha256: fileHashes[entryMain],
         fileHashes,
@@ -1563,6 +1591,175 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   }
 
   /**
+   * Extracts and fully verifies one local package file, building the
+   * install node from the package's OWN documents (there is no registry
+   * entry and no download: identity is self-asserted, which is exactly
+   * what the confirm screen must say). Everything the npm channel checks
+   * after extraction runs here too — bounded extraction and the full
+   * security scan inside `extractPackage`/`verifyExtractedPackage`,
+   * built-in id conflicts, critical-service impersonation, platform and
+   * engine compatibility — and the registry ban channel still refuses
+   * a banned id. Only the registry/npm anchors (packument integrity,
+   * reviewed pin, provenance) have no local counterpart.
+   */
+  private async prepareLocalPackage(packageBase64: string): Promise<{
+    node: ResolvedEntry
+    extracted: ExtractedPackage
+    records: Record<string, InstalledNpmPluginRecord>
+    warnings: string[]
+  }> {
+    if (typeof packageBase64 !== 'string' || packageBase64.trim() === '') {
+      throw new NpmPluginError('TARBALL_INVALID', '本地插件包为空：没有收到任何数据')
+    }
+    const bytes = base64ToBytes(packageBase64)
+    if (bytes.length === 0) {
+      throw new NpmPluginError('TARBALL_INVALID', '本地插件包为空：base64 解码后没有任何字节')
+    }
+    if (bytes.length > TARBALL_SIZE_LIMIT_BYTES) {
+      throw new NpmPluginError(
+        'SIZE_LIMIT',
+        `本地插件包大小 ${bytes.length} 字节超过上限 ${TARBALL_SIZE_LIMIT_BYTES} 字节，拒绝导入`,
+      )
+    }
+    const client = this.getNpmClient()
+    const extracted = client.extractPackage(
+      { id: 'local', npm: '本地插件包', version: '?', tarball: '' },
+      bytes,
+    )
+    const manifest = extracted.manifest
+    const npmName = extracted.packageJson.name
+    if (!manifest?.id) {
+      throw new NpmPluginError('TARBALL_INVALID', '本地插件包的 BBeBee.plugin.json 缺少 id，拒绝导入')
+    }
+    if (!npmName) {
+      throw new NpmPluginError('TARBALL_INVALID', '本地插件包的 package.json 缺少 name，拒绝导入')
+    }
+    if (!extracted.packageJson.version || !manifest.version) {
+      throw new NpmPluginError(
+        'VERSION_MISMATCH',
+        `本地插件包 "${manifest.id}" 版本缺失：package.json 为 ${extracted.packageJson.version ?? '缺失'}，BBeBee.plugin.json 为 ${manifest.version ?? '缺失'}，拒绝导入`,
+      )
+    }
+    const entry: RegistryPluginEntry = {
+      id: manifest.id,
+      name: manifest.displayName ?? manifest.name ?? manifest.id,
+      repo: '',
+      npm: npmName,
+      author: manifest.author ?? '',
+      description: manifest.description ?? '',
+      services: [],
+      platforms: [...(manifest.platforms ?? [])],
+      category: '',
+      dependencies: [],
+      compositors: [],
+    }
+    const node: ResolvedEntry = {
+      entry,
+      pkg: { id: manifest.id, npm: npmName, version: extracted.packageJson.version, tarball: '' },
+    }
+    // A registry ban is a security verdict about the id itself, not
+    // about the download channel — it binds sideloads exactly as it
+    // binds npm installs.
+    this.assertNotBlocked([node.pkg])
+    const records = await this.loadInstalledRecords()
+    this.verifyExtractedPackage(node, extracted, records)
+
+    const warnings: string[] = [
+      '本地导入：该插件未经 registry 审核，也没有 npm 出处证明（provenance）校验，身份以包内文档自证。请只导入来源可信的插件包。',
+    ]
+    // Manifest plugin dependencies cannot be resolved from a single
+    // file (no closure download); ones the host does not already know
+    // are a warning — activation reports `pending`/failure if a needed
+    // plugin truly never arrives.
+    for (const dep of manifest.dependencies ?? []) {
+      if (!this.manifests.has(dep) && !records[dep]) {
+        warnings.push(`manifest 依赖 "${dep}" 不在已注册或已安装的插件中，导入后插件可能等待该依赖或激活失败`)
+      }
+    }
+    // Same host-shared peer contract as the npm plan (warn, never block).
+    const peers = extracted.packageJson.peerDependencies as Record<string, string> | undefined
+    for (const [peerName, peerRange] of Object.entries(peers ?? {})) {
+      const hostVersion = this.hostVersions[peerName]
+      if (!hostVersion) continue
+      if (!/[\d*xX]/.test(peerRange)) continue
+      if (!satisfiesRange(hostVersion, peerRange)) {
+        warnings.push(
+          `包 ${npmName}@${node.pkg.version} 声明 peer ${peerName} "${peerRange}"，但宿主提供的是 ${hostVersion}：插件 UI 可能无法正常渲染（不影响安装）`,
+        )
+      }
+    }
+    return { node, extracted, records, warnings }
+  }
+
+  private localPreview(prepared: {
+    node: ResolvedEntry
+    extracted: ExtractedPackage
+    records: Record<string, InstalledNpmPluginRecord>
+    warnings: string[]
+  }): LocalPluginPreview {
+    const { node, extracted, records, warnings } = prepared
+    const manifest = extracted.manifest
+    return {
+      id: node.entry.id,
+      npm: node.pkg.npm,
+      displayName: manifest.displayName ?? manifest.name,
+      description: manifest.description,
+      version: node.pkg.version,
+      author: manifest.author,
+      capabilities: [...(manifest.capabilities ?? [])],
+      fileCount: Object.keys(extracted.files).length,
+      sha256: extracted.tarballSha256,
+      installedVersion: records[node.entry.id]?.version,
+      warnings,
+    }
+  }
+
+  async previewLocalPlugin(packageBase64: string): Promise<LocalPluginPreview> {
+    return this.localPreview(await this.prepareLocalPackage(packageBase64))
+  }
+
+  async installLocalPlugin(
+    packageBase64: string,
+    opts?: { confirmed?: boolean },
+  ): Promise<LocalPluginPreview> {
+    if (!opts?.confirmed) {
+      throw new NpmPluginError(
+        'CONFIRM_REQUIRED',
+        '本地插件安装必须先向用户展示包身份、capabilities 与未经审核提示并得到确认（previewLocalPlugin → 确认 → installLocalPlugin(confirmed: true)）',
+      )
+    }
+    const preparedLocal = await this.prepareLocalPackage(packageBase64)
+    const { node, extracted, records } = preparedLocal
+    const preview = this.localPreview(preparedLocal)
+    const previousRecords: Record<string, InstalledNpmPluginRecord> = { ...records }
+    // Same provider preemption as the npm channel: an incoming manifest
+    // that provides a replaceable key takes it over before activation.
+    await this.preemptConflictingProviders([extracted.manifest])
+    const installedNow: string[] = []
+    try {
+      await this.activatePrepared([{ node, extracted }], records, (id) => installedNow.push(id), 'local')
+    } catch (err) {
+      // No rollback material exists for a local package (the previous
+      // version's bytes are the user's file, not something the manager
+      // can re-fetch), so the shared skeleton runs with an empty
+      // material map: a brand-new node is removed again; a replaced
+      // node stays at the new version with the warning logged there.
+      await this.rollbackReplacedNodes({
+        replacedIds: installedNow,
+        previousRecords,
+        records,
+        materialById: new Map(),
+        newVersionById: new Map([[node.entry.id, node.pkg.version]]),
+        newNodePolicy: 'remove',
+        actionPhrase: `failed local install of "${node.entry.id}"`,
+      })
+      throw err
+    }
+    this.ctx.logger.info(`plugin-manager: installed "${node.entry.id}" from a local package file`)
+    return preview
+  }
+
+  /**
    * Liveness (recall) check, client side (audit W3): fetch the registry
    * index through the usual cached path and compare it against the
    * installed records. ONLY a successfully fetched index can change
@@ -1596,14 +1793,19 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     const newlyDelisted: string[] = []
     const newlyBlocked: string[] = []
     for (const rec of Object.values(records)) {
-      const absent = !listed.has(rec.id)
-      if (absent && !rec.delisted) {
-        rec.delisted = true
-        changed = true
-        newlyDelisted.push(rec.id)
-      } else if (!absent && rec.delisted) {
-        delete rec.delisted
-        changed = true
+      // Local (sideloaded) records are exempt from the delisting half:
+      // absence from the index is their normal state, not a recall.
+      // The blocked half below is NOT exempt — a ban names the id.
+      if (rec.source !== 'local') {
+        const absent = !listed.has(rec.id)
+        if (absent && !rec.delisted) {
+          rec.delisted = true
+          changed = true
+          newlyDelisted.push(rec.id)
+        } else if (!absent && rec.delisted) {
+          delete rec.delisted
+          changed = true
+        }
       }
       // The blocked channel (audit W5) is a separate, stronger state:
       // the id is banned outright, with the registry's reason kept on
@@ -1697,6 +1899,9 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     const records = await this.loadInstalledRecords()
     const updates: PluginUpdateInfo[] = []
     for (const rec of Object.values(records)) {
+      // Local installs update by re-importing a newer package file,
+      // never by silently switching to the npm channel.
+      if (rec.source === 'local') continue
       if (rec.delisted || rec.blocked !== undefined) continue
       try {
         const pack = await client.fetchPackument(rec.npm, force ? { force: true } : undefined)
@@ -1736,6 +1941,12 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     const rec = records[id]
     if (!rec) {
       throw new NpmPluginError('NOT_INSTALLED', `插件 "${id}" 不是经 npm 安装的，无法更新`)
+    }
+    if (rec.source === 'local') {
+      throw new NpmPluginError(
+        'NOT_INSTALLED',
+        `插件 "${id}" 是本地导入的，无法经 npm 更新；请在探索页用新版插件包重新导入`,
+      )
     }
     // Same liveness verdict as checkUpdates: a plugin confirmed absent
     // from the registry index is delisted — say so plainly instead of

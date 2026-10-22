@@ -221,6 +221,16 @@ export interface InstalledNpmPluginRecord {
   id: string
   npm: string
   version: string
+  /**
+   * How this copy arrived: `'npm'` (the registry pipeline — also the
+   * implicit value of records written before this field existed) or
+   * `'local'` (a package file the user imported from disk via
+   * `installLocalPlugin`). Local records are exempt from the registry
+   * liveness (delisted) check — a sideloaded plugin is not expected in
+   * the index — and from npm update checks; the registry's blocked
+   * (ban) channel still applies to them.
+   */
+  source?: 'npm' | 'local'
   /** SHA-256 of the whole downloaded tarball. */
   sha256?: string
   /**
@@ -280,6 +290,38 @@ export interface ServiceProviderInfo {
   providers: string[]
   /** The provider currently in effect (the user's choice, else the default rule). */
   activeProvider?: string
+}
+
+/**
+ * What `previewLocalPlugin` reports about a plugin package file the user
+ * picked on disk, before anything is installed: the identity the package
+ * claims for itself (its own `package.json` + `BBeBee.plugin.json` — a
+ * local package has no registry entry to vouch for it), the capabilities
+ * its real manifest declares (what the confirm screen must show, since
+ * confirming is what grants them), and the checks that already ran to
+ * produce this preview (bounded extraction, full security scan, manifest
+ * re-checks). A package that fails any of those never reaches a preview —
+ * the call throws instead.
+ */
+export interface LocalPluginPreview {
+  /** Plugin id from the package's own manifest. */
+  id: string
+  /** npm package name from the package's own `package.json`. */
+  npm: string
+  displayName?: string
+  description?: string
+  version: string
+  author?: string
+  /** Capability grants the manifest declares; confirming the install records them. */
+  capabilities: string[]
+  /** Number of files in the package. */
+  fileCount: number
+  /** SHA-256 of the raw package file, as it will be pinned in the install record. */
+  sha256: string
+  /** Version of this id already installed, when the import would replace it. */
+  installedVersion?: string
+  /** Non-fatal notes (unreviewed origin, unknown manifest dependencies, peer mismatches). */
+  warnings: string[]
 }
 
 export interface PluginManagerService {
@@ -361,6 +403,30 @@ export interface PluginManagerService {
    * resolution is executed as-is, so no path resolves twice independently.
    */
   installPlugin(id: string, range?: string, expectedPlan?: InstallPlan): Promise<void>
+
+  /**
+   * Inspects a local plugin package file (an npm `.tgz`, base64-encoded)
+   * without installing it: bounded extraction, full security scan and
+   * the packaged-manifest re-checks, with the package's own documents as
+   * the identity anchor. Throws a descriptive error on any failure, so a
+   * returned preview is a package that WOULD pass the install checklist.
+   */
+  previewLocalPlugin?(packageBase64: string): Promise<LocalPluginPreview>
+
+  /**
+   * Installs a local plugin package file (an npm `.tgz`, base64-encoded)
+   * through the same non-bypassable pipeline as an npm install —
+   * bounded extraction → full security scan → real-manifest re-check →
+   * capability grant → atomic write/activation → full-file tamper chain.
+   * The identity anchor is the package itself, so the registry-only
+   * anchors (reviewed pin, provenance, index liveness) do not apply; the
+   * registry's ban channel still refuses a banned id. Requires
+   * `confirmed: true` — the caller must first show the user the
+   * {@link LocalPluginPreview} (identity, capabilities, unreviewed
+   * origin). Re-importing an installed id replaces it in place.
+   * The install record is persisted with `source: 'local'`.
+   */
+  installLocalPlugin?(packageBase64: string, opts?: { confirmed?: boolean }): Promise<LocalPluginPreview>
 
   /**
    * Checks every npm-installed plugin against its registry for a newer

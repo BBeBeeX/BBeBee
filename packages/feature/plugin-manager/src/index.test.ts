@@ -1922,6 +1922,144 @@ describe('plugin-manager npm service methods', () => {
   })
 })
 
+describe('plugin-manager local package import', () => {
+  const b64 = (bytes: Uint8Array) => base64Encode(bytes)
+
+  it('previews a local package: identity, capabilities, hash, unreviewed warning', async () => {
+    const bytes = tarballFor('@t/local', 'local-x', '1.2.0', {
+      'BBeBee.plugin.json': JSON.stringify(manifestFor('local-x', '1.2.0', [], ['fs:read/**'])),
+    })
+    const w = createNpmWorld()
+    await w.plugin[PluginManagerPlugin.init]()
+    const preview = await w.plugin.previewLocalPlugin(b64(bytes))
+    expect(preview.id).toBe('local-x')
+    expect(preview.npm).toBe('@t/local')
+    expect(preview.version).toBe('1.2.0')
+    expect(preview.capabilities).toEqual(['fs:read/**'])
+    expect(preview.fileCount).toBe(3)
+    expect(preview.sha256).toBe(sha256Hex(bytes))
+    expect(preview.installedVersion).toBeUndefined()
+    expect(preview.warnings.some((x) => x.includes('本地导入'))).toBe(true)
+    expect(w.bridge.installPlugin).not.toHaveBeenCalled()
+  })
+
+  it('rejects a package that is not a gzip tarball', async () => {
+    const w = createNpmWorld()
+    await w.plugin[PluginManagerPlugin.init]()
+    await expectNpmError(w.plugin.previewLocalPlugin(base64Encode('definitely not a tarball')), 'TARBALL_INVALID')
+  })
+
+  it('requires explicit confirmation before installing', async () => {
+    const bytes = tarballFor('@t/local', 'local-x', '1.0.0')
+    const w = createNpmWorld()
+    await w.plugin[PluginManagerPlugin.init]()
+    await expectNpmError(w.plugin.installLocalPlugin(b64(bytes)), 'CONFIRM_REQUIRED')
+    await expectNpmError(w.plugin.installLocalPlugin(b64(bytes), { confirmed: false }), 'CONFIRM_REQUIRED')
+    expect(w.bridge.installPlugin).not.toHaveBeenCalled()
+  })
+
+  it('installs end to end and stamps the record as local', async () => {
+    const bytes = tarballFor('@t/local', 'local-x', '1.0.0')
+    const w = createNpmWorld()
+    await w.plugin[PluginManagerPlugin.init]()
+    const preview = await w.plugin.installLocalPlugin(b64(bytes), { confirmed: true })
+    expect(preview.id).toBe('local-x')
+    expect(w.bridge.installPlugin).toHaveBeenCalledTimes(1)
+    const [id, files, manifest] = w.bridge.installPlugin.mock.calls[0]!
+    expect(id).toBe('local-x')
+    expect(files['dist/index.js']).toContain('local-x')
+    expect(manifest.id).toBe('local-x')
+    const store = (w.ctx as any).store
+    const setCalls = store.set.mock.calls.filter(([k]: [string]) => k === 'npm:installed')
+    const record = setCalls.at(-1)![1]['local-x']
+    expect(record.version).toBe('1.0.0')
+    expect(record.source).toBe('local')
+    expect(record.sha256).toBe(sha256Hex(bytes))
+    expect(record.fileHashes['dist/index.js']).toBe(sha256Hex(files['dist/index.js']))
+    expect(w.plugin.list().find((p) => p.id === 'local-x')).toBeDefined()
+  })
+
+  it('re-importing replaces in place and preview reports the installed version', async () => {
+    const w = createNpmWorld()
+    await w.plugin[PluginManagerPlugin.init]()
+    await w.plugin.installLocalPlugin(b64(tarballFor('@t/local', 'local-x', '1.0.0')), { confirmed: true })
+    const v2 = tarballFor('@t/local', 'local-x', '2.0.0')
+    const preview = await w.plugin.previewLocalPlugin(b64(v2))
+    expect(preview.installedVersion).toBe('1.0.0')
+    await w.plugin.installLocalPlugin(b64(v2), { confirmed: true })
+    const store = (w.ctx as any).store
+    const setCalls = store.set.mock.calls.filter(([k]: [string]) => k === 'npm:installed')
+    expect(setCalls.at(-1)![1]['local-x'].version).toBe('2.0.0')
+  })
+
+  it('refuses a manifest id that collides with a built-in plugin', async () => {
+    const bytes = tarballFor('@t/player', '@BBeBee/plugin-player', '1.0.0')
+    const w = createNpmWorld({
+      manifests: {
+        '@BBeBee/plugin-player': manifestFor('@BBeBee/plugin-player', '1.0.0') as PluginManifest,
+      },
+    })
+    await w.plugin[PluginManagerPlugin.init]()
+    await expectNpmError(w.plugin.installLocalPlugin(b64(bytes), { confirmed: true }), 'SPOOF_DETECTED')
+    expect(w.bridge.installPlugin).not.toHaveBeenCalled()
+  })
+
+  it('refuses a package whose manifest version disagrees with package.json', async () => {
+    const bytes = tarballFor('@t/local', 'local-x', '1.0.0', {
+      'BBeBee.plugin.json': JSON.stringify(manifestFor('local-x', '9.9.9')),
+    })
+    const w = createNpmWorld()
+    await w.plugin[PluginManagerPlugin.init]()
+    await expectNpmError(w.plugin.installLocalPlugin(b64(bytes), { confirmed: true }), 'VERSION_MISMATCH')
+    expect(w.bridge.installPlugin).not.toHaveBeenCalled()
+  })
+
+  it('refuses a package the security scan blocks', async () => {
+    const bytes = tarballFor('@t/local', 'local-x', '1.0.0', {
+      'dist/index.js': `export const p = import('data:text/javascript;base64,YWxlcnQoMSk=')`,
+    })
+    const w = createNpmWorld()
+    await w.plugin[PluginManagerPlugin.init]()
+    await expectNpmError(w.plugin.installLocalPlugin(b64(bytes), { confirmed: true }), 'SECURITY_BLOCKED')
+    expect(w.bridge.installPlugin).not.toHaveBeenCalled()
+  })
+
+  it('refuses capability-bearing packages when the grant ledger is unavailable', async () => {
+    const bytes = tarballFor('@t/local', 'local-x', '1.0.0', {
+      'BBeBee.plugin.json': JSON.stringify(manifestFor('local-x', '1.0.0', [], ['fs:read/**'])),
+    })
+    const w = createNpmWorld()
+    await w.plugin[PluginManagerPlugin.init]()
+    await expectNpmError(w.plugin.installLocalPlugin(b64(bytes), { confirmed: true }), 'GRANT_UNAVAILABLE')
+    expect(w.bridge.installPlugin).not.toHaveBeenCalled()
+  })
+
+  it('exempts local records from delisting but not from the ban channel', async () => {
+    const bytes = tarballFor('@t/local', 'local-x', '1.0.0')
+    const w = createNpmWorld()
+    await w.plugin[PluginManagerPlugin.init]()
+    await w.plugin.installLocalPlugin(b64(bytes), { confirmed: true })
+    const plugin = w.plugin as unknown as {
+      applyLivenessToRecords(index: unknown[], blocked?: Array<{ id: string; reason: string }>): Promise<void>
+    }
+    await plugin.applyLivenessToRecords([], [])
+    const storeData = (w.ctx as any).store
+    let setCalls = storeData.set.mock.calls.filter(([k]: [string]) => k === 'npm:installed')
+    expect(setCalls.at(-1)![1]['local-x'].delisted).toBeUndefined()
+    await plugin.applyLivenessToRecords([], [{ id: 'local-x', reason: 'test ban' }])
+    setCalls = storeData.set.mock.calls.filter(([k]: [string]) => k === 'npm:installed')
+    expect(setCalls.at(-1)![1]['local-x'].blocked).toBe('test ban')
+  })
+
+  it('does not offer npm updates for local installs', async () => {
+    const bytes = tarballFor('@t/local', 'local-x', '1.0.0')
+    const w = createNpmWorld()
+    await w.plugin[PluginManagerPlugin.init]()
+    await w.plugin.installLocalPlugin(b64(bytes), { confirmed: true })
+    await expectNpmError(w.plugin.updatePlugin('local-x'), 'NOT_INSTALLED')
+  })
+})
+
 /**
  * In-memory stand-in for the two core tables the capability-grant
  * ledger touches, pattern-matching its fixed SQL and enforcing the
