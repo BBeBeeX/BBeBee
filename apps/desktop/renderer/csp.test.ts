@@ -59,6 +59,14 @@ describe('the renderer CSP', () => {
     expect(scripts.some((s) => s.toLowerCase() === 'bbebee-plugin:')).toBe(true)
   })
 
+  it('allows the WebView2 host form of the plugin scheme in script-src', () => {
+    // WebView2 cannot resolve custom schemes: wry serves bbebee-plugin as
+    // http://bbebee-plugin.localhost (see pluginFileUrl in dynamic-loader.ts).
+    // Without this host source Windows blocks every plugin module fetch.
+    const scripts = policy.get('script-src') ?? []
+    expect(scripts).toContain('http://bbebee-plugin.localhost')
+  })
+
   it('allows media elements to play local blobs and streams', () => {
     const media = policy.get('media-src') ?? []
     expect(media).toContain("'self'")

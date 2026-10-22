@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- Strict CSP. `BBeBee-plugin:` is listed ahead of M5's dynamic loader
          (docs/03 §6.2) so the policy does not have to change to enable it.
+         `http://bbebee-plugin.localhost` is the same scheme's WebView2 form:
+         wry serves registered schemes that way on Windows, and the loader
+         addresses it directly (pluginFileUrl in dynamic-loader.ts) — without
+         the host source, Windows CSP-blocks every plugin module fetch.
          `'wasm-unsafe-eval'` is what lets QuickJS compile, and is not
          `'unsafe-eval'`: no foreign JavaScript loads (docs/02 §2).
          `http:` in img-src mirrors media-src/connect-src: some sources serve
@@ -12,7 +16,7 @@
          than the (passive, non-script) load it enables. -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' BBeBee-plugin:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: bbebee-file: http: https:; media-src 'self' blob: data: http: https: bbebee-file:; connect-src 'self' ws: wss: http: https: ipc:; frame-src 'self' bbebee-sandbox: bbebee-plugin:;"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' BBeBee-plugin: http://bbebee-plugin.localhost; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: bbebee-file: http: https:; media-src 'self' blob: data: http: https: bbebee-file:; connect-src 'self' ws: wss: http: https: ipc:; frame-src 'self' bbebee-sandbox: bbebee-plugin:;"
     />
     <script type="module" src="./window-init.ts"></script>
     <title>BBeBee</title>
