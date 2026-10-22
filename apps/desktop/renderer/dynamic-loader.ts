@@ -232,6 +232,66 @@ function isWindowsWebview(): boolean {
   return ua.includes('windows')
 }
 
+/**
+ * Failure diagnostics for a plugin module import, logged once per
+ * failed load. Three facts separate the possible causes:
+ *
+ * - `plugin-fetch` (a plain fetch of the very URL that failed to
+ *   import): if this fails too, the request never got a usable
+ *   response — the scheme handler/interception is the problem, not
+ *   module loading.
+ * - `file-fetch` (the same installed package.json over `bbebee-file`,
+ *   the app's other custom protocol): if this succeeds while
+ *   `plugin-fetch` fails, the plugin scheme specifically is not being
+ *   served; if both fail, `.localhost` scheme serving is broken
+ *   wholesale in this webview.
+ * - If `plugin-fetch` returns 200, serving is fine and the failure
+ *   lives in module semantics (CORS/MIME/import rules).
+ */
+async function diagnoseImportFailure(pluginId: string, url: string): Promise<void> {
+  const w = globalThis as {
+    window?: {
+      location?: { origin?: string }
+      navigator?: { userAgent?: string }
+      BBeBee?: {
+        paths?: { get(kind: string): Promise<string | undefined> }
+        files?: { toServableUrl?(uri: string): string }
+      }
+    }
+  }
+  const lines: string[] = [`[dynamic-loader:diag] import failed for ${url}`]
+  lines.push(
+    `origin=${w.window?.location?.origin ?? '?'} ua=${w.window?.navigator?.userAgent ?? '?'}`,
+  )
+  const probe = async (label: string, target: string): Promise<void> => {
+    try {
+      const res = await fetch(target)
+      const text = await res.text().catch(() => '')
+      lines.push(
+        `${label}: HTTP ${res.status} content-type=${res.headers.get('content-type') ?? '?'} bytes=${text.length} -> ${target}`,
+      )
+    } catch (e) {
+      const err = e as Error
+      lines.push(`${label}: FETCH_ERROR ${err?.name}: ${err?.message} -> ${target}`)
+    }
+  }
+  await probe('plugin-fetch', url)
+  try {
+    const userData = await w.window?.BBeBee?.paths?.get?.('userData')
+    if (userData) {
+      const fsPath = `${userData.replace(/\\/g, '/').replace(/\/+$/, '')}/installed-plugins/${pluginId}/package.json`
+      const fileUri = fsPath.startsWith('/') ? `bbebee-file://${fsPath}` : `bbebee-file:///${fsPath}`
+      const servable = w.window?.BBeBee?.files?.toServableUrl?.(fileUri) ?? fileUri
+      await probe('file-fetch', servable)
+    } else {
+      lines.push('file-fetch: SKIPPED (no userData path from the bridge)')
+    }
+  } catch (e) {
+    lines.push(`file-fetch: PROBE_ERROR ${String(e)}`)
+  }
+  console.error(lines.join('\n'))
+}
+
 /** Build the `bbebee-plugin://` URL for a file inside an installed plugin's directory. */
 export function pluginFileUrl(pluginId: string, relPath: string): string {
   const path = `app/${encodeURIComponent(pluginId)}/${relPath}`
@@ -308,9 +368,19 @@ export function makeExternalEntry(
     manifest,
     builtin: false,
     load: async () => {
-      const headlessDef = unwrapModuleDefault(
-        await importer(pluginFileUrl(pluginId, entryMain)),
-      ) as Plugin
+      let headlessMod: unknown
+      try {
+        headlessMod = await importer(pluginFileUrl(pluginId, entryMain))
+      } catch (error) {
+        // The import error alone cannot tell a dead protocol handler
+        // from a module-layer rejection; probe before rethrowing so a
+        // single failure report separates the two.
+        await diagnoseImportFailure(pluginId, pluginFileUrl(pluginId, entryMain)).catch(
+          () => undefined,
+        )
+        throw error
+      }
+      const headlessDef = unwrapModuleDefault(headlessMod) as Plugin
       if (!uiDesktop) return headlessDef
       let uiDef: Plugin
       try {
