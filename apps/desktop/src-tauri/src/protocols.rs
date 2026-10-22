@@ -94,13 +94,14 @@ pub fn mime_type_from_ext(path: &Path) -> &'static str {
 /// Build a simple error response.
 fn error_response(
     status: tauri::http::StatusCode,
-    message: &'static str,
+    message: impl Into<Cow<'static, str>>,
 ) -> tauri::http::Response<Cow<'static, [u8]>> {
+    let message: Cow<'static, str> = message.into();
     tauri::http::Response::builder()
         .status(status)
         .header(tauri::http::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
         .header(tauri::http::header::CONTENT_TYPE, "text/plain")
-        .body(Cow::Borrowed(message.as_bytes()))
+        .body(Cow::Owned(message.into_owned().into_bytes()))
         .unwrap_or_else(|_| {
             // Fallback: this should never happen with a valid builder
             tauri::http::Response::builder()
@@ -264,10 +265,22 @@ fn serve_plugin_file(
     raw_url: &str,
 ) -> tauri::http::Response<Cow<'static, [u8]>> {
     let Some((plugin_id, sub_path)) = parse_plugin_request_url(raw_url) else {
-        return error_response(tauri::http::StatusCode::BAD_REQUEST, "Invalid plugin URL");
+        return error_response(
+            tauri::http::StatusCode::BAD_REQUEST,
+            format!("Invalid plugin URL: {raw_url}"),
+        );
     };
     let Some(plugin_dir) = resolve_plugin_dir(&plugin_id, installed_root) else {
-        return error_response(tauri::http::StatusCode::NOT_FOUND, "Plugin not found");
+        // The body carries the resolved root and id: a "not found" here
+        // has exactly two possible causes (wrong root, wrong id) and
+        // the webview's loader diagnostics surface this text verbatim.
+        return error_response(
+            tauri::http::StatusCode::NOT_FOUND,
+            format!(
+                "Plugin not found (id={plugin_id}, root={})",
+                installed_root.display()
+            ),
+        );
     };
     // Separator boundary, not a bare prefix: `/plugins/abc-secret`
     // starts with the string `/plugins/abc` but is a *sibling*, and a
@@ -281,7 +294,7 @@ fn serve_plugin_file(
     if !is_file {
         return error_response(
             tauri::http::StatusCode::NOT_FOUND,
-            "Plugin File Not Found",
+            format!("Plugin File Not Found (path={})", safe.display()),
         );
     }
     match std::fs::read(&safe) {

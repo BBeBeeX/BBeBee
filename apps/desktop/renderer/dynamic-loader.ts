@@ -267,8 +267,9 @@ async function diagnoseImportFailure(pluginId: string, url: string): Promise<voi
     try {
       const res = await fetch(target)
       const text = await res.text().catch(() => '')
+      const snippet = res.ok ? '' : ` body=${JSON.stringify(text.slice(0, 200))}`
       lines.push(
-        `${label}: HTTP ${res.status} content-type=${res.headers.get('content-type') ?? '?'} bytes=${text.length} -> ${target}`,
+        `${label}: HTTP ${res.status} content-type=${res.headers.get('content-type') ?? '?'} bytes=${text.length}${snippet} -> ${target}`,
       )
     } catch (e) {
       const err = e as Error
