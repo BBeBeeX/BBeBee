@@ -270,7 +270,10 @@ async function diagnoseImportFailure(pluginId: string, url: string): Promise<voi
   lines.push(
     `origin=${w.window?.location?.origin ?? '?'} ua=${w.window?.navigator?.userAgent ?? '?'}`,
   )
-  const probe = async (label: string, target: string): Promise<void> => {
+  const probedTargets = new Set<string>()
+  const probe = async (label: string, target: string): Promise<string | null> => {
+    if (probedTargets.has(target)) return null
+    probedTargets.add(target)
     try {
       const res = await fetch(target)
       const text = await res.text().catch(() => '')
@@ -278,12 +281,32 @@ async function diagnoseImportFailure(pluginId: string, url: string): Promise<voi
       lines.push(
         `${label}: HTTP ${res.status} content-type=${res.headers.get('content-type') ?? '?'} bytes=${text.length}${snippet} -> ${target}`,
       )
+      return text
     } catch (e) {
       const err = e as Error
       lines.push(`${label}: FETCH_ERROR ${err?.name}: ${err?.message} -> ${target}`)
+      return null
     }
   }
-  await probe('plugin-fetch', url)
+  // One level of a module's relative imports, as the loader would
+  // resolve them — the graph's remaining unprobed territory when the
+  // entry itself and the import-map entries all answer 200.
+  const probeRelativeImports = async (
+    label: string,
+    code: string | null,
+    baseUrl: string,
+  ): Promise<void> => {
+    if (!code) return
+    const specs = new Set<string>()
+    for (const m of code.matchAll(/(?:from|import)\s*\(?\s*['"](\.\/[^'"]+)['"]/g)) {
+      if (m[1]) specs.add(m[1])
+    }
+    for (const spec of specs) {
+      await probe(`${label}:${spec}`, new URL(spec, baseUrl).href)
+    }
+  }
+  const entryCode = await probe('plugin-fetch', url)
+  await probeRelativeImports('sibling', entryCode, url)
   // The plugin's bare imports resolve through the page import map; if
   // the graph still fails to fetch while the entry itself serves, the
   // broken hop is one of the mapped targets (in dev: a .vite/deps file
@@ -296,16 +319,24 @@ async function diagnoseImportFailure(pluginId: string, url: string): Promise<voi
       lines.push('importmap: NONE FOUND in the document')
     } else {
       const statuses: string[] = []
+      const depTexts = new Map<string, string>()
       for (const [specifier, target] of entries) {
         const absolute = new URL(target, w.window?.location?.href ?? url).href
         try {
           const res = await fetch(absolute)
           statuses.push(`${specifier}->${res.status}`)
+          if (res.ok) depTexts.set(absolute, await res.text().catch(() => ''))
         } catch {
           statuses.push(`${specifier}->FETCH_ERROR`)
         }
       }
       lines.push(`importmap: ${statuses.join(' ')}`)
+      // Pre-bundled entries re-export from shared chunk files; a chunk
+      // the optimizer did not emit (or already replaced) fails the
+      // graph fetch while every entry still answers 200.
+      for (const [absolute, text] of depTexts) {
+        await probeRelativeImports('dep-chunk', text, absolute)
+      }
     }
   } catch (e) {
     lines.push(`importmap: PROBE_ERROR ${String(e)}`)
