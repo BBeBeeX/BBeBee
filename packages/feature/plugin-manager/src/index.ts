@@ -895,9 +895,21 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     range?: string,
   ): Promise<{ plan: InstallPlan; nodes: ResolvedEntry[]; index: RegistryPluginEntry[] }> {
     const client = this.getNpmClient()
-    const doc = await client.fetchIndexDocument()
-    const index = doc.entries
-    const entry = index.find((e) => e.id === id)
+    let doc = await client.fetchIndexDocument()
+    let index = doc.entries
+    let entry = index.find((e) => e.id === id)
+    if (!entry) {
+      // The index is cached for 24h and its CDN sources lag the registry
+      // repo besides, so a just-published entry can be missing from the
+      // cached copy — the real machine reported the freshly onboarded
+      // catppuccin theme as "no such entry" minutes after the registry
+      // push (2026-10-22). One forced refetch before concluding the id
+      // does not exist; a genuine miss still errors, just against the
+      // live index.
+      doc = await client.fetchIndexDocument({ force: true })
+      index = doc.entries
+      entry = index.find((e) => e.id === id)
+    }
     if (!entry) {
       throw new NpmPluginError('ENTRY_NOT_FOUND', `registry 中没有 id 为 "${id}" 的插件条目`)
     }

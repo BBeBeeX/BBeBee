@@ -1165,6 +1165,55 @@ describe('plugin-manager npm service methods', () => {
     })
   })
 
+  describe('planInstall refreshes a stale index once before ENTRY_NOT_FOUND', () => {
+    it('finds an entry that reached the registry after the index was cached', async () => {
+      const stale = entryFor({ id: 'a-x', npm: '@t/a' })
+      const fresh = entryFor({ id: 'b-y', npm: '@t/b' })
+      const tarballs = { '@t/b@1.0.0': tarballFor('@t/b', 'b-y', '1.0.0') }
+      const w = createNpmWorld({ platform: 'desktop' })
+      let served: unknown = [stale]
+      let indexHits = 0
+      w.routes.set(INDEX_URL, {
+        status: 200,
+        json: async () => {
+          indexHits++
+          return served
+        },
+      })
+      w.routes.set(`https://registry.npmjs.org/${encodeURIComponent('@t/b')}`, {
+        status: 200,
+        json: async () => packument('@t/b', ['1.0.0'], tarballs),
+      })
+      await w.plugin[PluginManagerPlugin.init]()
+      // Prime the 24h index cache with the pre-onboarding copy.
+      await w.plugin.browseRegistry()
+      const hitsAfterPrime = indexHits
+      // The registry gains the entry (push lands, CDN catches up).
+      served = [stale, fresh]
+      const plan = await w.plugin.resolveInstallPlan('b-y')
+      expect(plan.target.id).toBe('b-y')
+      // Exactly one forced refetch on the miss — no retry loop.
+      expect(indexHits).toBe(hitsAfterPrime + 1)
+    })
+
+    it('still throws ENTRY_NOT_FOUND when the live index lacks the id', async () => {
+      const w = createNpmWorld({ platform: 'desktop' })
+      let indexHits = 0
+      w.routes.set(INDEX_URL, {
+        status: 200,
+        json: async () => {
+          indexHits++
+          return [entryFor({ id: 'a-x', npm: '@t/a' })]
+        },
+      })
+      await w.plugin[PluginManagerPlugin.init]()
+      await w.plugin.browseRegistry()
+      const hitsAfterPrime = indexHits
+      await expectNpmError(w.plugin.resolveInstallPlan('ghost'), 'ENTRY_NOT_FOUND')
+      expect(indexHits).toBe(hitsAfterPrime + 1)
+    })
+  })
+
   it('checkUpdates finds a newer version and stamps the check time', async () => {
     const entry = entryFor({ id: 'a-x', npm: '@t/a' })
     const tarballs = {
