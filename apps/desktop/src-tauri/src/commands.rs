@@ -748,6 +748,23 @@ pub fn desktop_app_version(app: tauri::AppHandle) -> Result<String, String> {
     app_version(app)
 }
 
+/// Restarts the whole application (native process relaunch). The
+/// renderer's "reload UI" never reaches Rust — it is a WebView reload —
+/// but a real restart must go through the host: UI code cannot import
+/// Tauri APIs, so the preload shim exposes this as
+/// `window.BBeBee.app.restart()`. `AppHandle::restart` diverges (it
+/// relaunches and exits the current process), so there is no result to
+/// return to the caller.
+#[tauri::command]
+pub fn app_restart(app: tauri::AppHandle) {
+    app.restart()
+}
+
+#[tauri::command]
+pub fn desktop_app_restart(app: tauri::AppHandle) {
+    app_restart(app)
+}
+
 // =============================================================================
 // Secrets (OS Keychain & AES-256-GCM Storage)
 // =============================================================================

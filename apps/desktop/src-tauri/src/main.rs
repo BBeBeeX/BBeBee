@@ -87,6 +87,7 @@ fn main() {
             // Paths & version
             paths_get, desktop_paths_get,
             app_version, desktop_app_version,
+            app_restart, desktop_app_restart,
             // Secrets
             secrets_available, desktop_secrets_available,
             secrets_encrypt, desktop_secrets_encrypt,

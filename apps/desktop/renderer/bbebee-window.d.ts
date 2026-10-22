@@ -1,6 +1,7 @@
 declare global {
   interface Window {
     BBeBee?: {
+      app?: { restart(): Promise<void> }
       paths: { get(kind: string): Promise<string | undefined> }
       getAppVersion: () => Promise<string>
       shell: { openExternal(url: string): Promise<void> }

@@ -30,6 +30,7 @@ describe('Preload Surface Conformance Test: Tauri Shim API Contract', () => {
   // Expected baseline surface strictly defining the desktop preload contract
   const baselineSurface = {
     namespaces: {
+      app: ['restart'],
       paths: ['get'],
       secrets: ['available', 'encrypt', 'decrypt'],
       shell: ['openExternal', 'openPath'],

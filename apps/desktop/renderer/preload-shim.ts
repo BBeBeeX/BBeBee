@@ -8,6 +8,16 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+export interface BBeBeeAppApi {
+  /**
+   * Restarts the whole application (native relaunch via the Tauri
+   * `desktop_app_restart` command). The promise never settles in
+   * practice — the process is replaced. Reloading only the UI is a
+   * plain WebView reload and needs no bridge surface.
+   */
+  restart(): Promise<void>
+}
+
 export interface BBeBeePathsApi {
   get(kind: string): Promise<string | undefined>
 }
@@ -161,6 +171,7 @@ export interface BBeBeeVersions {
 }
 
 export interface BBeBeeApi {
+  readonly app: BBeBeeAppApi
   readonly paths: BBeBeePathsApi
   readonly getAppVersion: () => Promise<string>
   readonly secrets: BBeBeeSecretsApi
@@ -371,6 +382,9 @@ export function createPreloadApi(
   })()
 
   const api: BBeBeeApi = {
+    app: {
+      restart: (): Promise<void> => invoke('desktop_app_restart'),
+    },
     paths: {
       get: (kind: string): Promise<string | undefined> =>
         invoke('desktop_paths_get', { kind }).then((res) => (res === null ? undefined : res)),

@@ -181,6 +181,9 @@ var __BBeBeePreloadShim = (() => {
       return "linux";
     })();
     const api = {
+      app: {
+        restart: () => invoke("desktop_app_restart")
+      },
       paths: {
         get: (kind) => invoke("desktop_paths_get", { kind }).then((res) => res === null ? void 0 : res)
       },
