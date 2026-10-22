@@ -730,6 +730,36 @@ describe('SettingsScreen', () => {
     })
   })
 
+  it('promotes a plugin custom section to a left-nav tab (catppuccin)', async () => {
+    const { ctx } = await harness()
+    const ui = ctx.get('ui') as unknown as { registerView(id: string, c: unknown): void }
+    const settingsSvc = ctx.get('settings') as unknown as {
+      contribute(c: SettingsContribution): void
+    }
+
+    // Exactly what the Catppuccin plugin contributes after a local
+    // import: its card under its own custom section id.
+    const MockCatppuccinCard = () => h('div', { 'data-testid': 'catppuccin-card' }, 'catppuccin card body')
+    ui.registerView('theme.catppuccin', MockCatppuccinCard)
+    settingsSvc.contribute({
+      id: 'theme.catppuccin',
+      section: 'catppuccin',
+      title: 'Catppuccin Theme Suite',
+      display: 'card',
+    })
+
+    const { getByText, getByTestId, queryByTestId, container } = render(h(SettingsScreen, { ctx }))
+    const tab = getByText('Catppuccin Theme')
+    expect(tab).toBeTruthy()
+    expect(queryByTestId('catppuccin-card')).toBeNull()
+
+    fireEvent.click(tab)
+    await waitFor(() => {
+      expect(container.querySelector('#section-catppuccin')).toBeTruthy()
+      expect(getByTestId('catppuccin-card')).toBeTruthy()
+    })
+  })
+
   it('shows the unavailable state for a card whose view is missing on this target', async () => {
     const { ctx } = await harness()
     const settingsSvc = ctx.get('settings') as unknown as {

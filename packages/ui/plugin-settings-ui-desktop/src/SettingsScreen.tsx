@@ -53,6 +53,8 @@ function tabLabel(t: (key: string) => string, id: string): string {
       return t('settings:settings.plugins')
     case 'about':
       return t('settings:settings.about')
+    case 'catppuccin':
+      return t('settings:settings.catppuccinTheme')
     default:
       return id.charAt(0).toUpperCase() + id.slice(1)
   }
