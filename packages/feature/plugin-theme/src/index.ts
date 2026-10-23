@@ -31,9 +31,11 @@ import {
   builtInThemePacks,
   builtInThemes,
   defaultTheme,
+  extractVibrantColor,
   generateThemeFromSeed,
   resolveGlassVariables,
 } from '@BBeBee/ui-tokens'
+import { toBbebeeFileUri } from '@BBeBee/toolkit'
 import { THEME_VIEWS } from './views.js'
 
 const STORE_KEY = 'theme_preference'
@@ -67,6 +69,10 @@ export class ThemePlugin extends Service implements ThemeService {
   private dynamicSeed = defaultTheme.tokens.brand.primary
   private dynamicCacheKey = ''
   private playerWired = false
+  /** Extracted cover colours by source URL, so a cover is decoded once. */
+  private readonly seedColourCache = new Map<string, string>()
+  /** The in-flight cover extraction, if any; a newer track supersedes it. */
+  private seedRequest: { url: string } | null = null
   private glassSettings: GlassSettings | undefined
   private glassSignature = ''
   private appliedGlassKeys = new Set<string>()
@@ -119,7 +125,7 @@ export class ThemePlugin extends Service implements ThemeService {
       }
     }
 
-    // 2.4 Dynamic cover theme: follow the playing track's dominant colour.
+    // 2.4 Dynamic cover theme: follow the playing track's cover colour.
     // The seed lives on `state.nowPlaying`, which the player publishes
     // *asynchronously* after a track change (store lookup, then source
     // enrichment) — so `player/track-changed` fires while the state still
@@ -133,12 +139,21 @@ export class ThemePlugin extends Service implements ThemeService {
       this.playerWired = true
       const player = scoped.player as unknown as PlayerService
       const read = (state?: PlayerService['state']) => {
-        const seed =
-          state?.nowPlaying?.artwork?.dominantColor ?? player.state?.nowPlaying?.artwork?.dominantColor
-        if (seed && seed !== this.dynamicSeed) {
-          this.dynamicSeed = seed
-          this.refreshDynamicPack()
+        const np = state?.nowPlaying ?? player.state?.nowPlaying
+        if (!np) return
+        const declared = np.artwork?.dominantColor
+        if (declared) {
+          this.seedRequest = null
+          this.setDynamicSeed(declared)
+          return
         }
+        // No declared colour — the common case, not an edge: local scans
+        // insert artworks.dominant_color as NULL (there is no image
+        // decoder at scan time, see plugin-local-scanner's import), and
+        // nothing ever backfills it. Extract the seed from the cover
+        // pixels instead, the same fallback the detail pages use.
+        const rawUrl = np.artworkUri ?? np.artwork?.sourceUrl
+        if (rawUrl) this.extractSeedFromCover(rawUrl)
       }
       read()
       const offState = this.ownCtx.on('player/state-changed', (s) => read(s))
@@ -490,6 +505,51 @@ export class ThemePlugin extends Service implements ThemeService {
     }
   }
 
+  private setDynamicSeed(seed: string): void {
+    if (seed === this.dynamicSeed) return
+    this.dynamicSeed = seed
+    this.refreshDynamicPack()
+  }
+
+  /**
+   * Extracts the dynamic seed from a cover image's pixels. Used when the
+   * artwork carries no declared `dominantColor` — which, for local
+   * libraries, is always: the scanner stores that column as NULL. The
+   * image loads through the same servable-URL mapping the artwork
+   * components use, and extraction is the ui-tokens algorithm the
+   * detail pages seed their header tint with. Failures (unreachable
+   * file, tainted canvas, non-renderer host) simply leave the current
+   * seed in place.
+   */
+  private extractSeedFromCover(rawUrl: string): void {
+    const cached = this.seedColourCache.get(rawUrl)
+    if (cached) {
+      this.setDynamicSeed(cached)
+      return
+    }
+    if (this.seedRequest?.url === rawUrl) return
+    if (typeof Image === 'undefined' || typeof document === 'undefined') return
+    const url = toBbebeeFileUri(rawUrl)
+    if (!url) return
+    const request = { url: rawUrl }
+    this.seedRequest = request
+    const image = new Image()
+    image.crossOrigin = 'anonymous'
+    image.onload = () => {
+      if (this.seedRequest !== request) return
+      this.seedRequest = null
+      const colour = extractVibrantColor(image)
+      if (colour) {
+        this.seedColourCache.set(rawUrl, colour)
+        this.setDynamicSeed(colour)
+      }
+    }
+    image.onerror = () => {
+      if (this.seedRequest === request) this.seedRequest = null
+    }
+    image.src = url
+  }
+
   /**
    * (Re)generates the dynamic cover pack from the last known seed colour.
    * Cached on seed+scheme+contrast so track changes to a cover with the
@@ -534,6 +594,17 @@ export class ThemePlugin extends Service implements ThemeService {
    */
   private applyGlassVariables(base: ThemeDefinition): void {
     if (typeof document === 'undefined' || !document.documentElement?.style) return
+    // The window layer needs the page itself transparent: index.html
+    // paints :root/body/#root opaque with --bg-app, which would seal
+    // the OS effect behind three opaque layers no matter what the
+    // shell root does. The attribute is the switch for the stylesheet
+    // rule that lifts those backgrounds (same pattern as the
+    // mini-player / lyrics windows' html classes).
+    if (this.glassSettings?.window?.enabled) {
+      document.documentElement.setAttribute('data-window-glass', 'on')
+    } else {
+      document.documentElement.removeAttribute('data-window-glass')
+    }
     const vars = resolveGlassVariables(base, this.glassSettings)
     if (this.glassSettings?.components?.ambientSource === 'cover' && vars['--glass-ambient-bg']) {
       vars['--glass-ambient-color'] = this.dynamicSeed

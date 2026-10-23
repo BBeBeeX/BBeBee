@@ -271,16 +271,88 @@ describe('ThemePlugin packs', () => {
     expect(after).not.toBe(before)
   })
 
+  it('extracts the dynamic seed from cover pixels when no dominant colour is declared', async () => {
+    // Local scans store artworks.dominant_color as NULL, so the declared
+    // colour is absent in the common case; the seed must come from the
+    // cover image itself (the detail pages' fallback, shared via
+    // ui-tokens). Fake the image + canvas: a solid red cover.
+    const size = 32
+    const data = new Uint8ClampedArray(size * size * 4)
+    for (let i = 0; i < data.length; i += 4) {
+      data[i] = 200
+      data[i + 1] = 30
+      data[i + 2] = 40
+      data[i + 3] = 255
+    }
+    const images: Array<{ src: string; onload: (() => void) | null }> = []
+    class FakeImage {
+      crossOrigin = ''
+      onload: (() => void) | null = null
+      onerror: (() => void) | null = null
+      set src(v: string) {
+        images.push(this as never)
+        ;(this as { _src?: string })._src = v
+      }
+      get src() {
+        return (this as { _src?: string })._src ?? ''
+      }
+    }
+    const g = globalThis as Record<string, unknown>
+    const realImage = g['Image']
+    const realDocument = g['document']
+    g['Image'] = FakeImage
+    g['document'] = {
+      documentElement: {
+        style: { colorScheme: '', setProperty: () => {}, removeProperty: () => {} },
+        setAttribute: () => {},
+        removeAttribute: () => {},
+        getAttribute: () => null,
+      },
+      createElement: () => ({
+        width: 0,
+        height: 0,
+        getContext: () => ({ drawImage: () => {}, getImageData: () => ({ data }) }),
+      }),
+    }
+    try {
+      const ctx = new Context()
+      const playerState = {
+        nowPlaying: {
+          title: 'Song',
+          artworkUri: 'file:///covers/red.jpg',
+          artwork: { id: 'a1', sourceUrl: 'file:///covers/red.jpg' },
+        },
+      }
+      ctx.provide('player', { state: playerState } as never)
+      await ctx.plugin(ThemePlugin)
+      await new Promise((r) => setTimeout(r, 10))
+      expect(images.length).toBe(1)
+      expect(images[0]!.src).toContain('red.jpg')
+
+      images[0]!.onload?.()
+      await new Promise((r) => setTimeout(r, 10))
+      const { generateThemeFromSeed } = await import('@BBeBee/ui-tokens')
+      const expected = generateThemeFromSeed('#c81e28', { scheme: 'tonal-spot', contrast: 0 })
+      const dynamic = ctx.theme.getPacks!().find((p) => p.id === 'dynamic-cover')
+      expect(dynamic?.variants[0]?.tokens.brand.primary).toBe(expected.tokens.brand.primary)
+    } finally {
+      g['Image'] = realImage
+      g['document'] = realDocument
+    }
+  })
+
   it('applies glass variables to :root when the glass settings change', async () => {
     const props = new Map<string, string>()
+    const attrs = new Map<string, string>()
     const element = {
       style: {
         colorScheme: '',
         setProperty: (k: string, v: string) => void props.set(k, v),
         removeProperty: (k: string) => void props.delete(k),
       },
-      setAttribute: () => {},
-      getAttribute: () => null,
+      setAttribute: (k: string, v: string) => void attrs.set(k, v),
+      removeAttribute: (k: string) => void attrs.delete(k),
+      getAttribute: (k: string) => attrs.get(k) ?? null,
     }
     ;(globalThis as Record<string, unknown>).document = { documentElement: element }
     try {
@@ -306,6 +378,7 @@ describe('ThemePlugin packs', () => {
       ).settings.update({
         glass: {
           ...DEFAULT_GLASS_SETTINGS,
+          window: { ...DEFAULT_GLASS_SETTINGS.window, enabled: true },
           components: { ...DEFAULT_GLASS_SETTINGS.components, enabled: true },
         },
       })
@@ -313,6 +386,9 @@ describe('ThemePlugin packs', () => {
       expect(props.get('--glass-sidebar-bg')).toContain('color-mix')
       expect(props.get('--glass-ambient-bg')).toContain('var(--primary)')
       expect(props.get('--glass-ambient-bg')).not.toContain('--brand-')
+      // Window glass marks the root element so the stylesheet can lift
+      // the opaque :root/body/#root backgrounds (index.html).
+      expect(attrs.get('data-window-glass')).toBe('on')
     } finally {
       delete (globalThis as Record<string, unknown>).document
     }
