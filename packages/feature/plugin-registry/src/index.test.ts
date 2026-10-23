@@ -1241,3 +1241,73 @@ describe('discovery and the generated plugins/index.json', () => {
     expect(cached?.anomalies?.dropped).toBe(1)
   })
 })
+
+describe('theme packs', () => {
+  it('installs a pack document by registering every variant with registry origin', async () => {
+    const packUrl = 'https://cdn.example/acme-pack.json'
+    const packDoc = {
+      id: 'acme-pack',
+      name: 'Acme Pack',
+      version: '1.0.0',
+      author: 'Acme',
+      description: 'Two variants',
+      variants: [makePassingTheme('acme-a', '1.0.0'), makePassingTheme('acme-b', '1.0.0')],
+    }
+    const harness = await setupInitialized({ http: { json: { [packUrl]: packDoc } } })
+
+    await harness.plugin.install(
+      entryOf({ id: 'acme-pack', kind: 'theme', name: 'Acme Pack', version: '1.0.0', downloadUrl: packUrl }),
+    )
+
+    expect(harness.theme.registerTheme).toHaveBeenCalledTimes(2)
+    expect(harness.theme.registerTheme).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'acme-a', origin: 'registry', packId: 'acme-pack' }),
+    )
+    expect(harness.theme.registerTheme).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'acme-b', origin: 'registry', packId: 'acme-pack' }),
+    )
+    const record = await harness.plugin.getLockRecord('acme-pack')
+    expect(record?.kind).toBe('theme')
+  })
+
+  it('refuses a pack when any variant fails the contrast check', async () => {
+    const packUrl = 'https://cdn.example/bad-pack.json'
+    const packDoc = {
+      id: 'bad-pack',
+      name: 'Bad Pack',
+      variants: [makePassingTheme('ok-one', '1.0.0'), makeFailingTheme('bad-one')],
+    }
+    const harness = await setupInitialized({ http: { json: { [packUrl]: packDoc } } })
+
+    await expect(
+      harness.plugin.install(entryOf({ id: 'bad-pack', kind: 'theme', name: 'Bad Pack', downloadUrl: packUrl })),
+    ).rejects.toThrow(/variant "bad-one".*failed the contrast check/)
+    expect(harness.theme.registerTheme).not.toHaveBeenCalled()
+  })
+
+  it('carries pack summary fields through index sanitizing', async () => {
+    const harness = await setupInitialized({
+      index: {
+        entries: [
+          entryOf({
+            id: 'deepmono',
+            kind: 'theme',
+            name: 'Deep Mono',
+            version: '1.0.0',
+            variantCount: 2,
+            variants: [
+              { id: 'deepmono-graphite', name: 'Graphite', isDark: true },
+              { id: 'deepmono-paper', name: 'Paper', isDark: false },
+            ],
+            previewColors: ['#121214', '#17171A', '#E4E4E7'],
+          } as never),
+        ],
+      },
+    })
+    const index = await harness.plugin.getIndex()
+    const entry = index.entries.find((e) => e.id === 'deepmono')
+    expect(entry?.variantCount).toBe(2)
+    expect(entry?.variants?.map((v) => v.id)).toEqual(['deepmono-graphite', 'deepmono-paper'])
+    expect(entry?.previewColors).toEqual(['#121214', '#17171A', '#E4E4E7'])
+  })
+})

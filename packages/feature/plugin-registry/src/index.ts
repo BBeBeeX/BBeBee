@@ -36,6 +36,7 @@ import type {
   SourcesService,
   StoreService,
   ThemeDefinition,
+  ThemePack,
   ThemeService,
 } from '@BBeBee/protocol'
 import { sha256Hex } from '@BBeBee/protocol'
@@ -172,7 +173,56 @@ function sanitizeEntry(raw: unknown, defaultKind?: RegistryEntryKind): RegistryE
     provides: optionalStringArray(raw.provides),
     category: optionalString(raw.category),
     params: optionalStringArray(raw.params),
+    ...(kind === 'theme' ? themePackEntryFields(raw) : {}),
   }
+}
+
+/**
+ * Theme-pack summary fields for a registry entry: read either from a pack
+ * document itself (its `variants` array) or from a `themes/index.json`
+ * summary row (which carries the same variant list plus preview colours).
+ */
+function themePackEntryFields(raw: Record<string, unknown>): Partial<RegistryEntry> {
+  const fields: {
+    variantCount?: number
+    variants?: { id: string; name: string; isDark: boolean }[]
+    previewColors?: [string, string, string]
+  } = {}
+  if (Array.isArray(raw.variants)) {
+    const variants = raw.variants
+      .filter(isRecord)
+      .map((v) => ({
+        id: typeof v.id === 'string' ? v.id : '',
+        name: typeof v.name === 'string' ? v.name : typeof v.id === 'string' ? v.id : '',
+        isDark: v.isDark !== false,
+      }))
+      .filter((v) => v.id)
+    if (variants.length > 0) {
+      fields.variants = variants
+      fields.variantCount = variants.length
+      // Preview colours from the first variant's tokens, when the raw
+      // document is a full pack rather than an index summary.
+      const first = raw.variants.find(isRecord)
+      const tokens = first && isRecord(first.tokens) ? first.tokens : undefined
+      const bg = tokens && isRecord(tokens.bg) ? tokens.bg.primary : undefined
+      const surface = tokens && isRecord(tokens.surface) ? tokens.surface.s1 : undefined
+      const brand = tokens && isRecord(tokens.brand) ? tokens.brand.primary : undefined
+      if (typeof bg === 'string' && typeof surface === 'string' && typeof brand === 'string') {
+        fields.previewColors = [bg, surface, brand]
+      }
+    }
+  }
+  if (typeof raw.variantCount === 'number' && fields.variantCount === undefined) {
+    fields.variantCount = raw.variantCount
+  }
+  if (
+    Array.isArray(raw.previewColors) &&
+    raw.previewColors.length === 3 &&
+    raw.previewColors.every((c) => typeof c === 'string')
+  ) {
+    fields.previewColors = raw.previewColors as [string, string, string]
+  }
+  return fields
 }
 
 function sanitizeIndex(raw: unknown): { index: RegistryIndex; dropped: number; duplicateIds: string[] } {
@@ -444,7 +494,33 @@ export class RegistryPlugin extends Service implements RegistryService {
           ? endpoint
           : DEFAULT_CONTENTS_API
 
+      // 2a. Themes fast path: the registry repo commits a generated
+      // themes/index.json with pack summaries, so theme discovery costs
+      // one raw fetch instead of a directory walk plus one fetch per
+      // theme. Any failure falls back to the walk for the themes dir.
+      let themesFromIndex = false
+      try {
+        const themeIndexUrl = `${DEFAULT_RAW_BASE}/themes/index.json`
+        const themeIndexRaw = await this.githubFetch.getJson<unknown>(themeIndexUrl, endpointOpts)
+        if (isRecord(themeIndexRaw) && Array.isArray(themeIndexRaw.entries)) {
+          for (const rawRow of themeIndexRaw.entries) {
+            const entry = sanitizeEntry(rawRow, 'theme')
+            if (!entry) continue
+            const dirName = isRecord(rawRow) && typeof rawRow.dir === 'string' ? rawRow.dir : undefined
+            entries.push(
+              dirName && !entry.downloadUrl
+                ? { ...entry, downloadUrl: `${DEFAULT_RAW_BASE}/themes/${dirName}/theme.json` }
+                : entry,
+            )
+          }
+          themesFromIndex = true
+        }
+      } catch {
+        // fall through to the directory walk
+      }
+
       for (const { dir, kind } of REGISTRY_DIRS) {
+        if (dir === 'themes' && themesFromIndex) continue
         try {
           const dirUrl = `${contentsBase}/${dir}`
           const items = await this.githubFetch.getJson<unknown>(dirUrl, endpointOpts)
@@ -463,6 +539,7 @@ export class RegistryPlugin extends Service implements RegistryService {
             if (dir === 'plugins' && itemName === 'index.json') continue
 
             let rawEntry: unknown = undefined
+            let themeDocUrl: string | undefined
             if ((itemType === 'file' || !itemType) && itemName.endsWith('.json')) {
               const fileUrl = downloadUrl ?? `${DEFAULT_RAW_BASE}/${dir}/${itemName}`
               try {
@@ -475,6 +552,7 @@ export class RegistryPlugin extends Service implements RegistryService {
               let metaUrl: string | undefined
               if (dir === 'themes') {
                 metaUrl = `${DEFAULT_RAW_BASE}/themes/${itemName}/theme.json`
+                themeDocUrl = metaUrl
               } else if (dir === 'music-sources') {
                 metaUrl = `${DEFAULT_RAW_BASE}/dist/music-sources/${itemName}.json`
               } else if (dir === 'lyric-sources') {
@@ -494,7 +572,13 @@ export class RegistryPlugin extends Service implements RegistryService {
             if (rawEntry) {
               const entry = sanitizeEntry(rawEntry, kind)
               if (entry) {
-                entries.push(entry)
+                // Theme documents carry no download pointer of their own;
+                // the document URL we just fetched IS the install source.
+                entries.push(
+                  kind === 'theme' && themeDocUrl && !entry.downloadUrl && !entry.repo
+                    ? { ...entry, downloadUrl: themeDocUrl }
+                    : entry,
+                )
               } else {
                 totalDropped++
               }
@@ -1208,6 +1292,12 @@ export class RegistryPlugin extends Service implements RegistryService {
       doc = JSON.parse(rawText)
     }
 
+    // Pack documents (registry format v2) install as a whole pack.
+    if (isRecord(doc) && Array.isArray(doc.variants)) {
+      await this.installThemePack(entry, doc, rawText, repoUrl, commit)
+      return
+    }
+
     if (
       !isRecord(doc) ||
       typeof doc.id !== 'string' || !doc.id ||
@@ -1231,9 +1321,80 @@ export class RegistryPlugin extends Service implements RegistryService {
     }
 
     this.trackStage(entry.id, 'install')
-    this.requireTheme().registerTheme(theme)
+    this.requireTheme().registerTheme({ ...theme, origin: 'registry', packId: theme.id })
     await this.lockManager.setRecord({
       id: entry.id,
+      kind: 'theme',
+      repo: repoUrl,
+      commit,
+      sha256: sha256Hex(rawText),
+      installedAt: Date.now(),
+    })
+  }
+
+  /** Installs a theme pack document: validate, AA-gate every variant, register the pack. */
+  private async installThemePack(
+    entry: RegistryEntry,
+    doc: Record<string, unknown>,
+    rawText: string,
+    repoUrl: string,
+    commit: string,
+  ): Promise<void> {
+    if (
+      typeof doc.id !== 'string' || !doc.id ||
+      typeof doc.name !== 'string' || !doc.name ||
+      !Array.isArray(doc.variants) || doc.variants.length === 0
+    ) {
+      throw new Error(`registry: the theme pack for "${entry.id}" is missing id/name/variants`)
+    }
+    const packId = doc.id
+    const variants: ThemeDefinition[] = []
+    for (const rawVariant of doc.variants) {
+      if (
+        !isRecord(rawVariant) ||
+        typeof rawVariant.id !== 'string' || !rawVariant.id ||
+        typeof rawVariant.name !== 'string' || !rawVariant.name ||
+        typeof rawVariant.isDark !== 'boolean' ||
+        !isRecord(rawVariant.tokens)
+      ) {
+        throw new Error(`registry: a variant of theme pack "${entry.id}" is missing id/name/isDark/tokens`)
+      }
+      variants.push({
+        ...(rawVariant as unknown as ThemeDefinition),
+        origin: 'registry',
+        packId,
+      })
+    }
+
+    this.trackStage(entry.id, 'verify')
+    for (const variant of variants) {
+      const issues = [...themeContrastIssues(variant, 'dark'), ...themeContrastIssues(variant, 'light')]
+      if (issues.length) {
+        const detail = issues
+          .map((i) => `${i.pair} (${i.scheme}): ${i.ratio.toFixed(2)} < ${i.required}`)
+          .join('; ')
+        throw new Error(`registry: variant "${variant.id}" of theme pack "${entry.id}" failed the contrast check — ${detail}`)
+      }
+    }
+
+    this.trackStage(entry.id, 'install')
+    const themeService = this.requireTheme()
+    const pack: ThemePack = {
+      id: packId,
+      name: doc.name,
+      description: typeof doc.description === 'string' ? doc.description : undefined,
+      author: typeof doc.author === 'string' ? doc.author : undefined,
+      version: typeof doc.version === 'string' ? doc.version : undefined,
+      origin: 'registry',
+      variants,
+    }
+    if (themeService.registerThemePack) {
+      themeService.registerThemePack(pack)
+    } else {
+      for (const variant of variants) themeService.registerTheme(variant)
+    }
+    await this.lockManager.setRecord({
+      id: packId,
       kind: 'theme',
       repo: repoUrl,
       commit,

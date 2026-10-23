@@ -44,6 +44,12 @@ export interface RegistryEntry {
   readonly sourceUrl?: string
   /** theme/plugin only: preview image URL. */
   readonly previewUrl?: string
+  /** theme only: number of variants in the theme pack. */
+  readonly variantCount?: number
+  /** theme only: the pack's variants (id, display name, dark or light). */
+  readonly variants?: readonly { readonly id: string; readonly name: string; readonly isDark: boolean }[]
+  /** theme only: `[background, surface, brand]` preview colours for browse cards. */
+  readonly previewColors?: readonly [string, string, string]
   /** Author repository URL or shorthand (e.g. https://github.com/owner/repo or owner/repo). */
   readonly repo?: string
   /** plugin/source: The author's code repository URL. */
