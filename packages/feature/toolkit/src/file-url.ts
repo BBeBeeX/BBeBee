@@ -72,3 +72,26 @@ export function toServableFileUrl(uri: string | undefined): string | undefined {
   }
   return uri
 }
+
+/**
+ * Normalises any artwork URI the library can hold (a `file://` URL, a bare
+ * POSIX path, a Windows path, or an already-converted `bbebee-file://` URI)
+ * into the servable form the webview can actually load, via
+ * {@link toServableFileUrl}. Non-file URIs (http:, data:, …) pass through
+ * unchanged. Moved here from ui-kit-desktop's Artwork component so
+ * non-UI consumers (e.g. plugin-theme's cover-colour extraction) share
+ * the one implementation.
+ */
+export function toBbebeeFileUri(rawUri?: string): string | undefined {
+  if (!rawUri) return undefined
+  let uri: string
+  if (rawUri.startsWith('bbebee-file:')) uri = rawUri
+  else if (rawUri.startsWith('file://')) uri = rawUri.replace(/^file:\/\//, 'bbebee-file://')
+  else if (rawUri.startsWith('file:')) uri = rawUri.replace(/^file:\/*/, 'bbebee-file:///')
+  else if (/^[a-zA-Z]:[\\/]/.test(rawUri)) uri = `bbebee-file:///${rawUri.replace(/\\/g, '/')}`
+  else if (rawUri.startsWith('/') && !rawUri.startsWith('//')) uri = `bbebee-file://${rawUri}`
+  else return rawUri
+  // The webview cannot load the raw custom scheme on every platform (Windows
+  // serves it over http://bbebee-file.localhost); the host owns the mapping.
+  return toServableFileUrl(uri)
+}

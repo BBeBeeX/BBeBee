@@ -18,7 +18,7 @@ export {
 export { splitArtists } from './text.js'
 export { formatDuration, formatTotalDuration, formatAddedDate, formatPlayedDate } from './time.js'
 export { formatBytes } from './bytes.js'
-export { toServableFileUrl } from './file-url.js'
+export { toServableFileUrl, toBbebeeFileUri } from './file-url.js'
 export { compareVersions, normalizeVersion, satisfiesRange, maxSatisfying } from './semver.js'
 export { getPath, setPath } from './record-path.js'
 export { permute } from './shuffle.js'

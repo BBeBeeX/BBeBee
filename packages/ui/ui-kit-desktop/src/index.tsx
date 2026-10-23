@@ -40,7 +40,10 @@ export {
   type PlaylistSaveOption,
   type CollectionSaveOption,
 } from './components/SaveToPlaylistPopover.js'
-export { useImageColor, headerGradient, tintRgba, extractVibrantColor } from './components/coverTheme.js'
+export { useImageColor, headerGradient, tintRgba } from './components/coverTheme.js'
+// extractVibrantColor moved to @BBeBee/ui-tokens (cover-color.ts); the
+// re-export keeps this package's public surface unchanged.
+export { extractVibrantColor } from '@BBeBee/ui-tokens'
 export { StickyDetailBar, type StickyDetailBarProps } from './components/StickyDetailBar.js'
 export { useDetailBarCollapse, type DetailBarCollapse } from './components/useDetailBarCollapse.js'
 export { DetailTableHeader, type DetailColumnSpec, type DetailTableHeaderProps } from './components/DetailTableHeader.js'

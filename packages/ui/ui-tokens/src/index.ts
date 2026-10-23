@@ -248,6 +248,7 @@ import type { ThemeDefinition, ThemePack } from '@BBeBee/protocol'
 
 export * from './dynamic-theme.js'
 export * from './glass.js'
+export * from './cover-color.js'
 import { midnightPurpleTheme } from './themes/midnight-purple.js'
 import { emeraldGreenTheme } from './themes/emerald-green.js'
 import { crimsonNightTheme } from './themes/crimson-night.js'

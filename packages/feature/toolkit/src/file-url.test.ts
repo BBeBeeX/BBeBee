@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { toServableFileUrl } from './file-url.js'
+import { toBbebeeFileUri, toServableFileUrl } from './file-url.js'
 
 const g = globalThis as unknown as Record<string, unknown>
 
@@ -94,5 +94,20 @@ describe('toServableFileUrl', () => {
     // Non bbebee-file: URIs pass through
     expect(toServableFileUrl('https://example.com/a.jpg')).toBe('https://example.com/a.jpg')
     vi.unstubAllGlobals()
+  })
+})
+
+describe('toBbebeeFileUri', () => {
+  it('normalises file URLs and bare paths into the bbebee-file scheme', () => {
+    expect(toBbebeeFileUri('file:///music/a.jpg')).toBe('bbebee-file:///music/a.jpg')
+    expect(toBbebeeFileUri('/music/a.jpg')).toBe('bbebee-file:///music/a.jpg')
+    expect(toBbebeeFileUri('C:\\music\\a.jpg')).toBe('bbebee-file:///C:/music/a.jpg')
+    expect(toBbebeeFileUri('bbebee-file:///music/a.jpg')).toBe('bbebee-file:///music/a.jpg')
+  })
+
+  it('passes non-file URIs and empty inputs through', () => {
+    expect(toBbebeeFileUri('https://example.com/a.jpg')).toBe('https://example.com/a.jpg')
+    expect(toBbebeeFileUri(undefined)).toBeUndefined()
+    expect(toBbebeeFileUri('')).toBeUndefined()
   })
 })
