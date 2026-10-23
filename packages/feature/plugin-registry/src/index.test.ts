@@ -317,15 +317,17 @@ describe('lastIndexFetchFailed', () => {
     await plugin.getIndex()
     expect(plugin.lastIndexFetchFailed()).toBe(false)
 
-    // Offline: getIndex resolves with the cache, and says so.
+    // Offline: a forced getIndex resolves with the cache, and says so.
+    // (Unforced calls would be served by the in-memory memo of the good
+    // fetch above — failure tracking is about real fetch attempts.)
     httpSpec.fail = { [DEFAULT_ENDPOINT]: new Error('offline') }
     data.set(INDEX_CACHE_KEY, { fetchedAt: 1, index: { entries: [] } })
-    await plugin.getIndex()
+    await plugin.getIndex(true)
     expect(plugin.lastIndexFetchFailed()).toBe(true)
 
     // Back online: the flag clears on the next good fetch.
     httpSpec.fail = undefined
-    await plugin.getIndex()
+    await plugin.getIndex(true)
     expect(plugin.lastIndexFetchFailed()).toBe(false)
   })
 })
@@ -341,6 +343,21 @@ describe('getIndex', () => {
     const cached = data.get(INDEX_CACHE_KEY) as { fetchedAt: number; index: RegistryIndex }
     expect(cached.fetchedAt).toBeGreaterThan(0)
     expect(cached.index).toEqual(index)
+  })
+
+  it('memoizes a successful fetch until a forced refresh', async () => {
+    const v1: RegistryIndex = { entries: [entryOf({ id: 'one', kind: 'theme', name: 'One' })] }
+    const v2: RegistryIndex = { entries: [entryOf({ id: 'two', kind: 'theme', name: 'Two' })] }
+    const { plugin, httpSpec } = await setupInitialized({ index: v1 })
+
+    await expect(plugin.getIndex()).resolves.toEqual(v1)
+    // The server copy changes, but an unforced call inside the memo
+    // window still serves the fetched copy (no second discovery).
+    httpSpec.json = { [DEFAULT_ENDPOINT]: v2 }
+    await expect(plugin.getIndex()).resolves.toEqual(v1)
+    // A forced call re-discovers and replaces the memo.
+    await expect(plugin.getIndex(true)).resolves.toEqual(v2)
+    await expect(plugin.getIndex()).resolves.toEqual(v2)
   })
 
   it('falls back to the cached copy when the network fails', async () => {

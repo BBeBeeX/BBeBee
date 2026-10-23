@@ -86,6 +86,8 @@ const REGISTRY_DIRS: readonly { readonly dir: string; readonly kind: RegistryEnt
 
 /** Store key: the last good index, for offline use. */
 const INDEX_CACHE_KEY = 'registry.index-cache'
+/** How long a successful `getIndex()` result is reused from memory. */
+const INDEX_MEMO_TTL_MS = 5 * 60_000
 /** Store key: user preferences — the endpoint override and the last check time. */
 const PREFS_KEY = 'registry.prefs'
 
@@ -338,6 +340,18 @@ export class RegistryPlugin extends Service implements RegistryService {
   /** Whether the most recent `getIndex()` had to fall back to the cached copy. */
   private indexFetchFailed = false
 
+  /**
+   * In-memory memo of the last successfully fetched index. Discovery is
+   * expensive (a Contents API enumeration plus one fetch per entry file),
+   * and the browse/market surfaces call `getIndex()` on every open — the
+   * memo keeps repeat opens inside the TTL off the network entirely.
+   * `getIndex(true)` always bypasses it.
+   */
+  private indexMemo: { index: RegistryIndex; at: number } | null = null
+
+  /** Shared in-flight discovery, so concurrent callers do not fan out twice. */
+  private indexInFlight: Promise<RegistryIndex> | null = null
+
   /** When that most recent failure happened, for the diagnostics report. */
   private lastIndexFailureAt?: number
 
@@ -452,7 +466,24 @@ export class RegistryPlugin extends Service implements RegistryService {
 
   /* ── the index ─────────────────────────────────────────────────────────── */
 
-  async getIndex(_force = false): Promise<RegistryIndex> {
+  async getIndex(force = false): Promise<RegistryIndex> {
+    if (!force) {
+      if (this.indexMemo && Date.now() - this.indexMemo.at < INDEX_MEMO_TTL_MS) {
+        return this.indexMemo.index
+      }
+      if (this.indexInFlight) return this.indexInFlight
+      const run = this.fetchIndex()
+      this.indexInFlight = run
+      try {
+        return await run
+      } finally {
+        if (this.indexInFlight === run) this.indexInFlight = null
+      }
+    }
+    return this.fetchIndex()
+  }
+
+  private async fetchIndex(): Promise<RegistryIndex> {
     const { endpoint, overridden } = await this.resolveEndpoint()
     // A user-configured endpoint override *is* the official route: it is used
     // verbatim and never accelerated. The default GitHub endpoints walk the
@@ -472,6 +503,7 @@ export class RegistryPlugin extends Service implements RegistryService {
         this.warnIndexAnomalies(dropped, duplicateIds, 'the index')
         await this.writeIndexCache(index, { dropped, duplicateIds })
         this.indexFetchFailed = false
+        this.memoizeIndex(index)
         return index
       }
 
@@ -481,6 +513,7 @@ export class RegistryPlugin extends Service implements RegistryService {
         this.warnIndexAnomalies(dropped, duplicateIds, 'direct index')
         await this.writeIndexCache(index, { dropped, duplicateIds })
         this.indexFetchFailed = false
+        this.memoizeIndex(index)
         return index
       }
 
@@ -595,6 +628,7 @@ export class RegistryPlugin extends Service implements RegistryService {
               this.warnIndexAnomalies(dropped, duplicateIds, 'fallback registry.json')
               await this.writeIndexCache(index, { dropped, duplicateIds })
               this.indexFetchFailed = false
+              this.memoizeIndex(index)
               return index
             }
           } catch {
@@ -624,6 +658,7 @@ export class RegistryPlugin extends Service implements RegistryService {
 
       await this.writeIndexCache(index, { dropped: totalDropped, duplicateIds })
       this.indexFetchFailed = false
+      this.memoizeIndex(index)
       return index
     } catch (err) {
       this.indexFetchFailed = true
@@ -637,6 +672,10 @@ export class RegistryPlugin extends Service implements RegistryService {
 
   lastIndexFetchFailed(): boolean {
     return this.indexFetchFailed
+  }
+
+  private memoizeIndex(index: RegistryIndex): void {
+    this.indexMemo = { index, at: Date.now() }
   }
 
   /* ── diagnostics (§1.5) ──────────────────────────────────────────────────── */
