@@ -261,3 +261,71 @@ describe('ThemeManagementCard', () => {
     })
   })
 })
+
+describe('ThemeManagementCard categories, packs and glass', () => {
+  it('shows the current theme label and the four category tabs', async () => {
+    const { ctx } = await harness()
+    const { getByTestId } = render(h(ThemeManagementCard, { ctx }))
+    expect(getByTestId('current-theme-label').textContent).toContain('Bee Music · Cyber Neon')
+    expect(getByTestId('current-theme-label').textContent).not.toContain('undefined')
+    for (const cat of ['builtin', 'dynamic', 'custom', 'registry']) {
+      expect(getByTestId(`theme-category-${cat}`)).toBeTruthy()
+    }
+  })
+
+  it('writes dynamic scheme and contrast into settings', async () => {
+    const { ctx, calls } = await harness()
+    const { getByTestId } = render(h(ThemeManagementCard, { ctx }))
+    fireEvent.click(getByTestId('theme-category-dynamic'))
+    fireEvent.change(getByTestId('dynamic-scheme'), { target: { value: 'vibrant' } })
+    fireEvent.change(getByTestId('dynamic-contrast'), { target: { value: '40' } })
+    await waitFor(() => {
+      expect(calls.some((c) => c.includes('"dynamicTheme"') && c.includes('"scheme":"vibrant"'))).toBe(true)
+      expect(calls.some((c) => c.includes('"contrast":40'))).toBe(true)
+    })
+  })
+
+  it('imports a multi-variant pack JSON into the custom category and deletes the pack', async () => {
+    const { ctx, calls } = await harness()
+    const { getByTestId, queryByTestId } = render(h(ThemeManagementCard, { ctx }))
+    fireEvent.click(getByTestId('import-theme-button'))
+    fireEvent.change(getByTestId('import-theme-textarea'), {
+      target: {
+        value: JSON.stringify({
+          id: 'acme-pack',
+          name: 'Acme Pack',
+          variants: [
+            { id: 'acme-a', name: 'Acme A', tokens: { brand: { primary: '#FF0000' } } },
+            { id: 'acme-b', name: 'Acme B', tokens: { brand: { primary: '#00FF00' } } },
+          ],
+        }),
+      },
+    })
+    fireEvent.click(getByTestId('submit-import-theme'))
+    await waitFor(() => {
+      expect(getByTestId('theme-option-acme-a')).toBeTruthy()
+      expect(getByTestId('theme-option-acme-b')).toBeTruthy()
+      expect(calls.some((c) => c.includes('theme:register:acme-a'))).toBe(true)
+      expect(calls.some((c) => c.includes('"themeCategory":"custom"'))).toBe(true)
+    })
+    fireEvent.click(getByTestId('delete-pack-acme-pack'))
+    await waitFor(() => {
+      expect(queryByTestId('theme-option-acme-a')).toBeNull()
+      expect(queryByTestId('theme-option-acme-b')).toBeNull()
+    })
+  })
+
+  it('writes glass window and component settings with per-surface overrides', async () => {
+    const { ctx, calls } = await harness()
+    const { getByTestId } = render(h(ThemeManagementCard, { ctx }))
+    fireEvent.click(getByTestId('glass-window-toggle'))
+    await waitFor(() => {
+      expect(calls.some((c) => c.includes('"glass"') && c.includes('"enabled":true'))).toBe(true)
+    })
+    fireEvent.click(getByTestId('glass-components-toggle'))
+    fireEvent.change(getByTestId('glass-surface-sidebar-opacity'), { target: { value: '66' } })
+    await waitFor(() => {
+      expect(calls.some((c) => c.includes('"sidebar"') && c.includes('"opacity":66'))).toBe(true)
+    })
+  })
+})
