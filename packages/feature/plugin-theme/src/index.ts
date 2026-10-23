@@ -151,9 +151,14 @@ export class ThemePlugin extends Service implements ThemeService {
         // insert artworks.dominant_color as NULL (there is no image
         // decoder at scan time, see plugin-local-scanner's import), and
         // nothing ever backfills it. Extract the seed from the cover
-        // pixels instead, the same fallback the detail pages use.
-        const rawUrl = np.artworkUri ?? np.artwork?.sourceUrl
-        if (rawUrl) this.extractSeedFromCover(rawUrl)
+        // pixels instead, the same fallback the detail pages use. The
+        // candidates are the track's artwork URI and the artwork ref's
+        // source URL — the latter is the very image the player bar
+        // renders — tried in order until one yields a colour.
+        const candidates = [
+          ...new Set([np.artworkUri, np.artwork?.sourceUrl].filter((u): u is string => Boolean(u))),
+        ]
+        if (candidates.length > 0) this.extractSeedFromCover(candidates)
       }
       read()
       const offState = this.ownCtx.on('player/state-changed', (s) => read(s))
@@ -521,33 +526,50 @@ export class ThemePlugin extends Service implements ThemeService {
    * file, tainted canvas, non-renderer host) simply leave the current
    * seed in place.
    */
-  private extractSeedFromCover(rawUrl: string): void {
-    const cached = this.seedColourCache.get(rawUrl)
-    if (cached) {
-      this.setDynamicSeed(cached)
-      return
-    }
-    if (this.seedRequest?.url === rawUrl) return
-    if (typeof Image === 'undefined' || typeof document === 'undefined') return
-    const url = toBbebeeFileUri(rawUrl)
-    if (!url) return
-    const request = { url: rawUrl }
-    this.seedRequest = request
-    const image = new Image()
-    image.crossOrigin = 'anonymous'
-    image.onload = () => {
-      if (this.seedRequest !== request) return
-      this.seedRequest = null
-      const colour = extractVibrantColor(image)
-      if (colour) {
-        this.seedColourCache.set(rawUrl, colour)
-        this.setDynamicSeed(colour)
+  private extractSeedFromCover(candidates: readonly string[]): void {
+    for (const candidate of candidates) {
+      const cached = this.seedColourCache.get(candidate)
+      if (cached) {
+        this.setDynamicSeed(cached)
+        return
       }
     }
-    image.onerror = () => {
-      if (this.seedRequest === request) this.seedRequest = null
+    if (typeof Image === 'undefined' || typeof document === 'undefined') return
+    // Already working on one of these URLs (e.g. a repeated state event
+    // for the same track): let that request finish.
+    if (this.seedRequest && candidates.includes(this.seedRequest.url)) return
+    const tryCandidate = (index: number): void => {
+      if (index >= candidates.length) {
+        this.seedRequest = null
+        return
+      }
+      const rawUrl = candidates[index]!
+      const url = toBbebeeFileUri(rawUrl)
+      if (!url) {
+        tryCandidate(index + 1)
+        return
+      }
+      const request = { url: rawUrl }
+      this.seedRequest = request
+      const image = new Image()
+      image.crossOrigin = 'anonymous'
+      image.onload = () => {
+        if (this.seedRequest !== request) return
+        const colour = extractVibrantColor(image)
+        if (colour) {
+          this.seedColourCache.set(rawUrl, colour)
+          this.seedRequest = null
+          this.setDynamicSeed(colour)
+        } else {
+          tryCandidate(index + 1)
+        }
+      }
+      image.onerror = () => {
+        if (this.seedRequest === request) tryCandidate(index + 1)
+      }
+      image.src = url
     }
-    image.src = url
+    tryCandidate(0)
   }
 
   /**

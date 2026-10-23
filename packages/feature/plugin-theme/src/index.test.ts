@@ -341,6 +341,76 @@ describe('ThemePlugin packs', () => {
     }
   })
 
+  it('falls back to the artwork source URL when the first cover candidate fails', async () => {
+    const size = 32
+    const data = new Uint8ClampedArray(size * size * 4)
+    for (let i = 0; i < data.length; i += 4) {
+      data[i] = 200
+      data[i + 1] = 30
+      data[i + 2] = 40
+      data[i + 3] = 255
+    }
+    const images: Array<{ src: string; onload: (() => void) | null; onerror: (() => void) | null }> = []
+    class FakeImage {
+      crossOrigin = ''
+      onload: (() => void) | null = null
+      onerror: (() => void) | null = null
+      set src(v: string) {
+        ;(this as { _src?: string })._src = v
+        images.push(this as never)
+      }
+      get src() {
+        return (this as { _src?: string })._src ?? ''
+      }
+    }
+    const g = globalThis as Record<string, unknown>
+    const realImage = g['Image']
+    const realDocument = g['document']
+    g['Image'] = FakeImage
+    g['document'] = {
+      documentElement: {
+        style: { colorScheme: '', setProperty: () => {}, removeProperty: () => {} },
+        setAttribute: () => {},
+        removeAttribute: () => {},
+        getAttribute: () => null,
+      },
+      createElement: () => ({
+        width: 0,
+        height: 0,
+        getContext: () => ({ drawImage: () => {}, getImageData: () => ({ data }) }),
+      }),
+    }
+    try {
+      const ctx = new Context()
+      ctx.provide('player', {
+        state: {
+          nowPlaying: {
+            title: 'Song',
+            artworkUri: 'file:///covers/missing.jpg',
+            artwork: { id: 'a1', sourceUrl: 'file:///covers/red.jpg' },
+          },
+        },
+      } as never)
+      await ctx.plugin(ThemePlugin)
+      await new Promise((r) => setTimeout(r, 10))
+      expect(images.length).toBe(1)
+      expect(images[0]!.src).toContain('missing.jpg')
+      images[0]!.onerror?.()
+      await new Promise((r) => setTimeout(r, 5))
+      expect(images.length).toBe(2)
+      expect(images[1]!.src).toContain('red.jpg')
+      images[1]!.onload?.()
+      await new Promise((r) => setTimeout(r, 10))
+      const { generateThemeFromSeed } = await import('@BBeBee/ui-tokens')
+      const expected = generateThemeFromSeed('#c81e28', { scheme: 'tonal-spot', contrast: 0 })
+      const dynamic = ctx.theme.getPacks!().find((p) => p.id === 'dynamic-cover')
+      expect(dynamic?.variants[0]?.tokens.brand.primary).toBe(expected.tokens.brand.primary)
+    } finally {
+      g['Image'] = realImage
+      g['document'] = realDocument
+    }
+  })
+
   it('applies glass variables to :root when the glass settings change', async () => {
     const props = new Map<string, string>()
     const attrs = new Map<string, string>()
