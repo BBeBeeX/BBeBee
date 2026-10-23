@@ -3,94 +3,96 @@
  *
  * Implements `ctx.theme` and provides dynamic theme registration,
  * real-time CSS variable injection into the DOM, and persistence.
+ *
+ * Themes are managed as packs ({@link ThemePack}): a pack is the
+ * grouping/distribution unit (built-in, plugin, custom-imported, registry
+ * or cover-derived dynamic), each variant inside it a selectable
+ * `ThemeDefinition`. Persistence is split by origin — custom packs under
+ * `theme_packs_custom`, registry packs under `theme_packs_registry` —
+ * while built-in, plugin and dynamic packs are never written to the
+ * store. The pre-pack store key (`theme_custom_themes`, a flat variant
+ * list) is migrated once on load.
  */
 
 import { Service } from '@BBeBee/kernel'
 import type { Context } from '@BBeBee/kernel'
-import type { Disposable, ThemeDefinition, ThemeService } from '@BBeBee/protocol'
+import type {
+  AppSettings,
+  Disposable,
+  DynamicThemeSettings,
+  PlayerService,
+  ThemeDefinition,
+  ThemePack,
+  ThemeService,
+} from '@BBeBee/protocol'
 import {
   applyThemeToDom,
+  builtInThemePacks,
   builtInThemes,
   defaultTheme,
+  generateThemeFromSeed,
 } from '@BBeBee/ui-tokens'
 import { THEME_VIEWS } from './views.js'
 
 const STORE_KEY = 'theme_preference'
-const CUSTOM_THEMES_STORE_KEY = 'theme_custom_themes'
+const CUSTOM_PACKS_STORE_KEY = 'theme_packs_custom'
+const REGISTRY_PACKS_STORE_KEY = 'theme_packs_registry'
+const LEGACY_CUSTOM_THEMES_STORE_KEY = 'theme_custom_themes'
+
+export const DYNAMIC_PACK_ID = 'dynamic-cover'
+
+const DEFAULT_DYNAMIC_SETTINGS: DynamicThemeSettings = {
+  scheme: 'tonal-spot',
+  contrast: 0,
+  fallbackThemeId: defaultTheme.id,
+}
+
+type StoreLike = {
+  get<T>(k: string): Promise<T | undefined>
+  set(k: string, v: unknown): Promise<void>
+}
 
 export class ThemePlugin extends Service implements ThemeService {
   static override readonly name = 'theme'
   static readonly inject = []
 
   private readonly ownCtx: Context
+  private readonly packs = new Map<string, ThemePack>()
   private readonly registry = new Map<string, ThemeDefinition>()
   private activeThemeId = defaultTheme.id
   private appearanceMode: 'dark' | 'light' | 'system' = 'dark'
+  private dynamicSettings: DynamicThemeSettings = { ...DEFAULT_DYNAMIC_SETTINGS }
+  private dynamicSeed = defaultTheme.tokens.brand.primary
+  private dynamicCacheKey = ''
+  private playerWired = false
 
   constructor(ctx: Context) {
     super(ctx, 'theme')
     this.ownCtx = ctx
 
-    // Seed registry with built-in themes
-    for (const [id, def] of Object.entries(builtInThemes)) {
-      this.registry.set(id, def)
+    // Seed the pack registry with the built-in packs (one per theme).
+    for (const pack of Object.values(builtInThemePacks)) {
+      this.packs.set(pack.id, ThemePlugin.normalizePack(pack))
     }
+    this.rebuildRegistry()
+    this.refreshDynamicPack()
   }
 
   async [Service.init]() {
     this.ownCtx.logger?.info?.('plugin-theme: initialized')
 
-    // 1. Try to restore custom themes and active theme preference via store if available
+    // 1. Restore persisted packs + the active theme preference via store.
     this.ownCtx.inject(['store'], (scoped) => {
-      void scoped.store.get<ThemeDefinition[]>(CUSTOM_THEMES_STORE_KEY).then((customList) => {
-        if (Array.isArray(customList)) {
-          for (const customTheme of customList) {
-            if (customTheme && customTheme.id && !(customTheme.id in builtInThemes)) {
-              this.registry.set(customTheme.id, customTheme)
-            }
-          }
-          this.ownCtx.emit('theme/registry-changed', this.getThemes())
-        }
-      }).catch(() => {})
-
-      void scoped.store.get<string>(STORE_KEY).then((storedId) => {
-        if (storedId && this.registry.has(storedId)) {
-          this.activeThemeId = storedId
-          this.applyActiveTheme()
-        }
-      }).catch(() => {})
+      const store = scoped.store as unknown as StoreLike
+      void this.restoreFromStore(store).catch(() => {})
     })
 
-    // 2. Synchronize with settings if available
+    // 2. Synchronize with settings if available.
     this.ownCtx.inject(['settings'], (scoped) => {
       const initial = scoped.settings.getSync?.()
-      let updated = false
-      if (initial?.theme && (initial.theme === 'dark' || initial.theme === 'light' || initial.theme === 'system')) {
-        this.appearanceMode = initial.theme
-        updated = true
-      }
-      if (initial?.themeId && this.registry.has(initial.themeId)) {
-        this.activeThemeId = initial.themeId
-        updated = true
-      }
-      if (updated) {
-        this.applyActiveTheme()
-      }
-
+      this.applySettings(initial, true)
       scoped.on('settings/changed', (s) => {
-        let changed = false
-        if (s.theme && (s.theme === 'dark' || s.theme === 'light' || s.theme === 'system') && s.theme !== this.appearanceMode) {
-          this.appearanceMode = s.theme
-          changed = true
-        }
-        if (s.themeId && s.themeId !== this.activeThemeId && this.registry.has(s.themeId)) {
-          this.activeThemeId = s.themeId
-          changed = true
-        }
-        if (changed) {
-          this.applyActiveTheme()
-          this.ownCtx.emit('theme/changed', this.getCurrentTheme(), this.getEffectiveScheme())
-        }
+        this.applySettings(s, false)
       })
     })
 
@@ -111,6 +113,23 @@ export class ThemePlugin extends Service implements ThemeService {
         this.ownCtx.effect(() => () => mq.removeListener(handler), 'theme-media-query')
       }
     }
+
+    // 2.4 Dynamic cover theme: follow the playing track's dominant colour.
+    this.ownCtx.inject(['player'], (scoped) => {
+      if (this.playerWired) return
+      this.playerWired = true
+      const player = scoped.player as unknown as PlayerService
+      const read = () => {
+        const seed = player.state?.nowPlaying?.artwork?.dominantColor
+        if (seed && seed !== this.dynamicSeed) {
+          this.dynamicSeed = seed
+          this.refreshDynamicPack()
+        }
+      }
+      read()
+      const off = this.ownCtx.on('player/track-changed', read)
+      this.ownCtx.effect(() => () => off(), 'theme-dynamic-player')
+    })
 
     // 2.5 Contribute this plugin's settings entries — the theme management
     // card. The settings screen aggregates whatever is contributed and owns
@@ -135,16 +154,14 @@ export class ThemePlugin extends Service implements ThemeService {
     this.applyActiveTheme()
   }
 
+  /* ── queries ──────────────────────────────────────────────────────────── */
+
   getThemes(): readonly ThemeDefinition[] {
-    const seen = new Set<string>()
-    const list: ThemeDefinition[] = []
-    for (const t of this.registry.values()) {
-      if (!seen.has(t.id)) {
-        seen.add(t.id)
-        list.push(t)
-      }
-    }
-    return list
+    return [...this.registry.values()]
+  }
+
+  getPacks(): readonly ThemePack[] {
+    return [...this.packs.values()]
   }
 
   getEffectiveScheme(): 'dark' | 'light' {
@@ -170,6 +187,8 @@ export class ThemePlugin extends Service implements ThemeService {
     return base
   }
 
+  /* ── switching ────────────────────────────────────────────────────────── */
+
   async setTheme(themeId: string): Promise<void> {
     const target = this.registry.get(themeId)
     if (!target) {
@@ -184,8 +203,7 @@ export class ThemePlugin extends Service implements ThemeService {
 
     // Persist to store
     try {
-      const store = (this.ownCtx as unknown as { reflect?: { get(k: string, req: boolean): unknown } })
-        .reflect?.get('store', false) as { set(k: string, v: unknown): Promise<void> } | undefined
+      const store = this.reflectStore()
       if (store) {
         await store.set(STORE_KEY, target.id)
       }
@@ -197,59 +215,279 @@ export class ThemePlugin extends Service implements ThemeService {
     const settings = (this.ownCtx as unknown as { reflect?: { get(k: string, req: boolean): unknown } })
       .reflect?.get('settings', false) as { update(p: unknown): Promise<unknown> } | undefined
     if (settings) {
-      void settings.update({ themeId: target.id }).catch(() => {})
+      void settings.update({
+        themeId: target.id,
+        themePackId: target.packId,
+      }).catch(() => {})
     }
 
     this.ownCtx.emit('theme/changed', this.getCurrentTheme(), this.getEffectiveScheme())
   }
 
-  registerTheme(theme: ThemeDefinition): Disposable {
-    this.registry.set(theme.id, theme)
-    this.ownCtx.logger.info(`theme: registered runtime theme "${theme.id}" (${theme.name})`)
-    if (!(theme.id in builtInThemes)) {
-      void this.persistCustomThemes()
-    }
-    this.ownCtx.emit('theme/registry-changed', this.getThemes())
+  /* ── registration ─────────────────────────────────────────────────────── */
 
+  registerTheme(theme: ThemeDefinition): Disposable {
+    const packId = theme.packId ?? theme.id
+    const origin = theme.origin ?? 'custom'
+    const existing = this.packs.get(packId)
+    if (existing && existing.variants.length > 1) {
+      // Upsert into the multi-variant pack instead of replacing it.
+      const variants = existing.variants.filter((v) => v.id !== theme.id)
+      variants.push(theme)
+      this.registerThemePack({ ...existing, variants })
+    } else {
+      this.registerThemePack({
+        id: packId,
+        name: theme.name,
+        description: theme.description,
+        author: theme.author,
+        version: theme.version,
+        origin,
+        variants: [theme],
+      })
+    }
     return () => {
       this.removeTheme(theme.id)
     }
   }
 
+  registerThemePack(pack: ThemePack): Disposable {
+    if (!pack || typeof pack.id !== 'string' || !pack.id || !Array.isArray(pack.variants) || pack.variants.length === 0) {
+      this.ownCtx.logger.warn('theme: refusing to register an empty or malformed theme pack')
+      return () => {}
+    }
+    const normalized = ThemePlugin.normalizePack(pack)
+    const previous = this.packs.get(normalized.id)
+    this.packs.set(normalized.id, normalized)
+    this.rebuildRegistry()
+    this.ownCtx.logger.info(
+      `theme: registered pack "${normalized.id}" (${normalized.variants.length} variant(s), origin ${normalized.origin})`,
+    )
+    if (normalized.origin === 'custom' || normalized.origin === 'registry') {
+      void this.persistPacks(normalized.origin)
+    }
+    this.emitRegistryChanged()
+    // Re-apply when the pack (re-)defines the active variant: this is what
+    // makes a live update (accent change, glass preset change, dynamic
+    // regeneration) repaint without a theme switch. setTheme() alone
+    // early-returns on an unchanged id, so registration owns repaints.
+    const activeBefore = previous?.variants.find((v) => v.id === this.activeThemeId)
+    const activeNow = normalized.variants.find((v) => v.id === this.activeThemeId)
+    if (activeNow && activeNow !== activeBefore) {
+      this.applyActiveTheme()
+      this.ownCtx.emit('theme/changed', this.getCurrentTheme(), this.getEffectiveScheme())
+    }
+    return () => {
+      this.removePack(normalized.id)
+    }
+  }
+
   removeTheme(themeId: string): boolean {
-    if (themeId in builtInThemes || themeId === 'emerald-green') {
+    const variant = this.registry.get(themeId)
+    if (!variant) return false
+    if (variant.origin === 'builtin' || themeId in builtInThemes) {
       this.ownCtx.logger.warn(`theme: cannot remove built-in theme "${themeId}"`)
       return false
     }
-
-    if (this.registry.delete(themeId)) {
-      this.ownCtx.logger.info(`theme: removed theme "${themeId}"`)
-      if (this.activeThemeId === themeId) {
-        void this.setTheme(defaultTheme.id)
-      }
-      void this.persistCustomThemes()
-      this.ownCtx.emit('theme/registry-changed', this.getThemes())
-      return true
+    const pack = variant.packId ? this.packs.get(variant.packId) : undefined
+    if (!pack) return false
+    const remaining = pack.variants.filter((v) => v.id !== themeId)
+    if (remaining.length === 0) {
+      this.packs.delete(pack.id)
+    } else {
+      this.packs.set(pack.id, { ...pack, variants: remaining })
     }
-
-    return false
+    this.rebuildRegistry()
+    this.ownCtx.logger.info(`theme: removed theme "${themeId}"`)
+    if (this.activeThemeId === themeId) {
+      void this.setTheme(defaultTheme.id)
+    }
+    if (pack.origin === 'custom' || pack.origin === 'registry') {
+      void this.persistPacks(pack.origin)
+    }
+    this.emitRegistryChanged()
+    return true
   }
 
-  private async persistCustomThemes(): Promise<void> {
-    try {
-      const store = (this.ownCtx as unknown as { reflect?: { get(k: string, req: boolean): unknown } })
-        .reflect?.get('store', false) as { set(k: string, v: unknown): Promise<void> } | undefined
-      if (store) {
-        const customThemes = this.getThemes().filter((t) => !(t.id in builtInThemes))
-        await store.set(CUSTOM_THEMES_STORE_KEY, customThemes)
-      }
-    } catch (err) {
-      this.ownCtx.logger?.warn?.(`theme: failed to persist custom themes: ${err}`)
+  removePack(packId: string): boolean {
+    const pack = this.packs.get(packId)
+    if (!pack) return false
+    if (pack.origin === 'builtin') {
+      this.ownCtx.logger.warn(`theme: cannot remove built-in pack "${packId}"`)
+      return false
     }
+    this.packs.delete(packId)
+    this.rebuildRegistry()
+    this.ownCtx.logger.info(`theme: removed pack "${packId}"`)
+    if (!this.registry.has(this.activeThemeId)) {
+      void this.setTheme(defaultTheme.id)
+    }
+    if (pack.origin === 'custom' || pack.origin === 'registry') {
+      void this.persistPacks(pack.origin)
+    }
+    this.emitRegistryChanged()
+    return true
   }
 
   onThemeChange(listener: (theme: ThemeDefinition, scheme?: 'dark' | 'light') => void): Disposable {
     return this.ownCtx.on('theme/changed', listener)
+  }
+
+  /* ── internals ────────────────────────────────────────────────────────── */
+
+  private static normalizePack(pack: ThemePack): ThemePack {
+    return {
+      ...pack,
+      variants: pack.variants.map((v) => ({ ...v, packId: pack.id, origin: v.origin ?? pack.origin })),
+    }
+  }
+
+  private rebuildRegistry(): void {
+    this.registry.clear()
+    for (const pack of this.packs.values()) {
+      for (const variant of pack.variants) {
+        this.registry.set(variant.id, variant)
+      }
+    }
+  }
+
+  private emitRegistryChanged(): void {
+    this.ownCtx.emit('theme/registry-changed', this.getThemes())
+    this.ownCtx.emit('theme/packs-changed', this.getPacks())
+  }
+
+  private reflectStore(): StoreLike | undefined {
+    try {
+      return (this.ownCtx as unknown as { reflect?: { get(k: string, req: boolean): unknown } })
+        .reflect?.get('store', false) as StoreLike | undefined
+    } catch {
+      return undefined
+    }
+  }
+
+  private async persistPacks(origin: 'custom' | 'registry'): Promise<void> {
+    try {
+      const store = this.reflectStore()
+      if (!store) return
+      const key = origin === 'custom' ? CUSTOM_PACKS_STORE_KEY : REGISTRY_PACKS_STORE_KEY
+      const packs = [...this.packs.values()].filter((p) => p.origin === origin)
+      await store.set(key, packs)
+    } catch (err) {
+      this.ownCtx.logger?.warn?.(`theme: failed to persist ${origin} packs: ${err}`)
+    }
+  }
+
+  private async restoreFromStore(store: StoreLike): Promise<void> {
+    const [customPacks, registryPacks] = await Promise.all([
+      store.get<ThemePack[]>(CUSTOM_PACKS_STORE_KEY).catch(() => undefined),
+      store.get<ThemePack[]>(REGISTRY_PACKS_STORE_KEY).catch(() => undefined),
+    ])
+    for (const pack of [...(customPacks ?? []), ...(registryPacks ?? [])]) {
+      if (pack && pack.id && !(pack.id in builtInThemePacks) && Array.isArray(pack.variants)) {
+        this.packs.set(pack.id, ThemePlugin.normalizePack(pack))
+      }
+    }
+
+    // One-time migration of the pre-pack flat variant list. Runs only
+    // when the new custom-packs key has never been written; the legacy
+    // key itself is left in place (the store has no delete) but never
+    // read again once the new key exists.
+    if (!Array.isArray(customPacks)) {
+      const legacy = await store.get<ThemeDefinition[]>(LEGACY_CUSTOM_THEMES_STORE_KEY).catch(() => undefined)
+      if (Array.isArray(legacy) && legacy.length > 0) {
+        const grouped = new Map<string, ThemeDefinition[]>()
+        for (const def of legacy) {
+          if (!def || !def.id || def.id in builtInThemes) continue
+          const key = def.packId ?? def.id
+          const list = grouped.get(key) ?? []
+          list.push(def)
+          grouped.set(key, list)
+        }
+        for (const [packId, variants] of grouped) {
+          if (!this.packs.has(packId)) {
+            this.packs.set(packId, ThemePlugin.normalizePack({
+              id: packId,
+              name: variants[0]!.name,
+              origin: 'custom',
+              variants,
+            }))
+          }
+        }
+        await this.persistPacks('custom')
+      }
+    }
+
+    this.rebuildRegistry()
+    this.emitRegistryChanged()
+
+    const storedId = await store.get<string>(STORE_KEY).catch(() => undefined)
+    if (storedId && this.registry.has(storedId)) {
+      this.activeThemeId = storedId
+      this.applyActiveTheme()
+    }
+  }
+
+  private applySettings(s: AppSettings | undefined, initial: boolean): void {
+    if (!s) return
+    let changed = false
+    if (s.theme && (s.theme === 'dark' || s.theme === 'light' || s.theme === 'system') && s.theme !== this.appearanceMode) {
+      this.appearanceMode = s.theme
+      changed = true
+    }
+    if (s.themeId && s.themeId !== this.activeThemeId && this.registry.has(s.themeId)) {
+      this.activeThemeId = s.themeId
+      changed = true
+    }
+    if (s.dynamicTheme) {
+      const next: DynamicThemeSettings = {
+        scheme: s.dynamicTheme.scheme ?? this.dynamicSettings.scheme,
+        contrast: typeof s.dynamicTheme.contrast === 'number' ? s.dynamicTheme.contrast : this.dynamicSettings.contrast,
+        fallbackThemeId: s.dynamicTheme.fallbackThemeId ?? this.dynamicSettings.fallbackThemeId,
+      }
+      if (
+        next.scheme !== this.dynamicSettings.scheme ||
+        next.contrast !== this.dynamicSettings.contrast ||
+        next.fallbackThemeId !== this.dynamicSettings.fallbackThemeId
+      ) {
+        this.dynamicSettings = next
+        this.refreshDynamicPack()
+      }
+    }
+    if (changed && !initial) {
+      this.applyActiveTheme()
+      this.ownCtx.emit('theme/changed', this.getCurrentTheme(), this.getEffectiveScheme())
+    } else if (changed && initial) {
+      this.applyActiveTheme()
+    }
+  }
+
+  /**
+   * (Re)generates the dynamic cover pack from the last known seed colour.
+   * Cached on seed+scheme+contrast so track changes to a cover with the
+   * same dominant colour do not churn the registry.
+   */
+  private refreshDynamicPack(): void {
+    const { scheme, contrast } = this.dynamicSettings
+    const key = `${this.dynamicSeed}|${scheme}|${contrast}`
+    if (key === this.dynamicCacheKey && this.packs.has(DYNAMIC_PACK_ID)) return
+    this.dynamicCacheKey = key
+    const theme = generateThemeFromSeed(this.dynamicSeed, { scheme, contrast })
+    const pack: ThemePack = {
+      id: DYNAMIC_PACK_ID,
+      name: theme.name,
+      description: theme.description,
+      origin: 'dynamic',
+      variants: [theme],
+      preview: { colors: [theme.tokens.bg.primary, theme.tokens.surface.s1, theme.tokens.brand.primary] },
+    }
+    const wasActive = this.activeThemeId === DYNAMIC_PACK_ID
+    this.packs.set(DYNAMIC_PACK_ID, ThemePlugin.normalizePack(pack))
+    this.rebuildRegistry()
+    if (wasActive) {
+      this.applyActiveTheme()
+      this.ownCtx.emit('theme/changed', this.getCurrentTheme(), this.getEffectiveScheme())
+    }
+    this.emitRegistryChanged()
   }
 
   private applyActiveTheme(): void {
