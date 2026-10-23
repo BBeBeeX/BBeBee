@@ -371,9 +371,40 @@ describe('ThemeManagementCard categories, packs and glass', () => {
       expect(calls.some((c) => c.includes('"glass"') && c.includes('"enabled":true'))).toBe(true)
     })
     fireEvent.click(getByTestId('glass-components-toggle'))
+    // Per-surface overrides live in their own collapsed group.
+    fireEvent.click(getByTestId('glass-surfaces-expand'))
     fireEvent.change(getByTestId('glass-surface-sidebar-opacity'), { target: { value: '66' } })
     await waitFor(() => {
       expect(calls.some((c) => c.includes('"sidebar"') && c.includes('"opacity":66'))).toBe(true)
     })
+  })
+
+  it('glass regions pop open with their switch and fold away independently', async () => {
+    const { ctx } = await harness()
+    const { getByTestId, queryByTestId } = render(h(ThemeManagementCard, { ctx }))
+    expect(queryByTestId('glass-window-region')).toBeNull()
+    expect(queryByTestId('glass-components-region')).toBeNull()
+
+    // Switching a layer on pops its adjustment region open.
+    fireEvent.click(getByTestId('glass-window-toggle'))
+    expect(queryByTestId('glass-window-region')).toBeTruthy()
+    expect(getByTestId('glass-window-tint')).toBeTruthy()
+
+    // The chevron folds the region away without disabling the layer.
+    fireEvent.click(getByTestId('glass-window-expand'))
+    expect(queryByTestId('glass-window-region')).toBeNull()
+    expect(getByTestId('glass-window-toggle').getAttribute('aria-checked')).toBe('true')
+    fireEvent.click(getByTestId('glass-window-expand'))
+    expect(queryByTestId('glass-window-region')).toBeTruthy()
+
+    // Components: sliders appear on switch-on; the per-surface group
+    // stays folded until its own chevron is clicked.
+    fireEvent.click(getByTestId('glass-components-toggle'))
+    expect(queryByTestId('glass-components-region')).toBeTruthy()
+    expect(getByTestId('glass-blur')).toBeTruthy()
+    expect(queryByTestId('glass-surfaces-region')).toBeNull()
+    fireEvent.click(getByTestId('glass-surfaces-expand'))
+    expect(queryByTestId('glass-surfaces-region')).toBeTruthy()
+    expect(getByTestId('glass-surface-player-blur')).toBeTruthy()
   })
 })

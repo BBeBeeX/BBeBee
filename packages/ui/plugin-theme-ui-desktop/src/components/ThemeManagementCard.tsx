@@ -106,6 +106,14 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
   const [glass, setGlass] = useState<GlassSettings>(
     () => settings?.getSync()?.glass ?? DEFAULT_GLASS_SETTINGS,
   )
+  // Which glass adjustment regions are expanded. A layer's region pops
+  // open when its switch turns on; the chevrons fold regions away
+  // independently. The per-surface group starts folded.
+  const [glassOpen, setGlassOpen] = useState<{ window: boolean; components: boolean; surfaces: boolean }>({
+    window: false,
+    components: false,
+    surfaces: false,
+  })
   const [browseEntries, setBrowseEntries] = useState<readonly RegistryEntry[]>([])
   const [browseError, setBrowseError] = useState<string | null>(null)
   const [browseLoaded, setBrowseLoaded] = useState(false)
@@ -874,27 +882,131 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
       updateGlass({ ...g, components: { ...g.components, ...patch } })
     const setSurface = (id: GlassSurfaceId, patch: Partial<{ blurPx: number; opacity: number }>) =>
       updateGlass({ ...g, surfaces: { ...g.surfaces, [id]: { ...(g.surfaces[id] ?? {}), ...patch } } })
-    return h(
-      'div',
-      { 'data-testid': 'glass-settings', style: { display: 'flex', flexDirection: 'column', gap: 14, marginTop: 18 } },
-      h('div', { style: { fontSize: 13, fontWeight: 600, color: 'var(--text-primary, #F5F5F7)' } }, t('theme:themeManagement.glassTitle')),
-      // Window layer (B)
+
+    // Each layer is its own sub-card with a header (label, chevron,
+    // switch). Turning a switch on pops its adjustment region open; the
+    // chevron collapses/expands the region without touching the switch,
+    // so an enabled layer can still be folded away. Sliders inside a
+    // region sit in a two-column grid instead of one long column, and
+    // the per-surface overrides live in their own nested collapsible
+    // group, folded by default.
+    const expandButton = (testId: string, open: boolean, onToggle: () => void): ReactElement =>
+      h(
+        'button',
+        {
+          type: 'button',
+          'data-testid': testId,
+          'aria-expanded': open,
+          'aria-label': t(open ? 'theme:themeManagement.collapse' : 'theme:themeManagement.expand'),
+          onClick: onToggle,
+          style: {
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 24,
+            height: 24,
+            borderRadius: 6,
+            border: 'none',
+            background: 'transparent',
+            color: 'var(--text-secondary, #C5CAD8)',
+            cursor: 'pointer',
+            flexShrink: 0,
+          },
+        },
+        tablerIcon(open ? 'chevron-down' : 'chevron-right', { size: 15 }),
+      )
+
+    const layerHeader = (
+      label: string,
+      expandTestId: string,
+      open: boolean,
+      onToggleOpen: () => void,
+      enabled: boolean,
+      toggle: ReactElement,
+    ): ReactElement =>
       h(
         'div',
-        { style: { display: 'flex', flexDirection: 'column', gap: 10 } },
-        h(
-          'div',
-          { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' } },
-          h('span', { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-secondary, #C5CAD8)' } }, t('theme:themeManagement.glassWindow')),
-          toggleButton('glass-window-toggle', g.window.enabled, () => setWindow({ enabled: !g.window.enabled })),
+        { style: { display: 'flex', alignItems: 'center', gap: 6 } },
+        h('span', { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-secondary, #C5CAD8)' } }, label),
+        h('span', { style: { marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 } },
+          enabled ? expandButton(expandTestId, open, onToggleOpen) : null,
+          toggle,
         ),
-        g.window.enabled
+      )
+
+    const layerCard = (children: (ReactElement | null)[]): ReactElement =>
+      h(
+        'div',
+        {
+          style: {
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10,
+            padding: '10px 12px',
+            borderRadius: 10,
+            background: 'var(--surface-1, rgba(255, 255, 255, 0.03))',
+            border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.07))',
+          },
+        },
+        children,
+      )
+
+    const sliderGrid = (rows: ReactElement[]): ReactElement =>
+      h(
+        'div',
+        { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '8px 18px' } },
+        rows,
+      )
+
+    const selectStyle = {
+      flex: 1,
+      padding: '6px 10px',
+      borderRadius: 8,
+      background: 'var(--surface-2, rgba(255,255,255,0.06))',
+      border: '1px solid var(--border-subtle, rgba(255,255,255,0.12))',
+      color: 'var(--text-primary, #F5F5F7)',
+      fontSize: 13,
+    } as const
+    const selectLabelStyle = {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      fontSize: 12,
+      color: 'var(--text-secondary, #C5CAD8)',
+    } as const
+
+    const toggleWindow = () => {
+      const next = !g.window.enabled
+      setWindow({ enabled: next })
+      if (next) setGlassOpen((o) => ({ ...o, window: true }))
+    }
+    const toggleComponents = () => {
+      const next = !g.components.enabled
+      setComponents({ enabled: next })
+      if (next) setGlassOpen((o) => ({ ...o, components: true }))
+    }
+
+    return h(
+      'div',
+      { 'data-testid': 'glass-settings', style: { display: 'flex', flexDirection: 'column', gap: 12, marginTop: 18 } },
+      h('div', { style: { fontSize: 13, fontWeight: 600, color: 'var(--text-primary, #F5F5F7)' } }, t('theme:themeManagement.glassTitle')),
+      // Window layer (B)
+      layerCard([
+        layerHeader(
+          t('theme:themeManagement.glassWindow'),
+          'glass-window-expand',
+          glassOpen.window,
+          () => setGlassOpen((o) => ({ ...o, window: !o.window })),
+          g.window.enabled,
+          toggleButton('glass-window-toggle', g.window.enabled, toggleWindow),
+        ),
+        g.window.enabled && glassOpen.window
           ? h(
               'div',
-              { style: { display: 'flex', flexDirection: 'column', gap: 10 } },
+              { 'data-testid': 'glass-window-region', style: { display: 'flex', flexDirection: 'column', gap: 10 } },
               h(
                 'label',
-                { style: { display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } },
+                { style: selectLabelStyle },
                 h('span', { style: { width: 92, flexShrink: 0 } }, t('theme:themeManagement.windowEffect')),
                 h(
                   'select',
@@ -903,55 +1015,49 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
                     value: g.window.effect,
                     onChange: (e: { target: { value: string } }) =>
                       setWindow({ effect: e.target.value as GlassSettings['window']['effect'] }),
-                    style: {
-                      flex: 1,
-                      padding: '6px 10px',
-                      borderRadius: 8,
-                      background: 'var(--surface-2, rgba(255,255,255,0.06))',
-                      border: '1px solid var(--border-subtle, rgba(255,255,255,0.12))',
-                      color: 'var(--text-primary, #F5F5F7)',
-                      fontSize: 13,
-                    },
+                    style: selectStyle,
                   },
                   (['auto', 'acrylic', 'mica', 'vibrancy', 'blur'] as const).map((fx) =>
                     h('option', { key: fx, value: fx }, t(`theme:themeManagement.effect_${fx}`)),
                   ),
                 ),
               ),
-              sliderRow('glass-window-tint', t('theme:themeManagement.tintOpacity'), g.window.tintOpacity, 0, 100, (v) =>
-                setWindow({ tintOpacity: v }),
-              ),
+              sliderGrid([
+                sliderRow('glass-window-tint', t('theme:themeManagement.tintOpacity'), g.window.tintOpacity, 0, 100, (v) =>
+                  setWindow({ tintOpacity: v }),
+                ),
+              ]),
             )
           : null,
-      ),
+      ]),
       // Component layer (A)
-      h(
-        'div',
-        { style: { display: 'flex', flexDirection: 'column', gap: 10 } },
-        h(
-          'div',
-          { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' } },
-          h('span', { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-secondary, #C5CAD8)' } }, t('theme:themeManagement.glassComponents')),
-          toggleButton('glass-components-toggle', g.components.enabled, () =>
-            setComponents({ enabled: !g.components.enabled }),
-          ),
+      layerCard([
+        layerHeader(
+          t('theme:themeManagement.glassComponents'),
+          'glass-components-expand',
+          glassOpen.components,
+          () => setGlassOpen((o) => ({ ...o, components: !o.components })),
+          g.components.enabled,
+          toggleButton('glass-components-toggle', g.components.enabled, toggleComponents),
         ),
-        g.components.enabled
+        g.components.enabled && glassOpen.components
           ? h(
               'div',
-              { style: { display: 'flex', flexDirection: 'column', gap: 10 } },
-              sliderRow('glass-blur', t('theme:themeManagement.glassBlur'), g.components.blurPx, 0, 40, (v) =>
-                setComponents({ blurPx: v }),
-              ),
-              sliderRow('glass-saturate', t('theme:themeManagement.glassSaturate'), g.components.saturate, 100, 200, (v) =>
-                setComponents({ saturate: v }),
-              ),
-              sliderRow('glass-opacity', t('theme:themeManagement.glassOpacity'), g.components.opacity, 40, 95, (v) =>
-                setComponents({ opacity: v }),
-              ),
+              { 'data-testid': 'glass-components-region', style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+              sliderGrid([
+                sliderRow('glass-blur', t('theme:themeManagement.glassBlur'), g.components.blurPx, 0, 40, (v) =>
+                  setComponents({ blurPx: v }),
+                ),
+                sliderRow('glass-saturate', t('theme:themeManagement.glassSaturate'), g.components.saturate, 100, 200, (v) =>
+                  setComponents({ saturate: v }),
+                ),
+                sliderRow('glass-opacity', t('theme:themeManagement.glassOpacity'), g.components.opacity, 40, 95, (v) =>
+                  setComponents({ opacity: v }),
+                ),
+              ]),
               h(
                 'label',
-                { style: { display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } },
+                { style: selectLabelStyle },
                 h('span', { style: { width: 92, flexShrink: 0 } }, t('theme:themeManagement.ambientSource')),
                 h(
                   'select',
@@ -960,48 +1066,67 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
                     value: g.components.ambientSource,
                     onChange: (e: { target: { value: string } }) =>
                       setComponents({ ambientSource: e.target.value as GlassSettings['components']['ambientSource'] }),
-                    style: {
-                      flex: 1,
-                      padding: '6px 10px',
-                      borderRadius: 8,
-                      background: 'var(--surface-2, rgba(255,255,255,0.06))',
-                      border: '1px solid var(--border-subtle, rgba(255,255,255,0.12))',
-                      color: 'var(--text-primary, #F5F5F7)',
-                      fontSize: 13,
-                    },
+                    style: selectStyle,
                   },
                   (['cover', 'theme', 'desktop', 'none'] as const).map((src) =>
                     h('option', { key: src, value: src }, t(`theme:themeManagement.ambient_${src}`)),
                   ),
                 ),
               ),
-              SURFACES.map((surface) => {
-                const override = g.surfaces[surface.id] ?? {}
-                return h(
+              // Per-surface overrides: nested collapsible group.
+              h(
+                'div',
+                { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+                h(
                   'div',
-                  { key: surface.id, style: { display: 'flex', flexDirection: 'column', gap: 6 } },
-                  h('span', { style: { fontSize: 12, color: 'var(--text-tertiary, #8B95B0)' } }, t(surface.labelKey)),
-                  sliderRow(
-                    `glass-surface-${surface.id}-blur`,
-                    t('theme:themeManagement.glassBlur'),
-                    override.blurPx ?? g.components.blurPx,
-                    0,
-                    40,
-                    (v) => setSurface(surface.id, { blurPx: v }),
+                  { style: { display: 'flex', alignItems: 'center', gap: 6 } },
+                  h(
+                    'span',
+                    { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-secondary, #C5CAD8)' } },
+                    t('theme:themeManagement.glassSurfaces'),
                   ),
-                  sliderRow(
-                    `glass-surface-${surface.id}-opacity`,
-                    t('theme:themeManagement.glassOpacity'),
-                    override.opacity ?? g.components.opacity,
-                    40,
-                    95,
-                    (v) => setSurface(surface.id, { opacity: v }),
+                  h('span', { style: { marginLeft: 'auto' } },
+                    expandButton('glass-surfaces-expand', glassOpen.surfaces, () =>
+                      setGlassOpen((o) => ({ ...o, surfaces: !o.surfaces })),
+                    ),
                   ),
-                )
-              }),
+                ),
+                glassOpen.surfaces
+                  ? h(
+                      'div',
+                      { 'data-testid': 'glass-surfaces-region', style: { display: 'flex', flexDirection: 'column', gap: 10 } },
+                      SURFACES.map((surface) => {
+                        const override = g.surfaces[surface.id] ?? {}
+                        return h(
+                          'div',
+                          { key: surface.id, style: { display: 'flex', flexDirection: 'column', gap: 4 } },
+                          h('span', { style: { fontSize: 12, color: 'var(--text-tertiary, #8B95B0)' } }, t(surface.labelKey)),
+                          sliderGrid([
+                            sliderRow(
+                              `glass-surface-${surface.id}-blur`,
+                              t('theme:themeManagement.glassBlur'),
+                              override.blurPx ?? g.components.blurPx,
+                              0,
+                              40,
+                              (v) => setSurface(surface.id, { blurPx: v }),
+                            ),
+                            sliderRow(
+                              `glass-surface-${surface.id}-opacity`,
+                              t('theme:themeManagement.glassOpacity'),
+                              override.opacity ?? g.components.opacity,
+                              40,
+                              95,
+                              (v) => setSurface(surface.id, { opacity: v }),
+                            ),
+                          ]),
+                        )
+                      }),
+                    )
+                  : null,
+              ),
             )
           : null,
-      ),
+      ]),
     )
   }
 

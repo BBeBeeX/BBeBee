@@ -70,7 +70,10 @@
       "surfaceTopbar": "Top bar",
       "surfacePlayer": "Player bar",
       "surfaceCards": "Cards",
-      "surfacePopovers": "Popovers & dialogs"
+      "surfacePopovers": "Popovers & dialogs",
+      "glassSurfaces": "Per-surface adjustments",
+      "expand": "Expand",
+      "collapse": "Collapse"
     }
   },
   "zh": {
@@ -144,7 +147,10 @@
       "surfaceTopbar": "顶栏",
       "surfacePlayer": "播放栏",
       "surfaceCards": "卡片",
-      "surfacePopovers": "浮层与对话框"
+      "surfacePopovers": "浮层与对话框",
+      "glassSurfaces": "按表面调整",
+      "expand": "展开",
+      "collapse": "收起"
     }
   }
 }
