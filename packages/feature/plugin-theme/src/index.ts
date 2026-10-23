@@ -120,20 +120,36 @@ export class ThemePlugin extends Service implements ThemeService {
     }
 
     // 2.4 Dynamic cover theme: follow the playing track's dominant colour.
+    // The seed lives on `state.nowPlaying`, which the player publishes
+    // *asynchronously* after a track change (store lookup, then source
+    // enrichment) — so `player/track-changed` fires while the state still
+    // shows the previous track (or nothing). The reliable signal is
+    // `player/state-changed`, whose payload is the new state itself;
+    // track-changed stays as a fallback re-read. (Listening only to
+    // track-changed was the "dynamic theme does not follow the cover"
+    // bug: the seed update was always one track behind, or lost.)
     this.ownCtx.inject(['player'], (scoped) => {
       if (this.playerWired) return
       this.playerWired = true
       const player = scoped.player as unknown as PlayerService
-      const read = () => {
-        const seed = player.state?.nowPlaying?.artwork?.dominantColor
+      const read = (state?: PlayerService['state']) => {
+        const seed =
+          state?.nowPlaying?.artwork?.dominantColor ?? player.state?.nowPlaying?.artwork?.dominantColor
         if (seed && seed !== this.dynamicSeed) {
           this.dynamicSeed = seed
           this.refreshDynamicPack()
         }
       }
       read()
-      const off = this.ownCtx.on('player/track-changed', read)
-      this.ownCtx.effect(() => () => off(), 'theme-dynamic-player')
+      const offState = this.ownCtx.on('player/state-changed', (s) => read(s))
+      const offTrack = this.ownCtx.on('player/track-changed', () => read())
+      this.ownCtx.effect(
+        () => () => {
+          offState()
+          offTrack()
+        },
+        'theme-dynamic-player',
+      )
     })
 
     // 2.5 Contribute this plugin's settings entries — the theme management

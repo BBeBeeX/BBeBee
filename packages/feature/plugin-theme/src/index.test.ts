@@ -249,17 +249,72 @@ describe('ThemePlugin packs', () => {
     await ctx.plugin(ThemePlugin)
     await new Promise((r) => setTimeout(r, 10))
 
-    const dynamic = ctx.theme.getPacks!().find((p) => p.id === 'dynamic-cover')
-    expect(dynamic?.origin).toBe('dynamic')
-    const before = dynamic?.variants[0]?.tokens.brand.primary
+    const dynamicBrand = () =>
+      ctx.theme.getPacks!().find((p) => p.id === 'dynamic-cover')?.variants[0]?.tokens.brand.primary
+    expect(ctx.theme.getPacks!().find((p) => p.id === 'dynamic-cover')?.origin).toBe('dynamic')
+    const before = dynamicBrand()
 
-    playerState.nowPlaying.artwork.dominantColor = '#0044FF'
+    // Real-player ordering: track-changed fires synchronously while the
+    // state still shows the *previous* track; the new nowPlaying (with
+    // the new cover colour) only lands afterwards, announced by
+    // state-changed. The seed must not move on track-changed alone…
     ctx.emit('player/track-changed', 'bbebee:track:x', undefined)
     await new Promise((r) => setTimeout(r, 10))
-    const after = ctx.theme
-      .getPacks!()
-      .find((p) => p.id === 'dynamic-cover')?.variants[0]?.tokens.brand.primary
+    expect(dynamicBrand()).toBe(before)
+
+    // …and must move when state-changed publishes the new nowPlaying.
+    playerState.nowPlaying.artwork.dominantColor = '#0044FF'
+    ctx.emit('player/state-changed', playerState as never)
+    await new Promise((r) => setTimeout(r, 10))
+    const after = dynamicBrand()
     expect(after).toBeDefined()
     expect(after).not.toBe(before)
+  })
+
+  it('applies glass variables to :root when the glass settings change', async () => {
+    const props = new Map<string, string>()
+    const element = {
+      style: {
+        colorScheme: '',
+        setProperty: (k: string, v: string) => void props.set(k, v),
+        removeProperty: (k: string) => void props.delete(k),
+      },
+      setAttribute: () => {},
+      getAttribute: () => null,
+    }
+    ;(globalThis as Record<string, unknown>).document = { documentElement: element }
+    try {
+      const ctx = new Context()
+      let current: Record<string, unknown> = {}
+      ctx.provide('settings', {
+        getSync: () => current,
+        update: async (patch: Record<string, unknown>) => {
+          current = { ...current, ...patch }
+          ctx.emit('settings/changed', current as never)
+          return current
+        },
+      } as never)
+      await ctx.plugin(ThemePlugin)
+      await new Promise((r) => setTimeout(r, 10))
+      expect(props.get('--glass-sidebar-bg')).toBeUndefined()
+
+      const { DEFAULT_GLASS_SETTINGS } = await import('@BBeBee/protocol')
+      await (
+        ctx as unknown as {
+          settings: { update(p: unknown): Promise<unknown> }
+        }
+      ).settings.update({
+        glass: {
+          ...DEFAULT_GLASS_SETTINGS,
+          components: { ...DEFAULT_GLASS_SETTINGS.components, enabled: true },
+        },
+      })
+      await new Promise((r) => setTimeout(r, 10))
+      expect(props.get('--glass-sidebar-bg')).toContain('color-mix')
+      expect(props.get('--glass-ambient-bg')).toContain('var(--primary)')
+      expect(props.get('--glass-ambient-bg')).not.toContain('--brand-')
+    } finally {
+      delete (globalThis as Record<string, unknown>).document
+    }
   })
 })
