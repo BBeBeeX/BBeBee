@@ -101,7 +101,20 @@ export function resolveGlassVariables(
       : `color-mix(in srgb, ${glass.window.tintColor ?? '#000000'} ${glass.window.tintOpacity}%, transparent)`
   }
 
-  if (!isComponentGlassEnabled(theme, glass)) return vars
+  if (!isComponentGlassEnabled(theme, glass)) {
+    // Window layer alone: the OS effect is the backdrop, but the shell
+    // surfaces would still paint their opaque base colour over it and
+    // hide it entirely. Emit translucent surface backgrounds (no
+    // backdrop filter — the OS effect supplies the blur) at the window
+    // tint opacity, so the effect reads through every surface.
+    if (glass?.window?.enabled) {
+      for (const surface of SURFACE_KEYS) {
+        vars[`--glass-${surface}-bg`] =
+          `color-mix(in srgb, ${SURFACE_BASE[surface]} ${glass.window.tintOpacity}%, transparent)`
+      }
+    }
+    return vars
+  }
 
   const components = glass?.components ?? DEFAULT_GLASS_SETTINGS.components
   const global = resolveComponent(theme, glass)

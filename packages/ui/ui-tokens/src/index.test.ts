@@ -25,6 +25,7 @@ import {
   builtInThemePacks,
   generateThemeFromSeed,
   resolveGlassVariables,
+  extractVibrantColor,
   type DynamicThemeScheme,
 } from './index.js'
 
@@ -418,6 +419,59 @@ describe('resolveGlassVariables variable references', () => {
     for (const name of referenced) {
       if (runtimeInjected.has(name)) continue
       expect(emitted.has(name), `${name} must be emitted by themeToCssVariables`).toBe(true)
+    }
+  })
+})
+
+describe('resolveGlassVariables window-only mode', () => {
+  it('emits translucent surface backgrounds so the OS effect reads through', () => {
+    const windowOnly = {
+      window: { enabled: true, effect: 'auto' as const, tintOpacity: 72, tintFollowTheme: true },
+      components: {
+        enabled: false,
+        blurPx: 20,
+        saturate: 160,
+        opacity: 78,
+        borderOpacity: 12,
+        ambientSource: 'cover' as const,
+        ambientBlurPx: 40,
+        ambientOpacity: 55,
+      },
+      surfaces: {},
+    }
+    const vars = resolveGlassVariables(midnightPurpleTheme, windowOnly)
+    expect(vars['--glass-window-bg']).toBe('transparent')
+    expect(vars['--glass-sidebar-bg']).toContain('72%')
+    expect(vars['--glass-player-bg']).toContain('72%')
+    // No backdrop filter: the OS effect supplies the blur.
+    expect(vars['--glass-sidebar-filter']).toBeUndefined()
+    // No ambient layer either: that is the component layer's backdrop.
+    expect(vars['--glass-ambient-bg']).toBeUndefined()
+  })
+})
+
+describe('extractVibrantColor', () => {
+  it('returns the dominant bucket colour of the image pixels', () => {
+    const size = 32
+    const data = new Uint8ClampedArray(size * size * 4)
+    for (let i = 0; i < data.length; i += 4) {
+      data[i] = 200
+      data[i + 1] = 30
+      data[i + 2] = 40
+      data[i + 3] = 255
+    }
+    const fakeCtx = {
+      drawImage: () => {},
+      getImageData: () => ({ data }),
+    }
+    const realDocument = (globalThis as Record<string, unknown>).document
+    ;(globalThis as Record<string, unknown>).document = {
+      createElement: () => ({ width: 0, height: 0, getContext: () => fakeCtx }),
+    }
+    try {
+      expect(extractVibrantColor({} as HTMLImageElement)).toBe('#c81e28')
+    } finally {
+      ;(globalThis as Record<string, unknown>).document = realDocument
     }
   })
 })

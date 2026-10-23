@@ -277,6 +277,15 @@
         background: transparent !important;
         background-color: transparent !important;
       }
+      /* Window glass (plugin-theme sets the attribute while
+         settings.glass.window is enabled): the OS window effect lives
+         behind the page, so every page layer must let it through. */
+      html[data-window-glass="on"],
+      html[data-window-glass="on"] body,
+      html[data-window-glass="on"] #root {
+        background: transparent !important;
+        background-color: transparent !important;
+      }
 
       /* Global sleek auto-hiding scrollbars: a pane's thumb shows only while the
          pointer is over that pane (`is-scrollbar-hover`, set from main.tsx) or

@@ -698,10 +698,17 @@ function wireSettingsSync(app: App): void {
       // settings changes do not re-invoke it.
       if (s.glass?.window) {
         const w = s.glass.window
-        const signature = JSON.stringify(w)
+        // "Tint follows theme" resolves here, not in the settings: the
+        // active theme's brand colour is read off :root (plugin-theme
+        // keeps --primary current), and it joins the signature so a
+        // theme switch re-sends the effect with the new tint.
+        const themeTint = w.tintFollowTheme
+          ? getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || undefined
+          : undefined
+        const tint = w.tintFollowTheme ? themeTint : w.tintColor
+        const signature = `${JSON.stringify(w)}|${tint ?? ''}`
         if (signature !== lastGlassSignature) {
           lastGlassSignature = signature
-          const tint = w.tintFollowTheme ? undefined : w.tintColor
           void window.BBeBee?.window
             ?.setGlass?.(w.enabled ? w.effect : 'off', tint, w.tintOpacity)
             ?.catch(() => {})
