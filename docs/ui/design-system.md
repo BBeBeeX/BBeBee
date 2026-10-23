@@ -95,13 +95,35 @@ export interface ThemeDefinition {
   id: string
   name: string
   description?: string
+  version?: string
+  author?: string
   isDark: boolean
   tokens: ColorTokens
   lightTokens?: ColorTokens
   cssVariables?: Record<string, string>
   lightCssVariables?: Record<string, string>
+  /** Id of the ThemePack this variant belongs to, when known. */
+  packId?: string
+  /** Where this variant came from; absent means 'builtin' for legacy data. */
+  origin?: ThemeOrigin
+  /** Effect presets this theme recommends (user settings always win). */
+  effects?: { glass?: ThemeGlassPreset }
 }
 ```
+
+#### Theme Packs
+
+A **ThemePack** is the grouping, distribution and management unit above the variant: one pack holds one or more `ThemeDefinition` variants (variant ids are globally unique), plus pack-level `name` / `description` / `author` / `version`, an `origin`, and an optional `preview.colors` triple (`[background, surface, brand]`) the UI uses to draw preview cards without image assets. Every theme source produces packs:
+
+| Origin | Producer | Persistence |
+|---|---|---|
+| `builtin` | `ui-tokens` `builtInThemePacks` (each built-in theme is its own single-variant pack) | memory only |
+| `plugin` | Plugins via `ctx.theme.registerThemePack` (e.g. Catppuccin's four flavours as one pack) | memory only (owned by the plugin) |
+| `custom` | User JSON import in Settings (pack JSON or legacy single-theme JSON) | `ctx.store` key `theme_packs_custom` |
+| `registry` | Installed from the registry repo's in-repo theme packs | `ctx.store` key `theme_packs_registry` |
+| `dynamic` | Generated from the playing track's cover colour (see §6.2) | never persisted; regenerated on seed/scheme/contrast change |
+
+`registerTheme()` remains as single-variant sugar over the pack registry. Re-registering a pack whose variant is currently active re-applies that variant, so changed tokens or effect presets repaint immediately.
 
 ### 6.0.2 Dual-Scheme Mode & Light Mode Architecture (WCAG AA Gate)
 
@@ -183,8 +205,30 @@ The primary visual identity is derived directly from the **Bee anime character v
 The application supports multiple built-in and dynamic user themes:
 - **`midnight-purple` (`Bee Music · Cyber Neon`)**: Default primary theme.
 - **`emerald-green` (`Emerald Green`)**: High-contrast minimal green-on-black theme featuring the signature `#1DB954` green accent.
-- **Dynamic User Themes**: Users can import any custom theme via Settings (`.json` file upload or raw JSON paste). The theme engine dynamically validates and deep-merges missing tokens with `midnightPurpleTheme.tokens`, registers the theme at runtime, and persists it to `ctx.store`.
-- **Protected Built-Ins & Safe Deletion**: Built-in themes cannot be removed (`removeTheme()` returns `false`). Custom themes can be deleted via Settings; if an active custom theme is removed, the engine immediately falls back to `midnight-purple` and emits `theme/registry-changed`.
+- **Dynamic User Themes**: Users can import any custom theme via Settings (`.json` file upload or raw JSON paste) — either a theme pack document (`{ id, name, variants: [...] }`) or a legacy single theme. The theme engine dynamically validates and deep-merges missing tokens with `midnightPurpleTheme.tokens`, registers the pack at runtime with `origin: 'custom'`, and persists it to `ctx.store`.
+- **Protected Built-Ins & Safe Deletion**: Built-in themes and packs cannot be removed (`removeTheme()` / `removePack()` return `false`). Custom and registry packs can be deleted via Settings, per variant or as a whole pack; if an active variant is removed, the engine immediately falls back to `midnight-purple` and emits `theme/registry-changed`.
+
+#### Settings Categories
+
+The desktop theme settings card organises packs into four categories (persisted as `settings.themeCategory` + `settings.themePackId`):
+
+- **General (`builtin`)**: built-in packs and plugin packs (e.g. Catppuccin), grouped by pack with variant switching inside the group.
+- **Auto (`dynamic`)**: the cover-derived dynamic pack (below).
+- **Custom (`custom`)**: locally imported packs, with per-variant and per-pack deletion.
+- **Browse (`registry`)**: packs offered by the registry repository — listed from the generated `themes/index.json` summaries and installed as packs (every variant must pass the WCAG AA gate, or the whole pack is rejected).
+
+The card's current-theme label always resolves through pack/variant names with id fallbacks — it never renders `undefined`.
+
+#### Dynamic Cover Theme
+
+The `dynamic-cover` pack is a synthetic single-variant pack regenerated whenever its seed changes. The seed is the playing track's `artwork.dominantColor`; `generateThemeFromSeed()` in `ui-tokens` builds a full dual-scheme token set from it with a hand-written Matugen-style tonal generator: five schemes (`tonal-spot`, `vibrant`, `expressive`, `content`, `neutral`) and a contrast control from −100 to 100 (`settings.dynamicTheme`). Foreground colours are fitted iteratively so the generated theme passes the same 9-pair WCAG AA gate as hand-authored themes, by construction. Regeneration is cached per `seed|scheme|contrast`; if the dynamic variant is active it is re-applied on regeneration.
+
+#### Glass: Component Layer (A) + Window Layer (B)
+
+Glass is rendered by the host, never by themes or plugins injecting DOM styles — a theme may only *recommend* values via its variant's `effects.glass` preset. Two independent layers combine freely:
+
+- **Layer A — component glass (in-app frosted surfaces).** `resolveGlassVariables()` in `ui-tokens` resolves `--glass-*` CSS variables with the precedence **per-surface user override > global user values > theme preset > defaults**. The desktop shell consumes them for the sidebar, main region, player bar and popovers (solid colours remain as `var()` fallbacks, so glass-off is pixel-identical), over an ambient backdrop layer sourced from the playing cover, the theme, the desktop (OS effect), or none. Per-surface numbers (blur, saturate, opacity, border opacity) are user-editable in Settings (`settings.glass.components` + `settings.glass.surfaces`).
+- **Layer B — window glass (OS effect).** The desktop main window is created transparent and driven through Tauri `set_effects` (`window.setGlass` in the preload shim): `acrylic` / `mica` / `blur` on Windows, `vibrancy` on macOS, a supported no-op on Linux. Tint colour and opacity come from `settings.glass.window` only — a theme preset can never change the OS window chrome.
 
 ### 6.3 Surface Hierarchy & Receding Solid Black Chassis
 

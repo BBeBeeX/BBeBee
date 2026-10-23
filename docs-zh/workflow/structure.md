@@ -211,7 +211,7 @@ B_Be_Bee/
 │   │   ├── plugin-mini-player-ui-desktop/ ✅ 桌面端浮动迷你播放器与灵动岛次级窗口
 │   │   ├── plugin-share-ui-desktop/   ✅     ┐ 分享卡片导出与图片隐写弹窗
 │   │   ├── plugin-share-ui-mobile/    ✅     ┘
-│   │   ├── plugin-theme-ui-desktop/   ✅     动态主题切换器、令牌编辑器与自定义主题导入
+│   │   ├── plugin-theme-ui-desktop/   ✅     四分类主题设置卡（主题包、动态封面主题、玻璃控制）
 │   │   ├── plugin-dsp-ui-desktop/  ✅        ┐ 10 段均衡器滑块、效果链排序、效果旁通
 │   │   ├── plugin-dsp-ui-mobile/   ✅        ┘ 与设置集成 ([ui/architecture.md §4](../ui/architecture.md#4-把服务绑定到-react))
 │   │   ├── plugin-settings-ui-desktop/ ✅    ┐ 设置中心：模块化分区、诊断与分类标签 ([ui/architecture.md §5](../ui/architecture.md))

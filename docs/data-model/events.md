@@ -23,6 +23,7 @@ declare module 'cordis' {
     /* ── theme ───────────────────────────────────────── emit ── */
     'theme/changed'(theme: ThemeDefinition, scheme?: 'dark' | 'light'): void
     'theme/registry-changed'(themes: readonly ThemeDefinition[]): void
+    'theme/packs-changed'(packs: readonly ThemePack[]): void
 
     /* ── lyrics ──────────────────────────────────────── emit ── */
     'lyrics/changed'(state: LyricsState): void

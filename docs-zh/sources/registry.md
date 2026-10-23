@@ -20,9 +20,11 @@ B_Be_Bee-registry/
 ├── music-sources/{username}-{name}.json   # 音乐源元数据指针
 ├── lyric-sources/{username}-{name}.json   # 歌词源元数据指针
 ├── plugins/{username}-{pluginname}.json   # 插件元数据指针
-├── themes/{author}-{name}/                # 主题文档（内容进仓）
-│   ├── theme.json                         # 颜色 Token 定义（tokens.dark / tokens.light）
-│   └── preview.png                        # 预览图
+├── themes/                                # 主题包（内容进仓，格式 v2）
+│   ├── {author}-{name}/
+│   │   ├── theme.json                     # 包文档：variants[] 运行时主题变体
+│   │   └── preview.png                    # 预览图（可选）
+│   └── index.json                         # 生成的主题包摘要索引（浏览快速通道）
 ├── scripts/
 │   ├── validate.mjs                       # CI 校验门禁与负向测试套件
 │   └── lib/                               # 校验规则与对比度检查模块
@@ -35,7 +37,7 @@ B_Be_Bee-registry/
   - 音频源与歌词源：作者仓库托管源码并在仓库根目录下提供单文件 `index.json` 规则文档（例如 [B_Be_Bee-subsonic](https://github.com/BBeBeeX/B_Be_Bee-subsonic) 与 [B_Be_Bee-lrclib](https://github.com/BBeBeeX/B_Be_Bee-lrclib)）。
   - 插件：作者仓库根目录下提供 `index.js` 单文件 bundle 与 `manifest.json` 清单。
   - 主题：直接存放在注册表仓内的 `themes/{author}-{name}/`，无需独立代码仓。
-- **远程发现**：客户端通过 GitHub Contents API 并发枚举各目录元数据（§5.1），并由本地 `ctx.store` 缓存。
+- **远程发现**：客户端通过 GitHub Contents API 并发枚举各目录元数据（§5.1），并由本地 `ctx.store` 缓存。主题浏览另有快速通道：生成的 `themes/index.json` 只携带包摘要（`id`、`name`、`version`、`author`、`description`、`dir`、`variantCount`、`variants: [{ id, name, isDark }]`、`previewColors`），浏览页一次拉取即可渲染，各包的 `downloadUrl` 由 `themes/{dir}/theme.json` 推导；摘要拉取失败时回退到 Contents API 遍历 `themes/` 目录。
 
 ---
 
@@ -87,7 +89,7 @@ B_Be_Bee-registry/
 |---|---|---|
 | `music-source` | `sourceUrl` | `SourceRecord` 的身份就是它的 `sourceUrl` —— 导入去重以它为准（[authoring.md §9](./authoring.md#9-导入更新与分享)）。注册表里两个指向同一后端的条目，对用户而言就是同一个源。 |
 | `lyric-source` | `id` | 歌词源以文档 `id` 注册与索引。 |
-| `theme` | `id` | 主题以文档 `id` 索引。 |
+| `theme` | `id` | 主题以包 `id` 索引（旧式单主题文档以其主题 `id` 索引）。每包写一条锁定记录。 |
 | `plugin` | `id` | 插件以 manifest id 索引（`ctx['plugin-manager']`）。 |
 
 已安装副本的版本低于条目 `version` 时产生一条 `RegistryUpdate`（`kind`、`id`、`name`、`installedVersion`、`availableVersion`、`downloadUrl`；当已安装副本是内置内容时附 `builtin: true` —— 今天只有内置 lrclib 歌词源）。
@@ -153,7 +155,7 @@ export interface RegistryService {
 - `music-sources/`
 - `lyric-sources/`
 - `plugins/`
-- `themes/`
+- `themes/` —— 先走快速通道：生成的 `themes/index.json`（§1）一次拉取即得全部包摘要并跳过目录遍历；仅当该拉取失败时才回退为遍历 `themes/`。
 
 各目录条目经解析与合法性清洗后聚合为统一索引。若网络或接口故障，服务会先回退到传统单一 `registry.json`，最后回退至本地 store 离线缓存（`registry.index-cache`），确保断网下仍可查看已缓存内容。
 
@@ -242,7 +244,7 @@ findings 标记为 `block`（高危）或 `warn`（可疑）。只要存在任�
 |---|---|
 | `music-source` | 拉取 `dist/` 文档 → `ctx.sources.import(text, { originUri: downloadUrl })`。完整导入管线生效；写入 `registry.lock.json`。 |
 | `lyric-source` | 拉取文档/作者仓库 → 形状校验 → 静态安全审计 → `ctx.lyricSources.registerSource(doc)` → 写入 `registry.lock.json`。 |
-| `theme` | 拉取文档/作者仓库 → 形状校验 → WCAG AA 对比度门禁 → `ctx.theme.registerTheme(doc)` → 写入 `registry.lock.json`。 |
+| `theme` | 拉取包文档 → 形状校验 → 对包内**每个变体**执行 WCAG AA 对比度门禁（任一变体不过门整包拒绝）→ 每个变体打上 `origin: 'registry'` 后 `ctx.theme.registerThemePack(pack)`（旧宿主回退为逐变体 `registerTheme`）→ 每包一条锁定记录写入 `registry.lock.json`。旧式单主题文档按单变体包走同一条链。 |
 | `plugin` | 拉取插件包/作者仓库 → 能力一致性校验 → 静态安全审计 → 经桌面动态加载宿主 `installAndActivatePlugin` 安装激活 → 写入 `registry.lock.json`。 |
 
 ---

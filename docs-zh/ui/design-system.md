@@ -95,13 +95,35 @@ export interface ThemeDefinition {
   id: string
   name: string
   description?: string
+  version?: string
+  author?: string
   isDark: boolean
   tokens: ColorTokens
   lightTokens?: ColorTokens
   cssVariables?: Record<string, string>
   lightCssVariables?: Record<string, string>
+  /** 所属 ThemePack 的 id（已知时）。 */
+  packId?: string
+  /** 该变体的来源；旧数据缺省视为 'builtin'。 */
+  origin?: ThemeOrigin
+  /** 主题推荐的效果预设（用户设置永远优先）。 */
+  effects?: { glass?: ThemeGlassPreset }
 }
 ```
+
+#### 主题包（ThemePack）
+
+**主题包**是变体之上的分组、分发与管理单元：一个包内含一个或多个 `ThemeDefinition` 变体（变体 id 全局唯一），并带有包级的 `name` / `description` / `author` / `version`、一个 `origin`，以及可选的 `preview.colors` 三元组（`[背景, 表面, 品牌]`），UI 凭它绘制预览卡片、无需图片资源。所有主题来源都产出包：
+
+| Origin | 产出方 | 持久化 |
+|---|---|---|
+| `builtin` | `ui-tokens` 的 `builtInThemePacks`（每个内置主题各自成单变体包） | 仅内存 |
+| `plugin` | 插件经 `ctx.theme.registerThemePack` 注册（如 Catppuccin 四风味合一包） | 仅内存（归插件所有） |
+| `custom` | 用户在设置中导入 JSON（包文档或旧式单主题文档） | `ctx.store` 的 `theme_packs_custom` |
+| `registry` | 从注册表仓内主题包安装 | `ctx.store` 的 `theme_packs_registry` |
+| `dynamic` | 按当前播放曲目封面色生成（见 §6.2） | 永不持久化；种子/方案/对比度变化时再生成 |
+
+`registerTheme()` 保留为包注册表之上的单变体语法糖。重复注册一个其变体正在生效的包时，会重新应用该变体，令牌或效果预设的变更即时重绘。
 
 ### 6.0.2 双配色模式与浅色模式架构（WCAG AA 门禁）
 
@@ -178,8 +200,30 @@ export const tokens = {
 应用程序支持多个内置主题和动态用户自定义主题：
 - **`midnight-purple`（Bee Music · 赛博霓虹）**：默认主主题。
 - **`emerald-green`（翡翠绿 / 经典绿）**：高对比度经典流媒体播放器主题，带有标志性的 `#1DB954` 绿色强调色。
-- **动态用户主题**：用户可通过"设置"导入任意自定义主题（`.json` 文件上传或粘贴原始 JSON）。主题引擎动态验证并将缺失的令牌与 `midnightPurpleTheme.tokens` 进行深度合并，在运行时注册该主题，并持久化至 `ctx.store`。
-- **内置主题受保护与安全删除**：内置主题不可删除（`removeTheme()` 返回 `false`）。自定义主题可通过“设置”删除；若当前激活的自定义主题被删除，引擎会立即自动回退至 `midnight-purple` 并发出 `theme/registry-changed` 事件。
+- **动态用户主题**：用户可通过"设置"导入任意自定义主题（`.json` 文件上传或粘贴原始 JSON）——主题包文档（`{ id, name, variants: [...] }`）或旧式单主题均可。主题引擎动态验证并将缺失的令牌与 `midnightPurpleTheme.tokens` 进行深度合并，以 `origin: 'custom'` 在运行时注册该包，并持久化至 `ctx.store`。
+- **内置主题受保护与安全删除**：内置主题与内置包不可删除（`removeTheme()` / `removePack()` 返回 `false`）。自定义包与注册表包可通过"设置"按变体或整包删除；若当前激活的变体被删除，引擎会立即自动回退至 `midnight-purple` 并发出 `theme/registry-changed` 事件。
+
+#### 设置分类
+
+桌面端主题设置卡将包组织为四个分类（持久化为 `settings.themeCategory` + `settings.themePackId`）：
+
+- **通用（`builtin`）**：内置包与插件包（如 Catppuccin），按包分组、组内切换变体。
+- **自动（`dynamic`）**：封面派生的动态包（见下）。
+- **自定义（`custom`）**：本地导入的包，可按变体或整包删除。
+- **浏览（`registry`）**：注册表仓提供的包 —— 列表来自生成的 `themes/index.json` 摘要，安装以包为单位（包内每个变体都必须通过 WCAG AA 门禁，任一不过整包拒绝）。
+
+卡片上的"当前主题"标签始终经包名/变体名解析并带 id 回退，永不渲染出 `undefined`。
+
+#### 动态封面主题
+
+`dynamic-cover` 是一个合成的单变体包，种子变化时再生成。种子取当前播放曲目的 `artwork.dominantColor`；`ui-tokens` 中的 `generateThemeFromSeed()` 用手写的 Matugen 风格色调生成器从种子构建完整的双配色令牌集：五种方案（`tonal-spot`、`vibrant`、`expressive`、`content`、`neutral`）与 −100 到 100 的对比度控制（`settings.dynamicTheme`）。前景色经迭代拟合，生成的主题按构造即通过与手工主题相同的 9 对 WCAG AA 门禁。再生成按 `seed|scheme|contrast` 缓存；动态变体正在生效时，再生成后立即重新应用。
+
+#### 玻璃：组件层（A）+ 窗口层（B）
+
+玻璃由宿主渲染，主题或插件永不注入 DOM 样式 —— 主题只能经变体的 `effects.glass` 预设*推荐*数值。两层可自由组合：
+
+- **A 层 —— 组件玻璃（应用内磨砂表面）**：`ui-tokens` 中的 `resolveGlassVariables()` 以 **按表面用户覆盖 > 全局用户值 > 主题预设 > 默认值** 的优先级解析 `--glass-*` CSS 变量。桌面 Shell 的侧栏、主区、播放栏与浮层消费这些变量（纯色保留为 `var()` 回退，关玻璃时与之前像素级一致），其下是氛围背景层，来源可选当前封面、主题、桌面（系统效果）或无。各表面的数值（模糊、饱和度、不透明度、边框不透明度）可在设置中修改（`settings.glass.components` + `settings.glass.surfaces`）。
+- **B 层 —— 窗口玻璃（系统效果）**：桌面主窗口以透明方式创建，经 Tauri `set_effects` 驱动（preload shim 中的 `window.setGlass`）：Windows 上 `acrylic` / `mica` / `blur`，macOS 上 `vibrancy`，Linux 上为受支持的空操作。着色与不透明度只来自 `settings.glass.window` —— 主题预设永远改不了系统窗口外观。
 
 ### 6.3 表面层级与后退式纯黑底盘
 

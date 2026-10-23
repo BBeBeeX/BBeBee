@@ -253,7 +253,7 @@ B_Be_Bee/
 │   │   ├── plugin-mini-player-ui-desktop/ ✅ desktop floating mini player & Dynamic Island secondary window
 │   │   ├── plugin-share-ui-desktop/   ✅     ┐ share card export and image steganography modals
 │   │   ├── plugin-share-ui-mobile/    ✅     ┘
-│   │   ├── plugin-theme-ui-desktop/   ✅     dynamic theme switcher, token editor, custom theme importer
+│   │   ├── plugin-theme-ui-desktop/   ✅     four-category theme settings card (packs, dynamic cover theme, glass controls)
 │   │   ├── plugin-dsp-ui-desktop/  ✅        ┐ 10-band EQ sliders, chain ordering, effect bypass,
 │   │   ├── plugin-dsp-ui-mobile/   ✅        ┘ and settings integration ([ui/architecture.md §4](../ui/architecture.md#4-binding-services-to-react))
 │   │   ├── plugin-settings-ui-desktop/ ✅    ┐ settings center: modular sections & diagnostics,

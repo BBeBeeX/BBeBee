@@ -850,11 +850,51 @@ export interface ThemeDefinition {
   id: string
   name: string
   description?: string
+  version?: string
+  author?: string
   isDark: boolean
   tokens: ColorTokens
   lightTokens?: ColorTokens
   cssVariables?: Record<string, string>
   lightCssVariables?: Record<string, string>
+  /** Id of the ThemePack this variant belongs to, when known. */
+  packId?: string
+  /** Where this variant came from; absent means 'builtin' for legacy data. */
+  origin?: ThemeOrigin
+  /** Effect presets this theme recommends (user settings always win). */
+  effects?: { glass?: ThemeGlassPreset }
+}
+
+/** Where a theme (variant or pack) came from; decides how it is persisted. */
+export type ThemeOrigin = 'builtin' | 'plugin' | 'custom' | 'registry' | 'dynamic'
+
+/** The settings-page category a pack is listed under. */
+export type ThemeCategory = 'builtin' | 'dynamic' | 'custom' | 'registry'
+
+/** Glass values a theme recommends for frosted surfaces (a preset, never an override). */
+export interface ThemeGlassPreset {
+  blurPx?: number
+  saturate?: number
+  opacity?: number
+  borderOpacity?: number
+}
+
+/**
+ * A theme pack: one installable/importable unit holding one or more variants
+ * (e.g. Catppuccin's Latte/Frappé/Macchiato/Mocha). The variant stays the
+ * executable unit; the pack is the grouping, distribution and management unit.
+ * Variant ids are globally unique across all packs.
+ */
+export interface ThemePack {
+  id: string
+  name: string
+  description?: string
+  author?: string
+  version?: string
+  origin: ThemeOrigin
+  variants: readonly ThemeDefinition[]
+  /** [background, surface, brand] hex colours for preview cards. */
+  preview?: { colors: readonly [string, string, string] }
 }
 
 export interface ThemeService {
@@ -872,19 +912,27 @@ export interface ThemeService {
   removeTheme(themeId: string): boolean
   /** Subscribes to theme changes. */
   onThemeChange(listener: (theme: ThemeDefinition, scheme?: 'dark' | 'light') => void): Disposable
+  /** Returns all registered theme packs. Optional during the ThemePack rollout. */
+  getPacks?(): readonly ThemePack[]
+  /** Registers a whole pack at once; re-registering replaces its variants and re-applies an active one. */
+  registerThemePack?(pack: ThemePack): Disposable
+  /** Removes an entire pack and all its variants. Built-in packs cannot be removed. */
+  removePack?(packId: string): boolean
 }
 ```
 
 | | Desktop (DOM) | Expo (Mobile / Native) |
 |---|---|---|
 | Backing | `@BBeBee/plugin-theme` with `applyThemeToDom` injecting CSS custom properties on `document.documentElement` | `@BBeBee/plugin-theme` emitting reactive theme snapshot for `StyleSheet` consumption |
-| Persistence | `ctx.store` key `theme_active_id` + custom themes under `theme_custom_themes` | `ctx.store` |
-| Built-in Themes | `midnight-purple` (`Bee Music · Cyber Neon`), `emerald-green` (`Emerald Green`) | Same |
-| Custom Themes | Dynamic JSON import (file / text) with fallback token hydration; deletable with fallback protection | Same |
+| Persistence | `ctx.store` key `theme_active_id`; packs persist split by origin — custom packs under `theme_packs_custom`, registry packs under `theme_packs_registry` (legacy flat `theme_custom_themes` is migrated once, on first read of the new key). Built-in, plugin and dynamic packs are memory-only | `ctx.store` |
+| Built-in Themes | `midnight-purple` (`Bee Music · Cyber Neon`), `emerald-green` (`Emerald Green`), `crimson-night`, `ocean-abyss` — each its own single-variant pack, grouped only in the settings UI | Same |
+| Custom Themes | Pack or legacy single-theme JSON import (file / text) with fallback token hydration; deletable per variant or per pack, with fallback protection | Same |
 
 - **DOM Synchronization**: `plugin-theme` evaluates `themeToCssVariables(theme)` and injects them onto the root document element, alongside `data-theme="{id}"`.
 - **Protection of Built-In Themes**: see the spec at [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas) (L2) — `removeTheme(themeId)` protects built-in themes; deleting the active custom theme falls back to the default (`midnight-purple`) immediately.
-- **Event Bus Integration**: Emits `theme/changed` when active theme changes, and `theme/registry-changed` whenever themes are added or removed.
+- **Event Bus Integration**: Emits `theme/changed` when active theme changes, `theme/registry-changed` whenever themes are added or removed, and `theme/packs-changed` whenever the pack set changes.
+- **Origins & Categories**: A pack's `origin` (`builtin` / `plugin` / `custom` / `registry` / `dynamic`) decides its persistence bucket and the settings-page category it is listed under (`themeCategoryOf`): plugin packs (e.g. Catppuccin) appear inside the built-in ("General") group, while `dynamic` is the cover-derived pack the theme service regenerates from the playing track's `artwork.dominantColor` (see [design-system.md §6.2](../ui/design-system.md)).
+- **Glass Presets**: A variant may carry `effects.glass` — values the theme *recommends* for frosted component surfaces. User `AppSettings.glass` values always win over the preset, and the OS window effect is a user setting only: a theme can never change window chrome.
 
 ---
 
@@ -1215,7 +1263,7 @@ export interface PluginManagerService {
 
 ## 25. `ctx.contentRegistry` — third-party content registry
 
-**Purpose.** The in-app index of third-party content and its updates. The community registry ([B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry), discovered dynamically as a DMS-style metadata index — [sources/registry.md](../sources/registry.md)) indexes four kinds of installable content: music sources, lyric sources, themes and desktop plugins. Music sources, lyric sources, and plugins are pointers to their respective author repositories, while themes live directly in the registry. This service fetches the registry index via GitHub Contents API (with offline cache fallback), compares it against what the user already has, and installs through the services that own each kind — `ctx.sources.import`, `ctx.lyricSources.registerSource`, `ctx.theme.registerTheme`, and the desktop dynamic loader. It is deliberately a thin coordinator: it validates nothing a downstream service already validates and hides nothing a user must see before confirming.
+**Purpose.** The in-app index of third-party content and its updates. The community registry ([B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry), discovered dynamically as a DMS-style metadata index — [sources/registry.md](../sources/registry.md)) indexes four kinds of installable content: music sources, lyric sources, themes and desktop plugins. Music sources, lyric sources, and plugins are pointers to their respective author repositories, while themes live directly in the registry. This service fetches the registry index via GitHub Contents API (with offline cache fallback), compares it against what the user already has, and installs through the services that own each kind — `ctx.sources.import`, `ctx.lyricSources.registerSource`, `ctx.theme.registerThemePack` (theme packs; per-variant `registerTheme` fallback for pre-pack hosts), and the plugin-manager for npm plugins. It is deliberately a thin coordinator: it validates nothing a downstream service already validates and hides nothing a user must see before confirming.
 
 > ⚠️ **The service key is `contentRegistry`, not `registry`.** On cordis 4 the `registry` key belongs to the kernel itself — its plugin-registry service, whose methods surface as `ctx.plugin` / `ctx.inject`.
 
@@ -1293,7 +1341,7 @@ export interface RegistryService {
 | Plugin-kind installs | Desktop dynamic host, wired via `setPluginInstaller` at the composition root | Not supported (desktop-only distribution) |
 
 - **Matching semantics**: music sources match installed records by `sourceUrl` (the `SourceRecord` identity), lyric sources / themes / plugins by their `id`. An installed copy older than the entry's `version` produces a `RegistryUpdate`.
-- **Install flows per kind**: music source → `ctx.sources.import` (full import pipeline, `originUri` = `downloadUrl`); lyric source → shape-check then `ctx.lyricSources.registerSource`; theme → the same dark/light contrast gate a user-drafted theme goes through, then `ctx.theme.registerTheme`; plugin → refuse if the entry publishes no `sha256`, verify the downloaded bundle against the digest, then hand to the dynamic host.
+- **Install flows per kind**: music source → `ctx.sources.import` (full import pipeline, `originUri` = `downloadUrl`); lyric source → shape-check then `ctx.lyricSources.registerSource`; theme → the same dark/light contrast gate a user-drafted theme goes through, applied to **every variant** of the pack (one failing variant rejects the whole pack), then `ctx.theme.registerThemePack` with `origin: 'registry'`; plugin → delegated to `ctx['plugin-manager']` (npm flow, see [sources/registry.md §6](../sources/registry.md)).
 - **Security red lines**: `fetchEntryDetails()` exists so the confirm dialog can name a music document's `allowedHosts` before import; plugin installs verify `sha256` and require an explicit risk confirmation; downloaded plugins undergo security audits via `@BBeBee/plugin-security-audit` checking **13 scanner rules (8 static + 2 dynamic scan groups)**, and integrity is locked in `registry.lock.json` to detect tampering.
 - **Automatic checks**: `AppSettings.registryAutoCheck` (default `true`) — first check ~45 s after boot, then every 24 h; manual checks run regardless.
 

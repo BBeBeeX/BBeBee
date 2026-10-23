@@ -59,7 +59,7 @@ Declared in `packages/protocol/src/services/` and augmented onto `Context`:
 | `ctx.cache` | Eviction-bounded media cache for streams and covers | `plugin-cache` |
 | `ctx.settings` | User app settings (theme, audio engine & exclusive mode, shortcuts) and dynamic contribution registry | `plugin-settings` |
 | `ctx.i18n` | Interface localization (`t`, `register`, `onLocaleChange`) with BCP 47 negotiation and key-granular fallback | `plugin-i18n` |
-| `ctx.theme` | Theme registry, token injection, dynamic theme management | `plugin-theme` |
+| `ctx.theme` | Theme pack/variant registry, token injection, dynamic cover theme | `plugin-theme` |
 | `ctx.share` | Metadata serialization, image steganography, track/playlist/album/lyrics sharing | `plugin-share` |
 | `ctx['plugin-manager']` | Plugin registry, runtime fiber states, dependency graph, and persistent lifecycle management | `plugin-manager` |
 | `ctx.audioConverter` | Audio format transcoding, audio compression, batch queue concurrency, pre-conversion size estimation, and task management | `plugin-audio-converter` |

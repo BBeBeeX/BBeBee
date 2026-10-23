@@ -730,11 +730,50 @@ export interface ThemeDefinition {
   id: string
   name: string
   description?: string
+  version?: string
+  author?: string
   isDark: boolean
   tokens: ColorTokens
   lightTokens?: ColorTokens
   cssVariables?: Record<string, string>
   lightCssVariables?: Record<string, string>
+  /** 所属 ThemePack 的 id（已知时）。 */
+  packId?: string
+  /** 该变体的来源；旧数据缺省视为 'builtin'。 */
+  origin?: ThemeOrigin
+  /** 主题推荐的效果预设（用户设置永远优先）。 */
+  effects?: { glass?: ThemeGlassPreset }
+}
+
+/** 主题（变体或包）的来源；决定其持久化方式。 */
+export type ThemeOrigin = 'builtin' | 'plugin' | 'custom' | 'registry' | 'dynamic'
+
+/** 设置页中包所属的分类。 */
+export type ThemeCategory = 'builtin' | 'dynamic' | 'custom' | 'registry'
+
+/** 主题为磨砂表面推荐的玻璃数值（只是预设，永不覆盖用户设置）。 */
+export interface ThemeGlassPreset {
+  blurPx?: number
+  saturate?: number
+  opacity?: number
+  borderOpacity?: number
+}
+
+/**
+ * 主题包：一个可安装/可导入的单元，内含一个或多个变体
+ *（如 Catppuccin 的 Latte/Frappé/Macchiato/Mocha）。变体仍是执行单元，
+ * 包是分组、分发与管理单元。变体 id 在所有包之间全局唯一。
+ */
+export interface ThemePack {
+  id: string
+  name: string
+  description?: string
+  author?: string
+  version?: string
+  origin: ThemeOrigin
+  variants: readonly ThemeDefinition[]
+  /** 预览卡片用的 [背景, 表面, 品牌] 十六进制颜色。 */
+  preview?: { colors: readonly [string, string, string] }
 }
 
 export interface ThemeService {
@@ -752,19 +791,27 @@ export interface ThemeService {
   removeTheme(themeId: string): boolean
   /** 订阅主题变更事件。 */
   onThemeChange(listener: (theme: ThemeDefinition, scheme?: 'dark' | 'light') => void): Disposable
+  /** 返回所有已注册的主题包。ThemePack 推广期可选。 */
+  getPacks?(): readonly ThemePack[]
+  /** 一次注册整个包；重复注册会替换其变体，并重新应用正在生效的变体。 */
+  registerThemePack?(pack: ThemePack): Disposable
+  /** 移除整个包及其全部变体。内置包无法被移除。 */
+  removePack?(packId: string): boolean
 }
 ```
 
 | | 桌面端 (DOM) | Expo (Mobile / Native) |
 |---|---|---|
 | 底层实现 | `@BBeBee/plugin-theme` 通过 `applyThemeToDom` 向 `document.documentElement` 注入 CSS 自定义属性 | `@BBeBee/plugin-theme` 发出响应式主题快照供 `StyleSheet` 使用 |
-| 持久化 | `ctx.store` 的 key `theme_active_id`，自定义主题存储于 `theme_custom_themes` | `ctx.store` |
-| 内置主题 | `midnight-purple` (`Bee Music · Cyber Neon`)、`emerald-green` (`Emerald Green`)、`crimson-night` (`Crimson Night`)、`ocean-abyss` (`Ocean Abyss`) | 相同 |
-| 自定义主题 | 动态 JSON 导入（文件或文本），带有缺省令牌回退保护；可删除，且受回退机制保护 | 相同 |
+| 持久化 | `ctx.store` 的 key `theme_active_id`；包按来源分仓持久化 —— 自定义包存 `theme_packs_custom`、注册表包存 `theme_packs_registry`（旧的扁平 `theme_custom_themes` 在首次读新 key 时一次性迁移）。内置、插件与动态包仅驻内存 | `ctx.store` |
+| 内置主题 | `midnight-purple` (`Bee Music · Cyber Neon`)、`emerald-green` (`Emerald Green`)、`crimson-night` (`Crimson Night`)、`ocean-abyss` (`Ocean Abyss`) —— 各自成单变体包，仅在设置 UI 中同组展示 | 相同 |
+| 自定义主题 | 主题包或旧式单主题 JSON 导入（文件或文本），带有缺省令牌回退保护；可按变体或整包删除，且受回退机制保护 | 相同 |
 
 - **DOM 同步**：`plugin-theme` 计算 `themeToCssVariables(theme)` 并注入至根 HTML 元素，同时附加 `data-theme="{id}"`。
 - **内置主题保护**：`removeTheme(themeId)` 拒绝删除内置主题。若删除正在生效的自定义主题，会自动回退至默认主题（`midnight-purple`）。
-- **事件总线集成**：在激活主题变更时发出 `'theme/changed'`，在添加或移除主题时发出 `'theme/registry-changed'`。
+- **事件总线集成**：在激活主题变更时发出 `'theme/changed'`，在添加或移除主题时发出 `'theme/registry-changed'`，在包集合变化时发出 `'theme/packs-changed'`。
+- **来源与分类**：包的 `origin`（`builtin` / `plugin` / `custom` / `registry` / `dynamic`）决定其持久化仓与设置页分类（`themeCategoryOf`）：插件包（如 Catppuccin）归入内置（通用）组展示；`dynamic` 是主题服务按当前播放曲目的 `artwork.dominantColor` 实时再生成的封面包（见 [design-system.md §6.2](../ui/design-system.md)）。
+- **玻璃预设**：变体可携带 `effects.glass` —— 主题为磨砂组件表面*推荐*的数值。用户的 `AppSettings.glass` 永远优先于预设；操作系统窗口效果只是用户设置，主题无权更改窗口外观。
 
 ---
 
@@ -1000,7 +1047,7 @@ export interface PluginManagerService {
 
 ## 25. `ctx.contentRegistry` —— 第三方内容注册表
 
-**用途。** 第三方内容及其更新的应用内索引。社区注册表（[B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)，对标 DMS 纯元数据索引仓库 —— [sources/registry.md](../sources/registry.md)）索引四类可安装内容：音源、歌词源、主题与桌面插件。音源、歌词源与插件为指向原作者 GitHub 仓库的指针，主题则直接存放在注册表中。本服务通过 GitHub Contents API（离线回退到本地缓存）拉取该索引，将其与用户已安装内容比对，并经由各类型自己的服务完成安装 —— `ctx.sources.import`、`ctx.lyricSources.registerSource`、`ctx.theme.registerTheme`，以及桌面动态加载器。它刻意做成一个薄协调者：下游服务已校验的东西它不再校验，用户确认前必须看到的东西它也绝不隐藏。
+**用途。** 第三方内容及其更新的应用内索引。社区注册表（[B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)，对标 DMS 纯元数据索引仓库 —— [sources/registry.md](../sources/registry.md)）索引四类可安装内容：音源、歌词源、主题与桌面插件。音源、歌词源与插件为指向原作者 GitHub 仓库的指针，主题则直接存放在注册表中。本服务通过 GitHub Contents API（离线回退到本地缓存）拉取该索引，将其与用户已安装内容比对，并经由各类型自己的服务完成安装 —— `ctx.sources.import`、`ctx.lyricSources.registerSource`、`ctx.theme.registerThemePack`（主题包；旧宿主回退为逐变体 `registerTheme`），插件则走插件管理器。它刻意做成一个薄协调者：下游服务已校验的东西它不再校验，用户确认前必须看到的东西它也绝不隐藏。
 
 > ⚠️ **服务键是 `contentRegistry`，不是 `registry`。** 在 cordis 4 中，`registry` 这个键属于内核本身 —— 它的插件注册表服务，其方法以 `ctx.plugin` / `ctx.inject` 的形式暴露。
 
@@ -1078,7 +1125,7 @@ export interface RegistryService {
 | plugin 类安装 | 桌面动态加载宿主，由组合根经 `setPluginInstaller` 接入 | 不支持（桌面专属分发） |
 
 - **匹配语义**：音源按 `sourceUrl`（`SourceRecord` 的身份）匹配已安装记录；歌词源 / 主题 / 插件按各自 `id` 匹配。已安装副本版本低于条目 `version` 时产生一条 `RegistryUpdate`。
-- **各类型安装流程**：音源 → `ctx.sources.import`（完整导入管线，`originUri` = `downloadUrl`）；歌词源 → 形状校验后 `ctx.lyricSources.registerSource`；主题 → 与用户自建主题相同的暗/亮对比度门禁，然后 `ctx.theme.registerTheme`；插件 → 条目未发布 `sha256` 时拒绝安装，将下载包与摘要比对，再交给动态加载宿主。
+- **各类型安装流程**：音源 → `ctx.sources.import`（完整导入管线，`originUri` = `downloadUrl`）；歌词源 → 形状校验后 `ctx.lyricSources.registerSource`；主题 → 与用户自建主题相同的暗/亮对比度门禁，作用于包内**每一个变体**（任一变体不过门整包拒绝），然后以 `origin: 'registry'` 调用 `ctx.theme.registerThemePack`；插件 → 委托 `ctx['plugin-manager']`（npm 流程，见 [sources/registry.md §6](../sources/registry.md)）。
 - **安全红线**：`fetchEntryDetails()` 的存在就是为了让确认对话框在导入**之前**说出音源文档的 `allowedHosts`；插件安装校验 `sha256` 并要求明确的风险确认；下载插件经由 `@BBeBee/plugin-security-audit` 进行安全审计，检查 **13 条扫描规则（8 条静态规则 + 2 组动态扫描）**，完整性锁定在 `registry.lock.json` 中以检测篡改。
 - **自动检查**：`AppSettings.registryAutoCheck`（默认 `true`）—— 启动约 45 秒后首次检查，此后每 24 小时一次；手动检查不受影响。
 
