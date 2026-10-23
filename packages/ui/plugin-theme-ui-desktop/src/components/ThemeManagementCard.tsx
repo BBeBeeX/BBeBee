@@ -206,14 +206,14 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
     void settings?.update({ dynamicTheme: { ...current, ...patch } })
   }
 
-  const refreshBrowse = async () => {
+  const refreshBrowse = async (force = false) => {
     const registry = serviceOf<RegistryService>(ctx, 'contentRegistry')
     if (!registry?.getIndex) {
       setBrowseLoaded(true)
       return
     }
     try {
-      const index = await registry.getIndex()
+      const index = await registry.getIndex(force)
       setBrowseEntries(index.entries.filter((e) => e.kind === 'theme'))
       setBrowseError(null)
     } catch (err) {
@@ -548,10 +548,50 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
 
   const packsIn = (cat: ThemeCategory) => packs.filter((p) => categoryOfPack(p) === cat)
 
+  // The import entry lives at the top of every category panel: it used to
+  // sit only below the panel body, where long pack lists pushed it out of
+  // sight and users reported it missing from 通用/自动/浏览 entirely. Only
+  // one panel renders at a time, so the shared testid stays unique.
+  const importButton = () =>
+    h(
+      'button',
+      {
+        type: 'button',
+        'data-testid': 'import-theme-button',
+        onClick: () => {
+          setImportJson('')
+          setImportError(null)
+          setShowImportModal(true)
+        },
+        style: {
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '6px 14px',
+          borderRadius: 20,
+          borderWidth: 1,
+          borderStyle: 'dashed',
+          borderColor: 'var(--border-default, rgba(255, 255, 255, 0.25))',
+          background: 'var(--surface-1, rgba(255, 255, 255, 0.04))',
+          color: 'var(--text-secondary, #C5CAD8)',
+          cursor: 'pointer',
+          fontSize: 13,
+          transition: 'all 0.15s ease',
+          flexShrink: 0,
+        },
+      },
+      tablerIcon('plus', { size: 14 }),
+      t('theme:themeManagement.importTheme'),
+    )
+
+  const renderImportRow = () =>
+    h('div', { style: { display: 'flex', justifyContent: 'flex-end', marginBottom: 14 } }, importButton())
+
   const renderGeneral = (): ReactElement =>
     h(
       'div',
       { 'data-testid': 'theme-panel-builtin' },
+      renderImportRow(),
       packsIn('builtin').map((p) => renderPackGroup(p, false)),
     )
 
@@ -562,6 +602,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
     return h(
       'div',
       { 'data-testid': 'theme-panel-dynamic', style: { display: 'flex', flexDirection: 'column', gap: 14 } },
+      renderImportRow(),
       h(
         'div',
         { style: { display: 'flex', alignItems: 'center', gap: 12 } },
@@ -637,6 +678,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
     h(
       'div',
       { 'data-testid': 'theme-panel-custom' },
+      renderImportRow(),
       lastImportLabel
         ? h(
             'div',
@@ -682,7 +724,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
           {
             type: 'button',
             'data-testid': 'browse-refresh',
-            onClick: () => void refreshBrowse(),
+            onClick: () => void refreshBrowse(true),
             style: {
               display: 'inline-flex',
               alignItems: 'center',
@@ -702,6 +744,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
         browseError
           ? h('span', { style: { fontSize: 12, color: 'var(--color-error, #F43F5E)' } }, browseError)
           : null,
+        h('span', { style: { marginLeft: 'auto' } }, importButton()),
       ),
       installed.map((p) => renderPackGroup(p, true)),
       browseEntries.length === 0
@@ -730,19 +773,64 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
                     gap: 8,
                   },
                 },
-                h(
-                  'div',
-                  {
-                    style: {
-                      height: 64,
-                      borderRadius: 8,
-                      background:
-                        'linear-gradient(135deg, var(--surface-2, rgba(255,255,255,0.08)) 0%, var(--surface-1, rgba(255,255,255,0.03)) 100%)',
-                      border: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
-                    },
-                  },
-                ),
+                // Miniature window preview drawn from the pack's preview
+                // colours ([bg, surface, brand] from themes/index.json):
+                // bg frame, a surface window inset with a brand sidebar,
+                // and a brand player bar along the bottom. Falls back to a
+                // neutral gradient for entries without preview colours.
+                entry.previewColors
+                  ? h(
+                      'div',
+                      {
+                        'data-testid': `browse-preview-${entry.id}`,
+                        style: {
+                          height: 64,
+                          borderRadius: 8,
+                          background: entry.previewColors[0],
+                          border: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
+                          position: 'relative',
+                          overflow: 'hidden',
+                        },
+                      },
+                      h('div', {
+                        style: {
+                          position: 'absolute',
+                          inset: '8px 8px 16px 8px',
+                          borderRadius: 5,
+                          background: entry.previewColors[1],
+                          borderLeft: `10px solid ${entry.previewColors[2]}`,
+                          opacity: 0.92,
+                        },
+                      }),
+                      h('div', {
+                        style: {
+                          position: 'absolute',
+                          left: 8,
+                          right: 8,
+                          bottom: 6,
+                          height: 5,
+                          borderRadius: 3,
+                          background: entry.previewColors[2],
+                        },
+                      }),
+                    )
+                  : h('div', {
+                      style: {
+                        height: 64,
+                        borderRadius: 8,
+                        background:
+                          'linear-gradient(135deg, var(--surface-2, rgba(255,255,255,0.08)) 0%, var(--surface-1, rgba(255,255,255,0.03)) 100%)',
+                        border: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
+                      },
+                    }),
                 h('div', { style: { fontSize: 13, fontWeight: 600, color: 'var(--text-primary, #F5F5F7)' } }, entry.name ?? entry.id),
+                entry.variantCount && entry.variantCount > 1
+                  ? h(
+                      'div',
+                      { style: { fontSize: 11, color: 'var(--text-tertiary, #8B95B0)' } },
+                      `${t('theme:themeManagement.variantCount', { count: entry.variantCount })}${entry.variants?.length ? ` · ${entry.variants.map((v) => v.name).join(' / ')}` : ''}`,
+                    )
+                  : null,
                 entry.description
                   ? h('div', { style: { fontSize: 11, color: 'var(--text-secondary, #8E8E93)', lineHeight: 1.4 } }, entry.description)
                   : null,
@@ -1097,41 +1185,6 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
           : category === 'custom'
             ? renderCustom()
             : renderBrowse(),
-      // Import entry (always reachable; imported themes land in 自定义)
-      h(
-        'div',
-        { style: { display: 'flex', justifyContent: 'flex-end' } },
-        h(
-          'button',
-          {
-            type: 'button',
-            'data-testid': 'import-theme-button',
-            onClick: () => {
-              setImportJson('')
-              setImportError(null)
-              setShowImportModal(true)
-            },
-            style: {
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '6px 14px',
-              borderRadius: 20,
-              borderWidth: 1,
-              borderStyle: 'dashed',
-              borderColor: 'var(--border-default, rgba(255, 255, 255, 0.25))',
-              background: 'var(--surface-1, rgba(255, 255, 255, 0.04))',
-              color: 'var(--text-secondary, #C5CAD8)',
-              cursor: 'pointer',
-              fontSize: 13,
-              transition: 'all 0.15s ease',
-              flexShrink: 0,
-            },
-          },
-          tablerIcon('plus', { size: 14 }),
-          t('theme:themeManagement.importTheme'),
-        ),
-      ),
       renderGlass(),
     ),
     h(

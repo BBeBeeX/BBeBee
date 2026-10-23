@@ -66,7 +66,7 @@ afterEach(() => {
   cleanup()
 })
 
-async function harness() {
+async function harness(withRegistry = false) {
   const calls: string[] = []
   let currentSettings: AppSettings = { ...DEFAULT_APP_SETTINGS }
 
@@ -121,10 +121,35 @@ async function harness() {
     }
   }
 
+  class RegistryStub extends Service {
+    constructor(ctx: Context) {
+      super(ctx, 'contentRegistry')
+    }
+    getIndex = async () => ({
+      entries: [
+        {
+          id: 'deepmono',
+          kind: 'theme',
+          name: 'Deep Mono',
+          description: 'Monochrome pack',
+          version: '1.0.0',
+          variantCount: 2,
+          variants: [
+            { id: 'deepmono-graphite', name: 'Graphite', isDark: true },
+            { id: 'deepmono-paper', name: 'Paper', isDark: false },
+          ],
+          previewColors: ['#101014', '#1d1d22', '#e8e8e8'],
+        },
+      ],
+    })
+    install = async () => {}
+  }
+
   const root = new Context()
   await root.plugin(I18nStub)
   await root.plugin(SettingsStub)
   await root.plugin(ThemeStub)
+  if (withRegistry) await root.plugin(RegistryStub)
 
   let scoped: Context | undefined
   root.inject(['settings', 'theme'], (s) => void (scoped = s))
@@ -313,6 +338,29 @@ describe('ThemeManagementCard categories, packs and glass', () => {
       expect(queryByTestId('theme-option-acme-a')).toBeNull()
       expect(queryByTestId('theme-option-acme-b')).toBeNull()
     })
+  })
+
+  it('shows the import button at the top of every category panel', async () => {
+    const { ctx } = await harness()
+    const { getByTestId } = render(h(ThemeManagementCard, { ctx }))
+    for (const cat of ['builtin', 'dynamic', 'custom', 'registry'] as const) {
+      fireEvent.click(getByTestId(`theme-category-${cat}`))
+      const panel = getByTestId(`theme-panel-${cat}`)
+      const button = getByTestId('import-theme-button')
+      expect(panel.contains(button)).toBe(true)
+    }
+  })
+
+  it('renders browse previews from the entry preview colours', async () => {
+    const { ctx } = await harness(true)
+    const { getByTestId } = render(h(ThemeManagementCard, { ctx }))
+    fireEvent.click(getByTestId('theme-category-registry'))
+    await waitFor(() => {
+      expect(getByTestId('browse-preview-deepmono')).toBeTruthy()
+    })
+    const preview = getByTestId('browse-preview-deepmono')
+    expect(preview.style.background).toContain('rgb(16, 16, 20)')
+    expect(getByTestId('browse-theme-deepmono').textContent).toContain('Graphite')
   })
 
   it('writes glass window and component settings with per-surface overrides', async () => {
