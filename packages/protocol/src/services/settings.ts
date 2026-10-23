@@ -7,6 +7,7 @@
 import type {} from 'cordis'
 import type { Disposable } from '../common.js'
 import type { DesktopLyricsPosition } from './lyrics.js'
+import type { DynamicThemeScheme, ThemeCategory } from './theme.js'
 import type { SettingsContribution } from './ui.js'
 
 export type { SettingsContribution }
@@ -91,6 +92,81 @@ export interface VisualizerSettings {
  * reads this value into its logs; acceleration happens through
  * `githubAccelerationPrefixes`.
  */
+/** Dynamic (cover-derived) theme generation preferences. */
+export interface DynamicThemeSettings {
+  /** Matugen-style scheme algorithm used to expand the cover seed colour. */
+  scheme: DynamicThemeScheme
+  /**
+   * Contrast adjustment, -100 (least) to 100 (most), 0 = standard.
+   * Mirrors the Matugen contrast slider in the settings UI.
+   */
+  contrast: number
+  /** Theme variant id used when no track/cover is available. */
+  fallbackThemeId: string
+}
+
+/** OS window-level glass effect (layer "B" of the glass plan, desktop only). */
+export type WindowGlassEffect = 'auto' | 'acrylic' | 'mica' | 'vibrancy' | 'blur'
+
+export interface WindowGlassSettings {
+  /** Whether the OS window effect is on. Unsupported platforms ignore it. */
+  enabled: boolean
+  /** Effect kind; 'auto' resolves per platform (macOS vibrancy, Windows acrylic, Linux none). */
+  effect: WindowGlassEffect
+  /** Opacity of the window tint layer, 0–100. */
+  tintOpacity: number
+  /** Whether the window tint follows the active theme's brand colour. */
+  tintFollowTheme: boolean
+  /** Custom window tint hex colour, used when `tintFollowTheme` is false. */
+  tintColor?: string
+}
+
+/** Where the component glass layer's blurred backdrop comes from. */
+export type GlassAmbientSource = 'cover' | 'theme' | 'desktop' | 'none'
+
+/** Component-level glass preferences (layer "A" of the glass plan). */
+export interface ComponentGlassSettings {
+  /** Whether frosted component surfaces are on. */
+  enabled: boolean
+  /** Backdrop blur radius in px. */
+  blurPx: number
+  /** Backdrop saturation percentage (100 = unchanged). */
+  saturate: number
+  /** Glass surface opacity, 0–100. */
+  opacity: number
+  /** Glass border/highlight opacity, 0–100. */
+  borderOpacity: number
+  /** Backdrop source painted behind glass surfaces. */
+  ambientSource: GlassAmbientSource
+  /** Blur radius in px applied to the ambient backdrop itself. */
+  ambientBlurPx: number
+  /** Ambient backdrop opacity, 0–100. */
+  ambientOpacity: number
+}
+
+/** The glass surfaces that can override the global component values. */
+export type GlassSurfaceId = 'sidebar' | 'topbar' | 'player' | 'cards' | 'popovers'
+
+/** Per-surface glass overrides; absent fields inherit the global values. */
+export interface GlassSurfaceOverride {
+  blurPx?: number
+  saturate?: number
+  opacity?: number
+  borderOpacity?: number
+}
+
+/**
+ * Glassmorphism preferences. Two independent layers: `window` is the OS
+ * compositor effect (B), `components` is the in-app frosted-surface layer
+ * (A). A theme may recommend component values via its glass preset, but
+ * these user settings always win, and the window layer is user-only.
+ */
+export interface GlassSettings {
+  window: WindowGlassSettings
+  components: ComponentGlassSettings
+  surfaces: Partial<Record<GlassSurfaceId, GlassSurfaceOverride>>
+}
+
 export type DownloadRegion = 'global' | 'mainland-china'
 
 export type AudioOutputEngine = 'mpv' | 'wasapi'
@@ -102,6 +178,19 @@ export interface AppSettings {
   theme: 'dark' | 'light' | 'system'
   /** Color theme identifier (e.g. 'midnight-purple', 'emerald-green'). */
   themeId?: string
+  /**
+   * Which settings-page category the active theme belongs to
+   * ('builtin' | 'dynamic' | 'custom' | 'registry'). Orthogonal to the
+   * `theme` appearance mode: it records where the active variant came
+   * from and which tab the theme card opens on.
+   */
+  themeCategory?: ThemeCategory
+  /** Id of the theme pack the active variant belongs to, when known. */
+  themePackId?: string
+  /** Cover-derived dynamic theme preferences (the "自动" category). */
+  dynamicTheme: DynamicThemeSettings
+  /** Glassmorphism preferences (window layer B + component layer A). */
+  glass: GlassSettings
   /** Full-screen player style layout identifier (e.g. 'classic', 'cinematic'). */
   nowPlayingStyle: string
   /** User interface language. */
@@ -212,6 +301,32 @@ export interface AppSettings {
   visualizer: VisualizerSettings
 }
 
+export const DEFAULT_DYNAMIC_THEME_SETTINGS: DynamicThemeSettings = {
+  scheme: 'tonal-spot',
+  contrast: 0,
+  fallbackThemeId: 'midnight-purple',
+}
+
+export const DEFAULT_GLASS_SETTINGS: GlassSettings = {
+  window: {
+    enabled: false,
+    effect: 'auto',
+    tintOpacity: 72,
+    tintFollowTheme: true,
+  },
+  components: {
+    enabled: false,
+    blurPx: 20,
+    saturate: 160,
+    opacity: 78,
+    borderOpacity: 12,
+    ambientSource: 'cover',
+    ambientBlurPx: 40,
+    ambientOpacity: 55,
+  },
+  surfaces: {},
+}
+
 export const DEFAULT_VISUALIZER_SETTINGS: VisualizerSettings = {
   enabled: true,
   style: 'bars',
@@ -264,6 +379,14 @@ export const DEFAULT_USER_AGENT =
 export const DEFAULT_APP_SETTINGS: AppSettings = {
   theme: 'dark',
   themeId: 'midnight-purple',
+  themeCategory: 'builtin',
+  themePackId: 'midnight-purple',
+  dynamicTheme: { ...DEFAULT_DYNAMIC_THEME_SETTINGS },
+  glass: {
+    window: { ...DEFAULT_GLASS_SETTINGS.window },
+    components: { ...DEFAULT_GLASS_SETTINGS.components },
+    surfaces: {},
+  },
   nowPlayingStyle: 'cinematic',
   /**
    * New installs follow the OS language. `plugin-settings` merges stored

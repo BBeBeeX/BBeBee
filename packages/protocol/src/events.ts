@@ -46,7 +46,7 @@ import type { AppSettings, AudioOutputEngine, SettingsContribution } from './ser
 import type { SleepTimerState } from './services/sleep-timer.js'
 import type { DesktopLyricsState, LyricsState } from './services/lyrics.js'
 import type { MiniPlayerServiceState } from './services/mini-player.js'
-import type { ThemeDefinition } from './services/theme.js'
+import type { ThemeDefinition, ThemePack } from './services/theme.js'
 import type { NowPlayingStyleId, NowPlayingStyleMeta } from './services/now-playing.js'
 import type { LyricSourceDefinition } from './services/lyric-sources.js'
 import type { ShareTarget } from './services/share.js'
@@ -64,6 +64,7 @@ declare module 'cordis' {
     /* ── theme ───────────────────────────────────────── emit ── */
     'theme/changed'(theme: ThemeDefinition, scheme?: 'dark' | 'light'): void
     'theme/registry-changed'(themes: readonly ThemeDefinition[]): void
+    'theme/packs-changed'(packs: readonly ThemePack[]): void
     /* ── lyrics ──────────────────────────────────────── emit ── */
     'lyrics/changed'(state: LyricsState): void
     'lyrics/active-changed'(activeIndex: number): void

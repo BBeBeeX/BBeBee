@@ -88,6 +88,35 @@ function mergeSettings(base: AppSettings, patch?: Partial<AppSettings>): AppSett
       ...base.visualizer,
       ...(patch.visualizer ?? {}),
     },
+    // Theme category: same enum-guard treatment as downloadRegion — a
+    // value outside the known set falls back instead of leaking through.
+    themeCategory:
+      patch.themeCategory === undefined
+        ? base.themeCategory
+        : patch.themeCategory === 'builtin' ||
+            patch.themeCategory === 'dynamic' ||
+            patch.themeCategory === 'custom' ||
+            patch.themeCategory === 'registry'
+          ? patch.themeCategory
+          : DEFAULT_APP_SETTINGS.themeCategory,
+    dynamicTheme: {
+      ...(base.dynamicTheme ?? DEFAULT_APP_SETTINGS.dynamicTheme),
+      ...(patch.dynamicTheme ?? {}),
+    },
+    glass: {
+      window: {
+        ...(base.glass?.window ?? DEFAULT_APP_SETTINGS.glass.window),
+        ...(patch.glass?.window ?? {}),
+      },
+      components: {
+        ...(base.glass?.components ?? DEFAULT_APP_SETTINGS.glass.components),
+        ...(patch.glass?.components ?? {}),
+      },
+      surfaces: {
+        ...(base.glass?.surfaces ?? {}),
+        ...(patch.glass?.surfaces ?? {}),
+      },
+    },
   }
 }
 

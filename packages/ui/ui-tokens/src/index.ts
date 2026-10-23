@@ -244,7 +244,9 @@ export * from './themes/emerald-green.js'
 export * from './themes/crimson-night.js'
 export * from './themes/ocean-abyss.js'
 
-import type { ThemeDefinition } from '@BBeBee/protocol'
+import type { ThemeDefinition, ThemePack } from '@BBeBee/protocol'
+
+export * from './dynamic-theme.js'
 import { midnightPurpleTheme } from './themes/midnight-purple.js'
 import { emeraldGreenTheme } from './themes/emerald-green.js'
 import { crimsonNightTheme } from './themes/crimson-night.js'
@@ -256,6 +258,31 @@ export const builtInThemes: Record<string, ThemeDefinition> = {
   'crimson-night': crimsonNightTheme,
   'ocean-abyss': oceanAbyssTheme,
 }
+
+/**
+ * The built-in themes as packs. Per the ThemePack design decision each
+ * built-in theme is its own single-variant pack; grouping them under the
+ * settings page's "通用" (general) category is a UI concern, not a data
+ * one, so there is deliberately no umbrella built-in pack.
+ */
+export const builtInThemePacks: Record<string, ThemePack> = Object.fromEntries(
+  Object.values(builtInThemes).map((theme) => {
+    const variant: ThemeDefinition = { ...theme, packId: theme.id, origin: 'builtin' as const }
+    return [
+      theme.id,
+      {
+        id: theme.id,
+        name: theme.name,
+        description: theme.description,
+        origin: 'builtin' as const,
+        variants: [variant],
+        preview: {
+          colors: [theme.tokens.bg.primary, theme.tokens.surface.s1, theme.tokens.brand.primary] as const,
+        },
+      } satisfies ThemePack,
+    ]
+  }),
+)
 
 export const defaultTheme: ThemeDefinition = midnightPurpleTheme
 

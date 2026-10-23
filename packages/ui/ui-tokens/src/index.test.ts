@@ -22,6 +22,9 @@ import {
   themeToCssVariables,
   themeContrastIssues,
   applyThemeToDom,
+  builtInThemePacks,
+  generateThemeFromSeed,
+  type DynamicThemeScheme,
 } from './index.js'
 
 describe('parseHex', () => {
@@ -255,5 +258,65 @@ describe('Color Token System & Theme Management', () => {
     expect(el.setAttribute).toHaveBeenCalledWith('data-color-scheme', 'light')
     expect(el.style.colorScheme).toBe('light')
     expect(el.style.setProperty).toHaveBeenCalledWith('--bg-app', '#F0F4FC')
+  })
+})
+
+describe('builtInThemePacks', () => {
+  it('wraps every built-in theme as its own single-variant pack', () => {
+    expect(Object.keys(builtInThemePacks).sort()).toEqual(Object.keys(builtInThemes).sort())
+    for (const [id, pack] of Object.entries(builtInThemePacks)) {
+      expect(pack.id).toBe(id)
+      expect(pack.origin).toBe('builtin')
+      expect(pack.variants).toHaveLength(1)
+      expect(pack.variants[0]?.id).toBe(id)
+      expect(pack.variants[0]?.packId).toBe(id)
+      expect(pack.variants[0]?.origin).toBe('builtin')
+      expect(pack.preview?.colors).toEqual([
+        pack.variants[0]?.tokens.bg.primary,
+        pack.variants[0]?.tokens.surface.s1,
+        pack.variants[0]?.tokens.brand.primary,
+      ])
+    }
+  })
+})
+
+describe('generateThemeFromSeed', () => {
+  const seeds = ['#F38BA8', '#1DB954', '#FFD400', '#5F87FF', '#808080', '#0A0A0A', '#FFFFFF']
+  const schemes: DynamicThemeScheme[] = ['tonal-spot', 'vibrant', 'expressive', 'content', 'neutral']
+
+  it('passes the AA gate in both modes for every seed and scheme', () => {
+    for (const seed of seeds) {
+      for (const scheme of schemes) {
+        const theme = generateThemeFromSeed(seed, { scheme })
+        expect(themeContrastIssues(theme, 'dark'), `${seed}/${scheme}/dark`).toEqual([])
+        expect(themeContrastIssues(theme, 'light'), `${seed}/${scheme}/light`).toEqual([])
+      }
+    }
+  })
+
+  it('passes the AA gate at the contrast extremes', () => {
+    for (const contrast of [-100, 100]) {
+      const theme = generateThemeFromSeed('#F38BA8', { contrast })
+      expect(themeContrastIssues(theme, 'dark'), `dark/${contrast}`).toEqual([])
+      expect(themeContrastIssues(theme, 'light'), `light/${contrast}`).toEqual([])
+    }
+  })
+
+  it('is deterministic and marks the result as a dynamic pack variant', () => {
+    const a = generateThemeFromSeed('#5F87FF')
+    const b = generateThemeFromSeed('#5F87FF')
+    expect(a).toEqual(b)
+    expect(a.id).toBe('dynamic-cover')
+    expect(a.packId).toBe('dynamic-cover')
+    expect(a.origin).toBe('dynamic')
+    expect(a.lightTokens).toBeDefined()
+  })
+
+  it('schemes and contrast actually change the output', () => {
+    const base = generateThemeFromSeed('#1DB954')
+    const vibrant = generateThemeFromSeed('#1DB954', { scheme: 'vibrant' })
+    const highContrast = generateThemeFromSeed('#1DB954', { contrast: 100 })
+    expect(vibrant.tokens.brand.primary).not.toBe(base.tokens.brand.primary)
+    expect(highContrast.tokens.text.primary).not.toBe(base.tokens.text.primary)
   })
 })
