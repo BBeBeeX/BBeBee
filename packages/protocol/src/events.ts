@@ -300,6 +300,7 @@ export const DISPATCH_MODES = {
   'settings/contributions-changed': 'emit',
   'theme/changed': 'emit',
   'theme/registry-changed': 'emit',
+  'theme/packs-changed': 'emit',
   'mini-player/changed': 'emit',
   'now-playing/style-changed': 'emit',
   'now-playing/registry-changed': 'emit',
