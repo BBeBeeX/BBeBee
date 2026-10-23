@@ -384,3 +384,40 @@ describe('resolveGlassVariables', () => {
     expect(vars['--glass-window-tint']).toContain('60%')
   })
 })
+
+describe('resolveGlassVariables variable references', () => {
+  it('only references CSS variables that themeToCssVariables actually emits', () => {
+    const glassOn = {
+      window: { enabled: true, effect: 'auto' as const, tintOpacity: 72, tintFollowTheme: true },
+      components: {
+        enabled: true,
+        blurPx: 20,
+        saturate: 160,
+        opacity: 78,
+        borderOpacity: 12,
+        ambientSource: 'cover' as const,
+        ambientBlurPx: 40,
+        ambientOpacity: 55,
+      },
+      surfaces: {},
+    }
+    const vars = resolveGlassVariables(midnightPurpleTheme, glassOn)
+    const emitted = new Set(Object.keys(themeToCssVariables(midnightPurpleTheme, 'dark')))
+    // --glass-ambient-color is injected at runtime by plugin-theme (the
+    // playing cover's seed colour); every other referenced variable must
+    // be a real theme variable, or the whole declaration containing it is
+    // invalid at computed-value time (this is what silently killed the
+    // ambient layer: it referenced --brand-primary / --brand-accent,
+    // which do not exist — the brand variables are --primary / --accent).
+    const runtimeInjected = new Set(['--glass-ambient-color'])
+    const referenced = new Set<string>()
+    for (const value of Object.values(vars)) {
+      for (const m of value.matchAll(/var\((--[a-z-]+)/g)) referenced.add(m[1]!)
+    }
+    expect(referenced.size).toBeGreaterThan(0)
+    for (const name of referenced) {
+      if (runtimeInjected.has(name)) continue
+      expect(emitted.has(name), `${name} must be emitted by themeToCssVariables`).toBe(true)
+    }
+  })
+})

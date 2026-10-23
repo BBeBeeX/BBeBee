@@ -97,7 +97,7 @@ export function resolveGlassVariables(
   if (glass?.window?.enabled) {
     vars['--glass-window-bg'] = 'transparent'
     vars['--glass-window-tint'] = glass.window.tintFollowTheme
-      ? `color-mix(in srgb, var(--brand-primary) ${glass.window.tintOpacity}%, transparent)`
+      ? `color-mix(in srgb, var(--primary) ${glass.window.tintOpacity}%, transparent)`
       : `color-mix(in srgb, ${glass.window.tintColor ?? '#000000'} ${glass.window.tintOpacity}%, transparent)`
   }
 
@@ -123,8 +123,8 @@ export function resolveGlassVariables(
   // disabled layer emit nothing.
   if (components.ambientSource === 'cover' || components.ambientSource === 'theme') {
     vars['--glass-ambient-bg'] =
-      'radial-gradient(120% 120% at 15% 0%, var(--glass-ambient-color, var(--brand-primary)) 0%, transparent 55%), ' +
-      'radial-gradient(100% 100% at 85% 100%, var(--brand-accent, var(--brand-primary)) 0%, transparent 50%)'
+      'radial-gradient(120% 120% at 15% 0%, var(--glass-ambient-color, var(--primary)) 0%, transparent 55%), ' +
+      'radial-gradient(100% 100% at 85% 100%, var(--accent, var(--primary)) 0%, transparent 50%)'
     vars['--glass-ambient-blur'] = `${components.ambientBlurPx}px`
     vars['--glass-ambient-opacity'] = `${components.ambientOpacity / 100}`
   }
