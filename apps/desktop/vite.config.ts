@@ -146,6 +146,11 @@ export default defineConfig({
     // pre-bundled. cordis would be discovered on its own; the two
     // workspace packages are linked deps, which vite only pre-bundles
     // when they are included explicitly.
+    // Caveat: vite's dep-cache hash does not cover linked packages'
+    // sources, so a pulled protocol change (e.g. a new export) leaves a
+    // stale pre-bundle that fails at runtime with "does not provide an
+    // export named …". The dev script therefore runs `vite --force`
+    // (see package.json "dev:frontend") — do not remove the flag.
     include: ['cordis', '@BBeBee/protocol', '@BBeBee/toolkit/hooks'],
   },
   server: {
