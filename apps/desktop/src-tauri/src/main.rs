@@ -62,6 +62,7 @@ fn main() {
             window_is_maximized, desktop_window_is_maximized,
             window_set_close_to_tray, desktop_window_set_close_to_tray,
             window_toggle, desktop_window_toggle,
+            window_set_glass, desktop_window_set_glass,
             // Desktop lyrics
             desktop_lyrics_set_visible,
             desktop_lyrics_get_data, desktop_lyrics_set_locked,

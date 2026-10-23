@@ -20,6 +20,7 @@ import type {
   AppSettings,
   Disposable,
   DynamicThemeSettings,
+  GlassSettings,
   PlayerService,
   ThemeDefinition,
   ThemePack,
@@ -31,6 +32,7 @@ import {
   builtInThemes,
   defaultTheme,
   generateThemeFromSeed,
+  resolveGlassVariables,
 } from '@BBeBee/ui-tokens'
 import { THEME_VIEWS } from './views.js'
 
@@ -65,6 +67,9 @@ export class ThemePlugin extends Service implements ThemeService {
   private dynamicSeed = defaultTheme.tokens.brand.primary
   private dynamicCacheKey = ''
   private playerWired = false
+  private glassSettings: GlassSettings | undefined
+  private glassSignature = ''
+  private appliedGlassKeys = new Set<string>()
 
   constructor(ctx: Context) {
     super(ctx, 'theme')
@@ -453,6 +458,14 @@ export class ThemePlugin extends Service implements ThemeService {
         this.refreshDynamicPack()
       }
     }
+    if (s.glass) {
+      const signature = JSON.stringify(s.glass)
+      if (signature !== this.glassSignature) {
+        this.glassSignature = signature
+        this.glassSettings = s.glass
+        changed = true
+      }
+    }
     if (changed && !initial) {
       this.applyActiveTheme()
       this.ownCtx.emit('theme/changed', this.getCurrentTheme(), this.getEffectiveScheme())
@@ -494,6 +507,29 @@ export class ThemePlugin extends Service implements ThemeService {
     const base = this.registry.get(this.activeThemeId) ?? defaultTheme
     const effectiveScheme = this.getEffectiveScheme()
     applyThemeToDom(base, effectiveScheme)
+    this.applyGlassVariables(base)
+  }
+
+  /**
+   * Diffs the resolved `--glass-*` variables onto `:root`. Surfaces read
+   * them with solid fallbacks, so an empty resolution (glass off) simply
+   * removes every variable again. The ambient colour follows the dynamic
+   * seed when the ambient source is the playing cover.
+   */
+  private applyGlassVariables(base: ThemeDefinition): void {
+    if (typeof document === 'undefined' || !document.documentElement?.style) return
+    const vars = resolveGlassVariables(base, this.glassSettings)
+    if (this.glassSettings?.components?.ambientSource === 'cover' && vars['--glass-ambient-bg']) {
+      vars['--glass-ambient-color'] = this.dynamicSeed
+    }
+    const style = document.documentElement.style
+    for (const key of this.appliedGlassKeys) {
+      if (!(key in vars)) style.removeProperty(key)
+    }
+    for (const [key, value] of Object.entries(vars)) {
+      style.setProperty(key, value)
+    }
+    this.appliedGlassKeys = new Set(Object.keys(vars))
   }
 }
 

@@ -248,7 +248,12 @@ var __BBeBeePreloadShim = (() => {
         close: () => invoke("desktop_window_close"),
         isMaximized: () => invoke("desktop_window_is_maximized").then((res) => Boolean(res)),
         setCloseToTray: (enabled) => invoke("desktop_window_set_close_to_tray", { enabled: Boolean(enabled) }),
-        toggle: () => invoke("desktop_window_toggle")
+        toggle: () => invoke("desktop_window_toggle"),
+        setGlass: (effect, tintColor, tintOpacity) => invoke("desktop_window_set_glass", {
+          effect,
+          tintColor: tintColor ?? null,
+          tintOpacity: tintOpacity ?? null
+        }).then((res) => Boolean(res))
       },
       proxy: {
         test: (config) => invoke("desktop_proxy_test", { config }),

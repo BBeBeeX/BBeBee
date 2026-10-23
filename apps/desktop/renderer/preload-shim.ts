@@ -80,6 +80,11 @@ export interface BBeBeeWindowApi {
   isMaximized(): Promise<boolean>
   setCloseToTray(enabled: boolean): Promise<void>
   toggle(): Promise<void>
+  /**
+   * Applies the OS window glass effect (layer B). `effect: 'off'` clears
+   * it. Resolves false when the platform has no such effect.
+   */
+  setGlass(effect: string, tintColor?: string, tintOpacity?: number): Promise<boolean>
 }
 
 export interface BBeBeeProxyApi {
@@ -479,6 +484,12 @@ export function createPreloadApi(
       setCloseToTray: (enabled: boolean): Promise<void> =>
         invoke('desktop_window_set_close_to_tray', { enabled: Boolean(enabled) }),
       toggle: (): Promise<void> => invoke('desktop_window_toggle'),
+      setGlass: (effect: string, tintColor?: string, tintOpacity?: number): Promise<boolean> =>
+        invoke('desktop_window_set_glass', {
+          effect,
+          tintColor: tintColor ?? null,
+          tintOpacity: tintOpacity ?? null,
+        }).then((res) => Boolean(res)),
     },
     proxy: {
       test: (config: unknown): Promise<{ ok: boolean; latencyMs?: number; error?: string }> =>

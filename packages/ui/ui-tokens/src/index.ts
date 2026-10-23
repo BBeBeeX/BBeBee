@@ -247,6 +247,7 @@ export * from './themes/ocean-abyss.js'
 import type { ThemeDefinition, ThemePack } from '@BBeBee/protocol'
 
 export * from './dynamic-theme.js'
+export * from './glass.js'
 import { midnightPurpleTheme } from './themes/midnight-purple.js'
 import { emeraldGreenTheme } from './themes/emerald-green.js'
 import { crimsonNightTheme } from './themes/crimson-night.js'

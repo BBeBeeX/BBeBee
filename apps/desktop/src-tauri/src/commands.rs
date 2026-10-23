@@ -149,6 +149,91 @@ pub fn desktop_window_toggle(app: tauri::AppHandle) -> Result<(), String> {
     window_toggle(app)
 }
 
+/// Parses a `#rrggbb` tint colour. Anything else is an error — the
+/// renderer passes either a protocol hex colour or nothing.
+fn parse_tint_color(value: &str) -> Result<(u8, u8, u8), String> {
+    let hex = value.trim().strip_prefix('#').unwrap_or(value.trim());
+    if hex.len() != 6 || !hex.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err(format!("invalid tint colour: {value}"));
+    }
+    let parse = |s: &str| u8::from_str_radix(s, 16).map_err(|e| e.to_string());
+    Ok((parse(&hex[0..2])?, parse(&hex[2..4])?, parse(&hex[4..6])?))
+}
+
+/// Resolves the renderer's glass effect name to the platform effect.
+/// `auto` follows the platform (macOS vibrancy material, Windows
+/// acrylic); Linux has no compositor effect in Tauri and resolves to
+/// `None` (the renderer's component glass still applies).
+fn resolve_window_effect(effect: &str) -> Option<tauri::window::Effect> {
+    use tauri::window::Effect;
+    match effect {
+        "acrylic" => Some(Effect::Acrylic),
+        "mica" => Some(Effect::Mica),
+        "blur" => Some(Effect::Blur),
+        "vibrancy" => Some(Effect::ContentBackground),
+        "auto" => {
+            if cfg!(target_os = "macos") {
+                Some(Effect::ContentBackground)
+            } else if cfg!(target_os = "windows") {
+                Some(Effect::Acrylic)
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+/// Applies (or clears) the OS window glass effect — layer "B" of the
+/// glass plan. The renderer drives this from `settings.glass.window`;
+/// the window itself is created transparent so effects can show
+/// through, and the renderer's root background stays opaque whenever
+/// no effect is active.
+///
+/// Returns `true` when an effect was applied, `false` when the effect
+/// resolved to nothing on this platform (a supported no-op, not an
+/// error).
+#[tauri::command]
+pub fn window_set_glass(
+    window: tauri::WebviewWindow,
+    effect: String,
+    tint_color: Option<String>,
+    tint_opacity: Option<u8>,
+) -> Result<bool, String> {
+    if effect == "off" || effect.is_empty() {
+        window
+            .set_effects(None::<tauri::utils::config::WindowEffectsConfig>)
+            .map_err(|e| e.to_string())?;
+        return Ok(false);
+    }
+    let Some(resolved) = resolve_window_effect(&effect) else {
+        eprintln!("[cmd:window_set_glass] effect '{effect}' unsupported on this platform; no-op");
+        return Ok(false);
+    };
+    let mut builder = tauri::window::EffectsBuilder::new().effect(resolved);
+    if let Some(hex) = tint_color.as_deref().filter(|s| !s.is_empty()) {
+        let (r, g, b) = parse_tint_color(hex)?;
+        let alpha = ((tint_opacity.unwrap_or(72) as u16 * 255) / 100) as u8;
+        builder = builder.color(tauri::window::Color(r, g, b, alpha));
+    }
+    window.set_effects(builder.build()).map_err(|e| {
+        let err = HostError::internal(format!("set window glass failed: {e}"));
+        eprintln!("[cmd:window_set_glass] {err}");
+        host_err(err)
+    })?;
+    Ok(true)
+}
+
+#[tauri::command]
+pub fn desktop_window_set_glass(
+    window: tauri::WebviewWindow,
+    effect: String,
+    tint_color: Option<String>,
+    tint_opacity: Option<u8>,
+) -> Result<bool, String> {
+    window_set_glass(window, effect, tint_color, tint_opacity)
+}
+
 // =============================================================================
 // Desktop Lyrics Commands
 // =============================================================================

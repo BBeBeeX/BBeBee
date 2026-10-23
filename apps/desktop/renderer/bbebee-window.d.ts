@@ -25,6 +25,7 @@ declare global {
         isMaximized(): Promise<boolean>
         setCloseToTray?(enabled: boolean): Promise<void>
         toggle?(): Promise<void>
+        setGlass?(effect: string, tintColor?: string, tintOpacity?: number): Promise<boolean>
       }
       proxy?: {
         test(config: unknown): Promise<{ ok: boolean; latencyMs?: number; error?: string }>

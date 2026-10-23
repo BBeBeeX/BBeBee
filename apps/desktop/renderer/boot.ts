@@ -687,10 +687,25 @@ export async function boot(): Promise<App> {
 
 function wireSettingsSync(app: App): void {
   app.ctx.inject(['settings', 'audio', 'http'], (scoped) => {
+    let lastGlassSignature = ''
     const sync = (s: AppSettings | undefined) => {
       if (!s) return
       if (s.closeToTray !== undefined) {
         void window.BBeBee?.window?.setCloseToTray?.(s.closeToTray)
+      }
+      // Window glass (layer B): settings.glass.window drives the native
+      // OS effect through the shim; signature-guarded so unrelated
+      // settings changes do not re-invoke it.
+      if (s.glass?.window) {
+        const w = s.glass.window
+        const signature = JSON.stringify(w)
+        if (signature !== lastGlassSignature) {
+          lastGlassSignature = signature
+          const tint = w.tintFollowTheme ? undefined : w.tintColor
+          void window.BBeBee?.window
+            ?.setGlass?.(w.enabled ? w.effect : 'off', tint, w.tintOpacity)
+            ?.catch(() => {})
+        }
       }
       if (s.proxy) {
         void window.BBeBee?.proxy?.set?.(s.proxy)

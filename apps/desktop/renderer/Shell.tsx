@@ -1102,7 +1102,7 @@ export function Shell({ ctx }: { ctx: Context }) {
         minHeight: '100vh',
         width: '100%',
         overflow: 'hidden',
-        background: 'var(--bg-app, #05060B)',
+        background: 'var(--glass-window-bg, var(--bg-app, #05060B))',
       },
     },
     h(
@@ -1121,13 +1121,31 @@ export function Shell({ ctx }: { ctx: Context }) {
           transition: isDragging ? 'none' : 'grid-template-columns 0.28s cubic-bezier(0.2, 0, 0, 1)',
         },
       },
+      // Glass ambient layer: the backdrop the frosted surfaces blur. It
+      // only exists visually when plugin-theme has resolved --glass-*
+      // variables (glass off = fully transparent, zero-cost).
+      h('div', {
+        'data-testid': 'glass-ambient-layer',
+        'aria-hidden': true,
+        style: {
+          position: 'absolute',
+          inset: -24,
+          background: 'var(--glass-ambient-bg, none)',
+          filter: 'blur(var(--glass-ambient-blur, 0px))',
+          opacity: 'var(--glass-ambient-opacity, 0)',
+          pointerEvents: 'none',
+          zIndex: 0,
+        },
+      }),
       h(
         'nav',
         {
           style: {
             borderRadius: 8,
             padding: LibraryView ? 0 : 12,
-            background: 'var(--bg-primary, #080A12)',
+            background: 'var(--glass-sidebar-bg, var(--bg-primary, #080A12))',
+            backdropFilter: 'var(--glass-sidebar-filter, none)',
+            WebkitBackdropFilter: 'var(--glass-sidebar-filter, none)',
             border: '1px solid var(--border-subtle, rgba(148,163,184,0.08))',
             minHeight: 0,
             overflowY: 'auto',
@@ -1135,6 +1153,7 @@ export function Shell({ ctx }: { ctx: Context }) {
             display: 'flex',
             flexDirection: 'column',
             position: 'relative',
+            zIndex: 1,
           },
         },
         isMac && !isFullscreen && libraryMode !== 'expanded'
@@ -1299,11 +1318,14 @@ export function Shell({ ctx }: { ctx: Context }) {
             {
               style: {
                 borderRadius: 8,
-                background: 'var(--bg-primary, #080A12)',
+                background: 'var(--glass-main-bg, var(--bg-primary, #080A12))',
+                backdropFilter: 'var(--glass-main-filter, none)',
+                WebkitBackdropFilter: 'var(--glass-main-filter, none)',
                 border: '1px solid var(--border-subtle, rgba(148,163,184,0.08))',
                 overflow: 'hidden',
                 minHeight: 0,
                 position: 'relative',
+                zIndex: 1,
                 display: 'flex',
                 flexDirection: 'column',
               },
@@ -1421,7 +1443,9 @@ export function Shell({ ctx }: { ctx: Context }) {
                 width: queueWidth ?? QUEUE_DRAWER_WIDTH,
                 zIndex: isFullscreenNowPlaying ? 120 : 40,
                 borderRadius: 8,
-                background: 'var(--bg-primary, #080A12)',
+                background: 'var(--glass-popovers-bg, var(--bg-primary, #080A12))',
+                backdropFilter: 'var(--glass-popovers-filter, none)',
+                WebkitBackdropFilter: 'var(--glass-popovers-filter, none)',
                 border: '1px solid var(--border-subtle, rgba(148,163,184,0.08))',
                 boxShadow: '0 16px 40px rgba(0, 0, 0, 0.45)',
                 overflow: 'hidden',
@@ -1486,7 +1510,9 @@ export function Shell({ ctx }: { ctx: Context }) {
           'footer',
           {
             style: {
-              background: 'var(--player-bg, var(--bg-app, #05060B))',
+              background: 'var(--glass-player-bg, var(--player-bg, var(--bg-app, #05060B)))',
+              backdropFilter: 'var(--glass-player-filter, none)',
+              WebkitBackdropFilter: 'var(--glass-player-filter, none)',
               border: 'none',
               borderTop: 'none',
               borderBottom: 'none',

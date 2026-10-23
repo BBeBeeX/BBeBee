@@ -24,6 +24,7 @@ import {
   applyThemeToDom,
   builtInThemePacks,
   generateThemeFromSeed,
+  resolveGlassVariables,
   type DynamicThemeScheme,
 } from './index.js'
 
@@ -318,5 +319,68 @@ describe('generateThemeFromSeed', () => {
     const highContrast = generateThemeFromSeed('#1DB954', { contrast: 100 })
     expect(vibrant.tokens.brand.primary).not.toBe(base.tokens.brand.primary)
     expect(highContrast.tokens.text.primary).not.toBe(base.tokens.text.primary)
+  })
+})
+
+describe('resolveGlassVariables', () => {
+  const glassOn = {
+    window: { enabled: false, effect: 'auto' as const, tintOpacity: 72, tintFollowTheme: true },
+    components: {
+      enabled: true,
+      blurPx: 20,
+      saturate: 160,
+      opacity: 78,
+      borderOpacity: 12,
+      ambientSource: 'cover' as const,
+      ambientBlurPx: 40,
+      ambientOpacity: 55,
+    },
+    surfaces: {},
+  }
+
+  it('emits nothing when glass is off and the theme has no preset', () => {
+    expect(resolveGlassVariables(midnightPurpleTheme, undefined)).toEqual({})
+    expect(
+      resolveGlassVariables(midnightPurpleTheme, { ...glassOn, components: { ...glassOn.components, enabled: false } }),
+    ).toEqual({})
+  })
+
+  it('resolves global and per-surface variables from user settings', () => {
+    const vars = resolveGlassVariables(midnightPurpleTheme, glassOn)
+    expect(vars['--glass-sidebar-filter']).toBe('blur(20px) saturate(160%)')
+    expect(vars['--glass-player-bg']).toContain('78%')
+    expect(vars['--glass-ambient-opacity']).toBe('0.55')
+  })
+
+  it('a theme preset enables the layer and user values win over it', () => {
+    const presetTheme = {
+      ...midnightPurpleTheme,
+      effects: { glass: { blurPx: 8, saturate: 120, opacity: 60, borderOpacity: 10 } },
+    }
+    const fromPreset = resolveGlassVariables(presetTheme, undefined)
+    expect(fromPreset['--glass-sidebar-filter']).toBe('blur(8px) saturate(120%)')
+    const fromUser = resolveGlassVariables(presetTheme, glassOn)
+    expect(fromUser['--glass-sidebar-filter']).toBe('blur(20px) saturate(160%)')
+  })
+
+  it('per-surface overrides beat global values', () => {
+    const vars = resolveGlassVariables(midnightPurpleTheme, {
+      ...glassOn,
+      surfaces: { sidebar: { blurPx: 6, opacity: 50 } },
+    })
+    expect(vars['--glass-sidebar-filter']).toBe('blur(6px) saturate(160%)')
+    expect(vars['--glass-sidebar-bg']).toContain('50%')
+    expect(vars['--glass-player-filter']).toBe('blur(20px) saturate(160%)')
+  })
+
+  it('window glass emits a transparent root background and a tint', () => {
+    const vars = resolveGlassVariables(midnightPurpleTheme, {
+      ...glassOn,
+      components: { ...glassOn.components, enabled: false },
+      window: { enabled: true, effect: 'acrylic' as const, tintOpacity: 60, tintFollowTheme: false, tintColor: '#112233' },
+    })
+    expect(vars['--glass-window-bg']).toBe('transparent')
+    expect(vars['--glass-window-tint']).toContain('#112233')
+    expect(vars['--glass-window-tint']).toContain('60%')
   })
 })
