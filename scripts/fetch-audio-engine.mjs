@@ -313,13 +313,16 @@ async function main() {
       }
       console.log(`[fetch-audio-engine] Desktop assets staged successfully.`)
     } else if (target.type === 'mobile') {
-      const mobileBase = join(rootDir, 'apps', 'mobile', 'third-party', 'audio-engine')
+      // Mobile assets stage into the repo-root resources/ area — the same place
+      // the Expo config plugin (apps/mobile/plugins/with-audio-engine.js) and
+      // the desktop packager consume prebuilt audio-engine binaries from.
+      const mobileBase = join(rootDir, 'resources')
       console.log(`[fetch-audio-engine] Staging mobile assets -> ${mobileBase}`)
 
       // Android arm64-v8a
       try {
         const androidArm64Archive = fetchAsset('audio-engine-android-arm64-v8a.zip', checksums)
-        const androidArm64Dest = join(mobileBase, 'android', 'arm64-v8a')
+        const androidArm64Dest = join(mobileBase, 'android-arm64-v8a')
         const tmpAndroidArm64 = join(cacheDir, `tmp_android_arm64_${Date.now()}`)
         try {
           extractArchive(androidArm64Archive, tmpAndroidArm64)
@@ -335,7 +338,7 @@ async function main() {
       // Android x86_64
       try {
         const androidX86Archive = fetchAsset('audio-engine-android-x86_64.zip', checksums)
-        const androidX86Dest = join(mobileBase, 'android', 'x86_64')
+        const androidX86Dest = join(mobileBase, 'android-x86_64')
         const tmpAndroidX86 = join(cacheDir, `tmp_android_x86_${Date.now()}`)
         try {
           extractArchive(androidX86Archive, tmpAndroidX86)

@@ -39,3 +39,5 @@ apps/mobile/.expo/devices.json
 resources/windows/
 resources/macos/
 resources/linux/
+resources/android*/
+resources/ios/

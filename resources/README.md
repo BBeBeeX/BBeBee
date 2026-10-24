@@ -24,6 +24,14 @@ All platform directories under `resources/` must contain the **full self-contain
   - Extracted from `audio-engine-linux-x64.tar.gz`
   - Contains `audio-engine` executable + `libmpv.so.2` + the complete transitive `.so` dependency closure (~260+ shared libraries).
   - 存放全量 Linux 产物：`audio-engine` 可执行程序、`libmpv.so.2` 以及完整的传递依赖 `.so` 共享库闭包。
+- **`resources/android-arm64-v8a/`**, **`resources/android-x86_64/`**: Android per-ABI native libraries
+  - Extracted from `audio-engine-android-<abi>.zip`
+  - Contains `libbbebee_audio_jni.so` (JSI/JNI bridge) + `libmpv.so`; bundled by the Expo config plugin (`apps/mobile/plugins/with-audio-engine.js`) into `android/app/src/main/jniLibs/<abi>/` at prebuild time.
+  - 存放 Android 各 ABI 的原生库：JNI/JSI 桥接库与 `libmpv.so`，移动端打包时由 Expo config plugin 复制进 `jniLibs`。
+- **`resources/ios/`**: iOS frameworks & static libraries
+  - Extracted from `audio-engine-ios.xcframework.zip`
+  - Contains `mpv.framework` (dynamic, linked **and embedded** into the app bundle) + `BBeBeeAudioBridge.xcframework` (static, linked only); wired into the Xcode project by the same Expo config plugin.
+  - 存放 iOS 产物：动态框架 `mpv.framework`（链接并嵌入 app 包）与静态库 `BBeBeeAudioBridge.xcframework`（仅链接），打包时由 Expo config plugin 注入 Xcode 工程。
 
 ---
 
@@ -36,6 +44,8 @@ All platform directories under `resources/` must contain the **full self-contain
 2. **Packaging Parity (保证打包自包含)**:
    The Tauri build pipeline (`apps/desktop/scripts/package-desktop.js`) directly stages all binaries and dynamic libraries from `resources/<platform>/` into the final installers (`.deb`, `.appimage`, `.nsis`, `.dmg`). Using full packages guarantees that distributed desktop application bundles are completely self-contained.
    Tauri 桌面端打包脚本会直接将 `resources/<platform>/` 下的所有文件打入最终安装包，全量包能够保证打包发布的独立自包含性。
+   On mobile, the Expo config plugin (`apps/mobile/plugins/with-audio-engine.js`) consumes `resources/android-<abi>/` and `resources/ios/` at prebuild time so `expo run:android` / `expo run:ios` (and release builds on top of them) always carry the engine for the corresponding platform.
+   移动端则在 prebuild 时由 Expo config plugin 读取 `resources/android-<abi>/` 与 `resources/ios/`，使 `expo run:android` / `expo run:ios` 及其发布构建始终带上对应平台的音频引擎。
 
 ---
 
@@ -59,6 +69,9 @@ Run the fetch script from the repository root:
 ```bash
 # Automatically downloads full packages, verifies SHA256, and extracts into resources/<platform>/ and apps/desktop/bin
 pnpm fetch:audio-engine --app desktop --full-only
+
+# Mobile: stages android ABIs + iOS frameworks into resources/android-<abi>/ and resources/ios/
+pnpm fetch:audio-engine --app mobile
 ```
 
 Or via Node directly:
