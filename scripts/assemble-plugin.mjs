@@ -104,7 +104,9 @@ function hostPeerDependencies() {
       peers[pkg] = `^${reactMajor}.0.0`
       continue
     }
-    let version = null
+    // No initializer: every path assigns before the first read below
+    // (try success, or the catch on a missing/unreadable package).
+    let version
     try {
       version = desktopRequire(`${pkg}/package.json`).version ?? null
     } catch {
