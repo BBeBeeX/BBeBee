@@ -145,7 +145,7 @@ export interface RegistryService {
 
 ## 5. 安装流程、作者仓库制品链与安全体系
 
-注册表建立了一套覆盖发现、下载、静态安全审计、确认对话框与本地防篡改锁定的完整安全门禁体系：
+注册表建立了一套覆盖发现、下载、静态安全审计、确认对话框与召回（封禁/下架）的完整安全门禁体系：
 
 安装链路的每个阶段（下载/校验/安装）在执行时向任务中心（§4）上报；诊断重扫（`rescanEntry`）走相同的拉取路径但不上报。
 
@@ -168,25 +168,26 @@ export interface RegistryService {
 
 ### 5.3 静态安全审计（`ctx.securityAudit`）
 
-内置 `@BBeBee/plugin-security-audit` 插件（Layer 4）转出 `packages/feature/toolkit` 中的扫描器（`scanCode`）。它先跑 **8 条静态正则规则**，再做 **2 组动态扫描** —— 合计 13 个 rule id：
+内置 `@BBeBee/plugin-security-audit` 插件（Layer 4）转出 `packages/feature/toolkit` 中的扫描器（`scanCode`）。它先跑 **9 条静态正则规则**，再做 **2 组动态扫描** —— 合计 14 个 rule id。告警策略（2026-10-24）：只有不透明载荷导入与泄露凭证会阻断安装，其余只警告 —— 这些正则只是评审辅助，不是隔离手段，打包后的生产代码也常常触发它们。
 
 静态规则（正则；每处命中记一条 finding）：
 
-- `eval-function-constructor` —— `eval()`、`new Function()`、`window/globalThis.eval()`（block）。
-- `dynamic-code-execution` —— 字符串代码形态的 `setTimeout`/`setInterval`、`vm.runIn*` / `new vm.Script`、`require('vm')`（block）。
+- `eval-function-constructor` —— `eval()`、`new Function()`、`window/globalThis.eval()`（warn）。
+- `dynamic-code-execution` —— 字符串代码形态的 `setTimeout`/`setInterval`、`vm.runIn*` / `new vm.Script`、`require('vm')`（warn）。
 - `credential-private-key` —— `-----BEGIN … PRIVATE KEY-----` 私钥块（block）。
 - `credential-api-token` —— 高风险平台令牌（`ghp_…`、`github_pat_…`、`AKIA…`、`sk-…`）（block）。
 - `credential-generic-secret` —— 赋给 `api_key` / `secret_key` / `private_key` / `auth_token` 这类键的长字面量（warn）。
-- `prototype-pollution` —— 对 `__proto__`、`Object.prototype`、`constructor.prototype` 的改写（block）。
+- `prototype-pollution` —— 对 `__proto__`、`Object.prototype`、`constructor.prototype` 的改写（warn）。
 - `remote-dynamic-import` —— 指向远端 URL 或不确定目标的动态 `import()`（block）。
-- `obfuscation-packer` —— 已知 JS packer / 混淆器包装特征（`eval(function(p,a,c,k,e,d/r)…`）（block）。
+- `data-blob-dynamic-import` —— 字面量 `data:`/`blob:` 载荷的动态 `import()`，没有主机可供出站规则判断（block）。
+- `obfuscation-packer` —— 已知 JS packer / 混淆器包装特征（`eval(function(p,a,c,k,e,d/r)…`）（warn）。
 
 动态扫描组：
 
-- **未声明出站** —— `undeclared-host-egress`：代码中的 URL 字面量，其主机不在条目声明的 `allowedHosts` 内（block）。
-- **混淆特征** —— 四个 id：`obfuscation-dense-hex`（密集 `\x` 转义；≥ 3 次 warn，≥ 6 次 block）、`obfuscation-dense-unicode`（密集 `\u00…` 转义，warn）、`obfuscation-packer-identifiers`（`_0x…` 标识符群，block）、`high-entropy-string`（40+ 字符字面量中香农熵 ≥ 4.8，warn）。
+- **未声明出站** —— `undeclared-host-egress`：代码中的 URL 字面量，其主机不在条目声明的 `allowedHosts` 内（warn；真正强制出站的是运行时能力门，不是这条静态启发式）。
+- **混淆特征** —— 四个 id：`obfuscation-dense-hex`（密集 `\x` 转义；≥ 3 次 warn，密集 ≥ 6 次同样 warn）、`obfuscation-dense-unicode`（密集 `\u00…` 转义，warn）、`obfuscation-packer-identifiers`（`_0x…` 标识符群，warn）、`high-entropy-string`（40+ 字符字面量中香农熵 ≥ 4.8，warn）。
 
-findings 标记为 `block`（高危）或 `warn`（可疑）。只要存在任何 `block` 级 finding，默认拒绝安装。
+findings 标记为 `block`（高危）或 `warn`（可疑）。只要存在任何 `block` 级 finding，默认拒绝安装；仅有 `warn` 级 finding 时记日志、安装继续进行，确认按钮也不禁用。
 
 ### 5.4 安装前审计确认对话框
 
@@ -194,9 +195,9 @@ findings 标记为 `block`（高危）或 `warn`（可疑）。只要存在任�
 - **安全审计报告（Security Audit Report）**：展示审计等级徽标（`通过 (Pass)` / `警告 (Warn)` / `高危风险 (Block)`）并逐条列出发现问题（类别、等级、代码片段、行号）。
 - **作者仓库与 Commit**：展示代码仓库直链与 commit SHA。
 - **提交差异（Commit Diff）**：更新时展示提交哈希前进差异（如 `a1b2c3d → e4f5g6h`）。
-- **阻断门禁（Block Gating）**：审计等级为 `block` 时确认按钮默认禁用 —— 即"用户显式确认高危风险"红线（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)（L2））；桌面 UI 以 `我已知晓高危风险并确认强制安装` 覆写复选框实现它。
+- **阻断门禁（Block Gating）**：审计等级为 `block` 时确认按钮默认禁用 —— 即"用户显式确认高危风险"红线（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)（L2））；桌面 UI 以 `我已知晓高危风险并确认强制安装` 覆写复选框实现它。仅有 `warn` 级 finding 时确认按钮保持可用。
 
-### 5.5 `registry.lock.json` 防篡改锁定管理
+### 5.5 `registry.lock.json` 安装记录管理
 
 - **路径**：App 用户数据目录下的 `registry.lock.json`（同时同步到 `ctx.store` 的 `registry.lock`）。
 - **数据格式**：
@@ -215,7 +216,8 @@ findings 标记为 `block`（高危）或 `warn`（可疑）。只要存在任�
     }
   }
   ```
-- **加载防篡改校验**：桌面端动态加载器（`apps/desktop/renderer/dynamic-loader.ts`）在应用启动或加载第三方插件时，重新计算入口文件 SHA-256 并与 `registry.lock.json` 比对。若哈希不符（文件遭外部篡改），标记为 `quarantined`（隔离）并拒绝加载，防止恶意代码注入。
+- **适用范围**：上述锁记录覆盖音源、歌词源与主题。`kind: "plugin"` 的记录是**历史遗留** —— 由已退役的 GitHub 打包安装流程写入；锁管理器仍会读取它们（安装状态匹配、诊断），但不再写入新的。npm 安装的插件由 plugin-manager 记录在自己的 store（`npm:installed`，仅 tarball `sha256`）中，不在这里。
+- **启动时校验（仅召回）**：桌面端动态加载器（`apps/desktop/renderer/dynamic-loader.ts`）在启动时只在记录带有召回标记时隔离插件 —— 注册表封禁（`blocked`）或下架（`delisted`）。原先的启动时篡改比对（重算 SHA-256 与锁比对）已于 2026-10-24 移除。
 
 ### 5.6 下载区域与 GitHub 加速
 

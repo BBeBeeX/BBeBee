@@ -4,7 +4,7 @@ Rules governing music source documents, rule engines, QuickJS sandboxing, and au
 
 > **L2 · When to read**: when writing music-source JSON, modifying the source runtime/sandbox, or touching the third-party registry and install chain.
 > **What goes wrong without it**: credentials written into source documents, the `allowedHosts` disclosure red line breached, sources packaged as plugins, the registry model misunderstood (a four-directory enumeration, not a single-file index).
-> **Deeper reading**: docs/sources/spec.md (model and fields), rule-engines.md (the rule language), runtime.md (sandbox and limits), registry.md (the registry and install flows, including the 13-rule security scan list), parameters.md (parameters and the lyric-source sandbox).
+> **Deeper reading**: docs/sources/spec.md (model and fields), rule-engines.md (the rule language), runtime.md (sandbox and limits), registry.md (the registry and install flows, including the 14-rule security scan list), parameters.md (parameters and the lyric-source sandbox).
 
 ---
 

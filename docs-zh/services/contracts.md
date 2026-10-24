@@ -1126,7 +1126,7 @@ export interface RegistryService {
 
 - **匹配语义**：音源按 `sourceUrl`（`SourceRecord` 的身份）匹配已安装记录；歌词源 / 主题 / 插件按各自 `id` 匹配。已安装副本版本低于条目 `version` 时产生一条 `RegistryUpdate`。
 - **各类型安装流程**：音源 → `ctx.sources.import`（完整导入管线，`originUri` = `downloadUrl`）；歌词源 → 形状校验后 `ctx.lyricSources.registerSource`；主题 → 与用户自建主题相同的暗/亮对比度门禁，作用于包内**每一个变体**（任一变体不过门整包拒绝），然后以 `origin: 'registry'` 调用 `ctx.theme.registerThemePack`；插件 → 委托 `ctx['plugin-manager']`（npm 流程，见 [sources/registry.md §6](../sources/registry.md)）。
-- **安全红线**：`fetchEntryDetails()` 的存在就是为了让确认对话框在导入**之前**说出音源文档的 `allowedHosts`；插件安装校验 `sha256` 并要求明确的风险确认；下载插件经由 `@BBeBee/plugin-security-audit` 进行安全审计，检查 **13 条扫描规则（8 条静态规则 + 2 组动态扫描）**，完整性锁定在 `registry.lock.json` 中以检测篡改。
+- **安全红线**：`fetchEntryDetails()` 的存在就是为了让确认对话框在导入**之前**说出音源文档的 `allowedHosts`；插件安装校验 tarball `sha256` 并要求明确的风险确认；下载插件经由 `@BBeBee/plugin-security-audit` 进行安全审计，检查 **14 条扫描规则（9 条静态规则 + 2 组动态扫描）** —— 只有不透明载荷导入（远端/`data:`/`blob:`）与泄露凭证会阻断安装，其余只警告 —— 已安装插件通过注册表 `blocked`/`delisted` 召回，不再做启动时哈希比对（启动时篡改链已于 2026-10-24 移除）。
 - **自动检查**：`AppSettings.registryAutoCheck`（默认 `true`）—— 启动约 45 秒后首次检查，此后每 24 小时一次；手动检查不受影响。
 
 ### 25.1 伴生服务 `ctx.registryMetadata`

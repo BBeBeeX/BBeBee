@@ -283,25 +283,26 @@ artifact chain is the npm flow described in §6 and [loading.md
 
 ### 5.3 Static Security Audit (`ctx.securityAudit`)
 
-The built-in `@BBeBee/plugin-security-audit` plugin (Layer 4) re-exports the scanner in `packages/feature/toolkit` (`scanCode`). It runs **8 static regex rules** followed by **2 dynamic scan groups** — 13 rule ids in all:
+The built-in `@BBeBee/plugin-security-audit` plugin (Layer 4) re-exports the scanner in `packages/feature/toolkit` (`scanCode`). It runs **9 static regex rules** followed by **2 dynamic scan groups** — 14 rule ids in all. Advisory policy (2026-10-24): only opaque payload imports and leaked credentials block; the rest warn — those regexes are a review aid, not containment, and bundled production code trips them.
 
 Static rules (regex; one finding per match):
 
-- `eval-function-constructor` — `eval()`, `new Function()`, `window/globalThis.eval()` (block).
-- `dynamic-code-execution` — string-code `setTimeout`/`setInterval`, `vm.runIn*` / `new vm.Script`, `require('vm')` (block).
+- `eval-function-constructor` — `eval()`, `new Function()`, `window/globalThis.eval()` (warn).
+- `dynamic-code-execution` — string-code `setTimeout`/`setInterval`, `vm.runIn*` / `new vm.Script`, `require('vm')` (warn).
 - `credential-private-key` — `-----BEGIN … PRIVATE KEY-----` blocks (block).
 - `credential-api-token` — high-risk platform tokens (`ghp_…`, `github_pat_…`, `AKIA…`, `sk-…`) (block).
 - `credential-generic-secret` — long literals assigned to `api_key` / `secret_key` / `private_key` / `auth_token` style keys (warn).
-- `prototype-pollution` — mutations to `__proto__`, `Object.prototype`, `constructor.prototype` (block).
+- `prototype-pollution` — mutations to `__proto__`, `Object.prototype`, `constructor.prototype` (warn).
 - `remote-dynamic-import` — dynamic `import()` of remote URLs or indeterminate targets (block).
-- `obfuscation-packer` — known JS packer / obfuscation wrapper signatures (`eval(function(p,a,c,k,e,d/r)…`) (block).
+- `data-blob-dynamic-import` — dynamic `import()` of a literal `data:`/`blob:` payload, which carries no host for the egress rules to judge (block).
+- `obfuscation-packer` — known JS packer / obfuscation wrapper signatures (`eval(function(p,a,c,k,e,d/r)…`) (warn).
 
 Dynamic scan groups:
 
-- **Undeclared egress** — `undeclared-host-egress`: URL literals in the code whose host is not in the entry's declared `allowedHosts` (block).
-- **Obfuscation features** — four ids: `obfuscation-dense-hex` (dense `\x` escapes; warn at ≥ 3 occurrences, block at ≥ 6), `obfuscation-dense-unicode` (dense `\u00…` escapes, warn), `obfuscation-packer-identifiers` (`_0x…` identifier swarms, block), `high-entropy-string` (Shannon entropy ≥ 4.8 in a 40+ character literal, warn).
+- **Undeclared egress** — `undeclared-host-egress`: URL literals in the code whose host is not in the entry's declared `allowedHosts` (warn; the runtime capability gate, not this heuristic, enforces actual egress).
+- **Obfuscation features** — four ids: `obfuscation-dense-hex` (dense `\x` escapes; warn at ≥ 3 occurrences and at dense ≥ 6), `obfuscation-dense-unicode` (dense `\u00…` escapes, warn), `obfuscation-packer-identifiers` (`_0x…` identifier swarms, warn), `high-entropy-string` (Shannon entropy ≥ 4.8 in a 40+ character literal, warn).
 
-Findings are tagged as `block` (critical) or `warn` (suspicious). If any finding is at `block` level, installation is blocked by default.
+Findings are tagged as `block` (critical) or `warn` (suspicious). If any finding is at `block` level, installation is blocked by default; `warn` findings are logged and leave the install (and the confirm button below) enabled.
 
 ### 5.4 Pre-Installation Audit Confirmation Dialog
 
@@ -309,9 +310,9 @@ Before any installation or update proceeds, the desktop UI (`packages/ui/plugin-
 - **Security Audit Report**: Displays an audit severity badge (`Pass` / `Warn` / `Block`) and lists individual findings (category, severity, code snippet, line number).
 - **Author repository & commit**: Shows the source repository link and commit SHA (source/lyric/theme entries). For plugin entries it shows the npm package name, the resolved version, required `services`, supported `platforms`, and the dependency closure — no repo/commit, since the npm packument is the version truth.
 - **Commit Diff**: For updates, displays the commit progression (e.g., `a1b2c3d → e4f5g6h`); for plugins, the version progression instead.
-- **Block Gating**: a `block` audit disables the confirm button by default — the explicit-risk-confirmation red line (see the spec at [rules/sources.md §6](../../rules/sources.md#6-registry-third-party-registry) (L2)); the desktop UI implements it as the "I acknowledge the high-risk findings and confirm forced installation" override checkbox.
+- **Block Gating**: a `block` audit disables the confirm button by default — the explicit-risk-confirmation red line (see the spec at [rules/sources.md §6](../../rules/sources.md#6-registry-third-party-registry) (L2)); the desktop UI implements it as the "I acknowledge the high-risk findings and confirm forced installation" override checkbox. A `warn`-only audit leaves the confirm button enabled.
 
-### 5.5 `registry.lock.json` Anti-Tampering Management
+### 5.5 `registry.lock.json` Install Records
 
 - **Location**: Stored in the App User Data directory as `registry.lock.json` (also mirrored in `ctx.store` under `registry.lock`).
 - **Format**:
