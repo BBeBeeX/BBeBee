@@ -451,15 +451,16 @@ export interface PluginManagerService {
    * The npm `dist-tags.latest` version of one package, for display on the
    * Discover page (a plugin card's title version, and the "latest version"
    * badge of an installed plugin with an update). Packuments are cached by
-   * the npm client, so repeated calls for the visible cards are cheap.
+   * the npm client, so repeated calls for the visible cards are cheap;
+   * `force` skips that cache for a refresh, which must show live data.
    * Never throws: a failed lookup degrades to `undefined` and the caller
    * renders without a version rather than breaking the page.
    */
-  getNpmLatest?(npmName: string): Promise<string | undefined>
+  getNpmLatest?(npmName: string, force?: boolean): Promise<string | undefined>
 
   /**
    * Updates one plugin to the newest version satisfying `range`
-   * (default `^<installed>`). A major-version bump without an explicit range
+   * (default same-major: `>=<installed> <(major+1).0.0`). A major-version bump without an explicit range
    * throws a `MAJOR_UPDATE_NEEDS_CONFIRM` error so the UI can ask first.
    * On activation failure every replaced node of the closure is rolled back
    * to its previous version (files and lock records restored, best-effort).

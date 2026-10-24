@@ -12,6 +12,7 @@ import { DEFAULT_APP_SETTINGS } from '@BBeBee/protocol'
 import type {
   AppSettings,
   I18nService,
+  InstallPlan,
   LyricSourceDefinition,
   PluginInfo,
   RegistryEntry,
@@ -242,7 +243,7 @@ interface RegistryStubOptions {
   /** False removes the optional task-center methods entirely (quiet-degrade path). */
   taskMethods?: boolean
   /** Install plan `fetchEntryDetails` answers with (plugin details only). */
-  plan?: import('@BBeBee/protocol').InstallPlan
+  plan?: InstallPlan
 }
 
 function makeMetadataStub(
@@ -309,7 +310,7 @@ function makeRegistryStub(options: RegistryStubOptions = {}) {
         ...(options.plan ? { plan: options.plan } : {}),
       }
     },
-    install: async (entry: RegistryEntry, opts?: { confirmed?: boolean; overwrite?: boolean; plan?: import('@BBeBee/protocol').InstallPlan }) => {
+    install: async (entry: RegistryEntry, opts?: { confirmed?: boolean; overwrite?: boolean; plan?: InstallPlan }) => {
       calls.push(`install:${entry.id}:${String(opts?.confirmed ?? false)}${opts?.overwrite ? ':overwrite' : ''}${opts?.plan ? `:plan:${opts.plan.target.version}` : ''}`)
     },
     lastIndexFetchFailed: () => options.offline ?? false,
@@ -441,8 +442,9 @@ async function harness(options: RegistryStubOptions & { appVersion?: string } = 
       this.appCtx = ctx
     }
     list = () => installed.plugins
-    getNpmLatest = async (npm: string): Promise<string | undefined> => {
+    getNpmLatest = async (npm: string, force?: boolean): Promise<string | undefined> => {
       registry.calls.push(`npm-latest:${npm}`)
+      if (force) registry.calls.push(`npm-latest-force:${npm}`)
       return options.pluginLatest?.[npm]
     }
     setEnabled = async (id: string, enabled: boolean) => {
@@ -745,6 +747,19 @@ describe('RegistryScreen', () => {
     fireEvent.click(getByTestId('registry-confirm-accept'))
     await waitFor(() => expect(calls).toContain('install:plugin-ok:true:plan:1.2.0'))
     expect(queryByTestId('registry-confirm-dialog')).toBeNull()
+  })
+
+  it('refresh re-asks plugin latest versions with force', async () => {
+    const { ctx, calls } = await harness()
+    const { getByTestId, findByTestId } = render(h(RegistryScreen, { ctx }))
+
+    fireEvent.click(getByTestId('registry-tab-plugin'))
+    await findByTestId('registry-entry-plugin-ok')
+    await waitFor(() => expect(calls).toContain('npm-latest:@bbebee/plugin-ok'))
+    expect(calls).not.toContain('npm-latest-force:@bbebee/plugin-ok')
+
+    fireEvent.click(getByTestId('registry-refresh'))
+    await waitFor(() => expect(calls).toContain('npm-latest-force:@bbebee/plugin-ok'))
   })
 
   it('shows the allowed hosts prominently for a music source install', async () => {

@@ -2224,6 +2224,21 @@ describe('plugin-manager getNpmLatest', () => {
     })
     await expect(w.plugin.getNpmLatest('@t/b')).resolves.toBeUndefined()
   })
+
+  it('force skips a stale packument cache entry', async () => {
+    const w = createNpmWorld()
+    w.routes.set(`https://registry.npmjs.org/${encodeURIComponent('@t/a')}`, {
+      status: 200,
+      json: async () => ({ 'dist-tags': { latest: '2.0.0' }, versions: {} }),
+    })
+    const store = (w.ctx as any).store
+    await store.set('npm:packument:@t/a', {
+      value: { 'dist-tags': { latest: '1.0.0' }, versions: {} },
+      fetchedAt: Date.now(),
+    })
+    await expect(w.plugin.getNpmLatest('@t/a')).resolves.toBe('1.0.0')
+    await expect(w.plugin.getNpmLatest('@t/a', true)).resolves.toBe('2.0.0')
+  })
 })
 
 describe('plugin-manager local package import', () => {

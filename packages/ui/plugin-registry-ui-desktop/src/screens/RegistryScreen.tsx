@@ -270,6 +270,10 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
   const [index, setIndex] = useState<RegistryIndex | undefined>(undefined)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  // Bumped by the refresh button: the plugin-latest hook re-asks every
+  // visible package with force, so refresh covers versions too — the
+  // index alone carries no plugin version to refresh.
+  const [latestSignal, setLatestSignal] = useState(0)
   const [offlineCache, setOfflineCache] = useState(false)
   const [serviceMissing, setServiceMissing] = useState(false)
 
@@ -724,7 +728,7 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
     () => visible.filter((entry) => entry.kind === 'plugin'),
     [visible],
   )
-  const pluginLatest = usePluginLatestVersions(ctx, visiblePluginEntries)
+  const pluginLatest = usePluginLatestVersions(ctx, visiblePluginEntries, latestSignal)
 
   // Display states: the derived states, with plugin updates overlaid from
   // npm latest — the derivation itself cannot see npm, because plugin
@@ -894,7 +898,10 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
           {
             type: 'button',
             'data-testid': 'registry-refresh',
-            onClick: () => void readIndex(true),
+            onClick: () => {
+              setLatestSignal((s) => s + 1)
+              void readIndex(true)
+            },
             disabled: refreshing || loading,
             className: 'bbreg-btn bbreg-btn-ghost',
             style: { ...headerButtonStyle, opacity: refreshing || loading ? 0.6 : 1 },
