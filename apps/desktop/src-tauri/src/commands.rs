@@ -198,6 +198,7 @@ fn apply_window_glass(
     effect: &str,
     tint_color: Option<String>,
     tint_opacity: Option<u8>,
+    clear_first: bool,
 ) -> Result<bool, String> {
     if effect == "off" || effect.is_empty() {
         window
@@ -218,12 +219,16 @@ fn apply_window_glass(
         let alpha = ((tint_opacity.unwrap_or(72) as u16 * 255) / 100) as u8;
         builder = builder.color(tauri::window::Color(r, g, b, alpha));
     }
-    // Clear before applying. On Windows the effect kinds attach through
-    // different DWM state (acrylic via the accent policy, mica via the
-    // system-backdrop type); applying one over the other without a
-    // reset can silently keep the old effect, which reads as "the
-    // effect switch did nothing".
-    let _ = window.set_effects(None::<tauri::utils::config::WindowEffectsConfig>);
+    // Clear before applying when the caller asks for it. On Windows the
+    // effect kinds attach through different DWM state (acrylic via the
+    // accent policy, mica via the system-backdrop type); applying one
+    // over the other without a reset can silently keep the old effect,
+    // which reads as "the effect switch did nothing". The drag-restore
+    // path passes false: it re-applies identical settings, and the
+    // redundant clear frame is itself visible flicker on the blur path.
+    if clear_first {
+        let _ = window.set_effects(None::<tauri::utils::config::WindowEffectsConfig>);
+    }
     window.set_effects(builder.build()).map_err(|e| {
         let err = HostError::internal(format!("set window glass failed: {e}"));
         eprintln!("[cmd:window_set_glass] {err}");
@@ -247,7 +252,9 @@ pub fn window_set_glass(
 ) -> Result<bool, String> {
     // The renderer is the source of truth for the active glass; remember
     // it so a drag-suspended effect can be restored (see below).
-    let applied = apply_window_glass(&window, &effect, tint_color.clone(), tint_opacity)?;
+    // A user-driven change always clears first (effect-type switches
+    // need the reset).
+    let applied = apply_window_glass(&window, &effect, tint_color.clone(), tint_opacity, true)?;
     let state = window.app_handle().state::<AppState>();
     if applied {
         *lock_recover(&state.glass_settings) = Some((effect, tint_color, tint_opacity));
@@ -272,9 +279,16 @@ pub fn desktop_window_set_glass(
 /// and restores it once the move/resize stream settles. The legacy
 /// blur-behind path (Windows `blur`) recomposites per frame during a
 /// drag and visibly flickers; removing the effect for the drag's
-/// duration and re-applying it 200ms after the last move event is the
+/// duration and re-applying it after the stream settles is the
 /// standard mitigation, and it costs nothing for the compositor-native
 /// acrylic/mica paths. No-op when no glass is active.
+///
+/// Deliberately quiet: suspension touches only the effect (the shadow
+/// stays off, so no frame redraw is spent on it), and the restore
+/// re-applies identical settings without the clear-first step — each
+/// redundant clear/apply/shadow frame is itself visible flicker on
+/// the blur path, and a drag with pauses would otherwise flash on
+/// every pause/resume cycle and on straggler move events after release.
 pub fn suspend_glass_for_drag(window: &tauri::Window) {
     let app = window.app_handle();
     let state = app.state::<AppState>();
@@ -283,13 +297,11 @@ pub fn suspend_glass_for_drag(window: &tauri::Window) {
     }
     if !state.glass_suspended.swap(true, Ordering::SeqCst) {
         let _ = window.set_effects(None::<tauri::utils::config::WindowEffectsConfig>);
-        #[cfg(target_os = "windows")]
-        let _ = window.set_shadow(true);
     }
     let seq = state.glass_move_seq.fetch_add(1, Ordering::SeqCst) + 1;
     let handle = app.clone();
     tauri::async_runtime::spawn(async move {
-        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
         let state = handle.state::<AppState>();
         if state.glass_move_seq.load(Ordering::SeqCst) != seq {
             return;
@@ -301,7 +313,7 @@ pub fn suspend_glass_for_drag(window: &tauri::Window) {
             return;
         };
         if let Some(main) = handle.get_webview_window("main") {
-            let _ = apply_window_glass(&main, &effect, tint_color, tint_opacity);
+            let _ = apply_window_glass(&main, &effect, tint_color, tint_opacity, false);
         }
     });
 }
