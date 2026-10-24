@@ -353,6 +353,8 @@ export class DocumentSource {
    */
   private realm: JsRealm | undefined
   private realmSetup: Promise<JsRealm> | undefined
+  /** The `src` host of the current realm, so each evaluation can reset its HTTP budget. */
+  private sourceHost: { resetHttpCallCount(): void } | undefined
   private readonly hostCache = new Map<string, unknown>()
   /**
    * Set only while `debug()` runs.
@@ -426,6 +428,10 @@ export class DocumentSource {
     if (!this.deps.js) return undefined
     return async (expression, scope) => {
       const realm = await this.realmFor()
+      // Fresh HTTP budget per evaluation (docs/06 §8): a rule that loops
+      // src.get gets 8 calls, not an unbounded crawl, and the next rule
+      // starts from zero again.
+      this.sourceHost?.resetHttpCallCount()
       /*
        * Wrapped in a function, not evaluated bare.
        *
@@ -541,6 +547,7 @@ export class DocumentSource {
       },
     })
 
+    this.sourceHost = host
     for (const [name, fn] of Object.entries(host.functions)) {
       realm.expose(name, fn as (...args: unknown[]) => unknown)
     }

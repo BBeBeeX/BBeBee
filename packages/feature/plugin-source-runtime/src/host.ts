@@ -101,8 +101,21 @@ class SourceCache {
  * into the realm individually, so what crosses the boundary is a call and a
  * cloned value — never a host object a script could hold on to.
  */
+/**
+ * Cap on `src.get` / `src.post` calls inside one `@js:` evaluation
+ * (docs/06 §8). Host-side pipeline fetches (searchUrl, album, track list,
+ * lyrics) do not go through here and are not counted: this budget exists
+ * for the one place stranger code can itself drive HTTP — a rule that
+ * loops `src.get` to turn one search into a crawl.
+ *
+ * Counted only after the allowlist passes, so a probe at an undeclared
+ * host still fails with the allowlist error rather than the budget error.
+ */
+export const MAX_SRC_HTTP_CALLS_PER_EVALUATION = 8
+
 export function createSourceHost(deps: HostDeps) {
   const cache = new SourceCache()
+  let httpCallCount = 0
 
   const request = async (
     method: 'GET' | 'POST',
@@ -115,6 +128,11 @@ export function createSourceHost(deps: HostDeps) {
     // one a template rendered. This is the check that keeps the sandbox from
     // being a containment story with a hole in the middle.
     deps.assertAllowed(target.url)
+    if (++httpCallCount > MAX_SRC_HTTP_CALLS_PER_EVALUATION) {
+      throw new Error(
+        `src HTTP budget exceeded: at most ${MAX_SRC_HTTP_CALLS_PER_EVALUATION} src.get/src.post calls per @js: evaluation`,
+      )
+    }
 
     const fetched = await fetchDocument(
       deps.http,
@@ -135,6 +153,15 @@ export function createSourceHost(deps: HostDeps) {
 
   return {
     cache,
+    /**
+     * Reset the per-evaluation HTTP budget. Called by the runtime before
+     * each `realm.eval`, so each rule evaluation gets its own 8 calls.
+     * Concurrent evaluations on one realm share the counter — the budget
+     * is a crawl brake, not a precise accounting under concurrency.
+     */
+    resetHttpCallCount: () => {
+      httpCallCount = 0
+    },
     /** Installed one by one into the realm. Names match docs/06 §8 exactly. */
     functions: {
       __src_get: (url: unknown, opts: unknown) =>

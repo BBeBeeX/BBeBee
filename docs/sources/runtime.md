@@ -503,7 +503,7 @@ The gating norm — outbound requests checked against the manifest's `allowedHos
 | **Host allowlist** | `sourceUrl`'s host plus `allowedHosts`, matched on hostname | Exfiltration to an attacker-controlled endpoint. A URL to any other host is refused with `CapabilityError`, whether it was written literally or computed at runtime |
 | Wall clock per rule | 2 s (10 s for `@js:` with network) | A rule that hangs the search |
 | Memory per evaluation | 32 MB | A source that OOMs the app |
-| HTTP calls per rule | 8 — ⚠️ **not yet enforced**; no counter exists | A rule that turns one search into a crawl |
+| HTTP calls per rule | 8 `src.get`/`src.post` calls per `@js:` evaluation, enforced in `plugin-source-runtime` (`host.ts` counts after the allowlist passes; the runtime resets the counter before each `realm.eval`) | A rule that turns one search into a crawl |
 | Output size per rule | 1 MB | A selector that returns an entire page into a table cell |
 | Concurrency | `concurrentRate`, default conservative | The user's IP getting banned by their own server |
 | `webView` option | Desktop only, off by default, per-source opt-in with a warning | A full browser context with the user's session, reachable from a pasted string |
