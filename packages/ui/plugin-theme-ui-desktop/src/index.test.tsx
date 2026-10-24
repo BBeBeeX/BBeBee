@@ -180,6 +180,7 @@ describe('ThemeManagementCard', () => {
       h(ThemeManagementCard, { ctx }),
     )
 
+    fireEvent.click(getByTestId('theme-category-custom'))
     fireEvent.click(getByTestId('import-theme-button'))
     expect(getAllByText('Import theme').length).toBeGreaterThanOrEqual(1)
 
@@ -313,6 +314,7 @@ describe('ThemeManagementCard categories, packs and glass', () => {
   it('imports a multi-variant pack JSON into the custom category and deletes the pack', async () => {
     const { ctx, calls } = await harness()
     const { getByTestId, queryByTestId } = render(h(ThemeManagementCard, { ctx }))
+    fireEvent.click(getByTestId('theme-category-custom'))
     fireEvent.click(getByTestId('import-theme-button'))
     fireEvent.change(getByTestId('import-theme-textarea'), {
       target: {
@@ -340,15 +342,18 @@ describe('ThemeManagementCard categories, packs and glass', () => {
     })
   })
 
-  it('shows the import button at the top of every category panel', async () => {
+  it('shows the import button only in the custom category panel', async () => {
     const { ctx } = await harness()
-    const { getByTestId } = render(h(ThemeManagementCard, { ctx }))
-    for (const cat of ['builtin', 'dynamic', 'custom', 'registry'] as const) {
+    const { getByTestId, queryByTestId } = render(h(ThemeManagementCard, { ctx }))
+    for (const cat of ['builtin', 'dynamic', 'registry'] as const) {
       fireEvent.click(getByTestId(`theme-category-${cat}`))
-      const panel = getByTestId(`theme-panel-${cat}`)
-      const button = getByTestId('import-theme-button')
-      expect(panel.contains(button)).toBe(true)
+      expect(getByTestId(`theme-panel-${cat}`)).toBeTruthy()
+      expect(queryByTestId('import-theme-button')).toBeNull()
     }
+    fireEvent.click(getByTestId('theme-category-custom'))
+    const panel = getByTestId('theme-panel-custom')
+    const button = getByTestId('import-theme-button')
+    expect(panel.contains(button)).toBe(true)
   })
 
   it('renders browse previews from the entry preview colours', async () => {

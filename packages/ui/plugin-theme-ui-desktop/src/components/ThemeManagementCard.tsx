@@ -556,10 +556,10 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
 
   const packsIn = (cat: ThemeCategory) => packs.filter((p) => categoryOfPack(p) === cat)
 
-  // The import entry lives at the top of every category panel: it used to
-  // sit only below the panel body, where long pack lists pushed it out of
-  // sight and users reported it missing from 通用/自动/浏览 entirely. Only
-  // one panel renders at a time, so the shared testid stays unique.
+  // The import entry lives only in the Custom panel (product decision,
+  // confirmed 2026-10-24): an imported theme lands in Custom, so the
+  // entry belongs with its content — 通用/自动/浏览 intentionally have
+  // no import button.
   const importButton = () =>
     h(
       'button',
@@ -599,7 +599,6 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
     h(
       'div',
       { 'data-testid': 'theme-panel-builtin' },
-      renderImportRow(),
       packsIn('builtin').map((p) => renderPackGroup(p, false)),
     )
 
@@ -610,7 +609,6 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
     return h(
       'div',
       { 'data-testid': 'theme-panel-dynamic', style: { display: 'flex', flexDirection: 'column', gap: 14 } },
-      renderImportRow(),
       h(
         'div',
         { style: { display: 'flex', alignItems: 'center', gap: 12 } },
@@ -752,7 +750,6 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
         browseError
           ? h('span', { style: { fontSize: 12, color: 'var(--color-error, #F43F5E)' } }, browseError)
           : null,
-        h('span', { style: { marginLeft: 'auto' } }, importButton()),
       ),
       installed.map((p) => renderPackGroup(p, true)),
       browseEntries.length === 0
