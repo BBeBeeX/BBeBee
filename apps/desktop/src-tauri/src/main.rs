@@ -254,10 +254,16 @@ fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
         }
         tauri::WindowEvent::Moved(_) => {
             on_window_moved(window);
+            // The main window's glass is suspended for the drag and
+            // restored once the move stream settles (see commands.rs).
+            if window.label() == "main" {
+                suspend_glass_for_drag(window);
+            }
         }
         tauri::WindowEvent::Resized(_) if window.label() == "main" => {
             let is_fullscreen = window.is_fullscreen().unwrap_or(false);
             let _ = window.emit("window:fullscreen-changed", is_fullscreen);
+            suspend_glass_for_drag(window);
         }
         #[cfg(target_os = "windows")]
         tauri::WindowEvent::Focused(true) if window.label() == "main" => {

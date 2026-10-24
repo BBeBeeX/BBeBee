@@ -81,6 +81,15 @@ pub struct AppState {
     /// (i.e. the drag has ended).
     pub mini_player_move_seq: AtomicU64,
 
+    // Window glass (main window): last renderer-driven settings, so an
+    // effect suspended for a drag can be restored once the move ends.
+    pub glass_settings: Mutex<Option<(String, Option<String>, Option<u8>)>>,
+    /// Set while the main window's glass is suspended for a drag.
+    pub glass_suspended: AtomicBool,
+    /// Generation counter bumped on every main-window move/resize; the
+    /// deferred glass restore only fires when the counter stops changing.
+    pub glass_move_seq: AtomicU64,
+
     // Taskbar / media integration
     pub taskbar_state: Mutex<TaskbarState>,
 
@@ -130,6 +139,9 @@ impl Default for AppState {
             mini_player_last_floating_pos: Mutex::new(None),
             mini_player_programmatic_move: AtomicBool::new(false),
             mini_player_move_seq: AtomicU64::new(0),
+            glass_settings: Mutex::new(None),
+            glass_suspended: AtomicBool::new(false),
+            glass_move_seq: AtomicU64::new(0),
 
             taskbar_state: Mutex::new(TaskbarState::default()),
             sleep_blockers: Mutex::new(HashSet::new()),

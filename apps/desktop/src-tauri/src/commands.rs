@@ -193,10 +193,9 @@ fn resolve_window_effect(effect: &str) -> Option<tauri::window::Effect> {
 /// Returns `true` when an effect was applied, `false` when the effect
 /// resolved to nothing on this platform (a supported no-op, not an
 /// error).
-#[tauri::command]
-pub fn window_set_glass(
-    window: tauri::WebviewWindow,
-    effect: String,
+fn apply_window_glass(
+    window: &tauri::WebviewWindow,
+    effect: &str,
     tint_color: Option<String>,
     tint_opacity: Option<u8>,
 ) -> Result<bool, String> {
@@ -209,7 +208,7 @@ pub fn window_set_glass(
         let _ = window.set_shadow(true);
         return Ok(false);
     }
-    let Some(resolved) = resolve_window_effect(&effect) else {
+    let Some(resolved) = resolve_window_effect(effect) else {
         eprintln!("[cmd:window_set_glass] effect '{effect}' unsupported on this platform; no-op");
         return Ok(false);
     };
@@ -240,6 +239,26 @@ pub fn window_set_glass(
 }
 
 #[tauri::command]
+pub fn window_set_glass(
+    window: tauri::WebviewWindow,
+    effect: String,
+    tint_color: Option<String>,
+    tint_opacity: Option<u8>,
+) -> Result<bool, String> {
+    // The renderer is the source of truth for the active glass; remember
+    // it so a drag-suspended effect can be restored (see below).
+    let applied = apply_window_glass(&window, &effect, tint_color.clone(), tint_opacity)?;
+    let state = window.app_handle().state::<AppState>();
+    if applied {
+        *lock_recover(&state.glass_settings) = Some((effect, tint_color, tint_opacity));
+    } else {
+        *lock_recover(&state.glass_settings) = None;
+    }
+    state.glass_suspended.store(false, Ordering::SeqCst);
+    Ok(applied)
+}
+
+#[tauri::command]
 pub fn desktop_window_set_glass(
     window: tauri::WebviewWindow,
     effect: String,
@@ -247,6 +266,44 @@ pub fn desktop_window_set_glass(
     tint_opacity: Option<u8>,
 ) -> Result<bool, String> {
     window_set_glass(window, effect, tint_color, tint_opacity)
+}
+
+/// Suspends the main window's glass effect while it is being dragged
+/// and restores it once the move/resize stream settles. The legacy
+/// blur-behind path (Windows `blur`) recomposites per frame during a
+/// drag and visibly flickers; removing the effect for the drag's
+/// duration and re-applying it 200ms after the last move event is the
+/// standard mitigation, and it costs nothing for the compositor-native
+/// acrylic/mica paths. No-op when no glass is active.
+pub fn suspend_glass_for_drag(window: &tauri::Window) {
+    let app = window.app_handle();
+    let state = app.state::<AppState>();
+    if lock_recover(&state.glass_settings).is_none() {
+        return;
+    }
+    if !state.glass_suspended.swap(true, Ordering::SeqCst) {
+        let _ = window.set_effects(None::<tauri::utils::config::WindowEffectsConfig>);
+        #[cfg(target_os = "windows")]
+        let _ = window.set_shadow(true);
+    }
+    let seq = state.glass_move_seq.fetch_add(1, Ordering::SeqCst) + 1;
+    let handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        let state = handle.state::<AppState>();
+        if state.glass_move_seq.load(Ordering::SeqCst) != seq {
+            return;
+        }
+        if !state.glass_suspended.swap(false, Ordering::SeqCst) {
+            return;
+        }
+        let Some((effect, tint_color, tint_opacity)) = lock_recover(&state.glass_settings).clone() else {
+            return;
+        };
+        if let Some(main) = handle.get_webview_window("main") {
+            let _ = apply_window_glass(&main, &effect, tint_color, tint_opacity);
+        }
+    });
 }
 
 // =============================================================================
