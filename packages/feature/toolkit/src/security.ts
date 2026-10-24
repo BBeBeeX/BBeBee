@@ -3,6 +3,15 @@
  *
  * Implements pattern detection library (§1.4c) for scanning untrusted code
  * before installation or execution.
+ *
+ * Advisory policy (2026-10-24): only findings that name an opaque payload
+ * or a leaked credential block an install — a `data:`/`blob:`/remote
+ * dynamic import, or a hardcoded private key / platform token. Everything
+ * else (eval, dynamic execution, prototype-pollution writes, undeclared
+ * egress, obfuscation heuristics) is a warning: these regexes are a review
+ * aid, not containment — a determined author evades them, and bundled
+ * production code trips them — so wiring them as hard blocks bought
+ * friction without buying safety. Installers log warnings and proceed.
  */
 
 import type { Finding, SecurityAuditContext, SecurityAuditReport, SecurityAuditLevel } from '@BBeBee/protocol'
@@ -39,19 +48,19 @@ function getLineAndColumn(code: string, index: number): { line: number; column: 
 }
 
 const STATIC_RULES: readonly RegexRule[] = [
-  // 1. eval / Function constructor
+  // 1. eval / Function constructor — warn, not block (advisory policy above).
   {
     id: 'eval-function-constructor',
     name: 'eval / Function constructor',
-    level: 'block',
+    level: 'warn',
     pattern: /\b(?:eval|Function|new\s+Function)\s*\(|(?:window|globalThis|global)\.eval\s*\(/g,
     message: (m) => `Detected dangerous code execution constructor: "${m[0].trim()}"`,
   },
-  // 2. Dynamic code execution (vm / string execution in timers)
+  // 2. Dynamic code execution (vm / string execution in timers) — warn.
   {
     id: 'dynamic-code-execution',
     name: 'Dynamic code execution',
-    level: 'block',
+    level: 'warn',
     pattern: /\b(?:setTimeout|setInterval)\s*\(\s*['"`]|(?:vm\.(?:runInContext|runInNewContext|runInThisContext|Script))\b|require\s*\(\s*['"](?:node:)?vm['"]\s*\)/g,
     message: (m) => `Detected dynamic code execution or sandbox escape pattern: "${m[0].trim()}"`,
   },
@@ -82,11 +91,12 @@ const STATIC_RULES: readonly RegexRule[] = [
   // `constructor.prototype` / `Object.prototype[...]` chain. Read-only
   // prototype-chain walks (`x.constructor.prototype?.constructor`, a
   // common library instanceof helper) are not pollution and must not
-  // block — bundled production code contains them routinely.
+  // even warn — bundled production code contains them routinely.
+  // Pollution writes warn (advisory policy above).
   {
     id: 'prototype-pollution',
     name: 'Prototype pollution risk',
-    level: 'block',
+    level: 'warn',
     pattern:
       /\b__proto__\b|Object\s*\.\s*prototype\s*\[[^\]]*\]\s*=(?!=)|\bconstructor\s*\.\s*prototype\s*(?:\.\s*[A-Za-z_$][\w$]*\s*=(?!=)|\[[^\]]*\]\s*=(?!=))/g,
     message: (m) => `Detected dangerous prototype pollution syntax: "${m[0].trim()}"`,
@@ -113,11 +123,11 @@ const STATIC_RULES: readonly RegexRule[] = [
     pattern: /\bimport\s*\(\s*['"`](?:data|blob):/gi,
     message: (m) => `Detected dynamic import of an inline/opaque payload: "${m[0].trim()}"`,
   },
-  // 7. Obfuscation signatures
+  // 7. Obfuscation signatures — warn (heuristic, not a block).
   {
     id: 'obfuscation-packer',
     name: 'JavaScript packer obfuscation pattern',
-    level: 'block',
+    level: 'warn',
     pattern: /eval\s*\(\s*function\s*\(\s*p\s*,\s*a\s*,\s*c\s*,\s*k\s*,\s*e\s*,\s*[dr]\s*\)/g,
     message: () => 'Detected a known JS Packer / obfuscated execution wrapper',
   },
@@ -178,10 +188,13 @@ function scanUndeclaredHosts(code: string, context?: SecurityAuditContext): Find
     if (!isHostAllowed(host, allowed)) {
       const { line, column, snippet } = getLineAndColumn(code, match.index)
       if (isNetworkCallPosition(code, match.index)) {
+        // Warn, not block: the runtime capability gate is the enforcement
+        // layer for actual egress; this static heuristic cannot see a URL
+        // fed to fetch through a variable.
         findings.push({
           ruleId: 'undeclared-host-egress',
           message: `Detected an undeclared outbound network request host: "${host}" (allowlist: [${allowed.join(', ') || 'none'}])`,
-          level: 'block',
+          level: 'warn',
           loc: { line, column },
           snippet,
         })
@@ -208,15 +221,15 @@ function scanObfuscationFeatures(code: string): Finding[] {
   // script whose strings are written as \xHH escapes is obfuscated; a
   // large bundled artifact crosses any absolute threshold with
   // incidental escapes from ordinary library code (a repeated `\xB7`
-  // separator literal, regex character classes, …). Block above one
-  // escape per KiB; warn on a merely noticeable count.
+  // separator literal, regex character classes, …). Warn above one
+  // escape per KiB; warn (more mildly) on a merely noticeable count.
   if (hexMatches && hexMatches.length >= 6 && hexMatches.length * 1024 > code.length) {
     const firstIndex = code.indexOf(hexMatches[0]!)
     const { line, column, snippet } = getLineAndColumn(code, firstIndex)
     findings.push({
       ruleId: 'obfuscation-dense-hex',
       message: `Detected dense hex escape pattern (${hexMatches.length} occurrences), likely obfuscated code`,
-      level: 'block',
+      level: 'warn',
       loc: { line, column },
       snippet,
     })
@@ -252,7 +265,7 @@ function scanObfuscationFeatures(code: string): Finding[] {
     findings.push({
       ruleId: 'obfuscation-packer-identifiers',
       message: `Detected obfuscation-pattern identifiers (_0x... appeared ${hexIdentMatches.length} times)`,
-      level: 'block',
+      level: 'warn',
       loc: { line, column },
       snippet,
     })

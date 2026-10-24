@@ -260,7 +260,7 @@ plugins — the built-in set, the shell's own declaration and installed
 plugins — ∪ the to-be-installed closure's declared `provides`); resolvable
 dependency closure; `minAppVersion`/`engines.BBeBee` compatible with the app;
 `platforms` contains the current platform and agrees with the in-package
-manifest; security scan passes; anti-spoofing checks pass; tarball within the
+manifest; security scan has no block findings; anti-spoofing checks pass; tarball within the
 size limit and download timeout.
 
 "Unavailable" is judged against **registered manifests** — the built-in
@@ -389,13 +389,14 @@ overridable in Settings → Network → *Download & GitHub acceleration*:
 8. **The install-time security scan reads your declared capabilities.**
    Hosts declared via `net:host/<glob>` capabilities in the packaged
    manifest are passed to the scanner as its allowlist, so declare real
-   egress there. The scanner blocks on unambiguous payloads (eval /
-   dynamic remote import / credential leaks / prototype-pollution writes /
-   a URL literal handed straight to `fetch` & friends on an undeclared
-   host / densely hex-escaped code). URL *string constants* that are never
-   requested (an SVG namespace, a mirror default in bundled library code)
-   and sparse escapes in a large bundle only warn — bundled production
-   artifacts are expected, and are not treated as obfuscation.
+   egress there. The scanner blocks only on opaque payloads and leaked
+   credentials: a `data:`/`blob:`/remote dynamic import, or a hardcoded
+   private key / platform token. Everything else is advisory and only
+   warns (eval, dynamic execution, prototype-pollution writes, an
+   undeclared host handed straight to `fetch` & friends, densely
+   hex-escaped code) — those regexes are a review aid, not containment,
+   and bundled production artifacts trip them routinely. Warnings are
+   logged and the install proceeds.
 
 ### 6.9 Bundled UI: views in the same npm package
 

@@ -1440,7 +1440,7 @@ describe('plugin-manager npm service methods', () => {
   })
 
   describe('install-time scan coverage (audit W2)', () => {
-    it('blocks an .mjs entry carrying eval(atob(...)) — extension is not a scan bypass', async () => {
+    it('still scans an .mjs entry carrying eval(atob(...)) — extension is not a scan bypass, but eval is warn-only', async () => {
       const entry = entryFor({ id: 'a-x', npm: '@t/a' })
       const manifest = { ...manifestFor('a-x', '1.0.0'), entry: { main: './dist/payload.mjs' } }
       const tarballs = {
@@ -1451,8 +1451,11 @@ describe('plugin-manager npm service methods', () => {
       }
       const w = seedWorld(entry, ['1.0.0'], tarballs)
       await w.plugin[PluginManagerPlugin.init]()
-      await expectNpmError(w.plugin.installPlugin('a-x'), 'SECURITY_BLOCKED')
-      expect(w.bridge.installPlugin).not.toHaveBeenCalled()
+      // Advisory policy: eval warns and the install proceeds (the scan
+      // still ran — a .mjs entry is not skipped). Only block findings
+      // (data:/remote imports, leaked credentials) refuse the install.
+      await w.plugin.installPlugin('a-x')
+      expect(w.bridge.installPlugin).toHaveBeenCalled()
     })
 
     it('blocks a data: dynamic import in an entry file', async () => {

@@ -1187,8 +1187,10 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
         )
       }
     }
-    // D8-5: static security scan — a `block` finding refuses the install.
-    // The scan context carries the hosts the packaged manifest declares
+    // D8-5: static security scan — only a `block` finding refuses the
+    // install (opaque payload imports, leaked credentials). `warn`
+    // findings are advisory: they are logged, not hidden, and the
+    // install proceeds. The scan context carries the hosts the packaged manifest declares
     // via `net:host/<glob>` capabilities, so declared egress is not
     // flagged as undeclared (the registry flow passes the same kind of
     // context from its documents' declarations).
@@ -1209,6 +1211,9 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       if (report.level === 'block') {
         const issues = report.findings.map((f) => f.message).join('；')
         throw new NpmPluginError('SECURITY_BLOCKED', `插件 "${entry.id}" 的 ${path} 未通过安全扫描，拒绝安装：${issues}`)
+      } else if (report.level === 'warn') {
+        const issues = report.findings.map((f) => f.message).join('；')
+        this.ctx.logger.warn(`plugin-manager: "${entry.id}" 的 ${path} 安全扫描警告（仍继续安装）：${issues}`)
       }
     }
     return extracted
