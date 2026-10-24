@@ -429,9 +429,13 @@ The scale relies on **"weight follows size"**:
 - **Mobile Shell** (normative layout spec: [ui/architecture.md §7.4](architecture.md#74-mobile-shell-layouts-phone-tablet-foldable)):
   - Clean full-bleed dark views with scoped library filtering (`All` / `Local` / `Favorites`).
   - **Phone**: page, then a floating now-playing bar (cover, title/artist, favorite, play/pause,
-    queue button opening a bottom-sheet queue drawer), then a bottom tab bar with exactly four
-    tabs in this order — Home (Recommend), Library, Settings, Search.
-  - **Tablet (landscape)**: a 240 dp left rail — brand text on top, the same four tabs stacked,
+    queue button opening a bottom-sheet queue drawer capped at 70% of screen height), then a
+    bottom tab bar with exactly four tabs in this order — Home (Recommend), Library (labelled
+    音乐库), Settings, Search. The bar is always present: idle shows a “暂无播放” placeholder
+    with play/favorite disabled and the queue button still working. A phone in landscape
+    keeps the bottom-tab layout (tablet needs height ≥ 600 dp too).
+  - **Tablet (landscape, height ≥ 600 dp)**: a 240 dp left rail — brand text `B Be Bee` plus
+    the app icon on top, the same four tabs stacked,
     a now-playing card at the bottom with a queue button opening a right-side drawer — beside
     the page content. Portrait tablets fall back to the phone layout.
   - **Foldable**: a 50 / 50 dual pane — the library permanently on the left, the complete phone

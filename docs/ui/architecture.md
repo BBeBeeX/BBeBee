@@ -734,17 +734,16 @@ carries the visual summary only.
 - `ctx.device.formFactor` is **not** the input: it is a boot-time config value
   that defaults to `'phone'` (`core-device-expo`), so it cannot see a rotation
   or an unfold.
-- `phone`: window width < 600 dp.
-- `tablet`: window width >= 600 dp **and** landscape (width > height).
+- `phone`: window width < 600 dp, **or** a landscape window whose height
+  is < 600 dp — that second clause is what keeps a phone in landscape on
+  the bottom-tab layout (a phone in landscape is typically ~390–430 dp
+  tall, a tablet in landscape is >= 600 dp tall). No device sniffing is
+  involved: the rule is still window size only.
+- `tablet`: window width >= 600 dp **and** landscape (width > height)
+  **and** window height >= 600 dp. All three must hold.
 - A >= 600 dp portrait window (portrait tablet) falls back to the phone
   layout: a rail would waste the narrow dimension, and no portrait-rail design
   has been approved. Revisit only with a portrait-rail spec.
-- Edge, stated not hidden: a phone rotated to landscape also satisfies the
-  tablet rule (width >= 600 dp, landscape), so under this width-only rule it
-  gets the rail. That is accepted for the first implementation — no device
-  sniffing. If phones must stay bottom-tabbed in landscape, that is a spec
-  change for the user to approve, not something the implementer improvises
-  with a shortest-side guard.
 - `foldable` is **never** inferred from width alone. There is no hinge /
   dual-screen API in the current dependency set, and width alone cannot tell a
   wide tablet from an unfolded foldable. Foldable mode is an explicit user
@@ -768,9 +767,10 @@ alphabetical and not placement order.
 - The `tab-bar` placements of `now-playing.view`, `queue.view`, and
   `history.view` are ignored by the mobile shell under this spec: now-playing
   becomes the fullscreen overlay and the queue becomes the drawer. History
-  therefore loses its tab, so the implementation must keep an explicit
-  reachability path for it (for example from the library or the player
-  surfaces) — it must not ship unreachable.
+  therefore loses its tab, so the implementation must add an explicit
+  entry for it **inside Settings** — a row that navigates to
+  `history.view` (a detail route, not a tab), with Back returning to
+  Settings. It must not ship unreachable.
   Placements are left untouched in the first implementation (no headless
   change, no desktop divergence); removing the dead mobile placements is a
   later cleanup, not part of this work.
@@ -784,11 +784,12 @@ alphabetical and not placement order.
 2. Floating now-playing bar, directly above the tab bar.
 3. Bottom tab bar with the four fixed tabs.
 
-- The bar is present on **every** page whenever a track is loaded — including
-  paused — and is not a per-page element that scrolls away. When nothing is
-  loaded (`trackUrn` absent and status `idle`) it stays hidden, as today;
-  "always floating" means "on every page while a track exists", not "a
-  placeholder while idle".
+- The bar is present on **every** page, always — it is not a per-page
+  element that scrolls away. When nothing is loaded (`trackUrn` absent and
+  status `idle`) it renders as a "暂无播放" placeholder bar: play/pause and
+  favorite are disabled, tapping the bar body does nothing (there is no
+  fullscreen player to open), but the queue button still works. When a
+  track is loaded — including paused — the same bar shows the track.
 - Bar row, left to right: cover, title/artist (flex, truncated), favorite
   (heart, the library service's `isSaved` / `setSaved` on the current track
   URN — an existing service, no new service; reach it via `serviceOf`, or
@@ -801,23 +802,26 @@ alphabetical and not placement order.
 - Queue drawer on the phone is a **bottom sheet** rendering the existing
   `QueueScreen` (`plugin-queue-ui-mobile`) — no fork of the queue list. The
   kit's `Sheet` (Modal-based, backdrop dismiss, Android back closes it)
-  is the host. Opening the drawer from the fullscreen overlay must layer
+  is the host, capped at **70% of screen height** with the queue list
+  scrolling inside it. Opening the drawer from the fullscreen overlay must layer
   it above the overlay, the same layering rule as desktop (§7.1 item 5).
 
 **Tablet layout (landscape, left rail + content).**
 
 - Row layout: left rail `240 dp` fixed, content `flex: 1`.
-- Rail, top to bottom: brand text `B Be Bee` (text only in the first
-  implementation — no new logo asset), the four tabs stacked vertically in
-  the fixed order, a spacer, then the rail-bottom now-playing card.
+- Rail, top to bottom: brand mark — the text `B Be Bee` plus the existing
+  app icon asset (`apps/mobile/assets/icon.png`, reused, no new logo
+  asset) — the four tabs stacked vertically in the fixed order, a spacer,
+  then the rail-bottom now-playing card.
+- The second tab is labelled 音乐库, not the screenshot's 我的歌单.
 - Rail-bottom card: cover, title/artist, play/pause, queue button. Tapping
   the card opens the fullscreen overlay (which covers the whole window,
   rail included); the queue button opens a **right-side drawer** (not a
   bottom sheet) rendering the same `QueueScreen`, layered above the overlay
   when the overlay is open.
-- When idle, the rail-bottom card shows a muted "nothing playing" row with
-  the play button disabled; the queue button still works (an empty queue
-  renders its empty state, not a missing card).
+- When idle, the rail-bottom card shows the same "暂无播放" placeholder
+  as the phone bar: play button disabled, favorite disabled, queue button
+  still works (an empty queue renders its empty state, not a missing card).
 - The content pane renders the same page component the phone layout would
   for the current route, with the same single history stack. A page must not
   know which layout hosts it.
@@ -846,8 +850,13 @@ alphabetical and not placement order.
   (the same single-kernel invariant as desktop secondary windows, §7.2).
 - Switching: a persisted layout-mode choice, `mobile.layoutMode` in
   `ctx.store`, with values `auto | tablet | foldable` (`auto` is the
-  width/orientation rule above). The switch is offered in the tablet rail
-  (a "dual-pane" affordance at the rail bottom, shown only at >= 600 dp)
+  width/orientation rule above), **and** a visible row in Settings that
+  reads and writes the same key — both surfaces, one source of truth
+  (`ctx.store`; the Settings row writes the store key and must not invent
+  a second settings-document field unless the settings service already
+  supports one — the implementer verifies this before adding any field).
+  The switch is additionally offered in the tablet rail (a "dual-pane"
+  affordance at the rail bottom, shown only at >= 600 dp)
   and as an "exit dual-pane" affordance in the foldable left pane header.
   Android Back in foldable mode pops the right pane's stack first, then
   the left pane's, then exits — the right pane is the primary pane for
