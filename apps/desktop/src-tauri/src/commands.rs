@@ -204,6 +204,9 @@ pub fn window_set_glass(
         window
             .set_effects(None::<tauri::utils::config::WindowEffectsConfig>)
             .map_err(|e| e.to_string())?;
+        // Restore the DWM drop shadow the effect path suppresses.
+        #[cfg(target_os = "windows")]
+        let _ = window.set_shadow(true);
         return Ok(false);
     }
     let Some(resolved) = resolve_window_effect(&effect) else {
@@ -216,11 +219,23 @@ pub fn window_set_glass(
         let alpha = ((tint_opacity.unwrap_or(72) as u16 * 255) / 100) as u8;
         builder = builder.color(tauri::window::Color(r, g, b, alpha));
     }
+    // Clear before applying. On Windows the effect kinds attach through
+    // different DWM state (acrylic via the accent policy, mica via the
+    // system-backdrop type); applying one over the other without a
+    // reset can silently keep the old effect, which reads as "the
+    // effect switch did nothing".
+    let _ = window.set_effects(None::<tauri::utils::config::WindowEffectsConfig>);
     window.set_effects(builder.build()).map_err(|e| {
         let err = HostError::internal(format!("set window glass failed: {e}"));
         eprintln!("[cmd:window_set_glass] {err}");
         host_err(err)
     })?;
+    // While a backdrop effect is active, the DWM drop shadow's extended
+    // frame margins fight the effect's recomposition during window
+    // drags and the window flickers; glass apps conventionally drop
+    // the shadow for the effect's lifetime (restored on "off" above).
+    #[cfg(target_os = "windows")]
+    let _ = window.set_shadow(false);
     Ok(true)
 }
 
