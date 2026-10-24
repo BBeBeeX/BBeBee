@@ -446,6 +446,16 @@ export interface PluginManagerService {
   checkUpdates(force?: boolean): Promise<PluginUpdateInfo[]>
 
   /**
+   * The npm `dist-tags.latest` version of one package, for display on the
+   * Discover page (a plugin card's title version, and the "latest version"
+   * badge of an installed plugin with an update). Packuments are cached by
+   * the npm client, so repeated calls for the visible cards are cheap.
+   * Never throws: a failed lookup degrades to `undefined` and the caller
+   * renders without a version rather than breaking the page.
+   */
+  getNpmLatest?(npmName: string): Promise<string | undefined>
+
+  /**
    * Updates one plugin to the newest version satisfying `range`
    * (default `^<installed>`). A major-version bump without an explicit range
    * throws a `MAJOR_UPDATE_NEEDS_CONFIRM` error so the UI can ask first.

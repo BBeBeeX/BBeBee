@@ -337,6 +337,82 @@ describe('degradation', () => {
   })
 })
 
+/* ── npm downloads ───────────────────────────────────────────────────────── */
+
+describe('npm downloads', () => {
+  const npmUrl = (pkg: string): string =>
+    `https://api.npmjs.org/downloads/point/last-month/${encodeURIComponent(pkg)}`
+
+  it('reads downloads from the npm API when a package name is given, not from GitHub releases', async () => {
+    const harness = await setupInitialized({
+      routes: {
+        [repoUrl('acme', 'widget')]: { body: { stargazers_count: 42 } },
+        [contributorsUrl('acme', 'widget')]: { body: [{}] },
+        // GitHub releases exist but must not be consulted for an npm package.
+        [releasesUrl('acme', 'widget')]: { body: [{ assets: [{ download_count: 999 }] }] },
+        [npmUrl('@acme/widget')]: { body: { downloads: 1234, package: '@acme/widget' } },
+      },
+    })
+
+    const stats = await harness.plugin.getRepoStats('acme', 'widget', '@acme/widget')
+    expect(stats).toMatchObject({ stars: 42, downloads: 1234 })
+    expect(harness.http.urls()).not.toContain(releasesUrl('acme', 'widget'))
+    expect(harness.http.urls()).toContain(npmUrl('@acme/widget'))
+
+    // The npm number is cached per package: a second call touches no network.
+    const callsBefore = harness.http.calls.length
+    const again = await harness.plugin.getRepoStats('acme', 'widget', '@acme/widget')
+    expect(again.downloads).toBe(1234)
+    expect(harness.http.calls.length).toBe(callsBefore)
+  })
+
+  it('keeps packages on the same repo apart: their npm downloads differ', async () => {
+    const harness = await setupInitialized({
+      routes: {
+        [repoUrl('acme', 'mono')]: { body: { stargazers_count: 7 } },
+        [contributorsUrl('acme', 'mono')]: { body: [{}] },
+        [npmUrl('@acme/a')]: { body: { downloads: 100 } },
+        [npmUrl('@acme/b')]: { body: { downloads: 200 } },
+      },
+    })
+
+    const a = await harness.plugin.getRepoStats('acme', 'mono', '@acme/a')
+    const b = await harness.plugin.getRepoStats('acme', 'mono', '@acme/b')
+    expect(a.downloads).toBe(100)
+    expect(b.downloads).toBe(200)
+    expect(a.stars).toBe(b.stars)
+  })
+
+  it('keeps stars when the contributors fetch fails, instead of degrading everything', async () => {
+    const harness = await setupInitialized({
+      routes: {
+        [repoUrl('flaky', 'repo')]: { body: { stargazers_count: 55 } },
+        [contributorsUrl('flaky', 'repo')]: { status: 500 },
+        [releasesUrl('flaky', 'repo')]: { body: [{ assets: [{ download_count: 5 }] }] },
+      },
+    })
+
+    const stats = await harness.plugin.getRepoStats('flaky', 'repo')
+    expect(stats).toMatchObject({ stars: 55, downloads: 5 })
+    expect(stats.contributors).toBeUndefined()
+    expect(stats.error).toBeUndefined()
+  })
+
+  it('still serves npm downloads while GitHub is in backoff', async () => {
+    const harness = await setupInitialized({
+      routes: {
+        [repoUrl('limited', 'repo')]: { status: 403 },
+        [npmUrl('@limited/pkg')]: { body: { downloads: 77 } },
+      },
+    })
+
+    const stats = await harness.plugin.getRepoStats('limited', 'repo', '@limited/pkg')
+    expect(stats.downloads).toBe(77)
+    expect(stats.stars).toBeUndefined()
+    expect(stats.error).toBeUndefined()
+  })
+})
+
 /* ── peek ────────────────────────────────────────────────────────────────── */
 
 describe('peekRepoStats', () => {

@@ -154,7 +154,10 @@
       "inUse": "In use",
       "disabled": "Disabled",
       "use": "Enable",
-      "disable": "Disable"
+      "disable": "Disable",
+      "latestVersion": "Latest version",
+      "provides": "Services this plugin provides",
+      "requires": "Services this plugin requires"
     },
     "registryServices": {
       "activeProvider": "Active",
@@ -355,7 +358,10 @@
       "inUse": "使用中",
       "disabled": "已停用",
       "use": "使用",
-      "disable": "停用"
+      "disable": "停用",
+      "latestVersion": "最新版本",
+      "provides": "此插件注册的服务",
+      "requires": "此插件需要的服务"
     },
     "registryServices": {
       "activeProvider": "生效中",

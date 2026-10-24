@@ -20,6 +20,15 @@
  * uninstall control (`uninstall`). The uninstall confirmation is a lightweight
  * armed state local to the card — the heavy dialog work belongs to the
  * install flow, not to removing what the user already has.
+ *
+ * Extension kinds (plugin, lyric source, theme, music source) render an
+ * enablement toggle instead of the install button once installed: the
+ * primary button flips between "use" and "disable", with the uninstall
+ * control to its left. Plugin cards additionally show the version at the
+ * title (`titleVersion`: installed version, else the npm latest the screen
+ * resolved), the services the plugin registers (`provides`, brand-tinted)
+ * ahead of the services it requires, and — when the entry has an update —
+ * the latest version beside the favorite button (`latestVersion`).
  */
 
 import { createElement as h, useState, type ReactElement } from 'react'
@@ -78,6 +87,10 @@ export interface RegistryEntryCardProps {
   /** Favorite mark; the button renders only when `onToggleFavorite` is provided. */
   favorite?: boolean
   onToggleFavorite?: () => void
+  /** Plugin title version: the installed version, else the npm latest the screen resolved. */
+  titleVersion?: string
+  /** Latest available version, shown beside the favorite button when the entry has an update. */
+  latestVersion?: string
   /** Uninstall affordance; absent renders nothing extra. */
   uninstall?: RegistryEntryCardUninstall
   /** Enablement state for installed plugin / lyric source. */
@@ -217,6 +230,8 @@ export function RegistryEntryCard({
   installedMeta,
   favorite = false,
   onToggleFavorite,
+  titleVersion,
+  latestVersion,
   uninstall,
   itemEnabled,
   onToggleEnabled,
@@ -230,15 +245,20 @@ export function RegistryEntryCard({
   const installed = actionState.state === 'installed'
   const isUpdate = actionState.state === 'update'
   const isInstalled = installed || isUpdate
-  const isExtension = entry.kind === 'plugin' || entry.kind === 'lyric-source' || entry.kind === 'theme'
+  const isExtension =
+    entry.kind === 'plugin' ||
+    entry.kind === 'lyric-source' ||
+    entry.kind === 'theme' ||
+    entry.kind === 'music-source'
   const isInstalledExtension = isExtension && isInstalled
   const isPlugin = entry.kind === 'plugin'
   const isLyric = entry.kind === 'lyric-source'
   const isTheme = entry.kind === 'theme'
+  const isMusic = entry.kind === 'music-source'
 
   const effectiveEnabled = isPlugin
     ? (itemEnabled ?? pluginEnabled)
-    : isLyric
+    : isLyric || isMusic
       ? itemEnabled
       : undefined
 
@@ -270,12 +290,19 @@ export function RegistryEntryCard({
       { style: titleRowStyle },
       h('span', { style: nameStyle }, entry.name),
       // Plugin entries carry no registry version in schema v2 (version truth
-      // lives on npm) — the chip shows the npm package name instead.
+      // lives on npm), so the version chip comes from `titleVersion` — the
+      // installed version, else the npm latest the screen resolved — and
+      // the npm package name keeps its own chip beside it.
+      (isPlugin ? titleVersion : entry.version)
+        ? h(
+            'span',
+            { style: { ...CHIP, flexShrink: 0 } },
+            `v${normalizeVersion((isPlugin ? titleVersion : entry.version)!)}`,
+          )
+        : null,
       isPlugin && entry.npm
         ? h('span', { style: { ...CHIP, flexShrink: 0 } }, entry.npm)
-        : entry.version
-          ? h('span', { style: { ...CHIP, flexShrink: 0 } }, `v${normalizeVersion(entry.version)}`)
-          : null,
+        : null,
       isBuiltinEntry(entry) ? h('span', { style: builtinChipStyle }, t('registry:registryEntry.builtIn')) : null,
       // Status badge for installed extensions: in-use (使用中) vs disabled (已停用)
       isInstalledExtension && (isTheme ? themeActive !== undefined : effectiveEnabled !== undefined)
@@ -286,7 +313,9 @@ export function RegistryEntryCard({
                 ? `registry-plugin-status-${entry.id}`
                 : isTheme
                   ? `registry-theme-status-${entry.id}`
-                  : `registry-lyric-status-${entry.id}`,
+                  : isMusic
+                    ? `registry-music-status-${entry.id}`
+                    : `registry-lyric-status-${entry.id}`,
               style: {
                 marginLeft: 'auto',
                 display: 'inline-flex',
@@ -370,13 +399,34 @@ export function RegistryEntryCard({
           entry.description,
         )
       : null,
-    entry.kind === 'plugin' && entry.services?.length
+    entry.kind === 'plugin' && (entry.provides?.length || entry.services?.length)
       ? h(
           'div',
           { style: { display: 'flex', gap: 4, flexWrap: 'wrap' } },
-          entry.services.map((service) =>
-            h('span', { key: service, style: CHIP }, service),
-          ),
+          [
+            ...(entry.provides ?? []).map((service) =>
+              h(
+                'span',
+                {
+                  key: `provides:${service}`,
+                  style: builtinChipStyle,
+                  title: t('registry:registryEntry.provides'),
+                },
+                service,
+              ),
+            ),
+            ...(entry.services ?? []).map((service) =>
+              h(
+                'span',
+                {
+                  key: `requires:${service}`,
+                  style: CHIP,
+                  title: t('registry:registryEntry.requires'),
+                },
+                service,
+              ),
+            ),
+          ],
         )
       : null,
     entry.kind === 'plugin' && entry.minAppVersion
@@ -422,29 +472,45 @@ export function RegistryEntryCard({
     h(
       'div',
       { style: actionRowStyle },
-      // 1. Bottom-left corner: bookmark favorite button
-      onToggleFavorite
-        ? h(
-            'button',
-            {
-              type: 'button',
-              'data-testid': `registry-favorite-${entry.id}`,
-              'aria-pressed': favorite,
-              'aria-label': favorite ? t('registry:registryEntry.removeFromFavorites') : t('registry:registryEntry.addToFavorites'),
-              title: favorite ? t('registry:registryEntry.removeFromFavorites') : t('registry:registryEntry.addToFavorites'),
-              onClick: onToggleFavorite,
-              className: 'bbreg-favorite',
-              style: {
-                ...favoriteButtonStyle,
-                color: favoriteColor(favorite),
-                background: favorite ? 'rgba(95, 135, 255, 0.12)' : 'transparent',
-                borderColor: favorite ? 'color-mix(in srgb, var(--color-primary, #5F87FF) 40%, transparent)' : 'var(--border-subtle, rgba(255, 255, 255, 0.12))',
-                marginRight: 'auto',
+      // 1. Bottom-left corner: bookmark favorite button, with the latest
+      // version beside it when the entry has an update. The wrapper keeps
+      // both on the left while the actions cluster stays on the right.
+      h(
+        'span',
+        { style: { display: 'inline-flex', alignItems: 'center', gap: 6, marginRight: 'auto' } },
+        onToggleFavorite
+          ? h(
+              'button',
+              {
+                type: 'button',
+                'data-testid': `registry-favorite-${entry.id}`,
+                'aria-pressed': favorite,
+                'aria-label': favorite ? t('registry:registryEntry.removeFromFavorites') : t('registry:registryEntry.addToFavorites'),
+                title: favorite ? t('registry:registryEntry.removeFromFavorites') : t('registry:registryEntry.addToFavorites'),
+                onClick: onToggleFavorite,
+                className: 'bbreg-favorite',
+                style: {
+                  ...favoriteButtonStyle,
+                  color: favoriteColor(favorite),
+                  background: favorite ? 'rgba(95, 135, 255, 0.12)' : 'transparent',
+                  borderColor: favorite ? 'color-mix(in srgb, var(--color-primary, #5F87FF) 40%, transparent)' : 'var(--border-subtle, rgba(255, 255, 255, 0.12))',
+                },
               },
-            },
-            tablerIcon(favorite ? 'bookmark-filled' : 'bookmark', { size: 15 }),
-          )
-        : h('div', { style: { marginRight: 'auto' } }),
+              tablerIcon(favorite ? 'bookmark-filled' : 'bookmark', { size: 15 }),
+            )
+          : null,
+        isUpdate && latestVersion
+          ? h(
+              'span',
+              {
+                'data-testid': `registry-latest-version-${entry.id}`,
+                title: t('registry:registryEntry.latestVersion'),
+                style: { ...CHIP, flexShrink: 0 },
+              },
+              `v${normalizeVersion(latestVersion)}`,
+            )
+          : null,
+      ),
       // 2. Actions cluster
       h(
         'div',

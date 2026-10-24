@@ -2032,6 +2032,27 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     return updates
   }
 
+  /**
+   * The npm `dist-tags.latest` version of one package, for Discover-page
+   * display (a plugin card's title version and its latest-version badge).
+   * Packuments come from the npm client's cache, so repeated calls for the
+   * visible cards are cheap. Never throws: a failed lookup degrades to
+   * `undefined` and the caller renders without a version.
+   */
+  async getNpmLatest(npmName: string): Promise<string | undefined> {
+    try {
+      const client = this.getNpmClient()
+      const pack = await client.fetchPackument(npmName)
+      const latest = pack['dist-tags']?.latest
+      return typeof latest === 'string' && latest ? latest : undefined
+    } catch (err) {
+      this.ctx.logger.warn(
+        `plugin-manager: latest-version lookup failed for "${npmName}": ${err instanceof Error ? err.message : String(err)}`,
+      )
+      return undefined
+    }
+  }
+
   async updatePlugin(id: string, range?: string): Promise<void> {
     const records = await this.loadInstalledRecords()
     const rec = records[id]

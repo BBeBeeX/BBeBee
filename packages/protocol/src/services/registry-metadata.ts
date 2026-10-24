@@ -13,7 +13,12 @@ export interface RegistryRepoStats {
   readonly stars?: number
   /** Approximate contributor count (one page of up to 100 from `/contributors?per_page=100`). */
   readonly contributors?: number
-  /** Sum of `download_count` from all release assets (`GET /repos/{owner}/{repo}/releases`). */
+  /**
+   * Download count. When the caller passed an npm package name, this is the
+   * npm last-month downloads (`GET /api.npmjs.org/downloads/point/last-month/<pkg>`);
+   * otherwise it falls back to the sum of `download_count` from all release
+   * assets (`GET /repos/{owner}/{repo}/releases`).
+   */
   readonly downloads?: number
   /** Epoch ms when the stats were fetched. */
   readonly fetchedAt: number
@@ -27,8 +32,11 @@ export interface RegistryMetadataService {
   /**
    * Lazily fetches — or reads from the 24h cache — GitHub stats for one
    * repository. Never throws: failures degrade into `error` on the result.
+   * When `npmName` is given (plugin entries), `downloads` comes from the npm
+   * API instead of the GitHub release-asset sum, because npm-published
+   * packages rarely have release assets at all.
    */
-  getRepoStats(owner: string, repo: string): Promise<RegistryRepoStats>
+  getRepoStats(owner: string, repo: string, npmName?: string): Promise<RegistryRepoStats>
   /** Cached stats only, no network. Undefined when nothing has been fetched yet. */
   peekRepoStats(owner: string, repo: string): RegistryRepoStats | undefined
 }

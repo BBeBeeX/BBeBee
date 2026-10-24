@@ -57,12 +57,14 @@ import type {
 import { serviceOf } from '@BBeBee/toolkit/hooks'
 import { tablerIcon } from '@BBeBee/ui-kit-desktop'
 import { useOptionalI18n } from '../utils/optional-i18n.js'
-import { useAppVersion, useRegistryActionStates } from '../hooks/use-registry.js'
+import { useAppVersion, useRegistryActionStates, type RegistryActionState } from '../hooks/use-registry.js'
 import { useFavorites } from '../hooks/use-favorites.js'
 import { useRegistryLockRecords } from '../hooks/use-lock-records.js'
 import { useRegistryTasks } from '../hooks/use-registry-tasks.js'
-import { useRepoMetadata } from '../hooks/use-repo-metadata.js'
+import { entryStatsKey, useRepoMetadata } from '../hooks/use-repo-metadata.js'
+import { usePluginLatestVersions } from '../hooks/use-plugin-latest.js'
 import { findInstalledMusicSource, isBuiltinEntry, minAppVersionBlock } from '../hooks/install-state.js'
+import { compareVersions, normalizeVersion } from '@BBeBee/toolkit'
 import { InstallConfirmDialog } from '../components/InstallConfirmDialog.js'
 import { LocalImportConfirmDialog } from '../components/LocalImportConfirmDialog.js'
 import { RegistryEntryCard } from '../components/RegistryEntryCard.js'
@@ -79,7 +81,7 @@ import {
   type RegistrySortKey,
 } from '../components/RegistryFilterBar.js'
 import { BASELINE_CSS, CARD_GRID, ERROR_BANNER, PILL_BASE, TAB_DIVIDER, TONE, tabPill } from '../styles.js'
-import { entryRepo, isOfficialEntry, repoKey } from '../utils/repo.js'
+import { isOfficialEntry } from '../utils/repo.js'
 
 /** The slice of `ctx.contentRegistry` the screen reads. Read structurally, never by import. */
 interface RegistryServiceLike {
@@ -93,6 +95,7 @@ interface RegistryServiceLike {
 interface SourcesRemoveLike {
   readonly sources: readonly SourceRecord[]
   remove(id: string, opts?: { forgetCatalogue?: boolean }): Promise<void>
+  setEnabled?(id: string, enabled: boolean): Promise<void>
 }
 interface LyricSourcesLike {
   getSources(): readonly LyricSourceDefinition[]
@@ -350,6 +353,11 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
     return map
   }, [ctx, contentNonce])
 
+  const musicSources = useMemo(() => {
+    const sources = serviceOf<SourcesRemoveLike>(ctx, 'sources')
+    return sources?.sources ?? []
+  }, [ctx, contentNonce])
+
   const themeState = useMemo(() => {
     const ts = serviceOf<ThemeServiceLike>(ctx, 'theme')
     const list = ts?.getThemes?.() ?? []
@@ -552,6 +560,20 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
     [ctx],
   )
 
+  const handleToggleMusicSourceEnabled = useCallback(
+    async (recordId: string, currentEnabled: boolean) => {
+      const sources = serviceOf<SourcesRemoveLike>(ctx, 'sources')
+      if (!sources?.setEnabled) return
+      try {
+        await sources.setEnabled(recordId, !currentEnabled)
+        setContentNonce((n) => n + 1)
+      } catch (err) {
+        setUninstallError(errorMessage(err))
+      }
+    },
+    [ctx],
+  )
+
   const handleApplyTheme = useCallback(
     async (themeId: string) => {
       const ts = serviceOf<ThemeServiceLike>(ctx, 'theme')
@@ -669,9 +691,9 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
       return [...filtered].sort((a, b) => a.name.localeCompare(b.name) * direction)
     }
     const valueOf = (entry: RegistryEntry): number | undefined => {
-      const ref = entryRepo(entry)
-      if (!ref) return undefined
-      const stats = repoStats.get(repoKey(ref))
+      const key = entryStatsKey(entry)
+      if (!key) return undefined
+      const stats = repoStats.get(key)
       if (sortBy === 'stars') return stats?.stars
       if (sortBy === 'downloads') return stats?.downloads
       return stats?.contributors
@@ -687,6 +709,34 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
       return (va - vb) * direction
     })
   }, [filtered, view, sortBy, sortDir, repoStats])
+
+  // Plugin latest versions: the index carries no plugin version, so the
+  // title chips and update badges of plugin cards resolve npm latest for
+  // the visible plugin entries only.
+  const visiblePluginEntries = useMemo(
+    () => visible.filter((entry) => entry.kind === 'plugin'),
+    [visible],
+  )
+  const pluginLatest = usePluginLatestVersions(ctx, visiblePluginEntries)
+
+  // Display states: the derived states, with plugin updates overlaid from
+  // npm latest — the derivation itself cannot see npm, because plugin
+  // entries carry no index version at all. A plugin whose npm latest is
+  // newer than its installed version reads as an update, same as the other
+  // kinds read their index version.
+  const displayStates: ReadonlyMap<string, RegistryActionState> = useMemo(() => {
+    let overridden: Map<string, RegistryActionState> | undefined
+    for (const entry of visiblePluginEntries) {
+      const latest = entry.npm ? pluginLatest.get(entry.npm) : undefined
+      if (!latest) continue
+      const current = actionStates.get(entry.id)
+      if (current?.state !== 'installed') continue
+      if (compareVersions(latest, current.installedVersion) <= 0) continue
+      overridden ??= new Map(actionStates)
+      overridden.set(entry.id, { state: 'update', installedVersion: normalizeVersion(current.installedVersion) })
+    }
+    return overridden ?? actionStates
+  }, [actionStates, pluginLatest, visiblePluginEntries])
 
   // Category options come from the plugin entries themselves; unknown slugs
   // pass through `categoryLabel` verbatim, so a new slug can never crash.
@@ -719,9 +769,9 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
 
   const statsFor = useCallback(
     (entry: RegistryEntry): { stars?: number; contributors?: number; downloads?: number } | undefined => {
-      const ref = entryRepo(entry)
-      if (!ref) return undefined
-      return repoStats.get(repoKey(ref))
+      const key = entryStatsKey(entry)
+      if (!key) return undefined
+      return repoStats.get(key)
     },
     [repoStats],
   )
@@ -1100,7 +1150,7 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
                 'div',
                 { style: CARD_GRID },
                 visible.map((entry) => {
-                  const actionState = actionStates.get(entry.id) ?? { state: 'install' as const }
+                  const actionState = displayStates.get(entry.id) ?? { state: 'install' as const }
                   const blocked = minAppVersionBlock(entry, appVersion)
                   const lock = lockRecords.get(entry.id)
                   const isInstalled = actionState.state === 'installed' || actionState.state === 'update'
@@ -1111,12 +1161,28 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
                       ? pluginMap.get(entry.id) ?? pluginMap.get(entry.id.replace(/^@[^/]+\//, ''))
                       : undefined
                   const lyricInfo = entry.kind === 'lyric-source' ? lyricSourceMap.get(entry.id) : undefined
+                  const musicRecord =
+                    entry.kind === 'music-source' ? findInstalledMusicSource(entry, musicSources) : undefined
                   const isTheme = entry.kind === 'theme'
                   const isPlugin = entry.kind === 'plugin'
                   const isLyric = entry.kind === 'lyric-source'
-                  const isExtension = isPlugin || isLyric || isTheme
+                  const isMusic = entry.kind === 'music-source'
+                  const isExtension = isPlugin || isLyric || isTheme || isMusic
 
                   const canUninstall = uninstallBase && (onInstalledTab || (isInstalled && isExtension))
+
+                  // Latest available version: the index version for the kinds
+                  // that carry one, npm latest for plugins. The title version
+                  // of a plugin card is the installed version when installed,
+                  // else the same npm latest.
+                  const pluginLatestVersion = isPlugin && entry.npm ? pluginLatest.get(entry.npm) : undefined
+                  const latestVersion =
+                    actionState.state === 'update'
+                      ? (isPlugin ? pluginLatestVersion : entry.version)
+                      : undefined
+                  const titleVersion = isPlugin
+                    ? (pluginInfo?.version ?? pluginLatestVersion)
+                    : undefined
 
                   return h(RegistryEntryCard, {
                     key: entry.id,
@@ -1128,16 +1194,22 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
                     stats: statsFor(entry),
                     favorite: isFavorite(entry.id),
                     onToggleFavorite: () => toggleFavorite(entry.id),
+                    titleVersion,
+                    latestVersion,
                     itemEnabled: isPlugin
                       ? (pluginInfo?.enabled ?? true)
                       : isLyric
                         ? (lyricInfo?.enabled ?? true)
-                        : undefined,
+                        : isMusic
+                          ? (musicRecord?.enabled ?? true)
+                          : undefined,
                     onToggleEnabled: isPlugin
                       ? () => void handleTogglePluginEnabled(pluginInfo?.id ?? entry.id, pluginInfo?.enabled ?? true)
                       : isLyric
                         ? () => void handleToggleLyricSourceEnabled(lyricInfo?.id ?? entry.id, lyricInfo?.enabled ?? true)
-                        : undefined,
+                        : isMusic
+                          ? () => void handleToggleMusicSourceEnabled(musicRecord?.id ?? entry.id, musicRecord?.enabled ?? true)
+                          : undefined,
                     themeActive: isTheme ? themeState.currentId === entry.id : undefined,
                     onApplyTheme: isTheme ? () => void handleApplyTheme(entry.id) : undefined,
                     pluginEnabled: pluginInfo?.enabled ?? true,

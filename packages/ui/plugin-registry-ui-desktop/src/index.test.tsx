@@ -235,6 +235,8 @@ interface RegistryStubOptions {
   installedThemes?: ThemeDefinition[]
   installedPlugins?: PluginInfo[]
   installedLyricSources?: LyricSourceDefinition[]
+  /** npm package name → latest version the plugin-manager stub answers. */
+  pluginLatest?: Record<string, string>
   /** The task-center records `getTasks` serves (and the change event re-emits). */
   tasks?: readonly RegistryTask[]
   /** False removes the optional task-center methods entirely (quiet-degrade path). */
@@ -388,6 +390,10 @@ async function harness(options: RegistryStubOptions & { appVersion?: string } = 
       registry.calls.push(`remove-source:${id}`)
       installed.musicSources = installed.musicSources.filter((r) => r.id !== id)
     }
+    setEnabled = async (id: string, enabled: boolean): Promise<void> => {
+      registry.calls.push(`set-source-enabled:${id}:${enabled}`)
+      installed.musicSources = installed.musicSources.map((r) => (r.id === id ? { ...r, enabled } : r))
+    }
   }
   class LyricSourcesStub extends Service {
     constructor(ctx: Context) {
@@ -432,6 +438,10 @@ async function harness(options: RegistryStubOptions & { appVersion?: string } = 
       this.appCtx = ctx
     }
     list = () => installed.plugins
+    getNpmLatest = async (npm: string): Promise<string | undefined> => {
+      registry.calls.push(`npm-latest:${npm}`)
+      return options.pluginLatest?.[npm]
+    }
     setEnabled = async (id: string, enabled: boolean) => {
       registry.calls.push(`set-plugin-enabled:${id}:${enabled}`)
       const p = installed.plugins.find((item) => item.id === id)
@@ -657,11 +667,13 @@ describe('RegistryScreen', () => {
     expect(updateBtn.getAttribute('data-state')).toBe('update')
     expect(updateBtn.textContent).toContain('Update')
 
-    // 1.0.0 == 1.0.0 → installed, disabled.
+    // 1.0.0 == 1.0.0 → installed: like lyric sources, an installed music
+    // source renders the enablement toggle (in use → Disable), not a
+    // disabled Installed button.
     const installedBtn = getByTestId('registry-action-music-current')
-    expect(installedBtn.getAttribute('data-state')).toBe('installed')
-    expect((installedBtn as HTMLButtonElement).disabled).toBe(true)
-    expect(installedBtn.textContent).toContain('Installed')
+    expect(installedBtn.getAttribute('data-state')).toBe('in-use')
+    expect((installedBtn as HTMLButtonElement).disabled).toBe(false)
+    expect(installedBtn.textContent).toContain('Disable')
 
     // The builtin lrclib lyric source: built-in tag + update flow.
     fireEvent.click(getByTestId('registry-tab-lyric-source'))
@@ -1000,6 +1012,98 @@ describe('RegistryScreen filters and sorting', () => {
     // Click enable theme -> calls setTheme
     fireEvent.click(themeActionBtn)
     await waitFor(() => expect(calls).toContain('set-theme:theme-neon'))
+  })
+
+  it('shows status badge, disable toggle, and uninstall on the kind tab for music sources', async () => {
+    const { ctx, calls } = await harness({})
+    const { getByTestId, findByTestId } = render(h(RegistryScreen, { ctx }))
+
+    // music-current is installed (doc 1.0.0 == entry 1.0.0): In use badge,
+    // Disable button, and Uninstall button on the music-source tab.
+    fireEvent.click(getByTestId('registry-tab-music-source'))
+    await findByTestId('registry-entry-music-current')
+    expect(getByTestId('registry-music-status-music-current').textContent).toBe('In use')
+    expect(getByTestId('registry-action-music-current').textContent).toContain('Disable')
+    expect(getByTestId('registry-uninstall-music-current')).toBeTruthy()
+
+    // Toggle disable through the sources service.
+    fireEvent.click(getByTestId('registry-action-music-current'))
+    await waitFor(() => expect(calls).toContain('set-source-enabled:rec-https://b.example:false'))
+    await waitFor(() =>
+      expect(getByTestId('registry-action-music-current').textContent).toContain('Enable'),
+    )
+
+    // Uninstall two-step on the kind tab.
+    fireEvent.click(getByTestId('registry-uninstall-music-current'))
+    expect(getByTestId('registry-uninstall-confirm-music-current')).toBeTruthy()
+    fireEvent.click(getByTestId('registry-uninstall-confirm-music-current'))
+    await waitFor(() => expect(calls).toContain('remove-source:rec-https://b.example'))
+  })
+
+  it('shows the latest version beside the favorite button for updates, on kind and installed tabs', async () => {
+    const { ctx } = await harness({})
+    const { getByTestId, findByTestId } = render(h(RegistryScreen, { ctx }))
+
+    // music-new: entry 1.1.0 vs installed doc 1.0.0 → update.
+    fireEvent.click(getByTestId('registry-tab-music-source'))
+    await findByTestId('registry-entry-music-new')
+    expect(getByTestId('registry-latest-version-music-new').textContent).toBe('v1.1.0')
+    expect(getByTestId('registry-action-music-new').textContent).toContain('Update')
+
+    // The installed tab shows the same latest chip.
+    fireEvent.click(getByTestId('registry-tab-installed'))
+    await findByTestId('registry-entry-music-new')
+    expect(getByTestId('registry-latest-version-music-new').textContent).toBe('v1.1.0')
+  })
+
+  it('shows plugin title versions, registered services, and the npm latest badge for plugin updates', async () => {
+    const pluginEntry: RegistryEntry = {
+      id: 'plugin-provides',
+      kind: 'plugin',
+      name: 'Provides Plugin',
+      repo: 'https://github.com/example/plugin-provides',
+      category: 'ui-enhancement',
+      npm: '@bbebee/plugin-provides',
+      services: ['audio'],
+      provides: ['visualizer'],
+    }
+    const { ctx } = await harness({
+      index: { entries: [...INDEX.entries, pluginEntry] },
+      installedPlugins: [
+        {
+          id: 'plugin-ok',
+          name: 'plugin-ok',
+          displayName: 'OK Plugin',
+          version: '1.0.0',
+          systemId: 'layer-5',
+          enabled: true,
+          state: 'ACTIVE',
+          waitingFor: [],
+          dependencies: [],
+          dependents: [],
+        },
+      ],
+      pluginLatest: { '@bbebee/plugin-ok': '1.2.0', '@bbebee/plugin-provides': '0.3.0' },
+    })
+    const { getByTestId, findByTestId } = render(h(RegistryScreen, { ctx }))
+    fireEvent.click(getByTestId('registry-tab-plugin'))
+    await findByTestId('registry-entry-plugin-ok')
+
+    // Installed plugin: title shows the installed version, the update badge
+    // shows npm latest, and the action button offers the update.
+    expect(getByTestId('registry-entry-plugin-ok').textContent).toContain('v1.0.0')
+    await waitFor(() =>
+      expect(getByTestId('registry-latest-version-plugin-ok').textContent).toBe('v1.2.0'),
+    )
+    expect(getByTestId('registry-action-plugin-ok').textContent).toContain('Update')
+
+    // Uninstalled plugin: title shows npm latest, and both the registered
+    // service (provides) and the required service render as chips.
+    await findByTestId('registry-entry-plugin-provides')
+    const providesCard = getByTestId('registry-entry-plugin-provides')
+    expect(providesCard.textContent).toContain('v0.3.0')
+    expect(providesCard.textContent).toContain('visualizer')
+    expect(providesCard.textContent).toContain('audio')
   })
 
   it('filters plugins by category and copes with unknown slugs', async () => {

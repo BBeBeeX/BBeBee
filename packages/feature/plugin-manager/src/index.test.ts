@@ -2143,6 +2143,27 @@ describe('plugin-manager npm service methods', () => {
   })
 })
 
+describe('plugin-manager getNpmLatest', () => {
+  it('returns dist-tags.latest from the packument', async () => {
+    const w = createNpmWorld()
+    w.routes.set(`https://registry.npmjs.org/${encodeURIComponent('@t/a')}`, {
+      status: 200,
+      json: async () => ({ 'dist-tags': { latest: '2.0.0' }, versions: {} }),
+    })
+    await expect(w.plugin.getNpmLatest('@t/a')).resolves.toBe('2.0.0')
+  })
+
+  it('degrades to undefined when the packument is missing or has no latest', async () => {
+    const w = createNpmWorld()
+    await expect(w.plugin.getNpmLatest('@t/ghost')).resolves.toBeUndefined()
+    w.routes.set(`https://registry.npmjs.org/${encodeURIComponent('@t/b')}`, {
+      status: 200,
+      json: async () => ({ 'dist-tags': {}, versions: {} }),
+    })
+    await expect(w.plugin.getNpmLatest('@t/b')).resolves.toBeUndefined()
+  })
+})
+
 describe('plugin-manager local package import', () => {
   const b64 = (bytes: Uint8Array) => base64Encode(bytes)
 
