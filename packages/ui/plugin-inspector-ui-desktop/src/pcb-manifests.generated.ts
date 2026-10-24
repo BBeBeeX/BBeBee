@@ -728,7 +728,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "id": "@bbebee/core-js-quickjs-node",
     "name": "@bbebee/core-js-quickjs-node",
     "displayName": "Script sandbox",
-    "description": "ctx.js — a QuickJS realm per source, for desktop and Node.",
+    "description": "ctx.js — a QuickJS realm per caller, on desktop, Node, and React Native (WASM).",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -739,7 +739,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "systemId": "layer-2",
     "moduleId": "core",
     "platforms": [
-      "desktop"
+      "desktop",
+      "mobile"
     ],
     "entry": {
       "main": "./dist/index.js"
@@ -756,7 +757,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "id": "@bbebee/core-js-quickjs-node",
     "name": "@bbebee/core-js-quickjs-node",
     "displayName": "Script sandbox",
-    "description": "ctx.js — a QuickJS realm per source, for desktop and Node.",
+    "description": "ctx.js — a QuickJS realm per caller, on desktop, Node, and React Native (WASM).",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -767,7 +768,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "systemId": "layer-2",
     "moduleId": "core",
     "platforms": [
-      "desktop"
+      "desktop",
+      "mobile"
     ],
     "entry": {
       "main": "./dist/index.js"
@@ -1565,6 +1567,68 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       ]
     },
     "effect": "dsp"
+  },
+  "@bbebee/plugin-extension-host": {
+    "id": "@bbebee/plugin-extension-host",
+    "name": "@bbebee/plugin-extension-host",
+    "displayName": "Extensions",
+    "description": "ctx.extensions — third-party extensions hosted in a ctx.js realm, one fiber and one realm each (M5).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-4",
+    "moduleId": "extensions",
+    "platforms": [
+      "desktop",
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [
+      "net:host/*"
+    ],
+    "contributes": {
+      "services": [
+        "extensions"
+      ]
+    },
+    "effect": "extensions"
+  },
+  "plugin-extension-host": {
+    "id": "@bbebee/plugin-extension-host",
+    "name": "@bbebee/plugin-extension-host",
+    "displayName": "Extensions",
+    "description": "ctx.extensions — third-party extensions hosted in a ctx.js realm, one fiber and one realm each (M5).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-4",
+    "moduleId": "extensions",
+    "platforms": [
+      "desktop",
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [
+      "net:host/*"
+    ],
+    "contributes": {
+      "services": [
+        "extensions"
+      ]
+    },
+    "effect": "extensions"
   },
   "@bbebee/plugin-history": {
     "id": "@bbebee/plugin-history",

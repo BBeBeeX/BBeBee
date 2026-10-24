@@ -733,11 +733,29 @@ strangers ([sources/runtime.md §8](../sources/runtime.md#8-trust-what-an-import
 is a core service rather than part of that plugin because embedding an interpreter means shipping
 native code, which only `core-*` may do ([architecture/layers.md §1](../architecture/layers.md#the-invariant)).
 
-**Implemented by `core-js-quickjs-node`** (desktop and Node) on QuickJS compiled to WebAssembly.
-Not `node:vm`, and the difference is the whole point: `vm` shares an object graph with the host,
-so a script reaching `this.constructor.constructor` is out, and every published mitigation for
-that is a blocklist someone eventually walks around. QuickJS is a separate interpreter — there is
+**Implemented by `core-js-quickjs-node`** (desktop, Node, and mobile) on QuickJS compiled to
+WebAssembly. Not `node:vm`, and the difference is the whole point: `vm` shares an object graph with
+the host, so a script reaching `this.constructor.constructor` is out, and every published mitigation
+for that is a blocklist someone eventually walks around. QuickJS is a separate interpreter — there is
 no host object graph to reach, because there are no host objects in it.
+
+The same single-file WASM build runs on every target: the renderer's WebAssembly on desktop,
+Hermes's WebAssembly support on mobile. No native module, no JSI bridge — which is why the mobile
+port was a wiring change (bootstrap entry + `platforms`) rather than a new native dependency. The
+WASM bytes are embedded in the JS bundle (`@jitl/quickjs-singlefile-browser-release-sync`), so no
+fetch is involved and no CSP rule is spent.
+
+Two engine facts the emulator verification pinned down (2026-10-24), both Hermes-specific:
+
+- **`import.meta` is not implemented in Hermes.** The singlefile variant's emscripten glue is ESM
+  and reads `import.meta.url`; on device this throws at first use unless the shell's Babel config
+  enables `unstable_transformImportMeta` in `babel-preset-expo` (`apps/mobile/babel.config.js`
+  does). The desktop webview's V8 supports the syntax natively, which is why only mobile needs it.
+- **`WebAssembly` in Hermes exists only from Hermes V1 (RN 0.84, Feb 2026).** The app pins
+  RN 0.86.3, whose engine ships WASM enabled; an older runtime (verified: Expo Go 54 = RN 0.81)
+  throws `Property 'WebAssembly' doesn't exist` on realm creation. The service degrades rather
+  than crashes a WASM-less build: the module compiles lazily on the first `createRealm`, so boot
+  is unaffected and callers treat the failure per-source / quarantine the extension.
 
 ⚠️ **`js` is an optional injection.** A build without a sandbox still runs every document that
 needs no scripting, and derives the affected capabilities as *absent* for the rest rather than
@@ -789,10 +807,10 @@ export class JsTimeoutError extends Error {}
 export class JsMemoryError extends Error {}
 ```
 
-| | Desktop (`core-js-quickjs-node`) | Expo (QuickJS JSI via shell) |
+| | Desktop (`core-js-quickjs-node`) | Expo (same package) |
 |---|---|---|
-| Backing | `quickjs-emscripten-core` with a single-file WASM variant, embedded in the webview bundle | A QuickJS JSI module (`react-native-quick-js`) |
-| Isolation | A separate WASM instance per realm | A separate `JSRuntime` per realm |
+| Backing | `quickjs-emscripten-core` with a single-file WASM variant, embedded in the webview bundle | The same single-file WASM variant, instantiated through Hermes's `WebAssembly` |
+| Isolation | A separate WASM instance per realm | Same |
 | Interrupts | QuickJS interrupt handler, checked on backward jumps | Same |
 | Async | Host functions may return promises; the realm's job queue is driven by the host | Same |
 

@@ -144,6 +144,9 @@ declare module 'cordis' {
     'plugin-manager/enabled-changed'(payload: { id: string; enabled: boolean }): void
     'plugin-manager/changed'(): void
 
+    /* ── extensions (the M5 realm host) ──────────────── emit ── */
+    'extensions/changed'(): void
+
     /* ── audio-converter ─────────────────────────────── emit ── */
     'audio-converter/tasks-changed'(tasks: readonly ConvertTask[]): void
     'audio-converter/task-progress'(taskId: string, progress: number, stage: string): void

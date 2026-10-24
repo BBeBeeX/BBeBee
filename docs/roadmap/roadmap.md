@@ -255,6 +255,19 @@ transports — real, but no longer urgent. If that demand never materialises, **
 a valid outcome**, and the shelf design in
 [plugins/loading.md §6.2](../plugins/loading.md#62-desktop-dynamic-loading--plugin-loader-dynamic) is what it cost.
 
+> **Status (2026-10-24) — the host half shipped.** `plugin-extension-host` runs third-party
+> extensions in a `ctx.js` realm on **both** shells: one realm per extension behind an `ext`
+> bridge (scoped HTTP behind `net:host/<glob>` grants, namespaced string storage, the allowlisted
+> canon events), with install/activate/uninstall and two-strikes quarantine
+> (`packages/feature/plugin-extension-host`). The sandbox itself is now cross-platform — the same
+> single-file WASM QuickJS build runs on Hermes through its `WebAssembly` support
+> ([services/contracts.md §19](../services/contracts.md#19-ctxjs--the-sandboxed-evaluator)), so
+> scripted (`@js:`) sources work on mobile too. The bridge *is* the gate for realm code — there is
+> no ambient `ctx` to reach around — which is a different, stronger position than the desktop
+> loader's kernel gate. What remains of M5 is the **distribution** half: the extension kind in the
+> community registry, install-from-URL, update flow, and a settings surface. Realm extensions are
+> not loader plugins; mobile stays statically bundled per ADR-1, unchanged.
+
 **Exit criteria**
 - An extension built outside the repo installs from a local file and a URL and runs **inside a
   `ctx.js` realm**, not in the renderer's — so the honesty note in
@@ -390,10 +403,12 @@ that cannot be deferred, because without it every rotted source becomes a suppor
 With ADR-1 amended, a third-party effect or scrobbler cannot be installed at all until M5, and M5
 may never be built.
 
-*Mitigation* — the shelf design is kept and dated
-([plugins/loading.md §6.2](../plugins/loading.md#62-desktop-dynamic-loading--plugin-loader-dynamic)), and the sandbox
-M5 would need now ships with sources, so the remaining work is a service bridge rather than a
-subsystem. If demand appears, it is a milestone; if it does not, nothing was spent.
+*Mitigation* — the host half now exists: `plugin-extension-host` installs and runs third-party
+realm extensions on both shells (M5 status note above), so "cannot be installed at all" is down to
+the missing distribution half — the registry entries and the settings surface, not a subsystem.
+Until those land, the shelf design is still kept and dated
+([plugins/loading.md §6.2](../plugins/loading.md#62-desktop-dynamic-loading--plugin-loader-dynamic)). If demand appears,
+finishing is a milestone; if it does not, nothing more was spent.
 
 ### 🟡 Version drift across two large frameworks
 

@@ -39,6 +39,11 @@ export const bundled: PluginRegistry = {
     manifest: {"id":"@bbebee/core-http-rn","name":"@bbebee/core-http-rn","displayName":"HTTP","description":"ctx.http for iOS and Android — the M1 slice over expo/fetch.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":["net:host/*"],"contributes":{"services":["http"]},"effect":"http"},
     builtin: true,
   },
+  "@bbebee/core-js-quickjs-node": {
+    load: () => import('@bbebee/core-js-quickjs-node'),
+    manifest: {"id":"@bbebee/core-js-quickjs-node","name":"@bbebee/core-js-quickjs-node","displayName":"Script sandbox","description":"ctx.js — a QuickJS realm per caller, on desktop, Node, and React Native (WASM).","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["desktop","mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["js"]},"effect":"js"},
+    builtin: true,
+  },
   "@bbebee/core-media-session-rn": {
     load: () => import('@bbebee/core-media-session-rn'),
     manifest: {"id":"@bbebee/core-media-session-rn","name":"@bbebee/core-media-session-rn","displayName":"Media Session","description":"ctx.mediaSession for iOS and Android — lock screen and media notification.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":["mediaSession"],"contributes":{"services":["mediaSession"]},"effect":"mediaSession"},
@@ -92,6 +97,11 @@ export const bundled: PluginRegistry = {
   "@bbebee/plugin-dsp": {
     load: () => import('@bbebee/plugin-dsp'),
     manifest: {"id":"@bbebee/plugin-dsp","name":"@bbebee/plugin-dsp","displayName":"DSP Effect Chain","description":"ctx.dsp — effect chain builder, presets, and audio processing effects.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@bbebee/plugin-player"],"systemId":"layer-4","moduleId":"dsp","entry":{"main":"./dist/index.js","ui":{"desktop":"./dist/index.js","mobile":"./dist/index.js"}},"capabilities":["audio"],"contributes":{"services":["dsp"]},"effect":"dsp"},
+    builtin: true,
+  },
+  "@bbebee/plugin-extension-host": {
+    load: () => import('@bbebee/plugin-extension-host'),
+    manifest: {"id":"@bbebee/plugin-extension-host","name":"@bbebee/plugin-extension-host","displayName":"Extensions","description":"ctx.extensions — third-party extensions hosted in a ctx.js realm, one fiber and one realm each (M5).","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-4","moduleId":"extensions","platforms":["desktop","mobile"],"entry":{"main":"./dist/index.js"},"capabilities":["net:host/*"],"contributes":{"services":["extensions"]},"effect":"extensions"},
     builtin: true,
   },
   "@bbebee/plugin-history": {

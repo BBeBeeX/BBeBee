@@ -560,3 +560,21 @@ provenance only by being published again from CI.
 
 ---
 
+
+---
+
+### 6.11 Realm extensions (`plugin-extension-host`, M5)
+
+A third-party extension is deliberately **not** a loader plugin on either shell: it runs inside a
+`ctx.js` realm (QuickJS WASM — now on both platforms, §19 of
+[services/contracts.md](../services/contracts.md#19-ctxjs--the-sandboxed-evaluator)) hosted by the
+single built-in plugin `@bbebee/plugin-extension-host`, and everything it can do is the `ext`
+bridge: scoped HTTP behind the manifest's `net:host/<glob>` capabilities (the refusal is a
+`CapabilityError`), namespaced string storage, a log sink, and the allowlisted canon events.
+One extension is one realm; two consecutive load failures quarantine it; uninstall disposes the
+realm before removing files. The bridge *is* the gate — realm code has no ambient `ctx` to reach
+around, so this is a stronger position than the kernel gate the desktop loader applies to
+registry plugins. Because the host is a normal built-in plugin, mobile's static bundling
+(§6.1) is untouched: the *distribution* half (registry entries, install-from-URL, updates,
+settings UI) is the remainder of
+[roadmap M5](../roadmap/roadmap.md#m5--third-party-extensions-on-the-sandbox).

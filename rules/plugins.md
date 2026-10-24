@@ -175,6 +175,12 @@ Every plugin package across all layers (Core, Logs, Feature, UI) must carry a `B
   - `app.registerPlugin(id, entry)`: Extends the running registry.
   - `app.loadPlugin(id)`: Verifies capability grants for non-builtin plugins (`ungranted` rejection if unauthorized).
   - `app.unloadPlugin(id)`: Safely tears down fibers and disposers in reverse order.
+- **Realm extensions are neither mode.** A third-party extension (`plugin-extension-host`, M5) is
+  hosted by one built-in plugin on both shells and runs in a `ctx.js` realm behind the `ext`
+  bridge — it is never a registry entry, never loaded by either loader, and mobile stays
+  statically bundled. The bridge enforces capabilities (a `net:host/<glob>` refusal is a
+  `CapabilityError`); two consecutive load failures quarantine. See
+  [docs/plugins/loading.md §6.11](../docs/plugins/loading.md#realm-extensions-plugin-extension-host-m5).
 
 ---
 

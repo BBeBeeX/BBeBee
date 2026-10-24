@@ -36,6 +36,11 @@ export const BOOTSTRAP_SERVICES = [
   'device',
   'background',
   'mediaSession',
+  // Same position as the desktop shell's list: the realms the source runtime
+  // (and, later, the extension host) evaluate in. Bootstrap-wired because a
+  // required `js` reachable through the config allowlist could be switched
+  // off from the wrong end, like `http` and `audio` below.
+  'js',
   'codec',
   'http',
   'audio',
@@ -73,6 +78,10 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
   '@bbebee/plugin-local-scanner-ui-mobile': {},
   '@bbebee/plugin-source-local': {},
   '@bbebee/plugin-source-runtime': {},
+  // The M5 extension host: third-party extensions in a ctx.js realm, gated at
+  // the ext bridge. Same allowlist position as desktop — the feature-parity
+  // gate counts headless features on both shells.
+  '@bbebee/plugin-extension-host': {},
   // Covers and remote streams are served from disk, fetched only on a miss.
   // The budgets are the mobile half of docs/07 §4.11's defaults: a phone
   // should hold 128 MB of artwork and 256 MB of streams, not a desktop's.

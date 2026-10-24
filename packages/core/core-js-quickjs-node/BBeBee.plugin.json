@@ -2,7 +2,7 @@
   "id": "@bbebee/core-js-quickjs-node",
   "name": "@bbebee/core-js-quickjs-node",
   "displayName": "Script sandbox",
-  "description": "ctx.js — a QuickJS realm per source, for desktop and Node.",
+  "description": "ctx.js — a QuickJS realm per caller, on desktop, Node, and React Native (WASM).",
   "version": "0.0.0",
   "author": "BBeBee Team",
   "engines": {
@@ -13,7 +13,8 @@
   "systemId": "layer-2",
   "moduleId": "core",
   "platforms": [
-    "desktop"
+    "desktop",
+    "mobile"
   ],
   "entry": {
     "main": "./dist/index.js"

@@ -222,6 +222,9 @@ declare module 'cordis' {
     /* ── plugin-manager ──────────────────────────────── emit ── */
     'plugin-manager/enabled-changed'(payload: { id: string; enabled: boolean }): void
     'plugin-manager/changed'(): void
+    /* ── extensions ───────────────────────────────────── emit ── */
+    /** Installed set, quarantine state or activation changed. */
+    'extensions/changed'(): void
 
     /* ── registry ───────────────────────────────────── emit ── */
     /**
@@ -319,7 +322,8 @@ export const DISPATCH_MODES = {
   'share/open': 'emit',
   'share/import': 'emit',
   'plugin-manager/enabled-changed': 'emit',
-  'plugin-manager/changed': 'emit',
+    'plugin-manager/changed': 'emit',
+    'extensions/changed': 'emit',
   'registry/updates-available': 'emit',
   'registry/updates-seen': 'emit',
   'registry/tasks-changed': 'emit',

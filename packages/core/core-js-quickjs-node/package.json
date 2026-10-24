@@ -1,7 +1,7 @@
 {
   "name": "@bbebee/core-js-quickjs-node",
   "version": "0.0.0",
-  "description": "ctx.js — a QuickJS realm per source, for desktop and Node.",
+  "description": "ctx.js — a QuickJS realm per caller, on desktop, Node, and React Native (WASM).",
   "type": "module",
   "license": "MIT",
   "exports": {

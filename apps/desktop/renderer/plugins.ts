@@ -120,6 +120,10 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
   '@bbebee/plugin-local-scanner-ui-desktop': {},
   '@bbebee/plugin-source-local': {},
   '@bbebee/plugin-source-runtime': {},
+  // The M5 extension host: third-party extensions in a ctx.js realm, gated at
+  // the ext bridge (the realm's bridge *is* the gate — there is no ambient
+  // ctx to reach around, unlike registry plugins).
+  '@bbebee/plugin-extension-host': {},
   // Covers and remote streams are served from disk, fetched only on a miss.
   '@bbebee/plugin-cache': {},
   // Hooks `player/before-resolve`: a file the user downloads is kept under

@@ -39,6 +39,7 @@ import { SecretsExpo } from '@bbebee/core-secrets-expo'
 import { DeviceExpo } from '@bbebee/core-device-expo'
 import { BackgroundExpo } from '@bbebee/core-background-expo'
 import { MediaSessionRn } from '@bbebee/core-media-session-rn'
+import { JsQuickJsNode } from '@bbebee/core-js-quickjs-node'
 import { CodecRn } from '@bbebee/core-codec-rn'
 import { HttpRn } from '@bbebee/core-http-rn'
 import { AudioMpv } from '@bbebee/core-audio-mpv'
@@ -147,6 +148,18 @@ export async function boot(): Promise<App> {
       [DeviceExpo, { appVersion: '0.0.0' }],
       BackgroundExpo,
       MediaSessionRn,
+
+      /*
+       * `ctx.js` — the QuickJS realm. The same WASM build the desktop runs
+       * (`core-js-quickjs-node` imports the browser singlefile variant, no
+       * Node API), loadable on Hermes through its WebAssembly support. The
+       * module compiles lazily on the first `createRealm`, so startup never
+       * pays for it and an engine without WASM fails per realm, not per boot.
+       * Mobile gains what desktop already had: scripted (`@js:`) source rules
+       * (the source runtime's `js` inject is optional and was degrading here)
+       * and, later, the M5 extension host on top of the same realms.
+       */
+      JsQuickJsNode,
 
       /*
        * The M1 platform floor.

@@ -327,6 +327,9 @@ importers:
       '@bbebee/core-http-rn':
         specifier: workspace:*
         version: link:../../packages/core/core-http-rn
+      '@bbebee/core-js-quickjs-node':
+        specifier: workspace:*
+        version: link:../../packages/core/core-js-quickjs-node
       '@bbebee/core-media-session-rn':
         specifier: workspace:*
         version: link:../../packages/core/core-media-session-rn
@@ -369,6 +372,9 @@ importers:
       '@bbebee/plugin-dsp-ui-mobile':
         specifier: workspace:*
         version: link:../../packages/ui/plugin-dsp-ui-mobile
+      '@bbebee/plugin-extension-host':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-extension-host
       '@bbebee/plugin-history':
         specifier: workspace:*
         version: link:../../packages/feature/plugin-history
@@ -1115,6 +1121,34 @@ importers:
       '@types/react':
         specifier: ^19.2.0
         version: 19.2.18
+
+  packages/feature/plugin-extension-host:
+    dependencies:
+      '@BBeBee/protocol':
+        specifier: workspace:*
+        version: link:../../protocol
+      cordis:
+        specifier: 4.0.0-rc.9
+        version: 4.0.0-rc.9
+    devDependencies:
+      '@BBeBee/core-fs-node':
+        specifier: workspace:*
+        version: link:../../core/core-fs-node
+      '@BBeBee/core-paths-node':
+        specifier: workspace:*
+        version: link:../../core/core-paths-node
+      '@BBeBee/kernel':
+        specifier: workspace:*
+        version: link:../../kernel
+      '@bbebee/core-http-node':
+        specifier: workspace:*
+        version: link:../../core/core-http-node
+      '@bbebee/core-js-quickjs-node':
+        specifier: workspace:*
+        version: link:../../core/core-js-quickjs-node
+      '@bbebee/core-store-fs':
+        specifier: workspace:*
+        version: link:../../core/core-store-fs
 
   packages/feature/plugin-history:
     dependencies:

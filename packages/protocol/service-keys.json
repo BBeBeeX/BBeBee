@@ -17,6 +17,7 @@
     "device",
     "downloads",
     "dsp",
+    "extensions",
     "fs",
     "http",
     "i18n",
@@ -102,6 +103,9 @@
     ],
     "dsp": [
       "@bbebee/plugin-dsp"
+    ],
+    "extensions": [
+      "@bbebee/plugin-extension-host"
     ],
     "fs": [
       "@bbebee/core-desktop-bridge",
