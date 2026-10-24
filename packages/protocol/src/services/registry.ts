@@ -66,6 +66,14 @@ export interface RegistryEntry {
   readonly capabilities?: readonly string[]
   /** plugin entries only (schema v2): the npm package name the client downloads. Version truth lives on npm, never here. */
   readonly npm?: string
+  /**
+   * plugin entries only (schema v2): the canonical npm package address
+   * derived from `npm` (`https://registry.npmjs.org/<encoded name>`).
+   * It carries neither a version (it addresses the package, not a
+   * release) nor a hash. Reference address only — downloads still
+   * resolve through the client's effective registry (mirror-aware).
+   */
+  readonly npmUrl?: string
   /** plugin entries only (schema v2): cordis service keys the plugin must inject — the install-time dependency check reads this. */
   readonly services?: readonly string[]
   /** plugin entries only (schema v2): supported platforms, `'desktop'` / `'mobile'`. */

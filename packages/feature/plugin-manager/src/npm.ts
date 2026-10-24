@@ -603,6 +603,7 @@ export class NpmClient {
       name: e.name as string,
       repo: (e.repo as string) ?? '',
       npm: e.npm as string,
+      npmUrl: typeof e.npmUrl === 'string' ? e.npmUrl : undefined,
       author: (e.author as string) ?? '',
       description: (e.description as string) ?? '',
       services: Array.isArray(e.services) ? (e.services as string[]) : [],

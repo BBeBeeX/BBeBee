@@ -99,6 +99,13 @@ export interface RegistryPluginEntry {
   repo: string
   /** npm package name to download, e.g. `@alice/bbebee-plugin-x`. */
   npm: string
+  /**
+   * Canonical npm package address derived from `npm`
+   * (`https://registry.npmjs.org/<encoded name>`). Neither versioned
+   * nor hashed — it addresses the package, not a release. Reference
+   * only; downloads resolve through the effective registry.
+   */
+  npmUrl?: string
   author: string
   description: string
   /** Required cordis service keys the plugin injects (non-empty). */

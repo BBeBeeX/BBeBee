@@ -170,6 +170,7 @@ function sanitizeEntry(raw: unknown, defaultKind?: RegistryEntryKind): RegistryE
     sha256: optionalString(raw.sha256),
     capabilities: optionalStringArray(raw.capabilities),
     npm: optionalString(raw.npm),
+    npmUrl: optionalString(raw.npmUrl),
     services: optionalStringArray(raw.services),
     platforms: optionalStringArray(raw.platforms),
     provides: optionalStringArray(raw.provides),
