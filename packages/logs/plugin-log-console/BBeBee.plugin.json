@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-log-console",
-  "name": "@BBeBee/plugin-log-console",
+  "id": "@bbebee/plugin-log-console",
+  "name": "@bbebee/plugin-log-console",
   "displayName": "Console Logs",
   "description": "Development console transport.",
   "version": "0.0.0",
@@ -10,7 +10,7 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-log-buffer"
+    "@bbebee/plugin-log-buffer"
   ],
   "systemId": "layer-3",
   "moduleId": "logs",

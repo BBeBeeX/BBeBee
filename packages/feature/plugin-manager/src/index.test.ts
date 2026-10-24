@@ -43,7 +43,7 @@ describe('PluginManagerPlugin', () => {
           effects: [],
           children: [
             {
-              name: '@BBeBee/plugin-player',
+              name: '@bbebee/plugin-player',
               uid: 1,
               state: 'ACTIVE',
               inject: ['audio', 'sources'],
@@ -53,7 +53,7 @@ describe('PluginManagerPlugin', () => {
               children: [],
             },
             {
-              name: '@BBeBee/plugin-queue',
+              name: '@bbebee/plugin-queue',
               uid: 2,
               state: 'ACTIVE',
               inject: ['player'],
@@ -78,9 +78,9 @@ describe('PluginManagerPlugin', () => {
   }
 
   const sampleManifests: Record<string, PluginManifest> = {
-    '@BBeBee/plugin-player': {
-      id: '@BBeBee/plugin-player',
-      name: '@BBeBee/plugin-player',
+    '@bbebee/plugin-player': {
+      id: '@bbebee/plugin-player',
+      name: '@bbebee/plugin-player',
       displayName: 'Player Service',
       description: 'Headless player',
       version: '1.0.0',
@@ -88,16 +88,16 @@ describe('PluginManagerPlugin', () => {
       systemId: 'layer-4',
       moduleId: 'playback',
       enabled: true,
-      dependencies: ['@BBeBee/core-audio-mpv'],
+      dependencies: ['@bbebee/core-audio-mpv'],
       entry: { main: './dist/index.js' },
       capabilities: [],
       contributes: { services: ['player'] },
       effect: 'player',
       engines: { BBeBee: '^0.1.0' },
     },
-    '@BBeBee/plugin-queue': {
-      id: '@BBeBee/plugin-queue',
-      name: '@BBeBee/plugin-queue',
+    '@bbebee/plugin-queue': {
+      id: '@bbebee/plugin-queue',
+      name: '@bbebee/plugin-queue',
       displayName: 'Queue Service',
       description: 'Playback queue',
       version: '1.0.0',
@@ -105,7 +105,7 @@ describe('PluginManagerPlugin', () => {
       systemId: 'layer-4',
       moduleId: 'playback',
       enabled: true,
-      dependencies: ['@BBeBee/plugin-player'],
+      dependencies: ['@bbebee/plugin-player'],
       entry: { main: './dist/index.js' },
       capabilities: [],
       contributes: { services: ['queue'] },
@@ -122,15 +122,15 @@ describe('PluginManagerPlugin', () => {
     const list = plugin.list()
     expect(list).toHaveLength(2)
 
-    const player = list.find((p) => p.id === '@BBeBee/plugin-player')
+    const player = list.find((p) => p.id === '@bbebee/plugin-player')
     expect(player).toBeDefined()
     expect(player?.state).toBe('ACTIVE')
     expect(player?.enabled).toBe(true)
 
-    const queue = list.find((p) => p.id === '@BBeBee/plugin-queue')
+    const queue = list.find((p) => p.id === '@bbebee/plugin-queue')
     expect(queue).toBeDefined()
-    expect(queue?.dependencies).toContain('@BBeBee/plugin-player')
-    expect(player?.dependents).toContain('@BBeBee/plugin-queue')
+    expect(queue?.dependencies).toContain('@bbebee/plugin-player')
+    expect(player?.dependents).toContain('@bbebee/plugin-queue')
   })
 
   it('updates enablement, persists to store, and invokes lifecycle bridge', async () => {
@@ -149,14 +149,14 @@ describe('PluginManagerPlugin', () => {
       eventsFired.push(payload)
     })
 
-    await plugin.setEnabled('@BBeBee/plugin-queue', false)
+    await plugin.setEnabled('@bbebee/plugin-queue', false)
 
     expect(storeMock.set).toHaveBeenCalled()
-    expect(bridge.unloadPlugin).toHaveBeenCalledWith('@BBeBee/plugin-queue')
-    expect(eventsFired).toEqual([{ id: '@BBeBee/plugin-queue', enabled: false }])
+    expect(bridge.unloadPlugin).toHaveBeenCalledWith('@bbebee/plugin-queue')
+    expect(eventsFired).toEqual([{ id: '@bbebee/plugin-queue', enabled: false }])
 
     const list = plugin.list()
-    const queue = list.find((p) => p.id === '@BBeBee/plugin-queue')
+    const queue = list.find((p) => p.id === '@bbebee/plugin-queue')
     expect(queue?.enabled).toBe(false)
   })
 
@@ -170,15 +170,15 @@ describe('PluginManagerPlugin', () => {
     }
     plugin.setLifecycleBridge(bridge)
 
-    // '@BBeBee/plugin-player' provides the critical key `player`.
-    await expectNpmError(plugin.setEnabled('@BBeBee/plugin-player', false), 'CRITICAL_PROVIDER')
+    // '@bbebee/plugin-player' provides the critical key `player`.
+    await expectNpmError(plugin.setEnabled('@bbebee/plugin-player', false), 'CRITICAL_PROVIDER')
     expect(bridge.unloadPlugin).not.toHaveBeenCalled()
-    expect(plugin.list().find((p) => p.id === '@BBeBee/plugin-player')?.enabled).toBe(true)
+    expect(plugin.list().find((p) => p.id === '@bbebee/plugin-player')?.enabled).toBe(true)
 
     // Enabling is never locked, and non-critical providers toggle freely.
-    await plugin.setEnabled('@BBeBee/plugin-player', true)
-    await plugin.setEnabled('@BBeBee/plugin-queue', false)
-    expect(plugin.list().find((p) => p.id === '@BBeBee/plugin-queue')?.enabled).toBe(false)
+    await plugin.setEnabled('@bbebee/plugin-player', true)
+    await plugin.setEnabled('@bbebee/plugin-queue', false)
+    expect(plugin.list().find((p) => p.id === '@bbebee/plugin-queue')?.enabled).toBe(false)
   })
 
   it('tracks plugin failure errors from kernel events', async () => {
@@ -186,15 +186,15 @@ describe('PluginManagerPlugin', () => {
     const plugin = new PluginManagerPlugin(ctx, { manifests: sampleManifests })
     await plugin[PluginManagerPlugin.init]()
 
-    ctx.emit('plugin/failed', '@BBeBee/plugin-player', new Error('Audio engine unavailable'))
+    ctx.emit('plugin/failed', '@bbebee/plugin-player', new Error('Audio engine unavailable'))
 
     const list = plugin.list()
-    const player = list.find((p) => p.id === '@BBeBee/plugin-player')
+    const player = list.find((p) => p.id === '@bbebee/plugin-player')
     expect(player?.error).toBe('Audio engine unavailable')
 
-    ctx.emit('plugin/loaded', '@BBeBee/plugin-player')
+    ctx.emit('plugin/loaded', '@bbebee/plugin-player')
     const listAfter = plugin.list()
-    const playerAfter = listAfter.find((p) => p.id === '@BBeBee/plugin-player')
+    const playerAfter = listAfter.find((p) => p.id === '@bbebee/plugin-player')
     expect(playerAfter?.error).toBeUndefined()
   })
 
@@ -210,11 +210,11 @@ describe('PluginManagerPlugin', () => {
     }
     plugin.setLifecycleBridge(bridge)
 
-    await plugin.uninstall('@BBeBee/plugin-queue')
-    expect(bridge.uninstallPlugin).toHaveBeenCalledWith('@BBeBee/plugin-queue')
+    await plugin.uninstall('@bbebee/plugin-queue')
+    expect(bridge.uninstallPlugin).toHaveBeenCalledWith('@bbebee/plugin-queue')
 
     const list = plugin.list()
-    expect(list.find((p) => p.id === '@BBeBee/plugin-queue')).toBeUndefined()
+    expect(list.find((p) => p.id === '@bbebee/plugin-queue')).toBeUndefined()
   })
 })
 
@@ -694,9 +694,9 @@ describe('plugin-manager npm service methods', () => {
   ) {
     const w = createNpmWorld({
       manifests: {
-        '@BBeBee/plugin-player': {
-          id: '@BBeBee/plugin-player',
-          name: '@BBeBee/plugin-player',
+        '@bbebee/plugin-player': {
+          id: '@bbebee/plugin-player',
+          name: '@bbebee/plugin-player',
           displayName: 'Player',
           description: 'player',
           version: '1.0.0',
@@ -859,9 +859,9 @@ describe('plugin-manager npm service methods', () => {
     const tarballs = { '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0') }
     const w = seedWorld(entry, ['1.0.0'], tarballs)
     w.plugin.registerManifests({
-      '@BBeBee/plugin-visualizer': {
-        id: '@BBeBee/plugin-visualizer',
-        name: '@BBeBee/plugin-visualizer',
+      '@bbebee/plugin-visualizer': {
+        id: '@bbebee/plugin-visualizer',
+        name: '@bbebee/plugin-visualizer',
         displayName: 'Visualizer',
         description: 'visualizer provider',
         version: '1.0.0',
@@ -878,14 +878,14 @@ describe('plugin-manager npm service methods', () => {
     // The user disables the only provider of `visualizer`: the service
     // leaves the available set even though the provider's manifest is
     // still known.
-    await w.plugin.setEnabled('@BBeBee/plugin-visualizer', false)
+    await w.plugin.setEnabled('@bbebee/plugin-visualizer', false)
     const plan = await w.plugin.resolveInstallPlan('a-x')
     expect(plan.missingServices).toEqual(['visualizer'])
     await expectNpmError(w.plugin.installPlugin('a-x'), 'SERVICE_UNAVAILABLE')
     expect(w.bridge.installPlugin).not.toHaveBeenCalled()
 
     // Re-enabling the provider restores availability; the install proceeds.
-    await w.plugin.setEnabled('@BBeBee/plugin-visualizer', true)
+    await w.plugin.setEnabled('@bbebee/plugin-visualizer', true)
     expect((await w.plugin.resolveInstallPlan('a-x')).missingServices).toEqual([])
     await w.plugin.installPlugin('a-x')
     expect(w.bridge.installPlugin).toHaveBeenCalledTimes(1)
@@ -896,9 +896,9 @@ describe('plugin-manager npm service methods', () => {
     const tarballs = { '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0') }
     const w = createNpmWorld({
       manifests: {
-        '@BBeBee/plugin-player': {
-          id: '@BBeBee/plugin-player',
-          name: '@BBeBee/plugin-player',
+        '@bbebee/plugin-player': {
+          id: '@bbebee/plugin-player',
+          name: '@bbebee/plugin-player',
           displayName: 'Player',
           description: 'player',
           version: '1.0.0',
@@ -947,16 +947,16 @@ describe('plugin-manager npm service methods', () => {
         effect: 'visualizer',
       }) as PluginManifest
     w.plugin.registerManifests({
-      '@BBeBee/plugin-visualizer': provider('@BBeBee/plugin-visualizer', 'Visualizer'),
-      '@BBeBee/plugin-visualizer-alt': provider('@BBeBee/plugin-visualizer-alt', 'Visualizer (alt)'),
+      '@bbebee/plugin-visualizer': provider('@bbebee/plugin-visualizer', 'Visualizer'),
+      '@bbebee/plugin-visualizer-alt': provider('@bbebee/plugin-visualizer-alt', 'Visualizer (alt)'),
     })
     await w.plugin[PluginManagerPlugin.init]()
 
-    await w.plugin.setEnabled('@BBeBee/plugin-visualizer', false)
+    await w.plugin.setEnabled('@bbebee/plugin-visualizer', false)
     expect((await w.plugin.resolveInstallPlan('a-x')).missingServices).toEqual([])
 
     // Only when every provider is disabled does the service go missing.
-    await w.plugin.setEnabled('@BBeBee/plugin-visualizer-alt', false)
+    await w.plugin.setEnabled('@bbebee/plugin-visualizer-alt', false)
     expect((await w.plugin.resolveInstallPlan('a-x')).missingServices).toEqual(['visualizer'])
     await expectNpmError(w.plugin.installPlugin('a-x'), 'SERVICE_UNAVAILABLE')
   })
@@ -1024,11 +1024,11 @@ describe('plugin-manager npm service methods', () => {
   })
 
   it('refuses an id colliding with a builtin plugin', async () => {
-    const entry = entryFor({ id: '@BBeBee/plugin-player', npm: '@t/a' })
-    const tarballs = { '@t/a@1.0.0': tarballFor('@t/a', '@BBeBee/plugin-player', '1.0.0') }
+    const entry = entryFor({ id: '@bbebee/plugin-player', npm: '@t/a' })
+    const tarballs = { '@t/a@1.0.0': tarballFor('@t/a', '@bbebee/plugin-player', '1.0.0') }
     const w = seedWorld(entry, ['1.0.0'], tarballs)
     await w.plugin[PluginManagerPlugin.init]()
-    await expectNpmError(w.plugin.installPlugin('@BBeBee/plugin-player'), 'SPOOF_DETECTED')
+    await expectNpmError(w.plugin.installPlugin('@bbebee/plugin-player'), 'SPOOF_DETECTED')
   })
 
   describe('provenance (audit W6)', () => {
@@ -1920,9 +1920,9 @@ describe('plugin-manager npm service methods', () => {
       const { ctx } = createTestContext()
       const plugin = new PluginManagerPlugin(ctx, {
         manifests: {
-          '@BBeBee/plugin-visualizer': vizManifest('@BBeBee/plugin-visualizer'),
+          '@bbebee/plugin-visualizer': vizManifest('@bbebee/plugin-visualizer'),
           'third-viz': vizManifest('third-viz'),
-          '@BBeBee/plugin-player': manifestFor('@BBeBee/plugin-player', '1.0.0', ['player']) as PluginManifest,
+          '@bbebee/plugin-player': manifestFor('@bbebee/plugin-player', '1.0.0', ['player']) as PluginManifest,
         },
       })
       const bridge = {
@@ -1943,8 +1943,8 @@ describe('plugin-manager npm service methods', () => {
         {
           key: 'visualizer',
           critical: false,
-          providers: ['@BBeBee/plugin-visualizer', 'third-viz'],
-          activeProvider: '@BBeBee/plugin-visualizer',
+          providers: ['@bbebee/plugin-visualizer', 'third-viz'],
+          activeProvider: '@bbebee/plugin-visualizer',
         },
       ])
     })
@@ -1956,7 +1956,7 @@ describe('plugin-manager npm service methods', () => {
       const store = (ctx as any).store
       const setCalls = store.set.mock.calls.filter(([k]: [string]) => k === 'service-providers')
       expect(setCalls.at(-1)![1]).toEqual({ visualizer: 'third-viz' })
-      expect(bridge.unloadPlugin).toHaveBeenCalledWith('@BBeBee/plugin-visualizer')
+      expect(bridge.unloadPlugin).toHaveBeenCalledWith('@bbebee/plugin-visualizer')
       expect(plugin.listServiceProviders()[0]!.activeProvider).toBe('third-viz')
     })
 
@@ -1964,7 +1964,7 @@ describe('plugin-manager npm service methods', () => {
       const { plugin } = twoProviderWorld()
       await plugin[PluginManagerPlugin.init]()
       await expectNpmError(plugin.setServiceProvider('player', 'third-viz'), 'CRITICAL_PROVIDER')
-      await expectNpmError(plugin.setServiceProvider('visualizer', '@BBeBee/plugin-player'), 'NOT_A_PROVIDER')
+      await expectNpmError(plugin.setServiceProvider('visualizer', '@bbebee/plugin-player'), 'NOT_A_PROVIDER')
     })
 
     it('refuses a downloaded manifest claiming a critical key with an incumbent provider', async () => {
@@ -1988,10 +1988,10 @@ describe('plugin-manager npm service methods', () => {
         }),
       }
       const w = seedWorld(entry, ['1.0.0'], tarballs)
-      w.plugin.registerManifests({ '@BBeBee/plugin-visualizer': vizManifest('@BBeBee/plugin-visualizer') })
+      w.plugin.registerManifests({ '@bbebee/plugin-visualizer': vizManifest('@bbebee/plugin-visualizer') })
       await w.plugin[PluginManagerPlugin.init]()
       await w.plugin.installPlugin('new-viz')
-      expect(w.bridge.unloadPlugin).toHaveBeenCalledWith('@BBeBee/plugin-visualizer')
+      expect(w.bridge.unloadPlugin).toHaveBeenCalledWith('@bbebee/plugin-visualizer')
       const store = (w.ctx as any).store
       const setCalls = store.set.mock.calls.filter(([k]: [string]) => k === 'service-providers')
       expect(setCalls.at(-1)![1]).toEqual({ visualizer: 'new-viz' })
@@ -2088,10 +2088,10 @@ describe('plugin-manager local package import', () => {
   })
 
   it('refuses a manifest id that collides with a built-in plugin', async () => {
-    const bytes = tarballFor('@t/player', '@BBeBee/plugin-player', '1.0.0')
+    const bytes = tarballFor('@t/player', '@bbebee/plugin-player', '1.0.0')
     const w = createNpmWorld({
       manifests: {
-        '@BBeBee/plugin-player': manifestFor('@BBeBee/plugin-player', '1.0.0') as PluginManifest,
+        '@bbebee/plugin-player': manifestFor('@bbebee/plugin-player', '1.0.0') as PluginManifest,
       },
     })
     await w.plugin[PluginManagerPlugin.init]()
@@ -2224,9 +2224,9 @@ describe('capability grants (W1)', () => {
     }
     const w = createNpmWorld({
       manifests: {
-        '@BBeBee/plugin-player': {
-          id: '@BBeBee/plugin-player',
-          name: '@BBeBee/plugin-player',
+        '@bbebee/plugin-player': {
+          id: '@bbebee/plugin-player',
+          name: '@bbebee/plugin-player',
           displayName: 'Player',
           description: 'player',
           version: '1.0.0',

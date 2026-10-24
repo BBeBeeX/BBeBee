@@ -1,5 +1,5 @@
 /**
- * Desktop UI views for @BBeBee/plugin-visualizer.
+ * Desktop UI views for @bbebee/plugin-visualizer.
  *
  * Registers:
  * - `visualizer.canvas` view to `now-playing.visualizer` slot.

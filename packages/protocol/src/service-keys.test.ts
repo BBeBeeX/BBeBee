@@ -26,10 +26,10 @@ describe('generated service-keys module', () => {
   })
 
   it('maps providers to the keys they declare', () => {
-    expect(criticalServiceKeysOfProvider('@BBeBee/plugin-player')).toEqual(['player'])
-    expect(criticalServiceKeysOfProvider('@BBeBee/plugin-manager')).toEqual(['plugin-manager'])
-    expect(serviceKeysOfProvider('@BBeBee/plugin-visualizer')).toEqual(['visualizer'])
-    expect(criticalServiceKeysOfProvider('@BBeBee/plugin-visualizer')).toEqual([])
+    expect(criticalServiceKeysOfProvider('@bbebee/plugin-player')).toEqual(['player'])
+    expect(criticalServiceKeysOfProvider('@bbebee/plugin-manager')).toEqual(['plugin-manager'])
+    expect(serviceKeysOfProvider('@bbebee/plugin-visualizer')).toEqual(['visualizer'])
+    expect(criticalServiceKeysOfProvider('@bbebee/plugin-visualizer')).toEqual([])
     expect(criticalServiceKeysOfProvider('@BBeBee/does-not-exist')).toEqual([])
   })
 

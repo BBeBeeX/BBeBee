@@ -1,5 +1,5 @@
 /**
- * Mobile React Native DSP Chain Editor Screen for `@BBeBee/plugin-dsp`.
+ * Mobile React Native DSP Chain Editor Screen for `@bbebee/plugin-dsp`.
  */
 
 import { createElement as h, useState } from 'react'

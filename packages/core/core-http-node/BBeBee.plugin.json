@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/core-http-node",
-  "name": "@BBeBee/core-http-node",
+  "id": "@bbebee/core-http-node",
+  "name": "@bbebee/core-http-node",
   "displayName": "HTTP",
   "description": "ctx.http — outbound HTTP, the M1 slice.",
   "version": "0.0.0",

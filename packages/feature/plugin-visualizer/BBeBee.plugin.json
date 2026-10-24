@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-visualizer",
-  "name": "@BBeBee/plugin-visualizer",
+  "id": "@bbebee/plugin-visualizer",
+  "name": "@bbebee/plugin-visualizer",
   "displayName": "Audio Visualizer",
   "description": "ctx.visualizer — audio spectrum and waveform analysis service.",
   "version": "0.0.0",
@@ -10,7 +10,7 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-player"
+    "@bbebee/plugin-player"
   ],
   "systemId": "layer-4",
   "moduleId": "dsp",

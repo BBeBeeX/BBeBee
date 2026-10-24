@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-registry",
-  "name": "@BBeBee/plugin-registry",
+  "id": "@bbebee/plugin-registry",
+  "name": "@bbebee/plugin-registry",
   "displayName": "Registry",
   "description": "ctx.contentRegistry — the community content index: update checks and installs for music sources, lyric sources, themes and desktop plugins.",
   "version": "0.0.0",

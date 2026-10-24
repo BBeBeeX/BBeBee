@@ -107,7 +107,7 @@ export interface PluginContributes {
 export type PluginPlatform = 'desktop' | 'mobile'
 
 export interface PluginManifest {
-  /** Package id, e.g. '@BBeBee/plugin-source-runtime'. */
+  /** Package id, e.g. '@bbebee/plugin-source-runtime'. */
   id: string
   /** Human-readable plugin name. */
   name?: string

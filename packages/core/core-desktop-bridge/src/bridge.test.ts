@@ -165,7 +165,7 @@ describe('db capability scopes over the bridge', () => {
     it(`${check.name} — ${check.because}`, async () => {
       const { ctx } = await makeBridge(await mkdtemp(join(root, 'dbscope-')))
       const { nsPrefix, scopeContext } = await import('@BBeBee/kernel')
-      const scopeId = '@BBeBee/plugin-demo'
+      const scopeId = '@bbebee/plugin-demo'
       const gated = (grants: string[]) =>
         scopeContext(ctx, { pluginId: scopeId, scopeId, requested: grants as never }).db
 

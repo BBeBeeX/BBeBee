@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/core-background-tauri",
-  "name": "@BBeBee/core-background-tauri",
+  "id": "@bbebee/core-background-tauri",
+  "name": "@bbebee/core-background-tauri",
   "displayName": "Background",
   "description": "ctx.background — wake locks, scheduling and suspend hooks on desktop (Tauri).",
   "version": "0.0.0",

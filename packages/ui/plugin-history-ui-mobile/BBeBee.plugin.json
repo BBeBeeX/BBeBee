@@ -1,8 +1,8 @@
 {
-  "id": "@BBeBee/plugin-history-ui-mobile",
-  "name": "@BBeBee/plugin-history-ui-mobile",
+  "id": "@bbebee/plugin-history-ui-mobile",
+  "name": "@bbebee/plugin-history-ui-mobile",
   "displayName": "History UI (Mobile)",
-  "description": "React Native views for @BBeBee/plugin-history.",
+  "description": "React Native views for @bbebee/plugin-history.",
   "version": "0.0.0",
   "author": "BBeBee Team",
   "engines": {
@@ -10,8 +10,8 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-ui",
-    "@BBeBee/plugin-history"
+    "@bbebee/plugin-ui",
+    "@bbebee/plugin-history"
   ],
   "systemId": "layer-5",
   "moduleId": "storage",

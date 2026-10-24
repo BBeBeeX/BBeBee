@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/core-media-session-tauri",
-  "name": "@BBeBee/core-media-session-tauri",
+  "id": "@bbebee/core-media-session-tauri",
+  "name": "@bbebee/core-media-session-tauri",
   "displayName": "Media session",
   "description": "ctx.mediaSession — the OS now-playing surface on desktop (Tauri).",
   "version": "0.0.0",

@@ -1,5 +1,5 @@
 /**
- * React DOM views for `@BBeBee/plugin-history`.
+ * React DOM views for `@bbebee/plugin-history`.
  *
  * One screen: playback history and activity statistics.
  */

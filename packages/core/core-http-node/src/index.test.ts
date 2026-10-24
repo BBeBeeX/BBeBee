@@ -346,7 +346,7 @@ describe('the net:host gate', () => {
     // including intranet and cloud-metadata addresses (docs/03 §7).
     const { ctx } = await harness()
     const scoped = scopeContext(ctx, {
-      pluginId: '@BBeBee/plugin-demo',
+      pluginId: '@bbebee/plugin-demo',
       requested: ['net:host/*.example.org'] as never,
     })
 
@@ -360,7 +360,7 @@ describe('the net:host gate', () => {
   it('allows a granted host', async () => {
     const { ctx } = await harness()
     const scoped = scopeContext(ctx, {
-      pluginId: '@BBeBee/plugin-demo',
+      pluginId: '@bbebee/plugin-demo',
       requested: ['net:host/127.0.0.1'] as never,
     })
     await expect(scoped.http({ url: `${origin}/json` })).resolves.toMatchObject({ status: 200 })
@@ -376,7 +376,7 @@ describe('the net:host gate', () => {
     }) as never)
 
     const scoped = scopeContext(ctx, {
-      pluginId: '@BBeBee/plugin-demo',
+      pluginId: '@bbebee/plugin-demo',
       requested: ['net:host/127.0.0.1'] as never,
     })
     await expect(scoped.http({ url: `${origin}/json` })).rejects.toThrow(/may not reach/)
@@ -390,7 +390,7 @@ describe('the net:host gate', () => {
     // never saw it (docs/06 §8).
     const { ctx } = await harness()
     const scoped = scopeContext(ctx, {
-      pluginId: '@BBeBee/plugin-source-runtime',
+      pluginId: '@bbebee/plugin-source-runtime',
       scopeId: 'a-source',
       requested: ['net:host/*'] as never,
       // The source's *own* host is allowed, so hop 1 passes and the test is
@@ -411,7 +411,7 @@ describe('the net:host gate', () => {
   it('does not leak the redirect target body when the hop is refused', async () => {
     const { ctx } = await harness()
     const scoped = scopeContext(ctx, {
-      pluginId: '@BBeBee/plugin-source-runtime',
+      pluginId: '@bbebee/plugin-source-runtime',
       scopeId: 'a-source',
       requested: ['net:host/*'] as never,
       allowedHosts: ['127.0.0.1'],
@@ -506,7 +506,7 @@ describe('redirect credential stripping (audit W2)', () => {
     // receive credentials minted for the origin host.
     const { ctx } = await harness()
     const scoped = scopeContext(ctx, {
-      pluginId: '@BBeBee/plugin-demo',
+      pluginId: '@bbebee/plugin-demo',
       requested: ['net:host/127.0.0.1', 'net:host/localhost'] as never,
     })
     const target = `${secretOrigin}/echo-headers`
@@ -836,7 +836,7 @@ describe('cookies on the wire', () => {
     // the real path rather than a hand-built config the service might read
     // differently.
     const scopedCtx = scopeContext(ctx, {
-      pluginId: '@BBeBee/plugin-source-runtime',
+      pluginId: '@bbebee/plugin-source-runtime',
       scopeId,
       requested: ['net:host/*'] as never,
     })

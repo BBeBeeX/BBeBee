@@ -1,5 +1,5 @@
 /**
- * Desktop Theme Palette Screen for `@BBeBee/plugin-settings-ui-desktop`.
+ * Desktop Theme Palette Screen for `@bbebee/plugin-settings-ui-desktop`.
  * Inspects all `themeToCssVariables` color swatches, tokens, and CSS properties
  * for the active theme, with scheme toggling and search filtering.
  */

@@ -1,5 +1,5 @@
 /**
- * Desktop HTTP Logs Screen for `@BBeBee/plugin-settings-ui-desktop`.
+ * Desktop HTTP Logs Screen for `@bbebee/plugin-settings-ui-desktop`.
  * Dedicated log viewer for outgoing third-party music source HTTP requests.
  *
  * Rows come from the transport's own request journal (`ctx.http.requestLog`),

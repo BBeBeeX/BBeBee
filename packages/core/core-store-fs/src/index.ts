@@ -41,6 +41,64 @@ interface Document {
   loaded: boolean
 }
 
+const LEGACY_PLUGIN_SCOPE = '@BBeBee/'
+const CURRENT_PLUGIN_SCOPE = '@bbebee/'
+
+/** Map a legacy `@BBeBee/` plugin id to its current `@bbebee/` form. */
+function currentPluginId(id: string): string {
+  return id.startsWith(LEGACY_PLUGIN_SCOPE)
+    ? `${CURRENT_PLUGIN_SCOPE}${id.slice(LEGACY_PLUGIN_SCOPE.length)}`
+    : id
+}
+
+/**
+ * One-time, copy-if-absent migration for the manifest-id rename
+ * (`@BBeBee/` → `@bbebee/`, to match the plugins' future npm names).
+ *
+ * Store keys are namespaced by plugin id (the capability gate's scopeId),
+ * so renaming the ids orphans every plugin's persisted data unless the
+ * legacy namespaced keys are carried over. This runs on every load —
+ * idempotent by construction (existing new keys always win) — and keeps
+ * the legacy keys in place, so the migration is reversible and a
+ * mid-migration crash loses nothing. Two manager records get their
+ * inner ids remapped as well, since those records are keyed/valued by
+ * plugin id: `enabled` (id → bool) and `service-providers`
+ * (service key → provider id). npm install records are keyed by
+ * registry entry id, not manifest id, so they copy verbatim.
+ */
+export function migrateLegacyPluginNamespaces(
+  data: Record<string, unknown>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...data }
+  for (const [key, value] of Object.entries(data)) {
+    if (!key.startsWith(LEGACY_PLUGIN_SCOPE)) continue
+    const newKey = `${CURRENT_PLUGIN_SCOPE}${key.slice(LEGACY_PLUGIN_SCOPE.length)}`
+    if (newKey in out) continue
+    if (key === '@BBeBee/plugin-manager:enabled' && value && typeof value === 'object') {
+      out[newKey] = Object.fromEntries(
+        Object.entries(value as Record<string, unknown>).map(([id, enabled]) => [
+          currentPluginId(id),
+          enabled,
+        ]),
+      )
+    } else if (
+      key === '@BBeBee/plugin-manager:service-providers' &&
+      value &&
+      typeof value === 'object'
+    ) {
+      out[newKey] = Object.fromEntries(
+        Object.entries(value as Record<string, unknown>).map(([service, provider]) => [
+          service,
+          typeof provider === 'string' ? currentPluginId(provider) : provider,
+        ]),
+      )
+    } else {
+      out[newKey] = value
+    }
+  }
+  return out
+}
+
 export class StoreFs extends Service implements StoreService {
   static inject = ['fs', 'paths']
 
@@ -73,7 +131,10 @@ export class StoreFs extends Service implements StoreService {
     this.fileName = config.fileName ?? 'store.json'
     this.flushDelayMs = config.flushDelayMs ?? 50
     if (config.initialData) {
-      this.doc.data = { ...config.initialData }
+      // The desktop shell preloads store.json itself and hands it over
+      // here, so initial data needs the same legacy-namespace migration
+      // as a disk load (doLoad is skipped once loaded is true).
+      this.doc.data = migrateLegacyPluginNamespaces({ ...config.initialData })
       this.doc.loaded = true
     }
   }
@@ -181,6 +242,7 @@ export class StoreFs extends Service implements StoreService {
           await this[OWN_FS].readFile(`${uri}.tmp`),
         ) as Record<string, unknown>
         this.ctx.logger.warn(`store: recovered ${uri} from an interrupted write`)
+        this.doc.data = migrateLegacyPluginNamespaces(this.doc.data)
         this.doc.loaded = true
         await this.enqueueFlush()
         return
@@ -196,6 +258,7 @@ export class StoreFs extends Service implements StoreService {
       }
       this.doc.data = {}
     }
+    this.doc.data = migrateLegacyPluginNamespaces(this.doc.data)
     this.doc.loaded = true
   }
 

@@ -331,7 +331,7 @@ describe('caller context isolation for testConnection', () => {
 
     // plugin-sources has net:host/*
     const scopedSources = root.intercept('http', {
-      pluginId: '@BBeBee/plugin-sources',
+      pluginId: '@bbebee/plugin-sources',
       granted: ['net:host/*'],
     })
     await scopedSources.plugin(plugin, {})
@@ -339,7 +339,7 @@ describe('caller context isolation for testConnection', () => {
 
     // settings UI context has no network grants
     const scopedSettings = root.intercept('http', {
-      pluginId: '@BBeBee/plugin-settings-ui-desktop',
+      pluginId: '@bbebee/plugin-settings-ui-desktop',
       granted: [],
     })
 
@@ -360,7 +360,7 @@ describe('caller context isolation for testConnection', () => {
     expect(requestedUrl).toContain('http://127.0.0.1:4533/rest/ping.view')
     // Context was bound to plugin-sources, NOT caller settings-ui-desktop
     expect(seenConfig).toMatchObject({
-      pluginId: '@BBeBee/plugin-sources',
+      pluginId: '@bbebee/plugin-sources',
       granted: ['net:host/*'],
     })
   })

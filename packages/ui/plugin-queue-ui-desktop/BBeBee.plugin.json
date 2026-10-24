@@ -1,8 +1,8 @@
 {
-  "id": "@BBeBee/plugin-queue-ui-desktop",
-  "name": "@BBeBee/plugin-queue-ui-desktop",
+  "id": "@bbebee/plugin-queue-ui-desktop",
+  "name": "@bbebee/plugin-queue-ui-desktop",
   "displayName": "Queue UI (Desktop)",
-  "description": "React DOM views for @BBeBee/plugin-queue.",
+  "description": "React DOM views for @bbebee/plugin-queue.",
   "version": "0.0.0",
   "author": "BBeBee Team",
   "engines": {
@@ -10,8 +10,8 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-ui",
-    "@BBeBee/plugin-queue"
+    "@bbebee/plugin-ui",
+    "@bbebee/plugin-queue"
   ],
   "systemId": "layer-5",
   "moduleId": "playback",

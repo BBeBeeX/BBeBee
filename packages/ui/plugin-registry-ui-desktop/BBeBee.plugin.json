@@ -1,8 +1,8 @@
 {
-  "id": "@BBeBee/plugin-registry-ui-desktop",
-  "name": "@BBeBee/plugin-registry-ui-desktop",
+  "id": "@bbebee/plugin-registry-ui-desktop",
+  "name": "@bbebee/plugin-registry-ui-desktop",
   "displayName": "Registry UI (Desktop)",
-  "description": "Desktop views for @BBeBee/plugin-registry (registry screen and the registry settings card).",
+  "description": "Desktop views for @bbebee/plugin-registry (registry screen and the registry settings card).",
   "version": "0.0.0",
   "author": "BBeBee Team",
   "engines": {
@@ -10,8 +10,8 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-ui",
-    "@BBeBee/plugin-registry"
+    "@bbebee/plugin-ui",
+    "@bbebee/plugin-registry"
   ],
   "systemId": "layer-5",
   "moduleId": "registry",

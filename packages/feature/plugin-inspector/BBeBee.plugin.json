@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-inspector",
-  "name": "@BBeBee/plugin-inspector",
+  "id": "@bbebee/plugin-inspector",
+  "name": "@bbebee/plugin-inspector",
   "displayName": "Plugin Inspector",
   "description": "Fiber tree and labelled effects.",
   "version": "0.0.0",

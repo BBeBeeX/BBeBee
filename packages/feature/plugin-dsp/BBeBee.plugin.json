@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-dsp",
-  "name": "@BBeBee/plugin-dsp",
+  "id": "@bbebee/plugin-dsp",
+  "name": "@bbebee/plugin-dsp",
   "displayName": "DSP Effect Chain",
   "description": "ctx.dsp — effect chain builder, presets, and audio processing effects.",
   "version": "0.0.0",
@@ -10,7 +10,7 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-player"
+    "@bbebee/plugin-player"
   ],
   "systemId": "layer-4",
   "moduleId": "dsp",

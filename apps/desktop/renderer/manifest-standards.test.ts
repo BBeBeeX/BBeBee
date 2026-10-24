@@ -56,12 +56,12 @@ describe('Plugin Manifest Standards across Registries', () => {
   })
 
   it('verifies that layer-5 UI plugins declare layer-5 and proper moduleId', () => {
-    const sourcesUi = desktopBundled['@BBeBee/plugin-sources-ui-desktop']
+    const sourcesUi = desktopBundled['@bbebee/plugin-sources-ui-desktop']
     expect(sourcesUi).toBeDefined()
     expect(sourcesUi!.manifest.systemId).toBe('layer-5')
     expect(sourcesUi!.manifest.moduleId).toBe('sources')
-    expect(sourcesUi!.manifest.dependencies).toContain('@BBeBee/plugin-ui')
-    expect(sourcesUi!.manifest.dependencies).toContain('@BBeBee/plugin-sources')
+    expect(sourcesUi!.manifest.dependencies).toContain('@bbebee/plugin-ui')
+    expect(sourcesUi!.manifest.dependencies).toContain('@bbebee/plugin-sources')
   })
 })
 

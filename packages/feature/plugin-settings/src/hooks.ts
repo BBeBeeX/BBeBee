@@ -1,5 +1,5 @@
 /**
- * React hooks for `@BBeBee/plugin-settings`.
+ * React hooks for `@bbebee/plugin-settings`.
  */
 
 import { useCallback, useEffect, useState } from 'react'

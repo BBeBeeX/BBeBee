@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS schema_namespaces (
 /**
  * Turn a namespace into a table prefix.
  *
- * `plugin:@BBeBee/plugin-scrobble` becomes `plugin_bbebee_plugin_scrobble`, so
+ * `plugin:@bbebee/plugin-scrobble` becomes `plugin_bbebee_plugin_scrobble`, so
  * ownership is legible when reading the schema.
  *
  * ⚠️ Lossy by design (readability beats injectivity here). Uniqueness is

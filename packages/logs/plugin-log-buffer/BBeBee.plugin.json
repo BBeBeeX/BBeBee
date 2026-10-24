@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-log-buffer",
-  "name": "@BBeBee/plugin-log-buffer",
+  "id": "@bbebee/plugin-log-buffer",
+  "name": "@bbebee/plugin-log-buffer",
   "displayName": "Log Buffer",
   "description": "In-app log ring buffer.",
   "version": "0.0.0",

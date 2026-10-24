@@ -1,8 +1,8 @@
 {
-  "id": "@BBeBee/plugin-queue-ui-mobile",
-  "name": "@BBeBee/plugin-queue-ui-mobile",
+  "id": "@bbebee/plugin-queue-ui-mobile",
+  "name": "@bbebee/plugin-queue-ui-mobile",
   "displayName": "Queue UI (Mobile)",
-  "description": "React Native views for @BBeBee/plugin-queue.",
+  "description": "React Native views for @bbebee/plugin-queue.",
   "version": "0.0.0",
   "author": "BBeBee Team",
   "engines": {
@@ -10,8 +10,8 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-ui",
-    "@BBeBee/plugin-queue"
+    "@bbebee/plugin-ui",
+    "@bbebee/plugin-queue"
   ],
   "systemId": "layer-5",
   "moduleId": "playback",

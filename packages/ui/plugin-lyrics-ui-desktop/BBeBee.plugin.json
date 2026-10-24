@@ -1,8 +1,8 @@
 {
-  "id": "@BBeBee/plugin-lyrics-ui-desktop",
-  "name": "@BBeBee/plugin-lyrics-ui-desktop",
+  "id": "@bbebee/plugin-lyrics-ui-desktop",
+  "name": "@bbebee/plugin-lyrics-ui-desktop",
   "displayName": "Lyrics UI (Desktop)",
-  "description": "Desktop views for @BBeBee/plugin-lyrics (Lyrics Panel).",
+  "description": "Desktop views for @bbebee/plugin-lyrics (Lyrics Panel).",
   "version": "0.0.0",
   "author": "BBeBee Team",
   "engines": {
@@ -10,8 +10,8 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-ui",
-    "@BBeBee/plugin-lyrics"
+    "@bbebee/plugin-ui",
+    "@bbebee/plugin-lyrics"
   ],
   "systemId": "layer-5",
   "moduleId": "lyrics",

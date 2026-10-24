@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-sources-ui-desktop",
-  "name": "@BBeBee/plugin-sources-ui-desktop",
+  "id": "@bbebee/plugin-sources-ui-desktop",
+  "name": "@bbebee/plugin-sources-ui-desktop",
   "displayName": "Sources UI (Desktop)",
   "description": "React DOM views for plugin-sources.",
   "version": "0.0.0",
@@ -10,8 +10,8 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-ui",
-    "@BBeBee/plugin-sources"
+    "@bbebee/plugin-ui",
+    "@bbebee/plugin-sources"
   ],
   "systemId": "layer-5",
   "moduleId": "sources",

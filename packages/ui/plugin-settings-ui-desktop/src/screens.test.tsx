@@ -472,7 +472,7 @@ class SettingsStub extends Service implements Partial<SettingsService> {
   class PluginManagerStub extends Service implements Partial<PluginManagerService> {
     public plugins: PluginInfo[] = [
       {
-        id: '@BBeBee/core-audio',
+        id: '@bbebee/core-audio',
         name: 'core-audio',
         displayName: 'Audio core',
         description: 'Low-level audio playback driver',
@@ -484,7 +484,7 @@ class SettingsStub extends Service implements Partial<SettingsService> {
         state: 'ACTIVE',
         waitingFor: [],
         dependencies: [],
-        dependents: ['@BBeBee/plugin-theme'],
+        dependents: ['@bbebee/plugin-theme'],
         configStatus: 'none',
       },
       {
@@ -504,7 +504,7 @@ class SettingsStub extends Service implements Partial<SettingsService> {
         configStatus: 'none',
       },
       {
-        id: '@BBeBee/plugin-theme',
+        id: '@bbebee/plugin-theme',
         name: 'plugin-theme',
         displayName: 'Theme manager',
         description: 'Theme service and color management',
@@ -515,12 +515,12 @@ class SettingsStub extends Service implements Partial<SettingsService> {
         enabled: true,
         state: 'ACTIVE',
         waitingFor: [],
-        dependencies: ['@BBeBee/core-audio'],
-        dependents: ['@BBeBee/plugin-settings', '@BBeBee/ui-player'],
+        dependencies: ['@bbebee/core-audio'],
+        dependents: ['@bbebee/plugin-settings', '@BBeBee/ui-player'],
         configStatus: 'default',
       },
       {
-        id: '@BBeBee/plugin-settings',
+        id: '@bbebee/plugin-settings',
         name: 'plugin-settings',
         displayName: 'Settings center',
         description: 'User preferences and settings',
@@ -531,7 +531,7 @@ class SettingsStub extends Service implements Partial<SettingsService> {
         enabled: true,
         state: 'ACTIVE',
         waitingFor: [],
-        dependencies: ['@BBeBee/plugin-theme'],
+        dependencies: ['@bbebee/plugin-theme'],
         dependents: [],
         configStatus: 'none',
       },
@@ -547,7 +547,7 @@ class SettingsStub extends Service implements Partial<SettingsService> {
         enabled: true,
         state: 'ACTIVE',
         waitingFor: [],
-        dependencies: ['@BBeBee/plugin-theme'],
+        dependencies: ['@bbebee/plugin-theme'],
         dependents: [],
         configStatus: 'none',
       },
@@ -1404,7 +1404,7 @@ describe('SettingsScreen', () => {
 
     // Key-value details
     expect(getByText('Full name')).toBeTruthy()
-    expect(getAllByText(/@BBeBee\/plugin-theme/).length).toBeGreaterThanOrEqual(2)
+    expect(getAllByText(/@bbebee\/plugin-theme/).length).toBeGreaterThanOrEqual(2)
     expect(getByText('Dependencies (1)')).toBeTruthy()
     expect(getByText('Dependents (2)')).toBeTruthy()
 
@@ -1440,7 +1440,7 @@ describe('SettingsScreen', () => {
     fireEvent.click(confirmBtn)
 
     await waitFor(() => {
-      expect(calls.includes('pluginManager:setEnabled:@BBeBee/plugin-theme:false')).toBe(true)
+      expect(calls.includes('pluginManager:setEnabled:@bbebee/plugin-theme:false')).toBe(true)
     })
   })
 

@@ -1,5 +1,5 @@
 /**
- * Desktop UI views for @BBeBee/plugin-lyrics.
+ * Desktop UI views for @bbebee/plugin-lyrics.
  *
  * Registers the LyricsPanel to the now-playing.panel slot and as a standalone view.
  */

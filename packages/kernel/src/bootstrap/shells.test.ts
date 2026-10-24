@@ -97,7 +97,7 @@ async function shellLists(shell: Shell): Promise<{ enabled: string[]; bootstrap:
   const source = await readFile(join(workspaceRoot, shell.configFile), 'utf8')
 
   const enabledBlock = source.slice(source.indexOf('export const ENABLED'))
-  const enabled = [...enabledBlock.matchAll(/'(@BBeBee\/[^']+)':/g)].map((m) => m[1]!)
+  const enabled = [...enabledBlock.matchAll(/'(@bbebee\/[^']+)':/gi)].map((m) => m[1]!)
 
   /*
    * The array literal only, not the block around it.
@@ -123,7 +123,7 @@ async function shellLists(shell: Shell): Promise<{ enabled: string[]; bootstrap:
 async function registryIds(shell: Shell): Promise<string[]> {
   if (shell.registryFile) {
     const source = await readFile(join(workspaceRoot, shell.registryFile), 'utf8')
-    return [...source.matchAll(/^ {2}"(@BBeBee\/[^"]+)": \{$/gm)].map((m) => m[1]!)
+    return [...source.matchAll(/^ {2}"(@bbebee\/[^"]+)": \{$/gim)].map((m) => m[1]!)
   }
   // Desktop shell dynamically discovers all workspace plugins targeted for desktop
   const all = await manifests()
@@ -165,8 +165,8 @@ async function requiredInjects(packageDir: string): Promise<string[]> {
   return []
 }
 
-/** `@BBeBee/plugin-player` → `plugin-player`. */
-const dirOf = (id: string): string => id.replace(/^@BBeBee\//, '')
+/** `@bbebee/plugin-player` → `plugin-player`. */
+const dirOf = (id: string): string => id.replace(/^@bbebee\//i, '')
 
 describe.each(SHELLS)('the $name shell', (shell) => {
   it('enables only plugins that are actually bundled or available', async () => {
@@ -174,7 +174,7 @@ describe.each(SHELLS)('the $name shell', (shell) => {
     const bundled = new Set(await registryIds(shell))
 
     // The exact bug this catches: the desktop config listed
-    // `@BBeBee/core-http-node` with no registry entry behind it, so the loader
+    // `@bbebee/core-http-node` with no registry entry behind it, so the loader
     // recorded it `missing`, `ctx.http` never existed, and every imported
     // source sat PENDING behind a warning nobody read.
     const absent = enabled.filter((id) => !bundled.has(id))
@@ -266,7 +266,7 @@ describe.each(SHELLS)('the $name shell logs layer', (shell) => {
 
   it('is not enabled through the registry', async () => {
     const { enabled } = await shellLists(shell)
-    const throughRegistry = enabled.filter((id) => id.startsWith('@BBeBee/plugin-log-'))
+    const throughRegistry = enabled.filter((id) => id.startsWith('@bbebee/plugin-log-'))
     expect(
       throughRegistry,
       `${shell.name}: a transport in ENABLED starts alongside the features it is ` +
@@ -290,9 +290,9 @@ describe('a contribution with no view on one target', () => {
     const mobile = await shellLists(SHELLS.find((s) => s.name === 'mobile')!)
 
     expect(mobile.enabled, 'both shells run the headless plugin').toContain(
-      '@BBeBee/plugin-inspector',
+      '@bbebee/plugin-inspector',
     )
-    expect(desktop.enabled).toContain('@BBeBee/plugin-inspector-ui-desktop')
+    expect(desktop.enabled).toContain('@bbebee/plugin-inspector-ui-desktop')
     expect(
       mobile.enabled.some((id) => id.endsWith('inspector-ui-mobile')),
       'if this ever gains a mobile view, point this check at another contribution',

@@ -1,5 +1,5 @@
 /**
- * Desktop UI views for @BBeBee/plugin-mini-player.
+ * Desktop UI views for @bbebee/plugin-mini-player.
  */
 
 import { createElement as h } from 'react'

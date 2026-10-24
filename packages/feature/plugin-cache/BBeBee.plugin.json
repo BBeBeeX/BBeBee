@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-cache",
-  "name": "@BBeBee/plugin-cache",
+  "id": "@bbebee/plugin-cache",
+  "name": "@bbebee/plugin-cache",
   "displayName": "Cache",
   "description": "ctx.cache — covers and remote audio streams are served from disk, and fetched only on a miss.",
   "version": "0.0.0",

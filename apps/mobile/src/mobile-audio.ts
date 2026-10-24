@@ -121,7 +121,7 @@ export interface MobileAudioConfig {
  * Mobile Audio Service Orchestrator.
  *
  * Sits as the singleton `ctx.audio` service on mobile, mounting the single
- * MPV engine (`@BBeBee/core-audio-mpv`) over the in-process libmpv JNI/JSI
+ * MPV engine (`@bbebee/core-audio-mpv`) over the in-process libmpv JNI/JSI
  * bridge — or the high-fidelity simulation when no native module is present
  * (Expo Go, test runners).
  */

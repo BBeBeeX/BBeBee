@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-security-audit",
-  "name": "@BBeBee/plugin-security-audit",
+  "id": "@bbebee/plugin-security-audit",
+  "name": "@bbebee/plugin-security-audit",
   "displayName": "Security Audit",
   "description": "ctx.securityAudit — static code analysis and security auditing for sources and plugins.",
   "version": "0.0.0",

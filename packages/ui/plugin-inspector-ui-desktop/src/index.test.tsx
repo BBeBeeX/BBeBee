@@ -519,8 +519,8 @@ describe('Core Layer Plugins & Services Resolution', () => {
 
     // 3. By registered plugin manifest ID lookup or provided services
     expect(resolvePluginLayer('core-http-node')).toBe('layer-2')
-    expect(resolvePluginLayer('@BBeBee/core-desktop-bridge')).toBe('layer-2')
-    expect(resolvePluginLayer('@BBeBee/core-store-fs')).toBe('layer-2')
+    expect(resolvePluginLayer('@bbebee/core-desktop-bridge')).toBe('layer-2')
+    expect(resolvePluginLayer('@bbebee/core-store-fs')).toBe('layer-2')
     expect(resolvePluginLayer('FsBridge', null, ['fs'])).toBe('layer-2')
     expect(resolvePluginLayer('DbBridge', null, ['db'])).toBe('layer-2')
     expect(resolvePluginLayer('PathsBridge', null, ['paths'])).toBe('layer-2')

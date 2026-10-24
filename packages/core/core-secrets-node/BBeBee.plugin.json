@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/core-secrets-node",
-  "name": "@BBeBee/core-secrets-node",
+  "id": "@bbebee/core-secrets-node",
+  "name": "@bbebee/core-secrets-node",
   "displayName": "Secrets",
   "description": "ctx.secrets — credential storage for desktop and Node.",
   "version": "0.0.0",

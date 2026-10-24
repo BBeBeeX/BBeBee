@@ -1,5 +1,5 @@
 /**
- * React hooks for `@BBeBee/plugin-now-playing`.
+ * React hooks for `@bbebee/plugin-now-playing`.
  *
  * `useNowPlayingStyle` subscribes to the `now-playing/style-changed` event and
  * returns the current style id together with a setter. Both the desktop and

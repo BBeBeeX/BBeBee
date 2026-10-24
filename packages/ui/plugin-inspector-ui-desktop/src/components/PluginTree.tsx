@@ -227,7 +227,7 @@ export const PluginTree = memo(function PluginTree({
                     plugins.map((p) => {
                       const isSelected = selectedNodeId === p.id
                       const dotColor = STATUS_DOT_COLORS[p.status] ?? '#94a3b8'
-                      const shortName = p.name.replace(/^@BBeBee\//, '')
+                      const shortName = p.name.replace(/^@bbebee\//i, '')
 
                       return (
                         <div

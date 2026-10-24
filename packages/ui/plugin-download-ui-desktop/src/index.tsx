@@ -2,7 +2,7 @@
  * React DOM views for `plugin-download`.
  *
  * The download queue and what it has cached. Every value comes from
- * `@BBeBee/plugin-download/hooks` — the list, the header's numbers, one task's
+ * `@bbebee/plugin-download/hooks` — the list, the header's numbers, one task's
  * completion — and this package is layout, gestures and event wiring only
  * (docs/08 §1).
  *

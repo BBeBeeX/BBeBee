@@ -102,7 +102,7 @@ export function resolvePluginLayer(
   const registered =
     PLUGIN_MANIFESTS[pluginId] ??
     PLUGIN_MANIFESTS[`@BBeBee/${pluginId}`] ??
-    PLUGIN_MANIFESTS[pluginId.replace(/^@BBeBee\//, '')]
+    PLUGIN_MANIFESTS[pluginId.replace(/^@bbebee\//i, '')]
 
   if (registered?.systemId && registered.systemId in SYSTEM_LAYERS) {
     return registered.systemId as LayerId

@@ -1,10 +1,10 @@
 /**
- * React Native views for `@BBeBee/plugin-album`.
+ * React Native views for `@bbebee/plugin-album`.
  *
  * The desktop twin's one screen, transcribed for the phone: a back affordance,
  * a centred cover with the album's title and "Play album", then the track
  * list. Layout and event wiring only — the read and the playback semantics
- * live in `@BBeBee/plugin-album/hooks` and `ctx.player` (docs/08 §1).
+ * live in `@bbebee/plugin-album/hooks` and `ctx.player` (docs/08 §1).
  */
 
 import { createElement as h } from 'react'

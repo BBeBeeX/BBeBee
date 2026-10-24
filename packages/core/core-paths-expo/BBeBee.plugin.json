@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/core-paths-expo",
-  "name": "@BBeBee/core-paths-expo",
+  "id": "@bbebee/core-paths-expo",
+  "name": "@bbebee/core-paths-expo",
   "displayName": "Paths (Expo)",
   "description": "ctx.paths — well-known paths for Expo / React Native.",
   "version": "0.0.0",

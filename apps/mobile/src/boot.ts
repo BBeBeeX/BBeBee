@@ -161,7 +161,7 @@ export async function boot(): Promise<App> {
       HttpRn,
       /*
        * `ctx.audio` — the mobile audio engine:
-       * @BBeBee/core-audio-mpv over the in-process libmpv JNI/JSI bridge.
+       * @bbebee/core-audio-mpv over the in-process libmpv JNI/JSI bridge.
        */
       [
         MobileAudioService,

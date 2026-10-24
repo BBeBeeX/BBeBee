@@ -46,37 +46,37 @@ export const BOOTSTRAP_SERVICES = [
 ] as const
 
 export const ENABLED: NonNullable<AppConfig['plugins']> = {
-  '@BBeBee/plugin-theme': {},
-  '@BBeBee/plugin-ui': {},
+  '@bbebee/plugin-theme': {},
+  '@bbebee/plugin-ui': {},
   /*
    * No `plugin-log-*` here, deliberately. The logs layer loads from the
    * `bootstrap:` array in `boot.ts`, which is what puts it between the core
    * services and the feature plugins — a transport in this list would start
    * alongside the features it is meant to be recording (docs/09 §1).
    */
-  '@BBeBee/plugin-inspector': {},
-  '@BBeBee/plugin-manager': { config: { platform: 'mobile' } },
+  '@bbebee/plugin-inspector': {},
+  '@bbebee/plugin-manager': { config: { platform: 'mobile' } },
 
   // ctx.i18n — interface language from settings.language + ctx.device.locale
   // (see docs/services/i18n.md). Same allowlist position as desktop.
-  '@BBeBee/plugin-i18n': {},
+  '@bbebee/plugin-i18n': {},
 
   // M1's feature set, identical to desktop's. Load order is derived from
   // `inject`, never declared here (docs/02 §3).
-  '@BBeBee/plugin-sources': {},
-  '@BBeBee/plugin-sources-ui-mobile': {},
+  '@bbebee/plugin-sources': {},
+  '@bbebee/plugin-sources-ui-mobile': {},
   // The album page, extracted from `plugin-sources`: route and view only, with
   // the reads still on `ctx.sources` (MD-3).
-  '@BBeBee/plugin-album': {},
-  '@BBeBee/plugin-album-ui-mobile': {},
-  '@BBeBee/plugin-local-scanner': {},
-  '@BBeBee/plugin-local-scanner-ui-mobile': {},
-  '@BBeBee/plugin-source-local': {},
-  '@BBeBee/plugin-source-runtime': {},
+  '@bbebee/plugin-album': {},
+  '@bbebee/plugin-album-ui-mobile': {},
+  '@bbebee/plugin-local-scanner': {},
+  '@bbebee/plugin-local-scanner-ui-mobile': {},
+  '@bbebee/plugin-source-local': {},
+  '@bbebee/plugin-source-runtime': {},
   // Covers and remote streams are served from disk, fetched only on a miss.
   // The budgets are the mobile half of docs/07 §4.11's defaults: a phone
   // should hold 128 MB of artwork and 256 MB of streams, not a desktop's.
-  '@BBeBee/plugin-cache': {
+  '@bbebee/plugin-cache': {
     config: {
       maxArtworkBytes: 128 * 1024 * 1024,
       maxStreamBytes: 256 * 1024 * 1024,
@@ -85,48 +85,48 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
   // Hooks `player/before-resolve`: a file the user downloads is kept under
   // `ctx.paths.downloads`, and every later play opens it. Disabling it leaves
   // playback streaming, with no branch in the player either way.
-  '@BBeBee/plugin-download': {},
-  '@BBeBee/plugin-download-ui-mobile': {},
+  '@bbebee/plugin-download': {},
+  '@bbebee/plugin-download-ui-mobile': {},
   // Curation: playlists, favorites, collections and smart playlists. Mobile
   // shows Playlists as a tab; Favorites is reached from that screen, because
   // the tab bar is full and a fourth tab is a product decision, not a wiring
   // one (docs/08 §7).
-  '@BBeBee/plugin-library': {},
-  '@BBeBee/plugin-library-ui-mobile': {},
-  '@BBeBee/plugin-player': {},
+  '@bbebee/plugin-library': {},
+  '@bbebee/plugin-library-ui-mobile': {},
+  '@bbebee/plugin-player': {},
   // The "what is playing" surfaces and the up-next list, extracted from
   // `plugin-player`: the full-screen player, the mini-player that opens it,
   // and the queue screen. `plugin-player` itself is headless now.
-  '@BBeBee/plugin-now-playing': {},
-  '@BBeBee/plugin-now-playing-ui-mobile': {},
-  '@BBeBee/plugin-lyric-sources': {},
-  '@BBeBee/plugin-lyrics': {},
-  '@BBeBee/plugin-desktop-lyrics': {},
-  '@BBeBee/plugin-mini-player': {},
-  '@BBeBee/plugin-queue': {},
-  '@BBeBee/plugin-queue-ui-mobile': {},
-  '@BBeBee/plugin-history': {},
-  '@BBeBee/plugin-history-ui-mobile': {},
-  '@BBeBee/plugin-settings': {},
-  '@BBeBee/plugin-settings-ui-mobile': {},
+  '@bbebee/plugin-now-playing': {},
+  '@bbebee/plugin-now-playing-ui-mobile': {},
+  '@bbebee/plugin-lyric-sources': {},
+  '@bbebee/plugin-lyrics': {},
+  '@bbebee/plugin-desktop-lyrics': {},
+  '@bbebee/plugin-mini-player': {},
+  '@bbebee/plugin-queue': {},
+  '@bbebee/plugin-queue-ui-mobile': {},
+  '@bbebee/plugin-history': {},
+  '@bbebee/plugin-history-ui-mobile': {},
+  '@bbebee/plugin-settings': {},
+  '@bbebee/plugin-settings-ui-mobile': {},
   // Share runs on both shells — the feature-parity gate (shells.test.ts)
   // treats a one-sided feature as a split product. The service is headless;
   // the mobile views are share codes, the desktop's are image cards.
-  '@BBeBee/plugin-share': {},
-  '@BBeBee/plugin-share-ui-mobile': {},
-  '@BBeBee/plugin-sleep-timer': {},
-  '@BBeBee/plugin-desktop-taskbar': {},
-  '@BBeBee/plugin-dsp': {},
-  '@BBeBee/plugin-dsp-ui-mobile': {},
-  '@BBeBee/plugin-visualizer': {},
+  '@bbebee/plugin-share': {},
+  '@bbebee/plugin-share-ui-mobile': {},
+  '@bbebee/plugin-sleep-timer': {},
+  '@bbebee/plugin-desktop-taskbar': {},
+  '@bbebee/plugin-dsp': {},
+  '@bbebee/plugin-dsp-ui-mobile': {},
+  '@bbebee/plugin-visualizer': {},
   // The community content index — update checks and installs for sources,
   // lyric sources and themes. Headless on mobile: no plugin installer is
   // set, so plugin-kind installs refuse with a clear error.
-  '@BBeBee/plugin-registry': {},
+  '@bbebee/plugin-registry': {},
   // Lazy GitHub star/contributor counts for registry entries. Headless and
   // inert on mobile — nothing reads it here — but the feature-parity gate
   // (shells.test.ts) counts headless features, so both shells run it.
-  '@BBeBee/plugin-registry-metadata': {},
+  '@bbebee/plugin-registry-metadata': {},
   // Headless audio format converter & compressor
-  '@BBeBee/plugin-audio-converter': {},
+  '@bbebee/plugin-audio-converter': {},
 }

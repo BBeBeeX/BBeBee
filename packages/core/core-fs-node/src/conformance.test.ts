@@ -133,7 +133,7 @@ describe('core-fs-node capability scopes', () => {
       await scopeCtx.plugin(PathsNode, { root: dir })
       await scopeCtx.plugin(FsNode)
 
-      const scopeId = '@BBeBee/plugin-under-test'
+      const scopeId = '@bbebee/plugin-under-test'
       const gated = (granted: string[]) =>
         scopeContext(scopeCtx, {
           pluginId: scopeId,

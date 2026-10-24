@@ -60,7 +60,7 @@ export const PluginNodeView = memo(function PluginNodeView({
   const radius = Math.min(width, height) / 2 - 2
 
   // Format short display label
-  const rawName = node.name.replace(/^@BBeBee\//, '')
+  const rawName = node.name.replace(/^@bbebee\//i, '')
   const displayLabel = rawName.length > 12 ? rawName.slice(0, 11) + '…' : rawName
 
   return (

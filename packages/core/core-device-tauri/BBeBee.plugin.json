@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/core-device-tauri",
-  "name": "@BBeBee/core-device-tauri",
+  "id": "@bbebee/core-device-tauri",
+  "name": "@bbebee/core-device-tauri",
   "displayName": "Device",
   "description": "ctx.device — network, battery, media keys and hotkeys on desktop (Tauri).",
   "version": "0.0.0",

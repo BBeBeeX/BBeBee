@@ -1,5 +1,5 @@
 /**
- * React Native views for `@BBeBee/plugin-history`.
+ * React Native views for `@bbebee/plugin-history`.
  *
  * One screen: playback history and activity statistics.
  */

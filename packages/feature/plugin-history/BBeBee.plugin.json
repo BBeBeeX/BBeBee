@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-history",
-  "name": "@BBeBee/plugin-history",
+  "id": "@bbebee/plugin-history",
+  "name": "@bbebee/plugin-history",
   "displayName": "Play History",
   "description": "Play history and statistics — a view of the playback history ctx.player owns.",
   "version": "0.0.0",
@@ -10,7 +10,7 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-player"
+    "@bbebee/plugin-player"
   ],
   "systemId": "layer-4",
   "moduleId": "storage",

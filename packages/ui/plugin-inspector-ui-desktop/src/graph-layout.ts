@@ -95,7 +95,7 @@ export function buildFocusedGraph(
       (p) =>
         p.id === focus.id ||
         p.name === focus.id ||
-        p.name.replace(/^@BBeBee\//, '') === focus.id,
+        p.name.replace(/^@bbebee\//i, '') === focus.id,
     )
 
     if (!focalPlugin) {
@@ -218,7 +218,7 @@ export function buildFocusedGraph(
             (dp) =>
               dp.id === dep ||
               dp.name === dep ||
-              dp.name.replace(/^@BBeBee\//, '') === dep,
+              dp.name.replace(/^@bbebee\//i, '') === dep,
           )
           if (depPlugin) includedPluginIds.add(depPlugin.id)
         }

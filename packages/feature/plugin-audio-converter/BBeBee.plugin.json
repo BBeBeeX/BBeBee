@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-audio-converter",
-  "name": "@BBeBee/plugin-audio-converter",
+  "id": "@bbebee/plugin-audio-converter",
+  "name": "@bbebee/plugin-audio-converter",
   "displayName": "Audio Converter",
   "description": "Audio format conversion, audio compression, batch processing, and task management.",
   "version": "0.0.0",

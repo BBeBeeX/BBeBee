@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/core-secrets-expo",
-  "name": "@BBeBee/core-secrets-expo",
+  "id": "@bbebee/core-secrets-expo",
+  "name": "@bbebee/core-secrets-expo",
   "displayName": "Secrets",
   "description": "ctx.secrets for iOS and Android, over expo-secure-store.",
   "version": "0.0.0",

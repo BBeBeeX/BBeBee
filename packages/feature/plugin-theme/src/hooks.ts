@@ -1,5 +1,5 @@
 /**
- * React hooks for `@BBeBee/plugin-theme`.
+ * React hooks for `@bbebee/plugin-theme`.
  */
 
 import { useCallback, useEffect, useState } from 'react'

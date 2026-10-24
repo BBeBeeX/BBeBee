@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-source-local",
-  "name": "@BBeBee/plugin-source-local",
+  "id": "@bbebee/plugin-source-local",
+  "name": "@bbebee/plugin-source-local",
   "displayName": "This device",
   "description": "plugin-source-local — the files on this device, as a MediaProvider.",
   "version": "0.0.0",
@@ -10,7 +10,7 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-sources"
+    "@bbebee/plugin-sources"
   ],
   "systemId": "layer-4",
   "moduleId": "sources",

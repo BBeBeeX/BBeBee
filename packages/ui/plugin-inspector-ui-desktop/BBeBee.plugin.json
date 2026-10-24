@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-inspector-ui-desktop",
-  "name": "@BBeBee/plugin-inspector-ui-desktop",
+  "id": "@bbebee/plugin-inspector-ui-desktop",
+  "name": "@bbebee/plugin-inspector-ui-desktop",
   "displayName": "Inspector UI (Desktop)",
   "description": "React DOM view for the plugin inspector.",
   "version": "0.0.0",
@@ -10,8 +10,8 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-ui",
-    "@BBeBee/plugin-inspector"
+    "@bbebee/plugin-ui",
+    "@bbebee/plugin-inspector"
   ],
   "systemId": "layer-5",
   "moduleId": "inspector",

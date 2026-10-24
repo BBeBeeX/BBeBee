@@ -540,14 +540,14 @@ describe('LyricSourcesPlugin Service', () => {
 
     // plugin-lyric-sources has net:host/*
     const scopedSources = root.intercept('http', {
-      pluginId: '@BBeBee/plugin-lyric-sources',
+      pluginId: '@bbebee/plugin-lyric-sources',
       granted: ['net:host/*'],
     })
     await scopedSources.plugin(LyricSourcesPlugin)
 
     // settings-ui-desktop has no net:host/*
     const scopedSettings = root.intercept('http', {
-      pluginId: '@BBeBee/plugin-settings-ui-desktop',
+      pluginId: '@bbebee/plugin-settings-ui-desktop',
       granted: [],
     })
 
@@ -560,7 +560,7 @@ describe('LyricSourcesPlugin Service', () => {
 
     expect(res.ok).toBe(true)
     expect(seenConfig).toMatchObject({
-      pluginId: '@BBeBee/plugin-lyric-sources',
+      pluginId: '@bbebee/plugin-lyric-sources',
     })
   })
 

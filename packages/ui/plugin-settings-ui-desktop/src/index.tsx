@@ -1,5 +1,5 @@
 /**
- * React DOM views for `@BBeBee/plugin-settings`.
+ * React DOM views for `@bbebee/plugin-settings`.
  */
 
 import { createElement as h } from 'react'

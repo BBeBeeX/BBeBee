@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-log-file",
-  "name": "@BBeBee/plugin-log-file",
+  "id": "@bbebee/plugin-log-file",
+  "name": "@bbebee/plugin-log-file",
   "displayName": "Log File",
   "description": "Rotating NDJSON log file.",
   "version": "0.0.0",
@@ -10,7 +10,7 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-log-buffer"
+    "@bbebee/plugin-log-buffer"
   ],
   "systemId": "layer-3",
   "moduleId": "logs",

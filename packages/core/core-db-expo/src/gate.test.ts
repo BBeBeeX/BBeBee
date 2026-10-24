@@ -19,7 +19,7 @@ import { nsPrefix, scopeContext } from '@BBeBee/kernel'
 import { dbScopeConformance } from '@BBeBee/protocol/conformance'
 import { DbExpo } from './index.js'
 
-const SCOPE = '@BBeBee/plugin-demo'
+const SCOPE = '@bbebee/plugin-demo'
 
 async function gated(grants: string[], scopeId = SCOPE) {
   const ctx = new Context()

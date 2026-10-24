@@ -9,9 +9,10 @@ import {
 
 describe('toolkit: plugins', () => {
   describe('normalizePluginId', () => {
-    it('strips leading @BBeBee/ scope', () => {
+    it('strips the current @bbebee/ scope and the legacy @BBeBee/ scope', () => {
+      expect(normalizePluginId('@bbebee/plugin-player')).toBe('plugin-player')
+      expect(normalizePluginId('@bbebee/plugin-lyrics-ui-desktop')).toBe('plugin-lyrics-ui-desktop')
       expect(normalizePluginId('@BBeBee/plugin-player')).toBe('plugin-player')
-      expect(normalizePluginId('@BBeBee/plugin-lyrics-ui-desktop')).toBe('plugin-lyrics-ui-desktop')
     })
 
     it('leaves unscoped identifiers intact', () => {
@@ -22,36 +23,36 @@ describe('toolkit: plugins', () => {
 
   describe('matchesPluginId', () => {
     it('matches exact and unscoped IDs', () => {
-      expect(matchesPluginId('@BBeBee/plugin-player', '@BBeBee/plugin-player')).toBe(true)
-      expect(matchesPluginId('plugin-player', '@BBeBee/plugin-player')).toBe(true)
-      expect(matchesPluginId('@BBeBee/plugin-player', 'plugin-player')).toBe(true)
-      expect(matchesPluginId('plugin-other', '@BBeBee/plugin-player')).toBe(false)
+      expect(matchesPluginId('@bbebee/plugin-player', '@bbebee/plugin-player')).toBe(true)
+      expect(matchesPluginId('plugin-player', '@bbebee/plugin-player')).toBe(true)
+      expect(matchesPluginId('@bbebee/plugin-player', 'plugin-player')).toBe(true)
+      expect(matchesPluginId('plugin-other', '@bbebee/plugin-player')).toBe(false)
     })
 
     it('matches targetName if supplied', () => {
-      expect(matchesPluginId('player', '@BBeBee/plugin-player', 'player')).toBe(true)
-      expect(matchesPluginId('@BBeBee/player', '@BBeBee/plugin-player', 'player')).toBe(true)
+      expect(matchesPluginId('player', '@bbebee/plugin-player', 'player')).toBe(true)
+      expect(matchesPluginId('@BBeBee/player', '@bbebee/plugin-player', 'player')).toBe(true)
     })
   })
 
   describe('computeReverseDependents', () => {
     it('computes reverse dependents across items correctly', () => {
       const plugins = [
-        { id: '@BBeBee/plugin-player', dependencies: [] },
-        { id: '@BBeBee/plugin-lyrics', dependencies: ['@BBeBee/plugin-player'] },
-        { id: '@BBeBee/plugin-queue', dependencies: ['plugin-player'] },
-        { id: '@BBeBee/plugin-unrelated', dependencies: [] },
+        { id: '@bbebee/plugin-player', dependencies: [] },
+        { id: '@bbebee/plugin-lyrics', dependencies: ['@bbebee/plugin-player'] },
+        { id: '@bbebee/plugin-queue', dependencies: ['plugin-player'] },
+        { id: '@bbebee/plugin-unrelated', dependencies: [] },
       ]
 
       const dependentsMap = computeReverseDependents(plugins)
 
-      expect(dependentsMap.get('@BBeBee/plugin-player')).toEqual([
-        '@BBeBee/plugin-lyrics',
-        '@BBeBee/plugin-queue',
+      expect(dependentsMap.get('@bbebee/plugin-player')).toEqual([
+        '@bbebee/plugin-lyrics',
+        '@bbebee/plugin-queue',
       ])
-      expect(dependentsMap.get('@BBeBee/plugin-lyrics')).toEqual([])
-      expect(dependentsMap.get('@BBeBee/plugin-queue')).toEqual([])
-      expect(dependentsMap.get('@BBeBee/plugin-unrelated')).toEqual([])
+      expect(dependentsMap.get('@bbebee/plugin-lyrics')).toEqual([])
+      expect(dependentsMap.get('@bbebee/plugin-queue')).toEqual([])
+      expect(dependentsMap.get('@bbebee/plugin-unrelated')).toEqual([])
     })
   })
 
@@ -87,9 +88,9 @@ describe('toolkit: plugins', () => {
 
   describe('filterPlugins', () => {
     const list = [
-      { id: '@BBeBee/plugin-player', name: 'plugin-player', displayName: 'Player', moduleId: 'playback' },
-      { id: '@BBeBee/plugin-lyrics', name: 'plugin-lyrics', displayName: 'Lyrics', moduleId: 'lyrics' },
-      { id: '@BBeBee/plugin-theme', name: 'plugin-theme', displayName: 'Theme', moduleId: 'ui' },
+      { id: '@bbebee/plugin-player', name: 'plugin-player', displayName: 'Player', moduleId: 'playback' },
+      { id: '@bbebee/plugin-lyrics', name: 'plugin-lyrics', displayName: 'Lyrics', moduleId: 'lyrics' },
+      { id: '@bbebee/plugin-theme', name: 'plugin-theme', displayName: 'Theme', moduleId: 'ui' },
     ]
 
     it('returns all when query is empty', () => {

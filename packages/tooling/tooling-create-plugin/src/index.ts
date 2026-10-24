@@ -95,7 +95,11 @@ export function render(options: CreateOptions): CreatedFile[] {
   }
 
   const pkg = packageNameFor(options.kind, options.name)
-  const id = `@BBeBee/${pkg}`
+  // Manifest ids use the lowercase scope to match the plugin's future npm
+  // name; the workspace package name keeps the established `@BBeBee/`
+  // scope, exactly like the existing built-in plugins after the rename.
+  const id = `@bbebee/${pkg}`
+  const pkgName = `@BBeBee/${pkg}`
   const service = options.service ?? serviceNameFor(options.name)
   const cls = classNameFor(options.name)
   const capabilities = options.capabilities ?? []
@@ -113,7 +117,7 @@ export function render(options: CreateOptions): CreatedFile[] {
     contents:
       JSON.stringify(
         {
-          name: id,
+          name: pkgName,
           version: '0.0.0',
           description: `TODO: describe ${pkg}.`,
           type: 'module',
@@ -314,7 +318,7 @@ describe('${pkg}', () => {
               cordis: '4.0.0-rc.9',
               react: '19.2.3',
             },
-            devDependencies: { [id]: 'workspace:*', '@types/react': '^19.2.0' },
+            devDependencies: { [pkgName]: 'workspace:*', '@types/react': '^19.2.0' },
           },
           null,
           2,

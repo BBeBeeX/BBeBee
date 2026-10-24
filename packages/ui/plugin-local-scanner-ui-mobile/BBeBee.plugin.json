@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-local-scanner-ui-mobile",
-  "name": "@BBeBee/plugin-local-scanner-ui-mobile",
+  "id": "@bbebee/plugin-local-scanner-ui-mobile",
+  "name": "@bbebee/plugin-local-scanner-ui-mobile",
   "displayName": "Local Scanner UI (Mobile)",
   "description": "React Native views for plugin-local-scanner.",
   "version": "0.0.0",
@@ -10,8 +10,8 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-ui",
-    "@BBeBee/plugin-local-scanner"
+    "@bbebee/plugin-ui",
+    "@bbebee/plugin-local-scanner"
   ],
   "systemId": "layer-5",
   "moduleId": "storage",

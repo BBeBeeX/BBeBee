@@ -1464,8 +1464,8 @@ describe('lifecycle', () => {
   it('allows callers without audio capability (such as UI plugins) to trigger playback via Player', async () => {
     const { ctx } = await harness()
     const callerCtx = ctx.intercept('audio', {
-      pluginId: '@BBeBee/plugin-queue-ui-desktop',
-      scopeId: '@BBeBee/plugin-queue-ui-desktop',
+      pluginId: '@bbebee/plugin-queue-ui-desktop',
+      scopeId: '@bbebee/plugin-queue-ui-desktop',
       granted: [],
     })
     const callerPlayer = (callerCtx as unknown as { player: Player }).player

@@ -1,5 +1,5 @@
 /**
- * React DOM views for `@BBeBee/plugin-library`.
+ * React DOM views for `@bbebee/plugin-library`.
  *
  * Screens are modularized into dedicated components:
  * - LibraryScreen (home/sidebar with unified playlists, albums, artists, collections)

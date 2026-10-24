@@ -1,5 +1,5 @@
 /**
- * Mobile UI views for @BBeBee/plugin-dsp.
+ * Mobile UI views for @bbebee/plugin-dsp.
  *
  * Registers the DspScreen as 'dsp.view' and 'settings.dsp'.
  */

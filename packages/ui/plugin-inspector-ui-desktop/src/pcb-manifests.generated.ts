@@ -4,9 +4,9 @@
 import type { PluginManifest } from '@BBeBee/protocol'
 
 export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
-  "@BBeBee/core-audio-mpv": {
-    "id": "@BBeBee/core-audio-mpv",
-    "name": "@BBeBee/core-audio-mpv",
+  "@bbebee/core-audio-mpv": {
+    "id": "@bbebee/core-audio-mpv",
+    "name": "@bbebee/core-audio-mpv",
     "displayName": "Audio (MPV)",
     "description": "ctx.audio — the audio engine: libmpv with native audio-engine crash isolation, native DSP/EQ, and FFT visualizer.",
     "version": "0.0.0",
@@ -36,8 +36,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "audio"
   },
   "core-audio-mpv": {
-    "id": "@BBeBee/core-audio-mpv",
-    "name": "@BBeBee/core-audio-mpv",
+    "id": "@bbebee/core-audio-mpv",
+    "name": "@bbebee/core-audio-mpv",
     "displayName": "Audio (MPV)",
     "description": "ctx.audio — the audio engine: libmpv with native audio-engine crash isolation, native DSP/EQ, and FFT visualizer.",
     "version": "0.0.0",
@@ -66,9 +66,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "audio"
   },
-  "@BBeBee/core-background-expo": {
-    "id": "@BBeBee/core-background-expo",
-    "name": "@BBeBee/core-background-expo",
+  "@bbebee/core-background-expo": {
+    "id": "@bbebee/core-background-expo",
+    "name": "@bbebee/core-background-expo",
     "displayName": "Background",
     "description": "ctx.background for iOS and Android — audio session, wake locks, deferred work.",
     "version": "0.0.0",
@@ -97,8 +97,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "background"
   },
   "core-background-expo": {
-    "id": "@BBeBee/core-background-expo",
-    "name": "@BBeBee/core-background-expo",
+    "id": "@bbebee/core-background-expo",
+    "name": "@bbebee/core-background-expo",
     "displayName": "Background",
     "description": "ctx.background for iOS and Android — audio session, wake locks, deferred work.",
     "version": "0.0.0",
@@ -126,9 +126,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "background"
   },
-  "@BBeBee/core-background-tauri": {
-    "id": "@BBeBee/core-background-tauri",
-    "name": "@BBeBee/core-background-tauri",
+  "@bbebee/core-background-tauri": {
+    "id": "@bbebee/core-background-tauri",
+    "name": "@bbebee/core-background-tauri",
     "displayName": "Background",
     "description": "ctx.background — wake locks, scheduling and suspend hooks on desktop (Tauri).",
     "version": "0.0.0",
@@ -157,8 +157,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "background"
   },
   "core-background-tauri": {
-    "id": "@BBeBee/core-background-tauri",
-    "name": "@BBeBee/core-background-tauri",
+    "id": "@bbebee/core-background-tauri",
+    "name": "@bbebee/core-background-tauri",
     "displayName": "Background",
     "description": "ctx.background — wake locks, scheduling and suspend hooks on desktop (Tauri).",
     "version": "0.0.0",
@@ -186,9 +186,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "background"
   },
-  "@BBeBee/core-codec-node": {
-    "id": "@BBeBee/core-codec-node",
-    "name": "@BBeBee/core-codec-node",
+  "@bbebee/core-codec-node": {
+    "id": "@bbebee/core-codec-node",
+    "name": "@bbebee/core-codec-node",
     "displayName": "Codec",
     "description": "ctx.codec — tags, artwork and PCM, over music-metadata.",
     "version": "0.0.0",
@@ -217,8 +217,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "codec"
   },
   "core-codec-node": {
-    "id": "@BBeBee/core-codec-node",
-    "name": "@BBeBee/core-codec-node",
+    "id": "@bbebee/core-codec-node",
+    "name": "@bbebee/core-codec-node",
     "displayName": "Codec",
     "description": "ctx.codec — tags, artwork and PCM, over music-metadata.",
     "version": "0.0.0",
@@ -246,9 +246,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "codec"
   },
-  "@BBeBee/core-codec-rn": {
-    "id": "@BBeBee/core-codec-rn",
-    "name": "@BBeBee/core-codec-rn",
+  "@bbebee/core-codec-rn": {
+    "id": "@bbebee/core-codec-rn",
+    "name": "@bbebee/core-codec-rn",
     "displayName": "Codec",
     "description": "ctx.codec for iOS and Android — tags over ctx.fs, PCM via AudioDecoder.",
     "version": "0.0.0",
@@ -277,8 +277,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "codec"
   },
   "core-codec-rn": {
-    "id": "@BBeBee/core-codec-rn",
-    "name": "@BBeBee/core-codec-rn",
+    "id": "@bbebee/core-codec-rn",
+    "name": "@bbebee/core-codec-rn",
     "displayName": "Codec",
     "description": "ctx.codec for iOS and Android — tags over ctx.fs, PCM via AudioDecoder.",
     "version": "0.0.0",
@@ -306,9 +306,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "codec"
   },
-  "@BBeBee/core-db-expo": {
-    "id": "@BBeBee/core-db-expo",
-    "name": "@BBeBee/core-db-expo",
+  "@bbebee/core-db-expo": {
+    "id": "@bbebee/core-db-expo",
+    "name": "@bbebee/core-db-expo",
     "displayName": "DB (Expo)",
     "description": "ctx.db — SQLite database for Expo / React Native.",
     "version": "0.0.0",
@@ -335,8 +335,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "db"
   },
   "core-db-expo": {
-    "id": "@BBeBee/core-db-expo",
-    "name": "@BBeBee/core-db-expo",
+    "id": "@bbebee/core-db-expo",
+    "name": "@bbebee/core-db-expo",
     "displayName": "DB (Expo)",
     "description": "ctx.db — SQLite database for Expo / React Native.",
     "version": "0.0.0",
@@ -362,9 +362,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "db"
   },
-  "@BBeBee/core-desktop-bridge": {
-    "id": "@BBeBee/core-desktop-bridge",
-    "name": "@BBeBee/core-desktop-bridge",
+  "@bbebee/core-desktop-bridge": {
+    "id": "@bbebee/core-desktop-bridge",
+    "name": "@bbebee/core-desktop-bridge",
     "displayName": "Desktop Bridge",
     "description": "Renderer-side fs, db, and paths services over desktop IPC bridge.",
     "version": "0.0.0",
@@ -396,8 +396,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "bridge"
   },
   "core-desktop-bridge": {
-    "id": "@BBeBee/core-desktop-bridge",
-    "name": "@BBeBee/core-desktop-bridge",
+    "id": "@bbebee/core-desktop-bridge",
+    "name": "@bbebee/core-desktop-bridge",
     "displayName": "Desktop Bridge",
     "description": "Renderer-side fs, db, and paths services over desktop IPC bridge.",
     "version": "0.0.0",
@@ -428,9 +428,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "bridge"
   },
-  "@BBeBee/core-device-expo": {
-    "id": "@BBeBee/core-device-expo",
-    "name": "@BBeBee/core-device-expo",
+  "@bbebee/core-device-expo": {
+    "id": "@bbebee/core-device-expo",
+    "name": "@bbebee/core-device-expo",
     "displayName": "Device",
     "description": "ctx.device for iOS and Android — network, battery, locale.",
     "version": "0.0.0",
@@ -457,8 +457,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "device"
   },
   "core-device-expo": {
-    "id": "@BBeBee/core-device-expo",
-    "name": "@BBeBee/core-device-expo",
+    "id": "@bbebee/core-device-expo",
+    "name": "@bbebee/core-device-expo",
     "displayName": "Device",
     "description": "ctx.device for iOS and Android — network, battery, locale.",
     "version": "0.0.0",
@@ -484,9 +484,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "device"
   },
-  "@BBeBee/core-device-tauri": {
-    "id": "@BBeBee/core-device-tauri",
-    "name": "@BBeBee/core-device-tauri",
+  "@bbebee/core-device-tauri": {
+    "id": "@bbebee/core-device-tauri",
+    "name": "@bbebee/core-device-tauri",
     "displayName": "Device",
     "description": "ctx.device — network, battery, media keys and hotkeys on desktop (Tauri).",
     "version": "0.0.0",
@@ -513,8 +513,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "device"
   },
   "core-device-tauri": {
-    "id": "@BBeBee/core-device-tauri",
-    "name": "@BBeBee/core-device-tauri",
+    "id": "@bbebee/core-device-tauri",
+    "name": "@bbebee/core-device-tauri",
     "displayName": "Device",
     "description": "ctx.device — network, battery, media keys and hotkeys on desktop (Tauri).",
     "version": "0.0.0",
@@ -540,9 +540,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "device"
   },
-  "@BBeBee/core-fs-expo": {
-    "id": "@BBeBee/core-fs-expo",
-    "name": "@BBeBee/core-fs-expo",
+  "@bbebee/core-fs-expo": {
+    "id": "@bbebee/core-fs-expo",
+    "name": "@bbebee/core-fs-expo",
     "displayName": "FS (Expo)",
     "description": "ctx.fs — filesystem implementation for Expo / React Native.",
     "version": "0.0.0",
@@ -572,8 +572,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "fs"
   },
   "core-fs-expo": {
-    "id": "@BBeBee/core-fs-expo",
-    "name": "@BBeBee/core-fs-expo",
+    "id": "@bbebee/core-fs-expo",
+    "name": "@bbebee/core-fs-expo",
     "displayName": "FS (Expo)",
     "description": "ctx.fs — filesystem implementation for Expo / React Native.",
     "version": "0.0.0",
@@ -602,9 +602,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "fs"
   },
-  "@BBeBee/core-http-node": {
-    "id": "@BBeBee/core-http-node",
-    "name": "@BBeBee/core-http-node",
+  "@bbebee/core-http-node": {
+    "id": "@bbebee/core-http-node",
+    "name": "@bbebee/core-http-node",
     "displayName": "HTTP",
     "description": "ctx.http — outbound HTTP, the M1 slice.",
     "version": "0.0.0",
@@ -634,8 +634,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "http"
   },
   "core-http-node": {
-    "id": "@BBeBee/core-http-node",
-    "name": "@BBeBee/core-http-node",
+    "id": "@bbebee/core-http-node",
+    "name": "@bbebee/core-http-node",
     "displayName": "HTTP",
     "description": "ctx.http — outbound HTTP, the M1 slice.",
     "version": "0.0.0",
@@ -664,9 +664,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "http"
   },
-  "@BBeBee/core-http-rn": {
-    "id": "@BBeBee/core-http-rn",
-    "name": "@BBeBee/core-http-rn",
+  "@bbebee/core-http-rn": {
+    "id": "@bbebee/core-http-rn",
+    "name": "@bbebee/core-http-rn",
     "displayName": "HTTP",
     "description": "ctx.http for iOS and Android — the M1 slice over expo/fetch.",
     "version": "0.0.0",
@@ -695,8 +695,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "http"
   },
   "core-http-rn": {
-    "id": "@BBeBee/core-http-rn",
-    "name": "@BBeBee/core-http-rn",
+    "id": "@bbebee/core-http-rn",
+    "name": "@bbebee/core-http-rn",
     "displayName": "HTTP",
     "description": "ctx.http for iOS and Android — the M1 slice over expo/fetch.",
     "version": "0.0.0",
@@ -724,9 +724,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "http"
   },
-  "@BBeBee/core-js-quickjs-node": {
-    "id": "@BBeBee/core-js-quickjs-node",
-    "name": "@BBeBee/core-js-quickjs-node",
+  "@bbebee/core-js-quickjs-node": {
+    "id": "@bbebee/core-js-quickjs-node",
+    "name": "@bbebee/core-js-quickjs-node",
     "displayName": "Script sandbox",
     "description": "ctx.js — a QuickJS realm per source, for desktop and Node.",
     "version": "0.0.0",
@@ -753,8 +753,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "js"
   },
   "core-js-quickjs-node": {
-    "id": "@BBeBee/core-js-quickjs-node",
-    "name": "@BBeBee/core-js-quickjs-node",
+    "id": "@bbebee/core-js-quickjs-node",
+    "name": "@bbebee/core-js-quickjs-node",
     "displayName": "Script sandbox",
     "description": "ctx.js — a QuickJS realm per source, for desktop and Node.",
     "version": "0.0.0",
@@ -780,9 +780,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "js"
   },
-  "@BBeBee/core-media-session-rn": {
-    "id": "@BBeBee/core-media-session-rn",
-    "name": "@BBeBee/core-media-session-rn",
+  "@bbebee/core-media-session-rn": {
+    "id": "@bbebee/core-media-session-rn",
+    "name": "@bbebee/core-media-session-rn",
     "displayName": "Media Session",
     "description": "ctx.mediaSession for iOS and Android — lock screen and media notification.",
     "version": "0.0.0",
@@ -811,8 +811,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "mediaSession"
   },
   "core-media-session-rn": {
-    "id": "@BBeBee/core-media-session-rn",
-    "name": "@BBeBee/core-media-session-rn",
+    "id": "@bbebee/core-media-session-rn",
+    "name": "@bbebee/core-media-session-rn",
     "displayName": "Media Session",
     "description": "ctx.mediaSession for iOS and Android — lock screen and media notification.",
     "version": "0.0.0",
@@ -840,9 +840,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "mediaSession"
   },
-  "@BBeBee/core-media-session-tauri": {
-    "id": "@BBeBee/core-media-session-tauri",
-    "name": "@BBeBee/core-media-session-tauri",
+  "@bbebee/core-media-session-tauri": {
+    "id": "@bbebee/core-media-session-tauri",
+    "name": "@bbebee/core-media-session-tauri",
     "displayName": "Media session",
     "description": "ctx.mediaSession — the OS now-playing surface on desktop (Tauri).",
     "version": "0.0.0",
@@ -871,8 +871,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "mediaSession"
   },
   "core-media-session-tauri": {
-    "id": "@BBeBee/core-media-session-tauri",
-    "name": "@BBeBee/core-media-session-tauri",
+    "id": "@bbebee/core-media-session-tauri",
+    "name": "@bbebee/core-media-session-tauri",
     "displayName": "Media session",
     "description": "ctx.mediaSession — the OS now-playing surface on desktop (Tauri).",
     "version": "0.0.0",
@@ -900,9 +900,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "mediaSession"
   },
-  "@BBeBee/core-paths-expo": {
-    "id": "@BBeBee/core-paths-expo",
-    "name": "@BBeBee/core-paths-expo",
+  "@bbebee/core-paths-expo": {
+    "id": "@bbebee/core-paths-expo",
+    "name": "@bbebee/core-paths-expo",
     "displayName": "Paths (Expo)",
     "description": "ctx.paths — well-known paths for Expo / React Native.",
     "version": "0.0.0",
@@ -929,8 +929,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "paths"
   },
   "core-paths-expo": {
-    "id": "@BBeBee/core-paths-expo",
-    "name": "@BBeBee/core-paths-expo",
+    "id": "@bbebee/core-paths-expo",
+    "name": "@bbebee/core-paths-expo",
     "displayName": "Paths (Expo)",
     "description": "ctx.paths — well-known paths for Expo / React Native.",
     "version": "0.0.0",
@@ -956,9 +956,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "paths"
   },
-  "@BBeBee/core-secrets-expo": {
-    "id": "@BBeBee/core-secrets-expo",
-    "name": "@BBeBee/core-secrets-expo",
+  "@bbebee/core-secrets-expo": {
+    "id": "@bbebee/core-secrets-expo",
+    "name": "@bbebee/core-secrets-expo",
     "displayName": "Secrets",
     "description": "ctx.secrets for iOS and Android, over expo-secure-store.",
     "version": "0.0.0",
@@ -985,8 +985,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "secrets"
   },
   "core-secrets-expo": {
-    "id": "@BBeBee/core-secrets-expo",
-    "name": "@BBeBee/core-secrets-expo",
+    "id": "@bbebee/core-secrets-expo",
+    "name": "@bbebee/core-secrets-expo",
     "displayName": "Secrets",
     "description": "ctx.secrets for iOS and Android, over expo-secure-store.",
     "version": "0.0.0",
@@ -1012,9 +1012,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "secrets"
   },
-  "@BBeBee/core-secrets-node": {
-    "id": "@BBeBee/core-secrets-node",
-    "name": "@BBeBee/core-secrets-node",
+  "@bbebee/core-secrets-node": {
+    "id": "@bbebee/core-secrets-node",
+    "name": "@bbebee/core-secrets-node",
     "displayName": "Secrets",
     "description": "ctx.secrets — credential storage for desktop and Node.",
     "version": "0.0.0",
@@ -1044,8 +1044,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "secrets"
   },
   "core-secrets-node": {
-    "id": "@BBeBee/core-secrets-node",
-    "name": "@BBeBee/core-secrets-node",
+    "id": "@bbebee/core-secrets-node",
+    "name": "@bbebee/core-secrets-node",
     "displayName": "Secrets",
     "description": "ctx.secrets — credential storage for desktop and Node.",
     "version": "0.0.0",
@@ -1074,9 +1074,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "secrets"
   },
-  "@BBeBee/core-store-fs": {
-    "id": "@BBeBee/core-store-fs",
-    "name": "@BBeBee/core-store-fs",
+  "@bbebee/core-store-fs": {
+    "id": "@bbebee/core-store-fs",
+    "name": "@bbebee/core-store-fs",
     "displayName": "Store (FS)",
     "description": "ctx.store — persistent JSON store over disk.",
     "version": "0.0.0",
@@ -1107,8 +1107,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "store"
   },
   "core-store-fs": {
-    "id": "@BBeBee/core-store-fs",
-    "name": "@BBeBee/core-store-fs",
+    "id": "@bbebee/core-store-fs",
+    "name": "@bbebee/core-store-fs",
     "displayName": "Store (FS)",
     "description": "ctx.store — persistent JSON store over disk.",
     "version": "0.0.0",
@@ -1138,9 +1138,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "store"
   },
-  "@BBeBee/plugin-album": {
-    "id": "@BBeBee/plugin-album",
-    "name": "@BBeBee/plugin-album",
+  "@bbebee/plugin-album": {
+    "id": "@bbebee/plugin-album",
+    "name": "@bbebee/plugin-album",
     "displayName": "Album",
     "description": "The album page — detail, tracks, and album-level actions.",
     "version": "0.0.0",
@@ -1150,7 +1150,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-sources"
+      "@bbebee/plugin-sources"
     ],
     "systemId": "layer-4",
     "moduleId": "storage",
@@ -1166,8 +1166,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-album": {
-    "id": "@BBeBee/plugin-album",
-    "name": "@BBeBee/plugin-album",
+    "id": "@bbebee/plugin-album",
+    "name": "@bbebee/plugin-album",
     "displayName": "Album",
     "description": "The album page — detail, tracks, and album-level actions.",
     "version": "0.0.0",
@@ -1177,7 +1177,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-sources"
+      "@bbebee/plugin-sources"
     ],
     "systemId": "layer-4",
     "moduleId": "storage",
@@ -1192,9 +1192,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-audio-converter": {
-    "id": "@BBeBee/plugin-audio-converter",
-    "name": "@BBeBee/plugin-audio-converter",
+  "@bbebee/plugin-audio-converter": {
+    "id": "@bbebee/plugin-audio-converter",
+    "name": "@bbebee/plugin-audio-converter",
     "displayName": "Audio Converter",
     "description": "Audio format conversion, audio compression, batch processing, and task management.",
     "version": "0.0.0",
@@ -1224,8 +1224,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "audioConverter"
   },
   "plugin-audio-converter": {
-    "id": "@BBeBee/plugin-audio-converter",
-    "name": "@BBeBee/plugin-audio-converter",
+    "id": "@bbebee/plugin-audio-converter",
+    "name": "@bbebee/plugin-audio-converter",
     "displayName": "Audio Converter",
     "description": "Audio format conversion, audio compression, batch processing, and task management.",
     "version": "0.0.0",
@@ -1254,9 +1254,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "audioConverter"
   },
-  "@BBeBee/plugin-cache": {
-    "id": "@BBeBee/plugin-cache",
-    "name": "@BBeBee/plugin-cache",
+  "@bbebee/plugin-cache": {
+    "id": "@bbebee/plugin-cache",
+    "name": "@bbebee/plugin-cache",
     "displayName": "Cache",
     "description": "ctx.cache — covers and remote audio streams are served from disk, and fetched only on a miss.",
     "version": "0.0.0",
@@ -1286,8 +1286,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "cache"
   },
   "plugin-cache": {
-    "id": "@BBeBee/plugin-cache",
-    "name": "@BBeBee/plugin-cache",
+    "id": "@bbebee/plugin-cache",
+    "name": "@bbebee/plugin-cache",
     "displayName": "Cache",
     "description": "ctx.cache — covers and remote audio streams are served from disk, and fetched only on a miss.",
     "version": "0.0.0",
@@ -1316,9 +1316,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "cache"
   },
-  "@BBeBee/plugin-desktop-lyrics": {
-    "id": "@BBeBee/plugin-desktop-lyrics",
-    "name": "@BBeBee/plugin-desktop-lyrics",
+  "@bbebee/plugin-desktop-lyrics": {
+    "id": "@bbebee/plugin-desktop-lyrics",
+    "name": "@bbebee/plugin-desktop-lyrics",
     "displayName": "Desktop Lyrics",
     "description": "Floating desktop lyrics state and command contributions.",
     "version": "0.0.0",
@@ -1328,7 +1328,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-lyrics"
+      "@bbebee/plugin-lyrics"
     ],
     "systemId": "layer-4",
     "moduleId": "lyrics",
@@ -1347,8 +1347,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "desktopLyrics"
   },
   "plugin-desktop-lyrics": {
-    "id": "@BBeBee/plugin-desktop-lyrics",
-    "name": "@BBeBee/plugin-desktop-lyrics",
+    "id": "@bbebee/plugin-desktop-lyrics",
+    "name": "@bbebee/plugin-desktop-lyrics",
     "displayName": "Desktop Lyrics",
     "description": "Floating desktop lyrics state and command contributions.",
     "version": "0.0.0",
@@ -1358,7 +1358,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-lyrics"
+      "@bbebee/plugin-lyrics"
     ],
     "systemId": "layer-4",
     "moduleId": "lyrics",
@@ -1376,9 +1376,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "desktopLyrics"
   },
-  "@BBeBee/plugin-desktop-taskbar": {
-    "id": "@BBeBee/plugin-desktop-taskbar",
-    "name": "@BBeBee/plugin-desktop-taskbar",
+  "@bbebee/plugin-desktop-taskbar": {
+    "id": "@bbebee/plugin-desktop-taskbar",
+    "name": "@bbebee/plugin-desktop-taskbar",
     "displayName": "Desktop Taskbar",
     "description": "Desktop taskbar and tray playback controls for Play/Pause, Previous, and Next.",
     "version": "0.0.0",
@@ -1388,7 +1388,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-player"
+      "@bbebee/plugin-player"
     ],
     "systemId": "layer-4",
     "moduleId": "playback",
@@ -1400,8 +1400,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-desktop-taskbar": {
-    "id": "@BBeBee/plugin-desktop-taskbar",
-    "name": "@BBeBee/plugin-desktop-taskbar",
+    "id": "@bbebee/plugin-desktop-taskbar",
+    "name": "@bbebee/plugin-desktop-taskbar",
     "displayName": "Desktop Taskbar",
     "description": "Desktop taskbar and tray playback controls for Play/Pause, Previous, and Next.",
     "version": "0.0.0",
@@ -1411,7 +1411,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-player"
+      "@bbebee/plugin-player"
     ],
     "systemId": "layer-4",
     "moduleId": "playback",
@@ -1422,9 +1422,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-download": {
-    "id": "@BBeBee/plugin-download",
-    "name": "@BBeBee/plugin-download",
+  "@bbebee/plugin-download": {
+    "id": "@bbebee/plugin-download",
+    "name": "@bbebee/plugin-download",
     "displayName": "Downloads",
     "description": "ctx.downloads — the managed download queue.",
     "version": "0.0.0",
@@ -1434,7 +1434,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-sources"
+      "@bbebee/plugin-sources"
     ],
     "systemId": "layer-4",
     "moduleId": "storage",
@@ -1462,8 +1462,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "downloads"
   },
   "plugin-download": {
-    "id": "@BBeBee/plugin-download",
-    "name": "@BBeBee/plugin-download",
+    "id": "@bbebee/plugin-download",
+    "name": "@bbebee/plugin-download",
     "displayName": "Downloads",
     "description": "ctx.downloads — the managed download queue.",
     "version": "0.0.0",
@@ -1473,7 +1473,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-sources"
+      "@bbebee/plugin-sources"
     ],
     "systemId": "layer-4",
     "moduleId": "storage",
@@ -1500,9 +1500,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "downloads"
   },
-  "@BBeBee/plugin-dsp": {
-    "id": "@BBeBee/plugin-dsp",
-    "name": "@BBeBee/plugin-dsp",
+  "@bbebee/plugin-dsp": {
+    "id": "@bbebee/plugin-dsp",
+    "name": "@bbebee/plugin-dsp",
     "displayName": "DSP Effect Chain",
     "description": "ctx.dsp — effect chain builder, presets, and audio processing effects.",
     "version": "0.0.0",
@@ -1512,7 +1512,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-player"
+      "@bbebee/plugin-player"
     ],
     "systemId": "layer-4",
     "moduleId": "dsp",
@@ -1534,8 +1534,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "dsp"
   },
   "plugin-dsp": {
-    "id": "@BBeBee/plugin-dsp",
-    "name": "@BBeBee/plugin-dsp",
+    "id": "@bbebee/plugin-dsp",
+    "name": "@bbebee/plugin-dsp",
     "displayName": "DSP Effect Chain",
     "description": "ctx.dsp — effect chain builder, presets, and audio processing effects.",
     "version": "0.0.0",
@@ -1545,7 +1545,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-player"
+      "@bbebee/plugin-player"
     ],
     "systemId": "layer-4",
     "moduleId": "dsp",
@@ -1566,9 +1566,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "dsp"
   },
-  "@BBeBee/plugin-history": {
-    "id": "@BBeBee/plugin-history",
-    "name": "@BBeBee/plugin-history",
+  "@bbebee/plugin-history": {
+    "id": "@bbebee/plugin-history",
+    "name": "@bbebee/plugin-history",
     "displayName": "Play History",
     "description": "Play history and statistics — a view of the playback history ctx.player owns.",
     "version": "0.0.0",
@@ -1578,7 +1578,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-player"
+      "@bbebee/plugin-player"
     ],
     "systemId": "layer-4",
     "moduleId": "storage",
@@ -1594,8 +1594,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-history": {
-    "id": "@BBeBee/plugin-history",
-    "name": "@BBeBee/plugin-history",
+    "id": "@bbebee/plugin-history",
+    "name": "@bbebee/plugin-history",
     "displayName": "Play History",
     "description": "Play history and statistics — a view of the playback history ctx.player owns.",
     "version": "0.0.0",
@@ -1605,7 +1605,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-player"
+      "@bbebee/plugin-player"
     ],
     "systemId": "layer-4",
     "moduleId": "storage",
@@ -1620,9 +1620,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-i18n": {
-    "id": "@BBeBee/plugin-i18n",
-    "name": "@BBeBee/plugin-i18n",
+  "@bbebee/plugin-i18n": {
+    "id": "@bbebee/plugin-i18n",
+    "name": "@bbebee/plugin-i18n",
     "displayName": "I18n",
     "description": "ctx.i18n — interface-language catalogues, key-granular fallback and locale resolution driven by settings.language.",
     "version": "0.0.0",
@@ -1632,7 +1632,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-settings"
+      "@bbebee/plugin-settings"
     ],
     "systemId": "layer-4",
     "moduleId": "i18n",
@@ -1648,8 +1648,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "i18n"
   },
   "plugin-i18n": {
-    "id": "@BBeBee/plugin-i18n",
-    "name": "@BBeBee/plugin-i18n",
+    "id": "@bbebee/plugin-i18n",
+    "name": "@bbebee/plugin-i18n",
     "displayName": "I18n",
     "description": "ctx.i18n — interface-language catalogues, key-granular fallback and locale resolution driven by settings.language.",
     "version": "0.0.0",
@@ -1659,7 +1659,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-settings"
+      "@bbebee/plugin-settings"
     ],
     "systemId": "layer-4",
     "moduleId": "i18n",
@@ -1674,9 +1674,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "i18n"
   },
-  "@BBeBee/plugin-inspector": {
-    "id": "@BBeBee/plugin-inspector",
-    "name": "@BBeBee/plugin-inspector",
+  "@bbebee/plugin-inspector": {
+    "id": "@bbebee/plugin-inspector",
+    "name": "@bbebee/plugin-inspector",
     "displayName": "Plugin Inspector",
     "description": "Fiber tree and labelled effects.",
     "version": "0.0.0",
@@ -1703,8 +1703,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "inspector"
   },
   "plugin-inspector": {
-    "id": "@BBeBee/plugin-inspector",
-    "name": "@BBeBee/plugin-inspector",
+    "id": "@bbebee/plugin-inspector",
+    "name": "@bbebee/plugin-inspector",
     "displayName": "Plugin Inspector",
     "description": "Fiber tree and labelled effects.",
     "version": "0.0.0",
@@ -1730,9 +1730,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "inspector"
   },
-  "@BBeBee/plugin-library": {
-    "id": "@BBeBee/plugin-library",
-    "name": "@BBeBee/plugin-library",
+  "@bbebee/plugin-library": {
+    "id": "@bbebee/plugin-library",
+    "name": "@bbebee/plugin-library",
     "displayName": "Library",
     "description": "ctx.library — playlists, favorites, collections and smart playlists.",
     "version": "0.0.0",
@@ -1742,7 +1742,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-sources"
+      "@bbebee/plugin-sources"
     ],
     "systemId": "layer-4",
     "moduleId": "storage",
@@ -1765,8 +1765,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "library"
   },
   "plugin-library": {
-    "id": "@BBeBee/plugin-library",
-    "name": "@BBeBee/plugin-library",
+    "id": "@bbebee/plugin-library",
+    "name": "@bbebee/plugin-library",
     "displayName": "Library",
     "description": "ctx.library — playlists, favorites, collections and smart playlists.",
     "version": "0.0.0",
@@ -1776,7 +1776,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-sources"
+      "@bbebee/plugin-sources"
     ],
     "systemId": "layer-4",
     "moduleId": "storage",
@@ -1798,9 +1798,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "library"
   },
-  "@BBeBee/plugin-local-scanner": {
-    "id": "@BBeBee/plugin-local-scanner",
-    "name": "@BBeBee/plugin-local-scanner",
+  "@bbebee/plugin-local-scanner": {
+    "id": "@bbebee/plugin-local-scanner",
+    "name": "@bbebee/plugin-local-scanner",
     "displayName": "Local Scanner",
     "description": "ctx.scanner — the local filesystem walk.",
     "version": "0.0.0",
@@ -1810,7 +1810,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-sources"
+      "@bbebee/plugin-sources"
     ],
     "systemId": "layer-4",
     "moduleId": "storage",
@@ -1838,8 +1838,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "scanner"
   },
   "plugin-local-scanner": {
-    "id": "@BBeBee/plugin-local-scanner",
-    "name": "@BBeBee/plugin-local-scanner",
+    "id": "@bbebee/plugin-local-scanner",
+    "name": "@bbebee/plugin-local-scanner",
     "displayName": "Local Scanner",
     "description": "ctx.scanner — the local filesystem walk.",
     "version": "0.0.0",
@@ -1849,7 +1849,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-sources"
+      "@bbebee/plugin-sources"
     ],
     "systemId": "layer-4",
     "moduleId": "storage",
@@ -1876,9 +1876,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "scanner"
   },
-  "@BBeBee/plugin-lyric-sources": {
-    "id": "@BBeBee/plugin-lyric-sources",
-    "name": "@BBeBee/plugin-lyric-sources",
+  "@bbebee/plugin-lyric-sources": {
+    "id": "@bbebee/plugin-lyric-sources",
+    "name": "@bbebee/plugin-lyric-sources",
     "displayName": "Lyric Sources",
     "description": "ctx.lyricSources — third-party lyric source provider management and sandboxed execution.",
     "version": "0.0.0",
@@ -1888,7 +1888,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-lyrics"
+      "@bbebee/plugin-lyrics"
     ],
     "systemId": "layer-4",
     "moduleId": "lyrics",
@@ -1907,8 +1907,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "lyricSources"
   },
   "plugin-lyric-sources": {
-    "id": "@BBeBee/plugin-lyric-sources",
-    "name": "@BBeBee/plugin-lyric-sources",
+    "id": "@bbebee/plugin-lyric-sources",
+    "name": "@bbebee/plugin-lyric-sources",
     "displayName": "Lyric Sources",
     "description": "ctx.lyricSources — third-party lyric source provider management and sandboxed execution.",
     "version": "0.0.0",
@@ -1918,7 +1918,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-lyrics"
+      "@bbebee/plugin-lyrics"
     ],
     "systemId": "layer-4",
     "moduleId": "lyrics",
@@ -1936,9 +1936,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "lyricSources"
   },
-  "@BBeBee/plugin-lyrics": {
-    "id": "@BBeBee/plugin-lyrics",
-    "name": "@BBeBee/plugin-lyrics",
+  "@bbebee/plugin-lyrics": {
+    "id": "@bbebee/plugin-lyrics",
+    "name": "@bbebee/plugin-lyrics",
     "displayName": "Lyrics",
     "description": "ctx.lyrics — lyric retrieval, caching, synchronization and unified state.",
     "version": "0.0.0",
@@ -1948,7 +1948,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-player"
+      "@bbebee/plugin-player"
     ],
     "systemId": "layer-4",
     "moduleId": "lyrics",
@@ -1970,8 +1970,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "lyrics"
   },
   "plugin-lyrics": {
-    "id": "@BBeBee/plugin-lyrics",
-    "name": "@BBeBee/plugin-lyrics",
+    "id": "@bbebee/plugin-lyrics",
+    "name": "@bbebee/plugin-lyrics",
     "displayName": "Lyrics",
     "description": "ctx.lyrics — lyric retrieval, caching, synchronization and unified state.",
     "version": "0.0.0",
@@ -1981,7 +1981,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-player"
+      "@bbebee/plugin-player"
     ],
     "systemId": "layer-4",
     "moduleId": "lyrics",
@@ -2002,9 +2002,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "lyrics"
   },
-  "@BBeBee/plugin-manager": {
-    "id": "@BBeBee/plugin-manager",
-    "name": "@BBeBee/plugin-manager",
+  "@bbebee/plugin-manager": {
+    "id": "@bbebee/plugin-manager",
+    "name": "@bbebee/plugin-manager",
     "displayName": "Plugin Manager",
     "description": "ctx['plugin-manager'] — plugin discovery, runtime state tracking, lifecycle management, and dependencies graph.",
     "version": "0.0.0",
@@ -2014,7 +2014,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-inspector"
+      "@bbebee/plugin-inspector"
     ],
     "systemId": "layer-4",
     "moduleId": "plugins",
@@ -2039,8 +2039,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "pluginManager"
   },
   "plugin-manager": {
-    "id": "@BBeBee/plugin-manager",
-    "name": "@BBeBee/plugin-manager",
+    "id": "@bbebee/plugin-manager",
+    "name": "@bbebee/plugin-manager",
     "displayName": "Plugin Manager",
     "description": "ctx['plugin-manager'] — plugin discovery, runtime state tracking, lifecycle management, and dependencies graph.",
     "version": "0.0.0",
@@ -2050,7 +2050,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-inspector"
+      "@bbebee/plugin-inspector"
     ],
     "systemId": "layer-4",
     "moduleId": "plugins",
@@ -2074,9 +2074,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "pluginManager"
   },
-  "@BBeBee/plugin-mini-player": {
-    "id": "@BBeBee/plugin-mini-player",
-    "name": "@BBeBee/plugin-mini-player",
+  "@bbebee/plugin-mini-player": {
+    "id": "@bbebee/plugin-mini-player",
+    "name": "@bbebee/plugin-mini-player",
     "displayName": "Mini Player",
     "description": "Floating mini window and Dynamic Island player controls.",
     "version": "0.0.0",
@@ -2086,7 +2086,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-player"
+      "@bbebee/plugin-player"
     ],
     "systemId": "layer-4",
     "moduleId": "playback",
@@ -2105,8 +2105,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "miniPlayer"
   },
   "plugin-mini-player": {
-    "id": "@BBeBee/plugin-mini-player",
-    "name": "@BBeBee/plugin-mini-player",
+    "id": "@bbebee/plugin-mini-player",
+    "name": "@bbebee/plugin-mini-player",
     "displayName": "Mini Player",
     "description": "Floating mini window and Dynamic Island player controls.",
     "version": "0.0.0",
@@ -2116,7 +2116,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-player"
+      "@bbebee/plugin-player"
     ],
     "systemId": "layer-4",
     "moduleId": "playback",
@@ -2134,9 +2134,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "miniPlayer"
   },
-  "@BBeBee/plugin-now-playing": {
-    "id": "@BBeBee/plugin-now-playing",
-    "name": "@BBeBee/plugin-now-playing",
+  "@bbebee/plugin-now-playing": {
+    "id": "@bbebee/plugin-now-playing",
+    "name": "@bbebee/plugin-now-playing",
     "displayName": "Now playing",
     "description": "The full-screen player and the persistent bar that opens it.",
     "version": "0.0.0",
@@ -2146,7 +2146,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-player"
+      "@bbebee/plugin-player"
     ],
     "systemId": "layer-4",
     "moduleId": "playback",
@@ -2166,8 +2166,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "nowPlaying"
   },
   "plugin-now-playing": {
-    "id": "@BBeBee/plugin-now-playing",
-    "name": "@BBeBee/plugin-now-playing",
+    "id": "@bbebee/plugin-now-playing",
+    "name": "@bbebee/plugin-now-playing",
     "displayName": "Now playing",
     "description": "The full-screen player and the persistent bar that opens it.",
     "version": "0.0.0",
@@ -2177,7 +2177,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-player"
+      "@bbebee/plugin-player"
     ],
     "systemId": "layer-4",
     "moduleId": "playback",
@@ -2196,9 +2196,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "nowPlaying"
   },
-  "@BBeBee/plugin-player": {
-    "id": "@BBeBee/plugin-player",
-    "name": "@BBeBee/plugin-player",
+  "@bbebee/plugin-player": {
+    "id": "@bbebee/plugin-player",
+    "name": "@bbebee/plugin-player",
     "displayName": "Player",
     "description": "ctx.player — transport, queue, resolution, history.",
     "version": "0.0.0",
@@ -2208,7 +2208,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-sources"
+      "@bbebee/plugin-sources"
     ],
     "systemId": "layer-4",
     "moduleId": "playback",
@@ -2230,8 +2230,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "player"
   },
   "plugin-player": {
-    "id": "@BBeBee/plugin-player",
-    "name": "@BBeBee/plugin-player",
+    "id": "@bbebee/plugin-player",
+    "name": "@bbebee/plugin-player",
     "displayName": "Player",
     "description": "ctx.player — transport, queue, resolution, history.",
     "version": "0.0.0",
@@ -2241,7 +2241,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-sources"
+      "@bbebee/plugin-sources"
     ],
     "systemId": "layer-4",
     "moduleId": "playback",
@@ -2262,9 +2262,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "player"
   },
-  "@BBeBee/plugin-queue": {
-    "id": "@BBeBee/plugin-queue",
-    "name": "@BBeBee/plugin-queue",
+  "@bbebee/plugin-queue": {
+    "id": "@bbebee/plugin-queue",
+    "name": "@bbebee/plugin-queue",
     "displayName": "Queue",
     "description": "The up-next list — a view of the queue ctx.player owns.",
     "version": "0.0.0",
@@ -2274,7 +2274,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-player"
+      "@bbebee/plugin-player"
     ],
     "systemId": "layer-4",
     "moduleId": "playback",
@@ -2290,8 +2290,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-queue": {
-    "id": "@BBeBee/plugin-queue",
-    "name": "@BBeBee/plugin-queue",
+    "id": "@bbebee/plugin-queue",
+    "name": "@bbebee/plugin-queue",
     "displayName": "Queue",
     "description": "The up-next list — a view of the queue ctx.player owns.",
     "version": "0.0.0",
@@ -2301,7 +2301,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-player"
+      "@bbebee/plugin-player"
     ],
     "systemId": "layer-4",
     "moduleId": "playback",
@@ -2316,9 +2316,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-registry": {
-    "id": "@BBeBee/plugin-registry",
-    "name": "@BBeBee/plugin-registry",
+  "@bbebee/plugin-registry": {
+    "id": "@bbebee/plugin-registry",
+    "name": "@bbebee/plugin-registry",
     "displayName": "Registry",
     "description": "ctx.contentRegistry — the community content index: update checks and installs for music sources, lyric sources, themes and desktop plugins.",
     "version": "0.0.0",
@@ -2344,8 +2344,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "contentRegistry"
   },
   "plugin-registry": {
-    "id": "@BBeBee/plugin-registry",
-    "name": "@BBeBee/plugin-registry",
+    "id": "@bbebee/plugin-registry",
+    "name": "@bbebee/plugin-registry",
     "displayName": "Registry",
     "description": "ctx.contentRegistry — the community content index: update checks and installs for music sources, lyric sources, themes and desktop plugins.",
     "version": "0.0.0",
@@ -2370,9 +2370,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "contentRegistry"
   },
-  "@BBeBee/plugin-registry-metadata": {
-    "id": "@BBeBee/plugin-registry-metadata",
-    "name": "@BBeBee/plugin-registry-metadata",
+  "@bbebee/plugin-registry-metadata": {
+    "id": "@bbebee/plugin-registry-metadata",
+    "name": "@bbebee/plugin-registry-metadata",
     "displayName": "Registry Metadata",
     "description": "ctx.registryMetadata — lazy GitHub star and contributor counts for registry entries, cached for a day and degraded gracefully.",
     "version": "0.0.0",
@@ -2396,8 +2396,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "registryMetadata"
   },
   "plugin-registry-metadata": {
-    "id": "@BBeBee/plugin-registry-metadata",
-    "name": "@BBeBee/plugin-registry-metadata",
+    "id": "@bbebee/plugin-registry-metadata",
+    "name": "@bbebee/plugin-registry-metadata",
     "displayName": "Registry Metadata",
     "description": "ctx.registryMetadata — lazy GitHub star and contributor counts for registry entries, cached for a day and degraded gracefully.",
     "version": "0.0.0",
@@ -2420,9 +2420,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "registryMetadata"
   },
-  "@BBeBee/plugin-security-audit": {
-    "id": "@BBeBee/plugin-security-audit",
-    "name": "@BBeBee/plugin-security-audit",
+  "@bbebee/plugin-security-audit": {
+    "id": "@bbebee/plugin-security-audit",
+    "name": "@bbebee/plugin-security-audit",
     "displayName": "Security Audit",
     "description": "ctx.securityAudit — static code analysis and security auditing for sources and plugins.",
     "version": "0.0.0",
@@ -2446,8 +2446,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "securityAudit"
   },
   "plugin-security-audit": {
-    "id": "@BBeBee/plugin-security-audit",
-    "name": "@BBeBee/plugin-security-audit",
+    "id": "@bbebee/plugin-security-audit",
+    "name": "@bbebee/plugin-security-audit",
     "displayName": "Security Audit",
     "description": "ctx.securityAudit — static code analysis and security auditing for sources and plugins.",
     "version": "0.0.0",
@@ -2470,9 +2470,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "securityAudit"
   },
-  "@BBeBee/plugin-settings": {
-    "id": "@BBeBee/plugin-settings",
-    "name": "@BBeBee/plugin-settings",
+  "@bbebee/plugin-settings": {
+    "id": "@bbebee/plugin-settings",
+    "name": "@bbebee/plugin-settings",
     "displayName": "Settings",
     "description": "Global application preferences, settings service, and settings views.",
     "version": "0.0.0",
@@ -2500,8 +2500,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "settings"
   },
   "plugin-settings": {
-    "id": "@BBeBee/plugin-settings",
-    "name": "@BBeBee/plugin-settings",
+    "id": "@bbebee/plugin-settings",
+    "name": "@bbebee/plugin-settings",
     "displayName": "Settings",
     "description": "Global application preferences, settings service, and settings views.",
     "version": "0.0.0",
@@ -2528,9 +2528,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "settings"
   },
-  "@BBeBee/plugin-share": {
-    "id": "@BBeBee/plugin-share",
-    "name": "@BBeBee/plugin-share",
+  "@bbebee/plugin-share": {
+    "id": "@bbebee/plugin-share",
+    "name": "@bbebee/plugin-share",
     "displayName": "Share",
     "description": "ctx.share — Song, playlist, and lyrics sharing with image steganography.",
     "version": "0.0.0",
@@ -2558,8 +2558,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "share"
   },
   "plugin-share": {
-    "id": "@BBeBee/plugin-share",
-    "name": "@BBeBee/plugin-share",
+    "id": "@bbebee/plugin-share",
+    "name": "@bbebee/plugin-share",
     "displayName": "Share",
     "description": "ctx.share — Song, playlist, and lyrics sharing with image steganography.",
     "version": "0.0.0",
@@ -2586,9 +2586,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "share"
   },
-  "@BBeBee/plugin-sleep-timer": {
-    "id": "@BBeBee/plugin-sleep-timer",
-    "name": "@BBeBee/plugin-sleep-timer",
+  "@bbebee/plugin-sleep-timer": {
+    "id": "@bbebee/plugin-sleep-timer",
+    "name": "@bbebee/plugin-sleep-timer",
     "displayName": "Sleep Timer",
     "description": "ctx.sleepTimer — stops playback after a duration, at a specific time, or at track end.",
     "version": "0.0.0",
@@ -2598,7 +2598,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-player"
+      "@bbebee/plugin-player"
     ],
     "systemId": "layer-4",
     "moduleId": "playback",
@@ -2614,8 +2614,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "sleepTimer"
   },
   "plugin-sleep-timer": {
-    "id": "@BBeBee/plugin-sleep-timer",
-    "name": "@BBeBee/plugin-sleep-timer",
+    "id": "@bbebee/plugin-sleep-timer",
+    "name": "@bbebee/plugin-sleep-timer",
     "displayName": "Sleep Timer",
     "description": "ctx.sleepTimer — stops playback after a duration, at a specific time, or at track end.",
     "version": "0.0.0",
@@ -2625,7 +2625,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-player"
+      "@bbebee/plugin-player"
     ],
     "systemId": "layer-4",
     "moduleId": "playback",
@@ -2640,9 +2640,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "sleepTimer"
   },
-  "@BBeBee/plugin-source-local": {
-    "id": "@BBeBee/plugin-source-local",
-    "name": "@BBeBee/plugin-source-local",
+  "@bbebee/plugin-source-local": {
+    "id": "@bbebee/plugin-source-local",
+    "name": "@bbebee/plugin-source-local",
     "displayName": "This device",
     "description": "plugin-source-local — the files on this device, as a MediaProvider.",
     "version": "0.0.0",
@@ -2652,7 +2652,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-sources"
+      "@bbebee/plugin-sources"
     ],
     "systemId": "layer-4",
     "moduleId": "sources",
@@ -2672,8 +2672,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "sourceLocal"
   },
   "plugin-source-local": {
-    "id": "@BBeBee/plugin-source-local",
-    "name": "@BBeBee/plugin-source-local",
+    "id": "@bbebee/plugin-source-local",
+    "name": "@bbebee/plugin-source-local",
     "displayName": "This device",
     "description": "plugin-source-local — the files on this device, as a MediaProvider.",
     "version": "0.0.0",
@@ -2683,7 +2683,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-sources"
+      "@bbebee/plugin-sources"
     ],
     "systemId": "layer-4",
     "moduleId": "sources",
@@ -2702,9 +2702,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "sourceLocal"
   },
-  "@BBeBee/plugin-source-runtime": {
-    "id": "@BBeBee/plugin-source-runtime",
-    "name": "@BBeBee/plugin-source-runtime",
+  "@bbebee/plugin-source-runtime": {
+    "id": "@bbebee/plugin-source-runtime",
+    "name": "@bbebee/plugin-source-runtime",
     "displayName": "Music sources",
     "description": "plugin-source-runtime — interprets imported source strings.",
     "version": "0.0.0",
@@ -2714,7 +2714,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-sources"
+      "@bbebee/plugin-sources"
     ],
     "systemId": "layer-4",
     "moduleId": "sources",
@@ -2734,8 +2734,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-source-runtime": {
-    "id": "@BBeBee/plugin-source-runtime",
-    "name": "@BBeBee/plugin-source-runtime",
+    "id": "@bbebee/plugin-source-runtime",
+    "name": "@bbebee/plugin-source-runtime",
     "displayName": "Music sources",
     "description": "plugin-source-runtime — interprets imported source strings.",
     "version": "0.0.0",
@@ -2745,7 +2745,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-sources"
+      "@bbebee/plugin-sources"
     ],
     "systemId": "layer-4",
     "moduleId": "sources",
@@ -2764,9 +2764,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": null
   },
-  "@BBeBee/plugin-sources": {
-    "id": "@BBeBee/plugin-sources",
-    "name": "@BBeBee/plugin-sources",
+  "@bbebee/plugin-sources": {
+    "id": "@bbebee/plugin-sources",
+    "name": "@bbebee/plugin-sources",
     "displayName": "Sources",
     "description": "ctx.sources — imported source documents, the registry, and the catalogue cache.",
     "version": "0.0.0",
@@ -2798,8 +2798,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "sources"
   },
   "plugin-sources": {
-    "id": "@BBeBee/plugin-sources",
-    "name": "@BBeBee/plugin-sources",
+    "id": "@bbebee/plugin-sources",
+    "name": "@bbebee/plugin-sources",
     "displayName": "Sources",
     "description": "ctx.sources — imported source documents, the registry, and the catalogue cache.",
     "version": "0.0.0",
@@ -2830,9 +2830,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "sources"
   },
-  "@BBeBee/plugin-theme": {
-    "id": "@BBeBee/plugin-theme",
-    "name": "@BBeBee/plugin-theme",
+  "@bbebee/plugin-theme": {
+    "id": "@bbebee/plugin-theme",
+    "name": "@bbebee/plugin-theme",
     "displayName": "Theme",
     "description": "Theme manager for dark music player and dynamic runtime themes.",
     "version": "0.0.0",
@@ -2856,8 +2856,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "theme"
   },
   "plugin-theme": {
-    "id": "@BBeBee/plugin-theme",
-    "name": "@BBeBee/plugin-theme",
+    "id": "@bbebee/plugin-theme",
+    "name": "@bbebee/plugin-theme",
     "displayName": "Theme",
     "description": "Theme manager for dark music player and dynamic runtime themes.",
     "version": "0.0.0",
@@ -2880,9 +2880,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "theme"
   },
-  "@BBeBee/plugin-ui": {
-    "id": "@BBeBee/plugin-ui",
-    "name": "@BBeBee/plugin-ui",
+  "@bbebee/plugin-ui": {
+    "id": "@bbebee/plugin-ui",
+    "name": "@bbebee/plugin-ui",
     "displayName": "UI Registry",
     "description": "The ctx.ui contribution registry.",
     "version": "0.0.0",
@@ -2906,8 +2906,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "ui"
   },
   "plugin-ui": {
-    "id": "@BBeBee/plugin-ui",
-    "name": "@BBeBee/plugin-ui",
+    "id": "@bbebee/plugin-ui",
+    "name": "@bbebee/plugin-ui",
     "displayName": "UI Registry",
     "description": "The ctx.ui contribution registry.",
     "version": "0.0.0",
@@ -2930,9 +2930,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "ui"
   },
-  "@BBeBee/plugin-visualizer": {
-    "id": "@BBeBee/plugin-visualizer",
-    "name": "@BBeBee/plugin-visualizer",
+  "@bbebee/plugin-visualizer": {
+    "id": "@bbebee/plugin-visualizer",
+    "name": "@bbebee/plugin-visualizer",
     "displayName": "Audio Visualizer",
     "description": "ctx.visualizer — audio spectrum and waveform analysis service.",
     "version": "0.0.0",
@@ -2942,7 +2942,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-player"
+      "@bbebee/plugin-player"
     ],
     "systemId": "layer-4",
     "moduleId": "dsp",
@@ -2963,8 +2963,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "visualizer"
   },
   "plugin-visualizer": {
-    "id": "@BBeBee/plugin-visualizer",
-    "name": "@BBeBee/plugin-visualizer",
+    "id": "@bbebee/plugin-visualizer",
+    "name": "@bbebee/plugin-visualizer",
     "displayName": "Audio Visualizer",
     "description": "ctx.visualizer — audio spectrum and waveform analysis service.",
     "version": "0.0.0",
@@ -2974,7 +2974,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-player"
+      "@bbebee/plugin-player"
     ],
     "systemId": "layer-4",
     "moduleId": "dsp",
@@ -2994,9 +2994,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "visualizer"
   },
-  "@BBeBee/plugin-log-buffer": {
-    "id": "@BBeBee/plugin-log-buffer",
-    "name": "@BBeBee/plugin-log-buffer",
+  "@bbebee/plugin-log-buffer": {
+    "id": "@bbebee/plugin-log-buffer",
+    "name": "@bbebee/plugin-log-buffer",
     "displayName": "Log Buffer",
     "description": "In-app log ring buffer.",
     "version": "0.0.0",
@@ -3020,8 +3020,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": "logBuffer"
   },
   "plugin-log-buffer": {
-    "id": "@BBeBee/plugin-log-buffer",
-    "name": "@BBeBee/plugin-log-buffer",
+    "id": "@bbebee/plugin-log-buffer",
+    "name": "@bbebee/plugin-log-buffer",
     "displayName": "Log Buffer",
     "description": "In-app log ring buffer.",
     "version": "0.0.0",
@@ -3044,9 +3044,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "logBuffer"
   },
-  "@BBeBee/plugin-log-console": {
-    "id": "@BBeBee/plugin-log-console",
-    "name": "@BBeBee/plugin-log-console",
+  "@bbebee/plugin-log-console": {
+    "id": "@bbebee/plugin-log-console",
+    "name": "@bbebee/plugin-log-console",
     "displayName": "Console Logs",
     "description": "Development console transport.",
     "version": "0.0.0",
@@ -3056,7 +3056,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-log-buffer"
+      "@bbebee/plugin-log-buffer"
     ],
     "systemId": "layer-3",
     "moduleId": "logs",
@@ -3068,8 +3068,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-log-console": {
-    "id": "@BBeBee/plugin-log-console",
-    "name": "@BBeBee/plugin-log-console",
+    "id": "@bbebee/plugin-log-console",
+    "name": "@bbebee/plugin-log-console",
     "displayName": "Console Logs",
     "description": "Development console transport.",
     "version": "0.0.0",
@@ -3079,7 +3079,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-log-buffer"
+      "@bbebee/plugin-log-buffer"
     ],
     "systemId": "layer-3",
     "moduleId": "logs",
@@ -3090,9 +3090,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-log-file": {
-    "id": "@BBeBee/plugin-log-file",
-    "name": "@BBeBee/plugin-log-file",
+  "@bbebee/plugin-log-file": {
+    "id": "@bbebee/plugin-log-file",
+    "name": "@bbebee/plugin-log-file",
     "displayName": "Log File",
     "description": "Rotating NDJSON log file.",
     "version": "0.0.0",
@@ -3102,7 +3102,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-log-buffer"
+      "@bbebee/plugin-log-buffer"
     ],
     "systemId": "layer-3",
     "moduleId": "logs",
@@ -3117,8 +3117,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-log-file": {
-    "id": "@BBeBee/plugin-log-file",
-    "name": "@BBeBee/plugin-log-file",
+    "id": "@bbebee/plugin-log-file",
+    "name": "@bbebee/plugin-log-file",
     "displayName": "Log File",
     "description": "Rotating NDJSON log file.",
     "version": "0.0.0",
@@ -3128,7 +3128,7 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-log-buffer"
+      "@bbebee/plugin-log-buffer"
     ],
     "systemId": "layer-3",
     "moduleId": "logs",
@@ -3142,11 +3142,11 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-album-ui-desktop": {
-    "id": "@BBeBee/plugin-album-ui-desktop",
-    "name": "@BBeBee/plugin-album-ui-desktop",
+  "@bbebee/plugin-album-ui-desktop": {
+    "id": "@bbebee/plugin-album-ui-desktop",
+    "name": "@bbebee/plugin-album-ui-desktop",
     "displayName": "Album UI (Desktop)",
-    "description": "React DOM views for @BBeBee/plugin-album.",
+    "description": "React DOM views for @bbebee/plugin-album.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -3154,8 +3154,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-album"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-album"
     ],
     "systemId": "layer-5",
     "moduleId": "storage",
@@ -3170,10 +3170,10 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-album-ui-desktop": {
-    "id": "@BBeBee/plugin-album-ui-desktop",
-    "name": "@BBeBee/plugin-album-ui-desktop",
+    "id": "@bbebee/plugin-album-ui-desktop",
+    "name": "@bbebee/plugin-album-ui-desktop",
     "displayName": "Album UI (Desktop)",
-    "description": "React DOM views for @BBeBee/plugin-album.",
+    "description": "React DOM views for @bbebee/plugin-album.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -3181,8 +3181,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-album"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-album"
     ],
     "systemId": "layer-5",
     "moduleId": "storage",
@@ -3196,11 +3196,11 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-album-ui-mobile": {
-    "id": "@BBeBee/plugin-album-ui-mobile",
-    "name": "@BBeBee/plugin-album-ui-mobile",
+  "@bbebee/plugin-album-ui-mobile": {
+    "id": "@bbebee/plugin-album-ui-mobile",
+    "name": "@bbebee/plugin-album-ui-mobile",
     "displayName": "Album UI (Mobile)",
-    "description": "React Native views for @BBeBee/plugin-album.",
+    "description": "React Native views for @bbebee/plugin-album.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -3208,8 +3208,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-album"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-album"
     ],
     "systemId": "layer-5",
     "moduleId": "storage",
@@ -3224,10 +3224,10 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-album-ui-mobile": {
-    "id": "@BBeBee/plugin-album-ui-mobile",
-    "name": "@BBeBee/plugin-album-ui-mobile",
+    "id": "@bbebee/plugin-album-ui-mobile",
+    "name": "@bbebee/plugin-album-ui-mobile",
     "displayName": "Album UI (Mobile)",
-    "description": "React Native views for @BBeBee/plugin-album.",
+    "description": "React Native views for @bbebee/plugin-album.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -3235,8 +3235,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-album"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-album"
     ],
     "systemId": "layer-5",
     "moduleId": "storage",
@@ -3250,11 +3250,11 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-audio-converter-ui-desktop": {
-    "id": "@BBeBee/plugin-audio-converter-ui-desktop",
-    "name": "@BBeBee/plugin-audio-converter-ui-desktop",
+  "@bbebee/plugin-audio-converter-ui-desktop": {
+    "id": "@bbebee/plugin-audio-converter-ui-desktop",
+    "name": "@bbebee/plugin-audio-converter-ui-desktop",
     "displayName": "Audio Converter UI (Desktop)",
-    "description": "Desktop workbench views for @BBeBee/plugin-audio-converter.",
+    "description": "Desktop workbench views for @bbebee/plugin-audio-converter.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -3262,8 +3262,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-audio-converter"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-audio-converter"
     ],
     "systemId": "layer-5",
     "moduleId": "dsp",
@@ -3278,10 +3278,10 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-audio-converter-ui-desktop": {
-    "id": "@BBeBee/plugin-audio-converter-ui-desktop",
-    "name": "@BBeBee/plugin-audio-converter-ui-desktop",
+    "id": "@bbebee/plugin-audio-converter-ui-desktop",
+    "name": "@bbebee/plugin-audio-converter-ui-desktop",
     "displayName": "Audio Converter UI (Desktop)",
-    "description": "Desktop workbench views for @BBeBee/plugin-audio-converter.",
+    "description": "Desktop workbench views for @bbebee/plugin-audio-converter.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -3289,8 +3289,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-audio-converter"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-audio-converter"
     ],
     "systemId": "layer-5",
     "moduleId": "dsp",
@@ -3304,11 +3304,11 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-desktop-lyrics-ui-desktop": {
-    "id": "@BBeBee/plugin-desktop-lyrics-ui-desktop",
-    "name": "@BBeBee/plugin-desktop-lyrics-ui-desktop",
+  "@bbebee/plugin-desktop-lyrics-ui-desktop": {
+    "id": "@bbebee/plugin-desktop-lyrics-ui-desktop",
+    "name": "@bbebee/plugin-desktop-lyrics-ui-desktop",
     "displayName": "Desktop Lyrics UI (Desktop)",
-    "description": "Desktop floating lyrics views for @BBeBee/plugin-desktop-lyrics.",
+    "description": "Desktop floating lyrics views for @bbebee/plugin-desktop-lyrics.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -3316,8 +3316,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-desktop-lyrics"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-desktop-lyrics"
     ],
     "systemId": "layer-5",
     "moduleId": "lyrics",
@@ -3332,10 +3332,10 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-desktop-lyrics-ui-desktop": {
-    "id": "@BBeBee/plugin-desktop-lyrics-ui-desktop",
-    "name": "@BBeBee/plugin-desktop-lyrics-ui-desktop",
+    "id": "@bbebee/plugin-desktop-lyrics-ui-desktop",
+    "name": "@bbebee/plugin-desktop-lyrics-ui-desktop",
     "displayName": "Desktop Lyrics UI (Desktop)",
-    "description": "Desktop floating lyrics views for @BBeBee/plugin-desktop-lyrics.",
+    "description": "Desktop floating lyrics views for @bbebee/plugin-desktop-lyrics.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -3343,8 +3343,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-desktop-lyrics"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-desktop-lyrics"
     ],
     "systemId": "layer-5",
     "moduleId": "lyrics",
@@ -3358,9 +3358,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-download-ui-desktop": {
-    "id": "@BBeBee/plugin-download-ui-desktop",
-    "name": "@BBeBee/plugin-download-ui-desktop",
+  "@bbebee/plugin-download-ui-desktop": {
+    "id": "@bbebee/plugin-download-ui-desktop",
+    "name": "@bbebee/plugin-download-ui-desktop",
     "displayName": "Download UI (Desktop)",
     "description": "React DOM views for plugin-download.",
     "version": "0.0.0",
@@ -3370,8 +3370,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-download"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-download"
     ],
     "systemId": "layer-5",
     "moduleId": "storage",
@@ -3386,8 +3386,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-download-ui-desktop": {
-    "id": "@BBeBee/plugin-download-ui-desktop",
-    "name": "@BBeBee/plugin-download-ui-desktop",
+    "id": "@bbebee/plugin-download-ui-desktop",
+    "name": "@bbebee/plugin-download-ui-desktop",
     "displayName": "Download UI (Desktop)",
     "description": "React DOM views for plugin-download.",
     "version": "0.0.0",
@@ -3397,8 +3397,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-download"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-download"
     ],
     "systemId": "layer-5",
     "moduleId": "storage",
@@ -3412,9 +3412,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-download-ui-mobile": {
-    "id": "@BBeBee/plugin-download-ui-mobile",
-    "name": "@BBeBee/plugin-download-ui-mobile",
+  "@bbebee/plugin-download-ui-mobile": {
+    "id": "@bbebee/plugin-download-ui-mobile",
+    "name": "@bbebee/plugin-download-ui-mobile",
     "displayName": "Download UI (Mobile)",
     "description": "React Native views for plugin-download.",
     "version": "0.0.0",
@@ -3424,8 +3424,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-download"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-download"
     ],
     "systemId": "layer-5",
     "moduleId": "storage",
@@ -3440,8 +3440,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-download-ui-mobile": {
-    "id": "@BBeBee/plugin-download-ui-mobile",
-    "name": "@BBeBee/plugin-download-ui-mobile",
+    "id": "@bbebee/plugin-download-ui-mobile",
+    "name": "@bbebee/plugin-download-ui-mobile",
     "displayName": "Download UI (Mobile)",
     "description": "React Native views for plugin-download.",
     "version": "0.0.0",
@@ -3451,8 +3451,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-download"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-download"
     ],
     "systemId": "layer-5",
     "moduleId": "storage",
@@ -3466,11 +3466,11 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-dsp-ui-desktop": {
-    "id": "@BBeBee/plugin-dsp-ui-desktop",
-    "name": "@BBeBee/plugin-dsp-ui-desktop",
+  "@bbebee/plugin-dsp-ui-desktop": {
+    "id": "@bbebee/plugin-dsp-ui-desktop",
+    "name": "@bbebee/plugin-dsp-ui-desktop",
     "displayName": "Dsp UI (Desktop)",
-    "description": "Desktop views for @BBeBee/plugin-dsp (DSP Chain Editor).",
+    "description": "Desktop views for @bbebee/plugin-dsp (DSP Chain Editor).",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -3478,8 +3478,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-dsp"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-dsp"
     ],
     "systemId": "layer-5",
     "moduleId": "dsp",
@@ -3494,10 +3494,10 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-dsp-ui-desktop": {
-    "id": "@BBeBee/plugin-dsp-ui-desktop",
-    "name": "@BBeBee/plugin-dsp-ui-desktop",
+    "id": "@bbebee/plugin-dsp-ui-desktop",
+    "name": "@bbebee/plugin-dsp-ui-desktop",
     "displayName": "Dsp UI (Desktop)",
-    "description": "Desktop views for @BBeBee/plugin-dsp (DSP Chain Editor).",
+    "description": "Desktop views for @bbebee/plugin-dsp (DSP Chain Editor).",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -3505,8 +3505,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-dsp"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-dsp"
     ],
     "systemId": "layer-5",
     "moduleId": "dsp",
@@ -3520,11 +3520,11 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-dsp-ui-mobile": {
-    "id": "@BBeBee/plugin-dsp-ui-mobile",
-    "name": "@BBeBee/plugin-dsp-ui-mobile",
+  "@bbebee/plugin-dsp-ui-mobile": {
+    "id": "@bbebee/plugin-dsp-ui-mobile",
+    "name": "@bbebee/plugin-dsp-ui-mobile",
     "displayName": "Dsp UI (Mobile)",
-    "description": "Mobile React Native views for @BBeBee/plugin-dsp (DSP Chain Editor).",
+    "description": "Mobile React Native views for @bbebee/plugin-dsp (DSP Chain Editor).",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -3532,8 +3532,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-dsp"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-dsp"
     ],
     "systemId": "layer-5",
     "moduleId": "dsp",
@@ -3548,10 +3548,10 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-dsp-ui-mobile": {
-    "id": "@BBeBee/plugin-dsp-ui-mobile",
-    "name": "@BBeBee/plugin-dsp-ui-mobile",
+    "id": "@bbebee/plugin-dsp-ui-mobile",
+    "name": "@bbebee/plugin-dsp-ui-mobile",
     "displayName": "Dsp UI (Mobile)",
-    "description": "Mobile React Native views for @BBeBee/plugin-dsp (DSP Chain Editor).",
+    "description": "Mobile React Native views for @bbebee/plugin-dsp (DSP Chain Editor).",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -3559,8 +3559,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-dsp"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-dsp"
     ],
     "systemId": "layer-5",
     "moduleId": "dsp",
@@ -3574,11 +3574,11 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-history-ui-desktop": {
-    "id": "@BBeBee/plugin-history-ui-desktop",
-    "name": "@BBeBee/plugin-history-ui-desktop",
+  "@bbebee/plugin-history-ui-desktop": {
+    "id": "@bbebee/plugin-history-ui-desktop",
+    "name": "@bbebee/plugin-history-ui-desktop",
     "displayName": "History UI (Desktop)",
-    "description": "React DOM views for @BBeBee/plugin-history.",
+    "description": "React DOM views for @bbebee/plugin-history.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -3586,8 +3586,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-history"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-history"
     ],
     "systemId": "layer-5",
     "moduleId": "storage",
@@ -3602,10 +3602,10 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-history-ui-desktop": {
-    "id": "@BBeBee/plugin-history-ui-desktop",
-    "name": "@BBeBee/plugin-history-ui-desktop",
+    "id": "@bbebee/plugin-history-ui-desktop",
+    "name": "@bbebee/plugin-history-ui-desktop",
     "displayName": "History UI (Desktop)",
-    "description": "React DOM views for @BBeBee/plugin-history.",
+    "description": "React DOM views for @bbebee/plugin-history.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -3613,8 +3613,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-history"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-history"
     ],
     "systemId": "layer-5",
     "moduleId": "storage",
@@ -3628,11 +3628,11 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-history-ui-mobile": {
-    "id": "@BBeBee/plugin-history-ui-mobile",
-    "name": "@BBeBee/plugin-history-ui-mobile",
+  "@bbebee/plugin-history-ui-mobile": {
+    "id": "@bbebee/plugin-history-ui-mobile",
+    "name": "@bbebee/plugin-history-ui-mobile",
     "displayName": "History UI (Mobile)",
-    "description": "React Native views for @BBeBee/plugin-history.",
+    "description": "React Native views for @bbebee/plugin-history.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -3640,8 +3640,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-history"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-history"
     ],
     "systemId": "layer-5",
     "moduleId": "storage",
@@ -3656,10 +3656,10 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-history-ui-mobile": {
-    "id": "@BBeBee/plugin-history-ui-mobile",
-    "name": "@BBeBee/plugin-history-ui-mobile",
+    "id": "@bbebee/plugin-history-ui-mobile",
+    "name": "@bbebee/plugin-history-ui-mobile",
     "displayName": "History UI (Mobile)",
-    "description": "React Native views for @BBeBee/plugin-history.",
+    "description": "React Native views for @bbebee/plugin-history.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -3667,8 +3667,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-history"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-history"
     ],
     "systemId": "layer-5",
     "moduleId": "storage",
@@ -3682,9 +3682,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-inspector-ui-desktop": {
-    "id": "@BBeBee/plugin-inspector-ui-desktop",
-    "name": "@BBeBee/plugin-inspector-ui-desktop",
+  "@bbebee/plugin-inspector-ui-desktop": {
+    "id": "@bbebee/plugin-inspector-ui-desktop",
+    "name": "@bbebee/plugin-inspector-ui-desktop",
     "displayName": "Inspector UI (Desktop)",
     "description": "React DOM view for the plugin inspector.",
     "version": "0.0.0",
@@ -3694,8 +3694,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-inspector"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-inspector"
     ],
     "systemId": "layer-5",
     "moduleId": "inspector",
@@ -3710,8 +3710,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-inspector-ui-desktop": {
-    "id": "@BBeBee/plugin-inspector-ui-desktop",
-    "name": "@BBeBee/plugin-inspector-ui-desktop",
+    "id": "@bbebee/plugin-inspector-ui-desktop",
+    "name": "@bbebee/plugin-inspector-ui-desktop",
     "displayName": "Inspector UI (Desktop)",
     "description": "React DOM view for the plugin inspector.",
     "version": "0.0.0",
@@ -3721,8 +3721,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-inspector"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-inspector"
     ],
     "systemId": "layer-5",
     "moduleId": "inspector",
@@ -3736,11 +3736,11 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-library-ui-desktop": {
-    "id": "@BBeBee/plugin-library-ui-desktop",
-    "name": "@BBeBee/plugin-library-ui-desktop",
+  "@bbebee/plugin-library-ui-desktop": {
+    "id": "@bbebee/plugin-library-ui-desktop",
+    "name": "@bbebee/plugin-library-ui-desktop",
     "displayName": "Library UI (Desktop)",
-    "description": "React DOM views for @BBeBee/plugin-library.",
+    "description": "React DOM views for @bbebee/plugin-library.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -3748,8 +3748,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-library"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-library"
     ],
     "systemId": "layer-5",
     "moduleId": "storage",
@@ -3764,10 +3764,10 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-library-ui-desktop": {
-    "id": "@BBeBee/plugin-library-ui-desktop",
-    "name": "@BBeBee/plugin-library-ui-desktop",
+    "id": "@bbebee/plugin-library-ui-desktop",
+    "name": "@bbebee/plugin-library-ui-desktop",
     "displayName": "Library UI (Desktop)",
-    "description": "React DOM views for @BBeBee/plugin-library.",
+    "description": "React DOM views for @bbebee/plugin-library.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -3775,8 +3775,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-library"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-library"
     ],
     "systemId": "layer-5",
     "moduleId": "storage",
@@ -3790,11 +3790,11 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-library-ui-mobile": {
-    "id": "@BBeBee/plugin-library-ui-mobile",
-    "name": "@BBeBee/plugin-library-ui-mobile",
+  "@bbebee/plugin-library-ui-mobile": {
+    "id": "@bbebee/plugin-library-ui-mobile",
+    "name": "@bbebee/plugin-library-ui-mobile",
     "displayName": "Library UI (Mobile)",
-    "description": "React Native views for @BBeBee/plugin-library.",
+    "description": "React Native views for @bbebee/plugin-library.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -3802,8 +3802,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-library"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-library"
     ],
     "systemId": "layer-5",
     "moduleId": "storage",
@@ -3818,10 +3818,10 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-library-ui-mobile": {
-    "id": "@BBeBee/plugin-library-ui-mobile",
-    "name": "@BBeBee/plugin-library-ui-mobile",
+    "id": "@bbebee/plugin-library-ui-mobile",
+    "name": "@bbebee/plugin-library-ui-mobile",
     "displayName": "Library UI (Mobile)",
-    "description": "React Native views for @BBeBee/plugin-library.",
+    "description": "React Native views for @bbebee/plugin-library.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -3829,8 +3829,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-library"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-library"
     ],
     "systemId": "layer-5",
     "moduleId": "storage",
@@ -3844,9 +3844,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-local-scanner-ui-desktop": {
-    "id": "@BBeBee/plugin-local-scanner-ui-desktop",
-    "name": "@BBeBee/plugin-local-scanner-ui-desktop",
+  "@bbebee/plugin-local-scanner-ui-desktop": {
+    "id": "@bbebee/plugin-local-scanner-ui-desktop",
+    "name": "@bbebee/plugin-local-scanner-ui-desktop",
     "displayName": "Local Scanner UI (Desktop)",
     "description": "React DOM views for plugin-local-scanner.",
     "version": "0.0.0",
@@ -3856,8 +3856,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-local-scanner"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-local-scanner"
     ],
     "systemId": "layer-5",
     "moduleId": "storage",
@@ -3872,8 +3872,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-local-scanner-ui-desktop": {
-    "id": "@BBeBee/plugin-local-scanner-ui-desktop",
-    "name": "@BBeBee/plugin-local-scanner-ui-desktop",
+    "id": "@bbebee/plugin-local-scanner-ui-desktop",
+    "name": "@bbebee/plugin-local-scanner-ui-desktop",
     "displayName": "Local Scanner UI (Desktop)",
     "description": "React DOM views for plugin-local-scanner.",
     "version": "0.0.0",
@@ -3883,8 +3883,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-local-scanner"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-local-scanner"
     ],
     "systemId": "layer-5",
     "moduleId": "storage",
@@ -3898,9 +3898,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-local-scanner-ui-mobile": {
-    "id": "@BBeBee/plugin-local-scanner-ui-mobile",
-    "name": "@BBeBee/plugin-local-scanner-ui-mobile",
+  "@bbebee/plugin-local-scanner-ui-mobile": {
+    "id": "@bbebee/plugin-local-scanner-ui-mobile",
+    "name": "@bbebee/plugin-local-scanner-ui-mobile",
     "displayName": "Local Scanner UI (Mobile)",
     "description": "React Native views for plugin-local-scanner.",
     "version": "0.0.0",
@@ -3910,8 +3910,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-local-scanner"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-local-scanner"
     ],
     "systemId": "layer-5",
     "moduleId": "storage",
@@ -3926,8 +3926,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-local-scanner-ui-mobile": {
-    "id": "@BBeBee/plugin-local-scanner-ui-mobile",
-    "name": "@BBeBee/plugin-local-scanner-ui-mobile",
+    "id": "@bbebee/plugin-local-scanner-ui-mobile",
+    "name": "@bbebee/plugin-local-scanner-ui-mobile",
     "displayName": "Local Scanner UI (Mobile)",
     "description": "React Native views for plugin-local-scanner.",
     "version": "0.0.0",
@@ -3937,8 +3937,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-local-scanner"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-local-scanner"
     ],
     "systemId": "layer-5",
     "moduleId": "storage",
@@ -3952,11 +3952,11 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-lyrics-ui-desktop": {
-    "id": "@BBeBee/plugin-lyrics-ui-desktop",
-    "name": "@BBeBee/plugin-lyrics-ui-desktop",
+  "@bbebee/plugin-lyrics-ui-desktop": {
+    "id": "@bbebee/plugin-lyrics-ui-desktop",
+    "name": "@bbebee/plugin-lyrics-ui-desktop",
     "displayName": "Lyrics UI (Desktop)",
-    "description": "Desktop views for @BBeBee/plugin-lyrics (Lyrics Panel).",
+    "description": "Desktop views for @bbebee/plugin-lyrics (Lyrics Panel).",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -3964,8 +3964,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-lyrics"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-lyrics"
     ],
     "systemId": "layer-5",
     "moduleId": "lyrics",
@@ -3980,10 +3980,10 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-lyrics-ui-desktop": {
-    "id": "@BBeBee/plugin-lyrics-ui-desktop",
-    "name": "@BBeBee/plugin-lyrics-ui-desktop",
+    "id": "@bbebee/plugin-lyrics-ui-desktop",
+    "name": "@bbebee/plugin-lyrics-ui-desktop",
     "displayName": "Lyrics UI (Desktop)",
-    "description": "Desktop views for @BBeBee/plugin-lyrics (Lyrics Panel).",
+    "description": "Desktop views for @bbebee/plugin-lyrics (Lyrics Panel).",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -3991,8 +3991,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-lyrics"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-lyrics"
     ],
     "systemId": "layer-5",
     "moduleId": "lyrics",
@@ -4006,11 +4006,11 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-mini-player-ui-desktop": {
-    "id": "@BBeBee/plugin-mini-player-ui-desktop",
-    "name": "@BBeBee/plugin-mini-player-ui-desktop",
+  "@bbebee/plugin-mini-player-ui-desktop": {
+    "id": "@bbebee/plugin-mini-player-ui-desktop",
+    "name": "@bbebee/plugin-mini-player-ui-desktop",
     "displayName": "Mini Player UI (Desktop)",
-    "description": "Desktop UI views for @BBeBee/plugin-mini-player.",
+    "description": "Desktop UI views for @bbebee/plugin-mini-player.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -4018,8 +4018,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-mini-player"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-mini-player"
     ],
     "systemId": "layer-5",
     "moduleId": "playback",
@@ -4034,10 +4034,10 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-mini-player-ui-desktop": {
-    "id": "@BBeBee/plugin-mini-player-ui-desktop",
-    "name": "@BBeBee/plugin-mini-player-ui-desktop",
+    "id": "@bbebee/plugin-mini-player-ui-desktop",
+    "name": "@bbebee/plugin-mini-player-ui-desktop",
     "displayName": "Mini Player UI (Desktop)",
-    "description": "Desktop UI views for @BBeBee/plugin-mini-player.",
+    "description": "Desktop UI views for @bbebee/plugin-mini-player.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -4045,8 +4045,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-mini-player"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-mini-player"
     ],
     "systemId": "layer-5",
     "moduleId": "playback",
@@ -4060,11 +4060,11 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-now-playing-ui-desktop": {
-    "id": "@BBeBee/plugin-now-playing-ui-desktop",
-    "name": "@BBeBee/plugin-now-playing-ui-desktop",
+  "@bbebee/plugin-now-playing-ui-desktop": {
+    "id": "@bbebee/plugin-now-playing-ui-desktop",
+    "name": "@bbebee/plugin-now-playing-ui-desktop",
     "displayName": "Now Playing UI (Desktop)",
-    "description": "React DOM views for @BBeBee/plugin-now-playing.",
+    "description": "React DOM views for @bbebee/plugin-now-playing.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -4072,8 +4072,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-now-playing"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-now-playing"
     ],
     "systemId": "layer-5",
     "moduleId": "playback",
@@ -4088,10 +4088,10 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-now-playing-ui-desktop": {
-    "id": "@BBeBee/plugin-now-playing-ui-desktop",
-    "name": "@BBeBee/plugin-now-playing-ui-desktop",
+    "id": "@bbebee/plugin-now-playing-ui-desktop",
+    "name": "@bbebee/plugin-now-playing-ui-desktop",
     "displayName": "Now Playing UI (Desktop)",
-    "description": "React DOM views for @BBeBee/plugin-now-playing.",
+    "description": "React DOM views for @bbebee/plugin-now-playing.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -4099,8 +4099,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-now-playing"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-now-playing"
     ],
     "systemId": "layer-5",
     "moduleId": "playback",
@@ -4114,11 +4114,11 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-now-playing-ui-mobile": {
-    "id": "@BBeBee/plugin-now-playing-ui-mobile",
-    "name": "@BBeBee/plugin-now-playing-ui-mobile",
+  "@bbebee/plugin-now-playing-ui-mobile": {
+    "id": "@bbebee/plugin-now-playing-ui-mobile",
+    "name": "@bbebee/plugin-now-playing-ui-mobile",
     "displayName": "Now Playing UI (Mobile)",
-    "description": "React Native views for @BBeBee/plugin-now-playing.",
+    "description": "React Native views for @bbebee/plugin-now-playing.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -4126,8 +4126,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-now-playing"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-now-playing"
     ],
     "systemId": "layer-5",
     "moduleId": "playback",
@@ -4142,10 +4142,10 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-now-playing-ui-mobile": {
-    "id": "@BBeBee/plugin-now-playing-ui-mobile",
-    "name": "@BBeBee/plugin-now-playing-ui-mobile",
+    "id": "@bbebee/plugin-now-playing-ui-mobile",
+    "name": "@bbebee/plugin-now-playing-ui-mobile",
     "displayName": "Now Playing UI (Mobile)",
-    "description": "React Native views for @BBeBee/plugin-now-playing.",
+    "description": "React Native views for @bbebee/plugin-now-playing.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -4153,8 +4153,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-now-playing"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-now-playing"
     ],
     "systemId": "layer-5",
     "moduleId": "playback",
@@ -4168,11 +4168,11 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-queue-ui-desktop": {
-    "id": "@BBeBee/plugin-queue-ui-desktop",
-    "name": "@BBeBee/plugin-queue-ui-desktop",
+  "@bbebee/plugin-queue-ui-desktop": {
+    "id": "@bbebee/plugin-queue-ui-desktop",
+    "name": "@bbebee/plugin-queue-ui-desktop",
     "displayName": "Queue UI (Desktop)",
-    "description": "React DOM views for @BBeBee/plugin-queue.",
+    "description": "React DOM views for @bbebee/plugin-queue.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -4180,8 +4180,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-queue"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-queue"
     ],
     "systemId": "layer-5",
     "moduleId": "playback",
@@ -4196,10 +4196,10 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-queue-ui-desktop": {
-    "id": "@BBeBee/plugin-queue-ui-desktop",
-    "name": "@BBeBee/plugin-queue-ui-desktop",
+    "id": "@bbebee/plugin-queue-ui-desktop",
+    "name": "@bbebee/plugin-queue-ui-desktop",
     "displayName": "Queue UI (Desktop)",
-    "description": "React DOM views for @BBeBee/plugin-queue.",
+    "description": "React DOM views for @bbebee/plugin-queue.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -4207,8 +4207,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-queue"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-queue"
     ],
     "systemId": "layer-5",
     "moduleId": "playback",
@@ -4222,11 +4222,11 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-queue-ui-mobile": {
-    "id": "@BBeBee/plugin-queue-ui-mobile",
-    "name": "@BBeBee/plugin-queue-ui-mobile",
+  "@bbebee/plugin-queue-ui-mobile": {
+    "id": "@bbebee/plugin-queue-ui-mobile",
+    "name": "@bbebee/plugin-queue-ui-mobile",
     "displayName": "Queue UI (Mobile)",
-    "description": "React Native views for @BBeBee/plugin-queue.",
+    "description": "React Native views for @bbebee/plugin-queue.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -4234,8 +4234,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-queue"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-queue"
     ],
     "systemId": "layer-5",
     "moduleId": "playback",
@@ -4250,10 +4250,10 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-queue-ui-mobile": {
-    "id": "@BBeBee/plugin-queue-ui-mobile",
-    "name": "@BBeBee/plugin-queue-ui-mobile",
+    "id": "@bbebee/plugin-queue-ui-mobile",
+    "name": "@bbebee/plugin-queue-ui-mobile",
     "displayName": "Queue UI (Mobile)",
-    "description": "React Native views for @BBeBee/plugin-queue.",
+    "description": "React Native views for @bbebee/plugin-queue.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -4261,8 +4261,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-queue"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-queue"
     ],
     "systemId": "layer-5",
     "moduleId": "playback",
@@ -4276,11 +4276,11 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-registry-ui-desktop": {
-    "id": "@BBeBee/plugin-registry-ui-desktop",
-    "name": "@BBeBee/plugin-registry-ui-desktop",
+  "@bbebee/plugin-registry-ui-desktop": {
+    "id": "@bbebee/plugin-registry-ui-desktop",
+    "name": "@bbebee/plugin-registry-ui-desktop",
     "displayName": "Registry UI (Desktop)",
-    "description": "Desktop views for @BBeBee/plugin-registry (registry screen and the registry settings card).",
+    "description": "Desktop views for @bbebee/plugin-registry (registry screen and the registry settings card).",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -4288,8 +4288,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-registry"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-registry"
     ],
     "systemId": "layer-5",
     "moduleId": "registry",
@@ -4304,10 +4304,10 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-registry-ui-desktop": {
-    "id": "@BBeBee/plugin-registry-ui-desktop",
-    "name": "@BBeBee/plugin-registry-ui-desktop",
+    "id": "@bbebee/plugin-registry-ui-desktop",
+    "name": "@bbebee/plugin-registry-ui-desktop",
     "displayName": "Registry UI (Desktop)",
-    "description": "Desktop views for @BBeBee/plugin-registry (registry screen and the registry settings card).",
+    "description": "Desktop views for @bbebee/plugin-registry (registry screen and the registry settings card).",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -4315,8 +4315,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-registry"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-registry"
     ],
     "systemId": "layer-5",
     "moduleId": "registry",
@@ -4330,11 +4330,11 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-settings-ui-desktop": {
-    "id": "@BBeBee/plugin-settings-ui-desktop",
-    "name": "@BBeBee/plugin-settings-ui-desktop",
+  "@bbebee/plugin-settings-ui-desktop": {
+    "id": "@bbebee/plugin-settings-ui-desktop",
+    "name": "@bbebee/plugin-settings-ui-desktop",
     "displayName": "Settings UI (Desktop)",
-    "description": "React DOM views for @BBeBee/plugin-settings.",
+    "description": "React DOM views for @bbebee/plugin-settings.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -4342,8 +4342,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-settings"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-settings"
     ],
     "systemId": "layer-5",
     "moduleId": "settings",
@@ -4358,10 +4358,10 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-settings-ui-desktop": {
-    "id": "@BBeBee/plugin-settings-ui-desktop",
-    "name": "@BBeBee/plugin-settings-ui-desktop",
+    "id": "@bbebee/plugin-settings-ui-desktop",
+    "name": "@bbebee/plugin-settings-ui-desktop",
     "displayName": "Settings UI (Desktop)",
-    "description": "React DOM views for @BBeBee/plugin-settings.",
+    "description": "React DOM views for @bbebee/plugin-settings.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -4369,8 +4369,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-settings"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-settings"
     ],
     "systemId": "layer-5",
     "moduleId": "settings",
@@ -4384,11 +4384,11 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-settings-ui-mobile": {
-    "id": "@BBeBee/plugin-settings-ui-mobile",
-    "name": "@BBeBee/plugin-settings-ui-mobile",
+  "@bbebee/plugin-settings-ui-mobile": {
+    "id": "@bbebee/plugin-settings-ui-mobile",
+    "name": "@bbebee/plugin-settings-ui-mobile",
     "displayName": "Settings UI (Mobile)",
-    "description": "React Native views for @BBeBee/plugin-settings.",
+    "description": "React Native views for @bbebee/plugin-settings.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -4396,8 +4396,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-settings"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-settings"
     ],
     "systemId": "layer-5",
     "moduleId": "settings",
@@ -4412,10 +4412,10 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-settings-ui-mobile": {
-    "id": "@BBeBee/plugin-settings-ui-mobile",
-    "name": "@BBeBee/plugin-settings-ui-mobile",
+    "id": "@bbebee/plugin-settings-ui-mobile",
+    "name": "@bbebee/plugin-settings-ui-mobile",
     "displayName": "Settings UI (Mobile)",
-    "description": "React Native views for @BBeBee/plugin-settings.",
+    "description": "React Native views for @bbebee/plugin-settings.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -4423,8 +4423,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-settings"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-settings"
     ],
     "systemId": "layer-5",
     "moduleId": "settings",
@@ -4438,11 +4438,11 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-share-ui-desktop": {
-    "id": "@BBeBee/plugin-share-ui-desktop",
-    "name": "@BBeBee/plugin-share-ui-desktop",
+  "@bbebee/plugin-share-ui-desktop": {
+    "id": "@bbebee/plugin-share-ui-desktop",
+    "name": "@bbebee/plugin-share-ui-desktop",
     "displayName": "Share UI (Desktop)",
-    "description": "Desktop views for @BBeBee/plugin-share (rich share modals & steganography reader).",
+    "description": "Desktop views for @bbebee/plugin-share (rich share modals & steganography reader).",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -4450,8 +4450,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-share"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-share"
     ],
     "systemId": "layer-5",
     "moduleId": "share",
@@ -4466,10 +4466,10 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-share-ui-desktop": {
-    "id": "@BBeBee/plugin-share-ui-desktop",
-    "name": "@BBeBee/plugin-share-ui-desktop",
+    "id": "@bbebee/plugin-share-ui-desktop",
+    "name": "@bbebee/plugin-share-ui-desktop",
     "displayName": "Share UI (Desktop)",
-    "description": "Desktop views for @BBeBee/plugin-share (rich share modals & steganography reader).",
+    "description": "Desktop views for @bbebee/plugin-share (rich share modals & steganography reader).",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -4477,8 +4477,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-share"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-share"
     ],
     "systemId": "layer-5",
     "moduleId": "share",
@@ -4492,11 +4492,11 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-share-ui-mobile": {
-    "id": "@BBeBee/plugin-share-ui-mobile",
-    "name": "@BBeBee/plugin-share-ui-mobile",
+  "@bbebee/plugin-share-ui-mobile": {
+    "id": "@bbebee/plugin-share-ui-mobile",
+    "name": "@bbebee/plugin-share-ui-mobile",
     "displayName": "Share UI (Mobile)",
-    "description": "React Native views for @BBeBee/plugin-share — share codes and the import reader.",
+    "description": "React Native views for @bbebee/plugin-share — share codes and the import reader.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -4504,8 +4504,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-share"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-share"
     ],
     "systemId": "layer-5",
     "moduleId": "share",
@@ -4520,10 +4520,10 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-share-ui-mobile": {
-    "id": "@BBeBee/plugin-share-ui-mobile",
-    "name": "@BBeBee/plugin-share-ui-mobile",
+    "id": "@bbebee/plugin-share-ui-mobile",
+    "name": "@bbebee/plugin-share-ui-mobile",
     "displayName": "Share UI (Mobile)",
-    "description": "React Native views for @BBeBee/plugin-share — share codes and the import reader.",
+    "description": "React Native views for @bbebee/plugin-share — share codes and the import reader.",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -4531,8 +4531,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-share"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-share"
     ],
     "systemId": "layer-5",
     "moduleId": "share",
@@ -4546,9 +4546,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-sources-ui-desktop": {
-    "id": "@BBeBee/plugin-sources-ui-desktop",
-    "name": "@BBeBee/plugin-sources-ui-desktop",
+  "@bbebee/plugin-sources-ui-desktop": {
+    "id": "@bbebee/plugin-sources-ui-desktop",
+    "name": "@bbebee/plugin-sources-ui-desktop",
     "displayName": "Sources UI (Desktop)",
     "description": "React DOM views for plugin-sources.",
     "version": "0.0.0",
@@ -4558,8 +4558,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-sources"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-sources"
     ],
     "systemId": "layer-5",
     "moduleId": "sources",
@@ -4574,8 +4574,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-sources-ui-desktop": {
-    "id": "@BBeBee/plugin-sources-ui-desktop",
-    "name": "@BBeBee/plugin-sources-ui-desktop",
+    "id": "@bbebee/plugin-sources-ui-desktop",
+    "name": "@bbebee/plugin-sources-ui-desktop",
     "displayName": "Sources UI (Desktop)",
     "description": "React DOM views for plugin-sources.",
     "version": "0.0.0",
@@ -4585,8 +4585,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-sources"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-sources"
     ],
     "systemId": "layer-5",
     "moduleId": "sources",
@@ -4600,9 +4600,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-sources-ui-mobile": {
-    "id": "@BBeBee/plugin-sources-ui-mobile",
-    "name": "@BBeBee/plugin-sources-ui-mobile",
+  "@bbebee/plugin-sources-ui-mobile": {
+    "id": "@bbebee/plugin-sources-ui-mobile",
+    "name": "@bbebee/plugin-sources-ui-mobile",
     "displayName": "Sources UI (Mobile)",
     "description": "React Native views for plugin-sources.",
     "version": "0.0.0",
@@ -4612,8 +4612,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-sources"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-sources"
     ],
     "systemId": "layer-5",
     "moduleId": "sources",
@@ -4628,8 +4628,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-sources-ui-mobile": {
-    "id": "@BBeBee/plugin-sources-ui-mobile",
-    "name": "@BBeBee/plugin-sources-ui-mobile",
+    "id": "@bbebee/plugin-sources-ui-mobile",
+    "name": "@bbebee/plugin-sources-ui-mobile",
     "displayName": "Sources UI (Mobile)",
     "description": "React Native views for plugin-sources.",
     "version": "0.0.0",
@@ -4639,8 +4639,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-sources"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-sources"
     ],
     "systemId": "layer-5",
     "moduleId": "sources",
@@ -4654,11 +4654,11 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-theme-ui-desktop": {
-    "id": "@BBeBee/plugin-theme-ui-desktop",
-    "name": "@BBeBee/plugin-theme-ui-desktop",
+  "@bbebee/plugin-theme-ui-desktop": {
+    "id": "@bbebee/plugin-theme-ui-desktop",
+    "name": "@bbebee/plugin-theme-ui-desktop",
     "displayName": "Theme UI (Desktop)",
-    "description": "Desktop views for @BBeBee/plugin-theme (theme management settings card).",
+    "description": "Desktop views for @bbebee/plugin-theme (theme management settings card).",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -4666,8 +4666,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-theme"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-theme"
     ],
     "systemId": "layer-5",
     "moduleId": "theme",
@@ -4682,10 +4682,10 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-theme-ui-desktop": {
-    "id": "@BBeBee/plugin-theme-ui-desktop",
-    "name": "@BBeBee/plugin-theme-ui-desktop",
+    "id": "@bbebee/plugin-theme-ui-desktop",
+    "name": "@bbebee/plugin-theme-ui-desktop",
     "displayName": "Theme UI (Desktop)",
-    "description": "Desktop views for @BBeBee/plugin-theme (theme management settings card).",
+    "description": "Desktop views for @bbebee/plugin-theme (theme management settings card).",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -4693,8 +4693,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-theme"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-theme"
     ],
     "systemId": "layer-5",
     "moduleId": "theme",
@@ -4708,11 +4708,11 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
-  "@BBeBee/plugin-visualizer-ui-desktop": {
-    "id": "@BBeBee/plugin-visualizer-ui-desktop",
-    "name": "@BBeBee/plugin-visualizer-ui-desktop",
+  "@bbebee/plugin-visualizer-ui-desktop": {
+    "id": "@bbebee/plugin-visualizer-ui-desktop",
+    "name": "@bbebee/plugin-visualizer-ui-desktop",
     "displayName": "Visualizer UI (Desktop)",
-    "description": "Desktop views for @BBeBee/plugin-visualizer (Audio Visualizer).",
+    "description": "Desktop views for @bbebee/plugin-visualizer (Audio Visualizer).",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -4720,8 +4720,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-visualizer"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-visualizer"
     ],
     "systemId": "layer-5",
     "moduleId": "dsp",
@@ -4736,10 +4736,10 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "effect": null
   },
   "plugin-visualizer-ui-desktop": {
-    "id": "@BBeBee/plugin-visualizer-ui-desktop",
-    "name": "@BBeBee/plugin-visualizer-ui-desktop",
+    "id": "@bbebee/plugin-visualizer-ui-desktop",
+    "name": "@bbebee/plugin-visualizer-ui-desktop",
     "displayName": "Visualizer UI (Desktop)",
-    "description": "Desktop views for @BBeBee/plugin-visualizer (Audio Visualizer).",
+    "description": "Desktop views for @bbebee/plugin-visualizer (Audio Visualizer).",
     "version": "0.0.0",
     "author": "BBeBee Team",
     "engines": {
@@ -4747,8 +4747,8 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "enabled": true,
     "dependencies": [
-      "@BBeBee/plugin-ui",
-      "@BBeBee/plugin-visualizer"
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-visualizer"
     ],
     "systemId": "layer-5",
     "moduleId": "dsp",

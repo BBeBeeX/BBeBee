@@ -1,5 +1,5 @@
 /**
- * React DOM views for `@BBeBee/plugin-queue`.
+ * React DOM views for `@bbebee/plugin-queue`.
  *
  * Screen: the up-next list and recently played history tabs.
  * Every value comes from the shared bindings in `@BBeBee/toolkit/hooks` — the

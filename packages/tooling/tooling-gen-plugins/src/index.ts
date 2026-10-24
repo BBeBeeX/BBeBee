@@ -20,6 +20,15 @@ export interface DiscoveredPlugin {
   manifest: PluginManifest
   /** Package directory, absolute. */
   dir: string
+  /**
+   * The JS package name from the directory's package.json (the import
+   * specifier that actually resolves). This is deliberately NOT the
+   * manifest id: manifest ids were renamed to `@bbebee/` to match the
+   * plugins' future npm names, while workspace package names stay
+   * `@BBeBee/` until those packages are themselves renamed. Deriving the
+   * import from the manifest id would emit unresolvable specifiers.
+   */
+  pkgName: string
 }
 
 export interface GenerateOptions {
@@ -39,6 +48,18 @@ async function readManifest(dir: string): Promise<PluginManifest | undefined> {
     return JSON.parse(await readFile(join(dir, 'BBeBee.plugin.json'), 'utf8')) as PluginManifest
   } catch {
     return undefined
+  }
+}
+
+/** A directory's JS package name, falling back to its manifest id. */
+async function readPkgName(dir: string, manifestId: string): Promise<string> {
+  try {
+    const pkg = JSON.parse(await readFile(join(dir, 'package.json'), 'utf8')) as {
+      name?: unknown
+    }
+    return typeof pkg.name === 'string' && pkg.name ? pkg.name : manifestId
+  } catch {
+    return manifestId
   }
 }
 
@@ -62,7 +83,7 @@ export async function discover(
       const dir = join(base, entry)
       const manifest = await readManifest(dir)
       if (manifest) {
-        found.push({ manifest, dir })
+        found.push({ manifest, dir, pkgName: await readPkgName(dir, manifest.id) })
         continue
       }
       /*
@@ -75,7 +96,13 @@ export async function discover(
       for (const nested of (await readdir(dir).catch(() => [])).sort()) {
         const nestedDir = join(dir, nested)
         const nestedManifest = await readManifest(nestedDir)
-        if (nestedManifest) found.push({ manifest: nestedManifest, dir: nestedDir })
+        if (nestedManifest) {
+          found.push({
+            manifest: nestedManifest,
+            dir: nestedDir,
+            pkgName: await readPkgName(nestedDir, nestedManifest.id),
+          })
+        }
       }
     }
   }
@@ -109,6 +136,7 @@ export function render(plugins: DiscoveredPlugin[], target: 'mobile' | 'desktop'
   const existingIds = new Set(plugins.map((p) => p.manifest.id))
   const rows = plugins.map((p) => ({
     id: p.manifest.id,
+    pkgName: p.pkgName,
     ui: p.manifest.entry.ui?.[target],
     manifest: p.manifest,
   }))
@@ -128,7 +156,7 @@ export function render(plugins: DiscoveredPlugin[], target: 'mobile' | 'desktop'
     if (emitted.has(row.id)) continue
     emitted.add(row.id)
     lines.push(`  ${JSON.stringify(row.id)}: {`)
-    lines.push(`    load: () => import('${row.id}'),`)
+    lines.push(`    load: () => import('${row.pkgName}'),`)
     lines.push(`    manifest: ${JSON.stringify(row.manifest)},`)
     // Workspace plugins are first-party, so the capability gate trusts their
     // manifests without a user grant (docs/03 §7).
@@ -139,7 +167,7 @@ export function render(plugins: DiscoveredPlugin[], target: 'mobile' | 'desktop'
       if (!existingIds.has(uiId) && !emitted.has(uiId)) {
         emitted.add(uiId)
         lines.push(`  ${JSON.stringify(uiId)}: {`)
-        lines.push(`    load: () => import('${uiId}'),`)
+        lines.push(`    load: () => import('${row.pkgName}-ui-${target}'),`)
         lines.push(
           `    manifest: ${JSON.stringify({
             ...row.manifest,
@@ -168,7 +196,7 @@ export function renderManifests(plugins: DiscoveredPlugin[]): string {
   for (const p of plugins) {
     const m = p.manifest
     map[m.id] = m
-    const shortName = m.id.replace(/^@BBeBee\//, '')
+    const shortName = m.id.replace(/^@bbebee\//i, '')
     map[shortName] = m
   }
 

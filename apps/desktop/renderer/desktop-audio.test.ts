@@ -186,7 +186,7 @@ describe('preloadPreferences engine migration', () => {
   })
 
   it("maps the namespaced 'wasapi' preference to mpv", async () => {
-    mockStore({ '@BBeBee/plugin-settings:preferences': { audioOutputEngine: 'wasapi' } })
+    mockStore({ '@bbebee/plugin-settings:preferences': { audioOutputEngine: 'wasapi' } })
     const prefs = await preloadPreferences({ appData: '/data' })
     expect(prefs.audioOutputEngine).toBe('mpv')
   })

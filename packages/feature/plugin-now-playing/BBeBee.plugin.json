@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-now-playing",
-  "name": "@BBeBee/plugin-now-playing",
+  "id": "@bbebee/plugin-now-playing",
+  "name": "@bbebee/plugin-now-playing",
   "displayName": "Now playing",
   "description": "The full-screen player and the persistent bar that opens it.",
   "version": "0.0.0",
@@ -10,7 +10,7 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-player"
+    "@bbebee/plugin-player"
   ],
   "systemId": "layer-4",
   "moduleId": "playback",

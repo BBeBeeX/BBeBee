@@ -1,5 +1,5 @@
 /**
- * Desktop Settings Screen for `@BBeBee/plugin-settings`.
+ * Desktop Settings Screen for `@bbebee/plugin-settings`.
  * Single-page natural scrolling layout with section anchors and text-only tab navigation.
  */
 

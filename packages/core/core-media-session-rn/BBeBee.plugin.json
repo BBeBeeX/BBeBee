@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/core-media-session-rn",
-  "name": "@BBeBee/core-media-session-rn",
+  "id": "@bbebee/core-media-session-rn",
+  "name": "@bbebee/core-media-session-rn",
   "displayName": "Media Session",
   "description": "ctx.mediaSession for iOS and Android — lock screen and media notification.",
   "version": "0.0.0",

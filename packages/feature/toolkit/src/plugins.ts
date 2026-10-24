@@ -4,12 +4,15 @@
  */
 
 /**
- * Strip leading `@BBeBee/` scope prefix from a plugin ID or package name.
+ * Strip leading scope prefix from a plugin ID or package name.
+ * Both the legacy `@BBeBee/` scope and the current `@bbebee/` scope
+ * (manifest ids were renamed to `@bbebee/` to match their future npm
+ * names) are accepted, so old persisted records keep resolving.
  *
- * Example: `'@BBeBee/plugin-player'` -> `'plugin-player'`.
+ * Example: `'@bbebee/plugin-player'` -> `'plugin-player'`.
  */
 export function normalizePluginId(id: string): string {
-  return id.replace(/^@BBeBee\//, '').trim()
+  return id.replace(/^@bbebee\//i, '').trim()
 }
 
 /**

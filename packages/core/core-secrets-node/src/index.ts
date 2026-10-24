@@ -215,7 +215,7 @@ export class SecretsNode extends Service implements SecretsService {
    * Read a raw key without caller scope prefix.
    *
    * If not found directly, falls back to migrating any legacy entry that was
-   * saved with a caller plugin scope prefix (e.g. `@BBeBee/plugin-settings-ui-desktop/source-id:key`).
+   * saved with a caller plugin scope prefix (e.g. `@bbebee/plugin-settings-ui-desktop/source-id:key`).
    * @internal
    */
   async rawGet(key: string): Promise<string | undefined> {

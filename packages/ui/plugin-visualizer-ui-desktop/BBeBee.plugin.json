@@ -1,8 +1,8 @@
 {
-  "id": "@BBeBee/plugin-visualizer-ui-desktop",
-  "name": "@BBeBee/plugin-visualizer-ui-desktop",
+  "id": "@bbebee/plugin-visualizer-ui-desktop",
+  "name": "@bbebee/plugin-visualizer-ui-desktop",
   "displayName": "Visualizer UI (Desktop)",
-  "description": "Desktop views for @BBeBee/plugin-visualizer (Audio Visualizer).",
+  "description": "Desktop views for @bbebee/plugin-visualizer (Audio Visualizer).",
   "version": "0.0.0",
   "author": "BBeBee Team",
   "engines": {
@@ -10,8 +10,8 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-ui",
-    "@BBeBee/plugin-visualizer"
+    "@bbebee/plugin-ui",
+    "@bbebee/plugin-visualizer"
   ],
   "systemId": "layer-5",
   "moduleId": "dsp",

@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-source-runtime",
-  "name": "@BBeBee/plugin-source-runtime",
+  "id": "@bbebee/plugin-source-runtime",
+  "name": "@bbebee/plugin-source-runtime",
   "displayName": "Music sources",
   "description": "plugin-source-runtime — interprets imported source strings.",
   "version": "0.0.0",
@@ -10,7 +10,7 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-sources"
+    "@bbebee/plugin-sources"
   ],
   "systemId": "layer-4",
   "moduleId": "sources",

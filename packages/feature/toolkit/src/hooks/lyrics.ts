@@ -5,7 +5,7 @@
  * decoupled from high-frequency transport position updates.
  *
  * The hooks live in the shared toolkit; the lyrics feature's `./hooks` subpath
- * re-exports them under `@BBeBee/plugin-lyrics/hooks`.
+ * re-exports them under `@bbebee/plugin-lyrics/hooks`.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'

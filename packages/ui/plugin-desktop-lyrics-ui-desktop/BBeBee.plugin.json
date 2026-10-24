@@ -1,8 +1,8 @@
 {
-  "id": "@BBeBee/plugin-desktop-lyrics-ui-desktop",
-  "name": "@BBeBee/plugin-desktop-lyrics-ui-desktop",
+  "id": "@bbebee/plugin-desktop-lyrics-ui-desktop",
+  "name": "@bbebee/plugin-desktop-lyrics-ui-desktop",
   "displayName": "Desktop Lyrics UI (Desktop)",
-  "description": "Desktop floating lyrics views for @BBeBee/plugin-desktop-lyrics.",
+  "description": "Desktop floating lyrics views for @bbebee/plugin-desktop-lyrics.",
   "version": "0.0.0",
   "author": "BBeBee Team",
   "engines": {
@@ -10,8 +10,8 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-ui",
-    "@BBeBee/plugin-desktop-lyrics"
+    "@bbebee/plugin-ui",
+    "@bbebee/plugin-desktop-lyrics"
   ],
   "systemId": "layer-5",
   "moduleId": "lyrics",

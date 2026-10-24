@@ -218,7 +218,7 @@ export class CordisGraphAdapter {
         manifest?.displayName ??
         getFriendlyDisplayName(fn.name) ??
         fn.name
-          .replace(/^@BBeBee\//, '')
+          .replace(/^@bbebee\//i, '')
           .split('-')
           .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
           .join(' ')

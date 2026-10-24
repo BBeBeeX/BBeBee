@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-manager",
-  "name": "@BBeBee/plugin-manager",
+  "id": "@bbebee/plugin-manager",
+  "name": "@bbebee/plugin-manager",
   "displayName": "Plugin Manager",
   "description": "ctx['plugin-manager'] — plugin discovery, runtime state tracking, lifecycle management, and dependencies graph.",
   "version": "0.0.0",
@@ -10,7 +10,7 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-inspector"
+    "@bbebee/plugin-inspector"
   ],
   "systemId": "layer-4",
   "moduleId": "plugins",

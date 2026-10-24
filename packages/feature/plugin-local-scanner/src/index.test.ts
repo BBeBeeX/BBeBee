@@ -790,8 +790,8 @@ describe('tag handling', () => {
     const h = await harness()
     const callerCtx = h.ctx.extend()
     callerCtx.intercept('db', {
-      pluginId: '@BBeBee/plugin-local-scanner-ui-desktop',
-      scopeId: '@BBeBee/plugin-local-scanner-ui-desktop',
+      pluginId: '@bbebee/plugin-local-scanner-ui-desktop',
+      scopeId: '@bbebee/plugin-local-scanner-ui-desktop',
       granted: [],
     })
     const dir = await callerCtx.scanner.addSpecifiedDir(h.uri)

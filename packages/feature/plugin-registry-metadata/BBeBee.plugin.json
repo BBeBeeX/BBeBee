@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-registry-metadata",
-  "name": "@BBeBee/plugin-registry-metadata",
+  "id": "@bbebee/plugin-registry-metadata",
+  "name": "@bbebee/plugin-registry-metadata",
   "displayName": "Registry Metadata",
   "description": "ctx.registryMetadata — lazy GitHub star and contributor counts for registry entries, cached for a day and degraded gracefully.",
   "version": "0.0.0",
@@ -17,7 +17,9 @@
   },
   "capabilities": [],
   "contributes": {
-    "services": ["registryMetadata"]
+    "services": [
+      "registryMetadata"
+    ]
   },
   "effect": "registryMetadata"
 }

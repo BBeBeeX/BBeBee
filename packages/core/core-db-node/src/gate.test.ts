@@ -21,7 +21,7 @@ let root: string
 beforeAll(async () => { root = await tempDir('bbebee-dbgate') })
 afterAll(async () => { await rm(root, { recursive: true, force: true }) })
 
-async function gated(grants: string[], scopeId = '@BBeBee/plugin-demo') {
+async function gated(grants: string[], scopeId = '@bbebee/plugin-demo') {
   const ctx = new Context()
   await ctx.plugin(PathsNode, { root: await mkdtemp(join(root, 'c-')) })
   await ctx.plugin(FsNode)
@@ -45,7 +45,7 @@ describe('tablesReferenced', () => {
 describe('db:own', () => {
   it('permits the plugin its own namespaced tables', async () => {
     const { db } = await gated(['db:own'])
-    await db.defineSchema('plugin:@BBeBee/plugin-demo', [
+    await db.defineSchema('plugin:@bbebee/plugin-demo', [
       { version: 1, up: 'CREATE TABLE {{ns}}_items (id TEXT)' },
     ])
     await expect(
@@ -95,7 +95,7 @@ describe('db:own', () => {
 describe('core-db-node db-scope conformance', () => {
   for (const check of dbScopeConformance.checks) {
     it(`${check.name} — ${check.because}`, async () => {
-      const scopeId = '@BBeBee/plugin-demo'
+      const scopeId = '@bbebee/plugin-demo'
       const { admin, db } = await gated(['db:own'], scopeId)
       const { db: reads } = await gated(['db:own', 'db:read:core'], scopeId)
       const { db: writes } = await gated(['db:own', 'db:write:core'], scopeId)

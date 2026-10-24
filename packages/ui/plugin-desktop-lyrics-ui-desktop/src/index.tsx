@@ -1,5 +1,5 @@
 /**
- * Desktop UI views for @BBeBee/plugin-desktop-lyrics.
+ * Desktop UI views for @bbebee/plugin-desktop-lyrics.
  */
 
 import { createElement as h } from 'react'

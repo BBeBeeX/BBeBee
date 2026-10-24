@@ -1,8 +1,8 @@
 /**
- * React DOM views for `@BBeBee/plugin-album`.
+ * React DOM views for `@bbebee/plugin-album`.
  *
  * One screen: the album header with its cover and "Play album", then the
- * track list. Every value comes from `@BBeBee/plugin-album/hooks` and
+ * track list. Every value comes from `@bbebee/plugin-album/hooks` and
  * `ctx.sources`; this file is layout, gestures and event wiring only
  * (docs/08 §1).
  *

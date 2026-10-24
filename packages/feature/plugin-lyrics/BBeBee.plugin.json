@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-lyrics",
-  "name": "@BBeBee/plugin-lyrics",
+  "id": "@bbebee/plugin-lyrics",
+  "name": "@bbebee/plugin-lyrics",
   "displayName": "Lyrics",
   "description": "ctx.lyrics — lyric retrieval, caching, synchronization and unified state.",
   "version": "0.0.0",
@@ -10,7 +10,7 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-player"
+    "@bbebee/plugin-player"
   ],
   "systemId": "layer-4",
   "moduleId": "lyrics",

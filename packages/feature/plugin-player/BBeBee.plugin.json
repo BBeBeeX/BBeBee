@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-player",
-  "name": "@BBeBee/plugin-player",
+  "id": "@bbebee/plugin-player",
+  "name": "@bbebee/plugin-player",
   "displayName": "Player",
   "description": "ctx.player — transport, queue, resolution, history.",
   "version": "0.0.0",
@@ -10,7 +10,7 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-sources"
+    "@bbebee/plugin-sources"
   ],
   "systemId": "layer-4",
   "moduleId": "playback",

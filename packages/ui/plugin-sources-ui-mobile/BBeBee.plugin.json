@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-sources-ui-mobile",
-  "name": "@BBeBee/plugin-sources-ui-mobile",
+  "id": "@bbebee/plugin-sources-ui-mobile",
+  "name": "@bbebee/plugin-sources-ui-mobile",
   "displayName": "Sources UI (Mobile)",
   "description": "React Native views for plugin-sources.",
   "version": "0.0.0",
@@ -10,8 +10,8 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-ui",
-    "@BBeBee/plugin-sources"
+    "@bbebee/plugin-ui",
+    "@bbebee/plugin-sources"
   ],
   "systemId": "layer-5",
   "moduleId": "sources",

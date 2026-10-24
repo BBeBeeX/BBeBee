@@ -89,50 +89,50 @@ export const SHELL_MANIFEST: PluginManifest = {
 }
 
 export const ENABLED: NonNullable<AppConfig['plugins']> = {
-  '@BBeBee/plugin-theme': {},
-  '@BBeBee/plugin-theme-ui-desktop': {},
-  '@BBeBee/plugin-ui': {},
+  '@bbebee/plugin-theme': {},
+  '@bbebee/plugin-theme-ui-desktop': {},
+  '@bbebee/plugin-ui': {},
   /*
    * No `plugin-log-*` here, deliberately. The logs layer loads from the
    * `bootstrap:` array in `boot.ts`, which is what puts it between the core
    * services and the feature plugins — a transport in this list would start
    * alongside the features it is meant to be recording (docs/09 §1).
    */
-  '@BBeBee/plugin-inspector': {},
-  '@BBeBee/plugin-inspector-ui-desktop': {},
-  '@BBeBee/plugin-manager': { config: { platform: 'desktop' } },
+  '@bbebee/plugin-inspector': {},
+  '@bbebee/plugin-inspector-ui-desktop': {},
+  '@bbebee/plugin-manager': { config: { platform: 'desktop' } },
 
   // ctx.i18n — interface language, resolved from settings.language ('zh'/'en'/'system')
   // with BCP 47 negotiation through ctx.device.locale. Loaded early because
   // view packages read it, but load order is inject-derived, not positional.
-  '@BBeBee/plugin-i18n': {},
+  '@bbebee/plugin-i18n': {},
 
   // M1's feature set. Load order is derived from `inject`, never declared
   // here: `plugin-player` waits for ctx.audio and ctx.sources, `plugin-source-*`
   // wait for ctx.sources, and none of them is sequenced (docs/02 §3).
-  '@BBeBee/plugin-sources': {},
-  '@BBeBee/plugin-sources-ui-desktop': {},
+  '@bbebee/plugin-sources': {},
+  '@bbebee/plugin-sources-ui-desktop': {},
   // The album page, extracted from `plugin-sources`: route and view only, with
   // the reads still on `ctx.sources` (MD-3).
-  '@BBeBee/plugin-album': {},
-  '@BBeBee/plugin-album-ui-desktop': {},
-  '@BBeBee/plugin-local-scanner': {},
-  '@BBeBee/plugin-local-scanner-ui-desktop': {},
-  '@BBeBee/plugin-source-local': {},
-  '@BBeBee/plugin-source-runtime': {},
+  '@bbebee/plugin-album': {},
+  '@bbebee/plugin-album-ui-desktop': {},
+  '@bbebee/plugin-local-scanner': {},
+  '@bbebee/plugin-local-scanner-ui-desktop': {},
+  '@bbebee/plugin-source-local': {},
+  '@bbebee/plugin-source-runtime': {},
   // Covers and remote streams are served from disk, fetched only on a miss.
-  '@BBeBee/plugin-cache': {},
+  '@bbebee/plugin-cache': {},
   // Hooks `player/before-resolve`: a file the user downloads is kept under
   // `ctx.paths.downloads`, and every later play opens it. Disabling it leaves
   // playback streaming, with no branch in the player either way.
-  '@BBeBee/plugin-download': {},
-  '@BBeBee/plugin-download-ui-desktop': {},
+  '@bbebee/plugin-download': {},
+  '@bbebee/plugin-download-ui-desktop': {},
   // Curation: playlists, favorites, collections and smart playlists. Its
   // routes put Playlists and Favorites in the sidebar; the playlist detail
   // screen is reached from the list, so it has no placement (docs/08 §3).
-  '@BBeBee/plugin-library': {},
-  '@BBeBee/plugin-library-ui-desktop': {},
-  '@BBeBee/plugin-player': {
+  '@bbebee/plugin-library': {},
+  '@bbebee/plugin-library-ui-desktop': {},
+  '@bbebee/plugin-player': {
     config: {
       bufferMaxBytes: 500 * 1024 * 1024,
     },
@@ -140,46 +140,46 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
   // The "what is playing" surfaces and the up-next list, extracted from
   // `plugin-player`: the full-screen player, the bar that opens it, and the
   // queue screen. `plugin-player` itself is headless now — commands only.
-  '@BBeBee/plugin-now-playing': {},
-  '@BBeBee/plugin-now-playing-ui-desktop': {},
-  '@BBeBee/plugin-lyric-sources': {},
-  '@BBeBee/plugin-lyrics': {},
-  '@BBeBee/plugin-lyrics-ui-desktop': {},
-  '@BBeBee/plugin-desktop-lyrics': {},
-  '@BBeBee/plugin-desktop-lyrics-ui-desktop': {},
-  '@BBeBee/plugin-mini-player': {},
-  '@BBeBee/plugin-mini-player-ui-desktop': {},
-  '@BBeBee/plugin-queue': {},
-  '@BBeBee/plugin-queue-ui-desktop': {},
-  '@BBeBee/plugin-history': {},
-  '@BBeBee/plugin-history-ui-desktop': {},
-  '@BBeBee/plugin-settings': {},
-  '@BBeBee/plugin-settings-ui-desktop': {},
-  '@BBeBee/plugin-sleep-timer': {},
-  '@BBeBee/plugin-desktop-taskbar': {},
-  '@BBeBee/plugin-dsp': {},
-  '@BBeBee/plugin-dsp-ui-desktop': {},
-  '@BBeBee/plugin-visualizer': {},
-  '@BBeBee/plugin-visualizer-ui-desktop': {},
-  '@BBeBee/plugin-share': {},
-  '@BBeBee/plugin-share-ui-desktop': {},
+  '@bbebee/plugin-now-playing': {},
+  '@bbebee/plugin-now-playing-ui-desktop': {},
+  '@bbebee/plugin-lyric-sources': {},
+  '@bbebee/plugin-lyrics': {},
+  '@bbebee/plugin-lyrics-ui-desktop': {},
+  '@bbebee/plugin-desktop-lyrics': {},
+  '@bbebee/plugin-desktop-lyrics-ui-desktop': {},
+  '@bbebee/plugin-mini-player': {},
+  '@bbebee/plugin-mini-player-ui-desktop': {},
+  '@bbebee/plugin-queue': {},
+  '@bbebee/plugin-queue-ui-desktop': {},
+  '@bbebee/plugin-history': {},
+  '@bbebee/plugin-history-ui-desktop': {},
+  '@bbebee/plugin-settings': {},
+  '@bbebee/plugin-settings-ui-desktop': {},
+  '@bbebee/plugin-sleep-timer': {},
+  '@bbebee/plugin-desktop-taskbar': {},
+  '@bbebee/plugin-dsp': {},
+  '@bbebee/plugin-dsp-ui-desktop': {},
+  '@bbebee/plugin-visualizer': {},
+  '@bbebee/plugin-visualizer-ui-desktop': {},
+  '@bbebee/plugin-share': {},
+  '@bbebee/plugin-share-ui-desktop': {},
   // The community content index — update checks and installs for sources,
   // lyric sources, themes and desktop plugins. Headless service; installs of
   // the plugin kind reach the dynamic host through the bridge wired in
   // boot.ts.
-  '@BBeBee/plugin-registry': {},
+  '@bbebee/plugin-registry': {},
   // Lazy GitHub star/contributor counts for registry entries — fetched only
   // when the Discover page's sort controls ask, cached for 24h, degraded on
   // failure. Headless; both shells run it (the kernel's shells.test.ts pins
   // feature parity, and nothing reads the service unless that UI asks).
-  '@BBeBee/plugin-registry-metadata': {},
+  '@bbebee/plugin-registry-metadata': {},
   // Its desktop views: the Discover (registry) screen and the sources-section
   // settings card. Deferred together with the service — neither is needed
   // for first paint, and the route lands in the sidebar when the pair loads.
-  '@BBeBee/plugin-registry-ui-desktop': {},
+  '@bbebee/plugin-registry-ui-desktop': {},
   // Audio format converter & compressor
-  '@BBeBee/plugin-audio-converter': {},
-  '@BBeBee/plugin-audio-converter-ui-desktop': {},
+  '@bbebee/plugin-audio-converter': {},
+  '@bbebee/plugin-audio-converter-ui-desktop': {},
 }
 
 /**
@@ -188,30 +188,30 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
  * during idle reduces initial startup time without changing the feature set.
  */
 export const DEFERRED_PLUGIN_IDS = [
-  '@BBeBee/plugin-local-scanner',
-  '@BBeBee/plugin-local-scanner-ui-desktop',
-  '@BBeBee/plugin-download',
-  '@BBeBee/plugin-download-ui-desktop',
-  '@BBeBee/plugin-audio-converter',
-  '@BBeBee/plugin-audio-converter-ui-desktop',
-  '@BBeBee/plugin-share',
-  '@BBeBee/plugin-share-ui-desktop',
-  '@BBeBee/plugin-visualizer',
-  '@BBeBee/plugin-visualizer-ui-desktop',
-  '@BBeBee/plugin-sleep-timer',
-  '@BBeBee/plugin-history',
-  '@BBeBee/plugin-history-ui-desktop',
+  '@bbebee/plugin-local-scanner',
+  '@bbebee/plugin-local-scanner-ui-desktop',
+  '@bbebee/plugin-download',
+  '@bbebee/plugin-download-ui-desktop',
+  '@bbebee/plugin-audio-converter',
+  '@bbebee/plugin-audio-converter-ui-desktop',
+  '@bbebee/plugin-share',
+  '@bbebee/plugin-share-ui-desktop',
+  '@bbebee/plugin-visualizer',
+  '@bbebee/plugin-visualizer-ui-desktop',
+  '@bbebee/plugin-sleep-timer',
+  '@bbebee/plugin-history',
+  '@bbebee/plugin-history-ui-desktop',
   // A network-touching service nothing on the first screen reads — its
   // auto-check runs on its own timer, so it belongs with the other
   // post-first-frame plugins.
-  '@BBeBee/plugin-registry',
+  '@bbebee/plugin-registry',
   // Repo stats are read only from the Discover screen's sort controls — never on
   // the first screen — so it defers with the rest of the registry trio.
-  '@BBeBee/plugin-registry-metadata',
+  '@bbebee/plugin-registry-metadata',
   // The registry's desktop views ride along with the service: the route
   // contribution only exists once the service loads anyway, so deferring the
   // pair together changes nothing about when the sidebar entry appears.
-  '@BBeBee/plugin-registry-ui-desktop',
+  '@bbebee/plugin-registry-ui-desktop',
 ] as const
 
 export const INITIAL_ENABLED: NonNullable<AppConfig['plugins']> = Object.fromEntries(

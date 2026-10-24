@@ -1,5 +1,5 @@
 /**
- * Desktop UI views for @BBeBee/plugin-dsp.
+ * Desktop UI views for @bbebee/plugin-dsp.
  *
  * Registers the DspScreen as 'dsp.view' and 'settings.dsp'.
  */

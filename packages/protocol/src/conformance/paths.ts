@@ -56,10 +56,10 @@ export const pathsConformance: ConformanceSuite<PathsSubject> = {
       name: 'pluginData is stable, distinct, and path-safe',
       because: 'package ids contain @ and /, neither of which belongs in a path',
       async run({ paths }) {
-        const a = paths.pluginData('@BBeBee/plugin-source-subsonic')
-        const b = paths.pluginData('@BBeBee/plugin-source-jellyfin')
+        const a = paths.pluginData('@bbebee/plugin-source-subsonic')
+        const b = paths.pluginData('@bbebee/plugin-source-jellyfin')
 
-        assertEqual(a, paths.pluginData('@BBeBee/plugin-source-subsonic'), 'stable across calls')
+        assertEqual(a, paths.pluginData('@bbebee/plugin-source-subsonic'), 'stable across calls')
         assert(a !== b, 'different plugins must get different directories')
         const tail = a.slice(paths.appData.length)
         assert(!tail.includes('@'), 'must not leak @ into the path')

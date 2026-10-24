@@ -45,7 +45,7 @@ async function seedV1Catalogue(harness: {
 }) {
   const stmts = [
     `INSERT INTO providers (instance_id, plugin_id, display_name, enabled, sort_order, created_at)
-     VALUES ('nas', '@BBeBee/plugin-source-jellyfin', 'NAS', 1, 3, 1000)`,
+     VALUES ('nas', '@bbebee/plugin-source-jellyfin', 'NAS', 1, 3, 1000)`,
     `INSERT INTO artists (urn, instance_id, remote_id, name, fetched_at)
      VALUES ('BBeBee:nas:artist:1', 'nas', '1', 'Björk', 1000)`,
     `INSERT INTO albums (urn, instance_id, remote_id, title, fetched_at)
@@ -110,7 +110,7 @@ function memoryDb() {
 
 describe('nsPrefix', () => {
   it('turns a package id into a legible table prefix', () => {
-    expect(nsPrefix('plugin:@BBeBee/plugin-scrobble')).toBe('plugin_bbebee_plugin_scrobble')
+    expect(nsPrefix('plugin:@bbebee/plugin-scrobble')).toBe('plugin_bbebee_plugin_scrobble')
     expect(nsPrefix('core')).toBe('core')
   })
 

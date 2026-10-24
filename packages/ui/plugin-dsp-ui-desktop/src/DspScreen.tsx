@@ -1,5 +1,5 @@
 /**
- * Desktop DSP Screen for `@BBeBee/plugin-dsp`.
+ * Desktop DSP Screen for `@bbebee/plugin-dsp`.
  *
  * Provides a modern 6-band interactive equalizer with smooth bezier curves,
  * gradient fill, draggable knobs, preset selection, custom preset persistence,

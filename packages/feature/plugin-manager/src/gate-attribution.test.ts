@@ -29,7 +29,7 @@ import { NpmClient, tarballAllowedHosts } from './npm.js'
  * OBTAINED through (`Service.resolveConfig`) — so an internal call is
  * judged against whoever's context produced the handle, not against
  * the plugin that owns the operation. The market UI
- * (`@BBeBee/plugin-registry-ui-desktop`, capabilities `[]`) calling
+ * (`@bbebee/plugin-registry-ui-desktop`, capabilities `[]`) calling
  * into the manager made the manager's registry-index fetch be judged
  * as the UI package: `… may not reach cdn.jsdelivr.net /
  * raw.githubusercontent.com`, and every market install died at step
@@ -44,8 +44,8 @@ import { NpmClient, tarballAllowedHosts } from './npm.js'
  * zero-capability initiator loaded under its own `scopeContext`.
  */
 
-const MANAGER_ID = '@BBeBee/plugin-manager'
-const UI_ID = '@BBeBee/plugin-registry-ui-desktop'
+const MANAGER_ID = '@bbebee/plugin-manager'
+const UI_ID = '@bbebee/plugin-registry-ui-desktop'
 const INDEX_URL = 'https://raw.githubusercontent.com/BBeBeeX/B_Be_Bee-registry/main/plugins/index.json'
 
 /** The manager manifest's declared capabilities, mirrored. */

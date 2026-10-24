@@ -1,5 +1,5 @@
 /**
- * React DOM views for `@BBeBee/plugin-now-playing`.
+ * React DOM views for `@bbebee/plugin-now-playing`.
  *
  * Two surfaces, moved here together from `plugin-player-ui-desktop`: the
  * persistent bottom bar, and the full-pane player it opens. They are one

@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/core-background-expo",
-  "name": "@BBeBee/core-background-expo",
+  "id": "@bbebee/core-background-expo",
+  "name": "@bbebee/core-background-expo",
   "displayName": "Background",
   "description": "ctx.background for iOS and Android — audio session, wake locks, deferred work.",
   "version": "0.0.0",

@@ -1,5 +1,5 @@
 /**
- * React DOM view for `@BBeBee/plugin-history`.
+ * React DOM view for `@bbebee/plugin-history`.
  *
  * Displays:
  * 1. Playback summary statistics (total plays, total time, today plays, completion rate).

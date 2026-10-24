@@ -8,7 +8,7 @@
  *
  * If you are about to write the same `if` in both view packages, it belongs
  * here instead. The player feature's `./hooks` subpath re-exports these under
- * `@BBeBee/plugin-player/hooks` for its own view packages and older consumers.
+ * `@bbebee/plugin-player/hooks` for its own view packages and older consumers.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'

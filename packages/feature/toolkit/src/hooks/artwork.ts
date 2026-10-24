@@ -15,7 +15,7 @@
  *
  * The hook lives in the shared toolkit (every view package may import it); the
  * cache feature's `./hooks` subpath re-exports it under
- * `@BBeBee/plugin-cache/hooks` for its own view packages and older consumers.
+ * `@bbebee/plugin-cache/hooks` for its own view packages and older consumers.
  *
  * See docs/08 §4.
  */

@@ -72,7 +72,7 @@ async function app() {
 
   // The runtime, held to its manifest exactly as the kernel would.
   const gated = scopeContext(ctx, {
-    pluginId: '@BBeBee/plugin-source-runtime',
+    pluginId: '@bbebee/plugin-source-runtime',
     requested: (await shippedGrants()) as never,
   })
   await gated.plugin(plugin, {})

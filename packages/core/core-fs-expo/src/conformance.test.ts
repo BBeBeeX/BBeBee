@@ -111,7 +111,7 @@ describe('core-fs-expo capability scopes', () => {
       await scopeCtx.plugin(PathsExpo)
       await scopeCtx.plugin(FsExpo)
 
-      const scopeId = '@BBeBee/plugin-under-test'
+      const scopeId = '@bbebee/plugin-under-test'
       const gated = (granted: string[]) =>
         scopeContext(scopeCtx, {
           pluginId: scopeId,

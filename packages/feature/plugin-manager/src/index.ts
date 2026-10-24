@@ -181,7 +181,7 @@ export interface PluginManagerConfig {
   /**
    * Which app target this instance runs on, for registry `platforms`
    * filtering. Set by the composition root
-   * (`'@BBeBee/plugin-manager': { config: { platform: 'desktop' } }`).
+   * (`'@bbebee/plugin-manager': { config: { platform: 'desktop' } }`).
    * Absent means "unknown" — `browseRegistry()` then returns unfiltered.
    */
   platform?: 'desktop' | 'mobile'
@@ -192,13 +192,13 @@ const UPDATE_CHECK_DELAY_MS = 60_000
 const UPDATE_CHECK_INTERVAL_MS = 24 * 3600 * 1000
 
 const KNOWN_CONFIGURABLE_PLUGINS = new Set([
-  '@BBeBee/plugin-settings',
-  '@BBeBee/plugin-player',
-  '@BBeBee/plugin-theme',
-  '@BBeBee/plugin-now-playing',
-  '@BBeBee/plugin-desktop-lyrics',
-  '@BBeBee/plugin-visualizer',
-  '@BBeBee/plugin-dsp',
+  '@bbebee/plugin-settings',
+  '@bbebee/plugin-player',
+  '@bbebee/plugin-theme',
+  '@bbebee/plugin-now-playing',
+  '@bbebee/plugin-desktop-lyrics',
+  '@bbebee/plugin-visualizer',
+  '@bbebee/plugin-dsp',
 ])
 
 export class PluginManagerPlugin extends Service implements PluginManagerService {
@@ -2203,7 +2203,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       const fiber =
         fibersMap.get(manifest.id) ??
         (mName ? fibersMap.get(mName) : undefined) ??
-        fibersMap.get(manifest.id.replace(/^@BBeBee\//, ''))
+        fibersMap.get(manifest.id.replace(/^@bbebee\//i, ''))
 
       let runtimeState: PluginRuntimeState = 'UNLOADED'
       if (fiber) {
@@ -2279,7 +2279,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     contributions: readonly SettingsContribution[] = [],
   ): ConfigStatus {
     const mName = manifest.name
-    const mClean = manifest.id.replace(/^@BBeBee\//, '')
+    const mClean = manifest.id.replace(/^@bbebee\//i, '')
     const relatedContribs = contributions.filter(
       (c) =>
         c.id === manifest.id ||
@@ -2320,15 +2320,15 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     }
 
     // Compare with default app settings
-    if (manifest.id === '@BBeBee/plugin-theme' || manifest.name === '@BBeBee/plugin-theme') {
+    if (manifest.id === '@bbebee/plugin-theme' || manifest.name === '@bbebee/plugin-theme') {
       return settings.themeId !== DEFAULT_APP_SETTINGS.themeId ? 'customized' : 'default'
     }
 
-    if (manifest.id === '@BBeBee/plugin-now-playing' || manifest.name === '@BBeBee/plugin-now-playing') {
+    if (manifest.id === '@bbebee/plugin-now-playing' || manifest.name === '@bbebee/plugin-now-playing') {
       return settings.nowPlayingStyle !== DEFAULT_APP_SETTINGS.nowPlayingStyle ? 'customized' : 'default'
     }
 
-    if (manifest.id === '@BBeBee/plugin-desktop-lyrics' || manifest.name === '@BBeBee/plugin-desktop-lyrics') {
+    if (manifest.id === '@bbebee/plugin-desktop-lyrics' || manifest.name === '@bbebee/plugin-desktop-lyrics') {
       const cur = settings.desktopLyrics
       const def = DEFAULT_DESKTOP_LYRICS_SETTINGS
       const isCustom =
@@ -2340,7 +2340,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       return isCustom ? 'customized' : 'default'
     }
 
-    if (manifest.id === '@BBeBee/plugin-visualizer' || manifest.name === '@BBeBee/plugin-visualizer') {
+    if (manifest.id === '@bbebee/plugin-visualizer' || manifest.name === '@bbebee/plugin-visualizer') {
       const cur = settings.visualizer
       const def = DEFAULT_VISUALIZER_SETTINGS
       const isCustom =
@@ -2351,7 +2351,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       return isCustom ? 'customized' : 'default'
     }
 
-    if (manifest.id === '@BBeBee/plugin-player' || manifest.name === '@BBeBee/plugin-player') {
+    if (manifest.id === '@bbebee/plugin-player' || manifest.name === '@bbebee/plugin-player') {
       const isCustom =
         settings.crossfadeEnabled !== DEFAULT_APP_SETTINGS.crossfadeEnabled ||
         settings.crossfadeDurationSeconds !== DEFAULT_APP_SETTINGS.crossfadeDurationSeconds ||
@@ -2360,7 +2360,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       return isCustom ? 'customized' : 'default'
     }
 
-    if (manifest.id === '@BBeBee/plugin-settings' || manifest.name === '@BBeBee/plugin-settings') {
+    if (manifest.id === '@bbebee/plugin-settings' || manifest.name === '@bbebee/plugin-settings') {
       const isCustom =
         settings.language !== DEFAULT_APP_SETTINGS.language ||
         settings.closeToTray !== DEFAULT_APP_SETTINGS.closeToTray ||

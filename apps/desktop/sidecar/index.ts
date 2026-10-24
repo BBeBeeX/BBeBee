@@ -1,7 +1,7 @@
 /**
  * BBeBee Node.js Headless Sidecar
  *
- * Hosts Core Services (@BBeBee/core-desktop-bridge/main, core-fs-node, core-db-node,
+ * Hosts Core Services (@bbebee/core-desktop-bridge/main, core-fs-node, core-db-node,
  * core-paths-node), Audio Engine Supervisor, FFmpeg Transcoding, and Custom Protocol Handlers.
  *
  * Transport: Standard Input / Standard Output framed NDJSON (stdio JSON-RPC 2.0).

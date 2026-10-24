@@ -302,7 +302,7 @@ describe('searchAll', () => {
     )
 
     const ui = scopeContext(ctx, {
-      pluginId: '@BBeBee/plugin-sources-ui-desktop',
+      pluginId: '@bbebee/plugin-sources-ui-desktop',
       requested: [],
     })
     await (ui.sources as Sources).searchAll(query)
@@ -339,7 +339,7 @@ describe('importing documents', () => {
     // init, exactly like `Catalog` and `SourceStore` before it.
     const { ctx, sources } = await withSources()
     const ui = scopeContext(ctx, {
-      pluginId: '@BBeBee/plugin-sources-ui-desktop',
+      pluginId: '@bbebee/plugin-sources-ui-desktop',
       requested: [],
     })
 

@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/core-store-fs",
-  "name": "@BBeBee/core-store-fs",
+  "id": "@bbebee/core-store-fs",
+  "name": "@bbebee/core-store-fs",
   "displayName": "Store (FS)",
   "description": "ctx.store — persistent JSON store over disk.",
   "version": "0.0.0",

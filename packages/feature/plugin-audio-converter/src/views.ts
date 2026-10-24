@@ -1,5 +1,5 @@
 /**
- * View and command IDs for @BBeBee/plugin-audio-converter.
+ * View and command IDs for @bbebee/plugin-audio-converter.
  */
 
 export const AUDIO_CONVERTER_VIEWS = {

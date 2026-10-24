@@ -11,7 +11,7 @@ import visualizerLocales from '../../../feature/plugin-i18n/src/locales/visualiz
 /**
  * English stub for `ctx.i18n` — resolves keys against the shipped en
  * catalogue so assertions keep reading the English copy. Test-only; the
- * real service is provided by `@BBeBee/plugin-i18n` in the app.
+ * real service is provided by `@bbebee/plugin-i18n` in the app.
  */
 class I18nStub extends Service {
   public locale = 'en'

@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-i18n",
-  "name": "@BBeBee/plugin-i18n",
+  "id": "@bbebee/plugin-i18n",
+  "name": "@bbebee/plugin-i18n",
   "displayName": "I18n",
   "description": "ctx.i18n — interface-language catalogues, key-granular fallback and locale resolution driven by settings.language.",
   "version": "0.0.0",
@@ -10,7 +10,7 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-settings"
+    "@bbebee/plugin-settings"
   ],
   "systemId": "layer-4",
   "moduleId": "i18n",

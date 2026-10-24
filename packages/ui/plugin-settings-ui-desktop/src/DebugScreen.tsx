@@ -1,5 +1,5 @@
 /**
- * Desktop Debug Screen for `@BBeBee/plugin-settings-ui-desktop`.
+ * Desktop Debug Screen for `@bbebee/plugin-settings-ui-desktop`.
  * Shows debug status, environment details, and navigation to discover/HTTP logs.
  */
 

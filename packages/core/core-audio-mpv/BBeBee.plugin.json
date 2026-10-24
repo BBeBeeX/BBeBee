@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/core-audio-mpv",
-  "name": "@BBeBee/core-audio-mpv",
+  "id": "@bbebee/core-audio-mpv",
+  "name": "@bbebee/core-audio-mpv",
   "displayName": "Audio (MPV)",
   "description": "ctx.audio — the audio engine: libmpv with native audio-engine crash isolation, native DSP/EQ, and FFT visualizer.",
   "version": "0.0.0",

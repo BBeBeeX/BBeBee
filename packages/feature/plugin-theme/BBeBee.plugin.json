@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-theme",
-  "name": "@BBeBee/plugin-theme",
+  "id": "@bbebee/plugin-theme",
+  "name": "@bbebee/plugin-theme",
   "displayName": "Theme",
   "description": "Theme manager for dark music player and dynamic runtime themes.",
   "version": "0.0.0",

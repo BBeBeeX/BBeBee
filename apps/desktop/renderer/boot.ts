@@ -435,6 +435,7 @@ export async function preloadPreferences(pathSnapshot: Record<string, string | u
     const data = JSON.parse(raw) as Record<string, unknown>
     result.storeData = data
     const prefs = (data['preferences'] ??
+      data['@bbebee/plugin-settings:preferences'] ??
       data['@BBeBee/plugin-settings:preferences']) as
       | { audioOutputEngine?: EngineKey | 'webaudio'; audioExclusive?: boolean; userAgent?: string }
       | undefined
@@ -469,8 +470,14 @@ async function mergedPluginLock(
   const merged: Record<string, PluginLockRecord> = {}
   // plugin-manager persists via ctx.store under its own namespace, which is
   // how the key appears in the raw store snapshot (same scheme as the
-  // '@BBeBee/plugin-manager:enabled' overrides read in computeEnabledPlugins).
-  const npmRecords = storeData?.['@BBeBee/plugin-manager:npm:installed'] as
+  // '@bbebee/plugin-manager:enabled' overrides read in computeEnabledPlugins).
+  // npm records are keyed by registry entry id (not manifest id), so only
+  // the manager namespace prefix needs its legacy fallback — the record
+  // keys themselves survive the rename untouched.
+  const npmRecords = (
+    storeData?.['@bbebee/plugin-manager:npm:installed'] ??
+    storeData?.['@BBeBee/plugin-manager:npm:installed']
+  ) as
     | Record<
         string,
         {
@@ -514,16 +521,33 @@ async function buildRegistry(storeData?: Record<string, unknown>): Promise<{
   return { registry, manifests }
 }
 
+/**
+ * Map a legacy `@BBeBee/` plugin id to its current `@bbebee/` form
+ * (manifest ids were renamed to match their future npm names). Applied to
+ * persisted records written before the rename so a user's enablement
+ * choices and provider selections survive it; new ids pass through.
+ */
+function currentPluginId(id: string): string {
+  return id.startsWith('@BBeBee/') ? `@bbebee/${id.slice('@BBeBee/'.length)}` : id
+}
+
 /** Compute effective plugin enablement (initial + user overrides). */
 function computeEnabledPlugins(
   storeData: Record<string, unknown> | undefined,
   manifests: Record<string, PluginManifest>,
 ): typeof INITIAL_ENABLED {
   const effective = { ...INITIAL_ENABLED }
-  const overrides = (
+  const rawOverrides = (
+    storeData?.['@bbebee/plugin-manager:enabled'] ??
     storeData?.['@BBeBee/plugin-manager:enabled'] ??
     storeData?.['plugin-manager:enabled']
   ) as Record<string, boolean> | undefined
+  // Remap legacy override keys to the renamed ids (new keys win on clash).
+  const overrides = rawOverrides
+    ? Object.fromEntries(
+        Object.entries(rawOverrides).map(([id, enabled]) => [currentPluginId(id), enabled]),
+      )
+    : undefined
 
   if (overrides) {
     for (const [id, enabled] of Object.entries(overrides)) {
@@ -553,12 +577,21 @@ function computeEnabledPlugins(
     }
   }
   if ([...providersByKey.values()].some((ps) => ps.length > 1)) {
-    const selection = storeData?.['@BBeBee/plugin-manager:service-providers'] as
-      | Record<string, string>
-      | undefined
-    const npmRecords = storeData?.['@BBeBee/plugin-manager:npm:installed'] as
-      | Record<string, unknown>
-      | undefined
+    const rawSelection = (
+      storeData?.['@bbebee/plugin-manager:service-providers'] ??
+      storeData?.['@BBeBee/plugin-manager:service-providers']
+    ) as Record<string, string> | undefined
+    // Selection values are provider plugin ids: remap legacy ones so a
+    // choice made before the rename still points at the same provider.
+    const selection = rawSelection
+      ? Object.fromEntries(
+          Object.entries(rawSelection).map(([key, provider]) => [key, currentPluginId(provider)]),
+        )
+      : undefined
+    const npmRecords = (
+      storeData?.['@bbebee/plugin-manager:npm:installed'] ??
+      storeData?.['@BBeBee/plugin-manager:npm:installed']
+    ) as Record<string, unknown> | undefined
     const active = resolveActiveProviders(
       providersByKey,
       selection,

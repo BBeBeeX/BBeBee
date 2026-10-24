@@ -225,8 +225,8 @@ describe('scoping', () => {
   it('shares explicit namespaces across different scoped callers and migrates legacy scoped keys', async () => {
     const root = await tempDir('bbebee-secrets-cross-scope')
     const ctx = await harness(root)
-    const settingsUi = scopeContext(ctx, { pluginId: '@BBeBee/plugin-settings-ui-desktop', requested: ['secrets:own'] as never })
-    const sourceRuntime = scopeContext(ctx, { pluginId: '@BBeBee/plugin-source-runtime', requested: ['secrets:own'] as never })
+    const settingsUi = scopeContext(ctx, { pluginId: '@bbebee/plugin-settings-ui-desktop', requested: ['secrets:own'] as never })
+    const sourceRuntime = scopeContext(ctx, { pluginId: '@bbebee/plugin-source-runtime', requested: ['secrets:own'] as never })
 
     // When settings UI writes to a source namespace
     await settingsUi.secrets.namespace('source-123').set('user', 'admin')

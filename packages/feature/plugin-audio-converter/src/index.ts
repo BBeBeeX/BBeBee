@@ -1,5 +1,5 @@
 /**
- * @BBeBee/plugin-audio-converter
+ * @bbebee/plugin-audio-converter
  *
  * Audio format conversion, compression, and batch processing service.
  */

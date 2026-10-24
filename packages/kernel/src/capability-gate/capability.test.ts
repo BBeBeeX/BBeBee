@@ -30,14 +30,14 @@ describe('scopeContext', () => {
     await ctx.plugin(FakeFs)
 
     const scoped = scopeContext(ctx, {
-      pluginId: '@BBeBee/plugin-demo',
+      pluginId: '@bbebee/plugin-demo',
       requested: ['fs:read:media'] as Capability[],
     })
     ;(scoped as never as { fs: FakeFs }).fs.read()
     await tick()
 
     expect(seen).toMatchObject({
-      pluginId: '@BBeBee/plugin-demo',
+      pluginId: '@bbebee/plugin-demo',
       granted: ['fs:read:media'],
     })
   })
@@ -320,7 +320,7 @@ describe('per-source host narrowing', () => {
   // must allow a request, or the broad grant would be the whole story and a
   // rule could compute a URL to anywhere. See docs/06 §8.
   const scoped = (allowedHosts: string[]) => ({
-    pluginId: '@BBeBee/plugin-source-runtime',
+    pluginId: '@bbebee/plugin-source-runtime',
     scopeId: 'music-example-org-4f1a',
     granted: ['net:host/*'],
     allowedHosts,

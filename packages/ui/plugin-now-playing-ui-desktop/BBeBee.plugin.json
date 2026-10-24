@@ -1,8 +1,8 @@
 {
-  "id": "@BBeBee/plugin-now-playing-ui-desktop",
-  "name": "@BBeBee/plugin-now-playing-ui-desktop",
+  "id": "@bbebee/plugin-now-playing-ui-desktop",
+  "name": "@bbebee/plugin-now-playing-ui-desktop",
   "displayName": "Now Playing UI (Desktop)",
-  "description": "React DOM views for @BBeBee/plugin-now-playing.",
+  "description": "React DOM views for @bbebee/plugin-now-playing.",
   "version": "0.0.0",
   "author": "BBeBee Team",
   "engines": {
@@ -10,8 +10,8 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-ui",
-    "@BBeBee/plugin-now-playing"
+    "@bbebee/plugin-ui",
+    "@bbebee/plugin-now-playing"
   ],
   "systemId": "layer-5",
   "moduleId": "playback",

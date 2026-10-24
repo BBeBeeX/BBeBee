@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-ui",
-  "name": "@BBeBee/plugin-ui",
+  "id": "@bbebee/plugin-ui",
+  "name": "@bbebee/plugin-ui",
   "displayName": "UI Registry",
   "description": "The ctx.ui contribution registry.",
   "version": "0.0.0",

@@ -1,5 +1,5 @@
 /**
- * Desktop UI views for @BBeBee/plugin-theme.
+ * Desktop UI views for @bbebee/plugin-theme.
  *
  * Registers the `theme.settings` card view for the settings screen — the
  * descriptor is contributed by the headless `plugin-theme` package, this

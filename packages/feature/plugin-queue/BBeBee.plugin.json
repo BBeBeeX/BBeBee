@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-queue",
-  "name": "@BBeBee/plugin-queue",
+  "id": "@bbebee/plugin-queue",
+  "name": "@bbebee/plugin-queue",
   "displayName": "Queue",
   "description": "The up-next list — a view of the queue ctx.player owns.",
   "version": "0.0.0",
@@ -10,7 +10,7 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-player"
+    "@bbebee/plugin-player"
   ],
   "systemId": "layer-4",
   "moduleId": "playback",

@@ -1,8 +1,8 @@
 {
-  "id": "@BBeBee/plugin-library-ui-desktop",
-  "name": "@BBeBee/plugin-library-ui-desktop",
+  "id": "@bbebee/plugin-library-ui-desktop",
+  "name": "@bbebee/plugin-library-ui-desktop",
   "displayName": "Library UI (Desktop)",
-  "description": "React DOM views for @BBeBee/plugin-library.",
+  "description": "React DOM views for @bbebee/plugin-library.",
   "version": "0.0.0",
   "author": "BBeBee Team",
   "engines": {
@@ -10,8 +10,8 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-ui",
-    "@BBeBee/plugin-library"
+    "@bbebee/plugin-ui",
+    "@bbebee/plugin-library"
   ],
   "systemId": "layer-5",
   "moduleId": "storage",

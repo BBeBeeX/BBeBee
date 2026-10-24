@@ -1,5 +1,5 @@
 /**
- * React Native views for `@BBeBee/plugin-now-playing`.
+ * React Native views for `@bbebee/plugin-now-playing`.
  *
  * The same two surfaces as the desktop twin — the full-screen player and the
  * mini-player that opens it — transcribed onto the phone. Moved here together
@@ -7,7 +7,7 @@
  * dead control.
  *
  * Layout, gestures and event wiring only: every value comes from
- * `@BBeBee/plugin-player/hooks`, and anything that would also be true on
+ * `@bbebee/plugin-player/hooks`, and anything that would also be true on
  * desktop belongs in the headless package instead (docs/08 §1).
  *
  * **Style templates** — four layout variants (classic, full-cover, vinyl,

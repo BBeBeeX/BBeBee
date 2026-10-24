@@ -46,10 +46,10 @@
 import type { DownloadRegion } from './settings.js'
 
 /** The plugin-manager's own plugin id — the one plugin the shells derive extra grants for. */
-export const PLUGIN_MANAGER_ID = '@BBeBee/plugin-manager'
+export const PLUGIN_MANAGER_ID = '@bbebee/plugin-manager'
 
 /** The settings plugin's id; also the store namespace its preferences persist under. */
-export const PLUGIN_SETTINGS_ID = '@BBeBee/plugin-settings'
+export const PLUGIN_SETTINGS_ID = '@bbebee/plugin-settings'
 
 /** The store key the settings plugin persists the `AppSettings` document under. */
 export const APP_SETTINGS_STORE_KEY = 'preferences'

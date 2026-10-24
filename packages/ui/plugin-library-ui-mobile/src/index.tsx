@@ -1,10 +1,10 @@
 /**
- * React Native views for `@BBeBee/plugin-library`.
+ * React Native views for `@bbebee/plugin-library`.
  *
  * The same four screens as the desktop twin: the library (playlists, albums
  * and collections), one playlist, one collection, and favorites. Layout and
  * event wiring only — the reads, the reload rules and every derived value come
- * from `@BBeBee/plugin-library/hooks` (docs/08 §1).
+ * from `@bbebee/plugin-library/hooks` (docs/08 §1).
  *
  * The three library sections share one `List`, because a phone scrolls one
  * surface at a time and nesting a scroller inside a scroller is the classic

@@ -1,5 +1,5 @@
 /**
- * Desktop UI views for `@BBeBee/plugin-registry`.
+ * Desktop UI views for `@bbebee/plugin-registry`.
  *
  * The headless `plugin-registry` package contributes the descriptors (the
  * `registry.screen` route and the `registry.settings-card`); this package

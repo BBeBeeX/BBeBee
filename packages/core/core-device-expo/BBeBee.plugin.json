@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/core-device-expo",
-  "name": "@BBeBee/core-device-expo",
+  "id": "@bbebee/core-device-expo",
+  "name": "@bbebee/core-device-expo",
   "displayName": "Device",
   "description": "ctx.device for iOS and Android — network, battery, locale.",
   "version": "0.0.0",

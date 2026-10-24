@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/core-js-quickjs-node",
-  "name": "@BBeBee/core-js-quickjs-node",
+  "id": "@bbebee/core-js-quickjs-node",
+  "name": "@bbebee/core-js-quickjs-node",
   "displayName": "Script sandbox",
   "description": "ctx.js — a QuickJS realm per source, for desktop and Node.",
   "version": "0.0.0",

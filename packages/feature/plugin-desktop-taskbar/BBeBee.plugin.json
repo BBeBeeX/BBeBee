@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-desktop-taskbar",
-  "name": "@BBeBee/plugin-desktop-taskbar",
+  "id": "@bbebee/plugin-desktop-taskbar",
+  "name": "@bbebee/plugin-desktop-taskbar",
   "displayName": "Desktop Taskbar",
   "description": "Desktop taskbar and tray playback controls for Play/Pause, Previous, and Next.",
   "version": "0.0.0",
@@ -10,7 +10,7 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-player"
+    "@bbebee/plugin-player"
   ],
   "systemId": "layer-4",
   "moduleId": "playback",

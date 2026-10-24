@@ -1,10 +1,10 @@
 /**
- * React Native views for `@BBeBee/plugin-queue`.
+ * React Native views for `@bbebee/plugin-queue`.
  *
  * The up-next list, moved here from `plugin-player-ui-mobile`. The same hooks
  * and the same behaviour as the desktop twin — only the elements and the
  * *shape* differ. Anything here that would also be true on desktop belongs in
- * `@BBeBee/plugin-player/hooks` (docs/08 §1).
+ * `@bbebee/plugin-player/hooks` (docs/08 §1).
  */
 
 import { createElement as h, Fragment } from 'react'

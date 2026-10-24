@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-album",
-  "name": "@BBeBee/plugin-album",
+  "id": "@bbebee/plugin-album",
+  "name": "@bbebee/plugin-album",
   "displayName": "Album",
   "description": "The album page — detail, tracks, and album-level actions.",
   "version": "0.0.0",
@@ -10,7 +10,7 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-sources"
+    "@bbebee/plugin-sources"
   ],
   "systemId": "layer-4",
   "moduleId": "storage",

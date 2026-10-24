@@ -240,7 +240,7 @@ describe('workspace conventions', () => {
     const offenders: string[] = []
 
     for (const [id, manifest] of await pluginManifests()) {
-      const dir = id.replace(/^@BBeBee\//, '')
+      const dir = id.replace(/^@bbebee\//i, '')
       const sources = await packageSources(dir)
       if (sources.length === 0) continue
       const text = sources.join('\n')

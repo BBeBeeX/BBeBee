@@ -5,8 +5,8 @@ import { isEnabled, resolveConfig } from './config.js'
 describe('resolveConfig', () => {
   it('resolves a plugin to one activation keyed by its own id', () => {
     expect(
-      resolveConfig({ plugins: { '@BBeBee/plugin-player': { config: { crossfadeMs: 0 } } } }),
-    ).toEqual([{ pluginId: '@BBeBee/plugin-player', config: { crossfadeMs: 0 } }])
+      resolveConfig({ plugins: { '@bbebee/plugin-player': { config: { crossfadeMs: 0 } } } }),
+    ).toEqual([{ pluginId: '@bbebee/plugin-player', config: { crossfadeMs: 0 } }])
   })
 
   it('skips disabled plugins', () => {

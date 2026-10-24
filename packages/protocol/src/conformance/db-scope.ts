@@ -169,7 +169,7 @@ export const dbScopeConformance: ConformanceSuite<DbScopeSubject> = {
         )
         await assertRejects(
           () =>
-            own.defineSchema('plugin:@BBeBee/plugin-someone-else', [
+            own.defineSchema('plugin:@bbebee/plugin-someone-else', [
               { version: 1, up: 'CREATE TABLE {{ns}}_x (a TEXT)' },
             ]),
           "defining another plugin's namespace",

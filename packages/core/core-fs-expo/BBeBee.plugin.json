@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/core-fs-expo",
-  "name": "@BBeBee/core-fs-expo",
+  "id": "@bbebee/core-fs-expo",
+  "name": "@bbebee/core-fs-expo",
   "displayName": "FS (Expo)",
   "description": "ctx.fs — filesystem implementation for Expo / React Native.",
   "version": "0.0.0",

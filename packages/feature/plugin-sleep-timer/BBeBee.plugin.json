@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-sleep-timer",
-  "name": "@BBeBee/plugin-sleep-timer",
+  "id": "@bbebee/plugin-sleep-timer",
+  "name": "@bbebee/plugin-sleep-timer",
   "displayName": "Sleep Timer",
   "description": "ctx.sleepTimer — stops playback after a duration, at a specific time, or at track end.",
   "version": "0.0.0",
@@ -10,7 +10,7 @@
   },
   "enabled": true,
   "dependencies": [
-    "@BBeBee/plugin-player"
+    "@bbebee/plugin-player"
   ],
   "systemId": "layer-4",
   "moduleId": "playback",

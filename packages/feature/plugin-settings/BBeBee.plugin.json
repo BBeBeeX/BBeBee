@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-settings",
-  "name": "@BBeBee/plugin-settings",
+  "id": "@bbebee/plugin-settings",
+  "name": "@bbebee/plugin-settings",
   "displayName": "Settings",
   "description": "Global application preferences, settings service, and settings views.",
   "version": "0.0.0",

@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/core-codec-rn",
-  "name": "@BBeBee/core-codec-rn",
+  "id": "@bbebee/core-codec-rn",
+  "name": "@bbebee/core-codec-rn",
   "displayName": "Codec",
   "description": "ctx.codec for iOS and Android — tags over ctx.fs, PCM via AudioDecoder.",
   "version": "0.0.0",

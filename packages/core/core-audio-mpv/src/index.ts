@@ -1,5 +1,5 @@
 /**
- * `ctx.audio` — the audio engine (@BBeBee/core-audio-mpv), on desktop and mobile.
+ * `ctx.audio` — the audio engine (@bbebee/core-audio-mpv), on desktop and mobile.
  *
  * Powered by official libmpv running in an independent native audio-engine process for
  * crash isolation.

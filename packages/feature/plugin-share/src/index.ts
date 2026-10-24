@@ -1,5 +1,5 @@
 /**
- * @BBeBee/plugin-share
+ * @bbebee/plugin-share
  *
  * Share service for third-party music sources, songs, playlists, and lyrics,
  * with Base64 JSON metadata and LSB image steganography.

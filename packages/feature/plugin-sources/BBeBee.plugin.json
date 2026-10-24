@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/plugin-sources",
-  "name": "@BBeBee/plugin-sources",
+  "id": "@bbebee/plugin-sources",
+  "name": "@bbebee/plugin-sources",
   "displayName": "Sources",
   "description": "ctx.sources — imported source documents, the registry, and the catalogue cache.",
   "version": "0.0.0",

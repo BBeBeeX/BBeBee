@@ -44,7 +44,7 @@ export const fsScopeConformance: ConformanceSuite<FsScopeSubject> = {
       name: 'fs:read:own does NOT reach another plugin data directory',
       because: 'every plugin data directory lives under appData; own must mean *own*',
       async run({ admin, own, paths }) {
-        const victim = paths.pluginData('@BBeBee/plugin-victim')
+        const victim = paths.pluginData('@bbebee/plugin-victim')
         await admin.mkdir(victim, { recursive: true })
         const secret = admin.join(victim, 'secret.txt')
         await admin.writeFile(secret, 'TOP SECRET')
@@ -60,7 +60,7 @@ export const fsScopeConformance: ConformanceSuite<FsScopeSubject> = {
       name: 'fs:write:own does NOT overwrite another plugin files',
       because: 'read access is not the only way to do damage',
       async run({ admin, own, paths }) {
-        const victim = paths.pluginData('@BBeBee/plugin-victim2')
+        const victim = paths.pluginData('@bbebee/plugin-victim2')
         await admin.mkdir(victim, { recursive: true })
         const target = admin.join(victim, 'data.txt')
         await admin.writeFile(target, 'original')

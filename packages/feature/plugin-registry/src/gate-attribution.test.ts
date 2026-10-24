@@ -28,8 +28,8 @@ import { RegistryPlugin } from './index.js'
  * loaded under its own.
  */
 
-const REGISTRY_ID = '@BBeBee/plugin-registry'
-const UI_ID = '@BBeBee/plugin-registry-ui-desktop'
+const REGISTRY_ID = '@bbebee/plugin-registry'
+const UI_ID = '@bbebee/plugin-registry-ui-desktop'
 const ENDPOINT = 'https://cdn.jsdelivr.net/gh/test/registry@main/index.json'
 
 interface SeenCall {

@@ -1,6 +1,6 @@
 {
-  "id": "@BBeBee/core-db-expo",
-  "name": "@BBeBee/core-db-expo",
+  "id": "@bbebee/core-db-expo",
+  "name": "@bbebee/core-db-expo",
   "displayName": "DB (Expo)",
   "description": "ctx.db — SQLite database for Expo / React Native.",
   "version": "0.0.0",

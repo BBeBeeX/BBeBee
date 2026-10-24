@@ -1,5 +1,5 @@
 /**
- * Desktop Discover / System Logs Screen for `@BBeBee/plugin-settings-ui-desktop`.
+ * Desktop Discover / System Logs Screen for `@bbebee/plugin-settings-ui-desktop`.
  * Live in-app log viewer reading from `ctx.logBuffer`.
  */
 

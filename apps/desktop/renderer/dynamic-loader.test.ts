@@ -29,10 +29,10 @@ describe('desktop dynamic-loader', () => {
     expect(Object.keys(registry).length).toBeGreaterThan(0)
 
     // Check a representative plugin
-    const playerEntry = registry['@BBeBee/plugin-player']
+    const playerEntry = registry['@bbebee/plugin-player']
     expect(playerEntry).toBeDefined()
     expect(playerEntry!.builtin).toBe(true)
-    expect(playerEntry!.manifest.id).toBe('@BBeBee/plugin-player')
+    expect(playerEntry!.manifest.id).toBe('@bbebee/plugin-player')
     expect(typeof playerEntry!.load).toBe('function')
 
     // Test that the module actually loads dynamically
@@ -431,8 +431,8 @@ describe('recall-only quarantine (tamper chain removed 2026-10-24)', () => {
 
   it('resolveActiveProviders honours the selection, else the built-in, and never arbitrates critical keys', () => {
     const byKey = new Map<string, readonly string[]>([
-      ['visualizer', ['@BBeBee/plugin-visualizer', 'third-viz']],
-      ['player', ['@BBeBee/plugin-player', 'evil-player']],
+      ['visualizer', ['@bbebee/plugin-visualizer', 'third-viz']],
+      ['player', ['@bbebee/plugin-player', 'evil-player']],
       ['lyrics', ['only-one']],
     ])
     const npmIds = new Set(['third-viz', 'evil-player'])
@@ -440,7 +440,7 @@ describe('recall-only quarantine (tamper chain removed 2026-10-24)', () => {
 
     // No selection: the built-in (non-npm) provider wins.
     let active = resolveActiveProviders(byKey, undefined, npmIds, isCritical)
-    expect(active.get('visualizer')).toBe('@BBeBee/plugin-visualizer')
+    expect(active.get('visualizer')).toBe('@bbebee/plugin-visualizer')
     expect(active.has('player')).toBe(false) // critical: untouched
     expect(active.has('lyrics')).toBe(false) // single provider: untouched
 
@@ -450,7 +450,7 @@ describe('recall-only quarantine (tamper chain removed 2026-10-24)', () => {
 
     // A stale choice (provider gone) falls back to the built-in rule.
     active = resolveActiveProviders(byKey, { visualizer: 'ghost' }, npmIds, isCritical)
-    expect(active.get('visualizer')).toBe('@BBeBee/plugin-visualizer')
+    expect(active.get('visualizer')).toBe('@bbebee/plugin-visualizer')
   })
 
   it('quarantines a registry-banned plugin with the ban reason, ahead of delisting (audit W5)', async () => {

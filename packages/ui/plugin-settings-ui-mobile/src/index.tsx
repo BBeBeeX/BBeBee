@@ -1,5 +1,5 @@
 /**
- * React Native views for `@BBeBee/plugin-settings`.
+ * React Native views for `@bbebee/plugin-settings`.
  */
 
 import { createElement as h, useState } from 'react'

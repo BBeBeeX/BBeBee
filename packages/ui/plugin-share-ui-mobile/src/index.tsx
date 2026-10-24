@@ -1,5 +1,5 @@
 /**
- * React Native views for `@BBeBee/plugin-share`.
+ * React Native views for `@bbebee/plugin-share`.
  *
  * The desktop twin renders share *cards*: a canvas draws the artwork and LSB
  * steganography hides the payload inside a downloadable PNG. React Native has
