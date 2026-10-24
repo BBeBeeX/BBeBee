@@ -1851,14 +1851,14 @@ describe('plugin-manager npm service methods', () => {
       return setCalls.at(-1)?.[1]?.['a-x']?.version as string | undefined
     }
 
-    it('plans and installs the reviewed version by default, not npm latest', async () => {
+    it('plans and installs npm latest by default, flagged unreviewed past the pin', async () => {
       const { w } = pinnedWorld()
       await w.plugin[PluginManagerPlugin.init]()
       const plan = await w.plugin.resolveInstallPlan('a-x')
-      expect(plan.target.version).toBe('1.1.0')
-      expect(plan.target.unreviewed).toBeUndefined()
+      expect(plan.target.version).toBe('1.2.0')
+      expect(plan.target.unreviewed).toBe(true)
       await w.plugin.installPlugin('a-x')
-      expect(await installedVersion(w)).toBe('1.1.0')
+      expect(await installedVersion(w)).toBe('1.2.0')
     })
 
     it('an explicitly named newer version installs but is flagged unreviewed in the plan', async () => {
@@ -1872,12 +1872,12 @@ describe('plugin-manager npm service methods', () => {
       expect(await installedVersion(w)).toBe('1.2.0')
     })
 
-    it('a range overshooting the pin is still capped to the reviewed version', async () => {
+    it('an install range overshooting the pin lands latest, flagged unreviewed', async () => {
       const { w } = pinnedWorld()
       await w.plugin[PluginManagerPlugin.init]()
       const plan = await w.plugin.resolveInstallPlan('a-x', '^1.0.0')
-      expect(plan.target.version).toBe('1.1.0')
-      expect(plan.target.unreviewed).toBeUndefined()
+      expect(plan.target.version).toBe('1.2.0')
+      expect(plan.target.unreviewed).toBe(true)
     })
 
     it('caps dependency closure nodes to their own reviewed pins', async () => {
@@ -1911,8 +1911,10 @@ describe('plugin-manager npm service methods', () => {
       const entry = entryFor({ id: 'a-x', npm: '@t/a', reviewedVersion: '1.1.0', reviewedIntegrity: falsePin })
       const w = seedWorld(entry, versions, good)
       await w.plugin[PluginManagerPlugin.init]()
+      // Pin the install to the reviewed version itself: a default install
+      // now lands latest (past the pin), which the pin hash never covers.
       try {
-        await w.plugin.installPlugin('a-x')
+        await w.plugin.installPlugin('a-x', '1.1.0')
         throw new Error('expected INTEGRITY_MISMATCH')
       } catch (err) {
         expect(err).toBeInstanceOf(NpmPluginError)
@@ -1928,7 +1930,7 @@ describe('plugin-manager npm service methods', () => {
       const entry = entryFor({ id: 'a-x', npm: '@t/a', reviewedVersion: '1.1.0', reviewedIntegrity: pin })
       const w = seedWorld(entry, versions, tbs)
       await w.plugin[PluginManagerPlugin.init]()
-      await w.plugin.installPlugin('a-x')
+      await w.plugin.installPlugin('a-x', '1.1.0')
       expect(await installedVersion(w)).toBe('1.1.0')
     })
 
@@ -1959,7 +1961,9 @@ describe('plugin-manager npm service methods', () => {
     it('with the reviewed version already installed, the remaining update reads as unreviewed-only', async () => {
       const { w } = pinnedWorld()
       await w.plugin[PluginManagerPlugin.init]()
-      await w.plugin.installPlugin('a-x')
+      // A default install now lands latest; pin the install to the
+      // reviewed version to set up the reviewed-installed state.
+      await w.plugin.installPlugin('a-x', '1.1.0')
       const updates = await w.plugin.checkUpdates()
       expect(updates).toHaveLength(1)
       expect(updates[0]!.reviewedUpdate).toBeUndefined()

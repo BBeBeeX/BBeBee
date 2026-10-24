@@ -558,7 +558,17 @@ export async function installAndActivatePlugin(
   // 3. Register into running app registry
   app.registerPlugin(pluginId, entry)
 
-  // 4. Activate plugin in kernel
+  // 4. Unload any previous fiber for this id BEFORE loading: the kernel
+  //    returns an already-active fiber as-is, so without this an update
+  //    or reinstall would write new files and record the new version yet
+  //    keep running the old code until the next restart. Unloading a
+  //    never-loaded id is a no-op, so first installs are unaffected; a
+  //    host without unloadPlugin simply skips this step.
+  if (typeof app.unloadPlugin === 'function') {
+    await app.unloadPlugin(pluginId)
+  }
+
+  // 5. Activate plugin in kernel
   return app.loadPlugin(pluginId)
 }
 

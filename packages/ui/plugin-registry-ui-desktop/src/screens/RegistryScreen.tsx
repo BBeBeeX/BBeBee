@@ -87,7 +87,10 @@ import { isOfficialEntry } from '../utils/repo.js'
 interface RegistryServiceLike {
   getIndex(force?: boolean): Promise<RegistryIndex>
   fetchEntryDetails(entry: RegistryEntry): Promise<RegistryEntryDetails>
-  install(entry: RegistryEntry, opts?: { confirmed?: boolean; overwrite?: boolean }): Promise<void>
+  install(
+    entry: RegistryEntry,
+    opts?: { confirmed?: boolean; overwrite?: boolean; plan?: RegistryEntryDetails['plan'] },
+  ): Promise<void>
   removeLockRecord?(id: string): Promise<void>
 }
 
@@ -459,7 +462,11 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
     setConfirmBusy(true)
     setConfirmError(null)
     try {
-      await registry.install(confirm.details.entry, { confirmed: true, overwrite: opts?.overwrite })
+      await registry.install(confirm.details.entry, {
+        confirmed: true,
+        overwrite: opts?.overwrite,
+        plan: confirm.details.plan,
+      })
       setConfirm(undefined)
       // The owning services fire their changed events, which re-derives the
       // action states; this bump is only a backstop for a kind whose event

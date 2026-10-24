@@ -893,6 +893,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   private async planInstall(
     id: string,
     range?: string,
+    opts?: { allowUnreviewedRoot?: boolean },
   ): Promise<{ plan: InstallPlan; nodes: ResolvedEntry[]; index: RegistryPluginEntry[] }> {
     const client = this.getNpmClient()
     let doc = await client.fetchIndexDocument()
@@ -919,7 +920,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
         `插件 "${id}" 不支持当前平台（${this.platform}），其 platforms 为 [${entry.platforms.join(', ')}]`,
       )
     }
-    const { target, closure } = await client.resolveTree(entry, range, index)
+    const { target, closure } = await client.resolveTree(entry, range, index, opts)
     const nodes = [...closure, target]
 
     const warnings: string[] = []
@@ -944,7 +945,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     for (const n of nodes) {
       if (n.pkg.unreviewed) {
         warnings.push(
-          `包 ${n.pkg.npm}@${n.pkg.version} 未经注册表审核（已审版本为 ${n.entry.reviewedVersion}）：这是显式指定的版本，安装前请再次确认`,
+          `包 ${n.pkg.npm}@${n.pkg.version} 未经注册表审核（已审版本为 ${n.entry.reviewedVersion}），安装前请再次确认`,
         )
       } else if (n.entry.reviewedVersion && n.pkg.version !== n.entry.reviewedVersion) {
         warnings.push(
@@ -1009,7 +1010,9 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   }
 
   async resolveInstallPlan(id: string, range?: string): Promise<InstallPlan> {
-    return (await this.planInstall(id, range)).plan
+    // Install plans (dialogs) resolve the root to the latest directly,
+    // flagged unreviewed past the pin — never silently capped.
+    return (await this.planInstall(id, range, { allowUnreviewedRoot: true })).plan
   }
 
   /**
@@ -1604,7 +1607,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   }
 
   async installPlugin(id: string, range?: string, expectedPlan?: InstallPlan): Promise<void> {
-    const { plan, nodes, index } = await this.planInstall(id, range)
+    const { plan, nodes, index } = await this.planInstall(id, range, { allowUnreviewedRoot: true })
     if (expectedPlan) {
       this.assertPlanUnchanged(expectedPlan, plan)
     }

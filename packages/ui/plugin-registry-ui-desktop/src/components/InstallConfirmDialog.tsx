@@ -67,7 +67,7 @@ export function InstallConfirmDialog({
   onClose,
 }: InstallConfirmDialogProps): ReactElement {
   const { t } = useOptionalI18n(ctx)
-  const { entry, allowedHosts, securityAudit, repoUrl, commit, commitDiff } = details
+  const { entry, allowedHosts, securityAudit, repoUrl, commit, commitDiff, plan } = details
   const [overwriteConfirmed, setOverwriteConfirmed] = useState(false)
   const [blockOverrideConfirmed, setBlockOverrideConfirmed] = useState(false)
   const isLocallyModified = Boolean(details.isLocallyModified)
@@ -280,6 +280,40 @@ export function InstallConfirmDialog({
                     'div',
                     { style: { fontFamily: 'var(--font-mono, ui-monospace, monospace)', fontSize: 12, color: 'var(--text-secondary, #C5CAD8)' } },
                     entry.npm,
+                  ),
+                )
+              : null,
+            // The resolved install version — the install executes this
+            // exact plan, so the number here is the number that lands.
+            plan
+              ? h(
+                  'div',
+                  {
+                    'data-testid': 'registry-plugin-plan-version',
+                    style: bodyTextStyle,
+                  },
+                  t('registry:installConfirm.planVersion', {
+                    version: normalizeVersion(plan.target.version),
+                  }),
+                )
+              : null,
+            plan?.target.unreviewed
+              ? h(
+                  'div',
+                  {
+                    'data-testid': 'registry-plugin-unreviewed-warning',
+                    style: warningStyle,
+                  },
+                  tablerIcon('alert', { size: 16 }),
+                  h(
+                    'span',
+                    null,
+                    t('registry:installConfirm.unreviewedVersionWarning', {
+                      version: normalizeVersion(plan.target.version),
+                      reviewed: entry.reviewedVersion
+                        ? normalizeVersion(entry.reviewedVersion)
+                        : t('registry:installConfirm.unreviewedVersionUnknown'),
+                    }),
                   ),
                 )
               : null,

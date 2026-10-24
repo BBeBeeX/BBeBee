@@ -241,6 +241,8 @@ interface RegistryStubOptions {
   tasks?: readonly RegistryTask[]
   /** False removes the optional task-center methods entirely (quiet-degrade path). */
   taskMethods?: boolean
+  /** Install plan `fetchEntryDetails` answers with (plugin details only). */
+  plan?: import('@BBeBee/protocol').InstallPlan
 }
 
 function makeMetadataStub(
@@ -304,10 +306,11 @@ function makeRegistryStub(options: RegistryStubOptions = {}) {
         ...(options.securityAudit ? { securityAudit: options.securityAudit } : {}),
         ...(options.commit ? { commit: options.commit } : {}),
         ...(options.commitDiff ? { commitDiff: options.commitDiff } : {}),
+        ...(options.plan ? { plan: options.plan } : {}),
       }
     },
-    install: async (entry: RegistryEntry, opts?: { confirmed?: boolean; overwrite?: boolean }) => {
-      calls.push(`install:${entry.id}:${String(opts?.confirmed ?? false)}${opts?.overwrite ? ':overwrite' : ''}`)
+    install: async (entry: RegistryEntry, opts?: { confirmed?: boolean; overwrite?: boolean; plan?: import('@BBeBee/protocol').InstallPlan }) => {
+      calls.push(`install:${entry.id}:${String(opts?.confirmed ?? false)}${opts?.overwrite ? ':overwrite' : ''}${opts?.plan ? `:plan:${opts.plan.target.version}` : ''}`)
     },
     lastIndexFetchFailed: () => options.offline ?? false,
     // The optional lock-file read; `false` removes the method entirely so the
@@ -716,6 +719,31 @@ describe('RegistryScreen', () => {
 
     fireEvent.click(getByTestId('registry-confirm-accept'))
     await waitFor(() => expect(calls).toContain('install:theme-neon:true'))
+    expect(queryByTestId('registry-confirm-dialog')).toBeNull()
+  })
+
+  it('binds the confirmed install plan version through the plugin confirm flow', async () => {
+    const plan = {
+      target: { id: 'plugin-ok', npm: '@bbebee/plugin-ok', version: '1.2.0', tarball: 'https://x/x.tgz', unreviewed: true },
+      closure: [],
+      missingServices: [],
+      warnings: [],
+    }
+    const { ctx, calls } = await harness({ plan })
+    const { getByTestId, findByTestId, queryByTestId } = render(h(RegistryScreen, { ctx }))
+
+    fireEvent.click(getByTestId('registry-tab-plugin'))
+    await findByTestId('registry-entry-plugin-ok')
+    fireEvent.click(getByTestId('registry-action-plugin-ok'))
+
+    // The dialog shows the planned version and the unreviewed warning.
+    const dialog = await findByTestId('registry-confirm-dialog')
+    expect(dialog).toBeTruthy()
+    expect(getByTestId('registry-plugin-plan-version').textContent).toContain('v1.2.0')
+    expect(getByTestId('registry-plugin-unreviewed-warning')).toBeTruthy()
+
+    fireEvent.click(getByTestId('registry-confirm-accept'))
+    await waitFor(() => expect(calls).toContain('install:plugin-ok:true:plan:1.2.0'))
     expect(queryByTestId('registry-confirm-dialog')).toBeNull()
   })
 

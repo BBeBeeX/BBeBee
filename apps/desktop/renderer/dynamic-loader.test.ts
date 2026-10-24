@@ -98,6 +98,7 @@ describe('desktop dynamic-loader', () => {
       registerPlugin: vi.fn((id, entry) => {
         registeredEntries[id] = entry
       }),
+      unloadPlugin: vi.fn().mockResolvedValue(undefined),
       loadPlugin: vi.fn().mockResolvedValue({
         pluginId: 'sample-ext',
         state: 'active',
@@ -123,6 +124,52 @@ describe('desktop dynamic-loader', () => {
     expect(mockApp.registerPlugin).toHaveBeenCalledWith('sample-ext', expect.any(Object))
     expect(mockApp.loadPlugin).toHaveBeenCalledWith('sample-ext')
     expect(loaded.state).toBe('active')
+
+    window.BBeBee = original
+  })
+
+  it('unloads a previous fiber before loading, so an update actually runs the new code', async () => {
+    const original = window.BBeBee
+    const order: string[] = []
+    // @ts-expect-error test mock
+    window.BBeBee = {
+      ...original,
+      plugins: {
+        listInstalled: vi.fn(),
+        install: vi.fn().mockResolvedValue({ ok: true, pluginId: 'sample-ext' }),
+        uninstall: vi.fn(),
+      },
+    }
+
+    const mockApp: Partial<App> = {
+      registerPlugin: vi.fn(),
+      unloadPlugin: vi.fn().mockImplementation(async () => {
+        order.push('unload')
+      }),
+      loadPlugin: vi.fn().mockImplementation(async () => {
+        order.push('load')
+        return { pluginId: 'sample-ext', state: 'active' } as LoadedPlugin
+      }),
+    }
+
+    const manifest: PluginManifest = {
+      id: 'sample-ext',
+      version: '2.0.0',
+      displayName: 'Sample Ext',
+      engines: { BBeBee: '^0.1.0' },
+      entry: { main: './index.js' },
+      capabilities: [],
+    }
+
+    await installAndActivatePlugin(
+      mockApp as App,
+      'sample-ext',
+      { 'index.js': 'export default function() {}' },
+      manifest,
+    )
+    // Without the unload-first step the kernel would return the already
+    // active old fiber and the new files would never run until restart.
+    expect(order).toEqual(['unload', 'load'])
 
     window.BBeBee = original
   })

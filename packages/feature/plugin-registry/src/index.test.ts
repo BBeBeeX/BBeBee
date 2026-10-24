@@ -175,6 +175,8 @@ interface SetupOptions {
   plugins?: PluginInfo[]
   /** Delegate result of plugin-manager.checkUpdates() for plugin update checks. */
   pluginUpdates?: PluginUpdateInfo[]
+  /** Delegate result of plugin-manager.resolveInstallPlan() for plugin detail plans. */
+  installPlan?: import('@BBeBee/protocol').InstallPlan
   /** Do not provide the plugin-manager service (tests the unavailable-service error). */
   omitPluginManager?: boolean
   registryAutoCheck?: boolean
@@ -221,6 +223,7 @@ function setup(options: SetupOptions = {}) {
     installPlugin: vi.fn(async (id: string) => `installed ${id}`),
     uninstall: vi.fn(async (id: string) => `uninstalled ${id}`),
     checkUpdates: vi.fn(async () => options.pluginUpdates ?? []),
+    ...(options.installPlan ? { resolveInstallPlan: vi.fn(async () => options.installPlan) } : {}),
   }
   if (!options.omitPluginManager) {
     ctx.provide('plugin-manager', pluginManager)
@@ -777,6 +780,21 @@ describe('install', () => {
     )
     expect(harness.pluginManager.installPlugin).toHaveBeenCalledWith('ext-plugin')
     expect(await harness.plugin.getLockRecord('ext-plugin')).toBeUndefined()
+  })
+
+  it('resolves the install plan into plugin details and binds it on install', async () => {
+    const plan = {
+      target: { id: 'ext-plugin', npm: '@bbebee/ext-plugin', version: '1.2.0', tarball: 'https://x/x.tgz', unreviewed: true },
+      closure: [],
+      missingServices: [],
+      warnings: [],
+    }
+    const harness = await setupInitialized({ installPlan: plan })
+    const entry = entryOf({ id: 'ext-plugin', kind: 'plugin', name: 'External', npm: '@bbebee/ext-plugin' })
+    const details = await harness.plugin.fetchEntryDetails(entry)
+    expect(details.plan).toEqual(plan)
+    await harness.plugin.install(entry, { confirmed: true, plan: details.plan })
+    expect(harness.pluginManager.installPlugin).toHaveBeenCalledWith('ext-plugin', undefined, plan)
   })
 
   it('surfaces a plugin-manager install failure', async () => {

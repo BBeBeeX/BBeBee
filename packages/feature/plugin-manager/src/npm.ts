@@ -747,17 +747,21 @@ export class NpmClient {
   /**
    * Applies an entry's reviewed pin (audit W5) to a plain resolution.
    *
-   * The pin is a CEILING, not just a default: any resolution that
-   * would land above `reviewedVersion` is re-resolved to the highest
-   * version at or below the pin that still satisfies the range. Two
-   * exceptions, both deliberate:
-   *  - the ROOT node with an exact-version range: the caller named the
+   * Split by path, deliberately:
+   *  - INSTALL paths (`allowUnreviewedRoot`) resolve the ROOT node to
+   *    the latest version directly and flag it `unreviewed` when it
+   *    overshoots the pin — never a silent cap that leaves the user
+   *    installing the reviewed version and then updating again. The
+   *    flag is part of the plan the confirm dialogs show, so the
+   *    overshoot is never honoured silently.
+   *  - UPDATE paths and dependency (non-root) nodes keep the ceiling:
+   *    a resolution above the pin is re-resolved to the highest
+   *    version at or below the pin that still satisfies the range,
+   *    and resolution fails loudly when no such version exists rather
+   *    than jumping the pin. The one update-side exception is the
+   *    ROOT node with an exact-version range: the caller named the
    *    precise build (the market UI's confirmed unreviewed update) —
-   *    the overshoot is kept and flagged `unreviewed` so the plan
-   *    shows it instead of silently honouring it.
-   *  - no version at or below the pin satisfies the range: the entry
-   *    set is self-contradictory, so resolution fails loudly rather
-   *    than jumping the pin.
+   *    the overshoot is kept and flagged `unreviewed`.
    * Entries without a pin pass through unchanged.
    */
   private applyReviewedPin(
@@ -766,10 +770,19 @@ export class NpmClient {
     sel: { version: string; tarball: string; integrity?: string; peerDependencies?: Record<string, string> },
     range: string | undefined,
     isRoot: boolean,
+    allowUnreviewedRoot = false,
   ): typeof sel & { unreviewed?: boolean } {
     const reviewed = entry.reviewedVersion
     if (!reviewed) return sel
     if (compareVersions(sel.version, reviewed) <= 0) return sel
+    // Install paths: keep the resolved (latest) version, flagged
+    // unreviewed for the confirm dialog — never silently cap the
+    // user's own install to the reviewed version.
+    if (isRoot && allowUnreviewedRoot) {
+      return { ...sel, unreviewed: true }
+    }
+    // Update paths: only an exact-version range names the precise
+    // build, so only that overshoot is kept and flagged.
     if (isRoot && range && EXACT_VERSION_RE.test(range.trim())) {
       return { ...sel, unreviewed: true }
     }
@@ -810,6 +823,7 @@ export class NpmClient {
     entry: RegistryPluginEntry,
     range: string | undefined,
     index: RegistryPluginEntry[],
+    opts?: { allowUnreviewedRoot?: boolean },
   ): Promise<{ target: ResolvedEntry; closure: ResolvedEntry[] }> {
     const resolved = new Map<string, ResolvedEntry>()
     const order: ResolvedEntry[] = []
@@ -818,7 +832,7 @@ export class NpmClient {
         throw new NpmPluginError('DEPENDENCY_CYCLE', `插件依赖成环：${[...path, e.id].join(' → ')}`)
       }
       const pack = await this.fetchPackument(e.npm)
-      const sel = this.applyReviewedPin(e, pack, this.selectVersion(e.npm, pack, r), r, path.length === 0)
+      const sel = this.applyReviewedPin(e, pack, this.selectVersion(e.npm, pack, r), r, path.length === 0, opts?.allowUnreviewedRoot)
       const existing = resolved.get(e.id)
       if (existing) {
         if (r && !satisfiesRange(existing.pkg.version, r)) {

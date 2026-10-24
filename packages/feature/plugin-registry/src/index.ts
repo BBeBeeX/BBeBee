@@ -171,6 +171,7 @@ function sanitizeEntry(raw: unknown, defaultKind?: RegistryEntryKind): RegistryE
     capabilities: optionalStringArray(raw.capabilities),
     npm: optionalString(raw.npm),
     npmUrl: optionalString(raw.npmUrl),
+    reviewedVersion: optionalString(raw.reviewedVersion),
     services: optionalStringArray(raw.services),
     platforms: optionalStringArray(raw.platforms),
     provides: optionalStringArray(raw.provides),
@@ -1104,8 +1105,27 @@ export class RegistryPlugin extends Service implements RegistryService {
       // author repo and compared capabilities here; the security scan and
       // all packaging checks now happen inside the plugin-manager at
       // install time, so there is nothing to fetch or scan at this stage.
+      // The install plan IS resolved here, so the dialog can show the
+      // exact version about to be installed (and its unreviewed flag when
+      // it overshoots the reviewed pin) instead of leaving the user to
+      // discover the version after the fact. A plan failure degrades to
+      // no plan — the dialog shows no version and the install resolves
+      // fresh, exactly as before — rather than blocking the dialog on
+      // a network read.
+      let plan: RegistryEntryDetails['plan']
+      const manager = this.own.manager
+      if (manager?.resolveInstallPlan) {
+        try {
+          plan = await manager.resolveInstallPlan(entry.id)
+        } catch (err) {
+          this.ownCtx.logger.warn(
+            `registry: install plan for "${entry.id}" unavailable (${err instanceof Error ? err.message : String(err)}); dialog shows no version`,
+          )
+        }
+      }
       const details: RegistryEntryDetails = {
         entry,
+        ...(plan ? { plan } : {}),
         ...(repoInfo ? { repoUrl: `https://github.com/${repoInfo.owner}/${repoInfo.repo}` } : {}),
       }
       return details
@@ -1126,7 +1146,10 @@ export class RegistryPlugin extends Service implements RegistryService {
    * without a fetch — runs it back through `download`, and finalizes it as
    * `success` or `failed` with the extracted error text.
    */
-  async install(entry: RegistryEntry, opts?: { confirmed?: boolean; overwrite?: boolean }): Promise<void> {
+  async install(
+    entry: RegistryEntry,
+    opts?: { confirmed?: boolean; overwrite?: boolean; plan?: RegistryEntryDetails['plan'] },
+  ): Promise<void> {
     this.trackBegin(entry)
     try {
       await this.installEntry(entry, opts)
@@ -1139,7 +1162,7 @@ export class RegistryPlugin extends Service implements RegistryService {
 
   private async installEntry(
     entry: RegistryEntry,
-    opts?: { confirmed?: boolean; overwrite?: boolean },
+    opts?: { confirmed?: boolean; overwrite?: boolean; plan?: RegistryEntryDetails['plan'] },
   ): Promise<void> {
     switch (entry.kind) {
       case 'music-source':
@@ -1149,7 +1172,7 @@ export class RegistryPlugin extends Service implements RegistryService {
       case 'theme':
         return this.installTheme(entry)
       case 'plugin':
-        return this.installPlugin(entry)
+        return this.installPlugin(entry, opts?.plan)
     }
   }
 
@@ -1451,10 +1474,15 @@ export class RegistryPlugin extends Service implements RegistryService {
    * records) is gone — historical `kind: 'plugin'` lock records are still
    * read by the lock manager but never written again.
    */
-  private async installPlugin(entry: RegistryEntry): Promise<void> {
+  private async installPlugin(entry: RegistryEntry, plan?: RegistryEntryDetails['plan']): Promise<void> {
     const manager = this.requirePluginManager()
     this.trackStage(entry.id, 'install')
-    await manager.installPlugin(entry.id)
+    // Bind the confirmed plan when the dialog resolved one: the install
+    // then executes exactly the version the user saw, and aborts on
+    // drift (PLAN_CHANGED) instead of silently installing something else.
+    // Without a plan the call keeps its old shape (fresh resolution).
+    if (plan) await manager.installPlugin(entry.id, undefined, plan)
+    else await manager.installPlugin(entry.id)
   }
 
   private requirePluginManager(): PluginManagerService {

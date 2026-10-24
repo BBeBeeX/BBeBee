@@ -182,8 +182,10 @@ export interface NpmResolvedPackage {
   reviewedVersion?: string
   /**
    * True when this node's resolved version is NEWER than the entry's
-   * reviewed pin — only reachable when the caller explicitly named the
-   * exact version (the UI gates that behind a second confirmation).
+   * reviewed pin. Reachable two ways: the caller explicitly named the
+   * exact version (the UI gates that behind a second confirmation), or
+   * an install plan resolved the root to the latest directly — the
+   * confirm dialog shows the flag either way.
    */
   unreviewed?: boolean
 }

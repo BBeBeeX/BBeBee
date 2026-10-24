@@ -23,6 +23,7 @@
 // resolves. Erased at build time; this adds no runtime import.
 import type {} from 'cordis'
 import type { PluginManifest } from '../manifest.js'
+import type { InstallPlan } from './plugin-manager.js'
 import type { SecurityAuditReport } from './security-audit.js'
 
 export type RegistryEntryKind = 'music-source' | 'lyric-source' | 'theme' | 'plugin'
@@ -66,6 +67,8 @@ export interface RegistryEntry {
   readonly capabilities?: readonly string[]
   /** plugin entries only (schema v2): the npm package name the client downloads. Version truth lives on npm, never here. */
   readonly npm?: string
+  /** plugin entries only (schema v2): the registry-reviewed version (the audit pin). Absent means unpinned. */
+  readonly reviewedVersion?: string
   /**
    * plugin entries only (schema v2): the canonical npm package address
    * derived from `npm` (`https://registry.npmjs.org/<encoded name>`).
@@ -130,6 +133,13 @@ export interface RegistryLockFile {
  */
 export interface RegistryEntryDetails {
   readonly entry: RegistryEntry
+  /**
+   * Plugin entries only: the install plan the confirm dialog shows (and
+   * the install executes, via `expectedPlan`). Absent when the plan
+   * could not be resolved — the dialog then shows no version and the
+   * install resolves fresh, exactly as before.
+   */
+  readonly plan?: InstallPlan
   readonly allowedHosts?: readonly string[]
   readonly isBuiltinInstall?: boolean
   /** True when a music source already exists locally and was edited since import. */

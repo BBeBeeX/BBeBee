@@ -189,8 +189,10 @@ from npm. The two phases are deliberately separate:
    bare-array form with an empty blocked channel. An entry may also carry
    a **reviewed pin** — `reviewedVersion` + `reviewedIntegrity`, the
    version registry review has actually vetted, with its sha512 — which
-   caps resolution (step 2) and anchors the download a second time
-   (step 3).
+   anchors the download a second time (step 3) and, for update plans
+   and dependency closure nodes, caps resolution (step 2). Install
+   plans resolve the root to the latest directly instead (flagged
+   `unreviewed` past the pin; see step 2).
 2. **Resolve (npm metadata only).** For the chosen entry, the client reads the
    packument from the effective npm registry, picks `dist-tags.latest` (or the
    highest version satisfying a range), and resolves the transitive dependency
@@ -198,13 +200,18 @@ from npm. The two phases are deliberately separate:
    dependency cycles fail loudly with the conflicting requirements named.
    `resolveInstallPlan` returns the plan **without downloading anything**, so
    the UI can show the exact version, the dependency closure, and any missing
-   services for confirmation. Resolution never lands above an entry's
-   `reviewedVersion`: when the entry is pinned, the plan takes the highest
-   version at or below the pin that still satisfies the range (the closure's
-   entries are capped by their own pins the same way). Going past the pin is
-   possible only by naming that exact version, which flags the plan node
-   `unreviewed` and asks for a separate, explicit confirmation — an
-   unreviewed install is a deliberate act, never the default outcome.
+   services for confirmation. Install plans resolve the root to the
+   latest version directly: when the entry is pinned and the latest sits
+   above the pin, the plan keeps the latest and flags the node
+   `unreviewed`, and the confirm dialog shows that flag (with the
+   reviewed version) before the user confirms — an unreviewed install
+   is a deliberate act, never a silent one. Update plans and dependency
+   closure nodes still treat the pin as a ceiling: the plan takes the
+   highest version at or below the pin that still satisfies the range
+   (the closure's entries are capped by their own pins the same way),
+   and going past the pin on an update is possible only by naming that
+   exact version, which flags the plan node `unreviewed` and asks for
+   a separate, explicit confirmation.
    When the user confirms a shown plan, the UI passes it back to
    `installPlugin` as `expectedPlan`: execution re-resolves once and
    compares every node's pinned identity (id + npm + version + integrity)
