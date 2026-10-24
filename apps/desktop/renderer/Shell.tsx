@@ -24,6 +24,7 @@ import { REGISTRY_VIEWS } from '@BBeBee/plugin-registry/views'
 import { PageMarqueeProvider, tablerIcon, useI18n, Toast } from '@BBeBee/ui-kit-desktop'
 import { SleepTimerIndicator, TopBar, WindowControls, type DraggableCSSProperties, type TopBarProps } from './TopBar.js'
 import { isMacPlatform, useIsFullscreen } from './platform.js'
+import { markRegistryUpdatesSeen, useRegistryUnseenUpdates } from './registry-updates.js'
 import { importDroppedFiles, importDroppedPaths, type DropImportResult } from './drop-import.js'
 
 /** What the sidebar can navigate to: a route, or a settings page. */
@@ -122,23 +123,15 @@ function useEntries(ctx: Context): { routes: readonly RouteContribution[]; entri
 }
 
 /**
- * Whether the last completed registry update check found anything.
+ * Whether the Discover sidebar entry carries an "unseen updates" dot.
  *
- * A dot on the Discover sidebar entry, driven purely by the event: the check
- * fires 'registry/updates-available' with the FULL result after every
- * completed pass — including an empty one — so the dot clears itself when a
- * check comes back clean. Everything else about updates is the registry
- * screen's business; the shell only answers "is there anything new?".
+ * Shared with the tray dot via `registry-updates.ts`: the dot means there
+ * are updates the user has not seen yet, not merely that a check found
+ * something. Entering Discover marks the current list seen; only a check
+ * with a new signature re-lights it.
  */
 function useRegistryUpdatesAvailable(ctx: Context): boolean {
-  const [available, setAvailable] = useState(false)
-  useEffect(() => {
-    const off = ctx.on('registry/updates-available', (updates: readonly unknown[]) => {
-      setAvailable(Array.isArray(updates) && updates.length > 0)
-    })
-    return () => void off()
-  }, [ctx])
-  return available
+  return useRegistryUnseenUpdates(ctx)
 }
 
 class ViewBoundary extends Component<
@@ -699,6 +692,17 @@ export function Shell({ ctx }: { ctx: Context }) {
   const currentId = currentItem?.id
   const currentParams = currentItem?.params
   const currentKey = currentId ? getPageKey(currentId, currentParams) : ''
+
+  // Shell-internal navigation (sidebar clicks) does not go through
+  // `ui/navigate`, so the hook's navigate listener alone would miss it:
+  // landing on Discover by any route marks the current update list seen,
+  // which clears both this sidebar dot and the tray dot (via
+  // `registry/updates-seen`).
+  useEffect(() => {
+    if (currentId === REGISTRY_VIEWS.screen) {
+      markRegistryUpdatesSeen(ctx)
+    }
+  }, [currentId, ctx])
 
   const [cachedPages, setCachedPages] = useState<Map<string, CachedPageItem>>(() => {
     const map = new Map<string, CachedPageItem>()

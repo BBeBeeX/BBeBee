@@ -263,6 +263,14 @@ fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
         tauri::WindowEvent::Resized(_) if window.label() == "main" => {
             let is_fullscreen = window.is_fullscreen().unwrap_or(false);
             let _ = window.emit("window:fullscreen-changed", is_fullscreen);
+            // Every maximize/restore transition resizes the window, so this
+            // is also the precise maximized signal: the frontend's window
+            // controls listen to it (with a resize re-query as fallback)
+            // instead of optimistically toggling their icon, which drifts
+            // whenever the window is maximized from outside the button
+            // (title-bar double-click, Win+↑/↓, snap, taskbar).
+            let is_maximized = window.is_maximized().unwrap_or(false);
+            let _ = window.emit("window:maximized-changed", is_maximized);
             suspend_glass_for_drag(window);
         }
         #[cfg(target_os = "windows")]

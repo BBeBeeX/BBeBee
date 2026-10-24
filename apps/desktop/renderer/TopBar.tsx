@@ -12,7 +12,7 @@
  * while interactive controls opt out with no-drag.
  */
 
-import { createElement as h, useEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react'
+import { createElement as h, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { SleepTimerMode, SleepTimerService, TrayContribution } from '@BBeBee/protocol'
 import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
@@ -20,6 +20,7 @@ import { useSearchSourceSelection, useAudioSourcesStatus, isLocalSource, type Se
 import { useSleepTimer } from '@BBeBee/plugin-sleep-timer/hooks'
 import logoWhiteUrl from './assets/logo-white.png'
 import { isMacPlatform } from './platform.js'
+import { useRegistryUnseenUpdates } from './registry-updates.js'
 
 function serviceOf<T = unknown>(ctx: Context, key: string): T | undefined {
   return (ctx as unknown as { reflect?: { get(key: string, required: boolean): unknown } }).reflect?.get?.(
@@ -322,14 +323,10 @@ export function TrayIndicator({ ctx }: { ctx: Context }): ReactElement {
 
   const [items, setItems] = useState<readonly TrayContribution[]>(readTray)
 
-  const [updatesAvailable, setUpdatesAvailable] = useState(false)
-
-  useEffect(() => {
-    const off = ctx.on('registry/updates-available', (updates: readonly unknown[]) => {
-      setUpdatesAvailable(Array.isArray(updates) && updates.length > 0)
-    })
-    return () => void off()
-  }, [ctx])
+  // Unseen-updates dot, not an "updates exist" dot: entering Discover marks
+  // the current list seen (see registry-updates.ts), so the dot clears on
+  // a visit and only re-lights when a check finds something new.
+  const updatesAvailable = useRegistryUnseenUpdates(ctx)
 
   useEffect(() => {
     setItems(readTray())
@@ -1000,21 +997,52 @@ export function WindowControls({ style, ctx }: WindowControlsProps): ReactElemen
   const { t } = useI18n(ctx)
   const [isMaximized, setIsMaximized] = useState(false)
 
-  useEffect(() => {
-    // Read initial maximized state if available
+  // The icon must reflect the window's REAL state, never an optimistic
+  // toggle: the Rust `window_maximize` command toggles on the state it
+  // reads at command time, so `!prev` inverts the icon whenever the state
+  // was already stale (e.g. the window was maximized from outside this
+  // button). Every path below re-queries `isMaximized()` instead.
+  const syncMaximized = useCallback(() => {
     void window.BBeBee?.window?.isMaximized?.().then((max) => {
       if (typeof max === 'boolean') setIsMaximized(max)
     })
   }, [])
+
+  useEffect(() => {
+    syncMaximized()
+    // System-side maximize/restore never touches this button: title-bar
+    // double-click, Win+↑/↓, dragging to the screen top, the taskbar —
+    // every one of them changes the window size, so a resize re-query
+    // catches them all. The Rust `window:maximized-changed` event (emitted
+    // on Resized, see main.rs) is the precise signal when available.
+    const onResize = () => syncMaximized()
+    window.addEventListener('resize', onResize)
+    let unlistenTauri: (() => void) | undefined
+    if (typeof window !== 'undefined' && window.__TAURI__?.event?.listen) {
+      void window.__TAURI__.event
+        .listen<boolean>('window:maximized-changed', (e) => {
+          setIsMaximized(Boolean(e.payload))
+        })
+        .then((unlisten) => {
+          unlistenTauri = unlisten
+        })
+    }
+    return () => {
+      window.removeEventListener('resize', onResize)
+      unlistenTauri?.()
+    }
+  }, [syncMaximized])
 
   const handleMinimize = () => {
     void window.BBeBee?.window?.minimize?.()
   }
 
   const handleMaximize = () => {
-    void window.BBeBee?.window?.maximize?.().then(() => {
-      setIsMaximized((prev) => !prev)
-    })
+    // Re-query after the toggle lands, and also if it fails: either way
+    // the icon ends up matching the window, not the previous icon.
+    void window.BBeBee?.window
+      ?.maximize?.()
+      .then(syncMaximized, syncMaximized)
   }
 
   const handleClose = () => {

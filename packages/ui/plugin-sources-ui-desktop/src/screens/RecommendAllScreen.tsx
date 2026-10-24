@@ -7,6 +7,7 @@ import { serviceOf } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
 import { RecommendCard } from '../components/RecommendCard.js'
 import { SourceConfigureModal } from '../components/SourceConfigureModal.js'
+import { usePlayAlbum } from '../hooks/usePlayAlbum.js'
 
 /**
  * One source's whole recommendation feed, as a grid.
@@ -41,6 +42,10 @@ export function RecommendAllScreen({
       serviceOf<UiService>(ctx, 'ui')?.navigate('album.view', { urn: entry.urn })
     }
   }
+
+  // Card body opens; the cover's play chip plays (it stops propagation in
+  // RecommendCard, so the two never both fire).
+  const playCard = usePlayAlbum(ctx)
 
   return h(
     'section',
@@ -98,6 +103,7 @@ export function RecommendAllScreen({
                       ctx,
                       entry,
                       onPress: openCard,
+                      onPlay: playCard,
                     }),
                   ),
                 ),

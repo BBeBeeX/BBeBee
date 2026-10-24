@@ -22,6 +22,8 @@ export interface RecommendShelfRowProps {
   }
   entries: readonly BrowseEntry[]
   onOpenCard: (entry: BrowseEntry) => void
+  /** Play action for a card's play chip; card clicks still open (see RecommendCard). */
+  onPlayCard?: (entry: BrowseEntry) => void
   testID?: string
   status?: 'idle' | 'loading' | 'ready' | 'error'
   errorMessage?: string
@@ -47,6 +49,7 @@ export function RecommendShelfRow({
   action,
   entries,
   onOpenCard,
+  onPlayCard,
   testID,
   status = 'idle',
   errorMessage,
@@ -306,7 +309,7 @@ export function RecommendShelfRow({
                         'transform 0.28s var(--bb-easing-tactile, cubic-bezier(0.16, 1, 0.3, 1))',
                     },
                   },
-                  h(RecommendCard, { ctx, entry, onPress: onOpenCard }),
+                  h(RecommendCard, { ctx, entry, onPress: onOpenCard, onPlay: onPlayCard }),
                   // Directional shading gradient: softly applied only over the 160px cover
                   // so the card's title and subtitle remain 100% crisp and readable
                   isBent

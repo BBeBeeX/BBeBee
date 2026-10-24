@@ -231,6 +231,17 @@ declare module 'cordis' {
      */
     'registry/updates-available'(updates: readonly RegistryUpdate[]): void
     /**
+     * Fired when the user has seen the Discover page's current update list.
+     * The payload is the signature (kind:id:availableVersion, sorted) of the
+     * list that was seen, so badge listeners can tell "seen" apart from
+     * "no updates": a later check with the same signature stays seen, a
+     * check with a new signature is unseen again. This is what makes the
+     * tray/sidebar dot an "unseen updates" dot rather than an
+     * "updates exist" dot — entering Discover clears it, updating is not
+     * required. See `apps/desktop/renderer/registry-updates.ts`.
+     */
+    'registry/updates-seen'(signature: string): void
+    /**
      * Fired after every task-center mutation — a task created, a stage
      * advanced, a task finished or the finished records cleared — with the
      * full current task list, newest first. Listeners re-render from the
@@ -310,6 +321,7 @@ export const DISPATCH_MODES = {
   'plugin-manager/enabled-changed': 'emit',
   'plugin-manager/changed': 'emit',
   'registry/updates-available': 'emit',
+  'registry/updates-seen': 'emit',
   'registry/tasks-changed': 'emit',
   'audio-converter/tasks-changed': 'emit',
   'audio-converter/task-progress': 'emit',

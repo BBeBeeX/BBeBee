@@ -19,11 +19,21 @@ export function RecommendCard({
   entry,
   size = 160,
   onPress,
+  onPlay,
 }: {
   ctx: Context
   entry: BrowseEntry
   size?: number
   onPress?: (entry: BrowseEntry) => void
+  /**
+   * Play action for the cover's play chip. When present, clicking the chip
+   * plays the album and must NOT bubble to the card's `onPress` (which
+   * opens the album) — the two zones are distinct actions. When absent,
+   * the chip is purely decorative and a click falls through to `onPress`
+   * as before. (A real <button> cannot be nested inside the card's
+   * <button>, so the chip stays a div with its own click handler.)
+   */
+  onPlay?: (entry: BrowseEntry) => void
 }): ReactElement {
   const artwork = useResolvedArtwork(ctx, entry.artwork)
   const [hovered, setHovered] = useState(false)
@@ -103,9 +113,15 @@ export function RecommendCard({
               {
                 onMouseEnter: () => setPlayHovered(true),
                 onMouseLeave: () => setPlayHovered(false),
+                onClick: (e: { stopPropagation: () => void }) => {
+                  if (!onPlay) return
+                  e.stopPropagation()
+                  onPlay(entry)
+                },
                 style: {
                   width: 38,
                   height: 38,
+                  cursor: onPlay ? 'pointer' : undefined,
                   borderRadius: '50%',
                   background: 'var(--button-primary-bg, var(--color-primary, #5F87FF))',
                   display: 'flex',

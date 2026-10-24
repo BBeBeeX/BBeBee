@@ -1,4 +1,4 @@
-import { createElement as h, useEffect, useState, type ReactElement } from 'react'
+import { createElement as h, useCallback, useEffect, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { serviceOf } from '@BBeBee/toolkit/hooks'
 import { TextField, useI18n } from '@BBeBee/ui-kit-desktop'
@@ -26,7 +26,19 @@ const rowStyle: React.CSSProperties = {
  */
 export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
   const { t } = useI18n(ctx)
-  const library = serviceOf<LibraryProfileApi>(ctx, 'library')
+  // ⚠️ `serviceOf` returns a fresh proxy per call, so it must never sit in a
+  // hook dependency array: an unstable identity there re-runs the effect on
+  // every render, and this effect's `setName` then overwrites whatever the
+  // user just typed — typed characters "immediately disappear / bounce back
+  // to the old name". Read the service inside effects and handlers, keyed
+  // on `ctx` only (the same discipline RegistryScreen follows).
+  const getLibrary = useCallback(
+    () => serviceOf<LibraryProfileApi>(ctx, 'library'),
+    [ctx],
+  )
+
+  // Render-time read only (never a hook dependency): whether saving is possible.
+  const canSave = Boolean(getLibrary()?.updateProfile)
 
   const [name, setName] = useState('Mine')
   const [userId, setUserId] = useState('')
@@ -34,18 +46,13 @@ export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const library = getLibrary()
     if (!library?.getProfile) return
     let cancelled = false
-    void library
-      .getProfile()
-      .then((p) => {
-        if (cancelled) return
-        setUserId(p.id)
-        setName(p.name || 'Mine')
-      })
-      .catch(() => undefined)
-    const off = ctx.on('library/profile-changed', () => {
-      void library
+    const read = () => {
+      const svc = getLibrary()
+      if (!svc?.getProfile) return
+      void svc
         .getProfile()
         .then((p) => {
           if (cancelled) return
@@ -53,14 +60,17 @@ export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
           setName(p.name || 'Mine')
         })
         .catch(() => undefined)
-    })
+    }
+    read()
+    const off = ctx.on('library/profile-changed', read)
     return () => {
       cancelled = true
       off()
     }
-  }, [ctx, library])
+  }, [ctx, getLibrary])
 
   const handleSave = () => {
+    const library = getLibrary()
     if (!library?.updateProfile) return
     const trimmed = name.trim()
     if (!trimmed) {
@@ -171,7 +181,7 @@ export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
               type: 'button',
               'data-testid': 'profile-name-save',
               onClick: handleSave,
-              disabled: !library?.updateProfile,
+              disabled: !canSave,
               style: {
                 padding: '6px 14px',
                 borderRadius: 6,
@@ -180,7 +190,7 @@ export function UserProfileCard({ ctx }: { ctx: Context }): ReactElement {
                 color: '#FFFFFF',
                 fontSize: 12,
                 fontWeight: 600,
-                cursor: library?.updateProfile ? 'pointer' : 'not-allowed',
+                cursor: canSave ? 'pointer' : 'not-allowed',
                 flexShrink: 0,
               },
             },

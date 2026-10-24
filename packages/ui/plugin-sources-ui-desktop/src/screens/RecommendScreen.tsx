@@ -12,6 +12,7 @@ import { OnboardingHero } from '../components/OnboardingHero.js'
 import { OnboardingModal } from '../components/OnboardingModal.js'
 import { useRecentPlayedAlbums } from '../hooks/useRecentPlayedAlbums.js'
 import { useFavoriteAlbums } from '../hooks/useFavoriteAlbums.js'
+import { usePlayAlbum } from '../hooks/usePlayAlbum.js'
 
 /**
  * The recommendation shelf page.
@@ -71,6 +72,10 @@ export function RecommendScreen({
     serviceOf<UiService>(ctx, 'ui')?.navigate('album.view', { urn: entry.urn })
   }
 
+  // Card body opens the album; the cover's play chip plays it. The chip
+  // stops propagation in RecommendCard, so these never both fire.
+  const playCard = usePlayAlbum(ctx)
+
   const hasAnyContent = recentAlbums.length > 0 || favoriteAlbums.length > 0 || sources.length > 0
   const isColdStart = !hasAnyContent && allSources.length === 0
 
@@ -106,6 +111,7 @@ export function RecommendScreen({
                     testID: 'recommend-shelf-recent-albums',
                     entries: recentAlbums,
                     onOpenCard: openCard,
+                    onPlayCard: playCard,
                   })
                 : null,
               // 2. Favorite songs' albums (if any)
@@ -117,6 +123,7 @@ export function RecommendScreen({
                     testID: 'recommend-shelf-favorite-albums',
                     entries: favoriteAlbums,
                     onOpenCard: openCard,
+                    onPlayCard: playCard,
                   })
                 : null,
               // 3. Third-party music sources
@@ -127,6 +134,7 @@ export function RecommendScreen({
                   sourceId: source.sourceId,
                   sourceName: source.displayName,
                   onOpenCard: openCard,
+                  onPlayCard: playCard,
                 }),
               ),
             ),
@@ -144,11 +152,13 @@ function RecommendShelf({
   sourceId,
   sourceName,
   onOpenCard,
+  onPlayCard,
 }: {
   ctx: Context
   sourceId: string
   sourceName: string
   onOpenCard: (entry: BrowseEntry) => void
+  onPlayCard: (entry: BrowseEntry) => void
 }): ReactElement {
   const { t } = useI18n(ctx)
   const shelf = useRecommendShelf(ctx, sourceId)
@@ -179,6 +189,7 @@ function RecommendShelf({
       onConfigure: () => setConfigureOpen(true),
       entries: shelf.data ?? [],
       onOpenCard,
+      onPlayCard,
     }),
     h(SourceConfigureModal, {
       ctx,
