@@ -156,6 +156,20 @@
       "use": "Enable",
       "disable": "Disable"
     },
+    "registryServices": {
+      "activeProvider": "Active",
+      "criticalLocked": "Critical service — its provider cannot be switched.",
+      "managerNotLoaded": "Plugin manager not loaded",
+      "managerNotLoadedDescription": "The plugin manager service is not available, so providers cannot be listed.",
+      "noSharedServices": "No shared services",
+      "noSharedServicesDescription": "Every service currently has a single provider, so there is nothing to switch.",
+      "services": "Services",
+      "subtitle": "When more than one installed plugin provides the same service, only one can be active at a time. Switch the provider here — the choice is persisted and honoured at the next start.",
+      "switchFailed": "Failed to switch provider: {error}",
+      "switching": "Switching…",
+      "title": "Service providers",
+      "useProvider": "Use this provider"
+    },
     "registrySettings": {
       "builtIn": "[Built-in]",
       "checkUpdates": "Check updates",
@@ -342,6 +356,20 @@
       "disabled": "已停用",
       "use": "使用",
       "disable": "停用"
+    },
+    "registryServices": {
+      "activeProvider": "生效中",
+      "criticalLocked": "关键服务——提供者不可切换。",
+      "managerNotLoaded": "插件管理器未加载",
+      "managerNotLoadedDescription": "插件管理器服务不可用，无法列出提供者。",
+      "noSharedServices": "没有共享服务",
+      "noSharedServicesDescription": "目前每个服务都只有一个提供者，无需切换。",
+      "services": "服务",
+      "subtitle": "当多个已安装插件提供同一个服务时，同一时间只能有一个生效。在此切换提供者，选择会被保存并在下次启动时继续生效。",
+      "switchFailed": "切换提供者失败：{error}",
+      "switching": "切换中…",
+      "title": "服务提供者",
+      "useProvider": "使用该提供者"
     },
     "registrySettings": {
       "builtIn": "[内置]",

@@ -70,6 +70,7 @@ import { RegistryTaskDrawer } from '../components/RegistryTaskDrawer.js'
 import { RegistryEmptyState } from '../components/RegistryEmptyState.js'
 import { RegistrySkeletonGrid } from '../components/RegistrySkeleton.js'
 import { RegistryDiagnosticsScreen } from './RegistryDiagnosticsScreen.js'
+import { RegistryServicesScreen } from './RegistryServicesScreen.js'
 import {
   DEFAULT_SORT_DIR,
   RegistryFilterBar,
@@ -151,8 +152,8 @@ function kindTabLabel(t: Translate, kind: RegistryEntryKind): string {
   }
 }
 
-/** What the tab row can show: the four kinds plus the curated and diagnostic views. */
-type RegistryView = RegistryEntryKind | 'favorites' | 'installed' | 'diagnostics'
+/** What the tab row can show: the four kinds plus the curated, diagnostic and services views. */
+type RegistryView = RegistryEntryKind | 'favorites' | 'installed' | 'diagnostics' | 'services'
 
 const screenStyle = {
   display: 'flex',
@@ -248,7 +249,8 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
   )
 
   const [view, setView] = useState<RegistryView>('music-source')
-  const isKindView = view !== 'favorites' && view !== 'installed' && view !== 'diagnostics'
+  const isKindView =
+    view !== 'favorites' && view !== 'installed' && view !== 'diagnostics' && view !== 'services'
   const [query, setQuery] = useState('')
   // Filter/sort view state — nothing here is domain state, so none of it is
   // persisted: the page always opens showing everything, names A→Z. The sort
@@ -972,8 +974,9 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
         )
       : null,
     // Search + filters (one wrapping row; testids live on the controls). The
-    // diagnostics view is a report, not a catalog — it gets no filter bar.
-    view === 'diagnostics'
+    // diagnostics view is a report, not a catalog — it gets no filter bar,
+    // and neither does the services view (it lists provider choices, not entries).
+    view === 'diagnostics' || view === 'services'
       ? null
       : h(RegistryFilterBar, {
       ctx,
@@ -992,8 +995,8 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
       showBrowseControls: true,
       showThirdPartyFilter: isKindView,
     }),
-    // Tabs: the four kinds, then a hairline divider, then the curated views
-    // and the diagnostics report.
+    // Tabs: the four kinds, then a hairline divider, then the curated views,
+    // the diagnostics report and the services provider page.
     h(
       'div',
       { style: tabsRowStyle },
@@ -1030,9 +1033,18 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
         view === 'diagnostics',
         () => setView('diagnostics'),
       ),
+      kindTabButton(
+        'services',
+        t('registry:registryServices.services'),
+        null,
+        view === 'services',
+        () => setView('services'),
+      ),
     ),
     // Body
-    view === 'diagnostics'
+    view === 'services'
+      ? h(RegistryServicesScreen, { ctx })
+      : view === 'diagnostics'
       ? h(RegistryDiagnosticsScreen, { ctx, onNavigateToEntry: handleNavigateToEntry })
       : loading
       ? // Card-shaped skeleton grid in the real cards' own grid.
