@@ -16,7 +16,7 @@ import {
   useTracksByUrn,
   useTransport,
 } from '@bbebee/plugin-player/hooks'
-import { ContextMenu, EmptyState, List, Text, TrackRow, useI18n } from '@BBeBee/ui-kit-mobile'
+import { ContextMenu, EmptyState, List, Text, TrackRow, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { useResolvedArtwork } from '@bbebee/plugin-cache/hooks'
 import { useTrackMenu } from '@BBeBee/ui-menus'
 import type { TrackRowProps } from '@BBeBee/ui-core'
@@ -83,32 +83,41 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
     null,
     // Mobile Header Stats Summary
     h(
-      'div',
+      nativePrimitives().View as never,
       {
         style: {
-          padding: '16px',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          paddingHorizontal: tokens.space[4],
+          paddingTop: tokens.space[3],
+          paddingBottom: tokens.space[3],
+          borderBottomWidth: 1,
+          borderBottomColor: 'rgba(255, 255, 255, 0.08)',
         },
       },
       h(Text, { variant: 'lg', children: t('history:history.playHistory') }),
       h(
-        'div',
+        nativePrimitives().View as never,
         {
           style: {
-            display: 'flex',
-            gap: 16,
-            marginTop: 8,
-            fontSize: 12,
-            color: '#8e8e93',
+            flexDirection: 'row',
+            gap: tokens.space[4],
+            marginTop: tokens.space[2],
           },
         },
-        h('span', null, t('history:index.totalPlays', { totalPlays: stats.totalPlays })),
         h(
-          'span',
-          null,
+          Text,
+          { variant: 'xs', tone: 'muted' },
+          t('history:index.totalPlays', { totalPlays: stats.totalPlays }),
+        ),
+        h(
+          Text,
+          { variant: 'xs', tone: 'muted' },
           t('history:index.totalTime', { duration: formatPlayDuration(t, stats.totalMsPlayed) }),
         ),
-        h('span', null, t('history:index.todayTracks', { todayPlays: stats.todayPlays })),
+        h(
+          Text,
+          { variant: 'xs', tone: 'muted' },
+          t('history:index.todayTracks', { todayPlays: stats.todayPlays }),
+        ),
       ),
     ),
     h(List<PlayRecord>, {
@@ -123,16 +132,10 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
         const isActive = transport.trackUrn === item.trackUrn
         const playCount = playCountMap.get(item.trackUrn) ?? 1
         return h(
-          'div',
-          {
-            style: {
-              display: 'flex',
-              alignItems: 'center',
-              paddingRight: 12,
-            },
-          },
+          nativePrimitives().View as never,
+          { style: { flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 } },
           h(
-            'div',
+            nativePrimitives().View as never,
             { style: { flex: 1, minWidth: 0 } },
             h(CachedTrackRow, {
               ctx,
@@ -146,20 +149,23 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
             }),
           ),
           h(
-            'span',
+            nativePrimitives().View as never,
             {
               style: {
-                fontSize: 11,
-                padding: '1px 6px',
-                borderRadius: 4,
-                background: 'rgba(255, 255, 255, 0.08)',
-                color: '#8e8e93',
-                whiteSpace: 'nowrap',
+                paddingHorizontal: tokens.space[2],
+                paddingVertical: 2,
+                borderRadius: tokens.radius.sm,
+                backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                marginRight: tokens.space[2],
               },
             },
-            playCount === 1
-              ? t('history:history.plays.one', { count: playCount })
-              : t('history:history.plays.other', { count: playCount }),
+            h(
+              Text,
+              { variant: 'xs', tone: 'muted' },
+              playCount === 1
+                ? t('history:history.plays.one', { count: playCount })
+                : t('history:history.plays.other', { count: playCount }),
+            ),
           ),
         )
       },

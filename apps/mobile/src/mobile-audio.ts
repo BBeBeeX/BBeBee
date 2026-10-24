@@ -311,7 +311,22 @@ export class MobileAudioService extends Service implements AudioService {
     }
 
     this.activeFiber = fiber
-    this.activeEngine = (scoped as unknown as { audio: AudioService }).audio
+    /*
+     * Take the engine's raw implementation from the fiber's impl store.
+     * Resolving the service by name (`scoped.audio`) reads through whoever
+     * is asking — and since the engine unification both this service and
+     * AudioMpv register as `audio`, the gate re-binds that read to the
+     * app-level provider, this very service: `setVolume` recursed into
+     * itself and blew the native stack the moment Player#restore touched
+     * volume on a device with saved playback state. The store entry is the
+     * unproxied instance the plugin mounted, unreachable by interception.
+     */
+    const impl = (fiber as unknown as { store: Record<string, { value?: AudioService } | undefined> })
+      .store['audio']
+    if (!impl?.value) {
+      throw new Error('mobile-audio: mounted engine did not provide the audio service')
+    }
+    this.activeEngine = impl.value
   }
 
   async switchEngine(targetEngine: 'mpv' | 'wasapi'): Promise<void> {
