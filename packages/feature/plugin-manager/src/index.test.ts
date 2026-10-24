@@ -796,6 +796,132 @@ describe('plugin-manager npm service methods', () => {
     expect(setCalls.at(-1)![1]['a-x'].version).toBe('1.0.0')
   })
 
+  it('falls back to the entry npmUrl when the mirror tarball download fails', async () => {
+    const good = tarballFor('@t/a', 'a-x', '1.0.0')
+    const goodIntegrity = `sha512-${base64Encode(sha512(good))}`
+    const entry = entryFor({
+      id: 'a-x',
+      npm: '@t/a',
+      npmUrl: 'https://registry.npmjs.org/%40t%2Fa',
+    })
+    const w = createNpmWorld({
+      manifests: {
+        '@bbebee/plugin-player': {
+          id: '@bbebee/plugin-player',
+          name: '@bbebee/plugin-player',
+          displayName: 'Player',
+          description: 'player',
+          version: '1.0.0',
+          author: 'BBeBee',
+          engines: { BBeBee: '^0.1.0' },
+          entry: { main: './dist/index.js' },
+          capabilities: [],
+          contributes: { services: ['player'] },
+          effect: 'player',
+        } as PluginManifest,
+      },
+    })
+    w.settingsData.downloadRegion = 'mainland-china'
+    // Index via the china raw base; plan packument via the mirror.
+    w.routes.set(
+      'https://cdn.jsdelivr.net/gh/BBeBeeX/B_Be_Bee-registry@main/plugins/index.json',
+      { status: 200, json: async () => [entry] },
+    )
+    w.routes.set('https://registry.npmmirror.com/%40t%2Fa', {
+      status: 200,
+      json: async () => ({
+        name: '@t/a',
+        'dist-tags': { latest: '1.0.0' },
+        versions: {
+          '1.0.0': {
+            version: '1.0.0',
+            dist: {
+              tarball: 'https://registry.npmmirror.com/@t/a/-/a-1.0.0.tgz',
+              integrity: goodIntegrity,
+            },
+          },
+        },
+      }),
+    })
+    // The mirror tarball is down: primary download fails.
+    w.routes.set('https://registry.npmmirror.com/@t/a/-/a-1.0.0.tgz', { status: 500 })
+    // npmUrl leg: official packument + official tarball serve the same bytes.
+    w.routes.set('https://registry.npmjs.org/%40t%2Fa', {
+      status: 200,
+      json: async () => ({
+        name: '@t/a',
+        'dist-tags': { latest: '1.0.0' },
+        versions: {
+          '1.0.0': {
+            version: '1.0.0',
+            dist: {
+              tarball: 'https://registry.npmjs.org/@t/a/-/a-1.0.0.tgz',
+              integrity: goodIntegrity,
+            },
+          },
+        },
+      }),
+    })
+    w.routes.set('https://registry.npmjs.org/@t/a/-/a-1.0.0.tgz', {
+      status: 200,
+      bytes: async () => good,
+    })
+    await w.plugin[PluginManagerPlugin.init]()
+    await w.plugin.installPlugin('a-x')
+    expect(w.bridge.installPlugin).toHaveBeenCalledTimes(1)
+    const [id, files] = w.bridge.installPlugin.mock.calls[0]!
+    expect(id).toBe('a-x')
+    expect(files['dist/index.js']).toContain('a-x')
+  })
+
+  it('fails without npmUrl when the mirror tarball download fails', async () => {
+    const good = tarballFor('@t/a', 'a-x', '1.0.0')
+    const goodIntegrity = `sha512-${base64Encode(sha512(good))}`
+    const entry = entryFor({ id: 'a-x', npm: '@t/a' })
+    const w = createNpmWorld({
+      manifests: {
+        '@bbebee/plugin-player': {
+          id: '@bbebee/plugin-player',
+          name: '@bbebee/plugin-player',
+          displayName: 'Player',
+          description: 'player',
+          version: '1.0.0',
+          author: 'BBeBee',
+          engines: { BBeBee: '^0.1.0' },
+          entry: { main: './dist/index.js' },
+          capabilities: [],
+          contributes: { services: ['player'] },
+          effect: 'player',
+        } as PluginManifest,
+      },
+    })
+    w.settingsData.downloadRegion = 'mainland-china'
+    w.routes.set(
+      'https://cdn.jsdelivr.net/gh/BBeBeeX/B_Be_Bee-registry@main/plugins/index.json',
+      { status: 200, json: async () => [entry] },
+    )
+    w.routes.set('https://registry.npmmirror.com/%40t%2Fa', {
+      status: 200,
+      json: async () => ({
+        name: '@t/a',
+        'dist-tags': { latest: '1.0.0' },
+        versions: {
+          '1.0.0': {
+            version: '1.0.0',
+            dist: {
+              tarball: 'https://registry.npmmirror.com/@t/a/-/a-1.0.0.tgz',
+              integrity: goodIntegrity,
+            },
+          },
+        },
+      }),
+    })
+    w.routes.set('https://registry.npmmirror.com/@t/a/-/a-1.0.0.tgz', { status: 500 })
+    await w.plugin[PluginManagerPlugin.init]()
+    await expectNpmError(w.plugin.installPlugin('a-x'), 'DOWNLOAD_FAILED')
+    expect(w.bridge.installPlugin).not.toHaveBeenCalled()
+  })
+
   it('warns on a peer range that excludes the host version — but still installs', async () => {
     const entry = entryFor({ id: 'a-x', npm: '@t/a' })
     const tarballs = { '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0') }
@@ -2498,6 +2624,83 @@ describe('NpmClient.downloadPackage streaming (Fix E)', () => {
     // Here we assert the stream path is taken at all for downloads.
     const out = await clientWith(http).downloadPackage(pkg)
     expect(out.byteLength).toBe(64 * 1000)
+  })
+})
+
+describe('NpmClient.resolveOfficialTarball (npmUrl fallback leg)', () => {
+  const entry = {
+    id: 'a-x',
+    name: 'a-x',
+    repo: 'https://github.com/test/a-x',
+    npm: '@t/a',
+    npmUrl: 'https://registry.npmjs.org/%40t%2Fa',
+    author: 'test',
+    description: 'test entry',
+    services: ['player'],
+    platforms: ['desktop'],
+    category: 'other',
+    dependencies: [],
+    compositors: [],
+  } as RegistryPluginEntry
+  const officialPackument = {
+    name: '@t/a',
+    'dist-tags': { latest: '1.0.0' },
+    versions: {
+      '1.0.0': {
+        version: '1.0.0',
+        dist: {
+          tarball: 'https://registry.npmjs.org/@t/a/-/a-1.0.0.tgz',
+          integrity: 'sha512-AAAA',
+        },
+      },
+    },
+  }
+  function clientWith(http: any) {
+    return new NpmClient({
+      http,
+      readSettings: async () => undefined,
+      readSecret: async () => undefined,
+      cache: { get: async () => undefined, set: async () => {} },
+      log: { info() {}, warn() {}, error() {} },
+    })
+  }
+  const okHttp = vi.fn(async () => ({ status: 200, headers: {}, json: async () => officialPackument }))
+
+  it('resolves the exact version through npmUrl, never re-resolving to latest', async () => {
+    const out = await clientWith(okHttp).resolveOfficialTarball(entry, '1.0.0')
+    expect(out).toEqual({
+      tarball: 'https://registry.npmjs.org/@t/a/-/a-1.0.0.tgz',
+      integrity: 'sha512-AAAA',
+    })
+    expect(okHttp).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://registry.npmjs.org/%40t%2Fa' }),
+    )
+  })
+
+  it('refuses a missing npmUrl', async () => {
+    await expectNpmError(
+      clientWith(okHttp).resolveOfficialTarball({ ...entry, npmUrl: undefined }, '1.0.0'),
+      'DOWNLOAD_FAILED',
+    )
+  })
+
+  it('refuses an npmUrl off the official registry host', async () => {
+    await expectNpmError(
+      clientWith(okHttp).resolveOfficialTarball(
+        { ...entry, npmUrl: 'https://evil.example/%40t%2Fa' },
+        '1.0.0',
+      ),
+      'DOWNLOAD_FAILED',
+    )
+  })
+
+  it('refuses when the official packument lacks the exact version', async () => {
+    await expectNpmError(clientWith(okHttp).resolveOfficialTarball(entry, '9.9.9'), 'VERSION_NOT_FOUND')
+  })
+
+  it('fails when the official packument fetch fails', async () => {
+    const http = vi.fn(async () => ({ status: 404, headers: {}, json: async () => ({}) }))
+    await expectNpmError(clientWith(http).resolveOfficialTarball(entry, '1.0.0'), 'DOWNLOAD_FAILED')
   })
 })
 

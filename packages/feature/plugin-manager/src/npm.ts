@@ -952,6 +952,63 @@ export class NpmClient {
     return bytes
   }
 
+  /**
+   * Resolves one exact version's tarball through the entry's `npmUrl` —
+   * the canonical official packument address. This is the fallback leg
+   * for a mirror-aware download that proved ineffective (see
+   * `preparePackage`): npmUrl IS the official address, so it is fetched
+   * directly with no mirror hop and no auth (registry entries are
+   * public packages). The version is never re-resolved — the plan's
+   * exact version is what gets fetched, so a fallback cannot silently
+   * substitute a different build. Only an npmUrl on the official
+   * registry host is honoured; anything else is refused rather than
+   * chased.
+   */
+  async resolveOfficialTarball(
+    entry: RegistryPluginEntry,
+    version: string,
+  ): Promise<{ tarball: string; integrity?: string }> {
+    const raw = entry.npmUrl
+    let url: URL
+    try {
+      url = new URL(raw ?? '')
+    } catch {
+      throw new NpmPluginError(
+        'DOWNLOAD_FAILED',
+        `包 ${entry.npm}@${version} 的条目 npmUrl 非法（"${raw ?? ''}"），无法回落到官方地址`,
+      )
+    }
+    if (url.protocol !== 'https:' || url.host !== new URL(NPM_REGISTRY_OFFICIAL).host) {
+      throw new NpmPluginError(
+        'DOWNLOAD_FAILED',
+        `包 ${entry.npm}@${version} 的条目 npmUrl 不是官方 registry 地址（"${url.host}"），拒绝回落`,
+      )
+    }
+    let res: HttpResponse
+    try {
+      res = await this.deps.http({ url: raw as string, timeoutMs: JSON_TIMEOUT_MS })
+    } catch (err) {
+      throw new NpmPluginError('DOWNLOAD_FAILED', `回落抓取官方 packument 失败：${errMessage(err)}`)
+    }
+    if (res.status >= 400) {
+      throw new NpmPluginError('DOWNLOAD_FAILED', `回落抓取官方 packument 失败：HTTP ${res.status}`)
+    }
+    let pack: { versions?: Record<string, { dist?: { tarball?: string; integrity?: string } }> }
+    try {
+      pack = await res.json()
+    } catch {
+      throw new NpmPluginError('DOWNLOAD_FAILED', '回落抓取的官方 packument 非法 JSON')
+    }
+    const dist = pack?.versions?.[version]?.dist
+    if (!dist?.tarball) {
+      throw new NpmPluginError(
+        'VERSION_NOT_FOUND',
+        `官方 packument 中没有 ${entry.npm}@${version} 的 dist.tarball，无法回落`,
+      )
+    }
+    return { tarball: dist.tarball, integrity: dist.integrity }
+  }
+
   /** Verifies `dist.integrity` (`sha512-<base64>`). Missing integrity warns upstream, not here. */
   verifyIntegrity(bytes: Uint8Array, integrity: string | undefined, label: string): void {
     if (!integrity) return

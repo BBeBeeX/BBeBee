@@ -70,8 +70,10 @@ export interface RegistryEntry {
    * plugin entries only (schema v2): the canonical npm package address
    * derived from `npm` (`https://registry.npmjs.org/<encoded name>`).
    * It carries neither a version (it addresses the package, not a
-   * release) nor a hash. Reference address only — downloads still
-   * resolve through the client's effective registry (mirror-aware).
+   * release) nor a hash. Normally downloads resolve through the
+   * client's effective registry (mirror-aware); when that download
+   * proves ineffective, the client falls back to re-resolving the
+   * plan's exact version through this address.
    */
   readonly npmUrl?: string
   /** plugin entries only (schema v2): cordis service keys the plugin must inject — the install-time dependency check reads this. */

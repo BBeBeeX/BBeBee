@@ -102,8 +102,10 @@ export interface RegistryPluginEntry {
   /**
    * Canonical npm package address derived from `npm`
    * (`https://registry.npmjs.org/<encoded name>`). Neither versioned
-   * nor hashed — it addresses the package, not a release. Reference
-   * only; downloads resolve through the effective registry.
+   * nor hashed — it addresses the package, not a release. Normally
+   * downloads resolve through the effective registry; when that
+   * download proves ineffective, the client falls back to this
+   * address for the plan's exact version.
    */
   npmUrl?: string
   author: string

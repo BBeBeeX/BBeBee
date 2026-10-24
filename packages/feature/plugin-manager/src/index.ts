@@ -48,6 +48,7 @@ import {
 import { serviceOf } from '@BBeBee/toolkit/hooks'
 import {
   NPM_AUTH_TOKEN_KEY,
+  NPM_REGISTRY_OFFICIAL,
   NpmClient,
   NpmPluginError,
   TARBALL_SIZE_LIMIT_BYTES,
@@ -1065,13 +1066,21 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   ): Promise<ExtractedPackage> {
     const { entry, pkg } = node
     const label = `${pkg.npm}@${pkg.version}`
-    const bytes = await client.downloadPackage(pkg)
-    client.verifyIntegrity(bytes, pkg.integrity, label)
-    // Audit W5: when the resolved version is the registry's reviewed
-    // version, the bytes must ALSO match the registry-pinned hash —
-    // an anchor the npm mirror cannot rewrite along with its packument.
-    if (entry.reviewedIntegrity && entry.reviewedVersion && pkg.version === entry.reviewedVersion) {
-      client.verifyReviewedIntegrity(bytes, entry, label)
+    let bytes: Uint8Array
+    try {
+      bytes = await client.downloadPackage(pkg)
+      client.verifyIntegrity(bytes, pkg.integrity, label)
+      // Audit W5: when the resolved version is the registry's reviewed
+      // version, the bytes must ALSO match the registry-pinned hash —
+      // an anchor the npm mirror cannot rewrite along with its packument.
+      if (entry.reviewedIntegrity && entry.reviewedVersion && pkg.version === entry.reviewedVersion) {
+        client.verifyReviewedIntegrity(bytes, entry, label)
+      }
+    } catch (err) {
+      // Mirror-aware download proved ineffective: retry through the
+      // entry's npmUrl (canonical official address). Anything the
+      // fallback cannot recover rethrows with both attempts reported.
+      bytes = await this.downloadViaNpmUrlFallback(client, node, label, err)
     }
     // Provenance (audit W6): when npm carries a provenance attestation
     // for this exact version, the source repository it names must be
@@ -1100,6 +1109,79 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     const extracted = client.extractPackage(pkg, bytes)
     if (provenance.status === 'verified') extracted.provenanceVerified = true
     return this.verifyExtractedPackage(node, extracted, installedRecords)
+  }
+
+  /**
+   * Fallback leg for a mirror-aware download that proved ineffective.
+   * Re-resolves the plan's exact version through the entry's npmUrl
+   * (canonical official packument address) and downloads the official
+   * tarball, verifying it against the OFFICIAL packument integrity
+   * (plus the reviewed pin when applicable) — so a mirror that is
+   * down, slow, or serving bytes that fail verification cannot block
+   * an install the official registry can still serve.
+   *
+   * Attempted only when all three hold: the primary failure is a
+   * download or integrity failure (a size-limit refusal or a later
+   * checklist failure is not a mirror problem), the entry carries an
+   * npmUrl, and the primary tarball did not already come from the
+   * official registry (retrying the same source cannot help; an
+   * unparseable primary pointer counts as non-official — that is
+   * exactly the poisoned-packument-pointer recovery). One fallback
+   * attempt only: its failure reports both attempts, its success is
+   * logged as a warning so the mirror problem stays visible.
+   */
+  private async downloadViaNpmUrlFallback(
+    client: NpmClient,
+    node: ResolvedEntry,
+    label: string,
+    primaryErr: unknown,
+  ): Promise<Uint8Array> {
+    const { entry, pkg } = node
+    const primaryMsg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr)
+    const fallbackable =
+      primaryErr instanceof NpmPluginError &&
+      (primaryErr.code === 'DOWNLOAD_FAILED' || primaryErr.code === 'INTEGRITY_MISMATCH')
+    if (!fallbackable || !entry.npmUrl) throw primaryErr
+    let primaryIsOfficial = false
+    try {
+      primaryIsOfficial = new URL(pkg.tarball).host === new URL(NPM_REGISTRY_OFFICIAL).host
+    } catch {
+      // Unparseable primary pointer counts as non-official: the official
+      // leg is exactly the recovery for a poisoned packument pointer.
+    }
+    if (primaryIsOfficial) throw primaryErr
+    let official: { tarball: string; integrity?: string }
+    try {
+      official = await client.resolveOfficialTarball(entry, pkg.version)
+    } catch (fallbackErr) {
+      const fallbackMsg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)
+      throw new NpmPluginError(
+        'DOWNLOAD_FAILED',
+        `下载 ${label} 失败：镜像源失败（${primaryMsg}），改用条目 npmUrl 官方地址解析也失败（${fallbackMsg}）`,
+      )
+    }
+    let bytes: Uint8Array
+    try {
+      bytes = await client.downloadPackage({
+        ...pkg,
+        tarball: official.tarball,
+        integrity: official.integrity,
+      })
+      client.verifyIntegrity(bytes, official.integrity, label)
+      if (entry.reviewedIntegrity && entry.reviewedVersion && pkg.version === entry.reviewedVersion) {
+        client.verifyReviewedIntegrity(bytes, entry, label)
+      }
+    } catch (fallbackErr) {
+      const fallbackMsg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)
+      throw new NpmPluginError(
+        'DOWNLOAD_FAILED',
+        `下载 ${label} 失败：镜像源失败（${primaryMsg}），改用条目 npmUrl 官方地址下载/校验也失败（${fallbackMsg}）`,
+      )
+    }
+    this.ctx.logger.warn(
+      `plugin-manager: ${label} 镜像下载无效（${primaryMsg}），已改用条目 npmUrl 官方地址下载`,
+    )
+    return bytes
   }
 
   /**
