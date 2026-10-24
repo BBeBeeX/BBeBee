@@ -35,7 +35,6 @@ import {
   DEFAULT_DESKTOP_LYRICS_SETTINGS,
   DEFAULT_VISUALIZER_SETTINGS,
   isCriticalServiceKey,
-  sha256Hex,
 } from '@BBeBee/protocol'
 import {
   compareVersions,
@@ -1277,15 +1276,15 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
       }
       const result = await bridge.installPlugin(node.entry.id, extracted.files, extracted.manifest)
       this.registerManifests({ [node.entry.id]: extracted.manifest })
-      // Tamper-check basis for the boot-time loader: the FULL package
-      // (audit W3) — every file's sha256 is pinned, so boot can compare
-      // the whole on-disk directory, not just the entry file. entrySha256
-      // remains as the legacy single-file view of the same map.
-      const fileHashes: Record<string, string> = {}
-      for (const [path, content] of Object.entries(extracted.files)) {
-        fileHashes[path] = sha256Hex(content)
-      }
-      const entryMain = (extracted.manifest.entry?.main ?? './index.js').replace(/^\.?\//, '')
+      // No boot-time tamper chain: the install record pins only the
+      // downloaded tarball (sha256). The per-file map (audit W3) was
+      // removed 2026-10-24 — a writer able to rewrite the installed
+      // directory already holds the user's own account, so comparing it
+      // at boot bought a full-directory read per boot without containing
+      // a determined local attacker. Recall still runs: blocked/delisted
+      // flags on the record quarantine the plugin before it loads.
+      // Old records carrying fileHashes/entrySha256 still parse (the
+      // protocol fields are @deprecated) and are simply ignored.
       records[node.entry.id] = {
         id: node.entry.id,
         npm: node.pkg.npm,
@@ -1294,8 +1293,6 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
         // absence means 'npm'); only local installs stamp the channel.
         ...(source === 'local' ? { source } : {}),
         sha256: extracted.tarballSha256,
-        entrySha256: fileHashes[entryMain],
-        fileHashes,
         ...(extracted.provenanceVerified ? { provenanceVerified: true } : {}),
         installedAt: new Date().toISOString(),
       }

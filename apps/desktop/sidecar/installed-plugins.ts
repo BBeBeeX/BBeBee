@@ -17,14 +17,13 @@
  * A candidate that exists but does not parse (or parses to a non-object)
  * falls through to the next one.
  *
- * The reported `sha256` is over the entry main file
- * (`manifest.entry.main`) — the legacy single-file tamper basis. The
- * reported `fileHashes` covers EVERY file in the directory and is what
- * the renderer's dynamic loader compares against current install
- * records (audit W3).
+ * Discovery reports id, version, manifest and directory only. It no
+ * longer hashes anything: the boot-time tamper chain was removed
+ * 2026-10-24, so listing plugins must not pay a full-directory read
+ * on every boot. Recall (blocked/delisted) is carried by the install
+ * records in the renderer, not by hashes here.
  */
 
-import { createHash } from 'node:crypto'
 import {
   existsSync,
   mkdirSync,
@@ -41,14 +40,6 @@ export interface InstalledPluginInfo {
   version: string
   manifest: unknown
   dirName: string
-  sha256?: string
-  /**
-   * sha256 of every regular file in the plugin directory, keyed by
-   * POSIX-style relative path — the on-disk half of the full-package
-   * tamper chain (audit W3) the renderer loader compares against the
-   * install record's pinned map.
-   */
-  fileHashes?: Record<string, string>
 }
 
 const MANIFEST_CANDIDATES = ['BBeBee.plugin.json', 'manifest.json'] as const
@@ -103,34 +94,6 @@ export function entryMainOf(manifest: Record<string, unknown>): string {
   return main.replace(/^\.?\//, '')
 }
 
-/** Hashes every regular file under a plugin directory (recursive). */
-export function hashPluginFiles(pluginDir: string): Record<string, string> {
-  const hashes: Record<string, string> = {}
-  const walk = (dir: string, prefix: string): void => {
-    let entries
-    try {
-      entries = readdirSync(dir, { withFileTypes: true })
-    } catch {
-      return
-    }
-    for (const entry of entries) {
-      const rel = prefix ? `${prefix}/${entry.name}` : entry.name
-      if (entry.isDirectory()) {
-        walk(join(dir, entry.name), rel)
-      } else if (entry.isFile()) {
-        try {
-          hashes[rel] = createHash('sha256').update(readFileSync(join(dir, entry.name))).digest('hex')
-        } catch {
-          // Unreadable file: omit it — the loader treats a file missing
-          // from the report as tampering, which is the honest outcome.
-        }
-      }
-    }
-  }
-  walk(pluginDir, '')
-  return hashes
-}
-
 /** Lists every installed plugin under `root` (missing root → empty list). */
 export function listInstalledPlugins(root: string): InstalledPluginInfo[] {
   if (!existsSync(root)) return []
@@ -144,22 +107,11 @@ export function listInstalledPlugins(root: string): InstalledPluginInfo[] {
     const manifest = discoverPluginManifest(pluginDir)
     if (!manifest || !manifest['id']) continue
 
-    const mainFilePath = join(pluginDir, entryMainOf(manifest))
-    let sha256: string | undefined
-    if (existsSync(mainFilePath)) {
-      try {
-        sha256 = createHash('sha256').update(readFileSync(mainFilePath)).digest('hex')
-      } catch {
-        // ignore — the plugin is listed without a tamper-check hash
-      }
-    }
     plugins.push({
       id: String(manifest['id']),
       version: String(manifest['version'] ?? '1.0.0'),
       manifest,
       dirName: entry.name,
-      ...(sha256 ? { sha256 } : {}),
-      fileHashes: hashPluginFiles(pluginDir),
     })
   }
   return plugins

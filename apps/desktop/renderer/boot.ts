@@ -455,37 +455,18 @@ export async function preloadPreferences(pathSnapshot: Record<string, string | u
 }
 
 /**
- * Lock records for the dynamic loader's tamper check, merged from both
- * install paths: the bridge's registry.lock.json (content-registry
- * installs) and plugin-manager's npm records in the store snapshot.
- * npm records carry the full-package pin map (`fileHashes`, audit W3):
- * the loader compares every on-disk file against it. Records written
- * before the full chain existed contribute their `entrySha256` as the
- * legacy single-file basis. A record with NO integrity basis at all is
- * forwarded as `unverified` so the loader quarantines it visibly
- * instead of the old fail-open (a missing entry hash silently skipped
- * the check). npm records win on id conflicts: they are the fresher write.
+ * Recall records for the dynamic loader, from plugin-manager's npm
+ * records in the store snapshot. The boot-time tamper chain was removed
+ * 2026-10-24, so this forwards ONLY the two recall channels — a
+ * persisted delisting (audit W3) and a registry ban (audit W5) — so the
+ * loader quarantines a recalled plugin before its code runs. Any
+ * `fileHashes`/`entrySha256` on old records are ignored, and the
+ * bridge's registry.lock.json is no longer consulted here at all.
  */
 async function mergedPluginLock(
   storeData: Record<string, unknown> | undefined,
 ): Promise<Record<string, PluginLockRecord> | undefined> {
   const merged: Record<string, PluginLockRecord> = {}
-  try {
-    const lockData = (await window.BBeBee?.plugins?.getLock?.()) as
-      | { records?: Record<string, { sha256?: string }> }
-      | Record<string, { sha256?: string }>
-      | undefined
-    const records = (lockData && 'records' in lockData ? lockData.records : lockData) as
-      | Record<string, { sha256?: string }>
-      | undefined
-    if (records) {
-      for (const [id, rec] of Object.entries(records)) {
-        if (rec?.sha256) merged[id] = { sha256: rec.sha256 }
-      }
-    }
-  } catch {
-    // Bridge unavailable — the npm records below may still apply.
-  }
   // plugin-manager persists via ctx.store under its own namespace, which is
   // how the key appears in the raw store snapshot (same scheme as the
   // '@BBeBee/plugin-manager:enabled' overrides read in computeEnabledPlugins).
@@ -493,8 +474,6 @@ async function mergedPluginLock(
     | Record<
         string,
         {
-          entrySha256?: string
-          fileHashes?: Record<string, string>
           delisted?: boolean
           blocked?: string
         }
@@ -503,18 +482,10 @@ async function mergedPluginLock(
   if (npmRecords && typeof npmRecords === 'object') {
     for (const [id, rec] of Object.entries(npmRecords)) {
       if (!rec || typeof rec !== 'object') continue
-      const basis: PluginLockRecord =
-        rec.fileHashes && Object.keys(rec.fileHashes).length > 0
-          ? { fileHashes: rec.fileHashes }
-          : rec.entrySha256
-            ? { sha256: rec.entrySha256 }
-            : { unverified: true }
-      // A persisted liveness verdict (audit W3) rides along so the
-      // loader quarantines a delisted plugin before its code runs.
+      const basis: PluginLockRecord = {}
       if (rec.delisted) basis.delisted = true
-      // A persisted registry ban (audit W5) rides the same channel.
       if (rec.blocked !== undefined) basis.blocked = rec.blocked
-      merged[id] = basis
+      if (basis.delisted || basis.blocked !== undefined) merged[id] = basis
     }
   }
   return Object.keys(merged).length > 0 ? merged : undefined

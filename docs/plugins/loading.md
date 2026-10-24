@@ -231,16 +231,15 @@ from npm. The two phases are deliberately separate:
    package lands in a staging sibling directory first and is renamed into
    place, so a failed write never leaves a half-written plugin and files
    the new version deleted do not linger — and the install record
-   `{ id, npm, version, sha256, entrySha256, fileHashes, installedAt }` is
+   `{ id, npm, version, sha256, installedAt }` is
    persisted per node, so the store never claims a plugin whose files are
-   not on disk (or vice versa). `sha256` is the whole-tarball digest;
-   `fileHashes` is a SHA-256 for **every** file in the package and
-   `entrySha256` is that map's view of the entry main file. Boot merges
-   the record into the dynamic loader's lock map and the tamper check
-   compares the entire on-disk file set against `fileHashes` — a changed,
-   missing, or extra file quarantines the plugin; a record carrying no
-   hashes at all is treated as *unverified* and quarantined too, never
-   silently trusted.
+   not on disk (or vice versa). `sha256` is the whole-tarball digest.
+   The boot-time tamper chain (per-file `fileHashes` / `entrySha256`,
+   compared against the on-disk directory at boot) was removed
+   2026-10-24: boot now forwards only the recall channels
+   (`blocked`/`delisted`) to the dynamic loader, which quarantines a
+   recalled plugin before it loads. Old records carrying the hash fields
+   still parse and are ignored.
    Before each node activates, the installer writes its capability grants
    from the **real** downloaded manifest into `capability_grants` (the
    ledger is plugin-manager's own; see

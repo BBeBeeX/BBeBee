@@ -249,7 +249,7 @@ finished ones.
 
 ## 5. Install flows, author repository artifact chain & security audit
 
-The registry operates an end-to-end security gating architecture covering discovery, downloading, static auditing, pre-installation confirmation, and tamper-resistant local locking:
+The registry operates an end-to-end security gating architecture covering discovery, downloading, static auditing, pre-installation confirmation, and recall (blocklist/delisting) of installed plugins:
 
 Every install chain reports its stages (download / verify / install) to the
 task center as it runs (§4); the diagnostics rescan (`rescanEntry`) walks the
@@ -330,8 +330,8 @@ Before any installation or update proceeds, the desktop UI (`packages/ui/plugin-
     }
   }
   ```
-- **Scope**: The lock records above cover sources, lyric sources and themes. Records with `kind: "plugin"` in this file are **legacy** — written by the retired GitHub-bundle install flow; the lock manager still reads them (install-state matching, diagnostics) but never writes new ones. npm-installed plugins are recorded by the plugin-manager in its own store (`npm:installed`, with the `entrySha256` tamper basis), not here.
-- **Load-time Verification**: On boot, the desktop dynamic loader (`apps/desktop/renderer/dynamic-loader.ts`) recalculates the SHA-256 of installed plugins and compares them against the lock. If a mismatch is detected (tampered files), the plugin is marked `quarantined` and execution is refused to prevent malicious code injection. For npm-installed plugins, boot merges the plugin-manager's records over the bridge lock (npm records win) so this same check covers them.
+- **Scope**: The lock records above cover sources, lyric sources and themes. Records with `kind: "plugin"` in this file are **legacy** — written by the retired GitHub-bundle install flow; the lock manager still reads them (install-state matching, diagnostics) but never writes new ones. npm-installed plugins are recorded by the plugin-manager in its own store (`npm:installed`, tarball `sha256` only), not here.
+- **Load-time Verification (recall only)**: On boot, the desktop dynamic loader (`apps/desktop/renderer/dynamic-loader.ts`) quarantines a plugin only when its record carries a recall flag — a registry ban (`blocked`) or a delisting (`delisted`). The former boot-time tamper comparison (recalculated SHA-256 vs the lock) was removed 2026-10-24.
 
 ### 5.6 Download region & GitHub acceleration
 

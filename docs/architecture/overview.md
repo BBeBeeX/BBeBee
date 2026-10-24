@@ -166,7 +166,7 @@ own reasons.
 > failures reported rather than papered over; install is one
 > non-bypassable pipeline (plan pinned to the confirmed closure →
 > integrity → bounded extraction → full scan → real-manifest re-check →
-> grant → whole-file tamper hashes), with first-install rollback and
+> grant), with first-install rollback and
 > verified rollback material; the registry gates `provides` against the
 > critical keys, pins reviewed versions (`reviewedVersion` /
 > `reviewedIntegrity`), and can recall an installed plugin through the

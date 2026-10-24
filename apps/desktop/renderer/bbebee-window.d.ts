@@ -76,7 +76,7 @@ declare global {
       }
       plugins?: {
         listInstalled(): Promise<
-          Array<{ id: string; version: string; manifest: unknown; dirName: string; sha256?: string }>
+          Array<{ id: string; version: string; manifest: unknown; dirName: string }>
         >
         getLock?(): Promise<unknown>
         install(

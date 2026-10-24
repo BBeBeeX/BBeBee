@@ -1327,7 +1327,7 @@ describe('plugin-manager npm service methods', () => {
     return w
   }
 
-  it('records entrySha256 (entry-file hash) for the boot tamper chain (Fix B)', async () => {
+  it('records no tamper-chain hashes (chain removed 2026-10-24); only the tarball sha256', async () => {
     const entry = entryFor({ id: 'a-x', npm: '@t/a' })
     const tarballs = { '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0') }
     const w = seedWorld(entry, ['1.0.0'], tarballs)
@@ -1336,9 +1336,9 @@ describe('plugin-manager npm service methods', () => {
     const store = (w.ctx as any).store
     const setCalls = store.set.mock.calls.filter(([k]: [string]) => k === 'npm:installed')
     const rec = setCalls.at(-1)![1]['a-x']
-    // 'export const name = \'a-x\'' is the entry main content in tarballFor
-    expect(rec.entrySha256).toBe(sha256Hex(`export const name = 'a-x'`))
-    expect(rec.entrySha256).not.toBe(rec.sha256)
+    expect(rec.sha256).toBeDefined()
+    expect(rec).not.toHaveProperty('entrySha256')
+    expect(rec).not.toHaveProperty('fileHashes')
   })
 
   it('rolls back a failed first install: completed nodes are uninstalled and their records removed (audit W3; per-node records from Fix C are the mechanism, the end state changed)', async () => {
@@ -1625,8 +1625,8 @@ describe('plugin-manager npm service methods', () => {
     })
   })
 
-  describe('full-package tamper chain (audit W3)', () => {
-    it('pins a sha256 for EVERY package file in the install record', async () => {
+  describe('tamper chain removed (2026-10-24)', () => {
+    it('pins no per-file hashes in the install record', async () => {
       const entry = entryFor({ id: 'a-x', npm: '@t/a' })
       const tarballs = {
         '@t/a@1.0.0': tarballFor('@t/a', 'a-x', '1.0.0', { 'dist/extra.js': 'export const x = 1' }),
@@ -1634,18 +1634,12 @@ describe('plugin-manager npm service methods', () => {
       const w = seedWorld(entry, ['1.0.0'], tarballs)
       await w.plugin[PluginManagerPlugin.init]()
       await w.plugin.installPlugin('a-x')
-      // The files handed to the bridge are exactly the set the record pins.
-      const writtenFiles = (w.bridge.installPlugin as any).mock.calls[0][1] as Record<string, string>
       const store = (w.ctx as any).store
       const setCalls = store.set.mock.calls.filter(([k]: [string]) => k === 'npm:installed')
       const record = setCalls.at(-1)![1]['a-x']
-      expect(Object.keys(record.fileHashes).sort()).toEqual(Object.keys(writtenFiles).sort())
-      for (const [path, content] of Object.entries(writtenFiles)) {
-        expect(record.fileHashes[path]).toBe(sha256Hex(content))
-      }
-      // The legacy entry hash is the same map's entry-file view.
-      expect(record.entrySha256).toBe(record.fileHashes['dist/index.js'])
-      expect(record.entrySha256).toBe(sha256Hex(`export const name = 'a-x'`))
+      expect(record.sha256).toBeDefined()
+      expect(record).not.toHaveProperty('fileHashes')
+      expect(record).not.toHaveProperty('entrySha256')
     })
   })
 
@@ -2076,7 +2070,7 @@ describe('plugin-manager local package import', () => {
     expect(record.version).toBe('1.0.0')
     expect(record.source).toBe('local')
     expect(record.sha256).toBe(sha256Hex(bytes))
-    expect(record.fileHashes['dist/index.js']).toBe(sha256Hex(files['dist/index.js']))
+    expect(record).not.toHaveProperty('fileHashes')
     expect(w.plugin.list().find((p) => p.id === 'local-x')).toBeDefined()
   })
 

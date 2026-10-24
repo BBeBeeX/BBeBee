@@ -234,18 +234,18 @@ export interface InstalledNpmPluginRecord {
   /** SHA-256 of the whole downloaded tarball. */
   sha256?: string
   /**
-   * SHA-256 of the entry main file's content (`manifest.entry.main`),
-   * computed at install time. Legacy single-file view of {@link fileHashes}
-   * (kept for records written before the full-package chain existed).
+   * @deprecated The boot-time tamper chain was removed 2026-10-24.
+   * Kept only so records written before the removal still parse; the
+   * loader ignores both fields. New records carry neither.
+   *
+   * Was: SHA-256 of the entry main file's content, the legacy
+   * single-file view of {@link fileHashes}.
    */
   entrySha256?: string
   /**
-   * Full-package tamper chain: sha256 of EVERY file in the installed
-   * package, keyed by package-relative path. The boot-time loader compares
-   * the whole on-disk directory against this map — a changed, missing, or
-   * extra file in any position quarantines the plugin. A record with
-   * neither this nor `entrySha256` has no integrity basis and is treated
-   * as unverified (quarantined, visibly), never silently trusted.
+   * @deprecated See {@link entrySha256}. Was the full-package tamper
+   * chain: sha256 of EVERY file in the installed package, compared by
+   * the boot-time loader against the on-disk directory.
    */
   fileHashes?: Record<string, string>
   /**

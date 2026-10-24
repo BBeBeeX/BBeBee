@@ -188,7 +188,8 @@ describe('desktop dynamic-loader', () => {
     }
 
     const files = {
-      'index.js': 'eval("badCode()"); fetch("https://evil.example.com");',
+      // Retained block finding: an opaque data: payload import.
+      'index.js': `import('data:text/javascript;base64,YWxlcnQoMSk=')`,
       'manifest.json': JSON.stringify(manifest),
     }
 
@@ -202,7 +203,7 @@ describe('desktop dynamic-loader', () => {
     window.BBeBee = original
   })
 
-  it('blocks installation when the entry is an .mjs file carrying malicious code', async () => {
+  it('still scans an .mjs entry carrying eval, but eval is warn-only so installation proceeds', async () => {
     const original = window.BBeBee
     const installMock = vi.fn()
     // @ts-expect-error test mock
@@ -234,17 +235,15 @@ describe('desktop dynamic-loader', () => {
       'manifest.json': JSON.stringify(manifest),
     }
 
-    await expect(
-      installAndActivatePlugin(mockApp as App, 'malicious-mjs', files, manifest),
-    ).rejects.toThrow(/Installation blocked by security audit/)
+    await installAndActivatePlugin(mockApp as App, 'malicious-mjs', files, manifest)
 
-    expect(installMock).not.toHaveBeenCalled()
-    expect(mockApp.registerPlugin).not.toHaveBeenCalled()
+    expect(installMock).toHaveBeenCalled()
+    expect(mockApp.registerPlugin).toHaveBeenCalled()
 
     window.BBeBee = original
   })
 
-  it('scans the manifest entry file even when its extension is not a code extension', async () => {
+  it('scans the manifest entry file even when its extension is not a code extension (eval warns, install proceeds)', async () => {
     const original = window.BBeBee
     const installMock = vi.fn()
     // @ts-expect-error test mock
@@ -276,16 +275,14 @@ describe('desktop dynamic-loader', () => {
       'manifest.json': JSON.stringify(manifest),
     }
 
-    await expect(
-      installAndActivatePlugin(mockApp as App, 'odd-entry-ext', files, manifest),
-    ).rejects.toThrow(/Installation blocked by security audit/)
+    await installAndActivatePlugin(mockApp as App, 'odd-entry-ext', files, manifest)
 
-    expect(installMock).not.toHaveBeenCalled()
+    expect(installMock).toHaveBeenCalled()
 
     window.BBeBee = original
   })
 
-  it('refuses loading and marks quarantined when installed plugin hash is tampered', async () => {
+  it('loads despite a registry.lock sha256 mismatch (tamper chain removed 2026-10-24)', async () => {
     const original = window.BBeBee
     const listInstalledMock = vi.fn().mockResolvedValue([
       {
@@ -330,14 +327,14 @@ describe('desktop dynamic-loader', () => {
     const registry = await loadExternalPluginRegistry({ lock })
     expect(registry['@test/tampered-plugin']).toBeDefined()
     const entry = registry['@test/tampered-plugin']!
-    expect(entry.quarantined).toBe(true)
-    await expect(entry.load!()).rejects.toThrow(/tampered/)
+    // No tamper verdict anymore: only blocked/delisted quarantine.
+    expect(entry.quarantined).toBeUndefined()
 
     window.BBeBee = original
   })
 })
 
-describe('full-package tamper chain (audit W3)', () => {
+describe('recall-only quarantine (tamper chain removed 2026-10-24)', () => {
   const MANIFEST = {
     id: 'full-chain-plugin',
     version: '1.0.0',
@@ -387,22 +384,20 @@ describe('full-package tamper chain (audit W3)', () => {
     expect(entry.quarantined).toBeUndefined()
   })
 
-  it('quarantines when a NON-entry file was changed on disk', async () => {
+  it('loads when a NON-entry file was changed on disk (hashes are ignored)', async () => {
     const item = { ...baseItem, fileHashes: { ...PINNED, 'dist/helper.js': 'hash-attacker' } }
     const registry = await loadWith(item, { fileHashes: { ...PINNED } })
     const entry = registry['full-chain-plugin']!
-    expect(entry.quarantined).toBe(true)
-    await expect(entry.load!()).rejects.toThrow(/tampered/)
-    await expect(entry.load!()).rejects.toThrow(/dist\/helper\.js/)
+    expect(entry.quarantined).toBeUndefined()
   })
 
-  it('quarantines when an extra file appeared on disk', async () => {
+  it('loads when an extra file appeared on disk', async () => {
     const item = { ...baseItem, fileHashes: { ...PINNED, 'dist/injected.js': 'hash-x' } }
     const registry = await loadWith(item, { fileHashes: { ...PINNED } })
-    expect(registry['full-chain-plugin']!.quarantined).toBe(true)
+    expect(registry['full-chain-plugin']!.quarantined).toBeUndefined()
   })
 
-  it('quarantines when a pinned file is missing on disk', async () => {
+  it('loads when a pinned file is missing on disk', async () => {
     const rest: Record<string, string> = {}
     for (const [k, v] of Object.entries(PINNED)) {
       if (k !== 'dist/helper.js') rest[k] = v
@@ -410,26 +405,24 @@ describe('full-package tamper chain (audit W3)', () => {
     const item = { ...baseItem, fileHashes: rest }
     const registry = await loadWith(item, { fileHashes: { ...PINNED } })
     const entry = registry['full-chain-plugin']!
-    expect(entry.quarantined).toBe(true)
-    await expect(entry.load!()).rejects.toThrow(/tampered/)
+    expect(entry.quarantined).toBeUndefined()
   })
 
-  it('quarantines when the sidecar reports no file hashes for a fully pinned package', async () => {
+  it('loads when the sidecar reports no file hashes', async () => {
     const item: Record<string, unknown> = { ...baseItem }
     delete item['fileHashes']
     const registry = await loadWith(item, { fileHashes: { ...PINNED } })
-    expect(registry['full-chain-plugin']!.quarantined).toBe(true)
+    expect(registry['full-chain-plugin']!.quarantined).toBeUndefined()
   })
 
-  it('quarantines a record with no integrity basis as unverified instead of failing open', async () => {
+  it('loads a record with no integrity basis (unverified is ignored)', async () => {
     const registry = await loadWith(baseItem, { unverified: true })
     const entry = registry['full-chain-plugin']!
-    expect(entry.quarantined).toBe(true)
-    await expect(entry.load!()).rejects.toThrow(/unverified/)
+    expect(entry.quarantined).toBeUndefined()
   })
 
   it('quarantines a delisted plugin with the removed-from-registry reason (audit W3 liveness)', async () => {
-    const registry = await loadWith(baseItem, { fileHashes: { ...PINNED }, delisted: true })
+    const registry = await loadWith(baseItem, { delisted: true })
     const entry = registry['full-chain-plugin']!
     expect(entry.quarantined).toBe(true)
     await expect(entry.load!()).rejects.toThrow(/delisted/)
@@ -462,7 +455,6 @@ describe('full-package tamper chain (audit W3)', () => {
 
   it('quarantines a registry-banned plugin with the ban reason, ahead of delisting (audit W5)', async () => {
     const registry = await loadWith(baseItem, {
-      fileHashes: { ...PINNED },
       delisted: true,
       blocked: 'malware: credential stealer',
     })
@@ -473,11 +465,11 @@ describe('full-package tamper chain (audit W3)', () => {
     await expect(entry.load!()).rejects.toThrow(/credential stealer/)
   })
 
-  it('still honours the legacy entry-only pin for older records', async () => {
+  it('ignores the legacy entry-only pin for older records', async () => {
     const ok = await loadWith(baseItem, { sha256: 'hash-entry' })
     expect(ok['full-chain-plugin']!.quarantined).toBeUndefined()
     const bad = await loadWith({ ...baseItem, sha256: 'hash-other' }, { sha256: 'hash-entry' })
-    expect(bad['full-chain-plugin']!.quarantined).toBe(true)
+    expect(bad['full-chain-plugin']!.quarantined).toBeUndefined()
   })
 })
 

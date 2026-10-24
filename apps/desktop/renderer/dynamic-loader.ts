@@ -48,20 +48,15 @@ export interface InstalledPluginRecord {
   version: string
   manifest: unknown
   dirName: string
-  sha256?: string
-  /** sha256 of every file in the plugin directory, as reported by the sidecar. */
-  fileHashes?: Record<string, string>
 }
 
 /**
- * One plugin's integrity basis in the merged boot lock: either a legacy
- * entry-file hash, a full-package pin map, or an explicit `unverified`
- * marker for a record that carries no hashes at all.
+ * One plugin's recall state in the merged boot lock. The boot-time
+ * tamper chain was removed 2026-10-24, so this carries only the two
+ * recall channels: a registry ban and a delisting. Any hash fields a
+ * record or the sidecar still carries are ignored.
  */
 export interface PluginLockRecord {
-  sha256?: string
-  fileHashes?: Record<string, string>
-  unverified?: boolean
   /**
    * Confirmed absent from the registry index by the liveness check
    * (audit W3): quarantine with a visible "removed from the registry"
@@ -108,53 +103,6 @@ export function resolveActiveProviders(
     active.set(key, winner)
   }
   return active
-}
-
-/**
- * The tamper-chain verdict for one installed plugin, or undefined when
- * it may load. Full-package pins compare the ENTIRE on-disk file set
- * (changed, missing, or extra files all count); a record marked
- * unverified is refused with its own reason instead of the old fail-open
- * where a missing hash silently skipped the check. Lock records without
- * any integrity fields at all (e.g. hand-written lock entries) keep the
- * historical no-check behaviour.
- */
-export function pluginTamperReason(
-  lockRecord: PluginLockRecord | undefined,
-  item: { sha256?: string; fileHashes?: Record<string, string> },
-): string | undefined {
-  if (!lockRecord) return undefined
-  if (lockRecord.unverified) {
-    return 'unverified: the install record carries no integrity hashes, so the on-disk code cannot be trusted'
-  }
-  if (lockRecord.fileHashes) {
-    const pinned = lockRecord.fileHashes
-    const onDisk = item.fileHashes
-    if (!onDisk) {
-      return 'tampered code detected: the on-disk file set could not be hashed for a fully pinned package'
-    }
-    if (Object.keys(onDisk).length !== Object.keys(pinned).length) {
-      return 'tampered code detected: the on-disk file set differs from the install record (files added or removed)'
-    }
-    for (const [path, hash] of Object.entries(pinned)) {
-      const actual = onDisk[path]
-      if (actual === undefined) {
-        return `tampered code detected: file "${path}" from the install record is missing on disk`
-      }
-      if (actual.trim().toLowerCase() !== hash.trim().toLowerCase()) {
-        return `tampered code detected: file "${path}" no longer matches the install record`
-      }
-    }
-    return undefined
-  }
-  if (
-    lockRecord.sha256 &&
-    item.sha256 &&
-    lockRecord.sha256.trim().toLowerCase() !== item.sha256.trim().toLowerCase()
-  ) {
-    return 'tampered code detected (sha256 mismatch against registry.lock.json)'
-  }
-  return undefined
 }
 
 /**
@@ -487,8 +435,9 @@ export function makeExternalEntry(
  * Scan for installed external plugins from the desktop host and build
  * dynamic registry entries with ESM imports over `bbebee-plugin://`.
  *
- * Verifies plugin integrity against `registry.lock.json` if available.
- * If tampered, refuses loading and marks quarantined.
+ * Quarantine comes only from the recall channels in the lock
+ * (registry ban, delisting). There is no integrity comparison here
+ * anymore: the boot-time tamper chain was removed 2026-10-24.
  */
 export async function loadExternalPluginRegistry(options?: {
   lock?: RegistryLockFile | Record<string, PluginLockRecord>
@@ -513,15 +462,14 @@ export async function loadExternalPluginRegistry(options?: {
       const manifest = item.manifest as PluginManifest
 
       const lockRecord = records?.[item.id]
-      // A registry ban (audit W5) wins over both delisting and the
-      // tamper verdict in messaging: it is the most actionable fact
-      // for the user. All three quarantine.
+      // A registry ban (audit W5) wins over delisting in messaging:
+      // it is the most actionable fact for the user. Both quarantine.
       const refuseReason =
         lockRecord?.blocked !== undefined
           ? `blocked: this plugin has been banned by the registry （该插件已被注册表安全封禁）${lockRecord.blocked ? `: ${lockRecord.blocked}` : ''}`
           : lockRecord?.delisted
             ? 'delisted: this plugin has been removed from the registry （该插件已从注册表下架）'
-            : pluginTamperReason(lockRecord, item)
+            : undefined
 
       if (refuseReason) {
         console.error(
@@ -553,6 +501,8 @@ export async function loadExternalPluginRegistry(options?: {
  * running kernel registry, and immediately load and activate it.
  *
  * Runs a pre-install security scan: if level is 'block', rejects installation.
+ * `warn` findings are advisory (logged, install proceeds), mirroring
+ * plugin-manager's npm path.
  */
 export async function installAndActivatePlugin(
   app: DynamicPluginHost,
@@ -568,9 +518,10 @@ export async function installAndActivatePlugin(
     throw new Error('Desktop plugins bridge is unavailable')
   }
 
-  // Pre-install security scan: reject if audit level is 'block'. Hosts
-  // declared via the manifest's `net:host/<glob>` capabilities are
-  // passed as the scan allowlist, mirroring plugin-manager's npm path.
+  // Pre-install security scan: reject if audit level is 'block', log if
+  // 'warn'. Hosts declared via the manifest's `net:host/<glob>`
+  // capabilities are passed as the scan allowlist, mirroring
+  // plugin-manager's npm path.
   const scanner =
     options?.securityAudit ??
     (app as unknown as { ctx?: { securityAudit?: SecurityAuditService } }).ctx?.securityAudit
@@ -589,6 +540,11 @@ export async function installAndActivatePlugin(
       if (report.level === 'block') {
         const issues = report.findings.map((f) => f.message).join('; ')
         throw new Error(`Installation blocked by security audit for "${pluginId}" (${filename}): ${issues}`)
+      } else if (report.level === 'warn') {
+        const issues = report.findings.map((f) => f.message).join('; ')
+        console.warn(
+          `[dynamic-loader] Plugin "${pluginId}" (${filename}) security scan warnings (install proceeds): ${issues}`,
+        )
       }
     }
   }

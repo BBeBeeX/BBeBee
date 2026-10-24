@@ -61,8 +61,6 @@ export interface BBeBeePluginsApi {
       version: string
       manifest: unknown
       dirName: string
-      sha256?: string
-      fileHashes?: Record<string, string>
     }>
   >
   getLock(): Promise<unknown>
@@ -464,7 +462,7 @@ export function createPreloadApi(
     },
     plugins: {
       listInstalled: (): Promise<
-        Array<{ id: string; version: string; manifest: unknown; dirName: string; sha256?: string }>
+        Array<{ id: string; version: string; manifest: unknown; dirName: string }>
       > => invoke('desktop_plugins_list_installed').then((res) => (Array.isArray(res) ? res : [])),
       getLock: (): Promise<unknown> => invoke('desktop_plugins_get_lock'),
       install: (

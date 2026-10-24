@@ -2,11 +2,11 @@
  * Unit tests for installed-plugin discovery (Fix A): `BBeBee.plugin.json`
  * must be preferred over `manifest.json` / `package.json` so an
  * npm-installed plugin restarts under its registry id (not its npm package
- * name), and the reported sha256 must hash the entry main file.
+ * name). Discovery reports no hashes since the boot-time tamper chain
+ * was removed 2026-10-24.
  */
 
 import { describe, expect, it, beforeEach, afterEach } from 'vitest'
-import { createHash } from 'node:crypto'
 import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -98,7 +98,7 @@ describe('discoverPluginManifest', () => {
 })
 
 describe('listInstalledPlugins', () => {
-  it('lists plugins by manifest id with the entry-main sha256', () => {
+  it('lists plugins by manifest id, without hashing anything', () => {
     writePlugin('alice__plugin', {
       'BBeBee.plugin.json': BBE_MANIFEST,
       'package.json': JSON.stringify({ name: '@alice/pkg', version: '2.0.0' }),
@@ -108,38 +108,18 @@ describe('listInstalledPlugins', () => {
     expect(info?.id).toBe('alice-plugin')
     expect(info?.version).toBe('2.0.0')
     expect(info?.dirName).toBe('alice__plugin')
-    const expected = createHash('sha256').update('export const name = "alice-plugin"').digest('hex')
-    expect(info?.sha256).toBe(expected)
+    // No tamper-chain fields at all: listing must not read file contents.
+    expect(info).not.toHaveProperty('sha256')
+    expect(info).not.toHaveProperty('fileHashes')
   })
 
-  it('reports a sha256 for every file in the directory (full-package tamper chain)', () => {
-    const pkgJson = JSON.stringify({ name: '@alice/pkg', version: '2.0.0' })
-    writePlugin('alice__plugin', {
-      'BBeBee.plugin.json': BBE_MANIFEST,
-      'package.json': pkgJson,
-      'dist/index.js': 'entry code',
-      'dist/helper.js': 'helper code',
-      'assets/note.txt': 'a note',
-    })
-    const sha = (s: string) => createHash('sha256').update(s).digest('hex')
-    const [info] = listInstalledPlugins(root)
-    expect(info?.fileHashes).toEqual({
-      'BBeBee.plugin.json': sha(BBE_MANIFEST),
-      'package.json': sha(pkgJson),
-      'dist/index.js': sha('entry code'),
-      'dist/helper.js': sha('helper code'),
-      'assets/note.txt': sha('a note'),
-    })
-  })
-
-  it('omits sha256 when the entry main file is missing', () => {
+  it('lists a plugin even when the entry main file is missing', () => {
     writePlugin('alice__plugin', {
       'BBeBee.plugin.json': BBE_MANIFEST,
       'package.json': JSON.stringify({ name: '@alice/pkg', version: '2.0.0' }),
     })
     const [info] = listInstalledPlugins(root)
     expect(info?.id).toBe('alice-plugin')
-    expect(info?.sha256).toBeUndefined()
   })
 
   it('returns [] for a missing root', () => {
