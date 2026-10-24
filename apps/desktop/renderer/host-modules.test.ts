@@ -52,6 +52,7 @@ describe('host-modules manifest', () => {
       // Vite flattens scoped specifiers to `@scope_name.js`, so the dev
       // pre-bundle file may carry a leading `@`.
       expect(m.devFile).toMatch(/^[\w@-]+\.js$/)
+      expect(m.devShim).toMatch(/^[\w-]+\.ts$/)
       expect(m.entry.length).toBeGreaterThan(0)
     }
   })
@@ -73,16 +74,14 @@ describe('host-modules import maps', () => {
     }
   })
 
-  it('dev map points at vite pre-bundled deps for the same specifiers', () => {
-    // The /@fs/ form is the one Vite actually serves for deps outside its
-    // root (see buildDevImportMap); the /node_modules/.vite/deps/ form falls
-    // through to the SPA fallback and answers index.html, and a ?v= with the
-    // optimizer's browserHash answers 504 (outdated request) — so the map
-    // carries bare /@fs/ URLs, no query.
-    const map = buildDevImportMap('/@fs/test-deps')
+  it('dev map points at the host-dev shims for the same specifiers', () => {
+    // NOT at the vite pre-bundled dep files directly: a CommonJS dep file is
+    // default-only, so a plugin's named import would fail with "does not
+    // provide an export named …" (see buildDevImportMap).
+    const map = buildDevImportMap()
     expect(Object.keys(map.imports).sort()).toEqual([...HOST_MODULE_SPECIFIERS].sort())
     for (const m of HOST_MODULES) {
-      expect(map.imports[m.specifier]).toBe(`/@fs/test-deps/${m.devFile}`)
+      expect(map.imports[m.specifier]).toBe(`/host-dev/${m.devShim}`)
     }
   })
 
@@ -129,7 +128,7 @@ describe('host-modules import map CSP allowlist', () => {
 
   for (const [mode, build] of [
     ['prod', buildImportMap],
-    ['dev', () => buildDevImportMap('/@fs/test-deps')],
+    ['dev', buildDevImportMap],
   ] as const) {
     it(`${mode}: script-src carries exactly the sha256 of the served import map text`, () => {
       const html = generatedHtml(build())
@@ -160,7 +159,7 @@ describe('host-modules import map CSP allowlist', () => {
 
   it('prod and dev maps produce different hashes', () => {
     expect(importMapCspHashSource(buildImportMap())).not.toBe(
-      importMapCspHashSource(buildDevImportMap('/@fs/test-deps')),
+      importMapCspHashSource(buildDevImportMap()),
     )
   })
 

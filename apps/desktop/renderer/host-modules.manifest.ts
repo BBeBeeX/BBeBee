@@ -31,34 +31,56 @@ export interface HostModuleEntry {
   entry: string
   /**
    * File name of the same module inside vite's dev pre-bundle
-   * (`<root>/node_modules/.vite/deps/`), used only for the dev-mode import map.
+   * (`<root>/node_modules/.vite/deps/`). Kept as documentation of which dep
+   * file a dev shim's bare import resolves to; the dev-mode import map does
+   * NOT point at it directly (see buildDevImportMap).
    */
   devFile: string
+  /**
+   * Dev-mode shim file under `renderer/host-dev/`, e.g. `'react-dom-client.ts'`.
+   * Served by vite in dev and used as the dev-mode import map target.
+   */
+  devShim: string
 }
 
 /** Single source of truth for the host React version (mirrors apps/desktop package.json). */
 export const HOST_REACT_VERSION = '19.2.3'
 
 export const HOST_MODULES: readonly HostModuleEntry[] = [
-  { specifier: 'react', file: 'host/react.js', entry: 'react', devFile: 'react.js' },
-  { specifier: 'react-dom', file: 'host/react-dom.js', entry: 'react-dom', devFile: 'react-dom.js' },
+  {
+    specifier: 'react',
+    file: 'host/react.js',
+    entry: 'react',
+    devFile: 'react.js',
+    devShim: 'react.ts',
+  },
+  {
+    specifier: 'react-dom',
+    file: 'host/react-dom.js',
+    entry: 'react-dom',
+    devFile: 'react-dom.js',
+    devShim: 'react-dom.ts',
+  },
   {
     specifier: 'react-dom/client',
     file: 'host/react-dom-client.js',
     entry: 'react-dom/client',
     devFile: 'react-dom_client.js',
+    devShim: 'react-dom-client.ts',
   },
   {
     specifier: 'react/jsx-runtime',
     file: 'host/jsx-runtime.js',
     entry: 'react/jsx-runtime',
     devFile: 'react_jsx-runtime.js',
+    devShim: 'react-jsx-runtime.ts',
   },
   {
     specifier: 'react/jsx-dev-runtime',
     file: 'host/jsx-dev-runtime.js',
     entry: 'react/jsx-dev-runtime',
     devFile: 'react_jsx-dev-runtime.js',
+    devShim: 'react-jsx-dev-runtime.ts',
   },
   // Framework modules. A headless plugin bundle keeps its bare imports
   // of these (scripts/assemble-plugin.mjs: "its established form"), so
@@ -67,18 +89,26 @@ export const HOST_MODULES: readonly HostModuleEntry[] = [
   // registers with the host's Cordis when `Service` is the host's
   // class, and protocol constants (defaults, service keys) must not
   // fork between the app bundle and plugin code.
-  { specifier: 'cordis', file: 'host/cordis.js', entry: 'cordis', devFile: 'cordis.js' },
+  {
+    specifier: 'cordis',
+    file: 'host/cordis.js',
+    entry: 'cordis',
+    devFile: 'cordis.js',
+    devShim: 'cordis.ts',
+  },
   {
     specifier: '@BBeBee/protocol',
     file: 'host/protocol.js',
     entry: '@BBeBee/protocol',
     devFile: '@BBeBee_protocol.js',
+    devShim: 'protocol.ts',
   },
   {
     specifier: '@BBeBee/toolkit/hooks',
     file: 'host/toolkit-hooks.js',
     entry: '@BBeBee/toolkit/hooks',
     devFile: '@BBeBee_toolkit_hooks.js',
+    devShim: 'toolkit-hooks.ts',
   },
 ]
 
@@ -99,32 +129,37 @@ export function buildImportMap(): ImportMap {
 }
 
 /**
- * Dev-mode import map: points at vite's pre-bundled copies of the same modules,
- * so the dev app and dynamically loaded plugin code share one React instance
- * during `vite` dev as well.
+ * Dev-mode import map: points at the `renderer/host-dev/` shims, so the dev
+ * app and dynamically loaded plugin code share one React instance during
+ * `vite` dev as well.
  *
- * The targets must be `/@fs/<absolute deps cache dir>/…` URLs, NOT
- * `/node_modules/.vite/deps/…`. This repo's vite root is `renderer/`, so the
- * deps cache (`apps/desktop/node_modules/.vite/deps/`) sits outside the root:
- * Vite only recognizes dep URLs in the `/@fs/…` form for files outside the
- * root (see its `isOptimizedDepUrl`), and a `/node_modules/.vite/deps/…`
- * request falls through to the SPA fallback, which answers 200 with
- * index.html — a status-only probe then reports "200" while the module
- * loader fails on the HTML body (2026-10-24 visualizer investigation).
- * `depsBase` is therefore the `/@fs/…` prefix for the cache dir, computed by
- * the caller (vite.config.ts knows its own directory). No `?v=` is appended:
- * on `/@fs/…` dep URLs Vite's `?v` is a per-file transform hash, not the
- * optimizer's browserHash — appending the browserHash makes Vite answer 504
- * (outdated request), verified locally 2026-10-24. The bare `/@fs/…` URL
- * serves the current file; a regenerated cache is picked up on page reload,
- * when the import map itself is regenerated.
+ * The targets must NOT be vite's pre-bundled dep files directly, for two
+ * reasons, both verified locally 2026-10-24:
+ *
+ *  - Serving: this repo's vite root is `renderer/`, so the deps cache
+ *    (`apps/desktop/node_modules/.vite/deps/`) sits outside the root. Vite
+ *    only serves outside-root deps in `/@fs/…` form; a
+ *    `/node_modules/.vite/deps/…` URL falls through to the SPA fallback,
+ *    which answers 200 with index.html — a status-only probe then reports
+ *    "200" while the module loader fails on the HTML body.
+ *  - Exports: a CommonJS package's dep file is default-only
+ *    (`export default require_react()`). Vite's import analysis rewrites the
+ *    *app's* named imports into property accesses on that default, so the app
+ *    never notices — but a plugin loaded through the native import map does:
+ *    `import { useCallback }` fails with "does not provide an export named
+ *    'useCallback'". The shims are real source files under the vite root, so
+ *    Vite transforms their bare imports to the same dep files the app uses
+ *    (single instance) while their own named exports become real ESM exports
+ *    of the served module. The React-family shims enumerate the actual CJS
+ *    export surface (same approach as scripts/build-host-modules.js); the
+ *    ESM entries re-export verbatim.
  * Best-effort: dev-mode external plugin loading is already constrained on
  * some WebViews (see vite.config.ts).
  */
-export function buildDevImportMap(depsBase: string): ImportMap {
+export function buildDevImportMap(): ImportMap {
   const imports: Record<string, string> = {}
   for (const m of HOST_MODULES) {
-    imports[m.specifier] = `${depsBase}/${m.devFile}`
+    imports[m.specifier] = `/host-dev/${m.devShim}`
   }
   return { imports }
 }
