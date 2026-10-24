@@ -118,6 +118,22 @@ describe('githubCandidates', () => {
     ])
     expect(githubCandidates('http://raw.githubusercontent.com/a/b/c/d', [])).toHaveLength(1)
   })
+
+  it('mainland-china puts acceleration first and official last', () => {
+    const chain = githubCandidates(RAW_PINNED, ['https://ghproxy.example.com'], 'mainland-china')
+    expect(chain.map((candidate) => candidate.kind)).toEqual(['jsdelivr', 'prefix', 'official'])
+    expect(chain[0]?.url).toBe(RAW_JSDELIVR)
+    expect(chain[2]?.url).toBe(RAW_PINNED)
+
+    // api.github.com URLs get no jsDelivr, but prefixes still precede official.
+    const apiChain = githubCandidates(API_URL, ['https://ghproxy.example.com'], 'mainland-china')
+    expect(apiChain.map((candidate) => candidate.kind)).toEqual(['prefix', 'official'])
+
+    // Non-GitHub URLs stay single-candidate even in mainland-china.
+    expect(
+      githubCandidates('https://cdn.example/x.json', ['https://p.example.com'], 'mainland-china'),
+    ).toEqual([{ url: 'https://cdn.example/x.json', kind: 'official' }])
+  })
 })
 
 describe('parseRawGitHubUrl / toJsDelivrUrl', () => {
@@ -165,18 +181,42 @@ describe('github-fetch failover', () => {
     expect(logger.warn.mock.calls[0]?.[0]).toContain('falling back to jsdelivr')
   })
 
-  it('falls back to jsDelivr on a transport error and logs the region preference', async () => {
+  it('falls back to jsDelivr on a transport error in the global region', async () => {
+    const { layer, calls, logger } = makeFetch({
+      fail: { [RAW_PINNED]: new Error('offline') },
+      json: { [RAW_JSDELIVR]: { ok: 1 } },
+    })
+    await expect(layer.getJson(RAW_PINNED)).resolves.toEqual({ ok: 1 })
+    expect(calls).toEqual([RAW_PINNED, RAW_JSDELIVR])
+    expect(logger.warn).toHaveBeenCalledTimes(1)
+    expect(logger.warn.mock.calls[0]?.[0]).toContain('[github-fetch] official failed (offline)')
+    expect(logger.warn.mock.calls[0]?.[0]).toContain('region=global')
+    expect(logger.info).toHaveBeenCalledTimes(1)
+    expect(logger.info.mock.calls[0]?.[0]).toContain('jsdelivr succeeded')
+  })
+
+  it('mainland-china tries acceleration first and never touches official while it answers', async () => {
     const { layer, calls, logger } = makeFetch(
       { fail: { [RAW_PINNED]: new Error('offline') }, json: { [RAW_JSDELIVR]: { ok: 1 } } },
       [],
       'mainland-china',
     )
     await expect(layer.getJson(RAW_PINNED)).resolves.toEqual({ ok: 1 })
-    expect(calls).toEqual([RAW_PINNED, RAW_JSDELIVR])
-    expect(logger.warn.mock.calls[0]?.[0]).toContain('[github-fetch] official failed (offline)')
-    expect(logger.warn.mock.calls[0]?.[0]).toContain('region=mainland-china')
-    expect(logger.info).toHaveBeenCalledTimes(1)
-    expect(logger.info.mock.calls[0]?.[0]).toContain('jsdelivr succeeded')
+    expect(calls).toEqual([RAW_JSDELIVR])
+    expect(logger.warn).not.toHaveBeenCalled()
+  })
+
+  it('mainland-china falls back to official last when every accelerator fails', async () => {
+    const { layer, calls, logger } = makeFetch(
+      { status: { [RAW_JSDELIVR]: 500 }, json: { [RAW_PINNED]: { ok: 'official' } } },
+      [],
+      'mainland-china',
+    )
+    await expect(layer.getJson(RAW_PINNED)).resolves.toEqual({ ok: 'official' })
+    expect(calls).toEqual([RAW_JSDELIVR, RAW_PINNED])
+    expect(logger.warn).toHaveBeenCalledTimes(1)
+    expect(logger.warn.mock.calls[0]?.[0]).toContain('jsdelivr failed (500)')
+    expect(logger.warn.mock.calls[0]?.[0]).toContain('falling back to official')
   })
 
   it('walks custom prefixes in order after jsDelivr', async () => {

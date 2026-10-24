@@ -2,7 +2,7 @@
  * Unified GitHub download layer for the registry.
  *
  * Every GitHub request is turned into an ordered candidate chain and walked
- * until one candidate answers:
+ * until one candidate answers. In the `global` region the order is:
  *
  * 1. **official** — the original URL, always first;
  * 2. **jsdelivr** — the system-built-in `cdn.jsdelivr.net/gh/` mirror, only
@@ -11,14 +11,15 @@
  * 3. **prefix** — one candidate per user-configured acceleration prefix, in
  *    the user's order, gh-proxy style (`prefix + original full URL`).
  *
- * A candidate is only abandoned when it actually fails (transport error or
- * HTTP status >= 400); each switch is logged through `ctx.logger` so the
- * fallback stays observable without bothering the user. URLs on hosts other
- * than GitHub keep exactly one candidate — an author's own `downloadUrl` is
+ * In the `mainland-china` region the accelerated candidates come first
+ * (jsdelivr, then prefixes) and official is the last resort: official
+ * GitHub is typically unreachable there, so trying it first only bought a
+ * failing attempt — and a warn — on every fresh request. A candidate is
+ * only abandoned when it actually fails (transport error or HTTP status
+ * >= 400); each switch is logged through `ctx.logger` so the fallback
+ * stays observable without bothering the user. URLs on hosts other than
+ * GitHub keep exactly one candidate — an author's own `downloadUrl` is
  * never rewritten.
- *
- * The download-region preference is storage-only for now: it is read and
- * surfaced in the log lines, but the official-first rule never changes.
  */
 
 import type { HttpService, HttpResponse } from '@BBeBee/protocol'
@@ -133,39 +134,43 @@ export function normalizeAccelerationPrefix(prefix: string): string {
 }
 
 /**
- * Compute the candidate chain for a URL: official → jsDelivr (only for
- * pinned raw.githubusercontent.com URLs) → one candidate per prefix, in
- * order. Non-GitHub hosts keep exactly one candidate.
+ * Compute the candidate chain for a URL. Global region: official →
+ * jsDelivr (only for pinned raw.githubusercontent.com URLs) → one
+ * candidate per prefix, in order. Mainland-china region: the accelerated
+ * candidates first (jsDelivr, then prefixes), official last as a
+ * fallback. Non-GitHub hosts keep exactly one candidate either way.
  */
 export function githubCandidates(
   url: string,
   prefixes: readonly string[] = [],
+  region: 'global' | 'mainland-china' = 'global',
 ): readonly GitHubCandidate[] {
-  const candidates: GitHubCandidate[] = [{ url, kind: 'official' }]
+  const official: GitHubCandidate = { url, kind: 'official' }
 
   let host: string | undefined
   try {
     host = new URL(url).hostname
   } catch {
-    return candidates
+    return [official]
   }
-  if (host !== RAW_GITHUB_HOST && host !== API_GITHUB_HOST) return candidates
+  if (host !== RAW_GITHUB_HOST && host !== API_GITHUB_HOST) return [official]
 
+  const accelerated: GitHubCandidate[] = []
   const raw = parseRawGitHubUrl(url)
   if (raw) {
-    candidates.push({ url: toJsDelivrUrl(raw), kind: 'jsdelivr' })
+    accelerated.push({ url: toJsDelivrUrl(raw), kind: 'jsdelivr' })
   }
 
   for (const prefix of prefixes) {
     if (typeof prefix !== 'string' || prefix.trim().length === 0) continue
-    candidates.push({
+    accelerated.push({
       url: `${normalizeAccelerationPrefix(prefix)}${url}`,
       kind: 'prefix',
       prefix: normalizeAccelerationPrefix(prefix),
     })
   }
 
-  return candidates
+  return region === 'mainland-china' ? [...accelerated, official] : [official, ...accelerated]
 }
 
 function describeFailure(err: unknown): string {
@@ -245,7 +250,7 @@ export function createGitHubFetch(deps: GitHubFetchDeps): GitHubFetchLayer {
     const prefixes = opts.onlyOfficial ? [] : (settings.githubAccelerationPrefixes ?? [])
     const candidates = opts.onlyOfficial
       ? [{ url, kind: 'official' as const }]
-      : githubCandidates(url, prefixes)
+      : githubCandidates(url, prefixes, region)
 
     let activeCandidates = candidates
     const isCachedUnreachable =
