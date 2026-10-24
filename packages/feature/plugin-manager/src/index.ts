@@ -1240,7 +1240,18 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
         `插件 id 不符：BBeBee.plugin.json 的 id 为 "${extracted.manifest.id ?? '缺失'}"，registry 条目要求 "${entry.id}"，拒绝安装`,
       )
     }
-    if (this.manifests.has(entry.id) && !installedRecords[entry.id]) {
+    // Built-in id conflict — with one narrow exception: a registry
+    // copy of the built-in itself. Local plugin packages now use their
+    // scoped npm name as their id, so the registry visualizer's id is
+    // the built-in visualizer's id (`@bbebee/plugin-visualizer`) and
+    // its npm name is the built-in manifest's name. That is the same
+    // plugin arriving through the marketplace channel (boot already
+    // lets an external registry entry override a built-in entry with
+    // the same id), not a spoof: a third party claiming a built-in id
+    // under a different npm name is still refused, as the test for
+    // `@bbebee/plugin-player` under npm `@t/a` pins.
+    const registered = this.manifests.get(entry.id)
+    if (registered && !installedRecords[entry.id] && registered.name !== entry.npm) {
       throw new NpmPluginError('SPOOF_DETECTED', `插件 id "${entry.id}" 与内置插件冲突，拒绝安装`)
     }
     // Critical-key impersonation (audit W5): the packaged manifest may

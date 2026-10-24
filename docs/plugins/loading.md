@@ -364,15 +364,16 @@ overridable in Settings → Network → *Download & GitHub acceleration*:
 1. The published package root **must contain `BBeBee.plugin.json`**, and the
    `package.json` `files` array must include it (plus `dist/`).
    **Publication identity:** the packaged manifest `id` must equal the
-   registry entry `id` — a kebab slug such as `bbebeex-visualizer`
-   (`{username}-{name}`), *not* the feature package's monorepo manifest id
-   (`@bbebee/plugin-visualizer`). The installer's anti-spoofing check and
-   the registry's CI content check both enforce the equality; the assembly
-   tool stamps it with `--id` (§6.8 item 7). Likewise the npm package name
-   must be the lowercase name the registry entry's `npm` field names —
-   npm accepts lowercase names only, so the monorepo scope cannot be
-   published as-is; assemble under the publication name with `--name`
-   (the tool warns when the resulting name is not publishable).
+   registry entry `id` — local plugin packages use their scoped npm
+   name as that id (e.g. `@bbebee/plugin-visualizer`), which since the
+   built-in rename is also the feature package's monorepo manifest id.
+   The installer's anti-spoofing check and the registry's CI content
+   check both enforce the equality; the assembly tool stamps it with
+   `--id` (§6.8 item 7). Likewise the npm package name must be the
+   lowercase name the registry entry's `npm` field names — npm accepts
+   lowercase names only, so the monorepo scope cannot be published
+   as-is; assemble under the publication name with `--name` (the tool
+   warns when the resulting name is not publishable).
 2. **`package.json#version` is the single version truth.** It must equal
    `BBeBee.plugin.json#version`; the installer refuses on mismatch. The
    registry entry carries no version at all.

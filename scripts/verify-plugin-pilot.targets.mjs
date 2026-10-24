@@ -84,7 +84,7 @@
 
 export const TARGETS = {
   visualizer: {
-    pluginId: 'bbebeex-visualizer', // registry entry id (kebab slug)
+    pluginId: '@bbebee/plugin-visualizer', // registry entry id (= npm name)
     // Publication name: npm (and the registry validator) only accept
     // lowercase names, so the monorepo scope `@BBeBee` cannot be
     // published as-is — the package is assembled under this name.
@@ -168,17 +168,17 @@ export const TARGETS = {
   // the service is covered by the closure entry's declared `provides`,
   // at install time by the downloaded package's real manifest.
   'visualizer-meters': {
-    pluginId: 'bbebee-plugin-visualizer-meters',
+    pluginId: '@bbebee/plugin-visualizer-meters',
     npmName: '@bbebee/plugin-visualizer-meters',
     versions: ['0.1.0', '0.1.1'],
     source: 'own',
     featureDir: 'examples/visualizer-meters',
     uiDir: null,
     entryFile: 'examples/visualizer-meters/registry-entry.json',
-    entryFileName: 'bbebee-plugin-visualizer-meters.json',
+    entryFileName: 'bbebee-plugin-visualizer-meters.json', // file stem of the scoped id
     dependencyPackages: [{ target: 'visualizer', version: '0.1.0' }],
-    expectClosure: ['bbebeex-visualizer'],
-    activationChain: ['bbebeex-visualizer'],
+    expectClosure: ['@bbebee/plugin-visualizer'],
+    activationChain: ['@bbebee/plugin-visualizer'],
     worldManifests: [
       'packages/core/core-audio-mpv/BBeBee.plugin.json',
       'packages/feature/plugin-settings/BBeBee.plugin.json',
@@ -221,7 +221,7 @@ export const TARGETS = {
       )
       check(
         'ctx.visualizer is the closure-installed visualizer package’s own instance',
-        ctx.get('visualizer') instanceof mods['bbebeex-visualizer'].headless.VisualizerPlugin,
+        ctx.get('visualizer') instanceof mods['@bbebee/plugin-visualizer'].headless.VisualizerPlugin,
       )
     },
     verifyUpdate({ check, uiCalls, tag }) {

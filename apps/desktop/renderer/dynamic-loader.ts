@@ -292,7 +292,11 @@ async function diagnoseImportFailure(pluginId: string, url: string): Promise<voi
   try {
     const userData = await w.window?.BBeBee?.paths?.get?.('userData')
     if (userData) {
-      const fsPath = `${userData.replace(/\\/g, '/').replace(/\/+$/, '')}/installed-plugins/${pluginId}/package.json`
+      // Diagnostic probe only: mirror the sidecar writer's directory
+      // (strip `@`, `/` → `__`) — the raw id is not a directory name
+      // for scoped ids, so probing it would report a false 404.
+      const dirName = pluginId.replace(/^@/, '').replace(/\//g, '__')
+      const fsPath = `${userData.replace(/\\/g, '/').replace(/\/+$/, '')}/installed-plugins/${dirName}/package.json`
       const fileUri = fsPath.startsWith('/') ? `bbebee-file://${fsPath}` : `bbebee-file:///${fsPath}`
       const servable = w.window?.BBeBee?.files?.toServableUrl?.(fileUri) ?? fileUri
       await probe('file-fetch', servable)

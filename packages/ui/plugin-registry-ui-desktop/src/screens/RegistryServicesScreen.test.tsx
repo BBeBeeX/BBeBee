@@ -62,7 +62,7 @@ const INFOS: ServiceProviderInfo[] = [
   {
     key: 'visualizer',
     critical: false,
-    providers: ['@bbebee/plugin-visualizer', 'bbebee-plugin-visualizer-meters'],
+    providers: ['@bbebee/plugin-visualizer', '@bbebee/plugin-visualizer-meters'],
     activeProvider: '@bbebee/plugin-visualizer',
   },
   {
@@ -82,15 +82,15 @@ describe('RegistryServicesScreen', () => {
 
     const visualizer = getByTestId('registry-service-row-visualizer')
     expect(visualizer.textContent).toContain('@bbebee/plugin-visualizer')
-    expect(visualizer.textContent).toContain('bbebee-plugin-visualizer-meters')
+    expect(visualizer.textContent).toContain('@bbebee/plugin-visualizer-meters')
     expect(visualizer.textContent).toContain('Active')
 
     const switchButton = getByTestId(
-      'registry-service-switch-visualizer-bbebee-plugin-visualizer-meters',
+      'registry-service-switch-visualizer-@bbebee/plugin-visualizer-meters',
     )
     fireEvent.click(switchButton)
     expect(switchCalls).toEqual([
-      { key: 'visualizer', providerId: 'bbebee-plugin-visualizer-meters' },
+      { key: 'visualizer', providerId: '@bbebee/plugin-visualizer-meters' },
     ])
   })
 
@@ -134,12 +134,12 @@ describe('RegistryServicesScreen', () => {
     const { getByTestId, findByTestId } = render(h(RegistryServicesScreen, { ctx }))
 
     fireEvent.click(
-      getByTestId('registry-service-switch-visualizer-bbebee-plugin-visualizer-meters'),
+      getByTestId('registry-service-switch-visualizer-@bbebee/plugin-visualizer-meters'),
     )
     const error = await findByTestId('registry-services-error')
     expect(error.textContent).toContain('CRITICAL_PROVIDER')
     expect(switchCalls).toEqual([
-      { key: 'visualizer', providerId: 'bbebee-plugin-visualizer-meters' },
+      { key: 'visualizer', providerId: '@bbebee/plugin-visualizer-meters' },
     ])
   })
 })

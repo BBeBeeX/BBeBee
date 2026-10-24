@@ -6,10 +6,13 @@
  *
  *   1. `BBeBee.plugin.json` — the canonical manifest. This is what
  *      npm-installed plugins carry (the client requires it in the tarball)
- *      and what plugin-manager registers: its `id` is the registry entry id,
- *      NOT the npm package name. It must win over every other candidate or a
- *      restarted app would resurrect the plugin under its npm package name
- *      with an `entry.main` fallback that does not match the install record.
+ *      and what plugin-manager registers: its `id` is the registry entry id.
+ *      Local plugin packages use their scoped npm name as that id, so
+ *      the two may coincide — the distinction is still real for
+ *      third-party entries with slug ids. It must win over every other
+ *      candidate or a restarted app would resurrect the plugin under its
+ *      npm package name with an `entry.main` fallback that does not match
+ *      the install record.
  *   2. `manifest.json` — legacy external plugins.
  *   3. `package.json` — an embedded `manifest` field when present, otherwise
  *      a manifest synthesized from the package fields.

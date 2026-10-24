@@ -394,6 +394,13 @@ describe('parseDepSpecifier', () => {
     expect(parseDepSpecifier('bob-dsp-pack')).toEqual({ id: 'bob-dsp-pack' })
     expect(parseDepSpecifier('bob-dsp-pack@^2.0.0')).toEqual({ id: 'bob-dsp-pack', range: '^2.0.0' })
   })
+  it('parses scoped ids and scoped id@range', () => {
+    expect(parseDepSpecifier('@bbebee/plugin-visualizer')).toEqual({ id: '@bbebee/plugin-visualizer' })
+    expect(parseDepSpecifier('@bbebee/plugin-visualizer@^0.1.0')).toEqual({
+      id: '@bbebee/plugin-visualizer',
+      range: '^0.1.0',
+    })
+  })
   it('rejects malformed specifiers', () => {
     expectNpmErrorSync(() => parseDepSpecifier('Nope'), 'DEPENDENCY_INVALID')
     expectNpmErrorSync(() => parseDepSpecifier('a@'), 'DEPENDENCY_INVALID')
@@ -1155,6 +1162,55 @@ describe('plugin-manager npm service methods', () => {
     const w = seedWorld(entry, ['1.0.0'], tarballs)
     await w.plugin[PluginManagerPlugin.init]()
     await expectNpmError(w.plugin.installPlugin('@bbebee/plugin-player'), 'SPOOF_DETECTED')
+  })
+
+  it('installs a registry copy of a builtin when its npm name is the builtin manifest name', async () => {
+    // Local plugin packages use their scoped npm name as their id, so
+    // the registry visualizer collides with the builtin visualizer by
+    // id — but it is the same plugin through the marketplace channel,
+    // not a spoof, and boot lets an external entry override a builtin
+    // entry with the same id.
+    const entry = entryFor({
+      id: '@bbebee/plugin-visualizer',
+      npm: '@bbebee/plugin-visualizer',
+      services: [],
+    })
+    const tarballs = {
+      '@bbebee/plugin-visualizer@1.0.0': tarballFor(
+        '@bbebee/plugin-visualizer',
+        '@bbebee/plugin-visualizer',
+        '1.0.0',
+      ),
+    }
+    const w = createNpmWorld({
+      manifests: {
+        '@bbebee/plugin-visualizer': {
+          id: '@bbebee/plugin-visualizer',
+          name: '@bbebee/plugin-visualizer',
+          displayName: 'Visualizer',
+          description: 'visualizer',
+          version: '0.0.0',
+          author: 'BBeBee',
+          engines: { BBeBee: '^0.1.0' },
+          entry: { main: './dist/index.js' },
+          capabilities: [],
+          contributes: { services: ['visualizer'] },
+          effect: 'visualizer',
+        } as PluginManifest,
+      },
+    })
+    w.routes.set(INDEX_URL, { status: 200, json: async () => [entry] })
+    w.routes.set(`https://registry.npmjs.org/${encodeURIComponent(entry.npm)}`, {
+      status: 200,
+      json: async () => packument(entry.npm, ['1.0.0'], tarballs),
+    })
+    w.routes.set(`https://cdn.jsdelivr.net/${encodeURIComponent(entry.npm)}-/1.0.0.tgz`, {
+      status: 200,
+      bytes: async () => tarballs['@bbebee/plugin-visualizer@1.0.0']!,
+    })
+    await w.plugin[PluginManagerPlugin.init]()
+    await w.plugin.installPlugin('@bbebee/plugin-visualizer')
+    expect(w.bridge.installPlugin).toHaveBeenCalledTimes(1)
   })
 
   describe('provenance (audit W6)', () => {

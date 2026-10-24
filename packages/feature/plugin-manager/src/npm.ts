@@ -258,9 +258,16 @@ function readTar(data: Uint8Array, maxEntries: number = TARBALL_MAX_ENTRIES): Re
   return out
 }
 
-const DEP_SPEC_RE = /^([a-z0-9]+(?:-[a-z0-9]+)*)(@(.+))?$/
+/**
+ * Registry dependency specifier: a slug id (`bob-dsp-pack`) or a scoped
+ * npm-name id (`@bbebee/plugin-visualizer`), optionally with
+ * `@<semver-range>`. The id charset excludes `@`, so for a scoped id
+ * the range separator is unambiguously the `@` after the slash.
+ */
+const DEP_SPEC_RE =
+  /^((?:@[a-z0-9-~][a-z0-9-._~]*\/[a-z0-9-~][a-z0-9-._~]*|[a-z0-9]+(?:-[a-z0-9]+)*))(@(.+))?$/
 
-/** Parses `"bob-dsp-pack"` / `"bob-dsp-pack@^2.0.0"` into `{ id, range? }`. */
+/** Parses `"bob-dsp-pack"` / `"bob-dsp-pack@^2.0.0"` / `"@bbebee/plugin-visualizer@^0.1.0"` into `{ id, range? }`. */
 export function parseDepSpecifier(spec: string): { id: string; range?: string } {
   const m = DEP_SPEC_RE.exec(spec.trim())
   if (!m) {

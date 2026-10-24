@@ -110,6 +110,10 @@ if (!target) {
   process.exit(2)
 }
 const PLUGIN_ID = target.pluginId
+// Registry entry file stem for a plugin id — the same transform as
+// `pluginFileStem` in B_Be_Bee-registry's scripts/lib/schemas.ts (strip
+// `@`, `/` → `-`); a scoped id cannot itself be a file name.
+const pluginFileStem = (id) => id.replace(/^@/, '').replace(/\//g, '-')
 const NPM_NAME = target.npmName
 const [V1, V2] = target.versions
 const MARKER = target.updateMarker.tag
@@ -445,17 +449,17 @@ if (target.entryFile) {
     fromFile.id === PLUGIN_ID && fromFile.npm === NPM_NAME,
     `${fromFile.id} / ${fromFile.npm}`,
   )
-  fixtureEntries.push({ entry: fromFile, fileName: target.entryFileName ?? `${PLUGIN_ID}.json` })
+  fixtureEntries.push({ entry: fromFile, fileName: target.entryFileName ?? `${pluginFileStem(PLUGIN_ID)}.json` })
 } else {
   fixtureEntries.push({
     entry: { id: PLUGIN_ID, npm: NPM_NAME, ...target.entry },
-    fileName: target.entryFileName ?? `${PLUGIN_ID}.json`,
+    fileName: target.entryFileName ?? `${pluginFileStem(PLUGIN_ID)}.json`,
   })
 }
 for (const dep of depTargets) {
   fixtureEntries.push({
     entry: { id: dep.def.pluginId, npm: dep.def.npmName, ...dep.def.entry },
-    fileName: dep.def.entryFileName ?? `${dep.def.pluginId}.json`,
+    fileName: dep.def.entryFileName ?? `${pluginFileStem(dep.def.pluginId)}.json`,
   })
 }
 

@@ -13,12 +13,14 @@
  *
  * `--id` stamps the **publication identity** into the assembled
  * `BBeBee.plugin.json`: the installer's anti-spoofing check requires the
- * packaged manifest `id` to equal the registry entry `id`, and the
- * registry entry id is a kebab slug (`{username}-{name}`, e.g.
- * `bbebeex-visualizer`) — not the feature package's monorepo manifest id
- * (`@BBeBee/plugin-visualizer`). Registry CI enforces the same equality
- * against the published package. Omit `--id` only for packages that will
- * never be registry-distributed; the feature manifest id is then kept.
+ * packaged manifest `id` to equal the registry entry `id`. Local plugin
+ * packages use their scoped npm name as that id (e.g.
+ * `@bbebee/plugin-visualizer`) — which, since the built-in rename, is
+ * also the feature package's monorepo manifest id, so `--id` now
+ * usually repeats it rather than replacing it. Registry CI enforces
+ * the same equality against the published package. Omit `--id` only
+ * for packages that will never be registry-distributed; the feature
+ * manifest id is then kept.
  *
  * Output layout (the npm plugin format, docs/plugins/loading.md §6.8–6.9):
  *

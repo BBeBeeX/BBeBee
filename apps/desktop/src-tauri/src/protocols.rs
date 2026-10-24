@@ -578,9 +578,19 @@ fn lexical_normalize(path: &Path) -> PathBuf {
     out
 }
 
-/// Find the on-disk directory for an installed plugin id: the hashed
+/// Find the on-disk directory for an installed plugin id: first the
+/// sidecar writer's directory (the only layout installs actually
+/// produce — `apps/desktop/sidecar/installed-plugins.ts`'s
+/// `pluginDirName`: strip a leading `@`, `/` → `__`), then the hashed
 /// `pluginDirName`, then the exact sanitized name, then a directory
-/// scan for the id or a versioned (`<id>@<version>`) match.
+/// scan for the id or a versioned (`<id>@<version>`) match. The
+/// sidecar step is what makes scoped ids resolvable at all: for
+/// `@bbebee/plugin-visualizer` the writer creates
+/// `bbebee__plugin-visualizer`, which neither the hashed name
+/// (`bbebee_plugin-visualizer-<hash>`) nor the sanitized name
+/// (`_bbebee_plugin-visualizer`) nor the scan (`name == id`, impossible
+/// for a slash id) would ever match — without it every scoped plugin
+/// served 404.
 fn resolve_plugin_dir(plugin_id: &str, installed_root: &Path) -> Option<PathBuf> {
     if !is_safe_plugin_id(plugin_id) {
         return None;
@@ -595,6 +605,11 @@ fn resolve_plugin_dir(plugin_id: &str, installed_root: &Path) -> Option<PathBuf>
         let resolved = lexical_normalize(candidate);
         resolved != root && resolved.starts_with(&root)
     };
+    let sidecar_name = plugin_id.strip_prefix('@').unwrap_or(plugin_id).replace('/', "__");
+    let sidecar_path = installed_root.join(&sidecar_name);
+    if inside_root(&sidecar_path) && sidecar_path.exists() {
+        return Some(sidecar_path);
+    }
     let hashed_name = plugin_dir_name(plugin_id);
     let hashed_path = installed_root.join(&hashed_name);
     if inside_root(&hashed_path) && hashed_path.exists() {
@@ -809,8 +824,9 @@ mod tests {
     fn plugin_fixture() -> (tempfile::TempDir, PathBuf) {
         let tmp = tempfile::TempDir::new().unwrap();
         let root = tmp.path().join("installed-plugins");
-        // Hashed-dir layout, as writePluginFilesAtomic names it for new
-        // installs of scoped/renamed ids — plus the exact-name layout.
+        // Hashed-dir layout (a legacy fallback) — plus the exact-name
+        // layout. The layout installs actually produce is the sidecar
+        // one (see plugin_scoped_ids_resolve_sidecar_layout).
         let hashed = root.join(plugin_dir_name("test-plugin-a"));
         std::fs::create_dir_all(hashed.join("dist")).unwrap();
         std::fs::write(hashed.join("dist/index.js"), "export default 'a'").unwrap();
@@ -889,5 +905,25 @@ mod tests {
         let res = serve_plugin_file(&root, "bbebee-plugin://app/%40scope%2Fmy-plugin/index.js");
         assert_eq!(res.status(), tauri::http::StatusCode::OK);
         assert_eq!(res.body().as_ref(), b"export default 's'");
+    }
+
+    #[test]
+    fn plugin_scoped_ids_resolve_sidecar_layout() {
+        // The layout the sidecar writer actually produces for a scoped
+        // id: strip `@`, `/` → `__`. Before the sidecar step in
+        // resolve_plugin_dir this served 404 even though the plugin
+        // was installed — the hashed and sanitized candidates and the
+        // directory scan all miss this name.
+        let tmp = tempfile::TempDir::new().unwrap();
+        let root = tmp.path().join("installed-plugins");
+        let dir = root.join("bbebee__plugin-visualizer");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("index.js"), "export default 'v'").unwrap();
+        let res = serve_plugin_file(
+            &root,
+            "bbebee-plugin://app/%40bbebee%2Fplugin-visualizer/index.js",
+        );
+        assert_eq!(res.status(), tauri::http::StatusCode::OK);
+        assert_eq!(res.body().as_ref(), b"export default 'v'");
     }
 }

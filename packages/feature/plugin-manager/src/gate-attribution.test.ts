@@ -299,7 +299,7 @@ describe('settings-derived pipeline hosts (the dynamic allowlist)', () => {
   const VISUALIZER_TARBALL_CDN =
     'https://cdn.npmmirror.com/packages/%40bbebee/plugin-visualizer/0.1.1/plugin-visualizer-0.1.1.tgz'
   const visualizerPkg = {
-    id: 'bbebeex-visualizer',
+    id: '@bbebee/plugin-visualizer',
     npm: '@bbebee/plugin-visualizer',
     version: '0.1.1',
     tarball: VISUALIZER_TARBALL_MIRROR,

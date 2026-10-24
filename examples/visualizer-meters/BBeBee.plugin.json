@@ -7,7 +7,7 @@
     ]
   },
   "dependencies": [
-    "@BBeBee/plugin-visualizer"
+    "@bbebee/plugin-visualizer"
   ],
   "description": "Example third-party plugin: spectrogram, spectrum and VU meter views driven by the visualizer service.",
   "displayName": "Visualizer Meters",
@@ -22,7 +22,7 @@
       "desktop": "./dist/ui-desktop.js"
     }
   },
-  "id": "bbebee-plugin-visualizer-meters",
+  "id": "@bbebee/plugin-visualizer-meters",
   "moduleId": "dsp",
   "name": "@bbebee/plugin-visualizer-meters",
   "systemId": "layer-4",
