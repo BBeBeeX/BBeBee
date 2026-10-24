@@ -94,6 +94,75 @@ export function entryMainOf(manifest: Record<string, unknown>): string {
   return main.replace(/^\.?\//, '')
 }
 
+/** The on-disk directory name for a plugin id — the single transform both the writer and the remover use. */
+export function pluginDirName(pluginId: string): string {
+  return pluginId.replace(/^@/, '').replace(/\//g, '__')
+}
+
+/** Scope-stripped id for cross-scope matching (`@BBeBee/plugin-x` → `plugin-x`). */
+function unscopedId(id: string): string {
+  return id.replace(/^@[^/]+\//, '')
+}
+
+/**
+ * Deletes a plugin's local files under `root`.
+ *
+ * The direct directory (the writer's transform) is the fast path, but it is
+ * not the only way a plugin directory can be named: installs made under a
+ * manifest id, an npm name, or a pre-rename scope leave directories the
+ * transform misses — and the old handler silently reported "not found"
+ * while the files stayed on disk. So the removal also scans the installed
+ * directories and deletes any whose manifest identity matches the
+ * requested id (manifest id, manifest name, or scope-stripped id), plus
+ * the atomic-write scratch siblings for that plugin. Returns the deleted
+ * directory paths (absolute); an empty list means nothing was on disk.
+ * Never throws for a missing root or a missing plugin — uninstall is
+ * idempotent — but rejects an empty plugin id rather than guessing.
+ */
+export function removePluginFiles(root: string, pluginId: string): { deleted: string[] } {
+  if (!pluginId || typeof pluginId !== 'string') {
+    throw new Error('pluginId is required')
+  }
+  const deleted: string[] = []
+  const removeDir = (dir: string): void => {
+    if (existsSync(dir)) {
+      rmSync(dir, { recursive: true, force: true })
+      deleted.push(dir)
+    }
+  }
+  const dirName = pluginDirName(pluginId)
+  removeDir(join(root, dirName))
+  if (!existsSync(root)) return { deleted }
+  const wantedUnscoped = unscopedId(pluginId)
+  for (const info of listInstalledPlugins(root)) {
+    const dir = join(root, info.dirName)
+    if (deleted.includes(dir)) continue
+    const manifest = (info.manifest ?? {}) as Record<string, unknown>
+    const manifestId = typeof manifest['id'] === 'string' ? (manifest['id'] as string) : undefined
+    const manifestName = typeof manifest['name'] === 'string' ? (manifest['name'] as string) : undefined
+    const matches =
+      info.dirName.toLowerCase() === dirName.toLowerCase() ||
+      (manifestId !== undefined &&
+        (manifestId === pluginId || unscopedId(manifestId) === wantedUnscoped)) ||
+      (manifestName !== undefined && manifestName === pluginId)
+    if (matches) removeDir(dir)
+  }
+  // Atomic-write scratch siblings for this plugin: a failed install can
+  // leave .staging-/.backup- directories behind, and they are this
+  // plugin's files too. The prefix match is exact (name + dash), so one
+  // plugin's scratch never matches another plugin's directory.
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue
+    if (
+      entry.name.startsWith(`.staging-${dirName}-`) ||
+      entry.name.startsWith(`.backup-${dirName}-`)
+    ) {
+      removeDir(join(root, entry.name))
+    }
+  }
+  return { deleted }
+}
+
 /** Lists every installed plugin under `root` (missing root → empty list). */
 export function listInstalledPlugins(root: string): InstalledPluginInfo[] {
   if (!existsSync(root)) return []
@@ -137,7 +206,7 @@ export function writePluginFilesAtomic(
   pluginId: string,
   files: Record<string, string>,
 ): { ok: true; pluginId: string; path: string } {
-  const dirName = pluginId.replace(/^@/, '').replace(/\//g, '__')
+  const dirName = pluginDirName(pluginId)
   const targetDir = join(root, dirName)
   const stamp = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   const stagingDir = join(root, `.staging-${dirName}-${stamp}`)

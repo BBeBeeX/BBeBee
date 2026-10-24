@@ -14,6 +14,7 @@ import {
   discoverPluginManifest,
   entryMainOf,
   listInstalledPlugins,
+  removePluginFiles,
   writePluginFilesAtomic,
 } from './installed-plugins.js'
 import { readdirSync, readFileSync } from 'node:fs'
@@ -198,5 +199,80 @@ describe('writePluginFilesAtomic (audit W3)', () => {
     const dir = join(root, 'alice-plugin')
     expect(readFileSync(join(dir, 'dist', 'index.js'), 'utf8')).toBe('v1')
     expect(readdirSync(root)).toEqual(['alice-plugin'])
+  })
+})
+
+describe('removePluginFiles', () => {
+  it('deletes the directory named by the id transform', () => {
+    writePluginFilesAtomic(root, 'bbebee-plugin-x', {
+      'BBeBee.plugin.json': JSON.stringify({ id: 'bbebee-plugin-x', version: '1.0.0' }),
+      'dist/index.js': 'v1',
+    })
+    const { deleted } = removePluginFiles(root, 'bbebee-plugin-x')
+    expect(deleted).toEqual([join(root, 'bbebee-plugin-x')])
+    expect(existsSync(join(root, 'bbebee-plugin-x'))).toBe(false)
+  })
+
+  it('deletes a directory whose manifest id matches under a different dir name', () => {
+    // Installed under a manifest id, uninstalled by that same id: the
+    // directory was never named by the uninstall transform.
+    writePlugin('legacy-dir', {
+      'BBeBee.plugin.json': JSON.stringify({ id: '@bbebee/plugin-x', version: '1.0.0' }),
+      'dist/index.js': 'v1',
+    })
+    const { deleted } = removePluginFiles(root, '@bbebee/plugin-x')
+    expect(deleted).toEqual([join(root, 'legacy-dir')])
+    expect(existsSync(join(root, 'legacy-dir'))).toBe(false)
+  })
+
+  it('deletes a pre-rename scope directory the transform misses', () => {
+    // Installed as @BBeBee/plugin-x (old scope, old case), uninstalled as
+    // @bbebee/plugin-x: neither the computed dir name nor the manifest id
+    // matches exactly, but the scope-stripped id does.
+    writePlugin('BBeBee__plugin-x', {
+      'BBeBee.plugin.json': JSON.stringify({ id: '@BBeBee/plugin-x', version: '1.0.0' }),
+      'dist/index.js': 'v1',
+    })
+    const { deleted } = removePluginFiles(root, '@bbebee/plugin-x')
+    expect(deleted).toEqual([join(root, 'BBeBee__plugin-x')])
+    expect(existsSync(join(root, 'BBeBee__plugin-x'))).toBe(false)
+  })
+
+  it('deletes staging/backup scratch siblings for the plugin', () => {
+    writePluginFilesAtomic(root, 'alice-plugin', {
+      'BBeBee.plugin.json': BBE_MANIFEST,
+      'dist/index.js': 'v1',
+    })
+    writePlugin('.staging-alice-plugin-123-abc', { 'dist/index.js': 'partial' })
+    writePlugin('.backup-alice-plugin-123-abc', { 'dist/index.js': 'old' })
+    const { deleted } = removePluginFiles(root, 'alice-plugin')
+    expect(deleted.sort()).toEqual(
+      [join(root, 'alice-plugin'), join(root, '.staging-alice-plugin-123-abc'), join(root, '.backup-alice-plugin-123-abc')].sort(),
+    )
+    expect(readdirSync(root)).toEqual([])
+  })
+
+  it('leaves unrelated plugins alone and reports nothing for a missing plugin', () => {
+    writePluginFilesAtomic(root, 'alice-plugin', {
+      'BBeBee.plugin.json': BBE_MANIFEST,
+      'dist/index.js': 'v1',
+    })
+    const { deleted } = removePluginFiles(root, 'ghost-plugin')
+    expect(deleted).toEqual([])
+    expect(existsSync(join(root, 'alice-plugin'))).toBe(true)
+  })
+
+  it('is idempotent: a second removal finds nothing, and a missing root does not throw', () => {
+    writePluginFilesAtomic(root, 'alice-plugin', {
+      'BBeBee.plugin.json': BBE_MANIFEST,
+      'dist/index.js': 'v1',
+    })
+    removePluginFiles(root, 'alice-plugin')
+    expect(removePluginFiles(root, 'alice-plugin').deleted).toEqual([])
+    expect(removePluginFiles(join(root, 'no-such-root'), 'alice-plugin').deleted).toEqual([])
+  })
+
+  it('rejects an empty plugin id rather than guessing', () => {
+    expect(() => removePluginFiles(root, '')).toThrow('pluginId is required')
   })
 })

@@ -470,7 +470,7 @@ export function createPreloadApi(
         files: Record<string, string>,
       ): Promise<{ ok: boolean; pluginId: string; path?: string }> =>
         invoke('desktop_plugins_install', { pluginId, files }),
-      uninstall: (pluginId: string): Promise<{ ok: boolean; message?: string }> =>
+      uninstall: (pluginId: string): Promise<{ ok: boolean; message?: string; deleted?: string[] }> =>
         invoke('desktop_plugins_uninstall', { pluginId }),
     },
     window: {

@@ -9,7 +9,7 @@
  */
 
 import { join } from 'node:path'
-import { existsSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import readline from 'node:readline'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
@@ -23,7 +23,7 @@ import {
 } from '@BBeBee/core-desktop-bridge/main'
 import { CH } from '@BBeBee/core-desktop-bridge/protocol'
 import { createAudioHost, type AudioHostApi } from './audio/index.js'
-import { listInstalledPlugins, writePluginFilesAtomic } from './installed-plugins.js'
+import { listInstalledPlugins, removePluginFiles, writePluginFilesAtomic } from './installed-plugins.js'
 import { ProtocolManager } from './protocols.js'
 import type { JsonRpcNotification, JsonRpcRequest, JsonRpcResponse } from './types.js'
 
@@ -277,13 +277,15 @@ export async function createSidecar(): Promise<SidecarContext> {
       throw new Error('pluginId is required')
     }
     const root = join(userDataDir, 'installed-plugins')
-    const dirName = pluginId.replace(/^@/, '').replace(/\//g, '__')
-    const targetDir = join(root, dirName)
-    if (existsSync(targetDir)) {
-      rmSync(targetDir, { recursive: true, force: true })
-      return { ok: true }
+    // Identity-based removal, not just the computed directory name: a
+    // directory installed under a manifest id, an npm name, or a
+    // pre-rename scope must go too, or the plugin resurrects at boot
+    // from the leftover directory.
+    const { deleted } = removePluginFiles(root, pluginId)
+    if (deleted.length > 0) {
+      return { ok: true, deleted }
     }
-    return { ok: false, message: 'Plugin directory not found' }
+    return { ok: false, message: 'Plugin directory not found', deleted: [] }
   })
 
   // Proxy test and set
