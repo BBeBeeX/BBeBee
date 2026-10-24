@@ -896,17 +896,29 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     opts?: { allowUnreviewedRoot?: boolean },
   ): Promise<{ plan: InstallPlan; nodes: ResolvedEntry[]; index: RegistryPluginEntry[] }> {
     const client = this.getNpmClient()
-    let doc = await client.fetchIndexDocument()
+    // Plans resolve against the LIVE index, not the 24h cache: a stale
+    // entry (e.g. a pin removed upstream) would otherwise cap an
+    // install to the old version for up to a day after the registry
+    // changed. When the live fetch fails, fall back to the cached copy
+    // rather than failing a plan the cache can still serve.
+    let usedCache = false
+    let doc = await client.fetchIndexDocument({ force: true }).catch(async (err) => {
+      usedCache = true
+      this.ctx.logger.warn(
+        `plugin-manager: live index unavailable (${err instanceof Error ? err.message : String(err)}); planning against the cached index`,
+      )
+      return client.fetchIndexDocument()
+    })
     let index = doc.entries
     let entry = index.find((e) => e.id === id)
-    if (!entry) {
-      // The index is cached for 24h and its CDN sources lag the registry
-      // repo besides, so a just-published entry can be missing from the
-      // cached copy — the real machine reported the freshly onboarded
+    if (!entry && usedCache) {
+      // The cached copy predates the entry — a just-published entry can
+      // be missing from it, and CDN sources lag the registry repo
+      // besides (the real machine reported the freshly onboarded
       // catppuccin theme as "no such entry" minutes after the registry
-      // push (2026-10-22). One forced refetch before concluding the id
-      // does not exist; a genuine miss still errors, just against the
-      // live index.
+      // push, 2026-10-22). One live attempt before concluding the id
+      // does not exist; when the first fetch already went live, the
+      // entry is genuinely absent and there is nothing to retry.
       doc = await client.fetchIndexDocument({ force: true })
       index = doc.entries
       entry = index.find((e) => e.id === id)
@@ -2123,7 +2135,11 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
         )
       }
     }
-    const wanted = range ?? `^${rec.version}`
+    // Default update range is same-major, not caret: caret is patch-only
+    // for 0.x (`^0.1.1` excludes 0.2.0), which made 0.x minor updates
+    // silently no-op ("already up to date") instead of installing.
+    // Major bumps still need explicit confirmation via the gate above.
+    const wanted = range ?? `>=${rec.version} <${majorOf(rec.version) + 1}.0.0`
     const { plan, nodes, index } = await this.planInstall(id, wanted)
     if (plan.missingServices.length > 0) {
       throw new NpmPluginError(

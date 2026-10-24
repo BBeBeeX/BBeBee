@@ -1971,6 +1971,64 @@ describe('plugin-manager npm service methods', () => {
     })
   })
 
+  describe('default update range and live index plans', () => {
+    const versions = ['0.1.0', '0.2.0']
+    const tarballs = () =>
+      Object.fromEntries(versions.map((v) => [`@t/a@${v}`, tarballFor('@t/a', 'a-x', v)]))
+
+    const installedVersion = async (w: NpmTestWorld) => {
+      const store = (w.ctx as any).store
+      const setCalls = store.set.mock.calls.filter(([k]: [string]) => k === 'npm:installed')
+      return setCalls.at(-1)?.[1]?.['a-x']?.version as string | undefined
+    }
+
+    it('a default update reaches a 0.x minor release instead of silently no-op', async () => {
+      // Caret is patch-only for 0.x: `^0.1.0` excludes 0.2.0, so the old
+      // default range resolved back to the installed version and the
+      // update returned "already up to date" without installing.
+      const entry = entryFor({ id: 'a-x', npm: '@t/a' })
+      const w = seedWorld(entry, versions, tarballs())
+      await w.plugin[PluginManagerPlugin.init]()
+      await w.plugin.installPlugin('a-x', '0.1.0')
+      await w.plugin.updatePlugin('a-x')
+      expect(await installedVersion(w)).toBe('0.2.0')
+    })
+
+    it('plans prefer the live index over a stale cached entry', async () => {
+      // The cache holds a pinned entry (pin 0.1.0-era, pre-unpin) while
+      // the live index carries the same entry unpinned: the plan must
+      // follow the live entry, not the 24h cache.
+      const stale = entryFor({ id: 'a-x', npm: '@t/a', reviewedVersion: '0.1.0' })
+      const fresh = entryFor({ id: 'a-x', npm: '@t/a' })
+      const w = seedWorld(fresh, versions, tarballs())
+      await w.plugin[PluginManagerPlugin.init]()
+      const store = (w.ctx as any).store
+      await store.set('npm:index', {
+        value: { entries: [stale], blocked: [] },
+        fetchedAt: Date.now(),
+      })
+      const plan = await w.plugin.resolveInstallPlan('a-x')
+      expect(plan.target.version).toBe('0.2.0')
+      expect(plan.target.unreviewed).toBeUndefined()
+    })
+
+    it('plans fall back to the cached index when the live fetch fails', async () => {
+      const entry = entryFor({ id: 'a-x', npm: '@t/a' })
+      const w = seedWorld(entry, versions, tarballs())
+      await w.plugin[PluginManagerPlugin.init]()
+      const store = (w.ctx as any).store
+      await store.set('npm:index', {
+        value: { entries: [entry], blocked: [] },
+        fetchedAt: Date.now(),
+      })
+      // Live index unreachable: the route that served it is gone, so
+      // the http stub answers 404 and the live fetch throws.
+      w.routes.delete(INDEX_URL)
+      const plan = await w.plugin.resolveInstallPlan('a-x')
+      expect(plan.target.version).toBe('0.2.0')
+    })
+  })
+
   describe('registry blocklist (audit W5)', () => {
     const versions = ['1.0.0', '1.1.0']
     const tarballs = () =>

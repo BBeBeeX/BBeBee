@@ -198,6 +198,10 @@ from npm. The two phases are deliberately separate:
    highest version satisfying a range), and resolves the transitive dependency
    closure recursively. Version conflicts between two dependency paths and
    dependency cycles fail loudly with the conflicting requirements named.
+   Plans resolve against the **live** registry index, not the 24h cache
+   (a stale entry — e.g. a pin removed upstream — used to cap an install
+   to the old version for up to a day); when the live fetch fails, the
+   plan falls back to the cached copy rather than failing outright.
    `resolveInstallPlan` returns the plan **without downloading anything**, so
    the UI can show the exact version, the dependency closure, and any missing
    services for confirmation. Install plans resolve the root to the
@@ -304,7 +308,9 @@ themselves, and that re-check is the ground truth (an entry whose
 runs automatically once ~24h after boot plus on user request) and reports a
 pending update as *reviewed* (at or below the entry's pin) or *unreviewed*
 (above it). `updatePlugin`
-installs the newest version satisfying `^<installed>` — still capped by the
+installs the newest version within the same major
+(`>=<installed> <(major+1).0.0` — caret would be patch-only for 0.x and
+left 0.x minor updates silently no-op) — still capped by the
 reviewed pin, so a default update stops at the reviewed version and going
 past it takes the explicit unreviewed confirmation — and keeps the enabled
 state; a major-version bump without an explicit range throws
