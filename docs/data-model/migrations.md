@@ -52,7 +52,7 @@ A plugin platform where only the core may create tables is not really a platform
 their own:
 
 ```ts
-await ctx.db.defineSchema('plugin:@BBeBee/plugin-scrobble', [
+await ctx.db.defineSchema('plugin:@bbebee/plugin-scrobble', [
   {
     version: 1,
     up: [

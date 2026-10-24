@@ -710,7 +710,7 @@ CREATE TABLE presets (
 );
 
 CREATE TABLE settings (
-  key        TEXT NOT NULL,                   -- 'plugin:@BBeBee/plugin-player/crossfadeMs'
+  key        TEXT NOT NULL,                   -- 'plugin:@bbebee/plugin-player/crossfadeMs'
   scope      TEXT NOT NULL DEFAULT 'global',  -- global|device|profile
   value_json TEXT NOT NULL,
   updated_at INTEGER NOT NULL,

@@ -92,8 +92,8 @@ which is authoritative over any wording here; the TypeScript shapes are `PluginM
 #### Example Manifest:
 ```jsonc
 {
-  "id": "@BBeBee/plugin-sources",
-  "name": "@BBeBee/plugin-sources",
+  "id": "@bbebee/plugin-sources",
+  "name": "@bbebee/plugin-sources",
   "displayName": "Sources",
   "description": "ctx.sources — imported source documents, the registry, and the catalogue cache.",
   "version": "0.0.0",
@@ -177,8 +177,11 @@ from npm. The two phases are deliberately separate:
    The index carries **no `version`** (schema v2); the version truth lives on npm.
    Entries declare `services` (required cordis service keys), `provides`
    (service keys the plugin registers for others), `platforms`
-   (`desktop`/`mobile`), `npm` (package name), and `dependencies` as
-   `"<registry-id>[@<semver-range>]"`. The market UI filters by platform.
+   (`desktop`/`mobile`), `npm` (package name), `npmUrl` (the canonical
+   npm package address derived from `npm` — required, and registry CI
+   rejects any value other than that exact derivation), and
+   `dependencies` as `"<registry-id>[@<semver-range>]"`. The market UI
+   filters by platform.
    The index document itself is an object, `{ entries, blocked }`:
    `blocked` is the registry's recall channel — `{ id, reason }` pairs from
    the registry repo's `blocklist.json` that clients must quarantine on
@@ -215,7 +218,16 @@ from npm. The two phases are deliberately separate:
    the entry's reviewed version, the bytes must additionally match the
    entry's `reviewedIntegrity`, a second anchor that lives in the registry
    repo rather than in the (possibly mirrored) packument, so a mirror that
-   swaps both the tarball and its packument hash still fails. The bytes are
+   swaps both the tarball and its packument hash still fails. When the
+   mirror-aware download proves ineffective (a download or integrity
+   failure, and the primary tarball did not already come from the
+   official registry), the installer falls back to the entry's `npmUrl`:
+   it re-resolves the plan's exact version — never a different one —
+   through the canonical official packument address and downloads the
+   official tarball, verifying it against the official packument
+   integrity (plus the reviewed pin when applicable). The fallback is
+   attempted once; its failure reports both attempts, its success is
+   logged as a warning so the mirror problem stays visible. The bytes are
    unpacked with a pure-JS gunzip+untar (no `node:*` in L4) under hard caps
    on the *decompressed* size and the tar entry count, and checked three ways: the
    selected version must equal `package.json#version` and
@@ -341,7 +353,7 @@ overridable in Settings → Network → *Download & GitHub acceleration*:
    **Publication identity:** the packaged manifest `id` must equal the
    registry entry `id` — a kebab slug such as `bbebeex-visualizer`
    (`{username}-{name}`), *not* the feature package's monorepo manifest id
-   (`@BBeBee/plugin-visualizer`). The installer's anti-spoofing check and
+   (`@bbebee/plugin-visualizer`). The installer's anti-spoofing check and
    the registry's CI content check both enforce the equality; the assembly
    tool stamps it with `--id` (§6.8 item 7). Likewise the npm package name
    must be the lowercase name the registry entry's `npm` field names —
