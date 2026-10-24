@@ -9,6 +9,30 @@
 const { getDefaultConfig } = require('expo/metro-config')
 const path = require('node:path')
 
+/*
+ * Bare Node builtins that may appear in an unresolvable position — the
+ * guarded sidecar paths described in `metro-stubs/node-builtin.js`. The stub
+ * is only ever reached when normal resolution fails, so this list growing is
+ * cheap; anything actually shipped for React Native keeps resolving first.
+ */
+const NODE_BUILTIN_FALLBACKS = new Set([
+  'buffer',
+  'string_decoder',
+  'readable-stream',
+  'stream',
+  'util',
+  'events',
+  'assert',
+  'os',
+  'path',
+  'fs',
+  'crypto',
+  'zlib',
+  'url',
+  'querystring',
+  'punycode',
+])
+
 const workspaceRoot = path.resolve(__dirname, '../..')
 const config = getDefaultConfig(__dirname)
 
@@ -29,6 +53,19 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   try {
     return resolve(context, moduleName, platform)
   } catch (error) {
+    // Node builtins resolve nothing under Metro, but `core-codec-node`'s
+    // sidecar paths import them (or transitively require them — iconv-lite's
+    // chain wants `buffer`/`string_decoder`) inside runtime-guarded code; see
+    // the stub's own header. Resolving them to the stub is what lets the
+    // mobile bundle exist at all while keeping every guarded fallback
+    // reachable. Only specifiers normal resolution FAILED on land here, so
+    // anything a real package provides still wins.
+    if (moduleName.startsWith('node:') || NODE_BUILTIN_FALLBACKS.has(moduleName)) {
+      return {
+        filePath: path.resolve(__dirname, 'metro-stubs/node-builtin.js'),
+        type: 'sourceFile',
+      }
+    }
     if (moduleName.startsWith('.') && moduleName.endsWith('.js')) {
       return resolve(context, moduleName.slice(0, -'.js'.length), platform)
     }

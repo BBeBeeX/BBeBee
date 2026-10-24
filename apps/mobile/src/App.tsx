@@ -1,12 +1,16 @@
 /**
  * The mobile shell.
  *
- * Reads the same contributed routes as the desktop shell and renders them as a
- * tab bar. No feature knowledge here either.
+ * Renders contributed views behind a fixed four-tab bar — a product decision,
+ * not a registry read: tabs are the four places people go on purpose, in an
+ * order chosen for them, so a plugin adding a route must not reshuffle the
+ * bottom of someone's screen. Everything above the tab bar (views, the
+ * now-playing bar, toasts) is still contributed and discovered through
+ * `ctx.ui`.
  */
 
 import { createElement as h, useCallback, useEffect, useState, type ComponentType } from 'react'
-import { ActivityIndicator, BackHandler, Pressable, Text, View } from 'react-native'
+import { ActivityIndicator, BackHandler, Image, Pressable, Text, useWindowDimensions, View } from 'react-native'
 /*
  * ⚠️ `react-native-safe-area-context`, not React Native's own `SafeAreaView`.
  *
@@ -19,16 +23,50 @@ import { ActivityIndicator, BackHandler, Pressable, Text, View } from 'react-nat
  */
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import type { Context } from 'cordis'
-import type { RouteContribution, SettingsContribution } from '@BBeBee/protocol'
-import { useI18n, Toast } from '@BBeBee/ui-kit-mobile'
+import type { StoreService } from '@BBeBee/protocol'
+import { serviceOf } from '@BBeBee/ui-core'
+import { useI18n, Sheet, Toast } from '@BBeBee/ui-kit-mobile'
 import { renderBootErrorMessage } from './boot-error'
 import { boot } from './boot'
+import {
+  MOBILE_LAYOUT_MODE_KEY,
+  isMobileLayoutMode,
+  resolveMobileLayout,
+  type MobileLayoutMode,
+} from './layout'
+// The brand mark on the tablet rail — the existing app icon, reused rather
+// than a second asset shipped for one layout.
+import brandIcon from '../assets/icon.png'
 
-/** What the tab bar can navigate to: a route, or a settings page. */
+/** What the tab bar can navigate to: a route id plus its i18n title key. */
 interface Tab {
   id: string
-  title: string
+  titleKey: string
 }
+
+/**
+ * The four tabs, in the order the product fixed them — deliberately not
+ * derived from `ctx.ui.routes` (whose `placement: ['tab-bar']` filter produced
+ * an alphabetical, plugin-dependent set) and not from settings-page
+ * contributions either.
+ *
+ * Titles come from i18n, not from each route's `title`: the contributed title
+ * is the *route's* English name ("Recommend"), while the tab is the *place*
+ * ("首页") — different words for different jobs, and only one of them should
+ * follow the user's locale.
+ */
+const TABS: readonly Tab[] = [
+  { id: 'sources.recommend', titleKey: 'app:common.app.tabs.home' },
+  { id: 'library.home', titleKey: 'app:common.app.tabs.library' },
+  { id: 'settings.view', titleKey: 'app:common.app.tabs.settings' },
+  { id: 'sources.search', titleKey: 'app:common.app.tabs.search' },
+]
+
+/**
+ * The foldable left pane is fixed to the library — the pane is a browsing
+ * surface, not a mirror of the tabs, so its stack's root never moves.
+ */
+const LEFT_PANE_ROOT = 'library.home'
 
 interface HistoryItem {
   id: string
@@ -36,56 +74,94 @@ interface HistoryItem {
 }
 
 /**
- * Re-read the registry whenever a plugin contributes or unloads.
+ * Bump a counter on every `ui/changed` so the shell re-renders.
  *
- * ⚠️ **Settings pages are navigable, not just routes.** `ctx.ui.settings` was
- * contributed by `plugin-local-scanner` and `plugin-sources` from the start
- * and read by nobody, so "Music folders" — the screen with *Add folder* and
- * *Scan now* on it — existed, had a view registered, and could not be reached
- * from either shell. A contribution nothing renders is a feature nobody has.
+ * The tab list is fixed, but what a tab *renders* is not: `ctx.ui.viewFor()`
+ * is read during render, and views can register after the shell mounted — a
+ * plugin loading late (the P1 recommend view, say) must appear without a
+ * restart. The counter also drives the layout-mode re-read: every writer of
+ * `mobile.layoutMode` emits `ui/changed` after the store write, which is what
+ * makes the Settings row apply live instead of on next launch.
  */
-function useTabs(ctx: Context): Tab[] {
-  const read = () => ({
-    routes: [...ctx.ui.routes] as readonly RouteContribution[],
-    settings: [...ctx.ui.settings] as readonly SettingsContribution[],
-  })
-  const [state, setState] = useState(read)
+function useUiChangedTick(ctx: Context): number {
+  const [tick, setTick] = useState(0)
   useEffect(() => {
-    // `read` is redefined per render but only ever closes over `ctx`, so
-    // re-subscribing on `ctx` alone is correct and keeps one listener.
-    const off = ctx.on('ui/changed', () =>
-      setState({ routes: [...ctx.ui.routes], settings: [...ctx.ui.settings] }),
-    )
+    const off = ctx.on('ui/changed', () => setTick((t) => t + 1))
     return () => void off()
   }, [ctx])
-
-  return [
-    ...state.routes
-      .filter((r) => r.placement?.includes('tab-bar') === true)
-      .map((r) => ({ id: r.id, title: r.title })),
-    /*
-     * Settings pages that actually have a view.
-     *
-     * ⚠️ A different rule from routes, deliberately. A *route* with no view on
-     * this target renders "not available on this platform", which is true and
-     * worth saying. A settings page with no view on *either* target is not a
-     * platform gap, it is a page nobody has written yet (`sources.settings` is
-     * one today), and listing it advertises a screen that does not exist.
-     */
-    ...state.settings
-      .filter((s) => ctx.ui.viewFor(s.id) !== undefined)
-      .map((s) => ({ id: s.id, title: s.title })),
-  ]
+  return tick
 }
 
 function Shell({ ctx }: { ctx: Context }) {
   const { t } = useI18n(ctx)
-  const translateTitle = (title: string): string => (title.includes(':') ? t(title) : title)
-  const tabs = useTabs(ctx)
-  const defaultTab = tabs[0]
+  const uiTick = useUiChangedTick(ctx)
+  const defaultTab = TABS[0]
   const [isFullscreenNowPlaying, setIsFullscreenNowPlaying] = useState(false)
+  /*
+   * The queue drawer's open state. Shell-owned by design: the drawer layers
+   * above the fullscreen player (Android Back closes it first, and reopening
+   * the drawer while the player is up must not disturb either surface), so
+   * no single page or bar can own it without reaching across the others.
+   */
+  const [isQueueOpen, setIsQueueOpen] = useState(false)
+
+  /*
+   * The user's persisted layout choice, read from `ctx.store` on mount and
+   * re-read on every `ui/changed` (the signal every writer of the key emits
+   * — the shell's own buttons and the Settings row both). `ctx.store` on this
+   * context is the root store: namespacing is opt-in per plugin, so the key
+   * the Settings row writes and the key read here are one and the same.
+   */
+  const [layoutMode, setLayoutModeState] = useState<MobileLayoutMode>('auto')
+  useEffect(() => {
+    let cancelled = false
+    void serviceOf<StoreService>(ctx, 'store')
+      ?.get<MobileLayoutMode>(MOBILE_LAYOUT_MODE_KEY)
+      .then((stored) => {
+        if (!cancelled && isMobileLayoutMode(stored)) setLayoutModeState(stored)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [ctx, uiTick])
+  const setLayoutMode = useCallback(
+    (mode: MobileLayoutMode) => {
+      setLayoutModeState(mode)
+      void serviceOf<StoreService>(ctx, 'store')
+        ?.set(MOBILE_LAYOUT_MODE_KEY, mode)
+        .then(() => {
+          ctx.emit('ui/changed')
+        })
+        .catch(() => {})
+    },
+    [ctx],
+  )
+
+  /*
+   * Window classification. `useWindowDimensions` is a shell-only API: a view
+   * package reading the window directly would fork its layout from the
+   * shell's and the two would disagree on rotation — views receive the
+   * resolved layout from above instead. The tablet branch is geometric
+   * (wide, landscape, tall); the foldable branch is the explicit user choice
+   * only, never inferred from width, and folding the device (width < 600)
+   * silently returns to the phone layout while the choice itself survives.
+   */
+  const { width, height } = useWindowDimensions()
+  const layout = resolveMobileLayout({ width, height, layoutMode })
 
   const [navState, setNavState] = useState<{ history: HistoryItem[]; index: number }>({
+    history: [],
+    index: 0,
+  })
+  /*
+   * The foldable left pane's own stack, rooted at the library. Independent of
+   * the right pane's `navState` by design: the panes are two surfaces over
+   * one context, and a detail opened on the left must never push the right
+   * pane's history (and vice versa). Survives folding — collapsing to the
+   * phone layout unmounts the pane, not its state.
+   */
+  const [leftNavState, setLeftNavState] = useState<{ history: HistoryItem[]; index: number }>({
     history: [],
     index: 0,
   })
@@ -142,8 +218,42 @@ function Shell({ ctx }: { ctx: Context }) {
   }, [ctx])
 
   const canGoBack = navState.index > 0
+  const leftCanGoBack = leftNavState.index > 0
+
+  /** Push onto the left pane's stack — the foldable pane's own history. */
+  const leftNavigate = useCallback((id: string, params?: Record<string, unknown>) => {
+    setLeftNavState((prev) => {
+      const base = prev.history.length === 0 ? [{ id: LEFT_PANE_ROOT }] : prev.history
+      const current = base[prev.index]
+      if (
+        current &&
+        current.id === id &&
+        JSON.stringify(current.params) === JSON.stringify(params)
+      ) {
+        return prev
+      }
+      const nextHistory = base.slice(0, prev.index + 1)
+      nextHistory.push({ id, params })
+      return { history: nextHistory, index: nextHistory.length - 1 }
+    })
+  }, [])
+
+  const leftGoBack = useCallback(() => {
+    if (leftNavState.index > 0) {
+      setLeftNavState((prev) => ({ ...prev, index: prev.index - 1 }))
+      return true
+    }
+    return false
+  }, [leftNavState.index])
 
   const goBack = useCallback(() => {
+    // Drawer before player before stacks: each surface unwinds in the order
+    // it covered the one beneath. (The sheet's own Modal also intercepts Back
+    // via `onRequestClose`; this guard is the same promise held by the shell.)
+    if (isQueueOpen) {
+      setIsQueueOpen(false)
+      return true
+    }
     if (isFullscreenNowPlaying) {
       setIsFullscreenNowPlaying(false)
       return true
@@ -152,8 +262,14 @@ function Shell({ ctx }: { ctx: Context }) {
       setNavState((prev) => ({ ...prev, index: prev.index - 1 }))
       return true
     }
+    // Dual pane: the right stack unwound first, the left pane's follows —
+    // hardware Back exits only when both panes are at their roots.
+    if (layout === 'foldable' && leftNavState.index > 0) {
+      setLeftNavState((prev) => ({ ...prev, index: prev.index - 1 }))
+      return true
+    }
     return false
-  }, [isFullscreenNowPlaying, navState.index])
+  }, [isQueueOpen, isFullscreenNowPlaying, navState.index, layout, leftNavState.index])
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -174,43 +290,33 @@ function Shell({ ctx }: { ctx: Context }) {
   const currentId = currentItem?.id
   const currentParams = currentItem?.params
 
-  const activeTab = tabs.find((t) => t.id === currentId)
-  const ViewComponent = currentId
-    ? (ctx.ui.viewFor(currentId) as
-        | ComponentType<{
-            ctx: Context
-            onBack?: () => void
-            onOpenAlbum?: (urn: string) => void
-            [key: string]: unknown
-          }>
-        | undefined)
-    : undefined
+  const activeTab = TABS.find((tab) => tab.id === currentId)
+
+  const isTablet = layout === 'tablet'
 
   const BottomBar = ctx.ui.viewFor('now-playing.bar') as
-    | ComponentType<{ ctx: Context; onOpenNowPlaying?: () => void }>
+    | ComponentType<{ ctx: Context; onOpenNowPlaying?: () => void; onOpenQueue?: () => void }>
     | undefined
   const NowPlayingView = ctx.ui.viewFor('now-playing.view') as
     | ComponentType<{ ctx: Context; onClose?: () => void }>
     | undefined
+  const QueueView = ctx.ui.viewFor('queue.view') as
+    | ComponentType<{ ctx: Context }>
+    | undefined
 
-  if (isFullscreenNowPlaying) {
-    return h(
-      SafeAreaView,
-      { style: { flex: 1, backgroundColor: '#0B0B0F' } },
-      NowPlayingView
-        ? h(NowPlayingView, { ctx, onClose: () => setIsFullscreenNowPlaying(false) })
-        : h(
-            Text,
-            { style: { padding: 24, color: '#A0A0AE' } },
-            t('app:common.app.nowPlayingNoMobileView'),
-          ),
-    )
-  }
+  /* ── the page surface, shared by every layout ─────────────────────────── */
 
-  return h(
-    SafeAreaView,
-    { style: { flex: 1, backgroundColor: '#0B0B0F' } },
-    canGoBack
+  /*
+   * The page surface comes as two plain factories, not components: the right
+   * pane and the foldable left pane render the *same* surface with different
+   * navigation closures, and a shared component would have to thread those
+   * through props — remounting the page on every shell render the moment a
+   * closure identity changes. The factories take everything as arguments and
+   * hold no hooks, so a call is ordinary createElement within the shell's
+   * single render.
+   */
+  const backHeaderFor = (show: boolean, onBack: () => void) =>
+    show
       ? h(
           View,
           {
@@ -226,45 +332,98 @@ function Shell({ ctx }: { ctx: Context }) {
           h(
             Pressable,
             {
-              onPress: goBack,
+              onPress: onBack,
               accessibilityRole: 'button',
               accessibilityLabel: t('app:common.app.goBack'),
               style: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
             },
-            h(Text, { style: { color: '#7C5CFF', fontSize: 16, fontWeight: '600' } }, t('app:common.app.backPill')),
+            h(
+              Text,
+              { style: { color: '#7C5CFF', fontSize: 16, fontWeight: '600' } },
+              t('app:common.app.backPill'),
+            ),
           ),
         )
-      : null,
-    h(
+      : null
+
+  const pageBodyFor = (
+    id: string | undefined,
+    params: Record<string, unknown> | undefined,
+    onBack: () => void,
+    onOpenAlbum: (urn: string) => void,
+  ) => {
+    // Resolved per pane rather than once in the shell: the two panes sit on
+    // different ids, and a late-registered view must be found for either.
+    const PageView = id
+      ? (ctx.ui.viewFor(id) as
+          | ComponentType<{
+              ctx: Context
+              onBack?: () => void
+              onOpenAlbum?: (urn: string) => void
+              [key: string]: unknown
+            }>
+          | undefined)
+      : undefined
+    return h(
       View,
       { style: { flex: 1 } },
-      ViewComponent
-        ? h(ViewComponent, {
-            ctx,
-            ...currentParams,
-            onBack: goBack,
-            onOpenAlbum: (urn: string) => navigateTo('album.view', { urn }),
-          })
+      PageView
+        ? h(PageView, { ctx, ...params, onBack, onOpenAlbum })
         : h(
             Text,
             { style: { padding: 24, color: '#A0A0AE' } },
-            currentId ? t('app:common.app.hasNoMobileView', { currentId }) : t('app:common.app.noPluginRoute'),
+            id
+              ? t('app:common.app.hasNoMobileView', { currentId: id })
+              : t('app:common.app.noPluginRoute'),
           ),
-    ),
+    )
+  }
+
+  const backHeader = backHeaderFor(canGoBack, goBack)
+  const pageBody = pageBodyFor(currentId, currentParams, goBack, (urn) =>
+    navigateTo('album.view', { urn }),
+  )
+
+  /*
+   * The foldable left pane's current page — the same factories fed the left
+   * stack's own navigation. An empty left history resolves to the fixed root
+   * rather than to "no route": the pane exists precisely to show the library,
+   * so before anything is pushed it shows its root, never the fallback text.
+   */
+  const leftCurrentItem: HistoryItem =
+    leftNavState.history[leftNavState.index] ?? { id: LEFT_PANE_ROOT }
+  const leftCurrentId = leftCurrentItem.id
+  const leftCurrentParams = leftCurrentItem.params
+  const leftBackHeader = backHeaderFor(leftCanGoBack, leftGoBack)
+  const leftPageBody = pageBodyFor(
+    leftCurrentId,
+    leftCurrentParams,
+    leftGoBack,
+    (urn) => leftNavigate('album.view', { urn }),
+  )
+
+  /* ── phone chrome: page, bar, bottom tabs ──────────────────────────────── */
+
+  const phoneChrome = h(
+    View,
+    { style: { flex: 1 } },
+    backHeader,
+    pageBody,
     BottomBar
       ? h(BottomBar, {
           ctx,
           onOpenNowPlaying: () => setIsFullscreenNowPlaying(true),
+          onOpenQueue: () => setIsQueueOpen(true),
         })
       : null,
     h(
       View,
       { style: { flexDirection: 'row', borderTopColor: '#1E1E28', borderTopWidth: 1 } },
-      ...tabs.map((tab) => {
+      ...TABS.map((tab) => {
         const isSelected =
           activeTab?.id === tab.id ||
           (currentId === 'album.view' && tab.id === 'library.home')
-        const tabTitle = translateTitle(tab.title)
+        const tabTitle = t(tab.titleKey)
         return h(
           Pressable,
           {
@@ -286,6 +445,284 @@ function Shell({ ctx }: { ctx: Context }) {
         )
       }),
     ),
+  )
+
+  /* ── tablet chrome: 240dp rail + content pane ──────────────────────────── */
+
+  /*
+   * The rail's now-playing card is the same `now-playing.bar` view the phone
+   * renders — one player surface, two homes. It is mounted at the rail's
+   * bottom with the same callbacks, so a control written once behaves
+   * identically in both layouts (including the idle placeholder).
+   */
+  const tabletChrome = h(
+    View,
+    { style: { flex: 1, flexDirection: 'row' } },
+    h(
+      View,
+      { style: { width: 240, borderRightWidth: 1, borderRightColor: '#1E1E28' } },
+      h(
+        View,
+        {
+          style: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10,
+            paddingHorizontal: 20,
+            paddingTop: 20,
+            paddingBottom: 12,
+          },
+        },
+        h(Image, { source: brandIcon, style: { width: 28, height: 28, borderRadius: 6 } }),
+        h(Text, { style: { color: '#F5F5F7', fontSize: 18, fontWeight: '700' } }, 'B Be Bee'),
+      ),
+      h(
+        View,
+        { style: { flex: 1 } },
+        ...TABS.map((tab) => {
+          const isSelected =
+            activeTab?.id === tab.id ||
+            (currentId === 'album.view' && tab.id === 'library.home')
+          const tabTitle = t(tab.titleKey)
+          return h(
+            Pressable,
+            {
+              key: tab.id,
+              onPress: () => navigateTo(tab.id),
+              accessibilityRole: 'tab',
+              accessibilityLabel: tabTitle,
+              accessibilityState: { selected: isSelected },
+              style: {
+                paddingVertical: 14,
+                paddingHorizontal: 20,
+                borderLeftWidth: 3,
+                borderLeftColor: isSelected ? '#7C5CFF' : 'transparent',
+              },
+            },
+            h(
+              Text,
+              {
+                numberOfLines: 1,
+                style: {
+                  color: isSelected ? '#F5F5F7' : '#5A5A68',
+                  fontWeight: isSelected ? '600' : '400',
+                },
+              },
+              tabTitle,
+            ),
+          )
+        }),
+      ),
+      BottomBar
+        ? h(BottomBar, {
+            ctx,
+            onOpenNowPlaying: () => setIsFullscreenNowPlaying(true),
+            onOpenQueue: () => setIsQueueOpen(true),
+          })
+        : null,
+      /*
+       * The way into the dual-pane layout lives at the bottom of the rail the
+       * user is already looking at, under the now-playing card. The rail only
+       * mounts on a window at least 600dp wide — exactly the window foldable
+       * requires — so the entry needs no width check of its own.
+       */
+      h(
+        Pressable,
+        {
+          onPress: () => setLayoutMode('foldable'),
+          accessibilityLabel: t('app:common.app.dualScreen'),
+          testID: 'rail-dual-screen',
+          style: {
+            borderTopWidth: 1,
+            borderTopColor: '#1E1E28',
+            paddingVertical: 12,
+            paddingHorizontal: 20,
+          },
+        },
+        h(
+          Text,
+          { style: { color: '#7C5CFF', fontSize: 14, fontWeight: '600' } },
+          t('app:common.app.dualScreen'),
+        ),
+      ),
+    ),
+    h(View, { style: { flex: 1 } }, backHeader, pageBody),
+  )
+
+  /* ── foldable chrome: library pane beside a whole phone ────────────────── */
+
+  /*
+   * The dual-pane layout is two complete surfaces, not one page split in
+   * half. The left pane is the library browser — its own stack, no tabs, and
+   * deliberately no now-playing bar: one player surface per window, and the
+   * right pane already carries it. The right pane is the entire phone layout
+   * (`phoneChrome`, tabs and all) rather than a bare content pane, so the
+   * two-pane posture behaves exactly like the phone it replaces — same tab
+   * navigation, same back stack, same sheet triggers — with the library
+   * pinned open beside it.
+   */
+  const foldableChrome = h(
+    View,
+    { style: { flex: 1, flexDirection: 'row' } },
+    h(
+      View,
+      {
+        style: { flex: 1, borderRightWidth: 1, borderRightColor: '#1E1E28' },
+        testID: 'foldable-left-pane',
+      },
+      h(
+        View,
+        {
+          style: {
+            flexDirection: 'row',
+            justifyContent: 'flex-end',
+            paddingHorizontal: 12,
+            paddingTop: 8,
+          },
+        },
+        h(
+          Pressable,
+          {
+            onPress: () => setLayoutMode('auto'),
+            accessibilityRole: 'button',
+            accessibilityLabel: t('app:common.app.exitDualScreen'),
+            testID: 'foldable-exit-dual-screen',
+            style: { paddingVertical: 6, paddingHorizontal: 10 },
+          },
+          h(
+            Text,
+            { style: { color: '#7C5CFF', fontSize: 13, fontWeight: '600' } },
+            t('app:common.app.exitDualScreen'),
+          ),
+        ),
+      ),
+      leftBackHeader,
+      leftPageBody,
+    ),
+    h(View, { style: { flex: 1 }, testID: 'foldable-right-pane' }, phoneChrome),
+  )
+
+  /* ── overlays: fullscreen player, then the queue above it ─────────────── */
+
+  /*
+   * The fullscreen player is an overlay stacked on the shell, not a branch
+   * swap — the same rule as the desktop shell (docs/ui/architecture.md
+   * §7.1-5): the shell and every cached page in it stay mounted underneath,
+   * so returning finds each page exactly as it was left, and on the tablet
+   * the overlay covers the whole window, rail included.
+   */
+  const fullscreenOverlay = isFullscreenNowPlaying
+    ? h(
+        View,
+        {
+          style: {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: '#0B0B0F',
+            zIndex: 100,
+          },
+          testID: 'now-playing-overlay',
+        },
+        NowPlayingView
+          ? h(NowPlayingView, { ctx, onClose: () => setIsFullscreenNowPlaying(false) })
+          : h(
+              Text,
+              { style: { padding: 24, color: '#A0A0AE' } },
+              t('app:common.app.nowPlayingNoMobileView'),
+            ),
+      )
+    : null
+
+  /*
+   * The phone's queue bottom sheet. A React Native Modal floats above
+   * whatever is beneath it, so mounting it alongside the fullscreen player
+   * puts the drawer above the player. The content cap keeps a long queue
+   * from eating the whole screen: 70% of the window, list scrolling inside —
+   * the sheet's own semantics stay untouched.
+   */
+  const queueSheet = !isTablet && QueueView
+    ? h(
+        Sheet,
+        {
+          open: isQueueOpen,
+          onClose: () => setIsQueueOpen(false),
+          title: t('queue:index.queue'),
+        },
+        h(
+          View,
+          { style: { maxHeight: Math.round(height * 0.7) } },
+          h(QueueView, { ctx }),
+        ),
+      )
+    : null
+
+  /*
+   * The tablet's queue drawer: right-anchored, above the fullscreen player
+   * (zIndex 120 over the overlay's 100) — the same layering as the desktop
+   * shell's queue drawer over its play page.
+   */
+  const queueDrawer =
+    isTablet && isQueueOpen && QueueView
+      ? h(
+          View,
+          {
+            style: {
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: Math.min(360, Math.round(width * 0.45)),
+              backgroundColor: '#14141C',
+              borderLeftWidth: 1,
+              borderLeftColor: '#1E1E28',
+              zIndex: 120,
+            },
+            testID: 'queue-drawer',
+          },
+          h(
+            View,
+            {
+              style: {
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: 16,
+                borderBottomWidth: 1,
+                borderBottomColor: '#1E1E28',
+              },
+            },
+            h(Text, { style: { color: '#F5F5F7', fontSize: 16, fontWeight: '600' } }, t('queue:index.queue')),
+            h(
+              Pressable,
+              {
+                onPress: () => setIsQueueOpen(false),
+                accessibilityRole: 'button',
+                accessibilityLabel: t('app:common.close'),
+                style: { padding: 6 },
+              },
+              h(Text, { style: { color: '#A0A0AE', fontSize: 16 } }, '✕'),
+            ),
+          ),
+          h(View, { style: { flex: 1 } }, h(QueueView, { ctx })),
+        )
+      : null
+
+  return h(
+    SafeAreaView,
+    // `shell-<layout>` lets a manual rotation check (and later an e2e tap
+    // through) see which branch the classifier picked without a debugger.
+    { style: { flex: 1, backgroundColor: '#0B0B0F' }, testID: `shell-${layout}` },
+    layout === 'tablet'
+      ? tabletChrome
+      : layout === 'foldable'
+        ? foldableChrome
+        : phoneChrome,
+    fullscreenOverlay,
+    queueSheet,
+    queueDrawer,
     activeToast
       ? h(
           View,

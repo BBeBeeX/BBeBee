@@ -68,6 +68,7 @@
     "@bbebee/plugin-ui": "workspace:*",
     "@bbebee/plugin-visualizer": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
+    "@BBeBee/ui-core": "workspace:*",
     "@BBeBee/ui-kit-mobile": "workspace:*",
     "@BBeBee/ui-tokens": "workspace:*",
     "@babel/runtime": "^7.29.7",

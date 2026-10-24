@@ -1,13 +1,12 @@
 import { createElement as h, Fragment, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { BrowseEntry, UiService } from '@BBeBee/protocol'
-import { useRecommendFeed } from '@bbebee/plugin-sources/hooks'
+import { usePlayAlbum, useRecommendFeed } from '@bbebee/plugin-sources/hooks'
 import { Button, EmptyState, Text, useI18n } from '@BBeBee/ui-kit-desktop'
 import { serviceOf } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
 import { RecommendCard } from '../components/RecommendCard.js'
 import { SourceConfigureModal } from '../components/SourceConfigureModal.js'
-import { usePlayAlbum } from '../hooks/usePlayAlbum.js'
 
 /**
  * One source's whole recommendation feed, as a grid.

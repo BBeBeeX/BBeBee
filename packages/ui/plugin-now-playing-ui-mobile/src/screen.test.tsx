@@ -152,6 +152,28 @@ async function harness(
     }
     getTracks = async (urns: readonly string[]) =>
       urns.map((urn) => catalogue[urn]).filter((t): t is Track => t !== undefined)
+    setLoved = async (urn: string, loved: boolean) => {
+      void calls.push(`setLoved:${urn}:${loved}`)
+    }
+  }
+
+  /**
+   * A `ctx.library` with the favorite surface the bar reads and writes.
+   * `setSaved` fires `library/changed` — the one event every favorite writer
+   * emits — so the bar's re-read path is exercised, not stubbed around.
+   */
+  class LibraryStub extends Service {
+    private saved = new Set<string>()
+    constructor(ctx: Context) {
+      super(ctx, 'library')
+    }
+    isSaved = async (urn: string) => this.saved.has(urn)
+    setSaved = async (urn: string, value: boolean) => {
+      void calls.push(`setSaved:${urn}:${value}`)
+      if (value) this.saved.add(urn)
+      else this.saved.delete(urn)
+      this.ctx.emit('library/changed', 'track', [urn])
+    }
   }
 
   class UiStub extends Service {
@@ -177,6 +199,7 @@ async function harness(
   const ctx = new Context()
   await ctx.plugin(PlayerStub)
   if (Object.keys(catalogue).length > 0) await ctx.plugin(SourcesStub)
+  await ctx.plugin(LibraryStub)
   await ctx.plugin(UiStub)
   await ctx.plugin(NowPlayingStub)
   await ctx.plugin(DefaultI18nStub)
@@ -231,6 +254,73 @@ describe('NowPlayingBar on mobile', () => {
     })
     expect(opened).toBe(true)
     expect(calls).toContain('navigate:now-playing.view')
+  })
+
+  it('stays mounted while idle as a placeholder: nothing to play, queue still reachable', async () => {
+    let opened = false
+    let queueOpened = false
+    const { ctx, calls } = await harness()
+    const { container } = render(
+      h(NowPlayingBar, {
+        ctx,
+        onOpenNowPlaying: () => { opened = true },
+        onOpenQueue: () => { queueOpened = true },
+      }),
+    )
+
+    // The placeholder copy, not a hidden bar.
+    expect(container.textContent).toContain('Nothing playing')
+
+    // The body is inert while idle: pressing it must neither open the player
+    // nor navigate.
+    const bar = container.querySelector('[data-label="Open now playing"]') as HTMLElement
+    await act(async () => {
+      bar.click()
+    })
+    expect(opened).toBe(false)
+    expect(calls).not.toContain('navigate:now-playing.view')
+
+    // The queue button is the one control that stays live while idle.
+    const queueBtn = container.querySelector('[data-label="Play queue"]') as HTMLElement
+    expect(queueBtn).toBeTruthy()
+    await act(async () => {
+      queueBtn.click()
+    })
+    expect(queueOpened).toBe(true)
+  })
+
+  it('favorites the current track through both stores and re-reads on library change', async () => {
+    const { ctx, calls } = await harness(
+      {
+        trackUrn: 'BBeBee:local:track:1',
+        nowPlaying: { title: 'Solar', artist: 'Miles Davis' },
+        status: 'paused',
+      },
+      [],
+      { 'BBeBee:local:track:1': { urn: 'BBeBee:local:track:1', title: 'Solar', artists: [] } },
+    )
+    const { container } = render(h(NowPlayingBar, { ctx }))
+
+    // Unsaved: the label offers adding, and the press writes catalogue first,
+    // library second (the dual-write invariant).
+    const heart = container.querySelector('[data-label="Add Solar to favorites"]') as HTMLElement
+    expect(heart).toBeTruthy()
+    await act(async () => {
+      heart.click()
+    })
+    expect(calls.indexOf('setLoved:BBeBee:local:track:1:true')).toBeLessThan(
+      calls.indexOf('setSaved:BBeBee:local:track:1:true'),
+    )
+
+    // The library write fired `library/changed`; the bar re-read and flipped
+    // its label to the remove form.
+    await act(async () => {
+      await Promise.resolve()
+    })
+    const removeHeart = container.querySelector(
+      '[data-label="Remove Solar from favorites"]',
+    ) as HTMLElement
+    expect(removeHeart).toBeTruthy()
   })
 })
 

@@ -7,7 +7,20 @@
       "goBack": "Go back",
       "hasNoMobileView": "\"{currentId}\" has no mobile view.",
       "noPluginRoute": "No plugin has contributed a route.",
-      "nowPlayingNoMobileView": "\"Now playing\" has no mobile view."
+      "nowPlayingNoMobileView": "\"Now playing\" has no mobile view.",
+      "tabs": {
+        "home": "Home",
+        "library": "Library",
+        "settings": "Settings",
+        "search": "Search"
+      },
+      "dualScreen": "Dual screen",
+      "exitDualScreen": "Exit dual screen",
+      "layoutMode": "Layout mode",
+      "layoutModeDescription": "Choose phone, tablet, or dual-pane foldable layout; Auto follows the window size.",
+      "layoutModeAuto": "Auto",
+      "layoutModeTablet": "Tablet",
+      "layoutModeFoldable": "Dual screen"
     },
     "back": "Back",
     "cancel": "Cancel",

@@ -7,7 +7,20 @@
       "goBack": "返回",
       "hasNoMobileView": "“{currentId}”没有移动端视图。",
       "noPluginRoute": "没有插件贡献路由。",
-      "nowPlayingNoMobileView": "“正在播放”没有移动端视图。"
+      "nowPlayingNoMobileView": "“正在播放”没有移动端视图。",
+      "tabs": {
+        "home": "首页",
+        "library": "音乐库",
+        "settings": "设置",
+        "search": "搜索"
+      },
+      "dualScreen": "双屏",
+      "exitDualScreen": "退出双屏",
+      "layoutMode": "布局模式",
+      "layoutModeDescription": "选择手机、平板或折叠屏双栏布局；“自动”跟随窗口尺寸。",
+      "layoutModeAuto": "自动",
+      "layoutModeTablet": "平板",
+      "layoutModeFoldable": "双屏"
     },
     "back": "返回",
     "cancel": "取消",

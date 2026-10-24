@@ -22,6 +22,7 @@ import type {
   CatalogQuery,
   DebugStep,
   ImportReport,
+  LibraryService,
   LyricSourcesService,
   MediaProvider,
   Paged,
@@ -1128,6 +1129,268 @@ export function useRecommendFeed(
   }, [sourceId, items.length, loading, exhausted, error, loadMore])
 
   return { items, loading, error, hasMore: !exhausted, loadMore, reload }
+}
+
+export interface AlbumShelfState {
+  albums: readonly BrowseEntry[]
+  loading: boolean
+  refresh: () => void
+}
+
+/**
+ * The albums behind the most recent 20 unique played tracks.
+ *
+ * The recommend page's first shelf: what the listener was just into. Reads
+ * play history from `ctx.player`, resolves the tracks' metadata through
+ * `ctx.sources`, and collects their distinct albums as `BrowseEntry` cards.
+ * Re-runs on `player/history-changed`, so a play from anywhere on the device
+ * (not only from the recommend page) refreshes the shelf.
+ */
+export function useRecentPlayedAlbums(ctx: Context): AlbumShelfState {
+  const [albums, setAlbums] = useState<readonly BrowseEntry[]>([])
+  const [loading, setLoading] = useState(false)
+  const [tick, setTick] = useState(0)
+  const refresh = useCallback(() => setTick((t) => t + 1), [])
+
+  useEffect(() => {
+    const player = serviceOf<PlayerService>(ctx, 'player')
+    const sources = serviceOf<SourcesService>(ctx, 'sources')
+
+    if (!player || !sources) {
+      setAlbums([])
+      setLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setLoading(true)
+
+    async function load() {
+      try {
+        const records = await player!.getHistory({ limit: 100 })
+        if (cancelled) return
+
+        // Up to 20 unique track URNs, newest first.
+        const uniqueTrackUrns: string[] = []
+        const seenTracks = new Set<string>()
+        for (const record of records) {
+          if (record.trackUrn && !seenTracks.has(record.trackUrn)) {
+            seenTracks.add(record.trackUrn)
+            uniqueTrackUrns.push(record.trackUrn)
+            if (uniqueTrackUrns.length >= 20) break
+          }
+        }
+
+        if (uniqueTrackUrns.length === 0) {
+          if (!cancelled) {
+            setAlbums([])
+            setLoading(false)
+          }
+          return
+        }
+
+        const tracks = await sources!.getTracks(uniqueTrackUrns)
+        if (cancelled) return
+
+        const collected = await distinctAlbumEntries(
+          sources!,
+          tracks.map((t) => ({ albumUrn: t.albumUrn, albumTitle: t.albumTitle, artists: t.artists?.map((a) => a.name), artwork: t.artwork })),
+        )
+        if (!cancelled) {
+          setAlbums(collected)
+          setLoading(false)
+        }
+      } catch {
+        if (!cancelled) {
+          setAlbums([])
+          setLoading(false)
+        }
+      }
+    }
+
+    void load()
+
+    const off = ctx.on('player/history-changed', () => {
+      refresh()
+    })
+
+    return () => {
+      cancelled = true
+      off()
+    }
+  }, [ctx, tick, refresh])
+
+  return { albums, loading, refresh }
+}
+
+/**
+ * The albums behind a random 20 of the listener's saved tracks.
+ *
+ * The recommend page's second shelf: a shuffled slice of favorites, different
+ * on every mount, so the shelf behaves like radio rather than a sorted list.
+ * Re-runs on `library/changed` (track kind), keeping step with favorites edits
+ * from anywhere in the app.
+ */
+export function useFavoriteAlbums(ctx: Context): AlbumShelfState {
+  const [albums, setAlbums] = useState<readonly BrowseEntry[]>([])
+  const [loading, setLoading] = useState(false)
+  const [tick, setTick] = useState(0)
+  const refresh = useCallback(() => setTick((t) => t + 1), [])
+
+  useEffect(() => {
+    const library = serviceOf<LibraryService>(ctx, 'library')
+    const sources = serviceOf<SourcesService>(ctx, 'sources')
+
+    if (!library || !sources) {
+      setAlbums([])
+      setLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setLoading(true)
+
+    async function load() {
+      try {
+        const saved = await library!.listSaved('track')
+        if (cancelled) return
+
+        const trackEntries = (saved?.items ?? []).filter((entry) => entry.kind === 'track')
+        if (trackEntries.length === 0) {
+          if (!cancelled) {
+            setAlbums([])
+            setLoading(false)
+          }
+          return
+        }
+
+        // Fisher–Yates, then the first 20.
+        const shuffled = [...trackEntries]
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1))
+          const temp = shuffled[i]!
+          shuffled[i] = shuffled[j]!
+          shuffled[j] = temp
+        }
+
+        const tracks = await sources!.getTracks(shuffled.slice(0, 20).map((e) => e.urn))
+        if (cancelled) return
+
+        const collected = await distinctAlbumEntries(
+          sources!,
+          tracks.map((t) => ({ albumUrn: t.albumUrn, albumTitle: t.albumTitle, artists: t.artists?.map((a) => a.name), artwork: t.artwork })),
+        )
+        if (!cancelled) {
+          setAlbums(collected)
+          setLoading(false)
+        }
+      } catch {
+        if (!cancelled) {
+          setAlbums([])
+          setLoading(false)
+        }
+      }
+    }
+
+    void load()
+
+    const off = ctx.on('library/changed', (kind) => {
+      if (!kind || kind === 'track') {
+        refresh()
+      }
+    })
+
+    return () => {
+      cancelled = true
+      off()
+    }
+  }, [ctx, tick, refresh])
+
+  return { albums, loading, refresh }
+}
+
+/**
+ * The shared tail of both album shelves: distinct albums, in input order,
+ * resolved well enough to draw a card (title, artists, artwork) without
+ * failing the whole shelf when one album's detail read fails.
+ */
+async function distinctAlbumEntries(
+  sources: SourcesService,
+  tracks: readonly {
+    albumUrn?: string
+    albumTitle?: string
+    artists?: string[]
+    artwork?: BrowseEntry['artwork']
+  }[],
+): Promise<readonly BrowseEntry[]> {
+  const seenAlbums = new Set<string>()
+  const albumEntries: BrowseEntry[] = []
+
+  for (const track of tracks) {
+    if (!track.albumUrn || seenAlbums.has(track.albumUrn)) continue
+    seenAlbums.add(track.albumUrn)
+
+    let albumDetail
+    try {
+      albumDetail = await sources.getAlbum(track.albumUrn)
+    } catch {
+      // Fall back to the track's own album metadata below.
+    }
+
+    const title = albumDetail?.title || track.albumTitle || 'Unknown album'
+    const subtitle =
+      albumDetail?.artists?.map((a) => a.name).join(', ') ||
+      track.artists?.join(', ') ||
+      (albumDetail?.year ? String(albumDetail.year) : undefined)
+    const artwork = albumDetail?.artwork || track.artwork
+
+    albumEntries.push({
+      id: track.albumUrn,
+      urn: track.albumUrn,
+      title,
+      subtitle,
+      artwork,
+      kind: 'album',
+      leaf: false,
+    })
+
+    if (albumEntries.length >= 20) break
+  }
+
+  return albumEntries
+}
+
+/**
+ * Play a recommendation card's album from the top, in album order.
+ *
+ * The counterpart of the card's open action (which navigates to `album.view`):
+ * the cover's play chip calls this, the card body calls that, and the chip
+ * swallows its own press so the two never both fire. Album tracks come from
+ * `ctx.sources.getAlbum` — the same read the album shelves already use — and
+ * playback starts with `playFromContext`, so the queue context is the album
+ * itself.
+ */
+export function usePlayAlbum(ctx: Context): (entry: BrowseEntry) => void {
+  return useCallback(
+    (entry: BrowseEntry) => {
+      if (!entry.urn || entry.kind !== 'album') return
+      const player = serviceOf<PlayerService>(ctx, 'player')
+      const sources = serviceOf<SourcesService>(ctx, 'sources')
+      if (!player || !sources) return
+      void sources
+        .getAlbum(entry.urn)
+        .then((detail) => {
+          const urns = detail?.tracks?.map((t) => t.urn) ?? []
+          if (urns[0]) {
+            void player.playFromContext(urns[0], urns, {
+              context: { kind: 'album', urn: entry.urn, label: entry.title },
+            })
+          }
+        })
+        .catch(() => {})
+    },
+    [ctx],
+  )
 }
 
 /* ── source parameters & connectivity testing ──────────────────────────── */

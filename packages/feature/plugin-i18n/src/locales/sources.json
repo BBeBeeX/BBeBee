@@ -38,6 +38,9 @@
       "recommendations": "Recommendations",
       "recommendedPlaylists": "{sourceName} · Recommended playlists",
       "showAll": "Show all",
+      "playAlbum": "Play {title}",
+      "coldStartTitle": "No music sources yet",
+      "coldStartDescription": "Import a source from Settings, or add local music — recommendations will appear here.",
       "onboarding": {
         "welcomeTitle": "Welcome to BBeBee 🎵",
         "welcomeSubtitle": "A clean, modular music player. Get started by setting up your music sources and exploring plugins.",
@@ -250,6 +253,9 @@
       "recommendations": "推荐",
       "recommendedPlaylists": "{sourceName} · 推荐播放列表",
       "showAll": "查看全部",
+      "playAlbum": "播放 {title}",
+      "coldStartTitle": "还没有音乐源",
+      "coldStartDescription": "从「设置」导入音乐源或添加本地音乐后，推荐会出现在这里。",
       "onboarding": {
         "welcomeTitle": "欢迎使用 BBeBee 🎵",
         "welcomeSubtitle": "纯净模块化音乐播放器。只需简单配置音乐数据源，即可开启完整的音乐与扩展生态。",

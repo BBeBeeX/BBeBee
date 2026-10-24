@@ -30,6 +30,7 @@ import { FlashList } from '@shopify/flash-list'
 import { AudioContext, AudioManager } from 'react-native-audio-api'
 import { createApp, createShellGrantResolver, type App } from '@BBeBee/kernel'
 import { PLUGIN_MANAGER_ID, type AppSettings } from '@BBeBee/protocol'
+import { MOBILE_LAYOUT_MODE_KEY, isMobileLayoutMode, type MobileLayoutMode } from './layout.js'
 import { PathsExpo } from '@bbebee/core-paths-expo'
 import { FsExpo } from '@bbebee/core-fs-expo'
 import { StoreFs } from '@bbebee/core-store-fs'
@@ -233,6 +234,71 @@ export async function boot(): Promise<App> {
     }
     void scoped.settings.get().then(syncUserAgent)
     scoped.on('settings/changed', syncUserAgent)
+  })
+
+  /*
+   * The layout-mode row in Settings (auto / tablet / dual screen).
+   *
+   * A composition-root contribution because the mobile shell owns the
+   * behaviour — the same rule as every platform setting with no feature
+   * plugin (docs/ui/architecture.md §2). The row reads and writes
+   * `ctx.store` directly through `getValues`/`onFieldChange`: the settings
+   * document is deliberately NOT a second home for this value, and the
+   * shell's own rail/pane buttons write the same key — two affordances, one
+   * source of truth.
+   *
+   * `getValues` is synchronous by contract, so the closure keeps the current
+   * mode in `current`: seeded by the async store read at boot, updated by
+   * every write. Both paths emit `ui/changed` — the shell re-reads the key
+   * on that signal, so a change made here applies live, not on next launch.
+   */
+  app.ctx.inject(['ui', 'store', 'i18n'], (scoped) => {
+    let current: MobileLayoutMode = 'auto'
+    void scoped.store
+      .get<MobileLayoutMode>(MOBILE_LAYOUT_MODE_KEY)
+      .then((stored) => {
+        if (isMobileLayoutMode(stored)) {
+          current = stored
+          scoped.emit('ui/changed')
+        }
+      })
+      .catch(() => {})
+
+    return scoped.effect(function* () {
+      yield scoped.ui.contribute({
+        kind: 'settings',
+        id: 'mobile.layoutMode',
+        section: 'general',
+        title: 'app:common.app.layoutMode',
+        description: 'app:common.app.layoutModeDescription',
+        order: 60,
+        fields: [
+          {
+            key: MOBILE_LAYOUT_MODE_KEY,
+            label: 'app:common.app.layoutMode',
+            type: 'select',
+            optionsAsync: async () => [
+              { value: 'auto', label: scoped.i18n.t('app:common.app.layoutModeAuto') },
+              { value: 'tablet', label: scoped.i18n.t('app:common.app.layoutModeTablet') },
+              { value: 'foldable', label: scoped.i18n.t('app:common.app.layoutModeFoldable') },
+            ],
+          },
+        ],
+        getValues: () => ({ [MOBILE_LAYOUT_MODE_KEY]: current }),
+        onFieldChange: (key, value) => {
+          if (key !== MOBILE_LAYOUT_MODE_KEY || !isMobileLayoutMode(value)) return
+          current = value
+          void scoped.store
+            .set(MOBILE_LAYOUT_MODE_KEY, value)
+            .then(() => {
+              // The store write is silent; layout is UI, so the registry's
+              // own change signal is what tells the shell to re-read it.
+              scoped.emit('ui/changed')
+            })
+            .catch(() => {})
+        },
+      })
+    }, 'mobile-layout-mode-setting')
   })
 
   /*

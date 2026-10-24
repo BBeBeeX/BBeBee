@@ -31,6 +31,7 @@ import { FsNode } from '@BBeBee/core-fs-node'
 import { DbNode } from '@BBeBee/core-db-node'
 import sourcesPlugin from '@bbebee/plugin-sources'
 import type {
+  BrowseResult,
   Capabilities,
   HttpRequest,
   HttpResponse,
@@ -44,7 +45,7 @@ import { tempDir, tick } from '@BBeBee/kernel/testing'
 import { configureNative } from '@BBeBee/ui-kit-mobile'
 import httpPlugin from '@bbebee/core-http-node'
 import sourceRuntime from '@bbebee/plugin-source-runtime'
-import { SearchScreen, SourceConfigureModal, TestScreen, inject } from './index.js'
+import { RecommendAllScreen, RecommendScreen, SearchScreen, SourceConfigureModal, TestScreen, inject } from './index.js'
 import sourcesCatalogue from '../../../feature/plugin-i18n/src/locales/sources.json'
 import appCatalogue from '../../../feature/plugin-i18n/src/locales/en.json'
 
@@ -593,5 +594,180 @@ describe('SearchScreen on mobile', () => {
 
     expect(container.textContent).toContain('Beta Song')
     expect(container.textContent).not.toContain('Alpha Song')
+  })
+})
+
+/* ── the recommend page ─────────────────────────────────────────────────── */
+
+describe('RecommendScreen on mobile', () => {
+  function recommendingProvider(
+    sourceId: string,
+    displayName: string,
+    recommend: () => Promise<BrowseResult>,
+  ): MediaProvider {
+    const capabilities: Capabilities = {
+      search: { tracks: false, albums: false, artists: false, playlists: false, fullText: false },
+      browse: false,
+      recommend: true,
+      lyrics: false,
+      artwork: false,
+      library: { read: false, save: false, playlistWrite: false, playlistReorder: false },
+      streaming: { qualities: ['normal'], transcoding: false, seekable: true, urlExpiry: false },
+      regional: false,
+    }
+    return {
+      sourceId,
+      displayName,
+      capabilities,
+      auth: {
+        flow: { kind: 'none' },
+        status: { state: 'authenticated' },
+        async signIn() {},
+        async signOut() {},
+        onStatusChange: () => () => {},
+      },
+      async getTrack() {
+        throw new Error('not needed')
+      },
+      async resolveStream() {
+        return { kind: 'remote', target: 'https://a.example/s', seekable: true } as never
+      },
+      ping: async () => true,
+      recommend,
+    }
+  }
+
+  it('cold start — no sources, no history — degrades to an explicit empty state, not a crash', async () => {
+    const { ctx } = await harness()
+    const { container } = render(h(RecommendScreen, { ctx }))
+    await act(async () => {
+      await tick()
+    })
+
+    expect(container.querySelector('[data-testid="recommend-screen"]')).toBeTruthy()
+    expect(container.textContent).toContain('No music sources yet')
+  })
+
+  it('renders one shelf per recommend-capable source and opens a card through onOpenAlbum', async () => {
+    const { ctx, admin } = await harness()
+    await admin.sources.import(JSON.stringify(EXAMPLE_DOC))
+    await tick()
+    const source = admin.sources.sources[0]!
+    admin.sources.register(
+      recommendingProvider(source.id, 'Example', async () => ({
+        items: [
+          {
+            id: 'r1',
+            urn: `BBeBee:${source.id}:album:1`,
+            title: 'Album One',
+            subtitle: 'Someone',
+            kind: 'album',
+            leaf: false,
+          },
+          {
+            id: 'r2',
+            urn: `BBeBee:${source.id}:album:2`,
+            title: 'Album Two',
+            kind: 'album',
+            leaf: false,
+          },
+        ],
+        hasMore: false,
+      })),
+    )
+    await tick()
+
+    const opened: string[] = []
+    const { container } = render(h(RecommendScreen, { ctx, onOpenAlbum: (urn) => void opened.push(urn) }))
+    await act(async () => {
+      await tick()
+      await tick()
+    })
+
+    // The shelf header names the source, and both cards made it to the strip.
+    expect(container.textContent).toContain('Example · Recommended playlists')
+    expect(container.textContent).toContain('Album One')
+    expect(container.textContent).toContain('Album Two')
+
+    // Card body opens the album: the outer Pressable wrapping a card title.
+    const card = Array.from(container.querySelectorAll('[data-host="Pressable"]')).find((el) =>
+      el.textContent?.includes('Album One'),
+    ) as HTMLElement
+    expect(card).toBeTruthy()
+    await act(async () => {
+      card.click()
+    })
+    expect(opened).toEqual([`BBeBee:${source.id}:album:1`])
+  })
+})
+
+describe('RecommendAllScreen on mobile', () => {
+  it('shows the feed as card rows and stands the control down when the list runs out', async () => {
+    const { ctx, admin } = await harness()
+    await admin.sources.import(JSON.stringify(EXAMPLE_DOC))
+    await tick()
+    const source = admin.sources.sources[0]!
+    let page = 0
+    admin.sources.register(
+      {
+        sourceId: source.id,
+        displayName: 'Example',
+        capabilities: {
+          search: { tracks: false, albums: false, artists: false, playlists: false, fullText: false },
+          browse: false,
+          recommend: true,
+          lyrics: false,
+          artwork: false,
+          library: { read: false, save: false, playlistWrite: false, playlistReorder: false },
+          streaming: { qualities: ['normal'], transcoding: false, seekable: true, urlExpiry: false },
+          regional: false,
+        } satisfies Capabilities,
+        auth: {
+          flow: { kind: 'none' },
+          status: { state: 'authenticated' },
+          async signIn() {},
+          async signOut() {},
+          onStatusChange: () => () => {},
+        },
+        async getTrack() {
+          throw new Error('not needed')
+        },
+        async resolveStream() {
+          return { kind: 'remote', target: 'https://a.example/s', seekable: true } as never
+        },
+        ping: async () => true,
+        // Page 1 is full (the feed's ten), page 2 is short — the one end
+        // marker a curated list can give, so the control must stand down.
+        async recommend() {
+          page += 1
+          const count = page === 1 ? 10 : 4
+          return {
+            items: Array.from({ length: count }, (_, i) => ({
+              id: `p${page}-${i}`,
+              urn: `BBeBee:${source.id}:album:${page}-${i}`,
+              title: `Feed Album ${page}-${i}`,
+              kind: 'album',
+              leaf: false,
+            })),
+            hasMore: false,
+          }
+        },
+      } satisfies MediaProvider,
+    )
+    await tick()
+
+    const { container } = render(h(RecommendAllScreen, { ctx, sourceId: source.id, name: 'Example' }))
+    await act(async () => {
+      await tick()
+      await tick()
+      await tick()
+    })
+
+    expect(container.querySelector('[data-testid="recommend-all-screen"]')).toBeTruthy()
+    expect(container.textContent).toContain('Example · All recommended playlists')
+    expect(container.textContent).toContain('Feed Album 1-0')
+    expect(container.textContent).toContain('Feed Album 2-3')
+    // A short page ended the feed: no show-more affordance left standing.
+    expect(container.querySelector('[data-testid="recommend-show-more"]')).toBeNull()
   })
 })

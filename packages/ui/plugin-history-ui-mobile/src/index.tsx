@@ -184,6 +184,24 @@ export async function apply(ctx: Context) {
   ctx.logger.info('plugin-history-ui-mobile: loaded')
   return ctx.effect(function* () {
     yield ctx.ui.registerView(HISTORY_VIEWS.history, bound(ctx, HistoryScreen))
+    /*
+     * The history screen's mobile entrance. The shell's tab bar is a fixed
+     * four — a deliberate product decision — so the page has no tab and
+     * would otherwise ship unreachable. A settings link row is the answer
+     * the settings screen already knows how to draw: a contribution with no
+     * `action` renders as a row whose button hands the id to
+     * `ui.navigate`, pushing the route onto the stack, so Back returns to
+     * Settings exactly as from any detail page. Contributed here, not in the
+     * headless plugin, because the desktop keeps its own entrances — this
+     * row exists only where the tab disappeared.
+     */
+    yield ctx.ui.contribute({
+      kind: 'settings',
+      id: HISTORY_VIEWS.history,
+      section: 'general',
+      title: 'history:history.playHistory',
+      order: 70,
+    })
   }, 'history-ui-mobile')
 }
 

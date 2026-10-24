@@ -11,6 +11,7 @@
     "nowPlaying": {
       "addToFavorites": "Add {title} to favorites",
       "addToFavorites2": "Add to Favorites",
+      "removeFromFavorites": "Remove {title} from favorites",
       "addToPlaylist": "Add {title} to playlist",
       "addToPlaylist2": "Add to playlist",
       "buffering": "Buffering…",
@@ -149,6 +150,7 @@
     "nowPlaying": {
       "addToFavorites": "将“{title}”添加到收藏",
       "addToFavorites2": "添加到收藏",
+      "removeFromFavorites": "将“{title}”移出收藏",
       "addToPlaylist": "将“{title}”添加到播放列表",
       "addToPlaylist2": "添加到播放列表",
       "buffering": "缓冲中…",

@@ -2,7 +2,7 @@ import { createElement as h, Fragment, useEffect, useState, type ReactElement } 
 import type { Context } from 'cordis'
 import type { BrowseEntry, StoreService, UiService } from '@BBeBee/protocol'
 import { SOURCES_VIEWS } from '@bbebee/plugin-sources/views'
-import { useRecommendShelf, useRecommendSources, useSources } from '@bbebee/plugin-sources/hooks'
+import { useFavoriteAlbums, usePlayAlbum, useRecentPlayedAlbums, useRecommendShelf, useRecommendSources, useSources } from '@bbebee/plugin-sources/hooks'
 import { EmptyState, useI18n } from '@BBeBee/ui-kit-desktop'
 import { serviceOf } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
@@ -10,9 +10,6 @@ import { RecommendShelfRow } from '../components/RecommendShelfRow.js'
 import { SourceConfigureModal } from '../components/SourceConfigureModal.js'
 import { OnboardingHero } from '../components/OnboardingHero.js'
 import { OnboardingModal } from '../components/OnboardingModal.js'
-import { useRecentPlayedAlbums } from '../hooks/useRecentPlayedAlbums.js'
-import { useFavoriteAlbums } from '../hooks/useFavoriteAlbums.js'
-import { usePlayAlbum } from '../hooks/usePlayAlbum.js'
 
 /**
  * The recommendation shelf page.

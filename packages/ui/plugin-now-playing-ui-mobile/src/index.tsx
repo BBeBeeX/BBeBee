@@ -15,10 +15,10 @@
  * falls back to a vertical stack rather than side-by-side.
  */
 
-import { createElement as h } from 'react'
+import { createElement as h, useEffect, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { I18nService, NowPlayingStyleId, UiService } from '@BBeBee/protocol'
+import type { I18nService, LibraryService, NowPlayingStyleId, SourcesService, UiService } from '@BBeBee/protocol'
 import { NOW_PLAYING_STYLES } from '@BBeBee/protocol'
 import { formatDuration } from '@BBeBee/toolkit'
 import { NOW_PLAYING_VIEWS } from '@bbebee/plugin-now-playing/views'
@@ -492,14 +492,64 @@ export function NowPlayingScreen({ ctx, onClose }: NowPlayingScreenProps): React
 export interface NowPlayingBarProps {
   ctx: Context
   onOpenNowPlaying?: () => void
+  /**
+   * Opens the shell's queue drawer. Deliberately a callback rather than the
+   * bar navigating to `queue.view`: the drawer's open state belongs to the
+   * shell (it layers above the fullscreen player and closes on Android Back
+   * before the stack pops), and a route push would put the queue into the
+   * page history instead.
+   */
+  onOpenQueue?: () => void
+}
+
+/**
+ * Whether the current track is in the library, kept current across writers
+ * besides this bar (row hearts, track menus).
+ *
+ * `isSaved` is a one-shot read, so currency comes from re-reading on the one
+ * event every `library.setSaved` writer fires (`library/changed`) and on
+ * track changes (the effect re-runs when `urn` moves).
+ */
+function useTrackSaved(ctx: Context, urn: string | undefined): boolean {
+  const [saved, setSaved] = useState(false)
+  const [tick, setTick] = useState(0)
+
+  useEffect(() => {
+    if (!urn) {
+      setSaved(false)
+      return
+    }
+    const library = serviceOf<LibraryService>(ctx, 'library')
+    if (!library) {
+      setSaved(false)
+      return
+    }
+    let cancelled = false
+    void library
+      .isSaved(urn)
+      .then((value) => {
+        if (!cancelled) setSaved(value)
+      })
+      .catch(() => {})
+    const off = ctx.on('library/changed', (kind: string) => {
+      if (!kind || kind === 'track') setTick((n) => n + 1)
+    })
+    return () => {
+      cancelled = true
+      off()
+    }
+  }, [ctx, urn, tick])
+
+  return saved
 }
 
 /** The persistent transport bar on mobile. */
-export function NowPlayingBar({ ctx, onOpenNowPlaying }: NowPlayingBarProps): ReactElement {
+export function NowPlayingBar({ ctx, onOpenNowPlaying, onOpenQueue }: NowPlayingBarProps): ReactElement {
   const native = nativePrimitives()
   const { t } = useI18n(ctx)
   const state = useTransport(ctx)
   const can = useTransportAvailability(ctx)
+  const saved = useTrackSaved(ctx, state.trackUrn)
   const actionSlots = useServiceState(
     ctx,
     ['ui/changed'],
@@ -510,14 +560,48 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying }: NowPlayingBarProps): Re
     { isEqual: (a, b) => a.length === b.length && a.every((item, i) => item.id === b[i]?.id) },
   )
 
+  /*
+   * Idle is a placeholder, not a hidden bar: a transport surface that appears
+   * only after the first play teaches the user nothing about where playback
+   * will live. Everything stateful stands down (play, favorite, the body's
+   * open action) except the queue button — the queue outlives any one track.
+   */
+  const idle = !state.trackUrn && state.status === 'idle'
+
   const handleOpen = () => {
+    if (idle) return
     onOpenNowPlaying?.()
     ctx.ui?.navigate?.(NOW_PLAYING_VIEWS.nowPlaying)
   }
 
-  if (!state.trackUrn && state.status === 'idle') {
-    return h(native.View as never, { style: { display: 'none' } })
+  const toggleSaved = () => {
+    const urn = state.trackUrn
+    if (!urn) return
+    const sources = serviceOf<SourcesService>(ctx, 'sources')
+    const library = serviceOf<LibraryService>(ctx, 'library')
+    // Dual-write invariant (rules/ui.md §7): the catalogue's loved flag
+    // first, then the library row — the order every other favorite writer
+    // uses, so both stores see the same state when `library/changed` fires.
+    // Rollback on failure is the service's job (rules/ui.md §3), not this
+    // button's; the hook re-reads on the next `library/changed` either way.
+    void (async () => {
+      try {
+        await sources?.setLoved(urn, !saved)
+      } catch {
+        // The library write below is the one the shelf reads; a catalogue
+        // failure must not cancel it.
+      }
+      try {
+        await library?.setSaved(urn, !saved)
+      } catch {
+        // Re-synced by the next `library/changed`; nothing to correct here.
+      }
+    })()
   }
+
+  const favoriteLabel = saved
+    ? t('nowPlaying:nowPlaying.removeFromFavorites', { title: state.nowPlaying?.title ?? '' })
+    : t('nowPlaying:nowPlaying.addToFavorites', { title: state.nowPlaying?.title ?? '' })
 
   return h(
     native.Pressable as never,
@@ -534,6 +618,7 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying }: NowPlayingBarProps): Re
         backgroundColor: '#181822',
         borderTopWidth: 1,
         borderTopColor: 'rgba(255, 255, 255, 0.08)',
+        opacity: idle ? 0.6 : 1,
       },
     },
     h(
@@ -575,6 +660,32 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying }: NowPlayingBarProps): Re
     h(
       native.View as never,
       { style: { flexDirection: 'row', alignItems: 'center', gap: tokens.space[2] } },
+      h(IconButton, {
+        icon: saved ? '♥' : '♡',
+        accessibilityLabel: favoriteLabel,
+        variant: 'ghost',
+        size: tokens.size.icon,
+        disabled: idle || (!serviceOf<LibraryService>(ctx, 'library') && !serviceOf<SourcesService>(ctx, 'sources')),
+        onPress: toggleSaved,
+      }),
+      h(IconButton, {
+        icon: can.canPause ? '⏸' : '▶',
+        accessibilityLabel: can.canPause ? t('nowPlaying:nowPlaying.pause') : t('nowPlaying:nowPlaying.play'),
+        variant: 'ghost',
+        size: tokens.size.icon,
+        disabled: !can.canPlay && !can.canPause,
+        onPress: () => ctx.player.togglePlay(),
+      }),
+      h(IconButton, {
+        icon: '☰',
+        accessibilityLabel: t('nowPlaying:nowPlaying.playQueue'),
+        variant: 'ghost',
+        size: tokens.size.icon,
+        // Usable while idle on purpose: the queue is reachable before the
+        // first track ever plays.
+        disabled: false,
+        onPress: () => onOpenQueue?.(),
+      }),
       ...(() => {
         const ui = serviceOf<UiService>(ctx, 'ui')
         return actionSlots
@@ -587,14 +698,6 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying }: NowPlayingBarProps): Re
           })
           .filter(Boolean)
       })(),
-      h(IconButton, {
-        icon: can.canPause ? '⏸' : '▶',
-        accessibilityLabel: can.canPause ? t('nowPlaying:nowPlaying.pause') : t('nowPlaying:nowPlaying.play'),
-        variant: 'ghost',
-        size: tokens.size.icon,
-        disabled: !can.canPlay && !can.canPause,
-        onPress: () => ctx.player.togglePlay(),
-      }),
     ),
   )
 }

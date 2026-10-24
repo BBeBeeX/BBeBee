@@ -4,7 +4,7 @@
     "slug": "bbebee",
     "scheme": "bbebee",
     "version": "0.1.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "userInterfaceStyle": "dark",
     "icon": "./assets/icon.png",
     "splash": {

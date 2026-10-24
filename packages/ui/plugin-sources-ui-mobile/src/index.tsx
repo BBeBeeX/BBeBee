@@ -41,8 +41,14 @@ import type { ArtworkProps, TrackRowProps } from '@BBeBee/ui-core'
 import { useResolvedArtwork } from '@bbebee/plugin-cache/hooks'
 import { useTrackMenu } from '@BBeBee/ui-menus'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
+import { RecommendScreen } from './screens/RecommendScreen.js'
+import { RecommendAllScreen } from './screens/RecommendAllScreen.js'
 
 export { SourceConfigureModal } from './SourceConfigureModal.js'
+export { RecommendCard } from './components/RecommendCard.js'
+export { RecommendShelfRow } from './components/RecommendShelfRow.js'
+export { RecommendScreen } from './screens/RecommendScreen.js'
+export { RecommendAllScreen } from './screens/RecommendAllScreen.js'
 
 const p = () => palettes.dark
 
@@ -869,6 +875,8 @@ export async function apply(ctx: Context) {
     yield ctx.ui.registerView(SOURCES_VIEWS.search, bound(ctx, SearchScreen))
     yield ctx.ui.registerView(SOURCES_VIEWS.sourceImport, bound(ctx, ImportScreen))
     yield ctx.ui.registerView(SOURCES_VIEWS.sourceTest, bound(ctx, TestScreen))
+    yield ctx.ui.registerView(SOURCES_VIEWS.recommend, bound(ctx, RecommendScreen))
+    yield ctx.ui.registerView(SOURCES_VIEWS.recommendAll, bound(ctx, RecommendAllScreen))
   }, 'sources-ui-mobile')
 }
 
