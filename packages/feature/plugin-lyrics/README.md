@@ -1,4 +1,4 @@
-# @BBeBee/plugin-lyrics
+# @bbebee/plugin-lyrics
 
 Layer 4 (feature) — `ctx.lyrics`: lyrics fetching, multi-level caching, progress sync, and unified state.
 

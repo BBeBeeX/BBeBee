@@ -1,7 +1,7 @@
 import { createElement as h, Fragment, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { BrowseEntry, UiService } from '@BBeBee/protocol'
-import { useRecommendFeed } from '@BBeBee/plugin-sources/hooks'
+import { useRecommendFeed } from '@bbebee/plugin-sources/hooks'
 import { Button, EmptyState, Text, useI18n } from '@BBeBee/ui-kit-desktop'
 import { serviceOf } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'

@@ -8,7 +8,7 @@ import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
-import { HISTORY_VIEWS } from '@BBeBee/plugin-history/views'
+import { HISTORY_VIEWS } from '@bbebee/plugin-history/views'
 import { HistoryScreen } from './HistoryScreen.js'
 
 export const name = 'plugin-history-ui-desktop'

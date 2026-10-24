@@ -1,7 +1,7 @@
 {
-  "name": "@BBeBee/plugin-dsp-ui-mobile",
+  "name": "@bbebee/plugin-dsp-ui-mobile",
   "version": "0.0.0",
-  "description": "Mobile React Native views for @BBeBee/plugin-dsp (DSP Chain Editor).",
+  "description": "Mobile React Native views for @bbebee/plugin-dsp (DSP Chain Editor).",
   "type": "module",
   "license": "MIT",
   "exports": {
@@ -18,7 +18,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-dsp": "workspace:*",
+    "@bbebee/plugin-dsp": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/ui-core": "workspace:*",
     "@BBeBee/ui-kit-mobile": "workspace:*",

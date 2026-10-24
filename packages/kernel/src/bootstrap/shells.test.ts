@@ -278,7 +278,7 @@ describe.each(SHELLS)('the $name shell logs layer', (shell) => {
     const source = await readFile(join(workspaceRoot, bootFile), 'utf8')
     for (const transport of ['plugin-log-buffer', 'plugin-log-console', 'plugin-log-file']) {
       expect(source, `${shell.name}: ${bootFile} does not load ${transport}`).toContain(
-        `@BBeBee/${transport}`,
+        `@bbebee/${transport}`,
       )
     }
   })

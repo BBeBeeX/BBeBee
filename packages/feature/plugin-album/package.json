@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-album",
+  "name": "@bbebee/plugin-album",
   "version": "0.0.0",
   "description": "plugin-album — the album page: detail, tracks, and album-level actions.",
   "type": "module",

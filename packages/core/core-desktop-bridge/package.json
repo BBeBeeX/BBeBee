@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/core-desktop-bridge",
+  "name": "@bbebee/core-desktop-bridge",
   "version": "0.0.0",
   "description": "Renderer-side fs/db services over the desktop IPC bridge, and the sidecar host.",
   "type": "module",
@@ -20,7 +20,7 @@
   "dependencies": {
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/kernel": "workspace:*",
-    "@BBeBee/core-codec-node": "workspace:*",
+    "@bbebee/core-codec-node": "workspace:*",
     "cordis": "4.0.0-rc.9"
   },
   "devDependencies": {

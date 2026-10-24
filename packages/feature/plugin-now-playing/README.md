@@ -1,4 +1,4 @@
-# @BBeBee/plugin-now-playing
+# @bbebee/plugin-now-playing
 
 Layer 4 (feature) — **the two faces of "now playing"**: the full-screen player and the persistent transport bar, split out of `plugin-player`.
 

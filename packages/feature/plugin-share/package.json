@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-share",
+  "name": "@bbebee/plugin-share",
   "version": "0.0.0",
   "description": "ctx.share — Song, playlist, and lyrics sharing with image steganography.",
   "type": "module",

@@ -1,10 +1,10 @@
-# @BBeBee/plugin-sources-ui-mobile
+# @bbebee/plugin-sources-ui-mobile
 
 Layer 5 (ui) — the mobile view package for `plugin-sources` (headless): the twin half of `plugin-sources-ui-desktop`.
 
 ## Overview
 
-The **same hooks, the same view ids, the same behavior** as the desktop version — only the elements and shapes differ. All domain state comes from `@BBeBee/plugin-sources/hooks`; kit primitives are obtained via `nativePrimitives()` (injected by `ui-kit-mobile`'s `configureNative`); the headless package is only a devDependency.
+The **same hooks, the same view ids, the same behavior** as the desktop version — only the elements and shapes differ. All domain state comes from `@bbebee/plugin-sources/hooks`; kit primitives are obtained via `nativePrimitives()` (injected by `ui-kit-mobile`'s `configureNative`); the headless package is only a devDependency.
 
 ## Source files
 

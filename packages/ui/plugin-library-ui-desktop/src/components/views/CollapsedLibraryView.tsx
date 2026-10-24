@@ -2,7 +2,7 @@ import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
-import { LIBRARY_VIEWS } from '@BBeBee/plugin-library/views'
+import { LIBRARY_VIEWS } from '@bbebee/plugin-library/views'
 import { CachedArtwork } from '../CachedArtwork.js'
 import type { UnifiedItem } from '../UnifiedLibraryRow.js'
 

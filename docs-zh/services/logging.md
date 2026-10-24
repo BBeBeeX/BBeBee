@@ -66,7 +66,7 @@ export interface LogTransport {
 
 ### 应用内诊断视图
 
-桌面端诊断中心（`@BBeBee/plugin-settings-ui-desktop`）提供了实时的遥测界面：
+桌面端诊断中心（`@bbebee/plugin-settings-ui-desktop`）提供了实时的遥测界面：
 
 1. **系统日志查看 (`debug.logs`)**：
    直接从 `ctx.logBuffer` 读取日志数据。提供实时流检查、日志级别过滤（`ALL`、`DEBUG`、`INFO`、`WARN`、`ERROR`）、子字符串搜索、导出为 NDJSON 到剪贴板，以及一键清空缓冲区。

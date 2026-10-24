@@ -389,7 +389,7 @@ has no `secrets:all` ([plugins/capabilities.md §7](../plugins/capabilities.md#7
 
 ### Scoped Root Secrets vs Cross-Plugin Namespaces
 - **Caller-Scoped Root Secrets (`ctx.secrets.get/set/delete`):** Unnamespaced calls prepend the caller plugin's Cordis ID (`this.scope()`) to isolate private secrets between plugins.
-- **Cross-Plugin Explicit Namespaces (`ctx.secrets.namespace(ns)`):** Explicit namespaces represent domain entities (e.g. music source credentials or account sessions) and are shared across plugins without attaching caller scope prefixes. This ensures credentials configured by UI packages (e.g. `@BBeBee/plugin-settings-ui-desktop`) can be read by sandboxed runtimes (e.g. `@BBeBee/plugin-source-runtime`).
+- **Cross-Plugin Explicit Namespaces (`ctx.secrets.namespace(ns)`):** Explicit namespaces represent domain entities (e.g. music source credentials or account sessions) and are shared across plugins without attaching caller scope prefixes. This ensures credentials configured by UI packages (e.g. `@bbebee/plugin-settings-ui-desktop`) can be read by sandboxed runtimes (e.g. `@bbebee/plugin-source-runtime`).
 - **Automatic Migration:** When reading an explicit namespace key, if a legacy key with a caller-scoped prefix (`@BBeBee/plugin-*/<namespace>:<key>`) is found, `core-secrets-node` transparently migrates it to the un-scoped namespace key and removes the legacy entry.
 
 ---
@@ -923,7 +923,7 @@ export interface ThemeService {
 
 | | Desktop (DOM) | Expo (Mobile / Native) |
 |---|---|---|
-| Backing | `@BBeBee/plugin-theme` with `applyThemeToDom` injecting CSS custom properties on `document.documentElement` | `@BBeBee/plugin-theme` emitting reactive theme snapshot for `StyleSheet` consumption |
+| Backing | `@bbebee/plugin-theme` with `applyThemeToDom` injecting CSS custom properties on `document.documentElement` | `@bbebee/plugin-theme` emitting reactive theme snapshot for `StyleSheet` consumption |
 | Persistence | `ctx.store` key `theme_active_id`; packs persist split by origin — custom packs under `theme_packs_custom`, registry packs under `theme_packs_registry` (legacy flat `theme_custom_themes` is migrated once, on first read of the new key). Built-in, plugin and dynamic packs are memory-only | `ctx.store` |
 | Built-in Themes | `midnight-purple` (`Bee Music · Cyber Neon`), `emerald-green` (`Emerald Green`), `crimson-night`, `ocean-abyss` — each its own single-variant pack, grouped only in the settings UI | Same |
 | Custom Themes | Pack or legacy single-theme JSON import (file / text) with fallback token hydration; deletable per variant or per pack, with fallback protection | Same |
@@ -1000,7 +1000,7 @@ export interface NowPlayingService {
 
 | | Desktop (DOM) | Expo (Mobile / Native) |
 |---|---|---|
-| Backing | `@BBeBee/plugin-now-playing` + `SandboxedLayout` (iframe `sandbox="allow-scripts"`, `origin: null`) | `@BBeBee/plugin-now-playing` (native layout switching) |
+| Backing | `@bbebee/plugin-now-playing` + `SandboxedLayout` (iframe `sandbox="allow-scripts"`, `origin: null`) | `@bbebee/plugin-now-playing` (native layout switching) |
 | Persistence | `ctx.store` keys `now-playing.style` & `now-playing.custom-styles`, bi-directionally synced with `settings.nowPlayingStyle` | Same |
 | Built-in Styles | `classic`, `cinematic`, `full-cover`, `vinyl`, `compact` | `classic`, `cinematic`, `full-cover`, `vinyl`, `compact` |
 | Sandboxed Plugins | Third-party HTML/CSS/JS executed inside isolated iframe; communicates exclusively via postMessage with strict whitelist validation | Fallback to built-in styles |
@@ -1118,8 +1118,8 @@ export interface ShareService {
 
 | | Desktop | Expo (Mobile) |
 |---|---|---|
-| Headless service | `@BBeBee/plugin-share` | `@BBeBee/plugin-share` |
-| UI implementation | `@BBeBee/plugin-share-ui-desktop` | Planned (`plugin-share-ui-mobile`) |
+| Headless service | `@bbebee/plugin-share` | `@bbebee/plugin-share` |
+| UI implementation | `@bbebee/plugin-share-ui-desktop` | Planned (`plugin-share-ui-mobile`) |
 | Steganography algorithm | Universal LSB (Least Significant Bit) RGBA encoder/decoder | Same |
 | Artwork fidelity | Preserves original remote HTTP/HTTPS artwork URL in steganography payload, with automatic local canvas fallback extraction on import | Same |
 | Card layout | Pure Canvas rendering with 100% live preview synchronization, non-distorting 1:1 center-cropped artwork, 3-line text wrapping, adaptive height | Planned mobile parity |
@@ -1163,8 +1163,8 @@ export interface SettingsService {
 
 | | Desktop | Expo (Mobile) |
 |---|---|---|
-| Headless service | `@BBeBee/plugin-settings` | `@BBeBee/plugin-settings` |
-| UI implementation | `@BBeBee/plugin-settings-ui-desktop` | `@BBeBee/plugin-settings-ui-mobile` |
+| Headless service | `@bbebee/plugin-settings` | `@bbebee/plugin-settings` |
+| UI implementation | `@bbebee/plugin-settings-ui-desktop` | `@bbebee/plugin-settings-ui-mobile` |
 | Persistence | `ctx.store` namespace `settings` with schema migrations | Same |
 | Reactive Events | `'settings/changed'`, `'settings/contributions-changed'` | Same |
 
@@ -1249,8 +1249,8 @@ export interface PluginManagerService {
 
 | | Desktop | Expo (Mobile) |
 |---|---|---|
-| Headless service | `@BBeBee/plugin-manager` | `@BBeBee/plugin-manager` |
-| UI implementation | `@BBeBee/plugin-settings-ui-desktop` | Planned (`plugin-settings-ui-mobile`) |
+| Headless service | `@bbebee/plugin-manager` | `@bbebee/plugin-manager` |
+| UI implementation | `@bbebee/plugin-settings-ui-desktop` | Planned (`plugin-settings-ui-mobile`) |
 | Persistence | `ctx.store` namespace `plugin-manager` (`Record<string, boolean>`) | Same |
 | Reactive Events | `'plugin-manager/enabled-changed'`, `'plugin-manager/changed'` | Same |
 
@@ -1335,19 +1335,19 @@ export interface RegistryService {
 
 | | Desktop | Expo (Mobile) |
 |---|---|---|
-| Headless service | `@BBeBee/plugin-registry` | `@BBeBee/plugin-registry` |
+| Headless service | `@bbebee/plugin-registry` | `@bbebee/plugin-registry` |
 | Persistence | `ctx.store` keys `registry.index-cache` (last good index, offline use), `registry.prefs` (endpoint override, `lastCheckAt`), `registry.audit-findings` / `registry.capability-mismatches` (diagnostics inputs) | Same |
 | Reactive Events | `'registry/updates-available'` — fired after **every** completed check (automatic or manual) with the full update list, **including the empty list** (which clears badges); `'registry/tasks-changed'` — fired on every task-center mutation with the full task snapshot | Same |
 | Plugin-kind installs | Desktop dynamic host, wired via `setPluginInstaller` at the composition root | Not supported (desktop-only distribution) |
 
 - **Matching semantics**: music sources match installed records by `sourceUrl` (the `SourceRecord` identity), lyric sources / themes / plugins by their `id`. An installed copy older than the entry's `version` produces a `RegistryUpdate`.
 - **Install flows per kind**: music source → `ctx.sources.import` (full import pipeline, `originUri` = `downloadUrl`); lyric source → shape-check then `ctx.lyricSources.registerSource`; theme → the same dark/light contrast gate a user-drafted theme goes through, applied to **every variant** of the pack (one failing variant rejects the whole pack), then `ctx.theme.registerThemePack` with `origin: 'registry'`; plugin → delegated to `ctx['plugin-manager']` (npm flow, see [sources/registry.md §6](../sources/registry.md)).
-- **Security red lines**: `fetchEntryDetails()` exists so the confirm dialog can name a music document's `allowedHosts` before import; plugin installs verify the tarball `sha256` and require an explicit risk confirmation; downloaded plugins undergo security audits via `@BBeBee/plugin-security-audit` checking **14 scanner rules (9 static + 2 dynamic scan groups)** — only opaque-payload imports (`remote`/`data:`/`blob:`) and leaked credentials block, the rest warn — and installed plugins are recalled via the registry `blocked`/`delisted` channels, not boot hash-checked (the boot-time tamper chain was removed 2026-10-24).
+- **Security red lines**: `fetchEntryDetails()` exists so the confirm dialog can name a music document's `allowedHosts` before import; plugin installs verify the tarball `sha256` and require an explicit risk confirmation; downloaded plugins undergo security audits via `@bbebee/plugin-security-audit` checking **14 scanner rules (9 static + 2 dynamic scan groups)** — only opaque-payload imports (`remote`/`data:`/`blob:`) and leaked credentials block, the rest warn — and installed plugins are recalled via the registry `blocked`/`delisted` channels, not boot hash-checked (the boot-time tamper chain was removed 2026-10-24).
 - **Automatic checks**: `AppSettings.registryAutoCheck` (default `true`) — first check ~45 s after boot, then every 24 h; manual checks run regardless.
 
 ### 25.1 The `ctx.registryMetadata` companion service
 
-The Discover page's star/contributor sorting reads a separate headless service, `@BBeBee/plugin-registry-metadata`, instead of growing `RegistryService`:
+The Discover page's star/contributor sorting reads a separate headless service, `@bbebee/plugin-registry-metadata`, instead of growing `RegistryService`:
 
 ```ts
 /** GitHub stats for one `owner/repo`. Absent numeric fields mean "unknown this round". */
@@ -1376,7 +1376,7 @@ export interface RegistryMetadataService {
 
 | | Desktop | Expo (Mobile) |
 |---|---|---|
-| Headless service | `@BBeBee/plugin-registry-metadata` | Same |
+| Headless service | `@bbebee/plugin-registry-metadata` | Same |
 | Persistence | `ctx.store` key `registry-metadata.cache` (24 h TTL per `owner/repo`) | Same |
 | Degradation | 429/403 rate limits back off for ~60 min; failures return stale cache flagged `stale`, or a result carrying `error` — never throw | Same |
 
@@ -1556,9 +1556,9 @@ export interface AudioConverterService {
 
 | | Desktop | Expo (Mobile) |
 |---|---|---|
-| Headless service | `@BBeBee/plugin-audio-converter` | `@BBeBee/plugin-audio-converter` |
+| Headless service | `@bbebee/plugin-audio-converter` | `@bbebee/plugin-audio-converter` |
 | Transcode Engine | `core-codec-node` via system/bundled FFmpeg | `core-codec-rn` |
-| Workbench UI | `@BBeBee/plugin-audio-converter-ui-desktop` | Headless (UI degraded gracefully via missingViews) |
+| Workbench UI | `@bbebee/plugin-audio-converter-ui-desktop` | Headless (UI degraded gracefully via missingViews) |
 | Entry Point | TopBar Tray popover shortcut & command palette | API only |
 
 ### Architectural Invariants & Guarantees

@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-local-scanner",
+  "name": "@bbebee/plugin-local-scanner",
   "version": "0.0.0",
   "description": "ctx.scanner \u2014 the local filesystem walk.",
   "type": "module",
@@ -37,13 +37,13 @@
     "react": "19.2.3"
   },
   "devDependencies": {
-    "@BBeBee/core-codec-node": "workspace:*",
+    "@bbebee/core-codec-node": "workspace:*",
     "@BBeBee/core-db-node": "workspace:*",
     "@BBeBee/core-fs-node": "workspace:*",
     "@BBeBee/core-paths-node": "workspace:*",
-    "@BBeBee/plugin-sources": "workspace:*",
+    "@bbebee/plugin-sources": "workspace:*",
     "@BBeBee/tooling-fixtures": "workspace:*",
     "@types/react": "^19.2.0",
-    "@BBeBee/plugin-player": "workspace:*"
+    "@bbebee/plugin-player": "workspace:*"
   }
 }

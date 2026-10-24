@@ -24,7 +24,7 @@ import type {
 } from './graph-model.js'
 import { ALL_LAYER_IDS, SYSTEM_LAYERS, getLayerInfo, resolvePluginLayer } from './layer-resolver.js'
 import { PLUGIN_MANIFESTS } from './pcb-manifests.generated.js'
-import type { FiberNode, InspectorSnapshot } from '@BBeBee/plugin-inspector'
+import type { FiberNode, InspectorSnapshot } from '@bbebee/plugin-inspector'
 import { normalizePluginId } from '@BBeBee/toolkit'
 
 export class CordisGraphAdapter {
@@ -121,7 +121,7 @@ export class CordisGraphAdapter {
 
     // Helper to find manifest from registry or by capabilities/services
     const findManifest = (name: string, providesList: string[]) => {
-      let m = PLUGIN_MANIFESTS[name] ?? PLUGIN_MANIFESTS[`@BBeBee/${name}`]
+      let m = PLUGIN_MANIFESTS[name] ?? PLUGIN_MANIFESTS[`@bbebee/${name}`]
       if (!m && providesList.length > 0) {
         for (const s of providesList) {
           const found = Object.values(PLUGIN_MANIFESTS).find(

@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-download-ui-desktop",
+  "name": "@bbebee/plugin-download-ui-desktop",
   "version": "0.0.0",
   "description": "React DOM views for plugin-download.",
   "type": "module",
@@ -18,7 +18,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-download": "workspace:*",
+    "@bbebee/plugin-download": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/toolkit": "workspace:*",
     "@BBeBee/ui-kit-desktop": "workspace:*",

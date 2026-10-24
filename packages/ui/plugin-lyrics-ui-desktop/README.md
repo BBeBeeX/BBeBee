@@ -1,4 +1,4 @@
-# @BBeBee/plugin-lyrics-ui-desktop
+# @bbebee/plugin-lyrics-ui-desktop
 
 Layer 5 (UI) — the standalone lyrics panel for the desktop's full-screen / now-playing detail page.
 

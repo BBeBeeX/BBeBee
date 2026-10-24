@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/core-device-tauri",
+  "name": "@bbebee/core-device-tauri",
   "version": "0.0.0",
   "description": "ctx.device — network, battery, media keys and hotkeys on desktop (Tauri).",
   "type": "module",
@@ -30,7 +30,7 @@
   "dependencies": {
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/kernel": "workspace:*",
-    "@BBeBee/core-desktop-bridge": "workspace:*",
+    "@bbebee/core-desktop-bridge": "workspace:*",
     "cordis": "4.0.0-rc.9"
   },
   "devDependencies": {

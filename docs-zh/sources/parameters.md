@@ -48,7 +48,7 @@ flowchart TD
 
 1. **零密钥入库：** 任何口令、认证 Token、会话凭据或私钥绝对不得持久化在 SQLite 数据表（`sources`、`source_vars` 或日志表）中。
 2. **硬件密钥库背书与显式命名空间跨插件共享：** 所有敏感值均路由至 `ctx.secrets`，存放在由源 id 构成的隔离命名空间下（`ctx.secrets.namespace(sourceId)`）。桌面端映射到操作系统 Keychain（经 Node.js `safeStorageCodec` 或原生 Keychain API）；移动端映射到 iOS Keychain / Android Keystore。
-   - **显式命名空间跨插件共享：** 根密钥（`ctx.secrets.get/set`）为插件私有，以调用方 Cordis 插件 ID（`this.scope()`）为前缀隔离；而显式命名空间（`ctx.secrets.namespace(ns)`）代表跨插件的领域实体凭据，在所有具备访问权限的插件间全局统一共享（如由 `@BBeBee/plugin-settings-ui-desktop` 写入，由 `@BBeBee/plugin-source-runtime` 读取），不附加写入方插件前缀。
+   - **显式命名空间跨插件共享：** 根密钥（`ctx.secrets.get/set`）为插件私有，以调用方 Cordis 插件 ID（`this.scope()`）为前缀隔离；而显式命名空间（`ctx.secrets.namespace(ns)`）代表跨插件的领域实体凭据，在所有具备访问权限的插件间全局统一共享（如由 `@bbebee/plugin-settings-ui-desktop` 写入，由 `@bbebee/plugin-source-runtime` 读取），不附加写入方插件前缀。
    - **历史遗留键平滑自动迁移：** `core-secrets-tauri` 的 `rawGet` 自动识别带有插件前缀的历史旧键（例如 `@BBeBee/plugin-*/...`），在读取时自动平滑迁移为纯净命名空间键并持久化。
 3. **UI 纯只写掩码策略：** 界面绝不回显已存储的明文密码。密码字段在存在值时显示掩码点位符（`••••••••`）。用户输入新值即可覆盖写入，但无法通过前端组件检查或反射导出密钥。
 4. **沙箱出口白名单动态同步：** 当用户修改 `sourceUrl` 或 `host` 时，`updateSourceParams` 自动重新计算 `allowedHostsFor(sourceId)`：
@@ -127,7 +127,7 @@ export interface LyricSourcesService {
 - **桌面端组件：** `SourceConfigureModal.tsx`（位于 `plugin-sources-ui-desktop` 与 `plugin-settings-ui-desktop`）
 - **移动端组件：** `SourceConfigureModal.tsx`（位于 `plugin-sources-ui-mobile`）
 - **歌词源配置组件：** `LyricSourcesSection.tsx`（位于 `plugin-settings-ui-desktop`，内置完整 JSON 编辑器）
-- **通用 Hooks：** 统一导出自 `@BBeBee/plugin-sources/views` 与 `@BBeBee/plugin-lyric-sources`，实现界面与核心业务逻辑的完全解耦。
+- **通用 Hooks：** 统一导出自 `@bbebee/plugin-sources/views` 与 `@bbebee/plugin-lyric-sources`，实现界面与核心业务逻辑的完全解耦。
 
 ### 5.1 声明式音源配置弹窗交互准则 (Declarative Source Configuration Contract)
 

@@ -1,7 +1,7 @@
 {
-  "name": "@BBeBee/plugin-history-ui-mobile",
+  "name": "@bbebee/plugin-history-ui-mobile",
   "version": "0.0.0",
-  "description": "React Native views for @BBeBee/plugin-history.",
+  "description": "React Native views for @bbebee/plugin-history.",
   "type": "module",
   "license": "MIT",
   "exports": {
@@ -18,9 +18,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-cache": "workspace:*",
-    "@BBeBee/plugin-player": "workspace:*",
-    "@BBeBee/plugin-history": "workspace:*",
+    "@bbebee/plugin-cache": "workspace:*",
+    "@bbebee/plugin-player": "workspace:*",
+    "@bbebee/plugin-history": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/ui-core": "workspace:*",
     "@BBeBee/ui-kit-mobile": "workspace:*",

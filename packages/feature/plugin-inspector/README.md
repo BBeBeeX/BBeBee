@@ -1,4 +1,4 @@
-# @BBeBee/plugin-inspector
+# @bbebee/plugin-inspector
 
 Layer 4 (feature) — `ctx.inspector`: the inspector that turns the plugin graph into readable data.
 

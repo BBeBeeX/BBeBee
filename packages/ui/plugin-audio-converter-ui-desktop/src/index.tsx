@@ -9,7 +9,7 @@ import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
-import { AUDIO_CONVERTER_VIEWS } from '@BBeBee/plugin-audio-converter/views'
+import { AUDIO_CONVERTER_VIEWS } from '@bbebee/plugin-audio-converter/views'
 import { ConverterWorkbench } from './components/ConverterWorkbench.js'
 
 export { ConverterWorkbench }

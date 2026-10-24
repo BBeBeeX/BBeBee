@@ -4,7 +4,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { LibraryService, PlayMode, SourcesService, Track, UiService } from '@BBeBee/protocol'
 import { formatDuration } from '@BBeBee/toolkit'
-import { NOW_PLAYING_VIEWS } from '@BBeBee/plugin-now-playing/views'
+import { NOW_PLAYING_VIEWS } from '@bbebee/plugin-now-playing/views'
 import {
   useDuration,
   usePosition,

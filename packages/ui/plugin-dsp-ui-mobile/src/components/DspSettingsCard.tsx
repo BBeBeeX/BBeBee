@@ -3,7 +3,7 @@ import type { ReactElement, ReactNode } from 'react'
 import type { Context } from 'cordis'
 import { Button, Slider, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
-import { useDsp } from '@BBeBee/plugin-dsp/hooks'
+import { useDsp } from '@bbebee/plugin-dsp/hooks'
 
 const p = () => palettes.dark
 

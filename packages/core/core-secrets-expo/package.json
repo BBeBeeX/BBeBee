@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/core-secrets-expo",
+  "name": "@bbebee/core-secrets-expo",
   "version": "0.0.0",
   "description": "ctx.secrets for iOS and Android, over expo-secure-store.",
   "type": "module",

@@ -13,7 +13,7 @@ import type { Context } from 'cordis'
 import type { AppSettings, RegistryUpdate } from '@BBeBee/protocol'
 import { serviceOf } from '@BBeBee/toolkit/hooks'
 import { Switch, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
-import { REGISTRY_VIEWS } from '@BBeBee/plugin-registry/views'
+import { REGISTRY_VIEWS } from '@bbebee/plugin-registry/views'
 import { formatDateTime } from '../utils/format.js'
 
 interface RegistryServiceLike {

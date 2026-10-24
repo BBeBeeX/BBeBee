@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/core-codec-node",
+  "name": "@bbebee/core-codec-node",
   "version": "0.0.0",
   "description": "ctx.codec — tags, artwork and PCM, over music-metadata.",
   "type": "module",

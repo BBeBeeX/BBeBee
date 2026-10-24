@@ -7,13 +7,13 @@ import type {
   ShareService,
 } from '@BBeBee/protocol'
 import { tryParseUrn } from '@BBeBee/protocol'
-import { LIBRARY_VIEWS } from '@BBeBee/plugin-library/views'
+import { LIBRARY_VIEWS } from '@bbebee/plugin-library/views'
 import {
   useCollections,
   useLibraryProfile,
   usePlaylists,
   useSaved,
-} from '@BBeBee/plugin-library/hooks'
+} from '@bbebee/plugin-library/hooks'
 import type { MenuAnchor, MenuItemSpec } from '@BBeBee/ui-core'
 import { serviceOf } from '@BBeBee/ui-core'
 import { ContextMenu, EmptyState, List, Text, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'

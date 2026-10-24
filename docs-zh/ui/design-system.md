@@ -589,7 +589,7 @@ iframe 沙箱、数据/动作白名单与注入式 SDK 是规范性的安全约�
     - **本地曲目**：标题、艺人、专辑、存储分类（`本地音乐文件`）、文件名、绝对文件系统路径（一键复制到剪贴板 + 反馈）、格式化文件大小与最后修改时间戳。
     - **三方曲目**：`sourceId`、`sourceTrackId`（从曲目 URN 解析）。
     - **音频技术规格**：曲目时长、采样率（如 `44,100 Hz`）、声道（如 `2 (立体声 Stereo)`）、比特率（如 `920 kbps`）、编码（如 `FLAC`、`M4A`）、标签类型（如 `Vorbis, ID3v2.3`、`ID3v2` 或 `在线流媒体`）。
-  - 读取来源：聚合是无头的 —— `@BBeBee/plugin-now-playing/hooks` 中的 `resolveTrackDetails` / `useTrackDetails` 读取 `ctx.db`（`media_bindings`、`scan_entries`）、`ctx.codec.readMetadata`、`ctx.fs.stat` 与实时 `ctx.player.currentStream`，逐级回退；弹窗只渲染返回的行。
+  - 读取来源：聚合是无头的 —— `@bbebee/plugin-now-playing/hooks` 中的 `resolveTrackDetails` / `useTrackDetails` 读取 `ctx.db`（`media_bindings`、`scan_entries`）、`ctx.codec.readMetadata`、`ctx.fs.stat` 与实时 `ctx.player.currentStream`，逐级回退；弹窗只渲染返回的行。
 
 ### 11.4 自适应标题换行
 - **两行标题换行**：在所有内置布局（`ClassicLayout`、`FullCoverLayout`、`VinylLayout`、`CinematicLayout`）中，曲目名自适应换行至多 2 行（`numberOfLines: 2` 或 `-webkit-line-clamp: 2`）。更长的标题在第 2 行末尾以省略号截断，防止水平溢出或与播放控制相撞。

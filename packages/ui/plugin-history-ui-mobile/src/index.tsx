@@ -9,15 +9,15 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import type { I18nService, PlayRecord, Track } from '@BBeBee/protocol'
-import { HISTORY_VIEWS } from '@BBeBee/plugin-history/views'
+import { HISTORY_VIEWS } from '@bbebee/plugin-history/views'
 import {
   usePlayHistory,
   usePlayHistoryStats,
   useTracksByUrn,
   useTransport,
-} from '@BBeBee/plugin-player/hooks'
+} from '@bbebee/plugin-player/hooks'
 import { ContextMenu, EmptyState, List, Text, TrackRow, useI18n } from '@BBeBee/ui-kit-mobile'
-import { useResolvedArtwork } from '@BBeBee/plugin-cache/hooks'
+import { useResolvedArtwork } from '@bbebee/plugin-cache/hooks'
 import { useTrackMenu } from '@BBeBee/ui-menus'
 import type { TrackRowProps } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'

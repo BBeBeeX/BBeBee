@@ -712,7 +712,7 @@ The app provides 5 built-in layout styles managed by `ctx.nowPlaying`:
     - **Local Tracks**: Title, artist, album, storage category (`Local music file`), filename, absolute filesystem path (with 1-click clipboard copy + feedback), formatted file size, and last modified timestamp.
     - **Third-Party Tracks**: `sourceId`, `sourceTrackId` (parsed from track URN).
     - **Audio Technical Specs**: Track duration, sample rate (e.g. `44,100 Hz`), channels (e.g. `2 (Stereo)`), bitrate (e.g. `920 kbps`), codec (e.g. `FLAC`, `M4A`), tag types (e.g. `Vorbis, ID3v2.3`, `ID3v2` or `Online streaming`).
-  - Read sources: the aggregation is headless — `resolveTrackDetails` / `useTrackDetails` in `@BBeBee/plugin-now-playing/hooks` reads `ctx.db` (`media_bindings`, `scan_entries`), `ctx.codec.readMetadata`, `ctx.fs.stat`, and live `ctx.player.currentStream`, falling back stepwise; the modal only renders the returned rows.
+  - Read sources: the aggregation is headless — `resolveTrackDetails` / `useTrackDetails` in `@bbebee/plugin-now-playing/hooks` reads `ctx.db` (`media_bindings`, `scan_entries`), `ctx.codec.readMetadata`, `ctx.fs.stat`, and live `ctx.player.currentStream`, falling back stepwise; the modal only renders the returned rows.
 
 ### 11.4 Adaptive Title Wrapping
 - **Two-Line Title Wrapping**: Across all built-in layouts (`ClassicLayout`, `FullCoverLayout`, `VinylLayout`, `CinematicLayout`), track titles wrap adaptively up to 2 lines (`numberOfLines: 2` or `-webkit-line-clamp: 2`). Longer titles truncate with ellipsis at the end of line 2, preventing horizontal overflow or collision with playback controls.

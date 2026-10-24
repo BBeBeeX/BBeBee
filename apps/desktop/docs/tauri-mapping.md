@@ -42,7 +42,7 @@ BBeBee Desktop runs on Tauri v2. In accordance with the Cordis kernel architectu
                                      |
 +------------------------------------+-------------------------------------+
 |                     3. Node.js Headless Sidecar                          |
-|  - Core Service Host: @BBeBee/core-desktop-bridge/main                   |
+|  - Core Service Host: @bbebee/core-desktop-bridge/main                   |
 |  - Headless Context: core-fs-node, core-db-node, core-paths-node         |
 |  - SQLite Database Operations & Schema Migrations                        |
 |  - File System Operations with Path Containment & Whitelisting           |
@@ -91,19 +91,19 @@ Every reference across `apps/desktop/renderer` and related Layer 2 / Layer 4 / L
 
 | Package | File | Symbol Referenced | Purpose |
 |---|---|---|---|
-| `@BBeBee/core-desktop-bridge` | `src/protocol.ts` | `window.BBeBeeBridge`, `window.BBeBee.secrets` | Defines `BridgeApi`, `requireBridge()`, and `safeStorageCodec()` |
-| `@BBeBee/core-desktop-bridge` | `src/index.ts` | `window.BBeBeeBridge` | `FsBridge`, `DbBridge`, `PathsBridge`, `bridgeFetch()` |
-| `@BBeBee/core-codec-node` | `src/index.ts` | `window.BBeBee.audio.transcode`, `cancelTranscode` | Delegated transcode execution via FFmpeg |
-| `@BBeBee/core-device-tauri` | `src/index.ts` | `window.BBeBeeBridge` (`call('system', ...)` + `on()`) | Media keys, global accelerators, battery, network |
-| `@BBeBee/core-background-tauri` | `src/index.ts` | `window.BBeBeeBridge` (`call('system', ...)` + `on()`) | Wake locks (`acquireWakeLock`), system suspend notifications |
-| `@BBeBee/core-media-session-tauri` | `src/index.ts` | `window.BBeBeeBridge` (`call('system', ...)` + `on()`) | MPRIS / SMTC / Now Playing broadcast & commands |
-| `@BBeBee/core-audio-mpv` | `src/index.ts` | `bridgeCall` (`window.BBeBeeBridge.call('audio', ...)`) | MPV audio engine load, play, pause, seek, volume, DSP, FFT |
-| `@BBeBee/plugin-desktop-taskbar` | `src/index.ts` | `window.BBeBee.taskbar.update`, `onAction` | Windows thumbnail toolbar & tray menu state synchronization |
-| `@BBeBee/plugin-desktop-lyrics-ui-desktop` | `src/DesktopLyrics.tsx` | `window.BBeBee.desktopLyrics` | Secondary window sync: `setVisible`, `setPosition`, `setLocked`, `updateData`, `onMoved`, `onAction` |
-| `@BBeBee/plugin-mini-player` | `src/index.ts`, `hooks.ts` | `window.BBeBee.miniPlayer` | Secondary window sync: `open`, `close`, `restoreMain`, `setMode`, `getState`, `getData`, `updateData`, `sendAction`, `onData`, `onState`, `onAction` |
+| `@bbebee/core-desktop-bridge` | `src/protocol.ts` | `window.BBeBeeBridge`, `window.BBeBee.secrets` | Defines `BridgeApi`, `requireBridge()`, and `safeStorageCodec()` |
+| `@bbebee/core-desktop-bridge` | `src/index.ts` | `window.BBeBeeBridge` | `FsBridge`, `DbBridge`, `PathsBridge`, `bridgeFetch()` |
+| `@bbebee/core-codec-node` | `src/index.ts` | `window.BBeBee.audio.transcode`, `cancelTranscode` | Delegated transcode execution via FFmpeg |
+| `@bbebee/core-device-tauri` | `src/index.ts` | `window.BBeBeeBridge` (`call('system', ...)` + `on()`) | Media keys, global accelerators, battery, network |
+| `@bbebee/core-background-tauri` | `src/index.ts` | `window.BBeBeeBridge` (`call('system', ...)` + `on()`) | Wake locks (`acquireWakeLock`), system suspend notifications |
+| `@bbebee/core-media-session-tauri` | `src/index.ts` | `window.BBeBeeBridge` (`call('system', ...)` + `on()`) | MPRIS / SMTC / Now Playing broadcast & commands |
+| `@bbebee/core-audio-mpv` | `src/index.ts` | `bridgeCall` (`window.BBeBeeBridge.call('audio', ...)`) | MPV audio engine load, play, pause, seek, volume, DSP, FFT |
+| `@bbebee/plugin-desktop-taskbar` | `src/index.ts` | `window.BBeBee.taskbar.update`, `onAction` | Windows thumbnail toolbar & tray menu state synchronization |
+| `@bbebee/plugin-desktop-lyrics-ui-desktop` | `src/DesktopLyrics.tsx` | `window.BBeBee.desktopLyrics` | Secondary window sync: `setVisible`, `setPosition`, `setLocked`, `updateData`, `onMoved`, `onAction` |
+| `@bbebee/plugin-mini-player` | `src/index.ts`, `hooks.ts` | `window.BBeBee.miniPlayer` | Secondary window sync: `open`, `close`, `restoreMain`, `setMode`, `getState`, `getData`, `updateData`, `sendAction`, `onData`, `onState`, `onAction` |
 | `@BBeBee/ui-kit-desktop` | `src/hooks/use-bridge-locale.ts` | `window.BBeBee.locale.getLocale`, `onLocaleChange` | Language hook for ctx-less secondary windows |
-| `@BBeBee/plugin-registry-ui-desktop` | `src/hooks/use-registry.ts` | `window.BBeBee.getAppVersion` | Enforce `minAppVersion` in plugin install confirmation |
-| `@BBeBee/plugin-now-playing-ui-desktop` | `src/styles/SandboxedLayout.tsx` | `window.BBeBee.sandbox.setHtml` | Register dynamic skin template served over `bbebee-sandbox://` |
+| `@bbebee/plugin-registry-ui-desktop` | `src/hooks/use-registry.ts` | `window.BBeBee.getAppVersion` | Enforce `minAppVersion` in plugin install confirmation |
+| `@bbebee/plugin-now-playing-ui-desktop` | `src/styles/SandboxedLayout.tsx` | `window.BBeBee.sandbox.setHtml` | Register dynamic skin template served over `bbebee-sandbox://` |
 
 ---
 

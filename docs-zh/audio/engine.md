@@ -21,7 +21,7 @@ flowchart LR
 
 ## 1. `ctx.audio` —— 引擎
 
-依据 [ADR-6](../architecture/overview.md#adr-6--libmpv-是所有目标平台上-ctxaudio-引擎)，`ctx.audio` 在桌面端与移动端由单一 libmpv 引擎（`@BBeBee/core-audio-mpv`）提供——没有引擎选择器，没有兜底引擎。解码、系统音频输出与原生 DSP（libavfilter）都由 libmpv 承担；Web Audio 图作为*基座*保留在底层，供媒体元素路径（`StreamedHandle`）与分析器抽头使用——移动端由 `react-native-audio-api` 提供，桌面端由 Webview 提供。`ctx.player`、`ctx.dsp`、`ctx.visualizer` 永远只看到 `AudioService` 契约，看不到背后是哪个二进制。
+依据 [ADR-6](../architecture/overview.md#adr-6--libmpv-是所有目标平台上-ctxaudio-引擎)，`ctx.audio` 在桌面端与移动端由单一 libmpv 引擎（`@bbebee/core-audio-mpv`）提供——没有引擎选择器，没有兜底引擎。解码、系统音频输出与原生 DSP（libavfilter）都由 libmpv 承担；Web Audio 图作为*基座*保留在底层，供媒体元素路径（`StreamedHandle`）与分析器抽头使用——移动端由 `react-native-audio-api` 提供，桌面端由 Webview 提供。`ctx.player`、`ctx.dsp`、`ctx.visualizer` 永远只看到 `AudioService` 契约，看不到背后是哪个二进制。
 
 ```ts
 import type { Uri, Disposable } from '@BBeBee/protocol'
@@ -119,7 +119,7 @@ flowchart LR
 - **`strategy: 'buffer'`**：拉取二进制流到 `ArrayBuffer` 并解码为 `AudioBuffer`，挂载至 `chainInput`。为本地音频与 Gapless 无缝换曲提供样本级精确调度。
 - **`strategy: 'stream'`**：通过 `context.createMediaElementSource()` 挂载至媒体元素，保持内存占用恒定。
 - **解码回退 (Decode Fallback)**：当 `decodeAudioData()` 遇到无法解码的格式（`.m4a` 中的 ALAC、Hi-Res FLAC、带 ID3v2 头的 FLAC——报 `Unable to decode audio data`）时，引擎降级到媒体元素（`StreamedHandle`）——其解码覆盖面与 `decodeAudioData` 不同，ALAC 与 24-bit FLAC 均可播放。请求头通过播放器的 `stream.setHeaders` 按主机注册送达元素。
-- **桌面端原生高保真引擎 (`@BBeBee/core-audio-mpv`)**：
+- **桌面端原生高保真引擎 (`@bbebee/core-audio-mpv`)**：
   - **崩溃隔离原生独立可执行文件 (Crash Isolation & Standalone Executable)**：基于官方 libmpv 与编译生成的独立 native `audio-engine` 二进制可执行文件（`audio-engine` 或 `.exe`），采用标准 stdio JSON-IPC 与桌面端 Node.js Sidecar 进程通信。任何底层驱动崩溃、音频设备热插拔异常或 native 信号错误均由独立进程隔离，由 `AudioEngineSupervisor`（位于 `apps/desktop/sidecar/audio`）自动监控并执行优雅自愈重连，保证界面丝滑稳定。
   - **PCM 不走 IPC 与系统音频直通 (Zero-IPC for PCM)**：音频解码后的高采样率 PCM 流在原生子进程内直接送入 mpv 自身的音频输出端点（Windows `ao=wasapi`、macOS `coreaudio`、Linux `pulse,alsa,pipewire`），严禁跨进程高带宽低效传输 PCM 原始数据。
   - **经 libavfilter 适配器的完整效果链**：每个内置效果（10 段 EQ、前级、压限器、限制器、响度归一、crossfeed、加宽、混响、变速变调）都在其 `EffectDefinition` 上声明可选的 `buildLavfi(params)` 适配器——每个效果一段 libavfilter 片段（`equalizer`/`lowshelf`/`highshelf`、`volume`、`acompressor`、`alimiter`、`crossfeed`、`extrastereo`、`aecho`、`rubberband`）。引擎按 ordinal 顺序遍历**已启用**的链，把片段串成一条 `af` 字符串（并追加 `astats` 抽头），在挂载时、`dsp/chain-changed` 时（200 ms 去抖——每次写 `af` mpv 都会重建滤镜链）推送；未声明适配器的效果记日志跳过。`FILE_LOADED` 读取 mpv 真实的 pause 标志而非假设，使抢先于加载器的 play（gapless 重绑定）保持状态簿记诚实。已用合成单音做端到端实证：+6 dB 频段增益在引擎自身 `astats` 抽头上实测 +6.00 dB，−40 dB 链路实测同幅衰减。
@@ -134,7 +134,7 @@ flowchart LR
     - `plugin-visualizer` 将其封装为统一的 `AudioAnalyser` 抽象（`NativeMpvImpl` / `WebAudioImpl`），无缝供给 Canvas 2D 渲染管线（渐变频谱柱状图 + 峰值帽、波形、环形与粒子样式——单一持久 2d 上下文，不使用 WebGL），且不向 UI 组件泄漏后端细节。
 - **移动端音频引擎架构 (`MobileAudioService` in `apps/mobile`)**：
   - **移动端音频引擎架构（`apps/mobile` 中的 `MobileAudioService`）**：
-    - **引擎（`@BBeBee/core-audio-mpv` 进程内 libmpv JNI/JSI）**：移动端沙盒禁止派生子进程，因此引擎以进程内原生共享库形态运行（Android `libmpv.so`、iOS `mpv.framework`），经 TurboModule JSI 桥接提供硬件解码与流缓冲。引擎的元素路径与 DSP 管道所需的 Web Audio 图仍由 `react-native-audio-api` 提供（`createContext`）。原生库尚未打包的构建中，进程内仿真桥接保证音频输出可用。
+    - **引擎（`@bbebee/core-audio-mpv` 进程内 libmpv JNI/JSI）**：移动端沙盒禁止派生子进程，因此引擎以进程内原生共享库形态运行（Android `libmpv.so`、iOS `mpv.framework`），经 TurboModule JSI 桥接提供硬件解码与流缓冲。引擎的元素路径与 DSP 管道所需的 Web Audio 图仍由 `react-native-audio-api` 提供（`createContext`）。原生库尚未打包的构建中，进程内仿真桥接保证音频输出可用。
     - **状态连续性与系统打断管理**：移动端系统音频焦点打断（电话呼入、闹钟、语音助手）与硬件路由变更（拔出耳机）由系统层统一监听并优雅响应。
 - **设置中的音频输出引擎、独占模式与设备选择 (`audioOutputEngine`, `audioExclusive`, `audioOutputDeviceId`)**：
   用户可在桌面端设置界面的「音频输出引擎与设备」中自由配置驱动与物理设备：

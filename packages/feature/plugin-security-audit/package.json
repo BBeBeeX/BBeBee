@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-security-audit",
+  "name": "@bbebee/plugin-security-audit",
   "version": "0.0.0",
   "description": "Built-in security audit service: static code analysis, vulnerability scanning, and permission verification for plugins and sources.",
   "type": "module",

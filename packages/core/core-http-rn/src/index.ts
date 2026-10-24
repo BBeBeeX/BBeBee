@@ -31,7 +31,7 @@
 import { fetch as expoFetch } from 'expo/fetch'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
-import { HttpNode, jarStore, type HttpNodeConfig } from '@BBeBee/core-http-node'
+import { HttpNode, jarStore, type HttpNodeConfig } from '@bbebee/core-http-node'
 
 export type HttpRnConfig = Omit<HttpNodeConfig, 'fetch'> & {
   /** Overrides the transport. Tests, and nothing else. */

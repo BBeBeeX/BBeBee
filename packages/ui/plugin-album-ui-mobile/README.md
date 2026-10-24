@@ -1,10 +1,10 @@
-# @BBeBee/plugin-album-ui-mobile
+# @bbebee/plugin-album-ui-mobile
 
 Layer 5 (ui) — the mobile view package for `plugin-album` (headless): the twin half of `plugin-album-ui-desktop`.
 
 ## Overview
 
-The **same set of hooks and the same playback semantics** as the desktop version — only the elements and shapes differ. Domain state comes from `@BBeBee/plugin-album/hooks`; kit primitives are obtained via `nativePrimitives()`; `ctx.sources` via `inject`, `player` / `downloads` through `serviceOf` (optional). Depends on the headless `@BBeBee/plugin-album` and `@BBeBee/plugin-sources` (which returns the fallback library route id).
+The **same set of hooks and the same playback semantics** as the desktop version — only the elements and shapes differ. Domain state comes from `@bbebee/plugin-album/hooks`; kit primitives are obtained via `nativePrimitives()`; `ctx.sources` via `inject`, `player` / `downloads` through `serviceOf` (optional). Depends on the headless `@bbebee/plugin-album` and `@bbebee/plugin-sources` (which returns the fallback library route id).
 
 ## Source files
 

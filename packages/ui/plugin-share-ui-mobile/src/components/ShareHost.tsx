@@ -11,7 +11,7 @@ import type {
   ShareTarget,
   ShareTrackData,
 } from '@BBeBee/protocol'
-import { useShareModalState } from '@BBeBee/plugin-share/hooks'
+import { useShareModalState } from '@bbebee/plugin-share/hooks'
 import { serviceOf } from '@BBeBee/ui-core'
 import { Button, EmptyState, Sheet, TextField, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'

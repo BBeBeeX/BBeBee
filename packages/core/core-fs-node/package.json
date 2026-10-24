@@ -34,10 +34,10 @@
   },
   "devDependencies": {
     "@BBeBee/core-paths-node": "workspace:*",
-    "@BBeBee/core-store-fs": "workspace:*",
+    "@bbebee/core-store-fs": "workspace:*",
     "@BBeBee/core-db-node": "workspace:*",
-    "@BBeBee/plugin-log-buffer": "workspace:*",
-    "@BBeBee/plugin-log-console": "workspace:*",
-    "@BBeBee/plugin-log-file": "workspace:*"
+    "@bbebee/plugin-log-buffer": "workspace:*",
+    "@bbebee/plugin-log-console": "workspace:*",
+    "@bbebee/plugin-log-file": "workspace:*"
   }
 }

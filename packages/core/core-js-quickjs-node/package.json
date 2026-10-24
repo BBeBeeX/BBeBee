@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/core-js-quickjs-node",
+  "name": "@bbebee/core-js-quickjs-node",
   "version": "0.0.0",
   "description": "ctx.js — a QuickJS realm per source, for desktop and Node.",
   "type": "module",

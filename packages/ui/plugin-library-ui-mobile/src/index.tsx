@@ -17,8 +17,8 @@ import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import type { Album, Collection, Playlist, QueueSourceContext } from '@BBeBee/protocol'
 import { tryParseUrn } from '@BBeBee/protocol'
-import { LIBRARY_VIEWS } from '@BBeBee/plugin-library/views'
-import { ALBUM_VIEWS } from '@BBeBee/plugin-album/views'
+import { LIBRARY_VIEWS } from '@bbebee/plugin-library/views'
+import { ALBUM_VIEWS } from '@bbebee/plugin-album/views'
 import {
   summariseLibrary,
   useCollectionDetail,
@@ -27,10 +27,10 @@ import {
   usePlaylists,
   useSaved,
   type CollectionMember,
-} from '@BBeBee/plugin-library/hooks'
-import { useAlbums } from '@BBeBee/plugin-sources/hooks'
-import { useTracksByUrn } from '@BBeBee/plugin-player/hooks'
-import { useResolvedArtwork } from '@BBeBee/plugin-cache/hooks'
+} from '@bbebee/plugin-library/hooks'
+import { useAlbums } from '@bbebee/plugin-sources/hooks'
+import { useTracksByUrn } from '@bbebee/plugin-player/hooks'
+import { useResolvedArtwork } from '@bbebee/plugin-cache/hooks'
 import type { ArtworkProps } from '@BBeBee/ui-core'
 import { Artwork, Button, ContextMenu, EmptyState, IconButton, List, Text, TextField, TrackRow, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { serviceOf } from '@BBeBee/ui-core'

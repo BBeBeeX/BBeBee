@@ -12,7 +12,7 @@ const hasFfmpeg = (() => {
 import { tempDir, tick } from '@BBeBee/kernel/testing'
 import { PathsNode } from '@BBeBee/core-paths-node'
 import { FsNode } from '@BBeBee/core-fs-node'
-import { CodecNode } from '@BBeBee/core-codec-node'
+import { CodecNode } from '@bbebee/core-codec-node'
 import plugin from './index.js'
 import { AUDIO_CONVERTER_VIEWS } from './views.js'
 import { estimateCompression, resolvePresetOptions } from './compression.js'

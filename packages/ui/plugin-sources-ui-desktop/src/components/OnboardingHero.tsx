@@ -1,7 +1,7 @@
 import { createElement as h, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { FsService, ScannerService, UiService, Uri } from '@BBeBee/protocol'
-import { SOURCES_VIEWS } from '@BBeBee/plugin-sources/views'
+import { SOURCES_VIEWS } from '@bbebee/plugin-sources/views'
 import { serviceOf } from '@BBeBee/ui-core'
 import { Button, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'

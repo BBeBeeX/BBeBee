@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { createElement as h, type ComponentType } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { Context, Service } from 'cordis'
-import inspectorPlugin from '@BBeBee/plugin-inspector'
+import inspectorPlugin from '@bbebee/plugin-inspector'
 import inspectorUi, {
   INSPECTOR_VIEW,
   InspectorErrorBoundary,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Context, Service } from '@BBeBee/kernel'
-import { AudioMpv } from '@BBeBee/core-audio-mpv'
-import { createFakeAudioContext } from '@BBeBee/core-audio-mpv/testing'
+import { AudioMpv } from '@bbebee/core-audio-mpv'
+import { createFakeAudioContext } from '@bbebee/core-audio-mpv/testing'
 import { MobileAudioService, createMobileMpvBridge } from './mobile-audio.js'
 import type { InterruptionEvent } from '@BBeBee/protocol'
 

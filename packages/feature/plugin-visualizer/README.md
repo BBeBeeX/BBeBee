@@ -1,4 +1,4 @@
-# @BBeBee/plugin-visualizer
+# @bbebee/plugin-visualizer
 
 Headless audio visualization service for BBeBee (`ctx.visualizer`).
 

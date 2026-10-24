@@ -12,7 +12,7 @@
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import { LIBRARY_VIEWS } from '@BBeBee/plugin-library/views'
+import { LIBRARY_VIEWS } from '@bbebee/plugin-library/views'
 import { LibraryScreen } from './screens/LibraryScreen.js'
 import { PlaylistDetailScreen } from './screens/PlaylistDetailScreen.js'
 import { FavoritesScreen } from './screens/FavoritesScreen.js'

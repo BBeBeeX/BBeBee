@@ -25,7 +25,7 @@ import type {
   Uri,
 } from '@BBeBee/protocol'
 import plugin, { formatFor, type Downloads } from './index.js'
-import cachePlugin from '@BBeBee/plugin-cache'
+import cachePlugin from '@bbebee/plugin-cache'
 
 const URN = 'BBeBee:demo:track:1'
 const URN2 = 'BBeBee:demo:track:2'

@@ -1,7 +1,7 @@
 import { createElement as h, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { I18nService, ImportReport } from '@BBeBee/protocol'
-import { useSourceImport } from '@BBeBee/plugin-sources/hooks'
+import { useSourceImport } from '@bbebee/plugin-sources/hooks'
 import { Button, Text, TextField, useI18n } from '@BBeBee/ui-kit-desktop'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
 

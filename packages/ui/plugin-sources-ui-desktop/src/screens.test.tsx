@@ -15,7 +15,7 @@ import { Context, Service } from 'cordis'
 import { PathsNode } from '@BBeBee/core-paths-node'
 import { FsNode } from '@BBeBee/core-fs-node'
 import { DbNode } from '@BBeBee/core-db-node'
-import sourcesPlugin from '@BBeBee/plugin-sources'
+import sourcesPlugin from '@bbebee/plugin-sources'
 import type {
   AlbumDetail,
   BrowseEntry,
@@ -33,7 +33,7 @@ import type {
 } from '@BBeBee/protocol'
 import { tempDir, tick } from '@BBeBee/kernel/testing'
 import { withListLayout } from '@BBeBee/ui-kit-desktop/testing'
-import { resetSearchSourceSelection } from '@BBeBee/plugin-sources/hooks'
+import { resetSearchSourceSelection } from '@bbebee/plugin-sources/hooks'
 import sourcesCatalogue from '../../../feature/plugin-i18n/src/locales/sources.json'
 import appCatalogue from '../../../feature/plugin-i18n/src/locales/en.json'
 

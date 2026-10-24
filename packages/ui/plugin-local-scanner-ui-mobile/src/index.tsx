@@ -11,8 +11,8 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import type { ScanSpecifiedDir } from '@BBeBee/protocol'
-import { SCANNER_VIEWS } from '@BBeBee/plugin-local-scanner/views'
-import { summarise, useScanErrors, useScanSpecifiedDirs, useScanState } from '@BBeBee/plugin-local-scanner/hooks'
+import { SCANNER_VIEWS } from '@bbebee/plugin-local-scanner/views'
+import { summarise, useScanErrors, useScanSpecifiedDirs, useScanState } from '@bbebee/plugin-local-scanner/hooks'
 import {
   Button,
   EmptyState,

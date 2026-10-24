@@ -89,7 +89,7 @@
 
 ### ADR-4 —— `react-native-audio-api` 是所有目标平台上首要的播放与 DSP 引擎
 
-> **已被 [ADR-6](#adr-6--libmpv-是所有目标平台上-ctxaudio-引擎) 取代**（2026-10-19）：`ctx.audio` 在桌面端与移动端统一由 libmpv 引擎（`@BBeBee/core-audio-mpv`）提供；`core-audio-webaudio` 包已删除。`react-native-audio-api` 仍提供引擎的元素路径与 DSP 管道所依赖的 `AudioContext`（移动端 `createContext`）。以下记录保留为历史。
+> **已被 [ADR-6](#adr-6--libmpv-是所有目标平台上-ctxaudio-引擎) 取代**（2026-10-19）：`ctx.audio` 在桌面端与移动端统一由 libmpv 引擎（`@bbebee/core-audio-mpv`）提供；`core-audio-webaudio` 包已删除。`react-native-audio-api` 仍提供引擎的元素路径与 DSP 管道所依赖的 `AudioContext`（移动端 `createContext`）。以下记录保留为历史。
 
 **决策。** `ctx.audio` 服务契约就是 **Web Audio API**。在 iOS 与 Android 上由 `react-native-audio-api` 满足；在桌面端 Webview 中，由浏览器原生 Web Audio API（或同一个包的 web 实现——两者是同一接口）满足。
 
@@ -122,7 +122,7 @@
 
 ### ADR-6 —— libmpv 是所有目标平台上 `ctx.audio` 引擎
 
-**决策。** `ctx.audio` 在桌面端与移动端由单一引擎 `@BBeBee/core-audio-mpv` 提供——没有引擎选择器，没有兜底引擎。桌面端 libmpv 运行在崩溃隔离的 `audio-engine` 子进程中，直接输出到系统音频（WASAPI/CoreAudio/PulseAudio）；移动端经 JNI/JSI 桥接以进程内形态运行（`libmpv.so` / `mpv.framework`），原生模块缺失时（Expo Go、测试运行器）用进程内仿真桥接。引擎的元素路径（`StreamedHandle`）与 DSP 管道所依赖的 Web Audio 图仍按平台提供（移动端 `react-native-audio-api`、桌面端 Webview）——音频图是*基座*，不是引擎。
+**决策。** `ctx.audio` 在桌面端与移动端由单一引擎 `@bbebee/core-audio-mpv` 提供——没有引擎选择器，没有兜底引擎。桌面端 libmpv 运行在崩溃隔离的 `audio-engine` 子进程中，直接输出到系统音频（WASAPI/CoreAudio/PulseAudio）；移动端经 JNI/JSI 桥接以进程内形态运行（`libmpv.so` / `mpv.framework`），原生模块缺失时（Expo Go、测试运行器）用进程内仿真桥接。引擎的元素路径（`StreamedHandle`）与 DSP 管道所依赖的 Web Audio 图仍按平台提供（移动端 `react-native-audio-api`、桌面端 Webview）——音频图是*基座*，不是引擎。
 
 **为什么是现在。** ADR-4 的缓解条款预言的正是这次替换：引擎躲在 `ctx.audio` 服务契约背后，`ctx.player`、`ctx.dsp`、`ctx.visualizer` 从不知道挂载的是哪个实现。双引擎时期证明了替换是安全的（mpv 本来就是桌面端默认，`StreamedHandle` 语义是共享而非分叉的）；而保留第二个引擎意味着维护两套解码路径、两套设备路由和一个没有用户可见收益的选择界面。
 

@@ -1,4 +1,4 @@
-# @BBeBee/plugin-album
+# @bbebee/plugin-album
 
 Layer 4 (feature) — **the album page**: route/view descriptors and the `useAlbum` read, split out of `plugin-sources`.
 

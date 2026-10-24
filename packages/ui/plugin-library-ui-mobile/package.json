@@ -1,7 +1,7 @@
 {
-  "name": "@BBeBee/plugin-library-ui-mobile",
+  "name": "@bbebee/plugin-library-ui-mobile",
   "version": "0.0.0",
-  "description": "React Native views for @BBeBee/plugin-library.",
+  "description": "React Native views for @bbebee/plugin-library.",
   "type": "module",
   "license": "MIT",
   "exports": {
@@ -18,11 +18,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-album": "workspace:*",
-    "@BBeBee/plugin-cache": "workspace:*",
-    "@BBeBee/plugin-library": "workspace:*",
-    "@BBeBee/plugin-player": "workspace:*",
-    "@BBeBee/plugin-sources": "workspace:*",
+    "@bbebee/plugin-album": "workspace:*",
+    "@bbebee/plugin-cache": "workspace:*",
+    "@bbebee/plugin-library": "workspace:*",
+    "@bbebee/plugin-player": "workspace:*",
+    "@bbebee/plugin-sources": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/ui-core": "workspace:*",
     "@BBeBee/ui-kit-mobile": "workspace:*",

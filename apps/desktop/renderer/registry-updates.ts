@@ -26,7 +26,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Context } from 'cordis'
 import type { RegistryUpdate } from '@BBeBee/protocol'
-import { REGISTRY_VIEWS } from '@BBeBee/plugin-registry/views'
+import { REGISTRY_VIEWS } from '@bbebee/plugin-registry/views'
 
 function serviceOf<T = unknown>(ctx: Context, key: string): T | undefined {
   return (ctx as unknown as { reflect?: { get(key: string, required: boolean): unknown } }).reflect?.get?.(

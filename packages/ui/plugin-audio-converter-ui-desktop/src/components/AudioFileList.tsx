@@ -8,7 +8,7 @@ import type { Context } from 'cordis'
 import { Button, IconButton, Text, useI18n } from '@BBeBee/ui-kit-desktop'
 import { formatBytes } from '@BBeBee/toolkit'
 import { tokens } from '@BBeBee/ui-tokens'
-import { extractExtension } from '@BBeBee/plugin-audio-converter'
+import { extractExtension } from '@bbebee/plugin-audio-converter'
 
 export interface SelectedAudioFile {
   id: string

@@ -6,8 +6,8 @@ import {
   isLocalSource,
   useAudioSourcesStatus,
   type AudioSourceStatusItem,
-} from '@BBeBee/plugin-sources/hooks'
-import { summarise, useScanSpecifiedDirs, useScanState } from '@BBeBee/plugin-local-scanner/hooks'
+} from '@bbebee/plugin-sources/hooks'
+import { summarise, useScanSpecifiedDirs, useScanState } from '@bbebee/plugin-local-scanner/hooks'
 import { serviceOf } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
 import { SettingsRow } from '../SettingsRow.js'

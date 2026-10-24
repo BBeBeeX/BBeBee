@@ -48,7 +48,7 @@ CREATE TABLE schema_migrations (
 一个只允许核心建表的插件平台算不上真正的平台。插件可以声明自己的：
 
 ```ts
-await ctx.db.defineSchema('plugin:@BBeBee/plugin-scrobble', [
+await ctx.db.defineSchema('plugin:@bbebee/plugin-scrobble', [
   {
     version: 1,
     up: [

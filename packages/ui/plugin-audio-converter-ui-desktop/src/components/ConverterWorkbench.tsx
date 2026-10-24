@@ -16,7 +16,7 @@ import { tokens } from '@BBeBee/ui-tokens'
 import {
   useAudioConverterConfig,
   useAudioConverterTasks,
-} from '@BBeBee/plugin-audio-converter/hooks'
+} from '@bbebee/plugin-audio-converter/hooks'
 import { AudioFileList, type SelectedAudioFile } from './AudioFileList.js'
 import { FormatSection } from './FormatSection.js'
 import { CompressionSection } from './CompressionSection.js'

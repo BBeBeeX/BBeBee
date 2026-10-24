@@ -200,11 +200,11 @@ rule language is too weak, because every document written after M2 is one someon
 >   without rebuilding the graph.
 > - **Dropout safety**: `tempo-pitch` monitors audio dropouts and automatically disables itself to
 >   protect the rest of the chain on resource-constrained platforms.
-> - **Chain editor UI**: `@BBeBee/plugin-dsp-ui-desktop` and `@BBeBee/plugin-dsp-ui-mobile` provide
+> - **Chain editor UI**: `@bbebee/plugin-dsp-ui-desktop` and `@bbebee/plugin-dsp-ui-mobile` provide
 >   10-band graphic EQ sliders, drag-and-drop / ordering controls, individual bypass toggles, latency
 >   reporting, and preset selection.
-> - **Settings integration**: `@BBeBee/plugin-settings-ui-desktop` and
->   `@BBeBee/plugin-settings-ui-mobile` feature direct in-settings toggles, presets, and sliders for
+> - **Settings integration**: `@bbebee/plugin-settings-ui-desktop` and
+>   `@bbebee/plugin-settings-ui-mobile` feature direct in-settings toggles, presets, and sliders for
 >   EQ, Normalize, Compressor, and Reverb inside the "Playback" / audio section, plus a dedicated
 >   DSP tab and navigation route.
 > - **Composition root enabled**: Enabled in `apps/desktop/renderer/plugins.ts` and

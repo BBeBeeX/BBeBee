@@ -112,7 +112,7 @@ pnpm check                   # already green — the template ships passing test
 
 | 标志 | 取值 | 效果 |
 |---|---|---|
-| `--name` | 小写、连字符分隔 | `scrobble` → `@BBeBee/plugin-scrobble` |
+| `--name` | 小写、连字符分隔 | `scrobble` → `@bbebee/plugin-scrobble` |
 | `--kind` | `feature`（默认）、`effect` | 决定包前缀。没有 `source` 这个种类：一个音乐后端是文档，不是包 |
 | `--ui` | `none`（默认）、`desktop`、`mobile`、`both` | 生成 [ui/architecture.md §1](../ui/architecture.md#1-三包约定) 所述的按目标视图包 |
 | `--capabilities` | 逗号分隔 | 写入 `BBeBee.plugin.json`（[plugins/capabilities.md §7](../plugins/capabilities.md#7-能力模型)） |

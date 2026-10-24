@@ -1,4 +1,4 @@
-# @BBeBee/plugin-local-scanner-ui-mobile
+# @bbebee/plugin-local-scanner-ui-mobile
 
 Layer 5 (ui) — the mobile view package of `plugin-local-scanner` (headless): the twin half of the desktop version.
 

@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-dsp",
+  "name": "@bbebee/plugin-dsp",
   "version": "0.0.0",
   "description": "plugin-dsp — effect chain builder, audio processing effects, and presets.",
   "type": "module",

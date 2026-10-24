@@ -1,7 +1,7 @@
 {
-  "name": "@BBeBee/plugin-share-ui-mobile",
+  "name": "@bbebee/plugin-share-ui-mobile",
   "version": "0.0.0",
-  "description": "React Native views for @BBeBee/plugin-share — share codes and the import reader.",
+  "description": "React Native views for @bbebee/plugin-share — share codes and the import reader.",
   "type": "module",
   "license": "MIT",
   "exports": {
@@ -18,7 +18,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-share": "workspace:*",
+    "@bbebee/plugin-share": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/ui-core": "workspace:*",
     "@BBeBee/ui-kit-mobile": "workspace:*",

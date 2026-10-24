@@ -14,7 +14,7 @@ import type {
 import { Select, Switch, Text, TextField, useI18n, type SelectOption } from '@BBeBee/ui-kit-desktop'
 import { formatBytes } from '@BBeBee/toolkit'
 import { tokens } from '@BBeBee/ui-tokens'
-import { isLosslessFormat } from '@BBeBee/plugin-audio-converter'
+import { isLosslessFormat } from '@bbebee/plugin-audio-converter'
 
 export interface CompressionSectionProps {
   ctx: Context

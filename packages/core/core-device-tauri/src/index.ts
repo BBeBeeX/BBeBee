@@ -29,8 +29,8 @@ import type {
   NetworkState,
   Platform,
 } from '@BBeBee/protocol'
-import { requireBridge } from '@BBeBee/core-desktop-bridge'
-import type { BridgeApi } from '@BBeBee/core-desktop-bridge'
+import { requireBridge } from '@bbebee/core-desktop-bridge'
+import type { BridgeApi } from '@bbebee/core-desktop-bridge'
 
 /** The slice of `navigator` used, structurally so tests can supply their own. */
 export interface NavigatorLike {

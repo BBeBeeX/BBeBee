@@ -3,7 +3,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
-import { QUEUE_VIEWS } from '@BBeBee/plugin-queue/views'
+import { QUEUE_VIEWS } from '@bbebee/plugin-queue/views'
 
 export interface QueueButtonProps {
   ctx: Context

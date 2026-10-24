@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-registry-metadata",
+  "name": "@bbebee/plugin-registry-metadata",
   "version": "0.0.0",
   "description": "ctx.registryMetadata — lazy GitHub star and contributor counts for registry entries, cached for a day and degraded gracefully.",
   "type": "module",

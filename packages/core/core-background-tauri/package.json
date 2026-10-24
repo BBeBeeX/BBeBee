@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/core-background-tauri",
+  "name": "@bbebee/core-background-tauri",
   "version": "0.0.0",
   "description": "ctx.background — wake locks, scheduling and suspend hooks on desktop (Tauri).",
   "type": "module",
@@ -30,7 +30,7 @@
   "dependencies": {
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/kernel": "workspace:*",
-    "@BBeBee/core-desktop-bridge": "workspace:*",
+    "@bbebee/core-desktop-bridge": "workspace:*",
     "cordis": "4.0.0-rc.9"
   },
   "devDependencies": {

@@ -18,9 +18,9 @@ A feature with UI splits into up to three packages. The split is not bureaucracy
 keeps ADR-2 from doubling the *whole* feature instead of just its pixels.
 
 ```
-@BBeBee/plugin-scrobble               ← headless: service, state, events, persistence
-@BBeBee/plugin-scrobble-ui-mobile     ← React Native views
-@BBeBee/plugin-scrobble-ui-desktop    ← React DOM views
+@bbebee/plugin-scrobble               ← headless: service, state, events, persistence
+@bbebee/plugin-scrobble-ui-mobile     ← React Native views
+@bbebee/plugin-scrobble-ui-desktop    ← React DOM views
 ```
 
 | Package | Layer | Contains | May import |
@@ -334,7 +334,7 @@ feature**. A feature's own `./hooks` subpath stays its public surface and re-exp
 one-to-one:
 
 ```ts
-// @BBeBee/toolkit/hooks — re-exported by @BBeBee/plugin-player/hooks
+// @BBeBee/toolkit/hooks — re-exported by @bbebee/plugin-player/hooks
 export const useTransport = (ctx: Context) =>
   useServiceState(ctx, ['player/state-changed', 'player/track-changed'], () => ctx.player.state)
 

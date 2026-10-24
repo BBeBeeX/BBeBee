@@ -9,7 +9,7 @@
 
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from 'cordis'
-import type { BridgeEvent } from '@BBeBee/core-desktop-bridge'
+import type { BridgeEvent } from '@bbebee/core-desktop-bridge'
 import plugin, {
   DeviceTauri,
   type BatteryLike,

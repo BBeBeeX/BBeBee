@@ -1,7 +1,7 @@
 {
-  "name": "@BBeBee/plugin-queue-ui-desktop",
+  "name": "@bbebee/plugin-queue-ui-desktop",
   "version": "0.0.0",
-  "description": "React DOM views for @BBeBee/plugin-queue.",
+  "description": "React DOM views for @bbebee/plugin-queue.",
   "type": "module",
   "license": "MIT",
   "exports": {
@@ -18,7 +18,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-queue": "workspace:*",
+    "@bbebee/plugin-queue": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/toolkit": "workspace:*",
     "@BBeBee/ui-kit-desktop": "workspace:*",

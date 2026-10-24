@@ -26,8 +26,8 @@ packages/ui/plugin-library-ui-desktop/      ← React DOM views (L5)
 
 View packages import from headless packages through **public subpaths only**:
 - Types and models
-- Shared custom hooks (`@BBeBee/plugin-library/hooks`)
-- Descriptor view IDs (`@BBeBee/plugin-library/views`)
+- Shared custom hooks (`@bbebee/plugin-library/hooks`)
+- Descriptor view IDs (`@bbebee/plugin-library/views`)
 - Never deep-import into `src/*` of another package.
 
 ### 1.1 Package Internal Organization & Single Responsibility Principle (SRP)
@@ -141,7 +141,7 @@ contributions — a plugin's section disappears when the plugin does.
 
 ### Context Menu Design Standards
 - **Folder (Collection) Semantics**: Folders are directory containers for collection-level entities (playlists, albums, artists, child folders). Folders **never** contain individual tracks; individual tracks belong to playlists and albums. Track context menus only offer "Add to playlist" (`add-to-playlist`), never "Add to collection / Move to folder" (`add-to-collection`).
-- **Recursive Track Gathering**: When adding a folder's contents to other playlists ("Add to another playlist") or playing a folder, `collectAllFolderTracks` (exported from `@BBeBee/plugin-library/hooks`) recursively scans all nested playlist tracks, nested album tracks, and all descendant subfolders without duplicates (folders do not contain direct tracks).
+- **Recursive Track Gathering**: When adding a folder's contents to other playlists ("Add to another playlist") or playing a folder, `collectAllFolderTracks` (exported from `@bbebee/plugin-library/hooks`) recursively scans all nested playlist tracks, nested album tracks, and all descendant subfolders without duplicates (folders do not contain direct tracks).
 
 ---
 

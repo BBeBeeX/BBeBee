@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-log-file",
+  "name": "@bbebee/plugin-log-file",
   "version": "0.0.0",
   "description": "Rotating NDJSON log transport, via ctx.fs.",
   "type": "module",
@@ -35,6 +35,6 @@
   "devDependencies": {
     "@BBeBee/core-paths-node": "workspace:*",
     "@BBeBee/core-fs-node": "workspace:*",
-    "@BBeBee/plugin-log-buffer": "workspace:*"
+    "@bbebee/plugin-log-buffer": "workspace:*"
   }
 }

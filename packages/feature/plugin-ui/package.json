@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-ui",
+  "name": "@bbebee/plugin-ui",
   "version": "0.0.0",
   "description": "The ctx.ui contribution registry.",
   "type": "module",

@@ -5,7 +5,7 @@
 `apps/desktop` is the modernized desktop application running on **Tauri v2** + **Node.js Sidecar**.
 
 - **Host Core**: Rust (Tauri v2) providing native windowing, system tray, global media keys, dialogs, OS keychain integration, and custom protocol handlers.
-- **Core Services**: Node.js Sidecar hosting `@BBeBee/core-desktop-bridge/main`, `core-fs-node`, `core-db-node`, `core-paths-node`, and native audio engine supervision.
+- **Core Services**: Node.js Sidecar hosting `@bbebee/core-desktop-bridge/main`, `core-fs-node`, `core-db-node`, `core-paths-node`, and native audio engine supervision.
 - **Renderer Shell**: Sandboxed React 18 Webview with Cordis kernel running in-page and communicating over standardized Tauri commands, events, and stdio JSON-RPC.
 
 ---
@@ -263,8 +263,8 @@
    - `transcode.ts`: `TranscodeManager` providing FFmpeg child process spawning, command argument construction, stderr progress parsing, and active process cancellation.
    - `protocols.ts`: `ProtocolManager` implementing custom stream handlers for `bbebee-file://`, `bbebee-plugin://` (with directory traversal security guards), and `bbebee-sandbox://`.
    - `index.ts`: Node sidecar main entry point:
-     * Implements `IpcHost` from `@BBeBee/core-desktop-bridge/main`.
-     * Boots `@BBeBee/core-desktop-bridge/main`'s `createHost()`, registering all desktop core services (`core-fs-node`, `core-db-node`, `core-paths-node`).
+     * Implements `IpcHost` from `@bbebee/core-desktop-bridge/main`.
+     * Boots `@bbebee/core-desktop-bridge/main`'s `createHost()`, registering all desktop core services (`core-fs-node`, `core-db-node`, `core-paths-node`).
      * Runs readline-based NDJSON listener on `process.stdin` dispatching incoming requests (`bridge:call`, `bridge:stream:open`, `bridge:stream:pull`, `bridge:stream:close`, `bridge:http:open`, `bridge:http:pull`, `bridge:http:close`, `bridge:tx:begin`, `bridge:tx:end`, `ping`, `audio:*`, `transcode:*`, `protocol:*`).
      * Directs responses and notifications (`window.BBeBeeBridge` event broadcasts) via JSON-RPC to `process.stdout`.
 
@@ -420,7 +420,7 @@
 
 2. **TypeScript Preload Module (`apps/desktop/renderer/preload-shim.ts`)**:
    - Implemented `createPreloadApi()`, `createBridgeApi()`, and `installPreloadShim()`.
-   - Strict TypeScript types mirroring desktop preload contracts without conflicting with existing global `Window` declarations in `@BBeBee/core-desktop-bridge` or `renderer/boot.ts`.
+   - Strict TypeScript types mirroring desktop preload contracts without conflicting with existing global `Window` declarations in `@bbebee/core-desktop-bridge` or `renderer/boot.ts`.
 
 3. **Tauri Host Commands & Initialization Wiring**:
    - Registered `bbebee-preload` Tauri plugin in `apps/desktop/src-tauri/src/main.rs` via `tauri::plugin::Builder::<tauri::Wry>::new("bbebee-preload").js_init_script(include_str!("shim.js")).build()`.
@@ -1614,7 +1614,7 @@ Following strict checklist review, all 365 tracked legacy files were removed usi
    - `packages/core/core-device-tauri`（原桌面设备集成包迁移）
    - `packages/core/core-media-session-tauri`（原桌面系统媒体会话包迁移）
 2. **包定义与导出重构**:
-   - 更新 `package.json` 包名为 `@BBeBee/core-*-tauri`；
+   - 更新 `package.json` 包名为 `@bbebee/core-*-tauri`；
    - 更新 `BBeBee.plugin.json` 中的 `id`、`name`、`displayName` 为 Tauri 规范；
    - `src/index.ts` 导出 `BackgroundTauri`、`DeviceTauri`、`MediaSessionTauri`，保留向后兼容别名；
    - 更新依赖端 `apps/desktop/package.json` 与 `apps/desktop/renderer/boot.ts`。

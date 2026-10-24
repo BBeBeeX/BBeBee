@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-mini-player",
+  "name": "@bbebee/plugin-mini-player",
   "version": "0.0.0",
   "description": "plugin-mini-player — headless state and controls for independent floating mini player and Dynamic Island.",
   "type": "module",

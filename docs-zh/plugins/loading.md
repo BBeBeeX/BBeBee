@@ -20,13 +20,13 @@ Metro 无法解析运行时计算出的模块路径（规范见
 import type { PluginRegistry } from '@BBeBee/kernel'
 
 export const bundled: PluginRegistry = {
-  '@BBeBee/plugin-player': {
-    load: () => import('@BBeBee/plugin-player'),
+  '@bbebee/plugin-player': {
+    load: () => import('@bbebee/plugin-player'),
     manifest: { /* … */ },
     builtin: true,
   },
-  '@BBeBee/plugin-source-local': {
-    load: () => import('@BBeBee/plugin-source-local'),
+  '@bbebee/plugin-source-local': {
+    load: () => import('@bbebee/plugin-source-local'),
     manifest: { /* … */ },
     builtin: true,
   },
@@ -82,8 +82,8 @@ codegen 即可构建。
 #### 清单示例：
 ```jsonc
 {
-  "id": "@BBeBee/plugin-sources",
-  "name": "@BBeBee/plugin-sources",
+  "id": "@bbebee/plugin-sources",
+  "name": "@bbebee/plugin-sources",
   "displayName": "Sources",
   "description": "ctx.sources — imported source documents, the registry, and the catalogue cache.",
   "version": "0.0.0",
@@ -130,10 +130,10 @@ codegen 即可构建。
 
 ```yaml
 plugins:
-  '@BBeBee/plugin-player':
+  '@bbebee/plugin-player':
     enabled: true
     config: { crossfadeMs: 0, prefetchNext: true }
-  '@BBeBee/plugin-source-runtime':
+  '@bbebee/plugin-source-runtime':
     enabled: true
     config: { defaultRate: '2/1000' }
 ```

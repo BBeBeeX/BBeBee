@@ -1,4 +1,4 @@
-# @BBeBee/plugin-desktop-lyrics
+# @bbebee/plugin-desktop-lyrics
 
 Layer 4 (feature) — `ctx.desktopLyrics`: the headless state machine and control center for desktop lyrics.
 

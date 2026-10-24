@@ -58,8 +58,8 @@ The resulting architecture in `apps/desktop` comprises three synchronized compon
 │   - Main Window (Frameless)       │   - @BBeBee/core-fs-node           │
 │   - Desktop Lyrics (Transparent,  │   - @BBeBee/core-db-node (SQLite)  │
 │     Click-Through, Cursor Pill)   │   - @BBeBee/core-paths-node        │
-│   - Mini-Player Island (Normal,   │   - @BBeBee/core-secrets-node      │
-│     Attached Top-Snap, Expanded)  │   - @BBeBee/core-http-node         │
+│   - Mini-Player Island (Normal,   │   - @bbebee/core-secrets-node      │
+│     Attached Top-Snap, Expanded)  │   - @bbebee/core-http-node         │
 │ • System Tray & Localized Menu    │ • Native Audio Engine Supervisor:  │
 │ • Global Media Keys & Hotkeys     │   - Spawns C++17 audio-engine (MPV)│
 │ • Preload Injection (gen/shim.js)   │   - Stdio JSON IPC + RingBuffer    │
@@ -92,7 +92,7 @@ The resulting architecture in `apps/desktop` comprises three synchronized compon
 - Automated structural diff test `apps/desktop/tests/preload-parity.test.ts` validates zero missing properties and full signature parity against the desktop preload specification.
 
 ### 3.2 Platform Equivalents Architecture (Decision D6)
-- The desktop core packages (`@BBeBee/core-device-tauri`, `@BBeBee/core-background-tauri`, `@BBeBee/core-media-session-tauri`) implement the native platform integration.
+- The desktop core packages (`@bbebee/core-device-tauri`, `@bbebee/core-background-tauri`, `@bbebee/core-media-session-tauri`) implement the native platform integration.
 - Platform equivalents are absorbed directly through Tauri Rust commands (`commands.rs`, `state.rs`) and Node sidecar normalization (`sidecar/index.ts`):
   - **Screen**: Multi-monitor enumeration, primary monitor detection, scale factor, cursor position queries.
   - **Power**: Sleep blocking (`powerSaveBlocker`) inhibition lifecycle, suspend/resume lifecycle broadcast.

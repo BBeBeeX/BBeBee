@@ -10,7 +10,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from 'cordis'
 import { mediaSessionConformance } from '@BBeBee/protocol/conformance'
-import type { BridgeEvent } from '@BBeBee/core-desktop-bridge'
+import type { BridgeEvent } from '@bbebee/core-desktop-bridge'
 import plugin, { MediaSessionTauri, type MediaSessionLike } from './index.js'
 
 /** A `navigator.mediaSession` that records what was set on it. */

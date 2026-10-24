@@ -1,10 +1,10 @@
-# @BBeBee/plugin-audio-converter-ui-desktop
+# @bbebee/plugin-audio-converter-ui-desktop
 
 Layer 5 (UI) — Desktop view package for the Audio Converter and Compression Workbench.
 
 ## Overview
 
-`plugin-audio-converter-ui-desktop` delivers the full-featured desktop user interface for `@BBeBee/plugin-audio-converter`. It renders the workbench interface in the desktop shell, providing file management, format selection, intelligent compression tuning, batch queue inspection, and output inspection.
+`plugin-audio-converter-ui-desktop` delivers the full-featured desktop user interface for `@bbebee/plugin-audio-converter`. It renders the workbench interface in the desktop shell, providing file management, format selection, intelligent compression tuning, batch queue inspection, and output inspection.
 
 ## View Contributions & Entry Points
 

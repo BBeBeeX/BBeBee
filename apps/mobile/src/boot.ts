@@ -30,17 +30,17 @@ import { FlashList } from '@shopify/flash-list'
 import { AudioContext, AudioManager } from 'react-native-audio-api'
 import { createApp, createShellGrantResolver, type App } from '@BBeBee/kernel'
 import { PLUGIN_MANAGER_ID, type AppSettings } from '@BBeBee/protocol'
-import { PathsExpo } from '@BBeBee/core-paths-expo'
-import { FsExpo } from '@BBeBee/core-fs-expo'
-import { StoreFs } from '@BBeBee/core-store-fs'
-import { DbExpo } from '@BBeBee/core-db-expo'
-import { SecretsExpo } from '@BBeBee/core-secrets-expo'
-import { DeviceExpo } from '@BBeBee/core-device-expo'
-import { BackgroundExpo } from '@BBeBee/core-background-expo'
-import { MediaSessionRn } from '@BBeBee/core-media-session-rn'
-import { CodecRn } from '@BBeBee/core-codec-rn'
-import { HttpRn } from '@BBeBee/core-http-rn'
-import { AudioMpv } from '@BBeBee/core-audio-mpv'
+import { PathsExpo } from '@bbebee/core-paths-expo'
+import { FsExpo } from '@bbebee/core-fs-expo'
+import { StoreFs } from '@bbebee/core-store-fs'
+import { DbExpo } from '@bbebee/core-db-expo'
+import { SecretsExpo } from '@bbebee/core-secrets-expo'
+import { DeviceExpo } from '@bbebee/core-device-expo'
+import { BackgroundExpo } from '@bbebee/core-background-expo'
+import { MediaSessionRn } from '@bbebee/core-media-session-rn'
+import { CodecRn } from '@bbebee/core-codec-rn'
+import { HttpRn } from '@bbebee/core-http-rn'
+import { AudioMpv } from '@bbebee/core-audio-mpv'
 import {
   MobileAudioService,
   createMobileMpvBridge,
@@ -56,9 +56,9 @@ import { bundled } from '../generated/plugins'
  * registry because it has to be *running* before the feature plugins whose
  * first lines it exists to capture — see the bootstrap array below.
  */
-import logBuffer from '@BBeBee/plugin-log-buffer'
-import logConsole from '@BBeBee/plugin-log-console'
-import logFile from '@BBeBee/plugin-log-file'
+import logBuffer from '@bbebee/plugin-log-buffer'
+import logConsole from '@bbebee/plugin-log-console'
+import logFile from '@bbebee/plugin-log-file'
 
 import { BOOTSTRAP_SERVICES, ENABLED } from './plugins'
 

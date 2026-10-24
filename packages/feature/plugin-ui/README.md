@@ -1,4 +1,4 @@
-# @BBeBee/plugin-ui
+# @bbebee/plugin-ui
 
 Layer 4 (feature) — `ctx.ui`: the contribution registry.
 

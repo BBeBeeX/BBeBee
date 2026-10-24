@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-history",
+  "name": "@bbebee/plugin-history",
   "version": "0.0.0",
   "description": "plugin-history — playback history and statistics, as a surface plugin.",
   "type": "module",

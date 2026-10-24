@@ -20,8 +20,8 @@ import {
   type HttpFetchResponse,
   type BridgeLogger,
   type SystemHost,
-} from '@BBeBee/core-desktop-bridge/main'
-import { CH } from '@BBeBee/core-desktop-bridge/protocol'
+} from '@bbebee/core-desktop-bridge/main'
+import { CH } from '@bbebee/core-desktop-bridge/protocol'
 import { createAudioHost, type AudioHostApi } from './audio/index.js'
 import { listInstalledPlugins, removePluginFiles, writePluginFilesAtomic } from './installed-plugins.js'
 import { ProtocolManager } from './protocols.js'

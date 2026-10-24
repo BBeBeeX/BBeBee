@@ -3,7 +3,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { tokens } from '@BBeBee/ui-tokens'
 import { useI18n } from '@BBeBee/ui-kit-desktop'
-import { useMiniPlayerState } from '@BBeBee/plugin-mini-player/hooks'
+import { useMiniPlayerState } from '@bbebee/plugin-mini-player/hooks'
 
 export interface MiniPlayerButtonProps {
   ctx: Context

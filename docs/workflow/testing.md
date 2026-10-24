@@ -142,7 +142,7 @@ pnpm check                   # already green — the template ships passing test
 
 | Flag | Values | Effect |
 |---|---|---|
-| `--name` | lowercase, hyphenated | `scrobble` → `@BBeBee/plugin-scrobble` |
+| `--name` | lowercase, hyphenated | `scrobble` → `@bbebee/plugin-scrobble` |
 | `--kind` | `feature` (default), `effect` | Sets the package prefix. There is no `source` kind: a music backend is a document, not a package |
 | `--ui` | `none` (default), `desktop`, `mobile`, `both` | Emits the per-target view packages of [ui/architecture.md §1](../ui/architecture.md#1-the-three-package-convention) |
 | `--capabilities` | comma-separated | Written into `BBeBee.plugin.json` ([plugins/capabilities.md §7](../plugins/capabilities.md#7-capability-model)) |

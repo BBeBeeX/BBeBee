@@ -10,7 +10,7 @@ import { createRoot } from 'react-dom/client'
 import { boot } from './boot.js'
 import { Shell } from './Shell.js'
 import { DesktopLyricsWindow } from './DesktopLyricsWindow.js'
-import { MiniPlayerWindow } from '@BBeBee/plugin-mini-player-ui-desktop'
+import { MiniPlayerWindow } from '@bbebee/plugin-mini-player-ui-desktop'
 import { DEFERRED_PLUGIN_IDS } from './plugins.js'
 import { renderBootErrorMessage } from './boot-error.js'
 

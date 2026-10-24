@@ -40,7 +40,7 @@ import type {
   WellKnownDir,
   WriteOptions,
 } from '@BBeBee/protocol'
-import { CodecNode, type CodecNodeConfig } from '@BBeBee/core-codec-node'
+import { CodecNode, type CodecNodeConfig } from '@bbebee/core-codec-node'
 import {
   normalizeBridgeBytes,
   requireBridge,

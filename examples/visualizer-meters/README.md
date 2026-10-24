@@ -11,14 +11,14 @@ It adds three audio meters to the now-playing screen — a **spectrogram**
 (scrolling waterfall), a **spectrum** (log-spaced frequency bars) and a
 **VU meter** (RMS + peak on a dB scale) — all driven by a service it does
 not own: the `visualizer` service of the first-party
-`@BBeBee/plugin-visualizer` plugin.
+`@bbebee/plugin-visualizer` plugin.
 
 ## What this example demonstrates
 
 - **Depending on another plugin's service.** The plugin injects nothing at
   install time it cannot name: the registry entry declares
   `services: ["visualizer"]`, the manifest declares
-  `dependencies: ["@BBeBee/plugin-visualizer"]`, and at runtime both halves
+  `dependencies: ["@bbebee/plugin-visualizer"]`, and at runtime both halves
   treat the service as *optional* (`ctx.inject(['visualizer'], …)` in the
   headless half; per-frame `serviceOf` reads in the UI) — if the visualizer
   is disabled, the meters idle on a quiet baseline instead of breaking.
@@ -157,7 +157,7 @@ with the registry's own `validate.mjs`; results, separated by check:
 - **Wrinkle 1 — the dependency on the visualizer plugin.**
   `dependencies: ["bbebeex-visualizer@^0.1.0"]` names the visualizer's
   **registry** id — a lowercase slug, a different namespace from the
-  manifest id (`@BBeBee/plugin-visualizer`) that this package's own
+  manifest id (`@bbebee/plugin-visualizer`) that this package's own
   `BBeBee.plugin.json` `dependencies` uses. The two are easy to
   confuse: the registry's dependency grammar (and the client's
   `parseDepSpecifier`) accepts slugs only, so writing the manifest-id

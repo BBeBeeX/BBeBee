@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/core-http-rn",
+  "name": "@bbebee/core-http-rn",
   "version": "0.0.0",
   "description": "ctx.http for iOS and Android — the M1 slice over expo/fetch.",
   "type": "module",
@@ -28,7 +28,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/core-http-node": "workspace:*",
+    "@bbebee/core-http-node": "workspace:*",
     "@BBeBee/kernel": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "cordis": "4.0.0-rc.9",

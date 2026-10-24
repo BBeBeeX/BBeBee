@@ -1,4 +1,4 @@
-# @BBeBee/plugin-desktop-taskbar
+# @bbebee/plugin-desktop-taskbar
 
 Desktop taskbar and tray playback controls for BBeBee.
 

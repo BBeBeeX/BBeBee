@@ -11,8 +11,8 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import type { DownloadsService, I18nService, ImportReport, TraceEvent, UiService } from '@BBeBee/protocol'
-import { ALBUM_VIEWS } from '@BBeBee/plugin-album/views'
-import { SOURCES_VIEWS } from '@BBeBee/plugin-sources/views'
+import { ALBUM_VIEWS } from '@bbebee/plugin-album/views'
+import { SOURCES_VIEWS } from '@bbebee/plugin-sources/views'
 import {
   playFromList,
   searchResultRows,
@@ -22,7 +22,7 @@ import {
   useSourceTrace,
   useSources,
   type SearchResultRow,
-} from '@BBeBee/plugin-sources/hooks'
+} from '@bbebee/plugin-sources/hooks'
 import {
   Artwork,
   ContextMenu,
@@ -38,7 +38,7 @@ import {
 } from '@BBeBee/ui-kit-mobile'
 import { serviceOf } from '@BBeBee/ui-core'
 import type { ArtworkProps, TrackRowProps } from '@BBeBee/ui-core'
-import { useResolvedArtwork } from '@BBeBee/plugin-cache/hooks'
+import { useResolvedArtwork } from '@bbebee/plugin-cache/hooks'
 import { useTrackMenu } from '@BBeBee/ui-menus'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
 

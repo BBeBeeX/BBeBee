@@ -1,4 +1,4 @@
-# @BBeBee/plugin-player-ui-desktop
+# @bbebee/plugin-player-ui-desktop
 
 Layer 5 (ui) — the desktop view package of `plugin-player` (headless).
 

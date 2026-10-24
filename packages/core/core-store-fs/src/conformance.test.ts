@@ -163,11 +163,11 @@ describe('core-store-fs under the capability gate', () => {
     }
 
     const first = await boot()
-    const legacySettings = scopeContext(first.ctx, { pluginId: '@BBeBee/plugin-settings', requested: [] })
+    const legacySettings = scopeContext(first.ctx, { pluginId: '@bbebee/plugin-settings', requested: [] })
     await legacySettings.store.set('theme', 'dark')
-    const legacyManager = scopeContext(first.ctx, { pluginId: '@BBeBee/plugin-manager', requested: [] })
-    await legacyManager.store.set('enabled', { '@BBeBee/plugin-player': false })
-    await legacyManager.store.set('service-providers', { visualizer: '@BBeBee/plugin-visualizer' })
+    const legacyManager = scopeContext(first.ctx, { pluginId: '@bbebee/plugin-manager', requested: [] })
+    await legacyManager.store.set('enabled', { '@bbebee/plugin-player': false })
+    await legacyManager.store.set('service-providers', { visualizer: '@bbebee/plugin-visualizer' })
     await first.fiber.dispose()
 
     const second = await boot()
@@ -179,7 +179,7 @@ describe('core-store-fs under the capability gate', () => {
       visualizer: '@bbebee/plugin-visualizer',
     })
     // Copy, not move: the legacy scope still reads its own keys.
-    const legacyAgain = scopeContext(second.ctx, { pluginId: '@BBeBee/plugin-settings', requested: [] })
+    const legacyAgain = scopeContext(second.ctx, { pluginId: '@bbebee/plugin-settings', requested: [] })
     expect(await legacyAgain.store.get('theme')).toBe('dark')
   })
 })

@@ -1,10 +1,10 @@
-# @BBeBee/plugin-album-ui-desktop
+# @bbebee/plugin-album-ui-desktop
 
 Layer 5 (ui) — the desktop view package for `plugin-album` (headless): the album page's layout and event wiring.
 
 ## Overview
 
-Binds `album.view` to the desktop kit. All domain state comes from `@BBeBee/plugin-album/hooks`; `ctx.sources` is accessed via `inject` (required for album reads), while `player` / `downloads` use `serviceOf` (optional — without them one control is missing rather than the whole screen erroring). This package depends on the headless `@BBeBee/plugin-album` (hooks and route ids).
+Binds `album.view` to the desktop kit. All domain state comes from `@bbebee/plugin-album/hooks`; `ctx.sources` is accessed via `inject` (required for album reads), while `player` / `downloads` use `serviceOf` (optional — without them one control is missing rather than the whole screen erroring). This package depends on the headless `@bbebee/plugin-album` (hooks and route ids).
 
 Migrated wholesale from `plugin-sources-ui-desktop` (route/view/`useAlbum` moved together); the library and search screens now only navigate to `ALBUM_VIEWS.album`.
 

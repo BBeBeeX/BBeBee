@@ -1,4 +1,4 @@
-# @BBeBee/plugin-player-ui-mobile
+# @bbebee/plugin-player-ui-mobile
 
 Layer 5 (ui) — the mobile view package of `plugin-player` (headless): the twin half of the desktop version.
 

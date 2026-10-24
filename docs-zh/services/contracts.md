@@ -359,7 +359,7 @@ export interface SecretsService {
 
 ### 作用域隔离 Root 凭据 vs 跨插件显式命名空间
 - **调用方作用域隔离的根密钥 (`ctx.secrets.get/set/delete`):** 未指定命名空间的调用会自动附加调用方插件的 Cordis ID (`this.scope()`)，以保持各插件私有凭据之间的安全隔离。
-- **跨插件共享的显式命名空间 (`ctx.secrets.namespace(ns)`):** 显式命名空间代表领域实体（如特定音源凭据或账户会话），在所有具备访问权限的插件之间全局统一共享，不附加写入方插件作用域前缀。这确保了由 UI 插件（如 `@BBeBee/plugin-settings-ui-desktop`）配置写入的凭据，可以被沙箱运行时插件（如 `@BBeBee/plugin-source-runtime`）无缝读取。
+- **跨插件共享的显式命名空间 (`ctx.secrets.namespace(ns)`):** 显式命名空间代表领域实体（如特定音源凭据或账户会话），在所有具备访问权限的插件之间全局统一共享，不附加写入方插件作用域前缀。这确保了由 UI 插件（如 `@bbebee/plugin-settings-ui-desktop`）配置写入的凭据，可以被沙箱运行时插件（如 `@bbebee/plugin-source-runtime`）无缝读取。
 - **平滑自动迁移机制:** 当查询显式命名空间的键时，如果发现带有调用方前缀的历史旧键（`@BBeBee/plugin-*/<namespace>:<key>`），`core-secrets-node` 会自动识别并将其透明迁移为未加前缀的全局命名空间键，同时清除历史残留项。
 
 ---
@@ -802,7 +802,7 @@ export interface ThemeService {
 
 | | 桌面端 (DOM) | Expo (Mobile / Native) |
 |---|---|---|
-| 底层实现 | `@BBeBee/plugin-theme` 通过 `applyThemeToDom` 向 `document.documentElement` 注入 CSS 自定义属性 | `@BBeBee/plugin-theme` 发出响应式主题快照供 `StyleSheet` 使用 |
+| 底层实现 | `@bbebee/plugin-theme` 通过 `applyThemeToDom` 向 `document.documentElement` 注入 CSS 自定义属性 | `@bbebee/plugin-theme` 发出响应式主题快照供 `StyleSheet` 使用 |
 | 持久化 | `ctx.store` 的 key `theme_active_id`；包按来源分仓持久化 —— 自定义包存 `theme_packs_custom`、注册表包存 `theme_packs_registry`（旧的扁平 `theme_custom_themes` 在首次读新 key 时一次性迁移）。内置、插件与动态包仅驻内存 | `ctx.store` |
 | 内置主题 | `midnight-purple` (`Bee Music · Cyber Neon`)、`emerald-green` (`Emerald Green`)、`crimson-night` (`Crimson Night`)、`ocean-abyss` (`Ocean Abyss`) —— 各自成单变体包，仅在设置 UI 中同组展示 | 相同 |
 | 自定义主题 | 主题包或旧式单主题 JSON 导入（文件或文本），带有缺省令牌回退保护；可按变体或整包删除，且受回退机制保护 | 相同 |
@@ -875,8 +875,8 @@ export interface NowPlayingService {
 
 | | 桌面端 | Expo (Mobile) |
 |---|---|---|
-| 无头服务 | `@BBeBee/plugin-now-playing` | `@BBeBee/plugin-now-playing` |
-| UI 渲染层 | `@BBeBee/plugin-now-playing-ui-desktop` | `@BBeBee/plugin-now-playing-ui-mobile` |
+| 无头服务 | `@bbebee/plugin-now-playing` | `@bbebee/plugin-now-playing` |
+| UI 渲染层 | `@bbebee/plugin-now-playing-ui-desktop` | `@bbebee/plugin-now-playing-ui-mobile` |
 | 持久化 | `ctx.store` 的 key `now_playing_style` | `ctx.store` 的 key `now_playing_style` |
 | 沙箱隔离 | 隔离的 iframe，具有限制性 `sandbox="allow-scripts"`，仅通过 `postMessage` 交换数据 | 隔离的 WebView，仅通过 `postMessage` 交换数据 |
 
@@ -931,8 +931,8 @@ export interface ShareService {
 
 | | 桌面端 | Expo (Mobile) |
 |---|---|---|
-| 无头服务 | `@BBeBee/plugin-share` | `@BBeBee/plugin-share` |
-| UI 模态框 | `@BBeBee/plugin-share-ui-desktop` (`share.modal`) | 规划中 (`@BBeBee/plugin-share-ui-mobile`) |
+| 无头服务 | `@bbebee/plugin-share` | `@bbebee/plugin-share` |
+| UI 模态框 | `@bbebee/plugin-share-ui-desktop` (`share.modal`) | 规划中 (`@bbebee/plugin-share-ui-mobile`) |
 | 隐写编码 | 纯 TypeScript 实现（`packages/feature/plugin-share/src/steganography.ts`），无平台原生依赖 | 相同 |
 | 外部分享动作 | 系统剪贴板复制 / 图像文件导出 | 系统原生分享面板（`ctx.shell.share`） |
 
@@ -973,8 +973,8 @@ export interface SettingsService {
 
 | | 桌面端 | Expo (Mobile) |
 |---|---|---|
-| 无头服务 | `@BBeBee/plugin-settings` | `@BBeBee/plugin-settings` |
-| UI 实现 | `@BBeBee/plugin-settings-ui-desktop` | `@BBeBee/plugin-settings-ui-mobile` |
+| 无头服务 | `@bbebee/plugin-settings` | `@bbebee/plugin-settings` |
+| UI 实现 | `@bbebee/plugin-settings-ui-desktop` | `@bbebee/plugin-settings-ui-mobile` |
 | 持久化 | `ctx.store` 命名空间 `settings`，带模式版本迁移 | 相同 |
 | 响应式事件 | `'settings/changed'`、`'settings/contributions-changed'` | 相同 |
 
@@ -1034,8 +1034,8 @@ export interface PluginManagerService {
 
 | | 桌面端 | Expo (Mobile) |
 |---|---|---|
-| 无头服务 | `@BBeBee/plugin-manager` | `@BBeBee/plugin-manager` |
-| UI 实现 | `@BBeBee/plugin-settings-ui-desktop` | 规划中 (`plugin-settings-ui-mobile`) |
+| 无头服务 | `@bbebee/plugin-manager` | `@bbebee/plugin-manager` |
+| UI 实现 | `@bbebee/plugin-settings-ui-desktop` | 规划中 (`plugin-settings-ui-mobile`) |
 | 持久化 | `ctx.store` 命名空间 `plugin-manager` (`Record<string, boolean>`) | 相同 |
 | 响应式事件 | `'plugin-manager/enabled-changed'`、`'plugin-manager/changed'` | 相同 |
 
@@ -1119,19 +1119,19 @@ export interface RegistryService {
 
 | | 桌面端 | Expo（移动） |
 |---|---|---|
-| 无头服务 | `@BBeBee/plugin-registry` | `@BBeBee/plugin-registry` |
+| 无头服务 | `@bbebee/plugin-registry` | `@bbebee/plugin-registry` |
 | 持久化 | `ctx.store` 键 `registry.index-cache`（最近一次成功索引，离线用）、`registry.prefs`（endpoint 覆盖、`lastCheckAt`）、`registry.audit-findings` / `registry.capability-mismatches`（诊断数据源） | 同左 |
 | 响应式事件 | `'registry/updates-available'` —— **每次**完成的检查（自动或手动）之后触发，携带完整更新列表，**包括空列表**（用于清除角标）；`'registry/tasks-changed'` —— 任务中心每次变更后触发，携带完整任务快照 | 同左 |
 | plugin 类安装 | 桌面动态加载宿主，由组合根经 `setPluginInstaller` 接入 | 不支持（桌面专属分发） |
 
 - **匹配语义**：音源按 `sourceUrl`（`SourceRecord` 的身份）匹配已安装记录；歌词源 / 主题 / 插件按各自 `id` 匹配。已安装副本版本低于条目 `version` 时产生一条 `RegistryUpdate`。
 - **各类型安装流程**：音源 → `ctx.sources.import`（完整导入管线，`originUri` = `downloadUrl`）；歌词源 → 形状校验后 `ctx.lyricSources.registerSource`；主题 → 与用户自建主题相同的暗/亮对比度门禁，作用于包内**每一个变体**（任一变体不过门整包拒绝），然后以 `origin: 'registry'` 调用 `ctx.theme.registerThemePack`；插件 → 委托 `ctx['plugin-manager']`（npm 流程，见 [sources/registry.md §6](../sources/registry.md)）。
-- **安全红线**：`fetchEntryDetails()` 的存在就是为了让确认对话框在导入**之前**说出音源文档的 `allowedHosts`；插件安装校验 tarball `sha256` 并要求明确的风险确认；下载插件经由 `@BBeBee/plugin-security-audit` 进行安全审计，检查 **14 条扫描规则（9 条静态规则 + 2 组动态扫描）** —— 只有不透明载荷导入（远端/`data:`/`blob:`）与泄露凭证会阻断安装，其余只警告 —— 已安装插件通过注册表 `blocked`/`delisted` 召回，不再做启动时哈希比对（启动时篡改链已于 2026-10-24 移除）。
+- **安全红线**：`fetchEntryDetails()` 的存在就是为了让确认对话框在导入**之前**说出音源文档的 `allowedHosts`；插件安装校验 tarball `sha256` 并要求明确的风险确认；下载插件经由 `@bbebee/plugin-security-audit` 进行安全审计，检查 **14 条扫描规则（9 条静态规则 + 2 组动态扫描）** —— 只有不透明载荷导入（远端/`data:`/`blob:`）与泄露凭证会阻断安装，其余只警告 —— 已安装插件通过注册表 `blocked`/`delisted` 召回，不再做启动时哈希比对（启动时篡改链已于 2026-10-24 移除）。
 - **自动检查**：`AppSettings.registryAutoCheck`（默认 `true`）—— 启动约 45 秒后首次检查，此后每 24 小时一次；手动检查不受影响。
 
 ### 25.1 伴生服务 `ctx.registryMetadata`
 
-发现页的 star / 贡献者排序读取独立的无头服务 `@BBeBee/plugin-registry-metadata`，而不是扩充 `RegistryService`：
+发现页的 star / 贡献者排序读取独立的无头服务 `@bbebee/plugin-registry-metadata`，而不是扩充 `RegistryService`：
 
 ```ts
 /** 一个 `owner/repo` 的 GitHub 统计。缺失的数值字段表示"本轮未知"。 */
@@ -1160,7 +1160,7 @@ export interface RegistryMetadataService {
 
 | | 桌面端 | Expo（移动） |
 |---|---|---|
-| 无头服务 | `@BBeBee/plugin-registry-metadata` | 同左 |
+| 无头服务 | `@bbebee/plugin-registry-metadata` | 同左 |
 | 持久化 | `ctx.store` 键 `registry-metadata.cache`（每 `owner/repo` 24h TTL） | 同左 |
 | 降级 | 429/403 限流后本地退避约 60 分钟；失败返回标记 `stale` 的过期缓存，或携带 `error` 的结果 —— 绝不抛错 | 同左 |
 

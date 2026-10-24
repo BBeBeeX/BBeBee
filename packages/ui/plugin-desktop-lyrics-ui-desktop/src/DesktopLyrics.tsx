@@ -13,7 +13,7 @@ import { Component, createElement as h, useEffect, useRef, useState } from 'reac
 import type { ErrorInfo, ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { useCurrentLyric } from '@BBeBee/toolkit/hooks'
-import { useDesktopLyricsState } from '@BBeBee/plugin-desktop-lyrics/hooks'
+import { useDesktopLyricsState } from '@bbebee/plugin-desktop-lyrics/hooks'
 import { serviceOf } from '@BBeBee/ui-core'
 import { DEFAULT_APP_SETTINGS, type AppSettings, type PlayerService, type SettingsService } from '@BBeBee/protocol'
 import { tokens } from '@BBeBee/ui-tokens'

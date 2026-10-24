@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/core-codec-rn",
+  "name": "@bbebee/core-codec-rn",
   "version": "0.0.0",
   "description": "ctx.codec for iOS and Android — tags over ctx.fs, PCM via AudioDecoder.",
   "type": "module",
@@ -28,7 +28,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/core-codec-node": "workspace:*",
+    "@bbebee/core-codec-node": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "cordis": "4.0.0-rc.9",
     "react-native-audio-api": "0.13.3"

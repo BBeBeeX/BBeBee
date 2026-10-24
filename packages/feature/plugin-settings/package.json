@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-settings",
+  "name": "@bbebee/plugin-settings",
   "version": "0.0.0",
   "description": "plugin-settings — global application preferences, settings service, and settings views.",
   "type": "module",

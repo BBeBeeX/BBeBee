@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-now-playing",
+  "name": "@bbebee/plugin-now-playing",
   "version": "0.0.0",
   "description": "plugin-now-playing — the full-screen player and the persistent bar that opens it.",
   "type": "module",

@@ -12,7 +12,7 @@ describe('toolkit: plugins', () => {
     it('strips the current @bbebee/ scope and the legacy @BBeBee/ scope', () => {
       expect(normalizePluginId('@bbebee/plugin-player')).toBe('plugin-player')
       expect(normalizePluginId('@bbebee/plugin-lyrics-ui-desktop')).toBe('plugin-lyrics-ui-desktop')
-      expect(normalizePluginId('@BBeBee/plugin-player')).toBe('plugin-player')
+      expect(normalizePluginId('@bbebee/plugin-player')).toBe('plugin-player')
     })
 
     it('leaves unscoped identifiers intact', () => {

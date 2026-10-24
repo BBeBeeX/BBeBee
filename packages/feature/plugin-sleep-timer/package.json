@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-sleep-timer",
+  "name": "@bbebee/plugin-sleep-timer",
   "version": "0.0.0",
   "description": "Sleep timer plugin: stop playback after duration, time or track end.",
   "type": "module",

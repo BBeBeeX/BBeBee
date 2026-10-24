@@ -10,7 +10,7 @@
 
 import { createElement as h, type ReactElement } from 'react'
 import type { Context } from 'cordis'
-import { SOURCES_VIEWS } from '@BBeBee/plugin-sources/views'
+import { SOURCES_VIEWS } from '@bbebee/plugin-sources/views'
 import { SearchScreen } from './screens/SearchScreen.js'
 import { ImportScreen } from './screens/ImportScreen.js'
 import { TestScreen } from './screens/TestScreen.js'

@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-sources",
+  "name": "@bbebee/plugin-sources",
   "version": "0.0.0",
   "description": "ctx.sources \u2014 imported source documents, the registry, and the catalogue cache.",
   "type": "module",

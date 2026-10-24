@@ -1,4 +1,4 @@
-# @BBeBee/plugin-now-playing-ui-mobile
+# @bbebee/plugin-now-playing-ui-mobile
 
 Layer 5 (ui) — the mobile view package for `plugin-now-playing` (headless): the twin half of `plugin-now-playing-ui-desktop`.
 

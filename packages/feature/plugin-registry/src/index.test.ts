@@ -7,6 +7,7 @@ import type {
   HttpResponse,
   ImportOptions,
   ImportReport,
+  InstallPlan,
   LyricSourceDefinition,
   PluginInfo,
   PluginUpdateInfo,
@@ -176,7 +177,7 @@ interface SetupOptions {
   /** Delegate result of plugin-manager.checkUpdates() for plugin update checks. */
   pluginUpdates?: PluginUpdateInfo[]
   /** Delegate result of plugin-manager.resolveInstallPlan() for plugin detail plans. */
-  installPlan?: import('@BBeBee/protocol').InstallPlan
+  installPlan?: InstallPlan
   /** Do not provide the plugin-manager service (tests the unavailable-service error). */
   omitPluginManager?: boolean
   registryAutoCheck?: boolean

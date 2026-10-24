@@ -1,7 +1,7 @@
 {
-  "name": "@BBeBee/plugin-registry-ui-desktop",
+  "name": "@bbebee/plugin-registry-ui-desktop",
   "version": "0.0.0",
-  "description": "Desktop views for @BBeBee/plugin-registry (registry screen and the registry settings card).",
+  "description": "Desktop views for @bbebee/plugin-registry (registry screen and the registry settings card).",
   "type": "module",
   "license": "MIT",
   "exports": {
@@ -18,7 +18,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-registry": "workspace:*",
+    "@bbebee/plugin-registry": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/toolkit": "workspace:*",
     "@BBeBee/ui-kit-desktop": "workspace:*",

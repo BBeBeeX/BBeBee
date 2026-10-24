@@ -1,7 +1,7 @@
 {
-  "name": "@BBeBee/plugin-desktop-lyrics-ui-desktop",
+  "name": "@bbebee/plugin-desktop-lyrics-ui-desktop",
   "version": "0.0.0",
-  "description": "Desktop floating lyrics views for @BBeBee/plugin-desktop-lyrics.",
+  "description": "Desktop floating lyrics views for @bbebee/plugin-desktop-lyrics.",
   "type": "module",
   "license": "MIT",
   "exports": {
@@ -18,7 +18,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-desktop-lyrics": "workspace:*",
+    "@bbebee/plugin-desktop-lyrics": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/toolkit": "workspace:*",
     "@BBeBee/ui-core": "workspace:*",

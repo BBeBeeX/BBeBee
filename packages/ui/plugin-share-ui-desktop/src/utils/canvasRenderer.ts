@@ -4,8 +4,8 @@ import type {
   SharePlaylistData,
   ShareTrackData,
 } from "@BBeBee/protocol"
-import { encodeSteganography } from "@BBeBee/plugin-share/steganography"
-import { encodeMetadata } from "@BBeBee/plugin-share/metadata"
+import { encodeSteganography } from "@bbebee/plugin-share/steganography"
+import { encodeMetadata } from "@bbebee/plugin-share/metadata"
 import { toBbebeeFileUri } from "@BBeBee/ui-kit-desktop"
 import { BBEBEE_LOGO_DATA_URL } from "../assets/logo.js"
 

@@ -1,4 +1,4 @@
-# @BBeBee/plugin-local-scanner-ui-desktop
+# @bbebee/plugin-local-scanner-ui-desktop
 
 Layer 5 (ui) — the desktop view package of `plugin-local-scanner` (headless): the scan-roots settings screen.
 

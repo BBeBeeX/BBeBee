@@ -11,8 +11,8 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { Button, Slider, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
-import { useDsp } from '@BBeBee/plugin-dsp/hooks'
-import { EQ_PRESETS } from '@BBeBee/plugin-dsp/effects'
+import { useDsp } from '@bbebee/plugin-dsp/hooks'
+import { EQ_PRESETS } from '@bbebee/plugin-dsp/effects'
 
 export interface DspScreenProps {
   ctx: Context

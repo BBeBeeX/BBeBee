@@ -10,7 +10,7 @@ import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { ThemeManagementCard } from './components/ThemeManagementCard.js'
-import { THEME_VIEWS } from '@BBeBee/plugin-theme/views'
+import { THEME_VIEWS } from '@bbebee/plugin-theme/views'
 
 export { ThemeManagementCard }
 

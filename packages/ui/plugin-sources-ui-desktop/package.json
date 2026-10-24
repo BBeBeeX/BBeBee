@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-sources-ui-desktop",
+  "name": "@bbebee/plugin-sources-ui-desktop",
   "version": "0.0.0",
   "description": "React DOM views for plugin-sources.",
   "type": "module",
@@ -18,7 +18,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-sources": "workspace:*",
+    "@bbebee/plugin-sources": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/toolkit": "workspace:*",
     "@BBeBee/ui-core": "workspace:*",

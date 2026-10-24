@@ -216,7 +216,7 @@ See [layers.md §4](./layers.md#4-what-background-means).
 ### ADR-4 — `react-native-audio-api` is the primary playback and DSP engine on every target
 
 > **Superseded by [ADR-6](#adr-6--libmpv-is-the-ctxaudio-engine-on-every-target)** (2026-10-19):
-> `ctx.audio` is now the libmpv engine (`@BBeBee/core-audio-mpv`) on desktop and mobile;
+> `ctx.audio` is now the libmpv engine (`@bbebee/core-audio-mpv`) on desktop and mobile;
 > the `core-audio-webaudio` package was removed. `react-native-audio-api` still provides the
 > `AudioContext` the engine's element path and DSP plumbing are built on (mobile `createContext`).
 > The record below is kept as history.
@@ -292,7 +292,7 @@ did not write, which is a security posture to maintain rather than a box to tick
 
 ### ADR-6 — libmpv is the `ctx.audio` engine on every target
 
-**Decision.** `ctx.audio` is served by a single engine, `@BBeBee/core-audio-mpv`, on desktop and
+**Decision.** `ctx.audio` is served by a single engine, `@bbebee/core-audio-mpv`, on desktop and
 mobile — no engine picker, no fallback engine. On desktop libmpv runs in the crash-isolated
 `audio-engine` subprocess with direct OS audio output (WASAPI/CoreAudio/PulseAudio); on mobile it
 runs in-process over the JNI/JSI bridge (`libmpv.so` / `mpv.framework`), with an in-process

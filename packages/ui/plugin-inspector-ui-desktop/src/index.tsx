@@ -22,7 +22,7 @@ import {
 import type { Context } from 'cordis'
 // Augmentations
 import type {} from '@BBeBee/protocol'
-import type { EffectNode, FiberNode, InspectorSnapshot } from '@BBeBee/plugin-inspector'
+import type { EffectNode, FiberNode, InspectorSnapshot } from '@bbebee/plugin-inspector'
 import { useI18n } from '@BBeBee/ui-kit-desktop'
 import inspectorCatalogue from '../../../feature/plugin-i18n/src/locales/inspector.json'
 import {

@@ -8,7 +8,7 @@ import type { Context } from 'cordis'
 import type { AudioFormat, EncoderCapabilities } from '@BBeBee/protocol'
 import { Select, Text, useI18n, type SelectOption } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
-import { isLosslessFormat } from '@BBeBee/plugin-audio-converter'
+import { isLosslessFormat } from '@bbebee/plugin-audio-converter'
 
 export interface FormatSectionProps {
   ctx: Context

@@ -48,7 +48,7 @@ flowchart TD
 
 1. **Zero Secret Persistence in Database:** Under no circumstances are credentials, passwords, session tokens, or API secrets persisted in SQLite database tables (`sources`, `source_vars`, or logs).
 2. **Hardware-Backed Secret Storage & Cross-Plugin Explicit Namespaces:** All sensitive values are routed to `ctx.secrets` under the isolated namespace formed from the source's id (`ctx.secrets.namespace(sourceId)`). On desktop, this maps to OS Keychain (via Node.js `safeStorageCodec` or native keychain APIs); on mobile, this maps to iOS Keychain / Android Keystore.
-   - **Cross-Plugin Namespace Sharing:** Root secrets (`ctx.secrets.get/set`) are private and scoped to the calling Cordis plugin ID (`this.scope()`). In contrast, explicit namespaces (`ctx.secrets.namespace(ns)`) represent domain-level entities (e.g. source credentials) and are shared across plugins (e.g. written by `@BBeBee/plugin-settings-ui-desktop` and read by `@BBeBee/plugin-source-runtime`).
+   - **Cross-Plugin Namespace Sharing:** Root secrets (`ctx.secrets.get/set`) are private and scoped to the calling Cordis plugin ID (`this.scope()`). In contrast, explicit namespaces (`ctx.secrets.namespace(ns)`) represent domain-level entities (e.g. source credentials) and are shared across plugins (e.g. written by `@bbebee/plugin-settings-ui-desktop` and read by `@bbebee/plugin-source-runtime`).
    - **Automatic Legacy Key Migration:** `rawGet` in `core-secrets-tauri` transparently detects legacy keys prefixed with caller plugin IDs (e.g., `@BBeBee/plugin-*/...`) and migrates them to the un-scoped namespace key on read.
 3. **UI Write-Only Exposure:** The UI never displays decrypted secrets in plaintext. Password fields render masked placeholder dots (`••••••••`). Users can enter a new password to overwrite existing credentials, but cannot exfiltrate stored credentials via UI inspection.
 4. **Automated Sandbox Egress Allowlist & Dynamic `sourceurl` Whitelisting:**
@@ -131,7 +131,7 @@ In accordance with the Three-Package UI Rule and `@BBeBee/ui` guidelines:
 - **Desktop Component:** `SourceConfigureModal.tsx` in `plugin-sources-ui-desktop` and `plugin-settings-ui-desktop`.
 - **Mobile Component:** `SourceConfigureModal.tsx` in `plugin-sources-ui-mobile`.
 - **Lyric Source Config:** `LyricSourcesSection.tsx` in `plugin-settings-ui-desktop` with full JSON schema editor.
-- **Headless Hooks:** `useSourceParams` and `useLyricSourceConfig` in `@BBeBee/plugin-sources/views` and `@BBeBee/plugin-lyric-sources`.
+- **Headless Hooks:** `useSourceParams` and `useLyricSourceConfig` in `@bbebee/plugin-sources/views` and `@bbebee/plugin-lyric-sources`.
 
 ### 5.1 Declarative Source Configuration Contract
 

@@ -1,4 +1,4 @@
-# @BBeBee/plugin-sources
+# @bbebee/plugin-sources
 
 Layer 4 (feature) — `ctx.sources`: imported source documents, the provider registry, the catalog cache, and the unified catalog read surface.
 
@@ -102,7 +102,7 @@ Init contributes 4 descriptors: route `/search` (tab-bar + sidebar, order 1), se
 
 > The original `sources.library` (All/Local/Favorites library browsing) has been removed: the library home is handled by `plugin-library`'s `library.home`, which shows playlists, albums, and collections together (collections act as folders whose members can be an album/playlist/track).
 
-> The album page has been split out into `plugin-album` (`album.view`): the route/view and `useAlbum` moved with the screen, while the catalog reads `getAlbum / listAlbums` stay in this package — reads stay next to writes (MD-3). The library and search screens take the route id from `@BBeBee/plugin-album/views` when navigating.
+> The album page has been split out into `plugin-album` (`album.view`): the route/view and `useAlbum` moved with the screen, while the catalog reads `getAlbum / listAlbums` stay in this package — reads stay next to writes (MD-3). The library and search screens take the route id from `@bbebee/plugin-album/views` when navigating.
 
 ## Events
 

@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/core-store-fs",
+  "name": "@bbebee/core-store-fs",
   "version": "0.0.0",
   "description": "Namespaced key/value store, backed by a JSON file via ctx.fs.",
   "type": "module",

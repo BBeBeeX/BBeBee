@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-local-scanner-ui-mobile",
+  "name": "@bbebee/plugin-local-scanner-ui-mobile",
   "version": "0.0.0",
   "description": "React Native views for plugin-local-scanner.",
   "type": "module",
@@ -26,12 +26,12 @@
     "react": "19.2.3"
   },
   "devDependencies": {
-    "@BBeBee/core-codec-node": "workspace:*",
+    "@bbebee/core-codec-node": "workspace:*",
     "@BBeBee/core-db-node": "workspace:*",
     "@BBeBee/core-fs-node": "workspace:*",
     "@BBeBee/core-paths-node": "workspace:*",
     "@BBeBee/kernel": "workspace:*",
-    "@BBeBee/plugin-local-scanner": "workspace:*",
+    "@bbebee/plugin-local-scanner": "workspace:*",
     "@testing-library/react": "^16.3.3",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",

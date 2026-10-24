@@ -6,7 +6,7 @@ import type {
   SettingsFieldDescriptor,
   SettingsFieldOption,
 } from '@BBeBee/protocol'
-import { useSettingsFields } from '@BBeBee/plugin-settings/hooks'
+import { useSettingsFields } from '@bbebee/plugin-settings/hooks'
 import { Button, Slider, Text, useI18n } from '@BBeBee/ui-kit-mobile'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
 import { nativePrimitives } from '@BBeBee/ui-kit-mobile'

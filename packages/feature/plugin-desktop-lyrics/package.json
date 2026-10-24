@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-desktop-lyrics",
+  "name": "@bbebee/plugin-desktop-lyrics",
   "version": "0.0.0",
   "description": "plugin-desktop-lyrics — headless state and controls for desktop floating lyrics.",
   "type": "module",
@@ -39,7 +39,7 @@
   },
   "dependencies": {
     "@BBeBee/kernel": "workspace:*",
-    "@BBeBee/plugin-lyrics": "workspace:*",
+    "@bbebee/plugin-lyrics": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/toolkit": "workspace:*",
     "cordis": "4.0.0-rc.9",

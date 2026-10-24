@@ -12,8 +12,8 @@ import type {
 } from '@BBeBee/protocol'
 import { serviceOf } from '@BBeBee/ui-core'
 import { Button, Sheet, tablerIcon, TextField, toBbebeeFileUri, useI18n } from '@BBeBee/ui-kit-desktop'
-import { decodeSteganography } from '@BBeBee/plugin-share/steganography'
-import { decodeMetadata } from '@BBeBee/plugin-share/metadata'
+import { decodeSteganography } from '@bbebee/plugin-share/steganography'
+import { decodeMetadata } from '@bbebee/plugin-share/metadata'
 
 export interface ImportShareModalProps {
   ctx: Context

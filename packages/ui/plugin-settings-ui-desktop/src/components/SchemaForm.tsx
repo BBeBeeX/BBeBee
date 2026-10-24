@@ -8,7 +8,7 @@ import type {
   SettingsFieldDescriptor,
   SettingsFieldOption,
 } from '@BBeBee/protocol'
-import { useSettingsFields } from '@BBeBee/plugin-settings/hooks'
+import { useSettingsFields } from '@bbebee/plugin-settings/hooks'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
 

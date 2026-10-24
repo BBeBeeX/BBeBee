@@ -1,7 +1,7 @@
 {
-  "name": "@BBeBee/plugin-queue-ui-mobile",
+  "name": "@bbebee/plugin-queue-ui-mobile",
   "version": "0.0.0",
-  "description": "React Native views for @BBeBee/plugin-queue.",
+  "description": "React Native views for @bbebee/plugin-queue.",
   "type": "module",
   "license": "MIT",
   "exports": {
@@ -18,9 +18,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-cache": "workspace:*",
-    "@BBeBee/plugin-player": "workspace:*",
-    "@BBeBee/plugin-queue": "workspace:*",
+    "@bbebee/plugin-cache": "workspace:*",
+    "@bbebee/plugin-player": "workspace:*",
+    "@bbebee/plugin-queue": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/ui-core": "workspace:*",
     "@BBeBee/ui-kit-mobile": "workspace:*",

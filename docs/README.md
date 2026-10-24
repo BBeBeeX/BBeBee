@@ -149,7 +149,7 @@ from.
   "Layer 2" throughout; a package's layer is what decides which imports it may write.
 - **Service key** — a name claimed on the context, e.g. `ctx.player`. Written with the `ctx.`
   prefix throughout so it is never confused with a package name.
-- **Package name** — always fully qualified, e.g. `@BBeBee/plugin-download`.
+- **Package name** — always fully qualified, e.g. `@bbebee/plugin-download`.
 - **Source** — one music backend as the user configured it, identified by its `sourceUrl` and
   addressed by a derived **source id**. A *source string* is its importable text form.
 - **URN** — a stable identifier for a catalog entity, e.g.

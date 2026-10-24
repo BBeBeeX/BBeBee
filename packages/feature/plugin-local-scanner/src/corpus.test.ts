@@ -23,7 +23,7 @@ import { Context } from 'cordis'
 import { PathsNode } from '@BBeBee/core-paths-node'
 import { FsNode } from '@BBeBee/core-fs-node'
 import { DbNode } from '@BBeBee/core-db-node'
-import { CodecNode } from '@BBeBee/core-codec-node'
+import { CodecNode } from '@bbebee/core-codec-node'
 import { tempDir, tick } from '@BBeBee/kernel/testing'
 import { countingFs, generateCorpus, type Corpus, type CountingFs } from '@BBeBee/tooling-fixtures'
 import { createMockAudio } from '@BBeBee/protocol/conformance'
@@ -35,7 +35,7 @@ import type {
   StreamHandle,
   Track,
 } from '@BBeBee/protocol'
-import playerPlugin, { type Player } from '@BBeBee/plugin-player'
+import playerPlugin, { type Player } from '@bbebee/plugin-player'
 import plugin, { type Scanner } from './index.js'
 
 /**

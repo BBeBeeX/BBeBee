@@ -1,4 +1,4 @@
-# @BBeBee/plugin-queue
+# @bbebee/plugin-queue
 
 Layer 4 (feature) — **the up-next queue page**, split out of `plugin-player`.
 

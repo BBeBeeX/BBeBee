@@ -1,7 +1,7 @@
 {
-  "name": "@BBeBee/plugin-theme-ui-desktop",
+  "name": "@bbebee/plugin-theme-ui-desktop",
   "version": "0.0.0",
-  "description": "Desktop views for @BBeBee/plugin-theme (theme management settings card).",
+  "description": "Desktop views for @bbebee/plugin-theme (theme management settings card).",
   "type": "module",
   "license": "MIT",
   "exports": {
@@ -18,7 +18,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-theme": "workspace:*",
+    "@bbebee/plugin-theme": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/toolkit": "workspace:*",
     "@BBeBee/ui-kit-desktop": "workspace:*",

@@ -126,7 +126,7 @@ export function apply(ctx: Context) {
 
 ### 原生 libavfilter 适配器与 ReplayGain 集成 (MPV 引擎)
 
-在运行原生 MPV 引擎（`@BBeBee/core-audio-mpv`）时，效果器声明可选的 `buildLavfi(params)` 适配器生成 FFmpeg 滤镜链片段，并在原生进程内直接执行：
+在运行原生 MPV 引擎（`@bbebee/core-audio-mpv`）时，效果器声明可选的 `buildLavfi(params)` 适配器生成 FFmpeg 滤镜链片段，并在原生进程内直接执行：
 - `normalize`:
   - **单曲 / 专辑模式**：直接由 libmpv 原生 ReplayGain 属性控制（`replaygain=track|album`、`replaygain-preamp`、`replaygain-clip`）。`buildLavfi()` 返回空字符串 `""`，**彻底杜绝双重增益冲突**（避免 libmpv 解码层与 libavfilter 滤镜层各缩放一次音量）。
   - **动态 EBU R128 模式 (`loudnorm`)**：原生 `replaygain` 设为 `no`，由 `buildLavfi()` 生成实时流式滤镜 `loudnorm=I=${targetLufs}:TP=-1.0:LRA=11`。

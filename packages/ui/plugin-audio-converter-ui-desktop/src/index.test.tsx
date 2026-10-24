@@ -19,7 +19,7 @@ import type {
   Disposable,
   EncoderCapabilities,
 } from '@BBeBee/protocol'
-import { AUDIO_CONVERTER_VIEWS } from '@BBeBee/plugin-audio-converter/views'
+import { AUDIO_CONVERTER_VIEWS } from '@bbebee/plugin-audio-converter/views'
 import converterCatalogue from '../../../feature/plugin-i18n/src/locales/converter.json'
 import { ConverterWorkbench } from './components/ConverterWorkbench.js'
 import plugin, { apply, name } from './index.js'

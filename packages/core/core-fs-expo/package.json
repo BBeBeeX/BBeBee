@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/core-fs-expo",
+  "name": "@bbebee/core-fs-expo",
   "version": "0.0.0",
   "description": "Filesystem for iOS and Android, over expo-file-system.",
   "type": "module",
@@ -34,6 +34,6 @@
     "expo-file-system": "~57.0.6"
   },
   "devDependencies": {
-    "@BBeBee/core-paths-expo": "workspace:*"
+    "@bbebee/core-paths-expo": "workspace:*"
   }
 }

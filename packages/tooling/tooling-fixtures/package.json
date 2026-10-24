@@ -19,7 +19,7 @@
     "@BBeBee/protocol": "workspace:*"
   },
   "devDependencies": {
-    "@BBeBee/core-codec-node": "workspace:*",
+    "@bbebee/core-codec-node": "workspace:*",
     "@BBeBee/core-fs-node": "workspace:*",
     "@BBeBee/core-paths-node": "workspace:*",
     "@BBeBee/kernel": "workspace:*",

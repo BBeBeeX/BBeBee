@@ -19,13 +19,13 @@ workspace for packages containing a `BBeBee.plugin.json` and emits:
 import type { PluginRegistry } from '@BBeBee/kernel'
 
 export const bundled: PluginRegistry = {
-  '@BBeBee/plugin-player': {
-    load: () => import('@BBeBee/plugin-player'),
+  '@bbebee/plugin-player': {
+    load: () => import('@bbebee/plugin-player'),
     manifest: { /* … */ },
     builtin: true,
   },
-  '@BBeBee/plugin-source-local': {
-    load: () => import('@BBeBee/plugin-source-local'),
+  '@bbebee/plugin-source-local': {
+    load: () => import('@bbebee/plugin-source-local'),
     manifest: { /* … */ },
     builtin: true,
   },
@@ -140,10 +140,10 @@ plugin loads:
 
 ```yaml
 plugins:
-  '@BBeBee/plugin-player':
+  '@bbebee/plugin-player':
     enabled: true
     config: { crossfadeMs: 0, prefetchNext: true }
-  '@BBeBee/plugin-source-runtime':
+  '@bbebee/plugin-source-runtime':
     enabled: true
     config: { defaultRate: '2/1000' }
 ```
@@ -291,7 +291,7 @@ any service the composition root wires directly) and installed plugins —
 counting only **enabled** providers: when the only provider of a service
 has been disabled, the service is unavailable and the install is refused,
 naming it, until the provider is enabled again. `ui`, for example, is
-available on desktop because `@BBeBee/plugin-ui` contributes it
+available on desktop because `@bbebee/plugin-ui` contributes it
 (`contributes.services: ["ui"]`) and ships in the built-in set. A service
 registered at runtime but declared in no manifest would still be
 invisible to this check; the manifest-completeness gate
@@ -380,7 +380,7 @@ overridable in Settings → Network → *Download & GitHub acceleration*:
 3. The registry entry's `services` array must honestly list every cordis
    service key the plugin `inject`s — headless and UI sides alike (the
    visualizer's entry lists `ui` because its views register through
-   `ctx.ui`, which `@BBeBee/plugin-ui` contributes). The installer blocks
+   `ctx.ui`, which `@bbebee/plugin-ui` contributes). The installer blocks
    the install when a listed service is unavailable, and a false
    declaration either blocks legitimate users or misleads them.
    Availability is judged against registered manifests — the built-in

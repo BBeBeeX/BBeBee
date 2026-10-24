@@ -1,10 +1,10 @@
-# @BBeBee/plugin-now-playing-ui-desktop
+# @bbebee/plugin-now-playing-ui-desktop
 
 Layer 5 (ui) — the desktop view package for `plugin-now-playing` (headless): the two "Now playing" surfaces.
 
 ## Overview
 
-Binds `now-playing.bar` and `now-playing.view` onto the desktop kit; migrated wholesale from `plugin-player`'s desktop view package. All domain state comes from `@BBeBee/plugin-player/hooks`; `ctx.player` is accessed via `inject`. Runtime dependency on the headless package (hooks and view ids).
+Binds `now-playing.bar` and `now-playing.view` onto the desktop kit; migrated wholesale from `plugin-player`'s desktop view package. All domain state comes from `@bbebee/plugin-player/hooks`; `ctx.player` is accessed via `inject`. Runtime dependency on the headless package (hooks and view ids).
 
 **Platform shape difference**: on desktop the "Now playing" surface is a **persistent bottom transport bar** (bar) from which the fullscreen play page is opened — a genuinely platform-decided difference, and exactly why ADR-2 accepted writing the views twice.
 

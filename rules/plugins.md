@@ -123,7 +123,7 @@ Declared in each package's `BBeBee.plugin.json`, mediated by the kernel via inte
 
 Every plugin package across all layers (Core, Logs, Feature, UI) must carry a `BBeBee.plugin.json` containing 15 standardized fields:
 
-1. `id`: Unique package ID matching npm package name (`"@BBeBee/plugin-..."`).
+1. `id`: Unique package ID matching npm package name (`"@bbebee/plugin-..."`).
 2. `name`: Short technical identifier (e.g. `"sources-ui-desktop"`).
 3. `displayName`: Human-readable title for UI and inspectors.
 4. `description`: Clear summary of the package's responsibilities.
@@ -131,7 +131,7 @@ Every plugin package across all layers (Core, Logs, Feature, UI) must carry a `B
 6. `author`: Plugin author/maintainer (`"BBeBee Team"`).
 7. `engines`: Engine compatibility constraints; the `BBeBee` engine is required (`{"BBeBee": "^0.1.0"}`).
 8. `enabled`: Default enabled boolean (`true`).
-9. `dependencies`: Explicit list of prerequisite plugin IDs (`["@BBeBee/plugin-sources"]`).
+9. `dependencies`: Explicit list of prerequisite plugin IDs (`["@bbebee/plugin-sources"]`).
 10. `systemId`: Architectural layer stratum ID: `"layer-2"`, `"layer-3"`, `"layer-4"`, or `"layer-5"`.
     *(⚠️ Note: explicitly named `systemId`, never `subsystemId`).*
 11. `moduleId`: Functional domain grouping ID: `"sources"`, `"playback"`, `"lyrics"`, `"storage"`, `"dsp"`, `"settings"`, `"inspector"`, `"share"`, `"ui"`, `"core"`, `"logs"`.

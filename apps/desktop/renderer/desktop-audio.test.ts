@@ -13,7 +13,7 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import { Context, Service } from 'cordis'
 import type { AudioService } from '@BBeBee/protocol'
-import { createFakeAudioContext } from '@BBeBee/core-audio-mpv/testing'
+import { createFakeAudioContext } from '@bbebee/core-audio-mpv/testing'
 import { DesktopAudioService, preloadPreferences } from './boot.js'
 
 function service(): DesktopAudioService {

@@ -1,7 +1,7 @@
 {
-  "name": "@BBeBee/plugin-share-ui-desktop",
+  "name": "@bbebee/plugin-share-ui-desktop",
   "version": "0.0.0",
-  "description": "Desktop views for @BBeBee/plugin-share (rich share modals & steganography reader).",
+  "description": "Desktop views for @bbebee/plugin-share (rich share modals & steganography reader).",
   "type": "module",
   "license": "MIT",
   "exports": {
@@ -18,7 +18,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-share": "workspace:*",
+    "@bbebee/plugin-share": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/toolkit": "workspace:*",
     "@BBeBee/ui-core": "workspace:*",

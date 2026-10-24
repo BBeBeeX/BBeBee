@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-audio-converter",
+  "name": "@bbebee/plugin-audio-converter",
   "version": "0.0.0",
   "description": "Audio format conversion, audio compression, batch processing, and task management.",
   "type": "module",
@@ -36,7 +36,7 @@
   },
   "devDependencies": {
     "@BBeBee/kernel": "workspace:*",
-    "@BBeBee/core-codec-node": "workspace:*",
+    "@bbebee/core-codec-node": "workspace:*",
     "@BBeBee/core-fs-node": "workspace:*",
     "@BBeBee/core-paths-node": "workspace:*"
   }

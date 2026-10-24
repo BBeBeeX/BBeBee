@@ -38,7 +38,7 @@ import { decodeAudioData } from 'react-native-audio-api'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import type { DecodedAudio, Uri } from '@BBeBee/protocol'
-import { CodecNode, type CodecNodeConfig } from '@BBeBee/core-codec-node'
+import { CodecNode, type CodecNodeConfig } from '@bbebee/core-codec-node'
 
 export interface CodecRnConfig extends CodecNodeConfig {
   /**

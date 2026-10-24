@@ -1,7 +1,7 @@
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import { useShareModalState } from '@BBeBee/plugin-share/hooks'
+import { useShareModalState } from '@bbebee/plugin-share/hooks'
 import { ShareTrackModal } from './ShareTrackModal.js'
 import { SharePlaylistModal } from './SharePlaylistModal.js'
 import { ShareLyricsModal } from './ShareLyricsModal.js'

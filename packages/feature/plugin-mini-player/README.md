@@ -1,4 +1,4 @@
-# @BBeBee/plugin-mini-player
+# @bbebee/plugin-mini-player
 
 Layer 4 (feature) — `ctx.miniPlayer`: the headless state machine and control center for the desktop floating mini window and the Dynamic Island.
 

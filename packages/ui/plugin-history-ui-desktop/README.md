@@ -1,4 +1,4 @@
-# @BBeBee/plugin-history-ui-desktop
+# @bbebee/plugin-history-ui-desktop
 
 Layer 5 (ui) — the desktop view package for `plugin-history` (headless): the play history and listening statistics pages.
 

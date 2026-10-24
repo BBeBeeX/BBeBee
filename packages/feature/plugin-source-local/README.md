@@ -1,4 +1,4 @@
-# @BBeBee/plugin-source-local
+# @bbebee/plugin-source-local
 
 Layer 4 (feature) — local files as a `MediaProvider`: a fully equal citizen with zero privilege over other sources.
 

@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-library",
+  "name": "@bbebee/plugin-library",
   "version": "0.0.0",
   "description": "ctx.library — playlists, favorites and collections.",
   "type": "module",

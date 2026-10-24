@@ -1,4 +1,4 @@
-# @BBeBee/plugin-mini-player-ui-desktop
+# @bbebee/plugin-mini-player-ui-desktop
 
 Layer 5 (UI) — the desktop presentation of the standalone floating mini-player window and the Dynamic Island, the secondary native-window adapter, and the gesture interaction system.
 

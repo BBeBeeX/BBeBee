@@ -8,7 +8,7 @@
 
 import { createElement as h, type ReactElement } from 'react'
 import type { Context } from 'cordis'
-import { REGISTRY_VIEWS } from '@BBeBee/plugin-registry/views'
+import { REGISTRY_VIEWS } from '@bbebee/plugin-registry/views'
 import { RegistryScreen } from './screens/RegistryScreen.js'
 import { RegistrySettingsCard } from './components/RegistrySettingsCard.js'
 

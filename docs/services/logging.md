@@ -71,7 +71,7 @@ export interface LogTransport {
 
 ### In-App Diagnostic Views
 
-The desktop diagnostic center (`@BBeBee/plugin-settings-ui-desktop`) exposes real-time telemetry surfaces:
+The desktop diagnostic center (`@bbebee/plugin-settings-ui-desktop`) exposes real-time telemetry surfaces:
 
 1. **Discover System Logs (`debug.logs`)**:
    Reads directly from `ctx.logBuffer`. Provides live stream inspection, log level filtering (`ALL`, `DEBUG`, `INFO`, `WARN`, `ERROR`), substring search, clipboard export as NDJSON, and one-click buffer clearing.

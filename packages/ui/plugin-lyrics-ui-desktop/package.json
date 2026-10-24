@@ -1,7 +1,7 @@
 {
-  "name": "@BBeBee/plugin-lyrics-ui-desktop",
+  "name": "@bbebee/plugin-lyrics-ui-desktop",
   "version": "0.0.0",
-  "description": "Desktop views for @BBeBee/plugin-lyrics (Lyrics Panel).",
+  "description": "Desktop views for @bbebee/plugin-lyrics (Lyrics Panel).",
   "type": "module",
   "license": "MIT",
   "exports": {
@@ -18,7 +18,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-lyrics": "workspace:*",
+    "@bbebee/plugin-lyrics": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/toolkit": "workspace:*",
     "@BBeBee/ui-core": "workspace:*",

@@ -5,7 +5,7 @@ import type { LoudnessNormalizationMode, SettingsService } from '@BBeBee/protoco
 import { serviceOf, useServiceState } from '@BBeBee/ui-core'
 import { Button, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
-import { useDsp } from '@BBeBee/plugin-dsp/hooks'
+import { useDsp } from '@bbebee/plugin-dsp/hooks'
 
 const p = () => palettes.dark
 

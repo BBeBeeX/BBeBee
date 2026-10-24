@@ -1,7 +1,7 @@
 import { createElement as h, useEffect, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { I18nService, StreamQuality, TraceEvent, UiService } from '@BBeBee/protocol'
-import { useSourceTrace, useSources } from '@BBeBee/plugin-sources/hooks'
+import { useSourceTrace, useSources } from '@bbebee/plugin-sources/hooks'
 import { Button, EmptyState, JsonTree, Text, TextField, useI18n } from '@BBeBee/ui-kit-desktop'
 import { serviceOf } from '@BBeBee/ui-core'
 import { palettes, tokens } from '@BBeBee/ui-tokens'

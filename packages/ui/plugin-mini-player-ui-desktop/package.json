@@ -1,7 +1,7 @@
 {
-  "name": "@BBeBee/plugin-mini-player-ui-desktop",
+  "name": "@bbebee/plugin-mini-player-ui-desktop",
   "version": "0.0.0",
-  "description": "Desktop UI views for @BBeBee/plugin-mini-player.",
+  "description": "Desktop UI views for @bbebee/plugin-mini-player.",
   "type": "module",
   "license": "MIT",
   "exports": {
@@ -18,7 +18,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-mini-player": "workspace:*",
+    "@bbebee/plugin-mini-player": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/toolkit": "workspace:*",
     "@BBeBee/ui-kit-desktop": "workspace:*",

@@ -130,7 +130,7 @@ describe('view packages', () => {
       files.find((f) => f.path.endsWith('plugin-scrobble-ui-desktop/package.json'))!.contents,
     ) as { dependencies: Record<string, string>; devDependencies: Record<string, string> }
     // Views take the headless package as a dev dependency: types, not values.
-    expect(pkg.devDependencies['@BBeBee/plugin-scrobble']).toBe('workspace:*')
-    expect(pkg.dependencies['@BBeBee/plugin-scrobble']).toBeUndefined()
+    expect(pkg.devDependencies['@bbebee/plugin-scrobble']).toBe('workspace:*')
+    expect(pkg.dependencies['@bbebee/plugin-scrobble']).toBeUndefined()
   })
 })

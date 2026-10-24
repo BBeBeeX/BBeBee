@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-theme",
+  "name": "@bbebee/plugin-theme",
   "version": "0.0.0",
   "description": "ctx.theme — application color and theme management service.",
   "type": "module",

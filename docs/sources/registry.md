@@ -284,7 +284,7 @@ artifact chain is the npm flow described in §6 and [loading.md
 
 ### 5.3 Static Security Audit (`ctx.securityAudit`)
 
-The built-in `@BBeBee/plugin-security-audit` plugin (Layer 4) re-exports the scanner in `packages/feature/toolkit` (`scanCode`). It runs **9 static regex rules** followed by **2 dynamic scan groups** — 14 rule ids in all. Advisory policy (2026-10-24): only opaque payload imports and leaked credentials block; the rest warn — those regexes are a review aid, not containment, and bundled production code trips them.
+The built-in `@bbebee/plugin-security-audit` plugin (Layer 4) re-exports the scanner in `packages/feature/toolkit` (`scanCode`). It runs **9 static regex rules** followed by **2 dynamic scan groups** — 14 rule ids in all. Advisory policy (2026-10-24): only opaque payload imports and leaked credentials block; the rest warn — those regexes are a review aid, not containment, and bundled production code trips them.
 
 Static rules (regex; one finding per match):
 

@@ -1,10 +1,10 @@
-# @BBeBee/plugin-history-ui-mobile
+# @bbebee/plugin-history-ui-mobile
 
 Layer 5 (ui) — the mobile view package for `plugin-history` (headless): the play history and statistics page.
 
 ## Overview
 
-Registers `history.view` and binds it to the mobile React Native shell. Data comes from `@BBeBee/plugin-player/hooks` (`usePlayHistory`, `usePlayHistoryStats`), and components use `@BBeBee/ui-kit-mobile` (`List`, `TrackRow`, `ContextMenu`).
+Registers `history.view` and binds it to the mobile React Native shell. Data comes from `@bbebee/plugin-player/hooks` (`usePlayHistory`, `usePlayHistoryStats`), and components use `@BBeBee/ui-kit-mobile` (`List`, `TrackRow`, `ContextMenu`).
 
 ## Registered views
 

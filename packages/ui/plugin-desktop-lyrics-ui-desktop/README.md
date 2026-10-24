@@ -1,4 +1,4 @@
-# @BBeBee/plugin-desktop-lyrics-ui-desktop
+# @bbebee/plugin-desktop-lyrics-ui-desktop
 
 Layer 5 (UI) — the desktop lyrics controller, the native secondary-window IPC bridge, and the UI adapter.
 

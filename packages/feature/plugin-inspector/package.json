@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-inspector",
+  "name": "@bbebee/plugin-inspector",
   "version": "0.0.0",
   "description": "Fiber-tree and effect inspector for the plugin graph.",
   "type": "module",

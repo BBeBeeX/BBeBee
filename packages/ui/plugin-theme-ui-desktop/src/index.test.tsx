@@ -12,7 +12,7 @@ import type { AppSettings, SettingsService, ThemeDefinition } from '@BBeBee/prot
 import { DEFAULT_APP_SETTINGS } from '@BBeBee/protocol'
 import { midnightPurpleTheme, emeraldGreenTheme } from '@BBeBee/ui-tokens'
 import { ThemeManagementCard } from './components/ThemeManagementCard.js'
-import { THEME_VIEWS } from '@BBeBee/plugin-theme/views'
+import { THEME_VIEWS } from '@bbebee/plugin-theme/views'
 import plugin from './index.js'
 import themeLocales from '../../../feature/plugin-i18n/src/locales/theme.json'
 import appLocales from '../../../feature/plugin-i18n/src/locales/en.json'

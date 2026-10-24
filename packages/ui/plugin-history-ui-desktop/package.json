@@ -1,7 +1,7 @@
 {
-  "name": "@BBeBee/plugin-history-ui-desktop",
+  "name": "@bbebee/plugin-history-ui-desktop",
   "version": "0.0.0",
-  "description": "React DOM views for @BBeBee/plugin-history.",
+  "description": "React DOM views for @bbebee/plugin-history.",
   "type": "module",
   "license": "MIT",
   "exports": {
@@ -18,7 +18,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-history": "workspace:*",
+    "@bbebee/plugin-history": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/toolkit": "workspace:*",
     "@BBeBee/ui-core": "workspace:*",

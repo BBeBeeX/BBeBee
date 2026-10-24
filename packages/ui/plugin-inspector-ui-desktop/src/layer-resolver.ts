@@ -101,7 +101,7 @@ export function resolvePluginLayer(
   // 3. Resolve manifest from registry by plugin ID
   const registered =
     PLUGIN_MANIFESTS[pluginId] ??
-    PLUGIN_MANIFESTS[`@BBeBee/${pluginId}`] ??
+    PLUGIN_MANIFESTS[`@bbebee/${pluginId}`] ??
     PLUGIN_MANIFESTS[pluginId.replace(/^@bbebee\//i, '')]
 
   if (registered?.systemId && registered.systemId in SYSTEM_LAYERS) {

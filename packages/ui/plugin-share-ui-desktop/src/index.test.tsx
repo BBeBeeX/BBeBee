@@ -214,7 +214,7 @@ describe('plugin-share-ui-desktop', () => {
     const { serviceOf } = await import('@BBeBee/ui-core')
     const player = serviceOf<PlayerStub>(ctx, 'player')!
 
-    const { encodeMetadata } = await import('@BBeBee/plugin-share/metadata')
+    const { encodeMetadata } = await import('@bbebee/plugin-share/metadata')
     const b64 = encodeMetadata('track', {
       urn: 'source:test:track:shared_99',
       title: 'Shared Song',
@@ -459,7 +459,7 @@ describe('plugin-share-ui-desktop', () => {
     expect(extractHttpArtworkUrl({ sourceUrl: 'https://example.com/source.jpg' })).toBe('https://example.com/source.jpg')
 
     // Test ImportShareModal using HTTP cover
-    const { encodeMetadata } = await import('@BBeBee/plugin-share/metadata')
+    const { encodeMetadata } = await import('@bbebee/plugin-share/metadata')
     const b64WithHttpCover = encodeMetadata('track', {
       urn: 'source:test:track:http_cover',
       title: 'HTTP Cover Song',

@@ -1,7 +1,7 @@
 import { createElement as h, useEffect, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { SourcePingResult } from '@BBeBee/protocol'
-import { useSourceParams } from '@BBeBee/plugin-sources/hooks'
+import { useSourceParams } from '@bbebee/plugin-sources/hooks'
 import { Button, Sheet, Text, TextField, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
 

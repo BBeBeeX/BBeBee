@@ -74,7 +74,7 @@ export function migrateLegacyPluginNamespaces(
     if (!key.startsWith(LEGACY_PLUGIN_SCOPE)) continue
     const newKey = `${CURRENT_PLUGIN_SCOPE}${key.slice(LEGACY_PLUGIN_SCOPE.length)}`
     if (newKey in out) continue
-    if (key === '@BBeBee/plugin-manager:enabled' && value && typeof value === 'object') {
+    if (key === '@bbebee/plugin-manager:enabled' && value && typeof value === 'object') {
       out[newKey] = Object.fromEntries(
         Object.entries(value as Record<string, unknown>).map(([id, enabled]) => [
           currentPluginId(id),
@@ -82,7 +82,7 @@ export function migrateLegacyPluginNamespaces(
         ]),
       )
     } else if (
-      key === '@BBeBee/plugin-manager:service-providers' &&
+      key === '@bbebee/plugin-manager:service-providers' &&
       value &&
       typeof value === 'object'
     ) {

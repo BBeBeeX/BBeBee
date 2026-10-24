@@ -8,7 +8,7 @@
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import { SHARE_VIEWS } from '@BBeBee/plugin-share/views'
+import { SHARE_VIEWS } from '@bbebee/plugin-share/views'
 import { ShareHost, type ShareHostProps } from './components/ShareHost.js'
 import { ShareTrackModal, type ShareTrackModalProps } from './components/ShareTrackModal.js'
 import { SharePlaylistModal, type SharePlaylistModalProps } from './components/SharePlaylistModal.js'

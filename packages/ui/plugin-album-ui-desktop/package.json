@@ -1,7 +1,7 @@
 {
-  "name": "@BBeBee/plugin-album-ui-desktop",
+  "name": "@bbebee/plugin-album-ui-desktop",
   "version": "0.0.0",
-  "description": "React DOM views for @BBeBee/plugin-album.",
+  "description": "React DOM views for @bbebee/plugin-album.",
   "type": "module",
   "license": "MIT",
   "exports": {
@@ -18,7 +18,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-album": "workspace:*",
+    "@bbebee/plugin-album": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/toolkit": "workspace:*",
     "@BBeBee/ui-core": "workspace:*",

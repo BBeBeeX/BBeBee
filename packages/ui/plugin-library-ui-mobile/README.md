@@ -1,4 +1,4 @@
-# @BBeBee/plugin-library-ui-mobile
+# @bbebee/plugin-library-ui-mobile
 
 Layer 5 (ui) — the mobile view package for `plugin-library` (headless): the twin half of the desktop version.
 

@@ -22,11 +22,11 @@ export interface DiscoveredPlugin {
   dir: string
   /**
    * The JS package name from the directory's package.json (the import
-   * specifier that actually resolves). This is deliberately NOT the
-   * manifest id: manifest ids were renamed to `@bbebee/` to match the
-   * plugins' future npm names, while workspace package names stay
-   * `@BBeBee/` until those packages are themselves renamed. Deriving the
-   * import from the manifest id would emit unresolvable specifiers.
+   * specifier that actually resolves). This is deliberately NOT derived
+   * from the manifest id, even though the two now agree for built-in
+   * plugins (both `@bbebee/`): a package.json name is the source of
+   * truth for what resolves, and deriving it from the manifest id
+   * would silently emit unresolvable specifiers if they ever diverged.
    */
   pkgName: string
 }

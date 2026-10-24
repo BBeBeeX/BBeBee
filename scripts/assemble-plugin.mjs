@@ -285,9 +285,10 @@ async function main() {
   const version = opts.version ?? featurePkg.version
   if (!name || !version) fail('could not determine package name/version (feature package.json or --name/--version)')
   // npm only accepts lowercase package names for publication (the
-  // registry validator enforces the same grammar), which the monorepo
-  // scope `@BBeBee` violates — warn loudly instead of silently shipping
-  // an unpublishable artifact; `--name` is the way out.
+  // registry validator enforces the same grammar) — warn loudly instead
+  // of silently shipping an unpublishable artifact; `--name` is the way
+  // out. (Built-in plugins now use the lowercase `@bbebee` scope, so this
+  // fires only for names that still are not lowercase.)
   if (!/^(?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/.test(name)) {
     console.warn(
       `${TAG} warning: package name "${name}" is not a valid npm publication name (lowercase only) — ` +

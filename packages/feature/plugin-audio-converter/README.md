@@ -1,4 +1,4 @@
-# @BBeBee/plugin-audio-converter
+# @bbebee/plugin-audio-converter
 
 Layer 4 (feature) — `ctx.audioConverter`: the headless audio format transcoding, audio compression, batch queue concurrency, pre-conversion size estimation, and task management service.
 
@@ -97,7 +97,7 @@ console.log(estimate.isLossless)         // false
 console.log(estimate.warning)            // Warns if source was lossy and target is lossless
 ```
 
-### 5. Reactive UI Hooks (`@BBeBee/plugin-audio-converter/hooks`)
+### 5. Reactive UI Hooks (`@bbebee/plugin-audio-converter/hooks`)
 
 - `useAudioConverterTasks(ctx)`: returns reactive tasks array.
 - `useAudioConverterConfig(ctx)`: returns reactive config and updater `[config, updateConfig]`.

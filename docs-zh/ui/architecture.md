@@ -15,9 +15,9 @@
 带 UI 的功能最多拆分为三个包。这种拆分不是官僚流程 —— 正是它让 ADR-2 只复制功能的*像素*，而不是复制*整个*功能。
 
 ```
-@BBeBee/plugin-scrobble               ← headless: service, state, events, persistence
-@BBeBee/plugin-scrobble-ui-mobile     ← React Native views
-@BBeBee/plugin-scrobble-ui-desktop    ← React DOM views
+@bbebee/plugin-scrobble               ← headless: service, state, events, persistence
+@bbebee/plugin-scrobble-ui-mobile     ← React Native views
+@bbebee/plugin-scrobble-ui-desktop    ← React DOM views
 ```
 
 | 包 | 层 | 包含 | 可导入 |
@@ -294,7 +294,7 @@ export function useServiceState<T>(
 跨功能的绑定 —— 传输状态、封面解析、歌词同步 —— 也在同一个子路径里，这正是桌面视图**无需导入播放器 feature** 就能绑定传输的原因。各 feature 自己的 `./hooks` 子路径仍是它的公开面，并把委托出去的实现逐一再导出：
 
 ```ts
-// @BBeBee/toolkit/hooks — 由 @BBeBee/plugin-player/hooks 再导出
+// @BBeBee/toolkit/hooks — 由 @bbebee/plugin-player/hooks 再导出
 export const useTransport = (ctx: Context) =>
   useServiceState(ctx, ['player/state-changed', 'player/track-changed'], () => ctx.player.state)
 

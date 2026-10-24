@@ -1,4 +1,4 @@
-# @BBeBee/plugin-sleep-timer
+# @bbebee/plugin-sleep-timer
 
 Layer 4 (feature) — `ctx.sleepTimer`: manages the sleep-timer stop-playback logic.
 

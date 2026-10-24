@@ -1,7 +1,7 @@
 {
-  "name": "@BBeBee/plugin-now-playing-ui-mobile",
+  "name": "@bbebee/plugin-now-playing-ui-mobile",
   "version": "0.0.0",
-  "description": "React Native views for @BBeBee/plugin-now-playing.",
+  "description": "React Native views for @bbebee/plugin-now-playing.",
   "type": "module",
   "license": "MIT",
   "exports": {
@@ -18,9 +18,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-cache": "workspace:*",
-    "@BBeBee/plugin-now-playing": "workspace:*",
-    "@BBeBee/plugin-player": "workspace:*",
+    "@bbebee/plugin-cache": "workspace:*",
+    "@bbebee/plugin-now-playing": "workspace:*",
+    "@bbebee/plugin-player": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/toolkit": "workspace:*",
     "@BBeBee/ui-core": "workspace:*",

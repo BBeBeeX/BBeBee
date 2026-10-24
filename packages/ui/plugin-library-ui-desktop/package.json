@@ -1,7 +1,7 @@
 {
-  "name": "@BBeBee/plugin-library-ui-desktop",
+  "name": "@bbebee/plugin-library-ui-desktop",
   "version": "0.0.0",
-  "description": "React DOM views for @BBeBee/plugin-library.",
+  "description": "React DOM views for @bbebee/plugin-library.",
   "type": "module",
   "license": "MIT",
   "exports": {
@@ -18,7 +18,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-library": "workspace:*",
+    "@bbebee/plugin-library": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/toolkit": "workspace:*",
     "@BBeBee/ui-core": "workspace:*",

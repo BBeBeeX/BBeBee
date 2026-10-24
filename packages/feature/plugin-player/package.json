@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-player",
+  "name": "@bbebee/plugin-player",
   "version": "0.0.0",
   "description": "ctx.player — transport, queue, resolution, history.",
   "type": "module",
@@ -41,7 +41,7 @@
     "@BBeBee/core-db-node": "workspace:*",
     "@BBeBee/core-fs-node": "workspace:*",
     "@BBeBee/core-paths-node": "workspace:*",
-    "@BBeBee/plugin-sources": "workspace:*",
+    "@bbebee/plugin-sources": "workspace:*",
     "@types/react": "^19.2.0"
   }
 }

@@ -10,7 +10,7 @@
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import { QUEUE_VIEWS } from '@BBeBee/plugin-queue/views'
+import { QUEUE_VIEWS } from '@bbebee/plugin-queue/views'
 import { QueueTrackRow, type QueueTrackRowProps } from './QueueTrackRow.js'
 import { QueueScreen, type QueueScreenProps } from './QueueScreen.js'
 import { QueueButton, type QueueButtonProps } from './QueueButton.js'

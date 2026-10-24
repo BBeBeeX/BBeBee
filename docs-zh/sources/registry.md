@@ -168,7 +168,7 @@ export interface RegistryService {
 
 ### 5.3 静态安全审计（`ctx.securityAudit`）
 
-内置 `@BBeBee/plugin-security-audit` 插件（Layer 4）转出 `packages/feature/toolkit` 中的扫描器（`scanCode`）。它先跑 **9 条静态正则规则**，再做 **2 组动态扫描** —— 合计 14 个 rule id。告警策略（2026-10-24）：只有不透明载荷导入与泄露凭证会阻断安装，其余只警告 —— 这些正则只是评审辅助，不是隔离手段，打包后的生产代码也常常触发它们。
+内置 `@bbebee/plugin-security-audit` 插件（Layer 4）转出 `packages/feature/toolkit` 中的扫描器（`scanCode`）。它先跑 **9 条静态正则规则**，再做 **2 组动态扫描** —— 合计 14 个 rule id。告警策略（2026-10-24）：只有不透明载荷导入与泄露凭证会阻断安装，其余只警告 —— 这些正则只是评审辅助，不是隔离手段，打包后的生产代码也常常触发它们。
 
 静态规则（正则；每处命中记一条 finding）：
 

@@ -1,4 +1,4 @@
-# @BBeBee/plugin-library
+# @bbebee/plugin-library
 
 Layer 4 (feature) — `ctx.library`: the user's **curation** (playlists, favorites, collections), and now the **library home**.
 

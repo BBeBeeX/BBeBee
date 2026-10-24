@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-download-ui-mobile",
+  "name": "@bbebee/plugin-download-ui-mobile",
   "version": "0.0.0",
   "description": "React Native views for plugin-download.",
   "type": "module",
@@ -18,7 +18,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-download": "workspace:*",
+    "@bbebee/plugin-download": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/toolkit": "workspace:*",
     "@BBeBee/ui-kit-mobile": "workspace:*",

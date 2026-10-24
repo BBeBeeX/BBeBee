@@ -21,16 +21,16 @@ import type { Context } from 'cordis'
 import type { I18nService, NowPlayingStyleId, UiService } from '@BBeBee/protocol'
 import { NOW_PLAYING_STYLES } from '@BBeBee/protocol'
 import { formatDuration } from '@BBeBee/toolkit'
-import { NOW_PLAYING_VIEWS } from '@BBeBee/plugin-now-playing/views'
-import { useNowPlayingStyle } from '@BBeBee/plugin-now-playing/hooks'
+import { NOW_PLAYING_VIEWS } from '@bbebee/plugin-now-playing/views'
+import { useNowPlayingStyle } from '@bbebee/plugin-now-playing/hooks'
 import {
   useDuration,
   usePosition,
   useTransport,
   useTransportAvailability,
-} from '@BBeBee/plugin-player/hooks'
+} from '@bbebee/plugin-player/hooks'
 import { Artwork, IconButton, Slider, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
-import { useResolvedArtwork } from '@BBeBee/plugin-cache/hooks'
+import { useResolvedArtwork } from '@bbebee/plugin-cache/hooks'
 import { serviceOf, useServiceState, type ArtworkProps } from '@BBeBee/ui-core'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
 

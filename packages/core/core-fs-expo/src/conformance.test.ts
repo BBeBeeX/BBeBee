@@ -25,7 +25,7 @@ import { Context } from 'cordis'
 import { fsConformance, fsScopeConformance, pathsConformance } from '@BBeBee/protocol/conformance'
 import type { FsService, PathsService } from '@BBeBee/protocol'
 import { scopeContext } from '@BBeBee/kernel'
-import { PathsExpo } from '@BBeBee/core-paths-expo'
+import { PathsExpo } from '@bbebee/core-paths-expo'
 import { tempDir } from '@BBeBee/kernel/testing'
 import { FsExpo } from './index.js'
 

@@ -41,18 +41,18 @@ import {
   fetchPaths,
   safeStorageCodec,
   CodecBridge,
-} from '@BBeBee/core-desktop-bridge'
-import { StoreFs } from '@BBeBee/core-store-fs'
-import { DeviceTauri } from '@BBeBee/core-device-tauri'
-import { BackgroundTauri } from '@BBeBee/core-background-tauri'
-import { MediaSessionTauri } from '@BBeBee/core-media-session-tauri'
-import { SecretsNode } from '@BBeBee/core-secrets-node'
-import { JsQuickJsNode } from '@BBeBee/core-js-quickjs-node'
-import { HttpNode } from '@BBeBee/core-http-node'
-import { AudioMpv, type AudioMpvConfig } from '@BBeBee/core-audio-mpv'
-import logBuffer from '@BBeBee/plugin-log-buffer'
-import logConsole from '@BBeBee/plugin-log-console'
-import logFile from '@BBeBee/plugin-log-file'
+} from '@bbebee/core-desktop-bridge'
+import { StoreFs } from '@bbebee/core-store-fs'
+import { DeviceTauri } from '@bbebee/core-device-tauri'
+import { BackgroundTauri } from '@bbebee/core-background-tauri'
+import { MediaSessionTauri } from '@bbebee/core-media-session-tauri'
+import { SecretsNode } from '@bbebee/core-secrets-node'
+import { JsQuickJsNode } from '@bbebee/core-js-quickjs-node'
+import { HttpNode } from '@bbebee/core-http-node'
+import { AudioMpv, type AudioMpvConfig } from '@bbebee/core-audio-mpv'
+import logBuffer from '@bbebee/plugin-log-buffer'
+import logConsole from '@bbebee/plugin-log-console'
+import logFile from '@bbebee/plugin-log-file'
 
 import { version as reactVersion } from 'react'
 import { version as reactDomVersion } from 'react-dom'
@@ -436,7 +436,7 @@ export async function preloadPreferences(pathSnapshot: Record<string, string | u
     result.storeData = data
     const prefs = (data['preferences'] ??
       data['@bbebee/plugin-settings:preferences'] ??
-      data['@BBeBee/plugin-settings:preferences']) as
+      data['@bbebee/plugin-settings:preferences']) as
       | { audioOutputEngine?: EngineKey | 'webaudio'; audioExclusive?: boolean; userAgent?: string }
       | undefined
 
@@ -476,7 +476,7 @@ async function mergedPluginLock(
   // keys themselves survive the rename untouched.
   const npmRecords = (
     storeData?.['@bbebee/plugin-manager:npm:installed'] ??
-    storeData?.['@BBeBee/plugin-manager:npm:installed']
+    storeData?.['@bbebee/plugin-manager:npm:installed']
   ) as
     | Record<
         string,
@@ -539,7 +539,7 @@ function computeEnabledPlugins(
   const effective = { ...INITIAL_ENABLED }
   const rawOverrides = (
     storeData?.['@bbebee/plugin-manager:enabled'] ??
-    storeData?.['@BBeBee/plugin-manager:enabled'] ??
+    storeData?.['@bbebee/plugin-manager:enabled'] ??
     storeData?.['plugin-manager:enabled']
   ) as Record<string, boolean> | undefined
   // Remap legacy override keys to the renamed ids (new keys win on clash).
@@ -579,7 +579,7 @@ function computeEnabledPlugins(
   if ([...providersByKey.values()].some((ps) => ps.length > 1)) {
     const rawSelection = (
       storeData?.['@bbebee/plugin-manager:service-providers'] ??
-      storeData?.['@BBeBee/plugin-manager:service-providers']
+      storeData?.['@bbebee/plugin-manager:service-providers']
     ) as Record<string, string> | undefined
     // Selection values are provider plugin ids: remap legacy ones so a
     // choice made before the rename still points at the same provider.
@@ -590,7 +590,7 @@ function computeEnabledPlugins(
       : undefined
     const npmRecords = (
       storeData?.['@bbebee/plugin-manager:npm:installed'] ??
-      storeData?.['@BBeBee/plugin-manager:npm:installed']
+      storeData?.['@bbebee/plugin-manager:npm:installed']
     ) as Record<string, unknown> | undefined
     const active = resolveActiveProviders(
       providersByKey,

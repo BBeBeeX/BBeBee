@@ -14,7 +14,7 @@
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import { NOW_PLAYING_VIEWS } from '@BBeBee/plugin-now-playing/views'
+import { NOW_PLAYING_VIEWS } from '@bbebee/plugin-now-playing/views'
 import { NowPlayingBar } from './components/NowPlayingBar.js'
 import { NowPlayingScreen } from './components/NowPlayingScreen.js'
 import { NowPlayingStylesSection } from './components/NowPlayingStylesSection.js'

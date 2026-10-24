@@ -1,7 +1,7 @@
 import { createElement as h, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { Album, Artist, DownloadsService, Playlist, SourceError, Track, UiService } from '@BBeBee/protocol'
-import { playFromList, type SourcePaginationState } from '@BBeBee/plugin-sources/hooks'
+import { playFromList, type SourcePaginationState } from '@bbebee/plugin-sources/hooks'
 import { Button, Text, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { serviceOf } from '@BBeBee/ui-core'
 import { palettes, tokens } from '@BBeBee/ui-tokens'

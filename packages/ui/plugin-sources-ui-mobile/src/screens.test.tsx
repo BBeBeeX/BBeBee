@@ -29,7 +29,7 @@ import { Context, Service } from 'cordis'
 import { PathsNode } from '@BBeBee/core-paths-node'
 import { FsNode } from '@BBeBee/core-fs-node'
 import { DbNode } from '@BBeBee/core-db-node'
-import sourcesPlugin from '@BBeBee/plugin-sources'
+import sourcesPlugin from '@bbebee/plugin-sources'
 import type {
   Capabilities,
   HttpRequest,
@@ -42,8 +42,8 @@ import type {
 } from '@BBeBee/protocol'
 import { tempDir, tick } from '@BBeBee/kernel/testing'
 import { configureNative } from '@BBeBee/ui-kit-mobile'
-import httpPlugin from '@BBeBee/core-http-node'
-import sourceRuntime from '@BBeBee/plugin-source-runtime'
+import httpPlugin from '@bbebee/core-http-node'
+import sourceRuntime from '@bbebee/plugin-source-runtime'
 import { SearchScreen, SourceConfigureModal, TestScreen, inject } from './index.js'
 import sourcesCatalogue from '../../../feature/plugin-i18n/src/locales/sources.json'
 import appCatalogue from '../../../feature/plugin-i18n/src/locales/en.json'

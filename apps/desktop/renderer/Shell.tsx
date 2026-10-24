@@ -20,7 +20,7 @@ import {
 } from 'react'
 import type { Context } from 'cordis'
 import type { RouteContribution, SettingsContribution } from '@BBeBee/protocol'
-import { REGISTRY_VIEWS } from '@BBeBee/plugin-registry/views'
+import { REGISTRY_VIEWS } from '@bbebee/plugin-registry/views'
 import { PageMarqueeProvider, tablerIcon, useI18n, Toast } from '@BBeBee/ui-kit-desktop'
 import { SleepTimerIndicator, TopBar, WindowControls, type DraggableCSSProperties, type TopBarProps } from './TopBar.js'
 import { isMacPlatform, useIsFullscreen } from './platform.js'

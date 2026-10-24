@@ -3,7 +3,7 @@ import type { ChangeEvent, MouseEvent as ReactMouseEvent, ReactElement } from 'r
 import type { Context } from 'cordis'
 import type { ArtworkRef, LibraryService, PlaylistItem, PlaylistDetail, SourcesService, ShareService, Track } from '@BBeBee/protocol'
 import { tryParseUrn } from '@BBeBee/protocol'
-import { usePlaylist } from '@BBeBee/plugin-library/hooks'
+import { usePlaylist } from '@bbebee/plugin-library/hooks'
 import { resolveTrackSourceName, useResolvedArtwork, useTracksByUrn, useTransport } from '@BBeBee/toolkit/hooks'
 import { serviceOf, type MenuAnchor } from '@BBeBee/ui-core'
 import { sortMenuItems, usePlaylistMenu, useTrackMenu } from '@BBeBee/ui-menus'

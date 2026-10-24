@@ -12,7 +12,7 @@ import { DEFAULT_APP_SETTINGS } from '@BBeBee/protocol'
 import { fireEvent, render, cleanup, waitFor } from '@testing-library/react'
 import { DesktopLyrics } from './DesktopLyrics.js'
 import { DesktopLyricsSettingsCard } from './DesktopLyricsSettingsCard.js'
-import { DESKTOP_LYRICS_VIEWS } from '@BBeBee/plugin-desktop-lyrics/views'
+import { DESKTOP_LYRICS_VIEWS } from '@bbebee/plugin-desktop-lyrics/views'
 import pluginDesktopLyricsUi from './index.js'
 import lyricsCatalogue from '../../../feature/plugin-i18n/src/locales/lyrics.json'
 

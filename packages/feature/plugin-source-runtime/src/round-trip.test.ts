@@ -18,8 +18,8 @@ import { Context } from 'cordis'
 import { PathsNode } from '@BBeBee/core-paths-node'
 import { FsNode } from '@BBeBee/core-fs-node'
 import { DbNode } from '@BBeBee/core-db-node'
-import httpPlugin from '@BBeBee/core-http-node'
-import sourcesPlugin from '@BBeBee/plugin-sources'
+import httpPlugin from '@bbebee/core-http-node'
+import sourcesPlugin from '@bbebee/plugin-sources'
 import { CORE_MIGRATIONS, MigrationRunner } from '@BBeBee/kernel'
 import { tempDir, tick } from '@BBeBee/kernel/testing'
 import type { UrnKind } from '@BBeBee/protocol'
@@ -205,7 +205,7 @@ describe('a pasted string plays music, later', () => {
     )
     expect(before?.raw_json).toBeTruthy()
 
-    const { cacheEntities } = await import('@BBeBee/plugin-sources')
+    const { cacheEntities } = await import('@bbebee/plugin-sources')
     await cacheEntities(ctx.db, ctx.sources.sources[0]!.id, {
       tracks: [{ urn: before!.urn, title: 'Jóga', artists: [] }],
     })

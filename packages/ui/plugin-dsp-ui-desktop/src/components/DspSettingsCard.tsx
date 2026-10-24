@@ -4,7 +4,7 @@ import type { Context } from 'cordis'
 import type { UiService } from '@BBeBee/protocol'
 import { serviceOf } from '@BBeBee/toolkit/hooks'
 import { Button, Slider, useI18n } from '@BBeBee/ui-kit-desktop'
-import { useDsp } from '@BBeBee/plugin-dsp/hooks'
+import { useDsp } from '@bbebee/plugin-dsp/hooks'
 
 function Switch({
   checked,

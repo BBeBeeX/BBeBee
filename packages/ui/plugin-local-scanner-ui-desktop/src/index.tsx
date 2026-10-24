@@ -11,7 +11,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import type { ScanSpecifiedDir, Uri } from '@BBeBee/protocol'
-import { summarise, useScanErrors, useScanSpecifiedDirs, useScanState } from '@BBeBee/plugin-local-scanner/hooks'
+import { summarise, useScanErrors, useScanSpecifiedDirs, useScanState } from '@bbebee/plugin-local-scanner/hooks'
 import { Button, EmptyState, IconButton, List, Text, useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
 

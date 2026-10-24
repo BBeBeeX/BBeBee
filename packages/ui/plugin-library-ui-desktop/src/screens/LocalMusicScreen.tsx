@@ -11,7 +11,7 @@ import { LocalAlbumCard } from '../components/LocalAlbumCard.js'
 import { LibraryTrackRow } from '../components/LibraryTrackRow.js'
 import { BatchActionBar } from '../components/BatchActionBar.js'
 import { useTrackLibraryInfo } from '../hooks/useTrackLibraryInfo.js'
-import { fetchAllLocalAlbums, fetchAllLocalTracks } from '@BBeBee/plugin-library/hooks'
+import { fetchAllLocalAlbums, fetchAllLocalTracks } from '@bbebee/plugin-library/hooks'
 import { useTransport } from '@BBeBee/toolkit/hooks'
 
 type LocalTrackSortKey = 'default' | 'title' | 'artist' | 'album' | 'duration'

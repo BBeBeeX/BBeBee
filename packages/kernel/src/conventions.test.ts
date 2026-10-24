@@ -273,7 +273,7 @@ describe('workspace conventions', () => {
    * is the case that cost a day.
    *
    * The lint rules close the two ways around it: `no-console` in Layer 4, and
-   * a ban on importing `@BBeBee/plugin-log-*` so nobody reaches a transport
+   * a ban on importing `@bbebee/plugin-log-*` so nobody reaches a transport
    * directly. This is the other half — that the logging actually happens.
    *
    * Only plugin packages are asked. `source-rules` is pure logic with no

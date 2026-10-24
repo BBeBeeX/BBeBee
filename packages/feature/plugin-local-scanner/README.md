@@ -1,4 +1,4 @@
-# @BBeBee/plugin-local-scanner
+# @bbebee/plugin-local-scanner
 
 Layer 4 (feature) — `ctx.scanner`: the scanner for the local filesystem.
 

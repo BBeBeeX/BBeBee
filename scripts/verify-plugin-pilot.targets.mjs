@@ -85,9 +85,9 @@
 export const TARGETS = {
   visualizer: {
     pluginId: '@bbebee/plugin-visualizer', // registry entry id (= npm name)
-    // Publication name: npm (and the registry validator) only accept
-    // lowercase names, so the monorepo scope `@BBeBee` cannot be
-    // published as-is — the package is assembled under this name.
+    // Publication name: the workspace package was renamed to the
+    // lowercase `@bbebee` scope, so it now agrees with the npm name and
+    // no `--name` override is needed to assemble it under this name.
     npmName: '@bbebee/plugin-visualizer',
     versions: ['0.1.0', '0.1.1'],
     featureDir: 'packages/feature/plugin-visualizer',
@@ -109,7 +109,7 @@ export const TARGETS = {
       'packages/core/core-audio-mpv/BBeBee.plugin.json',
       'packages/feature/plugin-settings/BBeBee.plugin.json',
       'packages/feature/plugin-player/BBeBee.plugin.json',
-      // `ui` is contributed by the real @BBeBee/plugin-ui manifest
+      // `ui` is contributed by the real @bbebee/plugin-ui manifest
       // (contributes.services: ['ui']) — no synthetic stand-in. An
       // earlier round of this pilot synthesized a fake ui-kit manifest
       // on the mistaken premise that the shell provides `ui` without

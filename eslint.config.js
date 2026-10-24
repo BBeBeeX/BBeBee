@@ -109,9 +109,12 @@ const KERNEL_GUARD = {
 /**
  * Layer 2 packages, named as import patterns. Both forms are listed because a
  * gitignore-style `*` does not cross a `/`, so the bare name alone would let
- * `@BBeBee/core-desktop-bridge/main` through.
+ * `@bbebee/core-desktop-bridge/main` through. Both scopes are listed because
+ * the manifest plugins were renamed to `@bbebee/` while the manifest-less
+ * node implementations (`core-db-node`, `core-fs-node`, `core-paths-node`)
+ * still carry `@BBeBee/`.
  */
-const CORE_PACKAGES = ['@BBeBee/core-*', '@BBeBee/core-*/**']
+const CORE_PACKAGES = ['@BBeBee/core-*', '@BBeBee/core-*/**', '@bbebee/core-*', '@bbebee/core-*/**']
 
 /**
  * Layer 3 packages — the log transports — named as import patterns.
@@ -126,7 +129,7 @@ const CORE_PACKAGES = ['@BBeBee/core-*', '@BBeBee/core-*/**']
  * Both forms for the same reason as `CORE_PACKAGES`: a gitignore-style `*`
  * does not cross a `/`.
  */
-const LOG_PACKAGES = ['@BBeBee/plugin-log-*', '@BBeBee/plugin-log-*/**']
+const LOG_PACKAGES = ['@BBeBee/plugin-log-*', '@BBeBee/plugin-log-*/**', '@bbebee/plugin-log-*', '@bbebee/plugin-log-*/**']
 
 /**
  * The composition root: the only files allowed to call `createApp` and to name
@@ -272,7 +275,7 @@ export default tseslint.config(
             // options win for these files (later block replaces, not merges),
             // and the Layer 4 block below ignores this package to keep it so.
             {
-              group: ['@BBeBee/plugin-*', '@BBeBee/plugin-*/**'],
+              group: ['@BBeBee/plugin-*', '@BBeBee/plugin-*/**', '@bbebee/plugin-*', '@bbebee/plugin-*/**'],
               allowTypeImports: true,
               message:
                 'Layer 4 reaches other features through ctx services, events, or @BBeBee/toolkit — not imports. ' +
@@ -325,7 +328,7 @@ export default tseslint.config(
           patterns: [
             { group: [...PLATFORM_SDKS, ...CORE_PACKAGES, ...LOG_PACKAGES] },
             {
-              group: ['@BBeBee/plugin-*', '@BBeBee/plugin-*/**'],
+              group: ['@BBeBee/plugin-*', '@BBeBee/plugin-*/**', '@bbebee/plugin-*', '@bbebee/plugin-*/**'],
               allowTypeImports: true,
               message:
                 'Layer 4 plugins reach each other through ctx services, events, or @BBeBee/toolkit — not imports. ' +
@@ -426,8 +429,12 @@ export default tseslint.config(
             // exercising it rather than by reading it.
             '@BBeBee/plugin-*',
             '@BBeBee/plugin-*/**',
+            '@bbebee/plugin-*',
+            '@bbebee/plugin-*/**',
             '!@BBeBee/plugin-log-*',
             '!@BBeBee/plugin-log-*/**',
+            '!@bbebee/plugin-log-*',
+            '!@bbebee/plugin-log-*/**',
             '@BBeBee/ui-*',
             '@BBeBee/ui-*/**',
           ],
@@ -459,6 +466,8 @@ export default tseslint.config(
             ...CORE_PACKAGES,
             '@BBeBee/plugin-*',
             '@BBeBee/plugin-*/**',
+            '@bbebee/plugin-*',
+            '@bbebee/plugin-*/**',
             '@BBeBee/ui-*',
             '@BBeBee/ui-*/**',
           ],
@@ -534,7 +543,7 @@ export default tseslint.config(
     // platform symmetry that ADR-3 exists to preserve.
     files: ['apps/desktop/sidecar/**/*.ts'],
     rules: {
-      'no-restricted-imports': ['error', { patterns: ['@BBeBee/plugin-*'] }],
+      'no-restricted-imports': ['error', { patterns: ['@BBeBee/plugin-*', '@bbebee/plugin-*'] }],
     },
   },
 

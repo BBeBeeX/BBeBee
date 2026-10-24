@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/core-http-node",
+  "name": "@bbebee/core-http-node",
   "version": "0.0.0",
   "description": "ctx.http — outbound HTTP, the M1 slice.",
   "type": "module",
@@ -35,7 +35,7 @@
   "devDependencies": {
     "@BBeBee/core-fs-node": "workspace:*",
     "@BBeBee/core-paths-node": "workspace:*",
-    "@BBeBee/core-secrets-node": "workspace:*",
+    "@bbebee/core-secrets-node": "workspace:*",
     "@BBeBee/tooling-fixtures": "workspace:*"
   }
 }

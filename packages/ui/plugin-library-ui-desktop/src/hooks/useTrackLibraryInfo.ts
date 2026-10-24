@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Context } from 'cordis'
 import type { LibraryService, SourcesService, Track } from '@BBeBee/protocol'
-import { usePlaylists, useSaved } from '@BBeBee/plugin-library/hooks'
+import { usePlaylists, useSaved } from '@bbebee/plugin-library/hooks'
 import type { MenuAnchor, MenuItemSpec } from '@BBeBee/ui-core'
 import { serviceOf } from '@BBeBee/ui-core'
 import { useSaveToPlaylistMenu } from '@BBeBee/ui-menus'

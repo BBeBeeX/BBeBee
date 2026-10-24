@@ -19,7 +19,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { Context, Service } from 'cordis'
 import { tick } from '@BBeBee/kernel/testing'
 import { configureNative } from '@BBeBee/ui-kit-mobile'
-import { decodeMetadata, encodeMetadata } from '@BBeBee/plugin-share/metadata'
+import { decodeMetadata, encodeMetadata } from '@bbebee/plugin-share/metadata'
 import pluginShareUiMobile, { ShareHost } from './index.js'
 import shareCatalogue from '../../../feature/plugin-i18n/src/locales/share.json'
 

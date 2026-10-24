@@ -20,7 +20,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { BUILT_IN_CATALOGUES } from '@BBeBee/plugin-i18n'
+import { BUILT_IN_CATALOGUES } from '@bbebee/plugin-i18n'
 
 /** Subset of the preload bridge this hook needs; everything is optional. */
 interface BridgeLocaleApi {

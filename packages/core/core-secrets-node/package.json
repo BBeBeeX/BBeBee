@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/core-secrets-node",
+  "name": "@bbebee/core-secrets-node",
   "version": "0.0.0",
   "description": "ctx.secrets \u2014 credential storage for desktop and Node.",
   "type": "module",

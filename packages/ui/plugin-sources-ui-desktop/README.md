@@ -1,12 +1,12 @@
-# @BBeBee/plugin-sources-ui-desktop
+# @bbebee/plugin-sources-ui-desktop
 
 Layer 5 (ui) — the desktop view package for `plugin-sources` (headless): layout, gestures and event wiring, nothing more.
 
 ## Overview
 
-Binds the 4 view ids contributed by the headless package (`SOURCES_VIEWS`) to desktop kit components. All domain state comes from `@BBeBee/plugin-sources/hooks`; services are accessed through the injected `ctx.sources`; the headless package is only a devDependency (types/constants/tests) — not a runtime import, per the "Layer 5 sees Layer 4 as types only" rule.
+Binds the 4 view ids contributed by the headless package (`SOURCES_VIEWS`) to desktop kit components. All domain state comes from `@bbebee/plugin-sources/hooks`; services are accessed through the injected `ctx.sources`; the headless package is only a devDependency (types/constants/tests) — not a runtime import, per the "Layer 5 sees Layer 4 as types only" rule.
 
-> The album page has moved to `plugin-album-ui-desktop` (`album.view`). This package keeps only the five screens: library / search / source list / import / test; when the library and search screens navigate to an album they take the route id from `@BBeBee/plugin-album/views` (`ALBUM_VIEWS.album`).
+> The album page has moved to `plugin-album-ui-desktop` (`album.view`). This package keeps only the five screens: library / search / source list / import / test; when the library and search screens navigate to an album they take the route id from `@bbebee/plugin-album/views` (`ALBUM_VIEWS.album`).
 
 **Shared discipline** (file-header comment): the loading / empty / failed states must be kept distinct — conflating them leaves the user staring at a blank area with no idea whether scanning is unfinished or the library read failed. `Pending` (`EmptyState`) and `Failed` (⚠ + error message + a "Try again" retry) are the implementation of that discipline.
 

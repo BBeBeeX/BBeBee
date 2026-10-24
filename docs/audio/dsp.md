@@ -119,7 +119,7 @@ and gain returns. Without this, toggling or reordering an effect mid-playback cl
 
 Chain ordering, per-effect enabled states, and effect parameters are automatically persisted in `ctx.store`
 under the `'dsp'` namespace. Both desktop and mobile shells provide a dedicated DSP chain editor
-(`@BBeBee/plugin-dsp-ui-*`, registering `dsp.view`). To avoid redundant UI controls and keep the settings center clean,
+(`@bbebee/plugin-dsp-ui-*`, registering `dsp.view`). To avoid redundant UI controls and keep the settings center clean,
 the dedicated DSP panel is opened as a distinct page (`dsp.view`) via an action button in the playback settings section,
 rather than embedding a duplicate DSP section inside the main settings page.
 
@@ -139,7 +139,7 @@ rather than embedding a duplicate DSP section inside the main settings page.
 
 ### Native libavfilter adapters & ReplayGain integration (MPV engine)
 
-When running the native MPV engine (`@BBeBee/core-audio-mpv`), effects declare an optional `buildLavfi(params)` adapter to generate FFmpeg filtergraph fragments executed directly inside the native process:
+When running the native MPV engine (`@bbebee/core-audio-mpv`), effects declare an optional `buildLavfi(params)` adapter to generate FFmpeg filtergraph fragments executed directly inside the native process:
 - `normalize`:
   - **Track / Album mode**: Handled directly by libmpv native ReplayGain properties (`replaygain=track|album`, `replaygain-preamp`, `replaygain-clip`). `buildLavfi()` emits an empty string `""` to completely prevent the **double-gain conflict** where volume scaling would otherwise be applied twice (once by libmpv's native decoder and once by libavfilter).
   - **Dynamic EBU R128 mode (`loudnorm`)**: Native `replaygain` is set to `no`, and `buildLavfi()` generates the real-time EBU R128 filter `loudnorm=I=${targetLufs}:TP=-1.0:LRA=11`.

@@ -402,10 +402,10 @@ registration view.
 
 | Service key | `apps/mobile` registers | `apps/desktop` registers |
 |---|---|---|
-| `ctx.paths` | `core-paths-expo` | `PathsBridge` (`@BBeBee/core-desktop-bridge`) / `core-paths-node` |
-| `ctx.fs` | `core-fs-expo` | `FsBridge` (`@BBeBee/core-desktop-bridge`) / `core-fs-node` |
+| `ctx.paths` | `core-paths-expo` | `PathsBridge` (`@bbebee/core-desktop-bridge`) / `core-paths-node` |
+| `ctx.fs` | `core-fs-expo` | `FsBridge` (`@bbebee/core-desktop-bridge`) / `core-fs-node` |
 | `ctx.store` | `core-store-fs` | `core-store-fs` |
-| `ctx.db` | `core-db-expo` | `DbBridge` (`@BBeBee/core-desktop-bridge`) / `core-db-node` |
+| `ctx.db` | `core-db-expo` | `DbBridge` (`@bbebee/core-desktop-bridge`) / `core-db-node` |
 | `ctx.http` | `core-http-rn` (includes WebSocket) | `core-http-node` (with `bridgeFetch` & WebSocket) |
 | `ctx.secrets` | `core-secrets-expo` | `core-secrets-node` (with `safeStorageCodec`) |
 | `ctx.mediaSession` | `core-media-session-rn` | `core-media-session-tauri` |

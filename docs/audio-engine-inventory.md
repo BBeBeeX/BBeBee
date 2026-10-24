@@ -459,7 +459,7 @@ BBeBee 桌面端（基于 Tauri v2 现代化的 `apps/desktop`）采用基于独
    - `"fetch:audio-engine": "node ../../scripts/fetch-audio-engine.mjs --app desktop"`
    - `"test:audio-engine": "node scripts/test-audio-engine.js"`
    - `"build": "vite build && node scripts/build-sidecar.js"`
-   - `"@BBeBee/core-audio-mpv": "workspace:*"`
+   - `"@bbebee/core-audio-mpv": "workspace:*"`
 2. **`apps/desktop/src-tauri/tauri.conf.json`**:
    - 行 46–50 `bundle.resources`:
      ```json

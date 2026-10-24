@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-i18n",
+  "name": "@bbebee/plugin-i18n",
   "version": "0.0.0",
   "description": "Built-in i18n service: catalogue registry, key-granular fallback and locale resolution for ctx.i18n.",
   "type": "module",

@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-inspector-ui-desktop",
+  "name": "@bbebee/plugin-inspector-ui-desktop",
   "version": "0.0.0",
   "description": "React DOM view for the Cordis Plugin Topology Explorer.",
   "type": "module",
@@ -29,7 +29,7 @@
   },
   "dependencies": {
     "@BBeBee/kernel": "workspace:*",
-    "@BBeBee/plugin-inspector": "workspace:*",
+    "@bbebee/plugin-inspector": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/toolkit": "workspace:*",
     "@BBeBee/ui-kit-desktop": "workspace:*",

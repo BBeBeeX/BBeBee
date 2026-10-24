@@ -19,7 +19,7 @@ import type {
   PluginManagerService,
 } from '@BBeBee/protocol'
 import { DEFAULT_PROXY_SETTINGS } from '@BBeBee/protocol'
-import { useAppSettings, useAvailableSettings, useCacheStats } from '@BBeBee/plugin-settings/hooks'
+import { useAppSettings, useAvailableSettings, useCacheStats } from '@bbebee/plugin-settings/hooks'
 import { GeneralSection } from './components/sections/GeneralSection.js'
 import { PlaybackSection } from './components/sections/PlaybackSection.js'
 import { NetworkSection } from './components/sections/NetworkSection.js'

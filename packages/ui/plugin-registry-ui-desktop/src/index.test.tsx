@@ -37,7 +37,7 @@ import {
 import { formatDateTime, formatDateMs } from './utils/format.js'
 import { isOfficialEntry, parseRepoOwner } from './utils/repo.js'
 import plugin from './index.js'
-import { REGISTRY_VIEWS } from '@BBeBee/plugin-registry/views'
+import { REGISTRY_VIEWS } from '@bbebee/plugin-registry/views'
 
 const memoryStorage = new Map<string, string>()
 const mockLocalStorage = {

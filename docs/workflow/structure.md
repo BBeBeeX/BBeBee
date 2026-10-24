@@ -433,14 +433,14 @@ const KERNEL_GUARD = {
 }
 
 // Both forms: a gitignore-style `*` does not cross a `/`, so the bare name
-// alone would let `@BBeBee/core-desktop-bridge/main` through.
-const CORE_PACKAGES = ['@BBeBee/core-*', '@BBeBee/core-*/**']
+// alone would let `@bbebee/core-desktop-bridge/main` through.
+const CORE_PACKAGES = ['@BBeBee/core-*', '@BBeBee/core-*/**', '@bbebee/core-*', '@bbebee/core-*/**']
 
 // services/logging.md — Layer 3. Everything above it logs through `ctx.logger`, so nothing
 // above it names a transport: an import pins one implementation into code
 // whose point is not to know, and keeps it loaded for as long as the importer
 // lives.
-const LOG_PACKAGES = ['@BBeBee/plugin-log-*', '@BBeBee/plugin-log-*/**']
+const LOG_PACKAGES = ['@BBeBee/plugin-log-*', '@BBeBee/plugin-log-*/**', '@bbebee/plugin-log-*', '@bbebee/plugin-log-*/**']
 
 // The composition root: the only files that may call createApp and name a
 // Layer 2 package by import. `apps/mobile/generated/plugins.ts` is codegen and is
@@ -484,8 +484,8 @@ export default tseslint.config(
       'no-restricted-imports': ['error', {
         paths: [KERNEL_GUARD],
         patterns: [...PLATFORM_SDKS, ...CORE_PACKAGES,
-                   '@BBeBee/plugin-*', '@BBeBee/plugin-*/**',
-                   '!@BBeBee/plugin-log-*', '!@BBeBee/plugin-log-*/**',
+                   '@BBeBee/plugin-*', '@BBeBee/plugin-*/**', '@bbebee/plugin-*', '@bbebee/plugin-*/**',
+                   '!@BBeBee/plugin-log-*', '!@BBeBee/plugin-log-*/**', '!@bbebee/plugin-log-*', '!@bbebee/plugin-log-*/**',
                    '@BBeBee/ui-*', '@BBeBee/ui-*/**'],
       }],
     },
@@ -581,7 +581,7 @@ export default tseslint.config(
     // architecture/layers.md §2 — sidecar is an IPC host. Domain logic there breaks platform symmetry,
     // and it would put Layer 4 concerns below Layer 2.
     files: ['apps/desktop/sidecar/**/*.ts'],
-    rules: { 'no-restricted-imports': ['error', { patterns: ['@BBeBee/plugin-*'] }] },
+    rules: { 'no-restricted-imports': ['error', { patterns: ['@BBeBee/plugin-*', '@bbebee/plugin-*'] }] },
   },
   {
     // Tests are not shipped, so the SDK ban does not apply: a conformance

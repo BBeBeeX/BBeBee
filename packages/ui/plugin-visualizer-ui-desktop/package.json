@@ -1,7 +1,7 @@
 {
-  "name": "@BBeBee/plugin-visualizer-ui-desktop",
+  "name": "@bbebee/plugin-visualizer-ui-desktop",
   "version": "0.0.0",
-  "description": "Desktop views for @BBeBee/plugin-visualizer (Audio Visualizer).",
+  "description": "Desktop views for @bbebee/plugin-visualizer (Audio Visualizer).",
   "type": "module",
   "license": "MIT",
   "exports": {
@@ -18,7 +18,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-visualizer": "workspace:*",
+    "@bbebee/plugin-visualizer": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/toolkit": "workspace:*",
     "@BBeBee/ui-kit-desktop": "workspace:*",

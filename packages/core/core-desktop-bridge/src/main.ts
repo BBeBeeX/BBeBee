@@ -31,7 +31,7 @@ import {
 import { PathsNode } from '@BBeBee/core-paths-node'
 import { FsNode } from '@BBeBee/core-fs-node'
 import { DbNode } from '@BBeBee/core-db-node'
-import { CodecNode } from '@BBeBee/core-codec-node'
+import { CodecNode } from '@bbebee/core-codec-node'
 import {
   CH,
   serializeBridgeError,

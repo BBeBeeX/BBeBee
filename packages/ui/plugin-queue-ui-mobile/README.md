@@ -1,4 +1,4 @@
-# @BBeBee/plugin-queue-ui-mobile
+# @bbebee/plugin-queue-ui-mobile
 
 Layer 5 (ui) — the mobile view package for `plugin-queue` (headless): the twin half of `plugin-queue-ui-desktop`.
 

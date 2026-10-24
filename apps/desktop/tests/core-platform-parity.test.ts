@@ -12,18 +12,18 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from 'cordis'
 import { mediaSessionConformance } from '@BBeBee/protocol/conformance'
-import type { BridgeEvent } from '@BBeBee/core-desktop-bridge'
-import backgroundPlugin, { BackgroundTauri } from '@BBeBee/core-background-tauri'
+import type { BridgeEvent } from '@bbebee/core-desktop-bridge'
+import backgroundPlugin, { BackgroundTauri } from '@bbebee/core-background-tauri'
 import devicePlugin, {
   DeviceTauri,
   type BatteryLike,
   type NavigatorLike,
   type EventTargetLike,
-} from '@BBeBee/core-device-tauri'
+} from '@bbebee/core-device-tauri'
 import mediaSessionPlugin, {
   MediaSessionTauri,
   type MediaSessionLike,
-} from '@BBeBee/core-media-session-tauri'
+} from '@bbebee/core-media-session-tauri'
 import {
   createBridgeApi,
   createPreloadApi,

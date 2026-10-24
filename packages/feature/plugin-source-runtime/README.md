@@ -1,4 +1,4 @@
-# @BBeBee/plugin-source-runtime
+# @bbebee/plugin-source-runtime
 
 Layer 4 (feature) — **the only source-document interpreter in the entire repository**: it turns the "music source string" the user imports as text (a declarative JSON rule document) into a playable `MediaProvider`.
 

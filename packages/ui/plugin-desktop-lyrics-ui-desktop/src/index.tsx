@@ -8,7 +8,7 @@ import type { Context } from 'cordis'
 import { DesktopLyrics, DesktopLyricsErrorBoundary, type DesktopLyricsProps } from './DesktopLyrics.js'
 import { DesktopLyricsSettingsCard } from './DesktopLyricsSettingsCard.js'
 import { DesktopLyricsToggle } from './DesktopLyricsToggle.js'
-import { DESKTOP_LYRICS_VIEWS } from '@BBeBee/plugin-desktop-lyrics/views'
+import { DESKTOP_LYRICS_VIEWS } from '@bbebee/plugin-desktop-lyrics/views'
 
 export { DesktopLyrics, DesktopLyricsErrorBoundary, type DesktopLyricsProps, DesktopLyricsSettingsCard, DesktopLyricsToggle }
 

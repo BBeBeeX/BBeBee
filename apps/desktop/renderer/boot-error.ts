@@ -1,4 +1,4 @@
-import { BUILT_IN_CATALOGUES } from '@BBeBee/plugin-i18n'
+import { BUILT_IN_CATALOGUES } from '@bbebee/plugin-i18n'
 
 export function renderBootErrorMessage(error: string): string {
   const isZh =

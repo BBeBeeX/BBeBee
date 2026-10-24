@@ -26,8 +26,8 @@ import type {
   NowPlaying,
   TransportCommand,
 } from '@BBeBee/protocol'
-import { requireBridge } from '@BBeBee/core-desktop-bridge'
-import type { BridgeApi } from '@BBeBee/core-desktop-bridge'
+import { requireBridge } from '@bbebee/core-desktop-bridge'
+import type { BridgeApi } from '@bbebee/core-desktop-bridge'
 
 /** The slice of `navigator.mediaSession` used, structurally so tests can fake it. */
 export interface MediaSessionLike {

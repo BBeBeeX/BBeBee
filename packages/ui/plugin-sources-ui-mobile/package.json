@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-sources-ui-mobile",
+  "name": "@bbebee/plugin-sources-ui-mobile",
   "version": "0.0.0",
   "description": "React Native views for plugin-sources.",
   "type": "module",
@@ -18,9 +18,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-album": "workspace:*",
-    "@BBeBee/plugin-cache": "workspace:*",
-    "@BBeBee/plugin-library": "workspace:*",
+    "@bbebee/plugin-album": "workspace:*",
+    "@bbebee/plugin-cache": "workspace:*",
+    "@bbebee/plugin-library": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/ui-core": "workspace:*",
     "@BBeBee/ui-kit-mobile": "workspace:*",
@@ -30,9 +30,9 @@
     "react": "19.2.3"
   },
   "devDependencies": {
-    "@BBeBee/plugin-sources": "workspace:*",
-    "@BBeBee/plugin-source-runtime": "workspace:*",
-    "@BBeBee/core-http-node": "workspace:*",
+    "@bbebee/plugin-sources": "workspace:*",
+    "@bbebee/plugin-source-runtime": "workspace:*",
+    "@bbebee/core-http-node": "workspace:*",
     "@types/react": "^19.2.0",
     "vitest": "^4.1.11",
     "@BBeBee/core-paths-node": "workspace:*",

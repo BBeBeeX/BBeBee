@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-source-runtime",
+  "name": "@bbebee/plugin-source-runtime",
   "version": "0.0.0",
   "description": "plugin-source-runtime \u2014 interprets imported source strings.",
   "type": "module",
@@ -36,11 +36,11 @@
   "devDependencies": {
     "@BBeBee/core-db-node": "workspace:*",
     "@BBeBee/core-fs-node": "workspace:*",
-    "@BBeBee/core-http-node": "workspace:*",
+    "@bbebee/core-http-node": "workspace:*",
     "@BBeBee/core-paths-node": "workspace:*",
     "@BBeBee/kernel": "workspace:*",
-    "@BBeBee/plugin-sources": "workspace:*",
-    "@BBeBee/core-js-quickjs-node": "workspace:*",
-    "@BBeBee/core-secrets-node": "workspace:*"
+    "@bbebee/plugin-sources": "workspace:*",
+    "@bbebee/core-js-quickjs-node": "workspace:*",
+    "@bbebee/core-secrets-node": "workspace:*"
   }
 }

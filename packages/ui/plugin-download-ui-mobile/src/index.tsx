@@ -11,14 +11,14 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import type { DownloadTask, PlayerService } from '@BBeBee/protocol'
-import { DOWNLOADS_VIEWS } from '@BBeBee/plugin-download/views'
+import { DOWNLOADS_VIEWS } from '@bbebee/plugin-download/views'
 import {
   downloadProgress,
   holdLabel,
   summariseDownloads,
   useDownloadPolicy,
   useDownloadTasks,
-} from '@BBeBee/plugin-download/hooks'
+} from '@bbebee/plugin-download/hooks'
 import { Button, EmptyState, IconButton, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import type { UseI18nResult } from '@BBeBee/ui-kit-mobile'
 import { serviceOf } from '@BBeBee/ui-core'

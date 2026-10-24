@@ -7,8 +7,8 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { Button, Slider, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { palettes, tokens } from '@BBeBee/ui-tokens'
-import { useDsp } from '@BBeBee/plugin-dsp/hooks'
-import { EQ10_BANDS } from '@BBeBee/plugin-dsp/effects'
+import { useDsp } from '@bbebee/plugin-dsp/hooks'
+import { EQ10_BANDS } from '@bbebee/plugin-dsp/effects'
 
 export interface DspScreenProps {
   ctx: Context

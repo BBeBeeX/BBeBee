@@ -17,7 +17,7 @@ import { CapabilityError } from '@BBeBee/protocol'
 import { PathsNode } from '@BBeBee/core-paths-node'
 import { FsNode } from '@BBeBee/core-fs-node'
 import { diffSnapshots, snapshotContext, tempDir, tick } from '@BBeBee/kernel/testing'
-import { SecretsNode } from '@BBeBee/core-secrets-node'
+import { SecretsNode } from '@bbebee/core-secrets-node'
 import type { Cookie } from '@BBeBee/protocol'
 import plugin, { jarStore, type HttpNode } from './index.js'
 

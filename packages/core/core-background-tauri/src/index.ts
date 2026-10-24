@@ -17,8 +17,8 @@ import { Service } from 'cordis'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import type { BackgroundService, Disposable } from '@BBeBee/protocol'
-import { requireBridge } from '@BBeBee/core-desktop-bridge'
-import type { BridgeApi } from '@BBeBee/core-desktop-bridge'
+import { requireBridge } from '@bbebee/core-desktop-bridge'
+import type { BridgeApi } from '@bbebee/core-desktop-bridge'
 
 export interface BackgroundTauriConfig {
   bridge?: BridgeApi

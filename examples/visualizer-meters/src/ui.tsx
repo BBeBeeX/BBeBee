@@ -2,7 +2,7 @@
  * bbebee-plugin-visualizer-meters — desktop UI half.
  *
  * One view, three meters, all fed by the `visualizer` service that the
- * first-party `@BBeBee/plugin-visualizer` plugin provides:
+ * first-party `@bbebee/plugin-visualizer` plugin provides:
  *
  * - **Spectrum** — frequency bars over logarithmically spaced bands.
  * - **Spectrogram** — scrolling waterfall of past spectrum frames.

@@ -1,4 +1,4 @@
-# @BBeBee/plugin-queue-ui-desktop
+# @bbebee/plugin-queue-ui-desktop
 
 Layer 5 (ui) — the desktop view package for `plugin-queue` (headless): the up-next queue screen.
 

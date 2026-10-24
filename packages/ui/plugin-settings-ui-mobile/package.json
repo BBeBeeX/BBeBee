@@ -1,7 +1,7 @@
 {
-  "name": "@BBeBee/plugin-settings-ui-mobile",
+  "name": "@bbebee/plugin-settings-ui-mobile",
   "version": "0.0.0",
-  "description": "React Native views for @BBeBee/plugin-settings.",
+  "description": "React Native views for @bbebee/plugin-settings.",
   "type": "module",
   "license": "MIT",
   "exports": {
@@ -18,8 +18,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-cache": "workspace:*",
-    "@BBeBee/plugin-settings": "workspace:*",
+    "@bbebee/plugin-cache": "workspace:*",
+    "@bbebee/plugin-settings": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/ui-core": "workspace:*",
     "@BBeBee/ui-kit-mobile": "workspace:*",

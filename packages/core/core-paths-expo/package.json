@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/core-paths-expo",
+  "name": "@bbebee/core-paths-expo",
   "version": "0.0.0",
   "description": "Well-known directories on iOS and Android.",
   "type": "module",

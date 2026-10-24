@@ -9,7 +9,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { serviceOf } from '@BBeBee/ui-core'
 import type { UiService, DeviceService } from '@BBeBee/protocol'
-import { SETTINGS_VIEWS } from '@BBeBee/plugin-settings/views'
+import { SETTINGS_VIEWS } from '@bbebee/plugin-settings/views'
 
 interface WindowWithBBeBee {
   BBeBee?: {

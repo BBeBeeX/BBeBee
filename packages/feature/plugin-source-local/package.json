@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-source-local",
+  "name": "@bbebee/plugin-source-local",
   "version": "0.0.0",
   "description": "plugin-source-local — the files on this device, as a MediaProvider.",
   "type": "module",
@@ -36,7 +36,7 @@
     "@BBeBee/core-db-node": "workspace:*",
     "@BBeBee/core-fs-node": "workspace:*",
     "@BBeBee/core-paths-node": "workspace:*",
-    "@BBeBee/plugin-sources": "workspace:*",
-    "@BBeBee/plugin-local-scanner": "workspace:*"
+    "@bbebee/plugin-sources": "workspace:*",
+    "@bbebee/plugin-local-scanner": "workspace:*"
   }
 }

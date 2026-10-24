@@ -1,7 +1,7 @@
 {
-  "name": "@BBeBee/plugin-settings-ui-desktop",
+  "name": "@bbebee/plugin-settings-ui-desktop",
   "version": "0.0.0",
-  "description": "React DOM views for @BBeBee/plugin-settings.",
+  "description": "React DOM views for @bbebee/plugin-settings.",
   "type": "module",
   "license": "MIT",
   "exports": {
@@ -18,10 +18,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/plugin-cache": "workspace:*",
-    "@BBeBee/plugin-local-scanner": "workspace:*",
-    "@BBeBee/plugin-settings": "workspace:*",
-    "@BBeBee/plugin-sources": "workspace:*",
+    "@bbebee/plugin-cache": "workspace:*",
+    "@bbebee/plugin-local-scanner": "workspace:*",
+    "@bbebee/plugin-settings": "workspace:*",
+    "@bbebee/plugin-sources": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/toolkit": "workspace:*",
     "@BBeBee/ui-core": "workspace:*",
@@ -32,7 +32,7 @@
   },
   "devDependencies": {
     "@BBeBee/kernel": "workspace:*",
-    "@BBeBee/plugin-i18n": "workspace:*",
+    "@bbebee/plugin-i18n": "workspace:*",
     "@testing-library/react": "^16.3.3",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",

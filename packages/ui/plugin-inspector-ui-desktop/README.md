@@ -1,4 +1,4 @@
-# @BBeBee/plugin-inspector-ui-desktop
+# @bbebee/plugin-inspector-ui-desktop
 
 Layer 5 (ui) — the desktop view package for `plugin-inspector`: the renderer for the plugin graph (fiber tree + labeled effects).
 

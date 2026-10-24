@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-queue",
+  "name": "@bbebee/plugin-queue",
   "version": "0.0.0",
   "description": "plugin-queue — the up-next list, as a surface plugin.",
   "type": "module",

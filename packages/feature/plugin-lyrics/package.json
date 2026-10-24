@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-lyrics",
+  "name": "@bbebee/plugin-lyrics",
   "version": "0.0.0",
   "description": "plugin-lyrics — lyric retrieval, caching, synchronization and state.",
   "type": "module",

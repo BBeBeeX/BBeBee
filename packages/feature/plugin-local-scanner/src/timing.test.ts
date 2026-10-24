@@ -8,7 +8,7 @@ import { FsNode } from '@BBeBee/core-fs-node'
 import { DbNode } from '@BBeBee/core-db-node'
 import { tempDir, tick } from '@BBeBee/kernel/testing'
 import { pathToFileURL } from 'node:url'
-import codecPlugin from '@BBeBee/core-codec-node'
+import codecPlugin from '@bbebee/core-codec-node'
 import { Scanner } from './index.js'
 
 function frame(id: string, value: string): Uint8Array {

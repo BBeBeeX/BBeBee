@@ -6,7 +6,7 @@ import {
   useSearchSourceSelection,
   useSourceSearch,
   type SearchInterfaceKind,
-} from '@BBeBee/plugin-sources/hooks'
+} from '@bbebee/plugin-sources/hooks'
 import {
   Button,
   ContextMenu,

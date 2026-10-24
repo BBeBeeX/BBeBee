@@ -148,7 +148,9 @@ describe('the bootstrap detector', () => {
 })
 
 /**
- * `@BBeBee/plugin-*` specifiers this source reaches for as *values*.
+ * `@BBeBee/plugin-*` / `@bbebee/plugin-*` specifiers this source reaches
+ * for as *values* (both scopes: the manifest plugins were renamed to
+ * `@bbebee/`, but an old-scope import would be the same violation).
  *
  * `import type` / `export type` and all-inline-typed specifier lists are not
  * values — the import matrix permits L4→L4 types. Everything else that names
@@ -159,7 +161,7 @@ describe('the bootstrap detector', () => {
  */
 export function valueImportsOfPlugin(source: string): string[] {
   const out: string[] = []
-  const isPlugin = (spec: string): boolean => /^@BBeBee\/plugin-[^/]+(\/|$)/.test(spec)
+  const isPlugin = (spec: string): boolean => /^@(?:BBeBee|bbebee)\/plugin-[^/]+(\/|$)/.test(spec)
 
   /** True when a static import/export clause carries no runtime binding. */
   const clauseIsTypeOnly = (typeKeyword: string | undefined, clause: string): boolean => {
@@ -203,6 +205,9 @@ describe('the value-import detector', () => {
   it('sees value imports of plugin packages', () => {
     expect(valueImportsOfPlugin("import { x } from '@BBeBee/plugin-a/hooks'")).toEqual([
       '@BBeBee/plugin-a/hooks',
+    ])
+    expect(valueImportsOfPlugin("import { x } from '@bbebee/plugin-a/hooks'")).toEqual([
+      '@bbebee/plugin-a/hooks',
     ])
     expect(valueImportsOfPlugin("export * from '@BBeBee/plugin-a'")).toEqual(['@BBeBee/plugin-a'])
     expect(valueImportsOfPlugin("import '@BBeBee/plugin-a'")).toEqual(['@BBeBee/plugin-a'])
@@ -293,7 +298,7 @@ describe('the logs layer', () => {
       if (/^apps\/[^/]+\/generated\//.test(file)) continue
 
       const source = await readFile(join(workspaceRoot, file), 'utf8')
-      if (/from '@BBeBee\/plugin-log-/.test(source)) offenders.push(file)
+      if (/from '@(?:BBeBee|bbebee)\/plugin-log-/.test(source)) offenders.push(file)
     }
 
     expect(
@@ -316,11 +321,13 @@ describe('the logs layer', () => {
         dependencies?: Record<string, string>
       }
       for (const dep of Object.keys(parsed.dependencies ?? {})) {
-        // `@BBeBee/plugin-log-*` is a sibling; anything else under
-        // `@BBeBee/plugin-*` or `@BBeBee/ui-*` is above this layer, and
-        // `core-*` is below but reachable only as a service key.
-        const above = /^@BBeBee\/(ui-|core-)/.test(dep) ||
-          (dep.startsWith('@BBeBee/plugin-') && !dep.startsWith('@BBeBee/plugin-log-'))
+        // `@bbebee/plugin-log-*` (and the legacy `@BBeBee/` form) is a
+        // sibling; anything else under `plugin-*` or `ui-*` is above this
+        // layer, and `core-*` is below but reachable only as a service key.
+        const above = /^@(?:BBeBee|bbebee)\/(ui-|core-)/.test(dep) ||
+          ((dep.startsWith('@BBeBee/plugin-') || dep.startsWith('@bbebee/plugin-')) &&
+            !dep.startsWith('@BBeBee/plugin-log-') &&
+            !dep.startsWith('@bbebee/plugin-log-'))
         if (above) offenders.push(`${pkg} depends on ${dep}`)
       }
     }
@@ -340,7 +347,7 @@ describe('the logs layer', () => {
  * and reads exactly the same.
  */
 describe('the feature layer', () => {
-  /** `@BBeBee/*` package name of `packages/feature/<dir>`, cached. */
+  /** `@bbebee/*` package name of `packages/feature/<dir>`, cached. */
   const packageNames = new Map<string, string>()
   async function packageNameOf(featureDir: string): Promise<string | undefined> {
     const cached = packageNames.get(featureDir)

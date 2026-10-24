@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-registry",
+  "name": "@bbebee/plugin-registry",
   "version": "0.0.0",
   "description": "ctx.contentRegistry — the community content index: update checks and installs for music sources, lyric sources, themes and desktop plugins.",
   "type": "module",

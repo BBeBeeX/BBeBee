@@ -1,5 +1,5 @@
 {
-  "name": "@BBeBee/plugin-log-console",
+  "name": "@bbebee/plugin-log-console",
   "version": "0.0.0",
   "description": "Development log transport writing to the console.",
   "type": "module",

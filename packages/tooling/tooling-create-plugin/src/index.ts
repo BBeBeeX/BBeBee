@@ -95,11 +95,10 @@ export function render(options: CreateOptions): CreatedFile[] {
   }
 
   const pkg = packageNameFor(options.kind, options.name)
-  // Manifest ids use the lowercase scope to match the plugin's future npm
-  // name; the workspace package name keeps the established `@BBeBee/`
+  // Manifest ids and workspace package names both use the lowercase
   // scope, exactly like the existing built-in plugins after the rename.
   const id = `@bbebee/${pkg}`
-  const pkgName = `@BBeBee/${pkg}`
+  const pkgName = `@bbebee/${pkg}`
   const service = options.service ?? serviceNameFor(options.name)
   const cls = classNameFor(options.name)
   const capabilities = options.capabilities ?? []
@@ -299,7 +298,7 @@ describe('${pkg}', () => {
       contents:
         JSON.stringify(
           {
-            name: `@BBeBee/${uiPkg}`,
+            name: `@bbebee/${uiPkg}`,
             version: '0.0.0',
             description: `${target === 'desktop' ? 'React DOM' : 'React Native'} views for ${id}.`,
             type: 'module',

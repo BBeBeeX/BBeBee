@@ -1,10 +1,10 @@
-# @BBeBee/plugin-library-ui-desktop
+# @bbebee/plugin-library-ui-desktop
 
 Layer 5 (ui) — the desktop view package for `plugin-library` (headless): the unified music library home, local music, playlist detail, collection detail, and favorites.
 
 ## Overview
 
-Layout, gestures and event wiring; every derived value comes from `@BBeBee/plugin-library/hooks` and `@BBeBee/ui-menus`. `inject = ['ui', 'library', 'player', 'sources']`; `downloads` and friends are read optionally via `serviceOf` (the matching control is not drawn without them).
+Layout, gestures and event wiring; every derived value comes from `@bbebee/plugin-library/hooks` and `@BBeBee/ui-menus`. `inject = ['ui', 'library', 'player', 'sources']`; `downloads` and friends are read optionally via `serviceOf` (the matching control is not drawn without them).
 
 ## Registered views
 

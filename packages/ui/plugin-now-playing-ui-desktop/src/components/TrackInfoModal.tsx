@@ -2,7 +2,7 @@ import { createElement as h, useCallback, useEffect, useRef, useState } from 're
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { Track } from '@BBeBee/protocol'
-import { useTrackDetails } from '@BBeBee/plugin-now-playing/hooks'
+import { useTrackDetails } from '@bbebee/plugin-now-playing/hooks'
 import { Sheet, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 
 export interface TrackInfoModalProps {

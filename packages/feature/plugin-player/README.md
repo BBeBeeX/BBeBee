@@ -1,4 +1,4 @@
-# @BBeBee/plugin-player
+# @bbebee/plugin-player
 
 Layer 4 (feature) — `ctx.player`: transport, queue, resolution, history.
 

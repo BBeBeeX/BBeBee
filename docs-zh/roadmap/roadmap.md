@@ -100,8 +100,8 @@
 > - **统一跨平台效果**：EQ、normalize、compressor 与 reverb（以及其余 5 种效果）各凭一份纯 Web Audio 实现，即可在桌面端、iOS 与 Android 上运行。
 > - **防爆音音频过渡**：音频图拓扑重接（启用/禁用/重排效果）使用 `ctx.audio.dipVolume(20)` 在 20ms 内指数级淡出并淡入增益，消除爆音与爆鸣。参数更新（如拖动 EQ 滑块）通过 `setTargetAtTime` 平滑应用，无需重建音频图。
 > - **Dropout 安全保护**：`tempo-pitch` 监控音频 dropout，在资源受限平台上自动禁用自身，保护效果链其余部分不被拖垮。
-> - **效果链编辑器 UI**：`@BBeBee/plugin-dsp-ui-desktop` 与 `@BBeBee/plugin-dsp-ui-mobile` 提供 10 段图形 EQ 滑块、拖拽/重排控制、单独旁通（bypass）开关、延迟报告与预设选择。
-> - **设置页集成**：`@BBeBee/plugin-settings-ui-desktop` 与 `@BBeBee/plugin-settings-ui-mobile` 在"播放" / 音频设置中直接提供 EQ、Normalize、Compressor 与 Reverb 的开关、预设与滑块，并设有专门的 DSP 选项卡与导航路由。
+> - **效果链编辑器 UI**：`@bbebee/plugin-dsp-ui-desktop` 与 `@bbebee/plugin-dsp-ui-mobile` 提供 10 段图形 EQ 滑块、拖拽/重排控制、单独旁通（bypass）开关、延迟报告与预设选择。
+> - **设置页集成**：`@bbebee/plugin-settings-ui-desktop` 与 `@bbebee/plugin-settings-ui-mobile` 在"播放" / 音频设置中直接提供 EQ、Normalize、Compressor 与 Reverb 的开关、预设与滑块，并设有专门的 DSP 选项卡与导航路由。
 > - **组合根已启用**：在 `apps/desktop/renderer/plugins.ts` 与 `apps/mobile/src/plugins.ts` 中均已加载启用。
 
 **完成标准**

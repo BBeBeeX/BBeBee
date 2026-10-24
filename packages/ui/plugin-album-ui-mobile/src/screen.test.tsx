@@ -17,7 +17,7 @@ import { Context, Service } from 'cordis'
 import type { AlbumDetail, DownloadTask, Track } from '@BBeBee/protocol'
 import { tick } from '@BBeBee/kernel/testing'
 import { configureNative } from '@BBeBee/ui-kit-mobile'
-import { LIBRARY_VIEWS } from '@BBeBee/plugin-library/views'
+import { LIBRARY_VIEWS } from '@bbebee/plugin-library/views'
 import albumCatalogue from '../../../feature/plugin-i18n/src/locales/album.json'
 import { AlbumScreen } from './index.js'
 

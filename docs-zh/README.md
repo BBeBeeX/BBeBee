@@ -110,7 +110,7 @@ pnpm dev:desktop # 桌面端开发（Tauri v2 + Vite HMR + Node.js sidecar）
 
 - **Layer 0–5** —— [architecture/layers.md §1](./architecture/layers.md#1-分层模型) 的六个层：协议、内核、核心插件、日志传输、功能插件、UI 与业务功能。全文以"Layer 2"这样的写法指称各层；决定一个包可以写哪些导入的，正是它所在的层。
 - **服务键（service key）** —— 在上下文上认领的一个名字，例如 `ctx.player`。全文始终带 `ctx.` 前缀书写，以免与包名混淆。
-- **包名** —— 始终使用全限定名，例如 `@BBeBee/plugin-download`。
+- **包名** —— 始终使用全限定名，例如 `@bbebee/plugin-download`。
 - **源（source）** —— 用户所配置的一个音乐后端，由其 `sourceUrl` 标识，并通过一个派生的 **source id** 寻址。*源字符串（source string）*是它可导入的文本形式。
 - **URN** —— 曲库实体的稳定标识符，例如 `BBeBee:music-example-org-35be9fe2:track:8f1a2c`。定义见 [data-model/urn.md](./data-model/urn.md)。
 - TypeScript 代码块是**契约**，不是示意。它们应当能够通过编译。

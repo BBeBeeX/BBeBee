@@ -5,7 +5,7 @@ import type {
   MiniPlayerDisplayMode,
   MiniPlayerServiceState,
 } from '@BBeBee/protocol'
-import { useMiniPlayerData } from '@BBeBee/plugin-mini-player/hooks'
+import { useMiniPlayerData } from '@bbebee/plugin-mini-player/hooks'
 import { MiniPlayerFloating } from './MiniPlayerFloating.js'
 import { MiniPlayerIsland } from './MiniPlayerIsland.js'
 
