@@ -113,13 +113,29 @@ function bbebeeFileProxy(): Plugin {
  * is missing: failing the build beats shipping a page whose React imports
  * silently resolve nowhere.
  */
+/**
+ * The dev import map's deps base: the optimizer cache dir as a `/@fs/…` URL.
+ * Vite resolves its cache dir from the package dir (here, this config's own
+ * directory), and files outside the vite root are only served in `/@fs/…`
+ * form — a `/node_modules/.vite/deps/…` URL falls through to the SPA
+ * fallback and answers index.html (see buildDevImportMap). The leading slash
+ * of a POSIX absolute path is stripped so the URL is `/@fs/home/…`, not
+ * `/@fs//home/…`; a Windows drive path (`C:/…`) needs no stripping.
+ */
+function devDepsImportMap(): ReturnType<typeof buildDevImportMap> {
+  const cacheDir = resolve(__dirname, 'node_modules', '.vite', 'deps')
+    .replace(/\\/g, '/')
+    .replace(/^\//, '')
+  return buildDevImportMap(`/@fs/${cacheDir}`)
+}
+
 function bbebeeImportMap(): Plugin {
   return {
     name: 'bbebee-import-map',
     transformIndexHtml: {
       order: 'pre',
       handler(html, ctx) {
-        const map = ctx.server ? buildDevImportMap() : buildImportMap()
+        const map = ctx.server ? devDepsImportMap() : buildImportMap()
         return {
           html: withImportMapCspHash(html, map),
           tags: [

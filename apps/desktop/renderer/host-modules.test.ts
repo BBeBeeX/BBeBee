@@ -74,10 +74,15 @@ describe('host-modules import maps', () => {
   })
 
   it('dev map points at vite pre-bundled deps for the same specifiers', () => {
-    const map = buildDevImportMap()
+    // The /@fs/ form is the one Vite actually serves for deps outside its
+    // root (see buildDevImportMap); the /node_modules/.vite/deps/ form falls
+    // through to the SPA fallback and answers index.html, and a ?v= with the
+    // optimizer's browserHash answers 504 (outdated request) — so the map
+    // carries bare /@fs/ URLs, no query.
+    const map = buildDevImportMap('/@fs/test-deps')
     expect(Object.keys(map.imports).sort()).toEqual([...HOST_MODULE_SPECIFIERS].sort())
     for (const m of HOST_MODULES) {
-      expect(map.imports[m.specifier]).toBe(`/node_modules/.vite/deps/${m.devFile}`)
+      expect(map.imports[m.specifier]).toBe(`/@fs/test-deps/${m.devFile}`)
     }
   })
 
@@ -124,7 +129,7 @@ describe('host-modules import map CSP allowlist', () => {
 
   for (const [mode, build] of [
     ['prod', buildImportMap],
-    ['dev', buildDevImportMap],
+    ['dev', () => buildDevImportMap('/@fs/test-deps')],
   ] as const) {
     it(`${mode}: script-src carries exactly the sha256 of the served import map text`, () => {
       const html = generatedHtml(build())
@@ -155,7 +160,7 @@ describe('host-modules import map CSP allowlist', () => {
 
   it('prod and dev maps produce different hashes', () => {
     expect(importMapCspHashSource(buildImportMap())).not.toBe(
-      importMapCspHashSource(buildDevImportMap()),
+      importMapCspHashSource(buildDevImportMap('/@fs/test-deps')),
     )
   })
 

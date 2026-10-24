@@ -99,16 +99,32 @@ export function buildImportMap(): ImportMap {
 }
 
 /**
- * Dev-mode import map: points at vite's pre-bundled copies of the same modules
- * (`/node_modules/.vite/deps/…`), so the dev app and dynamically loaded
- * plugin code share one React instance during `vite` dev as well.
+ * Dev-mode import map: points at vite's pre-bundled copies of the same modules,
+ * so the dev app and dynamically loaded plugin code share one React instance
+ * during `vite` dev as well.
+ *
+ * The targets must be `/@fs/<absolute deps cache dir>/…` URLs, NOT
+ * `/node_modules/.vite/deps/…`. This repo's vite root is `renderer/`, so the
+ * deps cache (`apps/desktop/node_modules/.vite/deps/`) sits outside the root:
+ * Vite only recognizes dep URLs in the `/@fs/…` form for files outside the
+ * root (see its `isOptimizedDepUrl`), and a `/node_modules/.vite/deps/…`
+ * request falls through to the SPA fallback, which answers 200 with
+ * index.html — a status-only probe then reports "200" while the module
+ * loader fails on the HTML body (2026-10-24 visualizer investigation).
+ * `depsBase` is therefore the `/@fs/…` prefix for the cache dir, computed by
+ * the caller (vite.config.ts knows its own directory). No `?v=` is appended:
+ * on `/@fs/…` dep URLs Vite's `?v` is a per-file transform hash, not the
+ * optimizer's browserHash — appending the browserHash makes Vite answer 504
+ * (outdated request), verified locally 2026-10-24. The bare `/@fs/…` URL
+ * serves the current file; a regenerated cache is picked up on page reload,
+ * when the import map itself is regenerated.
  * Best-effort: dev-mode external plugin loading is already constrained on
  * some WebViews (see vite.config.ts).
  */
-export function buildDevImportMap(): ImportMap {
+export function buildDevImportMap(depsBase: string): ImportMap {
   const imports: Record<string, string> = {}
   for (const m of HOST_MODULES) {
-    imports[m.specifier] = `/node_modules/.vite/deps/${m.devFile}`
+    imports[m.specifier] = `${depsBase}/${m.devFile}`
   }
   return { imports }
 }
