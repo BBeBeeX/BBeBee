@@ -426,11 +426,19 @@ The scale relies on **"weight follows size"**:
     - **Tab Isolation**: Switching between "Queue" and "Recently played" suspends background queue URN queries, preventing resource contention.
     - **Synchronous Artwork Cache**: `useResolvedArtwork` resolves cached artwork paths synchronously during component mount (`cacheGet(id)`), eliminating layout shifts and secondary re-renders in virtualized lists.
     - **Context-Scoped WeakMap Cache & Shallow Comparison**: `useTracksByUrn` caches resolved `Track` entities inside a `WeakMap<Context, Map<string, Track>>`, and uses $O(N)$ reference shallow comparison (`shallowArrayEqual`) instead of costly string serialization (`.sort().join('\n')`).
-- **Mobile Shell**:
-  - Clean full-bleed dark views with bottom navigation tab bar (Library, Search) and scoped library
-    filtering (`All` / `Local` / `Favorites`).
-  - Persistent mini-player docked directly above the tab bar showing cover thumbnail, marquee title,
-    artist name, play/pause toggle, and a hairline playback progress bar.
+- **Mobile Shell** (normative layout spec: [ui/architecture.md §7.4](architecture.md#74-mobile-shell-layouts-phone-tablet-foldable)):
+  - Clean full-bleed dark views with scoped library filtering (`All` / `Local` / `Favorites`).
+  - **Phone**: page, then a floating now-playing bar (cover, title/artist, favorite, play/pause,
+    queue button opening a bottom-sheet queue drawer), then a bottom tab bar with exactly four
+    tabs in this order — Home (Recommend), Library, Settings, Search.
+  - **Tablet (landscape)**: a 240 dp left rail — brand text on top, the same four tabs stacked,
+    a now-playing card at the bottom with a queue button opening a right-side drawer — beside
+    the page content. Portrait tablets fall back to the phone layout.
+  - **Foldable**: a 50 / 50 dual pane — the library permanently on the left, the complete phone
+    layout on the right — entered by an explicit, persisted user choice, never inferred from
+    width alone.
+  - Persistent mini-player showing cover thumbnail, marquee title, artist name, play/pause
+    toggle, and a hairline playback progress bar.
   - Full-screen now-playing sheet: Expanding the mini-player slides up an immersive player featuring
     large square cover art, bold geometric typography, scrub bar, circular transport controls, and
     swipe-up lyrics pane.

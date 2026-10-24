@@ -553,8 +553,8 @@ The shells are thin. Everything below is genuinely platform-specific and belongs
 | | `apps/mobile` | `apps/desktop/renderer` |
 |---|---|---|
 | Boot | Create context, register the mobile `core-*-mobile` implementations, mount inside `ctx.inject(['ui'], …)` | Same with the desktop `core-*-desktop` / `core-desktop-bridge` set |
-| Chrome | Tab bar, stack headers, safe-area insets | Sidebar, TopBar (central search with collapse-to-magnifier + 2×2 matrix, tray, profile avatar), window controls, resizable panes |
-| Player surface | Mini player above the tab bar; expands to full screen | Persistent bottom bar; optional detached mini-player window |
+| Chrome | Phone: bottom tab bar. Tablet (landscape): left rail. Foldable: dual pane (§7.4). Stack headers, safe-area insets in all three | Sidebar, TopBar (central search with collapse-to-magnifier + 2×2 matrix, tray, profile avatar), window controls, resizable panes |
+| Player surface | Phone: mini player above the tab bar. Tablet: mini player at the rail bottom. Foldable: the right pane's mini player. All expand to full screen | Persistent bottom bar; optional detached mini-player window |
 | Platform-only | Gestures, haptics, pull-to-refresh | Right-click menus, drag-and-drop, keyboard shortcuts, tray, command palette |
 | Absent | No keyboard shortcuts, no tray | No gestures, no haptics |
 
@@ -717,6 +717,169 @@ The **Mini Player / Dynamic Island** (`plugin-mini-player` and `plugin-mini-play
    - **Three-Pane Layout**: Collapsible hierarchy tree (left), interactive canvas (center), and detailed inspector drawer (right) detailing providers, consumers, declared capabilities, and labelled fiber effects.
 
 ---
+
+### 7.4 Mobile shell layouts: phone, tablet, foldable
+
+The mobile shell (`apps/mobile/src/App.tsx`) renders **three layouts from one
+navigation model**, not three apps. The layout decision lives in the shell only:
+view packages stay size-agnostic, and nothing below the shell branches on the
+device class. This section is normative for the phone / tablet / foldable work;
+[design-system.md §6.8](design-system.md#68-shell-structure--layout-paradigms)
+carries the visual summary only.
+
+**Layout mode is derived from the live window, not from the device.**
+
+- The shell reads `useWindowDimensions()` on every render, so rotation,
+  split-screen resize, and unfold re-layout without a restart.
+- `ctx.device.formFactor` is **not** the input: it is a boot-time config value
+  that defaults to `'phone'` (`core-device-expo`), so it cannot see a rotation
+  or an unfold.
+- `phone`: window width < 600 dp.
+- `tablet`: window width >= 600 dp **and** landscape (width > height).
+- A >= 600 dp portrait window (portrait tablet) falls back to the phone
+  layout: a rail would waste the narrow dimension, and no portrait-rail design
+  has been approved. Revisit only with a portrait-rail spec.
+- Edge, stated not hidden: a phone rotated to landscape also satisfies the
+  tablet rule (width >= 600 dp, landscape), so under this width-only rule it
+  gets the rail. That is accepted for the first implementation — no device
+  sniffing. If phones must stay bottom-tabbed in landscape, that is a spec
+  change for the user to approve, not something the implementer improvises
+  with a shortest-side guard.
+- `foldable` is **never** inferred from width alone. There is no hinge /
+  dual-screen API in the current dependency set, and width alone cannot tell a
+  wide tablet from an unfolded foldable. Foldable mode is an explicit user
+  choice (below), offered only when the window is >= 600 dp.
+
+**The four tabs are fixed chrome, in this order.**
+
+`[sources.recommend, library.home, settings.view, sources.search]`
+— Home (Recommend), Library, Settings, Search. The order is the spec, not
+alphabetical and not placement order.
+
+- The shell renders exactly these four, in this order, whatever else
+  contributes a `tab-bar` placement. That is chrome, in the same category as
+  the desktop shell's sidebar exclusions (§7.1), not feature logic leaking
+  into the shell — the shell still resolves each tab id to a contributed view
+  through `ctx.ui.viewFor`, it just does not let contributions add tabs.
+- Detail routes are **not** tabs and are reached by navigation, with Back
+  returning: `album.view`, `library.playlist`, `library.collection`,
+  `library.favorites`, `sources.import`, `sources.test`,
+  `sources.recommend.all`.
+- The `tab-bar` placements of `now-playing.view`, `queue.view`, and
+  `history.view` are ignored by the mobile shell under this spec: now-playing
+  becomes the fullscreen overlay and the queue becomes the drawer. History
+  therefore loses its tab, so the implementation must keep an explicit
+  reachability path for it (for example from the library or the player
+  surfaces) — it must not ship unreachable.
+  Placements are left untouched in the first implementation (no headless
+  change, no desktop divergence); removing the dead mobile placements is a
+  later cleanup, not part of this work.
+- Navigation stays the shell's existing single history stack per pane
+  (§7.4 foldable below is the one exception: two panes, two stacks). Per-tab
+  stacks are explicitly out of scope for the first implementation.
+
+**Phone layout (vertical stack, top to bottom).**
+
+1. Page (`flex: 1`, scrollable).
+2. Floating now-playing bar, directly above the tab bar.
+3. Bottom tab bar with the four fixed tabs.
+
+- The bar is present on **every** page whenever a track is loaded — including
+  paused — and is not a per-page element that scrolls away. When nothing is
+  loaded (`trackUrn` absent and status `idle`) it stays hidden, as today;
+  "always floating" means "on every page while a track exists", not "a
+  placeholder while idle".
+- Bar row, left to right: cover, title/artist (flex, truncated), favorite
+  (heart, the library service's `isSaved` / `setSaved` on the current track
+  URN — an existing service, no new service; reach it via `serviceOf`, or
+  by adding `library` to the bar package's inject list, never by raw
+  `ctx.library` from a fiber that did not inject it, per §7.1 item 4),
+  play/pause, queue button.
+- Tapping the bar body (not its buttons) opens the fullscreen now-playing
+  overlay, as today. The queue button opens the queue drawer; it must **not**
+  navigate to `queue.view` as a page.
+- Queue drawer on the phone is a **bottom sheet** rendering the existing
+  `QueueScreen` (`plugin-queue-ui-mobile`) — no fork of the queue list. The
+  kit's `Sheet` (Modal-based, backdrop dismiss, Android back closes it)
+  is the host. Opening the drawer from the fullscreen overlay must layer
+  it above the overlay, the same layering rule as desktop (§7.1 item 5).
+
+**Tablet layout (landscape, left rail + content).**
+
+- Row layout: left rail `240 dp` fixed, content `flex: 1`.
+- Rail, top to bottom: brand text `B Be Bee` (text only in the first
+  implementation — no new logo asset), the four tabs stacked vertically in
+  the fixed order, a spacer, then the rail-bottom now-playing card.
+- Rail-bottom card: cover, title/artist, play/pause, queue button. Tapping
+  the card opens the fullscreen overlay (which covers the whole window,
+  rail included); the queue button opens a **right-side drawer** (not a
+  bottom sheet) rendering the same `QueueScreen`, layered above the overlay
+  when the overlay is open.
+- When idle, the rail-bottom card shows a muted "nothing playing" row with
+  the play button disabled; the queue button still works (an empty queue
+  renders its empty state, not a missing card).
+- The content pane renders the same page component the phone layout would
+  for the current route, with the same single history stack. A page must not
+  know which layout hosts it.
+
+**Foldable layout (dual pane, desktop-like).**
+
+- Two panes, `50 / 50`, separated by a `1 dp` divider, in landscape /
+  spanning windows only. A folded (narrow) window is the phone layout, by
+  the width rule above — foldable mode does not apply to a folded device.
+- Left pane: the library, permanently. Its root is `library.home`; detail
+  navigation from it (album, playlist, collection, favorites, local) stays
+  in the left pane on the left pane's own history stack, with its own Back.
+- Right pane: the **complete phone layout, verbatim** — four bottom tabs,
+  floating now-playing bar above them, and its own page history stack,
+  independent of the left pane's stack. The Library tab is still present in
+  the right pane even though the left pane already shows the library; the
+  duplication is accepted, because the right pane must remain a phone
+  layout, not a special foldable variant. Pane layouts are forced by the
+  foldable mode, not re-derived from the total window width — the right
+  pane does not become a rail just because the whole window is wide.
+- The left pane has no bottom tabs and no second now-playing bar: the
+  right pane's bar is the single player surface. Library rows in the left
+  pane play through the shared `ctx.player`, so the right pane's bar
+  reflects what the left pane started.
+- One kernel, one `ctx`, two navigation states — never a second `boot()`
+  (the same single-kernel invariant as desktop secondary windows, §7.2).
+- Switching: a persisted layout-mode choice, `mobile.layoutMode` in
+  `ctx.store`, with values `auto | tablet | foldable` (`auto` is the
+  width/orientation rule above). The switch is offered in the tablet rail
+  (a "dual-pane" affordance at the rail bottom, shown only at >= 600 dp)
+  and as an "exit dual-pane" affordance in the foldable left pane header.
+  Android Back in foldable mode pops the right pane's stack first, then
+  the left pane's, then exits — the right pane is the primary pane for
+  back purposes.
+- Hinge / seam: the first implementation does **not** handle hinge
+  occlusion — there is no hinge API in the dependency set, so no control
+  may depend on the exact seam position, and the `50 / 50` split with a
+  divider is the whole seam story. A native hinge module is a later phase,
+  not a first-implementation dependency.
+
+**Prerequisites the shell work alone does not cover.**
+
+- **No mobile Recommend view exists yet.** `plugin-sources-ui-mobile`
+  registers only search / import / test; the Recommend screen exists only
+  on desktop. The Home tab is blocked on porting it (desktop shelves,
+  single-column on mobile, horizontal shelf rows) — a shell that tabs to
+  `sources.recommend` with no mobile view renders "not available", which
+  is not a Home tab.
+- **The current mobile now-playing bar has no favorite and no queue
+  button.** It has cover, title/artist, action slots, and play/pause.
+  The favorite button and the queue button are new bar controls; the
+  drawer open state belongs to the shell (the bar gets an `onOpenQueue`
+  prop), not to the bar, so the tablet rail card and the phone bar share
+  one drawer state shape.
+- **`apps/mobile/app.json` locks orientation to `"portrait"`.**
+  Tablet landscape is impossible until that becomes `"default"`.
+  iOS `supportsTablet` is already `true`; no new native dependency is
+  needed for the first implementation.
+
+**Explicitly out of scope for the first implementation:** new navigation
+libraries, new drawer/gesture dependencies, per-tab stacks, portrait-tablet
+rail, hinge occlusion, and any headless placement change.
 
 ## 8. Accessibility
 
