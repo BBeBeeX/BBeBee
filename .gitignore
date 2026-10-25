@@ -14,7 +14,7 @@ coverage/
 # means two descriptions of the same thing that drift apart (docs/11 §4.13).
 apps/mobile/android/
 apps/mobile/ios/
-apps/mobile/.expo/devices.json
+apps/mobile/.expo/
 
 # Rust build artifacts
 target/
@@ -33,7 +33,6 @@ apps/desktop/resources/libmpv/
 
 # Mobile third-party audio engine artifacts
 apps/mobile/third-party/audio-engine/
-apps/mobile/.expo/devices.json
 apps/mobile/modules/audio-engine/android/build/
 
 # Developer local platform audio-engine resources

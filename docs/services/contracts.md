@@ -89,12 +89,19 @@ export interface DownloadRequest extends HttpRequest {
 
 | | Desktop (`core-http-node`) | Expo (`core-http-rn`) |
 |---|---|---|
-| Backing | Node.js `fetch` / `undici` in sidecar, streamed via bridge | React Native `fetch` / `XMLHttpRequest` |
+| Backing | Node.js `fetch` / `undici` in sidecar, streamed via bridge | `expo/fetch` (WinterCG-compliant, real ReadableStream bodies — not XHR) |
 | CORS | Bypassed entirely — this is the reason it routes through sidecar | Not applicable on native |
 | Arbitrary headers | ✅ `Origin`, `Referer`, `User-Agent`, `Cookie` all settable | ✅ |
-| Cookie jar | `MemoryJars` via `jarStore(ctx.secrets, ctx.fs)` | RFC 6265 jar in JS, encrypted at rest |
+| Cookie jar | RFC 6265 jar in JS (shared), envelope-encrypted at rest via `ctx.secrets` | Same jar, same encryption — one implementation, two transports |
+| `Set-Cookie` capture | `Headers.getSetCookie()` (undici) | `FetchResponse._rawHeaders` (the expo escape hatch, native pairs kept separate); the base fallback is a quote-aware joined-header splitter, since RN's WHATWG `Headers` merges duplicates and has no `getSetCookie` |
 | Proxy | ✅ System or configured | ⚠️ System proxy only |
-| Request journal (§2.2) | ✅ In-memory, capped, detail capture switchable | ❌ not yet implemented |
+| Request journal (§2.2) | ✅ In-memory, capped, detail capture switchable | ✅ Inherited from the shared base (the journal tee passes transport-agnostic header records) |
+
+The cookie jar, download waterfall, per-hop host gate and journal are one implementation
+(`HttpRn extends HttpNode`); only the transport differs, which is why the shared conformance
+suite (`protocol/src/conformance/http.ts`) runs against **both** — `core-http-rn` carries its own
+conformance run over an expo-shaped fetch stub (`test/stubs/expo-fetch.ts`), including a
+sign-in regression that stores a multi-cookie session and replays it.
 
 `ctx.http` is the canonical `waterfall` interception point. Auth injection, retry, rate limiting,
 and response caching are all plugins hooking `http/request` rather than features baked into the
@@ -116,6 +123,16 @@ runtime sets per source ([sources/runtime.md §4.1](../sources/runtime.md#41-a-s
 servers get two jars and a cookie set by one is never sent to the other. An ungated caller — the
 kernel, a core service, a test — has no scope and therefore no jar, which is correct: there is no
 session to keep.
+
+**Multi-cookie sign-in responses are read per-cookie on every platform.** A sign-in that sets a
+session cookie and a CSRF cookie in one response must land as two cookies. Desktop's undici
+exposes `Headers.getSetCookie()`; expo/fetch does not (its `headers` rebuilds RN's WHATWG
+`Headers`, which merges duplicates), so `core-http-rn` overrides the jar's capture to read
+`FetchResponse._rawHeaders` — the native pairs, unmerged. The shared fallback
+(`splitJoinedSetCookie`) only engages when a transport offers neither: it splits a joined header
+on commas that begin a new `token=` cookie, never inside `Expires` dates or quoted values, and
+leaves undecidable fragments joined. The regression that pins this is a sign-in through the
+mobile transport itself (both cookies stored, both echoed back).
 
 **It is envelope-encrypted, and the platform forces that.** `expo-secure-store` caps a value at
 2048 bytes and a jar is routinely larger, so a random key goes to `ctx.secrets` and the jar itself
@@ -658,7 +675,7 @@ export interface CodecService {
 Desktop: `music-metadata` in the Node.js sidecar for tags. The service carries no decoder: `decode()` refuses and sends callers to `ctx.audio`, whose playback engine does the decoding — mpv handles ALAC, 24/32-bit hi-res, and the audiophile formats (APE, WavPack, DSF) where they are played. There is no separate FFmpeg decode bridge.
 Desktop also provides `transcode` via `core-codec-node` and the host IPC bridge (`audio:transcode`), executing system/embedded FFmpeg for lossless and lossy conversion (FLAC, MP3, AAC/M4A, Opus, WAV).
 Expo: `decode()` is implemented here — `react-native-audio-api`'s `decodeAudioData`, the same decoder desktop reaches through `ctx.audio` except behind an import rather than behind the graph — plus a native tag reader (`music-metadata`, inherited from `core-codec-node`).
-Mobile adds three native-seam overrides in `core-codec-rn` (`bbebeeNativeCodec`, installed by the audio-engine Expo module — see [docs/audio/engine.md](../audio/engine.md) "The codec seam"): `readArtworkBatch` runs through a `MediaMetadataRetriever` worker pool entirely off the JS thread (positional, `undefined` per miss; any seam failure falls back to the inherited in-process parse), `transcode` runs the engine's libav pipeline through a polled JNI job registry (`content://` URIs staged through the app cache; the field subset is the desktop ENGINE path's — format, bitrate, rate, channels, trim; `vbr`/fades/gain remain desktop-local-ffmpeg features), and `getEncoderCapabilities` reports the encoders the linked libavcodec actually carries over the shared vocabulary both platforms use.
+Mobile adds three native-seam overrides in `core-codec-rn` (`bbebeeNativeCodec`, installed by the audio-engine Expo module — see [docs/audio/engine.md](../audio/engine.md) "The codec seam"): `readArtworkBatch` runs through a `MediaMetadataRetriever` worker pool entirely off the JS thread (positional, `undefined` per miss; any seam failure falls back to the inherited in-process parse), `transcode` runs the engine's libav pipeline through a polled JNI job registry (`content://` URIs staged through the app cache; the field subset is the desktop ENGINE path's — format, bitrate, rate, channels, trim; `vbr`/fades/gain remain desktop-local-ffmpeg features, and a caller that sends them on mobile gets one `logger.warn` naming every field the engine path will ignore — parity is not silence), and `getEncoderCapabilities` reports the encoders the linked libavcodec actually carries over the shared vocabulary both platforms use.
 
 > Tag reads are I/O-bounded, not file-sized. The parse runs as close to the disk as the platform allows: on desktop, the renderer loads `CodecBridge`, which forwards tag reads to a `CodecNode` in the Node sidecar over direct fs — one bridge round trip per file, not one per range. The sidecar-side parse still goes through a seekable tokenizer over `ctx.fs` range reads (64 KB pages fetched on demand, 1 MB read-ahead on sequential access, each via the single-round-trip `fs.readRange` rather than a stream handshake), so the parser seeks to what it needs — an ID3v2 header declares its length, a tail `moov` is seeked to — instead of guessing a head window. Each parse gets a cumulative I/O budget (256 KB first; a parse that comes back empty with the budget exhausted retries once up to 8 MB), which doubles as the backstop against parsers that drain a file looking for data that is not there. `AbortSignal` cannot cross IPC: the desktop bridge drops the signal, and the bridge's 30s call timeout is the hang backstop.
 
@@ -751,6 +768,12 @@ only be something the user handed over, because the sandbox names everything the
 on desktop a pick is `media` only under `paths.music`, and anything else stays fail-closed `all`,
 since outside the app roots lies the whole machine. The app's own roots (`appData`, `cache`) do
 not classify as `media` on either platform.
+
+The HTTP suite now runs against both transports too. `core-http-rn` executes the shared
+`httpConformance` over an expo-shaped fetch stub (`test/stubs/expo-fetch.ts` — RN's WHATWG
+`Headers` semantics, no `getSetCookie`), which is what surfaced and pins the multi-cookie
+sign-in behavior in §2.1; its cookie-jar regression stores a scoped session through the aliased
+`expo-secure-store` stub and replays it across a restart.
 
 ---
 
