@@ -31,6 +31,7 @@ import type * as nodePath from 'node:path'
 import type * as nodeFs from 'node:fs'
 import type * as nodeOs from 'node:os'
 import { FsRangeTokenizer } from './tokenizer.js'
+import { KNOWN_ENCODERS, SUPPORTED_INPUT_FORMATS, deriveOutputFormats } from './encoder-caps.js'
 
 // iconv-lite is the desktop fallback for GBK recovery (it needs Buffer).
 // Load it lazily: the first line of defence is the platform TextDecoder
@@ -468,19 +469,6 @@ export class CodecNode extends Service implements CodecService {  static inject 
     supportedOutputFormats: string[]
     encoders: Record<string, { name: string; description: string; available: boolean }>
   }> {
-    const knownEncoders = [
-      { key: 'libmp3lame', name: 'MP3 (LAME)', format: 'mp3', description: 'MP3 audio encoder' },
-      { key: 'flac', name: 'FLAC', format: 'flac', description: 'Free Lossless Audio Codec' },
-      { key: 'aac', name: 'AAC', format: 'aac', description: 'Advanced Audio Coding' },
-      { key: 'libopus', name: 'Opus', format: 'opus', description: 'Opus audio codec' },
-      { key: 'libvorbis', name: 'Vorbis', format: 'ogg', description: 'Ogg Vorbis audio codec' },
-      { key: 'wmav2', name: 'Windows Media Audio', format: 'wma', description: 'WMA version 2' },
-      { key: 'alac', name: 'Apple Lossless', format: 'alac', description: 'ALAC audio codec' },
-      { key: 'pcm_s16le', name: 'PCM 16-bit LE', format: 'wav', description: 'Uncompressed PCM 16-bit' },
-      { key: 'pcm_s24le', name: 'PCM 24-bit LE', format: 'wav', description: 'Uncompressed PCM 24-bit' },
-      { key: 'pcm_s16be', name: 'PCM 16-bit BE', format: 'aiff', description: 'AIFF uncompressed PCM' },
-    ]
-
     const encoderMap: Record<string, { name: string; description: string; available: boolean }> = {}
     let stdout = ''
     try {
@@ -507,31 +495,20 @@ export class CodecNode extends Service implements CodecService {  static inject 
     const probeFailed = stdout.length === 0
     const fallbackAvailable = hasNativeEngine()
 
-    const supportedOutputFormats = new Set<string>()
-    for (const item of knownEncoders) {
-      const regex = new RegExp(`\\b${item.key}\\b`, 'i')
-      const available = probeFailed ? fallbackAvailable : regex.test(stdout)
+    const isAvailable = (key: string): boolean =>
+      probeFailed ? fallbackAvailable : new RegExp(`\\b${key}\\b`, 'i').test(stdout)
+
+    for (const item of KNOWN_ENCODERS) {
       encoderMap[item.key] = {
         name: item.name,
         description: item.description,
-        available,
-      }
-      if (available) {
-        supportedOutputFormats.add(item.format)
-        if (item.format === 'aac') supportedOutputFormats.add('m4a')
-        if (item.format === 'opus') supportedOutputFormats.add('webm')
-        if (item.format === 'pcm_s16le') supportedOutputFormats.add('pcm')
+        available: isAvailable(item.key),
       }
     }
 
-    const supportedInputFormats = [
-      'mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg', 'opus',
-      'wma', 'aiff', 'alac', 'webm', 'pcm', 'ape', 'wv',
-    ]
-
     return {
-      supportedInputFormats,
-      supportedOutputFormats: Array.from(supportedOutputFormats),
+      supportedInputFormats: [...SUPPORTED_INPUT_FORMATS],
+      supportedOutputFormats: deriveOutputFormats(isAvailable),
       encoders: encoderMap,
     }
   }
@@ -1045,6 +1022,13 @@ export async function toAudioMetadata(
  * imports do not break; do not use for new code.
  */
 export const TAG_WINDOW = 2 * 1024 * 1024
+
+export {
+  KNOWN_ENCODERS,
+  SUPPORTED_INPUT_FORMATS,
+  deriveOutputFormats,
+  type KnownEncoder,
+} from './encoder-caps.js'
 
 export const name = 'core-codec-node'
 

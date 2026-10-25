@@ -148,7 +148,41 @@ describe('core-fs-node capability scopes', () => {
         own: gated(['fs:read:own', 'fs:write:own']),
         cacheOnly: gated(['fs:read:cache', 'fs:write:cache']),
         grantedWith: gated,
+        // The desktop pick: a folder under the music root, the way the host
+        // file dialog returns one a scanner would use. A pick *outside* the
+        // music root stays `all` on desktop — deliberately, since outside
+        // the app roots lies the whole machine — and is pinned by the local
+        // check below, not by the shared suite.
+        pickedDir: scopeCtx.paths.music
+          ? scopeCtx.fs.join(scopeCtx.paths.music, 'picked')
+          : undefined,
       })
     })
   }
+
+  it('keeps a desktop folder outside every known root fail-closed to all', async () => {
+    // The mirror of the shared picked-folder check, and the reason the
+    // mobile fix cannot simply be copied over. On a desktop, "outside the
+    // app roots" includes the whole machine — /etc included — so a file://
+    // uri that matches no root must NOT read as "the user's music". It
+    // stays `all`, which no least-privilege grant reaches; the mobile
+    // sandbox is what makes the same inference safe there.
+    const dir = await mkdtemp(join(root, 'scope-'))
+    const scopeCtx = new Context()
+    await scopeCtx.plugin(PathsNode, { root: dir })
+    await scopeCtx.plugin(FsNode)
+
+    const elsewhere = pathToFileURL(await mkdtemp(join(root, 'elsewhere-'))).href.replace(/\/$/, '')
+    const file = scopeCtx.fs.join(elsewhere, 'song.mp3')
+    await scopeCtx.fs.writeFile(file, 'audio')
+
+    const scopeId = '@bbebee/plugin-under-test'
+    const media = scopeContext(scopeCtx, {
+      pluginId: scopeId,
+      scopeId,
+      requested: ['fs:read:media', 'fs:write:media'] as never,
+    }).fs
+
+    await expect(media.readFile(file)).rejects.toThrow(/capability|may not/i)
+  })
 })

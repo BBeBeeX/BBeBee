@@ -48,6 +48,7 @@ import {
 } from './shared.js'
 
 export type { AudioLogger, BridgeCall } from './shared.js'
+export type { MediaElementLike } from './streamed-handle.js'
 
 export interface AudioMpvConfig {
   createContext?: (options?: AudioContextOptions) => BaseAudioContext
@@ -612,6 +613,10 @@ export class AudioMpv extends Service implements AudioService {
     const element = createElement()
     try {
       element.crossOrigin = 'anonymous'
+      // Before `src`, not after: a host-built element spawns its decoder at
+      // assignment time and needs the engine's own context to build it on
+      // (mobile's react-native-audio-api element). A DOM element ignores it.
+      element.attachContext?.(this.context)
       // The raw bbebee-file: scheme is not element-loadable on every platform
       // (Windows serves it over http://bbebee-file.localhost).
       element.src =

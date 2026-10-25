@@ -50,6 +50,36 @@ export class HttpRn extends HttpNode {
       userAgent: config.userAgent ?? 'BBeBee/0.1 (mobile)',
     })
   }
+
+  /**
+   * What the base reads through `Headers`, this transport reads raw.
+   *
+   * expo/fetch builds `response.headers` as a fresh WHATWG `Headers` from raw
+   * pairs, through React Native's `whatwg-fetch` polyfill: repeated values are
+   * joined with `", "` on read, and there is no `getSetCookie()`. The base's
+   * fallback would therefore see a login's session and CSRF tokens as one
+   * mangled string — on the one platform where sign-in state has to survive.
+   * The `FetchResponse` keeps what that construction throws away: its
+   * `_rawHeaders` is the native `[name, value][]` list, set-cookie entries
+   * separate and in order. Reading it here, in the one place that knows this
+   * transport, keeps `core-http-node` free of expo-shaped knowledge; should
+   * expo ever rename it, `conformance.test.ts` pins the premise and fails
+   * loudly rather than silently taking the joined fallback again.
+   *
+   * A response without `_rawHeaders` is not an expo one — `config.fetch` was
+   * overridden, which tests do — and takes the base's reading.
+   */
+  protected override listSetCookies(response: Response): string[] {
+    const raw = (response as { _rawHeaders?: [string, string][] })._rawHeaders
+    if (Array.isArray(raw)) {
+      const cookies: string[] = []
+      for (const [name, value] of raw) {
+        if (name.toLowerCase() === 'set-cookie') cookies.push(value)
+      }
+      return cookies
+    }
+    return super.listSetCookies(response)
+  }
 }
 
 export { jarStore }

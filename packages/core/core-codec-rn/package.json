@@ -30,7 +30,13 @@
   "dependencies": {
     "@bbebee/core-codec-node": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
+    "@BBeBee/toolkit": "workspace:*",
     "cordis": "4.0.0-rc.9",
     "react-native-audio-api": "0.13.3"
+  },
+  "devDependencies": {
+    "@BBeBee/core-fs-node": "workspace:*",
+    "@BBeBee/core-paths-node": "workspace:*",
+    "@BBeBee/kernel": "workspace:*"
   }
 }

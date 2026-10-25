@@ -28,6 +28,17 @@ export interface MediaElementLike {
   pause(): void
   addEventListener(type: string, listener: () => void): void
   removeEventListener(type: string, listener: () => void): void
+  /**
+   * Optional hand-off of the engine's own AudioContext, made before `src` is
+   * assigned.
+   *
+   * A DOM element carries its decoder with it; a host-built element (mobile's
+   * react-native-audio-api file source) has to be constructed against the
+   * very graph context `createMediaElementSource` will be called on — on that
+   * platform there is no other context to build a decoder on. Chromium's
+   * element simply ignores the hand-off.
+   */
+  attachContext?(context: BaseAudioContext): void
 }
 const STALL_EVENTS = ['waiting', 'stalled'] as const
 const RECOVER_EVENTS = ['playing', 'canplaythrough'] as const

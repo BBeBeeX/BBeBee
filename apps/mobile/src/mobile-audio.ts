@@ -292,9 +292,56 @@ export class MobileAudioService extends Service implements AudioService {
   async load(src: string | Uri, opts: LoadOptions): Promise<AudioSourceHandle> {
     this.currentTrackSrc = src
     this.currentTrackOpts = opts
+    await this.ensureEngineRecovered()
     const handle = await this.activeEngine.load(src, opts)
     this.currentHandle = handle
     return handle
+  }
+
+  /**
+   * Destroy and re-create the native mpv context (the JNI `reinit` seam) —
+   * the recovery for a wedged engine, which otherwise has no second boot to
+   * rely on: OnCreate's nativeInit runs once per process.
+   *
+   * Answers whether the new engine came up; false when there is no native
+   * module or the reinit was refused. Never throws — a failed recovery is
+   * logged and the load that follows reports its own failure.
+   */
+  async recoverEngine(): Promise<boolean> {
+    if (!this.bridgeCall) return false
+    try {
+      const answer = await this.bridgeCall('audio', 'mpvReinit', [])
+      const ok = answer === true
+      if (ok) {
+        this.ctx.logger?.info('mobile-audio: native engine reinitialized')
+      } else {
+        this.ctx.logger?.warn('mobile-audio: native engine reinit refused (no native module?)')
+      }
+      return ok
+    } catch (err) {
+      this.ctx.logger?.error('mobile-audio: native engine reinit failed: %s', String(err))
+      return false
+    }
+  }
+
+  /**
+   * The one automatic trigger for `recoverEngine`, on the load path: a native
+   * module that reports its engine gone gets exactly one reinit before the
+   * load proceeds. No retry loops — a refusal here leaves the load to fail
+   * (or degrade) visibly, and the simulation bridge reports the same
+   * running:false honestly, so the probe is gated on the native module being
+   * installed at all.
+   */
+  private async ensureEngineRecovered(): Promise<void> {
+    if (!(globalThis as unknown as { bbebeeMobileMpv?: unknown }).bbebeeMobileMpv) return
+    try {
+      const status = await this.getEngineStatus()
+      if (status.running) return
+      this.ctx.logger?.warn('mobile-audio: native engine reports not running before a load — reinitializing')
+      await this.recoverEngine()
+    } catch {
+      // A probe that fails is itself a wedge; let the load surface it.
+    }
   }
 
   setVolume(v: number): void {

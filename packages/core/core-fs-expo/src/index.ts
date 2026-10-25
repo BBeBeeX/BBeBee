@@ -53,6 +53,17 @@ export class FsExpo extends Service implements FsService {
    * rather than the whole of `appData` — otherwise `fs:read:own` reads every
    * other plugin's data and the settings store. See that file for the full
    * reasoning; the conformance suite asserts both behave identically.
+   *
+   * The one deliberate asymmetry is the *picked folder*. On desktop the
+   * classification leans on `paths.music` containment, because there a
+   * `file://` uri can be anything on the machine — /etc included — and
+   * "outside the app roots" therefore must NOT be read as "the user's". On
+   * mobile the sandbox makes the same inference safe, and `paths.music` is
+   * undefined: there is no music root to contain against, and iOS hands a
+   * picked folder back as a security-scoped `file://` uri. So here, a
+   * `file://` uri that survived every app-managed root below is by
+   * construction something the user reached for, and classifies as `media` —
+   * the desktop's intent, without the desktop's risk.
    */
   private scopeOf(uri: Uri, gate: CapabilityConfig | undefined): Scope {
     const paths = this.ctx.paths
@@ -75,6 +86,27 @@ export class FsExpo extends Service implements FsService {
     }
 
     if (uriContains(paths.appData, uri)) return 'own'
+
+    /*
+     * ⚠️ Why a leftover `file://` uri is `media` here and not on desktop.
+     *
+     * Every `file://` location the app can *name* on mobile comes from
+     * `core-paths-expo`, which derives all of them from the two roots the OS
+     * grants (`Paths.document` → appData, and `Paths.cache`; `temp` sits
+     * under cache, `logs` / `downloads` / every plugin's data directory sit
+     * under document). All of those matched a rule above and returned. What
+     * is left is a uri the app did not make up — a folder the user handed
+     * over through `pickDirectory()`, outside the sandbox. That is exactly
+     * where user music lives, so it is `media`: the same answer the desktop
+     * gives for a picked folder under `paths.music`.
+     *
+     * The app's own directories cannot drift into `media` through this line:
+     * document (and logs / downloads / pluginData inside it) already returned
+     * as `own` / `logs` / `downloads` / `all`, and cache (and temp inside it)
+     * already returned as `cache`. The conformance suite pins each of those.
+     */
+    if (uri.startsWith('file://')) return 'media'
+
     return 'all'
   }
 
@@ -404,7 +436,7 @@ export class FsExpo extends Service implements FsService {
     this.check(uri, 'read')
 
     const source = new File(uri)
-    const stamp = `${uri} ${source.size} ${source.lastModified ?? 0}`
+    const stamp = `${uri}\x00${source.size}\x00${source.lastModified ?? 0}`
 
     const dir = this.join(this.ctx.paths.cache, 'saf')
     const base = `${hashUri(uri)}${Paths.extname(uri) || '.bin'}`

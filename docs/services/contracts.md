@@ -498,7 +498,11 @@ export interface BackgroundService {
 
 Desktop: Tauri window / power event listeners or sidecar intervals; `canRunInBackground()` is `true`.
 Expo: `expo-background-task` plus the audio session; `canRunInBackground()` is `true` only while
-audio holds the process.
+audio holds the process. The OS dispatcher only fires while the app is *away*, so the service also
+runs due scheduled tasks when `AppState` reports the app back in the foreground. One per-task
+due-ness check inside the dispatch deduplicates the OS wake-up and the resume — a window fires at
+most once, whichever dispatcher lands first — and the first window opens a full `intervalMinutes`
+after scheduling, matching the desktop timer.
 
 ---
 
@@ -601,7 +605,8 @@ export interface TranscodeOptions {
   startTimeSeconds?: number
   endTimeSeconds?: number
   signal?: AbortSignal
-  onProgress?: (progressPercent: number) => void
+  /** progress in [0,1], plus the current position inside the input in seconds. */
+  onProgress?: (progress: number, currentTimeSeconds: number) => void
 }
 
 export interface TranscodeResult {
@@ -650,9 +655,10 @@ export interface CodecService {
 }
 ```
 
-Desktop: `music-metadata` in the Node.js sidecar for tags; Web Audio `decodeAudioData` for PCM, with an FFmpeg decode bridge (`audio.decodePcm`) for ALAC, 24/32-bit Hi-Res, and audiophile formats (APE, WavPack, DSF, DFF). Remote `http(s)` inputs carry the source's request headers (e.g. `Referer`) through `probe`/`decodePcm`; ffmpeg receives them as `-user_agent`/`-headers`.
+Desktop: `music-metadata` in the Node.js sidecar for tags. The service carries no decoder: `decode()` refuses and sends callers to `ctx.audio`, whose playback engine does the decoding — mpv handles ALAC, 24/32-bit hi-res, and the audiophile formats (APE, WavPack, DSF) where they are played. There is no separate FFmpeg decode bridge.
 Desktop also provides `transcode` via `core-codec-node` and the host IPC bridge (`audio:transcode`), executing system/embedded FFmpeg for lossless and lossy conversion (FLAC, MP3, AAC/M4A, Opus, WAV).
-Expo: `react-native-audio-api`'s `AudioDecoder` for PCM plus a native tag reader.
+Expo: `decode()` is implemented here — `react-native-audio-api`'s `decodeAudioData`, the same decoder desktop reaches through `ctx.audio` except behind an import rather than behind the graph — plus a native tag reader (`music-metadata`, inherited from `core-codec-node`).
+Mobile adds three native-seam overrides in `core-codec-rn` (`bbebeeNativeCodec`, installed by the audio-engine Expo module — see [docs/audio/engine.md](../audio/engine.md) "The codec seam"): `readArtworkBatch` runs through a `MediaMetadataRetriever` worker pool entirely off the JS thread (positional, `undefined` per miss; any seam failure falls back to the inherited in-process parse), `transcode` runs the engine's libav pipeline through a polled JNI job registry (`content://` URIs staged through the app cache; the field subset is the desktop ENGINE path's — format, bitrate, rate, channels, trim; `vbr`/fades/gain remain desktop-local-ffmpeg features), and `getEncoderCapabilities` reports the encoders the linked libavcodec actually carries over the shared vocabulary both platforms use.
 
 > Tag reads are I/O-bounded, not file-sized. The parse runs as close to the disk as the platform allows: on desktop, the renderer loads `CodecBridge`, which forwards tag reads to a `CodecNode` in the Node sidecar over direct fs — one bridge round trip per file, not one per range. The sidecar-side parse still goes through a seekable tokenizer over `ctx.fs` range reads (64 KB pages fetched on demand, 1 MB read-ahead on sequential access, each via the single-round-trip `fs.readRange` rather than a stream handshake), so the parser seeks to what it needs — an ID3v2 header declares its length, a tail `moov` is seeked to — instead of guessing a head window. Each parse gets a cumulative I/O budget (256 KB first; a parse that comes back empty with the budget exhausted retries once up to 8 MB), which doubles as the backstop against parsers that drain a file looking for data that is not there. `AbortSignal` cannot cross IPC: the desktop bridge drops the signal, and the bridge's 30s call timeout is the hang backstop.
 
@@ -737,6 +743,14 @@ fsConformance(() => createNodeFs(testHarness()))
 This is how the abstraction stays honest. Without it, the two implementations of `ctx.fs` drift
 within a month, and every drift becomes a platform-specific bug in a feature plugin that did
 nothing wrong. The suite is the executable form of this document.
+
+The scope suites pin what the capability gate keys on, and both platforms must answer them
+identically. One deliberate asymmetry, pinned by the picked-folder check: a **user-picked folder**
+classifies as `media` on mobile — a `file://` uri outside every root the paths service manages can
+only be something the user handed over, because the sandbox names everything the app can — while
+on desktop a pick is `media` only under `paths.music`, and anything else stays fail-closed `all`,
+since outside the app roots lies the whole machine. The app's own roots (`appData`, `cache`) do
+not classify as `media` on either platform.
 
 ---
 
@@ -1574,7 +1588,7 @@ export interface AudioConverterService {
 | | Desktop | Expo (Mobile) |
 |---|---|---|
 | Headless service | `@bbebee/plugin-audio-converter` | `@bbebee/plugin-audio-converter` |
-| Transcode Engine | `core-codec-node` via system/bundled FFmpeg | `core-codec-rn` |
+| Transcode Engine | `core-codec-node` via system/bundled FFmpeg | `core-codec-rn` over the native `bbebeeNativeCodec` seam (engine libav; honest failure without it) |
 | Workbench UI | `@bbebee/plugin-audio-converter-ui-desktop` | Headless (UI degraded gracefully via missingViews) |
 | Entry Point | TopBar Tray popover shortcut & command palette | API only |
 

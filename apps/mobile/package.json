@@ -75,6 +75,7 @@
     "@shopify/flash-list": "2.3.2",
     "cordis": "4.0.0-rc.9",
     "expo": "~57.0.18",
+    "expo-background-task": "~57.0.16",
     "expo-dev-client": "~57.0.16",
     "react": "19.2.3",
     "react-native": "0.86.3",

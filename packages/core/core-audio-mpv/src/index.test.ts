@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { Context } from 'cordis'
 import type { InterruptionEvent } from '@BBeBee/protocol'
 import { audioConformance } from '@BBeBee/protocol/conformance'
+import { defaultMediaElementFactory } from './streamed-handle.js'
 import type { MediaElementLike } from './streamed-handle.js'
 import type { BridgeCall } from './shared.js'
 import type { FakeAudioContext } from './fake-context.js'
@@ -1092,6 +1093,106 @@ describe('core-audio-mpv native engine features', () => {
     await expect(audio.load('file:///test.flac')).rejects.toThrow(
       'Audio engine executable not found or process not running',
     )
+  })
+})
+
+describe('core-audio-mpv global media element', () => {
+  /**
+   * What a host that must *build* its element (mobile's react-native-audio-api
+   * file source) installs as `globalThis.Audio`. It records the context
+   * hand-off, since on that platform the element can only be constructed
+   * against the engine's own graph context.
+   */
+  class GlobalAudio implements MediaElementLike {
+    static instances: GlobalAudio[] = []
+    static attachedContexts: unknown[] = []
+
+    src = ''
+    crossOrigin: string | null = null
+    duration = 90
+    paused = true
+    error: { code?: number; message?: string } | null = null
+
+    private readonly listeners = new Map<string, Set<() => void>>()
+
+    constructor() {
+      GlobalAudio.instances.push(this)
+    }
+
+    attachContext(context: BaseAudioContext): void {
+      GlobalAudio.attachedContexts.push(context)
+    }
+
+    get currentTime(): number {
+      return 0
+    }
+
+    set currentTime(_seconds: number) {}
+
+    play(): Promise<void> {
+      this.paused = false
+      return Promise.resolve()
+    }
+
+    pause(): void {
+      this.paused = true
+    }
+
+    addEventListener(type: string, listener: () => void): void {
+      const set = this.listeners.get(type) ?? new Set()
+      set.add(listener)
+      this.listeners.set(type, set)
+    }
+
+    removeEventListener(type: string, listener: () => void): void {
+      this.listeners.get(type)?.delete(listener)
+    }
+  }
+
+  /** Node has no Audio global; install the stand-in and restore exactly. */
+  async function withGlobalAudio(run: () => Promise<void> | void): Promise<void> {
+    const g = globalThis as { Audio?: unknown }
+    const original = g.Audio
+    g.Audio = GlobalAudio
+    GlobalAudio.instances = []
+    GlobalAudio.attachedContexts = []
+    try {
+      await run()
+    } finally {
+      if (original === undefined) delete g.Audio
+      else g.Audio = original
+    }
+  }
+
+  it('defaultMediaElementFactory picks up a global Audio constructor, or answers nothing', () =>
+    withGlobalAudio(() => {
+      const factory = defaultMediaElementFactory()
+      expect(factory).toBeDefined()
+      expect(factory!()).toBeInstanceOf(GlobalAudio)
+
+      delete (globalThis as { Audio?: unknown }).Audio
+      expect(defaultMediaElementFactory()).toBeUndefined()
+    }))
+
+  it('degrades through a global Audio and hands over the engine context', async () => {
+    // Mobile's shape: no configured factory, only the global class — and the
+    // element must be built on the very context `createMediaElementSource` is
+    // called on, which is what the hand-off before `src` guarantees.
+    await withGlobalAudio(async () => {
+      const { audio, engine, elements } = await harness({
+        createMediaElement: undefined,
+        bridgeCall: async () => undefined,
+      })
+
+      const handle = await audio.load('file:///music/song.flac', { strategy: 'buffer' })
+
+      expect(GlobalAudio.instances, 'the element came from the global').toHaveLength(1)
+      expect(elements, 'the configured factory must not be involved').toHaveLength(0)
+      expect(GlobalAudio.attachedContexts[0]).toBe(engine)
+      expect(engine.mediaSources, 'the element was wired into the graph').toHaveLength(1)
+      expect(engine.mediaSources[0]!.element).toBe(GlobalAudio.instances[0])
+      handle.dispose()
+    })
   })
 })
 

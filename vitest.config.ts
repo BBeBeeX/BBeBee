@@ -50,6 +50,17 @@ export default defineConfig({
       'expo-secure-store': fileURLToPath(
         new URL('./test/stubs/expo-secure-store.ts', import.meta.url),
       ),
+      /*
+       * And the transport itself. `expo/fetch` binds the native network stack
+       * through `ExpoFetchModule`, so Node cannot load it — but the stub is
+       * expo-*shaped*, not Node-shaped: its `Headers` is React Native's
+       * whatwg-fetch `Headers` (no `getSetCookie`, repeated values joined with
+       * `", "`), because that is the environment the mobile transport really
+       * runs in. The shared http conformance suite must exercise that shape —
+       * including the multi-`Set-Cookie` fallback built for it — rather than
+       * passing against a desktop `Headers` that never existed on a phone.
+       */
+      'expo/fetch': fileURLToPath(new URL('./test/stubs/expo-fetch.ts', import.meta.url)),
     },
   },
   test: {

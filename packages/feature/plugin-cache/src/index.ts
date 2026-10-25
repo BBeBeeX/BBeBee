@@ -63,6 +63,17 @@ export interface CacheConfig {
    * disables the timer; the boot sweep always runs.
    */
   sweepIntervalMs?: number
+  /**
+   * How many URIs one `codec.readArtworkBatch` call carries.
+   *
+   * The desktop default (5) is calibrated to the sidecar bridge: chunks
+   * arrive over IPC, the bridge times out after 30 s, and player calls must
+   * be able to interleave between chunks. A native batch pool (mobile, via
+   * the `bbebeeNativeCodec` seam) has neither the timeout nor the
+   * interleaving constraint — the shell there passes a larger size so a
+   * scan storm is a handful of calls instead of hundreds.
+   */
+  artworkBatchChunkSize?: number
 }
 
 const DEFAULTS: Required<CacheConfig> = {
@@ -72,6 +83,7 @@ const DEFAULTS: Required<CacheConfig> = {
   maxStreamBytes: 1024 * 1024 * 1024,
   maxHttpBytes: 64 * 1024 * 1024,
   sweepIntervalMs: 60 * 60 * 1000,
+  artworkBatchChunkSize: 5,
 }
 
 const ARTWORK: CacheClass = 'artwork'
@@ -127,6 +139,7 @@ export class Cache extends Service implements CacheService {
       maxStreamBytes: config.maxStreamBytes ?? DEFAULTS.maxStreamBytes,
       maxHttpBytes: config.maxHttpBytes ?? DEFAULTS.maxHttpBytes,
       sweepIntervalMs: config.sweepIntervalMs ?? DEFAULTS.sweepIntervalMs,
+      artworkBatchChunkSize: config.artworkBatchChunkSize ?? DEFAULTS.artworkBatchChunkSize,
     }
   }
 
@@ -376,12 +389,12 @@ export class Cache extends Service implements CacheService {
       return
     }
 
-    // Chunk large batches: the sidecar bridge times out after 30s.
+    // Chunk large batches so player calls can interleave between them, and
+    // so no single call outlives the desktop bridge's 30 s timeout.
     // SEQUENTIAL, not concurrent: send one chunk, wait for it to complete,
-    // yield to the event loop, then send the next. This keeps the bridge
-    // free for player calls (readMetadata, audio.load) to interleave.
-    // Covers can be slow; playback cannot wait.
-    const CHUNK_SIZE = 5
+    // yield to the event loop, then send the next. Covers can be slow;
+    // playback cannot wait.
+    const CHUNK_SIZE = Math.max(1, this.config.artworkBatchChunkSize)
     const chunks: (typeof batch)[] = []
     for (let start = 0; start < batch.length; start += CHUNK_SIZE) {
       chunks.push(batch.slice(start, start + CHUNK_SIZE))

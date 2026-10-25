@@ -43,4 +43,22 @@ object BBeBeeAudioEngine {
     external fun nativeGetState(): String
     external fun nativeGetFftBinCount(): Int
     external fun nativeGetEngineStatus(): String
+
+    // Transcoder exports (codec seam, not the mpv playback contract). Paths
+    // reach the C++ layer; `content://` style URIs must be resolved to real
+    // filesystem paths by [NativeCodecBridge] first.
+    external fun nativeTranscode(
+        jobId: String,
+        inputPath: String,
+        outputPath: String,
+        format: String,
+        bitrate: String,
+        sampleRate: Int,
+        channels: Int,
+        startSec: Double,
+        endSec: Double,
+    ): String
+    external fun nativeCancelTranscode(jobId: String): Boolean
+    external fun nativeGetTranscodeState(jobId: String): String
+    external fun nativeGetTranscodeCapabilities(): String
 }

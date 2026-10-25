@@ -18,6 +18,7 @@ export {
 export { splitArtists } from './text.js'
 export { formatDuration, formatTotalDuration, formatAddedDate, formatPlayedDate } from './time.js'
 export { formatBytes } from './bytes.js'
+export { encodeBase64, decodeBase64 } from './base64.js'
 export { toServableFileUrl, toBbebeeFileUri } from './file-url.js'
 export { compareVersions, normalizeVersion, satisfiesRange, maxSatisfying } from './semver.js'
 export { getPath, setPath } from './record-path.js'

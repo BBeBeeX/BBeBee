@@ -34,6 +34,7 @@ apps/desktop/resources/libmpv/
 # Mobile third-party audio engine artifacts
 apps/mobile/third-party/audio-engine/
 apps/mobile/.expo/devices.json
+apps/mobile/modules/audio-engine/android/build/
 
 # Developer local platform audio-engine resources
 resources/windows/

@@ -555,7 +555,7 @@ export class HttpNode extends Service {
 
       // Before the redirect branch: a login flow sets its session cookie *on*
       // the 302, and reading it only from the final response drops it.
-      if (jar) await storeSetCookies(jar, response, url)
+      if (jar) await storeSetCookies(jar, this.listSetCookies(response), url)
 
       const status = response.status
       const isRedirectStatus = status >= 300 && status < 400 && status !== 304
@@ -579,7 +579,14 @@ export class HttpNode extends Service {
           response = new Response(main, {
             status: response.status,
             statusText: response.statusText,
-            headers: response.headers,
+            // As a plain record, not as the Headers object: the global
+            // `Response` here is whichever one the runtime has, and a record is
+            // the one HeadersInit *every* of them understands — undici's
+            // dictionary branch, React Native's whatwg-fetch object branch.
+            // Handing the transport's own Headers object over relies on the
+            // two classes being the same class, which holds on desktop and
+            // nowhere else.
+            headers: headersOf(response),
           })
           void drainCapped(copy, HTTP_JOURNAL_BODY_BYTES).then((text) => {
             entry.responseBody = text
@@ -610,6 +617,31 @@ export class HttpNode extends Service {
     }
 
     throw new NetworkError(`too many redirects: ${req.url}`)
+  }
+
+  /**
+   * Every `set-cookie` header a response carries, not just the first.
+   *
+   * A login response routinely sets two — a session and a CSRF token — and
+   * `headers.get('set-cookie')` joins them into one string that cannot be
+   * naively split, because an `Expires` date contains a comma.
+   *
+   * Overridable on purpose, because runtimes disagree about where the split
+   * actually lives. WHATWG runtimes (desktop undici, the Tauri host) expose
+   * `getSetCookie()`; expo/fetch builds its `Headers` through React Native's
+   * `whatwg-fetch` polyfill, which has neither that accessor nor a way to keep
+   * repeated values apart — but its `FetchResponse` holds the raw
+   * `[name, value][]` pairs it constructed the `Headers` from, and only the
+   * transport that produced the response knows that. `HttpRn` overrides this
+   * to read them; the default never names any transport, and its last resort
+   * is the conservative splitter below rather than handing the jar one
+   * mangled line.
+   */
+  protected listSetCookies(response: Response): string[] {
+    const headers = response.headers as Headers & { getSetCookie?(): string[] }
+    if (typeof headers.getSetCookie === 'function') return headers.getSetCookie()
+    const joined = headers.get('set-cookie')
+    return joined ? splitJoinedSetCookie(joined) : []
   }
 }
 
@@ -1060,11 +1092,12 @@ async function cookieHeaderFor(jar: CookieJar, url: string): Promise<string | un
  *
  * Deliberately small. This is not a full RFC 6265 parser and does not try to
  * be: it handles the attributes a session depends on — expiry, domain, path,
- * the flags — and ignores the rest rather than guessing at them.
+ * the flags — and ignores the rest rather than guessing at them. The lines
+ * arrive already separated (see `listSetCookies`); nothing here has to guess
+ * where one cookie ends.
  */
-async function storeSetCookies(jar: CookieJar, response: Response, url: string): Promise<void> {
-  const raw = readSetCookie(response)
-  if (raw.length === 0) return
+async function storeSetCookies(jar: CookieJar, lines: string[], url: string): Promise<void> {
+  if (lines.length === 0) return
 
   const requestHost = (() => {
     try {
@@ -1075,7 +1108,7 @@ async function storeSetCookies(jar: CookieJar, response: Response, url: string):
   })()
 
   const cookies: Cookie[] = []
-  for (const line of raw) {
+  for (const line of lines) {
     const [pair, ...attributes] = line.split(';')
     const eq = pair?.indexOf('=') ?? -1
     if (!pair || eq <= 0) continue
@@ -1128,17 +1161,51 @@ async function storeSetCookies(jar: CookieJar, response: Response, url: string):
 }
 
 /**
- * Every `set-cookie` header, not just the first.
+ * Split a *joined* `set-cookie` value into the cookies it carries.
  *
- * A login response routinely sets two — a session and a CSRF token — and
- * `headers.get('set-cookie')` joins them into one string that cannot be split
- * safely, because an `Expires` date contains a comma. `getSetCookie()` is the
- * standard accessor for exactly this; the fallback keeps older runtimes
- * working with the single-cookie case rather than mangling the multi one.
+ * This is the fallback for runtimes with neither `getSetCookie()` (desktop
+ * undici has it) nor a raw-pair escape hatch (expo/fetch has that, and
+ * `HttpRn` reads it) — a `Headers` that reports one `set-cookie` string with
+ * every cookie the server sent, comma-joined. Splitting it on commas alone is
+ * wrong in the most common place a comma appears: an `Expires` date
+ * (`Expires=Wed, 21 Oct 2015 07:28:00 GMT`).
+ *
+ * So the split is conservative, not clever: a comma starts a new cookie only
+ * when what follows looks like a *new* `name=value` pair — a non-empty run of
+ * token characters (RFC 2616's `token`, which cookie names are) ending in
+ * `=`. A date continuation (`21 Oct 2015 …`, `21-Oct-2015 …`) runs into a
+ * space or a digit-without-`=` first and so never splits, while the joined
+ * next cookie (`csrf=tok`) does. Commas inside a quoted value are skipped
+ * outright. What this refuses to decide it leaves joined — one mangled cookie
+ * is no worse than the single-string behaviour it replaces, and both raw
+ * sources above make it unreachable on the shipped platforms.
  */
-function readSetCookie(response: Response): string[] {
-  const headers = response.headers as Headers & { getSetCookie?(): string[] }
-  if (typeof headers.getSetCookie === 'function') return headers.getSetCookie()
-  const single = response.headers.get('set-cookie')
-  return single ? [single] : []
+const COOKIE_NAME_CHARS = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/
+
+export function splitJoinedSetCookie(joined: string): string[] {
+  const cookies: string[] = []
+  let start = 0
+  let inQuotes = false
+  for (let i = 0; i < joined.length; i++) {
+    const ch = joined[i]
+    if (ch === '"') {
+      // A quoted cookie value may hold commas (RFC 6265 `cookie-value`); a
+      // stray quote at worst leaves us joined, which is the safe direction.
+      inQuotes = !inQuotes
+    } else if (ch === ',' && !inQuotes && opensNewCookie(joined, i + 1)) {
+      cookies.push(joined.slice(start, i))
+      start = i + 1
+    }
+  }
+  cookies.push(joined.slice(start))
+  return cookies.map((cookie) => cookie.trim()).filter((cookie) => cookie.length > 0)
+}
+
+/** Whether the text at `from` opens a new `name=value` pair. */
+function opensNewCookie(header: string, from: number): boolean {
+  let i = from
+  while (i < header.length && (header[i] === ' ' || header[i] === '\t')) i++
+  const nameStart = i
+  while (i < header.length && COOKIE_NAME_CHARS.test(header[i] ?? '')) i++
+  return i > nameStart && header[i] === '='
 }

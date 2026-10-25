@@ -80,6 +80,11 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
     config: {
       maxArtworkBytes: 128 * 1024 * 1024,
       maxStreamBytes: 256 * 1024 * 1024,
+      // The native artwork pool (bbebeeNativeCodec) parses off the JS
+      // thread and has no bridge timeout, so one call can carry a whole
+      // screen of covers — the desktop chunk size would serialize the scan
+      // into hundreds of throttled round trips for no protective reason.
+      artworkBatchChunkSize: 32,
     },
   },
   // Hooks `player/before-resolve`: a file the user downloads is kept under

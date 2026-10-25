@@ -119,6 +119,14 @@ describe('core-fs-expo capability scopes', () => {
           requested: granted as never,
         }).fs
 
+      // The mobile pick: a sibling of the sandbox roots, because that is
+      // what a picked folder is — `Paths.document` and `Paths.cache` are the
+      // only file:// locations the app can name, so a uri outside both is
+      // one the user handed over. On a device it arrives security-scoped
+      // (iOS) or as a SAF tree (Android); the shape the classification sees
+      // is the same: a file:// uri no paths root contains.
+      const pickedDir = pathToFileURL(await mkdtemp(join(root, 'picked-'))).href.replace(/\/$/, '')
+
       try {
         await check.run({
           admin: scopeCtx.fs,
@@ -127,6 +135,7 @@ describe('core-fs-expo capability scopes', () => {
           own: gated(['fs:read:own', 'fs:write:own']),
           cacheOnly: gated(['fs:read:cache', 'fs:write:cache']),
           grantedWith: gated,
+          pickedDir,
         })
       } finally {
         // Other suites in this file resolve against the shared root.

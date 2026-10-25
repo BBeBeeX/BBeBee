@@ -29,6 +29,17 @@ class BbebeeAudioEngineModule : Module() {
             BBeBeeAudioEngine.nativeDestroy()
         }
 
+        // The JS-side recovery seam: destroy and re-create the native context
+        // on this module's thread (where every other AsyncFunction runs, so
+        // the JNI mutex is never held across the JS thread). OnCreate's
+        // nativeInit is the only other place the engine comes up, and a wedge
+        // — a lost mpv core, a context destroyed without a re-init — has no
+        // second boot to rely on. True when the new engine came up.
+        AsyncFunction("reinit") {
+            BBeBeeAudioEngine.nativeDestroy()
+            BBeBeeAudioEngine.nativeInit(null)
+        }
+
         // `{ok, durationMs, resumed, endedCount}` as a JSON string; the JS
         // side parses it (one crossing, no field-by-field bridging).
         AsyncFunction("loadEx") { uri: String, headers: String? ->
@@ -90,9 +101,47 @@ class BbebeeAudioEngineModule : Module() {
             val ok = BBeBeeAudioEngine.nativeGetSpectrum(freq, time)
             mapOf(
                 "ok" to ok,
-                "frequencyData" to freq.toList(),
-                "timeDomainData" to time.toList(),
+                // The JNI side transports the unsigned 0..255 bins in signed
+                // bytes; widen before they cross into JS or every bin over
+                // 127 arrives negative and the visualizer clips its top half.
+                "frequencyData" to freq.map { it.toInt() and 0xFF },
+                "timeDomainData" to time.map { it.toInt() and 0xFF },
             )
+        }
+
+        // ------------------------------------------------------------------
+        // Codec seam (`bbebeeNativeCodec`): FFmpeg transcode + batch artwork.
+        // ------------------------------------------------------------------
+
+        AsyncFunction("transcode") { options: Map<String, Any?> ->
+            NativeCodecBridge.transcode(
+                appContext.reactContext,
+                options["jobId"] as? String ?: "",
+                options["inputUri"] as? String ?: "",
+                options["outputUri"] as? String ?: "",
+                options["format"] as? String ?: "mp3",
+                options["bitrate"] as? String ?: "",
+                (options["sampleRate"] as? Number)?.toInt() ?: 0,
+                (options["channels"] as? Number)?.toInt() ?: 0,
+                (options["startSeconds"] as? Number)?.toDouble() ?: 0.0,
+                (options["endSeconds"] as? Number)?.toDouble() ?: 0.0,
+            )
+        }
+
+        AsyncFunction("cancelTranscode") { jobId: String ->
+            BBeBeeAudioEngine.nativeCancelTranscode(jobId)
+        }
+
+        AsyncFunction("getTranscodeState") { jobId: String ->
+            BBeBeeAudioEngine.nativeGetTranscodeState(jobId)
+        }
+
+        AsyncFunction("getTranscodeCapabilities") {
+            BBeBeeAudioEngine.nativeGetTranscodeCapabilities()
+        }
+
+        AsyncFunction("readArtworkBatch") { uris: List<String> ->
+            NativeCodecBridge.readArtworkBatch(appContext.reactContext, uris)
         }
     }
 }

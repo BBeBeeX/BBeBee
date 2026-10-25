@@ -22,6 +22,22 @@ export interface FsScopeSubject {
   cacheOnly: FsService
   /** Build an `fs` for an arbitrary grant set, for exhaustiveness checks. */
   grantedWith(capabilities: string[]): FsService
+  /**
+   * A directory the *user* picked — what `fs.pickDirectory()` hands back —
+   * as far outside the app-managed roots as the platform allows. The check
+   * fills it, so the harness only has to name a plausible location.
+   *
+   * Optional, because "picked" is platform-shaped: on mobile it is a uri
+   * outside the sandbox (a security-scoped `file://` on iOS, a SAF
+   * `content://` tree on Android) and classifies as `media`; on desktop the
+   * natural pick is a folder under `paths.music`, which classifies as
+   * `media` by containment. (A desktop pick *outside* the music root stays
+   * `all` — deliberately, since on a desktop "outside the app roots"
+   * includes the whole machine, and pinning that is the host's own local
+   * test, not this shared check.) A harness that cannot produce one omits
+   * it and the check skips, the way an absent well-known directory does.
+   */
+  pickedDir?: Uri
 }
 
 const denied = /capability|may not/i
@@ -162,6 +178,41 @@ export const fsScopeConformance: ConformanceSuite<FsScopeSubject> = {
         await assertRejects(
           () => cacheOnly.readFile(cacheOnly.join(paths.appData, 'store.json')),
           'cache grant must not reach appData',
+          denied,
+        )
+      },
+    },
+    {
+      name: 'a user-picked folder is media, and the app roots are not',
+      because:
+        'user music lives outside the app sandbox; a picked folder that no ' +
+        'least-privilege grant can reach would force every consumer of it ' +
+        'onto fs:*:all for the one location the user explicitly chose',
+      async run({ admin, grantedWith, paths, pickedDir }) {
+        if (!pickedDir) return // Legitimately absent on this harness.
+
+        await admin.mkdir(pickedDir, { recursive: true })
+        const file = admin.join(pickedDir, 'song.mp3')
+        await admin.writeFile(file, 'audio')
+
+        const media = grantedWith(['fs:read:media', 'fs:write:media'])
+        assert(
+          (await media.readFile(file)) === 'audio',
+          'a media grant must reach a user-picked folder',
+        )
+
+        // The half that keeps the classification honest: it keys on
+        // "outside every app-managed root", never on the uri scheme alone.
+        // The app's own data directory must not start answering to a media
+        // grant just because a picked folder now does.
+        await assertRejects(
+          () => media.writeFile(admin.join(paths.appData, 'media-probe'), 'no'),
+          'appData must not classify as media',
+          denied,
+        )
+        await assertRejects(
+          () => media.writeFile(admin.join(paths.cache, 'media-probe'), 'no'),
+          'cache must not classify as media',
           denied,
         )
       },

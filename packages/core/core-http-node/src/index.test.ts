@@ -19,11 +19,50 @@ import { FsNode } from '@BBeBee/core-fs-node'
 import { diffSnapshots, snapshotContext, tempDir, tick } from '@BBeBee/kernel/testing'
 import { SecretsNode } from '@bbebee/core-secrets-node'
 import type { Cookie } from '@BBeBee/protocol'
-import plugin, { jarStore, type HttpNode } from './index.js'
+import plugin, {
+  jarStore,
+  splitJoinedSetCookie,
+  type HttpNode,
+  type HttpNodeConfig,
+} from './index.js'
 
 const PAYLOAD = Buffer.from(
   Array.from({ length: 5000 }, (_, i) => i % 251),
 )
+
+/** Two cookies on one line, the way a runtime without `getSetCookie()` sees them. */
+const JOINED_SET_COOKIE =
+  'session=abc123; Path=/; Expires=Wed, 21 Oct 2037 07:28:00 GMT; HttpOnly, csrf=tok; Path=/; Max-Age=3600'
+
+/**
+ * A `Response` as an older runtime reports it: one joined `set-cookie` value
+ * behind a `Headers` with no `getSetCookie()`. Iterable like every WHATWG
+ * `Headers` is — that is not what the fallback lacks — but with no accessor
+ * and no raw pairs. (Node's own `Headers` always has the accessor, so the fake
+ * swaps the headers for that shape — otherwise the fallback is unreachable
+ * here.)
+ */
+function withoutGetSetCookie(response: Response): Response {
+  const map = new Map<string, string>()
+  response.headers.forEach((value, name) => void map.set(name, value))
+  const headers = {
+    get: (name: string) => map.get(name.toLowerCase()) ?? null,
+    forEach: (cb: (value: string, name: string) => void) => {
+      for (const [name, value] of map) cb(value, name)
+    },
+    *entries(): MapIterator<[string, string]> {
+      yield* map.entries()
+    },
+    [Symbol.iterator]: (): MapIterator<[string, string]> => map.entries(),
+  } as unknown as Headers
+  Object.defineProperty(response, 'headers', { value: headers })
+  return response
+}
+
+const olderRuntimeFetch: typeof fetch = async (input, init) => {
+  const response = await globalThis.fetch(input, init)
+  return String(input).endsWith('/joined-cookie') ? withoutGetSetCookie(response) : response
+}
 
 let server: Server
 let origin: string
@@ -49,6 +88,16 @@ beforeAll(async () => {
           'session=abc123; Path=/; Max-Age=3600; HttpOnly',
           'csrf=tok; Path=/; Max-Age=3600',
         ],
+      })
+      res.end('ok')
+      return
+    }
+    if (url.pathname === '/joined-cookie') {
+      // One header, two cookies, comma-joined — the wire shape a runtime with
+      // no `getSetCookie()` has to make sense of.
+      res.writeHead(200, {
+        'content-type': 'text/plain',
+        'set-cookie': JOINED_SET_COOKIE,
       })
       res.end('ok')
       return
@@ -669,6 +718,73 @@ describe('lifecycle', () => {
   })
 })
 
+describe('splitJoinedSetCookie (the fallback when a Headers has no raw pairs)', () => {
+  it('leaves a single cookie alone', () => {
+    expect(splitJoinedSetCookie('session=abc; Path=/')).toEqual(['session=abc; Path=/'])
+  })
+
+  it('returns nothing for an empty header', () => {
+    expect(splitJoinedSetCookie('')).toEqual([])
+  })
+
+  it('splits a session and a CSRF token joined with ", "', () => {
+    expect(splitJoinedSetCookie('session=abc; Path=/; HttpOnly, csrf=tok; Secure')).toEqual([
+      'session=abc; Path=/; HttpOnly',
+      'csrf=tok; Secure',
+    ])
+  })
+
+  it('does not split inside an RFC 1123 Expires date', () => {
+    const header = 'a=1; Expires=Wed, 21 Oct 2015 07:28:00 GMT'
+    expect(splitJoinedSetCookie(header)).toEqual([header])
+  })
+
+  it('does not split inside the dash-form dates real servers send', () => {
+    // Google's shape: two cookies, both dates dash-form with weekday commas,
+    // joined with ", ".
+    expect(
+      splitJoinedSetCookie(
+        'NID=204=t; expires=Sat, 24-Oct-2026 08:26:03 GMT; path=/; domain=.google.com; HttpOnly, ' +
+          '1P_JAR=2026-10-01; expires=Mon, 23-Nov-2026 08:26:03 GMT; path=/; domain=.google.com',
+      ),
+    ).toEqual([
+      'NID=204=t; expires=Sat, 24-Oct-2026 08:26:03 GMT; path=/; domain=.google.com; HttpOnly',
+      '1P_JAR=2026-10-01; expires=Mon, 23-Nov-2026 08:26:03 GMT; path=/; domain=.google.com',
+    ])
+  })
+
+  it('splits when the next cookie really does start after a date', () => {
+    expect(splitJoinedSetCookie('a=1; Expires=Wed, 21 Oct 2015 07:28:00 GMT, b=2')).toEqual([
+      'a=1; Expires=Wed, 21 Oct 2015 07:28:00 GMT',
+      'b=2',
+    ])
+  })
+
+  it('keeps two Expires attributes before the next cookie intact', () => {
+    expect(
+      splitJoinedSetCookie(
+        'a=1; Expires=Wed, 21 Oct 2015 07:28:00 GMT; Expires=Thu, 22 Oct 2015 07:28:00 GMT, b=2',
+      ),
+    ).toEqual([
+      'a=1; Expires=Wed, 21 Oct 2015 07:28:00 GMT; Expires=Thu, 22 Oct 2015 07:28:00 GMT',
+      'b=2',
+    ])
+  })
+
+  it('does not split a comma inside a plain cookie value', () => {
+    expect(splitJoinedSetCookie('a=1,2; Path=/')).toEqual(['a=1,2; Path=/'])
+  })
+
+  it('does not split a comma inside a quoted value', () => {
+    expect(splitJoinedSetCookie('a="x,y=z"; Path=/')).toEqual(['a="x,y=z"; Path=/'])
+    expect(splitJoinedSetCookie('a="x,y"; Path=/, b=2')).toEqual(['a="x,y"; Path=/', 'b=2'])
+  })
+
+  it('trims the whitespace a join leaves behind', () => {
+    expect(splitJoinedSetCookie('  a=1  ,  b=2  ')).toEqual(['a=1', 'b=2'])
+  })
+})
+
 describe('cookie jars that survive a restart', () => {
   /**
    * "Sign in once, stay signed in" (docs/10 §M2) is a cookie-jar property
@@ -824,13 +940,13 @@ describe('cookies on the wire', () => {
    * That is what makes "two Navidrome servers, independent auth state" true
    * rather than aspirational.
    */
-  async function scoped(scopeId: string, root: string) {
+  async function scoped(scopeId: string, root: string, config: HttpNodeConfig = {}) {
     const ctx = new Context()
     await ctx.plugin(PathsNode, { root })
     await ctx.plugin(FsNode)
     await ctx.plugin(SecretsNode, {})
     await tick()
-    await ctx.plugin(plugin, { jars: jarStore(ctx.secrets, ctx.fs) })
+    await ctx.plugin(plugin, { jars: jarStore(ctx.secrets, ctx.fs), ...config })
     await tick()
     // The same helper the kernel uses to scope a plugin, so the test exercises
     // the real path rather than a hand-built config the service might read
@@ -913,6 +1029,37 @@ describe('cookies on the wire', () => {
       headers: { cookie: 'session=mine' },
     })
     expect(await echoed.text()).toContain('session=mine')
+  })
+
+  it('splits a joined set-cookie when the transport has no getSetCookie', async () => {
+    // The last runtime shape: a `Headers` that reports every cookie as one
+    // comma-joined string, with no `getSetCookie()` and no raw pairs. Splitting
+    // on commas alone would cut the `Expires` date in half; the conservative
+    // splitter is what keeps both cookies whole.
+    const root = await tempDir('bbebee-wire-joined')
+    const { ctx, http } = await scoped('src-a', root, {
+      fetch: olderRuntimeFetch,
+    })
+    await http({ url: `${origin}/joined-cookie` })
+
+    const jar = ctx.http.cookies.jar('src-a')
+    await jar.ready
+    const stored = await jar.all()
+    expect(
+      stored.map((c) => c.name).sort(),
+      'the joined header must arrive as two cookies, not one mangled one',
+    ).toEqual(['csrf', 'session'])
+    expect(stored.find((c) => c.name === 'session')?.value).toBe('abc123')
+    // The `Expires` date survived as a date, not as a pair of mangled
+    // attributes around the comma.
+    expect(stored.find((c) => c.name === 'session')?.expiresAt).toBe(
+      Date.parse('Wed, 21 Oct 2037 07:28:00 GMT'),
+    )
+
+    const echoed = await http({ url: `${origin}/echo-cookie` })
+    const sent = await echoed.text()
+    expect(sent).toContain('session=abc123')
+    expect(sent).toContain('csrf=tok')
   })
 })
 
