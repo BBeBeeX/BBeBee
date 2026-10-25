@@ -8,9 +8,9 @@
 
 import { describe, expect, it, vi } from 'vitest'
 import { Context, Service } from 'cordis'
-import { PathsNode } from '@BBeBee/core-paths-node'
-import { FsNode } from '@BBeBee/core-fs-node'
-import { DbNode } from '@BBeBee/core-db-node'
+import { PathsNode } from '@BBeBee/core-paths-desktop'
+import { FsNode } from '@BBeBee/core-fs-desktop'
+import { DbNode } from '@BBeBee/core-db-desktop'
 import { diffSnapshots, snapshotContext, tempDir, tick } from '@BBeBee/kernel/testing'
 import { createMockAudio, type MockAudio } from '@BBeBee/protocol/conformance'
 import { NetworkError, NotFoundError, AuthError } from '@BBeBee/protocol'

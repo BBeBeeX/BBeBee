@@ -36,8 +36,8 @@
   },
   "devDependencies": {
     "@BBeBee/kernel": "workspace:*",
-    "@bbebee/core-codec-node": "workspace:*",
-    "@BBeBee/core-fs-node": "workspace:*",
-    "@BBeBee/core-paths-node": "workspace:*"
+    "@bbebee/core-codec-desktop": "workspace:*",
+    "@BBeBee/core-fs-desktop": "workspace:*",
+    "@BBeBee/core-paths-desktop": "workspace:*"
   }
 }

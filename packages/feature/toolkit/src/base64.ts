@@ -1,7 +1,7 @@
 /**
  * Base64 over plain `Uint8Array`s, with no runtime dependency.
  *
- * Written for `core-codec-rn`: the native artwork batch bridge answers in
+ * Written for `core-codec-mobile`: the native artwork batch bridge answers in
  * base64 strings, and Hermes ships neither `Buffer` nor (reliably across RN
  * versions) `atob`, so the codec needs its own total codec. Node callers
  * keep using `Buffer`; this exists so the mobile path does not have to

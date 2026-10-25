@@ -26,19 +26,19 @@ Declared in `packages/protocol/src/services/` and augmented onto `Context`:
 
 | Service Key | Meaning | Platform Implementations |
 |---|---|---|
-| `ctx.fs` | File I/O over opaque `Uri` strings | `core-fs-node` (desktop), `core-fs-expo` (mobile) |
-| `ctx.paths` | Well-known directories (`data`, `cache`, `temp`, `music`, `downloads`, `logs`) | `core-paths-node`, `core-paths-expo` |
+| `ctx.fs` | File I/O over opaque `Uri` strings | `core-fs-desktop` (desktop), `core-fs-mobile` (mobile) |
+| `ctx.paths` | Well-known directories (`data`, `cache`, `temp`, `music`, `downloads`, `logs`) | `core-paths-desktop`, `core-paths-mobile` |
 | `ctx.store` | Key-value config persistence | `core-store-fs` (shared) |
-| `ctx.db` | SQLite database with WAL and transactions | `core-db-node` (desktop), `core-db-expo` (mobile) |
-| `ctx.secrets` | Keychain and hardware-backed credential storage (root is caller-scoped; explicit namespaces `ctx.secrets.namespace(ns)` are cross-plugin shared) | `core-secrets-node`, `core-secrets-expo` |
-| `ctx.http` | Outbound HTTP with cookie jar and isolation | `core-http-node`, `core-http-rn` |
-| `ctx.ws` | WebSocket client with capability host checks | `core-http-node` / native |
+| `ctx.db` | SQLite database with WAL and transactions | `core-db-desktop` (desktop), `core-db-mobile` (mobile) |
+| `ctx.secrets` | Keychain and hardware-backed credential storage (root is caller-scoped; explicit namespaces `ctx.secrets.namespace(ns)` are cross-plugin shared) | `core-secrets-desktop`, `core-secrets-mobile` |
+| `ctx.http` | Outbound HTTP with cookie jar and isolation | `core-http-desktop`, `core-http-mobile` |
+| `ctx.ws` | WebSocket client with capability host checks | `core-http-desktop` / native |
 | `ctx.audio` | Web Audio API graph + media-element plumbing, driven by the libmpv native engine | `core-audio-mpv` (desktop: libmpv native engine in a crash-isolated subprocess, direct OS audio output with optional WASAPI exclusive mode, append-based gapless, real-PCM SPSC RingBuffer FFT spectrum & time-domain waveform, astats RMS/Peak levels, host-side in-memory fast-path bridge for low-latency visualizer queries; mobile: in-process libmpv JNI/JSI bridge, see `apps/mobile/src/boot.ts`) |
-| `ctx.codec` | Audio metadata, tag reading, PCM decoding | `core-codec-node` (desktop FFmpeg bridge + music-metadata), `core-codec-rn` |
-| `ctx.device` | Network status, battery, media keys, platform info | `core-device-tauri`, `core-device-expo` |
-| `ctx.mediaSession`| OS lock-screen now playing surface and controls | `core-media-session-tauri`, `core-media-session-rn` |
-| `ctx.background` | Background audio tasks, wake locks, suspend hooks | `core-background-tauri`, `core-background-expo` |
-| `ctx.js` | Sandboxed QuickJS evaluator for untrusted scripts | `core-js-quickjs-node` (desktop) |
+| `ctx.codec` | Audio metadata, tag reading, PCM decoding | `core-codec-desktop` (desktop FFmpeg bridge + music-metadata), `core-codec-mobile` |
+| `ctx.device` | Network status, battery, media keys, platform info | `core-device-desktop`, `core-device-mobile` |
+| `ctx.mediaSession`| OS lock-screen now playing surface and controls | `core-media-session-desktop`, `core-media-session-mobile` |
+| `ctx.background` | Background audio tasks, wake locks, suspend hooks | `core-background-desktop`, `core-background-mobile` |
+| `ctx.js` | Sandboxed QuickJS evaluator for untrusted scripts | `core-js-quickjs-desktop` (desktop) |
 | `ctx.shell` | Open external URL, directory pickers | Desktop bridge, mobile intent |
 
 ### Diagnostic Logging (Layer 3)
@@ -91,7 +91,7 @@ Declared in `packages/protocol/src/services/` and augmented onto `Context`:
 ## 5. Startup & Initialization Performance
 
 - **Preloaded Store data:** If the composition root pre-reads `store.json` at boot (e.g. to inspect audio output engine preferences before service instantiation), pass `StoreConfig.initialData` to seed the in-memory document, eliminating duplicate disk reads.
-- **Lazy WASM compilation in `core-js-quickjs-node`:** `[Service.init]()` returns immediately; WASM is compiled on first `createRealm()` invocation.
+- **Lazy WASM compilation in `core-js-quickjs-desktop`:** `[Service.init]()` returns immediately; WASM is compiled on first `createRealm()` invocation.
 - **Non-blocking background tasks:** Heavy I/O initialization such as initial cache sweep in `plugin-cache` must be deferred to background timers (e.g. 5s post-boot) rather than blocking `init()`.
 
 ---

@@ -14,7 +14,7 @@ import { CORE_MIGRATIONS } from './core.js'
  * A real SQLite database, not a fake.
  *
  * `node:sqlite` ships with Node 22+ (used by the desktop sidecar) —
- * so this is the same engine `core-db-node` will use in production, and these
+ * so this is the same engine `core-db-desktop` will use in production, and these
  * tests genuinely validate the SQL rather than a mock's idea of it.
  */
 /**
@@ -93,7 +93,7 @@ function memoryDb() {
     db,
     ...base,
     // BEGIN IMMEDIATE takes the write lock up front rather than upgrading
-    // mid-transaction, which is what `core-db-node` will do.
+    // mid-transaction, which is what `core-db-desktop` will do.
     async transaction<T>(fn: (tx: typeof base) => Promise<T>): Promise<T> {
       db.exec('BEGIN IMMEDIATE')
       try {

@@ -19,7 +19,7 @@ declare module 'cordis' {
 ```
 
 Consumers write `ctx.fs.readFile(uri)` with full type safety and no knowledge of which
-implementation is mounted. Swapping `core-fs-expo` for `core-fs-node` is a bootstrap-list change
+implementation is mounted. Swapping `core-fs-mobile` for `core-fs-desktop` is a bootstrap-list change
 ([architecture/layers.md §3](../architecture/layers.md#bootstrap-plugin-sets)) and nothing else.
 
 Cordis hands out services through a tracing proxy, which is how it knows that a value your plugin

@@ -47,7 +47,7 @@ export interface AppOptions {
   target: Target
   /**
    * What comes up before the registry, in order: this target's core services —
-   * `core-fs-expo` or `core-fs-node`, and so on — followed by the logs layer.
+   * `core-fs-mobile` or `core-fs-desktop`, and so on — followed by the logs layer.
    *
    * Applied before any feature plugin, and never capability-gated: the core
    * services *are* the thing being gated, and a transport that had to be

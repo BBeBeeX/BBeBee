@@ -53,7 +53,7 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   try {
     return resolve(context, moduleName, platform)
   } catch (error) {
-    // Node builtins resolve nothing under Metro, but `core-codec-node`'s
+    // Node builtins resolve nothing under Metro, but `core-codec-desktop`'s
     // sidecar paths import them (or transitively require them — iconv-lite's
     // chain wants `buffer`/`string_decoder`) inside runtime-guarded code; see
     // the stub's own header. Resolving them to the stub is what lets the

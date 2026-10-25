@@ -1,0 +1,28 @@
+{
+  "id": "@bbebee/core-device-desktop",
+  "name": "@bbebee/core-device-desktop",
+  "displayName": "Device",
+  "description": "ctx.device — network, battery, media keys and hotkeys on desktop (Tauri).",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": {
+    "BBeBee": "^0.1.0"
+  },
+  "enabled": true,
+  "dependencies": [],
+  "systemId": "layer-2",
+  "moduleId": "core",
+  "platforms": [
+    "desktop"
+  ],
+  "entry": {
+    "main": "./dist/index.js"
+  },
+  "capabilities": [],
+  "contributes": {
+    "services": [
+      "device"
+    ]
+  },
+  "effect": "device"
+}

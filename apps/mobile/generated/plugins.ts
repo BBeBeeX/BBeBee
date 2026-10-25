@@ -9,49 +9,49 @@ export const bundled: PluginRegistry = {
     manifest: {"id":"@bbebee/core-audio-mpv","name":"@bbebee/core-audio-mpv","displayName":"Audio (MPV)","description":"ctx.audio — the audio engine: libmpv with native audio-engine crash isolation, native DSP/EQ, and FFT visualizer.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"playback","platforms":["desktop","mobile"],"entry":{"main":"./dist/index.js"},"capabilities":["audio"],"contributes":{"services":["audio"]},"effect":"audio"},
     builtin: true,
   },
-  "@bbebee/core-background-expo": {
-    load: () => import('@bbebee/core-background-expo'),
-    manifest: {"id":"@bbebee/core-background-expo","name":"@bbebee/core-background-expo","displayName":"Background","description":"ctx.background for iOS and Android — audio session, wake locks, deferred work.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":["background"],"contributes":{"services":["background"]},"effect":"background"},
+  "@bbebee/core-background-mobile": {
+    load: () => import('@bbebee/core-background-mobile'),
+    manifest: {"id":"@bbebee/core-background-mobile","name":"@bbebee/core-background-mobile","displayName":"Background","description":"ctx.background for iOS and Android — audio session, wake locks, deferred work.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":["background"],"contributes":{"services":["background"]},"effect":"background"},
     builtin: true,
   },
-  "@bbebee/core-codec-rn": {
-    load: () => import('@bbebee/core-codec-rn'),
-    manifest: {"id":"@bbebee/core-codec-rn","name":"@bbebee/core-codec-rn","displayName":"Codec","description":"ctx.codec for iOS and Android — tags over ctx.fs, PCM via AudioDecoder.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":["fs:read:all"],"contributes":{"services":["codec"]},"effect":"codec"},
+  "@bbebee/core-codec-mobile": {
+    load: () => import('@bbebee/core-codec-mobile'),
+    manifest: {"id":"@bbebee/core-codec-mobile","name":"@bbebee/core-codec-mobile","displayName":"Codec","description":"ctx.codec for iOS and Android — tags over ctx.fs, PCM via AudioDecoder.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":["fs:read:all"],"contributes":{"services":["codec"]},"effect":"codec"},
     builtin: true,
   },
-  "@bbebee/core-db-expo": {
-    load: () => import('@bbebee/core-db-expo'),
-    manifest: {"id":"@bbebee/core-db-expo","name":"@bbebee/core-db-expo","displayName":"DB (Expo)","description":"ctx.db — SQLite database for Expo / React Native.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["db"]},"effect":"db"},
+  "@bbebee/core-db-mobile": {
+    load: () => import('@bbebee/core-db-mobile'),
+    manifest: {"id":"@bbebee/core-db-mobile","name":"@bbebee/core-db-mobile","displayName":"DB (Expo)","description":"ctx.db — SQLite database for Expo / React Native.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["db"]},"effect":"db"},
     builtin: true,
   },
-  "@bbebee/core-device-expo": {
-    load: () => import('@bbebee/core-device-expo'),
-    manifest: {"id":"@bbebee/core-device-expo","name":"@bbebee/core-device-expo","displayName":"Device","description":"ctx.device for iOS and Android — network, battery, locale.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["device"]},"effect":"device"},
+  "@bbebee/core-device-mobile": {
+    load: () => import('@bbebee/core-device-mobile'),
+    manifest: {"id":"@bbebee/core-device-mobile","name":"@bbebee/core-device-mobile","displayName":"Device","description":"ctx.device for iOS and Android — network, battery, locale.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["device"]},"effect":"device"},
     builtin: true,
   },
-  "@bbebee/core-fs-expo": {
-    load: () => import('@bbebee/core-fs-expo'),
-    manifest: {"id":"@bbebee/core-fs-expo","name":"@bbebee/core-fs-expo","displayName":"FS (Expo)","description":"ctx.fs — filesystem implementation for Expo / React Native.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":["fs:read:all","fs:write:all"],"contributes":{"services":["fs"]},"effect":"fs"},
+  "@bbebee/core-fs-mobile": {
+    load: () => import('@bbebee/core-fs-mobile'),
+    manifest: {"id":"@bbebee/core-fs-mobile","name":"@bbebee/core-fs-mobile","displayName":"FS (Expo)","description":"ctx.fs — filesystem implementation for Expo / React Native.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":["fs:read:all","fs:write:all"],"contributes":{"services":["fs"]},"effect":"fs"},
     builtin: true,
   },
-  "@bbebee/core-http-rn": {
-    load: () => import('@bbebee/core-http-rn'),
-    manifest: {"id":"@bbebee/core-http-rn","name":"@bbebee/core-http-rn","displayName":"HTTP","description":"ctx.http for iOS and Android — the M1 slice over expo/fetch.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":["net:host/*"],"contributes":{"services":["http"]},"effect":"http"},
+  "@bbebee/core-http-mobile": {
+    load: () => import('@bbebee/core-http-mobile'),
+    manifest: {"id":"@bbebee/core-http-mobile","name":"@bbebee/core-http-mobile","displayName":"HTTP","description":"ctx.http for iOS and Android — the M1 slice over expo/fetch.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":["net:host/*"],"contributes":{"services":["http"]},"effect":"http"},
     builtin: true,
   },
-  "@bbebee/core-media-session-rn": {
-    load: () => import('@bbebee/core-media-session-rn'),
-    manifest: {"id":"@bbebee/core-media-session-rn","name":"@bbebee/core-media-session-rn","displayName":"Media Session","description":"ctx.mediaSession for iOS and Android — lock screen and media notification.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":["mediaSession"],"contributes":{"services":["mediaSession"]},"effect":"mediaSession"},
+  "@bbebee/core-media-session-mobile": {
+    load: () => import('@bbebee/core-media-session-mobile'),
+    manifest: {"id":"@bbebee/core-media-session-mobile","name":"@bbebee/core-media-session-mobile","displayName":"Media Session","description":"ctx.mediaSession for iOS and Android — lock screen and media notification.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":["mediaSession"],"contributes":{"services":["mediaSession"]},"effect":"mediaSession"},
     builtin: true,
   },
-  "@bbebee/core-paths-expo": {
-    load: () => import('@bbebee/core-paths-expo'),
-    manifest: {"id":"@bbebee/core-paths-expo","name":"@bbebee/core-paths-expo","displayName":"Paths (Expo)","description":"ctx.paths — well-known paths for Expo / React Native.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["paths"]},"effect":"paths"},
+  "@bbebee/core-paths-mobile": {
+    load: () => import('@bbebee/core-paths-mobile'),
+    manifest: {"id":"@bbebee/core-paths-mobile","name":"@bbebee/core-paths-mobile","displayName":"Paths (Expo)","description":"ctx.paths — well-known paths for Expo / React Native.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["paths"]},"effect":"paths"},
     builtin: true,
   },
-  "@bbebee/core-secrets-expo": {
-    load: () => import('@bbebee/core-secrets-expo'),
-    manifest: {"id":"@bbebee/core-secrets-expo","name":"@bbebee/core-secrets-expo","displayName":"Secrets","description":"ctx.secrets for iOS and Android, over expo-secure-store.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["secrets"]},"effect":"secrets"},
+  "@bbebee/core-secrets-mobile": {
+    load: () => import('@bbebee/core-secrets-mobile'),
+    manifest: {"id":"@bbebee/core-secrets-mobile","name":"@bbebee/core-secrets-mobile","displayName":"Secrets","description":"ctx.secrets for iOS and Android, over expo-secure-store.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["secrets"]},"effect":"secrets"},
     builtin: true,
   },
   "@bbebee/core-store-fs": {

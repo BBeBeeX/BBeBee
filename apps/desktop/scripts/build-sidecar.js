@@ -25,8 +25,8 @@ await build({
     rollupOptions: {
       input: {
         index: resolve(root, 'sidecar/index.ts'),
-        'artwork-worker': resolve(root, '../../packages/core/core-codec-node/src/artwork-worker.ts'),
-        'cover': resolve(root, '../../packages/core/core-codec-node/src/cover-sidecar.ts'),
+        'artwork-worker': resolve(root, '../../packages/core/core-codec-desktop/src/artwork-worker.ts'),
+        'cover': resolve(root, '../../packages/core/core-codec-desktop/src/cover-sidecar.ts'),
       },
       output: {
         entryFileNames: '[name].mjs',

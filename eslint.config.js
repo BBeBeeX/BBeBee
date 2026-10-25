@@ -111,7 +111,7 @@ const KERNEL_GUARD = {
  * gitignore-style `*` does not cross a `/`, so the bare name alone would let
  * `@bbebee/core-desktop-bridge/main` through. Both scopes are listed because
  * the manifest plugins were renamed to `@bbebee/` while the manifest-less
- * node implementations (`core-db-node`, `core-fs-node`, `core-paths-node`)
+ * node implementations (`core-db-desktop`, `core-fs-desktop`, `core-paths-desktop`)
  * still carry `@BBeBee/`.
  */
 const CORE_PACKAGES = ['@BBeBee/core-*', '@BBeBee/core-*/**', '@bbebee/core-*', '@bbebee/core-*/**']
@@ -122,7 +122,7 @@ const CORE_PACKAGES = ['@BBeBee/core-*', '@BBeBee/core-*/**', '@bbebee/core-*', 
  * Everything above Layer 3 logs through `ctx.logger`: Cordis provides it,
  * already scoped per plugin, and a transport is a plugin that subscribes to it
  * (docs/04 §16). So a feature or view package importing a transport is the
- * same mistake as importing `core-fs-node` to read a file — it hard-wires one
+ * same mistake as importing `core-fs-desktop` to read a file — it hard-wires one
  * implementation into code whose whole point is not to know which one is
  * loaded, and it makes the transport unloadable while that importer lives.
  *

@@ -53,7 +53,7 @@ and control playback. Media session integration.
 - Queue and position restore across a restart, without auto-playing.
 
 **Where it stands.** Built and under test: the `ctx.audio` engine with its conformance suite,
-`core-codec-node` and `core-codec-rn`, `core-http-node` and `core-http-rn` with the M1-slice
+`core-codec-desktop` and `core-codec-mobile`, `core-http-desktop` and `core-http-mobile` with the M1-slice
 conformance suite running against a real byte-serving socket, `ctx.device`, `ctx.background` and
 `ctx.mediaSession` on both targets, the scanner, the catalogue, the player with gapless, crossfade,
 prefetch and the interruption table, both UI kits with the parity check, and the five screens on
@@ -121,15 +121,15 @@ document.
   library item with two sources.
 
 **Where it stands.** Built and under test: the rule language including `@js:`, the QuickJS sandbox
-(`core-js-quickjs-node`) and `ctx.js`, search, explore, album and lyrics, the catalogue round trip
+(`core-js-quickjs-desktop`) and `ctx.js`, search, explore, album and lyrics, the catalogue round trip
 that keeps a searched or browsed track playable after a restart, `ctx.secrets` on both platforms
-(`core-secrets-node`, `core-secrets-expo`), per-source cookie jars that persist and are forgotten
+(`core-secrets-desktop`, `core-secrets-mobile`), per-source cookie jars that persist and are forgotten
 by sign-out, form and variable sign-in with transparent single-flight re-authentication, the
 per-feature test screen with its streaming trace, the cross-source search screen (one result
 section per source, failures and timeouts kept visible), cross-source identity linking, the import
 and source-list screens on both shells, and the full error taxonomy.
 
-Still open, and both need a device to finish: **`core-js-quickjs-expo`** — React Native's Hermes
+Still open, and both need a device to finish: **`core-js-quickjs-mobile`** — React Native's Hermes
 has no WebAssembly, so the mobile sandbox needs a *native* QuickJS module and therefore a
 dev-client rebuild, which is why it was always listed as the one native dependency M2 adds
 ([services/contracts.md §19](../services/contracts.md#19-ctxjs--the-sandboxed-evaluator)) — and running the two shells

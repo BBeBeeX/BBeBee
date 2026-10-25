@@ -2,7 +2,7 @@
  * Implementation shared by the two `ctx.audio` engines.
  *
  * `core-audio-mpv` is built on this package — the `StreamedHandle`
- * arrangement, the same pattern as `core-http-rn` ← `core-http-node`. Whatever
+ * arrangement, the same pattern as `core-http-mobile` ← `core-http-desktop`. Whatever
  * must not drift between the engines lives here once: device enumeration and
  * label hygiene, the context rebuild at a track's native rate, the
  * statechange→interruption translation, and the resume kick a suspended

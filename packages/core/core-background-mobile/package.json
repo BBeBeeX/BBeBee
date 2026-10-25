@@ -1,0 +1,39 @@
+{
+  "name": "@bbebee/core-background-mobile",
+  "version": "0.0.0",
+  "description": "ctx.background for iOS and Android — audio session, wake locks, deferred work.",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@BBeBee/protocol": "workspace:*",
+    "cordis": "4.0.0-rc.9",
+    "expo-background-task": "~57.0.16",
+    "expo-keep-awake": "~57.0.1",
+    "expo-task-manager": "~57.0.16",
+    "react-native": "0.86.3",
+    "react-native-audio-api": "0.13.3"
+  }
+}

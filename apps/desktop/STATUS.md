@@ -5,7 +5,7 @@
 `apps/desktop` is the modernized desktop application running on **Tauri v2** + **Node.js Sidecar**.
 
 - **Host Core**: Rust (Tauri v2) providing native windowing, system tray, global media keys, dialogs, OS keychain integration, and custom protocol handlers.
-- **Core Services**: Node.js Sidecar hosting `@bbebee/core-desktop-bridge/main`, `core-fs-node`, `core-db-node`, `core-paths-node`, and native audio engine supervision.
+- **Core Services**: Node.js Sidecar hosting `@bbebee/core-desktop-bridge/main`, `core-fs-desktop`, `core-db-desktop`, `core-paths-desktop`, and native audio engine supervision.
 - **Renderer Shell**: Sandboxed React 18 Webview with Cordis kernel running in-page and communicating over standardized Tauri commands, events, and stdio JSON-RPC.
 
 ---
@@ -264,7 +264,7 @@
    - `protocols.ts`: `ProtocolManager` implementing custom stream handlers for `bbebee-file://`, `bbebee-plugin://` (with directory traversal security guards), and `bbebee-sandbox://`.
    - `index.ts`: Node sidecar main entry point:
      * Implements `IpcHost` from `@bbebee/core-desktop-bridge/main`.
-     * Boots `@bbebee/core-desktop-bridge/main`'s `createHost()`, registering all desktop core services (`core-fs-node`, `core-db-node`, `core-paths-node`).
+     * Boots `@bbebee/core-desktop-bridge/main`'s `createHost()`, registering all desktop core services (`core-fs-desktop`, `core-db-desktop`, `core-paths-desktop`).
      * Runs readline-based NDJSON listener on `process.stdin` dispatching incoming requests (`bridge:call`, `bridge:stream:open`, `bridge:stream:pull`, `bridge:stream:close`, `bridge:http:open`, `bridge:http:pull`, `bridge:http:close`, `bridge:tx:begin`, `bridge:tx:end`, `ping`, `audio:*`, `transcode:*`, `protocol:*`).
      * Directs responses and notifications (`window.BBeBeeBridge` event broadcasts) via JSON-RPC to `process.stdout`.
 
@@ -778,9 +778,9 @@
 
 6. **Core Platform Parity Test Suite** (`tests/core-platform-parity.test.ts`):
    - Created a comprehensive test suite (1,177 lines) porting all assertions from:
-     * `packages/core/core-background-tauri/src/index.test.ts`
-     * `packages/core/core-device-tauri/src/index.test.ts`
-     * `packages/core/core-media-session-tauri/src/index.test.ts`
+     * `packages/core/core-background-desktop/src/index.test.ts`
+     * `packages/core/core-device-desktop/src/index.test.ts`
+     * `packages/core/core-media-session-desktop/src/index.test.ts`
    - Verified bridge API translation, end-to-end Cordis DI integration, event push dispatch, and all Group 0 OS services.
 
 ### Exact Gate Check Command Outputs
@@ -1610,9 +1610,9 @@ Following strict checklist review, all 365 tracked legacy files were removed usi
 ### 1. Layer 2 Core 基础服务重命名与解耦
 根据架构规范，跨平台核心服务已全面从旧版 IPC 转移至 Tauri IPC：
 1. **重命名核心包**:
-   - `packages/core/core-background-tauri`（原桌面背景服务包迁移）
-   - `packages/core/core-device-tauri`（原桌面设备集成包迁移）
-   - `packages/core/core-media-session-tauri`（原桌面系统媒体会话包迁移）
+   - `packages/core/core-background-desktop`（原桌面背景服务包迁移）
+   - `packages/core/core-device-desktop`（原桌面设备集成包迁移）
+   - `packages/core/core-media-session-desktop`（原桌面系统媒体会话包迁移）
 2. **包定义与导出重构**:
    - 更新 `package.json` 包名为 `@bbebee/core-*-tauri`；
    - 更新 `BBeBee.plugin.json` 中的 `id`、`name`、`displayName` 为 Tauri 规范；

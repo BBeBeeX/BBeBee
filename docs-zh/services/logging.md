@@ -71,7 +71,7 @@ export interface LogTransport {
 1. **系统日志查看 (`debug.logs`)**：
    直接从 `ctx.logBuffer` 读取日志数据。提供实时流检查、日志级别过滤（`ALL`、`DEBUG`、`INFO`、`WARN`、`ERROR`）、子字符串搜索、导出为 NDJSON 到剪贴板，以及一键清空缓冲区。
 2. **HTTP 请求日志 (`debug.http-logs`)**：
-   监控由第三方音源与后台任务发起的出站 HTTP 请求。核心 HTTP 客户端（`core-http-node`）将追踪记录格式化为 `[HTTP] ${method} ${url} -> ${status} (${durationMs}ms)`，该视图将其解析为带有方法徽标、HTTP 状态码、毫秒级延迟与目标 URL 的结构化条目。
+   监控由第三方音源与后台任务发起的出站 HTTP 请求。核心 HTTP 客户端（`core-http-desktop`）将追踪记录格式化为 `[HTTP] ${method} ${url} -> ${status} (${durationMs}ms)`，该视图将其解析为带有方法徽标、HTTP 状态码、毫秒级延迟与目标 URL 的结构化条目。
 
 ---
 

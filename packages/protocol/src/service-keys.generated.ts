@@ -21,29 +21,29 @@ export const SERVICE_KEY_PROVIDERS: Readonly<Record<string, readonly string[]>> 
     "@bbebee/plugin-audio-converter"
   ],
   "background": [
-    "@bbebee/core-background-expo",
-    "@bbebee/core-background-tauri"
+    "@bbebee/core-background-desktop",
+    "@bbebee/core-background-mobile"
   ],
   "cache": [
     "@bbebee/plugin-cache"
   ],
   "codec": [
-    "@bbebee/core-codec-node",
-    "@bbebee/core-codec-rn"
+    "@bbebee/core-codec-desktop",
+    "@bbebee/core-codec-mobile"
   ],
   "contentRegistry": [
     "@bbebee/plugin-registry"
   ],
   "db": [
-    "@bbebee/core-db-expo",
+    "@bbebee/core-db-mobile",
     "@bbebee/core-desktop-bridge"
   ],
   "desktopLyrics": [
     "@bbebee/plugin-desktop-lyrics"
   ],
   "device": [
-    "@bbebee/core-device-expo",
-    "@bbebee/core-device-tauri"
+    "@bbebee/core-device-desktop",
+    "@bbebee/core-device-mobile"
   ],
   "downloads": [
     "@bbebee/plugin-download"
@@ -53,11 +53,11 @@ export const SERVICE_KEY_PROVIDERS: Readonly<Record<string, readonly string[]>> 
   ],
   "fs": [
     "@bbebee/core-desktop-bridge",
-    "@bbebee/core-fs-expo"
+    "@bbebee/core-fs-mobile"
   ],
   "http": [
-    "@bbebee/core-http-node",
-    "@bbebee/core-http-rn"
+    "@bbebee/core-http-desktop",
+    "@bbebee/core-http-mobile"
   ],
   "i18n": [
     "@bbebee/plugin-i18n"
@@ -66,7 +66,7 @@ export const SERVICE_KEY_PROVIDERS: Readonly<Record<string, readonly string[]>> 
     "@bbebee/plugin-inspector"
   ],
   "js": [
-    "@bbebee/core-js-quickjs-node"
+    "@bbebee/core-js-quickjs-desktop"
   ],
   "library": [
     "@bbebee/plugin-library"
@@ -81,8 +81,8 @@ export const SERVICE_KEY_PROVIDERS: Readonly<Record<string, readonly string[]>> 
     "@bbebee/plugin-lyrics"
   ],
   "mediaSession": [
-    "@bbebee/core-media-session-rn",
-    "@bbebee/core-media-session-tauri"
+    "@bbebee/core-media-session-desktop",
+    "@bbebee/core-media-session-mobile"
   ],
   "miniPlayer": [
     "@bbebee/plugin-mini-player"
@@ -92,7 +92,7 @@ export const SERVICE_KEY_PROVIDERS: Readonly<Record<string, readonly string[]>> 
   ],
   "paths": [
     "@bbebee/core-desktop-bridge",
-    "@bbebee/core-paths-expo"
+    "@bbebee/core-paths-mobile"
   ],
   "player": [
     "@bbebee/plugin-player"
@@ -107,8 +107,8 @@ export const SERVICE_KEY_PROVIDERS: Readonly<Record<string, readonly string[]>> 
     "@bbebee/plugin-local-scanner"
   ],
   "secrets": [
-    "@bbebee/core-secrets-expo",
-    "@bbebee/core-secrets-node"
+    "@bbebee/core-secrets-desktop",
+    "@bbebee/core-secrets-mobile"
   ],
   "securityAudit": [
     "@bbebee/plugin-security-audit"

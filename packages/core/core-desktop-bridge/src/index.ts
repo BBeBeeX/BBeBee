@@ -2,7 +2,7 @@
  * Renderer-side `ctx.fs`, `ctx.db` and `ctx.paths` over the IPC bridge.
  *
  * ADR-3 puts the kernel in the renderer, which is sandboxed — so Node is
- * unreachable there and `core-fs-node` cannot run in-process. These are the
+ * unreachable there and `core-fs-desktop` cannot run in-process. These are the
  * "thin IPC clients" docs/02 §2 describes: they add no behaviour, they only
  * forward. The behaviour has exactly one home, in `core-*-node`, running in
  * main.
@@ -40,7 +40,7 @@ import type {
   WellKnownDir,
   WriteOptions,
 } from '@BBeBee/protocol'
-import { CodecNode, type CodecNodeConfig } from '@bbebee/core-codec-node'
+import { CodecNode, type CodecNodeConfig } from '@bbebee/core-codec-desktop'
 import {
   normalizeBridgeBytes,
   requireBridge,
@@ -98,7 +98,7 @@ export class PathsBridge extends Service implements PathsService {
   private readonly pluginRoot: string
 
   pluginData(pluginId: string): Uri {
-    // Must agree with `core-paths-node` exactly, or the fs gate in the
+    // Must agree with `core-paths-desktop` exactly, or the fs gate in the
     // renderer would classify a plugin's own directory differently from the
     // host that serves it. The name is computed by the shared helper.
     return `${this.pluginRoot}/${pluginDirNameLocal(pluginId)}`
@@ -153,7 +153,7 @@ export class FsBridge extends Service implements FsService {
     this.bridge = requireBridge()
   }
 
-  /** Identical classification to `core-fs-node`, so the gate agrees. */
+  /** Identical classification to `core-fs-desktop`, so the gate agrees. */
   private scopeOf(uri: Uri, gate: CapabilityConfig | undefined): Scope {
     const paths = this.ctx.paths
     if (uriContains(paths.temp, uri)) return 'cache'
@@ -394,7 +394,7 @@ export class DbBridge extends Service implements DbService {
    *
    * Main cannot do this: it has one database context serving every caller and
    * no way to tell which plugin a bridge call came from. So the per-plugin
-   * half of the gate has to run here — the same shape `core-db-node` uses in
+   * half of the gate has to run here — the same shape `core-db-desktop` uses in
    * process, via the same helper, so the two cannot drift.
    *
    * ⚠️ Renderer-side means a plugin that bypasses `ctx.db` and calls
@@ -478,7 +478,7 @@ export class DbBridge extends Service implements DbService {
 /**
  * A `fetch` that runs in `main`.
  *
- * `core-http-node` takes its transport as a seam, and on desktop this is what
+ * `core-http-desktop` takes its transport as a seam, and on desktop this is what
  * fills it. The renderer's own `fetch` cannot do the job: it is a browser
  * context, so a cross-origin request needs the *server's* permission, and a
  * Navidrome instance run by a stranger has never heard of this app. It also

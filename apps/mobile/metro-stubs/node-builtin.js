@@ -1,7 +1,7 @@
 /**
  * Stand-in for Node builtins under Metro.
  *
- * `core-codec-node` (inherited whole by `core-codec-rn`) carries sidecar-only
+ * `core-codec-desktop` (inherited whole by `core-codec-mobile`) carries sidecar-only
  * paths — the artwork worker pool, ffmpeg probing — whose `node:*` imports
  * are guarded at runtime (`typeof process.versions?.node`, try/catch with an
  * in-process fallback), and whose optional `iconv-lite` GBK recovery transitively

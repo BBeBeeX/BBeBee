@@ -1,8 +1,8 @@
 /**
  * BBeBee Node.js Headless Sidecar
  *
- * Hosts Core Services (@bbebee/core-desktop-bridge/main, core-fs-node, core-db-node,
- * core-paths-node), Audio Engine Supervisor, FFmpeg Transcoding, and Custom Protocol Handlers.
+ * Hosts Core Services (@bbebee/core-desktop-bridge/main, core-fs-desktop, core-db-desktop,
+ * core-paths-desktop), Audio Engine Supervisor, FFmpeg Transcoding, and Custom Protocol Handlers.
  *
  * Transport: Standard Input / Standard Output framed NDJSON (stdio JSON-RPC 2.0).
  * All diagnostics and application logs are isolated strictly to stderr.
@@ -35,7 +35,7 @@ console.info = (...args: unknown[]) => {
   process.stderr.write(`[sidecar:info] ${args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ')}\n`)
 }
 
-import { resolveSystemPath } from '@BBeBee/core-paths-node'
+import { resolveSystemPath } from '@BBeBee/core-paths-desktop'
 
 export interface SidecarContext {
   host: Host

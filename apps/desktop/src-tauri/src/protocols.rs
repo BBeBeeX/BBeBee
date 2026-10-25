@@ -342,7 +342,7 @@ pub fn handle_bbebee_plugin_request(
 }
 
 /// `<userData>/installed-plugins`, with `userData` resolved exactly as
-/// the sidecar resolves it (`core-paths-node`'s
+/// the sidecar resolves it (`core-paths-desktop`'s
 /// `resolveSystemPath('userData')`): `BBEBEE_DATA_DIR` wins, then the
 /// platform data directory + `BBeBee`.
 fn installed_plugins_dir() -> Option<PathBuf> {

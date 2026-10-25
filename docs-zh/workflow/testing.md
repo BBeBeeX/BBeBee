@@ -78,7 +78,7 @@ pnpm check                   # typecheck + lint + test — should be green on a 
 | `pnpm build` | 为每个包产出 `dist/` |
 | `pnpm clean` | 移除 `dist/`、`out/` 与构建信息 |
 
-按路径跑单个包的测试 —— `pnpm test packages/core/core-fs-node` —— 或单个文件。
+按路径跑单个包的测试 —— `pnpm test packages/core/core-fs-desktop` —— 或单个文件。
 
 ### 为什么闸门很快（以及各级缓存是什么）
 

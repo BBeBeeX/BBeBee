@@ -232,7 +232,7 @@ export class StoreFs extends Service implements StoreService {
          *
          * That is the crash window of a non-atomic replace: on mobile
          * `ctx.fs.move` has to clear the destination before it can move onto
-         * it (see `core-fs-expo`), so there is a moment where the new contents
+         * it (see `core-fs-mobile`), so there is a moment where the new contents
          * exist only under `.tmp`. The alternative to adopting it is starting
          * empty — silently discarding a write that had already succeeded — so
          * this recovers rather than shrugs. On a platform with a real atomic

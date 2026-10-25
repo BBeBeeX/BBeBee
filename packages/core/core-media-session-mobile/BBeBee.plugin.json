@@ -1,0 +1,30 @@
+{
+  "id": "@bbebee/core-media-session-mobile",
+  "name": "@bbebee/core-media-session-mobile",
+  "displayName": "Media Session",
+  "description": "ctx.mediaSession for iOS and Android — lock screen and media notification.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": {
+    "BBeBee": "^0.1.0"
+  },
+  "enabled": true,
+  "dependencies": [],
+  "systemId": "layer-2",
+  "moduleId": "core",
+  "platforms": [
+    "mobile"
+  ],
+  "entry": {
+    "main": "./dist/index.js"
+  },
+  "capabilities": [
+    "mediaSession"
+  ],
+  "contributes": {
+    "services": [
+      "mediaSession"
+    ]
+  },
+  "effect": "mediaSession"
+}

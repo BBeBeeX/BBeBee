@@ -12,9 +12,9 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { Context, Service } from 'cordis'
-import { PathsNode } from '@BBeBee/core-paths-node'
-import { FsNode } from '@BBeBee/core-fs-node'
-import { DbNode } from '@BBeBee/core-db-node'
+import { PathsNode } from '@BBeBee/core-paths-desktop'
+import { FsNode } from '@BBeBee/core-fs-desktop'
+import { DbNode } from '@BBeBee/core-db-desktop'
 import { diffSnapshots, snapshotContext, tempDir, tick } from '@BBeBee/kernel/testing'
 import type { AudioMetadata, DbService, Uri } from '@BBeBee/protocol'
 import plugin, { type Scanner } from './index.js'
@@ -722,7 +722,7 @@ describe('keeping up with the filesystem', () => {
 
   it('polls on its own where there is neither a watcher nor a background service', async () => {
     // Desktop has both problems: the bridge's `canWatch` is false and
-    // `core-background-tauri` does not exist yet — so without this fallback
+    // `core-background-desktop` does not exist yet — so without this fallback
     // there is no automatic rescan at all, and the library silently goes stale.
     const h = await harness({ pollIntervalMinutes: 1 / 600, canWatch: false }) // 100 ms
     await h.write('a.mp3')

@@ -95,31 +95,31 @@ B_Be_Bee/
 │   │   │                                      唯一获准导入平台 SDK 的包，也是唯一获准
 │   │   │                                      驱动内核的包。每个键每个目标一份实现；
 │   │   │                                      不含领域知识 —— 它们没有一个知道曲目是什么。
-│   │   ├── core-paths-node/        ✅        ctx.paths
-│   │   ├── core-paths-expo/        ✅
-│   │   ├── core-fs-node/           ✅        ctx.fs —— 虚拟文件系统 ([services/contracts.md §1](../services/contracts.md))
-│   │   ├── core-fs-expo/           ✅
-│   │   ├── core-db-node/           ✅        ctx.db —— node:sqlite / expo-sqlite ([services/contracts.md §3](../services/contracts.md))
-│   │   ├── core-db-expo/           ✅
+│   │   ├── core-paths-desktop/        ✅        ctx.paths
+│   │   ├── core-paths-mobile/        ✅
+│   │   ├── core-fs-desktop/           ✅        ctx.fs —— 虚拟文件系统 ([services/contracts.md §1](../services/contracts.md))
+│   │   ├── core-fs-mobile/           ✅
+│   │   ├── core-db-desktop/           ✅        ctx.db —— node:sqlite / expo-sqlite ([services/contracts.md §3](../services/contracts.md))
+│   │   ├── core-db-mobile/           ✅
 │   │   ├── core-store-fs/          ✅        ctx.store —— 单一实现，经 ctx.fs ([services/contracts.md §4](../services/contracts.md))
-│   │   ├── core-http-node/         ✅        ctx.http —— 传输层是一条接缝：桌面端经由
-│   │   ├── core-http-rn/           ✅          bridge/fetch，移动端用 expo/fetch
-│   │   ├── core-secrets-node/      ✅        ctx.secrets。⚠️ 名字带 -node 却不分平台：它
+│   │   ├── core-http-desktop/         ✅        ctx.http —— 传输层是一条接缝：桌面端经由
+│   │   ├── core-http-mobile/           ✅          bridge/fetch，移动端用 expo/fetch
+│   │   ├── core-secrets-desktop/      ✅        ctx.secrets。⚠️ 名字带 -node 却不分平台：它
 │   │   │                                       经由 ctx.fs 持久化，因此在桌面端
 │   │   │                                       被沙箱化的渲染进程里也能加载
-│   │   ├── core-secrets-expo/      ✅
-│   │   ├── core-device-tauri/      ✅        ctx.device —— 网络、电量、媒体键
-│   │   ├── core-device-expo/       ✅
-│   │   ├── core-background-tauri/  ✅        ctx.background —— wake lock、挂起
-│   │   ├── core-background-expo/   ✅
-│   │   ├── core-media-session-tauri/ ✅      ctx.mediaSession —— OS 的"正在播放"表面
-│   │   ├── core-media-session-rn/  ✅
-│   │   ├── core-codec-node/        ✅        ctx.codec —— 标签：经 ctx.fs 用
-│   │   ├── core-codec-rn/          ✅          music-metadata 读取；-rn 再加上设备的解码器
+│   │   ├── core-secrets-mobile/      ✅
+│   │   ├── core-device-desktop/      ✅        ctx.device —— 网络、电量、媒体键
+│   │   ├── core-device-mobile/       ✅
+│   │   ├── core-background-desktop/  ✅        ctx.background —— wake lock、挂起
+│   │   ├── core-background-mobile/   ✅
+│   │   ├── core-media-session-desktop/ ✅      ctx.mediaSession —— OS 的"正在播放"表面
+│   │   ├── core-media-session-mobile/  ✅
+│   │   ├── core-codec-desktop/        ✅        ctx.codec —— 标签：经 ctx.fs 用
+│   │   ├── core-codec-mobile/          ✅          music-metadata 读取；-rn 再加上设备的解码器
 │   │   ├── core-audio-mpv/         ✅        ctx.audio —— 音频引擎 ([audio/engine.md](../audio/engine.md))
 │   │   ├── core-audio-mpv/         ✅        ctx.audio —— 桌面端原生 libmpv 后端
-│   │   ├── core-js-quickjs-node/   ✅        ctx.js —— 音源沙箱 ([services/contracts.md §19](../services/contracts.md))
-│   │   ├── core-js-quickjs-expo/             ⚠️ 唯一的 M2 缺口：Hermes 没有 WASM
+│   │   ├── core-js-quickjs-desktop/   ✅        ctx.js —— 音源沙箱 ([services/contracts.md §19](../services/contracts.md))
+│   │   ├── core-js-quickjs-mobile/             ⚠️ 唯一的 M2 缺口：Hermes 没有 WASM
 │   │   ├── core-desktop-bridge/    ✅        renderer↔sidecar JSON-RPC IPC 客户端 + sidecar 宿主。
 │   │   │                                       进程边界两侧都是 Layer 2
 │   │   └── core-…                            ctx.ws · ctx.notify · ctx.crypto · ctx.shell

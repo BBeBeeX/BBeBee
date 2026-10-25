@@ -117,31 +117,31 @@ B_Be_Bee/
 │   │   │                                      kernel. One implementation per target per key;
 │   │   │                                      no domain knowledge — none of them knows what a
 │   │   │                                      track is.
-│   │   ├── core-paths-node/        ✅        ctx.paths
-│   │   ├── core-paths-expo/        ✅
-│   │   ├── core-fs-node/           ✅        ctx.fs — virtual filesystem ([services/overview.md §1](../services/overview.md#1-ctxfs--virtual-filesystem))
-│   │   ├── core-fs-expo/           ✅
-│   │   ├── core-db-node/           ✅        ctx.db — node:sqlite / expo-sqlite ([services/contracts.md §5](../services/contracts.md#5-ctxdb--sql))
-│   │   ├── core-db-expo/           ✅
+│   │   ├── core-paths-desktop/        ✅        ctx.paths
+│   │   ├── core-paths-mobile/        ✅
+│   │   ├── core-fs-desktop/           ✅        ctx.fs — virtual filesystem ([services/overview.md §1](../services/overview.md#1-ctxfs--virtual-filesystem))
+│   │   ├── core-fs-mobile/           ✅
+│   │   ├── core-db-desktop/           ✅        ctx.db — node:sqlite / expo-sqlite ([services/contracts.md §5](../services/contracts.md#5-ctxdb--sql))
+│   │   ├── core-db-mobile/           ✅
 │   │   ├── core-store-fs/          ✅        ctx.store — one impl, via ctx.fs ([services/contracts.md §4](../services/contracts.md#4-ctxstore--namespaced-keyvalue))
-│   │   ├── core-http-node/         ✅        ctx.http — the transport is a seam: desktop fills
-│   │   ├── core-http-rn/           ✅          it with bridge/fetch, mobile with expo/fetch
-│   │   ├── core-secrets-node/      ✅        ctx.secrets. ⚠️ named -node but platform-free: it
+│   │   ├── core-http-desktop/         ✅        ctx.http — the transport is a seam: desktop fills
+│   │   ├── core-http-mobile/           ✅          it with bridge/fetch, mobile with expo/fetch
+│   │   ├── core-secrets-desktop/      ✅        ctx.secrets. ⚠️ named -node but platform-free: it
 │   │   │                                       persists through ctx.fs, so it loads in
 │   │   │                                       desktop's sandboxed renderer too
-│   │   ├── core-secrets-expo/      ✅
-│   │   ├── core-device-tauri/      ✅        ctx.device — network, battery, media keys
-│   │   ├── core-device-expo/       ✅
-│   │   ├── core-background-tauri/  ✅        ctx.background — wake locks, suspend
-│   │   ├── core-background-expo/   ✅
-│   │   ├── core-media-session-tauri/ ✅      ctx.mediaSession — the OS now-playing surface
-│   │   ├── core-media-session-rn/  ✅
-│   │   ├── core-codec-node/        ✅        ctx.codec — tags via music-metadata over ctx.fs;
-│   │   ├── core-codec-rn/          ✅          -rn adds the device's decoder
+│   │   ├── core-secrets-mobile/      ✅
+│   │   ├── core-device-desktop/      ✅        ctx.device — network, battery, media keys
+│   │   ├── core-device-mobile/       ✅
+│   │   ├── core-background-desktop/  ✅        ctx.background — wake locks, suspend
+│   │   ├── core-background-mobile/   ✅
+│   │   ├── core-media-session-desktop/ ✅      ctx.mediaSession — the OS now-playing surface
+│   │   ├── core-media-session-mobile/  ✅
+│   │   ├── core-codec-desktop/        ✅        ctx.codec — tags via music-metadata over ctx.fs;
+│   │   ├── core-codec-mobile/          ✅          -rn adds the device's decoder
 │   │   ├── core-audio-mpv/         ✅        ctx.audio — libmpv native engine (desktop subprocess)
 │   │   ├── core-audio-mpv/         ✅        ctx.audio — the audio engine ([audio/engine.md §1](../audio/engine.md#1-ctxaudio--the-engine))
-│   │   ├── core-js-quickjs-node/   ✅        ctx.js — source sandbox ([services/contracts.md §19](../services/contracts.md#19-ctxjs--the-sandboxed-evaluator))
-│   │   ├── core-js-quickjs-expo/             ⚠️ the one M2 gap: Hermes has no WASM
+│   │   ├── core-js-quickjs-desktop/   ✅        ctx.js — source sandbox ([services/contracts.md §19](../services/contracts.md#19-ctxjs--the-sandboxed-evaluator))
+│   │   ├── core-js-quickjs-mobile/             ⚠️ the one M2 gap: Hermes has no WASM
 │   │   ├── core-desktop-bridge/    ✅        renderer↔sidecar JSON-RPC IPC clients + sidecar host.
 │   │   │                                       Layer 2 on both sides of the process boundary
 │   │   └── core-…                            ctx.ws · ctx.notify · ctx.crypto · ctx.shell

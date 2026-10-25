@@ -34,13 +34,13 @@
     "cordis": "4.0.0-rc.9"
   },
   "devDependencies": {
-    "@BBeBee/core-db-node": "workspace:*",
-    "@BBeBee/core-fs-node": "workspace:*",
-    "@bbebee/core-http-node": "workspace:*",
-    "@BBeBee/core-paths-node": "workspace:*",
+    "@BBeBee/core-db-desktop": "workspace:*",
+    "@BBeBee/core-fs-desktop": "workspace:*",
+    "@bbebee/core-http-desktop": "workspace:*",
+    "@BBeBee/core-paths-desktop": "workspace:*",
     "@BBeBee/kernel": "workspace:*",
     "@bbebee/plugin-sources": "workspace:*",
-    "@bbebee/core-js-quickjs-node": "workspace:*",
-    "@bbebee/core-secrets-node": "workspace:*"
+    "@bbebee/core-js-quickjs-desktop": "workspace:*",
+    "@bbebee/core-secrets-desktop": "workspace:*"
   }
 }

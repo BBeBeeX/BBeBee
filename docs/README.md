@@ -15,7 +15,7 @@ built-in runtime and sandboxed in its own JS realm. Adding a backend is a paste,
 
 > **Status.** M0 – M4 are built — M3 (offline downloads) and M4 (the DSP chain) shipped; see each
 > milestone's "Where it stands" / "Shipped" notes in [Roadmap & Risks](./roadmap/roadmap.md) for
-> open items — notably `core-js-quickjs-expo` (mobile has
+> open items — notably `core-js-quickjs-mobile` (mobile has
 > no QuickJS sandbox yet) and the `@css:`/`@xpath:` rule engines. See the roadmap's
 > "Where it stands" section for the precise list. Every version number and API fact was verified
 > against `pnpm-lock.yaml` at the time of writing (see

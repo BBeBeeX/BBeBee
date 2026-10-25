@@ -37,10 +37,10 @@
     "react": "19.2.3"
   },
   "devDependencies": {
-    "@bbebee/core-codec-node": "workspace:*",
-    "@BBeBee/core-db-node": "workspace:*",
-    "@BBeBee/core-fs-node": "workspace:*",
-    "@BBeBee/core-paths-node": "workspace:*",
+    "@bbebee/core-codec-desktop": "workspace:*",
+    "@BBeBee/core-db-desktop": "workspace:*",
+    "@BBeBee/core-fs-desktop": "workspace:*",
+    "@BBeBee/core-paths-desktop": "workspace:*",
     "@bbebee/plugin-sources": "workspace:*",
     "@BBeBee/tooling-fixtures": "workspace:*",
     "@types/react": "^19.2.0",

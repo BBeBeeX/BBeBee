@@ -66,69 +66,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "audio"
   },
-  "@bbebee/core-background-expo": {
-    "id": "@bbebee/core-background-expo",
-    "name": "@bbebee/core-background-expo",
-    "displayName": "Background",
-    "description": "ctx.background for iOS and Android — audio session, wake locks, deferred work.",
-    "version": "0.0.0",
-    "author": "BBeBee Team",
-    "engines": {
-      "BBeBee": "^0.1.0"
-    },
-    "enabled": true,
-    "dependencies": [],
-    "systemId": "layer-2",
-    "moduleId": "core",
-    "platforms": [
-      "mobile"
-    ],
-    "entry": {
-      "main": "./dist/index.js"
-    },
-    "capabilities": [
-      "background"
-    ],
-    "contributes": {
-      "services": [
-        "background"
-      ]
-    },
-    "effect": "background"
-  },
-  "core-background-expo": {
-    "id": "@bbebee/core-background-expo",
-    "name": "@bbebee/core-background-expo",
-    "displayName": "Background",
-    "description": "ctx.background for iOS and Android — audio session, wake locks, deferred work.",
-    "version": "0.0.0",
-    "author": "BBeBee Team",
-    "engines": {
-      "BBeBee": "^0.1.0"
-    },
-    "enabled": true,
-    "dependencies": [],
-    "systemId": "layer-2",
-    "moduleId": "core",
-    "platforms": [
-      "mobile"
-    ],
-    "entry": {
-      "main": "./dist/index.js"
-    },
-    "capabilities": [
-      "background"
-    ],
-    "contributes": {
-      "services": [
-        "background"
-      ]
-    },
-    "effect": "background"
-  },
-  "@bbebee/core-background-tauri": {
-    "id": "@bbebee/core-background-tauri",
-    "name": "@bbebee/core-background-tauri",
+  "@bbebee/core-background-desktop": {
+    "id": "@bbebee/core-background-desktop",
+    "name": "@bbebee/core-background-desktop",
     "displayName": "Background",
     "description": "ctx.background — wake locks, scheduling and suspend hooks on desktop (Tauri).",
     "version": "0.0.0",
@@ -156,9 +96,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "background"
   },
-  "core-background-tauri": {
-    "id": "@bbebee/core-background-tauri",
-    "name": "@bbebee/core-background-tauri",
+  "core-background-desktop": {
+    "id": "@bbebee/core-background-desktop",
+    "name": "@bbebee/core-background-desktop",
     "displayName": "Background",
     "description": "ctx.background — wake locks, scheduling and suspend hooks on desktop (Tauri).",
     "version": "0.0.0",
@@ -186,9 +126,69 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "background"
   },
-  "@bbebee/core-codec-node": {
-    "id": "@bbebee/core-codec-node",
-    "name": "@bbebee/core-codec-node",
+  "@bbebee/core-background-mobile": {
+    "id": "@bbebee/core-background-mobile",
+    "name": "@bbebee/core-background-mobile",
+    "displayName": "Background",
+    "description": "ctx.background for iOS and Android — audio session, wake locks, deferred work.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [
+      "background"
+    ],
+    "contributes": {
+      "services": [
+        "background"
+      ]
+    },
+    "effect": "background"
+  },
+  "core-background-mobile": {
+    "id": "@bbebee/core-background-mobile",
+    "name": "@bbebee/core-background-mobile",
+    "displayName": "Background",
+    "description": "ctx.background for iOS and Android — audio session, wake locks, deferred work.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [
+      "background"
+    ],
+    "contributes": {
+      "services": [
+        "background"
+      ]
+    },
+    "effect": "background"
+  },
+  "@bbebee/core-codec-desktop": {
+    "id": "@bbebee/core-codec-desktop",
+    "name": "@bbebee/core-codec-desktop",
     "displayName": "Codec",
     "description": "ctx.codec — tags, artwork and PCM, over music-metadata.",
     "version": "0.0.0",
@@ -216,9 +216,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "codec"
   },
-  "core-codec-node": {
-    "id": "@bbebee/core-codec-node",
-    "name": "@bbebee/core-codec-node",
+  "core-codec-desktop": {
+    "id": "@bbebee/core-codec-desktop",
+    "name": "@bbebee/core-codec-desktop",
     "displayName": "Codec",
     "description": "ctx.codec — tags, artwork and PCM, over music-metadata.",
     "version": "0.0.0",
@@ -246,9 +246,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "codec"
   },
-  "@bbebee/core-codec-rn": {
-    "id": "@bbebee/core-codec-rn",
-    "name": "@bbebee/core-codec-rn",
+  "@bbebee/core-codec-mobile": {
+    "id": "@bbebee/core-codec-mobile",
+    "name": "@bbebee/core-codec-mobile",
     "displayName": "Codec",
     "description": "ctx.codec for iOS and Android — tags over ctx.fs, PCM via AudioDecoder.",
     "version": "0.0.0",
@@ -276,9 +276,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "codec"
   },
-  "core-codec-rn": {
-    "id": "@bbebee/core-codec-rn",
-    "name": "@bbebee/core-codec-rn",
+  "core-codec-mobile": {
+    "id": "@bbebee/core-codec-mobile",
+    "name": "@bbebee/core-codec-mobile",
     "displayName": "Codec",
     "description": "ctx.codec for iOS and Android — tags over ctx.fs, PCM via AudioDecoder.",
     "version": "0.0.0",
@@ -306,9 +306,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "codec"
   },
-  "@bbebee/core-db-expo": {
-    "id": "@bbebee/core-db-expo",
-    "name": "@bbebee/core-db-expo",
+  "@bbebee/core-db-mobile": {
+    "id": "@bbebee/core-db-mobile",
+    "name": "@bbebee/core-db-mobile",
     "displayName": "DB (Expo)",
     "description": "ctx.db — SQLite database for Expo / React Native.",
     "version": "0.0.0",
@@ -334,9 +334,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "db"
   },
-  "core-db-expo": {
-    "id": "@bbebee/core-db-expo",
-    "name": "@bbebee/core-db-expo",
+  "core-db-mobile": {
+    "id": "@bbebee/core-db-mobile",
+    "name": "@bbebee/core-db-mobile",
     "displayName": "DB (Expo)",
     "description": "ctx.db — SQLite database for Expo / React Native.",
     "version": "0.0.0",
@@ -428,65 +428,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "bridge"
   },
-  "@bbebee/core-device-expo": {
-    "id": "@bbebee/core-device-expo",
-    "name": "@bbebee/core-device-expo",
-    "displayName": "Device",
-    "description": "ctx.device for iOS and Android — network, battery, locale.",
-    "version": "0.0.0",
-    "author": "BBeBee Team",
-    "engines": {
-      "BBeBee": "^0.1.0"
-    },
-    "enabled": true,
-    "dependencies": [],
-    "systemId": "layer-2",
-    "moduleId": "core",
-    "platforms": [
-      "mobile"
-    ],
-    "entry": {
-      "main": "./dist/index.js"
-    },
-    "capabilities": [],
-    "contributes": {
-      "services": [
-        "device"
-      ]
-    },
-    "effect": "device"
-  },
-  "core-device-expo": {
-    "id": "@bbebee/core-device-expo",
-    "name": "@bbebee/core-device-expo",
-    "displayName": "Device",
-    "description": "ctx.device for iOS and Android — network, battery, locale.",
-    "version": "0.0.0",
-    "author": "BBeBee Team",
-    "engines": {
-      "BBeBee": "^0.1.0"
-    },
-    "enabled": true,
-    "dependencies": [],
-    "systemId": "layer-2",
-    "moduleId": "core",
-    "platforms": [
-      "mobile"
-    ],
-    "entry": {
-      "main": "./dist/index.js"
-    },
-    "capabilities": [],
-    "contributes": {
-      "services": [
-        "device"
-      ]
-    },
-    "effect": "device"
-  },
-  "@bbebee/core-device-tauri": {
-    "id": "@bbebee/core-device-tauri",
-    "name": "@bbebee/core-device-tauri",
+  "@bbebee/core-device-desktop": {
+    "id": "@bbebee/core-device-desktop",
+    "name": "@bbebee/core-device-desktop",
     "displayName": "Device",
     "description": "ctx.device — network, battery, media keys and hotkeys on desktop (Tauri).",
     "version": "0.0.0",
@@ -512,9 +456,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "device"
   },
-  "core-device-tauri": {
-    "id": "@bbebee/core-device-tauri",
-    "name": "@bbebee/core-device-tauri",
+  "core-device-desktop": {
+    "id": "@bbebee/core-device-desktop",
+    "name": "@bbebee/core-device-desktop",
     "displayName": "Device",
     "description": "ctx.device — network, battery, media keys and hotkeys on desktop (Tauri).",
     "version": "0.0.0",
@@ -540,9 +484,65 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "device"
   },
-  "@bbebee/core-fs-expo": {
-    "id": "@bbebee/core-fs-expo",
-    "name": "@bbebee/core-fs-expo",
+  "@bbebee/core-device-mobile": {
+    "id": "@bbebee/core-device-mobile",
+    "name": "@bbebee/core-device-mobile",
+    "displayName": "Device",
+    "description": "ctx.device for iOS and Android — network, battery, locale.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "device"
+      ]
+    },
+    "effect": "device"
+  },
+  "core-device-mobile": {
+    "id": "@bbebee/core-device-mobile",
+    "name": "@bbebee/core-device-mobile",
+    "displayName": "Device",
+    "description": "ctx.device for iOS and Android — network, battery, locale.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "device"
+      ]
+    },
+    "effect": "device"
+  },
+  "@bbebee/core-fs-mobile": {
+    "id": "@bbebee/core-fs-mobile",
+    "name": "@bbebee/core-fs-mobile",
     "displayName": "FS (Expo)",
     "description": "ctx.fs — filesystem implementation for Expo / React Native.",
     "version": "0.0.0",
@@ -571,9 +571,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "fs"
   },
-  "core-fs-expo": {
-    "id": "@bbebee/core-fs-expo",
-    "name": "@bbebee/core-fs-expo",
+  "core-fs-mobile": {
+    "id": "@bbebee/core-fs-mobile",
+    "name": "@bbebee/core-fs-mobile",
     "displayName": "FS (Expo)",
     "description": "ctx.fs — filesystem implementation for Expo / React Native.",
     "version": "0.0.0",
@@ -602,9 +602,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "fs"
   },
-  "@bbebee/core-http-node": {
-    "id": "@bbebee/core-http-node",
-    "name": "@bbebee/core-http-node",
+  "@bbebee/core-http-desktop": {
+    "id": "@bbebee/core-http-desktop",
+    "name": "@bbebee/core-http-desktop",
     "displayName": "HTTP",
     "description": "ctx.http — outbound HTTP, the M1 slice.",
     "version": "0.0.0",
@@ -633,9 +633,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "http"
   },
-  "core-http-node": {
-    "id": "@bbebee/core-http-node",
-    "name": "@bbebee/core-http-node",
+  "core-http-desktop": {
+    "id": "@bbebee/core-http-desktop",
+    "name": "@bbebee/core-http-desktop",
     "displayName": "HTTP",
     "description": "ctx.http — outbound HTTP, the M1 slice.",
     "version": "0.0.0",
@@ -664,9 +664,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "http"
   },
-  "@bbebee/core-http-rn": {
-    "id": "@bbebee/core-http-rn",
-    "name": "@bbebee/core-http-rn",
+  "@bbebee/core-http-mobile": {
+    "id": "@bbebee/core-http-mobile",
+    "name": "@bbebee/core-http-mobile",
     "displayName": "HTTP",
     "description": "ctx.http for iOS and Android — the M1 slice over expo/fetch.",
     "version": "0.0.0",
@@ -694,9 +694,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "http"
   },
-  "core-http-rn": {
-    "id": "@bbebee/core-http-rn",
-    "name": "@bbebee/core-http-rn",
+  "core-http-mobile": {
+    "id": "@bbebee/core-http-mobile",
+    "name": "@bbebee/core-http-mobile",
     "displayName": "HTTP",
     "description": "ctx.http for iOS and Android — the M1 slice over expo/fetch.",
     "version": "0.0.0",
@@ -724,9 +724,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "http"
   },
-  "@bbebee/core-js-quickjs-node": {
-    "id": "@bbebee/core-js-quickjs-node",
-    "name": "@bbebee/core-js-quickjs-node",
+  "@bbebee/core-js-quickjs-desktop": {
+    "id": "@bbebee/core-js-quickjs-desktop",
+    "name": "@bbebee/core-js-quickjs-desktop",
     "displayName": "Script sandbox",
     "description": "ctx.js — a QuickJS realm per source, for desktop and Node.",
     "version": "0.0.0",
@@ -752,9 +752,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "js"
   },
-  "core-js-quickjs-node": {
-    "id": "@bbebee/core-js-quickjs-node",
-    "name": "@bbebee/core-js-quickjs-node",
+  "core-js-quickjs-desktop": {
+    "id": "@bbebee/core-js-quickjs-desktop",
+    "name": "@bbebee/core-js-quickjs-desktop",
     "displayName": "Script sandbox",
     "description": "ctx.js — a QuickJS realm per source, for desktop and Node.",
     "version": "0.0.0",
@@ -780,69 +780,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "js"
   },
-  "@bbebee/core-media-session-rn": {
-    "id": "@bbebee/core-media-session-rn",
-    "name": "@bbebee/core-media-session-rn",
-    "displayName": "Media Session",
-    "description": "ctx.mediaSession for iOS and Android — lock screen and media notification.",
-    "version": "0.0.0",
-    "author": "BBeBee Team",
-    "engines": {
-      "BBeBee": "^0.1.0"
-    },
-    "enabled": true,
-    "dependencies": [],
-    "systemId": "layer-2",
-    "moduleId": "core",
-    "platforms": [
-      "mobile"
-    ],
-    "entry": {
-      "main": "./dist/index.js"
-    },
-    "capabilities": [
-      "mediaSession"
-    ],
-    "contributes": {
-      "services": [
-        "mediaSession"
-      ]
-    },
-    "effect": "mediaSession"
-  },
-  "core-media-session-rn": {
-    "id": "@bbebee/core-media-session-rn",
-    "name": "@bbebee/core-media-session-rn",
-    "displayName": "Media Session",
-    "description": "ctx.mediaSession for iOS and Android — lock screen and media notification.",
-    "version": "0.0.0",
-    "author": "BBeBee Team",
-    "engines": {
-      "BBeBee": "^0.1.0"
-    },
-    "enabled": true,
-    "dependencies": [],
-    "systemId": "layer-2",
-    "moduleId": "core",
-    "platforms": [
-      "mobile"
-    ],
-    "entry": {
-      "main": "./dist/index.js"
-    },
-    "capabilities": [
-      "mediaSession"
-    ],
-    "contributes": {
-      "services": [
-        "mediaSession"
-      ]
-    },
-    "effect": "mediaSession"
-  },
-  "@bbebee/core-media-session-tauri": {
-    "id": "@bbebee/core-media-session-tauri",
-    "name": "@bbebee/core-media-session-tauri",
+  "@bbebee/core-media-session-desktop": {
+    "id": "@bbebee/core-media-session-desktop",
+    "name": "@bbebee/core-media-session-desktop",
     "displayName": "Media session",
     "description": "ctx.mediaSession — the OS now-playing surface on desktop (Tauri).",
     "version": "0.0.0",
@@ -870,9 +810,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "mediaSession"
   },
-  "core-media-session-tauri": {
-    "id": "@bbebee/core-media-session-tauri",
-    "name": "@bbebee/core-media-session-tauri",
+  "core-media-session-desktop": {
+    "id": "@bbebee/core-media-session-desktop",
+    "name": "@bbebee/core-media-session-desktop",
     "displayName": "Media session",
     "description": "ctx.mediaSession — the OS now-playing surface on desktop (Tauri).",
     "version": "0.0.0",
@@ -900,9 +840,69 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "mediaSession"
   },
-  "@bbebee/core-paths-expo": {
-    "id": "@bbebee/core-paths-expo",
-    "name": "@bbebee/core-paths-expo",
+  "@bbebee/core-media-session-mobile": {
+    "id": "@bbebee/core-media-session-mobile",
+    "name": "@bbebee/core-media-session-mobile",
+    "displayName": "Media Session",
+    "description": "ctx.mediaSession for iOS and Android — lock screen and media notification.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [
+      "mediaSession"
+    ],
+    "contributes": {
+      "services": [
+        "mediaSession"
+      ]
+    },
+    "effect": "mediaSession"
+  },
+  "core-media-session-mobile": {
+    "id": "@bbebee/core-media-session-mobile",
+    "name": "@bbebee/core-media-session-mobile",
+    "displayName": "Media Session",
+    "description": "ctx.mediaSession for iOS and Android — lock screen and media notification.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [
+      "mediaSession"
+    ],
+    "contributes": {
+      "services": [
+        "mediaSession"
+      ]
+    },
+    "effect": "mediaSession"
+  },
+  "@bbebee/core-paths-mobile": {
+    "id": "@bbebee/core-paths-mobile",
+    "name": "@bbebee/core-paths-mobile",
     "displayName": "Paths (Expo)",
     "description": "ctx.paths — well-known paths for Expo / React Native.",
     "version": "0.0.0",
@@ -928,9 +928,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "paths"
   },
-  "core-paths-expo": {
-    "id": "@bbebee/core-paths-expo",
-    "name": "@bbebee/core-paths-expo",
+  "core-paths-mobile": {
+    "id": "@bbebee/core-paths-mobile",
+    "name": "@bbebee/core-paths-mobile",
     "displayName": "Paths (Expo)",
     "description": "ctx.paths — well-known paths for Expo / React Native.",
     "version": "0.0.0",
@@ -956,65 +956,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "paths"
   },
-  "@bbebee/core-secrets-expo": {
-    "id": "@bbebee/core-secrets-expo",
-    "name": "@bbebee/core-secrets-expo",
-    "displayName": "Secrets",
-    "description": "ctx.secrets for iOS and Android, over expo-secure-store.",
-    "version": "0.0.0",
-    "author": "BBeBee Team",
-    "engines": {
-      "BBeBee": "^0.1.0"
-    },
-    "enabled": true,
-    "dependencies": [],
-    "systemId": "layer-2",
-    "moduleId": "core",
-    "platforms": [
-      "mobile"
-    ],
-    "entry": {
-      "main": "./dist/index.js"
-    },
-    "capabilities": [],
-    "contributes": {
-      "services": [
-        "secrets"
-      ]
-    },
-    "effect": "secrets"
-  },
-  "core-secrets-expo": {
-    "id": "@bbebee/core-secrets-expo",
-    "name": "@bbebee/core-secrets-expo",
-    "displayName": "Secrets",
-    "description": "ctx.secrets for iOS and Android, over expo-secure-store.",
-    "version": "0.0.0",
-    "author": "BBeBee Team",
-    "engines": {
-      "BBeBee": "^0.1.0"
-    },
-    "enabled": true,
-    "dependencies": [],
-    "systemId": "layer-2",
-    "moduleId": "core",
-    "platforms": [
-      "mobile"
-    ],
-    "entry": {
-      "main": "./dist/index.js"
-    },
-    "capabilities": [],
-    "contributes": {
-      "services": [
-        "secrets"
-      ]
-    },
-    "effect": "secrets"
-  },
-  "@bbebee/core-secrets-node": {
-    "id": "@bbebee/core-secrets-node",
-    "name": "@bbebee/core-secrets-node",
+  "@bbebee/core-secrets-desktop": {
+    "id": "@bbebee/core-secrets-desktop",
+    "name": "@bbebee/core-secrets-desktop",
     "displayName": "Secrets",
     "description": "ctx.secrets — credential storage for desktop and Node.",
     "version": "0.0.0",
@@ -1043,9 +987,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "secrets"
   },
-  "core-secrets-node": {
-    "id": "@bbebee/core-secrets-node",
-    "name": "@bbebee/core-secrets-node",
+  "core-secrets-desktop": {
+    "id": "@bbebee/core-secrets-desktop",
+    "name": "@bbebee/core-secrets-desktop",
     "displayName": "Secrets",
     "description": "ctx.secrets — credential storage for desktop and Node.",
     "version": "0.0.0",
@@ -1067,6 +1011,62 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       "fs:read:own",
       "fs:write:own"
     ],
+    "contributes": {
+      "services": [
+        "secrets"
+      ]
+    },
+    "effect": "secrets"
+  },
+  "@bbebee/core-secrets-mobile": {
+    "id": "@bbebee/core-secrets-mobile",
+    "name": "@bbebee/core-secrets-mobile",
+    "displayName": "Secrets",
+    "description": "ctx.secrets for iOS and Android, over expo-secure-store.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "secrets"
+      ]
+    },
+    "effect": "secrets"
+  },
+  "core-secrets-mobile": {
+    "id": "@bbebee/core-secrets-mobile",
+    "name": "@bbebee/core-secrets-mobile",
+    "displayName": "Secrets",
+    "description": "ctx.secrets for iOS and Android, over expo-secure-store.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
     "contributes": {
       "services": [
         "secrets"

@@ -19,9 +19,9 @@
     "@BBeBee/protocol": "workspace:*"
   },
   "devDependencies": {
-    "@bbebee/core-codec-node": "workspace:*",
-    "@BBeBee/core-fs-node": "workspace:*",
-    "@BBeBee/core-paths-node": "workspace:*",
+    "@bbebee/core-codec-desktop": "workspace:*",
+    "@BBeBee/core-fs-desktop": "workspace:*",
+    "@BBeBee/core-paths-desktop": "workspace:*",
     "@BBeBee/kernel": "workspace:*",
     "cordis": "4.0.0-rc.9",
     "music-metadata": "11.15.0"

@@ -4,7 +4,7 @@ BBeBee 是一款跨平台音乐播放器，面向桌面端（Tauri v2）与移�
 
 **音源不是插件。** 源（source）是一份由用户以文本形式导入的 JSON 文档 —— 声明式规则驱动的音频源模型 —— 由唯一一个内置运行时解释，并被沙箱化在它自己的 JS realm 之中。添加一个后端是一次粘贴，而不是一次发版（[ADR-5](./architecture/overview.md#adr-5--音源是导入的字符串由一个运行时解释)、[sources/spec.md](./sources/spec.md)）。
 
-> **状态说明。** M0 – M4 已经构建完成 —— M3（离线下载）与 M4（DSP 链）已交付（Shipped）；各里程碑的遗留项——特别是 `core-js-quickjs-expo`（移动端尚无 QuickJS 沙箱）与 `@css:`/`@xpath:` 两个规则引擎——见 [路线图与风险](./roadmap/roadmap.md) 中每个里程碑的"现状（Where it stands）"/"已交付（Shipped）"说明，精确清单以路线图的"现状"一节为准。文中每一个版本号与 API 事实都在写作时对照 `pnpm-lock.yaml` 逐一核实过（版本锁定矩阵见 [workflow/build-pipelines.md](./workflow/build-pipelines.md)）。
+> **状态说明。** M0 – M4 已经构建完成 —— M3（离线下载）与 M4（DSP 链）已交付（Shipped）；各里程碑的遗留项——特别是 `core-js-quickjs-mobile`（移动端尚无 QuickJS 沙箱）与 `@css:`/`@xpath:` 两个规则引擎——见 [路线图与风险](./roadmap/roadmap.md) 中每个里程碑的"现状（Where it stands）"/"已交付（Shipped）"说明，精确清单以路线图的"现状"一节为准。文中每一个版本号与 API 事实都在写作时对照 `pnpm-lock.yaml` 逐一核实过（版本锁定矩阵见 [workflow/build-pipelines.md](./workflow/build-pipelines.md)）。
 
 ---
 

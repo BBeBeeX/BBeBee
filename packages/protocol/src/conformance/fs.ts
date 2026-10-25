@@ -1,8 +1,8 @@
 /**
  * Conformance suite for `ctx.fs`.
  *
- * The most divergent service in the system — `core-fs-node` and
- * `core-fs-expo` share no code — so this is where the abstraction is most
+ * The most divergent service in the system — `core-fs-desktop` and
+ * `core-fs-mobile` share no code — so this is where the abstraction is most
  * likely to rot. Every check names the behaviour a feature plugin relies on.
  */
 

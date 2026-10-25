@@ -1,7 +1,7 @@
 /**
  * A stand-in for `expo-secure-store` under Vitest.
  *
- * `core-secrets-expo` imports the SDK at module scope, which is right for
+ * `core-secrets-mobile` imports the SDK at module scope, which is right for
  * Metro and impossible in Node. Aliasing it here is what lets the *second*
  * `ctx.secrets` implementation be tested at all — and the caller-scoping
  * tests are the ones that most need to run on both twins, because a gate

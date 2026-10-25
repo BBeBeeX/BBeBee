@@ -1,9 +1,9 @@
 /**
  * A stand-in for `expo/fetch` under Vitest.
  *
- * `core-http-rn` imports its transport at module scope, which Metro resolves
+ * `core-http-mobile` imports its transport at module scope, which Metro resolves
  * and Node cannot. Aliasing the specifier here is what lets the shared
- * `httpConformance` suite — which until now ran against `core-http-node`
+ * `httpConformance` suite — which until now ran against `core-http-desktop`
  * only — run against the mobile transport at all.
  *
  * What matters is the **shape**, not a reimplementation of expo's native

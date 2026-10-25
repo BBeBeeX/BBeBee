@@ -38,9 +38,9 @@ work; ADR-4 is not.
 | Area | Packages | Delivers |
 |---|---|---|
 | Audio engine | `core-audio-webaudio` | `ctx.audio` — one implementation, both targets |
-| Decoding & tags | `core-codec-node`, `core-codec-rn` | `ctx.codec` — metadata, artwork, PCM, format support |
-| OS surfaces | `core-media-session-tauri`, `core-media-session-rn`, `core-device-tauri`, `core-device-expo`, `core-background-tauri`, `core-background-expo` | Lock screen, notification, MPRIS/SMTC/Now Playing, media keys, network state, wake locks, suspend hooks |
-| Network (slice) | `core-http-node`, `core-http-rn` | `ctx.http` restricted to GET/HEAD, headers, `Range`, streaming, progress — MD-1 |
+| Decoding & tags | `core-codec-desktop`, `core-codec-mobile` | `ctx.codec` — metadata, artwork, PCM, format support |
+| OS surfaces | `core-media-session-desktop`, `core-media-session-mobile`, `core-device-desktop`, `core-device-mobile`, `core-background-desktop`, `core-background-mobile` | Lock screen, notification, MPRIS/SMTC/Now Playing, media keys, network state, wake locks, suspend hooks |
+| Network (slice) | `core-http-desktop`, `core-http-mobile` | `ctx.http` restricted to GET/HEAD, headers, `Range`, streaming, progress — MD-1 |
 | Sources & catalogue | `plugin-sources`, `plugin-source-local`, `plugin-source-runtime` *(stream-only slice, MD-7)* | `ctx.sources` — registration, discovery, the catalogue cache those answers land in, and the first source document |
 | Scanning | `plugin-local-scanner` | `ctx.scanner` — roots, incremental walk, tag and artwork import |
 | Playback | `plugin-player` | `ctx.player` — transport, queue, resolution, history, persistence |
@@ -150,14 +150,14 @@ before an install-time prompt in M5 says "read" while granting write.
 *Where.* `classifyDbAccess` and the grant parser in
 `packages/kernel/src/capability-gate/capability.ts`, the shared SQL reader in
 `packages/kernel/src/capability-gate/sql.ts`, and cases in the `db-scope` suite that both
-`core-db-node` and the desktop bridge run; the grammar rows in
+`core-db-desktop` and the desktop bridge run; the grammar rows in
 [plugins/capabilities.md §7](../plugins/capabilities.md#capability-grammar).
 *Also closed while in there*, each of which made the verbs meaningless on its own: a
 schema-qualified `main.plugin_other_secrets` was attributed to a table called `main` and permitted
 by the `core` fallback; a statement naming no visible table (`DROP INDEX`, `VACUUM`, `PRAGMA
 foreign_keys = OFF`) skipped the gate entirely, since the per-table loop *is* the gate; the desktop
 bridge kept a second list of forbidden SQL that had drifted, so `VACUUM INTO '/any/path'` wrote a
-file past its containment checks; `core-db-expo` had no gate at all, so `db:own` meant one thing on
+file past its containment checks; `core-db-mobile` had no gate at all, so `db:own` meant one thing on
 desktop and nothing on mobile; and both drivers silently executed only the first statement of a
 multi-statement string, which would have let a migration record a version it had half-applied.
 
@@ -193,23 +193,23 @@ defers UI.
 
 ```
 core-audio-webaudio         ✅  ctx.audio — shared implementation, all three targets
-core-codec-node             ✅  ctx.codec — music-metadata over ctx.fs, bounded head read
-core-codec-rn               ✅  ctx.codec — inherits the tag reader (it is pure JS over ctx.fs
+core-codec-desktop             ✅  ctx.codec — music-metadata over ctx.fs, bounded head read
+core-codec-mobile               ✅  ctx.codec — inherits the tag reader (it is pure JS over ctx.fs
                                 and a second one would have to agree with it), adds the device's
                                 decodeAudioData and its own supportedFormats
-core-http-node              ✅  ctx.http (M1 slice) — fetch-shaped, transport is a seam
-core-http-rn                ✅  ctx.http (M1 slice) — the same engine over expo/fetch, which is
+core-http-desktop              ✅  ctx.http (M1 slice) — fetch-shaped, transport is a seam
+core-http-mobile                ✅  ctx.http (M1 slice) — the same engine over expo/fetch, which is
                                 the only RN fetch with a real ReadableStream
-core-media-session-tauri    ✅  ctx.mediaSession — navigator.mediaSession + MPRIS/SMTC/Now Playing
-core-media-session-rn       ✅  ctx.mediaSession — lock screen and media notification
-core-device-tauri           ✅  ctx.device — network, battery, media keys, hotkeys
-core-device-expo            ✅  ctx.device — expo-network, expo-battery
-core-background-tauri       ✅  ctx.background — powerSaveBlocker, intervals, suspend hooks
-core-background-expo        ✅  ctx.background — audio session, keep-awake, expo-background-task
+core-media-session-desktop    ✅  ctx.mediaSession — navigator.mediaSession + MPRIS/SMTC/Now Playing
+core-media-session-mobile       ✅  ctx.mediaSession — lock screen and media notification
+core-device-desktop           ✅  ctx.device — network, battery, media keys, hotkeys
+core-device-mobile            ✅  ctx.device — expo-network, expo-battery
+core-background-desktop       ✅  ctx.background — powerSaveBlocker, intervals, suspend hooks
+core-background-mobile        ✅  ctx.background — audio session, keep-awake, expo-background-task
 core-desktop-bridge         ✅  hosts for fs, db, paths, system and http; preload surface;
                                 the main→renderer event channel the OS services need
-core-fs-node / -expo        ✅  toPlayableUri and canWatch get their first real consumer
-core-db-node / -expo        ✅  the db:write:core verb check (MD-4)
+core-fs-desktop / -expo        ✅  toPlayableUri and canWatch get their first real consumer
+core-db-desktop / -expo        ✅  the db:write:core verb check (MD-4)
 
 plugin-sources              ✅  ctx.sources — registry, discovery, catalogue cache, FTS index
 plugin-source-local         ✅  MediaProvider over the filesystem, source id 'local'
@@ -337,7 +337,7 @@ holding a phone and a person clicking a mouse.
 
 ### 3.6 Stage 5 — streaming (parallel with Stage 2)
 
-`core-http-node`, `core-http-rn`, and the MD-7 slice of `plugin-source-runtime`. Depends only on
+`core-http-desktop`, `core-http-mobile`, and the MD-7 slice of `plugin-source-runtime`. Depends only on
 Stage 1 and joins at Stage 3, so it never sits on the critical path.
 
 **Demo.** A URL pasted into settings becomes a one-rule source document; it plays, seeks, survives
@@ -351,7 +351,7 @@ Each is done when its boxes are ticked, `pnpm check` is green, and it passes the
 parameterised over the workspace ([workflow/testing.md §6](../workflow/testing.md#6-testing-strategy)). Those
 three are assumed below rather than repeated.
 
-### 4.1 `core-codec-node` · `core-codec-rn` — `ctx.codec`
+### 4.1 `core-codec-desktop` · `core-codec-mobile` — `ctx.codec`
 
 Desktop reads tags with `music-metadata` **in `main`**, reached through `core-desktop-bridge`; PCM
 decoding uses the renderer's `decodeAudioData` and needs no bridge at all. Mobile uses
@@ -363,7 +363,7 @@ taking minutes and taking an afternoon.
 
 - [x] New `codecConformance` suite in `packages/protocol/src/conformance/`, run in Node and on
       device: tags, embedded artwork, duration probe, PCM decode, non-empty `supportedFormats()`.
-      ⚠️ Green in Node against `core-codec-node`; the device half is the smoke matrix's.
+      ⚠️ Green in Node against `core-codec-desktop`; the device half is the smoke matrix's.
       The PCM case is deliberately two-sided, because `decode` is a member the two platforms
       answer differently: mobile has a real decoder (`AudioDecoder`), and on desktop decoding
       belongs to the audio engine, since a second decoder in the tag reader would be a second
@@ -440,7 +440,7 @@ where the player checkpoints.
 - [ ] `onWillSuspend` fires before a real suspension on both platforms, verified on device — a
       hook that never fires is worse than no hook, because everything downstream trusts it.
 
-### 4.4 `core-media-session-tauri` · `core-media-session-rn`
+### 4.4 `core-media-session-desktop` · `core-media-session-mobile`
 
 Desktop publishes through Chromium's `navigator.mediaSession` in the renderer, and through `main`
 for MPRIS (Linux), SMTC (Windows) and the macOS Now Playing centre. Mobile uses
@@ -461,7 +461,7 @@ and the conformance suite now holds both to it.
       reflected back within one update.
 - [x] `clear()` removes the OS surface, so a disabled `plugin-player` leaves no ghost lock screen.
 
-### 4.5 `core-http-node` · `core-http-rn` — the M1 slice
+### 4.5 `core-http-desktop` · `core-http-mobile` — the M1 slice
 
 Per MD-1: GET and HEAD, arbitrary headers, `Range`, `stream()`, `onProgress`, `timeoutMs`,
 `AbortSignal`, redirect handling. Desktop routes through Node sidecar HTTP bridge and streams to
@@ -581,7 +581,7 @@ Separate from `plugin-source-local`, because scanning is a different concern fro
 - **Watching.** `ctx.fs.watch` where `ctx.fs.canWatch`; otherwise a poll through
   `ctx.background.schedule`, with the resulting latency stated in the UI rather than pretended
   away. ⚠️ And where *neither* exists — which is every desktop build until
-  `core-background-tauri` lands, since the bridge's `canWatch` is false — the scanner falls back
+  `core-background-desktop` lands, since the bridge's `canWatch` is false — the scanner falls back
   to its own timer. Without that there was no automatic rescan on desktop at all: files changed and
   the library silently stayed stale.
 
@@ -779,7 +779,7 @@ nothing else.
 
 | | `apps/mobile` | `apps/desktop` |
 |---|---|---|
-| Bootstrap | Add `core-codec-rn`, `core-http-rn`, `core-media-session-rn`, `core-device-expo`, `core-background-expo`, `core-audio-webaudio` | The `-node` / `-tauri` counterparts, plus the same shared audio package |
+| Bootstrap | Add `core-codec-mobile`, `core-http-mobile`, `core-media-session-mobile`, `core-device-mobile`, `core-background-mobile`, `core-audio-webaudio` | The `-node` / `-tauri` counterparts, plus the same shared audio package |
 | Background audio | `UIBackgroundModes: ['audio']`, audio session category `playback`; Android foreground service with a media notification | Close-to-tray so the renderer survives (MD-6); `powerSaveBlocker` while playing |
 | Native | Rebuild the custom dev client — every M1 core service adds native code | New bridge hosts in `main` for codec, http, media session and device |
 | Routing | Contributed routes as dynamic `expo-router` routes; `placement` decides tab bar vs. more-menu | Sidebar entries from `ctx.ui.routes`, ordered by `order` |
@@ -794,11 +794,11 @@ nothing else.
 - [x] **Every target bundles.** `expo export` for android and ios, and
       `vite build` for desktop. Cheap, and the only thing that catches a package that
       typechecks and cannot be *loaded* — which is a different failure and, as it turned out, the
-      one actually present: `core-secrets-node` opened its own file with `node:fs`, which is
+      one actually present: `core-secrets-desktop` opened its own file with `node:fs`, which is
       correct in `main` and impossible in a sandboxed renderer, so the desktop renderer could not
       bundle it at all. It now persists through `ctx.fs` using the context it was **constructed**
       with, which keeps the store's own file out of the *caller's* capability budget — the reason
-      the platform API was reached for in the first place (`core-secrets-node`'s own tests pin
+      the platform API was reached for in the first place (`core-secrets-desktop`'s own tests pin
       that: a caller holding `secrets:own` and no `fs` grant must still be able to save).
 - [x] `main` still holds no domain logic; every new host is mechanical
       ([architecture/layers.md §2](../architecture/layers.md#desktop)).
@@ -958,7 +958,7 @@ criterion with no named check is an intention, not a criterion.
 
 | # | Criterion | How it is checked | Automated |
 |---|---|---|---|
-| 1 | Scan ≥ 5,000 files; incremental rescan of an unchanged library costs stat calls only | The corpus generator (§7) builds 5,000 tagged files; an instrumented `ctx.fs` counts calls; the second pass must issue `n` stats, zero `readBytes`, and zero `readMetadata`. Runs against the **real** `core-codec-node`, in `plugin-local-scanner/src/corpus.test.ts`. Repeated on device against a real library | ✅ Node · device run per release |
+| 1 | Scan ≥ 5,000 files; incremental rescan of an unchanged library costs stat calls only | The corpus generator (§7) builds 5,000 tagged files; an instrumented `ctx.fs` counts calls; the second pass must issue `n` stats, zero `readBytes`, and zero `readMetadata`. Runs against the **real** `core-codec-desktop`, in `plugin-local-scanner/src/corpus.test.ts`. Repeated on device against a real library | ✅ Node · device run per release |
 | 2 | Play, pause, seek, next, previous, queue reorder — on all three platforms | Transport unit tests against a mock `AudioService` (every transition in [audio/playback.md §2](../audio/playback.md#transport-state-machine)); an integration test in a real context with fake core services; both scrubbers driven — desktop's `input[type=range]`, mobile's responder drag in `ui-kit-mobile/src/slider.test.tsx` — since a seek the UI cannot express is not a seek; the device smoke matrix for the real thing | ✅ + device |
 | 3 | Lock-screen and notification controls on iOS and Android; MPRIS/SMTC/Now Playing on desktop | `mediaSessionConformance` round-trips `update` / `setPlaybackState` / `onCommand` per implementation; the OS surfaces themselves are manual | Partly — surfaces are manual |
 | 4 | Playback survives backgrounding on mobile and window-hide on desktop | Desktop: `apps/desktop/src-tauri/src/window_policy.rs` (tests) on the close decision — hide with a tray or on macOS, destroy where there would be no way back, never intercept a quit — plus `plugin-player`'s wake-lock suite, which pins that the lock is taken while playing, held through a stall, released on pause, on an empty queue and on unload, and not stranded when playback stops mid-acquire. Mobile: device smoke, since no harness can background an app faithfully | Partly |
@@ -988,7 +988,7 @@ Built once, in Stage 1, because every later stage leans on them.
   needs, and `m4a`/`opus` coverage, which is `codecConformance`'s job and not this corpus's.
 
   Two of the pathological files earned their keep immediately: a zero-byte `.mp3` and a JPEG
-  behind an `.mp3` name were being *imported* — `core-codec-node` passed the extension's MIME type
+  behind an `.mp3` name were being *imported* — `core-codec-desktop` passed the extension's MIME type
   to the parser, which trusted it and reported `{ codec: 'mp3' }` with no bytes behind it, so the
   scanner wrote phantom tracks named after the files. Which is worse than either of the two honest
   outcomes §4.7 allows. It now sniffs the container from the content, which also fixes the
@@ -1004,7 +1004,7 @@ Built once, in Stage 1, because every later stage leans on them.
   `@BBeBee/protocol/conformance` so both the player's tests and any future engine can use it.
 - **A byte-serving fixture** for §4.5 — a local server that honours `Range`, delays, and can stall
   mid-response on demand. `httpConformance` runs against it rather than against a mock, and the
-  stall route immediately found a real bug: `core-http-node` detached the caller's `AbortSignal`
+  stall route immediately found a real bug: `core-http-desktop` detached the caller's `AbortSignal`
   in a `finally` that ran when the *headers* arrived, so aborting a request that had already
   started streaming did nothing — which is the only case that matters, since MD-5's prefetch is
   cancelled mid-download when the queue changes.
@@ -1087,9 +1087,9 @@ earlier and is not the same thing.
 - [x] The `fs`, `db`, `store`, `paths`, **`codec`**, **`audio`**, **`http` (M1 slice)** and
       **`mediaSession`** conformance suites are green against every implementation, on device for
       the Expo ones. ⚠️ Three of the Expo implementations turned out not to need a device to be
-      covered: `core-media-session-rn` runs the suite with its native surface injected;
-      `core-db-expo` runs `db` *and* `db-scope` with `expo-sqlite` aliased to `node:sqlite`
-      behind the same API; and `core-fs-expo` runs `paths`, `fs` and `fs-scope` with
+      covered: `core-media-session-mobile` runs the suite with its native surface injected;
+      `core-db-mobile` runs `db` *and* `db-scope` with `expo-sqlite` aliased to `node:sqlite`
+      behind the same API; and `core-fs-mobile` runs `paths`, `fs` and `fs-scope` with
       `expo-file-system` aliased to `node:fs` behind the SDK 54+ `File`/`Directory`/`Paths`
       surface. Real statements, real files, real gates.
 
@@ -1116,7 +1116,7 @@ earlier and is not the same thing.
       capability it does not use. ⚠️ The second half is now a check rather than a habit
       (`conventions.test.ts`): every declared capability is mapped through the gate's own
       `servicesForCapability` and the package must actually reach the service. It found three
-      over-grants on its first run — `core-device-tauri` asking for `shell`, `core-http-rn`
+      over-grants on its first run — `core-device-desktop` asking for `shell`, `core-http-mobile`
       for `fs:write:downloads` it has no `download()` to use (MD-1), and the M0 demo plugin for
       `secrets:own` — all three now removed. This matters most in M5, when an install-time
       prompt reads the manifest out loud: a plugin asking for what it never touches teaches
@@ -1155,7 +1155,7 @@ in. Two have replaced them, and both are about mobile rather than about scope:
   `HTMLMediaElement`, which React Native does not have, so the engine refuses it rather than
   pretending. Local files and short remote ones are buffered and unaffected. `StreamerNode` is the
   way out and it is device work.
-- **A scripted source document does nothing on mobile.** `core-js-quickjs-expo` does not exist —
+- **A scripted source document does nothing on mobile.** `core-js-quickjs-mobile` does not exist —
   Hermes has no WebAssembly, so it needs a native module and a dev-client rebuild. The runtime
   reports the affected capabilities as absent rather than offering a button that cannot work,
   which is the designed degradation ([roadmap.md §M2](./roadmap.md#m2--sources-are-strings)).

@@ -10,7 +10,7 @@
 | Desktop renderer | **Vite** | `apps/desktop/renderer/index.html` | Native ESM in dev; strict CSP whose single concession is `'wasm-unsafe-eval'`, without which QuickJS cannot compile and the boot fails — it is not `'unsafe-eval'`, so no foreign *JavaScript* loads ([architecture/layers.md §2](../architecture/layers.md#processsecurity-posture-on-desktop)). `img-src`/`media-src` carry plain `http:` for sources that serve artwork and streams from such hosts. Pinned by `renderer/csp.test.ts` |
 | Desktop app host & sidecar | **Tauri v2 + Vite** | `apps/desktop/src-tauri/` & `apps/desktop/sidecar/` | Tauri Rust host for windowing & OS APIs; Node.js sidecar for filesystem & child-process isolation |
 | Packages | **tsup** (or `tsc` for `protocol`) | per-package `src/index.ts` | ESM only; `protocol` emits types only |
-| QuickJS WASM | embedded in the bundle | `core-js-quickjs-node` | One **single-file** variant (`@jitl/quickjs-singlefile-browser-release-sync`) through `quickjs-emscripten-core`, so the engine is bytes in a JS chunk and is never fetched — a sandbox that downloads its own engine is not one ([services/contracts.md §19](../services/contracts.md)). `getQuickJS()` is what this is instead of: it picks a separate-`.wasm` variant that fetches at startup — served `index.html` by Vite in dev, refused outright by a `file://` renderer once packaged — and drags all four variants (~4 MB) into the build |
+| QuickJS WASM | embedded in the bundle | `core-js-quickjs-desktop` | One **single-file** variant (`@jitl/quickjs-singlefile-browser-release-sync`) through `quickjs-emscripten-core`, so the engine is bytes in a JS chunk and is never fetched — a sandbox that downloads its own engine is not one ([services/contracts.md §19](../services/contracts.md)). `getQuickJS()` is what this is instead of: it picks a separate-`.wasm` variant that fetches at startup — served `index.html` by Vite in dev, refused outright by a `file://` renderer once packaged — and drags all four variants (~4 MB) into the build |
 
 ```jsonc
 // metro.config.js — the parts that are not boilerplate
@@ -123,7 +123,7 @@ authority; this matrix is a map. Several of these move weekly.
 | `turbo` | — | **Not adopted.** The root scripts orchestrate with `pnpm -r`; there is no `turbo.json` |
 | `@shopify/flash-list` | 2.3.2 | Mobile list virtualisation |
 | `@tanstack/react-virtual` | 3.14.10 | Desktop list virtualisation |
-| `music-metadata` | 11.15.0 | Tag reading on **both** targets — it is pure JS over `ctx.fs`, so `core-codec-rn` inherits it rather than adding a native reader that would have to agree with it |
+| `music-metadata` | 11.15.0 | Tag reading on **both** targets — it is pure JS over `ctx.fs`, so `core-codec-mobile` inherits it rather than adding a native reader that would have to agree with it |
 | `quickjs-emscripten-core` + `@jitl/quickjs-singlefile-browser-release-sync` | **0.32.0** | ⚠️ `ctx.js` on desktop. Pin both exactly and keep them equal — a variant and a core of different versions share an FFI ABI that is not versioned. The single-file variant is what makes the engine bundled rather than fetched ([services/contracts.md §19](../services/contracts.md)); the `browser` build is the environment-agnostic one, so Vitest, `main` and the sandboxed renderer all run the same realm |
 | `react-native-quickjs` | **0.4.x** | ⚠️ Planned for `ctx.js` on mobile (M2 gap) — not yet installed. See §5.3 |
 

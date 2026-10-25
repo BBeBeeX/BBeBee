@@ -22,7 +22,7 @@ import org.json.JSONObject
  * - **Batch artwork extraction** — a worker pool over `MediaMetadataRetriever`
  *   (the platform's own tag reader), sized like the desktop fork pool
  *   (`min(max(cpus, 2), 4)`). Parsing embedded covers off the JS thread is
- *   the entire point: `music-metadata` in `core-codec-node` is pure JS, so
+ *   the entire point: `music-metadata` in `core-codec-mobile` is pure JS, so
  *   the inherited in-process path parses on Hermes and stalls the UI during
  *   scan storms. Per-file failures answer `null` — the positional,
  *   never-throwing shape `CodecService.readArtworkBatch` promises.

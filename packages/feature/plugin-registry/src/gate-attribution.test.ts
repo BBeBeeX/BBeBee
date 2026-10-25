@@ -22,7 +22,7 @@ import { RegistryPlugin } from './index.js'
  *
  * This world mirrors the shell: a REAL gated http service (same
  * `assertHost(this[Service.resolveConfig](), url)` line as
- * core-http-node) and a namespace-recording store, both provided by
+ * core-http-desktop) and a namespace-recording store, both provided by
  * sibling fibers; the registry loaded under its own `scopeContext`
  * with its manifest's capabilities; a zero-capability initiator
  * loaded under its own.

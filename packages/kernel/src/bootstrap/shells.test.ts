@@ -174,7 +174,7 @@ describe.each(SHELLS)('the $name shell', (shell) => {
     const bundled = new Set(await registryIds(shell))
 
     // The exact bug this catches: the desktop config listed
-    // `@bbebee/core-http-node` with no registry entry behind it, so the loader
+    // `@bbebee/core-http-desktop` with no registry entry behind it, so the loader
     // recorded it `missing`, `ctx.http` never existed, and every imported
     // source sat PENDING behind a warning nobody read.
     const absent = enabled.filter((id) => !bundled.has(id))

@@ -43,7 +43,7 @@ BBeBee Desktop runs on Tauri v2. In accordance with the Cordis kernel architectu
 +------------------------------------+-------------------------------------+
 |                     3. Node.js Headless Sidecar                          |
 |  - Core Service Host: @bbebee/core-desktop-bridge/main                   |
-|  - Headless Context: core-fs-node, core-db-node, core-paths-node         |
+|  - Headless Context: core-fs-desktop, core-db-desktop, core-paths-desktop         |
 |  - SQLite Database Operations & Schema Migrations                        |
 |  - File System Operations with Path Containment & Whitelisting           |
 |  - HTTP Outbound Engine (CORS-free, custom Cookie/Referer handling)      |
@@ -93,10 +93,10 @@ Every reference across `apps/desktop/renderer` and related Layer 2 / Layer 4 / L
 |---|---|---|---|
 | `@bbebee/core-desktop-bridge` | `src/protocol.ts` | `window.BBeBeeBridge`, `window.BBeBee.secrets` | Defines `BridgeApi`, `requireBridge()`, and `safeStorageCodec()` |
 | `@bbebee/core-desktop-bridge` | `src/index.ts` | `window.BBeBeeBridge` | `FsBridge`, `DbBridge`, `PathsBridge`, `bridgeFetch()` |
-| `@bbebee/core-codec-node` | `src/index.ts` | `window.BBeBee.audio.transcode`, `cancelTranscode` | Delegated transcode execution via FFmpeg |
-| `@bbebee/core-device-tauri` | `src/index.ts` | `window.BBeBeeBridge` (`call('system', ...)` + `on()`) | Media keys, global accelerators, battery, network |
-| `@bbebee/core-background-tauri` | `src/index.ts` | `window.BBeBeeBridge` (`call('system', ...)` + `on()`) | Wake locks (`acquireWakeLock`), system suspend notifications |
-| `@bbebee/core-media-session-tauri` | `src/index.ts` | `window.BBeBeeBridge` (`call('system', ...)` + `on()`) | MPRIS / SMTC / Now Playing broadcast & commands |
+| `@bbebee/core-codec-desktop` | `src/index.ts` | `window.BBeBee.audio.transcode`, `cancelTranscode` | Delegated transcode execution via FFmpeg |
+| `@bbebee/core-device-desktop` | `src/index.ts` | `window.BBeBeeBridge` (`call('system', ...)` + `on()`) | Media keys, global accelerators, battery, network |
+| `@bbebee/core-background-desktop` | `src/index.ts` | `window.BBeBeeBridge` (`call('system', ...)` + `on()`) | Wake locks (`acquireWakeLock`), system suspend notifications |
+| `@bbebee/core-media-session-desktop` | `src/index.ts` | `window.BBeBeeBridge` (`call('system', ...)` + `on()`) | MPRIS / SMTC / Now Playing broadcast & commands |
 | `@bbebee/core-audio-mpv` | `src/index.ts` | `bridgeCall` (`window.BBeBeeBridge.call('audio', ...)`) | MPV audio engine load, play, pause, seek, volume, DSP, FFT |
 | `@bbebee/plugin-desktop-taskbar` | `src/index.ts` | `window.BBeBee.taskbar.update`, `onAction` | Windows thumbnail toolbar & tray menu state synchronization |
 | `@bbebee/plugin-desktop-lyrics-ui-desktop` | `src/DesktopLyrics.tsx` | `window.BBeBee.desktopLyrics` | Secondary window sync: `setVisible`, `setPosition`, `setLocked`, `updateData`, `onMoved`, `onAction` |
@@ -119,7 +119,7 @@ All 16 desktop host APIs are mapped below with concrete target implementations a
 | **globalShortcut** | `register`, `unregister`, `unregisterAll` | Media keys (`MediaPlayPause`, etc.) and user hotkeys | **Tauri Plugin** | `tauri-plugin-global-shortcut`. Global shortcuts emit `BBeBee:event` (`media-key`, `hotkey`) to Webview. |
 | **ipcMain** | `handle`, `removeHandler`, `webContents.send` | Main-renderer IPC messaging, request-response, push events | **Rust Shell** | Tauri `#[tauri::command]` (request/response) and `app.emit()` / `window.emit()` (push). Stdio JSON-RPC to Sidecar. |
 | **nativeImage** | `createFromPath`, `createFromDataURL` | Tray icon images and Windows taskbar thumbnail button icons | **Rust Shell** | `tauri::image::Image` and Rust `image` crate. |
-| **net** | `net.fetch` | Outbound HTTP requests bypassing CORS and custom protocol restrictions | **Node Sidecar / Rust** | Handled in **Node Sidecar** via `undici` / Node `fetch` (`core-http-node`) with support for custom `Cookie`/`Referer`/`Range`. |
+| **net** | `net.fetch` | Outbound HTTP requests bypassing CORS and custom protocol restrictions | **Node Sidecar / Rust** | Handled in **Node Sidecar** via `undici` / Node `fetch` (`core-http-desktop`) with support for custom `Cookie`/`Referer`/`Range`. |
 | **powerMonitor** | `powerMonitor.on('suspend', cb)` | Detects OS sleep/suspend to trigger position checkpointing | **Rust Shell** | OS native listeners: Win32 `WM_POWERBROADCAST`, macOS `NSWorkspaceWillSleep`, Linux `zbus` on `org.freedesktop.login1`. Emits `will-suspend`. |
 | **powerSaveBlocker** | `start('prevent-app-suspension')`, `stop`, `isStarted` | Keeps system awake during audio playback without keeping screen on | **Rust Shell** | Rust sleep blocker: Win32 `SetThreadExecutionState`, macOS `IOPMAssertionCreateWithName`, Linux D-Bus `Inhibit`. |
 | **protocol** | `registerSchemesAsPrivileged`, `handle('bbebee-file')`, `handle('bbebee-plugin')`, `handle('bbebee-sandbox')` | Privileged custom schemes: local file streaming, plugin assets, HTML skins | **Rust Shell** | Tauri custom URI scheme protocol handler `app.register_uri_scheme_protocol(...)`. Native HTTP Range parsing & streaming response. |

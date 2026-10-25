@@ -109,7 +109,7 @@ console.log(estimate.warning)            // Warns if source was lossy and target
 2. **Atomic Destination Protection**: Direct overwrites of source files are forbidden unless `overwrite: true` is explicitly passed. Output is written first to a hidden randomized temporary file (`.tmp_*.ext`) in the target directory (or `ctx.paths.temp`), validated for non-zero size, and then moved atomically via `ctx.fs.move()`.
 3. **Bridge Containment Authorization**: For files picked outside application directories via native file pickers or drag-and-drop, the desktop host whitelists the file paths and their parent folders into `bridge.host.addExtraRoot` (via `files:authorize` and `audio:transcode`), preventing `outside every application directory` bridge containment failures.
 4. **Non-Existent Temp Cleanup Safety**: Temporary transcoding files are guarded with existence checks before deletion, avoiding bridge `ENOENT` stat exceptions on aborted or failed operations.
-5. **Shell Injection Prevention**: FFmpeg is executed strictly via array arguments in Layer 2 (`core-codec-node`) and desktop main, never concatenated in raw shell command strings.
+5. **Shell Injection Prevention**: FFmpeg is executed strictly via array arguments in Layer 2 (`core-codec-desktop`) and desktop main, never concatenated in raw shell command strings.
 6. **Dedicated Tray Route Icon**: Contributes a distinctive `transform` (icon with transform cycle arrows) route icon to avoid visual duplicate with DSP or equalizer settings.
 
 ## Event Canon

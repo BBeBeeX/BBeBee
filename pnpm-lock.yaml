@@ -38,9 +38,9 @@ importers:
 
   apps/desktop:
     dependencies:
-      '@BBeBee/core-paths-node':
+      '@BBeBee/core-paths-desktop':
         specifier: workspace:*
-        version: link:../../packages/core/core-paths-node
+        version: link:../../packages/core/core-paths-desktop
       '@BBeBee/kernel':
         specifier: workspace:*
         version: link:../../packages/kernel
@@ -56,30 +56,30 @@ importers:
       '@bbebee/core-audio-mpv':
         specifier: workspace:*
         version: link:../../packages/core/core-audio-mpv
-      '@bbebee/core-background-tauri':
+      '@bbebee/core-background-desktop':
         specifier: workspace:*
-        version: link:../../packages/core/core-background-tauri
-      '@bbebee/core-codec-node':
+        version: link:../../packages/core/core-background-desktop
+      '@bbebee/core-codec-desktop':
         specifier: workspace:*
-        version: link:../../packages/core/core-codec-node
+        version: link:../../packages/core/core-codec-desktop
       '@bbebee/core-desktop-bridge':
         specifier: workspace:*
         version: link:../../packages/core/core-desktop-bridge
-      '@bbebee/core-device-tauri':
+      '@bbebee/core-device-desktop':
         specifier: workspace:*
-        version: link:../../packages/core/core-device-tauri
-      '@bbebee/core-http-node':
+        version: link:../../packages/core/core-device-desktop
+      '@bbebee/core-http-desktop':
         specifier: workspace:*
-        version: link:../../packages/core/core-http-node
-      '@bbebee/core-js-quickjs-node':
+        version: link:../../packages/core/core-http-desktop
+      '@bbebee/core-js-quickjs-desktop':
         specifier: workspace:*
-        version: link:../../packages/core/core-js-quickjs-node
-      '@bbebee/core-media-session-tauri':
+        version: link:../../packages/core/core-js-quickjs-desktop
+      '@bbebee/core-media-session-desktop':
         specifier: workspace:*
-        version: link:../../packages/core/core-media-session-tauri
-      '@bbebee/core-secrets-node':
+        version: link:../../packages/core/core-media-session-desktop
+      '@bbebee/core-secrets-desktop':
         specifier: workspace:*
-        version: link:../../packages/core/core-secrets-node
+        version: link:../../packages/core/core-secrets-desktop
       '@bbebee/core-store-fs':
         specifier: workspace:*
         version: link:../../packages/core/core-store-fs
@@ -309,33 +309,33 @@ importers:
       '@bbebee/core-audio-mpv':
         specifier: workspace:*
         version: link:../../packages/core/core-audio-mpv
-      '@bbebee/core-background-expo':
+      '@bbebee/core-background-mobile':
         specifier: workspace:*
-        version: link:../../packages/core/core-background-expo
-      '@bbebee/core-codec-rn':
+        version: link:../../packages/core/core-background-mobile
+      '@bbebee/core-codec-mobile':
         specifier: workspace:*
-        version: link:../../packages/core/core-codec-rn
-      '@bbebee/core-db-expo':
+        version: link:../../packages/core/core-codec-mobile
+      '@bbebee/core-db-mobile':
         specifier: workspace:*
-        version: link:../../packages/core/core-db-expo
-      '@bbebee/core-device-expo':
+        version: link:../../packages/core/core-db-mobile
+      '@bbebee/core-device-mobile':
         specifier: workspace:*
-        version: link:../../packages/core/core-device-expo
-      '@bbebee/core-fs-expo':
+        version: link:../../packages/core/core-device-mobile
+      '@bbebee/core-fs-mobile':
         specifier: workspace:*
-        version: link:../../packages/core/core-fs-expo
-      '@bbebee/core-http-rn':
+        version: link:../../packages/core/core-fs-mobile
+      '@bbebee/core-http-mobile':
         specifier: workspace:*
-        version: link:../../packages/core/core-http-rn
-      '@bbebee/core-media-session-rn':
+        version: link:../../packages/core/core-http-mobile
+      '@bbebee/core-media-session-mobile':
         specifier: workspace:*
-        version: link:../../packages/core/core-media-session-rn
-      '@bbebee/core-paths-expo':
+        version: link:../../packages/core/core-media-session-mobile
+      '@bbebee/core-paths-mobile':
         specifier: workspace:*
-        version: link:../../packages/core/core-paths-expo
-      '@bbebee/core-secrets-expo':
+        version: link:../../packages/core/core-paths-mobile
+      '@bbebee/core-secrets-mobile':
         specifier: workspace:*
-        version: link:../../packages/core/core-secrets-expo
+        version: link:../../packages/core/core-secrets-mobile
       '@bbebee/core-store-fs':
         specifier: workspace:*
         version: link:../../packages/core/core-store-fs
@@ -533,7 +533,26 @@ importers:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
 
-  packages/core/core-background-expo:
+  packages/core/core-background-desktop:
+    dependencies:
+      '@BBeBee/kernel':
+        specifier: workspace:*
+        version: link:../../kernel
+      '@BBeBee/protocol':
+        specifier: workspace:*
+        version: link:../../protocol
+      '@bbebee/core-desktop-bridge':
+        specifier: workspace:*
+        version: link:../core-desktop-bridge
+      cordis:
+        specifier: 4.0.0-rc.9
+        version: 4.0.0-rc.9
+    devDependencies:
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@22.20.1)(jsdom@30.0.1)(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(terser@5.51.2)(yaml@2.9.0))
+
+  packages/core/core-background-mobile:
     dependencies:
       '@BBeBee/protocol':
         specifier: workspace:*
@@ -557,26 +576,7 @@ importers:
         specifier: 0.13.3
         version: 0.13.3(react-native-worklets@0.10.4(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
 
-  packages/core/core-background-tauri:
-    dependencies:
-      '@BBeBee/kernel':
-        specifier: workspace:*
-        version: link:../../kernel
-      '@BBeBee/protocol':
-        specifier: workspace:*
-        version: link:../../protocol
-      '@bbebee/core-desktop-bridge':
-        specifier: workspace:*
-        version: link:../core-desktop-bridge
-      cordis:
-        specifier: 4.0.0-rc.9
-        version: 4.0.0-rc.9
-    devDependencies:
-      vitest:
-        specifier: ^4.1.11
-        version: 4.1.11(@types/node@22.20.1)(jsdom@30.0.1)(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(terser@5.51.2)(yaml@2.9.0))
-
-  packages/core/core-codec-node:
+  packages/core/core-codec-desktop:
     dependencies:
       '@BBeBee/kernel':
         specifier: workspace:*
@@ -597,14 +597,14 @@ importers:
         specifier: 10.3.5
         version: 10.3.5
     devDependencies:
-      '@BBeBee/core-fs-node':
+      '@BBeBee/core-fs-desktop':
         specifier: workspace:*
-        version: link:../core-fs-node
-      '@BBeBee/core-paths-node':
+        version: link:../core-fs-desktop
+      '@BBeBee/core-paths-desktop':
         specifier: workspace:*
-        version: link:../core-paths-node
+        version: link:../core-paths-desktop
 
-  packages/core/core-codec-rn:
+  packages/core/core-codec-mobile:
     dependencies:
       '@BBeBee/protocol':
         specifier: workspace:*
@@ -612,9 +612,9 @@ importers:
       '@BBeBee/toolkit':
         specifier: workspace:*
         version: link:../../feature/toolkit
-      '@bbebee/core-codec-node':
+      '@bbebee/core-codec-desktop':
         specifier: workspace:*
-        version: link:../core-codec-node
+        version: link:../core-codec-desktop
       cordis:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
@@ -622,17 +622,36 @@ importers:
         specifier: 0.13.3
         version: 0.13.3(react-native-worklets@0.10.4(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
     devDependencies:
-      '@BBeBee/core-fs-node':
+      '@BBeBee/core-fs-desktop':
         specifier: workspace:*
-        version: link:../core-fs-node
-      '@BBeBee/core-paths-node':
+        version: link:../core-fs-desktop
+      '@BBeBee/core-paths-desktop':
         specifier: workspace:*
-        version: link:../core-paths-node
+        version: link:../core-paths-desktop
       '@BBeBee/kernel':
         specifier: workspace:*
         version: link:../../kernel
 
-  packages/core/core-db-expo:
+  packages/core/core-db-desktop:
+    dependencies:
+      '@BBeBee/kernel':
+        specifier: workspace:*
+        version: link:../../kernel
+      '@BBeBee/protocol':
+        specifier: workspace:*
+        version: link:../../protocol
+      cordis:
+        specifier: 4.0.0-rc.9
+        version: 4.0.0-rc.9
+    devDependencies:
+      '@BBeBee/core-fs-desktop':
+        specifier: workspace:*
+        version: link:../core-fs-desktop
+      '@BBeBee/core-paths-desktop':
+        specifier: workspace:*
+        version: link:../core-paths-desktop
+
+  packages/core/core-db-mobile:
     dependencies:
       '@BBeBee/kernel':
         specifier: workspace:*
@@ -647,25 +666,6 @@ importers:
         specifier: ~57.0.2
         version: 57.0.2(expo@57.0.20)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
 
-  packages/core/core-db-node:
-    dependencies:
-      '@BBeBee/kernel':
-        specifier: workspace:*
-        version: link:../../kernel
-      '@BBeBee/protocol':
-        specifier: workspace:*
-        version: link:../../protocol
-      cordis:
-        specifier: 4.0.0-rc.9
-        version: 4.0.0-rc.9
-    devDependencies:
-      '@BBeBee/core-fs-node':
-        specifier: workspace:*
-        version: link:../core-fs-node
-      '@BBeBee/core-paths-node':
-        specifier: workspace:*
-        version: link:../core-paths-node
-
   packages/core/core-desktop-bridge:
     dependencies:
       '@BBeBee/kernel':
@@ -674,24 +674,43 @@ importers:
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
-      '@bbebee/core-codec-node':
+      '@bbebee/core-codec-desktop':
         specifier: workspace:*
-        version: link:../core-codec-node
+        version: link:../core-codec-desktop
       cordis:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
     devDependencies:
-      '@BBeBee/core-db-node':
+      '@BBeBee/core-db-desktop':
         specifier: workspace:*
-        version: link:../core-db-node
-      '@BBeBee/core-fs-node':
+        version: link:../core-db-desktop
+      '@BBeBee/core-fs-desktop':
         specifier: workspace:*
-        version: link:../core-fs-node
-      '@BBeBee/core-paths-node':
+        version: link:../core-fs-desktop
+      '@BBeBee/core-paths-desktop':
         specifier: workspace:*
-        version: link:../core-paths-node
+        version: link:../core-paths-desktop
 
-  packages/core/core-device-expo:
+  packages/core/core-device-desktop:
+    dependencies:
+      '@BBeBee/kernel':
+        specifier: workspace:*
+        version: link:../../kernel
+      '@BBeBee/protocol':
+        specifier: workspace:*
+        version: link:../../protocol
+      '@bbebee/core-desktop-bridge':
+        specifier: workspace:*
+        version: link:../core-desktop-bridge
+      cordis:
+        specifier: 4.0.0-rc.9
+        version: 4.0.0-rc.9
+    devDependencies:
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@22.20.1)(jsdom@30.0.1)(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(terser@5.51.2)(yaml@2.9.0))
+
+  packages/core/core-device-mobile:
     dependencies:
       '@BBeBee/protocol':
         specifier: workspace:*
@@ -712,7 +731,7 @@ importers:
         specifier: 0.86.3
         version: 0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1)
 
-  packages/core/core-device-tauri:
+  packages/core/core-fs-desktop:
     dependencies:
       '@BBeBee/kernel':
         specifier: workspace:*
@@ -720,18 +739,30 @@ importers:
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
-      '@bbebee/core-desktop-bridge':
-        specifier: workspace:*
-        version: link:../core-desktop-bridge
       cordis:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
     devDependencies:
-      vitest:
-        specifier: ^4.1.11
-        version: 4.1.11(@types/node@22.20.1)(jsdom@30.0.1)(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(terser@5.51.2)(yaml@2.9.0))
+      '@BBeBee/core-db-desktop':
+        specifier: workspace:*
+        version: link:../core-db-desktop
+      '@BBeBee/core-paths-desktop':
+        specifier: workspace:*
+        version: link:../core-paths-desktop
+      '@bbebee/core-store-fs':
+        specifier: workspace:*
+        version: link:../core-store-fs
+      '@bbebee/plugin-log-buffer':
+        specifier: workspace:*
+        version: link:../../logs/plugin-log-buffer
+      '@bbebee/plugin-log-console':
+        specifier: workspace:*
+        version: link:../../logs/plugin-log-console
+      '@bbebee/plugin-log-file':
+        specifier: workspace:*
+        version: link:../../logs/plugin-log-file
 
-  packages/core/core-fs-expo:
+  packages/core/core-fs-mobile:
     dependencies:
       '@BBeBee/kernel':
         specifier: workspace:*
@@ -746,11 +777,11 @@ importers:
         specifier: ~57.0.6
         version: 57.0.6(expo@57.0.20)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))
     devDependencies:
-      '@bbebee/core-paths-expo':
+      '@bbebee/core-paths-mobile':
         specifier: workspace:*
-        version: link:../core-paths-expo
+        version: link:../core-paths-mobile
 
-  packages/core/core-fs-node:
+  packages/core/core-http-desktop:
     dependencies:
       '@BBeBee/kernel':
         specifier: workspace:*
@@ -762,51 +793,20 @@ importers:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
     devDependencies:
-      '@BBeBee/core-db-node':
+      '@BBeBee/core-fs-desktop':
         specifier: workspace:*
-        version: link:../core-db-node
-      '@BBeBee/core-paths-node':
+        version: link:../core-fs-desktop
+      '@BBeBee/core-paths-desktop':
         specifier: workspace:*
-        version: link:../core-paths-node
-      '@bbebee/core-store-fs':
-        specifier: workspace:*
-        version: link:../core-store-fs
-      '@bbebee/plugin-log-buffer':
-        specifier: workspace:*
-        version: link:../../logs/plugin-log-buffer
-      '@bbebee/plugin-log-console':
-        specifier: workspace:*
-        version: link:../../logs/plugin-log-console
-      '@bbebee/plugin-log-file':
-        specifier: workspace:*
-        version: link:../../logs/plugin-log-file
-
-  packages/core/core-http-node:
-    dependencies:
-      '@BBeBee/kernel':
-        specifier: workspace:*
-        version: link:../../kernel
-      '@BBeBee/protocol':
-        specifier: workspace:*
-        version: link:../../protocol
-      cordis:
-        specifier: 4.0.0-rc.9
-        version: 4.0.0-rc.9
-    devDependencies:
-      '@BBeBee/core-fs-node':
-        specifier: workspace:*
-        version: link:../core-fs-node
-      '@BBeBee/core-paths-node':
-        specifier: workspace:*
-        version: link:../core-paths-node
+        version: link:../core-paths-desktop
       '@BBeBee/tooling-fixtures':
         specifier: workspace:*
         version: link:../../tooling/tooling-fixtures
-      '@bbebee/core-secrets-node':
+      '@bbebee/core-secrets-desktop':
         specifier: workspace:*
-        version: link:../core-secrets-node
+        version: link:../core-secrets-desktop
 
-  packages/core/core-http-rn:
+  packages/core/core-http-mobile:
     dependencies:
       '@BBeBee/kernel':
         specifier: workspace:*
@@ -814,9 +814,9 @@ importers:
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
-      '@bbebee/core-http-node':
+      '@bbebee/core-http-desktop':
         specifier: workspace:*
-        version: link:../core-http-node
+        version: link:../core-http-desktop
       cordis:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
@@ -824,7 +824,7 @@ importers:
         specifier: ~57.0.18
         version: 57.0.20(@babel/core@7.29.7(supports-color@8.1.1))(@expo/dom-webview@57.0.1)(react-dom@19.2.3(react@19.2.3))(react-native-worklets@0.10.4(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1)(typescript@5.9.3)
 
-  packages/core/core-js-quickjs-node:
+  packages/core/core-js-quickjs-desktop:
     dependencies:
       '@BBeBee/protocol':
         specifier: workspace:*
@@ -843,23 +843,7 @@ importers:
         specifier: workspace:*
         version: link:../../kernel
 
-  packages/core/core-media-session-rn:
-    dependencies:
-      '@BBeBee/protocol':
-        specifier: workspace:*
-        version: link:../../protocol
-      cordis:
-        specifier: 4.0.0-rc.9
-        version: 4.0.0-rc.9
-      react-native-audio-api:
-        specifier: 0.13.3
-        version: 0.13.3(react-native-worklets@0.10.4(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
-    devDependencies:
-      '@BBeBee/kernel':
-        specifier: workspace:*
-        version: link:../../kernel
-
-  packages/core/core-media-session-tauri:
+  packages/core/core-media-session-desktop:
     dependencies:
       '@BBeBee/kernel':
         specifier: workspace:*
@@ -878,7 +862,35 @@ importers:
         specifier: ^4.1.11
         version: 4.1.11(@types/node@22.20.1)(jsdom@30.0.1)(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(terser@5.51.2)(yaml@2.9.0))
 
-  packages/core/core-paths-expo:
+  packages/core/core-media-session-mobile:
+    dependencies:
+      '@BBeBee/protocol':
+        specifier: workspace:*
+        version: link:../../protocol
+      cordis:
+        specifier: 4.0.0-rc.9
+        version: 4.0.0-rc.9
+      react-native-audio-api:
+        specifier: 0.13.3
+        version: 0.13.3(react-native-worklets@0.10.4(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
+    devDependencies:
+      '@BBeBee/kernel':
+        specifier: workspace:*
+        version: link:../../kernel
+
+  packages/core/core-paths-desktop:
+    dependencies:
+      '@BBeBee/kernel':
+        specifier: workspace:*
+        version: link:../../kernel
+      '@BBeBee/protocol':
+        specifier: workspace:*
+        version: link:../../protocol
+      cordis:
+        specifier: 4.0.0-rc.9
+        version: 4.0.0-rc.9
+
+  packages/core/core-paths-mobile:
     dependencies:
       '@BBeBee/kernel':
         specifier: workspace:*
@@ -893,7 +905,7 @@ importers:
         specifier: ~57.0.6
         version: 57.0.6(expo@57.0.20)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))
 
-  packages/core/core-paths-node:
+  packages/core/core-secrets-desktop:
     dependencies:
       '@BBeBee/kernel':
         specifier: workspace:*
@@ -904,8 +916,15 @@ importers:
       cordis:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
+    devDependencies:
+      '@BBeBee/core-fs-desktop':
+        specifier: workspace:*
+        version: link:../core-fs-desktop
+      '@BBeBee/core-paths-desktop':
+        specifier: workspace:*
+        version: link:../core-paths-desktop
 
-  packages/core/core-secrets-expo:
+  packages/core/core-secrets-mobile:
     dependencies:
       '@BBeBee/kernel':
         specifier: workspace:*
@@ -923,25 +942,6 @@ importers:
         specifier: 0.86.3
         version: 0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1)
 
-  packages/core/core-secrets-node:
-    dependencies:
-      '@BBeBee/kernel':
-        specifier: workspace:*
-        version: link:../../kernel
-      '@BBeBee/protocol':
-        specifier: workspace:*
-        version: link:../../protocol
-      cordis:
-        specifier: 4.0.0-rc.9
-        version: 4.0.0-rc.9
-    devDependencies:
-      '@BBeBee/core-fs-node':
-        specifier: workspace:*
-        version: link:../core-fs-node
-      '@BBeBee/core-paths-node':
-        specifier: workspace:*
-        version: link:../core-paths-node
-
   packages/core/core-store-fs:
     dependencies:
       '@BBeBee/kernel':
@@ -954,12 +954,12 @@ importers:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
     devDependencies:
-      '@BBeBee/core-fs-node':
+      '@BBeBee/core-fs-desktop':
         specifier: workspace:*
-        version: link:../core-fs-node
-      '@BBeBee/core-paths-node':
+        version: link:../core-fs-desktop
+      '@BBeBee/core-paths-desktop':
         specifier: workspace:*
-        version: link:../core-paths-node
+        version: link:../core-paths-desktop
 
   packages/feature/plugin-album:
     dependencies:
@@ -998,18 +998,18 @@ importers:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
     devDependencies:
-      '@BBeBee/core-fs-node':
+      '@BBeBee/core-fs-desktop':
         specifier: workspace:*
-        version: link:../../core/core-fs-node
-      '@BBeBee/core-paths-node':
+        version: link:../../core/core-fs-desktop
+      '@BBeBee/core-paths-desktop':
         specifier: workspace:*
-        version: link:../../core/core-paths-node
+        version: link:../../core/core-paths-desktop
       '@BBeBee/kernel':
         specifier: workspace:*
         version: link:../../kernel
-      '@bbebee/core-codec-node':
+      '@bbebee/core-codec-desktop':
         specifier: workspace:*
-        version: link:../../core/core-codec-node
+        version: link:../../core/core-codec-desktop
 
   packages/feature/plugin-cache:
     dependencies:
@@ -1029,15 +1029,15 @@ importers:
         specifier: 19.2.3
         version: 19.2.3
     devDependencies:
-      '@BBeBee/core-db-node':
+      '@BBeBee/core-db-desktop':
         specifier: workspace:*
-        version: link:../../core/core-db-node
-      '@BBeBee/core-fs-node':
+        version: link:../../core/core-db-desktop
+      '@BBeBee/core-fs-desktop':
         specifier: workspace:*
-        version: link:../../core/core-fs-node
-      '@BBeBee/core-paths-node':
+        version: link:../../core/core-fs-desktop
+      '@BBeBee/core-paths-desktop':
         specifier: workspace:*
-        version: link:../../core/core-paths-node
+        version: link:../../core/core-paths-desktop
       '@BBeBee/kernel':
         specifier: workspace:*
         version: link:../../kernel
@@ -1103,15 +1103,15 @@ importers:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
     devDependencies:
-      '@BBeBee/core-db-node':
+      '@BBeBee/core-db-desktop':
         specifier: workspace:*
-        version: link:../../core/core-db-node
-      '@BBeBee/core-fs-node':
+        version: link:../../core/core-db-desktop
+      '@BBeBee/core-fs-desktop':
         specifier: workspace:*
-        version: link:../../core/core-fs-node
-      '@BBeBee/core-paths-node':
+        version: link:../../core/core-fs-desktop
+      '@BBeBee/core-paths-desktop':
         specifier: workspace:*
-        version: link:../../core/core-paths-node
+        version: link:../../core/core-paths-desktop
       '@BBeBee/kernel':
         specifier: workspace:*
         version: link:../../kernel
@@ -1195,15 +1195,15 @@ importers:
         specifier: 19.2.3
         version: 19.2.3
     devDependencies:
-      '@BBeBee/core-db-node':
+      '@BBeBee/core-db-desktop':
         specifier: workspace:*
-        version: link:../../core/core-db-node
-      '@BBeBee/core-fs-node':
+        version: link:../../core/core-db-desktop
+      '@BBeBee/core-fs-desktop':
         specifier: workspace:*
-        version: link:../../core/core-fs-node
-      '@BBeBee/core-paths-node':
+        version: link:../../core/core-fs-desktop
+      '@BBeBee/core-paths-desktop':
         specifier: workspace:*
-        version: link:../../core/core-paths-node
+        version: link:../../core/core-paths-desktop
       '@testing-library/react':
         specifier: ^16.3.3
         version: 16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -1229,21 +1229,21 @@ importers:
         specifier: 19.2.3
         version: 19.2.3
     devDependencies:
-      '@BBeBee/core-db-node':
+      '@BBeBee/core-db-desktop':
         specifier: workspace:*
-        version: link:../../core/core-db-node
-      '@BBeBee/core-fs-node':
+        version: link:../../core/core-db-desktop
+      '@BBeBee/core-fs-desktop':
         specifier: workspace:*
-        version: link:../../core/core-fs-node
-      '@BBeBee/core-paths-node':
+        version: link:../../core/core-fs-desktop
+      '@BBeBee/core-paths-desktop':
         specifier: workspace:*
-        version: link:../../core/core-paths-node
+        version: link:../../core/core-paths-desktop
       '@BBeBee/tooling-fixtures':
         specifier: workspace:*
         version: link:../../tooling/tooling-fixtures
-      '@bbebee/core-codec-node':
+      '@bbebee/core-codec-desktop':
         specifier: workspace:*
-        version: link:../../core/core-codec-node
+        version: link:../../core/core-codec-desktop
       '@bbebee/plugin-player':
         specifier: workspace:*
         version: link:../plugin-player
@@ -1377,15 +1377,15 @@ importers:
         specifier: 19.2.3
         version: 19.2.3
     devDependencies:
-      '@BBeBee/core-db-node':
+      '@BBeBee/core-db-desktop':
         specifier: workspace:*
-        version: link:../../core/core-db-node
-      '@BBeBee/core-fs-node':
+        version: link:../../core/core-db-desktop
+      '@BBeBee/core-fs-desktop':
         specifier: workspace:*
-        version: link:../../core/core-fs-node
-      '@BBeBee/core-paths-node':
+        version: link:../../core/core-fs-desktop
+      '@BBeBee/core-paths-desktop':
         specifier: workspace:*
-        version: link:../../core/core-paths-node
+        version: link:../../core/core-paths-desktop
       '@bbebee/plugin-sources':
         specifier: workspace:*
         version: link:../plugin-sources
@@ -1529,15 +1529,15 @@ importers:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
     devDependencies:
-      '@BBeBee/core-db-node':
+      '@BBeBee/core-db-desktop':
         specifier: workspace:*
-        version: link:../../core/core-db-node
-      '@BBeBee/core-fs-node':
+        version: link:../../core/core-db-desktop
+      '@BBeBee/core-fs-desktop':
         specifier: workspace:*
-        version: link:../../core/core-fs-node
-      '@BBeBee/core-paths-node':
+        version: link:../../core/core-fs-desktop
+      '@BBeBee/core-paths-desktop':
         specifier: workspace:*
-        version: link:../../core/core-paths-node
+        version: link:../../core/core-paths-desktop
       '@bbebee/plugin-local-scanner':
         specifier: workspace:*
         version: link:../plugin-local-scanner
@@ -1560,27 +1560,27 @@ importers:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
     devDependencies:
-      '@BBeBee/core-db-node':
+      '@BBeBee/core-db-desktop':
         specifier: workspace:*
-        version: link:../../core/core-db-node
-      '@BBeBee/core-fs-node':
+        version: link:../../core/core-db-desktop
+      '@BBeBee/core-fs-desktop':
         specifier: workspace:*
-        version: link:../../core/core-fs-node
-      '@BBeBee/core-paths-node':
+        version: link:../../core/core-fs-desktop
+      '@BBeBee/core-paths-desktop':
         specifier: workspace:*
-        version: link:../../core/core-paths-node
+        version: link:../../core/core-paths-desktop
       '@BBeBee/kernel':
         specifier: workspace:*
         version: link:../../kernel
-      '@bbebee/core-http-node':
+      '@bbebee/core-http-desktop':
         specifier: workspace:*
-        version: link:../../core/core-http-node
-      '@bbebee/core-js-quickjs-node':
+        version: link:../../core/core-http-desktop
+      '@bbebee/core-js-quickjs-desktop':
         specifier: workspace:*
-        version: link:../../core/core-js-quickjs-node
-      '@bbebee/core-secrets-node':
+        version: link:../../core/core-js-quickjs-desktop
+      '@bbebee/core-secrets-desktop':
         specifier: workspace:*
-        version: link:../../core/core-secrets-node
+        version: link:../../core/core-secrets-desktop
       '@bbebee/plugin-sources':
         specifier: workspace:*
         version: link:../plugin-sources
@@ -1603,15 +1603,15 @@ importers:
         specifier: 19.2.3
         version: 19.2.3
     devDependencies:
-      '@BBeBee/core-db-node':
+      '@BBeBee/core-db-desktop':
         specifier: workspace:*
-        version: link:../../core/core-db-node
-      '@BBeBee/core-fs-node':
+        version: link:../../core/core-db-desktop
+      '@BBeBee/core-fs-desktop':
         specifier: workspace:*
-        version: link:../../core/core-fs-node
-      '@BBeBee/core-paths-node':
+        version: link:../../core/core-fs-desktop
+      '@BBeBee/core-paths-desktop':
         specifier: workspace:*
-        version: link:../../core/core-paths-node
+        version: link:../../core/core-paths-desktop
       '@testing-library/react':
         specifier: ^16.3.3
         version: 16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -1751,12 +1751,12 @@ importers:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
     devDependencies:
-      '@BBeBee/core-fs-node':
+      '@BBeBee/core-fs-desktop':
         specifier: workspace:*
-        version: link:../../core/core-fs-node
-      '@BBeBee/core-paths-node':
+        version: link:../../core/core-fs-desktop
+      '@BBeBee/core-paths-desktop':
         specifier: workspace:*
-        version: link:../../core/core-paths-node
+        version: link:../../core/core-paths-desktop
       '@bbebee/plugin-log-buffer':
         specifier: workspace:*
         version: link:../plugin-log-buffer
@@ -1796,18 +1796,18 @@ importers:
         specifier: workspace:*
         version: link:../../protocol
     devDependencies:
-      '@BBeBee/core-fs-node':
+      '@BBeBee/core-fs-desktop':
         specifier: workspace:*
-        version: link:../../core/core-fs-node
-      '@BBeBee/core-paths-node':
+        version: link:../../core/core-fs-desktop
+      '@BBeBee/core-paths-desktop':
         specifier: workspace:*
-        version: link:../../core/core-paths-node
+        version: link:../../core/core-paths-desktop
       '@BBeBee/kernel':
         specifier: workspace:*
         version: link:../../kernel
-      '@bbebee/core-codec-node':
+      '@bbebee/core-codec-desktop':
         specifier: workspace:*
-        version: link:../../core/core-codec-node
+        version: link:../../core/core-codec-desktop
       cordis:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
@@ -1953,18 +1953,18 @@ importers:
         specifier: 19.2.3
         version: 19.2.3
     devDependencies:
-      '@BBeBee/core-fs-node':
+      '@BBeBee/core-fs-desktop':
         specifier: workspace:*
-        version: link:../../core/core-fs-node
-      '@BBeBee/core-paths-node':
+        version: link:../../core/core-fs-desktop
+      '@BBeBee/core-paths-desktop':
         specifier: workspace:*
-        version: link:../../core/core-paths-node
+        version: link:../../core/core-paths-desktop
       '@BBeBee/kernel':
         specifier: workspace:*
         version: link:../../kernel
-      '@bbebee/core-codec-node':
+      '@bbebee/core-codec-desktop':
         specifier: workspace:*
-        version: link:../../core/core-codec-node
+        version: link:../../core/core-codec-desktop
       '@testing-library/react':
         specifier: ^16.3.3
         version: 16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -2054,15 +2054,15 @@ importers:
         specifier: 19.2.3
         version: 19.2.3
     devDependencies:
-      '@BBeBee/core-db-node':
+      '@BBeBee/core-db-desktop':
         specifier: workspace:*
-        version: link:../../core/core-db-node
-      '@BBeBee/core-fs-node':
+        version: link:../../core/core-db-desktop
+      '@BBeBee/core-fs-desktop':
         specifier: workspace:*
-        version: link:../../core/core-fs-node
-      '@BBeBee/core-paths-node':
+        version: link:../../core/core-fs-desktop
+      '@BBeBee/core-paths-desktop':
         specifier: workspace:*
-        version: link:../../core/core-paths-node
+        version: link:../../core/core-paths-desktop
       '@BBeBee/kernel':
         specifier: workspace:*
         version: link:../../kernel
@@ -2109,15 +2109,15 @@ importers:
         specifier: 19.2.3
         version: 19.2.3
     devDependencies:
-      '@BBeBee/core-db-node':
+      '@BBeBee/core-db-desktop':
         specifier: workspace:*
-        version: link:../../core/core-db-node
-      '@BBeBee/core-fs-node':
+        version: link:../../core/core-db-desktop
+      '@BBeBee/core-fs-desktop':
         specifier: workspace:*
-        version: link:../../core/core-fs-node
-      '@BBeBee/core-paths-node':
+        version: link:../../core/core-fs-desktop
+      '@BBeBee/core-paths-desktop':
         specifier: workspace:*
-        version: link:../../core/core-paths-node
+        version: link:../../core/core-paths-desktop
       '@BBeBee/kernel':
         specifier: workspace:*
         version: link:../../kernel
@@ -2489,21 +2489,21 @@ importers:
         specifier: 19.2.3
         version: 19.2.3
     devDependencies:
-      '@BBeBee/core-db-node':
+      '@BBeBee/core-db-desktop':
         specifier: workspace:*
-        version: link:../../core/core-db-node
-      '@BBeBee/core-fs-node':
+        version: link:../../core/core-db-desktop
+      '@BBeBee/core-fs-desktop':
         specifier: workspace:*
-        version: link:../../core/core-fs-node
-      '@BBeBee/core-paths-node':
+        version: link:../../core/core-fs-desktop
+      '@BBeBee/core-paths-desktop':
         specifier: workspace:*
-        version: link:../../core/core-paths-node
+        version: link:../../core/core-paths-desktop
       '@BBeBee/kernel':
         specifier: workspace:*
         version: link:../../kernel
-      '@bbebee/core-codec-node':
+      '@bbebee/core-codec-desktop':
         specifier: workspace:*
-        version: link:../../core/core-codec-node
+        version: link:../../core/core-codec-desktop
       '@bbebee/plugin-local-scanner':
         specifier: workspace:*
         version: link:../../feature/plugin-local-scanner
@@ -2547,21 +2547,21 @@ importers:
         specifier: 19.2.3
         version: 19.2.3
     devDependencies:
-      '@BBeBee/core-db-node':
+      '@BBeBee/core-db-desktop':
         specifier: workspace:*
-        version: link:../../core/core-db-node
-      '@BBeBee/core-fs-node':
+        version: link:../../core/core-db-desktop
+      '@BBeBee/core-fs-desktop':
         specifier: workspace:*
-        version: link:../../core/core-fs-node
-      '@BBeBee/core-paths-node':
+        version: link:../../core/core-fs-desktop
+      '@BBeBee/core-paths-desktop':
         specifier: workspace:*
-        version: link:../../core/core-paths-node
+        version: link:../../core/core-paths-desktop
       '@BBeBee/kernel':
         specifier: workspace:*
         version: link:../../kernel
-      '@bbebee/core-codec-node':
+      '@bbebee/core-codec-desktop':
         specifier: workspace:*
-        version: link:../../core/core-codec-node
+        version: link:../../core/core-codec-desktop
       '@bbebee/plugin-local-scanner':
         specifier: workspace:*
         version: link:../../feature/plugin-local-scanner
@@ -3135,15 +3135,15 @@ importers:
         specifier: 19.2.3
         version: 19.2.3
     devDependencies:
-      '@BBeBee/core-db-node':
+      '@BBeBee/core-db-desktop':
         specifier: workspace:*
-        version: link:../../core/core-db-node
-      '@BBeBee/core-fs-node':
+        version: link:../../core/core-db-desktop
+      '@BBeBee/core-fs-desktop':
         specifier: workspace:*
-        version: link:../../core/core-fs-node
-      '@BBeBee/core-paths-node':
+        version: link:../../core/core-fs-desktop
+      '@BBeBee/core-paths-desktop':
         specifier: workspace:*
-        version: link:../../core/core-paths-node
+        version: link:../../core/core-paths-desktop
       '@BBeBee/kernel':
         specifier: workspace:*
         version: link:../../kernel
@@ -3196,21 +3196,21 @@ importers:
         specifier: 19.2.3
         version: 19.2.3
     devDependencies:
-      '@BBeBee/core-db-node':
+      '@BBeBee/core-db-desktop':
         specifier: workspace:*
-        version: link:../../core/core-db-node
-      '@BBeBee/core-fs-node':
+        version: link:../../core/core-db-desktop
+      '@BBeBee/core-fs-desktop':
         specifier: workspace:*
-        version: link:../../core/core-fs-node
-      '@BBeBee/core-paths-node':
+        version: link:../../core/core-fs-desktop
+      '@BBeBee/core-paths-desktop':
         specifier: workspace:*
-        version: link:../../core/core-paths-node
+        version: link:../../core/core-paths-desktop
       '@BBeBee/kernel':
         specifier: workspace:*
         version: link:../../kernel
-      '@bbebee/core-http-node':
+      '@bbebee/core-http-desktop':
         specifier: workspace:*
-        version: link:../../core/core-http-node
+        version: link:../../core/core-http-desktop
       '@bbebee/plugin-source-runtime':
         specifier: workspace:*
         version: link:../../feature/plugin-source-runtime
@@ -6708,8 +6708,8 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
-  uint8array-extras@1.5.0:
-    resolution: {integrity: sha512-rvKSBiC5zqCCiDZ9kAOszZcDvdAHwwIKJG33Ykj43OKcWsnmcBRL09YTU4nOeHZ8Y2a7l1MgTd08SBe9A8Qj6A==}
+  uint8array-extras@1.6.0:
+    resolution: {integrity: sha512-8iAasVS4wUx0gPLjH8Xtz2PeDzTSiy8QiLGu2DT3X5GU+egFEQhpnbtkehbAwjvDcxIERmCYcysiODFmE3Ud0Q==}
     engines: {node: '>=18'}
 
   undici-types@6.21.0:
@@ -9402,7 +9402,7 @@ snapshots:
       '@tokenizer/inflate': 0.4.1(supports-color@8.1.1)
       strtok3: 10.3.5
       token-types: 6.1.2
-      uint8array-extras: 1.5.0
+      uint8array-extras: 1.6.0
     transitivePeerDependencies:
       - supports-color
 
@@ -10154,7 +10154,7 @@ snapshots:
       media-typer: 2.0.0
       strtok3: 10.3.5
       token-types: 6.1.2
-      uint8array-extras: 1.5.0
+      uint8array-extras: 1.6.0
       win-guid: 0.2.1
     transitivePeerDependencies:
       - supports-color
@@ -10751,7 +10751,7 @@ snapshots:
 
   typescript@5.9.3: {}
 
-  uint8array-extras@1.5.0: {}
+  uint8array-extras@1.6.0: {}
 
   undici-types@6.21.0: {}
 

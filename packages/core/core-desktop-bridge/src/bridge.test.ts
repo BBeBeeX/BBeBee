@@ -158,7 +158,7 @@ describe('db over the bridge', () => {
 })
 
 describe('db capability scopes over the bridge', () => {
-  // The same suite `core-db-node` runs. It exists because `db:own` was
+  // The same suite `core-db-desktop` runs. It exists because `db:own` was
   // enforced in-process and completely absent here — the gate held in tests
   // and evaporated on the path the desktop app actually uses.
   for (const check of dbScopeConformance.checks) {

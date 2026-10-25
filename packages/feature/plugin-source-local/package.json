@@ -33,9 +33,9 @@
     "cordis": "4.0.0-rc.9"
   },
   "devDependencies": {
-    "@BBeBee/core-db-node": "workspace:*",
-    "@BBeBee/core-fs-node": "workspace:*",
-    "@BBeBee/core-paths-node": "workspace:*",
+    "@BBeBee/core-db-desktop": "workspace:*",
+    "@BBeBee/core-fs-desktop": "workspace:*",
+    "@BBeBee/core-paths-desktop": "workspace:*",
     "@bbebee/plugin-sources": "workspace:*",
     "@bbebee/plugin-local-scanner": "workspace:*"
   }

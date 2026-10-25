@@ -39,7 +39,7 @@ import { NpmClient, tarballAllowedHosts } from './npm.js'
  *
  * This world mirrors the shell exactly: a REAL gated http service
  * (same `assertHost(this[Service.resolveConfig](), url)` line as
- * core-http-node) provided by a sibling fiber, the manager loaded
+ * core-http-desktop) provided by a sibling fiber, the manager loaded
  * under its own `scopeContext` with its manifest's capabilities, and a
  * zero-capability initiator loaded under its own `scopeContext`.
  */
@@ -105,7 +105,7 @@ async function createGatedWorld(opts: GatedWorldOptions = {}) {
   const routes = new Map<string, Route>()
   routes.set(INDEX_URL, { body: { entries: [entryFor({ id: 'a-x', npm: '@t/a' })], blocked: [] } })
 
-  // A faithful stand-in for core-http-node: a callable Service whose
+  // A faithful stand-in for core-http-desktop: a callable Service whose
   // request path runs the REAL kernel gate against the config Cordis
   // resolved for the calling context, then serves canned routes.
   // Redirects are followed the way the real service follows them:

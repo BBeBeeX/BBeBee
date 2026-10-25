@@ -78,7 +78,7 @@ export interface HttpService {
 }
 ```
 
-| | 桌面端 (`core-http-node`) | Expo (`core-http-rn`) |
+| | 桌面端 (`core-http-desktop`) | Expo (`core-http-mobile`) |
 |---|---|---|
 | 底层实现 | Node.js `fetch` / `undici` 运行在 sidecar，流式经由 bridge 传给渲染进程 | React Native `fetch` / `XMLHttpRequest` |
 | CORS | 完全绕过 —— 这正是它要经过 sidecar 的原因 | 原生端不适用 |
@@ -154,7 +154,7 @@ export interface CookieJarService {
 - `clear()` 删除的是持久化副本，而不仅仅是内存中的那份。
 - 各罐相互隔离：一个罐中的写入对另一个罐不可见。
 
-| | 桌面端 (`core-http-node`) | Expo (`core-http-rn`) |
+| | 桌面端 (`core-http-desktop`) | Expo (`core-http-mobile`) |
 |---|---|---|
 | 存储 | `MemoryJars` 经由 `jarStore(ctx.secrets, ctx.fs)` 持久化 | JS 实现的 RFC 6265 jar，序列化为 JSON |
 | 静态保护 | 经由 `ctx.secrets` (`safeStorageCodec`) 加密存储 | **信封加密（envelope encryption）**：随机 AES 密钥放 `ctx.secrets`，密文放 `cookie_jars` 表（[data-model/schema.md §4.1](../data-model/schema.md#41-音源账号与会话)） |
@@ -166,7 +166,7 @@ export interface CookieJarService {
 > "数据库里绝不出现可读凭据"这一不变式。
 
 > ⚠️ React Native 的 `fetch` 在两个平台上都用**应用全局共享**的原生 cookie 存储。这与按实例
-> 隔离的需求恰好相反，因此 `core-http-rn` 禁用了它，自行管理 `Cookie` / `Set-Cookie` 请求头。
+> 隔离的需求恰好相反，因此 `core-http-mobile` 禁用了它，自行管理 `Cookie` / `Set-Cookie` 请求头。
 > 每次 RN 升级都要复核这一点：这里的默认行为一变，cookie 就会在音源之间静默串漏，
 > 一致性测试套件中的隔离测试正是为此而设。
 
@@ -306,7 +306,7 @@ export interface Migration {
 }
 ```
 
-| | 桌面端 (`core-db-node`) | Expo (`core-db-expo`) |
+| | 桌面端 (`core-db-desktop`) | Expo (`core-db-mobile`) |
 |---|---|---|
 | 底层实现 | **`node:sqlite`** —— 随 Node 22+ 一起在 sidecar 中提供。无需原生重编译，每次升级也不必处理原生模块构建 | `expo-sqlite` |
 | WAL | ✅ 已启用 | ✅ 已启用 |
@@ -320,7 +320,7 @@ export interface Migration {
 > 发生的痕迹 —— 而一份如此编写的迁移把它的版本记为已应用，schema 从此永久漂移，也没有任何
 > 错误可查。请分开传语句，或在迁移中使用 `up: string[]`。字符串字面量内部的分号不是边界。
 >
-> 这道门在**两份**实现上都有。`core-db-expo` 曾有一段时间完全没有 —— `db:own` 在桌面端被
+> 这道门在**两份**实现上都有。`core-db-mobile` 曾有一段时间完全没有 —— `db:own` 在桌面端被
 > 强制、在移动端不设防 —— 这恰恰是 §18 的一致性测试套件要抓的漂移，也是 `db-scope` 套件必须
 > 在真机、而不仅是在 Node 里跑的原因。
 
@@ -360,7 +360,7 @@ export interface SecretsService {
 ### 作用域隔离 Root 凭据 vs 跨插件显式命名空间
 - **调用方作用域隔离的根密钥 (`ctx.secrets.get/set/delete`):** 未指定命名空间的调用会自动附加调用方插件的 Cordis ID (`this.scope()`)，以保持各插件私有凭据之间的安全隔离。
 - **跨插件共享的显式命名空间 (`ctx.secrets.namespace(ns)`):** 显式命名空间代表领域实体（如特定音源凭据或账户会话），在所有具备访问权限的插件之间全局统一共享，不附加写入方插件作用域前缀。这确保了由 UI 插件（如 `@bbebee/plugin-settings-ui-desktop`）配置写入的凭据，可以被沙箱运行时插件（如 `@bbebee/plugin-source-runtime`）无缝读取。
-- **平滑自动迁移机制:** 当查询显式命名空间的键时，如果发现带有调用方前缀的历史旧键（`@BBeBee/plugin-*/<namespace>:<key>`），`core-secrets-node` 会自动识别并将其透明迁移为未加前缀的全局命名空间键，同时清除历史残留项。
+- **平滑自动迁移机制:** 当查询显式命名空间的键时，如果发现带有调用方前缀的历史旧键（`@BBeBee/plugin-*/<namespace>:<key>`），`core-secrets-desktop` 会自动识别并将其透明迁移为未加前缀的全局命名空间键，同时清除历史残留项。
 
 ---
 
@@ -395,7 +395,7 @@ export interface MediaSessionService {
 }
 ```
 
-| | 桌面端 (`core-media-session-tauri`) | Expo (`core-media-session-rn`) |
+| | 桌面端 (`core-media-session-desktop`) | Expo (`core-media-session-mobile`) |
 |---|---|---|
 | 底层实现 | Webview 的 `navigator.mediaSession`，外加 MPRIS（Linux）、SMTC（Windows）以及 macOS "正在播放"中心，均经 sidecar/bridge | `react-native-audio-api` 的通知/锁屏控制 |
 | 锁屏封面 | `artworkUrl` 优先 | `artworkUri` 优先 —— 必须是本地 `Uri`；远程封面需先缓存 |
@@ -603,10 +603,10 @@ export interface I18nService {
 
 每个核心服务都附带一个**共享一致性测试套件**，位于
 `packages/protocol/src/conformance/`，以函数形式导出，入参是一个服务工厂。每份实现都要跑它 ——
-`core-fs-node` 在 Node 下用 Vitest 跑，`core-fs-expo` 在真实模拟器上以 Detox/设备测试的方式跑。
+`core-fs-desktop` 在 Node 下用 Vitest 跑，`core-fs-mobile` 在真实模拟器上以 Detox/设备测试的方式跑。
 
 ```ts
-// packages/core/core-fs-node/test/conformance.test.ts
+// packages/core/core-fs-desktop/test/conformance.test.ts
 import { fsConformance } from '@BBeBee/protocol/conformance'
 fsConformance(() => createNodeFs(testHarness()))
 ```
@@ -625,7 +625,7 @@ bug。这套套件就是本文档的可执行形式。
 核心服务而不是那个插件的一部分，因为内嵌一个解释器意味着交付原生代码，而只有 `core-*` 可以
 这么做（[architecture/layers.md §1](../architecture/layers.md#不变量)）。
 
-**由 `core-js-quickjs-node` 实现**（桌面端与 Node），构建于编译成 WebAssembly 的 QuickJS 之上。不是 `node:vm`，而两者的差别正是全部要点：`vm` 与宿主共享一张对象图，脚本一旦够到 `this.constructor.constructor` 就出局了，而已发表的每一种缓解手段，终究是一份早晚有人绕开的黑名单。QuickJS 是一个独立的解释器 —— 里面没有宿主对象图可供够取，因为其中根本不存在宿主对象。
+**由 `core-js-quickjs-desktop` 实现**（桌面端与 Node），构建于编译成 WebAssembly 的 QuickJS 之上。不是 `node:vm`，而两者的差别正是全部要点：`vm` 与宿主共享一张对象图，脚本一旦够到 `this.constructor.constructor` 就出局了，而已发表的每一种缓解手段，终究是一份早晚有人绕开的黑名单。QuickJS 是一个独立的解释器 —— 里面没有宿主对象图可供够取，因为其中根本不存在宿主对象。
 
 ⚠️ **`js` 是一项可选注入。** 没有沙箱的构建依然会运行每一份无需脚本的文档，并就其余文档把受影响的能力推导为*缺席*，而不是提供一个无法工作的按钮。Cordis 把插件自身 `inject` 里的每一个键都当作必需，因此这里表达为一个嵌套的 `ctx.inject(['js'], …)` —— 把它列在顶层，意味着一个缺失的核心服务会把整个源运行时一起拖垮。
 
@@ -672,7 +672,7 @@ export class JsTimeoutError extends Error {}
 export class JsMemoryError extends Error {}
 ```
 
-| | 桌面端 (`core-js-quickjs-node`) | Expo (宿主内置 QuickJS JSI) |
+| | 桌面端 (`core-js-quickjs-desktop`) | Expo (宿主内置 QuickJS JSI) |
 |---|---|---|
 | 底层实现 | Webview 渲染进程中的 `quickjs-emscripten`（WASM） | 一个 QuickJS JSI 模块（`react-native-quick-js`） |
 | 隔离 | 每个 realm 一个独立的 WASM 实例 | 每个 realm 一个独立的 `JSRuntime` |

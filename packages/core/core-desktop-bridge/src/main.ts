@@ -28,10 +28,10 @@ import {
   type FsService,
   type PathsService,
 } from '@BBeBee/protocol'
-import { PathsNode } from '@BBeBee/core-paths-node'
-import { FsNode } from '@BBeBee/core-fs-node'
-import { DbNode } from '@BBeBee/core-db-node'
-import { CodecNode } from '@bbebee/core-codec-node'
+import { PathsNode } from '@BBeBee/core-paths-desktop'
+import { FsNode } from '@BBeBee/core-fs-desktop'
+import { DbNode } from '@BBeBee/core-db-desktop'
+import { CodecNode } from '@bbebee/core-codec-desktop'
 import {
   CH,
   serializeBridgeError,
@@ -535,7 +535,7 @@ export async function createHost(ipc: IpcHost, options: HostOptions = {}): Promi
 
       // A call carrying a transaction token is routed into that transaction's
       // view rather than the shared service, so it participates in the
-      // transaction rather than queuing behind it (see core-db-node).
+      // transaction rather than queuing behind it (see core-db-desktop).
       if (token) {
         const open = transactions.get(token)
         if (!open) throw new Error(`bridge: unknown transaction "${token}"`)

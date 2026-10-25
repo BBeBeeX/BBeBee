@@ -120,7 +120,7 @@ export class File {
    * ⚠️ Refuses an existing destination, exactly as the device does.
    *
    * Reproducing the *refusal* is the only reason this method is interesting.
-   * A stub that quietly overwrote would make `core-fs-expo` pass the suite
+   * A stub that quietly overwrote would make `core-fs-mobile` pass the suite
    * while still failing on a phone — which is the state this file exists to
    * end.
    */

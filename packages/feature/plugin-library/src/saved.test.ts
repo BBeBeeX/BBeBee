@@ -5,9 +5,9 @@
 
 import { describe, expect, it } from 'vitest'
 import { Context } from 'cordis'
-import { PathsNode } from '@BBeBee/core-paths-node'
-import { FsNode } from '@BBeBee/core-fs-node'
-import { DbNode } from '@BBeBee/core-db-node'
+import { PathsNode } from '@BBeBee/core-paths-desktop'
+import { FsNode } from '@BBeBee/core-fs-desktop'
+import { DbNode } from '@BBeBee/core-db-desktop'
 import { tempDir, tick } from '@BBeBee/kernel/testing'
 import plugin from './index.js'
 

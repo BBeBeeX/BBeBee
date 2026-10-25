@@ -2,7 +2,7 @@
  * Conformance suite for the `ctx.db` capability gate.
  *
  * Modelled on `fs-scope`, and for the same reason: `db:own` was enforced in
- * `core-db-node` while `DbBridge` had no gate at all, so the guarantee held
+ * `core-db-desktop` while `DbBridge` had no gate at all, so the guarantee held
  * in tests and evaporated on the desktop path. A suite both implementations
  * run is the only thing that keeps them honest.
  *

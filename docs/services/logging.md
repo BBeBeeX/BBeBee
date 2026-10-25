@@ -76,7 +76,7 @@ The desktop diagnostic center (`@bbebee/plugin-settings-ui-desktop`) exposes rea
 1. **Discover System Logs (`debug.logs`)**:
    Reads directly from `ctx.logBuffer`. Provides live stream inspection, log level filtering (`ALL`, `DEBUG`, `INFO`, `WARN`, `ERROR`), substring search, clipboard export as NDJSON, and one-click buffer clearing.
 2. **HTTP Logs (`debug.http-logs`)**:
-   Monitors outgoing HTTP requests emitted by third-party music sources and background tasks. The core HTTP client (`core-http-node`) formats traces as `[HTTP] ${method} ${url} -> ${status} (${durationMs}ms)`, which the view parses into structured records with method badges, HTTP status codes, latency in milliseconds, and destination URLs.
+   Monitors outgoing HTTP requests emitted by third-party music sources and background tasks. The core HTTP client (`core-http-desktop`) formats traces as `[HTTP] ${method} ${url} -> ${status} (${durationMs}ms)`, which the view parses into structured records with method badges, HTTP status codes, latency in milliseconds, and destination URLs.
 
 ---
 

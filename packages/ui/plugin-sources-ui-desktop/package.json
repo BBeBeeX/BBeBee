@@ -34,9 +34,9 @@
     "react-dom": "19.2.3",
     "@types/react-dom": "^19.2.0",
     "@testing-library/react": "^16.3.3",
-    "@BBeBee/core-paths-node": "workspace:*",
-    "@BBeBee/core-fs-node": "workspace:*",
-    "@BBeBee/core-db-node": "workspace:*",
+    "@BBeBee/core-paths-desktop": "workspace:*",
+    "@BBeBee/core-fs-desktop": "workspace:*",
+    "@BBeBee/core-db-desktop": "workspace:*",
     "@BBeBee/kernel": "workspace:*"
   }
 }

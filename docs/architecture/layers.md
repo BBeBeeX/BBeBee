@@ -86,7 +86,7 @@ worth more than its shape.
 | **Outside model** | `packages/sdk` (plugin developer SDK), `packages/tooling/*` (tooling-check-changed, tooling-create-plugin, tooling-fixtures, tooling-gen-plugins) | Public SDK contracts, development scaffolds, build pipelines, and testing fixtures | Layers as needed | Domain state |
 
 Layer 0 is the load-bearing one. It is a `.d.ts`-shaped package with no code in it, which is what
-lets `core-fs-expo` and `core-fs-node` be substituted for one another without a single consumer
+lets `core-fs-mobile` and `core-fs-desktop` be substituted for one another without a single consumer
 recompiling differently, and what makes every layer above mockable in a unit test.
 
 ### "Depends on" means two different things
@@ -94,7 +94,7 @@ recompiling differently, and what makes every layer above mockable in a unit tes
 This is the distinction the box diagram cannot draw, and getting it wrong is the most common way
 to break the architecture while appearing to follow it.
 
-- **Layer 2 depends on Layer 1 by importing it.** `core-db-node` imports `MigrationRunner` and
+- **Layer 2 depends on Layer 1 by importing it.** `core-db-desktop` imports `MigrationRunner` and
   `scopeContext` from `@BBeBee/kernel` and calls them. That is intended: core plugins are the
   adaptation layer, so they are the layer that talks to both the kernel and the operating system.
 - **Layers 3, 4 and 5 depend on Layer 2 without importing it.** A feature plugin writes
@@ -121,9 +121,9 @@ flowchart TD
         G["plugin-log-buffer · plugin-log-console · plugin-log-file"]
     end
     subgraph L2["Layer 2 — core plugins (one implementation per target)"]
-        C1["core-fs-node / core-fs-expo"]
-        C2["core-http-node / core-http-rn"]
-        C3["core-db-node / core-db-expo"]
+        C1["core-fs-desktop / core-fs-mobile"]
+        C2["core-http-desktop / core-http-mobile"]
+        C3["core-db-desktop / core-db-mobile"]
         C4["core-js-quickjs-* · core-secrets-* · core-media-session-* · ..."]
     end
     subgraph L1["Layer 1 — @BBeBee/kernel"]
@@ -150,7 +150,7 @@ flowchart TD
 
 The dotted arrows are resolved by the kernel; the solid ones are `import` statements. Feature
 plugins and core plugins have **nothing in common but Layer 0**: a feature plugin has no
-compile-time knowledge that `core-fs-expo` exists, and a core plugin has no idea who consumes it.
+compile-time knowledge that `core-fs-mobile` exists, and a core plugin has no idea who consumes it.
 That is the entire trick, and everything else in this document is a consequence of it.
 
 ### The invariant
@@ -212,7 +212,7 @@ it real rather than aspirational.
 
 **Dependency Inversion Principle (DIP).** High-level modules do not depend on low-level modules;
 both depend on abstractions. Here the abstraction is Layer 0, and the inversion is visible in the
-build graph: `plugin-player` depends on `@BBeBee/protocol`, `core-db-expo` depends on
+build graph: `plugin-player` depends on `@BBeBee/protocol`, `core-db-mobile` depends on
 `@BBeBee/protocol`, and neither depends on the other. Swapping SQLite implementations is a change
 to one line of a `boot.ts`.
 
@@ -402,17 +402,17 @@ registration view.
 
 | Service key | `apps/mobile` registers | `apps/desktop` registers |
 |---|---|---|
-| `ctx.paths` | `core-paths-expo` | `PathsBridge` (`@bbebee/core-desktop-bridge`) / `core-paths-node` |
-| `ctx.fs` | `core-fs-expo` | `FsBridge` (`@bbebee/core-desktop-bridge`) / `core-fs-node` |
+| `ctx.paths` | `core-paths-mobile` | `PathsBridge` (`@bbebee/core-desktop-bridge`) / `core-paths-desktop` |
+| `ctx.fs` | `core-fs-mobile` | `FsBridge` (`@bbebee/core-desktop-bridge`) / `core-fs-desktop` |
 | `ctx.store` | `core-store-fs` | `core-store-fs` |
-| `ctx.db` | `core-db-expo` | `DbBridge` (`@bbebee/core-desktop-bridge`) / `core-db-node` |
-| `ctx.http` | `core-http-rn` (includes WebSocket) | `core-http-node` (with `bridgeFetch` & WebSocket) |
-| `ctx.secrets` | `core-secrets-expo` | `core-secrets-node` (with `safeStorageCodec`) |
-| `ctx.mediaSession` | `core-media-session-rn` | `core-media-session-tauri` |
-| `ctx.background` | `core-background-expo` | `core-background-tauri` |
-| `ctx.device` | `core-device-expo` | `core-device-tauri` |
-| `ctx.codec` | `core-codec-rn` | `core-codec-node` |
-| `ctx.js` | Built-in / In development | `core-js-quickjs-node` |
+| `ctx.db` | `core-db-mobile` | `DbBridge` (`@bbebee/core-desktop-bridge`) / `core-db-desktop` |
+| `ctx.http` | `core-http-mobile` (includes WebSocket) | `core-http-desktop` (with `bridgeFetch` & WebSocket) |
+| `ctx.secrets` | `core-secrets-mobile` | `core-secrets-desktop` (with `safeStorageCodec`) |
+| `ctx.mediaSession` | `core-media-session-mobile` | `core-media-session-desktop` |
+| `ctx.background` | `core-background-mobile` | `core-background-desktop` |
+| `ctx.device` | `core-device-mobile` | `core-device-desktop` |
+| `ctx.codec` | `core-codec-mobile` | `core-codec-desktop` |
+| `ctx.js` | Built-in / In development | `core-js-quickjs-desktop` |
 | `ctx.audio` | `MobileAudioService` (`core-audio-mpv`) | `DesktopAudioService` (`core-audio-mpv`) |
 | plugin loading | Static bundling via codegen (`apps/mobile/generated/plugins.ts`) | Dynamic discovery via Vite globs (`getBuiltinPluginRegistry`) + `bbebee-plugin://` bridge |
 

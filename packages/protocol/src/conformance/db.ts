@@ -1,7 +1,7 @@
 /**
  * Conformance suite for `ctx.db`.
  *
- * `core-db-node` and `core-db-expo` drive different SQLite bindings, so the
+ * `core-db-desktop` and `core-db-mobile` drive different SQLite bindings, so the
  * behaviours the rest of the app relies on — transaction atomicity above all —
  * have to be asserted against both.
  */

@@ -87,7 +87,7 @@ export interface DownloadRequest extends HttpRequest {
 }
 ```
 
-| | Desktop (`core-http-node`) | Expo (`core-http-rn`) |
+| | Desktop (`core-http-desktop`) | Expo (`core-http-mobile`) |
 |---|---|---|
 | Backing | Node.js `fetch` / `undici` in sidecar, streamed via bridge | `expo/fetch` (WinterCG-compliant, real ReadableStream bodies — not XHR) |
 | CORS | Bypassed entirely — this is the reason it routes through sidecar | Not applicable on native |
@@ -99,7 +99,7 @@ export interface DownloadRequest extends HttpRequest {
 
 The cookie jar, download waterfall, per-hop host gate and journal are one implementation
 (`HttpRn extends HttpNode`); only the transport differs, which is why the shared conformance
-suite (`protocol/src/conformance/http.ts`) runs against **both** — `core-http-rn` carries its own
+suite (`protocol/src/conformance/http.ts`) runs against **both** — `core-http-mobile` carries its own
 conformance run over an expo-shaped fetch stub (`test/stubs/expo-fetch.ts`), including a
 sign-in regression that stores a multi-cookie session and replays it.
 
@@ -127,7 +127,7 @@ session to keep.
 **Multi-cookie sign-in responses are read per-cookie on every platform.** A sign-in that sets a
 session cookie and a CSRF cookie in one response must land as two cookies. Desktop's undici
 exposes `Headers.getSetCookie()`; expo/fetch does not (its `headers` rebuilds RN's WHATWG
-`Headers`, which merges duplicates), so `core-http-rn` overrides the jar's capture to read
+`Headers`, which merges duplicates), so `core-http-mobile` overrides the jar's capture to read
 `FetchResponse._rawHeaders` — the native pairs, unmerged. The shared fallback
 (`splitJoinedSetCookie`) only engages when a transport offers neither: it splits a joined header
 on commas that begin a new `token=` cookie, never inside `Expires` dates or quoted values, and
@@ -188,7 +188,7 @@ Semantics both implementations must satisfy — the shared conformance suite (§
 - `clear()` removes the persisted copy, not just the in-memory one.
 - Jars are isolated: writes in one are invisible to another.
 
-| | Desktop (`core-http-node`) | Expo (`core-http-rn`) |
+| | Desktop (`core-http-desktop`) | Expo (`core-http-mobile`) |
 |---|---|---|
 | Storage | `MemoryJars` persisted via `jarStore(ctx.secrets, ctx.fs)` | RFC 6265 jar in JS, serialised to JSON |
 | At rest | Encrypted via `ctx.secrets` (`safeStorageCodec`) | **Envelope encryption**: a random AES key in `ctx.secrets`, ciphertext in the `cookie_jars` table ([data-model/schema.md §4.1](../data-model/schema.md#41-sources-accounts-and-sessions)) |
@@ -201,7 +201,7 @@ Semantics both implementations must satisfy — the shared conformance suite (§
 > database never holds a readable credential.
 
 > ⚠️ React Native's `fetch` uses a **shared, app-global** native cookie store on both platforms.
-> That is the opposite of what per-instance isolation needs, so `core-http-rn` disables it and
+> That is the opposite of what per-instance isolation needs, so `core-http-mobile` disables it and
 > manages `Cookie` / `Set-Cookie` headers itself. Verify this per RN upgrade: a change in the
 > default here silently leaks cookies between sources, which the conformance suite's
 > isolation test is there to catch.
@@ -362,7 +362,7 @@ export interface Migration {
 > silently. `DbBridge.defineSchema` refuses the shape in the renderer with an error that says
 > so; on desktop, write migrations as SQL strings (or arrays of them).
 
-| | Desktop (`core-db-node`) | Expo (`core-db-expo`) |
+| | Desktop (`core-db-desktop`) | Expo (`core-db-mobile`) |
 |---|---|---|
 | Backing | **`node:sqlite`** — ships with Node 22+ in the sidecar. No native rebuild, no native rebuild tool needed on upgrade | `expo-sqlite` |
 | WAL | ✅ Enabled | ✅ Enabled |
@@ -378,7 +378,7 @@ export interface Migration {
 > and drifted the schema permanently, with no error to investigate. Pass statements separately, or
 > use `up: string[]` in a migration. Semicolons inside string literals are not boundaries.
 >
-> The gate is on **both** implementations. `core-db-expo` had none at all for a while — `db:own`
+> The gate is on **both** implementations. `core-db-mobile` had none at all for a while — `db:own`
 > was enforced on desktop and unenforced on mobile — which is precisely the drift the conformance
 > suites in §18 exist to catch, and why the `db-scope` suite must run on device and not only in
 > Node.
@@ -420,7 +420,7 @@ has no `secrets:all` ([plugins/capabilities.md §7](../plugins/capabilities.md#7
 ### Scoped Root Secrets vs Cross-Plugin Namespaces
 - **Caller-Scoped Root Secrets (`ctx.secrets.get/set/delete`):** Unnamespaced calls prepend the caller plugin's Cordis ID (`this.scope()`) to isolate private secrets between plugins. Both implementations do this: the node twin prefixes `ns/`, the expo twin sanitises the scope into a SecureStore-legal segment (`@BBeBee/a` → `_BBeBee_a.`) — without it, `secrets:own` confined callers on desktop and confined nothing on mobile.
 - **Cross-Plugin Explicit Namespaces (`ctx.secrets.namespace(ns)`):** Explicit namespaces represent domain entities (e.g. music source credentials or account sessions) and are shared across plugins without attaching caller scope prefixes. This ensures credentials configured by UI packages (e.g. `@bbebee/plugin-settings-ui-desktop`) can be read by sandboxed runtimes (e.g. `@bbebee/plugin-source-runtime`).
-- **Automatic Migration:** When reading an explicit namespace key, if a legacy key with a caller-scoped prefix (`@BBeBee/plugin-*/<namespace>:<key>`) is found, `core-secrets-node` transparently migrates it to the un-scoped namespace key and removes the legacy entry. The expo twin performs the matching adoption for keys written before caller scoping existed: a first scoped read of a bare legacy key adopts it into the caller's scope and removes the bare entry, so an install that signed in before the split does not read as signed out.
+- **Automatic Migration:** When reading an explicit namespace key, if a legacy key with a caller-scoped prefix (`@BBeBee/plugin-*/<namespace>:<key>`) is found, `core-secrets-desktop` transparently migrates it to the un-scoped namespace key and removes the legacy entry. The expo twin performs the matching adoption for keys written before caller scoping existed: a first scoped read of a bare legacy key adopts it into the caller's scope and removes the bare entry, so an install that signed in before the split does not read as signed out.
 
 ---
 
@@ -457,7 +457,7 @@ export interface MediaSessionService {
 }
 ```
 
-| | Desktop (`core-media-session-tauri`) | Expo (`core-media-session-rn`) |
+| | Desktop (`core-media-session-desktop`) | Expo (`core-media-session-mobile`) |
 |---|---|---|
 | Backing | Webview's `navigator.mediaSession`, plus MPRIS (Linux), SMTC (Windows), and macOS Now Playing centre via sidecar/bridge | `react-native-audio-api`'s notification/lock-screen controls |
 | Lock screen artwork | `artworkUrl` only | `artworkUri` only — remote artwork is cached first |
@@ -673,9 +673,9 @@ export interface CodecService {
 ```
 
 Desktop: `music-metadata` in the Node.js sidecar for tags. The service carries no decoder: `decode()` refuses and sends callers to `ctx.audio`, whose playback engine does the decoding — mpv handles ALAC, 24/32-bit hi-res, and the audiophile formats (APE, WavPack, DSF) where they are played. There is no separate FFmpeg decode bridge.
-Desktop also provides `transcode` via `core-codec-node` and the host IPC bridge (`audio:transcode`), executing system/embedded FFmpeg for lossless and lossy conversion (FLAC, MP3, AAC/M4A, Opus, WAV).
-Expo: `decode()` is implemented here — `react-native-audio-api`'s `decodeAudioData`, the same decoder desktop reaches through `ctx.audio` except behind an import rather than behind the graph — plus a native tag reader (`music-metadata`, inherited from `core-codec-node`).
-Mobile adds three native-seam overrides in `core-codec-rn` (`bbebeeNativeCodec`, installed by the audio-engine Expo module — see [docs/audio/engine.md](../audio/engine.md) "The codec seam"): `readArtworkBatch` runs through a `MediaMetadataRetriever` worker pool entirely off the JS thread (positional, `undefined` per miss; any seam failure falls back to the inherited in-process parse), `transcode` runs the engine's libav pipeline through a polled JNI job registry (`content://` URIs staged through the app cache; the field subset is the desktop ENGINE path's — format, bitrate, rate, channels, trim; `vbr`/fades/gain remain desktop-local-ffmpeg features, and a caller that sends them on mobile gets one `logger.warn` naming every field the engine path will ignore — parity is not silence), and `getEncoderCapabilities` reports the encoders the linked libavcodec actually carries over the shared vocabulary both platforms use.
+Desktop also provides `transcode` via `core-codec-desktop` and the host IPC bridge (`audio:transcode`), executing system/embedded FFmpeg for lossless and lossy conversion (FLAC, MP3, AAC/M4A, Opus, WAV).
+Expo: `decode()` is implemented here — `react-native-audio-api`'s `decodeAudioData`, the same decoder desktop reaches through `ctx.audio` except behind an import rather than behind the graph — plus a native tag reader (`music-metadata`, inherited from `core-codec-desktop`).
+Mobile adds three native-seam overrides in `core-codec-mobile` (`bbebeeNativeCodec`, installed by the audio-engine Expo module — see [docs/audio/engine.md](../audio/engine.md) "The codec seam"): `readArtworkBatch` runs through a `MediaMetadataRetriever` worker pool entirely off the JS thread (positional, `undefined` per miss; any seam failure falls back to the inherited in-process parse), `transcode` runs the engine's libav pipeline through a polled JNI job registry (`content://` URIs staged through the app cache; the field subset is the desktop ENGINE path's — format, bitrate, rate, channels, trim; `vbr`/fades/gain remain desktop-local-ffmpeg features, and a caller that sends them on mobile gets one `logger.warn` naming every field the engine path will ignore — parity is not silence), and `getEncoderCapabilities` reports the encoders the linked libavcodec actually carries over the shared vocabulary both platforms use.
 
 > Tag reads are I/O-bounded, not file-sized. The parse runs as close to the disk as the platform allows: on desktop, the renderer loads `CodecBridge`, which forwards tag reads to a `CodecNode` in the Node sidecar over direct fs — one bridge round trip per file, not one per range. The sidecar-side parse still goes through a seekable tokenizer over `ctx.fs` range reads (64 KB pages fetched on demand, 1 MB read-ahead on sequential access, each via the single-round-trip `fs.readRange` rather than a stream handshake), so the parser seeks to what it needs — an ID3v2 header declares its length, a tail `moov` is seeked to — instead of guessing a head window. Each parse gets a cumulative I/O budget (256 KB first; a parse that comes back empty with the budget exhausted retries once up to 8 MB), which doubles as the backstop against parsers that drain a file looking for data that is not there. `AbortSignal` cannot cross IPC: the desktop bridge drops the signal, and the bridge's 30s call timeout is the hang backstop.
 
@@ -748,11 +748,11 @@ sandboxed renderer. Each has bitten real projects.
 
 Every core service ships with a **shared conformance suite** in
 `packages/protocol/src/conformance/`, exported as a function taking a service factory. Each
-implementation runs it — `core-fs-node` under Vitest in Node, `core-fs-expo` under a Detox/device
+implementation runs it — `core-fs-desktop` under Vitest in Node, `core-fs-mobile` under a Detox/device
 test on a real simulator.
 
 ```ts
-// packages/core/core-fs-node/test/conformance.test.ts
+// packages/core/core-fs-desktop/test/conformance.test.ts
 import { fsConformance } from '@BBeBee/protocol/conformance'
 fsConformance(() => createNodeFs(testHarness()))
 ```
@@ -769,7 +769,7 @@ on desktop a pick is `media` only under `paths.music`, and anything else stays f
 since outside the app roots lies the whole machine. The app's own roots (`appData`, `cache`) do
 not classify as `media` on either platform.
 
-The HTTP suite now runs against both transports too. `core-http-rn` executes the shared
+The HTTP suite now runs against both transports too. `core-http-mobile` executes the shared
 `httpConformance` over an expo-shaped fetch stub (`test/stubs/expo-fetch.ts` — RN's WHATWG
 `Headers` semantics, no `getSetCookie`), which is what surfaced and pins the multi-cookie
 sign-in behavior in §2.1; its cookie-jar regression stores a scoped session through the aliased
@@ -787,7 +787,7 @@ strangers ([sources/runtime.md §8](../sources/runtime.md#8-trust-what-an-import
 is a core service rather than part of that plugin because embedding an interpreter means shipping
 native code, which only `core-*` may do ([architecture/layers.md §1](../architecture/layers.md#the-invariant)).
 
-**Implemented by `core-js-quickjs-node`** (desktop and Node) on QuickJS compiled to WebAssembly.
+**Implemented by `core-js-quickjs-desktop`** (desktop and Node) on QuickJS compiled to WebAssembly.
 Not `node:vm`, and the difference is the whole point: `vm` shares an object graph with the host,
 so a script reaching `this.constructor.constructor` is out, and every published mitigation for
 that is a blocklist someone eventually walks around. QuickJS is a separate interpreter — there is
@@ -843,7 +843,7 @@ export class JsTimeoutError extends Error {}
 export class JsMemoryError extends Error {}
 ```
 
-| | Desktop (`core-js-quickjs-node`) | Expo (QuickJS JSI via shell) |
+| | Desktop (`core-js-quickjs-desktop`) | Expo (QuickJS JSI via shell) |
 |---|---|---|
 | Backing | `quickjs-emscripten-core` with a single-file WASM variant, embedded in the webview bundle | A QuickJS JSI module (`react-native-quick-js`) |
 | Isolation | A separate WASM instance per realm | A separate `JSRuntime` per realm |
@@ -1611,13 +1611,13 @@ export interface AudioConverterService {
 | | Desktop | Expo (Mobile) |
 |---|---|---|
 | Headless service | `@bbebee/plugin-audio-converter` | `@bbebee/plugin-audio-converter` |
-| Transcode Engine | `core-codec-node` via system/bundled FFmpeg | `core-codec-rn` over the native `bbebeeNativeCodec` seam (engine libav; honest failure without it) |
+| Transcode Engine | `core-codec-desktop` via system/bundled FFmpeg | `core-codec-mobile` over the native `bbebeeNativeCodec` seam (engine libav; honest failure without it) |
 | Workbench UI | `@bbebee/plugin-audio-converter-ui-desktop` | Headless (UI degraded gracefully via missingViews) |
 | Entry Point | TopBar Tray popover shortcut & command palette | API only |
 
 ### Architectural Invariants & Guarantees
 
-1. **Zero Shell Injection**: FFmpeg is invoked exclusively through array-based argument vectors in Layer 2 (`core-codec-node`). User input paths and audio parameters are strictly sanitized and never concatenated into raw shell strings.
+1. **Zero Shell Injection**: FFmpeg is invoked exclusively through array-based argument vectors in Layer 2 (`core-codec-desktop`). User input paths and audio parameters are strictly sanitized and never concatenated into raw shell strings.
 2. **Service Injections**: Requires `codec`, `fs`, and `paths` (`static inject = ['codec', 'fs', 'paths']`). Well-known directories from `ctx.paths` (`music`, `downloads`, `temp`) provide secure output directory fallbacks and isolated temporary staging directories.
 3. **Bridge Containment & File Picking Authorization**: All local file access across Desktop Bridge adheres to `assertContained`. When picking files via `dialog:pickFiles`, the host automatically registers picked files and their parent directories to `bridge.host.addExtraRoot()`. In the renderer, `window.BBeBee.files.getPath()` ensures absolute paths are preserved.
 4. **Dynamic Capability Discovery**: The plugin executes `ffmpeg -encoders` at startup to detect actual installed encoder support, preventing decode-only formats (such as raw read formats) from being misidentified as writable.

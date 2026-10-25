@@ -19,7 +19,7 @@ declare module 'cordis' {
 ```
 
 消费方书写 `ctx.fs.readFile(uri)` 即可获得完整的类型安全，且无需知道挂载的是哪份实现。把
-`core-fs-expo` 换成 `core-fs-node` 只是启动插件清单（bootstrap 列表）的一处改动
+`core-fs-mobile` 换成 `core-fs-desktop` 只是启动插件清单（bootstrap 列表）的一处改动
 （[architecture/layers.md §3](../architecture/layers.md#引导插件集)），仅此而已。
 
 Cordis 通过追踪代理（tracing proxy）分发服务，因此它知道插件持有的某个值来自服务、必须在该

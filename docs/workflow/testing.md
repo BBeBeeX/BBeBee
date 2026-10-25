@@ -88,7 +88,7 @@ this section is required reading until something goes wrong.
 | `pnpm build` | Emit `dist/` for every package |
 | `pnpm clean` | Remove `dist/`, `out/`, and build info |
 
-Run a single package's tests by path — `pnpm test packages/core/core-fs-node` — or a single file.
+Run a single package's tests by path — `pnpm test packages/core/core-fs-desktop` — or a single file.
 
 ### Why the gate is fast (and what each cache is)
 

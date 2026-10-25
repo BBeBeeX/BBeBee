@@ -6,7 +6,7 @@
  *
  * The other scanner tests use a fake codec and ten files, which is the right
  * shape for asserting behaviour. This one is deliberately different: a real
- * corpus of real tagged files, read by the **real** `core-codec-node`, through
+ * corpus of real tagged files, read by the **real** `core-codec-desktop`, through
  * an instrumented `ctx.fs` that counts what was called. It is the only place
  * the criterion is actually checked rather than approximated.
  *
@@ -20,10 +20,10 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Context } from 'cordis'
-import { PathsNode } from '@BBeBee/core-paths-node'
-import { FsNode } from '@BBeBee/core-fs-node'
-import { DbNode } from '@BBeBee/core-db-node'
-import { CodecNode } from '@bbebee/core-codec-node'
+import { PathsNode } from '@BBeBee/core-paths-desktop'
+import { FsNode } from '@BBeBee/core-fs-desktop'
+import { DbNode } from '@BBeBee/core-db-desktop'
+import { CodecNode } from '@bbebee/core-codec-desktop'
 import { tempDir, tick } from '@BBeBee/kernel/testing'
 import { countingFs, generateCorpus, type Corpus, type CountingFs } from '@BBeBee/tooling-fixtures'
 import { createMockAudio } from '@BBeBee/protocol/conformance'

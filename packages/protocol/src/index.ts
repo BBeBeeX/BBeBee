@@ -3,7 +3,7 @@
  *
  * Every service interface, entity type, and event-map entry lives here, and
  * every plugin depends on this package and (almost) nothing else. It is the
- * seam that makes `core-fs-expo` and `core-fs-node` interchangeable, and the
+ * seam that makes `core-fs-mobile` and `core-fs-desktop` interchangeable, and the
  * one layer every other layer is allowed to depend on (docs/02 §1).
  *
  * Its emptiness is the feature: because nothing here runs, a Layer 3 plugin

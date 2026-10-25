@@ -114,7 +114,7 @@ export interface FsService {
 }
 ```
 
-| | Desktop (`core-fs-tauri`) | Expo (`core-fs-expo`) |
+| | Desktop (`core-fs-tauri`) | Expo (`core-fs-mobile`) |
 |---|---|---|
 | Backing | Node.js sidecar `node:fs/promises`, streamed over JSON-RPC IPC | `expo-file-system` `File` / `Directory` classes |
 | `dir('music')` | Tauri OS paths / sidecar `os.homedir()` | ⚠️ No equivalent — returns `null` and callers must fall back to `pickDirectory()` |
@@ -123,7 +123,7 @@ export interface FsService {
 
 > ⚠️ **The biggest leak in the whole abstraction.** On Android, a user-picked folder is a
 > `content://` SAF tree URI, not a path: it cannot be handed to a native audio decoder, and its
-> permission must be persisted across restarts. `core-fs-expo` persists the grant and exposes
+> permission must be persisted across restarts. `core-fs-mobile` persists the grant and exposes
 > `fs.toPlayableUri(uri)` used by `ctx.audio`; on iOS and desktop that is the identity function.
 > The scanner ([06](../sources/spec.md)) is written against `list`/`stat` precisely so it does
 > not care.

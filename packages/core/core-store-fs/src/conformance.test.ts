@@ -3,7 +3,7 @@
  *
  * One implementation serves both platforms here, so this suite runs once —
  * but it runs over the real `ctx.fs`, which is what makes it meaningful: the
- * store's behaviour on a device is whatever `core-fs-expo` does underneath.
+ * store's behaviour on a device is whatever `core-fs-mobile` does underneath.
  */
 
 import { mkdtemp, rm } from 'node:fs/promises'
@@ -12,8 +12,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Context } from 'cordis'
 import { storeConformance } from '@BBeBee/protocol/conformance'
 import { scopeContext } from '@BBeBee/kernel'
-import { PathsNode } from '@BBeBee/core-paths-node'
-import { FsNode } from '@BBeBee/core-fs-node'
+import { PathsNode } from '@BBeBee/core-paths-desktop'
+import { FsNode } from '@BBeBee/core-fs-desktop'
 import { StoreFs } from '../src/index.js'
 import { tempDir } from '@BBeBee/kernel/testing'
 

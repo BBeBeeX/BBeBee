@@ -10,7 +10,7 @@
 | 桌面渲染进程 | **Vite** | `apps/desktop/renderer/index.html` | 开发时使用原生 ESM；严格 CSP，唯一的让步是 `'wasm-unsafe-eval'`，没有它 QuickJS 无法编译、启动直接失败 —— 它**不是** `'unsafe-eval'`，因此没有任何外来的*JavaScript* 被加载 ([architecture/layers.md §2](../architecture/layers.md#2-各平台的运行时模型))。由 `renderer/csp.test.ts` 钉死 |
 | 桌面应用宿主与 Sidecar | **Tauri v2 + Vite** | `apps/desktop/src-tauri/` 与 `apps/desktop/sidecar/` | Tauri Rust 宿主提供原生窗口与系统 API；Node.js sidecar 提供文件系统与子进程隔离 |
 | 各包 | **tsup**（`protocol` 用 `tsc`） | 各包的 `src/index.ts` | 仅 ESM；`protocol` 只产出类型 |
-| QuickJS WASM | 内嵌进 bundle | `core-js-quickjs-node` | 经 `quickjs-emscripten-core` 使用**单文件**变体（`@jitl/quickjs-singlefile-browser-release-sync`），于是引擎就是某个 JS chunk 里的字节，绝不被获取 —— 一个要自己下载引擎的沙箱算不上沙箱 ([services/contracts.md §19](../services/contracts.md))。`getQuickJS()` 的存在就是为了否定这个东西：它选的是启动时才去获取的独立 `.wasm` 变体 —— 开发时由 Vite 提供 `index.html`，打包后则被 `file://` 渲染进程直接拒绝 —— 还会把全部四个变体（约 4 MB）拖进构建 |
+| QuickJS WASM | 内嵌进 bundle | `core-js-quickjs-desktop` | 经 `quickjs-emscripten-core` 使用**单文件**变体（`@jitl/quickjs-singlefile-browser-release-sync`），于是引擎就是某个 JS chunk 里的字节，绝不被获取 —— 一个要自己下载引擎的沙箱算不上沙箱 ([services/contracts.md §19](../services/contracts.md))。`getQuickJS()` 的存在就是为了否定这个东西：它选的是启动时才去获取的独立 `.wasm` 变体 —— 开发时由 Vite 提供 `index.html`，打包后则被 `file://` 渲染进程直接拒绝 —— 还会把全部四个变体（约 4 MB）拖进构建 |
 
 ```jsonc
 // metro.config.js — the parts that are not boilerplate
@@ -96,7 +96,7 @@ MPV Hi-Fi 引擎（`core-audio-mpv`）运行在一个独立的 C++ 可执行文�
 | `turbo` | — | **未采用。** 根脚本以 `pnpm -r` 编排；没有 `turbo.json` |
 | `@shopify/flash-list` | 2.3.2 | 移动端列表虚拟化 |
 | `@tanstack/react-virtual` | 3.14.10 | 桌面端列表虚拟化 |
-| `music-metadata` | 11.15.0 | 两个目标平台的标签读取**都用它** —— 它是构建在 `ctx.fs` 之上的纯 JS，因此 `core-codec-rn` 直接继承它，而不是另加一个必须与它保持一致的原生读取器 |
+| `music-metadata` | 11.15.0 | 两个目标平台的标签读取**都用它** —— 它是构建在 `ctx.fs` 之上的纯 JS，因此 `core-codec-mobile` 直接继承它，而不是另加一个必须与它保持一致的原生读取器 |
 | `quickjs-emscripten-core` + `@jitl/quickjs-singlefile-browser-release-sync` | **0.32.0** | ⚠️ 桌面端的 `ctx.js`。两者都精确锁定且保持相等 —— 不同版本的变体与核心共享一份未加版本的 FFI ABI。单文件变体是引擎随包捆绑而非被获取的原因 ([services/contracts.md §19](../services/contracts.md))；`browser` 构建是不挑环境的那个，因此 Vitest、`main` 与被沙箱化的渲染进程运行的是同一个 realm |
 | `react-native-quickjs` | **0.4.x** | ⚠️ 计划用于移动端的 `ctx.js`（M2 缺口）—— 尚未安装。见 §5.3 |
 

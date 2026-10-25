@@ -1,0 +1,30 @@
+{
+  "id": "@bbebee/core-http-mobile",
+  "name": "@bbebee/core-http-mobile",
+  "displayName": "HTTP",
+  "description": "ctx.http for iOS and Android — the M1 slice over expo/fetch.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": {
+    "BBeBee": "^0.1.0"
+  },
+  "enabled": true,
+  "dependencies": [],
+  "systemId": "layer-2",
+  "moduleId": "core",
+  "platforms": [
+    "mobile"
+  ],
+  "entry": {
+    "main": "./dist/index.js"
+  },
+  "capabilities": [
+    "net:host/*"
+  ],
+  "contributes": {
+    "services": [
+      "http"
+    ]
+  },
+  "effect": "http"
+}

@@ -149,7 +149,7 @@ flowchart LR
 - **发烧级无损音频格式与本地扫描器支持**：
   本地扫描器通过纯 JavaScript 的 `music-metadata` 栈读取标签与时长——整个产品不依赖任何外部解码器进程：
   - **ALAC 与 `.m4a`**：此前扫描器在遇到包含 ALAC 编码的 `.m4a` 文件时，因 Chromium 原生不支持而判定为非法编码并报错丢弃。现已通过在 `supportedFormats()` 注册 ALAC 并配合头解析，实现完整导入。
-  - **更多无损格式**：`.ape` (Monkey's Audio)、`.wv` (WavPack)、`.dsf` / `.dff` (DSD 音频)、`.m4b`（有声书）现均已加入本地扫描器默认识别扩展名（`DEFAULT_EXTENSIONS`）与元数据解析（`core-codec-node`）。特殊容器的播放覆盖由 MPV 引擎（libmpv）承担。
+  - **更多无损格式**：`.ape` (Monkey's Audio)、`.wv` (WavPack)、`.dsf` / `.dff` (DSD 音频)、`.m4b`（有声书）现均已加入本地扫描器默认识别扩展名（`DEFAULT_EXTENSIONS`）与元数据解析（`core-codec-desktop`）。特殊容器的播放覆盖由 MPV 引擎（libmpv）承担。
 - **桌面端协议重写 (Desktop Scheme Rewriting)**：在 Webview Web 安全策略下，渲染进程对原生 `file://` URI 发起 `fetch()` 会被限制。桌面端核心服务在请求或绑定到媒体元素前，会自动将 `file://` URL 重写为已注册的自定义协议 `bbebee-file://`（或 `asset://`）。
 
 ### 逃生通道

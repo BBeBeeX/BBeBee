@@ -4,7 +4,7 @@
  * The renderer cannot perform a source's requests itself: it is a browser
  * context, so CORS applies and `Cookie`, `Range` and `User-Agent` are
  * forbidden headers. `bridgeFetch` moves the whole request to `main` and hands
- * back something `core-http-node` can use as its transport seam.
+ * back something `core-http-desktop` can use as its transport seam.
  *
  * These checks are about the *seam*, not about the network: the transport in
  * `main` is a fake, and what is asserted is that a request survives the round

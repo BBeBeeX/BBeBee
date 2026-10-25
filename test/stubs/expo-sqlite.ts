@@ -1,7 +1,7 @@
 /**
  * A stand-in for `expo-sqlite` under Vitest.
  *
- * `core-db-expo` imports the driver at module scope, which is right for Metro
+ * `core-db-mobile` imports the driver at module scope, which is right for Metro
  * and impossible in Node. Aliasing it here is what lets the *second* `ctx.db`
  * implementation run the same suites as the first — and that matters more here
  * than anywhere else, because the gate is the thing MD-4 says used to be

@@ -18,7 +18,7 @@ export default defineConfig({
       ),
       /*
        * `react-native` itself, for the core packages that read `Platform`
-       * (the emulator-detection `core-secrets-expo` bases its
+       * (the emulator-detection `core-secrets-mobile` bases its
        * `isHardwareBacked` answer on). Mutable constants, nothing else.
        */
       'react-native': fileURLToPath(new URL('./test/stubs/react-native.ts', import.meta.url)),

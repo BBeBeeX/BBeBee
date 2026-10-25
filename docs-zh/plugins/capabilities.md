@@ -83,13 +83,13 @@ function scopeContext(ctx: Context, opts: GrantOptions) {
 
 | 能力 | 由谁执行 | 状态 |
 |---|---|---|
-| `fs:read:<scope>` / `fs:write:<scope>` | `core-fs-node`、`core-fs-expo`、桥宿主 | ✅ |
-| `db:own`、`db:read:<ns>`、`db:write:<ns>`、`db:*:<ns>` | `core-db-node`、`core-db-expo`、桥宿主 | ✅ |
-| `net:host/<glob>` | `core-http-node`、`core-http-rn`，在 `http/request` 瀑布之前*和*之后各检查一次 | ✅ |
+| `fs:read:<scope>` / `fs:write:<scope>` | `core-fs-desktop`、`core-fs-mobile`、桥宿主 | ✅ |
+| `db:own`、`db:read:<ns>`、`db:write:<ns>`、`db:*:<ns>` | `core-db-desktop`、`core-db-mobile`、桥宿主 | ✅ |
+| `net:host/<glob>` | `core-http-desktop`、`core-http-mobile`，在 `http/request` 瀑布之前*和*之后各检查一次 | ✅ |
 | `audio` | `core-audio-mpv` 在 `load` 与各变更器上 | ✅ |
 | `mediaSession`、`background` | `core-media-session-*`、`core-background-*` | ✅ |
-| `secrets:own` | `core-secrets-node`、`core-secrets-expo`、内核 `assertOwnNamespace` | ✅ |
-| `js`，以及 `net:host/…` 的按音源收窄 | `core-js-quickjs-node`、`core-http-*`、`plugin-source-runtime` | ✅ |
+| `secrets:own` | `core-secrets-desktop`、`core-secrets-mobile`、内核 `assertOwnNamespace` | ✅ |
+| `js`，以及 `net:host/…` 的按音源收窄 | `core-js-quickjs-desktop`、`core-http-*`、`plugin-source-runtime` | ✅ |
 | `notify`、`shell` | 平台宿主中介（`core-device-*`、桌面 bridge） | ✅ |
 
 ### 门默认关闭（fail closed）

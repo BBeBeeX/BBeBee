@@ -2,9 +2,9 @@
  * Automated Core Platform Parity Test Suite (Tauri Core Services)
  *
  * Verifies 100% parity for:
- * 1. packages/core/core-background-tauri (wake locks, schedule, onWillSuspend)
- * 2. packages/core/core-device-tauri (identity, network, battery, media keys, hotkeys, lifecycle)
- * 3. packages/core/core-media-session-tauri (conformance, Chromium surface, main-process MPRIS/SMTC, robustness)
+ * 1. packages/core/core-background-desktop (wake locks, schedule, onWillSuspend)
+ * 2. packages/core/core-device-desktop (identity, network, battery, media keys, hotkeys, lifecycle)
+ * 3. packages/core/core-media-session-desktop (conformance, Chromium surface, main-process MPRIS/SMTC, robustness)
  * 4. Bridged 'system' service calls and events via Tauri Bridge implementation
  * 5. Comprehensive OS services support (dialog, shell, screen, powerMonitor, powerSaveBlocker, nativeImage, net, session)
  */
@@ -13,17 +13,17 @@ import { describe, expect, it, vi } from 'vitest'
 import { Context } from 'cordis'
 import { mediaSessionConformance } from '@BBeBee/protocol/conformance'
 import type { BridgeEvent } from '@bbebee/core-desktop-bridge'
-import backgroundPlugin, { BackgroundTauri } from '@bbebee/core-background-tauri'
+import backgroundPlugin, { BackgroundTauri } from '@bbebee/core-background-desktop'
 import devicePlugin, {
   DeviceTauri,
   type BatteryLike,
   type NavigatorLike,
   type EventTargetLike,
-} from '@bbebee/core-device-tauri'
+} from '@bbebee/core-device-desktop'
 import mediaSessionPlugin, {
   MediaSessionTauri,
   type MediaSessionLike,
-} from '@bbebee/core-media-session-tauri'
+} from '@bbebee/core-media-session-desktop'
 import {
   createBridgeApi,
   createPreloadApi,
@@ -156,7 +156,7 @@ async function mediaSessionHarness() {
 // 1. Background Service Parity Tests
 // =============================================================================
 
-describe('Background Service Parity (core-background-tauri)', () => {
+describe('Background Service Parity (core-background-desktop)', () => {
   describe('canRunInBackground', () => {
     it('is true on desktop, where a hidden window still runs', async () => {
       const { background } = await backgroundHarness()
@@ -322,7 +322,7 @@ describe('Background Service Parity (core-background-tauri)', () => {
 // 2. Device Service Parity Tests
 // =============================================================================
 
-describe('Device Service Parity (core-device-tauri)', () => {
+describe('Device Service Parity (core-device-desktop)', () => {
   describe('identity', () => {
     it('reports a desktop form factor and its version', async () => {
       const { device } = await deviceHarness()
@@ -556,7 +556,7 @@ describe('Device Service Parity (core-device-tauri)', () => {
 // 3. Media Session Service Parity Tests
 // =============================================================================
 
-describe('Media Session Service Parity (core-media-session-tauri)', () => {
+describe('Media Session Service Parity (core-media-session-desktop)', () => {
   describe(mediaSessionConformance.service, () => {
     for (const check of mediaSessionConformance.checks) {
       it(`${check.name} — ${check.because}`, async () => {

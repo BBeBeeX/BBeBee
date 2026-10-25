@@ -12,9 +12,9 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { createElement as h } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context, Service } from 'cordis'
-import { PathsNode } from '@BBeBee/core-paths-node'
-import { FsNode } from '@BBeBee/core-fs-node'
-import { DbNode } from '@BBeBee/core-db-node'
+import { PathsNode } from '@BBeBee/core-paths-desktop'
+import { FsNode } from '@BBeBee/core-fs-desktop'
+import { DbNode } from '@BBeBee/core-db-desktop'
 import sourcesPlugin from '@bbebee/plugin-sources'
 import type {
   AlbumDetail,

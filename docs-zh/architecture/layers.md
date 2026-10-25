@@ -76,13 +76,13 @@
 | **0 —— 协议** | `@BBeBee/protocol` | 服务接口、实体类型、类型化事件表、常量，以及把实现钉在契约上的契约测试套件 | 什么都不依赖 | 发出运行时值；导入任何裸说明符（[structure.md §3](../workflow/structure.md#3-依赖规则)） |
 | **模型之外** | `packages/sdk`（插件开发者公开 SDK）、`packages/tooling/*`（tooling-check-changed、tooling-create-plugin、tooling-fixtures、tooling-gen-plugins） | 公开 SDK 契约、脚手架、构建管道与测试固件 | 按需依赖各层 | 业务领域状态 |
 
-Layer 0 是承重的那一层。它是一个不含任何代码、呈 `.d.ts` 形态的包，正是这一点让 `core-fs-expo` 与 `core-fs-node` 可以互相替换而没有任何消费者需要以不同方式重新编译，也让其上的每一层都能在单元测试中被 mock。
+Layer 0 是承重的那一层。它是一个不含任何代码、呈 `.d.ts` 形态的包，正是这一点让 `core-fs-mobile` 与 `core-fs-desktop` 可以互相替换而没有任何消费者需要以不同方式重新编译，也让其上的每一层都能在单元测试中被 mock。
 
 ### "依赖"意味着两件不同的事
 
 这正是方框图无法画出的那个区别；弄错它，就是在看似遵守架构的同时破坏架构的最常见方式。
 
-- **Layer 2 通过导入来依赖 Layer 1。** `core-db-node` 从 `@BBeBee/kernel` 导入 `MigrationRunner` 与 `scopeContext` 并调用它们。这是有意为之：核心插件是适配层，所以正是它们既与内核对话、也与操作系统对话。
+- **Layer 2 通过导入来依赖 Layer 1。** `core-db-desktop` 从 `@BBeBee/kernel` 导入 `MigrationRunner` 与 `scopeContext` 并调用它们。这是有意为之：核心插件是适配层，所以正是它们既与内核对话、也与操作系统对话。
 - **Layer 3、4 与 5 不经导入就依赖 Layer 2。** 功能插件写下 `inject: ['fs', 'http']` —— 点名的是*在 Layer 0 声明的服务键* —— 而内核把它们绑定到外壳注册的任何一个 Layer 2 包上（[§3](#3-启动顺序)）。整个仓库中不存在任何从 `plugin-*` 指向 `core-*` 的编译期导入，`package.json` 文件就是证据：没有任何功能插件把核心插件列为依赖。
 
 所以图中从 Layer 4 指向 Layer 2 的那条箭头是一条**运行时**箭头。它的编译期对应物指向的却是 Layer 0，而这一倒置正是整个设计：
@@ -102,9 +102,9 @@ flowchart TD
         G["plugin-log-buffer · plugin-log-console · plugin-log-file"]
     end
     subgraph L2["Layer 2 — core plugins (one implementation per target)"]
-        C1["core-fs-node / core-fs-expo"]
-        C2["core-http-node / core-http-rn"]
-        C3["core-db-node / core-db-expo"]
+        C1["core-fs-desktop / core-fs-mobile"]
+        C2["core-http-desktop / core-http-mobile"]
+        C3["core-db-desktop / core-db-mobile"]
         C4["core-js-quickjs-* · core-secrets-* · core-media-session-* · ..."]
     end
     subgraph L1["Layer 1 — @BBeBee/kernel"]
@@ -129,7 +129,7 @@ flowchart TD
     L2 --> SYS
 ```
 
-虚线箭头由内核解析；实线箭头则是 `import` 语句。功能插件与核心插件**除 Layer 0 之外毫无共同点**：功能插件在编译期根本不知道 `core-fs-expo` 的存在；核心插件也不知道谁在消费自己。这就是整套设计的全部诀窍，而本文档中的其余一切都是它的推论。
+虚线箭头由内核解析；实线箭头则是 `import` 语句。功能插件与核心插件**除 Layer 0 之外毫无共同点**：功能插件在编译期根本不知道 `core-fs-mobile` 的存在；核心插件也不知道谁在消费自己。这就是整套设计的全部诀窍，而本文档中的其余一切都是它的推论。
 
 ### 不变量
 
@@ -164,7 +164,7 @@ flowchart TD
 
 六层只是手段。以下是它们的目的，而且每一条都点名了让它成真、而非停留于愿望的机制。
 
-**依赖倒置原则（DIP）。** 高层模块不依赖低层模块；二者都依赖抽象。在这里，抽象就是 Layer 0，而倒置在构建图里清晰可见：`plugin-player` 依赖 `@BBeBee/protocol`，`core-db-expo` 也依赖 `@BBeBee/protocol`，谁也不依赖谁。更换 SQLite 实现，只是改 `boot.ts` 里的一行。
+**依赖倒置原则（DIP）。** 高层模块不依赖低层模块；二者都依赖抽象。在这里，抽象就是 Layer 0，而倒置在构建图里清晰可见：`plugin-player` 依赖 `@BBeBee/protocol`，`core-db-mobile` 也依赖 `@BBeBee/protocol`，谁也不依赖谁。更换 SQLite 实现，只是改 `boot.ts` 里的一行。
 
 **单一职责原则（SRP）。** 每一层回答一类问题 —— *契约是什么*（0）、*任何东西如何加载与卸载*（1）、*这个平台怎么做*（2）、*产品做什么*（3）、*用户看见并触摸什么*（4）—— 且层内的每个包恰好拥有一个服务键或一项功能。当一个改动需要同时修改两层时，接缝通常画在了错误的高度上；常设的反例就是爬进桌面宿主 / sidecar 的领域逻辑，[§2](#桌面端) 正是为此而拒绝它。
 
@@ -306,17 +306,17 @@ sequenceDiagram
 
 | 服务键 | `apps/mobile` 注册 | `apps/desktop` 注册 |
 |---|---|---|
-| `ctx.paths` | `core-paths-expo` | `PathsBridge`（`@bbebee/core-desktop-bridge`）/ `core-paths-node` |
-| `ctx.fs` | `core-fs-expo` | `FsBridge`（`@bbebee/core-desktop-bridge`）/ `core-fs-node` |
+| `ctx.paths` | `core-paths-mobile` | `PathsBridge`（`@bbebee/core-desktop-bridge`）/ `core-paths-desktop` |
+| `ctx.fs` | `core-fs-mobile` | `FsBridge`（`@bbebee/core-desktop-bridge`）/ `core-fs-desktop` |
 | `ctx.store` | `core-store-fs` | `core-store-fs` |
-| `ctx.db` | `core-db-expo` | `DbBridge`（`@bbebee/core-desktop-bridge`）/ `core-db-node` |
-| `ctx.http` | `core-http-rn`（含 WebSocket） | `core-http-node`（配合 `bridgeFetch` 与 WebSocket） |
-| `ctx.secrets` | `core-secrets-expo` | `core-secrets-node`（配合 `safeStorageCodec`） |
-| `ctx.mediaSession` | `core-media-session-rn` | `core-media-session-tauri` |
-| `ctx.background` | `core-background-expo` | `core-background-tauri` |
-| `ctx.device` | `core-device-expo` | `core-device-tauri` |
-| `ctx.codec` | `core-codec-rn` | `core-codec-node` |
-| `ctx.js` | 内置 / 开发中 | `core-js-quickjs-node` |
+| `ctx.db` | `core-db-mobile` | `DbBridge`（`@bbebee/core-desktop-bridge`）/ `core-db-desktop` |
+| `ctx.http` | `core-http-mobile`（含 WebSocket） | `core-http-desktop`（配合 `bridgeFetch` 与 WebSocket） |
+| `ctx.secrets` | `core-secrets-mobile` | `core-secrets-desktop`（配合 `safeStorageCodec`） |
+| `ctx.mediaSession` | `core-media-session-mobile` | `core-media-session-desktop` |
+| `ctx.background` | `core-background-mobile` | `core-background-desktop` |
+| `ctx.device` | `core-device-mobile` | `core-device-desktop` |
+| `ctx.codec` | `core-codec-mobile` | `core-codec-desktop` |
+| `ctx.js` | 内置 / 开发中 | `core-js-quickjs-desktop` |
 | `ctx.audio` | `MobileAudioService`（`core-audio-mpv`） | `DesktopAudioService`（`core-audio-mpv`） |
 | 插件加载 | 静态打包生成（`apps/mobile/generated/plugins.ts`） | Vite glob 动态发现（`getBuiltinPluginRegistry`）+ `bbebee-plugin://` 桥接 |
 

@@ -38,7 +38,7 @@
 - 拔出耳机即暂停（[audio/playback.md §5](../audio/playback.md#5-打断焦点与路由)）。
 - 队列与播放位置在重启后恢复，且不自动开始播放。
 
-**现状。** 已建成并处于测试之中：`ctx.audio` 引擎及其一致性测试套件、`core-codec-node` 与 `core-codec-rn`、`core-http-node` 与 `core-http-rn`（其 M1 切片一致性测试套件对着一个真实的按字节服务的 socket 运行）、两个目标平台上的 `ctx.device`、`ctx.background` 与 `ctx.mediaSession`、扫描器、目录、带无缝播放、交叉淡入淡出、预取与打断表的播放器、带对等（parity）检查的两套 UI kit，以及两个外壳上的那五块屏幕。两个外壳加载的都是**生成出来的**注册表，因此一个包被打进 bundle 靠的是声明一份 manifest，而不是被加进两份可能互相不一致的手写清单。完成标准 1 按它点名的规模被检验：一个生成的 5,000 文件语料库，由真正的解码器读取，经过一个插桩的 `ctx.fs`，由它断言第二遍不打开任何文件。
+**现状。** 已建成并处于测试之中：`ctx.audio` 引擎及其一致性测试套件、`core-codec-desktop` 与 `core-codec-mobile`、`core-http-desktop` 与 `core-http-mobile`（其 M1 切片一致性测试套件对着一个真实的按字节服务的 socket 运行）、两个目标平台上的 `ctx.device`、`ctx.background` 与 `ctx.mediaSession`、扫描器、目录、带无缝播放、交叉淡入淡出、预取与打断表的播放器、带对等（parity）检查的两套 UI kit，以及两个外壳上的那五块屏幕。两个外壳加载的都是**生成出来的**注册表，因此一个包被打进 bundle 靠的是声明一份 manifest，而不是被加进两份可能互相不一致的手写清单。完成标准 1 按它点名的规模被检验：一个生成的 5,000 文件语料库，由真正的解码器读取，经过一个插桩的 `ctx.fs`，由它断言第二遍不打开任何文件。
 
 传输状态机能到达其类型声明的每一个状态，`stalled` 包括在内：一个流式源会经 `ctx.audio` 的 `onStalled` 报告缓冲欠载（underrun），播放器显示的是转圈而不是播放按钮，锁屏则继续显示*正在播放*，而一次永不恢复的停滞会变成一个可重试的错误，而不是一个永远转下去的转圈。两套 kit 都对列表做了虚拟化 —— 移动端是 FlashList，桌面端是 `@tanstack/react-virtual`，后者会发布 `aria-setsize`，让窗口化对屏幕阅读器保持不可见，而不是成为它的灾难。
 
@@ -64,9 +64,9 @@
 - **坏掉的音源用户自己能诊断。** 刻意写坏一条规则；测试界面展示后端实际返回了什么，重新导入修好的文档即成功——无需重新构建。
 - 同一录音的本地曲目与服务器曲目通过 ISRC 关联，在曲库中显示为一条条目、两个音源。
 
-**现状。** 已建成并处于测试之中：规则语言（含 `@js:`）、QuickJS 沙箱（`core-js-quickjs-node`）与 `ctx.js`、搜索、探索、专辑与歌词、让一条搜索到或浏览到的曲目在重启后仍可播放的目录往返、两个平台上的 `ctx.secrets`（`core-secrets-node`、`core-secrets-expo`）、能持久化且会被登出遗忘的按源 cookie 罐、带透明单飞（single-flight）重新认证的表单与变量登录、按功能的测试界面与其流式追踪、跨源身份关联、两个外壳上的导入与源列表界面，以及完整的错误分类法。
+**现状。** 已建成并处于测试之中：规则语言（含 `@js:`）、QuickJS 沙箱（`core-js-quickjs-desktop`）与 `ctx.js`、搜索、探索、专辑与歌词、让一条搜索到或浏览到的曲目在重启后仍可播放的目录往返、两个平台上的 `ctx.secrets`（`core-secrets-desktop`、`core-secrets-mobile`）、能持久化且会被登出遗忘的按源 cookie 罐、带透明单飞（single-flight）重新认证的表单与变量登录、按功能的测试界面与其流式追踪、跨源身份关联、两个外壳上的导入与源列表界面，以及完整的错误分类法。
 
-仍未完成，且两项都需要真机才能收尾：**`core-js-quickjs-expo`** —— React Native 的 Hermes 没有 WebAssembly，因此移动端沙箱需要一个*原生* QuickJS 模块，进而需要一次 dev-client 重建，这正是它从一开始就被列为 M2 唯一新增原生依赖的原因（[services/contracts.md §19](../services/contracts.md#19-ctxjs--沙箱化求值器)）；以及在真实硬件上端到端地跑通两个外壳。在第一项落地之前，移动端上一份带脚本的文档会把受影响的能力报告为缺席，而不是提供一个无法工作的按钮 —— 这是设计之内的降级，而不是损坏。
+仍未完成，且两项都需要真机才能收尾：**`core-js-quickjs-mobile`** —— React Native 的 Hermes 没有 WebAssembly，因此移动端沙箱需要一个*原生* QuickJS 模块，进而需要一次 dev-client 重建，这正是它从一开始就被列为 M2 唯一新增原生依赖的原因（[services/contracts.md §19](../services/contracts.md#19-ctxjs--沙箱化求值器)）；以及在真实硬件上端到端地跑通两个外壳。在第一项落地之前，移动端上一份带脚本的文档会把受影响的能力报告为缺席，而不是提供一个无法工作的按钮 —— 这是设计之内的降级，而不是损坏。
 
 由 MD-3 从 M1 顺延下来的策展（curation）部分同样已就位：`plugin-library` / `ctx.library` —— 播放列表、收藏、合辑，以及规则树能编译为参数化 SQL 的智能播放列表 —— 在两个外壳上均有对应界面（[data-model/schema.md §4.6](../data-model/schema.md#46-播放列表与曲库)）。
 

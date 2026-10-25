@@ -105,13 +105,13 @@ core services:
 
 | Capability | Enforced by | Status |
 |---|---|---|
-| `fs:read:<scope>` / `fs:write:<scope>` | `core-fs-node`, `core-fs-expo`, the bridge host | ✅ |
-| `db:own`, `db:read:<ns>`, `db:write:<ns>`, `db:*:<ns>` | `core-db-node`, `core-db-expo`, the bridge host | ✅ |
-| `net:host/<glob>` | `core-http-node`, `core-http-rn`, before *and* after the `http/request` waterfall | ✅ |
+| `fs:read:<scope>` / `fs:write:<scope>` | `core-fs-desktop`, `core-fs-mobile`, the bridge host | ✅ |
+| `db:own`, `db:read:<ns>`, `db:write:<ns>`, `db:*:<ns>` | `core-db-desktop`, `core-db-mobile`, the bridge host | ✅ |
+| `net:host/<glob>` | `core-http-desktop`, `core-http-mobile`, before *and* after the `http/request` waterfall | ✅ |
 | `audio` | `core-audio-mpv` on `load` and mutators | ✅ |
 | `mediaSession`, `background` | `core-media-session-*`, `core-background-*` | ✅ |
-| `secrets:own` | `core-secrets-node`, `core-secrets-expo`, kernel `assertOwnNamespace` | ✅ |
-| `js`, and the per-source narrowing of `net:host/…` | `core-js-quickjs-node`, `core-http-*`, `plugin-source-runtime` | ✅ |
+| `secrets:own` | `core-secrets-desktop`, `core-secrets-mobile`, kernel `assertOwnNamespace` | ✅ |
+| `js`, and the per-source narrowing of `net:host/…` | `core-js-quickjs-desktop`, `core-http-*`, `plugin-source-runtime` | ✅ |
 | `notify`, `shell` | Platform host mediation (`core-device-*`, desktop bridge) | ✅ |
 
 ### The gate fails closed
