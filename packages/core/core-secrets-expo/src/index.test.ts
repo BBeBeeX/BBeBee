@@ -119,11 +119,69 @@ describe('scoping', () => {
     const ctx = await harness()
     const a = scopeContext(ctx, { pluginId: '@BBeBee/a', requested: ['secrets:own'] as never })
     await a.secrets.set('token', 'a-token')
-    // The scoped key exists in the index, and it carries no `/` or `@`.
-    const raw = await (
-      await import('expo-secure-store')
-    ).getItemAsync('__BBeBee_index')
+    // The scoped key exists in shard 0, and it carries no `/` or `@`.
+    const store = (await import('expo-secure-store')) as unknown as {
+      getItemAsync: (key: string) => Promise<string | null>
+    }
+    const raw = await store.getItemAsync('__BBeBee_idx_0')
     expect(raw).toBeDefined()
     expect(JSON.parse(raw!)).toEqual(['_BBeBee_a.token'])
+  })
+
+  it('enumerates and clears every key past the single-value index cap', async () => {
+    // The index is itself a 2048-byte SecureStore value; the sharded layout
+    // is what lets a store grow past ~50 keys without evicting entries —
+    // and `clear()` without missing the evicted ones.
+    const ctx = await harness()
+    for (let i = 0; i < 200; i++) {
+      await ctx.secrets.set(`source-${i}.refreshToken`, `v${i}`)
+    }
+    // All 200 are still enumerated (the old single index would have evicted
+    // the oldest ~150 by this point).
+    const seen = new Set<string>()
+    const store = (await import('expo-secure-store')) as unknown as {
+      getItemAsync: (key: string) => Promise<string | null>
+    }
+    for (let s = 0; ; s++) {
+      const raw = await store.getItemAsync(`__BBeBee_idx_${s}`)
+      if (!raw) break
+      for (const key of JSON.parse(raw) as string[]) seen.add(key)
+    }
+    expect(seen.size).toBe(200)
+
+    await ctx.secrets.clear()
+    for (let i = 0; i < 200; i++) {
+      expect(await ctx.secrets.get(`source-${i}.refreshToken`)).toBeUndefined()
+    }
+    expect(JSON.parse((await store.getItemAsync('__BBeBee_idx_0'))!)).toEqual([])
+  })
+
+  it('adopts the pre-sharding single index on first use', async () => {
+    const store = (await import('expo-secure-store')) as unknown as {
+      getItemAsync: (key: string) => Promise<string | null>
+      setItemAsync: (key: string, value: string) => Promise<void>
+    }
+    await store.setItemAsync('legacy.token', 'legacy-value')
+    await store.setItemAsync('__BBeBee_index', JSON.stringify(['legacy.token']))
+
+    const ctx = await harness()
+    await ctx.secrets.clear()
+    // The legacy entry was enumerated and removed, and the legacy index key
+    // itself is gone.
+    expect(await ctx.secrets.get('legacy.token')).toBeUndefined()
+    expect(await store.getItemAsync('__BBeBee_index')).toBeNull()
+  })
+
+  it('reports no hardware backing on an Android emulator', async () => {
+    const rn = (await import('react-native')) as unknown as {
+      __setModelForTests?: (model: string) => void
+    }
+    rn.__setModelForTests?.('sdk_gphone64_x86_64')
+    const emulator = await harness()
+    expect(emulator.secrets.isHardwareBacked).toBe(false)
+
+    rn.__setModelForTests?.('Pixel 8')
+    const device = await harness()
+    expect(device.secrets.isHardwareBacked).toBe(true)
   })
 })

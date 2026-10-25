@@ -23,6 +23,7 @@
 import * as SecureStore from 'expo-secure-store'
 import { Service } from 'cordis'
 import { storageNamespace } from '@BBeBee/kernel'
+import { Platform } from 'react-native'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import type { SecretsService } from '@BBeBee/protocol'
@@ -33,12 +34,20 @@ const MAX_VALUE_BYTES = 2048
 /**
  * Where the key index lives.
  *
+ * ⚠️ **Sharded, not single.** The index is itself a SecureStore value, so a
+ * single key is capped at 2048 bytes — roughly fifty keys — and the oldest
+ * entries were silently evicted to stay under it, which meant `clear()` could
+ * miss a secret (the "sign-out missed an old key" failure). The list is split
+ * across `__BBeBee_idx_<n>` shards of ~forty keys each, so enumeration grows
+ * with the store instead of evicting.
+ *
  * Prefixed so it cannot collide with a caller's key, and namespaced so one
- * source's index is not another's. Losing it costs enumeration — a later
- * `clear()` would miss keys — so it is written *before* the value it describes:
- * an orphaned index entry is harmless, an unindexed secret is not.
+ * source's index is not another's. Shards are written *before* the values they
+ * describe: an orphaned index entry is harmless, an unindexed secret is not.
  */
-const INDEX_KEY = '__BBeBee_index'
+const INDEX_SHARD = '__BBeBee_idx_'
+/** The pre-sharding single index. Adopted and deleted on first read. */
+const LEGACY_INDEX_KEY = '__BBeBee_index'
 
 /**
  * The namespace separator.
@@ -79,11 +88,18 @@ export class SecretsExpo extends Service implements SecretsService {
 
   /**
    * True where the platform has a keychain, which is every device this ships
-   * to — but not, for instance, a simulator with no passcode set. Reported
-   * rather than assumed, so the UI can say so.
+   * to. Android emulators answer false — detectable from `Platform`
+   * constants, and their "keystore" is a file on the host disk, which stops
+   * a stray `cat` and nothing else. iOS simulators are not distinguishable
+   * without another native module and still answer true; the flag is a UI
+   * hint, not a security boundary.
    */
   get isHardwareBacked(): boolean {
-    return true
+    if (Platform.OS !== 'android') return true
+    const model = String(
+      (Platform.constants as { Model?: unknown } | undefined)?.Model ?? '',
+    )
+    return !/sdk_gphone|sdk_phone|google_sdk|emulator|androidsdk|droid4x|nox|bluestacks/i.test(model)
   }
 
   async get(key: string): Promise<string | undefined> {
@@ -118,11 +134,13 @@ export class SecretsExpo extends Service implements SecretsService {
       await this.clearPrefix(prefix)
       return
     }
-    const keys = await this.index()
+    const keys = await this.readIndex()
     for (const key of keys) {
       await SecureStore.deleteItemAsync(key, this.config.options)
     }
-    await SecureStore.deleteItemAsync(INDEX_KEY, this.config.options)
+    await this.writeIndex([])
+    // A pre-sharding install's single index goes too.
+    await SecureStore.deleteItemAsync(LEGACY_INDEX_KEY, this.config.options)
   }
 
   namespace(ns: string): SecretsService {
@@ -193,7 +211,7 @@ export class SecretsExpo extends Service implements SecretsService {
 
   /** @internal */
   async clearPrefix(prefix: string): Promise<void> {
-    const keys = await this.index()
+    const keys = await this.readIndex()
     const mine = keys.filter((key) => key.startsWith(prefix))
     for (const key of mine) {
       await SecureStore.deleteItemAsync(key, this.config.options)
@@ -201,44 +219,85 @@ export class SecretsExpo extends Service implements SecretsService {
     await this.writeIndex(keys.filter((key) => !key.startsWith(prefix)))
   }
 
-  private async index(): Promise<string[]> {
-    const raw = await this.read(INDEX_KEY)
-    if (!raw) return []
-    try {
-      const parsed: unknown = JSON.parse(raw)
-      return Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === 'string') : []
-    } catch {
-      return []
+  /**
+   * Every indexed key, across shards. A pre-sharding install still has the
+   * single legacy index: adopt it into the shard set and delete the old key,
+   * so one read migrates and every later write is sharded.
+   */
+  private async readIndex(): Promise<string[]> {
+    const keys: string[] = []
+    const legacy = await this.read(LEGACY_INDEX_KEY)
+    if (legacy) {
+      try {
+        const parsed: unknown = JSON.parse(legacy)
+        if (Array.isArray(parsed)) {
+          keys.push(...parsed.filter((k): k is string => typeof k === 'string'))
+        }
+      } catch {
+        // An unreadable legacy index starts empty — same trade as a corrupt
+        // shard: enumeration from here on, never a refusal to work.
+      }
+      await SecureStore.deleteItemAsync(LEGACY_INDEX_KEY, this.config.options)
     }
+    for (let i = 0; ; i++) {
+      const raw = await this.read(`${INDEX_SHARD}${i}`)
+      if (!raw) break
+      try {
+        const parsed: unknown = JSON.parse(raw)
+        if (!Array.isArray(parsed)) break
+        keys.push(...parsed.filter((k): k is string => typeof k === 'string'))
+      } catch {
+        break // A corrupt shard ends the walk; earlier shards still count.
+      }
+    }
+    return keys
   }
 
   private async remember(key: string): Promise<void> {
-    const keys = await this.index()
+    const keys = await this.readIndex()
     if (keys.includes(key)) return
     await this.writeIndex([...keys, key])
   }
 
   private async forget(key: string): Promise<void> {
-    const keys = await this.index()
+    const keys = await this.readIndex()
     if (!keys.includes(key)) return
     await this.writeIndex(keys.filter((k) => k !== key))
   }
 
   /**
-   * ⚠️ The index is itself a 2048-byte value.
-   *
-   * At ~40 bytes a key that is roughly fifty keys, which a dozen sources with
-   * a handful of secrets each will reach. Oldest-first eviction keeps the
-   * index writable; the *secret* stays, it just stops being enumerable — so
-   * the failure is "sign-out missed an old key", not "sign-in stopped
-   * working". Worth revisiting with a per-namespace index if it bites.
+   * Spread the index over as many shards as it takes, packed by encoded size
+   * so no shard approaches the 2048-byte cap whatever the key lengths. Shard 0
+   * always exists (empty is `[]`), so a fresh store and a cleared one read
+   * back cleanly; surplus shards from a previous, larger layout are deleted so
+   * the walk in `readIndex` terminates at the truth.
    */
   private async writeIndex(keys: string[]): Promise<void> {
-    let kept = keys
-    while (new TextEncoder().encode(JSON.stringify(kept)).length > MAX_VALUE_BYTES && kept.length) {
-      kept = kept.slice(1)
+    const SAFE_SHARD_BYTES = 1800 // headroom under the 2048-byte value cap
+    const shards: string[][] = [[]]
+    let size = 2 // '[]'
+    for (const key of keys) {
+      const cost = key.length + 3 // quotes plus separator
+      const current = shards[shards.length - 1]!
+      if (current.length > 0 && size + cost > SAFE_SHARD_BYTES) {
+        shards.push([])
+        size = 2
+      }
+      shards[shards.length - 1]!.push(key)
+      size += cost
     }
-    await SecureStore.setItemAsync(INDEX_KEY, JSON.stringify(kept), this.config.options)
+    for (let i = 0; i < shards.length; i++) {
+      await SecureStore.setItemAsync(
+        `${INDEX_SHARD}${i}`,
+        JSON.stringify(shards[i]),
+        this.config.options,
+      )
+    }
+    for (let i = shards.length; ; i++) {
+      const shardKey = `${INDEX_SHARD}${i}`
+      if (!(await this.read(shardKey))) break
+      await SecureStore.deleteItemAsync(shardKey, this.config.options)
+    }
   }
 }
 

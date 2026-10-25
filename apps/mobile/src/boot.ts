@@ -63,6 +63,14 @@ import logFile from '@bbebee/plugin-log-file'
 
 import { BOOTSTRAP_SERVICES, ENABLED } from './plugins'
 
+/*
+ * The native audio-engine binding, if this build carries it: installs
+ * `globalThis.bbebeeMobileMpv` for the audio service to probe. Must run (as
+ * an import side effect) before `MobileAudioService` mounts; a build without
+ * the native module degrades to the simulation bridge inside the adapter.
+ */
+import '../modules/audio-engine/index.js'
+
 /**
  * Metro defines this in every bundle; it is `false` in a release build.
  *
@@ -70,6 +78,49 @@ import { BOOTSTRAP_SERVICES, ENABLED } from './plugins'
  * does not depend on which React Native types happen to be in scope.
  */
 declare const __DEV__: boolean
+
+/*
+ * Hermes' `TextDecoder` is UTF-8-only. Two tag paths need more: a Latin-1
+ * ID3v2.3 tag written by an old ripper (music-metadata decodes it as
+ * latin1) and the codec's GBK mojibake recovery — on a Chinese music
+ * library that is the difference between track names and noise. Install the
+ * full WHATWG implementation once, before anything reads a tag. Pure JS;
+ * the encoding tables cost ~1 MB of bundle, which is the price of old
+ * Chinese tags not arriving as mojibake.
+ *
+ * ⚠️ `text-encoding` *forwards to a pre-existing global* when one exists:
+ * its module exports `global['TextDecoder']`, and installs its own only if
+ * that slot is empty. On Hermes the slot holds the UTF-8-only native class,
+ * so a plain import would re-export the native class and defeat the whole
+ * point. The globals are therefore blanked *before* the module evaluates —
+ * which is also why both requires are dynamic: a static import would run at
+ * bundle init, before this function has had its chance.
+ */
+declare const require: (id: string) => unknown
+
+function installFullTextDecoding(): void {
+  try {
+    new TextDecoder('gbk')
+    return // The runtime already carries the full encoding table.
+  } catch {
+    // Fall through and install the polyfill.
+  }
+  const g = globalThis as {
+    TextDecoder?: unknown
+    TextEncoder?: unknown
+    'encoding-indexes'?: unknown
+  }
+  const indexes = require('text-encoding/lib/encoding-indexes.js') as {
+    'encoding-indexes'?: unknown
+  }
+  // The tables module only auto-attaches under Node; Metro never runs that
+  // path, so hand them over explicitly.
+  g['encoding-indexes'] ??= indexes['encoding-indexes']
+  g['TextDecoder'] = undefined
+  g['TextEncoder'] = undefined
+  require('text-encoding')
+}
+installFullTextDecoding()
 
 /**
  * Whether the mobile app is running in debug mode.

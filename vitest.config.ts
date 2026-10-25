@@ -17,6 +17,12 @@ export default defineConfig({
         new URL('./test/stubs/react-native-audio-api.ts', import.meta.url),
       ),
       /*
+       * `react-native` itself, for the core packages that read `Platform`
+       * (the emulator-detection `core-secrets-expo` bases its
+       * `isHardwareBacked` answer on). Mutable constants, nothing else.
+       */
+      'react-native': fileURLToPath(new URL('./test/stubs/react-native.ts', import.meta.url)),
+      /*
        * `expo-sqlite`, on the other hand, is aliased to something that really
        * works: `node:sqlite` behind the Expo surface. The gate MD-4 added has
        * to be shown to hold on *both* drivers, and a stub that threw would

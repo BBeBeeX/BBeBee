@@ -25,11 +25,12 @@
  *   rather than the renderer's — the one place a platform SDK is genuinely
  *   required.
  *
- * ⚠️ `music-metadata` on Hermes is the open risk. It is pure JavaScript but
- * leans on `TextDecoder`, which RN provides only for a subset of encodings —
- * enough for UTF-8 tags, not for a Latin-1 ID3v2.3 tag written by a 2004
- * ripper. The failure mode is a mangled title on an old file, not a crash, and
- * confirming it needs a device (docs/11 §8).
+ * ⚠️ `music-metadata` on Hermes needs more than the runtime's UTF-8-only
+ * `TextDecoder`: a Latin-1 ID3v2.3 tag written by a 2004 ripper, and the
+ * codec's GBK recovery, both need legacy encodings. The mobile shell
+ * installs the full WHATWG `text-encoding` implementation at boot, before
+ * anything reads a tag (see `apps/mobile/src/boot.ts`); without that
+ * install, GBK recovery is skipped and old Latin-1 titles mangle (docs/11 §8).
  *
  * See docs/04 §13 and docs/11 §4.1.
  */

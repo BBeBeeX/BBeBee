@@ -32,10 +32,10 @@ import type * as nodeFs from 'node:fs'
 import type * as nodeOs from 'node:os'
 import { FsRangeTokenizer } from './tokenizer.js'
 
-// iconv-lite is Node-only (it needs Buffer). The codec runs in the sidecar
-// (Node), never in the browser — but Vite will try to bundle a top-level
-// import into the renderer. Load it lazily so the browser bundle never
-// includes it; if the load fails, recovery is skipped.
+// iconv-lite is the desktop fallback for GBK recovery (it needs Buffer).
+// Load it lazily: the first line of defence is the platform TextDecoder
+// (see decodeGbk), so React Native never reaches this import at all, and a
+// browser bundle never includes it either.
 type IconvLite = {
   decode(buffer: Buffer, encoding: string): string
   encode(str: string, encoding: string): Buffer
@@ -43,8 +43,6 @@ type IconvLite = {
 let iconvLite: IconvLite | undefined
 async function getIconv(): Promise<IconvLite | undefined> {
   if (iconvLite) return iconvLite
-  // Skip entirely in the browser — the codec doesn't run there.
-  if (typeof window !== 'undefined') return undefined
   try {
     const mod = (await import('iconv-lite')) as unknown as {
       default?: IconvLite
@@ -55,6 +53,36 @@ async function getIconv(): Promise<IconvLite | undefined> {
     return undefined
   }
 }
+
+/**
+ * The platform GBK decoder, when the platform has one.
+ *
+ * Node ≥ 14 (full ICU — the desktop sidecar) and any shell that installs the
+ * WHATWG `text-encoding` polyfill answer `new TextDecoder('gbk')` directly.
+ * Hermes does not (UTF-8 only); `null` here means "fall through to iconv or
+ * skip recovery".
+ */
+let platformGbkDecoder: TextDecoder | null | undefined
+function getPlatformGbkDecoder(): TextDecoder | null {
+  if (platformGbkDecoder === undefined) {
+    try {
+      platformGbkDecoder = new TextDecoder('gbk')
+    } catch {
+      platformGbkDecoder = null
+    }
+  }
+  return platformGbkDecoder
+}
+
+/** Latin-1 string → bytes without `Buffer`: one byte per UTF-16 code unit. */
+function latin1Bytes(s: string): Uint8Array {
+  const out = new Uint8Array(s.length)
+  for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i) & 0xff
+  return out
+}
+
+const utf8Encoder: TextEncoder | undefined =
+  typeof TextEncoder !== 'undefined' ? new TextEncoder() : undefined
 
 /**
  * Recover GBK-encoded text that was misdecoded.
@@ -73,25 +101,39 @@ async function getIconv(): Promise<IconvLite | undefined> {
  * decoding produces CJK. Correctly-decoded text (including proper Chinese)
  * is left untouched.
  */
-async function recoverGbkText(input: string | undefined): Promise<string | undefined> {
+/**
+ * Decode GBK bytes with the first decoder this platform can offer.
+ * `undefined` means the platform has none — recovery is skipped.
+ */
+async function decodeGbkBytes(bytes: Uint8Array): Promise<string | undefined> {
+  const platform = getPlatformGbkDecoder()
+  if (platform) return platform.decode(bytes)
+  const iconv = await getIconv()
+  if (!iconv) return undefined
+  try {
+    return iconv.decode(Buffer.from(bytes), 'gbk')
+  } catch {
+    return undefined
+  }
+}
+
+/** @internal — exported for tests; the production path is readMetadata's. */
+export async function recoverGbkText(input: string | undefined): Promise<string | undefined> {
   if (!input || typeof input !== 'string') return input
   if (/[\u4e00-\u9fff]/.test(input)) return input
 
-  const iconv = await getIconv()
-  if (!iconv) return input
-
   // Case 1: Latin1 misdecode — no �, but high-byte chars present.
-  if (!input.includes('�') && /[\u0080-\u00ff]/.test(input)) {
+  if (!input.includes('\uFFFD') && /[\u0080-\u00ff]/.test(input)) {
     try {
-      const bytes = Buffer.from(input, 'latin1')
-      const decoded = iconv.decode(bytes, 'gbk')
+      const decoded = await decodeGbkBytes(latin1Bytes(input))
       // Require at least 2 CJK characters: a single accented Latin char
       // (e.g. ó in "Jóga") can coincidentally form one valid GBK sequence
       // with its neighbor, but real Chinese text has runs of CJK.
       if (
+        decoded !== undefined &&
         decoded !== input &&
         /[\u4e00-\u9fff][\u4e00-\u9fff]/.test(decoded) &&
-        !decoded.includes('�')
+        !decoded.includes('\uFFFD')
       ) {
         return decoded
       }
@@ -103,29 +145,34 @@ async function recoverGbkText(input: string | undefined): Promise<string | undef
 
   // Case 2: UTF-8 misdecode — has �. Recover segment by segment, keeping �
   // for the unrecoverable parts.
-  if (input.includes('�')) {
-    const segments = input.split('�')
+  if (input.includes('\uFFFD') && utf8Encoder) {
+    const segments = input.split('\uFFFD')
     let recoveredAny = false
-    const out = segments.map((seg) => {
-      if (!seg || /[\u4e00-\u9fff]/.test(seg)) return seg
+    const out: string[] = []
+    for (const seg of segments) {
+      if (!seg || /[\u4e00-\u9fff]/.test(seg)) {
+        out.push(seg)
+        continue
+      }
       try {
-        const bytes = Buffer.from(seg, 'utf8')
-        const decoded = iconv.decode(bytes, 'gbk')
+        const decoded = await decodeGbkBytes(utf8Encoder.encode(seg))
         if (
+          decoded !== undefined &&
           decoded !== seg &&
           /[\u4e00-\u9fff][\u4e00-\u9fff]/.test(decoded) &&
-          !decoded.includes('�') &&
-          !decoded.includes('锟')
+          !decoded.includes('\uFFFD') &&
+          !decoded.includes('\u951F')
         ) {
           recoveredAny = true
-          return decoded
+          out.push(decoded)
+          continue
         }
       } catch {
         // Keep original segment.
       }
-      return seg
-    })
-    if (recoveredAny) return out.join('�')
+      out.push(seg)
+    }
+    if (recoveredAny) return out.join('\uFFFD')
   }
 
   return input

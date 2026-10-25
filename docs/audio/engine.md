@@ -147,6 +147,24 @@ effects are rebuilt without ever touching a playing source. The two lifetimes ar
 - **Mobile Audio Engine Architecture (`MobileAudioService` in `apps/mobile`)**:
   - **The engine (`@bbebee/core-audio-mpv` via in-process libmpv JNI/JSI)**: because mobile sandboxes disallow child process spawning, the engine runs as an in-process native shared library (`libmpv.so` on Android, `mpv.framework` on iOS), interfaced via TurboModule JSI for hardware decoding and stream buffering. The Web Audio graph the engine's element path and DSP plumbing need is still provided by `react-native-audio-api` (`createContext`). In builds where the native library is not yet bundled, the in-process simulation bridge keeps audio output working.
   - **The wrapper forwards the engine's whole native surface**: `preloadNext`/`lastPreloadStatus` (gapless), `setVisualizer`, `getEngineStatus`, `setAudioExclusive`, and the `dsp/af-changed` → `mpvSetDspConfig` push — the same delegation `DesktopAudioService` performs, so a feature probing `ctx.audio` reads the same shape on either shell. The simulation bridge answers `mpvGetState` (position advances, natural end fires) and `mpvAppend` (the gapless rollover), and reports `mpvEngineStatus` as honestly not running so the visualizer falls back to the Web Audio analyser.
+  - **The native binding contract (`globalThis.bbebeeMobileMpv`)** — what `createMobileMpvBridge` in `apps/mobile/src/mobile-audio.ts` calls when the native module is installed. The mobile artifacts in `BBeBeeX/B_Be_Bee-audio-engine` must expose exactly this surface, mirroring the desktop sidecar's bridge:
+
+    | method | args | returns |
+    |---|---|---|
+    | `mpvLoad` | `(uri, { strategy?, headers? })` | `{ durationMs?, resumed, sampleRate?, channels?, bitDepth?, endedCount? }` |
+    | `mpvPlay` | `(atMs?)` | `void` (seeks when `atMs` given) |
+    | `mpvPause` / `mpvStop` | — | `void` |
+    | `mpvSeek` | `(positionMs)` | `void` |
+    | `mpvGetState` | — | `{ positionMs, durationMs, status: 'idle'\|'playing'\|'paused'\|'ended', endedCount }` |
+    | `mpvAppend` | `(uri, play?, { headers? })` | `void` (gapless playlist append) |
+    | `mpvSetVolume` / `mpvSetMuted` | `(0..1)` / `(bool)` | `void` |
+    | `mpvGetFftFrame` | — | `{ frequencyData: number[], timeDomainData: number[] }` |
+    | `mpvSetVisualizer` | `(enabled, fftSize?)` | `void` |
+    | `mpvEngineStatus` | — | `{ running, mpvAvailable, pcmTapAvailable }` |
+    | `mpvSetDspConfig` | `({ af, replaygain?, … })` | `void` |
+    | `mpvSetAudioExclusive` / `mpvSetOutputDevice` / `mpvGetAudioDevices` / `mpvSetStreamPlayback` | desktop-shaped | desktop-shaped |
+
+    ⚠️ Status of the binding: the Android JNI bridge (`engine/jni/bbebee_audio_jni.cpp` in the audio-engine repo) implements this contract over an in-process libmpv — full state/append/DSP surface, gapless re-bind detection, duration probing on load, PCM-tap FFT frames — and the app side is wired through the local Expo module `apps/mobile/modules/audio-engine/` (Kotlin loader + `BbebeeAudioEngine` Expo module + a JS adapter that installs `bbebeeMobileMpv`, loaded for its side effect from `boot.ts`). Bringing it live on a device needs two rebuilds: the engine artifacts (`pnpm fetch:audio-engine --app mobile` after the audio-engine repo cuts a release — the staged `.so` must be rebuilt to carry the extended JNI surface) and then the dev-client APK (`expo run:android`, which compiles the Kotlin module and bundles `libbbebee_audio_jni.so`/`libmpv.so` via the config plugin from the gitignored `resources/android-<abi>/` staging — set `BBEE_AUDIO_ENGINE_STRICT=1` for release prebuilds so a missing engine fails the build instead of silently shipping the simulation). Until both land, mobile runs the simulation bridge by design. `mpvGetAudioDevices` is deliberately not provided by the adapter: RN has no `navigator.mediaDevices`, so device enumeration falls back to the honest single default.
   - **State Continuity & Audio Interruption Management**: Audio settings and system interruptions (phone calls, alarms) via `AudioManager.observeAudioInterruptions` are handled uniformly at the composition root.
 - **Audio Output Engine, Exclusive Mode & Device Selection in Settings (`audioOutputEngine`, `audioExclusive`, `audioOutputDeviceId`)**:
   Settings provide output driver and hardware device configuration under the *Audio Output Engine & Devices* section:

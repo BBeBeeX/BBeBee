@@ -660,6 +660,8 @@ Expo: `react-native-audio-api`'s `AudioDecoder` for PCM plus a native tag reader
 
 > `getEncoderCapabilities()` reports what a probe can see, never optimism: when no local FFmpeg answers (React Native, or a desktop without FFmpeg on PATH) every encoder is reported unavailable — unless the native-engine transcode bridge is present, in which case a desktop build keeps reporting the engine's bundled encoders. A converter UI built on this list must not promise a transcode the platform cannot run.
 
+> GBK mojibake recovery runs on both platforms. The decoder seam is the platform `TextDecoder('gbk')` (native in the Node sidecar; the full WHATWG `text-encoding` polyfill installed by the mobile shell covers Hermes, whose TextDecoder is UTF-8-only — the same install is what lets `music-metadata` read Latin-1 ID3v2.3 tags), with `iconv-lite` as the desktop fallback. On a runtime with neither, recovery is skipped, never fatal.
+
 ---
 
 ## 14. `ctx.shell` — leaving the app

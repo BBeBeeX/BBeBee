@@ -55,6 +55,23 @@ function listAndroidAbiSources(projectRoot) {
   return sources
 }
 
+function strictMode() {
+  // `BBEE_AUDIO_ENGINE_STRICT=1` turns "engine missing" from a warning into
+  // a failed prebuild. The staging dirs are gitignored binaries, so a clean
+  // checkout on the build machine silently produced APKs whose only audio
+  // path was the JS simulation — release builds should refuse to do that.
+  return process.env['BBEE_AUDIO_ENGINE_STRICT'] === '1'
+}
+
+function noEngineError(where) {
+  return (
+    `[with-audio-engine] No audio-engine libraries found under ${where}. ` +
+    'The native engine will NOT be bundled and mobile audio degrades to the ' +
+    'in-process simulation. Run `pnpm fetch:audio-engine --app mobile` on this ' +
+    'machine, or unset BBEE_AUDIO_ENGINE_STRICT for a UI-only build.'
+  )
+}
+
 function withAndroidAudioEngine(config) {
   return withDangerousMod(config, [
     'android',
@@ -63,10 +80,8 @@ function withAndroidAudioEngine(config) {
       const abiSources = listAndroidAbiSources(projectRoot)
 
       if (abiSources.length === 0) {
-        console.warn(
-          '[with-audio-engine] No Android audio-engine libraries found under resources/android-<abi>/ ' +
-            '(or apps/mobile/third-party/audio-engine/android/). The native engine will NOT be bundled.',
-        )
+        if (strictMode()) throw new Error(noEngineError('resources/android-<abi>/'))
+        console.warn(noEngineError('resources/android-<abi>/'))
         return modConfig
       }
 
@@ -156,10 +171,8 @@ function withIosAudioEngine(config) {
     const iosDir = resolveIosResourceDir(projectRoot)
 
     if (!iosDir) {
-      console.warn(
-        '[with-audio-engine] No iOS audio-engine frameworks found under resources/ios/ ' +
-          '(or apps/mobile/third-party/audio-engine/ios/). The native engine will NOT be bundled.',
-      )
+      if (strictMode()) throw new Error(noEngineError('resources/ios/'))
+      console.warn(noEngineError('resources/ios/'))
       return modConfig
     }
 

@@ -26,7 +26,7 @@ import { FsNode } from '@BBeBee/core-fs-node'
 import { codecConformance } from '@BBeBee/protocol/conformance'
 import { diffSnapshots, snapshotContext, tempDir, tick } from '@BBeBee/kernel/testing'
 import type { FsService, Uri } from '@BBeBee/protocol'
-import plugin, { type CodecNode } from './index.js'
+import plugin, { recoverGbkText, type CodecNode } from './index.js'
 
 /* ── fixtures ───────────────────────────────────────────────────────────── */
 
@@ -351,6 +351,19 @@ async function harness() {
 /* ── tests ──────────────────────────────────────────────────────────────── */
 
 describe('core-codec-node', () => {
+  it('recovers GBK-misdecoded tag text', async () => {
+    // Built with iconv so the fixture cannot drift from real GBK: encode
+    // CJK to GBK bytes, then read them the way a Latin-1 misparse would.
+    const iconv = (await import('iconv-lite')).default ?? (await import('iconv-lite'))
+    const misread = iconv.encode('你好世界', 'gbk').toString('latin1')
+    expect(misread).not.toContain('你')
+    expect(await recoverGbkText(misread)).toBe('你好世界')
+
+    // Text that is already CJK passes through untouched, and a genuine
+    // Latin-1 title (Björk's Jóga) is not "recovered" into Chinese.
+    expect(await recoverGbkText('已有的中文')).toBe('已有的中文')
+    expect(await recoverGbkText('Jóga')).toBe('Jóga')
+  })
   it('reads ID3 tags', async () => {
     const h = await harness()
     const meta = await h.codec.readMetadata(h.uri('tagged.mp3'))
